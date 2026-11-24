@@ -1,7 +1,10 @@
+//go:build audio_lab
+
 package soak
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,6 +14,7 @@ import (
 	"audio-tools/internal/acceptance"
 	"audio-tools/internal/conformance"
 	intexp "audio-tools/internal/experiment"
+	"audio-tools/internal/soak"
 
 	"github.com/stretchr/testify/require"
 )
@@ -105,6 +109,43 @@ func TestAcceptanceClaimsPassedScopesBrowserEvidenceToIndependentClaims(t *testi
 	}
 }
 
+func TestPersistEvidenceAssemblyKeepsMobileClaimAndSurfaceSelectionNarrow(t *testing.T) {
+	result := soak.Result{Run: conformance.Run{RunID: "run-1", Lane: conformance.LaneRealtime, Code: conformance.Code{Server: "server-1"}, Cell: conformance.Cell{EngineID: "engine", ModelID: "model", Strategy: "strategy"}}}
+	opt := soak.Options{Surface: " Swarm-Manager ", MobileRecovery: true}
+	machine := baseMachineEvidence(opt, result)
+	require.Equal(t, "swarm-manager-quick-capture", machine["product"])
+	claims := addMobileRecoveryClaim(nil, opt, soak.Result{MobileRecoveryPassed: true}, nil)
+	require.True(t, claimInBand(claims["mobile-recovery"]))
+	require.NoError(t, addAcceptanceEvidence(machine, result.Run, "D1", claims))
+	require.Equal(t, acceptance.Cohort, machine["cohort"])
+	addMobileEmulationEvidence(machine, opt, soak.Result{MobileRecoveryPassed: true})
+	require.Equal(t, map[string]any{"viewport_width": 390, "viewport_height": 844, "native": false, "diagnostic_export": true}, machine["mobile_emulation"])
+
+	failed := addMobileRecoveryClaim(nil, opt, soak.Result{MobileRecoveryPassed: true}, requireError{})
+	require.Nil(t, failed)
+	defaultProduct := baseMachineEvidence(soak.Options{Surface: "unknown"}, result)
+	require.Equal(t, "dictation-studio", defaultProduct["product"])
+}
+
+func TestDeviceEvidenceRequiresQualifiedRunAndEnumeratedQualificationDevice(t *testing.T) {
+	run := completeAcceptanceRun()
+	device := &soak.AudioDeviceEvidence{Enumerated: true, SelectedLabel: "Vrooli_Qualification_Microphone", SampleRate: 16000, ChannelCount: 1}
+	require.True(t, deviceEvidencePassed(run, nil, device))
+	require.False(t, deviceEvidencePassed(run, requireError{}, device))
+	require.False(t, deviceEvidencePassed(run, nil, nil))
+	device.SelectedLabel = "default microphone"
+	require.False(t, deviceEvidencePassed(run, nil, device))
+
+	device.SelectedLabel = "Vrooli_Qualification_Microphone"
+	machine := map[string]any{"acceptance": map[string]any{"dictation-trust": true}, "device_profile": "D1", "run_id": run.RunID}
+	deviceMachine := deviceMachineEvidence(machine, device)
+	require.NotContains(t, deviceMachine, "acceptance")
+	require.NotContains(t, deviceMachine, "device_profile")
+	require.Equal(t, "pipewire-host-device", deviceMachine["device_path"])
+	require.NotContains(t, deviceEvidenceNotes(device), "BAS returned no device evidence")
+	require.Contains(t, deviceEvidenceNotes(nil), "BAS returned no device evidence")
+}
+
 func TestClaimsAfterTrustCohortWithholdsTrustUntilThreeRuns(t *testing.T) {
 	run := completeAcceptanceRun()
 	claims := acceptance.ClaimsForRealtimeRun(run)
@@ -122,21 +163,37 @@ func TestProviderParityRequiresProductAndIndependentProviderReceipts(t *testing.
 	run := completeAcceptanceRun()
 	run.Turns = 30
 	history := []intexp.QualificationEvidence{
-		{EngineID: "kyutai", ModelID: "model-1", Passed: true, MachineJSON: acceptanceEnvelope(t, map[string]any{
+		{EngineID: "kyutai", ModelID: "model-1", Strategy: "passthrough", Passed: true, MachineJSON: acceptanceEnvelope(t, map[string]any{
 			"speaker-policy": map[string]any{"in_band": true, "negative_controls_passed": true},
 		})},
-		{EngineID: "kyutai", ModelID: "model-1", Passed: true, MachineJSON: acceptanceEnvelope(t, map[string]any{
+		{EngineID: "kyutai", ModelID: "model-1", Strategy: "passthrough", Passed: true, MachineJSON: acceptanceEnvelope(t, map[string]any{
 			"corpus-quality": map[string]any{"in_band": true, "negative_controls_passed": true},
 		})},
 	}
-	require.True(t, providerParityEligible(run, history))
+	require.True(t, providerParityEligible(run, "D1", history))
 	history[1].Passed = false
-	require.False(t, providerParityEligible(run, history))
+	require.False(t, providerParityEligible(run, "D1", history))
+	history[1].Passed = true
+
+	for _, mutate := range []func(map[string]any){
+		func(e map[string]any) { e["build"] = "other-build" },
+		func(e map[string]any) { e["device_profile"] = "D2" },
+		func(e map[string]any) { e["provider_cell"].(map[string]any)["strategy"] = "other-strategy" },
+	} {
+		mismatched := append([]intexp.QualificationEvidence(nil), history...)
+		for i := range mismatched {
+			var envelope map[string]any
+			require.NoError(t, json.Unmarshal(mismatched[i].MachineJSON, &envelope))
+			mutate(envelope)
+			mismatched[i].MachineJSON, _ = json.Marshal(envelope)
+		}
+		require.False(t, providerParityEligible(run, "D1", mismatched))
+	}
 }
 
 func acceptanceEnvelope(t *testing.T, claims map[string]any) []byte {
 	t.Helper()
-	payload, err := acceptance.MachineJSONForCell("build", "D1", acceptance.Cohort, acceptance.Policy, "kyutai", "model-1", "passthrough", claims)
+	payload, err := acceptance.MachineJSONForCell("server-1", "D1", acceptance.Cohort, acceptance.Policy, "kyutai", "model-1", "stt", "passthrough", claims)
 	require.NoError(t, err)
 	return payload
 }

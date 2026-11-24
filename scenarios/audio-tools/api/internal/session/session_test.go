@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -62,6 +63,131 @@ func TestSession_MultiObserver_ReceivesSameEvent(t *testing.T) {
 			t.Errorf("observer[%d] got %d events, want 5", i, c)
 		}
 	}
+}
+
+func TestSession_OverflowDetachesSlowObserverWithExplicitTerminalEvent(t *testing.T) {
+	s := New(Options{Transport: "fake"})
+	defer s.Close("test")
+	_, slow, err := s.Subscribe(context.Background(), 1)
+	require.NoError(t, err)
+	_, healthy, err := s.Subscribe(context.Background(), 4)
+	require.NoError(t, err)
+
+	s.EmitEvent(SessionEvent{Type: EventTranscriptDelta, TranscriptDelta: &TranscriptDelta{Text: "first"}})
+	s.EmitEvent(SessionEvent{Type: EventTranscriptDelta, TranscriptDelta: &TranscriptDelta{Text: "second"}})
+
+	terminal, ok := <-slow
+	require.True(t, ok)
+	require.Equal(t, EventClosed, terminal.Type)
+	require.Contains(t, terminal.Closed.Reason, "observer-overflow: 2 events unavailable")
+	require.Equal(t, s.ID(), terminal.Closed.ResumeFromEventID)
+	_, ok = <-slow
+	require.False(t, ok)
+	require.Equal(t, 1, s.ObserverCount(), "only the healthy subscriber remains attached")
+
+	for _, want := range []string{"first", "second"} {
+		ev := <-healthy
+		require.Equal(t, EventTranscriptDelta, ev.Type)
+		require.Equal(t, want, ev.TranscriptDelta.Text)
+	}
+}
+
+func TestSession_CloseReportsUndeliveredTailToSlowObserver(t *testing.T) {
+	s := New(Options{Transport: "fake"})
+	_, slow, err := s.Subscribe(context.Background(), 1)
+	require.NoError(t, err)
+	_, healthy, err := s.Subscribe(context.Background(), 2)
+	require.NoError(t, err)
+
+	s.EmitEvent(SessionEvent{Type: EventTranscriptDelta, TranscriptDelta: &TranscriptDelta{Text: "queued"}})
+	s.Close("finished")
+
+	terminal, ok := <-slow
+	require.True(t, ok)
+	require.Equal(t, EventClosed, terminal.Type)
+	require.Contains(t, terminal.Closed.Reason, "observer-overflow: 2 events unavailable")
+	require.Equal(t, s.ID(), terminal.Closed.ResumeFromEventID)
+	_, ok = <-slow
+	require.False(t, ok)
+
+	first := <-healthy
+	final := <-healthy
+	require.Equal(t, EventTranscriptDelta, first.Type)
+	require.Equal(t, EventClosed, final.Type)
+	require.Equal(t, "finished", final.Closed.Reason)
+}
+
+func TestSession_SubscribeFromReplaysMissedEventsThenLiveEvents(t *testing.T) {
+	s := New(Options{Transport: "fake"})
+	defer s.Close("test")
+	s.EmitEvent(SessionEvent{EventID: "cursor-1", Type: EventTranscriptDelta, TranscriptDelta: &TranscriptDelta{Text: "one"}})
+	s.EmitEvent(SessionEvent{EventID: "cursor-2", Type: EventTranscriptDelta, TranscriptDelta: &TranscriptDelta{Text: "two"}})
+
+	_, events, err := s.SubscribeFrom(context.Background(), 1, "cursor-1")
+	require.NoError(t, err)
+	s.EmitEvent(SessionEvent{EventID: "cursor-3", Type: EventTranscriptDelta, TranscriptDelta: &TranscriptDelta{Text: "three"}})
+
+	for i, want := range []string{"cursor-2", "cursor-3"} {
+		select {
+		case event := <-events:
+			require.Equal(t, want, event.EventID, "event index %d", i)
+		case <-time.After(time.Second):
+			t.Fatalf("timed out waiting for event %q", want)
+		}
+	}
+}
+
+func TestSession_SubscribeFromRejectsUnavailableCursor(t *testing.T) {
+	s := New(Options{Transport: "fake"})
+	defer s.Close("test")
+	_, _, err := s.SubscribeFrom(context.Background(), 4, "unknown-event")
+	require.ErrorIs(t, err, ErrReplayCursorUnavailable)
+}
+
+func TestSession_IDIsInitialReplayAnchor(t *testing.T) {
+	s := New(Options{Transport: "fake"})
+	defer s.Close("test")
+	s.EmitEvent(SessionEvent{EventID: "initial-event", Type: EventTranscriptDelta, TranscriptDelta: &TranscriptDelta{Text: "retained"}})
+
+	_, events, err := s.SubscribeFrom(context.Background(), 1, s.ID())
+	require.NoError(t, err)
+	require.Equal(t, "initial-event", (<-events).EventID)
+}
+
+func TestSession_OverflowFailureCanRecoverFromRetainedCursor(t *testing.T) {
+	s := New(Options{Transport: "fake"})
+	defer s.Close("test")
+	s.EmitEvent(SessionEvent{EventID: "last-seen", Type: EventTranscriptDelta, TranscriptDelta: &TranscriptDelta{Text: "seen"}})
+	_, slow, err := s.Subscribe(context.Background(), 1)
+	require.NoError(t, err)
+	s.EmitEvent(SessionEvent{EventID: "missed-1", Type: EventTranscriptDelta, TranscriptDelta: &TranscriptDelta{Text: "recover me 1"}})
+	s.EmitEvent(SessionEvent{EventID: "missed-2", Type: EventTranscriptDelta, TranscriptDelta: &TranscriptDelta{Text: "recover me 2"}})
+
+	terminal := <-slow
+	require.Equal(t, EventClosed, terminal.Type)
+	require.Contains(t, terminal.Closed.Reason, "observer-overflow")
+	require.Equal(t, "last-seen", terminal.Closed.ResumeFromEventID)
+
+	_, recovered, err := s.SubscribeFrom(context.Background(), 1, "last-seen")
+	require.NoError(t, err)
+	first, second := <-recovered, <-recovered
+	require.Equal(t, "missed-1", first.EventID)
+	require.Equal(t, "missed-2", second.EventID)
+}
+
+func TestSession_ReplayInvalidatesCursorWhenOversizedEventExceedsBudget(t *testing.T) {
+	s := New(Options{Transport: "fake"})
+	defer s.Close("test")
+	s.EmitEvent(SessionEvent{EventID: "before-large", Type: EventTranscriptDelta, TranscriptDelta: &TranscriptDelta{Text: "before"}})
+	s.EmitEvent(SessionEvent{EventID: "too-large", Type: EventAudioOutput, AudioOutput: &AudioFrame{Bytes: make([]byte, maxRetainedBytes+1)}})
+	s.EmitEvent(SessionEvent{EventID: "after-large", Type: EventTranscriptDelta, TranscriptDelta: &TranscriptDelta{Text: "after"}})
+
+	if _, _, err := s.SubscribeFrom(context.Background(), 4, "before-large"); !errors.Is(err, ErrReplayCursorUnavailable) {
+		t.Fatalf("SubscribeFrom with invalidated cursor error = %v, want ErrReplayCursorUnavailable", err)
+	}
+	_, events, err := s.SubscribeFrom(context.Background(), 4, "too-large")
+	require.NoError(t, err)
+	require.Equal(t, "after-large", (<-events).EventID)
 }
 
 func TestSession_BargeIn_CancelsInflight(t *testing.T) {
@@ -129,6 +255,46 @@ func TestSession_BargeIn_NoInflight_NoOp(t *testing.T) {
 	}
 }
 
+func TestSession_BargeIn_OlderCancelHookCannotOverlapNewAction(t *testing.T) {
+	entered := make(chan string, 2)
+	release := make(chan struct{})
+	s := New(Options{CancelHook: func(_ BargeInReason, eventID string) {
+		entered <- eventID
+		if eventID == "old" {
+			<-release
+		}
+	}})
+	defer s.Close("test")
+
+	s.MarkInflight("old")
+	bargeDone := make(chan struct{})
+	go func() {
+		s.BargeIn(BargeInVAD)
+		close(bargeDone)
+	}()
+	require.Equal(t, "old", <-entered)
+
+	markStarted := make(chan struct{})
+	markDone := make(chan struct{})
+	go func() {
+		close(markStarted)
+		s.MarkInflight("new")
+		close(markDone)
+	}()
+	<-markStarted
+	select {
+	case <-markDone:
+		t.Fatal("new action overlapped the older cancellation hook")
+	case <-time.After(20 * time.Millisecond):
+	}
+	close(release)
+	<-bargeDone
+	<-markDone
+
+	s.BargeIn(BargeInVAD)
+	require.Equal(t, "new", <-entered)
+}
+
 func TestSession_Close_DropsSubscribers(t *testing.T) {
 	s := New(Options{Transport: "fake"})
 
@@ -158,6 +324,91 @@ func TestSession_Close_DropsSubscribers(t *testing.T) {
 	if _, _, err := s.Subscribe(context.Background(), 4); err != ErrSessionClosed {
 		t.Errorf("post-close Subscribe error = %v, want %v", err, ErrSessionClosed)
 	}
+}
+
+func TestSession_SubscribeCloseRaceIsSafe(t *testing.T) {
+	for iteration := 0; iteration < 100; iteration++ {
+		s := New(Options{Transport: "fake"})
+		start := make(chan struct{})
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			<-start
+			for i := 0; i < 32; i++ {
+				_, _, err := s.Subscribe(context.Background(), 1)
+				if err != nil && err != ErrSessionClosed && err != ErrTooManySubscribers {
+					t.Errorf("Subscribe error = %v", err)
+				}
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			<-start
+			s.Close("race")
+			for i := 0; i < 32; i++ {
+				s.EmitEvent(SessionEvent{Type: EventTranscriptDelta})
+			}
+		}()
+		close(start)
+		wg.Wait()
+		require.Zero(t, s.ObserverCount())
+	}
+}
+
+func TestSession_SubscribeEnforcesObserverLimit(t *testing.T) {
+	s := New(Options{Transport: "fake"})
+	defer s.Close("test")
+	for i := 0; i < maxSessionObservers; i++ {
+		if _, _, err := s.Subscribe(context.Background(), 1); err != nil {
+			t.Fatalf("Subscribe[%d] error: %v", i, err)
+		}
+	}
+	if _, _, err := s.Subscribe(context.Background(), 1); err != ErrTooManySubscribers {
+		t.Fatalf("Subscribe at limit error = %v, want %v", err, ErrTooManySubscribers)
+	}
+}
+
+func TestSession_SubscribeRejectsNilOrCanceledContext(t *testing.T) {
+	s := New(Options{Transport: "fake"})
+	defer s.Close("test")
+	var nilContext context.Context
+	if _, _, err := s.Subscribe(nilContext, 1); err != ErrNilContext {
+		t.Fatalf("Subscribe(nil) error = %v, want %v", err, ErrNilContext)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, _, err := s.Subscribe(ctx, 1); err != context.Canceled {
+		t.Fatalf("Subscribe(canceled) error = %v, want %v", err, context.Canceled)
+	}
+	require.Zero(t, s.ObserverCount())
+}
+
+func TestSession_UnsubscribeStopsContextWatcher(t *testing.T) {
+	s := New(Options{Transport: "fake"})
+	defer s.Close("test")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	key, _, err := s.Subscribe(ctx, 1)
+	require.NoError(t, err)
+	s.Unsubscribe(key)
+	// Cancel after explicit unsubscribe; the watcher must already have exited
+	// via the observer's done channel, and repeated unsubscribe remains safe.
+	cancel()
+	s.Unsubscribe(key)
+	require.Zero(t, s.ObserverCount())
+}
+
+func TestSession_ClearInflightDoesNotClearNewerAction(t *testing.T) {
+	s := New(Options{Transport: "fake"})
+	defer s.Close("test")
+	s.MarkInflight("old")
+	s.MarkInflight("new")
+	s.ClearInflight("old")
+	var canceled string
+	s.cancelHook = func(_ BargeInReason, id string) { canceled = id }
+	s.BargeIn(BargeInVAD)
+	require.Equal(t, "new", canceled)
 }
 
 func TestRegistry_AddGetRemove(t *testing.T) {

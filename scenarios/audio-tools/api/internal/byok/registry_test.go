@@ -1,6 +1,10 @@
 package byok
 
-import "testing"
+import (
+	"testing"
+
+	"audio-tools/internal/providercatalog"
+)
 
 func TestRegistriesContents(t *testing.T) {
 	r := NewRegistries()
@@ -18,5 +22,24 @@ func TestRegistriesContents(t *testing.T) {
 	}
 	if _, ok := r.Summarize["openrouter"]; !ok {
 		t.Fatal("missing openrouter")
+	}
+}
+
+func TestRegistryUsesDeclaredProtocolAndPreservesProviderIdentity(t *testing.T) {
+	declared, ok := providercatalog.Default().ByID("openai-whisper")
+	if !ok {
+		t.Fatal("openai-whisper missing from provider catalog")
+	}
+	declared.ID = "synthetic-whisper-provider"
+	registries, err := NewRegistriesForProviders([]providercatalog.Provider{declared})
+	if err != nil {
+		t.Fatal(err)
+	}
+	adapter := registries.STT[declared.ID]
+	if adapter == nil {
+		t.Fatal("declaration did not register STT adapter")
+	}
+	if got := adapter.ID(); got != declared.ID {
+		t.Fatalf("adapter identity = %q, want canonical provider ID %q", got, declared.ID)
 	}
 }

@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 // Package recipe builds deterministic experiment inputs from corpus clips.
 package recipe
 
@@ -19,11 +21,13 @@ const (
 
 // Clip is the subset of corpus/eval clip data needed to assemble an input.
 type Clip struct {
-	ID         string
-	PCM        []byte
-	SampleRate int
-	Reference  string
-	Format     string
+	ID               string
+	PCM              []byte
+	SampleRate       int
+	Reference        string
+	Format           string
+	TimedReference   []inteval.TimedWord
+	TimingProvenance *inteval.TimingReferenceProvenance
 }
 
 // Spec describes one seeded long-form concatenation.
@@ -84,12 +88,32 @@ func Build(spec Spec, clips []Clip) (inteval.Clip, Realization, error) {
 	gap := silence(gapMs)
 	var pcm []byte
 	refs := make([]string, 0, len(selected))
+	var timedReference []inteval.TimedWord
+	allReviewed := true
+	var provenanceSources, provenanceReviewers, provenanceMethods, provenanceTools, provenanceModels, provenanceDates []string
 	ids := make([]string, 0, len(selected))
+	var offsetSeconds float64
 	for i, clip := range selected {
 		if i > 0 {
 			pcm = append(pcm, gap...)
+			offsetSeconds += float64(gapMs) / 1000
 		}
 		pcm = append(pcm, clip.PCM...)
+		if clip.TimingProvenance == nil || !clip.TimingProvenance.ReviewReady() || len(clip.TimedReference) == 0 {
+			allReviewed = false
+		} else {
+			p := clip.TimingProvenance
+			provenanceSources = append(provenanceSources, p.SourceReference)
+			provenanceReviewers = append(provenanceReviewers, p.Reviewer)
+			provenanceMethods = append(provenanceMethods, p.ReviewMethod)
+			provenanceTools = append(provenanceTools, p.AlignmentTool)
+			provenanceModels = append(provenanceModels, p.AlignmentModel)
+			provenanceDates = append(provenanceDates, p.ReviewedAt)
+			for _, word := range clip.TimedReference {
+				timedReference = append(timedReference, inteval.TimedWord{Word: word.Word, Start: word.Start + offsetSeconds, End: word.End + offsetSeconds})
+			}
+		}
+		offsetSeconds += float64(len(clip.PCM)) / float64(CanonicalSampleRate*2)
 		ids = append(ids, clip.ID)
 		if ref := strings.TrimSpace(clip.Reference); ref != "" {
 			refs = append(refs, ref)
@@ -102,6 +126,15 @@ func Build(spec Spec, clips []Clip) (inteval.Clip, Realization, error) {
 		SampleRate: CanonicalSampleRate,
 		Reference:  reference,
 		Format:     "pcm_s16le",
+	}
+	if allReviewed && len(timedReference) > 0 {
+		out.TimedReference = timedReference
+		out.TimingProvenance = &inteval.TimingReferenceProvenance{
+			Status: "human_reviewed", SourceReference: strings.Join(provenanceSources, ";"),
+			Reviewer: strings.Join(provenanceReviewers, ";"), ReviewMethod: strings.Join(provenanceMethods, ";"),
+			AlignmentTool: strings.Join(provenanceTools, ";"), AlignmentModel: strings.Join(provenanceModels, ";"),
+			ReviewedAt: strings.Join(provenanceDates, ";"),
+		}
 	}
 	return out, Realization{ClipIDs: ids, Reference: reference, DurationMs: int64(out.Duration() / time.Millisecond)}, nil
 }

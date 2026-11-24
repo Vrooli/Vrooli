@@ -19,6 +19,7 @@ export function useHydrateVoiceConfig(): void {
       .then((cfg) => {
         if (cancelled) return;
         useVoiceConfigStore.getState().setFromServer({
+          engineId: cfg.engineId,
           vadSilenceMs: cfg.vadSilenceMs,
           segmentSilenceMs: cfg.segmentSilenceMs,
           persistentMode: cfg.persistentMode,

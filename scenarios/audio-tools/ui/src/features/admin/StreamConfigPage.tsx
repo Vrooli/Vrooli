@@ -5,7 +5,7 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import { Panel } from "../../components/ui/panel";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
-import { PageHeader } from "../../components/composites/PageHeader";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { ApiErrorState } from "../../components/composites/ApiErrorState";
 import { LoadingRows } from "../../components/composites/LoadingRows";
 import { pushToast } from "../../components/ui/toast";
@@ -29,7 +29,7 @@ import {
   readinessTone,
 } from "../models/modelDisplay";
 import { OverlapStallGuard } from "./OverlapStallGuard";
-import { CopyableCommand } from "./components/CopyableCommand";
+import { CopyableCommand } from "../../components/composites/CopyableCommand";
 
 interface PendingSwitch {
   target: Engine;

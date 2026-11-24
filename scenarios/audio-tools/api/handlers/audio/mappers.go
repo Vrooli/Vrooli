@@ -26,6 +26,8 @@ func audioFormatString(f commonv1.AudioFormat) string {
 		return "opus"
 	case commonv1.AudioFormat_AUDIO_FORMAT_AAC:
 		return "aac"
+	case commonv1.AudioFormat_AUDIO_FORMAT_PCM_S16LE:
+		return "pcm_s16le"
 	}
 	return ""
 }
@@ -53,6 +55,8 @@ func audioFormatFromString(s string) commonv1.AudioFormat {
 			return commonv1.AudioFormat_AUDIO_FORMAT_OPUS
 		case "aac":
 			return commonv1.AudioFormat_AUDIO_FORMAT_AAC
+		case "pcm_s16le":
+			return commonv1.AudioFormat_AUDIO_FORMAT_PCM_S16LE
 		}
 	}
 	return commonv1.AudioFormat_AUDIO_FORMAT_UNSPECIFIED

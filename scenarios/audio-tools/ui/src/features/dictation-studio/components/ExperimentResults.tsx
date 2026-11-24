@@ -112,6 +112,9 @@ function ExperimentRecipeSummary({ row }: { row: ExperimentRow | null }) {
         <div className="text-xs text-app-muted-foreground">{t(strings.dictationStudio.strategiesLabel)}</div>
         <div>{r.strategies.join(", ") || t(strings.dictationStudio.recipeDefault)}</div>
       </div>
+      {r.metricsOnly ? (
+        <div className="md:col-span-4 text-xs text-app-muted-foreground">{t(strings.dictationStudio.metricsOnlyRetentionLabel)}</div>
+      ) : null}
       <div>
         <div className="text-xs text-app-muted-foreground">{t(strings.dictationStudio.longFormLabel)}</div>
         <div>

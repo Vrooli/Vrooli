@@ -3,45 +3,31 @@ package bootstrap
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
-	"path/filepath"
-	"sync/atomic"
-	"time"
 
-	sttchain "audio-tools/internal/ai/sttchain"
-	summarizechain "audio-tools/internal/ai/summarizechain"
-	"audio-tools/internal/audioformat"
-	"audio-tools/internal/blobbytes"
-	"audio-tools/internal/buildidentity"
 	"audio-tools/internal/byok"
 	"audio-tools/internal/capabilities"
-	intcorpus "audio-tools/internal/corpus"
-	intexp "audio-tools/internal/experiment"
-	"audio-tools/internal/experiment/evaldeps"
-	expreport "audio-tools/internal/experiment/report"
-	"audio-tools/internal/httpc"
+	"audio-tools/internal/duplex"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/server"
 	intsession "audio-tools/internal/session"
-	sttpkg "audio-tools/internal/stt"
-	sttpipeline "audio-tools/internal/stt/pipeline"
 	sttsession "audio-tools/internal/stt/session"
-	"audio-tools/internal/sttbackend"
-	"audio-tools/internal/sttengine"
 	intsumm "audio-tools/internal/summarize"
 	inttts "audio-tools/internal/tts"
 	"audio-tools/internal/usagereport"
 
-	"github.com/vrooli/api-core/discovery"
-	"github.com/vrooli/api-core/schedule"
-
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/storage"
-	experimentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment"
-	"google.golang.org/protobuf/encoding/protojson"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
+
+type accountCreditCredentials struct{}
+
+func (accountCreditCredentials) Resolve(ctx context.Context, identity, field string) (string, error) {
+	return credentialauthority.ServiceCredential(identity, field)(ctx)
+}
 
 // Deps is the bundle of everything Build constructs. main.go does not
 // read it (it only needs the *server.Server and a cleanup func); the
@@ -55,7 +41,6 @@ type Deps struct {
 	Stores    Stores
 	Chains    Chains
 	BYOK      byok.Registries
-	Voice     *sttpipeline.Service
 	TTS       *inttts.Service
 	Summ      *intsumm.Summarizer
 	Cache     *inttts.Cache
@@ -71,192 +56,56 @@ type Deps struct {
 // dev-only routed-pool service before requests reach the scenario handler.
 func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, error) {
 	env := Load()
-	// Static voice coverage is a build-time defect, not a runtime condition:
-	// fail before opening the DB or starting the manager when an adapter has no
-	// mapping for a canonical voice.
-	if err := inttts.VerifyCatalog(inttts.CanonicalAdapterMappings); err != nil {
-		return nil, nil, nil, fmt.Errorf("validate TTS voice catalog: %w", err)
-	}
-	if resolved, resolveErr := discovery.ResolveScenarioURLDefault(ctx, "landing-page-business-suite"); resolveErr == nil {
-		env.LPBSBaseURL = resolved
+	ttsPlan, env, err := resolveTTSStartupPlan(ctx, env)
+	if err != nil {
+		return nil, nil, nil, err
 	}
 
 	db, _, err := OpenDB(ctx, env)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("open db: %w", err)
 	}
-
-	logger := logx.Std{L: log.Default()}
-
-	// Capability singletons (Local providers). The registry must be wired
-	// with concrete checkers — otherwise IsAvailable returns false for
-	// every capability and the STT/TTS/Summarize chains report "all
-	// providers failed" even when the underlying resources are healthy.
-	doer := httpc.DefaultDoer()
-	readinessDoer := httpc.ReadinessDoer()
-	livenessDoer := httpc.LivenessDoer()
-	summCfg := intsumm.DefaultSummarizeConfig()
-	summCfg.Model = env.SummarizeDefaultModel
-	whisperChecker := &capabilities.WhisperChecker{BaseURL: env.WhisperURL, Doer: readinessDoer}
-	kokoroChecker := &capabilities.KokoroChecker{BaseURL: env.KokoroURL, Doer: readinessDoer}
-	speakerChecker := &capabilities.ResourceChecker{URL: env.SherpaURL + "/ready", Doer: readinessDoer}
-	ollamaChecker := &capabilities.OllamaChecker{BaseURL: env.OllamaURL, Doer: readinessDoer, ModelFn: func() string {
-		return summCfg.Model
-	}}
-	openRouterChecker := &capabilities.OpenRouterChecker{APIKey: env.OpenRouterAPIKey, BaseURL: env.OpenRouterURL, Doer: readinessDoer}
-	livenessOpenRouterChecker := &capabilities.OpenRouterChecker{APIKey: env.OpenRouterAPIKey, BaseURL: env.OpenRouterURL, Doer: livenessDoer}
-	defs := capabilities.KnownForPlatform("")
-	capsCheckers := map[string]capabilities.Checker{
-		"whisper-stt":          whisperChecker,
-		"kyutai-stt":           &capabilities.ResourceChecker{URL: env.KyutaiURL + "/ready", Doer: readinessDoer},
-		"kokoro-tts":           kokoroChecker,
-		"speaker-verification": speakerChecker,
-		"sherpa-stt":           &capabilities.ResourceChecker{URL: env.SherpaURL + "/healthz", Doer: readinessDoer},
-		"ollama":               ollamaChecker,
-		"openrouter":           openRouterChecker,
-		"audio-transcode":      &capabilities.TranscodeChecker{},
-		"audio-tools": capabilities.AggregateChecker{Checkers: []capabilities.Checker{
-			whisperChecker, speakerChecker, kokoroChecker, ollamaChecker,
-		}},
-	}
-	capsRegistry := capabilities.NewRegistry(defs, capsCheckers, 30*time.Second)
-	livenessCheckers := map[string]capabilities.Checker{
-		"whisper-stt":          &capabilities.ResourceChecker{URL: env.WhisperURL + "/", Doer: livenessDoer},
-		"kyutai-stt":           &capabilities.ResourceChecker{URL: env.KyutaiURL + "/ready", Doer: livenessDoer},
-		"kokoro-tts":           &capabilities.ResourceChecker{URL: env.KokoroURL + "/v1/audio/voices", Doer: livenessDoer},
-		"speaker-verification": &capabilities.ResourceChecker{URL: env.SherpaURL + "/ready", Doer: livenessDoer},
-		"sherpa-stt":           &capabilities.ResourceChecker{URL: env.SherpaURL + "/healthz", Doer: livenessDoer},
-		"ollama":               &capabilities.ResourceChecker{URL: env.OllamaURL + "/api/tags", Doer: livenessDoer},
-		"openrouter":           livenessOpenRouterChecker,
-		"audio-transcode":      &capabilities.TranscodeChecker{},
-		"audio-tools": capabilities.AggregateChecker{Checkers: []capabilities.Checker{
-			&capabilities.ResourceChecker{URL: env.WhisperURL + "/", Doer: livenessDoer},
-			&capabilities.ResourceChecker{URL: env.SherpaURL + "/healthz", Doer: livenessDoer},
-			&capabilities.ResourceChecker{URL: env.KokoroURL + "/v1/audio/voices", Doer: livenessDoer},
-			&capabilities.ResourceChecker{URL: env.OllamaURL + "/api/tags", Doer: livenessDoer},
-		}},
-	}
-	capsRegistry.SetLivenessCheckers(livenessCheckers)
-	skipVerifyCount := &atomic.Int64{}
-	// audioEngine is the single audio-format substrate: one instance shared
-	// across the STT pipeline (Whisper-container handling), the streaming
-	// Segmenter (live PCM decode), the selector capability gate, and TTS
-	// egress. It holds no per-session state.
-	audioEngine := audioformat.New()
-	// engineRegistry is the STT engine-capability manifest (single source of
-	// truth). The selector derives the Local tier's eligible strategies from
-	// it; the Segmenter derives the egress-gate stage set from it.
-	engineRegistry := sttengine.Default()
-	// Native sherpa-onnx speaker runtime client. The logical capability name
-	// remains speaker-verification for API compatibility.
-	// Wired here so streaming speaker isolation + enrollment reach the native
-	// sherpa embedding service; nil base URL would make every verify fall back.
-	speakerClient := &sttpipeline.SpeakerClient{BaseURL: env.SherpaURL, Doer: doer}
-	voiceSvc := sttpipeline.NewService(
-		sttpipeline.Config{},
-		"", nil, "",
-		sttpipeline.SpeakerConfig{}, "",
-		speakerClient,
-		capsRegistry,
-		skipVerifyCount,
-		env.WhisperURL+"/asr?output=json",
-		doer, audioEngine,
-	)
-	// On-demand STT backend recovery (plan L1): when a transcribe hits a down
-	// whisper backend, ensure it is running and retry once. Single-flight +
-	// cooldown + allowlist live in the Ensurer. STT_AUTO_ENSURE (default on)
-	// lets operators disable the auto-start.
-	voiceSvc.SetBackendEnsurer(sttbackend.NewCLIEnsurer(), "whisper")
-	voiceSvc.SetAutoEnsure(sttpipeline.AutoEnsureEnabledFromEnv())
-
-	cacheNamespace, err := storage.ScenarioNamespace("audio-tools")
-	if err != nil {
-		_ = db.Close()
-		return nil, nil, nil, fmt.Errorf("resolve TTS cache namespace: %w", err)
-	}
-	cacheResolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
-	if err != nil {
-		_ = db.Close()
-		return nil, nil, nil, fmt.Errorf("create TTS cache storage resolver: %w", err)
-	}
-	cachePaths, err := cacheResolver.Resolve(storage.Options{ScenarioID: cacheNamespace})
-	if err != nil {
-		_ = db.Close()
-		return nil, nil, nil, fmt.Errorf("resolve TTS cache storage: %w", err)
-	}
-	ttsCache, err := inttts.NewPersistentCache(64*1024*1024, filepath.Join(cachePaths.DataDir, "tts-cache"), 30*24*time.Hour)
-	if err != nil {
-		_ = db.Close()
-		return nil, nil, nil, fmt.Errorf("create TTS cache: %w", err)
-	}
-	kokoroSynth := &inttts.KokoroSynthesizer{BaseURL: env.KokoroURL, Doer: httpc.DefaultDoer()}
-	ttsCfg := inttts.DefaultConfig()
-	ttsSvc := inttts.NewService(inttts.Deps{
-		Logger:        logger,
-		GetConfig:     func() inttts.Config { return ttsCfg },
-		SetConfig:     func(c inttts.Config) { ttsCfg = c },
-		PersistConfig: func(inttts.Config) error { return nil },
-		// Ask the capability registry, which owns the Kokoro liveness probe.
-		// This must observe the provider rather than trust a display cache:
-		// an earlier hardcoded success let the request path use a stopped
-		// resource, while a full catalogue sweep charged synthesis for
-		// unrelated readiness probes.
-		KokoroCapability: func(ctx context.Context) (string, string) {
-			if capsRegistry.IsProviderLive(ctx, "kokoro-tts") {
-				return "available", "Kokoro (Local)"
-			}
-			return "unavailable", "Kokoro (Local)"
-		},
-		SynthesizeAudio: func(ctx context.Context, in inttts.SynthesizeInput) (io.ReadCloser, string, error) {
-			return kokoroSynth.Synthesize(ctx, inttts.SynthesizeRequest{
-				Input:          in.Input,
-				Voice:          in.Voice,
-				ResponseFormat: in.ResponseFormat,
-				Speed:          in.Speed,
-			})
-		},
-		GetCache: func(key inttts.CacheKey) (inttts.SynthesizeResult, bool) {
-			out, ok := ttsCache.Get(key)
-			if !ok {
-				return inttts.SynthesizeResult{}, false
-			}
-			return inttts.SynthesizeResult{Audio: out.Audio, ContentType: out.ContentType}, true
-		},
-		PutCache: func(key inttts.CacheKey, audio []byte, ct string) {
-			ttsCache.Put(key, audio, ct)
-		},
-	})
-
-	// The production Audio Tools local summarizer submits its task through AI
-	// Gateway, preserving LOCAL_ONLY and the transcript/text privacy basis. The
-	// summary evaluation package keeps its explicit resource-ollama runner as an
-	// experiment owner; it is not the serving caller.
-	summarizer := intsumm.NewSummarizerWithTaskRunner(summarizechain.NewAIGatewayRunner())
-
-	byokRegistries := byok.NewRegistries()
-	chs := BuildChains(env, voiceSvc, ttsSvc, summarizer, byokRegistries, logger)
-
 	stores, err := BuildStores(db, env)
 	if err != nil {
 		_ = db.Close()
 		return nil, nil, nil, fmt.Errorf("build stores: %w", err)
 	}
+	byokCheckers, err := declaredBYOKCredentialCheckers(stores.BYOK.List, stores.BYOK.Get)
+	if err != nil {
+		_ = db.Close()
+		return nil, nil, nil, fmt.Errorf("build BYOK credential checkers: %w", err)
+	}
+
+	logger := logx.Std{L: log.Default()}
+
+	capabilityDeps, err := buildCapabilitySubsystem(env, ttsPlan.url, ttsPlan.backend, ttsPlan.provider, byokCheckers)
+	if err != nil {
+		_ = db.Close()
+		return nil, nil, nil, err
+	}
+	capsRegistry := capabilityDeps.registry
+	livenessCheckers := capabilityDeps.livenessCheckers
+	summCfg := capabilityDeps.summarizeConfig
+	speech, err := buildSpeechSubsystem(env, ttsPlan, logger, capsRegistry, capabilityDeps.doer, summCfg)
+	if err != nil {
+		_ = db.Close()
+		return nil, nil, nil, err
+	}
+	audioEngine, engineRegistry := speech.audioEngine, speech.engineRegistry
+	speakerClient, whisperSvc := speech.speakerClient, speech.whisper
+	ttsCache, ttsSvc, summarizer := speech.cache, speech.tts, speech.summarizer
+	byokRegistries, chs := speech.byok, speech.chains
+	providerRoutingLimits := providerRoutingUpperBounds(env)
+	if err := applyStoredProviderRouting(ctx, stores.ProviderConfig, chs.Coordinator, env); err != nil {
+		_ = db.Close()
+		return nil, nil, nil, fmt.Errorf("load persisted provider routing: %w", err)
+	}
+
 	// BYOK provider health reports credential presence without exposing the
 	// encrypted value. Browser providers are always available in the client;
 	// they remain the labelled last-resort tier rather than a server probe.
-	for _, entry := range []struct{ id, provider, capability string }{
-		{"openai-whisper", "openai-whisper", "stt"},
-		{"deepgram", "deepgram", "stt"},
-		{"openai-tts", "openai-tts", "tts"},
-		{"elevenlabs", "elevenlabs", "tts"},
-	} {
-		livenessCheckers[entry.id] = &capabilities.BYOKCredentialChecker{
-			ProviderID: entry.provider,
-			Capability: entry.capability,
-			List:       stores.BYOK.List,
-			Get:        stores.BYOK.Get,
-			Probe:      capabilities.ProbeBYOKEndpoint(entry.provider),
-		}
+	for id, checker := range byokCheckers {
+		livenessCheckers[id] = checker
 	}
 	livenessCheckers["browser-stt"] = &capabilities.StaticChecker{Available: func() (bool, string) { return true, "browser speech input is available as a last resort" }}
 	livenessCheckers["browser-tts"] = &capabilities.StaticChecker{Available: func() (bool, string) { return true, "browser speech output is available as a last resort" }}
@@ -293,112 +142,49 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 	}
 	usageRecorder := usagereport.New(stores.Usage, logger)
 
-	// Corpus + eval/experiment harnesses. Audio bytes live in the blob store under the
-	// git-ignored runtime data dir; the namespace is variant-aware so a
-	// shadow instance's corpus never collides with live's. Metadata lives in
-	// the corpus SQLite domain. A blob-store init failure disables the
-	// corpus/eval/experiment surfaces (their handlers return FailedPrecondition) rather
-	// than failing the whole boot.
-	var corpusSvc *intcorpus.Service
-	var experimentSvc *intexp.Service
-	var experimentMgr *intexp.Manager
-	if ns, nerr := storage.ScenarioNamespace("audio-tools"); nerr != nil {
-		logger.Printf("corpus blob store disabled: resolve namespace: %v", nerr)
-	} else if blobs, berr := blobbytes.NewFilesystem(ns, "corpus-blobs", "corpus"); berr != nil {
-		logger.Printf("corpus blob store disabled: %v", berr)
-	} else {
-		corpusSvc = intcorpus.NewService(intcorpus.NewSQLiteRepository(db, schedule.System()), blobs, schedule.System())
-		if expBlobs, eerr := blobbytes.NewFilesystem(ns, "experiment-blobs", "experiment"); eerr != nil {
-			logger.Printf("experiment blob store disabled: %v", eerr)
-		} else {
-			experimentSvc = intexp.NewService(intexp.NewSQLiteRepository(db, schedule.System()), expBlobs)
-		}
-	}
-	// Each experiment replay receives a fresh provider. Provider-neutral cells
-	// select this factory by engine id instead of relabelling a Whisper run.
-	evalProviderForEngine := func(engineID string) sttchain.Provider {
-		switch engineID {
-		case "", "whisper-local", "eval-whisper-local":
-			return sttchain.NewLocalProvider(voiceSvc)
-		case "kyutai":
-			return sttchain.NewKyutaiProvider(env.KyutaiURL)
-		case "sherpa-streaming":
-			return sttchain.NewSherpaProvider(env.SherpaURL)
-		default:
-			return nil
-		}
-	}
-	evalDeps := evaldeps.New(logger, corpusSvc, evalProviderForEngine, sttpkg.Defaults(), speakerClient)
-	if experimentSvc != nil {
-		experimentMgr = intexp.NewManager(intexp.Config{
-			Service: experimentSvc,
-			Clock:   schedule.System(),
-			Logger:  logger,
-			Runner: func(runCtx context.Context, exp intexp.Experiment, emit func(int, string)) (intexp.RunResult, error) {
-				recipe := &experimentv1.ExperimentRecipe{}
-				if len(exp.RecipeJSON) > 0 {
-					if err := protojson.Unmarshal(exp.RecipeJSON, recipe); err != nil {
-						return intexp.RunResult{}, fmt.Errorf("parse experiment recipe: %w", err)
-					}
-				}
-				emit(5, "loading corpus")
-				report, realized, err := expreport.RunExperimentReport(runCtx, evalDeps, corpusSvc, ttsSvc, audioEngine, recipe, emit)
-				if err != nil {
-					return intexp.RunResult{}, err
-				}
-				var qualityEvidence []intexp.QualificationEvidence
-				if corpusSvc != nil {
-					clips, listErr := corpusSvc.ListClips(runCtx, intcorpus.ListFilter{})
-					if listErr != nil {
-						return intexp.RunResult{}, fmt.Errorf("load corpus provenance for quality evidence: %w", listErr)
-					}
-					qualityEvidence = expreport.QualityEvidenceForReport(clips, report, buildidentity.SourceIdentity)
-				}
-				recipeJSON, err := protojson.Marshal(recipe)
-				if err != nil {
-					return intexp.RunResult{}, fmt.Errorf("marshal realized recipe: %w", err)
-				}
-				reportProto := server.ReportToProto(report)
-				reportJSON, err := protojson.Marshal(reportProto)
-				if err != nil {
-					return intexp.RunResult{}, fmt.Errorf("marshal report: %w", err)
-				}
-				runs, err := expreport.ExperimentRunsForReport(report, reportProto, realized)
-				if err != nil {
-					return intexp.RunResult{}, err
-				}
-				emit(95, "storing report")
-				return intexp.RunResult{Report: reportJSON, ReportMIME: "application/json", Runs: runs, RecipeJSON: recipeJSON, QualificationEvidence: qualityEvidence}, nil
-			},
-		})
-		if err := experimentMgr.Start(ctx); err != nil {
-			logger.Printf("experiment manager disabled: %v", err)
-			experimentMgr = nil
-			experimentSvc = nil
-		}
-	}
+	experiments := buildExperimentSubsystem(ctx, env, db, logger, whisperSvc, speakerClient, ttsSvc, audioEngine)
 
-	srv := server.Compose(server.CompositionDeps{
+	compositionDeps := server.CompositionDeps{
 		DB: db, Capabilities: capsRegistry, Logger: logger, CapabilityLivenessLatency: livenessLatency,
 		Env: server.Env{
-			OllamaURL: env.OllamaURL,
+			OllamaURL:       env.OllamaURL,
+			TTSCacheBackend: ttsPlan.cacheBackend,
 			TestIsolationActive: func() bool {
 				return db.HasTestPool() && fileRoots.HasTestRoots()
 			},
 		},
-		Chains:          server.Chains{STT: chs.STT, TTS: chs.TTS, Summarize: chs.Summarize, Coordinator: chs.Coordinator},
-		SpeakerResource: speakerClient, AudioEngine: audioEngine, EngineRegistry: engineRegistry, Usage: usageRecorder,
-		Stores:   server.CompositionStores{ProviderConfig: stores.ProviderConfig, VoiceOverrides: stores.VoiceOverrides, BYOK: stores.BYOK, STTStream: stores.STTStream, STTSpeaker: stores.STTSpeaker, Wakeword: stores.Wakeword, Speaker: stores.Speaker, TTSConfig: stores.TTSConfig, Playback: stores.Playback, Usage: stores.Usage},
-		Sessions: sessionRegistry, StreamLedgers: streamLedgers, TTS: ttsSvc, Cache: ttsCache, SummarizeConfig: &summCfg, Corpus: corpusSvc, ExperimentManager: experimentMgr, Experiments: experimentSvc,
-	})
+		Chains:                    server.Chains{STT: chs.STT, TTS: chs.TTS, Summarize: chs.Summarize, Coordinator: chs.Coordinator},
+		ProviderRoutingLimits:     &providerRoutingLimits,
+		DuplexProviderEligibility: duplex.CatalogEligibility,
+		SpeakerResource:           speakerClient, AudioEngine: audioEngine, EngineRegistry: engineRegistry, Usage: usageRecorder,
+		Stores:   server.CompositionStores{ProviderConfig: stores.ProviderConfig, VoiceOverrides: stores.VoiceOverrides, BYOK: stores.BYOK, STTStream: stores.STTStream, STTSpeaker: stores.STTSpeaker, Wakeword: stores.Wakeword, Speaker: stores.Speaker, TTSConfig: stores.TTSConfig, Playback: stores.Playback, Usage: stores.Usage, DuplexJournal: stores.DuplexJournal},
+		Sessions: sessionRegistry, StreamLedgers: streamLedgers, Cache: ttsCache, SummarizeConfig: &summCfg,
+		CorpusCounter:     experiments.corpusCounter,
+		ExperimentCounter: experiments.experimentCounter, QualificationEvidence: experiments.qualificationEvidence,
+	}
+	if env.LPBSBaseURL != "" && env.GPTLiveMaxSessionBudgetMicros > 0 {
+		tokens, tokenErr := duplex.NewAccountCreditServiceTokensWithResolver(accountCreditCredentials{}, func(callCtx context.Context) (string, error) {
+			return discovery.ResolveScenarioURLDefault(callCtx, "scenario-authenticator")
+		}, nil)
+		if tokenErr == nil {
+			credits, creditErr := duplex.NewAccountCreditClient(env.LPBSBaseURL, tokens, nil)
+			consent, consentErr := duplex.NewGatewayConsentVerifierWithResolver(func(callCtx context.Context) (string, error) {
+				return discovery.ResolveScenarioURLDefault(callCtx, "ai-gateway")
+			}, nil)
+			if creditErr == nil && consentErr == nil {
+				compositionDeps.DuplexAccountCredits = credits
+				compositionDeps.DuplexConsentVerifier = consent
+				compositionDeps.DuplexMaxSessionBudgetMicros = env.GPTLiveMaxSessionBudgetMicros
+			}
+		}
+	}
+	srv := composeAPI(compositionDeps, experiments.labRuntime)
 
 	cleanup := func() error {
-		if experimentMgr != nil {
-			experimentMgr.Close()
-		}
+		closeExperimentSubsystem(experiments)
 		return db.Close()
 	}
-	return srv, &Deps{Env: env, DB: db, FileRoots: fileRoots, Stores: stores, Chains: chs, BYOK: byokRegistries, Voice: voiceSvc, TTS: ttsSvc, Summ: summarizer, Cache: ttsCache, Session: sessionRegistry, Usage: usageRecorder, Cleanup: cleanup}, cleanup, nil
+	return srv, &Deps{Env: env, DB: db, FileRoots: fileRoots, Stores: stores, Chains: chs, BYOK: byokRegistries, TTS: ttsSvc, Summ: summarizer, Cache: ttsCache, Session: sessionRegistry, Usage: usageRecorder, Cleanup: cleanup}, cleanup, nil
 }
 
 // Build is the compatibility constructor used by in-process tests and callers

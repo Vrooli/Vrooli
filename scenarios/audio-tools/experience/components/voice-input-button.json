@@ -6,7 +6,7 @@
     "id": "voice-input-button",
     "title": "VoiceInputButton",
     "purpose": "Expose an accessible microphone control whose visual level, timeout, and always-on states communicate capture state.",
-    "storyRef": "../../../react-component-library/library/components/VoiceInputButton/versions/3.0.0/story.json"
+    "storyRef": "../../../react-component-library/library/components/VoiceInputButton/versions/4.3.4/story.json"
   },
   "priorities": [
     { "statement": "The control always communicates whether voice input can start, is preparing, is recording, or has failed." },
@@ -17,8 +17,8 @@
     { "id": "idle", "example": "idle", "description": "Ready to start voice input." },
     { "id": "recording-low", "example": "recording", "description": "Recording with a low audio level." },
     { "id": "recording-high", "example": "recording", "description": "Recording with a high audio level." },
-    { "id": "timeout", "example": "mode-timeout", "description": "Recording with visible timeout progress." },
-    { "id": "always-on", "example": "mode-always-on", "description": "Always-on listening mode." },
+    { "id": "timeout", "example": "timeout", "description": "Recording with visible timeout progress." },
+    { "id": "always-on", "example": "recording", "description": "Always-on listening mode." },
     { "id": "error", "example": "error", "description": "Terminal connection error." }
   ],
   "elements": [

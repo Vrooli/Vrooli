@@ -342,8 +342,8 @@ describe("createPassiveCapturePipeline", () => {
     ringBuffer = new AudioRingBuffer(3, 16000);
   });
 
-  it("returns analyser and nodes array", () => {
-    const result = createPassiveCapturePipeline(
+  it("returns analyser and nodes array", async () => {
+    const result = await createPassiveCapturePipeline(
       ctx as unknown as AudioContext,
       source as unknown as MediaStreamAudioSourceNode,
       ringBuffer,
@@ -352,8 +352,8 @@ describe("createPassiveCapturePipeline", () => {
     expect(result).toHaveProperty("nodes");
   });
 
-  it("creates a ScriptProcessorNode for PCM capture", () => {
-    createPassiveCapturePipeline(
+  it("creates a ScriptProcessorNode for PCM capture", async () => {
+    await createPassiveCapturePipeline(
       ctx as unknown as AudioContext,
       source as unknown as MediaStreamAudioSourceNode,
       ringBuffer,
@@ -361,8 +361,8 @@ describe("createPassiveCapturePipeline", () => {
     expect(ctx.createScriptProcessor).toHaveBeenCalledWith(4096, 1, 1);
   });
 
-  it("returns 5 nodes in the nodes array", () => {
-    const { nodes } = createPassiveCapturePipeline(
+  it("returns 5 nodes in the nodes array", async () => {
+    const { nodes } = await createPassiveCapturePipeline(
       ctx as unknown as AudioContext,
       source as unknown as MediaStreamAudioSourceNode,
       ringBuffer,
@@ -371,8 +371,8 @@ describe("createPassiveCapturePipeline", () => {
     expect(nodes.length).toBe(5);
   });
 
-  it("sets onaudioprocess handler that writes to ring buffer", () => {
-    createPassiveCapturePipeline(
+  it("sets onaudioprocess handler that writes to ring buffer", async () => {
+    await createPassiveCapturePipeline(
       ctx as unknown as AudioContext,
       source as unknown as MediaStreamAudioSourceNode,
       ringBuffer,
@@ -400,8 +400,8 @@ describe("createPassiveCapturePipeline", () => {
     expect(out[2]).toBeCloseTo(0.3, 5);
   });
 
-  it("pass-through copies input to output buffer", () => {
-    createPassiveCapturePipeline(
+  it("pass-through copies input to output buffer", async () => {
+    await createPassiveCapturePipeline(
       ctx as unknown as AudioContext,
       source as unknown as MediaStreamAudioSourceNode,
       ringBuffer,

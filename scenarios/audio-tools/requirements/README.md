@@ -36,9 +36,12 @@ timestamp alone cannot repair an invalid measurement method.
 ## Portable voice contract revision
 
 The 2026-09-09 Business Health regeneration preserves the six original OT IDs
-and all ten original ATD IDs and their test references. The PRD now has 15
-targets; the registry has 24 requirements. New portable-routing, streaming,
-quality, commercial, privacy, device and evidence obligations start `planned`.
+and all ten original ATD IDs and their test references. The 2026-11-21
+portable-voice-v2 update preserves those identifiers and evidence, adds five
+targets for desktop parity, low-resource model selection, advanced voice
+workflows, standalone-to-bundle pricing, and installation lifecycle, and
+retains the existing earned checkboxes. The PRD now has 20 targets; the
+registry has 29 requirements. New obligations start `planned`.
 Their planned manual entries describe validation work, not completed manual
 attestations or a substitute for automated tests. Add real tagged tests at the
 owning boundary; use manual logs only for actual manual qualification.
@@ -54,6 +57,9 @@ portable routing. Follow `prd_ref`, not matching suffixes.
 
 Product scope is now explicit; pending numeric, billing and native-cohort
 decisions are centralized in the [decision sheet](../docs/internal/TESTING.md#pilot-decision-sheet-and-safe-first-slice).
-The v2 setpoint program lists all 15 targets but has no owner-backed acceptance
-joins. The all-target visibility regression prevents silent omission; listing
-an obligation does not prove it.
+The v2 setpoint program and maturity mission provide the acceptance routes;
+they have no owner-backed completion join for the five newly added targets.
+The all-target visibility regression prevents silent omission; listing an
+obligation does not prove it. `ATD-P0-020` covers new `OT-P0-011`: requirement
+IDs are independent of operational-target suffixes, and `ATD-P0-011` already
+retains its earlier meaning for `OT-P0-006`.

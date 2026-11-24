@@ -19,9 +19,23 @@ const GroupName = "usage"
 // and wires Connect-RPC bindings to handlers.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
+	list := h.listPrimitive()
+	summary := h.summaryPrimitive()
 	bindings := map[string]func(cliapp.RunContext) error{
-		"UsageService.ListRecent": h.list,
-		"UsageService.GetSummary": h.summary,
+		"UsageService.ListRecent": list.Run,
+		"UsageService.GetSummary": summary.Run,
 	}
-	return climanifest.LoadGroup(manifest, GroupName, bindings)
+	group, err := climanifest.LoadGroup(manifest, GroupName, bindings)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, err
+	}
+	for i := range group.Subcommands {
+		switch group.Subcommands[i].Name {
+		case "list":
+			group.Subcommands[i] = group.Subcommands[i].WithPrimitive(list)
+		case "summary":
+			group.Subcommands[i] = group.Subcommands[i].WithPrimitive(summary)
+		}
+	}
+	return group, nil
 }

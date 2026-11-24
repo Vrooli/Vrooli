@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "qualification_boundary": "product_path_receipts",
+  "targets": [
+    {
+      "id": "whisper-small-batch-stt",
+      "capability": "stt.batch",
+      "provider": "whisper-stt",
+      "model_id": "whisper-small",
+      "qualification_policy": "required_when_claimed"
+    },
+    {
+      "id": "sherpa-streaming-zipformer",
+      "capability": "stt.streaming",
+      "provider": "sherpa-stt",
+      "model_id": "sherpa-zipformer-en-2023-06-26",
+      "runtime_model_id": "sherpa-onnx/streaming-zipformer-en-2023-06-26",
+      "qualification_policy": "required_when_claimed"
+    },
+    {
+      "id": "kale-nano-tts",
+      "capability": "tts",
+      "provider": "kale-tts",
+      "model_id": "kale-tts-1-nano",
+      "qualification_policy": "conditional_candidate_when_runtime_available"
+    }
+  ],
+  "profiles": [
+    {
+      "id": "D1-linux-chromium-cpu",
+      "profile": "D1",
+      "os": "Linux amd64",
+      "browser": "Chromium",
+      "host": "native host",
+      "accelerator": "CPU only"
+    },
+    {
+      "id": "D1-linux-chromium-accelerator",
+      "profile": "D1",
+      "os": "Linux amd64",
+      "browser": "Chromium",
+      "host": "native host",
+      "accelerator": "nominated accelerator; exact device required"
+    },
+    {
+      "id": "D2-linux-chromium-constrained",
+      "profile": "D2",
+      "os": "Linux amd64",
+      "browser": "Chromium",
+      "host": "native constrained host",
+      "accelerator": "CPU only",
+      "cpu_limit": 2,
+      "memory_limit_bytes": 4294967296
+    },
+    {
+      "id": "D3-macos-safari",
+      "profile": "D3",
+      "os": "macOS arm64",
+      "browser": "Safari",
+      "host": "native host",
+      "accelerator": "host dependent"
+    },
+    {
+      "id": "D3-macos-chromium",
+      "profile": "D3",
+      "os": "macOS arm64",
+      "browser": "Chromium",
+      "host": "native host",
+      "accelerator": "host dependent"
+    },
+    {
+      "id": "D4-windows-chromium",
+      "profile": "D4",
+      "os": "Windows amd64",
+      "browser": "Chromium",
+      "host": "native host",
+      "accelerator": "host dependent"
+    },
+    {
+      "id": "D5-ios-safari",
+      "profile": "D5",
+      "os": "iOS",
+      "browser": "Safari",
+      "host": "named physical device required",
+      "accelerator": "device integrated"
+    },
+    {
+      "id": "D5-ios-installed-pwa",
+      "profile": "D5",
+      "os": "iOS",
+      "browser": "installed PWA (Safari engine)",
+      "host": "named physical device required",
+      "accelerator": "device integrated"
+    },
+    {
+      "id": "D6-android-chrome",
+      "profile": "D6",
+      "os": "Android",
+      "browser": "Chrome",
+      "host": "named physical device required",
+      "accelerator": "device integrated"
+    }
+  ]
+}

@@ -1,10 +1,5 @@
 /**
- * Unit tests for the Textarea primitive.
- *
- * Mirrors `input.test.tsx`: the contract is identical (forwardRef, cn
- * merge, prop pass-through, value-on-type). Kept as a separate file so
- * a regression in either primitive has a single locus and the failure
- * message names the primitive that broke.
+ * Consumer contract checks for the shared RCL Textarea used in Audio Tools.
  */
 import { useRef } from "react";
 import { describe, expect, it } from "vitest";
@@ -12,21 +7,19 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders as render } from "@vrooli/api-base/testing";
-import { Textarea } from "./textarea";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
 
 describe("Textarea", () => {
-  it("emits the base className chunk so the cn() merge contract holds", () => {
+  it("exposes the RCL component marker", () => {
     render(<Textarea data-testid="t" />);
     const el = screen.getByTestId("t");
-    expect(el.className).toMatch(/rounded-control/);
-    expect(el.className).toMatch(/border/);
+    expect(el).toHaveAttribute("data-rcl-textarea", "true");
   });
 
-  it("merges a custom className with the base classes via cn()", () => {
+  it("preserves caller classes", () => {
     render(<Textarea data-testid="t" className="custom-extra" />);
     const el = screen.getByTestId("t");
     expect(el.className).toMatch(/custom-extra/);
-    expect(el.className).toMatch(/rounded-control/);
   });
 
   it("forwards ref to the underlying HTMLTextAreaElement", () => {

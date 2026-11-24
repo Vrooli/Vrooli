@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 package soak
 
 import (
@@ -83,7 +85,7 @@ func TestManagedSoakTaskStaysOnOneBASBrokerSession(t *testing.T) {
 		if request.Identity != "signed-run-token" || request.Grant != "run-grant" || request.TestGenie != "" {
 			t.Fatalf("authority headers were not scoped to BAS: %#v", request)
 		}
-		if request.Path == "" || request.Path[:minInt(len(request.Path), 9)] == "/session/" {
+		if request.Path == "" || request.Path[:min(len(request.Path), 9)] == "/session/" {
 			t.Fatalf("managed task opened a direct driver path: %#v", request)
 		}
 	}
@@ -323,11 +325,4 @@ func TestManagedStartClosesUnqualifiedPipeWireSession(t *testing.T) {
 	if len(paths) != 2 || paths[0] != "/browser/sessions" || paths[1] != "/browser/sessions/unqualified-session/close" {
 		t.Fatalf("unqualified open cleanup order = %v", paths)
 	}
-}
-
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

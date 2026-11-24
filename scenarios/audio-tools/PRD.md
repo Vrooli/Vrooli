@@ -29,6 +29,7 @@ Deployment surfaces include the Audio Tools UI, CLI, Connect and WebSocket APIs,
 - [ ] OT-P0-008 | Portable capability and device qualification | When host, browser, model, or acceleration capabilities differ, Audio Tools shall select a compatible declared path or return an explicit unavailable state; every claimed supported route and device shall have matching evidence.
 - [ ] OT-P0-009 | Private bounded voice lifecycle | While voice data or credentials are processed or retained, Audio Tools shall enforce authorized access, bounded recoverable retention and deletion, and metadata-only diagnostics, with explicit consent before changing the processing destination.
 - [ ] OT-P0-010 | Trustworthy full-path qualification | When release or development completion is evaluated, Audio Tools shall require current owner-backed evidence for every required target and cohort, distinguish simulated from native and live-provider results, and reject missing, stale, truncated, or failed evidence.
+- [ ] OT-P0-011 | Cross-app desktop dictation parity | When users dictate across supported desktop cohorts, Audio Tools shall match or exceed the Wispr Flow feature set documented 2026-11-20 and achieve at least equal task completion, with accessible insertion, onboarding, permissions, offline use, and recovery.
 
 ### 🟠 P1 – Should have post-launch
 
@@ -36,6 +37,10 @@ Deployment surfaces include the Audio Tools UI, CLI, Connect and WebSocket APIs,
 - [x] OT-P1-002 | Mobile recovery and diagnostics | When a mobile turn is degraded or interrupted, users should be able to inspect coverage, recover retained audio, and export metadata-only diagnostics without developer tools.
 - [ ] OT-P1-003 | Replaceable maintainable adapters | When providers or device technology change, maintainers should extend versioned capability and host adapters with shared conformance tests without duplicating capture, recovery, routing, or billing rules in consumers.
 - [ ] OT-P1-004 | Consistent shared voice capabilities | When TTS or transcript summarization is enabled in a consuming app, it should use the same explicit route, capability, privacy, and usage boundaries as STT, with operation-specific delivery, quality, and billing acceptance.
+- [ ] OT-P1-005 | Evidence-based efficient model selection | When resolving a local voice route, Audio Tools should select declared models by language, rights, held-out quality, device capacity, cost, and fallback; target paths include Sherpa streaming Zipformer, Kale Nano when eligible, Qwen3:1.7b, and a qualified consented cloning route.
+- [ ] OT-P1-006 | Advanced voice workflow coverage | When advanced voice workflows are offered, Audio Tools should provide synthesis and voice customization, consented cloning, conversion, speaker separation, wake word, and duplex through reusable contracts with measured quality, latency, and recovery.
+- [ ] OT-P1-007 | Standalone offer and bundle upgrade | When customers enter through Audio Tools, the product should present a $10/month standalone plan with correct entitlement, payment recovery, cancellation, and a clear upgrade path to the full bundle.
+- [ ] OT-P1-008 | Cross-platform installation and offline lifecycle | When Audio Tools is installed or updated on a supported desktop cohort, it should provision eligible models offline and recover cleanly from failed installation, upgrade, or model provisioning.
 
 ### 🟢 P2 – Future / expansion
 
@@ -65,6 +70,6 @@ Accessibility: Provide keyboard-accessible voice controls, non-color-only state,
 
 ## 📎 Appendix
 
-Contract revision: portable-voice-v1, regenerated 2026-09-09 at the user's request. Existing OT and ATD identifiers retain their original meanings; added obligations start unearned. Requirements synchronization alone earns completion.
+Contract revision: portable-voice-v2, updated 2026-11-21 through the Business Health wizard to align the PRD with the operator-approved Audio Tools maturity outcomes. Existing OT and ATD identifiers retain their prior meanings. New targets explicitly cover desktop dictation parity, footprint-first model selection, advanced voice workflows, the $10 standalone-to-bundle journey, and cross-platform installation; new claims start planned and evidence synchronization alone earns completion.
 
-The PRD owns product scope. docs/internal/TESTING.md owns cohort methodology and pending acceptance decisions; docs/internal/PERFORMANCE.md owns latency interpretation; docs/business/MONETIZATION.md owns commercial proposals and shared-owner boundaries; docs/concepts/ARCHITECTURE.md owns target seams. The historical local-dictation-proposal.json is a non-launchable subset, not the full mandate. The setpoint-read program enumerates target scope but remains a diagnostic instrument until owner-backed acceptance receipts are joined; an unknown outcome is never completion.
+The PRD owns product scope. docs/internal/TESTING.md owns cohort methodology and pending acceptance decisions; docs/internal/PERFORMANCE.md owns latency interpretation; docs/business/MONETIZATION.md owns commercial proposals and shared-owner boundaries; docs/concepts/ARCHITECTURE.md owns target seams. The historical local-dictation-proposal.json is a non-launchable subset, not the full mandate. The setpoint-read program enumerates target scope but remains diagnostic until owner-backed acceptance receipts are joined; unknown outcomes are never completion.

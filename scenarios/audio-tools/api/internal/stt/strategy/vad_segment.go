@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"strings"
-	"sync"
 
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/logx"
@@ -136,528 +135,267 @@ func (v *VADSegmenter) Run(
 		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{}}
 		return err
 	}
-	// Resolve defaults on a private copy so the receiver stays the read-only,
-	// reusable configuration documented by Strategy. Mutating it here made a
-	// zero-value instance change under its caller and raced concurrent Run
-	// calls on every config field.
+	// Resolve defaults on a private copy so concurrent runs never mutate the
+	// reusable strategy configuration.
 	resolved := *v
 	resolved.applyDefaults()
-	v = &resolved
-	logger := v.Logger
+	logger := resolved.Logger
 	if logger == nil {
 		logger = logx.Std{}
 	}
 	logger.Printf("[stt-vad] session start: silence_ms=%d silence_rms=%.0f sample_rate=%d frame_ms=%d preroll_ms=%d trailing_pad_ms=%d preview_interval_ms=%d preview_window_ms=%d",
-		v.SilenceMs, v.SilenceRMS, v.SampleRate, v.FrameMs, v.PreRollMs, v.TrailingPadMs, v.PreviewIntervalMs, v.PreviewWindowMs)
+		resolved.SilenceMs, resolved.SilenceRMS, resolved.SampleRate, resolved.FrameMs, resolved.PreRollMs, resolved.TrailingPadMs, resolved.PreviewIntervalMs, resolved.PreviewWindowMs)
 	defer logger.Printf("[stt-vad] session end")
 
+	s := newVADRunState(ctx, &resolved, start, chunks, events, cursor, logger)
+	return s.run()
+}
+
+func (s *vadRunState) emitVad(voiced bool, silenceElapsedMs int64, frameIdx int, timedOut bool) {
+	s.tickSeq++
+	s.lastEmitFrameIdx = frameIdx
+	s.lastEmittedVoiced = voiced
+	s.anyTickEmitted = true
+	s.events <- sttchain.StreamEvent{Kind: sttchain.StreamEventVadState, VadState: &sttchain.VadStateEvent{
+		Voiced: voiced, SilenceElapsedMs: silenceElapsedMs, SilenceTimeoutMs: s.silenceTimeoutMs,
+		TickSeq: s.tickSeq, SilenceTimedOut: timedOut,
+	}}
+}
+
+// flushSegment emits one committed segment and compacts its consumed PCM.
+func (s *vadRunState) flushSegment(callCtx context.Context, end int) bool {
 	const sampleBytes = 2
-	frameBytes := v.SampleRate * v.FrameMs / 1000 * sampleBytes
-	silenceFramesNeeded := v.SilenceMs / v.FrameMs
-	if silenceFramesNeeded < 1 {
-		silenceFramesNeeded = 1
-	}
-	// The vad-state ticks echo the frame-QUANTISED silence threshold actually
-	// used for the cut (silenceFramesNeeded * FrameMs), not the raw SilenceMs.
-	// The client's auto-stop fires on silenceElapsedMs >= silenceTimeoutMs, and
-	// silenceElapsedMs only ever takes frame-quantised values; echoing the raw
-	// SilenceMs would leave the threshold unreachable whenever FrameMs does not
-	// divide SilenceMs evenly.
-	silenceTimeoutMs := int64(silenceFramesNeeded * v.FrameMs)
-	preRollBytes := v.SampleRate * v.PreRollMs / 1000 * sampleBytes
-	trailingPadBytes := v.SampleRate * v.TrailingPadMs / 1000 * sampleBytes
-	// A segment can only duplicate the audio carried in its pre-roll (plus
-	// the small trailing-pad context). Keep the text merge bounded to that
-	// physical overlap. Searching the whole committed transcript is unsafe:
-	// repeated phrases later in a long dictation can otherwise be mistaken for
-	// pre-roll and silently deleted.
-	maxTextOverlapWords := (v.PreRollMs + v.TrailingPadMs + 99) / 100
-	if maxTextOverlapWords < 1 {
-		maxTextOverlapWords = 1
-	}
-
-	var buf []byte
-	// bufStartSample is the absolute sample offset represented by buf[0]. It
-	// survives compaction so segment ranges remain meaningful after the
-	// pre-roll window is carried into the next segment.
-	var bufStartSample int64
-	segStart := 0      // offset in buf where the current segment begins
-	nextFrame := 0     // offset of the next frame to evaluate
-	silentFrames := 0  // consecutive silent frames observed
-	hasVoiced := false // any voiced frame seen in the current segment
-
-	// Rolling cross-segment context. committed accumulates emitted
-	// (deduped) text for overlap detection; lastPromptText is the raw
-	// previous-segment text used to build the next request's
-	// initial_prompt.
-	committed := ""
-	lastPromptText := ""
-	segmentOrdinal := 0
-
-	var lastTier sttchain.ProviderTier
-	var lastProviderID, lastModelID string
-	var totalLatencyMs float64
-	var lastPreviewEnd int
-	chunkCount := 0
-
-	// retryStepBytes paces boundary retries after a provider failure. Without
-	// it, once a voiced segment reaches MaxSegmentMs the forced-cut branch
-	// retries a full provider request on EVERY subsequent frame (~50/s), so a
-	// provider outage turns a bounded 15s request into a call storm while the
-	// audio is retained anyway. The retry itself is still lossless.
-	retryStepBytes := v.SampleRate / 4 * sampleBytes // ~250ms
-	if retryStepBytes <= 0 {
-		retryStepBytes = frameBytes
-	}
-	// nextFlushAttempt is an absolute buffer offset. 0 means no backoff.
-	nextFlushAttempt := 0
-
-	var (
-		tickSeq           uint64
-		lastEmitFrameIdx  int
-		lastEmittedVoiced bool
-		anyTickEmitted    bool
-		firstVoicedLogged bool
-	)
-	clk := v.Clock
-	if clk == nil {
-		clk = schedule.System()
-	}
-	emitVad := func(voiced bool, silenceElapsedMs int64, frameIdx int, timedOut bool) {
-		tickSeq++
-		lastEmitFrameIdx = frameIdx
-		lastEmittedVoiced = voiced
-		anyTickEmitted = true
-		events <- sttchain.StreamEvent{
-			Kind: sttchain.StreamEventVadState,
-			VadState: &sttchain.VadStateEvent{
-				Voiced:           voiced,
-				SilenceElapsedMs: silenceElapsedMs,
-				SilenceTimeoutMs: silenceTimeoutMs,
-				TickSeq:          tickSeq,
-				SilenceTimedOut:  timedOut,
-			},
-		}
-	}
-
-	// flushSegment cuts [segStart, end) from buf, transcribes it with
-	// rolling text context, deduplicates against `committed`, and emits
-	// only the new tail as a SegmentEvent. It then advances segStart
-	// backwards by preRollBytes so the next segment overlaps the
-	// trailing audio of the one just emitted — Whisper sees pre-word
-	// context, callers see deduped text.
-	flushSegment := func(callCtx context.Context, end int) bool {
-		if !hasVoiced || end-segStart <= 0 {
-			segStart = end
-			hasVoiced = false
-			return true
-		}
-		seg := make([]byte, end-segStart)
-		copy(seg, buf[segStart:end])
-
-		// Build the per-call initial_prompt: operator hint + last K
-		// words of the previous segment. LastNWords is empty when
-		// InitialPromptWords <= 0 or lastPromptText is empty, so this
-		// is a no-op for the first segment of a session.
-		prompt := start.InitialPrompt
-		if v.InitialPromptWords > 0 && lastPromptText != "" {
-			tail := voice.LastNWords(lastPromptText, v.InitialPromptWords)
-			prompt = strings.TrimSpace(prompt + " " + tail)
-		}
-
-		req := sttchain.Request{
-			Audio:                   seg,
-			Format:                  start.InputFormat,
-			Language:                start.Language,
-			InitialPrompt:           prompt,
-			SkipSpeakerVerification: start.SkipSpeakerVerification,
-			VADFilter:               start.VADFilter,
-			BYOKProvider:            start.BYOKProvider,
-			BYOKKey:                 start.BYOKKey,
-			LPBSToken:               start.LPBSToken,
-			UserIdentity:            start.UserIdentity,
-		}
-		t0 := clk.Now()
-		res, err := v.Provider.Transcribe(callCtx, req)
-		latency := clk.Now().Sub(t0)
-		if err != nil {
-			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: err}
-			// Keep the segment pending. The next voiced/silence boundary
-			// retries the complete audio window; advancing segStart here
-			// would make a provider outage indistinguishable from successful
-			// transcription and silently discard the user's speech.
-			return false
-		}
-		if res == nil {
-			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf(
-				"stt-vad: provider returned no result for %d bytes; retaining audio for retry", len(seg))}
-			return false
-		}
-		if strings.TrimSpace(res.Text) == "" {
-			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf(
-				"stt-vad: provider returned an empty transcript for %d bytes; retaining audio for retry", len(seg))}
-			return false
-		}
-		lastTier = res.Tier
-		lastProviderID = res.ProviderID
-		lastModelID = res.ModelID
-		totalLatencyMs += float64(latency.Milliseconds())
-
-		// Dedup against the per-session committed string. The new tail
-		// (everything after the overlap with committed) is what we emit.
-		merged := voice.DeduplicateOverlapBounded(committed, res.Text, maxTextOverlapWords)
-		newTail := strings.TrimSpace(strings.TrimPrefix(merged, committed))
-		committed = merged
-		lastPromptText = res.Text
-
-		if newTail != "" {
-			segmentOrdinal++
-			startSample := bufStartSample + int64(segStart/sampleBytes)
-			endSample := bufStartSample + int64(end/sampleBytes)
-			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{
-				Text:             newTail,
-				SegmentID:        fmt.Sprintf("%s:%d:vad:%d", start.SessionID, start.Generation, segmentOrdinal),
-				Generation:       start.Generation,
-				StartSample:      startSample,
-				EndSample:        endSample,
-				DetectedLanguage: res.DetectedLanguage,
-				ProviderTier:     res.Tier,
-				ProviderID:       res.ProviderID,
-				ModelID:          res.ModelID,
-				LatencyMs:        float64(latency.Milliseconds()),
-				// Egress-gate inputs (stripped before the wire): the
-				// segment's confidence signals and its canonical-PCM bytes.
-				Confidence: res.Confidence,
-				Audio:      seg,
-			}}
-		}
-		segStart = advanceWithPreRoll(end, preRollBytes)
-		hasVoiced = false
-
-		// The segmenter owns the PCM buffer, so discard the committed prefix
-		// immediately. Preview goroutines already own copies of their windows;
-		// no asynchronous reader depends on this backing array. Keep only the
-		// configured pre-roll for the next segment and translate all offsets
-		// back to the compacted buffer coordinate system.
-		if segStart > 0 {
-			prefix := segStart
-			copy(buf, buf[prefix:])
-			buf = buf[:len(buf)-prefix]
-			bufStartSample += int64(prefix / sampleBytes)
-			nextFrame -= prefix
-			if nextFrame < 0 {
-				nextFrame = 0
-			}
-			lastPreviewEnd -= prefix
-			if lastPreviewEnd < 0 {
-				lastPreviewEnd = 0
-			}
-			// lastEmitFrameIdx is frame-addressed. Translate it with the
-			// buffer, or the throttle delta goes negative and voiced-state
-			// ticks stay suppressed until the stale index is overtaken.
-			lastEmitFrameIdx -= prefix / frameBytes
-			if lastEmitFrameIdx < 0 {
-				lastEmitFrameIdx = 0
-			}
-			segStart = 0
-		}
+	if !s.hasVoiced || end-s.segStart <= 0 {
+		s.segStart = end
+		s.hasVoiced = false
 		return true
 	}
-
-	// trimSilentPrefix bounds the PCM buffer during long non-speech stretches.
-	// A session may receive audio frames continuously while the operator is
-	// silent (the transport's idle deadline resets on every frame), and no
-	// segment cut fires before the first voiced frame. Without this trim the
-	// raw buffer — and every preview copy — grows with wall-clock session
-	// length even though none of the retained silence is part of a pending
-	// segment. Keep the trailing pre-roll window so the first phoneme still
-	// arrives with the context a normal segment boundary would preserve.
-	trimSilentPrefix := func() {
-		if hasVoiced || nextFrame <= 0 {
-			return
-		}
-		keep := preRollBytes + frameBytes
-		if keep < 2*frameBytes {
-			keep = 2 * frameBytes
-		}
-		prefix := nextFrame - keep
-		// Amortise the copy: trimming every frame would trade an unbounded
-		// buffer for quadratic work on a long silent session.
-		if prefix < v.SampleRate*sampleBytes {
-			return
-		}
-		prefix -= prefix % sampleBytes
-		remaining := len(buf) - prefix
-		compacted := make([]byte, remaining)
-		copy(compacted, buf[prefix:])
-		buf = compacted
-		bufStartSample += int64(prefix / sampleBytes)
-		nextFrame -= prefix
-		if nextFrame < 0 {
-			nextFrame = 0
-		}
-		segStart -= prefix
-		if segStart < 0 {
-			segStart = 0
-		}
-		lastPreviewEnd -= prefix
-		if lastPreviewEnd < 0 {
-			lastPreviewEnd = 0
-		}
-		lastEmitFrameIdx -= prefix / frameBytes
-		if lastEmitFrameIdx < 0 {
-			lastEmitFrameIdx = 0
-		}
+	seg := make([]byte, end-s.segStart)
+	copy(seg, s.buf[s.segStart:end])
+	prompt := s.start.InitialPrompt
+	if s.v.InitialPromptWords > 0 && s.lastPromptText != "" {
+		tail := voice.LastNWords(s.lastPromptText, s.v.InitialPromptWords)
+		prompt = strings.TrimSpace(prompt + " " + tail)
 	}
-
-	// Preview lane. Single-flight and asynchronous: the provider call must
-	// not sit in the chunk loop, or every preview would delay silence
-	// detection by its own latency and make the auto-stop boundary drift.
-	var previewWG sync.WaitGroup
-	previewSlot := make(chan struct{}, 1)
-	// An empty preview is not useful evidence, but waiting for the normal
-	// cadence before trying again adds a full interval to first-text latency.
-	// The retry signal is consumed by the chunk loop so the next request uses
-	// fresh audio without racing the segment buffer.
-	previewRetry := make(chan struct{}, 1)
-	previewIntervalBytes := v.SampleRate * v.PreviewIntervalMs / 1000 * sampleBytes
-	previewWindowBytes := v.SampleRate * v.PreviewWindowMs / 1000 * sampleBytes
-	maybePreview := func() {
-		if v.PreviewIntervalMs <= 0 {
-			return
-		}
-		end := len(buf)
-		retry := false
-		select {
-		case <-previewRetry:
-			retry = true
-		default:
-		}
-		if !retry && end-lastPreviewEnd < previewIntervalBytes {
-			return
-		}
-		select {
-		case previewSlot <- struct{}{}:
-		default:
-			// A preview is still running. Skipping is correct: previews are
-			// replaceable, so the next one supersedes whatever this would
-			// have said, and queueing them would let a slow provider build
-			// an unbounded backlog of stale hypotheses.
-			return
-		}
-		lastPreviewEnd = end
-		windowStart := segStart
-		if previewWindowBytes > 0 && end-windowStart > previewWindowBytes {
-			windowStart = end - previewWindowBytes
-		}
-		window := make([]byte, end-windowStart)
-		copy(window, buf[windowStart:end])
-
-		prompt := start.InitialPrompt
-		if v.InitialPromptWords > 0 && lastPromptText != "" {
-			prompt = strings.TrimSpace(prompt + " " + voice.LastNWords(lastPromptText, v.InitialPromptWords))
-		}
-		req := sttchain.Request{
-			Audio:                   window,
-			Format:                  start.InputFormat,
-			Language:                start.Language,
-			InitialPrompt:           prompt,
-			SkipSpeakerVerification: start.SkipSpeakerVerification,
-			// A preview is a short, still-growing speech window. Applying the
-			// backend silence filter here can discard the initial voiced slice
-			// and return an empty result, forcing the user to wait for the next
-			// preview. Final/committed requests retain the operator's VAD policy.
-			VADFilter:    false,
-			BYOKProvider: start.BYOKProvider,
-			BYOKKey:      start.BYOKKey,
-			LPBSToken:    start.LPBSToken,
-			UserIdentity: start.UserIdentity,
-		}
-
-		previewWG.Add(1)
-		go func() {
-			defer previewWG.Done()
-			defer func() { <-previewSlot }()
-			res, err := v.Provider.Transcribe(ctx, req)
-			if err != nil || res == nil {
-				return
-			}
-			text := strings.TrimSpace(res.Text)
-			if text == "" {
-				select {
-				case previewRetry <- struct{}{}:
-				default:
-				}
-				return
-			}
-			select {
-			case events <- sttchain.StreamEvent{Kind: sttchain.StreamEventPartial, Partial: &sttchain.PartialEvent{Text: text}}:
-			case <-ctx.Done():
-			}
-		}()
+	req := sttchain.Request{
+		Audio: seg, Format: s.start.InputFormat, Language: s.start.Language, InitialPrompt: prompt,
+		SkipSpeakerVerification: s.start.SkipSpeakerVerification, VADFilter: s.start.VADFilter,
+		BYOKProvider: s.start.BYOKProvider, BYOKKey: s.start.BYOKKey, LPBSToken: s.start.LPBSToken,
+		UserIdentity: s.start.UserIdentity,
 	}
-
-	// drainPreviews blocks until no preview can still send. A partial that
-	// arrived after Done would be text the consumer can never settle.
-	drainPreviews := func() { previewWG.Wait() }
-
-	emitDone := func() {
-		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{
-			FinalText:  committed,
-			LockedTier: lastTier,
-			ProviderID: lastProviderID,
-			ModelID:    lastModelID,
-			LatencyMs:  totalLatencyMs,
+	t0 := s.clk.Now()
+	res, err := s.v.Provider.Transcribe(callCtx, req)
+	latency := s.clk.Now().Sub(t0)
+	if err != nil {
+		s.events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: err}
+		return false
+	}
+	if res == nil {
+		s.events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf("stt-vad: provider returned no result for %d bytes; retaining audio for retry", len(seg))}
+		return false
+	}
+	if strings.TrimSpace(res.Text) == "" {
+		s.events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: fmt.Errorf("stt-vad: provider returned an empty transcript for %d bytes; retaining audio for retry", len(seg))}
+		return false
+	}
+	s.lastTier, s.lastProviderID, s.lastModelID = res.Tier, res.ProviderID, res.ModelID
+	s.totalLatencyMs += float64(latency.Milliseconds())
+	merged := voice.DeduplicateOverlapBounded(s.committed, res.Text, s.maxTextOverlapWords)
+	newTail := strings.TrimSpace(strings.TrimPrefix(merged, s.committed))
+	s.committed, s.lastPromptText = merged, res.Text
+	if newTail != "" {
+		s.segmentOrdinal++
+		startSample := s.bufStartSample + int64(s.segStart/sampleBytes)
+		endSample := s.bufStartSample + int64(end/sampleBytes)
+		s.events <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{
+			Text: newTail, SegmentID: fmt.Sprintf("%s:%d:vad:%d", s.start.SessionID, s.start.Generation, s.segmentOrdinal),
+			Generation: s.start.Generation, StartSample: startSample, EndSample: endSample,
+			Words:            timedWordsForCommittedTail(newTail, res.Words),
+			DetectedLanguage: res.DetectedLanguage, ProviderTier: res.Tier, ProviderID: res.ProviderID, ModelID: res.ModelID,
+			LatencyMs: float64(latency.Milliseconds()), Confidence: res.Confidence, Audio: seg,
 		}}
 	}
-
-	scan := func() {
-		for nextFrame+frameBytes <= len(buf) {
-			rms := frameRMS(buf[nextFrame : nextFrame+frameBytes])
-			isSilent := rms < v.SilenceRMS
-			if isSilent {
-				silentFrames++
-			} else {
-				silentFrames = 0
-				hasVoiced = true
-			}
-
-			currentFrameIdx := nextFrame / frameBytes
-			if !isSilent && !firstVoicedLogged {
-				firstVoicedLogged = true
-				logger.Printf("[stt-vad] first voiced frame sample=%d rms=%.0f", currentFrameIdx*v.SampleRate*v.FrameMs/1000, rms)
-			}
-			voicedNow := !isSilent
-			silenceElapsedMs := int64(silentFrames) * int64(v.FrameMs)
-			timedOut := silentFrames >= silenceFramesNeeded
-
-			// Threshold-crossing tick MUST fire regardless of `hasVoiced`.
-			// `hasVoiced` resets to false after each segment cut (see
-			// flushSegment), so on the second-and-subsequent silences in a
-			// turn the throttle gate below would never see hasVoiced=true and
-			// the timedOut tick would be lost — the client's auto-stop latch
-			// (SilenceTimedOut) would never trigger and one-shot recording
-			// would hang with the ring visually full. The cut-the-segment
-			// branch below stays gated on hasVoiced (no audio = nothing to
-			// flush), but the tick itself is engine-of-record for the client
-			// and must always emit at threshold.
-			// Note on counter reset: when hasVoiced=true we want the
-			// segment-cut branch below to run on this frame, which needs
-			// `silentFrames >= silenceFramesNeeded` to still hold — so we do
-			// NOT reset silentFrames in that case (the cut branch resets it).
-			// When hasVoiced=false there's no cut to do, but we still want to
-			// avoid spamming a timedOut tick every subsequent frame, so we
-			// reset silentFrames here.
-			if timedOut {
-				emitVad(voicedNow, silenceElapsedMs, currentFrameIdx, true)
-				if !hasVoiced {
-					silentFrames = 0
-				}
-			} else if hasVoiced {
-				shouldEmit := false
-				if !anyTickEmitted {
-					shouldEmit = true
-				} else if voicedNow != lastEmittedVoiced {
-					shouldEmit = true
-				} else {
-					minIntervalMs := vadEmitVoicedMinIntervalMs
-					if !voicedNow {
-						minIntervalMs = vadEmitSilenceMinIntervalMs
-					}
-					elapsedMs := (currentFrameIdx - lastEmitFrameIdx) * v.FrameMs
-					if elapsedMs >= minIntervalMs {
-						shouldEmit = true
-					}
-				}
-				if shouldEmit {
-					emitVad(voicedNow, silenceElapsedMs, currentFrameIdx, false)
-				}
-			}
-
-			if isSilent && hasVoiced && silentFrames >= silenceFramesNeeded {
-				// Cut math:
-				//   - "silence start" = nextFrame + frameBytes - silentFrames*frameBytes
-				//   - keep TrailingPadMs of real silence after the last voiced frame
-				silenceStart := nextFrame + frameBytes - silentFrames*frameBytes
-				cut := silenceStart + trailingPadBytes
-				if cut > nextFrame+frameBytes {
-					cut = nextFrame + frameBytes
-				}
-				if cut < segStart+frameBytes {
-					cut = segStart + frameBytes
-				}
-				// Observability: diagnosing user-reported "stops too early"
-				// requires knowing the silence window and audio extent of
-				// each cut. Cheap log — one line per cut, not per frame.
-				logger.Printf("[stt-vad] segment cut: silence_ms=%d threshold_ms=%d segment_bytes=%d segment_ms=%d rms=%.0f silence_rms=%.0f",
-					silentFrames*v.FrameMs, v.SilenceMs,
-					cut-segStart,
-					(cut-segStart)/(v.SampleRate*sampleBytes/1000),
-					rms, v.SilenceRMS,
-				)
-				if !flushSegment(ctx, cut) {
-					nextFlushAttempt = nextFrame + frameBytes + retryStepBytes
-				} else {
-					nextFlushAttempt = 0
-				}
-				silentFrames = 0
-			} else if hasVoiced && v.MaxSegmentMs > 0 &&
-				nextFrame+frameBytes-segStart >= v.SampleRate*v.MaxSegmentMs/1000*sampleBytes &&
-				(nextFlushAttempt == 0 || nextFrame+frameBytes >= nextFlushAttempt) {
-				// Continuous speech has no VAD silence boundary. Cut at the
-				// current complete frame so the next provider request remains
-				// bounded and the committed PCM can be released immediately.
-				cut := nextFrame + frameBytes
-				logger.Printf("[stt-vad] forced segment cut: max_segment_ms=%d segment_bytes=%d segment_ms=%d",
-					v.MaxSegmentMs, cut-segStart,
-					(cut-segStart)/(v.SampleRate*sampleBytes/1000),
-				)
-				if !flushSegment(ctx, cut) {
-					// Retain the audio, but do not retry the same oversized
-					// window on every 20ms frame during a provider outage.
-					nextFlushAttempt = nextFrame + frameBytes + retryStepBytes
-				} else {
-					nextFlushAttempt = 0
-				}
-				silentFrames = 0
-			}
-			nextFrame += frameBytes
+	s.segStart = advanceWithPreRoll(end, s.preRollBytes)
+	s.hasVoiced = false
+	if s.segStart > 0 {
+		prefix := s.segStart
+		copy(s.buf, s.buf[prefix:])
+		s.buf = s.buf[:len(s.buf)-prefix]
+		s.bufStartSample += int64(prefix / sampleBytes)
+		s.nextFrame -= prefix
+		if s.nextFrame < 0 {
+			s.nextFrame = 0
 		}
-		trimSilentPrefix()
+		s.lastPreviewEnd -= prefix
+		if s.lastPreviewEnd < 0 {
+			s.lastPreviewEnd = 0
+		}
+		s.lastEmitFrameIdx -= prefix / s.frameBytes
+		if s.lastEmitFrameIdx < 0 {
+			s.lastEmitFrameIdx = 0
+		}
+		s.segStart = 0
 	}
+	return true
+}
 
+// trimSilentPrefix bounds storage during long leading or inter-segment silence.
+func (s *vadRunState) trimSilentPrefix() {
+	const sampleBytes = 2
+	if s.hasVoiced || s.nextFrame <= 0 {
+		return
+	}
+	keep := s.preRollBytes + s.frameBytes
+	if keep < 2*s.frameBytes {
+		keep = 2 * s.frameBytes
+	}
+	prefix := s.nextFrame - keep
+	if prefix < s.v.SampleRate*sampleBytes {
+		return
+	}
+	prefix -= prefix % sampleBytes
+	remaining := len(s.buf) - prefix
+	compacted := make([]byte, remaining)
+	copy(compacted, s.buf[prefix:])
+	s.buf = compacted
+	s.bufStartSample += int64(prefix / sampleBytes)
+	s.nextFrame -= prefix
+	if s.nextFrame < 0 {
+		s.nextFrame = 0
+	}
+	s.segStart -= prefix
+	if s.segStart < 0 {
+		s.segStart = 0
+	}
+	s.lastPreviewEnd -= prefix
+	if s.lastPreviewEnd < 0 {
+		s.lastPreviewEnd = 0
+	}
+	s.lastEmitFrameIdx -= prefix / s.frameBytes
+	if s.lastEmitFrameIdx < 0 {
+		s.lastEmitFrameIdx = 0
+	}
+}
+
+func (s *vadRunState) emitDone() {
+	s.events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{
+		FinalText: s.committed, LockedTier: s.lastTier, ProviderID: s.lastProviderID, ModelID: s.lastModelID, LatencyMs: s.totalLatencyMs,
+	}}
+}
+
+// scan evaluates all complete frames currently buffered and applies cuts.
+func (s *vadRunState) scan() {
+	for s.nextFrame+s.frameBytes <= len(s.buf) {
+		rms := frameRMS(s.buf[s.nextFrame : s.nextFrame+s.frameBytes])
+		isSilent := rms < s.v.SilenceRMS
+		if isSilent {
+			s.silentFrames++
+		} else {
+			s.silentFrames = 0
+			s.hasVoiced = true
+		}
+		currentFrameIdx := s.nextFrame / s.frameBytes
+		if !isSilent && !s.firstVoicedLogged {
+			s.firstVoicedLogged = true
+			s.logger.Printf("[stt-vad] first voiced frame sample=%d rms=%.0f", currentFrameIdx*s.v.SampleRate*s.v.FrameMs/1000, rms)
+		}
+		voicedNow := !isSilent
+		silenceElapsedMs := int64(s.silentFrames) * int64(s.v.FrameMs)
+		timedOut := s.silentFrames >= s.silenceFramesNeeded
+		s.emitVadTick(voicedNow, silenceElapsedMs, currentFrameIdx, timedOut)
+		s.applySegmentCut(isSilent, rms)
+		s.nextFrame += s.frameBytes
+	}
+	s.trimSilentPrefix()
+}
+
+func (s *vadRunState) emitVadTick(voiced bool, silenceElapsedMs int64, frameIdx int, timedOut bool) {
+	if timedOut {
+		s.emitVad(voiced, silenceElapsedMs, frameIdx, true)
+		if !s.hasVoiced {
+			s.silentFrames = 0
+		}
+		return
+	}
+	if !s.hasVoiced {
+		return
+	}
+	shouldEmit := !s.anyTickEmitted || voiced != s.lastEmittedVoiced
+	if !shouldEmit {
+		minIntervalMs := vadEmitVoicedMinIntervalMs
+		if !voiced {
+			minIntervalMs = vadEmitSilenceMinIntervalMs
+		}
+		elapsedMs := (frameIdx - s.lastEmitFrameIdx) * s.v.FrameMs
+		shouldEmit = elapsedMs >= minIntervalMs
+	}
+	if shouldEmit {
+		s.emitVad(voiced, silenceElapsedMs, frameIdx, false)
+	}
+}
+
+func (s *vadRunState) applySegmentCut(isSilent bool, rms float64) {
+	const sampleBytes = 2
+	if isSilent && s.hasVoiced && s.silentFrames >= s.silenceFramesNeeded {
+		silenceStart := s.nextFrame + s.frameBytes - s.silentFrames*s.frameBytes
+		cut := silenceStart + s.trailingPadBytes
+		if cut > s.nextFrame+s.frameBytes {
+			cut = s.nextFrame + s.frameBytes
+		}
+		if cut < s.segStart+s.frameBytes {
+			cut = s.segStart + s.frameBytes
+		}
+		s.logger.Printf("[stt-vad] segment cut: silence_ms=%d threshold_ms=%d segment_bytes=%d segment_ms=%d rms=%.0f silence_rms=%.0f",
+			s.silentFrames*s.v.FrameMs, s.v.SilenceMs, cut-s.segStart,
+			(cut-s.segStart)/(s.v.SampleRate*sampleBytes/1000), rms, s.v.SilenceRMS)
+		s.finishSegmentCut(cut)
+	} else if s.hasVoiced && s.v.MaxSegmentMs > 0 &&
+		s.nextFrame+s.frameBytes-s.segStart >= s.v.SampleRate*s.v.MaxSegmentMs/1000*sampleBytes &&
+		(s.nextFlushAttempt == 0 || s.nextFrame+s.frameBytes >= s.nextFlushAttempt) {
+		cut := s.nextFrame + s.frameBytes
+		s.logger.Printf("[stt-vad] forced segment cut: max_segment_ms=%d segment_bytes=%d segment_ms=%d",
+			s.v.MaxSegmentMs, cut-s.segStart, (cut-s.segStart)/(s.v.SampleRate*sampleBytes/1000))
+		s.finishSegmentCut(cut)
+	}
+}
+
+func (s *vadRunState) finishSegmentCut(cut int) {
+	if !s.flushSegment(s.ctx, cut) {
+		s.nextFlushAttempt = s.nextFrame + s.frameBytes + s.retryStepBytes
+	} else {
+		s.nextFlushAttempt = 0
+	}
+	s.silentFrames = 0
+}
+
+func (s *vadRunState) run() error {
 	for {
 		select {
-		case <-ctx.Done():
-			scan()
-			// The normal flush below already runs on cancellation, but it used
-			// to pass the cancelled ctx to the provider, so a ctx-honouring
-			// backend failed the request and the tail was dropped. Retry it with
-			// the same bounded, caller-deadline-aware context as OverlapAgree so
-			// cancellation remains a best-effort stream end.
-			if flushCtx, cancel, ok := bestEffortTailContext(ctx); ok {
-				flushSegment(flushCtx, len(buf))
+		case <-s.ctx.Done():
+			s.scan()
+			if flushCtx, cancel, ok := bestEffortTailContext(s.ctx); ok {
+				s.flushSegment(flushCtx, len(s.buf))
 				cancel()
 			}
-			drainPreviews()
-			emitDone()
-			return ctx.Err()
-		case ch, ok := <-chunks:
+			s.drainPreviews()
+			s.emitDone()
+			return s.ctx.Err()
+		case ch, ok := <-s.chunks:
 			if !ok {
-				scan()
-				flushSegment(ctx, len(buf))
-				drainPreviews()
-				emitDone()
+				s.scan()
+				s.flushSegment(s.ctx, len(s.buf))
+				s.drainPreviews()
+				s.emitDone()
 				return nil
 			}
-			chunkCount++
-			if chunkCount <= 8 {
-				logger.Printf("[stt-vad] chunk_received n=%d bytes=%d buffered_bytes=%d", chunkCount, len(ch.Audio), len(buf)+len(ch.Audio))
+			s.chunkCount++
+			if s.chunkCount <= 8 {
+				s.logger.Printf("[stt-vad] chunk_received n=%d bytes=%d buffered_bytes=%d", s.chunkCount, len(ch.Audio), len(s.buf)+len(ch.Audio))
 			}
-			cursor.Observe(ch)
-			buf = append(buf, ch.Audio...)
-			scan()
-			maybePreview()
+			s.cursor.Observe(ch)
+			s.buf = append(s.buf, ch.Audio...)
+			s.scan()
+			s.maybePreview()
 		}
 	}
 }

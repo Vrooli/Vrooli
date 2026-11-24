@@ -20,7 +20,7 @@ func configToProto(c inttts.Config) *ttsv1.Config {
 		AutoEnabled:           c.AutoEnabled,
 		DefaultVoice:          c.KokoroVoice,
 		DefaultSpeed:          c.KokoroSpeed,
-		DefaultResponseFormat: protomap.ResponseFormatToProto(c.Backend),
+		DefaultResponseFormat: protomap.ResponseFormatToProto(c.DefaultResponseFormat),
 	}
 }
 
@@ -28,6 +28,8 @@ func mapChainError(err error) error {
 	// errors.Is, not ==, so a provider that wraps a sentinel keeps its
 	// actionable code instead of flattening to Internal.
 	switch {
+	case errors.Is(err, inttts.ErrInvalidArgument):
+		return connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.Is(err, ttschain.ErrInsufficientCredits):
 		return connect.NewError(connect.CodeResourceExhausted, err)
 	case errors.Is(err, ttschain.ErrUnknownBYOKProvider), errors.Is(err, ttschain.ErrMissingBYOKProvider):

@@ -104,7 +104,11 @@ repair the owner path when the control remains disabled or requires refresh.
 
 ### Sensors
 
-Run `audio-tools.setpoint-read` through `program-runtime library run` first.
+Run `audio-tools.setpoint-read` through
+`program-runtime --instance lab library run` first. The setpoint reads
+lab-owned qualification receipts; the live Audio Tools product API intentionally
+does not mount the lab evidence service. Use the lab Program Runtime instance
+so its same-variant Audio Tools dependency resolves to the lab API.
 Use a specific `experiment_id` to examine persisted measurements; omit it for
 inventory only. The contract owns input, envelope, and error vocabulary.
 For authoritative obligation/evidence state, read `business-health matrix show

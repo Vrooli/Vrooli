@@ -4,41 +4,51 @@ import (
 	"encoding/json"
 	"testing"
 
-	testutil "audio-tools/cli/internal/testutil"
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliapptest"
 
 	settv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/settings"
 )
 
 // TestSettingsManifestCoversService asserts every RPC on SettingsService is
-// bound or omitted in cli/manifest.json. (`settings providers` is a
-// client-side composite hand-appended in register.go; GetProviderConfig is
-// bound to `settings provider` and the unbound SettingsService methods are
-// documented in the manifest's omitted list.)
+// bound or omitted in cli/manifest.json. `settings providers` is a local
+// action command that composes two reads.
 func TestSettingsManifestCoversService(t *testing.T) {
-	cliapp.RequireProtoServiceCoverage(t, testutil.ReadManifest(t), settv1.File_audio_tools_v1_settings_settings_proto, "SettingsService")
+	cliapp.RequireProtoServiceCoverage(t, cliapptest.ReadManifest(t), settv1.File_audio_tools_v1_settings_settings_proto, "SettingsService")
 }
 
 // TestSettingsProvidersIsDeclaredException keeps the hand-registered
 // composite command visible to manifest-driven CLI health checks.
-func TestSettingsProvidersIsDeclaredException(t *testing.T) {
+func TestSettingsProvidersIsDeclaredAction(t *testing.T) {
 	var manifest struct {
-		Exceptions []struct {
-			Command string `json:"command"`
-			Class   string `json:"class"`
-			Reason  string `json:"reason"`
-		} `json:"exceptions"`
+		Exceptions []json.RawMessage `json:"exceptions"`
+		Groups     []struct {
+			Name     string `json:"name"`
+			Commands []struct {
+				Name         string `json:"name"`
+				Architecture struct {
+					Primitive string `json:"primitive"`
+				} `json:"architecture"`
+			} `json:"commands"`
+		} `json:"groups"`
 	}
-	if err := json.Unmarshal(testutil.ReadManifest(t), &manifest); err != nil {
+	if err := json.Unmarshal(cliapptest.ReadManifest(t), &manifest); err != nil {
 		t.Fatalf("parse manifest: %v", err)
 	}
-	for _, exception := range manifest.Exceptions {
-		if exception.Command == "settings providers" {
-			if exception.Class != "passthrough" || exception.Reason == "" {
-				t.Fatalf("settings providers exception = %#v, want passthrough with reason", exception)
+	if len(manifest.Exceptions) != 0 {
+		t.Fatalf("manifest exceptions = %d, want none", len(manifest.Exceptions))
+	}
+	for _, group := range manifest.Groups {
+		if group.Name == "settings" {
+			for _, command := range group.Commands {
+				if command.Name == "providers" {
+					if command.Architecture.Primitive != "action" {
+						t.Fatalf("settings providers primitive = %q, want action", command.Architecture.Primitive)
+					}
+					return
+				}
 			}
-			return
 		}
 	}
-	t.Fatal("manifest must declare settings providers as a passthrough exception")
+	t.Fatal("manifest must declare settings providers as a command")
 }

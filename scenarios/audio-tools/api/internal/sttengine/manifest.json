@@ -46,6 +46,7 @@
       "displayName": "Sherpa-ONNX Zipformer (streaming, local)",
       "kind": "local_resource",
       "resource": "sherpa-onnx",
+      "attachOnly": true,
       "provides": {
         "nativeStreaming": true,
         "builtinVad": false,
@@ -68,8 +69,8 @@
       "workload_capable"
     ],
     "rankedPreferences": [
-      "native_streaming",
       "low_footprint",
+      "native_streaming",
       "accelerated"
     ],
     "tiebreakRank": [

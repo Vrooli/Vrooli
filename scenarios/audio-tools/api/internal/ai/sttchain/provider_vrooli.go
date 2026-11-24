@@ -40,7 +40,7 @@ func (p *VrooliProvider) LPBSState() *tiered.LPBSProvider[VrooliClient] {
 	return p.LPBSProvider
 }
 
-func (p *VrooliProvider) IsAvailable(ctx context.Context) bool { return tiered.SafeIsAvailable(p, ctx) }
+func (p *VrooliProvider) IsAvailable(ctx context.Context) bool { return tiered.SafeIsAvailable(ctx, p) }
 
 func (p *VrooliProvider) Model() string { return tiered.SafeModel(p) }
 

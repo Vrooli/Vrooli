@@ -25,6 +25,15 @@ func Register(core *cliapp.ScenarioApp, now func() time.Time, newTicker func(tim
 		NeedsAPI:    false,
 		Subcommands: []cliapp.Command{
 			{
+				Name:        "device-matrix",
+				Description: "Enumerate D1-D6 browser/device qualification cells and optionally validate product-path receipts",
+				Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
+					{Name: "matrix-path", Description: "Optional device matrix declaration JSON path"},
+					{Name: "receipt-path", Description: "Optional JSON file containing versioned per-cell qualification receipts"},
+				}},
+				RunCtx: newHandlersWithDependencies(core, now, newTicker, getenv, getwd).runDeviceMatrix,
+			},
+			{
 				Name:        "run-expensive",
 				Description: "Run the hour-scale TTS and continuous synthetic-dictation qualification and record evidence",
 				NeedsAPI:    true,
@@ -44,7 +53,7 @@ func Register(core *cliapp.ScenarioApp, now func() time.Time, newTicker func(tim
 			},
 			{
 				Name:        "run-simulated",
-				Description: "Run local policy and adapter qualification and persist a labelled simulated receipt",
+				Description: "Run local policy and adapter qualification and persist a labelled simulated receipt through the lab API; use --instance lab",
 				NeedsAPI:    true,
 				Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
 					{Name: "device-profile", Description: "Observed host profile for the simulated receipt (for example D1 or D2)"},
@@ -53,7 +62,7 @@ func Register(core *cliapp.ScenarioApp, now func() time.Time, newTicker func(tim
 			},
 			{
 				Name:        "run-speaker-policy",
-				Description: "Exercise live batch/native speaker policy and fail-closed controls, then record owner evidence",
+				Description: "Exercise live batch/native speaker policy and fail-closed controls, then record owner evidence through the lab API; use --instance lab",
 				NeedsAPI:    true,
 				Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
 					{Name: "file", Description: "WAV fixture used for the owner-backed policy probe"},
@@ -63,13 +72,13 @@ func Register(core *cliapp.ScenarioApp, now func() time.Time, newTicker func(tim
 			},
 			{
 				Name:        "run-host-portability",
-				Description: "Measure D1 CPU/accelerator routes and record explicit D2 unavailable evidence",
+				Description: "Measure bounded D1 CPU and D2 native streaming inference and record model memory evidence through the lab API; use --instance lab",
 				NeedsAPI:    true,
 				RunCtx:      newHandlersWithDependencies(core, now, newTicker, getenv, getwd).runHostPortability,
 			},
 			{
 				Name:        "run-acceptance-join",
-				Description: "Validate fresh owner receipts and persist one provenance-preserving acceptance join",
+				Description: "Validate fresh owner receipts and persist one provenance-preserving acceptance join through the lab API; use --instance lab",
 				NeedsAPI:    true,
 				RunCtx:      newHandlersWithDependencies(core, now, newTicker, getenv, getwd).runAcceptanceJoin,
 			},

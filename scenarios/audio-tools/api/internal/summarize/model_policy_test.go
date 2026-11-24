@@ -1,16 +1,8 @@
 package summarize
 
 import (
-	"context"
-	"io"
-	"net/http"
-	"strings"
 	"testing"
 )
-
-type roundTripDoer func(*http.Request) (*http.Response, error)
-
-func (fn roundTripDoer) Do(req *http.Request) (*http.Response, error) { return fn(req) }
 
 func TestModelPolicy_CoercesUnsafeStoredModels(t *testing.T) {
 	cases := []struct {
@@ -41,31 +33,30 @@ func TestModelPolicy_CoercesUnsafeStoredModels(t *testing.T) {
 	}
 }
 
-func TestModelPolicy_MergeSummarizeModelsMarksStatus(t *testing.T) {
-	models := MergeSummarizeModels([]OllamaModel{
-		{Name: "fixture-chat-model", SizeBytes: 123, ParameterSize: "3B"},
-		{Name: "fixture-reasoning-model", SizeBytes: 456, ParameterSize: "4B"},
-		{Name: "all-minilm:latest", SizeBytes: 789},
+func TestSummarizeRoleOptionsProjectsNewlyDeclaredInventoryRole(t *testing.T) {
+	roles := []DeclaredSummaryRole{
+		{ID: "summarize.audio_tools.experimental", Description: "New role description from the presentation catalog."},
+		{ID: "summarize.faithful", Description: "Shared role must not be exposed by Audio Tools."},
+		{ID: "summarize.audio_tools", Description: "Compact role caveat: 14/22 facts on one 300-word report."},
+	}
+	options := SummarizeRoleOptions(roles)
+	if len(options) != 2 || options[0].ID != DefaultSummarizeModel || options[1].ID != "summarize.audio_tools.experimental" {
+		t.Fatalf("role options = %+v, want sorted Audio Tools inventory roles only", options)
+	}
+	if options[1].Notes != roles[0].Description || options[0].Notes != roles[2].Description {
+		t.Fatalf("role descriptions not projected for display: %+v", options)
+	}
+	if !IsAudioToolsSummarizeRole("summarize.audio_tools.experimental") || IsAudioToolsSummarizeRole("summarize.audio_tools_other") || IsAudioToolsSummarizeRole("summarize.faithful") {
+		t.Fatal("Audio Tools role namespace filter should accept only its exact namespace and dotted descendants")
+	}
+}
+
+func TestSummarizeRoleOptionsSuppliesFallbackDescription(t *testing.T) {
+	options := SummarizeRoleOptions([]DeclaredSummaryRole{
+		{ID: "summarize.audio_tools.experimental"},
 	})
-	byID := map[string]SummarizeModelInfo{}
-	for _, model := range models {
-		byID[model.ID] = model
-	}
-	defaultRole := byID[DefaultSummarizeModel]
-	if defaultRole.Installed || !defaultRole.DefaultEligible || defaultRole.PullCommand != "resource-ollama ensure --role "+DefaultSummarizeModel {
-		t.Fatalf("default role status = %+v, want missing default-eligible role", defaultRole)
-	}
-	chat := byID["fixture-chat-model"]
-	if !chat.Installed || chat.DefaultEligible || chat.Reasoning {
-		t.Fatalf("chat fixture status = %+v, want installed direct model and not default-eligible", chat)
-	}
-	reasoning := byID["fixture-reasoning-model"]
-	if !reasoning.Installed || reasoning.DefaultEligible || !reasoning.Reasoning {
-		t.Fatalf("reasoning fixture status = %+v, want installed reasoning and not default-eligible", reasoning)
-	}
-	embedding := byID["all-minilm:latest"]
-	if !embedding.Installed || embedding.DefaultEligible {
-		t.Fatalf("all-minilm status = %+v, want installed but not default-eligible", embedding)
+	if len(options) != 1 || options[0].Notes == "" || options[0].Family != "ai-gateway-role" || !options[0].DefaultEligible {
+		t.Fatalf("role options = %+v, want declared role with safe display fallback", options)
 	}
 }
 
@@ -74,12 +65,12 @@ func TestSelectorIsRole(t *testing.T) {
 		selector string
 		want     bool
 	}{
-		{"summarize.default", true}, // logical role
-		{"chat.small", true},        // logical role
-		{"qwen3.5:9b", false},       // concrete tag
+		{DefaultSummarizeModel, true}, // logical Audio Tools role
+		{"chat.small", true},          // logical role
+		{"qwen3.5:9b", false},         // concrete tag
 		{"nomic-embed-text:latest", false},
-		{"  summarize.default  ", true}, // trimmed
-		{"", false},                     // empty is not a role
+		{"  " + DefaultSummarizeModel + "  ", true}, // trimmed
+		{"", false}, // empty is not a role
 		{"   ", false},
 	}
 	for _, tc := range cases {
@@ -89,30 +80,8 @@ func TestSelectorIsRole(t *testing.T) {
 	}
 }
 
-func TestModelPolicy_KnownAndEligibilityAreDefensive(t *testing.T) {
-	known := KnownSummarizeModels()
-	known[0].ID = "mutated"
-	if KnownSummarizeModels()[0].ID == "mutated" {
-		t.Fatal("known model catalog must return a copy")
-	}
+func TestModelPolicy_Eligibility(t *testing.T) {
 	if !IsDefaultEligibleSummarizeModel("chat.small") || IsDefaultEligibleSummarizeModel("fixture-reasoning-model") || IsDefaultEligibleSummarizeModel("") {
 		t.Fatal("default eligibility must reject empty and reasoning selectors")
-	}
-}
-
-func TestModelPolicy_FetchAndListModels(t *testing.T) {
-	doer := roundTripDoer(func(req *http.Request) (*http.Response, error) {
-		if req.URL.Path != "/api/tags" {
-			t.Fatalf("path = %s", req.URL.Path)
-		}
-		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"models":[{"name":"chat.small","size":12,"details":{"parameter_size":"3B"}}]}`)), Header: make(http.Header)}, nil
-	})
-	models, err := FetchOllamaModels(context.Background(), "http://ollama/", doer)
-	if err != nil || len(models) != 1 || models[0].ParameterSize != "3B" {
-		t.Fatalf("models=%+v err=%v", models, err)
-	}
-	listed, err := ListSummarizeModels(context.Background(), "http://ollama", doer)
-	if err != nil || len(listed) == 0 {
-		t.Fatalf("listed=%+v err=%v", listed, err)
 	}
 }

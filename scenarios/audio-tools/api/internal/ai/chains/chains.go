@@ -23,6 +23,16 @@ type Config struct {
 	TTLVrooli     time.Duration
 }
 
+// ClampEnablement applies environment-level upper bounds to persisted routing
+// preferences. Environment flags may disable a tier, but settings cannot turn
+// on a tier that the process environment has disabled.
+func ClampEnablement(config, upperBound Config) Config {
+	config.BYOKEnabled = config.BYOKEnabled && upperBound.BYOKEnabled
+	config.VrooliEnabled = config.VrooliEnabled && upperBound.VrooliEnabled
+	config.LocalEnabled = config.LocalEnabled && upperBound.LocalEnabled
+	return config
+}
+
 // Probe is the union of per-chain Probe results.
 type Probe struct {
 	STT       tiered.ProbeResult

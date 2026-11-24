@@ -5,6 +5,13 @@ import (
 	"errors"
 )
 
+const DefaultResponseFormat = "mp3"
+
+const (
+	SpeedModeNative      = "native"
+	SpeedModePostprocess = "postprocess"
+)
+
 // Sentinel errors used by service implementations and mapped by the transport
 // layer.
 var (
@@ -32,22 +39,24 @@ type HandlerService interface {
 	ListVoices(ctx context.Context) ([]Voice, error)
 }
 
-// Config mirrors the legacy TTSConfig JSON shape.
+// Config is the persisted TTS preference snapshot. UnmarshalJSON reads the old
+// backend field as a response-format migration only when its value is a known
+// audio format; runtime routing belongs to the provider chain.
 type Config struct {
-	AutoEnabled bool
-	Backend     string
-	KokoroVoice string
-	KokoroSpeed float64
+	AutoEnabled           bool
+	DefaultResponseFormat string
+	KokoroVoice           string
+	KokoroSpeed           float64
 }
 
 // ConfigPatch carries optional updates. Pointer fields preserve the legacy
 // "not provided vs zero" distinction; the Connect handler builds this from
 // the proto request's has_* flags.
 type ConfigPatch struct {
-	AutoEnabled *bool
-	Backend     *string
-	KokoroVoice *string
-	KokoroSpeed *float64
+	AutoEnabled           *bool
+	DefaultResponseFormat *string
+	KokoroVoice           *string
+	KokoroSpeed           *float64
 }
 
 // AppendResult mirrors the routing-result snapshot embedded in Status.
@@ -133,11 +142,12 @@ type SynthesizeResult struct {
 
 // CacheLookup is the GetCache request shape.
 type CacheLookup struct {
-	EventID    string
-	Voice      string
-	Speed      float64
-	Version    string
-	ChunkIndex int32
+	EventID        string
+	Voice          string
+	Speed          float64
+	ResponseFormat string
+	Version        string
+	ChunkIndex     int32
 }
 
 // Voice mirrors TTSVoice.

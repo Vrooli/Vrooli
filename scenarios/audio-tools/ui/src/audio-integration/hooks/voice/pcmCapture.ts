@@ -3,14 +3,14 @@
 // PCM capture seam for the streaming voice path. The browser taps the mic
 // MediaStream and delivers raw Float32 PCM frames at the AudioContext's
 // native rate. PcmVoiceStreamProvider owns the policy (downsample, encode,
-// send/buffer/drop); this module owns only the Web Audio wiring.
+// send/buffer/drop); the shared browser package owns graph creation and its
+// AudioWorklet-to-ScriptProcessor recovery policy.
 //
 // The factory is injectable so PcmVoiceStreamProvider can be unit-tested by
 // pushing synthetic frames without a real AudioContext (which jsdom does
 // not provide). Production wires createScriptProcessorPcmCapture.
-// HOST DIFFERENCE: this adapter owns the audio-tools/browser automation
-// startup policy and shared AudioContext binding; the capture primitives stay
-// in @vrooli/audio-capture-browser.
+// HOST DIFFERENCE: this adapter owns the Audio Tools shared AudioContext
+// binding; capture behavior stays in @vrooli/audio-capture-browser.
 
 import {
   createCanonicalPcmCapture as createSharedCanonicalPcmCapture,
@@ -23,16 +23,11 @@ import { getSharedAudioContext } from "./sharedAudioContext";
 
 export type { AsyncPcmCaptureFactory, PcmCapture, PcmCaptureFactory };
 
-// Some fake-media automation drivers advertise AudioWorklet support but leave
-// module loading pending forever. A recorder must still become usable through
-// the broadly supported ScriptProcessor graph.
-const CANONICAL_CAPTURE_START_TIMEOUT_MS = 1_000;
-
 /**
- * Production PCM capture using a ScriptProcessorNode on the shared
+ * Explicit compatibility capture using a ScriptProcessorNode on the shared
  * AudioContext. ScriptProcessor is deprecated but universally supported;
  * the codebase already uses it for passive wake-word capture
- * (audioUtils.createPassiveCapturePipeline) for the same reason. A
+ * (audioUtils.createPassiveCapturePipeline) for the same reason.
  * The shared implementation uses a 1024-sample buffer for this compatibility
  * path so fake-media and older browsers do not add a large first-batch delay.
  *
@@ -49,33 +44,5 @@ export const createCanonicalPcmCapture: AsyncPcmCaptureFactory = async (stream, 
   // a context is activated first. Once media is available, resume the shared
   // context before attaching either capture graph.
   if (context.state === "suspended") await context.resume();
-  // Chromium automation can advertise AudioWorklet while never scheduling its
-  // processor. Start the proven ScriptProcessor graph immediately in that
-  // environment: a deterministic WAV fixture may be shorter than the
-  // worklet-fallback timeout, so waiting would lose the entire turn.
-  if (typeof navigator !== "undefined" && navigator.webdriver) {
-    return createSharedScriptProcessorPcmCapture(context, stream, onFrame);
-  }
-  let timedOut = false;
-  let timeout: ReturnType<typeof setTimeout> | undefined;
-  const preferred = createSharedCanonicalPcmCapture(context, stream, onFrame).then((capture) => {
-    // If the preferred graph completes after the fallback is active, tear it
-    // down rather than leaving two capture graphs attached to one microphone.
-    if (timedOut) capture.stop();
-    return capture;
-  });
-
-  try {
-    return await Promise.race([
-      preferred,
-      new Promise<never>((_, reject) => {
-        timeout = setTimeout(() => reject(new Error("canonical PCM capture startup timed out")), CANONICAL_CAPTURE_START_TIMEOUT_MS);
-      }),
-    ]);
-  } catch {
-    timedOut = true;
-    return createSharedScriptProcessorPcmCapture(context, stream, onFrame);
-  } finally {
-    if (timeout) clearTimeout(timeout);
-  }
+  return createSharedCanonicalPcmCapture(context, stream, onFrame);
 };

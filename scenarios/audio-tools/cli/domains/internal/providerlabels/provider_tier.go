@@ -11,6 +11,8 @@ func TierLabel(t commonv1.ProviderTier) string {
 		return "byok"
 	case commonv1.ProviderTier_PROVIDER_TIER_VROOLI:
 		return "vrooli"
+	case commonv1.ProviderTier_PROVIDER_TIER_BROWSER:
+		return "browser"
 	default:
 		return "unknown"
 	}

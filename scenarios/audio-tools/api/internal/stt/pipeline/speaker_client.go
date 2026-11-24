@@ -150,6 +150,26 @@ type SpeakerClient struct {
 	Doer    httpc.Doer
 }
 
+// Speaker JSON metadata is small (even a profile with many enrollment clips).
+// Bound responses from the separately managed speaker resource so a faulty or
+// compromised endpoint cannot make a routine lookup consume unbounded memory.
+const maxSpeakerJSONResponseBytes = 4 << 20
+
+// Extraction returns one canonical audio window. 64 MiB is far above any
+// supported window while bounding an invalid response from the resource.
+const maxSpeakerAudioResponseBytes = 64 << 20
+
+func readBounded(body io.Reader, maxBytes int64) ([]byte, error) {
+	b, err := io.ReadAll(io.LimitReader(body, maxBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(b)) > maxBytes {
+		return nil, fmt.Errorf("response exceeds %d-byte limit", maxBytes)
+	}
+	return b, nil
+}
+
 // SpeakerModelMismatchError is returned when durable enrollment data belongs
 // to a different embedding model. Callers must surface re-enrollment rather
 // than treating the failure as a low verification score.
@@ -181,7 +201,11 @@ func (c *SpeakerClient) getJSON(ctx context.Context, path string, out any) error
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected status %d", resp.StatusCode)
 	}
-	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+	body, err := readBounded(resp.Body, maxSpeakerJSONResponseBytes)
+	if err != nil {
+		return fmt.Errorf("read response: %w", err)
+	}
+	if err := json.Unmarshal(body, out); err != nil {
 		return fmt.Errorf("decode response: %w", err)
 	}
 	return nil
@@ -213,7 +237,11 @@ func (c *SpeakerClient) doJSON(req *http.Request, out any) error {
 	if out == nil {
 		return nil
 	}
-	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+	body, err := readBounded(resp.Body, maxSpeakerJSONResponseBytes)
+	if err != nil {
+		return fmt.Errorf("read response: %w", err)
+	}
+	if err := json.Unmarshal(body, out); err != nil {
 		return fmt.Errorf("decode response: %w", err)
 	}
 	return nil
@@ -391,7 +419,7 @@ func (c *SpeakerClient) Extract(
 		return SpeakerExtractionResult{}, fmt.Errorf("extract: unexpected status %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
 	}
 
-	audioBytes, err := io.ReadAll(resp.Body)
+	audioBytes, err := readBounded(resp.Body, maxSpeakerAudioResponseBytes)
 	if err != nil {
 		return SpeakerExtractionResult{}, fmt.Errorf("read response body: %w", err)
 	}

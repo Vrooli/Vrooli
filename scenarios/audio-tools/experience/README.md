@@ -14,7 +14,7 @@ use the existing product selectors and diagnostic attributes. Claims about
 long-form reliability remain earned by the audio-tools qualification artifacts
 under `coverage/`.
 
-The `portable-voice-v1` PRD adds explicit route/cost consent, genuine partials,
+The `portable-voice-v2` PRD adds explicit route/cost consent, genuine partials,
 final drain, private recovery and evidence-scoped device support. These authored
 priorities are desired behavior, not claims that the UI or hosted route already
 implements them. Existing active/draft status is not a passing UX certificate.

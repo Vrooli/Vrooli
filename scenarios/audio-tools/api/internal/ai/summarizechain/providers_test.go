@@ -10,6 +10,7 @@ import (
 
 	"audio-tools/internal/ai/summarizechain"
 	summocks "audio-tools/internal/ai/summarizechain/mocks"
+	"audio-tools/internal/summarize"
 )
 
 func TestLocalProvider_NilSummarizer(t *testing.T) {
@@ -25,6 +26,20 @@ func TestLocalProvider_NilSummarizer(t *testing.T) {
 	require.Equal(t, "", nilP.Model())
 }
 
+func TestLocalProvider_PreservesExplicitSourceAssignment(t *testing.T) {
+	s := summarize.NewSummarizerWithRunner("unused", func(context.Context, []string, string) ([]byte, error) {
+		return []byte(`{"model":"fixture","response":"Atlas opens in Denver. Priya manages captions.","done_reason":"stop"}`), nil
+	})
+	p := summarizechain.NewLocalProvider(s, "model")
+	res, err := p.Summarize(context.Background(), summarizechain.Request{
+		Text:  "Atlas opens in Denver. Priya owns caption follow-up. Marcus owns legal approval.",
+		Level: "moderate",
+	})
+	require.NoError(t, err)
+	require.Contains(t, res.Text, "Marcus owns legal approval.")
+	require.Contains(t, res.Text, "Priya manages captions.")
+}
+
 func TestBYOKProvider_TypeModel(t *testing.T) {
 	p := summarizechain.NewBYOKProvider(map[string]summarizechain.BYOKAdapter{
 		"openrouter": &summocks.FakeBYOK{IDStr: "openrouter", Available: true},
@@ -38,6 +53,32 @@ func TestBYOKProvider_TypeModel(t *testing.T) {
 	// Missing key.
 	_, err := p.Summarize(context.Background(), summarizechain.Request{BYOKProvider: "openrouter"})
 	require.Error(t, err)
+}
+
+func TestLocalRoleNeverOverridesBYOKModelSelection(t *testing.T) {
+	var received summarizechain.Request
+	adapter := &summocks.FakeBYOK{IDStr: "openrouter", Available: true, SummarizeFn: func(_ context.Context, _ string, req summarizechain.Request) (*summarizechain.Result, error) {
+		received = req
+		return &summarizechain.Result{Text: "remote"}, nil
+	}}
+	p := summarizechain.NewBYOKProvider(map[string]summarizechain.BYOKAdapter{"openrouter": adapter})
+	_, err := p.Summarize(context.Background(), summarizechain.Request{BYOKProvider: "openrouter", BYOKKey: "secret", Model: "vendor-model-id", LocalModelRole: "summarize.audio_tools.quality"})
+	require.NoError(t, err)
+	require.Equal(t, "vendor-model-id", received.Model, "provider-specific override is preserved")
+	require.Empty(t, received.LocalModelRole, "local role is never forwarded to a remote adapter")
+}
+
+func TestLocalRoleNeverOverridesLPBSModelSelection(t *testing.T) {
+	var received summarizechain.Request
+	client := &summocks.FakeVrooliClient{Available: true, SummarizeFn: func(_ context.Context, _, _ string, req summarizechain.Request) (*summarizechain.Result, error) {
+		received = req
+		return &summarizechain.Result{Text: "remote"}, nil
+	}}
+	p := summarizechain.NewVrooliProvider(client)
+	_, err := p.Summarize(context.Background(), summarizechain.Request{LPBSToken: "token", Model: "lpbs-model-override", LocalModelRole: "summarize.audio_tools.quality"})
+	require.NoError(t, err)
+	require.Equal(t, "lpbs-model-override", received.Model, "existing LPBS-specific model override remains intact")
+	require.Empty(t, received.LocalModelRole, "local role is never forwarded to LPBS")
 }
 
 func TestVrooliProvider_TypeModelAvailability(t *testing.T) {

@@ -13,39 +13,42 @@ import (
 //
 // The returned channel is closed after the final frame.
 func (c *Chain) Stream(ctx context.Context, req Request) (<-chan AudioFrame, error) {
-	if c.Coordinator != nil && c.Local != nil && c.localFirst && c.Eligible(ctx, tiered.SlotLocal, req) && c.Local.StreamingCapability() {
-		out, err := c.Local.SynthesizeStreaming(ctx, req)
-		if err == nil && out != nil {
-			return out, nil
+	for _, slot := range tiered.Order(c.localFirst) {
+		if c.Coordinator == nil {
+			return c.bufferedFallback(ctx, req), nil
 		}
-	}
-	if c.BYOK != nil && c.Eligible(ctx, tiered.SlotBYOK, req) && c.BYOK.StreamingCapability() {
-		out, err := c.BYOK.SynthesizeStreaming(ctx, req)
-		switch {
-		case err != nil:
-			if tiered.StreamingTerminal(tiered.SlotBYOK, err, ErrUnknownBYOKProvider, ErrMissingBYOKProvider, ErrInsufficientCredits) {
+		switch slot {
+		case tiered.SlotLocal:
+			if c.Local == nil || !c.Eligible(ctx, slot, req) || !c.Local.StreamingCapability() {
+				continue
+			}
+			out, err := c.Local.SynthesizeStreaming(ctx, req)
+			if err == nil && out != nil {
+				return out, nil
+			}
+		case tiered.SlotBYOK:
+			if c.BYOK == nil || !c.Eligible(ctx, slot, req) || !c.BYOK.StreamingCapability() {
+				continue
+			}
+			out, err := c.BYOK.SynthesizeStreaming(ctx, req)
+			if err != nil && tiered.StreamingTerminal(slot, err, ErrUnknownBYOKProvider, ErrMissingBYOKProvider, ErrInsufficientCredits) {
 				return nil, err
 			}
-		case out != nil:
-			return out, nil
-		}
-	}
-	if c.Vrooli != nil && c.Eligible(ctx, tiered.SlotVrooli, req) && c.Vrooli.StreamingCapability() {
-		out, err := c.Vrooli.SynthesizeStreaming(ctx, req)
-		switch {
-		case err != nil:
-			// Credit exhaustion must not be masked by a buffered fallback.
-			if tiered.StreamingTerminal(tiered.SlotVrooli, err, ErrUnknownBYOKProvider, ErrMissingBYOKProvider, ErrInsufficientCredits) {
+			if err == nil && out != nil {
+				return out, nil
+			}
+		case tiered.SlotVrooli:
+			if c.Vrooli == nil || !c.Eligible(ctx, slot, req) || !c.Vrooli.StreamingCapability() {
+				continue
+			}
+			out, err := c.Vrooli.SynthesizeStreaming(ctx, req)
+			// Credit exhaustion must not be masked by buffered fallback.
+			if err != nil && tiered.StreamingTerminal(slot, err, ErrUnknownBYOKProvider, ErrMissingBYOKProvider, ErrInsufficientCredits) {
 				return nil, err
 			}
-		case out != nil:
-			return out, nil
-		}
-	}
-	if !c.localFirst && c.Local != nil && c.Eligible(ctx, tiered.SlotLocal, req) && c.Local.StreamingCapability() {
-		out, err := c.Local.SynthesizeStreaming(ctx, req)
-		if err == nil && out != nil {
-			return out, nil
+			if err == nil && out != nil {
+				return out, nil
+			}
 		}
 	}
 	return c.bufferedFallback(ctx, req), nil

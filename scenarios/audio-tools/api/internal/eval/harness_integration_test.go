@@ -1,4 +1,4 @@
-//go:build whisper_integration
+//go:build audio_lab && whisper_integration
 
 // Package eval's real-Whisper integration test. Build-tagged so it is
 // EXCLUDED from the default suite (which must run without a live backend);

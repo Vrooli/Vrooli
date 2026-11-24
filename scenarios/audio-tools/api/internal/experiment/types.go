@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 // Package experiment persists async STT experiment runs: reproducible recipes,
 // lifecycle state, per-condition metrics, and large report references. Audio
 // bytes and large reports stay in the blob store, not SQLite or git.
@@ -7,6 +9,9 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	measuretypes "audio-tools/internal/measures"
+	trustfloor "audio-tools/internal/qualification"
 )
 
 // Status is an experiment's lifecycle state.
@@ -98,32 +103,12 @@ type Run struct {
 	CreatedAt     time.Time
 }
 
-// QualificationEvidence is a transcript-free proof record for one
-// provider/strategy/policy promotion gate. The store keeps failures as well as
-// passes so an operator cannot erase a failed qualification by recording a
-// later success without the history remaining inspectable.
-type QualificationEvidence struct {
-	ID            string
-	EngineID      string
-	ModelID       string
-	Strategy      string
-	PolicyProfile string
-	Kind          string
-	FaultProfile  string
-	Passed        bool
-	ArtifactRef   string
-	Notes         string
-	MachineJSON   []byte
-	ObservedAt    time.Time
-}
-
-// QualificationEvidenceFilter narrows evidence by its provider-cell identity.
-type QualificationEvidenceFilter struct {
-	EngineID      string
-	ModelID       string
-	Strategy      string
-	PolicyProfile string
-}
+// QualificationEvidence and its filter are product-owned contracts shared
+// with model-promotion reads. Experiment owns only their persistence adapter.
+type (
+	QualificationEvidence       = trustfloor.QualificationEvidence
+	QualificationEvidenceFilter = trustfloor.QualificationEvidenceFilter
+)
 
 // ListFilter narrows experiment listing.
 type ListFilter struct {
@@ -180,6 +165,7 @@ func (e ErrNotFound) Error() string { return fmt.Sprintf("experiment: %q not fou
 // Repository is the experiment metadata persistence seam. Production is the
 // SQLite impl in sqlite.go; tests substitute fakes.
 type Repository interface {
+	CountCreatedInRange(ctx context.Context, from, to time.Time) (CreatedCounts, error)
 	CreateExperiment(ctx context.Context, exp Experiment) (Experiment, error)
 	GetExperiment(ctx context.Context, id string) (Experiment, error)
 	UpdateExperiment(ctx context.Context, exp Experiment) error
@@ -192,3 +178,7 @@ type Repository interface {
 	CreateQualificationEvidence(ctx context.Context, evidence QualificationEvidence) (QualificationEvidence, error)
 	ListQualificationEvidence(ctx context.Context, filter QualificationEvidenceFilter) ([]QualificationEvidence, error)
 }
+
+// CreatedCounts is the product-owned aggregate-measure contract. The
+// experiment repository only supplies its persistence implementation.
+type CreatedCounts = measuretypes.ExperimentCreatedCounts

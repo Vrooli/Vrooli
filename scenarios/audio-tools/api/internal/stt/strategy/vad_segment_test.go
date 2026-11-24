@@ -86,6 +86,47 @@ func TestVADSegmenter_EmitsDistinctAbsoluteSegmentIdentity(t *testing.T) {
 	}
 }
 
+func TestVADSegmenter_PreservesOnlyNewWordTimingsWithAbsoluteSegmentOffset(t *testing.T) {
+	var call int
+	prov := sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{})
+	prov.TranscribeFn = func(context.Context, sttchain.Request) (*sttchain.Result, error) {
+		call++
+		if call == 1 {
+			return &sttchain.Result{Text: "alpha beta", Words: []sttchain.TimedWord{
+				{Word: "alpha", Start: .05, End: .2}, {Word: "beta", Start: .25, End: .4},
+			}, Tier: sttchain.TierLocal, ProviderID: "fake", ModelID: "whisper-large-v3-turbo"}, nil
+		}
+		return &sttchain.Result{Text: "beta gamma", Words: []sttchain.TimedWord{
+			{Word: "beta", Start: .05, End: .2}, {Word: "gamma", Start: .25, End: .4},
+		}, Tier: sttchain.TierLocal, ProviderID: "fake", ModelID: "whisper-large-v3-turbo"}, nil
+	}
+	strat := &strategy.VADSegmenter{Provider: prov, SilenceMs: 200, PreRollMs: 0, TrailingPadMs: 0}
+	audio := testaudio.SineSamples(440, 250)
+	audio = append(audio, testaudio.SilenceSamples(250)...)
+	audio = append(audio, testaudio.SineSamples(440, 250)...)
+	audio = append(audio, testaudio.SilenceSamples(250)...)
+	events := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksFrom(audio))
+
+	var segments []*sttchain.SegmentEvent
+	for _, event := range events {
+		if event.Kind == sttchain.StreamEventSegment && event.Segment != nil {
+			segments = append(segments, event.Segment)
+		}
+	}
+	require.Len(t, segments, 2)
+	require.Equal(t, "whisper-large-v3-turbo", segments[0].ModelID)
+	require.Equal(t, "whisper-large-v3-turbo", segments[1].ModelID)
+	require.Equal(t, "alpha beta", segments[0].Text)
+	require.Len(t, segments[0].Words, 2)
+	require.Equal(t, "gamma", segments[1].Text)
+	require.Equal(t, []sttchain.TimedWord{{Word: "gamma", Start: .25, End: .4}}, segments[1].Words,
+		"the repeated beta word must not be counted twice or shift later lexical alignment")
+	require.Greater(t, segments[1].StartSample, int64(0))
+	absoluteStartSeconds := float64(segments[1].StartSample)/16000 + segments[1].Words[0].Start
+	require.Greater(t, absoluteStartSeconds, segments[1].Words[0].Start,
+		"provider-relative word interval becomes recording-relative when the evaluator adds StartSample")
+}
+
 // vadStateEvents extracts the VadState ticks from a strategy event run.
 func vadStateEvents(events []sttchain.StreamEvent) []*sttchain.VadStateEvent {
 	var out []*sttchain.VadStateEvent

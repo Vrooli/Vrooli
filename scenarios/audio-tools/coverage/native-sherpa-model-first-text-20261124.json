@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "runId": "native-sherpa-model-first-text-20261124",
+  "observedAt": "2026-11-24T03:31:32Z",
+  "qualification": "diagnostic_only",
+  "method": {
+    "test": "resources/sherpa-onnx/server/TestNativeStreamingModelSmoke",
+    "runtimeRoot": "/tmp/opencode/sherpa-root",
+    "runtimeRelease": "sherpa-onnx v1.13.2",
+    "input": "/tmp/opencode/jfk.wav",
+    "inputSha256": "59dfb9a4acb36fe2a2affc14bacbee2920ff435cb13cc314a08c13f66ba7860e",
+    "inputDurationMs": 11001,
+    "streamFeedBytes": 3200,
+    "streamFeedIntervalMs": 100,
+    "platform": "linux/amd64",
+    "runsPerModel": 1,
+    "referenceComparison": "Manual check against the public JFK opening phrase; transcript text is not retained.",
+    "expectedFinalSuffix": "country.",
+    "limits": [
+      "Native model adapter only; not the browser or Audio Tools product route.",
+      "One clean English fixture and one run per model; this is not a percentile, held-out corpus, or accuracy qualification.",
+      "Model load time is measured per fresh test engine; memory and cold service startup were not measured.",
+      "Kroko commercial/OEM licensing remains unconfirmed; do not use as a commercial default.",
+      "The 20M model was not given a full expected-transcript assertion; only its expected final suffix was checked."
+    ]
+  },
+  "models": [
+    {
+      "modelId": "sherpa-zipformer-en-2023-06-26",
+      "artifactResource": "sherpa-onnx",
+      "artifactName": "streaming-zipformer-en-2023-06-26",
+      "declaredSizeMb": 310,
+      "license": "Apache-2.0",
+      "modelType": "zipformer2",
+      "expectedSuffixPassed": true,
+      "expectedReferencePrefixPassed": false,
+      "firstTextObservedBeforeFinish": true,
+      "firstTextAudioMs": 1200,
+      "firstTextWallMs": 1217.428,
+      "modelLoadMs": 1258.471,
+      "modelFeedCallWallMs": 579.994,
+      "streamElapsedMs": 11000.976,
+      "realtimeFactor": 0.99
+    },
+    {
+      "modelId": "sherpa-zipformer-en-20m-2023-02-17",
+      "artifactResource": "sherpa-onnx",
+      "artifactName": "streaming-zipformer-en-20m-2023-02-17",
+      "declaredArchiveBytes": 127887156,
+      "selectedOnnxBytes": 45197026,
+      "license": "Apache-2.0",
+      "modelType": "auto",
+      "expectedSuffixPassed": true,
+      "expectedReferencePrefixPassed": false,
+      "firstTextObservedBeforeFinish": true,
+      "firstTextAudioMs": 2100,
+      "firstTextWallMs": 2107.400,
+      "modelLoadMs": 810.868,
+      "modelFeedCallWallMs": 238.284,
+      "streamElapsedMs": 11100.967,
+      "realtimeFactor": 0.99
+    },
+    {
+      "modelId": "sherpa-zipformer-en-kroko-2025-08-06",
+      "artifactResource": "sherpa-onnx",
+      "artifactName": "streaming-zipformer-en-kroko-2025-08-06",
+      "declaredSizeMb": 68,
+      "license": "CC-BY-SA-4.0; commercial/OEM license not confirmed",
+      "modelType": "auto",
+      "expectedSuffixPassed": true,
+      "expectedReferencePrefixPassed": true,
+      "expectedReferencePrefix": "ask not what your country can do for you",
+      "firstTextObservedBeforeFinish": true,
+      "firstTextAudioMs": 1500,
+      "firstTextWallMs": 1533.711,
+      "modelLoadMs": 2076.255,
+      "modelFeedCallWallMs": 219.870,
+      "streamElapsedMs": 11100.992,
+      "realtimeFactor": 0.99
+    }
+  ],
+  "decision": "Keep the 310 MB Apache-2.0 model as the sherpa-streaming engine default. The 20M candidate improves load/feed compute but has later first text on this fixture. Kroko is substantially smaller and its JFK output passed the tested phrase, but first text is still later than 1 s and the commercial license is unresolved. None of these one-run native measurements changes the 30-run browser p95 result or qualifies a new default."
+}

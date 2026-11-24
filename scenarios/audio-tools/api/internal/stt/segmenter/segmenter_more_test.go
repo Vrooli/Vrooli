@@ -70,8 +70,11 @@ func TestSegmenter_ContextCancel_PropagatesToStrategy(t *testing.T) {
 	}
 
 	out := drain(events)
-	if len(out) < 2 {
-		t.Fatalf("expected at least Error+Done, got %d", len(out))
+	if len(out) != 2 {
+		t.Fatalf("expected exactly Error+Done with nonterminal events suppressed, got %d (%+v)", len(out), out)
+	}
+	if out[0].Kind != sttchain.StreamEventError {
+		t.Fatalf("first event should be Error, got %v", out[0].Kind)
 	}
 	if out[len(out)-1].Kind != sttchain.StreamEventDone {
 		t.Fatalf("last event should be Done, got %v", out[len(out)-1].Kind)

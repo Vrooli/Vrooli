@@ -84,7 +84,7 @@ before commands marked `NeedsAPI: true`. If your edit landed in a
 non-API command, force a rebuild:
 
 ```bash
-make setup   # rebuilds CLI from sources
+make setup
 ```
 
 ### `audio-tools configure` doesn't persist

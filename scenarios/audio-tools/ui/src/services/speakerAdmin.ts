@@ -14,6 +14,7 @@ import {
 } from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
 
 import { transport } from "../api/client";
+import { timestampToISO } from "@vrooli/audio-capture-browser";
 
 const client = createConnectClient(STTAdminService, transport);
 
@@ -141,12 +142,6 @@ function decodeConfig(c: {
   };
 }
 
-function tsToISO(ts?: { seconds?: bigint | number; nanos?: number }): string {
-  if (!ts) return "";
-  const seconds = typeof ts.seconds === "bigint" ? Number(ts.seconds) : (ts.seconds ?? 0);
-  return new Date(seconds * 1000 + Math.floor((ts.nanos ?? 0) / 1_000_000)).toISOString();
-}
-
 function decodeProfile(p: {
   id: string;
   displayName: string;
@@ -159,7 +154,7 @@ function decodeProfile(p: {
   return {
     id: p.id,
     displayName: p.displayName,
-    createdAt: tsToISO(p.createdAt),
+    createdAt: timestampToISO(p.createdAt),
     modelName: p.modelName,
     sampleRate: p.sampleRate,
     clipCount: p.clipCount,
@@ -177,7 +172,7 @@ function decodeClip(c: {
     clipId: c.clipId,
     label: c.label,
     voicedSeconds: c.voicedSeconds,
-    createdAt: tsToISO(c.createdAt),
+    createdAt: timestampToISO(c.createdAt),
   };
 }
 

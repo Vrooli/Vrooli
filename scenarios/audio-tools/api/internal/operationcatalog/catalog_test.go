@@ -7,7 +7,10 @@ import (
 	"testing"
 )
 
-const generatedUIPath = "../../../ui/src/features/diagnostics/audioOps.generated.ts"
+const (
+	generatedUIPath        = "../../../ui/src/features/diagnostics/audioOps.generated.ts"
+	generatedReferencePath = "../../../docs/reference/audio-operations.md"
+)
 
 func TestEmbeddedCatalogValidates(t *testing.T) {
 	c, err := Default()
@@ -196,6 +199,18 @@ func TestGeneratedUISpecsAreCurrent(t *testing.T) {
 		t.Fatalf("read %s: %v (run: cd api && go run ./cmd/gen-operations)", path, err)
 	}
 	if string(current) != string(rendered) {
+		t.Fatalf("%s is stale; run: cd api && go run ./cmd/gen-operations", path)
+	}
+}
+
+func TestGeneratedOperationReferenceIsCurrent(t *testing.T) {
+	want := RenderReferenceMarkdown(MustDefault())
+	path := filepath.Clean(generatedReferencePath)
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v (run: cd api && go run ./cmd/gen-operations)", path, err)
+	}
+	if string(got) != string(want) {
 		t.Fatalf("%s is stale; run: cd api && go run ./cmd/gen-operations", path)
 	}
 }

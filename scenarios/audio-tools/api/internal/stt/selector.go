@@ -479,10 +479,10 @@ func (s *Selector) eligibleStrategy(ctx context.Context, cfg StreamConfig, chose
 	if s.Registry != nil && chosen.Tier == sttchain.TierLocal {
 		engineID := cfg.EngineID
 		if engineID == "" && s.EngineResolver != nil {
-			// Resolve under the session's context: the live resolver bounds each
-			// control-plane probe with a 10s timeout, so using Background would
-			// let a canceled session keep probing after its caller left.
-			if resolution, err := s.EngineResolver.Resolve(ctx, s.Registry); err == nil {
+			// Admission uses a fresh snapshot or bounded provider liveness; a cold
+			// control-plane inventory read runs in the background so session
+			// startup does not wait for its potentially 10s probe timeout.
+			if resolution, err := s.EngineResolver.ResolveForAdmission(ctx, s.Registry); err == nil {
 				engineID = resolution.Selected
 			}
 		}

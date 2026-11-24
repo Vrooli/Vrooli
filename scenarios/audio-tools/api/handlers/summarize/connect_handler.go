@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -34,6 +35,9 @@ func NewConnectHandler(d Deps) *connectHandler {
 	if d.Clock == nil {
 		panic("summarize.NewConnectHandler requires Deps.Clock")
 	}
+	if d.IsDeclaredLocalRole == nil {
+		d.IsDeclaredLocalRole = intsumm.IsDeclaredLocalSummarizeRole
+	}
 	return &connectHandler{deps: d}
 }
 
@@ -43,11 +47,25 @@ func (h *connectHandler) Summarize(ctx context.Context, req *connect.Request[sum
 	if h.deps.Chain == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("summarize chain not configured"))
 	}
+	localModelRole := strings.TrimSpace(req.Msg.GetLocalModelRole())
+	if localModelRole == "" {
+		localModelRole = h.qualityEscalationRole(ctx, req.Msg.GetText())
+	}
+	if localModelRole != "" {
+		declared, err := h.deps.IsDeclaredLocalRole(ctx, localModelRole)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("resolve declared Audio Tools summary roles: %w", err))
+		}
+		if !declared {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported local summarize role %q", localModelRole))
+		}
+	}
 	env := envelope.FromConnectRequest(req)
 	chainReq := summarizechain.Request{
 		Text:           req.Msg.Text,
 		Level:          protomap.SummarizeLevelFromProto(req.Msg.GetLevel()),
-		Model:          req.Msg.Model,
+		Model:          req.Msg.GetModel(),
+		LocalModelRole: localModelRole,
 		TimeoutSeconds: int(req.Msg.TimeoutSeconds),
 		BYOKProvider:   env.Provider,
 		BYOKKey:        env.Key,
@@ -99,9 +117,35 @@ func (h *connectHandler) Summarize(ctx context.Context, req *connect.Request[sum
 		ProviderTier: protomap.ProviderTierToProto(string(res.Tier)),
 		ProviderId:   capabilities.CanonicalProviderID(res.ProviderID),
 		ModelId:      res.ModelID,
-		LatencyMs:    float64(res.Latency.Milliseconds()),
+		LatencyMs:    float64(res.Latency) / float64(time.Millisecond),
 	}
 	return resp, nil
+}
+
+// qualityEscalationRole selects a declared quality role for long input. The
+// compact application role stays the default; the selected role is still
+// checked against the AI Gateway inventory before dispatch. A 300-word
+// boundary matches the available long-report evidence without hard-coding a
+// concrete model tag into Audio Tools.
+func (h *connectHandler) qualityEscalationRole(ctx context.Context, text string) string {
+	if wordCount(text) < 300 || h.deps.ListSummarizeModels == nil {
+		return ""
+	}
+	models, err := h.deps.ListSummarizeModels(ctx)
+	if err != nil {
+		return ""
+	}
+	for _, model := range models {
+		id := strings.TrimSpace(model.ID)
+		if strings.HasPrefix(id, intsumm.DefaultSummarizeModel+".") && strings.HasSuffix(id, ".quality") {
+			return id
+		}
+	}
+	return ""
+}
+
+func wordCount(text string) int {
+	return len(strings.Fields(text))
 }
 
 func (h *connectHandler) GetSummarizeConfig(_ context.Context, _ *connect.Request[summv1.GetSummarizeConfigRequest]) (*connect.Response[summv1.GetSummarizeConfigResponse], error) {

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Loader2, Send } from "lucide-react";
 import { Panel } from "../../../components/ui/panel";
 import { Button } from "../../../components/ui/button";
-import { Textarea } from "../../../components/ui/textarea";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
 import { Select } from "../../../components/ui/select";
 import { ApiErrorState } from "../../../components/composites/ApiErrorState";
 import { synthesize, listVoices } from "../../../services/tts";

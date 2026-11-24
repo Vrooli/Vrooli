@@ -36,7 +36,7 @@ var Endpoints = []modulekit.EndpointDescriptor{
 		Path:        "/vrooli.audio_tools.v1.tts.TTSService/GetCache",
 		Method:      "POST",
 		Summary:     "Look up cached TTS audio",
-		Description: "Direct content-addressable lookup via content_hash, OR event_id-based lookup for consumer glue.",
+		Description: "Event-based cached audio lookup by event_id, voice, speed, response_format, version, and chunk_index. Content-hash-only lookup is not implemented.",
 		Category:    "tts",
 	},
 	{

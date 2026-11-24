@@ -41,13 +41,32 @@ func register(core *cliapp.ScenarioApp, manifest []byte, now func() time.Time) (
 		now = func() time.Time { return time.Unix(0, 0) }
 	}
 	h := newHandlersWithClock(core, now)
-	bindings := map[string]func(cliapp.RunContext) error{
-		"ProviderLifecycleService.ListLocalProviders": h.list,
-		"ProviderLifecycleService.StartProvider":      h.start,
-		"ProviderLifecycleService.StopProvider":       h.stop,
-		"ProviderLifecycleService.RestartProvider":    h.restart,
-		"ProviderLifecycleService.PullModel":          h.pullModel,
-		"ProviderLifecycleService.GetProviderLogs":    h.logs,
+	primitives := map[string]cliapp.PrimitiveHandler{
+		"ProviderLifecycleService.ListLocalProviders": h.listPrimitive(),
+		"ProviderLifecycleService.StartProvider":      h.startPrimitive(),
+		"ProviderLifecycleService.StopProvider":       h.stopPrimitive(),
+		"ProviderLifecycleService.RestartProvider":    h.restartPrimitive(),
+		"ProviderLifecycleService.PullModel":          h.pullModelPrimitive(),
+		"ProviderLifecycleService.GetProviderLogs":    cliapp.Streaming(h.logs),
 	}
-	return climanifest.LoadGroup(manifest, GroupName, bindings)
+	bindings := map[string]func(cliapp.RunContext) error{
+		"ProviderLifecycleService.ListLocalProviders": primitives["ProviderLifecycleService.ListLocalProviders"].Run,
+		"ProviderLifecycleService.StartProvider":      primitives["ProviderLifecycleService.StartProvider"].Run,
+		"ProviderLifecycleService.StopProvider":       primitives["ProviderLifecycleService.StopProvider"].Run,
+		"ProviderLifecycleService.RestartProvider":    primitives["ProviderLifecycleService.RestartProvider"].Run,
+		"ProviderLifecycleService.PullModel":          primitives["ProviderLifecycleService.PullModel"].Run,
+		"ProviderLifecycleService.GetProviderLogs":    primitives["ProviderLifecycleService.GetProviderLogs"].Run,
+	}
+	group, err := climanifest.LoadGroup(manifest, GroupName, bindings)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, err
+	}
+	for i := range group.Subcommands {
+		switch group.Subcommands[i].Name {
+		case "list", "start", "stop", "restart", "pull-model", "logs":
+			method := map[string]string{"list": "ListLocalProviders", "start": "StartProvider", "stop": "StopProvider", "restart": "RestartProvider", "pull-model": "PullModel", "logs": "GetProviderLogs"}[group.Subcommands[i].Name]
+			group.Subcommands[i] = group.Subcommands[i].WithPrimitive(primitives["ProviderLifecycleService."+method])
+		}
+	}
+	return group, nil
 }

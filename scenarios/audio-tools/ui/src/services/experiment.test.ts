@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ExperimentStatus, ReplayLane } from "@vrooli/proto-types/audio-tools/v1/experiment/experiment_pb";
+import { ExperimentStatus, ReplayLane, ReportRetentionMode } from "@vrooli/proto-types/audio-tools/v1/experiment/experiment_pb";
 import { SpeakerMode } from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
 
 const {
@@ -120,6 +120,12 @@ function experiment(status = ExperimentStatus.RUNNING) {
 beforeEach(() => vi.clearAllMocks());
 
 describe("experiment service", () => {
+  it("declares metrics-only retention in the persisted recipe when selected", async () => {
+    startExperimentRpc.mockResolvedValue({ experiment: experiment() });
+    await startExperiment({ ...input, metricsOnly: true });
+    expect(startExperimentRpc.mock.calls[0]![0].recipe.reportRetentionMode).toBe(ReportRetentionMode.METRICS_ONLY);
+  });
+
   it("[REQ:ATD-P1-001] builds a provider-aware recipe and decodes its persisted evidence", async () => {
     startExperimentRpc.mockResolvedValue({ experiment: experiment() });
 
@@ -185,5 +191,97 @@ describe("experiment service", () => {
   it("rejects a malformed start response instead of inventing an experiment", async () => {
     startExperimentRpc.mockResolvedValue({});
     await expect(startExperiment({ ...input, speakerMode: "advisory" })).rejects.toThrow("missing experiment");
+  });
+
+  it("builds deterministic recipes when realtime inputs are absent or nonpositive", async () => {
+    startExperimentRpc.mockResolvedValue({ experiment: experiment() });
+
+    await startExperiment({
+      ...input,
+      engineIds: ["  ", " engine-a "],
+      strategies: [],
+      realtimeRepeats: 0,
+      sweepDurationsCsv: "0, -2, nope, 2.6",
+      noiseTypesCsv: " , ",
+      snrDbCsv: "invalid, Infinity",
+      competingVoicesCsv: "",
+      speakerMode: "off",
+      longForm: false,
+      metricsOnly: false,
+    });
+
+    const recipe = startExperimentRpc.mock.calls[0]![0].recipe;
+    expect(recipe.cells).toEqual([]);
+    expect(recipe.strategies).toEqual([]);
+    expect(recipe.realtimeRepeats).toBe(0);
+    expect(recipe.longForm).toMatchObject({ enabled: true, sweepDurationsSeconds: [3] });
+    expect(recipe.augmentation).toEqual({ noiseTypes: [], snrDb: [], competingVoiceIds: [], competingText: input.competingText });
+    expect(recipe.speaker.verificationMode).toBe(SpeakerMode.OFF);
+    expect(recipe.reportRetentionMode).toBe(ReportRetentionMode.UNSPECIFIED);
+  });
+
+  it("decodes sparse historical recipes with defaults and label fallbacks", async () => {
+    listExperimentsRpc.mockResolvedValue({
+      experiments: [
+        { ...experiment(ExperimentStatus.UNSPECIFIED), recipe: undefined },
+        {
+          ...experiment(),
+          recipe: {
+            strategies: [{ kind: "", label: "Legacy strategy" }],
+            cells: [{ engineId: "engine-x", strategy: "legacy", label: "" }],
+            speaker: { verificationMode: SpeakerMode.ADVISORY },
+          },
+        },
+      ],
+    });
+
+    const rows = await listExperiments();
+    expect(rows[0]?.recipe).toMatchObject({
+      metricsOnly: false,
+      clipIds: [],
+      strategies: [],
+      realtimeRepeats: 0,
+      latencyTailSeconds: 0,
+      chunkMs: 0,
+      seed: 0,
+      longFormEnabled: false,
+      sweepDurationsSeconds: [],
+      realizedDurationMs: 0,
+      noiseTypes: [],
+      snrDb: [],
+      speakerMode: "unspecified",
+      speakerConditions: [],
+    });
+    expect(rows[1]?.recipe.strategies).toEqual(["Legacy strategy", "engine-x:legacy"]);
+    expect(rows[1]?.recipe.speakerMode).toBe("advisory");
+  });
+
+  it("handles omitted optional runs and report experiment values", async () => {
+    compareExperimentsRpc.mockResolvedValue({ experiments: [{ experiment: undefined, report: {} }] });
+
+    await expect(compareExperiments(["missing"])).resolves.toEqual([
+      { experiment: null, report: { decoded: {} }, runs: [] },
+    ]);
+    expect(decodeEvalReport).toHaveBeenCalledWith({});
+  });
+
+  it("streams without an abort signal", async () => {
+    streamExperimentEventsRpc.mockReturnValue((function* () {
+      yield { experimentId: "experiment-1", status: ExperimentStatus.UNSPECIFIED, progress: 0, message: "" };
+    })());
+    const observed: unknown[] = [];
+
+    await streamExperimentEvents("experiment-1", (event) => observed.push(event));
+
+    expect(streamExperimentEventsRpc).toHaveBeenCalledWith({ id: "experiment-1" }, { signal: undefined });
+    expect(observed).toEqual([{ experimentId: "experiment-1", status: "unspecified", progress: 0, message: "", at: "" }]);
+  });
+
+  it("maps unknown speaker modes to unspecified for forward compatibility", async () => {
+    startExperimentRpc.mockResolvedValue({ experiment: experiment() });
+
+    await startExperiment({ ...input, speakerMode: "future-mode" as StartExperimentInput["speakerMode"] });
+
+    expect(startExperimentRpc.mock.calls[0]![0].recipe.speaker.verificationMode).toBe(SpeakerMode.UNSPECIFIED);
   });
 });

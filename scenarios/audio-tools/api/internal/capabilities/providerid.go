@@ -17,10 +17,7 @@ func CanonicalProviderID(raw string) string {
 	if raw == "" {
 		return ""
 	}
-	if id, ok := providercatalog.ProviderIDForEngine(raw); ok {
-		return id
-	}
-	if id, ok := providercatalog.ProviderIDForRuntimeAlias(raw); ok {
+	if id, ok := providercatalog.ProviderIDForRuntimeIdentity(raw); ok {
 		return id
 	}
 	return raw

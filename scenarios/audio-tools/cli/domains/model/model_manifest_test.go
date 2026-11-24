@@ -7,7 +7,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 
-	testutil "audio-tools/cli/internal/testutil"
+	"github.com/vrooli/cli-core/cliapptest"
 
 	modelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/models"
 )
@@ -16,14 +16,14 @@ import (
 // either bound to a command or explicitly omitted in cli/manifest.json, and
 // that the manifest passes schema validation.
 func TestModelManifestCoversService(t *testing.T) {
-	cliapp.RequireProtoServiceCoverage(t, testutil.ReadManifest(t), modelsv1.File_audio_tools_v1_models_models_proto, "ModelRegistryService")
+	cliapp.RequireProtoServiceCoverage(t, cliapptest.ReadManifest(t), modelsv1.File_audio_tools_v1_models_models_proto, "ModelRegistryService")
 }
 
 // TestModelGroupBindsEveryCommand proves the manifest group and the domain's
 // handler registry cannot drift: every command resolves to a registered
 // handler, every registered handler is used, and both model RPCs are bound.
 func TestModelGroupBindsEveryCommand(t *testing.T) {
-	raw := testutil.ReadManifest(t)
+	raw := cliapptest.ReadManifest(t)
 	manifest, err := cliapp.ParseManifest(raw)
 	require.NoError(t, err)
 
@@ -55,7 +55,7 @@ func TestModelGroupBindsEveryCommand(t *testing.T) {
 // the rest of the CLI: read-only, run-eligible, internal-network only, and
 // every command/flag carries help text.
 func TestModelGroupGovernanceAndHelpMetadata(t *testing.T) {
-	raw := testutil.ReadManifest(t)
+	raw := cliapptest.ReadManifest(t)
 	manifest, err := cliapp.ParseManifest(raw)
 	require.NoError(t, err)
 
@@ -81,4 +81,31 @@ func TestModelGroupGovernanceAndHelpMetadata(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, GroupName, registered.Name)
 	require.Len(t, registered.Subcommands, len(group.Commands))
+	for _, command := range registered.Subcommands {
+		cliapptest.AssertDeclaredArchitecture(t, command, cliapp.CommandArchitecture{Primitive: cliapp.PrimitiveProtoList})
+		cliapptest.AssertPrimitiveEvidence(t, command, cliapp.PrimitiveProtoList)
+	}
+}
+
+func TestResolveEngineFlagBindsEngineID(t *testing.T) {
+	raw := cliapptest.ReadManifest(t)
+	manifest, err := cliapp.ParseManifest(raw)
+	require.NoError(t, err)
+	group := manifest.FindGroup(GroupName)
+	require.NotNil(t, group)
+
+	for _, command := range group.Commands {
+		if command.Name != "resolve" {
+			continue
+		}
+		for _, flag := range command.Flags {
+			if flag.Name == "engine" {
+				require.NotNil(t, flag.Bind)
+				require.Equal(t, "engine_id", flag.Bind.Field)
+				return
+			}
+		}
+		t.Fatal("resolve command is missing --engine")
+	}
+	t.Fatal("model group is missing resolve command")
 }

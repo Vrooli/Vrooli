@@ -51,7 +51,9 @@ type Request struct {
 	LPBSToken    string
 	UserIdentity string
 
-	// Optional override; chain default model applies when empty.
+	// Explicit unary batch model selection (catalog model id). Empty keeps the
+	// legacy tier route and Whisper local default. Remote tiers may use this as
+	// a provider-specific model override where supported.
 	Model string
 }
 
@@ -79,10 +81,10 @@ type Result struct {
 // audio's start). Mirrored from pipeline.TimedWord; lives here so chain
 // consumers don't import the pipeline package.
 type TimedWord struct {
-	Word  string
-	Start float64
-	End   float64
-	Prob  float64
+	Word  string  `json:"word"`
+	Start float64 `json:"start_seconds"`
+	End   float64 `json:"end_seconds"`
+	Prob  float64 `json:"probability,omitempty"`
 }
 
 // StrategyKind identifies a streaming strategy. The StrategySelector
@@ -393,7 +395,11 @@ type PartialEvent struct {
 }
 
 type SegmentEvent struct {
-	Text             string
+	Text string
+	// Words contains provider-reported word timings relative to the audio
+	// request that produced this segment. It is available on unary fallback;
+	// streaming providers may omit it.
+	Words            []TimedWord
 	SegmentID        string
 	Generation       uint64
 	StartMs          int64
@@ -491,6 +497,9 @@ type SessionStatusEvent struct {
 	QueuePosition     int32
 	CapabilityOutcome string
 	RecoveryGuidance  string
+	ProviderID        string
+	ModelID           string
+	ProviderTier      ProviderTier
 }
 
 // ErrInsufficientCredits is returned by the Vrooli provider when LPBS reports

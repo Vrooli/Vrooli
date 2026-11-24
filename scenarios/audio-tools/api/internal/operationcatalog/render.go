@@ -96,6 +96,29 @@ func RenderTypeScript(c Catalog) ([]byte, error) {
 	return []byte(b.String()), nil
 }
 
+// RenderReferenceMarkdown renders the user-facing operation inventory. The
+// detailed transformation guide remains hand-maintained; this generated index
+// makes operation membership and declared journeys drift-checkable.
+func RenderReferenceMarkdown(c Catalog) []byte {
+	var b strings.Builder
+	b.WriteString("# Audio Operations\n\n")
+	b.WriteString("Generated from `api/internal/operationcatalog/operations.seed.json`.\n\n")
+	b.WriteString("This index lists every declared operation and its CLI journey. For implementation details, see [Audio Transformations](../domains/audio/transformations.md).\n\n")
+	b.WriteString("| Operation | Family | Transport | CLI journey | Parameters |\n|---|---|---|---|---|\n")
+	for _, op := range c.Operations {
+		journey := "—"
+		if op.CLI.Group != "" && op.CLI.Verb != "" {
+			journey = "`audio-tools " + op.CLI.Group + " " + op.CLI.Verb + "`"
+		}
+		params := make([]string, 0, len(op.Params))
+		for _, param := range op.Params {
+			params = append(params, "`"+param.Name+"`")
+		}
+		fmt.Fprintf(&b, "| `%s` | %s | %s | %s | %s |\n", op.ID, op.Family, op.Transport, journey, strings.Join(params, ", "))
+	}
+	return []byte(b.String())
+}
+
 func writeUnion(b *strings.Builder, name string, values []string) {
 	fmt.Fprintf(b, "export type %s =\n", name)
 	for i, value := range values {

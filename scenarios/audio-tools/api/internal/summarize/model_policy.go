@@ -4,14 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"sort"
 	"strings"
-
-	"audio-tools/internal/httpc"
 )
 
-const DefaultSummarizeModel = "summarize.default"
+const (
+	DefaultSummarizeModel = "summarize.audio_tools"
+)
 
 type ModelDecisionReason string
 
@@ -50,31 +49,38 @@ type SummarizeModelInfo struct {
 	Notes           string
 }
 
-var knownSummarizeModels = []SummarizeModelInfo{
-	{
-		ID:              DefaultSummarizeModel,
-		DisplayName:     "Default summarization role",
-		Family:          "resource-ollama-role",
-		Recommended:     true,
-		DefaultEligible: true,
-		SourceURL:       "resources/ollama/model-policy.json",
-		Notes:           "Central policy role for text summarization. The concrete model is resolved by resource-ollama.",
-	},
-	{
-		ID:              "chat.small",
-		DisplayName:     "Small chat role",
-		Family:          "resource-ollama-role",
-		Recommended:     true,
-		DefaultEligible: true,
-		SourceURL:       "resources/ollama/model-policy.json",
-		Notes:           "Lower-latency fallback role resolved by resource-ollama.",
-	},
-}
-
-func KnownSummarizeModels() []SummarizeModelInfo {
-	out := make([]SummarizeModelInfo, len(knownSummarizeModels))
-	copy(out, knownSummarizeModels)
-	return out
+func SummarizeRoleOptions(roles []DeclaredSummaryRole) []SummarizeModelInfo {
+	options := make([]SummarizeModelInfo, 0, len(roles))
+	seen := map[string]struct{}{}
+	for _, role := range roles {
+		id := strings.TrimSpace(role.ID)
+		if !IsAudioToolsSummarizeRole(id) {
+			continue
+		}
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+		notes := strings.TrimSpace(role.Description)
+		if notes == "" {
+			notes = "AI Gateway-declared Audio Tools local summary role. Review the role's model-specific quality evidence before using it for fact-dense input."
+		}
+		options = append(options, SummarizeModelInfo{
+			ID: id, DisplayName: id, Family: "ai-gateway-role",
+			Recommended: id == DefaultSummarizeModel, DefaultEligible: true,
+			StatusLabel: "Declared local summary role", Notes: notes,
+		})
+	}
+	sort.Slice(options, func(i, j int) bool {
+		if options[i].ID == DefaultSummarizeModel {
+			return true
+		}
+		if options[j].ID == DefaultSummarizeModel {
+			return false
+		}
+		return options[i].ID < options[j].ID
+	})
+	return options
 }
 
 func IsReasoningModel(id string) bool {
@@ -84,11 +90,6 @@ func IsReasoningModel(id string) bool {
 
 func IsDefaultEligibleSummarizeModel(id string) bool {
 	n := normalizeModelID(id)
-	for _, m := range knownSummarizeModels {
-		if m.ID == n {
-			return m.DefaultEligible && !m.Reasoning
-		}
-	}
 	return n != "" && !IsReasoningModel(n)
 }
 
@@ -113,7 +114,7 @@ func ResolveDefaultSummarizeModel(installed []OllamaModel) string {
 // SelectorIsRole reports whether a summarize selector names a logical policy
 // role (resolved by resource-ollama) rather than a concrete Ollama model tag.
 // A concrete tag always carries a ":" version separator (e.g. "qwen3.5:9b");
-// a role does not (e.g. "summarize.default"). This is the single source of
+// a role does not (e.g. "summarize.audio_tools"). This is the single source of
 // truth for the role-vs-model distinction shared by the summarizer (which
 // passes --role vs --model to the gateway) and the capability health checker
 // (which decides whether to resolve a role before verifying installation).
@@ -124,7 +125,7 @@ func SelectorIsRole(selector string) bool {
 	return selector != "" && !strings.Contains(selector, ":")
 }
 
-// ResolveRoleModel resolves a logical role selector (e.g. "summarize.default")
+// ResolveRoleModel resolves a logical role selector (e.g. "summarize.audio_tools")
 // to the concrete Ollama model tag via resource-ollama's policy SSOT — the same
 // authority the gateway consults at chat time. It lets the health checker verify
 // the model that summarization would actually use, instead of comparing a role
@@ -150,114 +151,12 @@ func resolveRoleModel(ctx context.Context, bin, role string) (string, error) {
 	return res.Model, nil
 }
 
-func ListSummarizeModels(ctx context.Context, baseURL string, doer httpc.Doer) ([]SummarizeModelInfo, error) {
-	installed, err := FetchOllamaModels(ctx, baseURL, doer)
-	return MergeSummarizeModels(installed), err
-}
-
-func MergeSummarizeModels(installed []OllamaModel) []SummarizeModelInfo {
-	byID := make(map[string]SummarizeModelInfo, len(knownSummarizeModels)+len(installed))
-	order := make([]string, 0, len(knownSummarizeModels)+len(installed))
-	for _, m := range knownSummarizeModels {
-		m.ID = normalizeModelID(m.ID)
-		m.PullCommand = "resource-ollama ensure --role " + m.ID
-		m.StatusLabel = "Recommended, not installed"
-		if m.Reasoning {
-			m.DefaultEligible = false
-			m.StatusLabel = "Reasoning model, not installed"
-		}
-		byID[m.ID] = m
-		order = append(order, m.ID)
-	}
-	for _, local := range installed {
-		id := normalizeModelID(local.Name)
-		if id == "" {
-			continue
-		}
-		m, ok := byID[id]
-		if !ok {
-			m = SummarizeModelInfo{
-				ID:              id,
-				DisplayName:     id,
-				DefaultEligible: false,
-				Reasoning:       IsReasoningModel(id),
-				PullCommand:     "ollama pull " + id,
-			}
-			order = append(order, id)
-		}
-		m.Installed = true
-		m.SizeBytes = local.SizeBytes
-		if local.ParameterSize != "" {
-			m.ParameterSize = local.ParameterSize
-		}
-		m.Reasoning = m.Reasoning || IsReasoningModel(id)
-		m.DefaultEligible = m.DefaultEligible && !m.Reasoning
-		m.StatusLabel = "Installed"
-		if m.Reasoning {
-			m.StatusLabel = "Installed reasoning model"
-		} else if m.Recommended {
-			m.StatusLabel = "Installed, recommended"
-		}
-		byID[id] = m
-	}
-	sort.SliceStable(order, func(i, j int) bool {
-		a, b := byID[order[i]], byID[order[j]]
-		if a.Installed != b.Installed {
-			return a.Installed
-		}
-		if a.DefaultEligible != b.DefaultEligible {
-			return a.DefaultEligible
-		}
-		if a.Recommended != b.Recommended {
-			return a.Recommended
-		}
-		return a.ID < b.ID
-	})
-	out := make([]SummarizeModelInfo, 0, len(order))
-	seen := map[string]bool{}
-	for _, id := range order {
-		if seen[id] {
-			continue
-		}
-		seen[id] = true
-		out = append(out, byID[id])
-	}
-	return out
-}
-
-func FetchOllamaModels(ctx context.Context, baseURL string, doer httpc.Doer) ([]OllamaModel, error) {
-	if doer == nil {
-		doer = httpc.DefaultDoer()
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(baseURL, "/")+"/api/tags", nil)
+func ListSummarizeModels(ctx context.Context) ([]SummarizeModelInfo, error) {
+	roles, err := ListAudioToolsSummarizeRoles(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("create ollama tags request: %w", err)
+		return nil, fmt.Errorf("list declared Audio Tools summarize roles: %w", err)
 	}
-	resp, err := doer.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("ollama tags unavailable: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("ollama tags returned status %d", resp.StatusCode)
-	}
-	var tags struct {
-		Models []struct {
-			Name    string `json:"name"`
-			Size    int64  `json:"size"`
-			Details struct {
-				ParameterSize string `json:"parameter_size"`
-			} `json:"details"`
-		} `json:"models"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&tags); err != nil {
-		return nil, fmt.Errorf("decode ollama tags: %w", err)
-	}
-	out := make([]OllamaModel, 0, len(tags.Models))
-	for _, m := range tags.Models {
-		out = append(out, OllamaModel{Name: m.Name, SizeBytes: m.Size, ParameterSize: m.Details.ParameterSize})
-	}
-	return out, nil
+	return SummarizeRoleOptions(roles), nil
 }
 
 func modelInstalled(id string, installed []OllamaModel) bool {

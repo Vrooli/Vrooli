@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 // Package evaldeps composes experiment evaluation's concrete corpus, STT, and
 // speaker-resource adapters into the transport-free eval runner ports.
 package evaldeps
@@ -51,7 +53,7 @@ func New(logger logx.Logger, corpusSvc *intcorpus.Service, providerForEngine fun
 				if err := ctx.Err(); err != nil {
 					return nil, fmt.Errorf("load corpus canceled before clip %q (%d/%d): %w", meta.ID, index+1, len(metas), err)
 				}
-				audio, _, err := corpusSvc.GetClipAudio(ctx, meta.ID)
+				audio, loadedMeta, err := corpusSvc.GetClipAudio(ctx, meta.ID)
 				if err != nil {
 					return nil, fmt.Errorf("load audio for clip %q: %w", meta.ID, err)
 				}
@@ -59,7 +61,20 @@ func New(logger logx.Logger, corpusSvc *intcorpus.Service, providerForEngine fun
 				if rate <= 0 {
 					rate = 16000
 				}
-				clips = append(clips, inteval.Clip{ID: meta.ID, PCM: audio, SampleRate: rate, Reference: meta.ReferenceText, Format: meta.Format})
+				evalClip := inteval.Clip{ID: meta.ID, PCM: audio, SampleRate: rate, Reference: meta.ReferenceText, Format: meta.Format}
+				if timed := loadedMeta.TimedReference; timed != nil {
+					evalClip.TimedReference = make([]inteval.TimedWord, len(timed.Words))
+					for i, word := range timed.Words {
+						evalClip.TimedReference[i] = inteval.TimedWord{Word: word.Word, Start: word.StartSeconds, End: word.EndSeconds}
+					}
+					provenance := timed.Provenance
+					evalClip.TimingProvenance = &inteval.TimingReferenceProvenance{
+						Status: provenance.Status, SourceReference: provenance.SourceReference,
+						AlignmentTool: provenance.AlignmentTool, AlignmentModel: provenance.AlignmentModel,
+						Reviewer: provenance.Reviewer, ReviewMethod: provenance.ReviewMethod, ReviewedAt: provenance.ReviewedAt,
+					}
+				}
+				clips = append(clips, evalClip)
 				if (index+1)%10 == 0 || index+1 == len(metas) {
 					if logger != nil {
 						logger.Printf("experiment corpus audio loaded: clip_count=%d/%d", index+1, len(metas))

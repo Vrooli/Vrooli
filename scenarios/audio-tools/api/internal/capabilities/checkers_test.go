@@ -103,6 +103,7 @@ func TestResourceChecker_HTTPStatuses(t *testing.T) {
 	}{
 		{name: "healthy", statusCode: http.StatusOK, wantStatus: StatusAvailable, wantMsg: "resource is healthy"},
 		{name: "redirect", statusCode: http.StatusTemporaryRedirect, redirect: true, wantStatus: StatusAvailable, wantMsg: "resource is healthy"},
+		{name: "not ready", statusCode: http.StatusServiceUnavailable, wantStatus: StatusUnavailable, wantMsg: "resource returned unexpected status"},
 		{name: "unavailable", statusCode: http.StatusInternalServerError, wantStatus: StatusUnavailable, wantMsg: "resource returned unexpected status"},
 	}
 	for _, tt := range tests {
@@ -594,72 +595,6 @@ func TestOllamaChecker_ConnectionRefused(t *testing.T) {
 	}
 	if msg != "Ollama is not responding" {
 		t.Errorf("message = %q, want %q", msg, "Ollama is not responding")
-	}
-}
-
-func TestOpenRouterChecker_NoAPIKey(t *testing.T) {
-	checker := &OpenRouterChecker{APIKey: ""}
-	status, msg := checker.Check(context.Background())
-
-	if status != StatusUnavailable {
-		t.Errorf("status = %q, want %q", status, StatusUnavailable)
-	}
-	if msg != "OPENROUTER_API_KEY not configured" {
-		t.Errorf("message = %q, want %q", msg, "OPENROUTER_API_KEY not configured")
-	}
-}
-
-func TestOpenRouterChecker_ValidKey(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/v1/models" && r.Header.Get("Authorization") == "Bearer test-key" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		w.WriteHeader(http.StatusUnauthorized)
-	}))
-	defer srv.Close()
-
-	checker := &OpenRouterChecker{APIKey: "test-key", BaseURL: srv.URL, Doer: srv.Client()}
-	status, msg := checker.Check(context.Background())
-
-	if status != StatusAvailable {
-		t.Errorf("status = %q, want %q", status, StatusAvailable)
-	}
-	if msg != "OpenRouter is configured and reachable" {
-		t.Errorf("message = %q, want %q", msg, "OpenRouter is configured and reachable")
-	}
-}
-
-func TestOpenRouterChecker_InvalidKey(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusUnauthorized)
-	}))
-	defer srv.Close()
-
-	checker := &OpenRouterChecker{APIKey: "bad-key", BaseURL: srv.URL, Doer: srv.Client()}
-	status, msg := checker.Check(context.Background())
-
-	if status != StatusUnavailable {
-		t.Errorf("status = %q, want %q", status, StatusUnavailable)
-	}
-	if msg != "OpenRouter API key is invalid" {
-		t.Errorf("message = %q, want %q", msg, "OpenRouter API key is invalid")
-	}
-}
-
-func TestOpenRouterChecker_ConnectionRefused(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
-	url := srv.URL
-	srv.Close()
-
-	checker := &OpenRouterChecker{APIKey: "some-key", BaseURL: url, Doer: &http.Client{Timeout: time.Second}}
-	status, msg := checker.Check(context.Background())
-
-	if status != StatusUnavailable {
-		t.Errorf("status = %q, want %q", status, StatusUnavailable)
-	}
-	if msg != "OpenRouter is not reachable" {
-		t.Errorf("message = %q, want %q", msg, "OpenRouter is not reachable")
 	}
 }
 

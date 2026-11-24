@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 package corpus
 
 import (
@@ -57,6 +59,11 @@ func AssessQualityCohort(clips []Clip, revision string) QualityCohortReport {
 		}
 		if clip.CorpusRevision == "" || clip.CorpusRevision != report.Revision {
 			report.Reasons = appendUnique(report.Reasons, fmt.Sprintf("clip %q has a missing or mismatched corpus revision", clip.ID))
+		}
+		if clip.ReferenceReview == nil {
+			report.Reasons = appendUnique(report.Reasons, fmt.Sprintf("clip %q has no human-reviewed reference", clip.ID))
+		} else if err := clip.ReferenceReview.Validate(clip.ReferenceText); err != nil {
+			report.Reasons = appendUnique(report.Reasons, fmt.Sprintf("clip %q reference review is invalid: %v", clip.ID, err))
 		}
 		if clip.Split != RequiredQualityCorpusSplit {
 			report.Reasons = appendUnique(report.Reasons, fmt.Sprintf("clip %q is not in the held-out split", clip.ID))

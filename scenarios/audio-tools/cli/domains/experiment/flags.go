@@ -106,7 +106,7 @@ func parseIntCSVFlag(name, value string) ([]int32, error) {
 // `--long-form true|false` is honored. (cli-core's parser cannot express a flag
 // that is both bare-able and value-accepting, so these stay valued flags; the
 // bare-without-`=` form is rejected by the parser before the handler runs.)
-func optionalBoolFlag(ctx cliapp.RunContext, name string) (set bool, value bool, err error) {
+func optionalBoolFlag(ctx cliapp.OperationContext, name string) (set bool, value bool, err error) {
 	if !ctx.BoolFlag(name) {
 		return false, false, nil
 	}
@@ -158,7 +158,7 @@ func strategyUsesVADSilence(kind string) bool {
 // loadBaseRecipe unmarshals a full ExperimentRecipe from --recipe-json (inline)
 // or --recipe-file (path) via protojson, to be used as the base that individual
 // flags then override. Returns an empty recipe when neither is set.
-func loadBaseRecipe(ctx cliapp.RunContext) (*experimentv1.ExperimentRecipe, error) {
+func loadBaseRecipe(ctx cliapp.OperationContext) (*experimentv1.ExperimentRecipe, error) {
 	inline := strings.TrimSpace(ctx.Flag("recipe-json"))
 	file := strings.TrimSpace(ctx.Flag("recipe-file"))
 	if inline != "" && file != "" {

@@ -71,12 +71,12 @@ func NewSummarizerWithTaskRunner(runner TaskRunner) *Summarizer {
 }
 
 // summarizeSystemPrompts maps summarization levels to system prompts.
-// Prompts use explicit word/sentence budgets plus anti-preamble guards because
-// small instruction-tuned models (qwen3 family) routinely ignore soft
-// percentage targets. The hard cap still comes from options.num_predict below.
+// Prompts state what to retain and what to remove; bounded output-token budgets
+// control length because small instruction-tuned models may ignore soft
+// percentage targets.
 var summarizeSystemPrompts = map[string]string{
 	"light":    "Tighten the following text for text-to-speech. Budget: at most 55% of the source word count. Remove filler, examples, and redundant phrasing. Keep technical details verbatim. End on a complete sentence. No preamble, no greeting, no restating the request — output only the tightened text.",
-	"moderate": "Rewrite the following text as a spoken summary. Budget: at most 35% of the source word count. Keep only the single most important conclusion and the facts required to act on it. No lists unless the source is itself a list. End on a complete sentence. No preamble, no greeting, no restating the request — output only the summary.",
+	"moderate": "Produce a spoken summary under the output budget. Cover the key outcome, decisions, approvals, actions, owners, dates, numbers, risks, and contingencies in source order. Preserve named owners with their action and deadline, and preserve dates and amounts exactly. Omit background and repetition before key details. If all details cannot fit, prioritize committed decisions and required actions. End with a complete sentence. Output only the summary.",
 	"heavy":    "Write a brief spoken summary of the following text. Budget: at most 2 sentences and 40 words total. Focus on the single actionable takeaway. No preamble, no greeting, no restating the request — output only the summary.",
 }
 
@@ -93,19 +93,25 @@ func summarizeTokenBudget(level string, inputChars int) int {
 	case "heavy":
 		return 120
 	case "light":
-		budget := inputTokens * 55 / 100
+		budget := inputTokens * 65 / 100
 		if budget < 90 {
 			return 90
 		}
-		return budget
+		return min(budget, maxSummaryOutputTokens)
 	default: // moderate and unknown
-		budget := inputTokens * 35 / 100
-		if budget < 90 {
-			return 90
+		// The compact model can need more than 35% of estimated input tokens
+		// to finish a fact-preserving summary. A generous ceiling leaves room
+		// for short reports without allowing long transcripts to request an
+		// unbounded completion.
+		budget := inputTokens * 55 / 100
+		if budget < 120 {
+			return 120
 		}
-		return budget
+		return min(budget, maxSummaryOutputTokens)
 	}
 }
+
+const maxSummaryOutputTokens = 2048
 
 // reasoningHeadroomTokens is extra num_predict budget reserved only when an
 // operator explicitly chooses a reasoning model. The default summarizer model
@@ -210,7 +216,7 @@ func (s *Summarizer) SummarizeAtContextTierWithExecutionIdentity(ctx context.Con
 			"--temperature", "0.2", "--think=false", "--json", "--prompt-stdin",
 		}
 		if task.ContextTier > 0 {
-			args = append(args, "--num-ctx", strconv.Itoa(task.ContextTier))
+			args = append(args, "--context-budget", strconv.Itoa(task.ContextTier))
 		}
 		if task.RightsDecisionSHA256 != "" {
 			args = append(args, "--expected-rights-decision-sha256", task.RightsDecisionSHA256, "--expected-rights-evaluated-at", task.RightsEvaluatedAt)

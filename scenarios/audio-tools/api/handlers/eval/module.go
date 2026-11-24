@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 // Package eval contains only the protobuf transport mapping for evaluation
 // reports. Replay execution belongs to internal/eval.
 package eval

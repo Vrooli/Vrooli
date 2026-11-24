@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"audio-tools/internal/byokstore"
+	"audio-tools/internal/duplex"
 	"audio-tools/internal/protoint"
 	"audio-tools/internal/store"
 
@@ -26,6 +27,7 @@ type Stores struct {
 	TTSConfig      *store.TTSConfigStore
 	Playback       *store.PlaybackStore
 	BYOK           *byokstore.Store
+	DuplexJournal  *duplex.SQLJournal
 }
 
 // BuildStores constructs every store plus the BYOK encryptor-backed store.
@@ -70,6 +72,10 @@ func BuildStores(db *database.RoutedDB, env Env) (Stores, error) {
 		return Stores{}, fmt.Errorf("byok encryptor: %w", err)
 	}
 	byokStore := byokstore.New(encryptor, byokRepo)
+	duplexJournal, err := duplex.NewSQLJournal(db.Primary())
+	if err != nil {
+		return Stores{}, fmt.Errorf("build duplex accounting journal: %w", err)
+	}
 
 	return Stores{
 		ProviderConfig: providerStore,
@@ -83,5 +89,6 @@ func BuildStores(db *database.RoutedDB, env Env) (Stores, error) {
 		TTSConfig:      store.NewTTSConfigStore(db),
 		Playback:       store.NewPlaybackStore(db),
 		BYOK:           byokStore,
+		DuplexJournal:  duplexJournal,
 	}, nil
 }

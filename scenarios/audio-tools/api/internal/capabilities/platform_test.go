@@ -3,6 +3,8 @@ package capabilities_test
 import (
 	"context"
 	"io/fs"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -108,6 +110,63 @@ func TestKnownForPlatformDarwinMarksLocalSpeechProvidersUnsupported(t *testing.T
 	}
 	for id := range want {
 		t.Errorf("catalogue did not include %s", id)
+	}
+}
+
+func TestUnsupportedManagedPlatformStillProbesExplicitlyAttachableProvider(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, "sherpa-onnx"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := `{"managed_service":{"attach_health_check_on_unsupported_platform":true},"platforms":{"macos":"unsupported"},"deployment":{"profiles":{"desktop":{"macos":{"support":"unsupported","reason":"signed adapter artifact is not published"}}}}}`
+	if err := os.WriteFile(filepath.Join(root, "sherpa-onnx", "resource.json"), []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("VROOLI_RESOURCES_DIR", root)
+
+	for _, tc := range []struct {
+		name       string
+		statusCode int
+		want       capabilities.Status
+	}{
+		{name: "healthy attachment", statusCode: http.StatusOK, want: capabilities.StatusAvailable},
+		{name: "down attachment", statusCode: http.StatusServiceUnavailable, want: capabilities.StatusUnavailable},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(tc.statusCode)
+			}))
+			defer server.Close()
+
+			defs := capabilities.KnownForPlatform("darwin")
+			var sherpaDefs []capabilities.Def
+			for _, def := range defs {
+				if def.ID == "sherpa-stt" || def.ID == "speaker-verification" {
+					sherpaDefs = append(sherpaDefs, def)
+				}
+			}
+			if len(sherpaDefs) != 2 {
+				t.Fatalf("found %d sherpa providers, want 2", len(sherpaDefs))
+			}
+			for _, def := range sherpaDefs {
+				if def.Platform.Support != capabilities.PlatformUnsupported || !def.Platform.ProbeWhenUnsupported {
+					t.Fatalf("%s platform = %+v; want unsupported lifecycle plus attached health probe", def.ID, def.Platform)
+				}
+			}
+			checker := &capabilities.ResourceChecker{URL: server.URL, Doer: http.DefaultClient}
+			reg := capabilities.NewRegistry(sherpaDefs, map[string]capabilities.Checker{
+				"sherpa-stt": checker, "speaker-verification": checker,
+			}, time.Minute)
+			states := reg.Resolve(context.Background())
+			for _, state := range states {
+				if state.Status != tc.want {
+					t.Errorf("%s status = %q, want %q (%s)", state.ID, state.Status, tc.want, state.Message)
+				}
+				if state.Platform.Support != capabilities.PlatformUnsupported {
+					t.Errorf("%s lifecycle support = %q, want unsupported", state.ID, state.Platform.Support)
+				}
+			}
+		})
 	}
 }
 

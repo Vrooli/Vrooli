@@ -18,11 +18,11 @@ describe("useHydrateVoiceConfig", () => {
 
   it("hydrates the local voice configuration from the API once", async () => {
     unavailableMock.mockReturnValue(undefined);
-    getConfigMock.mockResolvedValue({ vadSilenceMs: 900, segmentSilenceMs: 1200, persistentMode: true, wakeWordEnabled: true });
+    getConfigMock.mockResolvedValue({ engineId: "sherpa-streaming", vadSilenceMs: 900, segmentSilenceMs: 1200, persistentMode: true, wakeWordEnabled: true });
     renderHook(() => useHydrateVoiceConfig());
 
     await waitFor(() => expect(getConfigMock).toHaveBeenCalledOnce());
-    expect(useVoiceConfigStore.getState()).toMatchObject({ vadSilenceTimeoutMs: 900, segmentSilenceMs: 900, persistentMode: true, wakeWordEnabled: true });
+    expect(useVoiceConfigStore.getState()).toMatchObject({ engineId: "sherpa-streaming", vadSilenceTimeoutMs: 900, segmentSilenceMs: 900, persistentMode: true, wakeWordEnabled: true });
   });
 
   it("does not request configuration while the client is unavailable", () => {

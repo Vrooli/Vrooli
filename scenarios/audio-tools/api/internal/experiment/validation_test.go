@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 package experiment
 
 import (
@@ -25,5 +27,20 @@ func TestValidateRecipeRejectsRealtimeTailEvidence(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("ValidateRecipe() unexpectedly accepted realtime tail evidence")
+	}
+}
+
+func TestValidateRecipeAcceptsOnlyDeclaredReportRetentionModes(t *testing.T) {
+	for _, mode := range []experimentv1.ReportRetentionMode{
+		experimentv1.ReportRetentionMode_REPORT_RETENTION_MODE_UNSPECIFIED,
+		experimentv1.ReportRetentionMode_REPORT_RETENTION_MODE_PRESERVE_TRANSCRIPTS,
+		experimentv1.ReportRetentionMode_REPORT_RETENTION_MODE_METRICS_ONLY,
+	} {
+		if err := ValidateRecipe(&experimentv1.ExperimentRecipe{ReportRetentionMode: mode}); err != nil {
+			t.Errorf("ValidateRecipe(mode=%s) error = %v", mode, err)
+		}
+	}
+	if err := ValidateRecipe(&experimentv1.ExperimentRecipe{ReportRetentionMode: experimentv1.ReportRetentionMode(99)}); err == nil {
+		t.Fatal("ValidateRecipe accepted an unknown report retention mode")
 	}
 }

@@ -1,28 +1,18 @@
 import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
 import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
 import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1";
-import { i18n } from "./i18n";
+import { i18n, i18nReady } from "./i18n";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { installChunkReloadGuard } from "@vrooli/api-base";
-import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
-import { API_BASE } from "./api/base";
-import { AudioToolsProvider, createAudioToolsClient, registerVoiceTransport } from "./audio-integration";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { onProfilerRender } from "./lib/profiler";
 import "./i18n";
 import "./styles.css";
 
-// INTEROP-CRITICAL: only init the iframe bridge when actually embedded.
-// Calling it in the standalone UI sends bridge messages to window === parent
-// and pollutes the host page's message bus. The appId is required so the
-// parent can dispatch to the correct child.
-if (typeof window !== "undefined" && window.parent !== window) {
-  initIframeBridgeChild({ appId: "audio-tools" });
-}
 // INTEROP-CRITICAL: spatial-nav must init in both embedded and standalone
 // modes so gamepad navigation works in the dev UI too.
 const spatialNav = initSpatialNav();
@@ -40,15 +30,6 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 // gone, so a tab opened before the deploy would crash on its next
 // navigation. This guard reloads once (rate-limited) instead.
 installChunkReloadGuard();
-
-// Audio-tools' own UI calls its own API. Build a client targeting this
-// scenario's own origin and mount the provider before any audio-integration
-// hook fires.
-const audioToolsClient = createAudioToolsClient({
-  baseUrl: API_BASE,
-});
-
-registerVoiceTransport();
 
 const rootEl = document.getElementById("root");
 if (!rootEl) {
@@ -78,9 +59,7 @@ function bootstrap() {
                 inner <Profiler> boundaries around heavy subtrees as needed; do
                 not remove this one. */}
             <React.Profiler id="App" onRender={onProfilerRender}>
-              <AudioToolsProvider client={audioToolsClient}>
-                <App />
-              </AudioToolsProvider>
+              <App />
             </React.Profiler>
           </ErrorBoundary>
         </QueryClientProvider>
@@ -91,4 +70,4 @@ function bootstrap() {
   );
 }
 
-bootstrap();
+void i18nReady.then(bootstrap);

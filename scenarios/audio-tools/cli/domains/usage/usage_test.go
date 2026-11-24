@@ -26,7 +26,7 @@ import (
 type fakeSvc struct {
 	usageconnect.UnimplementedUsageServiceHandler
 	list    func(*usagev1.ListRecentRequest) ([]*usagev1.UsageRow, error)
-	summary func() (*usagev1.Summary, error)
+	summary func(*usagev1.GetSummaryRequest) (*usagev1.Summary, error)
 }
 
 func (f *fakeSvc) ListRecent(_ context.Context, req *connect.Request[usagev1.ListRecentRequest]) (*connect.Response[usagev1.ListRecentResponse], error) {
@@ -37,8 +37,8 @@ func (f *fakeSvc) ListRecent(_ context.Context, req *connect.Request[usagev1.Lis
 	return connect.NewResponse(&usagev1.ListRecentResponse{Rows: rows}), nil
 }
 
-func (f *fakeSvc) GetSummary(_ context.Context, _ *connect.Request[usagev1.GetSummaryRequest]) (*connect.Response[usagev1.GetSummaryResponse], error) {
-	s, err := f.summary()
+func (f *fakeSvc) GetSummary(_ context.Context, req *connect.Request[usagev1.GetSummaryRequest]) (*connect.Response[usagev1.GetSummaryResponse], error) {
+	s, err := f.summary(req.Msg)
 	if err != nil {
 		return nil, err
 	}
@@ -65,11 +65,7 @@ func TestListWithRows(t *testing.T) {
 		},
 	})
 	h := newHandlers(app)
-	ctx, buf := cliapptest.NewCapturedRunContext(app, cliapp.ArgSchema{}, cliapptest.TestRunContextOptions{})
-	require.NoError(t, h.list(ctx))
-	out := buf.String()
-	require.Contains(t, out, "transcribe")
-	require.Contains(t, out, "local/whisper")
+	assertBothModes(t, app, h.list, "2026-05-16T00:00:00Z  stt        transcribe   local/whisper  200ms  err=\"\"\n")
 }
 
 // Happy path: empty list prints the "(no usage rows)" sentinel.
@@ -78,15 +74,13 @@ func TestListEmpty(t *testing.T) {
 		list: func(_ *usagev1.ListRecentRequest) ([]*usagev1.UsageRow, error) { return nil, nil },
 	})
 	h := newHandlers(app)
-	ctx, buf := cliapptest.NewCapturedRunContext(app, cliapp.ArgSchema{}, cliapptest.TestRunContextOptions{})
-	require.NoError(t, h.list(ctx))
-	require.Contains(t, buf.String(), "(no usage rows)")
+	assertBothModes(t, app, h.list, "(no usage rows)\n")
 }
 
 // Error path: summary RPC fails — handler surfaces wrapped error.
 func TestSummaryError(t *testing.T) {
 	app := mountUsage(t, &fakeSvc{
-		summary: func() (*usagev1.Summary, error) {
+		summary: func(*usagev1.GetSummaryRequest) (*usagev1.Summary, error) {
 			return nil, connect.NewError(connect.CodeInternal, errors.New("db down"))
 		},
 	})
@@ -95,6 +89,35 @@ func TestSummaryError(t *testing.T) {
 	err := h.summary(ctx)
 	require.Error(t, err)
 	require.True(t, strings.Contains(err.Error(), "usage summary"), "want operation tag, got %q", err.Error())
+}
+
+func TestSummaryOutputModes(t *testing.T) {
+	app := mountUsage(t, &fakeSvc{
+		summary: func(req *usagev1.GetSummaryRequest) (*usagev1.Summary, error) {
+			require.EqualValues(t, 86400, req.GetSinceSeconds())
+			return &usagev1.Summary{
+				OperationsTotal: 3,
+				CreditsTotal:    42,
+				ErrorCount:      1,
+				Distribution: []*usagev1.ProviderDistribution{{
+					ProviderTier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL,
+					ProviderId:   "whisper", Count: 2, CreditsTotal: 30, AvgLatencyMs: 100.5,
+				}},
+			}, nil
+		},
+	})
+	h := newHandlers(app)
+	want := "Operations: 3\nCredits:    42\nErrors:     1\n\nProvider distribution:\n  local/whisper       count=2 credits=30 avg_ms=100.5\n"
+	assertBothModes(t, app, h.summary, want)
+}
+
+func assertBothModes(t *testing.T, app *cliapp.ScenarioApp, run func(cliapp.RunContext) error, want string) {
+	t.Helper()
+	for _, jsonMode := range []bool{false, true} {
+		ctx, buf := cliapptest.NewCapturedRunContext(app, cliapp.ArgSchema{}, cliapptest.TestRunContextOptions{JSON: jsonMode})
+		require.NoError(t, run(ctx))
+		require.Equal(t, want, buf.String())
+	}
 }
 
 func parseTime(s string) time.Time {

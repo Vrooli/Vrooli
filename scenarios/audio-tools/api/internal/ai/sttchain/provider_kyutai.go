@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -22,6 +23,10 @@ import (
 // measured kyutai flush lag is ~0.07s (RTF 0.13), so this is generous; it only
 // exists so a wedged backend cannot hang teardown forever.
 const kyutaiDrainTimeout = 5 * time.Second
+
+// Health metadata is a small local contract; bound it so a malformed resource
+// response cannot make routine capability checks grow with an untrusted body.
+const kyutaiMaxHealthResponseBytes = 64 << 10
 
 // kyutaiMaxInFlightBatches bounds raw PCM accepted by the resource but not yet
 // decoded. It preserves WebSocket control-frame liveness under deterministic
@@ -189,11 +194,20 @@ func (p *KyutaiProvider) IsAvailable(ctx context.Context) bool {
 		ModelLoaded          bool   `json:"model_loaded"`
 		StreamingModelLoaded bool   `json:"streaming_model_loaded"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+	data, err := io.ReadAll(io.LimitReader(resp.Body, kyutaiMaxHealthResponseBytes+1))
+	if err != nil || len(data) > kyutaiMaxHealthResponseBytes {
+		return false
+	}
+	if err := json.Unmarshal(data, &body); err != nil {
 		return false
 	}
 	return body.ModelLoaded || body.StreamingModelLoaded
 }
+
+// IsServiceable is the read-only liveness probe used by inventory and engine
+// selection. Unlike Whisper recovery, this health request never changes the
+// backing resource lifecycle.
+func (p *KyutaiProvider) IsServiceable(ctx context.Context) bool { return p.IsAvailable(ctx) }
 
 // Transcribe is unsupported: Kyutai is a streaming-only engine. The unary
 // chain never reaches it (the Local unary slot is always Whisper); this guards
@@ -240,6 +254,18 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 			}}
 			close(events)
 			return
+		}
+		clock := p.Clock
+		if clock == nil {
+			clock = schedule.System()
+		}
+		requestStartedAt := clock.Now()
+		requestLatencyMs := func() float64 {
+			latency := clock.Now().Sub(requestStartedAt).Seconds() * 1000
+			if latency < 0 {
+				return 0
+			}
+			return latency
 		}
 
 		// Keep request values but deliberately detach cancellation for this short
@@ -479,6 +505,7 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 				readyOnce.Do(func() { close(readyForAudio) })
 				events <- StreamEvent{Kind: StreamEventSessionStatus, SessionStatus: &SessionStatusEvent{
 					SessionID: start.SessionID, Generation: start.Generation, State: "ready",
+					ProviderID: providerID, ModelID: model, ProviderTier: TierLocal,
 				}}
 			case "partial":
 				if msg.Text != "" {
@@ -513,6 +540,7 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 					ProviderTier:     TierLocal,
 					ProviderID:       providerID,
 					ModelID:          model,
+					LatencyMs:        requestLatencyMs(),
 				}}
 			case "error":
 				if msg.Code != "" {
@@ -529,7 +557,7 @@ func (p *KyutaiProvider) TranscribeStreaming(ctx context.Context, start StreamSt
 			case "done":
 				events <- StreamEvent{Kind: StreamEventDone, Done: &DoneEvent{
 					FinalText: strings.TrimSpace(finalText.String()), LockedTier: TierLocal,
-					ProviderID: providerID, ModelID: model,
+					ProviderID: providerID, ModelID: model, LatencyMs: requestLatencyMs(),
 				}}
 				return
 			}

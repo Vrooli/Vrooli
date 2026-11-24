@@ -27,7 +27,7 @@ passes the template test lifecycle.
 Drive the deterministic `business-health` wizard for a new charter; it does not
 generate product judgment with AI. For this existing scenario, preserve the
 published baseline and read `prompt-manager skill read prd-authoring` before
-regenerating the charter. The 2026-09-09 `portable-voice-v1` revision includes
+regenerating the charter. The 2026-11-21 `portable-voice-v2` revision includes
 the broader voice scope; see the [target mapping](internal/TESTING.md#published-targets-and-pending-decisions).
 Preview changes before publication. Initialization is not authority to replace
 existing requirements or their evidence.

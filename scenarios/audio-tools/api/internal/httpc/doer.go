@@ -2,7 +2,7 @@
 // when calling external services.
 //
 // Production wires *http.Client directly — it satisfies Doer through
-// the compile-time assertion below. Tests substitute mocks.FakeDoer to
+// the compile-time assertion below. Tests substitute a shared Doer fake to
 // pin request shape and stub responses without touching the network.
 //
 // # Why ship the seam unwired in production
@@ -34,6 +34,22 @@ func DefaultDoer() Doer {
 	return &http.Client{Timeout: 120 * time.Second}
 }
 
+// NoRedirectDoer constructs a bounded client that returns 3xx responses to
+// the caller instead of following them. Model/audio adapters use this when a
+// configured local endpoint must not redirect request payloads to another
+// host. Non-positive timeouts use the standard inference timeout.
+func NoRedirectDoer(timeout time.Duration) Doer {
+	if timeout <= 0 {
+		timeout = 120 * time.Second
+	}
+	return &http.Client{
+		Timeout: timeout,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+}
+
 // LivenessDoer constructs a short-timeout Doer for UI/status health probes.
 // Keep expensive readiness/quality checks on DefaultDoer; liveness should
 // answer whether a dependency is reachable without waiting on model work.
@@ -50,12 +66,12 @@ func ReadinessDoer() Doer {
 }
 
 // seam: Doer is the outbound-HTTP seam (SEAMS.md row "httpc.Doer").
-// Production wires *http.Client; tests wire mocks.FakeDoer.
+// Production wires *http.Client; tests wire a shared Doer fake.
 //
 // Doer is the canonical outbound HTTP interface. The single-method
 // surface is intentional — handlers depend on what they need (Do)
 // rather than the full *http.Client surface (Get / Post / CloseIdle…),
-// which keeps the FakeDoer surface small and the seam easy to substitute.
+// which keeps test fakes small and the seam easy to substitute.
 type Doer interface {
 	Do(*http.Request) (*http.Response, error)
 }

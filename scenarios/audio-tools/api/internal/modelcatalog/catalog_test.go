@@ -1,7 +1,6 @@
 package modelcatalog
 
 import (
-	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -38,10 +37,33 @@ func TestEveryCapabilityHasModel(t *testing.T) {
 	}
 }
 
+func TestByEngineModelIDResolvesDeclaredRuntimeAlias(t *testing.T) {
+	model, ok := Default().ByEngineModelID("sherpa-streaming", "sherpa-onnx/streaming-zipformer-en-2023-06-26")
+	if !ok {
+		t.Fatal("runtime model id did not resolve")
+	}
+	if model.ID != "sherpa-zipformer-en-2023-06-26" {
+		t.Fatalf("canonical id = %q", model.ID)
+	}
+	if model.RuntimeModelID != "sherpa-onnx/streaming-zipformer-en-2023-06-26" {
+		t.Fatalf("runtime model id = %q", model.RuntimeModelID)
+	}
+}
+
+func TestByEngineModelIDRejectsAmbiguousRuntimeAlias(t *testing.T) {
+	catalog := &Catalog{byEngine: map[string][]Model{"engine": {
+		{ID: "model-a", EngineIDs: []string{"engine"}, RuntimeModelID: "runtime-model"},
+		{ID: "model-b", EngineIDs: []string{"engine"}, RuntimeModelID: "runtime-model"},
+	}}}
+	if _, ok := catalog.ByEngineModelID("engine", "runtime-model"); ok {
+		t.Fatal("ambiguous runtime model id resolved")
+	}
+}
+
 func TestDefaultMapsToKnownProvider(t *testing.T) {
 	c := Default()
 	known := stringSet(c.seed.KnownProviderIDs)
-	for _, capability := range Capabilities {
+	for _, capability := range DefaultCapabilities {
 		m, err := c.DefaultFor(capability, "", Platform{})
 		if err != nil {
 			t.Errorf("DefaultFor(%s): %v", capability, err)
@@ -73,9 +95,8 @@ func TestEngineIDsFollowStreamSelection(t *testing.T) {
 			t.Errorf("%s engine ids = %v, want whisper-local", id, m.EngineIDs)
 		}
 	}
-	// Chain-routed STT providers and batch adapters with no engine do not
-	// declare an engine id: no sttengine provider owns one.
-	for _, id := range []string{"openai-whisper-1", "deepgram-nova-3", "rumble-2-flash"} {
+	// Chain-routed remote STT providers do not declare local engine ids.
+	for _, id := range []string{"openai-whisper-1", "deepgram-nova-3"} {
 		m, ok := c.ByID(id)
 		if !ok {
 			t.Fatalf("%s record missing", id)
@@ -83,6 +104,10 @@ func TestEngineIDsFollowStreamSelection(t *testing.T) {
 		if len(m.EngineIDs) != 0 {
 			t.Errorf("%s engine ids = %v, want none", id, m.EngineIDs)
 		}
+	}
+	rumble, ok := c.ByID("rumble-2-flash")
+	if !ok || len(rumble.EngineIDs) != 0 {
+		t.Errorf("Rumble engine ids = %v, want none (unary model routing is separate from stream engine selection)", rumble.EngineIDs)
 	}
 	for _, m := range c.ByCapability(CapabilityTTS) {
 		if len(m.EngineIDs) != 0 {
@@ -101,9 +126,101 @@ func TestEngineIDsFollowStreamSelection(t *testing.T) {
 	}
 }
 
+func TestRumbleCandidateCannotBecomeDefaultWithoutQualification(t *testing.T) {
+	c := Default()
+	rumble, ok := c.ByID("rumble-2-flash")
+	if !ok {
+		t.Fatal("rumble-2-flash record missing")
+	}
+	if rumble.Readiness != ReadinessCandidate {
+		t.Fatalf("Rumble readiness = %q, want candidate until its open runtime/quality gates pass", rumble.Readiness)
+	}
+	if rumble.DefaultEligible() || rumble.HasRole("default") {
+		t.Fatalf("Rumble is eligible/promoted before its runtime exists: readiness=%q roles=%v", rumble.Readiness, rumble.Roles)
+	}
+	if rumble.Artifact != nil {
+		t.Fatalf("Rumble declares local artifact %q/%q without a managed resource", rumble.Artifact.Resource, rumble.Artifact.Name)
+	}
+	if rumble.BatchAdapterID != "vllm-openai-chat-audio" {
+		t.Fatalf("Rumble batch adapter = %q, want declared vLLM audio-chat protocol", rumble.BatchAdapterID)
+	}
+	if len(rumble.EngineIDs) != 0 {
+		t.Fatalf("Rumble must remain outside stream engine selection, got ids %v", rumble.EngineIDs)
+	}
+	got, err := c.DefaultFor(CapabilitySTT, "en", Platform{OS: "linux", Arch: "amd64", Accelerated: true, FreeVRAMGB: 24, RAMGB: 64})
+	if err != nil {
+		t.Fatalf("existing STT default should remain resolvable: %v", err)
+	}
+	if got.ID == rumble.ID {
+		t.Fatal("Rumble became the STT default without runtime qualification")
+	}
+}
+
+func TestSherpa20MZipformerIsRegistryOnlyCandidate(t *testing.T) {
+	c := Default()
+	model, ok := c.ByID("sherpa-zipformer-en-20m-2023-02-17")
+	if !ok {
+		t.Fatal("Sherpa 20M Zipformer candidate missing")
+	}
+	if model.Runtime != "sherpa-onnx" || model.RuntimeModelID != "sherpa-onnx/streaming-zipformer-en-20M-2023-02-17" {
+		t.Fatalf("Sherpa 20M runtime identity = %q/%q", model.Runtime, model.RuntimeModelID)
+	}
+	if model.Readiness != ReadinessCandidate || model.DefaultEligible() || model.HasRole("default") {
+		t.Fatalf("Sherpa 20M candidate was promoted: readiness=%q roles=%v", model.Readiness, model.Roles)
+	}
+	if model.Artifact != nil {
+		t.Fatalf("registry-only candidate unexpectedly claims acquired artifact %q/%q", model.Artifact.Resource, model.Artifact.Name)
+	}
+	if len(model.EngineIDs) != 0 {
+		t.Fatalf("candidate unexpectedly enters engine selection before artifact/runtime support: %v", model.EngineIDs)
+	}
+	if model.SizeMBApprox != 44 || model.License != "Apache-2.0" || model.Commercial != CommercialYes {
+		t.Fatalf("unexpected candidate footprint/license: size=%f license=%q commercial=%q", model.SizeMBApprox, model.License, model.Commercial)
+	}
+	got, err := c.DefaultFor(CapabilitySTT, "en", Platform{OS: "linux", Arch: "amd64", RAMGB: 32})
+	if err != nil {
+		t.Fatalf("existing STT default should remain resolvable: %v", err)
+	}
+	if got.ID != "whisper-small" {
+		t.Fatalf("STT default = %q; adding an unevaluated Sherpa candidate changed it", got.ID)
+	}
+}
+
+func TestBatchAdapterDeclarationsValidateProtocolRequirements(t *testing.T) {
+	model := validModel("vllm-stt", CapabilitySTT)
+	model.Runtime = "vllm"
+	model.RuntimeModelID = "served-model"
+	model.BatchAdapterID = "vllm-openai-chat-audio"
+	if issues := New(fixture(model)).ValidationIssues(); hasIssueCode(issues, IssueInvalidBatchAdapter) {
+		t.Fatalf("valid declared batch protocol has adapter validation issues: %v", issues)
+	}
+
+	model.BatchAdapterID = "unimplemented-protocol"
+	issues := New(fixture(model)).ValidationIssues()
+	if !hasIssueCode(issues, IssueInvalidBatchAdapter) {
+		t.Fatalf("unknown batch protocol was accepted: %v", issues)
+	}
+
+	model.BatchAdapterID = "vllm-openai-chat-audio"
+	model.RuntimeModelID = ""
+	issues = New(fixture(model)).ValidationIssues()
+	if !hasIssueCode(issues, IssueInvalidBatchAdapter) {
+		t.Fatalf("protocol without runtime_model_id was accepted: %v", issues)
+	}
+}
+
+func hasIssueCode(issues []Issue, code string) bool {
+	for _, issue := range issues {
+		if issue.Code == code {
+			return true
+		}
+	}
+	return false
+}
+
 func TestDefaultsArePromotedAndEligible(t *testing.T) {
 	c := Default()
-	for _, capability := range Capabilities {
+	for _, capability := range DefaultCapabilities {
 		m, err := c.DefaultFor(capability, "", Platform{})
 		if err != nil {
 			t.Errorf("DefaultFor(%s): %v", capability, err)
@@ -118,9 +235,51 @@ func TestDefaultsArePromotedAndEligible(t *testing.T) {
 	}
 }
 
+func TestCurrentDefaultsDeclareEvidenceLimitations(t *testing.T) {
+	c := Default()
+	for _, capability := range DefaultCapabilities {
+		m, err := c.DefaultFor(capability, "", Platform{})
+		if err != nil {
+			t.Fatalf("DefaultFor(%s): %v", capability, err)
+		}
+		if m.Promotion.Qualified() {
+			t.Errorf("%s is marked qualified without a linked promotion receipt", m.ID)
+		}
+		if strings.TrimSpace(m.Promotion.LegacyException) == "" {
+			t.Errorf("operational default %s lacks explicit qualification limitation", m.ID)
+		}
+	}
+}
+
+func TestLegacyPromotionExceptionsAreLimitedToCurrentDefaults(t *testing.T) {
+	c := Default()
+	allowed := map[string]bool{
+		"whisper-small":                  false,
+		"sherpa-zipformer-en-2023-06-26": false,
+		"kokoro-82m-v1.0":                false,
+		"qwen3:1.7b":                     false,
+		"sherpa-onnx-speaker-embedding":  false,
+	}
+	for _, model := range c.All() {
+		if strings.TrimSpace(model.Promotion.LegacyException) == "" {
+			continue
+		}
+		if _, ok := allowed[model.ID]; !ok || (!model.HasRole("default") && len(model.EngineDefaults) == 0) {
+			t.Errorf("legacy promotion exception is not authorized for model %q", model.ID)
+			continue
+		}
+		allowed[model.ID] = true
+	}
+	for modelID, seen := range allowed {
+		if !seen {
+			t.Errorf("current operational default %q is missing its explicit legacy exception", modelID)
+		}
+	}
+}
+
 func TestCommercialDefaultNeverNonCommercial(t *testing.T) {
 	c := Default()
-	for _, capability := range Capabilities {
+	for _, capability := range DefaultCapabilities {
 		m, err := c.CommercialDefaultFor(capability, "", Platform{})
 		if err != nil {
 			continue // no commercial candidate is a valid, typed outcome
@@ -285,6 +444,58 @@ func TestEngineSelection(t *testing.T) {
 	}
 }
 
+func TestEngineScopedDefaultResolvesSelectedSherpaModel(t *testing.T) {
+	c := Default()
+	got, err := c.DefaultForEngine(CapabilitySTT, "sherpa-streaming", "en", Platform{OS: "linux", Arch: "amd64"})
+	if err != nil {
+		t.Fatalf("DefaultForEngine(sherpa-streaming): %v", err)
+	}
+	if got.ID != "sherpa-zipformer-en-2023-06-26" || !got.HasEngineDefault("sherpa-streaming") {
+		t.Fatalf("Sherpa engine default = %q, want declared Zipformer model", got.ID)
+	}
+	commercial, err := c.CommercialDefaultForEngineVerified(CapabilitySTT, "sherpa-streaming", "en", Platform{OS: "linux", Arch: "amd64"}, nil)
+	if err != nil || commercial.ID != got.ID {
+		t.Fatalf("commercial Sherpa default = %q, %v; want %q", commercial.ID, err, got.ID)
+	}
+	if _, err := c.DefaultForEngine(CapabilitySTT, "sherpa-streaming", "es", Platform{}); !errors.Is(err, ErrNoEligibleModel) {
+		t.Fatalf("Sherpa Spanish default error = %v, want no eligible model", err)
+	}
+	generic, err := c.DefaultFor(CapabilitySTT, "", Platform{})
+	if err != nil || generic.ID != "whisper-small" {
+		t.Fatalf("generic STT default = %q, %v; want multilingual Whisper Small", generic.ID, err)
+	}
+}
+
+func TestEngineScopedDefaultWinsAndFailsClosedBeforeGenericDefault(t *testing.T) {
+	generic := validModel("generic-engine-default", CapabilitySTT)
+	generic.EngineIDs = []string{"shared-engine"}
+	scoped := validModel("scoped-engine-default", CapabilitySTT)
+	scoped.EngineIDs = []string{"shared-engine"}
+	scoped.EngineDefaults = []string{"shared-engine"}
+	scoped.Roles = []string{"fast"}
+	c := New(Seed{Models: []Model{generic, scoped}})
+	got, err := c.DefaultForEngine(CapabilitySTT, "shared-engine", "en", Platform{})
+	if err != nil || got.ID != scoped.ID {
+		t.Fatalf("engine default = %q, %v; want scoped model %q", got.ID, err, scoped.ID)
+	}
+
+	scoped.Readiness = ReadinessCandidate
+	c = New(Seed{Models: []Model{generic, scoped}})
+	if _, err := c.DefaultForEngine(CapabilitySTT, "shared-engine", "en", Platform{}); !errors.Is(err, ErrNoEligibleModel) {
+		t.Fatalf("unqualified scoped default fell back to generic default: %v", err)
+	}
+
+	scoped = validModel("scoped-engine-default", CapabilitySTT)
+	scoped.EngineIDs = []string{"shared-engine"}
+	scoped.EngineDefaults = []string{"shared-engine"}
+	scoped.Roles = []string{"fast"}
+	scoped.Commercial = CommercialUnknown
+	c = New(Seed{Models: []Model{generic, scoped}})
+	if _, err := c.CommercialDefaultForEngineVerified(CapabilitySTT, "shared-engine", "en", Platform{}, nil); !errors.Is(err, ErrNoCommercialModel) {
+		t.Fatalf("commercial engine default fell back to a different model: %v", err)
+	}
+}
+
 func TestCandidatesForKeepsNonCommercialAlternatives(t *testing.T) {
 	c := Default()
 	candidates := c.CandidatesFor(CapabilityTTS, "en", Platform{})
@@ -344,6 +555,14 @@ func fixture(models ...Model) Seed {
 }
 
 func validModel(id string, capability Capability) Model {
+	promotion := PromotionEvidence{
+		CorpusQuality: EvidenceFacet{Status: "qualified", Ref: "test:corpus"},
+		Latency:       EvidenceFacet{Status: "qualified", Ref: "test:latency"},
+		Memory:        EvidenceFacet{Status: "qualified", Ref: "test:memory"},
+		Platform:      EvidenceFacet{Status: "qualified", Ref: "test:platform"},
+		License:       EvidenceFacet{Status: "qualified", Ref: "test:license"},
+		verified:      true,
+	}
 	m := Model{
 		ID:           id,
 		Name:         id,
@@ -357,6 +576,7 @@ func validModel(id string, capability Capability) Model {
 		Commercial:   CommercialYes,
 		Readiness:    ReadinessAvailable,
 		Roles:        []string{"default"},
+		Promotion:    promotion,
 		Hardware: Hardware{
 			CPUCapable: true,
 			OSArch:     []string{"linux/amd64"},
@@ -372,7 +592,9 @@ func validModel(id string, capability Capability) Model {
 		m.Runtime = "ollama"
 	case CapabilitySpeaker:
 		m.Runtime = "sherpa-onnx"
-		m.ProviderIDs = []string{"speaker-verification"}
+	case CapabilityDuplex:
+		m.Runtime = "byok"
+		m.ProviderIDs = []string{"openai-gpt-live"}
 	}
 	return m
 }
@@ -392,242 +614,4 @@ func hasIssue(issues []Issue, code, modelID string) bool {
 		}
 	}
 	return false
-}
-
-func TestSortedForDisplayGroupsByCanonicalCapabilityThenID(t *testing.T) {
-	c := Default()
-	got := c.SortedForDisplay()
-	if len(got) != len(c.All()) {
-		t.Fatalf("SortedForDisplay returned %d records, want %d", len(got), len(c.All()))
-	}
-	lastOrder := -1
-	lastID := ""
-	for i, model := range got {
-		order, ok := CapabilityOrder(model.Capability)
-		if !ok {
-			t.Fatalf("record %d (%s) has unknown capability %q", i, model.ID, model.Capability)
-		}
-		if order < lastOrder {
-			t.Fatalf("capability order regressed at %s", model.ID)
-		}
-		if order > lastOrder {
-			lastOrder = order
-			lastID = ""
-		} else if model.ID < lastID {
-			t.Fatalf("ids not ascending within %s at %s", model.Capability, model.ID)
-		}
-		lastID = model.ID
-	}
-}
-
-func TestDefaultsByCapabilityResolvesOneDefaultPerCapability(t *testing.T) {
-	c := Default()
-	defaults := c.DefaultsByCapability(Platform{})
-	if len(defaults) != len(Capabilities) {
-		t.Fatalf("defaults for %d capabilities, want %d", len(defaults), len(Capabilities))
-	}
-	for _, capability := range Capabilities {
-		model, ok := defaults[capability]
-		if !ok {
-			t.Fatalf("capability %s has no default", capability)
-		}
-		if model.Capability != capability {
-			t.Fatalf("default %s has capability %s, want %s", model.ID, model.Capability, capability)
-		}
-		if !model.HasRole("default") {
-			t.Fatalf("default %s does not declare the default role", model.ID)
-		}
-	}
-}
-
-func TestDefaultsByCapabilityIsDeterministic(t *testing.T) {
-	c := Default()
-	first := c.DefaultsByCapability(Platform{})
-	second := c.DefaultsByCapability(Platform{})
-	for _, capability := range Capabilities {
-		if first[capability].ID != second[capability].ID {
-			t.Fatalf("capability %s default changed between calls: %s vs %s",
-				capability, first[capability].ID, second[capability].ID)
-		}
-	}
-}
-
-// TestSummarizeRecordsMirrorResourceOllamaPolicy keeps the registry honest
-// about what the summarize path actually runs. resource-ollama owns the role
-// policy; this test reads it and fails when the concrete model behind
-// summarize.default (or a declared fallback) has no record. The scenario can
-// be checked out without the resources tree, so a missing policy is a skip,
-// not a failure.
-func TestSummarizeRecordsMirrorResourceOllamaPolicy(t *testing.T) {
-	path := filepath.Join("..", "..", "..", "..", "..", "resources", "ollama", "model-policy.json")
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			t.Skipf("resource-ollama policy not present at %s", path)
-		}
-		t.Fatalf("read resource-ollama policy: %v", err)
-	}
-	var policy struct {
-		Roles map[string]struct {
-			Model     string   `json:"model"`
-			Fallbacks []string `json:"fallbacks"`
-		} `json:"roles"`
-	}
-	if err := json.Unmarshal(raw, &policy); err != nil {
-		t.Fatalf("parse resource-ollama policy: %v", err)
-	}
-
-	c := Default()
-	defaultRole, ok := policy.Roles["summarize.default"]
-	if !ok {
-		t.Fatal("resource-ollama policy has no summarize.default role")
-	}
-	primary, ok := c.ByID(defaultRole.Model)
-	if !ok {
-		t.Fatalf("summarize.default resolves to %q, which the registry does not declare", defaultRole.Model)
-	}
-	if primary.Readiness != ReadinessAvailable {
-		t.Fatalf("summarize.default model %q readiness=%s, want available", primary.ID, primary.Readiness)
-	}
-	if !primary.HasRole("default") {
-		t.Fatalf("summarize.default model %q does not carry the default role", primary.ID)
-	}
-	resolved, err := c.DefaultFor(CapabilitySummarize, "", Platform{})
-	if err != nil {
-		t.Fatalf("DefaultFor(summarize): %v", err)
-	}
-	if resolved.ID != primary.ID {
-		t.Fatalf("registry default %q does not match resource-ollama summarize.default %q", resolved.ID, primary.ID)
-	}
-
-	for _, tag := range defaultRole.Fallbacks {
-		if _, ok := c.ByID(tag); !ok {
-			t.Errorf("summarize.default fallback %q has no registry record", tag)
-		}
-	}
-	if chat, ok := policy.Roles["chat.small"]; ok {
-		if _, ok := c.ByID(chat.Model); !ok {
-			t.Errorf("chat.small model %q has no registry record", chat.Model)
-		}
-		for _, tag := range chat.Fallbacks {
-			if _, ok := c.ByID(tag); !ok {
-				t.Errorf("chat.small fallback %q has no registry record", tag)
-			}
-		}
-	}
-}
-
-// resourceManifest is the subset of resources/<slug>/resource.json this
-// package's conformance tests read. The manifest owns acquisition facts; the
-// registry must not copy them.
-type resourceManifest struct {
-	ManagedService struct {
-		DataArtifacts []struct {
-			Name            string `json:"name"`
-			Path            string `json:"path"`
-			AcquisitionMode string `json:"acquisition_mode"`
-		} `json:"data_artifacts"`
-		Environment map[string]string `json:"environment"`
-	} `json:"managed_service"`
-}
-
-func loadResourceManifest(t *testing.T, slug string) resourceManifest {
-	t.Helper()
-	path := filepath.Join("..", "..", "..", "..", "..", "resources", slug, "resource.json")
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			t.Skipf("resource manifest not present at %s (scenario-only checkout)", path)
-		}
-		t.Fatalf("read %s: %v", path, err)
-	}
-	var manifest resourceManifest
-	if err := json.Unmarshal(raw, &manifest); err != nil {
-		t.Fatalf("parse %s: %v", path, err)
-	}
-	if len(manifest.ManagedService.DataArtifacts) == 0 {
-		t.Fatalf("%s declares no data artifacts; a local model cannot be available", path)
-	}
-	return manifest
-}
-
-// TestAvailableLocalModelsNameShippedResourceArtifacts closes the
-// "registry says available, resource does not ship it" class. Every available
-// local model must name a data artifact that its resource manifest declares.
-// The same gate runs against whisper, kyutai, sherpa-onnx, and kokoro records.
-func TestAvailableLocalModelsNameShippedResourceArtifacts(t *testing.T) {
-	c := Default()
-	checked := 0
-	for _, m := range c.All() {
-		if m.Readiness != ReadinessAvailable {
-			continue
-		}
-		if _, local := artifactProvidingRuntimes[m.Runtime]; !local {
-			continue
-		}
-		if m.Artifact == nil {
-			t.Errorf("model %q is available with local runtime %q but names no artifact", m.ID, m.Runtime)
-			continue
-		}
-		manifest := loadResourceManifest(t, m.Artifact.Resource)
-		found := false
-		for _, artifact := range manifest.ManagedService.DataArtifacts {
-			if artifact.Name == m.Artifact.Name {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("model %q names artifact %q, which resources/%s does not declare",
-				m.ID, m.Artifact.Name, m.Artifact.Resource)
-		}
-		checked++
-	}
-	if checked == 0 {
-		t.Fatal("no available local models were checked; the artifact gate is not exercising the registry")
-	}
-}
-
-// TestWhisperRuntimeArtifactMatchesRegistryDefault keeps the model the
-// whisper resource actually starts in lockstep with the registry's declared
-// default for whisper-local. This is the runtime-truth seam: a seed edit that
-// promotes one model while the resource pins another fails the build, and so
-// does making the pinned artifact on-demand.
-func TestWhisperRuntimeArtifactMatchesRegistryDefault(t *testing.T) {
-	manifest := loadResourceManifest(t, "whisper")
-	modelPath := manifest.ManagedService.Environment["WHISPER_MODEL_PATH"]
-	if modelPath == "" {
-		t.Fatal("resources/whisper does not pin WHISPER_MODEL_PATH")
-	}
-	const dataPrefix = "${RESOURCE_DATA_DIR}/"
-	if !strings.HasPrefix(modelPath, dataPrefix) {
-		t.Fatalf("WHISPER_MODEL_PATH=%q does not resolve under RESOURCE_DATA_DIR", modelPath)
-	}
-	wantPath := strings.TrimPrefix(modelPath, dataPrefix)
-
-	var runtimeArtifact string
-	for _, artifact := range manifest.ManagedService.DataArtifacts {
-		if artifact.Path != wantPath {
-			continue
-		}
-		runtimeArtifact = artifact.Name
-		if artifact.AcquisitionMode == "on-demand" {
-			t.Errorf("runtime default artifact %q is on-demand; a fresh install would not provide it", artifact.Name)
-		}
-	}
-	if runtimeArtifact == "" {
-		t.Fatalf("WHISPER_MODEL_PATH=%q does not match any declared data artifact path", modelPath)
-	}
-
-	resolved, err := Default().DefaultForEngine(CapabilitySTT, "whisper-local", "", Platform{})
-	if err != nil {
-		t.Fatalf("DefaultForEngine(stt, whisper-local): %v", err)
-	}
-	if resolved.Artifact == nil {
-		t.Fatalf("registry default %q names no artifact", resolved.ID)
-	}
-	if resolved.Artifact.Name != runtimeArtifact {
-		t.Fatalf("registry default %q ships artifact %q, but resources/whisper pins %q",
-			resolved.ID, resolved.Artifact.Name, runtimeArtifact)
-	}
 }

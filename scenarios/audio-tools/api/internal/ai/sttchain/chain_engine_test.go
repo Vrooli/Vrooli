@@ -10,13 +10,34 @@ import (
 // fakeLocalEngine is a minimal Provider used to assert engine-id resolution
 // without standing up real backends.
 type fakeLocalEngine struct {
-	id        string
-	available bool
+	id                string
+	available         bool
+	availabilityCalls int
 }
 
-func (f *fakeLocalEngine) Type() ProviderTier               { return TierLocal }
-func (f *fakeLocalEngine) IsAvailable(context.Context) bool { return f.available }
-func (f *fakeLocalEngine) Model() string                    { return f.id }
+type observedLocalEngine struct {
+	fakeLocalEngine
+	serviceable        bool
+	availabilityCall   int
+	serviceabilityCall int
+}
+
+func (f *observedLocalEngine) IsAvailable(context.Context) bool {
+	f.availabilityCall++
+	return f.available
+}
+
+func (f *observedLocalEngine) IsServiceable(context.Context) bool {
+	f.serviceabilityCall++
+	return f.serviceable
+}
+
+func (f *fakeLocalEngine) Type() ProviderTier { return TierLocal }
+func (f *fakeLocalEngine) IsAvailable(context.Context) bool {
+	f.availabilityCalls++
+	return f.available
+}
+func (f *fakeLocalEngine) Model() string { return f.id }
 func (f *fakeLocalEngine) Traits() ProviderTraits {
 	return ProviderTraits{Stream: true, Strategies: []StrategyKind{StrategyPassthrough}}
 }
@@ -76,4 +97,24 @@ func TestLocalEngineAvailable(t *testing.T) {
 
 	c.enableLocal = false
 	require.False(t, c.LocalEngineAvailable(context.Background(), "kyutai"), "disabled local tier is never available")
+}
+
+func TestLocalEngineServiceableDoesNotUseLifecycleAvailability(t *testing.T) {
+	provider := &observedLocalEngine{
+		fakeLocalEngine: fakeLocalEngine{id: "whisper-local", available: true},
+		serviceable:     false,
+	}
+	c := NewChain(Options{LocalEngines: map[string]Provider{"whisper-local": provider}, EnableLocal: true})
+
+	require.False(t, c.LocalEngineServiceable(context.Background(), "whisper-local"))
+	require.Equal(t, 0, provider.availabilityCall, "read-only inventory must not invoke lifecycle-reconciling IsAvailable")
+	require.Equal(t, 1, provider.serviceabilityCall)
+}
+
+func TestLocalEngineServiceableFailsClosedWithoutReadOnlyProbe(t *testing.T) {
+	provider := &fakeLocalEngine{id: "future-engine", available: true}
+	c := NewChain(Options{LocalEngines: map[string]Provider{"future-engine": provider}, EnableLocal: true})
+
+	require.False(t, c.LocalEngineServiceable(context.Background(), "future-engine"))
+	require.Zero(t, provider.availabilityCalls, "unqualified providers must not run potentially lifecycle-changing availability probes")
 }

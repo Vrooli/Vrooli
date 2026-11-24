@@ -110,14 +110,27 @@ describe("useKeyboardShortcuts", () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
-  it.skip("does not fire on contenteditable elements by default (jsdom limitation)", () => {
+  it("does not fire on contenteditable elements by default", () => {
     const handler = vi.fn();
     renderHook(() => useKeyboardShortcuts([{ key: "a", handler }]));
     const div = document.createElement("div");
-    div.contentEditable = "true";
+    div.setAttribute("contenteditable", "true");
     document.body.appendChild(div);
     div.dispatchEvent(new KeyboardEvent("keydown", { key: "a", bubbles: true }));
     document.body.removeChild(div);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("does not fire inside inherited contenteditable regions", () => {
+    const handler = vi.fn();
+    renderHook(() => useKeyboardShortcuts([{ key: "a", handler }]));
+    const editor = document.createElement("div");
+    editor.setAttribute("contenteditable", "true");
+    const child = document.createElement("span");
+    editor.appendChild(child);
+    document.body.appendChild(editor);
+    child.dispatchEvent(new KeyboardEvent("keydown", { key: "a", bubbles: true }));
+    document.body.removeChild(editor);
     expect(handler).not.toHaveBeenCalled();
   });
 

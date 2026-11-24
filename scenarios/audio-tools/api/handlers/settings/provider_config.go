@@ -14,6 +14,7 @@ import (
 	"connectrpc.com/connect"
 
 	settv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/settings"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
 
 func (h *connectHandler) GetProviderConfig(ctx context.Context, _ *connect.Request[settv1.GetProviderConfigRequest]) (*connect.Response[settv1.GetProviderConfigResponse], error) {
@@ -40,13 +41,29 @@ var providerConfigAllowedPaths = map[string]struct{}{
 func (h *connectHandler) UpdateProviderConfig(ctx context.Context, req *connect.Request[settv1.UpdateProviderConfigRequest]) (*connect.Response[settv1.UpdateProviderConfigResponse], error) {
 	m := req.Msg
 	mask := m.GetUpdateMask()
+	if err := validateProviderConfigMask(mask); err != nil {
+		return nil, err
+	}
+	p := providerConfigPatch(m.GetConfig(), mask)
+	out, err := h.deps.ProviderConfig.Update(ctx, p)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	reconfigureProviderCoordinator(h.deps.Coordinator, out, h.deps.ProviderRoutingLimits)
+	return connect.NewResponse(&settv1.UpdateProviderConfigResponse{Config: toProto(out)}), nil
+}
+
+func validateProviderConfigMask(mask *fieldmaskpb.FieldMask) error {
 	if mask == nil || len(mask.GetPaths()) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("update_mask required"))
+		return connect.NewError(connect.CodeInvalidArgument, errors.New("update_mask required"))
 	}
 	if bad := protomap.MaskPathsOutsideAllowed(mask, providerConfigAllowedPaths); len(bad) > 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown update_mask paths: %v", bad))
+		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown update_mask paths: %v", bad))
 	}
-	cfg := m.GetConfig()
+	return nil
+}
+
+func providerConfigPatch(cfg *settv1.ProviderConfig, mask *fieldmaskpb.FieldMask) store.ProviderConfigPatch {
 	p := store.ProviderConfigPatch{}
 	if protomap.MaskHas(mask, "byok_enabled") {
 		v := cfg.GetByokEnabled()
@@ -60,6 +77,19 @@ func (h *connectHandler) UpdateProviderConfig(ctx context.Context, req *connect.
 		v := cfg.GetLocalEnabled()
 		p.LocalEnabled = &v
 	}
+	applyProviderConfigURLPatch(&p, cfg, mask)
+	if protomap.MaskHas(mask, "avail_ttl_byok_seconds") {
+		v := cfg.GetAvailTtlByokSeconds()
+		p.AvailTTLBYOKSeconds = &v
+	}
+	if protomap.MaskHas(mask, "avail_ttl_vrooli_seconds") {
+		v := cfg.GetAvailTtlVrooliSeconds()
+		p.AvailTTLVrooliSecs = &v
+	}
+	return p
+}
+
+func applyProviderConfigURLPatch(p *store.ProviderConfigPatch, cfg *settv1.ProviderConfig, mask *fieldmaskpb.FieldMask) {
 	if protomap.MaskHas(mask, "whisper_url") {
 		v := strings.TrimSpace(cfg.GetWhisperUrl())
 		p.WhisperURL = &v
@@ -80,26 +110,19 @@ func (h *connectHandler) UpdateProviderConfig(ctx context.Context, req *connect.
 		v := strings.TrimSpace(cfg.GetLpbsAppBundleKey())
 		p.LPBSAppBundleKey = &v
 	}
-	if protomap.MaskHas(mask, "avail_ttl_byok_seconds") {
-		v := cfg.GetAvailTtlByokSeconds()
-		p.AvailTTLBYOKSeconds = &v
+}
+
+func reconfigureProviderCoordinator(coordinator *chains.Coordinator, cfg store.ProviderConfig, limits *chains.Config) {
+	if coordinator == nil {
+		return
 	}
-	if protomap.MaskHas(mask, "avail_ttl_vrooli_seconds") {
-		v := cfg.GetAvailTtlVrooliSeconds()
-		p.AvailTTLVrooliSecs = &v
+	routing := chains.Config{
+		BYOKEnabled: cfg.BYOKEnabled, VrooliEnabled: cfg.VrooliEnabled, LocalEnabled: cfg.LocalEnabled,
+		TTLByOK:   time.Duration(cfg.AvailTTLBYOKSeconds) * time.Second,
+		TTLVrooli: time.Duration(cfg.AvailTTLVrooliSecs) * time.Second,
 	}
-	out, err := h.deps.ProviderConfig.Update(ctx, p)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+	if limits != nil {
+		routing = chains.ClampEnablement(routing, *limits)
 	}
-	if h.deps.Coordinator != nil {
-		h.deps.Coordinator.Reconfigure(chains.Config{
-			BYOKEnabled:   out.BYOKEnabled,
-			VrooliEnabled: out.VrooliEnabled,
-			LocalEnabled:  out.LocalEnabled,
-			TTLByOK:       time.Duration(out.AvailTTLBYOKSeconds) * time.Second,
-			TTLVrooli:     time.Duration(out.AvailTTLVrooliSecs) * time.Second,
-		})
-	}
-	return connect.NewResponse(&settv1.UpdateProviderConfigResponse{Config: toProto(out)}), nil
+	coordinator.Reconfigure(routing)
 }

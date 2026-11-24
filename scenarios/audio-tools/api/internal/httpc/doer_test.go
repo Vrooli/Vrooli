@@ -9,15 +9,15 @@ import (
 	"time"
 
 	"audio-tools/internal/httpc"
-	"audio-tools/internal/testutil/mocks"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/apihttptest"
 )
 
 // fetchBody is a tiny inline reference caller — represents the shape
 // any production code would take when consuming the Doer seam. The
 // test exercises both the production satisfier (*http.Client) and the
-// test fake (mocks.FakeDoer) through this same function so the
+// shared fake (apihttptest.FakeDoer) through this same function so the
 // substitution contract is proven end-to-end.
 func fetchBody(d httpc.Doer, url string) (string, error) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -59,7 +59,7 @@ func TestDefaultDoer_NonNil(t *testing.T) {
 // test asserts both that the body round-trips and that the fake
 // recorded the inbound request for after-the-fact assertions.
 func TestDoer_TestPath(t *testing.T) {
-	fake := &mocks.FakeDoer{}
+	fake := &apihttptest.FakeDoer{}
 	fake.AddResponse(http.StatusOK, []byte("hello from fake"))
 
 	got, err := fetchBody(fake, "https://example.invalid/path")

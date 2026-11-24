@@ -57,6 +57,7 @@
       "engine_ids": [
         "whisper-local"
       ],
+      "stt_eval_adapter_id": "whisper-local",
       "resource_slug": "whisper",
       "dependency_kind": "resource",
       "platform": {
@@ -69,14 +70,6 @@
         "view_logs"
       ],
       "checker_kind": "http_json",
-      "models": [
-        "whisper-small",
-        "whisper-base",
-        "whisper-tiny",
-        "whisper-large-v3-turbo",
-        "whisper-medium",
-        "whisper-large-v3"
-      ],
       "docs_url": "docs/domains/stt/streaming-pipeline.md",
       "operator_command": "vrooli resource start whisper",
       "criticality": "optional",
@@ -84,7 +77,10 @@
       "presentation": {
         "label_key": "providers.whisper-stt.label",
         "description_key": "providers.whisper-stt.description"
-      }
+      },
+      "health_profile": "whisper-silent",
+      "readiness_aggregate": true,
+      "liveness_aggregate": true
     },
     {
       "id": "kyutai-stt",
@@ -102,6 +98,7 @@
       "engine_ids": [
         "kyutai"
       ],
+      "stt_eval_adapter_id": "vrooli-stream",
       "resource_slug": "kyutai-stt",
       "dependency_kind": "resource",
       "platform": {
@@ -115,10 +112,6 @@
         "view_logs"
       ],
       "checker_kind": "http_json",
-      "models": [
-        "kyutai-stt-1b-en-fr",
-        "kyutai-stt-2.6b-en"
-      ],
       "docs_url": "docs/reference/engine-selection.md",
       "operator_command": "vrooli resource start kyutai-stt",
       "criticality": "optional",
@@ -126,7 +119,15 @@
       "presentation": {
         "label_key": "providers.kyutai-stt.label",
         "description_key": "providers.kyutai-stt.description"
-      }
+      },
+      "health_profile": "http",
+      "health_probe": {
+        "base_url_field": "KyutaiURL",
+        "readiness_path": "/ready",
+        "liveness_path": "/ready"
+      },
+      "readiness_aggregate": false,
+      "liveness_aggregate": false
     },
     {
       "id": "kokoro-tts",
@@ -156,17 +157,39 @@
         "view_logs"
       ],
       "checker_kind": "http_json",
-      "models": [
-        "kokoro-82m-v1.0"
-      ],
       "docs_url": "docs/concepts/DOMAINS.md",
       "operator_command": "vrooli resource start kokoro",
       "criticality": "optional",
       "def_action_kind": "operator_command",
       "adapter_id": "local:kokoro",
+      "tts_runtime": {
+        "backend_id": "kokoro",
+        "url_field": "KokoroURL",
+        "health_path": "/v1/audio/voices",
+        "readiness_kind": "synthesize",
+        "model_role": "default",
+        "cache_backend": "kokoro",
+        "speed_mode": "native",
+        "auto_priority": 20,
+        "shared_runtime": {
+          "backend_id": "sherpa-onnx",
+          "url_field": "SherpaURL",
+          "health_path": "/healthz/tts",
+          "cache_prefix": "sherpa-onnx:",
+          "model_role": "fast",
+          "speed_mode": "native"
+        }
+      },
       "presentation": {
         "label_key": "providers.kokoro-tts.label",
         "description_key": "providers.kokoro-tts.description"
+      },
+      "voice_aliases": {
+        "voice.feminine.warm": "af_bella",
+        "voice.feminine.neutral": "af_sarah",
+        "voice.masculine.warm": "am_adam",
+        "voice.masculine.neutral": "am_michael",
+        "voice.neutral.default": "af_nicole"
       }
     },
     {
@@ -195,9 +218,6 @@
         "view_logs"
       ],
       "checker_kind": "http_json",
-      "models": [
-        "sherpa-onnx-speaker-embedding"
-      ],
       "docs_url": "docs/domains/stt/streaming-pipeline.md",
       "operator_command": "vrooli resource status sherpa-onnx --json",
       "criticality": "optional",
@@ -205,7 +225,15 @@
       "presentation": {
         "label_key": "providers.speaker-verification.label",
         "description_key": "providers.speaker-verification.description"
-      }
+      },
+      "health_profile": "http",
+      "health_probe": {
+        "base_url_field": "SherpaURL",
+        "readiness_path": "/ready",
+        "liveness_path": "/ready"
+      },
+      "readiness_aggregate": true,
+      "liveness_aggregate": false
     },
     {
       "id": "sherpa-stt",
@@ -223,6 +251,7 @@
       "engine_ids": [
         "sherpa-streaming"
       ],
+      "stt_eval_adapter_id": "sherpa-stream",
       "resource_slug": "sherpa-onnx",
       "dependency_kind": "resource",
       "platform": {
@@ -235,10 +264,14 @@
         "view_logs"
       ],
       "checker_kind": "http_json",
-      "models": [
-        "sherpa-zipformer-en-kroko-2025-08-06",
-        "sherpa-zipformer-en-2023-06-26"
-      ],
+      "health_profile": "http",
+      "health_probe": {
+        "base_url_field": "SherpaURL",
+        "readiness_path": "/healthz/stt",
+        "liveness_path": "/healthz/stt",
+        "aggregate_liveness_path": "/healthz"
+      },
+      "liveness_aggregate": true,
       "docs_url": "docs/domains/stt/streaming-pipeline.md",
       "operator_command": "vrooli resource start sherpa-onnx",
       "criticality": "optional",
@@ -246,7 +279,8 @@
       "presentation": {
         "label_key": "providers.sherpa-stt.label",
         "description_key": "providers.sherpa-stt.description"
-      }
+      },
+      "readiness_aggregate": false
     },
     {
       "id": "ollama",
@@ -277,15 +311,6 @@
         "view_logs"
       ],
       "checker_kind": "http_json",
-      "models": [
-        "qwen3.5:9b",
-        "qwen3.5:4b",
-        "llama3.2:3b",
-        "llama3.2:1b",
-        "gemma3:4b",
-        "phi4-mini:3.8b",
-        "qwen3:1.7b"
-      ],
       "docs_url": "docs/concepts/DOMAINS.md",
       "operator_command": "vrooli resource start ollama",
       "criticality": "optional",
@@ -293,7 +318,10 @@
       "presentation": {
         "label_key": "providers.ollama.label",
         "description_key": "providers.ollama.description"
-      }
+      },
+      "health_profile": "ollama-model-aware",
+      "readiness_aggregate": true,
+      "liveness_aggregate": true
     },
     {
       "id": "openrouter",
@@ -313,11 +341,8 @@
       "platform": {
         "support": "supported"
       },
-      "checker_kind": "http_json",
-      "probe_absent_reason": "Readiness is owned by the dedicated OpenRouterChecker, which reads OPENROUTER_API_KEY from the environment instead of the BYOK credential store, so no BYOK credential probe applies.",
-      "models": [
-        "openrouter-summarize"
-      ],
+      "checker_kind": "none",
+      "probe_absent_reason": "No resource-owned read-only probe accepts the per-request BYOK key; generation remains available through the resource-openrouter CLI.",
       "docs_url": "docs/reference/configuration.md",
       "operator_command": "audio-tools settings providers",
       "criticality": "optional",
@@ -325,7 +350,11 @@
       "presentation": {
         "label_key": "providers.openrouter.label",
         "description_key": "providers.openrouter.description"
-      }
+      },
+      "health_profile": "request-scoped",
+      "readiness_aggregate": false,
+      "liveness_aggregate": false,
+      "byok_adapter_id": "summarize.openrouter-cli-v1"
     },
     {
       "id": "openai-whisper",
@@ -351,9 +380,6 @@
         "header": "Authorization",
         "value_prefix": "Bearer "
       },
-      "models": [
-        "openai-whisper-1"
-      ],
       "docs_url": "docs/reference/configuration.md",
       "operator_command": "audio-tools settings providers",
       "criticality": "optional",
@@ -361,7 +387,8 @@
       "presentation": {
         "label_key": "providers.openai-whisper.label",
         "description_key": "providers.openai-whisper.description"
-      }
+      },
+      "byok_adapter_id": "stt.openai-whisper-v1"
     },
     {
       "id": "deepgram",
@@ -387,9 +414,6 @@
         "header": "Authorization",
         "value_prefix": "Token "
       },
-      "models": [
-        "deepgram-nova-3"
-      ],
       "docs_url": "docs/reference/configuration.md",
       "operator_command": "audio-tools settings providers",
       "criticality": "optional",
@@ -397,7 +421,8 @@
       "presentation": {
         "label_key": "providers.deepgram.label",
         "description_key": "providers.deepgram.description"
-      }
+      },
+      "byok_adapter_id": "stt.deepgram-v1"
     },
     {
       "id": "openai-tts",
@@ -423,9 +448,6 @@
         "header": "Authorization",
         "value_prefix": "Bearer "
       },
-      "models": [
-        "openai-tts-1"
-      ],
       "docs_url": "docs/reference/configuration.md",
       "operator_command": "audio-tools settings providers",
       "criticality": "optional",
@@ -434,7 +456,15 @@
       "presentation": {
         "label_key": "providers.openai-tts.label",
         "description_key": "providers.openai-tts.description"
-      }
+      },
+      "voice_aliases": {
+        "voice.feminine.warm": "shimmer",
+        "voice.feminine.neutral": "nova",
+        "voice.masculine.warm": "onyx",
+        "voice.masculine.neutral": "echo",
+        "voice.neutral.default": "alloy"
+      },
+      "byok_adapter_id": "tts.openai-speech-v1"
     },
     {
       "id": "elevenlabs",
@@ -459,9 +489,6 @@
         "url": "https://api.elevenlabs.io/v1/user",
         "header": "xi-api-key"
       },
-      "models": [
-        "elevenlabs-multilingual-v2"
-      ],
       "docs_url": "docs/reference/configuration.md",
       "operator_command": "audio-tools settings providers",
       "criticality": "optional",
@@ -470,6 +497,43 @@
       "presentation": {
         "label_key": "providers.elevenlabs.label",
         "description_key": "providers.elevenlabs.description"
+      },
+      "voice_aliases": {
+        "voice.feminine.warm": "EXAVITQu4vr4xnSDxMaL",
+        "voice.feminine.neutral": "21m00Tcm4TlvDq8ikWAM",
+        "voice.masculine.warm": "ErXwobaYiN019PkySvjV",
+        "voice.masculine.neutral": "29vD33N1CtxCmqQRPOHJ",
+        "voice.neutral.default": "21m00Tcm4TlvDq8ikWAM"
+      },
+      "byok_adapter_id": "tts.elevenlabs-v1"
+    },
+    {
+      "id": "openai-gpt-live",
+      "name": "OpenAI GPT-Live 1.1",
+      "description": "Planned hosted full-duplex audio provider; runtime composition is not yet available",
+      "kind": "full_duplex",
+      "tier": "byok",
+      "status": "planned",
+      "capabilities": [
+        "duplex"
+      ],
+      "features": [],
+      "dependency_kind": "scenario",
+      "dependency_slug": "audio-tools",
+      "platform": {
+        "support": "supported"
+      },
+      "checker_kind": "none",
+      "docs_url": "docs/internal/MATURATION-PROGRAM.md",
+      "criticality": "optional",
+      "def_action_kind": "none",
+      "consent_requirement": {
+        "source": "audio-tools-openai-gpt-live",
+        "revalidate_active_sessions": true
+      },
+      "presentation": {
+        "label_key": "providers.openai-gpt-live.label",
+        "description_key": "providers.openai-gpt-live.description"
       }
     },
     {
@@ -557,12 +621,15 @@
       "presentation": {
         "label_key": "providers.audio-transcode.label",
         "description_key": "providers.audio-transcode.description"
-      }
+      },
+      "health_profile": "transcode",
+      "readiness_aggregate": false,
+      "liveness_aggregate": false
     },
     {
       "id": "rumble-stt",
       "name": "Rumble STT",
-      "description": "Planned local streaming speech-to-text model adapter",
+      "description": "Opt-in local batch speech-to-text route requiring an operator-configured vLLM endpoint",
       "kind": "local_resource",
       "tier": "local",
       "status": "planned",
@@ -578,21 +645,19 @@
         "support": "supported"
       },
       "checker_kind": "none",
-      "models": [
-        "rumble-2-flash"
-      ],
       "docs_url": "docs/reference/engine-selection.md",
       "criticality": "optional",
       "def_action_kind": "none",
       "presentation": {
         "label_key": "providers.rumble-stt.label",
         "description_key": "providers.rumble-stt.description"
-      }
+      },
+      "engine_ids": []
     },
     {
       "id": "kale-tts",
       "name": "Kale TTS",
-      "description": "Planned low-footprint Kokoro-lineage TTS, hosted by the sherpa-onnx ONNX adapter when weights publish",
+      "description": "Experimental low-footprint English TTS using an isolated Kale ONNX runtime; separate from sherpa's Kokoro model path",
       "kind": "local_resource",
       "tier": "local",
       "status": "planned",
@@ -603,17 +668,24 @@
         "voice-output"
       ],
       "dependency_kind": "resource",
-      "dependency_slug": "audio-tools",
+      "dependency_slug": "kale-tts",
+      "resource_slug": "kale-tts",
       "platform": {
         "support": "degraded",
-        "reason": "Kale weights are not published yet; the sherpa adapter already serves Kokoro-format ONNX and is the intended host."
+        "reason": "Nano weights at the pinned Hugging Face revision are public, non-gated, and declare Apache-2.0; provider remains planned pending joined model-quality and lifecycle qualification, and Kale's ONNX graph is not compatible with the current sherpa Kokoro adapter."
       },
       "checker_kind": "none",
-      "models": [
-        "kale-tts-1-nano",
-        "kale-tts-1-tiny",
-        "kale-tts-1-base"
-      ],
+      "adapter_id": "local:kale-tts",
+      "tts_runtime": {
+        "backend_id": "kale-onnx",
+        "url_field": "KaleURL",
+        "health_path": "/healthz",
+        "model_role": "fast",
+        "cache_backend": "kale-tts-1-nano",
+        "speed_mode": "postprocess",
+        "auto_priority": 10,
+        "conditional_auto": true
+      },
       "docs_url": "docs/reference/engine-selection.md",
       "criticality": "optional",
       "def_action_kind": "none",
@@ -621,8 +693,71 @@
         "label_key": "providers.kale-tts.label",
         "description_key": "providers.kale-tts.description"
       },
-      "resource_slug": "sherpa-onnx",
-      "operator_command": "vrooli resource status sherpa-onnx --json"
+      "voice_aliases": {
+        "voice.feminine.warm": "kenzie",
+        "voice.feminine.neutral": "simone",
+        "voice.masculine.warm": "earl",
+        "voice.masculine.neutral": "owen",
+        "voice.neutral.default": "kenzie"
+      }
+    },
+    {
+      "id": "qwen3-tts",
+      "name": "Qwen3-TTS Voice Cloning",
+      "description": "Planned local voice-cloning provider; 0.6B Base candidate awaits a bounded managed runtime and consented product path",
+      "kind": "local_resource",
+      "tier": "local",
+      "status": "planned",
+      "capabilities": [
+        "tts"
+      ],
+      "features": [
+        "voice-output",
+        "voice-cloning"
+      ],
+      "resource_slug": "qwen3-tts",
+      "dependency_kind": "resource",
+      "platform": {
+        "support": "degraded",
+        "reason": "No Audio Tools resource or adapter exists; upstream vLLM-Omni memory evidence is GPU-heavy and is not a Base-cloning receipt."
+      },
+      "checker_kind": "none",
+      "docs_url": "docs/reference/models.md",
+      "criticality": "optional",
+      "def_action_kind": "none",
+      "presentation": {
+        "label_key": "providers.qwen3-tts.label",
+        "description_key": "providers.qwen3-tts.description"
+      }
+    },
+    {
+      "id": "sopro-tts",
+      "name": "Sopro Voice Cloning",
+      "description": "Planned compact local voice-cloning provider; the pinned 120M Apache-2.0 model has no Audio Tools runtime or consented route",
+      "kind": "local_resource",
+      "tier": "local",
+      "status": "planned",
+      "capabilities": [
+        "tts"
+      ],
+      "features": [
+        "voice-output",
+        "voice-cloning"
+      ],
+      "resource_slug": "sopro-tts",
+      "dependency_kind": "resource",
+      "platform": {
+        "support": "degraded",
+        "reason": "No Audio Tools resource or adapter exists; runtime dependency licenses, source-bound voice authorization, ephemeral reference handling, bounded deletion, and product quality remain unqualified."
+      },
+      "checker_kind": "none",
+      "docs_url": "docs/reference/models.md",
+      "criticality": "optional",
+      "def_action_kind": "none",
+      "presentation": {
+        "label_key": "providers.sopro-tts.label",
+        "description_key": "providers.sopro-tts.description"
+      }
     },
     {
       "id": "reverb-tts",
@@ -643,9 +778,6 @@
         "support": "supported"
       },
       "checker_kind": "none",
-      "models": [
-        "reverb-tts"
-      ],
       "license": "CC BY-NC 4.0",
       "docs_url": "docs/reference/engine-selection.md",
       "criticality": "optional",
@@ -674,9 +806,6 @@
         "support": "supported"
       },
       "checker_kind": "none",
-      "models": [
-        "verba-tts-indic-zero"
-      ],
       "docs_url": "docs/reference/engine-selection.md",
       "criticality": "optional",
       "def_action_kind": "none",

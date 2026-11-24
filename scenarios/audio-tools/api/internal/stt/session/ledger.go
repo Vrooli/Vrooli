@@ -71,6 +71,18 @@ type Snapshot struct {
 	Committed         []Segment
 }
 
+// MetadataSnapshot is the payload-free view used by diagnostics and
+// qualification observers. Replay audio and committed transcript text remain
+// available only through the ledger's session-owned replay contract.
+type MetadataSnapshot struct {
+	SessionID         string
+	ReceivedSequence  int64
+	ProcessedSequence int64
+	RetainedBytes     int
+	CommittedCount    int
+	TerminalReason    TerminalReason
+}
+
 // PersistedState is the bounded on-disk form of a ledger. It deliberately
 // excludes transcript diagnostics beyond committed segment IDs/text; the file
 // exists solely to finish or replay an interrupted turn and must live in a
@@ -221,6 +233,34 @@ func (l *Ledger) Snapshot() Snapshot {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.snapshotLocked()
+}
+
+func (l *Ledger) MetadataSnapshot() MetadataSnapshot {
+	if l == nil {
+		return MetadataSnapshot{}
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return MetadataSnapshot{
+		SessionID:         l.cfg.SessionID,
+		ReceivedSequence:  l.receivedSequence,
+		ProcessedSequence: l.processedSequence,
+		RetainedBytes:     l.retainedBytes,
+		CommittedCount:    len(l.committed),
+		TerminalReason:    l.terminal,
+	}
+}
+
+// CommittedSegments returns an ordered copy of the durable transcript commits
+// without copying the retained PCM replay journal. Reconnect handlers that
+// only need transcript metadata should avoid the full Snapshot allocation.
+func (l *Ledger) CommittedSegments() []Segment {
+	if l == nil {
+		return nil
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return committedInSampleOrder(l.committed, l.committedOrder)
 }
 
 func (l *Ledger) SessionID() string {

@@ -3,11 +3,13 @@
 // FieldMask that includes every patched advanced path.
 
 import { describe, expect, it, vi } from "vitest";
+import { create, toBinary } from "@bufbuild/protobuf";
 
 import {
   StreamingMode,
   StrategyPreference,
 } from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
+import { TranscribeStreamEventSchema } from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
 
 import {
   streamingModeLabel,
@@ -39,6 +41,83 @@ describe("streamingModeLabel", () => {
     expect(streamingModeLabel(StreamingMode.OFF)).toBe("off");
     expect(streamingModeLabel(StreamingMode.UNSPECIFIED)).toBe("unspecified");
     expect(streamingModeLabel(undefined)).toBe("unspecified");
+  });
+});
+
+describe("browser voice WebSocket routing", () => {
+  it("uses the canonical same-origin upgrade path without duplicating api-base /ws", () => {
+    const original = globalThis.WebSocket;
+    class SocketStub {
+      static CONNECTING = 0;
+      static OPEN = 1;
+      static CLOSING = 2;
+      static CLOSED = 3;
+      static url = "";
+      readyState = SocketStub.CONNECTING;
+      bufferedAmount = 0;
+      binaryType: BinaryType = "blob";
+      onopen: ((event: Event) => void) | null = null;
+      onmessage: ((event: MessageEvent) => void) | null = null;
+      onerror: ((event: Event) => void) | null = null;
+      onclose: ((event: CloseEvent) => void) | null = null;
+      constructor(url: string) { SocketStub.url = url; }
+      send(): void {}
+      close(): void {}
+    }
+    vi.stubGlobal("WebSocket", SocketStub);
+    try {
+      const api = createVoiceApi(makeFakeClient({}));
+      api.openVoiceStream({
+        language: "en", sessionId: "session", resumeToken: "token", protocolVersion: 2,
+        generation: 0n, inputFormat: "pcm_s16le", sampleRateHz: 16000,
+      }, { onReady: vi.fn(), onEvent: vi.fn(), onClose: vi.fn() });
+      expect(SocketStub.url).toBe("ws://test/ws/stt/transcribe-stream-v2");
+    } finally {
+      vi.stubGlobal("WebSocket", original);
+    }
+  });
+
+  it("surfaces failed StreamDone terminal reasons as errors, not final transcripts", () => {
+    const original = globalThis.WebSocket;
+    class SocketStub {
+      static CONNECTING = 0;
+      static OPEN = 1;
+      static CLOSING = 2;
+      static CLOSED = 3;
+      static instance: SocketStub | undefined;
+      readyState = SocketStub.CONNECTING;
+      bufferedAmount = 0;
+      binaryType: BinaryType = "blob";
+      onopen: ((event: Event) => void) | null = null;
+      onmessage: ((event: MessageEvent) => void) | null = null;
+      onerror: ((event: Event) => void) | null = null;
+      onclose: ((event: CloseEvent) => void) | null = null;
+      constructor() { SocketStub.instance = this; }
+      send(): void {}
+      close(): void {}
+    }
+    vi.stubGlobal("WebSocket", SocketStub);
+    try {
+      const onEvent = vi.fn();
+      const api = createVoiceApi(makeFakeClient({}));
+      api.openVoiceStream({
+        language: "en", sessionId: "failed-session", resumeToken: "token", protocolVersion: 2,
+        generation: 0n, inputFormat: "pcm_s16le", sampleRateHz: 16000,
+      }, { onReady: vi.fn(), onEvent, onClose: vi.fn() });
+      const socket = SocketStub.instance!;
+      socket.readyState = SocketStub.OPEN;
+      socket.onopen?.({} as Event);
+      const accepted = create(TranscribeStreamEventSchema, { event: { case: "sessionStatus", value: { state: "accepted" } } });
+      socket.onmessage?.({ data: toBinary(TranscribeStreamEventSchema, accepted).buffer } as MessageEvent);
+      const failed = create(TranscribeStreamEventSchema, { event: { case: "done", value: { terminalReason: "input_failed", finalText: "partial" } } });
+      socket.onmessage?.({ data: toBinary(TranscribeStreamEventSchema, failed).buffer } as MessageEvent);
+      expect(onEvent).toHaveBeenCalledWith({
+        type: "error", code: "input_failed", text: "The speech stream did not complete all captured audio.",
+      });
+      expect(onEvent).not.toHaveBeenCalledWith(expect.objectContaining({ type: "final" }));
+    } finally {
+      vi.stubGlobal("WebSocket", original);
+    }
   });
 });
 

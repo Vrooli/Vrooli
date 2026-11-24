@@ -31,6 +31,7 @@ export interface ModelRecordOverrides {
   name?: string;
   providerIds?: string[];
   engineIds?: string[];
+  engineDefaults?: string[];
   capability?: string;
   runtime?: string;
   languages?: string[];
@@ -79,6 +80,7 @@ export const makeModelRecord = (
     name: overrides.name ?? "Whisper Large v3",
     providerIds: overrides.providerIds ?? ["whisper-stt"],
     engineIds: overrides.engineIds ?? ["whisper-local"],
+    engineDefaults: overrides.engineDefaults ?? [],
     capability: overrides.capability ?? "stt",
     runtime: overrides.runtime ?? "faster-whisper",
     languages: overrides.languages ?? ["en", "es", "fr", "de"],

@@ -48,7 +48,7 @@ describe("dispatchStreamMessage", () => {
       target,
       new Set(),
     );
-    expect(onSegmentFinal).toHaveBeenCalledWith("degraded text", 1, "degraded");
+    expect(onSegmentFinal).toHaveBeenCalledWith("degraded text", 1, "degraded", undefined);
   });
 
   it("[REQ:ATD-P0-001] de-duplicates a durable segment identity across replay", () => {
@@ -59,7 +59,7 @@ describe("dispatchStreamMessage", () => {
     dispatchStreamMessage(frame, target, delivered);
     dispatchStreamMessage(frame, target, delivered);
     expect(onSegmentFinal).toHaveBeenCalledTimes(1);
-    expect(onSegmentFinal).toHaveBeenCalledWith("only once", 2);
+    expect(onSegmentFinal).toHaveBeenCalledWith("only once", 2, undefined, undefined);
   });
 
   it("ignores malformed frames without changing delivery state", () => {

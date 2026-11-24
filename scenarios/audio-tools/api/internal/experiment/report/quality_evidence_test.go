@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 package report
 
 import (
@@ -25,12 +27,23 @@ func qualityFixtureClips(n int) []intcorpus.Clip {
 		}
 		clips = append(clips, intcorpus.Clip{
 			ID: fmt.Sprintf("clip-%d", i), ReferenceText: strings.Repeat("one two three four five six seven eight nine ten ", 5),
+			Tags:           []string{"accent_" + []string{"uk", "us", "south_african"}[(i/3)%3]},
 			CorpusRevision: "voice-pilot-en-v1", LicenseReference: "license-1",
 			SpeakerPseudonym: fmt.Sprintf("speaker-%d", i%6), Split: intcorpus.SplitHeldOut,
 			NoiseCondition: condition, SNRDB: snr, ContentSHA256: fmt.Sprintf("hash-%d", i),
+			ReferenceReview: &intcorpus.ReferenceReview{Reviewer: "auditor", Protocol: "listen-v1", ReviewedAt: "2026-06-29T12:00:00Z", ReferenceSHA256: intcorpus.ReferenceDigest(strings.Repeat("one two three four five six seven eight nine ten ", 5))},
 		})
 	}
 	return clips
+}
+
+func TestQualityEvidenceFailsClosedForUnreviewedReferences(t *testing.T) {
+	clips := qualityFixtureClips(intcorpus.RequiredQualityClips)
+	clips[0].ReferenceReview = nil
+	evidence := QualityEvidenceForReport(clips, qualityFixtureReport(clips), "build-1")
+	require.Len(t, evidence, 1)
+	require.False(t, evidence[0].Passed)
+	require.Contains(t, string(evidence[0].MachineJSON), "has no human-reviewed reference")
 }
 
 func qualityFixtureReport(clips []intcorpus.Clip) inteval.EvalReport {
@@ -55,6 +68,70 @@ func TestQualityEvidenceForReportPassesOnlyCompleteQualifiedCell(t *testing.T) {
 	claim := acceptance["corpus-quality"].(map[string]any)
 	require.Equal(t, true, claim["in_band"])
 	require.Equal(t, "UNQUALIFIED", machine["device_profile"], "batch replay must not infer a native D2 profile")
+	quality := machine["quality_measurement"].(map[string]any)
+	require.Equal(t, qualityMeasurementSchema, quality["schema_version"])
+	metrics := quality["metrics"].([]any)
+	require.Len(t, metrics, 12)
+	names := make([]string, 0, len(metrics))
+	for _, raw := range metrics {
+		names = append(names, raw.(map[string]any)["name"].(string))
+	}
+	require.Equal(t, []string{
+		"clean", "noisy_20db", "noisy_10db",
+		"accent_noise:uk:clean", "accent_noise:uk:20db", "accent_noise:uk:10db",
+		"accent_noise:us:clean", "accent_noise:us:20db", "accent_noise:us:10db",
+		"accent_noise:south_african:clean", "accent_noise:south_african:20db", "accent_noise:south_african:10db",
+	}, names)
+}
+
+func TestQualityEvidenceFailsAccentSubgroupWhileAggregateNoisePasses(t *testing.T) {
+	clips := qualityFixtureClips(intcorpus.RequiredQualityClips)
+	report := qualityFixtureReport(clips)
+	for i, clip := range clips {
+		if (i/3)%3 == 0 && qualityConditionGroup(clip) == "clean" {
+			report.PerStrategy[0].PerClip[i].WER.EditCounts.Substitutions = 15
+			break
+		}
+	}
+	evidence := QualityEvidenceForReport(clips, report, "build-1")
+	require.Len(t, evidence, 1)
+	require.False(t, evidence[0].Passed)
+	var machine map[string]any
+	require.NoError(t, json.Unmarshal(evidence[0].MachineJSON, &machine))
+	quality := machine["quality_measurement"].(map[string]any)
+	metrics := quality["metrics"].([]any)
+	byName := map[string]map[string]any{}
+	for _, raw := range metrics {
+		metric := raw.(map[string]any)
+		byName[metric["name"].(string)] = metric
+	}
+	require.Less(t, byName["clean"]["wer"].(float64), maxQualityCleanWER)
+	require.Greater(t, byName["accent_noise:uk:clean"]["wer"].(float64), maxQualityCleanWER)
+	require.Contains(t, quality["reasons"], "accent_noise:uk:clean WER 0.1071 exceeds 0.1000")
+}
+
+func TestQualityEvidenceFailsClosedWhenAccentNoiseSubgroupIsMissing(t *testing.T) {
+	clips := qualityFixtureClips(intcorpus.RequiredQualityClips)
+	for i := range clips {
+		if (i/3)%3 == 0 && qualityConditionGroup(clips[i]) == "clean" {
+			clips[i].Tags = nil
+		}
+	}
+	evidence := QualityEvidenceForReport(clips, qualityFixtureReport(clips), "build-1")
+	require.Len(t, evidence, 1)
+	require.False(t, evidence[0].Passed)
+	var machine map[string]any
+	require.NoError(t, json.Unmarshal(evidence[0].MachineJSON, &machine))
+	quality := machine["quality_measurement"].(map[string]any)
+	require.Contains(t, quality["reasons"], "report has no measured accent_noise:uk:clean subgroup")
+	metrics := quality["metrics"].([]any)
+	for _, raw := range metrics {
+		metric := raw.(map[string]any)
+		if metric["name"] == "accent_noise:uk:clean" {
+			require.Equal(t, false, metric["available"])
+			require.NotContains(t, metric, "wer")
+		}
+	}
 }
 
 func TestQualityEvidenceUsesCanonicalStrategyForExplicitCell(t *testing.T) {
@@ -71,6 +148,22 @@ func TestQualityEvidenceUsesCanonicalStrategyForExplicitCell(t *testing.T) {
 	cell := machine["provider_cell"].(map[string]any)
 	require.Equal(t, "vad_segment", cell["strategy"])
 	require.Equal(t, "D1", machine["device_profile"])
+}
+
+func TestQualityEvidenceResolvesCanonicalModelFromRuntimeID(t *testing.T) {
+	clips := qualityFixtureClips(intcorpus.RequiredQualityClips)
+	report := qualityFixtureReport(clips)
+	report.PerStrategy[0].EngineID = "sherpa-streaming"
+	report.PerStrategy[0].ModelID = "sherpa-onnx/streaming-zipformer-en-2023-06-26"
+	evidence := QualityEvidenceForReport(clips, report, "build-1")
+	require.Len(t, evidence, 1)
+	require.True(t, evidence[0].Passed, evidence[0].MachineJSON)
+	require.Equal(t, "sherpa-zipformer-en-2023-06-26", evidence[0].ModelID)
+	var machine map[string]any
+	require.NoError(t, json.Unmarshal(evidence[0].MachineJSON, &machine))
+	cell := machine["provider_cell"].(map[string]any)
+	require.Equal(t, "sherpa-zipformer-en-2023-06-26", cell["model_id"])
+	require.NotContains(t, string(evidence[0].MachineJSON), "model id is not declared in the model catalog")
 }
 
 func TestQualityEvidenceForReportScopesCohortToMeasuredClips(t *testing.T) {

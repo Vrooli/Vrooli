@@ -22,8 +22,13 @@ vi.mock("../../services/settings", async (importOriginal) => {
 type TestProvider = {
   id: string;
   name: string;
-  kind: "byok_api" | "gateway" | "local_resource";
+  kind: "byok_api" | "gateway" | "full_duplex" | "local_resource";
   capabilities: string[];
+};
+
+type CatalogProvider = TestProvider & {
+  status: "active" | "planned";
+  description: string;
 };
 
 /**
@@ -32,23 +37,18 @@ type TestProvider = {
  * depending on toggling real catalogue entries.
  */
 const catalog = vi.hoisted(() => ({
-  providers: [] as Array<{
-    id: string;
-    name: string;
-    kind: "byok_api" | "gateway" | "local_resource";
-    capabilities: string[];
-  }>,
+  providers: Object.create(null) as Record<string, CatalogProvider>,
 }));
 
 vi.mock("../providers/providerCatalog.generated", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../providers/providerCatalog.generated")>();
   return {
     ...actual,
-    ACTIVE_PROVIDERS: catalog.providers,
+    PROVIDERS: catalog.providers,
   };
 });
 
-import { ConfigurationPage } from "./ConfigurationPage";
+import { ConfigurationPage, DUPLEX_CREDENTIAL_PROVISION_COMMAND } from "./ConfigurationPage";
 import {
   getProviderConfig,
   listByokCredentials,
@@ -63,12 +63,22 @@ const TEST_PROVIDERS: TestProvider[] = [
   { id: "openai-tts", name: "OpenAI TTS (BYOK)", kind: "byok_api", capabilities: ["tts"] },
   { id: "elevenlabs", name: "ElevenLabs (BYOK)", kind: "byok_api", capabilities: ["tts"] },
   { id: "openrouter", name: "OpenRouter", kind: "byok_api", capabilities: ["summarize"] },
+  { id: "openai-gpt-live", name: "OpenAI GPT-Live 1.1", kind: "full_duplex", capabilities: ["duplex"] },
   // Non-credential provider with TTS support must never appear in the select.
   { id: "kokoro-tts", name: "Kokoro TTS", kind: "local_resource", capabilities: ["tts"] },
 ];
 
 const setProviders = (providers: TestProvider[]) => {
-  catalog.providers.splice(0, catalog.providers.length, ...providers);
+  for (const id of Object.keys(catalog.providers)) {
+    Reflect.deleteProperty(catalog.providers, id);
+  }
+  for (const provider of providers) catalog.providers[provider.id] = {
+    ...provider,
+    status: provider.kind === "full_duplex" ? "planned" : "active",
+    description: provider.kind === "full_duplex"
+      ? "Planned hosted full-duplex audio provider; runtime composition is not yet available"
+      : "Test provider",
+  };
 };
 
 const happyProvider = {
@@ -182,6 +192,26 @@ describe("ConfigurationPage", () => {
       expect(vi.mocked(upsertByokCredential)).toHaveBeenCalledTimes(1);
     });
     expect(vi.mocked(upsertByokCredential)).toHaveBeenCalledWith("elevenlabs", "tts", "sk-test");
+  });
+
+  it("routes full-duplex credential setup through Vrooli's canonical credential authority", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<ConfigurationPage />);
+    await screen.findByText(/fp_abc123/);
+
+    await user.selectOptions(capabilitySelect(), "duplex");
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: i18n.t(strings.config.duplexCredentialOpenPlatform) }))
+      .toHaveAttribute("href", "https://platform.openai.com/api-keys");
+    expect(screen.getByRole("link", { name: i18n.t(strings.config.duplexCredentialOpenPlatform) }))
+      .toHaveAttribute("rel", "noopener noreferrer");
+    expect(screen.getByRole("status").querySelector("code")?.textContent)
+      .toBe(DUPLEX_CREDENTIAL_PROVISION_COMMAND);
+    expect(screen.getByRole("button", { name: i18n.t(strings.streamConfigAdmin.copyCommand) }))
+      .toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(strings.config.apiKeyPlaceholder)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(strings.config.providerFieldLabel)).not.toBeInTheDocument();
+    expect(vi.mocked(upsertByokCredential)).not.toHaveBeenCalled();
   });
 
   it("shows an announced empty state when no credential provider supports the capability", async () => {

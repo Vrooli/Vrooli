@@ -23,10 +23,9 @@ From this scenario's directory:
 make setup
 ```
 
-This runs the scenario's setup lifecycle: dependencies are prepared,
-the API/CLI/UI are built as needed, and the scenario CLI is installed.
-Keep the exact lifecycle steps in `.vrooli/service.json`; this guide is
-only the user-facing path.
+The setup plan is declared in [`.vrooli/service.json`](../.vrooli/service.json). See
+[The Declared Scenario](../../../docs/architecture/the-declared-scenario.md) for
+the shared lifecycle contract.
 
 Use setup for a fresh scaffold or when the lifecycle or dependency gateway
 reports that setup is needed.
@@ -38,9 +37,9 @@ make start
 ```
 
 This starts the API/UI and manages dependencies according to their declared
-startup policy; optional resources can remain unavailable. The lifecycle
-allocates ports automatically and exposes them through scenario
-commands such as `make status` and `vrooli scenario port`.
+startup policy; optional resources can remain unavailable. Components and ports follow [`.vrooli/service.json`](../.vrooli/service.json); see
+[The Declared Scenario](../../../docs/architecture/the-declared-scenario.md) for the shared
+lifecycle contract.
 
 ## 3 — Open
 
@@ -121,7 +120,7 @@ common first-time issues are:
   add code.
 - Read [`internal/TESTING.md`](internal/TESTING.md) before writing
   your first non-trivial test.
-- Read the existing `portable-voice-v1` PRD and its requirements before changes.
+- Read the current `portable-voice-v2` PRD and its requirements before changes.
   Regenerate authorized product-contract changes through `prd-authoring` and
   Business Health with a preview; preserve stable IDs and existing evidence.
 - Append a one-line entry to [`internal/PROGRESS.md`](internal/PROGRESS.md)

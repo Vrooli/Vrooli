@@ -24,7 +24,10 @@
             {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
             {"value": "flac", "labelKey": "diagnostics.formatFlac"},
             {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
-            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+            {"value": "aac", "labelKey": "diagnostics.formatAac"},
+            {"value": "webm", "labelKey": "diagnostics.formatWebm"},
+            {"value": "opus", "labelKey": "diagnostics.formatOpus"},
+            {"value": "pcm_s16le", "labelKey": "diagnostics.formatPcmS16le"}
           ]
         },
         {
@@ -39,7 +42,10 @@
             {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
             {"value": "flac", "labelKey": "diagnostics.formatFlac"},
             {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
-            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+            {"value": "aac", "labelKey": "diagnostics.formatAac"},
+            {"value": "webm", "labelKey": "diagnostics.formatWebm"},
+            {"value": "opus", "labelKey": "diagnostics.formatOpus"},
+            {"value": "pcm_s16le", "labelKey": "diagnostics.formatPcmS16le"}
           ]
         },
         {"name": "sample_rate", "type": "int32", "control": "number", "default": "0", "min": 0, "max": 192000, "step": 1, "unit": "Hz", "advanced": true},
@@ -54,7 +60,7 @@
         "flags": [
           {"name": "input", "field": "audio", "required": true},
           {"name": "output", "localOnly": true, "required": true},
-          {"name": "output-format", "field": "output_format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]},
+          {"name": "output-format", "field": "output_format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]},
           {"name": "input-format", "field": "input_format"},
           {"name": "sample-rate", "field": "sample_rate"},
           {"name": "channels", "field": "channels"},
@@ -93,7 +99,10 @@
             {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
             {"value": "flac", "labelKey": "diagnostics.formatFlac"},
             {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
-            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+            {"value": "aac", "labelKey": "diagnostics.formatAac"},
+            {"value": "webm", "labelKey": "diagnostics.formatWebm"},
+            {"value": "opus", "labelKey": "diagnostics.formatOpus"},
+            {"value": "pcm_s16le", "labelKey": "diagnostics.formatPcmS16le"}
           ]
         },
         {"name": "start_seconds", "type": "double", "control": "number", "required": true, "default": "0", "min": 0, "max": 86400, "step": 0.1, "unit": "s"},
@@ -107,7 +116,7 @@
         "flags": [
           {"name": "input", "field": "audio", "required": true},
           {"name": "output", "localOnly": true, "required": true},
-          {"name": "format", "field": "format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]},
+          {"name": "format", "field": "format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]},
           {"name": "start-seconds", "field": "start_seconds", "required": true},
           {"name": "end-seconds", "field": "end_seconds"}
         ]
@@ -144,7 +153,10 @@
             {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
             {"value": "flac", "labelKey": "diagnostics.formatFlac"},
             {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
-            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+            {"value": "aac", "labelKey": "diagnostics.formatAac"},
+            {"value": "webm", "labelKey": "diagnostics.formatWebm"},
+            {"value": "opus", "labelKey": "diagnostics.formatOpus"},
+            {"value": "pcm_s16le", "labelKey": "diagnostics.formatPcmS16le"}
           ]
         },
         {"name": "crossfade_seconds", "type": "double", "control": "number", "default": "0", "min": 0, "max": 60, "step": 0.1, "unit": "s"}
@@ -157,7 +169,8 @@
         "flags": [
           {"name": "input", "field": "sources", "required": true, "repeated": true},
           {"name": "output", "localOnly": true, "required": true},
-          {"name": "output-format", "field": "output_format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]},
+          {"name": "format", "localOnly": true, "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]},
+          {"name": "output-format", "field": "output_format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]},
           {"name": "crossfade-seconds", "field": "crossfade_seconds"}
         ]
       },
@@ -193,7 +206,10 @@
             {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
             {"value": "flac", "labelKey": "diagnostics.formatFlac"},
             {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
-            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+            {"value": "aac", "labelKey": "diagnostics.formatAac"},
+            {"value": "webm", "labelKey": "diagnostics.formatWebm"},
+            {"value": "opus", "labelKey": "diagnostics.formatOpus"},
+            {"value": "pcm_s16le", "labelKey": "diagnostics.formatPcmS16le"}
           ]
         },
         {"name": "chunk_seconds", "type": "double", "control": "number", "default": "0", "min": 0, "max": 3600, "step": 0.1, "unit": "s"},
@@ -209,7 +225,10 @@
             {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
             {"value": "flac", "labelKey": "diagnostics.formatFlac"},
             {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
-            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+            {"value": "aac", "labelKey": "diagnostics.formatAac"},
+            {"value": "webm", "labelKey": "diagnostics.formatWebm"},
+            {"value": "opus", "labelKey": "diagnostics.formatOpus"},
+            {"value": "pcm_s16le", "labelKey": "diagnostics.formatPcmS16le"}
           ]
         }
       ],
@@ -221,10 +240,10 @@
         "flags": [
           {"name": "input", "field": "audio", "required": true},
           {"name": "output", "localOnly": true, "required": true},
-          {"name": "format", "field": "format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]},
+          {"name": "format", "field": "format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]},
           {"name": "chunk-seconds", "field": "chunk_seconds"},
           {"name": "boundaries-seconds", "field": "boundaries_seconds"},
-          {"name": "output-format", "field": "output_format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]}
+          {"name": "output-format", "field": "output_format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]}
         ]
       },
       "presentation": {
@@ -259,7 +278,10 @@
             {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
             {"value": "flac", "labelKey": "diagnostics.formatFlac"},
             {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
-            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+            {"value": "aac", "labelKey": "diagnostics.formatAac"},
+            {"value": "webm", "labelKey": "diagnostics.formatWebm"},
+            {"value": "opus", "labelKey": "diagnostics.formatOpus"},
+            {"value": "pcm_s16le", "labelKey": "diagnostics.formatPcmS16le"}
           ]
         },
         {"name": "fade_in_seconds", "type": "double", "control": "number", "default": "0", "min": 0, "max": 3600, "step": 0.1, "unit": "s"},
@@ -275,7 +297,10 @@
             {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
             {"value": "flac", "labelKey": "diagnostics.formatFlac"},
             {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
-            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+            {"value": "aac", "labelKey": "diagnostics.formatAac"},
+            {"value": "webm", "labelKey": "diagnostics.formatWebm"},
+            {"value": "opus", "labelKey": "diagnostics.formatOpus"},
+            {"value": "pcm_s16le", "labelKey": "diagnostics.formatPcmS16le"}
           ]
         }
       ],
@@ -287,10 +312,10 @@
         "flags": [
           {"name": "input", "field": "audio", "required": true},
           {"name": "output", "localOnly": true, "required": true},
-          {"name": "format", "field": "format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]},
+          {"name": "format", "field": "format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]},
           {"name": "fade-in-seconds", "field": "fade_in_seconds"},
           {"name": "fade-out-seconds", "field": "fade_out_seconds"},
-          {"name": "output-format", "field": "output_format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]}
+          {"name": "output-format", "field": "output_format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]}
         ]
       },
       "presentation": {
@@ -325,7 +350,10 @@
             {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
             {"value": "flac", "labelKey": "diagnostics.formatFlac"},
             {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
-            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+            {"value": "aac", "labelKey": "diagnostics.formatAac"},
+            {"value": "webm", "labelKey": "diagnostics.formatWebm"},
+            {"value": "opus", "labelKey": "diagnostics.formatOpus"},
+            {"value": "pcm_s16le", "labelKey": "diagnostics.formatPcmS16le"}
           ]
         },
         {"name": "gain_db", "type": "double", "control": "number", "required": true, "default": "0", "min": -60, "max": 24, "step": 0.5, "unit": "dB"},
@@ -340,7 +368,10 @@
             {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
             {"value": "flac", "labelKey": "diagnostics.formatFlac"},
             {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
-            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+            {"value": "aac", "labelKey": "diagnostics.formatAac"},
+            {"value": "webm", "labelKey": "diagnostics.formatWebm"},
+            {"value": "opus", "labelKey": "diagnostics.formatOpus"},
+            {"value": "pcm_s16le", "labelKey": "diagnostics.formatPcmS16le"}
           ]
         }
       ],
@@ -352,9 +383,9 @@
         "flags": [
           {"name": "input", "field": "audio", "required": true},
           {"name": "output", "localOnly": true, "required": true},
-          {"name": "format", "field": "format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]},
+          {"name": "format", "field": "format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]},
           {"name": "gain-db", "field": "gain_db", "required": true},
-          {"name": "output-format", "field": "output_format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]}
+          {"name": "output-format", "field": "output_format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]}
         ]
       },
       "presentation": {
@@ -389,7 +420,10 @@
             {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
             {"value": "flac", "labelKey": "diagnostics.formatFlac"},
             {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
-            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+            {"value": "aac", "labelKey": "diagnostics.formatAac"},
+            {"value": "webm", "labelKey": "diagnostics.formatWebm"},
+            {"value": "opus", "labelKey": "diagnostics.formatOpus"},
+            {"value": "pcm_s16le", "labelKey": "diagnostics.formatPcmS16le"}
           ]
         },
         {
@@ -415,7 +449,10 @@
             {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
             {"value": "flac", "labelKey": "diagnostics.formatFlac"},
             {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
-            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+            {"value": "aac", "labelKey": "diagnostics.formatAac"},
+            {"value": "webm", "labelKey": "diagnostics.formatWebm"},
+            {"value": "opus", "labelKey": "diagnostics.formatOpus"},
+            {"value": "pcm_s16le", "labelKey": "diagnostics.formatPcmS16le"}
           ]
         }
       ],
@@ -427,10 +464,10 @@
         "flags": [
           {"name": "input", "field": "audio", "required": true},
           {"name": "output", "localOnly": true, "required": true},
-          {"name": "format", "field": "format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]},
+          {"name": "format", "field": "format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]},
           {"name": "method", "field": "method", "default": "ebu_r128", "values": ["ebu_r128", "rms", "peak"]},
           {"name": "target-lufs", "field": "target_lufs", "default": "-16"},
-          {"name": "output-format", "field": "output_format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]}
+          {"name": "output-format", "field": "output_format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]}
         ]
       },
       "presentation": {
@@ -465,7 +502,10 @@
             {"value": "mp3", "labelKey": "diagnostics.formatMp3"},
             {"value": "flac", "labelKey": "diagnostics.formatFlac"},
             {"value": "ogg", "labelKey": "diagnostics.formatOgg"},
-            {"value": "aac", "labelKey": "diagnostics.formatAac"}
+            {"value": "aac", "labelKey": "diagnostics.formatAac"},
+            {"value": "webm", "labelKey": "diagnostics.formatWebm"},
+            {"value": "opus", "labelKey": "diagnostics.formatOpus"},
+            {"value": "pcm_s16le", "labelKey": "diagnostics.formatPcmS16le"}
           ]
         }
       ],
@@ -477,7 +517,7 @@
         "flags": [
           {"name": "input", "field": "audio", "required": true},
           {"name": "output", "localOnly": true, "required": true},
-          {"name": "format", "field": "format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac"]}
+          {"name": "format", "field": "format", "default": "wav", "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]}
         ]
       },
       "presentation": {

@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 package eval
 
 import (
@@ -20,7 +22,31 @@ type Clip struct {
 	// Format is the audioformat codec hint for the PCM bytes (e.g.
 	// "pcm_s16le"). Used by the batch oracle session to tell the backend
 	// the codec; empty defaults to canonical PCM downstream.
-	Format string
+	Format           string
+	TimedReference   []TimedWord
+	TimingProvenance *TimingReferenceProvenance
+}
+
+// TimingReferenceProvenance is retained in reports alongside any score. A
+// score is emitted only for human-reviewed references with complete review
+// provenance; aligner-only annotations remain explicitly unscored.
+type TimingReferenceProvenance struct {
+	Status, SourceReference, AlignmentTool, AlignmentModel string
+	Reviewer, ReviewMethod, ReviewedAt                     string
+}
+
+func (p *TimingReferenceProvenance) ReviewReady() bool {
+	if p == nil || p.Status != "human_reviewed" || strings.TrimSpace(p.SourceReference) == "" ||
+		(strings.TrimSpace(p.AlignmentTool) == "") != (strings.TrimSpace(p.AlignmentModel) == "") || strings.TrimSpace(p.Reviewer) == "" ||
+		strings.TrimSpace(p.ReviewMethod) == "" || strings.TrimSpace(p.ReviewedAt) == "" {
+		return false
+	}
+	for _, timestamp := range strings.Split(p.ReviewedAt, ";") {
+		if _, err := time.Parse(time.RFC3339Nano, timestamp); err != nil {
+			return false
+		}
+	}
+	return true
 }
 
 // bytesPerSecond is the PCM byte rate for this clip (s16le mono).
@@ -59,12 +85,17 @@ type Session func(ctx context.Context, chunks <-chan sttchain.AudioChunk, events
 
 // StreamResult is one replay's captured output.
 type StreamResult struct {
-	FinalText             string
-	Segments              []string
-	Partials              []string
-	SegmentCount          int
-	CommitTimeline        []CommitState
-	SpeakerRejectionCount int
+	FinalText string
+	// HypothesisWordTimestamps are provider-reported and remain relative to
+	// the individual provider request. They are descriptive only; they are not
+	// aligned or promoted to reference timings by the replay harness.
+	HypothesisWordTimestamps          []sttchain.TimedWord
+	HypothesisWordTimestampsTruncated bool
+	Segments                          []string
+	Partials                          []string
+	SegmentCount                      int
+	CommitTimeline                    []CommitState
+	SpeakerRejectionCount             int
 	// FinalizationLatency is the wall-clock gap between feeding the last
 	// audio chunk and the terminal Done. Only meaningful in ModeRealtime.
 	FinalizationLatency time.Duration
@@ -180,6 +211,7 @@ func Replay(ctx context.Context, clip Clip, opts ReplayOptions, session Session)
 		case sttchain.StreamEventSegment:
 			if ev.Segment != nil {
 				res.Segments = append(res.Segments, ev.Segment.Text)
+				appendHypothesisWordTimestamps(&res, ev.Segment.Words, ev.Segment.StartMs, ev.Segment.StartSample, clip.SampleRate)
 				res.SegmentCount++
 				res.CommitTimeline = append(res.CommitTimeline, CommitState{
 					Text:       strings.TrimSpace(strings.Join(res.Segments, " ")),
@@ -222,6 +254,34 @@ eventsDrained:
 	return res
 }
 
+// Keep report payloads bounded even if a provider returns malformed or
+// unexpectedly large timing arrays. 20,000 words is well above a one-hour
+// transcript while limiting each per-clip JSON addition to a predictable size.
+const maxHypothesisWordTimestamps = 20_000
+
+func appendHypothesisWordTimestamps(result *StreamResult, words []sttchain.TimedWord, segmentStartMs, segmentStartSample int64, sampleRate int) {
+	remaining := maxHypothesisWordTimestamps - len(result.HypothesisWordTimestamps)
+	if remaining <= 0 {
+		if len(words) > 0 {
+			result.HypothesisWordTimestampsTruncated = true
+		}
+		return
+	}
+	if len(words) > remaining {
+		words = words[:remaining]
+		result.HypothesisWordTimestampsTruncated = true
+	}
+	offsetSeconds := float64(segmentStartMs) / 1000
+	if segmentStartMs == 0 && segmentStartSample > 0 && sampleRate > 0 {
+		offsetSeconds = float64(segmentStartSample) / float64(sampleRate)
+	}
+	for _, word := range words {
+		word.Start += offsetSeconds
+		word.End += offsetSeconds
+		result.HypothesisWordTimestamps = append(result.HypothesisWordTimestamps, word)
+	}
+}
+
 // EvalClip replays one clip through one strategy session and computes the
 // per-clip quality metrics. meter must be the MeteredProvider wrapping the
 // session's provider so the Whisper-call / audio-second / RTF columns can
@@ -241,25 +301,63 @@ func EvalClip(ctx context.Context, clip Clip, meter *MeteredProvider, opts Repla
 	wer := WER(refTokens, hypTokens)
 
 	cr := ClipResult{
-		ClipID:                clip.ID,
-		Reference:             clip.Reference,
-		Hypothesis:            res.FinalText,
-		WER:                   wer,
-		NormalizedReference:   normalizedReference,
-		NormalizedHypothesis:  normalizedHypothesis,
-		EditOperations:        editOperations,
-		SegmentCount:          res.SegmentCount,
-		PartialRevisions:      PartialRevisions(res.Partials),
-		CommitTimeline:        res.CommitTimeline,
-		CommitCount:           len(res.CommitTimeline),
-		TimeToFirstCommitMs:   firstCommitMs(res.CommitTimeline),
-		SpeakerRejectionCount: res.SpeakerRejectionCount,
-		AudioDurationMs:       int64(clip.Duration() / time.Millisecond),
-		Err:                   res.Err,
+		ClipID:                            clip.ID,
+		Reference:                         clip.Reference,
+		Hypothesis:                        res.FinalText,
+		HypothesisWordTimestamps:          append([]sttchain.TimedWord(nil), res.HypothesisWordTimestamps...),
+		HypothesisWordTimestampsTruncated: res.HypothesisWordTimestampsTruncated,
+		WER:                               wer,
+		NormalizedReference:               normalizedReference,
+		NormalizedHypothesis:              normalizedHypothesis,
+		EditOperations:                    editOperations,
+		SegmentCount:                      res.SegmentCount,
+		PartialRevisions:                  PartialRevisions(res.Partials),
+		CommitTimeline:                    res.CommitTimeline,
+		CommitCount:                       len(res.CommitTimeline),
+		TimeToFirstCommitMs:               firstCommitMs(res.CommitTimeline),
+		SpeakerRejectionCount:             res.SpeakerRejectionCount,
+		AudioDurationMs:                   int64(clip.Duration() / time.Millisecond),
+		Err:                               res.Err,
 	}
 	cr.Safety = EvaluateSafety(editOperations, res.CommitTimeline, SafetyOptions{
 		DroppedSpanThresholdWords: opts.DroppedSpanThresholdWords,
 	})
+	cr.TimestampReference = clip.TimingProvenance
+	switch {
+	case len(clip.TimedReference) == 0:
+		cr.TimestampDriftSkipReason = "timed_reference_absent"
+	case !clip.TimingProvenance.ReviewReady():
+		cr.TimestampDriftSkipReason = "timed_reference_not_human_reviewed"
+	case !timedReferenceMatchesTranscript(clip.TimedReference, clip.Reference):
+		cr.TimestampDriftSkipReason = "timed_reference_transcript_mismatch"
+	case !referenceWordsWithinDuration(clip.TimedReference, clip.Duration()):
+		cr.TimestampDriftSkipReason = "timed_reference_out_of_bounds"
+	case len(res.HypothesisWordTimestamps) == 0:
+		cr.TimestampDriftSkipReason = "hypothesis_word_timestamps_absent"
+	case res.HypothesisWordTimestampsTruncated:
+		cr.TimestampDriftSkipReason = "hypothesis_word_timestamps_truncated"
+	case !timedWordsWithinDuration(res.HypothesisWordTimestamps, clip.Duration()):
+		cr.TimestampDriftSkipReason = "hypothesis_word_timestamps_out_of_bounds"
+	default:
+		reference := make([]TimedWord, len(clip.TimedReference))
+		for i, word := range clip.TimedReference {
+			reference[i] = TimedWord{Word: word.Word, Start: word.Start, End: word.End}
+		}
+		hypothesis := make([]TimedWord, len(res.HypothesisWordTimestamps))
+		for i, word := range res.HypothesisWordTimestamps {
+			hypothesis[i] = TimedWord{Word: word.Word, Start: word.Start, End: word.End}
+		}
+		drift, err := ScoreTimestampDrift(reference, hypothesis)
+		if err != nil {
+			if drift.ReferenceWords > 0 && drift.MatchedWords == 0 {
+				cr.TimestampDriftSkipReason = "timestamp_no_lexical_matches"
+			} else {
+				cr.TimestampDriftSkipReason = "timestamp_evidence_invalid"
+			}
+		} else {
+			cr.TimestampDrift = &drift
+		}
+	}
 	if meter != nil {
 		snap := meter.Snapshot()
 		cr.WhisperCalls = snap.Calls
@@ -271,6 +369,53 @@ func EvalClip(ctx context.Context, clip Clip, meter *MeteredProvider, opts Repla
 		cr.LatencySamplesMs = []float64{float64(res.FinalizationLatency) / float64(time.Millisecond)}
 	}
 	return cr
+}
+
+func timedWordsWithinDuration(words []sttchain.TimedWord, duration time.Duration) bool {
+	if duration <= 0 {
+		return false
+	}
+	limit := duration.Seconds()
+	for _, word := range words {
+		if word.Start < 0 || word.End < word.Start || word.End > limit {
+			return false
+		}
+	}
+	return true
+}
+
+// timedReferenceMatchesTranscript protects the evaluator boundary as well as
+// corpus ingestion: reports can also be built from in-memory clips and older
+// persisted rows, so a human_reviewed provenance claim alone is not enough.
+func timedReferenceMatchesTranscript(words []TimedWord, transcript string) bool {
+	if len(words) == 0 {
+		return false
+	}
+	options := DefaultNormalizeOptions()
+	transcriptWords := Tokenize(transcript, options)
+	if len(words) != len(transcriptWords) {
+		return false
+	}
+	for i, word := range words {
+		if Normalize(word.Word, options) != transcriptWords[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func referenceWordsWithinDuration(words []TimedWord, duration time.Duration) bool {
+	if duration <= 0 {
+		return false
+	}
+	// Match corpus.TimedReference's import tolerance for codec/rounding tails.
+	limit := duration.Seconds() + 0.05
+	for _, word := range words {
+		if word.Start < 0 || word.End < word.Start || word.End > limit {
+			return false
+		}
+	}
+	return true
 }
 
 // StrategySpec describes one strategy row in the report. BuildSession is
@@ -389,7 +534,11 @@ func RunReport(ctx context.Context, clips []Clip, specs []StrategySpec, opts Eva
 					ClipTotal:     len(clips),
 				})
 			} else {
-				cr = ClipResult{ClipID: clip.ID, Reference: clip.Reference, AudioDurationMs: int64(clip.Duration() / time.Millisecond)}
+				cr = ClipResult{ClipID: clip.ID, Reference: clip.Reference, AudioDurationMs: int64(clip.Duration() / time.Millisecond), TimestampReference: clip.TimingProvenance}
+				cr.TimestampDriftSkipReason = timingReferenceSkipReason(clip)
+				if cr.TimestampDriftSkipReason == "" {
+					cr.TimestampDriftSkipReason = "quality_pass_not_run"
+				}
 			}
 			clipResults[i] = cr
 		}
@@ -416,6 +565,16 @@ func RunReport(ctx context.Context, clips []Clip, specs []StrategySpec, opts Eva
 		report.PerStrategy = append(report.PerStrategy, strategyReport)
 	}
 	return explainReport(report)
+}
+
+func timingReferenceSkipReason(clip Clip) string {
+	if len(clip.TimedReference) == 0 {
+		return "timed_reference_absent"
+	}
+	if !clip.TimingProvenance.ReviewReady() {
+		return "timed_reference_not_human_reviewed"
+	}
+	return ""
 }
 
 // CombineReports merges independently executed cells into one comparison.

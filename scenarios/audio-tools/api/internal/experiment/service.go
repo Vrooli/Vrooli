@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 package experiment
 
 import (
@@ -6,6 +8,7 @@ import (
 	"time"
 
 	"audio-tools/internal/blobbytes"
+	measuretypes "audio-tools/internal/measures"
 )
 
 // Service ties experiment metadata to large report artifacts. The async runner
@@ -16,6 +19,8 @@ type Service struct {
 	blobs blobbytes.Store
 }
 
+var _ measuretypes.ExperimentCounter = (*Service)(nil)
+
 // NewService constructs an experiment Service.
 func NewService(repo Repository, blobs blobbytes.Store) *Service {
 	return &Service{repo: repo, blobs: blobs}
@@ -23,6 +28,11 @@ func NewService(repo Repository, blobs blobbytes.Store) *Service {
 
 func (s *Service) CreateExperiment(ctx context.Context, exp Experiment) (Experiment, error) {
 	return s.repo.CreateExperiment(ctx, exp)
+}
+
+// CountCreatedInRange returns experiment and run counts for [from,to), interpreted in UTC.
+func (s *Service) CountCreatedInRange(ctx context.Context, from, to time.Time) (CreatedCounts, error) {
+	return s.repo.CountCreatedInRange(ctx, from, to)
 }
 
 func (s *Service) GetExperiment(ctx context.Context, id string) (Experiment, error) {

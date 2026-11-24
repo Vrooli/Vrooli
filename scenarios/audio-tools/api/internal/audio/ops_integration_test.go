@@ -24,7 +24,7 @@ func requireRealFFmpeg(t *testing.T) {
 }
 
 // sineWAV builds a mono 16-bit PCM WAV with a 440 Hz tone.
-func sineWAV(t *testing.T, seconds float64, sampleRate int) []byte {
+func sineWAV(t testing.TB, seconds float64, sampleRate int) []byte {
 	t.Helper()
 	const frequency = 440.0
 	samples := int(seconds * float64(sampleRate))
@@ -224,6 +224,23 @@ func TestIntegrationSplitProducesExpectedChunks(t *testing.T) {
 		if len(chunks[i].Audio) == 0 {
 			t.Fatalf("chunk %d has no audio", i)
 		}
+		end := want + chunks[i].Duration
+		if i == len(chunks)-1 {
+			end = 0
+		}
+		trimmed, err := Trim(context.Background(), src, "wav", want, end, "wav")
+		if err != nil {
+			t.Fatalf("reference Trim for chunk %d: %v", i, err)
+		}
+		gotSamples, wantSamples := wavSamples(t, chunks[i].Audio), wavSamples(t, trimmed)
+		if len(gotSamples) != len(wantSamples) {
+			t.Fatalf("chunk %d has %d PCM samples, independent trim has %d", i, len(gotSamples), len(wantSamples))
+		}
+		for sampleIndex := range gotSamples {
+			if gotSamples[sampleIndex] != wantSamples[sampleIndex] {
+				t.Fatalf("chunk %d PCM sample %d differs: batch=%d trim=%d", i, sampleIndex, gotSamples[sampleIndex], wantSamples[sampleIndex])
+			}
+		}
 	}
 	if chunks[0].Duration != 0.75 || chunks[1].Duration != 0.75 {
 		t.Fatalf("chunk durations = %v/%v, want 0.75/0.75", chunks[0].Duration, chunks[1].Duration)
@@ -231,8 +248,79 @@ func TestIntegrationSplitProducesExpectedChunks(t *testing.T) {
 	if math.Abs(chunks[2].Duration-0.5) > 1e-6 {
 		t.Fatalf("last chunk duration = %v, want 0.5 (input duration - start)", chunks[2].Duration)
 	}
-	if got := probeDuration(t, chunks[0].Audio); math.Abs(got-0.75) > 0.1 {
+	if got := probeDuration(t, chunks[0].Audio); math.Abs(got-0.75) > 1e-6 {
 		t.Fatalf("first chunk duration = %.3fs, want ~0.75s", got)
+	}
+}
+
+func TestIntegrationSplitBatchMatchesTrimForMP3(t *testing.T) {
+	requireRealFFmpeg(t)
+	pcm := sineWAV(t, 5.5, 8000)
+	mp3, err := runFfmpeg(context.Background(), pcm, "-i", "pipe:0", "-f", "mp3", "pipe:1")
+	if err != nil {
+		t.Fatalf("encode MP3 fixture: %v", err)
+	}
+	chunks, err := Split(context.Background(), mp3, "mp3", 2, nil, "mp3")
+	if err != nil {
+		t.Fatalf("batch Split: %v", err)
+	}
+	if len(chunks) != 3 {
+		t.Fatalf("chunk count = %d, want 3", len(chunks))
+	}
+	for i, chunk := range chunks {
+		start := float64(i * 2)
+		want, err := Trim(context.Background(), mp3, "mp3", start, start+2, "mp3")
+		if err != nil {
+			t.Fatalf("reference Trim(%g,%g): %v", start, start+2, err)
+		}
+		gotDuration := probeDuration(t, chunk.Audio)
+		wantDuration := probeDuration(t, want)
+		if math.Abs(gotDuration-wantDuration) > 1e-6 {
+			t.Fatalf("chunk %d duration = %.6f, independent trim = %.6f", i, gotDuration, wantDuration)
+		}
+	}
+}
+
+type stdoutOnlyExecRunner struct{}
+
+func (stdoutOnlyExecRunner) Run(ctx context.Context, name string, stdin []byte, args ...string) ([]byte, error) {
+	return (execRunner{}).Run(ctx, name, stdin, args...)
+}
+
+// BenchmarkSplitUniformRoutes compares the one-process batch graph with the
+// established per-chunk trim route on WAV and compressed MP3 input.
+func BenchmarkSplitUniformRoutes(b *testing.B) {
+	if !ffmpegOnPath() || !hasFfprobe() {
+		b.Skip("ffmpeg/ffprobe not available")
+	}
+	originalRunner := DefaultRunner
+	defer func() { DefaultRunner = originalRunner }()
+	DefaultRunner = execRunner{}
+	wav := sineWAV(b, 11.5, 8000)
+	mp3, err := runFfmpeg(context.Background(), wav, "-i", "pipe:0", "-f", "mp3", "pipe:1")
+	if err != nil {
+		b.Fatal(err)
+	}
+	for _, fixture := range []struct {
+		name   string
+		data   []byte
+		format string
+	}{{"wav", wav, "wav"}, {"mp3", mp3, "mp3"}} {
+		for _, route := range []struct {
+			name   string
+			runner Runner
+		}{{"batch", execRunner{}}, {"per_chunk_trim", stdoutOnlyExecRunner{}}} {
+			fixture, route := fixture, route
+			b.Run(fixture.name+"/"+route.name, func(b *testing.B) {
+				DefaultRunner = route.runner
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					if _, err := Split(context.Background(), fixture.data, fixture.format, 2, nil, fixture.format); err != nil {
+						b.Fatal(err)
+					}
+				}
+			})
+		}
 	}
 }
 

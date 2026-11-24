@@ -3,10 +3,10 @@ import { FlaskConical, Loader2 } from "lucide-react";
 
 import { ApiErrorState } from "../../../components/composites/ApiErrorState";
 import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Panel } from "../../../components/ui/panel";
 import { Select } from "../../../components/ui/select";
-import { Textarea } from "../../../components/ui/textarea";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
 import { selectors } from "../../../consts/selectors";
 import { strings } from "../../../consts/strings";
 import { useTranslation } from "../../../i18n";
@@ -59,6 +59,23 @@ export function ExperimentBuilder({
           {t(strings.dictationStudio.experimentNameLabel)}
           <Input data-testid={selectors.dictationStudio.experimentName} value={input.name} onChange={(event) => set("name", event.currentTarget.value)} />
         </label>
+
+        <div className="flex flex-col gap-1 text-xs lg:col-span-2">
+          <label htmlFor="experiment-metrics-only" className="flex items-start gap-2">
+            <input
+              id="experiment-metrics-only"
+              aria-describedby="experiment-metrics-only-hint"
+              data-testid={selectors.dictationStudio.experimentMetricsOnly}
+              type="checkbox"
+              checked={input.metricsOnly ?? false}
+              onChange={(event) => set("metricsOnly", event.currentTarget.checked)}
+            />
+            <span>{t(strings.dictationStudio.metricsOnlyRetentionLabel)}</span>
+          </label>
+          <p id="experiment-metrics-only-hint" className="pl-6 text-app-muted-foreground">
+            {t(strings.dictationStudio.metricsOnlyRetentionHint)}
+          </p>
+        </div>
 
         <label className="flex flex-col gap-1 text-xs lg:col-span-2">
           {t(strings.dictationStudio.enginesLabel)}

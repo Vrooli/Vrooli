@@ -114,14 +114,15 @@ boundary. Live provider calls need an explicit spending grant.
 
 ## Current Status
 
-Source inspected on 2026-09-16: the three provider chains now include explicit
-LPBS/Vrooli client composition, and the usage reporter posts authenticated,
-idempotent reports to the shared usage endpoint. Hosted delivery is still not a
-completed feature behind a disabled flag: the LPBS STT, TTS, and summarization
-clients intentionally return unavailable until the shared gateway endpoints
-ship, and the fresh setpoint read remains acceptance-ineligible. A user without
-local capability or usable BYOK therefore cannot rely on an owned hosted fallback
-today.
+Source inspected on 2026-11-24: the summarization client sends an authenticated,
+idempotent request to the LPBS feature endpoint. STT and TTS clients still return
+unavailable until their shared gateway endpoints ship, so hosted voice is not a
+completed capability. The local usage recorder stores analytics in Audio Tools'
+SQLite database through a bounded in-memory queue; it is not a durable billing
+outbox or a shared usage reporter. The hosted summarization request path and LPBS
+journey fixtures do not by themselves establish production availability or
+revenue readiness. A user without local capability or usable BYOK therefore
+cannot rely on an owned hosted voice fallback today.
 
 The [integration inventory](../concepts/INTEGRATIONS.md#scenario-dependencies)
 owns those source references. The [problem register](../internal/PROBLEMS.md)

@@ -8,6 +8,7 @@ import (
 	"audio-tools/cli/domains/diagnostics"
 	"audio-tools/cli/domains/experiment"
 	"audio-tools/cli/domains/health"
+	"audio-tools/cli/domains/measures"
 	"audio-tools/cli/domains/model"
 	"audio-tools/cli/domains/provider"
 	"audio-tools/cli/domains/settings"
@@ -41,16 +42,16 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	return subcommandGroups(core, manifest, nil, nil, nil, nil)
 }
 
-// SubcommandGroupsWithClock is the runtime entrypoint. Long-running
-// qualification commands receive the process clock from the composition root;
-// tests can use SubcommandGroups without acquiring a wall-clock dependency.
+// SubcommandGroupsWithClock is the runtime entrypoint. Validation commands
+// receive the process clock and ticker factory from the composition root;
+// tests can use SubcommandGroups without acquiring wall-clock dependencies.
 func SubcommandGroupsWithClock(core *cliapp.ScenarioApp, manifest []byte, now func() time.Time, getenv func(string) string, getwd func() (string, error)) ([]cliapp.SubcommandGroup, error) {
 	return subcommandGroups(core, manifest, now, time.NewTicker, getenv, getwd)
 }
 
 func subcommandGroups(core *cliapp.ScenarioApp, manifest []byte, now func() time.Time, newTicker func(time.Duration) *time.Ticker, getenv func(string) string, getwd func() (string, error)) ([]cliapp.SubcommandGroup, error) {
 	validationGroup := validation.Register(core, now, newTicker, getenv, getwd)
-	soakGroup := soak.Register(core, now, getenv, getwd)
+	soakGroup := soak.Register(core, getenv, getwd)
 	sttGroup, err := stt.Register(core, manifest)
 	if err != nil {
 		return nil, err
@@ -99,6 +100,10 @@ func subcommandGroups(core *cliapp.ScenarioApp, manifest []byte, now func() time
 	if err != nil {
 		return nil, err
 	}
+	measureGroup, err := measures.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
 	return []cliapp.SubcommandGroup{
 		validationGroup,
 		soakGroup,
@@ -114,5 +119,6 @@ func subcommandGroups(core *cliapp.ScenarioApp, manifest []byte, now func() time
 		providerGroup,
 		corpusGroup,
 		experimentGroup,
+		measureGroup,
 	}, nil
 }

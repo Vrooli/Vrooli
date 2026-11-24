@@ -1,0 +1,10 @@
+{
+  "principals": [
+    {
+      "name": "audio-tools-lpbs-account-credit-lifecycle",
+      "resource": "landing-page-business-suite",
+      "audience": "scenario-authenticator:landing-page-business-suite",
+      "scopes": ["lpbs:account-credit.lifecycle"]
+    }
+  ]
+}

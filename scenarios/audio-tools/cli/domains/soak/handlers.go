@@ -29,6 +29,22 @@ type soakHealthDocument struct {
 	Service string `json:"service"`
 }
 
+// failedAssertions keeps both failed and unmeasured assertions from qualifying
+// a soak. A completed transport run is not a qualification when any required
+// outcome was unknown.
+func failedAssertions(doc runDocument) int {
+	if len(doc.Assertions) == 0 {
+		return 1
+	}
+	failed := 0
+	for _, assertion := range doc.Assertions {
+		if assertion.Outcome != "passed" {
+			failed++
+		}
+	}
+	return failed
+}
+
 func (h *handlers) run(ctx cliapp.RunContext) error {
 	identityToken := strings.TrimSpace(h.getenv("VROOLI_AGENT_IDENTITY_TOKEN"))
 	grantReceipt := strings.TrimSpace(h.getenv("VROOLI_BROWSER_GRANT_RECEIPT"))
@@ -118,21 +134,15 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 		if err != nil {
 			return err
 		}
-		failed := 0
-		for _, assertion := range doc.Assertions {
-			if assertion.Outcome != "passed" {
-				failed++
-			}
-		}
+		failed := failedAssertions(doc)
 		if failed > 0 {
 			return fmt.Errorf("soak run %s did not qualify: %d assertion(s) failed or were not measured", doc.RunID, failed)
 		}
 		return nil
 	}
-	failed := 0
+	failed := failedAssertions(doc)
 	for _, assertion := range doc.Assertions {
 		if assertion.Outcome != "passed" {
-			failed++
 			fmt.Fprintf(ctx.Stdout(), "%s: %s (%s)\n", assertion.Name, assertion.Outcome, assertion.Detail)
 		}
 	}
@@ -228,7 +238,8 @@ func (h *handlers) verifyAudioToolsAPI() error {
 }
 
 func positiveInt(raw string, def int) (int, error) {
-	if strings.TrimSpace(raw) == "" {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
 		return def, nil
 	}
 	n, err := strconv.Atoi(raw)

@@ -41,128 +41,27 @@ func (s *Segmenter) normalizeChunks(
 		engine = audioformat.New()
 	}
 
-	codec := audioformat.CodecFromString(start.InputFormat)
-	var first sttchain.AudioChunk
-	haveFirst := false
-	if codec == audioformat.CodecUnknown {
-		// Undeclared: sniff the first chunk. Hold it so the decode does not
-		// lose the leading bytes.
-		select {
-		case c, ok := <-chunks:
-			if !ok {
-				// Empty stream: nothing to decode. Hand the strategy a closed
-				// empty channel so it emits an empty terminal Done.
-				empty := make(chan sttchain.AudioChunk)
-				close(empty)
-				return empty, start, func() {}, nil
-			}
-			first, haveFirst = c, true
-		case <-ctx.Done():
-			empty := make(chan sttchain.AudioChunk)
-			close(empty)
-			return empty, start, func() {}, nil
-		}
-		detected, derr := audioformat.Detect(audioformat.CodecUnknown, first.Audio)
-		if derr != nil {
-			emitTerminal(events, derr)
-			return nil, start, func() {}, derr
-		}
-		codec = detected
+	codec, first, haveFirst, empty, err := resolveInputCodec(ctx, start.InputFormat, chunks)
+	if err != nil {
+		emitTerminal(events, err)
+		return nil, start, func() {}, err
+	}
+	if empty {
+		return closedChunks(), start, func() {}, nil
 	}
 
-	dec, derr := engine.NewStreamDecoder(ctx, codec)
-	if derr != nil {
-		emitTerminal(events, derr)
-		return nil, start, func() {}, derr
+	dec, err := engine.NewStreamDecoder(ctx, codec)
+	if err != nil {
+		emitTerminal(events, err)
+		return nil, start, func() {}, err
 	}
 
 	pcmCh := make(chan sttchain.AudioChunk, 16)
 	nctx, ncancel := context.WithCancel(ctx)
-	// Cleanup must not return while the feeder or adapter can still touch the
-	// decoder, pcmCh, or the session buffer. The previous teardown cancelled
-	// and closed the decoder but did not join these goroutines, so a caller
-	// could start the next session (or its own teardown) while the previous
-	// ones were still unwinding.
 	var workers sync.WaitGroup
 	workers.Add(2)
-
-	// Feeder: inbound chunks → decoder stdin. CloseInput on clean EOF so
-	// the decoder flushes its tail; exit on nctx cancel.
-	go func() {
-		defer workers.Done()
-		var fed int
-		write := func(b []byte) (stop bool) {
-			if err := dec.Write(b); err != nil {
-				return true
-			}
-			fed += len(b)
-			if fed >= MaxSessionInputBytes {
-				_ = dec.CloseInput() // cap reached: flush + end cleanly
-				return true
-			}
-			return false
-		}
-		if haveFirst {
-			if write(first.Audio) {
-				return
-			}
-		}
-		for {
-			select {
-			case c, ok := <-chunks:
-				if !ok {
-					_ = dec.CloseInput()
-					return
-				}
-				if write(c.Audio) {
-					return
-				}
-			case <-nctx.Done():
-				// Flush the decoder's tail on cancel too, not only on a clean
-				// EOF: CloseInput lets ffmpeg emit the trailing PCM it has
-				// buffered so a drain-then-close teardown (idle timeout, client
-				// stop, request cancel) still delivers the final audio instead
-				// of dropping it with the killed process.
-				_ = dec.CloseInput()
-				return
-			}
-		}
-	}()
-
-	// Adapter: decoder PCM frames → strategy chunk channel. Closes pcmCh
-	// when the decoder's Frames channel closes (clean EOF / process death)
-	// or on nctx cancel, so the strategy's chunk loop terminates.
-	go func() {
-		defer workers.Done()
-		defer close(pcmCh)
-		var sequence uint64
-		var sampleCursor int64
-		for {
-			select {
-			case f, ok := <-dec.Frames():
-				if !ok {
-					// A closed frame channel is a clean EOF only when the decoder
-					// reports none. A mid-stream ffmpeg failure otherwise looks
-					// identical and silently truncates the turn.
-					if decodeErr := dec.Err(); decodeErr != nil && ctx.Err() == nil && !errors.Is(decodeErr, context.Canceled) {
-						events <- sttchain.StreamEvent{Kind: sttchain.StreamEventError,
-							Error: fmt.Errorf("%w: %v", audioformat.ErrStreamDecode, decodeErr)}
-					}
-					return
-				}
-				chunk := sttchain.AudioChunk{Audio: f, Sequence: sequence, StartSample: sampleCursor, EndSample: sampleCursor + int64(len(f)/2)}
-				sequence++
-				sampleCursor = chunk.EndSample
-				select {
-				case pcmCh <- chunk:
-				case <-nctx.Done():
-					return
-				}
-			case <-nctx.Done():
-				return
-			}
-		}
-	}()
+	go feedDecoder(nctx, chunks, dec, first, haveFirst, &workers)
+	go adaptDecoderOutput(ctx, nctx, dec, pcmCh, events, &workers)
 
 	nstart := start
 	nstart.InputFormat = audioformat.CodecPCMS16LE.String()
@@ -175,4 +74,129 @@ func (s *Segmenter) normalizeChunks(
 		workers.Wait()
 	}
 	return pcmCh, nstart, cleanup, nil
+}
+
+// resolveInputCodec preserves the first chunk when an undeclared stream needs
+// sniffing. empty is true only for a clean EOF before any bytes arrive.
+func resolveInputCodec(
+	ctx context.Context,
+	inputFormat string,
+	chunks <-chan sttchain.AudioChunk,
+) (audioformat.Codec, sttchain.AudioChunk, bool, bool, error) {
+	codec := audioformat.CodecFromString(inputFormat)
+	if codec != audioformat.CodecUnknown {
+		return codec, sttchain.AudioChunk{}, false, false, nil
+	}
+
+	var first sttchain.AudioChunk
+	select {
+	case chunk, ok := <-chunks:
+		if !ok {
+			return audioformat.CodecUnknown, first, false, true, nil
+		}
+		first = chunk
+	case <-ctx.Done():
+		return audioformat.CodecUnknown, first, false, true, nil
+	}
+
+	codec, err := audioformat.Detect(audioformat.CodecUnknown, first.Audio)
+	return codec, first, true, false, err
+}
+
+func closedChunks() <-chan sttchain.AudioChunk {
+	chunks := make(chan sttchain.AudioChunk)
+	close(chunks)
+	return chunks
+}
+
+// feedDecoder writes inbound chunks in order and closes decoder input on EOF,
+// cancellation, or the session byte cap so buffered decoder output can flush.
+func feedDecoder(
+	ctx context.Context,
+	chunks <-chan sttchain.AudioChunk,
+	dec audioformat.StreamDecoder,
+	first sttchain.AudioChunk,
+	haveFirst bool,
+	workers *sync.WaitGroup,
+) {
+	defer workers.Done()
+	var fed int
+	write := func(data []byte) (stop bool) {
+		if err := dec.Write(data); err != nil {
+			return true
+		}
+		fed += len(data)
+		if fed >= MaxSessionInputBytes {
+			_ = dec.CloseInput()
+			return true
+		}
+		return false
+	}
+	if haveFirst && write(first.Audio) {
+		return
+	}
+	for {
+		select {
+		case chunk, ok := <-chunks:
+			if !ok {
+				_ = dec.CloseInput()
+				return
+			}
+			if write(chunk.Audio) {
+				return
+			}
+		case <-ctx.Done():
+			// Flush the decoder's tail on cancel too, not only on a clean EOF.
+			_ = dec.CloseInput()
+			return
+		}
+	}
+}
+
+// adaptDecoderOutput forwards decoded PCM with contiguous sample offsets and
+// reports decoder failures that would otherwise look like a clean EOF.
+func adaptDecoderOutput(
+	ctx context.Context,
+	nctx context.Context,
+	dec audioformat.StreamDecoder,
+	pcmCh chan sttchain.AudioChunk,
+	events chan<- sttchain.StreamEvent,
+	workers *sync.WaitGroup,
+) {
+	defer workers.Done()
+	defer close(pcmCh)
+	var sequence uint64
+	var sampleCursor int64
+	for {
+		select {
+		case frame, ok := <-dec.Frames():
+			if !ok {
+				if decodeErr := dec.Err(); decodeErr != nil && ctx.Err() == nil && !errors.Is(decodeErr, context.Canceled) {
+					emitDecoderFailure(nctx, events, decodeErr)
+				}
+				return
+			}
+			chunk := sttchain.AudioChunk{Audio: frame, Sequence: sequence, StartSample: sampleCursor, EndSample: sampleCursor + int64(len(frame)/2)}
+			sequence++
+			sampleCursor = chunk.EndSample
+			select {
+			case pcmCh <- chunk:
+			case <-nctx.Done():
+				return
+			}
+		case <-nctx.Done():
+			return
+		}
+	}
+}
+
+func emitDecoderFailure(ctx context.Context, events chan<- sttchain.StreamEvent, decodeErr error) {
+	event := sttchain.StreamEvent{
+		Kind:  sttchain.StreamEventError,
+		Error: fmt.Errorf("%w: %v", audioformat.ErrStreamDecode, decodeErr),
+	}
+	select {
+	case events <- event:
+	case <-ctx.Done():
+	}
 }

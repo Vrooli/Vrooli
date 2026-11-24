@@ -40,7 +40,7 @@ func TestTranscode_HappyPath(t *testing.T) {
 }
 
 func TestTranscode_DefaultContentType(t *testing.T) {
-	withRunner(t, audiomocks.NewFakeRunner([]byte("OUT"), nil))
+	withRunner(t, audiomocks.NewFakeRunner(streamedWAVForTest(), nil))
 	c := newClient(t)
 	res, err := c.Transcode(context.Background(), connect.NewRequest(&audiov1.TranscodeRequest{Audio: []byte("X")}))
 	require.NoError(t, err)

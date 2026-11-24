@@ -12,8 +12,8 @@ package modelcatalog
 // Summarize is bounded at 4 GB because it runs through resource-ollama, whose
 // installed tags include quantization metadata and runtime overhead on top of
 // the published weight size; the STT/TTS/speaker budgets are for weights only.
-// The 4B faithful default measures 3.39 GB on disk; 9B measures 6.59 GB and
-// must not fit.
+// The 4B quality alternative measures 3.39 GB on disk; 9B measures 6.59 GB
+// and must not fit.
 var DefaultFootprintBudgetMB = map[Capability]int{
 	CapabilitySTT:       600,
 	CapabilityTTS:       400,
@@ -59,7 +59,7 @@ func (c *Catalog) DeclaredLocalFootprintMB() float64 {
 // within the sum of the capability budgets.
 func (c *Catalog) PromotedDefaultFootprintMB() float64 {
 	total := 0.0
-	for _, capability := range Capabilities {
+	for _, capability := range DefaultCapabilities {
 		def, err := c.DefaultFor(capability, "", Platform{})
 		if err != nil || !UsesLocalWeights(def.Runtime) {
 			continue

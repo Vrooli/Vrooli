@@ -16,9 +16,10 @@ import (
 
 // ElevenLabsTTS calls ElevenLabs' text-to-speech endpoint.
 type ElevenLabsTTS struct {
-	BaseURL string
-	Doer    httpc.Doer
-	Clock   schedule.Clock
+	ProviderID string
+	BaseURL    string
+	Doer       httpc.Doer
+	Clock      schedule.Clock
 }
 
 func NewElevenLabsTTS() *ElevenLabsTTS {
@@ -29,7 +30,12 @@ func NewElevenLabsTTS() *ElevenLabsTTS {
 	}
 }
 
-func (a *ElevenLabsTTS) ID() string    { return "elevenlabs" }
+func (a *ElevenLabsTTS) ID() string {
+	if a.ProviderID != "" {
+		return a.ProviderID
+	}
+	return "elevenlabs"
+}
 func (a *ElevenLabsTTS) Model() string { return "eleven_multilingual_v2" }
 
 func (a *ElevenLabsTTS) IsAvailable(ctx context.Context, key string) bool { return key != "" }

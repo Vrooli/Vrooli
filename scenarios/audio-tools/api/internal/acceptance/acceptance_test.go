@@ -8,8 +8,10 @@ import (
 )
 
 func completeRun() conformance.Run {
-	run := conformance.Run{SchemaVersion: conformance.SchemaVersion, RunID: "run-1", Lane: conformance.LaneRealtime, DurationMs: 60 * 60 * 1000,
-		Cell: conformance.Cell{EngineID: "whisper-local", ModelID: "model-1", Strategy: "vad", Policy: "default"}, Code: conformance.Code{CapturePackage: "capture-1", Server: "server-1"}}
+	run := conformance.Run{
+		SchemaVersion: conformance.SchemaVersion, RunID: "run-1", Lane: conformance.LaneRealtime, DurationMs: 60 * 60 * 1000,
+		Cell: conformance.Cell{EngineID: "whisper-local", ModelID: "model-1", Strategy: "vad", Policy: "default"}, Code: conformance.Code{CapturePackage: "capture-1", Server: "server-1"},
+	}
 	for _, name := range conformance.RequiredAssertions(conformance.LaneRealtime) {
 		run.Assertions = append(run.Assertions, conformance.Assertion{Name: name, Outcome: conformance.OutcomePassed, Detail: "observed"})
 	}
@@ -71,6 +73,7 @@ func TestClaimsForRealtimeRunDoesNotClaimTransportAfterInvariantFailure(t *testi
 
 func TestMachineJSONCarriesExactIdentity(t *testing.T) {
 	run := completeRun()
+	run.Cell.ProviderTier = "local"
 	payload, err := MachineJSON(run, "D1", Cohort, Policy, ClaimsForRealtimeRun(run))
 	if err != nil {
 		t.Fatal(err)
@@ -84,6 +87,10 @@ func TestMachineJSONCarriesExactIdentity(t *testing.T) {
 			t.Fatalf("%s = %v, want %s", key, got[key], want)
 		}
 	}
+	providerCell := got["provider_cell"].(map[string]any)
+	if providerCell["provider_tier"] != "local" {
+		t.Fatalf("provider_cell.provider_tier = %v, want local", providerCell["provider_tier"])
+	}
 }
 
 func TestMachineJSONRejectsMissingBuildIdentity(t *testing.T) {
@@ -95,7 +102,7 @@ func TestMachineJSONRejectsMissingBuildIdentity(t *testing.T) {
 }
 
 func TestMachineJSONForCellCarriesProviderIdentityAndRejectsIncompleteCells(t *testing.T) {
-	payload, err := MachineJSONForCell("build-1", "D1", Cohort, Policy, "whisper-local", "whisper-medium", "vad_segment", map[string]any{
+	payload, err := MachineJSONForCell("build-1", "D1", Cohort, Policy, "whisper-local", "whisper-medium", "stt", "vad_segment", map[string]any{
 		"corpus-quality": map[string]any{"in_band": false},
 	})
 	if err != nil {
@@ -109,10 +116,10 @@ func TestMachineJSONForCellCarriesProviderIdentityAndRejectsIncompleteCells(t *t
 		t.Fatalf("envelope identity = %#v", got)
 	}
 	cell := got["provider_cell"].(map[string]any)
-	if cell["engine_id"] != "whisper-local" || cell["model_id"] != "whisper-medium" {
+	if cell["engine_id"] != "whisper-local" || cell["model_id"] != "whisper-medium" || cell["capability"] != "stt" {
 		t.Fatalf("provider cell = %#v", cell)
 	}
-	if _, err := MachineJSONForCell("build-1", "D1", Cohort, Policy, "", "model", "strategy", nil); err == nil {
+	if _, err := MachineJSONForCell("build-1", "D1", Cohort, Policy, "", "model", "stt", "strategy", nil); err == nil {
 		t.Fatal("missing provider identity must be rejected")
 	}
 }

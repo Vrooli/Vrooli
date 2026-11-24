@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 package corpus_test
 
 import (
@@ -35,10 +37,23 @@ func TestAssessQualityCohortAcceptsCompleteRecipe(t *testing.T) {
 			ID: fmt.Sprintf("clip-%d", i), ReferenceText: strings.Repeat("one two three four five six seven eight nine ten ", 10), CorpusRevision: "voice-pilot-en-v1",
 			LicenseReference: "license-1", SpeakerPseudonym: fmt.Sprintf("speaker-%d", i%corpus.RequiredQualitySpeakers),
 			Split: corpus.SplitHeldOut, NoiseCondition: condition, SNRDB: snr, ContentSHA256: fmt.Sprintf("hash-%d", i),
+			ReferenceReview: &corpus.ReferenceReview{Reviewer: "auditor@example.test", Protocol: "listen-and-correct-v1", ReviewedAt: "2026-06-29T12:00:00Z", ReferenceSHA256: corpus.ReferenceDigest(strings.Repeat("one two three four five six seven eight nine ten ", 10))},
 		})
 	}
 	got := corpus.AssessQualityCohort(clips, "voice-pilot-en-v1")
 	require.True(t, got.Eligible, "reasons: %v", got.Reasons)
 	require.Equal(t, corpus.RequiredQualityClips, got.ClipCount)
 	require.Equal(t, corpus.RequiredQualitySpeakers, got.SpeakerCount)
+}
+
+func TestAssessQualityCohortRejectsUnreviewedImportedReferences(t *testing.T) {
+	got := corpus.AssessQualityCohort([]corpus.Clip{{ID: "imported", ReferenceText: "silently supplied labels", CorpusRevision: "voice-pilot-en-v1", Split: corpus.SplitHeldOut}}, "voice-pilot-en-v1")
+	require.False(t, got.Eligible)
+	require.Contains(t, got.Reasons, `clip "imported" has no human-reviewed reference`)
+}
+
+func TestReferenceReviewMustBindTranscriptRevision(t *testing.T) {
+	review := &corpus.ReferenceReview{Reviewer: "auditor", Protocol: "listen-v1", ReviewedAt: "2026-06-29T12:00:00Z", ReferenceSHA256: corpus.ReferenceDigest("reviewed transcript")}
+	require.NoError(t, review.Validate("reviewed transcript"))
+	require.Error(t, review.Validate("edited transcript"))
 }

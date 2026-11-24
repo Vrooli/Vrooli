@@ -1,12 +1,21 @@
 package sttchain
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"audio-tools/internal/ai/chains/tiered"
 	"audio-tools/internal/logx"
 
 	"github.com/vrooli/api-core/schedule"
+)
+
+var (
+	ErrUnaryModelUnconfigured = errors.New("sttchain: unary model is not configured")
+	ErrUnaryModelUnavailable  = errors.New("sttchain: unary model is not serviceable")
+	ErrLocalModelDisabled     = errors.New("sttchain: local model is disabled")
 )
 
 // Chain composes Local + BYOK + Vrooli providers. Production speech routing
@@ -30,6 +39,7 @@ type Chain struct {
 	// providers and the engine ids) so this package never imports sttengine
 	// — that would cycle via egress.
 	localEngines map[string]Provider
+	batchModels  map[string]Provider
 	enableLocal  bool
 	localFirst   bool
 }
@@ -48,6 +58,8 @@ type Options struct {
 	// from the production manifest; the transport must independently gate the
 	// request before putting their engine id into StreamStart.
 	LocalEngines map[string]Provider
+	// BatchModels maps explicit unary model ids to batch-capable providers.
+	BatchModels map[string]Provider
 
 	EnableLocal  bool
 	EnableBYOK   bool
@@ -85,6 +97,7 @@ func NewChain(opts Options) *Chain {
 		byok:         opts.BYOK,
 		vrooli:       opts.Vrooli,
 		localEngines: opts.LocalEngines,
+		batchModels:  opts.BatchModels,
 		enableLocal:  opts.EnableLocal,
 		localFirst:   opts.LocalFirst,
 	}
@@ -108,4 +121,24 @@ func NewChain(opts Options) *Chain {
 		OnFallback:   tiered.FallbackLogger("stt", opts.Logx),
 	})
 	return c
+}
+
+// Execute routes an explicitly selected batch model directly. Empty selection
+// retains the existing BYOK/Vrooli/local tier order with Whisper as Local.
+// Explicit routes fail closed and never silently substitute another engine.
+func (c *Chain) Execute(ctx context.Context, req Request) (*Result, error) {
+	if req.Model == "" {
+		return c.Coordinator.Execute(ctx, req)
+	}
+	if !c.enableLocal {
+		return nil, fmt.Errorf("%w: %q", ErrLocalModelDisabled, req.Model)
+	}
+	provider, ok := c.batchModels[req.Model]
+	if !ok || provider == nil {
+		return nil, fmt.Errorf("%w: %q", ErrUnaryModelUnconfigured, req.Model)
+	}
+	if !provider.IsAvailable(ctx) {
+		return nil, fmt.Errorf("%w: %q", ErrUnaryModelUnavailable, req.Model)
+	}
+	return provider.Transcribe(ctx, req)
 }

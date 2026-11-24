@@ -41,6 +41,14 @@ func silenceWAV(seconds float64) []byte {
 	return buf.Bytes()
 }
 
+func streamedWAVForTest() []byte {
+	wav := silenceWAV(0.5)
+	binary.LittleEndian.PutUint32(wav[4:8], ^uint32(0))
+	dataTag := bytes.Index(wav, []byte("data"))
+	binary.LittleEndian.PutUint32(wav[dataTag+4:dataTag+8], ^uint32(0))
+	return wav
+}
+
 const outputProbeJSON = `{"streams":[{"codec_name":"pcm_s16le","sample_rate":"44100","channels":1}],"format":{"format_name":"wav","duration":"2.75"}}`
 
 // probeAwareRunner answers the transform with fixed output bytes and the
@@ -50,7 +58,7 @@ func probeAwareRunner() *audiomocks.FakeRunner {
 		if name == "ffprobe" {
 			return []byte(outputProbeJSON), nil
 		}
-		return []byte("OUT"), nil
+		return streamedWAVForTest(), nil
 	}}
 }
 
@@ -118,7 +126,7 @@ func TestTransforms_FailingProbeKeepsZeroDuration(t *testing.T) {
 			if name == "ffprobe" {
 				return nil, errors.New("probe exploded")
 			}
-			return []byte("OUT"), nil
+			return streamedWAVForTest(), nil
 		}}
 	}
 
@@ -130,7 +138,7 @@ func TestTransforms_FailingProbeKeepsZeroDuration(t *testing.T) {
 		}))
 		require.NoError(t, err)
 		require.Zero(t, res.Msg.GetDurationSeconds())
-		require.Equal(t, []byte("OUT"), res.Msg.GetAudio())
+		require.NotEqual(t, ^uint32(0), binary.LittleEndian.Uint32(res.Msg.GetAudio()[4:8]))
 	})
 
 	t.Run("trim", func(t *testing.T) {
@@ -141,7 +149,7 @@ func TestTransforms_FailingProbeKeepsZeroDuration(t *testing.T) {
 		}))
 		require.NoError(t, err)
 		require.Zero(t, res.Msg.GetDurationSeconds())
-		require.Equal(t, []byte("OUT"), res.Msg.GetAudio())
+		require.Equal(t, streamedWAVForTest(), res.Msg.GetAudio())
 	})
 
 	t.Run("merge", func(t *testing.T) {
@@ -156,14 +164,14 @@ func TestTransforms_FailingProbeKeepsZeroDuration(t *testing.T) {
 		}))
 		require.NoError(t, err)
 		require.Zero(t, res.Msg.GetDurationSeconds())
-		require.Equal(t, []byte("OUT"), res.Msg.GetAudio())
+		require.Equal(t, streamedWAVForTest(), res.Msg.GetAudio())
 	})
 }
 
 // TestTransforms_MissingFfprobeKeepsZeroDuration: no ffprobe on the host is
 // also not a transform failure.
 func TestTransforms_MissingFfprobeKeepsZeroDuration(t *testing.T) {
-	withRunner(t, audiomocks.NewFakeRunner([]byte("OUT"), nil))
+	withRunner(t, audiomocks.NewFakeRunner(streamedWAVForTest(), nil))
 	restore := intaudio.SetFfmpegAvailableForTest(true, false)
 	t.Cleanup(restore)
 

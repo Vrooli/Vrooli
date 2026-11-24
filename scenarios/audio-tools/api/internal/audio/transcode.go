@@ -7,9 +7,12 @@ package audio
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -74,6 +77,13 @@ type Runner interface {
 	Run(ctx context.Context, name string, stdin []byte, args ...string) (stdout []byte, err error)
 }
 
+// FileOutputRunner is the optional runner extension used by operations that
+// need several seekable outputs from one ffmpeg process. Keeping this
+// separate preserves the simple stdout contract used by existing fakes.
+type FileOutputRunner interface {
+	RunToFiles(ctx context.Context, name string, args ...string) error
+}
+
 // StderrRunner is the optional Runner extension for invocations whose real
 // output is diagnostic text on stderr (loudnorm reports its pass-1/pass-2
 // measurements there). Runner's stdout-only contract would discard it, so
@@ -102,6 +112,16 @@ func (execRunner) RunWithStderr(ctx context.Context, name string, stdin []byte, 
 		return stdout.Bytes(), stderr.Bytes(), fmt.Errorf("%s: %w: %s", name, err, stderr.String())
 	}
 	return stdout.Bytes(), stderr.Bytes(), nil
+}
+
+func (execRunner) RunToFiles(ctx context.Context, name string, args ...string) error {
+	cmd := exec.CommandContext(ctx, name, args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("%s: %w: %s", name, err, stderr.String())
+	}
+	return nil
 }
 
 // DefaultRunner is the production Runner used by every Transcode/Trim/
@@ -227,13 +247,20 @@ func ffmpegBaseArgsAt(level string) []string {
 // Transcode pipes audio through ffmpeg to produce the requested
 // sample rate / channels / format. Sensible defaults: 16 kHz mono WAV.
 func Transcode(ctx context.Context, audio []byte) ([]byte, error) {
-	return runFfmpeg(ctx, audio,
+	out, err := runFfmpeg(ctx, audio,
 		"-i", "pipe:0",
 		"-ar", "16000",
 		"-ac", "1",
 		"-f", "wav",
 		"pipe:1",
 	)
+	if err != nil {
+		return nil, err
+	}
+	if err := finalizeStreamedWAV(out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // TranscodeOpts lets handlers parameterise sample-rate/channels/bitrate.
@@ -275,5 +302,80 @@ func TranscodeWithInput(ctx context.Context, audio []byte, inFormat, outFormat s
 		args = append(args, "-b:a", fmt.Sprint(bitrate))
 	}
 	args = append(args, "-f", muxerFor(outFormat), "pipe:1")
-	return runFfmpeg(ctx, audio, args...)
+	out, err := runFfmpeg(ctx, audio, args...)
+	if err != nil {
+		return nil, err
+	}
+	if muxerFor(outFormat) == "wav" {
+		if err := finalizeStreamedWAV(out); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+// ChangeSpeed applies pitch-preserving audio tempo adjustment and returns WAV.
+// This is used when a local synthesis backend has no native speed parameter.
+func ChangeSpeed(ctx context.Context, audio []byte, speed float64) ([]byte, error) {
+	if math.IsNaN(speed) || math.IsInf(speed, 0) || speed < 0.5 || speed > 4 {
+		return nil, fmt.Errorf("%w: speed must be between 0.5 and 4", ErrInvalidArgument)
+	}
+	if speed == 1 {
+		return append([]byte(nil), audio...), nil
+	}
+	remaining := speed
+	filters := make([]string, 0, 2)
+	for remaining > 2 {
+		filters = append(filters, "atempo=2")
+		remaining /= 2
+	}
+	filters = append(filters, "atempo="+strconv.FormatFloat(remaining, 'f', -1, 64))
+	output, err := runFfmpeg(ctx, audio,
+		"-i", "pipe:0",
+		"-map", "0:a:0",
+		"-filter:a", strings.Join(filters, ","),
+		"-f", "wav",
+		"pipe:1",
+	)
+	if err != nil {
+		return nil, err
+	}
+	if err := finalizeStreamedWAV(output); err != nil {
+		return nil, err
+	}
+	return output, nil
+}
+
+// ffmpeg writes 0xffffffff sizes when streaming WAV to stdout. Those sentinels
+// work for a live pipe but not for a cached, finite response; replace them with
+// the captured byte lengths before returning the synthesized audio.
+func finalizeStreamedWAV(wav []byte) error {
+	if len(wav) < 12 || string(wav[:4]) != "RIFF" || string(wav[8:12]) != "WAVE" {
+		return fmt.Errorf("%w: ffmpeg speed transform did not return RIFF/WAVE", ErrFfmpegExec)
+	}
+	if uint64(len(wav)-8) > math.MaxUint32 {
+		return fmt.Errorf("%w: transformed WAV exceeds RIFF size limit", ErrFfmpegExec)
+	}
+	binary.LittleEndian.PutUint32(wav[4:8], uint32(len(wav)-8))
+	for offset := 12; offset+8 <= len(wav); {
+		tag := string(wav[offset : offset+4])
+		chunkSize := binary.LittleEndian.Uint32(wav[offset+4 : offset+8])
+		if tag == "data" {
+			dataSize := len(wav) - offset - 8
+			if uint64(dataSize) > math.MaxUint32 {
+				return fmt.Errorf("%w: transformed WAV data exceeds RIFF size limit", ErrFfmpegExec)
+			}
+			binary.LittleEndian.PutUint32(wav[offset+4:offset+8], uint32(dataSize))
+			return nil
+		}
+		if chunkSize == math.MaxUint32 {
+			return fmt.Errorf("%w: unknown size in WAV %q chunk", ErrFfmpegExec, tag)
+		}
+		next := offset + 8 + int(chunkSize) + int(chunkSize&1)
+		if next <= offset || next > len(wav) {
+			return fmt.Errorf("%w: invalid WAV %q chunk size", ErrFfmpegExec, tag)
+		}
+		offset = next
+	}
+	return fmt.Errorf("%w: transformed WAV has no data chunk", ErrFfmpegExec)
 }

@@ -12,15 +12,17 @@ interface FakeProvider {
   onPartial: ((s: string) => void) | null;
   onSegmentFinal: ((s: string, index: number) => void) | null;
   onStatus: ((status: { code: string; message: string }) => void) | null;
-  onDiagnostic: ((value: { state: string; durability: string; capturedSequence: number; sentSequence: number; processedSequence: number; retainedBytes: number; firstPartialLatencyMs: number | null; committedTextLagMs: number | null; terminalReason?: string }) => void) | null;
+  onDiagnostic: ((value: { state: string; durability: string; capturedSequence: number; sentSequence: number; processedSequence: number; doneSent?: boolean; retainedBytes: number; firstPartialLatencyMs: number | null; committedTextLagMs: number | null; terminalReason?: string }) => void) | null;
   lastTurn: { blob: Blob; mimeType: string; durationMs: number; capturedAt: number } | null;
   start: ReturnType<typeof vi.fn>;
   preConnect: ReturnType<typeof vi.fn>;
+  markStopRequested: ReturnType<typeof vi.fn>;
   stop: ReturnType<typeof vi.fn>;
   dispose: ReturnType<typeof vi.fn>;
   getStream: () => MediaStream | null;
   getLastTurnAudio: () => FakeProvider["lastTurn"];
   exportDiagnostic: () => string;
+  recordVisibleTranscriptRevision: ReturnType<typeof vi.fn>;
 }
 
 interface FakeProviderOptions {
@@ -33,6 +35,7 @@ interface FakeProviderOptions {
 
 const constructed: FakeProvider[] = [];
 let fakeStream: MediaStream | null = null;
+let extractedWav = { pcm: new Uint8Array([1, 2, 3, 4]), sampleRateHz: 16_000 };
 const originalAudioContext = window.AudioContext;
 const originalRequestAnimationFrame = window.requestAnimationFrame;
 const originalCancelAnimationFrame = window.cancelAnimationFrame;
@@ -53,8 +56,10 @@ vi.mock("../../audio-integration", () => ({
       if (stream) await this.options.captureFactory?.(stream, () => {});
     });
     preConnect = vi.fn();
+    markStopRequested = vi.fn();
     stop = vi.fn();
     dispose = vi.fn();
+    recordVisibleTranscriptRevision = vi.fn();
     getStream = vi.fn(() => fakeStream);
     getLastTurnAudio() {
       return this.lastTurn;
@@ -75,7 +80,7 @@ vi.mock("../../audio-integration", () => ({
 vi.mock("../diagnostics/useMicPermission", () => ({ useMicPermission: () => "granted" }));
 
 vi.mock("./audioWav", () => ({
-  extractPcm16FromWav: () => ({ pcm: new Uint8Array([1, 2, 3, 4]), sampleRateHz: 16_000 }),
+  extractPcm16FromWav: () => extractedWav,
   pcm16DurationMs: () => 1_000,
 }));
 
@@ -84,6 +89,7 @@ import { DictationRecorder } from "./DictationRecorder";
 beforeEach(() => {
   constructed.length = 0;
   fakeStream = null;
+  extractedWav = { pcm: new Uint8Array([1, 2, 3, 4]), sampleRateHz: 16_000 };
 });
 afterEach(() => {
   cleanup();
@@ -146,9 +152,11 @@ describe("DictationRecorder", () => {
 
     act(() => constructed[0]!.onPartial?.("the quick"));
     expect(screen.getByTestId(selectors.dictationStudio.interimTranscript)).toHaveTextContent("the quick");
+    expect(constructed[0]!.recordVisibleTranscriptRevision).toHaveBeenCalledTimes(1);
 
     act(() => constructed[0]!.onPartial?.("the quick brown"));
     expect(screen.getByTestId(selectors.dictationStudio.interimTranscript)).toHaveTextContent("the quick brown");
+    expect(constructed[0]!.recordVisibleTranscriptRevision).toHaveBeenCalledTimes(2);
     expect(screen.queryByText(/^the quick$/)).not.toBeInTheDocument();
   });
 
@@ -162,6 +170,10 @@ describe("DictationRecorder", () => {
 
     await user.click(screen.getByRole("button", { name: new RegExp(strings.dictationStudio.recordStop, "i") }));
 
+    expect(constructed[0]!.markStopRequested).toHaveBeenCalledTimes(1);
+    expect(constructed[0]!.markStopRequested.mock.invocationCallOrder[0]).toBeLessThan(
+      constructed[0]!.stop.mock.invocationCallOrder[0]!,
+    );
     expect(constructed[0]!.stop).toHaveBeenCalledTimes(1);
     expect(screen.getByText(strings.dictationStudio.transcribing)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.dictationStudio.recordCancel)).toBeInTheDocument();
@@ -182,6 +194,30 @@ describe("DictationRecorder", () => {
     expect(screen.getByTestId(selectors.dictationStudio.recordStart)).not.toBeDisabled();
   });
 
+  it("ignores a late final result after cancellation", async () => {
+    const onCaptured = vi.fn();
+    const user = userEvent.setup();
+    renderWithProviders(<DictationRecorder onCaptured={onCaptured} />);
+    await user.click(screen.getByTestId(selectors.dictationStudio.recordStart));
+    await waitFor(() => expect(constructed[0]).toBeTruthy());
+    await user.click(screen.getByRole("button", { name: new RegExp(strings.dictationStudio.recordStop, "i") }));
+    await user.click(screen.getByTestId(selectors.dictationStudio.recordCancel));
+
+    const provider = constructed[0]!;
+    provider.lastTurn = {
+      blob: { arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) } as unknown as Blob,
+      mimeType: "audio/wav",
+      durationMs: 1_000,
+      capturedAt: 0,
+    };
+    act(() => provider.onResult?.("late transcript"));
+    await Promise.resolve();
+
+    expect(onCaptured).not.toHaveBeenCalled();
+    expect(screen.getByText(strings.dictationStudio.cancelled)).toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.dictationStudio.finalTranscript)).not.toBeInTheDocument();
+  });
+
   it("on result: extracts the retained PCM and reports the captured clip", async () => {
     const onCaptured = vi.fn();
     const user = userEvent.setup();
@@ -193,7 +229,7 @@ describe("DictationRecorder", () => {
       // jsdom's Blob lacks arrayBuffer(); stub it (extractPcm16FromWav is mocked).
       blob: { arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) } as unknown as Blob,
       mimeType: "audio/wav",
-      durationMs: 1_000,
+      durationMs: 0,
       capturedAt: 0,
     };
     act(() => {
@@ -270,7 +306,7 @@ describe("DictationRecorder", () => {
   });
 
   it("warns when the input stream never produces an audible level", async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
     const disconnect = vi.fn();
     class SilentAudioContext {
       resume = vi.fn().mockResolvedValue(undefined);
@@ -308,6 +344,52 @@ describe("DictationRecorder", () => {
     expect(screen.getByRole("button", { name: new RegExp(strings.dictationStudio.recordStop, "i") })).toBeInTheDocument();
   });
 
+  it("keeps per-frame silence analysis while limiting meter renders to 20 Hz", async () => {
+    const disconnect = vi.fn();
+    let analysisFrames = 0;
+    class MeterAudioContext {
+      resume = vi.fn().mockResolvedValue(undefined);
+      createMediaStreamSource = vi.fn(() => ({ connect: vi.fn(), disconnect }));
+      createAnalyser = vi.fn(() => ({
+        fftSize: 0,
+        frequencyBinCount: 4,
+        getByteTimeDomainData: (data: Uint8Array) => {
+          analysisFrames += 1;
+          data.fill(analysisFrames === 1 ? 255 : 128);
+        },
+        disconnect,
+      }));
+    }
+    Object.defineProperty(window, "AudioContext", { configurable: true, value: MeterAudioContext });
+    const scheduledFrame: { current: FrameRequestCallback | null } = { current: null };
+    Object.defineProperty(window, "requestAnimationFrame", {
+      configurable: true,
+      value: vi.fn((callback: FrameRequestCallback) => {
+        scheduledFrame.current = callback;
+        return 1;
+      }),
+    });
+    Object.defineProperty(window, "cancelAnimationFrame", { configurable: true, value: vi.fn() });
+    fakeStream = {} as MediaStream;
+
+    renderWithProviders(<DictationRecorder onCaptured={() => {}} />);
+    fireEvent.click(screen.getByTestId(selectors.dictationStudio.recordStart));
+    await act(async () => { await Promise.resolve(); });
+
+    const meter = screen.getByRole("meter");
+    const changedValues = [meter.getAttribute("aria-valuenow")];
+    for (const atMs of [0, 16, 32, 48, 64, 80, 96, 112]) {
+      const frame = scheduledFrame.current;
+      expect(frame).toBeTypeOf("function");
+      act(() => frame?.(atMs));
+      const value = meter.getAttribute("aria-valuenow");
+      if (changedValues.at(-1) !== value) changedValues.push(value);
+    }
+
+    expect(analysisFrames).toBe(8);
+    expect(changedValues).toEqual(["0", "100", "0"]);
+  });
+
   it("surfaces provider errors", async () => {
     const user = userEvent.setup();
     renderWithProviders(<DictationRecorder onCaptured={() => {}} />);
@@ -321,6 +403,32 @@ describe("DictationRecorder", () => {
 
     await user.click(screen.getByRole("button", { name: new RegExp(strings.dictationStudio.retryRecording, "i") }));
     await waitFor(() => expect(constructed[0]!.start).toHaveBeenCalledTimes(2));
+  });
+
+  it("ignores virtual capture settings with an invalid sample count", async () => {
+    const originalURL = window.location.href;
+    window.history.replaceState({}, "", "/?stt_test_mode=1&stt_capture_source=virtual&stt_corpus_url=/corpus.wav&stt_virtual_samples=0");
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    const user = userEvent.setup();
+    renderWithProviders(<DictationRecorder onCaptured={() => {}} />);
+    await user.click(screen.getByTestId(selectors.dictationStudio.recordStart));
+    await waitFor(() => expect(constructed[0]!.start).toHaveBeenCalledOnce());
+    expect(fetchMock).not.toHaveBeenCalled();
+    fetchMock.mockRestore();
+    window.history.replaceState({}, "", originalURL);
+  });
+
+  it("ignores virtual capture mode when its corpus URL is missing", async () => {
+    const originalURL = window.location.href;
+    window.history.replaceState({}, "", "/?stt_test_mode=1&stt_capture_source=virtual&stt_virtual_samples=200");
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    const user = userEvent.setup();
+    renderWithProviders(<DictationRecorder onCaptured={() => {}} />);
+    await user.click(screen.getByTestId(selectors.dictationStudio.recordStart));
+    await waitFor(() => expect(constructed[0]!.start).toHaveBeenCalledOnce());
+    expect(fetchMock).not.toHaveBeenCalled();
+    fetchMock.mockRestore();
+    window.history.replaceState({}, "", originalURL);
   });
 
   it("starts the bounded virtual capture from bundle configuration", async () => {
@@ -380,5 +488,190 @@ describe("DictationRecorder", () => {
     expect(createObjectURL).toHaveBeenCalledOnce();
     expect(click).toHaveBeenCalledOnce();
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:diagnostic");
+  });
+
+  it("does not show processed readiness while the diagnostic is still recording", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<DictationRecorder onCaptured={() => {}} />);
+    await user.click(screen.getByTestId(selectors.dictationStudio.recordStart));
+    await waitFor(() => expect(constructed[0]).toBeTruthy());
+
+    act(() => constructed[0]!.onDiagnostic?.({
+      state: "recording", durability: "persistent", capturedSequence: 2, sentSequence: 2,
+      processedSequence: 2, retainedBytes: 800, firstPartialLatencyMs: null, committedTextLagMs: null,
+    }));
+
+    expect(screen.getByTestId(selectors.dictationStudio.turnDetails)).toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.dictationStudio.turnProcessedReady)).not.toBeInTheDocument();
+    expect(screen.getByTestId(selectors.dictationStudio.turnProcessedStatus)).toHaveAttribute("data-first-partial-latency-ms", "");
+  });
+
+  it("shows diagnostic readiness flags for an empty terminal turn", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<DictationRecorder onCaptured={() => {}} />);
+    await user.click(screen.getByTestId(selectors.dictationStudio.recordStart));
+    await waitFor(() => expect(constructed[0]).toBeTruthy());
+    act(() => constructed[0]!.onDiagnostic?.({
+      state: "failed", durability: "volatile", capturedSequence: -1, sentSequence: -1,
+      processedSequence: -1, doneSent: true, retainedBytes: 0,
+      firstPartialLatencyMs: null, committedTextLagMs: null,
+    }));
+    expect(screen.getByTestId(selectors.dictationStudio.turnCaptureStatus)).toHaveAttribute("data-has-captured-audio", "false");
+    expect(screen.getByTestId(selectors.dictationStudio.turnSentStatus)).toHaveAttribute("data-has-sent-audio", "false");
+    expect(screen.getByTestId(selectors.dictationStudio.turnDoneStatus)).toHaveAttribute("data-done-sent", "true");
+    expect(screen.getByTestId(selectors.dictationStudio.turnDoneReady)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.dictationStudio.turnProcessedStatus)).toHaveAttribute("data-has-processed-audio", "false");
+    expect(screen.queryByTestId(selectors.dictationStudio.turnProcessedReady)).not.toBeInTheDocument();
+  });
+
+  it("keeps processed acknowledgements out of the connection status", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<DictationRecorder onCaptured={() => {}} />);
+    await user.click(screen.getByTestId(selectors.dictationStudio.recordStart));
+    await waitFor(() => expect(constructed[0]).toBeTruthy());
+    act(() => constructed[0]!.onStatus?.({ code: "queued", message: "Connected" }));
+    expect(screen.getByTestId(selectors.dictationStudio.streamStatus)).toHaveTextContent("Connected");
+
+    act(() => constructed[0]!.onStatus?.({ code: "processed_acknowledgement", message: "internal durability update" }));
+
+    expect(screen.getByTestId(selectors.dictationStudio.streamStatus)).toHaveTextContent("Connected");
+    expect(screen.queryByText(/internal durability update/)).not.toBeInTheDocument();
+  });
+
+  it("ignores stale provider events after cancelling transcription", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<DictationRecorder onCaptured={() => {}} />);
+    await user.click(screen.getByTestId(selectors.dictationStudio.recordStart));
+    await waitFor(() => expect(constructed[0]).toBeTruthy());
+    const provider = constructed[0]!;
+    await user.click(screen.getByRole("button", { name: new RegExp(strings.dictationStudio.recordStop, "i") }));
+    await user.click(screen.getByTestId(selectors.dictationStudio.recordCancel));
+
+    act(() => {
+      provider.onError?.("stale error");
+      provider.onPartial?.("stale partial");
+      provider.onSegmentFinal?.("stale segment", 0);
+      provider.onStatus?.({ code: "queued", message: "stale status" });
+      provider.onDiagnostic?.({ state: "failed", durability: "none", capturedSequence: -1, sentSequence: -1, processedSequence: -1, retainedBytes: 0, firstPartialLatencyMs: null, committedTextLagMs: null });
+    });
+    expect(screen.getByTestId(selectors.dictationStudio.recordState)).toHaveAttribute("data-recorder-state", "cancelled");
+    expect(screen.queryByTestId(selectors.dictationStudio.recordError)).not.toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.dictationStudio.interimTranscript)).not.toBeInTheDocument();
+    expect(screen.getByTestId(selectors.dictationStudio.streamStatus)).not.toHaveTextContent(/stale status/);
+    expect(screen.queryByTestId(selectors.dictationStudio.turnDetails)).not.toBeInTheDocument();
+  });
+
+  it("does not warn when the level monitor observes audible input", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    class AudibleAudioContext {
+      resume = vi.fn().mockResolvedValue(undefined);
+      createMediaStreamSource = vi.fn(() => ({ connect: vi.fn(), disconnect: vi.fn() }));
+      createAnalyser = vi.fn(() => ({
+        fftSize: 0,
+        frequencyBinCount: 4,
+        getByteTimeDomainData: (data: Uint8Array) => data.fill(255),
+        disconnect: vi.fn(),
+      }));
+    }
+    Object.defineProperty(window, "AudioContext", { configurable: true, value: AudibleAudioContext });
+    let sampled = false;
+    Object.defineProperty(window, "requestAnimationFrame", { configurable: true, value: vi.fn((callback: FrameRequestCallback) => { if (!sampled) { sampled = true; callback(0); } return 1; }) });
+    Object.defineProperty(window, "cancelAnimationFrame", { configurable: true, value: vi.fn() });
+    fakeStream = {} as MediaStream;
+    renderWithProviders(<DictationRecorder onCaptured={() => {}} />);
+    fireEvent.click(screen.getByTestId(selectors.dictationStudio.recordStart));
+    await act(async () => { await Promise.resolve(); });
+    act(() => { vi.advanceTimersByTime(2_000); });
+    expect(screen.queryByText(strings.dictationStudio.noAudioDetected)).not.toBeInTheDocument();
+  });
+
+  it("reports a capture read failure and permits another recording", async () => {
+    const onCaptured = vi.fn();
+    const user = userEvent.setup();
+    renderWithProviders(<DictationRecorder onCaptured={onCaptured} />);
+    await user.click(screen.getByTestId(selectors.dictationStudio.recordStart));
+    await waitFor(() => expect(constructed[0]).toBeTruthy());
+    constructed[0]!.lastTurn = {
+      blob: { arrayBuffer: () => Promise.reject(new Error("unreadable")) } as unknown as Blob,
+      mimeType: "audio/wav", durationMs: 0, capturedAt: 0,
+    };
+
+    act(() => constructed[0]!.onResult?.("transcript remains useful"));
+
+    expect(await screen.findByText(strings.dictationStudio.captureMissing)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.dictationStudio.recordState)).toHaveAttribute("data-recorder-state", "failed");
+    expect(screen.getByTestId(selectors.dictationStudio.finalTranscript)).toHaveTextContent("transcript remains useful");
+    expect(onCaptured).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: new RegExp(strings.dictationStudio.retryRecording, "i") }));
+    await waitFor(() => expect(constructed[0]!.start).toHaveBeenCalledTimes(2));
+  });
+
+  it("shows the fallback message when microphone startup rejects without an error message", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<DictationRecorder onCaptured={() => {}} />);
+    await waitFor(() => expect(constructed[0]).toBeTruthy());
+    constructed[0]!.start.mockRejectedValueOnce({ message: "" });
+
+    await user.click(screen.getByTestId(selectors.dictationStudio.recordStart));
+
+    expect(await screen.findByTestId(selectors.dictationStudio.recordError)).toHaveTextContent(strings.dictationStudio.saveError);
+    expect(screen.getByTestId(selectors.dictationStudio.recordState)).toHaveAttribute("data-recorder-state", "failed");
+  });
+
+  it("ignores retained audio that resolves after the user cancels", async () => {
+    let resolveAudio!: (value: ArrayBuffer) => void;
+    const onCaptured = vi.fn();
+    const user = userEvent.setup();
+    renderWithProviders(<DictationRecorder onCaptured={onCaptured} />);
+    await user.click(screen.getByTestId(selectors.dictationStudio.recordStart));
+    await waitFor(() => expect(constructed[0]).toBeTruthy());
+    await user.click(screen.getByRole("button", { name: new RegExp(strings.dictationStudio.recordStop, "i") }));
+    constructed[0]!.lastTurn = {
+      blob: { arrayBuffer: () => new Promise<ArrayBuffer>((resolve) => { resolveAudio = resolve; }) } as unknown as Blob,
+      mimeType: "audio/wav", durationMs: 0, capturedAt: 0,
+    };
+    act(() => constructed[0]!.onResult?.("cancelled transcript"));
+    await waitFor(() => expect(resolveAudio).toBeTruthy());
+    await user.click(screen.getByTestId(selectors.dictationStudio.recordCancel));
+    await act(async () => { resolveAudio(new ArrayBuffer(8)); await Promise.resolve(); });
+    expect(onCaptured).not.toHaveBeenCalled();
+    expect(screen.getByTestId(selectors.dictationStudio.recordState)).toHaveAttribute("data-recorder-state", "cancelled");
+  });
+
+  it("ignores retained audio read failures after cancellation", async () => {
+    let rejectAudio!: (reason: Error) => void;
+    const onCaptured = vi.fn();
+    const user = userEvent.setup();
+    renderWithProviders(<DictationRecorder onCaptured={onCaptured} />);
+    await user.click(screen.getByTestId(selectors.dictationStudio.recordStart));
+    await waitFor(() => expect(constructed[0]).toBeTruthy());
+    await user.click(screen.getByRole("button", { name: new RegExp(strings.dictationStudio.recordStop, "i") }));
+    constructed[0]!.lastTurn = {
+      blob: { arrayBuffer: () => new Promise<ArrayBuffer>((_resolve, reject) => { rejectAudio = reject; }) } as unknown as Blob,
+      mimeType: "audio/wav", durationMs: 0, capturedAt: 0,
+    };
+    act(() => constructed[0]!.onResult?.("cancelled transcript"));
+    await waitFor(() => expect(rejectAudio).toBeTruthy());
+    await user.click(screen.getByTestId(selectors.dictationStudio.recordCancel));
+    await act(async () => { rejectAudio(new Error("cancelled read")); await Promise.resolve(); });
+    expect(onCaptured).not.toHaveBeenCalled();
+    expect(screen.getByTestId(selectors.dictationStudio.recordState)).toHaveAttribute("data-recorder-state", "cancelled");
+    expect(screen.queryByText(strings.dictationStudio.captureMissing)).not.toBeInTheDocument();
+  });
+
+  it("recovers when creating the input level monitor throws", async () => {
+    class BrokenAudioContext {
+      resume = vi.fn().mockResolvedValue(undefined);
+      createMediaStreamSource() { throw new Error("analyser unavailable"); }
+    }
+    Object.defineProperty(window, "AudioContext", { configurable: true, value: BrokenAudioContext });
+    fakeStream = {} as MediaStream;
+    const user = userEvent.setup();
+    renderWithProviders(<DictationRecorder onCaptured={() => {}} />);
+
+    await user.click(screen.getByTestId(selectors.dictationStudio.recordStart));
+
+    expect(await screen.findByRole("button", { name: new RegExp(strings.dictationStudio.recordStop, "i") })).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.dictationStudio.audioMeter)).toHaveAttribute("aria-valuenow", "0");
   });
 });

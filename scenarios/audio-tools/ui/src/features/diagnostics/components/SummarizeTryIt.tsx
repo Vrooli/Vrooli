@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Loader2, Send } from "lucide-react";
 import { Panel } from "../../../components/ui/panel";
 import { Button } from "../../../components/ui/button";
-import { Textarea } from "../../../components/ui/textarea";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
 import { Select } from "../../../components/ui/select";
 import { ApiErrorState } from "../../../components/composites/ApiErrorState";
-import { summarize, type ProviderTrace } from "../../../services/diagnostics";
+import { listSummarizeModels, summarize, type ProviderTrace } from "../../../services/diagnostics";
 import type { ApiError } from "../../../api/client";
 import { useTranslation } from "../../../i18n";
 import { strings } from "../../../consts/strings";
@@ -14,6 +15,21 @@ export function SummarizeTryIt({ onTrace }: { onTrace: (t: ProviderTrace) => voi
   const { t } = useTranslation();
   const [text, setText] = useState("");
   const [level, setLevel] = useState<"light" | "moderate" | "heavy">("moderate");
+  const [model, setModel] = useState("summarize.audio_tools");
+  const models = useQuery({
+    queryKey: ["models", "summarize"],
+    queryFn: listSummarizeModels,
+  });
+  const modelRows = useMemo(() => models.data?.ok ? models.data.data : [], [models.data]);
+
+  useEffect(() => {
+    if (modelRows.length === 0) return;
+    if (modelRows.some((candidate) => candidate.id === model)) return;
+    const defaultModel = modelRows.find((candidate) => candidate.id === "summarize.audio_tools")
+      ?? modelRows.find((candidate) => candidate.defaultEligible)
+      ?? modelRows[0];
+    if (defaultModel) setModel(defaultModel.id);
+  }, [model, modelRows]);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState("");
   const [error, setError] = useState<ApiError | null>(null);
@@ -22,7 +38,7 @@ export function SummarizeTryIt({ onTrace }: { onTrace: (t: ProviderTrace) => voi
     if (!text.trim()) return;
     setBusy(true);
     setError(null);
-    const r = await summarize(text, level);
+    const r = await summarize(text, level, model);
     setBusy(false);
     if (!r.ok) {
       setError(r.error);
@@ -59,6 +75,24 @@ export function SummarizeTryIt({ onTrace }: { onTrace: (t: ProviderTrace) => voi
               <option value="heavy">{t(strings.diagnostics.levelHeavy)}</option>
             </Select>
           </label>
+          <label htmlFor="summarize-model" className="flex flex-col gap-1 text-xs text-app-muted-foreground">
+            {t(strings.diagnostics.summarizeModelLabel)}
+            <Select
+              id="summarize-model"
+              aria-describedby="summarize-model-notes"
+              value={model}
+              onChange={(e) => setModel(e.currentTarget.value)}
+              className="w-48"
+              disabled={modelRows.length === 0}
+            >
+              {modelRows.map((candidate) => (
+                <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+              ))}
+            </Select>
+          </label>
+          <span className="max-w-sm text-xs text-app-muted-foreground" id="summarize-model-notes">
+            {modelRows.find((candidate) => candidate.id === model)?.notes}
+          </span>
           <Button onClick={() => void run()} disabled={!text.trim() || busy}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
             {t(strings.diagnostics.summarizeAction)}

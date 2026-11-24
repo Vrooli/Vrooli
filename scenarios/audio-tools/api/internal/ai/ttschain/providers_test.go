@@ -18,7 +18,7 @@ func TestLocalProvider_NilSvc(t *testing.T) {
 	p := ttschain.NewLocalProvider(nil)
 	require.Equal(t, ttschain.TierLocal, p.Type())
 	require.False(t, p.IsAvailable(context.Background()))
-	require.Equal(t, "kokoro", p.Model())
+	require.Equal(t, "kokoro-82m-v1.0", p.Model())
 	require.False(t, p.StreamingCapability())
 	ch, err := p.SynthesizeStreaming(context.Background(), ttschain.Request{})
 	require.Nil(t, ch)

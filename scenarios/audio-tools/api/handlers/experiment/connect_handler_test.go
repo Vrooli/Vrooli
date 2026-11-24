@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 package experiment
 
 import (
@@ -352,6 +354,40 @@ func TestStartExperimentRealtimeCellBudgetIncludesQualityPass(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, 13, mgr.spec.EstimatedSeconds, "11s paced duration plus the bounded unpaced quality allowance")
+}
+
+func TestEstimatedConditionCountCombinesDeclaredAndRealizedFactors(t *testing.T) {
+	tests := []struct {
+		name   string
+		recipe *experimentv1.ExperimentRecipe
+		want   int
+	}{
+		{
+			name: "augmentation cartesian product and speaker ablation",
+			recipe: &experimentv1.ExperimentRecipe{
+				Augmentation: &experimentv1.AugmentationRecipe{
+					NoiseTypes: []string{"noise-a", "noise-b"}, SnrDb: []float64{0, 5, 10}, CompetingVoiceIds: []string{"voice-a", "voice-b"},
+				},
+				Speaker: &experimentv1.SpeakerExperimentRecipe{AblationEnabled: true},
+			},
+			want: 48,
+		},
+		{
+			name: "realized factors override declared factors",
+			recipe: &experimentv1.ExperimentRecipe{
+				RealizedAugmentationConditions: make([]*experimentv1.AugmentationCondition, 3),
+				Augmentation:                   &experimentv1.AugmentationRecipe{NoiseTypes: []string{"noise-a", "noise-b"}},
+				RealizedSpeakerConditions:      make([]*experimentv1.SpeakerCondition, 2),
+				Speaker:                        &experimentv1.SpeakerExperimentRecipe{AblationEnabled: true},
+			},
+			want: 6,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, estimatedConditionCount(tc.recipe))
+		})
+	}
 }
 
 func TestStartExperimentEstimatedSecondsCannotUnderstateRecipe(t *testing.T) {

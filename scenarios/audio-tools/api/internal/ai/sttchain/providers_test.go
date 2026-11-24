@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -44,21 +43,23 @@ func TestLocalProvider_PlumbsWords(t *testing.T) {
 		map[string]capabilities.Checker{"whisper-stt": stubChecker{capabilities.StatusAvailable}},
 		time.Minute,
 	)
-	svc := pipeline.NewService(
-		pipeline.Config{}, "", nil, "",
-		pipeline.SpeakerConfig{}, "", nil,
-		caps, &atomic.Int64{},
+	svc := pipeline.NewWhisperTranscriber(
+		caps,
 		srv.URL+"/asr?output=json", srv.Client(), engine,
 	)
 	infoFake := &whisperinfomocks.FakeClient{Info: whisperinfo.Info{ModelID: "whisper-medium"}}
 	p := sttchain.NewLocalProviderWith(svc, nil, infoFake)
 
 	res, err := p.Transcribe(context.Background(), sttchain.Request{
-		Audio:  []byte{0x01, 0x00, 0x02, 0x00},
-		Format: "pcm_s16le",
+		Audio: []byte{0x01, 0x00, 0x02, 0x00}, Format: "pcm_s16le", Language: "en",
 	})
 	require.NoError(t, err)
 	require.Equal(t, "alpha bravo", res.Text)
+	require.Equal(t, "whisper-local", res.ProviderID)
+	require.Equal(t, "en", res.DetectedLanguage)
+	require.NotNil(t, res.Confidence)
+	require.InDelta(t, 0.1, res.Confidence.NoSpeechProb, 1e-9)
+	require.InDelta(t, -0.3, res.Confidence.AvgLogProb, 1e-9)
 	require.Len(t, res.Words, 2)
 	require.Equal(t, "alpha", res.Words[0].Word)
 	require.InDelta(t, 0.4, res.Words[0].End, 1e-9)
@@ -86,6 +87,34 @@ func TestLocalProvider_NilSvc(t *testing.T) {
 	// Nil info client safely falls back to EnvClient default.
 	p2 := sttchain.NewLocalProviderWith(nil, nil, nil)
 	require.NotNil(t, p2)
+}
+
+type countingEnsurer struct{ calls int }
+
+func (e *countingEnsurer) EnsureRunning(context.Context, string) error {
+	e.calls++
+	return errors.New("resource start should not run during read-only health")
+}
+
+func TestLocalProviderServiceabilityDoesNotReconcileBackend(t *testing.T) {
+	caps := capabilities.NewRegistry(
+		[]capabilities.Def{{ID: "whisper-stt", DependencyKind: capabilities.DependencyResource, DependencySlug: "whisper"}},
+		map[string]capabilities.Checker{"whisper-stt": stubChecker{capabilities.StatusUnavailable}},
+		time.Minute,
+	)
+	ensurer := &countingEnsurer{}
+	svc := pipeline.NewWhisperTranscriber(
+		caps, "", nil,
+		audioformat.New(audioformat.WithFfmpegProbe(func() bool { return false })),
+	)
+	svc.SetBackendEnsurer(ensurer, "whisper")
+	svc.SetAutoEnsure(true)
+	provider := sttchain.NewLocalProvider(svc)
+
+	require.False(t, provider.IsServiceable(context.Background()))
+	require.Zero(t, ensurer.calls, "inventory liveness must not start Whisper")
+	require.False(t, provider.IsAvailable(context.Background()))
+	require.Equal(t, 1, ensurer.calls, "the explicit recovery-capable path remains available to active work")
 }
 
 func TestBYOKProvider_TypeModelTraits(t *testing.T) {

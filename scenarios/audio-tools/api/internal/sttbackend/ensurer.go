@@ -13,8 +13,8 @@
 //     down backend trigger at most ONE `resource start`;
 //   - cooldown-guarded — repeated failures within a short window return the
 //     cached result instead of thrashing the lifecycle;
-//   - allowlisted — only resources audio-tools declares as STT backends
-//     (whisper, kyutai-stt, sherpa-onnx) are ever started; never an arbitrary name.
+//   - allowlisted — only resources in the STT engine manifest are ever
+//     started; never an arbitrary name.
 //
 // It is best-effort and bounded: a missing vrooli binary or a start timeout
 // surfaces as an error the caller maps to a typed, user-actionable message — it
@@ -34,15 +34,6 @@ import (
 // ErrResourceNotAllowed is returned when EnsureRunning is asked to start a
 // resource outside the STT-backend allowlist (defence-in-depth).
 var ErrResourceNotAllowed = errors.New("resource is not a declared STT backend")
-
-// allowedResources is the whitelist of backing STT resources this package will
-// ever start. Mirrors sttcapacity.allowedResources plus whisper (which IS a
-// startable backend here even though its capacity activity is reported edge-side).
-var allowedResources = map[string]struct{}{
-	"whisper":     {},
-	"kyutai-stt":  {},
-	"sherpa-onnx": {},
-}
 
 // DefaultEnsureTimeout bounds a single `vrooli resource start` so a hung
 // lifecycle never blocks a transcribe indefinitely; on timeout the caller maps
@@ -69,7 +60,8 @@ type Ensurer interface {
 // `vrooli resource start <resource>` (consistent with how sttcapacity shells
 // `vrooli capacity …`) so audio-tools never couples to lifecycle internals.
 type CLIEnsurer struct {
-	controlPlane *controlplane.Client
+	controlPlane     *controlplane.Client
+	allowedResources map[string]struct{}
 	// now is the clock seam (tests inject a fake to exercise the cooldown).
 	now func() time.Time
 
@@ -91,23 +83,30 @@ type ensureOutcome struct {
 	err error
 }
 
-// NewCLIEnsurer resolves the vrooli binary once at startup. The returned ensurer
-// is safe even when the binary is missing (EnsureRunning then returns an error
-// the caller maps to a typed message).
-func NewCLIEnsurer() *CLIEnsurer {
+// NewCLIEnsurer resolves the vrooli binary once at startup and accepts the
+// resource allowlist projected from the STT engine manifest by bootstrap.
+// An empty list fails closed.
+func NewCLIEnsurer(resources []string) *CLIEnsurer {
+	allowed := make(map[string]struct{}, len(resources))
+	for _, resource := range resources {
+		if resource != "" {
+			allowed[resource] = struct{}{}
+		}
+	}
 	return &CLIEnsurer{
-		controlPlane: controlplane.New(),
-		now:          time.Now,
-		timeout:      DefaultEnsureTimeout,
-		cooldown:     DefaultCooldown,
-		inflight:     map[string]*ensureCall{},
-		last:         map[string]ensureOutcome{},
+		controlPlane:     controlplane.New(),
+		allowedResources: allowed,
+		now:              time.Now,
+		timeout:          DefaultEnsureTimeout,
+		cooldown:         DefaultCooldown,
+		inflight:         map[string]*ensureCall{},
+		last:             map[string]ensureOutcome{},
 	}
 }
 
 // EnsureRunning implements Ensurer with single-flight + cooldown + allowlist.
 func (e *CLIEnsurer) EnsureRunning(ctx context.Context, resource string) error {
-	if _, ok := allowedResources[resource]; !ok {
+	if _, ok := e.allowedResources[resource]; !ok {
 		return fmt.Errorf("%w: %q", ErrResourceNotAllowed, resource)
 	}
 	if e.controlPlane == nil || !e.controlPlane.Available() {

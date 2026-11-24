@@ -46,14 +46,43 @@ export interface SummarizeResult {
   outputTokens: number;
 }
 
+export interface SummarizeModelOption {
+  id: string;
+  name: string;
+  notes: string;
+  installed: boolean;
+  recommended: boolean;
+  defaultEligible: boolean;
+}
+
+export async function listSummarizeModels(): Promise<Result<SummarizeModelOption[]>> {
+  return tryCall(async () => {
+    let resp;
+    try {
+      resp = await summarizeClient.listSummarizeModels({});
+    } catch (e) {
+      throw normalizeConnectError(e);
+    }
+    return resp.models.map((model) => ({
+      id: model.id,
+      name: model.displayName,
+      notes: model.notes,
+      installed: model.installed,
+      recommended: model.recommended,
+      defaultEligible: model.defaultEligible,
+    }));
+  });
+}
+
 export async function summarize(
   text: string,
   level: "light" | "moderate" | "heavy" = "moderate",
+  localModelRole = "",
 ): Promise<Result<SummarizeResult>> {
   return tryCall(async () => {
     let resp;
     try {
-      resp = await summarizeClient.summarize({ text, level: summarizeLevelFromString(level), model: "", timeoutSeconds: 30 });
+      resp = await summarizeClient.summarize({ text, level: summarizeLevelFromString(level), localModelRole, timeoutSeconds: 30 });
     } catch (e) {
       throw normalizeConnectError(e);
     }

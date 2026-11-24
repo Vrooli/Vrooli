@@ -1,0 +1,594 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "audio-tools",
+  "generator": "v1.0.0",
+  "manifest_hash": "312ceacd0cd431397cb93ef53c21eac997eb54f068fb9f55d9d2f27834977cb3",
+  "commands": [
+    {
+      "path": "audio extract-metadata",
+      "group": "audio",
+      "command": "extract-metadata",
+      "binding": "AudioProcessingService.ExtractMetadata",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "audio fade",
+      "group": "audio",
+      "command": "fade",
+      "binding": "AudioProcessingService.Fade",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "audio merge",
+      "group": "audio",
+      "command": "merge",
+      "binding": "AudioProcessingService.Merge",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "audio normalize",
+      "group": "audio",
+      "command": "normalize",
+      "binding": "AudioProcessingService.Normalize",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "audio split",
+      "group": "audio",
+      "command": "split",
+      "binding": "AudioProcessingService.Split",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "audio transcode",
+      "group": "audio",
+      "command": "transcode",
+      "binding": "AudioProcessingService.Transcode",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "audio trim",
+      "group": "audio",
+      "command": "trim",
+      "binding": "AudioProcessingService.Trim",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "audio volume",
+      "group": "audio",
+      "command": "volume",
+      "binding": "AudioProcessingService.Volume",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "corpus delete",
+      "group": "corpus",
+      "command": "delete",
+      "binding": "CorpusService.DeleteClip",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "corpus get",
+      "group": "corpus",
+      "command": "get",
+      "binding": "CorpusService.GetClip",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "corpus import",
+      "group": "corpus",
+      "command": "import",
+      "binding": "CorpusService.CreateClip",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "corpus lineage-backfill",
+      "group": "corpus",
+      "command": "lineage-backfill",
+      "binding": "CorpusService.BackfillSourceLineage",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "corpus list",
+      "group": "corpus",
+      "command": "list",
+      "binding": "CorpusService.ListClips",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "diagnostics last",
+      "group": "diagnostics",
+      "command": "last",
+      "binding": "DiagnosticsService.GetLastRun",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "diagnostics run",
+      "group": "diagnostics",
+      "command": "run",
+      "binding": "DiagnosticsService.RunSuite",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "experiment cancel",
+      "group": "experiment",
+      "command": "cancel",
+      "binding": "ExperimentService.CancelExperiment",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "experiment compare",
+      "group": "experiment",
+      "command": "compare",
+      "binding": "ExperimentService.CompareExperiments",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "experiment delete",
+      "group": "experiment",
+      "command": "delete",
+      "binding": "ExperimentService.DeleteExperiment",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "experiment get",
+      "group": "experiment",
+      "command": "get",
+      "binding": "ExperimentService.GetExperiment",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "experiment list",
+      "group": "experiment",
+      "command": "list",
+      "binding": "ExperimentService.ListExperiments",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "experiment list-evidence",
+      "group": "experiment",
+      "command": "list-evidence",
+      "binding": "ExperimentService.ListQualificationEvidence",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "experiment record-evidence",
+      "group": "experiment",
+      "command": "record-evidence",
+      "binding": "ExperimentService.RecordQualificationEvidence",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "experiment report",
+      "group": "experiment",
+      "command": "report",
+      "binding": "ExperimentService.GetExperimentReport",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "experiment start",
+      "group": "experiment",
+      "command": "start",
+      "binding": "ExperimentService.StartExperiment",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "experiment wait",
+      "group": "experiment",
+      "command": "wait",
+      "binding": "ExperimentService.WaitExperiment",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "experiment watch",
+      "group": "experiment",
+      "command": "watch",
+      "binding": "ExperimentService.StreamExperimentEvents",
+      "declared_exception": "streaming",
+      "observed_primitive": "streaming"
+    },
+    {
+      "path": "health show",
+      "group": "health",
+      "command": "show",
+      "binding": "HealthStatusService.GetProviderHealth",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "health watch",
+      "group": "health",
+      "command": "watch",
+      "binding": "HealthStatusService.StreamProviderHealth",
+      "declared_exception": "streaming",
+      "observed_primitive": "streaming"
+    },
+    {
+      "path": "measure byok-credentials-created",
+      "group": "measure",
+      "command": "byok-credentials-created",
+      "binding": "MeasuresService.CountBYOKCredentials",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "measure corpus-clips-created",
+      "group": "measure",
+      "command": "corpus-clips-created",
+      "binding": "MeasuresService.CountCorpusClips",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "measure duplex-accounting-operations-created",
+      "group": "measure",
+      "command": "duplex-accounting-operations-created",
+      "binding": "MeasuresService.CountDuplexAccountingOperations",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "measure experiment-runs-created",
+      "group": "measure",
+      "command": "experiment-runs-created",
+      "binding": "MeasuresService.CountExperimentRuns",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "measure experiments-created",
+      "group": "measure",
+      "command": "experiments-created",
+      "binding": "MeasuresService.CountExperiments",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "measure speaker-profiles-created",
+      "group": "measure",
+      "command": "speaker-profiles-created",
+      "binding": "MeasuresService.CountSpeakerProfiles",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "measure wakeword-templates-created",
+      "group": "measure",
+      "command": "wakeword-templates-created",
+      "binding": "MeasuresService.CountWakewordTemplates",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "model list",
+      "group": "model",
+      "command": "list",
+      "binding": "ModelRegistryService.ListModels",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "model resolve",
+      "group": "model",
+      "command": "resolve",
+      "binding": "ModelRegistryService.ResolveModel",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "provider list",
+      "group": "provider",
+      "command": "list",
+      "binding": "ProviderLifecycleService.ListLocalProviders",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "provider logs",
+      "group": "provider",
+      "command": "logs",
+      "binding": "ProviderLifecycleService.GetProviderLogs",
+      "declared_exception": "streaming",
+      "observed_primitive": "streaming"
+    },
+    {
+      "path": "provider pull-model",
+      "group": "provider",
+      "command": "pull-model",
+      "binding": "ProviderLifecycleService.PullModel",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "provider restart",
+      "group": "provider",
+      "command": "restart",
+      "binding": "ProviderLifecycleService.RestartProvider",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "provider start",
+      "group": "provider",
+      "command": "start",
+      "binding": "ProviderLifecycleService.StartProvider",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "provider stop",
+      "group": "provider",
+      "command": "stop",
+      "binding": "ProviderLifecycleService.StopProvider",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "settings byok-delete",
+      "group": "settings",
+      "command": "byok-delete",
+      "binding": "SettingsService.DeleteBYOKCredential",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "settings byok-list",
+      "group": "settings",
+      "command": "byok-list",
+      "binding": "SettingsService.ListBYOKCredentials",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "settings byok-upsert",
+      "group": "settings",
+      "command": "byok-upsert",
+      "binding": "SettingsService.UpsertBYOKCredential",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "settings provider",
+      "group": "settings",
+      "command": "provider",
+      "binding": "SettingsService.GetProviderConfig",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "settings providers",
+      "group": "settings",
+      "command": "providers",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "soak run",
+      "group": "soak",
+      "command": "run",
+      "binding": "."
+    },
+    {
+      "path": "stt engine-impact",
+      "group": "stt",
+      "command": "engine-impact",
+      "binding": "STTAdminService.GetEngineSwitchImpact",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "stt engines",
+      "group": "stt",
+      "command": "engines",
+      "binding": "STTService.ListEngines",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "stt formats",
+      "group": "stt",
+      "command": "formats",
+      "binding": "STTService.GetSupportedFormats",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "stt speaker-clips",
+      "group": "stt",
+      "command": "speaker-clips",
+      "binding": "STTAdminService.ListSpeakerProfileClips",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "stt speaker-config",
+      "group": "stt",
+      "command": "speaker-config",
+      "binding": "STTAdminService.UpdateSpeakerConfig",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "stt speaker-delete-clip",
+      "group": "stt",
+      "command": "speaker-delete-clip",
+      "binding": "STTAdminService.DeleteSpeakerProfileClip",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "stt speaker-enroll",
+      "group": "stt",
+      "command": "speaker-enroll",
+      "binding": "STTAdminService.EnrollSpeakerProfile",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "stt speaker-status",
+      "group": "stt",
+      "command": "speaker-status",
+      "binding": "STTAdminService.GetSpeakerStatus",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "stt stream-config",
+      "group": "stt",
+      "command": "stream-config",
+      "binding": "STTAdminService.GetStreamConfig",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "stt stream-config-set",
+      "group": "stt",
+      "command": "stream-config-set",
+      "binding": "STTAdminService.UpdateStreamConfig",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "stt transcribe",
+      "group": "stt",
+      "command": "transcribe",
+      "binding": "STTService.Transcribe",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "stt transcribe-stream",
+      "group": "stt",
+      "command": "transcribe-stream",
+      "binding": "STTService.TranscribeStream",
+      "declared_exception": "streaming",
+      "observed_primitive": "streaming"
+    },
+    {
+      "path": "summarize text",
+      "group": "summarize",
+      "command": "text",
+      "binding": "SummarizeService.Summarize",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "tts formats",
+      "group": "tts",
+      "command": "formats",
+      "binding": "TTSService.GetSupportedFormats",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "tts synthesize",
+      "group": "tts",
+      "command": "synthesize",
+      "binding": "TTSService.Synthesize",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "tts synthesize-stream",
+      "group": "tts",
+      "command": "synthesize-stream",
+      "binding": "TTSService.SynthesizeStream",
+      "declared_exception": "streaming",
+      "observed_primitive": "streaming"
+    },
+    {
+      "path": "tts voices",
+      "group": "tts",
+      "command": "voices",
+      "binding": "TTSService.ListVoices",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "usage list",
+      "group": "usage",
+      "command": "list",
+      "binding": "UsageService.ListRecent",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "usage summary",
+      "group": "usage",
+      "command": "summary",
+      "binding": "UsageService.GetSummary",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "validation check-freshness",
+      "group": "validation",
+      "command": "check-freshness",
+      "binding": "."
+    },
+    {
+      "path": "validation device-matrix",
+      "group": "validation",
+      "command": "device-matrix",
+      "binding": "."
+    },
+    {
+      "path": "validation run-acceptance-join",
+      "group": "validation",
+      "command": "run-acceptance-join",
+      "binding": "."
+    },
+    {
+      "path": "validation run-expensive",
+      "group": "validation",
+      "command": "run-expensive",
+      "binding": "."
+    },
+    {
+      "path": "validation run-host-portability",
+      "group": "validation",
+      "command": "run-host-portability",
+      "binding": "."
+    },
+    {
+      "path": "validation run-simulated",
+      "group": "validation",
+      "command": "run-simulated",
+      "binding": "."
+    },
+    {
+      "path": "validation run-speaker-policy",
+      "group": "validation",
+      "command": "run-speaker-policy",
+      "binding": "."
+    }
+  ]
+}

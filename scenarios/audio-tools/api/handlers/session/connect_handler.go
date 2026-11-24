@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -103,8 +104,11 @@ func (h *connectHandler) Subscribe(ctx context.Context, req *connect.Request[ses
 	if err != nil {
 		return connect.NewError(connect.CodeNotFound, err)
 	}
-	_, ch, err := s.Subscribe(ctx, 64)
+	_, ch, err := s.SubscribeFrom(ctx, 64, req.Msg.GetFromEventId())
 	if err != nil {
+		if errors.Is(err, intsession.ErrReplayCursorUnavailable) {
+			return connect.NewError(connect.CodeFailedPrecondition, err)
+		}
 		return connect.NewError(connect.CodeResourceExhausted, err)
 	}
 	for {
@@ -123,6 +127,9 @@ func (h *connectHandler) Subscribe(ctx context.Context, req *connect.Request[ses
 				return err
 			}
 			if ev.Type == intsession.EventClosed {
+				if ev.Closed != nil && strings.HasPrefix(ev.Closed.Reason, "observer-overflow:") {
+					return connect.NewError(connect.CodeResourceExhausted, errors.New(ev.Closed.Reason))
+				}
 				return nil
 			}
 		}

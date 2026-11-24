@@ -7,14 +7,17 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"audio-tools/internal/bootstrap"
+	audioserver "audio-tools/internal/server"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/devrouting"
 	apilifecycle "github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/provenance"
 	apiserver "github.com/vrooli/api-core/server"
 	_ "modernc.org/sqlite"
 )
@@ -39,7 +42,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("lifecycle provider setup failed: %v", err)
 	}
-	handler := provider.Mount(apihttp.TestModeMiddleware(rootMux))
+	authConfig, err := audioserver.AuthenticationConfig(os.Getenv)
+	if err != nil {
+		log.Fatalf("authentication configuration failed: %v", err)
+	}
+	provenance.InstallDefaultForwardingTransport()
+	handler := audioserver.IdentityMiddleware(authConfig)(provider.Mount(apihttp.TestModeMiddleware(rootMux)))
 	var httpServer *http.Server
 	if err := apiserver.Run(apiserver.Config{
 		StartServer: func(addr string) error {
@@ -47,9 +55,14 @@ func main() {
 			protocols.SetHTTP1(true)
 			protocols.SetUnencryptedHTTP2(true)
 			httpServer = &http.Server{
-				Addr:        addr,
-				Handler:     handler,
-				ReadTimeout: 30 * time.Second,
+				Addr:              addr,
+				Handler:           handler,
+				ReadHeaderTimeout: 10 * time.Second,
+				// The absolute request-body read deadline must cover long-lived bidi
+				// STT streams and the 15/60-minute browser qualification run. Per-message
+				// size bounds and the stream inactivity timeout remain the tighter
+				// controls for untrusted input.
+				ReadTimeout: 2 * time.Hour,
 				// The out-of-band browser qualification endpoint owns a
 				// wall-clock 15/60-minute run and returns one conformance
 				// document only after the browser session closes. A three-minute

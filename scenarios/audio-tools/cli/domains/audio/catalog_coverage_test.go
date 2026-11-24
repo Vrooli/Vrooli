@@ -8,8 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/cli-core/cliapp"
-
-	testutil "audio-tools/cli/internal/testutil"
+	"github.com/vrooli/cli-core/cliapptest"
 )
 
 // operationCatalogSeed mirrors the subset of api/internal/operationcatalog that
@@ -34,11 +33,13 @@ type catalogCLI struct {
 }
 
 type catalogFlag struct {
-	Name      string `json:"name"`
-	Field     string `json:"field"`
-	Required  bool   `json:"required"`
-	LocalOnly bool   `json:"localOnly"`
-	Repeated  bool   `json:"repeated"`
+	Name      string   `json:"name"`
+	Field     string   `json:"field"`
+	Required  bool     `json:"required"`
+	LocalOnly bool     `json:"localOnly"`
+	Repeated  bool     `json:"repeated"`
+	Default   string   `json:"default"`
+	Values    []string `json:"values"`
 }
 
 func loadOperationCatalog(t *testing.T) operationCatalogSeed {
@@ -57,7 +58,7 @@ func loadOperationCatalog(t *testing.T) operationCatalogSeed {
 // the same required/repeated contract.
 func TestAudioManifestCoversEveryOperation(t *testing.T) {
 	seed := loadOperationCatalog(t)
-	manifest, err := cliapp.ParseManifest(testutil.ReadManifest(t))
+	manifest, err := cliapp.ParseManifest(cliapptest.ReadManifest(t))
 	require.NoError(t, err)
 
 	transforms := 0
@@ -81,10 +82,13 @@ func TestAudioManifestCoversEveryOperation(t *testing.T) {
 			require.Equalf(t, want.Required, got.Required, "operation %q: --%s required", op.ID, want.Name)
 			require.Equalf(t, want.Repeated, got.Repeated || got.Repeatable, "operation %q: --%s repeated", op.ID, want.Name)
 			require.Equalf(t, want.LocalOnly, got.LocalOnly, "operation %q: --%s local_only", op.ID, want.Name)
+			require.Equalf(t, want.Default, got.Default, "operation %q: --%s default", op.ID, want.Name)
+			require.Equalf(t, want.Values, got.Values, "operation %q: --%s accepted values", op.ID, want.Name)
 		}
 		if op.Family == "transform" {
 			transforms++
 			require.NotEmptyf(t, op.CLI.Flags, "operation %q must declare CLI flags", op.ID)
+			require.Lenf(t, flags, len(op.CLI.Flags), "operation %q: manifest contains undeclared CLI flags", op.ID)
 		}
 	}
 	require.Equal(t, 8, transforms, "every audio transform must be present in the operation catalog")

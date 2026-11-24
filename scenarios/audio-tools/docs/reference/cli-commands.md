@@ -40,7 +40,7 @@
 | `audio-tools settings provider` | Show the current provider-routing config | `SettingsService.GetProviderConfig` |
 | `audio-tools settings providers` | Provider routing + TTS-tier availability matrix (folded from former `diagnose providers` on 2026-05-17) | composite: `SettingsService.GetProviderConfig` + `TTSService.GetStatus` |
 | `audio-tools settings byok-list` | List stored BYOK credentials (redacted) | `SettingsService.ListBYOKCredentials` |
-| `audio-tools settings byok-upsert --provider ID --capability stt\|tts\|summarize --key SECRET` | Add or replace a BYOK credential | `SettingsService.UpsertBYOKCredential` |
+| `audio-tools settings byok-upsert --provider ID --capability stt\|tts\|summarize --key-stdin < SECRET_FILE` | Add or replace a BYOK credential; secret is read from stdin and never accepted as a command-line value | `SettingsService.UpsertBYOKCredential` |
 | `audio-tools settings byok-delete --provider ID --capability stt\|tts\|summarize` | Delete a BYOK credential | `SettingsService.DeleteBYOKCredential` |
 
 Output defaults to human-readable rendering; pass `--json` for machine output (Connect-RPC wire shape).

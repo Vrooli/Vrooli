@@ -37,6 +37,10 @@ func (p *VirtualReplayProvider) IsAvailable(context.Context) bool {
 	return p != nil && strings.EqualFold(strings.TrimSpace(os.Getenv("VROOLI_AUDIO_SOAK_REPLAY")), "1")
 }
 
+// IsServiceable preserves the same explicit test-only gate without starting
+// or mutating any resource.
+func (p *VirtualReplayProvider) IsServiceable(ctx context.Context) bool { return p.IsAvailable(ctx) }
+
 func (p *VirtualReplayProvider) Model() string { return virtualReplayModel }
 
 func (p *VirtualReplayProvider) Traits() ProviderTraits {

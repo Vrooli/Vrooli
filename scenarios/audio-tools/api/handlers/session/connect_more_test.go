@@ -68,6 +68,40 @@ func TestSession_CloseSession_WithExplicitReason(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestSession_Subscribe_ReplaysEventsAfterCursor(t *testing.T) {
+	c, reg := newH2Server(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	opened, err := c.OpenSession(ctx, connect.NewRequest(&sessv1.OpenSessionRequest{Transport: sessv1.SessionTransport_SESSION_TRANSPORT_FAKE}))
+	require.NoError(t, err)
+	s, err := reg.Get(opened.Msg.GetSessionId())
+	require.NoError(t, err)
+	s.EmitEvent(intsession.SessionEvent{EventID: "cursor-before", Type: intsession.EventTranscriptDelta, TranscriptDelta: &intsession.TranscriptDelta{Text: "already seen"}})
+	s.EmitEvent(intsession.SessionEvent{EventID: "cursor-after", Type: intsession.EventTranscriptDelta, TranscriptDelta: &intsession.TranscriptDelta{Text: "replayed"}})
+
+	stream, err := c.Subscribe(ctx, connect.NewRequest(&sessv1.SubscribeRequest{SessionId: s.ID(), FromEventId: "cursor-before"}))
+	require.NoError(t, err)
+	defer func() { _ = stream.Close() }()
+	require.True(t, stream.Receive())
+	event := stream.Msg().GetEvent()
+	require.NotNil(t, event)
+	require.Equal(t, "cursor-after", event.GetEventId())
+	require.Equal(t, "replayed", event.GetTranscriptDelta().GetText())
+}
+
+func TestSession_Subscribe_RejectsUnavailableCursor(t *testing.T) {
+	c, _ := newH2Server(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	opened, err := c.OpenSession(ctx, connect.NewRequest(&sessv1.OpenSessionRequest{Transport: sessv1.SessionTransport_SESSION_TRANSPORT_FAKE}))
+	require.NoError(t, err)
+	stream, err := c.Subscribe(ctx, connect.NewRequest(&sessv1.SubscribeRequest{SessionId: opened.Msg.GetSessionId(), FromEventId: "missing-cursor"}))
+	require.NoError(t, err)
+	defer func() { _ = stream.Close() }()
+	require.False(t, stream.Receive())
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(stream.Err()))
+}
+
 // TestSession_Subscribe_StreamsAssistantEvents asserts the Subscribe
 // server-stream RPC delivers the assistant_delta + assistant_final
 // events emitted by SendText, and terminates cleanly when the session

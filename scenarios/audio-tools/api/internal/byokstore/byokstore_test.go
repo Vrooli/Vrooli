@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
@@ -84,4 +85,23 @@ func TestStore_UpsertListGetDelete(t *testing.T) {
 	deleted, err := s.Delete(ctx, "openai-tts", "tts")
 	require.NoError(t, err)
 	require.True(t, deleted)
+}
+
+func TestStore_CountCreatedBetweenExposesAggregateOnly(t *testing.T) {
+	d := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(byokstore.Schema)))
+	s := byokstore.New(newEnc(t), store.NewBYOKStore(apidb.NewFromPrimary(d)))
+	ctx := context.Background()
+	createdNear := time.Now().UTC()
+	_, err := s.Upsert(ctx, "secret-provider-id", "tts", "top-secret-key")
+	require.NoError(t, err)
+
+	from := createdNear.Add(-time.Hour)
+	to := createdNear.Add(time.Hour)
+	n, err := s.CountCreatedBetween(ctx, from, to)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, n)
+	n, err = s.CountCreatedBetween(ctx, to, to.Add(time.Hour))
+	require.NoError(t, err)
+	require.Zero(t, n)
 }

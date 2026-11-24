@@ -117,6 +117,114 @@
       "category": "models"
     },
     {
+      "id": "measures.registry.declarations",
+      "path": "/measures/declarations",
+      "method": "GET",
+      "summary": "List declarations in the shared measures-go registry",
+      "description": "",
+      "category": "measure",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "The shared measures-go library owns this cross-scenario JSON wire contract.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "measures.registry.execute",
+      "path": "/measures/execute",
+      "method": "POST",
+      "summary": "Execute a declared measure through the shared measures-go registry",
+      "description": "",
+      "category": "measure",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "The shared measures-go library owns this cross-scenario JSON wire contract.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "measures.byok_credentials_created",
+      "path": "/vrooli.audio_tools.v1.measures.MeasuresService/CountBYOKCredentials",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "measure"
+    },
+    {
+      "id": "measures.corpus_clips_created",
+      "path": "/vrooli.audio_tools.v1.measures.MeasuresService/CountCorpusClips",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "measure"
+    },
+    {
+      "id": "measures.experiment_runs_created",
+      "path": "/vrooli.audio_tools.v1.measures.MeasuresService/CountExperimentRuns",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "measure"
+    },
+    {
+      "id": "measures.experiments_created",
+      "path": "/vrooli.audio_tools.v1.measures.MeasuresService/CountExperiments",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "measure"
+    },
+    {
+      "id": "measures.speaker_profiles_created",
+      "path": "/vrooli.audio_tools.v1.measures.MeasuresService/CountSpeakerProfiles",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "measure"
+    },
+    {
+      "id": "measures.wakeword_templates_created",
+      "path": "/vrooli.audio_tools.v1.measures.MeasuresService/CountWakewordTemplates",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "measure"
+    },
+    {
+      "id": "measures.duplex_accounting_operations_created",
+      "path": "/vrooli.audio_tools.v1.measures.MeasuresService/CountDuplexAccountingOperations",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "measure"
+    },
+    {
       "id": "audio.transcode",
       "path": "/vrooli.audio_tools.v1.audio.AudioProcessingService/Transcode",
       "method": "POST",
@@ -181,46 +289,6 @@
       "category": "audio"
     },
     {
-      "id": "corpus.create_clip",
-      "path": "/vrooli.audio_tools.v1.corpus.CorpusService/CreateClip",
-      "method": "POST",
-      "summary": "",
-      "description": "",
-      "category": "corpus"
-    },
-    {
-      "id": "corpus.list_clips",
-      "path": "/vrooli.audio_tools.v1.corpus.CorpusService/ListClips",
-      "method": "POST",
-      "summary": "",
-      "description": "",
-      "category": "corpus"
-    },
-    {
-      "id": "corpus.get_clip",
-      "path": "/vrooli.audio_tools.v1.corpus.CorpusService/GetClip",
-      "method": "POST",
-      "summary": "",
-      "description": "",
-      "category": "corpus"
-    },
-    {
-      "id": "corpus.get_clip_audio",
-      "path": "/vrooli.audio_tools.v1.corpus.CorpusService/GetClipAudio",
-      "method": "POST",
-      "summary": "",
-      "description": "",
-      "category": "corpus"
-    },
-    {
-      "id": "corpus.delete_clip",
-      "path": "/vrooli.audio_tools.v1.corpus.CorpusService/DeleteClip",
-      "method": "POST",
-      "summary": "",
-      "description": "",
-      "category": "corpus"
-    },
-    {
       "id": "diagnostics.run_suite",
       "path": "/vrooli.audio_tools.v1.diagnostics.DiagnosticsService/RunSuite",
       "method": "POST",
@@ -243,94 +311,6 @@
       "summary": "Describe the bundled diagnostics fixtures",
       "description": "",
       "category": "diagnostics"
-    },
-    {
-      "id": "experiment.start",
-      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/StartExperiment",
-      "method": "POST",
-      "summary": "",
-      "description": "",
-      "category": "experiment"
-    },
-    {
-      "id": "experiment.get",
-      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/GetExperiment",
-      "method": "POST",
-      "summary": "",
-      "description": "",
-      "category": "experiment"
-    },
-    {
-      "id": "experiment.wait",
-      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/WaitExperiment",
-      "method": "POST",
-      "summary": "",
-      "description": "",
-      "category": "experiment"
-    },
-    {
-      "id": "experiment.list",
-      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/ListExperiments",
-      "method": "POST",
-      "summary": "",
-      "description": "",
-      "category": "experiment"
-    },
-    {
-      "id": "experiment.cancel",
-      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/CancelExperiment",
-      "method": "POST",
-      "summary": "",
-      "description": "",
-      "category": "experiment"
-    },
-    {
-      "id": "experiment.delete",
-      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/DeleteExperiment",
-      "method": "POST",
-      "summary": "",
-      "description": "",
-      "category": "experiment"
-    },
-    {
-      "id": "experiment.stream",
-      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/StreamExperimentEvents",
-      "method": "POST",
-      "summary": "",
-      "description": "",
-      "category": "experiment"
-    },
-    {
-      "id": "experiment.report",
-      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/GetExperimentReport",
-      "method": "POST",
-      "summary": "",
-      "description": "",
-      "category": "experiment"
-    },
-    {
-      "id": "experiment.compare",
-      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/CompareExperiments",
-      "method": "POST",
-      "summary": "",
-      "description": "",
-      "category": "experiment"
-    },
-    {
-      "id": "experiment.evidence.record",
-      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/RecordQualificationEvidence",
-      "method": "POST",
-      "summary": "",
-      "description": "",
-      "category": "experiment"
-    },
-    {
-      "id": "experiment.evidence.list",
-      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/ListQualificationEvidence",
-      "method": "POST",
-      "summary": "",
-      "description": "",
-      "category": "experiment"
     },
     {
       "id": "session.open",
@@ -440,9 +420,38 @@
       "id": "stt.transcribe_stream",
       "path": "/vrooli.audio_tools.v1.stt.STTService/TranscribeStream",
       "method": "POST",
-      "summary": "Bidi-stream Connect speech transcription",
+      "summary": "Proto-owned bidirectional speech transcription for transports with client-streaming support",
       "description": "",
       "category": "stt"
+    },
+    {
+      "id": "stt.transcribe_stream_browser",
+      "path": "/ws/stt/transcribe-stream-v2",
+      "method": "GET",
+      "summary": "Browser WebSocket wire adapter for the TranscribeStream protobuf v2 contract",
+      "description": "",
+      "category": "stt",
+      "rest_exception": {
+        "reason": "stream_upgrade",
+        "note": "The browser WebSocket upgrade carries the existing TranscribeStream protobuf v2 request and event envelopes because Connect-Web does not support client-streaming request bodies.",
+        "proto_payloads": {
+          "request": {
+            "proto_full_name": "vrooli.audio_tools.v1.stt.TranscribeStreamRequest",
+            "transport": "websocket_binary",
+            "conformance": "proto_binary"
+          },
+          "response": {
+            "proto_full_name": "vrooli.audio_tools.v1.stt.TranscribeStreamEvent",
+            "transport": "websocket_binary",
+            "conformance": "proto_binary"
+          },
+          "error": {
+            "proto_full_name": "vrooli.audio_tools.v1.stt.TranscribeStreamEvent",
+            "transport": "websocket_binary",
+            "conformance": "proto_binary"
+          }
+        }
+      }
     },
     {
       "id": "stt.get_supported_formats",
@@ -649,7 +658,7 @@
       "path": "/vrooli.audio_tools.v1.tts.TTSService/GetCache",
       "method": "POST",
       "summary": "Look up cached TTS audio",
-      "description": "Direct content-addressable lookup via content_hash, OR event_id-based lookup for consumer glue.",
+      "description": "Event-based cached audio lookup by event_id, voice, speed, response_format, version, and chunk_index. Content-hash-only lookup is not implemented.",
       "category": "tts"
     },
     {
@@ -725,6 +734,158 @@
       "category": "usage"
     },
     {
+      "id": "corpus.create_clip",
+      "path": "/vrooli.audio_tools.v1.corpus.CorpusService/CreateClip",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus.list_clips",
+      "path": "/vrooli.audio_tools.v1.corpus.CorpusService/ListClips",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus.get_clip",
+      "path": "/vrooli.audio_tools.v1.corpus.CorpusService/GetClip",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus.get_clip_audio",
+      "path": "/vrooli.audio_tools.v1.corpus.CorpusService/GetClipAudio",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus.delete_clip",
+      "path": "/vrooli.audio_tools.v1.corpus.CorpusService/DeleteClip",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus.review_reference",
+      "path": "/vrooli.audio_tools.v1.corpus.CorpusService/ReviewReference",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus.review_reference_group",
+      "path": "/vrooli.audio_tools.v1.corpus.CorpusService/ReviewReferenceGroup",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "corpus.backfill_source_lineage",
+      "path": "/vrooli.audio_tools.v1.corpus.CorpusService/BackfillSourceLineage",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "corpus"
+    },
+    {
+      "id": "experiment.start",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/StartExperiment",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.get",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/GetExperiment",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.wait",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/WaitExperiment",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.list",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/ListExperiments",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.cancel",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/CancelExperiment",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.delete",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/DeleteExperiment",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.stream",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/StreamExperimentEvents",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.report",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/GetExperimentReport",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.compare",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/CompareExperiments",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.evidence.record",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/RecordQualificationEvidence",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
+      "id": "experiment.evidence.list",
+      "path": "/vrooli.audio_tools.v1.experiment.ExperimentService/ListQualificationEvidence",
+      "method": "POST",
+      "summary": "",
+      "description": "",
+      "category": "experiment"
+    },
+    {
       "id": "validation.soak",
       "path": "/api/v1/validation/soak",
       "method": "POST",
@@ -749,6 +910,22 @@
           }
         }
       }
+    },
+    {
+      "id": "validation.soak.validate_scenario",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Run the accelerated long-form dictation qualification",
+      "description": "",
+      "category": "validation"
+    },
+    {
+      "id": "validation.soak.describe_provider",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/DescribeProvider",
+      "method": "POST",
+      "summary": "Describe the long-form dictation qualification provider",
+      "description": "",
+      "category": "validation"
     }
   ]
 }

@@ -18,7 +18,7 @@ func (f inferenceFunc) Run(ctx context.Context, request *connect.Request[inferen
 	return f(ctx, request)
 }
 
-func TestAIGatewayRunnerUsesLocalFaithfulSummaryTaskContract(t *testing.T) {
+func TestAIGatewayRunnerUsesAudioToolsScopedSummaryTaskContract(t *testing.T) {
 	var received *inferencev1.RunRequest
 	runner := NewAIGatewayRunnerWithResolver(func(context.Context) (InferenceRunner, error) {
 		return inferenceFunc(func(_ context.Context, request *connect.Request[inferencev1.RunRequest]) (*connect.Response[inferencev1.RunResponse], error) {
@@ -32,7 +32,7 @@ func TestAIGatewayRunnerUsesLocalFaithfulSummaryTaskContract(t *testing.T) {
 	})
 
 	resultBytes, err := runner(context.Background(), summarize.TaskRequest{
-		Selector: "summarize.default", SelectorIsRole: true,
+		Selector: summarize.DefaultSummarizeModel, SelectorIsRole: true,
 		Instruction: "Preserve names and dates.", Source: "The release is ready. Deploy it tomorrow.", MaxOutputTokens: 120,
 	})
 	require.NoError(t, err)
@@ -59,6 +59,50 @@ func TestAIGatewayRunnerUsesLocalFaithfulSummaryTaskContract(t *testing.T) {
 	require.EqualValues(t, 9, result.EvalCount)
 }
 
+func TestAIGatewayRunnerMapsQualitySelectorToQualityTaskRole(t *testing.T) {
+	var received *inferencev1.RunRequest
+	runner := NewAIGatewayRunnerWithResolver(func(context.Context) (InferenceRunner, error) {
+		return inferenceFunc(func(_ context.Context, request *connect.Request[inferencev1.RunRequest]) (*connect.Response[inferencev1.RunResponse], error) {
+			received = request.Msg
+			return connect.NewResponse(&inferencev1.RunResponse{ValueJson: `{"summary":"facts"}`, Model: "qwen3.5:4b", Validated: true}), nil
+		}), nil
+	})
+	_, err := runner(context.Background(), summarize.TaskRequest{Selector: "summarize.audio_tools.quality", SelectorIsRole: true, Instruction: "Keep facts", Source: "text", MaxOutputTokens: 120})
+	require.NoError(t, err)
+	require.NotNil(t, received)
+	require.Equal(t, "summarize.audio_tools.quality", received.GetRole())
+}
+
+func TestAIGatewayRunnerPassesNewDeclaredAudioToolsRoleWithoutMappingCode(t *testing.T) {
+	var received *inferencev1.RunRequest
+	runner := NewAIGatewayRunnerWithResolver(func(context.Context) (InferenceRunner, error) {
+		return inferenceFunc(func(_ context.Context, request *connect.Request[inferencev1.RunRequest]) (*connect.Response[inferencev1.RunResponse], error) {
+			received = request.Msg
+			return connect.NewResponse(&inferencev1.RunResponse{ValueJson: `{"summary":"ok"}`, Model: "declared-model", Validated: true}), nil
+		}), nil
+	})
+	role := "summarize.audio_tools.experimental"
+	_, err := runner(context.Background(), summarize.TaskRequest{Selector: role, SelectorIsRole: true, Instruction: "summarize", Source: "text", MaxOutputTokens: 120})
+	require.NoError(t, err)
+	require.NotNil(t, received)
+	require.Equal(t, role, received.GetRole())
+}
+
+func TestLocalProviderQualityRoleResolvesThroughGatewayAndRecordsConcreteModel(t *testing.T) {
+	var receivedRole string
+	taskRunner := NewAIGatewayRunnerWithResolver(func(context.Context) (InferenceRunner, error) {
+		return inferenceFunc(func(_ context.Context, request *connect.Request[inferencev1.RunRequest]) (*connect.Response[inferencev1.RunResponse], error) {
+			receivedRole = request.Msg.GetRole()
+			return connect.NewResponse(&inferencev1.RunResponse{ValueJson: `{"summary":"preserved facts"}`, Model: "qwen3.5:4b", Validated: true}), nil
+		}), nil
+	})
+	provider := NewLocalProvider(summarize.NewSummarizerWithTaskRunner(taskRunner), summarize.DefaultSummarizeModel)
+	result, err := provider.Summarize(context.Background(), Request{Text: "facts", Level: "light", LocalModelRole: "summarize.audio_tools.quality"})
+	require.NoError(t, err)
+	require.Equal(t, "summarize.audio_tools.quality", receivedRole)
+	require.Equal(t, "qwen3.5:4b", result.ModelID)
+}
+
 func TestAIGatewayRunnerRejectsCallerModelSelectors(t *testing.T) {
 	runner := NewAIGatewayRunnerWithResolver(func(context.Context) (InferenceRunner, error) {
 		t.Fatal("model selector rejection must happen before gateway resolution")
@@ -73,8 +117,12 @@ func TestAIGatewayRunnerRejectsUnexpectedRole(t *testing.T) {
 		t.Fatal("unsupported role rejection must happen before gateway resolution")
 		return nil, nil
 	})
-	_, err := runner(context.Background(), summarize.TaskRequest{Selector: "chat.default", SelectorIsRole: true, Instruction: "summarize", Source: "text", MaxOutputTokens: 120})
-	require.ErrorContains(t, err, "unsupported audio-tools summarization role")
+	for _, role := range []string{"chat.default", "summarize.default", "summarize.faithful", "summarize.not_audio_tools"} {
+		t.Run(role, func(t *testing.T) {
+			_, err := runner(context.Background(), summarize.TaskRequest{Selector: role, SelectorIsRole: true, Instruction: "summarize", Source: "text", MaxOutputTokens: 120})
+			require.ErrorContains(t, err, "unsupported audio-tools summarization role")
+		})
+	}
 }
 
 func TestAIGatewayRunnerRejectsResourceOnlyExecutionSelectors(t *testing.T) {
@@ -83,7 +131,7 @@ func TestAIGatewayRunnerRejectsResourceOnlyExecutionSelectors(t *testing.T) {
 		return nil, nil
 	})
 	_, err := runner(context.Background(), summarize.TaskRequest{
-		Selector: "summarize.default", SelectorIsRole: true, Instruction: "summarize", Source: "text", MaxOutputTokens: 120,
+		Selector: summarize.DefaultSummarizeModel, SelectorIsRole: true, Instruction: "summarize", Source: "text", MaxOutputTokens: 120,
 		ContextTier: 4096, ExpectedModel: "qwen3.5:9b", ExpectedArtifactDigest: "sha256:artifact",
 	})
 	require.ErrorContains(t, err, "resource-specific context or rights selectors")
@@ -96,7 +144,7 @@ func TestAIGatewayRunnerRejectsUnvalidatedTypedResult(t *testing.T) {
 		}), nil
 	})
 	_, err := runner(context.Background(), summarize.TaskRequest{
-		Selector: "summarize.default", SelectorIsRole: true, Instruction: "summarize", Source: "text", MaxOutputTokens: 120,
+		Selector: summarize.DefaultSummarizeModel, SelectorIsRole: true, Instruction: "summarize", Source: "text", MaxOutputTokens: 120,
 	})
 	require.ErrorContains(t, err, "unvalidated summary result")
 }

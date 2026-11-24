@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
 
 	"audio-tools/cli/domains/internal/providerlabels"
 	"github.com/vrooli/cli-core/cliapp"
@@ -63,46 +64,73 @@ func responseFormatLabel(f commonv1.ResponseFormat) string {
 	}
 }
 
-func (h *handlers) synthesize(ctx cliapp.RunContext) error {
-	speed := 1.0
-	if s := ctx.Flag("speed"); s != "" {
-		if v, err := strconv.ParseFloat(s, 64); err == nil {
-			speed = v
-		}
-	}
-	voice := ctx.Flag("voice")
-	if voice == "" {
-		voice = "voice.neutral.default"
-	}
-	req := connect.NewRequest(&ttsv1.SynthesizeRequest{
-		Text:           ctx.Flag("text"),
-		Voice:          voice,
-		Speed:          speed,
-		ResponseFormat: responseFormatFromFlag(ctx.Flag("format")),
-	})
-	resp, err := h.client.Synthesize(context.Background(), req)
-	if err != nil {
-		return cliapp.WrapAPIError("synthesize", err, nil)
-	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no synthesis response")
-	}
-	out := ctx.Flag("out")
-	if out == "" {
-		_, _ = os.Stdout.Write(resp.Msg.Audio)
-	} else {
-		if err := os.WriteFile(out, resp.Msg.Audio, 0o644); err != nil {
-			return fmt.Errorf("write %s: %w", out, err)
-		}
-	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+func (h *handlers) synthesizePrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoCustomRenderers(
+		func(ctx cliapp.OperationContext) (*ttsv1.SynthesizeResponse, error) {
+			if ctx.BoolFlag("json-metadata-only") && ctx.Flag("out") == "" {
+				return nil, fmt.Errorf("--json-metadata-only requires --out")
+			}
+			speed := 1.0
+			if s := ctx.Flag("speed"); s != "" {
+				if v, err := strconv.ParseFloat(s, 64); err == nil {
+					speed = v
+				}
+			}
+			voice := ctx.Flag("voice")
+			if voice == "" {
+				voice = "voice.neutral.default"
+			}
+			req := connect.NewRequest(&ttsv1.SynthesizeRequest{
+				Text:           ctx.Flag("text"),
+				Voice:          voice,
+				Speed:          speed,
+				ResponseFormat: responseFormatFromFlag(ctx.Flag("format")),
+			})
+			resp, err := h.client.Synthesize(context.Background(), req)
+			if err != nil {
+				return nil, cliapp.WrapAPIError("synthesize", err, nil)
+			}
+			if resp == nil || resp.Msg == nil {
+				return nil, fmt.Errorf("server returned no synthesis response")
+			}
+			if out := ctx.Flag("out"); out != "" {
+				if err := os.WriteFile(out, resp.Msg.Audio, 0o644); err != nil {
+					return nil, fmt.Errorf("write %s: %w", out, err)
+				}
+			}
+			return resp.Msg, nil
+		},
+		func(ctx cliapp.RunContext, resp *ttsv1.SynthesizeResponse) error {
+			if ctx.Flag("out") == "" {
+				_, _ = ctx.Stdout().Write(resp.Audio)
+			}
+			return cliapp.RenderProtoMutation(ctx, resp, synthesizeReport(resp))
+		},
+		func(ctx cliapp.RunContext, resp *ttsv1.SynthesizeResponse) error {
+			// JSON mode is a machine-readable Connect response. Keep binary audio
+			// inside the proto's base64 field; writing it before the JSON document
+			// makes the nominal JSON output unparsable.
+			if ctx.BoolFlag("json-metadata-only") {
+				metadata := proto.Clone(resp).(*ttsv1.SynthesizeResponse)
+				metadata.Audio = nil
+				return cliapp.PrintProtoJSON(ctx.Stdout(), metadata)
+			}
+			return cliapp.PrintProtoJSON(ctx.Stdout(), resp)
+		},
+	)
+}
+
+func synthesizeReport(resp *ttsv1.SynthesizeResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{
 		Result: []string{
 			fmt.Sprintf("Synthesized %d bytes (%s) via %s/%s in %.0fms.",
-				len(resp.Msg.Audio), resp.Msg.ContentType,
-				providerlabels.TierLabel(resp.Msg.GetProviderTier()), resp.Msg.ProviderId, resp.Msg.LatencyMs),
+				len(resp.Audio), resp.ContentType,
+				providerlabels.TierLabel(resp.GetProviderTier()), resp.ProviderId, resp.LatencyMs),
 		},
-	})
+	}
 }
+
+func (h *handlers) synthesize(ctx cliapp.RunContext) error { return h.synthesizePrimitive().Run(ctx) }
 
 // synthesizeStream calls the server-streaming SynthesizeStream RPC and
 // appends each frame's audio bytes to --out (or stdout) as they arrive.
@@ -194,19 +222,30 @@ func (h *handlers) synthesizeStream(ctx cliapp.RunContext) error {
 // formats prints the TTS egress capability matrix: the output containers
 // the API can produce for a --format. Human-friendly output per
 // feedback_cli_default_human_output.
-func (h *handlers) formats(ctx cliapp.RunContext) error {
-	resp, err := h.client.GetSupportedFormats(context.Background(), connect.NewRequest(&ttsv1.GetSupportedFormatsRequest{}))
-	if err != nil {
-		return cliapp.WrapAPIError("tts-formats", err, nil)
-	}
-	msg := resp.Msg
-	fmt.Fprintf(ctx.Stdout(), "TTS egress — producible output formats:\n")
-	for _, f := range msg.GetEmittedFormats() {
-		fmt.Fprintf(ctx.Stdout(), "  - %s\n", responseFormatLabel(f))
-	}
-	fmt.Fprintf(ctx.Stdout(), "ffmpeg encode backend = %s\n", availabilityLabel(msg.GetFfmpegAvailable()))
-	return nil
+func (h *handlers) formatsPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoCustom(
+		func(_ cliapp.OperationContext) (*ttsv1.GetSupportedFormatsResponse, error) {
+			resp, err := h.client.GetSupportedFormats(context.Background(), connect.NewRequest(&ttsv1.GetSupportedFormatsRequest{}))
+			if err != nil {
+				return nil, cliapp.WrapAPIError("tts-formats", err, nil)
+			}
+			if resp == nil || resp.Msg == nil {
+				return nil, fmt.Errorf("server returned no supported formats")
+			}
+			return resp.Msg, nil
+		},
+		func(ctx cliapp.RunContext, msg *ttsv1.GetSupportedFormatsResponse) error {
+			fmt.Fprintf(ctx.Stdout(), "TTS egress — producible output formats:\n")
+			for _, f := range msg.GetEmittedFormats() {
+				fmt.Fprintf(ctx.Stdout(), "  - %s\n", responseFormatLabel(f))
+			}
+			fmt.Fprintf(ctx.Stdout(), "ffmpeg encode backend = %s\n", availabilityLabel(msg.GetFfmpegAvailable()))
+			return nil
+		},
+	)
 }
+
+func (h *handlers) formats(ctx cliapp.RunContext) error { return h.formatsPrimitive().Run(ctx) }
 
 func availabilityLabel(ok bool) string {
 	if ok {
@@ -215,21 +254,30 @@ func availabilityLabel(ok bool) string {
 	return "unavailable"
 }
 
-func (h *handlers) voices(ctx cliapp.RunContext) error {
-	resp, err := h.client.ListVoices(context.Background(), connect.NewRequest(&ttsv1.ListVoicesRequest{}))
-	if err != nil {
-		return cliapp.WrapAPIError("list voices", err, nil)
-	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no voices")
-	}
-	results := make([]string, 0, len(resp.Msg.Voices))
-	for _, v := range resp.Msg.Voices {
-		results = append(results, fmt.Sprintf("%s — %s", v.Id, v.Name))
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Found %d canonical voice(s).", len(resp.Msg.Voices))},
-		ResultsHeading: "Voices",
-		Results:        results,
-	})
+func (h *handlers) voicesPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoList(
+		func(_ cliapp.OperationContext) (*ttsv1.ListVoicesResponse, error) {
+			resp, err := h.client.ListVoices(context.Background(), connect.NewRequest(&ttsv1.ListVoicesRequest{}))
+			if err != nil {
+				return nil, cliapp.WrapAPIError("list voices", err, nil)
+			}
+			if resp == nil || resp.Msg == nil {
+				return nil, fmt.Errorf("server returned no voices")
+			}
+			return resp.Msg, nil
+		},
+		func(_ cliapp.OperationContext, resp *ttsv1.ListVoicesResponse) cliapp.ListReport {
+			results := make([]string, 0, len(resp.Voices))
+			for _, v := range resp.Voices {
+				results = append(results, fmt.Sprintf("%s — %s", v.Id, v.Name))
+			}
+			return cliapp.ListReport{
+				Summary:        []string{fmt.Sprintf("Found %d canonical voice(s).", len(resp.Voices))},
+				ResultsHeading: "Voices",
+				Results:        results,
+			}
+		},
+	)
 }
+
+func (h *handlers) voices(ctx cliapp.RunContext) error { return h.voicesPrimitive().Run(ctx) }

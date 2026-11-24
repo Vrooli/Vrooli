@@ -157,8 +157,8 @@ func (c toggledCapability) Check(context.Context) (capabilities.Status, string) 
 	return capabilities.StatusUnavailable, "unavailable"
 }
 
-func newRecoveryService(doer HTTPDoer) *Service {
-	s := NewService(Config{}, "", nil, "", SpeakerConfig{}, "", nil, nil, nil,
+func newRecoveryService(doer HTTPDoer) *WhisperTranscriber {
+	s := NewWhisperTranscriber(nil,
 		"http://127.0.0.1:8090/asr?output=json", doer,
 		audioformat.New(audioformat.WithFfmpegProbe(func() bool { return false })))
 	return s
@@ -193,7 +193,7 @@ func TestEnsureWhisperAvailableEnsuresAndRefreshesCapability(t *testing.T) {
 		time.Hour,
 	)
 	ens := &fakeEnsurer{bringCapability: available}
-	s := NewService(Config{}, "", nil, "", SpeakerConfig{}, "", nil, caps, nil, "", nil, nil)
+	s := NewWhisperTranscriber(caps, "", nil, nil)
 	s.SetBackendEnsurer(ens, "whisper")
 	s.SetAutoEnsure(true)
 
@@ -213,7 +213,7 @@ func TestEnsureWhisperAvailableRespectsAutoEnsureOff(t *testing.T) {
 		time.Hour,
 	)
 	ens := &fakeEnsurer{bringCapability: available}
-	s := NewService(Config{}, "", nil, "", SpeakerConfig{}, "", nil, caps, nil, "", nil, nil)
+	s := NewWhisperTranscriber(caps, "", nil, nil)
 	s.SetBackendEnsurer(ens, "whisper")
 	s.SetAutoEnsure(false)
 

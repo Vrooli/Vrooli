@@ -45,6 +45,7 @@ const (
 	CapabilityTTS       Capability = "tts"
 	CapabilitySummarize Capability = "summarize"
 	CapabilitySpeaker   Capability = "speaker"
+	CapabilityDuplex    Capability = "duplex"
 )
 
 // Capabilities lists the supported capabilities in canonical display order.
@@ -53,7 +54,12 @@ var Capabilities = []Capability{
 	CapabilityTTS,
 	CapabilitySummarize,
 	CapabilitySpeaker,
+	CapabilityDuplex,
 }
+
+// DefaultCapabilities are independently selectable product routes. Duplex
+// models are catalogued for provenance and pricing, but are not yet runnable.
+var DefaultCapabilities = []Capability{CapabilitySTT, CapabilityTTS, CapabilitySummarize, CapabilitySpeaker}
 
 // Readiness is the honest state of a record's runnability in this scenario.
 //
@@ -71,21 +77,51 @@ const (
 	ReadinessWatch        Readiness = "watch"
 )
 
-// Runtimes are the execution backends a record may name. "byok" and "gateway"
-// run remotely; "browser" runs in the consumer's browser.
-var Runtimes = []string{
-	"whisper.cpp",
-	"kyutai",
-	"sherpa-onnx",
-	"kokoro",
-	"onnxruntime",
-	"pytorch",
-	"vllm",
-	"ollama",
-	"byok",
-	"gateway",
-	"browser",
+// Runtime declares a selectable model execution backend and where its model
+// weights are owned.
+type Runtime struct {
+	ID             string
+	ArtifactPolicy RuntimeArtifactPolicy
+	Capabilities   []Capability
 }
+
+// RuntimeArtifactPolicy states whether a model record must identify a
+// resource data artifact or whether another execution service owns the weights.
+type RuntimeArtifactPolicy string
+
+const (
+	RuntimeArtifactRequired RuntimeArtifactPolicy = "required"
+	RuntimeArtifactExternal RuntimeArtifactPolicy = "external"
+)
+
+// Runtimes is the single declaration of supported runtime IDs and their
+// artifact ownership policy.
+var Runtimes = []Runtime{
+	{ID: "whisper.cpp", ArtifactPolicy: RuntimeArtifactRequired, Capabilities: []Capability{CapabilitySTT}},
+	{ID: "kyutai", ArtifactPolicy: RuntimeArtifactRequired, Capabilities: []Capability{CapabilitySTT}},
+	{ID: "sherpa-onnx", ArtifactPolicy: RuntimeArtifactRequired, Capabilities: []Capability{CapabilitySTT, CapabilityTTS, CapabilitySpeaker}},
+	{ID: "kokoro", ArtifactPolicy: RuntimeArtifactRequired, Capabilities: []Capability{CapabilityTTS}},
+	{ID: "onnxruntime", ArtifactPolicy: RuntimeArtifactRequired, Capabilities: []Capability{CapabilityTTS}},
+	{ID: "pytorch", ArtifactPolicy: RuntimeArtifactExternal, Capabilities: []Capability{CapabilityTTS}},
+	{ID: "vllm", ArtifactPolicy: RuntimeArtifactExternal, Capabilities: []Capability{CapabilitySTT}},
+	{ID: "ollama", ArtifactPolicy: RuntimeArtifactExternal, Capabilities: []Capability{CapabilitySummarize}},
+	{ID: "byok", ArtifactPolicy: RuntimeArtifactExternal, Capabilities: []Capability{CapabilitySTT, CapabilityTTS, CapabilityDuplex}},
+	{ID: "gateway", ArtifactPolicy: RuntimeArtifactExternal, Capabilities: []Capability{CapabilitySummarize}},
+	{ID: "browser", ArtifactPolicy: RuntimeArtifactExternal, Capabilities: []Capability{CapabilityTTS}},
+}
+
+func runtimeLookup() map[string]Runtime {
+	byID := make(map[string]Runtime, len(Runtimes))
+	for _, runtime := range Runtimes {
+		byID[runtime.ID] = runtime
+	}
+	return byID
+}
+
+// BatchAdapterIDs identify batch protocol adapters that bootstrap can wire to
+// an explicitly configured endpoint. They describe a protocol, not a model;
+// additional models using the same protocol need only declare the adapter id.
+var BatchAdapterIDs = []string{"vllm-openai-chat-audio"}
 
 // CommercialUse says whether the weights/terms permit commercial use.
 type CommercialUse string
@@ -103,9 +139,9 @@ var Roles = []string{"default", "fast", "quality", "edge"}
 
 // Artifact names the resource data artifact that provides a local model's
 // weights. The resource manifest owns the URL, checksum, size, and install
-// layout; the registry only names the artifact so a conformance test can prove
-// that a record marked "available" is actually shipped. Remote providers and
-// unshipped candidates leave this nil.
+// layout; the registry only names the artifact. A candidate can name a pinned
+// artifact before runtime qualification, while unshipped candidates and remote
+// providers leave this nil.
 type Artifact struct {
 	Resource string `json:"resource"`
 	Name     string `json:"name"`
@@ -113,33 +149,96 @@ type Artifact struct {
 
 // Model is one model or voice family record.
 type Model struct {
-	ID           string        `json:"id"`
-	Name         string        `json:"name"`
-	ProviderIDs  []string      `json:"provider_ids"`
-	EngineIDs    []string      `json:"engine_ids"`
-	Capability   Capability    `json:"capability"`
-	Runtime      string        `json:"runtime"`
-	Artifact     *Artifact     `json:"artifact,omitempty"`
-	Languages    []string      `json:"languages"`
-	SizeMBApprox float64       `json:"size_mb_approx"`
-	Params       string        `json:"params"`
-	License      string        `json:"license"`
-	Commercial   CommercialUse `json:"commercial_use"`
-	LicenseNotes string        `json:"license_notes"`
-	Source       Source        `json:"source"`
-	Readiness    Readiness     `json:"readiness"`
-	// AllowDefault is the explicit, auditable opt-in that lets a record carry
-	// the "default" role outside the normal eligibility rule. There are two
-	// legitimate uses: a non-available (candidate) record whose runtime is the
-	// intended primary, and an available runtime primary whose upstream licence
-	// is not yet verified in-repo. In both cases license/readiness notes must
-	// state the uncertainty, and CommercialDefaultFor still refuses to select a
-	// record whose commercial use is not explicitly allowed.
-	AllowDefault bool       `json:"allow_default,omitempty"`
-	Roles        []string   `json:"roles"`
-	Hardware     Hardware   `json:"hardware"`
-	Benchmarks   Benchmarks `json:"benchmarks"`
-	Notes        string     `json:"notes"`
+	ID             string        `json:"id"`
+	Name           string        `json:"name"`
+	ProviderIDs    []string      `json:"provider_ids"`
+	EngineIDs      []string      `json:"engine_ids"`
+	EngineDefaults []string      `json:"engine_defaults,omitempty"`
+	Capability     Capability    `json:"capability"`
+	Runtime        string        `json:"runtime"`
+	RuntimeModelID string        `json:"runtime_model_id,omitempty"`
+	BatchAdapterID string        `json:"batch_adapter_id,omitempty"`
+	Artifact       *Artifact     `json:"artifact,omitempty"`
+	Languages      []string      `json:"languages"`
+	SizeMBApprox   float64       `json:"size_mb_approx"`
+	Params         string        `json:"params"`
+	License        string        `json:"license"`
+	Commercial     CommercialUse `json:"commercial_use"`
+	LicenseNotes   string        `json:"license_notes"`
+	Source         Source        `json:"source"`
+	Readiness      Readiness     `json:"readiness"`
+	// AllowDefault is the explicit, auditable opt-in that lets a record carry a
+	// generic default role or an engine-scoped default outside normal readiness
+	// eligibility. In both cases license/readiness notes must state uncertainty,
+	// commercial selection still fails closed, and promotion evidence remains
+	// separately enforced.
+	AllowDefault bool              `json:"allow_default,omitempty"`
+	Promotion    PromotionEvidence `json:"promotion_evidence,omitempty"`
+	Roles        []string          `json:"roles"`
+	Hardware     Hardware          `json:"hardware"`
+	Benchmarks   Benchmarks        `json:"benchmarks"`
+	Pricing      *Pricing          `json:"pricing,omitempty"`
+	Notes        string            `json:"notes"`
+}
+
+// PromotionEvidence references the existing owner-produced receipts for each
+// required promotion dimension. It stores no duplicate measurements and does
+// not define quality thresholds; only owner-issued qualified verdicts count.
+type PromotionEvidence struct {
+	CorpusQuality EvidenceFacet `json:"corpus_quality,omitempty"`
+	Latency       EvidenceFacet `json:"latency,omitempty"`
+	Memory        EvidenceFacet `json:"memory,omitempty"`
+	Platform      EvidenceFacet `json:"platform,omitempty"`
+	License       EvidenceFacet `json:"license,omitempty"`
+	verified      bool          // Never loaded from seed JSON; requires an integrated owner-receipt verifier.
+	// LegacyException preserves an existing operational default without
+	// claiming that it has passed the promotion gate.
+	LegacyException string `json:"legacy_exception,omitempty"`
+}
+
+type EvidenceFacet struct {
+	Status string `json:"status,omitempty"` // qualified, unqualified, not_measured, unknown
+	Ref    string `json:"ref,omitempty"`
+}
+
+// legacyDefaultExceptions is a code-owned sunset list for specifically
+// authorized operational routes that lack owner-verified promotion receipts.
+// Seed text alone cannot grant this exception to a newly declared model.
+var legacyDefaultExceptions = map[string]string{
+	"whisper-small":                  "Existing operational default retained pending a joined corpus-quality, latency, memory, platform, and license receipt.",
+	"sherpa-zipformer-en-2023-06-26": "Existing operator-selected Sherpa streaming route retained pending joined corpus-quality, latency, memory, platform, and license receipts.",
+	"kokoro-82m-v1.0":                "Existing operational default retained pending a joined corpus-quality, latency, memory, platform, and license receipt.",
+	"qwen3:1.7b":                     "Audio Tools compact summarize target retained pending owner-qualified receipts; evidence is one short report at 8/8 facts and one 300-word report at 14/22 facts, so this is not a general fact-faithfulness qualification.",
+	"sherpa-onnx-speaker-embedding":  "Existing operational default retained pending a joined corpus-quality, latency, memory, platform, and license receipt; current resource score has no EER or threshold qualification.",
+}
+
+func legacyExceptionAllowed(modelID, reason string) bool {
+	expected, ok := legacyDefaultExceptions[modelID]
+	return ok && strings.TrimSpace(reason) == expected
+}
+
+func (e PromotionEvidence) Qualified() bool {
+	if !e.verified {
+		return false
+	}
+	for _, facet := range []EvidenceFacet{e.CorpusQuality, e.Latency, e.Memory, e.Platform, e.License} {
+		if facet.Status != "qualified" || strings.TrimSpace(facet.Ref) == "" {
+			return false
+		}
+	}
+	return true
+}
+
+// Pricing records published provider rates without any authorization,
+// credential, estimate, or settlement policy. Rates are integer micro-USD per declared unit.
+type Pricing struct {
+	Currency                string `json:"currency"`
+	Unit                    string `json:"unit"`
+	ActiveMicrosPerMinute   *int64 `json:"active_micros_per_minute,omitempty"`
+	StandbyMicrosPerMinute  *int64 `json:"standby_micros_per_minute,omitempty"`
+	BillingIncrementSeconds int    `json:"billing_increment_seconds,omitempty"`
+	SourceURL               string `json:"source_url"`
+	Notes                   string `json:"notes,omitempty"`
 }
 
 // Source is provenance for the weights and the runtime adapter.
@@ -308,7 +407,7 @@ func (c *Catalog) SortedForDisplay() []Model {
 // per capability use DefaultFor instead.
 func (c *Catalog) DefaultsByCapability(platform Platform) map[Capability]Model {
 	out := make(map[Capability]Model, len(Capabilities))
-	for _, capability := range Capabilities {
+	for _, capability := range DefaultCapabilities {
 		if model, err := c.DefaultFor(capability, "", platform); err == nil {
 			out[capability] = model
 		}
@@ -329,6 +428,31 @@ func (c *Catalog) ByEngine(engineID string) []Model {
 	out := make([]Model, len(c.byEngine[engineID]))
 	copy(out, c.byEngine[engineID])
 	return out
+}
+
+// ByEngineModelID resolves either a canonical registry ID or the declared
+// runtime model ID for one engine. Runtime IDs are protocol-facing names; the
+// returned Model retains the canonical ID used by evidence and promotion.
+// Ambiguous runtime aliases fail closed.
+func (c *Catalog) ByEngineModelID(engineID, modelID string) (Model, bool) {
+	engineID = strings.TrimSpace(engineID)
+	modelID = strings.TrimSpace(modelID)
+	if engineID == "" || modelID == "" {
+		return Model{}, false
+	}
+	var match Model
+	found := false
+	for _, model := range c.byEngine[engineID] {
+		if model.ID != modelID && model.RuntimeModelID != modelID {
+			continue
+		}
+		if found && match.ID != model.ID {
+			return Model{}, false
+		}
+		match = model
+		found = true
+	}
+	return match, found
 }
 
 // EngineIDs returns the distinct engine ids in seed order.
@@ -358,6 +482,10 @@ type Platform struct {
 	Accelerated bool
 	FreeVRAMGB  float64
 	RAMGB       int
+	// CPULimit is the caller's CPU quota in cores. Zero means unknown or
+	// unconstrained. Models currently have no evidence-backed minimum CPU
+	// declaration, so this is carried as context and is not a selection gate.
+	CPULimit int
 }
 
 // Selection errors.
@@ -370,11 +498,35 @@ var (
 	ErrNoCommercialModel = errors.New("modelcatalog: no commercial-eligible model")
 )
 
-// DefaultEligible reports whether a record may be selected as a default. Only
-// available records are eligible by default; candidate, experimental, and
-// watch records require the explicit allow_default flag in the seed.
+// DefaultEligible reports whether a record may be selected as a default. A
+// default role needs either all five owner-referenced qualified evidence facets
+// or an exact code-authorized exception for an operational route.
+// Readiness eligibility is evaluated too.
 func (m Model) DefaultEligible() bool {
-	return m.Readiness == ReadinessAvailable || m.AllowDefault
+	if m.Readiness != ReadinessAvailable && !m.AllowDefault {
+		return false
+	}
+	return !m.HasRole("default") || m.Promotion.Qualified() || legacyExceptionAllowed(m.ID, m.Promotion.LegacyException)
+}
+
+// EngineDefaultEligible applies the evidence or code-authorized legacy
+// exception gate to a model selected as an engine-scoped default.
+func (m Model) EngineDefaultEligible() bool {
+	if m.Readiness != ReadinessAvailable && !m.AllowDefault {
+		return false
+	}
+	return m.Promotion.Qualified() || legacyExceptionAllowed(m.ID, m.Promotion.LegacyException)
+}
+
+// HasEngineDefault reports whether this model is the declared default for the
+// given STT stream-selection engine.
+func (m Model) HasEngineDefault(engineID string) bool {
+	for _, id := range m.EngineDefaults {
+		if id == engineID {
+			return true
+		}
+	}
+	return false
 }
 
 // HasRole reports whether the record carries a selection intent.
@@ -411,22 +563,30 @@ func (m Model) Speaks(language string) bool {
 // the platform. Unknown platform facts are not treated as a shortfall; a known
 // shortfall is.
 func (m Model) RunnableOn(p Platform) bool {
+	return len(m.platformExclusionReasons(p)) == 0
+}
+
+// platformExclusionReasons explains known host constraints that prevent a
+// model from running. Unknown host facts remain unknown and are not treated as
+// failures, matching RunnableOn's selection semantics.
+func (m Model) platformExclusionReasons(p Platform) []string {
+	var reasons []string
 	if !m.supportsPlatform(p) {
-		return false
+		reasons = append(reasons, fmt.Sprintf("does not declare support for %s/%s", p.OS, p.Arch))
 	}
 	if m.Hardware.GPURequired && !p.Accelerated {
-		return false
+		reasons = append(reasons, "requires an accelerated GPU")
 	}
 	if !m.Hardware.CPUCapable && !p.Accelerated {
-		return false
+		reasons = append(reasons, "does not support CPU execution")
 	}
 	if p.FreeVRAMGB > 0 && m.Hardware.MinVRAMGB > 0 && p.FreeVRAMGB < m.Hardware.MinVRAMGB {
-		return false
+		reasons = append(reasons, fmt.Sprintf("requires %.3g GB free VRAM; host reports %.3g GB", m.Hardware.MinVRAMGB, p.FreeVRAMGB))
 	}
 	if p.RAMGB > 0 && m.Hardware.MinRAMGB > 0 && p.RAMGB < m.Hardware.MinRAMGB {
-		return false
+		reasons = append(reasons, fmt.Sprintf("requires at least %d GB RAM; host reports %d GB", m.Hardware.MinRAMGB, p.RAMGB))
 	}
-	return true
+	return reasons
 }
 
 func (m Model) supportsPlatform(p Platform) bool {
@@ -488,24 +648,79 @@ func (m Model) hasEngine(engineID string) bool {
 // role signature (default, fast, quality, edge), then commercial clarity, then
 // id.
 func (c *Catalog) DefaultFor(capability Capability, language string, platform Platform) (Model, error) {
-	return c.defaultFor(capability, "", language, platform)
+	return c.defaultFor(capability, "", language, platform, nil)
 }
 
-// DefaultForEngine is DefaultFor constrained to one STT engine id. It is the
-// safe bridge for callers that pin StreamConfig.EngineID: the result is the
-// model record for that engine, not a silent engine substitution.
+// DefaultForVerified is the generic bridge for runtime owner verification.
+// The callback must accept only owner-verified results bound to this exact
+// model; seed declarations and caller supplied facet strings are not proof.
+// Legacy exceptions continue to be evaluated by DefaultEligible unchanged.
+func (c *Catalog) DefaultForVerified(capability Capability, language string, platform Platform, verified func(Model) bool) (Model, error) {
+	return c.defaultFor(capability, "", language, platform, verified)
+}
+
+// DefaultForEngine is DefaultFor constrained to one STT engine id. A model
+// must carry the generic default role or declare this id in engine_defaults.
+// The result never substitutes a model from another engine.
 func (c *Catalog) DefaultForEngine(capability Capability, engineID, language string, platform Platform) (Model, error) {
-	return c.defaultFor(capability, engineID, language, platform)
+	return c.defaultForEngine(capability, engineID, language, platform, nil, false)
 }
 
-func (c *Catalog) defaultFor(capability Capability, engineID, language string, platform Platform) (Model, error) {
-	for _, m := range c.CandidatesForEngine(capability, engineID, language, platform) {
-		if m.HasRole("default") && m.DefaultEligible() {
+// DefaultForEngineVerified is DefaultForVerified constrained to one engine.
+func (c *Catalog) DefaultForEngineVerified(capability Capability, engineID, language string, platform Platform, verified func(Model) bool) (Model, error) {
+	return c.defaultForEngine(capability, engineID, language, platform, verified, false)
+}
+
+// CommercialDefaultForEngineVerified resolves a declared engine-scoped default
+// while requiring explicit commercial permission. It never substitutes a
+// model from another engine.
+func (c *Catalog) CommercialDefaultForEngineVerified(capability Capability, engineID, language string, platform Platform, verified func(Model) bool) (Model, error) {
+	return c.defaultForEngine(capability, engineID, language, platform, verified, true)
+}
+
+func (c *Catalog) defaultForEngine(capability Capability, engineID, language string, platform Platform, verified func(Model) bool, commercial bool) (Model, error) {
+	engineID = strings.TrimSpace(engineID)
+	if engineID == "" {
+		return Model{}, fmt.Errorf("%w: engine id is required", ErrNoEligibleModel)
+	}
+	candidates := c.CandidatesForEngine(capability, engineID, language, platform)
+	for _, m := range candidates {
+		if !m.HasEngineDefault(engineID) {
+			continue
+		}
+		if commercial && m.Commercial != CommercialYes {
+			return Model{}, fmt.Errorf("%w: capability=%s engine=%q language=%q", ErrNoCommercialModel, capability, engineID, language)
+		}
+		eligible := m.EngineDefaultEligible() || (verified != nil && verified(m))
+		if eligible {
+			return m, nil
+		}
+		if commercial {
+			return Model{}, fmt.Errorf("%w: capability=%s engine=%q language=%q", ErrNoCommercialModel, capability, engineID, language)
+		}
+		return Model{}, fmt.Errorf("%w: capability=%s engine=%q language=%q", ErrNoEligibleModel, capability, engineID, language)
+	}
+	for _, m := range candidates {
+		if !m.HasRole("default") {
+			continue
+		}
+		if commercial && m.Commercial != CommercialYes {
+			continue
+		}
+		if m.DefaultEligible() || (verified != nil && verified(m)) {
 			return m, nil
 		}
 	}
-	return Model{}, fmt.Errorf("%w: capability=%s engine=%q language=%q (no model declares the default role)",
-		ErrNoEligibleModel, capability, engineID, language)
+	return Model{}, c.noDefaultError(capability, engineID, language, platform, commercial, verified)
+}
+
+func (c *Catalog) defaultFor(capability Capability, engineID, language string, platform Platform, verified func(Model) bool) (Model, error) {
+	for _, m := range c.CandidatesForEngine(capability, engineID, language, platform) {
+		if m.HasRole("default") && (m.DefaultEligible() || (verified != nil && verified(m))) {
+			return m, nil
+		}
+	}
+	return Model{}, c.noDefaultError(capability, engineID, language, platform, false, verified)
 }
 
 // CommercialDefaultFor is DefaultFor with a fail-closed commercial filter. It
@@ -513,12 +728,50 @@ func (c *Catalog) defaultFor(capability Capability, engineID, language string, p
 // and whose commercial_use is explicitly "yes". Unknown or non-commercial
 // records are never returned, even when they rank highest.
 func (c *Catalog) CommercialDefaultFor(capability Capability, language string, platform Platform) (Model, error) {
+	return c.CommercialDefaultForVerified(capability, language, platform, nil)
+}
+
+// CommercialDefaultForVerified is CommercialDefaultFor with owner verification
+// available for newly declared defaults.
+func (c *Catalog) CommercialDefaultForVerified(capability Capability, language string, platform Platform, verified func(Model) bool) (Model, error) {
 	for _, m := range c.CandidatesFor(capability, language, platform) {
-		if m.HasRole("default") && m.Commercial == CommercialYes && m.DefaultEligible() {
+		if m.HasRole("default") && m.Commercial == CommercialYes && (m.DefaultEligible() || (verified != nil && verified(m))) {
 			return m, nil
 		}
 	}
-	return Model{}, fmt.Errorf("%w: capability=%s language=%q", ErrNoCommercialModel, capability, language)
+	return Model{}, c.noDefaultError(capability, "", language, platform, true, verified)
+}
+
+func (c *Catalog) noDefaultError(capability Capability, engineID, language string, platform Platform, commercial bool, verified func(Model) bool) error {
+	var excluded []string
+	for _, model := range c.byCapability[capability] {
+		if engineID != "" && !model.hasEngine(engineID) {
+			continue
+		}
+		if !model.Speaks(language) || (commercial && model.Commercial != CommercialYes) {
+			continue
+		}
+		isDefault := model.HasRole("default") && (model.DefaultEligible() || (verified != nil && verified(model)))
+		if engineID != "" && model.HasEngineDefault(engineID) {
+			isDefault = model.EngineDefaultEligible() || (verified != nil && verified(model))
+		}
+		if !isDefault {
+			continue
+		}
+		reasons := model.platformExclusionReasons(platform)
+		if len(reasons) > 0 {
+			excluded = append(excluded, model.ID+": "+strings.Join(reasons, ", "))
+		}
+	}
+	if len(excluded) > 0 {
+		return fmt.Errorf("%w: capability=%s engine=%q language=%q; host constraints exclude default model(s): %s",
+			ErrNoEligibleModel, capability, engineID, language, strings.Join(excluded, "; "))
+	}
+	if commercial {
+		return fmt.Errorf("%w: capability=%s engine=%q language=%q", ErrNoCommercialModel, capability, engineID, language)
+	}
+	return fmt.Errorf("%w: capability=%s engine=%q language=%q (no model declares an eligible default)",
+		ErrNoEligibleModel, capability, engineID, language)
 }
 
 func sortModels(models []Model, policy SelectionPolicy) {

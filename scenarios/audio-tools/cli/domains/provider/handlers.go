@@ -37,47 +37,87 @@ func newHandlersWithClock(core *cliapp.ScenarioApp, now func() time.Time) *handl
 }
 
 func (h *handlers) list(ctx cliapp.RunContext) error {
-	resp, err := h.client.ListLocalProviders(context.Background(), connect.NewRequest(&plv1.ListLocalProvidersRequest{}))
-	if err != nil {
-		return cliapp.WrapAPIError("provider list", err, nil)
-	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, listReport(resp.Msg.GetProviders(), h.now))
+	return h.listPrimitive().Run(ctx)
+}
+
+func (h *handlers) listPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoCustomRenderers(func(_ cliapp.OperationContext) (*plv1.ListLocalProvidersResponse, error) {
+		resp, err := h.client.ListLocalProviders(context.Background(), connect.NewRequest(&plv1.ListLocalProvidersRequest{}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("provider list", err, nil)
+		}
+		return resp.Msg, nil
+	}, func(ctx cliapp.RunContext, resp *plv1.ListLocalProvidersResponse) error {
+		return ctx.RenderMutation(listReport(resp.GetProviders(), h.now))
+	}, nil)
 }
 
 func (h *handlers) start(ctx cliapp.RunContext) error {
-	id := ctx.Positional("provider-id")
-	resp, err := h.client.StartProvider(context.Background(), connect.NewRequest(&plv1.StartProviderRequest{ProviderId: id}))
-	if err != nil {
-		return cliapp.WrapAPIError("provider start", err, nil)
-	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, actionReport("start", id, resp.Msg.GetDryRun(), resp.Msg.GetMessage()))
+	return h.startPrimitive().Run(ctx)
+}
+
+func (h *handlers) startPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoCustomRenderers(func(ctx cliapp.OperationContext) (*plv1.StartProviderResponse, error) {
+		id := ctx.Positional("provider-id")
+		resp, err := h.client.StartProvider(context.Background(), connect.NewRequest(&plv1.StartProviderRequest{ProviderId: id}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("provider start", err, nil)
+		}
+		return resp.Msg, nil
+	}, func(ctx cliapp.RunContext, resp *plv1.StartProviderResponse) error {
+		return ctx.RenderMutation(actionReport("start", resp.GetProviderId(), resp.GetDryRun(), resp.GetMessage()))
+	}, nil)
 }
 
 func (h *handlers) stop(ctx cliapp.RunContext) error {
-	id := ctx.Positional("provider-id")
-	resp, err := h.client.StopProvider(context.Background(), connect.NewRequest(&plv1.StopProviderRequest{ProviderId: id}))
-	if err != nil {
-		return cliapp.WrapAPIError("provider stop", err, nil)
-	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, actionReport("stop", id, resp.Msg.GetDryRun(), resp.Msg.GetMessage()))
+	return h.stopPrimitive().Run(ctx)
+}
+
+func (h *handlers) stopPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoCustomRenderers(func(ctx cliapp.OperationContext) (*plv1.StopProviderResponse, error) {
+		id := ctx.Positional("provider-id")
+		resp, err := h.client.StopProvider(context.Background(), connect.NewRequest(&plv1.StopProviderRequest{ProviderId: id}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("provider stop", err, nil)
+		}
+		return resp.Msg, nil
+	}, func(ctx cliapp.RunContext, resp *plv1.StopProviderResponse) error {
+		return ctx.RenderMutation(actionReport("stop", resp.GetProviderId(), resp.GetDryRun(), resp.GetMessage()))
+	}, nil)
 }
 
 func (h *handlers) restart(ctx cliapp.RunContext) error {
-	id := ctx.Positional("provider-id")
-	resp, err := h.client.RestartProvider(context.Background(), connect.NewRequest(&plv1.RestartProviderRequest{ProviderId: id}))
-	if err != nil {
-		return cliapp.WrapAPIError("provider restart", err, nil)
-	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, actionReport("restart", id, resp.Msg.GetDryRun(), resp.Msg.GetMessage()))
+	return h.restartPrimitive().Run(ctx)
+}
+
+func (h *handlers) restartPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoCustomRenderers(func(ctx cliapp.OperationContext) (*plv1.RestartProviderResponse, error) {
+		id := ctx.Positional("provider-id")
+		resp, err := h.client.RestartProvider(context.Background(), connect.NewRequest(&plv1.RestartProviderRequest{ProviderId: id}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("provider restart", err, nil)
+		}
+		return resp.Msg, nil
+	}, func(ctx cliapp.RunContext, resp *plv1.RestartProviderResponse) error {
+		return ctx.RenderMutation(actionReport("restart", resp.GetProviderId(), resp.GetDryRun(), resp.GetMessage()))
+	}, nil)
 }
 
 func (h *handlers) pullModel(ctx cliapp.RunContext) error {
-	model := ctx.Positional("model-name")
-	resp, err := h.client.PullModel(context.Background(), connect.NewRequest(&plv1.PullModelRequest{ProviderId: "ollama", ModelName: model}))
-	if err != nil {
-		return cliapp.WrapAPIError("provider pull-model", err, nil)
-	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, actionReport("pull-model "+model, "ollama", resp.Msg.GetDryRun(), resp.Msg.GetMessage()))
+	return h.pullModelPrimitive().Run(ctx)
+}
+
+func (h *handlers) pullModelPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoCustomRenderers(func(ctx cliapp.OperationContext) (*plv1.PullModelResponse, error) {
+		model := ctx.Positional("model-name")
+		resp, err := h.client.PullModel(context.Background(), connect.NewRequest(&plv1.PullModelRequest{ProviderId: "ollama", ModelName: model}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("provider pull-model", err, nil)
+		}
+		return resp.Msg, nil
+	}, func(ctx cliapp.RunContext, resp *plv1.PullModelResponse) error {
+		return ctx.RenderMutation(actionReport("pull-model "+resp.GetModelName(), "ollama", resp.GetDryRun(), resp.GetMessage()))
+	}, nil)
 }
 
 func (h *handlers) logs(ctx cliapp.RunContext) error {

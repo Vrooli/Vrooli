@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Loader2, Upload } from "lucide-react";
 import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { ApiErrorState } from "../../../components/composites/ApiErrorState";
 import { transcribe, type ProviderTrace } from "../../../services/diagnostics";
 import type { ApiError } from "../../../api/client";

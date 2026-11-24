@@ -37,7 +37,7 @@ describe("interp", () => {
   });
 
   it("throws when a referenced placeholder has no value", () => {
-    expect(() => interp("Hello, {{name}}!", {})).toThrowError(
+    expect(() => interp("Hello, {{name}}!", {})).toThrow(
       /interp\(\): template expects '\{\{name\}\}' but no value was provided/,
     );
   });

@@ -238,11 +238,12 @@ func RenderTS() (string, error) {
 	b.WriteString("// Engine IDs are the STT stream-selection identifiers. TTS_ADAPTERS is the\n")
 	b.WriteString("// matrix column vocabulary used by the Voices page.\n\n")
 
-	b.WriteString("export type ProviderKind = \"scenario\" | \"local_resource\" | \"local_inprocess\" | \"byok_api\" | \"gateway\" | \"browser\";\n")
+	b.WriteString("export type ProviderKind = \"scenario\" | \"local_resource\" | \"local_inprocess\" | \"byok_api\" | \"gateway\" | \"full_duplex\" | \"browser\";\n")
 	b.WriteString("export type ProviderTier = \"local\" | \"byok\" | \"vrooli\" | \"browser\" | \"none\";\n")
 	b.WriteString("export type ProviderStatus = \"active\" | \"planned\" | \"experimental\" | \"watch\";\n")
-	b.WriteString("export type ProviderCapability = \"stt\" | \"tts\" | \"summarize\" | \"transcode\" | \"speaker\";\n")
+	b.WriteString("export type ProviderCapability = \"stt\" | \"tts\" | \"summarize\" | \"transcode\" | \"speaker\" | \"duplex\";\n")
 	b.WriteString("export type ProviderCheckerKind = \"http_json\" | \"command\" | \"resource\" | \"none\";\n\n")
+	b.WriteString("export interface ProviderConsentRequirement { readonly source: string; readonly revalidateActiveSessions: boolean; }\n\n")
 
 	b.WriteString("export interface ProviderMeta {\n")
 	b.WriteString("  readonly id: string;\n")
@@ -255,13 +256,14 @@ func RenderTS() (string, error) {
 	b.WriteString("  readonly features: readonly string[];\n")
 	b.WriteString("  readonly engineIds: readonly string[];\n")
 	b.WriteString("  readonly resourceSlug: string;\n")
-	b.WriteString("  readonly models: readonly string[];\n")
 	b.WriteString("  readonly checkerKind: ProviderCheckerKind;\n")
+	b.WriteString("  readonly consentRequirement?: ProviderConsentRequirement;\n")
 	b.WriteString("  readonly platformSupport: \"supported\" | \"degraded\" | \"unsupported\";\n")
 	b.WriteString("  readonly platformReason?: string;\n")
 	b.WriteString("  readonly docsUrl?: string;\n")
 	b.WriteString("  readonly operatorCommand?: string;\n")
 	b.WriteString("  readonly adapterId?: string;\n")
+	b.WriteString("  readonly byokAdapterId?: string;\n")
 	b.WriteString("  readonly license?: string;\n")
 	b.WriteString("  readonly labelKey: string;\n")
 	b.WriteString("  readonly descriptionKey: string;\n")
@@ -308,8 +310,10 @@ func renderTSProvider(b *strings.Builder, p Provider) {
 	fmt.Fprintf(b, "    features: [%s],\n", quoteList(p.Features))
 	fmt.Fprintf(b, "    engineIds: [%s],\n", quoteList(p.EngineIDs))
 	fmt.Fprintf(b, "    resourceSlug: %s,\n", strconv.Quote(p.ResourceSlug))
-	fmt.Fprintf(b, "    models: [%s],\n", quoteList(p.Models))
 	fmt.Fprintf(b, "    checkerKind: %s,\n", strconv.Quote(string(p.CheckerKind)))
+	if consent := p.ConsentRequirement; consent != nil {
+		fmt.Fprintf(b, "    consentRequirement: { source: %s, revalidateActiveSessions: %t },\n", strconv.Quote(string(consent.Source)), consent.RevalidateActiveSessions)
+	}
 	fmt.Fprintf(b, "    platformSupport: %s,\n", strconv.Quote(string(p.Platform.Support)))
 	if p.Platform.Reason != "" {
 		fmt.Fprintf(b, "    platformReason: %s,\n", strconv.Quote(p.Platform.Reason))
@@ -322,6 +326,9 @@ func renderTSProvider(b *strings.Builder, p Provider) {
 	}
 	if p.AdapterID != "" {
 		fmt.Fprintf(b, "    adapterId: %s,\n", strconv.Quote(p.AdapterID))
+	}
+	if p.BYOKAdapterID != "" {
+		fmt.Fprintf(b, "    byokAdapterId: %s,\n", strconv.Quote(p.BYOKAdapterID))
 	}
 	if p.License != "" {
 		fmt.Fprintf(b, "    license: %s,\n", strconv.Quote(p.License))

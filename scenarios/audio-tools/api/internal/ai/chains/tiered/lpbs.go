@@ -63,7 +63,7 @@ type LPBSStateCarrier[Client any] interface {
 // SafeIsAvailable keeps provider-level nil receiver contracts intact when a
 // domain provider embeds LPBSProvider. A promoted method cannot protect a nil
 // outer provider because selecting the embedded field dereferences it first.
-func SafeIsAvailable[Client any](carrier LPBSStateCarrier[Client], ctx context.Context) bool {
+func SafeIsAvailable[Client any](ctx context.Context, carrier LPBSStateCarrier[Client]) bool {
 	if carrier == nil {
 		return false
 	}

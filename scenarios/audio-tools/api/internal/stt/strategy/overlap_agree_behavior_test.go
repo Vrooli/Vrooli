@@ -263,6 +263,39 @@ func TestOverlapAgree_ForceCommitOnMaxWindowEmitsSegment(t *testing.T) {
 	require.Equal(t, sttchain.StreamEventDone, got[len(got)-1].Kind, "stream still terminates cleanly")
 }
 
+func TestOverlapAgree_PreservesUniqueCommittedWordTimingsAcrossCompaction(t *testing.T) {
+	provider := scriptedWordsProvider(
+		scriptedHypothesis{text: "one two", wordEnds: []float64{.5, 1.2}},
+		scriptedHypothesis{text: "one two", wordEnds: []float64{.5, 1.2}},
+		scriptedHypothesis{text: "three four", wordEnds: []float64{.3, .8}},
+		scriptedHypothesis{text: "three four", wordEnds: []float64{.3, .8}},
+	)
+	strat := &strategy.OverlapAgree{
+		Provider: provider, Trigger: strategy.TriggerStopwatch, WindowMs: 1000, AdvanceMs: 1000,
+		CommitRuns: 2, MaxWindowMs: 6000, UseWordTimestampAdvance: true,
+	}
+	events := runStrategy(t, context.Background(), strat, sttchain.StreamStart{}, chunksOfWindows(4, 1000, 0))
+	var segments []*sttchain.SegmentEvent
+	for _, event := range events {
+		if event.Kind == sttchain.StreamEventSegment && event.Segment != nil {
+			segments = append(segments, event.Segment)
+		}
+	}
+	require.GreaterOrEqual(t, len(segments), 2)
+	require.Equal(t, "one two", segments[0].Text)
+	require.Equal(t, []sttchain.TimedWord{
+		{Word: "one", Start: 0, End: .5, Prob: .9}, {Word: "two", Start: .5, End: 1.2, Prob: .9},
+	}, segments[0].Words)
+	require.Equal(t, int64(0), segments[0].StartSample)
+
+	require.Equal(t, "three four", strings.TrimSpace(segments[1].Text))
+	require.Equal(t, []sttchain.TimedWord{
+		{Word: "three", Start: 0, End: .3, Prob: .9}, {Word: "four", Start: .3, End: .8, Prob: .9},
+	}, segments[1].Words)
+	require.Equal(t, int64(19_200), segments[1].StartSample,
+		"compaction must retain the absolute origin of the new provider request")
+}
+
 // TestOverlapAgree_TailFlushEmitsRemainder proves the channel-close
 // tail transcribe commits trailing audio that never got a second
 // confirming iteration. This covers the last fragment of an utterance

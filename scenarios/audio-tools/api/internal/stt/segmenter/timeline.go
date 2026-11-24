@@ -84,7 +84,7 @@ func (t *AudioTimeline) Lookup(start, end int64) AudioRange {
 			continue
 		}
 		from := maxInt64(start, chunk.StartSample)
-		to := minInt64(end, chunk.EndSample)
+		to := min(end, chunk.EndSample)
 		byteStart := (from - chunk.StartSample) * 2
 		byteEnd := (to - chunk.StartSample) * 2
 		if byteStart < 0 || byteEnd > int64(len(chunk.Audio)) {
@@ -102,13 +102,6 @@ func (t *AudioTimeline) evictLocked() {
 	for len(t.chunks) > 1 && t.chunks[len(t.chunks)-1].EndSample-t.chunks[0].StartSample > t.maxSamples {
 		t.chunks = t.chunks[1:]
 	}
-}
-
-func minInt64(a, b int64) int64 {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 func maxInt64(a, b int64) int64 {

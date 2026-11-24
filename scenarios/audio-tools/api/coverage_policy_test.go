@@ -1,10 +1,6 @@
 package main
 
 import (
-	"os/exec"
-	"regexp"
-	"strconv"
-	"strings"
 	"testing"
 )
 
@@ -38,59 +34,21 @@ func TestCoverageFloors(t *testing.T) {
 		"audio-tools/internal/ai/summarizechain": 85,
 		"audio-tools/internal/ai/ttschain":       80,
 		"audio-tools/internal/diagnostics":       90,
+		// Catalogs own the scenario's extensibility contract. Keep coverage
+		// floors on their loaders, validators, policy resolution, and drift
+		// checks so new declarations cannot quietly weaken runtime guarantees.
+		"audio-tools/internal/providercatalog":   85,
+		"audio-tools/internal/operationcatalog":  80,
+		"audio-tools/internal/modelcatalog":      80,
+		"audio-tools/internal/modelpromotion":    75,
+		"audio-tools/internal/sttengine":         75,
 		"audio-tools/handlers/stt":               80,
 		"audio-tools/internal/audio":             75,
 		"audio-tools/internal/stt/pipeline":      55,
 		"audio-tools/internal/tts":               70,
 		"audio-tools/internal/usagereport":       65,
 		"audio-tools/internal/testutil/vendorws": 80,
-		// Composition and lab/qualification packages were previously
-		// unenforced. These floors are measured-baseline, not aspirations:
-		// the gate exists to stop silent regression, not to claim coverage.
-		// Floors keep at least five points of headroom so an ordinary
-		// refactor does not trip the gate.
-		"audio-tools/internal/bootstrap": 50,
-		// Lab packages are product-mounted but not serving paths. The
-		// boundary that keeps them out of request handling is documented and
-		// enforced in api/internal/lab.
-		"audio-tools/internal/experiment":          64,
-		"audio-tools/internal/experiment/evaldeps": 70,
-		"audio-tools/internal/experiment/recipe":   68,
-		"audio-tools/internal/experiment/report":   73,
-		"audio-tools/internal/eval":                77,
-		"audio-tools/internal/soak":                62,
-		"audio-tools/handlers/experiment":          38,
-		"audio-tools/handlers/eval":                87,
-		"audio-tools/handlers/soak":                32,
-		"audio-tools/handlers/validation":          56,
+		"audio-tools/internal/bootstrap":         50,
 	}
-
-	packages := make([]string, 0, len(floors))
-	for pkg := range floors {
-		packages = append(packages, "./"+strings.TrimPrefix(pkg, "audio-tools/"))
-	}
-	cmd := exec.Command("go", append([]string{"test", "-race", "-cover", "-timeout", "300s"}, packages...)...)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("run package coverage: %v\n%s", err, output)
-	}
-
-	coverageLine := regexp.MustCompile(`(?m)^ok\s+(audio-tools/\S+).*coverage:\s+([0-9]+(?:\.[0-9]+)?)%`)
-	seen := make(map[string]float64, len(floors))
-	for _, match := range coverageLine.FindAllStringSubmatch(string(output), -1) {
-		coverage, parseErr := strconv.ParseFloat(match[2], 64)
-		if parseErr == nil {
-			seen[match[1]] = coverage
-		}
-	}
-	for pkg, floor := range floors {
-		coverage, found := seen[pkg]
-		if !found {
-			t.Errorf("%s: coverage result missing", pkg)
-			continue
-		}
-		if coverage < float64(floor) {
-			t.Errorf("%s: %.1f%% coverage is below the %d%% floor", pkg, coverage, floor)
-		}
-	}
+	assertCoverageFloors(t, floors, nil)
 }

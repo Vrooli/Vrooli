@@ -4,6 +4,7 @@ package tts
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -104,7 +105,7 @@ func (h *connectHandler) SynthesizeStream(ctx context.Context, req *connect.Requ
 		Voice:          req.Msg.Voice,
 		VoiceOverrides: voiceOverridesFromProto(req.Msg.GetVoiceOverrides()),
 		Speed:          req.Msg.Speed,
-		ResponseFormat: protomap.ResponseFormatFromProto(req.Msg.GetResponseFormat()),
+		ResponseFormat: h.effectiveResponseFormat(ctx, protomap.ResponseFormatFromProto(req.Msg.GetResponseFormat())),
 		BYOKProvider:   env.Provider,
 		BYOKKey:        env.Key,
 		LPBSToken:      env.LPBSToken,
@@ -130,7 +131,7 @@ func (h *connectHandler) SynthesizeStream(ctx context.Context, req *connect.Requ
 			msg.ProviderId = frame.ProviderID
 			msg.ModelId = frame.ModelID
 			msg.VoiceUsed = frame.VoiceUsed
-			msg.LatencyMs = float64(frame.Latency.Milliseconds())
+			msg.LatencyMs = float64(frame.Latency) / float64(time.Millisecond)
 			msg.ContentHash = frame.ContentHash
 		}
 		if err := stream.Send(msg); err != nil {
@@ -152,7 +153,7 @@ func (h *connectHandler) Synthesize(ctx context.Context, req *connect.Request[tt
 		Voice:          req.Msg.Voice,
 		VoiceOverrides: voiceOverridesFromProto(req.Msg.GetVoiceOverrides()),
 		Speed:          req.Msg.Speed,
-		ResponseFormat: protomap.ResponseFormatFromProto(req.Msg.GetResponseFormat()),
+		ResponseFormat: h.effectiveResponseFormat(ctx, protomap.ResponseFormatFromProto(req.Msg.GetResponseFormat())),
 		BYOKProvider:   env.Provider,
 		BYOKKey:        env.Key,
 		LPBSToken:      env.LPBSToken,
@@ -203,7 +204,7 @@ func (h *connectHandler) Synthesize(ctx context.Context, req *connect.Request[tt
 		ProviderId:   capabilities.CanonicalProviderID(res.ProviderID),
 		ModelId:      res.ModelID,
 		VoiceUsed:    res.VoiceUsed,
-		LatencyMs:    float64(res.Latency.Milliseconds()),
+		LatencyMs:    float64(res.Latency) / float64(time.Millisecond),
 	}
 
 	// Populate the event-glue byte cache so a later replay of this paragraph
@@ -215,12 +216,18 @@ func (h *connectHandler) Synthesize(ctx context.Context, req *connect.Request[tt
 		if version == "" {
 			version = "active"
 		}
+		cacheBackend := res.CacheBackend
+		if cacheBackend == "" {
+			cacheBackend = h.deps.CacheBackend
+		}
 		h.deps.Cache.Put(inttts.CacheKey{
-			EventID:    req.Msg.GetEventId(),
-			Voice:      req.Msg.GetVoice(),
-			Speed:      req.Msg.GetSpeed(),
-			Version:    version,
-			ChunkIndex: req.Msg.GetChunkIndex(),
+			EventID:        req.Msg.GetEventId(),
+			Backend:        cacheBackend,
+			Voice:          req.Msg.GetVoice(),
+			Speed:          req.Msg.GetSpeed(),
+			ResponseFormat: chainReq.ResponseFormat,
+			Version:        version,
+			ChunkIndex:     req.Msg.GetChunkIndex(),
 		}, res.Audio, res.ContentType)
 	}
 	return resp, nil

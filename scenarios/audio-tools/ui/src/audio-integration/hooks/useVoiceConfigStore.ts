@@ -19,6 +19,7 @@ import {
 
 export interface VoiceConfigState {
   hydrated: boolean;
+  engineId: string;
   vadSilenceTimeoutMs: number;
   segmentSilenceMs: number;
   persistentMode: boolean;
@@ -26,6 +27,7 @@ export interface VoiceConfigState {
 }
 
 interface ServerStreamConfigSlice {
+  engineId?: string;
   vadSilenceMs: number;
   segmentSilenceMs: number;
   persistentMode: boolean;
@@ -34,6 +36,7 @@ interface ServerStreamConfigSlice {
 
 let state: VoiceConfigState = {
   hydrated: false,
+  engineId: "",
   vadSilenceTimeoutMs: VAD_FALLBACK_SILENCE_TIMEOUT_MS,
   segmentSilenceMs: VAD_FALLBACK_SEGMENT_SILENCE_MS,
   persistentMode: false,
@@ -66,6 +69,7 @@ export function setVoiceConfigFromServer(cfg: ServerStreamConfigSlice): void {
   const silenceMs = cfg.vadSilenceMs > 0 ? cfg.vadSilenceMs : cfg.segmentSilenceMs;
   state = {
     hydrated: true,
+    engineId: cfg.engineId ?? "",
     vadSilenceTimeoutMs: silenceMs > 0 ? silenceMs : VAD_FALLBACK_SILENCE_TIMEOUT_MS,
     segmentSilenceMs: silenceMs > 0 ? silenceMs : VAD_FALLBACK_SEGMENT_SILENCE_MS,
     persistentMode: cfg.persistentMode,
@@ -78,6 +82,7 @@ export function setVoiceConfigFromServer(cfg: ServerStreamConfigSlice): void {
 export function _resetVoiceConfigForTesting(): void {
   state = {
     hydrated: false,
+    engineId: "",
     vadSilenceTimeoutMs: VAD_FALLBACK_SILENCE_TIMEOUT_MS,
     segmentSilenceMs: VAD_FALLBACK_SEGMENT_SILENCE_MS,
     persistentMode: false,

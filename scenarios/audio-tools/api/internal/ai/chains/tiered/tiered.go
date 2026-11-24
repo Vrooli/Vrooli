@@ -41,6 +41,15 @@ func (s Slot) String() string {
 	return "unknown"
 }
 
+// Order returns the common tier precedence for unary and streaming
+// negotiation. Capability chains still own eligibility and stream semantics.
+func Order(localFirst bool) [3]Slot {
+	if localFirst {
+		return [3]Slot{SlotLocal, SlotBYOK, SlotVrooli}
+	}
+	return [3]Slot{SlotBYOK, SlotVrooli, SlotLocal}
+}
+
 // FallbackEvent is emitted when a request is served from a tier OTHER than
 // the user's first-priority (first-eligible) tier. From identifies the
 // first-priority tier that was attempted but failed/declined; To identifies
@@ -211,11 +220,7 @@ func (c *Coordinator[Req, Resp]) Execute(ctx context.Context, req Req) (Resp, er
 		haveFirst   bool
 	)
 
-	order := []Slot{SlotBYOK, SlotVrooli, SlotLocal}
-	if c.localFirst {
-		order = []Slot{SlotLocal, SlotBYOK, SlotVrooli}
-	}
-	for _, slot := range order {
+	for _, slot := range Order(c.localFirst) {
 		if !c.Eligible(ctx, slot, req) {
 			continue
 		}

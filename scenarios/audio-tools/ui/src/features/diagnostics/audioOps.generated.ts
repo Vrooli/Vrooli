@@ -85,6 +85,9 @@ export type AudioOpOptionLabelKey =
   | "diagnostics.formatFlac"
   | "diagnostics.formatOgg"
   | "diagnostics.formatAac"
+  | "diagnostics.formatWebm"
+  | "diagnostics.formatOpus"
+  | "diagnostics.formatPcmS16le"
   | "diagnostics.audioOps.optionAuto"
   | "diagnostics.audioOps.methodEbuR128"
   | "diagnostics.audioOps.methodRms"
@@ -148,6 +151,9 @@ export const audioOps: readonly AudioOpSpec[] = [
           { value: "flac", labelKey: "diagnostics.formatFlac" },
           { value: "ogg", labelKey: "diagnostics.formatOgg" },
           { value: "aac", labelKey: "diagnostics.formatAac" },
+          { value: "webm", labelKey: "diagnostics.formatWebm" },
+          { value: "opus", labelKey: "diagnostics.formatOpus" },
+          { value: "pcm_s16le", labelKey: "diagnostics.formatPcmS16le" },
         ],
       },
       {
@@ -164,6 +170,9 @@ export const audioOps: readonly AudioOpSpec[] = [
           { value: "flac", labelKey: "diagnostics.formatFlac" },
           { value: "ogg", labelKey: "diagnostics.formatOgg" },
           { value: "aac", labelKey: "diagnostics.formatAac" },
+          { value: "webm", labelKey: "diagnostics.formatWebm" },
+          { value: "opus", labelKey: "diagnostics.formatOpus" },
+          { value: "pcm_s16le", labelKey: "diagnostics.formatPcmS16le" },
         ],
       },
       {
@@ -230,6 +239,9 @@ export const audioOps: readonly AudioOpSpec[] = [
           { value: "flac", labelKey: "diagnostics.formatFlac" },
           { value: "ogg", labelKey: "diagnostics.formatOgg" },
           { value: "aac", labelKey: "diagnostics.formatAac" },
+          { value: "webm", labelKey: "diagnostics.formatWebm" },
+          { value: "opus", labelKey: "diagnostics.formatOpus" },
+          { value: "pcm_s16le", labelKey: "diagnostics.formatPcmS16le" },
         ],
       },
       {
@@ -283,6 +295,9 @@ export const audioOps: readonly AudioOpSpec[] = [
           { value: "flac", labelKey: "diagnostics.formatFlac" },
           { value: "ogg", labelKey: "diagnostics.formatOgg" },
           { value: "aac", labelKey: "diagnostics.formatAac" },
+          { value: "webm", labelKey: "diagnostics.formatWebm" },
+          { value: "opus", labelKey: "diagnostics.formatOpus" },
+          { value: "pcm_s16le", labelKey: "diagnostics.formatPcmS16le" },
         ],
       },
       {
@@ -325,6 +340,9 @@ export const audioOps: readonly AudioOpSpec[] = [
           { value: "flac", labelKey: "diagnostics.formatFlac" },
           { value: "ogg", labelKey: "diagnostics.formatOgg" },
           { value: "aac", labelKey: "diagnostics.formatAac" },
+          { value: "webm", labelKey: "diagnostics.formatWebm" },
+          { value: "opus", labelKey: "diagnostics.formatOpus" },
+          { value: "pcm_s16le", labelKey: "diagnostics.formatPcmS16le" },
         ],
       },
       {
@@ -359,6 +377,9 @@ export const audioOps: readonly AudioOpSpec[] = [
           { value: "flac", labelKey: "diagnostics.formatFlac" },
           { value: "ogg", labelKey: "diagnostics.formatOgg" },
           { value: "aac", labelKey: "diagnostics.formatAac" },
+          { value: "webm", labelKey: "diagnostics.formatWebm" },
+          { value: "opus", labelKey: "diagnostics.formatOpus" },
+          { value: "pcm_s16le", labelKey: "diagnostics.formatPcmS16le" },
         ],
       },
     ],
@@ -390,6 +411,9 @@ export const audioOps: readonly AudioOpSpec[] = [
           { value: "flac", labelKey: "diagnostics.formatFlac" },
           { value: "ogg", labelKey: "diagnostics.formatOgg" },
           { value: "aac", labelKey: "diagnostics.formatAac" },
+          { value: "webm", labelKey: "diagnostics.formatWebm" },
+          { value: "opus", labelKey: "diagnostics.formatOpus" },
+          { value: "pcm_s16le", labelKey: "diagnostics.formatPcmS16le" },
         ],
       },
       {
@@ -427,6 +451,9 @@ export const audioOps: readonly AudioOpSpec[] = [
           { value: "flac", labelKey: "diagnostics.formatFlac" },
           { value: "ogg", labelKey: "diagnostics.formatOgg" },
           { value: "aac", labelKey: "diagnostics.formatAac" },
+          { value: "webm", labelKey: "diagnostics.formatWebm" },
+          { value: "opus", labelKey: "diagnostics.formatOpus" },
+          { value: "pcm_s16le", labelKey: "diagnostics.formatPcmS16le" },
         ],
       },
     ],
@@ -458,6 +485,9 @@ export const audioOps: readonly AudioOpSpec[] = [
           { value: "flac", labelKey: "diagnostics.formatFlac" },
           { value: "ogg", labelKey: "diagnostics.formatOgg" },
           { value: "aac", labelKey: "diagnostics.formatAac" },
+          { value: "webm", labelKey: "diagnostics.formatWebm" },
+          { value: "opus", labelKey: "diagnostics.formatOpus" },
+          { value: "pcm_s16le", labelKey: "diagnostics.formatPcmS16le" },
         ],
       },
       {
@@ -484,6 +514,9 @@ export const audioOps: readonly AudioOpSpec[] = [
           { value: "flac", labelKey: "diagnostics.formatFlac" },
           { value: "ogg", labelKey: "diagnostics.formatOgg" },
           { value: "aac", labelKey: "diagnostics.formatAac" },
+          { value: "webm", labelKey: "diagnostics.formatWebm" },
+          { value: "opus", labelKey: "diagnostics.formatOpus" },
+          { value: "pcm_s16le", labelKey: "diagnostics.formatPcmS16le" },
         ],
       },
     ],
@@ -515,6 +548,9 @@ export const audioOps: readonly AudioOpSpec[] = [
           { value: "flac", labelKey: "diagnostics.formatFlac" },
           { value: "ogg", labelKey: "diagnostics.formatOgg" },
           { value: "aac", labelKey: "diagnostics.formatAac" },
+          { value: "webm", labelKey: "diagnostics.formatWebm" },
+          { value: "opus", labelKey: "diagnostics.formatOpus" },
+          { value: "pcm_s16le", labelKey: "diagnostics.formatPcmS16le" },
         ],
       },
       {
@@ -554,6 +590,9 @@ export const audioOps: readonly AudioOpSpec[] = [
           { value: "flac", labelKey: "diagnostics.formatFlac" },
           { value: "ogg", labelKey: "diagnostics.formatOgg" },
           { value: "aac", labelKey: "diagnostics.formatAac" },
+          { value: "webm", labelKey: "diagnostics.formatWebm" },
+          { value: "opus", labelKey: "diagnostics.formatOpus" },
+          { value: "pcm_s16le", labelKey: "diagnostics.formatPcmS16le" },
         ],
       },
     ],
@@ -585,6 +624,9 @@ export const audioOps: readonly AudioOpSpec[] = [
           { value: "flac", labelKey: "diagnostics.formatFlac" },
           { value: "ogg", labelKey: "diagnostics.formatOgg" },
           { value: "aac", labelKey: "diagnostics.formatAac" },
+          { value: "webm", labelKey: "diagnostics.formatWebm" },
+          { value: "opus", labelKey: "diagnostics.formatOpus" },
+          { value: "pcm_s16le", labelKey: "diagnostics.formatPcmS16le" },
         ],
       },
     ],

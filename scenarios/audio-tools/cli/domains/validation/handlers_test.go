@@ -23,6 +23,14 @@ func TestSyntheticPCMIsContinuousDeterministicPCM(t *testing.T) {
 	require.NotEqual(t, first, syntheticPCM(syntheticSampleRate, syntheticFrameDuration, 37), "a non-boundary offset must change the phase")
 }
 
+func TestSpeakerStreamIdentityUsesInjectedTime(t *testing.T) {
+	when := time.Date(2026, time.November, 20, 17, 46, 0, 123, time.UTC)
+	got := speakerStreamIdentity(when)
+	require.Equal(t, "speaker-policy-validation-1795196760000000123", got)
+	require.Equal(t, got, speakerStreamIdentity(when))
+	require.NotEqual(t, got, speakerStreamIdentity(when.Add(time.Nanosecond)))
+}
+
 func TestRunAndRecordRejectsShortQualificationBeforeExternalEffects(t *testing.T) {
 	h := newHandlersWithClock(nil, func() time.Time { return time.Unix(0, 0) })
 	err := h.runAndRecord(t.Context(), t.TempDir(), filepath.Join(t.TempDir(), "evidence.json"), 59*time.Minute, os.Stdout, false)

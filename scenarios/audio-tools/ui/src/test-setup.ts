@@ -23,8 +23,8 @@
  * easier to follow.
  */
 import "@testing-library/jest-dom/vitest";
-import { afterEach, beforeEach, vi } from "vitest";
-import { i18n } from "./i18n";
+import { afterEach, beforeEach, vi, type MockInstance } from "vitest";
+import { i18n, i18nReady } from "./i18n";
 
 // jsdom does not implement matchMedia. The shared VoiceInputButton and the
 // application preference hooks both use it, so keep the browser contract
@@ -60,11 +60,31 @@ if (typeof window.matchMedia !== "function") {
   });
 }
 
-let consoleError: ReturnType<typeof vi.spyOn>;
-let consoleWarn: ReturnType<typeof vi.spyOn>;
+// jsdom does not provide ResizeObserver. Components that virtualize or size
+// scrollable content only need the registration lifecycle in most unit tests;
+// layout-specific behavior belongs in a browser-backed test.
+if (typeof globalThis.ResizeObserver === "undefined") {
+  class TestResizeObserver implements ResizeObserver {
+    constructor(private readonly callback: ResizeObserverCallback) {}
+    observe(): void {
+      this.callback([], this);
+    }
+    unobserve(): void {}
+    disconnect(): void {}
+  }
+  Object.defineProperty(globalThis, "ResizeObserver", {
+    configurable: true,
+    value: TestResizeObserver,
+  });
+}
+
+type ConsoleMethod = (...args: unknown[]) => void;
+let consoleError: MockInstance<ConsoleMethod>;
+let consoleWarn: MockInstance<ConsoleMethod>;
 
 beforeEach(async () => {
   window.localStorage.clear();
+  await i18nReady;
   await i18n.changeLanguage("cimode");
   consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
   consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -78,8 +98,8 @@ afterEach(() => {
 
   if (errorCalls.length > 0 || warnCalls.length > 0) {
     const formatted = [
-      ...errorCalls.map((args) => `console.error: ${args.map(String).join(" ")}`),
-      ...warnCalls.map((args) => `console.warn: ${args.map(String).join(" ")}`),
+      ...errorCalls.map((args: unknown[]) => `console.error: ${args.map(String).join(" ")}`),
+      ...warnCalls.map((args: unknown[]) => `console.warn: ${args.map(String).join(" ")}`),
     ].join("\n");
     throw new Error(`Unexpected console output during test:\n${formatted}`);
   }

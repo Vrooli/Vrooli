@@ -39,7 +39,7 @@ func newServerForFallback(t *testing.T, chain *summarizechain.Chain) summconnect
 		defer mu.Unlock()
 		cfg = c
 	}, func(context.Context) ([]intsumm.SummarizeModelInfo, error) {
-		return intsumm.MergeSummarizeModels(nil), nil
+		return nil, nil
 	}, logx.Std{}, schedule.System(), nil)
 	r := mux.NewRouter()
 	mod.Mount(r)

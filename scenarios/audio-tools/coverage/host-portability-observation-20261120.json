@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "kind": "host_observation_not_qualification",
+  "observed_at": "2026-11-20",
+  "provenance": {
+    "observer": "audio-tools host portability investigation",
+    "commands": [
+      "uname -a",
+      "lscpu",
+      "free -h",
+      "google-chrome --version",
+      "firefox --version",
+      "nvidia-smi --query-gpu=name,memory.total --format=csv,noheader",
+      "lspci -nn",
+      "wpctl status",
+      "docker run --rm --cpus=2 --memory=4g busybox:latest true",
+      "audio-tools validation run-host-portability --json"
+    ],
+    "owner_receipt_write": "failed: RecordQualificationEvidence returned unimplemented (404); no qualification receipt was persisted"
+  },
+  "host": {
+    "os": "Ubuntu 24.04",
+    "kernel": "Linux 7.0.0-30-generic",
+    "architecture": "x86_64",
+    "cpu": "AMD Ryzen 9 7950X 16-Core Processor",
+    "logical_cpus": 32,
+    "memory_total_gib": 60,
+    "memory_available_gib_at_observation": 25,
+    "gpu_inventory": [
+      {
+        "name": "NVIDIA GeForce RTX 4070 Ti SUPER",
+        "memory_mib": 16376
+      },
+      {
+        "name": "AMD Raphael integrated graphics"
+      }
+    ]
+  },
+  "browsers": [
+    {
+      "name": "Google Chrome",
+      "version": "150.0.7871.128",
+      "installed": true,
+      "product_path_exercised": false
+    },
+    {
+      "name": "Firefox",
+      "version": "157.0",
+      "installed": true,
+      "product_path_exercised": false
+    }
+  ],
+  "audio_io": {
+    "pipewire_running": true,
+    "input_sources_observed": 0,
+    "output_sinks_observed": 1,
+    "default_output": "Dummy Output",
+    "native_microphone_capture_possible": false
+  },
+  "matrix": {
+    "D1_linux_amd64_chromium_cpu": {
+      "state": "unqualified",
+      "inference": "not_run",
+      "browser_installed": true,
+      "native_microphone_available": false
+    },
+    "D1_linux_amd64_chromium_accelerator": {
+      "state": "unqualified",
+      "inference": "not_run",
+      "nvidia_accelerator_observed": true
+    },
+    "D2_linux_amd64_chromium_2vcpu_4gib": {
+      "state": "unqualified",
+      "inference": "not_run",
+      "docker_cpu_memory_control_probe": "passed",
+      "constrained_test_environment_created": false
+    },
+    "D3_macos_arm64": {
+      "state": "unavailable",
+      "reason": "No macOS host was available"
+    },
+    "D4_windows_amd64": {
+      "state": "unavailable",
+      "reason": "No Windows host was available"
+    },
+    "D5_ios_safari_physical_device": {
+      "state": "unavailable",
+      "reason": "No nominated physical iOS device was available"
+    },
+    "D6_android_chrome_physical_device": {
+      "state": "unavailable",
+      "reason": "No nominated physical Android device was available"
+    }
+  },
+  "qualification_boundary": "This artifact records host inventory and probe results only. It contains no browser product-path run, inference result, native microphone result, or device qualification claim."
+}

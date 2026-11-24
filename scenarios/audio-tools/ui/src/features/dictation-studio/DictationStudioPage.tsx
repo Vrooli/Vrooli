@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Panel } from "../../components/ui/panel";
 import { Button } from "../../components/ui/button";
 import { Tabs } from "../../components/ui/tabs";
-import { PageHeader } from "../../components/composites/PageHeader";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { ApiErrorState } from "../../components/composites/ApiErrorState";
 import { pushToast } from "../../components/ui/toast";
 import { useTranslation } from "../../i18n";

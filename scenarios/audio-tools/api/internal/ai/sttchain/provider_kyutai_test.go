@@ -88,18 +88,89 @@ func TestKyutaiProvider_GracefulCloseDrainsFlushTail(t *testing.T) {
 	require.NoError(t, err)
 
 	var segments []string
+	var segmentLatencyMs float64
+	var doneLatencyMs float64
 	var done *sttchain.DoneEvent
 	for ev := range events {
 		switch ev.Kind {
 		case sttchain.StreamEventSegment:
 			segments = append(segments, ev.Segment.Text)
+			segmentLatencyMs = ev.Segment.LatencyMs
 		case sttchain.StreamEventDone:
 			done = ev.Done
+			if ev.Done != nil {
+				doneLatencyMs = ev.Done.LatencyMs
+			}
 		}
 	}
 	require.Equal(t, []string{"flushed tail"}, segments, "graceful close must await the flushed tail")
+	require.Greater(t, segmentLatencyMs, float64(0), "native streaming segment must report measured provider latency")
+	require.Greater(t, doneLatencyMs, float64(0), "native streaming completion must report measured provider latency")
 	require.NotNil(t, done)
 	require.Equal(t, 1, endCount(), "exactly one end marker on graceful close")
+}
+
+// TestKyutaiProvider_PreservesFinalSuffixInAggregateTranscript covers the
+// complete provider contract when recognition emits text before end and then
+// flushes more text only after the end marker. Callers use Done.FinalText as
+// the complete transcript, so retaining the final segment event alone is not
+// enough to prevent a truncated result.
+func TestKyutaiProvider_PreservesFinalSuffixInAggregateTranscript(t *testing.T) {
+	up := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := up.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		if _, _, err := conn.ReadMessage(); err != nil { // start
+			return
+		}
+		if err := conn.WriteMessage(websocket.TextMessage, []byte(vendorws.EncodeJSON(map[string]any{"type": "ready"}))); err != nil {
+			return
+		}
+		for {
+			kind, data, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+			if kind == websocket.BinaryMessage {
+				_ = conn.WriteMessage(websocket.TextMessage, []byte(vendorws.EncodeJSON(map[string]any{
+					"type": "segment", "text": "spoken prefix", "start_ms": 0, "end_ms": 100,
+				})))
+				continue
+			}
+			if kind == websocket.TextMessage && strings.Contains(string(data), `"type":"end"`) {
+				_ = conn.WriteMessage(websocket.TextMessage, []byte(vendorws.EncodeJSON(map[string]any{
+					"type": "segment", "text": "final suffix", "start_ms": 100, "end_ms": 200,
+				})))
+				_ = conn.WriteMessage(websocket.TextMessage, []byte(vendorws.EncodeJSON(map[string]any{"type": "done"})))
+				return
+			}
+		}
+	}))
+	defer srv.Close()
+
+	p := sttchain.NewKyutaiProvider("http://example.invalid")
+	p.StreamEndpoint = wsURL(srv.URL)
+	chunks := make(chan sttchain.AudioChunk, 1)
+	chunks <- sttchain.AudioChunk{Audio: []byte{0x01, 0x02}}
+	close(chunks)
+	events, err := p.TranscribeStreaming(context.Background(), sttchain.StreamStart{Language: "en"}, chunks)
+	require.NoError(t, err)
+
+	var segments []string
+	var finalText string
+	for ev := range events {
+		switch ev.Kind {
+		case sttchain.StreamEventSegment:
+			segments = append(segments, ev.Segment.Text)
+		case sttchain.StreamEventDone:
+			finalText = ev.Done.FinalText
+		}
+	}
+	require.Equal(t, []string{"spoken prefix", "final suffix"}, segments)
+	require.Equal(t, "spoken prefix final suffix", finalText)
 }
 
 // TestKyutaiProvider_CancelDrainsTailBeforeClose is the tail-durability
@@ -442,22 +513,33 @@ func TestKyutaiProvider_MapsAdmissionLifecycleAndApproximateSpan(t *testing.T) {
 	defer srv.Close()
 	p := sttchain.NewKyutaiProvider("http://example.invalid")
 	p.StreamEndpoint = wsURL(srv.URL)
+	p.ProviderID = "catalog-provider"
+	p.ModelID = "catalog-model"
 	chunks := make(chan sttchain.AudioChunk, 1)
 	chunks <- sttchain.AudioChunk{Audio: []byte{1, 2}, StartSample: 1_000}
 	close(chunks)
 	events, err := p.TranscribeStreaming(context.Background(), sttchain.StreamStart{SessionID: "session", Generation: 3}, chunks)
 	require.NoError(t, err)
 	var states []string
+	var identity *sttchain.SessionStatusEvent
 	var segment *sttchain.SegmentEvent
 	for event := range events {
 		if event.SessionStatus != nil {
 			states = append(states, event.SessionStatus.State)
+			if event.SessionStatus.ProviderID != "" {
+				copy := *event.SessionStatus
+				identity = &copy
+			}
 		}
 		if event.Segment != nil {
 			segment = event.Segment
 		}
 	}
 	require.Equal(t, []string{"queued", "ready"}, states)
+	require.NotNil(t, identity, "selected route identity must precede the first transcript segment")
+	require.Equal(t, "catalog-provider", identity.ProviderID)
+	require.Equal(t, "catalog-model", identity.ModelID)
+	require.Equal(t, sttchain.TierLocal, identity.ProviderTier)
 	require.NotNil(t, segment)
 	require.Equal(t, int64(1_160), segment.StartSample)
 	require.Equal(t, int64(1_480), segment.EndSample)
@@ -602,6 +684,17 @@ func TestKyutaiProvider_Health(t *testing.T) {
 
 	p := sttchain.NewKyutaiProvider(server.URL + "/")
 	require.True(t, p.IsAvailable(context.Background()))
+}
+
+func TestKyutaiProvider_HealthRejectsOversizedResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"ok","model_loaded":true}` + strings.Repeat(" ", 64<<10)))
+	}))
+	defer server.Close()
+
+	p := sttchain.NewKyutaiProvider(server.URL)
+	require.False(t, p.IsAvailable(context.Background()), "oversized health metadata must fail closed")
 }
 
 func TestKyutaiProvider_ModelProvenanceFallbacks(t *testing.T) {

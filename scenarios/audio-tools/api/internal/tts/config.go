@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"audio-tools/internal/audioformat"
 	"audio-tools/internal/logx"
 )
 
@@ -25,10 +26,10 @@ func SetConfigLogger(l logx.Logger) logx.Logger {
 // DefaultConfig returns the default TTS configuration with auto-TTS disabled.
 func DefaultConfig() Config {
 	return Config{
-		AutoEnabled: false,
-		Backend:     "auto",
-		KokoroVoice: "af_heart",
-		KokoroSpeed: 1.0,
+		AutoEnabled:           false,
+		DefaultResponseFormat: DefaultResponseFormat,
+		KokoroVoice:           "af_heart",
+		KokoroSpeed:           1.0,
 	}
 }
 
@@ -37,8 +38,8 @@ func (p ConfigPatch) Apply(base Config) Config {
 	if p.AutoEnabled != nil {
 		base.AutoEnabled = *p.AutoEnabled
 	}
-	if p.Backend != nil {
-		base.Backend = *p.Backend
+	if p.DefaultResponseFormat != nil {
+		base.DefaultResponseFormat = *p.DefaultResponseFormat
 	}
 	if p.KokoroVoice != nil {
 		base.KokoroVoice = *p.KokoroVoice
@@ -59,23 +60,39 @@ func LoadConfig(path string) (Config, error) {
 		}
 		return DefaultConfig(), fmt.Errorf("read tts config: %w", err)
 	}
-	var raw struct {
-		AutoEnabled bool    `json:"autoEnabled"`
-		Backend     string  `json:"backend"`
-		KokoroVoice string  `json:"kokoroVoice"`
-		KokoroSpeed float64 `json:"kokoroSpeed"`
-	}
-	if err := json.Unmarshal(data, &raw); err != nil {
+	var cfg Config
+	if err := json.Unmarshal(data, &cfg); err != nil {
 		return DefaultConfig(), fmt.Errorf("parse tts config: %w", err)
 	}
-	cfg := Config{
-		AutoEnabled: raw.AutoEnabled,
-		Backend:     raw.Backend,
-		KokoroVoice: raw.KokoroVoice,
-		KokoroSpeed: raw.KokoroSpeed,
+	return cfg, nil
+}
+
+func (c *Config) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		AutoEnabled           bool    `json:"autoEnabled"`
+		DefaultResponseFormat string  `json:"defaultResponseFormat"`
+		LegacyBackend         string  `json:"backend"`
+		KokoroVoice           string  `json:"kokoroVoice"`
+		KokoroSpeed           float64 `json:"kokoroSpeed"`
 	}
-	if cfg.Backend == "" {
-		cfg.Backend = "auto"
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	responseFormat := raw.DefaultResponseFormat
+	if responseFormat == "" {
+		if _, ok := audioformat.OutputFormatFromString(raw.LegacyBackend); ok {
+			responseFormat = raw.LegacyBackend
+		}
+	}
+	*c = Config{AutoEnabled: raw.AutoEnabled, DefaultResponseFormat: responseFormat,
+		KokoroVoice: raw.KokoroVoice, KokoroSpeed: raw.KokoroSpeed}
+	applyConfigDefaults(c)
+	return nil
+}
+
+func applyConfigDefaults(cfg *Config) {
+	if _, ok := audioformat.OutputFormatFromString(cfg.DefaultResponseFormat); !ok {
+		cfg.DefaultResponseFormat = DefaultResponseFormat
 	}
 	if cfg.KokoroVoice == "" {
 		cfg.KokoroVoice = "af_heart"
@@ -83,7 +100,6 @@ func LoadConfig(path string) (Config, error) {
 	if cfg.KokoroSpeed <= 0 {
 		cfg.KokoroSpeed = 1.0
 	}
-	return cfg, nil
 }
 
 // SaveConfig writes a Config to the given JSON file path. The parent
@@ -95,15 +111,15 @@ func SaveConfig(path string, cfg Config) error {
 		return fmt.Errorf("create config directory: %w", err)
 	}
 	wire := struct {
-		AutoEnabled bool    `json:"autoEnabled"`
-		Backend     string  `json:"backend"`
-		KokoroVoice string  `json:"kokoroVoice"`
-		KokoroSpeed float64 `json:"kokoroSpeed"`
+		AutoEnabled           bool    `json:"autoEnabled"`
+		DefaultResponseFormat string  `json:"defaultResponseFormat"`
+		KokoroVoice           string  `json:"kokoroVoice"`
+		KokoroSpeed           float64 `json:"kokoroSpeed"`
 	}{
-		AutoEnabled: cfg.AutoEnabled,
-		Backend:     cfg.Backend,
-		KokoroVoice: cfg.KokoroVoice,
-		KokoroSpeed: cfg.KokoroSpeed,
+		AutoEnabled:           cfg.AutoEnabled,
+		DefaultResponseFormat: cfg.DefaultResponseFormat,
+		KokoroVoice:           cfg.KokoroVoice,
+		KokoroSpeed:           cfg.KokoroSpeed,
 	}
 	data, err := json.MarshalIndent(wire, "", "  ")
 	if err != nil {

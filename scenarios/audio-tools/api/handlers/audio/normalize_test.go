@@ -120,5 +120,7 @@ func TestNormalize_UnreportedLoudnessIsZero(t *testing.T) {
 	require.NotEmpty(t, res.Msg.GetAudio())
 }
 
-var _ intaudio.Runner = (*stderrHandlerRunner)(nil)
-var _ intaudio.StderrRunner = (*stderrHandlerRunner)(nil)
+var (
+	_ intaudio.Runner       = (*stderrHandlerRunner)(nil)
+	_ intaudio.StderrRunner = (*stderrHandlerRunner)(nil)
+)

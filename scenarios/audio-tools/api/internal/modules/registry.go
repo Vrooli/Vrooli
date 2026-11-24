@@ -18,33 +18,31 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	audioH "audio-tools/handlers/audio"
-	corpusH "audio-tools/handlers/corpus"
 	diagH "audio-tools/handlers/diagnostics"
-	experimentH "audio-tools/handlers/experiment"
 	healthH "audio-tools/handlers/health"
 	hsH "audio-tools/handlers/health_status"
+	measuresH "audio-tools/handlers/measures"
 	modelsH "audio-tools/handlers/models"
 	plH "audio-tools/handlers/provider_lifecycle"
 	sessionH "audio-tools/handlers/session"
 	settingsH "audio-tools/handlers/settings"
-	soakH "audio-tools/handlers/soak"
 	sttH "audio-tools/handlers/stt"
 	summarizeH "audio-tools/handlers/summarize"
 	ttsH "audio-tools/handlers/tts"
 	usageH "audio-tools/handlers/usage"
 	"audio-tools/internal/byokstore"
 	localdb "audio-tools/internal/database"
-	intexperiment "audio-tools/internal/experiment"
+	"audio-tools/internal/duplex"
+	trustfloor "audio-tools/internal/qualification"
 	intsettings "audio-tools/internal/settings"
 	intstt "audio-tools/internal/stt"
 	inttts "audio-tools/internal/tts"
 	"audio-tools/internal/usagereport"
 
 	audiov1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio"
-	corpusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/corpus"
 	diagv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/diagnostics"
-	experimentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment"
 	hsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
+	measuresv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/measures"
 	modelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/models"
 	plv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/provider_lifecycle"
 	sessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/session"
@@ -63,17 +61,44 @@ func AllEndpoints() []modulekit.EndpointDescriptor {
 	out = append(out, hsH.Endpoints...)
 	out = append(out, plH.Endpoints...)
 	out = append(out, modelsH.Endpoints...)
+	out = append(out, measuresH.Endpoints...)
 	out = append(out, audioH.Endpoints...)
-	out = append(out, corpusH.Endpoints...)
 	out = append(out, diagH.Endpoints...)
-	out = append(out, experimentH.Endpoints...)
 	out = append(out, sessionH.Endpoints...)
 	out = append(out, settingsH.Endpoints...)
 	out = append(out, sttH.Endpoints...)
 	out = append(out, summarizeH.Endpoints...)
 	out = append(out, ttsH.Endpoints...)
 	out = append(out, usageH.Endpoints...)
-	out = append(out, soakH.Endpoints...)
+	return appendLabEndpoints(out)
+}
+
+// LabEndpoints lists routes that exist only for corpus curation, experiments,
+// or qualification runs. Product runtimes can mount ProductEndpoints without
+// exposing this operator surface.
+func LabEndpoints() []modulekit.EndpointDescriptor {
+	var out []modulekit.EndpointDescriptor
+	for _, endpoint := range AllEndpoints() {
+		switch endpoint.Category {
+		case "corpus", "experiment", "validation":
+			out = append(out, endpoint)
+		}
+	}
+	return out
+}
+
+// ProductEndpoints is the serving and operator configuration API surface.
+func ProductEndpoints() []modulekit.EndpointDescriptor {
+	lab := make(map[string]struct{})
+	for _, endpoint := range LabEndpoints() {
+		lab[endpoint.ID] = struct{}{}
+	}
+	var out []modulekit.EndpointDescriptor
+	for _, endpoint := range AllEndpoints() {
+		if _, isLab := lab[endpoint.ID]; !isLab {
+			out = append(out, endpoint)
+		}
+	}
 	return out
 }
 
@@ -84,16 +109,17 @@ type ProtoFileEntry struct {
 	File   protoreflect.FileDescriptor
 }
 
-// AllProtoFiles returns the proto FileDescriptor backing each
-// Connect-mounted domain module, in registration order.
+// AllProtoFiles returns the scenario-owned domain proto descriptors, in
+// registration order. The externally owned scenario-validation provider
+// protocol is declared in AllEndpoints but is not treated as an Audio Tools
+// domain proto surface here.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "audio", File: audiov1.File_audio_tools_v1_audio_audio_proto},
-		{Module: "corpus", File: corpusv1.File_audio_tools_v1_corpus_corpus_proto},
 		{Module: "diagnostics", File: diagv1.File_audio_tools_v1_diagnostics_diagnostics_proto},
-		{Module: "experiment", File: experimentv1.File_audio_tools_v1_experiment_experiment_proto},
 		{Module: "health_status", File: hsv1.File_audio_tools_v1_health_status_health_status_proto},
 		{Module: "models", File: modelsv1.File_audio_tools_v1_models_models_proto},
+		{Module: "measures", File: measuresv1.File_audio_tools_v1_measures_measures_proto},
 		{Module: "provider_lifecycle", File: plv1.File_audio_tools_v1_provider_lifecycle_provider_lifecycle_proto},
 		{Module: "session", File: sessv1.File_audio_tools_v1_session_session_proto},
 		{Module: "settings", File: settv1.File_audio_tools_v1_settings_settings_proto},
@@ -104,24 +130,25 @@ func AllProtoFiles() []ProtoFileEntry {
 	}
 }
 
-// AllSchemas returns every domain's schema provider plus the system
-// schema (always first).
-func AllSchemas() []apidb.SchemaProvider {
+// ProductSchemas returns schemas needed by the serving and operator
+// configuration API. Lab storage is kept separate so product bootstrap can
+// later avoid creating corpus and experiment tables.
+func ProductSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(byokstore.Schema),
+		apidb.SchemaProviderFunc(duplex.Schema),
 		apidb.SchemaProviderFunc(intsettings.Schema),
 		apidb.SchemaProviderFunc(usagereport.Schema),
 		apidb.SchemaProviderFunc(intstt.Schema),
 		apidb.SchemaProviderFunc(inttts.Schema),
+		apidb.SchemaProviderFunc(trustfloor.Schema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(hsH.Schema),
 		apidb.SchemaProviderFunc(plH.Schema),
 		apidb.SchemaProviderFunc(modelsH.Schema),
 		apidb.SchemaProviderFunc(audioH.Schema),
-		apidb.SchemaProviderFunc(corpusH.Schema),
 		apidb.SchemaProviderFunc(diagH.Schema),
-		apidb.SchemaProviderFunc(intexperiment.Schema),
 		apidb.SchemaProviderFunc(sessionH.Schema),
 		apidb.SchemaProviderFunc(settingsH.Schema),
 		apidb.SchemaProviderFunc(sttH.Schema),
@@ -129,4 +156,15 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(ttsH.Schema),
 		apidb.SchemaProviderFunc(usageH.Schema),
 	}
+}
+
+// LabSchemas returns storage owned by corpus curation and experiments.
+func LabSchemas() []apidb.SchemaProvider {
+	return labSchemas()
+}
+
+// AllSchemas is the complete migration inventory used by shared deployments
+// and tools. Product-only bootstraps should use ProductSchemas instead.
+func AllSchemas() []apidb.SchemaProvider {
+	return appendLabSchemas(ProductSchemas())
 }

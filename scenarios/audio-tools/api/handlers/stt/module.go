@@ -37,6 +37,7 @@ func moduleWithReadLimit(d Deps, maxRequestBytes int) modulekit.Module {
 	return modulekit.Module{
 		Name: "stt",
 		Mount: func(r *mux.Router) {
+			r.HandleFunc(BrowserTranscribeStreamWebSocketPath, h.serveTranscribeStreamWebSocket).Methods("GET")
 			connectx.RegisterServices(r,
 				connectx.ServiceMount{Path: runtimePath, Handler: runtimeHandler},
 				connectx.ServiceMount{Path: adminPath, Handler: adminHandler},

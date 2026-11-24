@@ -1,5 +1,5 @@
 import * as React from "react";
-import { emitShortcutIntent } from "@vrooli/iframe-bridge";
+import { emitShortcutIntent } from "@vrooli/iframe-bridge/shortcut-intent";
 
 export interface Shortcut {
   /** Lowercase key from KeyboardEvent.key. */
@@ -17,7 +17,9 @@ const FORM_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 function isFormTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   if (FORM_TAGS.has(target.tagName)) return true;
-  return target.isContentEditable;
+  // isContentEditable is not implemented by jsdom, and descendants inherit
+  // editability without carrying their own contenteditable attribute.
+  return target.isContentEditable || target.closest('[contenteditable]:not([contenteditable="false"])') !== null;
 }
 
 /**

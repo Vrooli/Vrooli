@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { getDefaultVoiceTransport, registerVoiceTransport, type VoiceStreamConnection, type VoiceStreamHandlers } from "@vrooli/audio-capture-browser";
 
 describe("scenario PCM provider transport adapter", () => {
-  it("registers a Connect bidi stream and retained-audio recovery operation", async () => {
+  it("registers the browser stream adapter and retained-audio recovery operation", async () => {
     const connection: VoiceStreamConnection = {
       isOpen: () => true,
       sendAudio: vi.fn(),
@@ -11,7 +11,7 @@ describe("scenario PCM provider transport adapter", () => {
     };
     const openStream = vi.fn(() => connection);
     const transcribeRetained = vi.fn(() => Promise.resolve("recovered transcript"));
-    registerVoiceTransport({ openStream, transcribeRetained });
+    registerVoiceTransport({ retainedRoutePolicy: "exact-model", openStream, transcribeRetained });
     const transport = getDefaultVoiceTransport();
     expect(transport).not.toBeNull();
 
@@ -24,6 +24,8 @@ describe("scenario PCM provider transport adapter", () => {
     expect(openStream).toHaveBeenCalledWith(start, handlers);
 
     const blob = new Blob(["pcm"], { type: "audio/webm" });
-    await expect(transport?.transcribeRetained(blob, "en-US")).resolves.toBe("recovered transcript");
+    const route = { providerTier: "local" as const, modelId: "whisper-large-v3-turbo" };
+    await expect(transport?.transcribeRetained(blob, "en-US", route)).resolves.toBe("recovered transcript");
+    expect(transcribeRetained).toHaveBeenCalledWith(blob, "en-US", route);
   });
 });

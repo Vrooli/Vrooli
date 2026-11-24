@@ -193,6 +193,9 @@ func (s *SummarizationService) run(ctx context.Context, req SummarizeRequest, cf
 	}
 	defer func() { <-s.sem }()
 
+	// Capture exact source spans before speech normalization so a rescue can
+	// preserve the original wording and provenance boundaries.
+	preservationFacts := ExtractSourceAssignments(req.Text)
 	normalized := normalizer.NormalizeTextForSpeech(req.Text)
 	if strings.TrimSpace(normalized) == "" {
 		return SummarizeResult{Config: cfg}, errors.New("normalized text is empty")
@@ -241,6 +244,10 @@ func (s *SummarizationService) run(ctx context.Context, req SummarizeRequest, cf
 	if summary == "" {
 		return result, classifyEmptySummary(resp)
 	}
+	// Restore source-grounded owner assignments if the model dropped either the
+	// assignee or action. This may extend a truncated or concise model response;
+	// the exact source sentence takes precedence over the model length budget.
+	summary = PreserveSourceAssignments(preservationFacts, summary)
 
 	result.Summary = summary
 	result.Paragraphs = normalizer.SplitIntoSpeechParagraphs(summary)

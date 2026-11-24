@@ -17,11 +17,12 @@ func newTestEnsurer(run func(ctx context.Context, bin string, args ...string) er
 		controlPlane: controlplane.NewForTest("/fake/vrooli", func(ctx context.Context, bin string, args ...string) ([]byte, error) {
 			return nil, run(ctx, bin, args...)
 		}),
-		now:      now,
-		timeout:  DefaultEnsureTimeout,
-		cooldown: DefaultCooldown,
-		inflight: map[string]*ensureCall{},
-		last:     map[string]ensureOutcome{},
+		allowedResources: map[string]struct{}{"whisper": {}},
+		now:              now,
+		timeout:          DefaultEnsureTimeout,
+		cooldown:         DefaultCooldown,
+		inflight:         map[string]*ensureCall{},
+		last:             map[string]ensureOutcome{},
 	}
 }
 

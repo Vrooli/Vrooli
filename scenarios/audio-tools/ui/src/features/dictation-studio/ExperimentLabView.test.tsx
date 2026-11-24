@@ -284,6 +284,7 @@ describe("ExperimentLabView", () => {
 
     await user.clear(screen.getByTestId(selectors.dictationStudio.experimentName));
     await user.type(screen.getByTestId(selectors.dictationStudio.experimentName), "Noise sweep");
+    await user.click(screen.getByTestId(selectors.dictationStudio.experimentMetricsOnly));
     await user.type(screen.getByTestId(selectors.dictationStudio.experimentNoiseTypes), "white,fan");
     await user.click(screen.getByTestId(selectors.dictationStudio.startExperiment));
 
@@ -294,6 +295,7 @@ describe("ExperimentLabView", () => {
           longForm: true,
           latencyTailSeconds: 8,
           noiseTypesCsv: "white,fan",
+          metricsOnly: true,
           strategies: expect.arrayContaining(["batch", "vad_segment", "overlap_agree"]),
         }),
       ),

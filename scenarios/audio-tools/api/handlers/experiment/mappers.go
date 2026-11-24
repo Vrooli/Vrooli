@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 package experiment
 
 import (
@@ -8,6 +10,7 @@ import (
 
 	intexp "audio-tools/internal/experiment"
 	"audio-tools/internal/protoint"
+	"audio-tools/internal/protomap"
 	trustfloor "audio-tools/internal/qualification"
 
 	experimentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment"
@@ -148,6 +151,7 @@ func qualificationEvidenceToProto(evidence intexp.QualificationEvidence) *experi
 		Notes:         evidence.Notes,
 		MachineJson:   string(evidence.MachineJSON),
 		ObservedAt:    timestamppb.New(evidence.ObservedAt),
+		ProviderTier:  protomap.ProviderTierToProto(evidence.ProviderTier),
 	}
 }
 
@@ -159,45 +163,87 @@ func qualificationEvidenceFromProto(evidence *experimentv1.QualificationEvidence
 	if err != nil {
 		return intexp.QualificationEvidence{}, err
 	}
-	if evidence.GetEngineId() == "" || evidence.GetModelId() == "" || evidence.GetStrategy() == "" {
-		return intexp.QualificationEvidence{}, errors.New("qualification evidence engine_id, model_id, and strategy are required")
+	if err := validateQualificationEvidenceIdentity(evidence); err != nil {
+		return intexp.QualificationEvidence{}, err
 	}
-	if evidence.GetArtifactRef() == "" {
-		return intexp.QualificationEvidence{}, errors.New("qualification evidence artifact_ref is required")
+	providerTier := protomap.ProviderTierFromProto(evidence.GetProviderTier())
+	if evidence.GetProviderTier() != 0 && providerTier == "" {
+		return intexp.QualificationEvidence{}, errors.New("qualification evidence provider_tier must be local, byok, or vrooli")
 	}
-	if kind == trustfloor.QualificationFault {
-		if !isRequiredFault(evidence.GetFaultProfile()) {
-			return intexp.QualificationEvidence{}, fmt.Errorf("qualification fault_profile %q is not required", evidence.GetFaultProfile())
-		}
-	} else if evidence.GetFaultProfile() != "" {
-		return intexp.QualificationEvidence{}, errors.New("fault_profile is valid only for fault qualification evidence")
+	if err := validateQualificationFaultProfile(evidence, kind); err != nil {
+		return intexp.QualificationEvidence{}, err
 	}
-	machineJSON := []byte(evidence.GetMachineJson())
-	if len(machineJSON) > 0 && !json.Valid(machineJSON) {
-		return intexp.QualificationEvidence{}, errors.New("qualification evidence machine_json must be valid JSON")
+	machineJSON, err := validateQualificationMachineEvidence(evidence, kind)
+	if err != nil {
+		return intexp.QualificationEvidence{}, err
 	}
-	if kind == trustfloor.QualificationIntervalAccounting {
-		accounting, accountingErr := parseIntervalAccountingArtifact(machineJSON)
-		if accountingErr != nil {
-			return intexp.QualificationEvidence{}, accountingErr
-		}
-		if evidence.GetPassed() && (!accounting.AllIntervalsAccounted || accounting.DuplicateCommittedSegments != 0 || accounting.SilentTerminalOutcomes != 0) {
-			return intexp.QualificationEvidence{}, errors.New("passing interval accounting evidence requires complete coverage with zero duplicate commits and zero silent terminals")
-		}
-	}
-	observed := time.Time{}
-	if evidence.GetObservedAt() != nil {
-		if err := evidence.GetObservedAt().CheckValid(); err != nil {
-			return intexp.QualificationEvidence{}, fmt.Errorf("qualification evidence observed_at: %w", err)
-		}
-		observed = evidence.GetObservedAt().AsTime()
+	observed, err := qualificationObservedAt(evidence)
+	if err != nil {
+		return intexp.QualificationEvidence{}, err
 	}
 	return intexp.QualificationEvidence{
 		ID: evidence.GetId(), EngineID: evidence.GetEngineId(), ModelID: evidence.GetModelId(), Strategy: evidence.GetStrategy(),
-		PolicyProfile: evidence.GetPolicyProfile(), Kind: kind, FaultProfile: evidence.GetFaultProfile(),
+		PolicyProfile: evidence.GetPolicyProfile(), ProviderTier: providerTier,
+		Kind: kind, FaultProfile: evidence.GetFaultProfile(),
 		Passed: evidence.GetPassed(), ArtifactRef: evidence.GetArtifactRef(), Notes: evidence.GetNotes(),
 		MachineJSON: machineJSON, ObservedAt: observed,
 	}, nil
+}
+
+func validateQualificationEvidenceIdentity(evidence *experimentv1.QualificationEvidence) error {
+	if evidence.GetEngineId() == "" || evidence.GetModelId() == "" || evidence.GetStrategy() == "" {
+		return errors.New("qualification evidence engine_id, model_id, and strategy are required")
+	}
+	if evidence.GetArtifactRef() == "" {
+		return errors.New("qualification evidence artifact_ref is required")
+	}
+	return nil
+}
+
+func validateQualificationFaultProfile(evidence *experimentv1.QualificationEvidence, kind string) error {
+	if kind == trustfloor.QualificationFault {
+		if !isRequiredFault(evidence.GetFaultProfile()) {
+			return fmt.Errorf("qualification fault_profile %q is not required", evidence.GetFaultProfile())
+		}
+		return nil
+	}
+	if evidence.GetFaultProfile() != "" {
+		return errors.New("fault_profile is valid only for fault qualification evidence")
+	}
+	return nil
+}
+
+func validateQualificationMachineEvidence(evidence *experimentv1.QualificationEvidence, kind string) ([]byte, error) {
+	machineJSON := []byte(evidence.GetMachineJson())
+	if len(machineJSON) > 0 && !json.Valid(machineJSON) {
+		return nil, errors.New("qualification evidence machine_json must be valid JSON")
+	}
+	if kind != trustfloor.QualificationIntervalAccounting {
+		if kind == trustfloor.QualificationModelMemory {
+			if _, err := trustfloor.ParseModelMemoryReceipt(machineJSON, evidence.GetPassed()); err != nil {
+				return nil, err
+			}
+		}
+		return machineJSON, nil
+	}
+	accounting, err := parseIntervalAccountingArtifact(machineJSON)
+	if err != nil {
+		return nil, err
+	}
+	if evidence.GetPassed() && (!accounting.AllIntervalsAccounted || accounting.DuplicateCommittedSegments != 0 || accounting.SilentTerminalOutcomes != 0) {
+		return nil, errors.New("passing interval accounting evidence requires complete coverage with zero duplicate commits and zero silent terminals")
+	}
+	return machineJSON, nil
+}
+
+func qualificationObservedAt(evidence *experimentv1.QualificationEvidence) (time.Time, error) {
+	if evidence.GetObservedAt() == nil {
+		return time.Time{}, nil
+	}
+	if err := evidence.GetObservedAt().CheckValid(); err != nil {
+		return time.Time{}, fmt.Errorf("qualification evidence observed_at: %w", err)
+	}
+	return evidence.GetObservedAt().AsTime(), nil
 }
 
 func qualificationKindToProto(kind string) experimentv1.QualificationEvidenceKind {
@@ -214,6 +260,10 @@ func qualificationKindToProto(kind string) experimentv1.QualificationEvidenceKin
 		return experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_DEVICE
 	case trustfloor.QualificationCorpusQuality:
 		return experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_CORPUS_QUALITY
+	case trustfloor.QualificationAcceptanceComposite:
+		return experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_ACCEPTANCE_COMPOSITE
+	case trustfloor.QualificationModelMemory:
+		return experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_MODEL_MEMORY
 	default:
 		return experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_UNSPECIFIED
 	}
@@ -233,6 +283,10 @@ func qualificationKindFromProto(kind experimentv1.QualificationEvidenceKind) (st
 		return trustfloor.QualificationDevice, nil
 	case experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_CORPUS_QUALITY:
 		return trustfloor.QualificationCorpusQuality, nil
+	case experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_ACCEPTANCE_COMPOSITE:
+		return trustfloor.QualificationAcceptanceComposite, nil
+	case experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_MODEL_MEMORY:
+		return trustfloor.QualificationModelMemory, nil
 	default:
 		return "", errors.New("qualification evidence kind is required")
 	}

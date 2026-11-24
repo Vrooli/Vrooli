@@ -11,13 +11,16 @@ import { createAudioFilterChain } from "./hooks/voice/audioUtils";
 import { playRecordingStartCue, playRecordingStopCue, playRecordingFaultCue } from "./hooks/voice/audioCues";
 import { WhisperProvider } from "./hooks/voice/WhisperProvider";
 import { PcmVoiceStreamProvider } from "./hooks/voice/PcmVoiceStreamProvider";
+import { useVoiceConfigStore } from "./hooks/useVoiceConfigStore";
 
 // Kyutai needs a complete 50 ms opening frame to preserve its first words.
-// The audio-tools host therefore uses a bounded 50 ms cadence without the
-// shared package's optional 20 ms speculative first frame.
+// Use the shared package's smaller speculative first frame only when the
+// hydrated server selection is Sherpa; keep Kyutai and unknown selections at
+// the 50 ms opening cadence.
 class AudioToolsPcmVoiceStreamProvider extends PcmVoiceStreamProvider {
   constructor() {
-    super({ wireBatchSamples: 800 });
+    const engineId = useVoiceConfigStore.getState().engineId;
+    super({ wireBatchSamples: 800, fastFirstWireBatch: engineId === "sherpa-streaming" });
   }
 }
 

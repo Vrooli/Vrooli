@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -16,7 +17,9 @@ import (
 	"audio-tools/internal/logx"
 	sttpkg "audio-tools/internal/stt"
 	"audio-tools/internal/stt/segmenter/testaudio"
+	"audio-tools/internal/stt/session"
 	"audio-tools/internal/sttengine"
+	"audio-tools/internal/testutil/mocks"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -126,6 +129,30 @@ func TestTranscribeStream_RequiresProtocolV2Identity(t *testing.T) {
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(receiveUntilError(t, stream)))
 }
 
+func TestTranscribeStreamAcknowledgesAdmissionBeforeAudio(t *testing.T) {
+	sessions := session.NewRegistry(0)
+	client := newBidiServiceClient(t, Deps{
+		Chain: sttchain.NewChain(sttchain.Options{}),
+		Selector: sttpkg.NewSelector(newFakeBatchExecutor("hello")),
+		Sessions: sessions,
+	})
+	stream := client.TranscribeStream(context.Background())
+	require.NoError(t, sendStream(t, stream, startMsg("admission-session", "admission-token")))
+
+	accepted, err := stream.Receive()
+	require.NoError(t, err)
+	status := accepted.GetSessionStatus()
+	require.NotNil(t, status)
+	require.Equal(t, "accepted", status.GetState())
+	require.Equal(t, "admission-session", status.GetSessionId())
+	require.Equal(t, uint64(0), status.GetGeneration())
+
+	require.NoError(t, sendStream(t, stream, &sttv1.TranscribeStreamRequest{Payload: &sttv1.TranscribeStreamRequest_End{End: &sttv1.StreamEnd{}}}))
+	events, err := receiveEvents(t, stream)
+	require.NoError(t, err)
+	require.NotEmpty(t, events)
+}
+
 func TestTranscribeStream_RejectsUnknownEngineSelection(t *testing.T) {
 	registry, err := sttengine.Load([]byte(`{
       "engines": [{"id": "kyutai", "displayName": "Kyutai", "kind": "local_resource", "resource": "kyutai-stt", "provides": {"nativeStreaming": true}, "strategies": ["passthrough"]}],
@@ -173,6 +200,51 @@ func TestTranscribeStream_DuplicateChunkIsIgnored(t *testing.T) {
 	require.NotEqual(t, "input_failed", done.GetTerminalReason())
 }
 
+func TestTranscribeStream_QuietInputTimesOutAndPersistsFailure(t *testing.T) {
+	sessions := session.NewRegistry(0)
+	client := newBidiServiceClient(t, Deps{
+		Chain: sttchain.NewChain(sttchain.Options{}), Selector: sttpkg.NewSelector(newFakeBatchExecutor("hello")),
+		StreamConfig: staticStreamConfig{raw: `{"streaming_mode":"off"}`}, Sessions: sessions,
+		StreamIdleTimeout: 40 * time.Millisecond,
+	})
+	stream := client.TranscribeStream(context.Background())
+	require.NoError(t, sendStream(t, stream, startMsg("quiet-session", "quiet-token")))
+	_, err := receiveEvents(t, stream)
+	require.NoError(t, err)
+	snapshot, ok := sessions.Snapshot("quiet-session")
+	require.True(t, ok)
+	require.Equal(t, session.TerminalReason("input_idle_timeout"), snapshot.TerminalReason)
+}
+
+func TestTranscribeStream_AudioActivityExtendsIdleWindow(t *testing.T) {
+	sessions := session.NewRegistry(0)
+	client := newBidiServiceClient(t, Deps{
+		Chain: sttchain.NewChain(sttchain.Options{}), Selector: sttpkg.NewSelector(newFakeBatchExecutor("hello")),
+		StreamConfig: staticStreamConfig{raw: `{"streaming_mode":"off"}`}, Sessions: sessions,
+		StreamIdleTimeout: 150 * time.Millisecond,
+	})
+	stream := client.TranscribeStream(context.Background())
+	require.NoError(t, sendStream(t, stream, startMsg("active-session", "active-token")))
+	for seq := uint64(0); seq < 5; seq++ {
+		time.Sleep(75 * time.Millisecond)
+		require.NoError(t, sendStream(t, stream, chunkMsg(seq, []byte{0, 0})))
+	}
+	require.NoError(t, sendStream(t, stream, &sttv1.TranscribeStreamRequest{Payload: &sttv1.TranscribeStreamRequest_End{End: &sttv1.StreamEnd{}}}))
+	events, err := receiveEvents(t, stream)
+	require.NoError(t, err)
+	var done *sttv1.StreamDone
+	for _, event := range events {
+		if value := event.GetDone(); value != nil {
+			done = value
+		}
+	}
+	require.NotNil(t, done)
+	require.NotEqual(t, "input_idle_timeout", done.GetTerminalReason())
+	snapshot, ok := sessions.Snapshot("active-session")
+	require.True(t, ok)
+	require.NotEqual(t, session.TerminalReason("input_idle_timeout"), snapshot.TerminalReason)
+}
+
 func TestTranscribeStream_DigestMismatchFailsTheInput(t *testing.T) {
 	c := sttchain.NewChain(sttchain.Options{})
 	client := newBidiServiceClient(t, Deps{
@@ -204,9 +276,10 @@ func TestTranscribeStream_DigestMismatchFailsTheInput(t *testing.T) {
 
 func TestTranscribeStream_DuplicateStartFailsClosed(t *testing.T) {
 	c := sttchain.NewChain(sttchain.Options{})
+	logger := mocks.NewFakeLogger()
 	client := newBidiServiceClient(t, Deps{
 		Chain: c, Selector: sttpkg.NewSelector(newFakeBatchExecutor("hello")),
-		StreamConfig: staticStreamConfig{raw: `{"streaming_mode":"off"}`},
+		StreamConfig: staticStreamConfig{raw: `{"streaming_mode":"off"}`}, Logger: logger,
 	})
 	stream := client.TranscribeStream(context.Background())
 	require.NoError(t, sendStream(t, stream,
@@ -224,4 +297,8 @@ func TestTranscribeStream_DuplicateStartFailsClosed(t *testing.T) {
 	}
 	require.NotNil(t, done)
 	require.Equal(t, "input_failed", done.GetTerminalReason())
+	require.Len(t, logger.Entries(), 1)
+	require.Contains(t, logger.Entries()[0], "event=stt_stream_input_failure stage=validate_message")
+	require.Contains(t, logger.Entries()[0], "cause_kind=other")
+	require.NotContains(t, logger.Entries()[0], "duplicate start")
 }

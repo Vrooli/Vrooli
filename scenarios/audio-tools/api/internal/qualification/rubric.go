@@ -77,12 +77,14 @@ type ReplayMeasurement struct {
 }
 
 const (
-	QualificationIntervalAccounting = "interval_accounting"
-	QualificationBoundedRecovery    = "bounded_recovery"
-	QualificationFault              = "fault"
-	QualificationBrowserProductPath = "browser_product_path"
-	QualificationDevice             = "device"
-	QualificationCorpusQuality      = "corpus_quality"
+	QualificationIntervalAccounting  = "interval_accounting"
+	QualificationBoundedRecovery     = "bounded_recovery"
+	QualificationFault               = "fault"
+	QualificationBrowserProductPath  = "browser_product_path"
+	QualificationDevice              = "device"
+	QualificationCorpusQuality       = "corpus_quality"
+	QualificationAcceptanceComposite = "acceptance_composite"
+	QualificationModelMemory         = "model_memory"
 )
 
 // QualificationMeasurement is transcript-free evidence from a dedicated
@@ -90,12 +92,15 @@ const (
 // browser, fault, recovery, and device gates cannot be inferred from WER or a
 // successful duration run.
 type QualificationMeasurement struct {
-	EngineID                   string
-	ModelID                    string
-	Strategy                   string
-	PolicyProfile              string
-	Kind                       string
-	FaultProfile               string
+	EngineID      string
+	ModelID       string
+	Strategy      string
+	PolicyProfile string
+	Kind          string
+	FaultProfile  string
+	// ArtifactRef binds related rows to the same observed product run. A fault
+	// row without a browser-path row from that artifact is diagnostic only.
+	ArtifactRef                string
 	Passed                     bool
 	AllIntervalsAccounted      bool
 	DuplicateCommittedSegments int
@@ -126,44 +131,41 @@ func EvaluateReplayMeasurements(measurements []ReplayMeasurement, thresholds Thr
 // Evidence from a different strategy or policy must never satisfy a cell's
 // trust floor.
 func EvaluatePromotionMeasurements(measurements []ReplayMeasurement, qualification []QualificationMeasurement, thresholds Thresholds) []EngineVerdict {
-	type aggregate struct {
-		engineID               string
-		modelID                string
-		strategy               string
-		policyProfile          string
-		wer                    float64
-		hasWER                 bool
-		durationProfiles       map[string]bool
-		safetyObserved         bool
-		safetyPassed           bool
-		allIntervalsAccounted  bool
-		duplicateCommits       int
-		silentTerminalOutcomes int
-		boundedRecovery        bool
-		faultProfiles          map[string]bool
-		hasBrowserProductPath  bool
-		hasDeviceEvidence      bool
-		evidenceFailures       []string
-	}
-	aggregates := map[string]*aggregate{}
+	aggregates := make(map[string]*promotionAggregate)
+	collectReplayMeasurements(aggregates, measurements)
+	collectQualificationMeasurements(aggregates, qualification)
+	linkFaultArtifactsToBrowserRuns(aggregates)
+	return promotionVerdicts(aggregates, thresholds)
+}
+
+type promotionAggregate struct {
+	engineID               string
+	modelID                string
+	strategy               string
+	policyProfile          string
+	wer                    float64
+	hasWER                 bool
+	durationProfiles       map[string]bool
+	safetyObserved         bool
+	safetyPassed           bool
+	allIntervalsAccounted  bool
+	duplicateCommits       int
+	silentTerminalOutcomes int
+	boundedRecovery        bool
+	faultProfiles          map[string]bool
+	hasBrowserProductPath  bool
+	hasDeviceEvidence      bool
+	evidenceFailures       []string
+	browserArtifacts       map[string]bool
+	faultArtifacts         map[string]map[string]bool
+}
+
+func collectReplayMeasurements(aggregates map[string]*promotionAggregate, measurements []ReplayMeasurement) {
 	for _, measurement := range measurements {
 		if measurement.EngineID == "" {
 			continue
 		}
-		key := measurement.EngineID + "\x00" + measurement.ModelID + "\x00" + measurement.Strategy + "\x00" + measurement.PolicyProfile
-		agg := aggregates[key]
-		if agg == nil {
-			agg = &aggregate{
-				engineID:         measurement.EngineID,
-				modelID:          measurement.ModelID,
-				strategy:         measurement.Strategy,
-				policyProfile:    measurement.PolicyProfile,
-				durationProfiles: make(map[string]bool),
-				safetyPassed:     true,
-				faultProfiles:    make(map[string]bool),
-			}
-			aggregates[key] = agg
-		}
+		agg := promotionAggregateFor(aggregates, measurement.EngineID, measurement.ModelID, measurement.Strategy, measurement.PolicyProfile)
 		if math.IsNaN(measurement.WER) || math.IsInf(measurement.WER, 0) || measurement.WER < 0 {
 			agg.evidenceFailures = append(agg.evidenceFailures, "invalid WER observation")
 		} else {
@@ -190,42 +192,90 @@ func EvaluatePromotionMeasurements(measurements []ReplayMeasurement, qualificati
 			}
 		}
 	}
+}
+
+func promotionAggregateFor(aggregates map[string]*promotionAggregate, engineID, modelID, strategy, policyProfile string) *promotionAggregate {
+	key := promotionCellKey(engineID, modelID, strategy, policyProfile)
+	agg := aggregates[key]
+	if agg == nil {
+		agg = &promotionAggregate{
+			engineID: engineID, modelID: modelID, strategy: strategy, policyProfile: policyProfile,
+			durationProfiles: make(map[string]bool), safetyPassed: true,
+			faultProfiles: make(map[string]bool), browserArtifacts: make(map[string]bool),
+			faultArtifacts: make(map[string]map[string]bool),
+		}
+		aggregates[key] = agg
+	}
+	return agg
+}
+
+func promotionCellKey(engineID, modelID, strategy, policyProfile string) string {
+	return engineID + "\x00" + modelID + "\x00" + strategy + "\x00" + policyProfile
+}
+
+func collectQualificationMeasurements(aggregates map[string]*promotionAggregate, qualification []QualificationMeasurement) {
 	for _, item := range qualification {
-		key := item.EngineID + "\x00" + item.ModelID + "\x00" + item.Strategy + "\x00" + item.PolicyProfile
-		agg := aggregates[key]
-		if agg == nil {
-			continue
-		}
-		// Interval accounting is the explicit proof of all three delivery
-		// invariants. Do not infer zero duplicates or silent terminals merely
-		// because a replay report exists.
-		if item.Kind == QualificationIntervalAccounting {
-			agg.allIntervalsAccounted = agg.allIntervalsAccounted || (item.Passed && item.AllIntervalsAccounted)
-			agg.duplicateCommits += item.DuplicateCommittedSegments
-			agg.silentTerminalOutcomes += item.SilentTerminalOutcomes
-		}
-		if !item.Passed {
-			name := item.Kind
-			if item.Kind == QualificationFault && item.FaultProfile != "" {
-				name += ":" + item.FaultProfile
-			}
-			agg.evidenceFailures = append(agg.evidenceFailures, "qualification evidence failed: "+name)
-			continue
-		}
-		switch item.Kind {
-		case QualificationBoundedRecovery:
-			agg.boundedRecovery = true
-		case QualificationFault:
-			if item.FaultProfile != "" {
-				agg.faultProfiles[item.FaultProfile] = true
-			}
-		case QualificationBrowserProductPath:
-			agg.hasBrowserProductPath = true
-		case QualificationDevice:
-			agg.hasDeviceEvidence = true
+		agg := aggregates[promotionCellKey(item.EngineID, item.ModelID, item.Strategy, item.PolicyProfile)]
+		if agg != nil {
+			applyQualificationMeasurement(agg, item)
 		}
 	}
+}
 
+func applyQualificationMeasurement(agg *promotionAggregate, item QualificationMeasurement) {
+	// Interval accounting is the explicit proof of all three delivery
+	// invariants. Do not infer zero duplicates or silent terminals merely
+	// because a replay report exists.
+	if item.Kind == QualificationIntervalAccounting {
+		agg.allIntervalsAccounted = agg.allIntervalsAccounted || (item.Passed && item.AllIntervalsAccounted)
+		agg.duplicateCommits += item.DuplicateCommittedSegments
+		agg.silentTerminalOutcomes += item.SilentTerminalOutcomes
+	}
+	if !item.Passed {
+		name := item.Kind
+		if item.Kind == QualificationFault && item.FaultProfile != "" {
+			name += ":" + item.FaultProfile
+		}
+		agg.evidenceFailures = append(agg.evidenceFailures, "qualification evidence failed: "+name)
+		return
+	}
+	switch item.Kind {
+	case QualificationBoundedRecovery:
+		agg.boundedRecovery = true
+	case QualificationFault:
+		if item.FaultProfile != "" && item.ArtifactRef != "" {
+			if agg.faultArtifacts[item.FaultProfile] == nil {
+				agg.faultArtifacts[item.FaultProfile] = make(map[string]bool)
+			}
+			agg.faultArtifacts[item.FaultProfile][item.ArtifactRef] = true
+		}
+	case QualificationBrowserProductPath:
+		if item.ArtifactRef != "" {
+			agg.browserArtifacts[item.ArtifactRef] = true
+			agg.hasBrowserProductPath = true
+		}
+	case QualificationDevice:
+		agg.hasDeviceEvidence = true
+	}
+}
+
+func linkFaultArtifactsToBrowserRuns(aggregates map[string]*promotionAggregate) {
+	// A pass from a test injector or an older browser run cannot satisfy a
+	// fault cell by itself. Require its product-path proof to refer to the same
+	// persisted run artifact.
+	for _, agg := range aggregates {
+		for fault, artifacts := range agg.faultArtifacts {
+			for artifact := range artifacts {
+				if agg.browserArtifacts[artifact] {
+					agg.faultProfiles[fault] = true
+					break
+				}
+			}
+		}
+	}
+}
+
+func promotionVerdicts(aggregates map[string]*promotionAggregate, thresholds Thresholds) []EngineVerdict {
 	keys := make([]string, 0, len(aggregates))
 	for key := range aggregates {
 		keys = append(keys, key)
@@ -270,9 +320,21 @@ func EvaluatePromotionMeasurements(measurements []ReplayMeasurement, qualificati
 
 func Evaluate(e Evidence, thresholds Thresholds) Verdict {
 	v := Verdict{}
+	appendThresholdReasons(&v, thresholds)
+	appendDeliveryEvidenceReasons(&v, e)
+	appendQualityReasons(&v, e, thresholds)
+	appendProductPathReasons(&v, e)
+	v.Stable = len(v.Reasons) == 0
+	return v
+}
+
+func appendThresholdReasons(v *Verdict, thresholds Thresholds) {
 	if math.IsNaN(thresholds.MaxWER) || math.IsInf(thresholds.MaxWER, 0) || thresholds.MaxWER < 0 || math.IsNaN(thresholds.MaxDroppedSpanRate) || math.IsInf(thresholds.MaxDroppedSpanRate, 0) || thresholds.MaxDroppedSpanRate < 0 {
 		v.Reasons = append(v.Reasons, "qualification thresholds are invalid")
 	}
+}
+
+func appendDeliveryEvidenceReasons(v *Verdict, e Evidence) {
 	if e.EngineID == "" {
 		v.Reasons = append(v.Reasons, "engine identity is missing")
 	}
@@ -298,6 +360,9 @@ func Evaluate(e Evidence, thresholds Thresholds) Verdict {
 			v.Reasons = append(v.Reasons, "missing fault profile: "+fault)
 		}
 	}
+}
+
+func appendQualityReasons(v *Verdict, e Evidence, thresholds Thresholds) {
 	if math.IsNaN(e.WER) || math.IsInf(e.WER, 0) || e.WER < 0 {
 		v.Reasons = append(v.Reasons, "WER is invalid")
 	} else if e.WER > thresholds.MaxWER {
@@ -308,12 +373,13 @@ func Evaluate(e Evidence, thresholds Thresholds) Verdict {
 	} else if e.DroppedSpanRate > thresholds.MaxDroppedSpanRate {
 		v.Reasons = append(v.Reasons, "dropped-span rate exceeds trust threshold")
 	}
+}
+
+func appendProductPathReasons(v *Verdict, e Evidence) {
 	if !e.HasBrowserProductPath {
 		v.Reasons = append(v.Reasons, "browser product-path evidence is missing")
 	}
 	if !e.HasDeviceEvidence {
 		v.Reasons = append(v.Reasons, "automated operating-system device evidence is missing")
 	}
-	v.Stable = len(v.Reasons) == 0
-	return v
 }

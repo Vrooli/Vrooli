@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "kind": "host_observation_not_qualification",
+  "observed_at": "2026-11-21",
+  "observed_at_local": "2026-11-21T16:13:38-05:00",
+  "provenance": {
+    "observer": "audio-tools host portability investigation",
+    "commands": [
+      "uname -a",
+      "google-chrome --version",
+      "firefox --version",
+      "cat /proc/meminfo",
+      "wpctl status",
+      "arecord -l",
+      "id",
+      "stat /dev/snd/pcmC*",
+      "nvidia-smi --query-gpu=name,memory.total --format=csv,noheader",
+      "docker info --format '{{.ServerVersion}}'"
+    ],
+    "browser_product_path_exercised": false,
+    "audio_capture_opened": false
+  },
+  "host": {
+    "os": "Ubuntu 24.04",
+    "kernel": "Linux 7.0.0-30-generic",
+    "architecture": "x86_64",
+    "logical_cpus": 32,
+    "memory_total_gib": 60,
+    "memory_available_gib_at_observation": 27,
+    "gpu_inventory": [
+      {
+        "name": "NVIDIA GeForce RTX 4070 Ti SUPER",
+        "memory_mib": 16376
+      }
+    ]
+  },
+  "browsers": [
+    {
+      "name": "Google Chrome",
+      "version": "150.0.7871.128",
+      "installed": true,
+      "product_path_exercised": false
+    },
+    {
+      "name": "Firefox",
+      "version": "157.0",
+      "installed": true,
+      "product_path_exercised": false
+    }
+  ],
+  "audio_io": {
+    "pipewire_running": true,
+    "pipewire_input_sources_observed": 0,
+    "alsa_capture_endpoints_enumerated": [
+      "card 2 device 0: ALC1220 Analog",
+      "card 2 device 2: ALC1220 Alt Analog"
+    ],
+    "current_user_in_audio_group": false,
+    "capture_device_nodes_accessible_to_current_user": false,
+    "native_microphone_product_path_available": false,
+    "reason": "ALSA lists capture endpoints, but PipeWire exposes no sources and capture nodes are root:audio mode 0660; the current user is not in audio. No capture was attempted."
+  },
+  "matrix": {
+    "D1_linux_amd64_chromium_cpu": {
+      "state": "unqualified",
+      "inference": "not_run",
+      "browser_installed": true,
+      "browser_product_path_exercised": false,
+      "native_microphone_product_path_available": false
+    },
+    "D1_linux_amd64_chromium_accelerator": {
+      "state": "unqualified",
+      "inference": "not_run",
+      "nvidia_accelerator_observed": true
+    },
+    "D2_linux_amd64_chromium_2vcpu_4gib": {
+      "state": "unqualified",
+      "inference": "not_run",
+      "docker_installed": true,
+      "constrained_test_environment_created": false
+    },
+    "D3_macos_arm64": {
+      "state": "unavailable",
+      "reason": "No macOS host was available"
+    },
+    "D4_windows_amd64": {
+      "state": "unavailable",
+      "reason": "No Windows host was available"
+    },
+    "D5_ios_safari_physical_device": {
+      "state": "unavailable",
+      "reason": "No nominated physical iOS device was available"
+    },
+    "D6_android_chrome_physical_device": {
+      "state": "unavailable",
+      "reason": "No nominated physical Android device was available"
+    }
+  },
+  "qualification_boundary": "This is a host inventory observation only. Browser product-path capture, inference, constrained D2 execution, and D3-D6 qualification were not performed. No qualification claim is made."
+}

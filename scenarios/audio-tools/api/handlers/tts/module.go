@@ -30,13 +30,13 @@ type DefaultCredentialResolver func(ctx context.Context, capability string) (pro
 type Deps struct {
 	Chain             *ttschain.Chain
 	SummarizeChain    *intsumm.Chain
-	TTSService        *inttts.Service
 	Engine            *audioformat.Engine
 	Logger            logx.Logger
 	Clock             schedule.Clock
 	Usage             UsageRecorder
 	DefaultCredential DefaultCredentialResolver
 	Cache             *inttts.Cache
+	CacheBackend      string
 	ConfigStore       TTSConfigRepository
 	Playback          PlaybackRepository
 }

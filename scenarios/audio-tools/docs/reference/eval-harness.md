@@ -67,6 +67,29 @@ per-case + aggregate report.
    ingress/selector/egress construction point as live STT without reading or
    mutating the live stream-config row.
 
+## Persisted report retention
+
+Experiment recipes can declare `report_retention_mode`:
+
+- `REPORT_RETENTION_MODE_UNSPECIFIED` preserves the historic full report,
+  including transcript and diagnostic text.
+- `REPORT_RETENTION_MODE_PRESERVE_TRANSCRIPTS` explicitly selects the same
+  full-report shape.
+- `REPORT_RETENTION_MODE_METRICS_ONLY` stores numeric quality, latency, and
+  timestamp metrics, route identity, and timing-review provenance. It omits
+  reference/hypothesis text, clip identifiers, and free-form diagnostics from
+  the saved report and per-run condition records. This setting applies to the
+  report artifact only: queued/running and failed experiment records retain
+  their submitted recipe for execution/recovery, including configured text
+  inputs. A successful metrics-only run removes only the generated long-form
+  reference from the completed recipe snapshot.
+
+Dictation Studio exposes the metrics-only choice in its experiment builder.
+CLI callers can set the same field in `--recipe-json` or `--recipe-file`.
+The report keeps the existing `EvalReport` protobuf shape; a `retention_mode`
+marker identifies metrics-only results to readers. Older recipes retain the
+historic behavior because the default enum value is unspecified.
+
 ## Long-form capture qualification
 
 The browser capture package publishes a bounded metadata-only snapshot at

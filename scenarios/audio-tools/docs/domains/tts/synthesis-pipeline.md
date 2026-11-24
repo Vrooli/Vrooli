@@ -2,7 +2,7 @@
 
 This document is the canonical architecture reference for text-to-speech
 inside audio-tools. It explains how a `Synthesize` request is routed
-through the three provider tiers (Local Kokoro → BYOK → Vrooli/LPBS)
+through the three provider tiers (Local runtime → BYOK → Vrooli/LPBS)
 and how the chain keeps a single wire shape across unary and streaming
 calls.
 
@@ -62,6 +62,32 @@ The `Synthesize` and `SynthesizeStream` Connect-RPC methods
 The chain itself is transport-free; the Connect handler is a thin
 translation shim.
 
+## Local runtime selection
+
+`AUDIO_TTS_BACKEND` pins `kokoro`, `kale-onnx`, or `sherpa-onnx`; `auto`
+(default) follows provider-catalog `auto_priority`. The normal path requires an
+active provider whose declared `default` model is default-eligible and
+commercially usable. A provider may separately opt into `conditional_auto`:
+this narrowly permits a planned provider's commercially usable candidate
+fast/edge model to be tried when available, without promoting either provider
+or model. Kale Nano declares this conditional policy ahead of Kokoro, so auto
+tries Kale first and falls through to Kokoro on resource start or availability
+failure. An unsuccessful synthesis error still surfaces. Each unavailable
+runtime receives one bounded, single-flighted, cooldown-guarded `vrooli
+resource start` attempt on request, followed by a liveness check. Explicit
+backend pins remain direct routes and do not auto-fallback. Sherpa remains an
+explicit shared-runtime route. Explicit readiness sweeps still exercise
+synthesis.
+Cache keys and writes
+remain at the audio-tools service/RPC boundary. Event cache identity includes
+the configured runtime/model, canonical voice, speed, output format, version,
+and paragraph index. The unspecified output format resolves to MP3 for both
+cache writes and lookups. This prevents WAV/MP3 collisions and prevents the
+Kale, standalone Kokoro and sherpa-hosted Kokoro runtimes from sharing cached bytes.
+Callers must advance `version` when the text snapshot for an event changes;
+event IDs alone do not prove content identity. Kale remains experimental and
+is not promoted while its upstream weights remain draft.
+
 ## Outputs
 
 Unary `Synthesize` returns `ttsv1.SynthesizeResponse` with audio bytes,
@@ -111,7 +137,7 @@ ttschain.Chain.Execute / Stream      ← tier ordering + availability gates
             tts.Service.Synthesize            (api/internal/tts/service.go:156)
                 │
                 ▼
-            sherpa-onnx HTTP endpoint          (api/internal/tts/kokoro_synthesize.go)
+            selected local HTTP endpoint      (api/internal/tts/kokoro_synthesize.go)
 ```
 
 Production execution order (`api/internal/ai/chains/tiered/tiered.go`):
@@ -149,7 +175,8 @@ tier:
 
 - Local sherpa-onnx/Kokoro uses `resolveLocalVoice`
   (`api/internal/ai/ttschain/provider_local.go:72`), consulting the
-  voice-overrides map (`local:kokoro-local` key) then a hard-coded
+  voice-overrides map (`local:kokoro` key, with the legacy
+  `local:kokoro-local` key still read) then the shared
   fallback table.
 - BYOK adapters resolve via their own catalogues; overrides arrive
   through `req.VoiceOverrides` keyed `byok:openai-tts`,
@@ -174,7 +201,7 @@ registry; the TTS-relevant entries are:
 | TTS provider | `ttschain.Provider` (`api/internal/ai/ttschain/interface.go:52`) | `LocalProvider`, `BYOKProvider`, `VrooliProvider` | Stubs returning canned `Result` / `AudioFrame` per chain test (`api/internal/ai/ttschain/chain_test.go`) |
 | BYOK adapter | `ttschain.BYOKAdapter` (`api/internal/ai/ttschain/provider_byok.go:8`) | `NewOpenAITTS()`, `NewElevenLabsTTS()` (`api/internal/byok/registry.go:32`) | Per-test fakes |
 | Vrooli client | `ttschain.VrooliClient` (`api/internal/ai/ttschain/provider_vrooli.go:8`) | LPBS HTTP client | Per-test fake |
-| sherpa-onnx/Kokoro backend | `tts.Deps.SynthesizeAudio` (`api/internal/tts/service.go:48`) | `internal/tts/kokoro_synthesize.go` | Function literal in service tests |
+| Local speech backend | `tts.Deps.SynthesizeAudio` (`api/internal/tts/service.go:48`) | `internal/tts/kokoro_synthesize.go` (`SpeechSynthesizer`) | Function literal in service tests |
 | Cache | `tts.Deps.GetCache` / `PutCache` (`api/internal/tts/service.go:49`) | `internal/tts.Cache` | In-process map in tests |
 
 The chain's runtime reconfigure surface
@@ -217,7 +244,9 @@ adds only the constant overhead of envelope parse and tier-loop
 evaluation.
 
 Cache hits avoid the entire chain: `tts.Service.Synthesize` consults
-`Deps.GetCache` keyed on `(EventID, Voice, Speed, Version)`
+`Deps.GetCache` keyed on `(EventID, Runtime, Voice, Speed, ResponseFormat,
+Version, ChunkIndex)`. An omitted response format resolves to MP3 on both writes
+and lookups; cache entries are separated by the configured runtime/model.
 (`api/internal/tts/service.go:27`) before dispatching, so re-synthesizing
 the same `(event, version)` pair is an O(1) lookup.
 
@@ -238,7 +267,11 @@ does — adding it follows the same shape.
 - `packages/proto/schemas/audio-tools/v1/tts/tts.proto` — wire shape
 # Provider tiers and BYOK fallback
 
-Audio-tools prefers Kokoro when it is available. A configured BYOK TTS
+Audio-tools `auto` selects only active local providers whose declared default
+model is eligible and commercially usable. Kokoro is currently the eligible
+qualified catalog default; Kale Nano is conditionally attempted by `auto`
+when its runtime is available but remains a candidate until quality and
+lifecycle receipts support promotion. A configured BYOK TTS
 provider is the next service tier, followed by Vrooli/LPBS and browser speech
 synthesis in the adopting UI. Configure BYOK credentials with `audio-tools
 settings providers`; server-side requests use the configured encrypted-store

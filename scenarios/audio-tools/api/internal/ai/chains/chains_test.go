@@ -65,3 +65,25 @@ func TestCoordinator_Reconfigure_NilChainsAreSafe(t *testing.T) {
 		_ = co.Probe(t.Context())
 	})
 }
+
+func TestClampEnablementUsesEnvironmentAsUpperBound(t *testing.T) {
+	config := chains.Config{
+		BYOKEnabled: true, VrooliEnabled: true, LocalEnabled: true,
+		TTLByOK: 17 * time.Second, TTLVrooli: 23 * time.Second,
+	}
+	clamped := chains.ClampEnablement(config, chains.Config{
+		BYOKEnabled: false, VrooliEnabled: true, LocalEnabled: false,
+	})
+	require.False(t, clamped.BYOKEnabled)
+	require.True(t, clamped.VrooliEnabled)
+	require.False(t, clamped.LocalEnabled)
+	require.Equal(t, config.TTLByOK, clamped.TTLByOK, "the clamp only applies to enablement")
+	require.Equal(t, config.TTLVrooli, clamped.TTLVrooli, "the clamp preserves probe TTLs")
+
+	// Reapplying the clamp is safe and can never re-enable a tier whose
+	// process-level feature flag remains disabled.
+	reclamped := chains.ClampEnablement(clamped, chains.Config{BYOKEnabled: true, VrooliEnabled: false, LocalEnabled: true})
+	require.False(t, reclamped.BYOKEnabled)
+	require.False(t, reclamped.VrooliEnabled)
+	require.False(t, reclamped.LocalEnabled)
+}

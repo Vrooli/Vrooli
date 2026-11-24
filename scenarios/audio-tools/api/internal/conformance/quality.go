@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 package conformance
 
 import (

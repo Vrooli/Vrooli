@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { Loader2, Play } from "lucide-react";
 import { Panel } from "../../../components/ui/panel";
 import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Select } from "../../../components/ui/select";
 import { ApiErrorState } from "../../../components/composites/ApiErrorState";
 import type { ApiError } from "../../../api/client";
@@ -67,7 +67,7 @@ function defaultValues(op: AudioOpSpec): AudioOpValues {
 }
 
 function hasAllRequired(op: AudioOpSpec, values: AudioOpValues): boolean {
-  return op.params.every((param) => {
+  const fieldsComplete = op.params.every((param) => {
     if (!param.required) return true;
     const value = values[param.name];
     switch (param.control) {
@@ -81,6 +81,17 @@ function hasAllRequired(op: AudioOpSpec, values: AudioOpValues): boolean {
         return textValue(value).trim() !== "";
     }
   });
+  if (!fieldsComplete) return false;
+  if (op.id === "split") {
+    const chunkSeconds = Number(textValue(values.chunk_seconds).trim());
+    const boundaries = textValue(values.boundaries_seconds)
+      .split(",")
+      .map((part) => part.trim())
+      .filter((part) => part !== "")
+      .map(Number);
+    return (Number.isFinite(chunkSeconds) && chunkSeconds > 0) || boundaries.length > 0;
+  }
+  return true;
 }
 
 interface AudioOpsPanelProps {

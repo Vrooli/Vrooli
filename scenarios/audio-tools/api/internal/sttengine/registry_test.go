@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -37,6 +39,8 @@ func TestResolveRejectsUnavailableAndReturnsTypedNoEngine(t *testing.T) {
 	if resolution.Candidates[0].Verdict != "rejected" || resolution.Candidates[0].Reason == "" {
 		t.Fatalf("candidates = %+v, want rejected reason", resolution.Candidates)
 	}
+	require.Equal(t, "not_serviceable: provider health reports unavailable", resolution.Candidates[0].Reason)
+	require.NotContains(t, resolution.Candidates[0].Reason, "not_installed")
 }
 
 func TestResolveFactsWorkedExamples(t *testing.T) {
@@ -100,9 +104,9 @@ func TestResolveFactsAppliesDeclaredWorkloadFilter(t *testing.T) {
 }
 
 func TestLiveResolverCachesControlPlaneFacts(t *testing.T) {
-	calls := 0
+	var calls atomic.Int32
 	r := NewLiveResolver(func(context.Context, ...string) ([]byte, error) {
-		calls++
+		calls.Add(1)
 		return []byte(`{"installed":true,"running":true,"healthy":true,"status_code":"ok","resource":{"observed_mode":"cpu"}}`), nil
 	}, time.Minute)
 	registry := New(Manifest{Engines: []Engine{{ID: "engine", Kind: KindLocalResource, Resource: "resource"}}})
@@ -110,17 +114,264 @@ func TestLiveResolverCachesControlPlaneFacts(t *testing.T) {
 	require.NoError(t, err)
 	_, err = r.Resolve(context.Background(), registry)
 	require.NoError(t, err)
-	require.Equal(t, 2, calls, "one status and one accelerator observation per engine")
+	require.Equal(t, int32(2), calls.Load(), "one status and one accelerator observation per engine")
 	r.Invalidate()
 	_, err = r.Resolve(context.Background(), registry)
 	require.NoError(t, err)
-	require.Equal(t, 4, calls)
+	require.Equal(t, int32(4), calls.Load())
+}
+
+func TestLiveResolverAdmissionDoesNotWaitForColdInventory(t *testing.T) {
+	started := make(chan struct{}, 2)
+	release := make(chan struct{})
+	resolver := NewLiveResolver(func(ctx context.Context, args ...string) ([]byte, error) {
+		started <- struct{}{}
+		select {
+		case <-release:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+		if len(args) > 1 && args[1] == "acceleration" {
+			return []byte(`{"selected":"cpu","placement":{"state":"ok"}}`), nil
+		}
+		return []byte(`{"installed":true,"running":true,"healthy":true,"status_code":"ok","resource":{"observed_mode":"cpu"}}`), nil
+	}, time.Minute)
+	registry := New(Manifest{Engines: []Engine{{ID: "engine", Kind: KindLocalResource, Resource: "resource"}}})
+
+	startedAt := time.Now()
+	resolution, err := resolver.ResolveForAdmission(context.Background(), registry)
+	if !errors.Is(err, ErrNoServiceableEngine) {
+		t.Fatalf("cold admission error = %v, want ErrNoServiceableEngine", err)
+	}
+	if resolution.Selected != "" {
+		t.Fatalf("cold admission selected %q before inventory was known", resolution.Selected)
+	}
+	if elapsed := time.Since(startedAt); elapsed > 100*time.Millisecond {
+		t.Fatalf("cold admission blocked for %s", elapsed)
+	}
+	for range 2 {
+		select {
+		case <-started:
+		case <-time.After(time.Second):
+			t.Fatal("coalesced cold inventory probes did not start")
+		}
+	}
+	close(release)
+
+	deadline := time.Now().Add(time.Second)
+	for {
+		resolution, err = resolver.ResolveForAdmission(context.Background(), registry)
+		if err == nil && resolution.Selected == "engine" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("refreshed admission = %+v, %v", resolution, err)
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
+func TestLiveResolverRejectsNilRequestContext(t *testing.T) {
+	registry := New(Manifest{Engines: []Engine{{ID: "engine"}}})
+	if _, err := NewLiveResolver(nil, time.Minute).Resolve(nil, registry); err == nil {
+		t.Fatal("Resolve(nil) unexpectedly substituted an uncancelable context")
+	}
+}
+
+func TestLiveResolverUsesBoundedProviderLivenessWhileExpiredInventoryRefreshes(t *testing.T) {
+	var calls atomic.Int32
+	refreshStarted := make(chan struct{}, 2)
+	releaseRefresh := make(chan struct{})
+	defer close(releaseRefresh)
+	resolver := NewLiveResolver(func(ctx context.Context, args ...string) ([]byte, error) {
+		if calls.Add(1) > 2 {
+			refreshStarted <- struct{}{}
+			select {
+			case <-releaseRefresh:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+		if len(args) > 1 && args[0] == "resource" && args[1] == "acceleration" {
+			return []byte(`{"selected":"cpu","placement":{"state":"ok"}}`), nil
+		}
+		return []byte(`{"installed":true,"running":true,"healthy":true,"status_code":"ok","resource":{"observed_mode":"cpu"}}`), nil
+	}, 100*time.Millisecond)
+	resolver.SetAvailability(func(context.Context, string) bool { return true })
+	registry := New(Manifest{Engines: []Engine{{ID: "engine", Kind: KindLocalResource, Resource: "resource", Strategies: []string{"passthrough"}}}})
+
+	if resolution, err := resolver.Resolve(context.Background(), registry); err != nil || resolution.Selected != "engine" {
+		t.Fatalf("initial Resolve() = %+v, %v", resolution, err)
+	}
+	resolver.mu.Lock()
+	resolver.checked = time.Now().Add(-150 * time.Millisecond)
+	resolver.mu.Unlock()
+
+	started := time.Now()
+	if resolution, err := resolver.Resolve(context.Background(), registry); err != nil || resolution.Selected != "engine" {
+		t.Fatalf("stale Resolve() = %+v, %v", resolution, err)
+	}
+	for range 2 {
+		select {
+		case <-refreshStarted:
+		case <-time.After(time.Second):
+			resolver.mu.Lock()
+			defer resolver.mu.Unlock()
+			t.Fatalf("background inventory refresh did not start (calls=%d age=%s refreshing=%t cached=%t)", calls.Load(), time.Since(resolver.checked), resolver.refreshing, resolver.facts != nil)
+		}
+	}
+	for range 5 {
+		if resolution, err := resolver.Resolve(context.Background(), registry); err != nil || resolution.Selected != "engine" {
+			t.Fatalf("coalesced stale Resolve() = %+v, %v", resolution, err)
+		}
+	}
+	if elapsed := time.Since(started); elapsed > 400*time.Millisecond {
+		t.Fatalf("expired-cache admission blocked for %s", elapsed)
+	}
+	if got := calls.Load(); got != 4 {
+		t.Fatalf("control-plane probe count = %d, want one coalesced two-probe refresh plus the initial probes", got)
+	}
+}
+
+func TestLiveResolverFailsClosedWhenInventoryExceedsFreshnessBound(t *testing.T) {
+	var calls atomic.Int32
+	refreshStarted := make(chan struct{}, 2)
+	releaseRefresh := make(chan struct{})
+	resolver := NewLiveResolver(func(ctx context.Context, args ...string) ([]byte, error) {
+		if calls.Add(1) > 2 {
+			refreshStarted <- struct{}{}
+			select {
+			case <-releaseRefresh:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+		if len(args) > 1 && args[1] == "acceleration" {
+			return []byte(`{"selected":"cpu","placement":{"state":"ok"}}`), nil
+		}
+		return []byte(`{"installed":true,"running":true,"healthy":true,"status_code":"ok","resource":{"observed_mode":"cpu"}}`), nil
+	}, time.Minute)
+	resolver.SetAvailability(func(context.Context, string) bool { return true })
+	registry := New(Manifest{Engines: []Engine{{ID: "engine", Kind: KindLocalResource, Resource: "resource", Strategies: []string{"passthrough"}}}})
+	if _, err := resolver.Resolve(context.Background(), registry); err != nil {
+		t.Fatal(err)
+	}
+	resolver.mu.Lock()
+	resolver.checked = time.Now().Add(-3 * time.Minute)
+	resolver.mu.Unlock()
+
+	started := time.Now()
+	resolution, err := resolver.Resolve(context.Background(), registry)
+	if !errors.Is(err, ErrNoServiceableEngine) {
+		t.Fatalf("over-age Resolve() error = %v, want fail-closed no-serviceable error", err)
+	}
+	if resolution.Selected != "" {
+		t.Fatalf("over-age Resolve() selected %q, want none", resolution.Selected)
+	}
+	if elapsed := time.Since(started); elapsed > 100*time.Millisecond {
+		t.Fatalf("over-age admission synchronously waited for inventory refresh: %s", elapsed)
+	}
+	for range 2 {
+		select {
+		case <-refreshStarted:
+		case <-time.After(time.Second):
+			t.Fatal("over-age inventory refresh did not start asynchronously")
+		}
+	}
+	close(releaseRefresh)
+	deadline := time.Now().Add(time.Second)
+	for {
+		resolver.mu.Lock()
+		refreshed := resolver.checked.After(time.Now().Add(-time.Second))
+		resolver.mu.Unlock()
+		if refreshed {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("released inventory refresh did not publish fresh facts")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	resolution, err = resolver.Resolve(context.Background(), registry)
+	if err != nil || resolution.Selected != "engine" {
+		t.Fatalf("fresh Resolve() = %+v, %v; want engine selected after refresh", resolution, err)
+	}
+}
+
+func TestLiveResolverInvalidationWinsOverInFlightBackgroundRefresh(t *testing.T) {
+	refreshStarted := make(chan struct{}, 2)
+	releaseRefresh := make(chan struct{})
+	var ordinaryCalls atomic.Int32
+	resolver := NewLiveResolver(func(ctx context.Context, args ...string) ([]byte, error) {
+		isRefresh, _ := ctx.Value("background-refresh").(bool)
+		if isRefresh {
+			refreshStarted <- struct{}{}
+			select {
+			case <-releaseRefresh:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+		if len(args) > 1 && args[0] == "resource" && args[1] == "acceleration" {
+			mode := "cuda"
+			if isRefresh {
+				mode = "cpu"
+			}
+			return []byte(fmt.Sprintf(`{"selected":%q,"placement":{"state":"ok"}}`, mode)), nil
+		}
+		ordinaryCalls.Add(1)
+		return []byte(`{"installed":true,"running":true,"healthy":true,"status_code":"ok","resource":{"observed_mode":"cuda"}}`), nil
+	}, time.Minute)
+	resolver.SetAvailability(func(context.Context, string) bool { return true })
+	registry := New(Manifest{Engines: []Engine{{ID: "engine", Kind: KindLocalResource, Resource: "resource", Strategies: []string{"passthrough"}}}})
+	require.NoError(t, func() error { _, err := resolver.Resolve(context.Background(), registry); return err }())
+
+	// Age the snapshot and trigger a held background refresh. Invalidation and
+	// the next cold Resolve then publish a newer snapshot before that refresh ends.
+	resolver.mu.Lock()
+	resolver.checked = time.Now().Add(-90 * time.Second)
+	resolver.mu.Unlock()
+	refreshCtx := context.WithValue(context.Background(), "background-refresh", true)
+	_, err := resolver.Resolve(refreshCtx, registry)
+	require.NoError(t, err)
+	for range 2 {
+		select {
+		case <-refreshStarted:
+		case <-time.After(time.Second):
+			t.Fatal("background refresh probes did not start")
+		}
+	}
+
+	resolver.Invalidate()
+	_, err = resolver.Resolve(context.Background(), registry)
+	require.NoError(t, err)
+	resolver.mu.Lock()
+	require.True(t, resolver.facts["engine"].Accelerated, "post-invalidation observation should publish CUDA facts")
+	resolver.mu.Unlock()
+
+	close(releaseRefresh)
+	deadline := time.Now().Add(time.Second)
+	for {
+		resolver.mu.Lock()
+		refreshing := resolver.refreshing
+		accelerated := resolver.facts["engine"].Accelerated
+		resolver.mu.Unlock()
+		if !refreshing {
+			require.True(t, accelerated, "obsolete refresh must not overwrite post-invalidation facts")
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("background refresh did not finish")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	require.GreaterOrEqual(t, ordinaryCalls.Load(), int32(2), "initial and cold observations should each run a control-plane status probe")
 }
 
 func TestLiveResolverAcceptsHealthyLifecycleStatusWhenStatusCodeIsAbsent(t *testing.T) {
-	calls := 0
+	var calls atomic.Int32
 	r := NewLiveResolver(func(_ context.Context, args ...string) ([]byte, error) {
-		calls++
+		calls.Add(1)
 		if args[0] == "resource" && args[1] == "acceleration" {
 			return []byte(`{"selected":"cuda","placement":{"state":"ok"}}`), nil
 		}
@@ -198,9 +449,9 @@ func TestManifestStrategiesAreKnown(t *testing.T) {
 	}
 }
 
-// TestLocalResourceEnginesDeclaredInServiceJSON asserts every local_resource
-// engine's resource appears in .vrooli/service.json dependencies.resources, so
-// the manifest can never reference a resource the scenario does not declare.
+// TestLocalResourceEnginesDeclaredInServiceJSON asserts lifecycle-managed
+// local_resource engines appear in dependencies.resources. Explicit attach-only
+// runtimes are externally managed and must remain outside scenario lifecycle.
 func TestLocalResourceEnginesDeclaredInServiceJSON(t *testing.T) {
 	declared := serviceResourceDeps(t)
 	for _, e := range Default().Engines() {
@@ -208,6 +459,10 @@ func TestLocalResourceEnginesDeclaredInServiceJSON(t *testing.T) {
 			continue
 		}
 		_, ok := declared[e.Resource]
+		if e.AttachOnly {
+			require.Falsef(t, ok, "attach-only engine %q resource %q must not be started by scenario lifecycle", e.ID, e.Resource)
+			continue
+		}
 		require.Truef(t, ok, "engine %q resource %q not declared in .vrooli/service.json dependencies.resources", e.ID, e.Resource)
 	}
 }
@@ -287,6 +542,20 @@ func TestResolveFactsPrefersLowFootprintStreamingOverAccelerated(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "sherpa", resolution.Selected)
 	require.Contains(t, resolution.Candidates[0].Reason, "native_streaming=true")
+}
+
+// The shipped selection policy must make the operator's low-footprint
+// preference decisive when more than one native streamer is healthy.
+func TestShippedPolicyPrefersSherpaOverKyutai(t *testing.T) {
+	registry := Default()
+	serviceable := EngineFacts{PlatformSupported: true, Installed: true, Running: true, Healthy: true, WorkloadCapable: true}
+	resolution, err := registry.ResolveFacts(map[string]EngineFacts{
+		"whisper-local":    serviceable,
+		"kyutai":           serviceable,
+		"sherpa-streaming": serviceable,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "sherpa-streaming", resolution.Selected)
 }
 
 // TestLiveResolverAcceptsAttachedProvider covers attach-only operation: the

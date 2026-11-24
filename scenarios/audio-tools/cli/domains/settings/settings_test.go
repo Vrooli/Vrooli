@@ -1,8 +1,10 @@
 package settings
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -51,12 +53,13 @@ func mountSettings(t *testing.T, svc settconnect.SettingsServiceHandler) *cliapp
 
 // Happy path: byok-upsert forwards provider/capability/key, prints the
 // returned fingerprint.
-func TestByokUpsertHappyPath(t *testing.T) {
+func TestByokUpsertReadsSecretFromStdin(t *testing.T) {
+	secret := "sk-abc"
 	app := mountSettings(t, &fakeSvc{
 		upsertFn: func(req *settv1.UpsertBYOKCredentialRequest) (*settv1.BYOKCredentialSummary, error) {
 			require.Equal(t, "openai-tts", req.GetProviderId())
 			require.Equal(t, "tts", req.GetCapability())
-			require.Equal(t, "sk-abc", req.GetApiKey())
+			require.Equal(t, secret, req.GetApiKey())
 			return &settv1.BYOKCredentialSummary{
 				ProviderId:  "openai-tts",
 				Capability:  "tts",
@@ -65,12 +68,60 @@ func TestByokUpsertHappyPath(t *testing.T) {
 		},
 	})
 	h := newHandlers(app)
-	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "provider"}, {Name: "capability"}, {Name: "key"}}}
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "provider"}, {Name: "capability"}, {Name: "key-stdin", Bool: true}}}
 	ctx, buf := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
-		Flags: map[string]string{"provider": "openai-tts", "capability": "tts", "key": "sk-abc"},
+		Flags:     map[string]string{"provider": "openai-tts", "capability": "tts"},
+		BoolFlags: map[string]bool{"key-stdin": true},
 	})
-	require.NoError(t, h.byokUpsert(ctx))
+	require.NoError(t, h.byokUpsertFrom(ctx, bytes.NewBufferString(secret+"\n")))
 	require.Contains(t, buf.String(), "Stored openai-tts/tts fingerprint=sk-***abc")
+	require.NotContains(t, buf.String(), secret)
+}
+
+func TestByokUpsertRejectsOversizedStdinWithoutEchoingSecret(t *testing.T) {
+	secret := strings.Repeat("s", maxBYOKSecretBytes+1)
+	app := mountSettings(t, &fakeSvc{upsertFn: func(*settv1.UpsertBYOKCredentialRequest) (*settv1.BYOKCredentialSummary, error) {
+		t.Fatal("oversized secret must not be sent to the API")
+		return nil, nil
+	}})
+	h := newHandlers(app)
+	err := h.byokUpsertFrom(byokRunContext(t, app, true), strings.NewReader(secret))
+	require.EqualError(t, err, "API key from stdin exceeds the 8 KiB limit")
+	require.NotContains(t, err.Error(), secret)
+}
+
+func TestByokUpsertRequiresKeyStdinFlag(t *testing.T) {
+	app := mountSettings(t, &fakeSvc{upsertFn: func(*settv1.UpsertBYOKCredentialRequest) (*settv1.BYOKCredentialSummary, error) {
+		t.Fatal("missing key-stdin must not call the API")
+		return nil, nil
+	}})
+	h := newHandlers(app)
+	err := h.byokUpsertFrom(byokRunContext(t, app, false), strings.NewReader("secret"))
+	require.EqualError(t, err, "provide the API key through stdin with --key-stdin")
+	require.NotContains(t, err.Error(), "secret")
+}
+
+func byokRunContext(t *testing.T, app *cliapp.ScenarioApp, stdinFlag bool) cliapp.RunContext {
+	t.Helper()
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "provider"}, {Name: "capability"}, {Name: "key-stdin", Bool: true}}}
+	boolFlags := map[string]bool{}
+	if stdinFlag {
+		boolFlags["key-stdin"] = true
+	}
+	ctx, _ := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"provider": "openai-tts", "capability": "tts"}, BoolFlags: boolFlags,
+	})
+	return ctx
+}
+
+type failingReader struct{}
+
+func (failingReader) Read([]byte) (int, error) { return 0, fmt.Errorf("sensitive reader detail") }
+
+func TestReadBYOKSecretReturnsGenericReadError(t *testing.T) {
+	_, err := readBYOKSecret(failingReader{})
+	require.EqualError(t, err, "could not read API key from stdin")
+	require.NotContains(t, err.Error(), "sensitive reader detail")
 }
 
 // Happy path: empty list — handler prints the "(no credentials)" sentinel.
@@ -93,11 +144,12 @@ func TestByokUpsertInvalidKey(t *testing.T) {
 		},
 	})
 	h := newHandlers(app)
-	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "provider"}, {Name: "capability"}, {Name: "key"}}}
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "provider"}, {Name: "capability"}, {Name: "key-stdin", Bool: true}}}
 	ctx, _ := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
-		Flags: map[string]string{"provider": "openai-tts", "capability": "tts", "key": "junk"},
+		Flags:     map[string]string{"provider": "openai-tts", "capability": "tts"},
+		BoolFlags: map[string]bool{"key-stdin": true},
 	})
-	err := h.byokUpsert(ctx)
+	err := h.byokUpsertFrom(ctx, bytes.NewBufferString("junk"))
 	require.Error(t, err)
 	require.True(t, strings.Contains(err.Error(), "upsert byok"), "want operation tag, got %q", err.Error())
 }

@@ -21,6 +21,7 @@ const WakeWordPage = lazy(() => import("./features/admin/WakeWordPage").then((m)
 const StreamConfigPage = lazy(() => import("./features/admin/StreamConfigPage").then((m) => ({ default: m.StreamConfigPage })));
 const DictationStudioPage = lazy(() => import("./features/dictation-studio/DictationStudioPage").then((m) => ({ default: m.DictationStudioPage })));
 const NotFoundPage = lazy(() => import("./features/not-found/NotFoundPage").then((m) => ({ default: m.NotFoundPage })));
+const AudioIntegrationRoute = lazy(() => import("./routes/AudioIntegrationRoute").then((m) => ({ default: m.AudioIntegrationRoute })));
 
 function getRouterBasename(): string {
   const info = getProxyInfo();
@@ -38,8 +39,8 @@ export default function App() {
           <Routes>
             <Route element={<AppShell />}>
               <Route index element={<OverviewPage />} />
-              <Route path="diagnostics" element={<DiagnosticsPage />} />
-              <Route path="dictation-studio" element={<DictationStudioPage />} />
+              <Route path="diagnostics" element={<AudioIntegrationRoute><DiagnosticsPage /></AudioIntegrationRoute>} />
+              <Route path="dictation-studio" element={<AudioIntegrationRoute><DictationStudioPage /></AudioIntegrationRoute>} />
               <Route path="status" element={<StatusPage />} />
               <Route path="configuration" element={<ConfigurationPage />} />
               <Route path="voices" element={<VoicesPage />} />
@@ -49,7 +50,7 @@ export default function App() {
               <Route path="docs/*" element={<DocViewerPage />} />
               <Route path="admin/speaker-verification" element={<SpeakerVerificationPage />} />
               <Route path="admin/wake-word" element={<WakeWordPage />} />
-              <Route path="admin/stream-config" element={<StreamConfigPage />} />
+              <Route path="admin/stream-config" element={<AudioIntegrationRoute><StreamConfigPage /></AudioIntegrationRoute>} />
               <Route path="overview" element={<Navigate to="/" replace />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>

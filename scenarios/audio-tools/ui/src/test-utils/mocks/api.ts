@@ -31,13 +31,16 @@
  * call site so unrelated exports (constants, types, classes) keep
  * working.
  */
-import { vi } from "vitest";
+import { vi, type Mock } from "vitest";
 
+import type { HealthResponse } from "../../api/health";
 import { makeHealthResponse } from "../factories";
+
+type FetchHealth = () => Promise<HealthResponse>;
 
 export interface ApiMocks {
   /** vi.fn() resolving to a healthy default; override via vi.mocked(...). */
-  fetchHealth: ReturnType<typeof vi.fn>;
+  fetchHealth: Mock<FetchHealth>;
 }
 
 /**
@@ -45,5 +48,5 @@ export interface ApiMocks {
  * factory closure — never at module top level (see file header).
  */
 export const makeApiMocks = (): ApiMocks => ({
-  fetchHealth: vi.fn().mockResolvedValue(makeHealthResponse()),
+  fetchHealth: vi.fn<FetchHealth>().mockResolvedValue(makeHealthResponse()),
 });

@@ -4,31 +4,34 @@
 // The command surface (name/flags/governance and the Service.Method
 // binding) is declared in cli/manifest.json — the single source of
 // truth. Register loads the "audio" group from the manifest and wires
-// each binding to a handler in handlers.go.
+// each binding to handlers.go.
 package audio
 
 import (
-	"github.com/vrooli/cli-core/cliapp"
-
 	"audio-tools/cli/internal/climanifest"
+	"github.com/vrooli/cli-core/cliapp"
 )
 
-// GroupName is the manifest group name this package owns.
 const GroupName = "audio"
 
-// Register builds the audio subcommand group from the embedded manifest
-// and wires Connect-RPC bindings to handlers.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	bindings := map[string]func(cliapp.RunContext) error{
-		"AudioProcessingService.Transcode":       h.transcode,
-		"AudioProcessingService.Trim":            h.trim,
-		"AudioProcessingService.Merge":           h.merge,
-		"AudioProcessingService.Split":           h.split,
-		"AudioProcessingService.Fade":            h.fade,
-		"AudioProcessingService.Volume":          h.volume,
-		"AudioProcessingService.Normalize":       h.normalize,
-		"AudioProcessingService.ExtractMetadata": h.extractMetadata,
+	primitives := map[string]cliapp.PrimitiveHandler{
+		"AudioProcessingService.Transcode": h.transcodePrimitive(), "AudioProcessingService.Trim": h.trimPrimitive(), "AudioProcessingService.Merge": h.mergePrimitive(), "AudioProcessingService.Split": h.splitPrimitive(), "AudioProcessingService.Fade": h.fadePrimitive(), "AudioProcessingService.Volume": h.volumePrimitive(), "AudioProcessingService.Normalize": h.normalizePrimitive(), "AudioProcessingService.ExtractMetadata": h.extractMetadataPrimitive(),
 	}
-	return climanifest.LoadGroup(manifest, GroupName, bindings)
+	bindings := map[string]func(cliapp.RunContext) error{}
+	for binding, primitive := range primitives {
+		bindings[binding] = primitive.Run
+	}
+	group, err := climanifest.LoadGroup(manifest, GroupName, bindings)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, err
+	}
+	for i := range group.Subcommands {
+		method := map[string]string{"transcode": "Transcode", "trim": "Trim", "merge": "Merge", "split": "Split", "fade": "Fade", "volume": "Volume", "normalize": "Normalize", "extract-metadata": "ExtractMetadata"}[group.Subcommands[i].Name]
+		if primitive, ok := primitives["AudioProcessingService."+method]; ok {
+			group.Subcommands[i] = group.Subcommands[i].WithPrimitive(primitive)
+		}
+	}
+	return group, nil
 }

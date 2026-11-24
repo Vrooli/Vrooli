@@ -15,12 +15,15 @@ import (
 	"github.com/vrooli/api-core/schedule"
 )
 
+const maxOpenAIWhisperResponseBytes = 16 << 20
+
 // OpenAIWhisperSTT calls OpenAI's audio/transcriptions endpoint.
 // Model: whisper-1. Audio bytes are uploaded as multipart form-data.
 type OpenAIWhisperSTT struct {
-	Endpoint string
-	Doer     httpc.Doer
-	Clock    schedule.Clock
+	ProviderID string
+	Endpoint   string
+	Doer       httpc.Doer
+	Clock      schedule.Clock
 }
 
 func NewOpenAIWhisperSTT() *OpenAIWhisperSTT {
@@ -31,7 +34,12 @@ func NewOpenAIWhisperSTT() *OpenAIWhisperSTT {
 	}
 }
 
-func (a *OpenAIWhisperSTT) ID() string    { return "openai-whisper" }
+func (a *OpenAIWhisperSTT) ID() string {
+	if a.ProviderID != "" {
+		return a.ProviderID
+	}
+	return "openai-whisper"
+}
 func (a *OpenAIWhisperSTT) Model() string { return "whisper-1" }
 
 func (a *OpenAIWhisperSTT) IsAvailable(ctx context.Context, key string) bool {
@@ -92,14 +100,18 @@ func (a *OpenAIWhisperSTT) Transcribe(ctx context.Context, key string, req sttch
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
-		raw, _ := io.ReadAll(resp.Body)
+		raw, _ := readProviderResponse(resp.Body, maxProviderErrorBytes)
 		return nil, fmt.Errorf("openai-whisper: HTTP %d: %s", resp.StatusCode, truncate(string(raw), 256))
+	}
+	data, err := readProviderResponse(resp.Body, maxOpenAIWhisperResponseBytes)
+	if err != nil {
+		return nil, fmt.Errorf("openai-whisper: read response: %w", err)
 	}
 
 	var out struct {
 		Text string `json:"text"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+	if err := json.Unmarshal(data, &out); err != nil {
 		return nil, fmt.Errorf("openai-whisper: decode response: %w", err)
 	}
 	return &sttchain.Result{

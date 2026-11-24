@@ -3,7 +3,7 @@ import { X } from "lucide-react";
 
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { useTranslation } from "../../../i18n";
 import { strings } from "../../../consts/strings";
 import { selectors } from "../../../consts/selectors";

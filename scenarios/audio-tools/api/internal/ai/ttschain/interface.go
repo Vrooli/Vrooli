@@ -39,14 +39,15 @@ type Request struct {
 }
 
 type Result struct {
-	Audio       []byte
-	ContentType string
-	ContentHash string
-	Tier        ProviderTier
-	ProviderID  string
-	ModelID     string
-	VoiceUsed   string
-	Latency     time.Duration
+	Audio        []byte
+	ContentType  string
+	ContentHash  string
+	Tier         ProviderTier
+	ProviderID   string
+	ModelID      string
+	VoiceUsed    string
+	CacheBackend string
+	Latency      time.Duration
 }
 
 // seam: Provider is the TTS chain-provider seam (SEAMS.md row

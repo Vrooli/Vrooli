@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -22,7 +23,11 @@ import (
 
 // cacheKeyHash returns a deterministic string hash for map storage.
 func cacheKeyHash(k CacheKey) string {
-	raw := fmt.Sprintf("%s|%s|%.4f|%s|%d", k.EventID, k.Voice, k.Speed, k.Version, k.ChunkIndex)
+	format := k.ResponseFormat
+	if format == "" {
+		format = DefaultResponseFormat
+	}
+	raw := fmt.Sprintf("%s|%s|%s|%s|%s|%s|%d", k.EventID, k.Backend, k.Voice, strconv.FormatFloat(k.Speed, 'g', -1, 64), format, k.Version, k.ChunkIndex)
 	sum := sha256.Sum256([]byte(raw))
 	return fmt.Sprintf("%x", sum[:16])
 }
@@ -113,9 +118,15 @@ func (c *Cache) Get(key CacheKey) (*CacheEntry, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if entry, ok := c.entries[hash]; ok {
+		c.markRecentlyUsed(hash)
 		return entry, true
 	}
 	return c.loadDiskEntryLocked(hash)
+}
+
+func (c *Cache) markRecentlyUsed(hash string) {
+	c.removeFromOrder(hash)
+	c.order = append(c.order, hash)
 }
 
 // Put stores audio in the cache, evicting oldest entries if necessary.
@@ -292,9 +303,7 @@ func (c *Cache) loadDisk() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for _, candidate := range candidates {
-		if _, ok := c.loadDiskEntryLocked(candidate.hash); !ok {
-			continue
-		}
+		c.loadDiskEntryLocked(candidate.hash)
 	}
 	return nil
 }

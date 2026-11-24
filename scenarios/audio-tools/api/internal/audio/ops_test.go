@@ -1,8 +1,11 @@
 package audio_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
+	"math"
 	"strings"
 	"testing"
 
@@ -26,15 +29,15 @@ func swapRunner(t *testing.T, r audio.Runner) {
 }
 
 func TestTranscodeArgvShape(t *testing.T) {
-	fake := mocks.NewFakeRunner([]byte("WAVDATA"), nil)
+	fake := mocks.NewFakeRunner(streamedWAVForTest(), nil)
 	swapRunner(t, fake)
 
 	out, err := audio.Transcode(context.Background(), []byte("INPUT"))
 	if err != nil {
 		t.Fatalf("Transcode: %v", err)
 	}
-	if string(out) != "WAVDATA" {
-		t.Fatalf("expected fake stdout, got %q", out)
+	if string(out[:4]) != "RIFF" || binary.LittleEndian.Uint32(out[4:8]) != uint32(len(out)-8) {
+		t.Fatalf("streamed WAV sizes were not finalized: %x", out)
 	}
 	if len(fake.Calls) != 1 {
 		t.Fatalf("expected 1 invocation, got %d", len(fake.Calls))
@@ -48,6 +51,53 @@ func TestTranscodeArgvShape(t *testing.T) {
 	}
 	if string(call.Stdin) != "INPUT" {
 		t.Fatalf("stdin not forwarded: %q", call.Stdin)
+	}
+}
+
+func TestChangeSpeedUsesBoundedPitchPreservingTempoFilters(t *testing.T) {
+	for _, tc := range []struct {
+		speed  float64
+		filter string
+	}{{1.5, "atempo=1.5"}, {4, "atempo=2,atempo=2"}} {
+		t.Run(tc.filter, func(t *testing.T) {
+			fake := mocks.NewFakeRunner(streamedWAVForTest(), nil)
+			swapRunner(t, fake)
+			out, err := audio.ChangeSpeed(context.Background(), []byte("INPUT"), tc.speed)
+			if err != nil {
+				t.Fatalf("ChangeSpeed: %v", err)
+			}
+			dataTag := bytes.Index(out, []byte("data"))
+			if string(out[:4]) != "RIFF" || binary.LittleEndian.Uint32(out[4:8]) != uint32(len(out)-8) || dataTag < 0 || binary.LittleEndian.Uint32(out[dataTag+4:dataTag+8]) != 2 {
+				t.Fatalf("streamed WAV sizes were not finalized: %x", out)
+			}
+			args := lastFfmpegCall(t, fake).Args
+			if !containsAll(args, "-i", "pipe:0", "-filter:a", tc.filter, "-f", "wav", "pipe:1") {
+				t.Fatalf("tempo filter argv = %v", args)
+			}
+		})
+	}
+}
+
+func streamedWAVForTest() []byte {
+	wav := make([]byte, 58)
+	copy(wav[:4], "RIFF")
+	binary.LittleEndian.PutUint32(wav[4:8], math.MaxUint32)
+	copy(wav[8:12], "WAVE")
+	copy(wav[12:16], "fmt ")
+	binary.LittleEndian.PutUint32(wav[16:20], 16)
+	copy(wav[36:40], "LIST")
+	binary.LittleEndian.PutUint32(wav[40:44], 4)
+	copy(wav[44:48], "INFO")
+	copy(wav[48:52], "data")
+	binary.LittleEndian.PutUint32(wav[52:56], math.MaxUint32)
+	return wav
+}
+
+func TestChangeSpeedRejectsOutOfRangeAndNonFiniteValues(t *testing.T) {
+	for _, speed := range []float64{0, 0.49, 4.01, math.NaN(), math.Inf(1)} {
+		if _, err := audio.ChangeSpeed(context.Background(), []byte("WAV"), speed); !errors.Is(err, audio.ErrInvalidArgument) {
+			t.Errorf("ChangeSpeed(%v) error = %v, want ErrInvalidArgument", speed, err)
+		}
 	}
 }
 

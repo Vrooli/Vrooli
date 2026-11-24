@@ -47,9 +47,44 @@
           "max_bytes": "256MiB",
           "rationale": "The dated evidence cohort measured 1090744 bytes on 2026-08-27; 256 MiB is an alarm-only ceiling for durable measurements."
         }
+    },
+    "retention_receipt": {
+      "rung": "owned",
+      "kind": "file",
+      "class": "state",
+      "subpath": "retention/enforcement-receipt.json",
+      "format": "json",
+      "regenerable": false,
+      "agent_removal": "deny",
+      "rationale": "api-core retention records the last enforcement outcome in the scenario state namespace; retain it as operational evidence across restarts."
       }
     },
     "rationale": "Storage surfaces include durable scenario data and separately named long-form qualification evidence."
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "version": "credential-descriptor/v1",
+        "logical_id": "vrooli/openai-gpt-live",
+        "field": "api-key",
+        "label": "OpenAI GPT-Live API key",
+        "description": "Optional operator key resolved in-process from Vrooli credential authority. The GPT-Live provider stays disabled until production duplex and billing evidence gates pass.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://platform.openai.com/api-keys"
+      }
+    ],
+    "consumers": [
+      {
+        "logical_id": "vrooli/openai-gpt-live",
+        "field": "api-key",
+        "kind": "authority",
+        "consumer": "GPT-Live duplex session key resolver",
+        "source_ref": "api/internal/duplex/key_resolver.go:AuthorityKeyResolver.ResolveOpenAIKey",
+        "required": false,
+        "reason": "The provider is a planned candidate until production duplex composition and trustworthy provider billing evidence are complete."
+      }
+    ]
   },
   "service": {
     "parent": "vrooli",
@@ -156,22 +191,6 @@
         }
       ],
       "startup_grace_period": 15000
-    },
-    "setup": {
-      "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
-      "steps": [
-        {
-          "name": "build-api",
-          "exec": [
-            "go",
-            "-C",
-            "api",
-            "run",
-            "./cmd/build"
-          ],
-          "description": "Build Go API server"
-        }
-      ]
     }
   },
   "components": {
@@ -179,7 +198,9 @@
       "role": "api",
       "build": {
         "kind": "go_module",
-        "dir": "api"
+        "dir": "api",
+        "output": "api/audio-tools-api-{variant}",
+        "source_identity_symbol": "audio-tools/internal/buildidentity.SourceIdentity"
       },
       "run": {
         "argv": [
@@ -192,43 +213,90 @@
       "role": "ui",
       "build": {
         "kind": "pnpm_vite",
-        "dir": "ui"
+        "dir": "ui",
+        "output": "ui/dist-{variant}/index.html"
       },
       "run": {
         "argv": [
           "node",
           "ui/server.js"
         ],
+        "env": {
+          "AUDIO_TOOLS_UI_DIST_DIR": "dist-live"
+        },
         "port": "ui"
       }
+    },
+    "lab-ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui",
+        "output": "ui/lab-dist-{variant}/index.html"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "ui/server.js"
+        ],
+        "env": {
+          "AUDIO_TOOLS_UI_DIST_DIR": "lab-dist-lab"
+        },
+        "port": "ui"
+      }
+    },
+    "lab-api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api",
+        "output": "api/audio-tools-lab-api-{variant}",
+        "tags": ["audio_lab"],
+        "source_identity_symbol": "audio-tools/internal/buildidentity.SourceIdentity"
+      },
+      "run": {
+        "argv": [
+          "{{bin.lab-api}}"
+        ],
+        "env": {
+          "VROOLI_VARIANT": "lab"
+        },
+        "port": "api"
+      }
+    }
+  },
+  "profiles": {
+    "default": {
+      "components": ["api", "ui"],
+      "ports": ["api", "ui"]
+    },
+    "lab": {
+      "components": ["lab-api", "lab-ui"],
+      "ports": ["api", "ui"]
     }
   },
   "dependencies": {
     "resources": {
       "whisper": {
-        "required": false,
         "description": "Local STT tier (faster-whisper engine)",
-        "startup_policy": "try_start"
+        "required": false,
+        "startup_policy": "ignore"
       },
       "kyutai-stt": {
-        "required": false,
         "description": "Optional Linux/CUDA streaming STT accelerator",
-        "startup_policy": "try_start"
+        "required": false,
+        "startup_policy": "ignore"
       },
       "kokoro": {
+        "degraded_behavior": "Audio Tools remains available; if Kale is unavailable, Kokoro is started on demand with a bounded, single-flight start and cooldown, and the TTS chain falls through to later provider tiers if startup fails.",
+        "description": "Fallback text-to-speech resource started only when an auto TTS request needs Kokoro",
         "required": false,
-        "description": "Local TTS tier",
-        "startup_policy": "try_start"
-      },
-      "sherpa-onnx": {
-        "required": false,
-        "description": "Native local TTS, streaming STT, speaker enrollment/verification, and source separation",
-        "startup_policy": "try_start"
+        "startup_policy": "ignore"
       },
       "ollama": {
+        "description": "Optional local model administration and evaluation; production summaries use AI Gateway",
         "required": false,
-        "description": "Local summarize tier",
-        "startup_policy": "try_start"
+        "startup_policy": "ignore"
       },
       "openrouter": {
         "type": "openrouter",
@@ -239,10 +307,12 @@
         "description": "Cloud summarize tier (BYOK); model resolved via OpenRouter policy role",
         "startup_policy": "try_start"
       },
-      "postgres": {
+      "kale-tts": {
+        "degraded_behavior": "When the healthy Kale Nano runtime is unavailable, auto TTS starts Kokoro on demand and then falls through to later tiers if startup fails; explicit Kale selection requires the runtime.",
+        "description": "CPU-only Kale Nano TTS candidate, conditionally selected by auto when its runtime is healthy",
+        "enabled": true,
         "required": false,
-        "description": "Optional usage history backend; sqlite is default",
-        "startup_policy": "try_start"
+        "startup_policy": "ignore"
       }
     },
     "scenarios": {
@@ -251,6 +321,11 @@
         "startup_policy": "try_start",
         "degraded_behavior": "LPBS-backed audio routing remains unavailable while landing-page-business-suite is stopped; local and BYOK providers continue to serve supported requests.",
         "bundle_policy": "discover"
+    },
+    "ai-gateway": {
+      "required": false,
+      "startup_policy": "try_start",
+      "degraded_behavior": "Gateway-backed summarize is unavailable while ai-gateway is stopped; locally configured and BYOK provider tiers remain available."
       }
     }
   },
@@ -259,6 +334,7 @@
     "AUDIO_WHISPER_URL": "http://localhost:8090",
     "AUDIO_KYUTAI_URL": "http://localhost:8094",
     "AUDIO_SHERPA_URL": "http://localhost:8881",
+    "AUDIO_TTS_BACKEND": "auto",
     "AUDIO_OLLAMA_URL": "http://localhost:11434",
     "AUDIO_AI_ENABLE_BYOK": "true",
     "AUDIO_AI_ENABLE_VROOLI": "false",

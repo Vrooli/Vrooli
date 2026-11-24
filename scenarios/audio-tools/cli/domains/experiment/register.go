@@ -28,5 +28,20 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ExperimentService.RecordQualificationEvidence": h.recordEvidence,
 		"ExperimentService.ListQualificationEvidence":   h.listEvidence,
 	}
-	return climanifest.LoadGroup(manifest, GroupName, bindings)
+	group, err := climanifest.LoadGroup(manifest, GroupName, bindings)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, err
+	}
+	primitives := map[string]cliapp.PrimitiveHandler{
+		"get": h.getPrimitive(), "report": h.reportPrimitive(), "list": h.listPrimitive(),
+		"compare": h.comparePrimitive(), "list-evidence": h.listEvidencePrimitive(),
+		"start": h.startPrimitive(), "wait": h.waitPrimitive(), "cancel": h.cancelPrimitive(),
+		"delete": h.deletePrimitive(), "record-evidence": h.recordEvidencePrimitive(), "watch": h.watchPrimitive(),
+	}
+	for i := range group.Subcommands {
+		if primitive, ok := primitives[group.Subcommands[i].Name]; ok {
+			group.Subcommands[i] = group.Subcommands[i].WithPrimitive(primitive)
+		}
+	}
+	return group, nil
 }

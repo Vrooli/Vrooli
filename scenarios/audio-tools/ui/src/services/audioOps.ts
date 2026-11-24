@@ -218,7 +218,7 @@ function normalizationMethod(value: AudioOpValue): NormalizationMethod {
 
 function formatExtension(value: AudioOpValue): string {
   const raw = textOf(value).trim().toLowerCase();
-  return ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus"].includes(raw) ? raw : "wav";
+  return ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"].includes(raw) ? raw : "wav";
 }
 
 function textOf(value: AudioOpValue): string {

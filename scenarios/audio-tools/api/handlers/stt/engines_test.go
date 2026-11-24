@@ -2,13 +2,16 @@ package stt
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 
+	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/sttengine"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
@@ -104,4 +107,67 @@ func TestListEngines_EmptyWithoutRegistry(t *testing.T) {
 	resp, err := c.ListEngines(context.Background(), connect.NewRequest(&sttv1.ListEnginesRequest{}))
 	require.NoError(t, err)
 	require.Empty(t, resp.Msg.GetEngines())
+}
+
+type inventoryProvider struct {
+	id                  string
+	serviceable         bool
+	availabilityCalls   int
+	serviceabilityCalls int
+}
+
+func (p *inventoryProvider) Type() sttchain.ProviderTier { return sttchain.TierLocal }
+func (p *inventoryProvider) IsAvailable(context.Context) bool {
+	p.availabilityCalls++
+	return p.serviceable
+}
+
+func (p *inventoryProvider) IsServiceable(context.Context) bool {
+	p.serviceabilityCalls++
+	return p.serviceable
+}
+func (p *inventoryProvider) Model() string                   { return p.id }
+func (p *inventoryProvider) Traits() sttchain.ProviderTraits { return sttchain.ProviderTraits{} }
+func (p *inventoryProvider) Transcribe(context.Context, sttchain.Request) (*sttchain.Result, error) {
+	return nil, nil
+}
+
+func (p *inventoryProvider) TranscribeStreaming(context.Context, sttchain.StreamStart, <-chan sttchain.AudioChunk) (<-chan sttchain.StreamEvent, error) {
+	return nil, nil
+}
+
+func TestListEnginesUsesReadOnlyProviderLiveness(t *testing.T) {
+	registry := sttengine.Default()
+	providers := make(map[string]sttchain.Provider, len(registry.Engines()))
+	byID := make(map[string]*inventoryProvider, len(registry.Engines()))
+	for _, engine := range registry.Engines() {
+		provider := &inventoryProvider{id: engine.ID, serviceable: engine.ID == "sherpa-streaming"}
+		providers[engine.ID] = provider
+		byID[engine.ID] = provider
+	}
+	chain := sttchain.NewChain(sttchain.Options{
+		LocalEngines: providers, EnableLocal: true,
+	})
+	var controlPlaneCalls int
+	resolver := sttengine.NewLiveResolver(func(context.Context, ...string) ([]byte, error) {
+		controlPlaneCalls++
+		return nil, errors.New("inventory must not shell out to the control plane")
+	}, time.Minute)
+
+	client := newSTTRuntimeClient(t, Deps{Registry: registry, Chain: chain, EngineResolver: resolver})
+	resp, err := client.ListEngines(context.Background(), connect.NewRequest(&sttv1.ListEnginesRequest{}))
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Msg.GetEngines())
+	require.Zero(t, controlPlaneCalls, "inventory must use the bounded, read-only provider liveness seam")
+	for _, engine := range resp.Msg.GetEngines() {
+		if engine.GetId() == "whisper-local" {
+			require.False(t, engine.GetAvailable())
+			require.Contains(t, engine.GetReason(), "not_serviceable")
+			require.NotContains(t, engine.GetReason(), "not_installed")
+		}
+	}
+	for _, provider := range byID {
+		require.Zero(t, provider.availabilityCalls, "read-only listing must never call lifecycle-reconciling IsAvailable")
+		require.Equal(t, 1, provider.serviceabilityCalls, "each local engine should be probed once and the result reused for projection")
+	}
 }

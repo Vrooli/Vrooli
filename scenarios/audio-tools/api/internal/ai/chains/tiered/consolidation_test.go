@@ -92,6 +92,11 @@ func TestStreamingTerminalCreditsAtEveryTier(t *testing.T) {
 	require.False(t, tiered.StreamingTerminal(tiered.SlotBYOK, transport, unknown, missing, credits))
 }
 
+func TestOrderMatchesUnaryAndSpeechPrecedence(t *testing.T) {
+	require.Equal(t, [3]tiered.Slot{tiered.SlotBYOK, tiered.SlotVrooli, tiered.SlotLocal}, tiered.Order(false))
+	require.Equal(t, [3]tiered.Slot{tiered.SlotLocal, tiered.SlotBYOK, tiered.SlotVrooli}, tiered.Order(true))
+}
+
 func TestStampIdentityPreservesTierSpecificProviderRules(t *testing.T) {
 	tier := ""
 	providerID, modelID := "", ""
@@ -167,14 +172,14 @@ func TestBYOKDispatcherCentralizesGuardsAndDecoration(t *testing.T) {
 
 func TestLPBSHelpersPreserveNilReceiverContracts(t *testing.T) {
 	var nilCarrier *lpbsCarrier
-	require.False(t, tiered.SafeIsAvailable[any](nilCarrier, context.Background()))
+	require.False(t, tiered.SafeIsAvailable[any](context.Background(), nilCarrier))
 	require.Equal(t, "", tiered.SafeModel[any](nilCarrier))
 
 	carrier := &lpbsCarrier{state: tiered.NewLPBSProvider[any]("client",
 		func(any) bool { return false },
 		func(any, context.Context) bool { return true },
 		func(any) string { return "model" })}
-	require.True(t, tiered.SafeIsAvailable[any](carrier, context.Background()))
+	require.True(t, tiered.SafeIsAvailable[any](context.Background(), carrier))
 	require.Equal(t, "model", tiered.SafeModel[any](carrier))
 }
 

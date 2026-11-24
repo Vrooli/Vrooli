@@ -103,7 +103,7 @@ func TestSummaryEvaluationDatasetRequiresFixedIndependentDenominator(t *testing.
 func TestRunSummaryEvaluationUsesActualCallerRoleAndFixedProviderPath(t *testing.T) {
 	var observed []string
 	summarizer := NewSummarizerWithRunner("resource-ollama-test", func(_ context.Context, args []string, stdin string) ([]byte, error) {
-		contextTier := argValue(args, "--num-ctx")
+		contextTier := argValue(args, "--context-budget")
 		observed = append(observed, contextTier)
 		identity := validSummaryIdentity()
 		if argValue(args, "--expected-rights-decision-sha256") != identity.RightsDecisionSHA256 || argValue(args, "--expected-rights-evaluated-at") != identity.RightsEvaluatedAt || argValue(args, "--expected-model") != identity.ResolvedModel || argValue(args, "--expected-artifact-digest") != identity.ArtifactDigest {
@@ -112,7 +112,7 @@ func TestRunSummaryEvaluationUsesActualCallerRoleAndFixedProviderPath(t *testing
 		if argValue(args, "--role") != SummaryEvaluationRole {
 			t.Fatalf("provider role = %q, want %q", argValue(args, "--role"), SummaryEvaluationRole)
 		}
-		if stdin == "" || !strings.Contains(argValue(args, "--system"), "Rewrite") {
+		if stdin == "" || !strings.Contains(argValue(args, "--system"), "spoken summary under the output budget") {
 			t.Fatalf("provider request missing frozen moderate prompt/input: args=%v input=%q", args, stdin)
 		}
 		return json.Marshal(map[string]any{

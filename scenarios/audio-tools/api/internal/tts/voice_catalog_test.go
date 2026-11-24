@@ -57,3 +57,14 @@ func TestVerifyCatalog_MissingCanonical(t *testing.T) {
 		t.Errorf("Adapter = %q; want %q", missing.Adapter, "test")
 	}
 }
+
+func TestVerifyCatalog_RejectsUnknownCanonical(t *testing.T) {
+	mapping := AdapterVoiceMap{}
+	for _, id := range CanonicalVoiceIDs {
+		mapping[id] = "voice"
+	}
+	mapping["voice.unknown"] = "backend"
+	if err := VerifyCatalog([]AdapterCatalogEntry{{TierProvider: "test", Mapping: mapping}}); err == nil {
+		t.Fatal("VerifyCatalog accepted an undeclared canonical voice")
+	}
+}

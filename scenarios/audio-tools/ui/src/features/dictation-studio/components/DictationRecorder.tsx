@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { RotateCcw, X } from "lucide-react";
 
 import {
@@ -16,6 +16,9 @@ import { selectors } from "../../../consts/selectors";
 import { useMicPermission } from "../../diagnostics/useMicPermission";
 import { extractPcm16FromWav, pcm16DurationMs } from "../audioWav";
 import { joinTranscriptText, type StreamTurnDiagnostic } from "@vrooli/audio-capture-browser";
+import { registerVoiceTransport } from "../../../audio-integration/registerVoiceTransport";
+
+registerVoiceTransport();
 
 type VirtualCaptureShape = "burst" | "chunked";
 
@@ -96,6 +99,7 @@ export function DictationRecorder({ onCaptured, onTranscript }: Props) {
   const rafRef = useRef<number>(0);
   const audioNodesRef = useRef<AudioNode[]>([]);
   const audioLevelRef = useRef(0);
+  const lastAudioLevelUpdateAtMsRef = useRef(Number.NEGATIVE_INFINITY);
   const noAudioTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [state, setState] = useState<RecorderState>("idle");
   const [audioLevel, setAudioLevel] = useState(0);
@@ -108,12 +112,14 @@ export function DictationRecorder({ onCaptured, onTranscript }: Props) {
   const [noAudioDetected, setNoAudioDetected] = useState(false);
   const [diagnostic, setDiagnostic] = useState<StreamTurnDiagnostic | null>(null);
   const committedTextRef = useRef("");
+  const visibleTranscriptRef = useRef("");
   const micPermission = useMicPermission();
 
   const stopLevelMonitor = () => {
     cancelAnimationFrame(rafRef.current);
     rafRef.current = 0;
     audioLevelRef.current = 0;
+    lastAudioLevelUpdateAtMsRef.current = Number.NEGATIVE_INFINITY;
     setAudioLevel(0);
     for (const node of audioNodesRef.current) {
       try {
@@ -148,7 +154,7 @@ export function DictationRecorder({ onCaptured, onTranscript }: Props) {
       audioNodesRef.current = [source, analyser];
       const data = new Uint8Array(analyser.frequencyBinCount);
 
-      const tick = () => {
+      const tick = (atMs: number) => {
         analyser.getByteTimeDomainData(data);
         let sum = 0;
         for (const point of data) {
@@ -157,7 +163,14 @@ export function DictationRecorder({ onCaptured, onTranscript }: Props) {
         }
         const nextLevel = Math.min(1, Math.sqrt(sum / data.length) * 4);
         audioLevelRef.current = nextLevel;
-        setAudioLevel(nextLevel);
+        // Keep analysis at the audio/render cadence for reliable silence
+        // detection, but limit React updates to 20 Hz. Updating the entire
+        // recorder tree on every display frame competes with transcript
+        // rendering while the stream is producing partials.
+        if (atMs - lastAudioLevelUpdateAtMsRef.current >= 50) {
+          lastAudioLevelUpdateAtMsRef.current = atMs;
+          setAudioLevel(nextLevel);
+        }
         rafRef.current = requestAnimationFrame(tick);
       };
       rafRef.current = requestAnimationFrame(tick);
@@ -173,7 +186,8 @@ export function DictationRecorder({ onCaptured, onTranscript }: Props) {
 
   const captureTurn = async (text: string) => {
     const provider = providerRef.current;
-    const last = provider?.getLastTurnAudio() ?? null;
+    if (!provider) return;
+    const last = provider.getLastTurnAudio();
     if (!last) {
       setCaptureMissing(true);
       // A bounded whole-turn replay copy is deliberately not retained forever.
@@ -184,6 +198,9 @@ export function DictationRecorder({ onCaptured, onTranscript }: Props) {
     }
     try {
       const buf = await last.blob.arrayBuffer();
+      // Cancellation may dispose this provider while the retained audio is
+      // being read. Do not publish a result from a turn the user cancelled.
+      if (providerRef.current !== provider) return;
       const { pcm, sampleRateHz } = extractPcm16FromWav(buf);
       const durationMs = last.durationMs > 0 ? last.durationMs : pcm16DurationMs(pcm.byteLength, sampleRateHz);
       setCapturedSeconds(Math.round(durationMs / 100) / 10);
@@ -191,6 +208,7 @@ export function DictationRecorder({ onCaptured, onTranscript }: Props) {
       setState("captured");
       onCaptured({ audio: pcm, durationMs, sampleRateHz, transcript: text });
     } catch {
+      if (providerRef.current !== provider) return;
       setCaptureMissing(true);
       setState("failed");
     }
@@ -210,6 +228,7 @@ export function DictationRecorder({ onCaptured, onTranscript }: Props) {
         wireBatchSamples: 16_000,
       } : { wireBatchSamples: 800 });
       p.onResult = (text) => {
+        if (providerRef.current !== p) return;
         setPartial("");
         // Passthrough providers may commit durable segments before sending
         // the terminal envelope. The envelope's final text is intentionally
@@ -227,23 +246,30 @@ export function DictationRecorder({ onCaptured, onTranscript }: Props) {
         void captureTurn(transcript);
       };
       p.onError = (msg) => {
+        if (providerRef.current !== p) return;
         setError(msg);
         setState("failed");
         stopLevelMonitor();
       };
-      p.onPartial = (text) => setPartial(text);
+      p.onPartial = (text) => {
+        if (providerRef.current === p) setPartial(text);
+      };
       p.onSegmentFinal = (text) => {
+        if (providerRef.current !== p) return;
         committedTextRef.current = joinTranscriptText(committedTextRef.current, text);
         setFinalText(committedTextRef.current);
       };
 
       p.onStatus = ({ code, message }) => {
+        if (providerRef.current !== p) return;
         // Processed coverage is a durability signal consumed by the
         // diagnostic ledger. It must not replace the user-facing connection
         // state while a deterministic or real microphone turn is running.
         if (code !== "processed_acknowledgement") setStreamStatus(message);
       };
-      p.onDiagnostic = (next) => setDiagnostic(next);
+      p.onDiagnostic = (next) => {
+        if (providerRef.current === p) setDiagnostic(next);
+      };
       providerRef.current = p;
     }
     return providerRef.current;
@@ -280,6 +306,7 @@ export function DictationRecorder({ onCaptured, onTranscript }: Props) {
     setPartial("");
     setFinalText("");
     committedTextRef.current = "";
+    visibleTranscriptRef.current = "";
     setCaptureMissing(false);
     setCapturedSeconds(null);
     setNoAudioDetected(false);
@@ -324,10 +351,23 @@ export function DictationRecorder({ onCaptured, onTranscript }: Props) {
     }
   };
 
+  // Measure at the consumer seam: React has committed the current transcript
+  // DOM before this layout effect runs. Provider callback timestamps alone
+  // would hide rendering and main-thread delay from the visible-update gap.
+  useLayoutEffect(() => {
+    const visibleText = partial || finalText;
+    if (!visibleText || visibleText === visibleTranscriptRef.current) return;
+    visibleTranscriptRef.current = visibleText;
+    providerRef.current?.recordVisibleTranscriptRevision();
+  }, [partial, finalText]);
+
   const stop = () => {
     if (state !== "recording") return;
     setState("transcribing");
     stopLevelMonitor();
+    // Keep stop-to-final-tail measurements anchored to the user's action,
+    // including the short encoder/transport drain that follows this call.
+    providerRef.current?.markStopRequested();
     providerRef.current?.stop();
   };
 

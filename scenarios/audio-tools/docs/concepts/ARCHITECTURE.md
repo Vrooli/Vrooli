@@ -104,7 +104,7 @@ spend, and settlement/cancellation semantics require review before acceptance or
 paid execution. They do not block authorized local measurement and repair.
 The method and evidence matrix live in [Testing](../internal/TESTING.md#development-pilot-evidence-contract).
 
-The published scope is PRD `portable-voice-v1`: route OT-P0-004, streaming
+The published scope is PRD `portable-voice-v2`: route OT-P0-004, streaming
 OT-P0-005, quality OT-P0-006, owned service OT-P0-007, device qualification
 OT-P0-008, privacy OT-P0-009 and evidence OT-P0-010. Maintainability is
 OT-P1-003. The v2 diagnostic board lists those targets but does not prove them.
@@ -209,6 +209,9 @@ generated from the provider catalog (`whisper-stt`, `kyutai-stt`, `kokoro-tts`,
 and source-separation capabilities while those logical capability names remain
 stable for API and UI consumers. `whisper` remains the native batch STT
 resource; these logical names do not imply separate Docker resources.
+The Kokoro provider declaration also describes the optional Sherpa-backed TTS
+runtime: backend selection, health endpoint, and cache namespace come from that
+route data while provider, model, and canonical voice identity remain Kokoro.
 It
 wraps `vrooli resource <verb> <slug>` through the
 `capabilities.ResourceController` seam (production:
@@ -393,6 +396,14 @@ decoupling, capability table). The seams it introduces — `Segmenter`,
 `StrategySelector`, `StreamingStrategy` — are registered in
 [`../internal/SEAMS.md`](../internal/SEAMS.md#streaming-chain-seams-audio-tools-web-console-restoration-plan).
 
+Unary `STTService.Transcribe` keeps Whisper as the default local batch engine.
+Callers can explicitly select a declared batch model with
+`X-Audio-Model-ID`; unknown or unavailable selections fail closed without
+falling through to another provider. `AUDIO_RUMBLE_VLLM_URL` opts in to the
+Rumble vLLM endpoint. The engine appears serviceable only when read-only health
+and served-model probes succeed. This endpoint route does not install or start
+vLLM and does not qualify Rumble for a default.
+
 ### Engine-capability manifest (`internal/sttengine`)
 
 `internal/sttengine` is the single source of truth for which STT engines the
@@ -494,7 +505,7 @@ that ingests or emits audio routes through it:
   canonical PCM (16-bit LE, mono, 16 kHz) via one long-lived ffmpeg process
   per session (`StreamDecoder`); a declared `pcm_s16le` takes an
   ffmpeg-free fast-path. This is the single injection point both transports
-  (WS + Connect bidi) inherit, so they cannot drift.
+  (browser WebSocket and Connect bidi) inherit, so they cannot drift.
 - **STT batch ingress:** `PrepareForWhisper` wraps canonical PCM in a WAV
   header (ffmpeg-free) and passes real containers straight through —
   Whisper's own bundled ffmpeg decodes them, so the batch path needs no
@@ -564,3 +575,21 @@ Every durable scenario document should be registered in
 - [`../internal/ERROR-HANDLING.md`](../internal/ERROR-HANDLING.md) — error semantics
 - [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md) — known issues / tech debt
 - [`../internal/PROGRESS.md`](../internal/PROGRESS.md) — lifecycle log
+# Product and lab API boundary
+
+`server.Compose` builds the product API: serving, configuration, diagnostics,
+and usage routes. Corpus management, experiment execution, soak, and
+Test Genie validation-provider routes are mounted only by
+`server.ComposeWithLab`. The integrated bootstrap uses product composition by
+default. The supervisor's owner-declared `lab` component profile selects
+`ComposeWithLab` through its injected `VROOLI_VARIANT=lab`; caller environment
+cannot expose lab routes on the default product API. Product startup retains
+only metadata readers used by measures and model qualification; corpus/report
+blob stores, eval adapters, and the experiment worker initialize only for the
+lab profile. `audio-tools@lab` runs the lab API process and API port only, with
+its own variant-scoped storage.
+
+The generated endpoint inventory remains complete. `modules.ProductEndpoints`
+and `modules.LabEndpoints` provide explicit subsets for runtime composition
+and boundary checks; endpoint descriptors remain the source for generated
+docs and clients.

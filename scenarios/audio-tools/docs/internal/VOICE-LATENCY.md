@@ -109,10 +109,12 @@ speech, stopping/final-draining, completed, and recoverable-error states.
 
 - Warm permission-granted capture must become ready to accept speech within
   500 ms at p95. First visible revisable text must arrive within 1 s at p95.
-  The browser diagnostic anchors speech-to-visible-partial timing to the first
-  captured PCM sample above the signal threshold, not to an earlier device
-  warm-up or leading-silence callback. Capture-start and first-voice timestamps
-  remain separate milestones in traces.
+  The browser diagnostic anchors speech-to-visible-partial timing to the
+  sample-aligned PCM amplitude-threshold crossing, not to an earlier device
+  warm-up or leading-silence callback. This is a signal proxy, not an acoustic
+  ground-truth voice annotation; paced qualification still uses its known
+  speech-onset reference. Capture-start and first-signal timestamps remain
+  separate milestones in traces.
 - In timeout/auto-stop mode, show the remaining silence timeout as progress on
   the control itself. In always-on/persistent mode there is no single timeout
   countdown; show listening and voice-activity state instead. Do not imply an

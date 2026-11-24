@@ -52,6 +52,7 @@ function makeModel(
 ): ModelRow {
   return {
     providerIds: [],
+    engineDefaults: [],
     capability: "stt",
     runtime: "faster-whisper",
     languages: ["en"],

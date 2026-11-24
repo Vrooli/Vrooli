@@ -46,6 +46,7 @@ func TestConnectTranscribe_FiltersKnownHallucinationAndSetsVADFilter(t *testing.
 	require.Equal(t, "", resp.Msg.GetText())
 	require.True(t, resp.Msg.GetFiltered())
 	require.NotEmpty(t, resp.Msg.GetFilterReason())
+	require.Empty(t, resp.Msg.GetWordTimestamps(), "filtered transcript must not expose word-level content")
 	require.True(t, seen.VADFilter)
 }
 

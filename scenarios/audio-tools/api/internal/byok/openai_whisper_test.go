@@ -74,3 +74,16 @@ func TestOpenAIWhisperTranscribeUpstreamError(t *testing.T) {
 		t.Fatalf("expected 429 error, got %v", err)
 	}
 }
+
+func TestOpenAIWhisperBoundsSuccessfulResponse(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"text":"` + strings.Repeat("x", maxOpenAIWhisperResponseBytes) + `"}`))
+	}))
+	defer srv.Close()
+	a := NewOpenAIWhisperSTT()
+	a.Endpoint = srv.URL
+	_, err := a.Transcribe(context.Background(), "sk-test", sttchain.Request{Audio: []byte("x"), Format: "wav"})
+	if err == nil || !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("Transcribe() error = %v, want bounded-response error", err)
+	}
+}

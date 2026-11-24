@@ -80,6 +80,7 @@ func RequiredFailures(states []State) []string {
 
 type (
 	DependencyKind  = capabilityregistry.DependencyKind
+	ActionKind      = capabilityregistry.ActionKind
 	Status          = capabilityregistry.Status
 	PlatformSupport = capabilityregistry.PlatformSupport
 	PlatformVerdict = capabilityregistry.PlatformVerdict

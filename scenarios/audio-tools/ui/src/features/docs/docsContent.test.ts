@@ -1,10 +1,8 @@
 /**
  * Tests for docsContent.ts
  *
- * The module uses Vite's `import.meta.glob(..., { eager: true })` to bundle
- * the scenario's markdown at build time. Vitest resolves these globs, so the
- * `docs` map is populated with the real scenario docs (PRD.md, README.md,
- * and the docs/** tree). We assert the public surface against that.
+ * The module uses lazy Vite `import.meta.glob` imports. Vitest resolves these
+ * globs so each actual scenario Markdown document can be loaded on demand.
  */
 import { describe, it, expect } from "vitest";
 
@@ -29,20 +27,20 @@ describe("listDocPaths", () => {
 });
 
 describe("getDocContent", () => {
-  it("returns the raw markdown for a bundled path", () => {
-    const content = getDocContent("PRD.md");
+  it("returns the raw markdown for a bundled path", async () => {
+    const content = await getDocContent("PRD.md");
     expect(typeof content).toBe("string");
     expect(content!.length).toBeGreaterThan(0);
   });
 
-  it("returns the same content listDocPaths advertises for every key", () => {
-    for (const p of listDocPaths()) {
-      expect(typeof getDocContent(p)).toBe("string");
-    }
+  it("loads the content for every advertised path", async () => {
+    const contents = await Promise.all(listDocPaths().map((path) => getDocContent(path)));
+    expect(contents).toHaveLength(listDocPaths().length);
+    expect(contents.every((content) => typeof content === "string" && content.length > 0)).toBe(true);
   });
 
-  it("returns null for an unbundled or empty path", () => {
-    expect(getDocContent("nonexistent/path.md")).toBeNull();
-    expect(getDocContent("")).toBeNull();
+  it("returns null for an unbundled or empty path", async () => {
+    await expect(getDocContent("nonexistent/path.md")).resolves.toBeNull();
+    await expect(getDocContent("")).resolves.toBeNull();
   });
 });

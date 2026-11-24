@@ -16,21 +16,19 @@ import (
 )
 
 type handlers struct {
-	core   *cliapp.ScenarioApp
 	client modelsconnect.ModelRegistryServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	return &handlers{
-		core:   core,
 		client: modelsconnect.NewModelRegistryServiceClient(httpClient, baseURL),
 	}
 }
 
 // list prints the registry catalogue. Filters map directly onto
 // ListModelsRequest; --json is handled by cli-core and emits protojson.
-func (h *handlers) list(ctx cliapp.RunContext) error {
+func (h *handlers) listCall(ctx cliapp.OperationContext) (*modelsv1.ListModelsResponse, error) {
 	resp, err := h.client.ListModels(context.Background(), connect.NewRequest(&modelsv1.ListModelsRequest{
 		Capability:     strings.TrimSpace(ctx.Flag("capability")),
 		Language:       strings.TrimSpace(ctx.Flag("language")),
@@ -38,15 +36,21 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 		OnlyReady:      ctx.BoolFlag("only-ready"),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("model list", err, nil)
+		return nil, cliapp.WrapAPIError("model list", err, nil)
 	}
+	if resp == nil || resp.Msg == nil {
+		return nil, fmt.Errorf("server returned no model list response")
+	}
+	return resp.Msg, nil
+}
 
-	records := resp.Msg.GetModels()
+func (h *handlers) listReport(_ cliapp.OperationContext, response *modelsv1.ListModelsResponse) cliapp.ListReport {
+	records := response.GetModels()
 	summary := []string{fmt.Sprintf("Models: %d", len(records))}
 	if footprint := footprintSummary(records); footprint != "" {
 		summary = append(summary, footprint)
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+	return cliapp.ListReport{
 		Summary:        summary,
 		ResultsHeading: "Models",
 		Results:        formatRecordTable(records),
@@ -56,31 +60,41 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 		},
 		ListShaped:  true,
 		ResultCount: len(records),
-	})
+	}
 }
 
 // resolve prints the deterministic selection and the policy explanation.
 // NOT_FOUND (no eligible record) is surfaced as a non-zero CLI error.
-func (h *handlers) resolve(ctx cliapp.RunContext) error {
+func (h *handlers) resolveCall(ctx cliapp.OperationContext) (*modelsv1.ResolveModelResponse, error) {
 	resp, err := h.client.ResolveModel(context.Background(), connect.NewRequest(&modelsv1.ResolveModelRequest{
 		Capability: strings.TrimSpace(ctx.Flag("capability")),
 		Language:   strings.TrimSpace(ctx.Flag("language")),
+		EngineId:   strings.TrimSpace(ctx.Flag("engine")),
 		Commercial: ctx.BoolFlag("commercial"),
 	}))
 	if err != nil {
-		return cliapp.WrapAPIError("model resolve", err, nil)
+		return nil, cliapp.WrapAPIError("model resolve", err, nil)
 	}
+	if resp == nil || resp.Msg == nil || resp.Msg.GetModel() == nil {
+		return nil, fmt.Errorf("server returned no resolved model")
+	}
+	return resp.Msg, nil
+}
 
-	record := resp.Msg.GetModel()
+func (h *handlers) resolveReport(ctx cliapp.OperationContext, response *modelsv1.ResolveModelResponse) cliapp.ListReport {
+	record := response.GetModel()
 	summary := []string{"Resolved model: " + orDash(record.GetId())}
-	if explanation := strings.TrimSpace(resp.Msg.GetExplanation()); explanation != "" {
+	if explanation := strings.TrimSpace(response.GetExplanation()); explanation != "" {
 		summary = append(summary, explanation)
+	}
+	if engine := strings.TrimSpace(ctx.Flag("engine")); engine != "" {
+		summary = append(summary, "Engine-scoped resolution: "+engine+"; this is not a promotion to the generic capability default.")
 	}
 
 	results := []string{formatRecordRow(record)}
 	results = append(results, formatFacts(record)...)
 
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+	return cliapp.ListReport{
 		Summary:        summary,
 		ResultsHeading: "Selection",
 		Results:        results,
@@ -89,7 +103,7 @@ func (h *handlers) resolve(ctx cliapp.RunContext) error {
 		},
 		ListShaped:  true,
 		ResultCount: 1,
-	})
+	}
 }
 
 const (
@@ -135,13 +149,20 @@ func formatRecordTable(records []*modelsv1.ModelRecord) []string {
 }
 
 func formatFacts(record *modelsv1.ModelRecord) []string {
-	return []string{
+	facts := []string{
 		"  runtime:   " + orDash(record.GetRuntime()),
 		"  readiness: " + readinessLabel(record.GetReadiness()),
 		"  license:   " + orDash(record.GetLicense()),
 		"  roles:     " + joinOrDash(record.GetRoles()),
 		"  size:      " + formatSize(record.GetSizeMbApprox()),
 	}
+	if len(record.GetEngineDefaults()) > 0 {
+		facts = append(facts, "  engine defaults: "+strings.Join(record.GetEngineDefaults(), ","))
+	}
+	if record.GetCapability() == "tts" && strings.TrimSpace(record.GetNotes()) != "" {
+		facts = append(facts, "  TTS route notes: "+strings.TrimSpace(record.GetNotes()))
+	}
+	return facts
 }
 
 // footprintSummary names the resolved default and its declared size per

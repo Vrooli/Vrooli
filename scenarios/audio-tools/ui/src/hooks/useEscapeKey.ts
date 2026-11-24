@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { emitShortcutIntent } from "@vrooli/iframe-bridge";
+import { emitShortcutIntent } from "@vrooli/iframe-bridge/shortcut-intent";
 
 /** Registers the canonical escaped-dialog shortcut and relays it to an iframe host. */
 export function useEscapeKey(onEscape: () => void, enabled = true): void {

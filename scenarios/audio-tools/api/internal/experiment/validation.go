@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 package experiment
 
 import (
@@ -8,6 +10,7 @@ import (
 
 	exprecipe "audio-tools/internal/experiment/recipe"
 
+	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval"
 	experimentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment"
 )
 
@@ -24,6 +27,32 @@ const (
 // fail or skip every condition. It belongs to the experiment domain so every
 // transport can enforce the same policy before scheduling work.
 func ValidateRecipe(recipe *experimentv1.ExperimentRecipe) error {
+	if err := validateRecipeLimits(recipe); err != nil {
+		return err
+	}
+	if err := validateStrategies(recipe.GetStrategies()); err != nil {
+		return err
+	}
+	if err := validateCells(recipe); err != nil {
+		return err
+	}
+	if err := validateLongForm(recipe.GetLongForm()); err != nil {
+		return err
+	}
+	if err := validateAugmentation(recipe.GetAugmentation()); err != nil {
+		return err
+	}
+	return validateSpeaker(recipe.GetSpeaker())
+}
+
+func validateRecipeLimits(recipe *experimentv1.ExperimentRecipe) error {
+	switch recipe.GetReportRetentionMode() {
+	case experimentv1.ReportRetentionMode_REPORT_RETENTION_MODE_UNSPECIFIED,
+		experimentv1.ReportRetentionMode_REPORT_RETENTION_MODE_PRESERVE_TRANSCRIPTS,
+		experimentv1.ReportRetentionMode_REPORT_RETENTION_MODE_METRICS_ONLY:
+	default:
+		return fmt.Errorf("report_retention_mode %d is not supported", recipe.GetReportRetentionMode())
+	}
 	if recipe.GetRealtimeRepeats() < 0 {
 		return errors.New("realtime_repeats must be non-negative")
 	}
@@ -39,7 +68,11 @@ func ValidateRecipe(recipe *experimentv1.ExperimentRecipe) error {
 	if recipe.GetLatencyTailSeconds() < 0 {
 		return errors.New("latency_tail_seconds must be non-negative")
 	}
-	for i, strategy := range recipe.GetStrategies() {
+	return nil
+}
+
+func validateStrategies(strategies []*evalv1.EvalStrategy) error {
+	for i, strategy := range strategies {
 		switch strategy.GetKind() {
 		case "", "batch", "vad_segment", "overlap_agree":
 		default:
@@ -58,6 +91,10 @@ func ValidateRecipe(recipe *experimentv1.ExperimentRecipe) error {
 			return fmt.Errorf("strategies[%d].overlap_max_window_ms must be non-negative", i)
 		}
 	}
+	return nil
+}
+
+func validateCells(recipe *experimentv1.ExperimentRecipe) error {
 	for i, cell := range recipe.GetCells() {
 		if strings.TrimSpace(cell.GetEngineId()) == "" {
 			return fmt.Errorf("cells[%d].engine_id is required", i)
@@ -79,7 +116,11 @@ func ValidateRecipe(recipe *experimentv1.ExperimentRecipe) error {
 			return fmt.Errorf("cells[%d] realtime evidence cannot use latency_tail_seconds", i)
 		}
 	}
-	if longForm := recipe.GetLongForm(); longForm != nil {
+	return nil
+}
+
+func validateLongForm(longForm *experimentv1.LongFormRecipe) error {
+	if longForm != nil {
 		if longForm.GetTargetDurationSeconds() < 0 {
 			return errors.New("long_form.target_duration_seconds must be non-negative")
 		}
@@ -92,7 +133,11 @@ func ValidateRecipe(recipe *experimentv1.ExperimentRecipe) error {
 			}
 		}
 	}
-	if augmentation := recipe.GetAugmentation(); augmentation != nil {
+	return nil
+}
+
+func validateAugmentation(augmentation *experimentv1.AugmentationRecipe) error {
+	if augmentation != nil {
 		for i, snr := range augmentation.GetSnrDb() {
 			if math.IsNaN(snr) || math.IsInf(snr, 0) {
 				return fmt.Errorf("augmentation.snr_db[%d] must be a finite number", i)
@@ -107,7 +152,10 @@ func ValidateRecipe(recipe *experimentv1.ExperimentRecipe) error {
 			}
 		}
 	}
-	speaker := recipe.GetSpeaker()
+	return nil
+}
+
+func validateSpeaker(speaker *experimentv1.SpeakerExperimentRecipe) error {
 	if speaker != nil && (speaker.GetExtractionEnabled() || speaker.GetVerificationEnabled() || speaker.GetAblationEnabled()) && speaker.GetTargetProfileId() == "" {
 		return ErrSpeakerProfileRequired
 	}

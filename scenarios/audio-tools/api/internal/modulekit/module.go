@@ -50,4 +50,5 @@ const (
 	RESTReasonWebhookReceiver = endpoints.RESTReasonWebhookReceiver
 	RESTReasonThirdPartyShape = endpoints.RESTReasonThirdPartyShape
 	RESTReasonOpsProbe        = endpoints.RESTReasonOpsProbe
+	RESTReasonStreamUpgrade   = endpoints.RESTReasonStreamUpgrade
 )

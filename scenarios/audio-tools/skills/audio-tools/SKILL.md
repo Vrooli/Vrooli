@@ -40,14 +40,14 @@ The CLI manifest, not this skill, owns option syntax.
 | Convert an audio file | `audio-tools audio transcode` [S1]. Confirm the output destination before overwriting an artifact. |
 | Diagnose a failed operation | `audio-tools diagnostics last`, then an authorized `diagnostics run` [S1]. Separate cached evidence from a new probe. |
 | Inspect a known experiment | `audio-tools experiment report <id>` [S1]. Keep its lane, recipe, warnings, and provenance; a succeeded job can have failing cells. |
-| Read the improvement board | run `audio-tools.setpoint-read` via `program-runtime library run audio-tools.setpoint-read` [S3]. Supply `experiment_id` only for the intended evidence cohort. Branch on the contract envelope; `ok` means collection succeeded, never product acceptance. |
+| Read the improvement board | run `audio-tools.setpoint-read` via `program-runtime --instance lab library run audio-tools.setpoint-read` [S3]. Supply `experiment_id` only for the intended evidence cohort. The live product API omits lab-only evidence endpoints; the lab Program Runtime instance resolves the same-variant lab dependency. Branch on the contract envelope; `ok` means collection succeeded, never product acceptance. |
 | Create a repeatable evaluation | Read `path:scenarios/audio-tools/docs/internal/TESTING.md` and choose corpus, cells, pacing, and spend before `audio-tools experiment start` [S0 → S1]. Use `experiment wait` once; cancellation of waiting does not cancel the experiment. |
 | Embed voice in another app | Read `path:scenarios/audio-tools/docs/concepts/ARCHITECTURE.md#development-target-portable-streaming-voice` [S0]. Reuse the shared capture contract; do not copy session, recovery, or settlement logic. |
 
 The board composes repeated engine, health, and experiment reads. Single audio
 operations stay CLI leaves. Promote further composition only after recurring
 usage identifies stable inputs and outputs.
-The v2 board lists all 15 `portable-voice-v1` targets with unknown outcomes.
+The v3 board lists all 20 `portable-voice-v2` targets with unknown outcomes.
 It cannot certify the full voice goal without owner-backed receipt joins. Read the
 mandate/registry for required coverage; use `audio-tools-improve` for the missing
 instrument or product work. Owned hosted delivery remains unqualified even when

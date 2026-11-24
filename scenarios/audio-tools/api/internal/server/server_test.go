@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"testing"
 
-	inteval "audio-tools/internal/eval"
 	"audio-tools/internal/modulekit"
 	"audio-tools/internal/server"
 	"audio-tools/internal/testutil/mocks"
@@ -105,12 +104,6 @@ func TestCompose_RejectsMissingRootLogger(t *testing.T) {
 	require.Panics(t, func() {
 		server.Compose(server.CompositionDeps{})
 	})
-}
-
-func TestReportToProto_MapsTransportBoundary(t *testing.T) {
-	report := server.ReportToProto(inteval.EvalReport{})
-	require.NotNil(t, report)
-	require.NotNil(t, report.Summary)
 }
 
 func newTestDeps() server.Deps {

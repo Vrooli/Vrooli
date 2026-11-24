@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Panel } from "../../../components/ui/panel";
 import { Select } from "../../../components/ui/select";
 import { StatusDot } from "../../../components/ui/status-dot";
@@ -31,6 +31,7 @@ export function ResolvePanel() {
   const { t } = useTranslation();
   const [capability, setCapability] = useState<string>(CAPABILITIES[0]);
   const [language, setLanguage] = useState("");
+  const [engineId, setEngineId] = useState("");
   const [commercial, setCommercial] = useState(false);
   const resolve = useMutation({ mutationFn: resolveModel });
 
@@ -38,6 +39,7 @@ export function ResolvePanel() {
     resolve.mutate({
       capability,
       language: primarySubtag(language),
+      engineId: capability === "stt" ? engineId.trim() : "",
       commercial,
     });
   }
@@ -51,7 +53,7 @@ export function ResolvePanel() {
       aria-label={t(strings.models.resolveTitle)}
     >
       <form
-        className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 xl:items-end"
+        className="grid gap-3 md:grid-cols-2 xl:grid-cols-5 xl:items-end"
         onSubmit={(event) => {
           event.preventDefault();
           run();
@@ -67,7 +69,11 @@ export function ResolvePanel() {
           <Select
             id="models-resolve-capability"
             value={capability}
-            onChange={(event) => setCapability(event.target.value)}
+            onChange={(event) => {
+              const next = event.target.value;
+              setCapability(next);
+              if (next !== "stt") setEngineId("");
+            }}
           >
             {CAPABILITIES.map((value) => (
               <option key={value} value={value}>
@@ -76,6 +82,23 @@ export function ResolvePanel() {
             ))}
           </Select>
         </div>
+
+        {capability === "stt" ? (
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="models-resolve-engine"
+              className="text-xs font-medium text-app-muted-foreground"
+            >
+              {t(strings.models.resolveEngineLabel)}
+            </label>
+            <Input
+              id="models-resolve-engine"
+              value={engineId}
+              placeholder={t(strings.models.resolveEnginePlaceholder)}
+              onChange={(event) => setEngineId(event.target.value)}
+            />
+          </div>
+        ) : null}
 
         <div className="flex flex-col gap-1">
           <label

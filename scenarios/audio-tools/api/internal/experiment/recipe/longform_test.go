@@ -1,8 +1,12 @@
+//go:build audio_lab
+
 package recipe
 
 import (
 	"bytes"
 	"testing"
+
+	inteval "audio-tools/internal/eval"
 )
 
 func TestBuildDeterministicFromSeedAndCorpus(t *testing.T) {
@@ -50,6 +54,32 @@ func TestBuildInsertsZeroGapAndReferenceSpaces(t *testing.T) {
 	}
 	if bytes.Contains(got.PCM[len(clipA):len(clipA)+gapBytes], []byte{1}) || bytes.Contains(got.PCM[len(clipA):len(clipA)+gapBytes], []byte{2}) {
 		t.Fatalf("gap contains non-silence bytes")
+	}
+}
+
+func TestBuildShiftsReviewedTimingReferencesAcrossSilenceGaps(t *testing.T) {
+	// Direct human timing review does not need aligner metadata.
+	provenance := &inteval.TimingReferenceProvenance{Status: "human_reviewed", SourceReference: "source", Reviewer: "reviewer", ReviewMethod: "listen", ReviewedAt: "2026-11-20T12:00:00Z"}
+	clips := []Clip{
+		{ID: "a", PCM: bytes.Repeat([]byte{1, 0}, CanonicalSampleRate), SampleRate: CanonicalSampleRate, Reference: "alpha", TimedReference: []inteval.TimedWord{{Word: "alpha", Start: .1, End: .2}}, TimingProvenance: provenance},
+		{ID: "b", PCM: bytes.Repeat([]byte{2, 0}, CanonicalSampleRate), SampleRate: CanonicalSampleRate, Reference: "bravo", TimedReference: []inteval.TimedWord{{Word: "bravo", Start: .3, End: .4}}, TimingProvenance: provenance},
+	}
+	got, plan, err := Build(Spec{Seed: 3, GapMs: 500}, clips)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.TimedReference) != 2 || got.TimingProvenance == nil || !got.TimingProvenance.ReviewReady() {
+		t.Fatalf("timed reference/provenance not preserved: count=%d provenance=%+v", len(got.TimedReference), got.TimingProvenance)
+	}
+	for i, id := range plan.ClipIDs {
+		wantStart := .1
+		if id == "b" {
+			wantStart = .3
+		}
+		wantStart += float64(i) * 1.5
+		if got.TimedReference[i].Start != wantStart {
+			t.Fatalf("word %q start = %v, want %v; order %v", got.TimedReference[i].Word, got.TimedReference[i].Start, wantStart, plan.ClipIDs)
+		}
 	}
 }
 

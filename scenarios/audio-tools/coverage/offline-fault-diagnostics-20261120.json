@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "artifact_id": "offline-fault-diagnostics-20261121T002400Z",
+  "artifact_kind": "offline_server_fault_diagnostics",
+  "observed_at": "2026-11-21T00:24:00Z",
+  "source_revision": "5cfec39dc65cee71f1c7b9cdad02dac052b07ba2",
+  "source_tree_state": "working_tree_changes_present",
+  "scope": "server_stream_pipeline_only",
+  "promotable": false,
+  "provider_cell": null,
+  "product_path_rows": [],
+  "product_path_join": {
+    "required_for_promotion": true,
+    "joined": false,
+    "reason": "No browser or device path ran. Offline regressions are diagnostic and cannot create or satisfy browser_product_path evidence."
+  },
+  "command": "cd scenarios/audio-tools/api && go test -race ./internal/stt/segmenter -run 'TestOfflineFaultMatrix|TestOfflineFaultProviderTimeoutIsBounded|TestOfflineFaultProviderBusyIsTerminal|TestOfflineFaultDroppedConnectionIsBounded|TestOfflineFaultBackendRestartRecovers|TestNormalizeChunksReportsDecoderFailure|TestNormalizeChunksCleanupWaitsForWorkers' -count=1",
+  "result": "passed",
+  "cases": [
+    {
+      "fault_profile": "provider_timeout",
+      "test": "TestOfflineFaultProviderTimeoutIsBounded",
+      "result": "passed",
+      "assertion": "HTTP provider timeout bounded the request; no final or partial transcript was emitted"
+    },
+    {
+      "fault_profile": "backend_restart",
+      "test": "TestOfflineFaultBackendRestartRecovers",
+      "result": "passed",
+      "assertion": "a transient 503 is retried after provider recovery and the stream completes with recovered output"
+    },
+    {
+      "fault_profile": "dropped_connection",
+      "test": "TestOfflineFaultDroppedConnectionIsBounded",
+      "result": "passed",
+      "assertion": "provider socket close terminates promptly without a partial or final transcript"
+    },
+    {
+      "fault_profile": "provider_busy",
+      "test": "TestOfflineFaultProviderBusyIsTerminal",
+      "result": "passed",
+      "assertion": "HTTP 503 terminates promptly without a partial or final transcript"
+    },
+    {
+      "fault_profile": "truncated_stream",
+      "test": "TestNormalizeChunksReportsDecoderFailure",
+      "result": "passed",
+      "assertion": "decoder failure surfaced as ErrStreamDecode rather than clean EOF"
+    },
+    {
+      "fault_profile": "client_cancellation",
+      "test": "TestNormalizeChunksCleanupWaitsForWorkers",
+      "result": "passed",
+      "assertion": "cancellation cleanup waited for feeder and decoder workers"
+    }
+  ],
+  "unsupported_declared_profiles": [
+    "delayed_ready",
+    "slow_consumer",
+    "missing_acknowledgement",
+    "close_before_done",
+    "page_interruption",
+    "retention_quota",
+    "verifier_outage",
+    "extractor_outage"
+  ]
+}

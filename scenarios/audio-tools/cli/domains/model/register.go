@@ -7,9 +7,9 @@
 package model
 
 import (
-	"github.com/vrooli/cli-core/cliapp"
+	"fmt"
 
-	"audio-tools/cli/internal/climanifest"
+	"github.com/vrooli/cli-core/cliapp"
 )
 
 // GroupName is the manifest group name this package owns.
@@ -18,14 +18,19 @@ const GroupName = "model"
 // Register builds the model subcommand group from the embedded manifest
 // and wires Connect-RPC bindings to handlers.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
-	return climanifest.LoadGroup(manifest, GroupName, modelBindings(newHandlers(core)))
+	h := newHandlers(core)
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, modelBindings(h))
+	if err != nil {
+		return cliapp.SubcommandGroup{}, fmt.Errorf("model: load from manifest: %w", err)
+	}
+	return group, nil
 }
 
 // modelBindings is shared with the coverage test so the manifest and the
 // handler registry cannot drift apart.
-func modelBindings(h *handlers) map[string]func(cliapp.RunContext) error {
-	return map[string]func(cliapp.RunContext) error{
-		"ModelRegistryService.ListModels":   h.list,
-		"ModelRegistryService.ResolveModel": h.resolve,
+func modelBindings(h *handlers) map[string]cliapp.PrimitiveHandler {
+	return map[string]cliapp.PrimitiveHandler{
+		"ModelRegistryService.ListModels":   cliapp.ProtoList(h.listCall, h.listReport),
+		"ModelRegistryService.ResolveModel": cliapp.ProtoList(h.resolveCall, h.resolveReport),
 	}
 }

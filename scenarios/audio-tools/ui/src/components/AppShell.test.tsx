@@ -74,33 +74,33 @@ describe("AppShell", () => {
     expect(screen.getByRole("button", { name: strings.shell.openSettings })).toBeInTheDocument();
   });
 
-  it("opens settings drawer when settings button is clicked", () => {
+  it("opens settings drawer when settings button is clicked", async () => {
     renderShell();
     act(() => {
       fireEvent.click(screen.getByRole("button", { name: strings.shell.openSettings }));
     });
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
   });
 
-  it("closes settings drawer when Escape is pressed while open", () => {
+  it("closes settings drawer when Escape is pressed while open", async () => {
     renderShell();
     act(() => {
       fireEvent.click(screen.getByRole("button", { name: strings.shell.openSettings }));
     });
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
     act(() => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("toggles settings drawer with Ctrl+, keyboard shortcut", () => {
+  it("toggles settings drawer with Ctrl+, keyboard shortcut", async () => {
     renderShell();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     act(() => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: ",", ctrlKey: true, bubbles: true }));
     });
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
     act(() => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: ",", ctrlKey: true, bubbles: true }));
     });

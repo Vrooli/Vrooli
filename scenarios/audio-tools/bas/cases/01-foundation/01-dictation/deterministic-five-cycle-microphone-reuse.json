@@ -1,0 +1,1540 @@
+{
+  "id": "90034b58-6cbf-413d-bbfe-3b7be0ade99f",
+  "project_id": "0238b793-8b5e-42ff-a42a-7b495da99b7f",
+  "name": "audio-tools-deterministic-five-cycle-microphone-reuse",
+  "folder_path": "/bas/cases/01-foundation/01-dictation",
+  "description": "Exercises five consecutive microphone lifecycle cycles with the checked-in five-word WAV fixture through Chromium fake-media. Every cycle asserts lifecycle, transport, transcript, final capture state, and captures a screenshot. Labelled fake-media/emulated; not native-microphone qualification.",
+  "tags": [
+    "reset:none",
+    "requirements_json:[\"ATD-P0-006\"]",
+    "media_fixture:microphone",
+    "evidence_lane:deterministic_browser_emulated"
+  ],
+  "version": 1,
+  "created_at": "2026-11-21T00:00:00Z",
+  "updated_at": "2026-11-21T00:00:00Z",
+  "metadata": {
+    "name": "audio-tools-deterministic-five-cycle-microphone-reuse",
+    "description": "Verify repeated Dictation Studio microphone reuse through deterministic fake-media in one page/context.",
+    "labels": {
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "spec_entry_id": "dictation-studio",
+      "media_mode": "fake-media/emulated",
+      "native_microphone_qualification": "false",
+      "requirements_json": "[\"ATD-P0-006\"]"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "name": "audio-tools-deterministic-five-cycle-microphone-reuse",
+      "description": "Five consecutive WAV-backed fake-media press/speak/transcribe/stop cycles in one page and Chromium context; emulated product-path evidence only, not native microphone qualification.",
+      "execution_mode": "mutating"
+    },
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844,
+      "fake_media": {
+        "microphone_wav": "bas/fixtures/dictation-reference.wav"
+      }
+    },
+    "nodes": [
+      {
+        "id": "navigate-dictation",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "timeout_ms": 30000,
+            "wait_until": "NAVIGATE_WAIT_EVENT_UNSPECIFIED",
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_UNSPECIFIED",
+            "scenario": "audio-tools",
+            "scenario_path": "/dictation-studio"
+          },
+          "metadata": {
+            "label": "Open Dictation Studio once for all five cycles"
+          }
+        }
+      },
+      {
+        "id": "wait-recorder",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/dictationStudio.recordStart",
+            "state": "WAIT_STATE_UNSPECIFIED",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Wait for the recorder"
+          }
+        }
+      },
+      {
+        "id": "cycle-01-start",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/dictationStudio.recordStart"
+          },
+          "metadata": {
+            "label": "Cycle 1: start WAV-backed fake-media microphone capture"
+          }
+        }
+      },
+      {
+        "id": "cycle-01-active",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.recordStart",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "aria-pressed"
+          },
+          "metadata": {
+            "label": "Cycle 1: assert microphone lifecycle is active"
+          }
+        }
+      },
+      {
+        "id": "cycle-01-connected",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/dictationStudio.streamStatus",
+            "state": "WAIT_STATE_UNSPECIFIED",
+            "timeout_ms": 45000
+          },
+          "metadata": {
+            "label": "Cycle 1: wait for PCM-v2 transport connection"
+          }
+        }
+      },
+      {
+        "id": "cycle-01-transport-connected",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.streamStatus",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "Streaming transcription connected."
+            }
+          },
+          "metadata": {
+            "label": "Cycle 1: assert transport connection"
+          }
+        }
+      },
+      {
+        "id": "cycle-01-speak",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 4000
+          },
+          "metadata": {
+            "label": "Cycle 1: feed the checked-in five-word fake-media WAV"
+          }
+        }
+      },
+      {
+        "id": "cycle-01-captured",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.turnCaptureStatus",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "data-has-captured-audio"
+          },
+          "metadata": {
+            "label": "Cycle 1: assert WAV produced PCM capture"
+          }
+        }
+      },
+      {
+        "id": "cycle-01-sent",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.turnSentStatus",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "data-has-sent-audio"
+          },
+          "metadata": {
+            "label": "Cycle 1: assert PCM reached transport"
+          }
+        }
+      },
+      {
+        "id": "cycle-01-stop",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/dictationStudio.recordStart"
+          },
+          "metadata": {
+            "label": "Cycle 1: stop microphone capture"
+          }
+        }
+      },
+      {
+        "id": "cycle-01-processed-ready",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/dictationStudio.turnProcessedReady",
+            "state": "WAIT_STATE_ATTACHED",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Cycle 1: wait for terminal PCM processing acknowledgement"
+          }
+        }
+      },
+      {
+        "id": "cycle-01-processed",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.turnProcessedStatus",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "data-has-processed-audio",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Cycle 1: assert terminal transport processing completed"
+          }
+        }
+      },
+      {
+        "id": "cycle-01-transcript",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.finalTranscript",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "timeout_ms": 30000,
+            "expected": {
+              "string_value": "quick brown fox jumps"
+            }
+          },
+          "metadata": {
+            "label": "Cycle 1: assert the five-word fixture transcription"
+          }
+        }
+      },
+      {
+        "id": "cycle-01-idle",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.recordState",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "Clip captured."
+            }
+          },
+          "metadata": {
+            "label": "Cycle 1: assert stop/final-drain returned recorder to captured state"
+          }
+        }
+      },
+      {
+        "id": "cycle-01-evidence",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": true
+          },
+          "metadata": {
+            "label": "Cycle 1: preserve UI lifecycle and transcript state"
+          }
+        }
+      },
+      {
+        "id": "cycle-01-settle",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 1000
+          },
+          "metadata": {
+            "label": "Cycle 1: wait at least one second after stop before next start"
+          }
+        }
+      },
+      {
+        "id": "cycle-02-start",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/dictationStudio.recordStart"
+          },
+          "metadata": {
+            "label": "Cycle 2: start WAV-backed fake-media microphone capture"
+          }
+        }
+      },
+      {
+        "id": "cycle-02-active",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.recordStart",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "aria-pressed"
+          },
+          "metadata": {
+            "label": "Cycle 2: assert microphone lifecycle is active"
+          }
+        }
+      },
+      {
+        "id": "cycle-02-connected",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/dictationStudio.streamStatus",
+            "state": "WAIT_STATE_UNSPECIFIED",
+            "timeout_ms": 45000
+          },
+          "metadata": {
+            "label": "Cycle 2: wait for PCM-v2 transport connection"
+          }
+        }
+      },
+      {
+        "id": "cycle-02-transport-connected",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.streamStatus",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "Streaming transcription connected."
+            }
+          },
+          "metadata": {
+            "label": "Cycle 2: assert transport connection"
+          }
+        }
+      },
+      {
+        "id": "cycle-02-speak",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 4000
+          },
+          "metadata": {
+            "label": "Cycle 2: feed the checked-in five-word fake-media WAV"
+          }
+        }
+      },
+      {
+        "id": "cycle-02-captured",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.turnCaptureStatus",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "data-has-captured-audio"
+          },
+          "metadata": {
+            "label": "Cycle 2: assert WAV produced PCM capture"
+          }
+        }
+      },
+      {
+        "id": "cycle-02-sent",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.turnSentStatus",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "data-has-sent-audio"
+          },
+          "metadata": {
+            "label": "Cycle 2: assert PCM reached transport"
+          }
+        }
+      },
+      {
+        "id": "cycle-02-stop",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/dictationStudio.recordStart"
+          },
+          "metadata": {
+            "label": "Cycle 2: stop microphone capture"
+          }
+        }
+      },
+      {
+        "id": "cycle-02-processed-ready",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/dictationStudio.turnProcessedReady",
+            "state": "WAIT_STATE_ATTACHED",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Cycle 2: wait for terminal PCM processing acknowledgement"
+          }
+        }
+      },
+      {
+        "id": "cycle-02-processed",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.turnProcessedStatus",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "data-has-processed-audio",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Cycle 2: assert terminal transport processing completed"
+          }
+        }
+      },
+      {
+        "id": "cycle-02-transcript",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.finalTranscript",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "timeout_ms": 30000,
+            "expected": {
+              "string_value": "quick brown fox jumps"
+            }
+          },
+          "metadata": {
+            "label": "Cycle 2: assert the five-word fixture transcription"
+          }
+        }
+      },
+      {
+        "id": "cycle-02-idle",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.recordState",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "Clip captured."
+            }
+          },
+          "metadata": {
+            "label": "Cycle 2: assert stop/final-drain returned recorder to captured state"
+          }
+        }
+      },
+      {
+        "id": "cycle-02-evidence",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": true
+          },
+          "metadata": {
+            "label": "Cycle 2: preserve UI lifecycle and transcript state"
+          }
+        }
+      },
+      {
+        "id": "cycle-02-settle",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 1000
+          },
+          "metadata": {
+            "label": "Cycle 2: wait at least one second after stop before next start"
+          }
+        }
+      },
+      {
+        "id": "cycle-03-start",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/dictationStudio.recordStart"
+          },
+          "metadata": {
+            "label": "Cycle 3: start WAV-backed fake-media microphone capture"
+          }
+        }
+      },
+      {
+        "id": "cycle-03-active",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.recordStart",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "aria-pressed"
+          },
+          "metadata": {
+            "label": "Cycle 3: assert microphone lifecycle is active"
+          }
+        }
+      },
+      {
+        "id": "cycle-03-connected",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/dictationStudio.streamStatus",
+            "state": "WAIT_STATE_UNSPECIFIED",
+            "timeout_ms": 45000
+          },
+          "metadata": {
+            "label": "Cycle 3: wait for PCM-v2 transport connection"
+          }
+        }
+      },
+      {
+        "id": "cycle-03-transport-connected",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.streamStatus",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "Streaming transcription connected."
+            }
+          },
+          "metadata": {
+            "label": "Cycle 3: assert transport connection"
+          }
+        }
+      },
+      {
+        "id": "cycle-03-speak",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 4000
+          },
+          "metadata": {
+            "label": "Cycle 3: feed the checked-in five-word fake-media WAV"
+          }
+        }
+      },
+      {
+        "id": "cycle-03-captured",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.turnCaptureStatus",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "data-has-captured-audio"
+          },
+          "metadata": {
+            "label": "Cycle 3: assert WAV produced PCM capture"
+          }
+        }
+      },
+      {
+        "id": "cycle-03-sent",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.turnSentStatus",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "data-has-sent-audio"
+          },
+          "metadata": {
+            "label": "Cycle 3: assert PCM reached transport"
+          }
+        }
+      },
+      {
+        "id": "cycle-03-stop",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/dictationStudio.recordStart"
+          },
+          "metadata": {
+            "label": "Cycle 3: stop microphone capture"
+          }
+        }
+      },
+      {
+        "id": "cycle-03-processed-ready",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/dictationStudio.turnProcessedReady",
+            "state": "WAIT_STATE_ATTACHED",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Cycle 3: wait for terminal PCM processing acknowledgement"
+          }
+        }
+      },
+      {
+        "id": "cycle-03-processed",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.turnProcessedStatus",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "data-has-processed-audio",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Cycle 3: assert terminal transport processing completed"
+          }
+        }
+      },
+      {
+        "id": "cycle-03-transcript",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.finalTranscript",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "timeout_ms": 30000,
+            "expected": {
+              "string_value": "quick brown fox jumps"
+            }
+          },
+          "metadata": {
+            "label": "Cycle 3: assert the five-word fixture transcription"
+          }
+        }
+      },
+      {
+        "id": "cycle-03-idle",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.recordState",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "Clip captured."
+            }
+          },
+          "metadata": {
+            "label": "Cycle 3: assert stop/final-drain returned recorder to captured state"
+          }
+        }
+      },
+      {
+        "id": "cycle-03-evidence",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": true
+          },
+          "metadata": {
+            "label": "Cycle 3: preserve UI lifecycle and transcript state"
+          }
+        }
+      },
+      {
+        "id": "cycle-03-settle",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 1000
+          },
+          "metadata": {
+            "label": "Cycle 3: wait at least one second after stop before next start"
+          }
+        }
+      },
+      {
+        "id": "cycle-04-start",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/dictationStudio.recordStart"
+          },
+          "metadata": {
+            "label": "Cycle 4: start WAV-backed fake-media microphone capture"
+          }
+        }
+      },
+      {
+        "id": "cycle-04-active",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.recordStart",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "aria-pressed"
+          },
+          "metadata": {
+            "label": "Cycle 4: assert microphone lifecycle is active"
+          }
+        }
+      },
+      {
+        "id": "cycle-04-connected",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/dictationStudio.streamStatus",
+            "state": "WAIT_STATE_UNSPECIFIED",
+            "timeout_ms": 45000
+          },
+          "metadata": {
+            "label": "Cycle 4: wait for PCM-v2 transport connection"
+          }
+        }
+      },
+      {
+        "id": "cycle-04-transport-connected",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.streamStatus",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "Streaming transcription connected."
+            }
+          },
+          "metadata": {
+            "label": "Cycle 4: assert transport connection"
+          }
+        }
+      },
+      {
+        "id": "cycle-04-speak",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 4000
+          },
+          "metadata": {
+            "label": "Cycle 4: feed the checked-in five-word fake-media WAV"
+          }
+        }
+      },
+      {
+        "id": "cycle-04-captured",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.turnCaptureStatus",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "data-has-captured-audio"
+          },
+          "metadata": {
+            "label": "Cycle 4: assert WAV produced PCM capture"
+          }
+        }
+      },
+      {
+        "id": "cycle-04-sent",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.turnSentStatus",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "data-has-sent-audio"
+          },
+          "metadata": {
+            "label": "Cycle 4: assert PCM reached transport"
+          }
+        }
+      },
+      {
+        "id": "cycle-04-stop",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/dictationStudio.recordStart"
+          },
+          "metadata": {
+            "label": "Cycle 4: stop microphone capture"
+          }
+        }
+      },
+      {
+        "id": "cycle-04-processed-ready",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/dictationStudio.turnProcessedReady",
+            "state": "WAIT_STATE_ATTACHED",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Cycle 4: wait for terminal PCM processing acknowledgement"
+          }
+        }
+      },
+      {
+        "id": "cycle-04-processed",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.turnProcessedStatus",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "data-has-processed-audio",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Cycle 4: assert terminal transport processing completed"
+          }
+        }
+      },
+      {
+        "id": "cycle-04-transcript",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.finalTranscript",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "timeout_ms": 30000,
+            "expected": {
+              "string_value": "quick brown fox jumps"
+            }
+          },
+          "metadata": {
+            "label": "Cycle 4: assert the five-word fixture transcription"
+          }
+        }
+      },
+      {
+        "id": "cycle-04-idle",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.recordState",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "Clip captured."
+            }
+          },
+          "metadata": {
+            "label": "Cycle 4: assert stop/final-drain returned recorder to captured state"
+          }
+        }
+      },
+      {
+        "id": "cycle-04-evidence",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": true
+          },
+          "metadata": {
+            "label": "Cycle 4: preserve UI lifecycle and transcript state"
+          }
+        }
+      },
+      {
+        "id": "cycle-04-settle",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 1000
+          },
+          "metadata": {
+            "label": "Cycle 4: wait at least one second after stop before next start"
+          }
+        }
+      },
+      {
+        "id": "cycle-05-start",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/dictationStudio.recordStart"
+          },
+          "metadata": {
+            "label": "Cycle 5: start WAV-backed fake-media microphone capture"
+          }
+        }
+      },
+      {
+        "id": "cycle-05-active",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.recordStart",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "aria-pressed"
+          },
+          "metadata": {
+            "label": "Cycle 5: assert microphone lifecycle is active"
+          }
+        }
+      },
+      {
+        "id": "cycle-05-connected",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/dictationStudio.streamStatus",
+            "state": "WAIT_STATE_UNSPECIFIED",
+            "timeout_ms": 45000
+          },
+          "metadata": {
+            "label": "Cycle 5: wait for PCM-v2 transport connection"
+          }
+        }
+      },
+      {
+        "id": "cycle-05-transport-connected",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.streamStatus",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "Streaming transcription connected."
+            }
+          },
+          "metadata": {
+            "label": "Cycle 5: assert transport connection"
+          }
+        }
+      },
+      {
+        "id": "cycle-05-speak",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "duration_ms": 4000
+          },
+          "metadata": {
+            "label": "Cycle 5: feed the checked-in five-word fake-media WAV"
+          }
+        }
+      },
+      {
+        "id": "cycle-05-captured",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.turnCaptureStatus",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "data-has-captured-audio"
+          },
+          "metadata": {
+            "label": "Cycle 5: assert WAV produced PCM capture"
+          }
+        }
+      },
+      {
+        "id": "cycle-05-sent",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.turnSentStatus",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "data-has-sent-audio"
+          },
+          "metadata": {
+            "label": "Cycle 5: assert PCM reached transport"
+          }
+        }
+      },
+      {
+        "id": "cycle-05-stop",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/dictationStudio.recordStart"
+          },
+          "metadata": {
+            "label": "Cycle 5: stop microphone capture"
+          }
+        }
+      },
+      {
+        "id": "cycle-05-processed-ready",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/dictationStudio.turnProcessedReady",
+            "state": "WAIT_STATE_ATTACHED",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Cycle 5: wait for terminal PCM processing acknowledgement"
+          }
+        }
+      },
+      {
+        "id": "cycle-05-processed",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.turnProcessedStatus",
+            "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+            "expected": {
+              "string_value": "true"
+            },
+            "attribute_name": "data-has-processed-audio",
+            "timeout_ms": 5000
+          },
+          "metadata": {
+            "label": "Cycle 5: assert terminal transport processing completed"
+          }
+        }
+      },
+      {
+        "id": "cycle-05-transcript",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.finalTranscript",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "timeout_ms": 30000,
+            "expected": {
+              "string_value": "quick brown fox jumps"
+            }
+          },
+          "metadata": {
+            "label": "Cycle 5: assert the five-word fixture transcription"
+          }
+        }
+      },
+      {
+        "id": "cycle-05-idle",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/dictationStudio.recordState",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "timeout_ms": 15000,
+            "expected": {
+              "string_value": "Clip captured."
+            }
+          },
+          "metadata": {
+            "label": "Cycle 5: assert stop/final-drain returned recorder to captured state"
+          }
+        }
+      },
+      {
+        "id": "cycle-05-evidence",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": true
+          },
+          "metadata": {
+            "label": "Cycle 5: preserve UI lifecycle and transcript state"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "navigate-dictation",
+        "target": "wait-recorder",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e2",
+        "source": "wait-recorder",
+        "target": "cycle-01-start",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e3",
+        "source": "cycle-01-start",
+        "target": "cycle-01-active",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e4",
+        "source": "cycle-01-active",
+        "target": "cycle-01-connected",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e5",
+        "source": "cycle-01-connected",
+        "target": "cycle-01-transport-connected",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e6",
+        "source": "cycle-01-transport-connected",
+        "target": "cycle-01-speak",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e7",
+        "source": "cycle-01-speak",
+        "target": "cycle-01-captured",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e8",
+        "source": "cycle-01-captured",
+        "target": "cycle-01-sent",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e9",
+        "source": "cycle-01-sent",
+        "target": "cycle-01-stop",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e10",
+        "source": "cycle-01-stop",
+        "target": "cycle-01-processed-ready",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e11",
+        "source": "cycle-01-processed-ready",
+        "target": "cycle-01-processed",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e12",
+        "source": "cycle-01-processed",
+        "target": "cycle-01-transcript",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e13",
+        "source": "cycle-01-transcript",
+        "target": "cycle-01-idle",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e14",
+        "source": "cycle-01-idle",
+        "target": "cycle-01-evidence",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e15",
+        "source": "cycle-01-evidence",
+        "target": "cycle-01-settle",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e16",
+        "source": "cycle-01-settle",
+        "target": "cycle-02-start",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e17",
+        "source": "cycle-02-start",
+        "target": "cycle-02-active",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e18",
+        "source": "cycle-02-active",
+        "target": "cycle-02-connected",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e19",
+        "source": "cycle-02-connected",
+        "target": "cycle-02-transport-connected",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e20",
+        "source": "cycle-02-transport-connected",
+        "target": "cycle-02-speak",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e21",
+        "source": "cycle-02-speak",
+        "target": "cycle-02-captured",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e22",
+        "source": "cycle-02-captured",
+        "target": "cycle-02-sent",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e23",
+        "source": "cycle-02-sent",
+        "target": "cycle-02-stop",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e24",
+        "source": "cycle-02-stop",
+        "target": "cycle-02-processed-ready",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e25",
+        "source": "cycle-02-processed-ready",
+        "target": "cycle-02-processed",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e26",
+        "source": "cycle-02-processed",
+        "target": "cycle-02-transcript",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e27",
+        "source": "cycle-02-transcript",
+        "target": "cycle-02-idle",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e28",
+        "source": "cycle-02-idle",
+        "target": "cycle-02-evidence",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e29",
+        "source": "cycle-02-evidence",
+        "target": "cycle-02-settle",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e30",
+        "source": "cycle-02-settle",
+        "target": "cycle-03-start",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e31",
+        "source": "cycle-03-start",
+        "target": "cycle-03-active",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e32",
+        "source": "cycle-03-active",
+        "target": "cycle-03-connected",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e33",
+        "source": "cycle-03-connected",
+        "target": "cycle-03-transport-connected",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e34",
+        "source": "cycle-03-transport-connected",
+        "target": "cycle-03-speak",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e35",
+        "source": "cycle-03-speak",
+        "target": "cycle-03-captured",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e36",
+        "source": "cycle-03-captured",
+        "target": "cycle-03-sent",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e37",
+        "source": "cycle-03-sent",
+        "target": "cycle-03-stop",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e38",
+        "source": "cycle-03-stop",
+        "target": "cycle-03-processed-ready",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e39",
+        "source": "cycle-03-processed-ready",
+        "target": "cycle-03-processed",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e40",
+        "source": "cycle-03-processed",
+        "target": "cycle-03-transcript",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e41",
+        "source": "cycle-03-transcript",
+        "target": "cycle-03-idle",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e42",
+        "source": "cycle-03-idle",
+        "target": "cycle-03-evidence",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e43",
+        "source": "cycle-03-evidence",
+        "target": "cycle-03-settle",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e44",
+        "source": "cycle-03-settle",
+        "target": "cycle-04-start",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e45",
+        "source": "cycle-04-start",
+        "target": "cycle-04-active",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e46",
+        "source": "cycle-04-active",
+        "target": "cycle-04-connected",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e47",
+        "source": "cycle-04-connected",
+        "target": "cycle-04-transport-connected",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e48",
+        "source": "cycle-04-transport-connected",
+        "target": "cycle-04-speak",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e49",
+        "source": "cycle-04-speak",
+        "target": "cycle-04-captured",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e50",
+        "source": "cycle-04-captured",
+        "target": "cycle-04-sent",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e51",
+        "source": "cycle-04-sent",
+        "target": "cycle-04-stop",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e52",
+        "source": "cycle-04-stop",
+        "target": "cycle-04-processed-ready",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e53",
+        "source": "cycle-04-processed-ready",
+        "target": "cycle-04-processed",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e54",
+        "source": "cycle-04-processed",
+        "target": "cycle-04-transcript",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e55",
+        "source": "cycle-04-transcript",
+        "target": "cycle-04-idle",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e56",
+        "source": "cycle-04-idle",
+        "target": "cycle-04-evidence",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e57",
+        "source": "cycle-04-evidence",
+        "target": "cycle-04-settle",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e58",
+        "source": "cycle-04-settle",
+        "target": "cycle-05-start",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e59",
+        "source": "cycle-05-start",
+        "target": "cycle-05-active",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e60",
+        "source": "cycle-05-active",
+        "target": "cycle-05-connected",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e61",
+        "source": "cycle-05-connected",
+        "target": "cycle-05-transport-connected",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e62",
+        "source": "cycle-05-transport-connected",
+        "target": "cycle-05-speak",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e63",
+        "source": "cycle-05-speak",
+        "target": "cycle-05-captured",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e64",
+        "source": "cycle-05-captured",
+        "target": "cycle-05-sent",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e65",
+        "source": "cycle-05-sent",
+        "target": "cycle-05-stop",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e66",
+        "source": "cycle-05-stop",
+        "target": "cycle-05-processed-ready",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e67",
+        "source": "cycle-05-processed-ready",
+        "target": "cycle-05-processed",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e68",
+        "source": "cycle-05-processed",
+        "target": "cycle-05-transcript",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e69",
+        "source": "cycle-05-transcript",
+        "target": "cycle-05-idle",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e70",
+        "source": "cycle-05-idle",
+        "target": "cycle-05-evidence",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      }
+    ]
+  }
+}

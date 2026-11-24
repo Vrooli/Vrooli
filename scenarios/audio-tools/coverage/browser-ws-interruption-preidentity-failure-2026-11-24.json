@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "runId": "browser-paced-2026-11-24T055531462Z",
+  "observedAt": {
+    "startedAt": "2026-11-24T05:55:31.462Z",
+    "finishedAt": "2026-11-24T05:55:34.252Z"
+  },
+  "qualification": "diagnostic_only",
+  "cohort": {
+    "consumer": "audio-tools Dictation Studio",
+    "profile": "synthetic browser fake microphone",
+    "browser": "Chrome/150.0.7871.128",
+    "host": "linux-x64",
+    "capture": "Chrome file-backed fake microphone, paced by browser media device",
+    "injectedInterruption": "Product WebSocket closed with code 4001 after the first visible partial",
+    "route": "http://127.0.0.1:23345/dictation-studio",
+    "providerId": null,
+    "fixture": "dictation-reference.wav",
+    "fixturePath": "bas/fixtures/dictation-reference.wav",
+    "fixtureSha256": "0c789111bdca878622c2db7f8097f7597dd42ee3eb6a1aefee416ef2504bef7d"
+  },
+  "buildIdentity": {
+    "api": "sha256:bbcf09aebeb342101ec983303f71f31a8504278ed0200d6bb3e1d2d3e6ee1558"
+  },
+  "attemptCount": 1,
+  "completedFinalCount": 0,
+  "failedOrIncompleteCount": 1,
+  "latencyMs": {
+    "signalToFirstVisiblePartial": {
+      "n": 0,
+      "p50": null,
+      "p95_nearest_rank": null,
+      "max": null,
+      "min": null
+    },
+    "signalToPartialDiagnostic": {
+      "n": 0,
+      "p50": null,
+      "p95_nearest_rank": null,
+      "max": null,
+      "min": null
+    },
+    "clickToFirstVisiblePartial": {
+      "n": 0,
+      "p50": null,
+      "p95_nearest_rank": null,
+      "max": null,
+      "min": null
+    },
+    "postOnsetAudioAvailableAtFirstPartial": {
+      "n": 0,
+      "p50": null,
+      "p95_nearest_rank": null,
+      "max": null,
+      "min": null
+    },
+    "excessAfterAvailableAudio": {
+      "n": 0,
+      "p50": null,
+      "p95_nearest_rank": null,
+      "max": null,
+      "min": null
+    },
+    "clickToCaptureReady": {
+      "n": 0,
+      "p50": null,
+      "p95_nearest_rank": null,
+      "max": null,
+      "min": null
+    },
+    "stopToFinalTail": {
+      "n": 0,
+      "p50": null,
+      "p95_nearest_rank": null,
+      "max": null,
+      "min": null
+    },
+    "visibleUpdateGap": {
+      "n": 0,
+      "p50": null,
+      "p95_nearest_rank": null,
+      "max": null,
+      "min": null
+    }
+  },
+  "accounting": {
+    "attemptsWithCapturedSamplesEqualCommittedSamples": 0,
+    "attemptsWithAllSentSequenceProcessed": 0,
+    "attemptsWithDoneSent": 0,
+    "attemptsWithAtLeastTwoVisibleRevisions": 0,
+    "attemptsWithCompleteVisibleUpdateGaps": 0,
+    "attemptsWithFirstVisiblePartial": 0,
+    "attemptsWithVisibleFinal": 0,
+    "maxVisibleRevisionCount": 0,
+    "allPageErrors": []
+  },
+  "limitations": [
+    "Synthetic media browser run; not a physical microphone/device qualification.",
+    "Repeated WAV fixture supports timing and cursor accounting only; no independent speech-quality score was calculated.",
+    "One cohort does not establish performance on other hosts, profiles, cold starts, or routes.",
+    "The active product WebSocket is closed with code 1011 after the first visible partial. This exercises client reconnect/replay behavior but is not a physical network or browser/device recovery qualification."
+  ],
+  "attempts": [
+    {
+      "attempt": 1,
+      "startedAt": "2026-11-24T05:55:31.465Z",
+      "finishedAt": "2026-11-24T05:55:34.252Z",
+      "sessionId": "75d67f83-bc87-4d5a-87cf-e4838357ac49",
+      "state": "failed",
+      "terminalReason": "retained_route_unavailable",
+      "providerId": null,
+      "providerTier": null,
+      "modelId": null,
+      "signalToFirstVisiblePartialMs": 814.4375,
+      "signalToPartialDiagnosticMs": 801.6374998092651,
+      "firstPartialAvailableAudioMs": 780,
+      "firstPartialExcessLatencyMs": 21.637499809265137,
+      "startToCaptureReadyMs": 120.19999980926514,
+      "stopToFinalTailMs": null,
+      "capturedSequence": 48,
+      "sentSequence": 48,
+      "processedSequence": 48,
+      "capturedSamples": 38229,
+      "committedSamples": null,
+      "visibleRevisionCount": 4,
+      "visibleUpdateGapsMs": [
+        344.6000003814697,
+        1146.8999996185303,
+        22
+      ],
+      "visibleGapsComplete": true,
+      "injectedOfflineDurationMs": 0,
+      "injectedWebSocketClose": true,
+      "injectedInterruptionObserved": true,
+      "visiblePartialObserved": true,
+      "visibleFinalObserved": false,
+      "doneSent": true,
+      "statusCodes": [
+        "capture_starting",
+        "stream_connected",
+        "session_ready",
+        "processed_acknowledgement",
+        "reconnecting",
+        "session_accepted",
+        "replaying",
+        "buffered_recovery"
+      ],
+      "errorCodes": [
+        "stream_internal",
+        "retained_route_unavailable"
+      ],
+      "clickToFirstVisiblePartialMs": 1002.9000005722046,
+      "startedAtMs": 452.5999994277954,
+      "passed": false,
+      "failure": "expected provider sherpa-stt, received unknown"
+    }
+  ]
+}

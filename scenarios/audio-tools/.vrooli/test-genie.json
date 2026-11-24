@@ -15,7 +15,11 @@
   "evidenceKinds": ["qualification", "browser-product-path"],
   "validation": {
     "contract": "scenario-validation/v1",
+    "endpointVariant": "lab",
     "includeExecution": true
+  },
+  "concurrency": {
+    "mode": "provider-serial"
   },
   "targets": {
     "kinds": ["scenario"],

@@ -19,11 +19,31 @@ const GroupName = "tts"
 // and wires Connect-RPC bindings to handlers.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
+	synthesize := h.synthesizePrimitive()
+	streaming := cliapp.Streaming(h.synthesizeStream)
+	voices := h.voicesPrimitive()
+	formats := h.formatsPrimitive()
 	bindings := map[string]func(cliapp.RunContext) error{
-		"TTSService.Synthesize":          h.synthesize,
-		"TTSService.SynthesizeStream":    h.synthesizeStream,
-		"TTSService.ListVoices":          h.voices,
-		"TTSService.GetSupportedFormats": h.formats,
+		"TTSService.Synthesize":          synthesize.Run,
+		"TTSService.SynthesizeStream":    streaming.Run,
+		"TTSService.ListVoices":          voices.Run,
+		"TTSService.GetSupportedFormats": formats.Run,
 	}
-	return climanifest.LoadGroup(manifest, GroupName, bindings)
+	group, err := climanifest.LoadGroup(manifest, GroupName, bindings)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, err
+	}
+	for i := range group.Subcommands {
+		switch group.Subcommands[i].Name {
+		case "synthesize":
+			group.Subcommands[i] = group.Subcommands[i].WithPrimitive(synthesize)
+		case "synthesize-stream":
+			group.Subcommands[i] = group.Subcommands[i].WithPrimitive(streaming)
+		case "voices":
+			group.Subcommands[i] = group.Subcommands[i].WithPrimitive(voices)
+		case "formats":
+			group.Subcommands[i] = group.Subcommands[i].WithPrimitive(formats)
+		}
+	}
+	return group, nil
 }

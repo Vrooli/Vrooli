@@ -61,10 +61,11 @@ const (
 // Cell identifies exactly what was under test. Evidence is keyed to a cell so
 // a passing run on one engine can never credit another.
 type Cell struct {
-	EngineID string `json:"engineId"`
-	ModelID  string `json:"modelId"`
-	Strategy string `json:"strategy"`
-	Policy   string `json:"policy"`
+	EngineID     string `json:"engineId"`
+	ModelID      string `json:"modelId"`
+	Strategy     string `json:"strategy"`
+	Policy       string `json:"policy"`
+	ProviderTier string `json:"providerTier,omitempty"`
 }
 
 func (c Cell) valid() error {
@@ -142,7 +143,7 @@ var InvariantAssertions = []string{
 	"capture_signal_observed",
 	"browser_retention_bounded",
 	"server_retention_bounded",
-	"per_frame_cost_constant",
+	"capture_callback_processing_budget",
 	"zero_duplicate_committed_segments",
 	"zero_silent_terminal_outcomes",
 	"provider_cell_identity",
@@ -154,9 +155,12 @@ var InvariantAssertions = []string{
 // The accelerated lane must not report them at all; reporting them there is a
 // category error, because a virtual clock cannot fail to keep up.
 var RealtimeAssertions = []string{
+	"capture_ready_latency",
 	"first_partial_latency_stable",
+	"visible_update_gap_within_budget",
 	"committed_text_lag_stable",
 	"continuous_interim_text_visible",
+	"stop_to_final_tail_latency",
 }
 
 // QualityAssertions are required on both lanes. Recognition quality is not a

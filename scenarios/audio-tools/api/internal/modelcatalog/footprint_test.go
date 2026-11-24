@@ -13,7 +13,7 @@ import (
 func TestCapabilityDefaultsFitResourceBudget(t *testing.T) {
 	catalog := Default()
 
-	for _, capability := range Capabilities {
+	for _, capability := range DefaultCapabilities {
 		t.Run(string(capability), func(t *testing.T) {
 			budget := FootprintBudget(capability)
 			require.Positive(t, budget, "capability %s has no declared footprint budget", capability)
@@ -40,7 +40,7 @@ func TestCapabilityDefaultsFitResourceBudget(t *testing.T) {
 func TestPromotedDefaultFootprintFitsBudgets(t *testing.T) {
 	catalog := Default()
 	budget := 0
-	for _, capability := range Capabilities {
+	for _, capability := range DefaultCapabilities {
 		budget += FootprintBudget(capability)
 	}
 	got := catalog.PromotedDefaultFootprintMB()
@@ -55,7 +55,7 @@ func TestPromotedDefaultFootprintFitsBudgets(t *testing.T) {
 func TestCommercialDefaultsFitResourceBudget(t *testing.T) {
 	catalog := Default()
 
-	for _, capability := range Capabilities {
+	for _, capability := range DefaultCapabilities {
 		commercial, err := catalog.CommercialDefaultFor(capability, "", Platform{})
 		if err != nil {
 			continue
@@ -77,7 +77,7 @@ func TestLocalDefaultArtifactsAreEager(t *testing.T) {
 	catalog := Default()
 
 	checked := 0
-	for _, capability := range Capabilities {
+	for _, capability := range DefaultCapabilities {
 		def, err := catalog.DefaultFor(capability, "", Platform{})
 		if err != nil || def.Artifact == nil {
 			continue
@@ -108,9 +108,13 @@ func TestSummarizeDefaultMovedOffNineB(t *testing.T) {
 
 	def, err := catalog.DefaultFor(CapabilitySummarize, "", Platform{})
 	require.NoError(t, err)
-	require.NotEqual(t, "qwen3.5:9b", def.ID, "the 9B summarize tag reserves ~6 GB of VRAM and must not be the default")
+	require.Equal(t, "qwen3:1.7b", def.ID, "the model registry should reflect Audio Tools' scoped compact summary route")
 
 	nine, ok := catalog.ByID("qwen3.5:9b")
 	require.True(t, ok)
 	require.False(t, nine.HasRole("default"), "the 9B tag must stay a quality tier, not a default candidate")
+	four, ok := catalog.ByID("qwen3.5:4b")
+	require.True(t, ok)
+	require.True(t, four.HasRole("quality"), "the 4B model remains the quality alternative")
+	require.False(t, four.HasRole("default"), "the generic resource role does not define Audio Tools' product registry default")
 }

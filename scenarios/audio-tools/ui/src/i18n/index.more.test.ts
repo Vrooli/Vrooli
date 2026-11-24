@@ -4,16 +4,26 @@
  * The format.test.ts suite already covers formatters; this file covers the
  * helpers in index.ts that the existing tests miss.
  */
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 
 import { i18n, setLocale, getCurrentLocale, getLocaleConfig, SUPPORTED_LOCALES } from "./index";
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   // Reset to cimode (the test pseudo-locale configured in test-setup.ts)
   await i18n.changeLanguage("cimode");
 });
 
 describe("setLocale (line 97-98)", () => {
+  it("continues changing locale when browser storage is unavailable", async () => {
+    vi.spyOn(window.localStorage, "setItem").mockImplementation(() => {
+      throw new DOMException("Storage is disabled", "SecurityError");
+    });
+
+    await expect(setLocale("ja")).resolves.toBeUndefined();
+    expect(i18n.language).toBe("ja");
+  });
+
   it("changes the active i18next language and resolves to undefined", async () => {
     const result = await setLocale("ja");
     expect(result).toBeUndefined();

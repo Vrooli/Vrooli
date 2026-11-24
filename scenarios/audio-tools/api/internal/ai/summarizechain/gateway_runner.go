@@ -1,7 +1,6 @@
 package summarizechain
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -21,8 +20,9 @@ import (
 )
 
 const (
-	GatewaySummaryRole            = "summarize.faithful"
+	GatewaySummaryRole            = summarize.AudioToolsSummarizeRoleNamespace
 	localSummaryPrivacyProvenance = "audio-tools.summary:caller-text-or-local-transcript-for-speech-output"
+	maxGatewaySummaryResultBytes  = 4 << 20
 )
 
 type InferenceRunner interface {
@@ -32,7 +32,8 @@ type InferenceRunner interface {
 type InferenceResolver func(context.Context) (InferenceRunner, error)
 
 // NewAIGatewayRunner adapts Audio Tools' owner-typed task request directly to
-// AI Gateway. The resource role selector is translated into one task role;
+// its application-scoped AI Gateway summary role. The resource role selector
+// is translated into one task role;
 // CLI serialization and parsing stay on the resource-ollama experiment path.
 func NewAIGatewayRunner() summarize.TaskRunner {
 	return NewAIGatewayRunnerWithResolver(func(ctx context.Context) (InferenceRunner, error) {
@@ -53,9 +54,10 @@ func NewAIGatewayRunnerWithResolver(resolve InferenceResolver) summarize.TaskRun
 			return nil, errors.New("audio-tools local summary accepts policy roles, not concrete model selectors")
 		}
 		selector := strings.TrimSpace(task.Selector)
-		if selector != "summarize.default" && selector != GatewaySummaryRole {
+		if !summarize.IsAudioToolsSummarizeRole(selector) {
 			return nil, fmt.Errorf("unsupported audio-tools summarization role %q", selector)
 		}
+		gatewayRole := selector
 		instruction := strings.TrimSpace(task.Instruction)
 		if instruction == "" {
 			return nil, errors.New("audio-tools summary task instruction is required")
@@ -74,7 +76,7 @@ func NewAIGatewayRunnerWithResolver(resolve InferenceResolver) summarize.TaskRun
 			return nil, fmt.Errorf("resolve ai-gateway: %w", err)
 		}
 		response, err := client.Run(ctx, connect.NewRequest(&inferencev1.RunRequest{
-			Role:              GatewaySummaryRole,
+			Role:              gatewayRole,
 			Profile:           sharedv1.Profile_PROFILE_LOCAL_ONLY,
 			PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
 			PrivacyProvenance: localSummaryPrivacyProvenance,
@@ -98,10 +100,14 @@ func NewAIGatewayRunnerWithResolver(resolve InferenceResolver) summarize.TaskRun
 		if strings.TrimSpace(response.Msg.GetModel()) == "" {
 			return nil, errors.New("ai-gateway did not report the selected summary model")
 		}
+		valueJSON := response.Msg.GetValueJson()
+		if len(valueJSON) > maxGatewaySummaryResultBytes {
+			return nil, fmt.Errorf("ai-gateway summary result exceeds %d-byte limit", maxGatewaySummaryResultBytes)
+		}
 		var decoded struct {
 			Summary string `json:"summary"`
 		}
-		decoder := json.NewDecoder(bytes.NewBufferString(response.Msg.GetValueJson()))
+		decoder := json.NewDecoder(strings.NewReader(valueJSON))
 		decoder.DisallowUnknownFields()
 		if err := decoder.Decode(&decoded); err != nil {
 			return nil, fmt.Errorf("decode ai-gateway summary result: %w", err)

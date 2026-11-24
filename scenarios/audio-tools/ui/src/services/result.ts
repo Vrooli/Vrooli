@@ -1,4 +1,4 @@
-import { ApiError } from "../api/client";
+import { ApiError, makeApiError } from "../api/client";
 
 export type Result<T> = { ok: true; data: T } | { ok: false; error: ApiError };
 
@@ -21,7 +21,6 @@ export async function tryCall<T>(fn: () => Promise<T>): Promise<Result<T>> {
   } catch (e) {
     if (e instanceof ApiError) return err(e);
     const msg = e instanceof Error ? e.message : String(e);
-    const { makeApiError } = await import("../api/client");
     return err(makeApiError("internal", msg, 500));
   }
 }

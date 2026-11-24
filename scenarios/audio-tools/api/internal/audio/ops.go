@@ -328,6 +328,29 @@ func Split(ctx context.Context, audio []byte, format string, chunkSeconds float6
 	}
 	starts := append([]float64{0}, cuts...)
 	ends := append(append([]float64{}, cuts...), 0) // 0 sentinel = EOF
+	if chunkSeconds > 0 {
+		if batch, used, err := splitUniformBatch(ctx, audio, format, outFormat, starts, ends); used {
+			if err != nil {
+				return nil, err
+			}
+			out := make([]SplitChunk, len(batch))
+			for i, bytes := range batch {
+				dur := 0.0
+				switch {
+				case ends[i] > 0 && isFinitePositive(inputDuration):
+					if end := math.Min(ends[i], inputDuration); end > starts[i] {
+						dur = end - starts[i]
+					}
+				case ends[i] > 0:
+					dur = ends[i] - starts[i]
+				case isFinitePositive(inputDuration) && inputDuration > starts[i]:
+					dur = inputDuration - starts[i]
+				}
+				out[i] = SplitChunk{Audio: bytes, Start: starts[i], Duration: dur, ContentType: ContentTypeFor(outFormat)}
+			}
+			return out, nil
+		}
+	}
 	out := make([]SplitChunk, 0, len(starts))
 	for i, s := range starts {
 		if err := ctx.Err(); err != nil {

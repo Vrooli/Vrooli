@@ -105,6 +105,18 @@ func (s *BYOKStore) MarkUsed(ctx context.Context, providerID, capability string,
 	return err
 }
 
+// CountCreatedBetween returns only the number of credentials created in the
+// half-open UTC interval [from, to). It does not read credential contents,
+// fingerprints, or identity details.
+func (s *BYOKStore) CountCreatedBetween(ctx context.Context, from, to time.Time) (int64, error) {
+	var count int64
+	err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM byok_credentials
+		WHERE julianday(created_at) >= julianday(?) AND julianday(created_at) < julianday(?)`,
+		from.UTC().Format(time.RFC3339Nano), to.UTC().Format(time.RFC3339Nano)).Scan(&count)
+	return count, err
+}
+
 // scanRow narrows database/sql.Row and Rows to a common Scan surface so
 // we can share the parsing code.
 type scanRow interface {

@@ -27,6 +27,7 @@ type Deps struct {
 	GetSummarizeConfig  func() intsumm.SummarizeConfig
 	SetSummarizeConfig  func(intsumm.SummarizeConfig)
 	ListSummarizeModels func(context.Context) ([]intsumm.SummarizeModelInfo, error)
+	IsDeclaredLocalRole func(context.Context, string) (bool, error)
 	Usage               UsageRecorder
 }
 
@@ -39,11 +40,21 @@ type UsageRecorder interface{ Enqueue(store.UsageRow) }
 const DefaultMaxRequestBytes = 4 << 20
 
 func Module(chain *summarizechain.Chain, getCfg func() intsumm.SummarizeConfig, setCfg func(intsumm.SummarizeConfig), listModels func(context.Context) ([]intsumm.SummarizeModelInfo, error), logger logx.Logger, clk schedule.Clock, usage UsageRecorder) modulekit.Module {
-	return ModuleWithLimit(chain, getCfg, setCfg, listModels, logger, clk, usage, DefaultMaxRequestBytes)
+	return ModuleWithRoleResolver(chain, getCfg, setCfg, listModels, nil, logger, clk, usage)
+}
+
+// ModuleWithRoleResolver provides the local-role inventory seam to focused
+// tests and embedding owners. Production passes nil and resolves via Gateway.
+func ModuleWithRoleResolver(chain *summarizechain.Chain, getCfg func() intsumm.SummarizeConfig, setCfg func(intsumm.SummarizeConfig), listModels func(context.Context) ([]intsumm.SummarizeModelInfo, error), roleResolver func(context.Context, string) (bool, error), logger logx.Logger, clk schedule.Clock, usage UsageRecorder) modulekit.Module {
+	return moduleWithLimitAndRoleResolver(chain, getCfg, setCfg, listModels, roleResolver, logger, clk, usage, DefaultMaxRequestBytes)
 }
 
 // ModuleWithLimit is Module with an explicit request-body ceiling.
 func ModuleWithLimit(chain *summarizechain.Chain, getCfg func() intsumm.SummarizeConfig, setCfg func(intsumm.SummarizeConfig), listModels func(context.Context) ([]intsumm.SummarizeModelInfo, error), logger logx.Logger, clk schedule.Clock, usage UsageRecorder, maxRequestBytes int) modulekit.Module {
+	return moduleWithLimitAndRoleResolver(chain, getCfg, setCfg, listModels, nil, logger, clk, usage, maxRequestBytes)
+}
+
+func moduleWithLimitAndRoleResolver(chain *summarizechain.Chain, getCfg func() intsumm.SummarizeConfig, setCfg func(intsumm.SummarizeConfig), listModels func(context.Context) ([]intsumm.SummarizeModelInfo, error), roleResolver func(context.Context, string) (bool, error), logger logx.Logger, clk schedule.Clock, usage UsageRecorder, maxRequestBytes int) modulekit.Module {
 	if logger == nil {
 		panic("summarize.Module requires logger")
 	}
@@ -60,6 +71,7 @@ func ModuleWithLimit(chain *summarizechain.Chain, getCfg func() intsumm.Summariz
 		GetSummarizeConfig:  getCfg,
 		SetSummarizeConfig:  setCfg,
 		ListSummarizeModels: listModels,
+		IsDeclaredLocalRole: roleResolver,
 		Usage:               usage,
 	}), connect.WithReadMaxBytes(maxRequestBytes))
 	return modulekit.Module{

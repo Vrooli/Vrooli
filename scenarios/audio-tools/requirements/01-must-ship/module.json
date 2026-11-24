@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "description": "Continuous dictation trust and portable voice obligations. New portable-voice-v1 claims are planned; historical validation observations are preserved, not promoted.",
+    "description": "Continuous dictation trust and portable voice obligations. New portable-voice-v2 claims are planned; historical validation observations are preserved, not promoted.",
     "last_validated_at": "2026-09-14T14:30:09-04:00",
     "module": "continuous-dictation-trust",
     "priority": "P0",
@@ -34,7 +34,7 @@
           "type": "automation"
         },
         {
-          "last_validated_at": "2026-09-16T14:32:13Z",
+          "last_validated_at": "2026-11-22T19:25:37Z",
           "notes": "[REQ:ATD-P0-001] Scenario-owned qualification command streams continuous synthetic PCM through the production bidi STT path for at least 60 minutes. Ordinary suites do not execute this validation; run `audio-tools validation run-expensive` to refresh evidence.",
           "out_of_band": true,
           "phase": "performance",
@@ -44,7 +44,7 @@
           "valid_for_days": 7
         },
         {
-          "last_validated_at": "2026-09-16T14:32:13Z",
+          "last_validated_at": "2026-11-22T19:25:37Z",
           "notes": "[REQ:ATD-P0-001] Scenario-owned qualification command exercises the production streaming TTS path for at least 60 minutes and records frame/byte counts.",
           "out_of_band": true,
           "phase": "performance",
@@ -133,7 +133,7 @@
       "description": "A session has stable identities, monotonic chunk ranges, received and processed acknowledgements, idempotent committed segment IDs, and an explicit terminal reason.",
       "id": "ATD-P0-004",
       "prd_ref": "OT-P0-001",
-      "status": "complete",
+      "status": "in_progress",
       "title": "Replay-safe streaming protocol",
       "validation": [
         {
@@ -208,6 +208,12 @@
           "notes": "[REQ:ATD-P0-006] Historical Chromium fake-device workflow passed on 2026-07-12 (BAS execution 92e2f7e6-a005-411b-a395-bcf299743401) through the then-current same-origin WebSocket proxy. It predates the Connect migration and is not current served-journey evidence.",
           "ref": "bas/cases/01-foundation/01-dictation/deterministic-microphone-smoke.json",
           "status": "implemented",
+          "type": "automation"
+        },
+        {
+          "notes": "Five-cycle same-page fake-media lifecycle case; execution is pending BAS authenticated-account admission. Passing emulated evidence does not qualify native device cohorts.",
+          "ref": "bas/cases/01-foundation/01-dictation/deterministic-five-cycle-microphone-reuse.json",
+          "status": "planned",
           "type": "automation"
         },
         {
@@ -414,6 +420,21 @@
       "validation": [
         {
           "notes": "Validation design, not executed evidence: TESTING.md long-form lane: three real 60-minute runs per approved local engine/profile, duration/sample-count oracles, interruption/reconnect/slow-consumer/restart/contention, truncated input and failed-child controls. A concurrent long-running TTS child cannot supply missing STT duration. Implement tagged owner tests or log a real manual qualification receipt before promotion; this documentation update earns no passing status.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "When users dictate across supported desktop cohorts, Audio Tools shall match or exceed the Wispr Flow feature set documented 2026-11-20 and achieve at least equal task completion, with accessible insertion, onboarding, permissions, offline use, and recovery.",
+      "id": "ATD-P0-020",
+      "prd_ref": "OT-P0-011",
+      "status": "planned",
+      "title": "Cross-app desktop dictation parity",
+      "validation": [
+        {
+          "notes": "Planned comparative usability protocol is defined in the Audio Tools maturity AT3 brief. The Wispr Flow feature baseline and cohort task/success thresholds are specified there; no comparative user study has been completed, so this claim remains planned.",
           "status": "planned",
           "type": "manual"
         }

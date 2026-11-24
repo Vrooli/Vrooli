@@ -3,7 +3,8 @@
   "version": 2,
   "bundle_key": "business_suite",
   "app_key": "audio-tools",
-  "requires_entitlement": true,
+  "product_shape": "meter_only",
+  "requires_entitlement": false,
   "features": [],
   "credit_features": [
     {"id": "audio-tools.summarize", "gateway_roles": ["chat"]}
@@ -14,18 +15,7 @@
       "class": "A",
       "byok": true,
       "enforcement_paths": [
-        "api/internal/ai/sttchain/provider_vrooli.go",
-        "api/internal/ai/ttschain/provider_vrooli.go",
-        "api/internal/ai/summarizechain/provider_vrooli.go",
-        "api/integrations/lpbs/remote_reporter.go"
-      ]
-    },
-    {
-      "limit_key": "voice_minutes",
-      "class": "B",
-      "enforcement_paths": [
-        "api/internal/ai/ttschain/provider_vrooli.go",
-        "api/internal/ai/sttchain/provider_vrooli.go"
+        "api/integrations/lpbs/clients/summarize_client.go"
       ]
     }
   ],

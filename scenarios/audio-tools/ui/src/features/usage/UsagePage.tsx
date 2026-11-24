@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Panel } from "../../components/ui/panel";
 import { Badge } from "../../components/ui/badge";
 import { Table, TBody, TD, TH, THead, TR } from "../../components/ui/table";
-import { PageHeader } from "../../components/composites/PageHeader";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { ApiErrorState } from "../../components/composites/ApiErrorState";
 import { LoadingRows } from "../../components/composites/LoadingRows";
 import { getSummary, listRecent } from "../../services/usage";

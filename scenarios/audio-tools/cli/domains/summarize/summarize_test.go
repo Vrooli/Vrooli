@@ -54,11 +54,11 @@ func TestTextDefaultsLevel(t *testing.T) {
 		},
 	})
 	h := newHandlers(app)
-	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "level"}}}
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "level"}, {Name: "local-model-role"}}}
 	ctx, buf := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"text": "hello world"},
 	})
-	require.NoError(t, h.text(ctx))
+	require.NoError(t, h.text().Run(ctx))
 	out := buf.String()
 	require.Contains(t, out, "[local/ollama, 42ms] summary")
 }
@@ -72,11 +72,32 @@ func TestTextProviderUnavailable(t *testing.T) {
 		},
 	})
 	h := newHandlers(app)
-	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "level"}}}
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "level"}, {Name: "local-model-role"}}}
 	ctx, _ := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"text": "x", "level": "heavy"},
 	})
-	err := h.text(ctx)
+	err := h.text().Run(ctx)
 	require.Error(t, err)
 	require.True(t, strings.Contains(err.Error(), "summarize"), "want operation tag, got %q", err.Error())
+}
+
+func TestTextPreservesHumanAndJSONRendering(t *testing.T) {
+	app := mountSummarize(t, &fakeSvc{
+		fn: func(req *summv1.SummarizeRequest) (*summv1.SummarizeResponse, error) {
+			require.Equal(t, "input text", req.GetText())
+			require.Equal(t, summv1.SummarizeLevel_SUMMARIZE_LEVEL_HEAVY, req.GetLevel())
+			require.Equal(t, "summarize.audio_tools", req.GetLocalModelRole())
+			return &summv1.SummarizeResponse{
+				Text: "short summary", ProviderTier: commonv1.ProviderTier_PROVIDER_TIER_BYOK,
+				ProviderId: "provider-x", LatencyMs: 17,
+			}, nil
+		},
+	})
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "level"}, {Name: "local-model-role"}}}
+	modes := cliapptest.RunPrimitiveHandlerModes(t, newHandlers(app).text(), schema,
+		[]string{"--text", "input text", "--level", "heavy", "--local-model-role", "summarize.audio_tools"}, app)
+	require.NoError(t, modes.HumanErr)
+	require.NoError(t, modes.JSONErr)
+	require.Contains(t, modes.Human, "[byok/provider-x, 17ms] short summary")
+	require.JSONEq(t, `{"text":"short summary","provider_tier":"PROVIDER_TIER_BYOK","provider_id":"provider-x","latency_ms":17}`, modes.JSON)
 }

@@ -4,6 +4,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -18,6 +19,8 @@ const modulePath = "audio-tools"
 // handler under handlers/eval) is lab by default instead of quietly escaping
 // the boundary. Keep in sync with README.md.
 var labImportPrefixes = []string{
+	modulePath + "/internal/corpus",
+	modulePath + "/handlers/corpus",
 	modulePath + "/internal/eval",
 	modulePath + "/internal/experiment",
 	modulePath + "/internal/soak",
@@ -25,6 +28,77 @@ var labImportPrefixes = []string{
 	modulePath + "/handlers/experiment",
 	modulePath + "/handlers/soak",
 	modulePath + "/handlers/validation",
+}
+
+func TestPackagePatternSeparatesProductAndLabProfiles(t *testing.T) {
+	root := moduleRoot(t)
+	list := func(tags ...string) map[string]bool {
+		t.Helper()
+		args := []string{"list"}
+		if len(tags) > 0 {
+			args = append(args, "-tags", strings.Join(tags, ","))
+		}
+		args = append(args, "-f", "{{.ImportPath}}", "./...")
+		cmd := exec.Command("go", args...)
+		cmd.Dir = root
+		for _, item := range os.Environ() {
+			if !strings.HasPrefix(item, "GOFLAGS=") {
+				cmd.Env = append(cmd.Env, item)
+			}
+		}
+		cmd.Env = append(cmd.Env, "GOFLAGS=")
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("list packages with tags %v: %v\n%s", tags, err, output)
+		}
+		packages := make(map[string]bool)
+		for _, pkg := range strings.Fields(string(output)) {
+			packages[pkg] = true
+		}
+		return packages
+	}
+
+	product := list()
+	lab := list("audio_lab")
+	for _, prefix := range labImportPrefixes {
+		if product[prefix] {
+			t.Errorf("product package pattern includes lab package %s; lab-only packages must require audio_lab", prefix)
+		}
+		if !lab[prefix] {
+			t.Errorf("audio_lab package pattern omits lab package %s", prefix)
+		}
+	}
+	for _, pkg := range labPackages(product) {
+		t.Errorf("product package pattern includes lab package %s; every package below a lab prefix must require audio_lab", pkg)
+	}
+}
+
+func TestLabPackageClassificationIncludesDescendants(t *testing.T) {
+	product := map[string]bool{
+		"audio-tools/internal/eval":            true,
+		"audio-tools/internal/experiment":      true,
+		"audio-tools/internal/experiment/fast": true,
+		"audio-tools/internal/stt":             true,
+	}
+	want := []string{
+		"audio-tools/internal/eval",
+		"audio-tools/internal/experiment",
+		"audio-tools/internal/experiment/fast",
+	}
+	if got := labPackages(product); strings.Join(got, "\x00") != strings.Join(want, "\x00") {
+		t.Fatalf("labPackages() = %v, want %v", got, want)
+	}
+}
+
+func labPackages(packages map[string]bool) []string {
+	var lab []string
+	for pkg := range packages {
+		if isLabImport(pkg) {
+			lab = append(lab, pkg)
+		}
+	}
+	sort.Strings(lab)
+	return lab
 }
 
 // servingRoots are production request-serving packages. None of them may reach
@@ -35,10 +109,14 @@ var servingRoots = []string{
 	modulePath + "/handlers/tts",
 	modulePath + "/handlers/summarize",
 	modulePath + "/handlers/audio",
+	modulePath + "/handlers/diagnostics",
+	modulePath + "/handlers/models",
 	modulePath + "/internal/stt",
 	modulePath + "/internal/tts",
 	modulePath + "/internal/summarize",
 	modulePath + "/internal/audio",
+	modulePath + "/internal/diagnostics",
+	modulePath + "/internal/modelpromotion",
 	modulePath + "/internal/ai/chains",
 	modulePath + "/internal/ai/sttchain",
 	modulePath + "/internal/ai/ttschain",
@@ -49,27 +127,41 @@ var servingRoots = []string{
 // directly. They are the composition/mount layer, not a serving path:
 //
 //   - internal/bootstrap constructs the experiment manager and eval dependencies
-//     when the process starts. It is the documented crossing point described in
-//     README.md.
-//   - internal/server mounts the experiment/eval/soak/validation handler modules
+//     when the process starts, then converts eval reports for retention-aware
+//     persistence. It is the documented crossing point described in README.md.
+//   - internal/server mounts corpus and experiment/eval/soak/validation handlers
 //     and re-exports eval report mapping for the composition root.
+//   - internal/modules enumerates lab endpoint and schema metadata for startup
+//     migration and endpoint generation. It does not mount request handlers.
 //
 // Every entry is a deliberate crossing. A stale entry fails the test so the list
 // cannot become a permission nobody remembers granting.
 var compositionExceptions = map[string][]string{
 	modulePath + "/internal/bootstrap": {
+		modulePath + "/internal/corpus",
+		modulePath + "/internal/eval",
 		modulePath + "/internal/experiment",
 		modulePath + "/internal/experiment/evaldeps",
 		modulePath + "/internal/experiment/report",
 	},
 	modulePath + "/internal/server": {
+		modulePath + "/handlers/corpus",
 		modulePath + "/handlers/eval",
 		modulePath + "/handlers/experiment",
 		modulePath + "/handlers/soak",
 		modulePath + "/handlers/validation",
+		modulePath + "/internal/corpus",
 		modulePath + "/internal/eval",
 		modulePath + "/internal/experiment",
 		modulePath + "/internal/experiment/report",
+	},
+	modulePath + "/internal/modules": {
+		modulePath + "/handlers/corpus",
+		modulePath + "/handlers/experiment",
+		modulePath + "/handlers/soak",
+		modulePath + "/handlers/validation",
+		modulePath + "/internal/corpus",
+		modulePath + "/internal/experiment",
 	},
 }
 
@@ -79,6 +171,7 @@ var compositionExceptions = map[string][]string{
 func TestServingPackagesDoNotReachLab(t *testing.T) {
 	root := moduleRoot(t)
 	graph := newImportGraph(t, root)
+	serving := append(append([]string(nil), servingRoots...), servingHandlerRoots(t, root)...)
 
 	for _, prefix := range labImportPrefixes {
 		if _, ok := graph.imports(prefix); !ok {
@@ -86,13 +179,81 @@ func TestServingPackagesDoNotReachLab(t *testing.T) {
 		}
 	}
 
-	for _, rootPkg := range servingRoots {
+	for _, rootPkg := range serving {
 		if _, ok := graph.imports(rootPkg); !ok {
 			t.Fatalf("serving package %s has no Go files; update servingRoots", rootPkg)
 		}
 		if chain := graph.firstLabPath(rootPkg); len(chain) > 0 {
 			t.Errorf("%s reaches lab code through:\n\t%s\n\nServing code must not import lab/qualification packages; see internal/lab/README.md.", rootPkg, strings.Join(chain, "\n\t-> "))
 		}
+	}
+}
+
+func servingHandlerRoots(t *testing.T, root string) []string {
+	t.Helper()
+	entries, err := os.ReadDir(filepath.Join(root, "handlers"))
+	if err != nil {
+		t.Fatalf("read handler roots: %v", err)
+	}
+	var roots []string
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		pkg := modulePath + "/handlers/" + entry.Name()
+		if !isLabImport(pkg) {
+			roots = append(roots, pkg)
+		}
+	}
+	sort.Strings(roots)
+	return roots
+}
+
+func TestImportGraphFindsDirectAndTransitiveLabImports(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		files map[string]string
+		want  []string
+	}{
+		{
+			name: "direct serving import",
+			files: map[string]string{
+				"handlers/stt/handler.go": `package stt
+import "audio-tools/internal/eval"
+var _ = eval.DefaultNormalizeOptions`,
+			},
+			want: []string{"audio-tools/handlers/stt", "audio-tools/internal/eval"},
+		},
+		{
+			name: "transitive serving import",
+			files: map[string]string{
+				"handlers/models/handler.go": `package models
+import "audio-tools/internal/modelpromotion"
+var _ = modelpromotion.Resolve`,
+				"internal/modelpromotion/resolver.go": `package modelpromotion
+import "audio-tools/internal/experiment"
+var _ = experiment.QualificationEvidence{}`,
+			},
+			want: []string{"audio-tools/handlers/models", "audio-tools/internal/modelpromotion", "audio-tools/internal/experiment"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			for path, source := range tc.files {
+				fullPath := filepath.Join(root, filepath.FromSlash(path))
+				if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(fullPath, []byte(source), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			graph := newImportGraph(t, root)
+			got := graph.firstLabPath(tc.want[0])
+			if strings.Join(got, "\x00") != strings.Join(tc.want, "\x00") {
+				t.Fatalf("firstLabPath() = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }
 

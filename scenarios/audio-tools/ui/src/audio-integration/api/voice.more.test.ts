@@ -5,7 +5,6 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SpeakerMode, RejectBehavior } from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
-
 import { createVoiceApi } from "./voice";
 import { setActiveAudioToolsClientForTesting } from "../client";
 import type { AudioToolsClient } from "../client";
@@ -207,6 +206,26 @@ describe("transcribeAudioWithRetry", () => {
     await vi.runAllTimersAsync();
     expect(await p).toBe("first");
     expect(transcribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("pins retained recovery to the exact local model route", async () => {
+    const transcribe = vi.fn().mockResolvedValue({ text: "recovered", providerId: "whisper-stt", modelId: "whisper-large-v3-turbo" });
+    const api = createVoiceApi(makeFakeClient({ transcribe }));
+    const route = { providerTier: "local" as const, providerId: "whisper-stt", modelId: "whisper-large-v3-turbo" };
+
+    const result = await api.transcribeAudioWithRetryDetailed(makeBlob("audio/wav"), 1, "en", route);
+
+    expect(result).toMatchObject({
+      text: "recovered",
+      providerIdentity: { providerId: "whisper-stt", modelId: "whisper-large-v3-turbo", providerTier: "local" },
+    });
+    expect(transcribe).toHaveBeenCalledWith(expect.objectContaining({ language: "en" }), {
+      headers: {
+        "X-Audio-Provider-Tier": "local",
+        "X-Audio-Provider-ID": "whisper-stt",
+        "X-Audio-Model-ID": "whisper-large-v3-turbo",
+      },
+    });
   });
 
   it("retries once and succeeds on second attempt", async () => {

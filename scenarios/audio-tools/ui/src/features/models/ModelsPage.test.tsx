@@ -4,11 +4,14 @@ import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
 import { strings } from "../../consts/strings";
+import { Readiness } from "@vrooli/proto-types/audio-tools/v1/models/models_pb";
 
 const rpc = vi.hoisted(() => ({
   listModels: vi.fn(),
   resolveModel: vi.fn(),
 }));
+
+const WHISPER_LOCAL_ENGINE_ID = "whisper-local";
 
 vi.mock("@connectrpc/connect", () => ({
   createClient: () => rpc,
@@ -25,7 +28,7 @@ function lastListRequest() {
 beforeEach(() => {
   rpc.listModels.mockResolvedValue({
     models: [
-      makeModelRecord(),
+      makeModelRecord({ engineDefaults: [WHISPER_LOCAL_ENGINE_ID] }),
       makeModelRecord({
         id: "kokoro-82m",
         name: "Kokoro 82M",
@@ -54,6 +57,7 @@ afterEach(() => {
 
 describe("ModelsPage", () => {
   it("renders registry records, readiness facts, and the default badge", async () => {
+    const user = userEvent.setup();
     renderWithProviders(<ModelsPage />);
 
     expect(await screen.findByText(strings.models.title)).toBeInTheDocument();
@@ -74,7 +78,17 @@ describe("ModelsPage", () => {
       expect(
         within(row).getByText(strings.models.defaultBadge),
       ).toBeInTheDocument();
+      await user.click(
+        within(row).getByRole("button", { name: strings.models.detailsToggle }),
+      );
     }
+    expect(await screen.findByText(strings.models.detailsEngineDefaults)).toBeInTheDocument();
+    const engineDefaultLabel = screen.getByText(
+      strings.models.detailsEngineDefaults,
+    );
+    expect(engineDefaultLabel.parentElement?.querySelector("dd")).toHaveTextContent(
+      WHISPER_LOCAL_ENGINE_ID,
+    );
   });
 
   it("shows the promoted default and its size per capability", async () => {
@@ -83,6 +97,57 @@ describe("ModelsPage", () => {
     const panel = await screen.findByLabelText(strings.models.footprintTitle);
     expect(within(panel).getByText(/whisper-large-v3/)).toBeInTheDocument();
     expect(within(panel).getByText(strings.models.sizeMb)).toBeInTheDocument();
+  });
+
+  it("distinguishes Kale's conditional product route from Kokoro's catalog default", async () => {
+    const user = userEvent.setup();
+    rpc.listModels.mockResolvedValue({
+      models: [
+        makeModelRecord(),
+        makeModelRecord({
+          id: "kokoro-82m",
+          name: "Kokoro 82M",
+          providerIds: ["kokoro-tts"],
+          engineIds: [],
+          capability: "tts",
+          runtime: "kokoro",
+          languages: ["en"],
+          sizeMbApprox: 330,
+          isDefault: true,
+          roles: ["default"],
+        }),
+        makeModelRecord({
+          id: "kale-tts-1-nano",
+          name: "Kale TTS 1 Nano",
+          providerIds: ["kale-tts"],
+          engineIds: [],
+          capability: "tts",
+          runtime: "onnxruntime",
+          languages: ["en"],
+          sizeMbApprox: 14.8,
+          readiness: Readiness.CANDIDATE,
+          roles: ["fast", "edge"],
+          defaultEligible: false,
+          isDefault: false,
+          notes: "Conditional product auto route: Kale Nano is tried before Kokoro when healthy; complete installed model bundle is about 20 MB including voice assets. Kale remains an unqualified candidate, not the catalog default.",
+        }),
+      ],
+    });
+    renderWithProviders(<ModelsPage />);
+
+    const kale = await screen.findByText(/Kale TTS 1 Nano/);
+    const row = kale.closest("tr");
+    expect(row).not.toBeNull();
+    if (!row) return;
+    expect(within(row).getByText(strings.models.readiness.candidate)).toBeInTheDocument();
+    expect(within(row).queryByText(strings.models.defaultBadge)).not.toBeInTheDocument();
+    await user.click(within(row).getByRole("button", { name: strings.models.detailsToggle }));
+    expect(await screen.findByText(/Conditional product auto route: Kale Nano is tried before Kokoro/)).toBeInTheDocument();
+    expect(screen.getByText(/complete installed model bundle is about 20 MB including voice assets/)).toBeInTheDocument();
+
+    const footprint = screen.getByLabelText(strings.models.footprintTitle);
+    expect(within(footprint).getByText(/kokoro-82m/)).toBeInTheDocument();
+    expect(within(footprint).queryByText(/kale-tts-1-nano/)).not.toBeInTheDocument();
   });
 
   it("sends the default (unfiltered) ListModelsRequest", async () => {
@@ -185,7 +250,32 @@ describe("ModelsPage", () => {
     expect(calls[calls.length - 1]?.[0]).toEqual({
       capability: "tts",
       language: "fr",
+      engineId: "",
       commercial: true,
+    });
+  });
+
+  it("resolves an STT model within the entered engine", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<ModelsPage />);
+    await screen.findByText(/Whisper Large v3/);
+    const resolve = screen.getByRole("region", {
+      name: strings.models.resolveTitle,
+    });
+
+    await user.type(
+      within(resolve).getByLabelText(strings.models.resolveEngineLabel),
+      "sherpa-streaming",
+    );
+    await user.click(
+      within(resolve).getByRole("button", { name: strings.models.resolveButton }),
+    );
+    await waitFor(() => {
+      const calls = rpc.resolveModel.mock.calls;
+      expect(calls[calls.length - 1]?.[0]).toMatchObject({
+        capability: "stt",
+        engineId: "sherpa-streaming",
+      });
     });
   });
 

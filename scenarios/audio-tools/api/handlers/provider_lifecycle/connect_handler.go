@@ -108,7 +108,7 @@ func (h *connectHandler) ListLocalProviders(ctx context.Context, _ *connect.Requ
 // StartProvider wraps ResourceController.Start.
 func (h *connectHandler) StartProvider(ctx context.Context, req *connect.Request[plv1.StartProviderRequest]) (*connect.Response[plv1.StartProviderResponse], error) {
 	id := req.Msg.GetProviderId()
-	msg, err := runProviderAction(h, ctx, id, req.Header(), "StartProvider", "started", h.deps.Controller.Start,
+	msg, err := runProviderAction(ctx, h, id, req.Header(), "StartProvider", "started", h.deps.Controller.Start,
 		func(result providerActionResult) *plv1.StartProviderResponse {
 			return &plv1.StartProviderResponse{ProviderId: id, DryRun: result.dryRun, Message: result.message(id)}
 		})
@@ -121,7 +121,7 @@ func (h *connectHandler) StartProvider(ctx context.Context, req *connect.Request
 // StopProvider wraps ResourceController.Stop.
 func (h *connectHandler) StopProvider(ctx context.Context, req *connect.Request[plv1.StopProviderRequest]) (*connect.Response[plv1.StopProviderResponse], error) {
 	id := req.Msg.GetProviderId()
-	msg, err := runProviderAction(h, ctx, id, req.Header(), "StopProvider", "stopped", h.deps.Controller.Stop,
+	msg, err := runProviderAction(ctx, h, id, req.Header(), "StopProvider", "stopped", h.deps.Controller.Stop,
 		func(result providerActionResult) *plv1.StopProviderResponse {
 			return &plv1.StopProviderResponse{ProviderId: id, DryRun: result.dryRun, Message: result.message(id)}
 		})
@@ -134,7 +134,7 @@ func (h *connectHandler) StopProvider(ctx context.Context, req *connect.Request[
 // RestartProvider wraps ResourceController.Restart.
 func (h *connectHandler) RestartProvider(ctx context.Context, req *connect.Request[plv1.RestartProviderRequest]) (*connect.Response[plv1.RestartProviderResponse], error) {
 	id := req.Msg.GetProviderId()
-	msg, err := runProviderAction(h, ctx, id, req.Header(), "RestartProvider", "restarted", h.deps.Controller.Restart,
+	msg, err := runProviderAction(ctx, h, id, req.Header(), "RestartProvider", "restarted", h.deps.Controller.Restart,
 		func(result providerActionResult) *plv1.RestartProviderResponse {
 			return &plv1.RestartProviderResponse{ProviderId: id, DryRun: result.dryRun, Message: result.message(id)}
 		})
@@ -160,8 +160,8 @@ func (r providerActionResult) message(id string) string {
 // provider, honor dry-run, then execute the controller action at most once
 // per (Idempotency-Key, operation, provider).
 func runProviderAction[T proto.Message](
-	h *connectHandler,
 	ctx context.Context,
+	h *connectHandler,
 	id string,
 	headers http.Header,
 	operation, verb string,
@@ -182,7 +182,7 @@ func runProviderAction[T proto.Message](
 		return build(providerActionResult{dryRun: true, verb: verb}), nil
 	}
 
-	msg, outcome, dedupErr := executeIdempotent(h, ctx, requestKey, operation, id, func(ctx context.Context) (T, error) {
+	msg, outcome, dedupErr := executeIdempotent(ctx, h, requestKey, operation, id, func(ctx context.Context) (T, error) {
 		result, actionErr := h.applyProviderAction(ctx, slug, operation, verb, action)
 		if actionErr != nil {
 			return zero, actionErr
@@ -225,8 +225,8 @@ func (h *connectHandler) applyProviderAction(ctx context.Context, slug, operatio
 // nil store executes fn directly (pre-dedup behavior). Returned messages
 // are always clones, never shared state.
 func executeIdempotent[T proto.Message](
-	h *connectHandler,
 	ctx context.Context,
+	h *connectHandler,
 	requestKey, operation, target string,
 	fn func(context.Context) (T, error),
 ) (T, idempotencyOutcome, error) {
@@ -236,6 +236,8 @@ func executeIdempotent[T proto.Message](
 		return msg, outcomeBypass, err
 	}
 
+	// This is the idempotency store's Do method, not an HTTP client request;
+	// no HTTP response body is created or transferred through this call.
 	msg, outcome, err := h.idempotency.Do(ctx,
 		idempotencyKey{key: requestKey, operation: operation, target: target, dryRun: false},
 		func(ctx context.Context) (proto.Message, error) {
@@ -273,7 +275,7 @@ func (h *connectHandler) PullModel(ctx context.Context, req *connect.Request[plv
 		logIdempotency(h.deps.Logger, "PullModel", target, requestKey, outcomeBypass)
 		return connect.NewResponse(&plv1.PullModelResponse{ProviderId: id, ModelName: model, DryRun: true, Message: "dry run; no action taken"}), nil
 	}
-	msg, outcome, err := executeIdempotent(h, ctx, requestKey, "PullModel", target, func(ctx context.Context) (*plv1.PullModelResponse, error) {
+	msg, outcome, err := executeIdempotent(ctx, h, requestKey, "PullModel", target, func(ctx context.Context) (*plv1.PullModelResponse, error) {
 		if pullErr := h.deps.Controller.PullModel(ctx, model); pullErr != nil {
 			return nil, h.mapControllerErr(ctx, "PullModel", pullErr)
 		}

@@ -52,6 +52,7 @@ export interface ModelRow {
   name: string;
   providerIds: string[];
   engineIds: string[];
+  engineDefaults: string[];
   capability: string;
   runtime: string;
   languages: string[];
@@ -82,6 +83,7 @@ export interface ListModelsFilters {
 export interface ResolveModelInput {
   capability: string;
   language?: string;
+  engineId?: string;
   commercial?: boolean;
 }
 
@@ -135,6 +137,7 @@ export async function resolveModel(
       resp = await client.resolveModel({
         capability: input.capability,
         language: input.language ?? "",
+        engineId: input.engineId ?? "",
         commercial: input.commercial ?? false,
       });
     } catch (e) {
@@ -153,6 +156,7 @@ function toModelRow(record: ModelRecord): ModelRow {
     name: record.name,
     providerIds: record.providerIds,
     engineIds: record.engineIds,
+    engineDefaults: record.engineDefaults,
     capability: record.capability,
     runtime: record.runtime,
     languages: record.languages,

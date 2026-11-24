@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
@@ -161,5 +162,59 @@ func TestLoadOrCreateKeyPersists(t *testing.T) {
 	}
 	if !bytes.Equal(k1, k2) {
 		t.Fatalf("key not stable across loads")
+	}
+}
+
+func TestLoadOrCreateKeyRejectsCorruptExistingFile(t *testing.T) {
+	t.Setenv(KeyEnvVar, "")
+	keyPath := filepath.Join(t.TempDir(), "key.hex")
+	corrupt := []byte("not-a-key")
+	if err := os.WriteFile(keyPath, corrupt, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadOrCreateKey(keyPath); err == nil {
+		t.Fatal("expected corrupt existing key file to be rejected")
+	}
+	after, err := os.ReadFile(keyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(after, corrupt) {
+		t.Fatalf("corrupt key file was modified: %q", after)
+	}
+}
+
+func TestLoadOrCreateKeyConcurrentInitializationKeepsOneKey(t *testing.T) {
+	t.Setenv(KeyEnvVar, "")
+	keyPath := filepath.Join(t.TempDir(), "key.hex")
+	const workers = 12
+	keys := make(chan []byte, workers)
+	errs := make(chan error, workers)
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			key, err := LoadOrCreateKey(keyPath)
+			if err != nil {
+				errs <- err
+				return
+			}
+			keys <- key
+		}()
+	}
+	wg.Wait()
+	close(keys)
+	close(errs)
+	for err := range errs {
+		t.Fatal(err)
+	}
+	var want []byte
+	for key := range keys {
+		if want == nil {
+			want = key
+		} else if !bytes.Equal(want, key) {
+			t.Fatal("concurrent initializers returned different keys")
+		}
 	}
 }

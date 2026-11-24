@@ -13,11 +13,12 @@ import (
 )
 
 type Deps struct {
-	Logger         logx.Logger
-	ProviderConfig ProviderConfigRepository
-	BYOK           BYOKRepository
-	VoiceOverrides VoiceOverridesRepository
-	Coordinator    *chains.Coordinator
+	Logger                logx.Logger
+	ProviderConfig        ProviderConfigRepository
+	BYOK                  BYOKRepository
+	VoiceOverrides        VoiceOverridesRepository
+	Coordinator           *chains.Coordinator
+	ProviderRoutingLimits *chains.Config
 }
 
 var Endpoints = []modulekit.EndpointDescriptor{

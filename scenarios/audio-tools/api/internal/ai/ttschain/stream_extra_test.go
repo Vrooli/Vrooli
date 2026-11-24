@@ -57,12 +57,3 @@ func TestChain_BufferedFallback_PropagatesError(t *testing.T) {
 	}
 	require.True(t, sawErr)
 }
-
-func TestResolveLocalVoice_Coverage(t *testing.T) {
-	// Indirectly exercise resolveLocalVoice via Synthesize with nil svc would fail;
-	// directly cover by constructing a provider with a nil svc shouldn't help.
-	// Instead, exercise the override path through a local provider Synthesize that
-	// reaches its nil-svc guard before resolution. We can't reach resolution without
-	// a real *tts.Service. Skip when unable to construct.
-	t.Skip("resolveLocalVoice requires *tts.Service; covered indirectly when local tier is wired")
-}

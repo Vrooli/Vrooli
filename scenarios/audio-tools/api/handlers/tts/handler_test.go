@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
@@ -44,7 +45,7 @@ func TestTTS_Synthesize_HappyPathViaVrooli(t *testing.T) {
 		EnableVrooli: true,
 		Vrooli: ttschain.NewVrooliProvider(&ttsmocks.FakeVrooliClient{
 			Available: true,
-			Result:    &ttschain.Result{Audio: []byte("PCM"), ContentType: "audio/mpeg"},
+			Result:    &ttschain.Result{Audio: []byte("PCM"), ContentType: "audio/mpeg", ProviderID: "lpbs", ModelID: "tts-model", Latency: 1500 * time.Microsecond},
 		}),
 	})
 	c := newServer(t, ttsH.Deps{Chain: chain})
@@ -54,6 +55,9 @@ func TestTTS_Synthesize_HappyPathViaVrooli(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte("PCM"), res.Msg.GetAudio())
 	require.Equal(t, commonv1.ProviderTier_PROVIDER_TIER_VROOLI, res.Msg.GetProviderTier())
+	require.Equal(t, "lpbs", res.Msg.GetProviderId())
+	require.Equal(t, "tts-model", res.Msg.GetModelId())
+	require.InDelta(t, 1.5, res.Msg.GetLatencyMs(), 1e-9)
 }
 
 func TestTTS_Synthesize_UsesConfiguredDefaultBYOKCredential(t *testing.T) {

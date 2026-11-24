@@ -38,7 +38,13 @@ func stampBYOKResult(result *Result, adapter BYOKAdapter) {
 func (p *BYOKProvider) Type() ProviderTier { return TierBYOK }
 
 func (p *BYOKProvider) IsAvailable(context.Context) bool {
-	return p != nil && p.dispatch.Configured()
+	return p.AdapterConfigured()
+}
+
+// AdapterConfigured reports that at least one BYOK adapter is registered.
+// This is separate from credential presence and endpoint usability.
+func (p *BYOKProvider) AdapterConfigured() bool {
+	return p != nil && p.dispatch != nil && p.dispatch.Configured()
 }
 
 func (p *BYOKProvider) Synthesize(ctx context.Context, req Request) (*Result, error) {

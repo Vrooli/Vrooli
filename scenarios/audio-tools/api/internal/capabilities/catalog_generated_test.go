@@ -1,10 +1,6 @@
 package capabilities
 
 import (
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -133,45 +129,25 @@ func TestGeneratedHelpersMatchProviderCatalog(t *testing.T) {
 	}
 }
 
-// TestBYOKCredentialCheckersHaveCatalogProbes keeps the composition root and
-// the catalogue probe facts in lockstep: a provider the bootstrap wires for a
-// credential probe must declare its probe shape as catalogue data, not as a
-// switch in capabilities.
-func TestBYOKCredentialCheckersHaveCatalogProbes(t *testing.T) {
-	path := filepath.Join("..", "bootstrap", "bootstrap.go")
-	raw, err := os.ReadFile(path)
-	require.NoError(t, err, "read %s", path)
-	source := string(raw)
-	const marker = "[]struct{ id, provider, capability string }{"
-	start := strings.Index(source, marker)
-	require.GreaterOrEqual(t, start, 0, "bootstrap must declare the BYOK credential checker table")
-	end := strings.Index(source[start:], "\n\t} {")
-	require.GreaterOrEqual(t, end, 0, "bootstrap BYOK credential checker table is malformed")
-	rows := regexp.MustCompile(`\{"[^"]+", "([^"]+)", "[^"]+"\}`).FindAllStringSubmatch(source[start:start+end], -1)
-	require.NotEmpty(t, rows, "bootstrap BYOK credential checker table has no rows")
-	for _, row := range rows {
-		providerID := row[1]
-		_, ok := providercatalog.ProbeFor(providerID)
-		require.Truef(t, ok, "bootstrap credential-probes %q but the catalogue declares no probe", providerID)
-	}
-}
-
-// TestEveryActiveLocalProviderHasBootstrapChecker proves the composition root
-// still names a checker for every active local provider. The source scan is
-// deliberate: bootstrap owns construction and this test refuses to let the
-// catalogue grow a local provider with no health path.
+// TestEveryActiveLocalProviderDeclaresBootstrapHealth proves every active
+// local provider declares a reusable health profile, a TTS runtime route, or
+// the explicit no-checker profile. Bootstrap owns construction conformance;
+// this package owns catalog vocabulary and cannot import bootstrap without a
+// dependency cycle.
 func TestEveryActiveLocalProviderHasBootstrapChecker(t *testing.T) {
-	path := filepath.Join("..", "bootstrap", "bootstrap.go")
-	raw, err := os.ReadFile(path)
-	require.NoError(t, err, "read %s", path)
-	source := string(raw)
 	for _, provider := range providercatalog.Active() {
 		if !IsLocalProvider(provider.ID) {
 			continue
 		}
-		require.NotEqualf(t, providercatalog.CheckerNone, provider.CheckerKind, "local provider %q has no checker kind", provider.ID)
-		require.Truef(t, strings.Contains(source, `"`+provider.ID+`":`),
-			"local provider %q has no checker row in %s", provider.ID, path)
+		if provider.CheckerKind == providercatalog.CheckerNone {
+			require.Equalf(t, providercatalog.HealthProfileNone, provider.HealthProfile, "active local provider %q without a checker needs an explicit no-checker declaration", provider.ID)
+			continue
+		}
+		require.Truef(t, provider.HealthProfile != "" || provider.TTSRuntime != nil,
+			"active local provider %q must declare health_profile or tts_runtime", provider.ID)
+		if provider.HealthProfile == providercatalog.HealthProfileNone {
+			t.Errorf("active local provider %q declares no-checker profile with checker_kind %q", provider.ID, provider.CheckerKind)
+		}
 	}
 }
 

@@ -1,10 +1,9 @@
 // Package catalogconformance proves the provider and model catalogs agree.
 //
 // It deliberately reads the checked-in seeds as JSON instead of importing the
-// packages: the catalogs are separate declaration layers, and the test is the
-// seam that keeps them from quietly diverging. A provider may reference a model
-// ID, and a model may reference a provider ID; neither package should need to
-// import the other at runtime to make that true.
+// packages: the model catalog owns model facts and provider_ids; the provider
+// catalog owns provider facts and capabilities. This seam keeps references
+// valid without making either runtime package depend on the other.
 package catalogconformance
 
 import (
@@ -31,7 +30,6 @@ type provider struct {
 	EngineIDs    []string `json:"engine_ids"`
 	ResourceSlug string   `json:"resource_slug"`
 	Actions      []string `json:"actions"`
-	Models       []string `json:"models"`
 }
 
 type modelSeed struct {
@@ -47,9 +45,14 @@ type model struct {
 	License      string   `json:"license"`
 	Commercial   string   `json:"commercial_use"`
 	LicenseNotes string   `json:"license_notes"`
+	SizeMBApprox float64  `json:"size_mb_approx"`
+	Source       struct {
+		URL string `json:"url"`
+	} `json:"source"`
 	Readiness    string   `json:"readiness"`
 	Roles        []string `json:"roles"`
 	AllowDefault bool     `json:"allow_default"`
+	Artifact     any      `json:"artifact"`
 }
 
 func loadSeeds(t *testing.T) ([]provider, []model) {
@@ -102,26 +105,6 @@ func TestProviderAndModelIDsAreUnique(t *testing.T) {
 	}
 }
 
-func TestProviderModelReferencesResolve(t *testing.T) {
-	providers, models := loadSeeds(t)
-	modelIDs := map[string]model{}
-	for _, m := range models {
-		modelIDs[m.ID] = m
-	}
-	for _, p := range providers {
-		for _, ref := range p.Models {
-			m, ok := modelIDs[ref]
-			if !ok {
-				t.Errorf("provider %q references unknown model %q", p.ID, ref)
-				continue
-			}
-			if !contains(p.Capabilities, m.Capability) {
-				t.Errorf("provider %q capabilities %v do not include model %q capability %q", p.ID, p.Capabilities, m.ID, m.Capability)
-			}
-		}
-	}
-}
-
 func TestModelProviderReferencesResolve(t *testing.T) {
 	providers, models := loadSeeds(t)
 	byID := map[string]provider{}
@@ -156,6 +139,63 @@ func TestModelProviderReferencesResolve(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestVoiceCloningDeclarationsRemainNonRunnableUntilOwnerPathExists(t *testing.T) {
+	providers, models := loadSeeds(t)
+	foundProviders, foundModels := 0, 0
+	for _, p := range providers {
+		if !contains(p.Features, "voice-cloning") {
+			continue
+		}
+		foundProviders++
+		if p.Status != "planned" || p.AdapterID != "" || len(p.Actions) != 0 {
+			t.Errorf("voice-cloning provider %q must stay planned without a runtime adapter: status=%q adapter=%q actions=%v", p.ID, p.Status, p.AdapterID, p.Actions)
+		}
+		matched := false
+		for _, m := range models {
+			if !contains(m.ProviderIDs, p.ID) {
+				continue
+			}
+			matched = true
+			foundModels++
+			if m.Capability != "tts" || m.Readiness != "candidate" || m.Artifact != nil || len(m.EngineIDs) != 0 || contains(m.Roles, "default") || m.AllowDefault {
+				t.Errorf("voice-cloning model %q for provider %q must remain a non-runnable TTS candidate: capability=%q readiness=%q artifact=%v engines=%v roles=%v allow_default=%v", m.ID, p.ID, m.Capability, m.Readiness, m.Artifact, m.EngineIDs, m.Roles, m.AllowDefault)
+			}
+		}
+		if !matched {
+			t.Errorf("voice-cloning provider %q has no catalog model", p.ID)
+		}
+	}
+	if foundProviders == 0 || foundModels == 0 {
+		t.Fatalf("voice-cloning declaration coverage missing: providers=%d models=%d", foundProviders, foundModels)
+	}
+}
+
+func TestSoproCandidateKeepsItsPinnedProvenanceAndUnqualifiedState(t *testing.T) {
+	providers, models := loadSeeds(t)
+	var providerFound, modelFound bool
+	for _, p := range providers {
+		if p.ID == "sopro-tts" {
+			providerFound = true
+			if p.Status != "planned" || p.AdapterID != "" || len(p.Actions) != 0 {
+				t.Errorf("Sopro must remain planned without an adapter or product action: status=%q adapter=%q actions=%v", p.Status, p.AdapterID, p.Actions)
+			}
+		}
+	}
+	for _, m := range models {
+		if m.ID != "sopro-v2-turbo-voice-cloning" {
+			continue
+		}
+		modelFound = true
+		const pinnedRevision = "https://huggingface.co/samuel-vitorino/sopro-v2-turbo/tree/c12d0dc7c4a33b3cb6ea3d11ceb70bc60c7c6312"
+		if m.Readiness != "candidate" || m.License != "Apache-2.0" || m.SizeMBApprox != 952 || m.Source.URL != pinnedRevision || m.Artifact != nil || len(m.EngineIDs) != 0 || contains(m.Roles, "default") || m.AllowDefault {
+			t.Errorf("Sopro declaration must preserve pinned, non-runnable candidate provenance: readiness=%q license=%q size_mb=%g source=%q artifact=%v engines=%v roles=%v allow_default=%v", m.Readiness, m.License, m.SizeMBApprox, m.Source.URL, m.Artifact, m.EngineIDs, m.Roles, m.AllowDefault)
+		}
+	}
+	if !providerFound || !modelFound {
+		t.Fatalf("Sopro candidate declaration missing: provider=%t model=%t", providerFound, modelFound)
 	}
 }
 
@@ -250,25 +290,6 @@ func TestModelsDeclareProvenance(t *testing.T) {
 		}
 		if len(m.Languages) == 0 {
 			t.Errorf("model %q has no languages", m.ID)
-		}
-	}
-}
-
-func TestProviderModelCapabilityCoverage(t *testing.T) {
-	providers, models := loadSeeds(t)
-	// Every model must be referenced by at least one provider that offers its
-	// capability. This catches an orphaned model (no way to run it) and a
-	// provider that advertises a capability with no weights.
-	for _, m := range models {
-		referenced := false
-		for _, p := range providers {
-			if contains(p.Models, m.ID) && contains(p.Capabilities, m.Capability) {
-				referenced = true
-				break
-			}
-		}
-		if !referenced {
-			t.Errorf("model %q (%s) is not referenced by any provider offering that capability", m.ID, m.Capability)
 		}
 	}
 }
@@ -378,17 +399,19 @@ func TestModelEngineIDsAreShippedBySTTEngineManifest(t *testing.T) {
 	}
 }
 
-// TestActiveLocalSTTModelsNameAnEngine closes the "model with weights but no
-// selectable stream path" hole: an active local STT adapter must resolve to at
-// least one engine that the same model's providers own.
-func TestActiveLocalSTTModelsNameAnEngine(t *testing.T) {
+// TestAvailableLocalSTTModelsNameAnEngine closes the "model with weights but
+// no selectable stream path" hole for models declared available. Candidate
+// models deliberately remain unjoined until their runtime route is qualified;
+// requiring an engine here would advertise a path that product requests cannot
+// actually select.
+func TestAvailableLocalSTTModelsNameAnEngine(t *testing.T) {
 	providers, models := loadSeeds(t)
 	byID := map[string]provider{}
 	for _, p := range providers {
 		byID[p.ID] = p
 	}
 	for _, m := range models {
-		if m.Capability != "stt" {
+		if m.Capability != "stt" || m.Readiness != "available" {
 			continue
 		}
 		for _, providerID := range m.ProviderIDs {

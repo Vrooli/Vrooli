@@ -13,14 +13,39 @@
 | `AUDIO_KYUTAI_URL` | `http://localhost:8094` | Local Kyutai streaming STT resource. |
 | `AUDIO_KYUTAI_MODEL_ID` | `kyutai/stt-1b-en_fr` | Exact Kyutai model provenance recorded on evaluation and qualification evidence. Set this whenever `KYUTAI_STT_HF_REPO` changes; a new model requires a fresh promotion profile. |
 | `AUDIO_SHERPA_URL` | `http://localhost:8881` | Native local TTS, streaming STT, speaker, and separation resource. |
+| `AUDIO_RUMBLE_VLLM_URL` | `""` | Optional externally managed vLLM endpoint for explicit Rumble batch STT; no resource starts or downloads are performed. |
+| `AUDIO_TTS_BACKEND` | `auto` | Local TTS runtime selection: `auto`, `kokoro`, `kale-onnx` (candidate evaluation), or `sherpa-onnx` (explicit shared Kokoro adapter). |
 | `AUDIO_OLLAMA_URL` | `http://localhost:11434` | Local summarize resource. |
 | `AUDIO_LPBS_BASE_URL` | `""` | LPBS base URL (Vrooli tier). |
 | `AUDIO_LPBS_APP_BUNDLE_KEY` | `audio-tools` | LPBS app-bundle key for usage attribution. |
 | `AUDIO_AVAIL_TTL_BYOK` | `5m` | BYOK availability cache TTL. |
 | `AUDIO_AVAIL_TTL_VROOLI` | `30s` | Vrooli availability cache TTL. |
-| `AUDIO_SUMMARIZE_DEFAULT_MODEL` | `summarize.default` | Summarize selector. The default is the logical policy role resolved by resource-ollama (currently `qwen3:1.7b`); a concrete tag such as `qwen3:1.7b` pins one model. Empty or known reasoning defaults are coerced to the policy role at startup. |
+| `AUDIO_SUMMARIZE_DEFAULT_MODEL` | `summarize.audio_tools` | Audio Tools scoped summarize role, resolved by resource-ollama; `resource-ollama policy resolve --role summarize.audio_tools` shows its current model. Empty or known reasoning defaults are coerced to the scoped role at startup. |
 
-Declares the resource dependencies (`whisper`, `kyutai-stt`, `sherpa-onnx`, `ollama`, `postgres`) — all `required: false` so audio-tools starts cleanly with zero local resources — and the LPBS scenario dependency (`required: false`, flag-off).
+Declares optional resource dependencies (`whisper`, `kyutai-stt`, `sherpa-onnx`, `kokoro`, `kale-tts`, `ollama`, `postgres`) so Audio Tools can start without local models. Whisper uses `startup_policy=ignore` and starts on demand through batch STT recovery; Sherpa is preferred for streaming when its attached or managed runtime is serviceable. TTS resources use `startup_policy=ignore` and make bounded, single-flight starts on demand. `auto` uses the declared local TTS order: it tries Kale Nano only as a conditional candidate when the runtime reports a loaded model, then falls through to Kokoro when Kale is unavailable. That conditional route does not promote Kale; it remains a candidate pending real published weights/provenance and joined quality, lifecycle, and footprint evidence. `AUDIO_TTS_BACKEND=kale-onnx` is for controlled candidate evaluation only.
+
+To exercise Sherpa's quantized Kokoro model explicitly, set
+`AUDIO_TTS_BACKEND=sherpa-onnx` and point `AUDIO_SHERPA_URL` at an attached
+Sherpa server with Kokoro TTS enabled and its model data installed. The
+[Sherpa local-attach guide](../../../../resources/sherpa-onnx/docs/LOCAL-ATTACH.md)
+documents that setup. Sherpa is not part of automatic fallback while its
+managed release and quality gates remain open. This route preserves Kokoro's
+canonical voice mapping and uses a separate `sherpa-onnx:kokoro` cache
+namespace, so event-cache replay remains isolated from standalone Kokoro
+output. The optional LPBS scenario dependency remains flag-off.
+
+Rumble is an explicit, unqualified batch route. Configure an existing vLLM
+server that implements the model's OpenAI-compatible audio chat contract, then
+select it for one request:
+
+```sh
+audio-tools stt transcribe --file recording.wav --model rumble-2-flash
+```
+
+The route is unavailable unless `/health` succeeds and `/v1/models` reports
+the declared runtime model. Leaving `--model` empty keeps the Whisper path.
+Audio Tools does not install vLLM or load Rumble weights; memory, latency, and
+recognition quality remain unmeasured.
 
 How this scenario is configured — env vars consumed by the binaries,
 the `.vrooli/service.json` manifest, and the per-user CLI config file.
@@ -199,7 +224,7 @@ CPU, or quality.
 
 | Lever | Type | Default | Range | Audience | Trade-off |
 |---|---|---|---|---|---|
-| `stt.engine_id` | string (manifest id) | empty (live policy) | from `ListEngines` | operator | Active STT engine. Empty means the live policy ranks `native_streaming` → `low_footprint` → `accelerated` and picks the best serviceable engine; an explicit id pins one. `whisper-local` = native whisper.cpp batch (VAD/overlap/buffered). `kyutai` = native Kyutai streaming (Passthrough only). `sherpa-streaming` = native sherpa-onnx Zipformer streaming with punctuation/casing, low-footprint and attach-only until a signed adapter ships. Only the Local tier honors it; BYOK/Vrooli stream natively. Read valid ids from `ListEngines`/`audio-tools stt engines` — never hardcode. Switching consults `GetEngineSwitchImpact` (shared-resource awareness). |
+| `stt.engine_id` | string (manifest id) | empty (live policy) | from `ListEngines` | operator | Active STT engine. Empty means the live policy ranks `low_footprint` → `native_streaming` → `accelerated` and picks the best serviceable engine; this makes Sherpa Zipformer the preferred native streamer when healthy. An explicit id pins one. `whisper-local` = native whisper.cpp batch (VAD/overlap/buffered). `kyutai` = native Kyutai streaming (Passthrough only). `sherpa-streaming` = native sherpa-onnx Zipformer streaming with punctuation/casing, low-footprint and attach-only until a signed adapter ships. Only the Local tier honors it; BYOK/Vrooli stream natively. Read valid ids from `ListEngines`/`audio-tools stt engines` — never hardcode. Switching consults `GetEngineSwitchImpact` (shared-resource awareness). |
 | `stt.streaming_mode` | enum: `auto`, `off` | `auto` | — | operator | `off` forces a single batch `Transcribe` at `StreamEnd` — cheapest, no partials. `auto` selects the best (strategy, provider) pair for the negotiated tier and fails closed if no streaming-capable provider is usable; it never silently buffers an unlimited turn. |
 | `stt.strategy_preference` | enum: `auto`, `vad`, `overlap` | `auto` | — | operator | `vad` = silence-bounded segments; one Segment per utterance, lower CPU. `overlap` = growing-buffer LocalAgreement-N with VAD-anchored triggering, word-aligned cursor advance, and bounded agreement window; incremental Segments mid-utterance. Ignored for native-streaming providers (Deepgram, Azure, Google, future LPBS). `auto` picks per-provider defaults: **Local Whisper → `vad`** (the seamless one-segment-per-utterance default), native-stream providers → `passthrough`. Pick `overlap` explicitly if you want mid-utterance incremental commits; it is no longer the auto default while its low-latency UX is being honed (2026-05-29). See PROBLEMS.md "OverlapAgree commit gap" for the algorithm history. |
 | `stt.vad_silence_ms` | integer | `1200` | `200–3000` | operator | Silence window that closes a VAD segment. Lower = snappier but may chop natural pauses; higher = preserves long sentences, increases end-of-segment latency. Only meaningful when `VADSegmentStrategy` is active. |
@@ -222,7 +247,7 @@ normalization cannot rewrite committed user-visible text. Token-boundary
 changes remain strict: `D.C.` and `DC` agree, but `well-known` and
 `well known` do not become the same token sequence.
 
-Lever rules (per [control-surface-tunable-levers-design]):
+Lever rules (per [architecture-lenses]):
 
 - All levers have safe defaults that produce working behavior.
 - Levers are monotonic where applicable — increasing a value moves
@@ -459,26 +484,23 @@ it means scaling the Whisper resource, not just the bound.
 
 ## Summarize model policy
 
-The local summarize provider uses Ollama. Model selection is centralized in
-`api/internal/summarize/model_policy.go` and surfaced through
-`SummarizeService.ListSummarizeModels`.
+The local summarize provider uses Ollama. Audio Tools selects the
+application-scoped `summarize.audio_tools` role and delegates concrete
+model choice to `resources/ollama/model-policy.json`. The generic
+`summarize.default` role remains available to other consumers.
+`resource-ollama policy resolve --role summarize.audio_tools` shows the
+Audio Tools model and fallback. Audio Tools keeps role-vs-model validation in
+`api/internal/summarize/model_policy.go` and surfaces role/model inventory
+through `SummarizeService.ListSummarizeModels`.
 
-Current policy:
-
-- Default fallback: a small general chat model (currently `llama3.2:3b`).
-- The selector recommends **small, non-reasoning** local models (roughly ≤4B,
-  instruct/chat-tuned) — they summarize quickly without spending the output
-  budget on internal reasoning. The concrete picks track whatever such models
-  are installed; see `resource-ollama policy roles` for the current
-  small/general role targets.
-- Reasoning-tuned models are marked non-default because they are slower and
-  often spend the output budget on internal reasoning instead of the summary.
-- `/api/tags` is the installed-model source. Missing recommended models are
-  returned with `ollama pull <model>` commands; audio-tools does not pull
-  models automatically.
-- Startup/env stale-config protection coerces empty or known unsafe reasoning
-  stored defaults back to `llama3.2:3b`. Explicit runtime updates are accepted
-  so operators can benchmark non-default models deliberately.
+In a one-host 300-word evaluation, the 4B model retained 22/22 facts and the
+1.7B model 14/22. The compact route is intended for ordinary speech summaries;
+these results do not establish general fact-faithfulness. `/api/tags` reports installed models,
+and Audio Tools does not pull missing models automatically. Reasoning-tuned
+models are not promoted as the default because they are slower and can spend
+output budget on internal reasoning. Empty or unsafe stored selectors coerce
+to the Audio Tools scoped role at startup; explicit runtime model updates remain
+available for controlled evaluation.
 
 ## STT streaming pipeline levers
 

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Panel } from "../../components/ui/panel";
 import { EmptyState } from "../../components/ui/empty-state";
-import { PageHeader } from "../../components/composites/PageHeader";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { ApiErrorState } from "../../components/composites/ApiErrorState";
 import { LoadingRows } from "../../components/composites/LoadingRows";
 import { listModels, primarySubtag } from "../../services/models";

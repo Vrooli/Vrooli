@@ -1,26 +1,31 @@
 {
   "schema_version": "1.0.0",
-  "generated": "2026-11-19",
-  "source": "audio-tools model-policy review (MATURATION-PROGRAM.md Phase 4) plus vendor model cards; uncertain values are stated as uncertain in notes",
+  "generated": "2026-11-20",
+  "source": "audio-tools model-policy review (MATURATION-PROGRAM.md Phase 4) plus vendor model cards; uncertain values are stated as uncertain in notes; GPT-Live published model card and pricing (accessed 2026-11-20)",
   "notes": [
     "Model choice is data plus evidence. This seed declares static facts; the selector applies policy; the qualification harness promotes.",
     "readiness=available means an adapter exists and the model is expected to run. candidate, experimental, and watch are honest non-runnable or unqualified states.",
-    "Only available records are default-eligible. A default candidate must also carry the default role; a merely available record is an alternative, not a default.",
+    "Generic capability defaults require the default role. STT models may separately declare engine_defaults for an engine-scoped choice; both selection paths enforce readiness, evidence, platform, and commercial policy.",
     "A non-available record with the default role must set allow_default=true, and availability still ranks first among default candidates, so an available promoted default is never displaced by an opt-in candidate.",
-    "provider_ids are stable health/lifecycle ids owned by internal/capabilities. engine_ids are STT stream-selection ids owned by internal/sttengine; non-STT records leave engine_ids empty.",
-    "For remote BYOK streaming providers and batch-only adapters, engine_ids is empty: they are chain-routed and do not participate in StreamConfig.EngineID selection until sttengine (and the provider catalog) declares a real engine.",
+    "provider_ids are stable health/lifecycle ids owned by internal/providercatalog. engine_ids name declared STT engines owned by internal/sttengine; non-STT records leave engine_ids empty.",
+    "Engine ids select streaming engines in StreamConfig. Unary batch routes can be explicitly selected by catalog model id through X-Audio-Model-ID. Local batch routes remain unavailable until their configured endpoint passes read-only serviceability checks.",
     "WER is a percentage, SIM is a 0..1 similarity score, RTF is an x-realtime factor. Benchmark numbers are copied from the named source, not scenario-measured.",
     "size_mb_approx=0 means the artifact size is not established in this seed; it is not a claim that the model is weightless.",
-    "Summarize records mirror resources/ollama/model-policy.json; a drift test fails when the summarize.default or chat.small model (or a declared fallback) has no record.",
-    "artifact names the resource data artifact that supplies local weights. A conformance test proves every readiness=available local model names a declared artifact, that the artifact the whisper resource pins for WHISPER_MODEL_PATH is the registry default for whisper-local, and that each capability's default fits the declared resource budget."
+    "Summarize records mirror resources/ollama/model-policy.json; drift tests cover Audio Tools' summarize.audio_tools route and the shared summarize.default/chat.small roles (including fallbacks).",
+    "artifact names the resource data artifact that supplies local weights. A conformance test proves every readiness=available local model names a declared artifact, that the artifact the whisper resource pins for WHISPER_MODEL_PATH is the registry default for whisper-local, and that each capability's default fits the declared resource budget.",
+    "A default role requires owner-referenced qualified evidence for corpus quality, latency, memory, platform, and license. A code-authorized operational default may carry an explicit legacy_exception that names its evidence gap; it remains unqualified.",
+    "Pricing is a published provider fact only: it does not authorize sessions, estimate spend, store credentials, or settle usage. GPT-Live active and standby rates are billed by duration; backend model/tool usage is separate."
   ],
   "field_reference": {
     "id": "stable kebab-case identifier; registry key",
     "name": "human display name",
     "provider_ids": "stable provider ids used for health, lifecycle, and settings (must appear in known_provider_ids)",
-    "engine_ids": "STT stream-selection ids (sttengine manifest ids for local engines); empty for non-STT records, BYOK/gateway/browser providers, and batch adapters with no engine",
-    "capability": "stt | tts | summarize | speaker",
+    "engine_ids": "STT engine ids (sttengine manifest ids); empty for non-STT records and remote BYOK/gateway/browser providers",
+    "engine_defaults": "engine ids for which this model is the explicit model default; each id must also occur in engine_ids, and a single model may be declared per capability/engine",
+    "capability": "stt | tts | summarize | speaker | duplex",
     "runtime": "execution backend (whisper.cpp | kyutai | sherpa-onnx | kokoro | onnxruntime | pytorch | vllm | byok | gateway | browser)",
+    "runtime_model_id": "model identifier passed to a resource protocol when it differs from the canonical registry id",
+    "batch_adapter_id": "declared protocol adapter used for explicit local batch routes; models can share an implemented adapter",
     "artifact": "resource artifact identity for local weights: {resource, name}; resource.json owns URL, checksum, size, and install layout. Required for readiness=available local runtimes.",
     "languages": "language tags; mul=multiple, und=undetermined",
     "size_mb_approx": "approximate primary artifact download size in MB; 0 = not established",
@@ -28,10 +33,12 @@
     "license": "weight/runtime licence as published",
     "commercial_use": "yes | no | unknown; no and unknown require license_notes",
     "readiness": "available | candidate | experimental | watch",
-    "allow_default": "explicit opt-in allowing a non-available record to carry the default role",
+    "allow_default": "explicit opt-in allowing a non-available record to carry a generic default role or an engine-scoped default",
     "roles": "default | fast | quality | edge",
     "hardware": "cpu_capable, gpu_required, min_vram_gb, min_ram_gb, os_arch (empty = no constraint)",
-    "benchmarks": "wer, sim, rtf, or notes; nil means not established"
+    "benchmarks": "wer, sim, rtf, or notes; nil means not established",
+    "promotion_evidence": "owner-referenced qualified receipts for corpus_quality, latency, memory, platform, and license; legacy_exception preserves an existing unqualified default without claiming a pass",
+    "pricing": "currency, unit, integer active_micros_per_minute and standby_micros_per_minute, billing_increment_seconds, and source_url; published provider facts only, never settlement policy"
   },
   "known_provider_ids": [
     "whisper-stt",
@@ -48,9 +55,12 @@
     "browser-tts",
     "rumble-stt",
     "kale-tts",
+    "qwen3-tts",
+    "sopro-tts",
     "reverb-tts",
     "verba-tts",
-    "speaker-verification"
+    "speaker-verification",
+    "openai-gpt-live"
   ],
   "selection_policy": {
     "readiness_rank": [
@@ -242,6 +252,9 @@
         "repo": "https://github.com/ggml-org/whisper.cpp"
       },
       "readiness": "available",
+      "promotion_evidence": {
+        "legacy_exception": "Existing operational default retained pending a joined corpus-quality, latency, memory, platform, and license receipt."
+      },
       "roles": [
         "default"
       ],
@@ -260,7 +273,7 @@
       "benchmarks": {
         "wer": 0.0,
         "rtf": 6.3,
-        "notes": "audio-tools receipt 2026-11-19 (one Linux/Vulkan host, RTX 4070 Ti SUPER): canonical 'the quick brown fox jumps' clip transcribed exactly (WER 0.00); warm wall 0.31 s for 1.95 s audio (RTF 6.3x). One clip on one host, not a dictation-quality or device-matrix claim."
+        "notes": "audio-tools receipt 2026-11-19 (one Linux/Vulkan host, RTX 4070 Ti SUPER): canonical 'the quick brown fox jumps' clip transcribed exactly (WER 0.00); warm wall 0.31 s for 1.95 s audio (RTF 6.3x). 2026-11-20 product-path check returned the same transcript in 75 ms with whisper-small identified as the served model; measured VRAM residency was 716 MiB. One clean clip on one host, not a dictation-quality, timestamp-drift, or device-matrix claim."
       },
       "notes": "ggml-small.bin is the shipped runtime default (eager artifact): 488 MB on disk, about one third of turbo. It preserves multilingual support and passes the canonical quality clip exactly, while cutting the resident footprint enough to leave the GPU free for other work."
     },
@@ -463,8 +476,12 @@
       "engine_ids": [
         "sherpa-streaming"
       ],
+      "engine_defaults": [
+        "sherpa-streaming"
+      ],
       "capability": "stt",
       "runtime": "sherpa-onnx",
+      "runtime_model_id": "sherpa-onnx/streaming-zipformer-en-2023-06-26",
       "artifact": {
         "resource": "sherpa-onnx",
         "name": "streaming-zipformer-en-2023-06-26"
@@ -476,12 +493,15 @@
       "params": "unknown",
       "license": "Apache-2.0",
       "commercial_use": "yes",
-      "license_notes": "k2-fsa publishes the sherpa-onnx toolkit and model exports under Apache-2.0.",
+      "license_notes": "The upstream model card declares Apache-2.0 for the Zipformer model weights. The model is trained on LibriSpeech; dataset provenance does not change the declared model-weight license. Legal review may separately assess any obligations tied to training-data use.",
       "source": {
         "url": "https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models",
         "repo": "https://github.com/k2-fsa/sherpa-onnx"
       },
       "readiness": "available",
+      "promotion_evidence": {
+        "legacy_exception": "Existing operator-selected Sherpa streaming route retained pending joined corpus-quality, latency, memory, platform, and license receipts."
+      },
       "roles": [
         "fast",
         "edge"
@@ -496,9 +516,50 @@
         ]
       },
       "benchmarks": {
-        "notes": "2026-11-20 one-host check: 310 MB archive. Transcribed the canonical Kokoro clip as \"The quick brown fox jumps over the laz.\" and the JFK sample with substitutions. Upstream CLI shows the same model-level errors; the server path is complete."
+        "notes": "2026-11-20 one-host check: 310 MB archive. Transcribed the canonical Kokoro clip as \"The quick brown fox jumps over the laz.\" and the JFK sample with substitutions. Upstream CLI shows the same model-level errors; the server path is complete. 2026-11-22 native server and WebSocket smoke on the 1.955-second five-word quality fixture returned \"The quick brown, fox jumps.\" (lexical WER 0.00), with 147 ms warm inference (RTF 13.29x) and 3.04 s model load. This narrow clean-speech result does not remove the JFK counterexamples or qualify general dictation quality."
       },
-      "notes": "The sherpa streaming runtime default: 310 MB extracted, Apache-2.0 packaging for a CC-BY-4.0 LibriSpeech-trained Zipformer. It is roughly 7x smaller than Kyutai 1B and works end to end. Upstream quality on the JFK sample is imperfect (\"And so\" -> \"and saw\"), so this is a low-footprint tier, not a dictation-quality claim."
+      "notes": "The sherpa streaming runtime default: 310 MB extracted. It is roughly 7x smaller than Kyutai 1B and works end to end. Upstream quality on the JFK sample is imperfect (\"And so\" -> \"and saw\"), so this is a low-footprint tier, not a dictation-quality claim. The upstream model card declares Apache-2.0 for the weights; see license notes for training-data provenance."
+    },
+    {
+      "id": "sherpa-zipformer-en-20m-2023-02-17",
+      "name": "sherpa-onnx Zipformer English 20M (2023-02-17, streaming)",
+      "provider_ids": [
+        "sherpa-stt"
+      ],
+      "engine_ids": [],
+      "capability": "stt",
+      "runtime": "sherpa-onnx",
+      "runtime_model_id": "sherpa-onnx/streaming-zipformer-en-20M-2023-02-17",
+      "languages": [
+        "en"
+      ],
+      "size_mb_approx": 44,
+      "params": "20M",
+      "license": "Apache-2.0",
+      "commercial_use": "yes",
+      "license_notes": "The pinned upstream ONNX model card declares Apache-2.0. Upstream says the model is trained on LibriSpeech; its dataset provenance does not change the model-card license declaration.",
+      "source": {
+        "url": "https://huggingface.co/csukuangfj/sherpa-onnx-streaming-zipformer-en-20M-2023-02-17/tree/d42f2d9f7ca24806fb667456a18a9f1b60f70d16",
+        "repo": "https://github.com/k2-fsa/sherpa-onnx"
+      },
+      "readiness": "candidate",
+      "roles": [
+        "fast",
+        "edge"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 1,
+        "os_arch": [
+          "linux/amd64"
+        ]
+      },
+      "benchmarks": {
+        "notes": "No audio-tools corpus quality, latency, memory, or platform receipt exists. Upstream documentation lists the English 20M model and demonstrates real-time sherpa-onnx decoding; its int8 encoder and joiner plus fp32 decoder total about 44 MB, while the full Hugging Face repository contains about 136 MB including fp32 alternatives."
+      },
+      "notes": "Registry-only candidate. The existing sherpa-onnx online Zipformer runtime is protocol-compatible with this model's encoder/decoder/joiner layout, but the managed resource pins and loads the 310 MB 2023-06-26 model and has no selectable model-dir route. No artifact is declared or acquired for this candidate, and no model default changes. Add a separately pinned resource artifact and runtime selection only after checksum, corpus quality, latency, memory, and platform qualification."
     },
     {
       "id": "sherpa-zipformer-en-kroko-2025-08-06",
@@ -544,9 +605,9 @@
         ]
       },
       "benchmarks": {
-        "notes": "2026-11-20 one-host check: upstream file CLI transcribed the full clip; the WebSocket server path stopped after ~1.4 s on the 2.6 s clip. Treat as an adapter bug, not a model-quality verdict."
+        "notes": "2026-11-20 one-host check: upstream file CLI transcribed the full clip; the WebSocket server path stopped after ~1.4 s on the 2.6 s clip. Treat as an adapter bug, not a model-quality verdict. 2026-11-24 follow-up: the native model and WebSocket smoke tests pass on an 11 s JFK fixture; at 100 ms packet cadence first text arrived after 1.5 s of captured audio, and the checked reference opening/final suffix matched. One clean utterance only: no percentile, held-out corpus, memory, platform, timestamp, or commercial-license qualification."
       },
-      "notes": "On-demand 68 MB Kroko community model. It is 4.5x smaller than the 2023 default, but the current streaming adapter truncated it on the named samples (JFK and the canonical TTS clip) even though the upstream file CLI transcribed them fully. Keep it experimental until the decoder/tail path is fixed; do not make it the runtime default."
+      "notes": "On-demand 68 MB Kroko community model. A bounded 1.2 s finalization tail fixes the reproduced JFK ending truncation in the native streaming adapter. Keep it experimental pending corpus quality, latency, timestamp, and license qualification; this smoke result does not justify changing the runtime default."
     },
     {
       "id": "rumble-2-flash",
@@ -561,26 +622,24 @@
         "en",
         "mul"
       ],
-      "size_mb_approx": 1000,
+      "size_mb_approx": 1390,
       "params": "0.5B",
       "license": "Apache-2.0",
       "commercial_use": "yes",
       "license_notes": "Apache-2.0 per the upstream model card.",
       "source": {
-        "url": "https://huggingface.co/Reson8/Rumble-2-Flash",
+        "url": "https://huggingface.co/Reson8/Rumble-2-Flash/tree/95bd5f9133a2398e5e48a98c089fe48e122bde97",
         "repo": ""
       },
       "readiness": "candidate",
       "roles": [
-        "default",
         "quality"
       ],
-      "allow_default": true,
       "hardware": {
-        "cpu_capable": true,
-        "gpu_required": false,
-        "min_vram_gb": 0,
-        "min_ram_gb": 8,
+        "cpu_capable": false,
+        "gpu_required": true,
+        "min_vram_gb": 2,
+        "min_ram_gb": 0,
         "os_arch": [
           "linux/amd64"
         ]
@@ -590,7 +649,9 @@
         "rtf": 6338,
         "notes": "Open ASR Leaderboard English average WER 6.60; RTFx 6338. Batch benchmark only, not an audio-tools latency receipt."
       },
-      "notes": "Batch ASR, not native streaming. Candidate default for local batch/multilingual work; allow_default is explicit so promotion is a seed decision backed by a receipt. engine_ids is empty until a real rumble engine/adapter exists in sttengine and the provider catalog. The vLLM adapter is GPU-oriented in practice, so CPU viability is not claimed even though the weights fit in CPU RAM. Artifact size ~1 GB is an estimate from 0.5B parameters."
+      "notes": "Batch ASR, not native streaming. The public model repository is 1.39 GB (1.02 GB main safetensors plus a 357 MB CTC head). Exact runtime RAM/VRAM requirements are unmeasured; the 2 GB VRAM value is only a registry lower-bound estimate, not a qualification. The upstream model card documents vLLM and Transformers GPU-oriented paths. This is not a default: the opt-in endpoint adapter exists; explicit unary selection remains unavailable unless the configured endpoint serves this model. No managed resource exists and quality/runtime qualification remains open.",
+      "runtime_model_id": "Reson8/Rumble-2-Flash",
+      "batch_adapter_id": "vllm-openai-chat-audio"
     },
     {
       "id": "openai-whisper-1",
@@ -677,6 +738,7 @@
       "engine_ids": [],
       "capability": "tts",
       "runtime": "kokoro",
+      "runtime_model_id": "kokoro",
       "artifact": {
         "resource": "kokoro",
         "name": "kokoro-model"
@@ -701,6 +763,9 @@
         "repo": "https://github.com/hexgrad/kokoro"
       },
       "readiness": "available",
+      "promotion_evidence": {
+        "legacy_exception": "Existing operational default retained pending a joined corpus-quality, latency, memory, platform, and license receipt."
+      },
       "roles": [
         "default"
       ],
@@ -716,7 +781,43 @@
       "benchmarks": {
         "notes": "No scenario-measured naturalness or WER is pinned. Voice catalogue and per-voice quality are owned by the tts domain."
       },
-      "notes": "Multilingual TTS baseline and shipped local default. The 330 MB figure reflects the FP32 ONNX artifact; int8 is smaller. Language coverage depends on the loaded voice packs."
+      "notes": "Qualified catalog default. Product auto mode tries the conditional Kale Nano route first when healthy, with Kokoro as the availability fallback. The resolver keeps Kokoro as the static default because Kale remains an unqualified candidate. The 330 MB figure reflects the FP32 ONNX artifact; int8 is smaller. Language coverage depends on the loaded voice packs."
+    },
+    {
+      "id": "kokoro-82m-v1.0-sherpa-int8",
+      "name": "Kokoro 82M v1.0 Sherpa int8",
+      "provider_ids": ["kokoro-tts"],
+      "engine_ids": [],
+      "capability": "tts",
+      "runtime": "sherpa-onnx",
+      "runtime_model_id": "kokoro",
+      "artifact": {
+        "resource": "sherpa-onnx",
+        "name": "kokoro-multi-lang-v1-0"
+      },
+      "languages": ["en", "es", "fr", "hi", "it", "ja", "pt", "zh"],
+      "size_mb_approx": 0,
+      "params": "82M",
+      "license": "Apache-2.0",
+      "commercial_use": "yes",
+      "license_notes": "Kokoro weights and Sherpa packaging declare Apache-2.0; artifact checksum and source are owned by resources/sherpa-onnx/resource.json.",
+      "source": {
+        "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_0.tar.bz2",
+        "repo": "https://github.com/k2-fsa/sherpa-onnx"
+      },
+      "readiness": "candidate",
+      "roles": ["fast"],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 0,
+        "os_arch": ["linux/amd64"]
+      },
+      "benchmarks": {
+        "notes": "Sherpa Kokoro int8 artifact and HTTP route are declared; no current managed lifecycle or joined product latency, memory, and quality receipt."
+      },
+      "notes": "Explicit Sherpa-hosted quantized Kokoro route. Candidate status reflects incomplete runtime lifecycle and quality qualification; it is not the default model."
     },
     {
       "id": "kale-tts-1-nano",
@@ -727,6 +828,11 @@
       "engine_ids": [],
       "capability": "tts",
       "runtime": "onnxruntime",
+      "runtime_model_id": "kale-tts-1-nano",
+      "artifact": {
+        "resource": "kale-tts",
+        "name": "nano-int8-onnx"
+      },
       "languages": [
         "en"
       ],
@@ -734,9 +840,9 @@
       "params": "7.5M",
       "license": "Apache-2.0",
       "commercial_use": "yes",
-      "license_notes": "Weights, training code, dataset, and recipe are published Apache-2.0.",
+      "license_notes": "Model weights and code declare Apache-2.0; the training dataset is CC BY 4.0. Third-party frontend assets and notices are included upstream.",
       "source": {
-        "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano",
+        "url": "https://huggingface.co/KaleComputer/kale-tts-1-nano/tree/b6ce1887268c3667994fc3b0b2c82887c069915c",
         "repo": ""
       },
       "readiness": "candidate",
@@ -750,16 +856,14 @@
         "min_vram_gb": 0,
         "min_ram_gb": 1,
         "os_arch": [
-          "linux/amd64",
-          "darwin/arm64",
-          "windows/amd64"
+          "linux/amd64"
         ]
       },
       "benchmarks": {
         "wer": 0.79,
         "notes": "Vendor-run Hugging Face Open TTS Leaderboard harness; not independently submitted. Vendor reports about 90 ms to first sound on CPU and 44x realtime."
       },
-      "notes": "Candidate fast English CPU/on-device TTS. The seed marks it candidate until the private-draft release is approved for the scenario; 14.8 MB is the int8 CPU artifact. Planned host: the sherpa-onnx Kokoro-format ONNX adapter (SHERPA_ONNX_MODEL_DIR); no artifact is declared until Kale publishes weights and a checksum."
+      "notes": "Conditional product auto route: Kale Nano is tried before Kokoro when the Kale runtime is healthy; this does not promote Kale or change model resolve's Kokoro default. The pinned public, non-gated Hugging Face revision b6ce1887268c3667994fc3b0b2c82887c069915c declares Apache-2.0 in card metadata (last modified 2026-11-19); the training dataset is CC BY 4.0 and third-party frontend notices remain applicable. The int8 CPU ONNX artifact is 14.77 MB with upstream SHA256 4d5269974de4fba7a66f947608a9a5381b4e39c1a8a6073df6001ab7e7f76288; the complete installed model bundle is about 20 MB including voice assets. A checksum-pinned Linux/amd64 CPU runtime and product route exist, but joined multi-voice quality, lifecycle reliability, latency, memory, platform, and license receipts are incomplete. Keep candidate."
     },
     {
       "id": "kale-tts-1-tiny",
@@ -777,9 +881,9 @@
       "params": "45.7M",
       "license": "Apache-2.0",
       "commercial_use": "yes",
-      "license_notes": "Weights, training code, dataset, and recipe are published Apache-2.0.",
+      "license_notes": "Model weights and code declare Apache-2.0; the training dataset is CC BY 4.0. Third-party frontend assets and notices are included upstream.",
       "source": {
-        "url": "https://huggingface.co/KaleComputer/kale-tts-1-tiny",
+        "url": "https://huggingface.co/KaleComputer/kale-tts-1-tiny/tree/69011009e3380f1cc8fe990cbb55b799bde8455a",
         "repo": ""
       },
       "readiness": "candidate",
@@ -793,16 +897,14 @@
         "min_vram_gb": 0,
         "min_ram_gb": 1,
         "os_arch": [
-          "linux/amd64",
-          "darwin/arm64",
-          "windows/amd64"
+          "linux/amd64"
         ]
       },
       "benchmarks": {
         "wer": 0.81,
         "notes": "Vendor-run Hugging Face Open TTS Leaderboard harness; not independently submitted. Vendor reports about 160 ms to first sound on device and 24x realtime."
       },
-      "notes": "Candidate expressive fast English TTS; 79.9 MB is the int8 CPU artifact. Same approval gate as Nano. Planned host: the sherpa-onnx Kokoro-format ONNX adapter (SHERPA_ONNX_MODEL_DIR); no artifact is declared until Kale publishes weights and a checksum."
+      "notes": "Public weights are available at upstream revision 69011009e3380f1cc8fe990cbb55b799bde8455a, but its model card still says DRAFT, NOT PUBLISHED. The int8 CPU ONNX artifact is about 79.9 MB. The graph requires Kale's own ONNX Runtime frontend/server; it is not compatible with sherpa's current Kokoro adapter. Keep candidate until the scenario pins the full runtime bundle and qualifies output quality, latency, licensing notices, and resource use."
     },
     {
       "id": "kale-tts-1-base",
@@ -835,15 +937,62 @@
         "min_vram_gb": 0,
         "min_ram_gb": 2,
         "os_arch": [
-          "linux/amd64",
-          "darwin/arm64",
-          "windows/amd64"
+          "linux/amd64"
         ]
       },
       "benchmarks": {
         "notes": "No independent quality or latency receipt. The base model is Kokoro-82M-sized but Kale-trained; do not assume Kokoro voice compatibility."
       },
       "notes": "Experimental: the PyTorch path is a scratch/reference implementation and artifact size is not published. Not a default."
+    },
+    {
+      "id": "qwen3-tts-12hz-0.6b-base",
+      "name": "Qwen3-TTS 0.6B Base (voice-cloning candidate)",
+      "provider_ids": [
+        "qwen3-tts"
+      ],
+      "engine_ids": [],
+      "capability": "tts",
+      "runtime": "pytorch",
+      "runtime_model_id": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+      "languages": [
+        "zh",
+        "en",
+        "ja",
+        "ko",
+        "de",
+        "fr",
+        "ru",
+        "pt",
+        "es",
+        "it"
+      ],
+      "size_mb_approx": 2520,
+      "params": "0.6B",
+      "license": "Apache-2.0",
+      "commercial_use": "yes",
+      "license_notes": "The model card declares Apache-2.0. This does not grant permission to clone a person's voice; Audio Tools consent and rights policy remains required.",
+      "source": {
+        "url": "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-Base/tree/5d83992436eae1d760afd27aff78a71d676296fc",
+        "repo": "https://github.com/QwenLM/Qwen3-TTS"
+      },
+      "readiness": "candidate",
+      "roles": [
+        "edge"
+      ],
+      "hardware": {
+        "cpu_capable": false,
+        "gpu_required": true,
+        "min_vram_gb": 5,
+        "min_ram_gb": 0,
+        "os_arch": [
+          "linux/amd64"
+        ]
+      },
+      "benchmarks": {
+        "notes": "No Audio Tools quality, latency, CPU, or Base-cloning VRAM receipt. The 5 GiB lower-bound estimate is only the official vLLM-Omni 0.6B CustomVoice tuned idle profile, not a Base-cloning requirement or qualification; its default profile reports about 13.5 GiB idle on a 24 GiB RTX 4090, with request peak around 10 GiB when tuned. Source: https://github.com/vllm-project/vllm-omni/blob/main/recipes/Qwen/Qwen3-TTS.md"
+      },
+      "notes": "Qwen documents cloning from reference audio plus transcript and 10 languages. The pinned model repository totals 2.52 GB. No Audio Tools adapter/resource exists; the model is not selectable or a default. Voice-use authorization, ephemeral reference handling, bounded memory, output quality, and lifecycle remain unimplemented."
     },
     {
       "id": "reverb-tts",
@@ -892,6 +1041,47 @@
         "notes": "Model card: MiniMax multilingual test set, 700 sentences (100 per language), int8, WER scored by Whisper large-v3. Strong quality and speed, but the licence blocks commercial defaulting."
       },
       "notes": "Experimental and non-commercial: never a commercial default. 307 MB is the default int8 artifact; fp32 is about 1.19 GB. 1.5 GB VRAM is a derived operational estimate, not a published figure."
+    },
+    {
+      "id": "sopro-v2-turbo-voice-cloning",
+      "name": "Sopro V2 Turbo (120M voice-cloning candidate)",
+      "provider_ids": [
+        "sopro-tts"
+      ],
+      "engine_ids": [],
+      "capability": "tts",
+      "runtime": "pytorch",
+      "runtime_model_id": "samuel-vitorino/sopro-v2-turbo",
+      "languages": [
+        "en",
+        "pt",
+        "fr",
+        "de"
+      ],
+      "size_mb_approx": 952,
+      "params": "120M",
+      "license": "Apache-2.0",
+      "commercial_use": "yes",
+      "license_notes": "The pinned upstream model repository declares Apache-2.0. Python runtime dependencies have separate licenses and still require review before packaging or distribution.",
+      "source": {
+        "url": "https://huggingface.co/samuel-vitorino/sopro-v2-turbo/tree/c12d0dc7c4a33b3cb6ea3d11ceb70bc60c7c6312",
+        "repo": "https://github.com/samuel-vitorino/sopro"
+      },
+      "readiness": "candidate",
+      "roles": [
+        "edge"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 0,
+        "os_arch": []
+      },
+      "benchmarks": {
+        "notes": "Upstream describes CPU support, 4 languages, streaming, and 5–20 seconds of voice-reference audio. The 952 MB value is the pinned full repository snapshot, including alternative GGUF and Safetensors weights. No Audio Tools runtime, peak-memory, latency, clone-quality, or consented product-path receipt exists."
+      },
+      "notes": "Compact voice-cloning candidate only; not selectable or default-eligible. Audio Tools must implement source-bound permission and revocation, transient reference-audio handling with bounded deletion, an isolated adapter/runtime, dependency-license review, and held-out quality/resource qualification before routing."
     },
     {
       "id": "verba-tts-indic-zero",
@@ -1018,7 +1208,7 @@
     },
     {
       "id": "qwen3.5:9b",
-      "name": "Qwen3.5 9B (Ollama summarize default)",
+      "name": "Qwen3.5 9B (Ollama chat quality)",
       "provider_ids": [
         "ollama"
       ],
@@ -1030,9 +1220,9 @@
       ],
       "size_mb_approx": 6590,
       "params": "9B",
-      "license": "Unverified upstream (Qwen3.5)",
-      "commercial_use": "unknown",
-      "license_notes": "Quality tier. resource-ollama's summarize.default role resolves to qwen3:1.7b; the 4B tag is the first quality fallback. The upstream Qwen3.5 model card was not verified in-repo, so commercial use is unknown and this tag can never be a commercial default.",
+      "license": "Apache-2.0",
+      "commercial_use": "yes",
+      "license_notes": "Apache-2.0: the license blob Ollama serves for qwen3.5:9b (/api/show, checked 2026-11-21) is the Apache License 2.0 text.",
       "source": {
         "url": "https://ollama.com/library/qwen3.5",
         "repo": "https://github.com/QwenLM"
@@ -1053,14 +1243,14 @@
         ]
       },
       "benchmarks": {
-        "notes": "Quality tier. It is ~2.2x the resident footprint of the 4B default; no audio-tools receipt for this tag."
+        "notes": "Opt-in chat.quality tier with a larger footprint than qwen3.5:4b; no audio-tools summarize receipt for this tag."
       },
-      "notes": "resource-ollama's summarize.default role moved to qwen3.5:4b after the 2026-11-19 resource-footprint review; this tag remains the quality tier. Commercial use is still unverified, so it can never become a commercial default.",
+      "notes": "Larger chat tier with no Audio Tools summarize receipt.",
       "allow_default": false
     },
     {
       "id": "qwen3:1.7b",
-      "name": "Qwen3 1.7B (compact summarize)",
+      "name": "Qwen3 1.7B (Audio Tools compact summarize)",
       "provider_ids": [
         "ollama"
       ],
@@ -1074,12 +1264,15 @@
       "params": "1.7B",
       "license": "Apache-2.0",
       "commercial_use": "yes",
-      "license_notes": "Apache-2.0 weights. resource-ollama's summarize.default primary and the commercially clear default for this capability.",
+      "license_notes": "Apache-2.0 weights.",
       "source": {
         "url": "https://ollama.com/library/qwen3",
         "repo": "https://github.com/QwenLM/Qwen3"
       },
       "readiness": "available",
+      "promotion_evidence": {
+        "legacy_exception": "Audio Tools compact summarize target retained pending owner-qualified receipts; evidence is one short report at 8/8 facts and one 300-word report at 14/22 facts, so this is not a general fact-faithfulness qualification."
+      },
       "roles": [
         "default",
         "fast"
@@ -1096,13 +1289,13 @@
         ]
       },
       "benchmarks": {
-        "notes": "2026-11-20 one-host check: a short report preserved all 8 numbers/dates and loaded in 2.2 s; a 300-word report preserved the first 14 of 22 facts and dropped the final paragraph. Runtime default; escalate to qwen3.5:4b for long fact-dense text."
+        "notes": "2026-11-20 one-host check: a short report preserved all 8 numbers/dates and loaded in 2.2 s; a 300-word report preserved the first 14 of 22 facts and dropped the final paragraph. Used by Audio Tools' application-scoped summarize.audio_tools route; this evidence does not establish general fact-faithfulness."
       },
-      "notes": "resource-ollama's summarize.default role resolves to this tag after the 2026-11-20 operator footprint choice. It is Apache-2.0, 1.36 GB, and about 2.5x smaller than the 4B tier. Measured: 8/8 facts on a short report, 14/22 on a 300-word report where it dropped the final paragraph. The 4B tag remains the quality escalation."
+      "notes": "Smallest summarize tier (1.36 GB). Audio Tools selects it for ordinary speech summaries via its application-scoped role; the one-host long-report result dropped 8 of 22 facts. The generic summarize.default role remains on qwen3.5:4b."
     },
     {
       "id": "qwen3.5:4b",
-      "name": "Qwen3.5 4B (Ollama chat/summarize)",
+      "name": "Qwen3.5 4B (summarize quality alternative)",
       "provider_ids": [
         "ollama"
       ],
@@ -1114,9 +1307,9 @@
       ],
       "size_mb_approx": 3390,
       "params": "4B",
-      "license": "Unverified upstream (Qwen3.5)",
-      "commercial_use": "unknown",
-      "license_notes": "Quality escalation and first summarize.default fallback. The upstream model card was not available in-repo when this record was written, so commercial use is unknown until an operator verifies it. Unknown never becomes a commercial default.",
+      "license": "Apache-2.0",
+      "commercial_use": "yes",
+      "license_notes": "Apache-2.0: the license blob Ollama serves for qwen3.5:4b (/api/show, checked 2026-11-21) is the Apache License 2.0 text.",
       "source": {
         "url": "https://ollama.com/library/qwen3.5",
         "repo": "https://github.com/QwenLM"
@@ -1137,10 +1330,9 @@
         ]
       },
       "benchmarks": {
-        "notes": "2026-11-20 one-host check: preserved 22/22 numeric/date facts on a 300-word report. Quality tier for long text."
+        "notes": "2026-11-20 one-host check: preserved 22/22 numeric/date facts on a 300-word report. 2026-11-21 shared eval: matched qwen3.5:9b summary quality at p50 1.47 s versus 1.98 s."
       },
-      "notes": "Quality escalation for long or fact-dense summaries. It preserved 22/22 measured facts on a 300-word report, at 3.39 GB installed (~2.5x the 1.7B default). The shared summarize.default role resolves to qwen3:1.7b; this tag is selected explicitly or as the first fallback.",
-      "allow_default": false
+      "notes": "Quality alternative for Audio Tools' compact summarize route. The shared resource-ollama summarize.default role remains on this 4B model for other consumers; it is also shared with chat.small and classify.routing. One-host long-report evidence retained 22/22 facts versus Qwen3 1.7B at 14/22."
     },
     {
       "id": "llama3.2:3b",
@@ -1165,7 +1357,6 @@
       },
       "readiness": "available",
       "roles": [
-        "default",
         "quality"
       ],
       "hardware": {
@@ -1182,7 +1373,7 @@
       "benchmarks": {
         "notes": "Summarize quality is measured by the persisted experiment harness, not this seed."
       },
-      "notes": "Concrete Ollama tag. It is a summarize.default fallback and the registry's commercially certified default because its licence is explicit. The policy primary is qwen3.5:4b; CommercialDefaultFor still selects this record."
+      "notes": "Concrete Ollama tag and commercially licensed summarize fallback. The policy primary and registry default are qwen3:1.7b; qwen3.5:4b remains the first quality escalation."
     },
     {
       "id": "llama3.2:1b",
@@ -1371,6 +1562,9 @@
         "repo": "https://github.com/k2-fsa/sherpa-onnx"
       },
       "readiness": "available",
+      "promotion_evidence": {
+        "legacy_exception": "Existing operational default retained pending a joined corpus-quality, latency, memory, platform, and license receipt; current resource score has no EER or threshold qualification."
+      },
       "roles": [
         "default"
       ],
@@ -1387,6 +1581,52 @@
         "notes": "The speaker-verification resource reports hybrid centroid/clip scores; no EER or threshold qualification is pinned in this seed."
       },
       "notes": "Backs enrollment and verification through the sherpa-onnx resource. The ~27 MB size and unknown parameter count reflect the published export, not a measured artifact in this tree."
+    },
+    {
+      "id": "gpt-live-1.1",
+      "name": "OpenAI GPT-Live 1.1",
+      "provider_ids": [
+        "openai-gpt-live"
+      ],
+      "engine_ids": [],
+      "capability": "duplex",
+      "runtime": "byok",
+      "languages": [
+        "mul"
+      ],
+      "size_mb_approx": 0,
+      "params": "provider-hosted",
+      "license": "Proprietary",
+      "commercial_use": "yes",
+      "license_notes": "OpenAI API proprietary terms apply; hosted model weights are not distributed.",
+      "source": {
+        "url": "https://developers.openai.com/api/docs/models/gpt-live-1.1",
+        "repo": ""
+      },
+      "readiness": "candidate",
+      "roles": [
+        "quality"
+      ],
+      "hardware": {
+        "cpu_capable": true,
+        "gpu_required": false,
+        "min_vram_gb": 0,
+        "min_ram_gb": 0,
+        "os_arch": []
+      },
+      "benchmarks": {
+        "notes": "No Audio Tools end-to-end qualification receipt."
+      },
+      "pricing": {
+        "currency": "USD",
+        "unit": "minute",
+        "billing_increment_seconds": 1,
+        "source_url": "https://developers.openai.com/api/docs/pricing",
+        "notes": "Published session-duration rates; standby applies to WebRTC sessions while inference is paused. Backend model and tool usage is billed separately.",
+        "active_micros_per_minute": 50000,
+        "standby_micros_per_minute": 20000
+      },
+      "notes": "Hosted full-duplex multilingual voice model. Catalogued for source, readiness, and published rate visibility; Audio Tools integration and qualification are incomplete, so this model is not runnable or qualified."
     }
   ]
 }

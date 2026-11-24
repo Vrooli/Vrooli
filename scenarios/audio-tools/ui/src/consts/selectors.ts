@@ -34,6 +34,7 @@ const literalSelectors = {
     saveOverlap: "stream-config-save-overlap",
   },
   dictationStudio: {
+    reviewAudio: "dictation-review-audio",
     modeFree: "dictation-mode-free",
     modeScripted: "dictation-mode-scripted",
     recordStart: "dictation-record-start",
@@ -66,6 +67,7 @@ const literalSelectors = {
     startExperiment: "dictation-start-experiment",
     refreshExperiments: "dictation-refresh-experiments",
     experimentName: "dictation-experiment-name",
+    experimentMetricsOnly: "dictation-experiment-metrics-only",
     experimentEngines: "dictation-experiment-engines",
     experimentLongForm: "dictation-experiment-long-form",
     experimentSeed: "dictation-experiment-seed",
@@ -164,6 +166,11 @@ const dynamicSelectorDefinitions = {
     clipRow: defineDynamicSelector({
       description: "Corpus clip row by clip id",
       testIdPattern: "dictation-clip-row-${id}",
+      params: { id: { type: "string" } },
+    }),
+    variantReviewAudio: defineDynamicSelector({
+      description: "Source variant review audio player by clip id",
+      testIdPattern: "dictation-review-audio-${id}",
       params: { id: { type: "string" } },
     }),
     clipDelete: defineDynamicSelector({

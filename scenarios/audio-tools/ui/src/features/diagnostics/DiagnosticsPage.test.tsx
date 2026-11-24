@@ -14,6 +14,7 @@ vi.mock("./TranscribeTryIt", () => ({
 
 vi.mock("../../services/diagnostics", () => ({
   summarize: vi.fn(),
+  listSummarizeModels: vi.fn(),
   runSuite: vi.fn(),
   getLastSuiteRun: vi.fn(),
 }));
@@ -25,10 +26,22 @@ vi.mock("../../services/tts", () => ({
 
 import { DiagnosticsPage } from "./DiagnosticsPage";
 import { getLastSuiteRun, runSuite, summarize } from "../../services/diagnostics";
+import { listSummarizeModels } from "../../services/diagnostics";
 import { listVoices, synthesize } from "../../services/tts";
 import { makeApiError } from "../../api/client";
 
 beforeEach(() => {
+  vi.mocked(listSummarizeModels).mockResolvedValue({
+    ok: true,
+    data: [{
+      id: "summarize.audio_tools",
+      name: "Compact Audio Tools summary",
+      notes: "Local, low-resource summary role.",
+      installed: true,
+      recommended: true,
+      defaultEligible: true,
+    }],
+  });
   vi.mocked(listVoices).mockResolvedValue({ ok: true, data: [] });
   vi.mocked(getLastSuiteRun).mockResolvedValue({
     ok: true,

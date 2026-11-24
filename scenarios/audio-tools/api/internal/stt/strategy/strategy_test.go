@@ -12,6 +12,8 @@ import (
 	sttmocks "audio-tools/internal/ai/sttchain/mocks"
 	"audio-tools/internal/stt/segmenter/testaudio"
 	"audio-tools/internal/stt/strategy"
+
+	"github.com/vrooli/api-core/scheduletest"
 )
 
 // drainEvents reads every event from `out` until it closes; returns the
@@ -65,6 +67,52 @@ func chunksOfWindows(n, windowMs, tailBytes int) <-chan sttchain.AudioChunk {
 	}
 	close(ch)
 	return ch
+}
+
+type advancingBatchBackend struct {
+	clock    *scheduletest.FakeClock
+	requests []sttchain.Request
+}
+
+func (b *advancingBatchBackend) IsAvailable(context.Context) bool { return true }
+func (b *advancingBatchBackend) Model() string                    { return "Reson8/Rumble-2-Flash" }
+func (b *advancingBatchBackend) Transcribe(_ context.Context, req sttchain.Request) (sttchain.BatchResult, error) {
+	b.requests = append(b.requests, req)
+	b.clock.Advance(125 * time.Millisecond)
+	return sttchain.BatchResult{Text: "batch strategy transcript", DetectedLanguage: "en"}, nil
+}
+
+func TestVADSegmenterRunsThroughGenericBatchBackendProvider(t *testing.T) {
+	clock := scheduletest.New(time.Unix(1000, 0))
+	backend := &advancingBatchBackend{clock: clock}
+	provider := sttchain.NewBatchProvider("rumble-stt", backend, clock)
+	segmenter := &strategy.VADSegmenter{
+		Provider: provider, Clock: clock,
+		SilenceMs: 200, PreRollMs: 0, TrailingPadMs: 0,
+	}
+	audio := append(testaudio.SineSamples(440, 250), testaudio.SilenceSamples(240)...)
+	events := runStrategy(t, context.Background(), segmenter,
+		sttchain.StreamStart{Language: "en", InputFormat: "pcm_s16le", SessionID: "batch-backend"},
+		chunksFrom(audio))
+
+	require.Len(t, backend.requests, 1, "the VAD strategy should issue one bounded batch call")
+	require.NotEmpty(t, backend.requests[0].Audio)
+	require.Equal(t, "pcm_s16le", backend.requests[0].Format)
+	require.Equal(t, "en", backend.requests[0].Language)
+	var segment *sttchain.SegmentEvent
+	for _, event := range events {
+		if event.Kind == sttchain.StreamEventSegment {
+			segment = event.Segment
+			break
+		}
+	}
+	require.NotNil(t, segment)
+	require.Equal(t, "batch strategy transcript", segment.Text)
+	require.Equal(t, "en", segment.DetectedLanguage)
+	require.Equal(t, sttchain.TierLocal, segment.ProviderTier)
+	require.Equal(t, "rumble-stt", segment.ProviderID)
+	require.Equal(t, "Reson8/Rumble-2-Flash", segment.ModelID)
+	require.InDelta(t, 125, segment.LatencyMs, 1)
 }
 
 // voicedFrame returns a frameMs PCM frame at sampleRate that the

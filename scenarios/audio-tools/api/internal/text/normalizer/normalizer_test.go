@@ -9,44 +9,21 @@ import (
 // Fenced code blocks
 // ---------------------------------------------------------------------------
 
-func TestNormalize_FencedCodeBlock_WithLanguage(t *testing.T) {
-	input := "Here is some code:\n```go\nfunc main() {\n\tfmt.Println(\"hello\")\n}\n```\nDone."
-	got := NormalizeTextForSpeech(input)
-	if !strings.Contains(got, "Code block: 3 lines of go.") {
-		t.Errorf("expected code block summary with language, got:\n%s", got)
+func TestNormalize_FencedCodeBlocks(t *testing.T) {
+	tests := []struct {
+		name, input, want string
+	}{
+		{"language", "Here is some code:\n```go\nfunc main() {\n\tfmt.Println(\"hello\")\n}\n```\nDone.", "Here is some code:\nCode block: 3 lines of go.\nDone."},
+		{"no language", "```\nline1\nline2\n```", "Code block: 2 lines."},
+		{"json", "Response:\n```json\n{\n  \"key\": \"value\",\n  \"count\": 42\n}\n```", "Response:\nCode block: 4 lines of json."},
+		{"multiple", "First:\n```py\nprint(1)\n```\nSecond:\n```js\nconsole.log(2)\n```", "First:\nCode block: 1 lines of py.\nSecond:\nCode block: 1 lines of js."},
 	}
-	if strings.Contains(got, "func main") {
-		t.Error("code block body should be removed")
-	}
-	if !strings.Contains(got, "Done.") {
-		t.Error("prose after code block should be preserved")
-	}
-}
-
-func TestNormalize_FencedCodeBlock_NoLanguage(t *testing.T) {
-	input := "```\nline1\nline2\n```"
-	got := NormalizeTextForSpeech(input)
-	if !strings.Contains(got, "Code block: 2 lines.") {
-		t.Errorf("expected code block summary without language, got:\n%s", got)
-	}
-}
-
-func TestNormalize_FencedCodeBlock_JSON(t *testing.T) {
-	input := "Response:\n```json\n{\n  \"key\": \"value\",\n  \"count\": 42\n}\n```"
-	got := NormalizeTextForSpeech(input)
-	if !strings.Contains(got, "Code block: 4 lines of json.") {
-		t.Errorf("expected JSON code block summary, got:\n%s", got)
-	}
-	if strings.Contains(got, `"key"`) {
-		t.Error("JSON content should be removed")
-	}
-}
-
-func TestNormalize_MultipleFencedCodeBlocks(t *testing.T) {
-	input := "First:\n```py\nprint(1)\n```\nSecond:\n```js\nconsole.log(2)\n```"
-	got := NormalizeTextForSpeech(input)
-	if strings.Count(got, "Code block:") != 2 {
-		t.Errorf("expected 2 code block summaries, got:\n%s", got)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := NormalizeTextForSpeech(tc.input); got != tc.want {
+				t.Errorf("NormalizeTextForSpeech() = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }
 
@@ -174,40 +151,21 @@ func TestNormalize_HeadingMarkers(t *testing.T) {
 // Bold / italic / strikethrough
 // ---------------------------------------------------------------------------
 
-func TestNormalize_Bold(t *testing.T) {
-	got := NormalizeTextForSpeech("This is **important** text.")
-	if strings.Contains(got, "**") {
-		t.Error("bold markers should be removed")
+func TestNormalize_MarkdownEmphasis(t *testing.T) {
+	tests := []struct {
+		name, input, want string
+	}{
+		{"bold asterisks", "This is **important** text.", "This is important text."},
+		{"bold underscores", "This is __important__ text.", "This is important text."},
+		{"italic", "This is *emphasized* text.", "This is emphasized text."},
+		{"strikethrough", "This is ~~deleted~~ text.", "This is deleted text."},
 	}
-	if !strings.Contains(got, "important") {
-		t.Error("bold text content should be preserved")
-	}
-}
-
-func TestNormalize_BoldUnderscores(t *testing.T) {
-	got := NormalizeTextForSpeech("This is __important__ text.")
-	if strings.Contains(got, "__") {
-		t.Error("bold underscore markers should be removed")
-	}
-	if !strings.Contains(got, "important") {
-		t.Error("bold text content should be preserved")
-	}
-}
-
-func TestNormalize_Italic(t *testing.T) {
-	got := NormalizeTextForSpeech("This is *emphasized* text.")
-	if got != "This is emphasized text." {
-		t.Errorf("expected italic unwrapped, got: %q", got)
-	}
-}
-
-func TestNormalize_Strikethrough(t *testing.T) {
-	got := NormalizeTextForSpeech("This is ~~deleted~~ text.")
-	if strings.Contains(got, "~~") {
-		t.Error("strikethrough markers should be removed")
-	}
-	if !strings.Contains(got, "deleted") {
-		t.Error("strikethrough content should be preserved")
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := NormalizeTextForSpeech(tc.input); got != tc.want {
+				t.Errorf("NormalizeTextForSpeech() = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }
 
@@ -228,17 +186,19 @@ func TestNormalize_Link(t *testing.T) {
 	}
 }
 
-func TestNormalize_Image(t *testing.T) {
-	got := NormalizeTextForSpeech("Here: ![screenshot of dashboard](http://img.png)")
-	if !strings.Contains(got, "Image: screenshot of dashboard.") {
-		t.Errorf("expected image description, got:\n%s", got)
+func TestNormalize_ImageDescriptions(t *testing.T) {
+	tests := []struct {
+		name, input, want string
+	}{
+		{"with alt text", "Here: ![screenshot of dashboard](http://img.png)", "Here: Image: screenshot of dashboard."},
+		{"without alt text", "![](http://img.png)", "Image."},
 	}
-}
-
-func TestNormalize_ImageNoAlt(t *testing.T) {
-	got := NormalizeTextForSpeech("![](http://img.png)")
-	if !strings.Contains(got, "Image.") {
-		t.Errorf("expected 'Image.' for no-alt image, got:\n%s", got)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := NormalizeTextForSpeech(tc.input); got != tc.want {
+				t.Errorf("NormalizeTextForSpeech() = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }
 

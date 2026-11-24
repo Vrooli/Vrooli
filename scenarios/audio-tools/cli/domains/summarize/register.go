@@ -19,8 +19,8 @@ const GroupName = "summarize"
 // manifest and wires Connect-RPC bindings to handlers.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	bindings := map[string]func(cliapp.RunContext) error{
-		"SummarizeService.Summarize": h.text,
+	bindings := map[string]cliapp.PrimitiveHandler{
+		"SummarizeService.Summarize": h.text(),
 	}
-	return climanifest.LoadGroup(manifest, GroupName, bindings)
+	return climanifest.LoadPrimitiveGroup(manifest, GroupName, bindings)
 }

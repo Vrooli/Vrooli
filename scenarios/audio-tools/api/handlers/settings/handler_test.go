@@ -61,12 +61,26 @@ func TestSettings_ProviderConfigRoundTrip(t *testing.T) {
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"byok_enabled", "whisper_url"}},
 		Config: &settv1.ProviderConfig{
 			ByokEnabled: false,
-			WhisperUrl:  "http://w2",
+			WhisperUrl:  " http://w2 ",
 		},
 	}))
 	require.NoError(t, err)
 	require.False(t, upd.Msg.GetConfig().GetByokEnabled())
 	require.Equal(t, "http://w2", upd.Msg.GetConfig().GetWhisperUrl())
+}
+
+func TestSettings_ProviderConfigRejectsInvalidMasks(t *testing.T) {
+	_, c := newServer(t)
+	_, err := c.UpdateProviderConfig(context.Background(), connect.NewRequest(&settv1.UpdateProviderConfigRequest{}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+
+	_, err = c.UpdateProviderConfig(context.Background(), connect.NewRequest(&settv1.UpdateProviderConfigRequest{
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"unknown_field"}},
+		Config:     &settv1.ProviderConfig{},
+	}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
 func TestSettings_BYOKLifecycle(t *testing.T) {
@@ -106,6 +120,28 @@ func TestSettings_BYOKInvalidCapability(t *testing.T) {
 	}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+}
+
+func TestSettings_BYOKRejectsGPTLiveBecauseItUsesCredentialAuthority(t *testing.T) {
+	_, c := newServer(t)
+	ctx := context.Background()
+
+	_, err := c.UpsertBYOKCredential(ctx, connect.NewRequest(&settv1.UpsertBYOKCredentialRequest{
+		ProviderId: "openai-gpt-live", Capability: "duplex",
+		Secret: &settv1.UpsertBYOKCredentialRequest_ApiKey{ApiKey: "fixture-key"},
+	}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+
+	_, err = c.DeleteBYOKCredential(ctx, connect.NewRequest(&settv1.DeleteBYOKCredentialRequest{
+		ProviderId: "openai-gpt-live", Capability: "duplex",
+	}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+
+	list, err := c.ListBYOKCredentials(ctx, connect.NewRequest(&settv1.ListBYOKCredentialsRequest{}))
+	require.NoError(t, err)
+	require.Empty(t, list.Msg.GetCredentials())
 }
 
 func TestSettings_VoiceOverrides(t *testing.T) {

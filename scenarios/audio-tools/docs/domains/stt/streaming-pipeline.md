@@ -63,14 +63,16 @@ abstraction terminates inside audio-tools.
 
 
 
-Browser dictation and other consumers use the generated bidi Connect
-`STTService.TranscribeStream` contract. Scenario adapters provide auth and
-endpoint discovery; the shared browser package owns capture and replay policy.
-The handler translates Connect messages into the transport-free segmenter
-boundary; it does not select providers in the browser.
+Browser dictation sends binary protobuf v2 frames to
+`/ws/stt/transcribe-stream-v2`. Other compatible consumers use the generated
+bidi Connect `STTService.TranscribeStream` contract. Both transports share the
+same admission, session ledger, and segmenter boundary. Scenario adapters
+provide auth and endpoint discovery; the shared browser package owns capture
+and replay policy. Provider selection stays on the server.
 
 ```text
-browser capture -> generated Connect bidi client -> STT handler
+browser capture -> binary WebSocket v2 adapter -> shared STT handler
+compatible client -> generated Connect bidi client -> shared STT handler
                                             -> session / segmenter boundary
                                               -> ingress PCM and policy
                                               -> compatible provider + strategy

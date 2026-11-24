@@ -1,6 +1,7 @@
 package normalizer
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -135,39 +136,23 @@ func TestSplitSpeech_CodeBlocksNormalized(t *testing.T) {
 	}
 }
 
-func TestSplitSpeech_FilePathsNormalized(t *testing.T) {
-	input := "Edit `/home/user/project/src/main.go` to fix it."
-	got := SplitIntoSpeechParagraphs(input)
-	joined := strings.Join(got, " ")
-	if strings.Contains(joined, "/home/user") {
-		t.Error("full path should be normalized to basename")
+func TestSplitSpeechMarkdownNormalization(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{"file paths", "Edit `/home/user/project/src/main.go` to fix it.", []string{"Edit main.go to fix it."}},
+		{"headings", "## Section Title\n\nSome content here.", []string{"Section Title", "Some content here."}},
+		{"tables", "Results:\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\nDone.", []string{"Results:", "Table with 2 columns: A, B. 1 data row. Items include: 1, 2.", "Done."}},
 	}
-	if !strings.Contains(joined, "main.go") {
-		t.Error("basename should be present")
-	}
-}
-
-func TestSplitSpeech_HeadingsNormalized(t *testing.T) {
-	input := "## Section Title\n\nSome content here."
-	got := SplitIntoSpeechParagraphs(input)
-	joined := strings.Join(got, " ")
-	if strings.Contains(joined, "##") {
-		t.Error("heading markers should be stripped")
-	}
-	if !strings.Contains(joined, "Section Title") {
-		t.Error("heading text should be preserved")
-	}
-}
-
-func TestSplitSpeech_TablesNormalized(t *testing.T) {
-	input := "Results:\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\nDone."
-	got := SplitIntoSpeechParagraphs(input)
-	joined := strings.Join(got, " ")
-	if strings.Contains(joined, "|") {
-		t.Error("table pipe characters should be removed")
-	}
-	if !strings.Contains(joined, "Table with") {
-		t.Error("table summary should be present")
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := SplitIntoSpeechParagraphs(tc.input)
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("SplitIntoSpeechParagraphs() = %#v, want %#v", got, tc.want)
+			}
+		})
 	}
 }
 

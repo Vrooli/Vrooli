@@ -73,44 +73,36 @@ func joinCols(cols []string) string {
 	return out
 }
 
+// singleJSONValue exposes the one-column JSON singleton shape through a
+// shared typed store surface.
+type singleJSONValue struct{ jsonSingleton }
+
+func (s *singleJSONValue) Get(ctx context.Context) (string, bool, error) {
+	values, ok, err := s.get(ctx)
+	if err != nil || !ok {
+		return "", ok, err
+	}
+	return values[0], true, nil
+}
+
+func (s *singleJSONValue) Set(ctx context.Context, value string) error {
+	return s.set(ctx, []string{value})
+}
+
 // STTStreamConfigStore persists a single JSON-encoded stream config.
-type STTStreamConfigStore struct{ s jsonSingleton }
+type STTStreamConfigStore struct{ singleJSONValue }
 
 func NewSTTStreamConfigStore(db *database.RoutedDB) *STTStreamConfigStore {
-	return &STTStreamConfigStore{s: jsonSingleton{db: db, table: "stt_stream_config", cols: []string{"config_json"}}}
-}
-
-func (s *STTStreamConfigStore) Get(ctx context.Context) (string, bool, error) {
-	v, ok, err := s.s.get(ctx)
-	if !ok || err != nil {
-		return "", false, err
-	}
-	return v[0], true, nil
-}
-
-func (s *STTStreamConfigStore) Set(ctx context.Context, configJSON string) error {
-	return s.s.set(ctx, []string{configJSON})
+	return &STTStreamConfigStore{singleJSONValue{jsonSingleton{db: db, table: "stt_stream_config", cols: []string{"config_json"}}}}
 }
 
 // STTSpeakerConfigStore persists a single JSON-encoded speaker-verification
 // config (mode/threshold/profile bindings). Same shape as the stream config
 // store; the enrolled profiles themselves live in the speaker_profiles table.
-type STTSpeakerConfigStore struct{ s jsonSingleton }
+type STTSpeakerConfigStore struct{ singleJSONValue }
 
 func NewSTTSpeakerConfigStore(db *database.RoutedDB) *STTSpeakerConfigStore {
-	return &STTSpeakerConfigStore{s: jsonSingleton{db: db, table: "stt_speaker_config", cols: []string{"config_json"}}}
-}
-
-func (s *STTSpeakerConfigStore) Get(ctx context.Context) (string, bool, error) {
-	v, ok, err := s.s.get(ctx)
-	if !ok || err != nil {
-		return "", false, err
-	}
-	return v[0], true, nil
-}
-
-func (s *STTSpeakerConfigStore) Set(ctx context.Context, configJSON string) error {
-	return s.s.set(ctx, []string{configJSON})
+	return &STTSpeakerConfigStore{singleJSONValue{jsonSingleton{db: db, table: "stt_speaker_config", cols: []string{"config_json"}}}}
 }
 
 // TTSConfigStore persists both the TTS config and the summarize config

@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 package experiment
 
 import (
@@ -11,6 +13,7 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 
 	"audio-tools/internal/database"
+	trustfloor "audio-tools/internal/qualification"
 	"audio-tools/internal/testutil/mocks"
 
 	db "github.com/vrooli/api-core/databasetest"
@@ -24,6 +27,7 @@ func newInternalSchemaDB(t *testing.T) *sql.DB {
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(database.SystemSchema),
 		apidb.SchemaProviderFunc(Schema),
+		apidb.SchemaProviderFunc(trustfloor.Schema),
 	))
 	return d
 }

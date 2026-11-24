@@ -39,142 +39,193 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 }
 
 func (h *handlers) get(ctx cliapp.RunContext) error {
-	id := ctx.Positional("id")
-	resp, err := h.client.GetExperiment(context.Background(), connect.NewRequest(&experimentv1.GetExperimentRequest{Id: id}))
-	if err != nil {
-		return cliapp.WrapAPIError("experiment-get", err, nil)
-	}
-	return renderExperiment(ctx, resp.Msg, "get")
+	return h.getPrimitive().Run(ctx)
+}
+
+func (h *handlers) getPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoCustomRenderers(func(ctx cliapp.OperationContext) (*experimentv1.GetExperimentResponse, error) {
+		resp, err := h.client.GetExperiment(context.Background(), connect.NewRequest(&experimentv1.GetExperimentRequest{Id: ctx.Positional("id")}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("experiment-get", err, nil)
+		}
+		return resp.Msg, nil
+	}, func(ctx cliapp.RunContext, msg *experimentv1.GetExperimentResponse) error {
+		return renderExperiment(ctx, msg, "get")
+	}, func(ctx cliapp.RunContext, msg *experimentv1.GetExperimentResponse) error {
+		return printExperimentProtoJSON(ctx.Stdout(), msg)
+	})
 }
 
 func (h *handlers) wait(ctx cliapp.RunContext) error {
-	id := ctx.Positional("id")
-	// Experiments are server-owned and may intentionally run through the
-	// 60-minute qualification rung. The scenario's normal 180-second HTTP
-	// timeout must not turn `experiment wait` into a misleading client abort
-	// while the server continues correctly in the background.
-	//
-	// All non-wait RPCs retain h.client's ordinary timeout; this is the one
-	// command whose purpose is explicitly to block until a durable terminal
-	// state exists.
-	waitHTTPClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(h.core, 0)
-	waitClient := experimentconnect.NewExperimentServiceClient(waitHTTPClient, baseURL)
-	resp, err := waitClient.WaitExperiment(context.Background(), connect.NewRequest(&experimentv1.WaitExperimentRequest{Id: id}))
-	if err != nil {
-		return cliapp.WrapAPIError("experiment-wait", err, nil)
-	}
-	// Build one stable {experiment, report, runs} envelope so `wait --json`
-	// parses to a fixed shape regardless of whether the run produced a report.
-	envelope := &experimentv1.GetExperimentReportResponse{
-		Experiment: resp.Msg.GetExperiment(),
-		Runs:       resp.Msg.GetRuns(),
-	}
-	reportReady := false
-	if experimentTerminal(resp.Msg.GetExperiment()) && resp.Msg.GetExperiment().GetResultRef() != "" {
-		reportResp, reportErr := h.client.GetExperimentReport(context.Background(), connect.NewRequest(&experimentv1.GetExperimentReportRequest{Id: id}))
-		if reportErr == nil && reportResp != nil && reportResp.Msg != nil && reportResp.Msg.GetReport() != nil {
-			envelope.Experiment = reportResp.Msg.GetExperiment()
-			envelope.Report = reportResp.Msg.GetReport()
-			envelope.Runs = reportResp.Msg.GetRuns()
-			reportReady = true
+	return h.waitPrimitive().Run(ctx)
+}
+
+type waitResult struct {
+	response    *experimentv1.WaitExperimentResponse
+	envelope    *experimentv1.GetExperimentReportResponse
+	reportReady bool
+}
+
+func (h *handlers) waitPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ActionCustomRenderers(func(ctx cliapp.OperationContext) (waitResult, error) {
+		id := ctx.Positional("id")
+		// Experiments are server-owned and may intentionally run through the
+		// 60-minute qualification rung. The scenario's normal 180-second HTTP
+		// timeout must not turn `experiment wait` into a misleading client abort
+		// while the server continues correctly in the background.
+		//
+		// All non-wait RPCs retain h.client's ordinary timeout; this is the one
+		// command whose purpose is explicitly to block until a durable terminal
+		// state exists.
+		waitHTTPClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(h.core, 0)
+		waitClient := experimentconnect.NewExperimentServiceClient(waitHTTPClient, baseURL)
+		resp, err := waitClient.WaitExperiment(context.Background(), connect.NewRequest(&experimentv1.WaitExperimentRequest{Id: id}))
+		if err != nil {
+			return waitResult{}, cliapp.WrapAPIError("experiment-wait", err, nil)
 		}
-	}
-	if ctx.JSON() {
-		return printExperimentWaitJSON(ctx.Stdout(), envelope)
-	}
-	if reportReady {
-		return renderReport(ctx, envelope)
-	}
-	if experimentTerminal(resp.Msg.GetExperiment()) && resp.Msg.GetExperiment().GetResultRef() != "" {
-		fmt.Fprintf(ctx.Stderr(), "Report is not available yet; use `audio-tools experiment report %s` to re-attach.\n", id)
-	}
-	return renderExperiment(ctx, resp.Msg, "wait")
+		// Build one stable {experiment, report, runs} envelope so `wait --json`
+		// parses to a fixed shape regardless of whether the run produced a report.
+		envelope := &experimentv1.GetExperimentReportResponse{
+			Experiment: resp.Msg.GetExperiment(),
+			Runs:       resp.Msg.GetRuns(),
+		}
+		reportReady := false
+		if experimentTerminal(resp.Msg.GetExperiment()) && resp.Msg.GetExperiment().GetResultRef() != "" {
+			reportResp, reportErr := h.client.GetExperimentReport(context.Background(), connect.NewRequest(&experimentv1.GetExperimentReportRequest{Id: id}))
+			if reportErr == nil && reportResp != nil && reportResp.Msg != nil && reportResp.Msg.GetReport() != nil {
+				envelope.Experiment = reportResp.Msg.GetExperiment()
+				envelope.Report = reportResp.Msg.GetReport()
+				envelope.Runs = reportResp.Msg.GetRuns()
+				reportReady = true
+			}
+		}
+		return waitResult{response: resp.Msg, envelope: envelope, reportReady: reportReady}, nil
+	}, func(ctx cliapp.RunContext, result waitResult) error {
+		if result.reportReady {
+			return renderReport(ctx, result.envelope)
+		}
+		if experimentTerminal(result.response.GetExperiment()) && result.response.GetExperiment().GetResultRef() != "" {
+			fmt.Fprintf(ctx.Stderr(), "Report is not available yet; use `audio-tools experiment report %s` to re-attach.\n", result.response.GetExperiment().GetId())
+		}
+		return renderExperiment(ctx, result.response, "wait")
+	}, func(ctx cliapp.RunContext, result waitResult) error {
+		return printExperimentWaitJSON(ctx.Stdout(), result.envelope)
+	})
 }
 
 func (h *handlers) list(ctx cliapp.RunContext) error {
-	req := &experimentv1.ListExperimentsRequest{}
-	if v := strings.TrimSpace(ctx.Flag("status")); v != "" {
-		status, err := statusFromFlag(v)
-		if err != nil {
-			return err
+	return h.listPrimitive().Run(ctx)
+}
+
+func (h *handlers) listPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoCustomRenderers(func(ctx cliapp.OperationContext) (*experimentv1.ListExperimentsResponse, error) {
+		req := &experimentv1.ListExperimentsRequest{}
+		if v := strings.TrimSpace(ctx.Flag("status")); v != "" {
+			status, err := statusFromFlag(v)
+			if err != nil {
+				return nil, err
+			}
+			req.Status = status
 		}
-		req.Status = status
-	}
-	if v := strings.TrimSpace(ctx.Flag("limit")); v != "" {
-		n, err := parseIntFlag("limit", v)
-		if err != nil {
-			return err
+		if v := strings.TrimSpace(ctx.Flag("limit")); v != "" {
+			n, err := parseIntFlag("limit", v)
+			if err != nil {
+				return nil, err
+			}
+			req.Limit = n
 		}
-		req.Limit = n
-	}
-	if v := strings.TrimSpace(ctx.Flag("offset")); v != "" {
-		n, err := parseIntFlag("offset", v)
-		if err != nil {
-			return err
+		if v := strings.TrimSpace(ctx.Flag("offset")); v != "" {
+			n, err := parseIntFlag("offset", v)
+			if err != nil {
+				return nil, err
+			}
+			req.Offset = n
 		}
-		req.Offset = n
-	}
-	resp, err := h.client.ListExperiments(context.Background(), connect.NewRequest(req))
-	if err != nil {
-		return cliapp.WrapAPIError("experiment-list", err, nil)
-	}
-	if ctx.JSON() {
-		return printExperimentProtoJSON(ctx.Stdout(), resp.Msg)
-	}
-	experiments := resp.Msg.GetExperiments()
-	if len(experiments) == 0 {
-		fmt.Fprintln(ctx.Stdout(), "No experiments found.")
+		resp, err := h.client.ListExperiments(context.Background(), connect.NewRequest(req))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("experiment-list", err, nil)
+		}
+		return resp.Msg, nil
+	}, func(ctx cliapp.RunContext, msg *experimentv1.ListExperimentsResponse) error {
+		experiments := msg.GetExperiments()
+		if len(experiments) == 0 {
+			fmt.Fprintln(ctx.Stdout(), "No experiments found.")
+			return nil
+		}
+		fmt.Fprintf(ctx.Stdout(), "%-38s  %-10s  %-22s  %s\n", "ID", "STATUS", "CREATED", "NAME")
+		for _, exp := range experiments {
+			fmt.Fprintf(ctx.Stdout(), "%-38s  %-10s  %-22s  %s\n",
+				exp.GetId(), statusLabel(exp.GetStatus()), timestampLabel(exp.GetCreatedAt()), exp.GetName())
+		}
+		printExperimentErrors(ctx, experiments)
 		return nil
-	}
-	fmt.Fprintf(ctx.Stdout(), "%-38s  %-10s  %-22s  %s\n", "ID", "STATUS", "CREATED", "NAME")
-	for _, exp := range experiments {
-		fmt.Fprintf(ctx.Stdout(), "%-38s  %-10s  %-22s  %s\n",
-			exp.GetId(), statusLabel(exp.GetStatus()), timestampLabel(exp.GetCreatedAt()), exp.GetName())
-	}
-	printExperimentErrors(ctx, experiments)
-	return nil
+	}, func(ctx cliapp.RunContext, msg *experimentv1.ListExperimentsResponse) error {
+		return printExperimentProtoJSON(ctx.Stdout(), msg)
+	})
 }
 
 func (h *handlers) cancel(ctx cliapp.RunContext) error {
-	id := ctx.Positional("id")
-	resp, err := h.client.CancelExperiment(context.Background(), connect.NewRequest(&experimentv1.CancelExperimentRequest{Id: id}))
-	if err != nil {
-		return cliapp.WrapAPIError("experiment-cancel", err, nil)
-	}
-	exp := resp.Msg.GetExperiment()
-	if exp == nil {
-		return fmt.Errorf("server returned no experiment")
-	}
-	return renderExperimentProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result: []string{fmt.Sprintf("Canceled experiment %s (%s).", exp.GetId(), statusLabel(exp.GetStatus()))},
-		NextCommand: []string{
-			fmt.Sprintf("audio-tools experiment get %s --json", exp.GetId()),
-		},
+	return h.cancelPrimitive().Run(ctx)
+}
+
+func (h *handlers) cancelPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoCustomRenderers(func(ctx cliapp.OperationContext) (*experimentv1.CancelExperimentResponse, error) {
+		resp, err := h.client.CancelExperiment(context.Background(), connect.NewRequest(&experimentv1.CancelExperimentRequest{Id: ctx.Positional("id")}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("experiment-cancel", err, nil)
+		}
+		exp := resp.Msg.GetExperiment()
+		if exp == nil {
+			return nil, fmt.Errorf("server returned no experiment")
+		}
+		return resp.Msg, nil
+	}, func(ctx cliapp.RunContext, msg *experimentv1.CancelExperimentResponse) error {
+		exp := msg.GetExperiment()
+		return renderExperimentProtoMutation(ctx, msg, cliapp.MutationReport{
+			Result: []string{fmt.Sprintf("Canceled experiment %s (%s).", exp.GetId(), statusLabel(exp.GetStatus()))},
+			NextCommand: []string{
+				fmt.Sprintf("audio-tools experiment get %s --json", exp.GetId()),
+			},
+		})
+	}, func(ctx cliapp.RunContext, msg *experimentv1.CancelExperimentResponse) error {
+		return printExperimentProtoJSON(ctx.Stdout(), msg)
 	})
 }
 
 func (h *handlers) delete(ctx cliapp.RunContext) error {
-	if !ctx.BoolFlag("yes") {
-		return fmt.Errorf("refusing to delete experiment without --yes confirmation")
-	}
-	id := ctx.Positional("id")
-	resp, err := h.client.DeleteExperiment(context.Background(), connect.NewRequest(&experimentv1.DeleteExperimentRequest{Id: id}))
-	if err != nil {
-		return cliapp.WrapAPIError("experiment-delete", err, nil)
-	}
-	if ctx.JSON() {
-		return printExperimentProtoJSON(ctx.Stdout(), resp.Msg)
-	}
-	report := "no report blob"
-	if resp.Msg.GetDeletedReport() {
-		report = "report blob deleted"
-	}
-	return ctx.RenderMutation(cliapp.MutationReport{
-		Result: []string{fmt.Sprintf("Deleted experiment %s (%s).", resp.Msg.GetId(), report)},
+	return h.deletePrimitive().Run(ctx)
+}
+
+func (h *handlers) deletePrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoCustomRenderers(func(ctx cliapp.OperationContext) (*experimentv1.DeleteExperimentResponse, error) {
+		if !ctx.BoolFlag("yes") {
+			return nil, fmt.Errorf("refusing to delete experiment without --yes confirmation")
+		}
+		resp, err := h.client.DeleteExperiment(context.Background(), connect.NewRequest(&experimentv1.DeleteExperimentRequest{Id: ctx.Positional("id")}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("experiment-delete", err, nil)
+		}
+		return resp.Msg, nil
+	}, func(ctx cliapp.RunContext, msg *experimentv1.DeleteExperimentResponse) error {
+		report := "no report blob"
+		if msg.GetDeletedReport() {
+			report = "report blob deleted"
+		}
+		return ctx.RenderMutation(cliapp.MutationReport{Result: []string{fmt.Sprintf("Deleted experiment %s (%s).", msg.GetId(), report)}})
+	}, func(ctx cliapp.RunContext, msg *experimentv1.DeleteExperimentResponse) error {
+		return printExperimentProtoJSON(ctx.Stdout(), msg)
 	})
 }
 
 func (h *handlers) watch(ctx cliapp.RunContext) error {
+	return h.watchPrimitive().Run(ctx)
+}
+
+func (h *handlers) watchPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.Streaming(h.watchStream)
+}
+
+func (h *handlers) watchStream(ctx cliapp.RunContext) error {
 	id := ctx.Positional("id")
 	stream, err := h.client.StreamExperimentEvents(context.Background(), connect.NewRequest(&experimentv1.StreamExperimentEventsRequest{Id: id}))
 	if err != nil {
@@ -198,94 +249,122 @@ func (h *handlers) watch(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) report(ctx cliapp.RunContext) error {
-	id := ctx.Positional("id")
-	resp, err := h.client.GetExperimentReport(context.Background(), connect.NewRequest(&experimentv1.GetExperimentReportRequest{Id: id}))
-	if err != nil {
-		return cliapp.WrapAPIError("experiment-report", err, nil)
-	}
-	if ctx.JSON() {
-		return printExperimentProtoJSON(ctx.Stdout(), resp.Msg)
-	}
-	return renderReport(ctx, resp.Msg)
+	return h.reportPrimitive().Run(ctx)
+}
+
+func (h *handlers) reportPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoCustomRenderers(func(ctx cliapp.OperationContext) (*experimentv1.GetExperimentReportResponse, error) {
+		resp, err := h.client.GetExperimentReport(context.Background(), connect.NewRequest(&experimentv1.GetExperimentReportRequest{Id: ctx.Positional("id")}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("experiment-report", err, nil)
+		}
+		return resp.Msg, nil
+	}, renderReport, func(ctx cliapp.RunContext, msg *experimentv1.GetExperimentReportResponse) error {
+		return printExperimentProtoJSON(ctx.Stdout(), msg)
+	})
 }
 
 func (h *handlers) compare(ctx cliapp.RunContext) error {
-	// Accept both space-separated positionals (`compare a b`) and comma-separated
-	// forms (`compare a,b`), flatten, and dedupe while preserving order.
-	ids := dedupeStrings(flattenCSV(ctx.Positionals("ids")))
-	if len(ids) < 2 {
-		return fmt.Errorf("compare requires at least two experiment ids (space- or comma-separated)")
-	}
-	resp, err := h.client.CompareExperiments(context.Background(), connect.NewRequest(&experimentv1.CompareExperimentsRequest{Ids: ids}))
-	if err != nil {
-		return cliapp.WrapAPIError("experiment-compare", err, nil)
-	}
-	if ctx.JSON() {
-		return printExperimentProtoJSON(ctx.Stdout(), resp.Msg)
-	}
-	printComparison(ctx, resp.Msg.GetExperiments())
-	return nil
+	return h.comparePrimitive().Run(ctx)
+}
+
+func (h *handlers) comparePrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoCustomRenderers(func(ctx cliapp.OperationContext) (*experimentv1.CompareExperimentsResponse, error) {
+		// Accept both space-separated positionals (`compare a b`) and comma-separated
+		// forms (`compare a,b`), flatten, and dedupe while preserving order.
+		ids := dedupeStrings(flattenCSV(ctx.Positionals("ids")))
+		if len(ids) < 2 {
+			return nil, fmt.Errorf("compare requires at least two experiment ids (space- or comma-separated)")
+		}
+		resp, err := h.client.CompareExperiments(context.Background(), connect.NewRequest(&experimentv1.CompareExperimentsRequest{Ids: ids}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("experiment-compare", err, nil)
+		}
+		return resp.Msg, nil
+	}, func(ctx cliapp.RunContext, msg *experimentv1.CompareExperimentsResponse) error {
+		printComparison(ctx, msg.GetExperiments())
+		return nil
+	}, func(ctx cliapp.RunContext, msg *experimentv1.CompareExperimentsResponse) error {
+		return printExperimentProtoJSON(ctx.Stdout(), msg)
+	})
 }
 
 func (h *handlers) recordEvidence(ctx cliapp.RunContext) error {
-	kind, err := qualificationKindFromFlag(ctx.Flag("kind"))
-	if err != nil {
-		return err
-	}
-	passed, err := qualificationOutcomeFromFlag(ctx.Flag("outcome"))
-	if err != nil {
-		return err
-	}
-	evidence := &experimentv1.QualificationEvidence{
-		EngineId:      strings.TrimSpace(ctx.Flag("engine-id")),
-		ModelId:       strings.TrimSpace(ctx.Flag("model-id")),
-		Strategy:      strings.TrimSpace(ctx.Flag("strategy")),
-		PolicyProfile: strings.TrimSpace(ctx.Flag("policy-profile")),
-		Kind:          kind,
-		FaultProfile:  strings.TrimSpace(ctx.Flag("fault-profile")),
-		Passed:        passed,
-		ArtifactRef:   strings.TrimSpace(ctx.Flag("artifact-ref")),
-		Notes:         strings.TrimSpace(ctx.Flag("notes")),
-		MachineJson:   strings.TrimSpace(ctx.Flag("machine-json")),
-	}
-	resp, err := h.client.RecordQualificationEvidence(context.Background(), connect.NewRequest(&experimentv1.RecordQualificationEvidenceRequest{Evidence: evidence}))
-	if err != nil {
-		return cliapp.WrapAPIError("experiment-record-evidence", err, nil)
-	}
-	return renderExperimentProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:      []string{fmt.Sprintf("Recorded %s qualification evidence for %s/%s/%s (%s).", ctx.Flag("kind"), evidence.GetEngineId(), evidence.GetModelId(), evidence.GetStrategy(), ctx.Flag("outcome"))},
-		NextCommand: []string{"audio-tools experiment list-evidence --json"},
+	return h.recordEvidencePrimitive().Run(ctx)
+}
+
+func (h *handlers) recordEvidencePrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoCustomRenderers(func(ctx cliapp.OperationContext) (*experimentv1.RecordQualificationEvidenceResponse, error) {
+		kind, err := qualificationKindFromFlag(ctx.Flag("kind"))
+		if err != nil {
+			return nil, err
+		}
+		passed, err := qualificationOutcomeFromFlag(ctx.Flag("outcome"))
+		if err != nil {
+			return nil, err
+		}
+		evidence := &experimentv1.QualificationEvidence{
+			EngineId:      strings.TrimSpace(ctx.Flag("engine-id")),
+			ModelId:       strings.TrimSpace(ctx.Flag("model-id")),
+			Strategy:      strings.TrimSpace(ctx.Flag("strategy")),
+			PolicyProfile: strings.TrimSpace(ctx.Flag("policy-profile")),
+			Kind:          kind,
+			FaultProfile:  strings.TrimSpace(ctx.Flag("fault-profile")),
+			Passed:        passed,
+			ArtifactRef:   strings.TrimSpace(ctx.Flag("artifact-ref")),
+			Notes:         strings.TrimSpace(ctx.Flag("notes")),
+			MachineJson:   strings.TrimSpace(ctx.Flag("machine-json")),
+		}
+		resp, err := h.client.RecordQualificationEvidence(context.Background(), connect.NewRequest(&experimentv1.RecordQualificationEvidenceRequest{Evidence: evidence}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("experiment-record-evidence", err, nil)
+		}
+		return resp.Msg, nil
+	}, func(ctx cliapp.RunContext, msg *experimentv1.RecordQualificationEvidenceResponse) error {
+		return renderExperimentProtoMutation(ctx, msg, cliapp.MutationReport{
+			Result:      []string{fmt.Sprintf("Recorded %s qualification evidence for %s/%s/%s (%s).", ctx.Flag("kind"), msg.GetEvidence().GetEngineId(), msg.GetEvidence().GetModelId(), msg.GetEvidence().GetStrategy(), ctx.Flag("outcome"))},
+			NextCommand: []string{"audio-tools experiment list-evidence --json"},
+		})
+	}, func(ctx cliapp.RunContext, msg *experimentv1.RecordQualificationEvidenceResponse) error {
+		return printExperimentProtoJSON(ctx.Stdout(), msg)
 	})
 }
 
 func (h *handlers) listEvidence(ctx cliapp.RunContext) error {
-	resp, err := h.client.ListQualificationEvidence(context.Background(), connect.NewRequest(&experimentv1.ListQualificationEvidenceRequest{
-		EngineId: strings.TrimSpace(ctx.Flag("engine-id")), ModelId: strings.TrimSpace(ctx.Flag("model-id")), Strategy: strings.TrimSpace(ctx.Flag("strategy")),
-		PolicyProfile: strings.TrimSpace(ctx.Flag("policy-profile")),
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("experiment-list-evidence", err, nil)
-	}
-	if ctx.JSON() {
-		return printExperimentProtoJSON(ctx.Stdout(), resp.Msg)
-	}
-	if len(resp.Msg.GetEvidence()) == 0 {
-		fmt.Fprintln(ctx.Stdout(), "No qualification evidence found.")
+	return h.listEvidencePrimitive().Run(ctx)
+}
+
+func (h *handlers) listEvidencePrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoCustomRenderers(func(ctx cliapp.OperationContext) (*experimentv1.ListQualificationEvidenceResponse, error) {
+		resp, err := h.client.ListQualificationEvidence(context.Background(), connect.NewRequest(&experimentv1.ListQualificationEvidenceRequest{
+			EngineId: strings.TrimSpace(ctx.Flag("engine-id")), ModelId: strings.TrimSpace(ctx.Flag("model-id")), Strategy: strings.TrimSpace(ctx.Flag("strategy")),
+			PolicyProfile: strings.TrimSpace(ctx.Flag("policy-profile")),
+		}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("experiment-list-evidence", err, nil)
+		}
+		return resp.Msg, nil
+	}, func(ctx cliapp.RunContext, msg *experimentv1.ListQualificationEvidenceResponse) error {
+		if len(msg.GetEvidence()) == 0 {
+			fmt.Fprintln(ctx.Stdout(), "No qualification evidence found.")
+			return nil
+		}
+		fmt.Fprintf(ctx.Stdout(), "%-20s  %-20s  %-16s  %-15s  %-8s  %s\n", "ENGINE", "MODEL", "STRATEGY", "KIND", "OUTCOME", "ARTIFACT")
+		for _, evidence := range msg.GetEvidence() {
+			outcome := "failed"
+			if evidence.GetPassed() {
+				outcome = "passed"
+			}
+			kind := strings.TrimPrefix(strings.ToLower(evidence.GetKind().String()), "qualification_evidence_kind_")
+			if evidence.GetFaultProfile() != "" {
+				kind += ":" + evidence.GetFaultProfile()
+			}
+			fmt.Fprintf(ctx.Stdout(), "%-20s  %-20s  %-16s  %-15s  %-8s  %s\n", evidence.GetEngineId(), evidence.GetModelId(), evidence.GetStrategy(), kind, outcome, evidence.GetArtifactRef())
+		}
 		return nil
-	}
-	fmt.Fprintf(ctx.Stdout(), "%-20s  %-20s  %-16s  %-15s  %-8s  %s\n", "ENGINE", "MODEL", "STRATEGY", "KIND", "OUTCOME", "ARTIFACT")
-	for _, evidence := range resp.Msg.GetEvidence() {
-		outcome := "failed"
-		if evidence.GetPassed() {
-			outcome = "passed"
-		}
-		kind := strings.TrimPrefix(strings.ToLower(evidence.GetKind().String()), "qualification_evidence_kind_")
-		if evidence.GetFaultProfile() != "" {
-			kind += ":" + evidence.GetFaultProfile()
-		}
-		fmt.Fprintf(ctx.Stdout(), "%-20s  %-20s  %-16s  %-15s  %-8s  %s\n", evidence.GetEngineId(), evidence.GetModelId(), evidence.GetStrategy(), kind, outcome, evidence.GetArtifactRef())
-	}
-	return nil
+	}, func(ctx cliapp.RunContext, msg *experimentv1.ListQualificationEvidenceResponse) error {
+		return printExperimentProtoJSON(ctx.Stdout(), msg)
+	})
 }
 
 func renderExperiment(ctx cliapp.RunContext, msg interface {

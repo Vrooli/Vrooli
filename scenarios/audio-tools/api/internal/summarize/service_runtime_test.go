@@ -37,6 +37,40 @@ func TestSummarizationService_HappyPath(t *testing.T) {
 	require.Equal(t, "summary text", res.Summary)
 }
 
+func TestSummarizationService_PreservesOmittedExplicitAssignment(t *testing.T) {
+	svc := mkServiceRuntime(t, map[string]any{
+		"response":    "Project Atlas launches in Denver. Priya manages caption follow-up.",
+		"done_reason": "stop",
+		"eval_count":  20,
+	})
+	res, err := svc.Summarize(context.Background(), SummarizeRequest{
+		EventID: "assignment-rescue", Path: "manual",
+		Text: "Project Atlas launches in Denver. Priya owns caption follow-up. Marcus owns legal approval.",
+	})
+	require.NoError(t, err)
+	require.Contains(t, res.Summary, "Marcus owns legal approval.")
+	require.Contains(t, res.Summary, "Priya manages caption follow-up.")
+}
+
+func TestSummarizationService_PreservesSourceFactAfterTruncatedModelOutput(t *testing.T) {
+	const sourceFact = "Marcus owns legal approval."
+	svc := mkServiceRuntime(t, map[string]any{
+		"response":    "Project Atlas launches soon.",
+		"done_reason": "length",
+		"eval_count":  20,
+	})
+	res, err := svc.Summarize(context.Background(), SummarizeRequest{
+		EventID: "assignment-rescue-truncated", Path: "manual",
+		Text: "Project Atlas launches soon. " + sourceFact,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "length", res.DoneReason)
+	require.Contains(t, res.Summary, sourceFact)
+	// Fact preservation is intentionally allowed to exceed the compact model
+	// output budget; the source sentence is never truncated to fit.
+	require.Greater(t, len(res.Summary), len("Project Atlas launches soon."))
+}
+
 func TestSummarizationService_EmptySummary_Classified(t *testing.T) {
 	svc := mkServiceRuntime(t, map[string]any{
 		"response":    "",

@@ -7,6 +7,107 @@ re-discovering the same constraint.
 This file ships empty in newly generated scenarios. Append entries as
 they appear.
 
+## 2026-11-24 — Constrained summarize resolution reported a capacity limit as a license gap
+
+The D2 Linux profile reports 4 GiB RAM, while the catalog declares a 6 GiB
+minimum for the selected Qwen3 1.7B summarize model. Resolution correctly
+refused that profile, but the API labeled the result “no commercial-eligible
+model,” even though the model is Apache-2.0 and commercially allowed. The model
+catalog now distinguishes host-excluded defaults from absent commercial models
+and includes the model's unmet RAM floor in the error. Focused catalog and model
+API tests pass. The D2 CPU quota remains informational because no evidence-backed
+minimum CPU requirement is declared. This source change has not been restarted
+into the shared lab process; its earlier setpoint receipt still reflects the old
+message.
+
+## 2026-11-24 — Fixed-input Sherpa latency and JFK recognition remain model-bound
+
+The same 11-second JFK WAV (SHA-256
+`59dfb9a4acb36fe2a2affc14bacbee2920ff435cb13cc314a08c13f66ba7860e`) was
+decoded five times through the native Sherpa adapter at 100 ms PCM cadence.
+Each run emitted its first partial after 1,200 ms of captured audio and about
+1,217–1,221 ms wall time. This repeatable result agrees with the browser
+cohort's roughly 1,074 ms post-onset audio accumulation plus small delivery and
+render overhead; capture readiness and transport are not the limiting path.
+
+All five final transcripts were the same: “What's your country can do for you
+as, but you can do for your country.” They did not match the checked JFK
+opening (“Ask not what your country can do for you”). The focused smoke
+therefore failed its exact-reference assertion on all five runs; that is
+negative quality evidence, not a runtime crash. The test used the current
+310 MB Zipformer with sherpa-onnx v1.13.2, one synthetic public-speech fixture,
+and no held-out corpus. Do not reduce decoder context, treat latency as solved,
+or promote a different model from this evidence. The smaller 20M and Kroko
+models were slower to first text in the earlier single-run comparison, and
+Kroko's commercial terms remain unresolved. Current repeat command was the
+native `TestNativeStreamingModelSmoke` with `-count=5`, the fixture above, and
+`SHERPA_ONNX_STREAMING_PACE_MS=100`.
+
+## 2026-11-24 — Thread count and int8 do not close Sherpa first-text latency
+
+On the same 11-second JFK fixture and native Sherpa v1.13.2 path, 1, 2, and 4
+threads each emitted first text after 1,200 ms of captured audio. Wall times
+were 1,223.1, 1,218.8, and 1,216.5 ms, with the same final transcript and the
+same failed JFK opening assertion. An int8 encoder/joiner reduced measured
+model-feed time from 584 ms to 450 ms at two threads, but first text still
+arrived after 1,200 ms and the opening assertion still failed. This supports
+the existing diagnosis that first-text delay is dominated by model context
+accumulation, not thread scheduling or post-arrival compute. It is one native
+smoke per configuration, not a product p95 or quality result. Do not change
+the default from this probe; the next useful experiment needs a streaming
+configuration or candidate model that passes both opening and ending checks,
+then a 30-attempt product browser cohort.
+
+## 2026-11-23 — Paced local browser first-partial p95 remains above target
+
+A fresh 30-attempt Chrome fake-microphone cohort exercised Dictation Studio,
+the shared browser capture package, the Audio Tools Connect stream, and local
+Sherpa Zipformer. All 30 turns completed with at least two rendered transcript
+revisions; every turn sent its completion marker, processed all sent sequences,
+and reconciled captured samples to committed samples. No browser page errors
+occurred. Click-to-capture-ready p95 was 20.6 ms, visible update-gap p95 was
+352.1 ms, and stop-to-final-tail p95 was 165.8 ms.
+
+Speech-to-visible-first-partial p50/p95/max was 1,098.3/1,161.2/1,195.9 ms,
+against the adopted 1,000 ms p95 and 2,000 ms maximum. Available post-onset
+audio p95 was 1,117.0 ms; excess wall time after that audio span was 55.5 ms
+p95 (111.6 ms maximum). This supports speech/context accumulation as the
+dominant latency in this cohort and gives no basis for reducing the 50 ms wire
+batch. This is synthetic-media evidence only: no independent transcript score,
+physical microphone, other host/browser, cold-start, or interruption/resource
+pressure claim is made. Receipt:
+[`browser-paced-sherpa-30-20261123.json`](../../coverage/browser-paced-sherpa-30-20261123.json).
+
+## 2026-11-24 — Smaller Zipformer candidates do not yet close first-text latency
+
+An opt-in native Sherpa comparison fed one 11-second JFK fixture in 100 ms
+PCM packets. The selected 310 MB Apache-2.0 Zipformer produced first text after
+1,200 ms of captured audio (1,217 ms wall). The 20M Apache-2.0 model reduced
+feed-call wall time from 580 ms to 238 ms and loaded faster, but its first text
+arrived after 2,100 ms of captured audio (2,107 ms wall). The 68 MB Kroko
+candidate matched the checked reference opening and final suffix, with first
+text after 1,500 ms (1,534 ms wall); its CC-BY-SA commercial/OEM terms remain
+unconfirmed. Each model has one sample. The test adapter is not the product
+browser route and measures neither peak memory nor held-out quality. No model
+change is justified; retain the 310 MB default pending the existing 30-run
+product acceptance and corpus/license evidence. Receipt:
+[`native-sherpa-model-first-text-20261124.json`](../../coverage/native-sherpa-model-first-text-20261124.json).
+
+## 2026-11-24 — Moonshine Tiny browser smoke does not show a faster first interim
+
+An isolated headless Chrome harness loaded the official Moonshine Tiny
+Streaming WASM package and fed the same 11-second JFK fake-microphone fixture.
+The model load completed in 441 ms; first interim text arrived at 2,081 ms
+from page start, or about 1,567 ms after the microphone entered its listening
+state. The callback contained only “And so, my,” before later final callbacks
+completed the opening phrase. This harness did not measure acoustic onset,
+React-visible product timing, held-out quality, resource use, or cache-cold
+installation cost, so its numbers are not directly comparable to the Sherpa
+30-attempt product cohort. It provides no evidence that Moonshine Tiny would
+close the current first-visible p95 gap. No package or model was added to the
+scenario, and no default or provider route changed. A paced product-path cohort
+and scored corpus would be required before revisiting this candidate.
+
 ## Program view (2026-11-19)
 
 The dated entries below are the incident register. The *program* view of debt,
@@ -25,12 +126,12 @@ highest-leverage open classes are:
 - **Model provenance (registry delivered; qualification partial)** — the
   registry now declares licence, readiness, hardware, per-language facts, and
   the resource artifact that supplies local weights, and serves them through
-  `ModelRegistryService`, the CLI, and the UI. A 2026-11-19 receipt (below)
-  qualifies Whisper turbo versus medium on one Linux/Vulkan host. What remains
-  is breadth: most defaults still lack a dated real-duration receipt, the
-  runtime primary for summarization (`qwen3.5:9b`) is not the evidence-backed
-  default (`llama3.2:3b`), and no device/browser/OS matrix exists. See the
-  2026-05-17 summarize entry and the 2026-11-19 receipt note under it.
+  `ModelRegistryService`, the CLI, and the UI. Constrained defaults are
+  Whisper small and the shared `summarize.default` role; a one-host product-path
+  smoke served the canonical clip with `whisper-small` in 75 ms and 716 MiB
+  measured VRAM. This is not broad dictation evidence. No timed long-form
+  reference exists for timestamp-drift scoring, and no device/browser/OS
+  matrix exists.
 - **Unenforced lab code** — `experiment`, `eval`, `soak`, and `validation` had
   no coverage floor; `stt/pipeline` was enforced at 20%. Floors now exist for
   all of them, and the chain/handler floors are back at their original values;
@@ -41,17 +142,234 @@ highest-leverage open classes are:
 Do not treat a green unit suite or a source-presence check as evidence that any
 of these is closed. Close them with the gates named in the maturation program.
 
+### 2026-11-23 — Sherpa browser first-interim latency remains above target
+
+Three paced headless-Chrome fake-microphone runs through the product Dictation
+Studio route selected `sherpa-onnx/streaming-zipformer-en-2023-06-26` and
+measured speech-to-rendered-interim latency from the browser diagnostic at
+1,094–1,109 ms. The adopted p95 target is at most 1,000 ms and the maximum is
+2,000 ms, so this small diagnostic sample is out of band and is not a
+qualification cohort. Button-to-capture readiness was 72–167 ms; the final
+transcript kept the known ending in all three runs; stop-to-captured wall time
+was 153–207 ms; all 224–226 sent chunks were processed. Fixture:
+`/tmp/opencode/jfk.wav`, SHA-256
+`59dfb9a4acb36fe2a2affc14bacbee2920ff435cb13cc314a08c13f66ba7860e`.
+
+The first trace also showed `stopToFinalTailMs` was null because Dictation
+Studio did not mark the user's stop action. The recorder now records that
+marker before calling `provider.stop()`, with an ordering regression test.
+The running UI bundle predates the stop marker and the new first-partial
+context telemetry. That telemetry records the exact first-signal sample,
+captured cursor at the first visible partial, and input-audio span available
+then. Its excess-latency measure estimates lag beyond captured audio, but is
+not a server-only decode timer. Collect it with the processed cursor on a fresh
+product trace before tuning Sherpa; physical-microphone, full cohort, and
+device/browser/OS qualification remain open.
+
+**Update — 2026-11-23:** The shared capture package was rebuilt, its local UI
+`file:` dependency refreshed, and the managed `dist-live` UI bundle rebuilt in
+place. A fresh one-attempt synthetic-media product trace now records the new
+fields (receipt:
+`coverage/browser-first-partial-context-20261123.json`). First visible text
+took 1,096.7 ms after the signal proxy, with 1,094.9 ms of post-onset audio
+already captured and 1.7 ms excess wall latency. Capture readiness was 13.1 ms;
+stop-to-final-tail was 87.3 ms; sequence 250 was sent and processed, and
+captured/committed samples both ended at 200,363. The browser reported no page
+errors. This points to the selected model's initial context accumulation,
+not browser or transport backlog, as the useful latency investigation. No
+batch-size change was made; the measured excess is far below the current 50 ms
+wire cadence. This remains a single synthetic-media diagnostic, not a p95,
+quality, physical-microphone, or device/browser/OS qualification.
+
+### 2026-11-22 — Shared Ollama residency does not match idle policy
+
+The managed Ollama policy declares only `embedding.default` and `chat.small`
+resident and sets `idle_unload_seconds` to 600. The live `/api/ps` snapshot at
+2026-11-22 19:02 local still showed `gemma4:12b` loaded, with an `expires_at`
+of 12:11 local (already elapsed); the callers inventory's latest attributed
+request for that model was 2026-11-21 22:36 UTC. `gemma4:12b` remains required
+as a primary for shared `code.local`, `image.quality.judge`, and `write.default`
+roles, so it was not evicted. `qwen3.5:4b` is intentionally resident as
+`chat.small` primary and had 1,054 tracked requests, 864 attributed to
+AI Gateway; Audio Tools' `qwen3:1.7b` role was not loaded. The activity edge
+was alive. The observed expiry mismatch has no confirmed cause yet (unattributed
+traffic or a missed policy reassertion remain possible); investigate at the
+Ollama/resource owner before changing global residency or claiming memory
+reduction. No model was unloaded and no shared service was restarted.
+
+### 2026-11-22 — Connect streaming could wait forever on a quiet client
+
+The bidi handler's synchronous `Receive()` has no per-read cancellation or
+deadline, so a client that sent `StreamStart` and then stopped transmitting
+could leave the handler and its Segmenter alive indefinitely. A goroutine-local
+timeout would only abandon a blocked receive and leak its worker. The handler
+now watches an injectable idle timer (30 s by default), reset by each audio
+chunk. Expiry cancels the Segmenter, persists `input_idle_timeout`, and returns
+without joining the receive worker; returning tears down the Connect transport
+and unblocks `Receive()`. Quiet timeout persistence and sustained activity are
+covered by handler tests; the targeted handler race suite and full
+`TestTranscribeStream_` subset pass. This bounds idle streams; it does not add
+an absolute maximum session duration.
+
+### 2026-11-22 — Hour-scale qualification stopped at client and ledger limits
+
+The long-running STT qualification used the ordinary 120-second HTTP client
+timeout, reused a fixed durable session identity across retries, and streamed
+a tone that never produced committed segments. The first two conditions caused
+early termination; after they were fixed, the retained session audio reached
+the server's 64 MiB ledger limit after about 35 minutes. The qualification
+client now relies on its bounded run context, assigns a cryptographically
+random session identity to each stream, and sends `End`/closes a session at 16
+MiB before opening the next. Focused STT/validation race tests pass. The 60-
+minute lab run then completed, with 360 TTS probes and 35,994 STT chunks; the
+freshness check passes. This qualifies synthetic transport continuity only,
+not recognition accuracy, timed drift, provider parity, or device support.
+
+### 2026-11-22 — CLI streaming STT ignored the invocation API override
+
+The Connect streaming client captured `APIRootBase()` when the Audio Tools CLI
+was constructed, before global flags were parsed. The unary clients use
+`cli-core`'s dynamic request rebasing; the custom HTTP/2 streaming transport
+sent its captured absolute URL unchanged. This meant a command specifying
+`--api-base http://127.0.0.1:15373 --instance lab` could still post to the
+product API at 19630. The streaming transport now rebases requests rooted at
+its construction URL against the invocation's selected API at `Do` time, and
+a fake-transport test parses both flags and asserts the selected host and route.
+`go test ./domains/stt -race -count=1` passes. A source-built CLI stream of
+the bundled short synthetic fixture then completed against lab port 15373:
+the lab log recorded a 21.75 s `TranscribeStream`, and its terminal event was
+`completed` on Sherpa Zipformer with one segment. The latest product log entry
+remains the earlier 07:05:34 request; this verification did not reach product.
+
+One previous diagnostic invocation with those explicit lab flags is strongly
+correlated with a product `TranscribeStream` log at 07:05:34 (34.330 s); the
+CLI output files were written at the same time and reported substantial
+processing followed by `input_failed`. This is strong but indirect evidence
+that the request reached the product API. The stream handler persists session
+ledger state, so a product-side ledger/spool may have been written. No
+transcript text was displayed or used as evidence, and no local artifact was
+inspected or deleted. The request itself necessarily processed its source
+audio. The possible product-side session artifact was left untouched. Treat
+the CLI routing test as required before future live streaming probes. The
+corrected source-built CLI has since run the same AMI file against the lab API:
+it completed with terminal reason `completed`, 115 segments, and all 1,242
+audio sequences acknowledged as processed. The lab request took 1m58.9s for
+1,272.64 seconds of audio (about 10.7x real-time); this is a single-host
+throughput observation, not a quality or timestamp qualification. Product log
+has no newer stream request. This supports that the earlier failure was
+caused by the captured-base routing defect, while leaving the possible prior
+product ledger/spool untouched.
+
+### 2026-11-20 — Current host model residency is outside the Audio Tools path
+
+A read-only host spot check after Audio Tools moved to lighter defaults
+showed Whisper stopped, sherpa-onnx uninstalled/unsupported on this
+Linux host because its signed adapter bundle is unpublished, and Kale installed
+but stopped. At the time of this check the sherpa endpoint was live on the
+attach-only port and the Audio Tools engine list selected it; the control plane
+does not own that process or its lifecycle. This is a working local attach, not
+a managed-resource qualification.
+
+Ollama's `/api/ps` showed `qwen3.5:9b` resident at 5.88 GB plus
+`nomic-embed-text:latest` at 323 MB, while `qwen3:1.7b` was not loaded. The
+resource policy assigns `qwen3:1.7b` to `summarize.default` and `qwen3.5:9b` to
+`chat.default`; the remaining large allocation is therefore shared chat
+workload, not Audio Tools summarization. Other active GPU processes included
+the reranker and Ollaya. No model was unloaded because those shared consumers
+were not identified as idle or Audio Tools-owned. Recheck residency and
+ownership before making a shared-resource change.
+
+**2026-11-23 update:** the earlier 498 MiB Kale runtime bundle was replaced by
+the pinned upstream CPython `install_only_stripped` distribution. The managed
+resource was reacquired and restarted through its CLI; artifact
+`cf38c6dc79ff578c40454b79c12b35356f6c4049de43b013b525d3fb95facb63` is now
+healthy and occupies 257 MiB on disk. A current Audio Tools product route
+selected Kale Nano after restart, and the documented 20-request sweep passed
+all ten voices. This closes the old packaging and route-execution gaps, not the
+human naturalness or held-out speech-quality gate; the static catalog default
+remains Kokoro.
+
+Follow-up snapshot, 2026-11-20 20:22 UTC: the Audio Tools API was healthy at
+28,704 KiB RSS. The attached sherpa `/healthz` endpoint remained healthy and
+`audio-tools stt engines --json` selected `sherpa-streaming`; its source-built
+CPU process showed 8,288 KiB RSS while idle. The managed sherpa resource still
+reports unsupported on Linux because its signed adapter release is unpublished.
+GPU use was 9,288 MiB / 16,376 MiB. Ollama still reported the 5.88 GB
+`qwen3.5:9b` and 323 MB embedding model, but not `qwen3:1.7b`; policy maps the
+9B model to shared `chat.default` and the 1.7B model to Audio Tools
+`summarize.default`. The Kale resource was stopped after its local synthesis
+smoke, and the running Audio Tools API was not configured to route TTS through
+Kale. No shared models or product processes were unloaded or restarted.
+
 The 2026-09-16 50 ms PCM wire-batch experiment is rejected. Focused package
 tests showed duplicate replay frames after reconnect and a simulated-hour wire
 rate of 20/s against the 15/s bound. The production batch remains 1,600
 samples (about 100 ms); startup p95 must be repaired at the decoder/admission
 owner rather than by increasing transport event pressure.
 
-### 2026-11-20 — Sherpa attach, the 1.7B summarize default, and a decoder gap
+### 2026-11-20 — Host resource attribution and Whisper-small product check
 
-The operator chose the low-footprint path explicitly: sherpa streaming for STT,
-Kale nano for TTS when it ships, and `qwen3:1.7b` for summarize. Three of those
-are now wired; one is honestly blocked on model/artifact availability.
+An idle host sample showed the Audio Tools API at ~24 MiB RSS with no active
+Audio Tools model process. GPU use was attributed to the shared Ollama daemon
+and reranker, not Audio Tools; `vrooli capacity reconcile` measured Ollama at
+7.30 GiB against a 5.78 GiB claim. The process inventory did not identify
+which scenario last requested the resident `qwen3.5:9b`, so it was left
+untouched. This shared-resource overclaim is not an Audio Tools default change.
+
+The managed Whisper resource started with its declared `small` artifact. The
+product CLI transcribed the canonical five-word clip exactly in 75 ms and
+reported model `whisper-small`; the capacity ledger measured a 716 MiB VRAM
+peak under its 1 GiB claim. The resource was stopped after the check and the
+owner-scoped claim was absent. This confirms the current light default on one
+host and one clip only. The long-form fixture has no timed transcript, and the
+product response does not expose word intervals, so timestamp drift remains
+unmeasured at that time. The later timing work below supersedes the response-
+surface statement, but not the missing reference or qualification. A first start command timed out during claim renewal despite the
+resource reaching healthy; a stop command likewise timed out during claim
+release, though the final status was stopped and the claim was subsequently
+absent. These lifecycle timeouts are recorded as an observation, not as a
+change to host-control policy.
+
+### 2026-11-20 — Hypothesis timings retained; qualification still needs gold
+
+The stable unary `TranscribeResponse` now exposes provider-reported
+`word_timestamps` when egress accepts the transcript and source coordinates are
+trustworthy. Filtered transcripts and speaker-policy transformed audio do not
+expose intervals. Eval replay also keeps provider-reported hypothesis timings
+in each clip report, capped at 20,000 words with a truncation flag; it does not
+persist audio. Native sherpa streaming segments do not currently carry word
+intervals, and no human-reviewed long-form reference exists, so
+`TimestampDrift` remains unset and no model gets a timestamp qualification.
+
+The host portability producer previously treated `ListEngines().Available` as
+D1 inference evidence and used an unrelated Docker resource-control probe for
+D2. It now records inventory separately, marks D1 CPU, D1 accelerator, and D2
+inference as `not_run`, and persists an incomplete receipt. The acceptance board
+and owner join require all three cells to say `available` and `inference=passed`.
+No such inference receipt exists on this host.
+
+A live attach-only sherpa stream against the bundled five-word clean-speech
+fixture returned partials and a final segment, but omitted “jumps” (“The quick
+brown fox” versus “The quick brown fox jumps”; 20% WER on this synthetic
+diagnostic clip). This is a route smoke, not a promotion or dictation claim. It
+also exposed that native streaming segment latency was unset; the provider now
+measures elapsed fractional milliseconds from request start through segment
+receipt, with a regression test. The running API binary was not restarted for
+that source change.
+
+### 2026-11-20 — Sherpa attach, compact summarize, and a decoder gap
+
+Audio Tools moved to the low-footprint path: sherpa streaming for STT, Kale
+nano for TTS when release-ready, and the shared Ollama `summarize.default` role
+for summaries. The STT and summarize paths are wired. Kale Nano/Tiny weights are now publicly
+accessible with checksums; Hugging Face API metadata for Nano's pinned
+revision reports public, non-gated Apache-2.0 status (checked 2026-11-21),
+superseding earlier draft-status notes. Tiny remains draft; the current sherpa
+Kokoro adapter cannot run these graphs. Nano now
+has a separate pinned Linux/amd64 CPU resource candidate and an explicit API
+route. Its managed service has since started healthy and listed all ten pinned
+voices, but synthesis and product-path quality remain unverified, so Kokoro
+stays the TTS default.
 
 **Summarize** moved from `qwen3.5:4b` to `qwen3:1.7b` (Apache-2.0, 1.36 GB).
 Measured on this host: the 1.7B tag preserved 8/8 numbers and dates on a short
@@ -66,8 +384,8 @@ runs on `127.0.0.1:8881` with the 2023 English Zipformer (310 MB, CPU) and the
 punctuation model. Two integration defects were fixed: Audio Tools pointed at
 port `8880` while the resource exposes `8881`, and the capability checkers
 probed `/ready`, which exists only when the speaker runtime is loaded; the
-sherpa STT probe now uses `/healthz`. Engine policy now ranks
-`native_streaming` → `low_footprint` → `accelerated`, so sherpa wins over the
+sherpa STT probe now uses `/healthz`. The live preference order is
+`low_footprint` → `native_streaming` → `accelerated`, so Sherpa wins over the
 2.3 GB Kyutai tier when both are serviceable.
 
 Attach-only is explicit: when the control plane reports the managed artifact
@@ -77,11 +395,87 @@ lifecycle ownership is external)`. A dead attached provider is rejected. The
 resource manifest still claims no platform support until a signed release
 artifact exists; see `resources/sherpa-onnx/docs/LOCAL-ATTACH.md`.
 
-**Kroko 2025** (68 MB, CC-BY-SA-4.0) was evaluated as the smaller successor.
-The upstream file CLI transcribes the JFK and canonical clips fully, but the
-WebSocket adapter path stops after about half of the 2.6 s clip and loses the
-final words of JFK. It remains an on-demand artifact and is not the default
-until that decoder/tail path matches the file CLI.
+**Kroko 2025** (68 MB, CC-BY-SA-4.0) initially lost final words when the native
+stream was finished immediately after speech. A native model experiment
+reproduced “for.” without padding and retained “your country.” after a 1.2 s
+silent tail. `Finish()` now adds a bounded tail without advancing client
+timestamps; the opt-in smoke test checks the final phrase and that timestamps
+stay within source PCM. Kroko remains on-demand pending corpus accuracy,
+latency, timestamp, and license receipts; this single JFK smoke does not
+support default promotion.
+
+**Local TTS integration** now allows `AUDIO_TTS_BACKEND=sherpa-onnx` to route
+the existing Kokoro-compatible provider through sherpa's shared speech
+contract. The default remains the managed Kokoro resource. Request-path
+liveness uses sherpa `/healthz` (model + encoder loaded) rather than an extra
+synthesis on every short freshness window; full readiness sweeps still
+exercise synthesis. Hugging Face API metadata at Nano's pinned revision reports
+public, non-gated Apache-2.0 status (checked 2026-11-21); Tiny remains draft.
+The isolated managed runtime contract
+and explicit `AUDIO_TTS_BACKEND=kale-onnx` API route are experimental; Kale is
+not promoted in the provider catalog until its installable resource, pinned
+dependency closure, and native runtime receipts are complete. This route is
+separate from sherpa's Kokoro adapter.
+
+### 2026-11-20 — Kroko finalization tail and sherpa-hosted Kokoro route
+
+Resolved immediate-end truncation in the native sherpa online stream. Direct
+`TestNativeStreamingModelSmoke` against the local Kroko 2025 model and JFK PCM
+ended at “for.” before the fix; appending 1.2 s of silence produced “your
+country.” `Finish()` now feeds a bounded silent tail before `InputFinished` and
+deliberately leaves `totalSamples` unchanged. The opt-in native smoke test can
+assert `SHERPA_ONNX_STREAMING_EXPECT_TEXT` and bounds the last event timestamp
+by client PCM length. This narrows the finding to a finalization issue; it does
+not qualify broad accuracy or promote Kroko.
+
+**2026-11-21 follow-up:** The resource adapter also assumed dated Zipformer
+filenames, while the declared 68 MB Kroko archive uses `encoder.onnx`,
+`decoder.onnx`, and `joiner.onnx`. The native factory now discovers either
+layout and still honors explicit file overrides. A model-backed WebSocket smoke
+using the existing local Kroko artifact and a 55-second JFK fixture passed; the
+final “your country” phrase survived and its timestamp stayed inside source
+duration. `TestResolveStreamingModelFile` covers legacy/generic layouts and
+override precedence. Kroko remains on-demand because this is a narrow smoke and
+its CC-BY-SA-4.0 terms do not qualify it as a commercial default.
+
+The WebSocket smoke now supports `SHERPA_ONNX_STREAMING_EXPECT_FINAL_SUFFIX`,
+which asserts actual final words rather than only finding the expected phrase
+somewhere in the transcript. This distinction exposed that the older
+`SHERPA_ONNX_STREAMING_EXPECT_TEXT` substring assertion could pass on a
+truncated result. On the 11-second JFK clip, a 1.2-second finish tail passes
+with final suffix “your country.”; a controlled zero-tail run fails with
+“for.”. `envInt` intentionally rejects zero-valued tuning settings, so finish
+tail parsing now uses a nonnegative-specific helper to make the control real.
+The 55-second fixture also passes with the default tail. This verifies the
+finalization behavior on two local fixtures, not general model quality or
+promotion eligibility.
+
+**2026-11-22 control run:** With the cached Kroko model, punctuation model,
+pinned Sherpa 1.13.2 runtime, and 3.846-second fixture, `make test-native`
+passes the exact final-suffix assertions under the default 1.2-second tail.
+Setting `SHERPA_ONNX_STREAMING_FINISH_TAIL_MS=0` makes the same assertions fail
+with the known truncated ending. This confirms the regression gate detects the
+defect class; it does not establish broader recognition quality.
+
+**2026-11-23 recheck:** The exact available 11.000-second JFK PCM fixture at
+`/tmp/opencode/jfk.wav` (SHA-256
+`59dfb9a4acb36fe2a2affc14bacbee2920ff435cb13cc314a08c13f66ba7860e`) was
+replayed in 3,200-byte WebSocket chunks against isolated native servers using
+the cached Kroko model and current pinned runtime. Both the default 1.2-second
+tail and an explicit zero-tail control ended with “your country.”, and both
+reported a final timestamp of 11,000 ms within the 11,000 ms source duration.
+The historical truncation did not reproduce. The earlier control record has no
+fixture digest, so byte identity with the original input is unknown; compare
+historical model/runtime and capture configuration before treating this as a
+regression. No default promotion follows from these runs.
+
+Audio Tools can explicitly route local Kokoro synthesis to the sherpa speech
+endpoint with `AUDIO_TTS_BACKEND=sherpa-onnx`. The API integration test proves
+bootstrap selection, canonical voice forwarding, audio response handling, and
+the event cache write boundary against a contract server. `/healthz` now
+includes TTS model and encoder readiness, allowing cheap request-path
+liveness; full capability readiness still exercises synthesis. Kokoro remains
+the default.
 
 Two gateway-integrity defects surfaced while verifying the new default:
 
@@ -97,9 +491,32 @@ Two gateway-integrity defects surfaced while verifying the new default:
 
 **TTS**: the sherpa adapter already serves **Kokoro int8** (183 MB extracted,
 114 MB model) through `/v1/audio/speech`; the standalone Kokoro resource uses
-313 MB. That int8 path is the intended host for a Kale ONNX export when Kale
-publishes weights. Kale remains a candidate with no shipped artifact, so the
-TTS default is unchanged.
+313 MB. Kale Nano and Tiny have public Apache-2.0 ONNX artifacts and upstream
+SHA256SUMS. At the time of this 2026-11-20 observation, both model cards showed
+`DRAFT, NOT PUBLISHED`; current Hugging Face metadata updates Nano to public,
+non-gated Apache-2.0, while Tiny remains draft.
+The graphs use a separate ONNX Runtime frontend and do not load in sherpa's
+current Kokoro adapter. A local Nano prototype at pinned revision
+`b6ce1887268c3667994fc3b0b2c82887c069915c` verified the 14.77 MB int8 graph
+against its upstream SHA-256 and produced 3.82 s of 24 kHz speech in 648 ms
+including load, on CPU with one ONNX thread (Node RSS 238,428,160 bytes). A
+managed candidate now pins CPython, 22 CPU wheels, model/voice/frontend assets,
+and licensing notices. Its 498 MiB composed runtime tree digest reproduces
+offline; the resource requires 768 MiB disk. Audio Tools can route to it with
+`AUDIO_TTS_BACKEND=kale-onnx`, and separates persistent audio cache entries by
+model. The managed lifecycle started healthy in 6.14 s and stopped cleanly. One
+model-backed request to the resource generated a 3.05 s mono 24 kHz WAV in 770
+ms cold and 59 ms warm, using Nano revision
+`b6ce1887268c3667994fc3b0b2c82887c069915c` and graph SHA256
+`4d5269974de4fba7a66f947608a9a5381b4e39c1a8a6073df6001ab7e7f76288`. This is
+resource-level synthesis evidence, not an Audio Tools product-path receipt:
+the running Audio Tools API was composed without `AUDIO_TTS_BACKEND=kale-onnx`
+and was left untouched. The default remains Kokoro. One short utterance and one
+voice do not qualify intelligibility or naturalness. The pinned Nano revision
+is public, non-gated, and declares Apache-2.0 in Hugging Face API metadata
+checked 2026-11-21; Tiny remains draft. Provider promotion and default change remain
+gated pending release readiness, reviewed output quality, and product-path
+receipts.
 
 12 GB of abandoned Kyutai download was also removed (cache 14 GB → 2.3 GB).
 
@@ -457,6 +874,18 @@ context, with no refresh, restart, or manual recovery. Reproduce and instrument
 the lifecycle and transport reset path; keep this behavior unqualified until
 fresh owner-backed evidence passes every cycle.
 
+**Related lifecycle race fixed (2026-11-21):** a delayed per-turn capability
+probe could report an unhealthy backend after that turn had stopped and a new
+turn had begun. Its callback unconditionally shut down the shared provider and
+overwrote current capability state. A deterministic hook regression reproduced
+the stale result disposing the newer turn (provider `dispose` was called twice
+while the newer turn was preparing). The callback now checks its captured start
+generation before applying results. `pnpm vitest run
+src/useVoiceCore.startup.test.ts src/longSession.test.ts` passed 34/34 in
+`packages/audio-capture-browser`. This closes that specific race only; the
+required five-cycle browser capture run has not been performed, so the
+repeated-session behavior remains open and unqualified.
+
 ### 2026-09-15 — Microphone press-to-speech readiness is suspected above target
 
 Operator observation: after pressing the microphone control, the path can take
@@ -786,6 +1215,8 @@ corpus, has no noisy cohorts, and does not produce an acceptance receipt.
 
 **Refs:** `api/internal/eval/runner.go`, `api/internal/eval/runner_test.go`.
 
+Archived source history is retained in Swarm Manager.
+
 ### 2026-09-16 — Kyutai 100 ms streaming resampling had a phase-reset defect
 
 **Symptom:** The held-out English clip decoded coherently with 1-second
@@ -1063,7 +1494,7 @@ The five CLI domains settings, STT, summarize, TTS, and usage held byte-identica
 Approach: dead-path deletion. Removed the internal/httpx production writer because repository-wide source search found no production caller; its references were its own tests and coverage-floor entry. Removed the LPBS RemoteReporter because it was only self-tested, described itself as future/flag-off until the LPBS gateway shipped, and had no production constructor, Start, or Submit caller. Updated the SEAMS index. Kept the local UsageService recorder and the still-connected LPBS client/provider interfaces. Also aligned one existing summarize test call with the current API, supplying empty optional receipt/policy values; focused summarize tests pass.
 ## Architecture Drift
 
-Use this section for deferred findings from `screaming-architecture-audit`.
+Use this section for deferred findings from `architecture-lenses`.
 Do not create a standalone architecture-audit report unless the work is
 a migration handoff with a planned retirement path back into
 `ARCHITECTURE.md`, `SEAMS.md`, or this file.
@@ -1188,29 +1619,31 @@ The "audio-tools-test-architecture-lift" plan (2026-05-17) closed the
 and the legacy audio-ops gap. The remaining shortfalls below are
 intentional deferrals governed by separate plans.
 
-### `internal/stt/pipeline/service.go` — legacy `voice.Service` shim
+### `internal/stt/pipeline` — stale `voice.Service` coverage item (closed)
 
-**Symptom:** Package coverage sits at ~24% with 28 functions still at
-0.0%. Most are wrappers (`Transcribe`, `Diarize`, `SpeakerProfile`
-shapes) that the new `internal/stt/segmenter` + chain pipeline supersedes.
+The legacy `voice.Service` migration description above is stale. The package
+now exposes `WhisperTranscriber`, which owns local Whisper batch transcription
+and recovery; stream, wake-word, and speaker configuration have separate
+owners. A source search found no `voice.Service` or `voice.NewService` callers
+under `api`, and the WebSocket handler/provider path uses the strategy and
+`sttchain` boundaries. The obsolete wrapper inventory and migration dependency
+are therefore not current work.
 
-**Root cause:** The WS handler (`handlers/stt/stream_ws.go`) and a few
-admin endpoints still call into the legacy `voice.Service` until the
-streaming-decoupling plan rewires them through `sttchain.Chain.Stream`
-and the strategy selector.
+**Measured evidence:** `go test ./internal/stt/pipeline
+-coverprofile=/tmp/audio-tools-stt-pipeline.cover` passed on 2026-11-22 with
+72.9% statement coverage (the old ~24% figure is no longer representative).
+Targeted behavior and cancellation tests now cover `SetLogger`,
+`AutoEnsureEnabledFromEnv`, `SetWhisperConcurrency`, `WhisperAvailable`, and
+`EnsureWhisperAvailable` at 100% each. A `-race` run of the package passed.
 
-**Workaround:** Do not grow new tests against the legacy shim. New
-behaviour goes through `sttchain` + `segmenter`, which carry their own
-coverage floors (85% / 80%).
+**Remaining test gaps:** Coverage is not uniformly high. `speaker_client.go`
+still has multiple untested live operations (`Ready`, `Info`, profile/clip CRUD,
+and extraction); `session_speaker.SmoothedScore`, speaker-config persistence,
+and some configuration/wake-word error branches also remain below full
+coverage. These are explicit follow-up test gaps, not superseded
+`voice.Service` wrappers.
 
-**Real fix:** "Streaming pipeline migration" — owned by the PRD that
-moves `stream_ws.go` to the strategy selector. Once the legacy paths
-have no callers, the file is deleted.
-
-**Owner:** unassigned.
-
-**Refs:** [`SEAMS.md`](SEAMS.md) "sttchain.Provider" row; plan
-[audio-tools-test-architecture-lift §4 Out of scope].
+**Status:** Closed as stale. No production behavior was removed.
 
 ### `internal/byok/{deepgram,openai_whisper}.go` streaming methods
 
@@ -1341,15 +1774,26 @@ unit-tested (needs real voices + the model).
 
 **Owner:** unassigned (operator calibration step).
 
-### Resource integration harness has a broken source path
+### Retained — speaker-verification Python test entrypoint needs an owner route (2026-11-21)
 
-**Symptom:** `resources/speaker-verification/test/integration-test.sh` fails at
-startup — `scripts/resources/common.sh` sources a missing
-`scripts/lib/service/repository.sh`. This is pre-existing shared-harness drift,
-not specific to this resource; the speaker contract itself is exercised by the
-in-image `python -m unittest` suites and live curl checks.
+**Disposition:** the old startup failure is obsolete as a current command. Its
+named `resources/speaker-verification/test/integration-test.sh` no longer
+exists, nor do the cited root-level `scripts/resources/common.sh` and
+`scripts/lib/service/repository.sh`; no other checked-in caller references the
+removed integration script. Do not file this as a current runtime failure.
 
-**Owner:** unassigned (shared resource-test harness).
+**Remaining gap:** the resource still has in-image Python suites at
+`test/test_vad.py` and `test/test_profiles.py`, but its `Makefile` `test` and
+`check` targets run only the Go CLI tests. The Python test modules document
+manual `python -m unittest` invocations and skip model-dependent cases when
+Torch is unavailable, but no current resource-owned command joins those suites
+to the normal quality gate.
+
+**Owner:** speaker-verification resource owner. **Next step:** add or select a
+supported resource-owned test operation that invokes the Python suites in the
+declared runtime and reports skipped model-dependent cases honestly; then
+verify that operation through the resource's normal lifecycle. Do not revive the
+removed generic shell path as an Audio Tools workaround.
 
 +### 2026-07-08 — Continuous-speech client-side auto-stop follow-up
 
@@ -1679,11 +2123,12 @@ also resolved. `SignStage` now computes directory tree digests rather than
 trying to read a service bundle as one regular file; the focused production
 verification regression passes.
 
-The scenario's monetization declaration gap is resolved for the current
-implementation boundary: `.vrooli/monetization.json` declares the hosted
-`ai_credits` Class-A meter and its real LPBS seams, with BYOK explicitly exempt
-from the hosted charge. The LPBS gateway remains disabled pending its endpoint
-implementation, so no hosted revenue readiness is claimed.
+The declaration now describes the current implementation boundary: the
+`ai_credits` Class-A meter is scoped to the LPBS summarization client, and BYOK
+is exempt from the hosted charge. The unsupported `voice_minutes` Class-B meter
+and nonexistent remote-reporter path were removed; the local analytics queue is
+not a durable billing outbox. Static monetization conformance passes, but hosted
+STT/TTS delivery and revenue readiness remain unproven.
 
 **Owner:** unassigned.
 
@@ -1849,27 +2294,39 @@ attempts in `docs/reference/eval-harness.md`.
 **Findings, in priority order:**
 
 1. **Engine discovery performs expensive work on session startup.**
-   `api/internal/sttengine/live.go` probes control-plane resource status and
-   acceleration sequentially, with a 10-second budget per probe and a
-   30-second cache. Both `handlers/stt/stream_ws.go` and the Connect/segmenter
-   path can await that resolver. Independent parallel diagnostic probes took
-   5.4–5.9 seconds for acceleration and 10.8–12.9 seconds for status on this
-   host. These are observations under current load, not model inference times.
+   At the time of this observation, `api/internal/sttengine/live.go` probed
+   control-plane resource status and acceleration sequentially, with a
+   10-second budget per probe and a 30-second cache. Both the WS and
+   Connect/segmenter paths could await that resolver. Independent parallel
+   diagnostic probes took 5.4–5.9 seconds for acceleration and 10.8–12.9
+   seconds for status on this host. These are observations under current load,
+   not model inference times.
    Move slow inventory refresh out of stream admission, coalesce refreshes,
    and use bounded provider liveness plus explicit snapshot freshness during
-   admission. Preserve platform and resource policy checks.
+   admission. Preserve platform and resource policy checks. On 2026-11-24,
+   stream admission was moved to `ResolveForAdmission`: cold/over-age inventory
+   now refreshes asynchronously and fails closed without waiting for the
+   control-plane timeout; fresh snapshots still receive bounded provider
+   liveness checks. `ListEngines` already uses provider liveness without
+   control-plane calls; synchronous `Resolve` remains for explicit inventory
+   reads. Race-enabled tests cover cold admission, stale-cache refresh,
+   selector/segmenter behavior, and Connect capacity accounting. The first
+   stream request can still receive a fast unavailable result while the initial
+   background snapshot is loading; browser-paced end-to-end timing and user
+   retry behavior remain unqualified.
 
 2. **Hosted audio routing is unfinished.**
-   `api/internal/bootstrap/providers.go` sets `EnableVrooli` but supplies no
-   Vrooli provider to the STT/TTS/summarize chains.
-   `api/integrations/lpbs/clients/stt_client.go` returns an unimplemented error;
-   its embedded availability implementation always returns false.
-   `api/internal/ai/sttchain/provider_vrooli.go` declares batch-only traits.
-   `api/integrations/lpbs/remote_reporter.go` is also a stub. Its success-shaped
-   return does not prove delivery or billing. Complete an authority-owned
-   streaming session with reserve/settle/cancel semantics before claiming
-   subscription or credit-funded voice readiness. LPBS must own cost-bearing
-   enforcement and idempotent settlement.
+   `api/internal/bootstrap/providers.go` composes Vrooli providers into the
+   STT/TTS/summarize chains, but the route remains disabled by default and
+   endpoint readiness is not established.
+   `api/integrations/lpbs/clients/stt_client.go` and `tts_client.go` return
+   unimplemented errors; their embedded availability implementation always
+   returns false. Summarization has a real LPBS feature request client, but the
+   local analytics recorder is not a shared billing reporter. The deleted
+   `remote_reporter.go` must not be restored as a success-shaped billing claim.
+   Complete the authority-owned STT/TTS delivery and any voice-session
+   reserve/settle/cancel contract before claiming hosted voice readiness. LPBS
+   must own cost-bearing enforcement and idempotent settlement.
 
 3. **Subscription fixtures exist, but are not an audio commercial E2E lane.**
    LPBS `api/fixture_handlers.go` implements seed/token/balance/zero endpoints;
@@ -1896,16 +2353,18 @@ attempts in `docs/reference/eval-harness.md`.
    Replace this qualification claim with measured audio duration, delivered
    intervals, transcript quality, and a terminal outcome for the full run.
 
-   The newer browser instrument also needs measurement corrections:
-   `internal/soak/driver.go::realtimeAssertion` compares the last first-partial
-   latency with the first times 1.2; consistently slow runs can pass, and one
-   sample passes trivially. Its `per_frame_cost_constant` assertion measures
-   captured-sample spread across turns, not processing cost. In
-   `packages/audio-capture-browser/src/streamDiagnostic.ts`, committed lag is
-   time since the latest capture callback, not the audio position actually
-   committed. Measure captured-versus-committed sample positions and rendered
-   text events. Start an additional clock at the user's click so permission,
-   capability probing, and connection delays remain visible.
+   The browser measurement corrections now cover the source-side gaps: the
+   realtime first-partial check enforces absolute p95/maximum bands, and the
+   `capture_callback_processing_budget` assertion records actual synchronous
+   callback processing against source audio duration and fails closed when
+   evidence is absent. Committed lag uses captured-versus-committed sample
+   positions, and visible update gaps are recorded after rendered revisions.
+   `startToCaptureReadyMs` now begins at the shared hook's start action and ends
+   when both the capture graph and stream-ready handshake exist, exposing
+   permission/setup/admission delay in realtime evidence. Direct provider users
+   fall back to provider-start timing and must not claim button-to-ready. These
+   are instrument and assertion fixes; native-device/browser cohorts still
+   need execution through the authorized admission workflow.
 
    LPBS `api/monetization_journey.go` returns literal success observations for
    several operations, including offline access and outbox exactly-once drain;
@@ -2048,7 +2507,7 @@ qualification receipts as external work; those entries remain historical.
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
 
-## Work ladder
+## Work ladder history
 
 Interpret these dated observations under the current `scenario-work-ladder`
 skill and [development grant model](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md).
@@ -2165,25 +2624,6 @@ not a product success or quality receipt.
 `api/internal/soak/driver.go`, `api/internal/soak/driver_test.go`.
 
 **Owner:** `execute/audio-tools-portable-voice-development`.
-
-### 2026-09-14 — Legacy experiment reports lacked provider identity
-
-The local experiment path was exercised after lifecycle restart and initially
-returned a successful clean-only report whose strategy row had empty
-`engine_id` and `model_id`. That made the measured WER unusable for any
-provider-neutral acceptance producer. Legacy strategy specs now resolve to the
-declared `whisper-local` engine and stamp the actual provider model (or the
-explicit `whisper-unknown` value) into every report row.
-
-Focused eval, report, acceptance and soak tests pass. A fresh live regression
-experiment `5358c131-7605-4480-92ce-bdbb14344a54` now reports
-`whisper-local`/`whisper-medium`/`vad_segment` with WER 0 for its one clean
-clip. This remains diagnostic: it is not a 60-utterance licensed held-out
-corpus, has no noisy cohorts, and does not produce an acceptance receipt.
-
-**Refs:** `api/internal/eval/runner.go`, `api/internal/eval/runner_test.go`.
-
-**Refs:** Archived items above (history retained in Swarm Manager).
 
 ### 2026-09-14 — Evidence envelope shape hardened
 
@@ -2860,7 +3300,31 @@ long-form quality-stability dip under repeated product sessions. Provider
 parity and the acceptance join remain unresolved until a fresh cohort meets
 the quality floor without exclusions.
 
-## 2026-11-19 — Audio response metadata is partly unimplemented
+## Resolved 2026-11-21 — Transcode WAV responses retained streaming size sentinels
+
+Bug inbox entry `knw-1793084571623423549` reported a WAV file whose RIFF and
+`data` lengths remained `0xffffffff` after Audio Tools wrote the response to a
+regular file. A one-second synthetic 48 kHz stereo WAV reproduced the bad
+geometry through `audio-tools audio transcode`: the file was 192,078 bytes, but
+Python's WAV reader inferred 1,073,741,823 frames and a duration over six hours.
+The report's expectation that the CLI default to 16 kHz mono is stale: current
+CLI help defines sample rate and channels as optional, with `0` meaning
+passthrough.
+
+Resolution: both WAV transcode paths now finalize the RIFF and `data` chunk
+lengths after ffmpeg captures its complete stdout. Other container formats keep
+their existing path. This is applied before duration probing and before the
+response returns to any caller.
+
+Verification: the focused `GOWORK=off go test ./internal/audio ./handlers/audio`
+passes, including a real-ffmpeg fixture that checks exact finite RIFF and data
+sizes. The pre-fix live CLI reproduction used a synthetic clip only. The
+Test Genie unit phase was canceled while its preflight waited on the shared
+proto package lock; no run ID was issued. The bug-inbox record remains open for
+its designated investigator to read back the owner fix. This evidence does not
+change the CLI's documented passthrough default.
+
+## Resolved 2026-11-20 — Audio response metadata is partly unimplemented
 
 `TranscodeResponse.duration_seconds`, `TrimResponse.duration_seconds`, and
 `MergeResponse.duration_seconds` are always zero, and
@@ -2871,12 +3335,307 @@ measurement.
 **Cause:** the handlers return transformed bytes without a post-transform
 probe, and Normalize does not parse `loudnorm`/`ebur128` output.
 
-**Why it was not fixed in this tranche:** populating the fields correctly costs
-an extra ffprobe per operation (or per merge source) and must degrade to
-"unknown" when ffprobe is absent. That is a deliberate latency/portability
-trade, not a one-line change.
+**Resolution:** transcode, trim, and merge now probe their encoded output once
+through the shared bounded ffprobe seam; they report zero when ffprobe is
+unavailable or cannot determine duration. Normalize uses the second-pass EBU
+R128 output measurement instead of echoing the target. The proto now documents
+zero as unknown for duration and measured loudness fields. Split chunks report
+their measured output duration when available.
 
-**Real fix:** either (a) probe the output once behind a bounded cache and
-document "0 = unknown", or (b) remove the fields rather than ship a value that
-looks measured. Until then, clients must not treat zero as a duration and must
-not display `measured_lufs` as a measurement.
+**Evidence:** `go test -race ./handlers/audio ./internal/audio` covers measured
+durations, missing-probe zero behavior, output-based duration, and measured
+LUFS distinct from the requested target. `api/handlers/audio/duration_test.go`,
+`api/handlers/audio/normalize_test.go`, and `api/internal/audio/loudness_test.go`
+are the focused regressions. Re-run the owning proto verifier after the comment
+change.
+
+## Work ladder
+
+- Rung: W3 — W0, W1, and W2 pass; product qualification and broad operational targets remain open.
+- W0 evidence: The operator-approved maturity mission requires desktop dictation parity, footprint-first declared model selection, advanced voice workflows, a $10 standalone-to-bundle journey, and cross-platform installation. The former PRD did not state those outcomes as operational targets. Business Health's wizard generated `portable-voice-v2` targets OT-P0-011 and OT-P1-005 through OT-P1-008. Existing earned PRD checkboxes and requirement evidence were preserved. The new desktop requirement uses ATD-P0-020 because ATD-P0-011 already covers OT-P0-006; requirement suffixes are independent of OT IDs.
+- W1 gate: `business-health validate scenario audio-tools` and `vrooli scenario requirements validate audio-tools` pass without findings after `test-genie requirements sync --dir scenarios/audio-tools --scenario audio-tools --command 'Test Genie unit run 20261122-010826-c409c4d7'` refreshed evidence.
+- W2 gate: `business-health matrix show audio-tools --format summary` shows all 29 requirements across 20 operational targets. `vrooli scenario requirements report audio-tools` shows 2 complete, 7 in progress, 20 planned, and zero unproven claims. Test Genie business run `20261121-003833-16b52ad4` passed at L3; latest W1/W2 validation has no stale-evidence warning.
+- W3 evidence: Test Genie unit run `20261122-010826-c409c4d7` passed at L2 in 70 seconds (61 observations). The scorecard retains 58 low-coverage advisories, and the completeness projection remains 2/29 requirements and 2/20 targets complete. This turn also passed race tests for `internal/stt/session` and `internal/soak`, CLI validation tests, and full Test Genie unit execution. Metadata-only session snapshots now omit audio/transcript payloads; an explicit trusted conformance snapshot preserves internal soak grading. Portability receipts require D1 CPU Whisper, D1 Kyutai accelerator identity/model, and D2 Sherpa identity. Speaker-policy orchestration tests found and fixed nil-response panic and restore-before-evidence defects. A supported `vrooli scenario restart audio-tools` rebuilt from source and returned healthy build identity `sha256:27fe0ee3ac83a27283df4bc5d5ece71afc27076d3a238458d16f7308891c209d`. Live product TTS synthesized valid 24 kHz mono WAV through Kale Nano in 927 ms. A structured product summary confirmed `qwen3:1.7b`, preserved six facts, and took 21.256 s; a post-request Ollama snapshot measured its resident size at 2.24 GB. The attached Sherpa Zipformer streamed the 3.125 s clip in 1,558 ms but recognized `route` as `root`; this smoke proves route execution only and is not quality qualification. Sherpa remains attach-only and unmanaged.
+- Remaining: No current comprehensive Audio Tools certification; desktop feature parity/usability, cloning rights and held-out qualification, TTS quality/release qualification, long-form timing references, cross-platform distribution, production duplex transport and durable spend controls, and standalone purchase/upgrade evidence remain open. Sherpa managed acquisition still lacks a reproducible matching signed release artifact: retained local stages do not reproduce the uncommitted `c8127175…` pin. Research Desk commission authorization remains pending.
+- Measured: 2026-11-22.
+
+## Resolved 2026-11-21 — Package leak checks reported the shared SQL opener
+
+Bug-inbox entry `knw-1794811974878872342` reported `goleak` failures in
+`internal/ai/sttchain` and `internal/stt/segmenter` for
+`database/sql.(*DB).connectionOpener`. The opener belongs to
+`api-core/database`'s package-initialized `foreignPinPool`, not a test-local DB
+in either package. The owner tests now treat that known dependency goroutine as
+process-lifetime (`IgnoreCurrent` for the sttchain baseline and an explicit
+connection-opener exclusion for segmenter) while retaining their package leak
+checks.
+
+Verification: `GOWORK=off go test ./internal/ai/sttchain ./internal/stt/segmenter
+-count=1` passes. Audio Tools Test Genie run `20261121-090845-3ffbe5ee` also
+reported its `unit` phase passed after the owner changes. The scenario-qa source
+record remains open for its paused designated investigator to read back; no
+source closure or team trigger was made by PT2.
+
+## Resolved 2026-11-21 — Shared PCM long-session recovery assertions
+
+Bug-inbox entry `knw-1794811952676210667` reported seven failures in the
+shared browser package's long-session recovery tests: absent recovery callbacks,
+terminal cleanup, `buffered_recovery`, and sent-cursor updates. The current
+package tests now cover these paths directly, including retained-audio recovery
+after socket close/empty final, journal cleanup after a committed terminal,
+recovery-status publication, sent cursors after wire admission, and buffered
+frames before socket open.
+
+Verification: `pnpm exec vitest run src/longSession.test.ts --reporter=dot`
+passes 31/31; the current package build passes, and its complete test suite
+passes 237/238 (one skipped). The package has other-owner uncommitted changes;
+PT2 did not modify it. The scenario-qa source record remains open for its paused
+designated investigator to read back. No source closure or package restart was
+performed by PT2.
+
+## Resolved 2026-11-21 — Shared voice boundary guard rejected its local transport adapter
+
+Test Genie run `20261121-131712-4e84d4c7` failed the UI coverage command with
+one failing test: `sharedImportGuard.test.ts` classified
+`ui/src/audio-integration/registerVoiceTransport.ts` as an unmarked fork. The
+file is an intentional scenario-local adapter: it delegates to the shared
+browser package and binds transport operations to Audio Tools RPC calls and
+retry policy. The adapter now carries the `HOST DIFFERENCE:` marker required by
+`ui/src/audio-integration/README.md`; runtime behavior is unchanged.
+
+Verification: the focused shared-boundary suite passes 6/6; the related voice
+API/configuration/capture/recorder selections pass 115/115; Audio Tools Test
+Genie unit run `20261121-132137-4910bff2` passes at L2. The preceding failed
+run's finding report was 1,132,461 B (one execution error plus 61 coverage
+warnings); the passing report is 1,083,581 B (zero execution errors, 61
+warnings). A direct `pnpm run test:coverage` reproduction before the marker
+change failed only `sharedImportGuard.test.ts` (1/133 files, 1/1,278 tests).
+
+Retained queue: current Test Genie still reports 61 LOW_COVERAGE advisories:
+25 API/Go paths, 26 CLI paths, and 10 UI paths. Route those to the Audio Tools
+API, CLI, and UI owners respectively; next step is to test the lowest-covered
+behavior at each owner rather than lower policy floors. A comparison with the
+11:40Z failed run shows 11 file advisories and one workspace metric no longer
+reported, but those changes predate this disposition in a concurrently dirty
+tree and have no established cause; they are not counted as PT2 resolutions.
+No source or bug-inbox records were closed.
+
+
+## Owner-verified Test Genie behavior batch — 2026-11-21
+
+Fresh unit run `20261121-132137-4910bff2` reported 61 LOW_COVERAGE advisories (25 API/Go, 26 CLI, 10 UI); this batch makes no progress claim for the earlier unexplained 72→61 change. The four clean owner paths selected were API `handlers/provider_lifecycle/module.go`, CLI `cli/domains/soak/handlers.go`, UI `ui/src/features/models/components/ModelsTable.tsx`, and UI `ui/src/features/admin/components/CopyableCommand.tsx`.
+
+The API module test mounts the generated Connect service and reads the local-provider registry over HTTP. The CLI now treats a run with zero assertions as unqualified; failed and unmeasured outcomes continue to fail. The ModelsTable test verifies accessible single-row expansion. CopyableCommand previously announced “Copied” when clipboard access was missing or `writeText` rejected; it now announces success only after the write resolves, with success/absent/rejected cases tested. Focused owner checks pass: API `GOWORK=off go test ./handlers/provider_lifecycle -run TestModuleMountsConnectServiceForLocalProviderRead -count=1`; CLI `GOWORK=off go test ./domains/soak -count=1`; UI `pnpm exec vitest run src/features/models/components/ModelsTable.test.tsx src/features/admin/components/CopyableCommand.test.tsx --reporter=dot` (4/4).
+
+Final Test Genie unit `20261121-135425-b5b8ea4f` passes L2 in 66 s. Findings artifact `artifact_2f6a70f05f4da5d4e92045fac39e65e2`, 1,079,668 B, SHA-256 `c2f7d60ffe0a68a661ca38abe741c131860f0ae7e78af329bc72b42ec72532c0`. The after inventory is 58 LOW_COVERAGE warnings (25 API/Go, 26 CLI, 7 UI) plus one informational `COVERAGE_COMMITMENT_BEHIND`. All three targeted file warnings (`provider_lifecycle/module.go`, `ModelsTable.tsx`, and `CopyableCommand.tsx`) no longer appear. The API count is net unchanged because `internal/stt/speaker/adapter.go` appears in the after report; the UI aggregate changed from warning to informational. Those replacement/category changes are not attributed to this batch. The soak handler remains open at 18.5% coverage.
+
+Sample audit of the three absent file findings matched each exact path to its added behavior test and passing owner suite. No canonical source/QA pointers, PROBLEMS issues, or bug-inbox records were closed. PROBLEMS measured 192,118→194252 B before this evidence-note rewrite; top-level issue bullets stayed 65, and no age-only closure occurred. The note grows the file further; final bytes are recorded in the PT2 checkpoint. No actual issue count or backlog-age improvement is claimed.
+
+## Resolved 2026-11-21 — Persisted entity measures and migration staging
+
+`measures-health validate scenario audio-tools --probe` passes at L3 with zero
+findings. Six real persisted domains have typed, full-tier count measures backed
+by owner repositories/stores: BYOK credential capabilities, corpus clips,
+experiment runs, experiments, speaker profiles, and wakeword templates. The
+measures-go registry and six CLI commands share the same aggregate semantics;
+counts use UTC `[from,to)` windows and expose no credential secret, embedding,
+phrase, identity, or audio payload. No new persistence was added.
+
+The former `byok_credentials_duplex` warning came from SQLite's temporary
+rebuild table, not an independently persisted entity. The migration now uses a
+transaction-local TEMP table, copies encrypted rows back into canonical
+`byok_credentials`, then drops staging. `go test ./internal/database` covers
+row preservation, idempotence, and rollback; measures-health no longer reports
+the staging table.
+
+Follow-up: `duplex_accounting_operations` is a real retained correlation
+journal, so it now has an aggregate-only `CountDuplexAccountingOperations`
+measure using the same UTC half-open creation window as the other persisted
+entity measures. The API, proto, CLI and command manifest are bound end to end;
+the count exposes no operation, account, provider or receipt details and does
+not read LPBS balances. Focused API/duplex and CLI measure tests, proto owner
+verification and `measures-health validate scenario audio-tools` pass with no
+findings. The repository package baseline remains red in six other dirty
+modules; see the 2026-11-21 checkpoint in `PROGRESS.md`.
+
+## Resolved 2026-11-21 — Buffered STT fallback cancellation terminal event
+
+Cancellation during buffered provider fallback previously emitted an error and
+closed without the promised terminal `Done`. Cancellation now takes priority
+over queued audio and emits `Error` followed by terminal `Done` with
+`terminal_reason=canceled`, so downstream stream consumers can close the turn
+consistently. The regression reproduces the old `[error]` event sequence and
+the focused stream, package, and race checks pass. This is a local stream
+contract fix; it does not qualify provider parity or long-session recovery.
+
+## Resolved 2026-11-23 — Duplex consent verifier redirects
+
+Gateway consent verification used the supplied HTTP client's default redirect
+policy. A 307/308 response could replay the request body, which contains an
+opaque consent receipt, to a different host. Both the fixed-URL and
+service-discovery verifier constructors now copy the supplied client and
+disable redirect following; the caller's shared client is unchanged. Fake
+servers verify fail-closed behavior and that neither constructor contacts a
+redirect target. `GOWORK=off go test -race -count=1 ./internal/duplex` passes.
+This protects the consent authority boundary; it does not qualify or enable
+GPT-Live.
+
+## Resolved 2026-11-23 — Managed Ollama residency policy reconciliation
+
+Managed-service start and restart previously resumed the private activity edge
+without reconciling resident-model TTLs against current Ollama policy. Models
+could therefore remain resident beyond their configured policy until another
+request arrived. Readiness now reconciles loaded models after health and
+placement checks and before resume. The reconciler uses each loaded model's
+capability to select the appropriate load-only endpoint and never loads models
+that are absent. If the edge is busy, reconciliation skips instead of draining
+in-flight work or deadlocking a request that is waking the backend. Focused
+race tests pass for the edge and runtime-profile code; the Ollama CLI tests
+pass. This is lifecycle policy behavior, not a measured memory reduction on a
+live host. The broader `internal/resources` package test remains unverified
+because the dirty shared tree contains unrelated undefined health-check names
+in `managed_update_admission_test.go`.
+
+## Resolved 2026-11-23 — Acceptance producers omitted provider-cell device identity
+
+The setpoint board requires the receipt's `provider_cell.device_profile` to
+match its top-level `device_profile`, as well as matching persisted engine,
+model, and strategy. The simulated and composite producers omitted the device
+field, so their otherwise valid target-aware claims were invisible. The Python
+board test helper had concealed this by injecting the missing field into every
+synthetic receipt. The simulation, composite join, speaker-policy, and
+host-portability envelopes now persist the provider-cell device identity; the
+test harness no longer changes input receipts. The focused producer tests and
+all 37 board tests pass. A fresh lab simulation receipt now resolves exactly
+the five rows it exercised. All other required rows remain unqualified, and
+overall acceptance remains unknown.
+
+## Resolved 2026-11-23 — Future processed cursor could erase replay audio
+
+`TurnJournal.acknowledgeProcessed` trusted every non-negative server cursor and
+removed all retained chunks at or below it. A future cursor could therefore
+delete captured audio that had never been assigned to or accepted by the
+server. The journal now rejects negative and future cursors before persistence
+or compaction. Regressions prove that an invalid cursor preserves the retained
+chunk and that a valid inclusive acknowledgement still compacts it. The shared
+capture package passes all 257 tests (one skipped) and its TypeScript build.
+The check protects replay accounting; paced browser SLO qualification remains
+open.
+
+## Resolved 2026-11-23 — Retained recovery could silently change STT destination
+
+Shared browser recovery sent retained audio through the ordinary tiered STT
+endpoint without carrying the streaming route. A local stream failure could
+therefore be retried through BYOK or an owned provider. Recovery now requires a
+known local tier and exact model ID, carries that ID through Audio Tools,
+Web Console, Swarm Manager, and Portal unary adapters, and fails before egress
+when the route is remote, unknown, or unsupported. Explicit model requests
+bypass default credential lookup/attachment and the server's explicit local
+route remains fail-closed if that model is unavailable. A refusal leaves the
+journal intact. Focused shared, consumer, and server regressions pass; browser
+mic/composer qualification and the wider feature matrix remain open.
+
+## Resolved 2026-11-23 — Moderate summary prompt rewarded dropping key facts
+
+The moderate prompt told the model to keep only the single most important
+conclusion and compress to 35% of source length. A live Audio Tools request
+using the compact Qwen3 1.7B role consequently omitted the pilot size and named
+owners from a short operational brief. A same-input quality-role control
+(Qwen3.5 4B) invented an invalid date, showing that a larger fallback alone is
+not a correctness guarantee. The prompt now explicitly protects names and
+responsibilities, dates, quantities, approvals, deadlines, risks, and
+contingencies, forbids invention, and removes repetition first. A direct
+resource-role probe preserved the controlled brief's facts within the then-
+current 90-token floor, with a complete stop; a 120-token follow-up produced
+the same output. The moderate short-input token floor is now 120 to provide
+generation headroom.
+
+**2026-11-23 refresh:** A separate 397-word synthetic report exposed a longer-
+input cap problem. With the fact-preserving prompt and a 210-token ceiling,
+Qwen3 1.7B returned `done_reason=length` mid-sentence. At the implemented
+341-token ceiling it stopped naturally after 259 tokens and retained the
+report's named owners, key dates and amounts, grant, staffing, refrigeration
+range, training date, and inspection contingency. A same-input, same-cap
+control with the previous single-conclusion prompt returned 144 tokens and
+omitted the named owners, generator deadline, and grant details. The moderate
+output budget now scales to 55% of estimated input tokens, with a 120-token
+floor and 2,048-token ceiling; light summaries use 65% of estimated input
+tokens with the same ceiling. This was a direct local
+model probe against a synthetic source, not an Audio Tools product request or
+held-out quality receipt. Product rebuild/restart, the original longer caller
+sample, quality-tier behavior, and human review remain unverified.
+
+**2026-11-23 refresh:** The already-running Sherpa attachment still serves
+streaming STT, but read-only TTS probes returned HTTP 503 from
+`/healthz/tts` (`tts_model_loaded:false`) and `/v1/audio/voices` (TTS model
+unavailable). The managed resource status remains `unsupported_platform` on
+Linux and `Installed=no`, `Running=no`. Do not claim a current Sherpa/Kokoro
+model-backed TTS route from contract tests; acquire the signed managed runtime
+or an authorized running attachment before attempting a live product receipt.
+
+## 2026-11-23 — Browser soak admission requires an Agent Manager run
+
+Test Genie run `20261123-082346-ccbab5b7` failed before starting the browser
+provider. Its `SOAK_CONFIGURATION_MISSING` finding names three required
+request-scoped receipts: one Agent Manager identity token, one BAS browser
+grant receipt, and one Test Genie lease receipt. The persisted phase result
+and findings report are artifacts `artifact_81eab706700791dd09da6e09a30f2902`
+and `artifact_8cbd6f7782fe5afa7e0678c25ed3c8d6`; no browser action or
+conformance artifact exists. A fresh `agent-manager run identity --json`
+returned `identity_refresh_unavailable`. The browser-agent-access skill
+requires an Agent Manager-owned run that injects the identity and grant; these
+receipts must not be fabricated or passed manually. This direct session has no
+Agent Manager/BAS integration to create that run context. Browser qualification
+remains unmeasured; use the supported Agent Manager run path when available.
+
+## 2026-11-23 — Soak CLI owner coverage and input parsing
+
+The soak CLI owner now has request-path tests for owner receipts, API
+preflight, flags, evidence export, and measured outcomes. Package coverage rose
+from 17.3% to 89.1%. These tests found that `positiveInt` rejected valid input
+with surrounding whitespace; the parser now trims before conversion. The
+unused clock injection was removed from the registration boundary. The full
+CLI race suite and `go vet ./...` pass. This closes the CLI test gap, not the
+separate missing Agent Manager/BAS/Test Genie receipts needed for browser
+qualification.
+
+## 2026-11-23 — UI tests read a stale shared-package install while Audio Tools is running
+
+After `packages/audio-capture-browser` built `dist/voice/audioCueSession.js`,
+`pnpm test` in the Audio Tools UI still resolved the local dependency copy under
+`ui/node_modules/.pnpm` that did not contain that module. UI type-check and lint
+pass. A temporary Vitest alias to the current package source passed all 136 UI
+files and 1,296 tests. The owner command
+`vrooli package refresh audio-capture-browser --no-restart` correctly returned
+`running_setup_deferred` because Audio Tools was live, so it did not install the
+new package snapshot into the consumer. No scenario was restarted and no live
+UI files were changed. Refresh the consumer during its next governed setup or
+restart, then rerun the ordinary UI test command.
+
+## 2026-11-23 — Sherpa readiness is backed by an unmanaged temporary listener
+
+Audio Tools currently selects Sherpa for native streaming and its health probe
+reports `sherpa-stt` available. The Vrooli `sherpa-onnx` resource manager
+reports Linux unsupported and the resource is not installed or running. The
+only listener on `127.0.0.1:8881` is PID 2557133,
+`/tmp/sherpa-bundle-refresh-20261121/server/sherpa-onnx-server`, in a Codex
+scope. Its `/healthz` reports the streaming model loaded. Product API replay
+against a short fixture succeeds through the Sherpa provider, confirming the
+live route works while that listener is present; no request-level PID tracing
+was added, so the connection between that process and the product response is
+strongly indicated by the sole listener and health result, not directly
+instrumented. This is not a supported, reproducible installation or browser
+qualification. Do not promote the unsigned temporary artifact by editing the
+resource manifest; the release-signed adapter publication gate remains open.
+
+## 2026-11-24 — Unfinished voice sessions now fail closed when recovery state is missing
+
+A retry could reuse an unfinished session identity while resetting the journal
+cursor to zero if restore failed or returned no durable snapshot. That could
+conflict with the server's advanced sequence ledger. The browser provider now
+preserves unfinished identities across preconnect and socket expiry, and refuses
+to capture/send until recovery state is available; the user receives an
+actionable error and the microphone/socket are released. Fresh identities keep
+the bounded in-memory fallback. Focused journal acceptance tests pass (19/19),
+including missing/rejected restore, restore gating, and socket reuse. This is
+source-level evidence; the shared lab runtime was not restarted.

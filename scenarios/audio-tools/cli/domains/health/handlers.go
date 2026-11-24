@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/vrooli/cli-core/cliapp"
 
@@ -34,21 +35,37 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 // show prints one snapshot of the provider rollup. --refresh forces a
 // bypass of the registry cache; --json switches to proto JSON.
 func (h *handlers) show(ctx cliapp.RunContext) error {
-	refresh := ctx.Flag("refresh") == "true"
+	return h.showPrimitive().Run(ctx)
+}
 
-	if refresh {
-		resp, err := h.client.RefreshProviderHealth(context.Background(), connect.NewRequest(&hsv1.RefreshProviderHealthRequest{}))
-		if err != nil {
-			return cliapp.WrapAPIError("health show --refresh", err, nil)
+type healthSnapshot struct {
+	payload proto.Message
+	report  cliapp.MutationReport
+}
+
+func (h *handlers) showPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ActionCustomRenderers(func(ctx cliapp.OperationContext) (healthSnapshot, error) {
+		if ctx.Flag("refresh") == "true" {
+			resp, err := h.client.RefreshProviderHealth(context.Background(), connect.NewRequest(&hsv1.RefreshProviderHealthRequest{}))
+			if err != nil {
+				return healthSnapshot{}, cliapp.WrapAPIError("health show --refresh", err, nil)
+			}
+			return healthSnapshot{payload: resp.Msg, report: mutationReport(resp.Msg.GetCapabilities(), resp.Msg.GetGeneratedAt(), resp.Msg.GetCacheTtlSeconds(), true)}, nil
 		}
-		return cliapp.RenderProtoMutation(ctx, resp.Msg, mutationReport(resp.Msg.GetCapabilities(), resp.Msg.GetGeneratedAt(), resp.Msg.GetCacheTtlSeconds(), true))
-	}
+		resp, err := h.client.GetProviderHealth(context.Background(), connect.NewRequest(&hsv1.GetProviderHealthRequest{}))
+		if err != nil {
+			return healthSnapshot{}, cliapp.WrapAPIError("health show", err, nil)
+		}
+		return healthSnapshot{payload: resp.Msg, report: mutationReport(resp.Msg.GetCapabilities(), resp.Msg.GetGeneratedAt(), resp.Msg.GetCacheTtlSeconds(), false)}, nil
+	}, renderHealthHuman, renderHealthJSON)
+}
 
-	resp, err := h.client.GetProviderHealth(context.Background(), connect.NewRequest(&hsv1.GetProviderHealthRequest{}))
-	if err != nil {
-		return cliapp.WrapAPIError("health show", err, nil)
-	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, mutationReport(resp.Msg.GetCapabilities(), resp.Msg.GetGeneratedAt(), resp.Msg.GetCacheTtlSeconds(), false))
+func renderHealthHuman(ctx cliapp.RunContext, snapshot healthSnapshot) error {
+	return ctx.RenderMutation(snapshot.report)
+}
+
+func renderHealthJSON(ctx cliapp.RunContext, snapshot healthSnapshot) error {
+	return cliapp.PrintProtoJSON(ctx.Stdout(), snapshot.payload)
 }
 
 // watch streams events from StreamProviderHealth until the user

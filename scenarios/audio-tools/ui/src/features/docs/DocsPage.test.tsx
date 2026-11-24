@@ -21,6 +21,8 @@ describe("DocsPage", () => {
       { withoutRouter: true },
     );
     expect(screen.getByText(strings.docs.title)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: strings.docs.title, level: 1 })).toBeInTheDocument();
+    expect(screen.getByTestId("navigation.page-header")).toHaveAttribute("data-rcl-page-header");
     expect(screen.getByText(strings.docs.groupPRD)).toBeInTheDocument();
     expect(screen.getByText(strings.docs.groupConcepts)).toBeInTheDocument();
     expect(screen.getByText(strings.docs.groupReference)).toBeInTheDocument();

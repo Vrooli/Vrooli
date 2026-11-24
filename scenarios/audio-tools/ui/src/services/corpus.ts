@@ -11,6 +11,7 @@ import { createClient } from "@connectrpc/connect";
 import {
   CorpusService,
   ClipSource,
+  NoiseCondition,
   type Clip,
 } from "@vrooli/proto-types/audio-tools/v1/corpus/corpus_pb";
 import {
@@ -29,16 +30,11 @@ import {
 } from "@vrooli/proto-types/audio-tools/v1/eval/eval_pb";
 
 import { transport } from "../api/client";
+import { timestampToISO } from "@vrooli/audio-capture-browser";
 
 const corpusClient = createClient(CorpusService, transport);
 
-export { ClipSource };
-
-function tsToISO(ts?: { seconds?: bigint | number; nanos?: number }): string {
-  if (!ts) return "";
-  const seconds = typeof ts.seconds === "bigint" ? Number(ts.seconds) : (ts.seconds ?? 0);
-  return new Date(seconds * 1000 + Math.floor((ts.nanos ?? 0) / 1_000_000)).toISOString();
-}
+export { ClipSource, NoiseCondition };
 
 export interface ClipMeta {
   id: string;
@@ -48,7 +44,16 @@ export interface ClipMeta {
   sampleRateHz: number;
   format: string;
   source: ClipSource;
+  corpusRevision: string;
+  sourceId: string;
+  accentGroup: string;
+  speakerPseudonym: string;
+  noiseCondition: string;
+  snrDb: number;
+  manifestTranscriptSha256: string;
+  lineageManifestSha256: string;
   createdAt: string;
+  referenceReview: { reviewer: string; protocol: string; reviewedAt: string; referenceSha256: string; reviewGroupId: string } | null;
 }
 
 function decodeClip(c: Clip): ClipMeta {
@@ -60,7 +65,16 @@ function decodeClip(c: Clip): ClipMeta {
     sampleRateHz: c.sampleRateHz,
     format: c.format,
     source: c.source,
-    createdAt: tsToISO(c.createdAt),
+    corpusRevision: c.corpusRevision,
+    sourceId: c.sourceId,
+    accentGroup: c.accentGroup,
+    speakerPseudonym: c.speakerPseudonym,
+    noiseCondition: c.noiseCondition === NoiseCondition.CLEAN ? "clean" : c.noiseCondition === NoiseCondition.NOISY ? "noisy" : "unspecified",
+    snrDb: c.snrDb,
+    manifestTranscriptSha256: c.manifestTranscriptSha256,
+    lineageManifestSha256: c.lineageManifestSha256,
+    createdAt: timestampToISO(c.createdAt),
+    referenceReview: c.referenceReview ? { reviewer: c.referenceReview.reviewer, protocol: c.referenceReview.protocol, reviewedAt: c.referenceReview.reviewedAt, referenceSha256: c.referenceReview.referenceSha256, reviewGroupId: c.referenceReview.reviewGroupId } : null,
   };
 }
 
@@ -110,6 +124,17 @@ export async function deleteClip(id: string): Promise<void> {
 export async function getClipAudio(id: string): Promise<{ audio: Uint8Array; clip: ClipMeta | null }> {
   const resp = await corpusClient.getClipAudio({ id });
   return { audio: resp.audio, clip: resp.clip ? decodeClip(resp.clip) : null };
+}
+
+export async function reviewReference(args: { id: string; expectedReferenceSha256: string; referenceText: string; reviewer: string; protocol: string }): Promise<ClipMeta> {
+  const resp = await corpusClient.reviewReference(args);
+  if (!resp.clip) throw new Error("review reference response missing clip");
+  return decodeClip(resp.clip);
+}
+
+export async function reviewReferenceGroup(args: { members: Array<{ id: string; expectedReferenceSha256: string }>; referenceText: string; reviewer: string; protocol: string }): Promise<{ clips: ClipMeta[]; affectedCount: number }> {
+  const resp = await corpusClient.reviewReferenceGroup(args);
+  return { clips: resp.clips.map(decodeClip), affectedCount: resp.affectedCount };
 }
 
 // =============================================================================

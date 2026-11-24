@@ -2,6 +2,7 @@ package tts
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"os"
@@ -99,7 +100,7 @@ func TestSynthesizeWritesOutFile(t *testing.T) {
 		},
 	})
 	h := newHandlers(app)
-	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "voice"}, {Name: "speed"}, {Name: "format"}, {Name: "out"}}}
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "voice"}, {Name: "speed"}, {Name: "format"}, {Name: "out"}, {Name: "json-metadata-only", Bool: true}}}
 	ctx, buf := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"text": "hello", "out": out},
 	})
@@ -110,6 +111,88 @@ func TestSynthesizeWritesOutFile(t *testing.T) {
 	require.Equal(t, []byte("MP3DATA"), got)
 	require.Contains(t, buf.String(), "Synthesized 7 bytes")
 	require.Contains(t, buf.String(), "local/kokoro")
+}
+
+func TestSynthesizeJSONIsValidProtoJSON(t *testing.T) {
+	app := mountTTS(t, &fakeSvc{
+		synth: func(_ *ttsv1.SynthesizeRequest) (*ttsv1.SynthesizeResponse, error) {
+			return &ttsv1.SynthesizeResponse{Audio: []byte("MP3DATA"), ContentType: "audio/mpeg"}, nil
+		},
+	})
+	h := newHandlers(app)
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "voice"}, {Name: "speed"}, {Name: "format"}, {Name: "out"}, {Name: "json-metadata-only", Bool: true}}}
+	ctx, buf := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"text": "hello"}, JSON: true,
+	})
+	require.NoError(t, h.synthesize(ctx))
+	var protoOutput map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &protoOutput))
+	require.Equal(t, "TVAzREFUQQ==", protoOutput["audio"])
+	require.Equal(t, "audio/mpeg", protoOutput["content_type"])
+}
+
+func TestSynthesizeJSONWithOutputFileKeepsProtoShape(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "out.wav")
+	app := mountTTS(t, &fakeSvc{
+		synth: func(_ *ttsv1.SynthesizeRequest) (*ttsv1.SynthesizeResponse, error) {
+			return &ttsv1.SynthesizeResponse{Audio: []byte("WAVDATA"), ContentType: "audio/wav"}, nil
+		},
+	})
+	h := newHandlers(app)
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "voice"}, {Name: "speed"}, {Name: "format"}, {Name: "out"}, {Name: "json-metadata-only", Bool: true}}}
+	ctx, buf := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"text": "hello", "out": out}, JSON: true,
+	})
+	require.NoError(t, h.synthesize(ctx))
+	got, err := os.ReadFile(out)
+	require.NoError(t, err)
+	require.Equal(t, []byte("WAVDATA"), got)
+	var protoOutput map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &protoOutput))
+	require.Equal(t, "V0FWREFUQQ==", protoOutput["audio"])
+	require.Equal(t, "audio/wav", protoOutput["content_type"])
+}
+
+func TestSynthesizeJSONMetadataOnlyWritesAudioAndOmitsBase64(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "out.wav")
+	app := mountTTS(t, &fakeSvc{
+		synth: func(_ *ttsv1.SynthesizeRequest) (*ttsv1.SynthesizeResponse, error) {
+			return &ttsv1.SynthesizeResponse{Audio: []byte("WAVDATA"), ContentType: "audio/wav"}, nil
+		},
+	})
+	h := newHandlers(app)
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "voice"}, {Name: "speed"}, {Name: "format"}, {Name: "out"}, {Name: "json-metadata-only", Bool: true}}}
+	ctx, buf := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"text": "hello", "out": out, "json-metadata-only": "true"}, JSON: true,
+	})
+	require.NoError(t, h.synthesize(ctx))
+
+	got, err := os.ReadFile(out)
+	require.NoError(t, err)
+	require.Equal(t, []byte("WAVDATA"), got)
+	var protoOutput map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &protoOutput))
+	require.NotContains(t, protoOutput, "audio")
+	require.Equal(t, "audio/wav", protoOutput["content_type"])
+}
+
+func TestSynthesizeJSONMetadataOnlyRequiresOutputFileBeforeRequest(t *testing.T) {
+	called := false
+	app := mountTTS(t, &fakeSvc{
+		synth: func(_ *ttsv1.SynthesizeRequest) (*ttsv1.SynthesizeResponse, error) {
+			called = true
+			return &ttsv1.SynthesizeResponse{Audio: []byte("WAVDATA"), ContentType: "audio/wav"}, nil
+		},
+	})
+	h := newHandlers(app)
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "voice"}, {Name: "speed"}, {Name: "format"}, {Name: "out"}, {Name: "json-metadata-only", Bool: true}}}
+	ctx, _ := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"text": "hello", "json-metadata-only": "true"}, JSON: true,
+	})
+	require.ErrorContains(t, h.synthesize(ctx), "--json-metadata-only requires --out")
+	require.False(t, called, "invalid output combination must fail before synthesis")
 }
 
 // Happy path: voices renders one bullet per canonical voice.
@@ -142,7 +225,7 @@ func TestSynthesizeProviderError(t *testing.T) {
 		},
 	})
 	h := newHandlers(app)
-	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "voice"}, {Name: "speed"}, {Name: "format"}, {Name: "out"}}}
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "voice"}, {Name: "speed"}, {Name: "format"}, {Name: "out"}, {Name: "json-metadata-only", Bool: true}}}
 	ctx, _ := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"text": "hi", "out": out},
 	})

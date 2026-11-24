@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 
@@ -17,11 +16,14 @@ import (
 	"github.com/vrooli/api-core/schedule"
 )
 
+const maxDeepgramResponseBytes = 32 << 20
+
 // DeepgramSTT calls Deepgram's /v1/listen endpoint. StreamEndpoint, if
 // set, overrides the default wss://api.deepgram.com URL used by
 // TranscribeStreaming — tests inject a vendorws.NewDeepgramServer URL
 // (rewritten ws:// → http://) so the real vendor is never dialed.
 type DeepgramSTT struct {
+	ProviderID     string
 	Endpoint       string
 	StreamEndpoint string
 	Doer           httpc.Doer
@@ -36,7 +38,12 @@ func NewDeepgramSTT() *DeepgramSTT {
 	}
 }
 
-func (a *DeepgramSTT) ID() string    { return "deepgram" }
+func (a *DeepgramSTT) ID() string {
+	if a.ProviderID != "" {
+		return a.ProviderID
+	}
+	return "deepgram"
+}
 func (a *DeepgramSTT) Model() string { return "nova-2" }
 
 func (a *DeepgramSTT) IsAvailable(ctx context.Context, key string) bool { return key != "" }
@@ -201,8 +208,12 @@ func (a *DeepgramSTT) Transcribe(ctx context.Context, key string, req sttchain.R
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
-		raw, _ := io.ReadAll(resp.Body)
+		raw, _ := readProviderResponse(resp.Body, maxProviderErrorBytes)
 		return nil, fmt.Errorf("deepgram: HTTP %d: %s", resp.StatusCode, truncate(string(raw), 256))
+	}
+	data, err := readProviderResponse(resp.Body, maxDeepgramResponseBytes)
+	if err != nil {
+		return nil, fmt.Errorf("deepgram: read response: %w", err)
 	}
 
 	var out struct {
@@ -218,7 +229,7 @@ func (a *DeepgramSTT) Transcribe(ctx context.Context, key string, req sttchain.R
 			Duration float64 `json:"duration"`
 		} `json:"metadata"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+	if err := json.Unmarshal(data, &out); err != nil {
 		return nil, fmt.Errorf("deepgram: decode response: %w", err)
 	}
 	text := ""

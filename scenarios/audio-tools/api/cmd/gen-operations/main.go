@@ -18,6 +18,7 @@ import (
 
 func main() {
 	out := flag.String("out", "", "output path (default: <scenario>/ui/src/features/diagnostics/audioOps.generated.ts)")
+	docsOut := flag.String("docs-out", "", "operation reference path (default: <scenario>/docs/reference/audio-operations.md)")
 	flag.Parse()
 
 	path := *out
@@ -45,6 +46,20 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Printf("wrote %s (%d bytes)\n", path, len(rendered))
+	docsPath := *docsOut
+	if docsPath == "" {
+		root, err := scenarioRoot()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "gen-operations: %v\n", err)
+			os.Exit(1)
+		}
+		docsPath = filepath.Join(root, "docs", "reference", "audio-operations.md")
+	}
+	if err := os.WriteFile(docsPath, operationcatalog.RenderReferenceMarkdown(catalog), 0o644); err != nil {
+		fmt.Fprintf(os.Stderr, "gen-operations: write %s: %v\n", docsPath, err)
+		os.Exit(1)
+	}
+	fmt.Printf("wrote %s\n", docsPath)
 }
 
 // scenarioRoot walks up from the working directory until it finds the

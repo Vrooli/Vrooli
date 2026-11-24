@@ -36,8 +36,7 @@ func TestWhisperConcurrencyBound(t *testing.T) {
 	defer srv.Close()
 
 	engine := audioformat.New(audioformat.WithFfmpegProbe(func() bool { return false }))
-	svc := NewService(Config{}, "", nil, "", SpeakerConfig{}, "", nil, nil,
-		&atomic.Int64{}, srv.URL+"/asr",
+	svc := NewWhisperTranscriber(nil, srv.URL+"/asr",
 		&http.Client{Timeout: 30 * time.Second, Transport: &http.Transport{DisableKeepAlives: true}}, engine)
 
 	const callers = DefaultWhisperConcurrency + 4

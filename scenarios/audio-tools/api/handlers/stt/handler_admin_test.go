@@ -223,12 +223,6 @@ func TestStreamCfgDoc_ToProtoAndDefaults(t *testing.T) {
 	require.Equal(t, int32(1200), p.GetVadSilenceMs())
 }
 
-func TestMinInt(t *testing.T) {
-	require.Equal(t, 1, minInt(1, 5))
-	require.Equal(t, 2, minInt(7, 2))
-	require.Equal(t, 3, minInt(3, 3))
-}
-
 func TestValidateStreamingLevers(t *testing.T) {
 	require.NoError(t, validateStreamingLevers(streamCfgDoc{}))
 	require.NoError(t, validateStreamingLevers(streamCfgDoc{

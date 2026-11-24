@@ -84,8 +84,13 @@ replace, the following functional cases:
    recovery path. Normal deployments ignore those URL parameters because they
    never have an active routed-isolation lease. The server seam now accepts all
    eleven rubric names, and `handlers/stt` integration tests exercise each
-   named trigger after binary audio ingestion. The remaining product-path
-   work is to execute the full matrix under an active routed-isolation lease;
+   named trigger after binary audio ingestion. A passing fault profile now
+   also needs a passing `browser_product_path` row with the same persisted
+   artifact reference and provider cell; a fault-only row or a browser run
+   from another attempt remains unqualified. This prevents a collected matrix
+   from joining distinct runs into a synthetic product-path pass. The
+   remaining product-path work is to execute the full matrix under an active
+   routed-isolation lease;
    direct persisted-workflow executions on 2026-08-09 lacked that lease and
    therefore correctly ignored the test-only faults. Those runs are not
    promotion evidence. Muted/ended track coverage remains browser-package

@@ -259,6 +259,37 @@ func TestDiskRegistryRestoresReplayAfterProcessRestart(t *testing.T) {
 	}
 }
 
+func TestRegistryRejectsSessionIDsWithHostPathSeparators(t *testing.T) {
+	registry := NewRegistry(8)
+	tests := []struct {
+		name      string
+		sessionID string
+	}{
+		{name: "forward slash path", sessionID: "../outside"},
+		{name: "backslash path", sessionID: `..\outside`},
+		{name: "absolute forward slash", sessionID: "/absolute"},
+		{name: "absolute backslash", sessionID: `\absolute`},
+		{name: "leading or trailing whitespace", sessionID: " padded "},
+		{name: "whitespace only", sessionID: " "},
+		{name: "Windows alternate data stream", sessionID: "session:stream"},
+		{name: "Windows forbidden filename character", sessionID: `session?one`},
+		{name: "Windows reserved device name", sessionID: "CON"},
+		{name: "Windows reserved device name with extension", sessionID: "nul.json"},
+		{name: "Windows trailing dot normalization", sessionID: "session."},
+		{name: "control character", sessionID: "session\x1fone"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, _, err := registry.Open(test.sessionID, "token"); err == nil {
+				t.Fatalf("Open accepted unsafe session ID %q", test.sessionID)
+			}
+			if err := registry.Remove(test.sessionID); err == nil {
+				t.Fatalf("Remove accepted unsafe session ID %q", test.sessionID)
+			}
+		})
+	}
+}
+
 func TestDiskRegistryRemovesTerminalSessionAndReplaySpool(t *testing.T) {
 	dir := t.TempDir()
 	registry, err := NewDiskRegistry(dir, 8)

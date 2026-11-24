@@ -3,6 +3,7 @@ package sttchain
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"audio-tools/internal/ai/chains/tiered"
 )
@@ -22,22 +23,22 @@ func (c *Chain) StreamCandidates(ctx context.Context, start StreamStart) []Provi
 			out = append(out, local)
 		}
 	}
-	if c.localFirst {
-		appendLocal()
-	}
-	if c.byok != nil && c.Eligible(ctx, tiered.SlotBYOK, req) {
-		out = append(out, c.byok)
-	}
-	if c.vrooli != nil && c.Eligible(ctx, tiered.SlotVrooli, req) {
-		out = append(out, c.vrooli)
-	}
-	// Local tier: resolve the engine-specific provider (Whisper vs Kyutai)
-	// from StreamStart.EngineID, then gate on its own availability. The
-	// embedded coordinator's SlotLocal eligibility only knows about Whisper,
-	// so the resolved provider's IsAvailable is the authority on the
-	// streaming path.
-	if !c.localFirst {
-		appendLocal()
+	for _, slot := range tiered.Order(c.localFirst) {
+		switch slot {
+		case tiered.SlotLocal:
+			// Resolve the engine-specific provider (Whisper vs Kyutai), then
+			// use that provider's availability; the coordinator knows only
+			// the unary Whisper provider.
+			appendLocal()
+		case tiered.SlotBYOK:
+			if c.byok != nil && c.Eligible(ctx, slot, req) {
+				out = append(out, c.byok)
+			}
+		case tiered.SlotVrooli:
+			if c.vrooli != nil && c.Eligible(ctx, slot, req) {
+				out = append(out, c.vrooli)
+			}
+		}
 	}
 	return out
 }
@@ -107,24 +108,22 @@ func (c *Chain) Stream(ctx context.Context, start StreamStart, chunks <-chan Aud
 		return nil, nil
 	}
 
-	if c.localFirst {
-		if out, err := attemptLocal(); out != nil || err != nil {
-			return out, err
+	for _, slot := range tiered.Order(c.localFirst) {
+		var out <-chan StreamEvent
+		var err error
+		switch slot {
+		case tiered.SlotLocal:
+			out, err = attemptLocal()
+		case tiered.SlotBYOK:
+			if c.byok != nil {
+				out, err = c.attemptRemoteStream(ctx, slot, c.byok, req, start, chunks)
+			}
+		case tiered.SlotVrooli:
+			if c.vrooli != nil {
+				out, err = c.attemptRemoteStream(ctx, slot, c.vrooli, req, start, chunks)
+			}
 		}
-	}
-
-	if c.byok != nil {
-		if out, err := c.attemptRemoteStream(ctx, tiered.SlotBYOK, c.byok, req, start, chunks); out != nil || err != nil {
-			return out, err
-		}
-	}
-	if c.vrooli != nil {
-		if out, err := c.attemptRemoteStream(ctx, tiered.SlotVrooli, c.vrooli, req, start, chunks); out != nil || err != nil {
-			return out, err
-		}
-	}
-	if !c.localFirst {
-		if out, err := attemptLocal(); out != nil || err != nil {
+		if out != nil || err != nil {
 			return out, err
 		}
 	}
@@ -172,9 +171,24 @@ func (c *Chain) bufferedFallback(ctx context.Context, start StreamStart, chunks 
 		defer close(out)
 		var buf []byte
 		for {
+			// Prefer cancellation over queued audio. The select below handles
+			// cancellation that races with a receive; this pre-check prevents a
+			// ready producer from delaying cancellation across multiple chunks.
+			if err := ctx.Err(); err != nil {
+				out <- StreamEvent{Kind: StreamEventError, Error: err}
+				out <- StreamEvent{Kind: StreamEventDone, Done: &DoneEvent{
+					FellBackToUnary: true,
+					TerminalReason:  "canceled",
+				}}
+				return
+			}
 			select {
 			case <-ctx.Done():
 				out <- StreamEvent{Kind: StreamEventError, Error: ctx.Err()}
+				out <- StreamEvent{Kind: StreamEventDone, Done: &DoneEvent{
+					FellBackToUnary: true,
+					TerminalReason:  "canceled",
+				}}
 				return
 			case ch, ok := <-chunks:
 				if !ok {
@@ -202,18 +216,19 @@ func (c *Chain) bufferedFallback(ctx context.Context, start StreamStart, chunks 
 		}
 		out <- StreamEvent{Kind: StreamEventSegment, Segment: &SegmentEvent{
 			Text:             res.Text,
+			Words:            append([]TimedWord(nil), res.Words...),
 			DetectedLanguage: res.DetectedLanguage,
 			ProviderTier:     res.Tier,
 			ProviderID:       res.ProviderID,
 			ModelID:          res.ModelID,
-			LatencyMs:        float64(res.Latency.Milliseconds()),
+			LatencyMs:        float64(res.Latency) / float64(time.Millisecond),
 		}}
 		out <- StreamEvent{Kind: StreamEventDone, Done: &DoneEvent{
 			FinalText:       res.Text,
 			LockedTier:      res.Tier,
 			ProviderID:      res.ProviderID,
 			ModelID:         res.ModelID,
-			LatencyMs:       float64(res.Latency.Milliseconds()),
+			LatencyMs:       float64(res.Latency) / float64(time.Millisecond),
 			FellBackToUnary: true,
 		}}
 	}()

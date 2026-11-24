@@ -10,9 +10,11 @@ import (
 	"fmt"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	"audio-tools/internal/protomap"
 	sttpkg "audio-tools/internal/stt"
+	"audio-tools/internal/sttengine"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
 )
@@ -72,16 +74,40 @@ func (h *connectHandler) resolveStreamPipelineConfig(ctx context.Context) sttpkg
 }
 
 func validateStreamingLevers(d streamCfgDoc) error {
-	switch d.StreamingMode {
+	if err := validateStreamingMode(d.StreamingMode); err != nil {
+		return err
+	}
+	if err := validateStrategyPreference(d.StrategyPreference); err != nil {
+		return err
+	}
+	if err := validateStreamingTiming(d); err != nil {
+		return err
+	}
+	if err := validateOverlapStallRejects(d.OverlapMaxStallRejects); err != nil {
+		return err
+	}
+	return validateEgressThresholds(d.NoSpeechThreshold, d.LogProbThreshold)
+}
+
+func validateStreamingMode(mode string) error {
+	switch mode {
 	case "", "auto", "off":
+		return nil
 	default:
-		return fmt.Errorf("streaming_mode must be \"auto\" or \"off\", got %q", d.StreamingMode)
+		return fmt.Errorf("streaming_mode must be \"auto\" or \"off\", got %q", mode)
 	}
-	switch d.StrategyPreference {
+}
+
+func validateStrategyPreference(preference string) error {
+	switch preference {
 	case "", "auto", "vad", "overlap", "passthrough":
+		return nil
 	default:
-		return fmt.Errorf("strategy_preference must be one of auto|vad|overlap|passthrough, got %q", d.StrategyPreference)
+		return fmt.Errorf("strategy_preference must be one of auto|vad|overlap|passthrough, got %q", preference)
 	}
+}
+
+func validateStreamingTiming(d streamCfgDoc) error {
 	if d.VadSilenceMs != 0 && (d.VadSilenceMs < 200 || d.VadSilenceMs > 3000) {
 		return fmt.Errorf("vad_silence_ms must be in [200, 3000], got %d", d.VadSilenceMs)
 	}
@@ -91,20 +117,28 @@ func validateStreamingLevers(d streamCfgDoc) error {
 	if d.OverlapCommitRuns != 0 && (d.OverlapCommitRuns < 2 || d.OverlapCommitRuns > 4) {
 		return fmt.Errorf("overlap_commit_runs must be in [2, 4], got %d", d.OverlapCommitRuns)
 	}
+	return nil
+}
+
+func validateOverlapStallRejects(value *int32) error {
 	// overlap_max_stall_rejects: presence-tracked. 0 is a valid setting
 	// (disables the fallback); the active operator range is [1,10]. A nil
 	// pointer (absent) is fine — it backfills to the default.
-	if d.OverlapMaxStallRejects != nil && (*d.OverlapMaxStallRejects < 0 || *d.OverlapMaxStallRejects > 10) {
-		return fmt.Errorf("overlap_max_stall_rejects must be in [0, 10] (0 disables), got %d", *d.OverlapMaxStallRejects)
+	if value != nil && (*value < 0 || *value > 10) {
+		return fmt.Errorf("overlap_max_stall_rejects must be in [0, 10] (0 disables), got %d", *value)
 	}
+	return nil
+}
+
+func validateEgressThresholds(noSpeech, logProb float64) error {
 	// Egress-gate thresholds: 0 means "use default" (backfilled), so only
 	// non-zero values are range-checked. no_speech_prob is a probability;
 	// avg_logprob is negative (log of a probability).
-	if d.NoSpeechThreshold != 0 && (d.NoSpeechThreshold < 0 || d.NoSpeechThreshold > 1) {
-		return fmt.Errorf("no_speech_threshold must be in (0, 1], got %f", d.NoSpeechThreshold)
+	if noSpeech != 0 && (noSpeech < 0 || noSpeech > 1) {
+		return fmt.Errorf("no_speech_threshold must be in (0, 1], got %f", noSpeech)
 	}
-	if d.LogProbThreshold != 0 && (d.LogProbThreshold < -10 || d.LogProbThreshold > 0) {
-		return fmt.Errorf("logprob_threshold must be in [-10, 0), got %f", d.LogProbThreshold)
+	if logProb != 0 && (logProb < -10 || logProb > 0) {
+		return fmt.Errorf("logprob_threshold must be in [-10, 0), got %f", logProb)
 	}
 	return nil
 }
@@ -138,6 +172,12 @@ func (h *connectHandler) loadStreamCfg(ctx context.Context) (streamCfgDoc, error
 // timing levers are restored.
 func backfillStreamCfgDefaults(d streamCfgDoc) streamCfgDoc {
 	def := defaultStreamCfg()
+	d = backfillLegacyStreamCfgDefaults(d, def)
+	d = backfillStreamingStreamCfgDefaults(d, def)
+	return backfillEgressStreamCfgDefaults(d, def)
+}
+
+func backfillLegacyStreamCfgDefaults(d, def streamCfgDoc) streamCfgDoc {
 	if d.FlushIntervalMs == 0 {
 		d.FlushIntervalMs = def.FlushIntervalMs
 	}
@@ -153,6 +193,10 @@ func backfillStreamCfgDefaults(d streamCfgDoc) streamCfgDoc {
 	if d.SegmentSilenceMs == 0 {
 		d.SegmentSilenceMs = def.SegmentSilenceMs
 	}
+	return d
+}
+
+func backfillStreamingStreamCfgDefaults(d, def streamCfgDoc) streamCfgDoc {
 	if d.StreamingMode == "" {
 		d.StreamingMode = def.StreamingMode
 	}
@@ -173,6 +217,10 @@ func backfillStreamCfgDefaults(d streamCfgDoc) streamCfgDoc {
 	if d.OverlapMaxStallRejects == nil {
 		d.OverlapMaxStallRejects = def.OverlapMaxStallRejects
 	}
+	return d
+}
+
+func backfillEgressStreamCfgDefaults(d, def streamCfgDoc) streamCfgDoc {
 	// Egress-gate levers. The *bool toggles backfill via presence (nil =
 	// absent → default true); the thresholds backfill zero → default.
 	if d.HallucinationFilterEnabled == nil {
@@ -227,13 +275,44 @@ func (h *connectHandler) UpdateStreamConfig(ctx context.Context, req *connect.Re
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	mask := req.Msg.GetUpdateMask()
+	if err := validateStreamConfigUpdateMask(mask); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if err := applyStreamConfigUpdate(&d, req.Msg.GetConfig(), mask, h.deps.Registry); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if err := validateStreamingLevers(d); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if h.deps.StreamConfig != nil {
+		raw, _ := json.Marshal(d)
+		if err := h.deps.StreamConfig.Set(ctx, string(raw)); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+	}
+	return connect.NewResponse(&sttv1.UpdateStreamConfigResponse{Config: d.toProto()}), nil
+}
+
+func validateStreamConfigUpdateMask(mask *fieldmaskpb.FieldMask) error {
 	if mask == nil || len(mask.GetPaths()) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("update_mask required"))
+		return errors.New("update_mask required")
 	}
 	if bad := protomap.MaskPathsOutsideAllowed(mask, streamConfigAllowedPaths); len(bad) > 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown update_mask paths: %v", bad))
+		return fmt.Errorf("unknown update_mask paths: %v", bad)
 	}
-	cfg := req.Msg.GetConfig()
+	return nil
+}
+
+func applyStreamConfigUpdate(d *streamCfgDoc, cfg *sttv1.StreamConfig, mask *fieldmaskpb.FieldMask, registry *sttengine.Registry) error {
+	applyLegacyStreamConfigUpdate(d, cfg, mask)
+	if err := applyPipelineStreamConfigUpdate(d, cfg, mask, registry); err != nil {
+		return err
+	}
+	applyEgressStreamConfigUpdate(d, cfg, mask)
+	return nil
+}
+
+func applyLegacyStreamConfigUpdate(d *streamCfgDoc, cfg *sttv1.StreamConfig, mask *fieldmaskpb.FieldMask) {
 	if protomap.MaskHas(mask, "flush_interval_ms") {
 		d.FlushIntervalMs = cfg.GetFlushIntervalMs()
 	}
@@ -255,6 +334,9 @@ func (h *connectHandler) UpdateStreamConfig(ctx context.Context, req *connect.Re
 	if protomap.MaskHas(mask, "segment_silence_ms") {
 		d.SegmentSilenceMs = cfg.GetSegmentSilenceMs()
 	}
+}
+
+func applyPipelineStreamConfigUpdate(d *streamCfgDoc, cfg *sttv1.StreamConfig, mask *fieldmaskpb.FieldMask, registry *sttengine.Registry) error {
 	if protomap.MaskHas(mask, "streaming_mode") {
 		d.StreamingMode = protomap.StreamingModeFromProto(cfg.GetStreamingMode())
 	}
@@ -263,9 +345,9 @@ func (h *connectHandler) UpdateStreamConfig(ctx context.Context, req *connect.Re
 	}
 	if protomap.MaskHas(mask, "engine_id") {
 		engineID := cfg.GetEngineId()
-		if engineID != "" && h.deps.Registry != nil {
-			if _, ok := h.deps.Registry.Engine(engineID); !ok {
-				return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown engine_id %q (see ListEngines)", engineID))
+		if engineID != "" && registry != nil {
+			if _, ok := registry.Engine(engineID); !ok {
+				return fmt.Errorf("unknown engine_id %q (see ListEngines)", engineID)
 			}
 		}
 		d.EngineID = engineID
@@ -284,6 +366,10 @@ func (h *connectHandler) UpdateStreamConfig(ctx context.Context, req *connect.Re
 		// disabled) so it survives backfill on the next load.
 		d.OverlapMaxStallRejects = int32Ptr(cfg.GetOverlapMaxStallRejects())
 	}
+	return nil
+}
+
+func applyEgressStreamConfigUpdate(d *streamCfgDoc, cfg *sttv1.StreamConfig, mask *fieldmaskpb.FieldMask) {
 	if protomap.MaskHas(mask, "hallucination_filter_enabled") {
 		d.HallucinationFilterEnabled = boolPtr(cfg.GetHallucinationFilterEnabled())
 	}
@@ -299,14 +385,4 @@ func (h *connectHandler) UpdateStreamConfig(ctx context.Context, req *connect.Re
 	if protomap.MaskHas(mask, "denoise_enabled") {
 		d.DenoiseEnabled = cfg.GetDenoiseEnabled()
 	}
-	if err := validateStreamingLevers(d); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	if h.deps.StreamConfig != nil {
-		raw, _ := json.Marshal(d)
-		if err := h.deps.StreamConfig.Set(ctx, string(raw)); err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-	}
-	return connect.NewResponse(&sttv1.UpdateStreamConfigResponse{Config: d.toProto()}), nil
 }

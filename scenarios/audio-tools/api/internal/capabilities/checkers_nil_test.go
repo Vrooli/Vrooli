@@ -19,7 +19,7 @@ func TestCheckersWithoutDoerAreUnknownNotPanics(t *testing.T) {
 		"whisper":    &capabilities.WhisperChecker{BaseURL: "http://127.0.0.1:1"},
 		"kokoro":     &capabilities.KokoroChecker{BaseURL: "http://127.0.0.1:1"},
 		"ollama":     &capabilities.OllamaChecker{BaseURL: "http://127.0.0.1:1"},
-		"openrouter": &capabilities.OpenRouterChecker{BaseURL: "http://127.0.0.1:1", APIKey: "x"},
+		"openrouter": &capabilities.BYOKCredentialChecker{ProviderID: "openrouter", Capability: "summarize"},
 	}
 	for name, checker := range checkers {
 		t.Run(name, func(t *testing.T) {

@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 // Package validation exposes the audio-tools product qualification as a
 // Test Genie validation-provider phase. The provider owns the browser soak;
 // Test Genie owns only phase orchestration and verdict transport.
@@ -205,7 +207,17 @@ func (h *handler) managedExecutionContext(ctx context.Context, headers http.Head
 	grant, hasGrant := exactlyOneHeader(headers, "X-Vrooli-Browser-Grant-Receipt")
 	lease, hasLease := exactlyOneHeader(headers, "X-Test-Genie-Lease-Receipt")
 	if !hasIdentity || !hasGrant || !hasLease {
-		return ctx, errors.New("soak requires one verified run identity, browser grant, and Test Genie lease receipt")
+		missing := make([]string, 0, 3)
+		if !hasIdentity {
+			missing = append(missing, "exactly one Agent Manager identity token")
+		}
+		if !hasGrant {
+			missing = append(missing, "exactly one BAS browser grant receipt")
+		}
+		if !hasLease {
+			missing = append(missing, "exactly one Test Genie lease receipt")
+		}
+		return ctx, fmt.Errorf("soak is missing %s", strings.Join(missing, ", "))
 	}
 	testGenieURL := firstNonEmpty(os.Getenv("TEST_GENIE_API_URL"), os.Getenv("TEST_GENIE_URL"))
 	if testGenieURL == "" {

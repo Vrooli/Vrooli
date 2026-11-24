@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { Panel } from "../../components/ui/panel";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
-import { PageHeader } from "../../components/composites/PageHeader";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { ApiErrorState } from "../../components/composites/ApiErrorState";
 import { LoadingRows } from "../../components/composites/LoadingRows";
 import { fetchHealth } from "../../api/health";

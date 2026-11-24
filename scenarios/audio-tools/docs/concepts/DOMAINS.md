@@ -1,6 +1,6 @@
 # Domains — Audio Tools
 
-The target links below use PRD `portable-voice-v1` (2026-09-09), not the retired
+The target links below use PRD `portable-voice-v2` (2026-11-21), not the retired
 pre-dictation numbering. They express obligations, not current completion. Shared
 consumer adoption, hosted delivery and platform support require the evidence in
 [TESTING.md](../internal/TESTING.md); see [INTEGRATIONS.md](INTEGRATIONS.md) for

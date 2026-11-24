@@ -5,6 +5,9 @@ import type { ProviderTrace } from "../../../services/diagnostics";
 import { useTranslation } from "../../../i18n";
 import { strings } from "../../../consts/strings";
 import { useMicPermission } from "../useMicPermission";
+import { registerVoiceTransport } from "../../../audio-integration/registerVoiceTransport";
+
+registerVoiceTransport();
 
 interface Props {
   onTrace: (t: ProviderTrace) => void;

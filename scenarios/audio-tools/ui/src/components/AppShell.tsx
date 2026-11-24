@@ -3,8 +3,8 @@ import {
   type AppShellLinkProps,
   type AppShellNavItem,
 } from "@vrooli/react-component-library/AppShell/2";
+import { lazy, Suspense, useState } from "react";
 import { Settings } from "lucide-react";
-import { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
@@ -12,7 +12,10 @@ import { useTranslation } from "../i18n";
 import { strings } from "../consts/strings";
 import { NAV_ITEMS } from "./shell/nav-items";
 import { ServiceStatusPill } from "./shell/ServiceStatusPill";
-import { SettingsDrawer } from "./shell/SettingsDrawer";
+
+const SettingsDrawer = lazy(() =>
+  import("./shell/SettingsDrawer").then((module) => ({ default: module.SettingsDrawer })),
+);
 
 const SIDEBAR_STORAGE = "audio-tools.sidebar.width.v1";
 
@@ -99,7 +102,17 @@ export function AppShell() {
           <Outlet />
         </main>
       </LibraryAppShell>
-      <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      {settingsOpen ? (
+        <Suspense
+          fallback={
+            <div role="status" aria-label={t(strings.common.loading)} className="sr-only">
+              {t(strings.common.loading)}
+            </div>
+          }
+        >
+          <SettingsDrawer open onClose={() => setSettingsOpen(false)} />
+        </Suspense>
+      ) : null}
     </>
   );
 }

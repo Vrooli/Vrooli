@@ -3,7 +3,9 @@ package usagereport
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"log"
+	"sync"
 	"testing"
 	"time"
 
@@ -116,4 +118,36 @@ func TestAsyncRecorder_CloseDrainsPending(t *testing.T) {
 	rows, err := repo.ListRecent(context.Background(), time.Now().Add(-1*time.Hour), 100, "", "")
 	require.NoError(t, err)
 	require.Len(t, rows, 10)
+}
+
+func TestAsyncRecorder_ConcurrentEnqueueAndCloseIsSafe(t *testing.T) {
+	d := newSchemaDB(t)
+	repo := store.NewUsageStore(d)
+	r := New(repo, logx.Std{L: log.New(&bytes.Buffer{}, "", 0)})
+
+	const producers = 8
+	const rowsPerProducer = 100
+	start := make(chan struct{})
+	var producersWG sync.WaitGroup
+	producersWG.Add(producers)
+	for producer := 0; producer < producers; producer++ {
+		go func(producer int) {
+			defer producersWG.Done()
+			<-start
+			for row := 0; row < rowsPerProducer; row++ {
+				r.Enqueue(store.UsageRow{OperationID: fmt.Sprintf("close-race-%d-%d", producer, row), Capability: "stt"})
+			}
+		}(producer)
+	}
+
+	close(start)
+	r.Close()
+	producersWG.Wait()
+	r.Close() // repeated shutdown is safe
+
+	stats := r.Stats()
+	rows, err := repo.ListRecent(context.Background(), time.Now().Add(-time.Hour), producers*rowsPerProducer, "", "")
+	require.NoError(t, err)
+	require.Len(t, rows, int(stats.EnqueuedTotal), "every accepted row must drain before Close returns")
+	require.Equal(t, uint64(producers*rowsPerProducer), stats.EnqueuedTotal+stats.DroppedTotal)
 }

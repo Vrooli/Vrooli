@@ -2,6 +2,7 @@ package providercatalog_test
 
 import (
 	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 
@@ -14,8 +15,117 @@ func TestEmbeddedCatalogLoads(t *testing.T) {
 	reg := providercatalog.Default()
 	require.NotNil(t, reg)
 	require.Equal(t, "1.0.0", reg.SchemaVersion())
-	require.Len(t, reg.All(), 19)
+	require.NotEmpty(t, reg.All())
 	require.Len(t, reg.Active(), 15)
+}
+
+func TestProviderSeedRejectsDuplicatedModelFacts(t *testing.T) {
+	provider := baseProvider()
+	provider["models"] = []string{"whisper-medium"}
+	raw, err := json.Marshal(map[string]any{"schema_version": "1.0.0", "providers": []any{provider}})
+	require.NoError(t, err)
+	_, err = providercatalog.LoadBytes(raw)
+	require.ErrorContains(t, err, "unknown field \"models\"")
+}
+
+func TestProviderHealthDeclarationValidation(t *testing.T) {
+	readSeed := func() map[string]any {
+		raw, err := os.ReadFile("catalog.seed.json")
+		require.NoError(t, err)
+		var doc map[string]any
+		require.NoError(t, json.Unmarshal(raw, &doc))
+		return doc
+	}
+	providerIn := func(doc map[string]any, id string) map[string]any {
+		for _, value := range doc["providers"].([]any) {
+			provider := value.(map[string]any)
+			if provider["id"] == id {
+				return provider
+			}
+		}
+		t.Fatalf("%s missing from fixture", id)
+		return nil
+	}
+	check := func(doc map[string]any, want string) {
+		raw, err := json.Marshal(doc)
+		require.NoError(t, err)
+		_, err = providercatalog.LoadBytes(raw)
+		require.ErrorContains(t, err, want)
+	}
+	doc := readSeed()
+	providerIn(doc, "whisper-stt")["health_profile"] = "unknown-profile"
+	check(doc, "unknown health_profile")
+	doc = readSeed()
+	providerIn(doc, "whisper-stt")["health_profile"] = ""
+	check(doc, "aggregate membership without health_profile")
+	doc = readSeed()
+	providerIn(doc, "kale-tts")["health_profile"] = string(providercatalog.HealthProfileHTTP)
+	providerIn(doc, "kale-tts")["health_probe"] = map[string]any{
+		"base_url_field": "SherpaURL", "readiness_path": "/ready", "liveness_path": "/ready",
+	}
+	providerIn(doc, "kale-tts")["liveness_aggregate"] = true
+	check(doc, "non-active provider")
+	doc = readSeed()
+	providerIn(doc, "sherpa-stt")["health_probe"].(map[string]any)["readiness_path"] = "//attacker.invalid/health"
+	check(doc, "clean absolute path")
+	doc = readSeed()
+	providerIn(doc, "sherpa-stt")["health_probe"].(map[string]any)["base_url_field"] = "OPENAI_API_KEY"
+	check(doc, "unsupported base_url_field")
+	doc = readSeed()
+	delete(providerIn(doc, "sherpa-stt"), "health_probe")
+	check(doc, "requires health_probe")
+}
+
+func TestTTSRuntimeAutoPriorityMustBeUnique(t *testing.T) {
+	raw, err := os.ReadFile("catalog.seed.json")
+	require.NoError(t, err)
+	var doc map[string]any
+	require.NoError(t, json.Unmarshal(raw, &doc))
+	providers := doc["providers"].([]any)
+	var kale, kokoro map[string]any
+	for _, value := range providers {
+		provider := value.(map[string]any)
+		switch provider["id"] {
+		case "kale-tts":
+			kale = provider
+		case "kokoro-tts":
+			kokoro = provider
+		}
+	}
+	require.NotNil(t, kale)
+	require.NotNil(t, kokoro)
+	kale["tts_runtime"].(map[string]any)["auto_priority"] = kokoro["tts_runtime"].(map[string]any)["auto_priority"]
+	duplicate, err := json.Marshal(doc)
+	require.NoError(t, err)
+	_, err = providercatalog.LoadBytes(duplicate)
+	require.ErrorContains(t, err, "TTS auto_priority")
+}
+
+func TestTTSRuntimeRejectsUnknownSpeedMode(t *testing.T) {
+	raw, err := os.ReadFile("catalog.seed.json")
+	require.NoError(t, err)
+	var doc map[string]any
+	require.NoError(t, json.Unmarshal(raw, &doc))
+	providers := doc["providers"].([]any)
+	var kale map[string]any
+	for _, value := range providers {
+		provider := value.(map[string]any)
+		if provider["id"] == "kale-tts" {
+			kale = provider
+			break
+		}
+	}
+	require.NotNil(t, kale)
+	kale["tts_runtime"].(map[string]any)["speed_mode"] = "guess"
+	invalid, err := json.Marshal(doc)
+	require.NoError(t, err)
+	_, err = providercatalog.LoadBytes(invalid)
+	require.ErrorContains(t, err, `unsupported TTS speed_mode "guess"`)
+	kale["tts_runtime"].(map[string]any)["speed_mode"] = ""
+	missing, err := json.Marshal(doc)
+	require.NoError(t, err)
+	_, err = providercatalog.LoadBytes(missing)
+	require.ErrorContains(t, err, "speed_mode is required")
 }
 
 func TestAccessors(t *testing.T) {
@@ -24,6 +134,12 @@ func TestAccessors(t *testing.T) {
 	require.Equal(t, "whisper", whisper.ResourceSlug)
 	require.Equal(t, providercatalog.TierLocal, providercatalog.TierForProviderID("whisper-stt"))
 	require.Equal(t, providercatalog.TierBYOK, providercatalog.TierForProviderID("openai-tts"))
+	duplex, ok := providercatalog.ByID("openai-gpt-live")
+	require.True(t, ok)
+	require.Equal(t, providercatalog.KindFullDuplex, duplex.Kind)
+	require.Equal(t, providercatalog.StatusPlanned, duplex.Status)
+	require.Contains(t, duplex.Capabilities, providercatalog.CapabilityDuplex)
+	require.Equal(t, providercatalog.TierBYOK, duplex.Tier)
 	require.Equal(t, providercatalog.TierBrowser, providercatalog.TierForProviderID("browser-stt"))
 	require.Equal(t, providercatalog.TierNone, providercatalog.TierForProviderID("audio-tools"))
 	require.Equal(t, providercatalog.TierNone, providercatalog.TierForProviderID("unknown"))
@@ -48,6 +164,56 @@ func TestAccessors(t *testing.T) {
 	require.Equal(t, providercatalog.ActionStart, providercatalog.ActionsForProvider("ollama")[0], "actions must be a copy")
 }
 
+func TestFullDuplexConsentRequirementIsDeclaredAndCopied(t *testing.T) {
+	requirement, ok := providercatalog.ConsentRequirementFor("openai-gpt-live")
+	require.True(t, ok)
+	require.Equal(t, providercatalog.ConsentRequirement{
+		Source: "audio-tools-openai-gpt-live", RevalidateActiveSessions: true,
+	}, requirement)
+	provider, ok := providercatalog.ByID("openai-gpt-live")
+	require.True(t, ok)
+	require.NotNil(t, provider.ConsentRequirement)
+	*provider.ConsentRequirement = providercatalog.ConsentRequirement{Source: "mutated"}
+	copy, ok := providercatalog.ByID("openai-gpt-live")
+	require.True(t, ok)
+	require.Equal(t, providercatalog.ConsentSource("audio-tools-openai-gpt-live"), copy.ConsentRequirement.Source)
+}
+
+func TestFullDuplexConsentRequirementIsMandatoryAndValid(t *testing.T) {
+	readSeed := func() map[string]any {
+		raw, err := os.ReadFile("catalog.seed.json")
+		require.NoError(t, err)
+		var doc map[string]any
+		require.NoError(t, json.Unmarshal(raw, &doc))
+		return doc
+	}
+	providerIn := func(doc map[string]any) map[string]any {
+		for _, value := range doc["providers"].([]any) {
+			provider := value.(map[string]any)
+			if provider["id"] == "openai-gpt-live" {
+				return provider
+			}
+		}
+		t.Fatal("openai-gpt-live missing from fixture")
+		return nil
+	}
+	check := func(doc map[string]any, want string) {
+		raw, err := json.Marshal(doc)
+		require.NoError(t, err)
+		_, err = providercatalog.LoadBytes(raw)
+		require.ErrorContains(t, err, want)
+	}
+	doc := readSeed()
+	delete(providerIn(doc), "consent_requirement")
+	check(doc, "must declare consent_requirement")
+	doc = readSeed()
+	providerIn(doc)["consent_requirement"].(map[string]any)["source"] = "  "
+	check(doc, "blank or invalid consent source")
+	doc = readSeed()
+	providerIn(doc)["consent_requirement"].(map[string]any)["revalidate_active_sessions"] = false
+	check(doc, "must revalidate consent for active sessions")
+}
+
 func TestCapabilityForFeature(t *testing.T) {
 	cases := map[string]providercatalog.Capability{
 		"voice-input":                providercatalog.CapabilitySTT,
@@ -56,6 +222,7 @@ func TestCapabilityForFeature(t *testing.T) {
 		"voice-speaker-verification": providercatalog.CapabilitySpeaker,
 		"voice-enrollment":           providercatalog.CapabilitySpeaker,
 		"voice-output":               providercatalog.CapabilityTTS,
+		"voice-cloning":              providercatalog.CapabilityTTS,
 		"tts-summarization":          providercatalog.CapabilitySummarize,
 		"tts-cache":                  providercatalog.CapabilityTTS,
 		"tts-paragraph-split":        providercatalog.CapabilityTTS,
@@ -121,7 +288,7 @@ func TestEngineIDsAreUniqueAcrossProviders(t *testing.T) {
 			owner[engineID] = provider.ID
 		}
 	}
-	require.Len(t, owner, 3, "whisper-local, kyutai, and sherpa-streaming are the declared engines")
+	require.Len(t, owner, 3, "whisper-local, kyutai, and sherpa-streaming are the streaming engines")
 }
 
 func TestRuntimeAliasLookups(t *testing.T) {
@@ -215,15 +382,13 @@ func TestProbeFactsForBYOKProviders(t *testing.T) {
 		require.Truef(t, ok, "%q must declare a probe", providerID)
 		require.Equalf(t, want, got, "%q probe facts", providerID)
 	}
-	_, ok := providercatalog.ProbeFor("openrouter")
-	require.False(t, ok, "openrouter readiness is owned by its dedicated checker")
-	openrouter, found := providercatalog.ByID("openrouter")
-	require.True(t, found)
-	require.NotEmpty(t, openrouter.ProbeAbsentReason)
-	for _, providerID := range []string{"unknown", "whisper-stt", "browser-tts", ""} {
+	for _, providerID := range []string{"unknown", "whisper-stt", "browser-tts", "openrouter", ""} {
 		_, ok := providercatalog.ProbeFor(providerID)
 		require.Falsef(t, ok, "%q must not declare a probe", providerID)
 	}
+	openrouter, ok := providercatalog.ByID("openrouter")
+	require.True(t, ok)
+	require.Contains(t, openrouter.ProbeAbsentReason, "per-request BYOK key")
 }
 
 func TestLocalProviderIDsDeterministicAndResourceUnique(t *testing.T) {
@@ -295,17 +460,34 @@ func TestActionsOnlyForLocalResources(t *testing.T) {
 	}
 }
 
-func TestPullModelOnlyForOllama(t *testing.T) {
+func TestPullModelActionIsProviderDeclared(t *testing.T) {
 	for _, p := range providercatalog.All() {
 		for _, action := range p.Actions {
 			if action != providercatalog.ActionPullModel {
 				continue
 			}
-			require.Equalf(t, "ollama", p.ID, "pull_model is only valid on ollama")
 		}
 	}
 	require.True(t, providercatalog.SupportsPullModel("ollama"))
 	require.False(t, providercatalog.SupportsPullModel("speaker-verification"))
+
+	// The action belongs to the provider declaration, not to a provider ID.
+	raw, err := os.ReadFile("catalog.seed.json")
+	require.NoError(t, err)
+	var doc map[string]any
+	require.NoError(t, json.Unmarshal(raw, &doc))
+	for _, value := range doc["providers"].([]any) {
+		provider := value.(map[string]any)
+		if provider["id"] == "ollama" {
+			provider["id"] = "local-model-service"
+			break
+		}
+	}
+	declared, err := json.Marshal(doc)
+	require.NoError(t, err)
+	registry, err := providercatalog.LoadBytes(declared)
+	require.NoError(t, err)
+	require.True(t, registry.SupportsPullModel("local-model-service"))
 }
 
 func TestEveryActiveFeatureMapsToCapability(t *testing.T) {
@@ -349,6 +531,19 @@ func TestValidationRules(t *testing.T) {
 				return []map[string]any{p}
 			},
 			want: "invalid kind",
+		},
+		{
+			name: "unsupported TTS endpoint field",
+			providers: func() []map[string]any {
+				p := baseProvider()
+				p["id"], p["name"], p["description"] = "sample-tts", "Sample TTS", "Local TTS provider"
+				p["capabilities"], p["features"] = []string{"tts"}, []string{"voice-output"}
+				delete(p, "engine_ids")
+				p["adapter_id"] = "local:sample"
+				p["tts_runtime"] = map[string]any{"backend_id": "sample", "url_field": "ARBITRARY_ENV", "health_path": "/health", "model_role": "default", "cache_backend": "sample"}
+				return []map[string]any{p}
+			},
+			want: "unsupported tts_runtime url_field",
 		},
 		{
 			name: "tier does not match kind",
@@ -399,15 +594,6 @@ func TestValidationRules(t *testing.T) {
 				return []map[string]any{p}
 			},
 			want: "must not advertise lifecycle actions",
-		},
-		{
-			name: "pull_model on a non-ollama provider",
-			providers: func() []map[string]any {
-				p := baseProvider()
-				p["actions"] = []string{"start", "pull_model"}
-				return []map[string]any{p}
-			},
-			want: "only ollama",
 		},
 		{
 			name: "planned provider with a checker",
@@ -492,6 +678,26 @@ func TestValidationRules(t *testing.T) {
 			want: "blank runtime_alias",
 		},
 		{
+			name: "voice aliases without adapter",
+			providers: func() []map[string]any {
+				p := baseProvider()
+				p["voice_aliases"] = map[string]string{"voice.feminine.warm": "bella"}
+				return []map[string]any{p}
+			},
+			want: "voice_aliases without adapter_id",
+		},
+		{
+			name: "invalid voice alias declaration",
+			providers: func() []map[string]any {
+				p := baseBYOKProvider("invalid-tts")
+				p["capabilities"] = []string{"tts"}
+				p["adapter_id"] = "test:tts"
+				p["voice_aliases"] = map[string]string{"feminine.warm": " "}
+				return []map[string]any{p}
+			},
+			want: "invalid voice_alias",
+		},
+		{
 			name: "runtime alias equal to the provider id",
 			providers: func() []map[string]any {
 				p := baseProvider()
@@ -557,6 +763,16 @@ func TestValidationRules(t *testing.T) {
 			want: "probe has no header",
 		},
 		{
+			name: "probed BYOK provider has multiple capabilities",
+			providers: func() []map[string]any {
+				p := baseBYOKProvider("acme")
+				p["capabilities"] = []string{"stt", "tts"}
+				p["features"] = []string{"voice-input", "voice-output"}
+				return []map[string]any{p}
+			},
+			want: "must declare exactly one capability for provider-level health",
+		},
+		{
 			name: "probe and documented absence",
 			providers: func() []map[string]any {
 				p := baseBYOKProvider("acme")
@@ -598,6 +814,25 @@ func TestValidationRules(t *testing.T) {
 	}
 }
 
+func TestValidationKeepsFirstIssueOrder(t *testing.T) {
+	provider := baseProvider()
+	provider["id"] = ""
+	provider["name"] = ""
+	raw, err := json.Marshal(map[string]any{"schema_version": "1.0.0", "providers": []any{provider}})
+	require.NoError(t, err)
+	_, err = providercatalog.LoadBytes(raw)
+	require.EqualError(t, err, "providercatalog: provider with empty id at index 0")
+}
+
+func TestActiveBYOKProviderRequiresProtocolDeclaration(t *testing.T) {
+	provider := baseBYOKProvider("sample-cloud")
+	delete(provider, "byok_adapter_id")
+	raw, err := json.Marshal(map[string]any{"schema_version": "1.0.0", "providers": []any{provider}})
+	require.NoError(t, err)
+	_, err = providercatalog.LoadBytes(raw)
+	require.ErrorContains(t, err, "must declare byok_adapter_id")
+}
+
 // baseBYOKProvider is a valid active remote provider fixture. It declares a
 // probe so each case can add, replace, or remove that fact.
 func baseBYOKProvider(id string) map[string]any {
@@ -607,6 +842,7 @@ func baseBYOKProvider(id string) map[string]any {
 		"description":      "BYOK cloud provider",
 		"kind":             "byok_api",
 		"tier":             "byok",
+		"byok_adapter_id":  "tts.generic-v1",
 		"status":           "active",
 		"capabilities":     []string{"tts"},
 		"features":         []string{"voice-output"},
@@ -641,7 +877,6 @@ func baseProvider() map[string]any {
 		"platform":         map[string]any{"support": "supported"},
 		"actions":          []string{"start", "stop", "restart", "view_logs"},
 		"checker_kind":     "http_json",
-		"models":           []string{"whisper-medium"},
 		"operator_command": "vrooli resource start whisper",
 		"criticality":      "optional",
 		"def_action_kind":  "operator_command",

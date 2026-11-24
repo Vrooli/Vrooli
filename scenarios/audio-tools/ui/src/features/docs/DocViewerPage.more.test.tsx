@@ -17,7 +17,7 @@ import { strings } from "../../consts/strings";
 
 vi.mock("./docsContent", () => ({
   getDocContent: (path: string) =>
-    path === "PRD.md" ? "# Document heading\n\nbody" : null,
+    Promise.resolve(path === "PRD.md" ? "# Document heading\n\nbody" : null),
   listDocPaths: () => ["PRD.md"],
 }));
 
@@ -43,26 +43,27 @@ function renderAt(path: string) {
 }
 
 describe("DocViewerPage — missing-path branch (lines 14-29, 46-47)", () => {
-  it("renders not-found copy and the docs title when navigated to /docs/ with an empty wildcard", () => {
+  it("renders not-found copy and the docs title when navigated to /docs/ with an empty wildcard", async () => {
     // /docs/ with no further path → params["*"] === ""
     renderAt("/docs/");
     // Panel title should be the docs.title key (the `|| t(strings.docs.title)` branch)
     expect(screen.getByText(strings.docs.title)).toBeInTheDocument();
     // content === null so not-found copy appears
-    expect(screen.getByText(strings.docs.notFoundTitle)).toBeInTheDocument();
+    expect(await screen.findByText(strings.docs.notFoundTitle)).toBeInTheDocument();
     expect(screen.getByText(strings.docs.notFoundDescription)).toBeInTheDocument();
   });
 
-  it("renders not-found copy for a known-bad path (no entry in docs map)", () => {
+  it("renders not-found copy for a known-bad path (no entry in docs map)", async () => {
     renderAt("/docs/MISSING.md");
-    expect(screen.getByText(strings.docs.notFoundTitle)).toBeInTheDocument();
+    expect(await screen.findByText(strings.docs.notFoundTitle)).toBeInTheDocument();
   });
 
-  it("derives the page title from the filename without extension", () => {
+  it("derives the page title from the filename without extension", async () => {
     // Use PRD.md which exists in our mock; title should be "PRD" (no .md)
     renderAt("/docs/PRD.md");
     // PageHeader receives title="PRD"; it renders it somewhere in the DOM
     expect(screen.getByText(/^PRD$/)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Document heading" })).toBeInTheDocument();
   });
 
   it("derives the page title as 'Docs' for an empty path (line 46-47)", () => {

@@ -15,6 +15,7 @@ func TestTierLabel(t *testing.T) {
 		{name: "local", tier: commonv1.ProviderTier_PROVIDER_TIER_LOCAL, want: "local"},
 		{name: "byok", tier: commonv1.ProviderTier_PROVIDER_TIER_BYOK, want: "byok"},
 		{name: "vrooli", tier: commonv1.ProviderTier_PROVIDER_TIER_VROOLI, want: "vrooli"},
+		{name: "browser", tier: commonv1.ProviderTier_PROVIDER_TIER_BROWSER, want: "browser"},
 		{name: "unspecified", tier: commonv1.ProviderTier_PROVIDER_TIER_UNSPECIFIED, want: "unknown"},
 		{name: "unknown", tier: commonv1.ProviderTier(999), want: "unknown"},
 	}

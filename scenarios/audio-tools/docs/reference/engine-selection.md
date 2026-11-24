@@ -8,9 +8,10 @@ tie-break. `ResolveFacts` accepts bounded platform, install, health, and
 accelerator observations for portability fixtures. The result includes an
 ordered candidate list, a verdict, and a reason naming the signal used.
 
-The shipped policy ranks `accelerated` candidates first. When no candidate is
-accelerated, manifest order is the deterministic tie-break; native streaming
-is a capability used by strategy negotiation, not a universal ranking override.
+The shipped policy ranks `low_footprint` first, then `native_streaming`, then
+`accelerated`. When all three engines are serviceable, this chooses Sherpa's
+310 MB CPU Zipformer before Kyutai's larger streaming model. Whisper remains
+available for batch, multilingual, and confidence-signal workloads.
 
 The policy declares a 30-second probe TTL for integrations that collect host
 facts. Audio-tools uses one shared control-plane client to locate and invoke
@@ -48,7 +49,7 @@ adapter is small, CPU-only, and leaves the GPU free. Its 2023 English model is
 not a dictation-quality claim — the upstream CLI itself substitutes `And so`
 with `and saw` on the JFK sample — so Kyutai remains the accelerated quality
 tier and Whisper remains the batch/multilingual/confidence tier. Engine choice
-is `native_streaming` → `low_footprint` → `accelerated`, then manifest order;
+is `low_footprint` → `native_streaming` → `accelerated`, then manifest order;
 an attached resource is accepted only when its provider health probe passes.
 
 Whisper cannot be removed without removing batch transcription, the

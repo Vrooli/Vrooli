@@ -44,6 +44,51 @@ func TestAllEndpoints_StableOrder(t *testing.T) {
 	}
 }
 
+func TestProductAndLabEndpointPartition(t *testing.T) {
+	all := modules.AllEndpoints()
+	lab := modules.LabEndpoints()
+	product := modules.ProductEndpoints()
+	if !modules.IsLabBuild() {
+		require.Empty(t, lab, "product build must not include lab endpoint descriptors")
+		require.Equal(t, all, product)
+		return
+	}
+	require.NotEmpty(t, lab)
+	require.NotEmpty(t, product)
+	require.Len(t, lab, len(all)-len(product), "product and lab lists must partition all endpoints")
+
+	allIDs := make(map[string]struct{}, len(all))
+	allRoutes := make(map[string]struct{}, len(all))
+	for _, endpoint := range all {
+		require.NotEmpty(t, endpoint.ID)
+		require.NotEmpty(t, endpoint.Method)
+		require.NotEmpty(t, endpoint.Path)
+		_, duplicateID := allIDs[endpoint.ID]
+		require.Falsef(t, duplicateID, "endpoint ID %q must be unique", endpoint.ID)
+		allIDs[endpoint.ID] = struct{}{}
+		route := endpoint.Method + " " + endpoint.Path
+		_, duplicateRoute := allRoutes[route]
+		require.Falsef(t, duplicateRoute, "endpoint route %q must have one owner", route)
+		allRoutes[route] = struct{}{}
+	}
+	seen := make(map[string]struct{}, len(all))
+	seenRoutes := make(map[string]struct{}, len(all))
+	for _, endpoint := range lab {
+		require.Contains(t, []string{"corpus", "experiment", "validation"}, endpoint.Category)
+		seen[endpoint.ID] = struct{}{}
+		seenRoutes[endpoint.Method+" "+endpoint.Path] = struct{}{}
+	}
+	for _, endpoint := range product {
+		require.NotContains(t, seen, endpoint.ID, "endpoint %q must not be both product and lab", endpoint.ID)
+		route := endpoint.Method + " " + endpoint.Path
+		require.NotContainsf(t, seenRoutes, route, "route %q must not be both product and lab", route)
+		seenRoutes[route] = struct{}{}
+		seen[endpoint.ID] = struct{}{}
+	}
+	require.Equal(t, allIDs, seen, "product plus lab endpoints must cover the generated inventory")
+	require.Contains(t, allIDs, "validation.soak.validate_scenario", "external validation provider paths belong in endpoint inventory")
+}
+
 // TestAllSchemas_NonEmpty proves the schema registry is always
 // populated (system home is always present) and that every entry has
 // a non-nil provider. Per-domain schema content is verified by each
@@ -66,6 +111,37 @@ func TestAllSchemas_FirstIsSystem(t *testing.T) {
 	require.NotEmpty(t, got)
 	require.Equal(t, localdb.SystemSchema(), got[0].Schema(),
 		"system schema must be first in AllSchemas() so cross-cutting infrastructure applies before any domain")
+}
+
+func TestProductAndLabSchemaPartition(t *testing.T) {
+	product := modules.ProductSchemas()
+	lab := modules.LabSchemas()
+	all := modules.AllSchemas()
+	require.NotEmpty(t, product)
+	if !modules.IsLabBuild() {
+		require.Empty(t, lab, "product build must not include lab schema descriptors")
+		require.Len(t, all, len(product))
+		for i := range product {
+			require.Equal(t, product[i].Schema(), all[i].Schema())
+		}
+		return
+	}
+	require.Len(t, all, len(product)+len(lab))
+	require.Equal(t, localdb.SystemSchema(), product[0].Schema(), "system schema must remain first in product bootstrap")
+
+	productSQL := make(map[string]struct{}, len(product))
+	for _, provider := range product {
+		require.NotNil(t, provider)
+		productSQL[provider.Schema()] = struct{}{}
+	}
+	for _, provider := range lab {
+		require.NotNil(t, provider)
+		_, duplicate := productSQL[provider.Schema()]
+		require.False(t, duplicate, "lab schema must not be part of product bootstrap")
+	}
+	for i, provider := range append(append([]apidb.SchemaProvider{}, product...), lab...) {
+		require.Equal(t, provider.Schema(), all[i].Schema(), "complete schema inventory must preserve product then lab order")
+	}
 }
 
 // TestAllSchemas_AppliesIdempotently exercises the registry against a

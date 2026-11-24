@@ -16,9 +16,10 @@ import (
 
 // OpenAITTS calls OpenAI's audio/speech endpoint. Model: tts-1.
 type OpenAITTS struct {
-	Endpoint string
-	Doer     httpc.Doer
-	Clock    schedule.Clock
+	ProviderID string
+	Endpoint   string
+	Doer       httpc.Doer
+	Clock      schedule.Clock
 }
 
 func NewOpenAITTS() *OpenAITTS {
@@ -29,7 +30,12 @@ func NewOpenAITTS() *OpenAITTS {
 	}
 }
 
-func (a *OpenAITTS) ID() string    { return "openai-tts" }
+func (a *OpenAITTS) ID() string {
+	if a.ProviderID != "" {
+		return a.ProviderID
+	}
+	return "openai-tts"
+}
 func (a *OpenAITTS) Model() string { return "tts-1" }
 
 func (a *OpenAITTS) IsAvailable(ctx context.Context, key string) bool { return key != "" }

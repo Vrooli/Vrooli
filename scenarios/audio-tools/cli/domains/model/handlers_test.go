@@ -14,8 +14,6 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliapptest"
 
-	testutil "audio-tools/cli/internal/testutil"
-
 	modelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/models"
 	modelsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/models/models_v1connect"
 )
@@ -54,7 +52,7 @@ func mountModel(t *testing.T, svc modelsconnect.ModelRegistryServiceHandler) *cl
 // so handler tests exercise the same flag contract the CLI dispatcher uses.
 func modelSchema(t *testing.T, command string) cliapp.ArgSchema {
 	t.Helper()
-	manifest, err := cliapp.ParseManifest(testutil.ReadManifest(t))
+	manifest, err := cliapp.ParseManifest(cliapptest.ReadManifest(t))
 	require.NoError(t, err)
 	group := manifest.FindGroup(GroupName)
 	require.NotNil(t, group, "manifest group %q must exist", GroupName)
@@ -113,7 +111,7 @@ func TestListHappyPathRendersTable(t *testing.T) {
 		Flags:     map[string]string{"capability": "stt", "language": "en-US"},
 		BoolFlags: map[string]bool{"commercial-only": true, "only-ready": true},
 	})
-	require.NoError(t, h.list(ctx))
+	require.NoError(t, modelBindings(h)["ModelRegistryService.ListModels"].Run(ctx))
 
 	out := buf.String()
 	for _, want := range []string{"ID", "CAPABILITY", "READINESS", "COMMERCIAL", "LICENSE", "SIZE", "DEFAULT"} {
@@ -140,7 +138,7 @@ func TestListJSONIsProtoWireShape(t *testing.T) {
 
 	h := newHandlers(app)
 	ctx, buf := cliapptest.NewCapturedRunContext(app, modelSchema(t, "list"), cliapptest.TestRunContextOptions{JSON: true})
-	require.NoError(t, h.list(ctx))
+	require.NoError(t, modelBindings(h)["ModelRegistryService.ListModels"].Run(ctx))
 
 	var got map[string]any
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &got))
@@ -165,7 +163,7 @@ func TestListAPIErrorIsWrapped(t *testing.T) {
 
 	h := newHandlers(app)
 	ctx, _ := cliapptest.NewCapturedRunContext(app, modelSchema(t, "list"), cliapptest.TestRunContextOptions{})
-	err := h.list(ctx)
+	err := modelBindings(h)["ModelRegistryService.ListModels"].Run(ctx)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "model list")
 	require.Contains(t, err.Error(), "internal")
@@ -177,8 +175,11 @@ func TestResolveHappyPathShowsFacts(t *testing.T) {
 			require.Equal(t, "tts", req.GetCapability())
 			require.Empty(t, req.GetLanguage())
 			require.True(t, req.GetCommercial())
+			record := sampleRecord()
+			record.Capability = "tts"
+			record.Notes = "Qualified Kokoro default; conditional Kale Nano product route runs first when healthy, with Kokoro as fallback. Kale remains an unqualified candidate."
 			return &modelsv1.ResolveModelResponse{
-				Model:       sampleRecord(),
+				Model:       record,
 				Explanation: "selected: readiness=available, roles=default,fast",
 			}, nil
 		},
@@ -189,10 +190,11 @@ func TestResolveHappyPathShowsFacts(t *testing.T) {
 		Flags:     map[string]string{"capability": "tts"},
 		BoolFlags: map[string]bool{"commercial": true},
 	})
-	require.NoError(t, h.resolve(ctx))
+	require.NoError(t, modelBindings(h)["ModelRegistryService.ResolveModel"].Run(ctx))
 
 	out := buf.String()
 	require.Contains(t, out, "Resolved model: whisper-large-v3")
+	require.Contains(t, out, "TTS route notes: Qualified Kokoro default; conditional Kale Nano product route runs first when healthy, with Kokoro as fallback. Kale remains an unqualified candidate.")
 	require.Contains(t, out, "selected: readiness=available, roles=default,fast")
 	require.Contains(t, out, "runtime:")
 	require.Contains(t, out, "faster-whisper")
@@ -202,6 +204,27 @@ func TestResolveHappyPathShowsFacts(t *testing.T) {
 	require.Contains(t, out, "MIT")
 	require.Contains(t, out, "roles:")
 	require.Contains(t, out, "default,fast")
+}
+
+func TestResolveCanRequestEngineScopedDefault(t *testing.T) {
+	app := mountModel(t, &fakeSvc{
+		resolve: func(req *modelsv1.ResolveModelRequest) (*modelsv1.ResolveModelResponse, error) {
+			require.Equal(t, "stt", req.GetCapability())
+			require.Equal(t, "sherpa-streaming", req.GetEngineId())
+			return &modelsv1.ResolveModelResponse{
+			Model:       &modelsv1.ModelRecord{Id: "sherpa-zipformer-en-2023-06-26", Capability: "stt", IsDefault: true, EngineDefaults: []string{"sherpa-streaming"}},
+				Explanation: "selected sherpa-zipformer-en-2023-06-26 for capability=stt engine=sherpa-streaming",
+			}, nil
+		},
+	})
+	h := newHandlers(app)
+	ctx, buf := cliapptest.NewCapturedRunContext(app, modelSchema(t, "resolve"), cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"capability": "stt", "engine": "sherpa-streaming"},
+	})
+	require.NoError(t, modelBindings(h)["ModelRegistryService.ResolveModel"].Run(ctx))
+	require.Contains(t, buf.String(), "Resolved model: sherpa-zipformer-en-2023-06-26")
+	require.Contains(t, buf.String(), "Engine-scoped resolution: sherpa-streaming")
+	require.Contains(t, buf.String(), "engine defaults: sherpa-streaming")
 }
 
 func TestResolveJSONIsProtoWireShape(t *testing.T) {
@@ -216,7 +239,7 @@ func TestResolveJSONIsProtoWireShape(t *testing.T) {
 		Flags: map[string]string{"capability": "stt"},
 		JSON:  true,
 	})
-	require.NoError(t, h.resolve(ctx))
+	require.NoError(t, modelBindings(h)["ModelRegistryService.ResolveModel"].Run(ctx))
 
 	var got map[string]any
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &got))
@@ -235,7 +258,7 @@ func TestResolveNotFoundIsNonZeroError(t *testing.T) {
 	ctx, _ := cliapptest.NewCapturedRunContext(app, modelSchema(t, "resolve"), cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"capability": "speaker"},
 	})
-	err := h.resolve(ctx)
+	err := modelBindings(h)["ModelRegistryService.ResolveModel"].Run(ctx)
 	require.Error(t, err, "NOT_FOUND must become a non-zero CLI error")
 	require.Contains(t, err.Error(), "model resolve")
 	require.Contains(t, err.Error(), "not_found")

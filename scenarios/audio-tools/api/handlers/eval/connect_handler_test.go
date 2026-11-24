@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 package eval
 
 import (
@@ -14,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval"
 	experimentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func TestRunReportForCells_ExecutesNativeProviderThroughSegmenter(t *testing.T) {
@@ -272,4 +275,85 @@ func TestReportToProto_MapsClipEvidenceAndSafetyTimeline(t *testing.T) {
 	require.Equal(t, int32(3), got.GetSafety().GetMaxDroppedSpanWords())
 	require.Equal(t, int32(1), got.GetStageAttribution().GetIngressLostWords())
 	require.Len(t, got.GetLengthCurves(), 1)
+}
+
+func TestReportToProto_PersistsTimestampDriftAndUnavailableReason(t *testing.T) {
+	report := inteval.EvalReport{PerStrategy: []inteval.StrategyReport{{PerClip: []inteval.ClipResult{
+		{
+			ClipID: "reviewed", TimestampDrift: &inteval.TimestampDriftResult{
+				ReferenceWords: 10000, MatchedWords: 9800, Coverage: .98,
+				StartAbsP50Ms: 42, StartAbsP95Ms: 181, EndAbsP50Ms: 51, EndAbsP95Ms: 207,
+				StartBiasMs: 17, EndBiasMs: -23, MaxStartAbsMs: 340, MaxEndAbsMs: 410,
+				DriftRateObserved: true, StartDriftMsPerHour: 75, EndDriftMsPerHour: -40,
+			},
+			TimestampReference: &inteval.TimingReferenceProvenance{
+				Status: "human_reviewed", SourceReference: "ami-longform-v1", Reviewer: "reviewer-1",
+				ReviewMethod: "full-audio-boundary-check", ReviewedAt: "2026-11-22T15:00:00Z",
+			},
+		},
+		{ClipID: "unreviewed", TimestampDriftSkipReason: "timed_reference_not_human_reviewed", TimestampReference: &inteval.TimingReferenceProvenance{Status: "aligner_only", SourceReference: "ami-draft-v1"}},
+	}}}}
+
+	encoded, err := protojson.Marshal(ReportToProto(report))
+	require.NoError(t, err)
+	var persisted evalv1.EvalReport
+	require.NoError(t, protojson.Unmarshal(encoded, &persisted))
+	clips := persisted.GetPerStrategy()[0].GetPerClip()
+	require.Len(t, clips, 2)
+	got := clips[0]
+	require.Equal(t, int32(10000), got.GetTimestampDrift().GetReferenceWords())
+	require.Equal(t, int32(9800), got.GetTimestampDrift().GetMatchedWords())
+	require.InDelta(t, 75, got.GetTimestampDrift().GetStartDriftMsPerHour(), 1e-9)
+	require.Equal(t, "human_reviewed", got.GetTimestampReference().GetStatus())
+	require.Equal(t, "ami-longform-v1", got.GetTimestampReference().GetSourceReference())
+	require.Nil(t, clips[1].GetTimestampDrift(), "unreviewed references must not serialize a numeric score")
+	require.Equal(t, "timed_reference_not_human_reviewed", clips[1].GetTimestampDriftSkipReason())
+	require.Equal(t, "aligner_only", clips[1].GetTimestampReference().GetStatus())
+}
+
+func TestMetricsOnlyReportToProtoRetainsReviewedMetricsAndRemovesTranscriptFields(t *testing.T) {
+	report := inteval.EvalReport{
+		QualityMeasured:     true,
+		LatencyMeasured:     true,
+		Summary:             inteval.EvalReportSummary{WinnerLabel: "private winner details", Reasons: []string{"private summary reason"}},
+		Warnings:            []inteval.ReportWarning{{Code: "private_warning", Message: "private warning text", Severity: "warning"}},
+		NormalizationPolicy: inteval.NormalizationPolicy{WERPolicy: "private normalization policy"},
+		PromotionVerdicts:   []inteval.PromotionVerdict{{EngineID: "private engine", Stable: true, Reasons: []string{"private promotion reason"}}},
+		PerStrategy: []inteval.StrategyReport{{
+			Strategy: "passthrough", Label: "private label", EngineID: "whisper-stt", ModelID: "whisper-tiny.en",
+			WER: 0.125, RefWords: 8, Reasons: []string{"private strategy reason"},
+			PerClip: []inteval.ClipResult{{
+				ClipID: "private-clip", Reference: "private reference transcript", Hypothesis: "private hypothesis transcript",
+				NormalizedReference: "private normalized reference", NormalizedHypothesis: "private normalized hypothesis",
+				WER:             inteval.WERResult{EditCounts: inteval.EditCounts{Substitutions: 1}, RefWords: 8, HypWords: 7},
+				AudioDurationMs: 12_000, TimestampDriftSkipReason: "missing timing data",
+			}},
+		}},
+	}
+
+	got := MetricsOnlyReportToProto(report)
+	require.Equal(t, "metrics_only", got.GetRetentionMode())
+	require.True(t, got.GetQualityMeasured())
+	require.True(t, got.GetLatencyMeasured())
+	require.Empty(t, got.GetSummary().GetWinnerLabel())
+	require.Empty(t, got.GetWarnings())
+	require.Nil(t, got.GetNormalizationPolicy())
+	require.Empty(t, got.GetPromotionVerdicts())
+	require.Len(t, got.GetPerStrategy(), 1)
+	strategy := got.GetPerStrategy()[0]
+	require.Equal(t, 0.125, strategy.GetWer())
+	require.Equal(t, "whisper-stt", strategy.GetEngineId())
+	require.Equal(t, "whisper-tiny.en", strategy.GetModelId())
+	require.Empty(t, strategy.GetLabel())
+	require.Empty(t, strategy.GetReasons())
+	require.Len(t, strategy.GetPerClip(), 1)
+	clip := strategy.GetPerClip()[0]
+	require.Equal(t, 0.125, clip.GetWer())
+	require.EqualValues(t, 12_000, clip.GetAudioDurationMs())
+	require.Equal(t, "missing timing data", clip.GetTimestampDriftSkipReason())
+	require.Empty(t, clip.GetClipId())
+	require.Empty(t, clip.GetReference())
+	require.Empty(t, clip.GetHypothesis())
+	require.Empty(t, clip.GetNormalizedReference())
+	require.Empty(t, clip.GetNormalizedHypothesis())
 }

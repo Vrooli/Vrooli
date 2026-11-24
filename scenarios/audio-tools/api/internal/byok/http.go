@@ -12,6 +12,22 @@ import (
 	"github.com/vrooli/api-core/schedule"
 )
 
+const (
+	maxAudioResponseBytes = 128 << 20
+	maxProviderErrorBytes = 4 << 10
+)
+
+func readProviderResponse(body io.Reader, maxBytes int64) ([]byte, error) {
+	data, err := io.ReadAll(io.LimitReader(body, maxBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > maxBytes {
+		return nil, fmt.Errorf("response exceeds %d-byte limit", maxBytes)
+	}
+	return data, nil
+}
+
 // DoAudioRequest executes a unary BYOK audio request and returns its response
 // bytes plus measured latency. Provider-specific request construction and
 // result mapping stay with each adapter.
@@ -27,10 +43,10 @@ func DoAudioRequest(ctx context.Context, doer httpc.Doer, clk schedule.Clock, pr
 	defer response.Body.Close()
 
 	if response.StatusCode >= http.StatusBadRequest {
-		raw, _ := io.ReadAll(response.Body)
+		raw, _ := readProviderResponse(response.Body, maxProviderErrorBytes)
 		return nil, 0, fmt.Errorf("%s: HTTP %d: %s", provider, response.StatusCode, truncate(string(raw), 256))
 	}
-	body, err := io.ReadAll(response.Body)
+	body, err := readProviderResponse(response.Body, maxAudioResponseBytes)
 	if err != nil {
 		return nil, 0, err
 	}

@@ -42,6 +42,7 @@ func TestCommittedSegmentsAreSnapshottedInSampleOrder(t *testing.T) {
 
 	assertSampleOrder("Snapshot", ledger.Snapshot().Committed)
 	assertSampleOrder("PersistedState", ledger.PersistedState().Committed)
+	assertSampleOrder("CommittedSegments", ledger.CommittedSegments())
 	// Two snapshots must agree, not merely be individually ordered.
 	first := ledger.Snapshot().Committed
 	second := ledger.Snapshot().Committed
@@ -49,6 +50,17 @@ func TestCommittedSegmentsAreSnapshottedInSampleOrder(t *testing.T) {
 		if first[i] != second[i] {
 			t.Fatalf("snapshot order changed between calls at %d: %#v vs %#v", i, first[i], second[i])
 		}
+	}
+	committedFirst := ledger.CommittedSegments()
+	committedSecond := ledger.CommittedSegments()
+	for i := range committedFirst {
+		if committedFirst[i] != committedSecond[i] {
+			t.Fatalf("committed segment order changed between calls at %d: %#v vs %#v", i, committedFirst[i], committedSecond[i])
+		}
+	}
+	committedFirst[0].ID = "caller-mutation"
+	if got := ledger.CommittedSegments()[0].ID; got == "caller-mutation" {
+		t.Fatal("CommittedSegments returned the ledger's mutable backing storage")
 	}
 }
 

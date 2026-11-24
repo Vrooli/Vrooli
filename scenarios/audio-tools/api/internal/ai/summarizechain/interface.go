@@ -24,6 +24,7 @@ type Request struct {
 	Text           string
 	Level          string // "light" | "moderate" | "heavy"
 	Model          string // optional override
+	LocalModelRole string // Audio Tools policy role; consumed only by LocalProvider
 	TimeoutSeconds int
 
 	BYOKProvider string

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -70,11 +69,8 @@ func availableWhisperRegistry() *capabilities.Registry {
 // stub Whisper, sharing one audioformat engine for decode + WAV wrap.
 func localChainWithWhisper(t *testing.T, engine *audioformat.Engine, whisperURL string, client *http.Client) (*sttchain.Chain, *stt.Selector) {
 	t.Helper()
-	svc := pipeline.NewService(
-		pipeline.Config{}, "", nil, "",
-		pipeline.SpeakerConfig{}, "", nil,
+	svc := pipeline.NewWhisperTranscriber(
 		availableWhisperRegistry(),
-		&atomic.Int64{},
 		whisperURL+"/asr?output=json",
 		client,
 		engine,

@@ -101,12 +101,15 @@ func (s *Segmenter) Run(
 	// of the transports.
 	engineID := cfg.EngineID
 	if engineID == "" && s.deps.Registry != nil {
+		resolverRejected := false
 		if s.deps.EngineResolver != nil {
-			if resolution, err := s.deps.EngineResolver.Resolve(ctx, s.deps.Registry); err == nil {
+			if resolution, err := s.deps.EngineResolver.ResolveForAdmission(ctx, s.deps.Registry); err == nil {
 				engineID = resolution.Selected
+			} else if errors.Is(err, sttengine.ErrNoServiceableEngine) {
+				resolverRejected = true
 			}
 		}
-		if engineID == "" {
+		if engineID == "" && !resolverRejected {
 			engineID = s.deps.Registry.ResolveEngineID(func(id string) bool {
 				e, ok := s.deps.Registry.Engine(id)
 				return ok && s.deps.Chain.LocalEngineAvailable(ctx, id) && e.Kind == sttengine.KindLocalResource
@@ -163,9 +166,7 @@ func (s *Segmenter) Run(
 	// chunk reaching a native streaming provider. Non-canonical formats and
 	// PCM-consuming VAD/overlap strategies still use the normal normalizer.
 	normalizeInput := shouldNormalizeInput(selection.Kind, start.InputFormat, s, engineID)
-	fmt.Printf("[stt-segmenter] selection kind=%s input_format=%q normalize=%t engine=%s\n", selection.Kind, start.InputFormat, normalizeInput, engineID)
 	if normalizeInput {
-		fmt.Printf("[stt-segmenter] normalize kind=%s input_format=%q engine=%s\n", selection.Kind, start.InputFormat, engineID)
 		normalized, nstart, cleanup, nerr := s.normalizeChunks(ctx, start, chunks, events)
 		if nerr != nil {
 			return nerr // error + Done already emitted
@@ -285,6 +286,28 @@ func (s *Segmenter) buildIngress(cfg stt.StreamConfig) *ingress.Pipeline {
 // Done. runEgress reports the error on done (buffered, so Run can join it into
 // the returned error) after in is drained.
 func runEgress(ctx context.Context, gate *egress.Gate, timeline *AudioTimeline, in <-chan sttchain.StreamEvent, out chan<- sttchain.StreamEvent, captureFailure <-chan error, done chan<- error) {
+	emit := func(ev sttchain.StreamEvent) {
+		if ctx.Err() != nil {
+			return
+		}
+		select {
+		case out <- ev:
+		case <-ctx.Done():
+		}
+	}
+	// Terminal events remain useful after cancellation: callers still need to
+	// observe why the stream ended. Prefer delivery when possible, but never
+	// let a canceled transport hold teardown open if it stopped receiving.
+	emitTerminal := func(ev sttchain.StreamEvent) {
+		select {
+		case out <- ev:
+		case <-ctx.Done():
+			select {
+			case out <- ev:
+			default:
+			}
+		}
+	}
 	var captureErr error
 	// captureError latches the first capture failure. It never blocks: the
 	// capture goroutine buffers the error before closing the chunk channel.
@@ -306,7 +329,7 @@ func runEgress(ctx context.Context, gate *egress.Gate, timeline *AudioTimeline, 
 		case sttchain.StreamEventSegment:
 			seg := ev.Segment
 			if seg == nil {
-				out <- ev
+				emit(ev)
 				continue
 			}
 			if len(seg.Audio) == 0 && timeline != nil && seg.EndSample > seg.StartSample {
@@ -326,7 +349,7 @@ func runEgress(ctx context.Context, gate *egress.Gate, timeline *AudioTimeline, 
 				gatedAny = true
 			case egress.Reject:
 				gatedAny = true
-				out <- sttchain.StreamEvent{
+				emit(sttchain.StreamEvent{
 					Kind: sttchain.StreamEventSpeakerRejection,
 					SpeakerRejection: &sttchain.SpeakerRejectionEvent{
 						Reason:       dec.Reason,
@@ -334,7 +357,7 @@ func runEgress(ctx context.Context, gate *egress.Gate, timeline *AudioTimeline, 
 						Score:        dec.Score,
 						Threshold:    dec.Threshold,
 					},
-				}
+				})
 			default: // Emit
 				// Strip gate-only fields so they never reach the wire.
 				seg.Text = dec.Text
@@ -342,26 +365,30 @@ func runEgress(ctx context.Context, gate *egress.Gate, timeline *AudioTimeline, 
 				seg.Confidence = nil
 				seg.Audio = nil
 				finalParts = append(finalParts, seg.Text)
-				out <- ev
+				emit(ev)
 			}
 		case sttchain.StreamEventDone:
 			sawDone = true
 			if err := captureError(); err != nil {
-				out <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: err}
+				emitTerminal(sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: err})
 			}
 			if gatedAny && ev.Done != nil {
 				ev.Done.FinalText = strings.Join(finalParts, " ")
 			}
-			out <- ev
+			emitTerminal(ev)
 		default:
-			out <- ev
+			if ev.Kind == sttchain.StreamEventError {
+				emitTerminal(ev)
+			} else {
+				emit(ev)
+			}
 		}
 	}
 	// Strategies always emit Done, but a strategy that returned an error
 	// without one must still surface a truncation rather than ending silently.
 	if !sawDone {
 		if err := captureError(); err != nil {
-			out <- sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: err}
+			emitTerminal(sttchain.StreamEvent{Kind: sttchain.StreamEventError, Error: err})
 		}
 	}
 	done <- captureErr

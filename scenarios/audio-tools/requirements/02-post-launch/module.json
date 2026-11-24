@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Provider evidence, recovery UX, adapter maintainability, and capability expansion obligations.",
-    "last_validated_at": "2026-09-14T14:30:09-04:00",
+    "last_validated_at": "2026-11-20T11:22:44-05:00",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -66,6 +66,66 @@
           "type": "manual",
           "status": "planned",
           "notes": "Validation design, not executed evidence: MONETIZATION.md operation-specific meter review plus existing TTS/summarization regression surfaces; add route/cancellation/usage tests and separately qualify delivery before sale. STT-first does not remove current TTS playback guarantees. Implement tagged owner tests or log a real manual qualification receipt before promotion; this documentation update earns no passing status."
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "When resolving a local voice route, Audio Tools should select declared models by language, rights, held-out quality, device capacity, cost, and fallback; target paths include Sherpa streaming Zipformer, Kale Nano when eligible, Qwen3:1.7b, and a qualified consented cloning route.",
+      "id": "ATD-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "planned",
+      "title": "Evidence-based efficient model selection",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Planned quality, footprint, language, licensing, Tiny Voca contention, and cloning qualification gates are defined in the Audio Tools maturity AT2 brief. Selector output is not qualification evidence; this claim remains planned."
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "When advanced voice workflows are offered, Audio Tools should provide synthesis and voice customization, consented cloning, conversion, speaker separation, wake word, and duplex through reusable contracts with measured quality, latency, and recovery.",
+      "id": "ATD-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "planned",
+      "title": "Advanced voice workflow coverage",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Planned end-to-end workflow acceptance for synthesis, customization, cloning, conversion, separation, wake word, and duplex is defined in the Audio Tools maturity AT4 brief. Product qualification is incomplete; this claim remains planned."
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "When customers enter through Audio Tools, the product should present a $10/month standalone plan with correct entitlement, payment recovery, cancellation, and a clear upgrade path to the full bundle.",
+      "id": "ATD-P1-007",
+      "prd_ref": "OT-P1-007",
+      "status": "planned",
+      "title": "Standalone offer and bundle upgrade",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Planned test-mode $10 standalone purchase, entitlement, cancellation/recovery, and bundle-upgrade journey is defined in the Audio Tools maturity AT7 brief. No purchase or conversion result is claimed; this claim remains planned."
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "When Audio Tools is installed or updated on a supported desktop cohort, it should provision eligible models offline and recover cleanly from failed installation, upgrade, or model provisioning.",
+      "id": "ATD-P1-008",
+      "prd_ref": "OT-P1-008",
+      "status": "planned",
+      "title": "Cross-platform installation and offline lifecycle",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Planned clean-install, update, offline provisioning, and recovery cohorts are defined in the Audio Tools maturity AT6 brief. No cross-platform install qualification is claimed; this claim remains planned."
         }
       ]
     }

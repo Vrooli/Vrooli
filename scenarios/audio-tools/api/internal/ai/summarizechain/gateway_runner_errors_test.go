@@ -3,6 +3,7 @@ package summarizechain
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"audio-tools/internal/summarize"
@@ -13,7 +14,7 @@ import (
 
 func validTask() summarize.TaskRequest {
 	return summarize.TaskRequest{
-		Selector: "summarize.default", SelectorIsRole: true,
+		Selector: summarize.DefaultSummarizeModel, SelectorIsRole: true,
 		Instruction: "summarize", Source: "source text", MaxOutputTokens: 120,
 	}
 }
@@ -96,6 +97,7 @@ func TestAIGatewayRunnerRejectsMalformedResults(t *testing.T) {
 		{"unknown field", &inferencev1.RunResponse{Validated: true, Model: "m", ValueJson: `{"summary":"ok","extra":1}`}, "decode ai-gateway summary result"},
 		{"trailing content", &inferencev1.RunResponse{Validated: true, Model: "m", ValueJson: `{"summary":"ok"}{"summary":"again"}`}, "trailing content"},
 		{"empty summary", &inferencev1.RunResponse{Validated: true, Model: "m", ValueJson: `{"summary":"  "}`}, "empty summary"},
+		{"oversized value", &inferencev1.RunResponse{Validated: true, Model: "m", ValueJson: `{"summary":"` + strings.Repeat("x", maxGatewaySummaryResultBytes) + `"}`}, "exceeds"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

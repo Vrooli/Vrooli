@@ -39,21 +39,25 @@ func (r ResourcePlatformResolver) Resolve(slug string) PlatformVerdict {
 				Reason  string `json:"reason"`
 			} `json:"profiles"`
 		} `json:"deployment"`
+		ManagedService struct {
+			AttachHealthCheckOnUnsupportedPlatform bool `json:"attach_health_check_on_unsupported_platform"`
+		} `json:"managed_service"`
 	}
 	if json.Unmarshal(raw, &doc) != nil {
 		return PlatformVerdict{Support: PlatformSupported}
 	}
 	key := manifestPlatformKey(r.GOOS)
+	probeAttached := doc.ManagedService.AttachHealthCheckOnUnsupportedPlatform
 	if profile, ok := doc.Deployment.Profiles["desktop"]; ok {
 		if declaration, ok := profile[key]; ok && strings.EqualFold(declaration.Support, "unsupported") {
-			return PlatformVerdict{Support: PlatformUnsupported, Reason: strings.TrimSpace(declaration.Reason)}
+			return PlatformVerdict{Support: PlatformUnsupported, Reason: strings.TrimSpace(declaration.Reason), ProbeWhenUnsupported: probeAttached}
 		}
 		if declaration, ok := profile[key]; ok && strings.EqualFold(declaration.Support, "conditional") {
 			return PlatformVerdict{Support: PlatformDegraded, Reason: strings.TrimSpace(declaration.Reason)}
 		}
 	}
 	if strings.EqualFold(doc.Platforms[key], "unsupported") {
-		return PlatformVerdict{Support: PlatformUnsupported}
+		return PlatformVerdict{Support: PlatformUnsupported, ProbeWhenUnsupported: probeAttached}
 	}
 	return PlatformVerdict{Support: PlatformSupported}
 }

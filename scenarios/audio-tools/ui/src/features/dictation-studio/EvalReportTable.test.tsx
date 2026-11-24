@@ -8,6 +8,21 @@ import { EvalReportTable } from "./EvalReportTable";
 const winnerRecommendation = "Use stream";
 const batchRecommendation = "Use batch";
 const promotionReason = "evidence missing";
+const messageOnly = "message only";
+const codeOnly = "code only — coded";
+const severityOnly = "info: severity only";
+const addedToken = "added";
+const removedToken = "removed";
+const replacementToken = "new";
+const matchedToken = "same";
+const hiddenClip = "clip-9";
+const unknownScaling = "unknown · 1 dictationStudio.scalingPoints";
+const scalingLatencyLabel = "dictationStudio.scalingLatency";
+const latencyDetail = "latency-detail";
+const emptyUnit = "empty-unit";
+const firstReason = "first reason";
+const hiddenReason = "hidden reason";
+const infoWarning = "info warning";
 
 const report = {
   qualityMeasured: true,
@@ -107,5 +122,84 @@ describe("EvalReportTable", () => {
 
     expect(screen.getByText(batchRecommendation)).toBeInTheDocument();
     expect(screen.getByText(strings.dictationStudio.promotionStable)).toBeInTheDocument();
+  });
+
+  it("renders optional warnings, stage attribution, and scaling fit variants", () => {
+    render(<EvalReportTable report={{
+      qualityMeasured: true,
+      latencyMeasured: true,
+      warnings: [
+        { message: messageOnly },
+        { code: "code only", message: "coded" },
+        { severity: "info", message: severityOnly.slice(6) },
+      ],
+      perStrategy: [{
+        strategy: "batch", label: "Batch", wer: 0, substitutions: 0, insertions: 0, deletions: 0,
+        whisperCalls: 0, whisperAudioSeconds: 0, rtf: 0, finalizationLatencyP50Ms: 0,
+        finalizationLatencyP95Ms: 0, partialRevisions: 0, werDeltaVsWinner: 0, p95DeltaMsVsWinner: 0,
+        reasons: [], warnings: [], perClip: [], stageAttribution: {
+          ingressLostWords: 0, strategyLostWords: 1, egressLostWords: 2, egressRejectEvents: 0, notes: [],
+        },
+        scaling: {
+          confidence: "", points: [{}], latencyClassification: "", computeClassification: "flat",
+          latencyFit: null,
+          computeFit: { metric: "compute", model: "power", rSquared: 0.5, slopePerSecond: 2, unit: "units", exponent: 1.25 },
+          metricFits: [
+            { metric: "latency-detail", model: "linear", rSquared: 0.75, slopePerSecond: 3, unit: "ms", exponent: 0 },
+            { metric: "empty-unit", model: "linear", rSquared: 0.2, slopePerSecond: 0, unit: "", exponent: 0 },
+            { metric: "no-fit", model: "none", rSquared: 0, slopePerSecond: 0, exponent: 0 },
+          ],
+          reasons: ["first reason", "second reason", "hidden reason"],
+          warnings: [{ code: "notice", severity: "info", message: "info warning" }],
+        },
+      }],
+    } as never} />);
+
+    expect(screen.getByText(messageOnly)).toBeInTheDocument();
+    expect(screen.getByText(codeOnly)).toBeInTheDocument();
+    expect(screen.getByText(severityOnly)).toBeInTheDocument();
+    expect(screen.getByText(/0 · .*1 · .*2/)).toBeInTheDocument();
+    expect(screen.getByText(unknownScaling)).toBeInTheDocument();
+    expect(screen.getByText(scalingLatencyLabel).parentElement).toHaveTextContent("—");
+    expect(screen.getByText(strings.dictationStudio.scalingComputeFit).parentElement).toHaveTextContent("power");
+    expect(screen.getByText(latencyDetail)).toBeInTheDocument();
+    expect(screen.getByText(emptyUnit).parentElement).toHaveTextContent("/s");
+    expect(screen.getByText(firstReason)).toBeInTheDocument();
+    expect(screen.queryByText(hiddenReason)).not.toBeInTheDocument();
+    expect(screen.getByText(infoWarning)).toBeInTheDocument();
+  });
+
+  it("shows non-error clip edits, limits the drilldown, and handles empty edit tokens", () => {
+    const clips = Array.from({ length: 10 }, (_, index) => ({
+      clipId: `clip-${index}`,
+      wer: index === 9 ? 0 : index / 10,
+      substitutions: 1, insertions: 1, deletions: 1, whisperCalls: 1, partialRevisions: 0,
+      finalizationLatencyP95Ms: 0, reference: "ref", hypothesis: "hyp", normalizedReference: "",
+      normalizedHypothesis: "", editOperations: [
+        { kind: "insertion", referenceToken: "", hypothesisToken: "added" },
+        { kind: "deletion", referenceToken: "removed", hypothesisToken: "" },
+        { kind: "substitution", referenceToken: "old", hypothesisToken: "new" },
+        { kind: "match", referenceToken: "same", hypothesisToken: "same" },
+        { kind: "match", referenceToken: "", hypothesisToken: "" },
+      ],
+      ...(index === 0 ? { error: "failure" } : {}),
+    }));
+    render(<EvalReportTable report={{
+      qualityMeasured: true, latencyMeasured: false, warnings: [], perStrategy: [{
+        strategy: "batch", label: "Batch", wer: 0, substitutions: 0, insertions: 0, deletions: 0,
+        whisperCalls: 0, whisperAudioSeconds: 0, rtf: 0, finalizationLatencyP50Ms: 0,
+        finalizationLatencyP95Ms: 0, partialRevisions: 0, werDeltaVsWinner: 0, p95DeltaMsVsWinner: 0,
+        reasons: [], warnings: [], perClip: clips,
+      }],
+    } as never} />);
+
+    expect(document.querySelectorAll('details[data-testid^="dictation-eval-clip-"]')).toHaveLength(8);
+    expect(screen.getAllByText(addedToken)).toHaveLength(8);
+    expect(screen.getAllByText(removedToken)).toHaveLength(8);
+    expect(screen.getAllByText(replacementToken)).toHaveLength(8);
+    expect(screen.getAllByText(matchedToken)).toHaveLength(8);
+    expect(document.querySelectorAll('span[title="match"]')).toHaveLength(16);
+    expect(screen.getAllByText(/dictationStudio.colP95: —/)).toHaveLength(8);
+    expect(screen.queryByText(hiddenClip)).not.toBeInTheDocument();
   });
 });

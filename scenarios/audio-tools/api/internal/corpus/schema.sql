@@ -20,7 +20,29 @@ CREATE TABLE IF NOT EXISTS corpus_clips (
   noise_condition TEXT NOT NULL DEFAULT '',
   snr_db         REAL NOT NULL DEFAULT 0,
   content_sha256 TEXT NOT NULL DEFAULT '',
+  source_id      TEXT NOT NULL DEFAULT '',
+  accent_group   TEXT NOT NULL DEFAULT '',
+  manifest_transcript_sha256 TEXT NOT NULL DEFAULT '',
+  lineage_manifest_sha256 TEXT NOT NULL DEFAULT '',
   created_at     TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_corpus_clips_created_at ON corpus_clips(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_corpus_clips_source_id ON corpus_clips(source_id) WHERE source_id != '';
+
+-- Optional timed reference annotations are separate from the established clip
+-- table so existing corpus DBs need no destructive rewrite. Contains metadata
+-- only, never audio bytes.
+CREATE TABLE IF NOT EXISTS corpus_timed_references (
+  clip_id TEXT PRIMARY KEY REFERENCES corpus_clips(id) ON DELETE CASCADE,
+  annotation_json TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+-- Transcript audit provenance is separate so pre-existing clips remain
+-- explicitly unreviewed after schema upgrades.
+CREATE TABLE IF NOT EXISTS corpus_reference_reviews (
+  clip_id TEXT PRIMARY KEY REFERENCES corpus_clips(id) ON DELETE CASCADE,
+  review_json TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);

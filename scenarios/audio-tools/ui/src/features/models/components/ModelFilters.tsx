@@ -1,4 +1,4 @@
-import { Input } from "../../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Panel } from "../../../components/ui/panel";
 import { Select } from "../../../components/ui/select";
 import { useTranslation } from "../../../i18n";

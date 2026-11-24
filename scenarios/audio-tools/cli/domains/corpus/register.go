@@ -16,11 +16,12 @@ const GroupName = "corpus"
 // Register builds the corpus subcommand group from the embedded manifest.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	bindings := map[string]func(cliapp.RunContext) error{
-		"CorpusService.ListClips":  h.list,
-		"CorpusService.CreateClip": h.importClip,
-		"CorpusService.GetClip":    h.get,
-		"CorpusService.DeleteClip": h.delete,
+	primitives := map[string]cliapp.PrimitiveHandler{
+		"CorpusService.ListClips":             h.listPrimitive(),
+		"CorpusService.CreateClip":            h.importPrimitive(),
+		"CorpusService.GetClip":               h.getPrimitive(),
+		"CorpusService.DeleteClip":            h.deletePrimitive(),
+		"CorpusService.BackfillSourceLineage": h.backfillLineagePrimitive(),
 	}
-	return climanifest.LoadGroup(manifest, GroupName, bindings)
+	return climanifest.LoadPrimitiveGroup(manifest, GroupName, primitives)
 }

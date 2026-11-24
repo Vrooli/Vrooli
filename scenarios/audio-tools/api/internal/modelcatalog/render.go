@@ -39,6 +39,9 @@ func (c *Catalog) RenderMarkdown() string {
 	b.WriteString("`allow_default: true`, and availability still ranks first among default candidates. ")
 	b.WriteString("`CommercialDefaultFor` fails closed: it returns only records whose `commercial_use` is ")
 	b.WriteString("explicitly `yes`.\n\n")
+	b.WriteString("An STT record may additionally declare `engine_defaults` for an engine-specific model choice. ")
+	b.WriteString("`DefaultForEngine` and `model resolve --engine` honor that declaration without changing the ")
+	b.WriteString("generic capability default; these routes use the same evidence gate and commercial filter.\n\n")
 	b.WriteString("In the tables, `Default` is `yes` for an available promoted default, `opt-in` for a ")
 	b.WriteString("non-available record that carries the default role with `allow_default`, and `—` for a record ")
 	b.WriteString("that is a valid alternative but not a promoted default.\n\n")
@@ -56,14 +59,17 @@ func (c *Catalog) RenderMarkdown() string {
 			b.WriteString("_No records._\n\n")
 			continue
 		}
-		b.WriteString("| Model | Provider ids | Engine ids | Runtime | Artifact | Params | Size | Languages | Licence | Commercial | Readiness | Default role | Roles |\n")
-		b.WriteString("|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")
+		b.WriteString("| Model | Provider ids | Engine ids | Engine defaults | Runtime | Runtime model id | Batch adapter | Artifact | Params | Size | Languages | Licence | Commercial | Readiness | Pricing | Default role | Roles | Promotion evidence |\n")
+		b.WriteString("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")
 		for _, m := range models {
-			fmt.Fprintf(&b, "| `%s` | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n",
+			fmt.Fprintf(&b, "| `%s` | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n",
 				m.ID,
 				joinOrDash(m.ProviderIDs),
 				joinOrDash(m.EngineIDs),
+				joinOrDash(m.EngineDefaults),
 				m.Runtime,
+				joinOrDash([]string{m.RuntimeModelID}),
+				joinOrDash([]string{m.BatchAdapterID}),
 				formatArtifact(m.Artifact),
 				m.Params,
 				formatSize(m.SizeMBApprox),
@@ -71,8 +77,10 @@ func (c *Catalog) RenderMarkdown() string {
 				m.License,
 				m.Commercial,
 				m.Readiness,
+				formatPricing(m.Pricing),
 				defaultEligibility(m),
 				joinOrDash(m.Roles),
+				promotionEvidenceLabel(m),
 			)
 		}
 		b.WriteString("\n")
@@ -95,6 +103,22 @@ func (c *Catalog) RenderMarkdown() string {
 			commercialCell = "`" + commercial.ID + "`"
 		}
 		fmt.Fprintf(&b, "| %s | %s | %s |\n", capability, defCell, commercialCell)
+	}
+	b.WriteString("\n")
+	b.WriteString("### Promotion evidence status\n\n")
+	b.WriteString("A seed status or reference is not proof: catalog-check joins each facet to its owner receipt and checks owner, model, capability, and outcome. A `Legacy exception` is code-allowlisted for a named operational route and states its evidence gap; it never claims qualification. Owner integration covers corpus quality, interactive latency, and strict model-memory receipts; memory still blocks until a real producer records a matching receipt. Platform and license remain blocking until their owners expose resolvable receipts.\n\n")
+	for _, capability := range DefaultCapabilities {
+		model, err := c.DefaultFor(capability, "", Platform{})
+		if err != nil || strings.TrimSpace(model.Promotion.LegacyException) == "" {
+			continue
+		}
+		fmt.Fprintf(&b, "- `%s`: %s\n", model.ID, model.Promotion.LegacyException)
+	}
+	for _, model := range c.All() {
+		if len(model.EngineDefaults) == 0 || strings.TrimSpace(model.Promotion.LegacyException) == "" {
+			continue
+		}
+		fmt.Fprintf(&b, "- `%s` (engine default: %s): %s\n", model.ID, strings.Join(model.EngineDefaults, ", "), model.Promotion.LegacyException)
 	}
 	b.WriteString("\n")
 
@@ -163,6 +187,8 @@ func capabilityHeading(capability Capability) string {
 		return "Summarization (summarize)"
 	case CapabilitySpeaker:
 		return "Speaker (speaker)"
+	case CapabilityDuplex:
+		return "Full-duplex voice (duplex)"
 	default:
 		return string(capability)
 	}
@@ -205,6 +231,19 @@ func defaultEligibility(m Model) string {
 	return "no"
 }
 
+func promotionEvidenceLabel(m Model) string {
+	if m.Promotion.Qualified() {
+		return "qualified receipts"
+	}
+	if strings.TrimSpace(m.Promotion.LegacyException) != "" {
+		return "legacy exception"
+	}
+	if m.HasRole("default") {
+		return "blocked: receipt required"
+	}
+	return "not promoted"
+}
+
 func codeList(values []string) string {
 	if len(values) == 0 {
 		return "_none_"
@@ -214,4 +253,21 @@ func codeList(values []string) string {
 		out[i] = "`" + value + "`"
 	}
 	return strings.Join(out, ", ")
+}
+
+func formatPricing(p *Pricing) string {
+	if p == nil {
+		return "—"
+	}
+	return fmt.Sprintf("%s active / %s standby %s; %ds increments; [source](%s)", formatRate(p.ActiveMicrosPerMinute), formatRate(p.StandbyMicrosPerMinute), p.Currency+"/min", p.BillingIncrementSeconds, p.SourceURL)
+}
+
+func formatRate(micros *int64) string {
+	if micros == nil {
+		return "—"
+	}
+	whole, fractional := *micros/1_000_000, *micros%1_000_000
+	value := fmt.Sprintf("$%d.%06d", whole, fractional)
+	value = strings.TrimRight(value, "0")
+	return strings.TrimRight(value, ".")
 }

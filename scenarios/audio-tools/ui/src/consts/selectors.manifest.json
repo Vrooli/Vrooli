@@ -57,6 +57,10 @@
       "testId": "stream-config-save-overlap",
       "selector": "[data-testid=\"stream-config-save-overlap\"]"
     },
+    "dictationStudio.reviewAudio": {
+      "testId": "dictation-review-audio",
+      "selector": "[data-testid=\"dictation-review-audio\"]"
+    },
     "dictationStudio.modeFree": {
       "testId": "dictation-mode-free",
       "selector": "[data-testid=\"dictation-mode-free\"]"
@@ -184,6 +188,10 @@
     "dictationStudio.experimentName": {
       "testId": "dictation-experiment-name",
       "selector": "[data-testid=\"dictation-experiment-name\"]"
+    },
+    "dictationStudio.experimentMetricsOnly": {
+      "testId": "dictation-experiment-metrics-only",
+      "selector": "[data-testid=\"dictation-experiment-metrics-only\"]"
     },
     "dictationStudio.experimentEngines": {
       "testId": "dictation-experiment-engines",
@@ -448,6 +456,17 @@
         }
       ]
     },
+    "dictationStudio.variantReviewAudio": {
+      "description": "Source variant review audio player by clip id",
+      "selectorPattern": "[data-testid=\"dictation-review-audio-${id}\"]",
+      "testIdPattern": "dictation-review-audio-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
     "dictationStudio.clipDelete": {
       "description": "Delete-clip button by clip id",
       "selectorPattern": "[data-testid=\"dictation-clip-delete-${id}\"]",
@@ -576,7 +595,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "d18a7d6ba62755de18b93b06d3626f2c0ebd15ba0a78c46d1150c96f9699286c",
-    "ui/src/consts/selectors.ts": "b49380f9e63e9c94a1ca392fcf87f5a47ead008462e0ad5e69526d1c08eab7df",
+    "ui/src/consts/selectors.ts": "f93825fb17b68d10cb727f29965c24b1030697795baad5be7625264771193d37",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

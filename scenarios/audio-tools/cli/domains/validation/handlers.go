@@ -2,14 +2,17 @@ package validation
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"math"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -35,18 +38,22 @@ const (
 	defaultQualificationMinutes = minimumQualificationMinutes
 	defaultTTSInterval          = 10 * time.Second
 	syntheticFrameDuration      = 100 * time.Millisecond
+	qualificationSessionByteCap = 16 * 1024 * 1024
 	syntheticSampleRate         = 16000
 	syntheticBytesPerSample     = 2
 	syntheticToneHz             = 440
 	evidenceFileName            = "expensive-validation.json"
 )
 
+var errQualificationSessionRotated = errors.New("qualification stream session rotated")
+
 type handlers struct {
-	core      *cliapp.ScenarioApp
-	now       func() time.Time
-	newTicker func(time.Duration) *time.Ticker
-	getenv    func(string) string
-	getwd     func() (string, error)
+	core       *cliapp.ScenarioApp
+	Now        func() time.Time
+	newTicker  func(time.Duration) *time.Ticker
+	getenv     func(string) string
+	getwd      func() (string, error)
+	runCommand func(context.Context, string, ...string) error
 }
 
 func newHandlersWithClock(core *cliapp.ScenarioApp, now func() time.Time) *handlers {
@@ -60,7 +67,12 @@ func newHandlersWithDependencies(core *cliapp.ScenarioApp, now func() time.Time,
 	if newTicker == nil {
 		newTicker = func(time.Duration) *time.Ticker { return nil }
 	}
-	return &handlers{core: core, now: now, newTicker: newTicker, getenv: getenv, getwd: getwd}
+	return &handlers{
+		core: core, Now: now, newTicker: newTicker, getenv: getenv, getwd: getwd,
+		runCommand: func(ctx context.Context, name string, args ...string) error {
+			return exec.CommandContext(ctx, name, args...).Run()
+		},
+	}
 }
 
 // validationEvidence is intentionally a small, append-free artifact. A single
@@ -133,6 +145,9 @@ func (h *handlers) runSimulated(ctx cliapp.RunContext) error {
 	}
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(h.core)
 	client := experimentconnect.NewExperimentServiceClient(httpClient, baseURL)
+	if err := requireLabQualificationEvidenceAPI(context.Background(), client, "validation run-simulated"); err != nil {
+		return err
+	}
 	build := strings.TrimSpace(h.getenv("AUDIO_TOOLS_SOURCE_IDENTITY"))
 	if build == "" {
 		build = "simulated-policy-v1"
@@ -147,38 +162,17 @@ func (h *handlers) runSimulated(ctx cliapp.RunContext) error {
 		// to the policy/adapter rows exercised by this command.
 		deviceProfile = "D1"
 	}
-	machine, err := json.Marshal(map[string]any{
-		"execution_lane":               "simulated",
-		"simulated_as_native":          false,
-		"supported_rows":               result.Details["supported_rows"],
-		"all_intervals_accounted":      true,
-		"duplicate_committed_segments": 0,
-		"silent_terminal_outcomes":     0,
-		"target_revision":              "portable-voice-v1",
-		"method":                       "audio-tools-acceptance-v1",
-		"cohort":                       "voice-pilot-en-v1",
-		"build":                        build,
-		"device_profile":               deviceProfile,
-		"policy_revision":              "policy-v1",
-		"corpus_revision":              "voice-pilot-en-v1",
-		"provider_cell": map[string]string{
-			"engine_id": "simulated-policy",
-			"model_id":  "simulation-v1",
-			"strategy":  "simulation",
-		},
-		"acceptance": result.Claims,
-		"details":    result.Details,
-	})
+	artifact := "audio-tools:simulated-qualification:" + h.Now().UTC().Format("20060102T150405.000000000Z")
+	machine, err := simulatedAcceptanceMachineJSON(result, deviceProfile, build, artifact)
 	if err != nil {
 		return fmt.Errorf("encode simulated qualification receipt: %w", err)
 	}
-	artifact := "audio-tools:simulated-qualification:" + h.now().UTC().Format("20060102T150405.000000000Z")
 	_, err = client.RecordQualificationEvidence(context.Background(), connect.NewRequest(&experimentv1.RecordQualificationEvidenceRequest{Evidence: &experimentv1.QualificationEvidence{
 		EngineId:      "simulated-policy",
 		ModelId:       "simulation-v1",
 		Strategy:      "simulation",
 		PolicyProfile: "policy-v1",
-		Kind:          experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_INTERVAL_ACCOUNTING,
+		Kind:          experimentv1.QualificationEvidenceKind_QUALIFICATION_EVIDENCE_KIND_ACCEPTANCE_COMPOSITE,
 		Passed:        true,
 		ArtifactRef:   artifact,
 		Notes:         "local policy/adapter qualification; simulated lane only, not hosted inference, corpus quality, or wall-clock latency",
@@ -194,6 +188,37 @@ func (h *handlers) runSimulated(ctx cliapp.RunContext) error {
 	return nil
 }
 
+func simulatedAcceptanceMachineJSON(result simulatedQualification, deviceProfile, build, artifact string) ([]byte, error) {
+	for row, raw := range result.Claims {
+		claim, ok := raw.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("simulated claim %q has invalid shape", row)
+		}
+		claim["receipt_reference"] = artifact
+		result.Claims[row] = claim
+	}
+	return json.Marshal(map[string]any{
+		"execution_lane":      "simulated",
+		"simulated_as_native": false,
+		"supported_rows":      result.Details["supported_rows"],
+		"target_revision":     acceptanceTargetRevision,
+		"method":              "audio-tools-acceptance-v2",
+		"cohort":              "voice-pilot-en-v1",
+		"build":               build,
+		"device_profile":      deviceProfile,
+		"policy_revision":     "policy-v1",
+		"corpus_revision":     "voice-pilot-en-v1",
+		"provider_cell": map[string]string{
+			"engine_id":      "simulated-policy",
+			"model_id":       "simulation-v1",
+			"strategy":       "simulation",
+			"device_profile": deviceProfile,
+		},
+		"acceptance": result.Claims,
+		"details":    result.Details,
+	})
+}
+
 func (h *handlers) runAndRecord(ctx context.Context, requirementsDir, evidencePath string, duration time.Duration, out io.Writer, asJSON bool) error {
 	if duration < minimumQualificationMinutes*time.Minute {
 		return fmt.Errorf("expensive audio validation requires at least %d minutes", minimumQualificationMinutes)
@@ -202,7 +227,7 @@ func (h *handlers) runAndRecord(ctx context.Context, requirementsDir, evidencePa
 		return errors.New("audio-tools validation requires the scenario CLI core")
 	}
 
-	started := h.now().UTC()
+	started := h.Now().UTC()
 	ctx, cancel := context.WithTimeout(ctx, duration)
 	defer cancel()
 
@@ -229,7 +254,7 @@ func (h *handlers) runAndRecord(ctx context.Context, requirementsDir, evidencePa
 		return fmt.Errorf("expensive audio validation ended before its duration: %w", ctx.Err())
 	}
 
-	finished := h.now().UTC()
+	finished := h.Now().UTC()
 	evidence := counters.snapshot()
 	evidence.Scenario = "audio-tools"
 	evidence.StartedAt = started
@@ -268,7 +293,7 @@ func (h *handlers) checkFreshness(ctx cliapp.RunContext) error {
 	if requirementsDir == "" {
 		requirementsDir = filepath.Join(root, "requirements")
 	}
-	stale, err := findStaleValidations(requirementsDir, h.now())
+	stale, err := findStaleValidations(requirementsDir, h.Now())
 	if err != nil {
 		return err
 	}
@@ -328,17 +353,41 @@ func synthesizeProbe(ctx context.Context, client ttsconnect.TTSServiceClient, co
 }
 
 func runDictationQualification(ctx context.Context, client sttconnect.STTServiceClient, counters *validationCounters, newTicker func(time.Duration) *time.Ticker) error {
-	stream := client.TranscribeStream(ctx)
-	if err := stream.Send(&sttv1.TranscribeStreamRequest{Payload: &sttv1.TranscribeStreamRequest_Start{Start: &sttv1.StreamStart{
-		ProtocolVersion:   2,
-		InputFormat:       commonv1.AudioFormat_AUDIO_FORMAT_PCM_S16LE,
-		InputSampleRateHz: syntheticSampleRate,
-		SessionId:         "out-of-band-audio-qualification",
-		ResumeToken:       "out-of-band-audio-qualification",
-	}}}); err != nil {
-		return fmt.Errorf("send stream start: %w", err)
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		sessionID, err := newQualificationSessionID()
+		if err != nil {
+			return err
+		}
+		stream := client.TranscribeStream(ctx)
+		if err := stream.Send(&sttv1.TranscribeStreamRequest{Payload: &sttv1.TranscribeStreamRequest_Start{Start: &sttv1.StreamStart{
+			ProtocolVersion:   2,
+			InputFormat:       commonv1.AudioFormat_AUDIO_FORMAT_PCM_S16LE,
+			InputSampleRateHz: syntheticSampleRate,
+			SessionId:         sessionID,
+			ResumeToken:       sessionID,
+		}}}); err != nil {
+			return fmt.Errorf("send stream start: %w", err)
+		}
+		err = runQualificationDictationLoop(ctx, stream, counters, newTicker)
+		if errors.Is(err, errQualificationSessionRotated) {
+			continue
+		}
+		return err
 	}
+}
 
+func newQualificationSessionID() (string, error) {
+	var sessionIDBytes [16]byte
+	if _, err := rand.Read(sessionIDBytes[:]); err != nil {
+		return "", fmt.Errorf("create qualification stream identity: %w", err)
+	}
+	return "out-of-band-audio-qualification-" + hex.EncodeToString(sessionIDBytes[:]), nil
+}
+
+func runQualificationDictationLoop(ctx context.Context, stream *connect.BidiStreamForClient[sttv1.TranscribeStreamRequest, sttv1.TranscribeStreamEvent], counters *validationCounters, newTicker func(time.Duration) *time.Ticker) error {
 	receiveErr := make(chan error, 1)
 	go func() {
 		for {
@@ -362,6 +411,10 @@ func runDictationQualification(ctx context.Context, client sttconnect.STTService
 					receiveErr <- fmt.Errorf("server stream error %s: %s", event.GetError().Code, event.GetError().Message)
 					return
 				}
+				if event.GetDone() != nil {
+					receiveErr <- nil
+					return
+				}
 			}
 		}
 	}()
@@ -370,18 +423,17 @@ func runDictationQualification(ctx context.Context, client sttconnect.STTService
 	defer ticker.Stop()
 	var sequence uint64
 	var sampleOffset int64
+	var sessionBytes uint64
 	for {
 		select {
 		case <-ctx.Done():
-			_ = stream.Send(&sttv1.TranscribeStreamRequest{Payload: &sttv1.TranscribeStreamRequest_End{End: &sttv1.StreamEnd{}}})
-			_ = stream.CloseRequest()
-			<-receiveErr
+			_ = finishQualificationStream(stream, receiveErr)
 			return ctx.Err()
 		case err := <-receiveErr:
 			if err != nil {
 				return fmt.Errorf("receive stream events: %w", err)
 			}
-			return nil
+			return errors.New("STT stream completed before qualification deadline")
 		case tick := <-ticker.C:
 			_ = tick
 			pcm := syntheticPCM(syntheticSampleRate, syntheticFrameDuration, sampleOffset)
@@ -394,10 +446,30 @@ func runDictationQualification(ctx context.Context, client sttconnect.STTService
 			}
 			counters.sttChunks.Add(1)
 			counters.sttBytes.Add(uint64(len(pcm)))
+			sessionBytes += uint64(len(pcm))
 			sequence++
 			sampleOffset = endSample
+			if sessionBytes >= qualificationSessionByteCap {
+				if err := finishQualificationStream(stream, receiveErr); err != nil {
+					return fmt.Errorf("rotate STT qualification session: %w", err)
+				}
+				return errQualificationSessionRotated
+			}
 		}
 	}
+}
+
+func finishQualificationStream(stream *connect.BidiStreamForClient[sttv1.TranscribeStreamRequest, sttv1.TranscribeStreamEvent], receiveErr <-chan error) error {
+	if err := stream.Send(&sttv1.TranscribeStreamRequest{Payload: &sttv1.TranscribeStreamRequest_End{End: &sttv1.StreamEnd{}}}); err != nil {
+		return fmt.Errorf("send stream end: %w", err)
+	}
+	if err := stream.CloseRequest(); err != nil {
+		return fmt.Errorf("close stream request: %w", err)
+	}
+	if err := <-receiveErr; err != nil {
+		return err
+	}
+	return nil
 }
 
 func syntheticPCM(sampleRate int, duration time.Duration, sampleOffset int64) []byte {

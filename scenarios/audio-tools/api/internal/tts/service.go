@@ -2,9 +2,12 @@ package tts
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"math"
 	"strings"
+	"sync"
 	"time"
 
 	"audio-tools/internal/audioformat"
@@ -14,16 +17,48 @@ import (
 const (
 	defaultVoice             = "af_heart"
 	maxSynthesizeInputLength = 5000
+	maxSynthesizeAudioBytes  = 64 << 20
 	minSummarizeTimeout      = 15
 	maxSummarizeTimeout      = 300
 	maxTTSSpeed              = 4.0
 )
 
+var errResponseBodyTooLarge = errors.New("response exceeds size limit")
+
+func readBoundedResponse(body io.Reader, maxBytes int64) ([]byte, error) {
+	if maxBytes < 0 {
+		return nil, fmt.Errorf("invalid synthesis response limit %d", maxBytes)
+	}
+	data, err := io.ReadAll(io.LimitReader(body, maxBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > maxBytes {
+		return nil, errResponseBodyTooLarge
+	}
+	return data, nil
+}
+
+func normalizeSynthesisSpeed(speed float64) (float64, error) {
+	if math.IsNaN(speed) || math.IsInf(speed, 0) {
+		return 0, fmt.Errorf("%w: speed must be a finite number", ErrInvalidArgument)
+	}
+	if speed <= 0 {
+		return 1, nil
+	}
+	if speed > maxTTSSpeed {
+		return maxTTSSpeed, nil
+	}
+	return speed, nil
+}
+
 type CacheKey struct {
-	EventID string
-	Voice   string
-	Speed   float64
-	Version string
+	EventID        string
+	Backend        string
+	Voice          string
+	Speed          float64
+	ResponseFormat string
+	Version        string
 	// ChunkIndex disambiguates the N ordered paragraphs of a single event so
 	// per-paragraph audio does not collide on one whole-message key. 0 for
 	// single-chunk / whole-message synthesis.
@@ -43,17 +78,20 @@ type Deps struct {
 	GetLastPlaybackEvent func() (*PlaybackEvent, time.Time)
 	RecordPlaybackEvent  func(PlaybackEvent)
 
-	KokoroCapability func(context.Context) (string, string)
-	SynthesizeAudio  func(context.Context, SynthesizeInput) (io.ReadCloser, string, error)
-	GetCache         func(CacheKey) (SynthesizeResult, bool)
-	PutCache         func(CacheKey, []byte, string)
-	ListVoiceCatalog func(context.Context) ([]Voice, error)
+	KokoroCapability          func(context.Context) (string, string)
+	InvalidateBackendLiveness func()
+	SynthesizeAudio           func(context.Context, SynthesizeInput) (io.ReadCloser, string, error)
+	GetCache                  func(CacheKey) (SynthesizeResult, bool)
+	PutCache                  func(CacheKey, []byte, string)
+	CacheBackend              string
+	ListVoiceCatalog          func(context.Context) ([]Voice, error)
 
 	Logger logx.Logger
 }
 
 type Service struct {
-	deps Deps
+	deps     Deps
+	configMu sync.RWMutex
 }
 
 // NewService constructs a TTS Service. Deps.Logger is required (no
@@ -68,18 +106,29 @@ func NewService(d Deps) *Service {
 
 func (s *Service) logger() logx.Logger { return s.deps.Logger }
 
+// InvalidateBackendLiveness expires the cached provider status after a
+// transport failure so the next request can observe a recovery promptly.
+func (s *Service) InvalidateBackendLiveness() {
+	if s != nil && s.deps.InvalidateBackendLiveness != nil {
+		s.deps.InvalidateBackendLiveness()
+	}
+}
+
 func (s *Service) GetConfig(_ context.Context) (Config, error) {
-	return s.deps.GetConfig(), nil
+	return s.getConfig(), nil
 }
 
 func (s *Service) UpdateConfig(_ context.Context, patch ConfigPatch) (Config, error) {
+	s.configMu.Lock()
+	defer s.configMu.Unlock()
+
 	current := s.deps.GetConfig()
 	updated := current
 	if patch.AutoEnabled != nil {
 		updated.AutoEnabled = *patch.AutoEnabled
 	}
-	if patch.Backend != nil {
-		updated.Backend = *patch.Backend
+	if patch.DefaultResponseFormat != nil {
+		updated.DefaultResponseFormat = *patch.DefaultResponseFormat
 	}
 	if patch.KokoroVoice != nil {
 		updated.KokoroVoice = *patch.KokoroVoice
@@ -88,18 +137,16 @@ func (s *Service) UpdateConfig(_ context.Context, patch ConfigPatch) (Config, er
 		updated.KokoroSpeed = *patch.KokoroSpeed
 	}
 
-	switch updated.Backend {
-	case "", "auto", "kokoro", "browser":
-		if updated.Backend == "" {
-			updated.Backend = "auto"
-		}
-	default:
-		return Config{}, fmt.Errorf("%w: backend must be auto, kokoro, or browser", ErrInvalidArgument)
+	if updated.DefaultResponseFormat == "" {
+		updated.DefaultResponseFormat = DefaultResponseFormat
+	}
+	if _, ok := audioformat.OutputFormatFromString(updated.DefaultResponseFormat); !ok {
+		return Config{}, fmt.Errorf("%w: defaultResponseFormat must be mp3, wav, opus, or flac", ErrInvalidArgument)
 	}
 	if updated.KokoroVoice == "" {
 		updated.KokoroVoice = defaultVoice
 	}
-	if updated.KokoroSpeed < 0.5 || updated.KokoroSpeed > maxTTSSpeed {
+	if math.IsNaN(updated.KokoroSpeed) || math.IsInf(updated.KokoroSpeed, 0) || updated.KokoroSpeed < 0.5 || updated.KokoroSpeed > maxTTSSpeed {
 		return Config{}, fmt.Errorf("%w: kokoroSpeed must be between 0.5 and 4.0", ErrInvalidArgument)
 	}
 
@@ -109,9 +156,15 @@ func (s *Service) UpdateConfig(_ context.Context, patch ConfigPatch) (Config, er
 			s.logger().Printf("tts-config: persist failed (in-memory updated): %v", err)
 		}
 	}
-	s.logger().Printf("tts-config: updated: autoEnabled=%v backend=%s voice=%s speed=%.1f",
-		updated.AutoEnabled, updated.Backend, updated.KokoroVoice, updated.KokoroSpeed)
+	s.logger().Printf("tts-config: updated: autoEnabled=%v responseFormat=%s voice=%s speed=%.1f",
+		updated.AutoEnabled, updated.DefaultResponseFormat, updated.KokoroVoice, updated.KokoroSpeed)
 	return updated, nil
+}
+
+func (s *Service) getConfig() Config {
+	s.configMu.RLock()
+	defer s.configMu.RUnlock()
+	return s.deps.GetConfig()
 }
 
 func (s *Service) GetStatus(ctx context.Context) (Status, error) {
@@ -126,7 +179,7 @@ func (s *Service) GetStatus(ctx context.Context) (Status, error) {
 	kokoroCapability, kokoroCapabilityLabel := s.deps.KokoroCapability(ctx)
 
 	return Status{
-		Config:                s.deps.GetConfig(),
+		Config:                s.getConfig(),
 		HookRegistered:        hookRegistered,
 		HookCode:              hookCode,
 		HookReason:            hookReason,
@@ -156,16 +209,24 @@ func (s *Service) RecordPlaybackEvent(_ context.Context, ev PlaybackEvent) error
 }
 
 // LocalBackendReady reports whether the local synthesis backend is wired and
-// its capability probe currently says it can serve. It is the single readiness
-// predicate: Synthesize gates on it, and the provider chain answers
-// IsAvailable with it, so an availability answer can never disagree with what
-// a subsequent request would do.
+// its cheap liveness probe currently says it can serve. The same predicate
+// gates Synthesize and answers provider-chain availability; full synthesis
+// probes are reserved for explicit readiness sweeps.
 func (s *Service) LocalBackendReady(ctx context.Context) bool {
 	if s == nil || s.deps.SynthesizeAudio == nil || s.deps.KokoroCapability == nil {
 		return false
 	}
 	capability, _ := s.deps.KokoroCapability(ctx)
 	return capability == "available"
+}
+
+// InvalidateBackendReadiness clears a cached negative liveness result after a
+// managed resource start, so the ensuing request verifies the newly started
+// endpoint instead of waiting for the ordinary capability TTL.
+func (s *Service) InvalidateBackendReadiness() {
+	if s != nil && s.deps.InvalidateBackendLiveness != nil {
+		s.deps.InvalidateBackendLiveness()
+	}
 }
 
 func (s *Service) Synthesize(ctx context.Context, in SynthesizeInput) (SynthesizeResult, error) {
@@ -188,13 +249,16 @@ func (s *Service) Synthesize(ctx context.Context, in SynthesizeInput) (Synthesiz
 	normalized := in
 	normalized.Input = input
 	if normalized.Voice == "" {
-		normalized.Voice = s.deps.GetConfig().KokoroVoice
+		normalized.Voice = s.getConfig().KokoroVoice
 		if normalized.Voice == "" {
 			normalized.Voice = defaultVoice
 		}
 	}
 	if normalized.ResponseFormat == "" {
-		normalized.ResponseFormat = string(audioformat.OutputMP3)
+		normalized.ResponseFormat = s.getConfig().DefaultResponseFormat
+		if normalized.ResponseFormat == "" {
+			normalized.ResponseFormat = DefaultResponseFormat
+		}
 	}
 	// The audioformat substrate is the single source of truth for the TTS
 	// output-format vocabulary (mp3/wav/opus/flac). The kokoro engine
@@ -203,23 +267,53 @@ func (s *Service) Synthesize(ctx context.Context, in SynthesizeInput) (Synthesiz
 	if _, ok := audioformat.OutputFormatFromString(normalized.ResponseFormat); !ok {
 		return SynthesizeResult{}, fmt.Errorf("%w: unsupported response_format; use mp3, wav, opus, or flac", ErrInvalidArgument)
 	}
-	if normalized.Speed <= 0 {
-		normalized.Speed = 1.0
-	} else if normalized.Speed > maxTTSSpeed {
-		normalized.Speed = maxTTSSpeed
+	speed, err := normalizeSynthesisSpeed(normalized.Speed)
+	if err != nil {
+		return SynthesizeResult{}, err
 	}
+	normalized.Speed = speed
 
 	body, contentType, err := s.deps.SynthesizeAudio(ctx, normalized)
 	if err != nil {
+		// Preserve caller cancellation and deadlines through the service layer.
+		// In particular, do not turn a canceled request into an internal error
+		// or invalidate a healthy backend for a client-side disconnect.
+		if ctx.Err() != nil {
+			return SynthesizeResult{}, ctx.Err()
+		}
 		s.logger().Printf("tts-synthesize: synthesis failed: %v", err)
+		if errors.Is(err, ErrUnavailable) {
+			if s.deps.InvalidateBackendLiveness != nil {
+				s.deps.InvalidateBackendLiveness()
+			}
+			return SynthesizeResult{}, fmt.Errorf("%w: synthesis backend unavailable", ErrUnavailable)
+		}
+		if errors.Is(err, ErrInvalidArgument) {
+			return SynthesizeResult{}, err
+		}
 		return SynthesizeResult{}, fmt.Errorf("%w: synthesis failed", ErrInternal)
 	}
 	defer body.Close()
 
-	data, readErr := io.ReadAll(body)
+	data, readErr := readBoundedResponse(body, maxSynthesizeAudioBytes)
 	if readErr != nil {
 		s.logger().Printf("tts-synthesize: read response: %v", readErr)
-		return SynthesizeResult{}, fmt.Errorf("%w: synthesis failed", ErrInternal)
+		if ctx.Err() != nil {
+			return SynthesizeResult{}, ctx.Err()
+		}
+		if s.deps.InvalidateBackendLiveness != nil {
+			s.deps.InvalidateBackendLiveness()
+		}
+		if errors.Is(readErr, errResponseBodyTooLarge) {
+			return SynthesizeResult{}, fmt.Errorf("%w: synthesis response exceeds %d-byte limit", ErrUnavailable, maxSynthesizeAudioBytes)
+		}
+		return SynthesizeResult{}, fmt.Errorf("%w: synthesis response could not be read", ErrUnavailable)
+	}
+	// The response reader can complete successfully even when the caller
+	// cancels during its final read. Do not return or persist an event snapshot
+	// after cancellation merely because the transport delivered all bytes.
+	if ctx.Err() != nil {
+		return SynthesizeResult{}, ctx.Err()
 	}
 
 	if normalized.EventID != "" && s.deps.PutCache != nil && len(data) > 0 {
@@ -228,11 +322,13 @@ func (s *Service) Synthesize(ctx context.Context, in SynthesizeInput) (Synthesiz
 			version = "active"
 		}
 		s.deps.PutCache(CacheKey{
-			EventID:    normalized.EventID,
-			Voice:      normalized.Voice,
-			Speed:      normalized.Speed,
-			Version:    version,
-			ChunkIndex: normalized.ChunkIndex,
+			EventID:        normalized.EventID,
+			Backend:        s.deps.CacheBackend,
+			Voice:          normalized.Voice,
+			Speed:          normalized.Speed,
+			ResponseFormat: normalized.ResponseFormat,
+			Version:        version,
+			ChunkIndex:     normalized.ChunkIndex,
 		}, data, contentType)
 	}
 
@@ -245,26 +341,37 @@ func (s *Service) GetCache(_ context.Context, q CacheLookup) (SynthesizeResult, 
 	}
 	voice := q.Voice
 	if voice == "" {
-		voice = s.deps.GetConfig().KokoroVoice
+		voice = s.getConfig().KokoroVoice
 		if voice == "" {
 			voice = defaultVoice
 		}
 	}
-	speed := q.Speed
-	if speed <= 0 {
-		speed = 1.0
+	speed, err := normalizeSynthesisSpeed(q.Speed)
+	if err != nil {
+		return SynthesizeResult{}, err
 	}
 	version := q.Version
 	if version == "" {
 		version = "active"
 	}
-
+	responseFormat := q.ResponseFormat
+	if responseFormat == "" {
+		responseFormat = s.getConfig().DefaultResponseFormat
+		if responseFormat == "" {
+			responseFormat = DefaultResponseFormat
+		}
+	}
+	if _, ok := audioformat.OutputFormatFromString(responseFormat); !ok {
+		return SynthesizeResult{}, fmt.Errorf("%w: unsupported response_format; use mp3, wav, opus, or flac", ErrInvalidArgument)
+	}
 	out, ok := s.deps.GetCache(CacheKey{
-		EventID:    q.EventID,
-		Voice:      voice,
-		Speed:      speed,
-		Version:    version,
-		ChunkIndex: q.ChunkIndex,
+		EventID:        q.EventID,
+		Backend:        s.deps.CacheBackend,
+		Voice:          voice,
+		Speed:          speed,
+		ResponseFormat: responseFormat,
+		Version:        version,
+		ChunkIndex:     q.ChunkIndex,
 	})
 	if !ok {
 		return SynthesizeResult{}, fmt.Errorf("%w: no cached audio for this event", ErrNotFound)

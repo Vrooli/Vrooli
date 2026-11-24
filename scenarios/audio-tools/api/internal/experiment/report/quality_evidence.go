@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 package report
 
 import (
@@ -9,12 +11,18 @@ import (
 	intcorpus "audio-tools/internal/corpus"
 	inteval "audio-tools/internal/eval"
 	intexp "audio-tools/internal/experiment"
+	"audio-tools/internal/modelcatalog"
 )
 
 const (
-	maxQualityCleanWER = 0.10
-	maxQualityNoisyWER = 0.20
+	maxQualityCleanWER       = 0.10
+	maxQualityNoisyWER       = 0.20
+	qualityMeasurementSchema = "corpus-quality-subgroups-v1"
 )
+
+var requiredQualityAccents = []string{"uk", "us", "south_african"}
+
+type qualityCounts struct{ edits, words int }
 
 // QualityEvidenceForReport turns a completed report into one persisted
 // transcript-free quality receipt per provider cell. It is deliberately
@@ -31,6 +39,19 @@ func QualityEvidenceForReport(clips []intcorpus.Clip, report inteval.EvalReport,
 	out := make([]intexp.QualificationEvidence, 0, len(report.PerStrategy))
 	for _, cell := range report.PerStrategy {
 		passed, metrics, reasons := assessQualityCell(cohortClips, cell, report.QualityMeasured, cohort, build)
+		capability := "unknown"
+		canonicalModelID := cell.ModelID
+		if model, ok := modelcatalog.Default().ByEngineModelID(cell.EngineID, cell.ModelID); !ok {
+			passed = false
+			reasons = append(reasons, "model id is not declared in the model catalog")
+		} else {
+			canonicalModelID = model.ID
+			capability = string(model.Capability)
+			if model.Capability != modelcatalog.CapabilitySTT {
+				passed = false
+				reasons = append(reasons, "corpus quality receipt requires an STT model")
+			}
+		}
 		// Explicit provider-cell reports use an internal CellID to keep
 		// otherwise-colliding rows distinct. The acceptance envelope, however,
 		// joins on the canonical strategy declared by the cell. Do not leak the
@@ -45,7 +66,7 @@ func QualityEvidenceForReport(clips []intcorpus.Clip, report inteval.EvalReport,
 				"negative_controls_passed": passed,
 			},
 		}
-		machine, err := acceptance.MachineJSONForCell(build, qualityDeviceProfile(cell.ReplayLane), acceptance.Cohort, acceptance.Policy, cell.EngineID, cell.ModelID, strategy, claims)
+		machine, err := acceptance.MachineJSONForCell(build, qualityDeviceProfile(cell.ReplayLane), acceptance.Cohort, acceptance.Policy, cell.EngineID, canonicalModelID, capability, strategy, claims)
 		if err != nil {
 			machine, _ = json.Marshal(map[string]any{
 				"target_revision": acceptance.TargetRevision,
@@ -57,8 +78,10 @@ func QualityEvidenceForReport(clips []intcorpus.Clip, report inteval.EvalReport,
 			reasons = append(reasons, err.Error())
 		}
 		payload := map[string]any{
+			"schema_version": qualityMeasurementSchema,
+			"metrics":        metrics,
 			"provider_cell": map[string]string{
-				"engine_id": cell.EngineID, "model_id": cell.ModelID,
+				"engine_id": cell.EngineID, "model_id": canonicalModelID, "capability": capability,
 				"strategy": strategy, "policy_profile": cell.PolicyProfile,
 			},
 			"corpus": map[string]any{
@@ -77,9 +100,9 @@ func QualityEvidenceForReport(clips []intcorpus.Clip, report inteval.EvalReport,
 			machine, _ = json.Marshal(envelope)
 		}
 		out = append(out, intexp.QualificationEvidence{
-			EngineID: cell.EngineID, ModelID: cell.ModelID, Strategy: strategy,
+			EngineID: cell.EngineID, ModelID: canonicalModelID, Strategy: strategy,
 			PolicyProfile: cell.PolicyProfile, Kind: "corpus_quality", Passed: passed,
-			ArtifactRef: fmt.Sprintf("experiment-quality:%s:%s:%s", safePart(cell.EngineID), safePart(cell.ModelID), safePart(string(cell.Strategy))),
+			ArtifactRef: fmt.Sprintf("experiment-quality:%s:%s:%s", safePart(cell.EngineID), safePart(canonicalModelID), safePart(string(cell.Strategy))),
 			Notes:       "server-owned held-out corpus quality qualification; pass requires provenance, cohort coverage, and subgroup WER thresholds",
 			MachineJSON: machine,
 		})
@@ -108,15 +131,116 @@ func measuredCohortClips(clips []intcorpus.Clip, report inteval.EvalReport) []in
 }
 
 type qualityMetric struct {
-	Condition string  `json:"condition"`
-	SNRDB     float64 `json:"snr_db"`
-	WER       float64 `json:"wer"`
-	RefWords  int     `json:"ref_words"`
-	MaxWER    float64 `json:"max_wer"`
+	Name      string   `json:"name"`
+	Condition string   `json:"condition"`
+	Accent    string   `json:"accent,omitempty"`
+	Available bool     `json:"available"`
+	SNRDB     float64  `json:"snr_db"`
+	WER       *float64 `json:"wer,omitempty"`
+	RefWords  int      `json:"ref_words"`
+	MaxWER    float64  `json:"max_wer"`
 }
 
 func assessQualityCell(clips []intcorpus.Clip, cell inteval.StrategyReport, measured bool, cohort intcorpus.QualityCohortReport, build string) (bool, []qualityMetric, []string) {
 	reasons := append([]string(nil), cohort.Reasons...)
+	reasons = qualityCellPrerequisiteReasons(reasons, cell, measured, build)
+	byID := make(map[string]intcorpus.Clip, len(clips))
+	for _, clip := range clips {
+		byID[clip.ID] = clip
+	}
+	seen := make(map[string]bool, len(cell.PerClip))
+	groups := map[string]qualityCounts{}
+	for _, clip := range cell.PerClip {
+		meta, ok := byID[clip.ClipID]
+		if !ok {
+			reasons = append(reasons, fmt.Sprintf("report contains unknown clip %q", clip.ClipID))
+			continue
+		}
+		if seen[clip.ClipID] {
+			reasons = append(reasons, fmt.Sprintf("report contains duplicate clip %q", clip.ClipID))
+			continue
+		}
+		seen[clip.ClipID] = true
+		condition := qualityConditionGroup(meta)
+		g := groups[condition]
+		g.edits += clip.WER.EditCounts.Total()
+		g.words += clip.WER.RefWords
+		groups[condition] = g
+		accent := qualityAccent(meta.Tags)
+		if accent == "" {
+			reasons = append(reasons, fmt.Sprintf("clip %q has no recognized accent group", meta.ID))
+			continue
+		}
+		key := "accent_noise:" + accent + ":" + strings.TrimPrefix(condition, "noisy_")
+		g = groups[key]
+		g.edits += clip.WER.EditCounts.Total()
+		g.words += clip.WER.RefWords
+		groups[key] = g
+	}
+	if len(seen) != len(clips) {
+		reasons = append(reasons, fmt.Sprintf("report covers %d of %d corpus clips", len(seen), len(clips)))
+	}
+	metrics := make([]qualityMetric, 0, 12)
+	for _, spec := range []struct {
+		name string
+		max  float64
+	}{
+		{"clean", maxQualityCleanWER}, {"noisy_20db", maxQualityNoisyWER}, {"noisy_10db", maxQualityNoisyWER},
+	} {
+		appendQualityMetric(&metrics, &reasons, groups, spec.name, "", spec.name, spec.name, spec.max)
+	}
+	for _, accent := range requiredQualityAccents {
+		for _, spec := range []struct {
+			condition string
+			max       float64
+		}{{"clean", maxQualityCleanWER}, {"noisy_20db", maxQualityNoisyWER}, {"noisy_10db", maxQualityNoisyWER}} {
+			name := "accent_noise:" + accent + ":" + strings.TrimPrefix(spec.condition, "noisy_")
+			appendQualityMetric(&metrics, &reasons, groups, name, accent, name, spec.condition, spec.max)
+		}
+	}
+	return len(reasons) == 0, metrics, reasons
+}
+
+func appendQualityMetric(metrics *[]qualityMetric, reasons *[]string, groups map[string]qualityCounts, name, accent, key, condition string, max float64) {
+	g, ok := groups[key]
+	metric := qualityMetric{Name: name, Condition: condition, Accent: accent, MaxWER: max, RefWords: g.words, Available: ok && g.words > 0}
+	if strings.HasSuffix(condition, "20db") {
+		metric.SNRDB = 20
+	} else if strings.HasSuffix(condition, "10db") {
+		metric.SNRDB = 10
+	}
+	if !metric.Available {
+		*reasons = append(*reasons, "report has no measured "+name+" subgroup")
+		*metrics = append(*metrics, metric)
+		return
+	}
+	wer := float64(g.edits) / float64(g.words)
+	metric.WER = &wer
+	*metrics = append(*metrics, metric)
+	if wer > max {
+		*reasons = append(*reasons, fmt.Sprintf("%s WER %.4f exceeds %.4f", name, wer, max))
+	}
+}
+
+func qualityAccent(tags []string) string {
+	accent := ""
+	for _, tag := range tags {
+		if !strings.HasPrefix(tag, "accent_") {
+			continue
+		}
+		candidate := strings.TrimPrefix(tag, "accent_")
+		if candidate != "uk" && candidate != "us" && candidate != "south_african" {
+			return ""
+		}
+		if accent != "" && accent != candidate {
+			return ""
+		}
+		accent = candidate
+	}
+	return accent
+}
+
+func qualityCellPrerequisiteReasons(reasons []string, cell inteval.StrategyReport, measured bool, build string) []string {
 	if !measured {
 		reasons = append(reasons, "report did not measure quality")
 	}
@@ -130,58 +254,20 @@ func assessQualityCell(clips []intcorpus.Clip, cell inteval.StrategyReport, meas
 		reasons = append(reasons, "report safety gate failed")
 		reasons = append(reasons, cell.Safety.Reasons...)
 	}
-	byID := make(map[string]intcorpus.Clip, len(clips))
-	for _, clip := range clips {
-		byID[clip.ID] = clip
-	}
-	seen := make(map[string]bool, len(cell.PerClip))
-	groups := map[string]struct{ edits, words int }{}
-	for _, clip := range cell.PerClip {
-		meta, ok := byID[clip.ClipID]
-		if !ok {
-			reasons = append(reasons, fmt.Sprintf("report contains unknown clip %q", clip.ClipID))
-			continue
+	return reasons
+}
+
+func qualityConditionGroup(meta intcorpus.Clip) string {
+	group := string(meta.NoiseCondition)
+	if meta.NoiseCondition == intcorpus.NoiseNoisy {
+		if meta.SNRDB == 20 {
+			return "noisy_20db"
 		}
-		if seen[clip.ClipID] {
-			reasons = append(reasons, fmt.Sprintf("report contains duplicate clip %q", clip.ClipID))
-			continue
-		}
-		seen[clip.ClipID] = true
-		group := string(meta.NoiseCondition)
-		if meta.NoiseCondition == intcorpus.NoiseNoisy {
-			if meta.SNRDB == 20 {
-				group = "noisy_20db"
-			} else if meta.SNRDB == 10 {
-				group = "noisy_10db"
-			}
-		}
-		g := groups[group]
-		g.edits += clip.WER.EditCounts.Total()
-		g.words += clip.WER.RefWords
-		groups[group] = g
-	}
-	if len(seen) != len(clips) {
-		reasons = append(reasons, fmt.Sprintf("report covers %d of %d corpus clips", len(seen), len(clips)))
-	}
-	metrics := make([]qualityMetric, 0, 3)
-	for _, spec := range []struct {
-		name string
-		max  float64
-	}{
-		{"clean", maxQualityCleanWER}, {"noisy_20db", maxQualityNoisyWER}, {"noisy_10db", maxQualityNoisyWER},
-	} {
-		g, ok := groups[spec.name]
-		if !ok || g.words == 0 {
-			reasons = append(reasons, "report has no measured "+spec.name+" subgroup")
-			continue
-		}
-		wer := float64(g.edits) / float64(g.words)
-		metrics = append(metrics, qualityMetric{Condition: spec.name, WER: wer, RefWords: g.words, MaxWER: spec.max})
-		if wer > spec.max {
-			reasons = append(reasons, fmt.Sprintf("%s WER %.4f exceeds %.4f", spec.name, wer, spec.max))
+		if meta.SNRDB == 10 {
+			return "noisy_10db"
 		}
 	}
-	return len(reasons) == 0, metrics, reasons
+	return group
 }
 
 // qualitySafetyPassed requires an explicit evaluated safety result. A quality

@@ -4,7 +4,7 @@ import {
 } from "@vrooli/proto-types/audio-tools/v1/health_status/health_status_pb";
 import { type ProviderHealth, ProviderState } from "@vrooli/proto-types/audio-tools/v1/shared/shared_pb";
 import { Badge } from "../../../components/ui/badge";
-import { Card } from "../../../components/ui/card";
+import { Card } from "@vrooli/react-component-library/Card/1.3.1";
 import { ProviderTierBadge } from "../ProviderTierBadge";
 import { useTranslation } from "../../../i18n";
 import { strings } from "../../../consts/strings";

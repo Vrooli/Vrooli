@@ -1,9 +1,12 @@
+//go:build audio_lab
+
 package soak
 
 import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -79,6 +82,49 @@ func TestRealtimeAssertionRejectsCommittedLagGrowth(t *testing.T) {
 	require.Equal(t, conformance.OutcomeFailed, assertion.Outcome)
 }
 
+func TestCaptureReadyLatencyUsesApprovedAbsoluteBounds(t *testing.T) {
+	observe := func(ms float64) turnObservation {
+		return turnObservation{Diagnostic: &diagnostic{StartToCaptureReadyMS: float64Ptr(ms)}}
+	}
+	passing := realtimeAssertion("capture_ready_latency", []turnObservation{observe(420), observe(500)}, func(d *diagnostic) *float64 { return d.StartToCaptureReadyMS })
+	require.Equal(t, conformance.OutcomePassed, passing.Outcome, passing.Detail)
+	require.Contains(t, passing.Detail, "p95 <= 500ms")
+
+	for _, tc := range []struct {
+		name string
+		ms   []float64
+	}{
+		{name: "p95", ms: []float64{420, 501}},
+		{name: "maximum", ms: []float64{420, 1_501}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			observations := make([]turnObservation, 0, len(tc.ms))
+			for _, value := range tc.ms {
+				observations = append(observations, observe(value))
+			}
+			result := realtimeAssertion("capture_ready_latency", observations, func(d *diagnostic) *float64 { return d.StartToCaptureReadyMS })
+			require.Equal(t, conformance.OutcomeFailed, result.Outcome, result.Detail)
+		})
+	}
+
+	missing := realtimeAssertion("capture_ready_latency", []turnObservation{{Diagnostic: &diagnostic{}}}, func(d *diagnostic) *float64 { return d.StartToCaptureReadyMS })
+	require.Equal(t, conformance.OutcomeNotMeasured, missing.Outcome)
+}
+
+func TestBuildRunMeasuresCaptureReadinessFromTheFullTurnObservation(t *testing.T) {
+	readyMS := 420.0
+	run := buildRun(Options{Lane: conformance.LaneRealtime}, "ready-run", time.Now(), []turnObservation{{
+		Diagnostic: &diagnostic{StartToCaptureReadyMS: &readyMS},
+	}}, 0)
+	for _, assertion := range run.Assertions {
+		if assertion.Name == "capture_ready_latency" {
+			require.Equal(t, conformance.OutcomePassed, assertion.Outcome, assertion.Detail)
+			return
+		}
+	}
+	t.Fatal("capture_ready_latency assertion was not emitted")
+}
+
 func TestRealtimeAssertionAllowsBoundedCommittedLagJitter(t *testing.T) {
 	observations := []turnObservation{
 		{Diagnostic: &diagnostic{CommittedTextLagMS: float64Ptr(3)}},
@@ -108,6 +154,61 @@ func TestRealtimeAssertionRejectsSpeechLatencyAboveApprovedP95(t *testing.T) {
 	require.Equal(t, conformance.OutcomeFailed, assertion.Outcome)
 	require.Contains(t, assertion.Detail, "p95")
 	require.Contains(t, assertion.Detail, "target<=1000ms")
+}
+
+func TestRealtimeAssertionRejectsSpeechLatencyAboveMaximum(t *testing.T) {
+	observations := []turnObservation{
+		{Diagnostic: &diagnostic{FirstPartialLatencyMS: float64Ptr(100)}},
+		{Diagnostic: &diagnostic{FirstPartialLatencyMS: float64Ptr(2_001)}},
+	}
+	assertion := realtimeAssertion("first_partial_latency_stable", observations, func(d *diagnostic) *float64 { return d.FirstPartialLatencyMS })
+	require.Equal(t, conformance.OutcomeFailed, assertion.Outcome)
+	require.Contains(t, assertion.Detail, "max=2001.00ms")
+}
+
+func TestStopToFinalTailAssertionEnforcesPercentileAndMaximum(t *testing.T) {
+	complete := func(ms float64) turnObservation {
+		return turnObservation{Diagnostic: &diagnostic{State: "completed", TerminalReason: "final", DoneSent: true, CapturedSequence: 2, ProcessedSequence: 2, StopToFinalTailMS: float64Ptr(ms)}}
+	}
+	passing := stopToFinalTailAssertion([]turnObservation{complete(840), complete(900), complete(1_000)})
+	require.Equal(t, conformance.OutcomePassed, passing.Outcome, passing.Detail)
+	require.Contains(t, passing.Detail, "p95=1000.00ms")
+	for _, tc := range []struct {
+		name   string
+		values []float64
+	}{
+		{name: "p95", values: []float64{900, 1_001}},
+		{name: "maximum", values: []float64{900, 2_001}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			observations := make([]turnObservation, 0, len(tc.values))
+			for _, value := range tc.values {
+				observations = append(observations, complete(value))
+			}
+			assertion := stopToFinalTailAssertion(observations)
+			require.Equal(t, conformance.OutcomeFailed, assertion.Outcome, assertion.Detail)
+		})
+	}
+}
+
+func TestStopToFinalTailAssertionRejectsMissingFallbackAndIncompleteTail(t *testing.T) {
+	complete := func(ms *float64) turnObservation {
+		return turnObservation{Diagnostic: &diagnostic{State: "completed", TerminalReason: "final", DoneSent: true, CapturedSequence: 2, ProcessedSequence: 2, StopToFinalTailMS: ms}}
+	}
+	for _, tc := range []struct {
+		name        string
+		observation turnObservation
+	}{
+		{name: "missing event", observation: complete(nil)},
+		{name: "batch fallback", observation: turnObservation{Diagnostic: &diagnostic{State: "completed", TerminalReason: "final", DoneSent: true, CapturedSequence: 2, ProcessedSequence: 2}}},
+		{name: "failed", observation: turnObservation{Diagnostic: &diagnostic{State: "failed", TerminalReason: "error", StopToFinalTailMS: float64Ptr(100)}}},
+		{name: "incomplete tail", observation: turnObservation{Diagnostic: &diagnostic{State: "completed", TerminalReason: "final", DoneSent: true, CapturedSequence: 2, ProcessedSequence: 1, StopToFinalTailMS: float64Ptr(100)}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assertion := stopToFinalTailAssertion([]turnObservation{tc.observation})
+			require.NotEqual(t, conformance.OutcomePassed, assertion.Outcome, assertion.Detail)
+		})
+	}
 }
 
 func TestRealtimeTimingObservationsExcludeTerminalFlushFromDrift(t *testing.T) {
@@ -156,6 +257,31 @@ func TestContinuousInterimTextAssertionRequiresEveryRealtimeCheckpoint(t *testin
 
 func intervalAccounting(d *diagnostic) conformance.Assertion {
 	return invariant("interval_accounting_exactly_once", []turnObservation{{Diagnostic: d, ServerSeen: true}}, 0, 4_000, conformance.LaneRealtime, "kyutai", "stt-1b-en_fr")
+}
+
+func TestFrameCostAssertionUsesCaptureCallbackCostAndFailsClosed(t *testing.T) {
+	missing := captureCallbackProcessingBudgetAssertion("capture_callback_processing_budget", []turnObservation{{Diagnostic: &diagnostic{CapturedSamples: 99_999}}})
+	require.Equal(t, conformance.OutcomeFailed, missing.Outcome)
+	require.Contains(t, missing.Detail, "measurement missing")
+
+	underBudget := 0.49
+	passed := captureCallbackProcessingBudgetAssertion("capture_callback_processing_budget", []turnObservation{{Diagnostic: &diagnostic{CaptureCallbackCount: 3, CaptureCallbackMaxCostRatio: &underBudget}}})
+	require.Equal(t, conformance.OutcomePassed, passed.Outcome)
+	require.Contains(t, passed.Detail, "3 callbacks")
+
+	overBudget := 0.51
+	failed := captureCallbackProcessingBudgetAssertion("capture_callback_processing_budget", []turnObservation{{Diagnostic: &diagnostic{CaptureCallbackCount: 3, CaptureCallbackMaxCostRatio: &overBudget}}})
+	require.Equal(t, conformance.OutcomeFailed, failed.Outcome)
+}
+
+func TestBrowserDiagnosticDecodesCaptureCallbackCostMetadata(t *testing.T) {
+	var got diagnostic
+	require.NoError(t, json.Unmarshal([]byte(`{"captureCallbackCount":4,"captureCallbackMaxCostRatio":0.125,"startRequestedAtMs":10,"captureReadyAtMs":430,"startToCaptureReadyMs":420}`), &got))
+	require.Equal(t, 4, got.CaptureCallbackCount)
+	require.NotNil(t, got.CaptureCallbackMaxCostRatio)
+	require.Equal(t, 0.125, *got.CaptureCallbackMaxCostRatio)
+	require.NotNil(t, got.StartToCaptureReadyMS)
+	require.Equal(t, 420.0, *got.StartToCaptureReadyMS)
 }
 
 // Every published soak artifact has carried `sent=-1 processed=-1` against a
@@ -237,6 +363,16 @@ func TestLegacyDirectBrowserOwnerIsRejectedAndFeedChunkingRemainsBounded(t *test
 
 	_, err := Run(context.Background(), Options{Lane: conformance.LaneRealtime, UIURL: "https://caller.invalid", Fixture: "/caller/fixture.wav", EngineID: "engine", ModelID: "model"}, nil)
 	require.ErrorContains(t, err, "request-scoped Agent Manager and Test Genie receipts")
+}
+
+func TestObservedProviderTierRequiresOneValidTierAcrossAllTurns(t *testing.T) {
+	turn := func(tier string) turnObservation {
+		return turnObservation{Diagnostic: &diagnostic{ProviderTier: tier}}
+	}
+	require.Equal(t, "local", observedProviderTier([]turnObservation{turn("local"), turn("local")}))
+	require.Empty(t, observedProviderTier([]turnObservation{turn("local"), turn("byok")}))
+	require.Empty(t, observedProviderTier([]turnObservation{turn("local"), turn("")}))
+	require.Empty(t, observedProviderTier([]turnObservation{{Diagnostic: nil}}))
 }
 
 func TestRealtimeShapeUsesProfileWhenAcceleratedShapeIsPresent(t *testing.T) {
@@ -338,4 +474,26 @@ func TestPersistEvidenceUsesPortableStorageOutsideCheckout(t *testing.T) {
 	var got conformance.Run
 	require.NoError(t, json.Unmarshal(data, &got))
 	require.Equal(t, run.RunID, got.RunID)
+}
+
+func TestVisibleUpdateGapAssertionFailsClosedOnIncompleteOrMalformedEvidence(t *testing.T) {
+	valid := func(gaps []float64, revisions int) []turnObservation {
+		return []turnObservation{{Diagnostic: &diagnostic{VisibleUpdateGapsMS: gaps, VisibleRevisionCount: revisions}}}
+	}
+	for _, tc := range []struct {
+		name string
+		obs  []turnObservation
+		want conformance.Outcome
+	}{
+		{name: "missing", obs: []turnObservation{{Diagnostic: &diagnostic{}}}, want: conformance.OutcomeNotMeasured},
+		{name: "incomplete", obs: valid([]float64{100}, 3), want: conformance.OutcomeNotMeasured},
+		{name: "non finite", obs: valid([]float64{100, math.NaN()}, 3), want: conformance.OutcomeNotMeasured},
+		{name: "over budget", obs: valid([]float64{751}, 2), want: conformance.OutcomeFailed},
+		{name: "within budget", obs: valid([]float64{500, 700}, 3), want: conformance.OutcomePassed},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assertion := visibleUpdateGapAssertion(tc.obs)
+			require.Equal(t, tc.want, assertion.Outcome, assertion.Detail)
+		})
+	}
 }

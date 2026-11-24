@@ -1,6 +1,7 @@
 package tts
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -10,66 +11,54 @@ func TestLoadConfig_MissingFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	want := DefaultConfig()
-	if cfg != want {
-		t.Errorf("expected defaults %+v, got %+v", want, cfg)
+	if cfg != DefaultConfig() {
+		t.Fatalf("expected defaults %+v, got %+v", DefaultConfig(), cfg)
 	}
 }
 
 func TestConfig_RoundTrip(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "tts-config.json")
-
-	cfg := Config{AutoEnabled: true, Backend: "kokoro", KokoroVoice: "af_heart", KokoroSpeed: 1.0}
+	path := filepath.Join(t.TempDir(), "tts-config.json")
+	cfg := Config{AutoEnabled: true, DefaultResponseFormat: "wav", KokoroVoice: "af_heart", KokoroSpeed: 1}
 	if err := SaveConfig(path, cfg); err != nil {
-		t.Fatalf("save failed: %v", err)
+		t.Fatal(err)
 	}
-
 	loaded, err := LoadConfig(path)
 	if err != nil {
-		t.Fatalf("load failed: %v", err)
+		t.Fatal(err)
 	}
 	if loaded != cfg {
-		t.Errorf("expected %+v, got %+v", cfg, loaded)
+		t.Fatalf("expected %+v, got %+v", cfg, loaded)
 	}
 }
 
-func TestConfigPatch_PreservesUnsetFields(t *testing.T) {
-	base := Config{AutoEnabled: true, Backend: "kokoro", KokoroVoice: "af_heart", KokoroSpeed: 1.0}
-	patch := ConfigPatch{}
-	result := patch.Apply(base)
-	if result.AutoEnabled != true {
-		t.Error("expected AutoEnabled to remain true with empty patch")
+func TestConfigPatchPreservesAndUpdatesResponseFormat(t *testing.T) {
+	base := Config{AutoEnabled: true, DefaultResponseFormat: "wav", KokoroVoice: "af_heart", KokoroSpeed: 1}
+	if got := (ConfigPatch{}).Apply(base); got != base {
+		t.Fatalf("empty patch changed config: %+v", got)
 	}
-	if result.Backend != "kokoro" {
-		t.Error("expected Backend to remain kokoro with empty patch")
-	}
-	if result.KokoroVoice != "af_heart" {
-		t.Error("expected KokoroVoice to remain af_heart with empty patch")
-	}
-	if result.KokoroSpeed != 1.0 {
-		t.Error("expected KokoroSpeed to remain 1.0 with empty patch")
+	format := "opus"
+	got := (ConfigPatch{DefaultResponseFormat: &format}).Apply(base)
+	if got.DefaultResponseFormat != format {
+		t.Fatalf("response format = %q, want %q", got.DefaultResponseFormat, format)
 	}
 }
 
-func TestConfigPatch_AppliesField(t *testing.T) {
-	base := Config{AutoEnabled: false, Backend: "browser", KokoroVoice: "af_heart", KokoroSpeed: 1.0}
-	v := true
-	backend := "kokoro"
-	voice := "bf_emma"
-	speed := 1.5
-	patch := ConfigPatch{AutoEnabled: &v, Backend: &backend, KokoroVoice: &voice, KokoroSpeed: &speed}
-	result := patch.Apply(base)
-	if result.AutoEnabled != true {
-		t.Error("expected AutoEnabled to be set to true")
-	}
-	if result.Backend != "kokoro" {
-		t.Errorf("expected Backend kokoro, got %s", result.Backend)
-	}
-	if result.KokoroVoice != "bf_emma" {
-		t.Errorf("expected KokoroVoice bf_emma, got %s", result.KokoroVoice)
-	}
-	if result.KokoroSpeed != 1.5 {
-		t.Errorf("expected KokoroSpeed 1.5, got %f", result.KokoroSpeed)
+func TestLoadConfigMigratesLegacyBackendResponseFormat(t *testing.T) {
+	for _, tc := range []struct{ legacy, want string }{
+		{legacy: "flac", want: "flac"},
+		{legacy: "kokoro", want: DefaultResponseFormat},
+		{legacy: "", want: DefaultResponseFormat},
+	} {
+		path := filepath.Join(t.TempDir(), "tts-config.json")
+		if err := os.WriteFile(path, []byte(`{"backend":"`+tc.legacy+`"}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		got, err := LoadConfig(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.DefaultResponseFormat != tc.want {
+			t.Fatalf("legacy %q migrated to %q, want %q", tc.legacy, got.DefaultResponseFormat, tc.want)
+		}
 	}
 }

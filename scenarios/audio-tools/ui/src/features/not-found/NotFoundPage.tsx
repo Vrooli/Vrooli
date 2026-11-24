@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "../../components/ui/button";
-import { PageHeader } from "../../components/composites/PageHeader";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { useTranslation } from "../../i18n";
 import { strings } from "../../consts/strings";
 

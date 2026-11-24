@@ -1,6 +1,7 @@
 package health
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -82,15 +83,8 @@ func TestShow_HumanOutputRendersTable(t *testing.T) {
 	ctx, buf := cliapptest.NewCapturedRunContext(app, cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "refresh", Bool: true}}}, cliapptest.TestRunContextOptions{})
 	require.NoError(t, h.show(ctx))
 	out := buf.String()
-	require.Contains(t, out, "stt")
-	require.Contains(t, out, "tts")
-	require.Contains(t, out, "whisper-stt")
-	require.Contains(t, out, "kokoro-tts")
-	require.Contains(t, out, "AVAILABLE")
-	require.Contains(t, out, "UNAVAILABLE")
-	require.Contains(t, out, "local")
-	require.Contains(t, out, "LATENCY")
-	require.Contains(t, out, "84ms")
+	want := "Result:\n  Provider health  (generated_at=2026-05-17T00:00:00Z  cache_ttl=30s)\nWhat Changed:\n  CAP        PROVIDER               TIER    STATE        LATENCY   LAST_CHECK             ERROR\n  stt        whisper-stt            local   AVAILABLE    84ms      2026-05-17T00:00:00Z\n  effective: stt -> AVAILABLE\n  tts        kokoro-tts             local   UNAVAILABLE  -         2026-05-17T00:00:00Z   kokoro down\n  effective: tts -> UNAVAILABLE\nNext Command:\n  audio-tools health show --refresh    # bypass cache\n  audio-tools health watch             # stream events\n  audio-tools health show --json       # proto JSON\n"
+	require.Equal(t, want, out)
 }
 
 func TestShow_JSONOutputIsProtoShape(t *testing.T) {
@@ -105,6 +99,9 @@ func TestShow_JSONOutputIsProtoShape(t *testing.T) {
 	require.Contains(t, got, "capabilities")
 	require.Contains(t, got, "generated_at")
 	require.Contains(t, got, "cache_ttl_seconds")
+	var expected bytes.Buffer
+	require.NoError(t, cliapp.PrintProtoJSON(&expected, sampleResp()))
+	require.Equal(t, expected.String(), buf.String())
 }
 
 func TestShow_RefreshFlagCallsRefreshRPC(t *testing.T) {

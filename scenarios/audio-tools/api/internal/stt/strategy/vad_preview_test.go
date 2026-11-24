@@ -29,32 +29,30 @@ import (
 // recordingProvider captures every request the strategy issues. Preview calls
 // run on their own goroutines, so the recorder is mutex-guarded.
 type recordingProvider struct {
-	mu         sync.Mutex
-	audioLen   []int
-	vadFlags   []bool
-	fail       bool
-	unique     bool
-	emptyFirst bool
-	requests   int
-	count      int
+	mu              sync.Mutex
+	requestsByAudio []recordedRequest
+	fail            bool
+	unique          bool
+	emptyFirst      bool
+	requests        int
+	count           int
 }
 
-func (r *recordingProvider) record(n int) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.audioLen = append(r.audioLen, n)
+type recordedRequest struct {
+	audioLen  int
+	vadFilter bool
 }
 
-func (r *recordingProvider) recordVADFilter(enabled bool) {
+func (r *recordingProvider) recordRequest(req sttchain.Request) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.vadFlags = append(r.vadFlags, enabled)
+	r.requestsByAudio = append(r.requestsByAudio, recordedRequest{audioLen: len(req.Audio), vadFilter: req.VADFilter})
 }
 
-func (r *recordingProvider) vadFilterFlags() []bool {
+func (r *recordingProvider) recordedRequests() []recordedRequest {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return append([]bool(nil), r.vadFlags...)
+	return append([]recordedRequest(nil), r.requestsByAudio...)
 }
 
 func (r *recordingProvider) resultText(base string) string {
@@ -77,15 +75,18 @@ func (r *recordingProvider) shouldReturnEmpty() bool {
 func (r *recordingProvider) lengths() []int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return append([]int(nil), r.audioLen...)
+	lengths := make([]int, len(r.requestsByAudio))
+	for i, request := range r.requestsByAudio {
+		lengths[i] = request.audioLen
+	}
+	return lengths
 }
 
 func newRecordingProvider(t *testing.T, rec *recordingProvider, text string) sttchain.Provider {
 	t.Helper()
 	prov := sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{})
 	prov.TranscribeFn = func(_ context.Context, req sttchain.Request) (*sttchain.Result, error) {
-		rec.record(len(req.Audio))
-		rec.recordVADFilter(req.VADFilter)
+		rec.recordRequest(req)
 		if rec.fail {
 			return nil, errors.New("provider unavailable")
 		}
@@ -132,19 +133,20 @@ func TestVADSegmenter_PreviewsBypassBackendVADFilter(t *testing.T) {
 	}
 	_ = runStrategy(t, context.Background(), strat, sttchain.StreamStart{VADFilter: true}, continuousVoiced(10, 100))
 
-	flags := rec.vadFilterFlags()
-	require.NotEmpty(t, flags)
+	requests := rec.recordedRequests()
+	require.NotEmpty(t, requests)
 	// The fixture ends with a committed flush, so at least one call must retain
 	// the configured final-request policy while every live preview bypasses it.
-	require.Contains(t, flags, true, "the committed request must retain the configured VAD policy")
-	lengths := rec.lengths()
+	var hasCommittedRequest bool
 	windowBytes := testaudio.PCMByteCount(testaudio.SampleRateHz, 500)
-	require.Equal(t, len(lengths), len(flags))
-	for i, enabled := range flags {
-		if lengths[i] <= windowBytes {
-			require.False(t, enabled, "live preview requests must not silence-filter a growing speech window")
+	for _, request := range requests {
+		if request.audioLen <= windowBytes {
+			require.False(t, request.vadFilter, "live preview requests must not silence-filter a growing speech window")
+		} else if request.vadFilter {
+			hasCommittedRequest = true
 		}
 	}
+	require.True(t, hasCommittedRequest, "the committed request must retain the configured VAD policy")
 }
 
 func TestVADSegmenter_ForceCutsContinuousSpeechAndCompactsPCM(t *testing.T) {

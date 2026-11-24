@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft-07/schema#",
   "title": "audio-tools STT engine capability manifest",
-  "description": "Single source of truth for selectable STT engines and the speaker-isolation axis. The selector derives strategy eligibility from each engine's strategies[]; the egress gate derives stage applicability from provides.*. Adding an engine is a JSON edit (plus a resource folder + provider adapter for kind=local_resource). Invariants are enforced by registry.go + registry_test.go.",
+  "description": "Single source of truth for selectable STT engines and the speaker-isolation axis. The selector derives strategy eligibility from each engine's strategies[]; the egress gate derives stage applicability from provides.*. An attachOnly local resource is externally managed and must not be declared as a lifecycle dependency. Invariants are enforced by registry.go + registry_test.go.",
   "type": "object",
   "additionalProperties": false,
   "required": ["engines", "speakerIsolation", "selectionPolicy"],
@@ -22,7 +22,11 @@
           },
           "resource": {
             "type": ["string", "null"],
-            "description": "Resource folder under resources/ and key in .vrooli/service.json dependencies.resources. Required (non-empty) when kind=local_resource; null otherwise."
+            "description": "Resource identity used by the engine's provider and control-plane probes. Required (non-empty) when kind=local_resource; null otherwise. Lifecycle dependencies are separately declared by service.json unless attachOnly is true."
+          },
+          "attachOnly": {
+            "type": "boolean",
+            "description": "The runtime is externally managed and serviceability is proven by the provider health probe; do not add it to service.json lifecycle dependencies. Valid only for kind=local_resource."
           },
           "provides": {
             "type": "object",

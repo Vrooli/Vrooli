@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 package experiment
 
 import (
@@ -78,19 +80,19 @@ func TestPromotionVerdictsForMeasurements_UsesDedicatedQualificationArtifactsFor
 	qualification := []trustfloor.QualificationMeasurement{
 		{EngineID: "kyutai", Strategy: "passthrough", PolicyProfile: "dictation", Kind: trustfloor.QualificationIntervalAccounting, Passed: true, AllIntervalsAccounted: true},
 		{EngineID: "kyutai", Strategy: "passthrough", PolicyProfile: "dictation", Kind: trustfloor.QualificationBoundedRecovery, Passed: true},
-		{EngineID: "kyutai", Strategy: "passthrough", PolicyProfile: "dictation", Kind: trustfloor.QualificationBrowserProductPath, Passed: true},
+		{EngineID: "kyutai", Strategy: "passthrough", PolicyProfile: "dictation", Kind: trustfloor.QualificationBrowserProductPath, Passed: true, ArtifactRef: "run-1"},
 		{EngineID: "kyutai", Strategy: "passthrough", PolicyProfile: "dictation", Kind: trustfloor.QualificationDevice, Passed: true},
 	}
 	for _, fault := range trustfloor.RequiredFaults {
 		qualification = append(qualification, trustfloor.QualificationMeasurement{
 			EngineID: "kyutai", Strategy: "passthrough", PolicyProfile: "dictation",
-			Kind: trustfloor.QualificationFault, FaultProfile: fault, Passed: true,
+			Kind: trustfloor.QualificationFault, FaultProfile: fault, Passed: true, ArtifactRef: "run-1",
 		})
 	}
 	// A passing artifact for another strategy must not qualify this cell.
 	qualification = append(qualification, trustfloor.QualificationMeasurement{
 		EngineID: "kyutai", Strategy: "vad_segment", PolicyProfile: "dictation",
-		Kind: trustfloor.QualificationFault, FaultProfile: "provider_busy", Passed: true,
+		Kind: trustfloor.QualificationFault, FaultProfile: "provider_busy", Passed: true, ArtifactRef: "different-run",
 	})
 
 	verdicts := promotionVerdictsForMeasurements(measurements, qualification)
@@ -130,7 +132,10 @@ func TestPromotionVerdictsForMeasurements_SeparatesModelVersions(t *testing.T) {
 	}
 	qualification := []trustfloor.QualificationMeasurement{{
 		EngineID: "kyutai", ModelID: "kyutai/stt-1b-en_fr@0.2.0", Strategy: "passthrough",
-		Kind: trustfloor.QualificationFault, FaultProfile: "provider_busy", Passed: true,
+		Kind: trustfloor.QualificationFault, FaultProfile: "provider_busy", Passed: true, ArtifactRef: "run-1",
+	}, {
+		EngineID: "kyutai", ModelID: "kyutai/stt-1b-en_fr@0.2.0", Strategy: "passthrough",
+		Kind: trustfloor.QualificationBrowserProductPath, Passed: true, ArtifactRef: "run-1",
 	}}
 	verdicts := promotionVerdictsForMeasurements(measurements, qualification)
 	require.Len(t, verdicts, 2)

@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 // Package corpus hosts the CorpusService Connect-RPC handler — the
 // operator-facing CRUD surface over the speech-eval clip store
 // (internal/corpus). It re-exports the domain Schema() for the
@@ -51,4 +53,7 @@ var Endpoints = []modulekit.EndpointDescriptor{
 	{ID: "corpus.get_clip", Path: "/vrooli.audio_tools.v1.corpus.CorpusService/GetClip", Method: "POST", Category: "corpus"},
 	{ID: "corpus.get_clip_audio", Path: "/vrooli.audio_tools.v1.corpus.CorpusService/GetClipAudio", Method: "POST", Category: "corpus"},
 	{ID: "corpus.delete_clip", Path: "/vrooli.audio_tools.v1.corpus.CorpusService/DeleteClip", Method: "POST", Category: "corpus"},
+	{ID: "corpus.review_reference", Path: "/vrooli.audio_tools.v1.corpus.CorpusService/ReviewReference", Method: "POST", Category: "corpus"},
+	{ID: "corpus.review_reference_group", Path: "/vrooli.audio_tools.v1.corpus.CorpusService/ReviewReferenceGroup", Method: "POST", Category: "corpus"},
+	{ID: "corpus.backfill_source_lineage", Path: "/vrooli.audio_tools.v1.corpus.CorpusService/BackfillSourceLineage", Method: "POST", Category: "corpus"},
 }

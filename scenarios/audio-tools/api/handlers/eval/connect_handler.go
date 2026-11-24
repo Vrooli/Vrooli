@@ -1,6 +1,11 @@
+//go:build audio_lab
+
 package eval
 
 import (
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+
 	inteval "audio-tools/internal/eval"
 	"audio-tools/internal/protoint"
 
@@ -36,6 +41,54 @@ func ReportToProto(r inteval.EvalReport) *evalv1.EvalReport {
 		out.PerStrategy = append(out.PerStrategy, strategyReportToProto(s))
 	}
 	return out
+}
+
+// MetricsOnlyReportToProto retains the stable EvalReport wire shape while
+// applying a fail-closed field allowlist. Newly added report fields are
+// omitted until explicitly reviewed for transcript-free persistence.
+func MetricsOnlyReportToProto(r inteval.EvalReport) *evalv1.EvalReport {
+	out := proto.Clone(ReportToProto(r)).(*evalv1.EvalReport)
+	filterReportFields(out.ProtoReflect(), metricsOnlyReportFields)
+	out.RetentionMode = "metrics_only"
+	return out
+}
+
+type reportFieldPolicy map[protoreflect.Name]reportFieldPolicy
+
+var metricsOnlyReportFields = reportFieldPolicy{
+	"quality_measured": {}, "latency_measured": {}, "retention_mode": {},
+	"per_strategy": {"strategy": {}, "wer": {}, "substitutions": {}, "insertions": {}, "deletions": {}, "ref_words": {}, "whisper_calls": {}, "whisper_audio_seconds": {}, "rtf": {}, "finalization_latency_p50_ms": {}, "finalization_latency_p95_ms": {}, "per_clip": {
+		"wer": {}, "whisper_calls": {}, "whisper_audio_seconds": {}, "rtf": {}, "segment_count": {}, "partial_revisions": {}, "finalization_latency_p50_ms": {}, "finalization_latency_p95_ms": {}, "substitutions": {}, "insertions": {}, "deletions": {}, "ref_words": {}, "hyp_words": {}, "time_to_first_commit_ms": {}, "commit_count": {}, "speaker_rejection_count": {}, "audio_duration_ms": {},
+		"timestamp_drift_skip_reason": {},
+		"timestamp_drift":             {"reference_words": {}, "matched_words": {}, "coverage": {}, "start_abs_p50_ms": {}, "start_abs_p95_ms": {}, "end_abs_p50_ms": {}, "end_abs_p95_ms": {}, "start_bias_ms": {}, "end_bias_ms": {}, "max_start_abs_ms": {}, "max_end_abs_ms": {}, "drift_rate_observed": {}, "start_drift_ms_per_hour": {}, "end_drift_ms_per_hour": {}},
+		"timestamp_reference":         {"status": {}, "source_reference": {}, "alignment_tool": {}, "alignment_model": {}, "reviewer": {}, "review_method": {}, "reviewed_at": {}},
+	}, "engine_id": {}, "model_id": {}, "policy_profile": {}, "replay_lane": {}, "fault_profile": {}},
+}
+
+func filterReportFields(message protoreflect.Message, allowed reportFieldPolicy) {
+	message.Range(func(field protoreflect.FieldDescriptor, value protoreflect.Value) bool {
+		childPolicy, keep := allowed[field.Name()]
+		if !keep {
+			message.Clear(field)
+			return true
+		}
+		if len(childPolicy) == 0 || field.Message() == nil {
+			return true
+		}
+		if field.IsList() {
+			list := value.List()
+			for i := 0; i < list.Len(); i++ {
+				filterReportFields(list.Get(i).Message(), childPolicy)
+			}
+		} else if field.IsMap() {
+			// No map-valued fields are admitted in the allowlist. This branch is
+			// defensive in case one is added later without a dedicated policy.
+			message.Clear(field)
+		} else {
+			filterReportFields(value.Message(), childPolicy)
+		}
+		return true
+	})
 }
 
 func promotionVerdictsToProto(in []inteval.PromotionVerdict) []*evalv1.PromotionVerdict {
@@ -119,9 +172,45 @@ func strategyReportToProto(s inteval.StrategyReport) *evalv1.StrategyReport {
 			SpeakerRejectionCount:    protoint.FromInt64(int64(c.SpeakerRejectionCount)),
 			AudioDurationMs:          c.AudioDurationMs,
 			Safety:                   safetyGateToProto(c.Safety),
+			TimestampDrift:           timestampDriftToProto(c.TimestampDrift),
+			TimestampDriftSkipReason: c.TimestampDriftSkipReason,
+			TimestampReference:       timingReferenceToProto(c.TimestampReference),
 		})
 	}
 	return sr
+}
+
+func timestampDriftToProto(in *inteval.TimestampDriftResult) *evalv1.TimestampDrift {
+	if in == nil {
+		return nil
+	}
+	return &evalv1.TimestampDrift{
+		ReferenceWords:      protoint.FromInt64(int64(in.ReferenceWords)),
+		MatchedWords:        protoint.FromInt64(int64(in.MatchedWords)),
+		Coverage:            in.Coverage,
+		StartAbsP50Ms:       in.StartAbsP50Ms,
+		StartAbsP95Ms:       in.StartAbsP95Ms,
+		EndAbsP50Ms:         in.EndAbsP50Ms,
+		EndAbsP95Ms:         in.EndAbsP95Ms,
+		StartBiasMs:         in.StartBiasMs,
+		EndBiasMs:           in.EndBiasMs,
+		MaxStartAbsMs:       in.MaxStartAbsMs,
+		MaxEndAbsMs:         in.MaxEndAbsMs,
+		DriftRateObserved:   in.DriftRateObserved,
+		StartDriftMsPerHour: in.StartDriftMsPerHour,
+		EndDriftMsPerHour:   in.EndDriftMsPerHour,
+	}
+}
+
+func timingReferenceToProto(in *inteval.TimingReferenceProvenance) *evalv1.TimingReferenceProvenance {
+	if in == nil {
+		return nil
+	}
+	return &evalv1.TimingReferenceProvenance{
+		Status: in.Status, SourceReference: in.SourceReference,
+		AlignmentTool: in.AlignmentTool, AlignmentModel: in.AlignmentModel,
+		Reviewer: in.Reviewer, ReviewMethod: in.ReviewMethod, ReviewedAt: in.ReviewedAt,
+	}
 }
 
 func scalingAnalysisToProto(in inteval.ScalingAnalysis) *evalv1.ScalingAnalysis {

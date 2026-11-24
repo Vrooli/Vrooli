@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 // Package experiment hosts the ExperimentService Connect-RPC handler: the
 // persisted, async STT experiment lifecycle surface for Dictation Studio.
 package experiment

@@ -12,6 +12,7 @@ package server
 import (
 	"net/http"
 
+	"audio-tools/internal/duplex"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/middleware"
 	"audio-tools/internal/modulekit"
@@ -38,6 +39,9 @@ type Deps struct {
 type Server struct {
 	deps   Deps
 	router *mux.Router
+	// duplexProvider is prepared for future admitted route composition. It is
+	// intentionally not exposed as an HTTP module while GPT-Live is ineligible.
+	duplexProvider duplex.Provider
 }
 
 // New builds a Server with logging middleware applied and every module's

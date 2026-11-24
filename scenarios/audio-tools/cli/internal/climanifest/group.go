@@ -17,3 +17,12 @@ func LoadGroup(manifest []byte, group string, bindings map[string]func(cliapp.Ru
 	}
 	return loaded, nil
 }
+
+// LoadPrimitiveGroup is LoadGroup for renderer-separated primitive handlers.
+func LoadPrimitiveGroup(manifest []byte, group string, bindings map[string]cliapp.PrimitiveHandler) (cliapp.SubcommandGroup, error) {
+	loaded, err := cliapp.LoadFromManifestPrimitives(manifest, group, bindings)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, fmt.Errorf("%s: load from manifest: %w", group, err)
+	}
+	return loaded, nil
+}

@@ -1,20 +1,17 @@
-// Bundle markdown content at build time via Vite's `?raw` glob import.
-// Globs are scoped to the scenario root (PRD.md, README.md, ...) and the
-// `docs/` tree. Keys are normalised to scenario-root-relative paths matching
-// the DOCS registry entries (e.g. "PRD.md", "docs/concepts/ARCHITECTURE.md").
+// Keep Markdown as per-document dynamic imports. The route loads only the
+// selected file instead of embedding the entire documentation tree into one
+// 1 MB+ viewer chunk.
 
 const SCENARIO_ROOT_PREFIX = "../../../../";
 
-const rawRoot = import.meta.glob("../../../../*.md", {
+const rawRoot = import.meta.glob<string>("../../../../*.md", {
   query: "?raw",
   import: "default",
-  eager: true,
 });
 
-const rawTree = import.meta.glob("../../../../docs/**/*.md", {
+const rawTree = import.meta.glob<string>("../../../../docs/**/*.md", {
   query: "?raw",
   import: "default",
-  eager: true,
 });
 
 function normaliseKey(key: string): string | null {
@@ -22,17 +19,18 @@ function normaliseKey(key: string): string | null {
   return key.slice(SCENARIO_ROOT_PREFIX.length);
 }
 
-const docs: Record<string, string> = {};
-for (const source of [rawRoot, rawTree] as Record<string, string>[]) {
-  for (const [key, value] of Object.entries(source)) {
+const docs: Record<string, () => Promise<string>> = {};
+for (const source of [rawRoot, rawTree]) {
+  for (const [key, load] of Object.entries(source)) {
     const normalised = normaliseKey(key);
     if (!normalised) continue;
-    docs[normalised] = value;
+    docs[normalised] = load;
   }
 }
 
-export function getDocContent(path: string): string | null {
-  return docs[path] ?? null;
+export async function getDocContent(path: string): Promise<string | null> {
+  const load = docs[path];
+  return load ? load() : null;
 }
 
 export function listDocPaths(): string[] {

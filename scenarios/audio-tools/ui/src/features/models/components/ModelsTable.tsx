@@ -148,6 +148,9 @@ function ModelDetails({ model }: { model: ModelRow }) {
       <Detail label={t(strings.models.detailsEngines)}>
         {joinOr(model.engineIds, dash)}
       </Detail>
+      <Detail label={t(strings.models.detailsEngineDefaults)}>
+        {joinOr(model.engineDefaults, dash)}
+      </Detail>
       <Detail label={t(strings.models.detailsRoles)}>
         {joinOr(model.roles, dash)}
       </Detail>

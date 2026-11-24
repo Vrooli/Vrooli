@@ -200,11 +200,36 @@ func (r *Registry) expire(sessionID string, generation uint64) {
 	_ = r.removeContext(context.Background(), sessionID, generation)
 }
 
+// validSessionID enforces a path-segment contract independent of the host OS.
+// filepath.Base alone is insufficient here because Windows treats backslash
+// as a separator while Unix does not, so the same protocol identity could
+// resolve to a different persisted file on another platform.
+func validSessionID(sessionID string) bool {
+	if sessionID == "" || sessionID != strings.TrimSpace(sessionID) || strings.ContainsAny(sessionID, `/\\<>:"|?*`) || strings.HasSuffix(sessionID, ".") {
+		return false
+	}
+	for _, r := range sessionID {
+		if r < 0x20 {
+			return false
+		}
+	}
+	// Windows reserves these device names even when followed by an extension.
+	base := strings.ToUpper(strings.SplitN(sessionID, ".", 2)[0])
+	switch base {
+	case "CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$":
+		return false
+	}
+	if len(base) == 4 && (strings.HasPrefix(base, "COM") || strings.HasPrefix(base, "LPT")) && base[3] >= '1' && base[3] <= '9' {
+		return false
+	}
+	return true
+}
+
 func (r *Registry) OpenContext(ctx context.Context, sessionID, resumeToken string) (*Ledger, bool, error) {
 	if sessionID == "" || resumeToken == "" {
 		return nil, false, fmt.Errorf("stt session: session id and resume token are required")
 	}
-	if filepath.Base(sessionID) != sessionID {
+	if !validSessionID(sessionID) {
 		return nil, false, fmt.Errorf("stt session: invalid session id")
 	}
 	release := r.acquireSessionLock(sessionID)
@@ -284,10 +309,10 @@ func (r *Registry) RemoveContext(ctx context.Context, sessionID string) error {
 }
 
 func (r *Registry) removeContext(ctx context.Context, sessionID string, expectedGeneration uint64) error {
-	if r == nil || strings.TrimSpace(sessionID) == "" {
+	if r == nil || sessionID == "" {
 		return nil
 	}
-	if filepath.Base(sessionID) != sessionID {
+	if !validSessionID(sessionID) {
 		return fmt.Errorf("stt session: invalid session id")
 	}
 	release := r.acquireSessionLock(sessionID)
@@ -368,7 +393,6 @@ func (r *Registry) persistLocked(ctx context.Context, ledger *Ledger) error {
 	persisted := ledger.PersistedState()
 	r.mu.Lock()
 	previous, ok := r.persisted[persisted.SessionID]
-	logOps := r.logOps[persisted.SessionID]
 	r.mu.Unlock()
 	if ok {
 		deltas := persistenceDeltas(previous, persisted)
@@ -378,7 +402,7 @@ func (r *Registry) persistLocked(ctx context.Context, ledger *Ledger) error {
 		r.mu.Lock()
 		r.persisted[persisted.SessionID] = persisted
 		r.logOps[persisted.SessionID] += len(deltas)
-		logOps = r.logOps[persisted.SessionID]
+		logOps := r.logOps[persisted.SessionID]
 		r.mu.Unlock()
 		if logOps < 128 {
 			return nil

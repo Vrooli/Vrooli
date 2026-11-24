@@ -10,6 +10,10 @@ import (
 	"audio-tools/internal/audioformat"
 )
 
+func newServiceForTest() *WhisperTranscriber {
+	return NewWhisperTranscriber(nil, "http://whisper.test", nil, nil)
+}
+
 // TestServiceDependencySettersAreRaceFree pins the mutable-dependency contract:
 // a request may run while a test/operator seam updates the URL, transport,
 // engine, recovery policy, or concurrency bound. Before the depMu snapshot,

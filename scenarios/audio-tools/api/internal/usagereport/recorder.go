@@ -55,6 +55,8 @@ type AsyncRecorder struct {
 	repo          *store.UsageStore
 	logger        logx.Logger
 	queue         chan store.UsageRow
+	queueMu       sync.RWMutex
+	closed        bool
 	wg            sync.WaitGroup
 	retries       []time.Duration
 	droppedTotal  atomic.Uint64
@@ -80,6 +82,13 @@ func New(repo *store.UsageStore, logger logx.Logger) *AsyncRecorder {
 }
 
 func (r *AsyncRecorder) Enqueue(row store.UsageRow) {
+	r.queueMu.RLock()
+	defer r.queueMu.RUnlock()
+	if r.closed {
+		r.droppedTotal.Add(1)
+		r.logger.Printf("usagereport: recorder closed, dropping op=%s", row.OperationID)
+		return
+	}
 	select {
 	case r.queue <- row:
 		r.enqueuedTotal.Add(1)
@@ -104,7 +113,12 @@ func (r *AsyncRecorder) Record(ctx context.Context, row store.UsageRow) error {
 }
 
 func (r *AsyncRecorder) Close() {
-	close(r.queue)
+	r.queueMu.Lock()
+	if !r.closed {
+		r.closed = true
+		close(r.queue)
+	}
+	r.queueMu.Unlock()
 	r.wg.Wait()
 }
 

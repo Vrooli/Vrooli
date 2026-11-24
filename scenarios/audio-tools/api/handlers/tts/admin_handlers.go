@@ -10,6 +10,8 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
+	"audio-tools/internal/audioformat"
+	"audio-tools/internal/capabilities"
 	"audio-tools/internal/protomap"
 	"audio-tools/internal/store"
 	inttts "audio-tools/internal/tts"
@@ -21,23 +23,39 @@ import (
 )
 
 // GetCache looks up audio bytes previously synthesized for the given
-// (event_id, voice, speed, version) tuple. Content-hash-only lookups
-// return a clean miss since the in-process cache is keyed by event id.
-func (h *connectHandler) GetCache(_ context.Context, req *connect.Request[ttsv1.GetCacheRequest]) (*connect.Response[ttsv1.GetCacheResponse], error) {
+// (event_id, runtime, voice, speed, response_format, version, chunk_index)
+// tuple. Runtime is resolved from the configured synthesis route. Content-hash-
+// only lookups are unsupported because callers must provide an immutable event
+// snapshot and version.
+func (h *connectHandler) GetCache(ctx context.Context, req *connect.Request[ttsv1.GetCacheRequest]) (*connect.Response[ttsv1.GetCacheResponse], error) {
 	if h.deps.Cache == nil || req.Msg.GetEventId() == "" {
 		return connect.NewResponse(&ttsv1.GetCacheResponse{Hit: false}), nil
 	}
 	key := inttts.CacheKey{
-		EventID:    req.Msg.GetEventId(),
-		Voice:      req.Msg.GetVoice(),
-		Speed:      req.Msg.GetSpeed(),
-		Version:    req.Msg.GetVersion(),
-		ChunkIndex: req.Msg.GetChunkIndex(),
+		EventID:        req.Msg.GetEventId(),
+		Backend:        h.deps.CacheBackend,
+		Voice:          req.Msg.GetVoice(),
+		Speed:          req.Msg.GetSpeed(),
+		ResponseFormat: h.effectiveResponseFormat(ctx, protomap.ResponseFormatFromProto(req.Msg.GetResponseFormat())),
+		Version:        req.Msg.GetVersion(),
+		ChunkIndex:     req.Msg.GetChunkIndex(),
 	}
 	if key.Version == "" {
 		key.Version = "active"
 	}
 	entry, ok := h.deps.Cache.Get(key)
+	if !ok && key.Backend == "auto" {
+		var backends []string
+		if h.deps.Chain != nil {
+			backends = h.deps.Chain.LocalCacheBackends()
+		}
+		for _, backend := range backends {
+			key.Backend = backend
+			if entry, ok = h.deps.Cache.Get(key); ok {
+				break
+			}
+		}
+	}
 	if !ok {
 		return connect.NewResponse(&ttsv1.GetCacheResponse{Hit: false}), nil
 	}
@@ -79,7 +97,14 @@ func (h *connectHandler) UpdateConfig(ctx context.Context, req *connect.Request[
 		cfg.KokoroSpeed = p.GetDefaultSpeed()
 	}
 	if protomap.MaskHas(mask, "default_response_format") {
-		cfg.Backend = protomap.ResponseFormatFromProto(p.GetDefaultResponseFormat())
+		format := protomap.ResponseFormatFromProto(p.GetDefaultResponseFormat())
+		if format == "" {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("default_response_format required when updating this field"))
+		}
+		if _, ok := audioformat.OutputFormatFromString(format); !ok {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported default_response_format %q", format))
+		}
+		cfg.DefaultResponseFormat = format
 	}
 	if h.deps.ConfigStore != nil {
 		raw, _ := json.Marshal(cfg)
@@ -96,12 +121,14 @@ func (h *connectHandler) UpdateConfig(ctx context.Context, req *connect.Request[
 func (h *connectHandler) GetStatus(ctx context.Context, _ *connect.Request[ttsv1.GetStatusRequest]) (*connect.Response[ttsv1.GetStatusResponse], error) {
 	cfg := h.loadConfig(ctx)
 	avail := []*sharedv1.ProviderHealth{}
+	localProviderID := ""
 	if h.deps.Chain != nil {
 		p := h.deps.Chain.Probe(ctx)
+		localProviderID = capabilities.CanonicalProviderID(h.deps.Chain.LocalProviderID())
 		ts := h.deps.Clock.Now().UTC().Format(time.RFC3339Nano)
 		avail = []*sharedv1.ProviderHealth{
-			ttsProviderHealth(protomap.ProviderTierToProto("local"), "kokoro", p.Local, ts),
-			ttsProviderHealth(protomap.ProviderTierToProto("byok"), "", p.BYOK, ts),
+			ttsProviderHealth(protomap.ProviderTierToProto("local"), localProviderID, p.Local, ts),
+			h.ttsBYOKProviderHealth(ctx, p.BYOK, h.deps.Chain.BYOKAdapterConfigured(), ts),
 			ttsProviderHealth(protomap.ProviderTierToProto("vrooli"), "", p.Vrooli, ts),
 		}
 	}
@@ -113,8 +140,44 @@ func (h *connectHandler) GetStatus(ctx context.Context, _ *connect.Request[ttsv1
 		Config:          configToProto(cfg),
 		Availability:    avail,
 		Capability:      capLabel,
-		CapabilityLabel: "TTS (Local Kokoro)",
+		CapabilityLabel: "TTS (Local)",
 	}}), nil
+}
+
+func (h *connectHandler) ttsBYOKProviderHealth(ctx context.Context, routeEnabled, adapterConfigured bool, checkedAt string) *sharedv1.ProviderHealth {
+	item := &sharedv1.ProviderHealth{
+		Capability:    diagnosticsv1.Capability_CAPABILITY_TTS,
+		Tier:          protomap.ProviderTierToProto("byok"),
+		State:         sharedv1.ProviderState_PROVIDER_STATE_UNKNOWN,
+		LastCheckedAt: checkedAt,
+	}
+	if !adapterConfigured {
+		item.ErrorCode = "adapter_not_configured"
+		item.ErrorMessage = "no TTS BYOK adapter is registered"
+		return item
+	}
+	if !routeEnabled {
+		item.State = sharedv1.ProviderState_PROVIDER_STATE_UNAVAILABLE
+		item.ErrorCode = "routing_disabled"
+		item.ErrorMessage = "TTS BYOK adapters are registered, but the BYOK routing tier is disabled"
+		return item
+	}
+	if h.deps.DefaultCredential == nil {
+		item.ErrorCode = "credential_status_unknown"
+		item.ErrorMessage = "TTS BYOK adapters are registered; credential presence could not be checked"
+		return item
+	}
+	providerID, key, configured := h.deps.DefaultCredential(ctx, "tts")
+	if !configured || key == "" {
+		item.State = sharedv1.ProviderState_PROVIDER_STATE_UNAVAILABLE
+		item.ErrorCode = "credential_not_configured"
+		item.ErrorMessage = "TTS BYOK adapters are registered, but no TTS credential is configured"
+		return item
+	}
+	item.ProviderId = providerID
+	item.ErrorCode = "credential_present_unverified"
+	item.ErrorMessage = "TTS credential is configured; provider usability was not checked"
+	return item
 }
 
 // ttsProviderHealth builds a ProviderHealth row for the TTS Status
@@ -164,4 +227,14 @@ func (h *connectHandler) loadConfig(ctx context.Context) inttts.Config {
 	}
 	_ = json.Unmarshal([]byte(rawCfg), &cfg)
 	return cfg
+}
+
+func (h *connectHandler) effectiveResponseFormat(ctx context.Context, requested string) string {
+	if requested != "" {
+		return requested
+	}
+	if configured := h.loadConfig(ctx).DefaultResponseFormat; configured != "" {
+		return configured
+	}
+	return inttts.DefaultResponseFormat
 }

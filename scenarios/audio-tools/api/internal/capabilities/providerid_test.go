@@ -27,12 +27,16 @@ func TestCanonicalProviderID(t *testing.T) {
 	}
 }
 
-// TestCanonicalProviderIDIsDerivedFromCatalog refuses to let a hand table
-// return: every engine ID and runtime alias the catalogue declares must
-// canonicalize to its owner without a code edit here.
+// TestCanonicalProviderIDIsDerivedFromCatalog proves all three runtime identity
+// forms resolve from declaration: stable IDs, engine IDs, and adapter aliases.
 func TestCanonicalProviderIDIsDerivedFromCatalog(t *testing.T) {
 	for _, provider := range providercatalog.All() {
-		for _, raw := range append(append([]string(nil), provider.EngineIDs...), provider.RuntimeAliases...) {
+		identities := append([]string{provider.ID}, provider.EngineIDs...)
+		identities = append(identities, provider.RuntimeAliases...)
+		for _, raw := range identities {
+			if id, ok := providercatalog.ProviderIDForRuntimeIdentity(raw); !ok || id != provider.ID {
+				t.Errorf("ProviderIDForRuntimeIdentity(%q) = %q, %v; want %q, true", raw, id, ok, provider.ID)
+			}
 			if got := CanonicalProviderID(raw); got != provider.ID {
 				t.Errorf("CanonicalProviderID(%q) = %q; want catalogue owner %q", raw, got, provider.ID)
 			}

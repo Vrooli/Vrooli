@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -57,6 +58,11 @@ type Deps struct {
 	EngineResolver    *sttengine.LiveResolver
 	// Sessions is the server-owned replay ledger registry for Connect streams.
 	Sessions *session.Registry
+	// StreamIdleTimeout bounds periods with no inbound audio after the stream
+	// handshake. Zero selects the conservative default.
+	StreamIdleTimeout time.Duration
+	// StreamIdleTimerFactory is an injectable timer seam for stream lifecycle tests.
+	StreamIdleTimerFactory func(time.Duration) StreamIdleTimer
 }
 
 // isNilDependency reports whether an optional dependency is absent, including a
@@ -129,7 +135,10 @@ func (h *connectHandler) Transcribe(ctx context.Context, req *connect.Request[st
 			fmt.Errorf("audio exceeds maximum size of %d bytes", sttpipeline.MaxAudioSize))
 	}
 	env := envelope.FromConnectRequest(req)
-	env.Provider, env.Key = h.applyDefaultCredential(ctx, "stt", env.Provider, env.Key)
+	modelID := strings.TrimSpace(req.Header().Get("X-Audio-Model-ID"))
+	if modelID == "" {
+		env.Provider, env.Key = h.applyDefaultCredential(ctx, "stt", env.Provider, env.Key)
+	}
 	cfg := h.resolveStreamPipelineConfig(ctx)
 	chainReq := sttchain.Request{
 		Audio:                   req.Msg.Audio,
@@ -137,6 +146,7 @@ func (h *connectHandler) Transcribe(ctx context.Context, req *connect.Request[st
 		Language:                req.Msg.Language,
 		SkipSpeakerVerification: req.Msg.SkipSpeakerVerification,
 		InitialPrompt:           req.Msg.InitialPrompt,
+		Model:                   modelID,
 		VADFilter:               cfg.VADFilterEnabled,
 		BYOKProvider:            env.Provider,
 		BYOKKey:                 env.Key,
@@ -195,7 +205,7 @@ func (h *connectHandler) Transcribe(ctx context.Context, req *connect.Request[st
 	if h.deps.Usage != nil {
 		h.deps.Usage.Enqueue(row)
 	}
-	resp.Msg = h.responseFromResult(ctx, res, chainReq.Audio, cfg)
+	resp.Msg = h.responseFromResult(ctx, res, chainReq.Audio, cfg, speakerBatch == nil)
 	if speakerBatch != nil {
 		h.addBatchSpeakerPolicy(resp.Msg, speakerBatch)
 	}
@@ -305,7 +315,7 @@ func (h *connectHandler) addBatchSpeakerPolicy(resp *sttv1.TranscribeResponse, o
 	}
 }
 
-func (h *connectHandler) responseFromResult(ctx context.Context, res *sttchain.Result, audio []byte, cfg sttpkg.StreamConfig) *sttv1.TranscribeResponse {
+func (h *connectHandler) responseFromResult(ctx context.Context, res *sttchain.Result, audio []byte, cfg sttpkg.StreamConfig, sourceCoordinatesKnown bool) *sttv1.TranscribeResponse {
 	decision := quality.New(cfg, h.deps.Registry, nil).ApplyResult(ctx, res, audio)
 	resp := &sttv1.TranscribeResponse{
 		Text:             decision.Text,
@@ -314,9 +324,19 @@ func (h *connectHandler) responseFromResult(ctx context.Context, res *sttchain.R
 		ProviderTier:     protomap.ProviderTierToProto(string(res.Tier)),
 		ProviderId:       capabilities.CanonicalProviderID(res.ProviderID),
 		ModelId:          res.ModelID,
-		LatencyMs:        float64(res.Latency.Milliseconds()),
+		LatencyMs:        float64(res.Latency) / float64(time.Millisecond),
 		Filtered:         decision.Filtered,
 		FilterReason:     decision.FilterReason,
+	}
+	if !decision.Filtered && sourceCoordinatesKnown {
+		for _, word := range res.Words {
+			item := &sttv1.WordTimestamp{Word: word.Word, StartSeconds: word.Start, EndSeconds: word.End}
+			if res.Tier == sttchain.TierLocal && res.Confidence != nil {
+				probability := word.Prob
+				item.Probability = &probability
+			}
+			resp.WordTimestamps = append(resp.WordTimestamps, item)
+		}
 	}
 	if len(decision.Stages) > 0 || decision.Filtered || (cfg.EngineID != "" && cfg.EngineID != res.ProviderID) {
 		resp.PolicyDetails = map[string]string{
@@ -381,6 +401,10 @@ func mapChainError(err error) error {
 		return connect.NewError(connect.CodeResourceExhausted, err)
 	case errors.Is(err, sttchain.ErrUnknownBYOKProvider), errors.Is(err, sttchain.ErrMissingBYOKProvider):
 		return connect.NewError(connect.CodeInvalidArgument, err)
+	case errors.Is(err, sttchain.ErrUnaryModelUnconfigured):
+		return connect.NewError(connect.CodeInvalidArgument, err)
+	case errors.Is(err, sttchain.ErrUnaryModelUnavailable), errors.Is(err, sttchain.ErrLocalModelDisabled):
+		return connect.NewError(connect.CodeUnavailable, err)
 	case errors.Is(err, sttchain.ErrAllProvidersFailed):
 		return connect.NewError(connect.CodeUnavailable, err)
 	case errors.Is(err, sttpkg.ErrIncompatibleStrategyProvider), errors.Is(err, sttpkg.ErrStreamingDisabled):

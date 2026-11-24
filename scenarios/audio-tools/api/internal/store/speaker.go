@@ -116,3 +116,14 @@ func (s *SpeakerStore) List(ctx context.Context) ([]SpeakerProfile, error) {
 	}
 	return out, rows.Err()
 }
+
+// CountCreatedBetween returns the number of profiles created in [from, to)
+// using UTC instants for comparison.
+func (s *SpeakerStore) CountCreatedBetween(ctx context.Context, from, to time.Time) (int64, error) {
+	var count int64
+	err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM speaker_profiles
+		WHERE julianday(created_at) >= julianday(?) AND julianday(created_at) < julianday(?)`,
+		from.UTC().Format(time.RFC3339Nano), to.UTC().Format(time.RFC3339Nano)).Scan(&count)
+	return count, err
+}

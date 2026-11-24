@@ -25,18 +25,21 @@ fallback for users without local models or keys. See
 Audio Tools pilots [contract-driven scenario development](../../docs/agent-system/SCENARIO_DEVELOPMENT.md).
 Read the [portable voice target](docs/concepts/ARCHITECTURE.md#development-target-portable-streaming-voice)
 and [pilot decision sheet](docs/internal/TESTING.md#pilot-decision-sheet-and-safe-first-slice).
-The `portable-voice-v1` PRD now covers the full intended voice capability. Its
+The `portable-voice-v2` PRD now covers the full intended voice capability. Its
 scope is documented; numeric SLOs, release cohorts, billing policy details, and
 execution allowances still need the decisions listed in the testing contract.
 The historical local-only proposal is a subset, not authority or full completion.
 Use `prompt-manager skill read audio-tools` for operation selection and
 `prompt-manager skill read audio-tools-improve` for authorized development.
-The declared `audio-tools.setpoint-read` program reads engine/health inventory and
-an optional selected experiment. Its `ok` result means collection succeeded, not
-that streaming, device, quality, or billing targets passed. See the
+The declared `audio-tools.setpoint-read` program reads engine/health inventory,
+lab-owned qualification receipts, and an optional selected experiment. Run it
+through `program-runtime --instance lab library run audio-tools.setpoint-read`:
+the live product API intentionally does not mount the lab evidence service. Its
+`ok` result means collection succeeded, not that streaming, device, quality, or
+billing targets passed. The v3 board lists all 20 targets in the current
+`portable-voice-v2` PRD and applies the owner-backed receipt join; unmatched
+outcomes remain unknown. See the
 [measurement contract](.vrooli/program-runtime/setpoint-read.json).
-Version 2 lists all 15 PRD targets and keeps every outcome unknown. It still
-lacks owner-backed acceptance joins; target visibility is not target achievement.
 
 For the full development goal, start with the
 [mandate and completion contract](docs/internal/TESTING.md#full-mandate-and-completion-contract).

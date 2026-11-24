@@ -5,8 +5,8 @@
 // truth. Register loads the "settings" group and wires each binding to a
 // handler in handlers.go.
 //
-// `settings providers` is a declared manifest exception because it composes
-// two reads into one availability matrix and has no single RPC binding.
+// `settings providers` is a local manifest command because it composes two
+// reads into one availability matrix.
 package settings
 
 import (
@@ -22,24 +22,35 @@ const GroupName = "settings"
 // manifest and wires Connect-RPC bindings to handlers.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
+	providers := h.providersPrimitive()
+	provider := h.providerPrimitive()
+	byokList := h.byokListPrimitive()
+	byokUpsert := h.byokUpsertPrimitive()
+	byokDelete := h.byokDeletePrimitive()
 	bindings := map[string]func(cliapp.RunContext) error{
-		"SettingsService.GetProviderConfig":    h.provider,
-		"SettingsService.ListBYOKCredentials":  h.byokList,
+		"SettingsService.GetProviderConfig":    provider.Run,
+		"SettingsService.ListBYOKCredentials":  byokList.Run,
 		"SettingsService.UpsertBYOKCredential": h.byokUpsert,
-		"SettingsService.DeleteBYOKCredential": h.byokDelete,
+		"SettingsService.DeleteBYOKCredential": byokDelete.Run,
+		"providers":                            providers.Run,
 	}
 	group, err := climanifest.LoadGroup(manifest, GroupName, bindings)
 	if err != nil {
 		return cliapp.SubcommandGroup{}, err
 	}
-	// `providers` is the manifest-declared client-side composite over
-	// GetProviderConfig and TTSService.GetStatus. It is appended directly
-	// because `settings provider` already owns the former RPC binding.
-	group.Subcommands = append(group.Subcommands, cliapp.Command{
-		Name:        "providers",
-		Description: "Print the per-tier provider-availability matrix (routing config + TTS reachability)",
-		NeedsAPI:    true,
-		RunCtx:      h.providers,
-	})
+	for i := range group.Subcommands {
+		switch group.Subcommands[i].Name {
+		case "providers":
+			group.Subcommands[i] = group.Subcommands[i].WithPrimitive(providers)
+		case "provider":
+			group.Subcommands[i] = group.Subcommands[i].WithPrimitive(provider)
+		case "byok-list":
+			group.Subcommands[i] = group.Subcommands[i].WithPrimitive(byokList)
+		case "byok-upsert":
+			group.Subcommands[i] = group.Subcommands[i].WithPrimitive(byokUpsert)
+		case "byok-delete":
+			group.Subcommands[i] = group.Subcommands[i].WithPrimitive(byokDelete)
+		}
+	}
 	return group, nil
 }

@@ -1,14 +1,18 @@
+//go:build audio_lab
+
 package evaldeps
 
 import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
 	"audio-tools/internal/ai/sttchain"
 	intcorpus "audio-tools/internal/corpus"
+	inteval "audio-tools/internal/eval"
 	sttpkg "audio-tools/internal/stt"
 	"audio-tools/internal/testutil/mocks"
 
@@ -27,7 +31,10 @@ func TestLoadClipsMapsCorpusMetadataAndDefaultsSampleRate(t *testing.T) {
 	repo := &fakeClipRepo{
 		order: []string{"a", "b"},
 		clips: map[string]intcorpus.Clip{
-			"a": {ID: "a", BlobKey: "blob-a", SampleRateHz: 0, ReferenceText: "hello", Format: "wav"},
+			"a": {ID: "a", BlobKey: "blob-a", SampleRateHz: 0, ReferenceText: "hello", Format: "wav", TimedReference: &intcorpus.TimedReference{
+				Words:      []intcorpus.TimedWord{{Word: "hello", StartSeconds: 0.1, EndSeconds: 0.4}},
+				Provenance: intcorpus.TimingProvenance{Status: "human_reviewed", SourceReference: "ref-a", AlignmentTool: "aligner", AlignmentModel: "model-a", Reviewer: "reviewer-a", ReviewMethod: "listen", ReviewedAt: "2026-11-20T12:00:00Z"},
+			}},
 			"b": {ID: "b", BlobKey: "blob-b", SampleRateHz: 22050, ReferenceText: "world", Format: "wav"},
 		},
 	}
@@ -42,6 +49,8 @@ func TestLoadClipsMapsCorpusMetadataAndDefaultsSampleRate(t *testing.T) {
 	require.Equal(t, 16000, all[0].SampleRate, "a missing corpus sample rate defaults to 16 kHz")
 	require.Equal(t, "hello", all[0].Reference)
 	require.Equal(t, "wav", all[0].Format)
+	require.Equal(t, []inteval.TimedWord{{Word: "hello", Start: 0.1, End: 0.4}}, all[0].TimedReference)
+	require.Equal(t, &inteval.TimingReferenceProvenance{Status: "human_reviewed", SourceReference: "ref-a", AlignmentTool: "aligner", AlignmentModel: "model-a", Reviewer: "reviewer-a", ReviewMethod: "listen", ReviewedAt: "2026-11-20T12:00:00Z"}, all[0].TimingProvenance)
 	require.Equal(t, 22050, all[1].SampleRate, "an explicit corpus sample rate is preserved")
 
 	subset, err := deps.LoadClips(ctx, []string{"b"})
@@ -78,4 +87,24 @@ func (r *fakeClipRepo) List(context.Context, intcorpus.ListFilter) ([]intcorpus.
 	return clips, nil
 }
 
+func (r *fakeClipRepo) ListBySourceID(context.Context, string) ([]intcorpus.Clip, error) {
+	return nil, errFakeRepoUnused
+}
+
 func (r *fakeClipRepo) Delete(context.Context, string) error { return errFakeRepoUnused }
+
+func (r *fakeClipRepo) CountCreatedInWindow(context.Context, time.Time, time.Time) (int64, error) {
+	return 0, errFakeRepoUnused
+}
+
+func (r *fakeClipRepo) BackfillSourceLineage(context.Context, []intcorpus.LineageEntry, bool) (int, error) {
+	return 0, errFakeRepoUnused
+}
+
+func (r *fakeClipRepo) ReviewReference(context.Context, string, string, string, intcorpus.ReferenceReview) (intcorpus.Clip, error) {
+	return intcorpus.Clip{}, errFakeRepoUnused
+}
+
+func (r *fakeClipRepo) ReviewReferenceGroup(context.Context, []intcorpus.ReviewMember, string, string, string, string, string, string, string, intcorpus.ReferenceReview) ([]intcorpus.Clip, error) {
+	return nil, errFakeRepoUnused
+}

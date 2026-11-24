@@ -24,6 +24,8 @@ type KokoroVoiceLister struct {
 	Doer    httpc.Doer
 }
 
+const maxVoiceCatalogResponseBytes = 1 << 20
+
 func (k *KokoroVoiceLister) ListVoices(ctx context.Context) ([]Voice, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, k.BaseURL+"/v1/audio/voices", nil)
 	if err != nil {
@@ -35,10 +37,23 @@ func (k *KokoroVoiceLister) ListVoices(ctx context.Context) ([]Voice, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("TTS voice endpoint returned status %d", resp.StatusCode)
+	}
 
-	var raw json.RawMessage
-	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
-		return nil, err
+	raw, err := readBoundedResponse(resp.Body, maxVoiceCatalogResponseBytes)
+	if err != nil {
+		return nil, fmt.Errorf("read TTS voice list: %w", err)
+	}
+	// Kale's compatible endpoint wraps its voice array with model identity:
+	// {"model":"kale-tts-1-nano", "voices":[...]}. Unwrap that shape before
+	// trying the legacy Kokoro array/map formats, or it would appear as two
+	// bogus voices named "model" and "voices".
+	var envelope struct {
+		Voices []Voice `json:"voices"`
+	}
+	if err := json.Unmarshal(raw, &envelope); err == nil && len(envelope.Voices) > 0 {
+		return envelope.Voices, nil
 	}
 
 	var voices []Voice

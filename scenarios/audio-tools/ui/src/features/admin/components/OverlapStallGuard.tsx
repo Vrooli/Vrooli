@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getVoiceStreamConfig, updateVoiceStreamConfig } from "../../../audio-integration";
 import { Panel } from "../../../components/ui/panel";
 import { Button } from "../../../components/ui/button";
-import { Input } from "../../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { ApiErrorState } from "../../../components/composites/ApiErrorState";
 import { LoadingRows } from "../../../components/composites/LoadingRows";
 import { pushToast } from "../../../components/ui/toast";

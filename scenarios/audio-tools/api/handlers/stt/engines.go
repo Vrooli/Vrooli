@@ -2,6 +2,7 @@ package stt
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,7 +25,16 @@ func (h *connectHandler) ListEngines(ctx context.Context, _ *connect.Request[stt
 	}
 	streamConfig := h.resolveStreamPipelineConfig(ctx)
 	active := streamConfig.EngineID
-	resolution, _ := h.resolveEngine(ctx)
+	// Picker inventory is a latency-sensitive read. Resolve from current,
+	// read-only provider liveness instead of shelling out to the control plane
+	// for lifecycle and accelerator facts; active stream requests retain the
+	// richer resolver when they need host-policy evidence.
+	availability := make(map[string]bool, len(h.deps.Registry.Engines()))
+	resolution, _ := h.deps.Registry.Resolve(func(id string) bool {
+		available := h.engineAvailable(ctx, mustEngine(h.deps.Registry, id))
+		availability[id] = available
+		return available
+	})
 	if active == "" {
 		active = resolution.Selected
 	}
@@ -42,7 +52,7 @@ func (h *connectHandler) ListEngines(ctx context.Context, _ *connect.Request[stt
 			Id:              e.ID,
 			DisplayName:     e.DisplayName,
 			Kind:            e.Kind,
-			Available:       h.engineAvailable(ctx, e),
+			Available:       availability[e.ID],
 			NativeStreaming: e.Provides.NativeStreaming,
 			IsActive:        e.ID == active,
 			Verdict:         verdict,
@@ -54,9 +64,12 @@ func (h *connectHandler) ListEngines(ctx context.Context, _ *connect.Request[stt
 
 func (h *connectHandler) resolveEngine(ctx context.Context) (sttengine.Resolution, error) {
 	if h.deps.EngineResolver != nil {
-		resolution, err := h.deps.EngineResolver.Resolve(ctx, h.deps.Registry)
+		resolution, err := h.deps.EngineResolver.ResolveForAdmission(ctx, h.deps.Registry)
 		if err == nil {
 			return resolution, nil
+		}
+		if errors.Is(err, sttengine.ErrNoServiceableEngine) {
+			return resolution, err
 		}
 		// A missing or degraded control plane must not make a healthy speech
 		// service unusable. Preserve the existing provider-health signal while
@@ -80,7 +93,7 @@ func (h *connectHandler) engineAvailable(ctx context.Context, e sttengine.Engine
 	if e.Kind != sttengine.KindLocalResource {
 		return true
 	}
-	return h.deps.Chain != nil && h.deps.Chain.LocalEngineAvailable(ctx, e.ID)
+	return h.deps.Chain != nil && h.deps.Chain.LocalEngineServiceable(ctx, e.ID)
 }
 
 // GetEngineSwitchImpact reports the shared-resource impact of switching away
@@ -94,7 +107,7 @@ func (h *connectHandler) GetEngineSwitchImpact(_ context.Context, req *connect.R
 		return connect.NewResponse(resp), nil
 	}
 	engine, ok := h.deps.Registry.Engine(req.Msg.GetFromEngineId())
-	if !ok || engine.Kind != sttengine.KindLocalResource || engine.Resource == "" {
+	if !ok || engine.Kind != sttengine.KindLocalResource || engine.Resource == "" || engine.AttachOnly {
 		// Non-local engines own no local resource; nothing to stop.
 		resp.SafeToStop = true
 		resp.ConsumersKnown = true

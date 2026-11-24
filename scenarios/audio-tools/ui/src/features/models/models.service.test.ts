@@ -39,7 +39,9 @@ describe("primarySubtag", () => {
 
 describe("listModels", () => {
   it("forwards every filter and maps enum facts to string unions", async () => {
-    rpc.listModels.mockResolvedValue({ models: [makeModelRecord()] });
+    rpc.listModels.mockResolvedValue({
+      models: [makeModelRecord({ engineDefaults: ["whisper-local"] })],
+    });
 
     const result = await listModels({
       capability: "stt",
@@ -59,6 +61,7 @@ describe("listModels", () => {
       expect(result.data).toHaveLength(1);
       expect(result.data[0]?.readiness).toBe("available");
       expect(result.data[0]?.commercialUse).toBe("allowed");
+      expect(result.data[0]?.engineDefaults).toEqual(["whisper-local"]);
       expect(result.data[0]?.hardware.minRamGb).toBe(4);
       expect(result.data[0]?.benchmarks.wer).toBe(0.05);
     }
@@ -116,12 +119,14 @@ describe("resolveModel", () => {
     const result = await resolveModel({
       capability: "stt",
       language: "en",
+      engineId: "sherpa-streaming",
       commercial: true,
     });
 
     expect(rpc.resolveModel.mock.calls[0]?.[0]).toEqual({
       capability: "stt",
       language: "en",
+      engineId: "sherpa-streaming",
       commercial: true,
     });
     expect(result.ok).toBe(true);

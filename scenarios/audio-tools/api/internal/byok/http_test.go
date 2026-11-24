@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,4 +36,9 @@ func TestDoAudioRequestReturnsBodyLatencyAndProviderErrors(t *testing.T) {
 	require.NoError(t, err)
 	_, _, err = DoAudioRequest(context.Background(), http.DefaultClient, clock, "test-audio", request)
 	require.EqualError(t, err, "test-audio: HTTP 502: upstream unavailable")
+}
+
+func TestReadProviderResponseEnforcesLimit(t *testing.T) {
+	_, err := readProviderResponse(strings.NewReader("12345"), 4)
+	require.ErrorContains(t, err, "exceeds 4-byte limit")
 }

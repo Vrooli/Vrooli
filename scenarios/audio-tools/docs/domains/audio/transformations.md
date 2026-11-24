@@ -41,6 +41,8 @@ errors via `mapAudioErr` (`api/handlers/audio/errors.go`).
 The same eight operations are reachable through the CLI (`audio-tools
 audio …`, declared in `cli/manifest.json`) and the Diagnostics UI
 (`AudioOpsPanel`, generated from `api/internal/operationcatalog`).
+The complete catalog-backed operation inventory, including CLI journeys, is
+listed in [Audio Operations](../../reference/audio-operations.md).
 The transport is Connect-RPC; there is no multipart REST mount.
 
 ## Inputs
@@ -222,13 +224,30 @@ inputs hit the disk twice (write, then read by ffmpeg/ffprobe).
 Cleanup is deferred so a panic between create and defer registration
 does not leak; paths are recorded immediately after creation.
 
-`Split` is N+1 invocations of ffmpeg (one `Probe`, N `Trim` calls).
-Splitting a long file into many chunks is therefore O(N) in
-subprocess overhead; a future optimization would use ffmpeg
-`-segment_time` to emit all chunks in one pass. The current shape
-favors implementation simplicity over per-call latency, and the chunk
-count is capped so a bad request cannot spawn an unbounded process
-fan-out.
+Uniform `chunk_seconds` splits with 2–32 output chunks use one `Probe`
+and one ffmpeg process. The process decodes once, applies a separate
+`atrim` branch to each chunk, and writes each encoded output to a temp
+file. Explicit `boundaries_seconds`, one-chunk results, and uniform
+splits above 32 chunks retain the existing `Probe` plus one ffmpeg trim
+per chunk. The 32-chunk threshold bounds filter-graph size and the
+number of simultaneously open outputs; `maxSplitChunks` still caps all
+routes at 10,001 output chunks.
+
+The batch route preserves the existing reported start, duration, and
+content-type metadata. `atrim` works on decoded timestamps, rather than
+the packet-boundary `-segment_time` muxer. On a local Linux host with
+FFmpeg 6.1.1, the six-chunk end-to-end Go benchmark (including probe and
+temp-file work) measured 0.094 s for WAV batch vs. 0.315 s for independent
+trims, and 0.102 s vs. 0.281 s for MP3 input, about 3.4× and 2.8× faster.
+This is a single-host measurement, not a cross-platform qualification.
+Container encoders can
+report durations quantized by codec frames (for example MP3 priming),
+as they already do for independent trims.
+
+The batch path writes one temp input and one temp output per chunk under
+`os.TempDir()`; cleanup runs on success, ffmpeg error, or cancellation.
+Other operations and fallback splits continue to use the stdout pipe
+path and/or their existing temp-file behavior.
 
 `Merge` writes every source to a temp file before invoking ffmpeg
 with `-i path` for each. Merging many sources opens many temp files

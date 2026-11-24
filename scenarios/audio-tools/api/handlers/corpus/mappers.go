@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 package corpus
 
 import (
@@ -53,24 +55,72 @@ func clipToProto(c intcorpus.Clip) *corpusv1.Clip {
 	if tags == nil {
 		tags = []string{}
 	}
-	return &corpusv1.Clip{
-		Id:               c.ID,
-		ReferenceText:    c.ReferenceText,
-		Tags:             tags,
-		DurationMs:       c.DurationMs,
-		SampleRateHz:     protoint.FromInt(c.SampleRateHz),
-		Format:           c.Format,
-		BlobKey:          c.BlobKey,
-		Source:           sourceToProto(c.Source),
-		CreatedAt:        protomap.TimeToProto(c.CreatedAt),
-		CorpusRevision:   c.CorpusRevision,
-		LicenseReference: c.LicenseReference,
-		SpeakerPseudonym: c.SpeakerPseudonym,
-		Split:            splitToProto(c.Split),
-		NoiseCondition:   noiseConditionToProto(c.NoiseCondition),
-		SnrDb:            c.SNRDB,
-		ContentSha256:    c.ContentSHA256,
+	out := &corpusv1.Clip{
+		Id:                       c.ID,
+		ReferenceText:            c.ReferenceText,
+		Tags:                     tags,
+		DurationMs:               c.DurationMs,
+		SampleRateHz:             protoint.FromInt(c.SampleRateHz),
+		Format:                   c.Format,
+		BlobKey:                  c.BlobKey,
+		Source:                   sourceToProto(c.Source),
+		CreatedAt:                protomap.TimeToProto(c.CreatedAt),
+		CorpusRevision:           c.CorpusRevision,
+		SourceId:                 c.SourceID,
+		AccentGroup:              c.AccentGroup,
+		ManifestTranscriptSha256: c.ManifestTranscriptSHA256,
+		LineageManifestSha256:    c.LineageManifestSHA256,
+		LicenseReference:         c.LicenseReference,
+		SpeakerPseudonym:         c.SpeakerPseudonym,
+		Split:                    splitToProto(c.Split),
+		NoiseCondition:           noiseConditionToProto(c.NoiseCondition),
+		SnrDb:                    c.SNRDB,
+		ContentSha256:            c.ContentSHA256,
 	}
+	if c.TimedReference != nil {
+		out.TimedReference = timedReferenceToProto(c.TimedReference)
+	}
+	if c.ReferenceReview != nil {
+		r := c.ReferenceReview
+		out.ReferenceReview = &corpusv1.ReferenceReview{Reviewer: r.Reviewer, Protocol: r.Protocol, ReviewedAt: r.ReviewedAt, ReferenceSha256: r.ReferenceSHA256, ReviewGroupId: r.ReviewGroupID}
+	}
+	return out
+}
+
+func timedReferenceToProto(r *intcorpus.TimedReference) *corpusv1.TimedReference {
+	words := make([]*corpusv1.TimedWord, len(r.Words))
+	for i, w := range r.Words {
+		words[i] = &corpusv1.TimedWord{Word: w.Word, StartSeconds: w.StartSeconds, EndSeconds: w.EndSeconds}
+	}
+	p := r.Provenance
+	return &corpusv1.TimedReference{Words: words, Provenance: &corpusv1.TimingProvenance{
+		Status: p.Status, SourceReference: p.SourceReference, AlignmentTool: p.AlignmentTool,
+		AlignmentModel: p.AlignmentModel, Reviewer: p.Reviewer, ReviewMethod: p.ReviewMethod,
+		ReviewedAt: p.ReviewedAt, Notes: p.Notes,
+	}}
+}
+
+func timedReferenceFromProto(r *corpusv1.TimedReference) *intcorpus.TimedReference {
+	if r == nil {
+		return nil
+	}
+	out := &intcorpus.TimedReference{Words: make([]intcorpus.TimedWord, len(r.GetWords()))}
+	for i, w := range r.GetWords() {
+		if w != nil {
+			out.Words[i] = intcorpus.TimedWord{Word: w.GetWord(), StartSeconds: w.GetStartSeconds(), EndSeconds: w.GetEndSeconds()}
+		}
+	}
+	if p := r.GetProvenance(); p != nil {
+		out.Provenance = intcorpus.TimingProvenance{Status: p.GetStatus(), SourceReference: p.GetSourceReference(), AlignmentTool: p.GetAlignmentTool(), AlignmentModel: p.GetAlignmentModel(), Reviewer: p.GetReviewer(), ReviewMethod: p.GetReviewMethod(), ReviewedAt: p.GetReviewedAt(), Notes: p.GetNotes()}
+	}
+	return out
+}
+
+func referenceReviewFromProto(r *corpusv1.ReferenceReview) *intcorpus.ReferenceReview {
+	if r == nil {
+		return nil
+	}
+	return &intcorpus.ReferenceReview{Reviewer: r.GetReviewer(), Protocol: r.GetProtocol(), ReviewedAt: r.GetReviewedAt()}
 }
 
 func splitToProto(s intcorpus.Split) corpusv1.CorpusSplit {

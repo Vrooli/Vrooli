@@ -19,9 +19,11 @@ const GroupName = "diagnostics"
 // manifest and wires Connect-RPC bindings to handlers.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	bindings := map[string]func(cliapp.RunContext) error{
-		"DiagnosticsService.RunSuite":   h.run,
-		"DiagnosticsService.GetLastRun": h.last,
+	run := h.runPrimitive()
+	last := h.lastPrimitive()
+	bindings := map[string]cliapp.PrimitiveHandler{
+		"DiagnosticsService.RunSuite":   run,
+		"DiagnosticsService.GetLastRun": last,
 	}
-	return climanifest.LoadGroup(manifest, GroupName, bindings)
+	return climanifest.LoadPrimitiveGroup(manifest, GroupName, bindings)
 }

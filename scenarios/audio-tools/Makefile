@@ -3,7 +3,7 @@
 # This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
 # NEVER run scenarios directly (./api/audio-tools-api). ALWAYS use these commands.
 
-.PHONY: help start run stop restart test soak-accelerated lab-test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open orient temporal-models endpoints
+.PHONY: help start run stop restart test soak-accelerated lab-test logs status clean build build-product build-lab dev fmt fmt-go fmt-ui lint lint-go lint-ui type check setup open orient temporal-models endpoints
 
 .DEFAULT_GOAL := help
 
@@ -22,6 +22,7 @@ help: ## Show the supported scenario entrypoints
 	@printf "  make status                     Show scenario runtime status\n"
 	@printf "  make logs                       Show scenario logs\n"
 	@printf "  make test                       Run scenario tests\n"
+	@printf "  make type                       Compile-check API, CLI, and UI\n"
 	@printf "  make lab-test                   Run lab/qualification package tests\n"
 	@printf "  make soak-accelerated           Run the gated 60-minute accelerated browser soak\n"
 	@printf "  make temporal-models            Check formal temporal-model artifacts\n"
@@ -56,10 +57,10 @@ logs: ## Show scenario logs
 test: ## Run scenario tests
 	@vrooli scenario test "$(SCENARIO_NAME)"
 
-# Lab/qualification packages are product-mounted but are not serving paths.
-# The boundary contract and its conformance test live in api/internal/lab.
+# Lab packages are compiled only into the audio_lab API artifact. Their import
+# and product dependency-graph contracts are tested in api/internal/lab.
 lab-test: ## Run lab/qualification package tests
-	@cd api && go test -count=1 ./internal/lab/... ./internal/experiment/... ./internal/eval/... ./internal/soak/... ./handlers/experiment/... ./handlers/eval/... ./handlers/soak/... ./handlers/validation/...
+	@cd api && go test -tags audio_lab -count=1 . ./internal/lab/... ./internal/corpus/... ./internal/experiment/... ./internal/eval/... ./internal/soak/... ./internal/modelpromotion ./internal/conformance ./handlers/corpus/... ./handlers/experiment/... ./handlers/eval/... ./handlers/soak/... ./handlers/validation/... ./internal/modules ./internal/server ./internal/bootstrap
 
 # This gate runs through the same Test Genie lease and BAS Broker contract as
 # the registered soak provider. The API selects the Dictation Studio UI and
@@ -84,6 +85,11 @@ fmt: fmt-go fmt-ui ## Format all code
 
 lint: lint-go lint-ui ## Lint all code
 
+type: ## Compile-check API, CLI, and UI
+	@cd api && GOWORK=off go test -run='^$$' ./...
+	@cd cli && GOWORK=off go test -run='^$$' ./...
+	@if [ -f ui/package.json ]; then cd ui && pnpm run type-check; fi
+
 check: fmt lint test ## Run full quality gates
 
 setup: ## Run scenario setup lifecycle
@@ -99,7 +105,13 @@ orient: ## Show generated-scenario orientation progress
 	@template-manager orient "$(SCENARIO_NAME)"
 
 endpoints: ## Regenerate .vrooli/endpoints.json from API modules (validated against cli/manifest.json)
-	@cd api && go run ./cmd/gen-endpoints --output ../.vrooli/endpoints.json
+	@cd api && go run -tags audio_lab ./cmd/gen-endpoints --output ../.vrooli/endpoints.json
+
+build-product: ## Compile the product API without lab execution dependencies
+	@cd api && GOWORK=off go build -o audio-tools-api .
+
+build-lab: ## Compile the lab API with corpus, experiment, soak, and validation routes
+	@cd api && GOWORK=off go build -tags audio_lab -o audio-tools-lab-api .
 
 catalog-gen: ## Regenerate provider catalogue artifacts (Go + TypeScript)
 	@cd api && go run ./cmd/gen-catalog
@@ -116,7 +128,7 @@ portability: ## Cross-compile the API and CLI for Windows and macOS
 	@echo "portability: windows/amd64 and darwin/arm64 builds passed"
 
 catalog-check: ## Run catalog drift + cross-catalog conformance gates
-	@cd api && go test ./internal/providercatalog ./internal/operationcatalog ./internal/modelcatalog ./internal/catalogconformance ./internal/capabilities ./internal/sttengine ./internal/stt/whisperinfo ./handlers/models
+	@cd api && go test ./internal/providercatalog ./internal/operationcatalog ./internal/modelcatalog ./internal/modelpromotion ./internal/catalogconformance ./internal/capabilities ./internal/sttengine ./internal/stt/whisperinfo ./handlers/models
 
 run: start
 

@@ -12,6 +12,32 @@ type Chain struct {
 
 type Options = tiered.CredentialOptions[Request, LocalProvider, BYOKProvider, VrooliProvider]
 
+// LocalCacheBackends returns cache backend keys in local provider preference
+// order, including any configured local failover provider.
+func (c *Chain) LocalCacheBackends() []string {
+	if c == nil || c.CredentialProviderChain == nil || c.Local == nil {
+		return nil
+	}
+	return c.Local.CacheBackends()
+}
+
+// LocalProviderID returns the preferred local provider's runtime identity.
+// The configured chain order is the same declaration-backed order synthesis
+// uses, so status can describe Kale or another future local provider without
+// hardcoding a model-specific name.
+func (c *Chain) LocalProviderID() string {
+	if c == nil || c.CredentialProviderChain == nil || c.Local == nil {
+		return ""
+	}
+	return c.Local.ProviderID()
+}
+
+// BYOKAdapterConfigured reports adapter registration independently of the
+// routing toggle and of request-scoped credential availability.
+func (c *Chain) BYOKAdapterConfigured() bool {
+	return c != nil && c.CredentialProviderChain != nil && c.BYOK != nil && c.BYOK.AdapterConfigured()
+}
+
 func NewChain(opts Options) *Chain {
 	if opts.Redact == nil {
 		opts.Redact = func(req Request) []string {

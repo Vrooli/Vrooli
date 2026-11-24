@@ -46,122 +46,112 @@ func streamErrorCode(err error) string {
 func protoForEvent(ev sttchain.StreamEvent) *sttv1.TranscribeStreamEvent {
 	switch ev.Kind {
 	case sttchain.StreamEventPartial:
-		if ev.Partial == nil {
-			return nil
-		}
-		return &sttv1.TranscribeStreamEvent{
-			Event: &sttv1.TranscribeStreamEvent_Partial{
-				Partial: &sttv1.StreamPartial{Text: ev.Partial.Text},
-			},
-		}
+		return protoPartial(ev.Partial)
 	case sttchain.StreamEventSegment:
-		if ev.Segment == nil {
-			return nil
-		}
-		return &sttv1.TranscribeStreamEvent{
-			Event: &sttv1.TranscribeStreamEvent_Segment{
-				Segment: &sttv1.StreamSegment{
-					Text:             ev.Segment.Text,
-					StartMs:          ev.Segment.StartMs,
-					EndMs:            ev.Segment.EndMs,
-					DetectedLanguage: ev.Segment.DetectedLanguage,
-					ProviderTier:     protomap.ProviderTierToProto(string(ev.Segment.ProviderTier)),
-					ModelId:          ev.Segment.ModelID,
-					LatencyMs:        ev.Segment.LatencyMs,
-					SegmentId:        ev.Segment.SegmentID,
-					Generation:       ev.Segment.Generation,
-					StartSample:      ev.Segment.StartSample,
-					EndSample:        ev.Segment.EndSample,
-					AlignmentQuality: ev.Segment.AlignmentQuality,
-					SpeakerPolicy:    ev.Segment.SpeakerPolicy,
-				},
-			},
-		}
+		return protoSegment(ev.Segment)
 	case sttchain.StreamEventWakeWord:
-		if ev.WakeWord == nil {
-			return nil
-		}
-		return &sttv1.TranscribeStreamEvent{
-			Event: &sttv1.TranscribeStreamEvent_WakeWord{
-				WakeWord: &sttv1.StreamWakeWord{Score: ev.WakeWord.Score, SampleId: ev.WakeWord.SampleID},
-			},
-		}
+		return protoWakeWord(ev.WakeWord)
 	case sttchain.StreamEventSpeakerRejection:
-		if ev.SpeakerRejection == nil {
-			return nil
-		}
-		return &sttv1.TranscribeStreamEvent{
-			Event: &sttv1.TranscribeStreamEvent_SpeakerRejection{
-				SpeakerRejection: &sttv1.StreamSpeakerRejection{
-					Reason:       ev.SpeakerRejection.Reason,
-					FallbackUsed: ev.SpeakerRejection.FallbackUsed,
-					Score:        ev.SpeakerRejection.Score,
-					Threshold:    ev.SpeakerRejection.Threshold,
-				},
-			},
-		}
+		return protoSpeakerRejection(ev.SpeakerRejection)
 	case sttchain.StreamEventError:
-		msg := ""
-		if ev.Error != nil {
-			msg = ev.Error.Error()
-		}
-		return &sttv1.TranscribeStreamEvent{
-			Event: &sttv1.TranscribeStreamEvent_Error{
-				Error: &sttv1.StreamError{Code: streamErrorCode(ev.Error), Message: msg},
-			},
-		}
+		return protoStreamError(ev.Error)
 	case sttchain.StreamEventVadState:
-		if ev.VadState == nil {
-			return nil
-		}
-		return &sttv1.TranscribeStreamEvent{
-			Event: &sttv1.TranscribeStreamEvent_VadState{
-				VadState: &sttv1.StreamVadState{
-					Voiced:           ev.VadState.Voiced,
-					SilenceElapsedMs: ev.VadState.SilenceElapsedMs,
-					SilenceTimeoutMs: ev.VadState.SilenceTimeoutMs,
-					TickSeq:          ev.VadState.TickSeq,
-					SilenceTimedOut:  ev.VadState.SilenceTimedOut,
-				},
-			},
-		}
+		return protoVadState(ev.VadState)
 	case sttchain.StreamEventDone:
-		done := ev.Done
-		if done == nil {
-			done = &sttchain.DoneEvent{}
-		}
-		return &sttv1.TranscribeStreamEvent{
-			Event: &sttv1.TranscribeStreamEvent_Done{
-				Done: &sttv1.StreamDone{
-					FinalText:          done.FinalText,
-					ProviderTier:       protomap.ProviderTierToProto(string(done.LockedTier)),
-					ProviderId:         capabilities.CanonicalProviderID(done.ProviderID),
-					ModelId:            done.ModelID,
-					LatencyMs:          done.LatencyMs,
-					FellBackToUnary:    done.FellBackToUnary,
-					ProcessedSequence:  done.ProcessedSequence,
-					ProcessedEndSample: done.ProcessedEndSample,
-					TerminalReason:     done.TerminalReason,
-				},
-			},
-		}
+		return protoDone(ev.Done)
 	case sttchain.StreamEventAcknowledgement:
-		if ev.Acknowledgement == nil {
-			return nil
-		}
-		return &sttv1.TranscribeStreamEvent{Event: &sttv1.TranscribeStreamEvent_Acknowledgement{Acknowledgement: &sttv1.StreamAcknowledgement{
-			ReceivedSequence: ev.Acknowledgement.ReceivedSequence, ProcessedSequence: ev.Acknowledgement.ProcessedSequence,
-			ReceivedEndSample: ev.Acknowledgement.ReceivedEndSample, ProcessedEndSample: ev.Acknowledgement.ProcessedEndSample,
-			DeliveryClass: sttv1.StreamDeliveryClass_STREAM_DELIVERY_CLASS_DURABLE,
-		}}}
+		return protoAcknowledgement(ev.Acknowledgement)
 	case sttchain.StreamEventSessionStatus:
-		if ev.SessionStatus == nil {
-			return nil
-		}
-		return &sttv1.TranscribeStreamEvent{Event: &sttv1.TranscribeStreamEvent_SessionStatus{SessionStatus: &sttv1.StreamSessionStatus{
-			SessionId: ev.SessionStatus.SessionID, Generation: ev.SessionStatus.Generation, State: ev.SessionStatus.State,
-			QueuePosition: ev.SessionStatus.QueuePosition, CapabilityOutcome: ev.SessionStatus.CapabilityOutcome, RecoveryGuidance: ev.SessionStatus.RecoveryGuidance,
-		}}}
+		return protoSessionStatus(ev.SessionStatus)
+	default:
+		return nil
 	}
-	return nil
+}
+
+func protoPartial(value *sttchain.PartialEvent) *sttv1.TranscribeStreamEvent {
+	if value == nil {
+		return nil
+	}
+	return &sttv1.TranscribeStreamEvent{Event: &sttv1.TranscribeStreamEvent_Partial{Partial: &sttv1.StreamPartial{Text: value.Text}}}
+}
+
+func protoSegment(value *sttchain.SegmentEvent) *sttv1.TranscribeStreamEvent {
+	if value == nil {
+		return nil
+	}
+	return &sttv1.TranscribeStreamEvent{Event: &sttv1.TranscribeStreamEvent_Segment{Segment: &sttv1.StreamSegment{
+		Text: value.Text, StartMs: value.StartMs, EndMs: value.EndMs,
+		DetectedLanguage: value.DetectedLanguage, ProviderTier: protomap.ProviderTierToProto(string(value.ProviderTier)),
+		ModelId: value.ModelID, LatencyMs: value.LatencyMs, SegmentId: value.SegmentID, Generation: value.Generation,
+		StartSample: value.StartSample, EndSample: value.EndSample, AlignmentQuality: value.AlignmentQuality,
+		SpeakerPolicy: value.SpeakerPolicy,
+	}}}
+}
+
+func protoWakeWord(value *sttchain.WakeWordEvent) *sttv1.TranscribeStreamEvent {
+	if value == nil {
+		return nil
+	}
+	return &sttv1.TranscribeStreamEvent{Event: &sttv1.TranscribeStreamEvent_WakeWord{WakeWord: &sttv1.StreamWakeWord{Score: value.Score, SampleId: value.SampleID}}}
+}
+
+func protoSpeakerRejection(value *sttchain.SpeakerRejectionEvent) *sttv1.TranscribeStreamEvent {
+	if value == nil {
+		return nil
+	}
+	return &sttv1.TranscribeStreamEvent{Event: &sttv1.TranscribeStreamEvent_SpeakerRejection{SpeakerRejection: &sttv1.StreamSpeakerRejection{
+		Reason: value.Reason, FallbackUsed: value.FallbackUsed, Score: value.Score, Threshold: value.Threshold,
+	}}}
+}
+
+func protoStreamError(err error) *sttv1.TranscribeStreamEvent {
+	message := ""
+	if err != nil {
+		message = err.Error()
+	}
+	return &sttv1.TranscribeStreamEvent{Event: &sttv1.TranscribeStreamEvent_Error{Error: &sttv1.StreamError{Code: streamErrorCode(err), Message: message}}}
+}
+
+func protoVadState(value *sttchain.VadStateEvent) *sttv1.TranscribeStreamEvent {
+	if value == nil {
+		return nil
+	}
+	return &sttv1.TranscribeStreamEvent{Event: &sttv1.TranscribeStreamEvent_VadState{VadState: &sttv1.StreamVadState{
+		Voiced: value.Voiced, SilenceElapsedMs: value.SilenceElapsedMs, SilenceTimeoutMs: value.SilenceTimeoutMs,
+		TickSeq: value.TickSeq, SilenceTimedOut: value.SilenceTimedOut,
+	}}}
+}
+
+func protoDone(value *sttchain.DoneEvent) *sttv1.TranscribeStreamEvent {
+	if value == nil {
+		value = &sttchain.DoneEvent{}
+	}
+	return &sttv1.TranscribeStreamEvent{Event: &sttv1.TranscribeStreamEvent_Done{Done: &sttv1.StreamDone{
+		FinalText: value.FinalText, ProviderTier: protomap.ProviderTierToProto(string(value.LockedTier)),
+		ProviderId: capabilities.CanonicalProviderID(value.ProviderID), ModelId: value.ModelID, LatencyMs: value.LatencyMs,
+		FellBackToUnary: value.FellBackToUnary, ProcessedSequence: value.ProcessedSequence,
+		ProcessedEndSample: value.ProcessedEndSample, TerminalReason: value.TerminalReason,
+	}}}
+}
+
+func protoAcknowledgement(value *sttchain.AcknowledgementEvent) *sttv1.TranscribeStreamEvent {
+	if value == nil {
+		return nil
+	}
+	return &sttv1.TranscribeStreamEvent{Event: &sttv1.TranscribeStreamEvent_Acknowledgement{Acknowledgement: &sttv1.StreamAcknowledgement{
+		ReceivedSequence: value.ReceivedSequence, ProcessedSequence: value.ProcessedSequence,
+		ReceivedEndSample: value.ReceivedEndSample, ProcessedEndSample: value.ProcessedEndSample,
+		DeliveryClass: sttv1.StreamDeliveryClass_STREAM_DELIVERY_CLASS_DURABLE,
+	}}}
+}
+
+func protoSessionStatus(value *sttchain.SessionStatusEvent) *sttv1.TranscribeStreamEvent {
+	if value == nil {
+		return nil
+	}
+	return &sttv1.TranscribeStreamEvent{Event: &sttv1.TranscribeStreamEvent_SessionStatus{SessionStatus: &sttv1.StreamSessionStatus{
+		SessionId: value.SessionID, Generation: value.Generation, State: value.State,
+		QueuePosition: value.QueuePosition, CapabilityOutcome: value.CapabilityOutcome, RecoveryGuidance: value.RecoveryGuidance,
+		ProviderId: capabilities.CanonicalProviderID(value.ProviderID), ModelId: value.ModelID, ProviderTier: protomap.ProviderTierToProto(string(value.ProviderTier)),
+	}}}
 }

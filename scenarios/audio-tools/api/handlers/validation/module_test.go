@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 package validation
 
 import (
@@ -179,7 +181,7 @@ func TestManagedProviderRejectsPartialReceiptsBeforeRunning(t *testing.T) {
 	response, err := h.ValidateScenario(context.Background(), req)
 	require.NoError(t, err)
 	require.Equal(t, scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED, response.Msg.GetStatus())
-	require.Contains(t, response.Msg.GetAssessment().GetFindings()[0].GetMessage(), "requires one verified run identity")
+	require.Contains(t, response.Msg.GetAssessment().GetFindings()[0].GetMessage(), "exactly one BAS browser grant receipt")
 	require.Zero(t, runs)
 }
 
@@ -202,7 +204,10 @@ func TestValidateScenarioFailsClosedWhenQualificationInputsAreMissing(t *testing
 	}))
 	require.NoError(t, err)
 	require.Equal(t, scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED, response.Msg.GetStatus())
-	require.Contains(t, response.Msg.GetAssessment().GetFindings()[0].GetMessage(), "requires one verified run identity")
+	message := response.Msg.GetAssessment().GetFindings()[0].GetMessage()
+	require.Contains(t, message, "exactly one Agent Manager identity token")
+	require.Contains(t, message, "exactly one BAS browser grant receipt")
+	require.Contains(t, message, "exactly one Test Genie lease receipt")
 	require.Zero(t, runs)
 }
 

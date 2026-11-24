@@ -2,18 +2,36 @@
   "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "audio-tools",
   "description": "Audio Tools CLI \u2014 speech-to-text, text-to-speech, summarization, audio processing, provider lifecycle, and diagnostics over the audio-tools Connect-RPC API.",
-  "exceptions": [
-    {
-      "command": "settings providers",
-      "class": "passthrough",
-      "reason": "Composes SettingsService.GetProviderConfig and TTSService.GetStatus; no single RPC owns the availability matrix."
-    }
-  ],
+  "exceptions": [],
   "groups": [
     {
       "name": "validation",
       "description": "Expensive out-of-band audio validation and evidence freshness",
       "commands": [
+        {
+          "name": "device-matrix",
+          "description": "Enumerate D1-D6 browser/device qualification cells and optionally validate product-path receipts",
+          "flags": [
+            {
+              "name": "matrix-path",
+              "description": "Optional device matrix declaration JSON path"
+            },
+            {
+              "name": "receipt-path",
+              "description": "Optional JSON file containing versioned per-cell qualification receipts"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
         {
           "name": "run-expensive",
           "description": "Run the hour-scale TTS and continuous synthetic-dictation qualification and record evidence",
@@ -101,7 +119,7 @@
         },
         {
           "name": "run-host-portability",
-          "description": "Measure D1 CPU/accelerator routes and record explicit D2 unavailable evidence",
+          "description": "Record per-capability D1/D2 model resolutions, run bounded D1 Whisper CPU and D2 Sherpa int8 inference, and report the D1 accelerator cell honestly",
           "binding": {"kind": "local"},
           "governance": {
             "effect": "write",
@@ -177,6 +195,11 @@
             {
               "name": "format",
               "description": "Audio format hint (default wav)"
+            },
+            {
+              "name": "model",
+              "local_only": true,
+              "description": "Exact catalog model ID for the unary route, sent through X-Audio-Model-ID (empty uses the server default)"
             }
           ],
           "binding": {
@@ -190,11 +213,14 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
           "name": "transcribe-stream",
-          "description": "Stream-transcribe an audio file (emits one line per stream event)",
+          "description": "Stream-transcribe an audio file (emits one line per stream event; --json emits proto JSON Lines)",
           "flags": [
             {
               "name": "file",
@@ -205,6 +231,11 @@
             {
               "name": "language",
               "description": "Language hint (empty = auto-detect)"
+            },
+            {
+              "name": "engine",
+              "description": "Optional request-scoped STT engine override; does not change the saved streaming configuration",
+              "local_only": true
             },
             {
               "name": "chunk-bytes",
@@ -223,6 +254,12 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "exception": {
+              "class": "streaming",
+              "reason": "Consumes a long-lived bidirectional stream and renders ordered partial, segment, error, and terminal events as they arrive."
+            }
           }
         },
         {
@@ -239,6 +276,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -255,6 +295,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -281,6 +324,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -297,6 +343,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -363,6 +412,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -379,6 +431,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -437,6 +492,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -484,6 +542,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -510,6 +571,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -538,8 +602,14 @@
             "permissions": [
               "network:internal"
             ]
+          },
+
+
+            "architecture": {
+              "primitive": "action"
+            }
+
           }
-        }
       ]
     },
     {
@@ -575,6 +645,12 @@
               "name": "out",
               "description": "Output file path (default stdout)",
               "local_only": true
+            },
+            {
+              "name": "json-metadata-only",
+              "bool": true,
+              "description": "With --json and --out, omit base64 audio from the JSON metadata response",
+              "local_only": true
             }
           ],
           "binding": {
@@ -588,6 +664,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -632,6 +711,12 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "exception": {
+              "class": "streaming",
+              "reason": "Consumes a long-lived server stream and writes ordered audio frames as they arrive, so output depends on stream lifecycle rather than a single response renderer."
+            }
           }
         },
         {
@@ -648,6 +733,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -664,8 +752,14 @@
             "permissions": [
               "network:internal"
             ]
+          },
+
+
+            "architecture": {
+              "primitive": "action"
+            }
+
           }
-        }
       ]
     },
     {
@@ -684,6 +778,10 @@
             {
               "name": "level",
               "description": "light|moderate|heavy (default moderate)"
+            },
+            {
+              "name": "local-model-role",
+              "description": "Declared Audio Tools local summary role (summarize.audio_tools or summarize.audio_tools.quality; empty uses the default)"
             }
           ],
           "binding": {
@@ -697,8 +795,14 @@
             "permissions": [
               "network:internal"
             ]
+          },
+
+
+            "architecture": {
+              "primitive": "action"
+            }
+
           }
-        }
       ]
     },
     {
@@ -726,13 +830,13 @@
             },
             {
               "name": "output-format",
-              "description": "Output format: wav|mp3|flac|ogg|aac (default wav)",
+              "description": "Output format: wav|mp3|flac|ogg|aac|webm|opus|pcm_s16le (default wav)",
               "default": "wav",
-              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+              "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]
             },
             {
               "name": "input-format",
-              "description": "Input format hint: auto|wav|mp3|flac|ogg|aac (default auto)"
+              "description": "Input format hint: auto|wav|mp3|flac|ogg|aac|webm|opus|pcm_s16le (default auto)"
             },
             {
               "name": "sample-rate",
@@ -756,6 +860,9 @@
             "effect": "write",
             "run_eligible": true,
             "permissions": ["network:internal", "filesystem:read", "filesystem:write"]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -779,9 +886,9 @@
             },
             {
               "name": "format",
-              "description": "Input format: wav|mp3|flac|ogg|aac (default wav)",
+              "description": "Input format: wav|mp3|flac|ogg|aac|webm|opus|pcm_s16le (default wav)",
               "default": "wav",
-              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+              "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]
             },
             {
               "name": "start-seconds",
@@ -802,6 +909,9 @@
             "effect": "write",
             "run_eligible": true,
             "permissions": ["network:internal", "filesystem:read", "filesystem:write"]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -812,7 +922,9 @@
               "name": "input",
               "required": true,
               "repeatable": true,
-              "description": "Source audio path (repeat for each source)"
+              "description": "Source audio path (repeat for each source)",
+              "bind": {"field": "sources", "kind": "json_inline"},
+              "bind_waiver": "The renderer-separated merge handler constructs each repeated MergeSource from the path and the separate format flag; generic JSON decoding is intentionally bypassed."
             },
             {
               "name": "output",
@@ -822,15 +934,16 @@
             },
             {
               "name": "format",
-              "description": "Source format: wav|mp3|flac|ogg|aac (default wav)",
+              "description": "Source format: wav|mp3|flac|ogg|aac|webm|opus|pcm_s16le (default wav)",
               "default": "wav",
-              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+              "local_only": true,
+              "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]
             },
             {
               "name": "output-format",
-              "description": "Output format: wav|mp3|flac|ogg|aac (default wav)",
+              "description": "Output format: wav|mp3|flac|ogg|aac|webm|opus|pcm_s16le (default wav)",
               "default": "wav",
-              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+              "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]
             },
             {
               "name": "crossfade-seconds",
@@ -846,6 +959,9 @@
             "effect": "write",
             "run_eligible": true,
             "permissions": ["network:internal", "filesystem:read", "filesystem:write"]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -869,9 +985,9 @@
             },
             {
               "name": "format",
-              "description": "Input format: wav|mp3|flac|ogg|aac (default wav)",
+              "description": "Input format: wav|mp3|flac|ogg|aac|webm|opus|pcm_s16le (default wav)",
               "default": "wav",
-              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+              "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]
             },
             {
               "name": "chunk-seconds",
@@ -883,9 +999,9 @@
             },
             {
               "name": "output-format",
-              "description": "Output format: wav|mp3|flac|ogg|aac (default wav)",
+              "description": "Output format: wav|mp3|flac|ogg|aac|webm|opus|pcm_s16le (default wav)",
               "default": "wav",
-              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+              "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]
             }
           ],
           "binding": {
@@ -897,6 +1013,9 @@
             "effect": "write",
             "run_eligible": true,
             "permissions": ["network:internal", "filesystem:read", "filesystem:write"]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         },
         {
@@ -920,9 +1039,9 @@
             },
             {
               "name": "format",
-              "description": "Input format: wav|mp3|flac|ogg|aac (default wav)",
+              "description": "Input format: wav|mp3|flac|ogg|aac|webm|opus|pcm_s16le (default wav)",
               "default": "wav",
-              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+              "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]
             },
             {
               "name": "fade-in-seconds",
@@ -934,9 +1053,9 @@
             },
             {
               "name": "output-format",
-              "description": "Output format: wav|mp3|flac|ogg|aac (default wav)",
+              "description": "Output format: wav|mp3|flac|ogg|aac|webm|opus|pcm_s16le (default wav)",
               "default": "wav",
-              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+              "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]
             }
           ],
           "binding": {
@@ -948,6 +1067,9 @@
             "effect": "write",
             "run_eligible": true,
             "permissions": ["network:internal", "filesystem:read", "filesystem:write"]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -971,9 +1093,9 @@
             },
             {
               "name": "format",
-              "description": "Input format: wav|mp3|flac|ogg|aac (default wav)",
+              "description": "Input format: wav|mp3|flac|ogg|aac|webm|opus|pcm_s16le (default wav)",
               "default": "wav",
-              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+              "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]
             },
             {
               "name": "gain-db",
@@ -982,9 +1104,9 @@
             },
             {
               "name": "output-format",
-              "description": "Output format: wav|mp3|flac|ogg|aac (default wav)",
+              "description": "Output format: wav|mp3|flac|ogg|aac|webm|opus|pcm_s16le (default wav)",
               "default": "wav",
-              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+              "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]
             }
           ],
           "binding": {
@@ -996,6 +1118,9 @@
             "effect": "write",
             "run_eligible": true,
             "permissions": ["network:internal", "filesystem:read", "filesystem:write"]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -1019,9 +1144,9 @@
             },
             {
               "name": "format",
-              "description": "Input format: wav|mp3|flac|ogg|aac (default wav)",
+              "description": "Input format: wav|mp3|flac|ogg|aac|webm|opus|pcm_s16le (default wav)",
               "default": "wav",
-              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+              "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]
             },
             {
               "name": "method",
@@ -1036,9 +1161,9 @@
             },
             {
               "name": "output-format",
-              "description": "Output format: wav|mp3|flac|ogg|aac (default wav)",
+              "description": "Output format: wav|mp3|flac|ogg|aac|webm|opus|pcm_s16le (default wav)",
               "default": "wav",
-              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+              "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]
             }
           ],
           "binding": {
@@ -1050,6 +1175,9 @@
             "effect": "write",
             "run_eligible": true,
             "permissions": ["network:internal", "filesystem:read", "filesystem:write"]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -1073,9 +1201,9 @@
             },
             {
               "name": "format",
-              "description": "Input format: wav|mp3|flac|ogg|aac (default wav)",
+              "description": "Input format: wav|mp3|flac|ogg|aac|webm|opus|pcm_s16le (default wav)",
               "default": "wav",
-              "values": ["wav", "mp3", "flac", "ogg", "aac"]
+              "values": ["wav", "mp3", "flac", "ogg", "aac", "webm", "opus", "pcm_s16le"]
             }
           ],
           "binding": {
@@ -1087,14 +1215,32 @@
             "effect": "read",
             "run_eligible": true,
             "permissions": ["network:internal", "filesystem:read", "filesystem:write"]
+          },
+
+
+            "architecture": {
+              "primitive": "action"
+            }
+
           }
-        }
       ]
     },
     {
       "name": "settings",
       "description": "Provider routing, BYOK credentials, voice overrides",
       "commands": [
+        {
+          "name": "providers",
+          "description": "Print the per-tier provider-availability matrix (routing config + TTS reachability)",
+          "needs_api": true,
+          "binding": { "kind": "local" },
+          "architecture": { "primitive": "action" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
         {
           "name": "provider",
           "description": "Show the current provider routing config",
@@ -1109,6 +1255,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -1125,6 +1274,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -1142,9 +1294,10 @@
               "description": "stt | tts | summarize"
             },
             {
-              "name": "key",
+              "name": "key-stdin",
+              "bool": true,
               "required": true,
-              "description": "API key value"
+              "description": "Read the API key from stdin (for example, from a secret manager pipe)"
             }
           ],
           "binding": {
@@ -1158,6 +1311,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -1186,6 +1342,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         }
       ]
@@ -1208,6 +1367,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -1224,6 +1386,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         }
       ]
@@ -1266,6 +1431,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         },
         {
@@ -1280,6 +1448,13 @@
             {
               "name": "language",
               "description": "Optional language hint (e.g. en-US)"
+            },
+            {
+              "name": "engine",
+              "description": "Optional STT stream-selection engine id; resolves that engine's declared model default without substituting another engine",
+              "bind": {
+                "field": "engine_id"
+              }
             },
             {
               "name": "commercial",
@@ -1298,8 +1473,14 @@
             "permissions": [
               "network:internal"
             ]
+          },
+
+
+            "architecture": {
+              "primitive": "proto_list"
+            }
+
           }
-        }
       ]
     },
     {
@@ -1329,6 +1510,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -1345,6 +1529,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         }
       ]
@@ -1375,6 +1562,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -1392,7 +1582,13 @@
               "network:internal"
             ]
           },
-          "semantics": {"kind": "query", "blocks": {"replaces": ["audio-tools health show"]}}
+          "semantics": {"kind": "query", "blocks": {"replaces": ["audio-tools health show"]}},
+          "architecture": {
+            "exception": {
+              "class": "streaming",
+              "reason": "Consumes a long-lived server stream and renders ordered provider-health snapshots until the stream ends or the caller cancels."
+            }
+          }
         }
       ]
     },
@@ -1414,6 +1610,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -1437,6 +1636,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -1459,6 +1661,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -1481,6 +1686,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -1504,6 +1712,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -1537,6 +1748,12 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "exception": {
+              "class": "streaming",
+              "reason": "Consumes a long-lived provider log stream and writes lines as they arrive; output is tied to stream lifecycle rather than a single response."
+            }
           }
         }
       ]
@@ -1572,6 +1789,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -1592,6 +1812,14 @@
             {
               "name": "reference-file",
               "description": "Path to a file holding the ground-truth transcript"
+            },
+            {
+              "name": "timed-reference-file",
+              "description": "Path to JSON containing word timings and provenance metadata (human review must be real and independently performed)"
+            },
+            {
+              "name": "reference-review-file",
+              "description": "Path to JSON with reviewer, protocol, and reviewed_at for an explicitly human-audited transcript"
             },
             {
               "name": "tags",
@@ -1623,6 +1851,14 @@
               "description": "Stable non-identifying speaker label used for subgroup accounting"
             },
             {
+              "name": "source-id",
+              "description": "Canonical utterance identifier to select in --source-manifest; leave empty for ungrouped clips"
+            },
+            {
+              "name": "source-manifest",
+              "description": "Metadata-only corpus manifest used to derive source lineage, accent, revision, speaker, split, license, and transcript digest"
+            },
+            {
               "name": "split",
               "description": "Corpus split: dev or held_out"
             },
@@ -1647,7 +1883,21 @@
               "network:internal",
               "filesystem:read"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
+        },
+        {
+          "name": "lineage-backfill",
+          "description": "Validate and optionally backfill source lineage from the exact corpus import manifest; dry-run unless --apply is set",
+          "flags": [
+            { "name": "source-manifest", "description": "Metadata-only corpus qualification manifest JSON" },
+            { "name": "apply", "bool": true, "description": "Persist metadata after exact clip, revision, content, and transcript digest checks" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CorpusService", "method": "BackfillSourceLineage" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal", "filesystem:read"] },
+          "architecture": { "primitive": "action" }
         },
         {
           "name": "get",
@@ -1670,6 +1920,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -1693,6 +1946,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         }
       ]
@@ -1827,11 +2083,11 @@
             },
             {
               "name": "recipe-json",
-              "description": "Inline JSON ExperimentRecipe (protojson) used as the BASE recipe; any individual --flags you also pass override its fields. Mutually exclusive with --recipe-file"
+              "description": "Inline JSON ExperimentRecipe (protojson) used as the BASE recipe; any individual --flags you also pass override its fields. Set report_retention_mode to REPORT_RETENTION_MODE_METRICS_ONLY for a transcript-free saved report. Mutually exclusive with --recipe-file"
             },
             {
               "name": "recipe-file",
-              "description": "Path to a JSON file holding an ExperimentRecipe (protojson) used as the BASE recipe; individual --flags override its fields. Mutually exclusive with --recipe-json"
+              "description": "Path to a JSON file holding an ExperimentRecipe (protojson) used as the BASE recipe; individual --flags override its fields. Set report_retention_mode to REPORT_RETENTION_MODE_METRICS_ONLY for a transcript-free saved report. Mutually exclusive with --recipe-json"
             },
             {
               "name": "dry-run",
@@ -1851,6 +2107,9 @@
               "network:internal",
               "filesystem:read"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -1874,6 +2133,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -1898,7 +2160,10 @@
               "network:internal"
             ]
           },
-          "semantics": {"kind": "query", "blocks": {"replaces": ["audio-tools experiment get"]}}
+          "semantics": {"kind": "query", "blocks": {"replaces": ["audio-tools experiment get"]}},
+          "architecture": {
+            "primitive": "action"
+          }
         },
         {
           "name": "list",
@@ -1928,6 +2193,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -1951,6 +2219,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -1981,6 +2252,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -2005,7 +2279,13 @@
               "network:internal"
             ]
           },
-          "semantics": {"kind": "query", "blocks": {"replaces": ["audio-tools experiment get"]}}
+          "semantics": {"kind": "query", "blocks": {"replaces": ["audio-tools experiment get"]}},
+          "architecture": {
+            "exception": {
+              "class": "streaming",
+              "reason": "Consumes a long-lived experiment event stream and emits ordered events until terminal completion or caller cancellation."
+            }
+          }
         },
         {
           "name": "report",
@@ -2028,6 +2308,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -2052,6 +2335,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -2110,6 +2396,9 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {
@@ -2144,12 +2433,94 @@
             "permissions": [
               "network:internal"
             ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
+        }
+      ]
+    },
+    {
+      "name": "measure",
+      "description": "Aggregate-only persisted entity measures.",
+      "commands": [
+        {
+          "name": "byok-credentials-created",
+          "description": "Count retained BYOK credential capabilities created in a time window.",
+          "flags": [{"name":"window","description":"Canonical time window token.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"],"bind_waiver":"The measure handler encodes this canonical token as the structured TimeWindow RPC field."}],
+          "binding": {"kind":"connect-rpc","service":"MeasuresService","method":"CountBYOKCredentials"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"action"},
+          "measure": {"domain":"byok_credentials","intent":"Count currently retained BYOK credential capabilities created during the selected time window.","questions":["how many BYOK credential capabilities were added this week","retained API credentials created last month"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"credential capabilities","summary_template":"{count} credential capabilities created ({window})"}}
+        },
+        {
+          "name": "corpus-clips-created",
+          "description": "Count corpus clip metadata rows created in a time window.",
+          "flags": [{"name":"window","description":"Canonical time window token.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"],"bind_waiver":"The measure handler encodes this canonical token as the structured TimeWindow RPC field."}],
+          "binding": {"kind":"connect-rpc","service":"MeasuresService","method":"CountCorpusClips"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"action"},
+          "measure": {"domain":"corpus_clips","intent":"Count corpus clip metadata rows created during the selected time window.","questions":["how many corpus clips were added this week","clips added to the evaluation corpus last month"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"corpus clips","summary_template":"{count} corpus clips created ({window})"}}
+        },
+        {
+          "name": "experiment-runs-created",
+          "description": "Count persisted experiment run rows created in a time window.",
+          "flags": [{"name":"window","description":"Canonical time window token.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"],"bind_waiver":"The measure handler encodes this canonical token as the structured TimeWindow RPC field."}],
+          "binding": {"kind":"connect-rpc","service":"MeasuresService","method":"CountExperimentRuns"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"action"},
+          "measure": {"domain":"experiment_runs","intent":"Count persisted experiment run rows created during the selected time window.","questions":["how many experiment runs were recorded this week","experiment runs created in the last 30 days"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"experiment runs","summary_template":"{count} experiment runs created ({window})"}}
+        },
+        {
+          "name": "experiments-created",
+          "description": "Count persisted experiments created in a time window.",
+          "flags": [{"name":"window","description":"Canonical time window token.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"],"bind_waiver":"The measure handler encodes this canonical token as the structured TimeWindow RPC field."}],
+          "binding": {"kind":"connect-rpc","service":"MeasuresService","method":"CountExperiments"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"action"},
+          "measure": {"domain":"experiments","intent":"Count experiments created during the selected time window.","questions":["how many experiments were created this week","experiments created last month"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"experiments","summary_template":"{count} experiments created ({window})"}}
+        },
+        {
+          "name": "speaker-profiles-created",
+          "description": "Count speaker profile rows created in a time window; no identities or embeddings are returned.",
+          "flags": [{"name":"window","description":"Canonical time window token.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"],"bind_waiver":"The measure handler encodes this canonical token as the structured TimeWindow RPC field."}],
+          "binding": {"kind":"connect-rpc","service":"MeasuresService","method":"CountSpeakerProfiles"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"action"},
+          "measure": {"domain":"speaker_profiles","intent":"Count speaker profiles created during the selected time window without returning profile payloads.","questions":["how many speaker profiles were enrolled this week","speaker profiles created last month"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"speaker profiles","summary_template":"{count} speaker profiles created ({window})"}}
+        },
+        {
+          "name": "wakeword-templates-created",
+          "description": "Count wakeword template rows created in a time window; no phrases or embeddings are returned.",
+          "flags": [{"name":"window","description":"Canonical time window token.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"],"bind_waiver":"The measure handler encodes this canonical token as the structured TimeWindow RPC field."}],
+          "binding": {"kind":"connect-rpc","service":"MeasuresService","method":"CountWakewordTemplates"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"action"},
+          "measure": {"domain":"wakeword_templates","intent":"Count wakeword templates created during the selected time window without returning template payloads.","questions":["how many wakeword templates were created this week","wakeword templates added last month"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"wakeword templates","summary_template":"{count} wakeword templates created ({window})"}}
+        },
+        {
+          "name": "duplex-accounting-operations-created",
+          "description": "Count persisted duplex accounting operation metadata rows created in a time window; no operation details or identifiers are returned.",
+          "flags": [{"name":"window","description":"Canonical time window token.","default":"this_week","values":["this_week","last_7d","last_30d","this_month","last_month","this_quarter"],"bind_waiver":"The measure handler encodes this canonical token as the structured TimeWindow RPC field."}],
+          "binding": {"kind":"connect-rpc","service":"MeasuresService","method":"CountDuplexAccountingOperations"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"action"},
+          "measure": {"domain":"duplex_accounting_operations","intent":"Count persisted duplex accounting operation metadata rows created during the selected time window without returning operation details or identifiers.","questions":["how many duplex accounting operations were created this week","duplex accounting operations created last month"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"count","unit":"duplex accounting operations","summary_template":"{count} duplex accounting operations created ({window})"}}
         }
       ]
     }
   ],
   "omitted": [
+    {
+      "service": "ScenarioValidationService",
+      "method": "ValidateScenario",
+      "reason": "External Test Genie provider contract; invoked by Test Genie and intentionally absent from the product CLI."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "DescribeProvider",
+      "reason": "External Test Genie provider contract; invoked by Test Genie and intentionally absent from the product CLI."
+    },
     {
       "service": "HealthStatusService",
       "method": "RefreshProviderHealth",
@@ -2179,6 +2550,16 @@
       "service": "CorpusService",
       "method": "GetClipAudio",
       "reason": "Streams raw audio bytes for UI playback and internal experiment evaluation; no standalone CLI command (use the UI to audition a clip)."
+    },
+    {
+      "service": "CorpusService",
+      "method": "ReviewReference",
+      "reason": "Human-only transcript review operation exposed in the corpus review UI; no standalone CLI command."
+    },
+    {
+      "service": "CorpusService",
+      "method": "ReviewReferenceGroup",
+      "reason": "Human-only grouped transcript review operation exposed in the corpus review UI; no standalone CLI command."
     },
     {
       "service": "SessionService",

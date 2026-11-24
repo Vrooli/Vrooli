@@ -10,7 +10,8 @@ import (
 )
 
 // ControlPlaneRun is the narrow command seam used by the bounded live
-// resolver. The concrete control-plane client owns binary discovery.
+// resolver. The concrete control-plane client owns binary discovery. The
+// resolver may invoke it concurrently for independent inventory probes.
 type ControlPlaneRun func(context.Context, ...string) ([]byte, error)
 
 // LiveResolver caches control-plane observations so engine selection does not
@@ -20,10 +21,18 @@ type LiveResolver struct {
 	ttl       time.Duration
 	available func(context.Context, string) bool
 
-	mu      sync.Mutex
-	checked time.Time
-	facts   map[string]EngineFacts
+	mu         sync.Mutex
+	checked    time.Time
+	facts      map[string]EngineFacts
+	refreshing bool
+	revision   uint64
 }
+
+const (
+	staleInventoryMaxAge    = 2
+	staleLivenessBudget     = 500 * time.Millisecond
+	backgroundRefreshBudget = 11 * time.Second
+)
 
 func NewLiveResolver(run ControlPlaneRun, ttl time.Duration) *LiveResolver {
 	if ttl <= 0 {
@@ -42,6 +51,7 @@ func (r *LiveResolver) SetAvailability(fn func(context.Context, string) bool) {
 	r.available = fn
 	r.checked = time.Time{}
 	r.facts = nil
+	r.revision++
 	r.mu.Unlock()
 }
 
@@ -52,19 +62,187 @@ func (r *LiveResolver) Invalidate() {
 	r.mu.Lock()
 	r.checked = time.Time{}
 	r.facts = nil
+	r.revision++
 	r.mu.Unlock()
 }
 
 func (r *LiveResolver) Resolve(ctx context.Context, registry *Registry) (Resolution, error) {
+	return r.resolve(ctx, registry, true)
+}
+
+// ResolveForAdmission never waits for a cold control-plane inventory read.
+// It admits only from a fresh snapshot or a bounded-liveness-validated stale
+// snapshot; otherwise it starts a coalesced background refresh and fails
+// closed until host support and installation facts are known.
+func (r *LiveResolver) ResolveForAdmission(ctx context.Context, registry *Registry) (Resolution, error) {
+	return r.resolve(ctx, registry, false)
+}
+
+func (r *LiveResolver) resolve(ctx context.Context, registry *Registry, allowColdProbe bool) (Resolution, error) {
 	if registry == nil {
 		return Resolution{}, fmt.Errorf("sttengine: registry is nil")
 	}
-	facts, err := r.observe(ctx, registry)
+	if ctx == nil {
+		return Resolution{}, fmt.Errorf("sttengine: request context is nil")
+	}
+	if r == nil {
+		if !allowColdProbe {
+			return registry.ResolveFacts(expiredInventoryFacts(registry))
+		}
+		facts, err := (*LiveResolver)(nil).observe(ctx, registry)
+		resolution, resolveErr := registry.ResolveFacts(facts)
+		if resolveErr != nil && err != nil {
+			return resolution, err
+		}
+		return resolution, resolveErr
+	}
+
+	now := time.Now()
+	r.mu.Lock()
+	cached := cloneFacts(r.facts)
+	age := now.Sub(r.checked)
+	revision := r.revision
+	fresh := cached != nil && age < r.ttl
+	canUseStale := cached != nil && !fresh && age <= time.Duration(staleInventoryMaxAge)*r.ttl && r.available != nil
+	r.mu.Unlock()
+
+	var facts map[string]EngineFacts
+	var err error
+	switch {
+	case fresh:
+		facts = r.validateCached(ctx, registry, cached)
+	case canUseStale:
+		r.refreshAsync(ctx, registry)
+		facts = r.validateCached(ctx, registry, cached)
+	case cached != nil:
+		// An over-age snapshot cannot prove that host policy and resource
+		// installation facts still apply. Do not turn that uncertainty into a
+		// synchronous control-plane wait (or admit from stale facts): refresh
+		// asynchronously and fail closed until a fresh snapshot is published.
+		r.refreshAsync(ctx, registry)
+		facts = expiredInventoryFacts(registry)
+	default:
+		if !allowColdProbe {
+			r.refreshAsync(ctx, registry)
+			facts = expiredInventoryFacts(registry)
+			break
+		}
+		facts, err = r.observe(ctx, registry)
+		if err == nil {
+			r.mu.Lock()
+			if revision == r.revision {
+				r.facts = cloneFacts(facts)
+				r.checked = time.Now()
+			}
+			r.mu.Unlock()
+		}
+	}
 	resolution, resolveErr := registry.ResolveFacts(facts)
 	if resolveErr != nil && err != nil {
 		return resolution, err
 	}
 	return resolution, resolveErr
+}
+
+func expiredInventoryFacts(registry *Registry) map[string]EngineFacts {
+	facts := make(map[string]EngineFacts, len(registry.Engines()))
+	for _, engine := range registry.Engines() {
+		if engine.Kind == KindLocalResource {
+			facts[engine.ID] = EngineFacts{
+				ServiceabilityObserved: true,
+				Serviceable:            false,
+				SignalUnavailable:      true,
+				Reason:                 "control-plane inventory unavailable or exceeded freshness bound",
+			}
+			continue
+		}
+		facts[engine.ID] = EngineFacts{PlatformSupported: true, Installed: true, Running: true, Healthy: true, WorkloadCapable: true, Reason: "non-local engine is request-gated"}
+	}
+	return facts
+}
+
+// validateCached refreshes the fast provider-owned liveness signal for cached
+// inventory. The control plane remains authoritative for host support and
+// installation facts; provider liveness prevents a stopped model from being
+// admitted from a still-fresh snapshot.
+func (r *LiveResolver) validateCached(ctx context.Context, registry *Registry, cached map[string]EngineFacts) map[string]EngineFacts {
+	available := r.currentAvailability()
+	if available == nil {
+		return cached
+	}
+	type liveness struct {
+		id          string
+		serviceable bool
+	}
+	results := make(chan liveness, len(registry.Engines()))
+	var wg sync.WaitGroup
+	for _, engine := range registry.Engines() {
+		if engine.Kind != KindLocalResource {
+			continue
+		}
+		engine := engine
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			probeCtx, cancel := context.WithTimeout(ctx, staleLivenessBudget)
+			defer cancel()
+			results <- liveness{id: engine.ID, serviceable: available(probeCtx, engine.ID)}
+		}()
+	}
+	wg.Wait()
+	close(results)
+	validated := cloneFacts(cached)
+	for result := range results {
+		facts := validated[result.id]
+		facts.ServiceabilityObserved = true
+		facts.Serviceable = result.serviceable
+		facts.Running = result.serviceable
+		facts.Healthy = result.serviceable
+		if !result.serviceable {
+			facts.Reason = "provider liveness unavailable; cached inventory not admitted"
+		}
+		validated[result.id] = facts
+	}
+	return validated
+}
+
+// refreshAsync coalesces expired-inventory refreshes. A bounded control-plane
+// probe can therefore update the shared snapshot without blocking a resident
+// model's next interactive admission.
+func (r *LiveResolver) refreshAsync(parent context.Context, registry *Registry) {
+	if parent == nil || parent.Err() != nil {
+		return
+	}
+	r.mu.Lock()
+	if r.refreshing {
+		r.mu.Unlock()
+		return
+	}
+	r.refreshing = true
+	revision := r.revision
+	r.mu.Unlock()
+	go func() {
+		defer func() {
+			r.mu.Lock()
+			r.refreshing = false
+			r.mu.Unlock()
+		}()
+		// Refresh must outlive the request that triggered it, but retain its
+		// tracing and diagnostic values and enforce a strict upper bound.
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), backgroundRefreshBudget)
+		defer cancel()
+		facts, err := r.observe(ctx, registry)
+		if err != nil {
+			return
+		}
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		if revision != r.revision {
+			return
+		}
+		r.facts = cloneFacts(facts)
+		r.checked = time.Now()
+	}()
 }
 
 func (r *LiveResolver) observe(ctx context.Context, registry *Registry) (map[string]EngineFacts, error) {
@@ -75,24 +253,15 @@ func (r *LiveResolver) observe(ctx context.Context, registry *Registry) (map[str
 		}
 		return facts, fmt.Errorf("sttengine: control-plane unavailable")
 	}
-	r.mu.Lock()
-	if r.facts != nil && time.Since(r.checked) < r.ttl {
-		facts := cloneFacts(r.facts)
-		r.mu.Unlock()
-		return facts, nil
-	}
-	r.mu.Unlock()
-
 	facts := make(map[string]EngineFacts, len(registry.Engines()))
 	runProbe := func(args ...string) ([]byte, error) {
 		probeCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 		return r.run(probeCtx, args...)
 	}
-	// Resource status and acceleration probes are independent. Running them
-	// serially made the read-only engine inventory consume one 10-second probe
-	// budget per local engine, which could starve the evidence board's own
-	// bounded read even while the product API remained healthy.
+	// Resource status and acceleration probes are independent. Run them
+	// concurrently under the same per-probe bound so a cold engine inventory
+	// costs at most one probe budget per engine.
 	type observation struct {
 		id    string
 		facts EngineFacts
@@ -109,9 +278,24 @@ func (r *LiveResolver) observe(ctx context.Context, registry *Registry) (map[str
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			status, err := runProbe("resource", "status", engine.Resource, "--json")
-			if err != nil {
-				observations <- observation{id: engine.ID, facts: EngineFacts{SignalUnavailable: true, Reason: "control-plane status unavailable"}, err: err}
+			type probeResult struct {
+				body []byte
+				err  error
+			}
+			statusResult := make(chan probeResult, 1)
+			accelerationResult := make(chan probeResult, 1)
+			go func() {
+				body, err := runProbe("resource", "status", engine.Resource, "--json")
+				statusResult <- probeResult{body: body, err: err}
+			}()
+			go func() {
+				body, err := runProbe("resource", "acceleration", "explain", engine.Resource, "--json")
+				accelerationResult <- probeResult{body: body, err: err}
+			}()
+			statusProbe := <-statusResult
+			accelerationProbe := <-accelerationResult
+			if statusProbe.err != nil {
+				observations <- observation{id: engine.ID, facts: EngineFacts{SignalUnavailable: true, Reason: "control-plane status unavailable"}, err: statusProbe.err}
 				return
 			}
 			var s struct {
@@ -125,7 +309,7 @@ func (r *LiveResolver) observe(ctx context.Context, registry *Registry) (map[str
 					StatusCode   string `json:"status_code"`
 				} `json:"resource"`
 			}
-			if err := json.Unmarshal(status, &s); err != nil {
+			if err := json.Unmarshal(statusProbe.body, &s); err != nil {
 				observations <- observation{id: engine.ID, facts: EngineFacts{SignalUnavailable: true, Reason: "control-plane status malformed"}, err: err}
 				return
 			}
@@ -136,8 +320,12 @@ func (r *LiveResolver) observe(ctx context.Context, registry *Registry) (map[str
 			// control-plane "unsupported" platform verdict is about the managed
 			// artifact, not about a server the operator deliberately attached.
 			attached := false
-			if r.available != nil {
-				if r.available(ctx, engine.ID) {
+			available := r.currentAvailability()
+			if available != nil {
+				livenessCtx, cancel := context.WithTimeout(ctx, staleLivenessBudget)
+				serviceable := available(livenessCtx, engine.ID)
+				cancel()
+				if serviceable {
 					if !s.Installed || !s.Running || !s.Healthy {
 						s.Installed, s.Running, s.Healthy = true, true, true
 						attached = true
@@ -149,7 +337,7 @@ func (r *LiveResolver) observe(ctx context.Context, registry *Registry) (map[str
 			}
 			accelerated := strings.TrimSpace(s.Resource.ObservedMode) != "" && s.Resource.ObservedMode != "cpu"
 			signalUnavailable := false
-			accel, accelErr := runProbe("resource", "acceleration", "explain", engine.Resource, "--json")
+			accel, accelErr := accelerationProbe.body, accelerationProbe.err
 			if accelErr == nil {
 				var a struct {
 					Selected  string `json:"selected"`
@@ -203,17 +391,25 @@ func (r *LiveResolver) observe(ctx context.Context, registry *Registry) (map[str
 			firstErr = result.err
 		}
 	}
-	r.mu.Lock()
-	r.facts = cloneFacts(facts)
-	r.checked = time.Now()
-	r.mu.Unlock()
 	return facts, firstErr
 }
 
 func cloneFacts(in map[string]EngineFacts) map[string]EngineFacts {
+	if in == nil {
+		return nil
+	}
 	out := make(map[string]EngineFacts, len(in))
 	for id, facts := range in {
 		out[id] = facts
 	}
 	return out
+}
+
+func (r *LiveResolver) currentAvailability() func(context.Context, string) bool {
+	if r == nil {
+		return nil
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.available
 }

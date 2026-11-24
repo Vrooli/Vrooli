@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 package experiment
 
 import (
@@ -53,10 +55,10 @@ VALUES (?, ?, ?, ?, ?)
 `
 	selectRunColumns               = `id, experiment_id, strategy, condition_json, created_at`
 	insertQualificationEvidenceSQL = `
-INSERT INTO qualification_evidence (id, engine_id, model_id, strategy, policy_profile, kind, fault_profile, passed, artifact_ref, notes, machine_json, observed_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO qualification_evidence (id, engine_id, model_id, strategy, policy_profile, kind, fault_profile, passed, artifact_ref, notes, machine_json, observed_at, provider_tier)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
-	selectQualificationEvidenceColumns = `id, engine_id, model_id, strategy, policy_profile, kind, fault_profile, passed, artifact_ref, notes, machine_json, observed_at`
+	selectQualificationEvidenceColumns = `id, engine_id, model_id, strategy, policy_profile, kind, fault_profile, passed, artifact_ref, notes, machine_json, observed_at, provider_tier`
 )
 
 func (s *sqliteRepository) CreateExperiment(ctx context.Context, exp Experiment) (Experiment, error) {
@@ -83,6 +85,26 @@ func (s *sqliteRepository) GetExperiment(ctx context.Context, id string) (Experi
 		return Experiment{}, fmt.Errorf("experiment: get %q: %w", id, err)
 	}
 	return exp, nil
+}
+
+func (s *sqliteRepository) CountCreatedInRange(ctx context.Context, from, to time.Time) (CreatedCounts, error) {
+	from, to = from.UTC(), to.UTC()
+	if !to.After(from) {
+		return CreatedCounts{}, fmt.Errorf("experiment: count range end must be after start")
+	}
+	start, end := from.Format(experimentTimeFormat), to.Format(experimentTimeFormat)
+	var counts CreatedCounts
+	if err := s.db.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM experiments WHERE created_at >= ? AND created_at < ?", start, end,
+	).Scan(&counts.Experiments); err != nil {
+		return CreatedCounts{}, fmt.Errorf("experiment: count created experiments: %w", err)
+	}
+	if err := s.db.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM experiment_runs WHERE created_at >= ? AND created_at < ?", start, end,
+	).Scan(&counts.Runs); err != nil {
+		return CreatedCounts{}, fmt.Errorf("experiment: count created runs: %w", err)
+	}
+	return counts, nil
 }
 
 func (s *sqliteRepository) UpdateExperiment(ctx context.Context, exp Experiment) error {
@@ -272,7 +294,7 @@ func (s *sqliteRepository) CreateQualificationEvidence(ctx context.Context, evid
 	if _, err := s.db.ExecContext(ctx, insertQualificationEvidenceSQL,
 		evidence.ID, evidence.EngineID, evidence.ModelID, evidence.Strategy, evidence.PolicyProfile,
 		evidence.Kind, evidence.FaultProfile, evidence.Passed, evidence.ArtifactRef,
-		evidence.Notes, string(evidence.MachineJSON), evidence.ObservedAt.Format(experimentTimeFormat),
+		evidence.Notes, string(evidence.MachineJSON), evidence.ObservedAt.Format(experimentTimeFormat), evidence.ProviderTier,
 	); err != nil {
 		return QualificationEvidence{}, fmt.Errorf("experiment: record qualification evidence %q: %w", evidence.ID, err)
 	}
@@ -414,7 +436,7 @@ func scanQualificationEvidence(sc scanner) (QualificationEvidence, error) {
 	if err := sc.Scan(
 		&evidence.ID, &evidence.EngineID, &evidence.ModelID, &evidence.Strategy, &evidence.PolicyProfile,
 		&evidence.Kind, &evidence.FaultProfile, &evidence.Passed, &evidence.ArtifactRef,
-		&evidence.Notes, &machine, &observedAt,
+		&evidence.Notes, &machine, &observedAt, &evidence.ProviderTier,
 	); err != nil {
 		return QualificationEvidence{}, err
 	}

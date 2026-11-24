@@ -1,76 +1,40 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
-import * as React from "react";
-
 import { renderWithProviders as render } from "@vrooli/api-base/testing";
-import { Card, CardHeader, CardTitle, CardDescription } from "./card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@vrooli/react-component-library/Card/1.3.1";
 
 afterEach(cleanup);
 
 const CARD_TEXT = "Hello";
 const TITLE_TEXT = "My Title";
 const DESC_TEXT = "Some description";
-const HEADER_TEXT = "Header";
-
 describe("Card", () => {
   it("renders children", () => {
     render(<Card>{CARD_TEXT}</Card>);
     expect(screen.getByText(CARD_TEXT)).toBeInTheDocument();
   });
 
-  it("applies default variant (border-app-border)", () => {
-    const { container } = render(<Card>Content</Card>);
-    expect(container.firstChild).toHaveClass("border-app-border");
-  });
-
-  it("applies raised variant", () => {
-    const { container } = render(<Card variant="raised">Content</Card>);
-    expect(container.firstChild).toHaveClass("shadow-sm");
-  });
-
-  it("applies danger variant", () => {
-    const { container } = render(<Card variant="danger">Content</Card>);
-    expect(container.firstChild).toHaveClass("bg-app-danger-soft");
-  });
-
-  it("applies muted variant", () => {
-    const { container } = render(<Card variant="muted">Content</Card>);
-    expect(container.firstChild).toHaveClass("bg-app-surface-muted");
-  });
-
-  it("applies padding=none", () => {
-    const { container } = render(<Card padding="none">Content</Card>);
-    expect(container.firstChild).not.toHaveClass("p-3");
-    expect(container.firstChild).not.toHaveClass("p-4");
-    expect(container.firstChild).not.toHaveClass("p-6");
-  });
-
-  it("applies padding=sm", () => {
-    const { container } = render(<Card padding="sm">Content</Card>);
-    expect(container.firstChild).toHaveClass("p-3");
-  });
-
-  it("applies padding=lg", () => {
-    const { container } = render(<Card padding="lg">Content</Card>);
-    expect(container.firstChild).toHaveClass("p-6");
-  });
-
   it("merges additional className", () => {
     const { container } = render(<Card className="my-custom">Content</Card>);
-    expect(container.firstChild).toHaveClass("my-custom");
+    expect(container.firstChild).toHaveClass("rcl-card", "my-custom");
   });
 
-  it("forwards ref", () => {
-    const ref = { current: null } as React.RefObject<HTMLDivElement>;
-    render(<Card ref={ref}>Content</Card>);
-    expect(ref.current).not.toBeNull();
+  it("marks the shared surface and keeps an explicit test id", () => {
+    render(<Card data-testid="usage-card">Content</Card>);
+    expect(screen.getByTestId("usage-card")).toHaveAttribute("data-rcl-card");
   });
 });
 
 describe("CardHeader", () => {
   it("renders children", () => {
-    render(<CardHeader><span>{HEADER_TEXT}</span></CardHeader>);
-    expect(screen.getByText(HEADER_TEXT)).toBeInTheDocument();
+    const { container } = render(<CardHeader><span>Header</span></CardHeader>);
+    expect(container.firstChild).toHaveTextContent("Header");
   });
 
   it("applies additional className", () => {
@@ -89,6 +53,18 @@ describe("CardTitle", () => {
   it("applies additional className", () => {
     render(<CardTitle className="bold-title">{TITLE_TEXT}</CardTitle>);
     expect(screen.getByRole("heading")).toHaveClass("bold-title");
+  });
+
+  it("supports the heading level required by the page outline", () => {
+    render(<CardTitle as="h2">Section title</CardTitle>);
+    expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent("Section title");
+  });
+});
+
+describe("CardContent", () => {
+  it("provides the shared body region", () => {
+    const { container } = render(<CardContent>Body</CardContent>);
+    expect(container.firstChild).toHaveClass("rcl-card__content");
   });
 });
 

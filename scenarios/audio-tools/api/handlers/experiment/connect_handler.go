@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 package experiment
 
 import (
@@ -14,7 +16,6 @@ import (
 
 	intexp "audio-tools/internal/experiment"
 	"audio-tools/internal/logx"
-	"audio-tools/internal/protoint"
 
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval"
 	experimentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment"
@@ -132,138 +133,6 @@ func experimentRuntimeBudget(estimatedSeconds int32) time.Duration {
 		slack = experimentRuntimeMinSlack
 	}
 	return base + slack
-}
-
-func (h *connectHandler) estimateExperimentSeconds(ctx context.Context, recipe *experimentv1.ExperimentRecipe, clientOverride int32) (int32, error) {
-	if recipe == nil {
-		if clientOverride > experimentMaxEstimatedSeconds {
-			return 0, experimentDurationLimitError(int64(clientOverride))
-		}
-		return clientOverride, nil
-	}
-	durationSeconds := estimatedRecipeDurationSeconds(recipe)
-	if durationSeconds <= 0 && h.deps.EstimateClipSeconds != nil {
-		estimated, err := h.deps.EstimateClipSeconds(ctx, recipe.GetClipIds())
-		if err != nil {
-			return 0, err
-		}
-		durationSeconds = estimated
-	}
-	if durationSeconds <= 0 {
-		if clientOverride > experimentMaxEstimatedSeconds {
-			return 0, experimentDurationLimitError(int64(clientOverride))
-		}
-		return clientOverride, nil
-	}
-	conditions := estimatedConditionCount(recipe)
-	// Cells are independent provider/strategy/lane work units. Their
-	// repeat_count must contribute to admission cost; counting only the number
-	// of cells would let a repeated real-time recipe understate its duration.
-	var total int64
-	if cells := recipe.GetCells(); len(cells) > 0 {
-		for _, cell := range cells {
-			repeats := cell.GetRepeatCount()
-			if repeats < 1 {
-				repeats = 1
-			}
-			// Realtime cells always run a fast deterministic quality pass before
-			// their paced latency repeats. Reserve the measured unpaced quality
-			// allowance separately: using a second full audio-duration pass
-			// overstates native streaming cost enough to reject the required
-			// held-out cohort at the qualification ceiling, while omitting it
-			// kills valid owners with an understated runtime budget.
-			if cell.GetReplayLane() == experimentv1.ReplayLane_REPLAY_LANE_REALTIME {
-				qualitySeconds := int64(durationSeconds) / 4
-				if qualitySeconds < 1 {
-					qualitySeconds = 1
-				}
-				total += (int64(durationSeconds)*int64(repeats) + qualitySeconds) * int64(conditions)
-			} else {
-				total += int64(durationSeconds) * int64(repeats) * int64(conditions)
-			}
-		}
-	} else {
-		strategies := len(recipe.GetStrategies())
-		if strategies == 0 {
-			strategies = 3
-		}
-		repeats := int(recipe.GetRealtimeRepeats()) + 1
-		if repeats < 1 {
-			repeats = 1
-		}
-		total = int64(durationSeconds) * int64(strategies*repeats) * int64(conditions)
-	}
-	if total < 1 {
-		total = 1
-	}
-	// The recipe-derived duration is authoritative. A caller may reserve more
-	// time for a known external setup cost, but it may not shrink the derived
-	// budget and turn a long run into a misleadingly short one.
-	if clientOverride > 0 && int64(clientOverride) > total {
-		total = int64(clientOverride)
-	}
-	if total > int64(experimentMaxEstimatedSeconds) {
-		return 0, experimentDurationLimitError(total)
-	}
-	return protoint.FromInt64(total), nil
-}
-
-func experimentDurationLimitError(seconds int64) error {
-	return fmt.Errorf("estimated experiment duration %ds exceeds the %ds qualification ceiling; split the matrix into explicit provider cells", seconds, experimentMaxEstimatedSeconds)
-}
-
-func estimatedRecipeDurationSeconds(recipe *experimentv1.ExperimentRecipe) int32 {
-	if recipe.GetRealizedDurationMs() > 0 {
-		return protoint.FromInt64((recipe.GetRealizedDurationMs() + 999) / 1000)
-	}
-	longForm := recipe.GetLongForm()
-	if longForm == nil {
-		return 0
-	}
-	if sweep := longForm.GetSweepDurationsSeconds(); len(sweep) > 0 {
-		var total int32
-		for _, seconds := range sweep {
-			if seconds > 0 {
-				total += seconds
-			}
-		}
-		return total
-	}
-	if longForm.GetEnabled() && longForm.GetTargetDurationSeconds() > 0 {
-		return longForm.GetTargetDurationSeconds()
-	}
-	return 0
-}
-
-func estimatedConditionCount(recipe *experimentv1.ExperimentRecipe) int {
-	count := 1
-	if realized := len(recipe.GetRealizedAugmentationConditions()); realized > 0 {
-		count *= realized
-	} else if aug := recipe.GetAugmentation(); aug != nil {
-		noise := len(aug.GetNoiseTypes())
-		snr := len(aug.GetSnrDb())
-		voices := len(aug.GetCompetingVoiceIds())
-		switch {
-		case noise > 0 && snr > 0:
-			count *= noise * snr
-		case noise > 0:
-			count *= noise
-		case snr > 0:
-			count *= snr
-		}
-		if voices > 0 {
-			count *= voices
-		}
-	}
-	if realized := len(recipe.GetRealizedSpeakerConditions()); realized > 0 {
-		count *= realized
-	} else if speaker := recipe.GetSpeaker(); speaker != nil && speaker.GetAblationEnabled() {
-		count *= 4
-	}
-	if count < 1 {
-		return 1
-	}
-	return count
 }
 
 func experimentMachineJSON(recipeJSON []byte) []byte {

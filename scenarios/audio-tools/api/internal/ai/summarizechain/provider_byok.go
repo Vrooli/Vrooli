@@ -37,6 +37,9 @@ func (p *BYOKProvider) IsAvailable(context.Context) bool {
 }
 
 func (p *BYOKProvider) Summarize(ctx context.Context, req Request) (*Result, error) {
+	// Local policy selectors belong to the Ollama route. Never expose them to
+	// vendor adapters, where Model retains its provider-specific semantics.
+	req.LocalModelRole = ""
 	return p.dispatch.Execute(req.BYOKKey, req.BYOKProvider,
 		func(adapter BYOKAdapter) (*Result, error) { return adapter.Summarize(ctx, req.BYOKKey, req) })
 }

@@ -92,10 +92,12 @@ func LoadOrCreateKeyWith(keyPath string, env envx.Reader) ([]byte, error) {
 	}
 	if b, err := os.ReadFile(keyPath); err == nil {
 		k, decErr := hex.DecodeString(string(b))
-		if decErr == nil && len(k) == 32 {
-			return k, nil
+		if decErr != nil || len(k) != 32 {
+			return nil, fmt.Errorf("byokstore: existing key file %q is invalid; refusing to replace it", keyPath)
 		}
-		// Fall through to regenerate on corrupt file.
+		return k, nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, fmt.Errorf("byokstore: read key file %q: %w", keyPath, err)
 	}
 	k := make([]byte, 32)
 	if _, err := rand.Read(k); err != nil {
@@ -104,7 +106,28 @@ func LoadOrCreateKeyWith(keyPath string, env envx.Reader) ([]byte, error) {
 	if err := os.MkdirAll(filepath.Dir(keyPath), 0o700); err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(keyPath, []byte(hex.EncodeToString(k)), 0o600); err != nil {
+	tmp, err := os.CreateTemp(filepath.Dir(keyPath), ".audio-tools-key-*")
+	if err != nil {
+		return nil, err
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	if err := tmp.Chmod(0o600); err != nil {
+		_ = tmp.Close()
+		return nil, err
+	}
+	if _, err := tmp.Write([]byte(hex.EncodeToString(k))); err != nil {
+		_ = tmp.Close()
+		return nil, err
+	}
+	if err := tmp.Close(); err != nil {
+		return nil, err
+	}
+	if err := os.Link(tmpPath, keyPath); errors.Is(err, os.ErrExist) {
+		// Another process initialized the key concurrently. Use its key rather
+		// than overwriting it and making previously encrypted data unreadable.
+		return LoadOrCreateKeyWith(keyPath, env)
+	} else if err != nil {
 		return nil, err
 	}
 	return k, nil

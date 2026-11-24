@@ -14,251 +14,29 @@ import (
 	experimentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment"
 )
 
-func (h *handlers) start(ctx cliapp.RunContext) error {
-	recipe, err := loadBaseRecipe(ctx)
-	if err != nil {
-		return err
-	}
-	req := &experimentv1.StartExperimentRequest{
-		Name:   ctx.Flag("name"),
-		Recipe: recipe,
-	}
-	// Individual flags override any field the base recipe (--recipe-json /
-	// --recipe-file) supplied; only override when the flag was passed.
-	if v := strings.TrimSpace(ctx.Flag("clip-ids")); v != "" {
-		req.Recipe.ClipIds = splitCSV(v)
-	}
-	if v := strings.TrimSpace(ctx.Flag("strategies")); v != "" {
-		req.Recipe.Strategies = strategiesFromFlag(v)
-	}
-	if v := strings.TrimSpace(ctx.Flag("realtime-repeats")); v != "" {
-		n, err := parseIntFlag("realtime-repeats", v)
-		if err != nil {
-			return err
-		}
-		req.Recipe.RealtimeRepeats = n
-	}
-	if v := strings.TrimSpace(ctx.Flag("latency-tail-seconds")); v != "" {
-		n, err := parseIntFlag("latency-tail-seconds", v)
-		if err != nil {
-			return err
-		}
-		req.Recipe.LatencyTailSeconds = n
-	}
-	if v := strings.TrimSpace(ctx.Flag("chunk-ms")); v != "" {
-		n, err := parseIntFlag("chunk-ms", v)
-		if err != nil {
-			return err
-		}
-		req.Recipe.ChunkMs = n
-	}
-	if v := strings.TrimSpace(ctx.Flag("dropped-span-threshold")); v != "" {
-		n, err := parseIntFlag("dropped-span-threshold", v)
-		if err != nil {
-			return err
-		}
-		req.Recipe.DroppedSpanThresholdWords = n
-	}
-	if v := strings.TrimSpace(ctx.Flag("overlap-max-window-ms")); v != "" {
-		n, err := parseNonNegativeIntFlag("overlap-max-window-ms", v)
-		if err != nil {
-			return err
-		}
-		ensureDefaultStrategies(req.Recipe)
-		for _, s := range req.Recipe.Strategies {
-			if strategyUsesOverlap(s.GetKind()) {
-				s.OverlapMaxWindowMs = n
-			}
-		}
-	}
-	if v := strings.TrimSpace(ctx.Flag("overlap-max-stall-rejects")); v != "" {
-		n, err := parseNonNegativeIntFlag("overlap-max-stall-rejects", v)
-		if err != nil {
-			return err
-		}
-		ensureDefaultStrategies(req.Recipe)
-		for _, s := range req.Recipe.Strategies {
-			if strategyUsesOverlap(s.GetKind()) {
-				s.OverlapMaxStallRejects = n
-			}
-		}
-	}
-	if v := strings.TrimSpace(ctx.Flag("overlap-window-ms")); v != "" {
-		n, err := parseNonNegativeIntFlag("overlap-window-ms", v)
-		if err != nil {
-			return err
-		}
-		ensureDefaultStrategies(req.Recipe)
-		for _, s := range req.Recipe.Strategies {
-			if strategyUsesOverlap(s.GetKind()) {
-				s.OverlapWindowMs = n
-			}
-		}
-	}
-	if v := strings.TrimSpace(ctx.Flag("overlap-commit-runs")); v != "" {
-		n, err := parseNonNegativeIntFlag("overlap-commit-runs", v)
-		if err != nil {
-			return err
-		}
-		ensureDefaultStrategies(req.Recipe)
-		for _, s := range req.Recipe.Strategies {
-			if strategyUsesOverlap(s.GetKind()) {
-				s.OverlapCommitRuns = n
-			}
-		}
-	}
-	if v := strings.TrimSpace(ctx.Flag("vad-silence-ms")); v != "" {
-		n, err := parseNonNegativeIntFlag("vad-silence-ms", v)
-		if err != nil {
-			return err
-		}
-		ensureDefaultStrategies(req.Recipe)
-		for _, s := range req.Recipe.Strategies {
-			if strategyUsesVADSilence(s.GetKind()) {
-				s.VadSilenceMs = n
-			}
-		}
-	}
-	if v := strings.TrimSpace(ctx.Flag("seed")); v != "" {
-		n, err := strconv.ParseInt(v, 10, 64)
-		if err != nil {
-			return fmt.Errorf("--seed must be an integer: %q", v)
-		}
-		req.Recipe.Seed = n
-	}
-	longForm := req.Recipe.GetLongForm()
-	if longForm == nil {
-		longForm = &experimentv1.LongFormRecipe{}
-	}
-	if set, enabled, err := optionalBoolFlag(ctx, "long-form"); err != nil {
-		return err
-	} else if set {
-		longForm.Enabled = enabled
-	}
-	if v := strings.TrimSpace(ctx.Flag("target-duration-seconds")); v != "" {
-		n, err := parseIntFlag("target-duration-seconds", v)
-		if err != nil {
-			return err
-		}
-		longForm.Enabled = true
-		longForm.TargetDurationSeconds = n
-	}
-	if v := strings.TrimSpace(ctx.Flag("gap-ms")); v != "" {
-		n, err := parseIntFlag("gap-ms", v)
-		if err != nil {
-			return err
-		}
-		longForm.Enabled = true
-		longForm.GapMs = n
-	}
-	if v := strings.TrimSpace(ctx.Flag("tag-contains")); v != "" {
-		longForm.Enabled = true
-		longForm.TagContains = v
-	}
-	if v := strings.TrimSpace(ctx.Flag("sweep-durations")); v != "" {
-		values, err := parseIntCSVFlag("sweep-durations", v)
-		if err != nil {
-			return err
-		}
-		longForm.Enabled = true
-		longForm.SweepDurationsSeconds = values
-	}
-	if longFormHasContent(longForm) {
-		req.Recipe.LongForm = longForm
-	}
-	augmentation := req.Recipe.GetAugmentation()
-	if augmentation == nil {
-		augmentation = &experimentv1.AugmentationRecipe{}
-	}
-	if v := strings.TrimSpace(ctx.Flag("noise-types")); v != "" {
-		augmentation.NoiseTypes = splitCSV(v)
-	}
-	if v := strings.TrimSpace(ctx.Flag("snr-db")); v != "" {
-		values, err := parseFloatCSVFlag("snr-db", v)
-		if err != nil {
-			return err
-		}
-		augmentation.SnrDb = values
-	}
-	if v := strings.TrimSpace(ctx.Flag("competing-voices")); v != "" {
-		augmentation.CompetingVoiceIds = splitCSV(v)
-	}
-	if v := strings.TrimSpace(ctx.Flag("competing-text")); v != "" {
-		augmentation.CompetingText = v
-	}
-	if augmentationHasContent(augmentation) {
-		req.Recipe.Augmentation = augmentation
-	}
-	speaker := req.Recipe.GetSpeaker()
-	if speaker == nil {
-		speaker = &experimentv1.SpeakerExperimentRecipe{}
-	}
-	if v := strings.TrimSpace(ctx.Flag("target-profile-id")); v != "" {
-		speaker.TargetProfileId = v
-	}
-	if set, enabled, err := optionalBoolFlag(ctx, "speaker-extraction"); err != nil {
-		return err
-	} else if set {
-		speaker.ExtractionEnabled = enabled
-	}
-	if set, enabled, err := optionalBoolFlag(ctx, "speaker-verification"); err != nil {
-		return err
-	} else if set {
-		speaker.VerificationEnabled = enabled
-	}
-	if v := strings.TrimSpace(ctx.Flag("speaker-mode")); v != "" {
-		mode, err := speakerModeFromFlag(v)
-		if err != nil {
-			return err
-		}
-		speaker.VerificationMode = mode
-	}
-	if v := strings.TrimSpace(ctx.Flag("speaker-threshold")); v != "" {
-		n, err := strconv.ParseFloat(v, 64)
-		if err != nil {
-			return fmt.Errorf("--speaker-threshold must be a number: %q", v)
-		}
-		speaker.Threshold = n
-	}
-	if set, enabled, err := optionalBoolFlag(ctx, "speaker-fallback"); err != nil {
-		return err
-	} else if set {
-		speaker.FallbackWithoutVerification = enabled
-	}
-	if set, enabled, err := optionalBoolFlag(ctx, "speaker-ablation"); err != nil {
-		return err
-	} else if set {
-		speaker.AblationEnabled = enabled
-	}
-	if speakerHasContent(speaker) {
-		req.Recipe.Speaker = speaker
-	}
-	// Local guard: target-speaker extraction/verification/ablation cannot run
-	// without an enrolled profile, so fail before submitting an unrunnable job.
-	if (speaker.GetExtractionEnabled() || speaker.GetVerificationEnabled() || speaker.GetAblationEnabled()) && strings.TrimSpace(speaker.GetTargetProfileId()) == "" {
-		return fmt.Errorf("speaker experiments require --target-profile-id; enroll a profile with `audio-tools stt speaker-enroll --file <clip> --activate true` and list ids with `audio-tools stt speaker-status`")
-	}
-	if v := strings.TrimSpace(ctx.Flag("estimated-seconds")); v != "" {
-		n, err := parseIntFlag("estimated-seconds", v)
-		if err != nil {
-			return err
-		}
-		req.EstimatedSeconds = n
-	}
-	// Echo the strategies that will actually run (the server applies the same
-	// default trio at run time when none are given) so `start --json` is honest.
-	ensureDefaultStrategies(req.Recipe)
+func (h *handlers) start(ctx cliapp.RunContext) error { return h.startPrimitive().Run(ctx) }
 
-	req.DryRun = ctx.BoolFlag("dry-run")
+func (h *handlers) startPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoCustomRenderers(func(ctx cliapp.OperationContext) (*experimentv1.StartExperimentResponse, error) {
+		req, err := buildStartRequest(ctx)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := h.client.StartExperiment(context.Background(), connect.NewRequest(req))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("experiment-start", err, nil)
+		}
+		if resp.Msg.GetExperiment() == nil {
+			return nil, fmt.Errorf("server returned no experiment")
+		}
+		return resp.Msg, nil
+	}, renderStartHuman, func(ctx cliapp.RunContext, msg *experimentv1.StartExperimentResponse) error {
+		return printExperimentProtoJSON(ctx.Stdout(), msg)
+	})
+}
 
-	resp, err := h.client.StartExperiment(context.Background(), connect.NewRequest(req))
-	if err != nil {
-		return cliapp.WrapAPIError("experiment-start", err, nil)
-	}
-	exp := resp.Msg.GetExperiment()
-	if exp == nil {
-		return fmt.Errorf("server returned no experiment")
-	}
+func renderStartHuman(ctx cliapp.RunContext, msg *experimentv1.StartExperimentResponse) error {
+	exp := msg.GetExperiment()
 	changes := []string{
 		fmt.Sprintf("name=%q", exp.GetName()),
 		fmt.Sprintf("strategies=%s", strategyLabels(exp.GetRecipe().GetStrategies())),
@@ -270,24 +48,261 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		fmt.Sprintf("speaker_profile=%s", exp.GetRecipe().GetSpeaker().GetTargetProfileId()),
 		fmt.Sprintf("speaker_ablation=%t", exp.GetRecipe().GetSpeaker().GetAblationEnabled()),
 	}
-	if eta := estimatedSecondsLabel(resp.Msg.GetEstimatedSeconds()); eta != "" {
+	if mode := exp.GetRecipe().GetReportRetentionMode(); mode != experimentv1.ReportRetentionMode_REPORT_RETENTION_MODE_UNSPECIFIED {
+		changes = append(changes, "report_retention_mode="+strings.ToLower(strings.TrimPrefix(mode.String(), "REPORT_RETENTION_MODE_")))
+	}
+	if eta := estimatedSecondsLabel(msg.GetEstimatedSeconds()); eta != "" {
 		changes = append(changes, eta)
 	}
-	if resp.Msg.GetDryRun() {
-		// Nothing was enqueued: report the validated preview and how to commit it.
-		return renderExperimentProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-			Result:  []string{"Dry run: recipe validated, nothing was enqueued.", "Re-run without --dry-run to start the experiment."},
-			Changes: changes,
-		})
+	if msg.GetDryRun() {
+		return renderExperimentProtoMutation(ctx, msg, cliapp.MutationReport{Result: []string{"Dry run: recipe validated, nothing was enqueued.", "Re-run without --dry-run to start the experiment."}, Changes: changes})
 	}
-	return renderExperimentProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result:  []string{fmt.Sprintf("Started experiment %s (%s).", exp.GetId(), statusLabel(exp.GetStatus()))},
-		Changes: changes,
-		NextCommand: []string{
-			fmt.Sprintf("audio-tools experiment wait %s --json", exp.GetId()),
-			fmt.Sprintf("audio-tools experiment report %s --json", exp.GetId()),
-		},
-	})
+	return renderExperimentProtoMutation(ctx, msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Started experiment %s (%s).", exp.GetId(), statusLabel(exp.GetStatus()))}, Changes: changes, NextCommand: []string{fmt.Sprintf("audio-tools experiment wait %s --json", exp.GetId()), fmt.Sprintf("audio-tools experiment report %s --json", exp.GetId())}})
+}
+
+func buildStartRequest(ctx cliapp.OperationContext) (*experimentv1.StartExperimentRequest, error) {
+	recipe, err := loadBaseRecipe(ctx)
+	if err != nil {
+		return nil, err
+	}
+	req := &experimentv1.StartExperimentRequest{Name: ctx.Flag("name"), Recipe: recipe}
+	steps := []func(cliapp.OperationContext, *experimentv1.StartExperimentRequest) error{
+		applySelectionFlags, applyBasicRecipeFlags, applyStrategyTuningFlags,
+		applySeedFlag, applyLongFormFlags, applyAugmentationFlags,
+		applySpeakerFlags, applyEstimatedSecondsFlag,
+	}
+	for _, step := range steps {
+		if err := step(ctx, req); err != nil {
+			return nil, err
+		}
+	}
+	// Echo the strategies that will actually run so `start --json` is honest.
+	ensureDefaultStrategies(req.Recipe)
+	req.DryRun = ctx.BoolFlag("dry-run")
+	return req, nil
+}
+
+func applySelectionFlags(ctx cliapp.OperationContext, req *experimentv1.StartExperimentRequest) error {
+	if v := strings.TrimSpace(ctx.Flag("clip-ids")); v != "" {
+		req.Recipe.ClipIds = splitCSV(v)
+	}
+	if v := strings.TrimSpace(ctx.Flag("strategies")); v != "" {
+		req.Recipe.Strategies = strategiesFromFlag(v)
+	}
+	return nil
+}
+
+func applyBasicRecipeFlags(ctx cliapp.OperationContext, req *experimentv1.StartExperimentRequest) error {
+	flags := []struct {
+		name string
+		set  func(int32)
+	}{
+		{"realtime-repeats", func(n int32) { req.Recipe.RealtimeRepeats = n }},
+		{"latency-tail-seconds", func(n int32) { req.Recipe.LatencyTailSeconds = n }},
+		{"chunk-ms", func(n int32) { req.Recipe.ChunkMs = n }},
+		{"dropped-span-threshold", func(n int32) { req.Recipe.DroppedSpanThresholdWords = n }},
+	}
+	for _, flag := range flags {
+		if v := strings.TrimSpace(ctx.Flag(flag.name)); v != "" {
+			n, err := parseIntFlag(flag.name, v)
+			if err != nil {
+				return err
+			}
+			flag.set(n)
+		}
+	}
+	return nil
+}
+
+func applyStrategyTuningFlags(ctx cliapp.OperationContext, req *experimentv1.StartExperimentRequest) error {
+	flags := []struct {
+		name    string
+		applies func(string) bool
+		set     func(*evalv1.EvalStrategy, int32)
+	}{
+		{"overlap-max-window-ms", strategyUsesOverlap, func(s *evalv1.EvalStrategy, n int32) { s.OverlapMaxWindowMs = n }},
+		{"overlap-max-stall-rejects", strategyUsesOverlap, func(s *evalv1.EvalStrategy, n int32) { s.OverlapMaxStallRejects = n }},
+		{"overlap-window-ms", strategyUsesOverlap, func(s *evalv1.EvalStrategy, n int32) { s.OverlapWindowMs = n }},
+		{"overlap-commit-runs", strategyUsesOverlap, func(s *evalv1.EvalStrategy, n int32) { s.OverlapCommitRuns = n }},
+		{"vad-silence-ms", strategyUsesVADSilence, func(s *evalv1.EvalStrategy, n int32) { s.VadSilenceMs = n }},
+	}
+	for _, flag := range flags {
+		if v := strings.TrimSpace(ctx.Flag(flag.name)); v != "" {
+			n, err := parseNonNegativeIntFlag(flag.name, v)
+			if err != nil {
+				return err
+			}
+			ensureDefaultStrategies(req.Recipe)
+			for _, strategy := range req.Recipe.Strategies {
+				if flag.applies(strategy.GetKind()) {
+					flag.set(strategy, n)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func applySeedFlag(ctx cliapp.OperationContext, req *experimentv1.StartExperimentRequest) error {
+	if v := strings.TrimSpace(ctx.Flag("seed")); v != "" {
+		n, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return fmt.Errorf("--seed must be an integer: %q", v)
+		}
+		req.Recipe.Seed = n
+	}
+	return nil
+}
+
+func applyLongFormFlags(ctx cliapp.OperationContext, req *experimentv1.StartExperimentRequest) error {
+	lf := req.Recipe.GetLongForm()
+	if lf == nil {
+		lf = &experimentv1.LongFormRecipe{}
+	}
+	if set, enabled, err := optionalBoolFlag(ctx, "long-form"); err != nil {
+		return err
+	} else if set {
+		lf.Enabled = enabled
+	}
+	if v := strings.TrimSpace(ctx.Flag("target-duration-seconds")); v != "" {
+		n, err := parseIntFlag("target-duration-seconds", v)
+		if err != nil {
+			return err
+		}
+		lf.Enabled = true
+		lf.TargetDurationSeconds = n
+	}
+	if v := strings.TrimSpace(ctx.Flag("gap-ms")); v != "" {
+		n, err := parseIntFlag("gap-ms", v)
+		if err != nil {
+			return err
+		}
+		lf.Enabled = true
+		lf.GapMs = n
+	}
+	if v := strings.TrimSpace(ctx.Flag("tag-contains")); v != "" {
+		lf.Enabled = true
+		lf.TagContains = v
+	}
+	if v := strings.TrimSpace(ctx.Flag("sweep-durations")); v != "" {
+		values, err := parseIntCSVFlag("sweep-durations", v)
+		if err != nil {
+			return err
+		}
+		lf.Enabled = true
+		lf.SweepDurationsSeconds = values
+	}
+	if longFormHasContent(lf) {
+		req.Recipe.LongForm = lf
+	}
+	return nil
+}
+
+func applyAugmentationFlags(ctx cliapp.OperationContext, req *experimentv1.StartExperimentRequest) error {
+	a := req.Recipe.GetAugmentation()
+	if a == nil {
+		a = &experimentv1.AugmentationRecipe{}
+	}
+	if v := strings.TrimSpace(ctx.Flag("noise-types")); v != "" {
+		a.NoiseTypes = splitCSV(v)
+	}
+	if v := strings.TrimSpace(ctx.Flag("snr-db")); v != "" {
+		values, err := parseFloatCSVFlag("snr-db", v)
+		if err != nil {
+			return err
+		}
+		a.SnrDb = values
+	}
+	if v := strings.TrimSpace(ctx.Flag("competing-voices")); v != "" {
+		a.CompetingVoiceIds = splitCSV(v)
+	}
+	if v := strings.TrimSpace(ctx.Flag("competing-text")); v != "" {
+		a.CompetingText = v
+	}
+	if augmentationHasContent(a) {
+		req.Recipe.Augmentation = a
+	}
+	return nil
+}
+
+func applySpeakerFlags(ctx cliapp.OperationContext, req *experimentv1.StartExperimentRequest) error {
+	s := req.Recipe.GetSpeaker()
+	if s == nil {
+		s = &experimentv1.SpeakerExperimentRecipe{}
+	}
+	if v := strings.TrimSpace(ctx.Flag("target-profile-id")); v != "" {
+		s.TargetProfileId = v
+	}
+	if err := applySpeakerBoolFlags(ctx, s, true); err != nil {
+		return err
+	}
+	if v := strings.TrimSpace(ctx.Flag("speaker-mode")); v != "" {
+		mode, err := speakerModeFromFlag(v)
+		if err != nil {
+			return err
+		}
+		s.VerificationMode = mode
+	}
+	if v := strings.TrimSpace(ctx.Flag("speaker-threshold")); v != "" {
+		n, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return fmt.Errorf("--speaker-threshold must be a number: %q", v)
+		}
+		s.Threshold = n
+	}
+	if err := applySpeakerBoolFlags(ctx, s, false); err != nil {
+		return err
+	}
+	if speakerHasContent(s) {
+		req.Recipe.Speaker = s
+	}
+	if (s.GetExtractionEnabled() || s.GetVerificationEnabled() || s.GetAblationEnabled()) && strings.TrimSpace(s.GetTargetProfileId()) == "" {
+		return fmt.Errorf("speaker experiments require --target-profile-id; enroll a profile with `audio-tools stt speaker-enroll --file <clip> --activate true` and list ids with `audio-tools stt speaker-status`")
+	}
+	return nil
+}
+
+func applySpeakerBoolFlags(ctx cliapp.OperationContext, s *experimentv1.SpeakerExperimentRecipe, initial bool) error {
+	flags := []struct {
+		name string
+		set  func(bool)
+	}{}
+	if initial {
+		flags = append(flags, struct {
+			name string
+			set  func(bool)
+		}{"speaker-extraction", func(v bool) { s.ExtractionEnabled = v }}, struct {
+			name string
+			set  func(bool)
+		}{"speaker-verification", func(v bool) { s.VerificationEnabled = v }})
+	} else {
+		flags = append(flags, struct {
+			name string
+			set  func(bool)
+		}{"speaker-fallback", func(v bool) { s.FallbackWithoutVerification = v }}, struct {
+			name string
+			set  func(bool)
+		}{"speaker-ablation", func(v bool) { s.AblationEnabled = v }})
+	}
+	for _, flag := range flags {
+		if set, value, err := optionalBoolFlag(ctx, flag.name); err != nil {
+			return err
+		} else if set {
+			flag.set(value)
+		}
+	}
+	return nil
+}
+
+func applyEstimatedSecondsFlag(ctx cliapp.OperationContext, req *experimentv1.StartExperimentRequest) error {
+	if v := strings.TrimSpace(ctx.Flag("estimated-seconds")); v != "" {
+		n, err := parseIntFlag("estimated-seconds", v)
+		if err != nil {
+			return err
+		}
+		req.EstimatedSeconds = n
+	}
+	return nil
 }
 
 func strategiesFromFlag(s string) []*evalv1.EvalStrategy {

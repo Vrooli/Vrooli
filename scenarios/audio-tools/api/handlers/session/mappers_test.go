@@ -68,6 +68,21 @@ func TestToProto_CoversAllEventTypes(t *testing.T) {
 			},
 		},
 		{
+			name: "audio_output",
+			ev: intsession.SessionEvent{
+				EventID: "e9", SessionID: "s1", EmittedAt: ts,
+				Type:        intsession.EventAudioOutput,
+				AudioOutput: &intsession.AudioFrame{Bytes: []byte{1, 2}, Format: "pcm_s16le", SampleRate: 24000, Sequence: 7, IsFinal: true},
+			},
+		},
+		{
+			name: "provider_error",
+			ev: intsession.SessionEvent{
+				EventID: "e10", SessionID: "s1", EmittedAt: ts,
+				Type: intsession.EventProviderError, ProviderError: &intsession.ProviderError{Message: "provider unavailable"},
+			},
+		},
+		{
 			name: "barge_in_cancel",
 			ev: intsession.SessionEvent{
 				EventID: "e7", SessionID: "s1", EmittedAt: ts,
@@ -80,7 +95,7 @@ func TestToProto_CoversAllEventTypes(t *testing.T) {
 			ev: intsession.SessionEvent{
 				EventID: "e8", SessionID: "s1", EmittedAt: ts,
 				Type:   intsession.EventClosed,
-				Closed: &intsession.SessionClosed{Reason: "client"},
+				Closed: &intsession.SessionClosed{Reason: "client", ResumeFromEventID: "cursor"},
 			},
 		},
 	}
@@ -101,8 +116,49 @@ func TestToProto_CoversAllEventTypes(t *testing.T) {
 // branches where the typed payload pointer is nil — the mapper should
 // still return a non-nil envelope.
 func TestToProto_NilPayloadFieldsAreToleratedAsNilOutput(t *testing.T) {
-	ev := intsession.SessionEvent{EventID: "x", SessionID: "s", EmittedAt: time.Now(), Type: intsession.EventTranscriptDelta}
-	out := toProto(ev)
-	require.NotNil(t, out)
-	require.Nil(t, out.GetPayload())
+	cases := []intsession.EventType{
+		intsession.EventTranscriptDelta,
+		intsession.EventTranscriptFinal,
+		intsession.EventAssistantDelta,
+		intsession.EventAssistantFinal,
+		intsession.EventVAD,
+		intsession.EventTool,
+		intsession.EventAudioOutput,
+		intsession.EventProviderError,
+		intsession.EventBargeInCancel,
+		intsession.EventClosed,
+	}
+	for _, eventType := range cases {
+		t.Run(string(eventType), func(t *testing.T) {
+			ev := intsession.SessionEvent{EventID: "x", SessionID: "s", EmittedAt: time.Now(), Type: eventType}
+			out := toProto(ev)
+			require.NotNil(t, out)
+			require.Nil(t, out.GetPayload())
+		})
+	}
+}
+
+func TestToProto_MapsDuplexAudioAndProviderErrorPayloads(t *testing.T) {
+	audio := toProto(intsession.SessionEvent{
+		Type:        intsession.EventAudioOutput,
+		AudioOutput: &intsession.AudioFrame{Bytes: []byte{1, 2, 3}, Format: "pcm_s16le", SampleRate: 24000, Sequence: 9, IsFinal: true},
+	})
+	gotAudio := audio.GetAudioOutput()
+	require.NotNil(t, gotAudio)
+	require.Equal(t, []byte{1, 2, 3}, gotAudio.GetData())
+	require.Equal(t, "pcm_s16le", gotAudio.GetFormat())
+	require.EqualValues(t, 24000, gotAudio.GetSampleRate())
+	require.EqualValues(t, 9, gotAudio.GetSequence())
+	require.True(t, gotAudio.GetIsFinal())
+	closed := toProto(intsession.SessionEvent{
+		Type:   intsession.EventClosed,
+		Closed: &intsession.SessionClosed{Reason: "observer-overflow", ResumeFromEventID: "resume-here"},
+	})
+	require.Equal(t, "resume-here", closed.GetClosed().GetResumeFromEventId())
+
+	providerErr := toProto(intsession.SessionEvent{
+		Type:          intsession.EventProviderError,
+		ProviderError: &intsession.ProviderError{Message: "provider unavailable"},
+	})
+	require.Equal(t, "provider unavailable", providerErr.GetProviderError().GetMessage())
 }

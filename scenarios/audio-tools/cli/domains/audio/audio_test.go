@@ -2,6 +2,7 @@ package audio
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"os"
@@ -116,6 +117,8 @@ func TestTranscodeHappyPath(t *testing.T) {
 	in := filepath.Join(dir, "in.bin")
 	out := filepath.Join(dir, "out.wav")
 	require.NoError(t, os.WriteFile(in, []byte("RAW-BYTES"), 0o600))
+	require.NoError(t, os.WriteFile(out, []byte("old output"), 0o644))
+	require.NoError(t, os.Chmod(out, 0o644))
 
 	app := mountAudio(t, &fakeAudio{
 		transcode: func(req *audiov1.TranscodeRequest) (*audiov1.TranscodeResponse, error) {
@@ -130,9 +133,13 @@ func TestTranscodeHappyPath(t *testing.T) {
 
 	h := newHandlers(app)
 	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{
-		{Name: "input"}, {Name: "output"},
-		{Name: "output-format", Default: "wav"}, {Name: "input-format"},
-		{Name: "sample-rate", Default: "0"}, {Name: "channels", Default: "0"}, {Name: "bitrate", Default: "0"},
+		{Name: "input"},
+		{Name: "output"},
+		{Name: "output-format", Default: "wav"},
+		{Name: "input-format"},
+		{Name: "sample-rate", Default: "0"},
+		{Name: "channels", Default: "0"},
+		{Name: "bitrate", Default: "0"},
 	}}
 	ctx, buf := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"input": in, "output": out},
@@ -142,7 +149,26 @@ func TestTranscodeHappyPath(t *testing.T) {
 	written, err := os.ReadFile(out)
 	require.NoError(t, err)
 	require.Equal(t, []byte("WAV-OK"), written)
+	info, err := os.Stat(out)
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0o600), info.Mode().Perm(), "audio output must not be readable by group/other users")
 	require.Contains(t, buf.String(), "Wrote 6 bytes")
+}
+
+func TestTranscodeJSONCompatibility(t *testing.T) {
+	dir := t.TempDir()
+	in, out := filepath.Join(dir, "in.bin"), filepath.Join(dir, "out.wav")
+	require.NoError(t, os.WriteFile(in, []byte("RAW"), 0o600))
+	app := mountAudio(t, &fakeAudio{transcode: func(*audiov1.TranscodeRequest) (*audiov1.TranscodeResponse, error) {
+		return &audiov1.TranscodeResponse{Audio: []byte("WAV-OK")}, nil
+	}})
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "input"}, {Name: "output"}, {Name: "output-format", Default: "wav"}, {Name: "input-format"}, {Name: "sample-rate", Default: "0"}, {Name: "channels", Default: "0"}, {Name: "bitrate", Default: "0"}}}
+	ctx, buf := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{Flags: map[string]string{"input": in, "output": out}, JSON: true})
+	require.NoError(t, newHandlers(app).transcodePrimitive().Run(ctx))
+	require.JSONEq(t, `{"operation":"transcode","path":"`+out+`","bytes":6}`, buf.String())
+	written, err := os.ReadFile(out)
+	require.NoError(t, err)
+	require.Equal(t, []byte("WAV-OK"), written)
 }
 
 // Error path: server returns a Connect error; handler must surface it
@@ -161,9 +187,13 @@ func TestTranscodeServerError(t *testing.T) {
 
 	h := newHandlers(app)
 	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{
-		{Name: "input"}, {Name: "output"},
-		{Name: "output-format", Default: "wav"}, {Name: "input-format"},
-		{Name: "sample-rate", Default: "0"}, {Name: "channels", Default: "0"}, {Name: "bitrate", Default: "0"},
+		{Name: "input"},
+		{Name: "output"},
+		{Name: "output-format", Default: "wav"},
+		{Name: "input-format"},
+		{Name: "sample-rate", Default: "0"},
+		{Name: "channels", Default: "0"},
+		{Name: "bitrate", Default: "0"},
 	}}
 	ctx, _ := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"input": in, "output": out},
@@ -206,8 +236,11 @@ func TestTrimHappyPath(t *testing.T) {
 	})
 	h := newHandlers(app)
 	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{
-		{Name: "input"}, {Name: "output"}, {Name: "format"},
-		{Name: "start-seconds"}, {Name: "end-seconds"},
+		{Name: "input"},
+		{Name: "output"},
+		{Name: "format"},
+		{Name: "start-seconds"},
+		{Name: "end-seconds"},
 	}}
 	ctx, buf := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{
@@ -243,8 +276,11 @@ func TestMergeReadsEverySource(t *testing.T) {
 	})
 	h := newHandlers(app)
 	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{
-		{Name: "input", Repeated: true}, {Name: "output"}, {Name: "format"},
-		{Name: "output-format"}, {Name: "crossfade-seconds"},
+		{Name: "input", Repeated: true},
+		{Name: "output"},
+		{Name: "format"},
+		{Name: "output-format"},
+		{Name: "crossfade-seconds"},
 	}}
 	ctx, _ := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
 		FlagLists: map[string][]string{"input": {a, b}},
@@ -275,8 +311,12 @@ func TestSplitWritesOneFilePerChunk(t *testing.T) {
 	})
 	h := newHandlers(app)
 	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{
-		{Name: "input"}, {Name: "output"}, {Name: "format"},
-		{Name: "chunk-seconds"}, {Name: "boundaries-seconds"}, {Name: "output-format"},
+		{Name: "input"},
+		{Name: "output"},
+		{Name: "format"},
+		{Name: "chunk-seconds"},
+		{Name: "boundaries-seconds"},
+		{Name: "output-format"},
 	}}
 	ctx, buf := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{
@@ -292,7 +332,56 @@ func TestSplitWritesOneFilePerChunk(t *testing.T) {
 	second, err := os.ReadFile(filepath.Join(outDir, "chunk-001.wav"))
 	require.NoError(t, err)
 	require.Equal(t, []byte("C1"), second)
+	for _, path := range []string{filepath.Join(outDir, "chunk-000.wav"), filepath.Join(outDir, "chunk-001.wav")} {
+		info, err := os.Stat(path)
+		require.NoError(t, err)
+		require.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+	}
+	dirInfo, err := os.Stat(outDir)
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0o700), dirInfo.Mode().Perm())
 	require.Contains(t, buf.String(), "Wrote 2 chunk(s)")
+}
+
+func TestSplitJSONReportsWrittenFilesWithoutEmbeddingAudio(t *testing.T) {
+	dir := t.TempDir()
+	in := filepath.Join(dir, "in.wav")
+	outDir := filepath.Join(dir, "chunks")
+	require.NoError(t, os.WriteFile(in, []byte("INPUT"), 0o600))
+	app := mountAudio(t, &fakeAudio{
+		split: func(*audiov1.SplitRequest) (*audiov1.SplitResponse, error) {
+			return &audiov1.SplitResponse{Chunks: []*audiov1.SplitChunk{
+				{Audio: []byte("PRIVATE-CHUNK-0"), ContentType: "audio/wav", StartSeconds: 0, DurationSeconds: 0.5},
+				{Audio: []byte("PRIVATE-CHUNK-1"), ContentType: "audio/wav", StartSeconds: 0.5, DurationSeconds: 0.5},
+			}}, nil
+		},
+	})
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "input"}, {Name: "output"}, {Name: "format"}, {Name: "chunk-seconds"}, {Name: "boundaries-seconds"}, {Name: "output-format"}}}
+	ctx, output := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"input": in, "output": outDir, "format": "wav", "chunk-seconds": "0.5", "output-format": "wav"},
+		JSON:  true,
+	})
+	require.NoError(t, newHandlers(app).splitPrimitive().Run(ctx))
+
+	var result struct {
+		Operation       string `json:"operation"`
+		OutputDirectory string `json:"output_directory"`
+		Chunks          []struct {
+			Path            string  `json:"path"`
+			StartSeconds    float64 `json:"start_seconds"`
+			DurationSeconds float64 `json:"duration_seconds"`
+			BytesWritten    int     `json:"bytes_written"`
+		} `json:"chunks"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(output.String()), &result))
+	require.Equal(t, "split", result.Operation)
+	require.Equal(t, outDir, result.OutputDirectory)
+	require.Len(t, result.Chunks, 2)
+	require.Equal(t, filepath.Join(outDir, "chunk-000.wav"), result.Chunks[0].Path)
+	require.Equal(t, 0.5, result.Chunks[1].StartSeconds)
+	require.Equal(t, len("PRIVATE-CHUNK-0"), result.Chunks[0].BytesWritten)
+	require.NotContains(t, output.String(), "PRIVATE-CHUNK")
+	require.Less(t, output.Len(), 1_000, "machine output should remain metadata-sized")
 }
 
 func TestFadeAndVolumeForwardNumbers(t *testing.T) {
@@ -314,8 +403,12 @@ func TestFadeAndVolumeForwardNumbers(t *testing.T) {
 	h := newHandlers(app)
 
 	fadeSchema := cliapp.ArgSchema{Flags: []cliapp.Flag{
-		{Name: "input"}, {Name: "output"}, {Name: "format"},
-		{Name: "fade-in-seconds"}, {Name: "fade-out-seconds"}, {Name: "output-format"},
+		{Name: "input"},
+		{Name: "output"},
+		{Name: "format"},
+		{Name: "fade-in-seconds"},
+		{Name: "fade-out-seconds"},
+		{Name: "output-format"},
 	}}
 	fadeCtx, _ := cliapptest.NewCapturedRunContext(app, fadeSchema, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{
@@ -326,8 +419,11 @@ func TestFadeAndVolumeForwardNumbers(t *testing.T) {
 	require.NoError(t, h.fade(fadeCtx))
 
 	volumeSchema := cliapp.ArgSchema{Flags: []cliapp.Flag{
-		{Name: "input"}, {Name: "output"}, {Name: "format"},
-		{Name: "gain-db"}, {Name: "output-format"},
+		{Name: "input"},
+		{Name: "output"},
+		{Name: "format"},
+		{Name: "gain-db"},
+		{Name: "output-format"},
 	}}
 	volumeCtx, _ := cliapptest.NewCapturedRunContext(app, volumeSchema, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{
@@ -372,8 +468,11 @@ func TestAudioHandlerRejectsMissingInput(t *testing.T) {
 	app := mountAudio(t, &fakeAudio{})
 	h := newHandlers(app)
 	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{
-		{Name: "input"}, {Name: "output"}, {Name: "format"},
-		{Name: "start-seconds"}, {Name: "end-seconds"},
+		{Name: "input"},
+		{Name: "output"},
+		{Name: "format"},
+		{Name: "start-seconds"},
+		{Name: "end-seconds"},
 	}}
 	ctx, _ := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"output": "out.wav", "format": "wav", "start-seconds": "0"},
@@ -399,8 +498,12 @@ func TestNormalizeMapsMethodAndTarget(t *testing.T) {
 	})
 	h := newHandlers(app)
 	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{
-		{Name: "input"}, {Name: "output"}, {Name: "format"},
-		{Name: "method", Default: "ebu_r128"}, {Name: "target-lufs", Default: "-16"}, {Name: "output-format", Default: "wav"},
+		{Name: "input"},
+		{Name: "output"},
+		{Name: "format"},
+		{Name: "method", Default: "ebu_r128"},
+		{Name: "target-lufs", Default: "-16"},
+		{Name: "output-format", Default: "wav"},
 	}}
 	ctx, _ := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{

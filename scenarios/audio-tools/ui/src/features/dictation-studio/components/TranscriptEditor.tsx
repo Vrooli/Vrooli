@@ -1,4 +1,4 @@
-import { Textarea } from "../../../components/ui/textarea";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1.1.1";
 import { useTranslation } from "../../../i18n";
 import { strings } from "../../../consts/strings";
 import { selectors } from "../../../consts/selectors";

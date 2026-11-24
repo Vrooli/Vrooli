@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 package experiment_test
 
 import (
@@ -12,6 +14,7 @@ import (
 
 	"audio-tools/internal/database"
 	"audio-tools/internal/experiment"
+	trustfloor "audio-tools/internal/qualification"
 
 	db "github.com/vrooli/api-core/databasetest"
 
@@ -24,6 +27,7 @@ func newSchemaDB(t *testing.T) *sql.DB {
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 		apidb.SchemaProviderFunc(database.SystemSchema),
 		apidb.SchemaProviderFunc(experiment.Schema),
+		apidb.SchemaProviderFunc(trustfloor.Schema),
 	))
 	return d
 }
@@ -111,6 +115,38 @@ func TestRepository_ListPagination(t *testing.T) {
 	require.Len(t, offsetOnly, 2)
 }
 
+func TestService_CountCreatedInRangeUsesUTCAndHalfOpenBounds(t *testing.T) {
+	ctx := context.Background()
+	d := newSchemaDB(t)
+	repo := experiment.NewSQLiteRepository(d, scheduletest.New(time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC)))
+	svc := experiment.NewService(repo, nil)
+
+	_, err := d.ExecContext(ctx, `INSERT INTO experiments (id,status,created_at) VALUES
+		('before','queued','2026-06-30T11:59:59.999999999Z'),
+		('start','queued','2026-06-30T12:00:00Z'),
+		('inside','queued','2026-06-30T12:30:00Z'),
+		('end','queued','2026-06-30T13:00:00Z')`)
+	require.NoError(t, err)
+	_, err = d.ExecContext(ctx, `INSERT INTO experiment_runs (id,experiment_id,strategy,created_at) VALUES
+		('run-start','start','a','2026-06-30T12:00:00Z'),
+		('run-inside','inside','a','2026-06-30T12:59:59.999999999Z'),
+		('run-end','end','a','2026-06-30T13:00:00Z')`)
+	require.NoError(t, err)
+
+	// The bounds carry a non-UTC location; the method interprets them as instants
+	// and queries the canonical UTC timestamps persisted by the owner.
+	zone := time.FixedZone("UTC-4", -4*60*60)
+	got, err := svc.CountCreatedInRange(ctx,
+		time.Date(2026, 6, 30, 8, 0, 0, 0, zone),
+		time.Date(2026, 6, 30, 9, 0, 0, 0, zone),
+	)
+	require.NoError(t, err)
+	require.Equal(t, experiment.CreatedCounts{Experiments: 2, Runs: 2}, got)
+
+	_, err = svc.CountCreatedInRange(ctx, time.Date(2026, 6, 30, 13, 0, 0, 0, time.UTC), time.Date(2026, 6, 30, 12, 0, 0, 0, time.UTC))
+	require.Error(t, err, "empty or reversed intervals are invalid")
+}
+
 func TestRepository_RunsRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	repo, _ := newRepo(t)
@@ -137,7 +173,7 @@ func TestRepository_QualificationEvidenceRoundTripAndCellFilter(t *testing.T) {
 	repo, _ := newRepo(t)
 	first, err := repo.CreateQualificationEvidence(ctx, experiment.QualificationEvidence{
 		EngineID: "kyutai", ModelID: "kyutai/stt-1b-en_fr", Strategy: "passthrough", Kind: "fault", FaultProfile: "provider_busy",
-		Passed: true, ArtifactRef: "bas:provider-busy", MachineJSON: []byte(`{"host":"runner"}`),
+		ProviderTier: "local", Passed: true, ArtifactRef: "bas:provider-busy", MachineJSON: []byte(`{"host":"runner"}`),
 	})
 	require.NoError(t, err)
 	second, err := repo.CreateQualificationEvidence(ctx, experiment.QualificationEvidence{
@@ -155,6 +191,7 @@ func TestRepository_QualificationEvidenceRoundTripAndCellFilter(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, kyutai, 1)
 	require.Equal(t, "provider_busy", kyutai[0].FaultProfile)
+	require.Equal(t, "local", kyutai[0].ProviderTier)
 	require.True(t, kyutai[0].Passed)
 }
 

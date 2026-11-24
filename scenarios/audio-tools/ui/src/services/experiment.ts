@@ -5,6 +5,7 @@ import {
   ExperimentService,
   type ExperimentEvent,
   ExperimentStatus,
+  ReportRetentionMode,
   type Experiment,
   type ExperimentRecipe,
   type ExperimentRun,
@@ -12,15 +13,10 @@ import {
 } from "@vrooli/proto-types/audio-tools/v1/experiment/experiment_pb";
 
 import { transport } from "../api/client";
+import { timestampToISO } from "@vrooli/audio-capture-browser";
 import { decodeEvalReport, type EvalReportData } from "./corpus";
 
 const client = createClient(ExperimentService, transport);
-
-function tsToISO(ts?: { seconds?: bigint | number; nanos?: number }): string {
-  if (!ts) return "";
-  const seconds = typeof ts.seconds === "bigint" ? Number(ts.seconds) : (ts.seconds ?? 0);
-  return new Date(seconds * 1000 + Math.floor((ts.nanos ?? 0) / 1_000_000)).toISOString();
-}
 
 function csv(value: string): string[] {
   return value
@@ -81,6 +77,7 @@ export interface ExperimentRow {
 }
 
 export interface RecipeSummary {
+  metricsOnly: boolean;
   clipIds: string[];
   strategies: string[];
   strategyDetails?: Array<{
@@ -173,6 +170,7 @@ export interface StartExperimentInput {
   speakerFallback: boolean;
   speakerAblation: boolean;
   droppedSpanThresholdWords: number;
+  metricsOnly?: boolean;
 }
 
 function decodeRecipe(r?: ExperimentRecipe): RecipeSummary {
@@ -180,6 +178,7 @@ function decodeRecipe(r?: ExperimentRecipe): RecipeSummary {
     ? SpeakerMode[r.speaker.verificationMode].toLowerCase()
     : "unspecified";
   return {
+    metricsOnly: r?.reportRetentionMode === ReportRetentionMode.METRICS_ONLY,
     clipIds: r?.clipIds ?? [],
     strategies: [
       ...(r?.strategies ?? []).map((s) => s.kind || s.label).filter(Boolean),
@@ -241,9 +240,9 @@ function decodeExperiment(e?: Experiment): ExperimentRow | null {
     id: e.id,
     name: e.name,
     status: statusLabel(e.status),
-    createdAt: tsToISO(e.createdAt),
-    startedAt: tsToISO(e.startedAt),
-    finishedAt: tsToISO(e.finishedAt),
+    createdAt: timestampToISO(e.createdAt),
+    startedAt: timestampToISO(e.startedAt),
+    finishedAt: timestampToISO(e.finishedAt),
     error: e.error,
     resultRef: e.resultRef,
     machineJson: e.machineJson,
@@ -257,7 +256,7 @@ function decodeRun(r: ExperimentRun): ExperimentRunRow {
     experimentId: r.experimentId,
     strategy: r.strategy,
     conditionJson: r.conditionJson,
-    createdAt: tsToISO(r.createdAt),
+    createdAt: timestampToISO(r.createdAt),
   };
 }
 
@@ -267,7 +266,7 @@ function decodeEvent(e: ExperimentEvent): ExperimentEventRow {
     status: statusLabel(e.status),
     progress: e.progress,
     message: e.message,
-    at: tsToISO(e.at),
+    at: timestampToISO(e.at),
   };
 }
 
@@ -330,6 +329,9 @@ function buildRecipe(input: StartExperimentInput) {
     },
     realizedSpeakerConditions: [],
     droppedSpanThresholdWords: input.droppedSpanThresholdWords,
+    reportRetentionMode: input.metricsOnly
+      ? ReportRetentionMode.METRICS_ONLY
+      : ReportRetentionMode.UNSPECIFIED,
   };
 }
 

@@ -76,6 +76,13 @@ func (s *Store) Delete(ctx context.Context, providerID, capability string) (bool
 	return s.repo.Delete(ctx, providerID, capability)
 }
 
+// CountCreatedBetween exposes only an aggregate for the half-open UTC window
+// [from, to); credential contents and identifying fields stay behind the
+// credential owner.
+func (s *Store) CountCreatedBetween(ctx context.Context, from, to time.Time) (int64, error) {
+	return s.repo.CountCreatedBetween(ctx, from, to)
+}
+
 // List returns redacted credential summaries.
 func (s *Store) List(ctx context.Context) ([]Credential, error) {
 	rows, err := s.repo.List(ctx)

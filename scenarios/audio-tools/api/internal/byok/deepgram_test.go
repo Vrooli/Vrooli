@@ -63,6 +63,19 @@ func TestDeepgramTranscribeError(t *testing.T) {
 	}
 }
 
+func TestDeepgramBoundsSuccessfulResponse(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"results":{"channels":[]},"padding":"` + strings.Repeat("x", maxDeepgramResponseBytes) + `"}`))
+	}))
+	defer srv.Close()
+	a := NewDeepgramSTT()
+	a.Endpoint = srv.URL
+	_, err := a.Transcribe(context.Background(), "k", sttchain.Request{Audio: []byte("x"), Format: "wav"})
+	if err == nil || !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("Transcribe() error = %v, want bounded-response error", err)
+	}
+}
+
 func TestDeepgramTranscribeMissingKey(t *testing.T) {
 	a := NewDeepgramSTT()
 	if _, err := a.Transcribe(context.Background(), "", sttchain.Request{}); err == nil {

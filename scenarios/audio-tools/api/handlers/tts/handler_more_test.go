@@ -29,6 +29,7 @@ import (
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/shared"
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
 	ttsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts/tts_v1connect"
 )
@@ -77,10 +78,98 @@ func TestTTS_GetCache_Hit(t *testing.T) {
 	require.Equal(t, "audio/mpeg", res.Msg.GetContentType())
 }
 
+func TestTTS_GetCache_AutoBackendUsesConfiguredLocalFallbacks(t *testing.T) {
+	preferred := ttschain.NewConfiguredLocalProvider(nil, schedule.System(), "primary", "primary-model", "adapter:primary", nil)
+	preferred.SetCacheBackend("declared-primary-cache")
+	fallback := ttschain.NewConfiguredLocalProvider(nil, schedule.System(), "fallback", "fallback-model", "adapter:fallback", nil)
+	fallback.SetCacheBackend("declared-fallback-cache")
+	chain := ttschain.NewChain(ttschain.Options{
+		Local:       ttschain.NewFailoverLocalProvider(preferred, fallback),
+		EnableLocal: true,
+		LocalFirst:  true,
+	})
+	cache := inttts.NewCache(1024 * 1024)
+	cache.Put(inttts.CacheKey{
+		EventID: "evt-fallback", Backend: "declared-fallback-cache",
+		Voice: "voice.neutral.default", Speed: 1, Version: "active",
+	}, []byte("fallback-audio"), "audio/wav")
+	c := newServer2(t, ttsH.Deps{Chain: chain, Cache: cache, CacheBackend: "auto"})
+	res, err := c.GetCache(context.Background(), connect.NewRequest(&ttsv1.GetCacheRequest{
+		EventId: "evt-fallback", Voice: "voice.neutral.default", Speed: 1,
+	}))
+	require.NoError(t, err)
+	require.True(t, res.Msg.GetHit())
+	require.Equal(t, []byte("fallback-audio"), res.Msg.GetAudio())
+}
+
+func TestTTS_GetStatusReportsDeclaredLocalPreference(t *testing.T) {
+	preferred := ttschain.NewConfiguredLocalProvider(nil, schedule.System(), "kale-tts", "kale-tts-1-nano", "local:kale-tts", nil)
+	chain := ttschain.NewChain(ttschain.Options{
+		Local:       preferred,
+		EnableLocal: true,
+		LocalFirst:  true,
+	})
+	client := newServer2(t, ttsH.Deps{Chain: chain})
+
+	response, err := client.GetStatus(context.Background(), connect.NewRequest(&ttsv1.GetStatusRequest{}))
+	require.NoError(t, err)
+	require.Len(t, response.Msg.GetStatus().GetAvailability(), 3)
+	require.Equal(t, "kale-tts", response.Msg.GetStatus().GetAvailability()[0].GetProviderId())
+	require.Equal(t, "TTS (Local)", response.Msg.GetStatus().GetCapabilityLabel())
+}
+
+func TestTTS_GetStatusSeparatesBYOKAdapterAndCredentialReadiness(t *testing.T) {
+	chain := ttschain.NewChain(ttschain.Options{
+		BYOK: ttschain.NewBYOKProvider(map[string]ttschain.BYOKAdapter{
+			"openai-tts": &ttsmocks.FakeBYOK{IDStr: "openai-tts", Available: true},
+		}),
+		EnableBYOK: true,
+	})
+	lookups := 0
+	client := newServer2(t, ttsH.Deps{
+		Chain: chain,
+		DefaultCredential: func(_ context.Context, capability string) (string, string, bool) {
+			lookups++
+			require.Equal(t, "tts", capability)
+			return "openai-tts", "secret-must-not-escape", true
+		},
+	})
+	response, err := client.GetStatus(context.Background(), connect.NewRequest(&ttsv1.GetStatusRequest{}))
+	require.NoError(t, err)
+	byok := response.Msg.GetStatus().GetAvailability()[1]
+	require.Equal(t, "openai-tts", byok.GetProviderId())
+	require.Equal(t, sharedv1.ProviderState_PROVIDER_STATE_UNKNOWN, byok.GetState())
+	require.Equal(t, "credential_present_unverified", byok.GetErrorCode())
+	require.Contains(t, byok.GetErrorMessage(), "provider usability was not checked")
+	require.NotContains(t, byok.GetErrorMessage(), "secret-must-not-escape")
+	require.Equal(t, 1, lookups, "status should inspect local credential presence exactly once without probing the provider")
+}
+
+func TestTTS_GetStatusReportsRegisteredBYOKAdapterWithoutCredential(t *testing.T) {
+	chain := ttschain.NewChain(ttschain.Options{
+		BYOK: ttschain.NewBYOKProvider(map[string]ttschain.BYOKAdapter{
+			"openai-tts": &ttsmocks.FakeBYOK{IDStr: "openai-tts", Available: true},
+		}),
+		EnableBYOK: true,
+	})
+	client := newServer2(t, ttsH.Deps{
+		Chain: chain,
+		DefaultCredential: func(context.Context, string) (string, string, bool) {
+			return "", "", false
+		},
+	})
+	response, err := client.GetStatus(context.Background(), connect.NewRequest(&ttsv1.GetStatusRequest{}))
+	require.NoError(t, err)
+	byok := response.Msg.GetStatus().GetAvailability()[1]
+	require.Equal(t, sharedv1.ProviderState_PROVIDER_STATE_UNAVAILABLE, byok.GetState())
+	require.Equal(t, "credential_not_configured", byok.GetErrorCode())
+	require.Contains(t, byok.GetErrorMessage(), "adapters are registered")
+}
+
 func TestTTS_Synthesize_PopulatesCachePerChunk(t *testing.T) {
 	// The chain path used to never write the byte cache, so replays always
 	// missed. Synthesize with an event_id must now populate the cache under the
-	// (event_id, voice, speed, version, chunk_index) key so GetCache hits — and
+	// (event_id, runtime, voice, speed, format, version, chunk_index) key so GetCache hits — and
 	// each chunk index is a distinct slot.
 	chain := ttschain.NewChain(ttschain.Options{
 		EnableVrooli: true,
@@ -154,6 +243,31 @@ func TestTTS_GetCache_VersionDefaultsToActive(t *testing.T) {
 	}))
 	require.NoError(t, err)
 	require.True(t, res.Msg.GetHit())
+}
+
+func TestTTS_GetCache_UsesResponseFormat(t *testing.T) {
+	cache := inttts.NewCache(1024 * 1024)
+	base := inttts.CacheKey{EventID: "e", Voice: "v", Speed: 1, Version: "active", ResponseFormat: "mp3"}
+	cache.Put(base, []byte("MP3"), "audio/mpeg")
+	wav := base
+	wav.ResponseFormat = "wav"
+	cache.Put(wav, []byte("WAV"), "audio/wav")
+	c := newServer2(t, ttsH.Deps{Cache: cache})
+
+	for _, tc := range []struct {
+		format commonv1.ResponseFormat
+		want   []byte
+	}{
+		{format: commonv1.ResponseFormat_RESPONSE_FORMAT_MP3, want: []byte("MP3")},
+		{format: commonv1.ResponseFormat_RESPONSE_FORMAT_WAV, want: []byte("WAV")},
+	} {
+		res, err := c.GetCache(context.Background(), connect.NewRequest(&ttsv1.GetCacheRequest{
+			EventId: "e", Voice: "v", Speed: 1, ResponseFormat: tc.format,
+		}))
+		require.NoError(t, err)
+		require.True(t, res.Msg.GetHit())
+		require.Equal(t, tc.want, res.Msg.GetAudio())
+	}
 }
 
 func TestTTS_GetCache_EmptyEventIdMisses(t *testing.T) {

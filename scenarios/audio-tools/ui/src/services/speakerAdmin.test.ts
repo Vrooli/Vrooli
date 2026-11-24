@@ -78,7 +78,7 @@ describe("getSpeakerStatus", () => {
     expect(out.config.rejectBehavior).toBe("show-muted");
     expect(out.config.enabled).toBe(true);
     expect(out.profiles[0]!.displayName).toBe("Alice");
-    expect(out.profiles[0]!.createdAt).toContain("T");
+    expect(out.profiles[0]!.createdAt).toBe("2023-11-14T22:13:20.000Z");
     expect(out.profileCount).toBe(1);
   });
 

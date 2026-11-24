@@ -41,15 +41,46 @@ cd api && GOWORK=off go test ./internal/ai/sttchain
 ### Lab/qualification tests
 
 Lab packages (`internal/experiment`, `internal/eval`, `internal/soak`, and the
-`handlers/{experiment,eval,soak,validation}` transports) are product-mounted but
-are not serving paths. Their contract — no transitive import from serving code,
-and an explicit allowlist at the composition roots — is documented and enforced
-by `api/internal/lab`. Run their tests with:
+`handlers/{experiment,eval,soak,validation}` transports) compile only into the
+API built with `-tags audio_lab`. The product API dependency graph excludes
+them. Their contract — no transitive import from serving code, explicit
+composition crossings, and no lab packages in the product build — is documented
+and enforced by `api/internal/lab`. Run their tests with:
 
 ```bash
 cd scenarios/audio-tools && make lab-test
 cd api && go test ./internal/lab/... -count=1
 ```
+
+The evaluation package exposes `ScoreTimestampDrift` for a supplied, versioned
+timed reference and provider word intervals. Its result reports exact
+lexical-match coverage and start/end error distributions; it intentionally does
+not assign zero drift to insertions, deletions, or substitutions. `eval.Replay`
+now retains bounded, provider-reported hypothesis intervals in
+`ClipResult.HypothesisWordTimestamps` when a segment carries them. The Whisper
+VAD segmenter retains timings only for newly committed words after pre-roll
+overlap removal, anchored at the absolute segment sample; it marks truncation
+above 20,000 words per clip and never persists audio bytes. Native streaming
+providers may omit word timings.
+The scorer also enforces the same 20,000-word-per-side ceiling before token
+normalization or its identical-stream fast path, so callers cannot bypass the
+bounded-memory contract with a very large identity comparison.
+
+No checked-in, human-reviewed timed reference currently exists for the
+61-minute dictation fixture, so `TimestampDrift` remains unset and this scorer
+is not evidence about any model. Do not compare provider timings to themselves,
+or infer qualification from synthetic unit fixtures or the presence of a report
+field.
+
+`go test ./internal/eval -run '^$' -bench 'BenchmarkScoreTimestampDrift_(61MinuteWordCount|20000WordIdentity)$' -benchmem -benchtime=1x`
+exercises the 10,000-word fixture and the full 20,000-word admitted identity
+case. Identical lexical streams use a linear-time path; other streams retain
+the canonical minimum-edit traceback, with a 512M-cell ceiling (about 128 MiB
+of packed traceback, enough for a full 20,000-by-20,000 matrix). On the
+recorded Linux/amd64 host the 10k and 20k identity cases took 2.72 ms and
+6.18 ms, using 2.34 MB and 4.57 MB respectively. The mismatch worst case
+remains quadratic in time and memory. These are synthetic alignment checks,
+not speech-model measurements.
 
 ## CLI tests
 
@@ -75,12 +106,17 @@ cd ui && pnpm test:coverage
 Generated surfaces are gated, not trusted:
 
 ```bash
-cd scenarios/audio-tools && make catalog-check   # provider, operation, model, cross-catalog
-make catalog-gen                                  # provider catalogue -> Go + TS
-make operations-gen                               # operation catalogue -> UI specs
-make models-doc                                   # model seed -> docs/reference/models.md
-make endpoints                                    # modules -> .vrooli/endpoints.json
+make catalog-check
+make catalog-gen
+make operations-gen
+make models-doc
+make endpoints
 ```
+
+Run these commands from `scenarios/audio-tools`. The catalog gate checks
+provider, operation, model, and cross-catalog declarations. The generators
+render provider Go/TypeScript surfaces, operation UI specs, model reference
+documentation, and endpoint declarations, respectively.
 
 Each generator has a drift test that regenerates in memory and compares
 byte-for-byte. A hand-edited generated file fails the suite. The
@@ -193,7 +229,7 @@ is not a qualification receipt and does not authorize a launch.
 | Native devices | No nominated physical D1–D6 device, browser version, operator or access receipt | Device rows remain unavailable |
 | BYOK provider | Protocol fixtures and configuration boundaries are present; no live key is supplied | Simulated route refusal can be tested; live delivery remains unavailable |
 | Owned hosted provider | LPBS-owned routed fixture seam is the intended owner path; no production account or paid allowance is supplied | Entitlement/inference/settlement fixtures must remain separate from hosted qualification |
-| Acceptance resolvers | The Audio-owned board join is implemented and tested, but no target-aware qualification producer has emitted a current `audio-tools-acceptance-v1` receipt | Full-target acceptance cannot be submitted as complete |
+| Acceptance resolvers | The read-only board enforces `audio-tools-acceptance-v2` target claims and provider-cell/device identity. A current simulated producer receipt covers five policy/adapter rows; remaining required owner receipts are unavailable or incomplete. | Full-target acceptance cannot be submitted as complete |
 | Agent authority | Controlled owner stubs and fallback capability fixtures are available; no human-issued development grant is attached | Q2 continuation can be exercised; Q3 real-agent evidence remains pending |
 
 The next access decisions belong to the operator and the named owners: corpus
@@ -275,12 +311,18 @@ board receipts. Each qualification artifact may carry an `acceptance` object in
 ```json
 {
   "target_revision": "portable-voice-v1",
-  "method": "audio-tools-acceptance-v1",
+  "method": "audio-tools-acceptance-v2",
   "cohort": "voice-pilot-en-v1",
   "build": "audio-tools-api:<immutable-build>",
   "device_profile": "D1",
   "policy_revision": "policy-v1",
   "corpus_revision": "voice-pilot-en-v1",
+  "provider_cell": {
+    "engine_id": "simulated-policy",
+    "model_id": "simulation-v1",
+    "strategy": "simulation",
+    "device_profile": "D1"
+  },
   "acceptance": {
     "dictation-trust": {"in_band": true, "negative_controls_passed": true}
   }
@@ -311,12 +353,15 @@ missing row names when a prerequisite is absent.
 
 **Grant scope.** Required evidence is local and simulated: real local engines on
 this Linux host as device profile D1, plus D2 as a 2-vCPU/4-GiB constrained
-container. BYOK and owned/credit routes are proven with LPBS routed fixtures and
-independent fake providers. There are no live keys, paid providers, purchases or
-real money. D3–D6 and live BYOK/owned delivery are excluded from this grant:
-report them as excluded, never as passed. The recognition corpus may be built
-from openly licensed public corpora (for example LibriSpeech, CC BY 4.0, or
-Mozilla Common Voice, CC0), with each license recorded; no private recordings.
+container, and deterministic capability/route simulations for D1–D6. BYOK and
+owned/credit routes are proven with LPBS routed fixtures and independent fake
+providers. There are no live keys, paid providers, purchases, real money, or
+physical D3–D6 devices in this grant. Label simulations explicitly; they cannot
+qualify native device or live-provider claims. Additional native D3–D6 and live
+BYOK/owned delivery remain unqualified and outside this grant. The recognition
+corpus may be built from openly licensed public corpora (for example
+LibriSpeech, CC BY 4.0, or Mozilla Common Voice, CC0), with each license
+recorded; no private recordings.
 
 | Row | Outcome | Band | Validity |
 | --- | --- | --- | --- |
@@ -330,10 +375,15 @@ Mozilla Common Voice, CC0), with each license recorded; no private recordings.
 | `host-portability` | OT-P0-008 | D1 (CPU-only and accelerator cells) and D2 each select a compatible path or return an explicit unavailable state. Every claimed route and device has a matching receipt, and D3–D6 are listed as not claimed. | Pinned OS, browser, CPU, memory, accelerator, engine and model |
 | `private-lifecycle` | OT-P0-009 | Each item has a test with a negative control: authorized access, bounded recoverable retention and deletion, metadata-only diagnostics, and explicit consent before a destination change. | Current build |
 | `acceptance-integrity` | OT-P0-010 | The instrument-integrity scenario passes: early EOF, a failed child, a stale receipt, an omitted target and simulated-as-native evidence are all rejected. Every required row reads from an owner-backed receipt. | Program fixtures plus a live read |
+| `desktop-dictation-parity` | OT-P0-011 | On each supported desktop cohort, Audio Tools, Web Console, and Swarm Manager match the reviewed 2026-11-20 Wispr Flow feature/task matrix and achieve at least equal task completion, including accessible insertion, onboarding, permissions, offline use, and recovery. | Versioned competitor/task matrix; matched scripts, corpus, profile, and denominators; a separate product-path receipt per consumer; failed tasks retained |
 | `provider-evidence` | OT-P1-001 | Dictation Studio persists provider-neutral metrics and promotion verdicts per provider, engine, strategy, policy, fault and replay cell. | Persisted experiment reports |
 | `mobile-recovery` | OT-P1-002 | In a mobile-viewport browser cohort, a user inspects coverage, recovers retained audio and exports metadata-only diagnostics without developer tools. | Emulated device labelled emulated; native mobile excluded |
 | `adapter-maintainability` | OT-P1-003 | Capability and host adapters are versioned and covered by shared conformance tests. No consumer duplicates capture, recovery, routing or billing rules. | Conformance suite result |
 | `shared-voice-capabilities` | OT-P1-004 | Excluded as expansion. Existing TTS and summarization behavior must not regress. | Regression tests only |
+| `efficient-model-selection` | OT-P1-005 | Local route resolution uses declared language, rights, held-out quality, host capacity, cost, and fallback; Sherpa streaming Zipformer, eligible Kale Nano, Qwen3:1.7b, and consented cloning candidates retain their declared readiness. | Catalog and declaration checks; per-capability model-resolution receipts on D1/D2; matching quality/capacity evidence; candidate or experimental status is not qualification |
+| `advanced-voice-workflows` | OT-P1-006 | Each offered workflow—synthesis, voice customization, consented cloning, conversion, speaker separation, wake word, and duplex—has a reusable contract and measured quality, latency, and recovery. | Separate workflow/route receipts and negative controls; cloning consent and privacy evidence; duplex consent and durable spend/accounting evidence; unsupported or unmeasured workflows remain unavailable |
+| `standalone-offer-upgrade` | OT-P1-007 | The Audio Tools entry journey presents the approved $10/month standalone offer with correct entitlement, payment recovery, cancellation, and clear upgrade to the full bundle. | LPBS-owned routed test account and checkout/entitlement/upgrade receipts; production balances and purchases excluded; each lifecycle failure retained |
+| `offline-install-lifecycle` | OT-P1-008 | On every supported desktop install profile, offline model provisioning and failed install, update, upgrade, or model provisioning recover cleanly. | Installer/release-owner receipts with pinned platform and signed artifact identity; network-disabled provisioning plus interrupted/rollback/retry scenarios; unsupported platforms remain explicit |
 | `device-qualification` | OT-P2-001 | Excluded. | — |
 
 Evidence audit: no band edited, no sensor edited to move a row, every required row
@@ -388,12 +438,18 @@ The bounded labelled policy/adapter simulation is executable with
 BYOK, and consented-owned routing; bounded reservation/finalization with
 idempotent retry; zero-debit local/BYOK controls; metadata-only lifecycle
 deletion; adapter identity; and acceptance negative controls. It records one
-`audio-tools-acceptance-v1` receipt labelled `execution_lane: simulated` and
+`audio-tools-acceptance-v2` receipt labelled `execution_lane: simulated` and
 `simulated_as_native: false`. That receipt is valid only for the simulated
 policy/adapter rows. It must not be used as native, provider-parity,
 dictation-trust, mobile-recovery, host-portability, corpus-quality, or
 wall-clock latency proof; those product gates still require their own
 owner-backed receipts when the corresponding paths are available.
+
+Use `program-runtime --instance lab library run audio-tools.setpoint-read` to
+read lab-owned qualification receipts. The live Audio Tools instance does not
+mount the lab-only experiment service. `provider_cell.device_profile` must
+exactly match top-level `device_profile`; the board rejects envelopes that
+omit or contradict this execution identity.
 
 Swarm/Agent Manager own launch dispatch, native-goal versus governed fallback,
 continuation, interruption recovery and budgets. Their qualification is a
@@ -459,6 +515,18 @@ disjoint. Record every missing subgroup as an unqualified scope, not an excluded
 denominator. Follow the existing report normalization policy; WER can exceed 1
 and must not be clamped. Inspect insertions/deletions/substitutions alongside WER.
 
+Each clip's transcript must have a separate human audit record before it can
+support a quality receipt. `corpus import --reference-review-file` accepts one
+JSON object containing `reviewer`, `protocol`, and RFC3339 `reviewed_at`; the
+server binds it to the exact reference text with `reference_sha256`. The
+reviewer must compare the transcript with the recording using the named
+protocol and correct every discrepancy. Automated alignment, dataset-provided
+labels, and an unattended import do not count as review. Existing rows and
+imports without this record remain unreviewed and fail the quality cohort gate.
+The record is an accountable provenance assertion; software does not observe
+or independently certify the human listening session. Never backfill review
+records onto existing references without performing and recording that audit.
+
 The server-owned quality experiment budget permits up to two hours for one
 explicit provider cell. Paired held-out noise cohorts can require more wall time
 than the 60-minute recognition-duration rung; this budget does not authorize
@@ -476,15 +544,47 @@ hashes and metadata, not speech or transcript payloads.
 These are proposed coverage commitments, not a list of supported deployments.
 Pin actual OS/browser versions, architecture, CPU, memory, accelerator, engine and
 model revision in each receipt; `latest browser` is not a reproducible identity.
+`audio-tools validation device-matrix` (or `--json`) enumerates the declared
+cells from `coverage/device-qualification-matrix.json`. The empty starting
+receipt register is `coverage/device-qualification-receipts.json`. To evaluate
+observations, pass `--receipt-path coverage/device-qualification-receipts.json`. The receipt
+file uses schema version 1 and a `receipts` array keyed by exact `cell_id`.
+The checked-in declaration uses `qualification_boundary: product_path_receipts`;
+an `inventory_only` declaration is never allowed to accept a passing receipt.
+Each receipt declares `outcome` (`passed`, `unavailable`, or `failed`). A pass
+requires observation time, exact OS version and architecture, CPU and memory,
+accelerator identity, browser name and version, named device/host, declared
+provider and model plus their versions, a passing product path, and artifact
+reference plus SHA-256. Constrained profiles must report the declared resource
+limits exactly. Unknown/duplicate cells, unknown receipt fields, mismatched
+platform/provider/model, and incomplete passing receipts are rejected. An
+unavailable result requires a concrete reason and remains
+unqualified; a missing receipt remains `not_run`. `matrix_complete` is true only
+when every declared cell has a valid passing receipt. Receipts are accountable
+operator evidence; the command checks structure and identity consistency but
+cannot independently observe a human/device session. Kale Nano remains
+conditional on its runtime being available.
 
 | Profile | Native cohort to nominate | Required distinction |
 | --- | --- | --- |
-| D1 | Linux amd64, Chromium, CPU-only and an available accelerator as separate cells | First local implementation cohort; Whisper and Kyutai independently qualified |
+| D1 | Linux amd64, Chromium, CPU-only and accelerator as separate cells; accelerator may be explicitly unavailable when no device is assigned | First local implementation cohort; Whisper and Kyutai qualify independently |
 | D2 | Linux amd64 Chromium, 2-vCPU/4-GiB constrained test environment, CPU-only | Real resource limits recorded; browser CPU throttling alone is not this profile |
 | D3 | macOS arm64, Safari and Chromium | Do not infer local-engine artifact support from browser compatibility |
 | D4 | Windows amd64, Chromium | Qualify native capture and compatible local engine artifacts independently |
 | D5 | iOS Safari and installed PWA on a named physical device | Foreground/background transitions, audio interruption, permission, reload and retained-audio recovery |
 | D6 | Android Chrome on a named physical device | Device switch, Bluetooth interruption, memory pressure and foreground recovery |
+
+The setpoint host-portability join has a fixed required-cell inventory for this
+grant: D1 Linux/amd64 Chromium CPU, D1 Linux/amd64 Chromium accelerator, and D2
+Linux/amd64 Chromium at 2 CPU cores and 4 GiB. Each receipt must enumerate all
+three cells and pin OS/browser versions, host identity, engine/model revision,
+and artifact references. Each cell also needs a passing product-path artifact
+with the same artifact reference as its hardware/browser observation.
+`available` requires a passed inference and a named compatible path;
+`unavailable` is a valid portability outcome only with a concrete reason and a
+visible fallback in the product path. Missing cells, versions, provenance, or
+fallback proof keep `host-portability` failed/unknown. D3–D6 remain excluded
+from this matrix until their named native devices and operators provide receipts.
 
 All profiles exercise simulated route control flow where the browser is available.
 Local inference is claimed only where that engine has a supported artifact and a
@@ -496,7 +596,10 @@ substitute for these native receipts.
 
 ### Measurement program and acceptance boundaries
 
-`program-runtime library run audio-tools.setpoint-read` gathers inventory.
+`program-runtime --instance lab library run audio-tools.setpoint-read` gathers
+inventory and lab-owned owner receipts. The product Program Runtime instance
+resolves the live Audio Tools API, which intentionally does not mount the
+experiment evidence service.
 Add `--input experiment_id=<id>` to inspect a selected persisted report. Selection
 is explicit: the newest successful experiment may be stale or from a different
 engine, corpus, lane or build. The program exposes bounded replay WER/RTF and
@@ -508,9 +611,9 @@ the evidence list. The resolver scans up to 512 persisted rows, using a
 sentinel above that bound rather than silently truncating history. This
 distinction is covered by the board regression.
 
-The v3 program enumerates all 15 targets with `target_revision=portable-voice-v1`
+The v3 program enumerates all 20 targets with `target_revision=portable-voice-v2`
 and resolves required rows through the owner-backed receipt join. It retains the
-nine original row IDs and adds six; its target strings summarize scope, not
+original row IDs and adds targets from the current contract revision; its target strings summarize scope, not
 approved numeric bands. The all-published-targets regression catches inventory
 drift. Missing receipts remain unknown, while the two excluded rows are explicit.
 The join rejects mismatched target,

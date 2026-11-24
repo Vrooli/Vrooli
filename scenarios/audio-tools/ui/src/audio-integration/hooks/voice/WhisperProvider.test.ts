@@ -7,7 +7,7 @@
  *  - MediaRecorder (stubbed on global — absent from jsdom)
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 import { makeMediaStream } from "../../test-support/browser";
 
 // ─── Module mocks (hoisted) ───────────────────────────────────────────────────
@@ -59,7 +59,7 @@ class FakeMediaRecorder {
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 /** Suppress console.warn emitted when transcription fails (test-setup kills stray warns). */
-let warnSpy: ReturnType<typeof vi.spyOn> | undefined;
+let warnSpy: MockInstance<(...args: unknown[]) => void> | undefined;
 
 function suppressWarn(): void {
   warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -149,9 +149,12 @@ describe("WhisperProvider", () => {
 
   it("start() clears previous lastTurn on new turn", async () => {
     const p = new WhisperProvider();
-    // Manually seed a fake lastTurn (simulates previous turn)
-    // @ts-expect-error — accessing private for test
-    p.lastTurn = { blob: new Blob(["x"]), mimeType: "audio/webm", durationMs: 1000, capturedAt: 0 };
+    transcribeMock.mockResolvedValueOnce("previous transcript");
+    await p.start(makeMediaStream());
+    FakeMediaRecorder.lastInstance!.pushChunk(new Blob(["previous turn"]));
+    await FakeMediaRecorder.lastInstance!.fireStop();
+    expect(p.getLastTurnAudio()).not.toBeNull();
+
     await p.start(makeMediaStream());
     expect(p.getLastTurnAudio()).toBeNull();
   });
@@ -285,14 +288,20 @@ describe("WhisperProvider", () => {
     expect(FakeMediaRecorder.lastInstance!.stop).toHaveBeenCalled();
   });
 
-  it("stop() stops stream tracks when recorder is not recording", () => {
-    const fakeTrack = { readyState: "live", stop: vi.fn() };
-    const stream = { getTracks: () => [fakeTrack] } as unknown as MediaStream;
+  it("stop() stops stream tracks when recorder is not recording", async () => {
+    const stopTrack = vi.fn();
+    const stream = makeMediaStream("live", stopTrack);
     const p = new WhisperProvider();
-    // @ts-expect-error — accessing private for test
-    p.stream = stream;
-    p.stop(); // recorder is null (not started)
-    expect(fakeTrack.stop).toHaveBeenCalled();
+    vi.stubGlobal("navigator", { mediaDevices: { getUserMedia: vi.fn().mockResolvedValue(stream) } });
+    vi.stubGlobal("MediaRecorder", class extends FakeMediaRecorder {
+      constructor() {
+        super(undefined);
+        throw new Error("recorder initialization failed");
+      }
+    });
+    await expect(p.start()).rejects.toThrow("recorder initialization failed");
+    p.stop(); // recorder is null, but the acquired stream still needs cleanup
+    expect(stopTrack).toHaveBeenCalledOnce();
     expect(p.getStream()).toBeNull();
   });
 
@@ -312,20 +321,22 @@ describe("WhisperProvider", () => {
     expect(p.getLastTurnAudio()).toBeNull();
   });
 
-  it("dispose() stops stream tracks and clears lastTurn even when not recording", async () => {
+  it("dispose() stops stream tracks when recorder initialization fails", async () => {
     const p = new WhisperProvider();
-    transcribeMock.mockResolvedValueOnce("hi");
-    await p.start(makeMediaStream());
-    const mr = FakeMediaRecorder.lastInstance!;
-    mr.pushChunk(new Blob(["data"]));
-    await mr.fireStop(); // now state is inactive
-
-    // @ts-expect-error — private field patched for test setup
-    p.stream = makeMediaStream(); // simulate stream still set
-
+    const stopTrack = vi.fn();
+    const stream = makeMediaStream("live", stopTrack);
+    getUserMediaMock.mockResolvedValueOnce(stream);
+    vi.stubGlobal("MediaRecorder", class extends FakeMediaRecorder {
+      constructor() {
+        super(undefined);
+        throw new Error("recorder initialization failed");
+      }
+    });
+    await expect(p.start()).rejects.toThrow("recorder initialization failed");
     p.dispose();
     expect(p.getStream()).toBeNull();
     expect(p.getLastTurnAudio()).toBeNull();
+    expect(stopTrack).toHaveBeenCalledOnce();
   });
 
   it("dispose() is safe when nothing has been started", () => {

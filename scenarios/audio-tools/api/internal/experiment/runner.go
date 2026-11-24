@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 package experiment
 
 import (
@@ -233,8 +235,8 @@ func (m *Manager) execute(e *entry) {
 		e.mu.Unlock()
 		return
 	}
-	jobCtx := m.baseCtx
-	cancel := func() {}
+	var jobCtx context.Context
+	var cancel context.CancelFunc
 	if e.maxRuntime > 0 {
 		jobCtx, cancel = context.WithTimeout(m.baseCtx, e.maxRuntime)
 	} else {
@@ -252,26 +254,7 @@ func (m *Manager) execute(e *entry) {
 	e.mu.Unlock()
 	defer cancel()
 
-	if err := m.service.repo.UpdateExperiment(m.baseCtx, snapshot); err != nil {
-		m.logger.Printf("experiment %s: persist running transition: %v", snapshot.ID, err)
-	}
-	startedMessage := "started"
-	if e.maxRuntime > 0 {
-		startedMessage = fmt.Sprintf("started; runtime budget %s", e.maxRuntime)
-	}
-	m.emit(e, StatusRunning, 0, startedMessage)
-
-	emit := func(progress int, message string) {
-		if progress < 0 {
-			progress = 0
-		}
-		if progress > 100 {
-			progress = 100
-		}
-		m.emit(e, StatusRunning, progress, message)
-	}
-
-	result, err := m.runner(jobCtx, snapshot, emit)
+	result, err := m.runExecution(jobCtx, e, snapshot)
 
 	e.mu.Lock()
 	if e.exp.Status.Terminal() {
@@ -301,77 +284,38 @@ func (m *Manager) execute(e *entry) {
 		return
 	}
 
-	if final.Status == StatusSucceeded {
-		if len(result.RecipeJSON) > 0 {
-			final.RecipeJSON = result.RecipeJSON
-		}
-		if len(result.Report) > 0 {
-			mime := result.ReportMIME
-			if mime == "" {
-				mime = "application/json"
-			}
-			key, storeErr := m.service.storeReportBlob(m.baseCtx, final, result.Report, mime, finished)
-			if storeErr != nil {
-				m.logger.Printf("experiment %s: store report: %v", final.ID, storeErr)
-				final = base
-				if transitionErr := final.Transition(StatusFailed); transitionErr != nil {
-					m.logger.Printf("experiment %s: transition report-failure status: %v", final.ID, transitionErr)
-					e.mu.Unlock()
-					return
-				}
-				final.FinishedAt = &finished
-				final.Error = storeErr.Error()
-				final.ResultRef = ""
-				if err := m.service.repo.UpdateExperiment(m.baseCtx, final); err != nil {
-					m.logger.Printf("experiment %s: persist report-failure status: %v", final.ID, err)
-				}
-			} else {
-				final.ResultRef = key
-				if err := m.service.repo.CompleteSucceeded(m.baseCtx, final, result.Runs); err != nil {
-					_ = m.service.blobs.Delete(m.baseCtx, key)
-					m.logger.Printf("experiment %s: persist successful result: %v", final.ID, err)
-					final = base
-					if transitionErr := final.Transition(StatusFailed); transitionErr != nil {
-						m.logger.Printf("experiment %s: transition result-failure status: %v", final.ID, transitionErr)
-						e.mu.Unlock()
-						return
-					}
-					final.FinishedAt = &finished
-					final.Error = fmt.Sprintf("persist successful result: %v", err)
-					final.ResultRef = ""
-					if updateErr := m.service.repo.UpdateExperiment(m.baseCtx, final); updateErr != nil {
-						m.logger.Printf("experiment %s: persist result-failure status: %v", final.ID, updateErr)
-					}
-				} else {
-					m.persistQualificationEvidence(final, result.QualificationEvidence)
-				}
-			}
-		} else {
-			if err := m.service.repo.CompleteSucceeded(m.baseCtx, final, result.Runs); err != nil {
-				m.logger.Printf("experiment %s: persist successful result: %v", final.ID, err)
-				final = base
-				if transitionErr := final.Transition(StatusFailed); transitionErr != nil {
-					m.logger.Printf("experiment %s: transition result-failure status: %v", final.ID, transitionErr)
-					e.mu.Unlock()
-					return
-				}
-				final.FinishedAt = &finished
-				final.Error = fmt.Sprintf("persist successful result: %v", err)
-				if updateErr := m.service.repo.UpdateExperiment(m.baseCtx, final); updateErr != nil {
-					m.logger.Printf("experiment %s: persist result-failure status: %v", final.ID, updateErr)
-				}
-			} else {
-				m.persistQualificationEvidence(final, result.QualificationEvidence)
-			}
-		}
-	} else {
-		if err := m.service.repo.UpdateExperiment(m.baseCtx, final); err != nil {
-			m.logger.Printf("experiment %s: persist terminal status: %v", final.ID, err)
-		}
+	var persistOK bool
+	final, persistOK = m.persistExecutionResult(base, final, result, finished)
+	if !persistOK {
+		e.mu.Unlock()
+		return
 	}
 	e.exp = final
 	e.mu.Unlock()
 	m.finalizeEntry(e, final)
+}
+
+// runExecution publishes the running state and delegates progress/result
+// production while execute owns the job cancellation lifetime.
+func (m *Manager) runExecution(jobCtx context.Context, e *entry, snapshot Experiment) (RunResult, error) {
+	if err := m.service.repo.UpdateExperiment(m.baseCtx, snapshot); err != nil {
+		m.logger.Printf("experiment %s: persist running transition: %v", snapshot.ID, err)
+	}
+	startedMessage := "started"
+	if e.maxRuntime > 0 {
+		startedMessage = fmt.Sprintf("started; runtime budget %s", e.maxRuntime)
+	}
+	m.emit(e, StatusRunning, 0, startedMessage)
+	emit := func(progress int, message string) {
+		if progress < 0 {
+			progress = 0
+		}
+		if progress > 100 {
+			progress = 100
+		}
+		m.emit(e, StatusRunning, progress, message)
+	}
+	return m.runner(jobCtx, snapshot, emit)
 }
 
 func (m *Manager) persistQualificationEvidence(exp Experiment, items []QualificationEvidence) {
@@ -404,14 +348,17 @@ func (m *Manager) finalizeEntry(e *entry, final Experiment) {
 		}
 	}
 	e.subs = nil
-	close(e.done)
-	e.mu.Unlock()
-
+	// Remove the terminal entry before waking Wait callers. Wait's contract is
+	// that once it returns, the terminal state is durable and no longer kept
+	// resident in this process. Keep e.mu held so a concurrent finalizer cannot
+	// observe an open done channel and repeat the eviction.
 	m.mu.Lock()
 	if m.entries[final.ID] == e {
 		delete(m.entries, final.ID)
 	}
 	m.mu.Unlock()
+	close(e.done)
+	e.mu.Unlock()
 }
 
 func (m *Manager) emit(e *entry, status Status, progress int, message string) {
@@ -426,218 +373,9 @@ func (m *Manager) emit(e *entry, status Status, progress int, message string) {
 	e.mu.Unlock()
 }
 
-func (m *Manager) emitQueued(e *entry, ahead int) {
-	if ahead < 0 {
-		ahead = 0
-	}
-	message := "queued"
-	if ahead == 1 {
-		message = "queued; 1 experiment ahead"
-	} else if ahead > 1 {
-		message = fmt.Sprintf("queued; %d experiments ahead", ahead)
-	}
-	m.emit(e, StatusQueued, 0, message)
-}
-
-func (m *Manager) markDequeued(e *entry) {
-	m.removeQueued(e)
-	m.emitQueuePositions()
-}
-
-func (m *Manager) removeQueued(target *entry) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	for i, e := range m.queued {
-		if e == target {
-			m.queued = append(m.queued[:i], m.queued[i+1:]...)
-			return
-		}
-	}
-}
-
-func (m *Manager) emitQueuePositions() {
-	m.mu.Lock()
-	queued := append([]*entry(nil), m.queued...)
-	m.mu.Unlock()
-	for i, e := range queued {
-		m.emitQueued(e, i)
-	}
-}
-
 func trySend(ch chan ProgressEvent, ev ProgressEvent) {
 	select {
 	case ch <- ev:
 	default:
-	}
-}
-
-func (m *Manager) Get(ctx context.Context, id string) (Experiment, error) {
-	m.mu.Lock()
-	e, ok := m.entries[id]
-	m.mu.Unlock()
-	if ok {
-		e.mu.Lock()
-		exp := e.exp
-		e.mu.Unlock()
-		return exp, nil
-	}
-	return m.service.GetExperiment(ctx, id)
-}
-
-func (m *Manager) Wait(ctx context.Context, id string) (Experiment, error) {
-	m.mu.Lock()
-	e, ok := m.entries[id]
-	m.mu.Unlock()
-	if !ok {
-		return m.service.GetExperiment(ctx, id)
-	}
-	select {
-	case <-e.done:
-		e.mu.Lock()
-		exp := e.exp
-		e.mu.Unlock()
-		return exp, nil
-	case <-ctx.Done():
-		return Experiment{}, ctx.Err()
-	}
-}
-
-func (m *Manager) List(ctx context.Context, filter ListFilter) ([]Experiment, error) {
-	return m.service.ListExperiments(ctx, filter)
-}
-
-func (m *Manager) Cancel(id string) error {
-	m.mu.Lock()
-	e, ok := m.entries[id]
-	m.mu.Unlock()
-	if !ok {
-		exp, err := m.service.GetExperiment(context.Background(), id)
-		if err != nil {
-			return err
-		}
-		if exp.Status.Terminal() {
-			return nil
-		}
-		now := m.clock.Now().UTC()
-		if err := exp.Transition(StatusCanceled); err != nil {
-			return err
-		}
-		exp.FinishedAt = &now
-		return m.service.repo.UpdateExperiment(m.baseCtx, exp)
-	}
-	e.mu.Lock()
-	if e.exp.Status.Terminal() {
-		e.mu.Unlock()
-		return nil
-	}
-	if e.exp.Status == StatusRunning && e.cancel != nil {
-		cancel := e.cancel
-		e.mu.Unlock()
-		cancel()
-		select {
-		case <-e.done:
-			return nil
-		case <-time.After(cancelWaitTimeout):
-			now := m.clock.Now().UTC()
-			e.mu.Lock()
-			if e.exp.Status.Terminal() {
-				e.mu.Unlock()
-				return nil
-			}
-			if err := e.exp.Transition(StatusCanceled); err != nil {
-				e.mu.Unlock()
-				return err
-			}
-			e.exp.FinishedAt = &now
-			final := e.exp
-			e.mu.Unlock()
-			if err := m.service.repo.UpdateExperiment(m.baseCtx, final); err != nil {
-				m.logger.Printf("experiment %s: persist cancel-timeout status: %v", final.ID, err)
-			}
-			m.finalizeEntry(e, final)
-		}
-		return nil
-	}
-	now := m.clock.Now().UTC()
-	if err := e.exp.Transition(StatusCanceled); err != nil {
-		e.mu.Unlock()
-		return err
-	}
-	e.exp.FinishedAt = &now
-	final := e.exp
-	e.mu.Unlock()
-	if err := m.service.repo.UpdateExperiment(m.baseCtx, final); err != nil {
-		m.logger.Printf("experiment %s: persist cancel status: %v", final.ID, err)
-	}
-	m.finalizeEntry(e, final)
-	m.removeQueued(e)
-	m.emitQueuePositions()
-	return nil
-}
-
-func (m *Manager) Subscribe(id string) (<-chan ProgressEvent, func(), error) {
-	m.mu.Lock()
-	e, ok := m.entries[id]
-	m.mu.Unlock()
-	if !ok {
-		exp, err := m.service.GetExperiment(context.Background(), id)
-		if err != nil {
-			return nil, nil, err
-		}
-		ch := make(chan ProgressEvent, 1)
-		ch <- ProgressEvent{ExperimentID: exp.ID, Status: exp.Status, Progress: terminalProgress(exp.Status), Message: finalMessage(exp), At: m.clock.Now().UTC()}
-		close(ch)
-		return ch, func() {}, nil
-	}
-	sub := &subscriber{ch: make(chan ProgressEvent, 64)}
-	e.mu.Lock()
-	if e.exp.Status.Terminal() {
-		ev := ProgressEvent{ExperimentID: e.exp.ID, Status: e.exp.Status, Progress: terminalProgress(e.exp.Status), Message: finalMessage(e.exp), At: m.clock.Now().UTC()}
-		e.mu.Unlock()
-		sub.ch <- ev
-		close(sub.ch)
-		sub.closed = true
-		return sub.ch, func() {}, nil
-	}
-	if e.last != nil {
-		trySend(sub.ch, *e.last)
-	}
-	e.subs = append(e.subs, sub)
-	e.mu.Unlock()
-
-	unsub := func() {
-		e.mu.Lock()
-		defer e.mu.Unlock()
-		for i, s := range e.subs {
-			if s == sub {
-				e.subs = append(e.subs[:i], e.subs[i+1:]...)
-				if !s.closed {
-					close(s.ch)
-					s.closed = true
-				}
-				return
-			}
-		}
-	}
-	return sub.ch, unsub, nil
-}
-
-func terminalProgress(s Status) int {
-	if s == StatusSucceeded {
-		return 100
-	}
-	return 0
-}
-
-func finalMessage(exp Experiment) string {
-	switch exp.Status {
-	case StatusSucceeded:
-		return "succeeded"
-	case StatusCanceled:
-		return "canceled"
-	case StatusFailed:
-		return exp.Error
-	default:
-		return string(exp.Status)
 	}
 }

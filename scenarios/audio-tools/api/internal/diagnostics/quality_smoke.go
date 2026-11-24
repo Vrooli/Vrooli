@@ -6,10 +6,10 @@ import (
 
 	"audio-tools/internal/ai/sttchain"
 	"audio-tools/internal/diagnostics/smokedata"
-	"audio-tools/internal/eval"
 	sttpkg "audio-tools/internal/stt"
 	"audio-tools/internal/stt/pipeline"
 	"audio-tools/internal/stt/quality"
+	"audio-tools/internal/transcriptmetrics"
 )
 
 // cleanSpeechReference is the ground-truth transcript of the bundled
@@ -237,8 +237,8 @@ func evaluateFixture(
 			fr.Note = fmt.Sprintf("clean-speech fixture was filtered by egress policy (%s)", decision.FilterReason)
 			return fr
 		}
-		norm := eval.DefaultNormalizeOptions()
-		wr := eval.WER(eval.Tokenize(f.Expected, norm), eval.Tokenize(decision.Text, norm))
+		norm := transcriptmetrics.DefaultNormalizeOptions()
+		wr := transcriptmetrics.WER(transcriptmetrics.Tokenize(f.Expected, norm), transcriptmetrics.Tokenize(decision.Text, norm))
 		fr.WER = wr.Rate()
 		fr.Preview = previewString(decision.Text, qualityPreviewMax)
 		switch {

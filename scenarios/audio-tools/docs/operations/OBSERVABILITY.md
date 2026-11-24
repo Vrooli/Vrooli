@@ -36,7 +36,7 @@ Use this document to answer:
 | Requirement coverage | active | Tracked through requirements and test-genie coverage artifacts. |
 | Voice performance | instrument qualification open | Click/capture/session ready, first voiced sample, visible partial, committed interval position and final tail; clocks in PERFORMANCE.md, candidate bands in TESTING.md. |
 | Owned service usage | implementation/qualification open | Correlate account, operation, session, meter/policy revision, durable delivery and shared ledger receipt; customer debit is not upstream cost. |
-| Acceptance coverage | target inventory present; receipt joins missing | setpoint-read v2 lists all 15 PRD targets as unknown. Enumeration and collection success cannot imply acceptance. |
+| Acceptance coverage | target inventory present; receipt joins incomplete | setpoint-read v2 reports 20 PRD target rows: 18 required and 2 explicit exclusions. The owner-evidence binding is lab-only; run it through Program Runtime's lab instance. Product-instance collection can return a binding error and partial status. Collection success never implies acceptance. |
 
 For each run retain build/source, engine/model, route, consumer, OS/browser,
 device/acceleration, corpus/method/policy revision, cold/warm state and fake/live

@@ -76,11 +76,11 @@ func TestSummarizerTypedTaskRunnerReceivesTheOwnerTaskWithoutCLIEncoding(t *test
 		received = request
 		return []byte(`{"model":"policy-model","response":"spoken summary","eval_count":7}`), nil
 	})
-	result, err := s.Summarize(context.Background(), "source transcript", "summarize.default", "heavy")
+	result, err := s.Summarize(context.Background(), "source transcript", DefaultSummarizeModel, "heavy")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !received.SelectorIsRole || received.Selector != "summarize.default" {
+	if !received.SelectorIsRole || received.Selector != DefaultSummarizeModel {
 		t.Fatalf("selector = %+v", received)
 	}
 	if received.Source != "source transcript" || received.Instruction != summarizeSystemPrompts["heavy"] || received.MaxOutputTokens != 120 {
@@ -96,7 +96,7 @@ func TestSummarizerTypedTaskRunnerReceivesTheOwnerTaskWithoutCLIEncoding(t *test
 
 func TestSummarizer_UnknownLevel(t *testing.T) {
 	s := testSummarizer(t, "ok", func(args []string, _ string) {
-		if !strings.Contains(argValue(args, "--system"), "Rewrite") {
+		if !strings.Contains(argValue(args, "--system"), "spoken summary under the output budget") {
 			t.Errorf("expected moderate-level prompt for unknown level, got %q", argValue(args, "--system"))
 		}
 	})
@@ -108,14 +108,22 @@ func TestSummarizer_UnknownLevel(t *testing.T) {
 func TestSummarizer_EachLevel(t *testing.T) {
 	levels := map[string]string{
 		"light":    "Tighten",
-		"moderate": "Rewrite",
+		"moderate": "spoken summary under the output budget",
 		"heavy":    "brief spoken summary",
 	}
 	for level, expected := range levels {
 		t.Run(level, func(t *testing.T) {
 			s := testSummarizer(t, "ok", func(args []string, _ string) {
-				if !strings.Contains(argValue(args, "--system"), expected) {
-					t.Errorf("level %s: expected prompt containing %q, got %q", level, expected, argValue(args, "--system"))
+				prompt := argValue(args, "--system")
+				if !strings.Contains(prompt, expected) {
+					t.Errorf("level %s: expected prompt containing %q, got %q", level, expected, prompt)
+				}
+				if level == "moderate" {
+					for _, fact := range []string{"decisions, approvals, actions, owners, dates, numbers, risks, and contingencies", "in source order", "named owners with their action and deadline", "preserve dates and amounts exactly", "Omit background and repetition before key details", "prioritize committed decisions and required actions", "End with a complete sentence"} {
+						if !strings.Contains(prompt, fact) {
+							t.Errorf("moderate prompt missing fact-preservation rule %q: %q", fact, prompt)
+						}
+					}
 				}
 			})
 			if _, err := s.Summarize(context.Background(), "text", "model", level); err != nil {
@@ -261,17 +269,23 @@ func TestSummarizeTokenBudget_LevelShape(t *testing.T) {
 	}
 
 	smallModerate := summarizeTokenBudget("moderate", 10)
-	if smallModerate != 90 {
-		t.Errorf("moderate floor: got %d, want 90", smallModerate)
+	if smallModerate != 120 {
+		t.Errorf("moderate floor: got %d, want 120", smallModerate)
 	}
 	largeModerate := summarizeTokenBudget("moderate", 10000)
-	if largeModerate <= smallModerate {
-		t.Errorf("moderate budget should scale: got %d <= floor %d", largeModerate, smallModerate)
+	if largeModerate != 1375 {
+		t.Errorf("moderate budget: got %d, want 1375 (55%% of estimated input tokens)", largeModerate)
 	}
 
 	inputChars := 10000
 	if summarizeTokenBudget("light", inputChars) <= summarizeTokenBudget("moderate", inputChars) {
 		t.Errorf("light budget should exceed moderate for the same input")
+	}
+	if got := summarizeTokenBudget("moderate", 1_000_000); got != maxSummaryOutputTokens {
+		t.Errorf("moderate long-input cap: got %d, want %d", got, maxSummaryOutputTokens)
+	}
+	if got := summarizeTokenBudget("light", 1_000_000); got != maxSummaryOutputTokens {
+		t.Errorf("light long-input cap: got %d, want %d", got, maxSummaryOutputTokens)
 	}
 
 	if summarizeTokenBudget("unknown", inputChars) != summarizeTokenBudget("moderate", inputChars) {

@@ -10,105 +10,93 @@ import (
 	"github.com/vrooli/api-core/schedule"
 )
 
-// LocalProvider wraps voice.Service.Transcribe (Whisper backend).
-//
-// ModelID/Model() reflect what the local Whisper sidecar is actually
-// running — resolved at construction via the injected whisperinfo.Client
-// seam, not a hard-coded string. See scenarios/audio-tools/docs/internal/
-// SEAMS.md row "whisperinfo.Client".
+// LocalProvider is the Whisper chain provider. The shared BatchProvider owns
+// tier identity, strategy traits, result provenance, timing, and language
+// fallback; this wrapper keeps the legacy constructor and read-only health
+// method while Whisper-specific request/result conversion lives in the
+// whisperBatchBackend.
 type LocalProvider struct {
-	svc  *voice.Service
-	clk  schedule.Clock
-	info whisperinfo.Client
+	BatchProvider
+	whisper *whisperBatchBackend
 }
 
-// NewLocalProvider constructs a Local STT provider with the system clock
-// and the env-backed whisperinfo.EnvClient.
-func NewLocalProvider(svc *voice.Service) *LocalProvider {
-	return &LocalProvider{svc: svc, clk: schedule.System(), info: whisperinfo.New()}
+// NewLocalProvider constructs a Local STT provider with the system clock and
+// the env-backed whisperinfo.EnvClient.
+func NewLocalProvider(svc *voice.WhisperTranscriber) *LocalProvider {
+	return NewLocalProviderWith(svc, nil, nil)
 }
 
-// NewLocalProviderWith constructs a LocalProvider with a custom clock
-// and (optional) custom info client. Either may be nil to use defaults.
-func NewLocalProviderWith(svc *voice.Service, clk schedule.Clock, info whisperinfo.Client) *LocalProvider {
+// NewLocalProviderWith constructs a LocalProvider with a custom clock and
+// (optional) custom info client. Either may be nil to use defaults.
+func NewLocalProviderWith(svc *voice.WhisperTranscriber, clk schedule.Clock, info whisperinfo.Client) *LocalProvider {
 	if clk == nil {
 		clk = schedule.System()
 	}
 	if info == nil {
 		info = whisperinfo.New()
 	}
-	return &LocalProvider{svc: svc, clk: clk, info: info}
-}
-
-func (p *LocalProvider) Type() ProviderTier { return TierLocal }
-
-func (p *LocalProvider) IsAvailable(ctx context.Context) bool {
-	if p == nil || p.svc == nil {
-		return false
+	backend := &whisperBatchBackend{svc: svc, info: info}
+	return &LocalProvider{
+		BatchProvider: *NewBatchProvider("whisper-local", backend, clk),
+		whisper:       backend,
 	}
-	return p.svc.EnsureWhisperAvailable(ctx)
-}
-
-func (p *LocalProvider) Transcribe(ctx context.Context, req Request) (*Result, error) {
-	if p == nil || p.svc == nil {
-		return nil, fmt.Errorf("audio-tools/sttchain: local provider not configured")
-	}
-	clk := p.clk
-	if clk == nil {
-		clk = schedule.System()
-	}
-	start := clk.Now()
-	tr, err := p.svc.Transcribe(ctx, req.Audio, req.Format, req.Language, req.InitialPrompt, req.VADFilter)
-	if err != nil {
-		return nil, err
-	}
-	res := &Result{
-		Text:             tr.Text,
-		DetectedLanguage: req.Language,
-		Tier:             TierLocal,
-		ProviderID:       "whisper-local",
-		ModelID:          p.modelID(),
-		Latency:          clk.Now().Sub(start),
-	}
-	if tr.HasConfidence {
-		res.Confidence = &Confidence{NoSpeechProb: tr.NoSpeechProb, AvgLogProb: tr.AvgLogProb}
-	}
-	if len(tr.Words) > 0 {
-		res.Words = make([]TimedWord, len(tr.Words))
-		for i, w := range tr.Words {
-			res.Words[i] = TimedWord{Word: w.Word, Start: w.Start, End: w.End, Prob: w.Prob}
-		}
-	}
-	return res, nil
 }
 
 // Model reports the loaded sidecar model. Returns whisperinfo.ModelUnknown
-// when the resource hasn't propagated AUDIO_WHISPER_MODEL — never fabricates
-// a name.
-func (p *LocalProvider) Model() string { return p.modelID() }
-
-func (p *LocalProvider) modelID() string {
-	if p == nil || p.info == nil {
+// when the resource hasn't propagated AUDIO_WHISPER_MODEL; never fabricates a
+// model name.
+func (p *LocalProvider) Model() string {
+	if p == nil || p.whisper == nil {
 		return whisperinfo.ModelUnknown
 	}
-	return p.info.CurrentModel().ModelID
+	return p.whisper.Model()
 }
 
-// Traits reports the LocalProvider as a batch-only provider. The
-// streaming surface is provided externally by VADSegmentStrategy or
-// OverlapAgreeStrategy calling Transcribe per segment/window.
-func (p *LocalProvider) Traits() ProviderTraits {
-	return ProviderTraits{
-		Batch:      true,
-		Stream:     false,
-		Strategies: []StrategyKind{StrategyVADSegment, StrategyOverlapAgree, StrategyBuffered},
+// whisperBatchBackend adapts the Whisper service's richer pipeline response
+// into the shared batch result contract. It deliberately retains Whisper's
+// recovery-capable availability probe and its distinct observational probe.
+type whisperBatchBackend struct {
+	svc  *voice.WhisperTranscriber
+	info whisperinfo.Client
+}
+
+func (b *whisperBatchBackend) IsAvailable(ctx context.Context) bool {
+	return b != nil && b.svc != nil && b.svc.EnsureWhisperAvailable(ctx)
+}
+
+func (b *whisperBatchBackend) IsServiceable(ctx context.Context) bool {
+	return b != nil && b.svc != nil && b.svc.WhisperAvailable(ctx)
+}
+
+func (b *whisperBatchBackend) Model() string {
+	if b == nil || b.info == nil {
+		return whisperinfo.ModelUnknown
 	}
+	return b.info.CurrentModel().ModelID
 }
 
-// TranscribeStreaming on the LocalProvider always declines native
-// streaming. The chain's selector pairs this provider with a batch
-// strategy (VAD-segment or overlap-and-agree) that drives Transcribe
-// per segment.
-func (p *LocalProvider) TranscribeStreaming(_ context.Context, _ StreamStart, _ <-chan AudioChunk) (<-chan StreamEvent, error) {
-	return nil, nil
+func (b *whisperBatchBackend) Transcribe(ctx context.Context, req Request) (BatchResult, error) {
+	if b == nil || b.svc == nil {
+		return BatchResult{}, fmt.Errorf("audio-tools/sttchain: local provider not configured")
+	}
+	transcription, err := b.svc.Transcribe(ctx, req.Audio, req.Format, req.Language, req.InitialPrompt, req.VADFilter)
+	if err != nil {
+		return BatchResult{}, err
+	}
+	result := BatchResult{Text: transcription.Text, DetectedLanguage: req.Language}
+	if transcription.HasConfidence {
+		result.Confidence = &Confidence{NoSpeechProb: transcription.NoSpeechProb, AvgLogProb: transcription.AvgLogProb}
+	}
+	if len(transcription.Words) > 0 {
+		result.Words = make([]TimedWord, len(transcription.Words))
+		for i, word := range transcription.Words {
+			result.Words[i] = TimedWord{Word: word.Word, Start: word.Start, End: word.End, Prob: word.Prob}
+		}
+	}
+	return result, nil
 }
+
+var (
+	_ BatchBackend = (*whisperBatchBackend)(nil)
+	_ Provider     = (*LocalProvider)(nil)
+)

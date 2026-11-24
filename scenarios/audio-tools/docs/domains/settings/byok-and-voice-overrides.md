@@ -60,7 +60,7 @@ push-to-chains happens through `chains.Coordinator`.
 
 Validation:
 
-- `capability` must be `stt`, `tts`, or `summarize`
+- `capability` must be `stt`, `tts`, `summarize`, or `duplex`
   (`api/handlers/settings/byok.go:72`); anything else returns
   `CodeInvalidArgument`.
 - `provider_id` and `api_key` are required and trimmed
@@ -82,6 +82,34 @@ The fingerprint is a stable hash of the key
 (`api/internal/byokstore/fingerprint.go`); UIs render it as "ends in
 …abcd1234" so operators can confirm which key is loaded without
 revealing the secret.
+
+The Configuration page routes `duplex` setup to the canonical Vrooli
+credential command; it does not accept a second GPT-Live key in Audio Tools'
+legacy BYOK database. Audio Tools declares the app-scoped identity
+`vrooli/openai-gpt-live` / `api-key`. Production composition prepares an
+`OpenAILiveProvider` with a lazy resolver for that identity. The resolver reads
+the current secret from the credential authority when a provider session opens,
+so a rotation takes effect without restarting Audio Tools. The duplex transport
+and coordinator are not exposed through a production session route yet, and the
+provider/model remain ineligible pending product authorization and trustworthy
+billing evidence. Provisioning a key does not start a session or contact
+OpenAI.
+
+For the canonical operator credential, use
+`vrooli credentials provision --identity vrooli/openai-gpt-live --field api-key`.
+In an interactive terminal, the CLI disables input echo while it reads the
+value. Piped input is also supported for a protected secret source. The value
+is written through Vrooli's credential authority and is not placed in an
+environment variable, command argument, Audio Tools database, or CLI output.
+Check its non-secret state with
+`vrooli credentials status --identity vrooli/openai-gpt-live --field api-key`.
+The prepared provider resolver reads this canonical identity, but provisioning
+does not enable the still-gated session route. Do not use the Configuration
+page's legacy BYOK form or `audio-tools settings byok-upsert` for GPT-Live.
+
+Other legacy BYOK providers continue to use Audio Tools' encrypted store and
+redacted fingerprints. That storage path is intentionally separate from the
+credential authority and is not a GPT-Live fallback.
 
 ## Internal Chain
 
@@ -185,7 +213,7 @@ the key requires re-upserting every credential.
 | `BYOK store not configured` (`d.BYOK == nil`) | `CodeFailedPrecondition` |
 | `voice override store not configured` | `CodeFailedPrecondition` |
 | `provider_id` blank, `api_key` blank, `canonical_voice` blank, `tier_provider` blank | `CodeInvalidArgument` |
-| Unsupported `capability` value | `CodeInvalidArgument` ("capability must be one of stt\|tts\|summarize") |
+| Unsupported `capability` value | `CodeInvalidArgument` ("capability must be one of stt\|tts\|summarize\|duplex") |
 | SQLite write error (disk full, locked) | `CodeInternal` |
 | Encryptor `Seal` failure | `CodeInternal` (only happens on key misconfiguration at boot) |
 | Encryptor `Open` failure (corrupted ciphertext) | Returns `(false, err)` from `byokstore.Store.Get` → chain sees the key as missing and skips the BYOK tier |

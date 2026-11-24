@@ -83,16 +83,22 @@ func TestStream_ClientCancelDrains(t *testing.T) {
 	defer goleak.VerifyNone(t, ignoreSharedGlobals())
 
 	chain := NewChain(Options{EnableLocal: false, EnableBYOK: false, EnableVrooli: false})
-	chunks := make(chan AudioChunk)
+	// A queued chunk can be ready at the same time as cancellation. Even if
+	// the select consumes it first, the next iteration must observe cancel
+	// and terminate with the documented Error + Done sequence.
+	chunks := make(chan AudioChunk, 1)
+	chunks <- AudioChunk{Audio: []byte("queued-before-cancel")}
 	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
 	events, err := chain.Stream(ctx, StreamStart{}, chunks)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	cancel()
-	// Drain to allow the goroutine to exit cleanly. The fallback path
-	// will see ctx.Done() and emit an error + close.
-	for range events {
+	var kinds []StreamEventKind
+	for ev := range events {
+		kinds = append(kinds, ev.Kind)
 	}
-	close(chunks)
+	if len(kinds) != 2 || kinds[0] != StreamEventError || kinds[1] != StreamEventDone {
+		t.Fatalf("canceled fallback must emit Error then terminal Done, got %v", kinds)
+	}
 }

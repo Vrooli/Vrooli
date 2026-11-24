@@ -1,7 +1,10 @@
+//go:build audio_lab
+
 package eval
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -15,6 +18,162 @@ import (
 	"audio-tools/internal/stt/segmenter/testaudio"
 	"audio-tools/internal/stt/strategy"
 )
+
+func TestEvalClip_PreservesBoundedProviderWordTimingsInReport(t *testing.T) {
+	words := []sttchain.TimedWord{{Word: "hello", Start: 0.1, End: 0.25, Prob: 0.97}}
+	session := func(_ context.Context, chunks <-chan sttchain.AudioChunk, events chan<- sttchain.StreamEvent) error {
+		for range chunks {
+		}
+		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{Text: "hello", Words: words}}
+		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{FinalText: "hello"}}
+		close(events)
+		return nil
+	}
+	clip := Clip{ID: "timed", PCM: testaudio.SilenceSamplesAtRate(testaudio.SampleRateHz, 250), SampleRate: testaudio.SampleRateHz, Reference: "hello"}
+	got := EvalClip(context.Background(), clip, nil, ReplayOptions{}, session)
+	require.Equal(t, words, got.HypothesisWordTimestamps)
+	require.Nil(t, got.TimestampDrift, "provider timings alone are not a drift score")
+
+	payload, err := json.Marshal(got)
+	require.NoError(t, err)
+	require.Contains(t, string(payload), `"hypothesis_word_timestamps":[{"word":"hello","start_seconds":0.1,"end_seconds":0.25,"probability":0.97}]`)
+}
+
+func TestEvalClip_ScoresOnlyHumanReviewedTimedReferences(t *testing.T) {
+	session := func(_ context.Context, chunks <-chan sttchain.AudioChunk, events chan<- sttchain.StreamEvent) error {
+		for range chunks {
+		}
+		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{
+			Text: "hello world", Words: []sttchain.TimedWord{{Word: "hello", Start: .1, End: .3}, {Word: "world", Start: .4, End: .6}},
+		}}
+		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{FinalText: "hello world"}}
+		close(events)
+		return nil
+	}
+	clip := Clip{
+		ID: "reviewed", PCM: testaudio.SilenceSamplesAtRate(testaudio.SampleRateHz, 1000), SampleRate: testaudio.SampleRateHz,
+		Reference: "hello world", TimedReference: []TimedWord{{Word: "hello", Start: .08, End: .29}, {Word: "world", Start: .38, End: .62}},
+		TimingProvenance: &TimingReferenceProvenance{Status: "human_reviewed", SourceReference: "source-1", Reviewer: "reviewer-1", ReviewMethod: "manual-listen-and-correct", ReviewedAt: "2026-11-20T12:00:00Z"},
+	}
+	got := EvalClip(context.Background(), clip, nil, ReplayOptions{}, session)
+	require.NotNil(t, got.TimestampDrift)
+	require.Empty(t, got.TimestampDriftSkipReason)
+	require.Equal(t, "reviewer-1", got.TimestampReference.Reviewer)
+	require.InDelta(t, 20, got.TimestampDrift.StartAbsP50Ms, 1e-9)
+
+	clip.TimingProvenance.Status = "aligner_only"
+	got = EvalClip(context.Background(), clip, nil, ReplayOptions{}, session)
+	require.Nil(t, got.TimestampDrift)
+	require.Equal(t, "timed_reference_not_human_reviewed", got.TimestampDriftSkipReason)
+
+	clip.TimingProvenance.Status = "human_reviewed"
+	clip.TimingProvenance.AlignmentTool = "aligner"
+	got = EvalClip(context.Background(), clip, nil, ReplayOptions{}, session)
+	require.Nil(t, got.TimestampDrift, "partial alignment provenance must not be treated as reviewed")
+	require.Equal(t, "timed_reference_not_human_reviewed", got.TimestampDriftSkipReason)
+}
+
+func TestEvalClip_SkipsDriftWhenHypothesisTimingExceedsAudio(t *testing.T) {
+	session := func(_ context.Context, chunks <-chan sttchain.AudioChunk, events chan<- sttchain.StreamEvent) error {
+		for range chunks {
+		}
+		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{
+			Text: "hello", Words: []sttchain.TimedWord{{Word: "hello", Start: .1, End: 1.1}},
+		}}
+		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{FinalText: "hello"}}
+		close(events)
+		return nil
+	}
+	clip := Clip{
+		ID: "out-of-bounds", PCM: testaudio.SilenceSamplesAtRate(testaudio.SampleRateHz, 1000), SampleRate: testaudio.SampleRateHz,
+		Reference: "hello", TimedReference: []TimedWord{{Word: "hello", Start: .1, End: .5}},
+		TimingProvenance: &TimingReferenceProvenance{Status: "human_reviewed", SourceReference: "source-1", AlignmentTool: "aligner", AlignmentModel: "rev-1", Reviewer: "reviewer-1", ReviewMethod: "listen-and-correct", ReviewedAt: "2026-11-20T12:00:00Z"},
+	}
+
+	got := EvalClip(context.Background(), clip, nil, ReplayOptions{}, session)
+	require.Nil(t, got.TimestampDrift)
+	require.Equal(t, "hypothesis_word_timestamps_out_of_bounds", got.TimestampDriftSkipReason)
+}
+
+func TestEvalClip_ExplainsWhenHypothesisHasNoLexicalMatches(t *testing.T) {
+	session := func(_ context.Context, chunks <-chan sttchain.AudioChunk, events chan<- sttchain.StreamEvent) error {
+		for range chunks {
+		}
+		words := []sttchain.TimedWord{{Word: "goodbye", Start: .1, End: .3}}
+		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{Text: "goodbye", Words: words}}
+		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{FinalText: "goodbye"}}
+		close(events)
+		return nil
+	}
+	clip := Clip{
+		ID: "no-lexical-match", PCM: testaudio.SilenceSamplesAtRate(testaudio.SampleRateHz, 1000), SampleRate: testaudio.SampleRateHz,
+		Reference: "hello", TimedReference: []TimedWord{{Word: "hello", Start: .1, End: .3}},
+		TimingProvenance: &TimingReferenceProvenance{Status: "human_reviewed", SourceReference: "source-1", Reviewer: "reviewer-1", ReviewMethod: "listen-and-correct", ReviewedAt: "2026-11-20T12:00:00Z"},
+	}
+
+	got := EvalClip(context.Background(), clip, nil, ReplayOptions{}, session)
+	require.Nil(t, got.TimestampDrift)
+	require.Equal(t, "timestamp_no_lexical_matches", got.TimestampDriftSkipReason)
+}
+
+func TestEvalClip_SkipsDriftWhenReviewedReferenceDoesNotDescribeClip(t *testing.T) {
+	session := func(_ context.Context, chunks <-chan sttchain.AudioChunk, events chan<- sttchain.StreamEvent) error {
+		for range chunks {
+		}
+		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{
+			Text: "hello", Words: []sttchain.TimedWord{{Word: "hello", Start: .1, End: .3}},
+		}}
+		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{FinalText: "hello"}}
+		close(events)
+		return nil
+	}
+	provenance := &TimingReferenceProvenance{Status: "human_reviewed", SourceReference: "source-1", Reviewer: "reviewer-1", ReviewMethod: "listen-and-correct", ReviewedAt: "2026-11-20T12:00:00Z"}
+	tests := []struct {
+		name       string
+		reference  string
+		word       TimedWord
+		wantReason string
+	}{
+		{name: "transcript mismatch", reference: "goodbye", word: TimedWord{Word: "hello", Start: .1, End: .3}, wantReason: "timed_reference_transcript_mismatch"},
+		{name: "reference exceeds audio", reference: "hello", word: TimedWord{Word: "hello", Start: .1, End: 1.1}, wantReason: "timed_reference_out_of_bounds"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clip := Clip{
+				ID: "invalid-reference", PCM: testaudio.SilenceSamplesAtRate(testaudio.SampleRateHz, 1000), SampleRate: testaudio.SampleRateHz,
+				Reference: tt.reference, TimedReference: []TimedWord{tt.word}, TimingProvenance: provenance,
+			}
+			got := EvalClip(context.Background(), clip, nil, ReplayOptions{}, session)
+			require.Nil(t, got.TimestampDrift)
+			require.Equal(t, tt.wantReason, got.TimestampDriftSkipReason)
+		})
+	}
+}
+
+func TestEvalClip_ExplainsMissingTimedReference(t *testing.T) {
+	session := func(_ context.Context, chunks <-chan sttchain.AudioChunk, events chan<- sttchain.StreamEvent) error {
+		for range chunks {
+		}
+		events <- sttchain.StreamEvent{Kind: sttchain.StreamEventDone, Done: &sttchain.DoneEvent{FinalText: "hello"}}
+		close(events)
+		return nil
+	}
+	clip := Clip{ID: "ordinary", PCM: testaudio.SilenceSamplesAtRate(testaudio.SampleRateHz, 250), SampleRate: testaudio.SampleRateHz, Reference: "hello"}
+	got := EvalClip(context.Background(), clip, nil, ReplayOptions{}, session)
+	require.Nil(t, got.TimestampDrift)
+	require.Equal(t, "timed_reference_absent", got.TimestampDriftSkipReason)
+}
+
+func TestReplay_BoundsProviderWordTimingPayload(t *testing.T) {
+	words := make([]sttchain.TimedWord, maxHypothesisWordTimestamps+1)
+	for i := range words {
+		words[i] = sttchain.TimedWord{Word: "word", Start: float64(i), End: float64(i) + 0.1}
+	}
+	var got StreamResult
+	appendHypothesisWordTimestamps(&got, words, 0, 0, testaudio.SampleRateHz)
+	require.Len(t, got.HypothesisWordTimestamps, maxHypothesisWordTimestamps)
+	require.True(t, got.HypothesisWordTimestampsTruncated)
+}
 
 func fakeProv(text string, latency time.Duration) *sttmocks.FakeProvider {
 	p := sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{Batch: true})

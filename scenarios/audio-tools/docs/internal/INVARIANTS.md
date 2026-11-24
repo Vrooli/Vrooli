@@ -34,17 +34,17 @@ Non-negotiable contracts. Changing any of these is an RFC-level decision, not a 
 
 ## TTS cache
 
-1. The audio-tools TTS cache is **content-addressable**. Key = SHA256(`voice|speed|format|text-content`).
-2. Event-keyed invalidation lives in **consumer glue** (e.g., web-console conversation orchestration), not in audio-tools.
-3. `GetCache` accepts either `content_hash` (direct hit) OR `event_id + voice + speed + version` (consumer-mapped lookup).
+1. The audio-tools TTS cache is keyed by event ID, runtime backend, voice, exact speed, output format, version, and chunk index. The cache does not store or verify synthesis text.
+2. Event IDs and versions must identify immutable content snapshots when callers use cached playback; changing text requires a new version or event ID.
+3. `GetCache` accepts event-keyed lookup. `content_hash` is retained for correlation only and is not a lookup selector.
 4. **Encoded in**: `tts.proto.GetCacheRequest`, `api/internal/tts/cache.go`.
 
 ## Voice-session contract
 
 1. A session has at most one in-flight assistant action at a time. `MarkInflight` records the eventID; `ClearInflight` is called by the transport when the action completes naturally.
 2. Barge-in (`BargeIn(reason)`) MUST: clear inflight, invoke the registered `CancelHook` (so the transport can stop streaming TTS), AND emit a `BargeInCancel` SessionEvent to every observer. If no inflight action is recorded, BargeIn is a no-op.
-3. Multiple observers per session are first-class. Slow observers drop events rather than blocking the publisher.
-4. Close emits a `SessionClosed` event then closes every observer channel. Subsequent `Subscribe` returns `ErrSessionClosed`.
+3. Multiple observers per session are first-class. A slow observer must never appear to complete successfully after losing events: detach it, deliver a terminal overflow event, and terminate its Connect stream with `ResourceExhausted`; other observers continue.
+4. `Subscribe(from_event_id)` replays contiguous retained events after that cursor or fails with `FailedPrecondition`; replay is process-local and bounded by 128 events / 1 MiB. Close emits a `SessionClosed` event then closes every observer channel. Subsequent `Subscribe` returns `ErrSessionClosed`.
 5. **Encoded in**: `api/internal/session/session.go` + `session_test.go`.
 
 ## Credential handling
@@ -128,22 +128,28 @@ Non-negotiable contracts. Changing any of these is an RFC-level decision, not a 
    - `ops_probe`: `GET /health`.
    - `webhook_receiver`: none in P0.
    - `third_party_shape`: none in P0.
-2. Browser voice streaming uses the proto-owned `STTService.TranscribeStream` Connect bidi endpoint. The retired `/api/v1/voice/stream` WebSocket route is not mounted.
+2. Browser voice streaming uses `/ws/stt/transcribe-stream-v2`, a binary WebSocket adapter over the proto-owned `STTService.TranscribeStream` v2 request and event envelopes. Connect bidi remains available to compatible clients. The retired `/api/v1/voice/stream` route is not mounted.
 3. No new endpoints in web-console for audio. Consumers reach audio-tools directly via the integrations adapter.
 
 ## Streaming v2 replay and segment delivery
 
-1. A v2 audio chunk is retained until the server emits a processed-coverage
-   acknowledgement or an explicit terminal failure. A stream close or empty
-   final is not evidence of coverage.
+1. A v2 audio chunk is retained by the browser until the server emits a
+   processed-coverage acknowledgement or an explicit terminal failure. The
+   session ledger retains every acknowledged interval that has no durable
+   transcript commit yet; resume feeds that ordered PCM prefix into the new
+   pipeline before accepting new audio. A stream close or empty final is not
+   evidence of coverage.
 2. The Connect bidi handler commits each durable transcript segment
    into the session ledger before emitting it. The identity is provider-supplied
    when available; otherwise it is deterministically derived from session,
    generation, and canonical sample range.
 3. A Connect reconnect re-emits committed segments in canonical timeline
-   order with `segmentId`. The browser provider retains IDs for the active turn and
-   delivers each ID to host UI exactly once. This lets replay repair a missed
-   server-to-browser delivery without duplicate composer or dictation text.
+   order with `segmentId`, then reprocesses the server-retained uncommitted PCM
+   prefix before new input. Matching client retries are validated and ignored
+   after the server prefix is queued, preventing duplicate recognition. The
+   browser provider retains IDs for the active turn and delivers each ID to
+   host UI exactly once. This lets replay repair missed server-to-browser
+   delivery without duplicate composer or dictation text.
 4. **Encoded in**: `handlers/stt/transcribe_stream.go`,
    `internal/stt/session/ledger.go`, and both PCM v2 browser providers.
 

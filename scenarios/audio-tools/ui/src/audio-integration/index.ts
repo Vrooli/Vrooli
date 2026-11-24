@@ -2,16 +2,7 @@
 // HOST DIFFERENCE: this adapter binds the shared browser package to the
 // audio-tools-owned API and is not a shared implementation to copy.
 
-import { registerVoiceTransport as registerBrowserVoiceTransport } from "@vrooli/audio-capture-browser";
-import { openVoiceStream, transcribeAudioWithRetry, transcribeAudioWithRetryDetailed } from "./api/voice";
-
-export function registerVoiceTransport(): void {
-  registerBrowserVoiceTransport({
-    openStream: (start, handlers) => openVoiceStream(start, handlers),
-    transcribeRetained: (blob, language) => transcribeAudioWithRetry(blob, 2, language),
-    transcribeRetainedWithIdentity: (blob, language) => transcribeAudioWithRetryDetailed(blob, 2, language),
-  });
-}
+export { registerVoiceTransport } from "./registerVoiceTransport";
 
 export { MicReadinessIndicator } from "./MicReadinessIndicator";
 export type { MicReadinessIndicatorProps } from "./MicReadinessIndicator";

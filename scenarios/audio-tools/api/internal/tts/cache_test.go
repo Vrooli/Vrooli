@@ -26,6 +26,51 @@ func TestCache_PutAndGet(t *testing.T) {
 	}
 }
 
+func TestCacheSeparatesBackends(t *testing.T) {
+	cache := NewCache(1024)
+	key := CacheKey{EventID: "same-event", Backend: "kokoro", Voice: "v", Speed: 1, Version: "active"}
+	cache.Put(key, []byte("kokoro"), "audio/wav")
+	key.Backend = "kale-tts-1-nano"
+	if _, ok := cache.Get(key); ok {
+		t.Fatal("different TTS backend received cached audio")
+	}
+}
+
+func TestCacheSeparatesResponseFormats(t *testing.T) {
+	cache := NewCache(1024)
+	base := CacheKey{EventID: "same-event", Backend: "kokoro", Voice: "v", Speed: 1, Version: "active", ResponseFormat: "mp3"}
+	cache.Put(base, []byte("mp3-audio"), "audio/mpeg")
+
+	wav := base
+	wav.ResponseFormat = "wav"
+	if _, ok := cache.Get(wav); ok {
+		t.Fatal("WAV lookup received the MP3 cache entry")
+	}
+	cache.Put(wav, []byte("wav-audio"), "audio/wav")
+	if got, ok := cache.Get(base); !ok || string(got.Audio) != "mp3-audio" {
+		t.Fatalf("MP3 lookup = %#v, %v", got, ok)
+	}
+	if got, ok := cache.Get(wav); !ok || string(got.Audio) != "wav-audio" {
+		t.Fatalf("WAV lookup = %#v, %v", got, ok)
+	}
+}
+
+func TestCacheSeparatesCloseSpeeds(t *testing.T) {
+	cache := NewCache(1024)
+	base := CacheKey{EventID: "same-event", Backend: "kale-tts", Voice: "v", Speed: 1.00001, Version: "active"}
+	close := base
+	close.Speed = 1.00002
+
+	cache.Put(base, []byte("slower-audio"), "audio/wav")
+	cache.Put(close, []byte("faster-audio"), "audio/wav")
+	if got, ok := cache.Get(base); !ok || string(got.Audio) != "slower-audio" {
+		t.Fatalf("speed %.5f lookup = %#v, %v", base.Speed, got, ok)
+	}
+	if got, ok := cache.Get(close); !ok || string(got.Audio) != "faster-audio" {
+		t.Fatalf("speed %.5f lookup = %#v, %v", close.Speed, got, ok)
+	}
+}
+
 func TestPersistentCacheSurvivesReopen(t *testing.T) {
 	dir := t.TempDir()
 	key := CacheKey{EventID: "restart-event", Voice: "af_heart", Speed: 1, Version: "active", ChunkIndex: 2}
@@ -117,15 +162,18 @@ func TestCache_LRUEviction(t *testing.T) {
 
 	cache.Put(key1, []byte("1234567890"), "audio/mpeg") // 10 bytes
 	cache.Put(key2, []byte("abcdefghij"), "audio/mpeg") // 10 bytes, total 20
+	if _, ok := cache.Get(key1); !ok {
+		t.Fatal("expected key1 hit before eviction")
+	}
 
-	// This should evict key1 (oldest) to make room
+	// Reading key1 makes key2 least-recently-used, so key2 is evicted.
 	cache.Put(key3, []byte("XXXXXXXXXX"), "audio/mpeg") // 10 bytes
 
-	if _, ok := cache.Get(key1); ok {
-		t.Error("expected key1 to be evicted")
+	if _, ok := cache.Get(key1); !ok {
+		t.Error("expected recently used key1 to remain cached")
 	}
-	if _, ok := cache.Get(key2); !ok {
-		t.Error("expected key2 to still be cached")
+	if _, ok := cache.Get(key2); ok {
+		t.Error("expected least-recently-used key2 to be evicted")
 	}
 	if _, ok := cache.Get(key3); !ok {
 		t.Error("expected key3 to be cached")

@@ -4,7 +4,16 @@ import { createScenarioServer } from '@vrooli/api-base/server'
 
 const CONNECT_RPC_PROXY_TIMEOUT_MS = 15 * 60 * 1000
 const UI_DIR = path.dirname(fileURLToPath(import.meta.url))
-const DIST_DIR = path.join(UI_DIR, 'dist')
+const DIST_RELATIVE_DIR = process.env.AUDIO_TOOLS_UI_DIST_DIR?.trim() || 'dist'
+const DIST_DIR = path.resolve(UI_DIR, DIST_RELATIVE_DIR)
+const DIST_RELATIVE_TO_PACKAGE = path.relative(UI_DIR, DIST_DIR)
+if (
+  DIST_RELATIVE_TO_PACKAGE === '..' ||
+  DIST_RELATIVE_TO_PACKAGE.startsWith(`..${path.sep}`) ||
+  path.isAbsolute(DIST_RELATIVE_TO_PACKAGE)
+) {
+  throw new Error('AUDIO_TOOLS_UI_DIST_DIR must stay within the Audio Tools UI package')
+}
 
 function requirePort(name) {
   const raw = process.env[name]
@@ -25,6 +34,7 @@ const app = createScenarioServer({
   distDir: DIST_DIR,
   serviceName: 'audio-tools',
   proxyTimeoutMs: CONNECT_RPC_PROXY_TIMEOUT_MS,
+  wsPathPrefix: '/ws',
 })
 
 // The shared server serves static assets and API proxies but does not install

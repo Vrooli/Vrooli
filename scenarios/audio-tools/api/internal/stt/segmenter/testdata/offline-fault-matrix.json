@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "scope": "offline_server_stream_regressions",
+  "promotable": false,
+  "cases": [
+    {
+      "id": "provider_timeout",
+      "test": "TestOfflineFaultProviderTimeoutIsBounded",
+      "seam": "local-provider HTTP request",
+      "expected": "request ends within configured client timeout; no successful transcript is claimed"
+    },
+    {
+      "id": "provider_busy",
+      "test": "TestOfflineFaultProviderBusyIsTerminal",
+      "seam": "local-provider HTTP request",
+      "expected": "HTTP 503 terminates promptly without a partial or final transcript"
+    },
+    {
+      "id": "delayed_ready",
+      "test": "TestOfflineFaultDelayedReadyRecovers",
+      "seam": "local-provider HTTP request readiness",
+      "expected": "provider returns unavailable until a bounded delay; early stream claims no transcript and a later stream succeeds after readiness"
+    },
+    {
+      "id": "dropped_connection",
+      "test": "TestOfflineFaultDroppedConnectionIsBounded",
+      "seam": "local-provider HTTP request",
+      "expected": "provider socket close terminates promptly without a partial or final transcript"
+    },
+    {
+      "id": "backend_restart",
+      "test": "TestOfflineFaultBackendRestartRecovers",
+      "seam": "local-provider HTTP request",
+      "expected": "a transient 503 is retried after provider recovery and the stream completes with recovered output"
+    },
+    {
+      "id": "slow_consumer",
+      "test": "TestOfflineFaultSlowConsumerCancellationIsBounded",
+      "seam": "segmenter event output channel",
+      "expected": "a stalled downstream consumer is released by cancellation and the session returns within a bounded interval"
+    },
+    {
+      "id": "provider_cancellation",
+      "test": "TestOfflineFaultProviderCancellationDoesNotEmitLateTranscript",
+      "seam": "local-provider HTTP request context",
+      "expected": "session cancellation terminates an in-flight provider request and a late backend response cannot publish partial or final transcript text"
+    },
+    {
+      "id": "truncated_stream",
+      "test": "TestNormalizeChunksReportsDecoderFailure",
+      "seam": "stream decoder frame channel",
+      "expected": "ErrStreamDecode is emitted instead of treating decoder death as clean EOF"
+    },
+    {
+      "id": "client_cancellation",
+      "test": "TestNormalizeChunksCleanupWaitsForWorkers",
+      "seam": "normalizer feeder and decoder workers",
+      "expected": "cancellation flush completes and cleanup joins both workers"
+    },
+    {
+      "id": "decoder_error_delivery_cancellation",
+      "test": "TestNormalizeChunksDecoderErrorDeliveryIsCancellable",
+      "seam": "decoder error event output channel",
+      "expected": "cancellation interrupts a decoder error event blocked on an unconsumed output channel so worker cleanup can finish"
+    }
+  ],
+  "unsupported_declared_profiles": [
+    "missing_acknowledgement",
+    "close_before_done",
+    "page_interruption",
+    "retention_quota",
+    "verifier_outage",
+    "extractor_outage"
+  ],
+  "product_path_evidence": {
+    "rows": [],
+    "reason": "offline server tests do not observe the browser product path; promotion requires a real BAS artifact with a matching provider cell and artifact reference"
+  }
+}

@@ -36,6 +36,29 @@ func TestEvaluateAcceptsCompleteEvidence(t *testing.T) {
 	}
 }
 
+func TestEvaluatePromotionMeasurements_FaultNeedsSameArtifactProductPath(t *testing.T) {
+	base := []ReplayMeasurement{{EngineID: "kyutai", Strategy: "passthrough", WER: 0}}
+	qualification := []QualificationMeasurement{
+		{EngineID: "kyutai", Strategy: "passthrough", Kind: QualificationBrowserProductPath, Passed: true, ArtifactRef: "browser-run"},
+	}
+	for _, fault := range RequiredFaults {
+		qualification = append(qualification, QualificationMeasurement{EngineID: "kyutai", Strategy: "passthrough", Kind: QualificationFault, FaultProfile: fault, Passed: true, ArtifactRef: "fault-run"})
+	}
+	verdicts := EvaluatePromotionMeasurements(base, qualification, DefaultThresholds)
+	if len(verdicts) != 1 || !contains(verdicts[0].Verdict.Reasons, "missing fault profile: provider_busy") {
+		t.Fatalf("fault evidence from a different run must not qualify: %#v", verdicts)
+	}
+	for i := range qualification {
+		if qualification[i].Kind == QualificationFault {
+			qualification[i].ArtifactRef = "browser-run"
+		}
+	}
+	verdicts = EvaluatePromotionMeasurements(base, qualification, DefaultThresholds)
+	if len(verdicts) != 1 || contains(verdicts[0].Verdict.Reasons, "missing fault profile: provider_busy") {
+		t.Fatalf("matching fault and product-path evidence should satisfy the fault cell: %#v", verdicts)
+	}
+}
+
 func TestEvaluateReplayMeasurements_AccumulatesRealtimeDurationsOnly(t *testing.T) {
 	verdicts := EvaluateReplayMeasurements([]ReplayMeasurement{
 		{EngineID: "kyutai", WER: 0.12, ReplayLane: "realtime", ClipDurationsMS: []int64{30_000}},
@@ -133,9 +156,11 @@ func TestEvaluateRejectsNonFiniteQualityAndThresholdValues(t *testing.T) {
 		name string
 		want string
 		run  func(*Evidence, *Thresholds)
-	}{{"nan WER", "WER is invalid", func(e *Evidence, _ *Thresholds) { e.WER = math.NaN() }},
+	}{
+		{"nan WER", "WER is invalid", func(e *Evidence, _ *Thresholds) { e.WER = math.NaN() }},
 		{"infinite dropped span", "dropped-span rate is invalid", func(e *Evidence, _ *Thresholds) { e.DroppedSpanRate = math.Inf(1) }},
-		{"nan threshold", "qualification thresholds are invalid", func(_ *Evidence, th *Thresholds) { th.MaxWER = math.NaN() }}} {
+		{"nan threshold", "qualification thresholds are invalid", func(_ *Evidence, th *Thresholds) { th.MaxWER = math.NaN() }},
+	} {
 		t.Run(mutate.name, func(t *testing.T) {
 			evidence, thresholds := valid, DefaultThresholds
 			mutate.run(&evidence, &thresholds)

@@ -1,3 +1,5 @@
+//go:build audio_lab
+
 package experiment
 
 import (
@@ -19,10 +21,22 @@ func (h *connectHandler) aggregatePromotionVerdicts(ctx context.Context, anchor 
 	if report == nil || h.deps.Manager == nil || h.deps.Service == nil {
 		return
 	}
+	measurements := h.persistedReplayMeasurements(ctx, anchor, report)
+	if len(measurements) == 0 {
+		return
+	}
+	qualification, err := h.deps.Service.ListQualificationEvidence(ctx, intexp.QualificationEvidenceFilter{})
+	if err != nil {
+		h.deps.Logger.Printf("experiment promotion evidence: list qualification artifacts: %v", err)
+	}
+	report.PromotionVerdicts = promotionVerdictsForMeasurements(measurements, qualificationMeasurements(anchor.MachineJSON, qualification))
+}
+
+func (h *connectHandler) persistedReplayMeasurements(ctx context.Context, anchor intexp.Experiment, report *evalv1.EvalReport) []trustfloor.ReplayMeasurement {
 	experiments, err := h.deps.Manager.List(ctx, intexp.ListFilter{Status: intexp.StatusSucceeded, Limit: 500})
 	if err != nil {
 		h.deps.Logger.Printf("experiment promotion evidence: list persisted reports: %v", err)
-		return
+		return nil
 	}
 
 	measurements := make([]trustfloor.ReplayMeasurement, 0, len(report.GetPerStrategy()))
@@ -41,14 +55,7 @@ func (h *connectHandler) aggregatePromotionVerdicts(ctx context.Context, anchor 
 		}
 		measurements = append(measurements, replayMeasurements(candidate)...)
 	}
-	if len(measurements) == 0 {
-		return
-	}
-	qualification, qualificationErr := h.deps.Service.ListQualificationEvidence(ctx, intexp.QualificationEvidenceFilter{})
-	if qualificationErr != nil {
-		h.deps.Logger.Printf("experiment promotion evidence: list qualification artifacts: %v", qualificationErr)
-	}
-	report.PromotionVerdicts = promotionVerdictsForMeasurements(measurements, qualificationMeasurements(anchor.MachineJSON, qualification))
+	return measurements
 }
 
 func replayMeasurements(report *evalv1.EvalReport) []trustfloor.ReplayMeasurement {
@@ -89,7 +96,7 @@ func qualificationMeasurements(machineJSON []byte, items []intexp.QualificationE
 		}
 		measurement := trustfloor.QualificationMeasurement{
 			EngineID: item.EngineID, ModelID: item.ModelID, Strategy: item.Strategy, PolicyProfile: item.PolicyProfile,
-			Kind: item.Kind, FaultProfile: item.FaultProfile, Passed: item.Passed,
+			Kind: item.Kind, FaultProfile: item.FaultProfile, Passed: item.Passed, ArtifactRef: item.ArtifactRef,
 		}
 		if item.Kind == trustfloor.QualificationIntervalAccounting {
 			accounting, err := parseIntervalAccountingArtifact(item.MachineJSON)

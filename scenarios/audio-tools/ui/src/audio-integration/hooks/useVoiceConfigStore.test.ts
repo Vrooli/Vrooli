@@ -32,6 +32,7 @@ describe("initial state", () => {
   it("has hydrated=false and fallback silence values", () => {
     const s = useVoiceConfigStore.getState();
     expect(s.hydrated).toBe(false);
+    expect(s.engineId).toBe("");
     expect(s.vadSilenceTimeoutMs).toBe(VAD_FALLBACK_SILENCE_TIMEOUT_MS);
     expect(s.segmentSilenceMs).toBe(VAD_FALLBACK_SEGMENT_SILENCE_MS);
     expect(s.persistentMode).toBe(false);
@@ -42,6 +43,7 @@ describe("initial state", () => {
 describe("setVoiceConfigFromServer", () => {
   it("sets hydrated=true and uses vadSilenceMs when > 0", () => {
     setVoiceConfigFromServer({
+      engineId: "sherpa-streaming",
       vadSilenceMs: 3000,
       segmentSilenceMs: 1000,
       persistentMode: true,
@@ -49,6 +51,7 @@ describe("setVoiceConfigFromServer", () => {
     });
     const s = useVoiceConfigStore.getState();
     expect(s.hydrated).toBe(true);
+    expect(s.engineId).toBe("sherpa-streaming");
     expect(s.vadSilenceTimeoutMs).toBe(3000);
     expect(s.segmentSilenceMs).toBe(3000); // follows silenceMs
     expect(s.persistentMode).toBe(true);
@@ -56,6 +59,7 @@ describe("setVoiceConfigFromServer", () => {
 
   it("falls back to segmentSilenceMs when vadSilenceMs is 0", () => {
     setVoiceConfigFromServer({
+      engineId: "kyutai",
       vadSilenceMs: 0,
       segmentSilenceMs: 1200,
       persistentMode: false,
@@ -65,6 +69,7 @@ describe("setVoiceConfigFromServer", () => {
     expect(s.vadSilenceTimeoutMs).toBe(1200);
     expect(s.segmentSilenceMs).toBe(1200);
     expect(s.wakeWordEnabled).toBe(true);
+    expect(s.engineId).toBe("kyutai");
   });
 
   it("falls back to VAD_FALLBACK constants when both silence values are 0", () => {
@@ -121,6 +126,7 @@ describe("_resetVoiceConfigForTesting", () => {
     _resetVoiceConfigForTesting();
     const s = useVoiceConfigStore.getState();
     expect(s.hydrated).toBe(false);
+    expect(s.engineId).toBe("");
     expect(s.vadSilenceTimeoutMs).toBe(VAD_FALLBACK_SILENCE_TIMEOUT_MS);
     expect(s.segmentSilenceMs).toBe(VAD_FALLBACK_SEGMENT_SILENCE_MS);
     expect(s.persistentMode).toBe(false);

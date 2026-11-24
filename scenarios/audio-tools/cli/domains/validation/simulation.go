@@ -75,8 +75,8 @@ func runSimulatedQualification() simulatedQualification {
 	// incomplete, failed, and simulated-as-native envelopes rather than
 	// treating their optimistic payloads as proof.
 	check("acceptance_rejects_missing_target", !acceptanceClaimPasses(map[string]any{"acceptance": map[string]any{}}))
-	check("acceptance_rejects_failed_artifact", !acceptanceClaimPasses(map[string]any{"passed": false, "target_revision": "portable-voice-v1", "method": "audio-tools-acceptance-v1", "acceptance": map[string]any{"explicit-routing": map[string]any{"in_band": true, "negative_controls_passed": true}}}))
-	check("acceptance_rejects_simulated_as_native", !acceptanceClaimPasses(map[string]any{"passed": true, "target_revision": "portable-voice-v1", "method": "audio-tools-acceptance-v1", "acceptance": map[string]any{"explicit-routing": map[string]any{"in_band": true, "negative_controls_passed": true, "simulated_as_native": true}}}))
+	check("acceptance_rejects_failed_artifact", !acceptanceClaimPasses(map[string]any{"passed": false, "target_revision": acceptanceTargetRevision, "method": "audio-tools-acceptance-v2", "acceptance": map[string]any{"explicit-routing": map[string]any{"in_band": true, "negative_controls_passed": true}}}))
+	check("acceptance_rejects_simulated_as_native", !acceptanceClaimPasses(map[string]any{"passed": true, "target_revision": acceptanceTargetRevision, "method": "audio-tools-acceptance-v2", "acceptance": map[string]any{"explicit-routing": map[string]any{"in_band": true, "negative_controls_passed": true, "simulated_as_native": true}}}))
 
 	// The simulation deliberately does not claim product outcomes that require
 	// measured engines, wall-clock runs, a real corpus, or a device cohort. A
@@ -84,10 +84,31 @@ func runSimulatedQualification() simulatedQualification {
 	// In particular, do not turn placeholders into acceptance by assigning them
 	// a convenient true value.
 
+	// Each row is earned by its own named checks. A future check added to the
+	// simulation cannot silently broaden the acceptance scope.
 	claims := map[string]any{}
-	supportedRows := []string{"explicit-routing", "owned-settlement", "private-lifecycle", "acceptance-integrity", "adapter-maintainability"}
-	for _, name := range supportedRows {
-		claims[name] = map[string]any{"in_band": passed, "negative_controls_passed": passed, "execution_lane": "simulated"}
+	rowChecks := map[string][]string{
+		"explicit-routing":        {"route_local_zero_debit", "route_byok_zero_debit", "route_owned_requires_consent"},
+		"owned-settlement":        {"settlement_reserve_and_partial_finalize", "settlement_retry_is_idempotent", "settlement_local_byok_zero_debit"},
+		"private-lifecycle":       {"lifecycle_authorized_recoverable_metadata_only", "lifecycle_delete_removes_retained_item"},
+		"acceptance-integrity":    {"acceptance_rejects_missing_target", "acceptance_rejects_failed_artifact", "acceptance_rejects_simulated_as_native"},
+		"adapter-maintainability": {"adapter_versioned_route_metadata", "adapter_metadata_only"},
+	}
+	checkPassed := make(map[string]bool, len(checks))
+	for _, check := range checks {
+		name, _, _ := strings.Cut(check, ":")
+		checkPassed[name] = strings.HasSuffix(check, ":passed")
+	}
+	supportedRows := make([]string, 0, len(rowChecks))
+	for row, names := range rowChecks {
+		rowPassed := true
+		for _, name := range names {
+			rowPassed = rowPassed && checkPassed[name]
+		}
+		claims[row] = map[string]any{"target_id": row, "target_revision": acceptanceTargetRevision, "method": "audio-tools-acceptance-v2", "in_band": rowPassed, "negative_controls_passed": rowPassed, "execution_lane": "simulated", "simulated_as_native": false, "checks": names}
+		if rowPassed {
+			supportedRows = append(supportedRows, row)
+		}
 	}
 	return simulatedQualification{Passed: passed, Checks: checks, Claims: claims, Details: map[string]any{
 		"execution_lane":      "simulated",
@@ -98,57 +119,51 @@ func runSimulatedQualification() simulatedQualification {
 		"latency_attempts":    30,
 		"corpus_recipe":       map[string]any{"clips": 60, "reference_words": 3000, "speakers": 6, "conditions": []string{"clean", "20db", "10db"}},
 		"adapter":             adapter,
+		"device_route_matrix": simulatedDeviceRouteMatrix(),
 	}}
 }
 
-func simulatedProviderCellsPass() bool {
-	for _, cell := range []struct{ engine, model, strategy string }{
-		{"whisper-local", "whisper-small", "vad_segment"},
-		{"kyutai-local", "kyutai-streaming", "passthrough"},
-	} {
-		if cell.engine == "" || cell.model == "" || cell.strategy == "" {
-			return false
+// simulatedDeviceRouteMatrix exercises the same deterministic policy routes
+// against every declared D1-D6 target cell. It is route-policy evidence only:
+// browser APIs, operating systems, and physical devices are not emulated here.
+// Keeping physical_state explicit prevents these cases from being mistaken
+// for device qualification.
+func simulatedDeviceRouteMatrix() map[string]any {
+	cells := []map[string]string{
+		{"id": "D1-linux-chromium-cpu", "profile": "D1", "physical": "native host"},
+		{"id": "D1-linux-chromium-accelerator", "profile": "D1", "physical": "native host; accelerator"},
+		{"id": "D2-linux-chromium-constrained", "profile": "D2", "physical": "native constrained host"},
+		{"id": "D3-macos-safari", "profile": "D3", "physical": "macOS host"},
+		{"id": "D3-macos-chromium", "profile": "D3", "physical": "macOS host"},
+		{"id": "D4-windows-chromium", "profile": "D4", "physical": "Windows host"},
+		{"id": "D5-ios-safari", "profile": "D5", "physical": "named physical device required"},
+		{"id": "D5-ios-installed-pwa", "profile": "D5", "physical": "named physical device required"},
+		{"id": "D6-android-chrome", "profile": "D6", "physical": "named physical device required"},
+	}
+	routes := []string{"local", "byok", "owned"}
+	results := make([]map[string]any, 0, len(cells))
+	for _, cell := range cells {
+		outcomes := make(map[string]string, len(routes))
+		for _, route := range routes {
+			outcome := chooseSimulatedRoute(route, route == "byok", route == "owned")
+			outcomes[route] = outcome.route
 		}
+		results = append(results, map[string]any{
+			"cell_id": cell["id"], "profile": cell["profile"],
+			"execution_lane": "simulated", "simulation_scope": "deterministic route policy only",
+			"route_outcomes": outcomes, "physical_qualification": "not_run",
+			"physical_requirement": cell["physical"],
+		})
 	}
-	return true
-}
-
-func simulatedSpeakerPolicy(state string) string {
-	switch state {
-	case "verified":
-		return "applied"
-	case "missing":
-		return "degraded"
-	case "required_error":
-		return "refused"
-	default:
-		return "unknown"
+	return map[string]any{
+		"schema_version": 1, "cells": results,
+		"cell_count": len(results), "route_case_count": len(results) * len(routes),
+		"native_device_claim": false,
 	}
-}
-
-func simulatedP95(values []int) int {
-	if len(values) == 0 {
-		return 0
-	}
-	ordered := append([]int(nil), values...)
-	for i := 1; i < len(ordered); i++ {
-		for j := i; j > 0 && ordered[j] < ordered[j-1]; j-- {
-			ordered[j], ordered[j-1] = ordered[j-1], ordered[j]
-		}
-	}
-	index := (95*len(ordered) + 99) / 100
-	if index < 1 {
-		index = 1
-	}
-	return ordered[index-1]
-}
-
-func simulatedCorpusRecipePass() bool {
-	return 60 >= 60 && 3000 >= 3000 && 6 >= 6
 }
 
 func acceptanceClaimPasses(receipt map[string]any) bool {
-	if receipt["passed"] != true || receipt["target_revision"] != "portable-voice-v1" || receipt["method"] != "audio-tools-acceptance-v1" {
+	if receipt["passed"] != true || receipt["target_revision"] != acceptanceTargetRevision || receipt["method"] != "audio-tools-acceptance-v2" {
 		return false
 	}
 	// A simulated receipt is only valid when its execution lane and native

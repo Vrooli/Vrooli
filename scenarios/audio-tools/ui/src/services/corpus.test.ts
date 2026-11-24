@@ -57,7 +57,7 @@ describe("createClip", () => {
     expect(req.source).toBe(ClipSource.SCRIPTED);
     expect(meta.id).toBe("c1");
     expect(meta.durationMs).toBe(1_500);
-    expect(meta.createdAt).toContain("T");
+    expect(meta.createdAt).toBe("2023-11-14T22:13:20.000Z");
   });
 
   it("throws when the response omits the clip", async () => {
@@ -247,5 +247,80 @@ describe("decodeEvalReport", () => {
     expect(out.summary).toBeNull();
     expect(out.warnings).toEqual([]);
     expect(out.normalizationPolicy).toBeNull();
+  });
+
+  it("applies legacy defaults to sparse strategy and promotion data", () => {
+    const report = {
+      perStrategy: [{ strategy: "batch", label: "", safety: undefined, scaling: undefined }],
+      promotionVerdicts: [
+        { stable: true },
+        { engineId: "engine", modelId: "model", strategy: "batch", policyProfile: "strict", reasons: ["passed"] },
+      ],
+    } as unknown as Parameters<typeof decodeEvalReport>[0];
+
+    const out = decodeEvalReport(report);
+
+    expect(out.perStrategy[0]).toMatchObject({
+      strategy: "batch",
+      label: "batch",
+      perClip: [],
+      reasons: [],
+      warnings: [],
+      safety: null,
+      stageAttribution: null,
+      lengthCurves: [],
+      scaling: null,
+    });
+    expect(out.promotionVerdicts).toEqual([
+      { engineId: "", modelId: "", strategy: "", policyProfile: "", stable: true, reasons: [] },
+      { engineId: "engine", modelId: "model", strategy: "batch", policyProfile: "strict", stable: false, reasons: ["passed"] },
+    ]);
+  });
+
+  it("decodes optional safety, attribution, curve, and scaling evidence", () => {
+    const report = {
+      perStrategy: [{
+        strategy: "stream",
+        safety: {
+          passed: true,
+          retractionFree: false,
+          droppedSpanFree: true,
+          maxDroppedSpanWords: 2,
+          droppedSpanThresholdWords: 3,
+          retractionEvents: [{ previousText: "a", currentText: "b", atMs: 42n }],
+          reasons: ["retracted"],
+        },
+        stageAttribution: {
+          ingressLostWords: 1,
+          strategyLostWords: 2,
+          egressLostWords: 3,
+          egressRejectEvents: 4,
+          notes: ["review"],
+        },
+        lengthCurves: [{
+          bucket: "short",
+          minDurationMs: 1_000n,
+          maxDurationMs: 2_000n,
+          clipCount: 1,
+          wer: 0.1,
+          finalizationLatencyP95Ms: 20,
+          meanTimeToFirstCommitMs: 10,
+          maxDroppedSpanWords: 0,
+        }],
+        scaling: {
+          points: [{ clipId: "clip", targetDurationMs: 1_000n, realizedDurationMs: 900n }],
+          latencyFit: { metric: "latency", unit: "ms", model: "linear", slopePerSecond: 1, intercept: 2, rSquared: 0.9, sampleCount: 3, exponent: 1, exponentRSquared: 0.8, reason: "fit" },
+          metricFits: [undefined, { metric: "compute", unit: "calls", model: "linear", slopePerSecond: 1, intercept: 0, rSquared: 1, sampleCount: 2, exponent: 1, exponentRSquared: 1, reason: "fit" }],
+        },
+      }],
+    } as unknown as Parameters<typeof decodeEvalReport>[0];
+
+    const strategy = decodeEvalReport(report).perStrategy[0]!;
+    expect(strategy.safety?.retractionEvents[0]?.atMs).toBe(42);
+    expect(strategy.stageAttribution?.egressRejectEvents).toBe(4);
+    expect(strategy.lengthCurves[0]?.maxDurationMs).toBe(2_000);
+    expect(strategy.scaling?.points[0]?.realizedDurationMs).toBe(900);
+    expect(strategy.scaling?.latencyFit?.unit).toBe("ms");
+    expect(strategy.scaling?.metricFits).toHaveLength(1);
   });
 });

@@ -31,6 +31,12 @@ export default defineConfig(({ mode }): UserConfig => {
     // INTEROP-CRITICAL: relative base required for tunnel/iframe proxy contexts.
     base: './',
     plugins: [sourceLibraryResolver({ devOnly: true }), react(), stringsCodegen()],
+    server: {
+      // Audio Tools intentionally loads scenario-root Markdown in the docs
+      // viewer; keep the development server scoped to that scenario plus the
+      // shared UI packages rather than opening the whole repository.
+      fs: { allow: ['../../', '../../../packages'] },
+    },
     resolve: isProfile
       ? {
           alias: {
@@ -59,7 +65,6 @@ export default defineConfig(({ mode }): UserConfig => {
       // follows their TypeScript graphs instead of loading extensionless ESM
       // from either package's dist/ directory under Node.
       server: {
-        fs: { allow: ['../../../packages'] },
         deps: { inline: [/@vrooli\/(audio-capture-browser|react-component-library)/] },
       },
       coverage: {

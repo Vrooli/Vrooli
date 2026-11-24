@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -38,13 +39,25 @@ func TestMapChainErrorBackendDown(t *testing.T) {
 
 func TestResponseFromResultProjectsProviderAndPolicyDetails(t *testing.T) {
 	h := &connectHandler{}
-	res := &sttchain.Result{Text: "hello", DetectedLanguage: "en", DurationSeconds: 2, ProviderID: "whisper", ModelID: "medium"}
-	resp := h.responseFromResult(context.Background(), res, []byte("audio"), sttpkg.StreamConfig{EngineID: "kyutai-stt"})
-	if resp.GetText() != "hello" || resp.GetProviderId() != "whisper" || resp.GetModelId() != "medium" {
+	res := &sttchain.Result{Text: "hello", DetectedLanguage: "en", DurationSeconds: 2, ProviderID: "whisper-local", ModelID: "small", Tier: sttchain.TierLocal, Latency: 1500 * time.Microsecond, Confidence: &sttchain.Confidence{}, Words: []sttchain.TimedWord{{Word: "hello", Start: 0.2, End: 0.6, Prob: 0.91}}}
+	resp := h.responseFromResult(context.Background(), res, []byte("audio"), sttpkg.StreamConfig{EngineID: "kyutai-stt"}, true)
+	if resp.GetText() != "hello" || resp.GetProviderId() != "whisper-stt" || resp.GetModelId() != "small" || resp.GetLatencyMs() != 1.5 {
 		t.Fatalf("response = %+v", resp)
+	}
+	if len(resp.GetWordTimestamps()) != 1 || resp.GetWordTimestamps()[0].GetStartSeconds() != 0.2 || resp.GetWordTimestamps()[0].GetEndSeconds() != 0.6 || resp.GetWordTimestamps()[0].GetProbability() != 0.91 {
+		t.Fatalf("word timestamps = %+v", resp.GetWordTimestamps())
 	}
 	if resp.GetPolicyDetails()["selected_engine"] != "kyutai-stt" || resp.GetPolicyDetails()["engine_substitution"] != "true" {
 		t.Fatalf("policy details = %#v", resp.GetPolicyDetails())
+	}
+}
+
+func TestResponseFromResultOmitsTimingsWhenSourceCoordinatesChanged(t *testing.T) {
+	h := &connectHandler{}
+	res := &sttchain.Result{Text: "hello", Tier: sttchain.TierLocal, Words: []sttchain.TimedWord{{Word: "hello", Start: 0.2, End: 0.6}}}
+	resp := h.responseFromResult(context.Background(), res, []byte("transformed audio"), sttpkg.StreamConfig{}, false)
+	if len(resp.GetWordTimestamps()) != 0 {
+		t.Fatalf("word timestamps = %+v, want omitted for transformed coordinates", resp.GetWordTimestamps())
 	}
 }
 

@@ -35,7 +35,7 @@ new seams at their shared owner, not as duplicated consumer implementations.
 | `sttchain.VrooliClient` / `ttschain.VrooliClient` / `summarizechain.VrooliClient` | Interface | `integrations/lpbs/clients/*_client.go` | chain `VrooliProvider` |
 | `tts.VerifyCatalog` | Pure function | `internal/tts/voice_catalog.go` | `main.go` startup gate |
 | `session.Session` pub/sub | Concrete | `internal/session/session.go` | `handlers/stt/transcribe_stream.go`, `handlers/session` |
-| Browser voice transport | Generated Connect bidi client | `packages/proto/schemas/audio-tools/v1/stt/stt.proto` | Consumer adapters call `STTService.TranscribeStream`; the retired WebSocket route has no live browser caller |
+| Browser voice transport | Binary WebSocket v2 adapter | `api/handlers/stt/transcribe_stream_websocket.go` + `packages/proto/schemas/audio-tools/v1/stt/stt.proto` | Browser sends the proto-owned `TranscribeStream` request/event envelopes; compatible non-browser clients use Connect bidi |
 | `audiotools.URLResolver` (consumer-side) | Interface | `scenarios/web-console/api/integrations/audiotools/discovery.go` | `audiotools.Client.refresh()` |
 | `store.{ProviderConfig,BYOK,VoiceOverride,Usage,Wakeword,Speaker,STTStreamConfig,TTSConfig,Playback}Store` | Concrete (sql) | `internal/store/*.go` | every admin handler (settings/usage/stt/tts) |
 | `byokstore.Store` / `byokstore.Encryptor` | Concrete | `internal/byokstore/{store,encryptor,fingerprint}.go` | `handlers/settings` and chain BYOK resolver |
@@ -330,6 +330,16 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Production wiring** | The CLI dispatcher builds `RunContext` through cli-core's parser and injects the scenario app, stdout, stderr, and built-in `--json` state. |
 | **Test fake** | `cli-core/cliapptest::NewTestRunContext` and `NewTestRunContextFromArgs` are the canonical constructors for tests that drive `RunCtx` handlers directly. |
 | **Why it exists** | CLI domain tests should exercise handler behavior without duplicating parser setup or relying on `cliapp`'s inline test exports. The sibling test companion keeps future CLI tests aligned with shared-package test-helper ownership. |
+
+### cli-core renderer-separated command primitives
+
+| | |
+|---|---|
+| **Seam** | Shared command operation and output rendering boundary |
+| **Interface** | `cli-core/cliapp` builders such as `ProtoList`, `ProtoMutation`, `ProtoCustomRenderers`, `ActionCustomRenderers`, and `Streaming`, attached to manifest-backed commands with `Command.WithPrimitive`. |
+| **Production wiring** | Each manifest command declares `architecture.primitive` or a lifecycle exception. Its domain registration attaches the matching builder evidence; `cli-health` compares the declaration with generated runtime evidence. Human and JSON renderers remain output-mode-specific while operation callbacks cannot inspect `--json`. Streaming commands retain explicit lifecycle evidence because they emit incrementally rather than rendering one response. |
+| **Test fake** | `cliapp/cliapptest` runs primitive handlers in both output modes; the root CLI evidence test refreshes `.vrooli/generated/cli-primitive-evidence.json` through the owning generator. |
+| **Why it exists** | A shared operation/render boundary prevents output-mode branching from changing API calls or mutations. Evidence keeps manifest declarations verifiable, while genuine streaming commands remain explicit exceptions. |
 
 ### BlobStore (opaque bytes)
 
@@ -801,3 +811,27 @@ proof obligations through
 `plan-manager plans get trustworthy-long-form-dictation-make-the-runtime-knowable`
 and `plan-manager plans get audio-dictation-reliability-prove-long-form-capture-with-a`.
 A focused or accelerated pass does not establish a real-time product-path pass.
+
+## Persisted entity measures
+
+`handlers/measures` exposes six aggregate-only `MeasuresService` RPCs and one
+`measures-go` registry at `/measures/{declarations,execute}`. The CLI's
+`measure` group binds each typed RPC and declares its time-window question in
+`cli/manifest.json`. Both surfaces call the same owner query methods:
+
+- BYOK credentials use `store.BYOKStore.CountCreatedBetween` through the
+  privacy-safe `byokstore.Store` facade. The result counts currently retained
+  credential-capability rows created in the window; it does not expose secret
+  ciphertext, fingerprints, providers, or capabilities.
+- Corpus clips use `corpus.Repository.CountCreatedInWindow`; experiment and
+  experiment-run counts use the `experiment.Repository` pair of SQL aggregates.
+- Speaker profiles and wakeword templates use their owning store count queries;
+  embeddings, user identities, phrases, and audio bytes are never returned.
+
+All six measures resolve the shared canonical `time_window` in UTC and query
+the half-open creation range `[from,to)`. The `v1/domain/` proto files declare
+the six persisted entities, while the measures service proto binds each
+measure's typed request. The BYOK duplex migration uses a transaction-local
+temporary table and copies rows back to the canonical `byok_credentials` table;
+the temporary staging table is not a second persisted domain. No analytics
+storage or history table is added.

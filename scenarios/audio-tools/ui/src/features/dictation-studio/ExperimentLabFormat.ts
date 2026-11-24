@@ -55,5 +55,6 @@ export function defaultInput(): StartExperimentInput {
     speakerFallback: true,
     speakerAblation: false,
     droppedSpanThresholdWords: 4,
+    metricsOnly: false,
   };
 }

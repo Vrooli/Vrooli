@@ -10,8 +10,22 @@ var Endpoints = []modulekit.EndpointDescriptor{
 	},
 	{
 		ID: "stt.transcribe_stream", Path: "/vrooli.audio_tools.v1.stt.STTService/TranscribeStream",
-		Method: "POST", Summary: "Bidi-stream Connect speech transcription",
+		Method: "POST", Summary: "Proto-owned bidirectional speech transcription for transports with client-streaming support",
 		Category: "stt",
+	},
+	{
+		ID: "stt.transcribe_stream_browser", Path: BrowserTranscribeStreamWebSocketPath,
+		Method: "GET", Summary: "Browser WebSocket wire adapter for the TranscribeStream protobuf v2 contract",
+		Category: "stt",
+		RESTException: &modulekit.RESTException{
+			Reason: modulekit.RESTReasonStreamUpgrade,
+			Note:   "The browser WebSocket upgrade carries the existing TranscribeStream protobuf v2 request and event envelopes because Connect-Web does not support client-streaming request bodies.",
+			ProtoPayloads: &modulekit.RESTProtoPayloads{
+				Request:  modulekit.RESTPayload{ProtoFullName: "vrooli.audio_tools.v1.stt.TranscribeStreamRequest", Transport: "websocket_binary", Conformance: "proto_binary"},
+				Response: modulekit.RESTPayload{ProtoFullName: "vrooli.audio_tools.v1.stt.TranscribeStreamEvent", Transport: "websocket_binary", Conformance: "proto_binary"},
+				Error:    modulekit.RESTPayload{ProtoFullName: "vrooli.audio_tools.v1.stt.TranscribeStreamEvent", Transport: "websocket_binary", Conformance: "proto_binary"},
+			},
+		},
 	},
 	{ID: "stt.get_supported_formats", Path: "/vrooli.audio_tools.v1.stt.STTService/GetSupportedFormats", Method: "POST", Summary: "Report the STT ingress audio-format capability matrix", Category: "stt"},
 	{ID: "stt.list_engines", Path: "/vrooli.audio_tools.v1.stt.STTService/ListEngines", Method: "POST", Summary: "List selectable STT engines (manifest-derived) with availability", Category: "stt"},

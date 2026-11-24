@@ -160,6 +160,30 @@ func TestPrintReportTableSurfacesDecisionSignals(t *testing.T) {
 	require.NotContains(t, out, "metrics=")
 }
 
+func TestReportPrimitivePreservesHumanAndJSONOutput(t *testing.T) {
+	app := mountExperiment(t, &fakeExperimentSvc{reportFn: func(req *experimentv1.GetExperimentReportRequest) (*experimentv1.GetExperimentReportResponse, error) {
+		require.Equal(t, "exp-123", req.GetId())
+		return &experimentv1.GetExperimentReportResponse{Experiment: &experimentv1.Experiment{Id: "exp-123", Status: experimentv1.ExperimentStatus_EXPERIMENT_STATUS_SUCCEEDED}}, nil
+	}})
+	schema := cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true}}}
+	modes := cliapptest.RunPrimitiveHandlerModes(t, newHandlers(app).reportPrimitive(), schema, []string{"exp-123"}, app)
+	require.NoError(t, modes.HumanErr)
+	require.NoError(t, modes.JSONErr)
+	require.Contains(t, modes.Human, "Experiment exp-123 (succeeded)")
+	require.JSONEq(t, `{"experiment":{"error":"","id":"exp-123","machine_json":"","name":"","result_ref":"","status":"EXPERIMENT_STATUS_SUCCEEDED"},"runs":[]}`, modes.JSON)
+}
+
+func TestExperimentPrimitiveClasses(t *testing.T) {
+	h := &handlers{}
+	for _, primitive := range []cliapp.PrimitiveHandler{
+		h.startPrimitive(), h.getPrimitive(), h.waitPrimitive(), h.listPrimitive(), h.cancelPrimitive(),
+		h.deletePrimitive(), h.reportPrimitive(), h.comparePrimitive(), h.recordEvidencePrimitive(), h.listEvidencePrimitive(),
+	} {
+		require.Equal(t, cliapp.PrimitiveAction, primitive.Primitive())
+	}
+	require.Equal(t, cliapp.PrimitiveStreaming, h.watchPrimitive().Primitive())
+}
+
 func TestPrintComparisonRendersWinnerRowsAndKeepsNilReportVisible(t *testing.T) {
 	app := testutil.NewTestApp(t, http.NewServeMux())
 	ctx, buf := cliapptest.NewCapturedRunContext(app, cliapp.ArgSchema{}, cliapptest.TestRunContextOptions{})

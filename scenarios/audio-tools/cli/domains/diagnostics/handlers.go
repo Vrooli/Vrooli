@@ -31,25 +31,43 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 }
 
 func (h *handlers) run(ctx cliapp.RunContext) error {
-	caps, err := parseCapabilities(ctx.Flag("capability"))
-	if err != nil {
-		return err
-	}
-	resp, err := h.client.RunSuite(context.Background(), connect.NewRequest(&diagv1.RunSuiteRequest{
-		Capabilities: caps,
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("diagnostics run", err, nil)
-	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, mutationReportForRun(resp.Msg.GetRun()))
+	return h.runPrimitive().Run(ctx)
 }
 
 func (h *handlers) last(ctx cliapp.RunContext) error {
-	resp, err := h.client.GetLastRun(context.Background(), connect.NewRequest(&diagv1.GetLastRunRequest{}))
-	if err != nil {
-		return cliapp.WrapAPIError("diagnostics last", err, nil)
-	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, mutationReportForRun(resp.Msg.GetRun()))
+	return h.lastPrimitive().Run(ctx)
+}
+
+func (h *handlers) runPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoCustomRenderers(func(ctx cliapp.OperationContext) (*diagv1.RunSuiteResponse, error) {
+		caps, err := parseCapabilities(ctx.Flag("capability"))
+		if err != nil {
+			return nil, err
+		}
+		resp, err := h.client.RunSuite(context.Background(), connect.NewRequest(&diagv1.RunSuiteRequest{Capabilities: caps}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("diagnostics run", err, nil)
+		}
+		return resp.Msg, nil
+	}, renderRun, nil)
+}
+
+func (h *handlers) lastPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoCustomRenderers(func(_ cliapp.OperationContext) (*diagv1.GetLastRunResponse, error) {
+		resp, err := h.client.GetLastRun(context.Background(), connect.NewRequest(&diagv1.GetLastRunRequest{}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("diagnostics last", err, nil)
+		}
+		return resp.Msg, nil
+	}, renderLast, nil)
+}
+
+func renderRun(ctx cliapp.RunContext, resp *diagv1.RunSuiteResponse) error {
+	return ctx.RenderMutation(mutationReportForRun(resp.GetRun()))
+}
+
+func renderLast(ctx cliapp.RunContext, resp *diagv1.GetLastRunResponse) error {
+	return ctx.RenderMutation(mutationReportForRun(resp.GetRun()))
 }
 
 func parseCapabilities(raw string) ([]diagv1.Capability, error) {

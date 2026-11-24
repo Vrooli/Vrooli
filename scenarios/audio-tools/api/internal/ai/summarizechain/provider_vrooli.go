@@ -33,11 +33,14 @@ func (p *VrooliProvider) LPBSState() *tiered.LPBSProvider[VrooliClient] {
 	return p.LPBSProvider
 }
 
-func (p *VrooliProvider) IsAvailable(ctx context.Context) bool { return tiered.SafeIsAvailable(p, ctx) }
+func (p *VrooliProvider) IsAvailable(ctx context.Context) bool { return tiered.SafeIsAvailable(ctx, p) }
 
 func (p *VrooliProvider) Model() string { return tiered.SafeModel(p) }
 
 func (p *VrooliProvider) Summarize(ctx context.Context, req Request) (*Result, error) {
+	// Local policy selectors belong to the Ollama route; LPBS model selection
+	// remains controlled by the existing provider configuration.
+	req.LocalModelRole = ""
 	call := func(client VrooliClient) (*Result, error) {
 		return client.Summarize(ctx, req.LPBSToken, req.UserIdentity, req)
 	}

@@ -22,6 +22,8 @@ const (
 	EventAssistantFinal  EventType = "assistant_final"
 	EventVAD             EventType = "vad"
 	EventTool            EventType = "tool"
+	EventAudioOutput     EventType = "audio_output"
+	EventProviderError   EventType = "provider_error"
 	EventBargeInCancel   EventType = "barge_in_cancel"
 	EventClosed          EventType = "closed"
 )
@@ -40,6 +42,8 @@ type SessionEvent struct {
 	AssistantFinal  *AssistantFinal
 	VAD             *VADEvent
 	Tool            *ToolEvent
+	AudioOutput     *AudioFrame
+	ProviderError   *ProviderError
 	BargeInCancel   *BargeInCancel
 	Closed          *SessionClosed
 }
@@ -63,6 +67,20 @@ type AssistantDelta struct {
 type AssistantFinal struct {
 	Text     string
 	HadAudio bool
+}
+
+// AudioFrame is one provider-produced output frame. Bytes are copied before
+// the event enters the session fan-out so providers may reuse their buffers.
+type AudioFrame struct {
+	Bytes      []byte
+	Format     string
+	SampleRate int32
+	Sequence   uint64
+	IsFinal    bool
+}
+
+type ProviderError struct {
+	Message string
 }
 
 // VADState is the speech-activity state reported by the transport's VAD.
@@ -96,5 +114,6 @@ type BargeInCancel struct {
 }
 
 type SessionClosed struct {
-	Reason string
+	Reason            string
+	ResumeFromEventID string
 }

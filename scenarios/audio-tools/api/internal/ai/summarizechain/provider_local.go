@@ -3,6 +3,7 @@ package summarizechain
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"audio-tools/internal/summarize"
 
@@ -38,7 +39,10 @@ func (p *LocalProvider) Summarize(ctx context.Context, req Request) (*Result, er
 	if p == nil || p.summarizer == nil {
 		return nil, fmt.Errorf("audio-tools/summarizechain: local provider not configured")
 	}
-	model := req.Model
+	model := req.LocalModelRole
+	if model == "" {
+		model = req.Model
+	}
 	if model == "" {
 		model = p.defaultModel
 	}
@@ -51,12 +55,19 @@ func (p *LocalProvider) Summarize(ctx context.Context, req Request) (*Result, er
 	if err != nil {
 		return nil, err
 	}
+	content := summarize.PreserveExplicitAssignments(req.Text, resp.Content)
+	resolvedModel := strings.TrimSpace(resp.Model)
+	if resolvedModel == "" {
+		// Older gateway adapters may omit the resolved tag. Preserve the
+		// selector as a compatibility fallback, but prefer the runtime fact.
+		resolvedModel = model
+	}
 	return &Result{
-		Text:         resp.Content,
+		Text:         content,
 		OutputTokens: resp.EvalCount,
 		Tier:         TierLocal,
 		ProviderID:   "ollama-local",
-		ModelID:      model,
+		ModelID:      resolvedModel,
 		Latency:      clk.Now().Sub(start),
 	}, nil
 }

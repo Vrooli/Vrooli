@@ -39,18 +39,25 @@ func summarizeLevelFromFlag(s string) summv1.SummarizeLevel {
 	}
 }
 
-func (h *handlers) text(ctx cliapp.RunContext) error {
-	resp, err := h.client.Summarize(context.Background(), connect.NewRequest(&summv1.SummarizeRequest{
-		Text:  ctx.Flag("text"),
-		Level: summarizeLevelFromFlag(ctx.Flag("level")),
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("summarize", err, nil)
-	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result: []string{
-			fmt.Sprintf("[%s/%s, %dms] %s",
-				providerlabels.TierLabel(resp.Msg.GetProviderTier()), resp.Msg.ProviderId, int(resp.Msg.LatencyMs), resp.Msg.Text),
+func (h *handlers) text() cliapp.PrimitiveHandler {
+	return cliapp.ProtoCustomRenderers(
+		func(ctx cliapp.OperationContext) (*summv1.SummarizeResponse, error) {
+			resp, err := h.client.Summarize(context.Background(), connect.NewRequest(&summv1.SummarizeRequest{
+				Text:           ctx.Flag("text"),
+				Level:          summarizeLevelFromFlag(ctx.Flag("level")),
+				LocalModelRole: ctx.Flag("local-model-role"),
+			}))
+			if err != nil {
+				return nil, cliapp.WrapAPIError("summarize", err, nil)
+			}
+			return resp.Msg, nil
 		},
-	})
+		func(ctx cliapp.RunContext, resp *summv1.SummarizeResponse) error {
+			return ctx.RenderMutation(cliapp.MutationReport{Result: []string{
+				fmt.Sprintf("[%s/%s, %dms] %s",
+					providerlabels.TierLabel(resp.GetProviderTier()), resp.ProviderId, int(resp.LatencyMs), resp.Text),
+			}})
+		},
+		nil,
+	)
 }

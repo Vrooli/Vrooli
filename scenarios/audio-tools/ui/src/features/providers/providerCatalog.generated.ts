@@ -8,11 +8,13 @@
 // Engine IDs are the STT stream-selection identifiers. TTS_ADAPTERS is the
 // matrix column vocabulary used by the Voices page.
 
-export type ProviderKind = "scenario" | "local_resource" | "local_inprocess" | "byok_api" | "gateway" | "browser";
+export type ProviderKind = "scenario" | "local_resource" | "local_inprocess" | "byok_api" | "gateway" | "full_duplex" | "browser";
 export type ProviderTier = "local" | "byok" | "vrooli" | "browser" | "none";
 export type ProviderStatus = "active" | "planned" | "experimental" | "watch";
-export type ProviderCapability = "stt" | "tts" | "summarize" | "transcode" | "speaker";
+export type ProviderCapability = "stt" | "tts" | "summarize" | "transcode" | "speaker" | "duplex";
 export type ProviderCheckerKind = "http_json" | "command" | "resource" | "none";
+
+export interface ProviderConsentRequirement { readonly source: string; readonly revalidateActiveSessions: boolean; }
 
 export interface ProviderMeta {
   readonly id: string;
@@ -25,13 +27,14 @@ export interface ProviderMeta {
   readonly features: readonly string[];
   readonly engineIds: readonly string[];
   readonly resourceSlug: string;
-  readonly models: readonly string[];
   readonly checkerKind: ProviderCheckerKind;
+  readonly consentRequirement?: ProviderConsentRequirement;
   readonly platformSupport: "supported" | "degraded" | "unsupported";
   readonly platformReason?: string;
   readonly docsUrl?: string;
   readonly operatorCommand?: string;
   readonly adapterId?: string;
+  readonly byokAdapterId?: string;
   readonly license?: string;
   readonly labelKey: string;
   readonly descriptionKey: string;
@@ -49,7 +52,6 @@ export const PROVIDERS: Readonly<Record<string, ProviderMeta>> = {
     features: ["voice-input", "voice-streaming", "voice-speaker-verification", "voice-enrollment", "voice-output", "tts-summarization", "tts-cache", "tts-paragraph-split", "audio-provider-routing"],
     engineIds: [],
     resourceSlug: "",
-    models: [],
     checkerKind: "none",
     platformSupport: "degraded",
     platformReason: "audio capability depends on the selected provider and host media path",
@@ -69,7 +71,6 @@ export const PROVIDERS: Readonly<Record<string, ProviderMeta>> = {
     features: ["voice-input"],
     engineIds: ["whisper-local"],
     resourceSlug: "whisper",
-    models: ["whisper-small", "whisper-base", "whisper-tiny", "whisper-large-v3-turbo", "whisper-medium", "whisper-large-v3"],
     checkerKind: "http_json",
     platformSupport: "supported",
     docsUrl: "docs/domains/stt/streaming-pipeline.md",
@@ -88,7 +89,6 @@ export const PROVIDERS: Readonly<Record<string, ProviderMeta>> = {
     features: ["voice-streaming"],
     engineIds: ["kyutai"],
     resourceSlug: "kyutai-stt",
-    models: ["kyutai-stt-1b-en-fr", "kyutai-stt-2.6b-en"],
     checkerKind: "http_json",
     platformSupport: "degraded",
     platformReason: "Requires Linux with an NVIDIA CUDA GPU for real-time streaming; the host resource manifest owns the final verdict.",
@@ -108,7 +108,6 @@ export const PROVIDERS: Readonly<Record<string, ProviderMeta>> = {
     features: ["voice-output"],
     engineIds: [],
     resourceSlug: "kokoro",
-    models: ["kokoro-82m-v1.0"],
     checkerKind: "http_json",
     platformSupport: "supported",
     docsUrl: "docs/concepts/DOMAINS.md",
@@ -128,7 +127,6 @@ export const PROVIDERS: Readonly<Record<string, ProviderMeta>> = {
     features: ["voice-speaker-verification", "voice-enrollment"],
     engineIds: [],
     resourceSlug: "sherpa-onnx",
-    models: ["sherpa-onnx-speaker-embedding"],
     checkerKind: "http_json",
     platformSupport: "supported",
     docsUrl: "docs/domains/stt/streaming-pipeline.md",
@@ -147,7 +145,6 @@ export const PROVIDERS: Readonly<Record<string, ProviderMeta>> = {
     features: ["voice-streaming"],
     engineIds: ["sherpa-streaming"],
     resourceSlug: "sherpa-onnx",
-    models: ["sherpa-zipformer-en-kroko-2025-08-06", "sherpa-zipformer-en-2023-06-26"],
     checkerKind: "http_json",
     platformSupport: "supported",
     docsUrl: "docs/domains/stt/streaming-pipeline.md",
@@ -166,7 +163,6 @@ export const PROVIDERS: Readonly<Record<string, ProviderMeta>> = {
     features: ["ai-command-generation"],
     engineIds: [],
     resourceSlug: "ollama",
-    models: ["qwen3.5:9b", "qwen3.5:4b", "llama3.2:3b", "llama3.2:1b", "gemma3:4b", "phi4-mini:3.8b", "qwen3:1.7b"],
     checkerKind: "http_json",
     platformSupport: "supported",
     docsUrl: "docs/concepts/DOMAINS.md",
@@ -185,11 +181,11 @@ export const PROVIDERS: Readonly<Record<string, ProviderMeta>> = {
     features: ["ai-command-generation"],
     engineIds: [],
     resourceSlug: "",
-    models: ["openrouter-summarize"],
-    checkerKind: "http_json",
+    checkerKind: "none",
     platformSupport: "supported",
     docsUrl: "docs/reference/configuration.md",
     operatorCommand: "audio-tools settings providers",
+    byokAdapterId: "summarize.openrouter-cli-v1",
     labelKey: "providers.openrouter.label",
     descriptionKey: "providers.openrouter.description",
   },
@@ -204,11 +200,11 @@ export const PROVIDERS: Readonly<Record<string, ProviderMeta>> = {
     features: ["voice-input"],
     engineIds: [],
     resourceSlug: "",
-    models: ["openai-whisper-1"],
     checkerKind: "http_json",
     platformSupport: "supported",
     docsUrl: "docs/reference/configuration.md",
     operatorCommand: "audio-tools settings providers",
+    byokAdapterId: "stt.openai-whisper-v1",
     labelKey: "providers.openai-whisper.label",
     descriptionKey: "providers.openai-whisper.description",
   },
@@ -223,11 +219,11 @@ export const PROVIDERS: Readonly<Record<string, ProviderMeta>> = {
     features: ["voice-streaming"],
     engineIds: [],
     resourceSlug: "",
-    models: ["deepgram-nova-3"],
     checkerKind: "http_json",
     platformSupport: "supported",
     docsUrl: "docs/reference/configuration.md",
     operatorCommand: "audio-tools settings providers",
+    byokAdapterId: "stt.deepgram-v1",
     labelKey: "providers.deepgram.label",
     descriptionKey: "providers.deepgram.description",
   },
@@ -242,12 +238,12 @@ export const PROVIDERS: Readonly<Record<string, ProviderMeta>> = {
     features: ["voice-output"],
     engineIds: [],
     resourceSlug: "",
-    models: ["openai-tts-1"],
     checkerKind: "http_json",
     platformSupport: "supported",
     docsUrl: "docs/reference/configuration.md",
     operatorCommand: "audio-tools settings providers",
     adapterId: "byok:openai-tts",
+    byokAdapterId: "tts.openai-speech-v1",
     labelKey: "providers.openai-tts.label",
     descriptionKey: "providers.openai-tts.description",
   },
@@ -262,14 +258,32 @@ export const PROVIDERS: Readonly<Record<string, ProviderMeta>> = {
     features: ["voice-output"],
     engineIds: [],
     resourceSlug: "",
-    models: ["elevenlabs-multilingual-v2"],
     checkerKind: "http_json",
     platformSupport: "supported",
     docsUrl: "docs/reference/configuration.md",
     operatorCommand: "audio-tools settings providers",
     adapterId: "byok:elevenlabs",
+    byokAdapterId: "tts.elevenlabs-v1",
     labelKey: "providers.elevenlabs.label",
     descriptionKey: "providers.elevenlabs.description",
+  },
+  "openai-gpt-live": {
+    id: "openai-gpt-live",
+    name: "OpenAI GPT-Live 1.1",
+    description: "Planned hosted full-duplex audio provider; runtime composition is not yet available",
+    kind: "full_duplex",
+    tier: "byok",
+    status: "planned",
+    capabilities: ["duplex"],
+    features: [],
+    engineIds: [],
+    resourceSlug: "",
+    checkerKind: "none",
+    consentRequirement: { source: "audio-tools-openai-gpt-live", revalidateActiveSessions: true },
+    platformSupport: "supported",
+    docsUrl: "docs/internal/MATURATION-PROGRAM.md",
+    labelKey: "providers.openai-gpt-live.label",
+    descriptionKey: "providers.openai-gpt-live.description",
   },
   "browser-stt": {
     id: "browser-stt",
@@ -282,7 +296,6 @@ export const PROVIDERS: Readonly<Record<string, ProviderMeta>> = {
     features: ["voice-input", "voice-streaming"],
     engineIds: [],
     resourceSlug: "",
-    models: [],
     checkerKind: "none",
     platformSupport: "supported",
     platformReason: "Depends on the browser Web Speech API; recognition quality varies by browser.",
@@ -302,7 +315,6 @@ export const PROVIDERS: Readonly<Record<string, ProviderMeta>> = {
     features: ["voice-output"],
     engineIds: [],
     resourceSlug: "",
-    models: [],
     checkerKind: "none",
     platformSupport: "supported",
     platformReason: "Depends on the browser speech synthesis voice catalogue.",
@@ -322,7 +334,6 @@ export const PROVIDERS: Readonly<Record<string, ProviderMeta>> = {
     features: ["transcode"],
     engineIds: [],
     resourceSlug: "",
-    models: [],
     checkerKind: "command",
     platformSupport: "supported",
     docsUrl: "docs/concepts/DOMAINS.md",
@@ -333,7 +344,7 @@ export const PROVIDERS: Readonly<Record<string, ProviderMeta>> = {
   "rumble-stt": {
     id: "rumble-stt",
     name: "Rumble STT",
-    description: "Planned local streaming speech-to-text model adapter",
+    description: "Opt-in local batch speech-to-text route requiring an operator-configured vLLM endpoint",
     kind: "local_resource",
     tier: "local",
     status: "planned",
@@ -341,7 +352,6 @@ export const PROVIDERS: Readonly<Record<string, ProviderMeta>> = {
     features: ["voice-input"],
     engineIds: [],
     resourceSlug: "rumble-stt",
-    models: ["rumble-2-flash"],
     checkerKind: "none",
     platformSupport: "supported",
     docsUrl: "docs/reference/engine-selection.md",
@@ -351,22 +361,57 @@ export const PROVIDERS: Readonly<Record<string, ProviderMeta>> = {
   "kale-tts": {
     id: "kale-tts",
     name: "Kale TTS",
-    description: "Planned low-footprint Kokoro-lineage TTS, hosted by the sherpa-onnx ONNX adapter when weights publish",
+    description: "Experimental low-footprint English TTS using an isolated Kale ONNX runtime; separate from sherpa's Kokoro model path",
     kind: "local_resource",
     tier: "local",
     status: "planned",
     capabilities: ["tts"],
     features: ["voice-output"],
     engineIds: [],
-    resourceSlug: "sherpa-onnx",
-    models: ["kale-tts-1-nano", "kale-tts-1-tiny", "kale-tts-1-base"],
+    resourceSlug: "kale-tts",
     checkerKind: "none",
     platformSupport: "degraded",
-    platformReason: "Kale weights are not published yet; the sherpa adapter already serves Kokoro-format ONNX and is the intended host.",
+    platformReason: "Nano weights at the pinned Hugging Face revision are public, non-gated, and declare Apache-2.0; provider remains planned pending joined model-quality and lifecycle qualification, and Kale's ONNX graph is not compatible with the current sherpa Kokoro adapter.",
     docsUrl: "docs/reference/engine-selection.md",
-    operatorCommand: "vrooli resource status sherpa-onnx --json",
+    adapterId: "local:kale-tts",
     labelKey: "providers.kale-tts.label",
     descriptionKey: "providers.kale-tts.description",
+  },
+  "qwen3-tts": {
+    id: "qwen3-tts",
+    name: "Qwen3-TTS Voice Cloning",
+    description: "Planned local voice-cloning provider; 0.6B Base candidate awaits a bounded managed runtime and consented product path",
+    kind: "local_resource",
+    tier: "local",
+    status: "planned",
+    capabilities: ["tts"],
+    features: ["voice-output", "voice-cloning"],
+    engineIds: [],
+    resourceSlug: "qwen3-tts",
+    checkerKind: "none",
+    platformSupport: "degraded",
+    platformReason: "No Audio Tools resource or adapter exists; upstream vLLM-Omni memory evidence is GPU-heavy and is not a Base-cloning receipt.",
+    docsUrl: "docs/reference/models.md",
+    labelKey: "providers.qwen3-tts.label",
+    descriptionKey: "providers.qwen3-tts.description",
+  },
+  "sopro-tts": {
+    id: "sopro-tts",
+    name: "Sopro Voice Cloning",
+    description: "Planned compact local voice-cloning provider; the pinned 120M Apache-2.0 model has no Audio Tools runtime or consented route",
+    kind: "local_resource",
+    tier: "local",
+    status: "planned",
+    capabilities: ["tts"],
+    features: ["voice-output", "voice-cloning"],
+    engineIds: [],
+    resourceSlug: "sopro-tts",
+    checkerKind: "none",
+    platformSupport: "degraded",
+    platformReason: "No Audio Tools resource or adapter exists; runtime dependency licenses, source-bound voice authorization, ephemeral reference handling, bounded deletion, and product quality remain unqualified.",
+    docsUrl: "docs/reference/models.md",
+    labelKey: "providers.sopro-tts.label",
+    descriptionKey: "providers.sopro-tts.description",
   },
   "reverb-tts": {
     id: "reverb-tts",
@@ -379,7 +424,6 @@ export const PROVIDERS: Readonly<Record<string, ProviderMeta>> = {
     features: ["voice-output"],
     engineIds: [],
     resourceSlug: "reverb-tts",
-    models: ["reverb-tts"],
     checkerKind: "none",
     platformSupport: "supported",
     docsUrl: "docs/reference/engine-selection.md",
@@ -398,7 +442,6 @@ export const PROVIDERS: Readonly<Record<string, ProviderMeta>> = {
     features: ["voice-output"],
     engineIds: [],
     resourceSlug: "verba-tts",
-    models: ["verba-tts-indic-zero"],
     checkerKind: "none",
     platformSupport: "supported",
     docsUrl: "docs/reference/engine-selection.md",
