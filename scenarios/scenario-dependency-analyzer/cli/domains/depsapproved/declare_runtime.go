@@ -90,7 +90,7 @@ func declareRuntime(root string, req runtimeDeclaration) (runtimeDeclarationResu
 		}
 	}
 	path := filepath.Join(root, "scenarios", req.Scenario, ".vrooli", "service.json")
-	before, info, err := readRegularGoMod(path)
+	before, info, err := readRegularFileNoSymlink(path)
 	if err != nil {
 		return result, err
 	}
@@ -101,15 +101,30 @@ func declareRuntime(root string, req runtimeDeclaration) (runtimeDeclarationResu
 		return result, fmt.Errorf("service manifest changed since preview; no write performed")
 	}
 	entry := map[string]any{"type": "scenario", "enabled": true, "required": false, "startup_policy": "ignore", "runtime_only": true, "description": req.Description, "runtime_only_rationale": req.Rationale, "degraded_behavior": req.DegradedBehavior}
-	// Locate the authoritative nested object, rejecting duplicate JSON keys along
-	// the path. Insert only the selected member; retain every existing byte.
-	start, end, err := jsonObjectAt(before, []string{"dependencies", "scenarios"}, 0)
+	// Locate the authoritative dependencies object first. Some valid scenarios
+	// declare only resource dependencies; in that case create the scenarios
+	// object here instead of requiring a manual manifest edit outside SDA.
+	dependenciesStart, dependenciesEnd, err := jsonObjectAt(before, []string{"dependencies"}, 0)
 	if err != nil {
 		return result, err
 	}
-	var existing map[string]json.RawMessage
-	if err = json.Unmarshal(before[start:end], &existing); err != nil {
+	var dependencies map[string]json.RawMessage
+	if err = json.Unmarshal(before[dependenciesStart:dependenciesEnd], &dependencies); err != nil {
 		return result, err
+	}
+	start, end, hasScenarios := 0, 0, false
+	if _, ok := dependencies["scenarios"]; ok {
+		start, end, err = jsonObjectAt(before, []string{"dependencies", "scenarios"}, 0)
+		if err != nil {
+			return result, err
+		}
+		hasScenarios = true
+	}
+	var existing map[string]json.RawMessage
+	if hasScenarios {
+		if err = json.Unmarshal(before[start:end], &existing); err != nil {
+			return result, err
+		}
 	}
 	if raw, ok := existing[req.Dependency]; ok {
 		var current map[string]any
@@ -128,15 +143,28 @@ func declareRuntime(root string, req runtimeDeclaration) (runtimeDeclarationResu
 		return result, err
 	}
 	key, _ := json.Marshal(req.Dependency)
-	insert := bytes.TrimRight(before[start:end-1], " \t\r\n")
-	suffix := ""
-	if len(existing) > 0 {
-		suffix = ","
+	var after []byte
+	if hasScenarios {
+		insert := bytes.TrimRight(before[start:end-1], " \t\r\n")
+		suffix := ""
+		if len(existing) > 0 {
+			suffix = ","
+		}
+		after = append([]byte{}, before[:start]...)
+		after = append(after, insert...)
+		after = append(after, []byte(suffix+"\n      "+string(key)+": "+string(encoded)+"\n    ")...)
+		after = append(after, before[end-1:]...)
+	} else {
+		insert := bytes.TrimRight(before[dependenciesStart:dependenciesEnd-1], " \t\r\n")
+		suffix := ""
+		if len(dependencies) > 0 {
+			suffix = ","
+		}
+		after = append([]byte{}, before[:dependenciesStart]...)
+		after = append(after, insert...)
+		after = append(after, []byte(suffix+"\n    \"scenarios\": {\n      "+string(key)+": "+string(encoded)+"\n    }\n  ")...)
+		after = append(after, before[dependenciesEnd-1:]...)
 	}
-	after := append([]byte{}, before[:start]...)
-	after = append(after, insert...)
-	after = append(after, []byte(suffix+"\n      "+string(key)+": "+string(encoded)+"\n    ")...)
-	after = append(after, before[end-1:]...)
 	if !json.Valid(after) {
 		return result, fmt.Errorf("invalid proposed manifest")
 	}
@@ -144,7 +172,7 @@ func declareRuntime(root string, req runtimeDeclaration) (runtimeDeclarationResu
 	if !req.Apply {
 		return result, nil
 	}
-	if err = writeGoModIfUnchanged(filepath.Dir(path), path, after, info, req.ExpectedSHA256); err != nil {
+	if err = writeAtomicallyIfUnchanged(filepath.Dir(path), path, after, info, req.ExpectedSHA256); err != nil {
 		return result, err
 	}
 	result.Applied = true

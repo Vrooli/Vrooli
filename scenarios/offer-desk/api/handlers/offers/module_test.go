@@ -2,11 +2,11 @@ package offers
 
 import (
 	"context"
+	"errors"
 	"log"
+	"os"
 	"testing"
 	"time"
-
-	"offer-desk/internal/catalog"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -19,13 +19,35 @@ import (
 )
 
 func testOfferService(t *testing.T, clock *schedule.Fake) (*Service, context.Context) {
+	service, ctx := testOfferServiceWithEnv(t, clock, os.Getenv)
+	// Most unit tests exercise local persistence and should not discover a live
+	// Money Ledger from the host environment.
+	service.resolveLedgerURL = nil
+	return service, ctx
+}
+
+func testOfferServiceWithEnv(t *testing.T, clock *schedule.Fake, getenv func(string) string) (*Service, context.Context) {
 	t.Helper()
 	sqlDB := databasetest.NewSQLite(t)
 	db := database.NewFromPrimary(sqlDB)
 	ctx := context.Background()
-	store := catalog.NewStore(db, clock.Now)
-	require.NoError(t, database.EnsureSchemas(ctx, sqlDB, database.SchemaProviderFunc(store.Schema)))
-	return &Service{store: store, logger: log.Default(), clock: clock}, ctx
+	service := NewServiceWithEnv(db, log.Default(), clock, getenv)
+	require.NoError(t, database.EnsureSchemas(ctx, sqlDB, database.SchemaProviderFunc(service.store.Schema)))
+	return service, ctx
+}
+
+func TestNewServiceWithEnvUsesInjectedMoneyLedgerOverride(t *testing.T) {
+	clock := schedule.NewFake(time.Date(2026, 11, 24, 0, 0, 0, 0, time.UTC))
+	service, ctx := testOfferServiceWithEnv(t, clock, func(key string) string {
+		if key == "MONEY_LEDGER_API_URL" {
+			return "http://ledger.test"
+		}
+		return ""
+	})
+
+	baseURL, err := service.resolveLedgerURL(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "http://ledger.test", baseURL)
 }
 
 // A consumer that requires producer time must be able to judge the ladder's
@@ -126,6 +148,26 @@ func TestBoardReportsLedgerUnavailableWithoutInventingActuals(t *testing.T) { //
 	require.Contains(t, response.Msg.Availability[0].Reason, "actuals unavailable")
 	require.Contains(t, response.Msg.Entries[0].RankReason, "earnings unknown")
 	require.NotContains(t, response.Msg.Entries[0].RankReason, "earning nothing")
+}
+
+func TestBoardKeepsMappedAccountVisibleWhenLedgerCannotBeResolved(t *testing.T) {
+	clock := schedule.NewFake(time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC))
+	s, ctx := testOfferService(t, clock)
+	node, err := s.store.CreateNode(ctx, offerspb.NodeKind_OFFER, "Mapped but unavailable", offerspb.Status_ACTIVE, "", "acct-revenue")
+	require.NoError(t, err)
+	s.resolveLedgerURL = func(context.Context) (string, error) { return "", errors.New("money-ledger is restarting") }
+
+	response, err := s.GetBoard(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, response.Msg.Entries, 1)
+	entry := response.Msg.Entries[0]
+	require.Equal(t, node.Id, entry.NodeId)
+	require.False(t, entry.ActualsAvailable)
+	require.Len(t, entry.Availability, 1)
+	require.Equal(t, "money-ledger.actuals", entry.Availability[0].Source)
+	require.Contains(t, entry.Availability[0].Reason, "dependency could not be resolved")
+	require.NotContains(t, entry.Availability[0].Reason, "no ledger account mapping")
+	require.Contains(t, entry.RankReason, "earnings unknown")
 }
 
 func TestDeclaredDefaultAliveBufferNeverFallsBackToLocalThreshold(t *testing.T) { // [REQ:INT-005]

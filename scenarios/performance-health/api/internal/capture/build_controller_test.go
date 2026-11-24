@@ -25,6 +25,68 @@ func TestStartProfileVerifiesInstrumentedBundle(t *testing.T) {
 	}
 }
 
+func TestStartProfileWithLayoutCacheArmRoutesOnlySupportedArm(t *testing.T) {
+	var gotScenario string
+	var gotArm LayoutCacheArm
+	c := &CLIBuildController{
+		RestartWithLayoutCacheArm: func(_ context.Context, scenario string, profile bool, arm LayoutCacheArm) error {
+			if !profile {
+				t.Fatal("cache arm must select a profile build")
+			}
+			gotScenario, gotArm = scenario, arm
+			return nil
+		},
+		ResolveUIURL: func(context.Context, string) (string, error) { return "http://ui", nil },
+		VerifyBundle: func(context.Context, string) (bool, error) { return true, nil },
+		VerifyLayoutCacheArm: func(_ context.Context, _ string, arm LayoutCacheArm) (bool, error) {
+			return arm == LayoutCacheArmDisabled, nil
+		},
+	}
+	url, err := c.StartProfileWithLayoutCacheArm(context.Background(), "swarm-manager", LayoutCacheArmDisabled)
+	if err != nil || url != "http://ui" {
+		t.Fatalf("StartProfileWithLayoutCacheArm: url=%q err=%v", url, err)
+	}
+	if gotScenario != "swarm-manager" || gotArm != LayoutCacheArmDisabled {
+		t.Fatalf("restart received scenario=%q arm=%q", gotScenario, gotArm)
+	}
+}
+
+func TestDefaultVerifyLayoutCacheArmScansLinkedScript(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`<html><script src="/assets/app.js"></script></html>`))
+	})
+	mux.HandleFunc("/assets/app.js", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`performance.mark("⚛ GraphLayoutCacheArm/disabled")`))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	ok, err := defaultVerifyLayoutCacheArm(context.Background(), srv.Client(), srv.URL, LayoutCacheArmDisabled)
+	if err != nil || !ok {
+		t.Fatalf("expected disabled arm marker, ok=%v err=%v", ok, err)
+	}
+	ok, err = defaultVerifyLayoutCacheArm(context.Background(), srv.Client(), srv.URL, LayoutCacheArmEnabled)
+	if err != nil || ok {
+		t.Fatalf("enabled arm must not match disabled bundle, ok=%v err=%v", ok, err)
+	}
+}
+
+func TestStartProfileWithLayoutCacheArmRejectsOtherScenarioBeforeRestart(t *testing.T) {
+	restarted := false
+	c := &CLIBuildController{
+		RestartWithLayoutCacheArm: func(context.Context, string, bool, LayoutCacheArm) error {
+			restarted = true
+			return nil
+		},
+	}
+	if _, err := c.StartProfileWithLayoutCacheArm(context.Background(), "other", LayoutCacheArmDisabled); err == nil {
+		t.Fatal("expected unsupported scenario error")
+	}
+	if restarted {
+		t.Fatal("unsupported scenario must not restart")
+	}
+}
+
 // [REQ:PH-CAPTURE-005] When the served bundle is NOT instrumented, StartProfile
 // FAILS (so the orchestrator does not mislabel a non-profile capture as Tier 1).
 func TestStartProfileFailsOnUninstrumentedBundle(t *testing.T) {

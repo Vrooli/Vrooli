@@ -5,7 +5,7 @@ import { cn } from "../../lib/utils";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
-import { Button } from "./button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 
 /**
  * Shared loading / error / empty state primitives.
@@ -133,10 +133,12 @@ export function ErrorState({
       {onRetry && (
         <Button
           data-testid={selectors.state.errorRetry}
-          variant="outline"
+          variant="ghost"
           size="sm"
           onClick={onRetry}
           disabled={retrying}
+          shape="square"
+          className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
         >
           <Loader2
             aria-hidden="true"
@@ -187,7 +189,7 @@ export function EmptyState({
       <p className="max-w-prose text-sm text-app-muted-foreground">{message}</p>
       {actionSlot}
       {!actionSlot && actionLabel && onAction && (
-        <Button data-testid={selectors.state.emptyAction} size="sm" onClick={onAction}>
+        <Button data-testid={selectors.state.emptyAction} size="sm" onClick={onAction} shape="square">
           {actionLabel}
         </Button>
       )}

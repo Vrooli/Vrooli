@@ -6,7 +6,7 @@ import type {
 } from "../../types";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { statusTone } from "../../theme/status";
 import { DeploymentInsightsPanel } from "../deployment/DeploymentInsightsPanel";

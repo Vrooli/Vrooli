@@ -1,5 +1,4 @@
 """Compare bounded usage evidence and external condition without inventing baselines."""
-import json
 inputs = program.inputs()
 envelope = {"program":"plan-manager.setpoint-read","version":"1","status":"ok","phase":"validate","inputs":{},"signals":{"rows":[]},"errors":[],"evidence":[]}
 handles = {}
@@ -59,7 +58,7 @@ def step_classify():
     return "report"
 def step_report():
     envelope["phase"]="report"
-    print(json.dumps(envelope,separators=(",",":")))
+    program.report(envelope)
     return None
 STATES={"validate":step_validate,"collect":step_collect,"classify":step_classify,"report":step_report}
 state="validate"

@@ -1,20 +1,16 @@
 package offers
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/vrooli/api-core/discovery"
 	offerspb "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers"
 	"google.golang.org/protobuf/encoding/protojson"
 	"offer-desk/internal/module"
@@ -40,7 +36,7 @@ func (s *Service) paidOffers(writer http.ResponseWriter, request *http.Request) 
 // paidOffersOverCap is an opt-in local-rehearsal endpoint for the fourth CF7
 // quote. It is absent unless the isolated rehearsal explicitly enables it.
 func (s *Service) paidOffersOverCap(writer http.ResponseWriter, request *http.Request) {
-	if os.Getenv("OFFER_DESK_CF7_TEST_SECOND_PRICE") != "1" {
+	if s.getenv("OFFER_DESK_CF7_TEST_SECOND_PRICE") != "1" {
 		http.NotFound(writer, request)
 		return
 	}
@@ -50,7 +46,8 @@ func (s *Service) paidOffersOverCap(writer http.ResponseWriter, request *http.Re
 func (s *Service) servePaidOffers(writer http.ResponseWriter, request *http.Request, priceID string) {
 	resolveTreasuryURL := s.resolveTreasuryURL
 	if resolveTreasuryURL == nil {
-		resolveTreasuryURL = paidTreasuryURL
+		writePaidError(writer, http.StatusServiceUnavailable, "Treasury x402 admission is unavailable")
+		return
 	}
 	base, err := resolveTreasuryURL(request.Context())
 	if err != nil {
@@ -91,7 +88,7 @@ func (s *Service) servePaidOffers(writer http.ResponseWriter, request *http.Requ
 		writePaidError(writer, http.StatusServiceUnavailable, "Treasury admission omitted a complete settlement receipt")
 		return
 	}
-	if os.Getenv("OFFER_DESK_TEST_DROP_FIRST_PAID_RESPONSE") == "1" {
+	if s.getenv("OFFER_DESK_TEST_DROP_FIRST_PAID_RESPONSE") == "1" {
 		drop := false
 		paidCatalogDropOnce.Do(func() { drop = true })
 		if drop {
@@ -120,17 +117,6 @@ func (s *Service) servePaidOffers(writer http.ResponseWriter, request *http.Requ
 	writer.Header().Set("Payment-Response", paymentResponse)
 	writer.WriteHeader(http.StatusOK)
 	_, _ = writer.Write(body)
-}
-
-func paidTreasuryURL(ctx context.Context) (string, error) {
-	if base := strings.TrimSpace(os.Getenv("TREASURY_API_URL")); base != "" {
-		return base, nil
-	}
-	base, err := discovery.ResolveScenarioURLDefault(ctx, "treasury")
-	if err != nil || strings.TrimSpace(base) == "" {
-		return "", errors.New("Treasury URL unavailable")
-	}
-	return base, nil
 }
 
 func writePaidError(writer http.ResponseWriter, status int, message string) {

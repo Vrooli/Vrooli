@@ -1,6 +1,4 @@
 """Read Offer Desk task outcomes over explicit comparable windows; never infer a missing cohort."""
-import json
-
 inputs = program.inputs()
 
 envelope = program.envelope('offer-desk.learning-read', '1', phase="validate", inputs={})
@@ -78,7 +76,7 @@ def step_classify():
 def step_report():
     # phase: report — one envelope on every path.
     envelope['phase'] = 'report'
-    print(json.dumps(envelope, allow_nan=False, separators=(',', ':')))
+    program.report(envelope)
     return None
 
 

@@ -3,7 +3,7 @@
   "name": "plan-manager.investigate",
   "version": "1",
   "helpers": {
-    "program": "1"
+    "program": "2"
   },
   "purpose": "Compose one plan-owned trigger observation and domain brief into a bounded Agent Manager investigation.",
   "inputs": {
@@ -86,6 +86,7 @@
       "classes": [
         "invalid_input",
         "scenario_unreachable",
+        "invalid_response",
         "no_output",
         "binding_error",
         "deadline_exceeded",

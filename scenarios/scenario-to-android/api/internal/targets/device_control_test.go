@@ -45,28 +45,39 @@ func TestDeviceControlInventoryUsesActionableProfileAndPreservesIdentity(t *test
 	if got.ID != "android-6affcac615a281a2" || got.Serial != "serial-moto" {
 		t.Fatalf("identity = id %q serial %q, want stable device and serial identities", got.ID, got.Serial)
 	}
-	if got.ADBTransport != "usb" {
-		t.Fatalf("execution transport = %q, want observed USB profile", got.ADBTransport)
+	if got.ADBTransport != "wireless" {
+		t.Fatalf("execution transport = %q, want the selected available wireless profile", got.ADBTransport)
 	}
 	if got.Transport.ID != "serial-moto" {
 		t.Fatalf("reported transport identity = %q, want serial-moto", got.Transport.ID)
 	}
-	if !strings.Contains(got.Reason, `selected transport "wireless"`) {
-		t.Fatalf("reason %q does not retain the selected transport context", got.Reason)
+	if strings.Contains(got.Reason, `using observed actionable transport "usb"`) {
+		t.Fatalf("reason %q reports USB despite the selected wireless profile being available", got.Reason)
 	}
 	if len(got.Capabilities) != 1 || got.Capabilities[0] != "device-control" {
 		t.Fatalf("capabilities = %#v, want retained device-control capability", got.Capabilities)
 	}
 }
 
-func TestActionableADBTransportPrefersObservedUSBForWirelessSelection(t *testing.T) {
+func TestActionableADBTransportHonorsSelectedWirelessProfile(t *testing.T) {
 	profiles := []*devicesv1.TransportProfile{
 		{StrategyId: "android-adb", Name: "wireless", Health: "available"},
 		{StrategyId: "android-adb", Name: "usb", Health: "available"},
 	}
 
+	if got := actionableADBTransport("wireless", profiles); got != "wireless" {
+		t.Fatalf("actionableADBTransport(wireless) = %q, want wireless", got)
+	}
+}
+
+func TestActionableADBTransportFallsBackToUSBOnlyWhenSelectedWirelessIsUnavailable(t *testing.T) {
+	profiles := []*devicesv1.TransportProfile{
+		{StrategyId: "android-adb", Name: "wireless", Health: "unreachable"},
+		{StrategyId: "android-adb", Name: "usb", Health: "available"},
+	}
+
 	if got := actionableADBTransport("wireless", profiles); got != "usb" {
-		t.Fatalf("actionableADBTransport(wireless) = %q, want usb", got)
+		t.Fatalf("actionableADBTransport(wireless) = %q, want usb fallback", got)
 	}
 }
 

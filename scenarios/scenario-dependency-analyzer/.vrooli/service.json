@@ -192,10 +192,23 @@
         "startup_policy": "try_start",
         "description": "Provides the federated search control plane used to register and query SDA knowledge providers.",
         "degraded_behavior": "Dependency analysis remains available, but federated search registration and remote queries are unavailable."
+      },
+      "deployment-manager": {
+        "degraded_behavior": "Dependency analysis remains available; when reporting is enabled an unreachable peer returns an explicit error.",
+        "description": "Optional readiness evidence sink when the owner token is configured.",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Scenario Dependency Analyzer uses the generated readiness reporter contract at runtime and imports no Deployment Manager package.",
+        "startup_policy": "ignore",
+        "type": "scenario"
       }
     }
   },
-  "environment": {},
+  "environment": {
+    "VROOLI_AGENT_POLICY_PUBLISH_ENABLED": "true",
+    "VROOLI_AGENT_POLICY_REVIEWED_EFFECTS_SHA256": "eda876fae372acce0451e3d9c46c75ffe52b54c573cfd284110f82bfc0be650a"
+  },
   "cli": {
     "enabled": true,
     "command": "scenario-dependency-analyzer",

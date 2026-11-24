@@ -273,3 +273,17 @@ a migration handoff with a planned retirement path back into
 - Evidence: `swarm-manager goals list --json` returned no goal whose name, title, or description names `persona`; the user-provided implementation plan and `PRD.md` are therefore the active contract evidence for this run. Its P0 targets explicitly name the seven product domains and the delegation/handoff/document boundaries now being implemented.
 - Blocker: No named swarm-manager goal was available to perform the normal bidirectional goal-to-PRD comparison; proceed under the user-provided plan and preserve this finding for the next run.
 - Measured: 2026-08-19
+
+### 2026-11-24 — RESOLVED: handoff list exposed overdue work as awaiting human
+
+**Symptom:** Listing persona handoffs after their deadline still showed an active `awaiting_human` state until a caller separately fetched each handoff.
+
+**Root cause:** `Get` lazily converted overdue active handoffs to `expired`, but `List` returned repository rows without applying the same deadline transition. The queue and detail view could therefore disagree about whether the human step was still actionable.
+
+**Fix (applied):** `List` now expires overdue `open`, `delivered`, and `awaiting_human` rows through the same transition helper as `Get`, journals the transition, and returns an error instead of stale active rows if the expiry write fails.
+
+**Verification:** `GOWORK=off go test ./internal/handoffs -count=1` and full API `GOWORK=off go test ./... -count=1` pass. A deterministic fake-clock regression failed before the fix and verifies list state plus expiry journal after the deadline.
+
+**Owner:** resolved by PT3 helper; PT2 primary integration handoff pending.
+
+**Refs:** `api/internal/handoffs/service.go`, `service_test.go`; run evidence `evidence/PT2-PERSONA-HANDOFF-LIST-EXPIRY.md`.

@@ -99,13 +99,7 @@ func (h *Handler) AnalyzeTrace(ctx context.Context, req *connect.Request[analysi
 			CLS:      res.CLS,
 			Note:     "analysis",
 		}
-		fillNavigationSample(&sample, res)
-		fillInteractionSample(&sample, res)
-		if slowest, ok := slowestComponent(res.Components); ok {
-			sample.SlowestComponent = slowest.Component
-			sample.SlowestComponentAvgMs = slowest.AvgMs
-			sample.SlowestComponentMaxMs = slowest.MaxMs
-		}
+		internalanalysis.PopulateSample(&sample, res)
 		if sample.LCPMs > 0 || sample.CLS > 0 || sample.LoadEventEndMs > 0 || sample.SlowestComponent != "" || sample.HasInteractionMetrics() {
 			if err := h.trend.Insert(ctx, sample); err != nil {
 				h.logger.Printf("analysis.AnalyzeTrace(%s): persist trend sample: %v", scenario, err)
@@ -113,61 +107,6 @@ func (h *Handler) AnalyzeTrace(ctx context.Context, req *connect.Request[analysi
 		}
 	}
 	return connect.NewResponse(out), nil
-}
-
-// fillNavigationSample copies the PerformanceNavigationTiming phases onto the
-// persisted sample so the navigation budget axes have a producer.
-func fillNavigationSample(sample *perfsample.Sample, res internalanalysis.Result) {
-	sample.ResponseEndMs = res.ResponseEndMs
-	sample.DOMInteractiveMs = res.DOMInteractiveMs
-	sample.DOMContentLoadedMs = res.DOMContentLoadedMs
-	sample.LoadEventEndMs = res.LoadEventEndMs
-	sample.NavigationType = res.NavigationType
-}
-
-func fillInteractionSample(sample *perfsample.Sample, res internalanalysis.Result) {
-	sample.DrawnFPS = res.FrameSummary.ApproxDrawnFPS
-	sample.DroppedFrameRate = res.FrameSummary.DroppedFrameRate
-	sample.LongTaskTotalMs = res.LongTaskMs
-	sample.LongTaskMaxMs = res.LongTaskMaxMs
-	sample.InputEventCount = int64(totalEventCount(res.InputEvents))
-	sample.RasterTotalMs = eventTotal(res.BrowserWork, "RasterTask")
-	sample.LayoutTotalMs = eventTotal(res.BrowserWork, "Layout") + eventTotal(res.BrowserWork, "UpdateLayoutTree")
-	sample.PaintTotalMs = eventTotal(res.BrowserWork, "Paint")
-}
-
-func totalEventCount(events []internalanalysis.EventSummary) int {
-	total := 0
-	for _, e := range events {
-		total += e.Count
-	}
-	return total
-}
-
-func eventTotal(events []internalanalysis.EventSummary, name string) float64 {
-	var total float64
-	for _, e := range events {
-		if e.Name == name {
-			total += e.TotalMs
-		}
-	}
-	return total
-}
-
-// slowestComponent returns the component with the highest average commit time
-// (the budget axes cap the worst offender). Returns ok=false for an empty set.
-func slowestComponent(components []internalanalysis.ComponentTiming) (internalanalysis.ComponentTiming, bool) {
-	var (
-		worst internalanalysis.ComponentTiming
-		found bool
-	)
-	for _, c := range components {
-		if !found || c.AvgMs > worst.AvgMs {
-			worst = c
-			found = true
-		}
-	}
-	return worst, found
 }
 
 // CompareTraces diffs two traces of the same interaction.

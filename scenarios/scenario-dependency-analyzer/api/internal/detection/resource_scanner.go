@@ -168,7 +168,8 @@ func (s *resourceScanner) detectResourceHeuristicsWithCatalog(content, relPath, 
 			continue
 		}
 		name := normalizeName(resourceName)
-		if !strings.Contains(foldedContent, name) {
+		envName := strings.ReplaceAll(name, "-", "_")
+		if !strings.Contains(foldedContent, name) && !strings.Contains(foldedContent, envName) {
 			continue
 		}
 		if pattern := asciiResourceReferencePattern(content, foldedContent, name, urls); pattern >= 0 {
@@ -208,7 +209,8 @@ func asciiResourceReferencePattern(content, lowerContent, name string, urls [][2
 	if containsBoundaryBefore(lowerContent, name+"://") {
 		return 1
 	}
-	if containsEnvReference(content, strings.ToUpper(name)) {
+	envName := strings.ReplaceAll(name, "-", "_")
+	if containsEnvReference(content, strings.ToUpper(envName)) {
 		return 2
 	}
 	for _, span := range urls {
@@ -351,7 +353,11 @@ func (s *resourceScanner) patternsForResource(name string) []*regexp.Regexp {
 
 func resourceHeuristicPatterns(resourceName string) []*regexp.Regexp {
 	name := regexp.QuoteMeta(normalizeName(resourceName))
-	upper := regexp.QuoteMeta(strings.ToUpper(normalizeName(resourceName)))
+	// Resource slugs use hyphens while exported environment variables use
+	// underscores (for example, `kale-tts` exports `KALE_TTS_URL`). Match the
+	// conventional environment spelling without changing URL or CLI matching.
+	envName := strings.NewReplacer("-", "_").Replace(normalizeName(resourceName))
+	upper := regexp.QuoteMeta(strings.ToUpper(envName))
 	return []*regexp.Regexp{
 		regexp.MustCompile(`resource-` + name + `\b`),
 		regexp.MustCompile(`(?i)\b` + name + `://`),

@@ -3,6 +3,7 @@ package audit
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -38,13 +39,20 @@ func (f *fakeBAS) CapturePerf(_ context.Context, _, _ string) (capture.Artifacts
 
 // fakeBuild drives the capture Service's build-controller seam.
 type fakeBuild struct {
-	url string
-	err error
+	url      string
+	err      error
+	arm      capture.LayoutCacheArm
+	armCalls int
 }
 
 func (f *fakeBuild) StartProfile(_ context.Context, _ string) (string, error) { return f.url, f.err }
-func (f *fakeBuild) RestoreDefault(_ context.Context, _ string) error         { return nil }
-func (f *fakeBuild) ResolveURL(_ context.Context, _ string) (string, error)   { return f.url, f.err }
+func (f *fakeBuild) StartProfileWithLayoutCacheArm(_ context.Context, _ string, arm capture.LayoutCacheArm) (string, error) {
+	f.armCalls++
+	f.arm = arm
+	return f.url, f.err
+}
+func (f *fakeBuild) RestoreDefault(_ context.Context, _ string) error       { return nil }
+func (f *fakeBuild) ResolveURL(_ context.Context, _ string) (string, error) { return f.url, f.err }
 
 // TestRunAuditCapturedMapsToProto builds the REAL capture service over fake BAS
 // + build seams, drives a Tier-1 capture via a fake tierer, and asserts the
@@ -52,9 +60,13 @@ func (f *fakeBuild) ResolveURL(_ context.Context, _ string) (string, error)   { 
 func TestRunAuditCapturedMapsToProto(t *testing.T) {
 	tierer := &fakeTierer{tier: readiness.Tier1}
 	bas := &fakeBAS{arts: capture.Artifacts{
-		TraceArtifact:     "trace.json",
-		WebVitalsArtifact: "vitals.json",
-		HasComponentMarks: true, // ⚛ marks present => Tier 1 reached
+		TraceArtifact:          "trace.json",
+		WebVitalsArtifact:      "vitals.json",
+		ProcessTreeArtifact:    "process-tree.json",
+		ProcessTreeReference:   "bas-capture://capture-1/process-tree",
+		ProcessTreeSessionID:   "session-1",
+		ProcessTreeLeaseSHA256: strings.Repeat("a", 64),
+		HasComponentMarks:      true, // ⚛ marks present => Tier 1 reached
 	}}
 	build := &fakeBuild{url: "http://localhost:3000/"}
 	h := NewHandler(capture.NewService(bas, build), tierer, nil)
@@ -78,6 +90,9 @@ func TestRunAuditCapturedMapsToProto(t *testing.T) {
 	}
 	if msg.GetTraceArtifact() != "trace.json" || msg.GetWebVitalsArtifact() != "vitals.json" {
 		t.Errorf("artifacts mapped wrong: trace=%q vitals=%q", msg.GetTraceArtifact(), msg.GetWebVitalsArtifact())
+	}
+	if msg.GetProcessTreeArtifact() != "process-tree.json" || msg.GetProcessTreeSessionId() != "session-1" || msg.GetProcessTreeLeaseSha256() != strings.Repeat("a", 64) {
+		t.Errorf("process-tree owner binding mapped wrong: %#v", msg)
 	}
 }
 
@@ -151,4 +166,72 @@ func TestRunAuditRequiresScenario(t *testing.T) {
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("want InvalidArgument, got %v (err=%v)", connect.CodeOf(err), err)
 	}
+}
+
+func TestRunAuditRejectsCacheArmOutsideFrozenTaskBeforeReadiness(t *testing.T) {
+	tierer := &fakeTierer{tier: readiness.Tier1}
+	h := NewHandler(capture.NewService(&fakeBAS{}, &fakeBuild{url: "http://ui"}), tierer, nil)
+	_, err := h.RunAudit(context.Background(), connect.NewRequest(&auditv1.RunAuditRequest{
+		Scenario:       "other-scenario",
+		Workflow:       "graph-large-topology",
+		LayoutCacheArm: auditv1.LayoutCacheArm_LAYOUT_CACHE_ARM_DISABLED,
+	}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("want InvalidArgument, got %v", err)
+	}
+	if tierer.called {
+		t.Fatal("unsupported arm must be rejected before readiness/capture side effects")
+	}
+}
+
+func TestRunAuditRejectsUnknownCacheArmBeforeReadiness(t *testing.T) {
+	tierer := &fakeTierer{tier: readiness.Tier1}
+	h := NewHandler(capture.NewService(&fakeBAS{}, &fakeBuild{url: "http://ui"}), tierer, nil)
+	_, err := h.RunAudit(context.Background(), connect.NewRequest(&auditv1.RunAuditRequest{
+		Scenario:       "swarm-manager",
+		Workflow:       "graph-large-topology",
+		LayoutCacheArm: auditv1.LayoutCacheArm(99),
+	}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("want InvalidArgument, got %v", err)
+	}
+	if tierer.called {
+		t.Fatal("unknown arm must be rejected before readiness/capture side effects")
+	}
+}
+
+func TestRunAuditRoutesAndReturnsLayoutCacheArm(t *testing.T) {
+	tierer := &fakeTierer{tier: readiness.Tier1}
+	build := &fakeBuild{url: "http://localhost:3000/"}
+	bas := &fakeBAS{arts: capture.Artifacts{TraceArtifact: "trace.json", HasComponentMarks: true}}
+	svc := capture.NewService(bas, build).WithFlowResolver(handlerFlows{
+		bySlug: map[string][]byte{"swarm-manager/graph-large-topology": []byte(`{"metadata":{"name":"graph-large-topology"}}`)},
+	})
+	h := NewHandler(svc, tierer, nil)
+	resp, err := h.RunAudit(context.Background(), connect.NewRequest(&auditv1.RunAuditRequest{
+		Scenario:       "swarm-manager",
+		Workflow:       "graph-large-topology",
+		LayoutCacheArm: auditv1.LayoutCacheArm_LAYOUT_CACHE_ARM_DISABLED,
+	}))
+	if err != nil {
+		t.Fatalf("RunAudit: %v", err)
+	}
+	if build.armCalls != 1 || build.arm != capture.LayoutCacheArmDisabled {
+		t.Fatalf("build did not receive selected arm: calls=%d arm=%q", build.armCalls, build.arm)
+	}
+	if resp.Msg.GetLayoutCacheArm() != auditv1.LayoutCacheArm_LAYOUT_CACHE_ARM_DISABLED {
+		t.Fatalf("capture receipt lost selected arm: %v", resp.Msg.GetLayoutCacheArm())
+	}
+}
+
+type handlerFlows struct {
+	bySlug map[string][]byte
+}
+
+func (f handlerFlows) Resolve(scenario, slug string) ([]byte, error) {
+	flow, ok := f.bySlug[scenario+"/"+slug]
+	if !ok {
+		return nil, errors.New("missing test flow")
+	}
+	return flow, nil
 }

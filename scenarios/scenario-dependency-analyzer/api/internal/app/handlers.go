@@ -92,6 +92,9 @@ func (h *handler) analysisHealth(c *gin.Context) {
 	graphSvc := h.graphService()
 	timestamp := time.Now().UTC().Format(time.RFC3339)
 	buildIdentity := os.Getenv("VROOLI_BUILD_IDENTITY")
+	runtimeReleaseID := os.Getenv("VROOLI_RUNTIME_RELEASE_ID")
+	runtimeReleaseOperationID := os.Getenv("VROOLI_RUNTIME_RELEASE_OPERATION_ID")
+	startOperationID := os.Getenv("VROOLI_START_OPERATION_ID")
 	if _, err := graphSvc.GenerateGraph("combined"); err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
 			"status":    "unhealthy",
@@ -100,24 +103,30 @@ func (h *handler) analysisHealth(c *gin.Context) {
 			// The combined graph is generated as part of this health probe, so
 			// this is the materialization timestamp for the three federated
 			// graph/resource search leaves, not merely the HTTP check time.
-			"last_indexed_at": timestamp,
-			"readiness":       false,
-			"version":         "1.0.0",
-			"build_identity":  buildIdentity,
-			"error":           "Analysis capability test failed",
+			"last_indexed_at":              timestamp,
+			"readiness":                    false,
+			"version":                      "1.0.0",
+			"build_identity":               buildIdentity,
+			"runtime_release_id":           runtimeReleaseID,
+			"runtime_release_operation_id": runtimeReleaseOperationID,
+			"start_operation_id":           startOperationID,
+			"error":                        "Analysis capability test failed",
 		})
 		return
 	}
 
 	payload := gin.H{
-		"status":          "healthy",
-		"service":         "scenario-dependency-analyzer-api",
-		"timestamp":       timestamp,
-		"last_indexed_at": timestamp,
-		"readiness":       true,
-		"version":         "1.0.0",
-		"build_identity":  buildIdentity,
-		"capabilities":    []string{"dependency_analysis", "graph_generation"},
+		"status":                       "healthy",
+		"service":                      "scenario-dependency-analyzer-api",
+		"timestamp":                    timestamp,
+		"last_indexed_at":              timestamp,
+		"readiness":                    true,
+		"version":                      "1.0.0",
+		"build_identity":               buildIdentity,
+		"runtime_release_id":           runtimeReleaseID,
+		"runtime_release_operation_id": runtimeReleaseOperationID,
+		"start_operation_id":           startOperationID,
+		"capabilities":                 []string{"dependency_analysis", "graph_generation"},
 	}
 
 	if depSvc := h.dependencyService(); depSvc != nil {

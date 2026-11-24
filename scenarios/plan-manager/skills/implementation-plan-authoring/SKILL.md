@@ -55,7 +55,7 @@ over a scenario whose route is not yet clear.
 
 ### 0.0 Read prior-plan status correctly
 
-Plan status is computed from the phase-status set, not intent. `draft` means no phase has left `todo` (a finalized, validated, never-started plan is `draft` forever); `active` means at least one phase left `todo` (an abandoned run stays `active` indefinitely). Neither carries recency: judge ownership by the last activity that `plans list` and `plans get` print. A stale plan covering the subject is input to supersede, extend or reuse, not a reason not to author; say which parts you took and which were stale.
+Plan status is computed from phase state, not intent. For bounded inventory, run `program-runtime library run plan-manager.plan-inventory`; use `program-runtime library run plan-manager.plan-read --input id=<id-or-slug>` for its bounded status/phase summary; use owner `plans get` only when authored prose is needed. A stale plan is input to supersede, extend or reuse, not a reason not to author.
 
 ---
 

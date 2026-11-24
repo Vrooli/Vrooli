@@ -28,6 +28,18 @@ type fakeBuild struct {
 	restoreErr   error
 }
 
+type cacheArmFakeBuild struct {
+	fakeBuild
+	arm      LayoutCacheArm
+	armCalls int
+}
+
+func (f *cacheArmFakeBuild) StartProfileWithLayoutCacheArm(_ context.Context, _ string, arm LayoutCacheArm) (string, error) {
+	f.armCalls++
+	f.arm = arm
+	return f.uiURL, f.err
+}
+
 func (f *fakeBuild) StartProfile(context.Context, string) (string, error) {
 	f.startCalls++
 	return f.uiURL, f.err
@@ -187,6 +199,42 @@ func TestOrchestrateResolvesWorkflowSlugToFlowBytes(t *testing.T) {
 	}
 	if bas.lastFlowJSON != string(flowJSON) {
 		t.Fatalf("BAS did not receive the resolved flow bytes:\n got: %s", bas.lastFlowJSON)
+	}
+}
+
+func TestOrchestrateRoutesAndRecordsExplicitLayoutCacheArm(t *testing.T) {
+	bas := &recordingBAS{artifacts: Artifacts{TraceArtifact: "perf.json", HasComponentMarks: true}}
+	build := &cacheArmFakeBuild{fakeBuild: fakeBuild{uiURL: "http://localhost:3000"}}
+	svc := NewService(bas, build).WithFlowResolver(fakeFlows{
+		bySlug: map[string][]byte{"swarm-manager/graph-large-topology": []byte(`{"metadata":{"name":"graph-large-topology"}}`)},
+	})
+	res, err := svc.OrchestrateWithLayoutCacheArm(context.Background(), "swarm-manager", "graph-large-topology", readiness.Tier1, LayoutCacheArmDisabled)
+	if err != nil {
+		t.Fatalf("OrchestrateWithLayoutCacheArm: %v", err)
+	}
+	if res.Outcome != OutcomeCaptured || res.LayoutCacheArm != LayoutCacheArmDisabled {
+		t.Fatalf("selected arm not recorded in capture receipt: %#v", res)
+	}
+	if build.armCalls != 1 || build.arm != LayoutCacheArmDisabled {
+		t.Fatalf("build controller did not receive disabled arm: calls=%d arm=%q", build.armCalls, build.arm)
+	}
+	if bas.lastFlowJSON != `{"metadata":{"name":"graph-large-topology"}}` {
+		t.Fatalf("frozen workflow changed: %q", bas.lastFlowJSON)
+	}
+}
+
+func TestOrchestrateDefaultsFrozenTaskToEnabledArm(t *testing.T) {
+	bas := &recordingBAS{artifacts: Artifacts{TraceArtifact: "perf.json", HasComponentMarks: true}}
+	build := &cacheArmFakeBuild{fakeBuild: fakeBuild{uiURL: "http://localhost:3000"}}
+	svc := NewService(bas, build).WithFlowResolver(fakeFlows{
+		bySlug: map[string][]byte{"swarm-manager/graph-large-topology": []byte(`{"metadata":{"name":"graph-large-topology"}}`)},
+	})
+	res, err := svc.OrchestrateWithLayoutCacheArm(context.Background(), "swarm-manager", "graph-large-topology", readiness.Tier1, LayoutCacheArmUnspecified)
+	if err != nil || res.Outcome != OutcomeCaptured {
+		t.Fatalf("default graph audit failed: result=%#v err=%v", res, err)
+	}
+	if res.LayoutCacheArm != LayoutCacheArmEnabled || build.arm != LayoutCacheArmEnabled {
+		t.Fatalf("default cache-enabled arm was not explicit in receipt/build: result=%q build=%q", res.LayoutCacheArm, build.arm)
 	}
 }
 

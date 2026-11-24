@@ -131,10 +131,15 @@ bounded offsets and a checksum. Unavailable targets must remain unavailable;
 do not substitute a host-only or idle recording.
 
 For review tooling, open the UI target matrix, run review, and readiness pages
-at `/targets`, `/runs`, and `/readiness`. When deployment-manager identity is
-configured (`DEPLOYMENT_MANAGER_URL`, `DEPLOYMENT_MANAGER_PROFILE_ID`, and
-`DEPLOYMENT_MANAGER_GIT_COMMIT`), completed matrix gates report reference-only
-verdicts to its evidence service.
+at `/targets`, `/runs`, and `/readiness`. Configure `DEPLOYMENT_MANAGER_URL`
+and a service token (`DEPLOYMENT_MANAGER_SERVICE_TOKEN` or
+`DEPLOYMENT_MANAGER_SERVICE_TOKEN_FILE`) for the `scenario-to-android.evidence`
+producer identity. Deployment Manager's `android-validate` operation binds its
+profile and commit to the exact matrix request; the static
+`DEPLOYMENT_MANAGER_PROFILE_ID` and `DEPLOYMENT_MANAGER_GIT_COMMIT` pair remains
+available for a single configured deployment context. Completed gates report
+reference-only verdicts; a missing or rejected receipt is retained on the
+matrix and is not a successful Deployment Manager validation.
 
 ## Escalation
 

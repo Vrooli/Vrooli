@@ -2,6 +2,7 @@ package aisearch
 
 import (
 	"context"
+	"io"
 	"log"
 	"time"
 
@@ -20,11 +21,15 @@ const envPrefix = "OFFER_DESK"
 // authoritative offline. The returned LiveSearch is safe to serve immediately.
 func Start(ctx context.Context, source *StoreSource, searchJSONPath string, logger *log.Logger) *LiveSearch {
 	if logger == nil {
-		logger = log.Default()
+		logger = log.New(io.Discard, "", 0)
 	}
 	lexical := NewService(source)
 
-	provider, ok := loadProvider(searchJSONPath)
+	provider, ok, loadErr := loadProvider(searchJSONPath)
+	if loadErr != nil {
+		logger.Printf("[offer-desk/aisearch] load search.json (%s): %v", searchJSONPath, loadErr)
+		return NewLexicalSearch(lexical)
+	}
 	if !ok {
 		logger.Printf("[offer-desk/aisearch] provider %q unavailable in %s — serving lexical search", ProviderID, searchJSONPath)
 		return NewLexicalSearch(lexical)
@@ -68,11 +73,11 @@ func Start(ctx context.Context, source *StoreSource, searchJSONPath string, logg
 // loadProvider reads the single offer-desk provider block from search.json. A
 // missing/malformed file or an absent provider is a degraded lexical boot, never
 // a fatal one: search is an enhancement over the authoritative catalog.
-func loadProvider(path string) (pkg.ProviderConfig, bool) {
+func loadProvider(path string) (pkg.ProviderConfig, bool, error) {
 	file, err := pkg.LoadSearchFile(path)
 	if err != nil {
-		log.Printf("[offer-desk/aisearch] load search.json (%s): %v", path, err)
-		return pkg.ProviderConfig{}, false
+		return pkg.ProviderConfig{}, false, err
 	}
-	return file.Provider(ProviderID)
+	provider, ok := file.Provider(ProviderID)
+	return provider, ok, nil
 }

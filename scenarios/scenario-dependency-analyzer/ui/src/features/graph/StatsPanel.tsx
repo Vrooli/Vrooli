@@ -1,6 +1,6 @@
 import { Activity, AlertTriangle, CheckCircle, Server } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import { ScrollArea } from "../../components/ui/scroll-area";
 import { Separator } from "../../components/ui/separator";
 import type { DependencyGraphNode } from "../../types";

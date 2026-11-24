@@ -30,6 +30,9 @@ const (
 	ViaHub  = "hub"
 )
 
+// WindDownText is the standard wind-down when no words are given.
+const WindDownText = "Finish the current unit, write the closeout, then end."
+
 // EntryTimeLayout is the UTC time the desk writes in a heading; a heading
 // written by hand may carry any RFC 3339 time (fractions, an offset).
 const EntryTimeLayout = "2006-01-02T15:04:05Z"

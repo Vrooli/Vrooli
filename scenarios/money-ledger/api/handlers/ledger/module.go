@@ -110,6 +110,15 @@ func (s *Service) GetPosting(ctx context.Context, req *connect.Request[ledgerpb.
 }
 
 func (s *Service) ReversePosting(ctx context.Context, req *connect.Request[ledgerpb.ReversePostingRequest]) (*connect.Response[ledgerpb.ReversePostingResponse], error) {
+	if access.ActorFrom(ctx) == access.ComputeManagerInvoiceWriter {
+		original, err := s.store.GetPosting(ctx, req.Msg.GetPostingId())
+		if err != nil {
+			return nil, notFound(err)
+		}
+		if original.GetEvent().GetAdapterId() != access.ComputeManagerInvoiceAdapter || original.GetReversalOf() != "" {
+			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("Compute Manager may reverse only its own original provider invoice postings"))
+		}
+	}
 	p, err := s.store.Reverse(ctx, req.Msg.PostingId, req.Msg.Reason, actor(ctx))
 	if err != nil {
 		if errors.Is(err, context.Canceled) {

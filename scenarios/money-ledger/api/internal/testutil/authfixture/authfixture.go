@@ -39,10 +39,12 @@ const (
 	OwnerSubject       = "owner-account"
 	OwnerAccessSubject = "owner-access-identity"
 	// WriteScope is the capability every writer holds.
-	WriteScope = "money-ledger:write"
+	WriteScope          = "money-ledger:write"
+	ComputeInvoiceScope = "money-ledger:compute-invoice"
 	// TreasuryWriter and LandingPageWriter are the declared service writers.
-	TreasuryWriter    = "treasury-money-ledger"
-	LandingPageWriter = "landing-page-business-suite-money-ledger-writer"
+	TreasuryWriter              = "treasury-money-ledger"
+	LandingPageWriter           = "landing-page-business-suite-money-ledger-writer"
+	ComputeManagerInvoiceWriter = "compute-manager-money-ledger-invoice-writer"
 	// OwnerEmail and OwnerPassword sign the owner's account in through the
 	// fixture provider; OtherEmail and OtherPassword sign in a person the
 	// owner-binding policy does not name.

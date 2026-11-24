@@ -199,6 +199,9 @@ func planDiskAdmission(ctx context.Context, r Resolution) (DiskAdmissionPlan, er
 	if r.PackageManager == "pip-local-wheel" {
 		return planYtDlpLocalWheel(ctx, r)
 	}
+	if r.HostTool && r.PackageManager == "npm" && r.Profile.LifecycleMode == "scripts-disabled-by-default" {
+		return planNPMFrozenHostToolDisk(ctx, r)
+	}
 
 	plan := DiskAdmissionPlan{Manager: r.PackageManager}
 	if r.PackageManager == "uv-lock" {
@@ -316,7 +319,7 @@ func planDiskAdmission(ctx context.Context, r Resolution) (DiskAdmissionPlan, er
 			return DiskAdmissionPlan{}, fmt.Errorf("resolve resource-agent home: %w", e)
 		}
 		name := filepath.Base(r.SurfaceRoot)
-		prefix, e := agentinstall.NPMInstallPrefix(userHome, name, r.HostToolTargetVersion)
+		prefix, e := agentinstall.NPMInstallPrefixForChannel(userHome, name, r.Channel, r.HostToolTargetVersion)
 		if e != nil {
 			return DiskAdmissionPlan{}, fmt.Errorf("resolve resource-agent prefix: %w", e)
 		}
@@ -585,6 +588,9 @@ func stagedJSInstall(r Resolution) bool {
 // probePackageGrowth bounds the install shapes that are not staged. Everything
 // it does not recognize is refused with the reason, never guessed.
 func probePackageGrowth(ctx context.Context, r Resolution) (int64, error) {
+	if r.Profile.LifecycleMode == "resource-agent" {
+		return probeResourceAgentGrowth(ctx, r)
+	}
 	if r.Profile.LifecycleMode != "native-governed" && r.Profile.LifecycleMode != "scripts-disabled-by-default" {
 		return 0, fmt.Errorf("install lifecycle %q has no bounded size probe", r.Profile.LifecycleMode)
 	}

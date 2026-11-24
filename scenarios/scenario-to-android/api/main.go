@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"scenario-to-android/internal/builds"
@@ -21,6 +20,7 @@ import (
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/filerouting"
@@ -183,17 +183,18 @@ func main() {
 	if deploymentURL := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_URL")); deploymentURL != "" {
 		profileID := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_PROFILE_ID"))
 		gitCommit := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_GIT_COMMIT"))
-		if profileID != "" && gitCommit != "" {
-			matrixOptions = append(matrixOptions, validationmatrix.WithReleaseReporter(
-				validationmatrix.NewDeploymentReporterFromURL(
-					deploymentURL,
-					profileID,
-					gitCommit,
-					nil,
-					validationmatrix.WithDeploymentIdentity("scenario-to-android", "scenario-to-android", "android", runtime.GOOS),
-				),
-			))
+		if (profileID == "") != (gitCommit == "") {
+			log.Fatal("DEPLOYMENT_MANAGER_PROFILE_ID and DEPLOYMENT_MANAGER_GIT_COMMIT must be configured together")
 		}
+		matrixOptions = append(matrixOptions, validationmatrix.WithReleaseReporter(
+			validationmatrix.NewDeploymentReporterFromURL(
+				deploymentURL,
+				profileID,
+				gitCommit,
+				nil,
+				validationmatrix.WithDeploymentIdentity("scenario-to-android", "scenario-to-android", "android", "android"),
+			),
+		))
 	}
 	matrixService := validationmatrix.NewService(matrixStore, executors, matrixOptions...)
 	matrixService.RecoverStale()
@@ -251,13 +252,22 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
-
-	rootMux.Handle("/", srv.Handler())
+	apiHandler := srv.Handler()
+	rootMux.Handle("/api/v1/android/artifacts/metadata", requireAndroidCapability("scenario-to-android:read", apiHandler))
+	rootMux.Handle("/api/v1/android/matrices", requireAndroidCapability("scenario-to-android:write", apiHandler))
+	rootMux.Handle("/api/v1/validation/catalog", requireAndroidCapability("scenario-to-android:read", apiHandler))
+	rootMux.Handle("/api/v1/validation/matrices", requireAndroidCapabilityByMethod(apiHandler))
+	rootMux.Handle("/api/v1/validation/matrices/", requireAndroidCapabilityByMethod(apiHandler))
+	rootMux.Handle("/", apiHandler)
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the
 	// installed test pool. Self-disables in production mode.
-	handler := apihttp.TestModeMiddleware(rootMux)
+	authConfig, err := authn.FromEnvironment(os.Getenv)
+	if err != nil {
+		log.Fatalf("authentication configuration failed: %v", err)
+	}
+	handler := apihttp.TestModeMiddleware(authn.Middleware(authConfig)(rootMux))
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler:     handler,
@@ -266,4 +276,28 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+func requireAndroidCapability(capability string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, err := authn.RequireCapability(r.Context(), capability); err != nil {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func requireAndroidCapabilityByMethod(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capability := "scenario-to-android:read"
+		if r.Method == http.MethodPost {
+			capability = "scenario-to-android:write"
+		}
+		if _, err := authn.RequireCapability(r.Context(), capability); err != nil {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }

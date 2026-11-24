@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
-import { Button } from "../../components/ui/button";
 import { EmptyState, ErrorState, LoadingState, Skeleton } from "../../components/ui/state";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
@@ -81,9 +80,12 @@ export function TrendsView() {
           title={t(strings.trends.emptyTitle)}
           message={t(strings.trends.empty)}
           actionSlot={
-            <Button asChild size="sm">
-              <Link to="/audit">{t(strings.trends.emptyCta)}</Link>
-            </Button>
+            <Link
+              to="/audit"
+              className="inline-flex items-center justify-center rounded-control text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50 disabled:pointer-events-none disabled:opacity-60 bg-app-primary text-app-primary-foreground hover:brightness-95 h-9 px-4"
+            >
+              {t(strings.trends.emptyCta)}
+            </Link>
           }
         />
       )}

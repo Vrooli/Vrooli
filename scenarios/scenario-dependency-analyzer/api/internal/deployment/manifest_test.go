@@ -380,6 +380,31 @@ func TestPeerCarriesDeclaredVersionRange(t *testing.T) {
 	}
 }
 
+func TestDerivePeersDoesNotFlattenDiscoveredOwnerDependencies(t *testing.T) {
+	dir := t.TempDir()
+	writeBundleGraphOwner(t, dir, "root", map[string]scenariomodel.Dependency{
+		"runtime": {BundlePolicy: "discover"},
+	})
+	writeBundleGraphOwner(t, dir, "runtime", map[string]scenariomodel.Dependency{
+		"embedded-feature-owner": {BundlePolicy: "embed"},
+	})
+	writeBundleGraphOwner(t, dir, "embedded-feature-owner", nil)
+	rootPath := filepath.Join(dir, "root")
+	cfg, err := config.LoadServiceConfig(rootPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtimePath := filepath.Join(dir, "runtime")
+	ownerPath := filepath.Join(dir, "embedded-feature-owner")
+	peers := derivePeers(cfg, []types.DeploymentDependencyNode{{
+		Name: "runtime", Type: "scenario", Path: runtimePath,
+		Children: []types.DeploymentDependencyNode{{Name: "embedded-feature-owner", Type: "scenario", Path: ownerPath}},
+	}})
+	if len(peers) != 1 || peers[0].Scenario != "runtime" || len(peers[0].Features) != 0 {
+		t.Fatalf("discovered owner leaked a descendant peer into the root bundle: %#v", peers)
+	}
+}
+
 func TestRealScenarioComponentProjectionFidelity(t *testing.T) {
 	repoRoot, err := filepath.Abs("../../../../..")
 	if err != nil {

@@ -176,17 +176,17 @@ type amRunSummary struct {
 }
 
 type amRun struct {
-	ID            string        `json:"id"`
-	Status        string        `json:"status"`
-	RequestedModel string       `json:"requested_model"`
-	ActualModel   string        `json:"actual_model"`
-	SandboxID    string        `json:"sandbox_id"`
-	DiffPath     string        `json:"diff_path"`
-	ChangedFiles int           `json:"changed_files"`
-	StartedAt    string        `json:"started_at"`
-	EndedAt      string        `json:"ended_at"`
-	ErrorMsg     string        `json:"error_msg"`
-	Summary      *amRunSummary `json:"summary"`
+	ID             string        `json:"id"`
+	Status         string        `json:"status"`
+	RequestedModel string        `json:"requested_model"`
+	ActualModel    string        `json:"actual_model"`
+	SandboxID      string        `json:"sandbox_id"`
+	DiffPath       string        `json:"diff_path"`
+	ChangedFiles   int           `json:"changed_files"`
+	StartedAt      string        `json:"started_at"`
+	EndedAt        string        `json:"ended_at"`
+	ErrorMsg       string        `json:"error_msg"`
+	Summary        *amRunSummary `json:"summary"`
 }
 
 func (run amRun) tokens() int64 {
@@ -246,12 +246,17 @@ func (r *execTrialRunner) reconcileProfile(ctx context.Context) (string, error) 
 }
 
 // createTask creates the agent task scoped to the fixture's target codebase.
+// Keep ProjectRoot equal to ScopePath: workspace-sandbox prefixes scoped diffs
+// relative to ProjectRoot, and the evaluator applies those diffs to a copy of
+// the target directory. A broader project root makes every hunk point outside
+// that copy.
 func (r *execTrialRunner) createTask(ctx context.Context, task TrialTask, fixture Fixture) (string, error) {
 	title := fmt.Sprintf("trial %s: %s", fixture.Family, task.ID)
 	out, err := r.run(ctx, "agent-manager", "task", "create",
 		"--title", title,
 		"--description", fixture.Prompt,
 		"--scope-path", fixture.TargetDir,
+		"--project-root", fixture.TargetDir,
 		"--json",
 	)
 	if err != nil {

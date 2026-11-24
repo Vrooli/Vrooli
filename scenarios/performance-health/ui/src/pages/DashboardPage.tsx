@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { Activity, BarChart3, FileSearch, Layers, ShieldCheck, Wand2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import { Button } from "../components/ui/button";
 import { EmptyState, ErrorState, Skeleton } from "../components/ui/state";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
@@ -103,9 +102,12 @@ export function DashboardPage() {
             icon={Layers}
             message={t(strings.pages.dashboard.snapshotEmpty)}
             actionSlot={
-              <Button asChild size="sm">
-                <Link to="/fleet">{t(strings.pages.dashboard.snapshotCta)}</Link>
-              </Button>
+              <Link
+                to="/fleet"
+                className="inline-flex items-center justify-center rounded-control text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50 disabled:pointer-events-none disabled:opacity-60 bg-app-primary text-app-primary-foreground hover:brightness-95 h-9 px-4"
+              >
+                {t(strings.pages.dashboard.snapshotCta)}
+              </Link>
             }
           />
         )}

@@ -134,13 +134,7 @@ func (h *Handler) sweepFlow(ctx context.Context, scenario, slug string, tier rea
 	}
 
 	sample := perfsample.Sample{Scenario: scenario, Flow: slug, LCPMs: ares.LCPMs, CLS: ares.CLS, Note: "sweep"}
-	fillNavigationSample(&sample, ares)
-	fillInteractionSample(&sample, ares)
-	if slowest, ok := slowestComponent(ares.Components); ok {
-		sample.SlowestComponent = slowest.Component
-		sample.SlowestComponentAvgMs = slowest.AvgMs
-		sample.SlowestComponentMaxMs = slowest.MaxMs
-	}
+	analysis.PopulateSample(&sample, ares)
 	if h.trend != nil && (sample.LCPMs > 0 || sample.CLS > 0 || sample.LoadEventEndMs > 0 || sample.SlowestComponent != "" || sample.HasInteractionMetrics()) {
 		if err := h.trend.Insert(ctx, sample); err != nil {
 			h.logger.Printf("sweep(%s/%s): persist flow sample: %v", scenario, slug, err)
@@ -160,46 +154,6 @@ func (h *Handler) sweepFlow(ctx context.Context, scenario, slug string, tier rea
 	return res
 }
 
-// fillNavigationSample copies the PerformanceNavigationTiming phases onto the
-// persisted sample. Mirrors the analysis handler's copy: each handler package
-// owns its own projection of analysis.Result onto a perfsample.
-func fillNavigationSample(sample *perfsample.Sample, res analysis.Result) {
-	sample.ResponseEndMs = res.ResponseEndMs
-	sample.DOMInteractiveMs = res.DOMInteractiveMs
-	sample.DOMContentLoadedMs = res.DOMContentLoadedMs
-	sample.LoadEventEndMs = res.LoadEventEndMs
-	sample.NavigationType = res.NavigationType
-}
-
-func fillInteractionSample(sample *perfsample.Sample, res analysis.Result) {
-	sample.DrawnFPS = res.FrameSummary.ApproxDrawnFPS
-	sample.DroppedFrameRate = res.FrameSummary.DroppedFrameRate
-	sample.LongTaskTotalMs = res.LongTaskMs
-	sample.LongTaskMaxMs = res.LongTaskMaxMs
-	sample.InputEventCount = int64(totalEventCount(res.InputEvents))
-	sample.RasterTotalMs = eventTotal(res.BrowserWork, "RasterTask")
-	sample.LayoutTotalMs = eventTotal(res.BrowserWork, "Layout") + eventTotal(res.BrowserWork, "UpdateLayoutTree")
-	sample.PaintTotalMs = eventTotal(res.BrowserWork, "Paint")
-}
-
-func totalEventCount(events []analysis.EventSummary) int {
-	total := 0
-	for _, e := range events {
-		total += e.Count
-	}
-	return total
-}
-
-func eventTotal(events []analysis.EventSummary, name string) float64 {
-	var total float64
-	for _, e := range events {
-		if e.Name == name {
-			total += e.TotalMs
-		}
-	}
-	return total
-}
-
 func (h *Handler) resolveTier(ctx context.Context, scenario string) readiness.Tier {
 	if h.tierer == nil {
 		return readiness.Tier0
@@ -210,20 +164,6 @@ func (h *Handler) resolveTier(ctx context.Context, scenario string) readiness.Ti
 		return readiness.Tier0
 	}
 	return r.Tier
-}
-
-func slowestComponent(components []analysis.ComponentTiming) (analysis.ComponentTiming, bool) {
-	var (
-		worst analysis.ComponentTiming
-		found bool
-	)
-	for _, c := range components {
-		if !found || c.AvgMs > worst.AvgMs {
-			worst = c
-			found = true
-		}
-	}
-	return worst, found
 }
 
 func outcomeString(o capture.Outcome) string {

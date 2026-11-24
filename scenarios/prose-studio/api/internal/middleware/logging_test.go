@@ -2,9 +2,11 @@ package middleware_test
 
 import (
 	"bytes"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -59,4 +61,21 @@ func TestLoggingMiddleware_NilLoggerDefaults(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/probe", nil)
 	require.NotPanics(t, func() { handler.ServeHTTP(rec, req) })
 	require.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestLoggingMiddlewareDoesNotLogPostBody(t *testing.T) {
+	clk := scheduletest.New(time.Time{})
+	buf := &bytes.Buffer{}
+	logger := log.New(buf, "", 0)
+	const marker = "SYNTHETIC_PRIVATE_BODY_MARKER"
+	handler := middleware.NewLoggingMiddleware(clk, logger)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.WriteHeader(http.StatusOK)
+	}))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/prose/generate", strings.NewReader(marker))
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Contains(t, buf.String(), "/api/v1/prose/generate")
+	require.NotContains(t, buf.String(), marker)
 }

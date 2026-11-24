@@ -11,6 +11,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -332,95 +333,18 @@ func (s *Server) handleExtract(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Determine archive type by extension
-	ext := strings.ToLower(filepath.Ext(req.ArchivePath))
-
-	var extractedFiles []string
-	var totalSize int64
-
-	switch ext {
-	case ".zip":
-		reader, err := zip.OpenReader(req.ArchivePath)
-		if err != nil {
-			s.sendError(w, http.StatusInternalServerError, "failed to open archive")
-			return
+	extractedFiles, totalSize, err := extractArchive(req.ArchivePath, req.DestinationPath)
+	if err != nil {
+		switch {
+		case errors.Is(err, errArchiveTooLarge):
+			s.sendError(w, http.StatusRequestEntityTooLarge, "archive exceeds extraction limits")
+		case errors.Is(err, errUnsafeArchivePath):
+			s.sendError(w, http.StatusBadRequest, "archive contains an unsafe or unsupported entry")
+		case errors.Is(err, errUnsupportedArchive):
+			s.sendError(w, http.StatusBadRequest, "unsupported archive format")
+		default:
+			s.sendError(w, http.StatusInternalServerError, "archive extraction failed")
 		}
-		defer reader.Close()
-
-		for _, file := range reader.File {
-			path := filepath.Join(req.DestinationPath, file.Name)
-
-			if file.FileInfo().IsDir() {
-				os.MkdirAll(path, file.Mode())
-				continue
-			}
-
-			fileReader, err := file.Open()
-			if err != nil {
-				continue
-			}
-			defer fileReader.Close()
-
-			targetFile, err := os.Create(path)
-			if err != nil {
-				continue
-			}
-			defer targetFile.Close()
-
-			written, _ := io.Copy(targetFile, fileReader)
-			totalSize += written
-			extractedFiles = append(extractedFiles, path)
-		}
-
-	case ".tar", ".gz", ".tgz":
-		file, err := os.Open(req.ArchivePath)
-		if err != nil {
-			s.sendError(w, http.StatusInternalServerError, "failed to open archive")
-			return
-		}
-		defer file.Close()
-
-		var tarReader *tar.Reader
-		if ext == ".gz" || ext == ".tgz" {
-			gzReader, err := gzip.NewReader(file)
-			if err != nil {
-				s.sendError(w, http.StatusInternalServerError, "failed to open gzip")
-				return
-			}
-			defer gzReader.Close()
-			tarReader = tar.NewReader(gzReader)
-		} else {
-			tarReader = tar.NewReader(file)
-		}
-
-		for {
-			header, err := tarReader.Next()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				continue
-			}
-
-			path := filepath.Join(req.DestinationPath, header.Name)
-
-			switch header.Typeflag {
-			case tar.TypeDir:
-				os.MkdirAll(path, os.FileMode(header.Mode))
-			case tar.TypeReg:
-				targetFile, err := os.Create(path)
-				if err != nil {
-					continue
-				}
-				written, _ := io.Copy(targetFile, tarReader)
-				targetFile.Close()
-				totalSize += written
-				extractedFiles = append(extractedFiles, path)
-			}
-		}
-
-	default:
-		s.sendError(w, http.StatusBadRequest, "unsupported archive format")
 		return
 	}
 

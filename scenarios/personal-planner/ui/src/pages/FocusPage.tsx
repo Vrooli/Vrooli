@@ -73,7 +73,8 @@ export function FocusPage() {
       if (action === "start") {
         const minutes = timerMode === "open" ? 0 : plannedMinutes;
         if (timerMode !== "open") window.localStorage.setItem(`personal-planner.focus-target:${selected?.id ?? "open"}`, String(minutes * 60));
-        return startFocus({ workItemId: selected?.id, title: selected?.title ?? "Spontaneous focus", mode: timerMode === "open" ? "open" : timerMode });
+        const mode = timerMode === "countdown" ? "timed" : timerMode;
+        return startFocus({ workItemId: selected?.id, title: selected?.title ?? "Spontaneous focus", mode });
       }
       if (!session) throw new Error("No current focus session");
       if (action === "pause") {
@@ -104,7 +105,7 @@ export function FocusPage() {
   });
 
   const elapsed = useMemo(() => session ? activeSeconds(session, now) : 0, [session, now]);
-  const targetSeconds = session && (session.mode === "countdown" || session.mode === "pomodoro") ? Number(window.localStorage.getItem(`personal-planner.focus-target:${session.workItemId || "open"}`) ?? 0) : 0;
+  const targetSeconds = session && (session.mode === "countdown" || session.mode === "timed" || session.mode === "pomodoro") ? Number(window.localStorage.getItem(`personal-planner.focus-target:${session.workItemId || "open"}`) ?? 0) : 0;
   const overtime = targetSeconds > 0 && elapsed > targetSeconds;
   const timerSeconds = targetSeconds > 0 ? Math.abs(targetSeconds - elapsed) : elapsed;
   const breakRemaining = breakUntil ? Math.max(0, breakUntil - now) : 0;
@@ -158,6 +159,7 @@ export function FocusPage() {
           <div className="focus-mode-row" role="group" aria-label="Timer mode"><Button type="button" variant={timerMode === "countdown" ? "primary" : "secondary"} onClick={() => setTimerMode("countdown")}>Countdown</Button><Button type="button" variant={timerMode === "pomodoro" ? "primary" : "secondary"} onClick={() => setTimerMode("pomodoro")}>Pomodoro</Button><Button type="button" variant={timerMode === "open" ? "primary" : "secondary"} onClick={() => setTimerMode("open")}>Open timer</Button>{timerMode !== "open" && <Select aria-label="Planned duration" value={String(plannedMinutes)} onChange={(event) => setPlannedMinutes(Number(event.target.value))} options={[25, 45, 90].map((minutes) => ({ value: String(minutes), label: `${minutes} minutes` }))} />}{timerMode === "pomodoro" && <Select aria-label="Pomodoro cycles" value={String(pomodoroCycles)} onChange={(event) => setPomodoroCycles(Number(event.target.value))} options={[2, 4, 6].map((cycles) => ({ value: String(cycles), label: `${cycles} cycles` }))} />}</div>
           {work.data && work.data.length > 0 && <FormField required label="Work item" control={<Select required aria-label="Work item" value={selectedWorkId || work.data[0]?.id || ""} onChange={(event) => setSelectedWorkId(event.target.value)} options={work.data.map((item) => ({ value: item.id, label: item.title }))} />} />}
           <Button className="primary-action" type="button" onClick={() => mutation.mutate("start")} disabled={mutation.isPending} pending={mutation.isPending} pendingLabel="Starting…">Start focus</Button>
+          {mutation.isError && <p role="alert">Focus could not start. Nothing was saved.</p>}
         </div>
       )}
       {session && (

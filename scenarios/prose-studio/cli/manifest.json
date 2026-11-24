@@ -120,6 +120,34 @@
           }
         },
         {
+          "name": "generate-application-document",
+          "description": "Generate an ephemeral source-referenced cover letter or employer short answer",
+          "flags": [
+            {
+              "name": "request-json",
+              "required": true,
+              "local_only": true,
+              "bind_waiver": "The CLI accepts a complete protojson request payload and decodes it into the typed request before invoking the Connect client.",
+              "description": "Versioned application document request"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProseStudioService",
+            "method": "GenerateApplicationDocument"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
           "name": "reroll",
           "description": "Reroll a session with bounded negative context",
           "flags": [

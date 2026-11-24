@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -26,7 +27,7 @@ func Module(service *internal.Service) module.Module {
 	return module.Module{Name: "prose", Mount: func(r *mux.Router) {
 		path, connectHandler := connectv1.NewProseStudioServiceHandler(h)
 		r.PathPrefix(path).Handler(connectHandler)
-		for _, op := range []string{"registry", "styles", "profiles/resolve", "generate", "sessions/reroll", "sessions/action", "declarations/reindex", "declarations/validate", "documents", "documents/list", "documents/get", "documents/assemble", "documents/resume", "conformance"} {
+		for _, op := range []string{"registry", "styles", "profiles/resolve", "generate", "generate/application-document", "sessions/reroll", "sessions/action", "declarations/reindex", "declarations/validate", "documents", "documents/list", "documents/get", "documents/assemble", "documents/resume", "conformance"} {
 			r.HandleFunc("/api/v1/prose/"+op, h.rest).Methods(http.MethodPost)
 		}
 	}, Endpoints: Endpoints}
@@ -83,6 +84,68 @@ func (h *handler) Generate(ctx context.Context, req *connect.Request[v1.Generate
 		return nil, err
 	}
 	return connect.NewResponse(&response), nil
+}
+
+func (h *handler) GenerateApplicationDocument(ctx context.Context, req *connect.Request[v1.GenerateApplicationDocumentRequest]) (*connect.Response[v1.GenerateApplicationDocumentResponse], error) {
+	in := req.Msg
+	if in.GetContractVersion() != 1 || (in.GetKind() != v1.ApplicationDocumentKind_APPLICATION_DOCUMENT_KIND_COVER_LETTER && in.GetKind() != v1.ApplicationDocumentKind_APPLICATION_DOCUMENT_KIND_SHORT_ANSWER) || strings.TrimSpace(in.GetProfileKey()) == "" || strings.TrimSpace(in.GetInstruction()) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("contract_version 1, a supported application kind, profile_key, and instruction are required"))
+	}
+	sources := make(map[string]*v1.ApplicationSource, len(in.GetSources()))
+	for _, source := range in.GetSources() {
+		if source == nil || strings.TrimSpace(source.GetId()) == "" || strings.TrimSpace(source.GetLiteral()) == "" || strings.TrimSpace(source.GetConfirmationRef()) == "" || !source.GetConfirmed() || (source.GetKind() != v1.ApplicationSourceKind_APPLICATION_SOURCE_KIND_CONFIRMED_FACT && source.GetKind() != v1.ApplicationSourceKind_APPLICATION_SOURCE_KIND_LISTING_EVIDENCE) {
+			return connect.NewResponse(applicationRefusal(in.GetKind(), "sources must have unique IDs, supported kinds, nonempty literals, confirmed=true, and a confirmation_ref")), nil
+		}
+		if _, exists := sources[source.GetId()]; exists {
+			return connect.NewResponse(applicationRefusal(in.GetKind(), "duplicate source ID")), nil
+		}
+		sources[source.GetId()] = source
+	}
+	if len(sources) == 0 {
+		return connect.NewResponse(applicationRefusal(in.GetKind(), "no confirmed sources supplied")), nil
+	}
+	encodedSources, _ := json.Marshal(in.GetSources())
+	query := fmt.Sprintf("Write an application document. Return only JSON with shape {\"sentences\":[{\"text\":string,\"source_ids\":[string]}]}. Every sentence must cite one or more supplied source IDs. Do not invent facts. Kind: %s. Instruction: %s. Confirmed sources: %s", in.GetKind().String(), in.GetInstruction(), encodedSources)
+	out, err := h.service.Generate(ctx, internal.GenerateRequest{ProfileKey: in.GetProfileKey(), Query: query, IncludeCandidates: false, PersistenceMode: "private_ephemeral"})
+	if err != nil {
+		return connect.NewResponse(applicationRefusal(in.GetKind(), "provider or generation error")), nil
+	}
+	validated, reason := validateApplicationOutput(out.Selected, sources)
+	if reason != "" {
+		return connect.NewResponse(applicationRefusal(in.GetKind(), reason)), nil
+	}
+	return connect.NewResponse(&v1.GenerateApplicationDocumentResponse{ContractVersion: 1, Kind: in.GetKind(), Status: "draft", Sentences: validated}), nil
+}
+
+func validateApplicationOutput(candidate *internal.Candidate, sources map[string]*v1.ApplicationSource) ([]*v1.ApplicationSentence, string) {
+	var payload struct {
+		Sentences []struct {
+			Text      string   `json:"text"`
+			SourceIDs []string `json:"source_ids"`
+		} `json:"sentences"`
+	}
+	if candidate == nil || json.Unmarshal([]byte(candidate.Text), &payload) != nil || len(payload.Sentences) == 0 {
+		return nil, "provider output did not match the source-bound JSON contract"
+	}
+	result := make([]*v1.ApplicationSentence, 0, len(payload.Sentences))
+	for _, sentence := range payload.Sentences {
+		if strings.TrimSpace(sentence.Text) == "" || len(sentence.SourceIDs) == 0 {
+			return nil, "every sentence must be nonempty and reference at least one source"
+		}
+		seen := map[string]bool{}
+		for _, id := range sentence.SourceIDs {
+			if sources[id] == nil || seen[id] {
+				return nil, "sentence referenced an absent or duplicate source"
+			}
+			seen[id] = true
+		}
+		result = append(result, &v1.ApplicationSentence{Text: sentence.Text, SourceIds: sentence.SourceIDs})
+	}
+	return result, ""
+}
+
+func applicationRefusal(kind v1.ApplicationDocumentKind, reason string) *v1.GenerateApplicationDocumentResponse {
+	return &v1.GenerateApplicationDocumentResponse{ContractVersion: 1, Kind: kind, Status: "refused", RefusalReason: reason}
 }
 
 func (h *handler) Reroll(ctx context.Context, req *connect.Request[v1.RerollRequest]) (*connect.Response[v1.RerollResponse], error) {
@@ -236,7 +299,7 @@ func encodeResponse(value any, message proto.Message) error {
 
 func (h *handler) rest(w http.ResponseWriter, r *http.Request) {
 	op := strings.TrimPrefix(r.URL.Path, "/api/v1/prose/")
-	op = map[string]string{"registry": "registry", "styles": "create_style", "profiles/resolve": "resolve_profile", "generate": "generate", "sessions/reroll": "reroll", "sessions/action": "session_action", "declarations/reindex": "reindex", "declarations/validate": "validate", "documents": "create_document", "documents/list": "list_documents", "documents/get": "get_document", "documents/assemble": "assemble", "documents/resume": "resume", "conformance": "conformance"}[op]
+	op = map[string]string{"registry": "registry", "styles": "create_style", "profiles/resolve": "resolve_profile", "generate": "generate", "generate/application-document": "generate_application_document", "sessions/reroll": "reroll", "sessions/action": "session_action", "declarations/reindex": "reindex", "declarations/validate": "validate", "documents": "create_document", "documents/list": "list_documents", "documents/get": "get_document", "documents/assemble": "assemble", "documents/resume": "resume", "conformance": "conformance"}[op]
 	var raw json.RawMessage
 	if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
 		writeError(w, connect.CodeInvalidArgument, err)
@@ -291,6 +354,19 @@ func (h *handler) dispatch(ctx context.Context, op string, raw json.RawMessage) 
 			return nil, err
 		}
 		value = out
+	case "generate_application_document":
+		var in v1.GenerateApplicationDocumentRequest
+		if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(raw, &in); err != nil {
+			return nil, err
+		}
+		out, err := h.GenerateApplicationDocument(ctx, connect.NewRequest(&in))
+		if err != nil {
+			return nil, err
+		}
+		// Keep the REST exception on protobuf's JSON contract. json.Marshal on a
+		// generated message encodes enum fields as integers, while Connect and
+		// protojson clients expect the stable enum names.
+		return (protojson.MarshalOptions{UseProtoNames: true}).Marshal(out.Msg)
 	case "session_action":
 		var in struct {
 			Action      string `json:"action"`
@@ -443,6 +519,7 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "prose_create_style", Path: connectv1.ProseStudioServiceCreateStyleProcedure, Method: http.MethodPost, Summary: "Create a versioned writing style", Category: "styles"},
 	{ID: "prose_resolve_profile", Path: connectv1.ProseStudioServiceResolveProfileProcedure, Method: http.MethodPost, Summary: "Resolve a profile and inspect its exact instruction", Category: "profiles"},
 	{ID: "prose_generate", Path: connectv1.ProseStudioServiceGenerateProcedure, Method: http.MethodPost, Summary: "Generate and measure a candidate set through ai-gateway", Category: "generation"},
+	{ID: "prose_generate_application_document", Path: connectv1.ProseStudioServiceGenerateApplicationDocumentProcedure, Method: http.MethodPost, Summary: "Generate an ephemeral source-referenced cover letter or employer short answer", Category: "generation"},
 	{ID: "prose_reroll", Path: connectv1.ProseStudioServiceRerollProcedure, Method: http.MethodPost, Summary: "Reroll a session with pinned and rejected context", Category: "sessions"},
 	{ID: "prose_session_action", Path: connectv1.ProseStudioServiceSessionActionProcedure, Method: http.MethodPost, Summary: "Pin, unpin, reject, refine, or abandon a session", Category: "sessions"},
 	{ID: "prose_reindex_declarations", Path: connectv1.ProseStudioServiceReindexDeclarationsProcedure, Method: http.MethodPost, Summary: "Register consumer-owned declaration files", Category: "declarations"},

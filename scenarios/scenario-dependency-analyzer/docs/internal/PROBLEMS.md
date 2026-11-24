@@ -407,6 +407,41 @@ separate work; a repaired route alone does not prove that runtime installed.
 
 ## Work ladder
 
+- Rung: W3 (implementation)
+- Evidence: E05's Deployment Manager owner needed to refresh the degraded
+  behavior text on an existing `vrooli-events` optional runtime row after
+  subscription recovery became periodic. `deps declare-runtime` correctly
+  refused to overwrite it, while manual manifest edits would bypass the
+  preview-hash and structural checks. Added `deps update-runtime`: preview by
+  default, apply only against the preview's exact manifest digest, and update
+  only descriptive fields on an already exact optional runtime-only
+  `startup_policy=ignore` dependency. It refuses absent or structurally unsafe
+  rows, duplicate keys, stale digests, malformed files and symlinked scenario
+  paths; unknown dependency fields and unrelated manifest bytes are retained.
+  A fresh adversarial check found Go's plain-bool JSON decoding treats
+  `required: null` as false. The structural gate now requires explicit JSON
+  types and values for every contract field, including `type`, `enabled`,
+  `required`, `runtime_only` and `startup_policy`; null, wrong-type and absent
+  variants are rejected before preview or apply can write.
+  A second fresh challenge found that equal descriptive values in a compact,
+  reordered dependency row were re-marshaled and reported as a change. The
+  command now compares the three JSON string values semantically after the
+  structural gate and returns an unchanged receipt before mutation when all
+  match, preserving the manifest's exact bytes in both preview and apply.
+  `cd scenarios/scenario-dependency-analyzer/cli && GOWORK=off go test -count=1
+  ./domains/depsapproved -run 'Test(DeclareRuntime|UpdateRuntime|AtomicFileWrite|ReadRegularFileNoSymlink|.*Help)'`
+  passes positive, preview-no-write, apply, stale-hash, structural, duplicate,
+  missing-row, symlink, explicit JSON-type/null, compact-format no-op and
+  file-mode regressions.
+- Limits: `declare-runtime` remains insert-only. `update-runtime` cannot change
+  requiredness, startup policy, target, or any other structural field; it does
+  not edit Deployment Manager or prove runtime reachability. That owner may
+  consume the reviewed command and rerun its focused checks. The broader package
+  run failed six existing install transport integration cases before exercising
+  this command because Agent Manager identity admission returned
+  `identity_refresh_unavailable`; no broader SDA suite verdict is claimed.
+- Measured: 2026-11-16.
+
 - Scoped repair, 2026-11-05: W3 deployment-report path expansion. The live API reached
   24 GiB RSS within eight minutes; its stored reports occupied 134,315,007,268 bytes
   across 180 runtime directories. A 16-owner fan-in regression produced 510 nodes.

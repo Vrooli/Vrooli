@@ -364,6 +364,21 @@ func TestListPlansSuccess(t *testing.T) {
 	require.Equal(t, "/workspace", svc.gotListFilter.WorkspaceRoot)
 }
 
+func TestListPlansReturnsBoundedPageAndTotal(t *testing.T) {
+	svc := &fakePlansService{plans: []internalplans.Plan{
+		{ID: "p1", Status: internalplans.PlanStatusActive},
+		{ID: "p2", Status: internalplans.PlanStatusComplete},
+		{ID: "p3", Status: internalplans.PlanStatusDraft},
+	}}
+	h := newPlansHandler(svc)
+	resp, err := h.ListPlans(context.Background(), connect.NewRequest(&plansv1.ListPlansRequest{Limit: 1, Offset: 1}))
+	require.NoError(t, err)
+	require.Len(t, resp.Msg.GetPlans(), 1)
+	require.Equal(t, "p2", resp.Msg.GetPlans()[0].GetId())
+	require.Equal(t, int32(3), resp.Msg.GetTotal())
+	require.True(t, resp.Msg.GetHasMore())
+}
+
 func TestGetPlanSuccess(t *testing.T) {
 	svc := &fakePlansService{plan: internalplans.Plan{ID: "p1", Title: "Hello", Status: internalplans.PlanStatusDraft}}
 	h := newPlansHandler(svc)

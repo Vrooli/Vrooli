@@ -51,8 +51,8 @@ Or check the URL directly:
 vrooli scenario port proto-health UI_PORT
 ```
 
-You should see the example UI rendering live `/health` data and a
-notes pane backed by the local SQLite store.
+You should see the Proto Health panel loading the scenario's proto
+surface and validation findings.
 
 ## 4 — Talk to the API
 
@@ -61,8 +61,9 @@ automatically):
 
 ```bash
 proto-health status
-proto-health notes list
-proto-health notes create --title "First note" --body "Hello"
+proto-health describe scenario proto-health
+proto-health validate scenario proto-health
+proto-health validate owner proto-health
 ```
 
 Or directly via HTTP:
@@ -70,9 +71,9 @@ Or directly via HTTP:
 ```bash
 API_PORT=$(vrooli scenario port proto-health API_PORT)
 curl -s "http://localhost:${API_PORT}/health"
-curl -s -X POST "http://localhost:${API_PORT}/vrooli.proto_health.v1.notes.NotesService/ListNotes" \
+curl -s -X POST "http://localhost:${API_PORT}/vrooli.proto_health.v1.validation.ProtoHealthService/DescribeScenarioProtos" \
   -H 'Content-Type: application/json' \
-  -d '{}'
+  -d '{"scenario":"proto-health"}'
 ```
 
 ## 5 — Run the tests

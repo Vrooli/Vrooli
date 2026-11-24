@@ -3,7 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Activity, FileText, Play } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { ErrorState, LoadingState } from "../../components/ui/state";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
@@ -55,6 +55,7 @@ export function AuditWorkbench() {
             data-testid={selectors.audit.runButton}
             onClick={() => audit.mutate()}
             disabled={audit.isPending}
+            shape="square"
           >
             <Play aria-hidden="true" className="me-1 h-4 w-4" />
             {audit.isPending ? t(strings.audit.running) : t(strings.audit.run)}

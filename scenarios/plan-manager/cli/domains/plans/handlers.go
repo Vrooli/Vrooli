@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -39,10 +40,20 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 }
 
 func (h *handlers) list(ctx cliapp.RunContext) error {
+	limit, err := parseListPageFlag(ctx.Flag("limit"), "limit", 0, 500)
+	if err != nil {
+		return err
+	}
+	offset, err := parseListPageFlag(ctx.Flag("offset"), "offset", 0, int64(^uint32(0)>>1))
+	if err != nil {
+		return err
+	}
 	resp, err := h.client.ListPlans(context.Background(), connect.NewRequest(&plansv1.ListPlansRequest{
 		Status:          statusconv.PlanStatusFlag(ctx.Flag("status")),
 		IncludeArchived: ctx.BoolFlag("include-archived"),
 		Workspace:       workspaceScopeFromFlag(ctx.Flag("workspace")),
+		Limit:           int32(limit),
+		Offset:          int32(offset),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("list plans", err, nil)
@@ -64,6 +75,17 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 			"`plans create --title <title>` — create a plan",
 		},
 	})
+}
+
+func parseListPageFlag(raw, name string, min, max int64) (int64, error) {
+	if raw == "" {
+		return 0, nil
+	}
+	value, err := strconv.ParseInt(raw, 10, 32)
+	if err != nil || value < min || value > max {
+		return 0, fmt.Errorf("--%s must be an integer from %d to %d", name, min, max)
+	}
+	return value, nil
 }
 
 func (h *handlers) get(ctx cliapp.RunContext) error {

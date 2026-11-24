@@ -30,6 +30,14 @@
               "name": "include-archived",
               "description": "Include archived plans",
               "bool": true
+            },
+            {
+              "name": "limit",
+              "description": "Maximum plans in this page (1-500); zero keeps the complete-list behavior"
+            },
+            {
+              "name": "offset",
+              "description": "Number of matching plans to skip before this page"
             }
           ],
           "binding": {

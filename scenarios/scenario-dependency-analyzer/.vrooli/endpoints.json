@@ -198,6 +198,52 @@
         }
       },
       {
+        "path": "/api/v1/resources/inventory/search",
+        "method": "POST",
+        "description": "Search declared resource catalog and manifest anatomy without runtime probes; preserves manifest scan failures and reports current runtime state as unknown.",
+        "request_schema": {
+          "type": "object",
+          "required": ["query"],
+          "properties": {
+            "query": { "type": "string" },
+            "limit": { "type": "integer", "minimum": 1, "maximum": 25 }
+          }
+        },
+        "response_schema": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string" },
+            "results": { "type": "array" },
+            "scan": { "type": "object" },
+            "degradations": { "type": "array" }
+          }
+        }
+      },
+      {
+        "path": "/api/v1/dependencies/rationale/search",
+        "method": "POST",
+        "description": "Search declaration-backed reasons for cross-scenario dependency edges; preserves source fields and reports manifest scan failures.",
+        "request_schema": {
+          "type": "object",
+          "required": ["query"],
+          "properties": {
+            "query": { "type": "string" },
+            "scenario": { "type": "string", "description": "Optional exact scenario slug scope" },
+            "limit": { "type": "integer", "minimum": 1, "maximum": 25 }
+          }
+        },
+        "response_schema": {
+          "type": "object",
+          "properties": {
+            "query": { "type": "string" },
+            "scenario": { "type": "string" },
+            "results": { "type": "array" },
+            "scan": { "type": "object" },
+            "degradations": { "type": "array" }
+          }
+        }
+      },
+      {
         "path": "/api/v1/dependencies/:name/impact",
         "method": "GET",
         "description": "Analyze the impact of removing a dependency",

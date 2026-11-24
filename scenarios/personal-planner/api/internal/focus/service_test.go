@@ -173,6 +173,17 @@ func TestServiceFocusLifecycleSeparatesActiveAndWallTime(t *testing.T) {
 	}
 }
 
+func TestServiceStartsTimedFocusSession(t *testing.T) {
+	service := NewService(&fakeRepository{}, schedule.NewFake(time.Date(2026, 9, 19, 9, 0, 0, 0, time.UTC)))
+	session, err := service.Start(context.Background(), StartInput{Title: "Draft the launch story", Mode: ModeTimed})
+	if err != nil {
+		t.Fatalf("start timed focus: %v", err)
+	}
+	if session.Mode != ModeTimed || session.State != StateRunning {
+		t.Fatalf("unexpected timed focus session: %#v", session)
+	}
+}
+
 func TestServiceRecordsPauseReasonAfterPause(t *testing.T) {
 	clock := schedule.NewFake(time.Date(2026, 9, 19, 9, 0, 0, 0, time.UTC))
 	repo := &fakeRepository{}

@@ -9,18 +9,6 @@ envelope = {
     "inputs": {}, "signals": {"disposition": "diagnosis_only", "pending": False, "investigation_id": None}, "errors": [], "evidence": [],
 }
 
-
-
-
-def classify(exc):
-    text = str(exc)
-    if any(token in text for token in ("unreachable", "connection refused", "scenario_not_running")):
-        return "unavailable", "scenario_unreachable"
-    if "deadline" in text:
-        return "failed", "deadline_exceeded"
-    return "failed", "binding_error"
-
-
 def step_validate():
     if not isinstance(inputs, dict):
         return program.fail("failed", "invalid_input", "inputs must be an object", "validate", detail_limit=200)
@@ -53,18 +41,12 @@ def step_delegate():
             "owner": "plan-manager", "kind": "investigation-brief", "ref": value["brief_ref"],
             "revision": value["phase_generation"], "schemaVersion": "plan-investigation-brief/v1",
         })
-    try:
-        result = lib.agent_manager.investigate(
-            caller_key=value["caller_key"], subject_kind="plan-execution", subject_ref=value["execution_id"],
-            question=json.dumps(context, sort_keys=True, separators=(",", ":")), run_ids=value["run_ids"], wait_seconds=value["wait_seconds"],
-            evidence_refs=evidence_refs,
-        ).head(1)
-    except Exception as exc:
-        status, klass = classify(exc)
-        return program.fail(status, klass, klass, "delegate", detail_limit=200)
-    if not result:
-        return program.fail("failed", "no_output", "nested investigation returned no envelope", "delegate", detail_limit=200)
-    child = result[0]
+    handle = lib.agent_manager.investigate(
+        caller_key=value["caller_key"], subject_kind="plan-execution", subject_ref=value["execution_id"],
+        question=json.dumps(context, sort_keys=True, separators=(",", ":")), run_ids=value["run_ids"], wait_seconds=value["wait_seconds"],
+        evidence_refs=evidence_refs,
+    )
+    child = program.child_envelope(handle, invalid_class="invalid_response", where="delegate")
     child_signals = child.get("signals") or {}
     pending = bool(child_signals.get("pending")) or child.get("status") == "partial"
     envelope["signals"].update({"nested_status": child.get("status"), "nested_signals": child_signals, "pending": pending})
@@ -89,5 +71,5 @@ while state:
     except Exception as exc:
         if envelope.get("phase") == "report":
             raise
-        status, klass = classify(exc)
+        status, klass = program.classify(exc)
         state = program.fail(status, klass, klass, envelope.get("phase") or state, detail_limit=200)

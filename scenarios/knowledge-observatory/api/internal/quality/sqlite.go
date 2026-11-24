@@ -68,7 +68,14 @@ func (s *SQLite) LatestMetric(ctx context.Context, collection string) (Metric, b
 	var m Metric
 	err := s.DB.QueryRowContext(ctx, `
 SELECT id, collection_name, coherence_score, freshness_score, redundancy_score, coverage_score,
-       total_entries, avg_quality, measured_at, created_at, updated_at
+       total_entries,
+       CASE WHEN coherence_score IS NULL OR freshness_score IS NULL
+                    OR coverage_score IS NULL OR redundancy_score IS NULL
+            THEN NULL
+            ELSE (coherence_score + freshness_score + coverage_score
+                  - redundancy_score) / 3.0
+       END AS avg_quality,
+       measured_at, created_at, updated_at
 FROM quality_metrics
 WHERE collection_name = ?
 ORDER BY measured_at DESC

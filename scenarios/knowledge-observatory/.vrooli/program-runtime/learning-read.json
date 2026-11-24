@@ -3,7 +3,7 @@
   "name": "knowledge-observatory.learning-read",
   "version": "1",
   "helpers": {
-    "program": "1"
+    "program": "2"
   },
   "purpose": "Read comparable knowledge-task outcomes and effort from the existing Memory learning projection.",
   "inputs": {

@@ -1,4 +1,4 @@
-import { Card, CardContent } from "../../components/ui/card";
+import { Card, CardContent } from "@vrooli/react-component-library/Card/1.3.1";
 import { statusTone } from "../../theme/status";
 
 interface DeploymentSummaryCardsProps {

@@ -20,6 +20,8 @@ func TestResourceHeuristicsPreserveCaseFoldingAndRejectAbsentNames(t *testing.T)
 		{"mypostgres://database", "postgres", false},
 		{"POSTGRES_HOST=database", "postgres", true},
 		{"XPOSTGRES_HOST=database", "postgres", false},
+		{"KALE_TTS_URL=http://localhost:18896", "kale-tts", true},
+		{"XKALE_TTS_URL=http://localhost:18896", "kale-tts", false},
 		{"https://POSTGRES:5432", "postgres", true},
 		{"httpſ://example.test/poſtgres/", "postgres", true},
 		{"https://example.test/postgresapi", "postgres", false},

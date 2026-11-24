@@ -1,5 +1,3 @@
-import json
-
 inputs = program.inputs()
 
 envelope = {
@@ -49,7 +47,7 @@ def collect():
 
 
 def report():
-    print(json.dumps(envelope, ensure_ascii=False))
+    program.report(envelope)
 
 
 state = "validate"

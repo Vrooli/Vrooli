@@ -61,6 +61,13 @@ file-tools split video.mp4 -s 100M
 file-tools merge "video.mp4.part.*" reconstructed.mp4
 ```
 
+Archive extraction accepts ZIP, TAR, and gzip-compressed TAR (`.gz`/`.tgz`).
+Entries stay within the requested destination; links and special TAR entries
+are not materialized. To bound decompression and filesystem work, one archive
+may contain at most 10,000 entries, each regular file is limited to 256 MiB,
+and total extracted file data is limited to 1 GiB. Extraction fails when any
+limit is exceeded.
+
 ### Using the API
 
 ```bash

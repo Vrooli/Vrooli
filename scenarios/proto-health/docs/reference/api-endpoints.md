@@ -52,112 +52,26 @@ and mirrors `api-core/health.Response` field-for-field.
 
 ---
 
-## Notes (CRUD reference)
+## Proto-health domains
 
-The `notes` domain is the canonical worked example. Copy its layering
-when adding the first non-trivial mutation in your scenario.
+The generated `notes` API and upload route were removed. Current product
+RPCs are generated Connect procedures:
 
-### `POST /vrooli.proto_health.v1.notes.NotesService/ListNotes`
-
-List notes through the generated Connect-RPC service, newest-first.
-
-| | |
-|---|---|
-| **Auth** | None (template default; scenarios add auth as needed) |
-| **Response** | `ListNotesResponse { notes: Note[] }` (capped at 100 by `notes.Service`) |
-| **Errors** | `500 internal` — repository read failure |
-| **CLI** | `proto-health notes list` |
-
-```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.proto_health.v1.notes.NotesService/ListNotes" \
-  -H 'Content-Type: application/json' \
-  -d '{}'
-```
-
-UI and CLI code should normally use the generated client instead of
-calling this path by hand.
-
-### `POST /vrooli.proto_health.v1.notes.NotesService/CreateNote`
-
-Create a note through the generated Connect-RPC service.
-
-| | |
-|---|---|
-| **Auth** | None (template default) |
-| **Request** | `CreateNoteRequest { title: string (required), body: string (optional) }` |
-| **Response** | `CreateNoteResponse { note: Note }` |
-| **Errors** | `invalid_argument` — missing/whitespace-only title<br>`internal` — repository write failure |
-| **CLI** | `proto-health notes create --title <title> [--body <body>]` |
-
-```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.proto_health.v1.notes.NotesService/CreateNote" \
-  -H 'Content-Type: application/json' \
-  -d '{"title":"first","body":"hello"}'
-```
-
-Title validation (non-empty after whitespace trim) lives in
-`internal/notes/service.go`, **not** the handler. The Connect handler
-only translates `notes.ErrInvalidNote` into `invalid_argument`.
-
-### `POST /vrooli.proto_health.v1.notes.NotesService/GetNote`
-
-Fetch a note by id through the generated Connect-RPC service.
-
-| | |
-|---|---|
-| **Auth** | None (template default) |
-| **Request** | `GetNoteRequest { id: string }` |
-| **Response** | `GetNoteResponse { note: Note }` |
-| **Errors** | `not_found` — no note with that id<br>`internal` — repository read failure |
-| **CLI** | `proto-health notes get <id>` |
-
-```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.proto_health.v1.notes.NotesService/GetNote" \
-  -H 'Content-Type: application/json' \
-  -d '{"id":"abc123"}'
-```
-
-`notes.ErrNoteNotFound` returned by the service is translated into the
-typed `not_found` Connect error at the handler edge.
-
-### `POST /api/v1/notes/{id}/attachments`
-
-Upload opaque file bytes through the documented REST multipart exception.
-The response is still proto-typed metadata.
-
-| | |
-|---|---|
-| **Auth** | None (template default) |
-| **Path params** | `id` — note identifier |
-| **Request** | `multipart/form-data` with `file` part |
-| **Response** | `UploadAttachmentResponse { attachment: Attachment }` |
-| **Errors** | `400 invalid_request` — malformed multipart or missing file<br>`404 not_found` — no note with that id<br>`500 internal` — blob or metadata persistence failure |
-| **CLI** | `proto-health notes attach <id> --file <path>` |
-
-```bash
-curl -X POST "http://localhost:${API_PORT}/api/v1/notes/abc123/attachments" \
-  -F file=@./example.png
-```
-
-### `Note` shape
-
-| Field | Type | Notes |
+| Procedure | Purpose | CLI/UI owner |
 |---|---|---|
-| `id` | string (UUID) | Server-generated |
-| `title` | string | Required, non-empty after trim |
-| `body` | string | Optional |
-| `created_at` | `google.protobuf.Timestamp` | Server-set on create |
-| `updated_at` | `google.protobuf.Timestamp` | Server-set on create / future update |
-| `attachment_keys` | `string[]` | Keys of uploaded note attachments |
+| `/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario` | Run descriptor-backed policy checks for one scenario. | `proto-health validate scenario <name>` / validation panel |
+| `/vrooli.proto_health.v1.validation.ProtoHealthService/DescribeScenarioProtos` | Return one scenario's descriptor-backed proto surface. | `proto-health describe scenario <name>` / proto-health panel |
+| `/vrooli.proto_health.v1.validation.ProtoHealthService/DescribeScenariosProtos` | Return per-scenario surface results for a batch. | Programmatic consumers; intentionally omitted from human CLI. |
+| `/vrooli.proto_health.v1.impact.ImpactService/GetImpact` | Compare a scenario surface with a git baseline. | `proto-health impact scenario <name>` |
 
-Defined in `packages/proto/schemas/proto-health/v1/notes/notes.proto`.
+The current wire contracts are in `packages/proto/schemas/scenario-validation/v1/validation.proto`, `packages/proto/schemas/proto-health/v1/validation/validation.proto`, and `packages/proto/schemas/proto-health/v1/impact/impact.proto`. `validate owner` is a local CLI command that checks source schemas before descriptor generation; it is not an API endpoint.
 
 ---
 
 ## Adding a new endpoint
 
-For a new domain, copy the notes vertical slice first, then replace it
-once your real domain is green.
+For a new domain, follow the current API/CLI/UI vertical slices and
+their owning tests; there is no active notes slice to copy.
 
 For an endpoint inside an existing domain:
 

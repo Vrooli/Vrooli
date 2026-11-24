@@ -168,7 +168,7 @@ wait for an idle input row.
 
 | Action | Mechanism |
 |---|---|
-| Wind down | `OPERATOR.md` entry `wind-down`, read at the next unit |
+| Wind down | `OPERATOR.md` entry `wind-down`, read at the next unit; the desk writes one 30 minutes before the allowance and pauses the goal 15 minutes after it if the closeout did not |
 | Pause, Resume | `/goal pause` or `/goal resume`, Enter; only an active goal is paused, only a paused or halted one resumed |
 | Stop | `/goal pause`; Ctrl+C twice when idle; stop that home's app-server; verify no TUI. Never delete the session |
 | Discard | Stop if open, then `discarded` with the operator's reason |
@@ -190,6 +190,13 @@ over ten minutes late (the pass is not running), is a window flag: `now` prints 
 steward's commission-fog risk reads it from `now --json`, so the steward, not the operator,
 decides whether to resume (`control <id> resume`), relaunch or stop it. A halt about to be
 resumed is not flagged.
+
+**Automatic wind-down.** A parallel pass every minute gives each `live` commission a wind-down entry
+once its allowance is within 30 minutes, then, 15 minutes after the allowance, pauses a goal that
+still has not stopped. It re-reads the commission under its claim before either act; a wind-down
+after the goal started is never duplicated, and the pause is recorded as an `auto-pause` control
+with its outcome. The session and owners are left intact, so a resumed manager can write the
+closeout.
 
 ## 7. Operator file and courier
 

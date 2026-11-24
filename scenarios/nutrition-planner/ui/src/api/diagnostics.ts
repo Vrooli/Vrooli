@@ -1,6 +1,8 @@
-import { buildApiUrl } from "@vrooli/api-base";
+import { buildApiUrl, resolveApiBase } from "@vrooli/api-base";
 
-import { API_BASE, decodeApiError } from "./client";
+import { decodeApiError } from "./client";
+
+const REST_API_BASE = resolveApiBase({ appendSuffix: true });
 
 export type ProviderStatus = { name: string; state: string; reason: string };
 export type HealthFinding = { code: string; severity: string; count: number; message: string; action: string };
@@ -16,7 +18,7 @@ export type DiagnosticsReport = {
 
 export async function fetchDiagnostics(workspaceId: string): Promise<DiagnosticsReport> {
   const query = encodeURIComponent(workspaceId);
-  const res = await fetch(buildApiUrl(`/diagnostics?workspace_id=${query}`, { baseUrl: API_BASE }), { method: "GET", cache: "no-store" });
+  const res = await fetch(buildApiUrl(`/diagnostics?workspace_id=${query}`, { baseUrl: REST_API_BASE }), { method: "GET", cache: "no-store" });
   if (!res.ok) throw await decodeApiError(res);
   return (await res.json()) as DiagnosticsReport;
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -157,6 +158,7 @@ func (c *BASConnectClient) artifactsFromResponse(ctx context.Context, baseURL st
 		size int64
 	}
 	var trace, vitals ownedArtifact
+	var processTree ownedArtifact
 	for _, a := range msg.GetArtifacts() {
 		if a.GetType() != capturev1.CaptureType_CAPTURE_TYPE_PERFORMANCE {
 			continue
@@ -176,6 +178,8 @@ func (c *BASConnectClient) artifactsFromResponse(ctx context.Context, baseURL st
 			trace = ownedArtifact{kind: "cdp-trace", url: a.GetMetadata()["view_url"], ref: a.GetReference(), size: a.GetSizeBytes()}
 		case "web-vitals":
 			vitals = ownedArtifact{kind: "web-vitals", url: a.GetMetadata()["view_url"], ref: a.GetReference(), size: a.GetSizeBytes()}
+		case "process-tree":
+			processTree = ownedArtifact{kind: "process-tree", url: a.GetMetadata()["view_url"], ref: a.GetReference(), size: a.GetSizeBytes()}
 		default:
 			// Older shape: first non-vitals perf artifact is the trace.
 			if trace.kind == "" {
@@ -233,7 +237,88 @@ func (c *BASConnectClient) artifactsFromResponse(ctx context.Context, baseURL st
 		art.WebVitalsArtifact = vitalsPath
 		art.WebVitalsReference = vitals.ref
 	}
+	if processTree.kind != "" {
+		processTreeURL, processTreeID, err := artifactOwnerURL(baseURL, processTree.ref, processTree.kind, processTree.url)
+		if err != nil || processTreeID != executionID {
+			if err == nil {
+				err = errors.New("process-tree execution identity differs from trace")
+			}
+			return Artifacts{}, fmt.Errorf("resolve BAS process-tree artifact URL: %w", err)
+		}
+		processTreeBytes, err := read(processTreeURL)
+		if err != nil {
+			return Artifacts{}, fmt.Errorf("read BAS process-tree artifact: %w", err)
+		}
+		if processTree.size > 0 && int64(len(processTreeBytes)) != processTree.size {
+			return Artifacts{}, fmt.Errorf("BAS process-tree artifact size mismatch: declared %d, read %d", processTree.size, len(processTreeBytes))
+		}
+		var binding struct {
+			Contract                    string   `json:"contract"`
+			CaptureID                   string   `json:"capture_id"`
+			SessionID                   string   `json:"session_id"`
+			LeaseIDSHA256               string   `json:"lease_id_sha256"`
+			Status                      string   `json:"status"`
+			Platform                    string   `json:"platform"`
+			CPUClockTicksPerSecond      *float64 `json:"cpu_clock_ticks_per_second"`
+			CPUClockSource              string   `json:"cpu_clock_source"`
+			ProcessLifetimeAccounting   string   `json:"process_lifetime_accounting"`
+			ProcessLifetimeCoverageFull bool     `json:"process_lifetime_coverage_complete"`
+			ProcessLifetimeSampleMS     int      `json:"process_lifetime_sample_interval_ms"`
+			CPUTimeMS                   *float64 `json:"cpu_time_ms"`
+			CPUPercent                  *float64 `json:"cpu_percent_avg"`
+			PeakRSSBytes                *int64   `json:"peak_rss_bytes"`
+			IntervalMS                  float64  `json:"interval_ms"`
+			WindowStartMS               float64  `json:"window_start_monotonic_ms"`
+			WindowEndMS                 float64  `json:"window_end_monotonic_ms"`
+		}
+		if err := json.Unmarshal(processTreeBytes, &binding); err != nil ||
+			(binding.Contract != "bas.browser-process-tree.v1" && binding.Contract != "bas.browser-process-tree.v2") || binding.CaptureID != executionID ||
+			strings.TrimSpace(binding.SessionID) == "" || !validSHA256(binding.LeaseIDSHA256) {
+			return Artifacts{}, errors.New("BAS process-tree artifact has an invalid capture/session/lease binding")
+		}
+		if binding.Contract == "bas.browser-process-tree.v2" &&
+			(binding.Status != "unknown" || strings.TrimSpace(binding.Platform) == "" ||
+				binding.CPUClockTicksPerSecond != nil || binding.CPUClockSource != "unavailable-from-current-owner" ||
+				binding.ProcessLifetimeAccounting != "sampled-snapshot-only" || binding.ProcessLifetimeCoverageFull ||
+				binding.ProcessLifetimeSampleMS != 100 || binding.CPUTimeMS != nil || binding.CPUPercent != nil || binding.PeakRSSBytes != nil) {
+			return Artifacts{}, errors.New("BAS process-tree v2 must preserve unknown metrics and explicit incomplete clock/lifetime provenance")
+		}
+		if binding.Status == "measured" && (!finitePositive(binding.IntervalMS) ||
+			!finiteNonnegative(binding.WindowStartMS) || !finitePositive(binding.WindowEndMS) ||
+			binding.WindowEndMS <= binding.WindowStartMS ||
+			math.Abs((binding.WindowEndMS-binding.WindowStartMS)-binding.IntervalMS) > 1) {
+			return Artifacts{}, errors.New("BAS process-tree artifact has an invalid monotonic capture window")
+		}
+		processTreePath, err := c.ArtifactStore.Store(ctx, executionID, "performance.process-tree.json", processTreeBytes)
+		if err != nil {
+			return Artifacts{}, fmt.Errorf("persist PH process-tree artifact: %w", err)
+		}
+		art.ProcessTreeArtifact = processTreePath
+		art.ProcessTreeReference = processTree.ref
+		art.ProcessTreeSessionID = binding.SessionID
+		art.ProcessTreeLeaseSHA256 = binding.LeaseIDSHA256
+	}
 	return art, nil
+}
+
+func finitePositive(value float64) bool {
+	return value > 0 && !math.IsNaN(value) && !math.IsInf(value, 0)
+}
+
+func finiteNonnegative(value float64) bool {
+	return value >= 0 && !math.IsNaN(value) && !math.IsInf(value, 0)
+}
+
+func validSHA256(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	for _, character := range value {
+		if !((character >= '0' && character <= '9') || (character >= 'a' && character <= 'f')) {
+			return false
+		}
+	}
+	return true
 }
 
 // traceHasComponentMarks reports whether the trace contains React ⚛ component

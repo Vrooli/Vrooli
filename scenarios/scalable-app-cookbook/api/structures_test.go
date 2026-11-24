@@ -33,6 +33,13 @@ func TestPatternStructure(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to marshal pattern: %v", err)
 		}
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(data, &fields); err != nil {
+			t.Fatalf("Failed to decode pattern JSON fields: %v", err)
+		}
+		if _, ok := fields["title"]; !ok {
+			t.Fatalf("Expected JSON field 'title', got %s", data)
+		}
 
 		var unmarshaled Pattern
 		if err := json.Unmarshal(data, &unmarshaled); err != nil {

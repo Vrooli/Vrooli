@@ -16,16 +16,17 @@ import (
 )
 
 type handlers struct {
-	c oc.CatalogServiceClient
-	g oc.GatesServiceClient
-	b oc.BoardServiceClient
-	l oc.ReleaseLadderServiceClient
-	s oc.SpaceServiceClient
+	c   oc.CatalogServiceClient
+	g   oc.GatesServiceClient
+	b   oc.BoardServiceClient
+	l   oc.ReleaseLadderServiceClient
+	s   oc.SpaceServiceClient
+	now func() time.Time
 }
 
 func newHandlers(a *cliapp.ScenarioApp) *handlers {
 	hc, base := cliapp.NewConnectHTTPClient(a)
-	return &handlers{c: oc.NewCatalogServiceClient(hc, base), g: oc.NewGatesServiceClient(hc, base), b: oc.NewBoardServiceClient(hc, base), l: oc.NewReleaseLadderServiceClient(hc, base), s: oc.NewSpaceServiceClient(hc, base)}
+	return &handlers{c: oc.NewCatalogServiceClient(hc, base), g: oc.NewGatesServiceClient(hc, base), b: oc.NewBoardServiceClient(hc, base), l: oc.NewReleaseLadderServiceClient(hc, base), s: oc.NewSpaceServiceClient(hc, base), now: time.Now}
 }
 
 func (h *handlers) list(_ cliapp.OperationContext) (*offerspb.ListNodesResponse, error) {
@@ -205,13 +206,9 @@ func (h *handlers) trigger(c cliapp.OperationContext) (*offerspb.DeclareTriggerR
 }
 
 func (h *handlers) fact(c cliapp.OperationContext) (*offerspb.AddFactResponse, error) {
-	observedAt := time.Now().UTC()
-	if raw := strings.TrimSpace(c.Flag("observed-at")); raw != "" {
-		parsed, err := time.Parse(time.RFC3339, raw)
-		if err != nil {
-			return nil, fmt.Errorf("--observed-at must be RFC3339: %w", err)
-		}
-		observedAt = parsed
+	observedAt, err := resolveFactObservedAt(c.Flag("observed-at"), h.now)
+	if err != nil {
+		return nil, err
 	}
 	fact := &offerspb.Fact{Name: c.Flag("name"), Value: parseFloat(c.Flag("value")), StaleAfterDays: int32(parseInt(c.Flag("stale-after-days"))), Dimension: strings.TrimSpace(c.Flag("dimension")), ObservedAt: timestamppb.New(observedAt)}
 	r, e := h.g.AddFact(context.Background(), connect.NewRequest(&offerspb.AddFactRequest{Fact: fact}))
@@ -219,6 +216,20 @@ func (h *handlers) fact(c cliapp.OperationContext) (*offerspb.AddFactResponse, e
 		return nil, e
 	}
 	return r.Msg, nil
+}
+
+func resolveFactObservedAt(raw string, now func() time.Time) (time.Time, error) {
+	if raw = strings.TrimSpace(raw); raw != "" {
+		parsed, err := time.Parse(time.RFC3339, raw)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("--observed-at must be RFC3339: %w", err)
+		}
+		return parsed, nil
+	}
+	if now == nil {
+		return time.Time{}, fmt.Errorf("fact timestamp clock is not configured")
+	}
+	return now().UTC(), nil
 }
 
 func (h *handlers) evaluate(_ cliapp.OperationContext) (*offerspb.EvaluateResponse, error) {

@@ -1,0 +1,95 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "plan-manager.plan-read",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Read one plan by exact id or slug and return its bounded status/phase index without authored prose.",
+  "inputs": {
+    "id": {
+      "type": "string",
+      "required": true,
+      "description": "Exact plan ID or slug."
+    }
+  },
+  "assumptions": [
+    "Plan Manager is reachable and the GetPlan owner response is authoritative."
+  ],
+  "invariants": [
+    "Read only; the input ID or slug must resolve to the same owner plan identity.",
+    "Return plan identity, title, status, update time, content hash and bounded phase headings/counts only.",
+    "Do not return plan purpose, target outcome, technical approach, validation text, step text or rendered markdown."
+  ],
+  "bindings": [
+    {
+      "id": "plan-manager/plans/get",
+      "effect": "read"
+    }
+  ],
+  "verbs": [],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "description": "Bounded plan identity/status and phase headings; authored prose is intentionally omitted."
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "identity_mismatch",
+        "invalid_response",
+        "binding_error",
+        "scenario_unreachable",
+        "deadline_exceeded",
+        "no_grant",
+        "not_run_eligible",
+        "no_governed_binding",
+        "kernel_runtime",
+        "output_limit"
+      ]
+    }
+  },
+  "budget": {
+    "wall_ms": 30000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 20,
+    "output_bytes": 4096
+  },
+  "fixtures": [
+    {
+      "id": "missing-plan-id",
+      "inputs": {
+        "id": ""
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ],
+        "errors": [
+          {
+            "class": "invalid_input"
+          }
+        ]
+      },
+      "requires": []
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "plan-manager"
+}

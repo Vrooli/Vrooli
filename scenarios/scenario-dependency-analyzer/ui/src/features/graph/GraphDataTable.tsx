@@ -1,7 +1,7 @@
 import { Network } from "lucide-react";
 
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import type { DependencyGraph, DependencyGraphNode, EdgeStatusFilter } from "../../types";
 import { buildDegreeMap, matchesDriftFilter } from "./graphUtils";
 

@@ -20,7 +20,7 @@
         {
           "type": "planned",
           "status": "planned",
-          "notes": "Add adapter registry tests tagged [REQ:NM-P0-006] that verify capability discovery and unsupported-action handling across fake Linux, macOS, Windows, resolver, router, and manual adapters."
+          "notes": "`TestEndpointDescriptorsMatchAdapterRPCPayloads` and `TestConnectAdapterEndpointsReturnTypedResponses` cover exact adapter RPC metadata, manual-router explanation, platform summary, and unconfigured/configured AdGuard capability reporting at the Connect boundary. `internal/adapters/service_test.go` covers Linux/macOS/Windows/manual profiles and the resolver-aware registry. The broader fake OS/router adapter matrix and full requirements gate remain planned."
         }
       ]
     }

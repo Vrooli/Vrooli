@@ -41,6 +41,7 @@ func TestSQLiteRejectsUnknownPersonaStatusOnCreateAndReload(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
+	db.SetMaxOpenConns(1)
 	if _, err := db.ExecContext(context.Background(), Schema()); err != nil {
 		t.Fatal(err)
 	}
@@ -53,6 +54,12 @@ func TestSQLiteRejectsUnknownPersonaStatusOnCreateAndReload(t *testing.T) {
 	}
 	created, err := repo.Create(context.Background(), base)
 	if err != nil {
+		t.Fatal(err)
+	}
+	// The production CHECK constraint correctly rejects unknown statuses. This
+	// test bypasses only that storage guard so it can verify the repository's
+	// defensive read behavior for legacy/corrupt persisted rows.
+	if _, err := db.ExecContext(context.Background(), `PRAGMA ignore_check_constraints = ON`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.ExecContext(context.Background(), `UPDATE personas SET status='future' WHERE id=?`, created.ID); err != nil {

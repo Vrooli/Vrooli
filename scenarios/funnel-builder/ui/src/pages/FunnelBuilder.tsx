@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, type KeyboardEvent, type FormEvent } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Button } from '@vrooli/react-component-library/Button/2.2.14'
 import { DndContext, DragEndEvent, closestCenter } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import {
@@ -638,13 +639,14 @@ const FunnelBuilder = () => {
               </button>
             </div>
             <div className="px-4 py-4">
-              <button
+              <Button
+                type="button"
                 onClick={() => openStepSelector('mobile')}
                 className="btn btn-primary w-full"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Step
-              </button>
+              </Button>
             </div>
             {sidebarList}
           </aside>
@@ -696,13 +698,14 @@ const FunnelBuilder = () => {
               </div>
             </div>
             <div className="px-4 py-4">
-              <button
+              <Button
+                type="button"
                 onClick={() => openStepSelector('desktop')}
                 className="btn btn-primary w-full"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Step
-              </button>
+              </Button>
             </div>
             {sidebarList}
           </>

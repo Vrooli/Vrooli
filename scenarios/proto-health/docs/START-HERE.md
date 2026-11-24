@@ -1,5 +1,10 @@
 # Start Here — Proto Health
 
+> Current state (2026-11-24): validation and proto-surface verticals are
+> implemented, and the generated `notes` sample is removed from runtime code.
+> Gates 6–7 below are historical adaptation guidance; do not repeat their
+> completed implementation steps for this scenario.
+
 For a focused change, start with the affected behavior and its [domain owner](concepts/DOMAINS.md).
 Use the [CLI reference](reference/cli-commands.md) for a specific operation.
 
@@ -16,8 +21,8 @@ The generated scaffold is intentionally not the product. Treat every
 generated UI surface as placeholder unless it is explicitly listed as
 durable infrastructure below. In particular:
 
-- The `notes` domain is a worked example. Build one real domain beside
-  it, prove that domain is green, then remove the example.
+- The former `notes` domain was a worked example; it was removed after the
+  validation and proto-surface domains shipped.
 - The `AppShell` layout, the centered single-panel home page, the title
   / description / eyebrow text, and the bare-minimum settings surface
   are placeholders. They exist so the template boots green; they are
@@ -33,7 +38,7 @@ durable infrastructure below. In particular:
 
 Binding contract vs. illustrative example: every reference doc this
 scenario ships with — `DESIGN.md`, `PRD.md`, the placeholder shell,
-and the `notes` example — mixes two kinds of guidance. Tokens, motion,
+and the historical `notes` example — mixes two kinds of guidance. Tokens, motion,
 status-color semantics, accessibility floors, i18n, and the
 domain/proto/API/CLI/UI shape are **binding contracts**: respect them.
 Specific lists of components, settings, page surfaces, or copy
@@ -211,8 +216,8 @@ it exists, and which files it will touch before writing code.
       in `PRD.md` during the charter gate and in
       `docs/concepts/INTEGRATIONS.md` before editing
       `.vrooli/service.json`.
-- [ ] Confirm no dependency is added only because the example `notes`
-      domain happens to use a local SQLite store.
+- [ ] Confirm no dependency is added only because an illustrative
+      template example happens to use a local SQLite store.
 
 **Exit criteria:** `.vrooli/service.json` reflects only dependencies
 the real scenario needs.
@@ -291,49 +296,12 @@ implementation hardens around them.
 **Exit criteria:** every generated documentation stub is either active,
 deferred, or explicitly not-applicable for a reason.
 
-### Gate 6 — First Real Vertical Slice
+### Gates 6–7 — First vertical and example retirement (complete)
 
-- [ ] Add the first real domain beside the example `notes` domain.
-- [ ] **Start in proto.** Author `packages/proto/schemas/proto-health/v1/<domain>/<domain>.proto`
-      with a `service` block FIRST, run `make generate`, then write
-      handlers/CLI/UI against the generated `*Procedure` constants and
-      `*Service` clients. If you find yourself writing `Path:` as a
-      literal string in an `EndpointDescriptor`, stop — codegen will
-      reject it. The only exceptions are the four `RESTReason` values
-      in `api/internal/module/module.go`.
-- [ ] **Register the proto file** in `api/internal/modules/registry.go`
-      by appending a `ProtoFileEntry` to `AllProtoFiles()`. The global
-      parity test (`TestProtoConnectParity`) then covers the new
-      domain automatically — no per-domain parity test required.
-- [ ] Mirror the pattern across proto, API domain, API handler module,
-      CLI domain, UI API client, UI feature, i18n strings, selectors,
-      and tests.
-- [ ] Run code generation, endpoint generation, string generation, and
-      tests as needed.
-- [ ] Run `make test`.
-
-**Exit criteria:** the first real domain is green across API, CLI, UI,
-and scenario tests.
-
-### Gate 7 — Remove The Example Domain
-
-- [ ] Delete `api/internal/notes`, `api/handlers/notes`,
-      `cli/domains/notes`, `ui/src/features/notes`,
-      `ui/src/api/notes.ts`, and `ui/src/api/notes.test.ts`.
-- [ ] Remove `notes` imports, module registrations, schema entries, CLI
-      registration, and `<NotesCard />` render.
-- [ ] Remove `notes` command rows from
-      `api/cmd/gen-endpoints/cli_commands_seed.json`, then run
-      `make endpoints`.
-- [ ] Remove notes-specific i18n keys and run `pnpm strings:gen` from
-      `ui/`.
-- [ ] Remove the `notes` block from `ui/src/consts/selectors.ts`.
-- [ ] Verify no product residue remains with focused searches for
-      `notes`, `Notes`, and `NOTES` in `api/`, `cli/`, `ui/src/`,
-      `.vrooli/`, and the scenario's proto schema directory.
-- [ ] Run `make test`.
-
-**Exit criteria:** only health plus real scenario domains remain.
+The validation and proto-surface paths exist across API, CLI, UI, protos,
+and owner tests. Notes runtime code, schema, commands, and UI feature are
+absent. Current owner verification is recorded in the PT2 evidence; a full
+scenario-wide `make test` was not part of that receipt.
 
 ### Gate 7b — Contribute Back To The Component Canon
 
@@ -432,16 +400,17 @@ complete, and what remains.
   business rules.
 - Domain-owned schemas live next to the domain code.
 - Generated files are regenerated, not hand-edited.
-- `notes` is a worked example, not product functionality.
+- The former `notes` sample was illustrative template code and has been
+  removed from this scenario's runtime.
 
 Read `docs/concepts/ARCHITECTURE.md` before changing structure, and
 read `docs/internal/TESTING.md` before adding non-trivial tests.
 
-## Replacing The Example Domain
+## Adding Another Domain
 
-Build your first real domain side-by-side with `notes`, then remove
-`notes`. Use plural package/folder names such as `tasks`, `profiles`,
-or `orders`; use PascalCase for components and Go exported names.
+The first real domains have replaced the generated `notes` example. Use
+plural package/folder names such as `tasks`, `profiles`, or `orders`; use
+PascalCase for components and Go exported names.
 
 For a normal proto-backed CRUD domain:
 
@@ -469,5 +438,6 @@ For a normal proto-backed CRUD domain:
 8. Run string/code generation as needed, then run `make test`.
 
 If the domain needs opaque binary uploads, keep bytes on a REST
-multipart edge and keep metadata proto-typed. The example `notes`
-attachments path demonstrates that exception.
+multipart edge and keep metadata proto-typed. The former notes upload
+example is not an active endpoint; follow the enumerated REST exception
+contract in `api/internal/module/module.go`.

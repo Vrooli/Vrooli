@@ -9,7 +9,8 @@ and a courier over those files and sessions. It builds the best-known packet (ch
 stance message, goal kernel) and launches it in one tap. It shows what is moving and what
 changed since you last looked. It carries decisions to Notification Hub and answers back
 into a file the supervisor reads, and it can pause, resume, wind down or stop a commission
-without a chat message.
+without a chat message. Near an allowance it writes the same wind-down itself and pauses a goal
+that ignores it, leaving the session intact for a closeout.
 
 ## Invariants
 

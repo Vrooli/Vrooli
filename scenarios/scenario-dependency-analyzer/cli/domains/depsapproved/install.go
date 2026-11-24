@@ -24,6 +24,8 @@ func RegisterInstall(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		Description: "Governed third-party dependency install gateway",
 		NeedsAPI:    true,
 		Subcommands: documentCommands("deps", []cliapp.Command{
+			{Name: "declare-resource", DryRunAlternative: "omit --apply; deps commands preview by default", Description: "Declare an optional resource dependency (dry-run by default)", NeedsAPIOverride: &noAPI, Run: func(args []string) error { return runDeclareResource(core, args) }},
+			{Name: "update-resource", DryRunAlternative: "omit --apply; deps commands preview by default", Description: "Update an existing optional resource dependency contract (dry-run by default)", NeedsAPIOverride: &noAPI, Run: func(args []string) error { return runUpdateResource(core, args) }},
 			{
 				Name:              "install",
 				Description:       "Install a governed dependency into a scenario surface (dry-run by default)",
@@ -34,6 +36,7 @@ func RegisterInstall(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 				RunCtx:            func(ctx cliapp.RunContext) error { return runInstall(core, ctx) },
 			},
 			{Name: "declare-runtime", DryRunAlternative: "omit --apply; deps commands preview by default", Description: "Declare one optional runtime-only scenario dependency with startup_policy=ignore (dry-run by default)", NeedsAPIOverride: &noAPI, Run: func(args []string) error { return runDeclareRuntime(core, args) }},
+			{Name: "update-runtime", DryRunAlternative: "omit --apply; deps commands preview by default", Description: "Update descriptive fields of an existing optional runtime-only scenario dependency (dry-run by default)", NeedsAPIOverride: &noAPI, Run: func(args []string) error { return runUpdateRuntime(core, args) }},
 			{
 				Name:              "remove",
 				Description:       "Remove JavaScript dependencies from a scenario surface through the governed gateway, or one Go requirement from the root module (dry-run by default)",

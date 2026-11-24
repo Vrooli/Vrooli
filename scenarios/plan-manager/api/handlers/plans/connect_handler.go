@@ -57,8 +57,18 @@ func (h *connectHandler) ListPlans(ctx context.Context, req *connect.Request[pla
 	if err != nil {
 		return nil, internalplans.ToConnectError(err)
 	}
-	resp := &plansv1.ListPlansResponse{Plans: make([]*sharedPlan, 0, len(plans))}
-	for _, p := range plans {
+	total := len(plans)
+	offset := int(req.Msg.GetOffset())
+	if offset > total {
+		offset = total
+	}
+	end := total
+	limit := int(req.Msg.GetLimit())
+	if limit > 0 && offset+limit < end {
+		end = offset + limit
+	}
+	resp := &plansv1.ListPlansResponse{Plans: make([]*sharedPlan, 0, end-offset), Total: int32(total), HasMore: end < total}
+	for _, p := range plans[offset:end] {
 		resp.Plans = append(resp.Plans, planToProto(p))
 	}
 	return connect.NewResponse(resp), nil

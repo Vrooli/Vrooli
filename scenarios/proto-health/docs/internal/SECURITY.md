@@ -16,8 +16,7 @@ Use this document to answer:
 
 | Data | Sensitivity | Owner | Notes |
 |---|---|---|---|
-| Template notes data | low | notes reference | Local development data only; replace with real scenario data classification. |
-| Attachment bytes | unknown | notes reference | Treat as potentially sensitive if retained in product scope. |
+| No domain-owned data by default | n/a | n/a | Validation reads repository and descriptor inputs; no credential or customer data is stored. |
 
 ## Auth And Authorization
 
@@ -36,7 +35,6 @@ authorization belongs at the API/service layer.
 
 | Risk | Impact | Mitigation | Status |
 |---|---|---|---|
-| Unsafe file upload handling | Malicious or oversized upload could affect storage. | Multipart handler validates metadata and BlobStore seam isolates bytes. | template-reference |
 | Missing auth for product data | User/customer data could be exposed if added without access control. | Add API-layer auth before storing protected data. | deferred |
 
 ## Security Gaps

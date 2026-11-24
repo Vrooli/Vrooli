@@ -62,6 +62,10 @@ heavier runs when a milestone or certification needs them.
 | Documentation | `knowledge-observatory docs audit nutrition-planner --json` | No new findings in authored docs. |
 | Runtime | `vrooli scenario status nutrition-planner` plus real CLI and API calls | Healthy, and a real workspace flow succeeds (not a 401). |
 
+The Settings data-health REST path has a focused route contract regression:
+`pnpm -C scenarios/nutrition-planner/ui exec vitest run src/api/diagnostics.test.ts`.
+It requires the workspace-scoped request to use `/api/v1/diagnostics`.
+
 **Wait protocol.** A Test Genie run is server-owned and survives a cancelled
 client. Start it, then block **once** with
 `test-genie runs wait --json nutrition-planner <run-id>`; never poll status in a

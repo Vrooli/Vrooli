@@ -214,176 +214,85 @@ func TestValidateObservedTreatsApprovalsAsGlobalAcrossSurfacesAndGroups(t *testi
 	}
 }
 
-func TestValidateObservedWarnsForOutOfRangeVersion(t *testing.T) {
-	repoRoot := t.TempDir()
-	writeRegistry(t, repoRoot, `{
-		"schema_version": "1",
-		"records": [
-			{
-				"ecosystem": "go",
-				"package_name": "example.com/demo",
-				"version_range": ">=v1.2.0 <v2.0.0",
-				"state": "approved",
-				"rationale": "Approved stable v1 range."
+func TestValidateObservedVersionPolicies(t *testing.T) {
+	type observation struct {
+		version, findingClass string
+		passed                bool
+	}
+	type policyCase struct {
+		name, record, ecosystem, packageName, filePath, dependencyGroup string
+		observations                                                    []observation
+	}
+	cases := []policyCase{
+		{
+			name:      "default range warns outside approved bounds",
+			record:    `{"ecosystem":"go","package_name":"example.com/demo","version_range":">=v1.2.0 <v2.0.0","state":"approved","rationale":"Approved stable v1 range."}`,
+			ecosystem: "go", packageName: "example.com/demo", filePath: "scenarios/demo/api/go.mod", dependencyGroup: "require",
+			observations: []observation{{version: "v2.1.0", findingClass: "VERSION_OUT_OF_RANGE", passed: true}},
+		},
+		{
+			name:      "major line accepts only same or later version in baseline line",
+			record:    `{"ecosystem":"npm","package_name":"react","version_range":"18.2.0","range_policy":"major_line","state":"approved","rationale":"React 18 line is approved."}`,
+			ecosystem: "npm", packageName: "react", filePath: "scenarios/demo/ui/package.json", dependencyGroup: "dependencies",
+			observations: []observation{
+				{version: "^18.3.1", passed: true},
+				{version: "^19.0.0", findingClass: "VERSION_OUT_OF_RANGE", passed: true},
+			},
+		},
+		{
+			name:      "minimum range honors explicit upper bound",
+			record:    `{"ecosystem":"npm","package_name":"react","version_range":">=18.0.0 <18.5.0","range_policy":"minimum","state":"approved","rationale":"React releases before 18.5 are approved."}`,
+			ecosystem: "npm", packageName: "react", filePath: "scenarios/demo/ui/package.json", dependencyGroup: "dependencies",
+			observations: []observation{
+				{version: "^18.3.1", passed: true},
+				{version: "^18.6.0", findingClass: "VERSION_OUT_OF_RANGE", passed: true},
+			},
+		},
+		{
+			name:      "unparseable range accepts only the same literal",
+			record:    `{"ecosystem":"npm","package_name":"vite","version_range":"workspace:*","range_policy":"minimum","state":"approved","rationale":"Local workspace declaration needs normalization."}`,
+			ecosystem: "npm", packageName: "vite", filePath: "scenarios/demo/ui/package.json", dependencyGroup: "dependencies",
+			observations: []observation{
+				{version: "workspace:*", passed: true},
+				{version: "catalog:", findingClass: "VERSION_RANGE_UNPARSEABLE", passed: true},
+			},
+		},
+		{
+			name:      "security-denied record blocks only affected versions",
+			record:    `{"ecosystem":"npm","package_name":"vite","version_range":">=5.0.0 <6.4.2","range_policy":"security_denied","state":"denied","rationale":"Vulnerable Vite range.","replacement":"Update to >=6.4.2."}`,
+			ecosystem: "npm", packageName: "vite", filePath: "scenarios/demo/ui/package.json", dependencyGroup: "dependencies",
+			observations: []observation{
+				{version: "^6.4.3", passed: true},
+				{version: "6.4.1", findingClass: "DENIED_IN_USE"},
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			repoRoot := t.TempDir()
+			writeRegistry(t, repoRoot, `{"schema_version":"1","records":[`+tc.record+`]}`)
+			registry := NewRegistry(repoRoot)
+			for _, observed := range tc.observations {
+				resp, err := registry.ValidateObserved("demo", []*governancev1.ObservedDependency{{
+					Ecosystem: tc.ecosystem, PackageName: tc.packageName, Version: observed.version,
+					FilePath: tc.filePath, DependencyGroup: tc.dependencyGroup,
+				}})
+				if err != nil {
+					t.Fatal(err)
+				}
+				findings := resp.GetFindings()
+				if observed.findingClass == "" {
+					if len(findings) != 0 {
+						t.Fatalf("version %q findings = %#v, want none", observed.version, findings)
+					}
+				} else if len(findings) != 1 || findings[0].GetFindingClass() != observed.findingClass {
+					t.Fatalf("version %q findings = %#v, want one %s finding", observed.version, findings, observed.findingClass)
+				}
+				if resp.GetPassed() != observed.passed {
+					t.Fatalf("version %q passed=%t, want %t", observed.version, resp.GetPassed(), observed.passed)
+				}
 			}
-		]
-	}`)
-	registry := NewRegistry(repoRoot)
-
-	resp, err := registry.ValidateObserved("demo", []*governancev1.ObservedDependency{
-		{Ecosystem: "go", PackageName: "example.com/demo", Version: "v2.1.0", FilePath: "scenarios/demo/api/go.mod", DependencyGroup: "require"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := len(resp.GetFindings()); got != 1 {
-		t.Fatalf("findings = %d, want one out-of-range finding", got)
-	}
-	if resp.GetFindings()[0].GetFindingClass() != "VERSION_OUT_OF_RANGE" {
-		t.Fatalf("finding class = %q, want VERSION_OUT_OF_RANGE", resp.GetFindings()[0].GetFindingClass())
-	}
-}
-
-func TestValidateObservedHonorsMajorLineRangePolicy(t *testing.T) {
-	repoRoot := t.TempDir()
-	writeRegistry(t, repoRoot, `{
-		"schema_version": "1",
-		"records": [
-			{
-				"ecosystem": "npm",
-				"package_name": "react",
-				"version_range": "18.2.0",
-				"range_policy": "major_line",
-				"state": "approved",
-				"rationale": "React 18 line is approved."
-			}
-		]
-	}`)
-	registry := NewRegistry(repoRoot)
-
-	resp, err := registry.ValidateObserved("demo", []*governancev1.ObservedDependency{
-		{Ecosystem: "npm", PackageName: "react", Version: "^18.3.1", FilePath: "scenarios/demo/ui/package.json", DependencyGroup: "dependencies"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := len(resp.GetFindings()); got != 0 {
-		t.Fatalf("findings = %d, want 0 for same major line", got)
-	}
-
-	resp, err = registry.ValidateObserved("demo", []*governancev1.ObservedDependency{
-		{Ecosystem: "npm", PackageName: "react", Version: "^19.0.0", FilePath: "scenarios/demo/ui/package.json", DependencyGroup: "dependencies"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := len(resp.GetFindings()); got != 1 || resp.GetFindings()[0].GetFindingClass() != "VERSION_OUT_OF_RANGE" {
-		t.Fatalf("findings = %#v, want one out-of-range finding for next major", resp.GetFindings())
-	}
-}
-
-func TestValidateObservedHonorsMinimumRangePolicyWithExplicitUpperBound(t *testing.T) {
-	repoRoot := t.TempDir()
-	writeRegistry(t, repoRoot, `{
-		"schema_version": "1",
-		"records": [
-			{
-				"ecosystem": "npm",
-				"package_name": "react",
-				"version_range": ">=18.0.0 <20.0.0",
-				"range_policy": "minimum",
-				"state": "approved",
-				"rationale": "React 18 and 19 are approved."
-			}
-		]
-	}`)
-	registry := NewRegistry(repoRoot)
-
-	resp, err := registry.ValidateObserved("demo", []*governancev1.ObservedDependency{
-		{Ecosystem: "npm", PackageName: "react", Version: "^19.1.0", FilePath: "scenarios/demo/ui/package.json", DependencyGroup: "dependencies"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := len(resp.GetFindings()); got != 0 {
-		t.Fatalf("findings = %d, want 0 within explicit minimum range", got)
-	}
-}
-
-func TestValidateObservedWarnsForUnparseableVersionPolicy(t *testing.T) {
-	repoRoot := t.TempDir()
-	writeRegistry(t, repoRoot, `{
-		"schema_version": "1",
-		"records": [
-			{
-				"ecosystem": "npm",
-				"package_name": "vite",
-				"version_range": "workspace:*",
-				"range_policy": "minimum",
-				"state": "approved",
-				"rationale": "Local workspace declaration needs normalization."
-			}
-		]
-	}`)
-	registry := NewRegistry(repoRoot)
-
-	resp, err := registry.ValidateObserved("demo", []*governancev1.ObservedDependency{
-		{Ecosystem: "npm", PackageName: "vite", Version: "workspace:*", FilePath: "scenarios/demo/ui/package.json", DependencyGroup: "dependencies"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := len(resp.GetFindings()); got != 0 {
-		t.Fatalf("matching literal workspace range should pass, got %d findings", got)
-	}
-
-	resp, err = registry.ValidateObserved("demo", []*governancev1.ObservedDependency{
-		{Ecosystem: "npm", PackageName: "vite", Version: "catalog:", FilePath: "scenarios/demo/ui/package.json", DependencyGroup: "dependencies"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := len(resp.GetFindings()); got != 1 || resp.GetFindings()[0].GetFindingClass() != "VERSION_RANGE_UNPARSEABLE" {
-		t.Fatalf("findings = %#v, want one unparseable range finding", resp.GetFindings())
-	}
-}
-
-func TestValidateObservedHonorsSecurityDeniedRangePolicy(t *testing.T) {
-	repoRoot := t.TempDir()
-	writeRegistry(t, repoRoot, `{
-		"schema_version": "1",
-		"records": [
-			{
-				"ecosystem": "npm",
-				"package_name": "vite",
-				"version_range": ">=5.0.0 <6.4.2",
-				"range_policy": "security_denied",
-				"state": "denied",
-				"rationale": "Vulnerable Vite range.",
-				"replacement": "Update to >=6.4.2."
-			}
-		]
-	}`)
-	registry := NewRegistry(repoRoot)
-
-	resp, err := registry.ValidateObserved("demo", []*governancev1.ObservedDependency{
-		{Ecosystem: "npm", PackageName: "vite", Version: "^6.4.3", FilePath: "scenarios/demo/ui/package.json", DependencyGroup: "dependencies"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := len(resp.GetFindings()); got != 0 {
-		t.Fatalf("findings = %d, want 0 outside security-denied range", got)
-	}
-
-	resp, err = registry.ValidateObserved("demo", []*governancev1.ObservedDependency{
-		{Ecosystem: "npm", PackageName: "vite", Version: "6.4.1", FilePath: "scenarios/demo/ui/package.json", DependencyGroup: "dependencies"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := len(resp.GetFindings()); got != 1 || resp.GetFindings()[0].GetFindingClass() != "DENIED_IN_USE" {
-		t.Fatalf("findings = %#v, want one denied finding inside vulnerable range", resp.GetFindings())
+		})
 	}
 }
 

@@ -163,6 +163,8 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Refs:** [`REDESIGN_PLAN.md`](REDESIGN_PLAN.md) §3; audit of 2026-09-22 summarized there; `api/main.go`, `.vrooli/service.json`, `api/internal/profile/sqlite.go`, `api/internal/planning/`, `ui/src/features/`.
 
+**Owner update 2026-11-24 (B6 only):** Settings data health now builds its request from the REST API base, so it reaches `/api/v1/diagnostics` instead of the UI's `/diagnostics` path. The regression first failed with `http://localhost:3000/diagnostics?workspace_id=workspace%2F1`, then passed after the route fix (`pnpm exec vitest run src/api/diagnostics.test.ts`, 2 tests). This closes only the B6 route defect; the broader redesign inventory has not been re-audited and this entry remains open.
+
 ### 2026-09-22 — Requirements sync promotes ref-less validations from a phase-level pass
 
 **Symptom:** After the comprehensive Test Genie run `20260922-205742-7edb0e18`, 93 requirements became `complete`, 143 validation entries became `implemented`, and six PRD targets were checked, although no test references any requirement and the app does not work.

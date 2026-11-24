@@ -19,6 +19,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -44,6 +45,13 @@ var (
 	ErrDocumentIDRequired       = errors.New("document_id_is_required")
 	ErrDocumentNotFound         = errors.New("document_not_found")
 	ErrPromptContainsIdentifier = errors.New("prompt_contains_record_identifier")
+	ErrArtifactsRequired        = errors.New("source_artifacts_required")
+	ErrSupportedClaimsRequired  = errors.New("supported_claim_phrases_required")
+	ErrInvalidSupportedClaims   = errors.New("invalid_supported_claim_phrases")
+	ErrUnknownPersistenceMode   = errors.New("unknown_persistence_mode")
+	ErrPrivateRouteNotLocal     = errors.New("private_ephemeral_requires_local_only_profile")
+	ErrPrivateSessionResume     = errors.New("private_ephemeral_cannot_resume_session")
+	ErrPrivateInferenceFailed   = errors.New("private_ephemeral_inference_failed")
 )
 
 var recordIdentifierPattern = regexp.MustCompile(`(?i)\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b`)
@@ -730,6 +738,15 @@ func (s *Service) ResolveProfile(ctx context.Context, key string) (ResolvedProfi
 	} else {
 		fmt.Fprintf(&instruction, "Length target: approximately %d words; do not answer with a short summary.\n", effectiveOutputCap(profile))
 	}
+	if profile.Constraints.MaxCodePoints > 0 {
+		fmt.Fprintf(&instruction, "Output ceiling: at most %d Unicode code points. The platform may count text differently.\n", profile.Constraints.MaxCodePoints)
+	}
+	if profile.Constraints.RequireArtifacts {
+		instruction.WriteString("Source-fact gate: use only supplied source artifacts for concrete claims. If none are supplied, refuse to draft.\n")
+	}
+	if profile.Constraints.MinArtifacts > 0 {
+		fmt.Fprintf(&instruction, "Concrete-fact minimum: quote at least %d supplied source artifacts verbatim. Do not replace them with stronger claims.\n", profile.Constraints.MinArtifacts)
+	}
 	// The temperature stance is a transport concern and becomes a SamplingControls
 	// message, so it is not named here. The candidate count and threshold are the
 	// opposite: the enforceable schema subset carries neither, so a verbalized
@@ -808,25 +825,60 @@ func (s *Service) generateWithProfile(ctx context.Context, req GenerateRequest, 
 	resolved.Profile.SelectionParams = profile.SelectionParams
 	resolved.Profile.Budget = profile.Budget
 	resolved.Profile.Composition = profile.Composition
-	if profile.Constraints.MinWords > 0 || profile.Constraints.MaxWords > 0 || profile.Constraints.RequiredFormat != "" {
+	if profile.Constraints.MinWords > 0 || profile.Constraints.MaxWords > 0 || profile.Constraints.MaxCodePoints > 0 || profile.Constraints.RequiredFormat != "" || profile.Constraints.RequireArtifacts || profile.Constraints.MinArtifacts > 0 || profile.Constraints.RequireExactClaimPhrases {
 		resolved.InstructionText += fmt.Sprintf(
-			"\nHARD OUTPUT CONSTRAINTS: minimum %d words, maximum %d words, required format %q. Stay within these bounds; do not explain the constraints.",
+			"\nHARD OUTPUT CONSTRAINTS: minimum %d words, maximum %d words, maximum %d Unicode code points, required format %q, source artifacts required %t, minimum quoted artifacts %d. Stay within these bounds; do not explain the constraints.",
 			profile.Constraints.MinWords,
 			profile.Constraints.MaxWords,
+			profile.Constraints.MaxCodePoints,
 			profile.Constraints.RequiredFormat,
+			profile.Constraints.RequireArtifacts,
+			profile.Constraints.MinArtifacts,
 		)
 	}
 	return s.generateResolved(ctx, req, resolved)
 }
 
 func (s *Service) generateResolved(ctx context.Context, req GenerateRequest, resolved ResolvedProfile) (GenerateResponse, error) {
-	session := Session{ID: req.SessionID, ProfileKey: req.ProfileKey, Query: req.Query, Status: "active"}
-	if session.ID == "" {
-		session.ID = uuid.NewString()
-		if err := s.saveJSON(ctx, "prose_sessions", session.ID, session); err != nil {
+	persist := true
+	switch req.PersistenceMode {
+	case "", "persistent":
+	case "private_ephemeral":
+		persist = false
+		if req.SessionID != "" {
+			return GenerateResponse{}, ErrPrivateSessionResume
+		}
+		if strings.TrimSpace(strings.ToLower(resolved.Profile.Locality)) != "local_only" {
+			return GenerateResponse{}, ErrPrivateRouteNotLocal
+		}
+	default:
+		return GenerateResponse{}, fmt.Errorf("%w: %q", ErrUnknownPersistenceMode, req.PersistenceMode)
+	}
+	if (resolved.Profile.Constraints.RequireArtifacts || resolved.Profile.Constraints.MinArtifacts > 0) && len(req.Artifacts) == 0 {
+		return GenerateResponse{}, ErrArtifactsRequired
+	}
+	if resolved.Profile.Constraints.RequireExactClaimPhrases {
+		if len(req.SupportedClaimPhrases) == 0 {
+			return GenerateResponse{}, ErrSupportedClaimsRequired
+		}
+		if err := validateSupportedClaimPhrases(req.SupportedClaimPhrases); err != nil {
 			return GenerateResponse{}, err
 		}
+	}
+	session := Session{ID: req.SessionID, ProfileKey: req.ProfileKey, Status: "active"}
+	if persist {
+		session.Query = req.Query
 	} else {
+		session.Status = "ephemeral"
+	}
+	if session.ID == "" {
+		session.ID = uuid.NewString()
+		if persist {
+			if err := s.saveJSON(ctx, "prose_sessions", session.ID, session); err != nil {
+				return GenerateResponse{}, err
+			}
+		}
+	} else if persist {
 		if err := s.loadJSON(ctx, "prose_sessions", session.ID, &session); err != nil {
 			return GenerateResponse{}, err
 		}
@@ -838,9 +890,18 @@ func (s *Service) generateResolved(ctx context.Context, req GenerateRequest, res
 		return GenerateResponse{}, ErrEmptyQuery
 	}
 	effectiveCap := effectiveOutputCap(resolved.Profile)
-	gwReq := GatewayRequest{Role: resolved.Profile.GatewayRole, Instruction: resolved.InstructionText, Query: req.Query, SchemaJSON: req.SchemaJSON, Strategy: resolved.Profile.Sampler.Kind, K: resolved.Profile.Sampler.K, Tau: resolved.Profile.Sampler.Tau, MaxOutputTokens: effectiveCap, TemperatureStance: resolved.Profile.Sampler.TemperatureStance, Locality: resolved.Profile.Locality, PrivacyClass: prosePrivacyClass, PrivacySource: prosePrivacySource, Negative: req.Negative}
+	instruction := resolved.InstructionText
+	if resolved.Profile.Constraints.RequireExactClaimPhrases {
+		instruction += "\nSTRICT SUPPORTED-CLAIM MODE: Output only complete sentences that match one of these supported claim phrases exactly, allowing only case, whitespace and final punctuation changes. Do not paraphrase, strengthen, add a number, add a result or add transition text. If the supplied phrases cannot answer the request, return no candidate. Supported claim phrases: " + strings.Join(req.SupportedClaimPhrases, " | ")
+	}
+	gwReq := GatewayRequest{Role: resolved.Profile.GatewayRole, Instruction: instruction, Query: req.Query, SchemaJSON: req.SchemaJSON, Strategy: resolved.Profile.Sampler.Kind, K: resolved.Profile.Sampler.K, Tau: resolved.Profile.Sampler.Tau, MaxOutputTokens: effectiveCap, TemperatureStance: resolved.Profile.Sampler.TemperatureStance, Locality: resolved.Profile.Locality, PrivacyClass: prosePrivacyClass, PrivacySource: prosePrivacySource, Negative: req.Negative}
 	responses, err := s.gateway.Generate(ctx, gwReq)
 	if err != nil {
+		if !persist {
+			// Provider diagnostics can contain prompt text. Do not return them
+			// through the caller-facing error path for private ephemeral input.
+			return GenerateResponse{}, ErrPrivateInferenceFailed
+		}
 		return GenerateResponse{}, err
 	}
 	shortSet := len(responses) < resolved.Profile.Sampler.K
@@ -848,7 +909,10 @@ func (s *Service) generateResolved(ctx context.Context, req GenerateRequest, res
 		responses = responses[:resolved.Profile.Sampler.K]
 	}
 	selectionSeed := time.Now().UnixNano()
-	round := Round{ID: uuid.NewString(), SessionID: session.ID, Strategy: resolved.Profile.Sampler, SelectionSeed: selectionSeed, SamplingKey: samplingKeyOf(resolved.Profile.Sampler, responses), NegativeContext: req.Negative}
+	round := Round{ID: uuid.NewString(), SessionID: session.ID, Strategy: resolved.Profile.Sampler, SelectionSeed: selectionSeed, SamplingKey: samplingKeyOf(resolved.Profile.Sampler, responses)}
+	if persist {
+		round.NegativeContext = req.Negative
+	}
 	if shortSet && len(responses) == 0 {
 		return GenerateResponse{}, fmt.Errorf("sampler returned no candidates")
 	}
@@ -901,24 +965,30 @@ func (s *Service) generateResolved(ctx context.Context, req GenerateRequest, res
 		if capValue == 0 && capSource == "" {
 			capValue, capSource = effectiveCap, "profile"
 		}
-		candidate := Candidate{ID: id, RoundID: round.ID, Text: response.Text, SetIndex: i, Measurements: measurements[i], SetMeasurements: setMeasurements, Eligibility: gate(measurements[i], resolved.Profile.Constraints, response.Text, gateInputs{Selection: req.Selection, Artifacts: req.Artifacts}), Provenance: Provenance{ProfileVersion: fmt.Sprintf("%s@%d", resolved.Profile.Key, resolved.Profile.Version), Locality: transformLocality(resolved.Profile.Locality), PrivacyClass: prosePrivacyClass, PrivacySource: prosePrivacySource, StyleVersions: styleVersions(resolved.Styles), Strategy: resolved.Profile.Sampler.Kind, StrategyParameters: resolved.Profile.Sampler, Provider: response.Provider, ResolvedModelRef: response.Model, GatewayRole: resolved.Profile.GatewayRole, TemperatureSent: response.Temperature, TemperatureSupport: response.TemperatureSupport, MaxOutputTokensEffective: capValue, MaxOutputTokensSource: capSource, InputTokens: response.InputTokens, OutputTokens: response.OutputTokens, CostMicros: cost, MachineGenerated: true, Disclosure: "machine_generated", ContextSnapshot: &ContextSnapshot{EstimatedTokens: estimateContextTokens(req.Query)}}}
+		candidate := Candidate{ID: id, RoundID: round.ID, Text: response.Text, SetIndex: i, Measurements: measurements[i], SetMeasurements: setMeasurements, Eligibility: gate(measurements[i], resolved.Profile.Constraints, response.Text, gateInputs{Selection: req.Selection, Artifacts: req.Artifacts, SupportedClaimPhrases: req.SupportedClaimPhrases}), Provenance: Provenance{ProfileVersion: fmt.Sprintf("%s@%d", resolved.Profile.Key, resolved.Profile.Version), Locality: transformLocality(resolved.Profile.Locality), PrivacyClass: prosePrivacyClass, PrivacySource: prosePrivacySource, StyleVersions: styleVersions(resolved.Styles), Strategy: resolved.Profile.Sampler.Kind, StrategyParameters: resolved.Profile.Sampler, Provider: response.Provider, ResolvedModelRef: response.Model, GatewayRole: resolved.Profile.GatewayRole, TemperatureSent: response.Temperature, TemperatureSupport: response.TemperatureSupport, MaxOutputTokensEffective: capValue, MaxOutputTokensSource: capSource, InputTokens: response.InputTokens, OutputTokens: response.OutputTokens, CostMicros: cost, MachineGenerated: true, Disclosure: "machine_generated", ContextSnapshot: &ContextSnapshot{EstimatedTokens: estimateContextTokens(req.Query)}}}
 		if resolved.Profile.Sampler.Kind == samplerVSStandard {
 			candidate.VerbalizedHint = &VerbalizedHint{Ordinal: response.HintOrdinal, Calibrated: false}
 		}
-		if err := s.saveJSON(ctx, "prose_candidates", candidate.ID, candidate); err != nil {
-			return GenerateResponse{}, err
+		if persist {
+			if err := s.saveJSON(ctx, "prose_candidates", candidate.ID, candidate); err != nil {
+				return GenerateResponse{}, err
+			}
 		}
 		candidates[i] = candidate
 		round.CandidateIDs = append(round.CandidateIDs, candidate.ID)
 	}
 	round.TotalCostMicros = totalCost
-	if err := s.saveJSON(ctx, "prose_rounds", round.ID, round); err != nil {
-		return GenerateResponse{}, err
+	if persist {
+		if err := s.saveJSON(ctx, "prose_rounds", round.ID, round); err != nil {
+			return GenerateResponse{}, err
+		}
 	}
 	session.RoundIDs = append(session.RoundIDs, round.ID)
 	session.BudgetUsed += totalCost
-	if err := s.saveJSON(ctx, "prose_sessions", session.ID, session); err != nil {
-		return GenerateResponse{}, err
+	if persist {
+		if err := s.saveJSON(ctx, "prose_sessions", session.ID, session); err != nil {
+			return GenerateResponse{}, err
+		}
 	}
 	selected := choose(candidates, resolved.Profile.SelectionPolicy, resolved.Profile.SelectionParams, round.SelectionSeed, req.Selection)
 	response := GenerateResponse{Session: session, Round: round, Candidates: candidates}
@@ -2823,8 +2893,77 @@ func (s *Service) saveDeclaration(ctx context.Context, d Declaration) error {
 // one is relative to what precedes the passage, the other to what the caller
 // made available to quote.
 type gateInputs struct {
-	Selection *SelectionContext
-	Artifacts []string
+	Selection             *SelectionContext
+	Artifacts             []string
+	SupportedClaimPhrases []string
+}
+
+func validateSupportedClaimPhrases(phrases []string) error {
+	for _, phrase := range phrases {
+		if len(splitClaimSentences(phrase)) != 1 || normalizeClaimSentence(phrase) == "" {
+			return ErrInvalidSupportedClaims
+		}
+	}
+	return nil
+}
+
+func exactClaimPhraseEligibility(text string, phrases []string) Eligibility {
+	allowed := make(map[string]struct{}, len(phrases))
+	for _, phrase := range phrases {
+		allowed[normalizeClaimSentence(phrase)] = struct{}{}
+	}
+	sentences := splitClaimSentences(text)
+	if len(sentences) == 0 {
+		return Eligibility{false, "unsupported_claim_phrase:no_statements"}
+	}
+	for i, sentence := range sentences {
+		if _, ok := allowed[normalizeClaimSentence(sentence)]; !ok {
+			return Eligibility{false, fmt.Sprintf("unsupported_claim_phrase:sentence_%d", i+1)}
+		}
+	}
+	return Eligibility{Eligible: true}
+}
+
+func normalizeClaimSentence(sentence string) string {
+	sentence = strings.TrimSpace(sentence)
+	sentence = strings.TrimLeft(sentence, " \t-*•")
+	sentence = strings.Trim(sentence, "\"'“”‘’")
+	sentence = strings.TrimRight(sentence, ".!?")
+	sentence = strings.Trim(sentence, "\"'“”‘’")
+	return strings.ToLower(strings.Join(strings.Fields(sentence), " "))
+}
+
+func splitClaimSentences(text string) []string {
+	var sentences []string
+	start := 0
+	appendPart := func(end int) {
+		if part := strings.TrimSpace(text[start:end]); part != "" {
+			sentences = append(sentences, part)
+		}
+	}
+	for i := 0; i < len(text); i++ {
+		if text[i] == '\n' {
+			appendPart(i)
+			start = i + 1
+			continue
+		}
+		if text[i] != '.' && text[i] != '!' && text[i] != '?' {
+			continue
+		}
+		if text[i] == '.' && i > 0 && i+1 < len(text) && text[i-1] >= '0' && text[i-1] <= '9' && text[i+1] >= '0' && text[i+1] <= '9' {
+			continue
+		}
+		end := i + 1
+		for end < len(text) && (text[end] == '"' || text[end] == '\'' || text[end] == ')' || text[end] == ']') {
+			end++
+		}
+		if end == len(text) || text[end] == ' ' || text[end] == '\t' || text[end] == '\n' {
+			appendPart(end)
+			start = end
+		}
+	}
+	appendPart(len(text))
+	return sentences
 }
 
 // gate evaluates the deterministic constraints.
@@ -2837,6 +2976,14 @@ func gate(measurement any, c Constraints, text string, in gateInputs) Eligibilit
 	}
 	if c.MaxWords > 0 && m.WordCount > c.MaxWords {
 		return Eligibility{false, fmt.Sprintf("max_words:%d", c.MaxWords)}
+	}
+	if c.MaxCodePoints > 0 {
+		if count := utf8.RuneCountInString(text); count > c.MaxCodePoints {
+			return Eligibility{false, fmt.Sprintf("max_code_points:%d:measured:%d", c.MaxCodePoints, count)}
+		}
+	}
+	if c.RequireArtifacts && len(in.Artifacts) == 0 {
+		return Eligibility{false, "approved_artifacts_required"}
 	}
 	for _, flag := range m.LexiconFlags {
 		for _, banned := range c.BannedLexicon {
@@ -2875,6 +3022,12 @@ func gate(measurement any, c Constraints, text string, in gateInputs) Eligibilit
 		present := textmetrics.ArtifactsPresent(text, in.Artifacts)
 		if len(present) < c.MinArtifacts {
 			return Eligibility{false, fmt.Sprintf("min_artifacts:%d:measured:%d", c.MinArtifacts, len(present))}
+		}
+	}
+	if c.RequireExactClaimPhrases {
+		eligibility := exactClaimPhraseEligibility(text, in.SupportedClaimPhrases)
+		if !eligibility.Eligible {
+			return eligibility
 		}
 	}
 	return Eligibility{Eligible: true}

@@ -66,7 +66,14 @@ func TestRunSweepPersistsFlowTaggedSampleAndReportsVerdict(t *testing.T) {
 		fakeAuditor{byFlow: map[string]capture.Result{
 			"scroll-list": {Outcome: capture.OutcomeCaptured, TraceArtifact: "/runs/scroll.json"},
 		}},
-		fakeAnalyzer{res: analysis.Result{LCPMs: 3200, Components: []analysis.ComponentTiming{{Component: "List", AvgMs: 12, MaxMs: 40}}}},
+		fakeAnalyzer{res: analysis.Result{
+			LCPMs: 3200, ResponseEndMs: 111, DOMInteractiveMs: 222, DOMContentLoadedMs: 333, LoadEventEndMs: 444, NavigationType: "reload",
+			LongTaskMs: 51, LongTaskMaxMs: 32.5,
+			FrameSummary: analysis.FrameSummary{ApproxDrawnFPS: 48, DroppedFrameRate: 0.25},
+			InputEvents:  []analysis.EventSummary{{Name: "pointermove", Count: 4}, {Name: "keydown", Count: 3}},
+			BrowserWork:  []analysis.EventSummary{{Name: "RasterTask", TotalMs: 9}, {Name: "Layout", TotalMs: 10}, {Name: "UpdateLayoutTree", TotalMs: 2}, {Name: "Paint", TotalMs: 6}},
+			Components:   []analysis.ComponentTiming{{Component: "List", AvgMs: 12, MaxMs: 40}},
+		}},
 		trend,
 		fakeGate{
 			declared: true,
@@ -102,8 +109,11 @@ func TestRunSweepPersistsFlowTaggedSampleAndReportsVerdict(t *testing.T) {
 		t.Fatalf("expected one persisted sample, got %d", len(trend.samples))
 	}
 	s := trend.samples[0]
-	if s.Flow != "scroll-list" || s.LCPMs != 3200 || s.SlowestComponent != "List" {
+	if s.Flow != "scroll-list" || s.LCPMs != 3200 || s.SlowestComponent != "List" || s.ResponseEndMs != 111 || s.DOMInteractiveMs != 222 || s.DOMContentLoadedMs != 333 || s.LoadEventEndMs != 444 || s.NavigationType != "reload" {
 		t.Fatalf("flow sample not tagged/populated: %#v", s)
+	}
+	if s.InputEventCount != 7 || s.RasterTotalMs != 9 || s.LayoutTotalMs != 12 || s.PaintTotalMs != 6 || s.DrawnFPS != 48 || s.DroppedFrameRate != 0.25 || s.LongTaskTotalMs != 51 || s.LongTaskMaxMs != 32.5 {
+		t.Fatalf("flow interaction sample fields not populated: %#v", s)
 	}
 }
 

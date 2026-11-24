@@ -49,6 +49,14 @@ func (h *Handler) RunAudit(ctx context.Context, req *connect.Request[auditv1.Run
 	if scenario == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalid("scenario is required"))
 	}
+	arm, err := layoutCacheArmFromProto(req.Msg.GetLayoutCacheArm())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalid(err.Error()))
+	}
+	workflow := req.Msg.GetWorkflow()
+	if err := capture.ValidateLayoutCacheArm(scenario, workflow, arm); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errInvalid(err.Error()))
+	}
 
 	tier := readiness.Tier0
 	if h.tierer != nil {
@@ -62,19 +70,48 @@ func (h *Handler) RunAudit(ctx context.Context, req *connect.Request[auditv1.Run
 		}
 	}
 
-	res, err := h.svc.Orchestrate(ctx, scenario, req.Msg.GetWorkflow(), tier)
+	res, err := h.svc.OrchestrateWithLayoutCacheArm(ctx, scenario, workflow, tier, arm)
 	if err != nil {
 		h.logger.Printf("audit.RunAudit(%s): %v", scenario, err)
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&auditv1.RunAuditResponse{
-		Scenario:          res.Scenario,
-		Outcome:           outcomeToProto(res.Outcome),
-		Tier:              tierToProto(res.Tier),
-		TraceArtifact:     res.TraceArtifact,
-		WebVitalsArtifact: res.WebVitalsArtifact,
-		Reason:            res.Reason,
+		Scenario:               res.Scenario,
+		Outcome:                outcomeToProto(res.Outcome),
+		Tier:                   tierToProto(res.Tier),
+		TraceArtifact:          res.TraceArtifact,
+		WebVitalsArtifact:      res.WebVitalsArtifact,
+		ProcessTreeArtifact:    res.ProcessTreeArtifact,
+		ProcessTreeReference:   res.ProcessTreeReference,
+		ProcessTreeSessionId:   res.ProcessTreeSessionID,
+		ProcessTreeLeaseSha256: res.ProcessTreeLeaseSHA256,
+		Reason:                 res.Reason,
+		LayoutCacheArm:         layoutCacheArmToProto(res.LayoutCacheArm),
 	}), nil
+}
+
+func layoutCacheArmFromProto(arm auditv1.LayoutCacheArm) (capture.LayoutCacheArm, error) {
+	switch arm {
+	case auditv1.LayoutCacheArm_LAYOUT_CACHE_ARM_UNSPECIFIED:
+		return capture.LayoutCacheArmUnspecified, nil
+	case auditv1.LayoutCacheArm_LAYOUT_CACHE_ARM_ENABLED:
+		return capture.LayoutCacheArmEnabled, nil
+	case auditv1.LayoutCacheArm_LAYOUT_CACHE_ARM_DISABLED:
+		return capture.LayoutCacheArmDisabled, nil
+	default:
+		return capture.LayoutCacheArmUnspecified, errInvalid("layout cache arm is unknown")
+	}
+}
+
+func layoutCacheArmToProto(arm capture.LayoutCacheArm) auditv1.LayoutCacheArm {
+	switch arm {
+	case capture.LayoutCacheArmEnabled:
+		return auditv1.LayoutCacheArm_LAYOUT_CACHE_ARM_ENABLED
+	case capture.LayoutCacheArmDisabled:
+		return auditv1.LayoutCacheArm_LAYOUT_CACHE_ARM_DISABLED
+	default:
+		return auditv1.LayoutCacheArm_LAYOUT_CACHE_ARM_UNSPECIFIED
+	}
 }
 
 func outcomeToProto(o capture.Outcome) auditv1.AuditOutcome {

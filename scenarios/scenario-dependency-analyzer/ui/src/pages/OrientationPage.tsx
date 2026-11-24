@@ -1,5 +1,5 @@
 import { AlertCircle, ArrowRight, BarChart3, Compass, Network, Shield, MousePointerClick, Map, LifeBuoy } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { statusTone } from "../theme/status";

@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS quality_metrics (
     coverage_score REAL CHECK (coverage_score IS NULL OR (coverage_score >= 0 AND coverage_score <= 1)),
     total_entries INTEGER DEFAULT 0,
     avg_quality REAL GENERATED ALWAYS AS (
-        (coherence_score + freshness_score + redundancy_score + coverage_score) / 4
+        (coherence_score + freshness_score + coverage_score - redundancy_score) / 3
     ) STORED,
     measured_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -62,7 +62,12 @@ SELECT
     q.freshness_score,
     q.redundancy_score,
     q.coverage_score,
-    q.avg_quality,
+    CASE WHEN q.coherence_score IS NULL OR q.freshness_score IS NULL
+                   OR q.coverage_score IS NULL OR q.redundancy_score IS NULL
+         THEN NULL
+         ELSE (q.coherence_score + q.freshness_score + q.coverage_score
+               - q.redundancy_score) / 3.0
+    END AS avg_quality,
     c.total_searches,
     c.avg_search_score,
     q.measured_at

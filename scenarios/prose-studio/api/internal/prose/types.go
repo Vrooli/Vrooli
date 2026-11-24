@@ -65,12 +65,26 @@ type Sampler struct {
 }
 
 type Constraints struct {
-	MinWords       int      `json:"min_words,omitempty"`
-	MaxWords       int      `json:"max_words,omitempty"`
+	MinWords int `json:"min_words,omitempty"`
+	MaxWords int `json:"max_words,omitempty"`
+	// MaxCodePoints is a caller-supplied Unicode code-point ceiling. It is a
+	// generic output bound, not a platform character-count guarantee; platforms
+	// may count URLs, grapheme clusters, or media differently.
+	MaxCodePoints  int      `json:"max_code_points,omitempty"`
 	MinGrade       float64  `json:"min_grade,omitempty"`
 	MaxGrade       float64  `json:"max_grade,omitempty"`
 	BannedLexicon  []string `json:"banned_lexicon,omitempty"`
 	RequiredFormat string   `json:"required_format,omitempty"`
+	// RequireArtifacts refuses generation when the caller supplies no source
+	// artifacts. Prose Studio cannot verify caller approval. MinArtifacts
+	// controls how many supplied facts a candidate must quote when a
+	// claim-grounded profile enables this flag.
+	RequireArtifacts bool `json:"require_artifacts,omitempty"`
+	// RequireExactClaimPhrases enables a strict claim-only mode: every sentence
+	// in a generated candidate must match a supplied supported claim phrase
+	// after case, whitespace and terminal-punctuation normalization. It proves
+	// phrase membership, not upstream claim truth, freshness or approval.
+	RequireExactClaimPhrases bool `json:"require_exact_claim_phrases,omitempty"`
 	// MinSectionNovelty is the share of a section's content terms that must not
 	// already appear in the section before it. It is the one constraint here
 	// that a candidate cannot be judged against on its own: a passage is only
@@ -429,8 +443,12 @@ type Registry struct {
 }
 
 type GenerateRequest struct {
-	ProfileKey        string          `json:"profile_key"`
-	Query             string          `json:"query"`
+	ProfileKey string `json:"profile_key"`
+	Query      string `json:"query"`
+	// PersistenceMode may be "private_ephemeral" for private writing that must
+	// not enter Prose Studio's session, candidate, round, or event records. That
+	// route requires a local_only profile and cannot resume a prior session.
+	PersistenceMode   string          `json:"persistence_mode,omitempty"`
 	SchemaJSON        string          `json:"schema_json,omitempty"`
 	IncludeCandidates bool            `json:"include_candidates"`
 	SessionID         string          `json:"session_id,omitempty"`
@@ -444,6 +462,9 @@ type GenerateRequest struct {
 	// the profile because they are the caller's brief, and a style record that
 	// pinned them would make one voice usable for exactly one subject.
 	Artifacts []string `json:"artifacts,omitempty"`
+	// SupportedClaimPhrases are the exact statements from the caller-owned
+	// truth base that the candidate may contain when strict claim checking is on.
+	SupportedClaimPhrases []string `json:"supported_claim_phrases,omitempty"`
 }
 
 // SelectionContext is what a policy needs in order to choose a candidate for a

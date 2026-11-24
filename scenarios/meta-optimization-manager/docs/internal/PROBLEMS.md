@@ -72,15 +72,17 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Symptom:** The first live operator run (`trial/G1`, 2026-08-12) completed with `TRIAL_VERDICT_ERROR` rather than a scored pass/fail. Run ID: `5afd2d5d-d3b3-48fc-8b9d-1f18fbca247b`.
 
-**Root cause:** The diff-apply path is an untested assumption: the runner scopes the agent to `fixture.TargetDir` (`--scope-path`), captures the diff via `agent-manager run diff`, and the evaluator applies it with `git apply -p1` inside a copy of `target/`. This only lands cleanly if agent-manager emits diff paths rooted at the scope-path with `a/…  b/…` prefixes; if rooted elsewhere, every trial silently becomes `VerdictError`. Separately, `agentJudge` is `nil` in prod — correct today (all 5 fixtures carry an oracle → oracle-less degrades to honest `VerdictError`), but a future oracle-less family would silently yield `VerdictError` with only a log line.
+**Root cause:** Confirmed scope-root mismatch. The runner created a task with `--scope-path fixture.TargetDir` but omitted `--project-root`, so Agent Manager used its configured default project root. Workspace Sandbox prefixes scoped diff paths with the relative path from `ProjectRoot` to `ScopePath`; the evaluator then applied that repo-rooted patch with `git apply -p1` inside a copy containing only the target tree. Reproduction with the fixture path `scenarios/meta-optimization-manager/api/internal/trials/fixtures/add-feature/target` failed in both `git apply` and the `patch` fallback because that prefixed file does not exist in the copy. Separately, `agentJudge` is `nil` in production — all five current fixtures carry an oracle, but a future oracle-less family still yields `VerdictError` after dispatch.
 
 **Workaround:** Keep OT-P1-001 unaccepted until a live pass; treat the recorded error as a real empirical data point, not as a passing score. The API currently omits the detailed runner error, so inspect the agent-manager/trials logs when reproducing.
 
-**Real fix:** (1) One operator live-e2e (the `bugfix` family is smallest); capture the raw `run diff` output, confirm/repair the `-p1` rooting, and lock the captured diff as a golden fixture. (2) Add a corpus-load-time guard asserting every fixture has an oracle or a configured judge, so future oracle-less families fail loudly instead of degrading silently.
+**Fix applied:** Task creation now sets `--project-root` equal to `fixture.TargetDir`, making `ScopePath == ProjectRoot`. Workspace Sandbox therefore emits target-relative diff paths that the evaluator can apply to its target-only copy. The runner test asserts this exact command contract.
 
-**Owner:** unassigned.
+**Remaining:** Run one local live-model trial against the `bugfix` fixture and retain its raw `run diff` as a fixture. Add a corpus-load-time guard requiring every fixture to have an oracle or a configured judge, so oracle-less work fails before dispatch instead of later yielding `VerdictError`. Keep this entry open until those checks and a scored live run are complete.
 
-**Refs:** `api/internal/trials/runner.go`, `api/internal/trials/evaluator.go` (`applyDiff`, the `nil` judge).
+**Owner:** this scenario; live-model readback remains unverified.
+
+**Refs:** `api/internal/trials/runner.go`, `runner_test.go`, `evaluator.go` (`applyDiff`, the `nil` judge); workspace-sandbox `scopePathPrefix` and `diff.GenerateOptions.PathPrefix`; evidence `PT5-meta-optimization-manager-scoped-diff-2026-11-24.json`.
 
 ### 2026-06-24 — convergence coordinated-edit walkthrough is unproven mechanization
 

@@ -52,7 +52,7 @@ func NewHandler(deps Deps) *handler {
 }
 
 // WindDownText is the standard wind-down when the operator gives no words.
-const WindDownText = "Finish the current unit, write the closeout, then end."
+const WindDownText = home.WindDownText
 
 func (h *handler) snapshot(ctx context.Context) (*home.Snapshot, error) {
 	snap, err := h.deps.Reader.Snapshot(ctx, home.Options{})

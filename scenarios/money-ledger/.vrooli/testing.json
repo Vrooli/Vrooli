@@ -6,7 +6,7 @@
   },
   "version": "1.0.0",
   "phases": {
-    "ui-health": {
+    "experience": {
       "timeout": "15m"
     },
     "tidiness": {

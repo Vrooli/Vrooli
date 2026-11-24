@@ -92,11 +92,15 @@ func (c DeviceControlInventory) List(ctx context.Context) ([]DeviceObservation, 
 	return observations, nil
 }
 
-// actionableADBTransport keeps the requested profile when inventory cannot
-// prove a usable alternative. A wireless selection may use USB only when the
-// typed inventory reports an available android-adb USB profile.
+// actionableADBTransport honors the Device Control-selected profile whenever
+// it is available. A wireless selection may fall back to USB only when the
+// selected wireless profile is unavailable and typed inventory confirms an
+// available android-adb USB profile.
 func actionableADBTransport(selected string, profiles []*devicesv1.TransportProfile) string {
 	selected = strings.TrimSpace(selected)
+	if availableADBProfile(selected, profiles) {
+		return selected
+	}
 	if strings.EqualFold(selected, "wireless") && availableADBProfile("usb", profiles) {
 		return "usb"
 	}

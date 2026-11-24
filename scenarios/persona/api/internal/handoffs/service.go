@@ -191,13 +191,7 @@ func (s *service) Get(ctx context.Context, id string) (Handoff, error) {
 	if err != nil {
 		return Handoff{}, err
 	}
-	if (h.State == StateOpen || h.State == StateDelivered || h.State == StateAwaitingHuman) && !h.Deadline.After(s.clock.Now()) {
-		h, err = s.repo.UpdateState(ctx, h.ID, StateExpired, "system", "deadline")
-		if err == nil {
-			s.record(ctx, h, "handoff_expired", "refused", "deadline")
-		}
-	}
-	return h, err
+	return s.expireIfNeeded(ctx, h)
 }
 
 func (s *service) List(ctx context.Context, personaID string, limit int) ([]Handoff, error) {
@@ -207,7 +201,30 @@ func (s *service) List(ctx context.Context, personaID string, limit int) ([]Hand
 	if limit <= 0 || limit > 1000 {
 		limit = 100
 	}
-	return s.repo.List(ctx, personaID, limit)
+	handoffs, err := s.repo.List(ctx, personaID, limit)
+	if err != nil {
+		return nil, err
+	}
+	for i := range handoffs {
+		handoffs[i], err = s.expireIfNeeded(ctx, handoffs[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return handoffs, nil
+}
+
+func (s *service) expireIfNeeded(ctx context.Context, h Handoff) (Handoff, error) {
+	active := h.State == StateOpen || h.State == StateDelivered || h.State == StateAwaitingHuman
+	if !active || h.Deadline.After(s.clock.Now()) {
+		return h, nil
+	}
+	updated, err := s.repo.UpdateState(ctx, h.ID, StateExpired, "system", "deadline")
+	if err != nil {
+		return Handoff{}, fmt.Errorf("expire overdue handoff %s: %w", h.ID, err)
+	}
+	s.record(ctx, updated, "handoff_expired", "refused", "deadline")
+	return updated, nil
 }
 
 func (s *service) Complete(ctx context.Context, id, completedBy string) (Handoff, error) {

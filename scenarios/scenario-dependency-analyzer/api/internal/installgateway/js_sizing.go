@@ -267,9 +267,10 @@ func (r *registryHTTP) recordResponse(size int) error {
 }
 
 type pnpmVersionDocument struct {
-	Name    string `json:"name"`
-	Version string `json:"version"`
-	Dist    struct {
+	Name                 string            `json:"name"`
+	Version              string            `json:"version"`
+	OptionalDependencies map[string]string `json:"optionalDependencies"`
+	Dist                 struct {
 		UnpackedSize int64  `json:"unpackedSize"`
 		Tarball      string `json:"tarball"`
 		Integrity    string `json:"integrity"`
@@ -277,39 +278,9 @@ type pnpmVersionDocument struct {
 }
 
 func (r *registryHTTP) Registry(ctx context.Context, name, version, integrity string) (artifactSize, error) {
-	if err := r.beginRequest(); err != nil {
-		return artifactSize{}, err
-	}
-	probeCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-	request, err := http.NewRequestWithContext(probeCtx, http.MethodGet, r.base+"/"+url.PathEscape(name)+"/"+url.PathEscape(version), nil)
+	doc, err := r.versionDocument(ctx, name, version)
 	if err != nil {
 		return artifactSize{}, err
-	}
-	// The compact install-v1 document omits dist.unpackedSize for some
-	// packages, so ask for the full version document.
-	request.Header.Set("Accept", "application/json")
-	response, err := r.client.Do(request)
-	if err != nil {
-		return artifactSize{}, fmt.Errorf("registry metadata request failed: %w", err)
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return artifactSize{}, fmt.Errorf("registry metadata request returned HTTP %d", response.StatusCode)
-	}
-	body, err := io.ReadAll(io.LimitReader(response.Body, maxPnpmVersionDocument+1))
-	if err != nil || len(body) == 0 || len(body) > maxPnpmVersionDocument {
-		return artifactSize{}, fmt.Errorf("registry metadata exceeded its %d-byte limit", maxPnpmVersionDocument)
-	}
-	if err := r.recordResponse(len(body)); err != nil {
-		return artifactSize{}, err
-	}
-	var doc pnpmVersionDocument
-	if err := json.Unmarshal(body, &doc); err != nil {
-		return artifactSize{}, fmt.Errorf("decode registry metadata: %w", err)
-	}
-	if doc.Name != name || doc.Version != version {
-		return artifactSize{}, fmt.Errorf("registry metadata describes %s@%s, not the locked package", doc.Name, doc.Version)
 	}
 	if doc.Dist.Integrity != "" && integrity != "" && doc.Dist.Integrity != integrity {
 		return artifactSize{}, fmt.Errorf("registry integrity %s differs from the locked integrity", doc.Dist.Integrity)
@@ -326,6 +297,56 @@ func (r *registryHTTP) Registry(ctx context.Context, name, version, integrity st
 		return artifactSize{}, fmt.Errorf("unpacked size %d is unavailable or exceeds the bounded package limit", unpacked)
 	}
 	return artifactSize{Unpacked: unpacked, Archive: archive}, nil
+}
+
+func (r *registryHTTP) OptionalDependencies(ctx context.Context, name, version string) (map[string]string, error) {
+	doc, err := r.versionDocument(ctx, name, version)
+	if err != nil {
+		return nil, err
+	}
+	deps := make(map[string]string, len(doc.OptionalDependencies))
+	for dependency, pinned := range doc.OptionalDependencies {
+		deps[dependency] = pinned
+	}
+	return deps, nil
+}
+
+func (r *registryHTTP) versionDocument(ctx context.Context, name, version string) (pnpmVersionDocument, error) {
+	if err := r.beginRequest(); err != nil {
+		return pnpmVersionDocument{}, err
+	}
+	probeCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	request, err := http.NewRequestWithContext(probeCtx, http.MethodGet, r.base+"/"+url.PathEscape(name)+"/"+url.PathEscape(version), nil)
+	if err != nil {
+		return pnpmVersionDocument{}, err
+	}
+	// The compact install-v1 document omits dist.unpackedSize for some
+	// packages, so ask for the full version document.
+	request.Header.Set("Accept", "application/json")
+	response, err := r.client.Do(request)
+	if err != nil {
+		return pnpmVersionDocument{}, fmt.Errorf("registry metadata request failed: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return pnpmVersionDocument{}, fmt.Errorf("registry metadata request returned HTTP %d", response.StatusCode)
+	}
+	body, err := io.ReadAll(io.LimitReader(response.Body, maxPnpmVersionDocument+1))
+	if err != nil || len(body) == 0 || len(body) > maxPnpmVersionDocument {
+		return pnpmVersionDocument{}, fmt.Errorf("registry metadata exceeded its %d-byte limit", maxPnpmVersionDocument)
+	}
+	if err := r.recordResponse(len(body)); err != nil {
+		return pnpmVersionDocument{}, err
+	}
+	var doc pnpmVersionDocument
+	if err := json.Unmarshal(body, &doc); err != nil {
+		return pnpmVersionDocument{}, fmt.Errorf("decode registry metadata: %w", err)
+	}
+	if doc.Name != name || doc.Version != version {
+		return pnpmVersionDocument{}, fmt.Errorf("registry metadata describes %s@%s, not the locked package", doc.Name, doc.Version)
+	}
+	return doc, nil
 }
 
 // Tarball downloads a tarball URL dependency into memory, checks the bytes

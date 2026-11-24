@@ -334,7 +334,7 @@ def render_card(n: int, home: Path, cid: str, topic: str, rep: mc.TopicReport, t
     lines = [
         f"### Card {n} — {title} · mode `{rep.mode}`",
         "",
-        f"- **Folder:** `{tdir}/` — `MISSION.md`{'; list files ' + lists if lists else ''}; run folder `runs/{cid}/`.",
+        f"- **Folder:** `{tdir}/` — `MISSION.md`{'; list files ' + lists if lists else ''}; run folder `{tdir / 'runs' / cid}/` (create `evidence/` inside it for receipts, captures, logs and generated test outputs).",
     ]
     if read_first:
         lines.append(f"- **Read first:** `{read_first}`")
@@ -775,6 +775,9 @@ def main(argv: list[str]) -> int:
     args = ap.parse_args(argv)
     home = args.home.expanduser().absolute()
     try:
+        repo = REPO.resolve()
+        if home.is_relative_to(REPO) or home.resolve().is_relative_to(repo):
+            raise Fail("filesystem", f"research home must be outside the repository checkout: {home}", 3)
         if not (home / "topics").is_dir() or not (home / "cohorts").is_dir():
             raise Fail("filesystem", f"{home} is not a research home (needs topics/ and cohorts/)", 3)
         if args.cmd == "preview":

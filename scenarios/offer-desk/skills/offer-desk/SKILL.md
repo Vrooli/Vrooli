@@ -32,9 +32,14 @@ Every command sits under the `offers` group: `offer-desk offers <command>`.
 ### Before acting
 
 Recall prior advice for this scope before the first operation:
-`program-runtime library run vrooli-memory.prepare-attempt --input scope=offer-desk-usage --input task_id=<id> --input operation=<operation> --input context_key=<key>`. **[S3]**
+`program-runtime library run vrooli-memory.prepare-attempt --input scope=offer-desk-usage --input task_id=offer-desk-board-read-20260901 --input operation=board-read --input context_key=offer-desk/board --input started_at=2026-09-01T12:00:00Z --input task_started_at=2026-09-01T12:00:00Z --input trigger=scheduled-board-read --input approach=read-board-and-record-state --input attempt_number=1 --input provenance=operator`. **[S3]**
 No match is a real answer; proceed without inventing advice. Memory mechanics belong to
-`prompt-manager skill read vrooli-memory` and are not restated here.
+`prompt-manager skill read vrooli-memory` and its `.vrooli/program-runtime/README.md` for
+seed and capture semantics. All ten shown inputs are required. Keep `task_id` stable for
+the task, use a positive `attempt_number`, pass both timestamps as RFC3339, and set
+`provenance` to `operator`, `test`, or `agent` as caller-declared evidence. `query` and
+`advice_limit` are optional; a CLI `--provenance` flag does not replace the required
+`--input provenance=...` value.
 
 ### Choosing the operation
 
@@ -98,11 +103,41 @@ Thirteen of the twenty-three commands write. Before any of them:
 ### After acting, always
 
 Capture the attempt whether it succeeded or not:
-`program-runtime library run vrooli-memory.finish-attempt --input scope=offer-desk-usage --input attempt=<attempt>`. **[S3]**
+`program-runtime library run vrooli-memory.finish-attempt --input scope=offer-desk-usage --input attempt='<complete snake-case Memory Attempt JSON object>'`. **[S3]**
 Entry kinds are `task-record` and `attempt-observation`. Capture failure is separate from
 task outcome: a failed capture does not make a successful operation a failure, and it is
 reported rather than retried in place. Pin advice after a third confirmation; supersede it
 when it fails; propose a rule only after the pattern repeats.
+
+`attempt` is a JSON object, not an attempt ID string or shell flag. Start with the
+snake-case seed returned in `signals.attempt`, then provide the observed `finished_at` and
+`outcome` (and any justified advice decisions/evidence) before finishing. For example:
+
+```json
+{
+  "attempt_id": "attempt-from-prepare-seed",
+  "task_id": "offer-desk-board-read-20260901",
+  "operation": "board-read",
+  "context_key": "offer-desk/board",
+  "started_at": "2026-09-01T12:00:00Z",
+  "finished_at": "2026-09-01T12:01:00Z",
+  "task_started_at": "2026-09-01T12:00:00Z",
+  "attempt_number": 1,
+  "trigger": "scheduled-board-read",
+  "approach": "read-board-and-record-state",
+  "outcome": "unknown",
+  "provenance": "operator",
+  "recall_status": "no_match",
+  "advice": []
+}
+```
+
+This JSON is a shape example; use the exact `attempt_id` and seed fields from the real
+prepare response and the real finish time/outcome.
+
+When prepare returns `recall_status: matched`, finish the seed with that status and record
+each candidate's actual decision and evidence as described in the Vrooli Memory README;
+retrieval alone is not evidence that advice was applied.
 
 ### What this scenario cannot answer yet
 

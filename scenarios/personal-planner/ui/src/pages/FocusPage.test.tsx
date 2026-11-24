@@ -38,7 +38,32 @@ describe("FocusPage", () => {
 
     expect(await screen.findByRole("heading", { name: "Draft the launch story" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Start focus" }));
-    expect(startFocus).toHaveBeenCalledWith({ workItemId: "work-1", title: "Draft the launch story", mode: "countdown" });
+    expect(startFocus).toHaveBeenCalledWith({ workItemId: "work-1", title: "Draft the launch story", mode: "timed" });
+  });
+
+  it("shows the remaining target for a timed session returned by the API", async () => {
+    const startedAt = Math.floor(Date.now() / 1000);
+    vi.mocked(fetchCurrentFocus).mockResolvedValue({ ...session, mode: "timed", activeStartedAtUnixSeconds: BigInt(startedAt) } as never);
+    vi.mocked(fetchActuals).mockResolvedValue([]);
+    vi.mocked(fetchWorkItems).mockResolvedValue(work as never);
+    window.localStorage.setItem("personal-planner.focus-target:work-1", "2700");
+
+    renderWithProviders(<FocusPage />);
+
+    expect(await screen.findByText(/remaining in the planned window/)).toBeInTheDocument();
+  });
+
+  it("shows a visible error when the start request is rejected", async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchCurrentFocus).mockResolvedValue(null);
+    vi.mocked(fetchActuals).mockResolvedValue([]);
+    vi.mocked(fetchWorkItems).mockResolvedValue(work as never);
+    vi.mocked(startFocus).mockRejectedValue(new Error("invalid focus mode"));
+
+    renderWithProviders(<FocusPage />);
+    await user.click(await screen.findByRole("button", { name: "Start focus" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Focus could not start. Nothing was saved.");
   });
 
   it("starts a persisted pomodoro mode with an explicit cycle plan", async () => {

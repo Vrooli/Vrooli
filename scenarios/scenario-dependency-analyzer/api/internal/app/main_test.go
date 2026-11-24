@@ -58,6 +58,9 @@ func TestAnalysisHealthHandler(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 	t.Setenv("VROOLI_BUILD_IDENTITY", "sha256:test-build")
+	t.Setenv("VROOLI_RUNTIME_RELEASE_ID", "release-test")
+	t.Setenv("VROOLI_RUNTIME_RELEASE_OPERATION_ID", "select-test")
+	t.Setenv("VROOLI_START_OPERATION_ID", "start-test")
 
 	router := setupTestRouter()
 
@@ -83,6 +86,9 @@ func TestAnalysisHealthHandler(t *testing.T) {
 
 		if response["build_identity"] != "sha256:test-build" {
 			t.Errorf("Expected analysis build identity to be reported, got %v", response["build_identity"])
+		}
+		if response["runtime_release_id"] != "release-test" || response["runtime_release_operation_id"] != "select-test" || response["start_operation_id"] != "start-test" {
+			t.Errorf("Expected analysis runtime identity fields, got release=%v release_operation=%v start=%v", response["runtime_release_id"], response["runtime_release_operation_id"], response["start_operation_id"])
 		}
 
 		if _, ok := response["timestamp"].(string); !ok {

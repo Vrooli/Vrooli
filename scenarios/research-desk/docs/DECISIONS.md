@@ -32,7 +32,10 @@ CLIs that rebuild mid-launch. Switch: medium; the terminal seam.
 ask the supervisor in chat (it takes a kept message slot and depends on obedience), the
 managed-session goal API (not available for a TUI session), deleting the session (removes the
 Codex home and transcripts). The two slash commands act during a turn and take no kept slot
-([measurements](internal/evidence/codex-measurements.md)). Switch: low; `Launcher.Pause`,
+([measurements](internal/evidence/codex-measurements.md)). The desk writes the existing wind-down
+control 30 minutes before the allowance and pauses a goal that ignores it 15 minutes after, so a
+manager that runs past its clock is stopped at a safe boundary rather than left open for days.
+Switch: low; `Launcher.Pause`,
 `Resume` and `Stop`.
 
 **Relaunch is a new commission.** Alternative: attempts inside one folder. Owner run folders

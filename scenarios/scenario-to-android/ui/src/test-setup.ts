@@ -37,7 +37,11 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-  const errorCalls = consoleError.mock.calls;
+  // jsdom's CSS parser cannot handle modern declarations from the released
+  // RCL Select stylesheet; keep the strict console check for every other error.
+  const errorCalls = consoleError.mock.calls.filter(
+    (args) => !args.some((arg) => String(arg).includes("Could not parse CSS stylesheet")),
+  );
   const warnCalls = consoleWarn.mock.calls;
   consoleError.mockRestore();
   consoleWarn.mockRestore();

@@ -1,5 +1,4 @@
 """Read Offer Desk's own condition rows; retain absent sensors as declared gaps, never as zero."""
-import json
 
 inputs = program.inputs()
 
@@ -121,4 +120,4 @@ row('promotion-latency', None, 'no promotion proposal waits on the operator beyo
     None, 'pending_telemetry')
 
 envelope['phase'] = 'report'
-print(json.dumps(envelope, allow_nan=False, separators=(',', ':')))
+program.report(envelope)

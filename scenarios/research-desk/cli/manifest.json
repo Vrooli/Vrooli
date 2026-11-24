@@ -401,7 +401,7 @@
             {
               "name": "action",
               "required": true,
-              "description": "pause, resume, stop, discard or resend-stance",
+              "description": "pause, resume, stop, discard, resend-stance or retry-goal",
               "bind_waiver": "The CLI maps the word to the ControlAction enum."
             }
           ],

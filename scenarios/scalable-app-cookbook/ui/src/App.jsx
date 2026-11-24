@@ -4,6 +4,7 @@ import axios from 'axios'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { Search, Book, Code, Filter, Download, Zap, Menu, X } from 'lucide-react'
+import { Card } from '@vrooli/react-component-library/Card/1.3.1'
 import { resolveApiBase, buildApiUrl } from '@vrooli/api-base'
 import './App.css'
 
@@ -427,22 +428,22 @@ function HomePage() {
         <div className="home-section">
           <h2>🎯 What's Inside</h2>
           <div className="feature-grid">
-            <div className="feature-card">
+            <Card className="feature-card">
               <h3>38 Comprehensive Chapters</h3>
               <p>From architectural foundations to AI/ML patterns, covering every aspect of scalable application design.</p>
-            </div>
-            <div className="feature-card">
+            </Card>
+            <Card className="feature-card">
               <h3>Machine-Actionable Recipes</h3>
               <p>JSON-structured recipes that agents can execute automatically, with validation and rollback instructions.</p>
-            </div>
-            <div className="feature-card">
+            </Card>
+            <Card className="feature-card">
               <h3>Maturity Progression</h3>
               <p>L0 (Prototype) → L4 (Enterprise) - patterns that grow with your application's needs.</p>
-            </div>
-            <div className="feature-card">
+            </Card>
+            <Card className="feature-card">
               <h3>Multi-Language Support</h3>
               <p>Reference implementations in Go, JavaScript/TypeScript, Python, Java, and more.</p>
-            </div>
+            </Card>
           </div>
         </div>
 

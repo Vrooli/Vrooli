@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Loader2 } from "lucide-react";
-import { Card, CardContent } from "../../components/ui/card";
+import { Card, CardContent } from "@vrooli/react-component-library/Card/1.3.1";
 import type { DependencyGraphNode, DependencyGraph, GraphType, LayoutMode, EdgeStatusFilter } from "../../types";
 import { ControlPanel } from "./ControlPanel";
 import { GraphCanvas } from "./GraphCanvas";

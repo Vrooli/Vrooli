@@ -1163,6 +1163,10 @@
     {
       "name": "deps",
       "commands": [
+		{"name": "declare-resource", "description": "Declare an optional resource dependency (preview by default)", "needs_api": false, "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
+		{"name": "update-resource", "description": "Update an existing optional resource dependency contract (preview by default)", "needs_api": false, "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
+        {"name": "declare-runtime", "description": "Declare an optional runtime-only scenario dependency (preview by default)", "needs_api": false, "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
+        {"name": "update-runtime", "description": "Update descriptive fields of an existing optional runtime-only scenario dependency (preview by default)", "needs_api": false, "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
         {"name": "reconcile", "description": "Converge Go go.mod/go.sum on their import closure through the dependency gate (dry-run by default)", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
         {"name": "vendor", "description": "Synchronise a committed Go vendor tree", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
         {"name": "remove", "description": "Remove JavaScript dependencies from a surface through the governed gateway, or one Go root requirement (dry-run by default)", "needs_api": false, "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},

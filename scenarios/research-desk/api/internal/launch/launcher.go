@@ -285,21 +285,28 @@ func (l *Launcher) awaitComposer(ctx context.Context, id string, within time.Dur
 	deadline := time.Now().Add(within)
 	var last Screen
 	var choice string
+	var readErr error
 	for {
 		exited, err := l.Terminal.WaitIdle(ctx, id, 2*time.Second, 10*time.Second)
 		if err != nil {
-			return err
-		}
-		if exited {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			readErr = err
+		} else if exited {
 			return errors.New("the session's terminal exited; Codex did not start (see the session in Web Console)")
-		}
-		if last, err = l.Terminal.Screen(ctx, id); err != nil {
-			return err
-		}
-		var ok bool
-		ok, choice = composer(last)
-		if ok && (!ready || repliedReady(last)) {
-			return nil
+		} else if last, err = l.Terminal.Screen(ctx, id); err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			readErr = err
+		} else {
+			readErr = nil
+			var ok bool
+			ok, choice = composer(last)
+			if ok && (!ready || repliedReady(last)) {
+				return nil
+			}
 		}
 		if time.Now().After(deadline) {
 			break
@@ -312,8 +319,14 @@ func (l *Launcher) awaitComposer(ctx context.Context, id string, within time.Dur
 	case choice != "":
 		return fmt.Errorf("Codex is showing a choice (%q); answer it in Web Console, discard this commission and relaunch", choice)
 	case ready:
+		if readErr != nil {
+			return fmt.Errorf("could not read Web Console while waiting for Codex to reply \"ready\" within %s: %w", within, readErr)
+		}
 		return fmt.Errorf("Codex did not reply \"ready\" within %s; last line: %q", within, lastLine(last))
 	default:
+		if readErr != nil {
+			return fmt.Errorf("could not read Web Console while waiting for Codex input within %s: %w", within, readErr)
+		}
 		return fmt.Errorf("Codex did not show its input row within %s; last line: %q", within, lastLine(last))
 	}
 }
@@ -379,6 +392,16 @@ func (l *Launcher) ready(ctx context.Context, t Target, duringTurn bool) error {
 		return fmt.Errorf("%w: the commission's Codex thread is not known; %s", ErrNotReady, manual)
 	}
 	view, err := l.Sessions.ThreadView(t.Session, t.Thread)
+	if err != nil && duringTurn && strings.Contains(err.Error(), "no turn boundary") {
+		// A long transcript can push its last turn boundary outside the
+		// 1 MiB tail. /goal pause and /goal resume are safe during a turn, so
+		// use the session's one top-level thread as the fallback; never guess
+		// when the session has more than one.
+		if only, sessionErr := l.Sessions.SessionThread(t.Session); sessionErr == nil && only == t.Thread {
+			view = home.ThreadView{Shown: t.Thread}
+			err = nil
+		}
+	}
 	switch {
 	case err != nil:
 		return fmt.Errorf("%w: cannot tell what session %s shows (%v); %s", ErrNotReady, t.Session, err, manual)

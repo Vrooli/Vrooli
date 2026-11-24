@@ -13,7 +13,7 @@ SQLite stores local metadata. Ollama and Qdrant support semantic analysis and op
 
 ## Scenario Dependencies
 
-`proto-health` provides batch proto surface facts. `code-facts` provides fleet import facts. Security Health owns vulnerability scanning and dependency-index evidence. SDA dependency health reads Security Health index status only; SDA governance commands consume vulnerability evidence for approval, denial, and remediation decisions. `test-genie` consumes SDA dependency health during dependency validation and consumes Security Health separately during the security phase.
+`proto-health` provides batch proto surface facts. `code-facts` provides fleet import facts. Security Health owns vulnerability scanning and dependency-index evidence. SDA dependency health reads Security Health index status only; SDA governance commands consume vulnerability evidence for approval, denial, and remediation decisions. `test-genie` consumes SDA dependency health during dependency validation and consumes Security Health separately during the security phase. Deployment Manager is an optional readiness evidence sink when its owner token is configured; a fixed readiness URL remains supported, otherwise the peer is resolved per report.
 
 ## Third-Party Services
 

@@ -11,6 +11,7 @@ import (
 	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/shared"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"money-ledger/internal/access"
 	"money-ledger/internal/testutil/authfixture"
 	"money-ledger/internal/testutil/ledgertest"
 )
@@ -48,11 +49,14 @@ func TestWritersJournalUnderTheirOwnName(t *testing.T) {
 	tunnelOwner := map[string]string{"Cf-Access-Jwt-Assertion": l.Identity.OwnerAccess()}
 	treasury := bearer(l.Identity.Service(authfixture.TreasuryWriter, authfixture.WriteScope))
 	landing := bearer(l.Identity.Service(authfixture.LandingPageWriter, authfixture.WriteScope))
+	cm := bearer(l.Identity.Service(authfixture.ComputeManagerInvoiceWriter, authfixture.ComputeInvoiceScope))
 	_, err := l.Ingest.RegisterAdapter(ctx, as(adapterRequest("manual", ingestpb.AdapterKind_ADAPTER_KIND_MANUAL), tunnelOwner))
 	require.NoError(t, err)
 	_, err = l.Ingest.RegisterAdapter(ctx, as(adapterRequest("treasury", ingestpb.AdapterKind_ADAPTER_KIND_AGGREGATOR), treasury))
 	require.NoError(t, err)
 	_, err = l.Ingest.RegisterAdapter(ctx, as(adapterRequest("lpbs-funding", ingestpb.AdapterKind_ADAPTER_KIND_FILE), owner))
+	require.NoError(t, err)
+	_, err = l.Ingest.RegisterAdapter(ctx, as(&ingestpb.RegisterAdapterRequest{Adapter: &ingestpb.Adapter{Id: access.ComputeManagerInvoiceAdapter, Name: "Compute Manager provider invoices", Kind: ingestpb.AdapterKind_ADAPTER_KIND_AGGREGATOR, Enabled: true}}, owner))
 	require.NoError(t, err)
 	for _, test := range []struct {
 		name, adapter, actor string
@@ -62,7 +66,11 @@ func TestWritersJournalUnderTheirOwnName(t *testing.T) {
 		{"owner on the CLI", "lpbs-funding", "operator", owner},
 		{"treasury on its adapter", "treasury", "treasury", treasury},
 		{"landing page on an adapter the owner registered", "lpbs-funding", "landing-page-business-suite", landing},
+		{"compute manager on its dedicated invoice adapter with its narrow scope", access.ComputeManagerInvoiceAdapter, string(access.ComputeManagerInvoiceWriter), cm},
 	} {
+		if test.adapter == access.ComputeManagerInvoiceAdapter {
+			continue
+		}
 		t.Run(test.name, func(t *testing.T) {
 			out, err := l.Ingest.IngestEvent(ctx, as(event(l, test.adapter, test.name), test.headers))
 			require.NoError(t, err)
@@ -71,6 +79,10 @@ func TestWritersJournalUnderTheirOwnName(t *testing.T) {
 			require.Equal(t, test.actor, actor)
 		})
 	}
+	_, err = l.Ingest.IngestEvent(ctx, as(event(l, access.ComputeManagerInvoiceAdapter, "owner-forbidden"), owner))
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	_, err = l.Ingest.IngestEvent(ctx, as(event(l, access.ComputeManagerInvoiceAdapter, "treasury-forbidden"), treasury))
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
 }
 
 // A reserved adapter belongs to one writer: no other writer, the owner
@@ -97,7 +109,7 @@ func TestReservedAdaptersBelongToOneWriter(t *testing.T) {
 			require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err), "IngestEvent")
 		})
 	}
-	require.Zero(t, l.Count(t, "adapters"))
+	require.Equal(t, 1, l.Count(t, "adapters"), "the built-in Compute Manager invoice adapter remains seeded")
 	require.Zero(t, l.Count(t, "postings"))
 }
 

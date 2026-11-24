@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/scheduletest"
 	"persona/internal/journal"
 	"persona/internal/personas"
 )
@@ -200,6 +201,34 @@ func TestExpiredHandoffRemainsReadable(t *testing.T) {
 	expired, err := service.Get(context.Background(), opened.ID)
 	if err != nil || expired.State != StateExpired || !expired.Deadline.Equal(opened.Deadline) {
 		t.Fatalf("expired handoff = %#v, %v", expired, err)
+	}
+}
+
+func TestListExpiresOverdueHandoffs(t *testing.T) {
+	start := time.Date(2026, 11, 24, 3, 0, 0, 0, time.UTC)
+	clock := scheduletest.New(start)
+	repo := &handoffRepository{}
+	j := &handoffJournal{}
+	service := NewService(repo, handoffPersonaFunc(func(context.Context, string) (personas.Persona, error) { return handoffPersona(), nil }), j, clock)
+
+	opened, err := service.Open(context.Background(), OpenInput{
+		PersonaID: "persona-1", Kind: "review", HumanAction: "Complete the operator review.",
+		Checkpoint: Checkpoint{ResumeToken: "checkpoint-1"},
+	})
+	if err != nil {
+		t.Fatalf("Open() error = %v", err)
+	}
+	clock.Advance(25 * time.Hour)
+
+	listed, err := service.List(context.Background(), "persona-1", 10)
+	if err != nil {
+		t.Fatalf("List() error = %v", err)
+	}
+	if len(listed) != 1 || listed[0].State != StateExpired {
+		t.Fatalf("List() returned overdue handoff without expiring it: %#v (opened %#v)", listed, opened)
+	}
+	if len(j.entries) == 0 || j.entries[len(j.entries)-1].Verb != "handoff_expired" {
+		t.Fatalf("List() did not record the expiry transition: %#v", j.entries)
 	}
 }
 

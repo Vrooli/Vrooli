@@ -3,6 +3,7 @@ package offers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -46,30 +47,46 @@ type Service struct {
 	resolveLedgerURL   func(context.Context) (string, error)
 	resolveGoalsURL    func(context.Context) (string, error)
 	resolveTreasuryURL func(context.Context) (string, error)
+	getenv             func(string) string
 }
 
 func NewService(db *database.RoutedDB, logger *log.Logger, clock schedule.Clock) *Service {
+	return NewServiceWithEnv(db, logger, clock, os.Getenv)
+}
+
+// NewServiceWithEnv wires the process environment at the composition boundary;
+// tests can provide a stable reader without mutating process-global variables.
+func NewServiceWithEnv(db *database.RoutedDB, logger *log.Logger, clock schedule.Clock, getenv func(string) string) *Service {
 	if clock == nil {
 		clock = schedule.System()
 	}
-	s := &Service{store: catalog.NewStore(db, clock.Now), logger: logger, clock: clock, bookID: os.Getenv("MONEY_LEDGER_BOOK_ID")}
-	s.resolveLedgerURL = resolveMoneyLedgerURL
-	s.resolveTreasuryURL = paidTreasuryURL
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	s := &Service{store: catalog.NewStore(db, clock.Now), logger: logger, clock: clock, getenv: getenv, bookID: getenv("MONEY_LEDGER_BOOK_ID")}
+	s.resolveLedgerURL = func(ctx context.Context) (string, error) {
+		if base := strings.TrimSpace(s.getenv("MONEY_LEDGER_API_URL")); base != "" {
+			return base, nil
+		}
+		return discovery.ResolveScenarioURLDefault(ctx, "money-ledger")
+	}
+	s.resolveTreasuryURL = func(ctx context.Context) (string, error) {
+		if base := strings.TrimSpace(s.getenv("TREASURY_API_URL")); base != "" {
+			return base, nil
+		}
+		base, err := discovery.ResolveScenarioURLDefault(ctx, "treasury")
+		if err != nil || strings.TrimSpace(base) == "" {
+			return "", errors.New("Treasury URL unavailable")
+		}
+		return base, nil
+	}
 	s.resolveGoalsURL = func(ctx context.Context) (string, error) {
 		return discovery.ResolveScenarioURLDefault(ctx, "swarm-manager")
 	}
-	s.store.SetReadinessProvider(deploymentReadinessProvider(&http.Client{Timeout: 700 * time.Millisecond}, resolveDeploymentManagerURL))
+	s.store.SetReadinessProvider(deploymentReadinessProvider(&http.Client{Timeout: 700 * time.Millisecond}, func(ctx context.Context) (string, error) {
+		return resolveDeploymentManagerURL(ctx, s.getenv)
+	}))
 	return s
-}
-
-// resolveMoneyLedgerURL returns the declared Money Ledger dependency. An
-// explicit MONEY_LEDGER_API_URL remains an operator override for isolated
-// deployments.
-func resolveMoneyLedgerURL(ctx context.Context) (string, error) {
-	if base := os.Getenv("MONEY_LEDGER_API_URL"); base != "" {
-		return base, nil
-	}
-	return discovery.ResolveScenarioURLDefault(ctx, "money-ledger")
 }
 
 func ledgerClients(base string) (ledgerconnect.JournalServiceClient, ledgerconnect.PositionServiceClient, ledgerconnect.BooksServiceClient) {
@@ -117,15 +134,19 @@ func deploymentReadinessProvider(client *http.Client, resolve func(context.Conte
 func Module(db *database.RoutedDB, clock schedule.Clock, logger *log.Logger) module.Module {
 	s := NewService(db, logger, clock)
 	var err error
-	if s.storefrontReadiness, err = newReadinessReporter(context.Background(), "storefront-registered", "offer-desk.storefront.readiness"); err != nil {
+	if s.storefrontReadiness, err = newReadinessReporter(context.Background(), "storefront-registered", "offer-desk.storefront.readiness", s.getenv, func(ctx context.Context) (string, error) {
+		return resolveDeploymentManagerURL(ctx, s.getenv)
+	}); err != nil {
 		panic(fmt.Sprintf("configure offer-desk storefront readiness reporter: %v", err))
 	}
-	if s.pricingReadiness, err = newReadinessReporter(context.Background(), "bundle-price-present", "offer-desk.pricing.readiness"); err != nil {
+	if s.pricingReadiness, err = newReadinessReporter(context.Background(), "bundle-price-present", "offer-desk.pricing.readiness", s.getenv, func(ctx context.Context) (string, error) {
+		return resolveDeploymentManagerURL(ctx, s.getenv)
+	}); err != nil {
 		panic(fmt.Sprintf("configure offer-desk pricing readiness reporter: %v", err))
 	}
 	s.startScheduler()
 	endpoints := append(Endpoints, paidOffersEndpoint)
-	if os.Getenv("OFFER_DESK_CF7_TEST_SECOND_PRICE") == "1" {
+	if s.getenv("OFFER_DESK_CF7_TEST_SECOND_PRICE") == "1" {
 		endpoints = append(endpoints, cf7OverCapPaidOffersEndpoint)
 	}
 	return module.Module{Name: "offers", Mount: func(r *mux.Router) {
@@ -138,7 +159,7 @@ func Module(db *database.RoutedDB, clock schedule.Clock, logger *log.Logger) mod
 		p, h = offersconnect.NewReleaseLadderServiceHandler(s)
 		r.PathPrefix(p).Handler(h)
 		r.HandleFunc(paidOffersPath, s.paidOffers).Methods(http.MethodGet)
-		if os.Getenv("OFFER_DESK_CF7_TEST_SECOND_PRICE") == "1" {
+		if s.getenv("OFFER_DESK_CF7_TEST_SECOND_PRICE") == "1" {
 			r.HandleFunc(cf7OverCapOffersPath, s.paidOffersOverCap).Methods(http.MethodGet)
 		}
 		p, h = offersconnect.NewSpaceServiceHandler(s)
@@ -148,7 +169,7 @@ func Module(db *database.RoutedDB, clock schedule.Clock, logger *log.Logger) mod
 
 func (s *Service) startScheduler() {
 	interval := time.Minute
-	if raw := os.Getenv("OFFER_EVALUATION_INTERVAL"); raw != "" {
+	if raw := s.getenv("OFFER_EVALUATION_INTERVAL"); raw != "" {
 		if parsed, err := time.ParseDuration(raw); err == nil && parsed > 0 {
 			interval = parsed
 		}
@@ -422,7 +443,7 @@ func (s *Service) ListEdges(ctx context.Context, r *connect.Request[offerspb.Lis
 		if priced > 0 {
 			status = "passed"
 		}
-		scenario := configuredReadinessScenario()
+		scenario := configuredReadinessScenario(s.getenv)
 		if err := s.pricingReadiness.ReportStatus(ctx, scenario, status, fmt.Sprintf("full catalog edge read found %d attributable priced sell edge(s)", priced), "offer-desk:pricing:"+scenario, s.clock.Now().UTC()); err != nil {
 			return nil, connect.NewError(connect.CodeUnavailable, err)
 		}
@@ -502,7 +523,7 @@ func (s *Service) VerifyCatalog(ctx context.Context, r *connect.Request[offerspb
 		if report.Comparable && report.Reconciled && report.TotalDrift == 0 && len(report.ScenarioGaps) == 0 {
 			status = "passed"
 		}
-		scenario := configuredReadinessScenario()
+		scenario := configuredReadinessScenario(s.getenv)
 		if err := s.storefrontReadiness.ReportStatus(ctx, scenario, status, fmt.Sprintf("catalog reconciliation drift=%d scenario_gaps=%d", report.TotalDrift, len(report.ScenarioGaps)), "offer-desk:storefront:"+scenario, s.clock.Now().UTC()); err != nil {
 			return nil, connect.NewError(connect.CodeUnavailable, err)
 		}
@@ -633,23 +654,40 @@ func (s *Service) GetBoard(ctx context.Context, _ *connect.Request[offerspb.Proj
 			}
 		}
 	}
+	type actualsLookup struct {
+		minor         int64
+		available     bool
+		failureReason string
+	}
+	actualsByAccount := make(map[string]actualsLookup)
 	for _, n := range nodes {
 		entry := &offerspb.BoardEntry{NodeId: n.Id, Title: n.Name, Status: n.Status}
 		actualsSource := "money-ledger.actuals"
-		if journal != nil && n.ActualAccountId != "" {
+		if n.ActualAccountId == "" {
+			entry.Availability = append(entry.Availability, &offerspb.Availability{Source: "money-ledger.actuals", Reason: "no ledger account mapping"})
+		} else if journal == nil {
+			entry.Availability = append(entry.Availability, &offerspb.Availability{Source: "money-ledger.actuals", Reason: "actuals unavailable: declared money-ledger dependency could not be resolved"})
+		} else if lookup, ok := actualsByAccount[n.ActualAccountId]; ok {
+			entry.ActualMinor = lookup.minor
+			entry.ActualsAvailable = lookup.available
+			if lookup.failureReason != "" {
+				entry.Availability = append(entry.Availability, &offerspb.Availability{Source: "money-ledger.actuals", Reason: lookup.failureReason})
+			}
+		} else {
 			deadline, cancel := context.WithTimeout(ctx, 700*time.Millisecond)
 			postings, err := journal.ListPostings(deadline, connect.NewRequest(&ledgerpb.ListPostingsRequest{AccountId: n.ActualAccountId, Limit: 500}))
 			cancel()
 			if err != nil {
-				entry.Availability = append(entry.Availability, &offerspb.Availability{Source: "money-ledger.actuals", Reason: err.Error()})
+				lookup := actualsLookup{failureReason: err.Error()}
+				actualsByAccount[n.ActualAccountId] = lookup
+				entry.Availability = append(entry.Availability, &offerspb.Availability{Source: "money-ledger.actuals", Reason: lookup.failureReason})
 			} else {
 				for _, p := range postings.Msg.Postings {
 					entry.ActualMinor += p.Event.AmountMinor
 				}
 				entry.ActualsAvailable = true
+				actualsByAccount[n.ActualAccountId] = actualsLookup{minor: entry.ActualMinor, available: true}
 			}
-		} else {
-			entry.Availability = append(entry.Availability, &offerspb.Availability{Source: "money-ledger.actuals", Reason: "no ledger account mapping"})
 		}
 		if len(entry.Availability) > 0 && entry.Availability[0].Source != "" {
 			actualsSource = entry.Availability[0].Source
@@ -695,10 +733,7 @@ func (s *Service) GetBoard(ctx context.Context, _ *connect.Request[offerspb.Proj
 // represented by its posture. A fresh request must not make old actuals look
 // new to consumers that qualify the response by producer time.
 func (s *Service) observedAtMinusAge(ageSeconds int64) *timestamppb.Timestamp {
-	now := time.Now().UTC()
-	if s.clock != nil {
-		now = s.clock.Now().UTC()
-	}
+	now := s.clock.Now().UTC()
 	if ageSeconds < 0 {
 		ageSeconds = 0
 	}

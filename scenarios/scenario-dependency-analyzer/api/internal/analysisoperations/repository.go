@@ -9,19 +9,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/database"
 )
 
-// SQLExecutor is implemented by the routed database and isolated unit pools.
-type SQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
-}
+type SQLRepository struct{ db database.SQLTxExecutor }
 
-type SQLRepository struct{ db SQLExecutor }
-
-func NewRepository(db SQLExecutor) *SQLRepository { return &SQLRepository{db: db} }
+func NewRepository(db database.SQLTxExecutor) *SQLRepository { return &SQLRepository{db: db} }
 
 // Submit with nil scenarios only replays or binds to existing active work.
 // ErrNotFound asks the manager to obtain a source snapshot before resubmitting.

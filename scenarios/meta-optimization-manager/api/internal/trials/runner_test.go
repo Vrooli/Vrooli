@@ -101,6 +101,9 @@ func TestRunnerHappyPathCollectsEvidence(t *testing.T) {
 	if !argsContain(f.calls, "--scope-path", "/tmp/fx/target") {
 		t.Fatalf("task create missing fixture scope path: %v", f.calls)
 	}
+	if !argsContain(f.calls, "--project-root", "/tmp/fx/target") {
+		t.Fatalf("task create must set project root to fixture scope so scoped diffs apply to the target copy: %v", f.calls)
+	}
 	if !argsContain(f.calls, "--run-mode", "sandboxed") {
 		t.Fatalf("run create missing sandboxed mode: %v", f.calls)
 	}

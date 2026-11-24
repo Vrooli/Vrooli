@@ -319,6 +319,15 @@ func TestPlansRequestMapping(t *testing.T) {
 			},
 		},
 		{
+			name: "list passes bounded page fields", group: "plans", cmd: "list",
+			argv: []string{"--limit", "25", "--offset", "50"},
+			assert: func(t *testing.T, req proto.Message) {
+				m := req.(*plansv1.ListPlansRequest)
+				require.Equal(t, int32(25), m.GetLimit())
+				require.Equal(t, int32(50), m.GetOffset())
+			},
+		},
+		{
 			name: "get passes positional id and workspace", group: "plans", cmd: "get",
 			argv: []string{"plan-123", "--workspace", "/workspace"},
 			assert: func(t *testing.T, req proto.Message) {

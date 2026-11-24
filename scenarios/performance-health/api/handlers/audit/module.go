@@ -46,8 +46,8 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Orchestrate a profile-mode perf capture of a scenario",
 		Description: "Restarts the scenario in profile build mode, drives a BAS perf capture on a chosen interaction, and restores the default build — cleanly skipping when capture is impossible (no browser / no UI / headless).",
 		Category:    "audit",
-		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "path": "string", "workflow": "string"}},
-		Response:    &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "outcome": "AuditOutcome", "tier": "CaptureTier", "trace_artifact": "string", "web_vitals_artifact": "string", "reason": "string"}},
-		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Scenario is missing"}, {Status: 500, Code: "internal", Description: "Capture orchestration failure"}},
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "path": "string", "workflow": "string", "layout_cache_arm": "LayoutCacheArm"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "outcome": "AuditOutcome", "tier": "CaptureTier", "trace_artifact": "string", "web_vitals_artifact": "string", "reason": "string", "layout_cache_arm": "LayoutCacheArm"}},
+		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Invalid scenario, workflow, or layout cache arm"}, {Status: 500, Code: "internal", Description: "Capture orchestration failure"}},
 	},
 }

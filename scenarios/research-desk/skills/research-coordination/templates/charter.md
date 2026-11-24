@@ -96,13 +96,14 @@ win over any other skill's stop or threshold rule.
    sub-agents.
 2. **The unit loop**, until the allowance ends:
    1. Run `date -u`; read a `MISSION.md` only for the card under review.
-   2. With an owner running, block with `wait_agent` (never with none running: nothing would wake you; start or message one first), `timeout_ms` = time left until the next review in `STATE.md`, at
+   2. With an owner running, block with `wait_agent` (never with none running: nothing would wake you; start or message one first), `timeout_ms` = the lesser of the time left until the next review in `STATE.md` and the time left until the allowance end, at
       most 1200000. It returns when an owner messages or finishes; a chat message interrupts it.
    3. On every wake run `date -u` and `stat -c %Y` on `OPERATOR.md` and the card topics'
       `INBOX.md`; act now on a newer one, a showcase claim, an operator item or need, an
-      owner that finished or failed, or a passed review time. A plan or checkpoint message
-      is read at the next review; it does not end the wait. Otherwise wait again: write
-      nothing, message nobody.
+      owner that finished or failed, or a passed review time. If the allowance end is within 30
+      minutes, or a `wind-down` entry exists, do step 7 now instead of starting a new unit. A plan
+      or checkpoint message is read at the next review; it does not end the wait. Otherwise wait
+      again: write nothing, message nobody.
    4. The hourly review covers every card: measure each owner (below) and read its checkpoint;
       act on a tripwire, an owner finished, failed or with a checkpoint over two hours old, an
       unclaimed landed showcase, or a waiting workstream. Run the footprint check and
@@ -139,6 +140,8 @@ win over any other skill's stop or threshold rule.
    per card, workstreams landed, dimensions moved, what waits, what is unverified. Update
    `MISSION.md` status cells (`landed 2026-11-10`) and `work/` states, set the `Goal:` line in `STATE.md` to
    `ended` (the allowance is over) or `paused` (work remains), then pause the goal (`update_goal` status `paused`).
+   The desk writes a wind-down 30 minutes before the allowance and pauses the goal 15 minutes after
+   it if the closeout has not paused it; do not wait for that safety net.
 
 **Slots.** At most eight threads; the manager and owners hold {{held_slots}}, leaving {{slots}}
 for workers and reviewers.

@@ -76,11 +76,27 @@ func toProtoCapability(cap domainadapters.Capability) *adaptersv1.Capability {
 }
 
 var Endpoints = []module.EndpointDescriptor{
-	connectEndpoint("adapters_capabilities", adaptersconnect.AdapterServiceListCapabilitiesProcedure, "List adapter capabilities"),
-	connectEndpoint("adapters_explain_unsupported", adaptersconnect.AdapterServiceExplainUnsupportedActionProcedure, "Explain unsupported adapter action"),
-	connectEndpoint("adapters_platform", adaptersconnect.AdapterServiceGetPlatformSummaryProcedure, "Get platform summary"),
+	connectEndpoint("adapters_capabilities", adaptersconnect.AdapterServiceListCapabilitiesProcedure, "List adapter capabilities", nil, map[string]string{
+		"capabilities": "array<Capability>",
+	}),
+	connectEndpoint("adapters_explain_unsupported", adaptersconnect.AdapterServiceExplainUnsupportedActionProcedure, "Explain unsupported adapter action", map[string]string{
+		"action": "string",
+	}, map[string]string{
+		"capability":   "Capability",
+		"manual_steps": "array<string>",
+	}),
+	connectEndpoint("adapters_platform", adaptersconnect.AdapterServiceGetPlatformSummaryProcedure, "Get platform summary", nil, map[string]string{
+		"summary": "PlatformSummary",
+	}),
 }
 
-func connectEndpoint(id, path, summary string) module.EndpointDescriptor {
-	return module.EndpointDescriptor{ID: id, Path: path, Method: "POST", Summary: summary, Category: "adapters", Request: &module.Schema{Type: "object", Properties: map[string]string{}}, Response: &module.Schema{Type: "object", Properties: map[string]string{"capabilities": "array<Capability>"}}}
+func connectEndpoint(id, path, summary string, request, response map[string]string) module.EndpointDescriptor {
+	if request == nil {
+		request = map[string]string{}
+	}
+	return module.EndpointDescriptor{
+		ID: id, Path: path, Method: "POST", Summary: summary, Category: "adapters",
+		Request:  &module.Schema{Type: "object", Properties: request},
+		Response: &module.Schema{Type: "object", Properties: response},
+	}
 }

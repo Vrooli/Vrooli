@@ -19,6 +19,14 @@ General Vrooli platform issues, unrelated bugs, or product ideas that belong in 
 ```
 
 ## Entries
+### 2026-11-24 — Adapter endpoint metadata disagreed with its RPC contracts (resolved)
+
+- Signal: `handlers/adapters/module.go` declared an empty request schema and `capabilities` response schema for all three AdapterService methods. The generated protobuf contract requires an `action` request for `ExplainUnsupportedAction`, a `capability` plus `manual_steps` response, and a `summary` response for `GetPlatformSummary`. The new owner regression failed on both incorrect descriptors before the fix.
+- Impact: `.vrooli/endpoints.json`, the machine-readable API contract, described requests and responses that did not match the Connect service.
+- Fix: each endpoint now declares its actual request and response fields. Owner tests cover descriptor parity and exercise all three Connect endpoints, including manual-router explanation and resolver capabilities before/after a governed backend reference is stored. The generated endpoint manifest is refreshed from module metadata.
+- Evidence: `api/handlers/adapters/module_test.go`; PT2 evidence `evidence/PT2-NETWORK-MANAGER-ADAPTER-CONNECT-CONTRACT.md`.
+- Remaining: the broader NM-P0-006 fake OS/router adapter matrix and full requirements gate remain planned; this resolved record does not close that broader requirement.
+
 ### 2026-11-22 — Device list now exposes stable identity evidence
 
 - Signal: Unit Health surfaced `devices/handlers.go` at 0/25 covered units and recommended the maintained `test` skill. Reading NM-P0-004 and the list response showed that the CLI omitted the returned MAC address and confidence notes, even though both are part of the device identity contract. The device CLI now renders both fields; Connect-boundary tests cover group filtering, refresh dry-run/findings, group updates, and identity explanation.

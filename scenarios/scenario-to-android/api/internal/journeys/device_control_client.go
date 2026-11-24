@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
@@ -22,7 +23,34 @@ type HTTPDeviceClient struct {
 	Actor           string
 	DeviceTransport string
 	Client          *http.Client
-	recordings      map[string]string
+	recordingMu     sync.Mutex
+	recordings      map[string]recordingHandle
+}
+
+type recordingHandle struct {
+	id    string
+	state recordingLifecycle
+}
+
+type recordingLifecycle uint8
+
+const (
+	recordingActive recordingLifecycle = iota
+	recordingStopping
+	recordingUncertain
+)
+
+// RecordingInspection is the read-only Device Control owner snapshot used
+// after a stop request has an uncertain outcome. Inspecting never retries or
+// clears the owner-managed recording lifecycle.
+type RecordingInspection struct {
+	HandleID            string    `json:"handle_id"`
+	OwnerState          string    `json:"owner_state"`
+	ProcessState        string    `json:"process_state"`
+	ArtifactAvailable   bool      `json:"artifact_available"`
+	RecoveredEvidenceID string    `json:"recovered_evidence_id,omitempty"`
+	ObservedAt          time.Time `json:"observed_at"`
+	Reason              string    `json:"reason,omitempty"`
 }
 
 func (c *HTTPDeviceClient) Unlock(ctx context.Context, lease Lease, profileID string) error {
@@ -270,10 +298,12 @@ func (c *HTTPDeviceClient) startRecording(ctx context.Context, lease Lease, key 
 	if response.Handle.ID == "" {
 		return fmt.Errorf("device-control recording start omitted handle")
 	}
+	c.recordingMu.Lock()
+	defer c.recordingMu.Unlock()
 	if c.recordings == nil {
-		c.recordings = map[string]string{}
+		c.recordings = map[string]recordingHandle{}
 	}
-	c.recordings[recordingKey(lease, key)] = response.Handle.ID
+	c.recordings[recordingKey(lease, key)] = recordingHandle{id: response.Handle.ID, state: recordingActive}
 	return nil
 }
 
@@ -308,12 +338,26 @@ func (c *HTTPDeviceClient) FinalizeReviewRecording(ctx context.Context, lease Le
 }
 
 func (c *HTTPDeviceClient) stopRecording(ctx context.Context, lease Lease, key string) (RecordingArtifact, error) {
-	recordingKey := recordingKey(lease, key)
-	handle := c.recordings[recordingKey]
-	if handle == "" {
+	keyID := recordingKey(lease, key)
+	c.recordingMu.Lock()
+	handle, ok := c.recordings[keyID]
+	if !ok {
+		c.recordingMu.Unlock()
 		return RecordingArtifact{}, fmt.Errorf("no active recording for lease %q", lease.ID)
 	}
-	delete(c.recordings, recordingKey)
+	switch handle.state {
+	case recordingStopping:
+		c.recordingMu.Unlock()
+		return RecordingArtifact{}, fmt.Errorf("recording %q stop is already in progress", handle.id)
+	case recordingUncertain:
+		c.recordingMu.Unlock()
+		return RecordingArtifact{}, fmt.Errorf("recording %q stop outcome is uncertain; inspect the owner before any further stop", handle.id)
+	}
+	// Mark the local handle before releasing the lock so concurrent callers
+	// cannot replay a stop whose remote outcome is not yet known.
+	handle.state = recordingStopping
+	c.recordings[keyID] = handle
+	c.recordingMu.Unlock()
 	var response struct {
 		Reference struct {
 			ID, Kind, SHA256, Checksum string
@@ -322,14 +366,41 @@ func (c *HTTPDeviceClient) stopRecording(ctx context.Context, lease Lease, key s
 		StartOffset int64 `json:"start_offset_ms"`
 		EndOffset   int64 `json:"end_offset_ms"`
 	}
-	if err := c.post(ctx, "/api/v1/recordings/stop", map[string]string{"device_id": lease.DeviceID, "actor": c.actor(""), "lease_token": lease.Token, "handle_id": handle}, &response); err != nil {
+	if err := c.post(ctx, "/api/v1/recordings/stop", map[string]string{"device_id": lease.DeviceID, "actor": c.actor(""), "lease_token": lease.Token, "handle_id": handle.id}, &response); err != nil {
+		c.recordingMu.Lock()
+		if current, exists := c.recordings[keyID]; exists && current.id == handle.id && current.state == recordingStopping {
+			current.state = recordingUncertain
+			c.recordings[keyID] = current
+		}
+		c.recordingMu.Unlock()
 		return RecordingArtifact{}, err
 	}
+	c.recordingMu.Lock()
+	if current, exists := c.recordings[keyID]; exists && current.id == handle.id {
+		delete(c.recordings, keyID)
+	}
+	c.recordingMu.Unlock()
 	checksum := response.Reference.Checksum
 	if checksum == "" {
 		checksum = response.Reference.SHA256
 	}
 	return RecordingArtifact{Reference: deliveryramp.EvidenceReference{ID: response.Reference.ID, Kind: response.Reference.Kind, Checksum: "sha256:" + strings.TrimPrefix(checksum, "sha256:"), Redacted: response.Reference.RedactionVerified}, StartMs: response.StartOffset, EndMs: response.EndOffset, HasOffsets: response.EndOffset >= response.StartOffset}, nil
+}
+
+// InspectChapterRecording performs a read-only lookup for a chapter handle.
+// The handle remains owned locally after inspection so an uncertain stop is
+// never converted into an automatic retry.
+func (c *HTTPDeviceClient) InspectChapterRecording(ctx context.Context, lease Lease, chapterID string) (RecordingInspection, error) {
+	keyID := recordingKey(lease, chapterID)
+	c.recordingMu.Lock()
+	handle, ok := c.recordings[keyID]
+	c.recordingMu.Unlock()
+	if !ok {
+		return RecordingInspection{}, fmt.Errorf("no active recording for lease %q", lease.ID)
+	}
+	var response RecordingInspection
+	err := c.post(ctx, "/api/v1/recordings/inspect", map[string]string{"device_id": lease.DeviceID, "lease_token": lease.Token, "handle_id": handle.id}, &response)
+	return response, err
 }
 
 func (c *HTTPDeviceClient) Release(ctx context.Context, lease Lease) error {

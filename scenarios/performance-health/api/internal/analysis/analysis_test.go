@@ -3,7 +3,40 @@ package analysis
 import (
 	"context"
 	"testing"
+
+	"performance-health/internal/perfsample"
 )
+
+func TestPopulateSampleCopiesNavigationAndAggregatesInteractionMetrics(t *testing.T) {
+	result := Result{
+		ResponseEndMs: 101, DOMInteractiveMs: 203, DOMContentLoadedMs: 307, LoadEventEndMs: 409,
+		NavigationType: "navigate",
+		LongTaskMs:     37, LongTaskMaxMs: 22.5,
+		FrameSummary: FrameSummary{ApproxDrawnFPS: 55.5, DroppedFrameRate: 0.125},
+		InputEvents:  []EventSummary{{Name: "pointermove", Count: 3}, {Name: "keydown", Count: 2}},
+		BrowserWork: []EventSummary{
+			{Name: "RasterTask", TotalMs: 4.5}, {Name: "RasterTask", TotalMs: 1.5},
+			{Name: "Layout", TotalMs: 7}, {Name: "UpdateLayoutTree", TotalMs: 2.25},
+			{Name: "Paint", TotalMs: 3.75},
+		},
+		Components: []ComponentTiming{{Component: "slower", AvgMs: 8, MaxMs: 20}, {Component: "fast", AvgMs: 3, MaxMs: 4}},
+	}
+	sample := perfsample.Sample{Scenario: "keep-scenario", Flow: "keep-flow", Note: "analysis"}
+
+	PopulateSample(&sample, result)
+
+	want := perfsample.Sample{
+		Scenario: "keep-scenario", Flow: "keep-flow", Note: "analysis",
+		ResponseEndMs: 101, DOMInteractiveMs: 203, DOMContentLoadedMs: 307, LoadEventEndMs: 409,
+		NavigationType: "navigate", DrawnFPS: 55.5, DroppedFrameRate: 0.125,
+		LongTaskTotalMs: 37, LongTaskMaxMs: 22.5, InputEventCount: 5,
+		RasterTotalMs: 6, LayoutTotalMs: 9.25, PaintTotalMs: 3.75,
+		SlowestComponent: "slower", SlowestComponentAvgMs: 8, SlowestComponentMaxMs: 20,
+	}
+	if sample != want {
+		t.Fatalf("PopulateSample() = %#v, want %#v", sample, want)
+	}
+}
 
 type fakeLoader struct {
 	byArtifact map[string]Result

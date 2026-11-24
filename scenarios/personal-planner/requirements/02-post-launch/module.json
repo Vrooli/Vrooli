@@ -75,7 +75,7 @@
       "title": "Durable focus sessions and correctable actuals",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:PLAN-P1-005] tag) once the behavior exists.",
+          "notes": "Owner regressions cover server acceptance of timed mode, UI Countdown-to-timed request mapping, persisted timed-target rendering, and visible start-request failure. The broader focus, uniqueness, and actuals acceptance criteria still require the full owner/test-genie gate; status remains planned.",
           "status": "planned",
           "type": "manual"
         }

@@ -1,7 +1,7 @@
 import { AlertTriangle, CheckCircle2, FileText, Layers, Package } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import { statusTone } from "../../theme/status";
 import type { DeploymentMetadataGaps, ScenarioGapInfo } from "../../types";
 

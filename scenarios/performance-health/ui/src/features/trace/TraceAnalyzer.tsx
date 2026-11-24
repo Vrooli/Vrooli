@@ -3,8 +3,8 @@ import { useMutation } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { FileSearch, Info } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { EmptyState, ErrorState, LoadingState } from "../../components/ui/state";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
@@ -76,6 +76,7 @@ export function TraceAnalyzer() {
             data-testid={selectors.trace.analyzeButton}
             onClick={() => analyze.mutate()}
             disabled={analyze.isPending || artifact.trim() === ""}
+            shape="square"
           >
             <FileSearch aria-hidden="true" className="me-1 h-4 w-4" />
             {analyze.isPending ? t(strings.common.loading) : t(strings.trace.analyze)}

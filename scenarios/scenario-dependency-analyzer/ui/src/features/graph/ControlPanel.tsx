@@ -1,8 +1,8 @@
 import { RefreshCw, Scan, Share2, Workflow } from "lucide-react";
 import { useState } from "react";
 import { Button } from "../../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
-import { Input } from "../../components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Label } from "../../components/ui/label";
 import {
   Select,

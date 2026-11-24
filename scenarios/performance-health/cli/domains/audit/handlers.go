@@ -27,10 +27,15 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 // run orchestrates a profile-mode perf capture of a scenario.
 func (h *handlers) run(ctx cliapp.RunContext) error {
 	scenario := ctx.Positional("scenario")
+	arm, err := layoutCacheArmFlag(firstFlag(ctx.FlagValues("layout-cache-arm")))
+	if err != nil {
+		return err
+	}
 	resp, err := h.client.RunAudit(context.Background(), connect.NewRequest(&auditv1.RunAuditRequest{
-		Scenario: scenario,
-		Path:     firstFlag(ctx.FlagValues("path")),
-		Workflow: firstFlag(ctx.FlagValues("workflow")),
+		Scenario:       scenario,
+		Path:           firstFlag(ctx.FlagValues("path")),
+		Workflow:       firstFlag(ctx.FlagValues("workflow")),
+		LayoutCacheArm: arm,
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("run audit for %q", scenario), err, nil)
@@ -59,6 +64,9 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 	if r := strings.TrimSpace(msg.GetReason()); r != "" {
 		result = append(result, "Reason: "+r)
 	}
+	if arm := layoutCacheArmLabel(msg.GetLayoutCacheArm()); arm != "" {
+		result = append(result, "layout-cache-arm: "+arm)
+	}
 	changes := []string{}
 	if a := strings.TrimSpace(msg.GetTraceArtifact()); a != "" {
 		changes = append(changes, "trace: "+a)
@@ -68,7 +76,34 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 	if a := strings.TrimSpace(msg.GetWebVitalsArtifact()); a != "" {
 		changes = append(changes, "web-vitals: "+a)
 	}
+	if a := strings.TrimSpace(msg.GetProcessTreeArtifact()); a != "" {
+		changes = append(changes, "capture-bound process-tree: "+a)
+	}
 	return cliapp.RenderProtoMutation(ctx, msg, cliapp.MutationReport{Result: result, Changes: changes})
+}
+
+func layoutCacheArmFlag(value string) (auditv1.LayoutCacheArm, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "":
+		return auditv1.LayoutCacheArm_LAYOUT_CACHE_ARM_UNSPECIFIED, nil
+	case "enabled":
+		return auditv1.LayoutCacheArm_LAYOUT_CACHE_ARM_ENABLED, nil
+	case "disabled":
+		return auditv1.LayoutCacheArm_LAYOUT_CACHE_ARM_DISABLED, nil
+	default:
+		return auditv1.LayoutCacheArm_LAYOUT_CACHE_ARM_UNSPECIFIED, fmt.Errorf("--layout-cache-arm must be enabled or disabled")
+	}
+}
+
+func layoutCacheArmLabel(arm auditv1.LayoutCacheArm) string {
+	switch arm {
+	case auditv1.LayoutCacheArm_LAYOUT_CACHE_ARM_ENABLED:
+		return "enabled"
+	case auditv1.LayoutCacheArm_LAYOUT_CACHE_ARM_DISABLED:
+		return "disabled"
+	default:
+		return ""
+	}
 }
 
 func outcomeLabel(o auditv1.AuditOutcome) string {

@@ -38,6 +38,48 @@ func cloudflaredResourceFixture(t *testing.T) string {
 	return root
 }
 
+func composedCloudflaredResourceFixture(t *testing.T, bound bool) string {
+	t.Helper()
+	root := cloudflaredResourceFixture(t)
+	path := filepath.Join(root, "resources", "cloudflared", "resource.json")
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m map[string]any
+	if err := json.Unmarshal(body, &m); err != nil {
+		t.Fatal(err)
+	}
+	service := m["managed_service"].(map[string]any)
+	// The managed-update owner currently requires a single URL target. Keep this
+	// fixture focused on source-to-disk admission and avoid inventing an update
+	// path as part of the composed capacity test.
+	delete(service, "update_policy")
+	service["acquisition"] = map[string]any{
+		"kind": "composed", "license": "Apache-2.0",
+		"targets": []any{map[string]any{
+			"when":   map[string]string{"os": runtime.GOOS, "arch": runtime.GOARCH},
+			"layout": "dir", "artifact_sha256": strings.Repeat("a", 64),
+			"compose": []any{
+				map[string]any{"role": "runtime", "kind": "url", "dest": "runtime", "url": "https://example.invalid/runtime.tar.gz", "sha256": strings.Repeat("b", 64), "archive": "tar.gz", "download_bytes": 100, "max_expanded_bytes": 1000, "max_entries": 10},
+				map[string]any{"role": "support", "kind": "url", "dest": "support", "url": "https://example.invalid/support.tar.gz", "sha256": strings.Repeat("c", 64), "archive": "tar.gz", "download_bytes": 200, "max_expanded_bytes": 2000, "max_entries": 20},
+			},
+		}},
+	}
+	if !bound {
+		steps := service["acquisition"].(map[string]any)["targets"].([]any)[0].(map[string]any)["compose"].([]any)
+		delete(steps[1].(map[string]any), "max_entries")
+	}
+	body, err = json.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
 func TestManagedServiceReleaseRequiresExactCloudflaredResource(t *testing.T) {
 	root := cloudflaredResourceFixture(t)
 	r, err := Resolve(root, "cloudflared", "host-tool", "source", "cloudflared", "2026.10.7")
@@ -57,6 +99,13 @@ func TestManagedServiceReleaseRequiresExactCloudflaredResource(t *testing.T) {
 		if _, err := Resolve(root, x.owner, "host-tool", x.ecosystem, x.pkg, x.version); err == nil {
 			t.Fatalf("unreviewed acquisition admitted: %+v", x)
 		}
+	}
+}
+
+func TestManagedServiceArtifactRouteDoesNotAdmitPlaywrightBrowser(t *testing.T) {
+	_, err := resolveManagedServiceResource(t.TempDir(), "playwright-chromium", "source", "playwright-chromium", "1169")
+	if err == nil || err.Error() != "resource has no admitted managed artifact route" {
+		t.Fatalf("unapproved browser artifact route must fail closed with its exact gate, got %v", err)
 	}
 }
 
@@ -89,6 +138,62 @@ func TestManagedServiceReleaseRevalidatesBeforeAcquisition(t *testing.T) {
 	}
 	if _, err := (ExecInstaller{}).Install(context.Background(), base); err == nil {
 		t.Fatal("changed source admitted")
+	}
+}
+
+func TestManagedServiceComposedReleaseCarriesSummedCapacityToSDA(t *testing.T) {
+	root := composedCloudflaredResourceFixture(t, true)
+	artifacts := filepath.Join(root, "private-artifacts")
+	t.Setenv("HOME", filepath.Join(root, "operator-home"))
+	t.Setenv("VROOLI_RESOURCE_ARTIFACT_DIR", artifacts)
+	t.Setenv("VROOLI_RESOURCE_STORAGE_ROOT", filepath.Join(root, "resource-state"))
+
+	resolution, err := Resolve(root, "cloudflared", "host-tool", "source", "cloudflared", "2026.10.7")
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := PlanDiskAdmission(context.Background(), resolution)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantPeak := int64(3*(300+3000) + 1<<20)
+	if plan.Unsupported != "" || plan.ProbeBytes != 300 || len(plan.Paths) == 0 || plan.Paths[0].PeakBytes != wantPeak {
+		t.Fatalf("composed SDA capacity plan=%+v want download=300 peak=%d", plan, wantPeak)
+	}
+	if _, err := os.Stat(artifacts); !os.IsNotExist(err) {
+		t.Fatalf("planning performed artifact acquisition or created storage: %v", err)
+	}
+
+	manifestPath := filepath.Join(root, "resources", "cloudflared", "resource.json")
+	body, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest map[string]any
+	if err := json.Unmarshal(body, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	steps := manifest["managed_service"].(map[string]any)["acquisition"].(map[string]any)["targets"].([]any)[0].(map[string]any)["compose"].([]any)
+	delete(steps[0].(map[string]any), "download_bytes")
+	changed, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(manifestPath, changed, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := provisionManagedServiceArtifact(context.Background(), resolution); err == nil {
+		t.Fatal("mutated per-step bounds reached artifact acquisition")
+	}
+	if _, err := os.Stat(artifacts); !os.IsNotExist(err) {
+		t.Fatalf("changed plan acquired artifact bytes or created storage: %v", err)
+	}
+}
+
+func TestManagedServiceComposedReleaseRejectsUnboundedStepBeforeAdmission(t *testing.T) {
+	root := composedCloudflaredResourceFixture(t, false)
+	if _, err := Resolve(root, "cloudflared", "host-tool", "source", "cloudflared", "2026.10.7"); err == nil {
+		t.Fatalf("composed release with missing step bound resolved: %v", err)
 	}
 }
 

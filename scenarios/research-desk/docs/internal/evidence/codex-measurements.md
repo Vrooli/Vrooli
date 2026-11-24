@@ -1,13 +1,18 @@
 # Codex measurements behind the launch and control design
 
-Measured on Codex 0.167 through Web Console sessions, 2026-11-11 and 2026-11-12. The raw
-session notes are in [`launch-proof.txt`](launch-proof.txt). Re-measure after a Codex upgrade
-with `research-desk launch-test`.
+Measured on Codex 0.167 through Web Console sessions, 2026-11-11, 2026-11-12 and 2026-11-23.
+The raw session notes are in [`launch-proof.txt`](launch-proof.txt). Re-measure after a Codex
+upgrade with `research-desk launch-test`.
 
 - **Keys in one burst are a paste.** Codex takes keys that arrive together as a paste, so an
   Enter right behind typed text inserts a newline. The launcher waits one second before each
   Enter, reads the input row back afterwards, presses Enter once more if the text is still
   there, and fails the step if it stays (first launch test).
+- **A manager may answer "Ready." with a sentence.** On 2026-11-23 Codex replied "Ready. I
+  read the charter; STATE.md is not present yet. I'll wait for your goal..." to the stance.
+  The desk's exact-line ready match rejected it, waited five minutes and failed the launch at
+  `ready_seen`, leaving an idle session with no goal. The desk now accepts a ready word at the
+  start of an assistant line; the stance's own "Reply \"ready\"" line never matches.
 - **`/goal pause` and `/goal resume` take no kept slot.** Codex records each as a goal-status
   item. Compaction drops those items and goal continuations, and keeps the stance message.
 - **They act during a running turn.** Typed with Enter while a turn runs, each acts within a

@@ -294,21 +294,29 @@ a migration handoff with a planned retirement path back into
 
 ## 2026-10-02 — runtime UX defects for design review (unfixed)
 
-### PP-UX-01: Default Countdown cannot start, with silent failure
+### PP-UX-01: Default Countdown cannot start, with silent failure — resolved 2026-11-24
 
-**Observed/rendered/executed:** isolated shadow Focus shows Countdown by
-default; Start focus sends mode=countdown and returns400 invalid_argument.
-Exact independent API response: `mode: must be open, pomodoro, timed, or untimed`.
-Local Chrome repeats the failure with no visible error/AX state change. BAS
-network telemetry records repeated rejected calls and independent DB reads
-show no session. **Source:** FocusPage passes timerMode directly; focus/service.go
-lines43–48 rejects countdown. Start-card branch has no mutation error renderer;
-error copy is nested under the existing-session branch.
+**Observed:** the default Countdown control sent `mode=countdown`, while the
+Focus service accepts `open`, `pomodoro`, `timed`, or `untimed`; the start
+request was rejected. The start card did not render that mutation error. The
+prior workaround was to select Open timer.
 
-**Workaround verified:** select Open timer then Start focus. Supported loop
-BAS `c4b066df-6b32-40c2-b9d4-367e89368f75` passes with DB readback.
-**Impact:** primary default focus journey unusable; silent failure masks cause.
-**Status:** open; no product fix authorized by this access/inspection task.
+**Root cause:** the UI label `countdown` was sent as a domain mode even though
+the persisted session contract calls a countdown session `timed`. The active
+session renderer also did not read the planned target for `timed` sessions.
+
+**Fix:** Countdown now maps to the API's `timed` mode; the focus view renders
+the stored target for timed sessions and the start card shows an accessible
+error if a start request fails. UI regressions cover the request mode, timed
+target rendering, and visible rejection; the service test proves timed mode is
+accepted. The full API suite and focused Focus page suite pass.
+
+**Evidence:** `ui/src/pages/FocusPage.test.tsx`,
+`api/internal/focus/service_test.go`; PT2 evidence
+`evidence/PT2-PERSONAL-PLANNER-COUNTDOWN-START.md`.
+
+**Remaining:** PP-UX-02 through PP-UX-08 and the scenario maturity gates remain
+separate; resolving this journey does not certify the full Focus workflow.
 
 ### PP-UX-02: Accept placement waits indefinitely without saving
 

@@ -10,7 +10,7 @@ describe("diagnostics API", () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(report), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     await expect(fetchDiagnostics("workspace/1")).resolves.toEqual(report);
-    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("workspace_id=workspace%2F1"), expect.objectContaining({ method: "GET", cache: "no-store" }));
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringMatching(/\/api\/v1\/diagnostics\?workspace_id=workspace%2F1$/), expect.objectContaining({ method: "GET", cache: "no-store" }));
   });
 
   it("decodes a failed diagnostics response", async () => {

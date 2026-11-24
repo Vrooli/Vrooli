@@ -147,6 +147,35 @@ scenario-dependency-analyzer analyze chart-generator --verbose
 
 ---
 
+### deps declare-resource
+
+Declare one optional resource dependency after confirming that its resource
+manifest exists. The command is local, previews by default, and requires the
+preview digest to apply. It preserves unrelated service manifest bytes. The
+default `startup_policy=ignore` keeps opt-in resources stopped; use
+`try_start` only when the consumer should request startup.
+
+```bash
+scenario-dependency-analyzer deps declare-resource --scenario <consumer> --resource <slug> --description '<purpose>' --degraded-behavior '<fallback>' --startup-policy ignore --json
+# Repeat with --apply --expected-sha256 <before_sha256> to apply.
+```
+
+### deps update-resource
+
+Update selected fields among `description`, `degraded_behavior`, and
+`startup_policy` on an existing optional resource dependency (`required: false`). Both supported
+startup policies, `ignore` and `try_start`, are allowed. Preview is the default;
+apply requires the exact consumer manifest digest from preview. Unknown fields
+and unrelated manifest bytes are retained. The command refuses absent
+dependencies, duplicate keys, structural mismatches, malformed files, symlinked
+scenario/resource paths, and stale preview digests. `declare-resource` remains
+insert-only.
+
+```bash
+scenario-dependency-analyzer deps update-resource --scenario <consumer> --resource <slug> --startup-policy ignore --json
+# Repeat the same flags with --apply --expected-sha256 <before_sha256>.
+```
+
 ### deps declare-runtime
 
 Declare one explicitly selected optional runtime-only scenario dependency whose
@@ -155,6 +184,9 @@ needs no API or lifecycle activation. It is not inference: both scenario
 manifests must exist, and the operator supplies the description, runtime-only
 rationale and degraded behavior. It fixes `required: false`, `runtime_only: true`
 and `startup_policy: ignore`; it does not grant access or contact the source.
+When the consumer already has a `dependencies` object but no `scenarios` member,
+the command creates that member through its normal preview and digest-guarded
+apply flow while preserving the existing resource declarations.
 
 ```bash
 scenario-dependency-analyzer deps declare-runtime --scenario <consumer> --dependency <source> --description '<purpose>' --rationale '<runtime boundary>' --degraded-behavior '<unavailable behavior>' --json
@@ -168,6 +200,22 @@ an identical declaration is a no-op. It does not replace the import detector or
 modify approved third-party dependency records. Use scan for inferred edges;
 use this declaration for explicit optional runtime contracts that must not start
 the source. Editing or removing an existing different contract is not supported.
+
+### deps update-runtime
+
+Update only `description`, `runtime_only_rationale` and `degraded_behavior` on an
+existing declaration that is already exactly `type: scenario`, enabled,
+`required: false`, `runtime_only: true`, and `startup_policy: ignore`. Preview is
+the default; apply requires the exact consumer manifest digest from that preview.
+The command preserves unknown dependency fields and unrelated manifest bytes.
+It refuses missing dependencies, duplicate keys, malformed or symlinked paths,
+structural mismatches, and stale preview digests. `declare-runtime` remains
+insert-only and continues to refuse overwriting an existing different contract.
+
+```bash
+scenario-dependency-analyzer deps update-runtime --scenario <consumer> --dependency <source> --description '<purpose>' --rationale '<runtime boundary>' --degraded-behavior '<unavailable behavior>' --json
+# Repeat the same flags with --apply --expected-sha256 <before_sha256>.
+```
 
 ---
 

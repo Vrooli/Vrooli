@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Info } from "lucide-react";
 
 import { buildScenarioApiUrl, fetchDeploymentReport } from "../../api/client";
-import { Card, CardContent } from "../../components/ui/card";
+import { Card, CardContent } from "@vrooli/react-component-library/Card/1.3.1";
 import { getApiBaseUrl } from "../../lib/utils";
 import type { ScenarioSummary } from "../../types";
 import {

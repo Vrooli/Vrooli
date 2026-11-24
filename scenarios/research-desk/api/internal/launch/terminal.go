@@ -189,8 +189,12 @@ func (w *WebConsole) WaitIdle(ctx context.Context, sessionID string, quiet, time
 // "esc to interrupt" while working, and a numbered list with "› 1." for a
 // choice it needs answered (web-console backends/codex/prompt_detector.go).
 var (
-	codexChoice  = regexp.MustCompile(`^\s*[›❯>▌]\s*1\.\s+\S`)
-	codexReplied = regexp.MustCompile(`(?i)^[\s•›>*-]*"?ready"?[.!]?\s*$`)
+	codexChoice = regexp.MustCompile(`^\s*[›❯>▌]\s*1\.\s+\S`)
+	// A manager usually answers with one sentence ("Ready. I read the
+	// charter..."), not the bare word. Accept the word at the start of an
+	// assistant line; the stance's own "Reply \"ready\"" line starts with
+	// "Reply" and never matches.
+	codexReplied = regexp.MustCompile(`(?i)^[\s•›>*-]*"?ready\b`)
 )
 
 const codexWorking = "esc to interrupt"

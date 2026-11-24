@@ -653,7 +653,7 @@
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
           "ecosystem-fit",
-          "architecture-scope"
+          "work-scope"
         ],
         "clean_requirement": "required"
       },
@@ -665,7 +665,7 @@
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
           "ecosystem-fit",
-          "architecture-scope"
+          "work-scope"
         ],
         "clean_requirement": "required"
       },
@@ -677,7 +677,7 @@
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
           "ecosystem-fit",
-          "architecture-scope"
+          "work-scope"
         ],
         "clean_requirement": "required"
       },
@@ -689,7 +689,7 @@
         "severity_default": "SEVERITY_WARNING",
         "recommended_skill_ids": [
           "ecosystem-fit",
-          "architecture-scope"
+          "work-scope"
         ],
         "clean_requirement": "required"
       },
@@ -708,7 +708,7 @@
         "global_impact": "foundation_blocker",
         "dimension": "dependencies",
         "severity_default": "SEVERITY_ERROR",
-        "recommended_skill_ids": ["ecosystem-fit", "architecture-scope"],
+        "recommended_skill_ids": ["ecosystem-fit", "work-scope"],
         "clean_requirement": "required"
       },
       "INTEGRATION_REGISTRY_INCOMPLETE": {
@@ -717,7 +717,7 @@
         "global_impact": "foundation_blocker",
         "dimension": "dependencies",
         "severity_default": "SEVERITY_ERROR",
-        "recommended_skill_ids": ["ecosystem-fit", "architecture-scope"],
+        "recommended_skill_ids": ["ecosystem-fit", "work-scope"],
         "clean_requirement": "required"
       },
       "INTEGRATION_NO_OPERATOR_ACTION": {
@@ -726,7 +726,7 @@
         "global_impact": "evolvability_gap",
         "dimension": "dependencies",
         "severity_default": "SEVERITY_WARNING",
-        "recommended_skill_ids": ["failure-topography-and-graceful-degradation"],
+        "recommended_skill_ids": ["resilience-lenses"],
         "clean_requirement": "advisory"
       },
       "INTEGRATION_DEGRADED_BEHAVIOR_UNDECLARED": {
@@ -735,7 +735,7 @@
         "global_impact": "evolvability_gap",
         "dimension": "dependencies",
         "severity_default": "SEVERITY_WARNING",
-        "recommended_skill_ids": ["failure-topography-and-graceful-degradation"],
+        "recommended_skill_ids": ["resilience-lenses"],
         "clean_requirement": "advisory"
       }
     },

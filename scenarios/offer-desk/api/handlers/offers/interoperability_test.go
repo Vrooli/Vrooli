@@ -23,6 +23,69 @@ type positionServiceStub struct {
 	getCalls int
 }
 
+type journalActualsStub struct {
+	ledgerconnect.UnimplementedJournalServiceHandler
+	calls     int
+	failFirst bool
+}
+
+func (s *journalActualsStub) ListPostings(context.Context, *connect.Request[ledger.ListPostingsRequest]) (*connect.Response[ledger.ListPostingsResponse], error) {
+	s.calls++
+	if s.failFirst && s.calls == 1 {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("ledger journal temporarily unavailable"))
+	}
+	return connect.NewResponse(&ledger.ListPostingsResponse{}), nil
+}
+
+func journalActualsServer(t *testing.T, stub *journalActualsStub) *httptest.Server {
+	t.Helper()
+	_, handler := ledgerconnect.NewJournalServiceHandler(stub)
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	return server
+}
+
+func TestBoardReusesOneActualsResultForDuplicateAccountsWithinEachRead(t *testing.T) {
+	s, ctx := testOfferService(t, schedule.NewFake(time.Now().UTC()))
+	first, err := s.store.CreateNode(ctx, offerspb.NodeKind_OFFER, "First mapped row", offerspb.Status_TRIGGER_MET, "", "acct-shared")
+	require.NoError(t, err)
+	second, err := s.store.CreateNode(ctx, offerspb.NodeKind_OFFER, "Second mapped row", offerspb.Status_TRIGGER_MET, "", "acct-shared")
+	require.NoError(t, err)
+	journal := &journalActualsStub{failFirst: true}
+	server := journalActualsServer(t, journal)
+	s.resolveLedgerURL = func(context.Context) (string, error) { return server.URL, nil }
+
+	degraded, err := s.GetBoard(ctx, nil)
+	require.NoError(t, err)
+	require.Equal(t, 1, journal.calls, "one board read must make one journal request per distinct mapped account")
+	byID := make(map[string]*offerspb.BoardEntry, len(degraded.Msg.Entries))
+	for _, entry := range degraded.Msg.Entries {
+		byID[entry.NodeId] = entry
+	}
+	for _, id := range []string{first.Id, second.Id} {
+		entry := byID[id]
+		require.NotNil(t, entry)
+		require.False(t, entry.ActualsAvailable)
+		require.Len(t, entry.Availability, 1)
+		require.Contains(t, entry.Availability[0].Reason, "temporarily unavailable")
+	}
+
+	recovered, err := s.GetBoard(ctx, nil)
+	require.NoError(t, err)
+	require.Equal(t, 2, journal.calls, "the cache is scoped to one board response, so later reads retry")
+	byID = make(map[string]*offerspb.BoardEntry, len(recovered.Msg.Entries))
+	for _, entry := range recovered.Msg.Entries {
+		byID[entry.NodeId] = entry
+	}
+	for _, id := range []string{first.Id, second.Id} {
+		entry := byID[id]
+		require.NotNil(t, entry)
+		require.True(t, entry.ActualsAvailable, "an empty successful result is a known zero")
+		require.Zero(t, entry.ActualMinor)
+		require.Empty(t, entry.Availability)
+	}
+}
+
 func (s *positionServiceStub) GetPosition(context.Context, *connect.Request[ledger.PositionRequest]) (*connect.Response[ledger.PositionResponse], error) {
 	s.getCalls++
 	return connect.NewResponse(&ledger.PositionResponse{}), nil
@@ -147,15 +210,17 @@ func TestDeploymentReadinessProviderResolvesPeerPerRead(t *testing.T) {
 }
 
 func TestReadinessReporterIsConstructedWithoutResolvingDeploymentManager(t *testing.T) {
-	for key, value := range map[string]string{
-		"_TOKEN": "token", "_POLICY_VERSION": "1", "_SCENARIO": "offer-desk",
-		"_PROFILE_ID": "profile", "_CANDIDATE_COMMIT": "commit", "_ARTIFACT_DIGEST": "digest",
-		"_TARGETS": "linux", "_CHANNEL": "local",
-	} {
-		t.Setenv(readinessPrefix+key, value)
+	env := map[string]string{
+		readinessPrefix + "_TOKEN": "token", readinessPrefix + "_POLICY_VERSION": "1", readinessPrefix + "_SCENARIO": "offer-desk",
+		readinessPrefix + "_PROFILE_ID": "profile", readinessPrefix + "_CANDIDATE_COMMIT": "commit", readinessPrefix + "_ARTIFACT_DIGEST": "digest",
+		readinessPrefix + "_TARGETS": "linux", readinessPrefix + "_CHANNEL": "local",
 	}
-	t.Setenv("DEPLOYMENT_MANAGER_API_BASE_URL", "")
-	reporter, err := newReadinessReporter(context.Background(), "catalog-ready", "offer-desk.catalog")
+	resolveCalls := 0
+	reporter, err := newReadinessReporter(context.Background(), "catalog-ready", "offer-desk.catalog", func(key string) string { return env[key] }, func(context.Context) (string, error) {
+		resolveCalls++
+		return "", errors.New("resolver must not run during construction")
+	})
 	require.NoError(t, err)
 	require.NotNil(t, reporter, "a local discovery miss must not prevent Offer Desk from starting")
+	require.Zero(t, resolveCalls, "reporter construction defers peer resolution until a report")
 }

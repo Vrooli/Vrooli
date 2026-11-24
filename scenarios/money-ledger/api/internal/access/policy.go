@@ -22,11 +22,18 @@ const (
 	Treasury Actor = "treasury"
 	// LandingPageBusinessSuite posts commerce money events.
 	LandingPageBusinessSuite Actor = "landing-page-business-suite"
+	// ComputeManagerInvoiceWriter can ingest provider invoice lines and reverse
+	// only its own invoice postings. The route handler enforces the source adapter.
+	ComputeManagerInvoiceWriter Actor = "compute-manager-invoice-writer"
 )
 
 // WriteCapability is the coarse capability every writer must hold, person or
 // service, in addition to being named here.
 const WriteCapability = "money-ledger:write"
+
+// ComputeInvoiceCapability is separate from the general Ledger write scope.
+const ComputeInvoiceCapability = "money-ledger:compute-invoice"
+const ComputeManagerInvoiceAdapter = "compute-manager-provider-invoices"
 
 // Effect says whether a route changes the records.
 type Effect string
@@ -101,9 +108,10 @@ var Policy = map[string]Rule{
 
 	ledgerconnect.JournalServiceGetPostingProcedure:   openRead(),
 	ledgerconnect.JournalServiceListPostingsProcedure: openRead(),
-	// Reversal is the only sanctioned change to effective history, and a
-	// transfer moves money between books: both are the owner's decision alone.
-	ledgerconnect.JournalServiceReversePostingProcedure: operatorOnly(),
+	// The owner can reverse any accepted posting. Compute Manager can reach this
+	// route only because its handler further restricts it to an original posting
+	// on the reserved provider-invoice adapter. Transfers remain owner-only.
+	ledgerconnect.JournalServiceReversePostingProcedure: writtenBy(Operator, ComputeManagerInvoiceWriter),
 	ledgerconnect.JournalServiceTransferProcedure:       operatorOnly(),
 
 	ledgerconnect.PositionServiceGetPositionProcedure:  openRead(),
@@ -123,7 +131,7 @@ var Policy = map[string]Rule{
 	ingestconnect.IngestServiceListCryptoReceiptsProcedure:  readBy(Treasury, Operator),
 	ingestconnect.IngestServiceAcceptCryptoReceiptProcedure: writtenBy(Treasury),
 	ingestconnect.IngestServiceRegisterAdapterProcedure:     writtenBy(Operator, Treasury),
-	ingestconnect.IngestServiceIngestEventProcedure:         writtenBy(Operator, Treasury, LandingPageBusinessSuite),
+	ingestconnect.IngestServiceIngestEventProcedure:         writtenBy(Operator, Treasury, LandingPageBusinessSuite, ComputeManagerInvoiceWriter),
 	// Running an adapter, importing a file and applying operator inputs each
 	// journal postings in the owner's name.
 	ingestconnect.IngestServiceRunAdapterProcedure: operatorOnly(),
@@ -137,9 +145,15 @@ var Policy = map[string]Rule{
 // writes as. Each principal is declared in its scenario's
 // .vrooli/service-principals.json with WriteCapability and issued by
 // `scenario-authenticator service-principals sync --apply`.
-var serviceWriters = map[string]Actor{
-	"treasury-money-ledger":                           Treasury,
-	"landing-page-business-suite-money-ledger-writer": LandingPageBusinessSuite,
+type serviceWriter struct {
+	actor Actor
+	scope string
+}
+
+var serviceWriters = map[string]serviceWriter{
+	"treasury-money-ledger":                           {actor: Treasury, scope: WriteCapability},
+	"landing-page-business-suite-money-ledger-writer": {actor: LandingPageBusinessSuite, scope: WriteCapability},
+	"compute-manager-money-ledger-invoice-writer":     {actor: ComputeManagerInvoiceWriter, scope: ComputeInvoiceCapability},
 }
 
 // reservedAdapters gives an adapter id to one actor, so no other writer can
@@ -147,7 +161,8 @@ var serviceWriters = map[string]Actor{
 // paired postings the owner's transfers create. Every other adapter id is open
 // to any actor the route admits.
 var reservedAdapters = map[string]Actor{
-	"treasury": Treasury,
-	"manual":   Operator,
-	"transfer": Operator,
+	"treasury":                   Treasury,
+	"manual":                     Operator,
+	"transfer":                   Operator,
+	ComputeManagerInvoiceAdapter: ComputeManagerInvoiceWriter,
 }

@@ -1,6 +1,4 @@
 """Join the release ladder, enabling urgency and (optionally) one stream's prerequisites."""
-import json
-
 inputs = program.inputs()
 
 envelope = program.envelope('offer-desk.release-path', '1', phase="validate", inputs={})
@@ -126,7 +124,7 @@ def step_classify():
 def step_report():
     # phase: report — one envelope on every path.
     envelope['phase'] = 'report'
-    print(json.dumps(envelope, allow_nan=False, separators=(',', ':')))
+    program.report(envelope)
     return None
 
 

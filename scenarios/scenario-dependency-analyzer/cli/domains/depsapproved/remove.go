@@ -164,7 +164,7 @@ func removeRootGoRequirement(root string, req removeGoRequirementRequest) (remov
 		return removeGoRequirementResult{}, errors.New("--expected-sha256 requires --apply")
 	}
 	path := filepath.Join(root, "go.mod")
-	before, info, err := readRegularGoMod(path)
+	before, info, err := readRegularFileNoSymlink(path)
 	if err != nil {
 		return removeGoRequirementResult{}, err
 	}
@@ -196,17 +196,17 @@ func removeRootGoRequirement(root string, req removeGoRequirementRequest) (remov
 	if !req.Apply {
 		return result, nil
 	}
-	if err := writeGoModIfUnchanged(root, path, after, info, req.ExpectedSHA256); err != nil {
+	if err := writeAtomicallyIfUnchanged(root, path, after, info, req.ExpectedSHA256); err != nil {
 		return removeGoRequirementResult{}, err
 	}
 	result.Applied = true
 	return result, nil
 }
 
-func readRegularGoMod(path string) ([]byte, os.FileInfo, error) {
+func readRegularFileNoSymlink(path string) ([]byte, os.FileInfo, error) {
 	info, err := os.Lstat(path)
 	if err != nil || !info.Mode().IsRegular() {
-		return nil, nil, errors.New("root go.mod must be a regular non-symlink file")
+		return nil, nil, errors.New("target must be a regular non-symlink file")
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -214,13 +214,13 @@ func readRegularGoMod(path string) ([]byte, os.FileInfo, error) {
 	}
 	latest, err := os.Lstat(path)
 	if err != nil || !os.SameFile(info, latest) {
-		return nil, nil, errors.New("root go.mod changed during read")
+		return nil, nil, errors.New("target changed during read")
 	}
 	return data, info, nil
 }
 
-func writeGoModIfUnchanged(root, path string, after []byte, info os.FileInfo, expected string) error {
-	tmp, err := os.CreateTemp(root, ".go.mod-remove-*")
+func writeAtomicallyIfUnchanged(root, path string, after []byte, info os.FileInfo, expected string) error {
+	tmp, err := os.CreateTemp(root, ".atomic-write-*")
 	if err != nil {
 		return err
 	}
@@ -235,12 +235,12 @@ func writeGoModIfUnchanged(root, path string, after []byte, info os.FileInfo, ex
 	if err = os.Chmod(tmpPath, info.Mode().Perm()); err != nil {
 		return err
 	}
-	current, currentInfo, err := readRegularGoMod(path)
+	current, currentInfo, err := readRegularFileNoSymlink(path)
 	if err != nil {
 		return err
 	}
 	if !os.SameFile(info, currentInfo) || !strings.EqualFold(sha256Hex(current), expected) {
-		return errors.New("root go.mod changed before apply; no write performed")
+		return errors.New("target changed before apply; no write performed")
 	}
 	return os.Rename(tmpPath, path)
 }

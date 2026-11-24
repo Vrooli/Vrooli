@@ -1,6 +1,4 @@
 """Read the ranked offer board and diff it against a caller-supplied baseline snapshot."""
-import json
-
 inputs = program.inputs()
 
 envelope = program.envelope('offer-desk.board-read', '1', phase="validate", inputs={})
@@ -133,7 +131,7 @@ def step_classify():
 def step_report():
     # phase: report — one envelope on every path.
     envelope['phase'] = 'report'
-    print(json.dumps(envelope, allow_nan=False, separators=(',', ':')))
+    program.report(envelope)
     return None
 
 

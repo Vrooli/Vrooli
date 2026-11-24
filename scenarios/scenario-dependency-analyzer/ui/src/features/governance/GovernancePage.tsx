@@ -3,7 +3,7 @@ import { RefreshCcw } from "lucide-react";
 
 import type { DependencyUsageGroup } from "../../api/governance";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import {
   Select,
   SelectContent,

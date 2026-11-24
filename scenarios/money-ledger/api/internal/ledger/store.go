@@ -15,6 +15,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/database"
+	ingestpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest"
 	ledgerpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ledger"
 	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/shared"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -172,6 +173,15 @@ func (s *Store) EnsureMigrations(ctx context.Context) error {
 				return err
 			}
 		}
+	}
+	// This adapter is a built-in source contract, not a user credential or
+	// posting. Its ID is reserved to the narrowly scoped Compute Manager invoice
+	// writer by internal/access; migration owns deterministic metadata so no
+	// manual adapter registration is required.
+	if _, err := s.db.ExecContext(ctx, `INSERT INTO adapters(id,name,kind,enabled,last_success_at,availability_reason,cursor,created_at)
+		VALUES(?,?,?,?,NULL,'','',?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,kind=excluded.kind,enabled=1`,
+		"compute-manager-provider-invoices", "Compute Manager provider invoices", int32(ingestpb.AdapterKind_ADAPTER_KIND_AGGREGATOR), true, s.now().UTC().Format(time.RFC3339Nano)); err != nil {
+		return fmt.Errorf("ensure built-in Compute Manager invoice adapter: %w", err)
 	}
 	return nil
 }

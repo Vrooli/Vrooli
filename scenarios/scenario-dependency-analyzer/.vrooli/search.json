@@ -739,6 +739,154 @@
           "negative": 1
         }
       }
+    },
+    {
+      "provider_id": "scenario-dependency-analyzer.resource-inventory",
+      "lifecycle": "experimental",
+      "provider_group": "scenario-dependency-analyzer",
+      "bucket": "BUCKET_STATE",
+      "type": "inventory",
+      "description": "Declared local resource inventory and anatomy from the canonical resource catalog and resource.json manifests: catalog slug/name, driver, ports, health-check shape, declared dependencies, and safe runtime shape. Route here for resource ports, driver, manifest checks, runtime configuration shape, and declared resource dependencies. This provider does not run probes; health and serving state are unknown. Catalog slug is canonical even when manifest name differs. Use the separate resources leaf for scenarios that consume a resource.",
+      "routing_profile": {
+        "answer_spaces": ["resource_inventory", "resource_anatomy"],
+        "intents": ["inspect_resource", "identify_resource", "explain"],
+        "positive_examples": [
+          "what ports and driver does qdrant declare",
+          "show reranker's declared health checks and runtime shape",
+          "which local resource provides vector database and semantic search"
+        ],
+        "exclusions": [
+          "is qdrant currently healthy or reachable",
+          "which scenarios use qdrant",
+          "install or start a resource"
+        ]
+      },
+      "scope": "SCOPE_PROJECT",
+      "class": "local_live",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/api/v1/resources/inventory/search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/api/v1/health/analysis",
+          "method": "HTTP_METHOD_GET",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "title_field": "title",
+        "score_field": "score",
+        "snippet_field": "snippet",
+        "path_field": "path",
+        "score_scale": "SCORE_SCALE_RAW",
+        "metadata_fields": {
+          "resource": "resource",
+          "evidence_basis": "evidenceBasis",
+          "runtime_status_known": "runtimeStatusKnown"
+        },
+        "degradations_field": "degradations"
+      },
+      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.2, "minimum_samples": 1, "telemetry_required": false},
+      "tests": {
+        "minimum": {"reviewed_positive": 3, "negative": 2},
+        "suite_id": "scenario-dependency-analyzer.resource-inventory.primary",
+        "name": "Canonical declared resource anatomy",
+        "description": "Development suite for resource catalog and manifest anatomy. It does not claim current health, serving status, install authority, or complete end-to-end resource answerability.",
+        "cases": [
+          {"id": "qdrant-vector-database-ports", "query": "what ports and driver does qdrant vector database declare", "expect_ids": ["resource-inventory:qdrant"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "ports", "driver"]},
+          {"id": "ollama-model-runtime-shape", "query": "show ollama declared model serving runtime shape", "expect_ids": ["resource-inventory:ollama"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "runtime-shape"]},
+          {"id": "reranker-health-check-anatomy", "query": "show reranker health check type and readiness", "expect_ids": ["resource-inventory:reranker"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "health-check"]},
+          {"id": "vector-embedding-resource", "query": "which resource provides vector database embeddings and semantic search", "expect_ids": ["resource-inventory:qdrant"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "resource-description"]},
+          {"id": "unrelated-weather-query", "query": "weather forecast tomorrow", "expect_no_strong_hit": true, "expect_max_score": 0.2, "status": "reviewed", "tags": ["reviewed", "negative"]},
+          {"id": "unrelated-ui-color-query", "query": "blue user interface theme palette", "expect_no_strong_hit": true, "expect_max_score": 0.2, "status": "reviewed", "tags": ["reviewed", "negative"]}
+        ]
+      }
+    },
+    {
+      "provider_id": "scenario-dependency-analyzer.dependency-rationale",
+      "lifecycle": "experimental",
+      "provider_group": "scenario-dependency-analyzer",
+      "bucket": "BUCKET_REUSE",
+      "type": "rationale",
+      "description": "Declaration-backed reasons for cross-scenario dependencies, including runtime-only reason and degraded behavior. Route to this leaf for why a scenario depends on another scenario or why an optional runtime edge is not an in-process package import. It reports only authored manifest fields and preserves missing rationale as missing; dependency graph edges alone are not treated as rationale. This is separate from approved third-party package rationale.",
+      "routing_profile": {
+        "answer_spaces": ["dependency_rationale", "scenario_dependency_reason"],
+        "intents": ["explain", "inspect_dependency", "identify_runtime_boundary"],
+        "positive_examples": [
+          "why does security-health use deployment-manager without importing its package",
+          "what is the runtime-only rationale for web-console using notification-hub",
+          "explain the declared degraded behavior for secrets-manager's data-backup-manager dependency"
+        ],
+        "exclusions": [
+          "which third-party package is approved for a purpose",
+          "what depends on prompt-manager without asking why",
+          "whether a dependency is healthy or currently reachable"
+        ]
+      },
+      "scope": "SCOPE_PROJECT",
+      "class": "local_live",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/api/v1/dependencies/rationale/search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"scenario\":\"{{scope_value}}\",\"limit\":{{limit}}}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/api/v1/health/analysis",
+          "method": "HTTP_METHOD_GET",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "title_field": "title",
+        "score_field": "score",
+        "snippet_field": "snippet",
+        "path_field": "path",
+        "score_scale": "SCORE_SCALE_RAW",
+        "metadata_fields": {
+          "consumer": "consumer",
+          "dependency": "dependency",
+          "type": "type",
+          "required": "required",
+          "enabled": "enabled",
+          "runtime_only": "runtimeOnly",
+          "evidence": "evidence",
+          "source": "source",
+          "scan": "scan"
+        },
+        "degradations_field": "degradations"
+      },
+      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.2, "minimum_samples": 1, "telemetry_required": false},
+      "tests": {
+        "minimum": {"reviewed_positive": 3, "negative": 2},
+        "suite_id": "scenario-dependency-analyzer.dependency-rationale.primary",
+        "name": "Declaration-backed cross-scenario dependency rationale",
+        "description": "Development suite for authored scenario dependency rationale. It expects declaration field provenance and never infers a reason from a graph edge or runtime health.",
+        "cases": [
+          {"id": "security-health-deployment-manager-reason", "query": "why does security-health use deployment-manager without importing its package", "scope": "scenario:security-health", "expect_ids": ["dependency-rationale:security-health:deployment-manager"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "runtime-boundary"]},
+          {"id": "web-console-notification-hub-reason", "query": "what is the runtime-only rationale for web-console using notification-hub", "scope": "scenario:web-console", "expect_ids": ["dependency-rationale:web-console:notification-hub"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "runtime-boundary"]},
+          {"id": "secrets-manager-backup-degraded-behavior", "query": "explain the declared degraded behavior for secrets-manager data-backup-manager dependency", "scope": "scenario:secrets-manager", "expect_ids": ["dependency-rationale:secrets-manager:data-backup-manager"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "degraded-behavior"]},
+          {"id": "switchboard-agent-manager-connect-rationale", "query": "why does switchboard call agent-manager through Connect rather than import it", "scope": "scenario:switchboard", "expect_ids": ["dependency-rationale:switchboard:agent-manager"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "runtime-boundary"]},
+          {"id": "unrelated-weather-query", "query": "weather forecast tomorrow", "scope": "scenario:security-health", "expect_no_strong_hit": true, "expect_max_score": 0.2, "status": "reviewed", "tags": ["reviewed", "negative"]},
+          {"id": "unrelated-vector-inventory", "query": "qdrant vector database resource ports", "scope": "scenario:security-health", "expect_no_strong_hit": true, "expect_max_score": 0.2, "status": "reviewed", "tags": ["reviewed", "negative"]}
+        ]
+      }
     }
   ]
 }

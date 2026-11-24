@@ -74,6 +74,10 @@ type fakeCodex struct {
 	screenErr error
 	// typeErr fails typing: nothing reaches Codex.
 	typeErr error
+	// screenErrAt injects one Web Console read failure at a chosen call.
+	screenCalls      int
+	screenErrAt      int
+	transientReadErr error
 }
 
 func newCodex() *fakeCodex {
@@ -113,6 +117,10 @@ func (f *fakeCodex) Create(_ context.Context, spec SessionSpec) (string, error) 
 func (f *fakeCodex) Screen(context.Context, string) (Screen, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.screenCalls++
+	if f.screenErrAt == f.screenCalls {
+		return Screen{}, f.transientReadErr
+	}
 	if f.screenErr != nil && len(f.goals) > 0 {
 		return Screen{}, f.screenErr
 	}
@@ -240,6 +248,19 @@ func launcher(codex *fakeCodex) *Launcher {
 }
 
 var settings = Settings{Model: "gpt-5.5", Effort: "high"}
+
+func TestLaunchRetriesTransientWebConsoleReadFailureWhileWaitingReady(t *testing.T) {
+	codex := newCodex()
+	codex.screenErrAt = 3 // composer read, stance submission read, first ready read
+	codex.transientReadErr = errors.New("web-console was not reached just now (timed out after 3s)")
+	err := launcher(codex).Run(context.Background(), SessionSpec{}, Texts{Stance: "Stance.", Kernel: "Kernel."}, settings, func(string, string, string) error { return nil })
+	if err != nil {
+		t.Fatalf("transient Web Console read failure stopped launch: %v", err)
+	}
+	if got := codex.typed(); !slices.Equal(got, []string{"paste:Stance.", "key:Enter", "type:/goal Kernel.", "key:Enter"}) {
+		t.Fatalf("input = %q; a readiness retry must not duplicate the stance or goal", got)
+	}
+}
 
 func TestALaunchTypesOnlyTheStanceAndTheGoalAndVerifiesTheGoalRow(t *testing.T) {
 	codex := newCodex()
@@ -1245,6 +1266,52 @@ func TestAStaleCommissionWithAnUnknownThreadIsSupersededWithARecordedReason(t *t
 	}
 	if len(r.codex.signalled) != 0 || slices.Contains(r.codex.typed(), "type:/goal pause") {
 		t.Fatalf("nothing is typed into or ended for a stale commission: typed %q, signalled %v", r.codex.typed(), r.codex.signalled)
+	}
+}
+
+func TestFailedReadySeenSupersessionResolvesOnlyItsUniqueRecordedSessionThread(t *testing.T) {
+	r := newRig(t)
+	r.sharing()
+	r.reader.states[handRun] = home.StateUnknown
+	r.codex.goals = nil // the old launch stopped before its goal was set
+	r.codex.threadErr = errors.New("multiple top-level threads")
+	r.reader.tweaks[handRun] = func(c *home.Commission) {
+		c.Topics = append(c.Topics, home.TopicRef{Topic: "local-model-performance"})
+		c.Session.ThreadID = ""
+		c.LastWrite = home.Time{Value: time.Date(2026, 11, 12, 4, 0, 0, 0, time.UTC), Evidence: home.Evidence{Known: true}}
+		c.Launch = &home.LaunchRecord{
+			Schema: home.LaunchSchema, CommissionID: handRun, LaunchedBy: "desk",
+			IdempotencyKey: handRun + "#1", WebConsoleSessionID: "sess-1",
+			Steps:  []home.LaunchStep{{Step: StepStanceSent}},
+			Failed: &home.LaunchFailure{Step: StepReadySeen, Reason: "Web Console unavailable"},
+		}
+	}
+	choices := Choices{Resolutions: map[string]Resolution{handRun: Supersede}}
+
+	if _, err := r.service.Launch(context.Background(), prepared, choices); !errors.Is(err, home.ErrRefused) || !strings.Contains(err.Error(), "thread is not known") {
+		t.Fatalf("ambiguous transcript must still fail closed: %v", err)
+	}
+	if len(r.codex.created) != 0 || len(r.codex.typed()) != 0 || len(r.codex.signalled) != 0 {
+		t.Fatalf("ambiguous thread caused effects: created=%d typed=%q signalled=%v", len(r.codex.created), r.codex.typed(), r.codex.signalled)
+	}
+
+	r.codex.threadErr = nil // one unique thread in the launch's exact recorded session
+	if _, err := r.service.Launch(context.Background(), prepared, choices); err != nil {
+		t.Fatalf("unique thread should permit a verified supersede: %v", err)
+	}
+	r.wait(t, prepared)
+	got := r.codex.typed()
+	if len(got) < 4 || !slices.Equal(got[:3], []string{"key:Escape", "key:ctrl+c", "key:ctrl+c"}) || !strings.HasPrefix(got[3], "paste:") {
+		rec := r.launchFile(t, prepared)
+		failure := "none"
+		if rec.Failed != nil {
+			failure = rec.Failed.Step + ": " + rec.Failed.Reason
+		}
+		t.Fatalf("resolved supersession did not stop this session before launch: typed=%q failure=%s record=%+v", got, failure, rec)
+	}
+	oldRecord := r.launchFile(t, handRun)
+	if oldRecord.SupersededBy != prepared || !slices.Contains(r.codex.signalled, 41) {
+		t.Fatalf("old commission not safely superseded through the resolved session: %+v; signalled=%v", oldRecord, r.codex.signalled)
 	}
 }
 

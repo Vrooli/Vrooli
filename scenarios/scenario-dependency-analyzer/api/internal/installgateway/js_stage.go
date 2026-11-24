@@ -94,6 +94,8 @@ type JSStage struct {
 	surfaceRoot string
 	dir         string
 	store       pnpmStoreInfo
+	pnpmPatches []stagedPnpmPatch
+	patchBytes  int64
 	// base holds each input exactly as read when the stage was created; nil
 	// means the file did not exist. publish refuses to run when any of them
 	// changed since, so an apply never overwrites concurrent work.
@@ -177,6 +179,14 @@ func stageJSResolution(ctx context.Context, r Resolution) (*JSStage, error) {
 		}
 		stage.base[name] = data
 	}
+	if manager.name == "pnpm" {
+		patches, total, err := readPnpmPatchInputs(r.SurfaceRoot, stage.base["package.json"])
+		if err != nil {
+			return nil, err
+		}
+		stage.pnpmPatches = patches
+		stage.patchBytes = total
+	}
 	if err := stage.createDirectory(r); err != nil {
 		return nil, err
 	}
@@ -187,6 +197,9 @@ func stageJSResolution(ctx context.Context, r Resolution) (*JSStage, error) {
 		if err := os.WriteFile(filepath.Join(stage.dir, name), data, 0o600); err != nil {
 			return nil, fmt.Errorf("stage %s: %w", name, err)
 		}
+	}
+	if err := stagePnpmPatchFiles(stage.dir, stage.pnpmPatches); err != nil {
+		return nil, err
 	}
 	if npmrc, err := readOptionalBounded(filepath.Join(r.SurfaceRoot, ".npmrc"), maxJSNpmrcBytes); err != nil {
 		return nil, fmt.Errorf("read .npmrc: %w", err)
@@ -307,6 +320,9 @@ func (s *JSStage) publish(ctx context.Context, r Resolution) (string, error) {
 	manager := s.manager
 	if len(s.next) == 0 {
 		return manager.name + " resolved no change to the dependency inputs; nothing was published.", nil
+	}
+	if err := s.verifyPnpmPatchInputsUnchanged(); err != nil {
+		return "", err
 	}
 	for name, base := range s.base {
 		current, err := readOptionalBounded(filepath.Join(s.surfaceRoot, name), manager.limits[name])

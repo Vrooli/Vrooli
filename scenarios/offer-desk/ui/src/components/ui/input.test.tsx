@@ -2,10 +2,9 @@
  * Unit tests for the Input primitive.
  *
  * What these tests pin:
- *   - The base className chunk (`rounded-control`) is always emitted, so a
- *     refactor that drops the cn() merge surfaces immediately.
- *   - Custom className is merged via tailwind-merge (cn helper), including
- *     Tailwind conflict resolution.
+ *   - The adopted RCL component marks its control with `data-rcl-input` and
+ *     supplies its raised surface recipe as the base class.
+ *   - Custom className is merged alongside the component's base recipe.
  *   - The forwardRef contract holds: useRef(null) populates with the
  *     real HTMLInputElement.
  *   - Arbitrary props pass through (placeholder, type, disabled).
@@ -20,24 +19,23 @@ import { describe, expect, it } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { renderWithProviders } from "../../test-utils";
-import { Input } from "./input";
 
-describe("Input", () => {
-  it("emits the base className chunk so the cn() merge contract holds", () => {
+describe("RCL Input", () => {
+  it("emits the adopted input marker and raised surface recipe", () => {
     renderWithProviders(<Input data-testid="i" />);
     const el = screen.getByTestId("i");
-    expect(el.className).toMatch(/rounded-control/);
-    expect(el.className).toMatch(/border/);
+    expect(el).toHaveAttribute("data-rcl-input", "true");
+    expect(el.className).toContain("shadow-[var(--elev-raised)]");
   });
 
-  it("merges a custom className with the base classes via cn()", () => {
+  it("merges a custom className with the component's base recipe", () => {
     renderWithProviders(<Input data-testid="i" className="custom-extra px-6" />);
     const el = screen.getByTestId("i");
     expect(el.className).toMatch(/custom-extra/);
-    expect(el.className).toMatch(/rounded-control/);
-    expect(el.className).toMatch(/px-6/);
-    expect(el.className).not.toMatch(/px-3/);
+    expect(el.className).toContain("px-6");
+    expect(el.className).toContain("shadow-[var(--elev-raised)]");
   });
 
   it("forwards ref to the underlying HTMLInputElement", () => {

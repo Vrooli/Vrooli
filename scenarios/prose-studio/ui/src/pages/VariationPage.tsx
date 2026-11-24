@@ -1,9 +1,9 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { Input } from "../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { proseApi, type Candidate, type Generation } from "../api/prose";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { selectors } from "../consts/selectors";
 

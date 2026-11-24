@@ -83,9 +83,7 @@ intent:
 | `active` | At least one phase left `todo` | That anyone is working on it now. A run abandoned mid-phase reports `active` indefinitely. |
 | `complete` | Every phase is `done` | — |
 
-Neither `draft` nor `active` carries recency. Judge ownership from **last
-activity**, not status: `plan-manager plans list` and `plans get` print the
-decode and the age next to the status for exactly this reason.
+Neither `draft` nor `active` proves ownership or recency; inspect the selected plan with `program-runtime library run plan-manager.plan-read --input id=<id-or-slug>`. Use owner `plans get` only for authored prose.
 
 **Do not report an existing plan as a reason to stop.** A stale `draft` or
 `active` plan covering your subject is evidence to read, not a conflict to

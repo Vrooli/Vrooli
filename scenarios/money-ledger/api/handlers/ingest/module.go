@@ -51,10 +51,17 @@ func (s *Service) PreviewCryptoObservation(ctx context.Context, req *connect.Req
 }
 
 func (s *Service) RegisterAdapter(ctx context.Context, req *connect.Request[ingestpb.RegisterAdapterRequest]) (*connect.Response[ingestpb.RegisterAdapterResponse], error) {
-	if err := access.AuthorizeAdapter(ctx, req.Msg.GetAdapter().GetId()); err != nil {
+	adapter := req.Msg.GetAdapter()
+	if adapter == nil {
+		return nil, invalid(errors.New("adapter is required"))
+	}
+	if adapter.GetId() == access.ComputeManagerInvoiceAdapter && (adapter.GetName() != "Compute Manager provider invoices" || adapter.GetKind() != ingestpb.AdapterKind_ADAPTER_KIND_AGGREGATOR || !adapter.GetEnabled()) {
+		return nil, invalid(errors.New("Compute Manager invoice adapter metadata is fixed by Money Ledger"))
+	}
+	if err := access.AuthorizeAdapterRegistration(ctx, adapter.GetId()); err != nil {
 		return nil, err
 	}
-	a, err := s.store.RegisterAdapter(ctx, req.Msg.Adapter)
+	a, err := s.store.RegisterAdapter(ctx, adapter)
 	if err != nil {
 		return nil, invalid(err)
 	}

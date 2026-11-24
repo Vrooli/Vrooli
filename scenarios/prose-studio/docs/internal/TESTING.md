@@ -27,7 +27,7 @@ Existing local entry points (choose the domain test for the behavior you change)
 - **Seams definition + adding new seams**: [`SEAMS.md`](SEAMS.md).
 - **Skill bundle for testing-related work** (load before substantial test changes):
   ```bash
-  prompt-manager skill read seam-discovery-and-enforcement
+  prompt-manager skill read architecture-lenses
   prompt-manager skill read unit-testing-architecture-steer
   ```
 - **Test runner used by CI and `vrooli scenario test`**: see

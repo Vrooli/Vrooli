@@ -4,6 +4,8 @@
 |---|---|---|---|
 | Routed database | `*database.RoutedDB` | API composition root | isolated test pools; database failure is explicit |
 | Evaluation clock | `schedule.Clock` | API composition root | scheduler uses the injected clock and records evaluation time |
+| API environment reader | `Service.getenv` | API composition root | runtime overrides and test-only toggles are read through the injected function |
+| CLI fact clock | `handlers.now` | CLI command registration | default fact timestamps use the injected UTC clock; explicit RFC3339 inputs bypass it |
 | Money Ledger read client | generated `JournalServiceClient` and `PositionServiceClient` | board handler | short deadline; source becomes visible unavailable, never zero |
 | Catalog store | `catalog.Store` | catalog domain | typed edge matrix, lifecycle adjacency, and trigger preconditions are enforced server-side |
 | Scheduler | `Service.startScheduler` | gates composition root | failed scheduled evaluations are logged and remain retryable |

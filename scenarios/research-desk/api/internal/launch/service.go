@@ -376,6 +376,18 @@ func (s *Service) supersessions(ctx context.Context, snap *home.Snapshot, verdic
 			continue
 		}
 		t := targetOf(c)
+		// A desk launch can have a durable session and a recorded stance_sent,
+		// yet no thread_id when Web Console disappeared while waiting at
+		// ready_seen. Re-resolve only the unique top-level thread from that
+		// launch's exact session; Ready below still proves the terminal shows
+		// that thread idle before Stop can type or signal anything.
+		if t.Thread == "" && c.Launch != nil && c.Launch.LaunchedBy == "desk" &&
+			c.Launch.Failed != nil && c.Launch.Failed.Step == StepReadySeen &&
+			hasLaunchStep(c.Launch.Steps, StepStanceSent) && !hasLaunchStep(c.Launch.Steps, StepGoalSent) {
+			if thread, err := s.Launcher.Sessions.SessionThread(t.Session); err == nil {
+				t.Thread = thread
+			}
+		}
 		sup := supersession{ID: c.ID, Target: t, Open: c.State.Running() || (c.Session != nil && c.Session.WindowOpen)}
 		if sup.Stale = staleThread(c, t, snap.Now); sup.Stale != "" || (!sup.Open && c.Session == nil) {
 			out = append(out, sup) // nothing the desk can or need stop: recorded only

@@ -148,6 +148,10 @@
               "description": "Perf-flow slug to drive a SPECIFIC interaction inside the trace window \u2014 resolves to <scenario>/bas/flows/<slug>.json (an assertion-free flow marked intent:performance; use literal [data-testid=...] selectors). Empty = default navigate+mount-settle. Example: --workflow scroll-dashboard. See the `performance` skill and bas/README.md for the authoring loop."
             },
             {
+              "name": "layout-cache-arm",
+              "description": "Select enabled or disabled cache only for swarm-manager --workflow graph-large-topology; omitted preserves the enabled default. The selected arm is returned in the audit receipt."
+            },
+            {
               "name": "json",
               "description": "Emit JSON output"
             }

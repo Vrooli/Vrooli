@@ -17,6 +17,7 @@ API tests should cover domain services first, then handlers. Required P0 test th
 - Device identity reconciliation, ambiguity notes, randomized MAC handling, stale-hostname evidence, group updates, and AdGuard `/control/clients` import without query-level DNS log exposure.
 - Optimization baseline requirement, candidate evidence capture, reliability-first scoring, approval gating, apply failure handling, rollback failure handling, and manual-required candidates.
 - Capability reports for supported and unsupported actions, including platform profiles.
+- Adapter endpoint metadata and Connect responses: declared request/response fields match their RPCs, unsupported router actions expose manual steps, and resolver capabilities move from unsupported to supported only when a governed backend reference is configured.
 - Home Automation action listing, approval-gated invocation, manual-required unsupported write actions, redacted event summaries, and publisher failure recording.
 - Optimization retention interaction with before/after experiment ledgers.
 

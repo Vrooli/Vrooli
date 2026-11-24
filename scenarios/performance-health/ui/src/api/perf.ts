@@ -17,6 +17,7 @@ import {
   AuditService,
   type RunAuditResponse,
   AuditOutcome,
+  LayoutCacheArm,
 } from "@vrooli/proto-types/performance-health/v1/audit/audit_pb";
 import {
   TrendService,
@@ -79,8 +80,12 @@ export const perfClient = {
   }): Promise<ReadinessFixResponse> =>
     readiness.applyReadinessFix({ scenario: input.scenario, ruleIds: input.ruleIds ?? [] }),
 
-  runAudit: (input: { scenario: string; workflow?: string }): Promise<RunAuditResponse> =>
-    audit.runAudit({ scenario: input.scenario, workflow: input.workflow ?? "" }),
+  runAudit: (input: { scenario: string; workflow?: string; layoutCacheArm?: LayoutCacheArm }): Promise<RunAuditResponse> =>
+    audit.runAudit({
+      scenario: input.scenario,
+      workflow: input.workflow ?? "",
+      ...(input.layoutCacheArm === undefined ? {} : { layoutCacheArm: input.layoutCacheArm }),
+    }),
 
   getTrend: (input: { scenario: string; limit?: number }): Promise<GetTrendResponse> =>
     trend.getTrend({ scenario: input.scenario, limit: input.limit ?? 30 }),
@@ -112,7 +117,7 @@ export const perfClient = {
     }),
 };
 
-export { CaptureTier, AuditOutcome };
+export { CaptureTier, AuditOutcome, LayoutCacheArm };
 export type {
   ScanFleetResponse,
   FleetScenarioEntry,

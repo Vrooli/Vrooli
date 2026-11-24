@@ -69,12 +69,16 @@
       "description": "",
       "category": "adapters",
       "request": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "action": "string"
+        }
       },
       "response": {
         "type": "object",
         "properties": {
-          "capabilities": "array<Capability>"
+          "capability": "Capability",
+          "manual_steps": "array<string>"
         }
       }
     },
@@ -91,7 +95,7 @@
       "response": {
         "type": "object",
         "properties": {
-          "capabilities": "array<Capability>"
+          "summary": "PlatformSummary"
         }
       }
     },

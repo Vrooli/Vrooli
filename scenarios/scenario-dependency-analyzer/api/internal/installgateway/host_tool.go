@@ -174,18 +174,21 @@ func resolveAgentResource(root, name, ecosystem, pkg, version string) (Resolutio
 	if manifest.Name != name || manifest.Acquisition == nil {
 		return Resolution{}, fmt.Errorf("harness resource acquisition is not declared")
 	}
-	target, err := manifest.Acquisition.Resolve(binaryfetch.Facts{"os": runtime.GOOS, "arch": runtime.GOARCH})
+	// The request names a package, not a channel. Recovering the target by
+	// package keeps a second release line installable without changing the
+	// governance proto, and makes the channel (and therefore prefix) explicit.
+	target, err := manifest.Acquisition.ResolveForPackage(binaryfetch.Facts{"os": runtime.GOOS, "arch": runtime.GOARCH}, pkg)
 	if err != nil {
-		return Resolution{}, err
+		return Resolution{}, fmt.Errorf("harness package differs from the resource acquisition contract: %w", err)
 	}
-	if target.Unsupported != "" || target.Package == "" || target.Package != pkg {
-		return Resolution{}, fmt.Errorf("harness package differs from the resource acquisition contract")
+	if target.Unsupported != "" {
+		return Resolution{}, fmt.Errorf("harness package is unsupported on this platform: %s", target.Unsupported)
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return Resolution{}, err
 	}
-	prefix, err := agentinstall.NPMInstallPrefix(home, name, version)
+	prefix, err := agentinstall.NPMInstallPrefixForChannel(home, name, target.Channel, version)
 	if err != nil {
 		return Resolution{}, err
 	}
@@ -201,7 +204,7 @@ func resolveAgentResource(root, name, ecosystem, pkg, version string) (Resolutio
 		return Resolution{}, fmt.Errorf("harness executable must be a clean path within node_modules")
 	}
 	argv := agentinstall.NPMInstallArgs(prefix, pkg+"@"+version)
-	return Resolution{HostTool: true, HostToolTargetVersion: version, HostToolExecutable: executable, RepositoryRoot: root, SurfaceRoot: source, ManifestPath: manifestPath, PackageManager: "npm", PackageName: pkg, ExactVersion: true, Argv: argv, Profile: InstallProfile{Governance: "scenario-dependency-analyzer", LifecycleMode: "resource-agent", ScriptsDisabled: true}}, nil
+	return Resolution{HostTool: true, HostToolTargetVersion: version, HostToolExecutable: executable, RepositoryRoot: root, SurfaceRoot: source, ManifestPath: manifestPath, PackageManager: "npm", PackageName: pkg, Channel: target.Channel, ExactVersion: true, Argv: argv, Profile: InstallProfile{Governance: "scenario-dependency-analyzer", LifecycleMode: "resource-agent", ScriptsDisabled: true}}, nil
 }
 
 func provisionAgentResource(ctx context.Context, r Resolution) (string, error) {
@@ -210,7 +213,7 @@ func provisionAgentResource(ctx context.Context, r Resolution) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if want.Profile.LifecycleMode != "resource-agent" || r.Command() != want.Command() || r.HostToolExecutable != want.HostToolExecutable || r.ManifestPath != want.ManifestPath || r.SurfaceRoot != want.SurfaceRoot || r.Profile != want.Profile || !r.HostTool || !r.ExactVersion || r.HostSource || r.HostToolRefresh {
+	if want.Profile.LifecycleMode != "resource-agent" || r.Command() != want.Command() || r.HostToolExecutable != want.HostToolExecutable || r.ManifestPath != want.ManifestPath || r.SurfaceRoot != want.SurfaceRoot || r.PackageName != want.PackageName || r.Channel != want.Channel || r.Profile != want.Profile || !r.HostTool || !r.ExactVersion || r.HostSource || r.HostToolRefresh {
 		return "", fmt.Errorf("harness resolution changed before installation")
 	}
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)

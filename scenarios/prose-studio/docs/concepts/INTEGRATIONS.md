@@ -24,6 +24,21 @@ Use this document to answer:
 | Remote OK public jobs feed | third-party API | no | `job-readiness` | Read-only JSON feed at `https://remoteok.com/api`; only the operator-entered query terms are sent as tags. Each listing links to its original post. | The provider has a 3-second bound and returns its own error; manual intake and the three link-out sources still work. |
 | Future job-search provider adapters | third-party API | no | `job-readiness` | `DiscoveryProvider` seam supports independent adapters; no credentials or other provider APIs are wired by default. | Each wired provider returns its own error; other sources still return results. |
 
+## Application document contract (v1)
+
+`ProseStudioService.GenerateApplicationDocument` accepts only `cover_letter` and
+`short_answer`. The caller supplies confirmed fact/listing source literals,
+opaque confirmation receipt references, and an instruction. Prose Studio routes
+inference through an explicitly local-only profile using `private_ephemeral`
+generation. The response is draft-only JSON
+with each sentence mapped to source IDs. Missing, unconfirmed, duplicate, or
+unsupported source references and malformed/provider-failed output are refused
+without persisting the prompt, sources, or generated text. Source references
+establish traceability only; Career Desk remains responsible for truth checks,
+review receipts, and deciding whether any sentence is supported. This contract
+does not submit or send documents. Real inputs remain gated on J1-confirmed
+facts and Career Desk's confirmed-source contract.
+
 ## Vrooli Resources
 
 Prose Studio declares **no external Vrooli resource**, and that is a decision

@@ -233,6 +233,11 @@ Design rules that came out of the 2026-11 reliability pass:
 - Repairs happen in the staging copy and are shown. A lock entry pnpm refuses (no
   integrity on a tarball URL, a version younger than the release-age policy) is
   fixed there, never by relaxing the policy, and the preview reports it.
+- pnpm local patch files are read only from confined, non-symlink paths declared
+  in `patchedDependencies`, copied into the private staging tree, and bounded by
+  per-file and aggregate limits. Their bytes count in admission, and source
+  changes between resolution and publish refuse the apply. Staging cleanup owns
+  the temporary copies.
 - An install never destroys state to proceed. A store mismatch or an
   unrecoverable lock leaves node_modules alone and says what to run.
 - Identity is explicit. A `file:` package is a real directory under `packages/`; a

@@ -12,6 +12,7 @@
   "dependencies": {
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "@vrooli/react-component-library": "file:../../../packages/react-component-library",
     "axios": "^1.21.0",
     "express": "^4.22.3",
     "lucide-react": "^0.263.1",

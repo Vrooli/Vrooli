@@ -135,6 +135,17 @@ func (h *handlers) createDocumentCall(ctx cliapp.OperationContext) (*v1.CreateDo
 	}
 	return responseMessage(response)
 }
+func (h *handlers) generateApplicationDocumentCall(ctx cliapp.OperationContext) (*v1.GenerateApplicationDocumentResponse, error) {
+	request, err := requestFromFlag(ctx, &v1.GenerateApplicationDocumentRequest{})
+	if err != nil {
+		return nil, err
+	}
+	response, err := h.client.GenerateApplicationDocument(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("prose GenerateApplicationDocument", err, nil)
+	}
+	return responseMessage(response)
+}
 func (h *handlers) assembleDocumentCall(ctx cliapp.OperationContext) (*v1.AssembleDocumentResponse, error) {
 	request, err := requestFromFlag(ctx, &v1.AssembleDocumentRequest{})
 	if err != nil {

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Wand2 } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { ErrorState, LoadingState, Skeleton } from "../../components/ui/state";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
@@ -12,6 +12,7 @@ import { perfClient, type ReadinessFixResponse } from "../../api/perf";
 import { useScenario } from "../perf/scenarioContextValue";
 import { ScenarioPicker } from "../perf/ScenarioPicker";
 import { TIER_LABEL_KEY, tierChipClass, tierKey } from "../perf/format";
+import { cn } from "../../lib/utils";
 
 /**
  * "Readiness + one-click autofix" workflow. ValidateReadiness reports the
@@ -129,10 +130,12 @@ export function ReadinessPanel() {
             <div className="ms-auto flex gap-2">
               <Button
                 data-testid={selectors.readiness.previewButton}
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 onClick={() => preview.mutate()}
                 disabled={preview.isPending || autofixableCount === 0}
+                shape="square"
+                className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
               >
                 {preview.isPending ? t(strings.common.loading) : t(strings.readiness.preview)}
               </Button>
@@ -141,6 +144,7 @@ export function ReadinessPanel() {
                 size="sm"
                 onClick={() => apply.mutate()}
                 disabled={apply.isPending || autofixableCount === 0}
+                shape="square"
               >
                 <Wand2 aria-hidden="true" className="me-1 h-4 w-4" />
                 {apply.isPending ? t(strings.readiness.applying) : t(strings.readiness.apply)}

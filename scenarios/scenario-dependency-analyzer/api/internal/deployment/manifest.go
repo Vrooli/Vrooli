@@ -593,6 +593,15 @@ func derivePeers(cfg *types.Manifest, nested ...[]types.DeploymentDependencyNode
 			if node.Type != "scenario" || node.Path == "" {
 				continue
 			}
+			dependency, declared := parent.Dependencies.Scenarios[node.Name]
+			if !declared || (dependency.BundlePolicy != "embed" && dependency.BundlePolicy != "either") {
+				// Only an embedded owner's dependency graph is part of this
+				// bundle's peer surface. A discovered or policy-free owner
+				// resolves its own dependencies at runtime; flattening those
+				// descendants here can publish features for services that were
+				// never staged into the root bundle.
+				continue
+			}
 			if _, visited := seen[node.Name]; visited {
 				continue
 			}

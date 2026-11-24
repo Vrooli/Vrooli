@@ -32,11 +32,14 @@ import (
 	dependenciesapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/dependencies"
 	dependencygovernanceapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/dependencygovernance"
 	dependencyhealthapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/dependencyhealth"
+	dependencyrationaleapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/dependencyrationale"
 	deploymentapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/deployment"
 	graphapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/graph"
 	optimizationapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/optimization"
 	platformverdictapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/platformverdict"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/policybridge"
 	proposalapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/proposal"
+	resourceinventoryapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/resourceinventory"
 	resourceusageapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/resourceusage"
 	searchcontrolapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/searchcontrol"
 )
@@ -155,6 +158,7 @@ func Run(cfg appconfig.RuntimeConfig, dbConn *database.RoutedDB) error {
 	dependencygovernanceapi.RegisterConnectRoutes(router, h.scenariosDir,
 		dependencygovernanceapi.WithSemanticRanker(searchService),
 		dependencygovernanceapi.WithDiskJobBroker(diskBroker))
+	stopPolicyPublisher := policybridge.Start(context.Background(), log.Default())
 
 	// Federate every SDA leaf into search-hub from the same .vrooli/search.json
 	// SSOT (dependencies, scenarios, resources). Best-effort: the hub being down is
@@ -197,12 +201,14 @@ func Run(cfg appconfig.RuntimeConfig, dbConn *database.RoutedDB) error {
 		Port:    cfg.Port,
 		LifecycleHooks: lifecycle.Hooks{
 			Quiesce: func(ctx context.Context) error {
+				stopPolicyPublisher()
 				if err := operations.Close(ctx); err != nil {
 					return err
 				}
 				return workers.Stop(ctx)
 			},
 			Resume: func(ctx context.Context) error {
+				stopPolicyPublisher = policybridge.Start(context.Background(), log.Default())
 				if err := operations.Start(context.Background()); err != nil {
 					return err
 				}
@@ -250,6 +256,8 @@ func registerRoutes(router *gin.Engine, handler *handler, graphIngest *graphInge
 		deploymentapi.RegisterHTTPRoutes(api, handler.deploymentService())
 		analysisapi.RegisterHTTPRoutes(api, handler.analysisService(), handler.scanService())
 		dependenciesapi.RegisterHTTPRoutes(api, handler.dependencyService())
+		dependencyrationaleapi.RegisterHTTPRoutes(api, handler.scenariosDir)
+		resourceinventoryapi.RegisterHTTPRoutes(api, func() string { return filepath.Dir(handler.scenariosDir()) })
 		coresetapi.RegisterHTTPRoutes(api, handler.scenariosDir)
 		graphapi.RegisterHTTPRoutes(api, handler.graphService(), handler.scenariosDir)
 		graphIngest.RegisterRoutes(api)

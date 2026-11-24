@@ -49,11 +49,24 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### 2026-06-08 — Phase 4 remaining deliverables (handoff)
+### 2026-11-24 — Phase 4 live federation evidence awaits an adopted measure
 
-**Symptom:** The scenario enforces + grades measure adoption (the `validation`
-domain + the test-genie→EM producer) but does not yet *federate/answer*
-analytical questions, has no fleet UI, and still ships the `notes` example.
+**Symptom:** The June handoff described federation, fleet UI, and the Notes
+example as unfinished. Current source and owner tests show the search/index API
+and fleet UI are present and the Notes runtime domain is retired. The remaining
+acceptance gap is an end-to-end query against a scenario that actually declares
+a measure: a current manifest scan found zero measure declarations, so a live
+fleet answer cannot yet be demonstrated.
+
+**Status update 2026-11-24:** Rechecked current API and CLI Go suites and the
+full UI Vitest suite (94 tests); all pass. The owner tree contains search
+handlers/registration, fleet routes/components, and no `api/internal/notes`
+runtime directory. Therefore the former UI/Notes subclaims are stale and those
+components are complete. No measure-bearing scenario manifest exists today, so
+the live search-hub federation acceptance remains open. Next step: the
+measures-health owner coordinates with the first adopting scenario owner to add
+one real measure and records a search-hub query/answer transcript. See
+`problem-triage-20261123/evidence/PT2-MEASURES-HEALTH-PHASE4-FEDERATION-STATUS.md`.
 
 **Root cause:** Phase 4 was landed in dependency order; the federation half and
 UI remain.
@@ -208,7 +221,7 @@ corpus) rather than shipped unexercised.
 `measures-health validate coverage`). The producer feeds the EM `measures`
 dimension at soft R4.
 
-**Owner:** next Phase 4 continuation agent.
+**Owner:** measures-health owner; next step requires the first measure-adopting scenario owner.
 
 **Refs:** `api/internal/validation/`, `packages/measures-go/manifestscan/`,
 `api/handlers/validation/`, `cli/domains/validate/`,

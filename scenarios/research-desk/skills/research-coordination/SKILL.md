@@ -50,7 +50,7 @@ Measure topics with `python3 -I ../research-review/scripts/history.py topic <t>`
 
 ### Routes fail (R4)
 
-Agent Manager, Program Runtime, Prompt Manager, Search Hub, Source Ledger, Notification Hub and Research Desk are optional. When a call fails, take the direct path that turn (native sub-agents, the command itself, a skill file by path, `rg`) and log `Route failure · <UTC> · <route> · <command> · <first error line> · direct path taken`.
+Agent Manager, Program Runtime, Prompt Manager, Search Hub, Source Ledger, Notification Hub and Research Desk are optional. When a call fails, take the direct path that turn (native sub-agents, the command itself, a skill file by path, `rg`) and log `Route failure · <UTC> · <route> · <command> · <first error line> · direct path taken`. For Search Hub behavior, use `scenarios/search-hub/skills/search-hub/SKILL.md` §6: its `rg` fallback applies only to repository/topic discovery over approved paths, leaves Search Hub coverage `unknown`, and does not establish selected-owner readiness.
 
 ### Decisions travel up, friction travels down
 

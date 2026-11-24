@@ -38,10 +38,21 @@ func resolveManagedServiceResource(root, name, ecosystem, pkg, version string) (
 	if err != nil {
 		return Resolution{}, err
 	}
-	if target.Unsupported != "" || target.Executable != "" || manifest.ManagedService.Acquisition.EffectiveKind(target) != "url" || !binaryfetch.UsesOnlyBuildTimeFacts(target) {
+	kind := manifest.ManagedService.Acquisition.EffectiveKind(target)
+	if target.Unsupported != "" || target.Executable != "" || (kind != "url" && kind != "composed") || !binaryfetch.UsesOnlyBuildTimeFacts(target) {
 		return Resolution{}, fmt.Errorf("%s has no pinned release on this platform", name)
 	}
-	if digest, err := hex.DecodeString(target.SHA256); err != nil || len(digest) != 32 {
+	artifactDigest := target.SHA256
+	if kind == "composed" {
+		if target.Auth != nil {
+			return Resolution{}, fmt.Errorf("%s composed release cannot use acquisition credentials", name)
+		}
+		if _, err := binaryfetch.PlanCompositionCapacity(target.Compose); err != nil {
+			return Resolution{}, fmt.Errorf("%s composed release has no complete capacity bound: %w", name, err)
+		}
+		artifactDigest = target.ArtifactSHA256
+	}
+	if digest, err := hex.DecodeString(artifactDigest); err != nil || len(digest) != 32 {
 		return Resolution{}, fmt.Errorf("%s source requires a valid SHA-256", name)
 	}
 	artifact, err := manifest.ManagedService.Artifact.ForCurrentPlatform()
@@ -50,6 +61,9 @@ func resolveManagedServiceResource(root, name, ecosystem, pkg, version string) (
 	}
 	if artifact.SHA256 == "" {
 		return Resolution{}, fmt.Errorf("%s requires the exact platform artifact digest", name)
+	}
+	if kind == "composed" && artifact.SHA256 != artifactDigest {
+		return Resolution{}, fmt.Errorf("%s composed artifact digest differs from the exact platform artifact", name)
 	}
 	return Resolution{RepositoryRoot: root, SurfaceRoot: filepath.Dir(path), ManifestPath: path, PackageManager: "native-binaryfetch", PackageName: pkg, HostToolTargetVersion: version, HostManifestSHA256: fmt.Sprintf("%x", sha256.Sum256(raw)), ExactVersion: true, Argv: []string{"native-acquire", pkg, version}, Profile: InstallProfile{Governance: "scenario-dependency-analyzer", LifecycleMode: "managed-service-artifact", FrozenLockfile: true, ScriptsDisabled: true}}, nil
 }
@@ -94,12 +108,13 @@ func planManagedServiceArtifactDisk(ctx context.Context, r Resolution) (DiskAdmi
 	if err != nil {
 		return DiskAdmissionPlan{Unsupported: err.Error()}, nil
 	}
-	if stage.DownloadBytes <= 0 || stage.DownloadBytes > DiskJobPlanningCeilingBytes/3 {
+	if stage.DownloadBytes <= 0 || stage.PeakBytes <= 0 || stage.PeakBytes > DiskJobPlanningCeilingBytes {
 		return DiskAdmissionPlan{Unsupported: "resource staging byte bound exceeds install capacity contract"}, nil
 	}
-	// Exact raw downloads stage and publish beside the canonical artifact.
-	// Reserve the candidate, retained/pending bytes and metadata on that volume.
-	plan := DiskAdmissionPlan{Manager: r.PackageManager, ProbeBytes: stage.DownloadBytes, Paths: []DiskPathRequirement{{Path: filepath.Dir(stage.Path), Role: "verified-resource-artifact", PeakBytes: 3*stage.DownloadBytes + (1 << 20)}}}
+	// The resource owner accounts conservatively for download, extracted tree,
+	// retained/pending artifact copies, and metadata. Admission applies the
+	// canonical per-job ceiling before acquisition starts.
+	plan := DiskAdmissionPlan{Manager: r.PackageManager, ProbeBytes: stage.DownloadBytes, Paths: []DiskPathRequirement{{Path: filepath.Dir(stage.Path), Role: "verified-resource-artifact", PeakBytes: stage.PeakBytes}}}
 	for _, path := range stage.MetadataDirectories {
 		if !filepath.IsAbs(path) {
 			return DiskAdmissionPlan{}, fmt.Errorf("resource stage metadata path is not absolute")

@@ -1,5 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
@@ -68,6 +68,7 @@ function DefaultFallback({ onRetry }: { onRetry: () => void }) {
           data-testid={selectors.errorBoundary.retryButton}
           className="mt-5"
           onClick={onRetry}
+          shape="square"
         >
           {t(strings.errorBoundary.retry)}
         </Button>

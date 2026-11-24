@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import { Dialog } from "@vrooli/react-component-library/Dialog/1";
 import { renderWithProviders } from "../../test-utils";
-import { Dialog } from "./dialog";
 
 describe("Dialog", () => {
   it("renders nothing while closed", () => {

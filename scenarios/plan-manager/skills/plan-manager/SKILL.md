@@ -15,7 +15,7 @@ metadata:
     scope: "plan-manager-usage"
     capture: "every attempt"
   requires:
-    scenarios: ["plan-manager", "vrooli-memory", "test-genie", "agent-manager"]
+    scenarios: ["plan-manager", "vrooli-memory", "test-genie", "agent-manager", "program-runtime"]
     commands: ["plan-manager", "vrooli-memory", "prompt-manager skill read"]
   origin: {kind: "authored"}
 ---
@@ -42,7 +42,7 @@ Read the rows in order; take the first applicable next step.
 
 | Situation | Next step |
 |---|---|
-| Operation or flags are unknown | Read `plan-manager <group> help`. **[S1]** |
+| Need plan inventory or command flags are unknown | Run `program-runtime library run plan-manager.plan-inventory --input limit=40 --input offset=0` and derive continuation from `total`, `offset` and `count`; run `program-runtime library run plan-manager.plan-read --input id=<id-or-slug>` for one plan summary. Otherwise read `plan-manager <group> help`. **[S1]** |
 | Need a new plan or a material plan revision | Read `implementation-plan-authoring`; preserve its authoring judgment and use the owner wizard. **[S0]** |
 | Need to resume an existing plan/execution | Run `plan-manager exec continue <plan-or-execution>`. Read its current action before issuing another operation. **[S1]** |
 | Need to inspect current execution without advancing | Run `plan-manager exec context <execution>`. **[S1]** |

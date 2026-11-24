@@ -152,8 +152,8 @@ helpers).
 
 ## Adding a new command
 
-For a new domain, copy the notes command group first, then replace it
-once your real domain is green.
+For a new domain, add its manifest group and owner package, then verify
+the generated procedure binding with the per-domain coverage test.
 
 For a command inside an existing domain:
 
@@ -197,11 +197,11 @@ For a command inside an existing domain:
 
 ## Command structure principles
 
-- **Subcommand groups** (`notes list`, `notes create`) over flat
-  verbs (`list-notes`, `create-note`). Discoverability via `--help`
+- **Subcommand groups** (`validate scenario`, `describe scenario`) over
+  flat verbs (`validate-scenario`, `describe-scenario`). Discoverability via `--help`
   is the goal.
-- **Positional for required, flags for optional.** `notes get <id>`
-  not `notes get --id <id>`.
+- **Positional for required, flags for optional.** `describe scenario <name>`
+  not `describe --scenario <name>`.
 - **One command per API endpoint.** If you find yourself making two
   endpoint calls, the API is missing a use-case.
 - **Error messages must be actionable.** "API unreachable" is bad;

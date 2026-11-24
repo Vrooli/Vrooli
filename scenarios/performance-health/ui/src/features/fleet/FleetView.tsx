@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { EmptyState, ErrorState, LoadingState, Skeleton } from "../../components/ui/state";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
@@ -11,6 +11,7 @@ import { errorMessage } from "../../lib/errorMessage";
 import { perfClient, type FleetScenarioEntry } from "../../api/perf";
 import { TIER_LABEL_KEY, fleetTierKey, formatMs, tierChipClass } from "../perf/format";
 import { useScenario } from "../perf/scenarioContextValue";
+import { cn } from "../../lib/utils";
 
 const FLEET_QUERY_KEY = ["fleet-scan", "dashboard"] as const;
 
@@ -64,12 +65,13 @@ export function FleetView() {
         </div>
         <Button
           data-testid={selectors.fleet.refreshButton}
-          variant="outline"
+          variant="ghost"
           size="sm"
-          className="ms-auto"
+          className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted", "ms-auto")}
           onClick={() => void query.refetch()}
           disabled={query.isFetching}
           aria-label={t(strings.fleet.refresh)}
+          shape="square"
         >
           <RefreshCw
             aria-hidden="true"

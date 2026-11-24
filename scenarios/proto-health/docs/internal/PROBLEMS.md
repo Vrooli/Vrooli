@@ -49,32 +49,27 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### 2026-06-11 - Generated notes slice is temporary reference code
+### 2026-06-11 - Generated notes slice is temporary reference code — RESOLVED 2026-11-24
 
-**Symptom:** The scaffold still contains the template `notes` CRUD
-domain, its SQLite schema, CLI commands, UI pages, and proto files.
-Proto validation reports those relocated template contracts as
-`proto.template_source` warnings while they remain marked
-`@template react-vite/example`.
+**Disposition:** Resolved. The finding described an obsolete scaffold state:
+the notes API, schema, handlers, CLI commands, and UI feature are absent, and
+validation, proto-surface, and impact capabilities now have active API/CLI/UI
+surfaces. Corrected the current domain, data, architecture, API, CLI, README,
+and Start Here references so they no longer instruct maintainers to implement
+or delete those already-completed domains. Older seam/tutorial mentions remain
+only as explicitly historical examples, not live product contracts.
 
-**Root cause:** `proto-health` was generated from the `react-vite`
-template before its real `validation` and `protosurface` domains were
-implemented.
-
-**Workaround:** Treat notes as reference-only. Do not extend it for
-product behavior. Keep the `@template` marker while it is reference
-code. Copy patterns from it when implementing the first real domain,
-then delete notes or remove the marker only when the contract is
-intentionally adopted.
-
-**Real fix:** Implement `validation` and `protosurface` with API, CLI,
-UI, tests, and docs; remove notes code/protos/docs references after the
-replacement pattern is green.
+**Owner evidence:** `api/internal/validation`, `api/internal/protosurface`,
+`api/handlers/validation`, `cli/domains/{validate,describe,impact}`, and
+`ui/src/features/proto-health/ProtoHealthPanel.tsx` exist. Full API and CLI Go
+suites and the focused proto-health panel Vitest suite pass. Focused proof is
+not a full scenario `make test` receipt.
 
 **Owner:** proto-health implementer.
 
-**Refs:** `docs/concepts/DOMAINS.md`, `api/internal/notes/`,
-`packages/proto/schemas/proto-health/v1/notes/`.
+**Refs:** `docs/concepts/DOMAINS.md`, `docs/concepts/DATA.md`,
+`docs/reference/api-endpoints.md`, `docs/reference/cli-commands.md`,
+`api/internal/validation/`, `api/internal/protosurface/`.
 
 ### 2026-06-12 - Implementation proof tier is deferred
 
@@ -133,7 +128,7 @@ a migration handoff with a planned retirement path back into
 
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
-| Template reference | `notes` remains while real domains are not implemented. | Keeps extra product-looking surfaces in a meta scenario. | Remove after `validation` and `protosurface` replace its reference value. |
+| _None unresolved._ | The stale notes scaffold record was resolved 2026-11-24 after verifying the active replacement domains and updating current owner documentation. | No current template-domain drift is recorded. | Keep canonical domain, API, CLI, and data docs aligned with runtime. |
 
 ## Cross-references
 

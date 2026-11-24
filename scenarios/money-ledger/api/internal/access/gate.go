@@ -121,14 +121,14 @@ func (g *Gate) Resolve(ctx context.Context) Caller {
 		}
 		return Caller{Actor: Operator, SignedInAs: person}
 	case identity.ActorService:
-		actor, declared := serviceWriters[principal.Subject]
+		writer, declared := serviceWriters[principal.Subject]
 		if !declared || principal.Source != identity.SourceScenarioAuthenticator {
 			return Caller{Refusal: RefusedUndeclaredService, Reason: "this service is not a declared Money Ledger writer"}
 		}
-		if !scopecatalog.Resolve(principal.Scopes, WriteCapability) {
-			return Caller{Refusal: RefusedUndeclaredService, Reason: "this service principal does not hold " + WriteCapability}
+		if !scopecatalog.Resolve(principal.Scopes, writer.scope) {
+			return Caller{Refusal: RefusedUndeclaredService, Reason: "this service principal does not hold " + writer.scope}
 		}
-		return Caller{Actor: actor}
+		return Caller{Actor: writer.actor}
 	}
 	return Caller{Refusal: RefusedUnverified, Reason: "the presented identity could not be verified"}
 }
@@ -197,6 +197,18 @@ func AuthorizeAdapter(ctx context.Context, adapterID string) error {
 		return connect.NewError(connect.CodePermissionDenied, errors.New("adapter "+strings.TrimSpace(adapterID)+" is written only by "+string(owner)))
 	}
 	return nil
+}
+
+// AuthorizeAdapterRegistration keeps the compute invoice adapter owner-managed
+// while reserving every use of it to the narrow invoice writer.
+func AuthorizeAdapterRegistration(ctx context.Context, adapterID string) error {
+	if strings.TrimSpace(adapterID) == ComputeManagerInvoiceAdapter {
+		if ActorFrom(ctx) == Operator {
+			return nil
+		}
+		return connect.NewError(connect.CodePermissionDenied, errors.New("the Compute Manager invoice adapter is registered only by the owner"))
+	}
+	return AuthorizeAdapter(ctx, adapterID)
 }
 
 type actorKey struct{}

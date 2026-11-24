@@ -24,7 +24,11 @@ func BuildSnapshot(now time.Time) ([]byte, error) {
 		"health":         map[string]any{"state": "healthy", "checked_at": now.UTC(), "expires_at": now.UTC().Add(time.Hour), "message": "typed install gateway available"},
 		"readiness":      map[string]any{"state": "ready", "rollback_plan": "withdraw SDA snapshot and retain prior bundle"},
 		"evidence_state": "clean", "captured_at": now.UTC(), "expires_at": now.UTC().Add(time.Hour),
-		"rules":      []map[string]any{{"risk": "dependency_addition", "action": "route", "reason": "route package mutation through Scenario Dependency Analyzer"}, {"risk": "dependency_upgrade", "action": "route", "reason": "route package mutation through Scenario Dependency Analyzer"}, {"risk": "dependency_removal", "action": "route", "reason": "route package mutation through Scenario Dependency Analyzer"}, {"risk": "lifecycle_execution", "action": "deny", "reason": "lifecycle execution requires explicit governed reproduction"}},
+		// Lifecycle execution remains at its current allow posture. A blanket
+		// denial for every prepare/preinstall/postinstall token would block
+		// ordinary commands and is not an established hard stop. The runtime's
+		// independent hard-stop checks still run before provider rules.
+		"rules":      []map[string]any{{"evaluator_id": "scenario-dependency-analyzer:dependency-addition", "risk": "dependency_addition", "action": "route", "reason": "route package mutation through Scenario Dependency Analyzer"}, {"evaluator_id": "scenario-dependency-analyzer:dependency-upgrade", "risk": "dependency_upgrade", "action": "route", "reason": "route package mutation through Scenario Dependency Analyzer"}, {"evaluator_id": "scenario-dependency-analyzer:dependency-removal", "risk": "dependency_removal", "action": "route", "reason": "route package mutation through Scenario Dependency Analyzer"}, {"evaluator_id": "scenario-dependency-analyzer:lifecycle-execution", "risk": "lifecycle_execution", "action": "allow", "reason": "preserve existing lifecycle behavior; independent hard-stop checks remain active"}},
 		"provenance": map[string]string{"provider": "scenario-dependency-analyzer", "argv_only": "true", "scripts_disabled_by_default": "true"},
 	}, "", "  ")
 }

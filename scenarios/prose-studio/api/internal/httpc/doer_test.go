@@ -7,8 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vrooli/api-core/apihttptest"
 	"prose-studio/internal/httpc"
+
+	"github.com/vrooli/api-core/apihttptest"
 
 	"github.com/stretchr/testify/require"
 )

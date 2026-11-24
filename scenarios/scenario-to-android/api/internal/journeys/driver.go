@@ -7,6 +7,7 @@ package journeys
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -1008,6 +1009,56 @@ func (d Driver) Execute(ctx context.Context, request deliveryramp.DriverRequest)
 					networkRestoreNeeded = false
 				}
 			}
+			if actionErr == nil && strings.EqualFold(spec.Action, "observe") && strings.EqualFold(spec.Arguments["experience_backend"], "ex9") {
+				evaluator, supported := d.Devices.(AndroidExperienceEvaluator)
+				if !supported {
+					actionErr = fmt.Errorf("Device Control client does not support the Android EX9 analysis seam")
+				} else {
+					var expectedKeyboard *bool
+					if raw, present := spec.Arguments["expected_keyboard_visible"]; present {
+						value, parseErr := strconv.ParseBool(raw)
+						if parseErr != nil {
+							actionErr = fmt.Errorf("invalid expected_keyboard_visible value %q", raw)
+						} else {
+							expectedKeyboard = &value
+						}
+					}
+					if actionErr == nil {
+						buildID := strings.TrimSpace(request.Artifact.Metadata["build_id"])
+						if buildID == "" {
+							buildID = strings.TrimSpace(request.Artifact.Checksum)
+						}
+						analysis, analysisErr := evaluator.AnalyzeAndroidExperience(ctx, AndroidExperienceRequest{
+							Scenario: artifactScenario(request.Artifact, request.Cell.Target.Label), Route: spec.Arguments["route"],
+							BuildID: buildID, RunID: request.RunID, StepID: spec.ID, TargetID: request.Cell.Target.ID,
+							ViewportID: spec.Arguments["viewport_id"], ExpectedKeyboardVisible: expectedKeyboard,
+							Evidence: actionResult.Evidence,
+						})
+						if analysisErr != nil {
+							actionErr = analysisErr
+						} else {
+							encoded, marshalErr := json.Marshal(analysis)
+							if marshalErr != nil {
+								actionErr = fmt.Errorf("encode Android EX9 analysis result: %w", marshalErr)
+							} else {
+								actionResult.Observed = string(encoded)
+								step.ObservedState = actionResult.Observed
+								if analysis.Status == "not-evaluated" {
+									step.Disposition = deliveryramp.StepUnavailable
+									step.DegradedReason = analysis.Reason
+									result.Disposition = deliveryramp.DispositionDegraded
+									result.DegradedReason = analysis.Reason
+								} else if analysis.Status == "failed" {
+									step.Disposition = deliveryramp.StepFailed
+									step.Error = analysis.Reason
+									result.Disposition = deliveryramp.DispositionFailed
+									result.DegradedReason = analysis.Reason
+								}
+							}
+						}
+					}
+				}
+			}
 			if actionErr != nil {
 				step.Disposition = deliveryramp.StepFailed
 				step.Error = fmt.Sprintf("device-control step %q failed: %s", spec.ID, actionErr)
@@ -1031,7 +1082,7 @@ func (d Driver) Execute(ctx context.Context, request deliveryramp.DriverRequest)
 				return result, stopErr
 			}
 		}
-		if step.Disposition == deliveryramp.StepFailed {
+		if step.Disposition == deliveryramp.StepFailed && (index+1 >= len(request.Plan.Steps) || request.Plan.Steps[index+1].Arguments["continue_for_cleanup"] != "true") {
 			break
 		}
 	}

@@ -179,14 +179,26 @@ func measurePnpmStage(ctx context.Context, s *JSStage, r Resolution) error {
 	return s.finishMeasurement(s.Measured.PackageCount+len(jobs), total)
 }
 
-// finishMeasurement records the sized packages plus the allowance for writing
-// the published inputs twice (temporary copy, then rename).
+// finishMeasurement records sized packages, the allowance for writing
+// published inputs twice, staged local patches, and bounded resolver overhead.
 func (s *JSStage) finishMeasurement(count int, packageBytes int64) error {
 	var inputs int64
 	for _, data := range s.next {
-		inputs += int64(len(data))
+		var err error
+		inputs, err = addBoundedBytes(inputs, int64(len(data)), DiskJobPlanningCeilingBytes)
+		if err != nil {
+			return err
+		}
 	}
-	inputs, err := addBoundedBytes(inputs*2, jsInputAllowanceBytes, DiskJobPlanningCeilingBytes)
+	writtenInputs, err := addBoundedBytes(inputs, inputs, DiskJobPlanningCeilingBytes)
+	if err != nil {
+		return err
+	}
+	stagedFiles, err := addBoundedBytes(writtenInputs, s.patchBytes, DiskJobPlanningCeilingBytes)
+	if err != nil {
+		return err
+	}
+	inputs, err = addBoundedBytes(stagedFiles, jsInputAllowanceBytes, DiskJobPlanningCeilingBytes)
 	if err != nil {
 		return err
 	}

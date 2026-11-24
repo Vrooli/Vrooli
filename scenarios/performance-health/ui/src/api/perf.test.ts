@@ -57,6 +57,20 @@ describe("perfClient wrappers forward typed requests", () => {
     expect(lastFor("runAudit")).toEqual({ scenario: "x", workflow: "" });
   });
 
+  it("runAudit forwards an explicitly selected layout cache arm", async () => {
+    const { perfClient, LayoutCacheArm } = await import("./perf");
+    await perfClient.runAudit({
+      scenario: "swarm-manager",
+      workflow: "graph-large-topology",
+      layoutCacheArm: LayoutCacheArm.LAYOUT_CACHE_ARM_DISABLED,
+    });
+    expect(lastFor("runAudit")).toEqual({
+      scenario: "swarm-manager",
+      workflow: "graph-large-topology",
+      layoutCacheArm: LayoutCacheArm.LAYOUT_CACHE_ARM_DISABLED,
+    });
+  });
+
   it("trend wrappers default the limit to 30", async () => {
     const { perfClient } = await import("./perf");
     await perfClient.getTrend({ scenario: "x" });

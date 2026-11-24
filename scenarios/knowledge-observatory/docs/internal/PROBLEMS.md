@@ -44,22 +44,19 @@ Durable findings from the report were folded into:
 ### Follow-up
 Do not create new standalone screaming-architecture reports by default. Record future architecture drift here, and update `ARCHITECTURE.md` / `SEAMS.md` when the model or boundary registry changes.
 
-## 2026-02-05: Quality Score Formula Mismatch Between Schema and Code
+## 2026-02-05: Quality Score Formula Mismatch Between Schema and Code — resolved 2026-11-24
 
-### Problem
-The `avg_quality` generated column in `quality_metrics` (schema.sql) uses a different formula than the Go code in `metrics.go`.
+**Disposition:** Resolved for repository-owned reads. Redundancy is a penalty,
+so `avg_quality = (coherence + freshness + coverage - redundancy) / 3`. The
+schema, dashboard view, and `LatestMetric` query now use this formula; missing
+score components remain null. `LatestMetric` computes the result in its query
+so existing SQLite files with the older generated-column expression also
+return the correct value. The physical generated value in existing files is
+not rewritten, but no repository read consumes it after this fix.
 
-- **Schema**: `avg_quality = (coherence + freshness + redundancy + coverage) / 4` — treats redundancy as a positive signal and divides by 4.
-- **Code** (metrics.go ~line 398): `score = (coherence + freshness + coverage - redundancy) / 3.0` — subtracts redundancy (higher redundancy = worse) and divides by 3.
-
-### Impact
-The database-computed `avg_quality` and the API-returned overall score will diverge for any collection with non-zero redundancy. Dashboard metrics may show inconsistent values depending on which path is read.
-
-### Recommended Fix
-Align the schema generated column with the code formula, or vice versa. The code formula (`- redundancy / 3`) is likely correct since high redundancy is undesirable.
-
-[CODE: api/metrics.go]
-[CODE: api/internal/quality/schema.sql]
+**Evidence:** `api/internal/quality/schema.sql`, `api/internal/quality/sqlite.go`,
+and `api/internal/quality/sqlite_test.go`. `GOWORK=off go test ./...` passed on
+2026-11-24, including mixed-score, dashboard, and legacy-schema regressions.
 
 ---
 

@@ -23,7 +23,11 @@ func TestLauncherGovernanceOwner(t *testing.T) {
 	}
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	RegisterConnectRoutes(router, func() string { return filepath.Join(root, "scenarios") })
+	// The browser journey reserves its isolated HOME, npm cache and evidence
+	// paths through the shared host disk broker before this owner starts. The
+	// in-process broker below lets the real install gateway consume that outer
+	// lease without trying to reserve the same bytes a second time.
+	RegisterConnectRoutes(router, func() string { return filepath.Join(root, "scenarios") }, WithDiskJobBroker(&testDiskJobBroker{}))
 	done := make(chan struct{}, 1)
 	router.GET("/health", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "healthy"}) })
 	router.GET("/__journey/stop", func(c *gin.Context) { done <- struct{}{}; c.Status(http.StatusNoContent) })

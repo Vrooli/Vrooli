@@ -21,6 +21,22 @@ import (
 
 type fakeGateway struct{ calls []GatewayRequest }
 
+type privateErrorGateway struct{ cause error }
+
+func (g privateErrorGateway) Generate(context.Context, GatewayRequest) ([]GatewayCandidate, error) {
+	return nil, g.cause
+}
+
+type claimPhraseGateway struct {
+	responses map[string]string
+	calls     []GatewayRequest
+}
+
+func (g *claimPhraseGateway) Generate(_ context.Context, request GatewayRequest) ([]GatewayCandidate, error) {
+	g.calls = append(g.calls, request)
+	return []GatewayCandidate{{Text: g.responses[request.Query], Provider: "synthetic", Model: "fixture"}}, nil
+}
+
 func (f *fakeGateway) Generate(_ context.Context, req GatewayRequest) ([]GatewayCandidate, error) {
 	callIndex := len(f.calls)
 	f.calls = append(f.calls, req)
@@ -238,6 +254,156 @@ func newTestService(t *testing.T) (*Service, *fakeGateway) {
 	require.NoError(t, EnsureSchema(db))
 	fake := &fakeGateway{}
 	return NewWithGateway(db, fake), fake
+}
+
+func TestPrivateEphemeralGenerationDoesNotPersistRequestOrOutput(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:prose-private-ephemeral-test?mode=memory&cache=shared")
+	require.NoError(t, err)
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = db.Close() })
+	require.NoError(t, EnsureSchema(db))
+	gateway := &fakeGateway{}
+	s := NewWithGateway(db, gateway)
+	ctx := context.Background()
+	_, err = s.CreateProfile(ctx, Profile{Key: "private-local", Locality: "local_only", Sampler: Sampler{Kind: samplerDirect, K: 1}, Budget: Budget{MaxOutputTokens: 128}})
+	require.NoError(t, err)
+
+	const marker = "SYNTHETIC_PRIVATE_QUERY_MARKER"
+	out, err := s.Generate(ctx, GenerateRequest{ProfileKey: "private-local", Query: marker, IncludeCandidates: true, PersistenceMode: "private_ephemeral"})
+	require.NoError(t, err)
+	require.Equal(t, "ephemeral", out.Session.Status)
+	require.Empty(t, out.Session.Query)
+	require.NotEmpty(t, out.Session.ID, "the response should expose only an opaque session reference")
+	require.Len(t, out.Candidates, 1)
+	require.Len(t, gateway.calls, 1)
+	require.Equal(t, marker, gateway.calls[0].Query, "the synthetic request must reach the in-memory gateway")
+
+	for _, table := range []string{"prose_sessions", "prose_rounds", "prose_candidates", "prose_selection_events"} {
+		var count int
+		require.NoError(t, db.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+table).Scan(&count))
+		require.Zero(t, count, "%s must remain empty for an ephemeral generation", table)
+	}
+}
+
+func TestPrivateEphemeralRequiresLocalOnlyAndNoSavedArtifacts(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:prose-private-preflight-test?mode=memory&cache=shared")
+	require.NoError(t, err)
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = db.Close() })
+	require.NoError(t, EnsureSchema(db))
+	gateway := &fakeGateway{}
+	s := NewWithGateway(db, gateway)
+	ctx := context.Background()
+	_, err = s.CreateProfile(ctx, Profile{Key: "not-local", Locality: "local_first", Sampler: Sampler{Kind: samplerDirect, K: 1}})
+	require.NoError(t, err)
+	_, err = s.Generate(ctx, GenerateRequest{ProfileKey: "not-local", Query: "synthetic", PersistenceMode: "private_ephemeral"})
+	require.ErrorIs(t, err, ErrPrivateRouteNotLocal)
+	require.Empty(t, gateway.calls)
+
+	_, err = s.CreateProfile(ctx, Profile{Key: "private-local", Locality: "local_only", Sampler: Sampler{Kind: samplerDirect, K: 1}})
+	require.NoError(t, err)
+	_, err = s.Generate(ctx, GenerateRequest{ProfileKey: "private-local", Query: "synthetic", SessionID: "existing-session", PersistenceMode: "private_ephemeral"})
+	require.ErrorIs(t, err, ErrPrivateSessionResume)
+	require.Empty(t, gateway.calls)
+
+	_, err = s.CreateProfile(ctx, Profile{Key: "requires-artifacts", Locality: "local_only", Sampler: Sampler{Kind: samplerDirect, K: 1}, Constraints: Constraints{RequireArtifacts: true}})
+	require.NoError(t, err)
+	_, err = s.Generate(ctx, GenerateRequest{ProfileKey: "requires-artifacts", Query: "synthetic", PersistenceMode: "private_ephemeral"})
+	require.ErrorIs(t, err, ErrArtifactsRequired)
+	require.Empty(t, gateway.calls, "refusal must happen before inference")
+
+	for _, table := range []string{"prose_sessions", "prose_rounds", "prose_candidates", "prose_selection_events"} {
+		var count int
+		require.NoError(t, db.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+table).Scan(&count))
+		require.Zero(t, count, "%s must remain empty after preflight refusal", table)
+	}
+}
+
+func TestPrivateEphemeralSanitizesGatewayErrors(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:prose-private-error-test?mode=memory&cache=shared")
+	require.NoError(t, err)
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = db.Close() })
+	require.NoError(t, EnsureSchema(db))
+	s := NewWithGateway(db, privateErrorGateway{cause: errors.New("provider failure echoed SYNTHETIC_PRIVATE_ERROR_MARKER")})
+	_, err = s.CreateProfile(context.Background(), Profile{Key: "private-local", Locality: "local_only", Sampler: Sampler{Kind: samplerDirect, K: 1}})
+	require.NoError(t, err)
+
+	_, err = s.Generate(context.Background(), GenerateRequest{ProfileKey: "private-local", Query: "SYNTHETIC_PRIVATE_ERROR_MARKER", PersistenceMode: "private_ephemeral"})
+	require.ErrorIs(t, err, ErrPrivateInferenceFailed)
+	require.NotContains(t, err.Error(), "SYNTHETIC_PRIVATE_ERROR_MARKER")
+	var count int
+	require.NoError(t, db.QueryRow("SELECT COUNT(*) FROM prose_sessions").Scan(&count))
+	require.Zero(t, count)
+}
+
+func TestExactSupportedClaimPhrasesRefuseSyntheticInflation(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:prose-exact-claims-test?mode=memory&cache=shared")
+	require.NoError(t, err)
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = db.Close() })
+	require.NoError(t, EnsureSchema(db))
+
+	claim := "I contributed to 3 shipped features."
+	gateway := &claimPhraseGateway{responses: map[string]string{
+		"supported":       claim,
+		"inflated verb":   "I led 3 shipped features.",
+		"inflated result": claim + " That drove 80% more revenue.",
+	}}
+	s := NewWithGateway(db, gateway)
+	ctx := context.Background()
+	_, err = s.CreateProfile(ctx, Profile{
+		Key: "claim-only-local", Locality: "local_only",
+		Sampler:     Sampler{Kind: samplerDirect, K: 1},
+		Constraints: Constraints{RequireExactClaimPhrases: true},
+	})
+	require.NoError(t, err)
+	request := func(query string, claims []string) GenerateRequest {
+		return GenerateRequest{ProfileKey: "claim-only-local", Query: query, IncludeCandidates: true,
+			PersistenceMode: "private_ephemeral", SupportedClaimPhrases: claims}
+	}
+
+	supported, err := s.Generate(ctx, request("supported", []string{claim}))
+	require.NoError(t, err)
+	require.Len(t, supported.Candidates, 1)
+	require.True(t, supported.Candidates[0].Eligibility.Eligible)
+	require.Contains(t, gateway.calls[0].Instruction, claim)
+
+	verbInflation, err := s.Generate(ctx, request("inflated verb", []string{claim}))
+	require.NoError(t, err)
+	require.False(t, verbInflation.Candidates[0].Eligibility.Eligible)
+	require.Equal(t, "unsupported_claim_phrase:sentence_1", verbInflation.Candidates[0].Eligibility.Reason)
+
+	resultInflation, err := s.Generate(ctx, request("inflated result", []string{claim}))
+	require.NoError(t, err)
+	require.False(t, resultInflation.Candidates[0].Eligibility.Eligible)
+	require.Equal(t, "unsupported_claim_phrase:sentence_2", resultInflation.Candidates[0].Eligibility.Reason)
+
+	_, err = s.Generate(ctx, request("supported", nil))
+	require.ErrorIs(t, err, ErrSupportedClaimsRequired)
+	require.Len(t, gateway.calls, 3, "a missing truth base must refuse before gateway dispatch")
+	for _, table := range []string{"prose_sessions", "prose_rounds", "prose_candidates", "prose_selection_events"} {
+		var count int
+		require.NoError(t, db.QueryRowContext(ctx, "SELECT COUNT(*) FROM "+table).Scan(&count))
+		require.Zero(t, count, "%s must remain empty for private truth-base checks", table)
+	}
+}
+
+func TestExactClaimPhraseGateRejectsAnExtraUnsupportedSentence(t *testing.T) {
+	base := []string{"I contributed to 3 shipped features."}
+	plain := gate(textmetrics.Metrics{WordCount: 6}, Constraints{RequireExactClaimPhrases: true}, base[0], gateInputs{SupportedClaimPhrases: base})
+	require.True(t, plain.Eligible)
+
+	strengthened := gate(textmetrics.Metrics{WordCount: 6}, Constraints{RequireExactClaimPhrases: true}, "I led 3 shipped features.", gateInputs{SupportedClaimPhrases: base})
+	require.False(t, strengthened.Eligible)
+	require.Equal(t, "unsupported_claim_phrase:sentence_1", strengthened.Reason)
+
+	added := gate(textmetrics.Metrics{WordCount: 11}, Constraints{RequireExactClaimPhrases: true}, base[0]+" That drove 80% more revenue.", gateInputs{SupportedClaimPhrases: base})
+	require.False(t, added.Eligible)
+	require.Equal(t, "unsupported_claim_phrase:sentence_2", added.Reason)
+
+	require.ErrorIs(t, validateSupportedClaimPhrases([]string{""}), ErrInvalidSupportedClaims)
+	require.ErrorIs(t, validateSupportedClaimPhrases([]string{"First claim. Second claim."}), ErrInvalidSupportedClaims)
 }
 
 func TestStyleResolutionDetectsCyclesAndConflicts(t *testing.T) {

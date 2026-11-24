@@ -357,7 +357,7 @@ func TestOperatorImportAcceptsRetiredProseStateHandoff(t *testing.T) { // [REQ:M
 	}
 }
 
-func verificationSource(t *testing.T) string {
+func copyVerificationSource(t *testing.T, addLegacyStatuses bool) string {
 	t.Helper()
 	source := filepath.Join("..", "..", "..", "..", "..", "docs", "monetization")
 	root := filepath.Join(t.TempDir(), "monetization")
@@ -372,7 +372,7 @@ func verificationSource(t *testing.T) string {
 		require.NoError(t, os.MkdirAll(filepath.Dir(destination), 0o755))
 		body, readErr := os.ReadFile(path)
 		require.NoError(t, readErr)
-		if filepath.Ext(path) == ".md" && !strings.Contains(string(body), "**Status:") {
+		if addLegacyStatuses && filepath.Ext(path) == ".md" && !strings.Contains(string(body), "**Status:") {
 			body = append(body, []byte("\n**Status:** active\n")...)
 		}
 		return os.WriteFile(destination, body, info.Mode().Perm())
@@ -380,8 +380,21 @@ func verificationSource(t *testing.T) string {
 	return root
 }
 
+// verificationSource copies the current source faithfully. Current monetization
+// docs are intentionally compressed after the approved retirement; tests of the
+// present contract must not manufacture lifecycle rows that no longer exist.
+func verificationSource(t *testing.T) string {
+	return copyVerificationSource(t, false)
+}
+
+// comparableVerificationSource creates an explicitly synthetic pre-compression
+// corpus for tests whose question requires a source/live count comparison.
+func comparableVerificationSource(t *testing.T) string {
+	return copyVerificationSource(t, true)
+}
+
 func TestCatalogVerifyReportsDriftWhenLiveCountExceedsSource(t *testing.T) { // [REQ:MIG-004]
-	root := verificationSource(t)
+	root := comparableVerificationSource(t)
 	s, ctx := testCatalog(t)
 	_, err := s.ImportCatalog(ctx, root, offerspb.SourceMode_SOURCE_MODE_OPERATOR_SUPPLIED, true, "operator:test")
 	require.NoError(t, err)
@@ -394,7 +407,7 @@ func TestCatalogVerifyReportsDriftWhenLiveCountExceedsSource(t *testing.T) { // 
 	require.NotEmpty(t, report.ExtraNodeIds)
 }
 
-func TestCatalogVerifyPassesOnAReconciledCatalog(t *testing.T) { // [REQ:MIG-004]
+func TestCatalogVerifyReportsCurrentCompressedSourceAsNotComparable(t *testing.T) { // [REQ:MIG-004]
 	root := verificationSource(t)
 	s, ctx := testCatalog(t)
 	_, err := s.ImportCatalog(ctx, root, offerspb.SourceMode_SOURCE_MODE_OPERATOR_SUPPLIED, true, "operator:test")
@@ -402,6 +415,8 @@ func TestCatalogVerifyPassesOnAReconciledCatalog(t *testing.T) { // [REQ:MIG-004
 	report, err := s.VerifyCatalog(ctx, root, offerspb.SourceMode_SOURCE_MODE_OPERATOR_SUPPLIED)
 	require.NoError(t, err)
 	require.True(t, report.Reconciled)
+	require.False(t, report.Comparable, "current compressed prose must not acquire manufactured lifecycle records")
+	require.Contains(t, report.NotComparableReason, "expected once sources are compressed")
 	require.Zero(t, report.TotalDrift)
 	require.Empty(t, report.DuplicateIdentities)
 	require.Empty(t, report.OrphanEdgeIds)
@@ -457,7 +472,7 @@ func TestCatalogVerifyCountsBlockingFindingsFromAnyPath(t *testing.T) { // [REQ:
 // correct steady state — but before Comparable existed it was reported as a bare
 // reconciled=true, indistinguishable from an import that never ran.
 func TestCatalogVerifyReportsNotComparableWhenSourcesAreCompressed(t *testing.T) { // [REQ:MIG-004]
-	root := verificationSource(t)
+	root := comparableVerificationSource(t)
 	s, ctx := testCatalog(t)
 	_, err := s.ImportCatalog(ctx, root, offerspb.SourceMode_SOURCE_MODE_OPERATOR_SUPPLIED, true, "operator:test")
 	require.NoError(t, err)

@@ -55,6 +55,16 @@ func matrixCreateHandler(surface buildsh.Surface, creator matrixCreator, resolve
 			http.Error(w, "artifact paths are resolved by the Android producer", http.StatusBadRequest)
 			return
 		}
+		deploymentProfile := strings.TrimSpace(input.Selection.DeploymentProfileID)
+		deploymentCommit := strings.TrimSpace(input.Selection.DeploymentGitCommit)
+		if (deploymentProfile == "") != (deploymentCommit == "") {
+			http.Error(w, "deployment_profile_id and deployment_git_commit must be supplied together", http.StatusBadRequest)
+			return
+		}
+		if deploymentProfile != "" && len(input.Selection.Targets) != 1 {
+			http.Error(w, "deployment-bound Android validation requires exactly one selected target", http.StatusBadRequest)
+			return
+		}
 		if surface.ArtifactRoot == nil {
 			http.Error(w, "Android artifact resolution unavailable", http.StatusServiceUnavailable)
 			return

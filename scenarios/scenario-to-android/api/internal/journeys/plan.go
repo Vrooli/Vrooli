@@ -58,6 +58,7 @@ type Chapter struct {
 	ID                    string          `json:"id"`
 	Purpose               string          `json:"purpose"`
 	Expected              string          `json:"expected"`
+	AssertionStepID       string          `json:"assertion_step_id,omitempty"`
 	MinimumAndroidVersion string          `json:"minimum_android_version,omitempty"`
 	RequiredCapabilities  []string        `json:"required_capabilities"`
 	Readiness             ReadinessPolicy `json:"readiness"`
@@ -78,7 +79,11 @@ type Plan struct {
 func (p Plan) JourneyPlan() deliveryramp.JourneyPlan {
 	steps := make([]deliveryramp.JourneyStepSpec, 0)
 	for _, chapter := range p.Chapters {
-		for stepIndex, declared := range chapter.Steps {
+		assertionStepID := chapter.AssertionStepID
+		if assertionStepID == "" && len(chapter.Steps) > 0 && chapter.Steps[len(chapter.Steps)-1].Kind != "skip" {
+			assertionStepID = chapter.Steps[len(chapter.Steps)-1].ID
+		}
+		for _, declared := range chapter.Steps {
 			action := declared.Reference
 			args := map[string]string{"chapter_id": chapter.ID, "target": declared.Target, "reference": declared.Reference}
 			if declared.TimeoutMS > 0 {
@@ -100,7 +105,7 @@ func (p Plan) JourneyPlan() deliveryramp.JourneyPlan {
 				}
 			}
 			var assertion *deliveryramp.AssertionSpec
-			if stepIndex == len(chapter.Steps)-1 && declared.Kind != "skip" {
+			if declared.ID == assertionStepID && declared.Kind != "skip" {
 				assertion = &deliveryramp.AssertionSpec{ID: chapter.ID + "/expected", Expected: chapter.Expected, Description: chapter.Purpose}
 			}
 			steps = append(steps, deliveryramp.JourneyStepSpec{
@@ -116,12 +121,17 @@ func (p Plan) JourneyPlan() deliveryramp.JourneyPlan {
 
 func AndroidPlan() Plan {
 	chapters := []Chapter{
-		chapter("install_cold_start", "Install and launch a generated app from a clean state.", "the first usable frame and app title are visible", []string{"app-lifecycle", "screenshot"}, step("package-preflight", "device", "package-state", "absent", "app-lifecycle"), step("wake", "device", "screen", "wake", "input"), step("unlock", "device", "screen", "unlock", "input"), step("install", "device", "install", "", "app-lifecycle"), step("launch", "device", "launch", "", "app-lifecycle"), step("observe", "device", "observe", "", "screenshot"), basStep("web-flow", "hello-mobile-smoke")),
+		chapter("install_cold_start", "Install and launch a generated app from a clean state.", "the first usable frame and app title are visible", []string{"app-lifecycle", "screenshot"}, step("package-preflight", "device", "package-state", "absent", "app-lifecycle"), step("wake", "device", "screen", "wake", "input"), step("unlock", "device", "screen", "unlock", "input"), step("install", "device", "install", "", "app-lifecycle"), step("launch", "device", "launch", "", "app-lifecycle"), androidExperienceObserveStep("observe-window", androidExpectedKeyboard(false)), basStep("web-flow", "hello-mobile-smoke")),
 		{ID: "permission_deny_grace", Purpose: "Deny the notification runtime permission and relaunch.", Expected: "the app remains usable after denial", MinimumAndroidVersion: "13", RequiredCapabilities: []string{"permissions", "app-lifecycle", "screenshot"}, Steps: []Step{step("deny", "device", "revoke-permission", "android.permission.POST_NOTIFICATIONS", "permissions"), step("launch", "device", "launch", "", "app-lifecycle"), basStep("web-flow", "hello-mobile-smoke")}},
 		chapter("background_resume", "Background and resume the generated app.", "the app returns with its state intact", []string{"input", "app-lifecycle", "screenshot"}, step("background", "device", "key", "KEYCODE_HOME", "input"), step("resume", "device", "launch", "", "app-lifecycle"), basStep("web-flow", "hello-mobile-smoke")),
 		chapter("process_death_restore", "Force-stop and relaunch the generated app.", "persisted state is restored after process death", []string{"app-lifecycle", "screenshot"}, step("stop", "device", "stop", "", "app-lifecycle"), step("launch", "device", "launch", "", "app-lifecycle"), basStep("web-flow", "hello-mobile-smoke")),
 		chapter("rotation_size_class", "Rotate the target and inspect the responsive layout.", "the input remains usable after rotation", []string{"orientation", "screenshot"}, step("rotate", "device", "rotate", "landscape", "orientation"), basStep("web-flow", "hello-mobile-smoke")),
-		chapter("keyboard_avoidance", "Focus the fixture input and inspect keyboard avoidance.", "the focused input remains visible", []string{"semantic-tree", "screenshot"}, basStep("web-flow", "hello-mobile-smoke")),
+		func() Chapter {
+			chapter := chapter("keyboard_avoidance", "Focus the fixture input and inspect keyboard avoidance.", "the IME is visible and the focused input remains usable above the Android safe insets", []string{"screenshot"}, basStepWithFlowPath("focus-input", "hello-mobile-keyboard-visible", "bas/cases/mobile/keyboard-visible-flow.json"), androidExperienceObserveStep("capture-keyboard-open", androidExpectedKeyboard(true)), step("dismiss-keyboard", "device", "key", "KEYCODE_BACK", "input"))
+			chapter.AssertionStepID = "capture-keyboard-open"
+			chapter.Steps[len(chapter.Steps)-1].Arguments = map[string]any{"continue_for_cleanup": "true"}
+			return chapter
+		}(),
 		chapter("offline_transition", "Toggle connectivity and inspect both terminal states.", "offline and online state are explicit", []string{"network-control", "screenshot"}, step("offline", "device", "network", "offline", "network-control"), basStep("web-flow-offline", "hello-mobile-smoke"), step("online", "device", "network", "online", "network-control"), basStep("web-flow-online", "hello-mobile-smoke")),
 		chapter("deep_link", "Open the generated app through its canonical deep link.", "the home route is rendered", []string{"app-lifecycle", "screenshot"}, step("open", "device", "deep-link", "vrooli-hello://home", "app-lifecycle"), basStep("web-flow", "hello-mobile-smoke")),
 		chapter("notification_tap", "Resolve the fixture notification target.", "the notification action reaches the app", []string{"semantic-tree", "screenshot"}, basStep("web-flow", "hello-mobile-smoke")),
@@ -275,6 +285,17 @@ func step(id, kind, reference, target, capability string) Step {
 	return Step{ID: id, Kind: kind, Reference: reference, Target: target, TimeoutMS: actionTimeoutMS(reference), RequiredCapabilities: []string{capability}}
 }
 
+func androidExperienceObserveStep(id string, expectedKeyboardVisible *bool) Step {
+	observed := step(id, "device", "observe", "", "screenshot")
+	observed.Arguments = map[string]any{"experience_backend": "ex9", "route": "/", "viewport_id": "android-phone"}
+	if expectedKeyboardVisible != nil {
+		observed.Arguments["expected_keyboard_visible"] = strconv.FormatBool(*expectedKeyboardVisible)
+	}
+	return observed
+}
+
+func androidExpectedKeyboard(value bool) *bool { return &value }
+
 // BAS attaches only after the native app has launched and exposed a debuggable
 // WebView. That runtime capability cannot be truthfully required by the target
 // catalog before the app exists; the WebViewAttacher is the authoritative
@@ -320,6 +341,18 @@ func (p Plan) Validate() error {
 		seen[chapter.ID] = struct{}{}
 		if strings.TrimSpace(chapter.Purpose) == "" || strings.TrimSpace(chapter.Expected) == "" || len(chapter.Steps) == 0 {
 			return fmt.Errorf("conformance chapter %q is incomplete", chapter.ID)
+		}
+		if chapter.AssertionStepID != "" {
+			found := false
+			for _, current := range chapter.Steps {
+				if current.ID == chapter.AssertionStepID && current.Kind != "skip" {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return fmt.Errorf("conformance chapter %q assertion step %q is missing", chapter.ID, chapter.AssertionStepID)
+			}
 		}
 		if chapter.Readiness.TimeoutMS <= 0 || chapter.Readiness.PollIntervalMS <= 0 || chapter.Readiness.StabilityCount <= 0 {
 			return fmt.Errorf("conformance chapter %q has an unbounded readiness policy", chapter.ID)

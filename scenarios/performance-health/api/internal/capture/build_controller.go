@@ -24,6 +24,7 @@ import (
 const (
 	profileBuildEnvVar = "VROOLI_BUILD_MODE"
 	profileBuildValue  = "profile"
+	layoutCacheArmEnv  = "VITE_SWARM_MANAGER_LAYOUT_CACHE_ARM"
 	uiPortKey          = "UI_PORT"
 )
 
@@ -68,6 +69,10 @@ type CLIBuildController struct {
 	// Restart restarts a scenario with the given extra env; nil shells
 	// `vrooli scenario restart`. profileMode selects the build channel.
 	Restart func(ctx context.Context, scenario string, profileMode bool) error
+	// RestartWithLayoutCacheArm is the explicit measurement seam. Production
+	// uses the subprocess environment; tests can assert the selected arm without
+	// starting a scenario.
+	RestartWithLayoutCacheArm func(ctx context.Context, scenario string, profileMode bool, arm LayoutCacheArm) error
 
 	// ResolveUIURL maps a scenario slug → served UI base URL; nil uses the
 	// discovery resolver against UI_PORT. An error/empty means "no UI".
@@ -80,6 +85,10 @@ type CLIBuildController struct {
 	// VerifyBundle confirms the served UI carries the profile-build marker;
 	// nil uses the default HTTP fetch + marker scan.
 	VerifyBundle func(ctx context.Context, uiURL string) (bool, error)
+	// VerifyLayoutCacheArm confirms the selected compile-time arm marker is in
+	// the served graph bundle. Nil scans same-origin assets using the default
+	// implementation.
+	VerifyLayoutCacheArm func(ctx context.Context, uiURL string, arm LayoutCacheArm) (bool, error)
 }
 
 var _ BuildController = (*CLIBuildController)(nil)
@@ -96,6 +105,45 @@ func (c *CLIBuildController) StartProfile(ctx context.Context, scenario string) 
 	uiURL, err := c.resolveUIURL(ctx, scenario)
 	if err != nil || strings.TrimSpace(uiURL) == "" {
 		// No served UI: not an error — the orchestrator skips cleanly.
+		return "", nil
+	}
+	instrumented, err := c.verifyBundle(ctx, uiURL)
+	if err != nil {
+		return "", fmt.Errorf("could not verify served bundle for %q: %w", scenario, err)
+	}
+	if !instrumented {
+		return "", fmt.Errorf("served bundle for %q is not instrumented (missing %s); profile build did not take", scenario, bundleMarkerDescription)
+	}
+	return uiURL, nil
+}
+
+// StartProfileWithLayoutCacheArm selects a cache arm only for the frozen graph
+// task. The environment value is scoped to this profile restart; restore and
+// ordinary restarts always clear it.
+func (c *CLIBuildController) StartProfileWithLayoutCacheArm(ctx context.Context, scenario string, arm LayoutCacheArm) (string, error) {
+	if err := ValidateLayoutCacheArm(scenario, layoutCacheWorkflow, arm); err != nil {
+		return "", err
+	}
+	if err := c.restartWithLayoutCacheArm(ctx, scenario, true, arm); err != nil {
+		return "", fmt.Errorf("profile-mode restart of %q failed: %w", scenario, err)
+	}
+	uiURL, err := c.profileURL(ctx, scenario)
+	if err != nil || strings.TrimSpace(uiURL) == "" {
+		return uiURL, err
+	}
+	verified, err := c.verifyLayoutCacheArm(ctx, uiURL, arm)
+	if err != nil {
+		return "", fmt.Errorf("could not verify layout cache arm for %q: %w", scenario, err)
+	}
+	if !verified {
+		return "", fmt.Errorf("served bundle for %q does not contain requested layout cache arm %q", scenario, arm)
+	}
+	return uiURL, nil
+}
+
+func (c *CLIBuildController) profileURL(ctx context.Context, scenario string) (string, error) {
+	uiURL, err := c.resolveUIURL(ctx, scenario)
+	if err != nil || strings.TrimSpace(uiURL) == "" {
 		return "", nil
 	}
 	instrumented, err := c.verifyBundle(ctx, uiURL)
@@ -132,6 +180,16 @@ func (c *CLIBuildController) restart(ctx context.Context, scenario string, profi
 	return defaultRestart(ctx, scenario, profileMode)
 }
 
+func (c *CLIBuildController) restartWithLayoutCacheArm(ctx context.Context, scenario string, profileMode bool, arm LayoutCacheArm) error {
+	if c.RestartWithLayoutCacheArm != nil {
+		return c.RestartWithLayoutCacheArm(ctx, scenario, profileMode, arm)
+	}
+	if c.Restart != nil {
+		return errors.New("custom restart hook cannot select layout cache arm")
+	}
+	return defaultRestartWithLayoutCacheArm(ctx, scenario, profileMode, arm)
+}
+
 func (c *CLIBuildController) resolveUIURL(ctx context.Context, scenario string) (string, error) {
 	if c.ResolveUIURL != nil {
 		return c.ResolveUIURL(ctx, scenario)
@@ -149,6 +207,13 @@ func (c *CLIBuildController) verifyBundle(ctx context.Context, uiURL string) (bo
 	return defaultVerifyBundle(ctx, c.httpClient(), uiURL)
 }
 
+func (c *CLIBuildController) verifyLayoutCacheArm(ctx context.Context, uiURL string, arm LayoutCacheArm) (bool, error) {
+	if c.VerifyLayoutCacheArm != nil {
+		return c.VerifyLayoutCacheArm(ctx, uiURL, arm)
+	}
+	return defaultVerifyLayoutCacheArm(ctx, c.httpClient(), uiURL, arm)
+}
+
 func (c *CLIBuildController) httpClient() *http.Client {
 	if c.HTTPClient != nil {
 		return c.HTTPClient
@@ -159,17 +224,32 @@ func (c *CLIBuildController) httpClient() *http.Client {
 // defaultRestart shells `vrooli scenario restart <scenario>` with
 // VROOLI_BUILD_MODE set to "profile" (profile build) or unset (default build).
 func defaultRestart(ctx context.Context, scenario string, profileMode bool) error {
+	return defaultRestartWithLayoutCacheArm(ctx, scenario, profileMode, LayoutCacheArmUnspecified)
+}
+
+func defaultRestartWithLayoutCacheArm(ctx context.Context, scenario string, profileMode bool, arm LayoutCacheArm) error {
+	if arm != LayoutCacheArmUnspecified {
+		if err := ValidateLayoutCacheArm(scenario, layoutCacheWorkflow, arm); err != nil {
+			return err
+		}
+		if !profileMode {
+			return errors.New("layout cache arm is valid only for a profile build")
+		}
+	}
 	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "restart", scenario)
 	cmd.Stdout = io.Discard
 	cmd.Stderr = io.Discard
 	env := make([]string, 0, len(os.Environ())+1)
 	for _, entry := range os.Environ() {
-		if !strings.HasPrefix(entry, profileBuildEnvVar+"=") {
+		if !strings.HasPrefix(entry, profileBuildEnvVar+"=") && !strings.HasPrefix(entry, layoutCacheArmEnv+"=") {
 			env = append(env, entry)
 		}
 	}
 	if profileMode {
 		env = append(env, profileBuildEnvVar+"="+profileBuildValue)
+	}
+	if arm != LayoutCacheArmUnspecified {
+		env = append(env, layoutCacheArmEnv+"="+string(arm))
 	}
 	cmd.Env = env
 	return cmd.Run()
@@ -221,6 +301,49 @@ func defaultVerifyBundle(ctx context.Context, client *http.Client, uiURL string)
 			continue
 		}
 		if containsBundleMarker(js) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func defaultVerifyLayoutCacheArm(ctx context.Context, client *http.Client, uiURL string, arm LayoutCacheArm) (bool, error) {
+	if arm != LayoutCacheArmEnabled && arm != LayoutCacheArmDisabled {
+		return false, fmt.Errorf("unsupported layout cache arm %q", arm)
+	}
+	marker := "⚛ GraphLayoutCacheArm/" + string(arm)
+	html, err := fetch(ctx, client, uiURL)
+	if err != nil {
+		return false, err
+	}
+	if strings.Contains(html, marker) {
+		return true, nil
+	}
+	base, err := url.Parse(uiURL)
+	if err != nil {
+		return false, err
+	}
+	references := scriptSrcRe.FindAllStringSubmatch(html, -1)
+	for _, tag := range linkTagRe.FindAllString(html, -1) {
+		if modulePreloadRe.MatchString(tag) {
+			if match := linkHrefRe.FindStringSubmatch(tag); len(match) > 1 {
+				references = append(references, match)
+			}
+		}
+	}
+	seen := make(map[string]bool)
+	for _, match := range references {
+		ref, err := url.Parse(strings.TrimSpace(match[1]))
+		if err != nil {
+			continue
+		}
+		asset := base.ResolveReference(ref)
+		if asset.Host != base.Host || asset.Scheme != base.Scheme || seen[asset.String()] || len(seen) >= 64 {
+			continue
+		}
+		seen[asset.String()] = true
+		js, err := fetch(ctx, client, asset.String())
+		if err == nil && strings.Contains(js, marker) {
 			return true, nil
 		}
 	}

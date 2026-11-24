@@ -16,7 +16,7 @@ Use this document to answer:
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |
 |---|---|---|---|---|---|
-| SQLite | embedded storage | yes | API, notes reference | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. |
+| SQLite | embedded storage | yes | API health dependency probe | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable; no domain-owned product tables are registered. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario should be started through lifecycle commands. |
 | code-facts | scenario | soft-required for implementation proof | validation API | `CodeFactsService.CheckProtoAdoption` and `CheckEndpointProof` over a scenario target | Static validation still runs; unavailable or unsupported proof is reported as proto proof warnings. |
 

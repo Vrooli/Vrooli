@@ -22,20 +22,27 @@ func newReadinessReporter(ctx context.Context) ReadinessReporter {
 		return nil
 	}
 	baseURL := strings.TrimRight(strings.TrimSpace(os.Getenv("SCENARIO_DEPENDENCY_ANALYZER_DEPLOYMENT_MANAGER_READINESS_URL")), "/")
-	if baseURL == "" {
-		resolved, err := discovery.ResolveScenarioURLDefault(ctx, "deployment-manager")
-		if err != nil {
-			return &configurationError{err: err}
-		}
-		baseURL = strings.TrimRight(strings.TrimSpace(resolved), "/")
+	var reporter *readinessreporter.Reporter
+	var err error
+	if baseURL != "" {
+		reporter, err = readinessreporter.NewFromEnv(
+			"SCENARIO_DEPENDENCY_ANALYZER_DEPLOYMENT_MANAGER_READINESS",
+			baseURL,
+			"dependencies-governed",
+			dependencyReadinessBinding,
+			"scenario-dependency-analyzer",
+		)
+	} else {
+		reporter, err = readinessreporter.NewFromEnvResolver(
+			"SCENARIO_DEPENDENCY_ANALYZER_DEPLOYMENT_MANAGER_READINESS",
+			func(ctx context.Context) (string, error) {
+				return discovery.ResolveScenarioURLDefault(ctx, "deployment-manager")
+			},
+			"dependencies-governed",
+			dependencyReadinessBinding,
+			"scenario-dependency-analyzer",
+		)
 	}
-	reporter, err := readinessreporter.NewFromEnv(
-		"SCENARIO_DEPENDENCY_ANALYZER_DEPLOYMENT_MANAGER_READINESS",
-		baseURL,
-		"dependencies-governed",
-		dependencyReadinessBinding,
-		"scenario-dependency-analyzer",
-	)
 	if err != nil {
 		return &configurationError{err: err}
 	}

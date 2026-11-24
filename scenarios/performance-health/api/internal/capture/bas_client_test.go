@@ -104,6 +104,149 @@ func TestArtifactsFromResponseTier0Trace(t *testing.T) {
 	}
 }
 
+func TestArtifactsFromResponseRetainsExactlyBoundProcessTree(t *testing.T) {
+	root := t.TempDir()
+	leaseDigest := strings.Repeat("a", 64)
+	processTree := `{"contract":"bas.browser-process-tree.v1","capture_id":"123e4567-e89b-12d3-a456-426614174000","session_id":"session-1","lease_id_sha256":"` + leaseDigest + `","status":"unknown","reason":"short interval"}`
+	reads := 0
+	c := &BASConnectClient{
+		ArtifactStore: FileArtifactStore{Root: root},
+		ReadTrace: func(rawURL string) ([]byte, error) {
+			reads++
+			if reads == 2 {
+				return []byte(processTree), nil
+			}
+			return []byte(`{"traceEvents":[]}`), nil
+		},
+	}
+	art, err := c.artifactsFromResponse(context.Background(), "http://bas.test", &capturev1.CaptureResponse{
+		Artifacts: []*capturev1.CaptureArtifact{
+			perfArtifact("cdp-trace", "/runs/perf.json"),
+			perfArtifact("process-tree", "/runs/process-tree.json"),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Base(art.ProcessTreeArtifact) != "performance.process-tree.json" ||
+		art.ProcessTreeReference != "bas-capture://123e4567-e89b-12d3-a456-426614174000/process-tree" ||
+		art.ProcessTreeSessionID != "session-1" || art.ProcessTreeLeaseSHA256 != leaseDigest {
+		t.Fatalf("process-tree artifact binding was not retained: %#v", art)
+	}
+	if _, err := os.Stat(art.ProcessTreeArtifact); err != nil {
+		t.Fatalf("process-tree artifact was not persisted: %v", err)
+	}
+}
+
+func TestArtifactsFromResponsePersistsMeasuredMonotonicWindow(t *testing.T) {
+	root := t.TempDir()
+	leaseDigest := strings.Repeat("b", 64)
+	processTree := `{"contract":"bas.browser-process-tree.v1","capture_id":"123e4567-e89b-12d3-a456-426614174000","session_id":"session-window","lease_id_sha256":"` + leaseDigest + `","status":"measured","interval_ms":700,"window_start_monotonic_ms":1000,"window_end_monotonic_ms":1700}`
+	reads := 0
+	c := &BASConnectClient{
+		ArtifactStore: FileArtifactStore{Root: root},
+		ReadTrace: func(string) ([]byte, error) {
+			reads++
+			if reads == 2 {
+				return []byte(processTree), nil
+			}
+			return []byte(`{"traceEvents":[]}`), nil
+		},
+	}
+	art, err := c.artifactsFromResponse(context.Background(), "http://bas.test", &capturev1.CaptureResponse{
+		Artifacts: []*capturev1.CaptureArtifact{perfArtifact("cdp-trace", "/runs/perf.json"), perfArtifact("process-tree", "/runs/process-tree.json")},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored, err := os.ReadFile(art.ProcessTreeArtifact)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(stored) != processTree || art.ProcessTreeSessionID != "session-window" || art.ProcessTreeLeaseSHA256 != leaseDigest {
+		t.Fatalf("measured process-tree artifact lost its exact binding: result=%#v contents=%s", art, stored)
+	}
+}
+
+func TestArtifactsFromResponseRetainsV2UnknownClockAndLifetimeQualification(t *testing.T) {
+	root := t.TempDir()
+	leaseDigest := strings.Repeat("c", 64)
+	processTree := `{"contract":"bas.browser-process-tree.v2","capture_id":"123e4567-e89b-12d3-a456-426614174000","session_id":"session-v2","lease_id_sha256":"` + leaseDigest + `","status":"unknown","platform":"linux","cpu_clock_ticks_per_second":null,"cpu_clock_source":"unavailable-from-current-owner","process_lifetime_accounting":"sampled-snapshot-only","process_lifetime_coverage_complete":false,"process_lifetime_sample_interval_ms":100,"cpu_time_ms":null,"cpu_percent_avg":null,"peak_rss_bytes":null,"reason":"clock and lifetime proof unavailable"}`
+	reads := 0
+	c := &BASConnectClient{ArtifactStore: FileArtifactStore{Root: root}, ReadTrace: func(string) ([]byte, error) {
+		reads++
+		if reads == 2 {
+			return []byte(processTree), nil
+		}
+		return []byte(`{"traceEvents":[]}`), nil
+	}}
+	art, err := c.artifactsFromResponse(context.Background(), "http://bas.test", &capturev1.CaptureResponse{
+		Artifacts: []*capturev1.CaptureArtifact{perfArtifact("cdp-trace", "/runs/perf.json"), perfArtifact("process-tree", "/runs/process-tree.json")},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored, err := os.ReadFile(art.ProcessTreeArtifact)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(stored) != processTree || art.ProcessTreeSessionID != "session-v2" || art.ProcessTreeLeaseSHA256 != leaseDigest {
+		t.Fatalf("v2 qualification artifact lost exact binding or bytes: result=%#v contents=%s", art, stored)
+	}
+}
+
+func TestArtifactsFromResponseRejectsV2CallerUpgrade(t *testing.T) {
+	reads := 0
+	processTree := `{"contract":"bas.browser-process-tree.v2","capture_id":"123e4567-e89b-12d3-a456-426614174000","session_id":"session-v2","lease_id_sha256":"` + strings.Repeat("d", 64) + `","status":"measured","platform":"linux","cpu_clock_ticks_per_second":100,"cpu_clock_source":"sysconf","process_lifetime_accounting":"cgroup-v2-session","process_lifetime_coverage_complete":true,"process_lifetime_sample_interval_ms":100,"cpu_time_ms":42,"cpu_percent_avg":6,"peak_rss_bytes":4096}`
+	c := &BASConnectClient{ArtifactStore: FileArtifactStore{Root: t.TempDir()}, ReadTrace: func(string) ([]byte, error) {
+		reads++
+		if reads == 2 {
+			return []byte(processTree), nil
+		}
+		return []byte(`{"traceEvents":[]}`), nil
+	}}
+	_, err := c.artifactsFromResponse(context.Background(), "http://bas.test", &capturev1.CaptureResponse{
+		Artifacts: []*capturev1.CaptureArtifact{perfArtifact("cdp-trace", "/runs/perf.json"), perfArtifact("process-tree", "/runs/process-tree.json")},
+	})
+	if err == nil || !strings.Contains(err.Error(), "v2 must preserve unknown metrics") {
+		t.Fatalf("caller-supplied v2 metric upgrade should be rejected: %v", err)
+	}
+}
+
+func TestArtifactsFromResponseRejectsCrossCaptureProcessTree(t *testing.T) {
+	reads := 0
+	c := &BASConnectClient{ArtifactStore: FileArtifactStore{Root: t.TempDir()}, ReadTrace: func(rawURL string) ([]byte, error) {
+		reads++
+		if reads == 2 {
+			return []byte(`{"contract":"bas.browser-process-tree.v1","capture_id":"another-capture","session_id":"session-1","lease_id_sha256":"` + strings.Repeat("a", 64) + `","status":"unknown"}`), nil
+		}
+		return []byte(`{"traceEvents":[]}`), nil
+	}}
+	_, err := c.artifactsFromResponse(context.Background(), "http://bas.test", &capturev1.CaptureResponse{
+		Artifacts: []*capturev1.CaptureArtifact{perfArtifact("cdp-trace", "/runs/perf.json"), perfArtifact("process-tree", "/runs/process-tree.json")},
+	})
+	if err == nil || !strings.Contains(err.Error(), "invalid capture/session/lease binding") {
+		t.Fatalf("cross-capture process-tree evidence should fail closed: %v", err)
+	}
+}
+
+func TestArtifactsFromResponseRejectsMismatchedMeasuredCaptureWindow(t *testing.T) {
+	reads := 0
+	c := &BASConnectClient{ArtifactStore: FileArtifactStore{Root: t.TempDir()}, ReadTrace: func(rawURL string) ([]byte, error) {
+		reads++
+		if reads == 2 {
+			return []byte(`{"contract":"bas.browser-process-tree.v1","capture_id":"123e4567-e89b-12d3-a456-426614174000","session_id":"session-1","lease_id_sha256":"` + strings.Repeat("a", 64) + `","status":"measured","interval_ms":700,"window_start_monotonic_ms":1000,"window_end_monotonic_ms":1800}`), nil
+		}
+		return []byte(`{"traceEvents":[]}`), nil
+	}}
+	_, err := c.artifactsFromResponse(context.Background(), "http://bas.test", &capturev1.CaptureResponse{
+		Artifacts: []*capturev1.CaptureArtifact{perfArtifact("cdp-trace", "/runs/perf.json"), perfArtifact("process-tree", "/runs/process-tree.json")},
+	})
+	if err == nil || !strings.Contains(err.Error(), "monotonic capture window") {
+		t.Fatalf("mismatched measured process-tree window should fail closed: %v", err)
+	}
+}
+
 // [REQ:PH-CAPTURE-003] An unavailable perf artifact (no browser) resolves to
 // empty Artifacts → the orchestrator skips cleanly.
 func TestArtifactsFromResponseUnavailable(t *testing.T) {
@@ -205,6 +348,10 @@ type captureHandlerFunc func(context.Context, *connect.Request[capturev1.Capture
 
 func (f captureHandlerFunc) Capture(ctx context.Context, req *connect.Request[capturev1.CaptureRequest]) (*connect.Response[capturev1.CaptureResponse], error) {
 	return f(ctx, req)
+}
+
+func (f captureHandlerFunc) GetCaptureByRequestToken(context.Context, *connect.Request[capturev1.GetCaptureByRequestTokenRequest]) (*connect.Response[capturev1.GetCaptureByRequestTokenResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("unused test method"))
 }
 
 // A reachable capture operation failure must retain its code and explanation;

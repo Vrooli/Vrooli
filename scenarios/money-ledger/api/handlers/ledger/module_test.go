@@ -7,9 +7,12 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
+	ingestpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest"
 	ledgerpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ledger"
+	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/shared"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"money-ledger/internal/access"
 	"money-ledger/internal/testutil/authfixture"
 	"money-ledger/internal/testutil/ledgertest"
 )
@@ -18,6 +21,33 @@ func as[T any](msg *T, token string) *connect.Request[T] {
 	request := connect.NewRequest(msg)
 	request.Header().Set("Authorization", "Bearer "+token)
 	return request
+}
+
+func TestComputeManagerCanReverseOnlyItsOwnOriginalInvoicePosting(t *testing.T) {
+	ctx := context.Background()
+	l := ledgertest.New(t)
+	owner := l.Identity.Owner()
+	cm := l.Identity.Service(authfixture.ComputeManagerInvoiceWriter, authfixture.ComputeInvoiceScope)
+	_, err := l.Ingest.RegisterAdapter(ctx, as(&ingestpb.RegisterAdapterRequest{Adapter: &ingestpb.Adapter{Id: access.ComputeManagerInvoiceAdapter, Name: "Compute Manager provider invoices", Kind: ingestpb.AdapterKind_ADAPTER_KIND_AGGREGATOR, Enabled: true}}, owner))
+	require.NoError(t, err)
+	_, err = l.Ingest.RegisterAdapter(ctx, as(adapterRequestForLedgerTest("owner-expense"), owner))
+	require.NoError(t, err)
+	invoice := &sharedpb.MoneyEvent{ExternalId: "fixture-invoice-line", AdapterId: access.ComputeManagerInvoiceAdapter, AccountId: l.Account.Id, BookId: l.Book.Id, AmountMinor: -250, Currency: "USD", OccurredAt: timestamppb.New(time.Date(2026, 11, 23, 0, 0, 0, 0, time.UTC)), FetchedAt: timestamppb.New(time.Date(2026, 11, 23, 0, 1, 0, 0, time.UTC)), Basis: sharedpb.Basis_BASIS_AUTHORITATIVE, Description: "FIXTURE ONLY", Category: "compute.provider_invoice"}
+	posted, err := l.Ingest.IngestEvent(ctx, as(&ingestpb.IngestEventRequest{Event: invoice}, cm))
+	require.NoError(t, err)
+	firstReversal, err := l.Journal.ReversePosting(ctx, as(&ledgerpb.ReversePostingRequest{PostingId: posted.Msg.Posting.Id, Reason: "fixture correction"}, cm))
+	require.NoError(t, err)
+	_, err = l.Journal.ReversePosting(ctx, as(&ledgerpb.ReversePostingRequest{PostingId: firstReversal.Msg.Posting.Id, Reason: "must refuse reversal of reversal"}, cm))
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	manual := &sharedpb.MoneyEvent{ExternalId: "owner-expense-line", AdapterId: "owner-expense", AccountId: l.Account.Id, BookId: l.Book.Id, AmountMinor: -50, Currency: "USD", OccurredAt: invoice.OccurredAt, FetchedAt: invoice.FetchedAt, Basis: sharedpb.Basis_BASIS_OPERATOR_ASSERTED, Description: "owner", Category: "manual"}
+	owned, err := l.Ingest.IngestEvent(ctx, as(&ingestpb.IngestEventRequest{Event: manual}, owner))
+	require.NoError(t, err)
+	_, err = l.Journal.ReversePosting(ctx, as(&ledgerpb.ReversePostingRequest{PostingId: owned.Msg.Posting.Id, Reason: "must refuse other adapter"}, cm))
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+}
+
+func adapterRequestForLedgerTest(id string) *ingestpb.RegisterAdapterRequest {
+	return &ingestpb.RegisterAdapterRequest{Adapter: &ingestpb.Adapter{Id: id, Name: id, Kind: ingestpb.AdapterKind_ADAPTER_KIND_AGGREGATOR, Enabled: true}}
 }
 
 // The owner's corrections and transfers are journaled and audited in the

@@ -105,6 +105,8 @@ func callers(id *authfixture.Identity) []caller {
 		{name: "owner access assertion (tunnel browser)", headers: map[string]string{"Cf-Access-Jwt-Assertion": id.OwnerAccess()}, actor: access.Operator},
 		{name: "treasury", headers: bearer(id.Service(authfixture.TreasuryWriter, authfixture.WriteScope)), actor: access.Treasury},
 		{name: "landing page business suite", headers: bearer(id.Service(authfixture.LandingPageWriter, authfixture.WriteScope)), actor: access.LandingPageBusinessSuite},
+		{name: "compute manager invoice writer with only its exact scope", headers: bearer(id.Service(authfixture.ComputeManagerInvoiceWriter, authfixture.ComputeInvoiceScope)), actor: access.ComputeManagerInvoiceWriter},
+		{name: "compute manager invoice writer with broad scope only", headers: bearer(id.Service(authfixture.ComputeManagerInvoiceWriter, authfixture.WriteScope)), code: connect.CodePermissionDenied},
 	}
 }
 
@@ -139,9 +141,10 @@ func TestEveryRestrictedRouteAdmitsOnlyItsCallers(t *testing.T) {
 			})
 		}
 	}
-	for _, table := range []string{"postings", "adapters", "crypto_receipts", "goals", "ledger_audit"} {
+	for _, table := range []string{"postings", "crypto_receipts", "goals", "ledger_audit"} {
 		require.Zero(t, ledger.Count(t, table), "%s must stay empty: no request above carried a valid write", table)
 	}
+	require.Equal(t, 1, ledger.Count(t, "adapters"), "only the built-in Compute Manager invoice adapter is present")
 }
 
 // Open reads need no identity, and a presented credential that fails cannot

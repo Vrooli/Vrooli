@@ -28,9 +28,9 @@ func TestPlanDiskAdmissionRefusesUnboundedInstallProfiles(t *testing.T) {
 			wantReason: "surface-scoped environment",
 		},
 		{
-			name:       "host tool has no full closure probe",
+			name:       "host tool with incomplete frozen identity is refused",
 			resolution: Resolution{SurfaceRoot: root, PackageManager: "npm", HostTool: true, Profile: InstallProfile{LifecycleMode: "scripts-disabled-by-default"}},
-			wantReason: "no bounded package size probe",
+			wantReason: "frozen npm host-tool sizing",
 		},
 		{
 			name:       "managed artifact owner path is not exposed",

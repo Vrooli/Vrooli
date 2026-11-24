@@ -3,8 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { create } from "@bufbuild/protobuf";
 import { ShieldCheck, ShieldX } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { ErrorState, LoadingState, Skeleton } from "../../components/ui/state";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
@@ -15,6 +15,7 @@ import { perfClient, type Budget } from "../../api/perf";
 import { useScenario } from "../perf/scenarioContextValue";
 import { ScenarioPicker } from "../perf/ScenarioPicker";
 import { formatMs } from "../perf/format";
+import { cn } from "../../lib/utils";
 
 /** Editable budget fields, mapped to proto field names. */
 type IntField =
@@ -162,14 +163,17 @@ export function BudgetsPanel() {
               data-testid={selectors.budgets.saveButton}
               onClick={() => save.mutate()}
               disabled={save.isPending}
+              shape="square"
             >
               {save.isPending ? t(strings.common.loading) : t(strings.budgets.save)}
             </Button>
             <Button
               data-testid={selectors.budgets.checkButton}
-              variant="outline"
+              variant="ghost"
               onClick={() => check.mutate()}
               disabled={check.isPending}
+              shape="square"
+              className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
             >
               {check.isPending ? t(strings.common.loading) : t(strings.budgets.check)}
             </Button>

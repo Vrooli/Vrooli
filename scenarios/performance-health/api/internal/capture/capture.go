@@ -43,23 +43,63 @@ var ErrCaptureUnavailable = errors.New("capture mechanism unavailable")
 
 // Result is the outcome of one capture orchestration.
 type Result struct {
-	Scenario           string
-	Outcome            Outcome
-	Tier               readiness.Tier
-	TraceArtifact      string
-	WebVitalsArtifact  string
-	TraceReference     string
-	WebVitalsReference string
-	Reason             string
+	Scenario               string
+	Outcome                Outcome
+	Tier                   readiness.Tier
+	TraceArtifact          string
+	WebVitalsArtifact      string
+	ProcessTreeArtifact    string
+	TraceReference         string
+	WebVitalsReference     string
+	ProcessTreeReference   string
+	ProcessTreeSessionID   string
+	ProcessTreeLeaseSHA256 string
+	Reason                 string
+	LayoutCacheArm         LayoutCacheArm
+}
+
+// LayoutCacheArm selects the measurement arm for the preregistered Swarm
+// Manager graph workflow. The empty value preserves ordinary audit behavior.
+type LayoutCacheArm string
+
+const (
+	LayoutCacheArmUnspecified LayoutCacheArm = ""
+	LayoutCacheArmEnabled     LayoutCacheArm = "enabled"
+	LayoutCacheArmDisabled    LayoutCacheArm = "disabled"
+)
+
+const (
+	layoutCacheScenario = "swarm-manager"
+	layoutCacheWorkflow = "graph-large-topology"
+)
+
+// ValidateLayoutCacheArm rejects any explicit arm outside its frozen scenario
+// and workflow. This check is intentionally callable by the API handler before
+// readiness or capture side effects.
+func ValidateLayoutCacheArm(scenario, workflow string, arm LayoutCacheArm) error {
+	if arm == LayoutCacheArmUnspecified {
+		return nil
+	}
+	if arm != LayoutCacheArmEnabled && arm != LayoutCacheArmDisabled {
+		return errors.New("layout cache arm must be enabled or disabled")
+	}
+	if scenario != layoutCacheScenario || workflow != layoutCacheWorkflow {
+		return errors.New("layout cache arm is supported only for swarm-manager workflow graph-large-topology")
+	}
+	return nil
 }
 
 // Artifacts is what a BAS perf capture returns.
 type Artifacts struct {
-	TraceArtifact     string
-	WebVitalsArtifact string
+	TraceArtifact       string
+	WebVitalsArtifact   string
+	ProcessTreeArtifact string
 	// BAS references remain opaque and travel with their PH-retained copies.
-	TraceReference     string
-	WebVitalsReference string
+	TraceReference         string
+	WebVitalsReference     string
+	ProcessTreeReference   string
+	ProcessTreeSessionID   string
+	ProcessTreeLeaseSHA256 string
 	// HasComponentMarks is true when ⚛ marks were present (Tier 1 reached).
 	HasComponentMarks bool
 	// Unavailable is true when BAS was reached but explicitly reported that it
@@ -106,6 +146,13 @@ type BuildController interface {
 	// restart — used for Tier-0 captures, which need no profile build. Empty
 	// means there is no served UI (a clean skip).
 	ResolveURL(ctx context.Context, scenario string) (uiURL string, err error)
+}
+
+// LayoutCacheArmBuildController is implemented by the production build owner
+// for an explicit, scenario-scoped cache arm. A requested arm must never be
+// silently dropped by a controller that lacks this capability.
+type LayoutCacheArmBuildController interface {
+	StartProfileWithLayoutCacheArm(ctx context.Context, scenario string, arm LayoutCacheArm) (uiURL string, err error)
 }
 
 // Service is the capture-orchestration engine.
@@ -173,11 +220,32 @@ func (s *Service) WithFlowResolver(fr FlowResolver) *Service {
 // A capture that yields no trace (e.g. no browser available) is a clean SKIP,
 // mirroring the Lighthouse silent-skip.
 func (s *Service) Orchestrate(ctx context.Context, scenario, workflow string, tier readiness.Tier) (out Result, err error) {
+	return s.OrchestrateWithLayoutCacheArm(ctx, scenario, workflow, tier, LayoutCacheArmUnspecified)
+}
+
+// OrchestrateWithLayoutCacheArm preserves the existing audit flow while
+// allowing the preregistered graph task to select and record an explicit arm.
+func (s *Service) OrchestrateWithLayoutCacheArm(ctx context.Context, scenario, workflow string, tier readiness.Tier, arm LayoutCacheArm) (out Result, err error) {
 	if s == nil {
 		return Result{}, errors.New("capture: service not wired")
 	}
 	if scenario == "" {
 		return Result{}, errors.New("capture: scenario is required")
+	}
+	if err := ValidateLayoutCacheArm(scenario, workflow, arm); err != nil {
+		return Result{Scenario: scenario, Outcome: OutcomeFailed, Tier: tier, Reason: err.Error()}, nil
+	}
+	if arm != LayoutCacheArmUnspecified && tier != readiness.Tier1 {
+		return Result{Scenario: scenario, Outcome: OutcomeFailed, Tier: tier, Reason: "layout cache arm requires a Tier-1 profile build"}, nil
+	}
+	armExplicit := arm != LayoutCacheArmUnspecified
+	if arm == LayoutCacheArmUnspecified && scenario == layoutCacheScenario && workflow == layoutCacheWorkflow && tier == readiness.Tier1 {
+		arm = LayoutCacheArmEnabled
+	}
+	if armExplicit && tier == readiness.Tier1 {
+		if _, ok := s.build.(LayoutCacheArmBuildController); !ok {
+			return Result{Scenario: scenario, Outcome: OutcomeFailed, Tier: tier, LayoutCacheArm: arm, Reason: "build controller cannot select the requested layout cache arm"}, nil
+		}
 	}
 	if reason, skip := skipReason(tier, s.bas, s.build); skip {
 		return Result{Scenario: scenario, Outcome: OutcomeSkipped, Tier: tier, Reason: reason}, nil
@@ -210,22 +278,22 @@ func (s *Service) Orchestrate(ctx context.Context, scenario, workflow string, ti
 			}
 		}()
 	}
-	uiURL, result, done := s.resolveCaptureURL(ctx, scenario, tier)
+	uiURL, result, done := s.resolveCaptureURL(ctx, scenario, tier, arm, armExplicit)
 	if done {
 		return result, nil
 	}
 	if uiURL == "" {
-		return Result{Scenario: scenario, Outcome: OutcomeSkipped, Tier: tier, Reason: "scenario served no UI URL"}, nil
+		return Result{Scenario: scenario, Outcome: OutcomeSkipped, Tier: tier, LayoutCacheArm: arm, Reason: "scenario served no UI URL"}, nil
 	}
 
 	artifacts, err := s.captureWithRetry(ctx, uiURL, interactionFlowJSON)
 	if errors.Is(err, ErrCaptureUnavailable) {
 		// Service discovery or transport remained unavailable. Preserve its
 		// cause without inferring that a browser was absent.
-		return Result{Scenario: scenario, Outcome: OutcomeUnavailable, Tier: tier, Reason: err.Error()}, nil
+		return Result{Scenario: scenario, Outcome: OutcomeUnavailable, Tier: tier, LayoutCacheArm: arm, Reason: err.Error()}, nil
 	}
 	if err != nil {
-		return Result{Scenario: scenario, Outcome: OutcomeFailed, Tier: tier, Reason: err.Error()}, nil
+		return Result{Scenario: scenario, Outcome: OutcomeFailed, Tier: tier, LayoutCacheArm: arm, Reason: err.Error()}, nil
 	}
 	if artifacts.TraceArtifact == "" {
 		// BAS was reachable but produced no trace. Only call this UNAVAILABLE
@@ -234,26 +302,31 @@ func (s *Service) Orchestrate(ctx context.Context, scenario, workflow string, ti
 		// — a retryable FAILED, NOT a "no browser" claim. Conflating the two is
 		// exactly the trap that makes a busy-BAS hiccup read as "headless".
 		if artifacts.Unavailable && isNoBrowserReason(artifacts.UnavailableReason) {
-			return Result{Scenario: scenario, Outcome: OutcomeUnavailable, Tier: tier, Reason: "no browser available: " + artifacts.UnavailableReason}, nil
+			return Result{Scenario: scenario, Outcome: OutcomeUnavailable, Tier: tier, LayoutCacheArm: arm, Reason: "no browser available: " + artifacts.UnavailableReason}, nil
 		}
 		reason := strings.TrimSpace(artifacts.UnavailableReason)
 		if reason == "" {
 			reason = "no reason reported"
 		}
 		return Result{
-			Scenario: scenario, Outcome: OutcomeFailed, Tier: tier,
+			Scenario: scenario, Outcome: OutcomeFailed, Tier: tier, LayoutCacheArm: arm,
 			Reason: "BAS was reachable but produced no perf trace after retries (the browser ran; the trace was not finalized — often transient under concurrent capture load); reason: " + reason,
 		}, nil
 	}
 
 	return Result{
-		Scenario:           scenario,
-		Outcome:            OutcomeCaptured,
-		Tier:               reachedTier(tier, artifacts.HasComponentMarks),
-		TraceArtifact:      artifacts.TraceArtifact,
-		WebVitalsArtifact:  artifacts.WebVitalsArtifact,
-		TraceReference:     artifacts.TraceReference,
-		WebVitalsReference: artifacts.WebVitalsReference,
+		Scenario:               scenario,
+		Outcome:                OutcomeCaptured,
+		Tier:                   reachedTier(tier, artifacts.HasComponentMarks),
+		TraceArtifact:          artifacts.TraceArtifact,
+		WebVitalsArtifact:      artifacts.WebVitalsArtifact,
+		ProcessTreeArtifact:    artifacts.ProcessTreeArtifact,
+		TraceReference:         artifacts.TraceReference,
+		WebVitalsReference:     artifacts.WebVitalsReference,
+		ProcessTreeReference:   artifacts.ProcessTreeReference,
+		ProcessTreeSessionID:   artifacts.ProcessTreeSessionID,
+		ProcessTreeLeaseSHA256: artifacts.ProcessTreeLeaseSHA256,
+		LayoutCacheArm:         arm,
 	}, nil
 }
 
@@ -308,11 +381,21 @@ func isNoBrowserReason(reason string) bool {
 // it does a profile-mode restart (Orchestrate owns deferred restoration);
 // for Tier 0 it resolves the already-served URL with no restart. When it returns
 // done=true the supplied result is terminal (e.g. a failed restart).
-func (s *Service) resolveCaptureURL(ctx context.Context, scenario string, tier readiness.Tier) (uiURL string, result Result, done bool) {
+func (s *Service) resolveCaptureURL(ctx context.Context, scenario string, tier readiness.Tier, arm LayoutCacheArm, armExplicit bool) (uiURL string, result Result, done bool) {
 	if tier == readiness.Tier1 {
-		url, err := s.build.StartProfile(ctx, scenario)
+		var url string
+		var err error
+		if armExplicit {
+			armBuild, ok := s.build.(LayoutCacheArmBuildController)
+			if !ok {
+				return "", Result{Scenario: scenario, Outcome: OutcomeFailed, Tier: tier, LayoutCacheArm: arm, Reason: "build controller cannot select the requested layout cache arm"}, true
+			}
+			url, err = armBuild.StartProfileWithLayoutCacheArm(ctx, scenario, arm)
+		} else {
+			url, err = s.build.StartProfile(ctx, scenario)
+		}
 		if err != nil {
-			return "", Result{Scenario: scenario, Outcome: OutcomeFailed, Tier: tier, Reason: err.Error()}, true
+			return "", Result{Scenario: scenario, Outcome: OutcomeFailed, Tier: tier, LayoutCacheArm: arm, Reason: err.Error()}, true
 		}
 		return url, Result{}, false
 	}

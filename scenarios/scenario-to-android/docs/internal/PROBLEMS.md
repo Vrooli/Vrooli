@@ -197,7 +197,7 @@ credential, then rerun the unchanged `hello-mobile` matrix.
 **Refs:** `run-a0c09a943fb950543dcf51fb`, `run-f22e9273e238472801819a9b`, and
 `device-control auth provision`.
 
-Use this section for deferred findings from `screaming-architecture-audit`.
+Use this section for deferred findings from `architecture-lenses`.
 Do not create a standalone architecture-audit report unless the work is
 a migration handoff with a planned retirement path back into
 `ARCHITECTURE.md`, `SEAMS.md`, or this file.

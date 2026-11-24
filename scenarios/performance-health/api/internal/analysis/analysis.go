@@ -15,6 +15,8 @@ import (
 	"context"
 	"errors"
 	"sort"
+
+	"performance-health/internal/perfsample"
 )
 
 // ComponentTiming is one React component's commit profile across a trace.
@@ -51,6 +53,50 @@ type Result struct {
 	BrowserWork    []EventSummary
 	InputEvents    []EventSummary
 	Findings       []Finding
+}
+
+// PopulateSample copies the navigation, interaction, and slowest-component
+// measurements from an analysis result into the shared trend sample. Both the
+// analysis and sweep handlers persist this same projection.
+func PopulateSample(sample *perfsample.Sample, result Result) {
+	sample.ResponseEndMs = result.ResponseEndMs
+	sample.DOMInteractiveMs = result.DOMInteractiveMs
+	sample.DOMContentLoadedMs = result.DOMContentLoadedMs
+	sample.LoadEventEndMs = result.LoadEventEndMs
+	sample.NavigationType = result.NavigationType
+	sample.DrawnFPS = result.FrameSummary.ApproxDrawnFPS
+	sample.DroppedFrameRate = result.FrameSummary.DroppedFrameRate
+	sample.LongTaskTotalMs = result.LongTaskMs
+	sample.LongTaskMaxMs = result.LongTaskMaxMs
+	sample.InputEventCount = int64(totalEventCount(result.InputEvents))
+	sample.RasterTotalMs = eventTotal(result.BrowserWork, "RasterTask")
+	sample.LayoutTotalMs = eventTotal(result.BrowserWork, "Layout") + eventTotal(result.BrowserWork, "UpdateLayoutTree")
+	sample.PaintTotalMs = eventTotal(result.BrowserWork, "Paint")
+	if slowest, ok := slowestComponent(result.Components); ok {
+		sample.SlowestComponent = slowest.Component
+		sample.SlowestComponentAvgMs = slowest.AvgMs
+		sample.SlowestComponentMaxMs = slowest.MaxMs
+	}
+}
+
+func eventTotal(events []EventSummary, name string) float64 {
+	var total float64
+	for _, event := range events {
+		if event.Name == name {
+			total += event.TotalMs
+		}
+	}
+	return total
+}
+
+func slowestComponent(components []ComponentTiming) (ComponentTiming, bool) {
+	var worst ComponentTiming
+	for i, component := range components {
+		if i == 0 || component.AvgMs > worst.AvgMs {
+			worst = component
+		}
+	}
+	return worst, len(components) > 0
 }
 
 // Finding is one deterministic, located performance finding.

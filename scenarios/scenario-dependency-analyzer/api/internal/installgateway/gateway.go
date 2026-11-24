@@ -43,6 +43,7 @@ type Resolution struct {
 	PackageManager        string
 	ManifestPath          string
 	PackageName           string
+	Channel               string
 	TemplateVersion       string
 	ExactVersion          bool
 	GeneratedManifestPath string

@@ -89,8 +89,8 @@ versioned-migration helpers (`Migrate` / `MigrationProvider` in
 
 See [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#domain-owned-schema)
 for the design rationale and [`../internal/SEAMS.md`](../internal/SEAMS.md)
-for the per-seam table including `notes.Schema` and
-`database.SystemSchema`.
+for the system-schema seam; proto-health currently registers no
+domain-owned schema provider.
 
 ## CLI config file
 

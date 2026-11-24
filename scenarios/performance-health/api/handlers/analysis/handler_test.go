@@ -44,9 +44,15 @@ func (f *fakeSampleWriter) Insert(_ context.Context, s perfsample.Sample) error 
 func TestAnalyzeTraceMapsResultToProto(t *testing.T) {
 	loader := &fakeLoader{byArtifact: map[string]internalanalysis.Result{
 		"trace.json": {
-			LongTaskMs: 120,
-			LCPMs:      2400,
-			FCPMs:      800,
+			LongTaskMs:         120,
+			LongTaskMaxMs:      62.5,
+			LCPMs:              2400,
+			FCPMs:              800,
+			ResponseEndMs:      105,
+			DOMInteractiveMs:   205,
+			DOMContentLoadedMs: 305,
+			LoadEventEndMs:     405,
+			NavigationType:     "navigate",
 			FrameSummary: internalanalysis.FrameSummary{
 				TraceDurationMs:   1000,
 				BeginFrameCount:   70,
@@ -55,8 +61,12 @@ func TestAnalyzeTraceMapsResultToProto(t *testing.T) {
 				ApproxDrawnFPS:    55,
 				DroppedFrameRate:  0.2,
 			},
-			BrowserWork: []internalanalysis.EventSummary{{Name: "RasterTask", Count: 2, TotalMs: 80, AvgMs: 40, MaxMs: 50}},
-			InputEvents: []internalanalysis.EventSummary{{Name: "pointermove", Count: 30, TotalMs: 12, AvgMs: 0.4, MaxMs: 1}},
+			BrowserWork: []internalanalysis.EventSummary{
+				{Name: "RasterTask", Count: 2, TotalMs: 80, AvgMs: 40, MaxMs: 50},
+				{Name: "RasterTask", Count: 1, TotalMs: 20, AvgMs: 20, MaxMs: 20},
+				{Name: "Layout", TotalMs: 25}, {Name: "UpdateLayoutTree", TotalMs: 15}, {Name: "Paint", TotalMs: 8},
+			},
+			InputEvents: []internalanalysis.EventSummary{{Name: "pointermove", Count: 30, TotalMs: 12, AvgMs: 0.4, MaxMs: 1}, {Name: "keydown", Count: 5}},
 			Components: []internalanalysis.ComponentTiming{
 				{Component: "Dashboard", CommitCount: 9, AvgMs: 18.5, MaxMs: 42.0, Definition: "src/Dashboard.tsx:12"},
 				{Component: "Sidebar", CommitCount: 3, AvgMs: 4.0, MaxMs: 6.0},
@@ -86,10 +96,10 @@ func TestAnalyzeTraceMapsResultToProto(t *testing.T) {
 	if msg.GetFrameSummary().GetDrawnFrameCount() != 55 || msg.GetFrameSummary().GetApproxDrawnFps() != 55 {
 		t.Fatalf("frame summary mapped wrong: %+v", msg.GetFrameSummary())
 	}
-	if len(msg.GetBrowserWork()) != 1 || msg.GetBrowserWork()[0].GetName() != "RasterTask" {
+	if len(msg.GetBrowserWork()) != 5 || msg.GetBrowserWork()[0].GetName() != "RasterTask" {
 		t.Fatalf("browser work mapped wrong: %+v", msg.GetBrowserWork())
 	}
-	if len(msg.GetInputEvents()) != 1 || msg.GetInputEvents()[0].GetCount() != 30 {
+	if len(msg.GetInputEvents()) != 2 || msg.GetInputEvents()[0].GetCount() != 30 {
 		t.Fatalf("input events mapped wrong: %+v", msg.GetInputEvents())
 	}
 	// The capture's LCP + slowest-component reading is persisted to the trend.
@@ -119,6 +129,19 @@ func TestAnalyzeTraceMapsResultToProto(t *testing.T) {
 		{s.SlowestComponent, "Dashboard", "sample.slowest_component"},
 		{s.SlowestComponentAvgMs, 18.5, "sample.slowest_avg_ms"},
 		{s.SlowestComponentMaxMs, 42.0, "sample.slowest_max_ms"},
+		{s.ResponseEndMs, int64(105), "sample.response_end_ms"},
+		{s.DOMInteractiveMs, int64(205), "sample.dom_interactive_ms"},
+		{s.DOMContentLoadedMs, int64(305), "sample.dom_content_loaded_ms"},
+		{s.LoadEventEndMs, int64(405), "sample.load_event_end_ms"},
+		{s.NavigationType, "navigate", "sample.navigation_type"},
+		{s.InputEventCount, int64(35), "sample.input_event_count"},
+		{s.RasterTotalMs, float64(100), "sample.raster_total_ms"},
+		{s.LayoutTotalMs, float64(40), "sample.layout_total_ms"},
+		{s.PaintTotalMs, float64(8), "sample.paint_total_ms"},
+		{s.DrawnFPS, float64(55), "sample.drawn_fps"},
+		{s.DroppedFrameRate, float64(0.2), "sample.dropped_frame_rate"},
+		{s.LongTaskTotalMs, int64(120), "sample.long_task_total_ms"},
+		{s.LongTaskMaxMs, float64(62.5), "sample.long_task_max_ms"},
 	} {
 		if c.got != c.want {
 			t.Errorf("%s: got %v, want %v", c.label, c.got, c.want)

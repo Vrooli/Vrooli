@@ -1,6 +1,6 @@
 import { AlertTriangle, BadgeCheck, FoldVertical, Sparkles } from "lucide-react";
 import { Badge } from "../../components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import { statusTone } from "../../theme/status";
 import type { OptimizationRecommendation } from "../../types";
 

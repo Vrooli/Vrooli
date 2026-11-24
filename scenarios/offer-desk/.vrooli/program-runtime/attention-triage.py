@@ -167,7 +167,7 @@ def step_classify():
 def step_report():
     # phase: report — one envelope on every path.
     envelope['phase'] = 'report'
-    print(json.dumps(envelope, allow_nan=False, separators=(',', ':')))
+    program.report(envelope)
     return None
 
 

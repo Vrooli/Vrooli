@@ -1,2 +1,5 @@
 # Compiled build output. Never commit binaries.
 /cli/cli
+
+# Generated scenario freshness cache.
+/data/freshness-cache/
