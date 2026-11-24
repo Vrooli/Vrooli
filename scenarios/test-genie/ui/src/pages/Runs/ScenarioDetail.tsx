@@ -1,6 +1,6 @@
 import { useId, useMemo, useCallback } from "react";
 import { ArrowLeft } from "lucide-react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { Breadcrumb } from "../../components/layout/Breadcrumb";
 import { ScenarioDetailTabNav } from "../../components/layout/ScenarioDetailTabNav";
 import { StatusPill } from "../../components/cards/StatusPill";
@@ -69,7 +69,7 @@ export function ScenarioDetail({ scenarioName }: ScenarioDetailProps) {
       {/* Navigation */}
       <div className="flex items-center gap-4">
         <Button
-          variant="outline"
+          variant="secondary"
           size="sm"
           onClick={navigateBack}
           data-testid={selectors.runs.scenarioDetailBack}

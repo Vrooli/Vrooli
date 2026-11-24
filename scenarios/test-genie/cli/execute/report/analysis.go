@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/api-core/textutil"
+
 	execTypes "test-genie/cli/internal/execute"
 )
 
@@ -174,7 +176,7 @@ func SummarizeCriticalPath(insights []PhaseInsight) *CriticalPath {
 
 	return &CriticalPath{
 		PrimaryPhase:  primary.Phase,
-		PrimaryCause:  DefaultValue(primary.Cause, "Unknown issue"),
+		PrimaryCause:  textutil.FirstNonEmpty(primary.Cause, "Unknown issue"),
 		Detail:        primary.Detail,
 		BlockedPhases: blocked,
 		QuickFixes:    fixes,

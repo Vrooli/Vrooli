@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 	"test-genie/internal/executionevidence"
 	"test-genie/internal/orchestrator/phasecache"
 	"test-genie/internal/orchestrator/phasecacheidentity"
@@ -67,6 +68,111 @@ func TestCompletePhaseRunPreservesProviderSkip(t *testing.T) {
 	}
 	if len(persisted.Phases) != 1 || persisted.Phases[0].Status != phaseStatusSkipped || persisted.PhaseSummary.Skipped != 1 || persisted.PhaseSummary.Passed != 0 {
 		t.Fatalf("terminal result lost skipped phase: %+v", persisted)
+	}
+}
+
+func TestSummarizePhasesBucketsNotEvaluatedWithoutMarkingItPassedOrFailed(t *testing.T) {
+	summary := SummarizePhases([]PhaseExecutionResult{
+		{Name: "experience", Status: phaseStatusNotEvaluated},
+		{Name: "unit", Status: phaseStatusPassed},
+	})
+	if summary.Total != 2 || summary.NotEvaluated != 1 || summary.Passed != 1 || summary.Failed != 0 || summary.Skipped != 0 {
+		t.Fatalf("summary = %+v; expected a transparent not-evaluated bucket", summary)
+	}
+}
+
+type maintenanceWindowOutageBroker struct {
+	blockedOwner string
+	denied       bool
+	owners       []string
+}
+
+func (b *maintenanceWindowOutageBroker) Acquire(_ context.Context, owner string, _, _ int64) (sharedcapacity.Lease, sharedcapacity.Verdict, error) {
+	b.owners = append(b.owners, owner)
+	if owner == b.blockedOwner && !b.denied {
+		b.denied = true
+		return nil, sharedcapacity.Verdict{Kind: "unknown", Reason: "capacity broker unavailable"}, nil
+	}
+	return stubLease{}, sharedcapacity.Verdict{Kind: "grant"}, nil
+}
+
+func TestCapacityUnknownRecordsFallbackWhileIndependentPhaseFinishesOnce(t *testing.T) {
+	const runID = "maintenance-window-unknown-capacity"
+	scenarioDir, artifactRoot, logDir := t.TempDir(), t.TempDir(), t.TempDir()
+	env := workspacepkg.Environment{ScenarioName: "demo", ScenarioDir: scenarioDir, ArtifactRoot: artifactRoot}
+	blockedOwner := sharedcapacity.OwnerIDFor("test-genie", runID, "blocked")
+	broker := &maintenanceWindowOutageBroker{blockedOwner: blockedOwner}
+	var blockedRuns, independentRuns atomic.Int32
+	blocked := staticDef(phasespkg.Name("blocked"))
+	blocked.Concurrency = phasespkg.Concurrency{Mode: "parallel-safe"}
+	blocked.Runner = func(context.Context, workspacepkg.Environment, io.Writer) phasespkg.RunReport {
+		blockedRuns.Add(1)
+		return phasespkg.RunReport{Observations: []phasespkg.Observation{phasespkg.NewSuccessObservation("completed")}}
+	}
+	independent := staticDef(phasespkg.Name("independent"))
+	independent.Concurrency = phasespkg.Concurrency{Mode: "parallel-safe"}
+	independent.Runner = func(context.Context, workspacepkg.Environment, io.Writer) phasespkg.RunReport {
+		independentRuns.Add(1)
+		return phasespkg.RunReport{Observations: []phasespkg.Observation{phasespkg.NewSuccessObservation("completed")}}
+	}
+	orchestrator := &SuiteOrchestrator{capacity: broker, costEstimator: schedulerCostStub{}, phaseTimeout: time.Second}
+	first, failed, _ := orchestrator.runSelectedPhasesWithRunID(context.Background(), env, runnability.RunContext{}, runID, logDir,
+		[]phasespkg.Definition{blocked, independent}, nil, false, nil, nil, nil)
+	if failed || len(first) != 2 || independentRuns.Load() != 1 {
+		t.Fatalf("first window failed=%t results=%+v independent runs=%d; want both phases and one independent completion", failed, first, independentRuns.Load())
+	}
+	foundUnknown := false
+	for _, observation := range first[0].Observations {
+		foundUnknown = foundUnknown || observation.Prefix == "WARNING" && strings.Contains(observation.Text, "capacity broker unavailable")
+	}
+	if !foundUnknown {
+		t.Fatalf("capacity outage not retained as a warning on its serial fallback result: %+v", first[0].Observations)
+	}
+	phaseLog, err := os.ReadFile(first[0].LogPath)
+	if err != nil || !strings.Contains(string(phaseLog), "capacity broker unavailable") {
+		t.Fatalf("capacity outage warning log %q err=%v; want durable reason in phase log", first[0].LogPath, err)
+	}
+
+	// Recover only the stable blocked phase owner. The independent completed
+	// phase is not resubmitted, so its work has one terminal result.
+	recovered, failed, _ := orchestrator.runSelectedPhasesWithRunID(context.Background(), env, runnability.RunContext{}, runID, logDir,
+		[]phasespkg.Definition{blocked}, nil, false, nil, nil, nil)
+	if failed || len(recovered) != 1 || blockedRuns.Load() != 2 || independentRuns.Load() != 1 {
+		t.Fatalf("recovery failed=%t results=%+v blocked=%d independent=%d; want same blocked owner recovered and independent exactly once",
+			failed, recovered, blockedRuns.Load(), independentRuns.Load())
+	}
+	if len(broker.owners) != 3 || broker.owners[0] != blockedOwner || broker.owners[1] == blockedOwner || broker.owners[2] != blockedOwner {
+		t.Fatalf("capacity owner sequence = %v; want unknown, independent grant, same-owner recovery", broker.owners)
+	}
+
+	started := time.Now().UTC()
+	index := sharedruns.NewIndex(scenarioDir)
+	if err := index.Append(sharedruns.RunRecord{RunID: runID, Scenario: "demo", StartedAt: started, Status: sharedruns.StatusInProgress}); err != nil {
+		t.Fatal(err)
+	}
+	blockedFinal := recovered[0]
+	blockedFinal.Observations = append(blockedFinal.Observations, first[0].Observations...)
+	observationCount := uint32(len(blockedFinal.Observations))
+	blockedFinal.ObservationCount = &observationCount
+	terminalPhases := []PhaseExecutionResult{blockedFinal, first[1]}
+	terminal := &SuiteExecutionResult{RunID: runID, ScenarioName: "demo", StartedAt: started, CompletedAt: time.Now().UTC(),
+		Success: true, Verdict: SuiteVerdictPass, PlannedPhases: []string{"blocked", "independent"}, Phases: terminalPhases,
+		PhaseSummary: SummarizePhases(terminalPhases)}
+	orchestrator.finalizeRunRecord(scenarioDir, runID, terminal, buildPhaseResultViews("", terminalPhases))
+	record, err := index.Find(runID)
+	if err != nil || len(record.Phases) != 2 || record.Status != sharedruns.StatusPassed {
+		t.Fatalf("terminal index phases=%+v err=%v; want one disposition for each stable phase", record.Phases, err)
+	}
+	snapshot, err := index.ReadTerminalSnapshot(runID)
+	if err != nil {
+		t.Fatalf("read terminal snapshot: %v", err)
+	}
+	var persisted SuiteExecutionResult
+	if err := json.Unmarshal(snapshot.Result, &persisted); err != nil {
+		t.Fatal(err)
+	}
+	if len(persisted.Phases) != 2 || persisted.Phases[0].Status != phaseStatusPassed || persisted.Phases[1].Status != phaseStatusPassed {
+		t.Fatalf("durable terminal snapshot lost exactly-once phase disposition: %+v", persisted)
 	}
 }
 
@@ -2122,6 +2228,21 @@ func TestValidateTestingConfigPhasesReportsUnknownKeys(t *testing.T) {
 		if !strings.Contains(msg, needle) {
 			t.Fatalf("error %q missing %q", msg, needle)
 		}
+	}
+}
+
+func TestValidateTestingConfigUsesCanonicalExperiencePhase(t *testing.T) {
+	defs := []phaseDefinition{{Name: phasespkg.Name("experience")}}
+
+	if err := validateTestingConfigPhases(defs, &workspacepkg.Config{Phases: map[string]workspacepkg.PhaseSettings{
+		"experience": {Timeout: 15 * time.Minute},
+	}}); err != nil {
+		t.Fatalf("canonical experience override should validate: %v", err)
+	}
+	if err := validateTestingConfigPhases(defs, &workspacepkg.Config{Phases: map[string]workspacepkg.PhaseSettings{
+		"ui-health": {Timeout: 15 * time.Minute},
+	}}); err == nil || !strings.Contains(err.Error(), `unknown phase "ui-health"`) {
+		t.Fatalf("retired ui-health phase override should be rejected, got %v", err)
 	}
 }
 

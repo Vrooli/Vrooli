@@ -276,3 +276,41 @@ func TestRetentionServiceReconcilesInterruptedDeletion(t *testing.T) {
 		t.Fatalf("log tree remains: %v", err)
 	}
 }
+
+func TestRetentionReconcileRejectsTombstoneForDifferentRun(t *testing.T) {
+	dir := t.TempDir()
+	idx := NewIndex(dir)
+	seedRun(t, idx, dir, "authorized", time.Now().UTC(), 8, false)
+	seedRun(t, idx, dir, "other-run", time.Now().UTC(), 8, false)
+	store := &recordingDetailStore{}
+	service := NewRetentionService(dir, DefaultRetentionPolicy()).WithDetailStore(store)
+	if err := os.MkdirAll(service.tombstoneDir(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	payload, err := json.Marshal(retentionTombstone{RunID: "other-run", CreatedAt: time.Now().UTC()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tombstonePath := filepath.Join(service.tombstoneDir(), "authorized.json")
+	if err := os.WriteFile(tombstonePath, payload, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := service.Reconcile(context.Background()); err == nil {
+		t.Fatal("accepted a tombstone whose run id did not match its filename")
+	}
+	for _, runID := range []string{"authorized", "other-run"} {
+		if _, err := idx.Find(runID); err != nil {
+			t.Fatalf("reconcile removed run %q after invalid tombstone: %v", runID, err)
+		}
+		if _, err := os.Stat(filepath.Join(sharedartifacts.RunDir(dir, runID), "blob.bin")); err != nil {
+			t.Fatalf("reconcile removed run %q evidence after invalid tombstone: %v", runID, err)
+		}
+	}
+	if len(store.deleted) != 0 {
+		t.Fatalf("invalid tombstone deleted detail rows: %v", store.deleted)
+	}
+	if _, err := os.Stat(tombstonePath); err != nil {
+		t.Fatalf("invalid tombstone was removed instead of retained for inspection: %v", err)
+	}
+}

@@ -176,20 +176,9 @@ Connection timed out
 curl: (28) Operation timed out
 ```
 
-**Solutions:**
-```bash
-# Check firewall status
-sudo ufw status
-
-# Allow specific port
-sudo ufw allow 8080
-
-# Check iptables
-sudo iptables -L
-
-# Disable firewall temporarily (development only)
-sudo ufw disable
-```
+**Solutions:** Check the host's firewall state with its supported administration surface. Ask the
+host owner to allow only the required service port; do not disable the firewall or make a broad
+inbound rule. Then retry the health check from Test Genie.
 
 ## Environment & Configuration Issues
 

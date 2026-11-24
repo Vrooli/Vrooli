@@ -616,6 +616,32 @@
           }
         },
         {
+          "name": "store-experience-cohort",
+          "description": "Persist a combined canonical experience receipt for completed scenario runs",
+          "needs_api": true,
+          "flags": [
+            {
+              "name": "request-json",
+              "required": true,
+              "description": "JSON join of scenario, run ID, returned build identity and invoker terminal status",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
           "name": "download-artifact",
           "description": "Stream one cataloged run artifact to stdout or a local file",
           "needs_api": true,

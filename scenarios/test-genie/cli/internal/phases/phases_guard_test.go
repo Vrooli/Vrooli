@@ -171,6 +171,11 @@ func hasRetiredPhaseSelection(value any) bool {
 	case map[string]any:
 		for key, child := range node {
 			if strings.EqualFold(key, "phases") {
+				if phases, ok := child.(map[string]any); ok {
+					if _, found := phases["ui-health"]; found {
+						return true
+					}
+				}
 				if phases, ok := child.([]any); ok {
 					for _, phase := range phases {
 						if phase == "ui-health" {

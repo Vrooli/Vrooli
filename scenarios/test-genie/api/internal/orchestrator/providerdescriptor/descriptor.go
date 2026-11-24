@@ -180,6 +180,9 @@ func (d *Descriptor) UnmarshalJSON(raw []byte) error {
 }
 
 type Validation struct {
+	// EndpointVariant selects the runtime endpoint variant while Scenario remains
+	// the provider's logical identity for contracts, locks, and reporting.
+	EndpointVariant  string   `json:"endpointVariant,omitempty"`
 	DetailCommand    string   `json:"detailCommand,omitempty"`
 	Contract         string   `json:"contract"`
 	CapabilitySubset []string `json:"capabilitySubset,omitempty"`
@@ -709,6 +712,9 @@ func validateDescriptor(d *Descriptor) []Diagnostic {
 	}
 	if d.Validation.Contract != "scenario-validation/v1" {
 		add("invalid_validation_contract", "validation.contract must be scenario-validation/v1")
+	}
+	if variant := strings.TrimSpace(d.Validation.EndpointVariant); variant != "" && !scenarioScopePattern.MatchString(variant) {
+		add("invalid_validation_endpoint_variant", "validation.endpointVariant must be a lower-case runtime variant name")
 	}
 	out = append(out, validateEvidenceProducers(d)...)
 	if len(d.Targets.Kinds) == 0 {

@@ -35,6 +35,24 @@ func TestLoadValidDescriptor(t *testing.T) {
 	}
 }
 
+func TestValidationEndpointVariantIsDeclaredAndValidated(t *testing.T) {
+	body := strings.Replace(validDescriptor("audio-tools", "soak"),
+		`"validation":{"contract":"scenario-validation/v1","includeExecution":true}`,
+		`"validation":{"contract":"scenario-validation/v1","includeExecution":true,"endpointVariant":"lab"}`, 1)
+	result := Load(LoadOptions{Paths: []string{writeDescriptor(t, "audio-tools", body)}})
+	if err := result.Err(); err != nil {
+		t.Fatalf("valid endpoint variant rejected: %v", err)
+	}
+	if got := result.Descriptors[0].Validation.EndpointVariant; got != "lab" {
+		t.Fatalf("endpointVariant = %q, want lab", got)
+	}
+	invalid := strings.Replace(body, `"endpointVariant":"lab"`, `"endpointVariant":"lab@product"`, 1)
+	bad := Load(LoadOptions{Paths: []string{writeDescriptor(t, "audio-tools", invalid)}})
+	if err := bad.Err(); err == nil {
+		t.Fatal("invalid endpoint variant was accepted")
+	}
+}
+
 func TestEvidenceProducerDeclarationAndSafeResolution(t *testing.T) {
 	body := strings.Replace(validDescriptor("search-hub", "search"),
 		`"validation":{"contract":"scenario-validation/v1","includeExecution":true}`,

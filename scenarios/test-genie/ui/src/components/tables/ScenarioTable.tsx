@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Search, ChevronUp, ChevronDown } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { StatusPill } from "../cards/StatusPill";
 import { selectors } from "../../consts/selectors";
 import { formatRelative } from "../../lib/formatters";
@@ -89,7 +89,7 @@ export function ScenarioTable({
           />
         </div>
         {search && (
-          <Button variant="outline" size="sm" onClick={() => setSearch("")}>
+          <Button variant="secondary" size="sm" onClick={() => setSearch("")}>
             Clear
           </Button>
         )}

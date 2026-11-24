@@ -161,18 +161,8 @@ func NewNativeSyncer() Syncer {
 	}
 }
 
-func (s *nativeRequirementsSyncer) toServiceInput(input SyncInput) reqsvc.SyncInput {
-	return reqsvc.SyncInput{
-		ScenarioName:     input.ScenarioName,
-		ScenarioDir:      input.ScenarioDir,
-		PhaseDefinitions: input.PhaseDefinitions,
-		PhaseResults:     input.PhaseResults,
-		CommandHistory:   input.CommandHistory,
-	}
-}
-
 func (s *nativeRequirementsSyncer) Sync(ctx context.Context, input SyncInput) (*SyncOutcome, error) {
-	report, err := s.service.Sync(ctx, s.toServiceInput(input))
+	report, err := s.service.Sync(ctx, serviceSyncInput(input))
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +170,7 @@ func (s *nativeRequirementsSyncer) Sync(ctx context.Context, input SyncInput) (*
 }
 
 func (s *nativeRequirementsSyncer) Snapshot(ctx context.Context, input SyncInput) (*SyncOutcome, error) {
-	report, err := s.service.Snapshot(ctx, s.toServiceInput(input))
+	report, err := s.service.Snapshot(ctx, serviceSyncInput(input))
 	if err != nil {
 		return nil, err
 	}
@@ -200,6 +190,18 @@ func NewSyncer(projectRoot string) Syncer {
 
 	// Default to native Go
 	return NewNativeSyncer()
+}
+
+// serviceSyncInput projects the shared orchestration input into the canonical
+// requirements service contract for both native and Node-backed syncers.
+func serviceSyncInput(input SyncInput) reqsvc.SyncInput {
+	return reqsvc.SyncInput{
+		ScenarioName:     input.ScenarioName,
+		ScenarioDir:      input.ScenarioDir,
+		PhaseDefinitions: input.PhaseDefinitions,
+		PhaseResults:     input.PhaseResults,
+		CommandHistory:   input.CommandHistory,
+	}
 }
 
 type nodeRequirementsSyncer struct {
@@ -280,7 +282,7 @@ func (s *nodeRequirementsSyncer) Sync(ctx context.Context, input SyncInput) (*Sy
 	// back through the native status model so the report is engine-agnostic.
 	// The Node path cannot supply a per-requirement change list, so changes are
 	// omitted but counts are accurate and Synced is true.
-	report, err := s.reader.Snapshot(ctx, s.toServiceInput(input))
+	report, err := s.reader.Snapshot(ctx, serviceSyncInput(input))
 	if err != nil {
 		return nil, nil
 	}
@@ -291,21 +293,11 @@ func (s *nodeRequirementsSyncer) Sync(ctx context.Context, input SyncInput) (*Sy
 }
 
 func (s *nodeRequirementsSyncer) Snapshot(ctx context.Context, input SyncInput) (*SyncOutcome, error) {
-	report, err := s.reader.Snapshot(ctx, s.toServiceInput(input))
+	report, err := s.reader.Snapshot(ctx, serviceSyncInput(input))
 	if err != nil {
 		return nil, err
 	}
 	return newOutcomeFromReport(report, ""), nil
-}
-
-func (s *nodeRequirementsSyncer) toServiceInput(input SyncInput) reqsvc.SyncInput {
-	return reqsvc.SyncInput{
-		ScenarioName:     input.ScenarioName,
-		ScenarioDir:      input.ScenarioDir,
-		PhaseDefinitions: input.PhaseDefinitions,
-		PhaseResults:     input.PhaseResults,
-		CommandHistory:   input.CommandHistory,
-	}
 }
 
 type phaseStatusEntry struct {

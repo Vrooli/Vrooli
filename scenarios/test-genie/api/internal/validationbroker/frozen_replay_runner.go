@@ -55,14 +55,27 @@ type FrozenReplayTestRunner interface {
 // LiveFrozenReplayTestRunner is the only production bridge to Workspace
 // Sandbox's contained replay-test operation. The request carries bounded
 // evaluator bytes and content identities; it never carries a host path/argv.
-type LiveFrozenReplayTestRunner struct{}
+// Resolver and HTTPClient are optional so tests and embedded callers can own
+// discovery and transport without changing the live defaults.
+type LiveFrozenReplayTestRunner struct {
+	Resolver   scenarioURLResolver
+	HTTPClient connect.HTTPClient
+}
 
-func (LiveFrozenReplayTestRunner) client(ctx context.Context) (workspaceconnect.WorkspaceSandboxServiceClient, error) {
-	url, err := discovery.ResolveScenarioURLDefault(ctx, "workspace-sandbox")
+func (r LiveFrozenReplayTestRunner) client(ctx context.Context) (workspaceconnect.WorkspaceSandboxServiceClient, error) {
+	resolver := r.Resolver
+	if resolver == nil {
+		resolver = discovery.NewResolver(discovery.ResolverConfig{})
+	}
+	url, err := resolver.ResolveScenarioURLDefault(ctx, "workspace-sandbox")
 	if err != nil {
 		return nil, fmt.Errorf("resolve workspace-sandbox URL: %w", err)
 	}
-	return workspaceconnect.NewWorkspaceSandboxServiceClient(http.DefaultClient, url), nil
+	httpClient := r.HTTPClient
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
+	return workspaceconnect.NewWorkspaceSandboxServiceClient(httpClient, url), nil
 }
 
 func (r LiveFrozenReplayTestRunner) Start(ctx context.Context, key string, execution *validationv1.FrozenReplayExecution, bundle FrozenEvaluatorBundle, timeout time.Duration) (FrozenReplayTestResult, error) {

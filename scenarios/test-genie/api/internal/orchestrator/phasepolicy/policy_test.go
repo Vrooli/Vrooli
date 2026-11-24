@@ -75,6 +75,32 @@ func TestSuiteVerdictForExecution(t *testing.T) {
 			want: SuiteVerdictNotEvaluated,
 		},
 		{
+			name: "unknown status fails closed",
+			results: []ExecutionInput{{
+				Phase:  "experience",
+				Status: "future_verdict",
+				Policy: RequiredProviderPolicy(),
+			}},
+			want: SuiteVerdictFail,
+		},
+		{
+			name: "unknown status fails closed for advisory phase",
+			results: []ExecutionInput{{
+				Phase:  "experience",
+				Status: "future_verdict",
+				Policy: BestEffortProviderPolicy(),
+			}},
+			want: SuiteVerdictFail,
+		},
+		{
+			name: "unknown status fails closed beside a pass",
+			results: []ExecutionInput{
+				{Phase: "structure", Status: StatusPassed, Policy: RequiredProviderPolicy()},
+				{Phase: "experience", Status: "future_verdict", Policy: RequiredProviderPolicy()},
+			},
+			want: SuiteVerdictFail,
+		},
+		{
 			name: "real defect dominates not evaluated",
 			results: []ExecutionInput{
 				{Phase: "experience", Status: StatusNotEvaluated, Policy: RequiredProviderPolicy()},

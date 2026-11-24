@@ -20,6 +20,8 @@ The effective phase registry is built from checked-in provider descriptors plus 
 
 Applicability answers "should this phase judge this target?" Runnability answers "can this already-applicable phase execute in this environment?" Provider readiness answers "is the selected provider usable for this execution?" These are separate states in JSON previews and run records.
 
+Provider readiness and execution leases queue for a provider for at most two minutes by default. Progress names the provider being checked or leased; if another run holds it beyond the bound, the waiting run records a provider-unavailable result and can be retried after the owner finishes. The lease limit does not consume the readiness probe budget: the original run context is used once the lease is acquired.
+
 ### How provider readiness is established
 
 Readiness asks three questions, none of whose answers depend on the target: is the provider live, does it speak the current contract, and is it the provider its descriptor claims. It answers them with `ScenarioValidationService.DescribeProvider`, whose request carries no target fields at all — the provider replies from facts it resolved at startup, so the probe is O(1) regardless of how large the scenario under test is.

@@ -96,6 +96,59 @@ func TestArtifactCatalogUnknownKindRoundTripsAndResolvesGenerically(t *testing.T
 	}
 }
 
+func TestRefreshPreservesCatalogWhileReferencedStorageRootIsUnavailable(t *testing.T) {
+	scenarioDir, runID := t.TempDir(), "run-log-root-recovery"
+	logRoot := RunLogsDir(scenarioDir, runID)
+	logPath := filepath.Join(logRoot, "unit", "runner.log")
+	writeTestArtifact(t, logPath, "original run log")
+	initial, err := DiscoverArtifactCatalog(scenarioDir, runID, nil, time.Unix(100, 0), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteArtifactCatalog(scenarioDir, initial); err != nil {
+		t.Fatal(err)
+	}
+	if len(initial.Artifacts) != 1 {
+		t.Fatalf("initial artifacts = %d, want one", len(initial.Artifacts))
+	}
+	previousID := initial.Artifacts[0].ID
+
+	unavailableRoot := logRoot + ".temporarily-unavailable"
+	if err := os.Rename(logRoot, unavailableRoot); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if _, err := os.Stat(unavailableRoot); err == nil {
+			_ = os.Rename(unavailableRoot, logRoot)
+		}
+	}()
+	if _, err := RefreshArtifactCatalog(scenarioDir, runID, nil, time.Unix(200, 0)); !errors.Is(err, ErrArtifactStorageUnavailable) {
+		t.Fatalf("refresh error = %v, want unavailable referenced storage", err)
+	}
+	retained, err := ReadArtifactCatalog(scenarioDir, runID)
+	if err != nil {
+		t.Fatalf("read preserved catalog: %v", err)
+	}
+	if retained.Digest != initial.Digest || len(retained.Artifacts) != 1 || retained.Artifacts[0].ID != previousID {
+		t.Fatalf("catalog lost referenced evidence during root outage: %+v", retained.Artifacts)
+	}
+
+	if err := os.Rename(unavailableRoot, logRoot); err != nil {
+		t.Fatal(err)
+	}
+	refreshed, err := RefreshArtifactCatalog(scenarioDir, runID, nil, time.Unix(300, 0))
+	if err != nil {
+		t.Fatalf("refresh after storage recovery: %v", err)
+	}
+	if len(refreshed.Artifacts) != 1 || refreshed.Artifacts[0].ID != previousID {
+		t.Fatalf("restored run evidence changed identity: %+v", refreshed.Artifacts)
+	}
+	got, err := os.ReadFile(logPath)
+	if err != nil || string(got) != "original run log" {
+		t.Fatalf("restored run log = %q, err = %v", got, err)
+	}
+}
+
 func TestArtifactCatalogRejectsCrossRunReuseMissingUnsafeAndDuplicateIDs(t *testing.T) { // [REQ:TESTGENIE-TYPED-EVIDENCE-P0]
 	scenarioDir := t.TempDir()
 	for _, runID := range []string{"run-a", "run-b"} {

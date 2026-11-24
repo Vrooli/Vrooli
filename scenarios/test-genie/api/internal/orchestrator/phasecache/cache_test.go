@@ -190,6 +190,16 @@ func TestAuditSamplingAndDemotionAreFailClosed(t *testing.T) {
 	}
 }
 
+func TestAuditPolicyIsSnapshottedWhenStoreIsCreated(t *testing.T) {
+	t.Setenv("TEST_GENIE_PHASE_CACHE_AUDIT_PERCENT", "100")
+	store := New(t.TempDir())
+	t.Setenv("TEST_GENIE_PHASE_CACHE_AUDIT_PERCENT", "0")
+
+	if !store.ShouldAudit("pc:key", "run-1") {
+		t.Fatal("existing store should retain its 100 percent audit policy")
+	}
+}
+
 func TestEquivalentIgnoresRunLocalTimingAndCacheProvenance(t *testing.T) {
 	a := phases.ExecutionResult{Name: "x", Status: "passed", DurationSeconds: 1, DurationMilliseconds: 100, LogPath: "old", CacheHit: true, CacheSourceRunID: "old-run"}
 	b := a

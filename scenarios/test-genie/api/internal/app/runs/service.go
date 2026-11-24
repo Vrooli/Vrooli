@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -50,6 +51,7 @@ type executionPlanner interface {
 // index surface, it owns the durable run lifecycle (StartRun/FollowRun/WaitRun/
 // AbortRun/GetRunStatus) by delegating to the run manager.
 type Service struct {
+	cohortReceiptMu     sync.Mutex
 	strictInputBindings map[strictInputKey]StrictInputReadBinding
 	scenariosRoot       string
 	artifactRoot        func(string) (string, error)

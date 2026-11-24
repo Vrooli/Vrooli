@@ -171,6 +171,31 @@ func TestRunSendsScenarioPath(t *testing.T) {
 	}
 }
 
+func TestRunSendsOnlyExplicitLoopbackBASOverride(t *testing.T) {
+	prevResolve, prevClient := ResolveBaseURL, NewClient
+	cap := &capturingClient{resp: &scenariovalidationv1.ValidateScenarioResponse{
+		Scenario: "ui-health", Status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED, Assessment: testAssessment(""),
+	}}
+	ResolveBaseURL = func(context.Context, string) (string, error) { return "http://ui-health", nil }
+	NewClient = func(time.Duration, string) Client { return cap }
+	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
+
+	provider := testProvider(false)
+	provider.Phase = "experience"
+	provider.ProviderScenario = "ui-health"
+	provider.BASUnavailableEndpoint = testBASUnavailableEndpoint
+	Run(context.Background(), provider, "fixture", "/fixture")
+	if got := cap.headers.Get(testBASUnavailableHeader); got != testBASUnavailableEndpoint {
+		t.Fatalf("test-only BAS header = %q, want %q", got, testBASUnavailableEndpoint)
+	}
+
+	provider.BASUnavailableEndpoint = "http://localhost:17116"
+	result := Run(context.Background(), provider, "fixture", "/fixture")
+	if result == nil || result.Success {
+		t.Fatalf("non-loopback override must fail closed, got %+v", result)
+	}
+}
+
 func TestAudioToolsSoakForwardsOnlyRequestScopedVerifiedBearerHeaders(t *testing.T) {
 	prevResolve, prevClient := ResolveBaseURL, NewClient
 	cap := &capturingClient{resp: &scenariovalidationv1.ValidateScenarioResponse{
@@ -674,6 +699,43 @@ func TestRunNotEvaluatedNeverPasses(t *testing.T) {
 	}
 }
 
+func TestTranslateVerdictContractAcrossProviderStatuses(t *testing.T) {
+	// Keep the complete wire enum visible here. In particular, an enum value
+	// introduced by a newer provider must not fall through as a pass.
+	tests := []struct {
+		name       string
+		status     scenariovalidationv1.ValidationStatus
+		wantStatus string
+		wantPass   bool
+		wantClass  shared.FailureClass
+	}{
+		{"passed", scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED, "passed", true, ""},
+		{"failed", scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED, "failed", false, shared.FailureClassTestFailure},
+		{"degraded", scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED, "degraded", true, ""},
+		{"error", scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR, "error", false, shared.FailureClassSystem},
+		{"skipped", scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_SKIPPED, "skipped", true, ""},
+		{"not_evaluated", scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED, "not_evaluated", false, shared.FailureClassMissingDependency},
+		{"unspecified", scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED, "error", false, shared.FailureClassMaturityContract},
+		{"unknown_future_status", scenariovalidationv1.ValidationStatus(99), "", false, shared.FailureClassMaturityContract},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := translate(testProvider(false), "demo", &scenariovalidationv1.ValidateScenarioResponse{
+				Scenario: "demo", Status: tt.status, Assessment: testAssessment(""),
+			})
+			if got.Success != tt.wantPass {
+				t.Fatalf("success=%v, want %v (status=%q error=%v)", got.Success, tt.wantPass, got.Summary.Status, got.Error)
+			}
+			if tt.wantStatus != "" && got.Summary.Status != tt.wantStatus {
+				t.Fatalf("status=%q, want %q", got.Summary.Status, tt.wantStatus)
+			}
+			if got.FailureClass != tt.wantClass {
+				t.Fatalf("failure class=%q, want %q", got.FailureClass, tt.wantClass)
+			}
+		})
+	}
+}
+
 func TestMergeCapabilityResultsPreservesNotEvaluated(t *testing.T) {
 	assessment := testCapabilityAssessment()
 	base := &Result{RunResult: shared.RunResult[Summary]{Success: false, Summary: Summary{Scenario: "demo", Status: "not_evaluated"}}, Assessment: assessment}
@@ -682,6 +744,86 @@ func TestMergeCapabilityResultsPreservesNotEvaluated(t *testing.T) {
 	merged := MergeCapabilityResults(projected, passing)
 	if merged.Success || merged.Summary.Status != "not_evaluated" {
 		t.Fatalf("cached not-evaluated verdict was erased by merge: success=%v status=%q", merged.Success, merged.Summary.Status)
+	}
+}
+
+func TestMergeCapabilityResultsDoesNotHideFreshNotEvaluatedBehindCachedPass(t *testing.T) {
+	assessment := testCapabilityAssessment()
+	cached := &Result{RunResult: shared.RunResult[Summary]{Success: true, Summary: Summary{Scenario: "demo", Status: "passed"}}, Assessment: assessment}
+	fresh := &Result{RunResult: shared.RunResult[Summary]{Success: false, Summary: Summary{Scenario: "demo", Status: "not_evaluated"}}, Assessment: assessment}
+	merged := MergeCapabilityResults(cached, fresh)
+	if merged.Success || merged.Summary.Status != "not_evaluated" {
+		t.Fatalf("fresh not-evaluated result was hidden by a cached pass: success=%v status=%q", merged.Success, merged.Summary.Status)
+	}
+}
+
+func TestMergeCapabilityResultsFailsClosedOnUnknownCachedOrFreshLabel(t *testing.T) {
+	assessment := &commonv1.MaturityAssessment{Scenario: "demo"}
+	for _, tc := range []struct{ cached, fresh string }{
+		{"future_status", "passed"}, {"passed", "future_status"},
+	} {
+		cached := &Result{RunResult: shared.RunResult[Summary]{Success: true, Summary: Summary{Scenario: "demo", Status: tc.cached}}, Assessment: assessment}
+		fresh := &Result{RunResult: shared.RunResult[Summary]{Success: true, Summary: Summary{Scenario: "demo", Status: tc.fresh}}, Assessment: assessment}
+		got := MergeCapabilityResults(cached, fresh)
+		if got.Success || got.Summary.Status != "unspecified" || got.FailureClass != shared.FailureClassMaturityContract {
+			t.Fatalf("unknown cached/fresh label did not fail closed: cached=%q fresh=%q result=%+v", tc.cached, tc.fresh, got)
+		}
+	}
+}
+
+func TestFilterCapabilityResultFailsClosedOnUnknownCachedLabel(t *testing.T) {
+	assessment := &commonv1.MaturityAssessment{Scenario: "demo", Capabilities: []*commonv1.CapabilityMaturityAssessment{{Id: "ux"}}}
+	input := &Result{RunResult: shared.RunResult[Summary]{Success: true, Summary: Summary{Scenario: "demo", Status: "future_status"}}, Assessment: assessment}
+	got := FilterCapabilityResult(input, "ux")
+	if got.Success || got.FailureClass != shared.FailureClassMaturityContract || got.Error == nil || got.Summary.Status != "unspecified" {
+		t.Fatalf("unknown cached label did not fail closed during projection: %+v", got)
+	}
+}
+
+func TestFilterCapabilityResultFailsClosedOnUnknownCachedLabelWithoutAssessment(t *testing.T) {
+	input := &Result{RunResult: shared.RunResult[Summary]{
+		Success: true, Summary: Summary{Scenario: "demo", Status: "future_status"},
+	}}
+	got := FilterCapabilityResult(input, "ux")
+	if got == nil || got.Success {
+		t.Fatalf("unknown cached label without assessment passed: %+v", got)
+	}
+	if got.FailureClass != shared.FailureClassMaturityContract {
+		t.Fatalf("FailureClass = %q, want maturity contract", got.FailureClass)
+	}
+}
+
+func TestMergeCapabilityResultsVerdictContractMatrix(t *testing.T) {
+	statuses := []string{"passed", "degraded", "failed", "error", "not_evaluated"}
+	for _, cachedStatus := range statuses {
+		for _, freshStatus := range statuses {
+			t.Run(cachedStatus+"_then_"+freshStatus, func(t *testing.T) {
+				cached := &Result{RunResult: shared.RunResult[Summary]{Success: statusIsSuccessful(cachedStatus), Summary: Summary{Scenario: "demo", Status: cachedStatus}}}
+				fresh := &Result{RunResult: shared.RunResult[Summary]{Success: statusIsSuccessful(freshStatus), Summary: Summary{Scenario: "demo", Status: freshStatus}}}
+				merged := MergeCapabilityResults(cached, fresh)
+				if merged.Summary.Status == "not_evaluated" && merged.Success {
+					t.Fatalf("merged not_evaluated verdict passed: %+v", merged)
+				}
+				if (cachedStatus == "failed" || freshStatus == "failed") && merged.Success {
+					t.Fatalf("real defect was hidden by merge: %s + %s => %+v", cachedStatus, freshStatus, merged)
+				}
+				if (cachedStatus == "error" || freshStatus == "error") && merged.Success {
+					t.Fatalf("provider error was hidden by merge: %s + %s => %+v", cachedStatus, freshStatus, merged)
+				}
+				if (cachedStatus == "not_evaluated" || freshStatus == "not_evaluated") && merged.Success {
+					t.Fatalf("unevaluated result was hidden by merge: %s + %s => %+v", cachedStatus, freshStatus, merged)
+				}
+				if merged.Summary.Status == "error" && merged.FailureClass != shared.FailureClassSystem {
+					t.Fatalf("provider error was mislabeled as a product defect: %+v", merged)
+				}
+				if merged.Summary.Status == "failed" && merged.FailureClass != shared.FailureClassTestFailure {
+					t.Fatalf("real defect lost its test-failure classification: %+v", merged)
+				}
+				if merged.Summary.Status == "not_evaluated" && merged.FailureClass != shared.FailureClassMissingDependency {
+					t.Fatalf("unevaluated result was mislabeled: %+v", merged)
+				}
+			})
+		}
 	}
 }
 

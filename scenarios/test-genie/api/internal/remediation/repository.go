@@ -11,6 +11,7 @@ import (
 
 	"test-genie/internal/dbexec"
 	"test-genie/internal/storage/sqliteutil"
+	"test-genie/internal/targetmodel"
 )
 
 type Repository interface {
@@ -63,7 +64,7 @@ func (r *SQLiteRepository) Create(ctx context.Context, job Job) error {
 	if err != nil {
 		return err
 	}
-	kind, targetID := targetIdentity(job.TargetKind, job.TargetID, job.Scenario)
+	kind, targetID := targetmodel.NormalizeLegacyIdentity(job.TargetKind, job.TargetID, job.Scenario)
 	var active int
 	if err := r.db.QueryRowContext(ctx, `SELECT 1 FROM remediation_jobs WHERE target_kind = ? AND target_id = ? AND status IN ('created', 'launch_pending', 'running', 'agent_completed', 'verification_running') LIMIT 1`, kind, targetID).Scan(&active); err == nil {
 		return ErrActiveJob
@@ -127,7 +128,7 @@ func (r *SQLiteRepository) ActiveForScenario(ctx context.Context, scenario strin
 // target identity. The legacy scenario query remains for old callers and UI
 // routes, but creation uses this method when the repository supports it.
 func (r *SQLiteRepository) ActiveForTarget(ctx context.Context, kind, targetID string) (Job, error) {
-	kind, targetID = targetIdentity(kind, targetID, targetID)
+	kind, targetID = targetmodel.NormalizeLegacyIdentity(kind, targetID, targetID)
 	job, err := scanJob(r.db.QueryRowContext(ctx, `SELECT id, scenario_name, target_kind, target_id, status, source_json, source_hash, selected_finding_ids_json, selected_requirement_ids_json, selection_hash, launch_attempt, additional_context, attribution_json, verification_json, failure, created_at, updated_at, cancelled_at FROM remediation_jobs WHERE target_kind = ? AND target_id = ? AND status IN ('created', 'launch_pending', 'running', 'agent_completed', 'verification_running') ORDER BY created_at DESC LIMIT 1`, kind, targetID))
 	if err != nil {
 		return Job{}, err
@@ -223,7 +224,7 @@ func scanJob(s scanner) (Job, error) {
 	if err != nil {
 		return Job{}, err
 	}
-	job.TargetKind, job.TargetID = targetIdentity(job.TargetKind, job.TargetID, job.Scenario)
+	job.TargetKind, job.TargetID = targetmodel.NormalizeLegacyIdentity(job.TargetKind, job.TargetID, job.Scenario)
 	if err := json.Unmarshal([]byte(source), &job.Source); err != nil {
 		return Job{}, fmt.Errorf("decode remediation source: %w", err)
 	}

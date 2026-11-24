@@ -301,6 +301,7 @@ func Register(manifest []byte, apiClient *cliutil.APIClient) (cliapp.SubcommandG
 		"RunsService.ListRunArtifacts": cliapp.ProtoList(listRunArtifactsCall(apiClient), listRunArtifactsReport),
 		"RunsService.GetRunArtifact":   cliapp.ProtoList(getRunArtifactCall(apiClient), getRunArtifactReport),
 		"download-artifact":            downloadArtifactHandler(apiClient),
+		"store-experience-cohort":      storeExperienceCohortPrimitive(apiClient),
 		"logs":                         runLogsHandler(apiClient),
 		"RunsService.DeleteRun":        cliapp.ProtoMutation(deleteRunCall(apiClient), deleteRunReport),
 		"RunsService.PinRun":           cliapp.ProtoMutation(pinRunCall(apiClient), pinRunReport),

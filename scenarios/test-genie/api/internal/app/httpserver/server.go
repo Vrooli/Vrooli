@@ -251,10 +251,12 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/config", s.handleGetConfig).Methods("GET")
 	apiRouter.HandleFunc("/phases", s.handleListPhases).Methods("GET")
 	apiRouter.HandleFunc("/phases/applicability", s.handlePreviewPhaseApplicability).Methods("GET")
-	apiRouter.HandleFunc("/phases/settings", s.handleGetPhaseSettings).Methods("GET")
+	apiRouter.HandleFunc("/phases/settings", s.handleListPhases).Methods("GET")
 	apiRouter.HandleFunc("/phases/settings", s.handleUpdatePhaseSettings).Methods("PUT")
 	apiRouter.HandleFunc("/phases/{phase}", s.handleInspectPhase).Methods("GET")
 	apiRouter.HandleFunc("/executions", s.handleExecuteSuite).Methods("POST")
+	apiRouter.HandleFunc("/experience-cohort-receipts", s.handlePersistExperienceCohortReceipt).Methods("POST")
+	apiRouter.HandleFunc("/experience-cohort-receipts/{receiptID}", s.handleGetExperienceCohortReceipt).Methods("GET")
 	apiRouter.HandleFunc("/executions/plan", s.handlePreviewExecutionPlan).Methods("POST")
 	apiRouter.HandleFunc("/executions/stream", s.handleExecuteSuiteStream).Methods("POST")
 	apiRouter.HandleFunc("/executions", s.handleListExecutions).Methods("GET")
@@ -287,6 +289,7 @@ func (s *Server) setupRoutes() {
 
 	// Requirements endpoints for requirements sync UI
 	apiRouter.HandleFunc("/scenarios/{name}/requirements", s.handleGetScenarioRequirements).Methods("GET")
+	apiRouter.HandleFunc("/search/scenario-requirements", s.handleSearchScenarioRequirements).Methods("POST")
 	apiRouter.HandleFunc("/scenarios/{name}/requirements/sync", s.handleSyncScenarioRequirements).Methods("POST")
 
 	// Workflow seed claim routes (legacy playbooks URL retained for clients)

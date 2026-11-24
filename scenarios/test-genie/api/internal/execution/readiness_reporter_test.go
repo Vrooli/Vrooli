@@ -1,15 +1,53 @@
 package execution
 
 import (
+	"bytes"
 	"context"
+	"io"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
 	readinessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/readiness"
+	"google.golang.org/protobuf/proto"
 	"test-genie/internal/orchestrator"
 )
+
+type readinessRoundTripper struct{ authorization string }
+
+func (rt *readinessRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	rt.authorization = req.Header.Get("Authorization")
+	body, err := proto.Marshal(&readinessv1.ReportEvidenceResponse{Accepted: true})
+	if err != nil {
+		return nil, err
+	}
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/proto"}},
+		Body:       io.NopCloser(bytes.NewReader(body)),
+		Request:    req,
+	}, nil
+}
+
+func TestReadinessReporterDoesNotMutateInjectedHTTPClient(t *testing.T) {
+	transport := &readinessRoundTripper{}
+	client := &http.Client{Transport: transport}
+	reporter, err := NewDeploymentManagerReadinessReporter("https://deployment-manager.example", "secret-token", client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := reporter.client.ReportEvidence(context.Background(), connect.NewRequest(&readinessv1.ReportEvidenceRequest{})); err != nil {
+		t.Fatalf("ReportEvidence: %v", err)
+	}
+	if client.Transport != transport {
+		t.Fatal("constructor replaced the caller's HTTP transport")
+	}
+	if transport.authorization != "Bearer secret-token" {
+		t.Fatalf("reporter authorization = %q, want its bearer token", transport.authorization)
+	}
+}
 
 type recordingReadinessClient struct {
 	request  *readinessv1.ReportEvidenceRequest

@@ -77,8 +77,17 @@ Test Genie uses a descriptor-backed testing architecture. Provider phase metadat
 Provider descriptors also declare `concurrency.mode` (`parallel-safe`,
 `provider-serial`, or `exclusive`). Missing declarations default to exclusive
 serialization. Concurrent admission requires reliable persisted cost history
-and a grant from the shared host-capacity broker; unknown or denied work runs
-serially with a warning.
+and a grant from the shared host-capacity broker; an unknown or denied verdict
+does not grant concurrent capacity, so the phase uses the serial fallback with
+the broker reason recorded in its phase log.
+
+The owner-level phase-admission outage proof uses an isolated broker fixture:
+the orchestrator records an unknown capacity verdict and completes that phase
+through its serial fallback, while an independent phase acquires a lease and
+finishes. Recovery retries the same run/phase owner identity; the terminal run
+index contains one result per phase, and the outage reason remains in the phase
+log. This proves the owner fixture path, not a live maintenance window or a
+real host-capacity outage.
 
 ```
 Structure → Contracts → UI Health → API → Architecture → Dependencies → Quality → Docs → Performance → Unit → Storage → Workflow → Business → Tidiness → Security → Measures → Proto → Branding → Search

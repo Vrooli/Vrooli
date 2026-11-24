@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/textutil"
 	"github.com/vrooli/vrooli/packages/artifactpaths"
 
 	"test-genie/cli/internal/phases"
@@ -330,7 +331,7 @@ func (p *Printer) printHeader(resp execTypes.Response) {
 	startText := FormatTimestampShort(resp.StartedAt, "unknown")
 	finishText := FormatTimestampShort(resp.CompletedAt, "pending")
 	duration := FormatRunDuration(resp.PhaseSummary.DurationSeconds, resp.StartedAt, resp.CompletedAt)
-	preset := DefaultValue(resp.PresetUsed, p.requestedPreset)
+	preset := textutil.FirstNonEmpty(resp.PresetUsed, p.requestedPreset)
 	paths := repo.DiscoverScenarioPaths(p.scenario)
 	estimated := p.estimateTotal(resp.Phases)
 	timeoutBudget := p.planTimeoutBudget()
@@ -412,7 +413,7 @@ func (p *Printer) printPhaseProgress(phasesData []execTypes.Phase) {
 		}
 		durationSec := int(duration.Seconds())
 		target := p.targetDuration(key)
-		status := strings.ToLower(DefaultValue(phase.Status, "pending"))
+		status := strings.ToLower(textutil.FirstNonEmpty(phase.Status, "pending"))
 		timestamp := time.Now().Unix()
 
 		// Count observations/tests (estimate based on available data)
@@ -522,7 +523,7 @@ func (p *Printer) printPhaseResults(phasesData []execTypes.Phase) {
 	}
 	for _, phase := range phasesData {
 		icon := StatusIcon(phase.Status)
-		status := strings.ToUpper(DefaultValue(phase.Status, "unknown"))
+		status := strings.ToUpper(textutil.FirstNonEmpty(phase.Status, "unknown"))
 		durationText := FormatPhaseDuration(phase.DurationSeconds)
 		headline := p.phaseHeadline(phase)
 		warnings := WarningObservations(phase.Observations, 3)
@@ -586,6 +587,10 @@ func (p *Printer) printSummary(resp execTypes.Response) {
 				fmt.Fprintf(p.w, "   %s — %s\n", strings.ToUpper(phase.Name), reason)
 			}
 		}
+		if resp.PhaseSummary.NotEvaluated > 0 {
+			fmt.Fprintf(p.w, "%s %d phase(s) had no evaluation evidence; this does not count as a pass.\n",
+				p.color.Yellow("⚠"), resp.PhaseSummary.NotEvaluated)
+		}
 		fmt.Fprintln(p.w)
 	} else {
 		// Failure summary
@@ -601,6 +606,9 @@ func (p *Printer) printSummary(resp execTypes.Response) {
 			p.color.Red(fmt.Sprintf("%d failed", failed)))
 		if resp.PhaseSummary.Skipped > 0 {
 			results += " • " + p.color.Yellow(fmt.Sprintf("%d skipped", resp.PhaseSummary.Skipped))
+		}
+		if resp.PhaseSummary.NotEvaluated > 0 {
+			results += " • " + p.color.Yellow(fmt.Sprintf("%d not evaluated", resp.PhaseSummary.NotEvaluated))
 		}
 		fmt.Fprintf(p.w, "%s • %d total\n", results, total)
 		fmt.Fprintf(p.w, "  • Duration: %s\n", duration)
@@ -781,6 +789,9 @@ func (p *Printer) printPartialSummary(resp execTypes.Response) {
 		p.color.Green(fmt.Sprintf("%d passed", passed)),
 		p.color.Yellow(fmt.Sprintf("%d skipped", skipped)),
 		total)
+	if resp.PhaseSummary.NotEvaluated > 0 {
+		fmt.Fprintf(p.w, "  • %s %d phase(s) had no evaluation evidence\n", p.color.Yellow("Not evaluated:"), resp.PhaseSummary.NotEvaluated)
+	}
 	fmt.Fprintf(p.w, "  • Duration: %s\n", duration)
 	for _, phase := range resp.Phases {
 		if !strings.EqualFold(phase.Status, "skipped") {

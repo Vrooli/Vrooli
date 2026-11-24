@@ -95,12 +95,40 @@ func TestCheckProviderRequiresFailureClassification(t *testing.T) {
 			resp := proto.Clone(base).(*scenariovalidationv1.ValidateScenarioResponse)
 			resp.Status = tc.status
 			resp.FailureClassification = tc.classification
-			got := ScanProvider(context.Background(), probeFn(resp, nil), repo, "test-genie", "proto", "proto-health", time.Second)
+			got := ScanProvider(context.Background(), probeFn(resp, nil), repo, "test-genie", "proto", "proto-health", time.Second, stubDescribeProbe(nil))
 			if got.FailureClassificationMissing != tc.wantMissing {
 				t.Fatalf("missing = %t, want %t; report=%+v", got.FailureClassificationMissing, tc.wantMissing, got)
 			}
 			if tc.wantMissing && (len(got.ReasonCodes) != 1 || got.ReasonCodes[0] != ReasonFailureClassificationMissing) {
 				t.Fatalf("reason codes = %v, want %q", got.ReasonCodes, ReasonFailureClassificationMissing)
+			}
+		})
+	}
+}
+
+func TestConformanceRejectsUnrecognizedValidationStatuses(t *testing.T) {
+	repo := t.TempDir()
+	writeSpec(t, repo, "proto-health", "proto")
+	for _, tc := range []struct {
+		name      string
+		status    scenariovalidationv1.ValidationStatus
+		wantValid bool
+	}{
+		{"passed", scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED, true},
+		{"failed", scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED, true},
+		{"degraded", scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED, true},
+		{"error", scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR, true},
+		{"skipped", scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_SKIPPED, true},
+		{"not evaluated", scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED, true},
+		{"unspecified", scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED, false},
+		{"future enum", scenariovalidationv1.ValidationStatus(99), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resp := validProbeResponse("proto-health", "proto", true)
+			resp.Status = tc.status
+			got := ScanProvider(context.Background(), probeFn(resp, nil), repo, "test-genie", "proto", "proto-health", time.Second, stubDescribeProbe(nil))
+			if got.ContractValid != tc.wantValid {
+				t.Fatalf("ContractValid=%t want %t; violations=%v", got.ContractValid, tc.wantValid, got.Violations)
 			}
 		})
 	}
@@ -183,15 +211,13 @@ func testGenieDescriptor(provider, phase string, spec assessment.Spec) map[strin
 }
 
 func TestScanProviderAutofixCoverage(t *testing.T) {
-	restore := stubDescribeProbe(nil)
-	defer restore()
 	repo := t.TempDir()
 	writeSpecWithFindings(t, repo, "proto-health", "proto", map[string]assessment.FindingMapping{
 		"DONE":    {GlobalImpact: assessment.ImpactAdvisory, FixClass: assessment.FixClassAuto, FixerStatus: assessment.FixerStatusImplemented},
 		"GAP":     {GlobalImpact: assessment.ImpactAdvisory, FixClass: assessment.FixClassAuto, FixerStatus: assessment.FixerStatusPending},
 		"BY_HAND": {GlobalImpact: assessment.ImpactAdvisory, FixClass: assessment.FixClassManual, FixReason: "needs judgment"},
 	})
-	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second)
+	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second, stubDescribeProbe(nil))
 	if pr.Autofix.Implemented != 1 || pr.Autofix.Pending != 1 || pr.Autofix.Manual != 1 {
 		t.Fatalf("coverage = %+v, want implemented=1 pending=1 manual=1", pr.Autofix)
 	}
@@ -211,7 +237,7 @@ func TestScanProviderAutofixCoverageWhenUnreachable(t *testing.T) {
 	writeSpecWithFindings(t, repo, "proto-health", "proto", map[string]assessment.FindingMapping{
 		"GAP": {GlobalImpact: assessment.ImpactAdvisory, FixClass: assessment.FixClassAuto, FixerStatus: assessment.FixerStatusPending},
 	})
-	pr := ScanProvider(context.Background(), probeFn(nil, errors.New("connection refused")), repo, "test-genie", "proto", "proto-health", time.Second)
+	pr := ScanProvider(context.Background(), probeFn(nil, errors.New("connection refused")), repo, "test-genie", "proto", "proto-health", time.Second, stubDescribeProbe(nil))
 	if pr.Reachable {
 		t.Fatal("expected unreachable")
 	}
@@ -221,11 +247,9 @@ func TestScanProviderAutofixCoverageWhenUnreachable(t *testing.T) {
 }
 
 func TestScanProviderFullAdoption(t *testing.T) {
-	restore := stubDescribeProbe(nil)
-	defer restore()
 	repo := t.TempDir()
 	writeSpec(t, repo, "proto-health", "proto")
-	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second)
+	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second, stubDescribeProbe(nil))
 	if !pr.Reachable || !pr.ContractValid || !pr.IdentityOK || !pr.SpecValid || !pr.MetricsAdopted {
 		t.Fatalf("expected full adoption, got %+v", pr)
 	}
@@ -263,7 +287,7 @@ func TestScanProviderUsesDescriptorForRequestedPhase(t *testing.T) {
 		t.Fatalf("write sibling descriptor: %v", err)
 	}
 
-	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "model-eval", true), nil), repo, "test-genie", "model-eval", "proto-health", time.Second)
+	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "model-eval", true), nil), repo, "test-genie", "model-eval", "proto-health", time.Second, stubDescribeProbe(nil))
 	if !pr.SpecValid || !pr.IdentityOK || !pr.ContractValid {
 		t.Fatalf("multi-phase provider conformance = %+v, want requested descriptor identity accepted", pr)
 	}
@@ -312,10 +336,8 @@ func TestScanProviderMetricsRequired(t *testing.T) {
 	writeSpec(t, repo, "cli-health", "contracts")
 	// Isolate the metrics dimension: this provider does answer DescribeProvider,
 	// so only metrics is missing out of the six scored dimensions.
-	restore := stubDescribeProbe(nil)
-	defer restore()
 
-	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("cli-health", "contracts", false), nil), repo, "test-genie", "contracts", "cli-health", time.Second)
+	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("cli-health", "contracts", false), nil), repo, "test-genie", "contracts", "cli-health", time.Second, stubDescribeProbe(nil))
 	if pr.MetricsAdopted {
 		t.Fatal("expected metrics_adopted=false when the response carries no metrics")
 	}
@@ -336,7 +358,7 @@ func TestScanProviderBrokenSpec(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "test-genie.json"), []byte(`{"scenario":"proto-health","phase":"proto","maturity":{"provider":""}}`), 0o644); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second)
+	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second, stubDescribeProbe(nil))
 	if pr.SpecValid {
 		t.Fatal("expected spec_valid=false for broken descriptor maturity")
 	}
@@ -358,7 +380,7 @@ func TestScanProviderDescriptorPolicyViolationIsHard(t *testing.T) {
 		t.Fatalf("write descriptor: %v", err)
 	}
 
-	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second)
+	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second, stubDescribeProbe(nil))
 	if pr.SpecValid {
 		t.Fatal("expected spec_valid=false for invalid descriptor policy")
 	}
@@ -377,7 +399,7 @@ func TestScanProviderRetiredMaturityFileIsHard(t *testing.T) {
 		t.Fatalf("write retired maturity file: %v", err)
 	}
 
-	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second)
+	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("proto-health", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second, stubDescribeProbe(nil))
 	if pr.SpecValid {
 		t.Fatal("expected spec_valid=false while retired maturity.json remains")
 	}
@@ -392,7 +414,7 @@ func TestScanProviderRetiredMaturityFileIsHard(t *testing.T) {
 func TestScanProviderUnreachableNotHard(t *testing.T) {
 	repo := t.TempDir()
 	writeSpec(t, repo, "proto-health", "proto")
-	pr := ScanProvider(context.Background(), probeFn(nil, errors.New("connection refused")), repo, "test-genie", "proto", "proto-health", time.Second)
+	pr := ScanProvider(context.Background(), probeFn(nil, errors.New("connection refused")), repo, "test-genie", "proto", "proto-health", time.Second, stubDescribeProbe(nil))
 	if pr.Reachable {
 		t.Fatal("expected unreachable")
 	}
@@ -417,7 +439,7 @@ func TestNativePhaseExemptionIsExplicit(t *testing.T) {
 func TestScanProviderIdentityMismatch(t *testing.T) {
 	repo := t.TempDir()
 	writeSpec(t, repo, "proto-health", "proto")
-	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("imposter", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second)
+	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("imposter", "proto", true), nil), repo, "test-genie", "proto", "proto-health", time.Second, stubDescribeProbe(nil))
 	if pr.IdentityOK {
 		t.Fatal("expected identity mismatch")
 	}
@@ -465,6 +487,35 @@ func TestConformanceScannerFiltersBySubject(t *testing.T) {
 	}
 }
 
+func TestConformanceScannerKeepsDescribeProbesPerInstance(t *testing.T) {
+	repo := t.TempDir()
+	writeSpec(t, repo, "brand-manager", "branding")
+	probe := probeFn(validProbeResponse("brand-manager", "branding", true), nil)
+	adopting := ConformanceScanner{
+		RepoRoot:      repo,
+		Subject:       "branding",
+		Probe:         probe,
+		DescribeProbe: func(context.Context, string, time.Duration) error { return nil },
+	}
+	notAdopting := ConformanceScanner{
+		RepoRoot: repo,
+		Subject:  "branding",
+		Probe:    probe,
+		DescribeProbe: func(context.Context, string, time.Duration) error {
+			return connect.NewError(connect.CodeUnimplemented, errors.New("not adopted"))
+		},
+	}
+
+	adoptedReport := adopting.Scan(context.Background())
+	notAdoptedReport := notAdopting.Scan(context.Background())
+	if len(adoptedReport.Providers) != 1 || !adoptedReport.Providers[0].DescribeAdopted {
+		t.Fatalf("first scanner result = %+v, want DescribeProvider adopted", adoptedReport.Providers)
+	}
+	if len(notAdoptedReport.Providers) != 1 || notAdoptedReport.Providers[0].DescribeAdopted || !containsViolation(notAdoptedReport.Providers[0].Violations, "DescribeProvider not adopted") {
+		t.Fatalf("second scanner result = %+v, want isolated unadopted result", notAdoptedReport.Providers)
+	}
+}
+
 func TestProviderDefaultTargetIsProviderOwned(t *testing.T) {
 	for _, provider := range []string{"experience-manager", "brand-manager"} {
 		if got := ProviderDefaultTarget(provider); got != provider {
@@ -482,21 +533,16 @@ func containsViolation(violations []string, needle string) bool {
 	return false
 }
 
-// stubDescribeProbe replaces the live DescribeProvider probe for one test and
-// returns a restore func. Without it, unit tests would attempt real discovery.
-func stubDescribeProbe(err error) func() {
-	prev := DescribeProbe
-	DescribeProbe = func(context.Context, string, time.Duration) error { return err }
-	return func() { DescribeProbe = prev }
+// stubDescribeProbe supplies an isolated DescribeProvider result to one scan.
+func stubDescribeProbe(err error) DescribeConformanceProbe {
+	return func(context.Context, string, time.Duration) error { return err }
 }
 
 func TestScanProviderReportsDescribeProviderAdoption(t *testing.T) {
 	repo := t.TempDir()
 	writeSpec(t, repo, "cli-health", "contracts")
 
-	restore := stubDescribeProbe(nil)
-	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("cli-health", "contracts", true), nil), repo, "test-genie", "contracts", "cli-health", time.Second)
-	restore()
+	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("cli-health", "contracts", true), nil), repo, "test-genie", "contracts", "cli-health", time.Second, stubDescribeProbe(nil))
 	if !pr.DescribeAdopted {
 		t.Fatalf("adopting provider reported describeAdopted=false: %+v", pr)
 	}
@@ -509,9 +555,7 @@ func TestScanProviderFlagsUnadoptedDescribeProviderWithoutFailingIt(t *testing.T
 	repo := t.TempDir()
 	writeSpec(t, repo, "cli-health", "contracts")
 
-	restore := stubDescribeProbe(connect.NewError(connect.CodeUnimplemented, errors.New("not adopted")))
-	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("cli-health", "contracts", true), nil), repo, "test-genie", "contracts", "cli-health", time.Second)
-	restore()
+	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("cli-health", "contracts", true), nil), repo, "test-genie", "contracts", "cli-health", time.Second, stubDescribeProbe(connect.NewError(connect.CodeUnimplemented, errors.New("not adopted"))))
 
 	if pr.DescribeAdopted {
 		t.Fatal("provider returning Unimplemented was scored as having adopted DescribeProvider")

@@ -1,6 +1,4 @@
 """Bounded, read-only digest of Test Genie validation receipts."""
-import json
-
 inputs = program.inputs()
 
 limit = int(inputs.get("limit", 100))
@@ -42,4 +40,4 @@ else:
         envelope["errors"].append({"class": klass, "detail": text[:240], "where": envelope["phase"]})
 
 envelope["phase"] = "report"
-print(json.dumps(envelope, sort_keys=True, separators=(",", ":")))
+program.report(envelope)

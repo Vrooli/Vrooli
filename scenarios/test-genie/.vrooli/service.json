@@ -315,7 +315,7 @@
   "skills": {
     "usage": {
       "source": "skills/test-genie/SKILL.md",
-      "programs": ["test-genie.validation-digest"]
+      "programs": ["test-genie.validation-digest", "test-genie.run-evidence"]
     },
     "improve": {
       "source": "skills/test-genie-improve/SKILL.md",

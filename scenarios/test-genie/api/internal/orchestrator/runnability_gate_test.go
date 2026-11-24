@@ -123,6 +123,20 @@ func TestComputeSuiteVerdict(t *testing.T) {
 	}
 }
 
+func TestCanonicalExperienceNotEvaluatedCannotProduceSuccessfulSuite(t *testing.T) {
+	experience := phases.Definition{
+		Name:   phases.Name("experience"),
+		Policy: phasepolicy.RequiredProviderPolicy(),
+	}
+	verdict := computeSuiteVerdict([]PhaseExecutionResult{{Name: "experience", Status: phaseStatusNotEvaluated}}, []phases.Definition{experience})
+	if verdict != SuiteVerdictNotEvaluated {
+		t.Fatalf("canonical experience NOT_EVALUATED produced suite verdict %q", verdict)
+	}
+	if suiteVerdictIsSuccessful(verdict) {
+		t.Fatal("canonical experience NOT_EVALUATED must never produce a successful suite")
+	}
+}
+
 // TestRunSelectedPhasesSkipsUnrunnableSurfacePhaseOnSelf is the self-host gate
 // at the phase level: a UI-needing phase whose surface is not live on a
 // self-target is skipped (not run, not failed), while a static phase runs.

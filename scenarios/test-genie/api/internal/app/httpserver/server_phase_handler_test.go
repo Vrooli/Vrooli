@@ -38,16 +38,15 @@ func TestHandleListPhases(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/phases", nil)
 	rec := httptest.NewRecorder()
 	server.router.ServeHTTP(rec, req)
-
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected status 200, got %d", rec.Code)
 	}
-
+	body := rec.Body.String()
 	var payload struct {
 		Items []orchestrator.PhaseDescriptor `json:"items"`
 		Count int                            `json:"count"`
 	}
-	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+	if err := json.Unmarshal([]byte(body), &payload); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 	if payload.Count == 0 || len(payload.Items) == 0 {
@@ -62,6 +61,13 @@ func TestHandleListPhases(t *testing.T) {
 	}
 	if structure == nil || structure.Determinism.Default != "file-determined" || len(structure.Determinism.Inputs) == 0 {
 		t.Fatalf("phase list omitted determinism projection: %#v", structure)
+	}
+
+	aliasReq := httptest.NewRequest(http.MethodGet, "/api/v1/phases/settings", nil)
+	aliasRec := httptest.NewRecorder()
+	server.router.ServeHTTP(aliasRec, aliasReq)
+	if aliasRec.Code != rec.Code || aliasRec.Body.String() != body {
+		t.Fatalf("phase settings alias response differs: status=%d body=%s", aliasRec.Code, aliasRec.Body.String())
 	}
 }
 

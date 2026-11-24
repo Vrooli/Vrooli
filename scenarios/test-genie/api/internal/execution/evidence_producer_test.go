@@ -3,6 +3,7 @@ package execution
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -60,6 +61,57 @@ func TestEvidenceProducerCapsLogsAndMarksTruncation(t *testing.T) {
 	}
 	if !strings.Contains(string(metadata), `"truncated":true`) || !strings.Contains(string(metadata), `"bytesWritten":5`) {
 		t.Fatalf("truncation metadata = %s", metadata)
+	}
+}
+
+func TestEvidenceProducerPreservesOutputAfterCommandFailure(t *testing.T) {
+	if err := preflightBubblewrap(context.Background()); err != nil {
+		t.Skipf("PID namespace unsupported here: %v", err)
+	}
+	work, artifacts := t.TempDir(), t.TempDir()
+	service := NewSuiteExecutionService(nil, &serviceRecorder{})
+	service.engine = nil
+	_, err := service.runEvidenceProducer(context.Background(), SuiteExecutionInput{
+		Request: orchestratorRequest("failed-output"), ArtifactRoot: artifacts,
+		EvidenceProducer: &EvidenceProducerCommand{
+			Provider: "fixture", Name: "writes-before-failing",
+			Argv:             []string{"/bin/sh", "-c", "printf 'partial artifact' > /dev/shm/tg-output/result.txt; printf 'diagnostic output\\n'; exit 23"},
+			WorkingDirectory: work, Timeout: 3 * time.Second, MaximumOutputBytes: 4096,
+			DescriptorDigest: "descriptor", SourceIdentity: "source",
+		},
+	})
+	if err == nil {
+		t.Fatal("producer failure was hidden")
+	}
+	catalog, catalogErr := sharedartifacts.RefreshArtifactCatalog(artifacts, "failed-output", nil, time.Now().UTC())
+	if catalogErr != nil {
+		t.Fatalf("catalog failed-producer evidence: %v", catalogErr)
+	}
+	found := false
+	for _, ref := range catalog.Artifacts {
+		if ref.StoragePath == "evidence-producer/output/result.txt" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("failed producer output was not discoverable in run catalog: %+v", catalog.Artifacts)
+	}
+	logDir := filepath.Join(sharedRunDir(artifacts, "failed-output"), "evidence-producer")
+	got, readErr := os.ReadFile(filepath.Join(logDir, "output", "result.txt"))
+	if readErr != nil || string(got) != "partial artifact" {
+		t.Fatalf("failed producer output = %q, err = %v", got, readErr)
+	}
+	metadataBytes, err := os.ReadFile(filepath.Join(logDir, "metadata.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var metadata producerLogMetadata
+	if err := json.Unmarshal(metadataBytes, &metadata); err != nil {
+		t.Fatal(err)
+	}
+	if metadata.ExitCode != 23 {
+		t.Fatalf("failure metadata exit code = %d, want 23", metadata.ExitCode)
 	}
 }
 

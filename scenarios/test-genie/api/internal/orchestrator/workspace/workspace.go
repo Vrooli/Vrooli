@@ -36,6 +36,10 @@ type Environment struct {
 	// DiagnosticsPreset, when non-empty ("none"|"light"|"full"), records the
 	// requested provider-evidence depth for this run.
 	DiagnosticsPreset string
+	// ExperienceBASUnavailableEndpoint is the explicitly test-only loopback
+	// override for proving the canonical experience phase fails closed when BAS
+	// cannot be reached. It is accepted only as http://127.0.0.1:1 in testing.json.
+	ExperienceBASUnavailableEndpoint string
 
 	// CaptureProfile is the capture-depth dial. "" (default) keeps routine runs
 	// at default visual-artifact depth; "baseline" requests all-pages visual

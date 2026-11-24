@@ -466,7 +466,7 @@ func TestPathContains(t *testing.T) {
 		{"/src/components/Button.test.ts", "components/Button.test.ts", true},
 		{"/src/components/Button.test.ts", "other.test.ts", false},
 		{"./src/Button.test.ts", "src/Button.test.ts", true},
-		{"", "", true},
+		{"", "", false},
 	}
 
 	for _, tt := range tests {

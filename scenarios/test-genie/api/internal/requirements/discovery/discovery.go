@@ -5,18 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io/fs"
-	"os"
 	"path/filepath"
+
+	"test-genie/internal/shared/filesystem"
 )
 
-// Reader abstracts file reading for discovery operations.
-type Reader interface {
-	ReadFile(path string) ([]byte, error)
-	ReadDir(path string) ([]fs.DirEntry, error)
-	Stat(path string) (fs.FileInfo, error)
-	Exists(path string) bool
-}
+// Reader preserves discovery's API through shared read capabilities.
+type Reader = filesystem.Reader
 
 // Sentinel errors for discovery.
 var (
@@ -51,14 +46,6 @@ func NewStrict(reader Reader) Discoverer {
 	return &discoverer{reader: reader, strict: true}
 }
 
-// osReader implements Reader using the os package.
-type osReader struct{}
-
-func (r *osReader) ReadFile(path string) ([]byte, error)       { return os.ReadFile(path) }
-func (r *osReader) ReadDir(path string) ([]fs.DirEntry, error) { return os.ReadDir(path) }
-func (r *osReader) Stat(path string) (fs.FileInfo, error)      { return os.Stat(path) }
-func (r *osReader) Exists(path string) bool                    { _, err := os.Stat(path); return err == nil }
-
 // New creates a Discoverer with the provided Reader.
 func New(reader Reader) Discoverer {
 	return &discoverer{reader: reader}
@@ -66,7 +53,7 @@ func New(reader Reader) Discoverer {
 
 // NewDefault creates a Discoverer using the real file system.
 func NewDefault() Discoverer {
-	return &discoverer{reader: &osReader{}}
+	return &discoverer{reader: filesystem.OS{}}
 }
 
 // Discover finds all requirement files in the scenario's requirements directory.

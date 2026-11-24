@@ -42,6 +42,59 @@ func TestWriterStreamsArtifactAndPublishesValidatedManifest(t *testing.T) {
 	}
 }
 
+func TestWriterPreservesPreviouslyPublishedArtifactOnPathCollision(t *testing.T) {
+	root := t.TempDir()
+	writer, err := NewWriter(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const relativePath = "details/findings.ndjson"
+	first, err := writer.StreamArtifact(context.Background(), "findings", "findings.document", relativePath, "application/x-ndjson", "security", strings.NewReader("original findings\n"), 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := writer.StreamArtifact(context.Background(), "findings", "findings.document", relativePath, "application/x-ndjson", "security", strings.NewReader("replacement findings\n"), 1024); !errors.Is(err, ErrArtifactConflict) {
+		t.Fatalf("conflicting immutable artifact error = %v, want ErrArtifactConflict", err)
+	}
+	got, err := os.ReadFile(filepath.Join(root, relativePath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "original findings\n" {
+		t.Fatalf("path collision replaced original user evidence: %q", got)
+	}
+	entries, err := os.ReadDir(filepath.Join(root, "details"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "findings.ndjson" {
+		t.Fatalf("rejected replay left temporary evidence: %v", entries)
+	}
+	if first.SHA256 == "" {
+		t.Fatal("first immutable reference lost its digest")
+	}
+}
+
+func TestWriterAllowsExactArtifactReplay(t *testing.T) {
+	root := t.TempDir()
+	writer, err := NewWriter(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const relativePath = "details/findings.ndjson"
+	first, err := writer.StreamArtifact(context.Background(), "findings", "findings.document", relativePath, "application/x-ndjson", "security", strings.NewReader("same findings\n"), 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	replayed, err := writer.StreamArtifact(context.Background(), "findings", "findings.document", relativePath, "application/x-ndjson", "security", strings.NewReader("same findings\n"), 1024)
+	if err != nil {
+		t.Fatalf("exact immutable replay: %v", err)
+	}
+	if replayed.SizeBytes != first.SizeBytes || replayed.SHA256 != first.SHA256 {
+		t.Fatalf("replayed reference = %#v, first = %#v", replayed, first)
+	}
+}
+
 func intPointer(value int) *int { return &value }
 
 func TestReadManifestDoesNotOpenDetailedArtifact(t *testing.T) {

@@ -3,8 +3,8 @@ package status
 import (
 	"fmt"
 	"os"
-	"strings"
 
+	"github.com/vrooli/api-core/textutil"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -28,7 +28,7 @@ func Run(client *Client) error {
 		return nil
 	}
 
-	statusLines := []string{fmt.Sprintf("Service health: %s", defaultValue(resp.Status, "unknown"))}
+	statusLines := []string{fmt.Sprintf("Service health: %s", textutil.FirstNonEmpty(resp.Status, "unknown"))}
 	if resp.Service != "" {
 		statusLines = append(statusLines, fmt.Sprintf("Service: %s", resp.Service))
 	}
@@ -49,7 +49,7 @@ func Run(client *Client) error {
 				resp.Operations.LastExecution.Scenario,
 				resp.Operations.LastExecution.PhaseSummary.Total,
 				resp.Operations.LastExecution.PhaseSummary.Failed,
-				defaultValue(resp.Operations.LastExecution.CompletedAt, "n/a"),
+				textutil.FirstNonEmpty(resp.Operations.LastExecution.CompletedAt, "n/a"),
 			)},
 		})
 	}
@@ -70,11 +70,4 @@ func Run(client *Client) error {
 			"test-genie remediate <scenario> --execution <uuid> --findings <stable-id> --role <role-ref>",
 		},
 	})
-}
-
-func defaultValue(val, fallback string) string {
-	if strings.TrimSpace(val) == "" {
-		return fallback
-	}
-	return val
 }

@@ -38,6 +38,7 @@ type ScenarioMetadata struct {
 type ScenarioDirectoryService struct {
 	repo          scenarioSummaryStore
 	lister        ScenarioLister
+	logger        *log.Logger
 	scenariosRoot string
 	detectTesting func(string) TestingCapabilities
 	runTests      func(context.Context, TestingCapabilities, RunScenarioTestOptions) (*TestingRunnerResult, error)
@@ -78,6 +79,15 @@ func scenarioTestLogDir() string {
 }
 
 func NewScenarioDirectoryService(repo scenarioSummaryStore, lister ScenarioLister, scenariosRoot string) *ScenarioDirectoryService {
+	return NewScenarioDirectoryServiceWithLogger(repo, lister, scenariosRoot, log.Default())
+}
+
+// NewScenarioDirectoryServiceWithLogger constructs the directory service with
+// an owner-scoped logger. A nil logger retains the process default.
+func NewScenarioDirectoryServiceWithLogger(repo scenarioSummaryStore, lister ScenarioLister, scenariosRoot string, logger *log.Logger) *ScenarioDirectoryService {
+	if logger == nil {
+		logger = log.Default()
+	}
 	defaultRunner := TestingRunner{
 		Timeout: defaultTestingTimeout,
 		Output:  log.Writer(),
@@ -86,6 +96,7 @@ func NewScenarioDirectoryService(repo scenarioSummaryStore, lister ScenarioListe
 	return &ScenarioDirectoryService{
 		repo:          repo,
 		lister:        lister,
+		logger:        logger,
 		scenariosRoot: strings.TrimSpace(scenariosRoot),
 		detectTesting: DetectTestingCapabilities,
 		runTests: func(ctx context.Context, caps TestingCapabilities, opts RunScenarioTestOptions) (*TestingRunnerResult, error) {
@@ -114,7 +125,7 @@ func (s *ScenarioDirectoryService) ListSummaries(ctx context.Context) ([]Scenari
 
 	metadata, err := s.lister.ListScenarios(ctx)
 	if err != nil {
-		log.Printf("scenario lister failed: %v", err)
+		s.logger.Printf("scenario lister failed: %v", err)
 		return summaries, nil
 	}
 
@@ -212,7 +223,7 @@ func (s *ScenarioDirectoryService) lookupScenarioMetadata(ctx context.Context, s
 	}
 	metadata, err := s.lister.ListScenarios(ctx)
 	if err != nil {
-		log.Printf("scenario metadata lookup failed: %v", err)
+		s.logger.Printf("scenario metadata lookup failed: %v", err)
 		return nil
 	}
 	target := strings.ToLower(strings.TrimSpace(scenario))

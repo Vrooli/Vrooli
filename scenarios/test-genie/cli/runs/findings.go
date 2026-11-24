@@ -7,6 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/vrooli/api-core/textutil"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 
@@ -106,7 +107,7 @@ func phaseStandingLines(phase string, st *commonv1.PhasePresentation) []string {
 }
 
 func rungLine(st *commonv1.PhasePresentation) string {
-	cur := firstNonEmptyStr(st.GetCurrentLevel(), "?")
+	cur := textutil.FirstNonEmpty(st.GetCurrentLevel(), "?")
 	if st.GetAtMaximum() {
 		return cur + " (ceiling)"
 	}
@@ -127,13 +128,4 @@ func findingsDocTopics(phase string, st *commonv1.PhasePresentation) []string {
 		return nil
 	}
 	return append([]string(nil), st.GetDocumentationTopics()...)
-}
-
-func firstNonEmptyStr(vals ...string) string {
-	for _, v := range vals {
-		if strings.TrimSpace(v) != "" {
-			return v
-		}
-	}
-	return ""
 }

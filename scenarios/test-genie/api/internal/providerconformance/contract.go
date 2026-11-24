@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/vrooli/api-core/textutil"
 	"github.com/vrooli/maturity-go/assessment"
 
 	"test-genie/internal/orchestrator/providerdescriptor"
@@ -129,7 +130,7 @@ func validateLadder(report *Report, label, location string, levels []assessment.
 			Title:    "Ladder top rung has no North Star",
 			Message: fmt.Sprintf(
 				"The %s ladder's top rung %q declares no aspiration (capability_summary). The top rung must state what maximum maturity looks like — the first-class North Star.",
-				label, firstNonEmpty(top.ID, top.Name)),
+				label, textutil.FirstNonEmpty(top.ID, top.Name)),
 			Location:    location,
 			Remediation: "Set capability_summary on the top ladder rung to the North Star aspiration for this capability.",
 		})
@@ -145,7 +146,7 @@ func validateLadder(report *Report, label, location string, levels []assessment.
 				Title:    "Ladder rung has no next unlock",
 				Message: fmt.Sprintf(
 					"The %s ladder rung %q declares no next_unlock, so the standing cannot direct the single next move toward the rung above it.",
-					label, firstNonEmpty(level.ID, level.Name)),
+					label, textutil.FirstNonEmpty(level.ID, level.Name)),
 				Location:    location,
 				Remediation: "Set next_unlock on every non-top ladder rung to the single highest-unlock next move.",
 			})
@@ -213,13 +214,4 @@ func mappingCanGate(mapping assessment.FindingMapping) bool {
 	default:
 		return false
 	}
-}
-
-func firstNonEmpty(vals ...string) string {
-	for _, v := range vals {
-		if strings.TrimSpace(v) != "" {
-			return v
-		}
-	}
-	return ""
 }

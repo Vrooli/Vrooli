@@ -2286,90 +2286,59 @@ func TestAbortQueuedRun(t *testing.T) {
 	}
 }
 
-// TestAbortOrphanDowngradesIndex is the regression guard for the 2026-06-21
-// incident: an in_progress durable record with NO live registry counterpart must
-// be downgraded to aborted by Abort, not read back as a permanently-stuck
-// in_progress (the startup Sweep otherwise only fires at boot).
-func TestAbortOrphanDowngradesIndex(t *testing.T) {
-	root := t.TempDir()
-	scenario := "demo"
-	runID := "20260621-163500-6f7a5722"
-	if err := sharedruns.NewIndex(root + "/" + scenario).Append(sharedruns.RunRecord{
-		RunID:     runID,
-		Scenario:  scenario,
-		StartedAt: time.Now().UTC(),
-		Status:    sharedruns.StatusInProgress,
-	}); err != nil {
-		t.Fatalf("seed orphan: %v", err)
+// TestOrphanRunOperationsRecoverDurableTerminalStatus is the regression guard
+// for the 2026-06-21 incident: no live owner means an in-progress run cannot
+// make progress, so every recovery operation must durably mark it aborted.
+func TestOrphanRunOperationsRecoverDurableTerminalStatus(t *testing.T) {
+	operations := []struct {
+		name string
+		call func(*Manager, string, string) (LiveStatus, error)
+	}{
+		{
+			name: "abort",
+			call: func(manager *Manager, scenario, runID string) (LiveStatus, error) {
+				return manager.Abort(context.Background(), scenario, runID)
+			},
+		},
+		{
+			name: "wait",
+			call: func(manager *Manager, scenario, runID string) (LiveStatus, error) {
+				return manager.Wait(context.Background(), scenario, runID)
+			},
+		},
+		{
+			name: "status",
+			call: func(manager *Manager, scenario, runID string) (LiveStatus, error) {
+				return manager.Status(scenario, runID)
+			},
+		},
 	}
+	for _, operation := range operations {
+		t.Run(operation.name, func(t *testing.T) {
+			root := t.TempDir()
+			scenario, runID := "demo", "orphan-run"
+			index := sharedruns.NewIndex(filepath.Join(root, scenario))
+			if err := index.Append(sharedruns.RunRecord{
+				RunID: runID, Scenario: scenario, StartedAt: time.Now().UTC(), Status: sharedruns.StatusInProgress,
+			}); err != nil {
+				t.Fatalf("seed orphan: %v", err)
+			}
 
-	m := New(nil, root)
-	st, err := m.Abort(context.Background(), scenario, runID)
-	if err != nil {
-		t.Fatalf("abort orphan: %v", err)
-	}
-	if st.Status != sharedruns.StatusAborted {
-		t.Fatalf("orphan abort status = %q, want aborted", st.Status)
-	}
-	rec, err := sharedruns.NewIndex(root + "/" + scenario).Find(runID)
-	if err != nil {
-		t.Fatalf("find: %v", err)
-	}
-	if rec.Status != sharedruns.StatusAborted {
-		t.Fatalf("durable status = %q, want aborted (orphan must be recoverable without restart)", rec.Status)
-	}
-}
-
-func TestWaitOrphanDowngradesIndexInsteadOfReturningInProgress(t *testing.T) {
-	root := t.TempDir()
-	scenario := "demo"
-	runID := "20260716-190415-371abe2e"
-	if err := sharedruns.NewIndex(root + "/" + scenario).Append(sharedruns.RunRecord{
-		RunID:     runID,
-		Scenario:  scenario,
-		StartedAt: time.Now().UTC(),
-		Status:    sharedruns.StatusInProgress,
-	}); err != nil {
-		t.Fatalf("seed orphan: %v", err)
-	}
-
-	m := New(nil, root)
-	st, err := m.Wait(context.Background(), scenario, runID)
-	if err != nil {
-		t.Fatalf("wait orphan: %v", err)
-	}
-	if st.Status != sharedruns.StatusAborted {
-		t.Fatalf("wait orphan status = %q, want aborted", st.Status)
-	}
-	rec, err := sharedruns.NewIndex(root + "/" + scenario).Find(runID)
-	if err != nil {
-		t.Fatalf("find: %v", err)
-	}
-	if rec.Status != sharedruns.StatusAborted {
-		t.Fatalf("durable status = %q, want aborted (wait must not return a stranded in-progress run)", rec.Status)
-	}
-}
-
-func TestStatusOrphanDowngradesIndexInsteadOfReturningInProgress(t *testing.T) {
-	root := t.TempDir()
-	scenario := "demo"
-	runID := "20260716-200000-371abe2e"
-	if err := sharedruns.NewIndex(root + "/" + scenario).Append(sharedruns.RunRecord{
-		RunID:     runID,
-		Scenario:  scenario,
-		StartedAt: time.Now().UTC(),
-		Status:    sharedruns.StatusInProgress,
-	}); err != nil {
-		t.Fatalf("seed orphan: %v", err)
-	}
-
-	m := New(nil, root)
-	st, err := m.Status(scenario, runID)
-	if err != nil {
-		t.Fatalf("status orphan: %v", err)
-	}
-	if st.Status != sharedruns.StatusAborted {
-		t.Fatalf("orphan status = %q, want aborted", st.Status)
+			status, err := operation.call(New(nil, root), scenario, runID)
+			if err != nil {
+				t.Fatalf("%s orphan: %v", operation.name, err)
+			}
+			if status.Status != sharedruns.StatusAborted {
+				t.Fatalf("%s status = %q, want aborted", operation.name, status.Status)
+			}
+			record, err := index.Find(runID)
+			if err != nil {
+				t.Fatalf("find durable orphan: %v", err)
+			}
+			if record.Status != sharedruns.StatusAborted || record.CompletedAt.IsZero() {
+				t.Fatalf("durable orphan = status %q completed %v; want aborted with completion time", record.Status, record.CompletedAt)
+			}
+		})
 	}
 }
 

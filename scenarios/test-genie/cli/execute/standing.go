@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/vrooli/api-core/textutil"
 	"test-genie/cli/execute/report"
 	execTypes "test-genie/cli/internal/execute"
 
@@ -141,7 +142,7 @@ func phasesFromLiveStatus(st *runspb.RunLiveStatus) []Phase {
 			continue
 		}
 		phase := Phase{
-			Name:              firstNonEmpty(presentation.GetPhase(), st.GetActivePhase()),
+			Name:              textutil.FirstNonEmpty(presentation.GetPhase(), st.GetActivePhase()),
 			Status:            st.GetStatus(),
 			PhasePresentation: presentation,
 		}
@@ -154,7 +155,7 @@ func phasesFromLiveStatus(st *runspb.RunLiveStatus) []Phase {
 		if standing == nil {
 			continue
 		}
-		phases = append(phases, Phase{Name: firstNonEmpty(standing.GetPhase(), st.GetActivePhase()), Status: st.GetStatus(), PresentationState: "legacy_maturity_standing"})
+		phases = append(phases, Phase{Name: textutil.FirstNonEmpty(standing.GetPhase(), st.GetActivePhase()), Status: st.GetStatus(), PresentationState: "legacy_maturity_standing"})
 	}
 	return phases
 }
@@ -180,6 +181,8 @@ func summarizePhases(phases []Phase) execTypes.PhaseSummary {
 			summary.Failed++
 		case "skipped":
 			summary.Skipped++
+		case "not_evaluated", "not-evaluated", "not evaluated":
+			summary.NotEvaluated++
 		}
 	}
 	if observationCountKnown {
@@ -237,7 +240,7 @@ func TopPriorityFromPhases(phases []Phase) *execTypes.RunTopPriority {
 	if len(st.GetDocumentationTopics()) > 0 {
 		topic = st.GetDocumentationTopics()[0]
 	}
-	phase := firstNonEmpty(st.GetPhase(), best.phase)
+	phase := textutil.FirstNonEmpty(st.GetPhase(), best.phase)
 	return &execTypes.RunTopPriority{
 		Phase:                   phase,
 		Provider:                st.GetProvider(),
@@ -282,15 +285,6 @@ func capabilityPriorityRank(st *commonv1.PhasePresentation) int {
 		}
 	}
 	return best
-}
-
-func firstNonEmpty(vals ...string) string {
-	for _, v := range vals {
-		if strings.TrimSpace(v) != "" {
-			return v
-		}
-	}
-	return ""
 }
 
 type priorityCandidate struct {

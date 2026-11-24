@@ -28,6 +28,40 @@
       }
     },
     {
+      "id": "search_scenario_requirements",
+      "path": "/api/v1/search/scenario-requirements",
+      "method": "POST",
+      "summary": "Search one scenario's owner requirement status",
+      "description": "Performs a bounded query over one explicitly scoped scenario's Test Genie requirement view. Preserves generated time and unknown live status; recorded requirement status is not proof of a current passing run.",
+      "category": "requirements",
+      "request": {
+        "type": "object",
+        "content_type": "application/json",
+        "required": ["query", "scenario"],
+        "properties": {
+          "query": "string",
+          "scenario": "string (one exact scenario slug from scenario:<slug> scope)",
+          "limit": "integer (optional; capped at 25)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "content_type": "application/json",
+        "properties": {
+          "results": "array<RequirementSearchResult>",
+          "generatedAt": "timestamp",
+          "summary": "RequirementsSummary",
+          "degradations": "array<RequirementSearchDegradation>"
+        }
+      },
+      "examples": [
+        {
+          "name": "Search scoped scenario requirement status",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/search/scenario-requirements -H 'Content-Type: application/json' -d '{\"query\":\"requirements status summary\",\"scenario\":\"search-hub\",\"limit\":5}'"
+        }
+      ]
+    },
+    {
       "id": "frozen_replay_create",
       "path": "/vrooli.test_genie.v1.frozen_replay.FrozenReplayService/CreateFrozenReplayReceipt",
       "method": "POST",

@@ -35,6 +35,18 @@ func TestResolveCanonicalTargets(t *testing.T) {
 	}
 }
 
+func TestNormalizeLegacyIdentity(t *testing.T) {
+	for _, test := range []struct{ kind, id, legacy, wantKind, wantID string }{
+		{" RESOURCE ", " item-7 ", "old", "resource", "item-7"},
+		{"", " ", " sample ", "scenario", "sample"},
+	} {
+		kind, id := NormalizeLegacyIdentity(test.kind, test.id, test.legacy)
+		if kind != test.wantKind || id != test.wantID {
+			t.Fatalf("NormalizeLegacyIdentity(%q, %q, %q) = (%q, %q), want (%q, %q)", test.kind, test.id, test.legacy, kind, id, test.wantKind, test.wantID)
+		}
+	}
+}
+
 func TestArtifactRootSeparatesNonScenarioTargets(t *testing.T) {
 	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", ".."))
 	if err != nil {

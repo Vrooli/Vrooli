@@ -69,14 +69,6 @@ func parseTime(value string) (time.Time, bool) {
 	return time.Time{}, false
 }
 
-// DefaultValue returns the value if non-empty, otherwise the fallback.
-func DefaultValue(val, fallback string) string {
-	if strings.TrimSpace(val) == "" {
-		return fallback
-	}
-	return val
-}
-
 // NormalizeName lowercases and trims a name.
 func NormalizeName(name string) string {
 	return strings.ToLower(strings.TrimSpace(name))

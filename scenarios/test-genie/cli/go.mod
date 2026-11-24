@@ -46,6 +46,7 @@ require (
 	github.com/vrooli/envkit-go v0.0.0 // indirect
 	github.com/vrooli/freshness-go v0.0.0 // indirect
 	github.com/vrooli/platform-go v0.0.0 // indirect
+	github.com/vrooli/vrooli/packages/agentmanager-client-go v0.0.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0 // indirect
 	go.opentelemetry.io/otel v1.39.0 // indirect
@@ -84,3 +85,5 @@ replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
+
+replace github.com/vrooli/vrooli/packages/agentmanager-client-go => ../../../packages/agentmanager-client-go

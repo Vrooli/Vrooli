@@ -39,7 +39,10 @@ type Entry struct {
 	Phase phases.ExecutionResult `json:"phase"`
 }
 
-type Store struct{ root string }
+type Store struct {
+	root         string
+	auditPercent int
+}
 
 // PrunePolicy bounds the content-addressed phase cache. A zero age or byte
 // value disables that individual bound; at least one bound must be positive.
@@ -165,7 +168,24 @@ func Reusable(result phases.ExecutionResult) bool {
 
 var demotionMu sync.Mutex
 
-func New(root string) *Store { return &Store{root: artifactpaths.PhaseCacheDir(root)} }
+func New(root string) *Store { return newWithEnvironment(root, os.Getenv) }
+
+func newWithEnvironment(root string, getenv func(string) string) *Store {
+	return &Store{
+		root:         artifactpaths.PhaseCacheDir(root),
+		auditPercent: auditPercentFromEnvironment(getenv),
+	}
+}
+
+func auditPercentFromEnvironment(getenv func(string) string) int {
+	percent := 10
+	if raw := strings.TrimSpace(getenv("TEST_GENIE_PHASE_CACHE_AUDIT_PERCENT")); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil {
+			percent = parsed
+		}
+	}
+	return percent
+}
 
 // Prune removes cache entries oldest-first until both declared bounds are
 // satisfied. Store metadata and transient writer files are never candidates.
@@ -319,12 +339,7 @@ func (s *Store) Load(key string) (Entry, bool, error) {
 // retry from changing policy halfway through a run while still exercising the
 // provider on a bounded fraction of otherwise reusable results.
 func (s *Store) ShouldAudit(key, runID string) bool {
-	percent := 10
-	if raw := strings.TrimSpace(os.Getenv("TEST_GENIE_PHASE_CACHE_AUDIT_PERCENT")); raw != "" {
-		if parsed, err := strconv.Atoi(raw); err == nil {
-			percent = parsed
-		}
-	}
+	percent := s.auditPercent
 	if percent <= 0 {
 		return false
 	}

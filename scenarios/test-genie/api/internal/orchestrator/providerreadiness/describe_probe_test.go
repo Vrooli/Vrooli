@@ -111,6 +111,35 @@ func TestDescribeProbeAnswersWithoutTargetAnalysis(t *testing.T) {
 	}
 }
 
+func TestDefaultProbeResolvesDeclaredEndpointVariantWithoutChangingIdentity(t *testing.T) {
+	stub := &stubProvider{describe: &scenariovalidationv1.DescribeProviderResponse{
+		Provider: "audio-tools", Phase: "soak", SpecVersion: "1.0.0", Contract: "scenario-validation/v1",
+	}}
+	base := serve(t, stub)
+	original := resolveScenarioURL
+	var resolved string
+	resolveScenarioURL = func(_ context.Context, scenario string) (string, error) {
+		resolved = scenario
+		return base, nil
+	}
+	t.Cleanup(func() { resolveScenarioURL = original })
+
+	in := input()
+	in.Phase = "soak"
+	in.ProviderScenario = "audio-tools"
+	in.EndpointVariant = "lab"
+	got, err := DefaultProbe(context.Background(), in)
+	if err != nil {
+		t.Fatalf("DefaultProbe: %v", err)
+	}
+	if resolved != "audio-tools@lab" {
+		t.Fatalf("resolved endpoint = %q, want audio-tools@lab", resolved)
+	}
+	if !got.IdentityMatch || !got.Reachable {
+		t.Fatalf("variant endpoint did not preserve logical provider identity: %+v", got)
+	}
+}
+
 func TestDefaultProbeFallsBackWhenDescribeUnimplemented(t *testing.T) {
 	stub := &stubProvider{
 		describeErr: connect.NewError(connect.CodeUnimplemented, errors.New("not adopted")),
@@ -130,6 +159,39 @@ func TestDefaultProbeFallsBackWhenDescribeUnimplemented(t *testing.T) {
 	}
 	if got.SpecVersion != "2.1.0" {
 		t.Errorf("SpecVersion = %q, want the assessment version", got.SpecVersion)
+	}
+}
+
+func TestLegacyProbeRejectsUnknownValidationStatuses(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		status scenariovalidationv1.ValidationStatus
+		valid  bool
+	}{
+		{name: "passed", status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED, valid: true},
+		{name: "failed", status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED, valid: true},
+		{name: "degraded", status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED, valid: true},
+		{name: "error", status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR, valid: true},
+		{name: "skipped", status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_SKIPPED, valid: true},
+		{name: "not evaluated", status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED, valid: true},
+		{name: "unspecified", status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED},
+		{name: "future enum", status: scenariovalidationv1.ValidationStatus(99)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stub := &stubProvider{validate: &scenariovalidationv1.ValidateScenarioResponse{
+				Status: tc.status, Assessment: newAssessment(t, "security-health", "security", "2.1.0"),
+			}}
+			got, err := legacyValidateProbe(context.Background(), serve(t, stub), input())
+			if err != nil {
+				t.Fatalf("legacyValidateProbe: %v", err)
+			}
+			if got.ContractValid != tc.valid {
+				t.Fatalf("ContractValid = %v, want %v (message %q)", got.ContractValid, tc.valid, got.Message)
+			}
+			if !got.Reachable {
+				t.Fatalf("probe marked wire-reachable provider unreachable: %+v", got)
+			}
+		})
 	}
 }
 

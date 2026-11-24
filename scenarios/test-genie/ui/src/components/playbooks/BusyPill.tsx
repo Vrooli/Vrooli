@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Loader2, AlertCircle } from "lucide-react";
 import type { PlaybooksClaim } from "../../lib/api";
 import { releasePlaybooksClaim } from "../../lib/api";
-import { Button } from "../ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { cn } from "../../lib/utils";
 
 interface BusyPillProps {
@@ -70,7 +70,7 @@ export function BusyPill({ claim, onReleased }: BusyPillProps) {
       </div>
       <Button
         type="button"
-        variant="outline"
+        variant="secondary"
         size="sm"
         disabled={releasing}
         onClick={handleRelease}

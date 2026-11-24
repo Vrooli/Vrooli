@@ -9,12 +9,12 @@ metadata:
   tags: ["test-genie","validation","intent","receipt","wait"]
   icon: "check-circle"
   status: "active"
-  revision: 2
+  revision: 3
   createdAt: "2026-09-04T00:00:00Z"
-  updatedAt: "2026-11-04T20:21:00Z"
+  updatedAt: "2026-11-24T03:15:00Z"
   requires:
-    scenarios: ["test-genie"]
-    commands: ["vrooli scenario test", "test-genie runs wait", "test-genie validation"]
+    scenarios: ["test-genie", "program-runtime"]
+    commands: ["vrooli scenario test", "test-genie runs wait", "test-genie validation", "program-runtime library run"]
   origin: {kind: "authored"}
 ---
 ## Tools focus: Test Genie Validation Intent
@@ -52,17 +52,11 @@ evidence locators, and any typed degradation. Test the desired behavior, not a
 current defect. Use `run test-genie.validation-digest` only for a bounded fleet
 summary; inspect the named receipt before acting on one failure.
 
-### Run artifacts
+### Run evidence
 
-Use the Test Genie CLI for artifact discovery and transfer; every `runs` command
-takes `<scenario> <run-id>`. Read phase logs with
-`test-genie runs logs <scenario> <run-id> [--phase <phase>]`; list the catalog
-with `test-genie runs artifacts <scenario> <run-id> [--kinds <kind>]`; print a
-selected artifact with `test-genie runs download-artifact <scenario> <run-id> <artifact-id>`
-(pipe it to `jq`/`rg`), or add `--out <path>` for a file and SHA-256 receipt.
-A file download preserves an existing destination unless `--overwrite` is
-explicitly supplied. Artifact IDs are opaque: take them from the catalog instead
-of constructing internal HTTP URLs or guessing paths.
+Use `program-runtime library run test-genie.run-evidence --input view=artifacts --input scenario=<scenario> --input run_id=<run-id>` for the catalog; `view=show` and `view=findings` read their respective projections. Select the opaque download ID from the catalog; this metadata route does not carry bytes.
+
+For byte transfer, use `program-runtime library run test-genie.run-evidence --input view=download --input scenario=<scenario> --input run_id=<run-id> --input artifact_id=<catalog-id> --input path=<relative-path>`. The path is relative to the admitted Program Runtime workspace; existing files are preserved unless `--input overwrite=true` is explicit. The program returns a metadata-only receipt (identity, relative path, bytes, SHA-256), never artifact bytes or owner paths. The SHA-256 is computed by the receiver and is not source-cross-verified because Test Genie publishes no expected digest. If no verifiable receipt returns, the write may have completed: reconcile before retrying. Never guess IDs, construct internal URLs, or use a real artifact without host admission.
 
 ### Troubleshooting & Edge Cases
 

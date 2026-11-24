@@ -103,20 +103,6 @@ func (s *Server) handlePreviewPhaseApplicability(w http.ResponseWriter, r *http.
 	})
 }
 
-func (s *Server) handleGetPhaseSettings(w http.ResponseWriter, r *http.Request) {
-	if s.phaseCatalog == nil {
-		s.writeError(w, http.StatusInternalServerError, "phase catalog unavailable")
-		return
-	}
-	toggles, err := s.phaseCatalog.GlobalPhaseToggles()
-	if err != nil {
-		s.writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	descriptors := s.phaseCatalog.DescribePhases()
-	s.writeJSON(w, http.StatusOK, s.phaseSettingsPayload(descriptors, toggles))
-}
-
 func (s *Server) handleUpdatePhaseSettings(w http.ResponseWriter, r *http.Request) {
 	if s.phaseCatalog == nil {
 		s.writeError(w, http.StatusInternalServerError, "phase catalog unavailable")

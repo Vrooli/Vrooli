@@ -4,31 +4,19 @@ package evidence
 import (
 	"context"
 	"encoding/json"
-	"io/fs"
-	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/vrooli/vrooli/packages/artifactpaths"
 
 	"test-genie/internal/requirements/types"
+	"test-genie/internal/shared/filesystem"
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
-// Reader abstracts file reading for evidence loading.
-type Reader interface {
-	ReadFile(path string) ([]byte, error)
-	ReadDir(path string) ([]fs.DirEntry, error)
-	Exists(path string) bool
-}
-
-// osReader implements Reader using the os package.
-type osReader struct{}
-
-func (r *osReader) ReadFile(path string) ([]byte, error)       { return os.ReadFile(path) }
-func (r *osReader) ReadDir(path string) ([]fs.DirEntry, error) { return os.ReadDir(path) }
-func (r *osReader) Exists(path string) bool                    { _, err := os.Stat(path); return err == nil }
+// Reader preserves the evidence injection API through shared read capabilities.
+type Reader = filesystem.DirectoryReader
 
 // Loader loads test evidence from various sources.
 type Loader interface {
@@ -62,7 +50,7 @@ func New(reader Reader) Loader {
 
 // NewDefault creates a Loader using the real file system.
 func NewDefault() Loader {
-	return &loader{reader: &osReader{}, artifactRoot: artifactpaths.ScenarioRootForDir}
+	return &loader{reader: filesystem.OS{}, artifactRoot: artifactpaths.ScenarioRootForDir}
 }
 
 // LoadAll loads evidence from all sources.

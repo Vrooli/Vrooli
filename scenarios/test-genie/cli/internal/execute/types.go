@@ -423,6 +423,7 @@ type PhaseSummary struct {
 	Passed           int     `json:"passed"`
 	Failed           int     `json:"failed"`
 	Skipped          int     `json:"skipped"`
+	NotEvaluated     int     `json:"notEvaluated"`
 	DurationSeconds  int     `json:"durationSeconds"`
 	ObservationCount *uint32 `json:"observationCount,omitempty"`
 }

@@ -76,6 +76,30 @@ func TestSuiteExecutionRepositoryCreate(t *testing.T) {
 	}
 }
 
+func TestSuiteExecutionRepositoryPlanSamplesFloorNegativeWallClockDuration(t *testing.T) {
+	db := testsqlite.Open(t)
+	repo := NewSuiteExecutionRepository(db)
+	completed := time.Date(2026, 11, 22, 12, 0, 0, 0, time.UTC)
+	if err := repo.Create(context.Background(), &SuiteExecutionRecord{
+		ID:           uuid.New(),
+		ScenarioName: "demo",
+		Success:      true,
+		Phases:       []phases.ExecutionResult{{Name: "unit", Status: "passed"}},
+		StartedAt:    completed.Add(time.Second),
+		CompletedAt:  completed,
+	}); err != nil {
+		t.Fatalf("create reversed-time execution: %v", err)
+	}
+
+	samples, err := repo.ListPlanSamples(context.Background(), "demo", completed.Add(-time.Hour), 10)
+	if err != nil {
+		t.Fatalf("list plan samples: %v", err)
+	}
+	if len(samples) != 1 || samples[0].DurationSeconds != 0 {
+		t.Fatalf("negative elapsed time escaped the zero floor: %#v", samples)
+	}
+}
+
 func TestSuiteExecutionRepositoryDeleteByRunID(t *testing.T) {
 	db := testsqlite.Open(t)
 	repo := NewSuiteExecutionRepository(db)

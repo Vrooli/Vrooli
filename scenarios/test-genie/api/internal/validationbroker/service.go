@@ -739,6 +739,15 @@ func (s *Service) signalWaiter(receiptID, waitID string, signal waitSignal) bool
 	if waiter == nil {
 		return false
 	}
+	if signal == waitCancelled {
+		// Cancellation must take precedence over a coalesced progress wake.
+		// Otherwise the caller can receive Cancelled=true while its signal is
+		// dropped, then wait until timeout after processing the stale wake.
+		select {
+		case <-waiter:
+		default:
+		}
+	}
 	select {
 	case waiter <- signal:
 	default:

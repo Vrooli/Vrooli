@@ -359,7 +359,7 @@ ORDER BY completed_at DESC LIMIT 1`, scenario).Scan(&recentDescriptor); err == n
 func (r *SuiteExecutionRepository) PhaseCostEstimate(ctx context.Context, scenario, phase string) (ramBytes, cpuMilli int64, reliable bool) {
 	type sample struct{ wall, cpu, peak int64 }
 	load := func(scope string) ([]sample, error) {
-		q := `SELECT COALESCE(p.wall_clock_ms, p.duration_ms), p.cpu_user_ms, p.peak_rss_bytes
+		q := `SELECT COALESCE(NULLIF(p.wall_clock_ms, 0), p.duration_ms), p.cpu_user_ms, p.peak_rss_bytes
 			FROM suite_execution_phases p JOIN suite_executions e ON e.id = p.execution_id
 			WHERE p.phase_name = ? AND e.completed_at >= ? AND e.completed_at < ?
 			AND p.cpu_reliability = 'RELIABILITY_RELIABLE' AND p.memory_reliability = 'RELIABILITY_RELIABLE'`
@@ -445,10 +445,10 @@ func (r *SuiteExecutionRepository) PhaseCostEstimate(ctx context.Context, scenar
 // would understate the risk it exists to catch.
 func (r *SuiteExecutionRepository) PhaseDurationEstimate(ctx context.Context, scenario, phase string) (int64, bool) {
 	load := func(scope string) ([]int64, error) {
-		q := `SELECT COALESCE(p.wall_clock_ms, p.duration_ms)
+		q := `SELECT COALESCE(NULLIF(p.wall_clock_ms, 0), p.duration_ms)
 			FROM suite_execution_phases p JOIN suite_executions e ON e.id = p.execution_id
 			WHERE p.phase_name = ? AND e.completed_at >= ? AND e.completed_at < ?
-			AND p.cache_hit = 0 AND COALESCE(p.wall_clock_ms, p.duration_ms) > 0`
+			AND p.cache_hit = 0 AND COALESCE(NULLIF(p.wall_clock_ms, 0), p.duration_ms) > 0`
 		args := []any{
 			strings.TrimSpace(phase),
 			time.Now().UTC().Add(-deadlineHistoryWindow).Format(time.RFC3339Nano),
@@ -525,7 +525,7 @@ SELECT EXISTS(
 func (r *SuiteExecutionRepository) CostReport(ctx context.Context, scenario string, since, until time.Time) ([]CostSummary, error) {
 	q := `
 		SELECT e.scenario_name, p.phase_name, p.status,
-		       COALESCE(p.wall_clock_ms, p.duration_ms),
+		       COALESCE(NULLIF(p.wall_clock_ms, 0), p.duration_ms),
 		       p.cpu_user_ms, p.peak_rss_bytes, p.cpu_reliability, p.memory_reliability,
 		       p.measurement_scope,
 		       p.cache_hit, p.cache_audit, p.cache_audit_mismatch, p.cache_no_saving,

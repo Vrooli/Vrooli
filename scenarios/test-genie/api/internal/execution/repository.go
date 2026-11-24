@@ -405,7 +405,7 @@ LIMIT ?`
 		if err != nil {
 			return nil, err
 		}
-		sample.DurationSeconds = maxInt(0, int(sample.CompletedAt.Sub(sample.StartedAt).Round(time.Second).Seconds()))
+		sample.DurationSeconds = max(0, int(sample.CompletedAt.Sub(sample.StartedAt).Round(time.Second).Seconds()))
 		samples = append(samples, sample)
 	}
 	return samples, rows.Err()
@@ -562,13 +562,6 @@ func boolToInt(value bool) int {
 		return 1
 	}
 	return 0
-}
-
-func maxInt(left, right int) int {
-	if left > right {
-		return left
-	}
-	return right
 }
 
 // nullIfZeroTime stores NULL rather than a formatted zero time.

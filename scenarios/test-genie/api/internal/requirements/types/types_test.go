@@ -458,6 +458,47 @@ func TestRequirement_Clone(t *testing.T) {
 	})
 }
 
+func TestRequirementCloneDeepCopiesNestedValidationMetadata(t *testing.T) {
+	newRequirement := func() *Requirement {
+		return &Requirement{Validations: []Validation{{
+			Metadata: map[string]any{
+				"config": map[string]any{
+					"labels": []any{"original", map[string]any{"name": "nested"}},
+				},
+			},
+		}}}
+	}
+	mutateNestedMetadata := func(t *testing.T, metadata map[string]any) {
+		t.Helper()
+		config := metadata["config"].(map[string]any)
+		labels := config["labels"].([]any)
+		labels[0] = "changed"
+		labels[1].(map[string]any)["name"] = "changed"
+	}
+	assertOriginalNestedMetadata := func(t *testing.T, metadata map[string]any) {
+		t.Helper()
+		config := metadata["config"].(map[string]any)
+		labels := config["labels"].([]any)
+		if labels[0] != "original" || labels[1].(map[string]any)["name"] != "nested" {
+			t.Fatalf("original nested metadata was changed through clone: %#v", metadata)
+		}
+	}
+
+	t.Run("Validation.Clone", func(t *testing.T) {
+		original := newRequirement().Validations[0]
+		clone := original.Clone()
+		mutateNestedMetadata(t, clone.Metadata)
+		assertOriginalNestedMetadata(t, original.Metadata)
+	})
+
+	t.Run("Requirement.Clone", func(t *testing.T) {
+		original := newRequirement()
+		clone := original.Clone()
+		mutateNestedMetadata(t, clone.Validations[0].Metadata)
+		assertOriginalNestedMetadata(t, original.Validations[0].Metadata)
+	})
+}
+
 func TestRequirement_HasValidations(t *testing.T) {
 	tests := []struct {
 		name     string

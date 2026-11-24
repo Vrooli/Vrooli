@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"test-genie/internal/orchestrator/phasekeys"
 	"test-genie/internal/orchestrator/phasepolicy"
 	"test-genie/internal/shared/stats"
 )
@@ -153,7 +154,7 @@ func NewEstimator(scenarioName string, samples []Sample) Estimator {
 	scenarioBuckets := make(map[string]sampleBucket)
 	globalBuckets := make(map[string]sampleBucket)
 	for _, sample := range samples {
-		key := normalize(sample.PhaseName)
+		key := phasekeys.NormalizeKey(sample.PhaseName)
 		if key == "" {
 			continue
 		}
@@ -201,7 +202,7 @@ func EstimateComparableRun(samples []RunSample) Estimate {
 	for _, sample := range samples {
 		duration := sample.DurationSeconds
 		if sample.DurationMilliseconds > 0 {
-			duration = maxInt(0, int(math.Ceil(float64(sample.DurationMilliseconds)/1000)))
+			duration = int(math.Ceil(float64(sample.DurationMilliseconds) / 1000))
 		}
 		if duration > 0 {
 			durations = append(durations, duration)
@@ -221,7 +222,7 @@ func EstimateComparableRun(samples []RunSample) Estimate {
 }
 
 func (e Estimator) Estimate(phaseName string, timeoutSeconds int) Estimate {
-	key := normalize(phaseName)
+	key := phasekeys.NormalizeKey(phaseName)
 	return estimatePhase(timeoutSeconds, e.scenarioBuckets[key], e.globalBuckets[key])
 }
 
@@ -476,7 +477,7 @@ func classifySample(sample Sample) sampleClass {
 	if sampleDurationSeconds(sample) <= 0 {
 		return sampleExcluded
 	}
-	switch normalize(sample.Status) {
+	switch phasekeys.NormalizeKey(sample.Status) {
 	case phasepolicy.StatusPassed, "success", "succeeded", "failed", "failure", "errored":
 		return samplePoint
 	case "timeout", "timed_out", "aborted":
@@ -488,7 +489,7 @@ func classifySample(sample Sample) sampleClass {
 
 func sampleDurationSeconds(sample Sample) int {
 	if sample.DurationMilliseconds > 0 {
-		return maxInt(0, int(math.Ceil(float64(sample.DurationMilliseconds)/1000)))
+		return int(math.Ceil(float64(sample.DurationMilliseconds) / 1000))
 	}
 	return clampNonNegative(sample.DurationSeconds)
 }
@@ -537,19 +538,11 @@ func weightedBlend(left, leftWeight, right, rightWeight int) int {
 	return int(math.Round(float64(left*leftWeight+right*rightWeight) / float64(totalWeight)))
 }
 
-func normalize(value string) string { return strings.ToLower(strings.TrimSpace(value)) }
 func clampNonNegative(value int) int {
 	if value < 0 {
 		return 0
 	}
 	return value
-}
-
-func maxInt(left, right int) int {
-	if left > right {
-		return left
-	}
-	return right
 }
 
 func minInt(left, right int) int {

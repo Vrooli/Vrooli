@@ -127,6 +127,11 @@ func (o *SuiteOrchestrator) loadExecutionPlanContext(req SuiteExecutionRequest) 
 	if err != nil {
 		return nil, err
 	}
+	if config != nil {
+		if experience, ok := config.Phases["experience"]; ok {
+			env.ExperienceBASUnavailableEndpoint = experience.BASUnavailableEndpoint
+		}
+	}
 
 	plan, err := o.buildPhasePlan(env, config, req)
 	if err != nil {

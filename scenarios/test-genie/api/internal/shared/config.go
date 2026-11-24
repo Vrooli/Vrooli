@@ -96,29 +96,6 @@ func EnvString(key string, defaultVal string) string {
 	return val
 }
 
-// ClampInt constrains an integer value to be within [min, max].
-// This is the decision point for "is this value within acceptable bounds?"
-func ClampInt(value, min, max int) int {
-	if value < min {
-		return min
-	}
-	if value > max {
-		return max
-	}
-	return value
-}
-
-// ClampInt64 constrains an int64 value to be within [min, max].
-func ClampInt64(value, min, max int64) int64 {
-	if value < min {
-		return min
-	}
-	if value > max {
-		return max
-	}
-	return value
-}
-
 // TestingConfigPath returns the path to the testing.json config file.
 func TestingConfigPath(scenarioDir string) string {
 	return filepath.Join(scenarioDir, ".vrooli", "testing.json")

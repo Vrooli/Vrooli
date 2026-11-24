@@ -9,6 +9,55 @@ import (
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 )
 
+// outageRecoveryBroker models one unavailable owner while another phase can
+// still acquire capacity. The owner ID is captured so recovery can prove it is
+// retrying the same run/phase work identity.
+type outageRecoveryBroker struct {
+	deniedOwner string
+	denied      bool
+	owners      []string
+}
+
+func (b *outageRecoveryBroker) Acquire(_ context.Context, owner string, _, _ int64) (sharedcapacity.Lease, sharedcapacity.Verdict, error) {
+	b.owners = append(b.owners, owner)
+	if owner == b.deniedOwner && !b.denied {
+		b.denied = true
+		return nil, sharedcapacity.Verdict{Kind: "unknown", Reason: "capacity broker unavailable"}, nil
+	}
+	return stubLease{}, sharedcapacity.Verdict{Kind: "grant"}, nil
+}
+
+// A broker outage must leave the rejected phase unresolved, while independent
+// work can still be admitted. Once capacity returns, retrying the same durable
+// run/phase identity must obtain a grant rather than manufacture new work.
+func TestCapacityOutageKeepsDeniedWorkUnknownAndRecoversSameIdentity(t *testing.T) {
+	const runID = "maintenance-window-20261121"
+	blocked := []phases.Definition{{Name: phases.Name("blocked"), Concurrency: phases.Concurrency{Mode: "exclusive"}}}
+	independent := []phases.Definition{{Name: phases.Name("independent"), Concurrency: phases.Concurrency{Mode: "exclusive"}}}
+	blockedOwner := sharedcapacity.OwnerIDFor("test-genie", runID, "blocked")
+	broker := &outageRecoveryBroker{deniedOwner: blockedOwner}
+	deps := Deps{Broker: broker, Estimator: schedulerCostStub{}}
+
+	leases, reason, admitted, _ := Admit(context.Background(), deps, "demo", runID, blocked)
+	if len(leases) != 0 || admitted != 1 || reason != "capacity broker unavailable" {
+		t.Fatalf("outage admission = leases:%d admitted:%d reason:%q; want unresolved unknown capacity", len(leases), admitted, reason)
+	}
+	independentLeases, independentReason, independentAdmitted, _ := Admit(context.Background(), deps, "demo", runID, independent)
+	if len(independentLeases) != 1 || independentReason != "" || independentAdmitted != 1 {
+		t.Fatalf("independent admission = leases:%d admitted:%d reason:%q; want work to proceed", len(independentLeases), independentAdmitted, independentReason)
+	}
+	_ = independentLeases[0].Release(context.Background())
+
+	recovered, recoveredReason, recoveredAdmitted, _ := Admit(context.Background(), deps, "demo", runID, blocked)
+	if len(recovered) != 1 || recoveredReason != "" || recoveredAdmitted != 1 {
+		t.Fatalf("recovery admission = leases:%d admitted:%d reason:%q; want same work to be granted", len(recovered), recoveredAdmitted, recoveredReason)
+	}
+	_ = recovered[0].Release(context.Background())
+	if len(broker.owners) != 3 || broker.owners[0] != blockedOwner || broker.owners[1] == blockedOwner || broker.owners[2] != blockedOwner {
+		t.Fatalf("broker owner sequence = %v; want blocked identity, independent identity, same blocked identity", broker.owners)
+	}
+}
+
 type schedulerCostStub struct {
 	// unsizable names phases the estimator has no reliable size for. Empty
 	// means every phase is sizable.

@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"test-genie/internal/targetmodel"
 )
 
 // Evidence is the normalized input to the pure planner. Adapters that read
@@ -31,7 +33,7 @@ func BuildPlan(e Evidence) Plan {
 		Scenario: strings.TrimSpace(e.Scenario), TargetKind: strings.TrimSpace(e.TargetKind), TargetID: strings.TrimSpace(e.TargetID), CreatedAt: e.CompletedAt.UTC(), Phases: append([]Phase(nil), e.Phases...),
 		DegradedReasons: normalizedIDs(e.DegradedReasons),
 	}
-	plan.TargetKind, plan.TargetID = targetIdentity(plan.TargetKind, plan.TargetID, plan.Scenario)
+	plan.TargetKind, plan.TargetID = targetmodel.NormalizeLegacyIdentity(plan.TargetKind, plan.TargetID, plan.Scenario)
 	if plan.CreatedAt.IsZero() {
 		plan.CreatedAt = time.Now().UTC()
 	}

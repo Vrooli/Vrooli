@@ -20,24 +20,28 @@ type hostEvidence struct {
 }
 
 func currentHostEvidence() hostEvidence {
-	node := firstNonEmptyEnv("VROOLI_BRIDGE_NODE_ID", "VROOLI_NODE_ID", "VROOLI_HOST_NODE")
-	values := []string{
-		runtime.GOOS,
-		runtime.GOARCH,
-		node,
-		os.Getenv("VROOLI_INIT_SYSTEM"),
-		os.Getenv("XDG_SESSION_TYPE"),
-		os.Getenv("VROOLI_DISPLAY_ATTACHED"),
-		os.Getenv("VROOLI_HEADLESS"),
-		os.Getenv("VROOLI_WSL"),
-	}
-	hash := sha256.Sum256([]byte(strings.Join(values, "\x00")))
-	return hostEvidence{OS: runtime.GOOS, Arch: runtime.GOARCH, Node: node, FactDigest: hex.EncodeToString(hash[:])}
+	return hostEvidenceFromEnvironment(runtime.GOOS, runtime.GOARCH, os.Getenv)
 }
 
-func firstNonEmptyEnv(names ...string) string {
+func hostEvidenceFromEnvironment(goos, goarch string, getenv func(string) string) hostEvidence {
+	node := firstNonEmptyEnv(getenv, "VROOLI_BRIDGE_NODE_ID", "VROOLI_NODE_ID", "VROOLI_HOST_NODE")
+	values := []string{
+		goos,
+		goarch,
+		node,
+		getenv("VROOLI_INIT_SYSTEM"),
+		getenv("XDG_SESSION_TYPE"),
+		getenv("VROOLI_DISPLAY_ATTACHED"),
+		getenv("VROOLI_HEADLESS"),
+		getenv("VROOLI_WSL"),
+	}
+	hash := sha256.Sum256([]byte(strings.Join(values, "\x00")))
+	return hostEvidence{OS: goos, Arch: goarch, Node: node, FactDigest: hex.EncodeToString(hash[:])}
+}
+
+func firstNonEmptyEnv(getenv func(string) string, names ...string) string {
 	for _, name := range names {
-		if value := strings.TrimSpace(os.Getenv(name)); value != "" {
+		if value := strings.TrimSpace(getenv(name)); value != "" {
 			return value
 		}
 	}

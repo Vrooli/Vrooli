@@ -1,0 +1,87 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "test-genie.requirements",
+      "lifecycle": "experimental",
+      "provider_group": "test-genie",
+      "bucket": "BUCKET_STATE",
+      "type": "requirements",
+      "class": "local_live",
+      "scope": "SCOPE_PROJECT",
+      "description": "Read requirement definitions and recorded liveStatus for exactly one scenario using Test Genie's owner requirements view. Results preserve module/file provenance and generatedAt. These recorded statuses and summaries do not prove a current test run passed; use run-scoped Test Genie evidence for that claim.",
+      "routing_profile": {
+        "answer_spaces": ["scenario_requirements", "requirements_status"],
+        "intents": ["check_state", "inspect_requirement", "explain"],
+        "positive_examples": [
+          "what are the requirement status counts for search-hub",
+          "find critical requirements and their live status in test-genie",
+          "which requirements are incomplete or unknown for scenario x"
+        ],
+        "exclusions": [
+          "which test phases passed in a current run",
+          "the scenario maturity rung and composite score",
+          "fleet-wide requirements scan"
+        ]
+      },
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "test-genie",
+          "path": "/api/v1/search/scenario-requirements",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"scenario\":\"{{scope_value}}\",\"limit\":{{limit}}}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "test-genie",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "title_field": "title",
+        "score_field": "score",
+        "snippet_field": "snippet",
+        "path_field": "path",
+        "score_scale": "SCORE_SCALE_RAW",
+        "metadata_fields": {
+          "result_type": "resultType",
+          "status": "status",
+          "live_status": "liveStatus",
+          "criticality": "criticality",
+          "module": "module",
+          "summary": "summary",
+          "source": "source"
+        },
+        "degradations_field": "degradations"
+      },
+      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.2, "minimum_samples": 1, "telemetry_required": false},
+      "tests": {
+        "minimum": {"reviewed_positive": 3, "negative": 2},
+        "suite_id": "test-genie.requirements.primary",
+        "name": "Scenario-scoped requirement status evidence",
+        "description": "Development suite for Test Genie's read-only scoped requirement view. It checks summary and row search, freshness provenance, unknown distinctions, and negatives; it does not claim current test-run success.",
+        "coverage": {
+          "required_tag_groups": [
+            {"id": "requirement-status-summary", "description": "Returns the selected scenario's recorded requirements status summary.", "tags": ["summary"], "min_reviewed_positive": 2},
+            {"id": "source-freshness", "description": "Names the source module and generated view time without claiming current run freshness.", "tags": ["provenance"], "min_reviewed_positive": 2}
+          ]
+        },
+        "cases": [
+          {"id": "search-hub-requirement-summary", "query": "requirements status summary", "scope": "scenario:search-hub", "expect_ids": ["requirements-summary:search-hub"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "summary", "provenance"]},
+          {"id": "search-hub-critical-gaps", "query": "critical requirement gaps and status for search-hub", "scope": "scenario:search-hub", "expect_ids": ["requirements-summary:search-hub"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "summary"]},
+          {"id": "test-genie-validation-counts", "query": "validation requirements and completion status", "scope": "scenario:test-genie", "expect_ids": ["requirements-summary:test-genie"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "summary", "provenance"]},
+          {"id": "scs-requirement-summary", "query": "requirement status summary for scenario completeness scoring", "scope": "scenario:scenario-completeness-scoring", "expect_ids": ["requirements-summary:scenario-completeness-scoring"], "expect_within_top_k": 1, "status": "reviewed", "tags": ["reviewed", "summary"]},
+          {"id": "unrelated-gibberish-one", "query": "zqxv qlpn vvzz nebula", "scope": "scenario:search-hub", "expect_no_strong_hit": true, "expect_max_score": 0.2, "status": "reviewed", "tags": ["reviewed", "negative"]},
+          {"id": "unrelated-gibberish-two", "query": "qqvvv trnx jkwp", "scope": "scenario:test-genie", "expect_no_strong_hit": true, "expect_max_score": 0.2, "status": "reviewed", "tags": ["reviewed", "negative"]}
+        ]
+      }
+    }
+  ]
+}

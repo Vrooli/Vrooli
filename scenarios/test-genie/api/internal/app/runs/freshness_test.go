@@ -121,7 +121,7 @@ func TestToFreshnessResponseConvertsAllFields(t *testing.T) {
 }
 
 func TestFreshnessDefaultSetIsStableRequiredEvidenceProfile(t *testing.T) {
-	want := []string{"structure", "docs", "unit", "business", "proto", "model-eval"}
+	want := []string{"structure", "docs", "unit", "business", "proto", "cloud-production-health", "credential-leak-proof", "model-eval"}
 	got := phases.FreshnessRequired()
 	if len(got) != len(want) {
 		t.Fatalf("FreshnessRequired = %v, want %v", got, want)

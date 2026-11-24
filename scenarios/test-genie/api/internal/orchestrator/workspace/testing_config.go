@@ -24,8 +24,9 @@ type Config struct {
 }
 
 type PhaseSettings struct {
-	Enabled *bool
-	Timeout time.Duration
+	Enabled                *bool
+	Timeout                time.Duration
+	BASUnavailableEndpoint string
 }
 
 // SyncRequirementSettings captures the requirements synchronization policy
@@ -42,8 +43,9 @@ type rawTestingConfig struct {
 }
 
 type rawPhaseSettings struct {
-	Enabled *bool  `json:"enabled"`
-	Timeout string `json:"timeout"`
+	Enabled                *bool  `json:"enabled"`
+	Timeout                string `json:"timeout"`
+	BASUnavailableEndpoint string `json:"bas_unavailable_endpoint"`
 }
 
 type rawSyncRequirementSettings struct {
@@ -87,13 +89,23 @@ func LoadTestingConfig(scenarioDir string) (*Config, error) {
 		if normalized == "" {
 			continue
 		}
+		basUnavailableEndpoint := strings.TrimSpace(phase.BASUnavailableEndpoint)
+		if basUnavailableEndpoint != "" {
+			if normalized != "experience" {
+				return nil, fmt.Errorf("bas_unavailable_endpoint is only supported for the experience phase")
+			}
+			if basUnavailableEndpoint != "http://127.0.0.1:1" {
+				return nil, fmt.Errorf("experience.bas_unavailable_endpoint must be exactly http://127.0.0.1:1")
+			}
+		}
 		timeout, err := parsePhaseTimeout(phase.Timeout)
 		if err != nil {
 			return nil, fmt.Errorf("invalid timeout for phase '%s': %w", name, err)
 		}
 		cfg.Phases[normalized] = PhaseSettings{
-			Enabled: phase.Enabled,
-			Timeout: timeout,
+			Enabled:                phase.Enabled,
+			Timeout:                timeout,
+			BASUnavailableEndpoint: basUnavailableEndpoint,
 		}
 	}
 

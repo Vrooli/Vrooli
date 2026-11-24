@@ -117,6 +117,28 @@ func TestPrintPrePlanShowsDocs(t *testing.T) {
 	}
 }
 
+func TestPrinterUsesRequestedPresetFallbackAndPreservesResponsePreset(t *testing.T) {
+	tests := []struct {
+		name         string
+		response     string
+		requested    string
+		wantInOutput string
+	}{
+		{name: "blank response uses requested preset", response: " \t", requested: "safe-default", wantInOutput: "Preset: safe-default"},
+		{name: "response preset remains unchanged", response: "  quick  ", requested: "safe-default", wantInOutput: "Preset:   quick  "},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			pr := New(&buf, "demo", tt.requested, nil, nil, false, nil, nil)
+			pr.Print(execTypes.Response{PresetUsed: tt.response})
+			if !strings.Contains(buf.String(), tt.wantInOutput) {
+				t.Fatalf("Printer output = %q, want it to contain %q", buf.String(), tt.wantInOutput)
+			}
+		})
+	}
+}
+
 func TestPassedPhaseWarningsAreSurfaced(t *testing.T) {
 	resp := execTypes.Response{
 		Success:     false,
@@ -148,5 +170,14 @@ func TestPassedPhaseWarningsAreSurfaced(t *testing.T) {
 	out := buf.String()
 	if !strings.Contains(out, "warnings: resource telemetry unavailable") {
 		t.Fatalf("expected warning details to be surfaced for passed phase:\n%s", out)
+	}
+}
+
+func TestPrinterSurfacesNotEvaluatedPhaseCount(t *testing.T) {
+	var buf bytes.Buffer
+	pr := New(&buf, "demo", "", nil, nil, false, nil, nil)
+	pr.Print(execTypes.Response{Success: false, Verdict: "NOT_EVALUATED", PhaseSummary: execTypes.PhaseSummary{Total: 1, NotEvaluated: 1}})
+	if !strings.Contains(buf.String(), "1 not evaluated") {
+		t.Fatalf("human report must make missing evaluation visible: %s", buf.String())
 	}
 }

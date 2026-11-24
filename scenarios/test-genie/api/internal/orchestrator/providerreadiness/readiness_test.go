@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -54,7 +55,7 @@ func TestProviderLeaseBlocksConcurrentReadinessMutation(t *testing.T) {
 		probes.Add(1)
 		return ProbeResult{Reachable: true, ContractValid: true, IdentityMatch: true}, nil
 	}}
-	release := manager.LeaseProvider("unit-health")
+	release := mustAcquireProvider(t, manager, "unit-health")
 	done := make(chan Outcome, 1)
 	go func() {
 		done <- manager.Check(context.Background(), inputWithPolicy(phasepolicy.RequiredProviderPolicy()), io.Discard)
@@ -84,7 +85,7 @@ func TestProviderOwnershipWaitHonorsCancellation(t *testing.T) {
 		probes.Add(1)
 		return ProbeResult{Reachable: true, ContractValid: true, IdentityMatch: true}, nil
 	}}
-	release := manager.LeaseProvider("unit-health")
+	release := mustAcquireProvider(t, manager, "unit-health")
 	t.Cleanup(release)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
@@ -110,6 +111,40 @@ func TestProviderOwnershipWaitHonorsCancellation(t *testing.T) {
 		t.Fatal(err)
 	}
 	next()
+}
+
+func TestProviderOwnershipWaitIsBoundedAndNamesTheOwner(t *testing.T) {
+	var probes atomic.Int32
+	manager := &Manager{
+		OwnershipWaitTimeout: 20 * time.Millisecond,
+		Probe: func(context.Context, Input) (ProbeResult, error) {
+			probes.Add(1)
+			return ProbeResult{Reachable: true, ContractValid: true, IdentityMatch: true}, nil
+		},
+	}
+	release := mustAcquireProvider(t, manager, "unit-health")
+	defer release()
+
+	started := time.Now()
+	outcome := manager.Check(context.Background(), inputWithPolicy(phasepolicy.RequiredProviderPolicy()), io.Discard)
+	if elapsed := time.Since(started); elapsed > time.Second {
+		t.Fatalf("bounded provider wait took %s", elapsed)
+	}
+	if outcome.Ready || !errors.Is(outcome.Err, context.DeadlineExceeded) || probes.Load() != 0 {
+		t.Fatalf("queued provider outcome = %+v; probes=%d", outcome, probes.Load())
+	}
+	if got := outcome.ErrorString(); !strings.Contains(got, "unit-health ownership wait exceeded 20ms") {
+		t.Fatalf("timeout diagnostic = %q, want provider and bound", got)
+	}
+}
+
+func mustAcquireProvider(t *testing.T, manager *Manager, provider string) func() {
+	t.Helper()
+	release, err := manager.AcquireProvider(context.Background(), provider)
+	if err != nil {
+		t.Fatalf("acquire %s provider lease: %v", provider, err)
+	}
+	return release
 }
 
 func TestCheckStartIfNeededStartsAfterUnreachableProbe(t *testing.T) {

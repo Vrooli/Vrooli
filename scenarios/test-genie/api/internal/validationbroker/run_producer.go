@@ -11,12 +11,12 @@ import (
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/runmanager"
+	sharedevidence "test-genie/internal/shared/evidence"
 	sharedruns "test-genie/internal/shared/runs"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/validation"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -707,16 +707,6 @@ func validationSuiteRunID(receiptID, scenario string, attempt int) string {
 	return fmt.Sprintf("validation-%x", digest[:16])
 }
 
-func cloneIntentEvidenceSets(sets []*scenariovalidationv1.RetainedEvidenceSet) []*scenariovalidationv1.RetainedEvidenceSet {
-	cloned := make([]*scenariovalidationv1.RetainedEvidenceSet, 0, len(sets))
-	for _, set := range sets {
-		if set != nil {
-			cloned = append(cloned, proto.Clone(set).(*scenariovalidationv1.RetainedEvidenceSet))
-		}
-	}
-	return cloned
-}
-
 func (p *RunProducer) startAfterCapacity(ctx context.Context, receiptID, scenario string, intent *validationv1.ValidationIntent, runID string) (runmanager.StartResult, error) {
 	queueCtx, cancel := queueDeadline(ctx, intent)
 	defer cancel()
@@ -728,7 +718,7 @@ func (p *RunProducer) startAfterCapacity(ctx context.Context, receiptID, scenari
 		request.RetainForEvidence = true
 		request.RetentionReason = "validation receipt " + receiptID
 		request.RunID = runID
-		request.RetainedEvidenceSets = cloneIntentEvidenceSets(intent.GetRetainedEvidenceSets())
+		request.RetainedEvidenceSets = sharedevidence.CloneRetainedSets(intent.GetRetainedEvidenceSets())
 		result, err := p.runs.Start(runmanager.StartOptions{
 			Input:  execution.SuiteExecutionInput{Request: request},
 			Caller: intent.GetCallerScenario(),

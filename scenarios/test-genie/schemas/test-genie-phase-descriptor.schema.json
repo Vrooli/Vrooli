@@ -108,6 +108,11 @@
       "required": ["contract"],
       "properties": {
         "contract": { "const": "scenario-validation/v1" },
+        "endpointVariant": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "description": "Optional runtime variant used to resolve the provider endpoint; provider identity remains the descriptor scenario."
+        },
         "capabilitySubset": {
           "type": "array",
           "items": { "type": "string", "minLength": 1 },

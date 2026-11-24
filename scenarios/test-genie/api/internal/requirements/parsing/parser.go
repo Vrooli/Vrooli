@@ -9,12 +9,11 @@ import (
 
 	"test-genie/internal/requirements/discovery"
 	"test-genie/internal/requirements/types"
+	"test-genie/internal/shared/filesystem"
 )
 
 // Reader abstracts file reading for parsing operations.
-type Reader interface {
-	ReadFile(path string) ([]byte, error)
-}
+type Reader = filesystem.FileReader
 
 // Parser parses requirement JSON files.
 type Parser interface {
@@ -42,22 +41,9 @@ func New(reader Reader) Parser {
 // NewDefault creates a Parser using the real file system.
 func NewDefault() Parser {
 	return &parser{
-		reader:     &osReader{},
+		reader:     filesystem.OS{},
 		normalizer: NewNormalizer(),
 	}
-}
-
-// osReader implements Reader using the os package.
-type osReader struct{}
-
-func (r *osReader) ReadFile(path string) ([]byte, error) {
-	return readFileFromOS(path)
-}
-
-// readFileFromOS reads a file from the OS filesystem.
-// This is a separate function to avoid import issues.
-func readFileFromOS(path string) ([]byte, error) {
-	return osReadFile(path)
 }
 
 // Parse reads and normalizes a single requirement file.

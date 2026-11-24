@@ -6,6 +6,8 @@ The phase declares `NeedsUI: true` and `RequiredResources: [browser-automation-s
 
 When the selected `experience` phase is not evaluated and no phase reports a real defect, Test Genie persists the suite verdict `NOT_EVALUATED`. Its `success` field is false and the command exits non-zero. This verdict also takes precedence over `PARTIAL` when another required phase is skipped or unavailable; a real failing phase takes precedence over both and keeps the suite verdict `FAIL`.
 
+Accuracy evidence is scored against frozen, independently adjudicated cases with exact subject and evaluator build provenance. See the [UI verdict trust scoring contract](../../concepts/ui-verdict-trust-scoring.md); rates are withheld until the `experience` phase has 50 eligible independent snapshot clusters.
+
 This phase declares a [Phase Capability Contract](../../concepts/phase-capability-contract.md); the sections below follow the required remediation-doc skeleton.
 
 ## North Star

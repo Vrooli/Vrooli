@@ -121,18 +121,22 @@ func TestDetectTestingCapabilitiesPrefersGenie(t *testing.T) {
 	}
 }
 
-func TestDetectTestingCapabilitiesSkipsGenieWhenResolverFails(t *testing.T) {
+func TestDetectTestingCapabilitiesUsesResolverPerCall(t *testing.T) {
 	dir := t.TempDir()
-	originalResolver := resolveTestGenieExecutable
-	t.Cleanup(func() { resolveTestGenieExecutable = originalResolver })
-	resolveTestGenieExecutable = func(string) (string, error) {
-		return "", errors.New("missing")
-	}
-	t.Setenv("TEST_GENIE_BIN", "")
-	t.Setenv("TEST_GENIE_DISABLE", "")
+	scenarioDir := filepath.Join(dir, "scenarios", "alpha")
+	lookup := func(string) string { return "" }
 
-	caps := DetectTestingCapabilities(filepath.Join(dir, "scenarios", "alpha"))
-	if caps.Genie {
-		t.Fatalf("expected genie detection to stay disabled, got %#v", caps)
+	resolved := detectTestingCapabilitiesWithDependencies(scenarioDir, lookup, func(string) (string, error) {
+		return "/custom/test-genie", nil
+	})
+	if cmd := resolved.CommandByType("genie"); cmd == nil || len(cmd.Command) == 0 || cmd.Command[0] != "/custom/test-genie" {
+		t.Fatalf("injected resolver command = %#v, want custom executable", cmd)
+	}
+
+	missing := detectTestingCapabilitiesWithDependencies(scenarioDir, lookup, func(string) (string, error) {
+		return "", errors.New("missing")
+	})
+	if missing.Genie {
+		t.Fatalf("resolver failure should leave Genie unavailable, got %#v", missing)
 	}
 }

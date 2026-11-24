@@ -2126,16 +2126,7 @@ func (m *Manager) downgradeOrphanIndex(scenario, runID string) error {
 	if resolveErr != nil {
 		return fmt.Errorf("resolve artifact root: %w", resolveErr)
 	}
-	err := sharedruns.NewIndex(dir).Update(runID, func(r *sharedruns.RunRecord) error {
-		if isTerminal(r.Status) {
-			return nil
-		}
-		r.Status = sharedruns.StatusAborted
-		if r.CompletedAt.IsZero() {
-			r.CompletedAt = time.Now().UTC()
-		}
-		return nil
-	})
+	err := markNonterminalRunAborted(sharedruns.NewIndex(dir), runID)
 	if errors.Is(err, sharedruns.ErrRunNotFound) {
 		return nil
 	}
@@ -2143,6 +2134,19 @@ func (m *Manager) downgradeOrphanIndex(scenario, runID string) error {
 		return err
 	}
 	return nil
+}
+
+func markNonterminalRunAborted(index *sharedruns.Index, runID string) error {
+	return index.Update(runID, func(record *sharedruns.RunRecord) error {
+		if isTerminal(record.Status) {
+			return nil
+		}
+		record.Status = sharedruns.StatusAborted
+		if record.CompletedAt.IsZero() {
+			record.CompletedAt = time.Now().UTC()
+		}
+		return nil
+	})
 }
 
 // Sweep marks every non-terminal index entry (in_progress or queued) that has no
@@ -2183,16 +2187,7 @@ func (m *Manager) Sweep() (int, error) {
 				continue // genuinely active in this process, including typed-target aliases
 			}
 			runID := rec.RunID
-			if updateErr := idx.Update(runID, func(r *sharedruns.RunRecord) error {
-				if isTerminal(r.Status) {
-					return nil
-				}
-				r.Status = sharedruns.StatusAborted
-				if r.CompletedAt.IsZero() {
-					r.CompletedAt = time.Now().UTC()
-				}
-				return nil
-			}); updateErr != nil {
+			if updateErr := markNonterminalRunAborted(idx, runID); updateErr != nil {
 				log.Printf("[runmanager] sweep: mark aborted %s/%s: %v", owner, runID, updateErr)
 				sweepErrors = append(sweepErrors, fmt.Errorf("mark orphan %s/%s aborted: %w", owner, runID, updateErr))
 				continue

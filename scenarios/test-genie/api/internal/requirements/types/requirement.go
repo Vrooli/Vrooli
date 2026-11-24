@@ -156,10 +156,7 @@ func (v Validation) Clone() Validation {
 	}
 
 	if v.Metadata != nil {
-		clone.Metadata = make(map[string]any, len(v.Metadata))
-		for k, val := range v.Metadata {
-			clone.Metadata[k] = val
-		}
+		clone.Metadata = cloneMetadata(v.Metadata)
 	}
 
 	if v.LiveDetails != nil {
@@ -168,6 +165,35 @@ func (v Validation) Clone() Validation {
 	}
 
 	return clone
+}
+
+// cloneMetadata recursively copies the mutable map and slice containers used
+// by JSON-decoded validation metadata. Scalar JSON values are immutable by
+// value, so they can be carried through without reflection or serialization.
+func cloneMetadata(metadata map[string]any) map[string]any {
+	if metadata == nil {
+		return nil
+	}
+	clone := make(map[string]any, len(metadata))
+	for key, value := range metadata {
+		clone[key] = cloneMetadataValue(value)
+	}
+	return clone
+}
+
+func cloneMetadataValue(value any) any {
+	switch value := value.(type) {
+	case map[string]any:
+		return cloneMetadata(value)
+	case []any:
+		clone := make([]any, len(value))
+		for i := range value {
+			clone[i] = cloneMetadataValue(value[i])
+		}
+		return clone
+	default:
+		return value
+	}
 }
 
 // Key returns a unique identifier for the validation within its requirement.

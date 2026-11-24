@@ -174,7 +174,10 @@ func isTruthy(v string) bool {
 }
 
 func parseDurationEnv(name string, fallback time.Duration) time.Duration {
-	raw := os.Getenv(name)
+	return parseDurationValue(os.Getenv(name), fallback)
+}
+
+func parseDurationValue(raw string, fallback time.Duration) time.Duration {
 	if raw == "" {
 		return fallback
 	}

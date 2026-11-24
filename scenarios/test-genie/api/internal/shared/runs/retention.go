@@ -205,6 +205,9 @@ func (s *RetentionService) Reconcile(ctx context.Context) error {
 		if err := json.Unmarshal(data, &tombstone); err != nil || tombstone.RunID == "" {
 			return fmt.Errorf("invalid retention tombstone %s", entry.Name())
 		}
+		if expected := sharedartifacts.SanitizeFilename(tombstone.RunID) + ".json"; entry.Name() != expected {
+			return fmt.Errorf("retention tombstone %s does not match run id", entry.Name())
+		}
 		if err := s.deleteFootprint(tombstone.RunID); err != nil {
 			return err
 		}

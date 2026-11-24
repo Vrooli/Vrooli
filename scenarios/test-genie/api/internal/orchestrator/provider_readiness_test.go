@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"reflect"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -26,6 +27,15 @@ func providerDef(name phases.Name, provider string, policy phasepolicy.Policy) p
 		Policy:           policy,
 		Capabilities:     runnability.PhaseCapabilities{Phase: name.String()},
 	}
+}
+
+func mustAcquireProvider(t *testing.T, manager *providerreadiness.Manager, provider string) func() {
+	t.Helper()
+	release, err := manager.AcquireProvider(context.Background(), provider)
+	if err != nil {
+		t.Fatalf("acquire %s provider lease: %v", provider, err)
+	}
+	return release
 }
 
 func TestExecutionConfigurationFingerprintIgnoresCaptureDepth(t *testing.T) {
@@ -74,7 +84,7 @@ func TestCheckProviderReadinessBlocksRequiredProviderAndKeepsActivePhases(t *tes
 	if _, blocked := got.Blocked["unit"]; !blocked {
 		t.Fatalf("unit should be blocked: %+v", got.Blocked)
 	}
-	if len(got.Stages) != 2 || got.Stages[0].Name != "provider_check" || got.Stages[0].Parent != "provider_readiness" || got.Stages[0].Subject != "unit-health" {
+	if len(got.Stages) != 3 || got.Stages[0].Name != "provider_check" || got.Stages[0].Parent != "provider_readiness" || got.Stages[0].Subject != "unit-health" {
 		t.Fatalf("readiness stages = %+v", got.Stages)
 	}
 	if got.Stages[0].Status != string(providerreadiness.OutcomeUnreachable) || got.Stages[0].DurationMilliseconds < 0 {
@@ -119,7 +129,7 @@ func TestRunSelectedPhasesReturnsProviderReadinessResultInOrder(t *testing.T) {
 
 func TestCheckProviderReadinessCancellationUnblocksQueuedRun(t *testing.T) {
 	manager := providerreadiness.NewManager()
-	release := manager.LeaseProvider("unit-health")
+	release := mustAcquireProvider(t, manager, "unit-health")
 	defer release()
 	policy := phasepolicy.RequiredProviderPolicy()
 	policy.ProviderLifecycle = phasepolicy.ProviderLifecycleCheckOnly
@@ -157,7 +167,7 @@ func TestCheckProviderReadinessWaitsForProviderOwnerWithoutSpendingProbeBudget(t
 		}
 		return providerreadiness.ProbeResult{Reachable: true, ContractValid: true, IdentityMatch: true}, nil
 	}
-	release := manager.LeaseProvider("unit-health")
+	release := mustAcquireProvider(t, manager, "unit-health")
 	policy := phasepolicy.RequiredProviderPolicy()
 	policy.ProviderLifecycle = phasepolicy.ProviderLifecycleCheckOnly
 	o := &SuiteOrchestrator{readiness: manager}
@@ -193,10 +203,79 @@ func TestCheckProviderReadinessWaitsForProviderOwnerWithoutSpendingProbeBudget(t
 	}
 }
 
+func TestCheckProviderReadinessBoundsAStalledProviderOwner(t *testing.T) {
+	manager := &providerreadiness.Manager{OwnershipWaitTimeout: 20 * time.Millisecond}
+	release := mustAcquireProvider(t, manager, "unit-health")
+	defer release()
+	policy := phasepolicy.RequiredProviderPolicy()
+	policy.ProviderLifecycle = phasepolicy.ProviderLifecycleCheckOnly
+	o := &SuiteOrchestrator{readiness: manager}
+	var events []ExecutionEvent
+	started := time.Now()
+	plan := o.checkProviderReadiness(context.Background(), workspacepkg.Environment{ScenarioName: "demo"},
+		[]phases.Definition{providerDef(phases.Name("unit"), "unit-health", policy)}, io.Discard,
+		func(event ExecutionEvent) { events = append(events, event) })
+	defer plan.releaseProviders()
+	if elapsed := time.Since(started); elapsed > time.Second {
+		t.Fatalf("provider readiness stayed queued for %s", elapsed)
+	}
+	if len(plan.Active) != 0 || !strings.Contains(plan.Blocked["unit"].ErrorString(), "unit-health ownership wait exceeded 20ms") {
+		t.Fatalf("bounded readiness plan = %+v", plan)
+	}
+	if len(plan.Stages) != 1 || plan.Stages[0].Name != "provider_check" || plan.Stages[0].Status != string(providerreadiness.OutcomeUnreachable) {
+		t.Fatalf("provider stage = %+v; events=%+v", plan.Stages, events)
+	}
+	if len(events) < 2 || !strings.Contains(events[0].Message, "unit-health readiness") || !strings.Contains(events[0].Message, "bounded to 20ms") {
+		t.Fatalf("progress events = %+v; want provider-specific bounded wait", events)
+	}
+}
+
+func TestCheckProviderReadinessBoundsFinalExecutionLease(t *testing.T) {
+	t.Setenv("TEST_GENIE_PROVIDER_READINESS_CONCURRENCY", "serial")
+	manager := &providerreadiness.Manager{
+		OwnershipWaitTimeout: 20 * time.Millisecond,
+		Probe: func(context.Context, providerreadiness.Input) (providerreadiness.ProbeResult, error) {
+			return providerreadiness.ProbeResult{Reachable: true, ContractValid: true, IdentityMatch: true}, nil
+		},
+	}
+	policy := phasepolicy.RequiredProviderPolicy()
+	policy.ProviderLifecycle = phasepolicy.ProviderLifecycleCheckOnly
+	o := &SuiteOrchestrator{readiness: manager}
+	var executionLeaseRelease func()
+	defer func() {
+		if executionLeaseRelease != nil {
+			executionLeaseRelease()
+		}
+	}()
+	var events []ExecutionEvent
+	plan := o.checkProviderReadiness(context.Background(), workspacepkg.Environment{ScenarioName: "demo"},
+		[]phases.Definition{providerDef(phases.Name("unit"), "unit-health", policy)}, io.Discard,
+		func(event ExecutionEvent) {
+			events = append(events, event)
+			if strings.HasPrefix(event.Message, "checked unit-health: ready") {
+				var err error
+				executionLeaseRelease, err = manager.AcquireProvider(context.Background(), "unit-health")
+				if err != nil {
+					t.Fatalf("hold provider before execution lease: %v", err)
+				}
+			}
+		})
+	defer plan.releaseProviders()
+	if len(plan.Active) != 0 || !strings.Contains(plan.Blocked["unit"].ErrorString(), "unit-health ownership wait exceeded 20ms") {
+		t.Fatalf("final execution lease plan = %+v", plan)
+	}
+	if len(plan.Stages) != 2 || plan.Stages[1].Name != "provider_execution_lease" || plan.Stages[1].Status != string(providerreadiness.OutcomeUnreachable) {
+		t.Fatalf("execution lease stage = %+v", plan.Stages)
+	}
+	if !strings.Contains(events[len(events)-1].Message, "unit-health ownership wait exceeded 20ms") {
+		t.Fatalf("final progress event = %+v; want bounded lease diagnostic", events)
+	}
+}
+
 func TestCheckProviderReadinessCancellationReleasesPartialExecutionLeases(t *testing.T) {
 	t.Setenv("TEST_GENIE_PROVIDER_READINESS_CONCURRENCY", "serial")
 	manager := providerreadiness.NewManager()
-	blockedProviderRelease := manager.LeaseProvider("b-health")
+	blockedProviderRelease := mustAcquireProvider(t, manager, "b-health")
 	defer blockedProviderRelease()
 	policy := phasepolicy.Policy{
 		ProviderReadiness: phasepolicy.ProviderReadinessNone,
@@ -279,11 +358,16 @@ func TestCheckProviderReadinessConcurrentPreservesOutcomeOrderAndProviderExclusi
 		providerDef(phases.Name("security"), "shared-health", required),
 	}
 	got := o.checkProviderReadiness(context.Background(), workspacepkg.Environment{ScenarioName: "demo", ScenarioDir: t.TempDir()}, defs, io.Discard, nil)
-	if len(got.Active) != len(defs) || len(got.Stages) != len(defs) {
-		t.Fatalf("readiness result = %+v, want all phases active and staged", got)
+	if len(got.Active) != len(defs) || len(got.Stages) != len(defs)+2 {
+		t.Fatalf("readiness result = %+v, want provider checks and two execution leases staged", got)
 	}
-	if got.Stages[0].Subject != "shared-health" || got.Stages[1].Subject != "docs-health" || got.Stages[2].Subject != "shared-health" {
-		t.Fatalf("stages lost definition order: %+v", got.Stages)
+	for index, want := range []string{"shared-health", "docs-health", "shared-health"} {
+		if got.Stages[index].Name != "provider_check" || got.Stages[index].Subject != want {
+			t.Fatalf("provider check stages lost definition order: %+v", got.Stages[:len(defs)])
+		}
+	}
+	if got.Stages[3].Name != "provider_execution_lease" || got.Stages[3].Subject != "docs-health" || got.Stages[4].Subject != "shared-health" {
+		t.Fatalf("execution lease stages lost stable provider order: %+v", got.Stages[3:])
 	}
 	mu.Lock()
 	defer mu.Unlock()

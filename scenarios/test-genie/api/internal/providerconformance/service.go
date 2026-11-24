@@ -2,6 +2,7 @@ package providerconformance
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -215,7 +216,18 @@ func (s *Service) probeContract(ctx context.Context, report *Report, descriptor 
 		timeout = defaultProbeTimeout
 	}
 	report.Probed = true
-	conformance, response := selfhealth.CheckProvider(ctx, s.Probe, nil, s.RepoRoot, target, descriptor.Phase, report.Scenario, timeout)
+	probeProvider := report.Scenario
+	if variant := strings.TrimSpace(descriptor.Validation.EndpointVariant); variant != "" {
+		probeProvider += "@" + variant
+	}
+	probe := s.Probe
+	if probeProvider != report.Scenario {
+		logicalProbe := probe
+		probe = func(ctx context.Context, _ string, target string, timeout time.Duration) (*scenariovalidationv1.ValidateScenarioResponse, error) {
+			return logicalProbe(ctx, probeProvider, target, timeout)
+		}
+	}
+	conformance, response := selfhealth.CheckProvider(ctx, probe, nil, s.RepoRoot, target, descriptor.Phase, report.Scenario, timeout)
 	if !conformance.Reachable {
 		report.add(Finding{
 			Code:        CodeProviderUnreachable,
@@ -257,7 +269,7 @@ func (s *Service) probeContract(ctx context.Context, report *Report, descriptor 
 			Remediation: "Attach ExecutionMetrics to every validation response, including degraded and error paths.",
 		})
 	}
-	if describe, err := selfhealth.DefaultDescribeProvider(ctx, report.Scenario, timeout); err == nil {
+	if describe, err := selfhealth.DefaultDescribeProvider(ctx, probeProvider, timeout); err == nil {
 		declared := map[commonv1.ValidationTargetKind]struct{}{}
 		for _, kind := range descriptor.Targets.EffectiveKinds() {
 			declared[targetKindEnum(kind)] = struct{}{}
@@ -551,26 +563,49 @@ func DefaultDurableConformanceProbe(ctx context.Context, provider, target string
 	client := scenariovalidationconnect.NewDurableValidationRunServiceClient(&http.Client{Timeout: timeout}, strings.TrimRight(strings.TrimSpace(baseURL), "/"))
 	probeCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+	return runDurableValidationLifecycle(probeCtx, client, target)
+}
+
+type durableValidationClient interface {
+	StartValidationRun(context.Context, *connect.Request[scenariovalidationv1.StartValidationRunRequest]) (*connect.Response[scenariovalidationv1.StartValidationRunResponse], error)
+	GetValidationRun(context.Context, *connect.Request[scenariovalidationv1.GetValidationRunRequest]) (*connect.Response[scenariovalidationv1.GetValidationRunResponse], error)
+	AbortValidationRun(context.Context, *connect.Request[scenariovalidationv1.AbortValidationRunRequest]) (*connect.Response[scenariovalidationv1.AbortValidationRunResponse], error)
+	WaitValidationRun(context.Context, *connect.Request[scenariovalidationv1.WaitValidationRunRequest]) (*connect.Response[scenariovalidationv1.WaitValidationRunResponse], error)
+}
+
+func runDurableValidationLifecycle(ctx context.Context, client durableValidationClient, target string) error {
 	key := "provider-conformance:" + strings.TrimSpace(target)
-	start, err := client.StartValidationRun(probeCtx, connect.NewRequest(&scenariovalidationv1.StartValidationRunRequest{Scenario: target, IdempotencyKey: key}))
-	if err != nil || start == nil || start.Msg == nil || start.Msg.GetRun() == nil || start.Msg.GetRun().GetRunId() == "" {
+	start, err := client.StartValidationRun(ctx, connect.NewRequest(&scenariovalidationv1.StartValidationRunRequest{Scenario: target, IdempotencyKey: key}))
+	if err != nil {
 		return fmt.Errorf("StartValidationRun did not return a run: %w", err)
 	}
+	if start == nil || start.Msg == nil || start.Msg.GetRun() == nil || start.Msg.GetRun().GetRunId() == "" {
+		return errors.New("StartValidationRun did not return a run")
+	}
 	runID := start.Msg.GetRun().GetRunId()
-	replay, err := client.StartValidationRun(probeCtx, connect.NewRequest(&scenariovalidationv1.StartValidationRunRequest{Scenario: target, IdempotencyKey: key}))
-	if err != nil || replay == nil || replay.Msg == nil || replay.Msg.GetRun().GetRunId() != runID {
+	replay, err := client.StartValidationRun(ctx, connect.NewRequest(&scenariovalidationv1.StartValidationRunRequest{Scenario: target, IdempotencyKey: key}))
+	if err != nil {
 		return fmt.Errorf("StartValidationRun replay did not return the original run %q: %w", runID, err)
 	}
-	got, err := client.GetValidationRun(probeCtx, connect.NewRequest(&scenariovalidationv1.GetValidationRunRequest{RunId: runID}))
-	if err != nil || got == nil || got.Msg == nil || got.Msg.GetRun().GetRunId() != runID {
+	if replay == nil || replay.Msg == nil || replay.Msg.GetRun() == nil || replay.Msg.GetRun().GetRunId() != runID {
+		return fmt.Errorf("StartValidationRun replay did not return the original run %q", runID)
+	}
+	got, err := client.GetValidationRun(ctx, connect.NewRequest(&scenariovalidationv1.GetValidationRunRequest{RunId: runID}))
+	if err != nil {
 		return fmt.Errorf("GetValidationRun did not reattach to %q: %w", runID, err)
 	}
-	if _, err := client.AbortValidationRun(probeCtx, connect.NewRequest(&scenariovalidationv1.AbortValidationRunRequest{RunId: runID, Reason: "provider conformance lifecycle probe"})); err != nil {
+	if got == nil || got.Msg == nil || got.Msg.GetRun() == nil || got.Msg.GetRun().GetRunId() != runID {
+		return fmt.Errorf("GetValidationRun did not reattach to %q", runID)
+	}
+	if _, err := client.AbortValidationRun(ctx, connect.NewRequest(&scenariovalidationv1.AbortValidationRunRequest{RunId: runID, Reason: "provider conformance lifecycle probe"})); err != nil {
 		return fmt.Errorf("AbortValidationRun %q: %w", runID, err)
 	}
-	waited, err := client.WaitValidationRun(probeCtx, connect.NewRequest(&scenariovalidationv1.WaitValidationRunRequest{RunId: runID}))
-	if err != nil || waited == nil || waited.Msg == nil || waited.Msg.GetRun() == nil || !terminalState(waited.Msg.GetRun().GetState()) {
+	waited, err := client.WaitValidationRun(ctx, connect.NewRequest(&scenariovalidationv1.WaitValidationRunRequest{RunId: runID}))
+	if err != nil {
 		return fmt.Errorf("WaitValidationRun did not return a terminal run %q: %w", runID, err)
+	}
+	if waited == nil || waited.Msg == nil || waited.Msg.GetRun() == nil || !terminalState(waited.Msg.GetRun().GetState()) {
+		return fmt.Errorf("WaitValidationRun did not return a terminal run %q", runID)
 	}
 	return nil
 }

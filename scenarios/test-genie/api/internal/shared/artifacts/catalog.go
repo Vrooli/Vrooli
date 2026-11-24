@@ -48,6 +48,7 @@ var (
 	ErrUnsupportedArtifactCatalogVersion = errors.New("unsupported run artifact catalog version")
 	ErrArtifactNotFound                  = errors.New("run artifact not found")
 	ErrUnsafeArtifact                    = errors.New("unsafe run artifact")
+	ErrArtifactStorageUnavailable        = errors.New("run artifact storage unavailable")
 )
 
 // ArtifactPhaseDeclaration lets the descriptor snapshot assign producer
@@ -200,6 +201,9 @@ func RefreshArtifactCatalog(scenarioDir, runID string, declarations []ArtifactPh
 		return ArtifactCatalog{}, readErr
 	}
 	if readErr == nil {
+		if err := ensureReferencedStorageRoots(scenarioDir, runID, existing.Artifacts); err != nil {
+			return ArtifactCatalog{}, err
+		}
 		runtimeByID := map[string]ArtifactRef{}
 		for _, ref := range existing.Artifacts {
 			if ref.Provenance == artifactProvenanceRuntime {
@@ -227,6 +231,30 @@ func RefreshArtifactCatalog(scenarioDir, runID string, declarations []ArtifactPh
 		return ArtifactCatalog{}, err
 	}
 	return discovered, nil
+}
+
+// ensureReferencedStorageRoots prevents a refresh from interpreting an absent
+// mounted root as an empty inventory and replacing saved references with none.
+func ensureReferencedStorageRoots(scenarioDir, runID string, artifacts []ArtifactRef) error {
+	checked := map[string]struct{}{}
+	for _, artifact := range artifacts {
+		if _, ok := checked[artifact.StorageRoot]; ok {
+			continue
+		}
+		checked[artifact.StorageRoot] = struct{}{}
+		root := RunDir(scenarioDir, runID)
+		if artifact.StorageRoot == "logs" {
+			root = RunLogsDir(scenarioDir, runID)
+		}
+		info, err := os.Stat(root)
+		if err != nil {
+			return fmt.Errorf("%w: inspect %s root: %w", ErrArtifactStorageUnavailable, artifact.StorageRoot, err)
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("%w: %s root is not a directory", ErrArtifactStorageUnavailable, artifact.StorageRoot)
+		}
+	}
+	return nil
 }
 
 func cloneMetadata(input map[string]string) map[string]string {

@@ -233,3 +233,34 @@ func TestPhaseDurationEstimateReportsUnknownWithoutHistory(t *testing.T) {
 		t.Fatal("reported an estimate with no history")
 	}
 }
+
+func TestZeroWallClockFallsBackToPersistedDurationAcrossConsumers(t *testing.T) {
+	db := testsqlite.Open(t)
+	repo := NewSuiteExecutionRepository(db)
+	for i := 0; i < 10; i++ {
+		insertDurationSample(t, db, "demo", "unit", "passed", 10_000, reliable())
+	}
+	if _, err := db.Exec(`UPDATE suite_execution_phases
+		SET wall_clock_ms = 0, cpu_user_ms = 100, peak_rss_bytes = 1000,
+			measurement_scope = 'MEASUREMENT_SCOPE_OPERATION'
+		WHERE phase_name = 'unit'`); err != nil {
+		t.Fatalf("seed zero wall-clock and legacy duration: %v", err)
+	}
+
+	if estimate, ok := repo.PhaseDurationEstimate(context.Background(), "demo", "unit"); !ok || estimate != 10_000 {
+		t.Fatalf("deadline estimate = %d ok=%t, want persisted 10000 ms duration", estimate, ok)
+	}
+	ramBytes, cpuMilli, reliable := repo.PhaseCostEstimate(context.Background(), "demo", "unit")
+	if !reliable || ramBytes != 1000 || cpuMilli != 100 {
+		t.Fatalf("resource estimate = (%d RAM, %d CPU, reliable=%t), want (1000, 100, true)", ramBytes, cpuMilli, reliable)
+	}
+
+	now := time.Now().UTC()
+	report, err := repo.CostReport(context.Background(), "demo", now.Add(-time.Hour), now.Add(time.Hour))
+	if err != nil {
+		t.Fatalf("cost report: %v", err)
+	}
+	if len(report) != 1 || report[0].PassingP90WallClockMs != 10_000 {
+		t.Fatalf("cost report = %#v, want one phase with a 10000 ms passing p90", report)
+	}
+}

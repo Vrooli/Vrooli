@@ -6,6 +6,33 @@ import (
 	"testing"
 )
 
+func TestReplayLimitsReadFromInjectedEnvironment(t *testing.T) {
+	values := map[string]string{
+		"TEST_GENIE_EVENT_REPLAY_MAX_EVENTS": " 7 ",
+		"TEST_GENIE_EVENT_REPLAY_MAX_BYTES":  "not-a-number",
+	}
+	limits := replayLimitsFromEnvironment(func(name string) string { return values[name] })
+	if limits.events != 7 || limits.bytes != defaultReplayByteLimit {
+		t.Fatalf("replay limits = %+v, want events=7 and default bytes=%d", limits, defaultReplayByteLimit)
+	}
+}
+
+func TestBroadcasterAppliesInjectedReplayLimits(t *testing.T) {
+	values := map[string]string{
+		"TEST_GENIE_EVENT_REPLAY_MAX_EVENTS": "2",
+		"TEST_GENIE_EVENT_REPLAY_MAX_BYTES":  "1048576",
+	}
+	b := newBroadcasterWithEnvironment(func(name string) string { return values[name] })
+	for _, kind := range []string{EventRunStarted, EventPhaseStarted, EventPhaseCompleted} {
+		b.publish(Event{Kind: kind})
+	}
+	replay, _, cancel := b.subscribe()
+	defer cancel()
+	if len(replay) != 2 || replay[0].Kind != EventPhaseStarted || replay[1].Kind != EventPhaseCompleted {
+		t.Fatalf("replay = %#v, want the newest two events from injected limit", replay)
+	}
+}
+
 func TestBroadcasterResumesAfterCursorAndRejectsEvictedCursor(t *testing.T) {
 	b := newBroadcasterWithLimits(replayLimits{events: 2, bytes: 1 << 20})
 	b.publish(Event{Kind: EventRunStarted})     // sequence 1, evicted below

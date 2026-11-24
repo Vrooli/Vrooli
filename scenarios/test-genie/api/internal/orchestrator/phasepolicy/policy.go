@@ -162,6 +162,7 @@ func (p Policy) Validate() []ValidationError {
 func SuiteVerdictForExecution(results []ExecutionInput) string {
 	partial := false
 	notEvaluated := false
+	unknownStatus := false
 	for _, result := range results {
 		policy := result.Policy
 		if policy.IsZero() {
@@ -186,7 +187,16 @@ func SuiteVerdictForExecution(results []ExecutionInput) string {
 			case UnavailableFail, UnavailablePartial:
 				partial = true
 			}
+		case StatusNotApplicable, StatusPassed:
+			// These statuses have no effect on the suite verdict.
+		default:
+			// A status outside the contract cannot be evidence of a clean run.
+			// Treat it as a contract failure even when the phase is advisory.
+			unknownStatus = true
 		}
+	}
+	if unknownStatus {
+		return SuiteVerdictFail
 	}
 	if notEvaluated {
 		return SuiteVerdictNotEvaluated

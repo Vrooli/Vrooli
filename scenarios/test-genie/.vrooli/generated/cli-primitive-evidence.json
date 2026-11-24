@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "test-genie",
   "generator": "v1.0.0",
-  "manifest_hash": "6b2e1a06db17a54406087157c1176b3b79f890049fe0917284bd0f1bc2c7056a",
+  "manifest_hash": "d85ab7c104468a83832e998a15c471051991dc863eaffcbc1376558df83214ec",
   "commands": [
     {
       "path": "eligibility check",
@@ -226,6 +226,14 @@
       "binding": "RunsService.GetRunStatus",
       "declared_primitive": "operational",
       "observed_primitive": "operational"
+    },
+    {
+      "path": "runs store-experience-cohort",
+      "group": "runs",
+      "command": "store-experience-cohort",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
     },
     {
       "path": "runs unpin",

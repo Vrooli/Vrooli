@@ -34,7 +34,7 @@ func TestEvaluateSearchApplicability(t *testing.T) {
 			name: "search capability declared",
 			ctx: Context{
 				ScenarioName:        "search-enabled",
-				ServiceCapabilities: map[string]bool{"Search": true},
+				ServiceCapabilities: map[string]bool{" Search ": true},
 			},
 			wantStatus: StatusApplies,
 			wantCode:   CodeAnyPredicateMatched,
@@ -193,7 +193,7 @@ func TestEvaluateDependencyGlobAndTagPredicates(t *testing.T) {
 	}{
 		{
 			name: "enabled dependency applies", predicate: providerdescriptor.Predicate{ScenarioDependency: "agent-manager"},
-			ctx:        Context{ScenarioDependencies: map[string]DependencyStatus{"agent-manager": DependencyPresent}},
+			ctx:        Context{ScenarioDependencies: map[string]DependencyStatus{" Agent-Manager ": DependencyPresent}},
 			wantStatus: StatusApplies, wantCode: "applicability.scenario_dependency_present",
 		},
 		{

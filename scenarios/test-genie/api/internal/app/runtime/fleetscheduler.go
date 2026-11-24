@@ -20,6 +20,34 @@ const fleetRosterEphemeralTTL = 30 * 24 * time.Hour
 
 var timestampedScenarioDate = regexp.MustCompile(`(?:^|[-_])(20[0-9]{2})[-_]?([0-9]{2})[-_]?([0-9]{2})(?:$|[-_])`)
 
+type fleetSchedulerOptions struct {
+	enabled          bool
+	preset           string
+	interval         time.Duration
+	initialJitter    time.Duration
+	maxConcurrent    int
+	maxRunsPerCycle  int
+	cycleBudget      time.Duration
+	stalenessHorizon time.Duration
+}
+
+func fleetSchedulerOptionsFromLookup(lookup func(string) string) fleetSchedulerOptions {
+	options := fleetSchedulerOptions{
+		enabled:          isTruthy(lookup("TEST_GENIE_FLEET_SCHEDULER_ENABLED")),
+		preset:           lookup("TEST_GENIE_FLEET_SCHEDULER_PRESET"),
+		interval:         parseDurationValue(lookup("TEST_GENIE_FLEET_SCHEDULER_INTERVAL"), 6*time.Hour),
+		initialJitter:    parseDurationValue(lookup("TEST_GENIE_FLEET_SCHEDULER_START_JITTER"), 0),
+		maxConcurrent:    parsePositiveInt(lookup("TEST_GENIE_FLEET_SCHEDULER_MAX_CONCURRENT"), 1),
+		maxRunsPerCycle:  parsePositiveInt(lookup("TEST_GENIE_FLEET_SCHEDULER_MAX_PER_CYCLE"), 5),
+		cycleBudget:      parseDurationValue(lookup("TEST_GENIE_FLEET_SCHEDULER_CYCLE_BUDGET"), 0),
+		stalenessHorizon: parseDurationValue(lookup("TEST_GENIE_FLEET_SCHEDULER_STALENESS_HORIZON"), 7*24*time.Hour),
+	}
+	if options.preset == "" {
+		options.preset = "comprehensive"
+	}
+	return options
+}
+
 // fleetRosterFromScenariosRoot returns a roster provider listing the first-level
 // scenario directories under scenariosRoot (hidden entries skipped), so the
 // fleet ledger can name scenarios that exist on disk but have no run in the
@@ -77,24 +105,22 @@ func timestampedScenarioExpired(name string, now time.Time) bool {
 //   - TEST_GENIE_FLEET_SCHEDULER_STALENESS_HORIZON=<dur> → staleness weighting window (default 168h)
 //   - TEST_GENIE_FLEET_SCHEDULER_PRESET=<preset>     → suite shape (default "comprehensive")
 func runFleetScheduler(ctx context.Context, runManager *runmanager.Manager) {
-	if !isTruthy(os.Getenv("TEST_GENIE_FLEET_SCHEDULER_ENABLED")) {
+	options := fleetSchedulerOptionsFromLookup(os.Getenv)
+	if !options.enabled {
 		// Silent by default: the scheduler being off is the normal state, not a
 		// condition worth logging on every boot.
 		return
 	}
-	preset := os.Getenv("TEST_GENIE_FLEET_SCHEDULER_PRESET")
-	if preset == "" {
-		preset = "comprehensive"
-	}
+	preset := options.preset
 	scheduler, err := fleetscheduler.New(fleetscheduler.Config{
 		Source:           fleetscheduler.NewCLIPrioritySource(0),
 		Launcher:         fleetscheduler.NewManagerLauncher(runManager, preset),
-		Interval:         parseDurationEnv("TEST_GENIE_FLEET_SCHEDULER_INTERVAL", 6*time.Hour),
-		InitialJitter:    parseDurationEnv("TEST_GENIE_FLEET_SCHEDULER_START_JITTER", 0),
-		MaxConcurrent:    parseIntEnv("TEST_GENIE_FLEET_SCHEDULER_MAX_CONCURRENT", 1),
-		MaxRunsPerCycle:  parseIntEnv("TEST_GENIE_FLEET_SCHEDULER_MAX_PER_CYCLE", 5),
-		CycleBudget:      parseDurationEnv("TEST_GENIE_FLEET_SCHEDULER_CYCLE_BUDGET", 0),
-		StalenessHorizon: parseDurationEnv("TEST_GENIE_FLEET_SCHEDULER_STALENESS_HORIZON", 7*24*time.Hour),
+		Interval:         options.interval,
+		InitialJitter:    options.initialJitter,
+		MaxConcurrent:    options.maxConcurrent,
+		MaxRunsPerCycle:  options.maxRunsPerCycle,
+		CycleBudget:      options.cycleBudget,
+		StalenessHorizon: options.stalenessHorizon,
 	})
 	if err != nil {
 		log.Printf("[test-genie] fleet scheduler not started: %v", err)
@@ -104,8 +130,7 @@ func runFleetScheduler(ctx context.Context, runManager *runmanager.Manager) {
 	scheduler.RunLoop(ctx)
 }
 
-func parseIntEnv(name string, fallback int) int {
-	raw := os.Getenv(name)
+func parsePositiveInt(raw string, fallback int) int {
 	if raw == "" {
 		return fallback
 	}

@@ -12,6 +12,18 @@ test-genie execute my-scenario --preset comprehensive
 The response prints the execution/run ID and a recommended single wait command.
 Do not start a second execution merely because a terminal detached.
 
+## Preparation before the first phase
+
+A run may be active in `preparing:provider_readiness` before any phase result
+exists. Follow it with `test-genie runs follow my-scenario <run-id>` or inspect
+it with `test-genie runs show <run-id> --scenario my-scenario --json`; do not
+treat an empty phase list as a completed pass or failure. Current
+provider-readiness progress names the provider and stage.
+Provider ownership queueing is bounded separately from the readiness probe, so
+use the reported stage/outcome to distinguish waiting for ownership from a slow
+probe. `ABORTED` and `NOT_EVALUATED` are not passes. Inspect the terminal record
+before deciding whether to retry.
+
 ## Reattach once
 
 ```bash

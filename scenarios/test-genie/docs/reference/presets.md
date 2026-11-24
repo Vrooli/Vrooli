@@ -90,15 +90,18 @@ test-genie execute my-scenario --preset comprehensive
 | AI Conformance | Validates AI-using scenarios for provider-neutral routing, resource boundary hygiene, embedding metadata safety, and AI Gateway adoption readiness. | 90s |
 | Branding | Validates brand identity, design tokens, typography, logos, favicons, contrast, and applied brand markers through brand-manager. | 2m |
 | Skill Set | Validates scenario skill declarations and their reachable sources. | 90s |
-| Monetization Conformance | Validates monetization trust boundaries, declarations, and local metering posture. | 90s |
+| Monetization Conformance | Validates monetization trust boundaries, declarations, and meter admission/reporting posture. | 90s |
 | Search | Validates search-enabled scenarios through Search Hub's search maturity contract. | 90s |
 | Provider Conformance | Validates Test Genie phase-provider descriptors: descriptor structure, embedded maturity, policy safety, stale-file absence, and live provider-contract conformance. | 90s |
+| Stripe Test Outcomes | Reconciles the LPBS test-mode catalog against Stripe and executes payment outcome journeys with durable provider evidence. | 30m |
+| Cloud Production Health | Runs the CL3 owner contract suites and fails closed until staging and production showcase receipts exist. | 30m |
 | Component Tests | Runs version-pinned React component and hook contracts through the React Component Library provider. | 20m |
 | React Consumer Contracts | Runs the usage-contract fleet lint and downward-only per-contract ratchet across every React UI in the repository. | 10m |
+| Paid Credential Leak Proof | Uses synthetic canaries derived only from declared credential identity/field/scope metadata, runs LPBS and migrated service-owner identity contracts for audience, scope, source, versioned overlap, outage, restart and recovery, and scans every bounded subprocess output before returning metadata-only receipts. | 30m |
 | Agent Conformance | Validates that coding-agent consumers use Agent Manager through declared, portable role-based profiles. | 45s |
 | Templates | Validates scenario template provenance, orientation standing, drift, migration lag, and inherited template debt through template-manager. | 90s |
 | Event Capture Conformance | Validates opt-in receipt-capture declarations against published protobuf contracts and the reconciled global policy snapshot. | 45s |
-| DBM Recovery Fault Injection | Runs Data Backup Manager's safe-remount and risky-decision recovery paths through owner simulators, then checks readiness, backup, scratch-restore, and receipt-only platform qualification. | 4m |
+| Library Fault Injection | Runs Data Backup Manager recovery simulators and a generated library-wide Program Runtime child-envelope matrix with per-program capability requirements and observable fallbacks. | 4m |
 | Local Model Evaluation | Censuses observed runtime models and checks independently reviewed retrieval, policy-role, gateway-task-role and real consumer evidence, then remains blocked until separate LM2 inference admission allows execution. | 90s |
 
 ## Preset Comparison
@@ -136,12 +139,15 @@ test-genie execute my-scenario --preset comprehensive
 | Monetization Conformance | Adaptive | Adaptive | No | Yes |
 | Search | Adaptive | Adaptive | No | Yes |
 | Provider Conformance | Adaptive | Adaptive | No | Yes |
+| Stripe Test Outcomes | Adaptive | Adaptive | No | Yes |
+| Cloud Production Health | Adaptive | Adaptive | No | Yes |
 | Component Tests | Adaptive | Adaptive | No | Yes |
 | React Consumer Contracts | Adaptive | Adaptive | No | Yes |
+| Paid Credential Leak Proof | Adaptive | Adaptive | No | Yes |
 | Agent Conformance | Adaptive | Adaptive | No | Yes |
 | Templates | Adaptive | Adaptive | No | Yes |
 | Event Capture Conformance | Adaptive | Adaptive | No | Yes |
-| DBM Recovery Fault Injection | Adaptive | Adaptive | No | Yes |
+| Library Fault Injection | Adaptive | Adaptive | No | Yes |
 | Local Model Evaluation | Adaptive | Adaptive | No | Yes |
 
 ## Custom Presets

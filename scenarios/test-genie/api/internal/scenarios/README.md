@@ -153,8 +153,9 @@ The service can execute scenario-local tests via `RunScenarioTests()`:
 
 ```go
 cmd, result, err := scenarioSvc.RunScenarioTests(ctx, "my-scenario", "genie", nil, "")
-// cmd contains the command that was executed
-// result contains the log path
+// cmd describes the selected testing capability.
+// result.Command is the exact argv executed, including caller-supplied extra args.
+// result.LogPath identifies the captured output when logging is enabled.
 ```
 
 The runner:

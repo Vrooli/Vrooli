@@ -172,6 +172,110 @@ func TestCancelWaitDetachesObserverWithoutCancellingWork(t *testing.T) { // [REQ
 	}
 }
 
+func TestCancelWaitSupersedesBufferedProgressSignal(t *testing.T) {
+	service := NewService(NewRepository(testsqllite(t)), nil)
+	receipt := createThroughService(t, service, "cancel-wait-buffered-progress")
+	signal, err := service.registerWaiter(receipt.GetReceiptId(), "observer-buffered")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer service.removeWaiter(receipt.GetReceiptId(), "observer-buffered")
+
+	service.notify(receipt.GetReceiptId()) // A progress wake is pending, as in a nonterminal transition.
+	cancelled, err := service.CancelValidationWait(context.Background(), connect.NewRequest(&validationv1.CancelValidationWaitRequest{
+		ReceiptId: receipt.GetReceiptId(), WaitId: "observer-buffered",
+	}))
+	if err != nil || !cancelled.Msg.GetCancelled() {
+		t.Fatalf("cancel wait = %#v err=%v", cancelled, err)
+	}
+	select {
+	case received := <-signal:
+		if received != waitCancelled {
+			t.Fatalf("waiter received signal %v after successful cancel, want cancellation", received)
+		}
+	default:
+		t.Fatal("successful cancel did not leave a cancellation signal for the waiter")
+	}
+	stored, err := service.repo.Get(context.Background(), receipt.GetReceiptId())
+	if err != nil || stored.GetState() != validationv1.ReceiptState_RECEIPT_STATE_ADMITTED {
+		t.Fatalf("cancelled observer changed work: receipt=%#v err=%v", stored, err)
+	}
+}
+
+type blockSecondReceiptRead struct {
+	ReceiptRepository
+	reads             atomic.Int32
+	secondReadStarted chan struct{}
+	releaseSecondRead chan struct{}
+}
+
+func (r *blockSecondReceiptRead) Get(ctx context.Context, receiptID string) (*validationv1.ValidationReceipt, error) {
+	if r.reads.Add(1) == 2 {
+		close(r.secondReadStarted)
+		<-r.releaseSecondRead
+	}
+	return r.ReceiptRepository.Get(ctx, receiptID)
+}
+
+func TestCancelWaitReturnsAfterNonterminalProgressIsBuffered(t *testing.T) {
+	service := NewService(NewRepository(testsqllite(t)), nil)
+	receipt := createThroughService(t, service, "cancel-wait-buffered-transition")
+	repo := &blockSecondReceiptRead{
+		ReceiptRepository: service.repo,
+		secondReadStarted: make(chan struct{}),
+		releaseSecondRead: make(chan struct{}),
+	}
+	defer func() {
+		select {
+		case <-repo.releaseSecondRead:
+		default:
+			close(repo.releaseSecondRead)
+		}
+	}()
+	service.repo = repo
+	response := make(chan *validationv1.WaitValidationResponse, 1)
+	failure := make(chan error, 1)
+	go func() {
+		result, err := service.WaitValidation(context.Background(), connect.NewRequest(&validationv1.WaitValidationRequest{
+			ReceiptId: receipt.GetReceiptId(), WaitId: "observer-buffered-transition", Timeout: durationpb.New(500 * time.Millisecond),
+		}))
+		if err != nil {
+			failure <- err
+			return
+		}
+		response <- result.Msg
+	}()
+	<-repo.secondReadStarted // Waiter registration has happened; hold its close-race read.
+	queued, err := service.Transition(context.Background(), receipt.GetReceiptId(), validationv1.ReceiptState_RECEIPT_STATE_QUEUED, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if queued.GetState() != validationv1.ReceiptState_RECEIPT_STATE_QUEUED {
+		t.Fatalf("progress transition state=%s, want queued", queued.GetState())
+	}
+	cancelled, err := service.CancelValidationWait(context.Background(), connect.NewRequest(&validationv1.CancelValidationWaitRequest{
+		ReceiptId: receipt.GetReceiptId(), WaitId: "observer-buffered-transition",
+	}))
+	if err != nil || !cancelled.Msg.GetCancelled() {
+		t.Fatalf("cancel wait = %#v err=%v", cancelled, err)
+	}
+	close(repo.releaseSecondRead)
+	select {
+	case err := <-failure:
+		t.Fatal(err)
+	case result := <-response:
+		if !result.GetWaitCancelled() || result.GetTimedOut() || result.GetReceipt().GetState() != validationv1.ReceiptState_RECEIPT_STATE_QUEUED {
+			t.Fatalf("cancelled progress wait = %#v", result)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("wait did not return after successful cancellation")
+	}
+	stored, err := service.repo.Get(context.Background(), receipt.GetReceiptId())
+	if err != nil || stored.GetState() != validationv1.ReceiptState_RECEIPT_STATE_QUEUED {
+		t.Fatalf("cancelled observer changed work: receipt=%#v err=%v", stored, err)
+	}
+}
+
 func TestAbortWorkUsesActuatorAndTerminalizesReceipt(t *testing.T) { // [REQ:TESTGENIE-VALIDATION-RECEIPT-P0]
 	aborter := &fakeAborter{}
 	service := NewService(NewRepository(testsqllite(t)), aborter)

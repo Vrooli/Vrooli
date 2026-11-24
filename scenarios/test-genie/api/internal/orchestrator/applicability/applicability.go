@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"test-genie/internal/orchestrator/phasekeys"
 	"test-genie/internal/orchestrator/providerdescriptor"
 )
 
@@ -115,9 +116,9 @@ func Evaluate(phase string, declaration providerdescriptor.Applicability, ctx Co
 }
 
 func containsNormalized(values []string, want string) bool {
-	want = normalizeKey(want)
+	want = phasekeys.NormalizeKey(want)
 	for _, value := range values {
-		if normalizeKey(value) == want {
+		if phasekeys.NormalizeKey(value) == want {
 			return true
 		}
 	}
@@ -190,7 +191,7 @@ func evaluatePredicate(predicate providerdescriptor.Predicate, ctx Context) (Rea
 		}
 		return Reason{Code: "applicability.path_glob_unmatched", Message: fmt.Sprintf("target path glob %s matched no files", glob)}, false, nil
 	case strings.TrimSpace(predicate.ScenarioDependency) != "":
-		dependency := normalizeKey(predicate.ScenarioDependency)
+		dependency := phasekeys.NormalizeKey(predicate.ScenarioDependency)
 		switch ctx.dependencyStatus(dependency) {
 		case DependencyPresent:
 			return Reason{Code: "applicability.scenario_dependency_present", Message: fmt.Sprintf("target has enabled scenario dependency %s", dependency)}, true, nil
@@ -200,13 +201,13 @@ func evaluatePredicate(predicate providerdescriptor.Predicate, ctx Context) (Rea
 			return Reason{Code: "applicability.scenario_dependency_absent", Message: fmt.Sprintf("target lacks scenario dependency %s", dependency)}, false, nil
 		}
 	case strings.TrimSpace(predicate.ServiceCapability) != "":
-		capability := normalizeKey(predicate.ServiceCapability)
+		capability := phasekeys.NormalizeKey(predicate.ServiceCapability)
 		if ctx.hasCapability(capability) {
 			return Reason{Code: "applicability.service_capability_present", Message: fmt.Sprintf("target declares service capability %s", capability)}, true, nil
 		}
 		return Reason{Code: "applicability.service_capability_absent", Message: fmt.Sprintf("target does not declare service capability %s", capability)}, false, nil
 	case strings.TrimSpace(predicate.ServiceTag) != "":
-		tag := normalizeKey(predicate.ServiceTag)
+		tag := phasekeys.NormalizeKey(predicate.ServiceTag)
 		if hasNormalizedKey(ctx.ServiceTags, tag) {
 			return Reason{Code: "applicability.service_tag_present", Message: fmt.Sprintf("target declares service tag %s", tag)}, true, nil
 		}
@@ -222,7 +223,7 @@ func evaluatePredicate(predicate providerdescriptor.Predicate, ctx Context) (Rea
 		}
 		return Reason{Code: "applicability.has_api_mismatched", Message: fmt.Sprintf("target API availability did not match %t", *predicate.HasAPI)}, false, nil
 	case strings.TrimSpace(predicate.TestingConfigSection) != "":
-		section := normalizeKey(predicate.TestingConfigSection)
+		section := phasekeys.NormalizeKey(predicate.TestingConfigSection)
 		if ctx.hasTestingConfigSection(section) {
 			return Reason{Code: "applicability.testing_config_section_present", Message: fmt.Sprintf("target testing config has section %s", section)}, true, nil
 		}
@@ -273,7 +274,7 @@ func (ctx Context) dependencyStatus(dependency string) DependencyStatus {
 		return status
 	}
 	for name, status := range ctx.ScenarioDependencies {
-		if normalizeKey(name) == dependency {
+		if phasekeys.NormalizeKey(name) == dependency {
 			return status
 		}
 	}
@@ -292,7 +293,7 @@ func hasNormalizedKey(values map[string]bool, key string) bool {
 		return true
 	}
 	for candidate, enabled := range values {
-		if enabled && normalizeKey(candidate) == key {
+		if enabled && phasekeys.NormalizeKey(candidate) == key {
 			return true
 		}
 	}
@@ -305,10 +306,6 @@ func normalizePath(path string) string {
 		return ""
 	}
 	return filepath.ToSlash(filepath.Clean(path))
-}
-
-func normalizeKey(value string) string {
-	return strings.ToLower(strings.TrimSpace(value))
 }
 
 func countPredicateFields(predicate providerdescriptor.Predicate) int {

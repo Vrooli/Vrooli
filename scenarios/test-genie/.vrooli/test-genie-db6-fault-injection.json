@@ -3,8 +3,8 @@
   "schemaVersion": "1.0.0",
   "scenario": "test-genie",
   "phase": "fault-injection",
-  "displayName": "DBM Recovery Fault Injection",
-  "description": "Runs Data Backup Manager's safe-remount and risky-decision recovery paths through owner simulators, then checks readiness, backup, scratch-restore, and receipt-only platform qualification.",
+  "displayName": "Library Fault Injection",
+  "description": "Runs Data Backup Manager recovery simulators and a generated library-wide Program Runtime child-envelope matrix with per-program capability requirements and observable fallbacks.",
   "source": "validation-provider",
   "orderHint": 41,
   "timeout": "240s",
@@ -16,7 +16,7 @@
   "targets": { "kinds": ["scenario"], "selection": "enumerate" },
   "applicability": {
     "default": "not_applicable",
-    "any": [{ "fileExists": "api/internal/destinationreadiness/recovery.go" }]
+    "any": [{ "fileExists": "api/internal/destinationreadiness/recovery.go" }, { "fileExists": ".vrooli/program-runtime/batch-inference.json" }]
   },
   "policy": {
     "selection": "explicit_only",
@@ -27,7 +27,7 @@
     "unavailable": "fail"
   },
   "runnability": {},
-  "docs": { "path": "scenarios/data-backup-manager/docs/reference/support-matrix.md" },
+  "docs": { "path": "scenarios/program-runtime/docs/phases/fault-injection.md" },
   "maturity": {
     "version": "1.0.0",
     "levels": [
@@ -40,6 +40,11 @@
         { "id": "L0", "name": "Unavailable", "description": "Recovery simulator cannot execute.", "entry_criteria": ["Target resolved."], "exit_criteria": ["Simulation executes."] },
         { "id": "L1", "name": "Simulated", "description": "Safe and risky recovery owner paths pass with fake volume observers.", "entry_criteria": ["Simulator available."], "exit_criteria": ["Safe and risky paths pass."] },
         { "id": "L2", "name": "Owner loop verified", "description": "Owner tests pass and simulated receipts preserve native qualification boundaries.", "entry_criteria": ["Safe and risky paths pass."], "exit_criteria": ["Receipt-only matrix check passes."] }
+      ]},
+      { "id": "child_envelope_matrix", "label": "Child-envelope fault matrix", "description": "Generated faults exercise the production helper for every adopting library program and record its declared capability requirements and observable fallback.", "levels": [
+        { "id": "L0", "name": "Matrix unavailable", "description": "The generated matrix cannot be executed.", "entry_criteria": ["Program Runtime target resolves."], "exit_criteria": ["Generated rows execute."] },
+        { "id": "L1", "name": "Matrix executed", "description": "Every generated program and fault row executes.", "entry_criteria": ["Generated rows execute."], "exit_criteria": ["Every row reports the expected helper semantics."] },
+        { "id": "L2", "name": "Matrix verified", "description": "Every generated row passes with content-addressed parent contracts.", "entry_criteria": ["Matrix rows complete."], "exit_criteria": ["No row differs from its expected status and error class."] }
       ]}
     ],
     "findings": {
@@ -51,10 +56,19 @@
         "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
         "recommended_skill_ids": ["scenario-work-ladder"]
+      },
+      "child_envelope_fault_matrix.execution_failed": {
+        "capability_id": "child_envelope_matrix",
+        "local_level_impact": "L0",
+        "global_impact": "foundation_blocker",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["scenario-work-ladder"]
       }
     },
     "fallback": {
-      "capability_id": "owner_recovery_loop",
+    "capability_id": "owner_recovery_loop",
       "local_level_impact": "L0",
       "global_impact": "foundation_blocker",
       "dimension": "tests",

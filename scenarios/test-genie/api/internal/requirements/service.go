@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/vrooli/api-core/relationshiprefs"
-	"io/fs"
 	"log"
 	"path/filepath"
 	"sort"
@@ -87,10 +86,6 @@ func NewService() *Service {
 
 // NewServiceWithDeps creates a Service with provided dependencies.
 func NewServiceWithDeps(reader Reader, writer Writer) *Service {
-	// Create sync-compatible reader/writer adapters
-	syncReader := &syncReaderAdapter{reader: reader}
-	syncWriter := &syncWriterAdapter{writer: writer}
-
 	return &Service{
 		reader:          reader,
 		writer:          writer,
@@ -98,34 +93,10 @@ func NewServiceWithDeps(reader Reader, writer Writer) *Service {
 		parser:          parsing.New(reader),
 		loader:          evidence.New(reader),
 		enricher:        enrichment.New(),
-		syncer:          syncpkg.New(syncReader, syncWriter),
+		syncer:          syncpkg.New(reader, writer),
 		snapshotBuilder: snapshot.New(),
 		artifactRoot:    func(scenarioDir string) (string, error) { return scenarioDir, nil },
 	}
-}
-
-// syncReaderAdapter adapts Reader to syncpkg.Reader
-type syncReaderAdapter struct {
-	reader Reader
-}
-
-func (a *syncReaderAdapter) ReadFile(path string) ([]byte, error) { return a.reader.ReadFile(path) }
-func (a *syncReaderAdapter) ReadDir(path string) ([]fs.DirEntry, error) {
-	return a.reader.ReadDir(path)
-}
-func (a *syncReaderAdapter) Exists(path string) bool { return a.reader.Exists(path) }
-
-// syncWriterAdapter adapts Writer to syncpkg.Writer
-type syncWriterAdapter struct {
-	writer Writer
-}
-
-func (a *syncWriterAdapter) WriteFile(path string, data []byte, perm fs.FileMode) error {
-	return a.writer.WriteFile(path, data, perm)
-}
-
-func (a *syncWriterAdapter) MkdirAll(path string, perm fs.FileMode) error {
-	return a.writer.MkdirAll(path, perm)
 }
 
 // SyncInput matches the existing orchestrator interface.

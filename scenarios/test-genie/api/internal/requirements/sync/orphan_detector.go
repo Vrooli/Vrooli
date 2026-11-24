@@ -65,10 +65,12 @@ func (d *OrphanDetector) checkValidation(val types.Validation, reqID, modulePath
 		return nil
 	}
 
-	// Check if referenced file exists
-	refPath := resolveRefPath(val.Ref, scenarioRoot)
-	if d.reader.Exists(refPath) {
-		return nil // File exists, not orphaned
+	// Check every supported scenario-relative base. A test reference may be
+	// written relative to the scenario root, API, UI, or test directory.
+	for _, refPath := range resolveRefPaths(val.Ref, scenarioRoot) {
+		if d.reader.Exists(refPath) {
+			return nil // File exists, not orphaned
+		}
 	}
 
 	return &Orphan{
@@ -79,23 +81,21 @@ func (d *OrphanDetector) checkValidation(val types.Validation, reqID, modulePath
 	}
 }
 
-// resolveRefPath resolves a validation ref to an absolute path.
-func resolveRefPath(ref, scenarioRoot string) string {
+// resolveRefPaths returns the supported absolute candidates for a validation
+// ref. Absolute references retain their exact target; relative references are
+// checked at the scenario root and the common API, UI, and test roots.
+func resolveRefPaths(ref, scenarioRoot string) []string {
 	// If ref is already absolute, use it
 	if filepath.IsAbs(ref) {
-		return ref
+		return []string{ref}
 	}
 
-	// Try common base paths
-	candidates := []string{
+	return []string{
 		filepath.Join(scenarioRoot, ref),
 		filepath.Join(scenarioRoot, "api", ref),
 		filepath.Join(scenarioRoot, "ui", ref),
 		filepath.Join(scenarioRoot, "test", ref),
 	}
-
-	// Return the first candidate (we'll check existence in the caller)
-	return candidates[0]
 }
 
 // DetectOrphanedByPhase finds validations for phases that didn't run.
@@ -164,6 +164,10 @@ func IsOrphanedRef(ref, scenarioRoot string, reader Reader) bool {
 		return false
 	}
 
-	refPath := resolveRefPath(ref, scenarioRoot)
-	return !reader.Exists(refPath)
+	for _, refPath := range resolveRefPaths(ref, scenarioRoot) {
+		if reader.Exists(refPath) {
+			return false
+		}
+	}
+	return true
 }

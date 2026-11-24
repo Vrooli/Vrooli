@@ -17,6 +17,7 @@ import (
 
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
+	execTypes "test-genie/cli/internal/execute"
 )
 
 // streamServer implements FollowRun + WaitRun for the wait/follow tests.
@@ -84,6 +85,13 @@ func passEvents() []*runspb.RunEvent {
 		{Event: "phase_started", Phase: "unit"},
 		{Event: "phase_completed", Phase: "unit", Status: "passed", DurationSeconds: 2},
 		{Event: "run_completed", Success: true, Verdict: "PASS"},
+	}
+}
+
+func TestRunEventSummaryCountsNotEvaluatedSeparately(t *testing.T) {
+	summary := summarizeRunPhases([]execTypes.Phase{{Status: "passed"}, {Status: "not_evaluated"}})
+	if summary.Total != 2 || summary.Passed != 1 || summary.NotEvaluated != 1 || summary.Failed != 0 {
+		t.Fatalf("run summary must retain not-evaluated count without calling it a failure: %+v", summary)
 	}
 }
 

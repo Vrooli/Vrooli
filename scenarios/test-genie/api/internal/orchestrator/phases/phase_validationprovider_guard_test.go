@@ -95,6 +95,9 @@ func assertProviderMatchesDescriptor(t *testing.T, catalog *Catalog, phase Name,
 	if provider.ProviderScenario != descriptor.Scenario {
 		t.Fatalf("%s provider = %q, want descriptor scenario %q", phase, provider.ProviderScenario, descriptor.Scenario)
 	}
+	if provider.EndpointVariant != descriptor.Validation.EndpointVariant {
+		t.Fatalf("%s provider endpoint variant = %q, want descriptor variant %q", phase, provider.EndpointVariant, descriptor.Validation.EndpointVariant)
+	}
 	if provider.DetailCommand != descriptor.Validation.DetailCommand {
 		t.Fatalf("%s detail command = %q, want %q", phase, provider.DetailCommand, descriptor.Validation.DetailCommand)
 	}

@@ -6,15 +6,83 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/maturity-go/assessment"
 	"github.com/vrooli/repo-contract-go/repocontracttest"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	"test-genie/internal/orchestrator/providerdescriptor"
 )
+
+type durableProbeClientStub struct {
+	starts         []*scenariovalidationv1.StartValidationRunRequest
+	calls          []string
+	startErr       error
+	startResponses []*scenariovalidationv1.StartValidationRunResponse
+}
+
+func (c *durableProbeClientStub) StartValidationRun(_ context.Context, req *connect.Request[scenariovalidationv1.StartValidationRunRequest]) (*connect.Response[scenariovalidationv1.StartValidationRunResponse], error) {
+	c.calls = append(c.calls, "start")
+	c.starts = append(c.starts, req.Msg)
+	if c.startErr != nil {
+		return nil, c.startErr
+	}
+	index := len(c.starts) - 1
+	if index < len(c.startResponses) {
+		return connect.NewResponse(c.startResponses[index]), nil
+	}
+	return connect.NewResponse(&scenariovalidationv1.StartValidationRunResponse{Run: &scenariovalidationv1.ValidationRun{RunId: "run-1"}}), nil
+}
+
+func (c *durableProbeClientStub) GetValidationRun(_ context.Context, _ *connect.Request[scenariovalidationv1.GetValidationRunRequest]) (*connect.Response[scenariovalidationv1.GetValidationRunResponse], error) {
+	c.calls = append(c.calls, "get")
+	return connect.NewResponse(&scenariovalidationv1.GetValidationRunResponse{Run: &scenariovalidationv1.ValidationRun{RunId: "run-1"}}), nil
+}
+
+func (c *durableProbeClientStub) AbortValidationRun(_ context.Context, _ *connect.Request[scenariovalidationv1.AbortValidationRunRequest]) (*connect.Response[scenariovalidationv1.AbortValidationRunResponse], error) {
+	c.calls = append(c.calls, "abort")
+	return connect.NewResponse(&scenariovalidationv1.AbortValidationRunResponse{Run: &scenariovalidationv1.ValidationRun{RunId: "run-1"}}), nil
+}
+
+func (c *durableProbeClientStub) WaitValidationRun(_ context.Context, _ *connect.Request[scenariovalidationv1.WaitValidationRunRequest]) (*connect.Response[scenariovalidationv1.WaitValidationRunResponse], error) {
+	c.calls = append(c.calls, "wait")
+	return connect.NewResponse(&scenariovalidationv1.WaitValidationRunResponse{Run: &scenariovalidationv1.ValidationRun{RunId: "run-1", State: scenariovalidationv1.ValidationRunState_VALIDATION_RUN_STATE_SUCCEEDED}}), nil
+}
+
+func TestDurableProbeMalformedStartResponseHasClearError(t *testing.T) {
+	client := &durableProbeClientStub{startResponses: []*scenariovalidationv1.StartValidationRunResponse{{}}}
+	err := runDurableValidationLifecycle(context.Background(), client, "demo-provider")
+	if err == nil || err.Error() != "StartValidationRun did not return a run" {
+		t.Fatalf("malformed start response error = %v, want clear protocol error", err)
+	}
+}
+
+func TestDurableProbePreservesTransportErrors(t *testing.T) {
+	transportErr := errors.New("provider unavailable")
+	client := &durableProbeClientStub{startErr: transportErr}
+	err := runDurableValidationLifecycle(context.Background(), client, "demo-provider")
+	if !errors.Is(err, transportErr) {
+		t.Fatalf("lifecycle error = %v, want wrapped transport error", err)
+	}
+}
+
+func TestDurableProbeReplaysAndCleansUpTheSameRun(t *testing.T) {
+	client := &durableProbeClientStub{}
+	if err := runDurableValidationLifecycle(context.Background(), client, " demo-provider "); err != nil {
+		t.Fatalf("durable lifecycle: %v", err)
+	}
+	if len(client.starts) != 2 || client.starts[0].GetScenario() != " demo-provider " || client.starts[0].GetIdempotencyKey() != client.starts[1].GetIdempotencyKey() {
+		t.Fatalf("start requests did not reuse their identity: %#v", client.starts)
+	}
+	want := []string{"start", "start", "get", "abort", "wait"}
+	if !reflect.DeepEqual(client.calls, want) {
+		t.Fatalf("lifecycle calls = %v, want %v", client.calls, want)
+	}
+}
 
 // fixtureRepo lays out <root>/scenarios/<name>/.vrooli/test-genie.json plus a
 // docs file so a mutation-free descriptor validates clean.

@@ -34,6 +34,7 @@ import (
 	"test-genie/internal/playbooksclaims"
 	"test-genie/internal/selfidentity"
 	"test-genie/internal/shared"
+	sharedevidence "test-genie/internal/shared/evidence"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/demand"
@@ -51,19 +52,8 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
-
-func cloneRetainedEvidenceSets(sets []*scenariovalidationv1.RetainedEvidenceSet) []*scenariovalidationv1.RetainedEvidenceSet {
-	cloned := make([]*scenariovalidationv1.RetainedEvidenceSet, 0, len(sets))
-	for _, set := range sets {
-		if set != nil {
-			cloned = append(cloned, proto.Clone(set).(*scenariovalidationv1.RetainedEvidenceSet))
-		}
-	}
-	return cloned
-}
 
 var (
 	defaultPhaseTimeout      = phases.DefaultTimeout
@@ -420,6 +410,7 @@ type PhaseSummary struct {
 	Passed           int     `json:"passed"`
 	Failed           int     `json:"failed"`
 	Skipped          int     `json:"skipped"`
+	NotEvaluated     int     `json:"notEvaluated"`
 	DurationSeconds  int     `json:"durationSeconds"`
 	ObservationCount *uint32 `json:"observationCount,omitempty"`
 }
@@ -889,7 +880,7 @@ func (o *SuiteOrchestrator) prepareExecution(ctx context.Context, req SuiteExecu
 		runID = newRunID()
 	}
 	planCtx.env.RunID = runID
-	planCtx.env.RetainedEvidenceSets = cloneRetainedEvidenceSets(req.RetainedEvidenceSets)
+	planCtx.env.RetainedEvidenceSets = sharedevidence.CloneRetainedSets(req.RetainedEvidenceSets)
 	planCtx.env.CaptureProfile = strings.TrimSpace(req.CaptureProfile)
 	planCtx.env.DiagnosticsPreset = resolveDiagnosticsPreset(req)
 	if err := sharedartifacts.EnsureCoverageStructure(planCtx.env.ArtifactRoot); err != nil {
@@ -990,7 +981,7 @@ func (o *SuiteOrchestrator) prepareExecution(ctx context.Context, req SuiteExecu
 			// the execution identity that was bound before admission; phase writers
 			// must never observe an empty run id after a queued rebase.
 			planCtx.env.RunID = runID
-			planCtx.env.RetainedEvidenceSets = cloneRetainedEvidenceSets(req.RetainedEvidenceSets)
+			planCtx.env.RetainedEvidenceSets = sharedevidence.CloneRetainedSets(req.RetainedEvidenceSets)
 			planCtx.env.CaptureProfile = strings.TrimSpace(req.CaptureProfile)
 			planCtx.env.DiagnosticsPreset = resolveDiagnosticsPreset(req)
 			scenario = planCtx.env.ScenarioName
@@ -2547,6 +2538,8 @@ func summarizePhaseViews(phases []phaseResultView) PhaseSummary {
 			summary.Failed++
 		case phaseStatusSkipped:
 			summary.Skipped++
+		case phaseStatusNotEvaluated:
+			summary.NotEvaluated++
 		}
 	}
 	if observationsKnown {

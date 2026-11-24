@@ -30,6 +30,27 @@ func TestTestingRunnerExecutesPreferredCommand(t *testing.T) {
 	}
 }
 
+func TestTestingRunnerReturnsActualCommandWithExtraArgs(t *testing.T) {
+	dir := t.TempDir()
+	script := filepath.Join(dir, "run.sh")
+	writeExecutable(t, script, "exit 0")
+	caps := TestingCapabilities{Phased: true, Commands: []TestingCommand{{Type: "phased", Command: []string{script, "--quick"}, WorkingDir: dir}}}
+
+	result, err := (TestingRunner{Timeout: time.Second}).RunWithArgs(context.Background(), caps, "", []string{"--path", "api/example.go"})
+	if err != nil {
+		t.Fatalf("RunWithArgs: %v", err)
+	}
+	want := []string{script, "--quick", "--path", "api/example.go"}
+	if len(result.Command) != len(want) {
+		t.Fatalf("executed command = %v, want %v", result.Command, want)
+	}
+	for i := range want {
+		if result.Command[i] != want[i] {
+			t.Fatalf("executed command = %v, want %v", result.Command, want)
+		}
+	}
+}
+
 func TestTestingRunnerFallsBackToLegacy(t *testing.T) {
 	dir := t.TempDir()
 	script := filepath.Join(dir, "run.sh")

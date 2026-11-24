@@ -2,7 +2,6 @@ package playbooksclaims
 
 import (
 	"errors"
-	"strings"
 	"time"
 )
 
@@ -48,18 +47,6 @@ type AcquireInput struct {
 	RunID        string
 	Mode         Mode
 	StartedBy    string
-}
-
-func targetIdentity(kind, id, legacy string) (string, string) {
-	kind = strings.TrimSpace(strings.ToLower(kind))
-	if kind == "" {
-		kind = "scenario"
-	}
-	id = strings.TrimSpace(id)
-	if id == "" {
-		id = strings.TrimSpace(legacy)
-	}
-	return kind, id
 }
 
 // ErrBusy means another live claim already owns the target.

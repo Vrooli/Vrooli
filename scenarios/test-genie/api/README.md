@@ -277,6 +277,8 @@ available; unavailable timestamps never become a false zero-duration success.
 | `GET` | `/api/v1/scenarios/{name}` | Get scenario metadata |
 | `POST` | `/api/v1/scenarios/{name}/run-tests` | Trigger local test runner |
 
+The response's `command` field describes the selected testing capability. `executedCommand` is the exact argv sent to the runner, including requested paths, playbooks, and filters.
+
 ## Where to Look
 
 | I want to... | Look in... |

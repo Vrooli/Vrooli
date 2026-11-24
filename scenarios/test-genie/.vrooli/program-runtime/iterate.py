@@ -4,7 +4,6 @@ Required checks never disappear to meet a budget. With no explicit check set,
 the owner's targeted/quick profile uses its historical cost planner. This is
 iteration, not certification. A returned receipt is not a passing test result.
 """
-import json
 import re
 inputs = program.inputs()
 envelope = {"program": "test-genie.iterate", "version": "1", "status": "failed", "phase": "validate",
@@ -78,4 +77,4 @@ except Exception as exc:
     envelope["status"] = status
     envelope["errors"] = [{"class": klass, "where": envelope["phase"], "detail": str(exc)[:240]}]
 envelope["phase"] = "report"
-print(json.dumps(envelope))
+program.report(envelope)

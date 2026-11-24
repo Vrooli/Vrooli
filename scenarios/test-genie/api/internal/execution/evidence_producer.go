@@ -155,9 +155,10 @@ func (s *SuiteExecutionService) runEvidenceProducer(ctx context.Context, input S
 		}
 		err = errors.Join(err, stdoutErr, cmd.Wait())
 		if outputHandle != nil {
-			if err == nil {
-				err = publishProducerOutput(outputHandle, filepath.Join(logDir, "output"), command.MaximumOutputBytes)
-			}
+			// A failing or timed-out producer can still leave useful bounded
+			// diagnostics. Preserve them under the run's evidence directory; the
+			// terminal error and metadata continue to mark them as incomplete.
+			err = errors.Join(err, publishProducerOutput(outputHandle, filepath.Join(logDir, "output"), command.MaximumOutputBytes))
 			err = errors.Join(err, outputHandle.Close())
 		}
 	} else {

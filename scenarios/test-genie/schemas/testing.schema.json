@@ -1029,6 +1029,11 @@
           "default": false,
           "description": "Whether this phase requires the scenario runtime to be running"
         },
+        "bas_unavailable_endpoint": {
+          "type": "string",
+          "const": "http://127.0.0.1:1",
+          "description": "Experience-phase test only: direct BAS discovery to an isolated loopback port that cannot reach the live BAS. Test Genie rejects this setting on every other phase."
+        },
         "budgets": {
           "type": "object",
           "description": "Optional phase-owned budgets. Tidiness uses duplication_line_debt, long_files, complexity_over_threshold, coupling_over_threshold, and debt_markers. Security uses error_findings. Absent budgets are advisory-only.",

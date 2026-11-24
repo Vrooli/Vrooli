@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -48,31 +49,23 @@ func (w *Writer) StreamArtifact(ctx context.Context, id, kind, relativePath, con
 	if err != nil {
 		return ArtifactRef{}, err
 	}
-	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
-		return ArtifactRef{}, fmt.Errorf("create evidence directory: %w", err)
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(destination), ".evidence-*.tmp")
-	if err != nil {
-		return ArtifactRef{}, fmt.Errorf("create evidence temp file: %w", err)
-	}
-	tmpPath := tmp.Name()
-	defer os.Remove(tmpPath)
-
 	hash := sha256.New()
 	limited := &contextReader{ctx: ctx, source: io.LimitReader(source, maxBytes+1)}
-	written, copyErr := io.Copy(io.MultiWriter(tmp, hash), limited)
-	closeErr := tmp.Close()
-	if copyErr != nil {
-		return ArtifactRef{}, fmt.Errorf("stream evidence artifact: %w", copyErr)
-	}
-	if closeErr != nil {
-		return ArtifactRef{}, fmt.Errorf("close evidence artifact: %w", closeErr)
-	}
-	if written > maxBytes {
-		return ArtifactRef{}, fmt.Errorf("%w: %s is %d bytes (limit %d)", ErrArtifactTooLarge, ref.ID, written, maxBytes)
-	}
-	if err := os.Rename(tmpPath, destination); err != nil {
-		return ArtifactRef{}, fmt.Errorf("publish evidence artifact: %w", err)
+	var written int64
+	if err := writeTempAndPublish(destination, ".evidence-*.tmp", func(target io.Writer) error {
+		var copyErr error
+		written, copyErr = io.Copy(io.MultiWriter(target, hash), limited)
+		if copyErr != nil {
+			return fmt.Errorf("stream evidence artifact: %w", copyErr)
+		}
+		if written > maxBytes {
+			return fmt.Errorf("%w: %s is %d bytes (limit %d)", ErrArtifactTooLarge, ref.ID, written, maxBytes)
+		}
+		return nil
+	}, func(tempPath, destination string) error {
+		return publishImmutableArtifact(tempPath, destination, written, hex.EncodeToString(hash.Sum(nil)))
+	}); err != nil {
+		return ArtifactRef{}, err
 	}
 	ref.SizeBytes = written
 	ref.SHA256 = hex.EncodeToString(hash.Sum(nil))
@@ -160,28 +153,66 @@ func (w *Writer) writeJSONAtomically(relativePath string, value any) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
-		return fmt.Errorf("create manifest directory: %w", err)
-	}
 	payload, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal evidence manifest: %w", err)
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(destination), ".manifest-*.tmp")
+	return writeTempAndPublish(destination, ".manifest-*.tmp", func(target io.Writer) error {
+		if _, err := target.Write(payload); err != nil {
+			return fmt.Errorf("write evidence manifest: %w", err)
+		}
+		return nil
+	}, func(tempPath, destination string) error {
+		if err := os.Rename(tempPath, destination); err != nil {
+			return fmt.Errorf("publish evidence manifest: %w", err)
+		}
+		return nil
+	})
+}
+
+// writeTempAndPublish centralizes the temporary-file lifecycle used by both
+// immutable artifacts and the replaceable manifest index. Publication policy
+// stays with each caller while cleanup and close ordering remain consistent.
+func writeTempAndPublish(destination, pattern string, write func(io.Writer) error, publish func(string, string) error) error {
+	dir := filepath.Dir(destination)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create evidence directory: %w", err)
+	}
+	tmp, err := os.CreateTemp(dir, pattern)
 	if err != nil {
-		return fmt.Errorf("create manifest temp file: %w", err)
+		return fmt.Errorf("create evidence temp file: %w", err)
 	}
 	tmpPath := tmp.Name()
 	defer os.Remove(tmpPath)
-	if _, err := tmp.Write(payload); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("write evidence manifest: %w", err)
+	writeErr := write(tmp)
+	closeErr := tmp.Close()
+	if writeErr != nil {
+		return errors.Join(writeErr, closeErr)
 	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("close evidence manifest: %w", err)
+	if closeErr != nil {
+		return fmt.Errorf("close evidence temp file: %w", closeErr)
 	}
-	if err := os.Rename(tmpPath, destination); err != nil {
-		return fmt.Errorf("publish evidence manifest: %w", err)
+	return publish(tmpPath, destination)
+}
+
+func publishImmutableArtifact(tempPath, destination string, size int64, digest string) error {
+	if err := os.Link(tempPath, destination); err == nil {
+		return nil
+	} else if !errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("publish immutable evidence artifact: %w", err)
+	}
+	existing, err := os.Open(destination)
+	if err != nil {
+		return fmt.Errorf("inspect existing immutable evidence artifact: %w", err)
+	}
+	hash := sha256.New()
+	existingSize, readErr := io.Copy(hash, existing)
+	closeErr := existing.Close()
+	if err := errors.Join(readErr, closeErr); err != nil {
+		return fmt.Errorf("verify existing immutable evidence artifact: %w", err)
+	}
+	if existingSize != size || hex.EncodeToString(hash.Sum(nil)) != digest {
+		return ErrArtifactConflict
 	}
 	return nil
 }

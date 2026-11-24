@@ -4,12 +4,12 @@ package snapshot
 import (
 	"context"
 	"encoding/json"
-	"io/fs"
 	"time"
 
 	"test-genie/internal/requirements/enrichment"
 	"test-genie/internal/requirements/parsing"
 	"test-genie/internal/requirements/types"
+	"test-genie/internal/shared/filesystem"
 )
 
 // Builder builds requirement snapshots.
@@ -18,10 +18,8 @@ type Builder interface {
 	Build(ctx context.Context, index *parsing.ModuleIndex, summary enrichment.Summary) (*Snapshot, error)
 }
 
-// Writer is the minimal file-writing surface needed to persist snapshots.
-type Writer interface {
-	WriteFile(path string, data []byte, perm fs.FileMode) error
-}
+// Writer preserves the snapshot injection API through shared write capability.
+type Writer = filesystem.Writer
 
 // Snapshot represents a point-in-time view of requirements.
 type Snapshot struct {

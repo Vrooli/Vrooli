@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"test-genie/internal/dbexec"
+	"test-genie/internal/targetmodel"
 )
 
 // SqliteRepository is the SQLite-backed Repository implementation.
@@ -35,7 +36,7 @@ func (r *SqliteRepository) TryAcquire(ctx context.Context, in AcquireInput, now 
 	if in.RunID == "" {
 		return Claim{}, errors.New("playbooksclaims: run_id required")
 	}
-	targetKind, targetID := targetIdentity(in.TargetKind, in.TargetID, in.ScenarioName)
+	targetKind, targetID := targetmodel.NormalizeLegacyIdentity(in.TargetKind, in.TargetID, in.ScenarioName)
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -83,7 +84,7 @@ WHERE playbooks_claims.expires_at <= excluded.heartbeat_at
 
 // Heartbeat extends expires_at if the caller still owns the row.
 func (r *SqliteRepository) Heartbeat(ctx context.Context, scenarioName, runID string, now time.Time, ttl time.Duration) (Claim, error) {
-	targetKind, targetID := targetIdentity("scenario", scenarioName, scenarioName)
+	targetKind, targetID := targetmodel.NormalizeLegacyIdentity("scenario", scenarioName, scenarioName)
 	expires := now.Add(ttl)
 	res, err := r.db.ExecContext(ctx, `
 UPDATE playbooks_claims
@@ -113,7 +114,7 @@ WHERE target_kind = ? AND target_id = ? AND run_id = ?
 
 // Release deletes the claim iff the runID matches.
 func (r *SqliteRepository) Release(ctx context.Context, scenarioName, runID string) error {
-	targetKind, targetID := targetIdentity("scenario", scenarioName, scenarioName)
+	targetKind, targetID := targetmodel.NormalizeLegacyIdentity("scenario", scenarioName, scenarioName)
 	res, err := r.db.ExecContext(ctx, `
 DELETE FROM playbooks_claims
 WHERE target_kind = ? AND target_id = ? AND run_id = ?
@@ -179,7 +180,7 @@ func (r *SqliteRepository) ForceBreak(ctx context.Context, scenarioName string) 
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	targetKind, targetID := targetIdentity("scenario", scenarioName, scenarioName)
+	targetKind, targetID := targetmodel.NormalizeLegacyIdentity("scenario", scenarioName, scenarioName)
 	current, err := getInTx(ctx, tx, targetKind, targetID)
 	if err != nil {
 		return Claim{}, err

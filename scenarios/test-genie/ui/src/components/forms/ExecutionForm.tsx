@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRight } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { InfoTip } from "../cards/InfoTip";
 import { selectors } from "../../consts/selectors";
 import { useUIStore } from "../../stores/uiStore";
@@ -167,7 +167,7 @@ export function ExecutionForm({ scenarioOptions: _scenarioOptions, datalistId, s
             Select a preset; Test Genie resolves its live descriptor-backed phase plan below.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleReset} disabled={isStreaming}>
+        <Button variant="secondary" size="sm" onClick={handleReset} disabled={isStreaming}>
           Reset
         </Button>
       </div>

@@ -290,14 +290,20 @@ func normalizeRef(ref string) string {
 func pathContains(fullPath, pattern string) bool {
 	normalizedPath := normalizeRef(fullPath)
 	normalizedPattern := normalizeRef(pattern)
+	if normalizedPattern == "" {
+		return false
+	}
 
-	// Direct contains check
-	if strings.Contains(normalizedPath, normalizedPattern) {
+	// References with directories must identify that path suffix. Falling back
+	// to basename equality would attach evidence from a different test file.
+	if normalizedPath == normalizedPattern || strings.HasSuffix(normalizedPath, "/"+normalizedPattern) {
 		return true
 	}
 
-	// Check just the filename
-	pathBase := filepath.Base(normalizedPath)
-	patternBase := filepath.Base(normalizedPattern)
-	return pathBase == patternBase
+	// Preserve filename-only references while keeping directory-qualified
+	// references unambiguous.
+	if strings.Contains(normalizedPattern, "/") {
+		return false
+	}
+	return filepath.Base(normalizedPath) == normalizedPattern
 }

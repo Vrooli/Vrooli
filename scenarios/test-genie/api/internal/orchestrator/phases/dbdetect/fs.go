@@ -2,8 +2,8 @@ package dbdetect
 
 import (
 	"io/fs"
-	"os"
-	"path/filepath"
+
+	sharedfs "test-genie/internal/shared/filesystem"
 )
 
 // seam: Filesystem — boundary between dbdetect's read-only file inspection
@@ -13,13 +13,11 @@ type Filesystem interface {
 	Walk(root string, fn fs.WalkDirFunc) error
 }
 
-// OSFilesystem is the production Filesystem.
+// OSFilesystem preserves the domain name while delegating to the shared OS adapter.
 type OSFilesystem struct{}
 
-func (OSFilesystem) ReadFile(path string) ([]byte, error) {
-	return os.ReadFile(path)
-}
+func (OSFilesystem) ReadFile(path string) ([]byte, error) { return sharedfs.OS{}.ReadFile(path) }
 
 func (OSFilesystem) Walk(root string, fn fs.WalkDirFunc) error {
-	return filepath.WalkDir(root, fn)
+	return sharedfs.OS{}.WalkDir(root, fn)
 }

@@ -83,8 +83,7 @@ func TestAgentManagerClientUsesGeneratedConnectProcedures(t *testing.T) {
 	server := httptest.NewServer(router)
 	t.Cleanup(server.Close)
 
-	client := NewClient(time.Second)
-	client.baseURLResolver = func(context.Context) (string, error) { return server.URL, nil }
+	client := NewClientWithResolver(time.Second, func(context.Context) (string, error) { return server.URL, nil })
 	ctx := context.Background()
 
 	profiles, err := client.ReconcileScenarioProfiles(ctx, "test-genie")

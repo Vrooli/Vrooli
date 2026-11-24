@@ -8,7 +8,7 @@ import {
   RefreshCw,
   Loader2,
 } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { cn } from "../../lib/utils";
 import { formatRelative, formatDuration } from "../../lib/formatters";
 import type { SuiteExecutionResult } from "../../lib/api";
@@ -245,7 +245,7 @@ export function ExecutionTimeline({
                             {onRerun && (
                               <div className="pt-2 flex justify-end">
                                 <Button
-                                  variant="outline"
+                                  variant="secondary"
                                   size="sm"
                                   onClick={(e) => {
                                     e.stopPropagation();

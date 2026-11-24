@@ -24,6 +24,7 @@ type TestingRunner struct {
 }
 
 type TestingRunnerResult struct {
+	// Command is the argv executed after applying caller-supplied extra args.
 	Command     []string
 	LogPath     string
 	SkipSummary SkipSummary
@@ -67,7 +68,7 @@ func (r TestingRunner) RunWithArgs(ctx context.Context, caps TestingCapabilities
 		return nil, fmt.Errorf("testing command for %s is empty", cmdSpec.Type)
 	}
 	name := cmdSpec.Command[0]
-	args := cmdSpec.Command[1:]
+	args := append([]string(nil), cmdSpec.Command[1:]...)
 	if len(extraArgs) > 0 {
 		args = append(args, extraArgs...)
 	}
@@ -122,7 +123,7 @@ func (r TestingRunner) RunWithArgs(ctx context.Context, caps TestingCapabilities
 	}
 
 	return &TestingRunnerResult{
-		Command:     cmdSpec.Command,
+		Command:     append([]string{name}, args...),
 		LogPath:     logPath,
 		SkipSummary: summary,
 	}, nil

@@ -17,6 +17,7 @@ var (
 	ErrUnsupportedSchema = errors.New("unsupported execution evidence schema")
 	ErrCorruptEvidence   = errors.New("corrupt execution evidence")
 	ErrArtifactTooLarge  = errors.New("evidence artifact exceeds configured budget")
+	ErrArtifactConflict  = errors.New("immutable evidence artifact conflicts with existing path")
 )
 
 // ArtifactRef is an immutable, path-safe reference to one evidence payload.

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/textutil"
 	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/cli-core/operationstanding"
 	"golang.org/x/term"
@@ -360,7 +361,7 @@ func printTerminalStandingView(cl runs_v1connect.RunsServiceClient, w io.Writer,
 		Error:       terminal.GetError(),
 	}
 	resp.PhaseSummary = summarizeRunPhases(phases)
-	view := cliexec.BuildRunStandingView(context.Background(), resp, firstNonEmpty(terminal.GetTarget(), scenario), "", runID, nil, false, 0, report.RunScoreCLI)
+	view := cliexec.BuildRunStandingView(context.Background(), resp, textutil.FirstNonEmpty(terminal.GetTarget(), scenario), "", runID, nil, false, 0, report.RunScoreCLI)
 	pr := report.New(w, view.Scenario, "", nil, nil, false, nil, nil)
 	pr.SetStreamedObservations(true)
 	pr.PrintResultsView(view)
@@ -388,18 +389,11 @@ func summarizeRunPhases(phases []execTypes.Phase) execTypes.PhaseSummary {
 			summary.Failed++
 		case "skipped":
 			summary.Skipped++
+		case "not_evaluated", "not-evaluated", "not evaluated":
+			summary.NotEvaluated++
 		}
 	}
 	return summary
-}
-
-func firstNonEmpty(vals ...string) string {
-	for _, v := range vals {
-		if strings.TrimSpace(v) != "" {
-			return v
-		}
-	}
-	return ""
 }
 
 // terminalExit maps a stream's terminal event + error to the suite exit code:

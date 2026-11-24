@@ -146,6 +146,41 @@ func TestLoadTestingConfigMissingFile(t *testing.T) {
 	})
 }
 
+func TestLoadTestingConfigExperienceBASOverrideIsStrictlyLoopback(t *testing.T) {
+	writeConfig := func(t *testing.T, payload string) string {
+		t.Helper()
+		root := t.TempDir()
+		configDir := filepath.Join(root, ".vrooli")
+		if err := os.MkdirAll(configDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(configDir, "testing.json"), []byte(payload), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return root
+	}
+	t.Run("explicit port one is accepted on experience", func(t *testing.T) {
+		root := writeConfig(t, `{"phases":{"experience":{"bas_unavailable_endpoint":"http://127.0.0.1:1"}}}`)
+		cfg, err := LoadTestingConfig(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := cfg.Phases["experience"].BASUnavailableEndpoint; got != "http://127.0.0.1:1" {
+			t.Fatalf("BAS unavailable endpoint = %q", got)
+		}
+	})
+	for name, payload := range map[string]string{
+		"live endpoint": `{"phases":{"experience":{"bas_unavailable_endpoint":"http://localhost:17116"}}}`,
+		"other phase":   `{"phases":{"unit":{"bas_unavailable_endpoint":"http://127.0.0.1:1"}}}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := LoadTestingConfig(writeConfig(t, payload)); err == nil {
+				t.Fatal("unsafe or non-experience BAS override must be rejected")
+			}
+		})
+	}
+}
+
 func TestParsePhaseTimeoutValidation(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] timeout parser enforces format", func(t *testing.T) {
 		if _, err := parsePhaseTimeout("abc"); err == nil {

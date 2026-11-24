@@ -42,6 +42,7 @@ const (
 type Input struct {
 	Phase            string
 	ProviderScenario string
+	EndpointVariant  string
 	TargetScenario   string
 	TargetPath       string
 	Policy           phasepolicy.Policy
@@ -127,6 +128,12 @@ const DefaultProbeTimeout = 2 * time.Minute
 // operation rather than merely returning control to the caller.
 const DefaultLifecycleTimeout = 2 * time.Minute
 
+// DefaultProviderOwnershipWaitTimeout bounds how long one Test Genie run may
+// queue behind another run's provider check or phase lease. A queued run must
+// produce a provider-specific failure instead of remaining in preparation for
+// the lifetime of an unrelated provider RPC.
+const DefaultProviderOwnershipWaitTimeout = 2 * time.Minute
+
 var (
 	defaultProbeTimeout     = DefaultProbeTimeout
 	defaultLifecycleTimeout = DefaultLifecycleTimeout
@@ -162,6 +169,10 @@ var providerDiscoverySlots = make(chan struct{}, defaultProviderDiscoveryConcurr
 type Manager struct {
 	Probe     Probe
 	Lifecycle Lifecycle
+	// OwnershipWaitTimeout bounds only lock acquisition. Zero uses
+	// DefaultProviderOwnershipWaitTimeout; probe and phase work keep the caller's
+	// original run context after the lease is acquired.
+	OwnershipWaitTimeout time.Duration
 	// RepoRoot enables the staleness check. Empty disables it entirely — the
 	// fail-open default, so a misconfigured root can never cause restarts.
 	RepoRoot string
@@ -206,6 +217,14 @@ func (m *Manager) StaleReport() StaleReport {
 	return StaleReport{Restarted: m.staleRestarts, Skipped: append([]string(nil), m.staleSkipped...)}
 }
 
+// OwnershipWaitLimit returns the configured provider queue bound.
+func (m *Manager) OwnershipWaitLimit() time.Duration {
+	if m != nil && m.OwnershipWaitTimeout > 0 {
+		return m.OwnershipWaitTimeout
+	}
+	return DefaultProviderOwnershipWaitTimeout
+}
+
 // restartIfStale enforces the freshness gate after a provider probes ready.
 //
 // It never cascades: only this provider is restarted, and its own preflight
@@ -247,7 +266,7 @@ func (m *Manager) restartIfStale(ctx context.Context, in Input, result ProbeResu
 	if lifecycle == nil {
 		lifecycle = CommandLifecycle{}
 	}
-	if err := lifecycle.Restart(ctx, in.ProviderScenario, logWriter); err != nil {
+	if err := lifecycle.Restart(ctx, providerRuntimeTarget(in), logWriter); err != nil {
 		// A failed restart must not fail the phase: the provider is still
 		// answering, just with older code. Report and continue.
 		m.staleSkipped = append(m.staleSkipped, in.ProviderScenario)
@@ -265,16 +284,9 @@ func NewManager() *Manager {
 	}
 }
 
-// LeaseProvider prevents another run from starting or restarting a provider
-// while an admitted phase is using it. Callers must release the lease after
-// every provider RPC has returned.
-func (m *Manager) LeaseProvider(provider string) func() {
-	release, _ := m.LeaseProviderContext(context.Background(), provider)
-	return release
-}
-
-// LeaseProviderContext retains the same exclusion as LeaseProvider, but a
-// canceled run must not remain queued behind another run's provider RPCs.
+// LeaseProviderContext acquires the provider exclusion using exactly the
+// caller's context. Prefer AcquireProvider for run preparation and execution,
+// where queue time needs an explicit limit.
 func (m *Manager) LeaseProviderContext(ctx context.Context, provider string) (func(), error) {
 	provider = strings.TrimSpace(provider)
 	if m == nil || provider == "" {
@@ -298,6 +310,27 @@ func (m *Manager) LeaseProviderContext(ctx context.Context, provider string) (fu
 	}
 }
 
+// AcquireProvider gives a readiness or execution stage a bounded turn at the
+// provider lease. The limit applies only while queued: after acquisition,
+// caller cancellation and the probe/phase's own timeout remain authoritative.
+func (m *Manager) AcquireProvider(ctx context.Context, provider string) (func(), error) {
+	provider = strings.TrimSpace(provider)
+	if m == nil || provider == "" {
+		return func() {}, nil
+	}
+	limit := m.OwnershipWaitLimit()
+	waitCtx, cancel := context.WithTimeout(ctx, limit)
+	defer cancel()
+	release, err := m.LeaseProviderContext(waitCtx, provider)
+	if err == nil {
+		return release, nil
+	}
+	if ctx.Err() != nil {
+		return nil, fmt.Errorf("provider %s ownership wait canceled with run: %w", provider, ctx.Err())
+	}
+	return nil, fmt.Errorf("provider %s ownership wait exceeded %s: %w", provider, limit, err)
+}
+
 func (m *Manager) Check(ctx context.Context, in Input, logWriter io.Writer) Outcome {
 	if m == nil {
 		m = NewManager()
@@ -310,9 +343,9 @@ func (m *Manager) Check(ctx context.Context, in Input, logWriter io.Writer) Outc
 	if in.Policy.ProviderReadiness == phasepolicy.ProviderReadinessNone || in.ProviderScenario == "" {
 		return Outcome{Phase: in.Phase, ProviderScenario: in.ProviderScenario, Status: OutcomeReady, Ready: true}
 	}
-	release, err := m.LeaseProviderContext(ctx, in.ProviderScenario)
+	release, err := m.AcquireProvider(ctx, in.ProviderScenario)
 	if err != nil {
-		return unavailable(in, fmt.Errorf("wait for provider %s ownership: %w", in.ProviderScenario, err))
+		return unavailable(in, err)
 	}
 	defer release()
 	probe := m.Probe
@@ -344,7 +377,7 @@ func (m *Manager) Check(ctx context.Context, in Input, logWriter io.Writer) Outc
 		if lifecycle == nil {
 			lifecycle = CommandLifecycle{}
 		}
-		if err := lifecycle.Start(ctx, in.ProviderScenario, logWriter); err != nil {
+		if err := lifecycle.Start(ctx, providerRuntimeTarget(in), logWriter); err != nil {
 			return unavailable(in, fmt.Errorf("start provider %s: %w", in.ProviderScenario, err))
 		}
 		return classify(in, probeOnce(ctx, probe, in), true, false)
@@ -353,7 +386,7 @@ func (m *Manager) Check(ctx context.Context, in Input, logWriter io.Writer) Outc
 		if lifecycle == nil {
 			lifecycle = CommandLifecycle{}
 		}
-		if err := lifecycle.Restart(ctx, in.ProviderScenario, logWriter); err != nil {
+		if err := lifecycle.Restart(ctx, providerRuntimeTarget(in), logWriter); err != nil {
 			return unavailable(in, fmt.Errorf("restart provider %s: %w", in.ProviderScenario, err))
 		}
 		return classify(in, probeOnce(ctx, probe, in), false, true)
@@ -497,7 +530,11 @@ func DefaultProbe(ctx context.Context, in Input) (ProbeResult, error) {
 		return ProbeResult{}, fmt.Errorf("wait for provider discovery capacity: %w", err)
 	}
 	defer releaseProviderDiscoverySlot()
-	baseURL, err := resolveScenarioURL(probeCtx, in.ProviderScenario)
+	lookupScenario := in.ProviderScenario
+	if variant := strings.TrimSpace(in.EndpointVariant); variant != "" {
+		lookupScenario += "@" + variant
+	}
+	baseURL, err := resolveScenarioURL(probeCtx, lookupScenario)
 	if err != nil {
 		if readinessTimedOut(ctx, probeCtx) {
 			return ProbeResult{}, fmt.Errorf("provider readiness timed out after %s while resolving %s: %w", defaultProbeTimeout, in.ProviderScenario, probeCtx.Err())
@@ -513,6 +550,14 @@ func DefaultProbe(ctx context.Context, in Input) (ProbeResult, error) {
 
 func readinessTimedOut(parent, child context.Context) bool {
 	return errors.Is(child.Err(), context.DeadlineExceeded) && parent.Err() == nil
+}
+
+func providerRuntimeTarget(in Input) string {
+	target := strings.TrimSpace(in.ProviderScenario)
+	if variant := strings.TrimSpace(in.EndpointVariant); variant != "" {
+		target += "@" + variant
+	}
+	return target
 }
 
 func acquireProviderDiscoverySlot(ctx context.Context) error {
@@ -628,8 +673,19 @@ func legacyValidateProbe(ctx context.Context, baseURL string, in Input) (ProbeRe
 		return ProbeResult{Reachable: true}, errors.New("provider returned an empty validation response")
 	}
 	msg := resp.Msg
-	if msg.GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED {
+	switch msg.GetStatus() {
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED,
+		scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED,
+		scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED,
+		scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR,
+		scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_SKIPPED,
+		scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED:
+		// The legacy probe only checks whether the wire contract is recognizable;
+		// these operational outcomes do not affect provider identity/freshness.
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED:
 		return ProbeResult{Reachable: true, ContractValid: false, Message: "provider returned unspecified validation status"}, nil
+	default:
+		return ProbeResult{Reachable: true, ContractValid: false, Message: fmt.Sprintf("provider returned unknown validation status %d", msg.GetStatus())}, nil
 	}
 	if err := assessment.RequireIdentity(in.ProviderScenario, in.Phase, msg.GetAssessment()); err != nil {
 		return ProbeResult{

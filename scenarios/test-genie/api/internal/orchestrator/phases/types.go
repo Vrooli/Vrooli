@@ -242,6 +242,7 @@ type Definition struct {
 	// ProviderScenario is set for delegated provider-backed phases. Empty means
 	// the phase has no external provider readiness work.
 	ProviderScenario string
+	EndpointVariant  string
 	// Policy is the explicit internal replacement for the overloaded Optional
 	// flag. Optional remains on external descriptors as a legacy projection.
 	Policy phasepolicy.Policy
@@ -347,6 +348,7 @@ func (s Spec) ToDefinition() Definition {
 	}
 	if s.Delegated != nil {
 		def.ProviderScenario = s.Delegated.ProviderScenario
+		def.EndpointVariant = s.Delegated.EndpointVariant
 	}
 	return def
 }

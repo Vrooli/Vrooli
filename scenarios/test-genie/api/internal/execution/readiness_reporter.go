@@ -64,9 +64,10 @@ func NewDeploymentManagerReadinessReporter(baseURL, token string, client *http.C
 	if client == nil {
 		client = &http.Client{Timeout: 15 * time.Second}
 	}
-	client.Transport = bearerTransport{base: client.Transport, token: token}
+	clientWithAuth := *client
+	clientWithAuth.Transport = bearerTransport{base: client.Transport, token: token}
 	return &DeploymentManagerReadinessReporter{
-		client: readinessconnect.NewReadinessServiceClient(client, baseURL),
+		client: readinessconnect.NewReadinessServiceClient(&clientWithAuth, baseURL),
 		now:    time.Now,
 	}, nil
 }

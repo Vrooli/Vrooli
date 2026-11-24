@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"test-genie/internal/targetmodel"
 )
 
 const (
@@ -200,7 +201,7 @@ func newAttempt(kind, state, key, roleRef, detail string, now time.Time) Attempt
 }
 
 func NewJob(plan Plan, selected, requirements []string, context string, now time.Time) Job {
-	targetKind, targetID := targetIdentity(plan.TargetKind, plan.TargetID, plan.Scenario)
+	targetKind, targetID := targetmodel.NormalizeLegacyIdentity(plan.TargetKind, plan.TargetID, plan.Scenario)
 	job := Job{
 		ID: uuid.NewString(), Scenario: plan.Scenario, TargetKind: targetKind, TargetID: targetID, Status: JobStatusCreated, Source: plan,
 		SelectedFindingIDs: normalizedIDs(selected), SelectedRequirementIDs: normalizedIDs(requirements), AdditionalContext: strings.TrimSpace(context), CreatedAt: now.UTC(), UpdatedAt: now.UTC(),
@@ -208,18 +209,6 @@ func NewJob(plan Plan, selected, requirements []string, context string, now time
 	job.SourceHash = sourceHash(job.Source)
 	job.SelectionHash = selectionHash(job.SelectedFindingIDs, job.SelectedRequirementIDs)
 	return job
-}
-
-func targetIdentity(kind, id, legacy string) (string, string) {
-	kind = strings.TrimSpace(strings.ToLower(kind))
-	if kind == "" {
-		kind = "scenario"
-	}
-	id = strings.TrimSpace(id)
-	if id == "" {
-		id = strings.TrimSpace(legacy)
-	}
-	return kind, id
 }
 
 func sourceHash(source Plan) string { return stableHash(source) }

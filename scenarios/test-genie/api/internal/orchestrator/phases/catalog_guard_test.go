@@ -286,22 +286,24 @@ func TestGeneratedPhaseDocsMatchCommitted(t *testing.T) {
 }
 
 func TestRenderPhasesMarkdownAnchorsRepositoryDocsAtRoot(t *testing.T) {
-	markdown := RenderPhasesMarkdown(DefaultCatalog())
-	for _, target := range []string{
-		"/scenarios/audio-tools/docs/test-genie/soak/README.md",
-		"/scenarios/switchboard/docs/internal/PROBLEMS.md",
-	} {
+	catalog := DefaultCatalog()
+	markdown := RenderPhasesMarkdown(catalog)
+	externalDocs := 0
+	for _, spec := range catalog.All() {
+		if !strings.HasPrefix(spec.Doc, "scenarios/") || strings.HasPrefix(spec.Doc, "scenarios/test-genie/docs/phases/") {
+			continue
+		}
+		externalDocs++
+		target := "/" + spec.Doc
 		if !strings.Contains(markdown, "]("+target+")") {
-			t.Errorf("generated phase docs do not contain root-relative link %q", target)
+			t.Errorf("generated phase docs do not anchor provider-owned doc %q at the repository root", spec.Doc)
+		}
+		if strings.Contains(markdown, "]("+spec.Doc+")") {
+			t.Errorf("generated phase docs contain unanchored provider-owned doc %q", spec.Doc)
 		}
 	}
-	for _, stale := range []string{
-		"(scenarios/audio-tools/docs/test-genie/soak/README.md)",
-		"(scenarios/switchboard/docs/internal/PROBLEMS.md)",
-	} {
-		if strings.Contains(markdown, stale) {
-			t.Errorf("generated phase docs contain stale relative link %q", stale)
-		}
+	if externalDocs == 0 {
+		t.Fatal("fixture has no provider-owned docs; root-anchoring contract was not exercised")
 	}
 }
 

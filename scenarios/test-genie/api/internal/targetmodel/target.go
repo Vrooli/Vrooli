@@ -87,6 +87,21 @@ func (t Target) HasRuntime() bool {
 	return t.Kind == commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO
 }
 
+// NormalizeLegacyIdentity trims a target tuple, defaults an omitted kind to
+// scenario, and falls back to the legacy identifier when the canonical ID is
+// empty. Callers that persist legacy target tuples share this policy.
+func NormalizeLegacyIdentity(kind, id, legacy string) (string, string) {
+	kind = strings.TrimSpace(strings.ToLower(kind))
+	if kind == "" {
+		kind = "scenario"
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		id = strings.TrimSpace(legacy)
+	}
+	return kind, id
+}
+
 // Resolve accepts a supported bare scenario-slug alias or the generalized kind:id
 // notation. An explicit path under scenarios/ is promoted to a scenario target
 // so it receives the full scenario contract rather than a generic tree gate.

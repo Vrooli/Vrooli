@@ -17,11 +17,12 @@ function artifactSize(size?: bigint | string | number): string | undefined {
 export function RunArtifactCatalog({ scenarioName, runId }: RunArtifactCatalogProps) {
   const catalog = useRunArtifacts(scenarioName, runId);
   if (!runId) return null;
-  if (catalog.isLoading) return <section className="h-24 animate-pulse rounded-xl bg-white/5" aria-label="Loading run evidence" />;
-  if (catalog.isError) return <section className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100">Artifact catalog is unavailable for this run.</section>;
+  if (catalog.isLoading && !catalog.data) return <section className="h-24 animate-pulse rounded-xl bg-white/5" aria-label="Loading run evidence" />;
   const data = catalog.data;
+  if (!data && catalog.isError) return <CatalogRecoveryNotice hasCachedData={false} isFetching={catalog.isFetching} onRetry={() => void catalog.refetch()} />;
   if (!data) return null;
   return <section className="rounded-xl border border-white/10 bg-black/20 p-4" aria-label="Run evidence catalog">
+    {catalog.isError && <CatalogRecoveryNotice hasCachedData isFetching={catalog.isFetching} onRetry={() => void catalog.refetch()} />}
     <div className="flex flex-wrap items-baseline justify-between gap-2">
       <div><p className="text-xs uppercase tracking-wide text-slate-400">Run evidence</p><h3 className="mt-1 font-medium">Typed artifact catalog</h3></div>
       <span className="text-xs text-slate-400">{data.artifacts.length} artifact{data.artifacts.length === 1 ? "" : "s"}</span>
@@ -37,4 +38,11 @@ export function RunArtifactCatalog({ scenarioName, runId }: RunArtifactCatalogPr
       })}
     </ul>}
   </section>;
+}
+
+function CatalogRecoveryNotice({ hasCachedData, isFetching, onRetry }: { hasCachedData: boolean; isFetching: boolean; onRetry: () => void }) {
+  return <div role="alert" className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-100">
+    <p>{hasCachedData ? "Artifact catalog refresh failed. Showing the last successful evidence." : "Artifact catalog is unavailable for this run."}</p>
+    <button type="button" onClick={onRetry} disabled={isFetching} className="rounded border border-white/20 px-3 py-1.5 hover:bg-white/10 disabled:opacity-60">{isFetching ? "Retrying…" : "Retry artifact catalog"}</button>
+  </div>;
 }

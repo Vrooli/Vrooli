@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -108,6 +109,70 @@ func TestWriteFindingsArtifact(t *testing.T) {
 	}
 	if manifest.Phases[0].Findings == nil || manifest.Phases[1].Findings == nil || manifest.Phases[2].Findings != nil {
 		t.Fatalf("manifest findings references = %+v", manifest.Phases)
+	}
+}
+
+func TestWriteFindingsArtifactPreservesSanitizedRuntimeFailureStage(t *testing.T) {
+	dir := t.TempDir()
+	runID := "run-ex6-runtime-stage"
+	payload := []byte(`{"schemaVersion":1,"stage":"get_execution_timeline","correlationId":"2d6ae1c9-36ab-4e02-b6a7-8382f8f7c09d","executionId":"78fffc0f-a6c4-4f46-9f0e-1a1c3a630ac1","transportKind":"connect_error","connectCode":"unavailable"}`)
+	results := []PhaseExecutionResult{{
+		Name:          "experience",
+		Status:        "not_evaluated",
+		FindingSource: "ui",
+		Findings: []*architecturev1.ArchitectureFinding{{
+			Scenario: "web-console",
+			Source:   architecturev1.FindingSource_FINDING_SOURCE_UI,
+			Code:     "runtime_skipped_bas_unavailable",
+			Evidence: []*architecturev1.Evidence{{
+				Kind:    "ui_health_runtime_unavailable.v1",
+				Summary: "BAS runtime collection stopped at get_execution_timeline",
+				Payload: payload,
+			}},
+		}},
+	}}
+	views := buildPhaseResultViews("", results)
+	o := &SuiteOrchestrator{}
+	completed := time.Date(2026, 11, 23, 21, 0, 0, 0, time.UTC)
+	if err := o.writeFindingsArtifact(dir, "web-console", runID, SuiteVerdictFail, completed, views); err != nil {
+		t.Fatalf("writeFindingsArtifact: %v", err)
+	}
+	raw, err := os.ReadFile(sharedartifacts.RunFindingsArtifactPath(dir, runID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var artifact findingsArtifact
+	if err := json.Unmarshal(raw, &artifact); err != nil {
+		t.Fatal(err)
+	}
+	if len(artifact.Phases) != 1 || len(artifact.Phases[0].Findings) != 1 || len(artifact.Phases[0].Findings[0].GetEvidence()) != 1 {
+		t.Fatalf("runtime failure evidence shape = %+v", artifact.Phases)
+	}
+	evidence := artifact.Phases[0].Findings[0].GetEvidence()[0]
+	if evidence.GetKind() != "ui_health_runtime_unavailable.v1" || !reflect.DeepEqual(evidence.GetPayload(), payload) {
+		t.Fatalf("typed runtime failure evidence changed: %+v", evidence)
+	}
+	for _, secret := range []string{"private.example", "secret=", "token="} {
+		if strings.Contains(string(raw), secret) {
+			t.Fatalf("runtime evidence artifact contains secret marker %q", secret)
+		}
+	}
+	if err := writeEvidenceManifest(dir, runID, "web-console", SuiteVerdictFail, completed, views); err != nil {
+		t.Fatalf("writeEvidenceManifest: %v", err)
+	}
+	manifestRaw, err := os.ReadFile(filepath.Join(sharedartifacts.RunDir(dir, runID), executionevidence.ManifestFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest executionevidence.Manifest
+	if err := json.Unmarshal(manifestRaw, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if err := manifest.Validate(); err != nil {
+		t.Fatalf("validate runtime evidence manifest: %v", err)
+	}
+	if manifest.Findings.RelativePath != sharedartifacts.FindingsArtifactFile {
+		t.Fatalf("findings manifest reference = %+v", manifest.Findings)
 	}
 }
 

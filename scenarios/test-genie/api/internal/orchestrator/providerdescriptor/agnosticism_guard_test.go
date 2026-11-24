@@ -87,7 +87,17 @@ func descriptorScenarioNames(repoRoot string) (map[string]struct{}, error) {
 func TestTestGenieSourceIsProviderAgnostic(t *testing.T) {
 	repoRoot := filepath.Clean(filepath.Join("..", "..", "..", "..", "..", ".."))
 	sourceRoot := filepath.Join(repoRoot, "scenarios", "test-genie", "api")
-	violations, err := providerScenarioLiteralViolations(repoRoot, sourceRoot, map[string]string{
+	violations, err := providerScenarioLiteralViolations(repoRoot, sourceRoot, providerAgnosticSourceAllowlist(sourceRoot))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(violations) > 0 {
+		t.Fatalf("provider scenario literals found in non-test test-genie source: %s", strings.Join(violations, ", "))
+	}
+}
+
+func providerAgnosticSourceAllowlist(sourceRoot string) map[string]string {
+	return map[string]string{
 		// agent-manager is the control-plane remediation integration, not a
 		// test-genie phase provider. Keep its literal explicit and reviewable.
 		filepath.ToSlash(filepath.Join(sourceRoot, "agentmanager", "client.go")) + "::agent-manager": "control-plane remediation client",
@@ -95,12 +105,41 @@ func TestTestGenieSourceIsProviderAgnostic(t *testing.T) {
 		// and indexes scenario-owned skills; this is catalog validation input,
 		// not provider phase dispatch. Keep the owner integration exact-file scoped.
 		filepath.ToSlash(filepath.Join(sourceRoot, "internal", "orchestrator", "providerdescriptor", "descriptor.go")) + "::prompt-manager": "active skill-catalog owner integration for recommended-skill validation",
-	})
+		// The following exact-target checks and request-scoped grant forwarding
+		// implement Audio Tools' Test Genie-owned lease/browser-grant contract.
+		// They are service integrations, not phase routing or provider catalog
+		// selection. Keep each exception limited to its owning boundary.
+		filepath.ToSlash(filepath.Join(sourceRoot, "internal", "app", "httpserver", "demand_lease_receipts.go")) + "::audio-tools":               "target-scoped Test Genie demand-lease receipt endpoint for the browser-grant integration",
+		filepath.ToSlash(filepath.Join(sourceRoot, "internal", "app", "runs", "service.go")) + "::audio-tools":                                   "defense-in-depth target scope for retained demand-lease receipt verification",
+		filepath.ToSlash(filepath.Join(sourceRoot, "internal", "orchestrator", "phases", "phase_validationprovider.go")) + "::audio-tools":       "attach the run-scoped lease receipt only to the browser-grant soak phase",
+		filepath.ToSlash(filepath.Join(sourceRoot, "internal", "orchestrator", "phases", "validationprovider", "provider.go")) + "::audio-tools": "forward request-scoped browser and lease grants only to the exact provider phase",
+	}
+}
+
+func TestProviderAgnosticismAllowlistIsExactFileScoped(t *testing.T) {
+	repoRoot := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repoRoot, "scenarios", "audio-tools", ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repoRoot, "scenarios", "audio-tools", ".vrooli", "test-genie.json"), []byte(`{"scenario":"audio-tools"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sourceRoot := filepath.Join(repoRoot, "api")
+	if err := os.MkdirAll(sourceRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sourceRoot, "unapproved.go"), []byte(`package api; const provider = "audio-tools"`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	allow := map[string]string{
+		filepath.ToSlash(filepath.Join(sourceRoot, "known", "integration.go")) + "::audio-tools": "reviewed exact integration",
+	}
+	violations, err := providerScenarioLiteralViolations(repoRoot, sourceRoot, allow)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(violations) > 0 {
-		t.Fatalf("provider scenario literals found in non-test test-genie source: %s", strings.Join(violations, ", "))
+	if len(violations) != 1 || !strings.Contains(violations[0], "unapproved.go::audio-tools") {
+		t.Fatalf("violations = %v, want the unapproved audio-tools literal", violations)
 	}
 }
 

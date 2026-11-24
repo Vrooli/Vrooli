@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/vrooli/api-core/textutil"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -45,7 +46,7 @@ func Run(client *Client, args []string) error {
 		return nil
 	}
 
-	fmt.Printf("Scenario tests completed via %s\n", defaultValue(resp.Type, "unknown"))
+	fmt.Printf("Scenario tests completed via %s\n", textutil.FirstNonEmpty(resp.Type, "unknown"))
 	if len(resp.Command.Command) > 0 {
 		fmt.Printf("  Command : %s\n", strings.Join(resp.Command.Command, " "))
 	}
@@ -96,13 +97,6 @@ func ParseArgs(args []string) (Args, error) {
 
 func usageError(msg string) error {
 	return errors.New(msg)
-}
-
-func defaultValue(val, fallback string) string {
-	if strings.TrimSpace(val) == "" {
-		return fallback
-	}
-	return val
 }
 
 // multiFlag captures repeatable string flags.

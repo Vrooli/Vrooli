@@ -74,6 +74,7 @@ require (
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/envkit-go v0.0.0
 	github.com/vrooli/vrooli v0.0.0
+	github.com/vrooli/vrooli/packages/agentmanager-client-go v0.0.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0 // indirect
 	go.opentelemetry.io/otel v1.39.0 // indirect
 	go.opentelemetry.io/otel/metric v1.39.0 // indirect
@@ -93,3 +94,5 @@ replace github.com/vrooli/vrooli => ../../..
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
 
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
+
+replace github.com/vrooli/vrooli/packages/agentmanager-client-go => ../../../packages/agentmanager-client-go

@@ -195,6 +195,9 @@ type ConformanceScanner struct {
 	Timeout time.Duration
 	// Probe is the validation seam; defaultConformanceProbe when nil.
 	Probe ConformanceProbe
+	// DescribeProbe checks the provider's cheap-inspection RPC. Nil selects the
+	// production default without introducing mutable package-level test state.
+	DescribeProbe DescribeConformanceProbe
 	// FixProbe runs PreviewFix then ApplyFix only against an isolated fixture
 	// directory. Nil selects DefaultFixConformanceProbe.
 	FixProbe FixConformanceProbe
@@ -214,6 +217,10 @@ func (s ConformanceScanner) Scan(ctx context.Context) ConformanceReport {
 	probe := s.Probe
 	if probe == nil {
 		probe = defaultConformanceProbe
+	}
+	describeProbe := s.DescribeProbe
+	if describeProbe == nil {
+		describeProbe = DefaultDescribeProbe
 	}
 	fixProbe := s.FixProbe
 	if fixProbe == nil {
@@ -266,7 +273,7 @@ func (s ConformanceScanner) Scan(ctx context.Context) ConformanceReport {
 		go func(i int, j job) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			pr, _ := CheckProvider(ctx, probe, fixProbe, s.RepoRoot, j.target, j.phase, j.provider, j.timeout)
+			pr, _ := CheckProvider(ctx, probe, fixProbe, s.RepoRoot, j.target, j.phase, j.provider, j.timeout, describeProbe)
 			if pr.Reachable && s.StoredMetrics != nil {
 				pr.MetricsAdopted = s.StoredMetrics(ctx, j.provider, j.phase)
 				finishConformance(&pr)
@@ -327,15 +334,15 @@ func nativePhaseExemption(phase string) ProviderConformance {
 // contract + identity + metrics adoption (live probe). It is exported so the
 // provider-conformance validation phase reuses the exact same adoption rules
 // the fleet scan applies (no second implementation to drift).
-func ScanProvider(ctx context.Context, probe ConformanceProbe, repoRoot, target, phase, provider string, timeout time.Duration) ProviderConformance {
-	return ScanProviderWithFixProbe(ctx, probe, nil, repoRoot, target, phase, provider, timeout)
+func ScanProvider(ctx context.Context, probe ConformanceProbe, repoRoot, target, phase, provider string, timeout time.Duration, describeProbe ...DescribeConformanceProbe) ProviderConformance {
+	return ScanProviderWithFixProbe(ctx, probe, nil, repoRoot, target, phase, provider, timeout, describeProbe...)
 }
 
 // ScanProviderWithFixProbe scores one provider and, when the descriptor
 // declares implemented auto-fixes, proves the PreviewFix/ApplyFix lifecycle
 // through the supplied isolated-fixture probe.
-func ScanProviderWithFixProbe(ctx context.Context, probe ConformanceProbe, fixProbe FixConformanceProbe, repoRoot, target, phase, provider string, timeout time.Duration) ProviderConformance {
-	pr, _ := CheckProvider(ctx, probe, fixProbe, repoRoot, target, phase, provider, timeout)
+func ScanProviderWithFixProbe(ctx context.Context, probe ConformanceProbe, fixProbe FixConformanceProbe, repoRoot, target, phase, provider string, timeout time.Duration, describeProbe ...DescribeConformanceProbe) ProviderConformance {
+	pr, _ := CheckProvider(ctx, probe, fixProbe, repoRoot, target, phase, provider, timeout, describeProbe...)
 	return pr
 }
 
@@ -347,8 +354,12 @@ func ScanProviderWithFixProbe(ctx context.Context, probe ConformanceProbe, fixPr
 // never diverge from the verdict. The contract clauses evaluated here are the
 // granular pieces of assessment.RequireProviderContract plus the scan-only
 // dimensions (descriptor spec, metrics adoption, fix-contract proof).
-func CheckProvider(ctx context.Context, probe ConformanceProbe, fixProbe FixConformanceProbe, repoRoot, target, phase, provider string, timeout time.Duration) (ProviderConformance, *scenariovalidationv1.ValidateScenarioResponse) {
+func CheckProvider(ctx context.Context, probe ConformanceProbe, fixProbe FixConformanceProbe, repoRoot, target, phase, provider string, timeout time.Duration, describeProbes ...DescribeConformanceProbe) (ProviderConformance, *scenariovalidationv1.ValidateScenarioResponse) {
 	pr := ProviderConformance{Provider: provider, Phase: phase}
+	describeProbe := DescribeConformanceProbe(DefaultDescribeProbe)
+	if len(describeProbes) > 0 {
+		describeProbe = describeProbes[0]
+	}
 
 	// spec_valid is a local check, independent of whether the provider is live.
 	spec := loadProviderDescriptorSpec(&pr, repoRoot, provider, phase)
@@ -382,8 +393,8 @@ func CheckProvider(ctx context.Context, probe ConformanceProbe, fixProbe FixConf
 	if contractErr == nil {
 		contractErr = assessment.ValidatePhasePresentation(a)
 	}
-	if resp.GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED {
-		contractErr = errors.New("validation status is unspecified")
+	if statusErr := validateValidationStatus(resp.GetStatus()); statusErr != nil {
+		contractErr = statusErr
 	}
 	pr.ContractValid = contractErr == nil
 	if contractErr != nil {
@@ -411,8 +422,8 @@ func CheckProvider(ctx context.Context, probe ConformanceProbe, fixProbe FixConf
 	// violation while the fleet is still migrating. Promote it to a reason code
 	// (and into IsHardViolation) once every provider reports it, exactly as
 	// metrics_adopted was promoted.
-	if probeFn := DescribeProbe; probeFn != nil {
-		switch err := probeFn(ctx, provider, timeout); {
+	if describeProbe != nil {
+		switch err := describeProbe(ctx, provider, timeout); {
 		case err == nil:
 			pr.DescribeAdopted = true
 		case connect.CodeOf(err) == connect.CodeUnimplemented:
@@ -434,6 +445,22 @@ func CheckProvider(ctx context.Context, probe ConformanceProbe, fixProbe FixConf
 
 	finishConformance(&pr)
 	return pr, resp
+}
+
+func validateValidationStatus(status scenariovalidationv1.ValidationStatus) error {
+	switch status {
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED,
+		scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED,
+		scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED,
+		scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR,
+		scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_SKIPPED,
+		scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED:
+		return nil
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED:
+		return errors.New("validation status is unspecified")
+	default:
+		return fmt.Errorf("validation status %d is unknown", status)
+	}
 }
 
 func finishConformance(pr *ProviderConformance) {
@@ -620,11 +647,6 @@ func loadProviderDescriptorSpec(pr *ProviderConformance, repoRoot, provider, pha
 // adoptionScore is the fraction of the five adoption dimensions satisfied.
 // DescribeConformanceProbe reports whether a provider answers DescribeProvider.
 type DescribeConformanceProbe func(ctx context.Context, provider string, timeout time.Duration) error
-
-// DescribeProbe is the seam the conformance scan uses to test DescribeProvider
-// adoption. It is package-level so adopting the check did not require threading
-// another parameter through every scan entry point; tests override it.
-var DescribeProbe DescribeConformanceProbe = DefaultDescribeProbe
 
 // DefaultDescribeProbe calls DescribeProvider and reports the outcome. A
 // CodeUnimplemented error means the provider has not adopted the RPC, which is

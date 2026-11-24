@@ -1,12 +1,15 @@
 package scenarios
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
+	"log"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -154,13 +157,29 @@ func TestScenarioDirectoryServiceListSummariesFallsBackOnListerError(t *testing.
 	}
 	lister := &fakeScenarioLister{err: errors.New("boom")}
 
-	svc := NewScenarioDirectoryService(repo, lister, "")
+	var logs bytes.Buffer
+	svc := NewScenarioDirectoryServiceWithLogger(repo, lister, "", log.New(&logs, "", 0))
 	results, err := svc.ListSummaries(context.Background())
 	if err != nil {
 		t.Fatalf("expected fallback list, got error: %v", err)
 	}
 	if len(results) != 1 || results[0].ScenarioName != "swarm-manager" {
 		t.Fatalf("unexpected fallback results: %#v", results)
+	}
+	if !strings.Contains(logs.String(), "scenario lister failed: boom") {
+		t.Fatalf("injected logger output = %q, want lister failure", logs.String())
+	}
+}
+
+func TestScenarioDirectoryServiceGetSummaryLogsInjectedListerFailure(t *testing.T) {
+	var logs bytes.Buffer
+	svc := NewScenarioDirectoryServiceWithLogger(&fakeScenarioRepo{getErr: sql.ErrNoRows}, &fakeScenarioLister{err: errors.New("boom")}, "", log.New(&logs, "", 0))
+	result, err := svc.GetSummary(context.Background(), "missing")
+	if result != nil || err != sql.ErrNoRows {
+		t.Fatalf("GetSummary result=%#v err=%v, want original not-found result", result, err)
+	}
+	if !strings.Contains(logs.String(), "scenario metadata lookup failed: boom") {
+		t.Fatalf("injected logger output = %q, want metadata lookup failure", logs.String())
 	}
 }
 

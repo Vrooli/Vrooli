@@ -30,6 +30,10 @@ type TestingCommand struct {
 
 // DetectTestingCapabilities inspects a scenario directory and reports which testing entrypoints exist.
 func DetectTestingCapabilities(scenarioDir string) TestingCapabilities {
+	return detectTestingCapabilitiesWithDependencies(scenarioDir, os.Getenv, resolveTestGenieExecutable)
+}
+
+func detectTestingCapabilitiesWithDependencies(scenarioDir string, lookup func(string) string, resolve func(string) (string, error)) TestingCapabilities {
 	if strings.TrimSpace(scenarioDir) == "" {
 		return TestingCapabilities{}
 	}
@@ -37,7 +41,7 @@ func DetectTestingCapabilities(scenarioDir string) TestingCapabilities {
 	appRoot := projectRootFromScenario(scenarioDir)
 	scenarioName := filepath.Base(scenarioDir)
 
-	if cmd := detectTestGenieCommand(appRoot); len(cmd) > 0 && appRoot != "" {
+	if cmd := detectTestGenieCommand(appRoot, lookup, resolve); len(cmd) > 0 && appRoot != "" {
 		caps.Genie = true
 		caps.Commands = append(caps.Commands, TestingCommand{
 			Type:        "genie",
@@ -132,15 +136,15 @@ func fileExists(path string) bool {
 	return err == nil && !info.IsDir()
 }
 
-var resolveTestGenieExecutable = func(root string) (string, error) {
+func resolveTestGenieExecutable(root string) (string, error) {
 	return scenariocli.ResolveExecutable(root, "", "test-genie")
 }
 
-func detectTestGenieCommand(appRoot string) []string {
-	if disable := strings.TrimSpace(os.Getenv("TEST_GENIE_DISABLE")); disable != "" {
+func detectTestGenieCommand(appRoot string, lookup func(string) string, resolve func(string) (string, error)) []string {
+	if disable := strings.TrimSpace(lookup("TEST_GENIE_DISABLE")); disable != "" {
 		return nil
 	}
-	if custom := strings.TrimSpace(os.Getenv("TEST_GENIE_BIN")); custom != "" {
+	if custom := strings.TrimSpace(lookup("TEST_GENIE_BIN")); custom != "" {
 		if hasExecutable(custom) {
 			return []string{custom}
 		}
@@ -149,7 +153,7 @@ func detectTestGenieCommand(appRoot string) []string {
 	if strings.TrimSpace(appRoot) == "" {
 		return nil
 	}
-	path, err := resolveTestGenieExecutable(appRoot)
+	path, err := resolve(appRoot)
 	if err != nil || strings.TrimSpace(path) == "" {
 		return nil
 	}

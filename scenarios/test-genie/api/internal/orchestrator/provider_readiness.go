@@ -104,7 +104,6 @@ func (o *SuiteOrchestrator) checkProviderReadiness(
 	}
 
 	results := make([]providerReadinessResult, len(defs))
-	var providerLocks sync.Map
 	serialLog := &synchronizedWriter{w: logWriter}
 	worker := func(index int) {
 		def := defs[index]
@@ -115,16 +114,16 @@ func (o *SuiteOrchestrator) checkProviderReadiness(
 		provider := strings.TrimSpace(def.ProviderScenario)
 		started := time.Now()
 		if provider != "" {
-			lockValue, _ := providerLocks.LoadOrStore(provider, &sync.Mutex{})
-			lockValue.(*sync.Mutex).Lock()
-			defer lockValue.(*sync.Mutex).Unlock()
+			emitPreparationProgress(emit, "provider_readiness", fmt.Sprintf(
+				"checking %s readiness; provider ownership wait is bounded to %s",
+				provider, manager.OwnershipWaitLimit()))
 		}
-		// Ownership waiting follows the server-owned run context: a healthy
-		// provider can remain leased while another run uses it. The readiness
-		// manager applies its own deadline to the actual provider probe.
+		// The manager owns the single per-provider lock across runs. Its bounded
+		// acquisition leaves the original run context available to the probe.
 		outcome := manager.Check(ctx, providerreadiness.Input{
 			Phase:            def.Name.String(),
 			ProviderScenario: provider,
+			EndpointVariant:  def.EndpointVariant,
 			TargetScenario:   env.ScenarioName,
 			TargetPath:       env.ScenarioDir,
 			Policy:           policy,
@@ -192,8 +191,22 @@ func (o *SuiteOrchestrator) checkProviderReadiness(
 	sort.Strings(providers)
 	releases := make([]func(), 0, len(providers))
 	for _, provider := range providers {
-		release, err := manager.LeaseProviderContext(ctx, provider)
+		leaseStarted := time.Now()
+		emitPreparationProgress(emit, "provider_readiness", fmt.Sprintf(
+			"waiting for %s execution lease; provider ownership wait is bounded to %s",
+			provider, manager.OwnershipWaitLimit()))
+		release, err := manager.AcquireProvider(ctx, provider)
+		leaseStage := PreparationStage{
+			Name:                 "provider_execution_lease",
+			Parent:               "provider_readiness",
+			Subject:              provider,
+			Status:               "ready",
+			DurationMilliseconds: time.Since(leaseStarted).Milliseconds(),
+		}
 		if err != nil {
+			leaseStage.Status = string(providerreadiness.OutcomeUnreachable)
+			stages = append(stages, leaseStage)
+			emitPreparationProgress(emit, "provider_readiness", err.Error())
 			// No phase may execute after losing its lifetime context while
 			// waiting for provider ownership. Release every hold acquired so
 			// far instead of stranding it behind this abandoned preparation.
@@ -203,7 +216,7 @@ func (o *SuiteOrchestrator) checkProviderReadiness(
 			for _, def := range active {
 				outcome := providerreadiness.Outcome{Phase: def.Name.String(), ProviderScenario: def.ProviderScenario,
 					Status: providerreadiness.OutcomeUnreachable, Err: err,
-					Message: fmt.Sprintf("provider ownership preparation canceled: %v", err)}
+					Message: fmt.Sprintf("provider execution lease was not acquired: %v", err)}
 				blocked[def.Name.Key()] = outcome
 				for index := range outcomes {
 					if outcomes[index].Phase == def.Name.String() {
@@ -214,6 +227,10 @@ func (o *SuiteOrchestrator) checkProviderReadiness(
 			return providerReadinessPlan{Blocked: blocked, Outcomes: outcomes, Stages: stages}
 		}
 		releases = append(releases, release)
+		stages = append(stages, leaseStage)
+		emitPreparationProgress(emit, "provider_readiness", fmt.Sprintf(
+			"acquired %s execution lease in %s",
+			provider, time.Since(leaseStarted).Round(time.Millisecond)))
 	}
 	return providerReadinessPlan{Active: active, Blocked: blocked, Outcomes: outcomes, Stages: stages, releases: releases}
 }

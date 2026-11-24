@@ -16,6 +16,7 @@ import (
 
 	"test-genie/internal/orchestrator/browsergrant"
 	"test-genie/internal/shared"
+	sharedevidence "test-genie/internal/shared/evidence"
 
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/maturity-go/assessment"
@@ -31,14 +32,17 @@ import (
 type GateMode string
 
 const (
-	GateModeOff            GateMode = "off"
-	GateModeHighConfidence GateMode = "high-confidence"
-	GateModeAll            GateMode = "all"
+	GateModeOff                GateMode = "off"
+	GateModeHighConfidence     GateMode = "high-confidence"
+	GateModeAll                GateMode = "all"
+	testBASUnavailableHeader            = "X-Vrooli-Experience-Test-BAS-Unavailable"
+	testBASUnavailableEndpoint          = "http://127.0.0.1:1"
 )
 
 type Provider struct {
 	Phase                string
 	ProviderScenario     string
+	EndpointVariant      string
 	FindingSource        architecturev1.FindingSource
 	Emoji                string
 	DetailCommand        string
@@ -51,6 +55,9 @@ type Provider struct {
 	DeliveryMode         string
 	GateEnvVar           string
 	DefaultGateMode      GateMode
+	// BASUnavailableEndpoint is set only from the phase's explicit test-only
+	// testing.json field, whose sole accepted value is loopback port 1.
+	BASUnavailableEndpoint string
 	// OnStarted receives the provider-owned child reference immediately after a
 	// durable Start acknowledgement is accepted and before the parent waits.
 	// Test Genie uses this to persist/reconcile the parent-child link; providers
@@ -204,6 +211,14 @@ var (
 	}
 )
 
+func resolveProviderBaseURL(ctx context.Context, provider Provider) (string, error) {
+	lookup := strings.TrimSpace(provider.ProviderScenario)
+	if variant := strings.TrimSpace(provider.EndpointVariant); variant != "" {
+		lookup += "@" + variant
+	}
+	return ResolveBaseURL(ctx, lookup)
+}
+
 // Run invokes a provider's ValidateScenario RPC for targetScenario. scenarioPath
 // is the resolved physical scenario directory (env.ScenarioDir); it is sent as
 // ValidateScenarioRequest.path so providers can validate a scenario that does not
@@ -220,7 +235,7 @@ func Run(ctx context.Context, provider Provider, targetScenario, scenarioPath st
 		return failure(provider, targetScenario, shared.FailureClassMisconfiguration, errors.New("provider scenario is required"), "")
 	}
 
-	baseURL, err := ResolveBaseURL(ctx, provider.ProviderScenario)
+	baseURL, err := resolveProviderBaseURL(ctx, provider)
 	if err != nil {
 		return unavailable(provider, targetScenario, fmt.Errorf("resolve %s URL: %w", provider.ProviderScenario, err))
 	}
@@ -238,8 +253,15 @@ func Run(ctx context.Context, provider Provider, targetScenario, scenarioPath st
 		Phase:                provider.Phase,
 		IncludeExecution:     provider.IncludeExecution,
 		CapabilitySubset:     append([]string(nil), provider.CapabilitySubset...),
-		RetainedEvidenceSets: cloneEvidenceSets(provider.RetainedEvidenceSets),
+		RetainedEvidenceSets: sharedevidence.CloneRetainedSets(provider.RetainedEvidenceSets),
 	})
+	if provider.BASUnavailableEndpoint != "" {
+		if provider.Phase != "experience" || provider.ProviderScenario != "ui-health" || provider.BASUnavailableEndpoint != testBASUnavailableEndpoint {
+			return failure(provider, targetScenario, shared.FailureClassMisconfiguration,
+				errors.New("test-only unavailable BAS override is restricted to experience on http://127.0.0.1:1"), "")
+		}
+		request.Header().Set(testBASUnavailableHeader, provider.BASUnavailableEndpoint)
+	}
 	if provider.ProviderScenario == "audio-tools" && provider.Phase == "soak" {
 		for key, values := range browsergrant.AudioToolsSoakHeaders(ctx) {
 			for _, value := range values {
@@ -268,7 +290,7 @@ func RunTarget(ctx context.Context, provider Provider, target *commonv1.Validati
 	if strings.TrimSpace(provider.ProviderScenario) == "" {
 		return failure(provider, target.GetId(), shared.FailureClassMisconfiguration, errors.New("provider scenario is required"), "")
 	}
-	baseURL, err := ResolveBaseURL(ctx, provider.ProviderScenario)
+	baseURL, err := resolveProviderBaseURL(ctx, provider)
 	if err != nil {
 		return unavailable(provider, target.GetId(), fmt.Errorf("resolve %s URL: %w", provider.ProviderScenario, err))
 	}
@@ -290,7 +312,7 @@ func RunTarget(ctx context.Context, provider Provider, target *commonv1.Validati
 		Phase:                provider.Phase,
 		CapabilitySubset:     append([]string(nil), provider.CapabilitySubset...),
 		Exclude:              append([]string(nil), provider.Exclude...),
-		RetainedEvidenceSets: cloneEvidenceSets(provider.RetainedEvidenceSets),
+		RetainedEvidenceSets: sharedevidence.CloneRetainedSets(provider.RetainedEvidenceSets),
 	}))
 	if err != nil {
 		return unavailable(provider, target.GetId(), fmt.Errorf("%s target validation RPC failed: %w", provider.ProviderScenario, err))
@@ -327,20 +349,10 @@ func requireRetainedEvidenceSupport(ctx context.Context, client any, phase strin
 	return nil
 }
 
-func cloneEvidenceSets(sets []*scenariovalidationv1.RetainedEvidenceSet) []*scenariovalidationv1.RetainedEvidenceSet {
-	cloned := make([]*scenariovalidationv1.RetainedEvidenceSet, 0, len(sets))
-	for _, set := range sets {
-		if set != nil {
-			cloned = append(cloned, proto.Clone(set).(*scenariovalidationv1.RetainedEvidenceSet))
-		}
-	}
-	return cloned
-}
-
 // RunDurable performs one Start and one server-owned Wait. The parent run and
 // phase identity make retries replay-safe without any scenario-name branch.
 func RunDurable(ctx context.Context, provider Provider, targetScenario, scenarioPath, parentRunID string) *Result {
-	baseURL, err := ResolveBaseURL(ctx, provider.ProviderScenario)
+	baseURL, err := resolveProviderBaseURL(ctx, provider)
 	if err != nil {
 		return unavailable(provider, targetScenario, fmt.Errorf("resolve %s URL: %w", provider.ProviderScenario, err))
 	}
@@ -442,6 +454,10 @@ func translate(provider Provider, fallbackScenario string, resp *scenariovalidat
 		FindingsSummary: buildFindingsSummary(summary),
 	}
 	switch resp.GetStatus() {
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED,
+		scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED:
+		// Both are evaluated outcomes; degraded remains visible in Summary.
+		out.Success = true
 	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED:
 		out.Success = false
 		out.FailureClass = shared.FailureClassTestFailure
@@ -463,7 +479,10 @@ func translate(provider Provider, fallbackScenario string, resp *scenariovalidat
 		out.Remediation = "Restore the provider's required evaluation inputs and rerun `vrooli scenario test " + scenario + " --phases " + provider.Phase + "`."
 		out.Observations = append(out.Observations, shared.NewErrorObservation(out.Error.Error()))
 	default:
-		out.Success = true
+		// Forward-unknown enum values must fail closed. A newer provider can
+		// introduce a status whose success semantics this runner does not know.
+		return failure(provider, scenario, shared.FailureClassMaturityContract,
+			fmt.Errorf("provider returned unknown validation status %d", resp.GetStatus()), maturityRemediation(provider, scenario))
 	}
 	applyGate(provider, scenario, resp, out)
 	return out
@@ -526,10 +545,31 @@ func FilterCapabilityResult(result *Result, capabilityID string) *Result {
 		assessmentCopy.Presentation = assessment.BuildPhasePresentation(assessmentCopy)
 		out.Assessment = assessmentCopy
 		out.Presentation = assessmentCopy.GetPresentation()
-		out.Summary = summarize(assessmentCopy.GetScenario(), statusFromLabel(result.Summary.Status, statusForAssessment(assessmentCopy)), assessmentCopy)
+		status, recognized := parseStatusLabel(result.Summary.Status)
+		if strings.TrimSpace(result.Summary.Status) == "" {
+			status = statusForAssessment(assessmentCopy)
+		} else if !recognized {
+			// Cached provider labels are durable input. Do not let a future or
+			// malformed label fall back to assessment-derived PASSED.
+			status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED
+			out.Success = false
+			out.FailureClass = shared.FailureClassMaturityContract
+			out.Error = fmt.Errorf("cached capability result has unknown status %q", result.Summary.Status)
+		}
+		out.Summary = summarize(assessmentCopy.GetScenario(), status, assessmentCopy)
 		out.FindingsSummary = buildFindingsSummary(out.Summary)
 		out.Findings = filterArchitectureFindings(result.Findings, capabilityID, assessmentFindingCodes(assessmentCopy.GetFindings()))
 		return &out
+	}
+	if strings.TrimSpace(result.Summary.Status) != "" {
+		if _, recognized := parseStatusLabel(result.Summary.Status); !recognized {
+			// A cached result can outlive its assessment payload. Its remaining
+			// status label is still durable input and must not inherit Success.
+			out.Summary.Status = "unspecified"
+			out.Success = false
+			out.FailureClass = shared.FailureClassMaturityContract
+			out.Error = fmt.Errorf("cached capability result has unknown status %q", result.Summary.Status)
+		}
 	}
 	out.Findings = filterArchitectureFindings(result.Findings, capabilityID, nil)
 	return &out
@@ -565,40 +605,68 @@ func MergeCapabilityResults(cached, fresh *Result) *Result {
 	out.Findings = mergeArchitectureFindings(cached.Findings, fresh.Findings)
 	out.RunResult.Observations = append(append([]shared.Observation(nil), cached.RunResult.Observations...), fresh.RunResult.Observations...)
 	out.Success = statusIsSuccessful(out.Summary.Status)
-	if !out.Success && out.Error == nil {
-		if out.Summary.Status == "not_evaluated" {
-			out.Error = fmt.Errorf("merged capability result was not evaluated")
+	if !out.Success {
+		var fallback error
+		switch out.Summary.Status {
+		case "not_evaluated":
 			out.FailureClass = shared.FailureClassMissingDependency
-		} else {
-			out.Error = fmt.Errorf("merged capability result contains blocking findings")
+			fallback = fmt.Errorf("merged capability result was not evaluated")
+		case "error":
+			out.FailureClass = shared.FailureClassSystem
+			fallback = fmt.Errorf("merged capability provider result reported an error")
+		case "failed":
 			out.FailureClass = shared.FailureClassTestFailure
+			fallback = fmt.Errorf("merged capability result contains blocking findings")
+		default:
+			out.FailureClass = shared.FailureClassMaturityContract
+			fallback = fmt.Errorf("merged capability result has unknown status %q", out.Summary.Status)
+		}
+		if out.Error == nil {
+			out.Error = fallback
 		}
 	}
 	return &out
 }
 
 func statusFromLabel(label string, fallback scenariovalidationv1.ValidationStatus) scenariovalidationv1.ValidationStatus {
+	status, ok := parseStatusLabel(label)
+	if !ok {
+		return fallback
+	}
+	return status
+}
+
+func parseStatusLabel(label string) (scenariovalidationv1.ValidationStatus, bool) {
 	switch strings.TrimSpace(strings.ToLower(label)) {
 	case "not_evaluated":
-		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED, true
 	case "degraded":
-		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED, true
 	case "skipped":
-		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_SKIPPED
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_SKIPPED, true
 	case "error":
-		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR, true
 	case "failed":
-		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED, true
 	case "passed":
-		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED, true
 	default:
-		return fallback
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED, false
 	}
 }
 
 func mergeValidationStatuses(cached, fresh string, assessmentStatus scenariovalidationv1.ValidationStatus) scenariovalidationv1.ValidationStatus {
-	left := statusFromLabel(cached, scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED)
-	right := statusFromLabel(fresh, scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED)
+	left, leftOK := parseStatusLabel(cached)
+	right, rightOK := parseStatusLabel(fresh)
+	if strings.TrimSpace(cached) == "" {
+		leftOK = true
+	}
+	if strings.TrimSpace(fresh) == "" {
+		rightOK = true
+	}
+	if !leftOK || !rightOK {
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED
+	}
 	for _, status := range []scenariovalidationv1.ValidationStatus{left, right} {
 		if status == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR || status == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
 			return status

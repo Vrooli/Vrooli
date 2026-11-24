@@ -101,6 +101,21 @@ func TestStandingNilWhenAbsent(t *testing.T) {
 	}
 }
 
+func TestNotEvaluatedIsCountedAndSerializedSeparately(t *testing.T) {
+	phases := []Phase{{Name: "experience", Status: "not_evaluated"}, {Name: "unit", Status: "passed"}}
+	summary := summarizePhases(phases)
+	if summary.Total != 2 || summary.Passed != 1 || summary.NotEvaluated != 1 || summary.Failed != 0 {
+		t.Fatalf("summary must preserve missing evaluation as its own outcome: %+v", summary)
+	}
+	blob, err := json.Marshal(summary)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(blob), `"notEvaluated":1`) {
+		t.Fatalf("JSON summary omits notEvaluated: %s", blob)
+	}
+}
+
 func TestHistoricalStandingIsExplicitlyNonCanonical(t *testing.T) {
 	phases := phasesFromTerminalRun(&runspb.RunInfo{Phases: []*runspb.PhaseInfo{{
 		Name: "structure",

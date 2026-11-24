@@ -19,6 +19,7 @@ func TestEnvIntMinPreservesAdmissionFloor(t *testing.T) {
 		{name: "zero", value: "0", want: 2},
 		{name: "negative", value: "-1", want: 2},
 		{name: "invalid", value: "abc", want: 2},
+		{name: "minimum is accepted", value: "1", want: 1},
 		{name: "valid", value: "3", want: 3},
 	}
 	for _, tt := range tests {

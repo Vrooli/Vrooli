@@ -29,6 +29,7 @@ const phaseSourceValidationProvider = "validation-provider"
 type Delegated struct {
 	Name                 Name
 	ProviderScenario     string
+	EndpointVariant      string
 	FindingSource        architecturev1.FindingSource
 	Emoji                string
 	SkipEnvVar           string
@@ -101,6 +102,7 @@ func ValidationProviderSpecFromDescriptor(descriptor providerdescriptor.Descript
 	delegated := Delegated{
 		Name:             name,
 		ProviderScenario: descriptor.Scenario,
+		EndpointVariant:  descriptor.Validation.EndpointVariant,
 		DetailCommand:    descriptor.Validation.DetailCommand,
 		FindingSource:    findingSource,
 		Optional:         legacyOptional(descriptor.Policy.Policy),
@@ -172,6 +174,7 @@ func (d Delegated) provider() validationprovider.Provider {
 	return validationprovider.Provider{
 		Phase:                d.Name.String(),
 		ProviderScenario:     d.ProviderScenario,
+		EndpointVariant:      d.EndpointVariant,
 		FindingSource:        d.FindingSource,
 		Emoji:                d.Emoji,
 		DetailCommand:        d.DetailCommand,
@@ -197,6 +200,9 @@ func providerRunner(provider validationprovider.Provider, client DelegatedClient
 		}
 		bound := provider
 		bound.RetainedEvidenceSets = env.RetainedEvidenceSets
+		if bound.Phase == "experience" && bound.ProviderScenario == "ui-health" {
+			bound.BASUnavailableEndpoint = env.ExperienceBASUnavailableEndpoint
+		}
 		if bound.DeliveryMode == "durable-run" {
 			bound.OnStarted = func(ref validationprovider.RunReference) {
 				writeDurableChildReference(env, bound.Phase, bound.ProviderScenario, ref, logWriter)

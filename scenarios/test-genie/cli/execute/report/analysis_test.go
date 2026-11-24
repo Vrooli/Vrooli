@@ -66,3 +66,25 @@ func TestAnalyzePhaseFailuresDoesNotLeakJSONFromProviderLog(t *testing.T) {
 		t.Fatalf("expected remediation fix to be included")
 	}
 }
+
+func TestSummarizeCriticalPathUsesFallbackAndPreservesSelectedCause(t *testing.T) {
+	tests := []struct {
+		name  string
+		cause string
+		want  string
+	}{
+		{name: "blank fallback", cause: " \t", want: "Unknown issue"},
+		{name: "selected value remains unchanged", cause: "  compiler failure  ", want: "  compiler failure  "},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := SummarizeCriticalPath([]PhaseInsight{{Phase: "build", Cause: tt.cause, Impact: []string{"integration"}}})
+			if got == nil {
+				t.Fatal("SummarizeCriticalPath() = nil, want summary")
+			}
+			if got.PrimaryCause != tt.want {
+				t.Fatalf("PrimaryCause = %q, want %q", got.PrimaryCause, tt.want)
+			}
+		})
+	}
+}

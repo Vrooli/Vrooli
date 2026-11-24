@@ -205,6 +205,22 @@ func TestPinUnpinAndForceDelete(t *testing.T) {
 	}
 }
 
+func mustCompareRuns(t *testing.T, svc *Service, request *runspb.CompareRunsRequest) *connect.Response[runspb.CompareRunsResponse] {
+	t.Helper()
+	response, err := svc.CompareRuns(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		t.Fatalf("CompareRuns: %v", err)
+	}
+	return response
+}
+
+func mustFinalizeComparisonResult(t *testing.T, index *sharedruns.Index, runID string, result *orchestrator.SuiteExecutionResult) {
+	t.Helper()
+	if err := index.Finalize(runID, result, func(*sharedruns.RunRecord) error { return nil }); err != nil {
+		t.Fatalf("finalize comparison fixture %s: %v", runID, err)
+	}
+}
+
 func TestCompareRunsClassification(t *testing.T) {
 	svc, root := newTestService(t)
 	// Baseline: workflows + tests + structure all pass.
@@ -234,10 +250,7 @@ func TestCompareRunsClassification(t *testing.T) {
 		capturedPhase("structure", "Structure"), capturedPhase("integration", "Integration"),
 	)
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
-	if err != nil {
-		t.Fatalf("CompareRuns: %v", err)
-	}
+	resp := mustCompareRuns(t, svc, &runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"})
 	got := map[string]string{}
 	for _, p := range resp.Msg.GetPhases() {
 		got[p.GetPhase()] = p.GetVerdict()
@@ -272,10 +285,7 @@ func TestCompareRunsClassification(t *testing.T) {
 	}
 
 	// Phase filter restricts output.
-	filtered, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur", Phase: "structure"}))
-	if err != nil {
-		t.Fatalf("CompareRuns(filter): %v", err)
-	}
+	filtered := mustCompareRuns(t, svc, &runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur", Phase: "structure"})
 	if len(filtered.Msg.GetPhases()) != 1 || filtered.Msg.GetPhases()[0].GetPhase() != "structure" {
 		t.Fatalf("phase filter failed: %v", filtered.Msg.GetPhases())
 	}
@@ -294,10 +304,7 @@ func TestCompareRunsDifferentGitSHAsRemainBehaviorallyComparable(t *testing.T) {
 	seedDescriptorSnapshot(t, root, "base-sha", capturedPhase("unit", "Unit"))
 	seedDescriptorSnapshot(t, root, "current-sha", capturedPhase("unit", "Unit"))
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base-sha", RunIdB: "current-sha"}))
-	if err != nil {
-		t.Fatalf("CompareRuns: %v", err)
-	}
+	resp := mustCompareRuns(t, svc, &runspb.CompareRunsRequest{Target: "demo", RunIdA: "base-sha", RunIdB: "current-sha"})
 	if resp.Msg.GetVerdict() != verdictClean || len(resp.Msg.GetPhases()) != 1 || resp.Msg.GetPhases()[0].GetVerdict() != verdictClean {
 		t.Fatalf("different SHA comparison = %+v", resp.Msg)
 	}
@@ -317,17 +324,10 @@ func TestCompareRunsStablePreflightFailureIsPreexisting(t *testing.T) {
 
 	seedRecord(t, root, sharedruns.RunRecord{RunID: "base", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusFailed})
 	seedRecord(t, root, sharedruns.RunRecord{RunID: "cur", Scenario: "demo", StartedAt: time.Now().UTC().Add(time.Minute), Status: sharedruns.StatusFailed})
-	if err := sharedruns.NewIndex(filepath.Join(root, "demo")).Finalize("base", baseResult, func(*sharedruns.RunRecord) error { return nil }); err != nil {
-		t.Fatalf("finalize baseline preflight result: %v", err)
-	}
-	if err := sharedruns.NewIndex(filepath.Join(root, "demo")).Finalize("cur", &currentResult, func(*sharedruns.RunRecord) error { return nil }); err != nil {
-		t.Fatalf("finalize current preflight result: %v", err)
-	}
+	mustFinalizeComparisonResult(t, sharedruns.NewIndex(filepath.Join(root, "demo")), "base", baseResult)
+	mustFinalizeComparisonResult(t, sharedruns.NewIndex(filepath.Join(root, "demo")), "cur", &currentResult)
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
-	if err != nil {
-		t.Fatalf("CompareRuns: %v", err)
-	}
+	resp := mustCompareRuns(t, svc, &runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"})
 	if resp.Msg.GetVerdict() != verdictPreexisting || resp.Msg.GetBehavior() != "preexisting" || resp.Msg.GetCoverage() != "measured" {
 		t.Fatalf("stable preflight comparison = %+v", resp.Msg)
 	}
@@ -354,17 +354,10 @@ func TestCompareRunsChangedPreflightFailureRemainsNotComparable(t *testing.T) {
 	currentResult.FailureReason = "  Error: scenario \"demo\" phase \"setup\" step \"build\" failed with exit code 1\n"
 	seedRecord(t, root, sharedruns.RunRecord{RunID: "base", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusFailed})
 	seedRecord(t, root, sharedruns.RunRecord{RunID: "cur", Scenario: "demo", StartedAt: time.Now().UTC().Add(time.Minute), Status: sharedruns.StatusFailed})
-	if err := sharedruns.NewIndex(filepath.Join(root, "demo")).Finalize("base", baseResult, func(*sharedruns.RunRecord) error { return nil }); err != nil {
-		t.Fatalf("finalize baseline preflight result: %v", err)
-	}
-	if err := sharedruns.NewIndex(filepath.Join(root, "demo")).Finalize("cur", &currentResult, func(*sharedruns.RunRecord) error { return nil }); err != nil {
-		t.Fatalf("finalize current preflight result: %v", err)
-	}
+	mustFinalizeComparisonResult(t, sharedruns.NewIndex(filepath.Join(root, "demo")), "base", baseResult)
+	mustFinalizeComparisonResult(t, sharedruns.NewIndex(filepath.Join(root, "demo")), "cur", &currentResult)
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
-	if err != nil {
-		t.Fatalf("CompareRuns: %v", err)
-	}
+	resp := mustCompareRuns(t, svc, &runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"})
 	if resp.Msg.GetVerdict() != verdictNotComparable {
 		t.Fatalf("changed preflight comparison = %+v", resp.Msg)
 	}
@@ -403,10 +396,7 @@ func TestCompareRunsUsesCapturedCatalogEvolutionAndTypedReasons(t *testing.T) { 
 		capturedPhase("new-phase", "New Phase"), newStable, inapplicable, capturedPhase("runtime", "Runtime"),
 	)
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "old", RunIdB: "new"}))
-	if err != nil {
-		t.Fatalf("CompareRuns: %v", err)
-	}
+	resp := mustCompareRuns(t, svc, &runspb.CompareRunsRequest{Target: "demo", RunIdA: "old", RunIdB: "new"})
 	if got := resp.Msg.GetPhases()[0].GetPhase(); got != "new-phase" {
 		t.Fatalf("comparison order starts with %q, want current captured order", got)
 	}
@@ -481,10 +471,7 @@ func TestCompareRunsSymmetricInapplicableIsExplicitlyUnmeasured(t *testing.T) {
 		capturedPhase("unit", "Unit"), capturedPhase("structure", "Structure"), inapplicablePhase("ai-conformance", "AI Conformance"),
 	)
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
-	if err != nil {
-		t.Fatalf("CompareRuns: %v", err)
-	}
+	resp := mustCompareRuns(t, svc, &runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"})
 	byPhase := map[string]*runspb.PhaseDiff{}
 	for _, diff := range resp.Msg.GetPhases() {
 		byPhase[diff.GetPhase()] = diff
@@ -512,10 +499,7 @@ func TestCompareRunsSymmetricBestEffortProviderUnavailableIsNeutralCoverageGap(t
 		descriptor.Policy.Unavailable = "skip_without_failing"
 		seedDescriptorSnapshot(t, root, runID, descriptor)
 	}
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
-	if err != nil {
-		t.Fatalf("CompareRuns: %v", err)
-	}
+	resp := mustCompareRuns(t, svc, &runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"})
 	// Fixture records intentionally lack execution provenance, so their legacy
 	// aggregate verdict remains not-comparable; the policy under test is that
 	// this phase no longer degrades measured coverage.
@@ -559,17 +543,10 @@ func TestCompareRunsSymmetricSkippedProviderGapIgnoresLifecycleNoise(t *testing.
 		Message: "time=2026-08-06T17:31:44Z\npid: 12345\nError: scenario \"template-manager\" phase \"setup\" step \"build-api\" failed with exit code 1 (log: /tmp/current.log)",
 	}}
 	index := sharedruns.NewIndex(filepath.Join(root, "demo"))
-	if err := index.Finalize("base", baseResult, func(*sharedruns.RunRecord) error { return nil }); err != nil {
-		t.Fatalf("finalize baseline: %v", err)
-	}
-	if err := index.Finalize("cur", &currentResult, func(*sharedruns.RunRecord) error { return nil }); err != nil {
-		t.Fatalf("finalize current: %v", err)
-	}
+	mustFinalizeComparisonResult(t, index, "base", baseResult)
+	mustFinalizeComparisonResult(t, index, "cur", &currentResult)
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
-	if err != nil {
-		t.Fatalf("CompareRuns: %v", err)
-	}
+	resp := mustCompareRuns(t, svc, &runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"})
 	if got := resp.Msg.GetVerdict(); got != verdictClean {
 		t.Fatalf("overall verdict: want %s, got %s", verdictClean, got)
 	}
@@ -616,17 +593,10 @@ func TestCompareRunsAdvisoryProviderGapWithChangedSourceIsNeutral(t *testing.T) 
 		}},
 	}
 	index := sharedruns.NewIndex(filepath.Join(root, "demo"))
-	if err := index.Finalize("base", baseResult, func(*sharedruns.RunRecord) error { return nil }); err != nil {
-		t.Fatalf("finalize baseline: %v", err)
-	}
-	if err := index.Finalize("cur", currentResult, func(*sharedruns.RunRecord) error { return nil }); err != nil {
-		t.Fatalf("finalize current: %v", err)
-	}
+	mustFinalizeComparisonResult(t, index, "base", baseResult)
+	mustFinalizeComparisonResult(t, index, "cur", currentResult)
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
-	if err != nil {
-		t.Fatalf("CompareRuns: %v", err)
-	}
+	resp := mustCompareRuns(t, svc, &runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"})
 	if got := resp.Msg.GetVerdict(); got != verdictClean {
 		t.Fatalf("overall verdict: want %s, got %s", verdictClean, got)
 	}
@@ -649,10 +619,7 @@ func TestCompareRunsResolvedBestEffortProviderOutageIsCurrentOnlyEvidence(t *tes
 		descriptor.Policy.Unavailable = "skip_without_failing"
 		seedDescriptorSnapshot(t, root, runID, descriptor)
 	}
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
-	if err != nil {
-		t.Fatalf("CompareRuns: %v", err)
-	}
+	resp := mustCompareRuns(t, svc, &runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"})
 	if got := resp.Msg.GetCoverage(); got != "measured" {
 		t.Fatalf("aggregate coverage: want measured, got %s", got)
 	}
@@ -699,17 +666,10 @@ func TestCompareRunsResolvedAdvisorySkippedProviderGapIsCurrentOnlyEvidence(t *t
 		Phases:                   []orchestrator.PhaseExecutionResult{{Name: "templates", Status: "passed"}},
 	}
 	index := sharedruns.NewIndex(filepath.Join(root, "demo"))
-	if err := index.Finalize("base", baseResult, func(*sharedruns.RunRecord) error { return nil }); err != nil {
-		t.Fatalf("finalize baseline: %v", err)
-	}
-	if err := index.Finalize("cur", currentResult, func(*sharedruns.RunRecord) error { return nil }); err != nil {
-		t.Fatalf("finalize current: %v", err)
-	}
+	mustFinalizeComparisonResult(t, index, "base", baseResult)
+	mustFinalizeComparisonResult(t, index, "cur", currentResult)
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
-	if err != nil {
-		t.Fatalf("CompareRuns: %v", err)
-	}
+	resp := mustCompareRuns(t, svc, &runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"})
 	if got := resp.Msg.GetVerdict(); got != verdictClean {
 		t.Fatalf("overall verdict: want %s, got %s", verdictClean, got)
 	}
@@ -740,10 +700,7 @@ func TestCompareRunsAdditivePassingPhaseDoesNotPoisonAggregate(t *testing.T) {
 	additive.ComparisonMode = "additive"
 	seedDescriptorSnapshot(t, root, "cur", capturedPhase("unit", "Unit"), additive)
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
-	if err != nil {
-		t.Fatalf("CompareRuns: %v", err)
-	}
+	resp := mustCompareRuns(t, svc, &runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"})
 	if got := resp.Msg.GetVerdict(); got != verdictClean {
 		t.Fatalf("overall verdict: want %s, got %s", verdictClean, got)
 	}
@@ -780,10 +737,7 @@ func TestCompareRunsAdditiveFailingPhaseIsNewFailure(t *testing.T) {
 	additive.ComparisonMode = "additive"
 	seedDescriptorSnapshot(t, root, "cur", capturedPhase("unit", "Unit"), additive)
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
-	if err != nil {
-		t.Fatalf("CompareRuns: %v", err)
-	}
+	resp := mustCompareRuns(t, svc, &runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"})
 	if got := resp.Msg.GetVerdict(); got != verdictNewFailure {
 		t.Fatalf("overall verdict: want %s, got %s", verdictNewFailure, got)
 	}
@@ -814,10 +768,7 @@ func TestCompareRunsSameKeyContractChangeRequiresExplicitCompatibility(t *testin
 	changed.Provider = "unit-health-v2"
 	seedDescriptorSnapshot(t, root, "cur", changed)
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
-	if err != nil {
-		t.Fatal(err)
-	}
+	resp := mustCompareRuns(t, svc, &runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"})
 	phase := resp.Msg.GetPhases()[0]
 	if phase.GetCompatibility() != "changed-unreviewed" || phase.GetBehavior() != "unknown" || phase.GetVerdict() != verdictNotComparable {
 		t.Fatalf("unreviewed contract change = %+v", phase)
@@ -825,10 +776,7 @@ func TestCompareRunsSameKeyContractChangeRequiresExplicitCompatibility(t *testin
 
 	changed.ComparisonMode = "compatible"
 	seedDescriptorSnapshot(t, root, "cur", changed)
-	resp, err = svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
-	if err != nil {
-		t.Fatal(err)
-	}
+	resp = mustCompareRuns(t, svc, &runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"})
 	phase = resp.Msg.GetPhases()[0]
 	if phase.GetCompatibility() != "compatible" || phase.GetBehavior() != "regression" || phase.GetVerdict() != verdictRegression {
 		t.Fatalf("compatible contract change = %+v", phase)
@@ -841,10 +789,7 @@ func TestCompareRunsUnknownPhaseStatusCannotLookClean(t *testing.T) {
 		seedRecord(t, root, sharedruns.RunRecord{RunID: runID, Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed, Phases: []sharedruns.PhaseRecord{{Name: "unit", Status: "future_terminal_state"}}})
 		seedDescriptorSnapshot(t, root, runID, capturedPhase("unit", "Unit"))
 	}
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
-	if err != nil {
-		t.Fatal(err)
-	}
+	resp := mustCompareRuns(t, svc, &runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"})
 	phase := resp.Msg.GetPhases()[0]
 	if phase.GetBehavior() != "unknown" || phase.GetVerdict() != verdictNotComparable {
 		t.Fatalf("unknown terminal status = %+v", phase)
@@ -891,10 +836,7 @@ func TestCompareRunsAsymmetricInapplicableStillNotComparable(t *testing.T) {
 		capturedPhase("structure", "Structure"), inapplicablePhase("conditional", "Conditional"),
 	)
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
-	if err != nil {
-		t.Fatalf("CompareRuns: %v", err)
-	}
+	resp := mustCompareRuns(t, svc, &runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"})
 	if got := resp.Msg.GetVerdict(); got != verdictNotComparable {
 		t.Errorf("overall verdict: want %s, got %s", verdictNotComparable, got)
 	}
@@ -919,10 +861,7 @@ func TestCompareRunsNewInapplicablePhaseWithoutResultIsNeutral(t *testing.T) {
 		capturedPhase("structure", "Structure"), inapplicablePhase("new-conditional", "New Conditional"),
 	)
 
-	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"}))
-	if err != nil {
-		t.Fatalf("CompareRuns: %v", err)
-	}
+	resp := mustCompareRuns(t, svc, &runspb.CompareRunsRequest{Target: "demo", RunIdA: "base", RunIdB: "cur"})
 	byPhase := map[string]*runspb.PhaseDiff{}
 	for _, diff := range resp.Msg.GetPhases() {
 		byPhase[diff.GetPhase()] = diff

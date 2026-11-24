@@ -3,8 +3,6 @@ package sync
 
 import (
 	"context"
-	"io/fs"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -14,40 +12,14 @@ import (
 
 	"test-genie/internal/requirements/parsing"
 	"test-genie/internal/requirements/types"
+	"test-genie/internal/shared/filesystem"
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
-// Reader abstracts file reading operations.
-type Reader interface {
-	ReadFile(path string) ([]byte, error)
-	ReadDir(path string) ([]fs.DirEntry, error)
-	Exists(path string) bool
-}
-
-// Writer abstracts file writing operations.
-type Writer interface {
-	WriteFile(path string, data []byte, perm fs.FileMode) error
-	MkdirAll(path string, perm fs.FileMode) error
-}
-
-// osReader implements Reader using the os package.
-type osReader struct{}
-
-func (r *osReader) ReadFile(path string) ([]byte, error)       { return os.ReadFile(path) }
-func (r *osReader) ReadDir(path string) ([]fs.DirEntry, error) { return os.ReadDir(path) }
-func (r *osReader) Exists(path string) bool                    { _, err := os.Stat(path); return err == nil }
-
-// osWriter implements Writer using the os package.
-type osWriter struct{}
-
-func (w *osWriter) WriteFile(path string, data []byte, perm fs.FileMode) error {
-	return os.WriteFile(path, data, perm)
-}
-
-func (w *osWriter) MkdirAll(path string, perm fs.FileMode) error {
-	return os.MkdirAll(path, perm)
-}
+// Reader and Writer preserve sync's injection API through shared capabilities.
+type Reader = filesystem.DirectoryReader
+type Writer = filesystem.Writer
 
 // Syncer synchronizes requirement files with test results.
 type Syncer interface {
@@ -158,8 +130,8 @@ func New(reader Reader, writer Writer) Syncer {
 
 // NewDefault creates a Syncer using the real file system.
 func NewDefault() Syncer {
-	reader := &osReader{}
-	writer := &osWriter{}
+	reader := filesystem.OS{}
+	writer := filesystem.OS{}
 	result := New(reader, writer).(*syncer)
 	result.artifactRoot = artifactpaths.ScenarioRootForDir
 	return result

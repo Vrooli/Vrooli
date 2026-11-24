@@ -134,6 +134,9 @@ func (s *Server) handleRunScenarioTests(w http.ResponseWriter, r *http.Request) 
 		response["logPath"] = result.LogPath
 	}
 	if result != nil {
+		if len(result.Command) > 0 {
+			response["executedCommand"] = append([]string(nil), result.Command...)
+		}
 		response["skipSummary"] = result.SkipSummary
 	}
 	s.writeJSON(w, http.StatusOK, response)

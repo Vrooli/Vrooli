@@ -82,6 +82,17 @@ func TestEstimatorExcludesCensoredSamplesFromPointEstimate(t *testing.T) {
 	}
 }
 
+func TestEstimatorNormalizesPhaseStatusAndMillisecondDuration(t *testing.T) {
+	estimator := NewEstimator("demo", []Sample{
+		{ScenarioName: "demo", PhaseName: " Unit ", Status: " PASSED ", DurationMilliseconds: 1},
+		{ScenarioName: "demo", PhaseName: "unit", Status: " TIMEOUT ", DurationMilliseconds: 2},
+	})
+	estimate := estimator.Estimate(" UNIT ", 120)
+	if estimate.DurationSeconds != 1 || estimate.SampleSize != 1 || estimate.CensoredSampleCount != 1 {
+		t.Fatalf("normalized phase/status or positive millisecond ceiling changed: %#v", estimate)
+	}
+}
+
 func TestEstimatorUsesReliableSamplesOnlyWhenBucketIsMixed(t *testing.T) {
 	samples := make([]Sample, 0, 5)
 	for _, duration := range []int{10, 11, 12, 13} {

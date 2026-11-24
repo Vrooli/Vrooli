@@ -262,7 +262,7 @@ func TestServer_handleRunScenarioTests(t *testing.T) {
 	}
 	scenarioSvc := &stubScenarioDirectory{
 		runResp:   command,
-		runResult: &scenarios.TestingRunnerResult{LogPath: "/tmp/log"},
+		runResult: &scenarios.TestingRunnerResult{Command: []string{"./coverage/run-tests.sh", "--path", "api/foo.go", "--playbook", "bas/cases/login.json", "--filter", "UserTest"}, LogPath: "/tmp/log"},
 	}
 	server := &Server{
 		config:    Config{Port: "0"},
@@ -295,6 +295,16 @@ func TestServer_handleRunScenarioTests(t *testing.T) {
 	}
 	if payload["type"] != "phased" {
 		t.Fatalf("expected phased type in response, got %#v", payload)
+	}
+	executed, ok := payload["executedCommand"].([]interface{})
+	wantExecuted := []string{"./coverage/run-tests.sh", "--path", "api/foo.go", "--playbook", "bas/cases/login.json", "--filter", "UserTest"}
+	if !ok || len(executed) != len(wantExecuted) {
+		t.Fatalf("executedCommand = %#v, want the actual argv including requested filters", payload["executedCommand"])
+	}
+	for i, want := range wantExecuted {
+		if executed[i] != want {
+			t.Fatalf("executedCommand = %#v, want %v", executed, wantExecuted)
+		}
 	}
 	if payload["logPath"] != "/tmp/log" {
 		t.Fatalf("expected log path in response, got %#v", payload)

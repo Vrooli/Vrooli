@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/vrooli/api-core/textutil"
 	execTypes "test-genie/cli/internal/execute"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -68,7 +69,7 @@ func (p *Printer) printTopPriority(priority *execTypes.RunTopPriority) {
 // scorecardRung renders the "current → next (ceiling X)" rung line, collapsing to
 // a single rung at maximum maturity.
 func scorecardRung(st *commonv1.PhasePresentation) string {
-	cur := firstNonEmpty(st.GetCurrentLevel(), "?")
+	cur := textutil.FirstNonEmpty(st.GetCurrentLevel(), "?")
 	if label := strings.TrimSpace(st.GetCurrentLevelLabel()); label != "" {
 		cur = fmt.Sprintf("%s %s", cur, label)
 	}
@@ -108,13 +109,4 @@ func topGaps(codes []string, limit int) string {
 		joined += fmt.Sprintf(" (+%d more)", remaining)
 	}
 	return joined
-}
-
-func firstNonEmpty(vals ...string) string {
-	for _, v := range vals {
-		if strings.TrimSpace(v) != "" {
-			return v
-		}
-	}
-	return ""
 }

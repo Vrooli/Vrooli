@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Copy, Check } from "lucide-react";
 import mermaid from "mermaid";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { Breadcrumb } from "../../components/layout/Breadcrumb";
 import { selectors } from "../../consts/selectors";
 
@@ -301,7 +301,7 @@ export function MarkdownViewer({
         data-testid={selectors.docs.viewer}
       >
         <p className="text-red-400">Failed to load document: {error.message}</p>
-        <Button variant="outline" size="sm" className="mt-4" onClick={onBack}>
+        <Button variant="secondary" size="sm" className="mt-4" onClick={onBack}>
           Go back
         </Button>
       </div>
@@ -330,7 +330,7 @@ export function MarkdownViewer({
       <div className="flex items-center justify-between mb-6">
         <Breadcrumb items={breadcrumbItems} />
         <Button
-          variant="outline"
+          variant="secondary"
           size="sm"
           onClick={handleCopyPath}
           data-testid={selectors.docs.copyPath}

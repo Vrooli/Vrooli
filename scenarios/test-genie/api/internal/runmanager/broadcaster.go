@@ -32,15 +32,15 @@ type replayLimits struct {
 	bytes  int
 }
 
-func replayLimitsFromEnvironment() replayLimits {
+func replayLimitsFromEnvironment(getenv func(string) string) replayLimits {
 	return replayLimits{
-		events: boundedPositiveEnv("TEST_GENIE_EVENT_REPLAY_MAX_EVENTS", defaultReplayEventLimit),
-		bytes:  boundedPositiveEnv("TEST_GENIE_EVENT_REPLAY_MAX_BYTES", defaultReplayByteLimit),
+		events: boundedPositive(getenv("TEST_GENIE_EVENT_REPLAY_MAX_EVENTS"), defaultReplayEventLimit),
+		bytes:  boundedPositive(getenv("TEST_GENIE_EVENT_REPLAY_MAX_BYTES"), defaultReplayByteLimit),
 	}
 }
 
-func boundedPositiveEnv(name string, fallback int) int {
-	raw := strings.TrimSpace(os.Getenv(name))
+func boundedPositive(raw string, fallback int) int {
+	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return fallback
 	}
@@ -75,7 +75,11 @@ type subscriber struct {
 }
 
 func newBroadcaster() *broadcaster {
-	return newBroadcasterWithLimits(replayLimitsFromEnvironment())
+	return newBroadcasterWithEnvironment(os.Getenv)
+}
+
+func newBroadcasterWithEnvironment(getenv func(string) string) *broadcaster {
+	return newBroadcasterWithLimits(replayLimitsFromEnvironment(getenv))
 }
 
 func newBroadcasterWithLimits(limits replayLimits) *broadcaster {

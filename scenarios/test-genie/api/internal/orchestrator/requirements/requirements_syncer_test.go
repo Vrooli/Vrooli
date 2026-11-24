@@ -34,6 +34,27 @@ func TestBuildPhaseStatusPayload(t *testing.T) {
 	}
 }
 
+func TestServiceSyncInputProjectsAllFields(t *testing.T) {
+	input := SyncInput{
+		ScenarioName:     "demo",
+		ScenarioDir:      "/work/demo",
+		PhaseDefinitions: []phases.Definition{{Name: "unit", Optional: true}},
+		PhaseResults:     []phases.ExecutionResult{{Name: "unit", Status: "passed"}},
+		CommandHistory:   []string{"go test ./..."},
+	}
+	got := serviceSyncInput(input)
+	if got.ScenarioName != input.ScenarioName || got.ScenarioDir != input.ScenarioDir ||
+		len(got.PhaseDefinitions) != 1 || got.PhaseDefinitions[0].Name != input.PhaseDefinitions[0].Name ||
+		len(got.PhaseResults) != 1 || got.PhaseResults[0].Status != input.PhaseResults[0].Status ||
+		len(got.CommandHistory) != 1 || got.CommandHistory[0] != input.CommandHistory[0] {
+		t.Fatalf("serviceSyncInput() = %#v, want all input fields projected", got)
+	}
+	got.CommandHistory[0] = "changed"
+	if input.CommandHistory[0] != "changed" {
+		t.Fatal("serviceSyncInput unexpectedly copied the command history slice")
+	}
+}
+
 func TestNewNodeSyncerReturnsNilWithoutScript(t *testing.T) {
 	if syncer := NewNodeSyncer(t.TempDir()); syncer != nil {
 		t.Fatalf("expected nil syncer when script missing")
