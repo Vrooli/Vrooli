@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -124,6 +125,10 @@ func TestAnalyzeScenario_WithServiceJSON(t *testing.T) {
 		"api": {EnvVar: "API_PORT", Range: "4000-4010"},
 		"ui":  {EnvVar: "UI_PORT", Range: "5000-5010"},
 	}
+	serviceJSON.Dependencies.Resources = make(map[string]ResourceDependency)
+	for _, name := range []string{"wails", "qdrant", "postgres", "openrouter", "ollama", "kale", "ffmpeg", "browser"} {
+		serviceJSON.Dependencies.Resources[name] = ResourceDependency{Enabled: true, Required: true}
+	}
 
 	data, _ := json.Marshal(serviceJSON)
 	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), data, 0o644); err != nil {
@@ -162,6 +167,16 @@ func TestAnalyzeScenario_WithServiceJSON(t *testing.T) {
 	}
 	if len(metadata.Tags) != 2 {
 		t.Errorf("expected 2 tags, got %d", len(metadata.Tags))
+	}
+	wantResources := []string{"browser", "ffmpeg", "kale", "ollama", "openrouter", "postgres", "qdrant", "wails"}
+	for attempt := 0; attempt < 32; attempt++ {
+		metadata, err := analyzer.AnalyzeScenario(scenarioName)
+		if err != nil {
+			t.Fatalf("AnalyzeScenario attempt %d: %v", attempt, err)
+		}
+		if !slices.Equal(metadata.RequiredResources, wantResources) {
+			t.Fatalf("required resources = %v, want stable order %v", metadata.RequiredResources, wantResources)
+		}
 	}
 }
 

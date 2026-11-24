@@ -75,7 +75,7 @@ func (s *Service) startBreakGlass(ctx context.Context, req BreakGlassRequest, bi
 		ID: id, DeploymentID: binding.DeploymentID, BindingID: binding.ID, Kind: domain.CredentialOperationBreakGlass, FromVersion: binding.Version.Number, State: domain.RotationPlanned, Consumers: initialConsumers(binding, now), Receipts: []domain.CredentialReceipt{}, CreatedAt: now, UpdatedAt: now,
 		BreakGlass: &domain.BreakGlassWindow{Scope: req.Scope, Operator: req.Operator, IssuedAt: now, ExpiresAt: now.Add(req.Window), PredecessorRef: fmt.Sprintf("%s@%d", binding.ID, predecessor.Number), ConfirmationRef: "confirmed:" + ExpectedBreakGlassConfirmation(req.BindingID)},
 	}
-	if err := s.Store.SaveRotation(ctx, rotation); err != nil {
+	if err := s.createOperation(ctx, rotation); err != nil {
 		return nil, err
 	}
 	if err := s.record(ctx, rotation, "break-glass-audit", domain.RotationPlanned, "confirmed", "", map[string]any{"scope": req.Scope, "operator": req.Operator, "expires_at": rotation.BreakGlass.ExpiresAt, "predecessor": predecessor.Number}); err != nil {

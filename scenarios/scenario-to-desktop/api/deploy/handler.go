@@ -46,22 +46,24 @@ func runDeployTargetDoctor(ctx context.Context, name string, target *DeployTarge
 		NextSteps:     make([]string, 0, 6),
 	}
 
-	secret := sharedenv.ResolveSecretWithSource("LPBS_SERVICE_SECRET")
+	client := NewLPBSClientWithLegacyResolver(target.ScenarioName, func() string {
+		return sharedenv.ResolveSecret("LPBS_SERVICE_SECRET")
+	})
 	tokenCheck := deployTargetDoctorCheck{
 		Name:     "scenario_to_desktop_secret",
 		Required: true,
 	}
-	if strings.TrimSpace(secret.Value) == "" {
+	if _, err := client.authorization(ctx); err != nil {
 		tokenCheck.Passed = false
 		tokenCheck.Detail = missingScenarioToDesktopSecretMessage()
 		report.Ready = false
 		report.NextSteps = appendUnique(report.NextSteps,
-			fmt.Sprintf("scenario-to-cloud secrets get LPBS_SERVICE_SECRET --scenario %s --targets scenario", target.ScenarioName),
-			"scenario-to-cloud secrets set LPBS_SERVICE_SECRET --scenario scenario-to-desktop --value <same_secret_value> --targets scenario",
+			"ask the operator to issue scenario-to-desktop-lpbs-deployment-manager for landing-page-business-suite",
+			"temporarily configure LPBS_SERVICE_SECRET only if the scoped service principal is not yet available",
 		)
 	} else {
 		tokenCheck.Passed = true
-		tokenCheck.Detail = fmt.Sprintf("LPBS_SERVICE_SECRET is injected for this process (source=%s)", secret.Source)
+		tokenCheck.Detail = "LPBS deployment service identity is available"
 	}
 	report.Checks = append(report.Checks, tokenCheck)
 
@@ -77,13 +79,12 @@ func runDeployTargetDoctor(ctx context.Context, name string, target *DeployTarge
 	if !tokenCheck.Passed {
 		sessionCheck.Passed = false
 		sessionCheck.Blocked = true
-		sessionCheck.Detail = "skipped: scenario-to-desktop LPBS_SERVICE_SECRET is required"
+		sessionCheck.Detail = "skipped: LPBS deployment identity is unavailable"
 		serviceAuthCheck.Passed = false
 		serviceAuthCheck.Blocked = true
-		serviceAuthCheck.Detail = "skipped: scenario-to-desktop LPBS_SERVICE_SECRET is required"
+		serviceAuthCheck.Detail = "skipped: LPBS deployment identity is unavailable"
 		report.Ready = false
 	} else {
-		client := NewLPBSClient(target.ScenarioName, secret.Value)
 		if err := client.TestRemoteProfile(ctx, target.RemoteProfile); err != nil {
 			sessionCheck.Passed = false
 			sessionCheck.Detail = fmt.Sprintf("remote profile %q session test failed: %v", target.RemoteProfile, err)
@@ -107,7 +108,6 @@ func runDeployTargetDoctor(ctx context.Context, name string, target *DeployTarge
 			serviceAuthCheck.Detail = fmt.Sprintf("service auth is not configured in %s runtime", target.ScenarioName)
 			report.Ready = false
 			report.NextSteps = appendUnique(report.NextSteps,
-				fmt.Sprintf("scenario-to-cloud secrets set LPBS_SERVICE_SECRET --scenario %s --generate hex:64 --targets scenario,deployment --domain <domain> --restart", target.ScenarioName),
 				fmt.Sprintf("%s service-auth-status --require-enabled", target.ScenarioName),
 			)
 		default:
@@ -131,7 +131,7 @@ func runDeployTargetDoctor(ctx context.Context, name string, target *DeployTarge
 }
 
 func missingScenarioToDesktopSecretMessage() string {
-	return "LPBS_SERVICE_SECRET is not injected for this scenario-to-desktop process"
+	return "scenario-to-desktop LPBS deployment service principal is unavailable; temporary LPBS_SERVICE_SECRET fallback is also unavailable"
 }
 
 func appendUnique(values []string, additions ...string) []string {

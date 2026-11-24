@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,11 +13,15 @@ import (
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
+	"deployment-manager/releases"
 	"deployment-manager/shared"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/receiptsigning"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	credentialauthoritysigning "github.com/vrooli/vrooli/packages/credential-authority-go/receiptsigning"
+	s2cdeploymentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/deployments"
+	s2cdeploymentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/deployments/deploymentsv1connect"
 )
 
 // CloudHealthClient checks the health of one exact cloud deployment for the
@@ -32,12 +37,16 @@ type CloudHealthClient interface {
 // scenario-to-cloud. Secrets are intentionally absent: scenario-to-cloud and
 // its credential owner resolve those values at the deployment boundary.
 type CloudDeploymentRequest struct {
-	Name            string
-	Manifest        json.RawMessage
-	BundlePath      string
-	BundleSHA256    string
-	BundleSizeBytes int64
-	RunPreflight    bool
+	RequestKey           string
+	ExistingDeploymentID string
+	ExistingOperationID  string
+	OnProgress           func(CloudStepProgress) error
+	Name                 string
+	Manifest             json.RawMessage
+	BundlePath           string
+	BundleSHA256         string
+	BundleSizeBytes      int64
+	RunPreflight         bool
 	// ExpectedReleaseDigest binds the receipt to one immutable release when
 	// the caller knows it; empty accepts whichever release the bundle maps to.
 	ExpectedReleaseDigest string
@@ -45,6 +54,15 @@ type CloudDeploymentRequest struct {
 	// scenario-to-cloud evaluates its capability profile against it and
 	// reports coverage back; DM remains the only approver.
 	Review *CloudReviewIdentity
+}
+
+// CloudStepProgress describes a durable transition in DM's S2C hand-off.
+type CloudStepProgress struct {
+	State            string
+	DeploymentID     string
+	OwnerOperationID string
+	Reason           string
+	Receipt          json.RawMessage
 }
 
 // CloudReviewIdentity mirrors the readiness review identity for the cloud
@@ -268,6 +286,11 @@ type HTTPCloudHealthClient struct {
 const cloudDeploymentPollInterval = time.Second
 const cloudReceiptSigningIdentity = "scenario-to-cloud/receipt-signing"
 
+// ErrCloudOperationAmbiguous means S2C admission may have committed but its
+// owner read-back was unavailable. Callers must leave the release resumable
+// for reconciliation instead of recording an ordinary failure.
+var ErrCloudOperationAmbiguous = errors.New("scenario-to-cloud operation outcome is ambiguous")
+
 // NewHTTPCloudHealthClient constructs the default cloud health client through
 // scenario discovery.
 func NewHTTPCloudHealthClient(log func(string, map[string]interface{})) (*HTTPCloudHealthClient, error) {
@@ -336,24 +359,85 @@ func (c *HTTPCloudHealthClient) DeployCloud(ctx context.Context, request *CloudD
 	if request.Review != nil {
 		createPayload["review"] = request.Review
 	}
-	var created struct {
-		Deployment struct {
-			ID string `json:"id"`
-		} `json:"deployment"`
+	deploymentID := strings.TrimSpace(request.ExistingDeploymentID)
+	if deploymentID == "" {
+		var created struct {
+			Deployment struct {
+				ID string `json:"id"`
+			} `json:"deployment"`
+		}
+		if err := c.cloudJSON(ctx, http.MethodPost, "/api/v1/deployments", createPayload, http.StatusCreated, &created); err != nil {
+			return nil, fmt.Errorf("create cloud deployment: %w", err)
+		}
+		deploymentID = strings.TrimSpace(created.Deployment.ID)
+		if deploymentID == "" {
+			return nil, fmt.Errorf("create cloud deployment returned no deployment id")
+		}
+		if err := c.progress(request, CloudStepProgress{State: "deployment_ready", DeploymentID: deploymentID}); err != nil {
+			return nil, fmt.Errorf("persist cloud deployment identity: %w", err)
+		}
 	}
-	if err := c.cloudJSON(ctx, http.MethodPost, "/api/v1/deployments", createPayload, http.StatusCreated, &created); err != nil {
-		return nil, fmt.Errorf("create cloud deployment: %w", err)
+	ownerOperationID := strings.TrimSpace(request.ExistingOperationID)
+	if ownerOperationID == "" {
+		// Read by deployment first. This reconciles an accepted S2C operation
+		// whose 202 response was lost, before any retry can submit work again.
+		foundID, lookupErr := c.findCloudOperation(ctx, deploymentID, request.RequestKey)
+		if lookupErr != nil {
+			return nil, fmt.Errorf("reconcile cloud operation: %w", lookupErr)
+		}
+		ownerOperationID = foundID
 	}
-	if strings.TrimSpace(created.Deployment.ID) == "" {
-		return nil, fmt.Errorf("create cloud deployment returned no deployment id")
+	if ownerOperationID == "" {
+		var started map[string]interface{}
+		err := c.cloudJSON(ctx, http.MethodPost, "/api/v1/deployments/"+url.PathEscape(deploymentID)+"/execute", map[string]interface{}{
+			"run_preflight": request.RunPreflight, "request_key": request.RequestKey,
+		}, http.StatusAccepted, &started)
+		if err != nil {
+			// The admission transaction may have committed before the response
+			// was lost. Query by the same stable key before declaring ambiguity.
+			foundID, lookupErr := c.findCloudOperation(ctx, deploymentID, request.RequestKey)
+			if lookupErr != nil {
+				_ = c.progress(request, CloudStepProgress{State: "reconciliation_required", DeploymentID: deploymentID, Reason: lookupErr.Error()})
+				return nil, fmt.Errorf("%w: execute response failed (%v), owner read-back failed: %v", ErrCloudOperationAmbiguous, err, lookupErr)
+			}
+			ownerOperationID = foundID
+			if ownerOperationID == "" {
+				return nil, fmt.Errorf("start cloud deployment %s: %w", deploymentID, err)
+			}
+		} else if id, _ := started["operation_id"].(string); strings.TrimSpace(id) != "" {
+			ownerOperationID = strings.TrimSpace(id)
+		}
+		if ownerOperationID == "" {
+			return nil, fmt.Errorf("start cloud deployment %s returned no operation identity", deploymentID)
+		}
 	}
-	var started struct {
-		RunID string `json:"run_id"`
+	if err := c.progress(request, CloudStepProgress{State: "operation_admitted", DeploymentID: deploymentID, OwnerOperationID: ownerOperationID}); err != nil {
+		return nil, fmt.Errorf("persist cloud operation identity: %w", err)
 	}
-	if err := c.cloudJSON(ctx, http.MethodPost, "/api/v1/deployments/"+url.PathEscape(created.Deployment.ID)+"/execute", map[string]interface{}{
-		"run_preflight": request.RunPreflight,
-	}, http.StatusAccepted, &started); err != nil {
-		return nil, fmt.Errorf("start cloud deployment %s: %w", created.Deployment.ID, err)
+	// A resumed DM worker must reattach to the exact S2C operation it saved,
+	// not infer that operation's state from the mutable deployment summary.
+	// This read is observational and happens before any further polling or
+	// receipt acceptance.
+	treatAsReattach := strings.TrimSpace(request.ExistingOperationID) != ""
+	if treatAsReattach {
+		standing, err := c.cloudOperationStanding(ctx, ownerOperationID)
+		if err != nil {
+			_ = c.progress(request, CloudStepProgress{State: "reconciliation_required", DeploymentID: deploymentID, OwnerOperationID: ownerOperationID, Reason: err.Error()})
+			return nil, fmt.Errorf("%w: read persisted cloud operation: %v", ErrCloudOperationAmbiguous, err)
+		}
+		if standing.OperationID != ownerOperationID || standing.DeploymentID != deploymentID || standing.RequestKey != request.RequestKey {
+			return nil, fmt.Errorf("%w: persisted cloud operation identity does not match the saved request", ErrCloudOperationAmbiguous)
+		}
+		switch standing.State {
+		case "failed", "failed_recovery", "cancelled":
+			return nil, fmt.Errorf("cloud operation %s ended %s: %s", ownerOperationID, standing.State, standing.ErrorMessage)
+		case "admitted", "waiting_input", "running", "verifying", "reconciling", "recovering", "cancel_requested", "succeeded":
+			// Keep observing through the deployment's owner-backed status and
+			// receipt endpoints below. A succeeded operation still needs its
+			// signed deployment receipt and health observation.
+		default:
+			return nil, fmt.Errorf("%w: cloud operation %s has unknown state %q", ErrCloudOperationAmbiguous, ownerOperationID, standing.State)
+		}
 	}
 
 	pollInterval := c.pollInterval
@@ -363,58 +447,157 @@ func (c *HTTPCloudHealthClient) DeployCloud(ctx context.Context, request *CloudD
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 	for {
-		status, err := c.cloudDeploymentStatus(ctx, created.Deployment.ID)
+		if treatAsReattach {
+			standing, err := c.cloudOperationStanding(ctx, ownerOperationID)
+			if err != nil {
+				_ = c.progress(request, CloudStepProgress{State: "reconciliation_required", DeploymentID: deploymentID, OwnerOperationID: ownerOperationID, Reason: err.Error()})
+				return nil, fmt.Errorf("%w: observe persisted cloud operation: %v", ErrCloudOperationAmbiguous, err)
+			}
+			if standing.OperationID != ownerOperationID || standing.DeploymentID != deploymentID || standing.RequestKey != request.RequestKey {
+				return nil, fmt.Errorf("%w: observed cloud operation identity does not match the saved request", ErrCloudOperationAmbiguous)
+			}
+			switch standing.State {
+			case "failed", "failed_recovery", "cancelled":
+				return nil, fmt.Errorf("cloud operation %s ended %s: %s", ownerOperationID, standing.State, standing.ErrorMessage)
+			case "succeeded":
+				// Continue to the deployment's signed receipt and fresh health
+				// read-back before DM treats the effect as complete.
+			case "admitted", "waiting_input", "running", "verifying", "reconciling", "recovering", "cancel_requested":
+				select {
+				case <-ctx.Done():
+					return nil, fmt.Errorf("wait for cloud operation %s: %w", ownerOperationID, ctx.Err())
+				case <-ticker.C:
+					continue
+				}
+			default:
+				return nil, fmt.Errorf("%w: cloud operation %s has unknown state %q", ErrCloudOperationAmbiguous, ownerOperationID, standing.State)
+			}
+		}
+		status, err := c.cloudDeploymentStatus(ctx, deploymentID)
 		if err != nil {
 			return nil, err
 		}
 		switch status.Status {
 		case "failed", "stopped":
-			return nil, fmt.Errorf("cloud deployment %s ended %s: %s", created.Deployment.ID, status.Status, status.ErrorMessage)
+			return nil, fmt.Errorf("cloud deployment %s ended %s: %s", deploymentID, status.Status, status.ErrorMessage)
 		case "deployed":
 			var envelope struct {
 				Receipt CloudDeploymentReceipt `json:"receipt"`
 			}
-			receiptPath := "/api/v1/deployments/" + url.PathEscape(created.Deployment.ID) + "/receipt"
+			receiptPath := "/api/v1/deployments/" + url.PathEscape(deploymentID) + "/receipt"
 			if expected := strings.TrimSpace(request.ExpectedReleaseDigest); expected != "" {
 				receiptPath += "?release_digest=" + url.QueryEscape(expected)
 			}
 			if err := c.cloudJSON(ctx, http.MethodGet, receiptPath, nil, http.StatusOK, &envelope); err != nil {
-				return nil, fmt.Errorf("read cloud deployment receipt %s: %w", created.Deployment.ID, err)
+				return nil, fmt.Errorf("read cloud deployment receipt %s: %w", deploymentID, err)
 			}
-			if err := validateCloudReceipt(envelope.Receipt, created.Deployment.ID, request); err != nil {
+			if err := validateCloudReceipt(envelope.Receipt, deploymentID, request); err != nil {
 				return nil, err
 			}
 			if c.receiptVerificationStrict {
 				if c.receiptVerifier == nil {
-					return nil, fmt.Errorf("cloud deployment %s receipt verifier is unavailable", created.Deployment.ID)
+					return nil, fmt.Errorf("cloud deployment %s receipt verifier is unavailable", deploymentID)
 				}
 				if err := envelope.Receipt.VerifySignature(ctx, c.receiptVerifier); err != nil {
-					return nil, fmt.Errorf("cloud deployment %s receipt signature is invalid: %w", created.Deployment.ID, err)
+					return nil, fmt.Errorf("cloud deployment %s receipt signature is invalid: %w", deploymentID, err)
 				}
 			}
 			// The receipt's health field is derived from the deployment
 			// record's status; only the typed observation proves the
 			// target is running the delivered release now.
 			health, err := c.CheckDeploymentHealth(ctx, DeploymentHealthRequest{
-				DeploymentID:          created.Deployment.ID,
+				DeploymentID:          deploymentID,
 				ExpectedReleaseDigest: envelope.Receipt.BundleSHA256,
 			})
 			if err != nil {
-				return nil, fmt.Errorf("observe cloud deployment %s health: %w", created.Deployment.ID, err)
+				return nil, fmt.Errorf("observe cloud deployment %s health: %w", deploymentID, err)
 			}
 			if !health.Healthy {
-				return nil, fmt.Errorf("cloud deployment %s receipt is not backed by a healthy current observation: %s", created.Deployment.ID, health.Explain())
+				return nil, fmt.Errorf("cloud deployment %s receipt is not backed by a healthy current observation: %s", deploymentID, health.Explain())
 			}
 			receipt := envelope.Receipt
-			receipt.Evidence, receipt.Publication = c.cloudEvidence(ctx, created.Deployment.ID, receipt.ReleaseDigest)
+			receipt.Evidence, receipt.Publication = c.cloudEvidence(ctx, deploymentID, receipt.ReleaseDigest)
+			encodedReceipt, _ := json.Marshal(struct {
+				Receipt     CloudDeploymentReceipt `json:"receipt"`
+				Evidence    *CloudEvidenceSummary  `json:"evidence,omitempty"`
+				Publication *CloudPublication      `json:"publication,omitempty"`
+			}{Receipt: receipt, Evidence: receipt.Evidence, Publication: receipt.Publication})
+			if err := c.progress(request, CloudStepProgress{State: "receipt_verified", DeploymentID: deploymentID, OwnerOperationID: ownerOperationID, Receipt: encodedReceipt}); err != nil {
+				return nil, fmt.Errorf("persist verified cloud receipt: %w", err)
+			}
 			return &receipt, nil
 		}
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("wait for cloud deployment %s: %w", created.Deployment.ID, ctx.Err())
+			return nil, fmt.Errorf("wait for cloud deployment %s: %w", deploymentID, ctx.Err())
 		case <-ticker.C:
 		}
 	}
+}
+
+type cloudOperationStanding struct {
+	OperationID  string `json:"operation_id"`
+	DeploymentID string `json:"deployment_id"`
+	RequestKey   string `json:"request_key"`
+	State        string `json:"state"`
+	ErrorMessage string `json:"error_message,omitempty"`
+	Error        struct {
+		Message string `json:"message"`
+	} `json:"error,omitempty"`
+}
+
+func (c *HTTPCloudHealthClient) cloudOperationStanding(ctx context.Context, operationID string) (cloudOperationStanding, error) {
+	var standing cloudOperationStanding
+	path := "/vrooli.scenario_to_cloud.v1.operations.OperationsService/GetOperation"
+	if err := c.cloudJSON(ctx, http.MethodPost, path, map[string]string{"operation_id": operationID}, http.StatusOK, &standing); err != nil {
+		return standing, err
+	}
+	if standing.ErrorMessage == "" {
+		standing.ErrorMessage = standing.Error.Message
+	}
+	return standing, nil
+}
+
+func (c *HTTPCloudHealthClient) progress(request *CloudDeploymentRequest, update CloudStepProgress) error {
+	if request.OnProgress == nil {
+		return nil
+	}
+	return request.OnProgress(update)
+}
+
+func (c *HTTPCloudHealthClient) findCloudOperation(ctx context.Context, deploymentID, requestKey string) (string, error) {
+	if strings.TrimSpace(requestKey) == "" {
+		return "", fmt.Errorf("stable request key is required")
+	}
+	var response struct {
+		Operations []struct {
+			OperationID      string `json:"operation_id"`
+			OperationIDCamel string `json:"operationId"`
+			RequestKey       string `json:"request_key"`
+			RequestKeyCamel  string `json:"requestKey"`
+		} `json:"operations"`
+	}
+	path := "/vrooli.scenario_to_cloud.v1.operations.OperationsService/ListDeploymentOperations"
+	if err := c.cloudJSON(ctx, http.MethodPost, path, map[string]string{"deployment_id": deploymentID}, http.StatusOK, &response); err != nil {
+		return "", err
+	}
+	for _, op := range response.Operations {
+		key := op.RequestKey
+		if key == "" {
+			key = op.RequestKeyCamel
+		}
+		if key == requestKey {
+			id := op.OperationID
+			if id == "" {
+				id = op.OperationIDCamel
+			}
+			if id == "" {
+				return "", fmt.Errorf("matching cloud operation has no identity")
+			}
+			return id, nil
+		}
+	}
+	return "", nil
 }
 
 // cloudEvidence reads the owner's per-cell dispositions and publication for
@@ -526,6 +709,66 @@ func (c *HTTPCloudHealthClient) waitForCloudRecovery(ctx context.Context, reques
 	}
 }
 
+// GetCloudRecoveryOperation reads one exact human-started S2C recovery. This
+// path is read-only: DM never invokes the owner's Start RPC.
+func (c *HTTPCloudHealthClient) GetCloudRecoveryOperation(ctx context.Context, deploymentID, operationID string) (*releases.CloudRecoveryOperation, error) {
+	client, err := c.generatedDeploymentClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	response, err := client.GetDeploymentRecoveryOperation(ctx, connect.NewRequest(&s2cdeploymentsv1.GetDeploymentRecoveryOperationRequest{DeploymentId: deploymentID, OperationId: operationID}))
+	if connect.CodeOf(err) == connect.CodeNotFound {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read S2C recovery operation %q: %w", operationID, err)
+	}
+	return s2cRecoveryOperationFromProto(response.Msg), nil
+}
+
+// FindCloudRecoveryOperation reconciles a human-started operation whose first
+// readback was lost, using only DM's persisted stable key.
+func (c *HTTPCloudHealthClient) FindCloudRecoveryOperation(ctx context.Context, deploymentID, idempotencyKey string) (*releases.CloudRecoveryOperation, error) {
+	client, err := c.generatedDeploymentClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	response, err := client.FindDeploymentRecoveryOperation(ctx, connect.NewRequest(&s2cdeploymentsv1.FindDeploymentRecoveryOperationRequest{DeploymentId: deploymentID, IdempotencyKey: idempotencyKey}))
+	if connect.CodeOf(err) == connect.CodeNotFound {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("find S2C recovery by stable key: %w", err)
+	}
+	return s2cRecoveryOperationFromProto(response.Msg), nil
+}
+
+func (c *HTTPCloudHealthClient) generatedDeploymentClient(ctx context.Context) (s2cdeploymentsconnect.DeploymentsServiceClient, error) {
+	baseURL, err := c.baseURLFor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	httpClient := c.httpClient
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
+	return s2cdeploymentsconnect.NewDeploymentsServiceClient(httpClient, strings.TrimRight(baseURL, "/")), nil
+}
+
+func s2cRecoveryOperationFromProto(value *s2cdeploymentsv1.DeploymentRecoveryOperation) *releases.CloudRecoveryOperation {
+	if value == nil {
+		return nil
+	}
+	return &releases.CloudRecoveryOperation{
+		DeploymentID: value.GetDeploymentId(), OperationID: value.GetOperationId(), IdempotencyKey: value.GetIdempotencyKey(),
+		Action: value.GetAction(), Status: value.GetStatus(), ExpectedCurrentBundleSHA256: value.GetExpectedCurrentBundleSha256(),
+		LastGoodReleaseDigest: value.GetLastGoodReleaseDigest(), ReviewRef: value.GetReviewRef(), PreviewRef: value.GetPreviewRef(),
+		DataCompatibility: value.GetDataCompatibility(), ReceiptJSON: json.RawMessage(value.GetReceiptJson()), Error: value.GetError(),
+	}
+}
+
+var _ releases.CloudRecoveryOperationReader = (*HTTPCloudHealthClient)(nil)
+
 func validCloudRecoveryOutcome(action string, receipt CloudRecoveryReceipt) bool {
 	if action != "halt" && strings.TrimSpace(receipt.BundleSHA256) == "" {
 		return false
@@ -586,7 +829,8 @@ func (c *HTTPCloudHealthClient) cloudJSON(ctx context.Context, method, path stri
 	if readErr != nil {
 		return fmt.Errorf("read response: %w", readErr)
 	}
-	if resp.StatusCode != expectedStatus {
+	createReplay := expectedStatus == http.StatusCreated && resp.StatusCode == http.StatusOK
+	if resp.StatusCode != expectedStatus && !createReplay {
 		return fmt.Errorf("unexpected status %d: %s", resp.StatusCode, strings.TrimSpace(string(responseBody)))
 	}
 	if out != nil && len(bytes.TrimSpace(responseBody)) > 0 {

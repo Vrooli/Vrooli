@@ -15,6 +15,7 @@ import (
 	"time"
 
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
+	"scenario-to-desktop-api/deploy"
 	sharedenv "scenario-to-desktop-api/shared/env"
 )
 
@@ -79,7 +80,10 @@ func (b desktopRampBuilder) Build(_ context.Context, request deliveryramp.BuildR
 // build pipeline has produced it. Uploading the bytes is intentionally outside
 // this adapter: the operator supplies the durable artifact URL, while this
 // call records the exact checksum and entitlement metadata that was built.
-type desktopRampDistributor struct{ client *http.Client }
+type desktopRampDistributor struct {
+	client        *http.Client
+	authorization func(context.Context) (string, error)
+}
 
 func (d desktopRampDistributor) Distribute(ctx context.Context, request deliveryramp.DistributionRequest) (result deliveryramp.DistributionResult, err error) {
 	defer func() {
@@ -111,8 +115,16 @@ func (d desktopRampDistributor) Distribute(ctx context.Context, request delivery
 	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") || parsedURL.Host == "" {
 		return deliveryramp.DistributionResult{Disposition: deliveryramp.DispositionUnavailable, Reason: "artifact URL must be an absolute HTTP(S) URL"}, nil
 	}
-	token := strings.TrimSpace(sharedenv.ResolveSecret("LPBS_SERVICE_SECRET"))
-	if token == "" {
+	authorization := d.authorization
+	if authorization == nil {
+		authorization = func(ctx context.Context) (string, error) {
+			return deploy.ResolveScenarioToDesktopLPBSAuthorizationLazy(ctx, func() string {
+				return sharedenv.ResolveSecret("LPBS_SERVICE_SECRET")
+			})
+		}
+	}
+	serviceAuthorization, authErr := authorization(ctx)
+	if authErr != nil || strings.TrimSpace(serviceAuthorization) == "" {
 		return deliveryramp.DistributionResult{Disposition: deliveryramp.DispositionUnavailable, Reason: "LPBS catalog authorization is unavailable"}, nil
 	}
 	payload := map[string]any{
@@ -138,7 +150,7 @@ func (d desktopRampDistributor) Distribute(ctx context.Context, request delivery
 		return deliveryramp.DistributionResult{}, fmt.Errorf("create LPBS catalog registration: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Authorization", serviceAuthorization)
 	client := d.client
 	if client == nil {
 		client = &http.Client{Timeout: 20 * time.Second}

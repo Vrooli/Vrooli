@@ -267,15 +267,7 @@ func (sm *Manager) MissingRequired() []string {
 func (sm *Manager) MissingRequiredFrom(secrets map[string]string) []string {
 	var missing []string
 	for _, sec := range sm.manifest.Secrets {
-		required := true
-		if sec.Required != nil {
-			required = *sec.Required
-		}
-		if !required {
-			continue
-		}
-		val := strings.TrimSpace(secrets[sec.ID])
-		if val == "" {
+		if requiredSecretValueMissing(sec, secrets[sec.ID]) {
 			missing = append(missing, sec.ID)
 		}
 	}

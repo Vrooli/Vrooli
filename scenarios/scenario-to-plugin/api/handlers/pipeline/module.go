@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -82,10 +83,12 @@ type packageRecord struct {
 	ScenarioRoot string
 }
 type handler struct {
-	root     string
-	db       *sql.DB
-	mu       sync.RWMutex
-	packages map[string]packageRecord
+	root         string
+	db           *sql.DB
+	artifactRoot func(context.Context) (string, error)
+	retentionMu  sync.Mutex
+	mu           sync.RWMutex
+	packages     map[string]packageRecord
 }
 
 func New(repoRoot string) module.Module {
@@ -93,7 +96,13 @@ func New(repoRoot string) module.Module {
 }
 
 func NewWithDB(repoRoot string, db *sql.DB) module.Module {
-	h := &handler{root: repoRoot, db: db, packages: map[string]packageRecord{}}
+	return NewWithArtifactRoot(repoRoot, db, nil)
+}
+
+// NewWithArtifactRoot wires package bytes to the scenario-owned storage root.
+// The resolver is request-scoped so test-mode routing remains effective.
+func NewWithArtifactRoot(repoRoot string, db *sql.DB, artifactRoot func(context.Context) (string, error)) module.Module {
+	h := &handler{root: repoRoot, db: db, artifactRoot: artifactRoot, packages: map[string]packageRecord{}}
 	return module.Module{Name: "pipeline", Mount: func(r *mux.Router) {
 		r.HandleFunc("/api/v1/readiness", func(w http.ResponseWriter, req *http.Request) {
 			items, _ := os.ReadDir(filepath.Join(h.root, "scenarios"))
@@ -280,13 +289,16 @@ func (h *handler) ListReadiness(_ context.Context, req *connect.Request[decl.Lis
 	return connect.NewResponse(resp), nil
 }
 
-func (h *handler) Compose(_ context.Context, req *connect.Request[comp.ComposeRequest]) (*connect.Response[comp.ComposeResponse], error) {
+func (h *handler) Compose(ctx context.Context, req *connect.Request[comp.ComposeRequest]) (*connect.Response[comp.ComposeResponse], error) {
 	d, r, scenarioRoot, err := h.readiness(req.Msg.Scenario)
 	if err != nil {
 		return nil, err
 	}
 	if !r.Eligible {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New(r.BlockingPrerequisite))
+	}
+	if err := h.pruneExpiredPackages(ctx, time.Now().UTC()); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("prune expired packages: %w", err))
 	}
 	m, _, _ := h.read(req.Msg.Scenario)
 	selectedSkills := d.Skills
@@ -311,10 +323,27 @@ func (h *handler) Compose(_ context.Context, req *connect.Request[comp.ComposeRe
 	seed := []byte(req.Msg.Scenario + "\x00" + revision + "\x00" + time.Now().UTC().Format(time.RFC3339Nano))
 	sum := sha256.Sum256(seed)
 	id := hex.EncodeToString(sum[:8])
-	root, err := os.MkdirTemp("", "vrooli-plugin-"+id+"-")
+	base := filepath.Join(h.root, ".test-plugin-artifacts")
+	if h.artifactRoot != nil {
+		base, err = h.artifactRoot(ctx)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("resolve package artifact root: %w", err))
+		}
+	}
+	base = filepath.Join(base, "packages")
+	if err := os.MkdirAll(base, 0o700); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	root, err := os.MkdirTemp(base, "plugin-"+id+"-")
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	retained := false
+	defer func() {
+		if !retained {
+			_ = os.RemoveAll(root)
+		}
+	}()
 	manifest := map[string]any{"$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", "name": d.Slug, "version": m.Service.Version, "description": m.Service.Description}
 	for _, s := range selectedSkills {
 		src := filepath.Join(scenarioRoot, s.Source)
@@ -366,6 +395,10 @@ func (h *handler) Compose(_ context.Context, req *connect.Request[comp.ComposeRe
 	if err := copyProgramAssets(scenarioRoot, root); err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
+	if secret := findSecret(root); secret != "" {
+		_ = os.RemoveAll(root)
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("PLG-COMPOSE-SECRET: credential-like literal found at %s", secret))
+	}
 	artifact, artifactDigest, err := packageArchive(root)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("archive package: %w", err))
@@ -378,15 +411,78 @@ func (h *handler) Compose(_ context.Context, req *connect.Request[comp.ComposeRe
 		posture = m.Plugin.MCP.Authentication
 	}
 	p := &comp.Package{Id: id, Scenario: req.Msg.Scenario, SourceRevision: revision, Digest: artifactDigest, ArtifactRoot: root, State: "composed", McpAuthentication: posture}
-	h.mu.Lock()
-	h.packages[id] = packageRecord{Package: p, Root: root, ScenarioRoot: scenarioRoot}
-	h.mu.Unlock()
 	if h.db != nil {
 		if _, err := h.db.Exec(`INSERT OR REPLACE INTO plugin_packages (id, scenario, source_revision, digest, artifact_root, state, mcp_authentication) VALUES (?, ?, ?, ?, ?, ?, ?)`, p.Id, p.Scenario, p.SourceRevision, p.Digest, p.ArtifactRoot, p.State, p.McpAuthentication); err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("persist package record: %w", err))
 		}
 	}
+	h.mu.Lock()
+	h.packages[id] = packageRecord{Package: p, Root: root, ScenarioRoot: scenarioRoot}
+	h.mu.Unlock()
+	retained = true
 	return connect.NewResponse(&comp.ComposeResponse{Package: p}), nil
+}
+
+const packageRetention = 90 * 24 * time.Hour
+
+// pruneExpiredPackages implements the composition-owned package/artifact
+// portion of DATA.md. It runs before composition, is serialized against
+// Publish, and excludes every package with any publication history (including
+// withdrawn publications). Other retention classes remain separate work.
+func (h *handler) pruneExpiredPackages(ctx context.Context, now time.Time) error {
+	if h.db == nil {
+		return nil
+	}
+	base := filepath.Join(h.root, ".test-plugin-artifacts")
+	if h.artifactRoot != nil {
+		var err error
+		base, err = h.artifactRoot(ctx)
+		if err != nil {
+			return err
+		}
+	}
+	packagesRoot := filepath.Join(base, "packages")
+	h.retentionMu.Lock()
+	defer h.retentionMu.Unlock()
+	rows, err := h.db.QueryContext(ctx, `SELECT p.id, p.artifact_root FROM plugin_packages p
+		WHERE datetime(p.created_at) <= datetime(?)
+		AND NOT EXISTS (SELECT 1 FROM plugin_publications pub WHERE pub.package_id = p.id)`, now.Add(-packageRetention).Format(time.RFC3339))
+	if err != nil {
+		return err
+	}
+	type expired struct{ id, root string }
+	var candidates []expired
+	for rows.Next() {
+		var item expired
+		if err := rows.Scan(&item.id, &item.root); err != nil {
+			rows.Close()
+			return err
+		}
+		candidates = append(candidates, item)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	for _, item := range candidates {
+		cleanRoot := filepath.Clean(item.root)
+		if filepath.Dir(cleanRoot) != filepath.Clean(packagesRoot) || !strings.HasPrefix(filepath.Base(cleanRoot), "plugin-"+item.id+"-") {
+			return fmt.Errorf("refusing to prune package %s outside its owned artifact directory", item.id)
+		}
+		if err := os.RemoveAll(cleanRoot); err != nil {
+			return fmt.Errorf("remove package %s artifacts: %w", item.id, err)
+		}
+		if _, err := h.db.ExecContext(ctx, `DELETE FROM plugin_packages WHERE id = ? AND NOT EXISTS (SELECT 1 FROM plugin_publications WHERE package_id = ?)`, item.id, item.id); err != nil {
+			return fmt.Errorf("remove expired package %s record: %w", item.id, err)
+		}
+		h.mu.Lock()
+		delete(h.packages, item.id)
+		h.mu.Unlock()
+	}
+	return nil
 }
 
 // packageArchive produces the consumer artifact with stable tar metadata. The
@@ -586,9 +682,11 @@ func findSecret(root string) string {
 }
 
 func secretInBytes(b []byte) bool {
-	text := string(b)
-	return strings.Contains(text, "BEGIN PRIVATE KEY") || strings.Contains(text, "ghp_") || strings.Contains(text, "sk-")
+	return credentialLiteral.Match(b)
 }
+
+var credentialLiteral = regexp.MustCompile(`(?:sk-[A-Za-z0-9]{16,}|gh[pousr]_[A-Za-z0-9]{16,}|BEGIN PRIVATE KEY)`)
+var privateKeyBlock = regexp.MustCompile(`(?s)-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?(?:-----END [A-Z0-9 ]*PRIVATE KEY-----|$)`)
 
 func validateManagedEvidence(name string, body []byte, artifactDigest string) error {
 	var document map[string]any
@@ -600,8 +698,17 @@ func validateManagedEvidence(name string, body []byte, artifactDigest string) er
 		if _, ok := document["verificationMaterial"]; !ok {
 			return errors.New("managed Cosign bundle has no verificationMaterial")
 		}
-		if _, ok := document["messageSignature"]; !ok {
+		messageSignature, ok := document["messageSignature"].(map[string]any)
+		if !ok {
 			return errors.New("managed Cosign bundle has no messageSignature")
+		}
+		messageDigest, ok := messageSignature["messageDigest"].(map[string]any)
+		if !ok || messageDigest["algorithm"] != "SHA2_256" {
+			return errors.New("managed Cosign bundle has no SHA2_256 message digest")
+		}
+		want := strings.TrimPrefix(artifactDigest, "sha256:")
+		if messageDigest["digest"] != want {
+			return errors.New("managed Cosign signature is not bound to the composed artifact digest")
 		}
 	case "provenance.intoto.json":
 		subjects, ok := document["subject"].([]any)
@@ -840,9 +947,8 @@ func (h *handler) documentedCommands(p packageRecord) []string {
 
 func fileExists(path string) bool { info, err := os.Stat(path); return err == nil && !info.IsDir() }
 func redact(value string) string {
-	for _, token := range []string{"sk-", "ghp_", "BEGIN PRIVATE KEY"} {
-		value = strings.ReplaceAll(value, token, "[REDACTED]")
-	}
+	value = privateKeyBlock.ReplaceAllString(value, "[REDACTED]")
+	value = credentialLiteral.ReplaceAllString(value, "[REDACTED]")
 	if len(value) > 2048 {
 		return value[:2048]
 	}
@@ -850,6 +956,8 @@ func redact(value string) string {
 }
 
 func (h *handler) Publish(ctx context.Context, req *connect.Request[dist.PublishRequest]) (*connect.Response[dist.PublishResponse], error) {
+	h.retentionMu.Lock()
+	defer h.retentionMu.Unlock()
 	h.mu.RLock()
 	p, ok := h.packages[req.Msg.PackageId]
 	h.mu.RUnlock()
@@ -858,6 +966,12 @@ func (h *handler) Publish(ctx context.Context, req *connect.Request[dist.Publish
 	}
 	if req.Msg.SourceRevision != "" && req.Msg.SourceRevision != p.Package.SourceRevision {
 		return connect.NewResponse(&dist.PublishResponse{Refusal: "PLG-DIST-GATE: request source revision does not match the composed package"}), nil
+	}
+	// Refuse credential-bearing artifacts before asking deployment-manager for
+	// a release decision. That call crosses a service boundary, so waiting for
+	// Attest below would violate the no-secret-before-network publication gate.
+	if secret := findSecret(p.Root); secret != "" {
+		return connect.NewResponse(&dist.PublishResponse{Refusal: "PLG-DIST-ATTEST: credential-like literal found at " + secret}), nil
 	}
 	gate, gateErr := h.deploymentManagerGate(ctx, p.Package.SourceRevision)
 	if gateErr != nil {

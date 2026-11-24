@@ -18,8 +18,11 @@ func generateLinuxArtifactSigner(config *types.LinuxSigningConfig) ([]byte, erro
 	}
 
 	passphraseEnv := strings.TrimSpace(config.GPGPassphraseEnv)
-	if config.ManagedKey != nil && passphraseEnv == "" {
-		passphraseEnv = types.DefaultPassphraseEnvVar
+	passphraseIsFile := config.ManagedKey != nil
+	if passphraseIsFile {
+		// Managed credentials are materialized to an ephemeral file by the
+		// build owner. Only its path enters the child process environment.
+		passphraseEnv = types.DefaultManagedPassphraseFileEnv
 	}
 
 	const template = `'use strict';
@@ -34,6 +37,7 @@ const PASSPHRASE_ENV = __PASSPHRASE_ENV__;
 // A managed key is materialized by the build into VROOLI_GPG_HOMEDIR; an
 // external keyring keeps the embedded path.
 const GPG_HOMEDIR = process.env.VROOLI_GPG_HOMEDIR || __GPG_HOMEDIR__;
+const PASSPHRASE_IS_FILE = __PASSPHRASE_IS_FILE__;
 
 function runGpg(args, input) {
   return new Promise((resolve, reject) => {
@@ -76,8 +80,11 @@ module.exports = async function signLinuxArtifacts(result) {
   const configuredChannel = result.configuration && result.configuration.publish && result.configuration.publish.channel;
   const channel = process.env.VROOLI_UPDATE_CHANNEL || configuredChannel || 'stable';
   if (!version) throw new Error('package version is required for Linux release metadata');
-  const passphrase = PASSPHRASE_ENV ? process.env[PASSPHRASE_ENV] : undefined;
-  if (PASSPHRASE_ENV && passphrase === undefined) throw new Error('missing GPG passphrase environment variable ' + PASSPHRASE_ENV);
+  const passphraseValue = PASSPHRASE_ENV ? process.env[PASSPHRASE_ENV] : undefined;
+  if (PASSPHRASE_ENV && passphraseValue === undefined) throw new Error('missing GPG passphrase environment value ' + PASSPHRASE_ENV);
+  const passphrase = PASSPHRASE_IS_FILE && passphraseValue !== undefined
+    ? await fs.readFile(passphraseValue, 'utf8')
+    : passphraseValue;
 
   const records = [];
   for (const artifact of artifacts) {
@@ -106,8 +113,9 @@ module.exports = async function signLinuxArtifacts(result) {
 module.exports.default = module.exports;
 `
 
-	return []byte(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(template,
-		"__GPG_KEY_ID__", strconv.Quote(config.GPGKeyID)),
-		"__PASSPHRASE_ENV__", strconv.Quote(passphraseEnv)),
-		"__GPG_HOMEDIR__", strconv.Quote(config.GPGHomedir))), nil
+	content := strings.ReplaceAll(template, "__GPG_KEY_ID__", strconv.Quote(config.GPGKeyID))
+	content = strings.ReplaceAll(content, "__PASSPHRASE_ENV__", strconv.Quote(passphraseEnv))
+	content = strings.ReplaceAll(content, "__GPG_HOMEDIR__", strconv.Quote(config.GPGHomedir))
+	content = strings.ReplaceAll(content, "__PASSPHRASE_IS_FILE__", strconv.FormatBool(passphraseIsFile))
+	return []byte(content), nil
 }

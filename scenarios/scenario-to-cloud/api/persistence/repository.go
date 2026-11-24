@@ -18,6 +18,7 @@ import (
 // context and allows test-genie to route shadow runs without giving the
 // repository a second persistence path.
 type DB interface {
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 	QueryRowContext(context.Context, string, ...any) *sql.Row
@@ -247,6 +248,13 @@ func (r *Repository) InitSchemaOnDialect(ctx context.Context, db DB, dialect str
 			ALTER TABLE cloud_recovery_operations ADD COLUMN IF NOT EXISTS binding JSONB;
 		`},
 		{"add_cloud_recovery_points", cloudRecoveryPointsPostgresDDL},
+		{"add_deployment_health_alert_state", `
+			CREATE TABLE IF NOT EXISTS deployment_health_alert_state (
+				deployment_id TEXT PRIMARY KEY,
+				open_alerts JSONB NOT NULL DEFAULT '[]'::jsonb,
+				updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+		`},
 		{"add_desired_state_and_persistent_data", `
 			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS desired_state TEXT NOT NULL DEFAULT 'running';
 			ALTER TABLE deployments ADD COLUMN IF NOT EXISTS persistent_data JSONB;
@@ -378,6 +386,11 @@ CREATE TABLE IF NOT EXISTS cloud_recovery_operations (
 );
 CREATE INDEX IF NOT EXISTS idx_cloud_recovery_operations_deployment_id ON cloud_recovery_operations(deployment_id);
 CREATE INDEX IF NOT EXISTS idx_cloud_recovery_operations_status ON cloud_recovery_operations(status);
+CREATE TABLE IF NOT EXISTS deployment_health_alert_state (
+	 deployment_id TEXT PRIMARY KEY,
+	 open_alerts TEXT NOT NULL DEFAULT '[]',
+	 updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 ` + cloudOperationsSQLiteDDL + cloudEvidenceSQLiteDDL + cloudCredentialsSQLiteDDL + cloudRecoveryPointsSQLiteDDL
 	if _, err := db.ExecContext(ctx, schema); err != nil {
 		return fmt.Errorf("failed to create SQLite schema: %w", err)

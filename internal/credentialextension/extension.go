@@ -171,7 +171,7 @@ func prepare(opts Options, requireHost bool) (Options, []Target, error) {
 		if !info.Mode().IsRegular() {
 			return Options{}, nil, errors.New("host-path must be a regular file")
 		}
-		if opts.OS != "windows" && info.Mode()&0111 == 0 {
+		if opts.OS != "windows" && info.Mode()&0o111 == 0 {
 			return Options{}, nil, errors.New("host-path must be executable")
 		}
 	}
@@ -250,7 +250,7 @@ func writeManifest(path string, manifest nativeManifest) (bool, error) {
 	if existing, err := os.ReadFile(path); err == nil && string(existing) == string(data) {
 		return false, nil
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return false, err
 	}
 	tmp, err := os.CreateTemp(filepath.Dir(path), ".vrooli-native-host-*.tmp")
@@ -259,7 +259,7 @@ func writeManifest(path string, manifest nativeManifest) (bool, error) {
 	}
 	tmpName := tmp.Name()
 	defer os.Remove(tmpName)
-	if err := tmp.Chmod(0600); err != nil {
+	if err := tmp.Chmod(0o600); err != nil {
 		tmp.Close()
 		return false, err
 	}

@@ -3,10 +3,15 @@ package bridge
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/nodereach"
+	machinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines"
+	machinesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines/machines_v1connect"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
 	relayv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs"
@@ -33,6 +38,62 @@ type fakeArtifactClient struct {
 	requests []ArtifactRequest
 	result   ArtifactResult
 }
+
+type fakeBindingReader struct {
+	snapshot BindingSnapshot
+	err      error
+	calls    []string
+}
+
+type bindingBridgeAPI struct {
+	url    string
+	client connect.HTTPClient
+}
+
+func (a bindingBridgeAPI) ResolveURL(context.Context) (string, error) { return a.url, nil }
+func (a bindingBridgeAPI) ConnectTransport(context.Context, string) connect.HTTPClient {
+	return a.client
+}
+
+type machineBindingHandler struct {
+	machinesconnect.UnimplementedMachineServiceHandler
+	requestID string
+}
+
+func (h *machineBindingHandler) GetMachine(_ context.Context, req *connect.Request[machinesv1.GetMachineRequest]) (*connect.Response[machinesv1.GetMachineResponse], error) {
+	h.requestID = req.Msg.GetId()
+	return connect.NewResponse(&machinesv1.GetMachineResponse{
+		Machine:     &machinesv1.Machine{Id: "machine-9", Lifecycle: "active", EnrollmentGeneration: 9, NodeLineage: []*machinesv1.NodeLineage{{NodeId: "node-9", Current: true, EnrollmentGeneration: 9}}},
+		CurrentNode: &machinesv1.CurrentNodeProjection{NodeId: "node-9", EnrollmentGeneration: 9},
+	}), nil
+}
+
+func TestConnectBindingReaderUsesCurrentMachineLineage(t *testing.T) {
+	handler := &machineBindingHandler{}
+	path, service := machinesconnect.NewMachineServiceHandler(handler)
+	mux := http.NewServeMux()
+	mux.Handle(path, service)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	reader := NewBindingReader(bindingBridgeAPI{url: server.URL, client: server.Client()})
+	snapshot, err := reader.ReadBinding(context.Background(), "machine-9")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !snapshot.Active || snapshot.CurrentNodeID != "node-9" || snapshot.EnrollmentGeneration != 9 || handler.requestID != "machine-9" {
+		t.Fatalf("binding snapshot=%+v request machine=%q", snapshot, handler.requestID)
+	}
+}
+
+func (f *fakeBindingReader) ReadBinding(_ context.Context, machineID string) (BindingSnapshot, error) {
+	f.calls = append(f.calls, machineID)
+	return f.snapshot, f.err
+}
+
+func testAdapter(c Client, artifacts ArtifactClient) *Adapter {
+	return &Adapter{Client: c, Artifacts: artifacts, Bindings: &fakeBindingReader{snapshot: BindingSnapshot{Active: true, CurrentNodeID: "n-1", EnrollmentGeneration: 2}}}
+}
+func testAdapterFor(c Client) *Adapter { return testAdapter(c, nil) }
 
 func (f *fakeArtifactClient) Distribute(_ context.Context, req ArtifactRequest) (ArtifactResult, error) {
 	f.requests = append(f.requests, req)
@@ -71,7 +132,7 @@ func target() identity.TargetRef {
 // can reattach after a lost reply (REACH-05).
 func TestEffectfulCommandDispatchesAndAttachesByRunID(t *testing.T) {
 	c := &fakeClient{dispatch: nodereach.DispatchResponse{RunID: "run-9"}, run: &runsv1.Run{Id: "run-9", Status: runsv1.RunStatus_RUN_STATUS_PASSED, ExitCode: 0}, done: true}
-	a := &Adapter{Client: c}
+	a := testAdapterFor(c)
 	res, err := a.Exec(context.Background(), target(), reach.Command{Verb: "cloud-target release stage", Args: []string{"--deployment", "dep-1", "--fence", "4"}, Effectful: true, RequiredScope: "vrooli:write"})
 	if err != nil {
 		t.Fatal(err)
@@ -92,7 +153,7 @@ func TestEffectfulCommandDispatchesAndAttachesByRunID(t *testing.T) {
 
 func TestReadCommandUsesRelayAndReturnsOutput(t *testing.T) {
 	c := &fakeClient{call: nodereach.CallResponse{CorrelationID: "corr-1", Outcome: relayv1.RelayCallOutcome_RELAY_CALL_OUTCOME_COMPLETED, Data: []byte(`{"outcome":"succeeded"}`), ExitCode: 0}}
-	a := &Adapter{Client: c}
+	a := testAdapterFor(c)
 	res, err := a.Exec(context.Background(), target(), reach.Command{Verb: "cloud-target receipt get", Args: []string{"--deployment", "dep-1", "--operation", "op-1", "--step", "release.stage", "--json"}, RequiredScope: "vrooli:read"})
 	if err != nil {
 		t.Fatal(err)
@@ -108,7 +169,7 @@ func TestReadCommandUsesRelayAndReturnsOutput(t *testing.T) {
 
 func TestDeliverUsesBridgeArtifactsOwner(t *testing.T) {
 	artifacts := &fakeArtifactClient{result: ArtifactResult{DistributionID: "dist-1", Delivered: true}}
-	a := &Adapter{Client: &fakeClient{}, Artifacts: artifacts}
+	a := testAdapter(&fakeClient{}, artifacts)
 	receipt, err := a.Deliver(context.Background(), target(), reach.Delivery{Files: []reach.ArtifactFile{{Role: "bundle", LocalPath: "/tmp/bundle.tar.gz", RemotePath: "/opt/app/bundle.tar.gz", SHA256: "abc"}}})
 	if err != nil {
 		t.Fatal(err)
@@ -134,13 +195,46 @@ func TestNodereachErrorsAreClassifiedByKind(t *testing.T) {
 	}
 	for kind, want := range cases {
 		c := &fakeClient{callErr: &nodereach.Error{Kind: kind, Node: "n-1", Err: errors.New("x")}}
-		_, err := (&Adapter{Client: c}).Exec(context.Background(), target(), reach.Command{Verb: "cloud-target receipt get", Args: []string{"--json"}})
+		_, err := testAdapterFor(c).Exec(context.Background(), target(), reach.Command{Verb: "cloud-target receipt get", Args: []string{"--json"}})
 		if !reach.IsKind(err, want) {
 			t.Fatalf("%s: expected %s, got %v", kind, want, err)
 		}
 	}
-	if _, err := (&Adapter{Client: &fakeClient{}}).Exec(context.Background(), identity.TargetRef{Transport: identity.TransportBridge}, reach.Command{Verb: "cloud-target receipt get", Args: []string{"--json"}}); !reach.IsKind(err, reach.KindEnrollmentRevoked) {
+	if _, err := testAdapterFor(&fakeClient{}).Exec(context.Background(), identity.TargetRef{Transport: identity.TransportBridge}, reach.Command{Verb: "cloud-target receipt get", Args: []string{"--json"}}); !reach.IsKind(err, reach.KindEnrollmentRevoked) {
 		t.Fatalf("missing node id must be enrollment_revoked, got %v", err)
+	}
+}
+
+func TestStaleOrUnverifiableMachineBindingRefusesBeforeEffects(t *testing.T) {
+	tests := []struct {
+		name    string
+		binding BindingSnapshot
+		reader  BindingReader
+	}{
+		{name: "superseded node", binding: BindingSnapshot{Active: true, CurrentNodeID: "replacement-node", EnrollmentGeneration: 2}},
+		{name: "stale enrollment generation", binding: BindingSnapshot{Active: true, CurrentNodeID: "n-1", EnrollmentGeneration: 1}},
+		{name: "inactive machine", binding: BindingSnapshot{Active: false, CurrentNodeID: "n-1", EnrollmentGeneration: 2}},
+		{name: "no authoritative reader", reader: nil},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := &fakeClient{dispatch: nodereach.DispatchResponse{RunID: "run-1"}}
+			reader := test.reader
+			if reader == nil && test.name != "no authoritative reader" {
+				reader = &fakeBindingReader{snapshot: test.binding}
+			}
+			a := &Adapter{Client: client, Bindings: reader}
+			_, err := a.Exec(context.Background(), target(), reach.Command{Verb: "cloud-target release activate", Effectful: true, RequiredScope: "vrooli:write"})
+			if err == nil {
+				t.Fatal("expected stale binding refusal")
+			}
+			if len(client.dispatches) != 0 {
+				t.Fatalf("stale binding dispatched effects: %+v", client.dispatches)
+			}
+			if _, err := a.Attach(context.Background(), target(), "run-1", time.Second); err == nil || len(client.waits) != 0 {
+				t.Fatalf("stale binding attached run: waits=%v err=%v", client.waits, err)
+			}
+		})
 	}
 }
 
@@ -148,7 +242,7 @@ func TestNodereachErrorsAreClassifiedByKind(t *testing.T) {
 // scope as distinct states (REACH-04).
 func TestNegotiateDistinguishesNodeStates(t *testing.T) {
 	online := &registryv1.Node{Id: "n-1", Online: true, Dispatchable: true, ProtocolCompatible: true, Scopes: []string{"vrooli:read"}, Revision: "abc"}
-	caps, err := (&Adapter{Client: &fakeClient{nodes: []*registryv1.Node{online}}}).Negotiate(context.Background(), target())
+	caps, err := testAdapterFor(&fakeClient{nodes: []*registryv1.Node{online}}).Negotiate(context.Background(), target())
 	if err != nil || !caps.Online || caps.ProtocolVersion != "abc" {
 		t.Fatalf("caps=%+v err=%v", caps, err)
 	}
@@ -156,18 +250,18 @@ func TestNegotiateDistinguishesNodeStates(t *testing.T) {
 		t.Fatalf("expected scope_missing, got %v", err)
 	}
 	offline := &registryv1.Node{Id: "n-1", Online: false}
-	if _, err := (&Adapter{Client: &fakeClient{nodes: []*registryv1.Node{offline}}}).Negotiate(context.Background(), target()); !reach.IsKind(err, reach.KindTargetOffline) {
+	if _, err := testAdapterFor(&fakeClient{nodes: []*registryv1.Node{offline}}).Negotiate(context.Background(), target()); !reach.IsKind(err, reach.KindTargetOffline) {
 		t.Fatalf("expected target_offline, got %v", err)
 	}
 	incompatible := &registryv1.Node{Id: "n-1", Online: true, ProtocolCompatible: false}
-	if _, err := (&Adapter{Client: &fakeClient{nodes: []*registryv1.Node{incompatible}}}).Negotiate(context.Background(), target()); !reach.IsKind(err, reach.KindProtocolUnsupported) {
+	if _, err := testAdapterFor(&fakeClient{nodes: []*registryv1.Node{incompatible}}).Negotiate(context.Background(), target()); !reach.IsKind(err, reach.KindProtocolUnsupported) {
 		t.Fatalf("expected reach_protocol_unsupported, got %v", err)
 	}
 	revoked := &registryv1.Node{Id: "n-1", Online: true, RevokedAt: timestamppb.Now()}
-	if _, err := (&Adapter{Client: &fakeClient{nodes: []*registryv1.Node{revoked}}}).Negotiate(context.Background(), target()); !reach.IsKind(err, reach.KindEnrollmentRevoked) {
+	if _, err := testAdapterFor(&fakeClient{nodes: []*registryv1.Node{revoked}}).Negotiate(context.Background(), target()); !reach.IsKind(err, reach.KindEnrollmentRevoked) {
 		t.Fatalf("expected enrollment_revoked, got %v", err)
 	}
-	if _, err := (&Adapter{Client: &fakeClient{}}).Negotiate(context.Background(), target()); !reach.IsKind(err, reach.KindEnrollmentRevoked) {
+	if _, err := testAdapterFor(&fakeClient{}).Negotiate(context.Background(), target()); !reach.IsKind(err, reach.KindEnrollmentRevoked) {
 		t.Fatalf("unknown node must be enrollment_revoked, got %v", err)
 	}
 }

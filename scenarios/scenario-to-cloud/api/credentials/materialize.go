@@ -66,6 +66,11 @@ func (s *Service) materializeOne(ctx context.Context, req MaterializeRequest, pl
 	if canPreserveBinding(req, binding, probe, now) {
 		return s.preserveBinding(ctx, binding, result, now)
 	}
+	if active, err := s.activeOperation(ctx, &binding); err != nil {
+		return err
+	} else if active != nil {
+		return newError(CodeRotationConflict, "another lifecycle operation is still open on this binding").WithDetail("rotation_id", active.ID)
+	}
 	value, err := s.materializationValue(binding, req)
 	if err != nil {
 		return err

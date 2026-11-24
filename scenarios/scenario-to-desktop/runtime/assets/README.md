@@ -55,14 +55,15 @@ if err := verifier.EnsureAssets(service); err != nil {
 
 ## Playwright Conventions
 
-Services using Playwright can declare a package-local browser closure with
-`PLAYWRIGHT_BROWSERS_PATH`. The runtime resolves that path against the bundle
-root, requires it to be a directory, and passes the absolute path to the
-driver. This keeps the driver's pinned Playwright revision inside the bundle
-instead of inheriting a developer's user cache. Missing declared closures fail
-closed. An explicit `BROWSER_EXECUTABLE_PATH` may name one compatible binary;
-the only runtime fallback is an explicit `ELECTRON_CHROMIUM_PATH` supplied by
-the launcher.
+Services using Playwright declare a package-local browser closure with
+`PLAYWRIGHT_BROWSERS_PATH`. A staged `browser-closure.json` carries the shared
+`runtime_identity` (engine, browser version, driver/version, deterministic
+bundle version and whole-payload SHA-256) plus platform and executable binding.
+The runtime validates the identity, required installed receipt and digest,
+resolves the executable only within the packaged closure, and sets the single
+`BROWSER_EXECUTABLE_PATH` consumed by BAS. Missing, floating, stale, mismatched
+or conflicting closure data fails before the service process is created. There
+is no user-cache, system-browser or Electron fallback.
 
 ### Environment Variables Set
 
@@ -72,9 +73,12 @@ the launcher.
 | `BROWSER_EXECUTABLE_PATH` | Exact browser executable override consumed by BAS |
 | `PWDEBUG_PORT` | Debug protocol port (if allocated) |
 
-Browser acquisition is outside this runtime helper. The browser closure must be
-provisioned by the governed dependency/artifact owner before packaging. No
-system-wide browser search or browser download occurs here.
+Browser acquisition is outside this runtime helper. BAS's
+`bundle/stage-browser-closure.mjs` consumes an explicit artifact tree after it
+has been provisioned through the governed dependency/artifact owner. It stages
+the exact `browsers.json` revisions and emits the closure manifest before
+scenario-to-desktop copies the declared `asset_dirs`. The helper never
+downloads or looks in a developer cache.
 
 ## Usage
 

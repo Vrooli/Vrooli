@@ -135,6 +135,9 @@ func targetLabel(t Target) string {
 	if t.MachineID != "" {
 		return fmt.Sprintf("machine:%s (enrollment %d, %s)", t.MachineID, t.EnrollmentGeneration, t.Transport)
 	}
+	if t.ComputeManagerID != "" {
+		return fmt.Sprintf("compute-manager:%s (%s)", t.ComputeManagerID, t.Transport)
+	}
 	return fmt.Sprintf("%s target (enrollment %d)", t.Transport, t.EnrollmentGeneration)
 }
 
@@ -190,6 +193,8 @@ func summarizeData(action Action) (string, bool) {
 		return "Inventory persistent data under scenarios " + action.Inputs["scenarios"], true
 	case OpDataBackup:
 		return "Capture a recovery point of " + action.Inputs["bindings"] + " sealed under " + action.Inputs["recovery_key_ref"] + " (" + action.Inputs["migration_posture"] + ")", true
+	case OpDataSchedule:
+		return "Reconcile target-local DBM backup plan for " + action.Inputs["scenario"] + " to destination " + action.Inputs["destination"], true
 	case OpDataRetire:
 		return "Persistent data disposition: " + action.Inputs["retention_policy"] + " (" + action.Inputs["bindings"] + ")", true
 	default:

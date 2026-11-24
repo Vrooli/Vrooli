@@ -40,8 +40,8 @@ func TestReadinessNamesSetupWhenToolsAreAbsent(t *testing.T) {
 	if report.Ready || report.State != ReadinessUnavailable {
 		t.Fatalf("report = %+v, want unavailable", report)
 	}
-	if report.NextAction.Kind != "host_setup" || !strings.Contains(report.NextAction.Reference, "qemu-qualification") {
-		t.Fatalf("next action = %+v, want the QEMU qualification guide", report.NextAction)
+	if report.NextAction.Kind != "setup_closure" || report.NextAction.Owner != "system" || !strings.Contains(report.NextAction.Reference, "qemu-qualification") {
+		t.Fatalf("next action = %+v, want the normal setup closure", report.NextAction)
 	}
 	err := report.Err()
 	if !errors.Is(err, ErrProviderUnavailable) || !strings.Contains(err.Error(), "qemu-qualification") {
@@ -141,9 +141,8 @@ func TestReadinessReportsUnparsableManifestInsteadOfIgnoringIt(t *testing.T) {
 	}
 }
 
-func TestProviderReadinessUsesItsSeams(t *testing.T) {
-	provider := LocalQEMUProvider{LookPath: absentTools, ImageManifest: filepath.Join(t.TempDir(), "none.json")}
-	report := provider.Readiness(context.Background())
+func TestReadinessUsesExplicitObservationSeams(t *testing.T) {
+	report := Readiness(context.Background(), ReadinessOptions{LookPath: absentTools, ImageManifestPath: filepath.Join(t.TempDir(), "none.json")})
 	if report.Ready || report.Provider != "local-qemu" {
 		t.Fatalf("report = %+v", report)
 	}

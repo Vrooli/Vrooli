@@ -64,7 +64,9 @@ Defines where to deploy.
 | `vps.user` | string | No | `root` | SSH username |
 | `vps.port` | number | No | `22` | SSH port |
 
-There is no key field. Target access is a Bridge enrollment or the credential binding `vrooli/scenario-to-cloud:ssh-key` (see [VPS Setup](vps-setup.md) "Target Access"); a manifest that carries `key_path` is refused by the schema.
+There is no key field. Target access is managed by the deployment flow; do not
+place a key in a manifest. A manifest that carries `key_path` is refused by the
+schema. The retired VPS setup instructions are not linked from this reference.
 
 ## Edge Section
 

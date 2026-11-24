@@ -4,10 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	internalreleases "deployment-manager/internal/releases"
+	"github.com/gorilla/mux"
 
 	_ "modernc.org/sqlite"
 )
@@ -245,5 +248,143 @@ func TestSQLOperationLeaseFencesStaleWorker(t *testing.T) {
 	var status string
 	if err := db.QueryRow(`SELECT status FROM release_operations WHERE id = 'op-1'`).Scan(&status); err != nil || status != OperationComplete {
 		t.Fatalf("status=%q err=%v", status, err)
+	}
+}
+
+func TestSQLCloudStepReceiptIsDurableAndFenced(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:release-cloud-step-test?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(internalreleases.Schema()); err != nil {
+		t.Fatalf("schema: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO releases (id, profile_id, git_commit_hash, release_version, channel) VALUES ('release-cloud-step', 'p1', 'commit-1', '1.0.0', 'stable')`); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewSQLRepository(db)
+	ctx := context.Background()
+	if err := repo.InsertOperation(ctx, &Operation{ID: "release-op-cloud-step", ReleaseID: "release-cloud-step", ProfileID: "p1", Status: OperationRunning}); err != nil {
+		t.Fatal(err)
+	}
+	base := CloudStep{OperationID: "release-op-cloud-step", RequestKey: "dm-cloud:release-op-cloud-step", RequestDigest: "sha256:fixed", State: "intent", RecoveryIdempotencyKey: CloudRecoveryIdempotencyKey("release-op-cloud-step")}
+	if err := repo.RecordCloudStep(WithOperationLease(ctx, base.OperationID, "worker-1", 4), base); err != nil {
+		t.Fatalf("record intent: %v", err)
+	}
+	base.State, base.DeploymentID, base.OwnerOperationID = "operation_admitted", "dep-1", "s2c-op-1"
+	if err := repo.RecordCloudStep(WithOperationLease(ctx, base.OperationID, "worker-2", 3), base); err == nil {
+		t.Fatal("stale cloud-step fence was accepted")
+	}
+	if err := repo.RecordCloudStep(WithOperationLease(ctx, base.OperationID, "worker-2", 5), base); err != nil {
+		t.Fatalf("record owner receipt: %v", err)
+	}
+	base.State = "verification_passed"
+	base.VerificationReceipt = json.RawMessage(`{"healthy":true,"deployment_id":"dep-1"}`)
+	attemptedAt := time.Now().UTC()
+	base.VerificationKey = CloudVerificationIdempotencyKey(base.OperationID)
+	base.VerificationRequestDigest = "sha256:verification-request"
+	base.VerificationState = "passed"
+	base.VerificationAttemptedAt = &attemptedAt
+	if err := repo.RecordCloudStep(WithOperationLease(ctx, base.OperationID, "worker-2", 6), base); err != nil {
+		t.Fatalf("record verification receipt: %v", err)
+	}
+	stored, err := repo.GetCloudStep(ctx, base.OperationID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored == nil || stored.State != "verification_passed" || stored.Fence != 6 || stored.DeploymentID != "dep-1" || stored.OwnerOperationID != "s2c-op-1" || string(stored.VerificationReceipt) != string(base.VerificationReceipt) || stored.VerificationKey != base.VerificationKey || stored.VerificationRequestDigest != base.VerificationRequestDigest || stored.VerificationState != "passed" || stored.VerificationAttemptedAt == nil || !stored.VerificationAttemptedAt.Equal(attemptedAt) {
+		t.Fatalf("stored cloud step = %+v", stored)
+	}
+	base.RecoveryOwnerOperationID = "s2c-recovery-op-1"
+	base.RecoveryState, base.RecoveryPreviewRef, base.RecoveryReason = "owner_pending", "preview-owner-1", "human-started rollback is pending"
+	if err := repo.RecordCloudStep(WithOperationLease(ctx, base.OperationID, "worker-2", 7), base); err != nil {
+		t.Fatalf("record recovery readback: %v", err)
+	}
+	repo = NewSQLRepository(db) // simulate a DM process restart
+	stored, err = repo.GetCloudStep(ctx, base.OperationID)
+	if err != nil || stored == nil || stored.RecoveryIdempotencyKey != base.RecoveryIdempotencyKey || stored.RecoveryOwnerOperationID != base.RecoveryOwnerOperationID || stored.RecoveryState != "owner_pending" || stored.RecoveryPreviewRef != "preview-owner-1" || stored.VerificationKey != base.VerificationKey || stored.VerificationRequestDigest != base.VerificationRequestDigest || stored.VerificationState != "passed" || stored.VerificationAttemptedAt == nil || !stored.VerificationAttemptedAt.Equal(attemptedAt) {
+		t.Fatalf("restarted recovery standing = %+v err=%v", stored, err)
+	}
+	conflict := base
+	conflict.RequestDigest = "sha256:changed"
+	if err := repo.RecordCloudStep(WithOperationLease(ctx, base.OperationID, "worker-2", 6), conflict); err == nil {
+		t.Fatal("changed immutable cloud request was accepted")
+	}
+}
+
+func TestReleaseOperationProtoCarriesCloudStepStanding(t *testing.T) {
+	snapshot, err := json.Marshal(durableDeployRequest{CloudAcquireCompute: true, CloudAcquireRegion: "nbg1", CloudAcquireIdempotencyKey: "dm-acquire:op-proto", CloudSpendQuoteIdempotencyKey: "dm-acquire:op-proto"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	operation := Operation{ID: "op-proto", ReleaseID: "rel-proto", ProfileID: "p1", Status: OperationRunning, RequestSnapshot: snapshot, CloudStep: &CloudStep{
+		OperationID: "op-proto", Fence: 7, RequestKey: "dm-cloud:op-proto", RequestDigest: "sha256:request", State: "operation_admitted",
+		DeploymentID: "dep-proto", OwnerOperationID: "s2c-op-proto", Receipt: json.RawMessage(`{"receipt":{"outcome":"deployed"}}`), VerificationReceipt: json.RawMessage(`{"healthy":true}`),
+		VerificationKey: CloudVerificationIdempotencyKey("op-proto"), VerificationRequestDigest: "sha256:verification", VerificationState: "pending", VerificationAttemptedAt: func() *time.Time { now := time.Now().UTC(); return &now }(),
+		RecoveryIdempotencyKey: "dm-recovery:op-proto", RecoveryOwnerOperationID: "s2c-recovery-op-proto", RecoveryState: "owner_pending", RecoveryPreviewRef: "preview-proto", RecoveryReceipt: json.RawMessage(`{"outcome":"rolled_back"}`), RecoveryReason: "pending", Reason: "", UpdatedAt: time.Now().UTC(),
+	}}
+	wire := operation.Proto()
+	if wire.GetCloudStep() == nil || wire.GetCloudStep().GetOwnerOperationId() != "s2c-op-proto" || wire.GetCloudStep().GetFence() != 7 || wire.GetCloudStep().GetVerificationReceiptJson() != `{"healthy":true}` || wire.GetCloudStep().GetVerificationKey() != CloudVerificationIdempotencyKey("op-proto") || wire.GetCloudStep().GetVerificationRequestDigest() != "sha256:verification" || wire.GetCloudStep().GetVerificationState() != "pending" || wire.GetCloudStep().GetVerificationAttemptedAt() == nil || wire.GetCloudStep().GetRecoveryIdempotencyKey() != "dm-recovery:op-proto" || wire.GetCloudStep().GetRecoveryOwnerOperationId() != "s2c-recovery-op-proto" || wire.GetCloudStep().GetRecoveryState() != "owner_pending" || wire.GetCloudStep().GetRecoveryPreviewRef() != "preview-proto" || wire.GetCloudStep().GetRecoveryReceiptJson() != `{"outcome":"rolled_back"}` || wire.GetCloudAcquireIdempotencyKey() != "dm-acquire:op-proto" || wire.GetCloudAcquireRegion() != "nbg1" {
+		t.Fatalf("wire operation cloud step = %+v", wire.GetCloudStep())
+	}
+	decoded := operationFromProto(wire)
+	if decoded.CloudStep == nil || decoded.CloudStep.RequestKey != operation.CloudStep.RequestKey || string(decoded.CloudStep.Receipt) != string(operation.CloudStep.Receipt) || string(decoded.CloudStep.VerificationReceipt) != string(operation.CloudStep.VerificationReceipt) || decoded.CloudStep.VerificationKey != operation.CloudStep.VerificationKey || decoded.CloudStep.VerificationRequestDigest != operation.CloudStep.VerificationRequestDigest || decoded.CloudStep.VerificationState != operation.CloudStep.VerificationState || decoded.CloudStep.VerificationAttemptedAt == nil || decoded.CloudStep.RecoveryIdempotencyKey != operation.CloudStep.RecoveryIdempotencyKey || decoded.CloudStep.RecoveryOwnerOperationID != operation.CloudStep.RecoveryOwnerOperationID || decoded.CloudStep.RecoveryState != operation.CloudStep.RecoveryState || decoded.CloudStep.RecoveryPreviewRef != operation.CloudStep.RecoveryPreviewRef || string(decoded.CloudStep.RecoveryReceipt) != string(operation.CloudStep.RecoveryReceipt) || decoded.CloudAcquireIdempotencyKey != "dm-acquire:op-proto" || decoded.CloudAcquireRegion != "nbg1" {
+		t.Fatalf("decoded cloud step = %+v", decoded.CloudStep)
+	}
+}
+
+func TestSQLRestartedCloudOperationCanResumeFromPersistedOwnerIdentity(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:release-cloud-resume-test?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(internalreleases.Schema()); err != nil {
+		t.Fatalf("schema: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO releases (id, profile_id, git_commit_hash, release_version, channel, status) VALUES ('release-resume', 'web-console/staging', 'commit-1', '1.0.0', 'stable', 'pending')`); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewSQLRepository(db)
+	ctx := context.Background()
+	operationID := operationIDForRelease("release-resume")
+	request := DeployRequest{ProfileID: "web-console/staging", ReleaseID: "release-resume", CandidateID: "candidate-1", DestinationRevisionID: "destination-1", CloudSpendQuoteIdempotencyKey: "quote-1", CloudComputeManagerInstanceID: "cm-1", CloudManifest: json.RawMessage(`{"scenario":{"id":"demo"},"target":{"vps":{"compute_manager_instance_id":"cm-1"}}}`)}
+	snapshot, err := snapshotForDeployRequest(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.InsertOperation(ctx, &Operation{ID: operationID, ReleaseID: request.ReleaseID, ProfileID: request.ProfileID, RequestSnapshot: snapshot, Status: OperationRunning}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.RecordCloudStep(ctx, CloudStep{OperationID: operationID, RequestKey: "dm-cloud:" + operationID, RequestDigest: "sha256:stored-request", State: "operation_admitted", DeploymentID: "dep-1", OwnerOperationID: "s2c-op-1"}); err != nil {
+		t.Fatal(err)
+	}
+	orch := resumeOperationOrchFake{called: make(chan DeployRequest, 1)}
+	handler := NewHandler(repo, nil, nil, orch, nil).WithDurableOperations(true).WithExecutionAuthorization(func(context.Context) error { return nil }).WithCloudComputeAdmissionVerifier(&cloudComputeAdmissionFixture{})
+	if err := handler.ResumeOperations(ctx); err != nil {
+		t.Fatalf("mark interrupted operation: %v", err)
+	}
+	standing, err := repo.GetOperation(ctx, operationID)
+	if err != nil || standing.Status != OperationAmbiguous {
+		t.Fatalf("restart standing=%+v err=%v", standing, err)
+	}
+	req := mux.SetURLVars(httptest.NewRequest(http.MethodPost, "/api/v1/release-operations/"+operationID+"/resume-cloud", nil), map[string]string{"operation_id": operationID})
+	response := httptest.NewRecorder()
+	handler.ResumeCloudOperation(response, req)
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("resume status=%d body=%s", response.Code, response.Body.String())
+	}
+	select {
+	case resumed := <-orch.called:
+		if resumed.OperationID != operationID || resumed.ReleaseID != request.ReleaseID {
+			t.Fatalf("resumed identity=%+v", resumed)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("resumed operation did not re-enter the existing request snapshot")
+	}
+	storedStep, err := repo.GetCloudStep(ctx, operationID)
+	if err != nil || storedStep == nil || storedStep.RequestKey != "dm-cloud:"+operationID || storedStep.OwnerOperationID != "s2c-op-1" {
+		t.Fatalf("persisted owner identity=%+v err=%v", storedStep, err)
 	}
 }

@@ -14,7 +14,7 @@ import (
 // dispatch calls, never a fallback to another transport.
 func TestObservationProgramIsRefusedByTheBridgeRelay(t *testing.T) {
 	c := &fakeClient{}
-	a := &Adapter{Client: c}
+	a := testAdapterFor(c)
 	_, err := a.Exec(context.Background(), target(), reach.Command{Program: "df", Args: []string{"-Pk", "/"}})
 	if !reach.IsKind(err, reach.KindProtocolUnsupported) {
 		t.Fatalf("expected reach_protocol_unsupported, got %v", err)
@@ -29,7 +29,7 @@ func TestObservationProgramIsRefusedByTheBridgeRelay(t *testing.T) {
 
 func TestTypedObservationUsesBridgeRelay(t *testing.T) {
 	c := &fakeClient{call: nodereach.CallResponse{CorrelationID: "corr-observe", Outcome: relayv1.RelayCallOutcome_RELAY_CALL_OUTCOME_COMPLETED, Data: []byte(`{"result":{"stdout":"Filesystem 1024-blocks Used Available Capacity Mounted on\n"}}`)}}
-	a := &Adapter{Client: c}
+	a := testAdapterFor(c)
 	cmd, err := reach.NewObservation("df", "-Pk", "/")
 	if err != nil {
 		t.Fatal(err)

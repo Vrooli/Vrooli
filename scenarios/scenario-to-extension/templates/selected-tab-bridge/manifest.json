@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Vrooli Selected Tab Bridge (Prototype)",
+  "version": "0.1.0",
+  "description": "Share one browser tab with an explicitly approved Vrooli session.",
+  "minimum_chrome_version": "116",
+  "permissions": ["activeTab", "scripting", "storage", "management"],
+  "optional_host_permissions": [
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": { "service_worker": "service-worker.js" },
+  "action": {
+    "default_title": "Share selected tab with Vrooli",
+    "default_popup": "popup.html"
+  }
+}

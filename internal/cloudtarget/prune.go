@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/packages/cloudrelease"
 )
 
@@ -252,7 +253,7 @@ func (s *Store) sweepUnreferencedBundles() error {
 // home owns deployment state, while the workdir owns the temporary delivery
 // cache used to stage release archives; they are intentionally separate.
 func (s *Store) bundleCacheDir() string {
-	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
+	if root := strings.TrimSpace(os.Getenv(buildinfo.SourceRootFallbackEnvVar)); root != "" {
 		return filepath.Join(root, ".vrooli", "cloud", "bundles")
 	}
 	return filepath.Join(filepath.Dir(s.Root), "bundles")

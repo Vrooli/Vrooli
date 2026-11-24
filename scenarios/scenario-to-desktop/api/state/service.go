@@ -318,24 +318,5 @@ func (s *Service) GetStore() *Store {
 // --- Helper functions ---
 
 func mergeArtifacts(existing, new []BuildArtifact) []BuildArtifact {
-	if len(new) == 0 {
-		return existing
-	}
-
-	// Map by platform for quick lookup
-	artifactMap := make(map[string]BuildArtifact, len(existing)+len(new))
-	for _, a := range existing {
-		artifactMap[a.Platform] = a
-	}
-	for _, a := range new {
-		artifactMap[a.Platform] = a // Overwrite existing
-	}
-
-	// Convert back to slice
-	result := make([]BuildArtifact, 0, len(artifactMap))
-	for _, a := range artifactMap {
-		result = append(result, a)
-	}
-
-	return result
+	return mergeBy(existing, new, func(artifact BuildArtifact) string { return artifact.Platform })
 }

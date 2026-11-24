@@ -58,6 +58,7 @@ const (
 	OpReleaseStage            = "release.stage"
 	OpDataInventory           = "data.inventory"
 	OpDataBackup              = "data.backup"
+	OpDataSchedule            = "data.schedule"
 	OpConfigApply             = "config.apply"
 	OpCredentialsProvision    = "credentials.provision"
 	OpRuntimeStartDeps        = "runtime.start_dependencies"
@@ -121,6 +122,7 @@ const (
 // user) is reachability metadata and is deliberately not in the envelope.
 type Target struct {
 	MachineID            string `json:"machine_id,omitempty"`
+	ComputeManagerID     string `json:"compute_manager_instance_id,omitempty"`
 	NodeID               string `json:"node_id,omitempty"`
 	EnrollmentGeneration uint64 `json:"enrollment_generation"`
 	Transport            string `json:"transport"`
@@ -269,7 +271,7 @@ func (p *Plan) Precondition(kind string) (string, bool) {
 func Ops() []string {
 	return []string{
 		OpHostPrepare, OpEdgeFirewallAllow, OpReleaseDeliver, OpReleaseVerify, OpReleaseStage,
-		OpDataInventory, OpDataBackup, OpConfigApply, OpCredentialsProvision, OpRuntimeStartDeps,
+		OpDataInventory, OpDataBackup, OpDataSchedule, OpConfigApply, OpCredentialsProvision, OpRuntimeStartDeps,
 		OpReleaseActivate, OpEdgeDNSEnsure, OpEdgeRouteApply, OpVerifyReadiness, OpReleaseRetainPredecesor,
 		OpWorkloadStop, OpWorkloadStart, OpInputResumeHandoff,
 		OpEdgeRouteRetire, OpGrantsRevoke, OpDataRetire, OpArtifactsRetire,

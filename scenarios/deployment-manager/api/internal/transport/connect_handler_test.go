@@ -14,6 +14,7 @@ import (
 	"deployment-manager/swaps"
 
 	"connectrpc.com/connect"
+	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/identity"
 	releasesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/releases"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -188,12 +189,12 @@ func TestTypedStartReleasePreservesCloudHandoff(t *testing.T) {
 		ProfileId: "p1", GitCommitHash: "commit-1", ReleaseVersion: "1.0.0",
 		CloudManifestJson: `{"scenario":{"id":"demo"}}`, CloudDeploymentName: "demo-prod",
 		CloudBundlePath: "/tmp/demo.tar.gz", CloudBundleSha256: "sha256:bundle", CloudBundleSizeBytes: 42,
-		CloudRunPreflight: true,
+		CloudRunPreflight: true, CloudAcquireCompute: true, CloudAcquireRegion: "nbg1",
 	}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if response.Msg.GetOperationId() != "op-1" || request["cloud_deployment_name"] != "demo-prod" || request["cloud_bundle_path"] != "/tmp/demo.tar.gz" || request["cloud_run_preflight"] != true {
+	if response.Msg.GetOperationId() != "op-1" || request["cloud_deployment_name"] != "demo-prod" || request["cloud_bundle_path"] != "/tmp/demo.tar.gz" || request["cloud_run_preflight"] != true || request["cloud_acquire_compute"] != true || request["cloud_acquire_region"] != "nbg1" {
 		t.Fatalf("typed start response/request = %s / %#v", response.Msg, request)
 	}
 	manifest, ok := request["cloud_manifest"].(map[string]interface{})
@@ -204,7 +205,7 @@ func TestTypedStartReleasePreservesCloudHandoff(t *testing.T) {
 
 func TestTypedGetOperationPreservesDurableAmbiguousStanding(t *testing.T) {
 	h := (&Handler{releaseOperation: func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"operation_id":"op-1","release_id":"rel-1","profile_id":"p1","status":"ambiguous","active_stage":"reconcile","error":"owner uncertain"}`))
+		_, _ = w.Write([]byte(`{"operation_id":"op-1","release_id":"rel-1","profile_id":"p1","status":"ambiguous","active_stage":"reconcile","error":"owner uncertain","cloud_acquire_receipt":{"schema_version":1,"operation_id":"op-1","release_id":"rel-1","profile_id":"p1","acquire_idempotency_key":"dm-acquire:op-1","instance_id":"cm-1","target_manifest_sha256":"sha256:target","source_receipt_fingerprint":"sha256:source","persisted_at":"2026-11-24T12:00:00Z","source_receipt":{"state":"acquired","instance":{"id":"cm-1","tenant":"deployment-manager"},"spend_receipt":{"idempotency_key":"dm-acquire:op-1","instance_id":"cm-1","admission_decision":"approved","quote_state":"approved"}}}}`))
 	}}).WithReadAuthorization(func(context.Context) error { return nil })
 	response, err := (releasesService{h}).GetOperation(context.Background(), connect.NewRequest(&releasesv1.GetReleaseOperationRequest{OperationId: "op-1"}))
 	if err != nil {
@@ -213,6 +214,94 @@ func TestTypedGetOperationPreservesDurableAmbiguousStanding(t *testing.T) {
 	operation := response.Msg.GetOperation()
 	if operation.GetOperationId() != "op-1" || operation.GetReleaseId() != "rel-1" || operation.GetStatus() != releasesv1.ReleaseOperationStatus_RELEASE_OPERATION_STATUS_AMBIGUOUS || operation.GetActiveStage() != "reconcile" || operation.GetError() != "owner uncertain" {
 		t.Fatalf("typed operation response = %+v", operation)
+	}
+	acquire := operation.GetCloudAcquireReceipt()
+	if acquire == nil || acquire.GetOperationId() != "op-1" || acquire.GetSourceReceipt().GetState() != "acquired" || acquire.GetSourceReceipt().GetSpendReceipt().GetIdempotencyKey() != "dm-acquire:op-1" {
+		t.Fatalf("typed CM acquisition source response = %+v", acquire)
+	}
+}
+
+func TestTypedListOperationsByProfileReturnsExactReadbackIDsAndRequiresReadAuth(t *testing.T) {
+	var readCalls int
+	h := NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil).
+		WithReadAuthorization(func(context.Context) error { readCalls++; return nil }).
+		WithReleaseOperationIndexHandler(func(w http.ResponseWriter, r *http.Request) {
+			if got := mux.Vars(r)["profile_id"]; got != "profile-a" {
+				t.Errorf("profile path variable = %q", got)
+			}
+			if got := r.URL.Query().Get("page_token"); got != "cursor" {
+				t.Errorf("page token = %q", got)
+			}
+			_, _ = w.Write([]byte(`{"operation_ids":["op-2","op-1"],"next_page_token":"next"}`))
+		})
+	resp, err := (releasesService{h}).ListOperationsByProfile(context.Background(), connect.NewRequest(&releasesv1.ListReleaseOperationsByProfileRequest{ProfileId: "profile-a", PageSize: 2, PageToken: "cursor"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if readCalls != 1 || len(resp.Msg.GetOperationIds()) != 2 || resp.Msg.GetOperationIds()[0] != "op-2" || resp.Msg.GetNextPageToken() != "next" {
+		t.Fatalf("read calls=%d response=%+v", readCalls, resp.Msg)
+	}
+
+	unauthorized := NewHandler(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil).WithReleaseOperationIndexHandler(func(http.ResponseWriter, *http.Request) { t.Fatal("index handler called without read authorization") })
+	_, err = (releasesService{unauthorized}).ListOperationsByProfile(context.Background(), connect.NewRequest(&releasesv1.ListReleaseOperationsByProfileRequest{ProfileId: "profile-a"}))
+	if connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthorized error code = %s, err=%v", connect.CodeOf(err), err)
+	}
+}
+
+func TestTypedResumeCloudOperationUsesPersistedOperationContract(t *testing.T) {
+	var capturedPath string
+	h := &Handler{authorize: func(context.Context) error { return nil }}
+	h.releaseOperationResume = func(w http.ResponseWriter, r *http.Request) {
+		capturedPath = r.URL.Path
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"operation_id":"op-1","release_id":"rel-1","profile_id":"p1","status":"running","active_stage":"reconcile-cloud","cloud_step":{"operation_id":"op-1","fence":9,"request_key":"dm-cloud:op-1","request_digest":"sha256:request","state":"verification_passed","deployment_id":"dep-1","owner_operation_id":"s2c-op-1","verification_receipt":{"healthy":true}}}`))
+	}
+	response, err := (releasesService{h}).ResumeCloudOperation(context.Background(), connect.NewRequest(&releasesv1.ResumeCloudOperationRequest{OperationId: "op-1"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	step := response.Msg.GetOperation().GetCloudStep()
+	if capturedPath != "/api/v1/release-operations/op-1/resume-cloud" || step == nil || step.GetRequestKey() != "dm-cloud:op-1" || step.GetOwnerOperationId() != "s2c-op-1" || step.GetVerificationReceiptJson() != `{"healthy":true}` {
+		t.Fatalf("path=%q cloud_step=%+v", capturedPath, step)
+	}
+}
+
+func TestTypedResumeCloudVerificationUsesReadOnlyVerificationRoute(t *testing.T) {
+	h := &Handler{authorize: func(context.Context) error { return nil }}
+	var capturedPath string
+	h.releaseOperationVerificationResume = func(w http.ResponseWriter, r *http.Request) {
+		capturedPath = r.URL.Path
+		_, _ = w.Write([]byte(`{"operation_id":"op-verify","release_id":"rel-verify","profile_id":"p1","status":"failed","cloud_step":{"operation_id":"op-verify","request_key":"dm-cloud:op-verify","request_digest":"sha256:req","state":"verification_passed","verification_key":"dm-cloud-verification:op-verify","verification_request_digest":"sha256:verify","verification_state":"passed"}}`))
+	}
+	response, err := (releasesService{h}).ResumeCloudVerification(context.Background(), connect.NewRequest(&releasesv1.ResumeCloudVerificationRequest{OperationId: "op-verify"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	step := response.Msg.GetOperation().GetCloudStep()
+	if capturedPath != "/api/v1/release-operations/op-verify/resume-cloud-verification" || step == nil || step.GetVerificationKey() != "dm-cloud-verification:op-verify" || step.GetVerificationState() != "passed" {
+		t.Fatalf("path=%q cloud_step=%+v", capturedPath, step)
+	}
+}
+
+func TestTypedRequestCloudTeardownUsesHumanMutationRouteAndReturnsPendingReceipt(t *testing.T) {
+	h := &Handler{authorize: func(context.Context) error { return nil }}
+	var capturedPath string
+	h.releaseOperationTeardown = func(w http.ResponseWriter, r *http.Request) {
+		capturedPath = r.URL.Path
+		_, _ = w.Write([]byte(`{"operation_id":"release-op-rel-1","release_id":"rel-1","profile_id":"p1","status":"complete","cloud_teardown_receipt":{"schema_version":1,"operation_id":"release-op-rel-1","release_id":"rel-1","profile_id":"p1","teardown_idempotency_key":"dm-release:release-op-rel-1","acquisition_receipt_sha256":"sha256:source","compute_manager_instance_id":"cm-1","provider":"hetzner","provider_instance_id":"server-1","stored_target_sha256":"sha256:target","state":"pending","reason":"release intent persisted","persisted_at":"2026-11-24T12:00:00Z"}}`))
+	}
+	response, err := (releasesService{h}).RequestCloudTeardown(context.Background(), connect.NewRequest(&releasesv1.RequestCloudTeardownRequest{OperationId: "release-op-rel-1"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt := response.Msg.GetOperation().GetCloudTeardownReceipt()
+	if capturedPath != "/api/v1/release-operations/release-op-rel-1/request-cloud-teardown" || receipt == nil || receipt.GetState() != releasesv1.CloudTeardownState_CLOUD_TEARDOWN_STATE_PENDING || receipt.GetTeardownIdempotencyKey() != "dm-release:release-op-rel-1" {
+		t.Fatalf("path=%q typed receipt=%+v", capturedPath, receipt)
+	}
+	unauthorized := &Handler{releaseOperationTeardown: h.releaseOperationTeardown}
+	if _, err := (releasesService{unauthorized}).RequestCloudTeardown(context.Background(), connect.NewRequest(&releasesv1.RequestCloudTeardownRequest{OperationId: "release-op-rel-1"})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("teardown mutation without auth returned %v", err)
 	}
 }
 

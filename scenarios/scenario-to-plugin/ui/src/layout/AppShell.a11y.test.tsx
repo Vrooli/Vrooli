@@ -4,12 +4,19 @@
  * (header + landmark nav + main + bottom landmark nav). Feature cards keep
  * their own a11y tests.
  */
-import { afterEach, beforeEach, describe, it } from "vitest";
+import { afterEach, beforeEach, describe, it, vi } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
 
 import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
 import { setLocale } from "../i18n";
 import { TestAppRouter } from "../app/routes";
+import { selectors } from "../consts/selectors";
+
+vi.mock("../api/health", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/health")>();
+  const { makeApiMocks } = await import("../test-utils");
+  return { ...actual, ...makeApiMocks() };
+});
 
 describe("AppShell accessibility", () => {
   beforeEach(async () => {
@@ -26,6 +33,7 @@ describe("AppShell accessibility", () => {
       { withoutRouter: true },
     );
     await screen.findByText(/Readiness is unavailable|No governed scenarios were returned/);
+    await screen.findByTestId(selectors.health.statusValue);
     await expectNoA11yViolations(container);
   });
 
@@ -38,5 +46,6 @@ describe("AppShell accessibility", () => {
     expect(screen.getAllByRole("navigation", { name: "Primary navigation" })).toHaveLength(1);
     expect(document.querySelector('nav[aria-label="Mobile navigation"]')).not.toBeNull();
     await screen.findByText(/Readiness is unavailable|No governed scenarios were returned/);
+    await screen.findByTestId(selectors.health.statusValue);
   });
 });

@@ -8,7 +8,7 @@ import (
 
 // ConfigurationDigestRule documents how the nonsecret configuration digest is
 // derived; it is recorded verbatim in inputs.json so a reader can recompute.
-const ConfigurationDigestRule = "sha256 over canonical JSON (sorted keys, compact) of the cloud manifest with secrets set to null and the target locator (target.vps.host, port, user, key_path, workdir) cleared; the identity-neutral remainder (scenario, dependencies, bundle, ports, edge, environment, version, preserve_paths) is the configuration"
+const ConfigurationDigestRule = "sha256 over canonical JSON (sorted keys, compact) of the cloud manifest with secrets set to null and the target locator and binding (target.vps.host, port, user, key_path, workdir, compute_manager_instance_id) cleared; the identity-neutral remainder (scenario, dependencies, bundle, ports, edge, environment, version, preserve_paths) is the configuration"
 
 // ConfigurationSchema names the manifest schema the digest was taken over.
 func ConfigurationSchema(m domain.CloudManifest) string {
@@ -30,6 +30,7 @@ func NonsecretConfiguration(m domain.CloudManifest) domain.CloudManifest {
 		vps.Port = 0
 		vps.User = ""
 		vps.Workdir = ""
+		vps.ComputeManagerInstanceID = ""
 		out.Target.VPS = &vps
 	}
 	return out

@@ -158,6 +158,9 @@ func runtimeActions(in CompileInputs, startOnly bool) []Action {
 		})
 		activateDeps = append(activateDeps, OpDataBackup)
 	}
+	// DBM is a target-local runtime dependency. Configure its deployment plan
+	// only after the release is active and the declared health checks pass, so
+	// its immediate first scheduled run sees a live application data set.
 	if in.Policy.MaintenanceStrategy == StrategyMaintenance {
 		actions = append(actions, Action{
 			ID:                 OpWorkloadStop,
@@ -255,6 +258,21 @@ func runtimeActions(in CompileInputs, startOnly bool) []Action {
 		})
 	}
 	actions = append(actions, readinessAction(in, []string{OpReleaseActivate, OpEdgeRouteApply}))
+	if in.Manifest.Backup != nil {
+		policy, _ := json.Marshal(in.Manifest.Backup)
+		actions = append(actions, Action{
+			ID: OpDataSchedule, OwnerOperation: OpDataSchedule, Effect: EffectDataWrite,
+			RequiredCapability: "cloud-target:data.schedule",
+			Inputs: map[string]string{
+				"scenario":      in.Manifest.Scenario.ID,
+				"destination":   in.Manifest.Backup.DestinationName,
+				"policy":        string(policy),
+				"binding_specs": strings.Join(engineBindingSpecs(in), ";"),
+			},
+			DependsOn: []string{OpVerifyReadiness}, Verification: "target_local_dbm_plan_reconciled",
+			Recovery: "retry_after_dbm_or_destination_recovery", Retry: RetryObserveThenReplay, CancelPoint: true,
+		})
+	}
 	if update {
 		actions = append(actions, Action{
 			ID:                 OpReleaseRetainPredecesor,

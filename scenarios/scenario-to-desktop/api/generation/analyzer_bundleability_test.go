@@ -8,6 +8,20 @@ import (
 	"testing"
 )
 
+func writeBundleabilityServiceJSON(t *testing.T, dir string, serviceJSON map[string]interface{}) {
+	t.Helper()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("failed to create .vrooli dir: %v", err)
+	}
+	data, err := json.Marshal(serviceJSON)
+	if err != nil {
+		t.Fatalf("marshal service.json: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "service.json"), data, 0o644); err != nil {
+		t.Fatalf("failed to write service.json: %v", err)
+	}
+}
+
 func writeResourceDeployment(t *testing.T, root, name, support string) {
 	t.Helper()
 	resourceDir := filepath.Join(root, "resources", name)
@@ -47,10 +61,6 @@ func TestCheckBundleability_NoResources(t *testing.T) {
 	scenarioPath := filepath.Join(tmpDir, "scenarios", scenarioName)
 	vrooliDir := filepath.Join(scenarioPath, ".vrooli")
 
-	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
-		t.Fatalf("failed to create .vrooli dir: %v", err)
-	}
-
 	// Create a service.json with no required resources
 	serviceJSON := map[string]interface{}{
 		"service": map[string]interface{}{
@@ -61,10 +71,7 @@ func TestCheckBundleability_NoResources(t *testing.T) {
 		},
 	}
 
-	data, _ := json.Marshal(serviceJSON)
-	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), data, 0o644); err != nil {
-		t.Fatalf("failed to write service.json: %v", err)
-	}
+	writeBundleabilityServiceJSON(t, vrooliDir, serviceJSON)
 
 	analyzer := NewAnalyzer(tmpDir)
 	result, err := analyzer.CheckBundleability(scenarioName)
@@ -87,10 +94,6 @@ func TestCheckBundleability_UnbundleableResource_NoMetadata(t *testing.T) {
 	scenarioPath := filepath.Join(tmpDir, "scenarios", scenarioName)
 	vrooliDir := filepath.Join(scenarioPath, ".vrooli")
 
-	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
-		t.Fatalf("failed to create .vrooli dir: %v", err)
-	}
-
 	// Create a service.json with postgres as required resource (no deployment metadata)
 	serviceJSON := map[string]interface{}{
 		"service": map[string]interface{}{
@@ -107,10 +110,7 @@ func TestCheckBundleability_UnbundleableResource_NoMetadata(t *testing.T) {
 		},
 	}
 
-	data, _ := json.Marshal(serviceJSON)
-	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), data, 0o644); err != nil {
-		t.Fatalf("failed to write service.json: %v", err)
-	}
+	writeBundleabilityServiceJSON(t, vrooliDir, serviceJSON)
 	writeResourceDeployment(t, tmpDir, "postgres", "unsupported")
 
 	analyzer := NewAnalyzer(tmpDir)
@@ -133,10 +133,6 @@ func TestCheckBundleability_WithDeploymentMetadata_NotSupported(t *testing.T) {
 	scenarioName := "test-scenario"
 	scenarioPath := filepath.Join(tmpDir, "scenarios", scenarioName)
 	vrooliDir := filepath.Join(scenarioPath, ".vrooli")
-
-	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
-		t.Fatalf("failed to create .vrooli dir: %v", err)
-	}
 
 	// Create a service.json with deployment metadata showing tier-2-desktop not supported and no alternatives
 	serviceJSON := map[string]interface{}{
@@ -170,10 +166,7 @@ func TestCheckBundleability_WithDeploymentMetadata_NotSupported(t *testing.T) {
 		},
 	}
 
-	data, _ := json.Marshal(serviceJSON)
-	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), data, 0o644); err != nil {
-		t.Fatalf("failed to write service.json: %v", err)
-	}
+	writeBundleabilityServiceJSON(t, vrooliDir, serviceJSON)
 	writeResourceDeployment(t, tmpDir, "postgres", "unsupported")
 
 	analyzer := NewAnalyzer(tmpDir)
@@ -199,10 +192,6 @@ func TestCheckBundleability_WithSwapAlternatives(t *testing.T) {
 	scenarioName := "test-scenario"
 	scenarioPath := filepath.Join(tmpDir, "scenarios", scenarioName)
 	vrooliDir := filepath.Join(scenarioPath, ".vrooli")
-
-	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
-		t.Fatalf("failed to create .vrooli dir: %v", err)
-	}
 
 	// Create a service.json with postgres not supported but with sqlite alternative
 	serviceJSON := map[string]interface{}{
@@ -244,10 +233,7 @@ func TestCheckBundleability_WithSwapAlternatives(t *testing.T) {
 		},
 	}
 
-	data, _ := json.Marshal(serviceJSON)
-	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), data, 0o644); err != nil {
-		t.Fatalf("failed to write service.json: %v", err)
-	}
+	writeBundleabilityServiceJSON(t, vrooliDir, serviceJSON)
 	writeResourceDeployment(t, tmpDir, "postgres", "unsupported")
 
 	analyzer := NewAnalyzer(tmpDir)
@@ -279,10 +265,6 @@ func TestCheckBundleability_BundleableResource(t *testing.T) {
 	scenarioName := "test-scenario"
 	scenarioPath := filepath.Join(tmpDir, "scenarios", scenarioName)
 	vrooliDir := filepath.Join(scenarioPath, ".vrooli")
-
-	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
-		t.Fatalf("failed to create .vrooli dir: %v", err)
-	}
 
 	// Create a service.json with a resource that is supported for tier-2-desktop
 	serviceJSON := map[string]interface{}{
@@ -316,10 +298,7 @@ func TestCheckBundleability_BundleableResource(t *testing.T) {
 		},
 	}
 
-	data, _ := json.Marshal(serviceJSON)
-	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), data, 0o644); err != nil {
-		t.Fatalf("failed to write service.json: %v", err)
-	}
+	writeBundleabilityServiceJSON(t, vrooliDir, serviceJSON)
 	writeResourceDeployment(t, tmpDir, "openrouter", "supported")
 
 	analyzer := NewAnalyzer(tmpDir)
@@ -375,10 +354,6 @@ func TestCheckBundleability_NonRequiredResource(t *testing.T) {
 	scenarioPath := filepath.Join(tmpDir, "scenarios", scenarioName)
 	vrooliDir := filepath.Join(scenarioPath, ".vrooli")
 
-	if err := os.MkdirAll(vrooliDir, 0o755); err != nil {
-		t.Fatalf("failed to create .vrooli dir: %v", err)
-	}
-
 	// Create a service.json with postgres but not required
 	serviceJSON := map[string]interface{}{
 		"service": map[string]interface{}{
@@ -395,10 +370,7 @@ func TestCheckBundleability_NonRequiredResource(t *testing.T) {
 		},
 	}
 
-	data, _ := json.Marshal(serviceJSON)
-	if err := os.WriteFile(filepath.Join(vrooliDir, "service.json"), data, 0o644); err != nil {
-		t.Fatalf("failed to write service.json: %v", err)
-	}
+	writeBundleabilityServiceJSON(t, vrooliDir, serviceJSON)
 
 	analyzer := NewAnalyzer(tmpDir)
 	result, err := analyzer.CheckBundleability(scenarioName)

@@ -3,7 +3,9 @@ package signing
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"scenario-to-desktop-api/signing/mocks"
@@ -203,6 +205,57 @@ func TestFileRepository_GetPath_FallbackToRelative(t *testing.T) {
 	path := repo.GetPath("test-scenario")
 
 	assert.Equal(t, "scenarios/test-scenario/signing.json", path)
+}
+
+func TestFileRepositoryRejectsScenarioPathTraversal(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "repo")
+	outside := filepath.Join(filepath.Dir(root), "outside")
+	require.NoError(t, os.MkdirAll(outside, 0o700))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "scenarios"), 0o700))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "scenarios", "inside"), 0o700))
+	require.NoError(t, os.Symlink(outside, filepath.Join(root, "scenarios", "linked-outside")))
+	require.NoError(t, os.Symlink(filepath.Join(root, "scenarios", "inside"), filepath.Join(root, "scenarios", "linked-inside")))
+	locator := &DefaultScenarioLocator{vrooliRoot: root}
+	if path, err := locator.GetScenarioPath("../../outside"); err == nil {
+		t.Fatalf("GetScenarioPath escaped to %q", path)
+	}
+	if path, err := locator.GetScenarioPath("linked-outside"); err == nil {
+		t.Fatalf("GetScenarioPath followed an external scenario symlink to %q", path)
+	}
+	if path, err := locator.GetScenarioPath("linked-inside"); err == nil {
+		t.Fatalf("GetScenarioPath changed scenario identity through an internal symlink to %q", path)
+	}
+
+	cases := []string{"../../outside", "../outside", "scenario/../../outside", "/tmp/outside", `..\outside`, ".", "..", "", "linked-outside", "linked-inside"}
+	for _, scenario := range cases {
+		t.Run(fmt.Sprintf("%q", scenario), func(t *testing.T) {
+			for _, op := range []struct {
+				name string
+				run  func(*FileRepository) error
+			}{
+				{name: "get", run: func(repo *FileRepository) error { _, err := repo.Get(context.Background(), scenario); return err }},
+				{name: "save", run: func(repo *FileRepository) error {
+					return repo.Save(context.Background(), scenario, &types.SigningConfig{})
+				}},
+				{name: "delete", run: func(repo *FileRepository) error { return repo.Delete(context.Background(), scenario) }},
+				{name: "exists", run: func(repo *FileRepository) error { _, err := repo.Exists(context.Background(), scenario); return err }},
+			} {
+				t.Run(op.name, func(t *testing.T) {
+					fs := mocks.NewMockFileSystem()
+					repo := NewFileRepository(WithFileSystemRepo(fs), WithScenarioLocator(locator))
+					if path := repo.GetPath(scenario); path != "" {
+						t.Fatalf("GetPath(%q) = %q, want empty for invalid scenario", scenario, path)
+					}
+					if err := op.run(repo); err == nil {
+						t.Fatalf("operation accepted invalid scenario %q", scenario)
+					}
+					if len(fs.Files) != 0 || len(fs.Directories) != 0 {
+						t.Fatalf("invalid scenario performed filesystem writes: files=%v directories=%v", fs.Files, fs.Directories)
+					}
+				})
+			}
+		})
+	}
 }
 
 func TestFileRepository_GetForPlatform_Windows(t *testing.T) {

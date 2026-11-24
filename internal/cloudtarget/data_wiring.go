@@ -40,6 +40,7 @@ func (s *Store) RecoveryPointDir(deploymentID, recoveryPointID string) (string, 
 // the recovery key and PostgreSQL credentials, and the built-in providers.
 type DataDeps struct {
 	Runner    recoverypoint.Runner
+	DBMRunner DBMRunner
 	Keys      recoverypoint.KeyResolver
 	Providers recoverypoint.Registry
 	Sealer    recoverypoint.Sealer

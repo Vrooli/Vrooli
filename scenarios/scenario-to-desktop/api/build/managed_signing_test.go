@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 
 	signingtypes "scenario-to-desktop-api/signing/types"
@@ -72,8 +73,23 @@ func TestManagedSigningEnvMaterializesAndCleansUp(t *testing.T) {
 	if _, statErr := os.Stat(homedir); statErr != nil {
 		t.Fatalf("materialized homedir missing: %v", statErr)
 	}
-	if env[signingtypes.DefaultPassphraseEnvVar] != "generated-passphrase" {
-		t.Fatalf("passphrase env = %q", env[signingtypes.DefaultPassphraseEnvVar])
+	passphraseFile := env[signingtypes.DefaultManagedPassphraseFileEnv]
+	if passphraseFile == "" || env[signingtypes.DefaultPassphraseEnvVar] != "" {
+		t.Fatalf("expected passphrase file path and no secret environment value, got %#v", env)
+	}
+	if !strings.HasPrefix(passphraseFile, homedir+string(os.PathSeparator)) {
+		t.Fatalf("passphrase file %q is outside temporary GPG home %q", passphraseFile, homedir)
+	}
+	info, statErr := os.Stat(passphraseFile)
+	if statErr != nil {
+		t.Fatalf("passphrase file missing: %v", statErr)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Fatalf("passphrase file mode = %04o, want 0600", info.Mode().Perm())
+	}
+	contents, readErr := os.ReadFile(passphraseFile)
+	if readErr != nil || string(contents) != "generated-passphrase" {
+		t.Fatalf("passphrase file contents = %q, error = %v", contents, readErr)
 	}
 	if len(*imported) != 1 || (*imported)[0] != "armored-key" {
 		t.Fatalf("imported keys = %#v", *imported)
@@ -82,6 +98,9 @@ func TestManagedSigningEnvMaterializesAndCleansUp(t *testing.T) {
 	cleanup()
 	if _, statErr := os.Stat(homedir); !os.IsNotExist(statErr) {
 		t.Fatalf("cleanup did not remove homedir: %v", statErr)
+	}
+	if _, statErr := os.Stat(passphraseFile); !os.IsNotExist(statErr) {
+		t.Fatalf("cleanup did not remove passphrase file: %v", statErr)
 	}
 }
 

@@ -102,6 +102,8 @@ export const operatorApi = {
       cloudBundleSha256: String(request.cloud_bundle_sha256 ?? ""),
       cloudBundleSizeBytes: BigInt(Number(request.cloud_bundle_size_bytes ?? 0)),
       cloudRunPreflight: Boolean(request.cloud_run_preflight),
+      cloudSpendQuoteIdempotencyKey: String(request.cloud_spend_quote_idempotency_key ?? ""),
+      cloudComputeManagerInstanceId: String(request.cloud_compute_manager_instance_id ?? ""),
     })).then((r) => typedPlain(StartReleaseResponseSchema, r));
   },
 };

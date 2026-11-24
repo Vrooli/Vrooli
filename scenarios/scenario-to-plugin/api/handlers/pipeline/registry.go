@@ -212,13 +212,55 @@ func (r *ociRegistry) pushPackage(ctx context.Context, tag string, artifact, sig
 	if err != nil {
 		return "", fmt.Errorf("PLG-DIST-CONFIRM: referrer index retrieval failed: %w", err)
 	}
-	if len(referrers) < 3 {
-		return "", fmt.Errorf("PLG-DIST-CONFIRM: retrieved referrer index contains %d evidence manifests, want at least 3", len(referrers))
+	if err := r.confirmReferrers(ctx, artifactDigest, referrers); err != nil {
+		return "", fmt.Errorf("PLG-DIST-CONFIRM: %w", err)
 	}
 	return r.base + "/v2/" + r.repository + "/manifests/" + tag, nil
 }
 
-func (r *ociRegistry) getReferrers(ctx context.Context, subject string) ([]any, error) {
+type ociReferrerDescriptor struct {
+	Digest       string `json:"digest"`
+	ArtifactType string `json:"artifactType"`
+}
+
+func (r *ociRegistry) confirmReferrers(ctx context.Context, subject string, referrers []ociReferrerDescriptor) error {
+	want := map[string]bool{
+		"application/vnd.dev.cosign.signature": false,
+		"application/vnd.in-toto+json":         false,
+		"application/vnd.cyclonedx+json":       false,
+	}
+	for _, descriptor := range referrers {
+		if _, required := want[descriptor.ArtifactType]; !required || want[descriptor.ArtifactType] {
+			continue
+		}
+		if !strings.HasPrefix(descriptor.Digest, "sha256:") {
+			continue
+		}
+		manifestBytes, err := r.getManifest(ctx, descriptor.Digest)
+		if err != nil {
+			continue
+		}
+		if digestBytes(manifestBytes) != descriptor.Digest {
+			continue
+		}
+		var manifest struct {
+			ArtifactType string         `json:"artifactType"`
+			Subject      map[string]any `json:"subject"`
+		}
+		if err := json.Unmarshal(manifestBytes, &manifest); err != nil || manifest.ArtifactType != descriptor.ArtifactType || manifest.Subject["digest"] != subject {
+			continue
+		}
+		want[descriptor.ArtifactType] = true
+	}
+	for kind, confirmed := range want {
+		if !confirmed {
+			return fmt.Errorf("retrieved referrer index is missing a verified %s manifest bound to %s", kind, subject)
+		}
+	}
+	return nil
+}
+
+func (r *ociRegistry) getReferrers(ctx context.Context, subject string) ([]ociReferrerDescriptor, error) {
 	endpoint := r.base + path.Join("/v2", r.repository, "referrers", subject)
 	resp, err := r.request(ctx, http.MethodGet, endpoint, nil, "application/vnd.oci.image.index.v1+json")
 	if err != nil {
@@ -229,7 +271,7 @@ func (r *ociRegistry) getReferrers(ctx context.Context, subject string) ([]any, 
 		return nil, fmt.Errorf("referrer index returned %s", resp.Status)
 	}
 	var index struct {
-		Manifests []any `json:"manifests"`
+		Manifests []ociReferrerDescriptor `json:"manifests"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&index); err != nil {
 		return nil, err

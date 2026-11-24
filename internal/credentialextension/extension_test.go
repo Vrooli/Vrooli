@@ -11,7 +11,7 @@ import (
 func executableHost(t *testing.T) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "secrets-manager-native-host")
-	if err := os.WriteFile(path, []byte("host"), 0755); err != nil {
+	if err := os.WriteFile(path, []byte("host"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return path

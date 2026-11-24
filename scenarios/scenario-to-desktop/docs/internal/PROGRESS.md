@@ -65,8 +65,8 @@ The usage role is owed because `cli/manifest.json` exists. The improve role is
 owed because deployment-manager and scenario-to-android declare this dependency.
 No independent feature role was extracted: the inventory supplied no pattern
 shared by two agents that requires another skill. Role/rung canon is
-`docs/agent-system/SKILL_AUTHORING.md`; authoring followed `skill-set-authoring`,
-`skill-authoring-tools`, `improve-skill-authoring`, and `program-runtime`.
+`docs/agent-system/SKILL_AUTHORING.md`; authoring followed `scenario-skill-setup`,
+`skill-authoring-tools`, `scenario-skill-setup`, and `program-runtime`.
 
 ### Sensor and program inventory
 

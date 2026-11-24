@@ -320,6 +320,7 @@ func SelectStrategy(closure *domain.Closure, manifest domain.CloudManifest) stri
 func targetOf(ref identity.TargetRef) Target {
 	return Target{
 		MachineID:            ref.MachineID,
+		ComputeManagerID:     ref.ComputeManagerID,
 		NodeID:               ref.NodeID,
 		EnrollmentGeneration: ref.EnrollmentGeneration,
 		Transport:            ref.Transport,
@@ -445,7 +446,7 @@ func missingInputs(in CompileInputs) []string {
 }
 
 func handoffReference(deploymentID string, target Target, desiredRevision uint64, selectionDigest string, missing []string) string {
-	parts := []string{deploymentID, target.MachineID, target.NodeID, strconv.FormatUint(target.EnrollmentGeneration, 10), strconv.FormatUint(desiredRevision, 10), selectionDigest, strings.Join(missing, "\n")}
+	parts := []string{deploymentID, target.MachineID, target.ComputeManagerID, target.NodeID, strconv.FormatUint(target.EnrollmentGeneration, 10), strconv.FormatUint(desiredRevision, 10), selectionDigest, strings.Join(missing, "\n")}
 	sum := sha256.Sum256([]byte(strings.Join(parts, "\n")))
 	return fmt.Sprintf("vrooli-onboarding://deployments/%s/resume/%s", deploymentID, hex.EncodeToString(sum[:8]))
 }

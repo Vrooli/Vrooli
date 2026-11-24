@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Code } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "../ui/button-adapter";
 import { cn } from "../../lib/utils";
 import type { ValidationIssue } from "../../lib/api";
 

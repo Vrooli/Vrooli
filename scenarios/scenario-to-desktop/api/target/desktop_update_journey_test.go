@@ -121,9 +121,13 @@ func startJ10Desktop(t *testing.T, artifact, home, digest string) *ElectronSessi
 
 func startJ10DesktopMode(t *testing.T, artifact, home, digest, applyMode string) *ElectronSession {
 	t.Helper()
+	scenario := os.Getenv("J10_SCENARIO_NAME")
+	if scenario == "" {
+		scenario = "web-console"
+	}
 	session, err := StartElectronSession(t.Context(), ElectronSessionOptions{
 		ArtifactPath:   artifact,
-		Launch:         ElectronLaunchOptions{ContextID: "agent-connect-j10", ScenarioName: "web-console", ArtifactDigest: "sha256:" + digest, TargetID: "local-linux-xvfb", JourneyID: "J10", ProfileID: "update-home", IsolationLeaseID: "j10-update-home", BundledRuntime: true, UserDataDir: filepath.Join(home, "electron")},
+		Launch:         ElectronLaunchOptions{ContextID: "agent-connect-j10", ScenarioName: scenario, ArtifactDigest: "sha256:" + digest, TargetID: "local-linux-xvfb", JourneyID: "J10", ProfileID: "update-home", IsolationLeaseID: "j10-update-home", BundledRuntime: true, UserDataDir: filepath.Join(home, "electron")},
 		Environment:    map[string]string{"HOME": home, "USERPROFILE": home, "PATH": "/usr/bin:/bin", "VROOLI_ROOT": "", "XDG_CONFIG_HOME": filepath.Join(home, ".config"), "XDG_DATA_HOME": filepath.Join(home, ".local/share"), "XDG_STATE_HOME": filepath.Join(home, ".local/state"), "XDG_CACHE_HOME": filepath.Join(home, ".cache"), "LIBGL_ALWAYS_SOFTWARE": "1", "VROOLI_DESKTOP_UPDATE_APPLY_TEST": applyMode},
 		StartupTimeout: 75 * time.Second, Renderer: RendererExpectation{URLPrefix: "http://127.0.0.1:"},
 	})

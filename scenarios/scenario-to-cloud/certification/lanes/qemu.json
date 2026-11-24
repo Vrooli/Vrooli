@@ -14,56 +14,37 @@
     {
       "id": "EXT-06",
       "requirement": "host tools qemu (qemu-system-x86_64, qemu-img), qemu-arm (qemu-system-aarch64), and cloud-localds",
-      "declared_in": ".vrooli/service.json hostTools",
-      "install_through": [
-        {
-          "tool": "qemu",
-          "apply": "vrooli host install qemu --sudo-mode ask",
-          "preview": "vrooli host install qemu --dry-run --json",
-          "expected_apt": "apt-get install -y qemu-system-x86"
-        },
-        {
-          "tool": "qemu-arm",
-          "apply": "vrooli host install qemu-arm --sudo-mode ask",
-          "preview": "vrooli host install qemu-arm --dry-run --json",
-          "expected_apt": "apt-get install -y qemu-system-arm"
-        },
-        {
-          "tool": "cloud-localds",
-          "apply": "vrooli host install cloud-localds --sudo-mode ask",
-          "preview": "vrooli host install cloud-localds --dry-run --json",
-          "expected_apt": "apt-get install -y cloud-image-utils"
-        }
-      ],
+      "declared_in": "scenarios/compute-manager/.vrooli/service.json hostTools",
+      "install_through": "vrooli setup",
       "standing_on_recording_host": "absent"
     },
     {
       "id": "EXT-06",
       "requirement": "approved pristine Ubuntu 24.04 base image per architecture with recorded sha256",
-      "declared_in": "certification/lanes/qemu-images.json",
-      "install_through": "operator acquires the image and records path + digest; the provider never downloads",
+      "declared_in": "scenarios/compute-manager/.vrooli/setup-assets.json (writes the S2C certification image manifest)",
+      "install_through": "vrooli setup; Compute Manager records the source path and digest, and the provider never downloads",
       "standing_on_recording_host": "none recorded"
     },
     {
       "id": "EXT-05",
       "requirement": "arm64 execution: qemu-system-aarch64 under TCG on the amd64 host, or an arm64 host with KVM",
-      "declared_in": "GET /api/v1/instances/readiness architectures.arm64",
-      "install_through": "vrooli host install qemu-arm (qemu-arm declaration) or an arm64 host",
+      "declared_in": "Compute Manager local-qemu provider readiness",
+      "install_through": "vrooli setup host requirements or an arm64 host",
       "standing_on_recording_host": "unavailable"
     },
     {
       "id": "kvm",
       "requirement": "/dev/kvm openable by the service user (kvm group) for accelerated amd64 guests; otherwise TCG",
-      "declared_in": "GET /api/v1/instances/readiness kvm_available",
+      "declared_in": "Compute Manager local-qemu provider readiness",
       "install_through": "vrooli setup host requirements",
       "standing_on_recording_host": "device present, service user not in the kvm group"
     },
     {
       "id": "ssh-key",
-      "requirement": "an SSH public key for the non-root guest user (vps instance create --authorized-key)",
-      "declared_in": "docs/local-qemu.md",
-      "install_through": "operator-supplied",
-      "standing_on_recording_host": "operator-supplied at run time"
+      "requirement": "an SSH public key for the non-root guest user, passed only as the public bootstrap field of the generated Compute Manager QEMU request",
+      "declared_in": "Compute Manager local-qemu provider request",
+      "install_through": "Compute Manager setup and generated QEMU API; no operator terminal step",
+      "standing_on_recording_host": "unimplemented managed-key source; acquisition refuses if the public key is absent"
     }
   ],
   "architectures": [
@@ -154,7 +135,7 @@
     "target_reboot": {
       "points": [],
       "kind": "guest_reset",
-      "blast_radius": "the owned QEMU guest only (vps instance stop then start); never a faultinject point"
+      "blast_radius": "the owned Compute Manager QEMU guest only; never a faultinject point"
     },
     "data_interruption": {
       "points": [
@@ -165,15 +146,15 @@
       "blast_radius": "one backup or restore step inside the owned guest"
     }
   },
-  "fault_rule": "Fault injection arms api/faultinject points only inside routed test mode and only against the owned guest; target_reboot is a guest reset through the instance owner. A capability not listed here is refused at admission.",
+  "fault_rule": "Fault injection arms api/faultinject points only inside routed test mode and only against the owned Compute Manager guest; target_reboot is an explicit guest-reboot operation admitted against that target, not a faultinject point. A capability not listed here is refused at admission.",
   "journey": [
-    "readiness (GET /api/v1/instances/readiness) must be ready for the requested architecture",
+    "Compute Manager local-qemu readiness must be ready for the requested architecture",
     "verify source image digest against qemu-images.json",
-    "vps instance create (owned copy-on-write disk) -> start -> wait-for-ssh -> snapshot clean",
+    "Compute Manager local-qemu acquire (owned copy-on-write disk) -> start -> wait-for-SSH -> snapshot clean; capture the manager instance ID and bind the deployment to that ID",
     "deploy the cell fixture through the operations API: plan -> apply(plan_digest, request_key) -> operation wait",
     "per cell: arm the declared fault in test mode, exercise the trigger, collect target receipts (vrooli cloud-target receipt get) and the health observation",
     "reset to clean and repeat every repeat_after_reset cell for the same release digest (P20-A04)",
-    "destroy the owned disk; verify the source image digest is unchanged and the neighbor inventory matches (P20-A05)",
+    "release the manager-owned QEMU instance; verify the source image digest is unchanged and the neighbor inventory matches (P20-A05)",
     "write certification/evidence/<CASE>.qemu.json receipts"
   ],
   "cells": [

@@ -74,9 +74,12 @@ func TestV2ReceiptRequiresExactMatrixRequirementsAndOperationReference(t *testin
 	if err := r.Validate(m); err != nil {
 		t.Fatalf("complete receipt rejected: %v", err)
 	}
-	r.RequirementRefs = []string{"STC-P0-040"}
+	if len(r.RequirementRefs) < 2 {
+		t.Fatalf("AUTH-01 needs at least two matrix refs to prove order, got %v", r.RequirementRefs)
+	}
+	r.RequirementRefs[0], r.RequirementRefs[1] = r.RequirementRefs[1], r.RequirementRefs[0]
 	if err := r.Validate(m); err == nil || !strings.Contains(err.Error(), "requirement_refs must exactly match") {
-		t.Fatalf("mismatched matrix requirements accepted: %v", err)
+		t.Fatalf("reordered matrix requirements accepted: %v", err)
 	}
 	r = receipt("missing-op", "AUTH-01", LanePackage, VerdictPassed, candidateDigest)
 	r.OperationRefs = nil

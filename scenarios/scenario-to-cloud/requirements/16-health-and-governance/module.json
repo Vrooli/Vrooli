@@ -133,6 +133,27 @@
           "phase": "unit",
           "status": "failing",
           "notes": "typed edge observation without secrets; wrong DNS cannot claim readiness; IPv6-only"
+        },
+        {
+          "type": "test",
+          "ref": "api/health/alerts_test.go::TestAlerterCertificateExpiringAndRenewalFailed",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "certificate expiry and unprobeable/renewal-failure alerts must open; a renewed TLS observation must publish a resolved transition after an Alerter restart, through the eventbus publisher seam"
+        },
+        {
+          "type": "test",
+          "ref": "api/persistence/health_alert_state_test.go::TestHealthAlertStateRoundTripsAcrossStoreInstances",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "open-alert transition state round-trips across DB store instances; local SQLite proves restart state persistence, not Notification Hub delivery"
+        },
+        {
+          "type": "test",
+          "ref": "api/health/scheduler_test.go::TestSchedulerRunOnceObservesEachTargetAndContinuesAfterFailure",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "scheduled observation runs immediately, continues after a per-target failure, rejects invalid cadence and stops on cancellation; fake targets only"
         }
       ]
     }

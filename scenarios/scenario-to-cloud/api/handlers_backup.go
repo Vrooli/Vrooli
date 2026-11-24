@@ -164,9 +164,6 @@ func (s *Server) CaptureRecoveryPoint(ctx context.Context, deploymentID string, 
 		}
 		req.Bindings = bindings
 	}
-	if svc.Owner == "" {
-		svc.Owner = dctx.Manifest.Scenario.ID
-	}
 	return svc.Capture(ctx, req)
 }
 

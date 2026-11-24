@@ -1,6 +1,10 @@
 package scenario
 
-import "time"
+import (
+	"time"
+
+	capabilityregistry "github.com/vrooli/vrooli/packages/capability-registry-go"
+)
 
 // DesktopBuildArtifact describes an installer produced for a specific platform.
 type DesktopBuildArtifact struct {
@@ -56,6 +60,23 @@ type ScenarioStats struct {
 type ListResponse struct {
 	Scenarios []ScenarioDesktopStatus `json:"scenarios"`
 	Stats     *ScenarioStats          `json:"stats"`
+}
+
+// OptionalDependencyCatalog is generated from the same scenario discovery
+// used by the desktop status API. It keeps exclusions visible and reuses the
+// shared service-manifest projection for dependency identity and requiredness.
+type OptionalDependencyCatalog struct {
+	Source    string                       `json:"source"`
+	Scenarios []OptionalDependencyScenario `json:"scenarios"`
+}
+
+type OptionalDependencyScenario struct {
+	Name                  string                   `json:"name"`
+	Eligible              bool                     `json:"eligible"`
+	EligibilitySource     string                   `json:"eligibility_source"`
+	EligibilityReasons    []string                 `json:"eligibility_reasons,omitempty"`
+	Dependencies          []capabilityregistry.Def `json:"optional_dependencies"`
+	DependencyCatalogNote string                   `json:"dependency_catalog_note,omitempty"`
 }
 
 // scenarioServiceInfo holds service.json metadata.

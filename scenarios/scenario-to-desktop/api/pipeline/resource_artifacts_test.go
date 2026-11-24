@@ -121,6 +121,9 @@ func TestStageBundledResourceArtifactsStagesVerifiedArtifactsAndPlan(t *testing.
 	if len(plan.Resources) != 1 || plan.Resources[0].RequestedResource != "openrouter" {
 		t.Fatalf("required embedded peer resource plan = %#v, want only required active openrouter", plan.Resources)
 	}
+	if plan.DependencyClosureDigest == "" {
+		t.Fatal("resource deployment plan omitted the shared dependency closure digest")
+	}
 	copied, err := stageBundledResourceArtifacts(bundleDir, artifactRoot, plan)
 	mustNoError(t, err, "stage artifacts")
 	if len(copied) != 4 {
@@ -138,6 +141,30 @@ func TestStageBundledResourceArtifactsStagesVerifiedArtifactsAndPlan(t *testing.
 	planData, err := os.ReadFile(filepath.Join(bundleDir, "resource-deployment-plan.json"))
 	if err != nil || !strings.Contains(string(planData), "resource-openrouter_linux_amd64") {
 		t.Fatalf("read plan: %v; content=%s", err, planData)
+	}
+}
+
+func TestRequiredBundleResourcesUsesSharedClosureForEmbeddedPeerUnion(t *testing.T) {
+	root := t.TempDir()
+	demo := filepath.Join(root, "scenarios", "demo")
+	peer := filepath.Join(root, "scenarios", "peer")
+	for _, scenario := range []struct{ path, manifest string }{
+		{demo, `{"dependencies":{"resources":{"db":{"enabled":true,"required":true}},"scenarios":{"peer":{"bundle_policy":"embed"}}},"deployment":{"dependencies":{"resources":{"db":{"platform_support":{"tier-2-desktop":{"alternatives":["db-lite"]}}}}}}}`},
+		{peer, `{"dependencies":{"resources":{"cache":{"enabled":true,"required":true},"unused":{"enabled":true,"required":false}},"scenarios":{"demo":{"bundle_policy":"embed"}}}}`},
+	} {
+		mustMkdirAll(t, filepath.Join(scenario.path, ".vrooli"))
+		mustWriteFile(t, filepath.Join(scenario.path, ".vrooli", "service.json"), []byte(scenario.manifest), 0o644)
+	}
+	resources, fallbacks, digest, err := requiredBundleResources(demo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(resources, ",") != "cache,db" || strings.Join(fallbacks["db"], ",") != "db-lite" || digest == "" {
+		t.Fatalf("shared closure projection = resources %v fallbacks %v digest %q", resources, fallbacks, digest)
+	}
+	again, _, againDigest, err := requiredBundleResources(demo)
+	if err != nil || strings.Join(again, ",") != strings.Join(resources, ",") || againDigest != digest {
+		t.Fatalf("closure was not stable: resources %v digest %q err %v", again, againDigest, err)
 	}
 }
 

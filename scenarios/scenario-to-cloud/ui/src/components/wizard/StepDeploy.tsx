@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Rocket, CheckCircle2, ExternalLink, PartyPopper, Server } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "../ui/button-adapter";
 import { Alert } from "../ui/alert";
 import { Card, CardContent } from "../ui/card";
 import { SpawnAgentButton } from "./SpawnAgentButton";

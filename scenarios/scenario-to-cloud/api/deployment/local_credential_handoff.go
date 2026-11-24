@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/lpbsidentity"
+	"github.com/vrooli/api-core/servicetoken"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	"scenario-to-cloud/domain"
 )
@@ -22,6 +24,8 @@ type localRemoteProfile struct {
 type localRemoteProfileList struct {
 	Profiles []localRemoteProfile `json:"profiles"`
 }
+
+const lpbsRemoteProfileSecretPlanID = "remote-profile-service-secret"
 
 // localCredentialHandoff reconciles deployment-generated credentials into a
 // local consumer over service discovery. It deliberately has no target/VPS
@@ -39,21 +43,35 @@ func reconcileLocalRemoteProfile(ctx context.Context, deploymentID string, manif
 	if err := validateHandoff(handoff); err != nil {
 		return err
 	}
+	if err := validateHandoffSecretPlan(manifest, handoff); err != nil {
+		return err
+	}
 	secret := resolveHandoffSecret(manifest, handoff.SecretID, values)
 	if secret == "" {
 		return fmt.Errorf("deployment credential %q was not materialized", handoff.SecretID)
-	}
-	identity, err := credentialauthority.ParseIdentity(handoff.AuthDescriptor.LogicalID)
-	if err != nil {
-		return fmt.Errorf("parse local auth descriptor: %w", err)
 	}
 	authority, err := credentialauthority.Default()
 	if err != nil {
 		return fmt.Errorf("load local credential authority: %w", err)
 	}
-	serviceToken, err := authority.Require(identity, handoff.AuthDescriptor.Field)
+	scopedIdentity, err := credentialauthority.ParseIdentity(lpbsidentity.ScenarioToCloudRemoteProfiles.CredentialIdentity("scenario-to-cloud"))
 	if err != nil {
-		return fmt.Errorf("resolve local auth descriptor: %w", err)
+		return fmt.Errorf("parse scoped LPBS principal identity")
+	}
+	scopedTokens := lpbsidentity.ScenarioToCloudRemoteProfiles.NewTokens("scenario-to-cloud", func(ctx context.Context) (string, error) {
+		return authority.Require(scopedIdentity, "credential")
+	}, servicetoken.WithExchanger(servicetoken.AuthenticatorExchanger(http.DefaultClient, func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "scenario-authenticator")
+	})))
+	authorization := func(ctx context.Context) (string, error) {
+		status := authority.Status(scopedIdentity, "credential")
+		legacyServiceToken := ""
+		if legacy := handoff.LegacyAuthDescriptor; legacy != nil && legacy.LogicalID == "vrooli/landing-page-business-suite" && legacy.Field == "service-secret" && string(status.ProviderState) == "available" && !status.Configured {
+			if identity, parseErr := credentialauthority.ParseIdentity(legacy.LogicalID); parseErr == nil {
+				legacyServiceToken, _ = authority.Require(identity, legacy.Field)
+			}
+		}
+		return resolveLPBSServiceAuthorization(ctx, string(status.ProviderState) == "available", status.Configured, scopedTokens.Authorization, legacyServiceToken)
 	}
 	base, err := discovery.ResolveScenarioURLDefault(ctx, handoff.ConsumerScenario)
 	if err != nil {
@@ -67,7 +85,11 @@ func reconcileLocalRemoteProfile(ctx context.Context, deploymentID string, manif
 	if err != nil {
 		return fmt.Errorf("build profile lookup request: %w", err)
 	}
-	listReq.Header.Set("Authorization", "Bearer "+serviceToken)
+	listAuthorization, err := authorization(ctx)
+	if err != nil {
+		return err
+	}
+	listReq.Header.Set("Authorization", listAuthorization)
 	listReq.Header.Set("X-Vrooli-Deployment-ID", deploymentID)
 	listResp, err := http.DefaultClient.Do(listReq)
 	if err != nil {
@@ -106,7 +128,11 @@ func reconcileLocalRemoteProfile(ctx context.Context, deploymentID string, manif
 	if err != nil {
 		return fmt.Errorf("build local profile reconcile request: %w", err)
 	}
-	req.Header.Set("Authorization", "Bearer "+serviceToken)
+	requestAuthorization, err := authorization(ctx)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", requestAuthorization)
 	req.Header.Set("X-Vrooli-Deployment-ID", deploymentID)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
@@ -120,28 +146,90 @@ func reconcileLocalRemoteProfile(ctx context.Context, deploymentID string, manif
 	return nil
 }
 
-func resolveHandoffSecret(manifest domain.CloudManifest, secretID string, values map[string]string) string {
-	if value := strings.TrimSpace(values[secretID]); value != "" {
-		return value
+// resolveLPBSServiceAuthorization uses the versioned scoped principal whenever
+// it is configured. The shared service bearer is a migration fallback only for
+// a healthy authority that confirms the scoped principal is not issued.
+func resolveLPBSServiceAuthorization(ctx context.Context, authorityAvailable, scopedConfigured bool, scoped func(context.Context) (string, error), legacyToken string) (string, error) {
+	if !authorityAvailable {
+		return "", fmt.Errorf("LPBS service identity authority is unavailable")
 	}
+	if !scopedConfigured {
+		if strings.TrimSpace(legacyToken) == "" {
+			return "", fmt.Errorf("LPBS scoped and legacy service identities are unavailable")
+		}
+		return "Bearer " + strings.TrimSpace(legacyToken), nil
+	}
+	if scoped == nil {
+		return "", fmt.Errorf("LPBS scoped service identity is unavailable")
+	}
+	header, err := scoped(ctx)
+	if err != nil || strings.TrimSpace(header) == "" {
+		return "", fmt.Errorf("exchange LPBS scoped service identity")
+	}
+	return header, nil
+}
+
+func resolveHandoffSecret(manifest domain.CloudManifest, secretID string, values map[string]string) string {
 	if manifest.Secrets == nil {
 		return ""
 	}
+	var found *domain.BundleSecretPlan
 	for _, plan := range manifest.Secrets.BundleSecrets {
-		if plan.ID != secretID && plan.Target.Name != secretID && (plan.Descriptor == nil || plan.Descriptor.Field != secretID) {
+		if plan.ID != secretID {
 			continue
 		}
-		if value := strings.TrimSpace(values[plan.ID]); value != "" {
-			return value
+		if found != nil {
+			return ""
 		}
-		if value := strings.TrimSpace(values[plan.Target.Name]); value != "" {
-			return value
+		copy := plan
+		found = &copy
+	}
+	if found == nil || found.Class != domain.SecretClassPerInstallGenerated || found.Descriptor == nil || found.Descriptor.LogicalID != "vrooli/landing-page-business-suite" || found.Descriptor.Field != "service-secret" || found.Target.Type != "env" || found.Target.Name != "LPBS_SERVICE_SECRET" {
+		return ""
+	}
+	return strings.TrimSpace(values[secretID])
+}
+
+func validateHandoffSecretPlan(manifest domain.CloudManifest, handoff domain.LocalCredentialHandoff) error {
+	if handoff.SecretID != lpbsRemoteProfileSecretPlanID {
+		return fmt.Errorf("handoff must use the target-bound %s credential plan", lpbsRemoteProfileSecretPlanID)
+	}
+	if manifest.Secrets == nil {
+		return fmt.Errorf("handoff destination credential plan is missing")
+	}
+	count := 0
+	for _, plan := range manifest.Secrets.BundleSecrets {
+		if plan.ID != handoff.SecretID {
+			continue
+		}
+		count++
+		if plan.Class != domain.SecretClassPerInstallGenerated || !plan.Required {
+			return fmt.Errorf("handoff destination credential plan must be a required generated credential")
+		}
+		if plan.Descriptor == nil || plan.Descriptor.LogicalID != "vrooli/landing-page-business-suite" || plan.Descriptor.Field != "service-secret" {
+			return fmt.Errorf("handoff destination credential plan must bind LPBS service-secret on its deployment target")
+		}
+		if plan.Target.Type != "env" || plan.Target.Name != "LPBS_SERVICE_SECRET" {
+			return fmt.Errorf("handoff destination credential plan must target the LPBS service credential binding")
+		}
+		if plan.Generator == nil || plan.Generator["type"] != "random" || plan.Generator["charset"] != "hex" || plan.Generator["length"] != float64(64) {
+			return fmt.Errorf("handoff destination credential plan must use the declared 64-character hex generator")
 		}
 	}
-	return ""
+	if count != 1 {
+		return fmt.Errorf("handoff destination credential plan must be declared exactly once")
+	}
+	return nil
 }
 
 func validateHandoff(handoff domain.LocalCredentialHandoff) error {
+	expectedIdentity := lpbsidentity.ScenarioToCloudRemoteProfiles.CredentialIdentity("scenario-to-cloud")
+	if handoff.AuthDescriptor.LogicalID != expectedIdentity || handoff.AuthDescriptor.Field != "credential" {
+		return fmt.Errorf("local auth descriptor must name the scoped scenario-to-cloud remote-profile principal")
+	}
+	if legacy := handoff.LegacyAuthDescriptor; legacy != nil && (legacy.LogicalID != "vrooli/landing-page-business-suite" || legacy.Field != "service-secret") {
+		return fmt.Errorf("legacy auth descriptor must name the LPBS service-secret migration bridge")
+	}
 	if (handoff.ConsumerPath != "/api/v1/admin/remote-profiles" && !strings.HasPrefix(handoff.ConsumerPath, "/api/v1/admin/remote-profiles/")) || strings.Contains(handoff.ConsumerPath, "..") {
 		return fmt.Errorf("consumer path is not an approved local profile endpoint")
 	}

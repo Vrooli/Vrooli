@@ -82,6 +82,9 @@ func newTLSHandlerServer(repo DeploymentRepository, sshRunner sshadapter.Runner,
 		tlsService:     tlsSvc,
 		tlsALPNRunner:  alpnRunner,
 	}
+	srv.reach = &reach.Router{SSH: &sshadapter.Adapter{Runner: sshRunner, Config: func(_ context.Context, target identity.TargetRef) (sshadapter.ConnectionConfig, error) {
+		return sshadapter.NewConfig(target.Locator.Host, target.Locator.Port, target.Locator.User, ""), nil
+	}}}
 	srv.authz = newTestEnforcer(srv, testOperator())
 	srv.setupRoutes()
 	return srv

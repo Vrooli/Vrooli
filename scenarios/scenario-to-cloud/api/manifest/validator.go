@@ -5,6 +5,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"time"
 
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/vps"
@@ -33,8 +34,35 @@ func ValidateAndNormalize(in domain.CloudManifest) (domain.CloudManifest, []doma
 	out, issues = normalizePorts(out, issues)
 	out, issues = validateEdge(out, issues)
 	out, issues = validateBundleRequirements(out, issues)
+	issues = append(issues, validateBackupPolicy(out.Backup)...)
 
 	return out, stableIssues(issues)
+}
+
+func validateBackupPolicy(policy *domain.ManifestBackup) []domain.ValidationIssue {
+	if policy == nil {
+		return nil
+	}
+	var issues []domain.ValidationIssue
+	add := func(field, message, hint string) {
+		issues = append(issues, domain.ValidationIssue{Path: "backup." + field, Message: message, Hint: hint, Severity: domain.SeverityError})
+	}
+	if strings.TrimSpace(policy.DestinationName) == "" {
+		add("destination_name", "backup destination name is required", "Create and credential an off-host destination in data-backup-manager before applying this policy.")
+	}
+	if schedule, err := time.ParseDuration(strings.TrimSpace(policy.Schedule)); err != nil || schedule <= 0 {
+		add("schedule", "backup schedule must be a positive duration", "Use a duration supported by data-backup-manager, such as 24h.")
+	}
+	if drill, err := time.ParseDuration(strings.TrimSpace(policy.RecoveryDrillSchedule)); err != nil || drill <= 0 {
+		add("recovery_drill_schedule", "recovery drill schedule must be a positive duration", "Use a duration such as 168h.")
+	}
+	if policy.KeepHourly < 0 || policy.KeepDaily < 0 || policy.KeepWeekly < 0 || policy.KeepMonthly < 0 || policy.KeepAnnual < 0 {
+		add("retention", "backup retention values cannot be negative", "Set each keep_* field to zero or greater.")
+	}
+	if policy.KeepHourly+policy.KeepDaily+policy.KeepWeekly+policy.KeepMonthly+policy.KeepAnnual == 0 {
+		add("retention", "at least one backup retention tier must be positive", "Choose an explicit keep_* retention tier; do not rely on DBM defaults.")
+	}
+	return issues
 }
 
 func validateManifestHeader(out domain.CloudManifest, issues []domain.ValidationIssue) (domain.CloudManifest, []domain.ValidationIssue) {
@@ -80,19 +108,22 @@ func normalizeVPSTarget(out domain.CloudManifest, issues []domain.ValidationIssu
 		return out, issues
 	}
 
-	if strings.TrimSpace(out.Target.VPS.Host) == "" {
+	managerOwned := strings.TrimSpace(out.Target.VPS.ComputeManagerInstanceID) != ""
+	if strings.TrimSpace(out.Target.VPS.Host) == "" && !managerOwned {
 		issues = append(issues, domain.ValidationIssue{
 			Path:     "target.vps.host",
-			Message:  "VPS host is required",
-			Hint:     "Set to the VPS public IP (recommended) or DNS name.",
+			Message:  "VPS host is required unless target is bound to a Compute Manager instance",
+			Hint:     "Use a verified Compute Manager instance reference; Scenario-to-Cloud resolves its host from the manager before deployment.",
 			Severity: domain.SeverityError,
 		})
 	}
-	if out.Target.VPS.Port == 0 {
-		out.Target.VPS.Port = 22
-	}
-	if strings.TrimSpace(out.Target.VPS.User) == "" {
-		out.Target.VPS.User = "root"
+	if !managerOwned {
+		if out.Target.VPS.Port == 0 {
+			out.Target.VPS.Port = 22
+		}
+		if strings.TrimSpace(out.Target.VPS.User) == "" {
+			out.Target.VPS.User = "root"
+		}
 	}
 	if strings.TrimSpace(out.Target.VPS.Workdir) == "" {
 		out.Target.VPS.Workdir = domain.DefaultVPSWorkdir

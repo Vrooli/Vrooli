@@ -30,6 +30,7 @@ func TestDeployRequestSnapshotRoundTripPreservesCloudInputs(t *testing.T) {
 		CloudManifest:       json.RawMessage(`{"service":"demo","version":"1.2.3"}`),
 		CloudDeploymentName: "demo-prod", CloudBundlePath: "/tmp/demo.tar.gz",
 		CloudBundleSHA256: "bundle-sha", CloudBundleSizeBytes: 1234, CloudRunPreflight: true,
+		CloudSpendQuoteIdempotencyKey: "cm-spend-key", CloudComputeManagerInstanceID: "cm-instance-1",
 	}
 
 	snapshot, err := snapshotForDeployRequest(request)
@@ -342,6 +343,228 @@ func TestCompatibilityReadRoutesFailClosedWithoutReadAuthorization(t *testing.T)
 	handler.Health(response, request)
 	if response.Code != http.StatusUnauthorized {
 		t.Fatalf("health status=%d body=%s, want unauthorized", response.Code, response.Body.String())
+	}
+}
+
+type cloudStepReadRepoFake struct {
+	Repository
+	operation *Operation
+	step      *CloudStep
+}
+
+func (f cloudStepReadRepoFake) GetOperation(context.Context, string) (*Operation, error) {
+	return f.operation, nil
+}
+func (f cloudStepReadRepoFake) GetCloudStep(context.Context, string) (*CloudStep, error) {
+	return f.step, nil
+}
+func (f cloudStepReadRepoFake) RecordCloudStep(context.Context, CloudStep) error { return nil }
+
+func TestGetOperationIncludesDurableCloudStep(t *testing.T) {
+	step := &CloudStep{OperationID: "op-1", RequestKey: "dm-cloud:op-1", RequestDigest: "sha256:request", State: "operation_admitted", DeploymentID: "dep-1", OwnerOperationID: "s2c-op-1"}
+	repo := cloudStepReadRepoFake{Repository: newMockRepo(), operation: &Operation{ID: "op-1", ReleaseID: "rel-1", Status: OperationRunning}, step: step}
+	if _, ok := interface{}(repo).(CloudStepRepository); !ok {
+		t.Fatal("read repo does not satisfy cloud-step repository")
+	}
+	handler := NewHandler(repo, nil, nil, nil, nil).WithReadAuthorization(func(context.Context) error { return nil })
+	req := mux.SetURLVars(httptest.NewRequest(http.MethodGet, "/api/v1/release-operations/op-1", nil), map[string]string{"operation_id": "op-1"})
+	response := httptest.NewRecorder()
+	handler.GetOperation(response, req)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	var got Operation
+	body := append([]byte(nil), response.Body.Bytes()...)
+	if err := json.NewDecoder(response.Body).Decode(&got); err != nil {
+		t.Fatal(err)
+	}
+	if got.CloudStep == nil || got.CloudStep.RequestKey != step.RequestKey || got.CloudStep.OwnerOperationID != step.OwnerOperationID {
+		t.Fatalf("cloud step read-back = %#v body=%s", got.CloudStep, string(body))
+	}
+}
+
+type operationIndexRepoFake struct {
+	*mockRepo
+	page       OperationIndexPage
+	profileID  string
+	pageToken  string
+	pageSize   int
+	listCalled bool
+}
+
+func (f *operationIndexRepoFake) ListOperationIDsByProfile(_ context.Context, profileID, token string, pageSize int) (OperationIndexPage, error) {
+	f.listCalled = true
+	f.profileID, f.pageToken, f.pageSize = profileID, token, pageSize
+	return f.page, nil
+}
+
+func TestListOperationsByProfileRequiresReadAuthorizationAndPassesProfileScope(t *testing.T) {
+	repo := &operationIndexRepoFake{mockRepo: newMockRepo(), page: OperationIndexPage{OperationIDs: []string{"op-1"}, NextPageToken: "opaque"}}
+	var visibleProfileID string
+	handler := NewHandler(repo, nil, nil, nil, nil).
+		WithReadAuthorization(func(context.Context) error { return nil }).
+		WithOperationProfileVisibility(func(_ context.Context, profileID string) (bool, error) {
+			visibleProfileID = profileID
+			return profileID == "profile-a", nil
+		})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/profiles/profile-a/release-operations?page_size=10&page_token=cursor", nil)
+	req = mux.SetURLVars(req, map[string]string{"profile_id": "profile-a"})
+	response := httptest.NewRecorder()
+	handler.ListOperationsByProfile(response, req)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	var page OperationIndexPage
+	if err := json.NewDecoder(response.Body).Decode(&page); err != nil {
+		t.Fatal(err)
+	}
+	if !repo.listCalled || visibleProfileID != "profile-a" || repo.profileID != "profile-a" || repo.pageToken != "cursor" || repo.pageSize != 10 {
+		t.Fatalf("repository call = %+v", repo)
+	}
+	if len(page.OperationIDs) != 1 || page.OperationIDs[0] != "op-1" || page.NextPageToken != "opaque" {
+		t.Fatalf("page = %+v", page)
+	}
+}
+
+func TestListOperationsByProfileFailsClosedWithoutReadAuthorization(t *testing.T) {
+	repo := &operationIndexRepoFake{mockRepo: newMockRepo()}
+	handler := NewHandler(repo, nil, nil, nil, nil)
+	req := mux.SetURLVars(httptest.NewRequest(http.MethodGet, "/api/v1/profiles/profile-a/release-operations", nil), map[string]string{"profile_id": "profile-a"})
+	response := httptest.NewRecorder()
+	handler.ListOperationsByProfile(response, req)
+	if response.Code != http.StatusUnauthorized || repo.listCalled {
+		t.Fatalf("status=%d called=%v body=%s", response.Code, repo.listCalled, response.Body.String())
+	}
+}
+
+func TestListOperationsByProfileFailsClosedWithoutProfileVisibility(t *testing.T) {
+	repo := &operationIndexRepoFake{mockRepo: newMockRepo()}
+	handler := NewHandler(repo, nil, nil, nil, nil).WithReadAuthorization(func(context.Context) error { return nil })
+	req := mux.SetURLVars(httptest.NewRequest(http.MethodGet, "/api/v1/profiles/profile-a/release-operations", nil), map[string]string{"profile_id": "profile-a"})
+	response := httptest.NewRecorder()
+	handler.ListOperationsByProfile(response, req)
+	if response.Code != http.StatusServiceUnavailable || repo.listCalled {
+		t.Fatalf("status=%d called=%v body=%s", response.Code, repo.listCalled, response.Body.String())
+	}
+}
+
+type resumableOperationRepoFake struct {
+	*mockRepo
+	operation *Operation
+	step      *CloudStep
+}
+
+func (f *resumableOperationRepoFake) GetOperation(context.Context, string) (*Operation, error) {
+	return f.operation, nil
+}
+func (f *resumableOperationRepoFake) GetCloudStep(context.Context, string) (*CloudStep, error) {
+	return f.step, nil
+}
+func (f *resumableOperationRepoFake) RecordCloudStep(_ context.Context, step CloudStep) error {
+	f.step = &step
+	return nil
+}
+func (f *resumableOperationRepoFake) AcquireOperationLease(_ context.Context, operationID, owner string, _ time.Duration) (*OperationLease, bool, error) {
+	return &OperationLease{OperationID: operationID, Owner: owner, Fence: 8, ExpiresAt: time.Now().Add(time.Minute)}, true, nil
+}
+func (f *resumableOperationRepoFake) ReleaseOperationLease(context.Context, *OperationLease) error {
+	return nil
+}
+func (f *resumableOperationRepoFake) UpdateOperationFenced(_ context.Context, _ *OperationLease, status, stage, message string) error {
+	f.operation.Status, f.operation.ActiveStage, f.operation.Error = status, stage, message
+	return nil
+}
+func (f *resumableOperationRepoFake) AppendOperationEvent(context.Context, *OperationLease, string, string, string) error {
+	return nil
+}
+
+type resumeOperationOrchFake struct{ called chan DeployRequest }
+
+func (f resumeOperationOrchFake) RunDeploy(_ context.Context, request DeployRequest) (*DeployResult, error) {
+	f.called <- request
+	return &DeployResult{Status: "failed"}, nil
+}
+
+func TestResumeCloudOperationReattachesSavedRequest(t *testing.T) {
+	base := newMockRepo()
+	request := DeployRequest{ProfileID: "web-console/staging", ReleaseID: "rel-resume", CandidateID: "candidate-1", DestinationRevisionID: "destination-1", CloudSpendQuoteIdempotencyKey: "quote-1", CloudComputeManagerInstanceID: "cm-1", CloudManifest: json.RawMessage(`{"scenario":{"id":"demo"},"target":{"vps":{"compute_manager_instance_id":"cm-1"}}}`)}
+	snapshot, err := snapshotForDeployRequest(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base.store[request.ReleaseID] = &Release{ID: request.ReleaseID, ProfileID: request.ProfileID, Status: StatusFailed}
+	repo := &resumableOperationRepoFake{mockRepo: base, operation: &Operation{ID: "release-op-rel-resume", ReleaseID: request.ReleaseID, ProfileID: request.ProfileID, Status: OperationFailed, RequestSnapshot: snapshot}, step: &CloudStep{OperationID: "release-op-rel-resume", RequestKey: "dm-cloud:release-op-rel-resume", RequestDigest: "sha256:request", State: "operation_admitted", DeploymentID: "dep-1", OwnerOperationID: "s2c-op-1"}}
+	orch := resumeOperationOrchFake{called: make(chan DeployRequest, 1)}
+	handler := NewHandler(repo, nil, nil, orch, nil).WithExecutionAuthorization(func(context.Context) error { return nil }).WithCloudComputeAdmissionVerifier(&cloudComputeAdmissionFixture{})
+	req := mux.SetURLVars(httptest.NewRequest(http.MethodPost, "/api/v1/release-operations/release-op-rel-resume/resume-cloud", nil), map[string]string{"operation_id": repo.operation.ID})
+	response := httptest.NewRecorder()
+	handler.ResumeCloudOperation(response, req)
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	select {
+	case resumed := <-orch.called:
+		if resumed.OperationID != repo.operation.ID || resumed.ReleaseID != request.ReleaseID || resumed.CloudBundleSHA256 != request.CloudBundleSHA256 {
+			t.Fatalf("resumed request identity = %+v", resumed)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("durable cloud operation was not resumed")
+	}
+}
+
+func TestResumeCloudOperationRefusesAfterDownstreamStart(t *testing.T) {
+	base := newMockRepo()
+	base.store["rel-downstream"] = &Release{ID: "rel-downstream", ProfileID: "p1", Status: StatusAmbiguous}
+	repo := &resumableOperationRepoFake{mockRepo: base, operation: &Operation{ID: "release-op-rel-downstream", ReleaseID: "rel-downstream", ProfileID: "p1", Status: OperationAmbiguous}, step: &CloudStep{OperationID: "release-op-rel-downstream", State: "downstream_started"}}
+	orch := resumeOperationOrchFake{called: make(chan DeployRequest, 1)}
+	handler := NewHandler(repo, nil, nil, orch, nil).WithExecutionAuthorization(func(context.Context) error { return nil })
+	req := mux.SetURLVars(httptest.NewRequest(http.MethodPost, "/api/v1/release-operations/op-downstream/resume-cloud", nil), map[string]string{"operation_id": repo.operation.ID})
+	response := httptest.NewRecorder()
+	handler.ResumeCloudOperation(response, req)
+	if response.Code != http.StatusConflict {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	select {
+	case <-orch.called:
+		t.Fatal("downstream release was replayed")
+	default:
+	}
+}
+
+type verifyOnlyOrchFake struct {
+	runCalls, verifyCalls int
+	request               DeployRequest
+}
+
+func (f *verifyOnlyOrchFake) RunDeploy(context.Context, DeployRequest) (*DeployResult, error) {
+	f.runCalls++
+	return nil, errors.New("full release replay is forbidden")
+}
+func (f *verifyOnlyOrchFake) ResumeCloudVerification(_ context.Context, request DeployRequest) (*CloudStep, error) {
+	f.verifyCalls++
+	f.request = request
+	return &CloudStep{OperationID: request.OperationID, RequestKey: "dm-cloud:" + request.OperationID, RequestDigest: "sha256:request", State: "verification_passed", VerificationState: "passed", VerificationKey: CloudVerificationIdempotencyKey(request.OperationID)}, nil
+}
+
+func TestResumeCloudVerificationUsesOnlyReadOnlyOrchestratorPath(t *testing.T) {
+	const releaseID = "rel-verify-only"
+	base := newMockRepo()
+	base.store[releaseID] = &Release{ID: releaseID, ProfileID: "web-console/staging", Status: StatusFailed}
+	request := DeployRequest{ProfileID: "web-console/staging", ReleaseID: releaseID, CloudManifest: json.RawMessage(`{"scenario":{"id":"demo"}}`), CloudBundleSHA256: "sha256:bundle", CloudComputeManagerInstanceID: "cm-instance-1"}
+	snapshot, err := snapshotForDeployRequest(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	operationID := operationIDForRelease(releaseID)
+	step := &CloudStep{OperationID: operationID, RequestKey: "dm-cloud:" + operationID, RequestDigest: "sha256:request", State: "downstream_started", DeploymentID: "dep-1", Receipt: json.RawMessage(`{"deployment_id":"dep-1"}`)}
+	repo := &resumableOperationRepoFake{mockRepo: base, operation: &Operation{ID: operationID, ReleaseID: releaseID, ProfileID: request.ProfileID, Status: OperationFailed, RequestSnapshot: snapshot}, step: step}
+	orch := &verifyOnlyOrchFake{}
+	handler := NewHandler(repo, nil, nil, orch, nil).WithExecutionAuthorization(func(context.Context) error { return nil })
+	req := mux.SetURLVars(httptest.NewRequest(http.MethodPost, "/api/v1/release-operations/"+operationID+"/resume-cloud-verification", nil), map[string]string{"operation_id": operationID})
+	response := httptest.NewRecorder()
+	handler.ResumeCloudVerification(response, req)
+	if response.Code != http.StatusOK || orch.verifyCalls != 1 || orch.runCalls != 0 || orch.request.OperationID != operationID || orch.request.CloudComputeManagerInstanceID != "cm-instance-1" || repo.operation.Status != OperationFailed {
+		t.Fatalf("status=%d verify=%d run=%d request=%+v op=%+v body=%s", response.Code, orch.verifyCalls, orch.runCalls, orch.request, repo.operation, response.Body.String())
 	}
 }
 

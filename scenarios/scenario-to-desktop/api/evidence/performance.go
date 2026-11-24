@@ -157,6 +157,21 @@ func ComparePerformanceBaseline(baseline PerformanceBaseline, current []Performa
 		}
 		return PerformanceComparison{Status: ComparisonNonComparable, Reason: reason}
 	}
+	phaseNames := make([]string, 0, len(base))
+	for name := range base {
+		phaseNames = append(phaseNames, name)
+	}
+	sort.Strings(phaseNames)
+	for _, name := range phaseNames {
+		if _, ok := currentSummary[name]; !ok {
+			return PerformanceComparison{
+				Status:   ComparisonNonComparable,
+				Reason:   fmt.Sprintf("current samples are missing baseline phase %q", name),
+				Baseline: base,
+				Current:  currentSummary,
+			}
+		}
+	}
 	comparison := PerformanceComparison{Status: ComparisonPass, Baseline: base, Current: currentSummary}
 	var slowestValue int64
 	for name, currentDistribution := range currentSummary {

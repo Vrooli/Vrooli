@@ -148,6 +148,29 @@ func TestQEMUProgramReadsFreshTargetReceiptsAndKeepsAssertionsPending(t *testing
 	}
 }
 
+func TestQEMUProgramResolvesComputeManagerIdentityBeforeDeploymentReads(t *testing.T) {
+	source, err := os.ReadFile(qemuProgramPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(source)
+	lookup := strings.Index(text, `scenario_to_cloud.qemu.get(instance_id=manager_instance_id)`)
+	deploymentRead := strings.Index(text, `scenario_to_cloud.deployment.get(`)
+	if lookup < 0 || deploymentRead < 0 || lookup > deploymentRead {
+		t.Fatal("QEMU qualification must resolve the Compute Manager reference before reading a deployment")
+	}
+	if !strings.Contains(text, `target.get("computeManagerInstanceId")`) || !strings.Contains(text, `bound_manager_id != manager_instance_id`) {
+		t.Fatal("QEMU qualification must bind deployment identity to the Compute Manager instance ID")
+	}
+	contract, err := os.ReadFile("../../.vrooli/program-runtime/cloud-qemu-qualification.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(contract), `"id": "scenario-to-cloud/qemu/get"`) {
+		t.Fatal("QEMU qualification contract must declare the generated manager-reference binding")
+	}
+}
+
 func TestQEMUProgramAdmitsEveryMatrixLaneCellForItsGround(t *testing.T) {
 	m := mustMatrix(t)
 	source, err := os.ReadFile(qemuProgramPath)

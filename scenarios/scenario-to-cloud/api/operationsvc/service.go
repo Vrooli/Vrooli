@@ -161,6 +161,7 @@ func (s *Service) GetTargetReceipt(ctx context.Context, req *connect.Request[ope
 		Target: &operationsv1.TargetReceiptTarget{
 			MachineId: plan.Target.MachineID, NodeId: plan.Target.NodeID,
 			EnrollmentGeneration: plan.Target.EnrollmentGeneration, Transport: plan.Target.Transport,
+			ComputeManagerInstanceId: plan.Target.ComputeManagerID,
 		},
 		Receipt: &operationsv1.TargetOwnerReceipt{
 			Found: receipt.Found, Outcome: string(receipt.Outcome), Fence: receipt.Fence,

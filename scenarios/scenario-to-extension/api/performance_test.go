@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -244,7 +245,7 @@ func TestPerformanceExtensionGeneration(t *testing.T) {
 		t.Logf("Average template listing time over %d iterations: %v", iterations, avgDuration)
 	})
 
-	t.Run("ExtensionTestingPerformance", func(t *testing.T) {
+	t.Run("ExtensionPathRejectionPerformance", func(t *testing.T) {
 		req := TestData.GenerateTestRequest("/tmp/perf-test", []string{
 			"https://example.com",
 		})
@@ -263,17 +264,17 @@ func TestPerformanceExtensionGeneration(t *testing.T) {
 			t.Fatalf("Failed to test extension: %v", err)
 		}
 
-		if w.Code != 200 {
-			t.Fatalf("Expected status 200, got %d", w.Code)
+		if w.Code != http.StatusGone {
+			t.Fatalf("Expected retired-path status %d, got %d", http.StatusGone, w.Code)
 		}
 
-		// The test fixture provides a local runner; this measures API process overhead.
+		// This is a synthetic handler rejection check, not a browser timing budget.
 		maxDuration := 100 * time.Millisecond
 		if duration > maxDuration {
 			t.Errorf("Extension testing took too long: %v (max: %v)", duration, maxDuration)
 		}
 
-		t.Logf("Extension testing completed in %v", duration)
+		t.Logf("Legacy extension-path request rejected in %v", duration)
 	})
 
 	t.Run("HealthCheckPerformance", func(t *testing.T) {

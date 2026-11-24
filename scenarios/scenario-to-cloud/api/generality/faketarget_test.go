@@ -29,25 +29,26 @@ import (
 // scenarios, resource demand, edge routes, persistent data) and records
 // every call so the tests can prove argv discipline and receipt binding.
 type fakeTarget struct {
-	mu        sync.Mutex
-	machineID string
-	platform  string
-	calls     []reach.Command
-	delivered []reach.ArtifactFile
-	manifests map[string]string // remote manifest path -> release id
-	fence     uint64
-	receipts  map[string]fakeReceipt
-	staged    map[string]bool
-	active    *fakeActive
-	running   map[string]bool
-	resources map[string]bool
-	demand    map[string]map[string]bool
-	routes    map[string]fakeRoute
-	persist   map[string]bool // binding id -> bound at activation
-	backedUp  map[string]int  // binding id -> recovery points that covered it
-	backups   int
-	events    []string
-	scenario  string
+	mu             sync.Mutex
+	machineID      string
+	platform       string
+	calls          []reach.Command
+	delivered      []reach.ArtifactFile
+	manifests      map[string]string // remote manifest path -> release id
+	fence          uint64
+	receipts       map[string]fakeReceipt
+	staged         map[string]bool
+	active         *fakeActive
+	running        map[string]bool
+	resources      map[string]bool
+	demand         map[string]map[string]bool
+	routes         map[string]fakeRoute
+	previousRoutes map[string]map[string]fakeRoute
+	persist        map[string]bool // binding id -> bound at activation
+	backedUp       map[string]int  // binding id -> recovery points that covered it
+	backups        int
+	events         []string
+	scenario       string
 }
 
 type fakeActive struct {
@@ -73,7 +74,7 @@ type fakeReceipt struct {
 func newFakeTarget(machineID string) *fakeTarget {
 	return &fakeTarget{
 		machineID: machineID, platform: "linux/amd64", manifests: map[string]string{}, receipts: map[string]fakeReceipt{}, staged: map[string]bool{},
-		running: map[string]bool{}, resources: map[string]bool{}, demand: map[string]map[string]bool{}, routes: map[string]fakeRoute{}, persist: map[string]bool{}, backedUp: map[string]int{},
+		running: map[string]bool{}, resources: map[string]bool{}, demand: map[string]map[string]bool{}, routes: map[string]fakeRoute{}, previousRoutes: map[string]map[string]fakeRoute{}, persist: map[string]bool{}, backedUp: map[string]int{},
 	}
 }
 
@@ -268,32 +269,51 @@ func (t *fakeTarget) Exec(_ context.Context, _ identity.TargetRef, cmd reach.Com
 			if err := json.Unmarshal(raw, &spec); err != nil || len(spec.Routes) == 0 {
 				return nil, "failed", "edge_spec_invalid"
 			}
+			owner := first(flags, "deployment")
+			next := make(map[string]fakeRoute, len(spec.Routes))
 			for _, route := range spec.Routes {
 				if route.UpstreamPort <= 0 || route.UpstreamPort == 22 || route.UpstreamPort == 18767 {
 					return nil, "failed", "edge_private_listener"
 				}
-				if owner, ok := t.routes[route.Host]; ok && owner.Deployment != first(flags, "deployment") {
+				if current, ok := t.routes[route.Host]; ok && current.Deployment != owner {
 					return map[string]any{"host": route.Host}, "failed", "edge_route_owned_by_other_deployment"
 				}
-				t.routes[route.Host] = fakeRoute{UpstreamPort: route.UpstreamPort, ListenerID: route.ListenerID, Deployment: first(flags, "deployment")}
-				t.events = append(t.events, fmt.Sprintf("route:%s:%d", route.Host, route.UpstreamPort))
+				next[route.Host] = fakeRoute{UpstreamPort: route.UpstreamPort, ListenerID: route.ListenerID, Deployment: owner}
+			}
+			current := routesForDeployment(t.routes, owner)
+			if sameRoutes(current, next) {
+				return map[string]any{"domain": spec.Domain}, "unchanged", ""
+			}
+			if len(current) > 0 {
+				t.previousRoutes[owner] = current
+			} else {
+				delete(t.previousRoutes, owner)
+			}
+			for host := range current {
+				delete(t.routes, host)
+			}
+			for host, route := range next {
+				t.routes[host] = route
+				t.events = append(t.events, fmt.Sprintf("route:%s:%d", host, route.UpstreamPort))
 			}
 			return map[string]any{"domain": spec.Domain}, "succeeded", ""
 		}), nil
 	case "cloud-target edge route-rollback":
 		return t.effect(flags, func() (map[string]any, string, string) {
 			owner := first(flags, "deployment")
-			removed := 0
-			for host, route := range t.routes {
-				if route.Deployment == owner {
-					delete(t.routes, host)
-					removed++
-				}
-			}
-			if removed == 0 {
+			previous, ok := t.previousRoutes[owner]
+			if !ok || len(previous) == 0 {
 				return nil, "failed", "edge_rollback_not_eligible"
 			}
-			return map[string]any{"removed": removed}, "succeeded", ""
+			current := routesForDeployment(t.routes, owner)
+			for host := range current {
+				delete(t.routes, host)
+			}
+			for host, route := range previous {
+				t.routes[host] = route
+			}
+			t.previousRoutes[owner] = current
+			return map[string]any{"restored": len(previous)}, "succeeded", ""
 		}), nil
 	case "setup":
 		t.events = append(t.events, "setup")
@@ -335,6 +355,28 @@ func (t *fakeTarget) Exec(_ context.Context, _ identity.TargetRef, cmd reach.Com
 		return refusal("receipt_not_found", key), nil
 	}
 	return reach.Result{}, &reach.Error{Kind: reach.KindInvalidArgument, Detail: "fake target has no verb " + cmd.Verb}
+}
+
+func routesForDeployment(routes map[string]fakeRoute, deployment string) map[string]fakeRoute {
+	owned := make(map[string]fakeRoute)
+	for host, route := range routes {
+		if route.Deployment == deployment {
+			owned[host] = route
+		}
+	}
+	return owned
+}
+
+func sameRoutes(left, right map[string]fakeRoute) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for host, route := range left {
+		if right[host] != route {
+			return false
+		}
+	}
+	return true
 }
 
 func (t *fakeTarget) stopScenario(scenario string) {

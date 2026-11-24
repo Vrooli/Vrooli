@@ -14,3 +14,17 @@ func TestManifestDependenciesParsesProgramBindingPeers(t *testing.T) {
 		t.Fatalf("program binding peers = %#v", manifest.Dependencies.ProgramBindingPeers)
 	}
 }
+
+func TestTargetRefFromManifestCarriesComputeManagerIdentity(t *testing.T) {
+	manifest := CloudManifest{Target: ManifestTarget{Type: "vps", VPS: &ManifestVPS{
+		Host: "127.0.0.1", Port: 2222, User: "vrooli", Workdir: "/srv/vrooli",
+		ComputeManagerInstanceID: "qemu-abc123",
+	}}}
+	target := TargetRefFromManifest(manifest)
+	if target.ComputeManagerID != "qemu-abc123" {
+		t.Fatalf("manager identity = %q", target.ComputeManagerID)
+	}
+	if target.Locator.Host != "127.0.0.1" || target.Locator.Port != 2222 || target.Locator.User != "vrooli" || target.Locator.Workdir != "/srv/vrooli" {
+		t.Fatalf("SSH locator = %+v", target.Locator)
+	}
+}

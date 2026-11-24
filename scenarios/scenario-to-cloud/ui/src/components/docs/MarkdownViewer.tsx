@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Copy, Check, ArrowLeft } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "../ui/button-adapter";
 import { selectors } from "../../consts/selectors";
 
 interface MarkdownViewerProps {

@@ -6,7 +6,7 @@ import { vi } from "vitest";
 import { Alert } from "./alert";
 import { AnnotatedCodeBlock, type LineAnnotation } from "./annotated-code-block";
 import { Badge } from "./badge";
-import { Button } from "./button";
+import { Button } from "./button-adapter";
 import {
   Card,
   CardContent,

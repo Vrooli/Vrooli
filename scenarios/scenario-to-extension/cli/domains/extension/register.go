@@ -3,13 +3,21 @@ package extension
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"scenario-to-extension/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+)
+
+const (
+	identityTokenEnv = "VROOLI_AGENT_IDENTITY_TOKEN"
+	grantReceiptEnv  = "VROOLI_BROWSER_GRANT_RECEIPT"
 )
 
 // Register builds the `extension` subcommand group that wraps
@@ -26,7 +34,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			{Name: "status", Description: "Show status for a build", Run: func(args []string) error { return runStatus(core, args) }},
 			{Name: "cancel", Description: "Cancel a running build", Run: func(args []string) error { return runCancel(core, args) }},
 			{Name: "download", Description: "Download a completed build as a ZIP archive", Run: func(args []string) error { return runDownload(core, args) }},
-			{Name: "test", Description: "Run extension tests against a build path", Run: func(args []string) error { return runTest(core, args) }},
+			{Name: "test", Description: "Install, reload, and validate a ready build in an existing authorized BAS session", Run: func(args []string) error { return runTest(core, args) }},
 			{Name: "templates", Aliases: []string{"list-templates"}, Description: "List available extension templates", Run: func(args []string) error { return runTemplates(core, args) }},
 			{Name: "builds", Aliases: []string{"list"}, Description: "List recent extension builds", Run: func(args []string) error { return runBuilds(core, args) }},
 		},
@@ -127,8 +135,8 @@ func runGenerate(core *cliapp.ScenarioApp, args []string) error {
 	nextCommands := []string{
 		fmt.Sprintf("%s extension status %s", support.CLIName, resp.BuildID),
 	}
-	if resp.ExtensionPath != "" {
-		nextCommands = append(nextCommands, fmt.Sprintf("%s extension test %s", support.CLIName, resp.ExtensionPath))
+	if resp.BuildID != "" {
+		nextCommands = append(nextCommands, fmt.Sprintf("%s extension test --build-id %s --session-id BAS_SESSION_ID", support.CLIName, resp.BuildID))
 	}
 	nextCommands = append(nextCommands, fmt.Sprintf("%s extension download %s --output %s.zip", support.CLIName, resp.BuildID, resp.BuildID))
 
@@ -279,48 +287,71 @@ func runDownload(core *cliapp.ScenarioApp, args []string) error {
 
 func runTest(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("extension test")
-	sites := fs.String("sites", "https://example.com", "Comma-separated list of test URLs")
-	headless := fs.Bool("headless", false, "Run tests in headless mode")
-	screenshot := fs.Bool("screenshot", true, "Capture screenshots during testing")
-	bodyFile := fs.String("body-file", "", "Path to a JSON file providing the full request body (overrides other flags)")
+	buildID := fs.String("build-id", "", "Install, reload, and validate this ready build in an existing BAS session")
+	sessionID := fs.String("session-id", "", "Existing BAS session id for --build-id validation")
+	expectedExtensionID := fs.String("expect-extension-id", "", "Optionally require the derived Chrome extension id to match this value")
+	bodyFile := fs.String("body-file", "", "Path to JSON containing only build_id, session_id, and optional extension_id")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
-	if fs.NArg() < 1 && strings.TrimSpace(*bodyFile) == "" {
-		return fmt.Errorf("usage: extension test <extension-path> [flags] (or --body-file PATH)")
+	if fs.NArg() != 0 {
+		return fmt.Errorf("filesystem extension paths are no longer accepted; usage: extension test --build-id ID --session-id ID [--expect-extension-id ID]")
 	}
-
-	var payload interface{}
-	extensionPath := ""
+	if strings.TrimSpace(*bodyFile) != "" && (*buildID != "" || *sessionID != "" || *expectedExtensionID != "") {
+		return fmt.Errorf("--body-file cannot be combined with managed-session flags")
+	}
+	var payload map[string]interface{}
 	if strings.TrimSpace(*bodyFile) != "" {
 		raw, err := support.ReadJSONFile(*bodyFile, true)
 		if err != nil {
 			return err
 		}
-		var parsed map[string]interface{}
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(raw, &fields); err != nil {
+			return fmt.Errorf("parse --body-file: %w", err)
+		}
+		if fields == nil {
+			return fmt.Errorf("--body-file must contain one JSON object")
+		}
+		for key := range fields {
+			if key != "build_id" && key != "session_id" && key != "extension_id" {
+				return fmt.Errorf("--body-file field %q is not accepted", key)
+			}
+		}
+		var parsed struct {
+			BuildID     string `json:"build_id"`
+			SessionID   string `json:"session_id"`
+			ExtensionID string `json:"extension_id"`
+		}
 		if err := json.Unmarshal(raw, &parsed); err != nil {
 			return fmt.Errorf("parse --body-file: %w", err)
 		}
-		if p, ok := parsed["extension_path"].(string); ok {
-			extensionPath = p
-		}
-		payload = parsed
+		*buildID, *sessionID, *expectedExtensionID = parsed.BuildID, parsed.SessionID, parsed.ExtensionID
+		payload = managedSessionTestPayload(*buildID, *sessionID, *expectedExtensionID)
+	} else if strings.TrimSpace(*buildID) != "" && strings.TrimSpace(*sessionID) != "" {
+		payload = managedSessionTestPayload(*buildID, *sessionID, *expectedExtensionID)
 	} else {
-		extensionPath = fs.Arg(0)
-		testSites := support.SplitCommaList(*sites)
-		if len(testSites) == 0 {
-			testSites = []string{"https://example.com"}
-		}
-		payload = map[string]interface{}{
-			"extension_path": extensionPath,
-			"test_sites":     testSites,
-			"headless":       *headless,
-			"screenshot":     *screenshot,
-		}
+		return fmt.Errorf("usage: extension test --build-id ID --session-id ID [--expect-extension-id ID] (or --body-file PATH)")
 	}
+	if strings.TrimSpace(*buildID) == "" || strings.TrimSpace(*sessionID) == "" {
+		return fmt.Errorf("managed extension validation requires both build_id and session_id")
+	}
+	extensionPath := "build " + *buildID + " in session " + *sessionID
 
-	body, err := core.Request("POST", "/extension/test", nil, payload)
+	managedHeaders, err := managedExtensionHeadersFromEnv()
+	if err != nil {
+		return err
+	}
+	apiBase := strings.TrimSpace(cliutil.DetermineAPIBase(core.APIBaseOptions()))
+	parsedBase, parseErr := url.Parse(apiBase)
+	if parseErr != nil || parsedBase == nil || (parsedBase.Scheme != "http" && parsedBase.Scheme != "https") || !cliutil.TrustedIdentityDestination(&http.Request{URL: parsedBase}) {
+		return fmt.Errorf("managed extension validation requires a local scenario API destination")
+	}
+	// The AM grant is request-local, and this authority-bearing call refuses
+	// redirects so the receipt cannot be forwarded to a different endpoint.
+	protectedAPI := core.APIClient.WithoutRedirects()
+	body, err := protectedAPI.RequestWithHeaders(http.MethodPost, core.APIPath("/extension/test"), nil, payload, managedHeaders)
 	if err != nil {
 		return err
 	}
@@ -338,10 +369,34 @@ func runTest(core *cliapp.ScenarioApp, args []string) error {
 		overall = "PASS"
 	}
 	summary := []string{
-		fmt.Sprintf("Extension: %s", extensionPath),
+		fmt.Sprintf("Build: %s", *buildID),
+		fmt.Sprintf("BAS session: %s", *sessionID),
+		fmt.Sprintf("Extension ref: %s", extensionPath),
 		fmt.Sprintf("Overall: %s", overall),
 		fmt.Sprintf("Total: %d, Passed: %d, Failed: %d, Success rate: %.1f%%",
 			result.Summary.TotalTests, result.Summary.Passed, result.Summary.Failed, result.Summary.SuccessRate),
+	}
+	if result.ArtifactSHA256 != "" {
+		summary = append(summary,
+			fmt.Sprintf("Artifact SHA-256: %s", result.ArtifactSHA256),
+			fmt.Sprintf("Manifest SHA-256: %s", result.ManifestSHA256),
+			fmt.Sprintf("Extension ID: %s", result.ExtensionID),
+		)
+	}
+	if receipt := result.LifecycleReceipt; receipt != nil {
+		summary = append(summary,
+			fmt.Sprintf("Run owner/lease: %s / %s", receipt.RunBinding.OwnerID, receipt.RunBinding.LeaseID),
+			fmt.Sprintf("Run caller/profile/permission: %s / %s / %s", receipt.RunBinding.CallerID, receipt.RunBinding.ProfileID, receipt.RunBinding.PermissionRef),
+			fmt.Sprintf("Install receipt: %s at %s", receipt.Install.State, receipt.Install.OccurredAt.UTC().Format(time.RFC3339Nano)),
+			fmt.Sprintf("Reload receipt: %s at %s", receipt.Reload.State, receipt.Reload.OccurredAt.UTC().Format(time.RFC3339Nano)),
+			fmt.Sprintf("Validation receipt: %s at %s", receipt.Validation.Receipt.State, receipt.Validation.Receipt.OccurredAt.UTC().Format(time.RFC3339Nano)),
+		)
+	}
+	if receipt := result.CleanupReceipt; receipt != nil {
+		summary = append(summary, fmt.Sprintf("Cleanup receipt: %s for extension %s at %s", receipt.State, receipt.ExtensionID, receipt.OccurredAt.UTC().Format(time.RFC3339Nano)))
+	}
+	if result.PermissionEvidenceSource != "" {
+		summary = append(summary, fmt.Sprintf("Permission evidence: %s (%s; per-tab: %s)", result.PermissionEvidenceSource, result.PermissionEvidenceScope, result.PerTabSiteAccess))
 	}
 	results := make([]string, 0, len(result.TestResults))
 	if result.Reason != "" {
@@ -371,7 +426,7 @@ func runTest(core *cliapp.ScenarioApp, args []string) error {
 		ResultsHeading: "Site results",
 		Results:        results,
 		RetrievalHints: []string{
-			fmt.Sprintf("%s extension test %s --sites https://example.com,https://google.com", support.CLIName, extensionPath),
+			fmt.Sprintf("%s extension test --build-id %s --session-id %s", support.CLIName, *buildID, *sessionID),
 		},
 	}
 	if *jsonOutput {
@@ -387,6 +442,29 @@ func runTest(core *cliapp.ScenarioApp, args []string) error {
 		return fmt.Errorf("extension tests failed: %d of %d site(s) did not pass", result.Summary.Failed, result.Summary.TotalTests)
 	}
 	return nil
+}
+
+func managedExtensionHeadersFromEnv() (map[string]string, error) {
+	identityToken := strings.TrimSpace(os.Getenv(identityTokenEnv))
+	grantReceipt := strings.TrimSpace(os.Getenv(grantReceiptEnv))
+	if identityToken == "" || grantReceipt == "" {
+		return nil, fmt.Errorf("Agent Manager browser context is unavailable; require %s and %s", identityTokenEnv, grantReceiptEnv)
+	}
+	return map[string]string{
+		"X-Agent-Identity-Token":         identityToken,
+		"X-Vrooli-Browser-Grant-Receipt": grantReceipt,
+	}, nil
+}
+
+func managedSessionTestPayload(buildID, sessionID, expectedExtensionID string) map[string]interface{} {
+	payload := map[string]interface{}{
+		"build_id":   buildID,
+		"session_id": sessionID,
+	}
+	if expectedExtensionID != "" {
+		payload["extension_id"] = expectedExtensionID
+	}
+	return payload
 }
 
 func runTemplates(core *cliapp.ScenarioApp, args []string) error {

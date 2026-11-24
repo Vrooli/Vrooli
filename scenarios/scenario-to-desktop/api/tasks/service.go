@@ -3,6 +3,7 @@ package tasks
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -281,6 +282,10 @@ func (s *Service) runInvestigation(
 	// Execute via agent-manager
 	agentResult, err := s.executeAgent(ctx, invID, handler.AgentTag(), result.Prompt, result.Attachments)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			s.markTaskCancelled(invID)
+			return
+		}
 		s.handleTaskError(ctx, invID, pipelineStatus.PipelineID, fmt.Sprintf("agent execution failed: %v", err))
 		return
 	}
@@ -344,6 +349,11 @@ func (s *Service) runFixLoop(
 		iterationTag := fmt.Sprintf("%s-iter%d", handler.AgentTag(), iteration)
 		agentResult, err := s.executeAgent(ctx, invID, iterationTag, result.Prompt, result.Attachments)
 		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				loopState.FinalStatus = FixStatusUserStopped
+				s.storeFixResults(ctx, invID, pipelineStatus, req, loopState, sourceFindings)
+				return
+			}
 			// Record failed iteration but continue if possible
 			record := domain.FixIterationRecord{
 				Number:       iteration,
@@ -582,6 +592,11 @@ func (s *Service) storeFixResults(
 		}
 		s.broadcastProgress(pipelineStatus.PipelineID, invID, EventFixCompleted, 100,
 			fix.TerminationReason(loopState.FinalStatus, loopState.CurrentIteration, loopState.Config.MaxIterations))
+	case FixStatusUserStopped:
+		if err := s.invStore.UpdateDetails(invID, detailsJSON); err != nil {
+			slog.Warn("failed to store stopped task details", "task_id", invID, "error", err)
+		}
+		s.markTaskCancelled(invID)
 
 	default:
 		errorMsg := fix.TerminationReason(loopState.FinalStatus, loopState.CurrentIteration, loopState.Config.MaxIterations)
@@ -639,6 +654,12 @@ func (s *Service) handleTaskError(ctx context.Context, invID, pipelineID, errorM
 	slog.Error("task failed", "task_id", invID, "error", errorMsg)
 }
 
+func (s *Service) markTaskCancelled(invID string) {
+	if err := s.invStore.UpdateStatus(invID, domain.InvestigationStatusCancelled); err != nil {
+		slog.Warn("failed to mark task cancelled", "task_id", invID, "error", err)
+	}
+}
+
 // updateProgress updates progress and broadcasts.
 func (s *Service) updateProgress(ctx context.Context, invID, pipelineID string, progress int, message string) {
 	if err := s.invStore.UpdateProgress(invID, progress); err != nil {
@@ -678,8 +699,11 @@ func (s *Service) StopTask(ctx context.Context, pipelineID, taskID string) error
 		return fmt.Errorf("task is not running (status=%s)", inv.Status)
 	}
 
-	// Cancel the task context
-	if cancel := s.invStore.TakeCancel(taskID); cancel != nil {
+	// Persist cancellation before releasing the worker. This makes the terminal
+	// state visible before the worker handles context cancellation.
+	cancel := s.invStore.TakeCancel(taskID)
+	statusErr := s.invStore.UpdateStatus(taskID, domain.InvestigationStatusCancelled)
+	if cancel != nil {
 		cancel()
 	}
 
@@ -690,9 +714,8 @@ func (s *Service) StopTask(ctx context.Context, pipelineID, taskID string) error
 		}
 	}
 
-	// Update status
-	if err := s.invStore.UpdateStatus(taskID, domain.InvestigationStatusCancelled); err != nil {
-		return fmt.Errorf("failed to update task status: %w", err)
+	if statusErr != nil {
+		return fmt.Errorf("failed to update task status: %w", statusErr)
 	}
 
 	s.broadcastProgress(pipelineID, taskID, EventTaskStopped, 0, "Task stopped by user")

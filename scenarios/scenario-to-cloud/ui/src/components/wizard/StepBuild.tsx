@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Play, FileArchive, Hash, HardDrive, Clock, CheckCircle2, History, Trash2, Server, ChevronDown, ChevronRight, Info, ArrowLeft } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "../ui/button-adapter";
 import { Alert } from "../ui/alert";
 import { LoadingState, Spinner } from "../ui/spinner";
 import { Card, CardContent } from "../ui/card";

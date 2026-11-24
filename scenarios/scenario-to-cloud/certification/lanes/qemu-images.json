@@ -1,5 +1,22 @@
 {
   "schema_version": 1,
-  "note": "CL2 QEMU proving ground requires pinned Ubuntu 24.04 amd64 and arm64 cloud images. After A2 approval, verify the dated Canonical release checksums/signature, record absolute path, sha256, os and arch here, and keep source images read-only. Empty means no QEMU guest can be qualified. The provider never downloads or mutates an image.",
-  "images": []
+  "note": "Canonical signed cloud images, pinned by SHA-256 for the scenario-to-cloud QEMU proving ground.",
+  "images": [
+    {
+      "path": "/var/lib/vm/ubuntu-24.04-server-cloudimg-amd64.img",
+      "sha256": "04e8f2461a16a44e78a370284471f29616cdd9baf1893df25807b71f985b6c94",
+      "os": "ubuntu-24.04",
+      "arch": "amd64",
+      "source_url": "https://cloud-images.ubuntu.com/releases/noble/release-20261017/ubuntu-24.04-server-cloudimg-amd64.img",
+      "recorded_at": "2026-11-22T03:02:23.680649661Z"
+    },
+    {
+      "path": "/var/lib/vm/ubuntu-24.04-server-cloudimg-arm64.img",
+      "sha256": "50e24e1fb79e89116e939d90aa7738f7af48c442fa1bc2510131e0b39c50348e",
+      "os": "ubuntu-24.04",
+      "arch": "arm64",
+      "source_url": "https://cloud-images.ubuntu.com/releases/noble/release-20261017/ubuntu-24.04-server-cloudimg-arm64.img",
+      "recorded_at": "2026-11-22T03:02:54.105821634Z"
+    }
+  ]
 }

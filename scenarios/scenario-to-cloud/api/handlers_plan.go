@@ -366,7 +366,7 @@ func (s *Server) issueOnboardingHandoff(ctx context.Context, dctx *DeploymentCon
 	}
 	plan.Handoff.Reference = owner.GetReference()
 	plan.Handoff.DeploymentID = owner.GetDeploymentId()
-	plan.Handoff.Target = execplan.Target{MachineID: owner.GetMachineId(), NodeID: owner.GetNodeId(), EnrollmentGeneration: owner.GetEnrollmentGeneration(), Transport: target.Transport}
+	plan.Handoff.Target = execplan.Target{MachineID: owner.GetMachineId(), ComputeManagerID: target.ComputeManagerID, NodeID: owner.GetNodeId(), EnrollmentGeneration: owner.GetEnrollmentGeneration(), Transport: target.Transport}
 	plan.Handoff.DesiredRevision = owner.GetDesiredRevision()
 	plan.Handoff.SelectionDigest = owner.GetSelectionDigest()
 	return nil

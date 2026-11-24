@@ -92,6 +92,7 @@ Each VPS deployment step can have per-step execution parameters via `StepConfig`
 | `host.prepare` | 2m | 0 | - |
 | `edge.firewall.allow` | 15s | 0 | - |
 | `data.inventory` | 30s | 0 | - |
+| `data.schedule` | 3m | 0 | - |
 | `release.verify` | 1m | 0 | - |
 | `release.stage` | 2m | 0 | - |
 | `release.activate` | 5m | 0 | - |

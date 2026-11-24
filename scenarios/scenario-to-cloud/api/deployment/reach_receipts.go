@@ -2,10 +2,12 @@ package deployment
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/execplan"
 	"scenario-to-cloud/faultinject"
 	"scenario-to-cloud/identity"
 	"scenario-to-cloud/operations"
@@ -34,9 +36,19 @@ func (r *ReachTargetReceipts) Read(ctx context.Context, op *domain.CloudOperatio
 	if r == nil || r.Reach == nil || r.Repo == nil {
 		return operations.TargetReceipt{}, operations.ErrNativeCLIAbsent
 	}
+	if op == nil || op.ID == "" || op.DeploymentID == "" {
+		return operations.TargetReceipt{}, fmt.Errorf("operation identity unavailable for receipt read")
+	}
+	var plan execplan.Plan
+	if len(op.Plan) == 0 || json.Unmarshal(op.Plan, &plan) != nil || plan.DeploymentID != op.DeploymentID || plan.Target.MachineID == "" || plan.Target.NodeID == "" || plan.Target.EnrollmentGeneration == 0 || plan.Target.Transport != string(identity.TransportBridge) {
+		return operations.TargetReceipt{}, fmt.Errorf("immutable Bridge target binding unavailable in admitted operation plan")
+	}
 	ref, err := r.Repo.GetDeploymentRef(ctx, op.DeploymentID)
 	if err != nil || ref == nil {
 		return operations.TargetReceipt{}, fmt.Errorf("deployment %s unavailable for receipt read", op.DeploymentID)
+	}
+	if ref.Target.MachineID != plan.Target.MachineID || ref.Target.NodeID != plan.Target.NodeID || ref.Target.EnrollmentGeneration != plan.Target.EnrollmentGeneration || string(ref.Target.Transport) != plan.Target.Transport {
+		return operations.TargetReceipt{}, fmt.Errorf("deployment target binding changed since operation admission")
 	}
 	for _, v := range []string{op.DeploymentID, op.ID, step} {
 		if !safeIdentifier(v) {

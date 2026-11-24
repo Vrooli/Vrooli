@@ -76,15 +76,22 @@ reason `PLG-CONF-DRIFT-PIN` records the revision — the data will be there.
 **Symptom:** Artifact trees, rehearsal logs, and superseded declaration
 snapshots accumulate without bound.
 
-**Root cause:** `docs/concepts/DATA.md` defines retention windows; no prune
-job implements them.
+**Root cause:** `docs/concepts/DATA.md` defines retention windows, but no
+scheduled or event-driven lifecycle owner covers the declared data classes.
 
-**Workaround:** Manual capture-store cleanup. Do not prune anything referenced
-by a `publications` row.
+**Partial disposition (2026-11-24):** Composition now prunes package rows and
+artifact trees older than 90 days when a new eligible package is composed. It
+excludes every package with a publication row (including withdrawn rows),
+serializes pruning against in-flight Publish, and refuses artifact paths
+outside its scenario-owned package directory. See the PT2 evidence for the
+owner regression tests. This does not run while composition is idle and does
+not prune readiness history, rehearsal logs, declaration snapshots, or install
+attributions.
 
-**Real fix:** A prune job honoring the DATA.md table, with `publications`,
-`revocations`, and their referenced attestations explicitly excluded — losing
-publication history loses the revocation fan-out.
+**Remaining fix:** Add an owned scheduled lifecycle for all DATA.md classes,
+with `publications`, `revocations`, and their referenced attestations
+explicitly excluded — losing publication history loses the revocation fan-out.
+Until then, do not perform manual capture-store cleanup of referenced data.
 
 **Owner:** unassigned.
 
@@ -142,21 +149,91 @@ a fix because the defect is in another scenario.
 
 ### 2026-08-19 — Every control in this scenario is designed, not proven
 
-**Symptom:** The threat model, gate ordering, and fail-closed claims are
-documented in detail. No code implements any of them.
+**Symptom:** Owner tests now exercise local broken packages through composition,
+conformance, dry-run attestation, and publish refusal, but the full release
+checklist remains unproven as one complete, green release run.
 
-**Root cause:** Expected. The scenario is pre-implementation by intent — the
-contract was authored first.
+**Root cause:** The scenario was designed contract-first. Individual controls
+and focused tests landed before an integrated fixture run; that run exposed
+gaps in checksum mapping and credential handling. The local refusal path is
+now exercised, but the whole checklist and a managed successful release have
+not been run.
 
-**Workaround:** Do not cite any control here as active. Do not describe the
-scenario as having security properties it has not demonstrated.
+**Workaround:** Cite only the specific control and owner test that has been
+verified. Do not infer end-to-end release readiness from focused tests.
 
-**Real fix:** The release checklist in `docs/operations/DEPLOYMENT.md` step 7
-requires a gate self-test against deliberately broken fixtures before any real
-publication: a skill documenting a removed command must fail conformance, an
-unpinned install must fail, and a package carrying a credential literal must
-fail before any network call. Until that self-test passes, this scenario has
-proven nothing.
+**Real fix:** Keep the local gate self-test in `docs/operations/DEPLOYMENT.md`
+step 7 current and expand its broken fixtures as gates change. Then run all
+release checklist steps with their supported owner tools. External publication
+and signing policy remain separate operator boundaries.
+
+**Evidence update 2026-11-24:** Owner tests found and closed two fail-open
+paths in those controls: a hash command in a comment or a digest-only command
+could satisfy the install checksum check, and `Publish` queried
+deployment-manager before rejecting a credential-bearing artifact. The
+checksum gate now requires at least as many SHA-256/SHA-512 check-mode lines
+as detected downloads, and publication refuses an artifact secret before the
+release-gate request. Six checksum fixtures and a request-counting release-gate
+test pass with the full pipeline owner package; the trimpath API suite also
+passes after making fixture-root lookup independent of `runtime.Caller`. This
+does not prove that each verifier line checks the corresponding downloaded
+file. The broad entry remains open: the release checklist has not been
+exercised as one broken-package ramp across all gates. See
+`evidence/PT2-SCENARIO-TO-PLUGIN-PREFLIGHT-GATES.md`.
+
+**Evidence update 2026-11-24:** The OCI publish boundary also accepted any
+referrer index with three entries, including repeated signature descriptors
+or entries with no evidence type, without fetching those manifests. Publish
+now requires distinct signature, provenance and SBOM descriptor types, fetches
+each referenced manifest, verifies its content digest and artifact type, and
+checks that its subject is the uploaded package digest. Local registry tests
+cover the valid three-manifest path and refuse missing or duplicate evidence,
+unknown or untyped descriptors, a manifest bound to another package, and an
+unavailable manifest. The focused pipeline package and full trimpath API suite
+pass. The Test Genie unit run still fails on existing UI `type-check` and
+`test:coverage` commands. External registry publication and the complete
+deliberately broken-package ramp remain unverified; retain this entry open.
+See `evidence/PT2-SCENARIO-TO-PLUGIN-OCI-REFERRER-CONFIRMATION.md`.
+
+**Evidence update 2026-11-24:** The local self-test now composes a drifted
+command fixture and a mutable-download fixture, confirms their named
+conformance refusals, confirms dry-run attestation and publish refuse to
+advance them, and verifies no credential or evidence artifacts were emitted.
+A credential-literal fixture is rejected during Compose before archive/package
+creation or the local release-gate request. The broad token scanner now
+matches token-shaped values rather than `sk-`/`ghp_` substrings, so the normal
+Workspace Sandbox binary is not falsely rejected for embedding the scanner's
+own regex. Checksum validation associates each distinct verifier with the
+download output's exact `.sha256` or `.sha512` sidecar name; comments, digest
+printing, weak SHA-1, unmapped/duplicate verifiers, and mutable URLs fail.
+Fixtures cover curl/wget output forms and multiline commands. Owner package
+and complete trimpath API tests pass. Test Genie unit `20261124-025937-88fcfabe`
+still fails on existing UI type-check and coverage commands. This closes the
+local step-7 refusal proof for these fixtures only; complete checklist,
+managed signing, and external publication remain open. See
+`evidence/PT2-SCENARIO-TO-PLUGIN-RELEASE-CHECKLIST-LOCAL.md`.
+
+**Evidence update 2026-11-24:** A local fake downloader now supplies real
+payload bytes and checksum-sidecar bytes to the install fixture. The actual
+`sha256sum --check` accepts the matching digest/path and refuses both a wrong
+digest and a sidecar naming another file. The full local API flow also reaches
+Publish with schema-shaped test evidence, a local release-gate response, and
+a fake OCI registry: the valid package confirms its artifact and three
+referrers, while an index omitting the SBOM refuses with `PLG-DIST-CONFIRM`.
+No actual signing, operator release policy, external registry, or publication
+was used. Focused fake-flow tests, full pipeline package, and full trimpath
+API suite pass. Test Genie unit `20261124-031214-9621667b` fails on existing
+UI type-check and coverage commands. This verifies selected local success and
+refusal rows but does not complete the full release checklist. See
+`evidence/PT2-SCENARIO-TO-PLUGIN-CHECKSUM-CONTENT-AND-LOCAL-PUBLISH.md`.
+
+**Evidence update 2026-11-24:** The synthetic managed Cosign gate accepted a bundle with a message signature object but no digest binding, so a bundle for a different payload could pass Attest's structural check. It now requires `messageSignature.messageDigest` to use `SHA2_256` and match the exact composed artifact digest. Owner tests accept the matching digest and refuse missing, wrong-algorithm, and mismatched digests; the focused release fake and full API suite pass. These JSON fixtures are synthetic and do not verify a cryptographic signature or managed authority. Real signing, external registry behavior/publication, and the complete release checklist remain unverified; this broad finding stays open. See `evidence/PT2-SCENARIO-TO-PLUGIN-COSIGN-DIGEST-BINDING.md`.
+
+**Evidence update 2026-11-24:** The local fixture for checklist step 8 reproduced a secret disclosure: rehearsal output redaction replaced only selected marker prefixes, leaking token suffixes and other supported token prefixes. The redactor now removes complete detector-matched tokens and complete PEM private-key blocks. A local end-to-end fixture checks the composed archive, dry-run evidence, API responses, rehearsal capture, and bytes sent to a local fake verdict receiver; it constructs six token-shaped values only at runtime and confirms the secret material is absent from outputs. Focused owner tests and full non-coverage Go API tests pass. Cosign cryptographic verification remains unproven: this repository has no verifier dependency/binary or configured trusted identity material, and a synthetic self-managed key would not prove the managed keyless authority. Keep the broader release-ramp item open. See `evidence/PT2-SCENARIO-TO-PLUGIN-SECRET-CAPTURE-AND-COSIGN-BOUNDARY.md`.
+
+**Evidence update 2026-11-24:** The next local UI gate reproduced two concrete failures: the existing Input tests imported a missing `ui/src/components/ui/input.tsx`, and the AppShell accessibility test did not wait for its asynchronous health query. Added the forwarded-ref Input primitive and mocked the health API in the accessibility test, waiting for its settled status. Focused UI tests pass (7), `pnpm run type-check` passes, and UI coverage passes (72 tests; 89.62% statements, 83.92% functions). Requirements validation still reports stale business evidence; orientation returns a Template Manager 500; Test Genie unit `20261124-033211-502ca384` failed before scenario tests at shared Scenario-to-Cloud proto preflight (`buf.validate.field` unknown). The release checklist and broad finding remain open. See `evidence/PT2-SCENARIO-TO-PLUGIN-LOCAL-UI-REQUIREMENTS-GATES.md`.
+
+**Evidence update 2026-11-24:** The local requirements sync changed no files or statuses (0/18 targets and 0/36 sync-complete requirements); the registry still has 40 planned requirements, 36 live statuses pending, and none complete. Test Genie business phase `20261124-035727-249ffade` passes but reports `business_evidence_stale`: the local snapshot predates that run, so a business-only phase does not complete the documented comprehensive-suite sync. The active Settings page still lacks desktop/mobile/mobile-landscape captures. BAS is healthy, but normal Scenario-to-Plugin start failed when the required running Workspace Sandbox rebuild hit its dirty missing `./ui/card` source; neither dependency nor Template Manager paths were changed. A direct production UI build passes to a temporary output directory. Static UI health remains `NOT_EVALUATED` in static-only mode with existing slot/component findings, including the test-only Input primitive. Keep the broad release-ramp issue open. See `evidence/PT2-SCENARIO-TO-PLUGIN-REQUIREMENTS-EXPERIENCE-GATES.md`.
 
 **Owner:** unassigned.
 

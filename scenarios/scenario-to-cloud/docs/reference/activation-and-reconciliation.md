@@ -34,6 +34,7 @@ native control plane, the autoheal scope document) travel only through
 | `credentials.provision` | credential authority lifecycle (`credential ingest`, value on stdin) |
 | `runtime.start_dependencies` | `vrooli resource start <id>`, `vrooli scenario start <id>` |
 | `data.backup` | `cloud-target data backup` (recovery point recorded on the cloud side) |
+| `data.schedule` | `cloud-target data schedule` (reconcile explicit target bindings to a pre-created S3 destination in the target-local DBM service, after readiness) |
 | `workload.stop` | `cloud-target host repair --action process.stop.scoped` |
 | `release.activate` | `cloud-target release activate --release --strategy --port --data-binding --legacy-carry --legacy-root` |
 | `edge.route.apply` | `cloud-target edge route-apply --spec b64:…` |

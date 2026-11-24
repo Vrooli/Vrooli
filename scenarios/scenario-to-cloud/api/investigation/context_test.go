@@ -2,10 +2,12 @@ package investigation
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/tasks/shared"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
@@ -57,6 +59,32 @@ func TestBuildPromptAndContext_ValidationErrors(t *testing.T) {
 	noVPS := &domain.Deployment{Manifest: manifestJSON}
 	if _, _, err := buildPromptAndContext(noVPS, false, "", nil); err == nil || !strings.Contains(err.Error(), "deployment has no VPS target") {
 		t.Fatalf("expected missing vps error, got %v", err)
+	}
+}
+
+func TestBuildPromptAndContext_UsesSharedOutputFormatForBothModes(t *testing.T) {
+	for _, autoFix := range []bool{false, true} {
+		t.Run(map[bool]string{false: "report-only", true: "auto-fix"}[autoFix], func(t *testing.T) {
+			_, atts, err := buildPromptAndContext(validDeploymentForContext(), autoFix, "", []string{"output-format"})
+			if err != nil {
+				t.Fatalf("buildPromptAndContext: %v", err)
+			}
+
+			var got *domainpb.ContextAttachment
+			for _, att := range atts {
+				if att != nil && att.Key == "output-format" {
+					got = att
+					break
+				}
+			}
+			want := shared.BuildOutputFormatAttachment(autoFix)
+			if !reflect.DeepEqual(got, want) {
+				t.Fatalf("output-format attachment differs from shared owner:\ngot:  %+v\nwant: %+v", got, want)
+			}
+			if strings.Contains(got.Content, "If you applied fixes, list what you did.") != autoFix {
+				t.Fatalf("auto-fix guidance presence does not match mode: %q", got.Content)
+			}
+		})
 	}
 }
 

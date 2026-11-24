@@ -143,3 +143,38 @@ func TestSSHKeyBindingResolvesConnectionForLegacyProductionRow(t *testing.T) {
 		t.Fatalf("unbound host config = %+v err=%v, want no key path", ambient, err)
 	}
 }
+
+func TestManagerBoundQEMUUsesItsExactDeploymentKeyBinding(t *testing.T) {
+	srv, repo := newIdentityTestServer(t, "ssh-key-manager-binding")
+	ctx := context.Background()
+	managerTarget := identity.TargetRef{Transport: identity.TransportSSH, ComputeManagerID: "qemu-1", Locator: identity.TargetLocator{Host: "127.0.0.1", Port: 2222, User: "runner", Workdir: "/srv/vrooli"}}
+	otherTarget := identity.TargetRef{Transport: identity.TransportSSH, Locator: identity.TargetLocator{Host: "127.0.0.1", Port: 2022, User: "other", Workdir: "/srv/other"}}
+	for _, item := range []struct {
+		id     string
+		target identity.TargetRef
+		key    string
+	}{
+		{id: "dep-qemu", target: managerTarget, key: "/keys/qemu"},
+		{id: "dep-other", target: otherTarget, key: "/keys/other"},
+	} {
+		manifest := json.RawMessage(`{"version":"1","environment":"` + item.id + `","target":{"type":"vps","vps":{"host":"127.0.0.1","port":22}},"scenario":{"id":"demo"},"dependencies":{"scenarios":[],"resources":[]},"bundle":{},"ports":{},"edge":{"domain":"` + item.id + `.example"}}`)
+		dep := &domain.Deployment{ID: item.id, Name: item.id, ScenarioID: "demo", Environment: item.id, Target: item.target, Status: domain.StatusPending, Manifest: manifest, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+		if err := repo.CreateDeployment(ctx, dep); err != nil {
+			t.Fatalf("create %s: %v", item.id, err)
+		}
+		if err := repo.UpsertBinding(ctx, credentials.NewSSHKeyBinding(item.id, item.key, time.Now())); err != nil {
+			t.Fatalf("bind key for %s: %v", item.id, err)
+		}
+	}
+	cfg, err := srv.sshConfigForTarget(ctx, managerTarget)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.KeyPath != "/keys/qemu" {
+		t.Fatalf("manager target resolved key %q, want exact deployment key", cfg.KeyPath)
+	}
+	managerTarget.ComputeManagerID = "qemu-without-deployment"
+	if _, err := srv.sshConfigForTarget(ctx, managerTarget); err == nil {
+		t.Fatal("manager target without a matching deployment must not fall back to ambient SSH")
+	}
+}

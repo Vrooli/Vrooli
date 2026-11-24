@@ -112,10 +112,7 @@ Columns: **target** = `id` (deployment resolved and policy-checked before the ha
 | GET | `/api/v1/docs/content` | read | `scenario-to-cloud:read` | - | no | yes | no | Documentation content. |
 | GET | `/api/v1/docs/manifest` | read | `scenario-to-cloud:read` | - | no | yes | no | Documentation manifest. |
 | GET | `/api/v1/health` | public | `-` | - | no | yes | no | Liveness metadata for clients. |
-| POST | `/api/v1/instances` | host | `scenario-to-cloud:destructive` | - | no | no | no | Create a local disposable instance. |
-| POST | `/api/v1/instances/plan` | read | `scenario-to-cloud:read` | - | no | no | no | Plan a local disposable instance. |
 | GET | `/api/v1/instances/readiness` | read | `scenario-to-cloud:read` | - | no | no | no | Report local disposable instance lane readiness (tools, KVM, images, architectures). |
-| POST | `/api/v1/instances/{id}/{action}` | host | `scenario-to-cloud:destructive` | - | no | no | no | Act on a local disposable instance. |
 | POST | `/api/v1/manifest/doctor` | read | `scenario-to-cloud:read` | - | no | no | no | Diagnose a manifest. |
 | POST | `/api/v1/manifest/fix` | read | `scenario-to-cloud:read` | - | no | no | no | Return a corrected manifest. |
 | POST | `/api/v1/manifest/init` | read | `scenario-to-cloud:read` | - | no | no | no | Derive a manifest from a scenario (reads local secrets metadata). |
@@ -149,12 +146,18 @@ Columns: **target** = `id` (deployment resolved and policy-checked before the ha
 | * | `/vrooli.dev_routing.v1.routing.RoutingService/*` | workload_mutation | `scenario-to-cloud:write` | - | no | no | no | Test Genie routed-pool leases (development only). |
 | * | `/vrooli.scenario_to_cloud.v1.credentials.CredentialsService/*` | secret | `scenario-to-cloud:destructive` | - | yes | no | yes | Connect CredentialsService (bindings, rotate, revoke, recover, resume, break-glass). |
 | * | `/vrooli.scenario_to_cloud.v1.deployments.DeploymentsService/*` | read | `scenario-to-cloud:read` | - | no | yes | no | Connect DeploymentsService (resolve, get, list). |
+| POST | `/vrooli.scenario_to_cloud.v1.deployments.DeploymentsService/CreateDeployment` | workload_mutation | `scenario-to-cloud:write` | - | no | no | no | Create or update a deployment record through the typed Connect API. |
+| POST | `/vrooli.scenario_to_cloud.v1.deployments.DeploymentsService/FindDeploymentRecoveryOperation` | read | `scenario-to-cloud:read` | handler-checked | yes | yes | no | Reconcile a lost recovery response by deployment and stable idempotency key. |
+| POST | `/vrooli.scenario_to_cloud.v1.deployments.DeploymentsService/GetDeploymentRecoveryOperation` | read | `scenario-to-cloud:read` | handler-checked | yes | yes | no | Read one exact recovery operation for its authorized deployment. |
+| POST | `/vrooli.scenario_to_cloud.v1.deployments.DeploymentsService/PreviewDeploymentRecovery` | host | `scenario-to-cloud:destructive` | handler-checked | yes | no | no | Read the canonical rollback preview for one authorized deployment; only a verified human may mint the preview used by Start. |
+| POST | `/vrooli.scenario_to_cloud.v1.deployments.DeploymentsService/StartDeploymentRecovery` | host | `scenario-to-cloud:destructive` | handler-checked | yes | no | no | Admit a reviewed rollback through the typed recovery contract; human authorization is required. |
 | * | `/vrooli.scenario_to_cloud.v1.edge.EdgeService/*` | read | `scenario-to-cloud:read` | - | no | yes | no | Connect EdgeService (typed edge observations). |
 | * | `/vrooli.scenario_to_cloud.v1.evidence.EvidenceService/*` | host | `scenario-to-cloud:destructive` | - | no | no | no | Connect EvidenceService (evidence reads are reads; ApplyPublication activates a release, so the mount requires the destructive scope). |
 | * | `/vrooli.scenario_to_cloud.v1.health.HealthService/*` | read | `scenario-to-cloud:read` | - | no | yes | no | Connect HealthService (typed observations). |
 | * | `/vrooli.scenario_to_cloud.v1.operations.OperationsService/*` | workload_mutation | `scenario-to-cloud:destructive` | - | no | no | no | Connect OperationsService (get/wait/list are reads; cancel and reconcile mutate, so the mount requires the destructive scope). |
 | POST | `/vrooli.scenario_to_cloud.v1.operations.OperationsService/GetTargetReceipt` | read | `scenario-to-cloud:read` | handler-checked | yes | no | yes | Fresh target receipt read; the typed handler binds and authorizes its deployment_id before target reach. |
 | * | `/vrooli.scenario_to_cloud.v1.plans.PlansService/*` | workload_mutation | `scenario-to-cloud:destructive` | - | no | no | no | Connect PlansService (CompilePlan is a read; ApplyPlan admits an operation, so the mount requires the destructive scope). |
+| * | `/vrooli.scenario_to_cloud.v1.qemu.QEMUService/*` | host | `scenario-to-cloud:destructive` | - | no | no | no | Connect QEMUService (acquire/release disposable Compute Manager instances; Get resolves a manager-owned reference). |
 | * | `/vrooli.scenario_to_cloud.v1.releases.ReleasesService/*` | workload_mutation | `scenario-to-cloud:write` | - | no | no | no | Connect ReleasesService (build, get, verify). |
 
 The same table is served at `GET /api/v1/authz/matrix` (read scope) for UI and CLI parity.

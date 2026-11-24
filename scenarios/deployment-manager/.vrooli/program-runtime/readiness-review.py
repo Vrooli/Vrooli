@@ -24,16 +24,14 @@ facts_valid = isinstance(raw_facts, dict)
 resolved["facts"] = {str(key).strip(): str(value).strip() for key, value in raw_facts.items() if str(key).strip() and str(value).strip()} if facts_valid else {}
 envelope = {"program": "deployment-manager.readiness-review", "version": "1", "status": "failed", "phase": "validate", "inputs": resolved, "signals": {}, "errors": [], "evidence": []}
 
-fail = program.fail
-
 def step_validate():
     missing = [key for key in keys if not resolved[key]]
-    if missing: return fail("failed", "invalid_input", "missing: " + ",".join(missing), "validate")
-    if not targets_valid: return fail("failed", "invalid_input", "targets must be an array of strings", "validate")
-    if not resolved["targets"]: return fail("failed", "invalid_input", "at least one target is required", "validate")
-    if resolved["target"] and resolved["target"] not in resolved["targets"]: return fail("failed", "invalid_input", "target and targets disagree", "validate")
-    if not authorization_epoch_valid: return fail("failed", "invalid_input", "authorization_epoch must be a non-negative integer", "validate")
-    if not facts_valid: return fail("failed", "invalid_input", "facts must be an object", "validate")
+    if missing: return program.fail("failed", "invalid_input", "missing: " + ",".join(missing), "validate")
+    if not targets_valid: return program.fail("failed", "invalid_input", "targets must be an array of strings", "validate")
+    if not resolved["targets"]: return program.fail("failed", "invalid_input", "at least one target is required", "validate")
+    if resolved["target"] and resolved["target"] not in resolved["targets"]: return program.fail("failed", "invalid_input", "target and targets disagree", "validate")
+    if not authorization_epoch_valid: return program.fail("failed", "invalid_input", "authorization_epoch must be a non-negative integer", "validate")
+    if not facts_valid: return program.fail("failed", "invalid_input", "facts must be an object", "validate")
     return "act"
 
 def step_act():
@@ -47,8 +45,7 @@ def step_act():
         envelope["status"] = "ok"
         return "report"
     except Exception as exc:
-        status, klass = program.classify(exc)
-        return fail(status, klass, exc, "act")
+        return program.fail_exception(exc, "act")
 
 def step_report():
     envelope["phase"] = "report"

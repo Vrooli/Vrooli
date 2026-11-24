@@ -2,6 +2,8 @@ package support
 
 import (
 	"fmt"
+	"os"
+	"time"
 
 	"scenario-to-desktop/cli/internal/cmdutil"
 
@@ -9,7 +11,31 @@ import (
 )
 
 type Dependencies struct {
-	Core func() *cliapp.ScenarioApp
+	Core      func() *cliapp.ScenarioApp
+	Now       func() time.Time
+	LookupEnv func(string) (string, bool)
+	UserHome  func() (string, error)
+}
+
+var processEnvironment = struct {
+	now       func() time.Time
+	lookupEnv func(string) (string, bool)
+	userHome  func() (string, error)
+}{now: time.Now, lookupEnv: os.LookupEnv, userHome: os.UserHomeDir}
+
+// WithProcessEnvironment fills unset process-boundary functions with the real
+// process adapters. Callers and tests can supply narrow replacements per app.
+func (d Dependencies) WithProcessEnvironment() Dependencies {
+	if d.Now == nil {
+		d.Now = processEnvironment.now
+	}
+	if d.LookupEnv == nil {
+		d.LookupEnv = processEnvironment.lookupEnv
+	}
+	if d.UserHome == nil {
+		d.UserHome = processEnvironment.userHome
+	}
+	return d
 }
 
 func (d Dependencies) ScenarioApp() *cliapp.ScenarioApp {

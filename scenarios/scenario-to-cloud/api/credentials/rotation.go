@@ -55,10 +55,20 @@ func (s *Service) Rotate(ctx context.Context, req RotateRequest) (*domain.Creden
 	}
 	now := s.now()
 	rotation := &domain.CredentialRotation{ID: id, DeploymentID: binding.DeploymentID, BindingID: binding.ID, Kind: domain.CredentialOperationRotate, FromVersion: binding.Version.Number, State: domain.RotationPlanned, Consumers: initialConsumers(binding, now), Receipts: []domain.CredentialReceipt{}, CreatedAt: now, UpdatedAt: now}
-	if err := s.Store.SaveRotation(ctx, rotation); err != nil {
+	if err := s.createOperation(ctx, rotation); err != nil {
 		return nil, err
 	}
 	return s.advance(ctx, rotation, binding, req.Target, req.Value, ResumeInput{})
+}
+
+func (s *Service) createOperation(ctx context.Context, rotation *domain.CredentialRotation) error {
+	if err := s.Store.CreateRotation(ctx, rotation); err != nil {
+		if errors.Is(err, domain.ErrCredentialOperationConflict) {
+			return newError(CodeRotationConflict, "another lifecycle operation is still open on this binding")
+		}
+		return err
+	}
+	return nil
 }
 
 func validateRotationBinding(binding *domain.CredentialBinding) error {
@@ -118,7 +128,7 @@ func (s *Service) activeOperation(ctx context.Context, binding *domain.Credentia
 	}
 	for i := range rotations {
 		r := rotations[i]
-		if r.BindingID == binding.ID && !r.State.Terminal() && r.State != domain.RotationRevocationIncomplete {
+		if r.BindingID == binding.ID && !r.State.Terminal() {
 			return &r, nil
 		}
 	}

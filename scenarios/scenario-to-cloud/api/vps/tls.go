@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/textutil"
 	"scenario-to-cloud/reach"
 )
 
@@ -30,7 +31,7 @@ func RunCaddyTLSRenew(ctx context.Context, rt Runtime, deploymentID, domain stri
 		return TLSRenewResult{OK: false, Message: "Failed to reload the edge proxy", Output: err.Error()}
 	}
 	if res.ExitCode != 0 {
-		return TLSRenewResult{OK: false, Message: "Edge proxy reload was refused or failed", Output: coalesce(strings.TrimSpace(res.Stdout), strings.TrimSpace(res.Stderr))}
+		return TLSRenewResult{OK: false, Message: "Edge proxy reload was refused or failed", Output: textutil.FirstNonEmpty(strings.TrimSpace(res.Stdout), strings.TrimSpace(res.Stderr))}
 	}
 	if verify != nil && domain != "" {
 		if err := verify(ctx, domain); err != nil {

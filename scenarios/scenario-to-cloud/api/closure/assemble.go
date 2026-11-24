@@ -18,6 +18,7 @@ func (r *resolver) assemble() (domain.Closure, error) {
 			Catalog:          r.in.Catalog.Name(),
 			Scope:            string(r.in.Scope),
 			HostRequirements: r.in.HostRequirements.Name(),
+			DependencyDigest: r.dependencyDigest,
 			AnalyzerTool:     r.analyzer.tool,
 			AnalyzerUsed:     r.analyzer.used,
 		},

@@ -205,3 +205,37 @@ One recorded smoke normally starts protocol and demo once each, with no owner
 warmup. This route is diagnostic screening; it does not establish cold/warm
 comparability, idle CPU, steady PSS or reliability. Confirm selected candidates
 through Performance Health using unchanged artifacts and metric definitions.
+
+## Desktop target platform matrix
+
+Bundle packaging accepts a finite OS and architecture matrix:
+
+| Canonical key | OS | Architecture |
+|---|---|---|
+| `linux-amd64` | Linux | x86_64 |
+| `linux-arm64` | Linux | ARM64 |
+| `darwin-amd64` | macOS | x86_64 |
+| `darwin-arm64` | macOS | ARM64 |
+| `windows-amd64` | Windows | x86_64 |
+| `windows-arm64` | Windows | ARM64 |
+
+Aliases such as `linux-x64`, `macos-aarch64`, and `win-amd64` normalize to a
+canonical target. A bare OS key selects the build host architecture. Binary
+resolution matches both OS and architecture aliases; it does not borrow a
+different architecture's artifact.
+
+Before any bundle output is changed, the packager checks every selected target
+against each service. A service needs an available matching binary or a
+nonempty source-build declaration. Unsupported cells fail with the target,
+service, and reason; an existing bundle is left untouched by this preflight
+failure.
+
+Each successful package includes `platform-matrix.json` at the bundle root. It
+lists all six target cells, service disposition, and whether each selected
+runtime/service artifact was staged, with paths relative to the bundle. Selected
+cells say `built` and `bundled: true` only after the package operation stages
+them successfully. Unselected cells report manifest prebuilt availability,
+configured source-build fallback, shared UI, or unsupported service state; they
+do not claim that an unselected target was built. The matrix covers service
+binaries and the desktop runtime. Resource payload compatibility remains
+reported by the separate resource deployment plan.

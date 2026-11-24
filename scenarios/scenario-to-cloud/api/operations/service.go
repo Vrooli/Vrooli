@@ -408,7 +408,7 @@ func (s *Service) Reconcile(ctx context.Context) ([]string, error) {
 			// Needs an operator (input) or a recovery owner; nothing to run.
 			continue
 		}
-		if leaseLive(op, now) && op.WorkerID != s.cfg.WorkerID {
+		if op.HasLiveLease(now) && op.WorkerID != s.cfg.WorkerID {
 			continue
 		}
 		if !s.claim(op.ID) {
@@ -444,10 +444,6 @@ func (s *Service) runReconciled(parent context.Context, opID string) {
 	}
 	w := &worker{svc: s, op: op, fence: fence, resumed: true}
 	w.run(ctx)
-}
-
-func leaseLive(op *domain.CloudOperation, now time.Time) bool {
-	return op.WorkerID != "" && op.LeaseExpiresAt != nil && op.LeaseExpiresAt.After(now)
 }
 
 func activeStepID(op *domain.CloudOperation) string {

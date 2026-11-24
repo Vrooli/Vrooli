@@ -152,6 +152,9 @@ func (g *DeploymentManagerGenerator) GenerateManifest(ctx context.Context, scena
 
 	// Use manifest path from response if provided
 	if exportResp.ManifestPath != "" {
+		if err := g.requireScenarioServiceManifest(exportResp.ManifestPath, scenarioName); err != nil {
+			return "", err
+		}
 		if g.logger != nil {
 			g.logger.Info("manifest generated", "path", exportResp.ManifestPath)
 		}
@@ -167,11 +170,80 @@ func (g *DeploymentManagerGenerator) GenerateManifest(ctx context.Context, scena
 	if err != nil {
 		return "", err
 	}
+	if err := g.requireScenarioServiceManifest(manifestPath, scenarioName); err != nil {
+		return "", err
+	}
 
 	if g.logger != nil {
 		g.logger.Info("manifest written", "path", manifestPath)
 	}
 	return manifestPath, nil
+}
+
+// requireScenarioServiceManifest stages the app's shared dependency source in
+// the generated desktop package. The runtime can then project the same
+// declarations used by the app integrations API when it joins dependencies to
+// signed component releases.
+func (g *DeploymentManagerGenerator) requireScenarioServiceManifest(manifestPath, scenarioName string) error {
+	if scenarioName == "" || filepath.Base(scenarioName) != scenarioName || scenarioName == "." || scenarioName == ".." {
+		return fmt.Errorf("invalid scenario name for dependency catalog")
+	}
+	source := filepath.Join(sharedpath.DetectScenariosRoot(), scenarioName, ".vrooli", "service.json")
+	if info, err := os.Stat(source); os.IsNotExist(err) {
+		// Synthetic or remote scenario exports have no repository service
+		// manifest to stage. Their optional dependencies remain unavailable.
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("inspect scenario service manifest: %w", err)
+	} else if !info.Mode().IsRegular() {
+		return fmt.Errorf("scenario service manifest is not a regular file")
+	}
+
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return fmt.Errorf("read generated desktop manifest: %w", err)
+	}
+	var document map[string]json.RawMessage
+	if err := json.Unmarshal(data, &document); err != nil {
+		return fmt.Errorf("decode generated desktop manifest: %w", err)
+	}
+	if document == nil {
+		return fmt.Errorf("generated desktop manifest must be a JSON object")
+	}
+	var requirements []string
+	if raw := document["catalog_requirements"]; len(raw) > 0 {
+		if err := json.Unmarshal(raw, &requirements); err != nil {
+			return fmt.Errorf("decode generated catalog requirements: %w", err)
+		}
+	}
+	requiredPath := filepath.ToSlash(filepath.Join("catalog", "scenarios", scenarioName))
+	for _, existing := range requirements {
+		if existing == requiredPath {
+			return nil
+		}
+	}
+	requirements = append(requirements, requiredPath)
+	document["catalog_requirements"], err = json.Marshal(requirements)
+	if err != nil {
+		return fmt.Errorf("encode generated catalog requirements: %w", err)
+	}
+	updated, err := json.MarshalIndent(document, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode generated desktop manifest: %w", err)
+	}
+	info, err := os.Stat(manifestPath)
+	if err != nil {
+		return fmt.Errorf("inspect generated desktop manifest: %w", err)
+	}
+	tmpPath := manifestPath + ".tmp"
+	if err := os.WriteFile(tmpPath, updated, info.Mode().Perm()); err != nil {
+		return fmt.Errorf("write generated desktop manifest: %w", err)
+	}
+	if err := os.Rename(tmpPath, manifestPath); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("replace generated desktop manifest: %w", err)
+	}
+	return nil
 }
 
 // scenarioRequiresSecretPlans avoids making an otherwise self-contained

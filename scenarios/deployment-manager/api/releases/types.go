@@ -38,11 +38,11 @@ func (s ReleaseStatus) CanTransitionTo(next ReleaseStatus) bool {
 	case StatusPublished:
 		return next == StatusAmbiguous || next == StatusSuperseded || next == StatusVerifyFailed
 	case StatusAmbiguous:
-		return next == StatusVerifyFailed
+		return next == StatusPending || next == StatusVerifyFailed
 	case StatusFailed:
-		return next == StatusAmbiguous
+		return next == StatusPending || next == StatusAmbiguous
 	case StatusVerifyFailed:
-		return next == StatusAmbiguous
+		return next == StatusPending || next == StatusAmbiguous
 	default:
 		return false
 	}
@@ -89,13 +89,172 @@ type Operation struct {
 	// RequestSnapshot is the exact owner request used for durable execution.
 	// It is persisted for restart recovery but is intentionally not exposed in
 	// the operator standing contract.
-	RequestSnapshot json.RawMessage `json:"-"`
-	Status          string          `json:"status"`
-	ActiveStage     string          `json:"active_stage,omitempty"`
-	Error           string          `json:"error,omitempty"`
-	CreatedAt       time.Time       `json:"created_at"`
-	UpdatedAt       time.Time       `json:"updated_at"`
-	CompletedAt     *time.Time      `json:"completed_at,omitempty"`
+	RequestSnapshot               json.RawMessage           `json:"-"`
+	Status                        string                    `json:"status"`
+	ActiveStage                   string                    `json:"active_stage,omitempty"`
+	Error                         string                    `json:"error,omitempty"`
+	CreatedAt                     time.Time                 `json:"created_at"`
+	UpdatedAt                     time.Time                 `json:"updated_at"`
+	CompletedAt                   *time.Time                `json:"completed_at,omitempty"`
+	CloudStep                     *CloudStep                `json:"cloud_step,omitempty"`
+	CloudSpendQuoteIdempotencyKey string                    `json:"cloud_spend_quote_idempotency_key,omitempty"`
+	CloudComputeManagerInstanceID string                    `json:"cloud_compute_manager_instance_id,omitempty"`
+	CloudAcquireCompute           bool                      `json:"cloud_acquire_compute,omitempty"`
+	CloudAcquireRegion            string                    `json:"cloud_acquire_region,omitempty"`
+	CloudAcquireIdempotencyKey    string                    `json:"cloud_acquire_idempotency_key,omitempty"`
+	CloudAcquireReceipt           *CloudAcquireReceipt      `json:"cloud_acquire_receipt,omitempty"`
+	CloudTeardownReceipt          *CloudTeardownReceipt     `json:"cloud_teardown_receipt,omitempty"`
+	CloudLeaseRenewalReceipt      *CloudLeaseRenewalReceipt `json:"cloud_lease_renewal_receipt,omitempty"`
+}
+
+// CloudAcquireReceipt is DM's immutable, operation-bound envelope around the
+// exact generated Compute Manager GetAcquireReceipt response.
+type CloudAcquireReceipt struct {
+	SchemaVersion        int             `json:"schema_version"`
+	OperationID          string          `json:"operation_id"`
+	ReleaseID            string          `json:"release_id"`
+	ProfileID            string          `json:"profile_id"`
+	AcquireKey           string          `json:"acquire_idempotency_key"`
+	InstanceID           string          `json:"instance_id"`
+	TargetManifestSHA256 string          `json:"target_manifest_sha256"`
+	SourceFingerprint    string          `json:"source_receipt_fingerprint"`
+	PersistedAt          time.Time       `json:"persisted_at"`
+	SourceReceipt        json.RawMessage `json:"source_receipt"`
+}
+
+// CloudTeardownReceipt is the operation-bound status of a teardown request.
+// A refused state records the fail-closed boundary without implying an effect.
+type CloudTeardownReceipt struct {
+	SchemaVersion                 int             `json:"schema_version"`
+	OperationID                   string          `json:"operation_id"`
+	ReleaseID                     string          `json:"release_id"`
+	ProfileID                     string          `json:"profile_id"`
+	TeardownKey                   string          `json:"teardown_idempotency_key"`
+	AcquisitionReceiptFingerprint string          `json:"acquisition_receipt_sha256,omitempty"`
+	InstanceID                    string          `json:"compute_manager_instance_id,omitempty"`
+	Provider                      string          `json:"provider,omitempty"`
+	ProviderInstanceID            string          `json:"provider_instance_id,omitempty"`
+	TargetManifestSHA256          string          `json:"stored_target_sha256,omitempty"`
+	State                         string          `json:"state"`
+	Reason                        string          `json:"reason"`
+	PersistedAt                   time.Time       `json:"persisted_at"`
+	OwnerReceipt                  json.RawMessage `json:"owner_receipt,omitempty"`
+}
+
+// CloudLeaseRenewalReceipt binds DM's standing to the immutable CM acquisition
+// and, when available, the exact typed CM renewal readback.
+type CloudLeaseRenewalReceipt struct {
+	SchemaVersion                 int       `json:"schema_version"`
+	OperationID                   string    `json:"operation_id"`
+	ReleaseID                     string    `json:"release_id"`
+	ProfileID                     string    `json:"profile_id"`
+	RenewalKey                    string    `json:"renewal_idempotency_key"`
+	AcquisitionReceiptFingerprint string    `json:"acquisition_receipt_sha256"`
+	InstanceID                    string    `json:"compute_manager_instance_id"`
+	Provider                      string    `json:"compute_manager_provider"`
+	ProviderInstanceID            string    `json:"compute_manager_provider_instance_id"`
+	OldExpiresAt                  time.Time `json:"old_expires_at"`
+	NewExpiresAt                  time.Time `json:"new_expires_at,omitempty"`
+	RequestedUntil                time.Time `json:"requested_until"`
+	QuoteKey                      string    `json:"quote_idempotency_key"`
+	QuoteFingerprint              string    `json:"quote_fingerprint"`
+	AuthorizationFact             string    `json:"authorization_fact"`
+	State                         string    `json:"state"`
+	Reason                        string    `json:"reason"`
+	PersistedAt                   time.Time `json:"persisted_at"`
+	OwnerReceipt                  json.RawMessage `json:"compute_manager_receipt,omitempty"`
+}
+
+// CloudStep is Deployment Manager's durable read model for its Scenario-to-Cloud
+// hand-off. The owner operation key and immutable digest bind every retry to
+// the same request; receipt is only populated after owner validation.
+type CloudStep struct {
+	OperationID               string          `json:"operation_id"`
+	Fence                     uint64          `json:"fence,omitempty"`
+	RequestKey                string          `json:"request_key"`
+	RequestDigest             string          `json:"request_digest"`
+	State                     string          `json:"state"`
+	DeploymentID              string          `json:"deployment_id,omitempty"`
+	OwnerOperationID          string          `json:"owner_operation_id,omitempty"`
+	Receipt                   json.RawMessage `json:"receipt,omitempty"`
+	VerificationReceipt       json.RawMessage `json:"verification_receipt,omitempty"`
+	VerificationKey           string          `json:"verification_key,omitempty"`
+	VerificationRequestDigest string          `json:"verification_request_digest,omitempty"`
+	VerificationState         string          `json:"verification_state,omitempty"`
+	VerificationAttemptedAt   *time.Time      `json:"verification_attempted_at,omitempty"`
+	RecoveryIdempotencyKey    string          `json:"recovery_idempotency_key,omitempty"`
+	RecoveryOwnerOperationID  string          `json:"recovery_owner_operation_id,omitempty"`
+	RecoveryState             string          `json:"recovery_state,omitempty"`
+	RecoveryPreviewRef        string          `json:"recovery_preview_ref,omitempty"`
+	RecoveryReceipt           json.RawMessage `json:"recovery_receipt,omitempty"`
+	RecoveryReason            string          `json:"recovery_reason,omitempty"`
+	Reason                    string          `json:"reason,omitempty"`
+	UpdatedAt                 time.Time       `json:"updated_at"`
+}
+
+// CloudVerificationResumer performs only a fresh, read-only health check for
+// an already persisted cloud deployment. It must not replay release effects.
+type CloudVerificationResumer interface {
+	ResumeCloudVerification(context.Context, DeployRequest) (*CloudStep, error)
+}
+
+// CloudRecoveryOperation is the exact owner readback DM may attach to a
+// failed release. DM only reads this generated S2C operation; it never starts
+// one as its service principal.
+type CloudRecoveryOperation struct {
+	DeploymentID                string
+	OperationID                 string
+	IdempotencyKey              string
+	Action                      string
+	Status                      string
+	ExpectedCurrentBundleSHA256 string
+	LastGoodReleaseDigest       string
+	ReviewRef                   string
+	PreviewRef                  string
+	DataCompatibility           string
+	ReceiptJSON                 json.RawMessage
+	Error                       string
+}
+
+type CloudRecoveryOperationReader interface {
+	GetCloudRecoveryOperation(context.Context, string, string) (*CloudRecoveryOperation, error)
+	FindCloudRecoveryOperation(context.Context, string, string) (*CloudRecoveryOperation, error)
+}
+
+// CloudRecoveryIdempotencyKey is deterministic and owned by the DM operation.
+// It is made visible before any human starts an S2C recovery.
+func CloudRecoveryIdempotencyKey(operationID string) string {
+	return "dm-recovery:" + operationID
+}
+
+// CloudVerificationIdempotencyKey is stable across process restart and is
+// scoped to one canonical release operation.
+func CloudVerificationIdempotencyKey(operationID string) string {
+	return "dm-cloud-verification:" + operationID
+}
+
+// CloudStepRepository stores and reads the per-operation cloud hand-off.
+type CloudStepRepository interface {
+	RecordCloudStep(ctx context.Context, step CloudStep) error
+	GetCloudStep(ctx context.Context, operationID string) (*CloudStep, error)
+}
+
+// OperationSnapshotRepository persists a newly reconciled owner reference
+// before any downstream enrollment or deployment step can observe it.
+type OperationSnapshotRepository interface {
+	UpdateOperationSnapshot(ctx context.Context, operationID string, snapshot json.RawMessage) error
+}
+
+// ResumableCloudStepState is true only before DM has advanced beyond the
+// cloud deployment hand-off. Once downstream publication starts, replaying
+// the full release would risk repeating unrelated effects.
+func ResumableCloudStepState(state string) bool {
+	switch state {
+	case "intent", "deployment_ready", "operation_admitted", "reconciliation_required", "receipt_verified":
+		return true
+	default:
+		return false
+	}
 }
 
 // Release platform status values.
@@ -192,7 +351,7 @@ type RecoveryReceipt struct {
 
 func (r RecoveryReceipt) Valid() bool {
 	validOutcome := r.Outcome == "halted" || r.Outcome == "withdrawn" || r.Outcome == "rolled_back" || r.Outcome == "forward_repaired"
-	validHealth := r.Health == "stopped" || r.Health == "channel_restored" || r.Health == "channel_updated"
+	validHealth := r.Health == "stopped" || r.Health == "healthy" || r.Health == "channel_restored" || r.Health == "channel_updated"
 	return r.ReceiptID != "" && r.ReleaseID != "" && r.CandidateID != "" && r.DestinationRevisionID != "" && r.DeploymentID != "" && r.Action != "" && validOutcome && validHealth && r.ExternalReceipt != "" && !r.ObservedAt.IsZero() && !r.DryRun
 }
 
@@ -364,22 +523,27 @@ type Repository interface {
 
 // StartRequest is the body for POST /api/v1/profiles/{id}/releases/start.
 type StartRequest struct {
-	Channel               string          `json:"channel,omitempty"`
-	GitCommitHash         string          `json:"git_commit_hash"`
-	ArtifactDigest        string          `json:"artifact_digest"`
-	CandidateID           string          `json:"candidate_id"`
-	DestinationRevisionID string          `json:"destination_revision_id"`
-	AuthorizationEpoch    uint64          `json:"authorization_epoch"`
-	IdempotencyKey        string          `json:"idempotency_key"`
-	ReadinessReviewKey    string          `json:"readiness_review_key"`
-	ReleaseVersion        string          `json:"release_version"`
-	ReleaseNotes          string          `json:"release_notes,omitempty"`
-	ReleasedBy            string          `json:"released_by,omitempty"`
-	Platforms             []string        `json:"platforms,omitempty"`
-	CloudManifest         json.RawMessage `json:"cloud_manifest,omitempty"`
-	CloudDeploymentName   string          `json:"cloud_deployment_name,omitempty"`
-	CloudBundlePath       string          `json:"cloud_bundle_path,omitempty"`
-	CloudBundleSHA256     string          `json:"cloud_bundle_sha256,omitempty"`
-	CloudBundleSizeBytes  int64           `json:"cloud_bundle_size_bytes,omitempty"`
-	CloudRunPreflight     bool            `json:"cloud_run_preflight,omitempty"`
+	Channel                       string          `json:"channel,omitempty"`
+	GitCommitHash                 string          `json:"git_commit_hash"`
+	ArtifactDigest                string          `json:"artifact_digest"`
+	CandidateID                   string          `json:"candidate_id"`
+	DestinationRevisionID         string          `json:"destination_revision_id"`
+	AuthorizationEpoch            uint64          `json:"authorization_epoch"`
+	IdempotencyKey                string          `json:"idempotency_key"`
+	ReadinessReviewKey            string          `json:"readiness_review_key"`
+	ReleaseVersion                string          `json:"release_version"`
+	ReleaseNotes                  string          `json:"release_notes,omitempty"`
+	ReleasedBy                    string          `json:"released_by,omitempty"`
+	Platforms                     []string        `json:"platforms,omitempty"`
+	CloudManifest                 json.RawMessage `json:"cloud_manifest,omitempty"`
+	CloudDeploymentName           string          `json:"cloud_deployment_name,omitempty"`
+	CloudBundlePath               string          `json:"cloud_bundle_path,omitempty"`
+	CloudBundleSHA256             string          `json:"cloud_bundle_sha256,omitempty"`
+	CloudBundleSizeBytes          int64           `json:"cloud_bundle_size_bytes,omitempty"`
+	CloudRunPreflight             bool            `json:"cloud_run_preflight,omitempty"`
+	CloudSpendQuoteIdempotencyKey string          `json:"cloud_spend_quote_idempotency_key,omitempty"`
+	CloudComputeManagerInstanceID string          `json:"cloud_compute_manager_instance_id,omitempty"`
+	CloudAcquireCompute           bool            `json:"cloud_acquire_compute,omitempty"`
+	CloudAcquireRegion            string          `json:"cloud_acquire_region,omitempty"`
+	CloudAcquireIdempotencyKey    string          `json:"-"`
 }

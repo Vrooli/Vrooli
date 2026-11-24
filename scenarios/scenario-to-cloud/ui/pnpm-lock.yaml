@@ -21,9 +21,6 @@ importers:
       '@connectrpc/connect-web':
         specifier: 2.1.1
         version: 2.1.1(@bufbuild/protobuf@2.12.0)(@connectrpc/connect@2.1.1(@bufbuild/protobuf@2.12.0))
-      '@radix-ui/react-slot':
-        specifier: ^1.1.0
-        version: 1.2.4(@types/react@18.3.27)(react@18.3.1)
       '@tanstack/react-query':
         specifier: ^5.59.0
         version: 5.90.12(react@18.3.1)
@@ -36,6 +33,9 @@ importers:
       '@vrooli/proto-types':
         specifier: file:../../../packages/proto/gen/typescript
         version: file:../../../packages/proto/gen/typescript
+      '@vrooli/react-component-library':
+        specifier: file:../../../packages/react-component-library
+        version: file:../../../packages/react-component-library(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(shiki@1.29.2)
       '@vrooli/ui-selectors':
         specifier: file:../../../packages/ui-selectors
         version: file:../../../packages/ui-selectors(typescript@5.9.3)
@@ -572,24 +572,6 @@ packages:
   '@nodelib/fs.walk@1.2.8':
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
-
-  '@radix-ui/react-compose-refs@1.1.2':
-    resolution: {integrity: sha512-z4eqJvfiNnFMHIIvXP3CY57y2WJs5g2v3X0zm9mEJkrkNv4rDxu+sg9Jh8EkXyeqBkB7SOcboo9dMVqhyrACIg==}
-    peerDependencies:
-      '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
-
-  '@radix-ui/react-slot@1.2.4':
-    resolution: {integrity: sha512-Jl+bCv8HxKnlTLVrcDE8zTMJ09R9/ukw4qBs/oZClOfoQk/cOTbDn+NceXfV7j09YPVQUryJPHurafcSg6EVKA==}
-    peerDependencies:
-      '@types/react': '*'
-      react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
 
   '@remix-run/router@1.23.4':
     resolution: {integrity: sha512-q7j5geK7xs3UJSdm9/iytUNclBnLmYx1EnSeCFXHPeutdqgIMeFeHtUZgS3EhlKxdBEAu8OwtJCwmLrEzpSs7Q==}
@@ -1136,6 +1118,25 @@ packages:
   '@vrooli/proto-types@file:../../../packages/proto/gen/typescript':
     resolution: {directory: ../../../packages/proto/gen/typescript, type: directory}
     engines: {node: '>=18.0.0'}
+
+  '@vrooli/react-component-library@file:../../../packages/react-component-library':
+    resolution: {directory: ../../../packages/react-component-library, type: directory}
+    peerDependencies:
+      mermaid: '>=11.0.0'
+      react: '>=18.0.0'
+      react-dom: '>=18.0.0'
+      react-markdown: '>=10.0.0'
+      remark-gfm: '>=4.0.0'
+      shiki: '>=4.0.0'
+    peerDependenciesMeta:
+      mermaid:
+        optional: true
+      react-markdown:
+        optional: true
+      remark-gfm:
+        optional: true
+      shiki:
+        optional: true
 
   '@vrooli/ui-selectors@file:../../../packages/ui-selectors':
     resolution: {directory: ../../../packages/ui-selectors, type: directory}
@@ -2695,6 +2696,9 @@ packages:
   symbol-tree@3.2.4:
     resolution: {integrity: sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw==}
 
+  tailwind-merge@2.3.0:
+    resolution: {integrity: sha512-vkYrLpIP+lgR0tQCG6AP7zZXCTLc1Lnv/CCRT3BqJ9CZ3ui2++GPaGb1x/ILsINIMSYqqvrpqjUFsMNLlW99EA==}
+
   tailwind-merge@2.6.0:
     resolution: {integrity: sha512-P+Vu1qXfzediirmHOC3xKGAYeZtPcV9g76X+xg2FD4tYgR71ewMA35Y3sCz3zhiN/dwefRpJX0yBcgwi1fXNQA==}
 
@@ -3392,19 +3396,6 @@ snapshots:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.19.1
 
-  '@radix-ui/react-compose-refs@1.1.2(@types/react@18.3.27)(react@18.3.1)':
-    dependencies:
-      react: 18.3.1
-    optionalDependencies:
-      '@types/react': 18.3.27
-
-  '@radix-ui/react-slot@1.2.4(@types/react@18.3.27)(react@18.3.1)':
-    dependencies:
-      '@radix-ui/react-compose-refs': 1.1.2(@types/react@18.3.27)(react@18.3.1)
-      react: 18.3.1
-    optionalDependencies:
-      '@types/react': 18.3.27
-
   '@remix-run/router@1.23.4': {}
 
   '@rolldown/pluginutils@1.0.0-rc.3': {}
@@ -3917,6 +3908,16 @@ snapshots:
   '@vrooli/proto-types@file:../../../packages/proto/gen/typescript':
     dependencies:
       '@bufbuild/protobuf': 2.12.0
+
+  '@vrooli/react-component-library@file:../../../packages/react-component-library(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(shiki@1.29.2)':
+    dependencies:
+      clsx: 2.1.1
+      lucide-react: 0.424.0(react@18.3.1)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      tailwind-merge: 2.3.0
+    optionalDependencies:
+      shiki: 1.29.2
 
   '@vrooli/ui-selectors@file:../../../packages/ui-selectors(typescript@5.9.3)':
     optionalDependencies:
@@ -5720,6 +5721,10 @@ snapshots:
   supports-preserve-symlinks-flag@1.0.0: {}
 
   symbol-tree@3.2.4: {}
+
+  tailwind-merge@2.3.0:
+    dependencies:
+      '@babel/runtime': 7.29.13
 
   tailwind-merge@2.6.0: {}
 

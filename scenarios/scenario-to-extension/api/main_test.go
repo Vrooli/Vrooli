@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -359,6 +360,7 @@ func TestGetExtensionStatusHandler(t *testing.T) {
 func TestTestExtensionHandler(t *testing.T) {
 	loggerCleanup := setupTestLogger()
 	defer loggerCleanup()
+	t.Setenv("SCENARIO_TO_EXTENSION_BROWSER_RUNNER", "/path/that/must/not/run")
 
 	env := setupTestDirectory(t)
 	defer env.Cleanup()
@@ -366,7 +368,7 @@ func TestTestExtensionHandler(t *testing.T) {
 	configCleanup := setupTestConfig(env)
 	defer configCleanup()
 
-	t.Run("Success_DefaultSites", func(t *testing.T) {
+	t.Run("RejectsFilesystemPathTesting", func(t *testing.T) {
 		req := TestData.GenerateTestRequest("/path/to/extension", nil)
 
 		w, err := executeRequest(testExtensionHandler, HTTPTestRequest{
@@ -378,44 +380,13 @@ func TestTestExtensionHandler(t *testing.T) {
 			t.Fatalf("Failed to execute request: %v", err)
 		}
 
-		response := assertJSONResponse(t, w, http.StatusOK, nil)
-		if response == nil {
-			t.Fatal("No response received")
-		}
-
-		// Verify test results structure
-		success, ok := response["success"].(bool)
-		if !ok {
-			t.Error("Expected success field to be a boolean")
-		}
-
-		testResults, ok := response["test_results"].([]interface{})
-		if !ok {
-			t.Error("Expected test_results to be an array")
-		}
-		if len(testResults) == 0 {
-			t.Error("Expected at least one test result")
-		}
-
-		summary, ok := response["summary"].(map[string]interface{})
-		if !ok {
-			t.Error("Expected summary field to be an object")
-		} else {
-			if _, exists := summary["total_tests"]; !exists {
-				t.Error("Expected total_tests in summary")
-			}
-			if _, exists := summary["success_rate"]; !exists {
-				t.Error("Expected success_rate in summary")
-			}
-		}
-
-		// For default implementation, success should be true
-		if !success {
-			t.Error("Expected success to be true for default test")
+		assertErrorResponse(t, w, http.StatusGone)
+		if !strings.Contains(w.Body.String(), "existing authorized BAS session") {
+			t.Fatalf("legacy path rejection should direct callers to managed BAS validation: %s", w.Body.String())
 		}
 	})
 
-	t.Run("Success_CustomSites", func(t *testing.T) {
+	t.Run("RejectsLegacySitesWithoutPathOrSession", func(t *testing.T) {
 		sites := []string{"https://example.com", "https://test.com", "https://demo.com"}
 		req := TestData.GenerateTestRequest("/path/to/extension", sites)
 
@@ -428,24 +399,11 @@ func TestTestExtensionHandler(t *testing.T) {
 			t.Fatalf("Failed to execute request: %v", err)
 		}
 
-		response := assertJSONResponse(t, w, http.StatusOK, nil)
-		if response == nil {
-			t.Fatal("No response received")
-		}
-
-		testResults, ok := response["test_results"].([]interface{})
-		if !ok {
-			t.Error("Expected test_results to be an array")
-		}
-		if len(testResults) != len(sites) {
-			t.Errorf("Expected %d test results, got %d", len(sites), len(testResults))
-		}
+		assertErrorResponse(t, w, http.StatusGone)
 	})
 
 	t.Run("Error_MissingExtensionPath", func(t *testing.T) {
-		req := ExtensionTestRequest{
-			TestSites: []string{"https://example.com"},
-		}
+		req := ExtensionTestRequest{}
 
 		w, err := executeRequest(testExtensionHandler, HTTPTestRequest{
 			Method: "POST",

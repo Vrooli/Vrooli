@@ -143,6 +143,15 @@ func fakeElectronStarter(pages string) ProcessStarter {
 	}
 }
 
+func fakeElectronArtifact(t *testing.T) string {
+	t.Helper()
+	artifact := filepath.Join(t.TempDir(), "example-app")
+	if err := os.WriteFile(artifact, []byte("fixture"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return artifact
+}
+
 func sessionLaunchOptions() ElectronLaunchOptions {
 	return ElectronLaunchOptions{
 		ContextID:        "ctx-1",
@@ -156,10 +165,7 @@ func sessionLaunchOptions() ElectronLaunchOptions {
 }
 
 func TestStartElectronSessionSelectsRendererAndCleansOwnedProfile(t *testing.T) {
-	artifact := filepath.Join(t.TempDir(), "example-app")
-	if err := os.WriteFile(artifact, []byte("fixture"), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	artifact := fakeElectronArtifact(t)
 	session, err := StartElectronSession(context.Background(), ElectronSessionOptions{
 		ArtifactPath: artifact,
 		Launch:       sessionLaunchOptions(),
@@ -185,10 +191,7 @@ func TestStartElectronSessionSelectsRendererAndCleansOwnedProfile(t *testing.T) 
 }
 
 func TestBundledElectronSessionRemovesInheritedEndpointOverrides(t *testing.T) {
-	artifact := filepath.Join(t.TempDir(), "example-app")
-	if err := os.WriteFile(artifact, []byte("fixture"), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	artifact := fakeElectronArtifact(t)
 	t.Setenv("VROOLI_VALIDATION_API_URL", "http://127.0.0.1:1")
 	t.Setenv("VROOLI_VALIDATION_RENDERER_URL", "http://127.0.0.1:2")
 	var launchedEnv []string
@@ -219,10 +222,7 @@ func TestBundledElectronSessionRemovesInheritedEndpointOverrides(t *testing.T) {
 }
 
 func TestStartElectronSessionWaitsForRendererReadiness(t *testing.T) {
-	artifact := filepath.Join(t.TempDir(), "example-app")
-	if err := os.WriteFile(artifact, []byte("fixture"), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	artifact := fakeElectronArtifact(t)
 	var mu sync.Mutex
 	requests := 0
 	session, err := StartElectronSession(context.Background(), ElectronSessionOptions{
@@ -298,11 +298,15 @@ func TestStartElectronSessionWithHelloDesktopAppImage(t *testing.T) {
 	}
 }
 
-func TestStartElectronSessionRefusesAmbiguousRendererAndCleansUp(t *testing.T) {
-	artifact := filepath.Join(t.TempDir(), "example-app")
-	if err := os.WriteFile(artifact, []byte("fixture"), 0o755); err != nil {
-		t.Fatal(err)
+func requireSessionStartError(t *testing.T, err error, want string) {
+	t.Helper()
+	if err == nil || !strings.Contains(err.Error(), want) {
+		t.Fatalf("error = %v, want %q", err, want)
 	}
+}
+
+func TestStartElectronSessionRefusesAmbiguousRendererAndCleansUp(t *testing.T) {
+	artifact := fakeElectronArtifact(t)
 	_, err := StartElectronSession(context.Background(), ElectronSessionOptions{
 		ArtifactPath:   artifact,
 		Launch:         sessionLaunchOptions(),
@@ -312,16 +316,11 @@ func TestStartElectronSessionRefusesAmbiguousRendererAndCleansUp(t *testing.T) {
             {"id":"two","type":"page","url":"http://two","webSocketDebuggerUrl":"ws://two"}
         ]`),
 	})
-	if err == nil || !strings.Contains(err.Error(), "identity is required") {
-		t.Fatalf("error = %v, want missing identity refusal", err)
-	}
+	requireSessionStartError(t, err, "identity is required")
 }
 
 func TestStartElectronSessionRefusesUnidentifiedRendererAndCleansUp(t *testing.T) {
-	artifact := filepath.Join(t.TempDir(), "example-app")
-	if err := os.WriteFile(artifact, []byte("fixture"), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	artifact := fakeElectronArtifact(t)
 	_, err := StartElectronSession(context.Background(), ElectronSessionOptions{
 		ArtifactPath:   artifact,
 		Launch:         sessionLaunchOptions(),
@@ -334,16 +333,11 @@ func TestStartElectronSessionRefusesUnidentifiedRendererAndCleansUp(t *testing.T
             "webSocketDebuggerUrl":"ws://splash"
         }]`),
 	})
-	if err == nil || !strings.Contains(err.Error(), "identity is required") {
-		t.Fatalf("error = %v, want missing identity refusal", err)
-	}
+	requireSessionStartError(t, err, "identity is required")
 }
 
 func TestStartElectronSessionRefusesRendererCrashAndCleansUp(t *testing.T) {
-	artifact := filepath.Join(t.TempDir(), "example-app")
-	if err := os.WriteFile(artifact, []byte("fixture"), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	artifact := fakeElectronArtifact(t)
 	_, err := StartElectronSession(context.Background(), ElectronSessionOptions{
 		ArtifactPath:   artifact,
 		Launch:         sessionLaunchOptions(),
@@ -359,9 +353,7 @@ func TestStartElectronSessionRefusesRendererCrashAndCleansUp(t *testing.T) {
 			return process, nil
 		},
 	})
-	if err == nil || !strings.Contains(err.Error(), "exited before CDP became ready") {
-		t.Fatalf("error = %v, want renderer crash refusal", err)
-	}
+	requireSessionStartError(t, err, "exited before CDP became ready")
 }
 
 func TestStartElectronSessionRejectsMissingArtifact(t *testing.T) {
@@ -393,10 +385,7 @@ func TestIsExpectedElectronTermination(t *testing.T) {
 }
 
 func TestElectronRestartPreservesProfileAndTransfersCleanup(t *testing.T) {
-	artifact := filepath.Join(t.TempDir(), "example-app")
-	if err := os.WriteFile(artifact, []byte("fixture"), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	artifact := fakeElectronArtifact(t)
 	session, err := StartElectronSession(context.Background(), ElectronSessionOptions{
 		ArtifactPath: artifact, Launch: sessionLaunchOptions(), Renderer: RendererExpectation{URLPrefix: "http://127.0.0.1:4400"},
 		StartProcess: fakeElectronStarter(`[{"id":"main","type":"page","url":"http://127.0.0.1:4400","webSocketDebuggerUrl":"ws://main"}]`),

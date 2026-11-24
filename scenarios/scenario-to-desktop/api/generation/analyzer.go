@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 
 	"scenario-to-desktop-api/shared/path"
@@ -535,6 +536,7 @@ func extractRequiredResources(resources map[string]ResourceDependency) []string 
 			required = append(required, name)
 		}
 	}
+	sort.Strings(required)
 	return required
 }
 

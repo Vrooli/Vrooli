@@ -24,7 +24,8 @@ Common issues and how to resolve them.
 
 **Solutions**:
 1. Run the reachability check: `scenario-to-cloud preflight run <manifest.json>` (the `target_reachability` check carries the typed reach refusal: `target_offline`, `enrollment_revoked`, `reach_unavailable`)
-2. Repair access through its owner: `vrooli-bridge onboard` on the host, or authorise the operator key (`ssh-copy-id -i ~/.ssh/id_ed25519.pub root@host`) when the transport is ssh
+2. Resolve target access through Compute Manager's adoption and secure Onboarding flow, or through
+   the provider's supported console flow. Do not configure target access manually from this guide.
 3. Verify port 22 is open: `nc -zv host 22`
 4. Try with verbose output: `ssh -v user@host`
 

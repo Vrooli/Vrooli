@@ -19,7 +19,7 @@ Tier 4 covers scenarios deployed to remote servers (DigitalOcean, AWS, bare meta
 
 ## Provider Notes
 
-- [DigitalOcean](../providers/digitalocean.md) retains manual steps (costing, `doctl`). These become callable recipes once deployment-manager supports provider modules.
+- DigitalOcean setup is moving into Compute Manager's provider catalogue (compute-and-deployment CD2/CD3); use its phone flow when available. Only A2's one Hetzner CX23 plus IPv4 purchase is approved.
 - Vault/Kubernetes hardening is not yet part of the supported SaaS flow; current provider guidance is maintained under `docs/providers/`.
 
 ## Roadmap

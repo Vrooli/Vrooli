@@ -2,10 +2,7 @@ package release
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +12,7 @@ import (
 	"github.com/vrooli/envkit-go"
 
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/filedigest"
 )
 
 // Platform is the target the native control plane is built for.
@@ -136,7 +134,7 @@ func buildNativeCLI(ctx context.Context, repoRoot string, opts NativeCLIOptions,
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return domain.ReleaseNativeCLI{}, domain.ReleaseReproducibility{}, fmt.Errorf("build native vrooli binary for %s: %w\n%s", platform, err, strings.TrimSpace(string(out)))
 	}
-	sum, size, err := fileSHA256(output)
+	sum, size, err := filedigest.SHA256File(output)
 	if err != nil {
 		return domain.ReleaseNativeCLI{}, domain.ReleaseReproducibility{}, err
 	}
@@ -165,7 +163,7 @@ func buildNativeCLI(ctx context.Context, repoRoot string, opts NativeCLIOptions,
 	if out, err := nativeBuildCommand(ctx, opts, platform, second).CombinedOutput(); err != nil {
 		return record, repro, fmt.Errorf("rebuild native vrooli binary for %s: %w\n%s", platform, err, strings.TrimSpace(string(out)))
 	}
-	secondSum, _, err := fileSHA256(second)
+	secondSum, _, err := filedigest.SHA256File(second)
 	if err != nil {
 		return record, repro, err
 	}
@@ -177,18 +175,4 @@ func buildNativeCLI(ctx context.Context, repoRoot string, opts NativeCLIOptions,
 	repro.NativeCLI = domain.ReproducibilityNotReproducible
 	repro.Reason = fmt.Sprintf("two builds with identical pinned inputs (%s, %s) produced different bytes (%s vs %s); the release binds the first build's sha256", version, runtime.GOOS+"/"+runtime.GOARCH, sum[:12], secondSum[:12])
 	return record, repro, nil
-}
-
-func fileSHA256(path string) (string, int64, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", 0, err
-	}
-	defer f.Close()
-	h := sha256.New()
-	size, err := io.Copy(h, f)
-	if err != nil {
-		return "", 0, err
-	}
-	return hex.EncodeToString(h.Sum(nil)), size, nil
 }

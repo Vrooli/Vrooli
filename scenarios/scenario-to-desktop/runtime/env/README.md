@@ -43,6 +43,7 @@ envMap, err := renderer.RenderEnvMap(service, binary)
 The rendered environment also includes standard runtime hints such as:
 - `APP_DATA_DIR`
 - `BUNDLE_ROOT`
+- `VROOLI_RESOURCE_ROOT` (set to `<bundle>/catalog`; runtime-owned so bundled services read only staged declarative data)
 - `VROOLI_STORAGE_ROOT` (set to `<app-data>/storage` for `api-core/storage`)
 - `VROOLI_API_SKIP_STALE_CHECK`
 
@@ -60,6 +61,12 @@ When building the environment for a service:
 3. **Binary Env**: From `binary.env` in manifest (overrides service)
 
 Later sources override earlier ones for the same key.
+
+The runtime reapplies `VROOLI_BIN` and `VROOLI_RESOURCE_ROOT` after manifest
+environment values. These paths identify the bundled CLI shim and declarative
+catalog; a service cannot redirect them to a host checkout. Catalog overlays
+are available only when the staged catalog contains its repository identity
+marker.
 
 ## Manifest Example
 

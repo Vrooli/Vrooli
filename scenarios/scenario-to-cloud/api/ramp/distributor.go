@@ -8,6 +8,7 @@ import (
 
 	"scenario-to-cloud/evidence"
 
+	"github.com/vrooli/api-core/textutil"
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 )
 
@@ -61,7 +62,7 @@ func (d Distributor) Distribute(ctx context.Context, request deliveryramp.Distri
 		return deliveryramp.DistributionResult{Disposition: deliveryramp.DispositionUnavailable, Reason: "activation was not performed: " + execErr.Error(), Targets: targets}, nil
 	}
 	if execution.Outcome == evidence.DispositionFailed {
-		return deliveryramp.DistributionResult{Disposition: deliveryramp.DispositionFailed, Reason: firstNonEmpty(execution.Reason, "activation failed"), Targets: targets}, nil
+		return deliveryramp.DistributionResult{Disposition: deliveryramp.DispositionFailed, Reason: textutil.FirstNonEmpty(execution.Reason, "activation failed"), Targets: targets}, nil
 	}
 	receipt, readErr := d.Target.ReadActiveRelease(ctx, deploymentID)
 	if readErr != nil {
@@ -91,15 +92,6 @@ func (d Distributor) Distribute(ctx context.Context, request deliveryramp.Distri
 			ExternalReceipt: "cloud-target:active-release:" + receipt.ReceiptDigest, Outcome: "activated", ObservedAt: observedAt,
 		},
 	}, nil
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, v := range values {
-		if strings.TrimSpace(v) != "" {
-			return v
-		}
-	}
-	return ""
 }
 
 var _ deliveryramp.Distributor = Distributor{}

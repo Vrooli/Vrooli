@@ -75,7 +75,7 @@ func TestEnsureAssetsSizeBudget(t *testing.T) {
 	}
 }
 
-func TestApplyPlaywrightConventionsFallback(t *testing.T) {
+func TestApplyPlaywrightConventionsDoesNotFallback(t *testing.T) {
 	tmp := t.TempDir()
 	fallbackChrome := filepath.Join(tmp, "electron-chrome")
 	if err := os.WriteFile(fallbackChrome, []byte("chrome"), 0o644); err != nil {
@@ -108,8 +108,8 @@ func TestApplyPlaywrightConventionsFallback(t *testing.T) {
 		"BROWSER_EXECUTABLE_PATH": "resources/playwright/chromium/chrome",
 	}
 
-	if err := s.applyPlaywrightConventions(svc, env); err != nil {
-		t.Fatalf("applyPlaywrightConventions: %v", err)
+	if err := s.applyPlaywrightConventions(svc, env); err == nil {
+		t.Fatal("expected missing packaged executable to fail closed")
 	}
 
 	if got := env["PLAYWRIGHT_DRIVER_PORT"]; got != "48000" {
@@ -118,8 +118,8 @@ func TestApplyPlaywrightConventionsFallback(t *testing.T) {
 	if got := env["PLAYWRIGHT_DRIVER_URL"]; got != "http://127.0.0.1:48000" {
 		t.Fatalf("expected driver url set, got %q", got)
 	}
-	if got := env["BROWSER_EXECUTABLE_PATH"]; got != fallbackChrome {
-		t.Fatalf("expected chromium fallback path, got %q", got)
+	if got := env["BROWSER_EXECUTABLE_PATH"]; got == fallbackChrome {
+		t.Fatalf("unexpected Electron fallback path %q", got)
 	}
 	if got := env["ENGINE"]; got != "playwright" {
 		t.Fatalf("expected ENGINE=playwright, got %q", got)

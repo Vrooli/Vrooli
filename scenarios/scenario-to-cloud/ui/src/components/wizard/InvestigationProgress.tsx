@@ -1,6 +1,6 @@
 import { Loader2, CheckCircle2, XCircle, StopCircle, Bot } from "lucide-react";
 import { Card, CardContent } from "../ui/card";
-import { Button } from "../ui/button";
+import { Button } from "../ui/button-adapter";
 import { Tooltip } from "../ui/tooltip";
 import type { Investigation, InvestigationStatus } from "../../types/investigation";
 

@@ -50,6 +50,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/vrooli/ai-provider-go v0.0.0
 	github.com/vrooli/platform-go v0.0.0 // indirect
+	github.com/vrooli/vrooli/packages/agentmanager-client-go v0.0.0
 	github.com/vrooli/vrooli/packages/delivery-ramp-go v0.0.0
 	golang.org/x/sys v0.48.0
 	modernc.org/libc v1.72.3 // indirect
@@ -78,3 +79,5 @@ replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 replace github.com/vrooli/cliresolve => ../../../packages/cliresolve
 
 replace github.com/vrooli/ai-provider-go => ../../../packages/ai-provider-go
+
+replace github.com/vrooli/vrooli/packages/agentmanager-client-go => ../../../packages/agentmanager-client-go

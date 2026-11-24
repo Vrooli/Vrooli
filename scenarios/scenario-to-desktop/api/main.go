@@ -670,6 +670,9 @@ func (s *Server) registerDomainHandlers() {
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 	s.router.Handle("/api/v1/measured-launch", smoketest.NewMeasuredLaunchHandler(s.smokeTestService, s.smokeTestStore)).Methods(http.MethodPost)
+	if s.scenarioHandler != nil {
+		s.router.Handle("/api/v1/scenarios/optional-dependency-catalog", s.scenarioHandler.OptionalDependencyCatalogHandler()).Methods(http.MethodGet)
+	}
 	capabilities.NewHandler(capabilities.NewRegistry()).RegisterRoutes(s.router)
 	if s.targetInventoryHandler != nil {
 		s.router.Handle("/api/v1/validation/targets", s.targetInventoryHandler).Methods(http.MethodGet)

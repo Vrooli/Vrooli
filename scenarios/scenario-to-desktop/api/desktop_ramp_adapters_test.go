@@ -163,7 +163,7 @@ func TestDesktopRampDistributorRegistersImmutableArtifact(t *testing.T) {
 	t.Setenv("S2D_DESKTOP_ARTIFACT_URL", "https://downloads.example.test/paid.AppImage")
 	t.Setenv("S2D_LPBS_ADMIN_TOKEN", "operator-token")
 
-	result, err := (desktopRampDistributor{client: server.Client()}).Distribute(context.Background(), deliveryramp.DistributionRequest{Artifact: deliveryramp.Artifact{
+	result, err := (desktopRampDistributor{client: server.Client(), authorization: func(context.Context) (string, error) { return "Bearer scoped-s2d", nil }}).Distribute(context.Background(), deliveryramp.DistributionRequest{Artifact: deliveryramp.Artifact{
 		ImmutableRef: "artifact:sha256",
 		Checksum:     "sha256:abc",
 		Metadata:     map[string]string{"bundle_key": "business_suite", "app_key": "paid-app", "platform": "linux"},
@@ -191,7 +191,7 @@ func TestDesktopRampDistributorRefusesHTTPOnlySuccess(t *testing.T) {
 	t.Setenv("S2D_DESKTOP_ARTIFACT_URL", "https://downloads.example.test/paid.AppImage")
 	t.Setenv("S2D_LPBS_ADMIN_TOKEN", "operator-token")
 
-	result, err := (desktopRampDistributor{client: server.Client()}).Distribute(context.Background(), deliveryramp.DistributionRequest{Artifact: deliveryramp.Artifact{
+	result, err := (desktopRampDistributor{client: server.Client(), authorization: func(context.Context) (string, error) { return "Bearer scoped-s2d", nil }}).Distribute(context.Background(), deliveryramp.DistributionRequest{Artifact: deliveryramp.Artifact{
 		ImmutableRef: "artifact:sha256",
 		Checksum:     "sha256:abc",
 		Metadata:     map[string]string{"bundle_key": "business_suite", "app_key": "paid-app", "platform": "linux"},

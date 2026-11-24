@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -75,10 +76,18 @@ type fakeCloudDeploymentClient struct {
 	deployCalls int
 }
 
-func (f *fakeCloudDeploymentClient) DeployCloud(_ context.Context, _ *CloudDeploymentRequest) (*CloudDeploymentReceipt, error) {
+func (f *fakeCloudDeploymentClient) DeployCloud(_ context.Context, request *CloudDeploymentRequest) (*CloudDeploymentReceipt, error) {
 	f.deployCalls++
+	if request != nil && request.OnProgress != nil {
+		_ = request.OnProgress(CloudStepProgress{State: "deployment_ready", DeploymentID: "dep-fake"})
+		_ = request.OnProgress(CloudStepProgress{State: "operation_admitted", DeploymentID: "dep-fake", OwnerOperationID: "s2c-op-fake"})
+	}
 	if f.deployErr != nil {
 		return nil, f.deployErr
+	}
+	if request != nil && request.OnProgress != nil && f.receipt != nil {
+		encoded, _ := json.Marshal(f.receipt)
+		_ = request.OnProgress(CloudStepProgress{State: "receipt_verified", DeploymentID: f.receipt.DeploymentID, OwnerOperationID: "s2c-op-fake", Receipt: encoded})
 	}
 	return f.receipt, nil
 }
@@ -175,10 +184,40 @@ type fakeReleasesRepo struct {
 	statusErr    error
 	receiptErr   error
 	supersedeErr error
+	cloudSteps   map[string]releases.CloudStep
 }
 
 func newFakeReleasesRepo() *fakeReleasesRepo {
-	return &fakeReleasesRepo{statuses: map[string]string{}, evidence: map[string][]releases.VerificationItem{}, deployments: map[string]string{}}
+	return &fakeReleasesRepo{statuses: map[string]string{}, evidence: map[string][]releases.VerificationItem{}, deployments: map[string]string{}, cloudSteps: map[string]releases.CloudStep{}}
+}
+
+func (f *fakeReleasesRepo) RecordCloudStep(_ context.Context, step releases.CloudStep) error {
+	if prior, ok := f.cloudSteps[step.OperationID]; ok && (prior.RequestKey != step.RequestKey || prior.RequestDigest != step.RequestDigest) {
+		return errors.New("cloud-step request identity conflict")
+	}
+	prior := f.cloudSteps[step.OperationID]
+	if step.DeploymentID == "" {
+		step.DeploymentID = prior.DeploymentID
+	}
+	if step.OwnerOperationID == "" {
+		step.OwnerOperationID = prior.OwnerOperationID
+	}
+	if len(step.Receipt) == 0 {
+		step.Receipt = prior.Receipt
+	}
+	if len(step.VerificationReceipt) == 0 {
+		step.VerificationReceipt = prior.VerificationReceipt
+	}
+	f.cloudSteps[step.OperationID] = step
+	return nil
+}
+
+func (f *fakeReleasesRepo) GetCloudStep(_ context.Context, id string) (*releases.CloudStep, error) {
+	step, ok := f.cloudSteps[id]
+	if !ok {
+		return nil, nil
+	}
+	return &step, nil
 }
 
 func (f *fakeReleasesRepo) Insert(_ context.Context, rel *releases.Release) error {
@@ -284,6 +323,7 @@ func (f *fakeLPBSConfigRepo) Delete(_ context.Context, _ string) error { f.cfg =
 func newDeployState(profileID, releaseID, channel, version string, platforms []string) *deployState {
 	return &deployState{
 		req: DeployDesktopRequest{
+			OperationID:    "release-op-" + releaseID,
 			ProfileID:      profileID,
 			ReleaseID:      releaseID,
 			Channel:        channel,
@@ -435,15 +475,17 @@ func TestDeployCheckCloudHealth_HealthyAdvancesStep(t *testing.T) {
 	cloud := &fakeCloudClient{healthy: true}
 	relRepo := newFakeReleasesRepo()
 	o := newOrch(cloud, nil, nil, relRepo)
-	ds := newDeployState("p1", "", "stable", "1.0.0", []string{"linux-x64"})
+	ds := newDeployState("p1", "rel-healthy", "stable", "1.0.0", []string{"linux-x64"})
 	ds.req.CloudManifest = json.RawMessage(`{"environment":"staging","scenario":{"id":"demo-app"},"edge":{"domain":"demo.example"},"target":{"vps":{"host":"203.0.113.10"}}}`)
 	ds.req.CloudBundleSHA256 = strings.Repeat("b", 64)
+	ds.response.CloudReceipt = &CloudDeploymentReceipt{DeploymentID: "dep-healthy", BundleSHA256: strings.Repeat("b", 64), TargetKey: "target-healthy"}
+	seedVerificationCloudStep(relRepo, ds)
 	o.deployCheckCloudHealth(ds)
 	if cloud.calls != 1 {
 		t.Fatalf("expected cloud client called once, got %d", cloud.calls)
 	}
 	got := cloud.requests[0]
-	if got.DeploymentID != "" || got.Selector.ScenarioID != "demo-app" || got.Selector.Environment != "staging" || got.Selector.Domain != "demo.example" || got.Selector.Host != "203.0.113.10" {
+	if got.DeploymentID != "dep-healthy" || got.Selector.ScenarioID != "demo-app" || got.Selector.Environment != "staging" || got.Selector.Domain != "demo.example" || got.Selector.Host != "203.0.113.10" {
 		t.Fatalf("health request selector = %+v", got)
 	}
 	if got.ExpectedReleaseDigest != strings.Repeat("b", 64) {
@@ -451,6 +493,10 @@ func TestDeployCheckCloudHealth_HealthyAdvancesStep(t *testing.T) {
 	}
 	if len(ds.response.Steps) != 1 || ds.response.Steps[0].Status != "success" {
 		t.Fatalf("expected one success step, got %+v", ds.response.Steps)
+	}
+	stored := relRepo.cloudSteps[ds.req.OperationID]
+	if stored.State != "verification_passed" || len(stored.VerificationReceipt) == 0 || len(stored.Receipt) == 0 {
+		t.Fatalf("durable verification standing = %+v", stored)
 	}
 }
 
@@ -482,6 +528,8 @@ func TestDeployCheckCloudHealth_UnhealthyMarksFailedRelease(t *testing.T) {
 	o := newOrch(cloud, nil, nil, relRepo)
 	ds := newDeployState("p1", "rel-1", "stable", "1.0.0", []string{"linux-x64"})
 	ds.req.CloudManifest = json.RawMessage(`{"scenario":{"id":"demo-app"},"edge":{"domain":"demo.example"}}`)
+	ds.response.CloudReceipt = &CloudDeploymentReceipt{DeploymentID: "dep-1", BundleSHA256: strings.Repeat("a", 64), TargetKey: "target-1"}
+	seedVerificationCloudStep(relRepo, ds)
 
 	o.deployCheckCloudHealth(ds)
 
@@ -490,6 +538,19 @@ func TestDeployCheckCloudHealth_UnhealthyMarksFailedRelease(t *testing.T) {
 	}
 	if ds.response.Steps[0].Status != "failed" || !strings.Contains(ds.response.Steps[0].Error, "status_not_healthy") {
 		t.Errorf("expected failed step naming the reason; got %+v", ds.response.Steps[0])
+	}
+	stored := relRepo.cloudSteps[ds.req.OperationID]
+	if stored.State != "recovery_decision_required" || !strings.Contains(stored.Reason, "human may start recovery in Scenario-to-Cloud") || stored.RecoveryState != "awaiting_human_recovery" || stored.RecoveryIdempotencyKey != releases.CloudRecoveryIdempotencyKey(ds.req.OperationID) || len(stored.VerificationReceipt) == 0 {
+		t.Errorf("failed verification/recovery decision was not durable: %+v", stored)
+	}
+}
+
+func seedVerificationCloudStep(repo *fakeReleasesRepo, ds *deployState) {
+	repo.cloudSteps[ds.req.OperationID] = releases.CloudStep{
+		OperationID: ds.req.OperationID, RequestKey: "dm-cloud:" + ds.req.OperationID,
+		RequestDigest: "sha256:immutable-cloud-request", State: "downstream_started",
+		DeploymentID: ds.response.CloudReceipt.DeploymentID, OwnerOperationID: "s2c-op-" + ds.response.CloudReceipt.DeploymentID,
+		Receipt: json.RawMessage(`{"receipt":{"outcome":"deployed"}}`),
 	}
 }
 
@@ -536,6 +597,10 @@ func TestDeployCloudRequiresAndRecordsDurableReceipt(t *testing.T) {
 	if len(o.releasesRepo.(*fakeReleasesRepo).receipts) != 1 {
 		t.Fatalf("persisted cloud receipts = %#v", o.releasesRepo.(*fakeReleasesRepo).receipts)
 	}
+	storedStep := o.releasesRepo.(*fakeReleasesRepo).cloudSteps[ds.req.OperationID]
+	if storedStep.State != "receipt_verified" || storedStep.OwnerOperationID != "s2c-op-fake" || len(storedStep.Receipt) == 0 {
+		t.Fatalf("durable cloud step receipt = %+v", storedStep)
+	}
 	if got := o.releasesRepo.(*fakeReleasesRepo).deployments["rel-1"]; got != "dep-1" {
 		t.Fatalf("persisted cloud deployment identity = %q", got)
 	}
@@ -573,6 +638,23 @@ func TestDeployCloudReceiptPersistenceFailureIsAmbiguous(t *testing.T) {
 	}
 	if relRepo.statuses["rel-ambiguous"] != releases.StatusAmbiguous {
 		t.Fatalf("durable release status = %q; want ambiguous", relRepo.statuses["rel-ambiguous"])
+	}
+}
+
+func TestDeployCloudPersistsOwnerReadbackAmbiguity(t *testing.T) {
+	cloud := &fakeCloudDeploymentClient{deployErr: fmt.Errorf("%w: owner read-back unavailable", ErrCloudOperationAmbiguous)}
+	relRepo := newFakeReleasesRepo()
+	o := newOrch(cloud, nil, nil, relRepo)
+	ds := newDeployState("p1", "rel-cloud-ambiguous", "stable", "1.0.0", []string{"linux-x64"})
+	ds.req.CandidateID = "candidate-1"
+	ds.req.DestinationRevisionID = "destination-1"
+	ds.req.AuthorizationCheck = func(context.Context) error { return nil }
+	ds.req.CloudManifest = json.RawMessage(`{"scenario":{"id":"demo"}}`)
+	if code := o.deployCloud(ds); code != http.StatusBadGateway {
+		t.Fatalf("deployCloud() status=%d", code)
+	}
+	if ds.response.Status != "ambiguous" || relRepo.statuses[ds.req.ReleaseID] != releases.StatusAmbiguous {
+		t.Fatalf("response=%+v release_status=%q", ds.response, relRepo.statuses[ds.req.ReleaseID])
 	}
 }
 

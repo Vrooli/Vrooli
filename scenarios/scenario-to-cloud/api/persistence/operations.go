@@ -79,12 +79,6 @@ func fenceStale(op *domain.CloudOperation, fence uint64) error {
 		WithDetail("current_worker", op.WorkerID)
 }
 
-// leaseLive reports whether the operation holds a lease that has not expired
-// at now.
-func leaseLive(op *domain.CloudOperation, now time.Time) bool {
-	return op.WorkerID != "" && op.LeaseExpiresAt != nil && op.LeaseExpiresAt.After(now)
-}
-
 // AcquireWorker takes ownership of an operation for workerID. It bumps the
 // deployment fence (the monotonic ownership generation shared by every
 // operation and every target effect of that deployment), stamps the worker,
@@ -121,7 +115,7 @@ func (r *Repository) AcquireWorker(ctx context.Context, opID, workerID string, l
 				WithDetail("requested", string(domain.OperationRunning))
 		}
 	}
-	if leaseLive(op, now) && op.WorkerID != workerID {
+	if op.HasLiveLease(now) && op.WorkerID != workerID {
 		return 0, apierrors.New(apierrors.CodeOperationConflict, "Another worker holds a live lease on this operation").
 			WithDetail("operation_id", op.ID).WithDetail("worker_id", op.WorkerID).WithDetail("lease_expires_at", op.LeaseExpiresAt.Format(time.RFC3339Nano))
 	}
@@ -133,7 +127,7 @@ func (r *Repository) AcquireWorker(ctx context.Context, opID, workerID string, l
 		if sibling.ID == op.ID || sibling.State.IsTerminal() {
 			continue
 		}
-		if leaseLive(sibling, now) {
+		if sibling.HasLiveLease(now) {
 			return 0, apierrors.New(apierrors.CodeOperationConflict, "Another operation on this deployment is being executed; operations serialise").
 				WithDetail("operation_id", op.ID).WithDetail("blocking_operation_id", sibling.ID).WithDetail("blocking_state", string(sibling.State)).
 				WithNextAction(apierrors.NextAction{Owner: "scenario-to-cloud", Kind: "operation", Reference: sibling.ID, Label: "Wait for the blocking operation"})

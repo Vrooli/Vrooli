@@ -9,7 +9,11 @@ import (
 	"path/filepath"
 	"testing"
 
+	"scenario-to-cloud/apierrors"
+	"scenario-to-cloud/authz"
 	"scenario-to-cloud/manifest"
+
+	"github.com/vrooli/api-core/identity"
 )
 
 func validManifestPayload() map[string]interface{} {
@@ -99,6 +103,51 @@ func TestManifestSchemaEndpoint_ReturnsSchema(t *testing.T) {
 	}
 	if _, ok := parsed.Schema["properties"].(map[string]interface{}); !ok {
 		t.Fatalf("expected properties in schema")
+	}
+}
+
+func TestManifestValidateRequiresAuthenticatedReadScope(t *testing.T) {
+	t.Setenv("API_PORT", "0")
+	srv := newTestServer()
+	ts := httptest.NewServer(srv.router)
+	defer ts.Close()
+	provider := srv.testProvider
+	if provider == nil {
+		t.Fatal("test server did not install its authorization provider")
+	}
+	setPrincipal := func(principal identity.Principal, anonymous bool) {
+		provider.mu.Lock()
+		provider.Principal = principal
+		provider.Anonymous = anonymous
+		provider.mu.Unlock()
+	}
+
+	setPrincipal(identity.Principal{}, true)
+	resp, body := postJSONToServer(t, ts, "/api/v1/manifest/validate", validManifestPayload())
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("anonymous manifest validation status=%d body=%s", resp.StatusCode, body)
+	}
+
+	ownerWithoutScope := testOperator()
+	ownerWithoutScope.Scopes = nil
+	setPrincipal(ownerWithoutScope, false)
+	resp, body = postJSONToServer(t, ts, "/api/v1/manifest/validate", validManifestPayload())
+	if resp.StatusCode != http.StatusForbidden || apierrors.FromHTTP(resp.StatusCode, body).Code != apierrors.CodeForbiddenScope {
+		t.Fatalf("owner without read scope status=%d body=%s", resp.StatusCode, body)
+	}
+
+	readOnly := testOperator()
+	readOnly.Scopes = []string{authz.ScopeRead}
+	setPrincipal(readOnly, false)
+	resp, body = postJSONToServer(t, ts, "/api/v1/manifest/validate", validManifestPayload())
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("authenticated read-scope validation status=%d body=%s", resp.StatusCode, body)
+	}
+	var result struct {
+		Valid bool `json:"valid"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil || !result.Valid {
+		t.Fatalf("owner validation did not reach the semantic validator: valid=%v err=%v body=%s", result.Valid, err, body)
 	}
 }
 

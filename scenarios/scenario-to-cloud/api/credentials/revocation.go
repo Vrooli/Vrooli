@@ -41,7 +41,7 @@ func (s *Service) Revoke(ctx context.Context, req RevokeBindingRequest) (*domain
 	}
 	now := s.now()
 	rotation := &domain.CredentialRotation{ID: id, DeploymentID: binding.DeploymentID, BindingID: binding.ID, Kind: domain.CredentialOperationRevoke, FromVersion: binding.Version.Number, ToVersion: 0, State: domain.RotationPlanned, Consumers: initialConsumers(binding, now), Receipts: []domain.CredentialReceipt{}, CreatedAt: now, UpdatedAt: now}
-	if err := s.Store.SaveRotation(ctx, rotation); err != nil {
+	if err := s.createOperation(ctx, rotation); err != nil {
 		return nil, err
 	}
 	return s.revokeAdvance(ctx, rotation, binding, req.Target)

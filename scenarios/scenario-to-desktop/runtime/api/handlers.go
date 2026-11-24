@@ -589,13 +589,7 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "unknown managed resource", http.StatusBadRequest)
 			return
 		}
-		content, err := fileutil.TailFile(s.runtime.FileSystem(), logPath, lines)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("tail logs: %v", err), http.StatusBadRequest)
-			return
-		}
-		w.Header().Set("Content-Type", "text/plain")
-		_, _ = w.Write(content)
+		s.writeLogTail(w, s.runtime.FileSystem(), logPath, lines)
 		return
 	}
 
@@ -634,6 +628,10 @@ func (s *Server) handleLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.writeLogTail(w, fs, logPath, lines)
+}
+
+func (s *Server) writeLogTail(w http.ResponseWriter, fs infra.FileSystem, logPath string, lines int) {
 	content, err := fileutil.TailFile(fs, logPath, lines)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("tail logs: %v", err), http.StatusBadRequest)

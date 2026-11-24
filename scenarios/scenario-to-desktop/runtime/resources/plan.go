@@ -93,14 +93,14 @@ func ApplyDeferredUpgrade(ctx context.Context, bundleRoot string, plan *Plan, re
 		}
 		return fmt.Errorf("no deferred candidate for resource %q", resource)
 	}
-	var item *Item
+	itemIndex := -1
 	for i := range plan.Resources {
 		if plan.Resources[i].Resource == resource {
-			item = &plan.Resources[i]
+			itemIndex = i
 			break
 		}
 	}
-	if item == nil || item.Service == nil {
+	if itemIndex == -1 || plan.Resources[itemIndex].Service == nil {
 		return fmt.Errorf("resource %q has no bundled service fallback", resource)
 	}
 	resourceDir := filepath.Join(bundleRoot, "resources", resource)
@@ -146,7 +146,7 @@ func ApplyDeferredUpgrade(ctx context.Context, bundleRoot string, plan *Plan, re
 	if candidate.ArtifactSHA256 != "" && !strings.EqualFold(actual, candidate.ArtifactSHA256) {
 		return fmt.Errorf("deferred resource %q artifact digest mismatch: got %s want %s", resource, actual, candidate.ArtifactSHA256)
 	}
-	finalPath := filepath.Join(resourceDir, item.Service.Artifact)
+	finalPath := filepath.Join(resourceDir, plan.Resources[itemIndex].Service.Artifact)
 	backup := filepath.Join(resourceDir, ".upgrade-previous")
 	_ = os.RemoveAll(backup)
 	if err := os.Rename(finalPath, backup); err != nil {
@@ -156,29 +156,27 @@ func ApplyDeferredUpgrade(ctx context.Context, bundleRoot string, plan *Plan, re
 		_ = os.Rename(backup, finalPath)
 		return fmt.Errorf("install deferred resource %q: %w", resource, err)
 	}
-	item.Service.Layout = "dir"
-	item.Service.EntryPath = resolved.BinPath
-	item.Service.SHA256 = actual
-	item.Service.Files = []Artifact{{Name: item.Service.Artifact, SHA256: actual}}
-	data, err := json.MarshalIndent(plan, "", "  ")
+	updatedPlan := *plan
+	updatedPlan.Resources = append([]Item(nil), plan.Resources...)
+	updatedService := *plan.Resources[itemIndex].Service
+	updatedService.Layout = "dir"
+	updatedService.EntryPath = resolved.BinPath
+	updatedService.SHA256 = actual
+	updatedService.Files = []Artifact{{Name: updatedService.Artifact, SHA256: actual}}
+	updatedPlan.Resources[itemIndex].Service = &updatedService
+	data, err := json.MarshalIndent(updatedPlan, "", "  ")
 	if err != nil {
 		_ = os.RemoveAll(finalPath)
 		_ = os.Rename(backup, finalPath)
 		return err
 	}
 	planPath := filepath.Join(bundleRoot, "resource-deployment-plan.json")
-	planTmp := planPath + ".upgrade-tmp"
-	if err := os.WriteFile(planTmp, append(data, '\n'), 0o644); err != nil {
+	if err := writeFileAtomically(planPath, append(data, '\n'), 0o644); err != nil {
 		_ = os.RemoveAll(finalPath)
 		_ = os.Rename(backup, finalPath)
 		return err
 	}
-	if err := os.Rename(planTmp, planPath); err != nil {
-		_ = os.RemoveAll(planTmp)
-		_ = os.RemoveAll(finalPath)
-		_ = os.Rename(backup, finalPath)
-		return err
-	}
+	*plan = updatedPlan
 	_ = os.RemoveAll(backup)
 	return nil
 }
@@ -244,11 +242,7 @@ func RecordUpgradeOutcome(appData string, outcome UpgradeOutcome) error {
 	if err := os.MkdirAll(appData, 0o700); err != nil {
 		return err
 	}
-	tmp := filepath.Join(appData, ".resource-upgrade-outcomes.tmp")
-	if err := os.WriteFile(tmp, append(data, '\n'), 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmp, filepath.Join(appData, "resource-upgrade-outcomes.json"))
+	return writeFileAtomically(filepath.Join(appData, "resource-upgrade-outcomes.json"), append(data, '\n'), 0o600)
 }
 
 type Item struct {

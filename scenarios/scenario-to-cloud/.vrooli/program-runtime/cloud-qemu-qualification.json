@@ -5,7 +5,7 @@
   "helpers": {
     "program": "1"
   },
-  "purpose": "Qualify required matrix case/lane cells on QEMU through governed deploy, target receipt and health reads; refuse unauthorized or incompatible targets and keep per-case assertions pending.",
+  "purpose": "Qualify required matrix case/lane cells on a Compute Manager-owned QEMU target through governed deploy, target receipt and health reads; refuse unauthorized or incompatible targets and keep per-case assertions pending.",
   "inputs": {
     "request_id": {
       "type": "string",
@@ -19,8 +19,28 @@
     },
     "target_ref": {
       "type": "string",
-      "required": true,
-      "description": "Owned disposable guest identity local-qemu:<id>; any other target is refused as incompatible_target."
+      "default": "",
+      "description": "Existing Compute Manager instance reference compute-manager:<instance-id>. Leave empty only when acquire_target=true and a deployment_manifest is supplied."
+    },
+    "acquire_target": {
+      "type": "boolean",
+      "default": false,
+      "description": "Acquire one disposable local-QEMU instance through Compute Manager and create its deployment binding. Requires an explicit operator grant and verified host capacity admission."
+    },
+    "qemu_profile": {
+      "type": "string",
+      "default": "headless-linux",
+      "enum": ["headless-linux", "desktop-linux"]
+    },
+    "qemu_image": {
+      "type": "string",
+      "default": "",
+      "description": "Exact local image path from certification/lanes/qemu-images.json; required only when acquire_target=true."
+    },
+    "deployment_manifest": {
+      "type": "object",
+      "default": {},
+      "description": "Non-secret canonical deployment manifest template. In acquire mode scenario, environment, and target locator are replaced from workload_ref, environment_ref, and the verified Compute Manager response."
     },
     "environment_ref": {
       "type": "string",
@@ -97,8 +117,8 @@
     }
   },
   "assumptions": [
-    "scenario-to-cloud is running and its connect-rpc bindings deployment/get, deployment/resolve, deployment/plan, deployment/apply, operation/wait, deployment/health and edge/status are governed",
-    "the operator has already created and snapshotted the owned guest with vps instance create / wait-for-ssh / snapshot (REST pre-step) and bound a fixture deployment to it (target machine_id equals target_ref)",
+    "scenario-to-cloud is running and its generated Connect bindings qemu/acquire, qemu/get, deployment/create, deployment/get, deployment/resolve, deployment/plan, deployment/apply, operation/wait, deployment/health and edge/status are governed",
+    "either the supplied Compute Manager instance exists and is local-qemu with a matching deployment, or acquire_target=true and the explicit grant covers one disposable instance plus its deployment binding",
     "the session holds the destructive grant for deployment/apply (effect:destructive or the binding's permission); without it the act phase ends refused/no_grant and nothing was mutated",
     "QEMU_LANE_CASES is checked against every matrix case/lane pair applicable to the QEMU ground; qemu.json remains the separate qemu-lane manifest",
     "fault injection arming remains unbound; fault cells stay pending after the deploy journey and are named in the envelope",
@@ -106,16 +126,34 @@
   ],
   "invariants": [
     "admission refuses an absent authorization grant, an incompatible target, a stale artifact, an unknown fault capability, a non-zero spend ceiling and a case outside the lane before any read or write",
-    "the only mutation is one deployment/apply of the compiled plan digest with request_id as the idempotency key; the same request replays the admitted operation",
-    "a deployment whose target machine_id differs from target_ref is never applied to",
+    "when acquire_target is true, the only pre-deployment mutations are one idempotent Compute Manager QEMU acquisition and one validated deployment-record create; no deployment execution occurs until plan/apply",
+    "deployment/apply uses the compiled plan digest with request_id as its idempotency key; the same request replays the admitted operation",
+    "a deployment whose target compute_manager_instance_id differs from target_ref is never applied to",
     "no shell string or opaque argv is forwarded; every effect goes through a declared scenario-to-cloud binding",
     "a non-terminal operation after the bounded wait is reported with its id, never converted into a failure",
     "no cell is marked passed by this program; receipts require per-case assertions and target receipts",
-    "at most one row is materialized per binding call",
+    "at most one row or owned instance is materialized per binding call; request_id stabilizes acquisition retries",
     "one envelope is printed on every path",
     "Every admitted cell includes its canonical case/lane/ground assertion driver; deployment, health, and target-owner receipts alone never satisfy the assertion."
   ],
   "bindings": [
+    {
+      "id": "scenario-to-cloud/qemu/get",
+      "effect": "read",
+      "note": "Resolves the typed Compute Manager instance reference before any deployment read or mutation."
+    },
+    {
+      "id": "scenario-to-cloud/qemu/acquire",
+      "effect": "destructive",
+      "optional": true,
+      "note": "Optional acquire branch only; exactly one disposable guest is requested from Compute Manager after admission."
+    },
+    {
+      "id": "scenario-to-cloud/deployment/create",
+      "effect": "write",
+      "optional": true,
+      "note": "Optional acquire branch binds the verified manager-owned SSH locator into a deployment record; it does not execute the deployment."
+    },
     {
       "id": "scenario-to-cloud/deployment/get",
       "effect": "read",
@@ -235,7 +273,7 @@
       "inputs": {
         "request_id": "fixture-qemu-001",
         "release_ref": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-        "target_ref": "local-qemu:fixture",
+        "target_ref": "compute-manager:fixture",
         "environment_ref": "env:fixture",
         "workload_ref": "stateless-web",
         "cases": [
@@ -254,7 +292,7 @@
       "inputs": {
         "request_id": "fixture-qemu-002",
         "release_ref": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-        "target_ref": "local-qemu:fixture",
+        "target_ref": "compute-manager:fixture",
         "environment_ref": "env:fixture",
         "workload_ref": "stateless-web",
         "authorization_ref": "grant:fixture",
@@ -297,7 +335,7 @@
       "inputs": {
         "request_id": "fixture-qemu-004",
         "release_ref": "latest",
-        "target_ref": "local-qemu:fixture",
+        "target_ref": "compute-manager:fixture",
         "environment_ref": "env:fixture",
         "workload_ref": "stateless-web",
         "authorization_ref": "grant:fixture",
@@ -316,7 +354,7 @@
       "inputs": {
         "request_id": "fixture-qemu-005",
         "release_ref": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-        "target_ref": "local-qemu:fixture",
+        "target_ref": "compute-manager:fixture",
         "environment_ref": "env:fixture",
         "workload_ref": "stateless-web",
         "authorization_ref": "grant:fixture",
@@ -335,7 +373,7 @@
       "inputs": {
         "request_id": "fixture-qemu-006",
         "release_ref": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-        "target_ref": "local-qemu:fixture",
+        "target_ref": "compute-manager:fixture",
         "environment_ref": "env:fixture",
         "workload_ref": "stateless-web",
         "authorization_ref": "grant:fixture",
@@ -355,11 +393,34 @@
       }
     },
     {
+      "id": "acquire-refuses-unlisted-image-before-effect",
+      "inputs": {
+        "request_id": "fixture-qemu-acquire-001",
+        "release_ref": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "target_ref": "",
+        "acquire_target": true,
+        "qemu_profile": "headless-linux",
+        "qemu_image": "/tmp/untrusted-image.img",
+        "deployment_manifest": {
+          "scenario": {"id": "stateless-web"},
+          "edge": {}
+        },
+        "environment_ref": "env:fixture",
+        "workload_ref": "stateless-web",
+        "authorization_ref": "grant:fixture",
+        "cases": ["RUN-01"]
+      },
+      "expect": {
+        "status": ["refused"]
+      },
+      "note": "Unknown image path is refused during validation before any QEMU acquisition or deployment mutation."
+    },
+    {
       "id": "admitted-no-fixture-deployment",
       "inputs": {
         "request_id": "fixture-qemu-007",
         "release_ref": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-        "target_ref": "local-qemu:fixture",
+        "target_ref": "compute-manager:fixture",
         "environment_ref": "env:fixture",
         "workload_ref": "stateless-web",
         "authorization_ref": "grant:fixture",
@@ -393,7 +454,7 @@
       "inputs": {
         "request_id": "fixture-qemu-008",
         "release_ref": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-        "target_ref": "local-qemu:fixture",
+        "target_ref": "compute-manager:fixture",
         "environment_ref": "env:fixture",
         "workload_ref": "stateless-web",
         "authorization_ref": "grant:fixture",

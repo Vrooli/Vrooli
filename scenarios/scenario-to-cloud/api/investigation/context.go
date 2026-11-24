@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/tasks/shared"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
@@ -119,7 +120,7 @@ func buildPromptAndContext(
 
 	// Output Format (medium priority)
 	if containsContext(includeContexts, "output-format") {
-		attachments = append(attachments, buildOutputFormatAttachment(autoFix))
+		attachments = append(attachments, shared.BuildOutputFormatAttachment(autoFix))
 	}
 
 	// VPS Connection (medium priority)
@@ -383,60 +384,6 @@ func buildDiagnosticChecklistAttachment() *domainpb.ContextAttachment {
 		Format:   "text",
 		Priority: "medium",
 		Content:  content,
-	}
-}
-
-// buildOutputFormatAttachment creates the output format specification.
-func buildOutputFormatAttachment(autoFix bool) *domainpb.ContextAttachment {
-	var content strings.Builder
-	content.WriteString(`Report structure:
-
-### Scope Decision
-- Chosen domain: scenario-to-cloud OR target scenario
-- Evidence: at least two concrete evidence points
-- Confidence: high/medium/low
-
-### Root Cause
-What caused the failure. Distinguish symptoms from causes.
-Example: "postgres not running" is a symptom; "postgres not in manifest" is a cause.
-
-### Evidence
-- Answers to diagnostic questions
-- Relevant log snippets
-- Command outputs confirming the issue
-
-### Impact
-What is broken or not working.
-
-### Immediate Fix
-Commands to run on this VPS to restore service (hotfix).`)
-
-	if autoFix {
-		content.WriteString(`
-If you applied fixes, list what you did.`)
-	}
-
-	content.WriteString(`
-
-### Permanent Fix
-Code/configuration changes needed so this doesn't recur:
-- Missing dependencies in .vrooli/service.json
-- Manifest generation fixes
-- Health checks or startup delays
-- VPS setup process fixes
-
-### Prevention
-Monitoring, alerts, or pipeline improvements to catch this earlier.`)
-
-	return &domainpb.ContextAttachment{
-		Type:     "note",
-		Key:      "output-format",
-		Tags:     []string{"format", "report"},
-		Label:    "Report Format",
-		Summary:  "Required sections: Scope, Root Cause, Evidence, Impact, Fixes, Prevention",
-		Format:   "markdown",
-		Priority: "medium",
-		Content:  content.String(),
 	}
 }
 

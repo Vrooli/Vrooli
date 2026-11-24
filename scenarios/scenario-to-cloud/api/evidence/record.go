@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -151,15 +150,7 @@ func (r Record) Validate(profile *Profile) error {
 // through a map to make the order independent of struct layout.
 func (r Record) CanonicalJSON() ([]byte, error) {
 	r.Signature = nil
-	raw, err := json.Marshal(r)
-	if err != nil {
-		return nil, err
-	}
-	var generic map[string]any
-	if err := json.Unmarshal(raw, &generic); err != nil {
-		return nil, err
-	}
-	return json.Marshal(generic)
+	return receiptsigning.CanonicalJSON(r)
 }
 
 // ContentDigest is sha256 over the canonical JSON.

@@ -120,7 +120,7 @@ enforceable rather than advisory.
 | Data | Delete Trigger | Retention Rule | Current Gap |
 |---|---|---|---|
 | Readiness evaluations | Age | Latest retained per scenario; history pruned at 30 days | None. |
-| Unpublished packages and artifacts | Age, with no referencing publication | Pruned at 90 days | Prune job is not yet implemented; see `PROBLEMS.md`. |
+| Unpublished packages and artifacts | Age, with no referencing publication | Pruned at 90 days | Composition prunes expired package rows and owned artifact trees before a new eligible compose. It does not run while idle; other retention classes remain unimplemented. See `PROBLEMS.md`. |
 | Rehearsal logs | Age, with no referencing publication | Pruned at 90 days | Same prune job. |
 | Conformance runs and attestations | Never independently | Retained as long as the package they explain | None. |
 | Publications and revocations | Never | Retained indefinitely | Losing this table loses the revocation fan-out, so it is excluded from any prune. |

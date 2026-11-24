@@ -234,6 +234,20 @@ func dataActionCommands(action execplan.Action, cc CommandContext, timeout time.
 			args = append(args, "--configuration-digest", in["configuration_digest"])
 		}
 		return []TargetCommand{effectful(action.ID, "cloud-target data backup", args, timeout)}, true, nil
+	case execplan.OpDataSchedule:
+		args := append([]string{}, cc.fenceArgs(action.ID)...)
+		args = append(args, "--scenario", in["scenario"])
+		policy, err := EncodeJSONArg(json.RawMessage(in["policy"]))
+		if err != nil {
+			return nil, true, err
+		}
+		args = append(args, "--policy", policy)
+		bindings, err := backupBindingArgs(in, cc)
+		if err != nil {
+			return nil, true, err
+		}
+		args = append(args, bindings...)
+		return []TargetCommand{effectful(action.ID, "cloud-target data schedule", args, timeout)}, true, nil
 	default:
 		return nil, false, nil
 	}

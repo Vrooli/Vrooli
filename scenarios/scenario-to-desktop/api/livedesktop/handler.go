@@ -2,6 +2,7 @@ package livedesktop
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"path/filepath"
@@ -144,7 +145,8 @@ func (h *Handler) launchElectronValidation(w http.ResponseWriter, r *http.Reques
 	}, target.RendererExpectation{ID: body.RendererID, URLPrefix: body.RendererURL, Title: body.RendererTitle})
 	if err != nil {
 		status := http.StatusInternalServerError
-		if strings.Contains(err.Error(), "required") || strings.Contains(err.Error(), "invalid") || strings.Contains(err.Error(), "ambiguous") {
+		var requestErr *requestValidationError
+		if errors.As(err, &requestErr) {
 			status = http.StatusBadRequest
 		}
 		httputil.WriteJSON(w, status, map[string]string{"error": err.Error()})

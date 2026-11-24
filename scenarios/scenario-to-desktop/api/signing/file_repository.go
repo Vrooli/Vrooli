@@ -3,13 +3,24 @@ package signing
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"scenario-to-desktop-api/shared/path"
 	"scenario-to-desktop-api/signing/types"
 )
+
+var errScenarioPathBoundary = errors.New("scenario path does not resolve to the requested direct child")
+
+func validateScenarioName(scenario string) error {
+	if scenario == "" || scenario == "." || scenario == ".." || filepath.IsAbs(scenario) || strings.ContainsAny(scenario, `/\`) || strings.ContainsRune(scenario, '\x00') || filepath.Base(scenario) != scenario {
+		return fmt.Errorf("invalid scenario name %q", scenario)
+	}
+	return nil
+}
 
 // FileRepository implements Repository using file-based storage.
 // Each scenario stores its signing configuration in signing.json in the scenario directory.
@@ -50,6 +61,9 @@ func NewFileRepository(opts ...FileRepositoryOption) *FileRepository {
 // Get retrieves the signing config for a scenario.
 func (r *FileRepository) Get(ctx context.Context, scenario string) (*types.SigningConfig, error) {
 	path := r.GetPath(scenario)
+	if path == "" {
+		return nil, fmt.Errorf("invalid scenario name %q", scenario)
+	}
 	if !r.fs.Exists(path) {
 		return nil, nil // No config is not an error
 	}
@@ -69,12 +83,14 @@ func (r *FileRepository) Get(ctx context.Context, scenario string) (*types.Signi
 
 // Save stores or updates the signing config for a scenario.
 func (r *FileRepository) Save(ctx context.Context, scenario string, config *types.SigningConfig) error {
+	path := r.GetPath(scenario)
+	if path == "" {
+		return fmt.Errorf("invalid scenario name %q", scenario)
+	}
 	// Ensure schema version is set
 	if config.SchemaVersion == "" {
 		config.SchemaVersion = types.SchemaVersion
 	}
-
-	path := r.GetPath(scenario)
 
 	// Ensure parent directory exists
 	dir := filepath.Dir(path)
@@ -98,6 +114,9 @@ func (r *FileRepository) Save(ctx context.Context, scenario string, config *type
 // Delete removes the signing config for a scenario.
 func (r *FileRepository) Delete(ctx context.Context, scenario string) error {
 	path := r.GetPath(scenario)
+	if path == "" {
+		return fmt.Errorf("invalid scenario name %q", scenario)
+	}
 	if !r.fs.Exists(path) {
 		return nil // Already deleted
 	}
@@ -112,13 +131,22 @@ func (r *FileRepository) Delete(ctx context.Context, scenario string) error {
 // Exists checks if a signing config exists for a scenario.
 func (r *FileRepository) Exists(ctx context.Context, scenario string) (bool, error) {
 	path := r.GetPath(scenario)
+	if path == "" {
+		return false, fmt.Errorf("invalid scenario name %q", scenario)
+	}
 	return r.fs.Exists(path), nil
 }
 
 // GetPath returns the path to the signing.json file for a scenario.
 func (r *FileRepository) GetPath(scenario string) string {
+	if err := validateScenarioName(scenario); err != nil {
+		return ""
+	}
 	scenarioPath, err := r.scenarioLocator.GetScenarioPath(scenario)
 	if err != nil {
+		if errors.Is(err, errScenarioPathBoundary) {
+			return ""
+		}
 		// Fall back to relative path
 		return filepath.Join("scenarios", scenario, SigningConfigFilename)
 	}
@@ -240,13 +268,32 @@ func NewDefaultScenarioLocator() *DefaultScenarioLocator {
 
 // GetScenarioPath returns the absolute path to a scenario directory.
 func (l *DefaultScenarioLocator) GetScenarioPath(scenario string) (string, error) {
+	if err := validateScenarioName(scenario); err != nil {
+		return "", err
+	}
 	if l.vrooliRoot == "" {
 		return "", fmt.Errorf("VROOLI_ROOT not set")
 	}
 
 	// Check if scenario exists
-	path := filepath.Join(l.vrooliRoot, "scenarios", scenario)
+	scenariosRoot := filepath.Join(l.vrooliRoot, "scenarios")
+	path := filepath.Join(scenariosRoot, scenario)
 	if info, err := os.Stat(path); err == nil && info.IsDir() {
+		resolvedRoot, rootErr := filepath.EvalSymlinks(scenariosRoot)
+		if rootErr != nil {
+			return "", fmt.Errorf("resolve scenarios root: %w", rootErr)
+		}
+		resolvedScenario, scenarioErr := filepath.EvalSymlinks(path)
+		if scenarioErr != nil {
+			return "", fmt.Errorf("resolve scenario directory: %w", scenarioErr)
+		}
+		relative, relErr := filepath.Rel(resolvedRoot, resolvedScenario)
+		if relErr != nil {
+			return "", fmt.Errorf("compare scenario directory: %w", relErr)
+		}
+		if relative != scenario || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
+			return "", errScenarioPathBoundary
+		}
 		return path, nil
 	}
 

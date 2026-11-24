@@ -230,6 +230,72 @@ func TestTableValidates(t *testing.T) {
 	}
 }
 
+func TestTypedDeploymentCreateIsWorkloadWrite(t *testing.T) {
+	route, ok := Lookup("POST", DeploymentsServicePrefix+"CreateDeployment")
+	if !ok {
+		t.Fatal("typed create route is missing")
+	}
+	if route.Effect != EffectWorkloadMutation || route.Scope != ScopeWrite {
+		t.Fatalf("typed create authorization = effect %q scope %q", route.Effect, route.Scope)
+	}
+}
+
+func TestTypedRecoveryAuthorizationKeepsStartHumanOnlyAndReadbackServiceAllowed(t *testing.T) {
+	preview, ok := Lookup("POST", DeploymentsServicePrefix+"PreviewDeploymentRecovery")
+	if !ok || preview.Effect != EffectHost || preview.Scope != ScopeDestructive || preview.ServiceAllowed || !preview.HandlerTargetBound {
+		t.Fatalf("typed recovery preview must remain target-bound and human-only: %+v", preview)
+	}
+	start, ok := Lookup("POST", DeploymentsServicePrefix+"StartDeploymentRecovery")
+	if !ok || start.Effect != EffectHost || start.Scope != ScopeDestructive || start.ServiceAllowed || !start.HandlerTargetBound {
+		t.Fatalf("typed recovery start must remain target-bound and human-only: %+v", start)
+	}
+	for _, method := range []string{"GetDeploymentRecoveryOperation", "FindDeploymentRecoveryOperation"} {
+		route, found := Lookup("POST", DeploymentsServicePrefix+method)
+		if !found || route.Effect != EffectRead || !route.ServiceAllowed || !route.HandlerTargetBound {
+			t.Fatalf("typed recovery readback %s has unsafe authorization: %+v", method, route)
+		}
+	}
+}
+
+func TestTypedRecoveryPreviewRequiresHumanAndExactDeploymentTarget(t *testing.T) {
+	path := DeploymentsServicePrefix + "PreviewDeploymentRecovery"
+	h := newHarness(t, NewStaticPolicy(PolicyDocument{Principals: map[string]Grant{
+		"operator": {Environments: []string{"staging"}},
+	}}), nil)
+	reached := false
+	h.router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		deploymentID := r.Header.Get("X-Test-Deployment")
+		if denied := h.enforcer.AuthorizeTarget(r.Context(), deploymentID); denied != nil {
+			apierrors.Write(w, denied)
+			return
+		}
+		if denied := h.enforcer.RequireEffect(r.Context(), deploymentID, EffectHost); denied != nil {
+			apierrors.Write(w, denied)
+			return
+		}
+		reached = true
+		w.WriteHeader(http.StatusNoContent)
+	}).Methods(http.MethodPost)
+	headers := map[string]string{"X-Test-Deployment": "dep-stage", "Origin": "http://example.com"}
+	h.provider.set(human("operator", ScopeDestructive), nil)
+	if rec := h.do(http.MethodPost, path, headers); rec.Code != http.StatusNoContent || !reached {
+		t.Fatalf("authorized human preview was refused: status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	reached = false
+	wrongTarget := map[string]string{"X-Test-Deployment": "dep-prod", "Origin": "http://example.com"}
+	if rec := h.do(http.MethodPost, path, wrongTarget); rec.Code != http.StatusForbidden || reached || codeOf(t, rec) != apierrors.CodeForbiddenTarget {
+		t.Fatalf("cross-deployment preview reached owner: status=%d reached=%v body=%s", rec.Code, reached, rec.Body.String())
+	}
+	h.provider.set(service("deployment-manager", ScopeDestructive), nil)
+	if rec := h.do(http.MethodPost, path, headers); rec.Code != http.StatusForbidden || reached || codeOf(t, rec) != apierrors.CodeForbiddenScope {
+		t.Fatalf("service principal minted a human recovery preview: status=%d reached=%v body=%s", rec.Code, reached, rec.Body.String())
+	}
+	h.provider.set(identity.Principal{}, identity.NewFailure(identity.FailureMissing, identity.SourceScenarioAuthenticator))
+	if rec := h.do(http.MethodPost, path, headers); rec.Code != http.StatusUnauthorized || reached {
+		t.Fatalf("missing human identity reached preview owner: status=%d reached=%v body=%s", rec.Code, reached, rec.Body.String())
+	}
+}
+
 // [REQ:STC-P0-012] Anonymous callers are refused on every non-public route
 // before any handler runs.
 func TestAnonymousIsRefusedBeforeHandlers(t *testing.T) {

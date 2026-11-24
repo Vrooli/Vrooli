@@ -22,6 +22,7 @@
     "protected_routes": [
       "/api",
       "/vrooli.scenario_to_cloud.v1.deployments.DeploymentsService",
+      "/vrooli.scenario_to_cloud.v1.qemu.QEMUService",
       "/vrooli.scenario_to_cloud.v1.health.HealthService"
     ],
     "capabilities": [
@@ -523,6 +524,140 @@
             "permissions": [
               "network:internal",
               "network:external"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "qemu",
+      "description": "Disposable QEMU instance references delegated to Compute Manager",
+      "commands": [
+        {
+          "name": "acquire",
+          "description": "Acquire a disposable local-QEMU guest through Compute Manager",
+          "flags": [
+            {
+              "name": "idempotency-key",
+              "bind": {
+                "field": "idempotency_key"
+              }
+            },
+            {
+              "name": "region",
+              "bind": {
+                "field": "region"
+              }
+            },
+            {
+              "name": "size",
+              "bind": {
+                "field": "size"
+              }
+            },
+            {
+              "name": "image",
+              "bind": {
+                "field": "image"
+              }
+            },
+            {
+              "name": "lifetime-seconds",
+              "bind": {
+                "field": "lifetime_seconds"
+              }
+            },
+            {
+              "name": "memory",
+              "bind": {
+                "field": "memory"
+              }
+            },
+            {
+              "name": "cpus",
+              "bind": {
+                "field": "cpus"
+              }
+            },
+            {
+              "name": "ssh-user",
+              "bind": {
+                "field": "ssh_user"
+              }
+            },
+            {
+              "name": "ssh-port",
+              "bind": {
+                "field": "ssh_port"
+              }
+            },
+            {
+              "name": "profile",
+              "bind": {
+                "field": "profile"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "QEMUService",
+            "method": "Acquire"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Resolve one Compute Manager-owned QEMU instance reference",
+          "flags": [
+            {
+              "name": "instance-id",
+              "required": true,
+              "bind": {
+                "field": "instance_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "QEMUService",
+            "method": "Get"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "release",
+          "description": "Release the exact manager-owned disposable QEMU instance",
+          "flags": [
+            {
+              "name": "instance-id",
+              "required": true,
+              "bind": {
+                "field": "instance_id"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "QEMUService",
+            "method": "Release"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
             ]
           }
         }
@@ -2116,212 +2251,6 @@
               "flags": [
                 {
                   "name": "plan-digest"
-                }
-              ],
-              "binding": {
-                "kind": "local"
-              },
-              "governance": {
-                "effect": "destructive",
-                "run_eligible": true,
-                "permissions": [
-                  "network:internal",
-                  "network:external"
-                ]
-              }
-            }
-          ]
-        },
-        {
-          "name": "instance",
-          "description": "Disposable local QEMU instances",
-          "commands": [
-            {
-              "name": "plan",
-              "description": "Validate the local QEMU lane",
-              "flags": [
-                {
-                  "name": "name"
-                },
-                {
-                  "name": "image"
-                },
-                {
-                  "name": "workdir"
-                }
-              ],
-              "binding": {
-                "kind": "local"
-              },
-              "governance": {
-                "effect": "read",
-                "run_eligible": true,
-                "permissions": [
-                  "network:internal"
-                ]
-              }
-            },
-            {
-              "name": "create",
-              "description": "Register a disposable VM",
-              "flags": [
-                {
-                  "name": "name"
-                },
-                {
-                  "name": "image"
-                },
-                {
-                  "name": "workdir"
-                },
-                {
-                  "name": "memory"
-                },
-                {
-                  "name": "cpus"
-                },
-                {
-                  "name": "profile"
-                },
-                {
-                  "name": "user"
-                },
-                {
-                  "name": "authorized-key"
-                },
-                {
-                  "name": "ssh-port"
-                }
-              ],
-              "binding": {
-                "kind": "local"
-              },
-              "governance": {
-                "effect": "write",
-                "run_eligible": true,
-                "permissions": [
-                  "network:internal",
-                  "network:external"
-                ]
-              }
-            },
-            {
-              "name": "start",
-              "description": "Start a registered VM",
-              "positionals": [
-                {
-                  "name": "instance_id",
-                  "required": true
-                }
-              ],
-              "binding": {
-                "kind": "local"
-              },
-              "governance": {
-                "effect": "write",
-                "run_eligible": true,
-                "permissions": [
-                  "network:internal",
-                  "network:external"
-                ]
-              }
-            },
-            {
-              "name": "stop",
-              "description": "Stop a registered VM",
-              "positionals": [
-                {
-                  "name": "instance_id",
-                  "required": true
-                }
-              ],
-              "binding": {
-                "kind": "local"
-              },
-              "governance": {
-                "effect": "write",
-                "run_eligible": true,
-                "permissions": [
-                  "network:internal",
-                  "network:external"
-                ]
-              }
-            },
-            {
-              "name": "wait-for-ssh",
-              "description": "Wait until the VM accepts SSH",
-              "positionals": [
-                {
-                  "name": "instance_id",
-                  "required": true
-                }
-              ],
-              "binding": {
-                "kind": "local"
-              },
-              "governance": {
-                "effect": "read",
-                "run_eligible": true,
-                "permissions": [
-                  "network:internal"
-                ]
-              }
-            },
-            {
-              "name": "snapshot",
-              "description": "Snapshot a VM",
-              "positionals": [
-                {
-                  "name": "instance_id",
-                  "required": true
-                },
-                {
-                  "name": "snapshot"
-                }
-              ],
-              "binding": {
-                "kind": "local"
-              },
-              "governance": {
-                "effect": "write",
-                "run_eligible": true,
-                "permissions": [
-                  "network:internal",
-                  "network:external"
-                ]
-              }
-            },
-            {
-              "name": "reset",
-              "description": "Reset a VM to a snapshot",
-              "positionals": [
-                {
-                  "name": "instance_id",
-                  "required": true
-                },
-                {
-                  "name": "snapshot"
-                }
-              ],
-              "binding": {
-                "kind": "local"
-              },
-              "governance": {
-                "effect": "destructive",
-                "run_eligible": true,
-                "permissions": [
-                  "network:internal",
-                  "network:external"
-                ]
-              }
-            },
-            {
-              "name": "destroy",
-              "description": "Destroy a VM",
-              "positionals": [
-                {
-                  "name": "instance_id",
-                  "required": true
                 }
               ],
               "binding": {
@@ -4037,20 +3966,47 @@
           "name": "rotate",
           "description": "Prepare a Treasury tombstone, publish it to a manual S3/SFTP DBM destination, verify the newest scratch restore, then commit key deletion",
           "flags": [
-            { "name": "wallet-id", "required": true },
-            { "name": "network", "required": true },
-            { "name": "successor-id", "required": true },
-            { "name": "destination-id", "required": true },
-            { "name": "plan-id", "required": true },
-            { "name": "staging-dir", "required": true },
-            { "name": "receipt-file", "required": true }
+            {
+              "name": "wallet-id",
+              "required": true
+            },
+            {
+              "name": "network",
+              "required": true
+            },
+            {
+              "name": "successor-id",
+              "required": true
+            },
+            {
+              "name": "destination-id",
+              "required": true
+            },
+            {
+              "name": "plan-id",
+              "required": true
+            },
+            {
+              "name": "staging-dir",
+              "required": true
+            },
+            {
+              "name": "receipt-file",
+              "required": true
+            }
           ],
-          "binding": { "kind": "local" },
+          "binding": {
+            "kind": "local"
+          },
           "governance": {
             "effect": "destructive",
             "run_eligible": false,
             "requires_confirmation": true,
-            "permissions": ["filesystem:read", "filesystem:write", "network:internal"]
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
           }
         },
         {

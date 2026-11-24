@@ -31,6 +31,7 @@ type DeploymentRef struct {
 // been enrolled with the Bridge.
 type TargetRef struct {
 	MachineID            string        `json:"machine_id,omitempty"`
+	ComputeManagerID     string        `json:"compute_manager_instance_id,omitempty"`
 	NodeID               string        `json:"node_id,omitempty"`
 	EnrollmentGeneration uint64        `json:"enrollment_generation,omitempty"`
 	Transport            string        `json:"transport"`
@@ -70,6 +71,9 @@ func (t TargetRef) Key() string {
 	if machine := strings.TrimSpace(t.MachineID); machine != "" {
 		return "machine:" + machine
 	}
+	if managerID := strings.TrimSpace(t.ComputeManagerID); managerID != "" {
+		return "compute-manager:" + managerID
+	}
 	if host := strings.TrimSpace(t.Locator.Host); host != "" {
 		return "host:" + host
 	}
@@ -78,7 +82,7 @@ func (t TargetRef) Key() string {
 
 // IsZero reports whether no identity or locator has been bound.
 func (t TargetRef) IsZero() bool {
-	return t.MachineID == "" && t.NodeID == "" && t.EnrollmentGeneration == 0 &&
+	return t.MachineID == "" && t.ComputeManagerID == "" && t.NodeID == "" && t.EnrollmentGeneration == 0 &&
 		t.Transport == "" && t.Locator == TargetLocator{}
 }
 

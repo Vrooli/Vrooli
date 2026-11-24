@@ -4,8 +4,10 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { act } from "@testing-library/react";
+import { act, waitFor } from "@testing-library/react";
+import { getActivePipeline, type ActivePipelineResponse } from "../lib/api";
 import { usePipelineStore } from "./pipelineStore";
+import { createDeferred } from "./pipelineStore.testUtils";
 import { createRateLimiter } from "./pipelineRateLimit";
 import type { PipelineRunStatus } from "./pipelineTypes";
 import type { VerbosePipelineStatus } from "../lib/api";
@@ -233,6 +235,46 @@ describe("pipelineStore", () => {
 
       // State should be preserved
       expect(usePipelineStore.getState().pipelineId).toBe(pipelineId);
+    });
+
+    it("loads the newly selected scenario while an earlier load is still pending", async () => {
+      const firstLoad = createDeferred<ActivePipelineResponse>();
+      const secondLoad = createDeferred<ActivePipelineResponse>();
+      vi.mocked(getActivePipeline).mockImplementation((scenarioName) => {
+        return scenarioName === "scenario-1" ? firstLoad.promise : secondLoad.promise;
+      });
+
+      try {
+        act(() => {
+          usePipelineStore.getState().setScenario(null);
+        });
+        act(() => {
+          usePipelineStore.getState().setScenario("scenario-1");
+        });
+        expect(getActivePipeline).toHaveBeenCalledTimes(1);
+
+        act(() => {
+          usePipelineStore.getState().setScenario("scenario-2");
+        });
+
+        expect(getActivePipeline).toHaveBeenNthCalledWith(
+          2,
+          "scenario-2",
+          { autoCreate: true },
+        );
+
+        firstLoad.resolve({ pipeline: null, created: false });
+        secondLoad.resolve({ pipeline: null, created: false });
+        await waitFor(() => {
+          expect(usePipelineStore.getState().isLoadingActivePipeline).toBe(false);
+        });
+        expect(usePipelineStore.getState().scenarioName).toBe("scenario-2");
+      } finally {
+        firstLoad.resolve({ pipeline: null, created: false });
+        secondLoad.resolve({ pipeline: null, created: false });
+        await Promise.resolve();
+        await Promise.resolve();
+      }
     });
   });
 

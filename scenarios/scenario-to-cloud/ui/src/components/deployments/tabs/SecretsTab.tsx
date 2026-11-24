@@ -19,7 +19,7 @@ import {
 import { useVPSSecrets } from "../../../hooks/useVPSSecrets";
 import { useExpectedSecrets, type ExpectedSecret } from "../../../hooks/useExpectedSecrets";
 import { cn } from "../../../lib/utils";
-import { Button } from "../../ui/button";
+import { Button } from "../../ui/button-adapter";
 import { Input } from "../../ui/input";
 import { Alert } from "../../ui/alert";
 

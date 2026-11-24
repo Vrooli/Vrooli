@@ -179,6 +179,210 @@ func (r *SQLRepository) GetOperation(ctx context.Context, operationID string) (*
 	return operation, nil
 }
 
+func (r *SQLRepository) UpdateOperationSnapshot(ctx context.Context, operationID string, snapshot json.RawMessage) error {
+	if operationID == "" || len(snapshot) == 0 || !json.Valid(snapshot) {
+		return fmt.Errorf("operation ID and valid request snapshot are required")
+	}
+	lease, ok := operationLeaseFromContext(ctx)
+	if !ok || lease.OperationID != operationID {
+		return fmt.Errorf("operation snapshot update requires its fenced operation lease")
+	}
+	var current sql.NullString
+	if err := r.db.QueryRowContext(ctx, `SELECT request_snapshot FROM release_operations WHERE id = $1`, operationID).Scan(&current); err != nil {
+		return fmt.Errorf("read release operation snapshot before update: %w", err)
+	}
+	var nextRequest durableDeployRequest
+	if err := json.Unmarshal(snapshot, &nextRequest); err != nil {
+		return fmt.Errorf("decode updated release operation snapshot: %w", err)
+	}
+	if err := validateCloudAcquireReceipt(operationID, nextRequest); err != nil {
+		return err
+	}
+	if err := validateCloudTeardownReceipt(operationID, nextRequest); err != nil {
+		return err
+	}
+	if err := validateCloudLeaseRenewalReceipt(operationID, nextRequest); err != nil {
+		return err
+	}
+	if current.Valid {
+		var previous durableDeployRequest
+		if err := json.Unmarshal([]byte(current.String), &previous); err != nil {
+			return fmt.Errorf("decode current release operation snapshot: %w", err)
+		}
+		if previous.ReleaseID != nextRequest.ReleaseID || previous.ProfileID != nextRequest.ProfileID || previous.CloudAcquireCompute != nextRequest.CloudAcquireCompute || previous.CloudAcquireIdempotencyKey != nextRequest.CloudAcquireIdempotencyKey || previous.CloudAcquireRegion != nextRequest.CloudAcquireRegion {
+			return fmt.Errorf("release operation identity or acquisition intent is immutable")
+		}
+		if previous.CloudAcquireReceipt != nil && !sameCloudAcquireReceipt(previous.CloudAcquireReceipt, nextRequest.CloudAcquireReceipt) {
+			return fmt.Errorf("persisted Compute Manager acquisition receipt is immutable")
+		}
+		if previous.CloudTeardownReceipt != nil && !validCloudTeardownAdvance(previous.CloudTeardownReceipt, nextRequest.CloudTeardownReceipt) {
+			return fmt.Errorf("persisted cloud teardown identity is immutable or state transition is invalid")
+		}
+		if previous.CloudLeaseRenewalReceipt != nil && !sameCloudLeaseRenewalReceipt(previous.CloudLeaseRenewalReceipt, nextRequest.CloudLeaseRenewalReceipt) {
+			return fmt.Errorf("persisted cloud lease renewal standing is immutable")
+		}
+	}
+	query := `UPDATE release_operations SET request_snapshot=$2, updated_at=$3 WHERE id=$1 AND request_snapshot IS NULL AND EXISTS (SELECT 1 FROM release_operation_leases WHERE operation_id=$1 AND owner=$4 AND fence=$5 AND lease_until>CURRENT_TIMESTAMP)`
+	args := []interface{}{operationID, string(snapshot), time.Now().UTC(), lease.Owner, lease.Fence}
+	if current.Valid {
+		query = `UPDATE release_operations SET request_snapshot=$2, updated_at=$3 WHERE id=$1 AND request_snapshot=$6 AND EXISTS (SELECT 1 FROM release_operation_leases WHERE operation_id=$1 AND owner=$4 AND fence=$5 AND lease_until>CURRENT_TIMESTAMP)`
+		args = append(args, current.String)
+	}
+	result, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("persist reconciled release request snapshot: %w", err)
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count != 1 {
+		return fmt.Errorf("release operation %q snapshot changed or its fence is no longer current", operationID)
+	}
+	return nil
+}
+
+func sameCloudLeaseRenewalReceipt(a, b *CloudLeaseRenewalReceipt) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return a.SchemaVersion == b.SchemaVersion && a.OperationID == b.OperationID && a.ReleaseID == b.ReleaseID && a.ProfileID == b.ProfileID && a.RenewalKey == b.RenewalKey && a.AcquisitionReceiptFingerprint == b.AcquisitionReceiptFingerprint && a.InstanceID == b.InstanceID && a.OldExpiresAt.Equal(b.OldExpiresAt) && a.NewExpiresAt.Equal(b.NewExpiresAt) && a.QuoteKey == b.QuoteKey && a.QuoteFingerprint == b.QuoteFingerprint && a.AuthorizationFact == b.AuthorizationFact && a.State == b.State && a.Reason == b.Reason && a.PersistedAt.Equal(b.PersistedAt)
+}
+
+func sameCloudTeardownReceipt(a, b *CloudTeardownReceipt) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return a.SchemaVersion == b.SchemaVersion && a.OperationID == b.OperationID && a.ReleaseID == b.ReleaseID && a.ProfileID == b.ProfileID && a.TeardownKey == b.TeardownKey && a.AcquisitionReceiptFingerprint == b.AcquisitionReceiptFingerprint && a.InstanceID == b.InstanceID && a.Provider == b.Provider && a.ProviderInstanceID == b.ProviderInstanceID && a.TargetManifestSHA256 == b.TargetManifestSHA256 && a.State == b.State && a.Reason == b.Reason && a.PersistedAt.Equal(b.PersistedAt) && string(a.OwnerReceipt) == string(b.OwnerReceipt)
+}
+
+func validCloudTeardownAdvance(a, b *CloudTeardownReceipt) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	if a.SchemaVersion != b.SchemaVersion || a.OperationID != b.OperationID || a.ReleaseID != b.ReleaseID || a.ProfileID != b.ProfileID || a.TeardownKey != b.TeardownKey || a.AcquisitionReceiptFingerprint != b.AcquisitionReceiptFingerprint || a.InstanceID != b.InstanceID || a.Provider != b.Provider || a.ProviderInstanceID != b.ProviderInstanceID || a.TargetManifestSHA256 != b.TargetManifestSHA256 {
+		return false
+	}
+	if sameCloudTeardownReceipt(a, b) {
+		return true
+	}
+	if a.State == "pending" && b.State == "pending" && len(a.OwnerReceipt) == 0 && len(b.OwnerReceipt) > 0 && b.Reason != "" && !b.PersistedAt.IsZero() {
+		return true
+	}
+	if a.State == "pending" && (b.State == "released" || b.State == "refused" || b.State == "failed" || b.State == "ambiguous") {
+		return true
+	}
+	if a.State == "ambiguous" && (b.State == "released" || b.State == "failed" || b.State == "ambiguous") {
+		return true
+	}
+	return false
+}
+
+func sameCloudAcquireReceipt(a, b *CloudAcquireReceipt) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	// SourceReceipt is protojson from a generated CM message. Whitespace and
+	// equivalent JSON field spelling are not source changes; the deterministic
+	// protobuf fingerprint binds the typed CM response while the stored JSON is
+	// independently decoded and fingerprint-validated on every read/write.
+	return a.SchemaVersion == b.SchemaVersion && a.OperationID == b.OperationID && a.ReleaseID == b.ReleaseID && a.ProfileID == b.ProfileID && a.AcquireKey == b.AcquireKey && a.InstanceID == b.InstanceID && a.TargetManifestSHA256 == b.TargetManifestSHA256 && a.SourceFingerprint == b.SourceFingerprint && a.PersistedAt.Equal(b.PersistedAt)
+}
+
+func (r *SQLRepository) RecordCloudStep(ctx context.Context, step CloudStep) error {
+	if step.OperationID == "" || step.RequestKey == "" || step.RequestDigest == "" || step.State == "" {
+		return fmt.Errorf("cloud step operation, request key, digest and state are required")
+	}
+	step.UpdatedAt = time.Now().UTC()
+	if lease, ok := operationLeaseFromContext(ctx); ok {
+		if lease.OperationID != step.OperationID {
+			return fmt.Errorf("cloud step lease does not authorize this operation")
+		}
+		step.Fence = lease.Fence
+	}
+	result, err := r.db.ExecContext(ctx, `
+		INSERT INTO release_operation_cloud_steps
+			(operation_id, fence, request_key, request_digest, state, deployment_id, owner_operation_id, receipt_json, verification_receipt_json, verification_key, verification_request_digest, verification_state, verification_attempted_at, recovery_idempotency_key, recovery_owner_operation_id, recovery_state, recovery_preview_ref, recovery_receipt_json, recovery_reason, reason, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+		ON CONFLICT (operation_id) DO UPDATE SET
+			fence = EXCLUDED.fence,
+			state = EXCLUDED.state,
+			deployment_id = COALESCE(EXCLUDED.deployment_id, release_operation_cloud_steps.deployment_id),
+			owner_operation_id = COALESCE(EXCLUDED.owner_operation_id, release_operation_cloud_steps.owner_operation_id),
+			receipt_json = COALESCE(EXCLUDED.receipt_json, release_operation_cloud_steps.receipt_json),
+			verification_receipt_json = COALESCE(EXCLUDED.verification_receipt_json, release_operation_cloud_steps.verification_receipt_json),
+			verification_key = COALESCE(EXCLUDED.verification_key, release_operation_cloud_steps.verification_key),
+			verification_request_digest = COALESCE(EXCLUDED.verification_request_digest, release_operation_cloud_steps.verification_request_digest),
+			verification_state = COALESCE(EXCLUDED.verification_state, release_operation_cloud_steps.verification_state),
+			verification_attempted_at = COALESCE(EXCLUDED.verification_attempted_at, release_operation_cloud_steps.verification_attempted_at),
+			recovery_idempotency_key = COALESCE(EXCLUDED.recovery_idempotency_key, release_operation_cloud_steps.recovery_idempotency_key),
+			recovery_owner_operation_id = COALESCE(EXCLUDED.recovery_owner_operation_id, release_operation_cloud_steps.recovery_owner_operation_id),
+			recovery_state = COALESCE(EXCLUDED.recovery_state, release_operation_cloud_steps.recovery_state),
+			recovery_preview_ref = COALESCE(EXCLUDED.recovery_preview_ref, release_operation_cloud_steps.recovery_preview_ref),
+			recovery_receipt_json = COALESCE(EXCLUDED.recovery_receipt_json, release_operation_cloud_steps.recovery_receipt_json),
+			recovery_reason = COALESCE(EXCLUDED.recovery_reason, release_operation_cloud_steps.recovery_reason),
+			reason = EXCLUDED.reason,
+			updated_at = EXCLUDED.updated_at
+		WHERE release_operation_cloud_steps.request_key = EXCLUDED.request_key
+		  AND release_operation_cloud_steps.request_digest = EXCLUDED.request_digest
+		  AND (release_operation_cloud_steps.recovery_idempotency_key IS NULL OR release_operation_cloud_steps.recovery_idempotency_key = EXCLUDED.recovery_idempotency_key)
+		  AND (release_operation_cloud_steps.recovery_owner_operation_id IS NULL OR release_operation_cloud_steps.recovery_owner_operation_id = EXCLUDED.recovery_owner_operation_id)
+		  AND (release_operation_cloud_steps.recovery_preview_ref IS NULL OR release_operation_cloud_steps.recovery_preview_ref = EXCLUDED.recovery_preview_ref)
+		  AND (release_operation_cloud_steps.recovery_receipt_json IS NULL OR release_operation_cloud_steps.recovery_receipt_json = EXCLUDED.recovery_receipt_json)
+		  AND (release_operation_cloud_steps.verification_key IS NULL OR release_operation_cloud_steps.verification_key = EXCLUDED.verification_key)
+		  AND (release_operation_cloud_steps.verification_request_digest IS NULL OR release_operation_cloud_steps.verification_request_digest = EXCLUDED.verification_request_digest)
+		  AND release_operation_cloud_steps.fence <= EXCLUDED.fence
+	`, step.OperationID, step.Fence, step.RequestKey, step.RequestDigest, step.State,
+		nullString(step.DeploymentID), nullString(step.OwnerOperationID), nullString(string(step.Receipt)), nullString(string(step.VerificationReceipt)),
+		nullString(step.VerificationKey), nullString(step.VerificationRequestDigest), nullString(step.VerificationState), nullTime(step.VerificationAttemptedAt),
+		nullString(step.RecoveryIdempotencyKey), nullString(step.RecoveryOwnerOperationID), nullString(step.RecoveryState), nullString(step.RecoveryPreviewRef), nullString(string(step.RecoveryReceipt)), nullString(step.RecoveryReason), nullString(step.Reason), step.UpdatedAt)
+	if err != nil {
+		return fmt.Errorf("record cloud step: %w", err)
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count != 1 {
+		return fmt.Errorf("cloud step identity conflicts with the durable request")
+	}
+	return nil
+}
+
+func (r *SQLRepository) GetCloudStep(ctx context.Context, operationID string) (*CloudStep, error) {
+	step := &CloudStep{}
+	var deploymentID, ownerOperationID, receipt, verificationReceipt, verificationKey, verificationDigest, verificationState, recoveryKey, recoveryOperationID, recoveryState, recoveryPreview, recoveryReceipt, recoveryReason, reason sql.NullString
+	var verificationAttemptedAt sql.NullTime
+	err := r.db.QueryRowContext(ctx, `
+		SELECT operation_id, fence, request_key, request_digest, state, deployment_id, owner_operation_id, receipt_json, verification_receipt_json, verification_key, verification_request_digest, verification_state, verification_attempted_at, recovery_idempotency_key, recovery_owner_operation_id, recovery_state, recovery_preview_ref, recovery_receipt_json, recovery_reason, reason, updated_at
+		FROM release_operation_cloud_steps WHERE operation_id = $1
+	`, operationID).Scan(&step.OperationID, &step.Fence, &step.RequestKey, &step.RequestDigest, &step.State, &deploymentID, &ownerOperationID, &receipt, &verificationReceipt, &verificationKey, &verificationDigest, &verificationState, &verificationAttemptedAt, &recoveryKey, &recoveryOperationID, &recoveryState, &recoveryPreview, &recoveryReceipt, &recoveryReason, &reason, &step.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	step.DeploymentID, step.OwnerOperationID, step.Reason = deploymentID.String, ownerOperationID.String, reason.String
+	step.RecoveryIdempotencyKey, step.RecoveryOwnerOperationID = recoveryKey.String, recoveryOperationID.String
+	step.RecoveryState, step.RecoveryPreviewRef, step.RecoveryReason = recoveryState.String, recoveryPreview.String, recoveryReason.String
+	step.VerificationKey, step.VerificationRequestDigest, step.VerificationState = verificationKey.String, verificationDigest.String, verificationState.String
+	if verificationAttemptedAt.Valid {
+		value := verificationAttemptedAt.Time
+		step.VerificationAttemptedAt = &value
+	}
+	if receipt.Valid {
+		step.Receipt = json.RawMessage(receipt.String)
+	}
+	if verificationReceipt.Valid {
+		step.VerificationReceipt = json.RawMessage(verificationReceipt.String)
+	}
+	if recoveryReceipt.Valid {
+		step.RecoveryReceipt = json.RawMessage(recoveryReceipt.String)
+	}
+	return step, nil
+}
+
 func (r *SQLRepository) ListActiveOperations(ctx context.Context) ([]*Operation, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, release_id, profile_id, idempotency_key, request_snapshot, status, active_stage, error, created_at, updated_at, completed_at
@@ -215,7 +419,8 @@ func (r *SQLRepository) UpdateOperation(ctx context.Context, operationID, status
 	}
 	_, err := r.db.ExecContext(ctx, `
 		UPDATE release_operations
-		SET status = $2, active_stage = $3, error = $4, updated_at = $5, completed_at = COALESCE($6, completed_at)
+		SET status = $2, active_stage = $3, error = $4, updated_at = $5,
+		    completed_at = CASE WHEN $2 IN ('queued', 'running') THEN NULL ELSE COALESCE($6, completed_at) END
 		WHERE id = $1
 	`, operationID, status, nullString(stage), nullString(errMsg), now, completed)
 	return err
@@ -286,7 +491,8 @@ func (r *SQLRepository) UpdateOperationFenced(ctx context.Context, lease *Operat
 	}
 	result, err := r.db.ExecContext(ctx, `
 		UPDATE release_operations
-		SET status = $2, active_stage = $3, error = $4, updated_at = $5, completed_at = COALESCE($6, completed_at)
+		SET status = $2, active_stage = $3, error = $4, updated_at = $5,
+		    completed_at = CASE WHEN $2 IN ('queued', 'running') THEN NULL ELSE COALESCE($6, completed_at) END
 		WHERE id = $1 AND EXISTS (
 			SELECT 1 FROM release_operation_leases
 			WHERE operation_id = $1 AND owner = $7 AND fence = $8 AND lease_until > CURRENT_TIMESTAMP
@@ -839,6 +1045,13 @@ func nullString(s string) sql.NullString {
 		return sql.NullString{}
 	}
 	return sql.NullString{String: s, Valid: true}
+}
+
+func nullTime(value *time.Time) sql.NullTime {
+	if value == nil || value.IsZero() {
+		return sql.NullTime{}
+	}
+	return sql.NullTime{Time: value.UTC(), Valid: true}
 }
 
 func nullIntPtr(n int) sql.NullInt32 {

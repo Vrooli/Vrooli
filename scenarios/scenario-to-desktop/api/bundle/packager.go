@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	harnesscatalog "github.com/vrooli/cli-core/agentcatalog/harness"
 	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
@@ -144,44 +145,36 @@ func resolvePackagePaths(appPath, manifestPath string, outputRoot []string) (*pa
 	}, nil
 }
 
-// resolvePlatforms determines which platforms to package from the manifest.
-func resolvePlatforms(m *bundlemanifest.Manifest, requestedPlatforms []string) ([]string, error) {
-	platforms := requestedPlatforms
-	if len(platforms) == 0 {
-		platforms = collectPlatforms(*m)
-	}
-	if len(platforms) == 0 {
-		return nil, errors.New("manifest has no platform binaries to package")
-	}
-	return platforms, nil
-}
-
 // stageAllServices stages all service binaries and assets into the bundle directory.
-func (p *DefaultPackager) stageAllServices(m *bundlemanifest.Manifest, platforms []string, appAbs, bundleDir, manifestRoot, peerSourceRoot string) ([]string, error) {
+func (p *DefaultPackager) stageAllServices(m *bundlemanifest.Manifest, platforms []string, appAbs, bundleDir, manifestRoot, peerSourceRoot string) ([]string, map[string]string, error) {
 	var copied []string
+	stagedServices := make(map[string]string)
 	for _, svc := range m.Services {
 		if isUIService(svc.Type) {
 			uiCopied, err := p.stageUIService(svc, appAbs, bundleDir, manifestRoot, peerSourceRoot)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			copied = append(copied, uiCopied...)
 			continue
 		}
 
-		binCopied, err := p.stageServiceBinaries(svc, platforms, bundleDir, manifestRoot, appAbs, peerSourceRoot)
+		binCopied, binArtifacts, err := p.stageServiceBinariesDetailed(svc, platforms, bundleDir, manifestRoot, appAbs, peerSourceRoot)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		copied = append(copied, binCopied...)
+		for key, path := range binArtifacts {
+			stagedServices[key] = path
+		}
 
 		assetCopied, err := p.stageServiceAssets(svc, bundleDir, manifestRoot, appAbs, peerSourceRoot)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		copied = append(copied, assetCopied...)
 	}
-	return copied, nil
+	return copied, stagedServices, nil
 }
 
 func (p *DefaultPackager) stageEmbeddedPeerSourceInputs(m *bundlemanifest.Manifest, appAbs, stagingRoot string) error {
@@ -447,12 +440,8 @@ func (p *DefaultPackager) Package(appPath, manifestPath, framework string, reque
 		return nil, fmt.Errorf("load manifest: %w", err)
 	}
 
-	platforms, err := resolvePlatforms(m, requestedPlatforms)
+	platformMatrix, platforms, err := p.planPlatformMatrix(m, requestedPlatforms, filepath.Dir(paths.manifestAbs))
 	if err != nil {
-		return nil, err
-	}
-
-	if err := p.validateManifestForPlatforms(m, platforms); err != nil {
 		return nil, err
 	}
 
@@ -477,7 +466,7 @@ func (p *DefaultPackager) Package(appPath, manifestPath, framework string, reque
 	manifestRoot := filepath.Dir(paths.manifestAbs)
 	copied := []string{destManifest}
 
-	svcCopied, err := p.stageAllServices(m, platforms, paths.appAbs, bundleDir, manifestRoot, peerSourceRoot)
+	svcCopied, stagedServices, err := p.stageAllServices(m, platforms, paths.appAbs, bundleDir, manifestRoot, peerSourceRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -502,6 +491,12 @@ func (p *DefaultPackager) Package(appPath, manifestPath, framework string, reque
 		return nil, err
 	}
 	copied = append(copied, runtimeCopied...)
+	platformMatrix.markSelectedBundlesComplete(bundleDir, runtimeBinaries, stagedServices)
+	matrixPath, err := writePlatformMatrix(bundleDir, platformMatrix)
+	if err != nil {
+		return nil, err
+	}
+	copied = append(copied, matrixPath)
 
 	if err := ensureBundleExtraResources(paths.outputRootAbs, framework); err != nil {
 		return nil, fmt.Errorf("update package.json: %w", err)
@@ -621,6 +616,17 @@ func (p *DefaultPackager) stageManifestCatalogForRequirements(appPath, bundleDir
 			}
 		}
 	}
+	// Identify this as a shipped manifest catalog without copying the whole
+	// repository contract into an application bundle.
+	marker := filepath.Join(repoRoot, "packages", "cli-core", "agentcatalog", "harness", "catalog-marker.json")
+	if _, err := os.Stat(marker); err != nil {
+		return nil, fmt.Errorf("stat harness catalog marker: %w", err)
+	}
+	destination := filepath.Join(bundleDir, "catalog", filepath.FromSlash(harnesscatalog.CatalogRootMarkerPath))
+	if err := p.fileOps.CopyFile(marker, destination); err != nil {
+		return nil, fmt.Errorf("copy harness catalog marker: %w", err)
+	}
+	copied = append(copied, destination)
 	return copied, nil
 }
 
@@ -649,7 +655,13 @@ func catalogRequirementFilter(requirements []string, category string) (map[strin
 // stageServiceBinaries resolves or compiles binaries for a single service across all requested platforms,
 // then copies them into the bundle directory. Returns the list of copied destination paths.
 func (p *DefaultPackager) stageServiceBinaries(svc bundlemanifest.Service, platforms []string, bundleDir, manifestRoot, appAbs string, peerSourceRoots ...string) ([]string, error) {
+	copied, _, err := p.stageServiceBinariesDetailed(svc, platforms, bundleDir, manifestRoot, appAbs, peerSourceRoots...)
+	return copied, err
+}
+
+func (p *DefaultPackager) stageServiceBinariesDetailed(svc bundlemanifest.Service, platforms []string, bundleDir, manifestRoot, appAbs string, peerSourceRoots ...string) ([]string, map[string]string, error) {
 	var copied []string
+	staged := make(map[string]string, len(platforms))
 	for _, platform := range platforms {
 		bin, ok := p.platform.ResolveBinaryForPlatform(svc, platform)
 		var src string
@@ -658,7 +670,7 @@ func (p *DefaultPackager) stageServiceBinaries(svc bundlemanifest.Service, platf
 			// Try to resolve existing binary
 			resolved, err := resolveManifestPath(p.fileOps, manifestRoot, bin.Path)
 			if err != nil {
-				return nil, fmt.Errorf("resolve binary for %s: %w", svc.ID, err)
+				return nil, nil, fmt.Errorf("resolve binary for %s: %w", svc.ID, err)
 			}
 			// Check if binary exists
 			if _, statErr := os.Stat(resolved); statErr == nil {
@@ -670,9 +682,9 @@ func (p *DefaultPackager) stageServiceBinaries(svc bundlemanifest.Service, platf
 		if src == "" {
 			if svc.Build == nil {
 				if !ok {
-					return nil, fmt.Errorf("service %s missing binary for %s and no build config", svc.ID, platform)
+					return nil, nil, fmt.Errorf("service %s missing binary for %s and no build config", svc.ID, platform)
 				}
-				return nil, fmt.Errorf("service %s binary not found at %s and no build config", svc.ID, bin.Path)
+				return nil, nil, fmt.Errorf("service %s binary not found at %s and no build config", svc.ID, bin.Path)
 			}
 
 			// Compile the service binary (source dirs are relative to scenario root, not manifest)
@@ -682,7 +694,7 @@ func (p *DefaultPackager) stageServiceBinaries(svc bundlemanifest.Service, platf
 			}
 			compiledPath, err := p.serviceCompiler.Compile(svc, platform, compileRoot)
 			if err != nil {
-				return nil, fmt.Errorf("compile binary for %s (%s): %w", svc.ID, platform, err)
+				return nil, nil, fmt.Errorf("compile binary for %s (%s): %w", svc.ID, platform, err)
 			}
 			src = compiledPath
 			// Node bundles are assembled as a directory so their launcher,
@@ -695,7 +707,7 @@ func (p *DefaultPackager) stageServiceBinaries(svc bundlemanifest.Service, platf
 					launcher = filepath.Join(compiledPath, "run.cmd")
 				}
 				if _, launcherErr := os.Stat(launcher); launcherErr != nil {
-					return nil, fmt.Errorf("service %s compiled directory has no launcher: %w", svc.ID, launcherErr)
+					return nil, nil, fmt.Errorf("service %s compiled directory has no launcher: %w", svc.ID, launcherErr)
 				}
 				src = launcher
 				compiledPath = launcher
@@ -717,14 +729,15 @@ func (p *DefaultPackager) stageServiceBinaries(svc bundlemanifest.Service, platf
 		dstPath := p.fileOps.NormalizeBundlePath(bin.Path)
 		dst, err := resolveBundlePath(p.fileOps, bundleDir, dstPath)
 		if err != nil {
-			return nil, fmt.Errorf("stage binary for %s: %w", svc.ID, err)
+			return nil, nil, fmt.Errorf("stage binary for %s: %w", svc.ID, err)
 		}
 		if err := p.fileOps.CopyPath(src, dst); err != nil {
-			return nil, fmt.Errorf("copy binary for %s: %w", svc.ID, err)
+			return nil, nil, fmt.Errorf("copy binary for %s: %w", svc.ID, err)
 		}
 		copied = append(copied, dst)
+		staged[serviceArtifactID(svc.ID, platform)] = dst
 	}
-	return copied, nil
+	return copied, staged, nil
 }
 
 func platformHasWindowsSuffix(platform string) bool {
@@ -740,6 +753,9 @@ func (p *DefaultPackager) stageServiceAssets(svc bundlemanifest.Service, bundleD
 			for _, appRoot := range appRoots {
 				candidate := filepath.Join(appRoot, asset.Path)
 				if pathExists(candidate) {
+					if err := ensureResolvedPathWithin(appRoot, candidate, "scenario"); err != nil {
+						return nil, fmt.Errorf("resolve asset %s: %w", asset.Path, err)
+					}
 					src = candidate
 					err = nil
 					break
@@ -768,6 +784,9 @@ func (p *DefaultPackager) stageServiceAssets(svc bundlemanifest.Service, bundleD
 			for _, appRoot := range appRoots {
 				candidate := filepath.Join(appRoot, assetDir)
 				if pathExists(candidate) {
+					if err := ensureResolvedPathWithin(appRoot, candidate, "scenario"); err != nil {
+						return nil, fmt.Errorf("resolve asset directory %s: %w", assetDir, err)
+					}
 					src = candidate
 					err = nil
 					break
@@ -847,32 +866,8 @@ func (p *DefaultPackager) buildRuntimes(platforms []string, bundleDir string) (m
 
 // validateManifestForPlatforms validates a manifest has required binaries or build config for all platforms.
 func (p *DefaultPackager) validateManifestForPlatforms(m *bundlemanifest.Manifest, platforms []string) error {
-	if m.SchemaVersion == "" {
-		return errors.New("schema_version is required")
-	}
-	if m.Target != "desktop" {
-		return fmt.Errorf("unsupported target %q (expected desktop)", m.Target)
-	}
-	if len(m.Services) == 0 {
-		return errors.New("manifest requires at least one service")
-	}
-	if err := validateEmbeddedPeerServices(m); err != nil {
-		return err
-	}
-	for _, svc := range m.Services {
-		// Skip UI services - Electron handles UI bundling separately
-		if isUIService(svc.Type) {
-			continue
-		}
-		for _, platform := range platforms {
-			_, hasBinary := p.platform.ResolveBinaryForPlatform(svc, platform)
-			hasBuild := svc.Build != nil && svc.Build.Type != ""
-			if !hasBinary && !hasBuild {
-				return fmt.Errorf("service %s missing binary for %s and no build config", svc.ID, platform)
-			}
-		}
-	}
-	return nil
+	_, _, err := p.planPlatformMatrix(m, platforms, "")
+	return err
 }
 
 func validateEmbeddedPeerServices(m *bundlemanifest.Manifest) error {
@@ -1020,7 +1015,30 @@ func resolveManifestPath(fileOps FileOperations, root, rel string) (string, erro
 	if !fileOps.WithinBase(root, clean) {
 		return "", fmt.Errorf("path escapes manifest root: %s", rel)
 	}
+	if err := ensureResolvedPathWithin(root, clean, "manifest"); err != nil {
+		return "", fmt.Errorf("path escapes manifest root through symlink: %s: %w", rel, err)
+	}
 	return clean, nil
+}
+
+func ensureResolvedPathWithin(root, target, label string) error {
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return fmt.Errorf("resolve %s root: %w", label, err)
+	}
+	resolvedTarget, err := filepath.EvalSymlinks(target)
+	if err != nil {
+		// Missing paths are reported by the caller. There cannot be a copied
+		// symlink target unless the complete path resolves.
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("resolve source path: %w", err)
+	}
+	if !pathWithin(resolvedRoot, resolvedTarget) {
+		return fmt.Errorf("resolved path %s is outside %s root %s", resolvedTarget, label, resolvedRoot)
+	}
+	return nil
 }
 
 func resolveBundlePath(fileOps FileOperations, root, rel string) (string, error) {

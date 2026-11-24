@@ -58,6 +58,8 @@ CREATE TABLE IF NOT EXISTS release_operations (
     UNIQUE(profile_id, idempotency_key)
 );
 CREATE INDEX IF NOT EXISTS idx_release_operations_status ON release_operations(status);
+CREATE INDEX IF NOT EXISTS idx_release_operations_profile_created_id
+    ON release_operations(profile_id, created_at DESC, id DESC);
 CREATE TABLE IF NOT EXISTS release_operation_leases (
     operation_id TEXT PRIMARY KEY REFERENCES release_operations(id) ON DELETE CASCADE,
     owner TEXT NOT NULL,
@@ -76,6 +78,34 @@ CREATE TABLE IF NOT EXISTS release_operation_events (
 );
 CREATE INDEX IF NOT EXISTS idx_release_operation_events_operation
     ON release_operation_events(operation_id, created_at);
+
+-- Durable owner hand-off for the cloud deployment segment. A stable DM key
+-- and immutable request digest are established before contacting S2C; later
+-- updates retain the latest owner IDs and verified receipt for recovery.
+CREATE TABLE IF NOT EXISTS release_operation_cloud_steps (
+    operation_id TEXT PRIMARY KEY REFERENCES release_operations(id) ON DELETE CASCADE,
+    fence BIGINT NOT NULL DEFAULT 0,
+    request_key TEXT NOT NULL,
+    request_digest TEXT NOT NULL,
+    state TEXT NOT NULL,
+    deployment_id TEXT,
+    owner_operation_id TEXT,
+    receipt_json TEXT,
+    verification_receipt_json TEXT,
+    verification_key TEXT,
+    verification_request_digest TEXT,
+    verification_state TEXT,
+    verification_attempted_at TIMESTAMP,
+    recovery_idempotency_key TEXT,
+    recovery_owner_operation_id TEXT,
+    recovery_state TEXT,
+    recovery_preview_ref TEXT,
+    recovery_receipt_json TEXT,
+    recovery_reason TEXT,
+    reason TEXT,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 
 -- Immutable release identities are stored beside the release ledger. The
 -- canonical JSON is the authoritative value; indexed columns support lookup

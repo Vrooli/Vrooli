@@ -37,6 +37,9 @@ func (o *Orchestrator) Execute(ctx context.Context, ec *operations.ExecutionCont
 	if err != nil {
 		return err
 	}
+	if err := verifyAdmittedTargetBinding(dep, plan); err != nil {
+		return err
+	}
 	progress := 0.0
 	emitError := func(step, stepTitle, errMsg string) {
 		o.progressHub.Broadcast(dep.ID, Event{Type: "deployment_error", Step: step, StepTitle: stepTitle, Progress: progress, Error: errMsg, Timestamp: time.Now().UTC().Format(time.RFC3339)})
@@ -56,6 +59,19 @@ func (o *Orchestrator) Execute(ctx context.Context, ec *operations.ExecutionCont
 	}
 	trace, execErr, stageStart := o.executeOperationPlan(ctx, ec, dep, manifest, bundlePath, &progress)
 	return o.persistOperationResult(ctx, dep, plan, manifest, canonicalIdentity, trace, execErr, stageStart)
+}
+
+// verifyAdmittedTargetBinding prevents a durable operation from being
+// resumed against a deployment whose Bridge enrollment changed after admission.
+func verifyAdmittedTargetBinding(dep *domain.Deployment, plan *execplan.Plan) error {
+	if dep == nil || plan == nil || plan.DeploymentID != dep.ID || plan.Target.MachineID == "" || plan.Target.NodeID == "" || plan.Target.EnrollmentGeneration == 0 || plan.Target.Transport != string(identity.TransportBridge) {
+		return fmt.Errorf("immutable Bridge target binding unavailable in admitted operation plan")
+	}
+	t := dep.Target
+	if string(t.Transport) != plan.Target.Transport || t.MachineID != plan.Target.MachineID || t.NodeID != plan.Target.NodeID || t.EnrollmentGeneration != plan.Target.EnrollmentGeneration {
+		return fmt.Errorf("deployment target binding changed since operation admission")
+	}
+	return nil
 }
 
 func (o *Orchestrator) loadOperationManifest(ctx context.Context, op *domain.CloudOperation) (*domain.Deployment, domain.CloudManifest, sshidentity.DeploymentSSHIdentity, error) {

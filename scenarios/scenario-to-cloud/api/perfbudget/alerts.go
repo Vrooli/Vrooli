@@ -34,7 +34,8 @@ const (
 
 // Alert statuses. "open" is a condition currently met; "resolved" is the
 // recovery notification for a previously open condition and carries the
-// same incident_id so notification-hub de-duplicates the pair.
+// same incident_id; Notification Hub deduplicates repeated events by incident
+// and lifecycle status so the recovery remains independently visible.
 const (
 	AlertOpen     = "open"
 	AlertResolved = "resolved"

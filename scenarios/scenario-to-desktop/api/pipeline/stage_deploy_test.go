@@ -20,7 +20,11 @@ import (
 
 // testDeployFactory creates a factory that returns clients pointed at the test server.
 func testDeployFactory(serverURL string) LPBSClientFactory {
-	return func(_, token string) *deploy.LPBSClient {
+	return func(_ string, resolveLegacy func() string) *deploy.LPBSClient {
+		token := ""
+		if resolveLegacy != nil {
+			token = resolveLegacy()
+		}
 		return deploy.NewLPBSClientWithResolver(
 			func(_ context.Context) (string, error) { return serverURL, nil },
 			http.DefaultClient,
@@ -225,7 +229,7 @@ func TestDeployStage_Execute_MissingServiceToken(t *testing.T) {
 	if result.Status != StatusFailed {
 		t.Errorf("expected failed, got %s", result.Status)
 	}
-	if !strings.Contains(result.Error, "LPBS_SERVICE_SECRET") {
+	if strings.Contains(result.Error, "LPBS_SERVICE_SECRET") {
 		t.Errorf("unexpected error: %s", result.Error)
 	}
 }

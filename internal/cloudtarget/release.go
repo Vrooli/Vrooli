@@ -118,7 +118,7 @@ func Verify(ctx context.Context, req VerifyRequest) (VerifyReport, Manifest, err
 		return report, manifest, record("release_digest", refuse(CodeReleaseDigestMismatch, "release_digest does not match the manifest identity").
 			withDetails(map[string]any{"declared": manifest.ReleaseDigest, "computed": expected}))
 	}
-	record("release_digest", nil)
+	_ = record("release_digest", nil)
 
 	archiveSum, err := fileSHA256(req.ArchivePath)
 	if err != nil {
@@ -128,7 +128,7 @@ func Verify(ctx context.Context, req VerifyRequest) (VerifyReport, Manifest, err
 		return report, manifest, record("bundle_sha256", refuse(CodeBundleSHA256Mismatch, "archive sha256 does not match bundle_sha256").
 			withDetails(map[string]any{"declared": manifest.BundleSHA256, "observed": archiveSum}))
 	}
-	record("bundle_sha256", nil)
+	_ = record("bundle_sha256", nil)
 
 	executable, goos, goarch := req.Executable, req.GOOS, req.GOARCH
 	if executable == "" {
@@ -151,7 +151,7 @@ func Verify(ctx context.Context, req VerifyRequest) (VerifyReport, Manifest, err
 		return report, manifest, record("native_cli", refuse(CodeNativeCLIMismatch, "running vrooli binary does not match native_cli").
 			withDetails(map[string]any{"declared": manifest.NativeCLI, "observed": NativeCLI{SHA256: binarySum, GOOS: goos, GOARCH: goarch}}))
 	}
-	record("native_cli", nil)
+	_ = record("native_cli", nil)
 
 	budget := req.TimeBudget
 	if budget <= 0 {
@@ -166,7 +166,7 @@ func Verify(ctx context.Context, req VerifyRequest) (VerifyReport, Manifest, err
 	if err != nil {
 		return report, manifest, record("archive_bounds", archiveError(err))
 	}
-	record("archive_bounds", nil)
+	_ = record("archive_bounds", nil)
 	report.Verified = true
 	return report, manifest, nil
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/vrooli/packages/cloudrelease"
 
 	"scenario-to-cloud/apierrors"
+	"scenario-to-cloud/internal/filedigest"
 )
 
 // DefaultVerifyBudget bounds the archive dry pass.
@@ -159,7 +160,7 @@ func (v *verifyState) checkReleaseDigest() error {
 }
 
 func (v *verifyState) checkBundle() error {
-	bundleSum, _, err := fileSHA256(filepath.Join(v.dir, cloudrelease.BundleFileName))
+	bundleSum, _, err := filedigest.SHA256File(filepath.Join(v.dir, cloudrelease.BundleFileName))
 	if err != nil {
 		return v.fail("bundle_sha256", refuse("archive_unreadable", "read bundle: %v", err))
 	}
@@ -182,7 +183,7 @@ func (v *verifyState) checkPlatform() error {
 
 func (v *verifyState) checkNativeCLI() error {
 	name := cloudrelease.NativeCLIFileName(v.manifest.NativeCLI.GOOS, v.manifest.NativeCLI.GOARCH)
-	sum, _, err := fileSHA256(filepath.Join(v.dir, name))
+	sum, _, err := filedigest.SHA256File(filepath.Join(v.dir, name))
 	if err != nil {
 		return v.fail("native_cli", refuse("native_cli_mismatch", "read %s: %v", name, err).WithDetail("artifact", name))
 	}

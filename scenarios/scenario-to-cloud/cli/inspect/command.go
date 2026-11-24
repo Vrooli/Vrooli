@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"scenario-to-cloud/cli/internal/sizefmt"
 	"strconv"
 	"strings"
 
@@ -626,7 +628,7 @@ func writeFileRow(w io.Writer, file FileInfo) {
 	if file.IsDirectory {
 		name += "/"
 	}
-	fmt.Fprintf(w, "%-10s %-12s %-20s %s\n", file.Mode, formatSize(file.Size), file.ModTime, name)
+	fmt.Fprintf(w, "%-10s %-12s %-20s %s\n", file.Mode, sizefmt.FormatBytes(file.Size), file.ModTime, name)
 }
 
 // truncate shortens a string to maxLen characters.
@@ -635,25 +637,6 @@ func truncate(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-3] + "..."
-}
-
-// formatSize formats bytes into a human-readable string.
-func formatSize(bytes int64) string {
-	const (
-		KB = 1024
-		MB = KB * 1024
-		GB = MB * 1024
-	)
-	switch {
-	case bytes >= GB:
-		return fmt.Sprintf("%.1fG", float64(bytes)/GB)
-	case bytes >= MB:
-		return fmt.Sprintf("%.1fM", float64(bytes)/MB)
-	case bytes >= KB:
-		return fmt.Sprintf("%.1fK", float64(bytes)/KB)
-	default:
-		return fmt.Sprintf("%dB", bytes)
-	}
 }
 
 func safeLoad(loads []float64, index int) float64 {

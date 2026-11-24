@@ -122,15 +122,15 @@ func TestDefaultPlatformResolverResolveBinaryForPlatform(t *testing.T) {
 			shouldFindMatch: true,
 		},
 		{
-			name: "shorthand expansion match (linux finds linux-x64)",
+			name: "shorthand target uses matching host-architecture declaration",
 			service: bundlemanifest.Service{
 				ID: "test-svc",
 				Binaries: map[string]bundlemanifest.Binary{
-					"linux-x64": {Path: "/path/linux-x64"},
+					"linux": {Path: "/path/linux"},
 				},
 			},
 			platform:        "linux",
-			expectPath:      "/path/linux-x64",
+			expectPath:      "/path/linux",
 			shouldFindMatch: true,
 		},
 	}

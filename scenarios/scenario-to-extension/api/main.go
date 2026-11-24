@@ -2,7 +2,6 @@ package main
 
 import (
 	"archive/zip"
-	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -13,7 +12,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -81,6 +79,9 @@ type ExtensionBuild struct {
 // Extension test request
 type ExtensionTestRequest struct {
 	ExtensionPath string   `json:"extension_path"`
+	BuildID       string   `json:"build_id,omitempty"`
+	SessionID     string   `json:"session_id,omitempty"`
+	ExtensionID   string   `json:"extension_id,omitempty"`
 	TestSites     []string `json:"test_sites"`
 	Screenshot    bool     `json:"screenshot"`
 	Headless      bool     `json:"headless"`
@@ -88,12 +89,49 @@ type ExtensionTestRequest struct {
 
 // Extension test result
 type ExtensionTestResult struct {
-	Success     bool                  `json:"success"`
-	Status      string                `json:"status"` // passed, failed, unavailable
-	Reason      string                `json:"reason,omitempty"`
-	TestResults []ExtensionSiteResult `json:"test_results"`
-	Summary     ExtensionTestSummary  `json:"summary"`
-	ReportTime  time.Time             `json:"report_time"`
+	Success                  bool                          `json:"success"`
+	Status                   string                        `json:"status"` // passed, failed, unavailable
+	Reason                   string                        `json:"reason,omitempty"`
+	BuildID                  string                        `json:"build_id,omitempty"`
+	SessionID                string                        `json:"session_id,omitempty"`
+	ExtensionID              string                        `json:"extension_id,omitempty"`
+	ArtifactSHA256           string                        `json:"artifact_sha256,omitempty"`
+	ManifestSHA256           string                        `json:"manifest_sha256,omitempty"`
+	EffectivePermissions     []string                      `json:"effective_permissions,omitempty"`
+	EffectiveHostPermissions []string                      `json:"effective_host_permissions,omitempty"`
+	PermissionEvidenceSource string                        `json:"permission_evidence_source,omitempty"`
+	PermissionEvidenceScope  string                        `json:"permission_evidence_scope,omitempty"`
+	PerTabSiteAccess         string                        `json:"per_tab_site_access,omitempty"`
+	PermissionObservedAt     time.Time                     `json:"permission_observed_at,omitempty"`
+	LifecycleReceipt         *ExtensionLifecycleRunReceipt `json:"lifecycle_receipt,omitempty"`
+	CleanupReceipt           *BASExtensionReceipt          `json:"cleanup_receipt,omitempty"`
+	TestResults              []ExtensionSiteResult         `json:"test_results"`
+	Summary                  ExtensionTestSummary          `json:"summary"`
+	ReportTime               time.Time                     `json:"report_time"`
+}
+
+// ExtensionLifecycleRunReceipt links the scenario build to the exact BAS run
+// binding and lifecycle responses accepted by the runner. It contains no AM
+// token or browser grant credential.
+type ExtensionLifecycleRunReceipt struct {
+	BuildID             string                 `json:"build_id"`
+	SessionID           string                 `json:"session_id"`
+	ArtifactSHA256      string                 `json:"artifact_sha256"`
+	ManifestSHA256      string                 `json:"manifest_sha256"`
+	RunBinding          BASRunBindingReceipt   `json:"run_binding"`
+	Install             BASExtensionReceipt    `json:"install"`
+	Reload              BASExtensionReceipt    `json:"reload"`
+	Validation          BASExtensionValidation `json:"validation"`
+	InventoryObservedAt time.Time              `json:"inventory_observed_at"`
+}
+
+type BASRunBindingReceipt struct {
+	Backend       string `json:"backend"`
+	ProfileID     string `json:"profile_id"`
+	PermissionRef string `json:"permission_ref"`
+	OwnerID       string `json:"owner_id"`
+	LeaseID       string `json:"lease_id"`
+	CallerID      string `json:"caller_id"`
 }
 
 type ExtensionSiteResult struct {
@@ -452,6 +490,7 @@ func main() {
 	api.HandleFunc("/extension/status/{build_id}", getExtensionStatusHandler).Methods("GET")
 	api.HandleFunc("/extension/cancel/{build_id}", cancelExtensionHandler).Methods("POST")
 	api.HandleFunc("/extension/download/{build_id}", downloadExtensionHandler).Methods("GET")
+	api.HandleFunc("/extension/artifact/{build_id}/metadata", browserExtensionArtifactMetadataHandler).Methods("GET")
 	api.HandleFunc("/extension/test", testExtensionHandler).Methods("POST")
 	api.HandleFunc("/extension/templates", listTemplatesHandler).Methods("GET")
 	api.HandleFunc("/extension/builds", listBuildsHandler).Methods("GET")
@@ -601,7 +640,7 @@ func generateExtensionHandler(w http.ResponseWriter, r *http.Request) {
 		"build_id":             buildID,
 		"extension_path":       build.ExtensionPath,
 		"install_instructions": getInstallInstructions(req.TemplateType),
-		"test_command":         fmt.Sprintf("scenario-to-extension test %s", build.ExtensionPath),
+		"test_command":         fmt.Sprintf("scenario-to-extension extension test --build-id %s --session-id BAS_SESSION_ID", buildID),
 		"status":               "building",
 	}
 
@@ -692,30 +731,52 @@ func cancelExtensionHandler(w http.ResponseWriter, r *http.Request) {
 
 func testExtensionHandler(w http.ResponseWriter, r *http.Request) {
 	var req ExtensionTestRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
-
-	// Validate request
-	if req.ExtensionPath == "" {
-		respondWithError(w, http.StatusBadRequest, "extension_path is required")
+	if decoder.Decode(&struct{}{}) != io.EOF {
+		respondWithError(w, http.StatusBadRequest, "Request body must contain one JSON object")
 		return
 	}
 
-	// Set defaults
-	if req.TestSites == nil {
-		req.TestSites = []string{"https://example.com"}
+	// The production path addresses a ready extension by its owner-issued build
+	// reference and operates inside an existing BAS session. It never accepts a
+	// filesystem path for installation.
+	if req.BuildID != "" || req.SessionID != "" {
+		if req.BuildID == "" || req.SessionID == "" {
+			respondWithError(w, http.StatusBadRequest, "build_id and session_id are required for BAS session validation")
+			return
+		}
+		if req.ExtensionPath != "" || len(req.TestSites) != 0 || req.Headless || req.Screenshot {
+			respondWithError(w, http.StatusBadRequest, "BAS session validation accepts only a build reference, session id, and optional expected extension id")
+			return
+		}
+		build, ok := buildManager.Get(req.BuildID)
+		if !ok {
+			respondWithError(w, http.StatusNotFound, "Ready extension build not found")
+			return
+		}
+		base := strings.TrimSpace(os.Getenv("BAS_AGENT_ACCESS_URL"))
+		client, err := newBASSessionExtensionHTTPClient(base, nil, r.Header)
+		if err != nil {
+			result := unavailableExtensionTest(&req, err.Error())
+			w.Header().Set("Content-Type", "application/json")
+			writeJSON(w, result, "extension test")
+			return
+		}
+		result := runBASSessionExtensionTest(r.Context(), build, req.SessionID, req.ExtensionID, client)
+		w.Header().Set("Content-Type", "application/json")
+		writeJSON(w, result, "extension test")
+		return
 	}
-	if len(req.TestSites) == 0 {
-		req.TestSites = []string{"https://example.com"}
+	if req.ExtensionPath != "" || len(req.TestSites) != 0 || req.Headless || req.Screenshot {
+		respondWithError(w, http.StatusGone, "filesystem-path extension testing was removed; use a ready build and an existing authorized BAS session")
+		return
 	}
-
-	// Test extension
-	result := testExtensionContext(r.Context(), &req)
-
-	w.Header().Set("Content-Type", "application/json")
-	writeJSON(w, result, "extension test")
+	respondWithError(w, http.StatusBadRequest, "build_id and session_id are required for managed extension validation")
 }
 
 func listTemplatesHandler(w http.ResponseWriter, r *http.Request) {
@@ -985,6 +1046,12 @@ func generationCanceled(ctx context.Context, build *ExtensionBuild) bool {
 // release package, and archive ordering/timestamps are fixed so the digest is
 // reproducible for identical generated bytes.
 func materializeArtifact(build *ExtensionBuild) error {
+	if err := prepareBrowserExtensionManifest(build.ExtensionPath); err != nil {
+		return fmt.Errorf("prepare artifact-derived browser extension identity: %w", err)
+	}
+	if err := ensureBrowserPermissionProbe(build.ExtensionPath); err != nil {
+		return err
+	}
 	manifestDigest, err := validateExtensionManifest(build.ExtensionPath)
 	if err != nil {
 		return err
@@ -1338,68 +1405,12 @@ func generateREADME(build *ExtensionBuild) error {
 	return verifyGeneratedFile(build, "README.md", "README")
 }
 
-func testExtension(req *ExtensionTestRequest) *ExtensionTestResult {
-	return testExtensionContext(context.Background(), req)
-}
-
-func testExtensionContext(ctx context.Context, req *ExtensionTestRequest) *ExtensionTestResult {
-	runner := strings.TrimSpace(os.Getenv("SCENARIO_TO_EXTENSION_BROWSER_RUNNER"))
-	if runner == "" {
-		return unavailableExtensionTest(req, "browser runner is not configured; no browser validation was performed")
-	}
-	if !filepath.IsAbs(runner) {
-		return unavailableExtensionTest(req, "browser runner must be an absolute executable path")
-	}
-
-	runCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
-	defer cancel()
-	args := []string{
-		"--extension-path", req.ExtensionPath,
-		"--test-sites", strings.Join(req.TestSites, ","),
-		"--headless", strconv.FormatBool(req.Headless),
-		"--screenshot", strconv.FormatBool(req.Screenshot),
-	}
-	command := exec.CommandContext(runCtx, runner, args...)
-	var stdout, stderr bytes.Buffer
-	command.Stdout, command.Stderr = &stdout, &stderr
-	if err := command.Run(); err != nil {
-		reason := strings.TrimSpace(stderr.String())
-		if reason == "" {
-			reason = err.Error()
-		}
-		return failedExtensionTest(req, "browser runner failed: "+reason)
-	}
-	if stdout.Len() > 1024*1024 {
-		return failedExtensionTest(req, "browser runner output exceeds 1 MiB")
-	}
-	var result ExtensionTestResult
-	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
-		return failedExtensionTest(req, "browser runner returned invalid JSON")
-	}
-	if result.Status == "" {
-		if result.Success {
-			result.Status = "passed"
-		} else {
-			result.Status = "failed"
-		}
-	}
-	result.ReportTime = time.Now().UTC()
-	return &result
-}
-
 func unavailableExtensionTest(req *ExtensionTestRequest, reason string) *ExtensionTestResult {
 	results := make([]ExtensionSiteResult, 0, len(req.TestSites))
 	for _, site := range req.TestSites {
 		results = append(results, ExtensionSiteResult{Site: site, Errors: []string{reason}})
 	}
 	return &ExtensionTestResult{Status: "unavailable", Reason: reason, TestResults: results, Summary: ExtensionTestSummary{TotalTests: len(results), Failed: len(results)}, ReportTime: time.Now().UTC()}
-}
-
-func failedExtensionTest(req *ExtensionTestRequest, reason string) *ExtensionTestResult {
-	result := unavailableExtensionTest(req, reason)
-	result.Status = "failed"
-	result.Reason = reason
-	return result
 }
 
 func listAvailableTemplates() []map[string]interface{} {
@@ -1534,9 +1545,8 @@ For development:
 - Use 'npm run pack' to create distributable ZIP file
 
 For testing:
-- Use scenario-to-extension test command to validate functionality
-- Check browser console for any JavaScript errors
-- Test on target websites listed in host_permissions
+- Use 'scenario-to-extension extension test --build-id BUILD_ID --session-id BAS_SESSION_ID' inside an Agent Manager run that already owns the BAS session
+- Check the returned lifecycle receipt and permission inventory; local extension paths are not accepted
 `
 
 	return strings.TrimSpace(instructions)

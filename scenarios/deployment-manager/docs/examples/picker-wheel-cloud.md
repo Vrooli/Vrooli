@@ -3,7 +3,7 @@
 ## Current Approach
 
 - Deploy Tier 1 stack on a DigitalOcean VPS (same machine we develop on) and expose Picker Wheel through app-monitor + Cloudflare tunnel.
-- No automated provisioning; setup is manual using the [DigitalOcean provider reference](../providers/digitalocean.md).
+- Compute Manager is the intended owner of provider onboarding; its DigitalOcean phone flow is not yet complete, so this scenario is not ready for cloud provisioning.
 - Secrets are copied from local dev, which is unacceptable for real customers.
 
 ## Pain Points
@@ -23,5 +23,4 @@
 
 ## Interim Documentation
 
-- Keep track of manual steps in the [DigitalOcean provider reference](../providers/digitalocean.md).
-- Note any customer-specific tweaks so they can become deployment-manager modules later.
+- Do not use a manual provider walkthrough. Move requirements into Compute Manager's catalogue and the supported Scenario-to-Cloud path.

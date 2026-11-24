@@ -9,9 +9,15 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"runtime"
 	"sort"
 	"strings"
+)
+
+var (
+	ErrInvalidRequest      = errors.New("QEMU readiness input is invalid")
+	ErrProviderUnavailable = errors.New("Compute Manager local-QEMU provider is unavailable")
 )
 
 // DefaultImageManifestPath is the recorded image manifest for the QEMU lane,
@@ -23,8 +29,8 @@ const DefaultImageManifestPath = "certification/lanes/qemu-images.json"
 const ImageManifestEnv = "VROOLI_QEMU_IMAGE_MANIFEST"
 
 // Host tool names and the service.json hostTools declaration that owns each.
-// Installing any of them is the job of `vrooli setup`, the sole elevation
-// boundary; this package only observes.
+// Compute Manager owns installing them through the normal setup path; this
+// package only observes.
 const (
 	toolQEMUAMD64   = "qemu-system-x86_64"
 	toolQEMUARM64   = "qemu-system-aarch64"
@@ -33,7 +39,7 @@ const (
 	ownerQEMU       = "qemu"
 	ownerQEMUARM    = "qemu-arm"
 	ownerCloudLocal = "cloud-localds"
-	setupReference  = "docs/guides/qemu-qualification.md#operator-steps"
+	setupReference  = "docs/guides/qemu-qualification.md#operator-path-and-current-gate"
 )
 
 // Architecture names use the Go/OCI vocabulary.
@@ -103,7 +109,7 @@ type NextAction struct {
 
 // LaneReadiness is the typed readiness report for the disposable QEMU lane.
 // It is a report, never a silent failure: an absent tool is named with its
-// declaring owner and the setup command that installs it.
+// declaring owner and setup path responsible for it.
 type LaneReadiness struct {
 	Provider         string                       `json:"provider"`
 	State            ReadinessState               `json:"state"`
@@ -165,7 +171,7 @@ func initialReadiness(hostArch string) LaneReadiness {
 		hostArch = goArchToOCI(runtime.GOARCH)
 	}
 	return LaneReadiness{
-		Provider:         (LocalQEMUProvider{}).Name(),
+		Provider:         "local-qemu",
 		State:            ReadinessUnavailable,
 		HostArchitecture: hostArch,
 		Architectures:    map[string]ArchitectureState{ArchAMD64: ArchStateUnavailable, ArchARM64: ArchStateUnavailable},
@@ -255,15 +261,10 @@ func finalizeReadiness(report *LaneReadiness, hasTools bool) {
 	sort.Strings(report.Limitations)
 }
 
-// Readiness reports the lane readiness through the provider's seams.
-func (p LocalQEMUProvider) Readiness(ctx context.Context) LaneReadiness {
-	return Readiness(ctx, ReadinessOptions{LookPath: p.LookPath, ImageManifestPath: p.ImageManifest})
-}
-
 func nextAction(toolsMissing, noImages, noUsableImage bool, manifestPath string) NextAction {
 	switch {
 	case toolsMissing:
-		return NextAction{Owner: "operator", Kind: "host_setup", Reference: setupReference, Label: "Review and install the declared host tools qemu, qemu-arm and cloud-localds with separate Vrooli host-install previews (EXT-06)"}
+		return NextAction{Owner: "system", Kind: "setup_closure", Reference: setupReference, Label: "The declared QEMU host requirements must be wired into the normal vrooli setup path before this host can be marked ready (EXT-06)"}
 	case noImages:
 		return NextAction{Owner: "operator", Kind: "record_image", Reference: manifestPath, Label: "Record an approved Ubuntu 24.04 base image path and sha256 per architecture in the image manifest"}
 	case noUsableImage:
@@ -396,5 +397,5 @@ func goArchToOCI(arch string) string {
 }
 
 func defaultLookPath(name string) (string, error) {
-	return (LocalQEMUProvider{}).lookPath(name)
+	return exec.LookPath(name)
 }

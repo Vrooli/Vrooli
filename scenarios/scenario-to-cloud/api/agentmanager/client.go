@@ -4,58 +4,42 @@ package agentmanager
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"time"
 
-	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"github.com/vrooli/api-core/discovery"
+	agentmanagerclient "github.com/vrooli/vrooli/packages/agentmanager-client-go"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
-	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
-// Client calls Agent Manager procedures through its generated Connect client.
-type Client struct {
-	httpClient  *http.Client
-	urlResolver URLResolver
-}
+// Client calls Agent Manager through the canonical shared Connect client.
+type Client struct{ remote *agentmanagerclient.Client }
 
-// URLResolver provides fresh Agent Manager addressing for each call.
-type URLResolver interface {
-	ResolveBaseURL(context.Context) (string, error)
-}
-
-type discoveryResolver struct{}
-
-func (*discoveryResolver) ResolveBaseURL(ctx context.Context) (string, error) {
-	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "agent-manager")
-	if err != nil {
-		return "", fmt.Errorf("resolve agent-manager url: %w", err)
-	}
-	return baseURL, nil
-}
+// URLResolver allows lifecycle and transport tests to choose their own target.
+type URLResolver = agentmanagerclient.URLResolver
 
 func NewClient(timeout time.Duration) *Client {
-	return NewClientWithResolver(timeout, &discoveryResolver{})
+	return &Client{remote: agentmanagerclient.New(timeout)}
 }
 
 // NewClientWithResolver injects target resolution for focused transport tests.
 func NewClientWithResolver(timeout time.Duration, resolver URLResolver) *Client {
-	return &Client{httpClient: &http.Client{Timeout: timeout}, urlResolver: resolver}
+	return &Client{remote: agentmanagerclient.NewWithResolver(timeout, resolver)}
 }
 
-func (c *Client) connectClient(ctx context.Context) (apiconnect.AgentManagerServiceClient, error) {
-	baseURL, err := c.urlResolver.ResolveBaseURL(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("resolve agent-manager url: %w", err)
+func (c *Client) connectClient(ctx context.Context) (agentmanagerclient.Service, error) {
+	if c == nil || c.remote == nil {
+		return nil, fmt.Errorf("agent manager client is not configured")
 	}
-	return apiconnect.NewAgentManagerServiceClient(c.httpClient, baseURL, connect.WithProtoJSON()), nil
+	return c.remote.Connect(ctx)
 }
 
 // ResolveURL exposes the currently resolved Agent Manager base URL.
 func (c *Client) ResolveURL(ctx context.Context) (string, error) {
-	return c.urlResolver.ResolveBaseURL(ctx)
+	if c == nil || c.remote == nil {
+		return "", fmt.Errorf("agent manager client is not configured")
+	}
+	return c.remote.ResolveURL(ctx)
 }
 
 func (c *Client) Health(ctx context.Context) (bool, error) {
@@ -63,11 +47,7 @@ func (c *Client) Health(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	response, err := client.Health(ctx, connect.NewRequest(&apipb.HealthRequest{}))
-	if err != nil {
-		return false, err
-	}
-	return response.Msg.GetReadiness(), nil
+	return client.Health(ctx)
 }
 
 func (c *Client) EnsureProfile(ctx context.Context, req *apipb.EnsureProfileRequest) (*apipb.EnsureProfileResponse, error) {
@@ -75,11 +55,7 @@ func (c *Client) EnsureProfile(ctx context.Context, req *apipb.EnsureProfileRequ
 	if err != nil {
 		return nil, err
 	}
-	response, err := client.EnsureProfile(ctx, connect.NewRequest(req))
-	if err != nil {
-		return nil, err
-	}
-	return response.Msg, nil
+	return client.EnsureProfile(ctx, req)
 }
 
 func (c *Client) GetProfile(ctx context.Context, profileID string) (*domainpb.AgentProfile, error) {
@@ -87,14 +63,7 @@ func (c *Client) GetProfile(ctx context.Context, profileID string) (*domainpb.Ag
 	if err != nil {
 		return nil, err
 	}
-	response, err := client.GetProfile(ctx, connect.NewRequest(&apipb.GetProfileRequest{ProfileId: profileID}))
-	if connect.CodeOf(err) == connect.CodeNotFound {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return response.Msg.GetProfile(), nil
+	return client.GetProfile(ctx, profileID)
 }
 
 func (c *Client) CreateTask(ctx context.Context, task *domainpb.Task) (*domainpb.Task, error) {
@@ -102,11 +71,11 @@ func (c *Client) CreateTask(ctx context.Context, task *domainpb.Task) (*domainpb
 	if err != nil {
 		return nil, err
 	}
-	response, err := client.CreateTask(ctx, connect.NewRequest(&apipb.CreateTaskRequest{Task: task}))
+	created, err := client.CreateTask(ctx, task)
 	if err != nil {
 		return nil, approvalPending(err)
 	}
-	return response.Msg.GetTask(), nil
+	return created, nil
 }
 
 func (c *Client) CreateRun(ctx context.Context, req *apipb.CreateRunRequest) (*domainpb.Run, error) {
@@ -114,11 +83,11 @@ func (c *Client) CreateRun(ctx context.Context, req *apipb.CreateRunRequest) (*d
 	if err != nil {
 		return nil, err
 	}
-	response, err := client.CreateRun(ctx, connect.NewRequest(req))
+	run, err := client.CreateRun(ctx, req)
 	if err != nil {
 		return nil, approvalPending(err)
 	}
-	return response.Msg.GetRun(), nil
+	return run, nil
 }
 
 func (c *Client) GetRun(ctx context.Context, runID string) (*domainpb.Run, error) {
@@ -126,14 +95,7 @@ func (c *Client) GetRun(ctx context.Context, runID string) (*domainpb.Run, error
 	if err != nil {
 		return nil, err
 	}
-	response, err := client.GetRun(ctx, connect.NewRequest(&apipb.GetRunRequest{RunId: runID}))
-	if connect.CodeOf(err) == connect.CodeNotFound {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return response.Msg.GetRun(), nil
+	return client.GetRun(ctx, runID)
 }
 
 func (c *Client) StopRun(ctx context.Context, runID string) error {
@@ -141,24 +103,15 @@ func (c *Client) StopRun(ctx context.Context, runID string) error {
 	if err != nil {
 		return err
 	}
-	_, err = client.StopRun(ctx, connect.NewRequest(&apipb.StopRunRequest{RunId: runID}))
-	return err
+	return client.StopRun(ctx, runID)
 }
 
 func (c *Client) GetRunEvents(ctx context.Context, runID string, afterSequence int64) ([]*domainpb.RunEvent, error) {
-	req := &apipb.GetRunEventsRequest{RunId: runID}
-	if afterSequence > 0 {
-		req.AfterSequence = &afterSequence
-	}
 	client, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	response, err := client.GetRunEvents(ctx, connect.NewRequest(req))
-	if err != nil {
-		return nil, err
-	}
-	return response.Msg.GetEvents(), nil
+	return client.GetRunEvents(ctx, runID, afterSequence)
 }
 
 func (c *Client) WaitForRun(ctx context.Context, runID string, pollInterval time.Duration) (*domainpb.Run, error) {

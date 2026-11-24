@@ -56,7 +56,7 @@ func TestJSONFileStoreSingleFilePersistsOptionsAndDelete(t *testing.T) {
 	}
 }
 
-func TestJSONFileStorePerItemRoundTripsUnsafeKeysAndIgnoresTemporaryFiles(t *testing.T) {
+func TestJSONFileStorePerItemRoundTripsUnsafeKeys(t *testing.T) {
 	ctx := context.Background()
 	path := t.TempDir()
 	store, err := NewJSONFileStoreString[testItem](path, PerItem)
@@ -71,9 +71,6 @@ func TestJSONFileStorePerItemRoundTripsUnsafeKeysAndIgnoresTemporaryFiles(t *tes
 		if err := store.Save(ctx, key, item); err != nil {
 			t.Fatalf("save %q: %v", key, err)
 		}
-	}
-	if err := os.WriteFile(filepath.Join(path, "orphan.tmp.json"), []byte(`{"ID":"bad"}`), 0o644); err != nil {
-		t.Fatalf("write temp file: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(path, "not-json.txt"), []byte("ignored"), 0o644); err != nil {
 		t.Fatalf("write unrelated file: %v", err)
@@ -94,6 +91,31 @@ func TestJSONFileStorePerItemRoundTripsUnsafeKeysAndIgnoresTemporaryFiles(t *tes
 	}
 	if exists, _ := reloaded.Exists(ctx, "a/b"); exists {
 		t.Fatal("deleted unsafe key still exists")
+	}
+}
+
+func TestJSONFileStorePerItemReloadsOneCharacterKeys(t *testing.T) {
+	ctx := context.Background()
+	path := t.TempDir()
+	store, err := NewJSONFileStoreString[testItem](path, PerItem)
+	if err != nil {
+		t.Fatalf("create store: %v", err)
+	}
+	want := testItem{ID: "a", Name: "short key"}
+	if err := store.Save(ctx, "a", want); err != nil {
+		t.Fatalf("save one-character key: %v", err)
+	}
+
+	reloaded, err := NewJSONFileStoreString[testItem](path, PerItem)
+	if err != nil {
+		t.Fatalf("reload store: %v", err)
+	}
+	got, err := reloaded.Get(ctx, "a")
+	if err != nil {
+		t.Fatalf("get reloaded one-character key: %v", err)
+	}
+	if got != want {
+		t.Fatalf("reloaded one-character item = %#v, want %#v", got, want)
 	}
 }
 

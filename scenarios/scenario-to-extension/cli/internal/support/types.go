@@ -86,10 +86,68 @@ type TestSummary struct {
 
 // TestResult mirrors ExtensionTestResult.
 type TestResult struct {
-	Success     bool             `json:"success"`
-	Status      string           `json:"status"`
-	Reason      string           `json:"reason,omitempty"`
-	TestResults []TestSiteResult `json:"test_results"`
-	Summary     TestSummary      `json:"summary"`
-	ReportTime  *time.Time       `json:"report_time,omitempty"`
+	Success                  bool                          `json:"success"`
+	Status                   string                        `json:"status"`
+	Reason                   string                        `json:"reason,omitempty"`
+	BuildID                  string                        `json:"build_id,omitempty"`
+	SessionID                string                        `json:"session_id,omitempty"`
+	ExtensionID              string                        `json:"extension_id,omitempty"`
+	ArtifactSHA256           string                        `json:"artifact_sha256,omitempty"`
+	ManifestSHA256           string                        `json:"manifest_sha256,omitempty"`
+	PermissionEvidenceSource string                        `json:"permission_evidence_source,omitempty"`
+	PermissionEvidenceScope  string                        `json:"permission_evidence_scope,omitempty"`
+	PerTabSiteAccess         string                        `json:"per_tab_site_access,omitempty"`
+	LifecycleReceipt         *ExtensionLifecycleRunReceipt `json:"lifecycle_receipt,omitempty"`
+	CleanupReceipt           *BASExtensionLifecycleReceipt `json:"cleanup_receipt,omitempty"`
+	TestResults              []TestSiteResult              `json:"test_results"`
+	Summary                  TestSummary                   `json:"summary"`
+	ReportTime               *time.Time                    `json:"report_time,omitempty"`
+}
+
+// ExtensionLifecycleRunReceipt carries the owner-returned install/reload/
+// validation chain through the CLI without copying any bearer credential.
+type ExtensionLifecycleRunReceipt struct {
+	BuildID             string                       `json:"build_id"`
+	SessionID           string                       `json:"session_id"`
+	ArtifactSHA256      string                       `json:"artifact_sha256"`
+	ManifestSHA256      string                       `json:"manifest_sha256"`
+	RunBinding          BASRunBindingReceipt         `json:"run_binding"`
+	Install             BASExtensionLifecycleReceipt `json:"install"`
+	Reload              BASExtensionLifecycleReceipt `json:"reload"`
+	Validation          BASExtensionValidation       `json:"validation"`
+	InventoryObservedAt time.Time                    `json:"inventory_observed_at"`
+}
+
+type BASRunBindingReceipt struct {
+	Backend       string `json:"backend"`
+	ProfileID     string `json:"profile_id"`
+	PermissionRef string `json:"permission_ref"`
+	OwnerID       string `json:"owner_id"`
+	LeaseID       string `json:"lease_id"`
+	CallerID      string `json:"caller_id"`
+}
+
+type BASExtensionLifecycleReceipt struct {
+	SessionID      string    `json:"session_id"`
+	Backend        string    `json:"backend"`
+	ProfileID      string    `json:"profile_id"`
+	PermissionRef  string    `json:"permission_ref"`
+	OwnerID        string    `json:"owner_id"`
+	LeaseID        string    `json:"lease_id"`
+	CallerID       string    `json:"caller_id"`
+	ArtifactRef    string    `json:"artifact_ref"`
+	Operation      string    `json:"operation"`
+	ExtensionID    string    `json:"extension_id"`
+	Version        string    `json:"version"`
+	Digest         string    `json:"digest"`
+	ManifestSHA256 string    `json:"manifest_sha256"`
+	State          string    `json:"state"`
+	OccurredAt     time.Time `json:"occurred_at"`
+}
+
+type BASExtensionValidation struct {
+	Receipt BASExtensionLifecycleReceipt `json:"receipt"`
+	Valid   bool                         `json:"valid"`
+	Checks  map[string]bool              `json:"checks"`
+	Message string                       `json:"message,omitempty"`
 }

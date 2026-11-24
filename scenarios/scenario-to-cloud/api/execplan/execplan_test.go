@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 
@@ -83,6 +84,25 @@ func TestSemanticDigestIsDeterministic(t *testing.T) {
 	}
 }
 
+// TestBackupPolicyCompilesTargetLocalDBMScheduleAfterReadiness [REQ:STC-P0-029]
+// proves the manifest request is an effectful target operation, not a local
+// controller-side DBM invocation.
+func TestBackupPolicyCompilesTargetLocalDBMScheduleAfterReadiness(t *testing.T) {
+	in := baseInputs()
+	in.Manifest.Backup = &domain.ManifestBackup{DestinationName: "lpbs-r2", Schedule: "24h", KeepDaily: 7, KeepWeekly: 4, KeepMonthly: 3, RecoveryDrillSchedule: "168h"}
+	plan := compile(t, in)
+	action := plan.Action(OpDataSchedule)
+	if action == nil {
+		t.Fatalf("scheduled backup policy omitted %s: %v", OpDataSchedule, plan.ActionIDs())
+	}
+	if action.RequiredCapability != "cloud-target:data.schedule" || !slices.Contains(action.DependsOn, OpVerifyReadiness) {
+		t.Fatalf("schedule action is not a target-local post-readiness effect: %+v", action)
+	}
+	if action.Inputs["scenario"] != in.Manifest.Scenario.ID || action.Inputs["destination"] != "lpbs-r2" || !strings.Contains(action.Inputs["policy"], `"destination_name":"lpbs-r2"`) || !strings.Contains(action.Inputs["binding_specs"], "application-records") {
+		t.Fatalf("schedule action lost its reviewed policy or bindings: %+v", action.Inputs)
+	}
+}
+
 // [REQ:STC-P0-016] Presentation text is not identity.
 func TestPresentationChangeKeepsDigest(t *testing.T) {
 	plan := compile(t, baseInputs())
@@ -104,12 +124,13 @@ func TestMaterialChangesChangeDigestAndInvalidateReview(t *testing.T) {
 	reviewed := compile(t, baseInputs())
 	base := reviewed.MustDigest()
 	cases := map[string]func(*CompileInputs){
-		"target enrollment": func(in *CompileInputs) { in.Deployment.Target.EnrollmentGeneration = 4 },
-		"target machine":    func(in *CompileInputs) { in.Deployment.Target.MachineID = "machine-other" },
-		"release digest":    func(in *CompileInputs) { in.Release.Digest = "sha256:other-release" },
-		"closure digest":    func(in *CompileInputs) { in.Closure.Digest = "sha256:other-closure" },
-		"configuration":     func(in *CompileInputs) { in.Release.ConfigurationDigest = "sha256:other-config" },
-		"data schema":       func(in *CompileInputs) { in.Observations.DataSchemaVersion = "fixture-schema-v2" },
+		"target enrollment":        func(in *CompileInputs) { in.Deployment.Target.EnrollmentGeneration = 4 },
+		"target machine":           func(in *CompileInputs) { in.Deployment.Target.MachineID = "machine-other" },
+		"compute-manager instance": func(in *CompileInputs) { in.Deployment.Target.ComputeManagerID = "cm-qemu-other" },
+		"release digest":           func(in *CompileInputs) { in.Release.Digest = "sha256:other-release" },
+		"closure digest":           func(in *CompileInputs) { in.Closure.Digest = "sha256:other-closure" },
+		"configuration":            func(in *CompileInputs) { in.Release.ConfigurationDigest = "sha256:other-config" },
+		"data schema":              func(in *CompileInputs) { in.Observations.DataSchemaVersion = "fixture-schema-v2" },
 		"privilege set": func(in *CompileInputs) {
 			in.Closure.Privileges = append(in.Closure.Privileges, domain.ClosurePrivilege{Effect: "elevated", Subject: "docker"})
 		},

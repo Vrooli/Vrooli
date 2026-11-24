@@ -15,6 +15,56 @@ import (
 	"scenario-to-desktop-api/smoketest/mocks"
 )
 
+type demoLaunchFixture struct {
+	service      *smoketest.DefaultService
+	store        *mocks.MockStore
+	executor     *mocks.MockProcessExecutor
+	outputParser *mocks.MockOutputParser
+	platform     *mocks.MockPlatformResolver
+}
+
+// newDemoLaunchFixture supplies the shared passing headless setup. Each test
+// overrides only the dependency behavior that distinguishes its contract.
+func newDemoLaunchFixture(id string, recording bool, deploymentMode string) demoLaunchFixture {
+	store := mocks.NewMockStore()
+	status := &smoketest.Status{SmokeTestID: id, ScenarioName: "test-scenario", Status: "running", DeploymentMode: deploymentMode}
+	if recording {
+		status.RecordingConfig = &smoketest.ScreenRecordingConfig{Enabled: true, DisplayWidth: 1920, DisplayHeight: 1080, FPS: 15}
+	}
+	store.AddStatus(status)
+
+	fs := mocks.NewMockFileSystem()
+	fs.AddFile("/path/to/artifact.AppImage", []byte{})
+	platform := mocks.NewMockPlatformResolver()
+	platform.ResolveResult = struct {
+		Cmd     string
+		Args    []string
+		Display string
+		Err     error
+	}{Cmd: "/path/to/artifact.AppImage", Args: []string{"--smoke-test"}, Display: "/path/to/artifact.AppImage --smoke-test"}
+	executor := mocks.NewMockProcessExecutor()
+	executor.ExecuteWithResultResult.Result = &smoketest.ExecutionResult{
+		Stdout:   "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=passed",
+		Combined: "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=passed",
+		ExitCode: 0,
+	}
+	outputParser := mocks.NewMockOutputParser()
+	outputParser.Result = smoketest.OutputResult{Passed: true}
+	service := createTestService(func(s *testServiceDeps) {
+		s.store, s.fs, s.platformResolver = store, fs, platform
+		s.executor, s.outputParser = executor, outputParser
+	})
+	if recording {
+		recorder := mocks.NewMockRecorder()
+		recorder.StartResult.CaptureID = "rec-test"
+		recorder.StopResult.VideoPath = "/tmp/test.mp4"
+		display := mocks.NewMockDisplayManager()
+		display.CreateResult.DisplayID = ":100"
+		service.WithRecording(recorder, display)
+	}
+	return demoLaunchFixture{service: service, store: store, executor: executor, outputParser: outputParser, platform: platform}
+}
+
 func TestStripSmokeTestFlag(t *testing.T) {
 	tests := []struct {
 		name string
@@ -52,60 +102,9 @@ func TestService_DemoLaunch_RunsAfterPassedTest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	store := mocks.NewMockStore()
-	store.AddStatus(&smoketest.Status{
-		SmokeTestID:    "test-demo",
-		ScenarioName:   "test-scenario",
-		Status:         "running",
-		DeploymentMode: "bundled",
-		RecordingConfig: &smoketest.ScreenRecordingConfig{
-			Enabled:       true,
-			DisplayWidth:  1920,
-			DisplayHeight: 1080,
-			FPS:           15,
-		},
-	})
-
-	fs := mocks.NewMockFileSystem()
-	fs.AddFile("/path/to/artifact.AppImage", []byte{})
-
-	platformResolver := mocks.NewMockPlatformResolver()
-	platformResolver.ResolveResult = struct {
-		Cmd     string
-		Args    []string
-		Display string
-		Err     error
-	}{
-		Cmd:     "/path/to/artifact.AppImage",
-		Args:    []string{"--smoke-test"},
-		Display: "/path/to/artifact.AppImage --smoke-test",
-	}
-
-	executor := mocks.NewMockProcessExecutor()
-	executor.ExecuteWithResultResult.Result = &smoketest.ExecutionResult{
-		Stdout:   "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=passed",
-		Combined: "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=passed",
-		ExitCode: 0,
-	}
-
-	outputParser := mocks.NewMockOutputParser()
-	outputParser.Result = smoketest.OutputResult{Passed: true}
-
-	recorder := mocks.NewMockRecorder()
-	recorder.StartResult.CaptureID = "rec-test"
-	recorder.StopResult.VideoPath = "/tmp/test.mp4"
-
-	displayMgr := mocks.NewMockDisplayManager()
-	displayMgr.CreateResult.DisplayID = ":100"
-
-	service := createTestService(func(s *testServiceDeps) {
-		s.store = store
-		s.fs = fs
-		s.platformResolver = platformResolver
-		s.executor = executor
-		s.outputParser = outputParser
-	})
-	service.WithRecording(recorder, displayMgr)
+	fixture := newDemoLaunchFixture("test-demo", true, "bundled")
+	store, executor := fixture.store, fixture.executor
+	service := fixture.service
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
@@ -178,59 +177,14 @@ func TestService_DemoLaunch_RunsAfterPassedTest(t *testing.T) {
 }
 
 func TestService_DemoLaunch_SkippedOnFailure(t *testing.T) {
-	store := mocks.NewMockStore()
-	store.AddStatus(&smoketest.Status{
-		SmokeTestID:  "test-demo-fail",
-		ScenarioName: "test-scenario",
-		Status:       "running",
-		RecordingConfig: &smoketest.ScreenRecordingConfig{
-			Enabled:       true,
-			DisplayWidth:  1920,
-			DisplayHeight: 1080,
-			FPS:           15,
-		},
-	})
-
-	fs := mocks.NewMockFileSystem()
-	fs.AddFile("/path/to/artifact.AppImage", []byte{})
-
-	platformResolver := mocks.NewMockPlatformResolver()
-	platformResolver.ResolveResult = struct {
-		Cmd     string
-		Args    []string
-		Display string
-		Err     error
-	}{
-		Cmd:     "/path/to/artifact.AppImage",
-		Args:    []string{"--smoke-test"},
-		Display: "/path/to/artifact.AppImage --smoke-test",
-	}
-
-	executor := mocks.NewMockProcessExecutor()
-	executor.ExecuteWithResultResult.Result = &smoketest.ExecutionResult{
+	fixture := newDemoLaunchFixture("test-demo-fail", true, "")
+	fixture.executor.ExecuteWithResultResult.Result = &smoketest.ExecutionResult{
 		Stdout:   "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=failed",
 		Combined: "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=failed",
 		ExitCode: 1,
 	}
-
-	outputParser := mocks.NewMockOutputParser()
-	outputParser.Result = smoketest.OutputResult{Passed: false}
-
-	recorder := mocks.NewMockRecorder()
-	recorder.StartResult.CaptureID = "rec-test"
-	recorder.StopResult.VideoPath = "/tmp/test.mp4"
-
-	displayMgr := mocks.NewMockDisplayManager()
-	displayMgr.CreateResult.DisplayID = ":100"
-
-	service := createTestService(func(s *testServiceDeps) {
-		s.store = store
-		s.fs = fs
-		s.platformResolver = platformResolver
-		s.executor = executor
-		s.outputParser = outputParser
-	})
-	service.WithRecording(recorder, displayMgr)
+	fixture.outputParser.Result = smoketest.OutputResult{Passed: false}
+	executor, service := fixture.executor, fixture.service
 
 	ctx := context.Background()
 	service.PerformSmokeTest(ctx, "test-demo-fail", "test-scenario", "/path/to/artifact.AppImage", "linux")
@@ -242,52 +196,14 @@ func TestService_DemoLaunch_SkippedOnFailure(t *testing.T) {
 }
 
 func TestService_DemoLaunch_SkippedWithoutRecording(t *testing.T) {
-	store := mocks.NewMockStore()
-	store.AddStatus(&smoketest.Status{
-		SmokeTestID:  "test-no-rec",
-		ScenarioName: "test-scenario",
-		Status:       "running",
-	})
-
-	fs := mocks.NewMockFileSystem()
-	fs.AddFile("/path/to/artifact.AppImage", []byte{})
-
-	platformResolver := mocks.NewMockPlatformResolver()
-	platformResolver.ResolveResult = struct {
-		Cmd     string
-		Args    []string
-		Display string
-		Err     error
-	}{
-		Cmd:     "/path/to/artifact.AppImage",
-		Args:    []string{"--smoke-test"},
-		Display: "/path/to/artifact.AppImage --smoke-test",
-	}
-	platformResolver.HeadlessResult = struct {
+	fixture := newDemoLaunchFixture("test-no-rec", false, "")
+	fixture.platform.HeadlessResult = struct {
 		Needed      bool
 		WrapperCmd  string
 		WrapperArgs []string
 		Err         error
 	}{Needed: false}
-
-	executor := mocks.NewMockProcessExecutor()
-	executor.ExecuteWithResultResult.Result = &smoketest.ExecutionResult{
-		Stdout:   "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=passed",
-		Combined: "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=passed",
-		ExitCode: 0,
-	}
-
-	outputParser := mocks.NewMockOutputParser()
-	outputParser.Result = smoketest.OutputResult{Passed: true}
-
-	service := createTestService(func(s *testServiceDeps) {
-		s.store = store
-		s.fs = fs
-		s.platformResolver = platformResolver
-		s.executor = executor
-		s.outputParser = outputParser
-	})
-	// No WithRecording — recording disabled
+	executor, service := fixture.executor, fixture.service
 
 	ctx := context.Background()
 	service.PerformSmokeTest(ctx, "test-no-rec", "test-scenario", "/path/to/artifact.AppImage", "linux")
@@ -299,68 +215,16 @@ func TestService_DemoLaunch_SkippedWithoutRecording(t *testing.T) {
 }
 
 func TestService_DemoLaunch_FailureDoesNotCreatePassingEvidence(t *testing.T) {
-	store := mocks.NewMockStore()
-	store.AddStatus(&smoketest.Status{
-		SmokeTestID:  "test-demo-err",
-		ScenarioName: "test-scenario",
-		Status:       "running",
-		RecordingConfig: &smoketest.ScreenRecordingConfig{
-			Enabled:       true,
-			DisplayWidth:  1920,
-			DisplayHeight: 1080,
-			FPS:           15,
-		},
-	})
-
-	fs := mocks.NewMockFileSystem()
-	fs.AddFile("/path/to/artifact.AppImage", []byte{})
-
-	platformResolver := mocks.NewMockPlatformResolver()
-	platformResolver.ResolveResult = struct {
-		Cmd     string
-		Args    []string
-		Display string
-		Err     error
-	}{
-		Cmd:     "/path/to/artifact.AppImage",
-		Args:    []string{"--smoke-test"},
-		Display: "/path/to/artifact.AppImage --smoke-test",
-	}
-
+	fixture := newDemoLaunchFixture("test-demo-err", true, "")
+	store, executor, service := fixture.store, fixture.executor, fixture.service
 	callCount := 0
-	executor := mocks.NewMockProcessExecutor()
 	executor.ExecuteWithResultFunc = func(ctx context.Context, workDir, command string, args, env []string, timeout time.Duration) (*smoketest.ExecutionResult, error) {
 		callCount++
 		if callCount == 1 {
-			// Headless test passes
-			return &smoketest.ExecutionResult{
-				Stdout:   "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=passed",
-				Combined: "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=passed",
-				ExitCode: 0,
-			}, nil
+			return &smoketest.ExecutionResult{Stdout: "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=passed", Combined: "SMOKE_TEST_INIT=started\nSMOKE_TEST_RESULT=passed", ExitCode: 0}, nil
 		}
-		// Demo launch fails
 		return nil, errors.New("demo launch crashed")
 	}
-
-	outputParser := mocks.NewMockOutputParser()
-	outputParser.Result = smoketest.OutputResult{Passed: true}
-
-	recorder := mocks.NewMockRecorder()
-	recorder.StartResult.CaptureID = "rec-test"
-	recorder.StopResult.VideoPath = "/tmp/test.mp4"
-
-	displayMgr := mocks.NewMockDisplayManager()
-	displayMgr.CreateResult.DisplayID = ":100"
-
-	service := createTestService(func(s *testServiceDeps) {
-		s.store = store
-		s.fs = fs
-		s.platformResolver = platformResolver
-		s.executor = executor
-		s.outputParser = outputParser
-	})
-	service.WithRecording(recorder, displayMgr)
 
 	ctx := context.Background()
 	service.PerformSmokeTest(ctx, "test-demo-err", "test-scenario", "/path/to/artifact.AppImage", "linux")

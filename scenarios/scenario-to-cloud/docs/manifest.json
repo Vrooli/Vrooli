@@ -97,17 +97,6 @@
           "completion": "required"
         },
         {
-          "path": "guides/vps-setup.md",
-          "docType": "vps-guide",
-          "title": "VPS Setup",
-          "description": "Prepare your VPS for deployments",
-          "maturity": "active",
-          "requiredBy": [
-            "implemented"
-          ],
-          "completion": "required"
-        },
-        {
           "path": "guides/troubleshooting.md",
           "docType": "troubleshooting",
           "title": "Troubleshooting",

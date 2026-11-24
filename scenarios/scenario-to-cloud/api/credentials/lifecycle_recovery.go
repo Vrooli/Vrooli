@@ -39,7 +39,7 @@ func (s *Service) Recover(ctx context.Context, req RecoverRequest) (*domain.Cred
 	}
 	now := s.now()
 	rotation := &domain.CredentialRotation{ID: id, DeploymentID: req.DeploymentID, Kind: domain.CredentialOperationRecover, State: domain.RotationPlanned, Receipts: []domain.CredentialReceipt{}, CreatedAt: now, UpdatedAt: now}
-	if err := s.Store.SaveRotation(ctx, rotation); err != nil {
+	if err := s.createOperation(ctx, rotation); err != nil {
 		return nil, err
 	}
 	covered, err := s.verifyRecoveryBundle(ctx, req, rotation)

@@ -2,6 +2,7 @@ package health
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -29,6 +30,14 @@ const certTimeLayout = "Jan 2 15:04:05 2006 MST"
 // vrooli-events, which forwards to notification-hub's event webhook.
 type AlertPublisher interface {
 	PublishDomainEvent(ctx context.Context, event eventbus.DomainEvent) error
+}
+
+// AlertStateStore keeps each deployment's last acknowledged open-alert set in
+// the scenario database. Retaining it across restarts is required to publish
+// recovery transitions for incidents that opened before the restart.
+type AlertStateStore interface {
+	Load(context.Context, string) (json.RawMessage, error)
+	Save(context.Context, string, json.RawMessage) error
 }
 
 // DefaultDetection is the phase-23 detection budget used when
@@ -98,17 +107,20 @@ func LoadDetection() (perfbudget.Detection, string) {
 // Alerter evaluates each produced observation against the detection budget
 // and publishes scenario-to-cloud.deployment.alert.v1 transitions: every
 // newly open condition and a resolved event for every condition that
-// cleared. Steady state publishes nothing. It keeps the open set per
-// deployment in memory; a restart re-publishes currently open conditions,
-// which notification-hub de-duplicates on incident_id.
+// cleared. Steady state publishes nothing. It keeps the acknowledged open set
+// per deployment and persists it when a state store is configured; restarts
+// therefore preserve recovery transitions. Notification Hub dedupe separates
+// alert status so a recovery is not collapsed into its open notification.
 type Alerter struct {
 	publisher AlertPublisher
+	state     AlertStateStore
 	detection perfbudget.Detection
 	log       func(string, map[string]interface{})
 	now       func() time.Time
 
-	mu   sync.Mutex
-	open map[string][]perfbudget.Alert
+	mu     sync.Mutex
+	open   map[string][]perfbudget.Alert
+	loaded map[string]bool
 }
 
 // NewAlerter builds an alerter. A nil publisher disables delivery but keeps
@@ -117,7 +129,16 @@ func NewAlerter(publisher AlertPublisher, detection perfbudget.Detection, log fu
 	if log == nil {
 		log = func(string, map[string]interface{}) {}
 	}
-	return &Alerter{publisher: publisher, detection: detection, log: log, now: func() time.Time { return time.Now().UTC() }, open: map[string][]perfbudget.Alert{}}
+	return &Alerter{publisher: publisher, detection: detection, log: log, now: func() time.Time { return time.Now().UTC() }, open: map[string][]perfbudget.Alert{}, loaded: map[string]bool{}}
+}
+
+// WithStateStore enables cross-restart transition tracking. A nil store keeps
+// the in-memory behavior used by isolated observers and tests.
+func (a *Alerter) WithStateStore(store AlertStateStore) *Alerter {
+	if a != nil {
+		a.state = store
+	}
+	return a
 }
 
 // Detection returns the budget in use.
@@ -154,6 +175,24 @@ func (a *Alerter) Observe(ctx context.Context, obs *healthv1.HealthObservation, 
 	key := obs.GetDeploymentId()
 
 	a.mu.Lock()
+	if !a.loaded[key] && a.state != nil {
+		raw, err := a.state.Load(ctx, key)
+		if err != nil {
+			a.mu.Unlock()
+			a.log("deployment alert state load failed", map[string]interface{}{"deployment_id": key, "error": err.Error()})
+			return nil
+		}
+		var previous []perfbudget.Alert
+		if len(raw) > 0 {
+			if err := json.Unmarshal(raw, &previous); err != nil {
+				a.mu.Unlock()
+				a.log("deployment alert state decode failed", map[string]interface{}{"deployment_id": key, "error": err.Error()})
+				return nil
+			}
+		}
+		a.open[key] = previous
+		a.loaded[key] = true
+	}
 	previous := a.open[key]
 	a.mu.Unlock()
 
@@ -161,6 +200,7 @@ func (a *Alerter) Observe(ctx context.Context, obs *healthv1.HealthObservation, 
 	if len(transitions) == 0 {
 		a.mu.Lock()
 		a.open[key] = current
+		a.loaded[key] = true
 		a.mu.Unlock()
 		return nil
 	}
@@ -180,9 +220,20 @@ func (a *Alerter) Observe(ctx context.Context, obs *healthv1.HealthObservation, 
 		}
 		published = append(published, alert)
 	}
+	if !failed && a.state != nil && a.publisher != nil {
+		raw, marshalErr := json.Marshal(current)
+		if marshalErr != nil {
+			failed = true
+			a.log("deployment alert state encode failed", map[string]interface{}{"deployment_id": key, "error": marshalErr.Error()})
+		} else if err := a.state.Save(ctx, key, raw); err != nil {
+			failed = true
+			a.log("deployment alert state save failed", map[string]interface{}{"deployment_id": key, "error": err.Error()})
+		}
+	}
 	if !failed {
 		a.mu.Lock()
 		a.open[key] = current
+		a.loaded[key] = true
 		a.mu.Unlock()
 	}
 	return published

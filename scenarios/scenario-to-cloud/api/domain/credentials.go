@@ -1,10 +1,15 @@
 package domain
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 )
+
+// ErrCredentialOperationConflict reports that another nonterminal lifecycle
+// operation already owns the binding's durable operation slot.
+var ErrCredentialOperationConflict = errors.New("credential lifecycle operation already open")
 
 // CredentialDescriptor is the exact credential-authority address a deployment
 // binds. LogicalID and Field are preserved byte-for-byte from the closure;

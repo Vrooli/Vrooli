@@ -28,6 +28,20 @@
           "phase": "unit",
           "status": "failing",
           "notes": "recovery points + restore receipts round trip"
+        },
+        {
+          "type": "test",
+          "ref": "api/execplan/execplan_test.go::TestBackupPolicyCompilesTargetLocalDBMScheduleAfterReadiness",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "manifest DBM schedule compiles as a reviewed effectful data.schedule action after readiness, including target capability and policy; compile-level only"
+        },
+        {
+          "type": "test",
+          "ref": "api/vps/data_schedule_test.go::TestDataScheduleCompilesEffectfulTargetVerb",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "the scheduled policy routes to the target-local cloud-target data schedule verb via Bridge and carries no credentials; command-contract fake only"
         }
       ]
     },

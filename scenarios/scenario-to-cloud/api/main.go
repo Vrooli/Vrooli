@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -18,6 +19,7 @@ import (
 	"scenario-to-cloud/backup"
 	"scenario-to-cloud/bundle"
 	"scenario-to-cloud/closure"
+	"scenario-to-cloud/computemanager"
 	"scenario-to-cloud/credentials"
 	"scenario-to-cloud/deployment"
 	"scenario-to-cloud/deploymentsvc"
@@ -33,11 +35,13 @@ import (
 	"scenario-to-cloud/operations"
 	"scenario-to-cloud/operationsvc"
 	"scenario-to-cloud/persistence"
+	"scenario-to-cloud/qemusvc"
 	"scenario-to-cloud/reach"
 	bridgereach "scenario-to-cloud/reach/bridge"
 	"scenario-to-cloud/reach/sshadapter"
 	"scenario-to-cloud/releasesvc"
 	"scenario-to-cloud/secrets"
+	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/tasks"
 	"scenario-to-cloud/tlsinfo"
 
@@ -113,14 +117,20 @@ type Server struct {
 	// when the deployment supplies the onboarding service credential; tests and
 	// local installs retain the pure-plan fallback until that peer is available.
 	onboardingHandoff onboarding.Issuer
-	// Seam: instance provider (defaults to the local disposable QEMU lane).
-	instanceProvider instance.Provider
+	// Compute acquisition is delegated to Compute Manager. This client does not
+	// implement a provider lifecycle and persists only the manager-owned ID.
+	computeManager qemusvc.Manager
+	// qemuReadiness configures the read-only host observation endpoint. It does
+	// not own or mutate the local-QEMU provider lifecycle.
+	qemuReadiness instance.ReadinessOptions
 	// publicationDeps are the per-server governance seams (governor, receipt
 	// signer, target pointer reader, release resolver); tests substitute fakes.
 	publicationDeps *publicationDeps
 	// certificationEvidenceOverride is a test seam. Production resolves the
 	// evidence directory from the governed repository contract.
 	certificationEvidenceOverride string
+	healthSchedulerCancel         context.CancelFunc
+	healthSchedulerDone           chan struct{}
 
 	// Optional capabilities are constructed once per server. Keeping their
 	// state here prevents one server instance (or test fixture) from sharing a
@@ -213,8 +223,6 @@ func NewServer() (*Server, error) {
 	}
 
 	// Initialize seams with production implementations
-	sshRunner := sshadapter.ExecRunner{}
-	scpRunner := sshadapter.ExecSCPRunner{}
 	secretsFetcher := secrets.NewClient()
 	secretsGenerator := secrets.NewGenerator()
 	dnsService := dns.NewService(dns.NetResolver{}, dns.WithTimeout(10*time.Second))
@@ -244,14 +252,12 @@ func NewServer() (*Server, error) {
 		agentSvc:         agentSvc,
 		investigationSvc: investigation.NewService(repo, agentSvc, progressHub),
 		taskSvc:          tasks.NewService(repo, agentSvc, progressHub),
-		sshRunner:        sshRunner,
-		scpRunner:        scpRunner,
 		secretsFetcher:   secretsFetcher,
 		secretsGenerator: secretsGenerator,
 		dnsService:       dnsService,
 		tlsService:       tlsService,
 		tlsALPNRunner:    tlsALPNRunner,
-		instanceProvider: instance.LocalQEMUProvider{},
+		computeManager:   computemanager.New(),
 	}
 	if strings.EqualFold(strings.TrimSpace(os.Getenv("VROOLI_ONBOARDING_HANDOFF_ENABLED")), "true") {
 		srv.onboardingHandoff = onboarding.NewClient()
@@ -278,7 +284,8 @@ func NewServer() (*Server, error) {
 	srv.backupSvc, srv.backupErr = srv.newDefaultBackupService()
 	detection, detectionSource := stchealth.LoadDetection()
 	srv.log("deployment alerting configured", map[string]interface{}{"budgets": detectionSource, "stale_after_seconds": detection.StaleObservationAfterSeconds, "certificate_warning_days": detection.CertificateExpiryWarningDays})
-	srv.healthSvc = stchealth.NewAlerter(eventbus.NewDiscoveredClient(context.Background()), detection, srv.log)
+	srv.healthSvc = stchealth.NewAlerter(eventbus.NewDiscoveredClient(context.Background()), detection, srv.log).
+		WithStateStore(persistence.NewHealthAlertStateStore(repo.DB()))
 	manifestRefresher := deployment.NewManifestRefresher(deployment.ManifestRefresherConfig{
 		SecretsFetcher: secretsFetcher,
 		Closure:        closureSvc,
@@ -290,12 +297,22 @@ func NewServer() (*Server, error) {
 	// reach needs an operator token for the Bridge API; without one the
 	// bridge path is a typed reach_unavailable, never an SSH fallback. Every
 	// target effect of a plan (verbs and artifact delivery) goes through it.
-	targetReach := &reach.Router{
-		SSH: &sshadapter.Adapter{Runner: sshRunner, SCP: scpRunner, Config: srv.sshConfigForTarget},
-	}
+	targetReach := newProductionTargetReach(nil)
 	if token := strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_API_TOKEN")); token != "" {
 		bridgeClient := nodereach.New(nodereach.Config{Token: token})
-		targetReach.Bridge = &bridgereach.Adapter{Client: bridgeClient, Artifacts: bridgereach.NewArtifactClient(bridgeClient)}
+		targetReach.Bridge = &bridgereach.Adapter{Client: bridgeClient, Artifacts: bridgereach.NewArtifactClient(bridgeClient), Bindings: bridgereach.NewBindingReader(bridgeClient)}
+	}
+	sshRunner := srv.sshRunner
+	if sshRunner == nil {
+		sshRunner = sshadapter.ExecRunner{}
+	}
+	scpRunner := srv.scpRunner
+	if scpRunner == nil {
+		scpRunner = sshadapter.ExecSCPRunner{}
+	}
+	targetReach.LocalQEMU = &computemanager.VerifiedLocalQEMUReach{
+		Manager: srv.computeManager,
+		SSH:     &sshadapter.Adapter{Runner: sshRunner, SCP: scpRunner, Config: srv.sshConfigForTarget},
 	}
 	srv.reach = targetReach
 
@@ -338,6 +355,13 @@ func NewServer() (*Server, error) {
 
 	srv.setupRoutes()
 	return srv, nil
+}
+
+// newProductionTargetReach installs no generic SSH adapter. Targets use an
+// enrolled Bridge binding unless the server adds its strictly manager-verified
+// loopback adapter for a Compute Manager-owned local-QEMU instance.
+func newProductionTargetReach(bridgeAdapter reach.Reach) *reach.Router {
+	return &reach.Router{Bridge: bridgeAdapter}
 }
 
 // DOC: docs/reference/api-endpoints.md — complete endpoint reference
@@ -395,10 +419,7 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/vps/deploy/apply", gate(authz.EffectWorkloadMutation, s.handleVPSDeployApply)).Methods("POST")
 	api.HandleFunc("/vps/inspect/plan", s.handleVPSInspectPlan).Methods("POST")
 	api.HandleFunc("/vps/inspect/apply", s.handleVPSInspectApply).Methods("POST")
-	api.HandleFunc("/instances/plan", s.handleInstancePlan).Methods("POST")
 	api.HandleFunc("/instances/readiness", s.handleInstanceReadiness).Methods("GET")
-	api.HandleFunc("/instances", gate(authz.EffectHost, s.handleInstanceCreate)).Methods("POST")
-	api.HandleFunc("/instances/{id}/{action}", gate(authz.EffectHost, s.handleInstanceAction)).Methods("POST")
 
 	// Deployment management. The selector route is registered before the
 	// {id} route so "resolve" is never read as a deployment id.
@@ -493,6 +514,8 @@ func (s *Server) setupRoutes() {
 		path, handler := s.PlansService().Handler()
 		s.router.PathPrefix(path).Handler(handler)
 	}
+	path, handler := qemusvc.New(s.computeManager, s.resolveOperatorQEMUPublicKey).Handler()
+	s.router.PathPrefix(path).Handler(handler)
 
 	// Durable operations (P07): REST wait/status/cancel plus the Connect
 	// OperationsService.
@@ -506,7 +529,7 @@ func (s *Server) setupRoutes() {
 	// Typed DeploymentsService (Connect) beside the REST routes. Later phases
 	// migrate the remaining slices onto generated contracts.
 	if s.repo != nil {
-		path, handler := deploymentsvc.New(s.repo).Handler()
+		path, handler := deploymentsvc.New(s.repo, s.createDeploymentForConnect, s).Handler()
 		s.router.PathPrefix(path).Handler(handler)
 	}
 }
@@ -602,6 +625,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to initialize server: %v", err)
 	}
+	srv.healthSchedulerCancel = startProductionHealthScheduler(srv)
 
 	// P0: some VPS operations (setup/deploy) can take several minutes; keep the server-side
 	// response path alive rather than forcing async during early iterations.
@@ -611,6 +635,15 @@ func main() {
 		Authentication: &authConfig,
 		WriteTimeout:   35 * time.Minute,
 		Cleanup: func(ctx context.Context) error {
+			if srv.healthSchedulerCancel != nil {
+				srv.healthSchedulerCancel()
+			}
+			if srv.healthSchedulerDone != nil {
+				select {
+				case <-srv.healthSchedulerDone:
+				case <-ctx.Done():
+				}
+			}
 			if srv.db != nil {
 				return srv.db.Close()
 			}
@@ -619,6 +652,52 @@ func main() {
 	}); err != nil {
 		log.Fatalf("server stopped with error: %v", err)
 	}
+}
+
+// startProductionHealthScheduler observes deployed production targets by
+// default. An operator can disable it in an isolated control-plane instance;
+// the same typed health producer and transition alerter serve scheduled and
+// interactive observations.
+func startProductionHealthScheduler(srv *Server) context.CancelFunc {
+	if srv == nil || srv.repo == nil || strings.EqualFold(strings.TrimSpace(os.Getenv("SCENARIO_TO_CLOUD_HEALTH_SCHEDULE_ENABLED")), "false") {
+		return nil
+	}
+	interval := 60 * time.Second
+	if raw := strings.TrimSpace(os.Getenv("SCENARIO_TO_CLOUD_HEALTH_SCHEDULE_INTERVAL")); raw != "" {
+		if parsed, err := time.ParseDuration(raw); err == nil && parsed >= time.Second {
+			interval = parsed
+		} else {
+			slog.Warn("invalid health observation schedule interval; using default", "value", raw, "default", interval)
+		}
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	srv.healthSchedulerDone = make(chan struct{})
+	scheduler := stchealth.Scheduler{
+		Interval: interval,
+		Logger:   slog.Default(),
+		Targets: func(ctx context.Context) ([]string, error) {
+			environment := "production"
+			status := domain.StatusDeployed
+			deployments, err := srv.repo.ListDeployments(ctx, domain.ListFilter{Environment: &environment, Status: &status})
+			if err != nil {
+				return nil, err
+			}
+			ids := make([]string, 0, len(deployments))
+			for _, deployment := range deployments {
+				if deployment != nil {
+					ids = append(ids, deployment.ID)
+				}
+			}
+			return ids, nil
+		},
+		Observe: srv.Observe,
+	}
+	go func() {
+		defer close(srv.healthSchedulerDone)
+		scheduler.Run(ctx)
+	}()
+	slog.Info("production health observation schedule started", "interval", interval)
+	return cancel
 }
 
 // targetResolver adapts the deployment repository to the authorization
@@ -653,6 +732,23 @@ func (s *Server) sshConfigForTarget(ctx context.Context, target identity.TargetR
 	}
 	keyPath := ""
 	if s.repo != nil {
+		if strings.TrimSpace(target.ComputeManagerID) != "" {
+			deployment, err := s.repo.GetDeploymentByComputeManagerID(ctx, target.ComputeManagerID)
+			if err != nil {
+				return sshadapter.ConnectionConfig{}, err
+			}
+			if deployment == nil {
+				return sshadapter.ConnectionConfig{}, fmt.Errorf("no deployment is bound to Compute Manager instance %s", target.ComputeManagerID)
+			}
+			keyPath, err = credentials.ResolveSSHKeyPath(ctx, s.repo, deployment.ID)
+			if err != nil {
+				return sshadapter.ConnectionConfig{}, err
+			}
+			if strings.TrimSpace(keyPath) == "" {
+				return sshadapter.ConnectionConfig{}, fmt.Errorf("Compute Manager QEMU deployment has no credential-authority SSH key binding")
+			}
+			return sshadapter.NewConfig(target.Locator.Host, target.Locator.Port, target.Locator.User, keyPath), nil
+		}
 		refs, err := s.repo.ResolveDeployments(ctx, identity.Selector{Host: target.Locator.Host})
 		if err != nil {
 			return sshadapter.ConnectionConfig{}, err
@@ -669,4 +765,23 @@ func (s *Server) sshConfigForTarget(ctx context.Context, target identity.TargetR
 		}
 	}
 	return sshadapter.NewConfig(target.Locator.Host, target.Locator.Port, target.Locator.User, keyPath), nil
+}
+
+// resolveOperatorQEMUPublicKey derives only the public half of the operator's
+// configured SSH identity. Private bytes remain inside credential authority;
+// only this public material crosses into Compute Manager's guest bootstrap.
+func (s *Server) resolveOperatorQEMUPublicKey(context.Context) (string, error) {
+	authority, err := operatorCredentialAuthority()
+	if err != nil {
+		return "", fmt.Errorf("credential authority is unavailable")
+	}
+	keyPath, err := resolveOperatorSSHKeyPath(authority)
+	if err != nil || strings.TrimSpace(keyPath) == "" {
+		return "", fmt.Errorf("operator SSH key is not configured through credential authority")
+	}
+	publicKey, _, err := sshidentity.ReadPublicKeyAndFingerprint(keyPath)
+	if err != nil || strings.TrimSpace(publicKey) == "" {
+		return "", fmt.Errorf("operator SSH public key is unavailable from its configured key file")
+	}
+	return publicKey, nil
 }

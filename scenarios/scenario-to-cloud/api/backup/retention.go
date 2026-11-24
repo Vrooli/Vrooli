@@ -2,6 +2,7 @@ package backup
 
 import (
 	"context"
+	"slices"
 	"sort"
 	"time"
 
@@ -101,7 +102,7 @@ func (s *Service) Prune(ctx context.Context, deploymentID string, refs Reference
 	}
 	for _, p := range points {
 		protected, holders := Protection(p, refs)
-		if p.Protected != protected || !equalStrings(p.ProtectedBy, holders) {
+		if p.Protected != protected || !slices.Equal(p.ProtectedBy, holders) {
 			if _, err := s.Repo.SetRecoveryPointProtection(ctx, p.ID, protected, holders); err != nil {
 				return PrunePlan{}, err
 			}
@@ -115,16 +116,4 @@ func (s *Service) Prune(ctx context.Context, deploymentID string, refs Reference
 		s.removeRecoveryPointDir(deploymentID, id)
 	}
 	return plan, nil
-}
-
-func equalStrings(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }

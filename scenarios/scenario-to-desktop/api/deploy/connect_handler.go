@@ -83,11 +83,9 @@ func (s *ConnectService) TestDeployTarget(ctx context.Context, req *connect.Requ
 	if target.ScenarioName == "" || target.RemoteProfile == "" {
 		return nil, deployError(connect.CodeInvalidArgument, domainerrors.CodeValidation, "target missing required fields", nil, domainerrors.RecoveryFixInput)
 	}
-	secret := sharedenv.ResolveSecretWithSource("LPBS_SERVICE_SECRET")
-	if strings.TrimSpace(secret.Value) == "" {
-		return nil, deployError(connect.CodeFailedPrecondition, domainerrors.CodeUnauthorized, missingScenarioToDesktopSecretMessage(), nil, domainerrors.RecoveryProvideCredentials)
-	}
-	client := NewLPBSClient(target.ScenarioName, secret.Value)
+	client := NewLPBSClientWithLegacyResolver(target.ScenarioName, func() string {
+		return sharedenv.ResolveSecret("LPBS_SERVICE_SECRET")
+	})
 	if err := client.TestRemoteProfile(ctx, target.RemoteProfile); err != nil {
 		return nil, deployError(connect.CodeFailedPrecondition, domainerrors.CodeUnavailable, fmt.Sprintf("remote profile %q session test failed", target.RemoteProfile), err, domainerrors.RecoveryRetryWithBackoff)
 	}

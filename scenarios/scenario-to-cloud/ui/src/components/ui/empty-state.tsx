@@ -1,5 +1,5 @@
 import { cn } from "../../lib/utils";
-import { Button } from "./button";
+import { Button } from "./button-adapter";
 
 interface EmptyStateProps {
   icon?: React.ReactNode;

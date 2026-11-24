@@ -376,17 +376,17 @@ func TestExtensionTestingBusinessLogic(t *testing.T) {
 			{
 				name:      "ValidSites",
 				sites:     []string{"https://example.com", "https://google.com"},
-				expectErr: false,
+				expectErr: true,
 			},
 			{
 				name:      "EmptySites",
 				sites:     []string{},
-				expectErr: false, // Should use default
+				expectErr: true,
 			},
 			{
 				name:      "NilSites",
 				sites:     nil,
-				expectErr: false, // Should use default
+				expectErr: true,
 			},
 		}
 
@@ -426,7 +426,7 @@ func TestExtensionTestingBusinessLogic(t *testing.T) {
 			"https://site3.com",
 		})
 
-		result := testExtension(&req)
+		result := unavailableExtensionTest(&req, "managed BAS session required")
 
 		if result == nil {
 			t.Fatal("Expected test result")

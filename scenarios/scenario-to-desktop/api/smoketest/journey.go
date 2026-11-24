@@ -17,6 +17,7 @@ import (
 	"github.com/vrooli/envkit-go"
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	"scenario-to-desktop-api/captures"
+	"scenario-to-desktop-api/deploy"
 	"scenario-to-desktop-api/procmetrics"
 	sharedenv "scenario-to-desktop-api/shared/env"
 )
@@ -181,6 +182,7 @@ func isLoopbackHTTP(parsed *url.URL) bool {
 type monetizationJourneyAPI struct {
 	target         JourneyTarget
 	expectedAppKey string
+	authorize      func(context.Context) (string, error)
 }
 
 func (monetizationJourneyAPI) Greet(context.Context, string) (string, error) {
@@ -209,8 +211,12 @@ func (api monetizationJourneyAPI) Probe(ctx context.Context, operation string) (
 	if err != nil {
 		return JourneyOperationResult{}, err
 	}
-	if token := strings.TrimSpace(sharedenv.ResolveSecret("LPBS_SERVICE_SECRET")); token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
+	if api.authorize != nil {
+		authorization, authErr := api.authorize(ctx)
+		if authErr != nil {
+			return JourneyOperationResult{}, fmt.Errorf("LPBS journey service identity unavailable")
+		}
+		req.Header.Set("Authorization", authorization)
 	}
 	if identity := strings.TrimSpace(os.Getenv("S2D_MONETIZATION_USER_IDENTITY")); identity != "" {
 		req.Header.Set("X-User-Email", identity)
@@ -479,7 +485,11 @@ func (s *DefaultService) prepareJourney(ctx context.Context, smokeTestID, scenar
 	api := s.journeyAPI
 	if api == nil {
 		if capability == "monetization.trust-boundary.v1" {
-			api = monetizationJourneyAPI{target: input.Target, expectedAppKey: input.ScenarioName}
+			api = monetizationJourneyAPI{target: input.Target, expectedAppKey: input.ScenarioName, authorize: func(ctx context.Context) (string, error) {
+				return deploy.ResolveScenarioToDesktopLPBSAuthorizationLazy(ctx, func() string {
+					return sharedenv.ResolveSecret("LPBS_SERVICE_SECRET")
+				})
+			}}
 		} else {
 			api = loopbackJourneyAPI{target: input.Target, expectedAppKey: input.ScenarioName}
 		}

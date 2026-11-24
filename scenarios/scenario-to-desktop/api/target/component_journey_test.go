@@ -42,6 +42,43 @@ import (
 
 // This producer exports the actual Audio Tools build and signs it with a
 // fixture-owned ephemeral release key. It never substitutes component code.
+func TestPrepareAgentManagerAppImage(t *testing.T) {
+	output := os.Getenv("J11_AGENT_MANAGER_OUTPUT")
+	if output == "" {
+		t.Skip("J11_AGENT_MANAGER_OUTPUT selects the retained real Agent Manager AppImage")
+	}
+	source := os.Getenv("J11_AGENT_MANAGER_BUNDLE_OUTPUT")
+	if source == "" {
+		t.Fatal("J11_AGENT_MANAGER_BUNDLE_OUTPUT retains the real Agent Manager owner bundle for peer tests")
+	}
+	if err := os.MkdirAll(source, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	fresh := filepath.Join(source, "owner-input.json")
+	if out, err := exec.CommandContext(t.Context(), "deployment-manager", "bundle", "export", "agent-manager", "--include-secrets=false", "--output", fresh).CombinedOutput(); err != nil {
+		t.Fatalf("fresh Agent Manager owner export: %v\n%s", err, out)
+	}
+	owner, err := filepath.Abs("../../../agent-manager")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir("..")
+	packaged, err := bundle.NewPackager().Package(owner, fresh, "electron", []string{"linux-amd64"}, filepath.Join(source, "build"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	updateURL := "http://127.0.0.1:39565/api/v1/updates/agent-manager"
+	artifact := buildJ11ArtifactVersion(t, "agent-manager", filepath.Join(packaged.BundleDir, "bundle.json"), "0.0.1", updateURL)
+	digest := copyJ10Artifact(t, artifact, output)
+	nextOutput := os.Getenv("J11_AGENT_MANAGER_NEXT_OUTPUT")
+	if nextOutput == "" {
+		t.Fatal("J11_AGENT_MANAGER_NEXT_OUTPUT selects the real Agent Manager update artifact")
+	}
+	nextArtifact := buildJ11ArtifactVersion(t, "agent-manager", filepath.Join(packaged.BundleDir, "bundle.json"), "0.0.2", updateURL)
+	nextDigest := copyJ10Artifact(t, nextArtifact, nextOutput)
+	t.Logf("real Agent Manager AppImages: v0.0.1=%s sha256=%s v0.0.2=%s sha256=%s owner_bundle=%s", output, digest, nextOutput, nextDigest, packaged.BundleDir)
+}
+
 func TestJ11PublishAudioToolsFixture(t *testing.T) {
 	root := os.Getenv("J11_PRODUCER_ROOT")
 	if root == "" {
@@ -187,7 +224,7 @@ func startJ11Release(t *testing.T) (string, string) {
 func startJ11ReleaseFrom(t *testing.T, source string) (string, string) {
 	t.Helper()
 	if source == "" {
-		t.Skip("J11_RELEASE_ROOT selects the real signed Audio Tools release")
+		t.Skip("J11_RELEASE_ROOT or J11_USAGE_RELEASE_ROOT selects a real signed optional-component release")
 	}
 	root := t.TempDir()
 	entryRaw, err := os.ReadFile(filepath.Join(source, "entry.json"))
@@ -222,15 +259,16 @@ func startJ11ReleaseFrom(t *testing.T, source string) (string, string) {
 	if err = json.Unmarshal(raw, &host); err != nil {
 		t.Fatal(err)
 	}
+	owner := release.Entry.Owner
 	services := make([]manifest.Service, 0, len(host.Services))
 	for _, svc := range host.Services {
-		if !strings.HasPrefix(svc.ID, "audio-tools--") {
+		if !strings.HasPrefix(svc.ID, owner+"--") {
 			services = append(services, svc)
 		}
 	}
 	host.Services = services
 	for i := range host.Peers {
-		if host.Peers[i].Scenario == "audio-tools" {
+		if host.Peers[i].Scenario == owner || host.Peers[i].Scenario == "agent-manager" {
 			host.Peers[i].BundlePolicy = "discover"
 			host.Peers[i].EmbeddedVersion = ""
 			host.Peers[i].Features = nil
@@ -312,6 +350,10 @@ func buildJ11Host(t *testing.T, manifestPath string) string {
 }
 
 func buildJ11Artifact(t *testing.T, scenario, manifestPath string) string {
+	return buildJ11ArtifactVersion(t, scenario, manifestPath, "0.0.1", "")
+}
+
+func buildJ11ArtifactVersion(t *testing.T, scenario, manifestPath, version, updateURL string) string {
 	t.Helper()
 	base, err := discovery.ResolveScenarioURLDefault(t.Context(), "scenario-to-desktop")
 	if err != nil {
@@ -319,7 +361,11 @@ func buildJ11Artifact(t *testing.T, scenario, manifestPath string) string {
 	}
 	client := pipelineconnect.NewPipelineServiceClient(http.DefaultClient, base)
 	request := &pipelinev1.PipelineRunRequest{}
-	config := fmt.Sprintf(`{"config":{"scenario_name":%q,"platforms":["PLATFORM_LINUX"],"deployment_mode":"DEPLOYMENT_MODE_BUNDLED","framework":"FRAMEWORK_ELECTRON","template_type":"TEMPLATE_TYPE_BASIC","location_mode":"staging","version":"0.0.1","stages":["STAGE_NAME_BUNDLE","STAGE_NAME_PREFLIGHT","STAGE_NAME_GENERATE","STAGE_NAME_BUILD"],"artifact_trust_mode":"development-local","platform_targets":["linux-amd64"],"bundle_manifest_path":%q}}`, scenario, manifestPath)
+	update := ""
+	if updateURL != "" {
+		update = fmt.Sprintf(`,"update_config":{"provider":"generic","channel":"stable","auto_check":true,"generic":{"url":%q}}`, updateURL)
+	}
+	config := fmt.Sprintf(`{"config":{"scenario_name":%q,"platforms":["PLATFORM_LINUX"],"deployment_mode":"DEPLOYMENT_MODE_BUNDLED","framework":"FRAMEWORK_ELECTRON","template_type":"TEMPLATE_TYPE_BASIC","location_mode":"staging","version":%q%s,"stages":["STAGE_NAME_BUNDLE","STAGE_NAME_PREFLIGHT","STAGE_NAME_GENERATE","STAGE_NAME_BUILD"],"artifact_trust_mode":"development-local","platform_targets":["linux-amd64"],"bundle_manifest_path":%q}}`, scenario, version, update, manifestPath)
 	if err = protojson.Unmarshal([]byte(config), request); err != nil {
 		t.Fatal(err)
 	}
@@ -348,16 +394,45 @@ func buildJ11Artifact(t *testing.T, scenario, manifestPath string) string {
 	if err = json.Unmarshal(raw, &host); err != nil {
 		t.Fatal(err)
 	}
-	for _, service := range host.Services {
-		if strings.HasPrefix(service.ID, "audio-tools--") {
-			t.Fatal("optional Audio Tools was included in the host download")
+	if scenario == "web-console" {
+		for _, service := range host.Services {
+			if strings.HasPrefix(service.ID, "audio-tools--") || strings.HasPrefix(service.ID, "agent-manager--") {
+				t.Fatalf("optional peer service %s was included in the host download", service.ID)
+			}
 		}
-	}
-	if _, err = os.Stat(filepath.Join(packaged, "peers", "audio-tools")); !os.IsNotExist(err) {
-		t.Fatal("optional Audio Tools bytes were included in the host download")
+		for _, peer := range []string{"audio-tools", "agent-manager"} {
+			if _, err = os.Stat(filepath.Join(packaged, "peers", peer)); !os.IsNotExist(err) {
+				t.Fatalf("optional %s bytes were included in the host download", peer)
+			}
+		}
 	}
 	for _, artifact := range result.Msg.GetFinalArtifacts() {
 		if strings.HasSuffix(artifact, ".AppImage") {
+			pipelineOutput := artifact
+			for i := 0; i < 4; i++ {
+				pipelineOutput = filepath.Dir(pipelineOutput)
+			}
+			home, err := os.UserHomeDir()
+			if err != nil {
+				t.Fatal(err)
+			}
+			stageRoot := filepath.Join(home, ".vrooli", "cache", "vrooli", "scenario-to-desktop", "staging", scenario)
+			t.Cleanup(func() {
+				absoluteRoot, rootErr := filepath.Abs(stageRoot)
+				absoluteOutput, outputErr := filepath.Abs(pipelineOutput)
+				if rootErr != nil || outputErr != nil {
+					t.Errorf("resolve generated pipeline output for cleanup: root=%v output=%v", rootErr, outputErr)
+					return
+				}
+				rel, relErr := filepath.Rel(absoluteRoot, absoluteOutput)
+				if relErr != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+					t.Errorf("refuse to remove generated pipeline output outside %s: %s", absoluteRoot, absoluteOutput)
+					return
+				}
+				if err := os.RemoveAll(absoluteOutput); err != nil {
+					t.Errorf("remove generated pipeline output %s: %v", absoluteOutput, err)
+				}
+			})
 			return artifact
 		}
 	}
@@ -405,6 +480,17 @@ func TestJ11_InstalledFromIntegrationsPageOnCleanHome(t *testing.T) {
 func installedJ11Manager(t *testing.T) (*runtimecomponent.Manager, component.SignedEntry, string) {
 	t.Helper()
 	root, _ := startJ11Release(t)
+	return installJ11ManagerRelease(t, root)
+}
+
+func installedJ11UsageManager(t *testing.T) (*runtimecomponent.Manager, component.SignedEntry, string) {
+	t.Helper()
+	root, _ := startJ11ReleaseFrom(t, os.Getenv("J11_USAGE_RELEASE_ROOT"))
+	return installJ11ManagerRelease(t, root)
+}
+
+func installJ11ManagerRelease(t *testing.T, root string) (*runtimecomponent.Manager, component.SignedEntry, string) {
+	t.Helper()
 	raw, err := os.ReadFile(filepath.Join(root, "host-input.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -857,10 +943,14 @@ func TestJ11_UninstallOffersDataChoice(t *testing.T) {
 func TestJ11_AddHereOrGetFullAppBothOffered(t *testing.T) {
 	// The release root selects this live journey; once selected, the full
 	// AppImage is a required input like the journey's other artifacts.
-	root, _ := startJ11Release(t)
+	root, base := startJ11Release(t)
 	full := os.Getenv("J11_FULL_AUDIO_APPIMAGE")
 	if full == "" {
 		t.Fatal("real published full Audio AppImage required")
+	}
+	managerApp := os.Getenv("J11_AGENT_MANAGER_APPIMAGE")
+	if managerApp == "" {
+		t.Fatal("real Agent Manager AppImage required on the shared LPBS channel")
 	}
 	artifact := buildJ11Host(t, filepath.Join(root, "host-input.json"))
 	home := t.TempDir()
@@ -893,7 +983,83 @@ func TestJ11_AddHereOrGetFullAppBothOffered(t *testing.T) {
 	if fmt.Sprintf("%x", got.Sum(nil)) != fmt.Sprintf("%x", sha256.Sum256(want)) {
 		t.Fatal("full-app link did not deliver actual owner AppImage")
 	}
-	t.Log("real clean-home Integrations offered Add here and Get full app; signed full-app link delivered actual Audio AppImage from LPBS/MinIO")
+	managerURL := base + "/api/v1/updates/agent-manager/stable/" + filepath.Base(managerApp)
+	managerResponse, err := http.Get(managerURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer managerResponse.Body.Close()
+	if managerResponse.StatusCode != http.StatusOK {
+		t.Fatalf("Agent Manager LPBS delivery HTTP%d", managerResponse.StatusCode)
+	}
+	managerFile, err := os.Open(managerApp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer managerFile.Close()
+	managerWant, managerGot := sha256.New(), sha256.New()
+	if _, err = io.Copy(managerWant, managerFile); err != nil {
+		t.Fatal(err)
+	}
+	downloadedManager := filepath.Join(t.TempDir(), filepath.Base(managerApp))
+	installedBytes, err := os.OpenFile(downloadedManager, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o700)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = io.Copy(io.MultiWriter(managerGot, installedBytes), managerResponse.Body); err != nil {
+		installedBytes.Close()
+		t.Fatal(err)
+	}
+	if err = installedBytes.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprintf("%x", managerWant.Sum(nil)) != fmt.Sprintf("%x", managerGot.Sum(nil)) {
+		t.Fatal("LPBS delivered bytes differ from the real Agent Manager AppImage")
+	}
+	t.Log("real Agent Manager AppImage delivered from the same LPBS channel as Web Console component releases")
+	runJ11AgentManagerUpdate(t, downloadedManager)
+	t.Log("real clean-home Integrations offered Add here and Get full app; signed full-app links delivered actual desktop app bytes from LPBS/MinIO")
+}
+
+func runJ11AgentManagerUpdate(t *testing.T, base string) {
+	t.Helper()
+	next := os.Getenv("J11_AGENT_MANAGER_NEXT_APPIMAGE")
+	if next == "" {
+		t.Fatal("real Agent Manager v0.0.2 AppImage required for the LPBS update check")
+	}
+	t.Setenv("J10_APP_KEY", "agent-manager")
+	t.Setenv("J10_SCENARIO_NAME", "agent-manager")
+	startJ10LPBS(t, next)
+	home := t.TempDir()
+	installed := filepath.Join(home, "Agent-Manager.AppImage")
+	digest := copyJ10Artifact(t, base, installed)
+	session := startJ10Desktop(t, installed, home, digest)
+	before := j10BrowserState(t, session.endpoint, "before")
+	receipt := waitJ10Receipt(t, home)
+	if receipt["outcome"] != "applied" || receipt["health"] != "passed" || receipt["toVersion"] != "0.0.2" {
+		t.Fatalf("Agent Manager LPBS update failed: %+v", receipt)
+	}
+	assertJ10UpdateTrace(t, home, []string{"offered", "verified", "apply_pending", "applying", "installing", "relaunched", "healthy"})
+	after := j10BrowserState(t, session.endpoint, "after")
+	if j10Digest(t, installed) != j10Digest(t, next) {
+		t.Fatal("Agent Manager installation does not match the LPBS successor")
+	}
+	if after["info"].(map[string]any)["version"] != "0.0.2" || before["note"] != after["note"] {
+		t.Fatalf("Agent Manager update changed the wrong version or lost profile data: before=%+v after=%+v", before, after)
+	}
+	response, err := http.Get("http://127.0.0.1:39565/__journey/evidence")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	var events map[string]int
+	if err := json.NewDecoder(response.Body).Decode(&events); err != nil {
+		t.Fatal(err)
+	}
+	if events["update_check"] < 1 || events["update_download"] < 1 {
+		t.Fatalf("Agent Manager update was not delivered by LPBS: %+v", events)
+	}
+	t.Logf("real Agent Manager AppImage updated through LPBS with profile preserved; delivery events=%v", events)
 }
 
 func j11RuntimeRead(t *testing.T, home, route string) (int, map[string]any) {
@@ -973,7 +1139,10 @@ func startJ11Native(t *testing.T, source, home, data string, input *manifest.Man
 
 func j11PeerLifecycle(t *testing.T, closeFull bool) {
 	t.Helper()
-	m, signed, root := installedJ11Manager(t)
+	m, signed, root := installedJ11UsageManager(t)
+	if signed.Entry.Owner != "agent-manager" {
+		t.Fatalf("J11 slice must be the real Agent Manager usage release, got %q", signed.Entry.Owner)
+	}
 	raw, err := os.ReadFile(filepath.Join(root, "host-input.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -982,20 +1151,20 @@ func j11PeerLifecycle(t *testing.T, closeFull bool) {
 	if err = json.Unmarshal(raw, &host); err != nil {
 		t.Fatal(err)
 	}
-	// Run the production native supervisor with this optional service graph.
-	// The renderer/install control path is independently operated by the other
-	// J11 checks; both providers here execute real Audio Tools owner binaries.
+	// Run the production native supervisor with the real Agent Manager feature
+	// graph. The renderer/install control path is independently exercised by
+	// the J11 usage and LPBS app-family checks.
 	host.Services = nil
 	host.Authentication = nil
 	peerHome := t.TempDir()
 	local := startJ11Native(t, t.TempDir(), peerHome, filepath.Dir(m.Root), &host)
-	first, err := local.ResolveFeature(t.Context(), "audio-tools", "audio.processing", "")
+	first, err := local.ResolveFeature(t.Context(), "agent-manager", "usage.live", "")
 	if err != nil || first.Source != "component" {
 		t.Fatalf("local component: %+v %v", first, err)
 	}
-	source := os.Getenv("J11_OWNER_BUNDLE")
+	source := os.Getenv("J11_AGENT_MANAGER_OWNER_BUNDLE")
 	if source == "" {
-		t.Fatal("real Audio owner bundle required")
+		t.Fatal("real Agent Manager owner bundle required")
 	}
 	raw, err = os.ReadFile(filepath.Join(source, "bundle.json"))
 	if err != nil {
@@ -1004,6 +1173,9 @@ func j11PeerLifecycle(t *testing.T, closeFull bool) {
 	var full manifest.Manifest
 	if err = json.Unmarshal(raw, &full); err != nil {
 		t.Fatal(err)
+	}
+	if feature, ok := full.Features["usage.live"]; !ok || feature.Service != "api" {
+		t.Fatalf("real Agent Manager full app lacks the usage.live API feature: %+v", full.Features)
 	}
 	standalone := startJ11Native(t, source, peerHome, t.TempDir(), &full)
 	fullURL := fmt.Sprintf("http://127.0.0.1:%d", standalone.PortMap()["api"]["api"])
@@ -1021,7 +1193,7 @@ func j11PeerLifecycle(t *testing.T, closeFull bool) {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	selected, err := local.ResolveFeature(t.Context(), "audio-tools", "audio.processing", "")
+	selected, err := local.ResolveFeature(t.Context(), "agent-manager", "usage.live", "")
 	if err != nil || selected.Source != "full_app" || selected.URL != fullURL {
 		t.Fatalf("live full app must win: %+v %v", selected, err)
 	}
@@ -1033,7 +1205,7 @@ func j11PeerLifecycle(t *testing.T, closeFull bool) {
 		if err := standalone.Shutdown(t.Context()); err != nil {
 			t.Fatal(err)
 		}
-		back, err := local.ResolveFeature(t.Context(), "audio-tools", "audio.processing", "")
+		back, err := local.ResolveFeature(t.Context(), "agent-manager", "usage.live", "")
 		if err != nil || back.Source != "component" || back.ComponentID != signed.Entry.ID {
 			t.Fatalf("component did not return: %+v %v", back, err)
 		}
@@ -1045,9 +1217,9 @@ func j11PeerLifecycle(t *testing.T, closeFull bool) {
 		if response.StatusCode != http.StatusOK {
 			t.Fatal("returned component unhealthy")
 		}
-		t.Log("real full Audio app closed; call-time resolver restarted the installed verified owner generation and returned its healthy API")
+		t.Log("real full Agent Manager app closed; call-time resolver restarted the installed verified owner generation and returned its healthy API")
 	} else {
-		t.Log("real standalone Audio supervisor/API won; installed component process stopped before resolving to full app")
+		t.Log("real standalone Agent Manager supervisor/API won; installed usage slice process stopped before resolving to full app")
 	}
 }
 

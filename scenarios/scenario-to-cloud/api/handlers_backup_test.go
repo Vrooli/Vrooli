@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"scenario-to-cloud/apierrors"
+	"scenario-to-cloud/authz"
 	"scenario-to-cloud/backup"
 	"scenario-to-cloud/domain"
 
@@ -86,6 +87,33 @@ func TestRecoveryPointRoutes(t *testing.T) {
 	if strings.Contains(rec.Body.String(), "fixture-recovery-key-material") {
 		t.Fatalf("response must never carry key material")
 	}
+	provider := srv.testProvider
+	if provider == nil {
+		t.Fatal("test server did not install its authorization provider")
+	}
+	restoreRequest := backup.RestoreRequest{TargetRef: "host-b", Into: map[string]string{"uploads": filepath.Join(root, "host-b", "uploads")}}
+	provider.mu.Lock()
+	provider.Anonymous = true
+	provider.mu.Unlock()
+	denied := doJSON(t, srv, http.MethodPost, "/api/v1/deployments/dep-1/recovery-points/"+rp.ID+"/restore", restoreRequest)
+	if denied.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous restore status=%d body=%s", denied.Code, denied.Body.String())
+	}
+	provider.mu.Lock()
+	provider.Anonymous = false
+	provider.Principal = testOperator()
+	provider.Principal.Scopes = []string{authz.ScopeRead}
+	provider.mu.Unlock()
+	denied = doJSON(t, srv, http.MethodPost, "/api/v1/deployments/dep-1/recovery-points/"+rp.ID+"/restore", restoreRequest)
+	if denied.Code != http.StatusForbidden || apierrors.FromHTTP(denied.Code, denied.Body.Bytes()).Code != apierrors.CodeForbiddenScope {
+		t.Fatalf("read-only restore status=%d body=%s", denied.Code, denied.Body.String())
+	}
+	if _, err := os.Stat(restoreRequest.Into["uploads"]); !os.IsNotExist(err) {
+		t.Fatalf("restore target exists after authorization refusal: stat err=%v", err)
+	}
+	provider.mu.Lock()
+	provider.Principal = testOperator()
+	provider.mu.Unlock()
 	if rec := doJSON(t, srv, http.MethodPost, "/api/v1/deployments/dep-1/recovery-points", backup.CaptureRequest{OperationID: "op-2", Step: "data.backup", Bindings: capture.Bindings, MigrationPosture: domain.MigrationPostureGreenfield}); rec.Code != http.StatusBadRequest || apierrors.FromHTTP(rec.Code, rec.Body.Bytes()).Code != apierrors.CodeInvalidRequest {
 		t.Fatalf("capture without a key reference must be refused: %d %s", rec.Code, rec.Body.String())
 	}
@@ -106,8 +134,8 @@ func TestRecoveryPointRoutes(t *testing.T) {
 		t.Fatalf("unknown point: %d %s", rec.Code, rec.Body.String())
 	}
 
-	target := filepath.Join(root, "host-b", "uploads")
-	rec = doJSON(t, srv, http.MethodPost, "/api/v1/deployments/dep-1/recovery-points/"+rp.ID+"/restore", backup.RestoreRequest{TargetRef: "host-b", Into: map[string]string{"uploads": target}})
+	target := restoreRequest.Into["uploads"]
+	rec = doJSON(t, srv, http.MethodPost, "/api/v1/deployments/dep-1/recovery-points/"+rp.ID+"/restore", restoreRequest)
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"outcome":"succeeded"`) || !strings.Contains(rec.Body.String(), `"within_budgets":true`) {
 		t.Fatalf("restore: %d %s", rec.Code, rec.Body.String())
 	}

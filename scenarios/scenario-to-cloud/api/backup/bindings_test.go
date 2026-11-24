@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"scenario-to-cloud/apierrors"
@@ -95,10 +96,10 @@ func TestPostgresHookMatchesResourceDeclaration(t *testing.T) {
 	if hook.Dump.Tool != "pg_dump" || hook.Restore.Tool != "pg_restore" {
 		t.Fatalf("postgres tools %+v", hook)
 	}
-	if got, want := hook.Dump.Argv, recoverypoint.PostgresDumpArgv; !equalStrings(got, want) {
+	if got, want := hook.Dump.Argv, recoverypoint.PostgresDumpArgv; !slices.Equal(got, want) {
 		t.Fatalf("dump argv %v differs from the provider's %v", got, want)
 	}
-	if got, want := hook.Restore.Argv, recoverypoint.PostgresRestoreArgv; !equalStrings(got, want) {
+	if got, want := hook.Restore.Argv, recoverypoint.PostgresRestoreArgv; !slices.Equal(got, want) {
 		t.Fatalf("restore argv %v differs from the provider's %v", got, want)
 	}
 	if len(doc.Deployment.PersistentData) == 0 || doc.Deployment.PersistentData[0].BackupProvider != domain.BackupProviderPostgres {
@@ -128,7 +129,7 @@ func TestDBMRegistrarUsesArgvAndReportsUnreachable(t *testing.T) {
 		t.Fatalf("ref=%q err=%v", ref, err)
 	}
 	want := []string{"data-backup-manager", "targets", "register", "--owner", "app", "--name", "records-db", "--kind", "postgres", "--locator", "fixture_records", "--json"}
-	if len(calls) != 1 || !equalStrings(calls[0], want) {
+	if len(calls) != 1 || !slices.Equal(calls[0], want) {
 		t.Fatalf("argv = %v", calls)
 	}
 	down := DBMRegistrar{Runner: func(context.Context, string, ...string) ([]byte, error) {

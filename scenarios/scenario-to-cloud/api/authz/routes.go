@@ -17,6 +17,7 @@ import (
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/health/healthv1connect"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/operations/operationsv1connect"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/plans/plansv1connect"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/qemu/qemuv1connect"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/releases/releasesv1connect"
 )
 
@@ -130,6 +131,9 @@ const PlansServicePrefix = "/" + plansv1connect.PlansServiceName + "/"
 // EdgeServicePrefix is the Connect mount of the typed EdgeService (P14).
 const EdgeServicePrefix = "/" + edgev1connect.EdgeServiceName + "/"
 
+// QEMUServicePrefix is the generated QEMU consumer boundary over Compute Manager.
+const QEMUServicePrefix = "/" + qemuv1connect.QEMUServiceName + "/"
+
 // DevRoutingServicePrefix is the development-only Test Genie routing mount
 // registered by api-core/devrouting. It is absent in production.
 const DevRoutingServicePrefix = "/vrooli.dev_routing.v1.routing.RoutingService/"
@@ -193,11 +197,8 @@ var Table = []Route{
 	{Method: "POST", Path: api + "/vps/inspect/plan", Effect: EffectRead, Scope: ScopeRead, BodyTarget: true, Description: "Plan a VPS inspection."},
 	{Method: "POST", Path: api + "/vps/inspect/apply", Effect: EffectRead, Scope: ScopeRead, BodyTarget: true, RemoteReach: true, Description: "Inspect a VPS."},
 
-	// Local disposable instances.
-	{Method: "POST", Path: api + "/instances/plan", Effect: EffectRead, Scope: ScopeRead, Description: "Plan a local disposable instance."},
+	// Local QEMU lane host observations; lifecycle is owned by Compute Manager.
 	{Method: "GET", Path: api + "/instances/readiness", Effect: EffectRead, Scope: ScopeRead, Description: "Report local disposable instance lane readiness (tools, KVM, images, architectures)."},
-	{Method: "POST", Path: api + "/instances", Effect: EffectHost, Scope: ScopeDestructive, Description: "Create a local disposable instance."},
-	{Method: "POST", Path: api + "/instances/{id}/{action}", Effect: EffectHost, Scope: ScopeDestructive, Description: "Act on a local disposable instance."},
 
 	// Deployment records and lifecycle.
 	{Method: "GET", Path: api + "/deployments/resolve", Effect: EffectRead, Scope: ScopeRead, ServiceAllowed: true, Description: "Resolve a deployment selector to its identity."},
@@ -327,6 +328,11 @@ var Table = []Route{
 	{Method: "POST", Path: api + "/deployments/{id}/data-bindings/adopt", Effect: EffectWorkloadMutation, Scope: ScopeWrite, TargetBound: true, Description: "Record the legacy data-binding mapping on the deployment; no data moves."},
 
 	// Typed Connect surface and development-only mounts.
+	{Method: "POST", Path: DeploymentsServicePrefix + "CreateDeployment", Effect: EffectWorkloadMutation, Scope: ScopeWrite, Description: "Create or update a deployment record through the typed Connect API."},
+	{Method: "POST", Path: DeploymentsServicePrefix + "StartDeploymentRecovery", Effect: EffectHost, Scope: ScopeDestructive, HandlerTargetBound: true, RemoteReach: true, Description: "Admit a reviewed rollback through the typed recovery contract; human authorization is required."},
+	{Method: "POST", Path: DeploymentsServicePrefix + "PreviewDeploymentRecovery", Effect: EffectHost, Scope: ScopeDestructive, HandlerTargetBound: true, RemoteReach: true, Description: "Read the canonical rollback preview for one authorized deployment; only a verified human may mint the preview used by Start."},
+	{Method: "POST", Path: DeploymentsServicePrefix + "GetDeploymentRecoveryOperation", Effect: EffectRead, Scope: ScopeRead, HandlerTargetBound: true, RemoteReach: true, ServiceAllowed: true, Description: "Read one exact recovery operation for its authorized deployment."},
+	{Method: "POST", Path: DeploymentsServicePrefix + "FindDeploymentRecoveryOperation", Effect: EffectRead, Scope: ScopeRead, HandlerTargetBound: true, RemoteReach: true, ServiceAllowed: true, Description: "Reconcile a lost recovery response by deployment and stable idempotency key."},
 	{Method: "*", Path: DeploymentsServicePrefix, Prefix: true, Effect: EffectRead, Scope: ScopeRead, ServiceAllowed: true, Description: "Connect DeploymentsService (resolve, get, list)."},
 	{Method: "*", Path: HealthServicePrefix, Prefix: true, Effect: EffectRead, Scope: ScopeRead, ServiceAllowed: true, Description: "Connect HealthService (typed observations)."},
 	{Method: "*", Path: OperationsServicePrefix, Prefix: true, Effect: EffectWorkloadMutation, Scope: ScopeDestructive, Description: "Connect OperationsService (get/wait/list are reads; cancel and reconcile mutate, so the mount requires the destructive scope)."},
@@ -335,6 +341,7 @@ var Table = []Route{
 	{Method: "*", Path: EdgeServicePrefix, Prefix: true, Effect: EffectRead, Scope: ScopeRead, ServiceAllowed: true, Description: "Connect EdgeService (typed edge observations)."},
 	{Method: "*", Path: ReleasesServicePrefix, Prefix: true, Effect: EffectWorkloadMutation, Scope: ScopeWrite, Description: "Connect ReleasesService (build, get, verify)."},
 	{Method: "*", Path: EvidenceServicePrefix, Prefix: true, Effect: EffectHost, Scope: ScopeDestructive, Description: "Connect EvidenceService (evidence reads are reads; ApplyPublication activates a release, so the mount requires the destructive scope)."},
+	{Method: "*", Path: QEMUServicePrefix, Prefix: true, Effect: EffectHost, Scope: ScopeDestructive, Description: "Connect QEMUService (acquire/release disposable Compute Manager instances; Get resolves a manager-owned reference)."},
 	{Method: "*", Path: DevRoutingServicePrefix, Prefix: true, Effect: EffectWorkloadMutation, Scope: ScopeWrite, Optional: true, Description: "Test Genie routed-pool leases (development only)."},
 }
 

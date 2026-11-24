@@ -81,7 +81,7 @@ export function createSaveStateResponse(
 ): SaveStateResponse {
   return {
     success: true,
-    updated_at: new Date().toISOString(),
+    updated_at: "2024-01-03T00:00:00Z",
     hash: "newhash123",
     ...overrides,
   };

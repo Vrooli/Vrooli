@@ -7,6 +7,7 @@ import (
 	"github.com/vrooli/vrooli/packages/cloudrelease"
 
 	"scenario-to-cloud/apierrors"
+	"scenario-to-cloud/internal/filedigest"
 )
 
 // NativeCLIArtifact is the release-bound control-plane binary delivered to a
@@ -46,7 +47,7 @@ func NativeCLIForTarget(bundlePath string, platform Platform) (NativeCLIArtifact
 		return NativeCLIArtifact{}, apierrors.Newf(apierrors.CodeUnsupportedCapability, "release %s carries a %s/%s control plane; the target is %s", rel.Digest, manifest.NativeCLI.GOOS, manifest.NativeCLI.GOARCH, platform).
 			WithDetail("artifact", cloudrelease.NativeCLIFileName(manifest.NativeCLI.GOOS, manifest.NativeCLI.GOARCH)).WithDetail("declared", manifest.NativeCLI.GOOS+"/"+manifest.NativeCLI.GOARCH).WithDetail("required", platform.String()).WithDetail("release_digest", rel.Digest)
 	}
-	bundleSum, _, err := fileSHA256(bundlePath)
+	bundleSum, _, err := filedigest.SHA256File(bundlePath)
 	if err != nil {
 		return NativeCLIArtifact{}, apierrors.Newf(apierrors.CodeReleaseVerificationFailed, "read bundle: %v", err).WithDetail("reason", "archive_unreadable")
 	}
@@ -56,7 +57,7 @@ func NativeCLIForTarget(bundlePath string, platform Platform) (NativeCLIArtifact
 	}
 	name := cloudrelease.NativeCLIFileName(manifest.NativeCLI.GOOS, manifest.NativeCLI.GOARCH)
 	path := filepath.Join(dir, name)
-	sum, _, err := fileSHA256(path)
+	sum, _, err := filedigest.SHA256File(path)
 	if err != nil {
 		return NativeCLIArtifact{}, apierrors.Newf(apierrors.CodeReleaseVerificationFailed, "read %s: %v", name, err).WithDetail("reason", "native_cli_mismatch").WithDetail("artifact", name)
 	}

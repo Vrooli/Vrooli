@@ -1,14 +1,20 @@
 package system
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"scenario-to-desktop/cli/internal/support"
 
@@ -168,11 +174,60 @@ func TestValidateArtifactRejectsDigestBeforeWritingEvidence(t *testing.T) {
 		t.Fatal(err)
 	}
 	output := filepath.Join(t.TempDir(), "evidence-bundle.tar.gz")
-	err := validateArtifact(artifact, "sha256:wrong", "demo", "smoke", "normal", output)
+	err := validateArtifact(artifact, "sha256:wrong", "demo", "smoke", "normal", output, time.Now)
 	if err == nil || !strings.Contains(err.Error(), "artifact_digest_mismatch") {
 		t.Fatalf("validateArtifact error = %v, want named digest mismatch", err)
 	}
 	if _, statErr := os.Stat(output); !os.IsNotExist(statErr) {
 		t.Fatalf("evidence output exists after digest mismatch: %v", statErr)
 	}
+}
+
+func TestValidateArtifactUsesInjectedClock(t *testing.T) {
+	artifact := filepath.Join(t.TempDir(), "demo.unsupported")
+	contents := []byte("artifact")
+	if err := os.WriteFile(artifact, contents, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(contents)
+	output := filepath.Join(t.TempDir(), "evidence-bundle.tar.gz")
+	fixed := time.Date(2026, 11, 20, 12, 34, 56, 0, time.UTC)
+	err := validateArtifact(artifact, "sha256:"+hex.EncodeToString(digest[:]), "demo", "smoke", "normal", output, func() time.Time { return fixed })
+	if err == nil || !strings.Contains(err.Error(), "unsupported desktop artifact") {
+		t.Fatalf("validateArtifact error = %v, want unsupported artifact", err)
+	}
+	file, err := os.Open(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	gz, err := gzip.NewReader(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gz.Close()
+	reader := tar.NewReader(gz)
+	for {
+		header, err := reader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if header.Name != "machine-assertion.json" {
+			continue
+		}
+		var assertion struct {
+			ObservedAt string `json:"observed_at"`
+		}
+		if err := json.NewDecoder(reader).Decode(&assertion); err != nil {
+			t.Fatal(err)
+		}
+		if assertion.ObservedAt != fixed.Format(time.RFC3339Nano) {
+			t.Fatalf("observed_at = %q, want %q", assertion.ObservedAt, fixed.Format(time.RFC3339Nano))
+		}
+		return
+	}
+	t.Fatal("machine assertion missing from evidence archive")
 }

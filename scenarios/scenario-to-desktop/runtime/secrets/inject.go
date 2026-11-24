@@ -57,16 +57,11 @@ func (inj *Injector) Apply(env map[string]string, svc manifest.Service) error {
 			return fmt.Errorf("service %s references unknown secret %s", svc.ID, secretID)
 		}
 
-		value := strings.TrimSpace(secrets[secretID])
-		required := true
-		if secret.Required != nil {
-			required = *secret.Required
+		if requiredSecretValueMissing(*secret, secrets[secretID]) {
+			return fmt.Errorf("secret %s missing for service %s", secretID, svc.ID)
 		}
-
+		value := strings.TrimSpace(secrets[secretID])
 		if value == "" {
-			if required {
-				return fmt.Errorf("secret %s missing for service %s", secretID, svc.ID)
-			}
 			continue
 		}
 

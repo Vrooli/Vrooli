@@ -19,7 +19,8 @@ func TargetRefFromManifest(m CloudManifest) identity.TargetRef {
 		return identity.TargetRef{}
 	}
 	return identity.TargetRef{
-		Transport: identity.TransportSSH,
+		Transport:        identity.TransportSSH,
+		ComputeManagerID: strings.TrimSpace(vps.ComputeManagerInstanceID),
 		Locator: identity.TargetLocator{
 			Host:    vps.Host,
 			Port:    vps.Port,
@@ -45,11 +46,30 @@ type CloudManifest struct {
 	Ports        ManifestPorts        `json:"ports"`
 	Edge         ManifestEdge         `json:"edge"`
 	Secrets      *ManifestSecrets     `json:"secrets,omitempty"`
+	// Backup declares an optional DBM-owned scheduled encrypted backup plan.
+	// The destination is created and credentialed by the operator; the
+	// scenario-to-cloud API may register this deployment's bindings and
+	// reconcile the schedule after a recovery-point capture.
+	Backup *ManifestBackup `json:"backup,omitempty"`
 	// LocalCredentialHandoffs describe local, same-host consumers that must
 	// receive a newly materialised deployment credential. Values are delivered
 	// only in memory over the local service boundary; they are never included
 	// in the manifest or a deployment receipt.
 	LocalCredentialHandoffs []LocalCredentialHandoff `json:"local_credential_handoffs,omitempty"`
+}
+
+// ManifestBackup defines the DBM plan policy for one deployment. It contains
+// non-secret destination metadata only; S3 credentials and Kopia's repository
+// passphrase remain in the credential authority.
+type ManifestBackup struct {
+	DestinationName       string `json:"destination_name"`
+	Schedule              string `json:"schedule"`
+	KeepHourly            int32  `json:"keep_hourly"`
+	KeepDaily             int32  `json:"keep_daily"`
+	KeepWeekly            int32  `json:"keep_weekly"`
+	KeepMonthly           int32  `json:"keep_monthly"`
+	KeepAnnual            int32  `json:"keep_annual"`
+	RecoveryDrillSchedule string `json:"recovery_drill_schedule"`
 }
 
 // CloudflareAPITokenKey is the env var name used for DNS-01 issuance via Cloudflare.
@@ -63,11 +83,12 @@ type ManifestTarget struct {
 
 // ManifestVPS contains VPS-specific deployment target configuration.
 type ManifestVPS struct {
-	Host          string   `json:"host"`
-	Port          int      `json:"port,omitempty"`
-	User          string   `json:"user,omitempty"`
-	Workdir       string   `json:"workdir,omitempty"`
-	PreservePaths []string `json:"preserve_paths,omitempty"`
+	Host                     string   `json:"host"`
+	Port                     int      `json:"port,omitempty"`
+	User                     string   `json:"user,omitempty"`
+	Workdir                  string   `json:"workdir,omitempty"`
+	PreservePaths            []string `json:"preserve_paths,omitempty"`
+	ComputeManagerInstanceID string   `json:"compute_manager_instance_id,omitempty"`
 }
 
 // ManifestScenario identifies the scenario to deploy.
@@ -225,19 +246,21 @@ type SecretPromptMetadata struct {
 	Description string `json:"description,omitempty"`
 }
 
-// LocalCredentialHandoff binds one deployment credential to a local consumer
-// such as a hosted scenario's remote-profile store. The consumer scenario is resolved via
-// service discovery; the path is a fixed local API path, not a remote host
-// address. AuthDescriptor names the local credential used to authorize the
-// handoff request.
+// LocalCredentialHandoff binds a destination credential plan to a local
+// consumer such as a hosted scenario's remote-profile store. SecretID must
+// reference the exact generated BundleSecretPlan that is materialized on the
+// deployment target. AuthDescriptor names the scoped local caller identity;
+// LegacyAuthDescriptor, when present, is a separate unissued-principal
+// recovery bridge. Neither auth descriptor supplies SecretID's value.
 type LocalCredentialHandoff struct {
-	ConsumerScenario string            `json:"consumer_scenario"`
-	ConsumerPath     string            `json:"consumer_path"`
-	AuthDescriptor   DescriptorAddress `json:"auth_descriptor"`
-	ProfileTag       string            `json:"profile_tag"`
-	ProfileLabel     string            `json:"profile_label,omitempty"`
-	APIBase          string            `json:"api_base"`
-	SecretID         string            `json:"secret_id"`
+	ConsumerScenario     string             `json:"consumer_scenario"`
+	ConsumerPath         string             `json:"consumer_path"`
+	AuthDescriptor       DescriptorAddress  `json:"auth_descriptor"`
+	LegacyAuthDescriptor *DescriptorAddress `json:"legacy_auth_descriptor,omitempty"`
+	ProfileTag           string             `json:"profile_tag"`
+	ProfileLabel         string             `json:"profile_label,omitempty"`
+	APIBase              string             `json:"api_base"`
+	SecretID             string             `json:"secret_id"`
 }
 
 // SecretsSummary provides a quick overview of secret requirements.

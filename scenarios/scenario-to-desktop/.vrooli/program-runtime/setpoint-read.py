@@ -18,13 +18,7 @@ PERMANENT_ROWS = [
 
 
 
-def guarded(call):
-    def invoke():
-        try:
-            return call()
-        except Exception as exc:
-            return exc
-    return invoke
+guarded = program.guarded
 
 
 def row(name, reading, target, in_band, reason=None):

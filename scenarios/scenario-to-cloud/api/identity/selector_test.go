@@ -161,6 +161,10 @@ func TestTargetKeyPrefersMachineIdentity(t *testing.T) {
 	if ssh.Key() != "host:203.0.113.10" || bridge.Key() != "machine:203.0.113.10" {
 		t.Fatalf("keys = %q, %q", ssh.Key(), bridge.Key())
 	}
+	qemu := TargetRef{ComputeManagerID: "cm-qemu-1", Transport: TransportSSH, Locator: TargetLocator{Host: "127.0.0.1"}}
+	if qemu.Key() != "compute-manager:cm-qemu-1" || qemu.IsZero() {
+		t.Fatalf("manager-owned QEMU key = %q zero=%v", qemu.Key(), qemu.IsZero())
+	}
 	if (TargetRef{}).Key() != "" || !(TargetRef{}).IsZero() {
 		t.Fatalf("empty target must have no key")
 	}

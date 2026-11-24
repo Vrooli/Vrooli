@@ -1,10 +1,13 @@
 package releases
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
+	instancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/compute-manager/v1/instance"
 	releasesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/releases"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -238,7 +241,83 @@ func fromProtoTime(value *timestamppb.Timestamp) time.Time {
 // Proto converts an operation standing to its typed wire contract.
 func (o Operation) Proto() *releasesv1.ReleaseOperation {
 	status := map[string]releasesv1.ReleaseOperationStatus{OperationQueued: releasesv1.ReleaseOperationStatus_RELEASE_OPERATION_STATUS_QUEUED, OperationRunning: releasesv1.ReleaseOperationStatus_RELEASE_OPERATION_STATUS_RUNNING, OperationComplete: releasesv1.ReleaseOperationStatus_RELEASE_OPERATION_STATUS_COMPLETE, OperationFailed: releasesv1.ReleaseOperationStatus_RELEASE_OPERATION_STATUS_FAILED, OperationCanceled: releasesv1.ReleaseOperationStatus_RELEASE_OPERATION_STATUS_CANCELED, OperationAmbiguous: releasesv1.ReleaseOperationStatus_RELEASE_OPERATION_STATUS_AMBIGUOUS}[o.Status]
-	return &releasesv1.ReleaseOperation{OperationId: o.ID, ReleaseId: o.ReleaseID, ProfileId: o.ProfileID, IdempotencyKey: o.IdempotencyKey, Status: status, ActiveStage: o.ActiveStage, Error: o.Error, CreatedAt: protoTime(o.CreatedAt), UpdatedAt: protoTime(o.UpdatedAt), CompletedAt: protoTime(pointerTime(o.CompletedAt))}
+	operation := &releasesv1.ReleaseOperation{OperationId: o.ID, ReleaseId: o.ReleaseID, ProfileId: o.ProfileID, IdempotencyKey: o.IdempotencyKey, Status: status, ActiveStage: o.ActiveStage, Error: o.Error, CreatedAt: protoTime(o.CreatedAt), UpdatedAt: protoTime(o.UpdatedAt), CompletedAt: protoTime(pointerTime(o.CompletedAt)), CloudStep: o.CloudStep.Proto()}
+	var request durableDeployRequest
+	if len(o.RequestSnapshot) > 0 && json.Unmarshal(o.RequestSnapshot, &request) == nil {
+		operation.CloudSpendQuoteIdempotencyKey = request.CloudSpendQuoteIdempotencyKey
+		operation.CloudComputeManagerInstanceId = request.CloudComputeManagerInstanceID
+		operation.CloudAcquireIdempotencyKey = request.CloudAcquireIdempotencyKey
+		operation.CloudAcquireRegion = request.CloudAcquireRegion
+		operation.CloudAcquireReceipt = cloudAcquireReceiptProto(request.CloudAcquireReceipt)
+		operation.CloudTeardownReceipt = cloudTeardownReceiptProto(request.CloudTeardownReceipt)
+		operation.CloudLeaseRenewalReceipt = cloudLeaseRenewalReceiptProto(request.CloudLeaseRenewalReceipt)
+	}
+	if o.CloudAcquireReceipt != nil {
+		operation.CloudAcquireReceipt = cloudAcquireReceiptProto(o.CloudAcquireReceipt)
+	}
+	if o.CloudTeardownReceipt != nil {
+		operation.CloudTeardownReceipt = cloudTeardownReceiptProto(o.CloudTeardownReceipt)
+	}
+	if o.CloudLeaseRenewalReceipt != nil {
+		operation.CloudLeaseRenewalReceipt = cloudLeaseRenewalReceiptProto(o.CloudLeaseRenewalReceipt)
+	}
+	return operation
+}
+
+func cloudAcquireReceiptProto(value *CloudAcquireReceipt) *releasesv1.CloudAcquireReceipt {
+	if value == nil || len(value.SourceReceipt) == 0 {
+		return nil
+	}
+	source := &instancev1.GetAcquireReceiptResponse{}
+	if err := protojson.Unmarshal(value.SourceReceipt, source); err != nil {
+		return nil
+	}
+	return &releasesv1.CloudAcquireReceipt{
+		SchemaVersion: uint32(value.SchemaVersion), OperationId: value.OperationID, ReleaseId: value.ReleaseID,
+		ProfileId: value.ProfileID, AcquisitionIdempotencyKey: value.AcquireKey,
+		ComputeManagerInstanceId: value.InstanceID, StoredTargetSha256: value.TargetManifestSHA256,
+		SourceReceiptSha256: value.SourceFingerprint, PersistedAt: protoTime(value.PersistedAt), SourceReceipt: source,
+	}
+}
+
+func cloudTeardownReceiptProto(value *CloudTeardownReceipt) *releasesv1.CloudTeardownReceipt {
+	if value == nil {
+		return nil
+	}
+	state := map[string]releasesv1.CloudTeardownState{
+		"pending":   releasesv1.CloudTeardownState_CLOUD_TEARDOWN_STATE_PENDING,
+		"released":  releasesv1.CloudTeardownState_CLOUD_TEARDOWN_STATE_RELEASED,
+		"refused":   releasesv1.CloudTeardownState_CLOUD_TEARDOWN_STATE_REFUSED,
+		"failed":    releasesv1.CloudTeardownState_CLOUD_TEARDOWN_STATE_FAILED,
+		"ambiguous": releasesv1.CloudTeardownState_CLOUD_TEARDOWN_STATE_AMBIGUOUS,
+	}[value.State]
+	wire := &releasesv1.CloudTeardownReceipt{SchemaVersion: uint32(value.SchemaVersion), OperationId: value.OperationID, ReleaseId: value.ReleaseID, ProfileId: value.ProfileID, TeardownIdempotencyKey: value.TeardownKey, AcquisitionReceiptSha256: value.AcquisitionReceiptFingerprint, ComputeManagerInstanceId: value.InstanceID, Provider: value.Provider, ProviderInstanceId: value.ProviderInstanceID, StoredTargetSha256: value.TargetManifestSHA256, State: state, Reason: value.Reason, PersistedAt: protoTime(value.PersistedAt)}
+	if len(value.OwnerReceipt) > 0 {
+		owner := &instancev1.ReleaseReceipt{}
+		if protojson.Unmarshal(value.OwnerReceipt, owner) == nil {
+			wire.OwnerReceipt = owner
+		} else {
+			wire.State, wire.Reason = releasesv1.CloudTeardownState_CLOUD_TEARDOWN_STATE_AMBIGUOUS, "persisted CM release receipt could not be decoded; teardown remains blocked"
+		}
+	} else if value.State == "released" {
+		wire.State, wire.Reason = releasesv1.CloudTeardownState_CLOUD_TEARDOWN_STATE_AMBIGUOUS, "released state has no exact CM receipt; teardown remains blocked"
+	}
+	return wire
+}
+
+func cloudLeaseRenewalReceiptProto(value *CloudLeaseRenewalReceipt) *releasesv1.CloudLeaseRenewalReceipt {
+	if value == nil {
+		return nil
+	}
+	state := map[string]releasesv1.CloudLeaseRenewalState{"due": releasesv1.CloudLeaseRenewalState_CLOUD_LEASE_RENEWAL_STATE_DUE, "pending": releasesv1.CloudLeaseRenewalState_CLOUD_LEASE_RENEWAL_STATE_PENDING, "renewed": releasesv1.CloudLeaseRenewalState_CLOUD_LEASE_RENEWAL_STATE_RENEWED, "blocked": releasesv1.CloudLeaseRenewalState_CLOUD_LEASE_RENEWAL_STATE_BLOCKED}[value.State]
+	return &releasesv1.CloudLeaseRenewalReceipt{SchemaVersion: uint32(value.SchemaVersion), OperationId: value.OperationID, ReleaseId: value.ReleaseID, ProfileId: value.ProfileID, RenewalIdempotencyKey: value.RenewalKey, AcquisitionReceiptSha256: value.AcquisitionReceiptFingerprint, ComputeManagerInstanceId: value.InstanceID, OldExpiresAt: protoTime(value.OldExpiresAt), NewExpiresAt: protoTime(value.NewExpiresAt), QuoteIdempotencyKey: value.QuoteKey, QuoteFingerprint: value.QuoteFingerprint, AuthorizationFact: value.AuthorizationFact, State: state, Reason: value.Reason, PersistedAt: protoTime(value.PersistedAt)}
+}
+
+func (s *CloudStep) Proto() *releasesv1.ReleaseCloudStep {
+	if s == nil {
+		return nil
+	}
+	return &releasesv1.ReleaseCloudStep{OperationId: s.OperationID, Fence: s.Fence, RequestKey: s.RequestKey, RequestDigest: s.RequestDigest, State: s.State, DeploymentId: s.DeploymentID, OwnerOperationId: s.OwnerOperationID, ReceiptJson: string(s.Receipt), Reason: s.Reason, UpdatedAt: protoTime(s.UpdatedAt), VerificationReceiptJson: string(s.VerificationReceipt), RecoveryIdempotencyKey: s.RecoveryIdempotencyKey, RecoveryOwnerOperationId: s.RecoveryOwnerOperationID, RecoveryState: s.RecoveryState, RecoveryPreviewRef: s.RecoveryPreviewRef, RecoveryReceiptJson: string(s.RecoveryReceipt), RecoveryReason: s.RecoveryReason, VerificationKey: s.VerificationKey, VerificationRequestDigest: s.VerificationRequestDigest, VerificationState: s.VerificationState, VerificationAttemptedAt: protoTime(pointerTime(s.VerificationAttemptedAt))}
 }
 
 func operationFromProto(value *releasesv1.ReleaseOperation) Operation {
@@ -251,7 +330,44 @@ func operationFromProto(value *releasesv1.ReleaseOperation) Operation {
 	if !completed.IsZero() {
 		completedAt = &completed
 	}
-	return Operation{ID: value.GetOperationId(), ReleaseID: value.GetReleaseId(), ProfileID: value.GetProfileId(), IdempotencyKey: value.GetIdempotencyKey(), Status: status, ActiveStage: value.GetActiveStage(), Error: value.GetError(), CreatedAt: fromProtoTime(value.GetCreatedAt()), UpdatedAt: fromProtoTime(value.GetUpdatedAt()), CompletedAt: completedAt}
+	var cloudStep *CloudStep
+	if value.GetCloudStep() != nil {
+		wire := value.GetCloudStep()
+		attemptedAt := fromProtoTime(wire.GetVerificationAttemptedAt())
+		var attemptedAtPtr *time.Time
+		if !attemptedAt.IsZero() {
+			attemptedAtPtr = &attemptedAt
+		}
+		cloudStep = &CloudStep{OperationID: wire.GetOperationId(), Fence: wire.GetFence(), RequestKey: wire.GetRequestKey(), RequestDigest: wire.GetRequestDigest(), State: wire.GetState(), DeploymentID: wire.GetDeploymentId(), OwnerOperationID: wire.GetOwnerOperationId(), Receipt: json.RawMessage(wire.GetReceiptJson()), VerificationReceipt: json.RawMessage(wire.GetVerificationReceiptJson()), VerificationKey: wire.GetVerificationKey(), VerificationRequestDigest: wire.GetVerificationRequestDigest(), VerificationState: wire.GetVerificationState(), VerificationAttemptedAt: attemptedAtPtr, RecoveryIdempotencyKey: wire.GetRecoveryIdempotencyKey(), RecoveryOwnerOperationID: wire.GetRecoveryOwnerOperationId(), RecoveryState: wire.GetRecoveryState(), RecoveryPreviewRef: wire.GetRecoveryPreviewRef(), RecoveryReceipt: json.RawMessage(wire.GetRecoveryReceiptJson()), RecoveryReason: wire.GetRecoveryReason(), Reason: wire.GetReason(), UpdatedAt: fromProtoTime(wire.GetUpdatedAt())}
+	}
+	var acquireReceipt *CloudAcquireReceipt
+	if wire := value.GetCloudAcquireReceipt(); wire != nil && wire.GetSourceReceipt() != nil {
+		sourceJSON, err := protojson.Marshal(wire.GetSourceReceipt())
+		if err == nil {
+			acquireReceipt = &CloudAcquireReceipt{SchemaVersion: int(wire.GetSchemaVersion()), OperationID: wire.GetOperationId(), ReleaseID: wire.GetReleaseId(), ProfileID: wire.GetProfileId(), AcquireKey: wire.GetAcquisitionIdempotencyKey(), InstanceID: wire.GetComputeManagerInstanceId(), TargetManifestSHA256: wire.GetStoredTargetSha256(), SourceFingerprint: wire.GetSourceReceiptSha256(), PersistedAt: fromProtoTime(wire.GetPersistedAt()), SourceReceipt: sourceJSON}
+		}
+	}
+	var teardownReceipt *CloudTeardownReceipt
+	if wire := value.GetCloudTeardownReceipt(); wire != nil {
+		state := map[releasesv1.CloudTeardownState]string{
+			releasesv1.CloudTeardownState_CLOUD_TEARDOWN_STATE_PENDING:   "pending",
+			releasesv1.CloudTeardownState_CLOUD_TEARDOWN_STATE_RELEASED:  "released",
+			releasesv1.CloudTeardownState_CLOUD_TEARDOWN_STATE_REFUSED:   "refused",
+			releasesv1.CloudTeardownState_CLOUD_TEARDOWN_STATE_FAILED:    "failed",
+			releasesv1.CloudTeardownState_CLOUD_TEARDOWN_STATE_AMBIGUOUS: "ambiguous",
+		}[wire.GetState()]
+		var ownerJSON json.RawMessage
+		if wire.GetOwnerReceipt() != nil {
+			ownerJSON, _ = protojson.Marshal(wire.GetOwnerReceipt())
+		}
+		teardownReceipt = &CloudTeardownReceipt{SchemaVersion: int(wire.GetSchemaVersion()), OperationID: wire.GetOperationId(), ReleaseID: wire.GetReleaseId(), ProfileID: wire.GetProfileId(), TeardownKey: wire.GetTeardownIdempotencyKey(), AcquisitionReceiptFingerprint: wire.GetAcquisitionReceiptSha256(), InstanceID: wire.GetComputeManagerInstanceId(), Provider: wire.GetProvider(), ProviderInstanceID: wire.GetProviderInstanceId(), TargetManifestSHA256: wire.GetStoredTargetSha256(), State: state, Reason: wire.GetReason(), PersistedAt: fromProtoTime(wire.GetPersistedAt()), OwnerReceipt: ownerJSON}
+	}
+	var leaseReceipt *CloudLeaseRenewalReceipt
+	if wire := value.GetCloudLeaseRenewalReceipt(); wire != nil {
+		leaseState := map[releasesv1.CloudLeaseRenewalState]string{releasesv1.CloudLeaseRenewalState_CLOUD_LEASE_RENEWAL_STATE_DUE: "due", releasesv1.CloudLeaseRenewalState_CLOUD_LEASE_RENEWAL_STATE_PENDING: "pending", releasesv1.CloudLeaseRenewalState_CLOUD_LEASE_RENEWAL_STATE_RENEWED: "renewed", releasesv1.CloudLeaseRenewalState_CLOUD_LEASE_RENEWAL_STATE_BLOCKED: "blocked"}[wire.GetState()]
+		leaseReceipt = &CloudLeaseRenewalReceipt{SchemaVersion: int(wire.GetSchemaVersion()), OperationID: wire.GetOperationId(), ReleaseID: wire.GetReleaseId(), ProfileID: wire.GetProfileId(), RenewalKey: wire.GetRenewalIdempotencyKey(), AcquisitionReceiptFingerprint: wire.GetAcquisitionReceiptSha256(), InstanceID: wire.GetComputeManagerInstanceId(), OldExpiresAt: fromProtoTime(wire.GetOldExpiresAt()), NewExpiresAt: fromProtoTime(wire.GetNewExpiresAt()), QuoteKey: wire.GetQuoteIdempotencyKey(), QuoteFingerprint: wire.GetQuoteFingerprint(), AuthorizationFact: wire.GetAuthorizationFact(), State: leaseState, Reason: wire.GetReason(), PersistedAt: fromProtoTime(wire.GetPersistedAt())}
+	}
+	return Operation{ID: value.GetOperationId(), ReleaseID: value.GetReleaseId(), ProfileID: value.GetProfileId(), IdempotencyKey: value.GetIdempotencyKey(), Status: status, ActiveStage: value.GetActiveStage(), Error: value.GetError(), CreatedAt: fromProtoTime(value.GetCreatedAt()), UpdatedAt: fromProtoTime(value.GetUpdatedAt()), CompletedAt: completedAt, CloudStep: cloudStep, CloudSpendQuoteIdempotencyKey: value.GetCloudSpendQuoteIdempotencyKey(), CloudComputeManagerInstanceID: value.GetCloudComputeManagerInstanceId(), CloudAcquireIdempotencyKey: value.GetCloudAcquireIdempotencyKey(), CloudAcquireRegion: value.GetCloudAcquireRegion(), CloudAcquireReceipt: acquireReceipt, CloudTeardownReceipt: teardownReceipt, CloudLeaseRenewalReceipt: leaseReceipt}
 }
 
 func pointerTime(value *time.Time) time.Time {

@@ -67,5 +67,5 @@ func (a *App) dependencies() support.Dependencies {
 		Core: func() *cliapp.ScenarioApp {
 			return a.core
 		},
-	}
+	}.WithProcessEnvironment()
 }

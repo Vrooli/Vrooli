@@ -24,6 +24,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	instancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/compute-manager/v1/instance"
 )
 
 // handleListDeployments returns all deployment records.
@@ -108,6 +109,10 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 			Manifest:  normalized,
 			Timestamp: time.Now().UTC().Format(time.RFC3339),
 		})
+		return
+	}
+	if err := s.validateComputeManagerManifestTarget(r.Context(), normalized); err != nil {
+		apierrors.Write(w, err)
 		return
 	}
 
@@ -219,6 +224,61 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 		"created":    true,
 		"timestamp":  time.Now().UTC().Format(time.RFC3339),
 	})
+}
+
+// validateComputeManagerManifestTarget binds a deployment manifest's SSH
+// locator to the exact live manager-owned instance before persisting it. A
+// manifest cannot claim a Compute Manager ID while redirecting reach to a
+// different host, user or port.
+func (s *Server) validateComputeManagerManifestTarget(ctx context.Context, manifest domain.CloudManifest) error {
+	if manifest.Target.VPS == nil {
+		return nil
+	}
+	vps := manifest.Target.VPS
+	managerID := strings.TrimSpace(vps.ComputeManagerInstanceID)
+	if managerID == "" {
+		return nil
+	}
+	if s.computeManager == nil {
+		return apierrors.New(apierrors.CodeReachUnavailable, "Compute Manager is required to bind this deployment target")
+	}
+	ref, err := s.computeManager.GetInstance(ctx, managerID)
+	if err != nil {
+		return apierrors.New(apierrors.CodeReachUnavailable, "Compute Manager could not verify the target instance").WithDetail("cause", err.Error())
+	}
+	if ref.ManagerInstanceID != managerID || strings.TrimSpace(ref.Provider) == "" {
+		return apierrors.New(apierrors.CodeInvalidRequest, "deployment target does not name a valid Compute Manager instance")
+	}
+	if ref.State != instancev1.InstanceState_INSTANCE_STATE_RUNNING {
+		return apierrors.New(apierrors.CodeInvalidRequest, "Compute Manager target instance is not running")
+	}
+	target, err := ref.TargetRef()
+	if err != nil {
+		return apierrors.New(apierrors.CodeInvalidRequest, "Compute Manager instance has no usable SSH target").WithDetail("cause", err.Error())
+	}
+	if target.ComputeManagerID != managerID || target.Transport != identity.TransportSSH {
+		return apierrors.New(apierrors.CodeInvalidRequest, "Compute Manager instance reference is not an SSH local-QEMU target")
+	}
+	if strings.TrimSpace(vps.Host) != "" && strings.TrimSpace(vps.Host) != target.Locator.Host {
+		return apierrors.New(apierrors.CodeInvalidRequest, "manifest host does not match the Compute Manager instance locator")
+	}
+	if vps.Port != 0 && vps.Port != target.Locator.Port {
+		return apierrors.New(apierrors.CodeInvalidRequest, "manifest SSH port does not match the Compute Manager instance locator")
+	}
+	if vps.User != "" && vps.User != target.Locator.User {
+		return apierrors.New(apierrors.CodeInvalidRequest, "manifest SSH user does not match the Compute Manager instance locator")
+	}
+	vps.Host = target.Locator.Host
+	if vps.Port == 0 {
+		vps.Port = target.Locator.Port
+	}
+	if vps.User == "" {
+		vps.User = target.Locator.User
+	}
+	if strings.TrimSpace(vps.Workdir) == "" {
+		vps.Workdir = domain.DefaultVPSWorkdir
+	}
+	return nil
 }
 
 // operatorCredentialAuthority is the credential authority seam; tests

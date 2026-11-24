@@ -63,6 +63,14 @@ const cloudCredentialsPostgresDDL = `
 	);
 	CREATE INDEX IF NOT EXISTS idx_cloud_credential_rotations_deployment ON cloud_credential_rotations(deployment_id, created_at);
 	CREATE INDEX IF NOT EXISTS idx_cloud_credential_rotations_binding ON cloud_credential_rotations(binding_id);
+	CREATE TABLE IF NOT EXISTS cloud_credential_active_operations (
+		binding_id TEXT PRIMARY KEY,
+		rotation_id TEXT NOT NULL UNIQUE REFERENCES cloud_credential_rotations(id) ON DELETE CASCADE
+	);
+	INSERT INTO cloud_credential_active_operations (binding_id, rotation_id)
+		SELECT binding_id, MIN(id) FROM cloud_credential_rotations
+		WHERE binding_id <> '' AND state NOT IN ('complete', 'failed') GROUP BY binding_id
+		ON CONFLICT (binding_id) DO NOTHING;
 `
 
 const cloudCredentialsSQLiteDDL = `
@@ -111,6 +119,14 @@ CREATE TABLE IF NOT EXISTS cloud_credential_rotations (
 );
 CREATE INDEX IF NOT EXISTS idx_cloud_credential_rotations_deployment ON cloud_credential_rotations(deployment_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_cloud_credential_rotations_binding ON cloud_credential_rotations(binding_id);
+CREATE TABLE IF NOT EXISTS cloud_credential_active_operations (
+	 binding_id TEXT PRIMARY KEY,
+	 rotation_id TEXT NOT NULL UNIQUE REFERENCES cloud_credential_rotations(id) ON DELETE CASCADE
+);
+INSERT INTO cloud_credential_active_operations (binding_id, rotation_id)
+	SELECT binding_id, MIN(id) FROM cloud_credential_rotations
+	WHERE binding_id <> '' AND state NOT IN ('complete', 'failed') GROUP BY binding_id
+	ON CONFLICT (binding_id) DO NOTHING;
 `
 
 // #nosec G101 -- fixed projection identifiers; no credential value is embedded.
@@ -299,14 +315,92 @@ func (r *Repository) ListAcks(ctx context.Context, bindingID string) ([]domain.C
 	return out, rows.Err()
 }
 
-// SaveRotation inserts or replaces a lifecycle operation. The document is
-// the whole operation; the indexed columns are projections of it.
+// CreateRotation inserts a new operation and atomically claims the binding's
+// one-open-operation slot. The reservation and document share one transaction.
+func (r *Repository) CreateRotation(ctx context.Context, rotation *domain.CredentialRotation) error {
+	values, err := credentialRotationValues(rotation)
+	if err != nil {
+		return err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin credential operation: %w", err)
+	}
+	defer tx.Rollback()
+	const insert = `
+		INSERT INTO cloud_credential_rotations (id, deployment_id, binding_id, kind, from_version, to_version, state, document, created_at, updated_at, completed_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		ON CONFLICT (id) DO NOTHING`
+	result, err := tx.ExecContext(ctx, insert, values...)
+	if err != nil {
+		return fmt.Errorf("create credential rotation: %w", err)
+	}
+	created, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if created != 1 {
+		return domain.ErrCredentialOperationConflict
+	}
+	if rotation.BindingID != "" && !rotation.State.Terminal() {
+		if err := reserveCredentialOperation(ctx, tx, rotation.BindingID, rotation.ID); err != nil {
+			return err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit credential operation: %w", err)
+	}
+	return nil
+}
+
+// SaveRotation updates an existing lifecycle operation and keeps its durable
+// binding reservation in sync with terminal state.
 func (r *Repository) SaveRotation(ctx context.Context, rotation *domain.CredentialRotation) error {
+	values, err := credentialRotationValues(rotation)
+	if err != nil {
+		return err
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin credential operation update: %w", err)
+	}
+	defer tx.Rollback()
+	const update = `
+		UPDATE cloud_credential_rotations SET binding_id = $3, kind = $4, from_version = $5,
+			to_version = $6, state = $7, document = $8, updated_at = $10, completed_at = $11
+		WHERE id = $1 AND deployment_id = $2`
+	result, err := tx.ExecContext(ctx, update, values...)
+	if err != nil {
+		return fmt.Errorf("save credential rotation: %w", err)
+	}
+	updated, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if updated != 1 {
+		return fmt.Errorf("credential rotation %q does not exist for deployment %q", rotation.ID, rotation.DeploymentID)
+	}
+	if rotation.State.Terminal() {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM cloud_credential_active_operations WHERE rotation_id = $1`, rotation.ID); err != nil {
+			return fmt.Errorf("release credential operation: %w", err)
+		}
+	} else if rotation.BindingID != "" {
+		if err := reserveCredentialOperation(ctx, tx, rotation.BindingID, rotation.ID); err != nil {
+			return err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit credential operation update: %w", err)
+	}
+	return nil
+}
+
+func credentialRotationValues(rotation *domain.CredentialRotation) ([]any, error) {
 	if rotation == nil || strings.TrimSpace(rotation.ID) == "" || strings.TrimSpace(rotation.DeploymentID) == "" {
-		return fmt.Errorf("credential rotation id and deployment id are required")
+		return nil, fmt.Errorf("credential rotation id and deployment id are required")
 	}
 	if !domain.ValidCredentialRotationState(rotation.State) {
-		return fmt.Errorf("credential rotation %q has unknown state %q", rotation.ID, rotation.State)
+		return nil, fmt.Errorf("credential rotation %q has unknown state %q", rotation.ID, rotation.State)
 	}
 	now := time.Now().UTC()
 	if rotation.CreatedAt.IsZero() {
@@ -317,21 +411,25 @@ func (r *Repository) SaveRotation(ctx context.Context, rotation *domain.Credenti
 	}
 	document, err := json.Marshal(rotation)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var completed any
 	if rotation.CompletedAt != nil {
 		completed = rotation.CompletedAt.UTC()
 	}
-	const q = `
-		INSERT INTO cloud_credential_rotations (id, deployment_id, binding_id, kind, from_version, to_version, state, document, created_at, updated_at, completed_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-		ON CONFLICT (id) DO UPDATE SET
-			binding_id = EXCLUDED.binding_id, kind = EXCLUDED.kind, from_version = EXCLUDED.from_version,
-			to_version = EXCLUDED.to_version, state = EXCLUDED.state, document = EXCLUDED.document,
-			updated_at = EXCLUDED.updated_at, completed_at = EXCLUDED.completed_at`
-	if _, err := r.db.ExecContext(ctx, q, rotation.ID, rotation.DeploymentID, rotation.BindingID, string(rotation.Kind), rotation.FromVersion, rotation.ToVersion, string(rotation.State), string(document), rotation.CreatedAt.UTC(), rotation.UpdatedAt.UTC(), completed); err != nil {
-		return fmt.Errorf("save credential rotation: %w", err)
+	return []any{rotation.ID, rotation.DeploymentID, rotation.BindingID, string(rotation.Kind), rotation.FromVersion, rotation.ToVersion, string(rotation.State), string(document), rotation.CreatedAt.UTC(), rotation.UpdatedAt.UTC(), completed}, nil
+}
+
+func reserveCredentialOperation(ctx context.Context, tx *sql.Tx, bindingID, rotationID string) error {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO cloud_credential_active_operations (binding_id, rotation_id) VALUES ($1, $2) ON CONFLICT (binding_id) DO NOTHING`, bindingID, rotationID); err != nil {
+		return fmt.Errorf("reserve credential operation: %w", err)
+	}
+	var owner string
+	if err := tx.QueryRowContext(ctx, `SELECT rotation_id FROM cloud_credential_active_operations WHERE binding_id = $1`, bindingID).Scan(&owner); err != nil {
+		return fmt.Errorf("read credential operation reservation: %w", err)
+	}
+	if owner != rotationID {
+		return domain.ErrCredentialOperationConflict
 	}
 	return nil
 }

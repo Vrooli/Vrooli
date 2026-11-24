@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -16,252 +17,103 @@ func testStore(t *testing.T) *Store {
 	return store
 }
 
-func TestStalenessDetector_DetectChanges_NoStoredState(t *testing.T) {
-	store := testStore(t)
-	detector := NewStalenessDetector(store)
-	ctx := context.Background()
-
-	current := &InputFingerprint{
-		ManifestPath: "/path/to/manifest.json",
-		ManifestHash: "newhash",
+func TestStalenessDetector_DetectChanges(t *testing.T) {
+	stateWith := func(stage string, fingerprint InputFingerprint) *ScenarioState {
+		return &ScenarioState{
+			ScenarioName: "test-scenario",
+			Stages: map[string]StageState{
+				stage: {Stage: stage, Status: StatusValid, InputFingerprint: fingerprint},
+			},
+		}
 	}
 
-	changes, err := detector.DetectChanges(ctx, "nonexistent-scenario", current)
-	if err != nil {
-		t.Fatalf("DetectChanges() error = %v", err)
-	}
-	if changes != nil {
-		t.Errorf("expected nil changes for nonexistent scenario, got %v", changes)
-	}
-}
-
-func TestStalenessDetector_DetectChanges_ManifestPathChanged(t *testing.T) {
-	store := testStore(t)
-	detector := NewStalenessDetector(store)
-	ctx := context.Background()
-
-	// Store state with bundle stage
-	state := &ScenarioState{
-		ScenarioName: "test-scenario",
-		Stages: map[string]StageState{
-			StageBundle: {
-				Stage:  StageBundle,
-				Status: StatusValid,
-				InputFingerprint: InputFingerprint{
-					ManifestPath: "/old/path/manifest.json",
-					ManifestHash: "oldhash",
-				},
+	tests := []struct {
+		name    string
+		stored  *ScenarioState
+		current *InputFingerprint
+		want    []StateChange
+	}{
+		{
+			name:    "no stored state",
+			current: &InputFingerprint{ManifestPath: "/path/to/manifest.json", ManifestHash: "newhash"},
+		},
+		{
+			name: "manifest path changed",
+			stored: stateWith(StageBundle, InputFingerprint{
+				ManifestPath: "/old/path/manifest.json", ManifestHash: "oldhash",
+			}),
+			current: &InputFingerprint{ManifestPath: "/new/path/manifest.json", ManifestHash: "newhash"},
+			want: []StateChange{{
+				ChangeType: "manifest_path", AffectedStage: StageBundle, Reason: "Manifest path changed",
+				OldValue: "/old/path/manifest.json", NewValue: "/new/path/manifest.json",
+			}},
+		},
+		{
+			name: "manifest content changed",
+			stored: stateWith(StageBundle, InputFingerprint{
+				ManifestPath: "/path/manifest.json", ManifestHash: "oldhash123",
+			}),
+			current: &InputFingerprint{ManifestPath: "/path/manifest.json", ManifestHash: "newhash456"},
+			want: []StateChange{{
+				ChangeType: "manifest_content", AffectedStage: StagePreflight,
+				Reason: "Manifest file content changed", OldValue: "oldhash123", NewValue: "newhash456",
+			}},
+		},
+		{
+			name: "preflight secret keys changed",
+			stored: stateWith(StagePreflight, InputFingerprint{
+				PreflightSecretKeys: []string{"SECRET_A", "SECRET_B"},
+			}),
+			current: &InputFingerprint{PreflightSecretKeys: []string{"SECRET_A", "SECRET_C"}},
+			want: []StateChange{{
+				ChangeType: "preflight_secrets", AffectedStage: StagePreflight,
+				Reason: "Preflight secrets configuration changed",
+			}},
+		},
+		{
+			name: "generate inputs changed",
+			stored: stateWith(StageGenerate, InputFingerprint{
+				TemplateType: "spa", Framework: "electron", DeploymentMode: "bundled", AppDisplayName: "Old Name",
+			}),
+			current: &InputFingerprint{
+				TemplateType: "basic", Framework: "electron", DeploymentMode: "bundled", AppDisplayName: "New App Name",
+			},
+			want: []StateChange{
+				{ChangeType: "template_type", AffectedStage: StageGenerate, Reason: "Template type changed", OldValue: "spa", NewValue: "basic"},
+				{ChangeType: "app_display_name", AffectedStage: StageGenerate, Reason: "App display name changed", OldValue: "Old Name", NewValue: "New App Name"},
+			},
+		},
+		{
+			name: "build inputs changed",
+			stored: stateWith(StageBuild, InputFingerprint{
+				Platforms: []string{"linux", "win"}, SigningEnabled: false, OutputLocation: "proper",
+			}),
+			current: &InputFingerprint{Platforms: []string{"linux", "mac"}, SigningEnabled: true, OutputLocation: "proper"},
+			want: []StateChange{
+				{ChangeType: "platforms", AffectedStage: StageBuild, Reason: "Target platforms changed"},
+				{ChangeType: "signing_enabled", AffectedStage: StageBuild, Reason: "Signing configuration toggled"},
 			},
 		},
 	}
-	if err := store.Save(ctx, state); err != nil {
-		t.Fatalf("failed to save state: %v", err)
-	}
 
-	// Check with different manifest path
-	current := &InputFingerprint{
-		ManifestPath: "/new/path/manifest.json",
-		ManifestHash: "newhash",
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := testStore(t)
+			ctx := context.Background()
+			if tt.stored != nil {
+				if err := store.Save(ctx, tt.stored); err != nil {
+					t.Fatalf("save stored state: %v", err)
+				}
+			}
 
-	changes, err := detector.DetectChanges(ctx, "test-scenario", current)
-	if err != nil {
-		t.Fatalf("DetectChanges() error = %v", err)
-	}
-	if len(changes) != 1 {
-		t.Fatalf("expected 1 change, got %d", len(changes))
-	}
-	if changes[0].ChangeType != "manifest_path" {
-		t.Errorf("change type = %s, want manifest_path", changes[0].ChangeType)
-	}
-	if changes[0].AffectedStage != StageBundle {
-		t.Errorf("affected stage = %s, want %s", changes[0].AffectedStage, StageBundle)
-	}
-}
-
-func TestStalenessDetector_DetectChanges_ManifestContentChanged(t *testing.T) {
-	store := testStore(t)
-	detector := NewStalenessDetector(store)
-	ctx := context.Background()
-
-	// Store state with bundle stage
-	state := &ScenarioState{
-		ScenarioName: "test-scenario",
-		Stages: map[string]StageState{
-			StageBundle: {
-				Stage:  StageBundle,
-				Status: StatusValid,
-				InputFingerprint: InputFingerprint{
-					ManifestPath: "/path/manifest.json",
-					ManifestHash: "oldhash123",
-				},
-			},
-		},
-	}
-	if err := store.Save(ctx, state); err != nil {
-		t.Fatalf("failed to save state: %v", err)
-	}
-
-	// Check with same path but different hash
-	current := &InputFingerprint{
-		ManifestPath: "/path/manifest.json",
-		ManifestHash: "newhash456",
-	}
-
-	changes, err := detector.DetectChanges(ctx, "test-scenario", current)
-	if err != nil {
-		t.Fatalf("DetectChanges() error = %v", err)
-	}
-	if len(changes) != 1 {
-		t.Fatalf("expected 1 change, got %d", len(changes))
-	}
-	if changes[0].ChangeType != "manifest_content" {
-		t.Errorf("change type = %s, want manifest_content", changes[0].ChangeType)
-	}
-	// Content change affects preflight, not bundle
-	if changes[0].AffectedStage != StagePreflight {
-		t.Errorf("affected stage = %s, want %s", changes[0].AffectedStage, StagePreflight)
-	}
-}
-
-func TestStalenessDetector_DetectChanges_PreflightSecretsChanged(t *testing.T) {
-	store := testStore(t)
-	detector := NewStalenessDetector(store)
-	ctx := context.Background()
-
-	state := &ScenarioState{
-		ScenarioName: "test-scenario",
-		Stages: map[string]StageState{
-			StagePreflight: {
-				Stage:  StagePreflight,
-				Status: StatusValid,
-				InputFingerprint: InputFingerprint{
-					PreflightSecretKeys: []string{"SECRET_A", "SECRET_B"},
-				},
-			},
-		},
-	}
-	if err := store.Save(ctx, state); err != nil {
-		t.Fatalf("failed to save state: %v", err)
-	}
-
-	// Check with different secrets
-	current := &InputFingerprint{
-		PreflightSecretKeys: []string{"SECRET_A", "SECRET_C"}, // B changed to C
-	}
-
-	changes, err := detector.DetectChanges(ctx, "test-scenario", current)
-	if err != nil {
-		t.Fatalf("DetectChanges() error = %v", err)
-	}
-	if len(changes) != 1 {
-		t.Fatalf("expected 1 change, got %d", len(changes))
-	}
-	if changes[0].ChangeType != "preflight_secrets" {
-		t.Errorf("change type = %s, want preflight_secrets", changes[0].ChangeType)
-	}
-}
-
-func TestStalenessDetector_DetectChanges_GenerateInputsChanged(t *testing.T) {
-	store := testStore(t)
-	detector := NewStalenessDetector(store)
-	ctx := context.Background()
-
-	state := &ScenarioState{
-		ScenarioName: "test-scenario",
-		Stages: map[string]StageState{
-			StageGenerate: {
-				Stage:  StageGenerate,
-				Status: StatusValid,
-				InputFingerprint: InputFingerprint{
-					TemplateType:   "spa",
-					Framework:      "electron",
-					DeploymentMode: "bundled",
-					AppDisplayName: "Old Name",
-				},
-			},
-		},
-	}
-	if err := store.Save(ctx, state); err != nil {
-		t.Fatalf("failed to save state: %v", err)
-	}
-
-	// Check with different template and name
-	current := &InputFingerprint{
-		TemplateType:   "basic",        // Changed
-		Framework:      "electron",     // Same
-		DeploymentMode: "bundled",      // Same
-		AppDisplayName: "New App Name", // Changed
-	}
-
-	changes, err := detector.DetectChanges(ctx, "test-scenario", current)
-	if err != nil {
-		t.Fatalf("DetectChanges() error = %v", err)
-	}
-	// Should have 2 changes: template_type and app_display_name
-	if len(changes) != 2 {
-		t.Fatalf("expected 2 changes, got %d: %+v", len(changes), changes)
-	}
-
-	changeTypes := make(map[string]bool)
-	for _, c := range changes {
-		changeTypes[c.ChangeType] = true
-	}
-	if !changeTypes["template_type"] {
-		t.Error("expected template_type change")
-	}
-	if !changeTypes["app_display_name"] {
-		t.Error("expected app_display_name change")
-	}
-}
-
-func TestStalenessDetector_DetectChanges_BuildInputsChanged(t *testing.T) {
-	store := testStore(t)
-	detector := NewStalenessDetector(store)
-	ctx := context.Background()
-
-	state := &ScenarioState{
-		ScenarioName: "test-scenario",
-		Stages: map[string]StageState{
-			StageBuild: {
-				Stage:  StageBuild,
-				Status: StatusValid,
-				InputFingerprint: InputFingerprint{
-					Platforms:      []string{"linux", "win"},
-					SigningEnabled: false,
-					OutputLocation: "proper",
-				},
-			},
-		},
-	}
-	if err := store.Save(ctx, state); err != nil {
-		t.Fatalf("failed to save state: %v", err)
-	}
-
-	// Check with different platforms and signing
-	current := &InputFingerprint{
-		Platforms:      []string{"linux", "mac"}, // win -> mac
-		SigningEnabled: true,                     // toggled
-		OutputLocation: "proper",
-	}
-
-	changes, err := detector.DetectChanges(ctx, "test-scenario", current)
-	if err != nil {
-		t.Fatalf("DetectChanges() error = %v", err)
-	}
-	if len(changes) != 2 {
-		t.Fatalf("expected 2 changes, got %d: %+v", len(changes), changes)
-	}
-
-	changeTypes := make(map[string]bool)
-	for _, c := range changes {
-		changeTypes[c.ChangeType] = true
-	}
-	if !changeTypes["platforms"] {
-		t.Error("expected platforms change")
-	}
-	if !changeTypes["signing_enabled"] {
-		t.Error("expected signing_enabled change")
+			changes, err := NewStalenessDetector(store).DetectChanges(ctx, "test-scenario", tt.current)
+			if err != nil {
+				t.Fatalf("DetectChanges() error = %v", err)
+			}
+			if !reflect.DeepEqual(changes, tt.want) {
+				t.Fatalf("DetectChanges() = %#v, want %#v", changes, tt.want)
+			}
+		})
 	}
 }
 

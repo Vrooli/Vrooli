@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -46,5 +47,69 @@ func TestRetentionNeverDeletesProtectedPoints(t *testing.T) {
 	// No policy keeps everything unprotected.
 	if none := Plan([]domain.RecoveryPoint{fresh, stale, ancient}, References{}, Policy{}, now); len(none.Delete) != 0 || len(none.Keep) != 3 {
 		t.Fatalf("empty policy = %+v", none)
+	}
+}
+
+type retentionRepoStub struct {
+	Repository
+	points    []domain.RecoveryPoint
+	updates   int
+	updatedBy []string
+}
+
+func (r *retentionRepoStub) ListRecoveryPoints(context.Context, string) ([]domain.RecoveryPoint, error) {
+	return r.points, nil
+}
+
+func (r *retentionRepoStub) SetRecoveryPointProtection(_ context.Context, _ string, _ bool, protectedBy []string) (*domain.RecoveryPoint, error) {
+	r.updates++
+	r.updatedBy = append([]string(nil), protectedBy...)
+	return nil, nil
+}
+
+func (r *retentionRepoStub) DeleteRecoveryPoint(context.Context, string) error {
+	return nil
+}
+
+func TestPruneWritesProtectionOnlyWhenOrderedHoldersChange(t *testing.T) {
+	tests := []struct {
+		name       string
+		point      domain.RecoveryPoint
+		refs       References
+		wantWrites int
+		wantBy     []string
+	}{
+		{
+			name:  "nil and empty unprotected holders are equivalent",
+			point: domain.RecoveryPoint{ID: "rp-empty"},
+		},
+		{
+			name:  "same protected holders avoid a no-op write",
+			point: domain.RecoveryPoint{ID: "rp-same", ReleaseDigest: "r1", Protected: true, ProtectedBy: []string{"release:active:r1"}},
+			refs:  References{ActiveReleases: []string{"r1"}},
+		},
+		{
+			name:       "changed holder is persisted",
+			point:      domain.RecoveryPoint{ID: "rp-changed", ReleaseDigest: "r1", Protected: true, ProtectedBy: []string{"release:active:old"}},
+			refs:       References{ActiveReleases: []string{"r1"}},
+			wantWrites: 1,
+			wantBy:     []string{"release:active:r1"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &retentionRepoStub{points: []domain.RecoveryPoint{tt.point}}
+			svc := &Service{Repo: repo, Now: func() time.Time { return time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC) }}
+			if _, err := svc.Prune(context.Background(), "deployment", tt.refs, Policy{}); err != nil {
+				t.Fatalf("Prune: %v", err)
+			}
+			if repo.updates != tt.wantWrites {
+				t.Fatalf("protection writes = %d, want %d", repo.updates, tt.wantWrites)
+			}
+			if len(tt.wantBy) > 0 && (len(repo.updatedBy) != len(tt.wantBy) || repo.updatedBy[0] != tt.wantBy[0]) {
+				t.Fatalf("updated protected_by = %v, want %v", repo.updatedBy, tt.wantBy)
+			}
+		})
 	}
 }

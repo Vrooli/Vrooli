@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"scenario-to-desktop/cli/domains"
+	"scenario-to-desktop/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliapptest"
@@ -61,7 +62,10 @@ func TestPrimitiveEvidenceArtifact(t *testing.T) {
 		Scenario:    appName,
 		ManifestRaw: manifest,
 		Groups:      subcommandGroups,
-	}, os.Getenv("UPDATE_CLI_EVIDENCE") == "1")
+	}, func() bool {
+		value, _ := (support.Dependencies{}).WithProcessEnvironment().LookupEnv("UPDATE_CLI_EVIDENCE")
+		return value == "1"
+	}())
 }
 
 func TestNewApp_AllCommandGroupsRegistered(t *testing.T) {

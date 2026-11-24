@@ -188,7 +188,7 @@ Write one `vrooli-memory journal note --kind work-record` in
 `scenario-to-desktop-usage` per cycle. Include the goal and row, before reading,
 route and work reference, after reading on the same sensor, and owning layer.
 Record files or evidence IDs rather than log bodies. A filed item is not a
-completed capability. Missing sensors need `skill-set-authoring`'s backlog filing
+completed capability. Missing sensors need `scenario-skill-setup`'s backlog filing
 recipe; another owner's defect needs `report-bug`.
 
 After three consecutive `scenario_unreachable` cycles, append the references to

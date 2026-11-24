@@ -47,6 +47,28 @@ Every call makes a fresh inspection (live state over SSH, DNS, TLS). Nothing
 is served from a cache, so `observed_at` is the producer time of the
 live-state inspection, never the time the response was assembled.
 
+The API process also runs a production observer on a 60-second cadence. It
+lists deployed production records, then calls this same typed observation
+path serially; failures are logged per target and do not prevent later targets
+from being inspected. The existing `Alerter` publishes new and resolved
+transitions to `vrooli-events`, which forwards them to Notification Hub. Its
+acknowledged open-alert set is stored in scenario-to-cloud's database after
+publish succeeds, so an API restart can still produce a recovery transition.
+A failed publish leaves the previous state in place and retries that
+incident/status transition on a later observation. This is at-least-once
+producer behavior; actual downstream Notification Hub delivery remains a
+staging rehearsal requirement. The
+Notification Hub dedupe key includes alert lifecycle status, so a repeated
+open is collapsed without suppressing a distinct resolved event for the same
+incident.
+cadence is configurable with `SCENARIO_TO_CLOUD_HEALTH_SCHEDULE_INTERVAL`
+(Go duration, minimum 1 second); set
+`SCENARIO_TO_CLOUD_HEALTH_SCHEDULE_ENABLED=false` only for an isolated
+control-plane instance that must not monitor production. It is enabled by
+default. Certificate expiry uses the phase-23 `certificate_expiry_warning_days`
+budget (14 days by default); a reported renewal failure is elevated to an
+immediate TLS renewal alert regardless of expiry distance.
+
 ### Fields
 
 | Field | Meaning |

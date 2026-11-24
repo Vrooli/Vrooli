@@ -458,15 +458,21 @@ func combineVerdict(left, right Verdict) Verdict {
 }
 
 func unknownResolution(result Resolution, reason Reason) Resolution {
-	result.Verdict = VerdictUnknown
-	result.Reasons = append(result.Reasons, reason)
+	markUnknown(&result.Verdict, &result.Reasons, reason)
 	return result
 }
 
 func unknownDependency(result DependencyResult, reason Reason) DependencyResult {
-	result.Verdict = VerdictUnknown
-	result.Reasons = append(result.Reasons, reason)
+	markUnknown(&result.Verdict, &result.Reasons, reason)
 	return result
+}
+
+// markUnknown applies the one meaning of an unknown verdict: the result is
+// unknown and the reason explains why, regardless of which result type carries
+// it.
+func markUnknown(verdict *Verdict, reasons *[]Reason, reason Reason) {
+	*verdict = VerdictUnknown
+	*reasons = append(*reasons, reason)
 }
 
 func cloneStack(stack map[string]struct{}) map[string]struct{} {

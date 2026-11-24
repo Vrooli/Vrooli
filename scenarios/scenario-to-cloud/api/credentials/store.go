@@ -2,6 +2,7 @@ package credentials
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"sync"
 
@@ -18,6 +19,7 @@ type Store interface {
 	FindBindingsByDescriptor(ctx context.Context, descriptor domain.CredentialDescriptor) ([]domain.CredentialBinding, error)
 	RecordAck(ctx context.Context, ack domain.CredentialAck) error
 	ListAcks(ctx context.Context, bindingID string) ([]domain.CredentialAck, error)
+	CreateRotation(ctx context.Context, rotation *domain.CredentialRotation) error
 	SaveRotation(ctx context.Context, rotation *domain.CredentialRotation) error
 	GetRotation(ctx context.Context, id string) (*domain.CredentialRotation, error)
 	ListRotations(ctx context.Context, deploymentID string) ([]domain.CredentialRotation, error)
@@ -105,6 +107,30 @@ func (m *MemoryStore) ListAcks(_ context.Context, bindingID string) ([]domain.Cr
 func (m *MemoryStore) SaveRotation(_ context.Context, rotation *domain.CredentialRotation) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if _, exists := m.rotations[rotation.ID]; !exists {
+		return errors.New("credential rotation must be created before it is saved")
+	}
+	m.rotations[rotation.ID] = cloneRotation(*rotation)
+	return nil
+}
+
+// CreateRotation atomically claims the one-open-operation slot for a binding.
+func (m *MemoryStore) CreateRotation(_ context.Context, rotation *domain.CredentialRotation) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if rotation == nil || rotation.ID == "" {
+		return errors.New("credential rotation id is required")
+	}
+	if _, exists := m.rotations[rotation.ID]; exists {
+		return domain.ErrCredentialOperationConflict
+	}
+	if rotation.BindingID != "" {
+		for _, existing := range m.rotations {
+			if existing.DeploymentID == rotation.DeploymentID && existing.BindingID == rotation.BindingID && !existing.State.Terminal() {
+				return domain.ErrCredentialOperationConflict
+			}
+		}
+	}
 	m.rotations[rotation.ID] = cloneRotation(*rotation)
 	return nil
 }

@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/cli-core/agentcatalog/harness"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/env"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
 	bundlemanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
@@ -32,6 +35,17 @@ func (s *packagerCLIStager) Stage(bundleRoot, platform string) error {
 }
 
 type packagerSizeCalculator struct{}
+
+func writeHarnessCatalogMarker(t *testing.T, repo string) {
+	t.Helper()
+	path := filepath.Join(repo, "packages", "cli-core", "agentcatalog", "harness", "catalog-marker.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(`{"schema_version":"v1","kind":"vrooli-harness-manifest-catalog"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func (packagerSizeCalculator) Calculate(string) (int64, []LargeFileInfo)        { return 42, nil }
 func (packagerSizeCalculator) CheckWarning(int64, []LargeFileInfo) *SizeWarning { return nil }
@@ -475,15 +489,17 @@ func TestStageManifestCatalogCopiesOnlyDeclarativeManifests(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	writeHarnessCatalogMarker(t, repo)
 	bundleDir := filepath.Join(t.TempDir(), "bundle")
 	copied, err := NewPackager().stageManifestCatalog(app, bundleDir)
 	if err != nil {
 		t.Fatalf("stage manifest catalog: %v", err)
 	}
-	if len(copied) != 5 {
-		t.Fatalf("copied %d catalog files, want 5: %v", len(copied), copied)
+	if len(copied) != 6 {
+		t.Fatalf("copied %d catalog files and marker, want 6: %v", len(copied), copied)
 	}
 	for _, path := range []string{
+		filepath.Join(bundleDir, "catalog", filepath.FromSlash(harness.CatalogRootMarkerPath)),
 		filepath.Join(bundleDir, "catalog", "scenarios", "onboarding", ".vrooli", "service.json"),
 		filepath.Join(bundleDir, "catalog", "scenarios", "other", ".vrooli", "service.json"),
 		filepath.Join(bundleDir, "catalog", "resources", "openrouter", "resource.json"),
@@ -520,16 +536,18 @@ func TestStageManifestCatalogCopiesHostRequirementCatalogs(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	writeHarnessCatalogMarker(t, repo)
 
 	bundleDir := filepath.Join(t.TempDir(), "bundle")
 	copied, err := NewPackager().stageManifestCatalog(app, bundleDir)
 	if err != nil {
 		t.Fatalf("stage manifest catalog: %v", err)
 	}
-	if len(copied) != 4 {
-		t.Fatalf("copied %d catalog files, want 4: %v", len(copied), copied)
+	if len(copied) != 5 {
+		t.Fatalf("copied %d catalog files and marker, want 5: %v", len(copied), copied)
 	}
 	for _, path := range []string{
+		filepath.ToSlash(filepath.Join("catalog", filepath.FromSlash(harness.CatalogRootMarkerPath))),
 		"catalog/scenarios/onboarding/.vrooli/service.json",
 		"catalog/resources/postgres/resource.json",
 		"catalog/internal/tools/tmux/tool.json",
@@ -561,6 +579,7 @@ func TestStageManifestCatalogRestrictsToUnionRequirements(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	writeHarnessCatalogMarker(t, repo)
 	bundleDir := filepath.Join(t.TempDir(), "bundle")
 	copied, err := NewPackager().stageManifestCatalogForRequirements(app, bundleDir, []string{
 		"catalog/scenarios/onboarding", "catalog/resources/needed",
@@ -568,10 +587,11 @@ func TestStageManifestCatalogRestrictsToUnionRequirements(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(copied) != 2 {
-		t.Fatalf("copied %d union files, want 2: %v", len(copied), copied)
+	if len(copied) != 3 {
+		t.Fatalf("copied %d union files and marker, want 3: %v", len(copied), copied)
 	}
 	for _, path := range []string{
+		filepath.ToSlash(filepath.Join("catalog", filepath.FromSlash(harness.CatalogRootMarkerPath))),
 		"catalog/scenarios/onboarding/.vrooli/service.json",
 		"catalog/resources/needed/resource.json",
 	} {
@@ -586,6 +606,43 @@ func TestStageManifestCatalogRestrictsToUnionRequirements(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(bundleDir, path)); !os.IsNotExist(err) {
 			t.Fatalf("unselected union path was staged %s: %v", path, err)
 		}
+	}
+}
+
+func TestStagedCatalogCanAddHarnessByDataAlone(t *testing.T) {
+	repo := t.TempDir()
+	app := filepath.Join(repo, "scenarios", "web-console")
+	files := map[string]string{
+		"scenarios/web-console/.vrooli/service.json": `{"name":"web-console"}`,
+		"resources/codex/resource.json":              `{"name":"codex","harness":{"id":"codex","binary":"codex","display_name":"Codex","icon":"codex","home_isolation":{"kind":"none"},"usage_windows":[{"id":"daily","minutes":1440}],"features":{"provider_selection":false,"resume":true,"goal_mode":false,"mcp":false,"hooks":false}}}`,
+		"resources/nimbus/resource.json":             `{"name":"nimbus","harness":{"id":"nimbus","binary":"nimbus","display_name":"Nimbus","icon":"terminal","home_isolation":{"kind":"none"},"usage_windows":[{"id":"daily","minutes":1440}],"features":{"provider_selection":false,"resume":false,"goal_mode":false,"mcp":false,"hooks":false}}}`,
+	}
+	for path, content := range files {
+		full := filepath.Join(repo, path)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeHarnessCatalogMarker(t, repo)
+	bundle := filepath.Join(t.TempDir(), "bundle")
+	if _, err := NewPackager().stageManifestCatalog(app, bundle); err != nil {
+		t.Fatal(err)
+	}
+	runtimeEnv, err := env.NewRenderer("/data", bundle, nil, infra.RealEnvReader{}).RenderEnvMap(bundlemanifest.Service{ID: "api"}, bundlemanifest.Binary{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("VROOLI_DESKTOP_MODE", runtimeEnv["VROOLI_DESKTOP_MODE"])
+	t.Setenv("VROOLI_RESOURCE_ROOT", runtimeEnv["VROOLI_RESOURCE_ROOT"])
+	loaded := harness.Active()
+	if descriptor, ok := loaded.Lookup("nimbus"); !ok || descriptor.Resource != "nimbus" {
+		t.Fatalf("data-only Nimbus descriptor missing from staged desktop catalog: %+v, %t", descriptor, ok)
+	}
+	if descriptor, ok := loaded.Lookup("codex"); !ok || descriptor.Resource != "codex" {
+		t.Fatalf("shipped Codex descriptor missing alongside extension: %+v, %t", descriptor, ok)
 	}
 }
 
@@ -642,6 +699,28 @@ func TestPackagerStagesUIAndServiceAssetsFromScenarioRoot(t *testing.T) {
 		if _, err := os.Stat(path); err != nil {
 			t.Fatalf("staged path missing %s: %v", path, err)
 		}
+	}
+}
+
+func TestPackagerStageServiceAssetsRejectsSymlinkEscape(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	secret := filepath.Join(outside, "operator-config.json")
+	if err := os.WriteFile(secret, []byte(`{"token":"private"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(secret, filepath.Join(root, "public-config.json")); err != nil {
+		t.Fatal(err)
+	}
+	bundleDir := filepath.Join(t.TempDir(), "bundle")
+	_, err := NewPackager().stageServiceAssets(bundlemanifest.Service{
+		ID: "api", Assets: []bundlemanifest.Asset{{Path: "public-config.json"}},
+	}, bundleDir, root)
+	if err == nil {
+		t.Fatal("expected asset symlink escaping manifest root to be rejected")
+	}
+	if _, err := os.Lstat(filepath.Join(bundleDir, "public-config.json")); !os.IsNotExist(err) {
+		t.Fatalf("escaped asset was staged: stat error = %v", err)
 	}
 }
 

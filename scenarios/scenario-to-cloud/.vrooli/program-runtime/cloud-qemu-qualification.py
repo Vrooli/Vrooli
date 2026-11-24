@@ -4,9 +4,8 @@ import json
 # the operations API (plan -> apply -> wait), observe health and edge state,
 # and return the qualification standing with one next action. Admission
 # refuses before any read or mutation; every effect goes through a governed
-# scenario-to-cloud binding, never a shell string. The owned guest itself
-# (vps instance create / wait-for-ssh / snapshot / reset / destroy) is the
-# operator's documented REST pre-step and post-step.
+# scenario-to-cloud binding, never a shell string. QEMU targets are resolved
+# by manager-owned instance ID through Scenario-to-Cloud's generated QEMU API.
 inputs = program.inputs()
 TARGET_GROUND = "qemu"
 MATRIX_REVISION = "cloud-launch-v2-two-grounds"
@@ -35,7 +34,11 @@ def assertion_driver(case_id, lane):
         return None
     return {"driver_ref":"certification-assertion:v1:" + case_id + ":" + lane + ":" + TARGET_GROUND, "owner":owner, "trigger":spec["trigger"], "expected_assertion":spec["assertion"], "status":"owner_assertion_required"}
 
-OWNED_TARGET_PREFIX = "local-qemu:"
+OWNED_TARGET_PREFIX = "compute-manager:"
+QEMU_IMAGES = {
+    "/var/lib/vm/ubuntu-24.04-server-cloudimg-amd64.img",
+    "/var/lib/vm/ubuntu-24.04-server-cloudimg-arm64.img",
+}
 SPEND_CEILING_MAX = 0
 OWNED_TARGET_MAX = 1
 EXECUTION_SECONDS_MAX = 7200
@@ -47,6 +50,10 @@ def text(name, default=""):
     return str(inputs.get(name, default) or "").strip()
 
 request_id = text("request_id"); release_ref = text("release_ref"); target_ref = text("target_ref")
+acquire_target = bool(inputs.get("acquire_target", False))
+qemu_profile = text("qemu_profile", "headless-linux")
+qemu_image = text("qemu_image")
+deployment_manifest = inputs.get("deployment_manifest") or {}
 environment_ref = text("environment_ref"); workload_ref = text("workload_ref"); authorization_ref = text("authorization_ref")
 deployment_id = text("deployment_id")
 matrix_revision = text("matrix_revision", MATRIX_REVISION); lane = text("lane", "")
@@ -61,7 +68,7 @@ cleanup_policy = str(cleanup.get("policy", "")).strip() if isinstance(cleanup, d
 envelope = program.envelope("scenario-to-cloud.cloud-qemu-qualification", "1")
 envelope["signals"] = {"qualification_id": "qual:" + request_id if request_id else "", "standing": "refused", "cells": [], "release": {"release_ref": release_ref}, "target": {"target_ref": target_ref, "target_ground": target_ground, "environment_ref": environment_ref, "workload_ref": workload_ref, "deployment_id": deployment_id}, "next_action": ""}
 fail = program.fail
-observed = {"deployment": None, "plan_digest": "", "plan_release": "", "closure_status": "", "validation_run": None, "operation": None, "target_receipts": [], "target_receipt_error": "", "health": None, "edge": None}
+observed = {"deployment": None, "manager_instance": None, "plan_digest": "", "plan_release": "", "closure_status": "", "validation_run": None, "operation": None, "target_receipts": [], "target_receipt_error": "", "health": None, "edge": None}
 
 def refuse(klass, detail, where="validate"):
     envelope["signals"]["standing"] = "refused"
@@ -90,10 +97,12 @@ def validate_target_receipt(row, deployment_id, operation_id, plan_digest, step,
     if str(row.get("plan_digest") or "") != plan_digest or str(row.get("step") or "") != step:
         return "receipt plan digest or step mismatch"
     got_target = row.get("target") if isinstance(row.get("target"), dict) else {}
-    for key in ("machine_id", "node_id", "enrollment_generation", "transport"):
-        if got_target.get(key) != target.get(key):
-            return "receipt target " + key + " mismatch"
-    if not isinstance(got_target.get("enrollment_generation"), int) or isinstance(got_target.get("enrollment_generation"), bool) or got_target.get("enrollment_generation") <= 0:
+    for snake, camel in (("machine_id", "machineId"), ("node_id", "nodeId"), ("enrollment_generation", "enrollmentGeneration"), ("transport", "transport"), ("compute_manager_instance_id", "computeManagerInstanceId")):
+        if got_target.get(snake, got_target.get(camel)) != target.get(snake, target.get(camel)):
+            return "receipt target " + snake + " mismatch"
+    manager_id = target.get("compute_manager_instance_id") or target.get("computeManagerInstanceId")
+    generation = got_target.get("enrollment_generation", got_target.get("enrollmentGeneration"))
+    if not manager_id and (not isinstance(generation, int) or isinstance(generation, bool) or generation <= 0):
         return "receipt enrollment generation is missing or invalid"
     receipt = row.get("receipt") if isinstance(row.get("receipt"), dict) else {}
     if receipt.get("found") is not True or receipt.get("outcome") not in ("succeeded", "unchanged"):
@@ -104,9 +113,22 @@ def validate_target_receipt(row, deployment_id, operation_id, plan_digest, step,
 
 # --- validate: admission. Refuses before any read or mutation. ---
 def step_validate():
-    for name, value in (("request_id", request_id), ("release_ref", release_ref), ("target_ref", target_ref), ("environment_ref", environment_ref), ("workload_ref", workload_ref)):
+    for name, value in (("request_id", request_id), ("release_ref", release_ref), ("environment_ref", environment_ref), ("workload_ref", workload_ref)):
         if not value:
             return invalid(name + " is required")
+    if acquire_target:
+        if target_ref or deployment_id:
+            return invalid("acquire_target requires empty target_ref and deployment_id; request identity derives from request_id")
+        if qemu_profile not in ("headless-linux", "desktop-linux"):
+            return invalid("qemu_profile must be headless-linux or desktop-linux")
+        if qemu_image not in QEMU_IMAGES:
+            return refuse("incompatible_target", "qemu_image must exactly match an image path in certification/lanes/qemu-images.json")
+        if not isinstance(deployment_manifest, dict) or not deployment_manifest:
+            return invalid("deployment_manifest is required when acquire_target=true")
+        if not isinstance(deployment_manifest.get("scenario"), dict) or not isinstance(deployment_manifest.get("edge"), dict):
+            return invalid("deployment_manifest must include canonical scenario and edge objects")
+    elif not target_ref:
+        return invalid("target_ref is required unless acquire_target=true")
     if not authorization_ref:
         return refuse("no_authorization", "authorization grant absent: supply authorization_ref naming the operator grant that designates " + target_ref + " as a disposable owned fixture")
     if lane not in QEMU_LANE_CASES or target_ground != TARGET_GROUND:
@@ -116,7 +138,7 @@ def step_validate():
     if not is_immutable_digest(release_ref):
         return refuse("stale_artifact", "release_ref must be an immutable sha256:<64 hex> release manifest digest; mutable references are stale by definition")
     if not target_ref.startswith(OWNED_TARGET_PREFIX):
-        return refuse("incompatible_target", "target_ref must name an owned disposable local-qemu guest (" + OWNED_TARGET_PREFIX + "<id>); operator machines and enrolled cloud targets are not fixtures")
+        return refuse("incompatible_target", "target_ref must be a Compute Manager-owned disposable QEMU reference (" + OWNED_TARGET_PREFIX + "<instance-id>); operator machines and other provider targets are not fixtures")
     if not isinstance(cases, list) or not cases:
         return invalid("cases must be a non-empty list of matrix case ids")
     if len(cases) != 1:
@@ -142,6 +164,63 @@ def step_validate():
     envelope["signals"]["standing"] = "admitted"
     envelope["signals"]["cells"] = [{"case_id": c, "lane": lane, "target_ground": TARGET_GROUND, "verdict": "pending", "assertion_driver": assertion_driver(c, lane)} for c in cases]
     envelope["evidence"].append("authorization:" + authorization_ref)
+    return "acquire" if acquire_target else "collect"
+
+# --- acquire: one explicit, authorized Compute Manager request followed by a
+# canonical deployment binding. The host-capacity gate lives with the provider
+# owner; this operation is never run by the CD5 unit without its admission. ---
+def step_acquire():
+    global target_ref, deployment_id
+    envelope["phase"] = "acquire"
+    try:
+        manager_ref = first_row(scenario_to_cloud.qemu.acquire(
+            idempotency_key=request_id + "-qemu",
+            region="local", size=qemu_profile, profile=qemu_profile,
+            image=qemu_image, lifetime_seconds=EXECUTION_SECONDS_MAX + 1800,
+            memory="2048", cpus=2, ssh_user="vrooli", ssh_port=0,
+            _confirm=True,
+        ))
+    except program.BindingError as exc:
+        status, klass = program.classify(exc)
+        envelope["signals"]["next_action"] = "resolve the QEMU acquisition standing through Compute Manager before retrying with the same request_id"
+        return fail(status, klass, exc, "acquire")
+    manager_id = str(manager_ref.get("managerInstanceId") or manager_ref.get("manager_instance_id") or "")
+    if not manager_id or str(manager_ref.get("provider") or "") != "local-qemu":
+        return fail("failed", "output_schema_mismatch", "Compute Manager did not return a local-qemu instance identity", "acquire")
+    target = manager_ref.get("target") if isinstance(manager_ref.get("target"), dict) else {}
+    locator = target.get("locator") if isinstance(target.get("locator"), dict) else {}
+    host = str(locator.get("host") or "")
+    port = locator.get("port") or 0
+    user = str(locator.get("user") or "")
+    if host not in ("127.0.0.1", "::1", "localhost") or not user or not isinstance(port, int) or port <= 0 or target.get("computeManagerInstanceId", target.get("compute_manager_instance_id")) != manager_id:
+        return fail("failed", "output_schema_mismatch", "Compute Manager returned an incomplete or unbound local SSH locator", "acquire")
+    target_ref = OWNED_TARGET_PREFIX + manager_id
+    manifest = json.loads(json.dumps(deployment_manifest))
+    manifest["scenario"]["id"] = workload_ref
+    manifest["environment"] = environment_ref
+    manifest["target"] = {"type": "vps", "vps": {
+        "host": host, "port": port, "user": user,
+        "compute_manager_instance_id": manager_id,
+    }}
+    try:
+        created = first_row(scenario_to_cloud.deployment.create(
+            name="QEMU qualification " + request_id,
+            manifest_json=json.dumps(manifest, allow_nan=False, separators=(",", ":")),
+            _confirm=True,
+        ))
+    except program.BindingError as exc:
+        status, klass = program.classify(exc)
+        envelope["signals"]["target"]["target_ref"] = target_ref
+        envelope["signals"]["target"]["manager_instance_id"] = manager_id
+        envelope["signals"]["next_action"] = "Compute Manager instance was admitted; retry deployment/create with the same request_id and inspect the exact target before cleanup"
+        return fail(status, klass, exc, "acquire")
+    ref = created.get("ref") if isinstance(created.get("ref"), dict) else {}
+    deployment_id = str(ref.get("id") or "")
+    if not deployment_id or ref.get("target", {}).get("computeManagerInstanceId", ref.get("target", {}).get("compute_manager_instance_id")) != manager_id:
+        return fail("failed", "output_schema_mismatch", "CreateDeployment did not return a ref bound to the newly admitted Compute Manager instance", "acquire")
+    envelope["signals"]["target"].update({"target_ref": target_ref, "manager_instance_id": manager_id, "deployment_id": deployment_id})
+    envelope["evidence"].append("compute-manager-instance:" + manager_id)
+    envelope["evidence"].append("deployment:" + deployment_id)
     return "collect"
 
 # --- collect: governed reads only. Binds the request to one deployment on the
@@ -149,6 +228,24 @@ def step_validate():
 def step_collect():
     global deployment_id
     envelope["phase"] = "collect"
+    manager_instance_id = target_ref[len(OWNED_TARGET_PREFIX):]
+    try:
+        manager_ref = first_row(scenario_to_cloud.qemu.get(instance_id=manager_instance_id))
+    except program.RemoteError as exc:
+        if exc.http_status == 404:
+            return refuse("incompatible_target", "Compute Manager instance " + manager_instance_id + " does not exist", "collect")
+        status, klass = program.classify(exc)
+        return fail(status, klass, exc, "collect")
+    except program.BindingError as exc:
+        status, klass = program.classify(exc)
+        return fail(status, klass, exc, "collect")
+    if str(manager_ref.get("managerInstanceId") or "") != manager_instance_id:
+        return refuse("incompatible_target", "Compute Manager returned a different instance identity", "collect")
+    manager_target = manager_ref.get("target") or {}
+    if str(manager_target.get("computeManagerInstanceId") or "") != manager_instance_id:
+        return refuse("incompatible_target", "Compute Manager target reference does not bind its manager-owned instance id", "collect")
+    observed["manager_instance"] = manager_ref
+    envelope["signals"]["target"]["manager_instance_id"] = manager_instance_id
     try:
         if deployment_id:
             ref = first_row(scenario_to_cloud.deployment.get(id=deployment_id)).get("ref") or {}
@@ -165,12 +262,13 @@ def step_collect():
     deployment_id = str(ref.get("id") or "")
     target = ref.get("target") or {}
     machine_id = str(target.get("machineId") or "")
-    observed["deployment"] = {"id": deployment_id, "scenario_id": ref.get("scenarioId"), "environment": ref.get("environment"), "machine_id": machine_id, "node_id": target.get("nodeId"), "enrollment_generation": target.get("enrollmentGeneration"), "transport": target.get("transport")}
+    bound_manager_id = str(target.get("computeManagerInstanceId") or "")
+    observed["deployment"] = {"id": deployment_id, "scenario_id": ref.get("scenarioId"), "environment": ref.get("environment"), "machine_id": machine_id, "compute_manager_instance_id": bound_manager_id, "node_id": target.get("nodeId"), "enrollment_generation": target.get("enrollmentGeneration"), "transport": target.get("transport")}
     envelope["signals"]["target"]["deployment_id"] = deployment_id
     if not deployment_id:
         return refuse("incompatible_target", "deployment reference carries no id", "collect")
-    if machine_id != target_ref:
-        return refuse("incompatible_target", "deployment " + deployment_id + " is bound to machine " + (machine_id or "<unbound>") + ", not to the owned guest " + target_ref + "; a qualification never mutates a target it does not own", "collect")
+    if bound_manager_id != manager_instance_id:
+        return refuse("incompatible_target", "deployment " + deployment_id + " is bound to Compute Manager instance " + (bound_manager_id or "<unbound>") + ", not to the owned guest " + manager_instance_id + "; a qualification never mutates a target it does not own", "collect")
     if str(ref.get("environment") or "") != environment_ref:
         return refuse("incompatible_target", "deployment " + deployment_id + " lives in environment " + str(ref.get("environment")) + ", not " + environment_ref, "collect")
     try:
@@ -246,7 +344,7 @@ def step_act():
     observed["operation"]["step_receipts"] = standing.get("stepReceipts") or standing.get("step_receipts") or []
     envelope["signals"]["operation"] = observed["operation"]
     deployment = observed["deployment"] or {}
-    admitted_target = {"machine_id": deployment.get("machine_id"), "node_id": deployment.get("node_id"), "enrollment_generation": deployment.get("enrollment_generation"), "transport": deployment.get("transport")}
+    admitted_target = {"machine_id": deployment.get("machine_id"), "compute_manager_instance_id": deployment.get("compute_manager_instance_id"), "node_id": deployment.get("node_id"), "enrollment_generation": deployment.get("enrollment_generation"), "transport": deployment.get("transport")}
     candidate_steps = [r for r in observed["operation"]["step_receipts"] if isinstance(r, dict) and r.get("source") == "target_receipt" and r.get("outcome") in ("succeeded", "unchanged")]
     for step_receipt in candidate_steps:
         step = str(step_receipt.get("step") or "")
@@ -325,5 +423,5 @@ def step_report():
     print(json.dumps(envelope, allow_nan=False, separators=(",", ":")))
     return None
 
-STATES = {"validate": step_validate, "collect": step_collect, "decide": step_decide, "act": step_act, "classify": step_classify, "report": step_report}
+STATES = {"validate": step_validate, "acquire": step_acquire, "collect": step_collect, "decide": step_decide, "act": step_act, "classify": step_classify, "report": step_report}
 program.run(STATES, "validate")

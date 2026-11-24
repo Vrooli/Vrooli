@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/textutil"
 	"scenario-to-cloud/apierrors"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/execplan"
@@ -529,18 +530,9 @@ func (e *executor) invoke(ctx context.Context, tc TargetCommand) (verbReply, rea
 		return reply, res, nil
 	}
 	if res.ExitCode != 0 {
-		return reply, res, apierrors.Newf(apierrors.CodeInternal, "vrooli %s exited %d: %s", tc.Command.Verb, res.ExitCode, strings.TrimSpace(firstNonEmpty(res.Stderr, res.Stdout)))
+		return reply, res, apierrors.Newf(apierrors.CodeInternal, "vrooli %s exited %d: %s", tc.Command.Verb, res.ExitCode, strings.TrimSpace(textutil.FirstNonEmpty(res.Stderr, res.Stdout)))
 	}
 	return reply, res, nil
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, v := range values {
-		if strings.TrimSpace(v) != "" {
-			return v
-		}
-	}
-	return ""
 }
 
 // runCommands executes every invocation of an action in order and returns a

@@ -170,9 +170,9 @@ func checkNoShellEntrypoint(path string, manifest scenario.ServiceManifest) []Co
 		check(fmt.Sprintf("component %q run", name), component.Run.Argv)
 	}
 	for phaseName, phase := range map[string]scenario.Phase{
-		"setup": manifest.Lifecycle.Setup,
+		"setup":   manifest.Lifecycle.Setup,
 		"develop": manifest.Lifecycle.Develop,
-		"clean": manifest.Lifecycle.Clean,
+		"clean":   manifest.Lifecycle.Clean,
 	} {
 		for _, step := range phase.Steps {
 			check(fmt.Sprintf("%s step %q", phaseName, step.Name), step.Exec)

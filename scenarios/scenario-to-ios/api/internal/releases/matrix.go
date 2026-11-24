@@ -21,6 +21,8 @@ type Catalog struct {
 	Journey validationmatrix.JourneySelection
 }
 
+const mirrorReleaseBlockedReason = "ios-mirror evidence is exploratory and cannot satisfy an iOS release gate"
+
 func (c Catalog) Resolve(ctx context.Context, scenario string) (validationmatrix.CatalogSnapshot, error) {
 	if strings.TrimSpace(scenario) == "" {
 		return validationmatrix.CatalogSnapshot{}, fmt.Errorf("iOS validation scenario is required")
@@ -39,10 +41,15 @@ func (c Catalog) Resolve(ctx context.Context, scenario string) (validationmatrix
 	targets := make([]validationmatrix.TargetSelection, 0, len(inventory.Targets))
 	for _, target := range inventory.Targets {
 		reason := strings.TrimSpace(target.Reason)
+		available := target.Available
+		if isIOSMirrorTarget(target) {
+			available = false
+			reason = mirrorReleaseBlockedReason
+		}
 		descriptor := &domainv1.ValidationTargetDescriptor{
 			TargetId:     target.ID,
 			DisplayName:  target.Label,
-			Available:    target.Available,
+			Available:    available,
 			Capabilities: capabilityEnums(target.Capabilities),
 		}
 		if reason != "" {
@@ -55,6 +62,44 @@ func (c Catalog) Resolve(ctx context.Context, scenario string) (validationmatrix
 		targets = append(targets, validationmatrix.TargetSelection{Descriptor: descriptor, Kind: kind})
 	}
 	return validationmatrix.CatalogSnapshot{Journeys: []validationmatrix.JourneySelection{journey}, Targets: targets}, nil
+}
+
+// MirrorReleaseGuard is the last scenario-owned boundary before local or
+// bridge execution. A caller can submit an explicit target selection instead
+// of using the catalog, so catalog labeling alone cannot protect the release
+// gate from mirror-derived evidence.
+type MirrorReleaseGuard struct {
+	Next validationmatrix.CellTransport
+}
+
+func (g MirrorReleaseGuard) Execute(ctx context.Context, request validationmatrix.CellRequest) validationmatrix.CellResult {
+	if request.Target != nil && isIOSMirrorDescriptor(request.Target) {
+		return unavailable(mirrorReleaseBlockedReason)
+	}
+	if g.Next == nil {
+		return unavailable("iOS validation executor is not configured")
+	}
+	return g.Next.Execute(ctx, request)
+}
+
+func isIOSMirrorTarget(target deliveryramp.Target) bool {
+	if !strings.EqualFold(strings.TrimSpace(target.Platform), "ios") {
+		return false
+	}
+	if strings.EqualFold(strings.TrimSpace(target.Mode), "ios-mirror") || strings.EqualFold(strings.TrimSpace(target.DeviceKind), "ios-mirror") || strings.Contains(strings.ToLower(target.ID), "ios-mirror") {
+		return true
+	}
+	for _, capability := range target.Capabilities {
+		if strings.EqualFold(strings.TrimSpace(capability), "ios-mirror") {
+			return true
+		}
+	}
+	return false
+}
+
+func isIOSMirrorDescriptor(target *domainv1.ValidationTargetDescriptor) bool {
+	id := strings.ToLower(strings.TrimSpace(target.GetTargetId()))
+	return strings.Contains(id, "ios-mirror") || strings.Contains(id, "ios:mirror")
 }
 
 type JourneyRunner func(context.Context, deliveryramp.DriverRequest) (deliveryramp.JourneyResult, error)

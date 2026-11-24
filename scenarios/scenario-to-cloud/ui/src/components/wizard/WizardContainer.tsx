@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight, RotateCcw, Home } from "lucide-react";
 import { Stepper } from "../ui/stepper";
-import { Button } from "../ui/button";
+import { Button } from "../ui/button-adapter";
 import { Card, CardContent } from "../ui/card";
 import { useDeployment } from "../../hooks/useDeployment";
 import { StepManifest } from "./StepManifest";

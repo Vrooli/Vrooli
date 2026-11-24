@@ -35,6 +35,7 @@ var actionHandlers = map[string]actionHandler{
 	execplan.OpReleaseVerify:           runReleaseVerify,
 	execplan.OpReleaseStage:            runCommandsHandler,
 	execplan.OpDataBackup:              runDataBackup,
+	execplan.OpDataSchedule:            runCommandsHandler,
 	execplan.OpReleaseActivate:         runReleaseActivate,
 	execplan.OpConfigApply:             runConfigApply,
 	execplan.OpWorkloadStop:            runCommandsHandler,

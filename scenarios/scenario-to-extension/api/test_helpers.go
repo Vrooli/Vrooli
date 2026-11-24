@@ -37,8 +37,6 @@ type TestEnvironment struct {
 	TempDir    string
 	OriginalWD string
 	Config     *Config
-	RunnerEnv  string
-	RunnerSet  bool
 	Cleanup    func()
 }
 
@@ -109,35 +107,6 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 		}
 	}
 
-	runnerPath := filepath.Join(tempDir, "browser-runner.py")
-	runner := `#!/usr/bin/env python3
-import json
-import sys
-
-args = sys.argv[1:]
-sites = []
-if "--test-sites" in args:
-    index = args.index("--test-sites") + 1
-    if index < len(args) and args[index]:
-        sites = args[index].split(",")
-results = [{"site": site, "loaded": True, "errors": [], "load_time_ms": 1} for site in sites]
-print(json.dumps({
-    "success": True,
-    "status": "passed",
-    "test_results": results,
-    "summary": {
-        "total_tests": len(results),
-        "passed": len(results),
-        "failed": 0,
-        "success_rate": 100.0 if results else 0.0,
-    },
-}))
-`
-	if err := os.WriteFile(runnerPath, []byte(runner), 0o755); err != nil {
-		os.RemoveAll(tempDir)
-		t.Fatalf("Failed to create browser runner: %v", err)
-	}
-
 	// Create test config
 	testConfig := &Config{
 		Port:          3201,
@@ -151,7 +120,6 @@ print(json.dumps({
 		TempDir:    tempDir,
 		OriginalWD: originalWD,
 		Config:     testConfig,
-		RunnerEnv:  runnerPath,
 		Cleanup: func() {
 			os.RemoveAll(tempDir)
 		},
@@ -162,20 +130,11 @@ print(json.dumps({
 func setupTestConfig(env *TestEnvironment) func() {
 	originalConfig := config
 	originalBuildManager := buildManager
-	env.RunnerEnv, env.RunnerSet = os.LookupEnv("SCENARIO_TO_EXTENSION_BROWSER_RUNNER")
 	config = env.Config
 	buildManager = NewBuildManager()
-	if err := os.Setenv("SCENARIO_TO_EXTENSION_BROWSER_RUNNER", filepath.Join(env.TempDir, "browser-runner.py")); err != nil {
-		panic(err)
-	}
 	return func() {
 		config = originalConfig
 		buildManager = originalBuildManager
-		if env.RunnerSet {
-			_ = os.Setenv("SCENARIO_TO_EXTENSION_BROWSER_RUNNER", env.RunnerEnv)
-		} else {
-			_ = os.Unsetenv("SCENARIO_TO_EXTENSION_BROWSER_RUNNER")
-		}
 	}
 }
 

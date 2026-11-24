@@ -21,9 +21,11 @@ import (
 // unnamed value is the common case; naming it keeps the store key total.
 const DefaultField = "value"
 
-var tierNamePattern = regexp.MustCompile(`^tier-[1-5]-[a-z0-9-]+$`)
-var metadataRefPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._/-]*$`)
-var environmentNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+var (
+	tierNamePattern        = regexp.MustCompile(`^tier-[1-5]-[a-z0-9-]+$`)
+	metadataRefPattern     = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._/-]*$`)
+	environmentNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+)
 
 // ValidateEnvironmentName keeps runtime injection on the conventional process
 // environment namespace. Rejecting malformed names at the shared contract

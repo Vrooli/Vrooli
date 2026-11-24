@@ -6,6 +6,8 @@ import (
 	"scenario-to-cloud/domain"
 	"sort"
 	"strings"
+
+	apicoreset "github.com/vrooli/api-core/coreset"
 )
 
 func toSet(values []string) map[string]bool {
@@ -130,138 +132,169 @@ func policyFor(required bool) string {
 	return "try_start"
 }
 
-func (r *resolver) push(key string, required bool) func() {
-	r.stack = append(r.stack, key)
-	r.stackRequired = append(r.stackRequired, required)
-	r.onStack[key] = true
-	return func() {
-		r.stack = r.stack[:len(r.stack)-1]
-		r.stackRequired = r.stackRequired[:len(r.stackRequired)-1]
-		delete(r.onStack, key)
+// buildSharedClosure adapts included declarations into the shared dependency
+// graph. Catalog loading and domain-specific optional-selection policy stay in
+// scenario-to-cloud; the shared package owns graph closure, cycle semantics,
+// deduplication, provenance paths, canonical ordering and digest.
+func (r *resolver) buildSharedClosure(roots []*scenarioNode) error {
+	rootIDs := make([]apicoreset.ComponentID, 0, len(roots))
+	for _, root := range roots {
+		id := apicoreset.ComponentID{Kind: string(domain.ClosureKindScenario), Name: root.decl.ID}
+		rootIDs = append(rootIDs, id)
 	}
-}
-
-// backEdgeClosesRequiredCycle reports whether a back-edge to a node on the
-// stack forms a cycle made only of required edges.
-func (r *resolver) backEdgeClosesRequiredCycle(at string, edgeRequired bool) bool {
-	if !edgeRequired {
-		return false
-	}
-	for i := len(r.stack) - 1; i >= 0; i-- {
-		if r.stack[i] == at {
-			return true
+	source := apicoreset.DependencySourceFunc(func(id apicoreset.ComponentID) ([]apicoreset.DependencyEdge, error) {
+		if id.Kind == string(domain.ClosureKindScenario) {
+			node := r.scenarios[id.Name]
+			if node == nil {
+				return nil, unavailable(fmt.Sprintf("scenario %q is not loaded into the dependency graph", id.Name), nil, map[string]any{"component": id.Name, "kind": id.Kind})
+			}
+			scenarioEdges, resourceEdges, err := r.scenarioEdges(node.decl)
+			if err != nil {
+				return nil, err
+			}
+			out := make([]apicoreset.DependencyEdge, 0, len(scenarioEdges)+len(resourceEdges))
+			for _, declared := range scenarioEdges {
+				if declared.to == id.Name && !declared.edge.Required {
+					continue
+				}
+				passes, selected := r.edgePasses(declared.to, declared.edge)
+				if !passes {
+					continue
+				}
+				child, err := r.loadScenario(declared.to, id.Name)
+				if err != nil {
+					return nil, err
+				}
+				child.included = true
+				child.includeUI = child.includeUI || declared.edge.IncludeUI
+				child.optionalSelected = child.optionalSelected || selected
+				child.startupPolicies = append(child.startupPolicies, declared.edge.StartupPolicy)
+				if declared.edge.StartupPolicy != "ignore" {
+					child.member = true
+				}
+				child.reasons = append(child.reasons, r.reasonsForEdge(id.Name, declared, selected)...)
+				to := apicoreset.ComponentID{Kind: string(domain.ClosureKindScenario), Name: declared.to}
+				out = append(out, apicoreset.DependencyEdge{
+					From: id, To: to, Relation: string(domain.ClosureKindScenario), DeclaredBy: id.Name,
+					Detail: declared.detail, Required: declared.edge.Required, Policy: declared.edge.StartupPolicy,
+				})
+				r.edges = append(r.edges, edge{fromKind: domain.ClosureKindScenario, from: id.Name, toKind: domain.ClosureKindScenario, to: declared.to, required: declared.edge.Required, selected: selected, policy: declared.edge.StartupPolicy, detail: declared.detail})
+			}
+			for _, declared := range resourceEdges {
+				passes, selected := r.edgePasses(declared.to, declared.edge)
+				if !passes {
+					continue
+				}
+				child, err := r.loadResource(declared.to, id.Name)
+				if err != nil {
+					return nil, err
+				}
+				child.included = true
+				child.optionalSelected = child.optionalSelected || selected
+				child.reasons = append(child.reasons, r.reasonsForEdge(id.Name, declared, selected)...)
+				to := apicoreset.ComponentID{Kind: string(domain.ClosureKindResource), Name: declared.to}
+				out = append(out, apicoreset.DependencyEdge{
+					From: id, To: to, Relation: string(domain.ClosureKindResource), DeclaredBy: id.Name,
+					Detail: declared.detail, Required: declared.edge.Required, Policy: declared.edge.StartupPolicy,
+				})
+				r.edges = append(r.edges, edge{fromKind: domain.ClosureKindScenario, from: id.Name, toKind: domain.ClosureKindResource, to: declared.to, required: declared.edge.Required, selected: selected, policy: declared.edge.StartupPolicy, detail: declared.detail})
+			}
+			return out, nil
 		}
-		if !r.stackRequired[i] {
-			return false
+		if id.Kind == string(domain.ClosureKindResource) {
+			node := r.resources[id.Name]
+			if node == nil {
+				return nil, unavailable(fmt.Sprintf("resource %q is not loaded into the dependency graph", id.Name), nil, map[string]any{"component": id.Name, "kind": id.Kind})
+			}
+			out := make([]apicoreset.DependencyEdge, 0, len(node.decl.Dependencies))
+			dependencies := append([]string(nil), node.decl.Dependencies...)
+			sort.Strings(dependencies)
+			for _, dependency := range dependencies {
+				dependency = strings.TrimSpace(dependency)
+				if dependency == "" {
+					continue
+				}
+				child, err := r.loadResource(dependency, "resource:"+id.Name)
+				if err != nil {
+					return nil, err
+				}
+				child.included = true
+				child.reasons = append(child.reasons,
+					domain.ClosureReason{Kind: domain.ClosureReasonDeclaredBy, From: "resource:" + id.Name, Detail: "declared in resource.json"},
+					domain.ClosureReason{Kind: domain.ClosureReasonTransitiveVia, From: "resource:" + id.Name, Detail: "resource dependency"},
+				)
+				to := apicoreset.ComponentID{Kind: string(domain.ClosureKindResource), Name: dependency}
+				out = append(out, apicoreset.DependencyEdge{
+					From: id, To: to, Relation: string(domain.ClosureKindResource), DeclaredBy: "resource:" + id.Name,
+					Detail: "declared in resource.json", Required: true, Policy: "must_start",
+				})
+				r.edges = append(r.edges, edge{fromKind: domain.ClosureKindResource, from: id.Name, toKind: domain.ClosureKindResource, to: dependency, required: true, detail: "declared in resource.json"})
+			}
+			return out, nil
 		}
-	}
-	return false
-}
+		return nil, nil
+	})
 
-func (r *resolver) walkScenario(node *scenarioNode, viaRequired bool) error {
-	id := node.decl.ID
-	defer r.push(id, viaRequired)()
-
-	scenarioEdges, resourceEdges, err := r.scenarioEdges(node.decl)
+	closure, err := apicoreset.ResolveFromSource(source, rootIDs, apicoreset.ResolveOptions{AllowCyclesWithOptionalEdges: true})
 	if err != nil {
-		return err
-	}
-	for _, declared := range scenarioEdges {
-		if declared.to == id && declared.edge.Required {
-			return r.cycleError(id)
-		}
-		if declared.to == id {
-			continue
-		}
-		passes, selected := r.edgePasses(declared.to, declared.edge)
-		if !passes {
-			continue
-		}
-		child, err := r.loadScenario(declared.to, id)
-		if err != nil {
-			return err
-		}
-		r.edges = append(r.edges, edge{fromKind: domain.ClosureKindScenario, from: id, toKind: domain.ClosureKindScenario, to: declared.to, required: declared.edge.Required, selected: selected, policy: declared.edge.StartupPolicy, detail: declared.detail})
-		alreadyIncluded := child.included
-		child.included = true
-		child.includeUI = child.includeUI || declared.edge.IncludeUI
-		if selected {
-			child.optionalSelected = true
-		}
-		child.startupPolicies = append(child.startupPolicies, declared.edge.StartupPolicy)
-		if declared.edge.StartupPolicy != "ignore" {
-			child.member = true
-		}
-		child.reasons = append(child.reasons, r.reasonsForEdge(id, declared, selected)...)
-		if r.onStack[declared.to] {
-			if r.backEdgeClosesRequiredCycle(declared.to, declared.edge.Required) {
-				return r.cycleError(declared.to)
+		if errors.Is(err, apicoreset.ErrCycle) {
+			pathText := strings.TrimSpace(strings.TrimPrefix(err.Error(), apicoreset.ErrCycle.Error()+":"))
+			parts := strings.Split(pathText, " -> ")
+			for i := range parts {
+				parts[i] = strings.TrimPrefix(parts[i], string(domain.ClosureKindScenario)+":")
 			}
-			continue
+			return newError(CodeCycle, err.Error(), map[string]any{"path": parts})
 		}
-		if !alreadyIncluded {
-			if err := r.walkScenario(child, declared.edge.Required); err != nil {
-				return err
-			}
+		if typed, ok := As(err); ok {
+			return typed
 		}
+		return unavailable("shared dependency closure could not be resolved", err, nil)
 	}
-	for _, declared := range resourceEdges {
-		passes, selected := r.edgePasses(declared.to, declared.edge)
-		if !passes {
-			continue
-		}
-		child, err := r.loadResource(declared.to, id)
-		if err != nil {
-			return err
-		}
-		r.edges = append(r.edges, edge{fromKind: domain.ClosureKindScenario, from: id, toKind: domain.ClosureKindResource, to: declared.to, required: declared.edge.Required, selected: selected, policy: declared.edge.StartupPolicy, detail: declared.detail})
-		alreadyIncluded := child.included
-		child.included = true
-		if selected {
-			child.optionalSelected = true
-		}
-		child.reasons = append(child.reasons, r.reasonsForEdge(id, declared, selected)...)
-		if !alreadyIncluded {
-			if err := r.walkResource(child); err != nil {
-				return err
+	r.dependencyDigest = closure.Digest
+	closureByID := make(map[apicoreset.ComponentID]apicoreset.ClosureMember, len(closure.Members))
+	for _, member := range closure.Members {
+		closureByID[member.Component] = member
+	}
+	// The shared result is authoritative for included membership. Catalog nodes
+	// are loaded only to provide owner-specific metadata and projections.
+	for _, member := range closure.Members {
+		switch domain.ClosureComponentKind(member.Component.Kind) {
+		case domain.ClosureKindScenario:
+			if node := r.scenarios[member.Component.Name]; node != nil {
+				node.included = true
+				r.setTransitivePaths(node.reasons, member, closureByID)
+			}
+		case domain.ClosureKindResource:
+			if node := r.resources[member.Component.Name]; node != nil {
+				node.included = true
+				r.setTransitivePaths(node.reasons, member, closureByID)
 			}
 		}
 	}
 	return nil
 }
 
-func (r *resolver) walkResource(node *resourceNode) error {
-	id := node.decl.ID
-	key := "resource:" + id
-	defer r.push(key, true)()
-	deps := append([]string(nil), node.decl.Dependencies...)
-	sort.Strings(deps)
-	for _, dep := range deps {
-		dep = strings.TrimSpace(dep)
-		if dep == "" {
+func (r *resolver) setTransitivePaths(reasons []domain.ClosureReason, member apicoreset.ClosureMember, closure map[apicoreset.ComponentID]apicoreset.ClosureMember) {
+	for i := range reasons {
+		if reasons[i].Kind != domain.ClosureReasonTransitiveVia {
 			continue
 		}
-		if dep == id || r.onStack["resource:"+dep] {
-			return r.cycleError("resource:" + dep)
+		parentID := apicoreset.ComponentID{Kind: string(domain.ClosureKindScenario), Name: reasons[i].From}
+		if strings.HasPrefix(reasons[i].From, "resource:") {
+			parentID.Kind = string(domain.ClosureKindResource)
+			parentID.Name = strings.TrimPrefix(reasons[i].From, "resource:")
 		}
-		child, err := r.loadResource(dep, "resource:"+id)
-		if err != nil {
-			return err
+		parent, ok := closure[parentID]
+		if !ok {
+			continue
 		}
-		r.edges = append(r.edges, edge{fromKind: domain.ClosureKindResource, from: id, toKind: domain.ClosureKindResource, to: dep, required: true, detail: "declared in resource.json"})
-		alreadyIncluded := child.included
-		child.included = true
-		child.reasons = append(child.reasons,
-			domain.ClosureReason{Kind: domain.ClosureReasonDeclaredBy, From: "resource:" + id, Detail: "declared in resource.json"},
-			domain.ClosureReason{Kind: domain.ClosureReasonTransitiveVia, From: "resource:" + id, Detail: "path " + r.pathString(dep)},
-		)
-		if !alreadyIncluded {
-			if err := r.walkResource(child); err != nil {
-				return err
-			}
+		parts := []string{parent.Root.Name}
+		for _, edge := range parent.Path {
+			parts = append(parts, edge.To.Name)
 		}
+		parts = append(parts, member.Component.Name)
+		reasons[i].Detail = "path " + strings.Join(parts, " -> ")
 	}
-	return nil
 }
 
 func (r *resolver) reasonsForEdge(from string, declared declaredEdge, selected bool) []domain.ClosureReason {
@@ -271,7 +304,7 @@ func (r *resolver) reasonsForEdge(from string, declared declaredEdge, selected b
 	}
 	reasons := []domain.ClosureReason{{Kind: domain.ClosureReasonDeclaredBy, From: from, Detail: detail}}
 	if from != r.in.ScenarioID {
-		reasons = append(reasons, domain.ClosureReason{Kind: domain.ClosureReasonTransitiveVia, From: from, Detail: "path " + r.pathString(declared.to)})
+		reasons = append(reasons, domain.ClosureReason{Kind: domain.ClosureReasonTransitiveVia, From: from, Detail: "path dependency"})
 	}
 	if selected {
 		source := "manifest default (enabled optional dependency)"
@@ -281,24 +314,6 @@ func (r *resolver) reasonsForEdge(from string, declared declaredEdge, selected b
 		reasons = append(reasons, domain.ClosureReason{Kind: domain.ClosureReasonSelectedBy, From: from, Detail: source})
 	}
 	return reasons
-}
-
-func (r *resolver) pathString(to string) string {
-	parts := append(append([]string(nil), r.stack...), to)
-	return strings.Join(parts, " -> ")
-}
-
-func (r *resolver) cycleError(at string) error {
-	path := append([]string(nil), r.stack...)
-	start := 0
-	for i, id := range path {
-		if id == at {
-			start = i
-			break
-		}
-	}
-	cycle := append(append([]string(nil), path[start:]...), at)
-	return newError(CodeCycle, "dependency cycle: "+strings.Join(cycle, " -> "), map[string]any{"path": cycle})
 }
 
 // propagateRequired computes requiredness as a fixpoint over required edges

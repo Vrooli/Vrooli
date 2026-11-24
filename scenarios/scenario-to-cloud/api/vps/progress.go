@@ -60,7 +60,8 @@ var StepWeights = map[string]float64{
 	"release.deliver":     16, // scp the release archive
 	"release.verify":      1,  // sha256 of the delivered archive
 	"release.stage":       5,  // extract into an owned inactive tree
-	"data.backup":         1,  // placeholder until data-backup-manager owns it
+	"data.backup":         1,  // recovery point before touching persistent data
+	"data.schedule":       1,  // reconcile DBM schedule after target readiness
 	"release.activate":    8,  // overlay the staged tree + native CLI install
 	"config.apply":        12, // vrooli setup + autoheal scope + CLI check
 	// Runtime scope (plan action ids).

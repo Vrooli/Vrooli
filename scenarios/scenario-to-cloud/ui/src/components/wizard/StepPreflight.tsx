@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { Shield, Play, CheckCircle2, AlertTriangle, XCircle, Server, Globe, Key, Network, HardDrive, Cpu, Wifi, Loader2, Zap, ChevronDown, ChevronUp, Copy, Check, Package, Activity, Database, Square, X } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "../ui/button-adapter";
 import { Alert } from "../ui/alert";
 import type { useDeployment } from "../../hooks/useDeployment";
 import type { PreflightCheck, PreflightCheckStatus } from "../../lib/api";

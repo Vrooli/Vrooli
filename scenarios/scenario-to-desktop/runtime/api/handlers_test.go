@@ -40,6 +40,18 @@ type mockRuntime struct {
 	runtimeInfo    RuntimeInfo
 }
 
+type managedResourceLogRuntime struct {
+	*mockRuntime
+	logPath string
+}
+
+func (m *managedResourceLogRuntime) ResourceLogPath(resource string) (string, bool) {
+	if resource != "managed-db" {
+		return "", false
+	}
+	return m.logPath, true
+}
+
 type providerObservationRuntime struct {
 	*mockRuntime
 	observations map[string]resourceplan.ProviderObservation
@@ -548,6 +560,45 @@ func TestHandleLogs(t *testing.T) {
 		}
 		if got, want := string(body), "line3\nline4\nline5"; got != want {
 			t.Errorf("handleLogs() tail = %q, want exactly %q", got, want)
+		}
+		if got := resp.Header.Get("Content-Type"); got != "text/plain" {
+			t.Errorf("handleLogs() content type = %q, want text/plain", got)
+		}
+	})
+
+	t.Run("tails managed resource log through the shared response path", func(t *testing.T) {
+		base := testRuntime(t, nil)
+		logPath := filepath.Join(base.appDataDir, "resources", "managed-db", "logs", "service.log")
+		if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(logPath, []byte("first\nsecond\nthird"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		rt := &managedResourceLogRuntime{mockRuntime: base, logPath: logPath}
+		req := httptest.NewRequest(http.MethodGet, "/logs/tail?serviceId=resource%3Amanaged-db&lines=2", nil)
+		w := httptest.NewRecorder()
+		testMux(rt, "test-token").ServeHTTP(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp.StatusCode != http.StatusOK || string(body) != "second\nthird" || resp.Header.Get("Content-Type") != "text/plain" {
+			t.Fatalf("managed resource log response = %d %q %q", resp.StatusCode, resp.Header.Get("Content-Type"), body)
+		}
+	})
+
+	t.Run("rejects unknown managed resource", func(t *testing.T) {
+		base := testRuntime(t, nil)
+		rt := &managedResourceLogRuntime{mockRuntime: base, logPath: filepath.Join(base.appDataDir, "unused.log")}
+		req := httptest.NewRequest(http.MethodGet, "/logs/tail?serviceId=resource%3Aunknown", nil)
+		w := httptest.NewRecorder()
+		testMux(rt, "test-token").ServeHTTP(w, req)
+		if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "unknown managed resource") {
+			t.Fatalf("unknown resource response = %d %q", w.Code, w.Body.String())
 		}
 	})
 

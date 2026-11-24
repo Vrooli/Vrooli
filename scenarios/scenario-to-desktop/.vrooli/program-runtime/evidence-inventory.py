@@ -11,13 +11,7 @@ selection = {}
 
 
 
-def guarded(call):
-    def invoke():
-        try:
-            return call()
-        except Exception as exc:
-            return exc
-    return invoke
+guarded = program.guarded
 
 
 # VALIDATE: named scenario required; this inventory never accepts artifact claims.

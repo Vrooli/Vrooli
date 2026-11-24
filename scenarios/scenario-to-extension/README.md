@@ -22,7 +22,7 @@ The `scenario-to-extension` scenario provides a complete system for generating b
 - Vrooli platform running locally
 - browser-automation-studio available (for testing)
 - Node.js 18+ (for extension builds)
-- Chrome or Firefox (for testing)
+- Browser Automation Studio and an existing Agent Manager authorized session (for extension validation)
 
 ### Installation
 
@@ -51,16 +51,24 @@ scenario-to-extension generate web-scraper \
 # Build the extension  
 scenario-to-extension build ./platforms/extension
 
-# Test the extension. This requires a browser producer executable.
-SCENARIO_TO_EXTENSION_BROWSER_RUNNER=/absolute/path/to/browser-runner \
-  scenario-to-extension test ./platforms/extension --sites https://example.com
+# Validate in the caller's already-open authorized BAS session.
+scenario-to-extension extension test --build-id BUILD_ID --session-id BAS_SESSION_ID
 ```
 
-The API invokes `SCENARIO_TO_EXTENSION_BROWSER_RUNNER` with `--extension-path`,
-`--test-sites`, `--headless`, and `--screenshot`. The producer must write one JSON
-`ExtensionTestResult` document to stdout. If the variable is unset, validation is
-reported as `status: unavailable`; the service never fabricates a successful browser
-result when no browser is available.
+For the managed-session production path, pass a ready build id and an existing BAS
+session id. The extension owner uses the build id as an opaque artifact reference,
+checks the recorded SHA-256, then asks BAS to install, reload, and validate the
+extension inside that same session:
+
+```bash
+scenario-to-extension extension test --build-id BUILD_ID --session-id BAS_SESSION_ID
+```
+
+The extension id is derived from the verified artifact manifest by BAS. To assert a known
+expected id, pass `--expect-extension-id CHROME_EXTENSION_ID`; BAS still derives and authorizes
+the id from the artifact. This path requires the BAS origin in `BAS_AGENT_ACCESS_URL` and forwards exactly one Agent Manager identity token and browser-grant receipt from the authorized run headers. Redirects are not followed, so those credentials cannot cross to another origin. BAS rechecks the run grant and session permission for each lifecycle operation. The returned `lifecycle_receipt` binds build/artifact digests, session, BAS owner/lease/profile/permission/caller tuple, install/reload/validation receipts and fresh permission inventory. Permission evidence reports `scope: grant_set_only` and `per_tab_site_access: not_measured`; it records runtime grants only and does not prove extension access to the current site, including for `activeTab`. Stale, replayed, or cross-run receipt chains fail before the next effect. It never accepts a host filesystem path as an install artifact and never starts a second browser. The selected-tab bridge template
+is a separate consented attachment path and does not install or reload extensions
+in a user's signed-in browser.
 
 The generic ramp can package a caller-owned extension source directory with
 `--source-path /absolute/path/to/extension-source`. The source must contain an
@@ -137,15 +145,8 @@ scenario-to-extension build ./platforms/extension --minify
 
 ### Testing  
 ```bash
-# Basic testing
-scenario-to-extension test ./platforms/extension
-
-# Advanced testing
-scenario-to-extension test ./platforms/extension \
-  --sites https://example.com,https://google.com \
-  --browser chrome \
-  --screenshot \
-  --headless
+# Use the owner-issued build and the caller's existing authorized BAS session.
+scenario-to-extension extension test --build-id BUILD_ID --session-id BAS_SESSION_ID
 ```
 
 ### Status & Management

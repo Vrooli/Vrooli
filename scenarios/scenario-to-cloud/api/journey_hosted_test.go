@@ -86,7 +86,11 @@ func hostedBundle(t *testing.T) hostedBundleFixture {
 			t.Fatal(err)
 		}
 	}
-	paths := []string{".vrooli/repo-contract.json", ".vrooli/service.json", "go.mod", "scenarios/landing-page-business-suite/.vrooli/service.json", "scenarios/landing-page-business-suite/api/main.go", "scenarios/landing-page-business-suite/api/go.mod", "scenarios/landing-page-business-suite/ui/package.json", "scenarios/ai-gateway/.vrooli/service.json", "scenarios/ai-gateway/api/main.go", "scenarios/ai-gateway/api/go.mod", "resources/postgres/resource.json", "scenarios/vrooli-autoheal/.vrooli/service.json", "scenarios/vrooli-autoheal/api/main.go", "scenarios/vrooli-autoheal/api/go.mod"}
+	paths := []string{".vrooli/repo-contract.json", ".vrooli/service.json", "go.mod", "scenarios/landing-page-business-suite/.vrooli/service.json", "scenarios/landing-page-business-suite/api/main.go", "scenarios/landing-page-business-suite/api/go.mod", "scenarios/landing-page-business-suite/ui/package.json", "scenarios/ai-gateway/.vrooli/service.json", "scenarios/ai-gateway/api/main.go", "scenarios/ai-gateway/api/go.mod", "scenarios/data-backup-manager/.vrooli/service.json", "scenarios/data-backup-manager/api/main.go", "scenarios/data-backup-manager/api/go.mod", "resources/kopia/resource.json", "resources/postgres/resource.json", "scenarios/vrooli-autoheal/.vrooli/service.json", "scenarios/vrooli-autoheal/api/main.go", "scenarios/vrooli-autoheal/api/go.mod"}
+	// Gateway's compiled catalog is an embed input, not an optional resource
+	// tree. Keep it in the hosted source artifact even though router wrappers
+	// are deliberately excluded below.
+	paths = append(paths, "scenarios/ai-gateway/api/internal/catalog/providers.generated.json")
 	for _, id := range deselected {
 		paths = append(paths, "resources/"+id+"/resource.json")
 	}
@@ -157,6 +161,49 @@ func TestJ13_TarballContainsGatewayCode(t *testing.T) {
 	}
 	if len(f.files["scenarios/ai-gateway/.vrooli/service.json"]) == 0 {
 		t.Fatal("gateway lifecycle declaration missing")
+	}
+	const providerCatalogPath = "scenarios/ai-gateway/api/internal/catalog/providers.generated.json"
+	var generated struct {
+		Providers map[string]struct {
+			Policy struct {
+				Provider struct {
+					Terms struct {
+						Review struct {
+							Status string `json:"status"`
+						} `json:"review"`
+					} `json:"terms"`
+					Routes     []json.RawMessage `json:"hosted_routes"`
+					Agreements []json.RawMessage `json:"agreements"`
+				} `json:"provider"`
+			} `json:"policy"`
+		} `json:"providers"`
+	}
+	if err := json.Unmarshal(f.files[providerCatalogPath], &generated); err != nil {
+		t.Fatalf("hosted tarball is missing a decodable embedded Gateway provider catalog: %v", err)
+	}
+	supplierDir := filepath.Join(f.root, "scenarios", "ai-gateway", "config", "suppliers")
+	suppliers, err := os.ReadDir(supplierDir)
+	if err != nil {
+		t.Fatalf("read hosted supplier declarations: %v", err)
+	}
+	found := 0
+	for _, entry := range suppliers {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+		id := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
+		provider, ok := generated.Providers[id]
+		if !ok {
+			t.Errorf("hosted Gateway catalog omits supplier %q", id)
+			continue
+		}
+		if provider.Policy.Provider.Terms.Review.Status != "proposed" || len(provider.Policy.Provider.Routes) != 0 || len(provider.Policy.Provider.Agreements) != 0 {
+			t.Errorf("hosted catalog supplier %q is not proposal-only: %+v", id, provider.Policy.Provider)
+		}
+		found++
+	}
+	if found == 0 {
+		t.Fatal("hosted Gateway artifact carried no supplier declarations")
 	}
 }
 

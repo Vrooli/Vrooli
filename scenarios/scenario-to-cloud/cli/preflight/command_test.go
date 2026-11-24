@@ -26,13 +26,7 @@ func TestRunRequirementsRejectsUnknownFlag(t *testing.T) {
 	}
 }
 
-func TestFormatSizeAndJoinPortsHelpers(t *testing.T) {
-	if got := formatSize(1024); got != "1.0K" {
-		t.Fatalf("formatSize(1024)=%q", got)
-	}
-	if got := formatSize(1024 * 1024); got != "1.0M" {
-		t.Fatalf("formatSize(1MiB)=%q", got)
-	}
+func TestJoinPortsHelpers(t *testing.T) {
 	if got := joinPorts([]int{22, 80, 443}); got != "22, 80, 443" {
 		t.Fatalf("joinPorts=%q", got)
 	}

@@ -65,7 +65,10 @@ func (m ManagedService) ValidateUpdatePolicy() error {
 		seen[key] = true
 	}
 	if layout := strings.ToLower(strings.TrimSpace(m.Artifact.Layout)); layout != "" && layout != "file" {
-		return fmt.Errorf("managed updates initially require a single native executable file")
+		return fmt.Errorf("managed updates cannot admit directory artifacts until serving identity binds both the entry executable and whole-tree digest, and rollback retention preserves that exact tree")
+	}
+	if m.Acquisition != nil && strings.EqualFold(strings.TrimSpace(m.Acquisition.Kind), "composed") {
+		return fmt.Errorf("managed updates cannot admit composed artifacts until serving identity and rollback retention support the exact directory tree")
 	}
 	if strings.EqualFold(strings.TrimSpace(m.Artifact.Verification), "host-tool") || m.Acquisition == nil || !strings.EqualFold(strings.TrimSpace(m.Acquisition.Kind), "url") {
 		return fmt.Errorf("managed updates require resource-owned checksum-pinned URL acquisition")

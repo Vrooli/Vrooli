@@ -103,6 +103,37 @@ func TestDeploymentIdentityStableAcrossHostChange(t *testing.T) {
 	}
 }
 
+func TestGetDeploymentByComputeManagerIDFindsExactBinding(t *testing.T) {
+	db := openIdentityTestDB(t, "identity-manager-instance")
+	ctx := context.Background()
+	repo := NewRepository(db)
+	if err := repo.InitSchemaOnDialect(ctx, db, "sqlite"); err != nil {
+		t.Fatal(err)
+	}
+	dep := newDeployment("dep-qemu", "demo-app", "qemu-test", "127.0.0.1", "qemu-test.example")
+	var manifest domain.CloudManifest
+	if err := json.Unmarshal(dep.Manifest, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	manifest.Target.VPS.ComputeManagerInstanceID = "qemu-1"
+	dep.Manifest, _ = json.Marshal(manifest)
+	dep.Target = domain.TargetRefFromManifest(manifest)
+	if err := repo.CreateDeployment(ctx, dep); err != nil {
+		t.Fatal(err)
+	}
+	got, err := repo.GetDeploymentByComputeManagerID(ctx, "qemu-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got == nil || got.ID != dep.ID || got.Target.ComputeManagerID != "qemu-1" {
+		t.Fatalf("manager target lookup = %+v", got)
+	}
+	missing, err := repo.GetDeploymentByComputeManagerID(ctx, "qemu-missing")
+	if err != nil || missing != nil {
+		t.Fatalf("missing manager lookup = %+v, %v", missing, err)
+	}
+}
+
 // TestTwoInstallationsResolveDistinctRecords [REQ:STC-P0-015] proves P03-A02
 // against real storage: one scenario installed in two environments on two
 // hosts yields two records, each reachable by environment, domain and host.

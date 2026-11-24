@@ -19,6 +19,7 @@ import (
 
 	deploymentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/deployments"
 	errorsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/errors"
+	identityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/identity"
 )
 
 func sampleDeployment() *domain.Deployment {
@@ -121,6 +122,39 @@ func TestDeploymentRoundTripsThroughProtoJSON(t *testing.T) {
 	}
 }
 
+func TestDeploymentTargetPreservesComputeManagerInstanceIdentity(t *testing.T) {
+	target := identity.TargetRef{ComputeManagerID: "cm-qemu-23", Transport: identity.TransportSSH, Locator: identity.TargetLocator{Host: "127.0.0.1", Port: 2222, User: "runner"}}
+	wire := TargetRefProto(target)
+	if wire.GetComputeManagerInstanceId() != "cm-qemu-23" {
+		t.Fatalf("wire target manager identity = %q", wire.GetComputeManagerInstanceId())
+	}
+	back := DeploymentRefFromProto(&identityv1.DeploymentRef{Target: wire})
+	if back.Target.ComputeManagerID != target.ComputeManagerID || back.Target.Key() != "compute-manager:cm-qemu-23" {
+		t.Fatalf("round-trip target = %+v key=%q", back.Target, back.Target.Key())
+	}
+}
+
+func TestCreateDeploymentUsesCanonicalCreatorAndReturnsTypedIdentity(t *testing.T) {
+	want := sampleDeployment()
+	called := false
+	svc := New(&fakeRepo{}, func(_ context.Context, req domain.CreateDeploymentRequest) (*domain.Deployment, bool, error) {
+		called = true
+		if req.Name != "demo" || string(req.Manifest) != `{"scenario":{"id":"demo-app"}}` || req.BundlePath != "/tmp/bundle.tgz" || req.BundleSHA256 != "sha256:x" || req.BundleSizeBytes != 17 {
+			t.Fatalf("canonical creator received wrong request: %+v", req)
+		}
+		return want, true, nil
+	})
+	resp, err := svc.CreateDeployment(context.Background(), connect.NewRequest(&deploymentsv1.CreateDeploymentRequest{
+		Name: "demo", ManifestJson: `{"scenario":{"id":"demo-app"}}`, BundlePath: "/tmp/bundle.tgz", BundleSha256: "sha256:x", BundleSizeBytes: 17,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !called || !resp.Msg.GetCreated() || resp.Msg.GetRef().GetId() != want.ID || resp.Msg.GetSchemaVersion() != SchemaVersion {
+		t.Fatalf("unexpected create response: called=%v response=%+v", called, resp.Msg)
+	}
+}
+
 // TestConnectErrorCarriesTypedDetail [REQ:STC-P0-017] proves P03-A06 for the
 // Connect transport: the same stable code reaches the client as an
 // errors.v1.Error detail with next action and details intact.
@@ -209,7 +243,7 @@ func TestServiceResolveGetList(t *testing.T) {
 	b := sampleDeployment()
 	b.ID = "1f0e1d2c-3b4a-4596-8778-99aabbccddee"
 	b.Environment = "staging"
-	svc := New(&fakeRepo{deployments: []*domain.Deployment{a, b}})
+	svc := New(&fakeRepo{deployments: []*domain.Deployment{a, b}}, nil)
 	ctx := context.Background()
 
 	resolved, err := svc.ResolveDeployment(ctx, connect.NewRequest(&deploymentsv1.ResolveDeploymentRequest{Selector: &deploymentsv1.DeploymentSelector{ScenarioId: "demo-app", Environment: "staging"}}))
@@ -242,5 +276,55 @@ func TestServiceResolveGetList(t *testing.T) {
 	_, err = svc.ListDeployments(ctx, connect.NewRequest(&deploymentsv1.ListDeploymentsRequest{PageToken: "not-a-number"}))
 	if !errors.As(err, &cerr) || cerr.Code() != connect.CodeInvalidArgument {
 		t.Fatalf("bad token must be invalid argument: %v", err)
+	}
+}
+
+type fakeRecoveryOwner struct{ op *domain.RecoveryOperation }
+
+func (f fakeRecoveryOwner) PreviewRecovery(context.Context, *deploymentsv1.PreviewDeploymentRecoveryRequest) (*domain.CloudRecoveryPreview, error) {
+	return &domain.CloudRecoveryPreview{
+		DeploymentID: "dep-1", Action: "rollback", CurrentBundleSHA256: "current-bundle",
+		CurrentReleaseDigest: "current-release", LastGoodReleaseDigest: "last-good-release",
+		RepairBundleSHA256: "last-good-bundle", ReviewRef: "review-1", DataCompatibility: "compatible",
+		RouteKind: domain.RecoveryRouteCloudTargetVerb, ImpactSummary: "activate predecessor",
+		PreviewRef: "preview-1", IdempotencyKey: "dm-recovery-1", DataCompatibilityDeclared: true,
+	}, nil
+}
+func (f fakeRecoveryOwner) StartRecovery(context.Context, *deploymentsv1.StartDeploymentRecoveryRequest) (*domain.RecoveryOperation, error) {
+	return f.op, nil
+}
+
+func TestRecoveryPreviewContractProjectsCanonicalOwnerBindings(t *testing.T) {
+	svc := New(&fakeRepo{}, nil, fakeRecoveryOwner{})
+	resp, err := svc.PreviewDeploymentRecovery(context.Background(), connect.NewRequest(&deploymentsv1.PreviewDeploymentRecoveryRequest{DeploymentId: "dep-1", Action: "rollback", ExpectedCurrentBundleSha256: "current-bundle", ExpectedCurrentReleaseDigest: "current-release", LastGoodReleaseDigest: "last-good-release", ReviewRef: "review-1", DataCompatibility: "compatible", IdempotencyKey: "dm-recovery-1"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := resp.Msg
+	if got.GetDeploymentId() != "dep-1" || got.GetAction() != "rollback" || got.GetCurrentBundleSha256() != "current-bundle" || got.GetCurrentReleaseDigest() != "current-release" || got.GetLastGoodReleaseDigest() != "last-good-release" || got.GetRepairBundleSha256() != "last-good-bundle" || got.GetReviewRef() != "review-1" || got.GetDataCompatibility() != "compatible" || !got.GetDataCompatibilityDeclared() || got.GetRouteKind() != domain.RecoveryRouteCloudTargetVerb || got.GetPreviewRef() != "preview-1" || got.GetIdempotencyKey() != "dm-recovery-1" {
+		t.Fatalf("typed preview lost owner bindings: %+v", got)
+	}
+}
+func (f fakeRecoveryOwner) GetRecovery(context.Context, string, string) (*domain.RecoveryOperation, error) {
+	return f.op, nil
+}
+func (f fakeRecoveryOwner) FindRecovery(context.Context, string, string) (*domain.RecoveryOperation, error) {
+	return f.op, nil
+}
+
+func TestRecoveryOperationContractProjectsExactOwnerIdentity(t *testing.T) {
+	op := &domain.RecoveryOperation{
+		ID: "op-1", DeploymentID: "dep-1", IdempotencyKey: "dm-rollback-1", Action: "rollback",
+		ExpectedBundleSHA: "current-bundle", RepairBundleSHA: "last-good-bundle", DataCompatibility: "compatible", Status: "running",
+		Binding: &domain.RecoveryBinding{ReviewRef: "review-1", ReleaseDigest: "last-good-release", PreviewRef: "preview-1"},
+	}
+	svc := New(&fakeRepo{}, nil, fakeRecoveryOwner{op: op})
+	resp, err := svc.FindDeploymentRecoveryOperation(context.Background(), connect.NewRequest(&deploymentsv1.FindDeploymentRecoveryOperationRequest{DeploymentId: "dep-1", IdempotencyKey: "dm-rollback-1"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	wire := resp.Msg
+	if wire.GetOperationId() != op.ID || wire.GetDeploymentId() != op.DeploymentID || wire.GetIdempotencyKey() != op.IdempotencyKey || wire.GetStatus() != "running" || wire.GetExpectedCurrentBundleSha256() != op.ExpectedBundleSHA || wire.GetLastGoodReleaseDigest() != "last-good-release" || wire.GetReviewRef() != "review-1" || wire.GetPreviewRef() != "preview-1" {
+		t.Fatalf("recovery operation lost owner identity: %+v", wire)
 	}
 }

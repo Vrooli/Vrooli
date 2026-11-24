@@ -205,6 +205,8 @@ Phase 9 mobile-stack and desktop suites and synchronize their findings.
 
 **Refs:** `S2I-P0-010`, `S2I-P1-002`, `docs/concepts/FLOWS.md`.
 
+> **Status 2026-11-24 — release-gate enforcement verified.** The provider catalog now marks `ios-mirror` targets unavailable in this release-validation surface, and a scenario-owned executor guard rejects explicit mirror target selections before either local or bridge execution. The release-matrix regression proves a caller-supplied available mirror target cannot pass the release gate. This closes the enforcement gap only; S2I-P1-002 remains planned until the separate exploratory mirror run and its user-facing non-promotable disposition exist.
+
 ### 2026-08-17 — Physical iOS capture remains hardware-gated
 
 **Symptom:** iOS simulator and physical-device capture cannot produce runtime

@@ -4,6 +4,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+
+	"scenario-to-cloud/cli/internal/sizefmt"
 	"strconv"
 	"strings"
 
@@ -114,7 +116,7 @@ Flags:
 		if len(sha) > 16 {
 			sha = sha[:16] + "..."
 		}
-		fmt.Printf("%-20s %-12s %-15s %-10s %s\n", sha, formatSize(b.SizeBytes), truncate(b.ScenarioID, 15), truncate(b.Filename, 10), b.CreatedAt)
+		fmt.Printf("%-20s %-12s %-15s %-10s %s\n", sha, sizefmt.FormatBytes(b.SizeBytes), truncate(b.ScenarioID, 15), truncate(b.Filename, 10), b.CreatedAt)
 	}
 
 	return nil
@@ -150,7 +152,7 @@ Flags:
 	fmt.Println("Bundle Storage Statistics")
 	fmt.Println(strings.Repeat("-", 40))
 	fmt.Printf("Total Bundles:    %d\n", resp.Stats.TotalCount)
-	fmt.Printf("Total Size:       %s\n", formatSize(resp.Stats.TotalSizeBytes))
+	fmt.Printf("Total Size:       %s\n", sizefmt.FormatBytes(resp.Stats.TotalSizeBytes))
 	if resp.Stats.OldestCreatedAt != "" {
 		fmt.Printf("Oldest Created:   %s\n", resp.Stats.OldestCreatedAt)
 	}
@@ -200,7 +202,7 @@ Flags:
 	}
 
 	if resp.OK {
-		fmt.Printf("Deleted bundle (%s)\n", formatSize(resp.FreedBytes))
+		fmt.Printf("Deleted bundle (%s)\n", sizefmt.FormatBytes(resp.FreedBytes))
 	} else if resp.Message != "" {
 		fmt.Printf("Delete failed: %s\n", resp.Message)
 	}
@@ -250,7 +252,7 @@ Flags:
 	}
 
 	if resp.OK {
-		fmt.Printf("Deleted %d local bundle(s) (%s)\n", len(resp.LocalDeleted), formatSize(resp.LocalFreedBytes))
+		fmt.Printf("Deleted %d local bundle(s) (%s)\n", len(resp.LocalDeleted), sizefmt.FormatBytes(resp.LocalFreedBytes))
 		if len(resp.LocalDeleted) > 0 && len(resp.LocalDeleted) <= 10 {
 			fmt.Println("Deleted:")
 			for _, b := range resp.LocalDeleted {
@@ -302,9 +304,9 @@ func runVPSList(client *Client, args []string) error {
 		if len(sha) > 16 {
 			sha = sha[:16] + "..."
 		}
-		fmt.Printf("%-20s %-25s %-12s %s\n", sha, truncate(b.ScenarioID, 25), formatSize(b.SizeBytes), b.ModTime)
+		fmt.Printf("%-20s %-25s %-12s %s\n", sha, truncate(b.ScenarioID, 25), sizefmt.FormatBytes(b.SizeBytes), b.ModTime)
 	}
-	fmt.Printf("\nTotal: %s\n", formatSize(resp.TotalSizeBytes))
+	fmt.Printf("\nTotal: %s\n", sizefmt.FormatBytes(resp.TotalSizeBytes))
 	return nil
 }
 
@@ -350,7 +352,7 @@ func runVPSGC(client *Client, args []string) error {
 		return fmt.Errorf("vps-gc failed: %s", resp.Error)
 	}
 
-	fmt.Printf("%s %d bundle(s) (%s)\n", action, resp.DeletedCount, formatSize(resp.DeletedBytes))
+	fmt.Printf("%s %d bundle(s) (%s)\n", action, resp.DeletedCount, sizefmt.FormatBytes(resp.DeletedBytes))
 	if resp.DeletedCount > 0 && resp.DeletedCount <= 10 {
 		fmt.Println("Deleted:")
 		for _, b := range resp.Deleted {
@@ -366,23 +368,4 @@ func truncate(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-3] + "..."
-}
-
-// formatSize formats bytes into a human-readable string.
-func formatSize(bytes int64) string {
-	const (
-		KB = 1024
-		MB = KB * 1024
-		GB = MB * 1024
-	)
-	switch {
-	case bytes >= GB:
-		return fmt.Sprintf("%.1fG", float64(bytes)/GB)
-	case bytes >= MB:
-		return fmt.Sprintf("%.1fM", float64(bytes)/MB)
-	case bytes >= KB:
-		return fmt.Sprintf("%.1fK", float64(bytes)/KB)
-	default:
-		return fmt.Sprintf("%dB", bytes)
-	}
 }

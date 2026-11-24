@@ -138,6 +138,27 @@ func TestParseSetRequestValidatesValueModes(t *testing.T) {
 	}
 }
 
+func TestLPBSLegacyBridgeMustBeAcknowledged(t *testing.T) {
+	if _, err := parseSetRequest([]string{"LPBS_SERVICE_SECRET", "--value", "x"}); err == nil {
+		t.Fatal("set must require the explicit legacy bridge acknowledgement")
+	}
+	if _, err := parseSetRequest([]string{"API_KEY", "--value", "x", "--legacy-bridge"}); err == nil {
+		t.Fatal("legacy bridge acknowledgement must not apply to another key")
+	}
+	if _, err := parseGetRequest([]string{"LPBS_SERVICE_SECRET"}); err == nil {
+		t.Fatal("get must require the explicit legacy bridge acknowledgement")
+	}
+	if _, err := parseDeleteRequest([]string{"LPBS_SERVICE_SECRET"}); err == nil {
+		t.Fatal("delete must require the explicit legacy bridge acknowledgement")
+	}
+	if err := runVerify(nil, nil, []string{"LPBS_SERVICE_SECRET"}); err == nil {
+		t.Fatal("verify must require the explicit legacy bridge acknowledgement")
+	}
+	if _, err := parseSetRequest([]string{"LPBS_SERVICE_SECRET", "--value", "x", "--legacy-bridge"}); err != nil {
+		t.Fatalf("acknowledged legacy bridge set should parse: %v", err)
+	}
+}
+
 func TestRunSetWritesWorkspaceSecret(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut || r.URL.Path != "/api/v1/local-secrets/workspace/API_KEY" {
@@ -237,7 +258,7 @@ func TestRunVerifyPassesWhenFingerprintsMatch(t *testing.T) {
 
 	client := secretsTestClient(server.URL)
 	deploymentClient := secretsTestDeploymentClient(server.URL)
-	if err := runVerify(client, deploymentClient, []string{key, "--scenario", "landing-page-business-suite", "--targets", "scenario,deployment", "--deployment", "dep-1"}); err != nil {
+	if err := runVerify(client, deploymentClient, []string{key, "--legacy-bridge", "--scenario", "landing-page-business-suite", "--targets", "scenario,deployment", "--deployment", "dep-1"}); err != nil {
 		t.Fatalf("runVerify returned error: %v", err)
 	}
 }
@@ -258,7 +279,7 @@ func TestRunVerifyFailsWhenFingerprintsMismatch(t *testing.T) {
 
 	client := secretsTestClient(server.URL)
 	deploymentClient := secretsTestDeploymentClient(server.URL)
-	err := runVerify(client, deploymentClient, []string{key, "--scenario", "landing-page-business-suite", "--targets", "scenario,deployment", "--deployment", "dep-1"})
+	err := runVerify(client, deploymentClient, []string{key, "--legacy-bridge", "--scenario", "landing-page-business-suite", "--targets", "scenario,deployment", "--deployment", "dep-1"})
 	if err == nil {
 		t.Fatal("expected verification failure on mismatched secret values")
 	}
@@ -284,7 +305,7 @@ func TestRunVerifyHandlesMissingSecretAsVerificationFailure(t *testing.T) {
 
 	client := secretsTestClient(server.URL)
 	deploymentClient := secretsTestDeploymentClient(server.URL)
-	err := runVerify(client, deploymentClient, []string{key, "--scenario", "landing-page-business-suite", "--targets", "scenario,deployment", "--deployment", "dep-1"})
+	err := runVerify(client, deploymentClient, []string{key, "--legacy-bridge", "--scenario", "landing-page-business-suite", "--targets", "scenario,deployment", "--deployment", "dep-1"})
 	if err == nil {
 		t.Fatal("expected verification failure when one target is missing")
 	}

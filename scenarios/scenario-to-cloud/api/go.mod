@@ -52,6 +52,7 @@ require (
 	github.com/vrooli/envkit-go v0.0.0
 	github.com/vrooli/ssh-core v0.0.0
 	github.com/vrooli/vrooli v0.0.0
+	github.com/vrooli/vrooli/packages/agentmanager-client-go v0.0.0
 )
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
@@ -73,3 +74,5 @@ replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 replace github.com/vrooli/cliresolve => ../../../packages/cliresolve
 
 replace github.com/vrooli/vrooli/packages/delivery-ramp-go => ../../../packages/delivery-ramp-go
+
+replace github.com/vrooli/vrooli/packages/agentmanager-client-go => ../../../packages/agentmanager-client-go

@@ -255,3 +255,20 @@ func TestDistributorRequiresTheTargetReceipt(t *testing.T) {
 		t.Fatalf("unavailable target must not activate: %+v err=%v requests=%d", skipped, err, len(exec.requests))
 	}
 }
+
+func TestDistributorPreservesNonEmptyFailureReason(t *testing.T) {
+	artifact := fixtureArtifact(t)
+	executor := &fakeExecutor{results: map[string]ExecutionResult{
+		PublishCase: {OperationID: "op-failed", Outcome: evidence.DispositionFailed, Reason: " activation failed ", ReceiptRefs: []string{"cloud-target:op-failed:activate"}},
+	}}
+	target := deliveryramp.Target{ID: "machine:fixture-a", Available: true}
+	got, err := (Distributor{Executor: executor, Target: fakeTarget{}}).Distribute(context.Background(), deliveryramp.DistributionRequest{
+		Cell: deliveryramp.Cell{ID: "publish-failed", Target: target}, Artifact: artifact,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Disposition != deliveryramp.DispositionFailed || got.Reason != " activation failed " {
+		t.Fatalf("failed distribution reason = (%s, %q), want failed with original reason", got.Disposition, got.Reason)
+	}
+}

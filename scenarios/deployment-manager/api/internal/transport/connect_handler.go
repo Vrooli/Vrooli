@@ -47,31 +47,37 @@ type Route struct {
 }
 
 type Handler struct {
-	dependencies         *dependencies.Handler
-	fitness              *fitness.Handler
-	deployments          *deployments.Handler
-	orchestrator         *deployments.Orchestrator
-	swaps                *swaps.Handler
-	telemetry            http.HandlerFunc
-	telemetryUpload      http.HandlerFunc
-	migrationReport      http.HandlerFunc
-	migrationStatus      http.HandlerFunc
-	approvals            *deployments.ApprovalsHandler
-	lpbsGet              http.HandlerFunc
-	lpbsSave             http.HandlerFunc
-	releaseList          http.HandlerFunc
-	releaseGet           http.HandlerFunc
-	releaseOperation     http.HandlerFunc
-	releaseDossier       http.HandlerFunc
-	releaseVerify        http.HandlerFunc
-	releaseReconcile     http.HandlerFunc
-	releaseRecover       http.HandlerFunc
-	releaseStart         http.HandlerFunc
-	releaseIdentity      releases.IdentityRepository
-	authorize            func(context.Context) error
-	readAuthorize        func(context.Context) error
-	receiptAuthorize     func(context.Context) error
-	preparationAuthorize func(context.Context) error
+	dependencies                       *dependencies.Handler
+	fitness                            *fitness.Handler
+	deployments                        *deployments.Handler
+	orchestrator                       *deployments.Orchestrator
+	swaps                              *swaps.Handler
+	telemetry                          http.HandlerFunc
+	telemetryUpload                    http.HandlerFunc
+	migrationReport                    http.HandlerFunc
+	migrationStatus                    http.HandlerFunc
+	approvals                          *deployments.ApprovalsHandler
+	lpbsGet                            http.HandlerFunc
+	lpbsSave                           http.HandlerFunc
+	releaseList                        http.HandlerFunc
+	releaseGet                         http.HandlerFunc
+	releaseOperation                   http.HandlerFunc
+	releaseOperationIndex              http.HandlerFunc
+	releaseOperationResume             http.HandlerFunc
+	releaseOperationVerificationResume http.HandlerFunc
+	releaseOperationTeardown           http.HandlerFunc
+	releaseOperationLeaseRenewal       http.HandlerFunc
+	releaseOperationRecoveryReconcile  http.HandlerFunc
+	releaseDossier                     http.HandlerFunc
+	releaseVerify                      http.HandlerFunc
+	releaseReconcile                   http.HandlerFunc
+	releaseRecover                     http.HandlerFunc
+	releaseStart                       http.HandlerFunc
+	releaseIdentity                    releases.IdentityRepository
+	authorize                          func(context.Context) error
+	readAuthorize                      func(context.Context) error
+	receiptAuthorize                   func(context.Context) error
+	preparationAuthorize               func(context.Context) error
 }
 
 // WithAuthorization applies the mutation boundary to the legacy adapter
@@ -126,6 +132,42 @@ func (h *Handler) WithReleaseDossierHandler(handler http.HandlerFunc) *Handler {
 // contract cannot depend on release ID naming conventions.
 func (h *Handler) WithReleaseOperationHandler(handler http.HandlerFunc) *Handler {
 	h.releaseOperation = handler
+	return h
+}
+
+// WithReleaseOperationIndexHandler supplies the read-only, profile-filtered
+// operation identity index to the generated release service.
+func (h *Handler) WithReleaseOperationIndexHandler(handler http.HandlerFunc) *Handler {
+	h.releaseOperationIndex = handler
+	return h
+}
+
+// WithReleaseOperationResumeHandler supplies the fenced cloud-step reattach
+// action to the typed release service.
+func (h *Handler) WithReleaseOperationResumeHandler(handler http.HandlerFunc) *Handler {
+	h.releaseOperationResume = handler
+	return h
+}
+
+func (h *Handler) WithReleaseOperationVerificationResumeHandler(handler http.HandlerFunc) *Handler {
+	h.releaseOperationVerificationResume = handler
+	return h
+}
+
+func (h *Handler) WithReleaseOperationTeardownHandler(handler http.HandlerFunc) *Handler {
+	h.releaseOperationTeardown = handler
+	return h
+}
+
+func (h *Handler) WithReleaseOperationLeaseRenewalHandler(handler http.HandlerFunc) *Handler {
+	h.releaseOperationLeaseRenewal = handler
+	return h
+}
+
+// WithReleaseOperationRecoveryReconcileHandler supplies the read-only S2C
+// owner reattachment and durable DM settlement action to the typed service.
+func (h *Handler) WithReleaseOperationRecoveryReconcileHandler(handler http.HandlerFunc) *Handler {
+	h.releaseOperationRecoveryReconcile = handler
 	return h
 }
 
@@ -556,6 +598,114 @@ func (s releasesService) GetOperation(ctx context.Context, req *connect.Request[
 	return connect.NewResponse(&releasesv1.GetReleaseOperationResponse{Operation: operation}), nil
 }
 
+func (s releasesService) ListOperationsByProfile(ctx context.Context, req *connect.Request[releasesv1.ListReleaseOperationsByProfileRequest]) (*connect.Response[releasesv1.ListReleaseOperationsByProfileResponse], error) {
+	if req == nil || req.Msg == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("request is required"))
+	}
+	profileID := strings.TrimSpace(req.Msg.GetProfileId())
+	if profileID == "" || req.Msg.GetPageSize() < 0 || req.Msg.GetPageSize() > 100 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("profile_id and a page_size between 0 and 100 are required"))
+	}
+	query := url.Values{
+		"page_size":  {strconv.FormatInt(int64(req.Msg.GetPageSize()), 10)},
+		"page_token": {req.Msg.GetPageToken()},
+	}
+	response, err := s.invoke(ctx, http.MethodGet, "/api/v1/profiles/"+url.PathEscape(profileID)+"/release-operations", nil, s.releaseOperationIndex, map[string]string{"profile_id": profileID}, query)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := json.Marshal(response.Msg.AsInterface())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("encode release operation index: %w", err))
+	}
+	var page struct {
+		OperationIDs  []string `json:"operation_ids"`
+		NextPageToken string   `json:"next_page_token"`
+	}
+	if err := json.Unmarshal(raw, &page); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("decode release operation index: %w", err))
+	}
+	if page.OperationIDs == nil {
+		page.OperationIDs = []string{}
+	}
+	return connect.NewResponse(&releasesv1.ListReleaseOperationsByProfileResponse{OperationIds: page.OperationIDs, NextPageToken: page.NextPageToken}), nil
+}
+
+func (s releasesService) ResumeCloudOperation(ctx context.Context, req *connect.Request[releasesv1.ResumeCloudOperationRequest]) (*connect.Response[releasesv1.GetReleaseOperationResponse], error) {
+	if req == nil || req.Msg == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("request is required"))
+	}
+	response, err := s.invoke(ctx, http.MethodPost, "/api/v1/release-operations/"+url.PathEscape(req.Msg.GetOperationId())+"/resume-cloud", nil, s.releaseOperationResume, map[string]string{"operation_id": req.Msg.GetOperationId()}, nil)
+	if err != nil {
+		return nil, err
+	}
+	operation, err := releaseOperation(response.Msg.AsInterface())
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&releasesv1.GetReleaseOperationResponse{Operation: operation}), nil
+}
+
+func (s releasesService) ResumeCloudVerification(ctx context.Context, req *connect.Request[releasesv1.ResumeCloudVerificationRequest]) (*connect.Response[releasesv1.GetReleaseOperationResponse], error) {
+	if req == nil || req.Msg == nil || strings.TrimSpace(req.Msg.GetOperationId()) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("operation_id is required"))
+	}
+	response, err := s.invoke(ctx, http.MethodPost, "/api/v1/release-operations/"+url.PathEscape(req.Msg.GetOperationId())+"/resume-cloud-verification", nil, s.releaseOperationVerificationResume, map[string]string{"operation_id": req.Msg.GetOperationId()}, nil)
+	if err != nil {
+		return nil, err
+	}
+	operation, err := releaseOperation(response.Msg.AsInterface())
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&releasesv1.GetReleaseOperationResponse{Operation: operation}), nil
+}
+
+func (s releasesService) RequestCloudTeardown(ctx context.Context, req *connect.Request[releasesv1.RequestCloudTeardownRequest]) (*connect.Response[releasesv1.GetReleaseOperationResponse], error) {
+	if req == nil || req.Msg == nil || strings.TrimSpace(req.Msg.GetOperationId()) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("operation_id is required"))
+	}
+	response, err := s.invoke(ctx, http.MethodPost, "/api/v1/release-operations/"+url.PathEscape(req.Msg.GetOperationId())+"/request-cloud-teardown", nil, s.releaseOperationTeardown, map[string]string{"operation_id": req.Msg.GetOperationId()}, nil)
+	if err != nil {
+		return nil, err
+	}
+	operation, err := releaseOperation(response.Msg.AsInterface())
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&releasesv1.GetReleaseOperationResponse{Operation: operation}), nil
+}
+
+func (s releasesService) RequestCloudLeaseRenewal(ctx context.Context, req *connect.Request[releasesv1.RequestCloudLeaseRenewalRequest]) (*connect.Response[releasesv1.GetReleaseOperationResponse], error) {
+	if req == nil || req.Msg == nil || strings.TrimSpace(req.Msg.GetOperationId()) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("operation_id is required"))
+	}
+	response, err := s.invoke(ctx, http.MethodPost, "/api/v1/release-operations/"+url.PathEscape(req.Msg.GetOperationId())+"/request-cloud-lease-renewal", nil, s.releaseOperationLeaseRenewal, map[string]string{"operation_id": req.Msg.GetOperationId()}, nil)
+	if err != nil {
+		return nil, err
+	}
+	operation, err := releaseOperation(response.Msg.AsInterface())
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&releasesv1.GetReleaseOperationResponse{Operation: operation}), nil
+}
+
+func (s releasesService) ReconcileCloudRecoveryOperation(ctx context.Context, req *connect.Request[releasesv1.ReconcileCloudRecoveryOperationRequest]) (*connect.Response[releasesv1.GetReleaseOperationResponse], error) {
+	if req == nil || req.Msg == nil || strings.TrimSpace(req.Msg.GetOperationId()) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("operation_id is required"))
+	}
+	response, err := s.invoke(ctx, http.MethodPost, "/api/v1/release-operations/"+url.PathEscape(req.Msg.GetOperationId())+"/reconcile-cloud-recovery", nil, s.releaseOperationRecoveryReconcile, map[string]string{"operation_id": req.Msg.GetOperationId()}, nil)
+	if err != nil {
+		return nil, err
+	}
+	operation, err := releaseOperation(response.Msg.AsInterface())
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&releasesv1.GetReleaseOperationResponse{Operation: operation}), nil
+}
+
 func (s releasesService) Dossier(ctx context.Context, req *connect.Request[releasesv1.GetReleaseDossierRequest]) (*connect.Response[releasesv1.GetReleaseDossierResponse], error) {
 	if req == nil || req.Msg == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("request is required"))
@@ -648,6 +798,10 @@ func (s releasesService) Start(ctx context.Context, req *connect.Request[release
 		"cloud_deployment_name": message.GetCloudDeploymentName(),
 		"cloud_bundle_path":     message.GetCloudBundlePath(), "cloud_bundle_sha256": message.GetCloudBundleSha256(),
 		"cloud_bundle_size_bytes": float64(message.GetCloudBundleSizeBytes()), "cloud_run_preflight": message.GetCloudRunPreflight(),
+		"cloud_spend_quote_idempotency_key": message.GetCloudSpendQuoteIdempotencyKey(),
+		"cloud_compute_manager_instance_id": message.GetCloudComputeManagerInstanceId(),
+		"cloud_acquire_compute":             message.GetCloudAcquireCompute(),
+		"cloud_acquire_region":              message.GetCloudAcquireRegion(),
 	}
 	if raw := strings.TrimSpace(message.GetCloudManifestJson()); raw != "" {
 		var manifest interface{}

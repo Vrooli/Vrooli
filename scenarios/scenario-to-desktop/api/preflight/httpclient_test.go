@@ -54,20 +54,6 @@ func TestHTTPRuntimeClient_Status(t *testing.T) {
 	}
 }
 
-func TestHTTPRuntimeClient_StatusError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte("internal error"))
-	}))
-	defer server.Close()
-
-	client := NewHTTPRuntimeClient(server.URL, "", nil)
-	_, err := client.Status()
-	if err == nil {
-		t.Fatalf("expected error for 500 status")
-	}
-}
-
 func TestHTTPRuntimeClient_Secrets(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/secrets" {
@@ -97,8 +83,14 @@ func TestHTTPRuntimeClient_ApplySecrets(t *testing.T) {
 	t.Run("posts secrets", func(t *testing.T) {
 		var receivedPayload map[string]map[string]string
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/secrets" {
+				t.Errorf("expected path '/secrets', got %q", r.URL.Path)
+			}
 			if r.Method != http.MethodPost {
 				t.Errorf("expected POST, got %s", r.Method)
+			}
+			if r.Header.Get("Content-Type") != "application/json" {
+				t.Errorf("expected Content-Type application/json, got %q", r.Header.Get("Content-Type"))
 			}
 			_ = json.NewDecoder(r.Body).Decode(&receivedPayload)
 			w.WriteHeader(http.StatusOK)

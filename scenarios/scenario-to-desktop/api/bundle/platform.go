@@ -53,22 +53,19 @@ func (p *defaultPlatformResolver) ParseKey(key string) (string, string, error) {
 
 // NormalizeRuntime normalizes a platform key for runtime staging.
 func (p *defaultPlatformResolver) NormalizeRuntime(platform string) string {
-	switch platform {
-	case "linux", "linux-amd64", "linux-x64":
-		return "linux-x64"
-	case "linux-arm64", "linux-aarch64":
-		return "linux-arm64"
-	case "mac", "macos", "darwin", "mac-x64", "macos-x64", "macos-amd64", "darwin-amd64", "darwin-x64":
-		return "darwin-x64"
-	case "mac-arm64", "macos-arm64", "darwin-arm64":
-		return "darwin-arm64"
-	case "win", "windows", "win-x64", "windows-amd64", "windows-x64":
-		return "win-x64"
-	case "win-arm64", "windows-arm64":
-		return "win-arm64"
-	default:
+	goos, goarch, err := p.ParseKey(platform)
+	if err != nil {
 		return platform
 	}
+
+	arch := goarch
+	if goarch == "amd64" {
+		arch = "x64"
+	}
+	if goos == "windows" {
+		return "win-" + arch
+	}
+	return goos + "-" + arch
 }
 
 // RuntimeBinaryName returns the runtime binary name for a GOOS.
@@ -89,27 +86,22 @@ func (p *defaultPlatformResolver) RuntimeCtlBinaryName(goos string) string {
 
 // ResolveBinaryForPlatform resolves the binary entry for a service on a platform.
 func (p *defaultPlatformResolver) ResolveBinaryForPlatform(svc bundlemanifest.Service, platform string) (bundlemanifest.Binary, bool) {
-	keys := []string{platform}
-	if alias := aliasPlatformKey(platform); alias != "" {
-		keys = append(keys, alias)
-		if architectureAlias := aliasArchitecturePlatformKey(alias); architectureAlias != "" {
-			keys = append(keys, architectureAlias)
-		}
+	goos, goarch, err := p.ParseKey(platform)
+	if err != nil {
+		return bundlemanifest.Binary{}, false
 	}
-	if alias := aliasArchitecturePlatformKey(platform); alias != "" {
-		keys = append(keys, alias)
-	}
-	// Try exact and aliased matches first
-	for _, key := range keys {
+	for _, key := range platformBinaryKeys(goos, goarch) {
 		if bin, ok := svc.Binaries[key]; ok {
 			return bin, true
 		}
 	}
-	// For shorthand platforms, try architecture-specific keys
-	archKeys := expandShorthandPlatform(platform)
-	for _, key := range archKeys {
-		if bin, ok := svc.Binaries[key]; ok {
-			return bin, true
+	// A shorthand manifest entry has no architecture metadata. Treat it as a
+	// build-host artifact and never reuse it for a cross-architecture target.
+	if goarch == runtime.GOARCH {
+		for _, key := range platformOSAliases(goos) {
+			if bin, ok := svc.Binaries[key]; ok {
+				return bin, true
+			}
 		}
 	}
 	return bundlemanifest.Binary{}, false
@@ -125,7 +117,7 @@ func expandShorthandToHostArch(platform string) (string, string) {
 	case "arm64":
 		goarch = "arm64"
 	default:
-		goarch = "amd64" // default fallback
+		return "", ""
 	}
 
 	switch platform {
@@ -139,60 +131,34 @@ func expandShorthandToHostArch(platform string) (string, string) {
 	return "", ""
 }
 
-func expandShorthandPlatform(platform string) []string {
-	archs := []string{"x64", "arm64", "amd64", "aarch64"}
+func platformBinaryKeys(goos, goarch string) []string {
+	var architectures []string
+	switch goarch {
+	case "amd64":
+		architectures = []string{"amd64", "x64"}
+	case "arm64":
+		architectures = []string{"arm64", "aarch64"}
+	default:
+		return nil
+	}
 	var keys []string
-
-	switch platform {
-	case "win", "windows":
-		for _, arch := range archs {
-			keys = append(keys, "win-"+arch, "windows-"+arch)
-		}
-	case "mac", "macos", "darwin":
-		for _, arch := range archs {
-			keys = append(keys, "darwin-"+arch, "mac-"+arch, "macos-"+arch)
-		}
-	case "linux":
-		for _, arch := range archs {
-			keys = append(keys, "linux-"+arch)
+	for _, osName := range platformOSAliases(goos) {
+		for _, architecture := range architectures {
+			keys = append(keys, osName+"-"+architecture)
 		}
 	}
 	return keys
 }
 
-func aliasPlatformKey(key string) string {
-	if strings.HasPrefix(key, "windows-") {
-		return "win-" + strings.TrimPrefix(key, "windows-")
-	}
-	if strings.HasPrefix(key, "win-") {
-		return "windows-" + strings.TrimPrefix(key, "win-")
-	}
-	if strings.HasPrefix(key, "darwin-") {
-		return "mac-" + strings.TrimPrefix(key, "darwin-")
-	}
-	if strings.HasPrefix(key, "macos-") {
-		return "darwin-" + strings.TrimPrefix(key, "macos-")
-	}
-	if strings.HasPrefix(key, "mac-") {
-		return "darwin-" + strings.TrimPrefix(key, "mac-")
-	}
-	return ""
-}
-
-// aliasArchitecturePlatformKey treats the two common architecture spellings as
-// one target. Resource deployment uses Go's amd64 spelling while desktop
-// manifests conventionally use x64, so both must resolve the same binary.
-func aliasArchitecturePlatformKey(key string) string {
-	switch {
-	case strings.HasSuffix(key, "-amd64"):
-		return strings.TrimSuffix(key, "-amd64") + "-x64"
-	case strings.HasSuffix(key, "-x64"):
-		return strings.TrimSuffix(key, "-x64") + "-amd64"
-	case strings.HasSuffix(key, "-aarch64"):
-		return strings.TrimSuffix(key, "-aarch64") + "-arm64"
-	case strings.HasSuffix(key, "-arm64"):
-		return strings.TrimSuffix(key, "-arm64") + "-aarch64"
+func platformOSAliases(goos string) []string {
+	switch goos {
+	case "darwin":
+		return []string{"darwin", "macos", "mac"}
+	case "windows":
+		return []string{"windows", "win"}
+	case "linux":
+		return []string{"linux"}
 	default:
-		return ""
+		return nil
 	}
 }

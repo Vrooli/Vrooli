@@ -338,17 +338,20 @@ func (s *Service) LaunchElectronValidation(ctx context.Context, sessionID, appPa
 	if session.Display == nil || !session.Display.IsRunning() {
 		return nil, fmt.Errorf("session display is not running")
 	}
+	if opts.ScenarioName == "" {
+		opts.ScenarioName = session.ScenarioName
+	}
+	if strings.TrimSpace(opts.ScenarioName) == "" {
+		return nil, &requestValidationError{message: "Electron validation scenario name is required"}
+	}
+	if err := validateElectronValidationRequest(opts, renderer); err != nil {
+		return nil, err
+	}
 	if appPath == "" {
 		appPath, err = s.findArtifact(session.ScenarioName)
 		if err != nil {
 			return nil, fmt.Errorf("auto-discover artifact: %w", err)
 		}
-	}
-	if opts.ScenarioName == "" {
-		opts.ScenarioName = session.ScenarioName
-	}
-	if strings.TrimSpace(opts.ScenarioName) == "" {
-		return nil, fmt.Errorf("Electron validation scenario name is required")
 	}
 	// A bare loopback prefix is the provider-owned identity matcher. Only the
 	// explicit port-zero sentinel asks this service to resolve a scenario's

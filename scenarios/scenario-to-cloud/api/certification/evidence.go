@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -178,7 +179,7 @@ func (r Receipt) validateV2Driver(m *Matrix) error {
 }
 
 func (r Receipt) validateV2Contract(caseRow Case) error {
-	if !sameStringSlice(r.RequirementRefs, caseRow.RequirementRefs) {
+	if !slices.Equal(r.RequirementRefs, caseRow.RequirementRefs) {
 		return fmt.Errorf("receipt %s: requirement_refs must exactly match matrix case %s", r.Ref, r.CaseID)
 	}
 	if len(r.Assertions) != 1 || strings.TrimSpace(r.Assertions[0]) != caseRow.Assertion {
@@ -269,18 +270,6 @@ func targetReceiptArtifactBinds(artifact, operationID string) bool {
 	fenceValue := strings.SplitN(parts[1], "&", 2)[0]
 	fence, err := strconv.ParseUint(fenceValue, 10, 64)
 	return err == nil && fence > 0
-}
-
-func sameStringSlice(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }
 
 func containsLane(values []Lane, target Lane) bool {

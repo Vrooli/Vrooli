@@ -6,14 +6,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
-	"os"
 	"path/filepath"
 	"strings"
 
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/execplan"
 	"scenario-to-cloud/identity"
+	"scenario-to-cloud/internal/filedigest"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/reach/sshadapter"
 	"scenario-to-cloud/release"
@@ -137,7 +136,7 @@ func releaseRefFor(req PlanRequest) (identity.ReleaseRef, error) {
 	}
 	pending := ""
 	if sha == "" && strings.TrimSpace(req.BundlePath) != "" {
-		computed, err := fileSHA256(req.BundlePath)
+		computed, _, err := filedigest.SHA256File(req.BundlePath)
 		if err != nil {
 			// Preview may run before the bundle exists locally. The artifact
 			// is then unpinned: release.verify cannot pass at apply time until
@@ -176,19 +175,6 @@ func ConfigurationDigest(manifest domain.CloudManifest) (string, error) {
 	}
 	sum := sha256.Sum256(raw)
 	return "sha256:" + hex.EncodeToString(sum[:]), nil
-}
-
-func fileSHA256(path string) (string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 // RenderSteps derives the legacy VPSPlanStep view from a plan: id = action

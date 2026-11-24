@@ -90,6 +90,27 @@ func TestCompareBaselineFailsClosedAndFindsRegression(t *testing.T) {
 	}
 }
 
+func TestCompareBaselineRejectsMissingBaselinePhase(t *testing.T) {
+	samples := make([]PerformanceSample, 0, 10)
+	for i := 0; i < 5; i++ {
+		cold := baselineSample(fmt.Sprintf("cold-%d", i), MeasurementCold, 100)
+		warm := baselineSample(fmt.Sprintf("warm-%d", i), MeasurementWarm, 50)
+		cold.Phases = append(cold.Phases, deliveryramp.PhaseDuration{Name: "server_ready", Available: true, DurationMs: 25})
+		warm.Phases = append(warm.Phases, deliveryramp.PhaseDuration{Name: "server_ready", Available: true, DurationMs: 15})
+		samples = append(samples, cold, warm)
+	}
+	baseline, err := BuildPerformanceBaseline("baseline-with-server-ready", samples)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	current := []PerformanceSample{baselineSample("current", MeasurementCold, 100)}
+	comparison := ComparePerformanceBaseline(baseline, current, MeasurementCold, 0.1)
+	if comparison.Status != ComparisonNonComparable {
+		t.Fatalf("missing baseline phase should be non-comparable, got %+v", comparison)
+	}
+}
+
 func TestDurableHelloDesktopBaselineIsComparableInput(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join("..", "..", "docs", "internal", "performance-baseline.json"))
 	if err != nil {

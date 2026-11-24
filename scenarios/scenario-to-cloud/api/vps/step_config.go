@@ -17,6 +17,7 @@ var DefaultStepConfigs = map[string]StepConfig{
 	"host.prepare":        {CommandTimeout: 2 * time.Minute},
 	"edge.firewall.allow": {CommandTimeout: 15 * time.Second},
 	"data.inventory":      {CommandTimeout: 30 * time.Second},
+	"data.schedule":       {CommandTimeout: 3 * time.Minute},
 	"release.verify":      {CommandTimeout: 1 * time.Minute},
 	"release.stage":       {CommandTimeout: 2 * time.Minute},
 	// Release activation may need to compile a cold Go/TypeScript workload on

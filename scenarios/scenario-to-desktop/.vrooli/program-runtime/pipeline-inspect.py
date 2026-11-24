@@ -10,13 +10,7 @@ selection = {}
 
 
 
-def guarded(call):
-    def invoke():
-        try:
-            return call()
-        except Exception as exc:
-            return exc
-    return invoke
+guarded = program.guarded
 
 
 # VALIDATE: reject malformed selectors before any binding is called.

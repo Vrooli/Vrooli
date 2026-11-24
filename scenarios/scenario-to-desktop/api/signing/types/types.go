@@ -181,6 +181,10 @@ const (
 	DefaultPassphraseField   = "gpg-passphrase"
 	DefaultPassphraseEnvVar  = "VROOLI_GPG_PASSPHRASE"
 	DefaultManagedHomedirEnv = "VROOLI_GPG_HOMEDIR"
+	// DefaultManagedPassphraseFileEnv names the temporary path used by
+	// credential-authority-managed signing. The secret itself never enters the
+	// build subprocess environment.
+	DefaultManagedPassphraseFileEnv = "VROOLI_GPG_PASSPHRASE_FILE"
 )
 
 // ResolvedPrivateKeyField returns the configured private key field or the default.

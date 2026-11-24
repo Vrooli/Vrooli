@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/textutil"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/reach"
 	"scenario-to-cloud/reach/sshadapter"
@@ -100,7 +100,7 @@ func RunInspect(ctx context.Context, manifest domain.CloudManifest, opts Inspect
 	for _, p := range inspectProbes(manifest, opts) {
 		res, err := prober.Reach.Exec(ctx, prober.Target, p.cmd)
 		if err != nil {
-			return InspectResult{OK: false, Error: coalesce(res.Stderr, err.Error()), Timestamp: time.Now().UTC().Format(time.RFC3339)}
+			return InspectResult{OK: false, Error: textutil.FirstNonEmpty(res.Stderr, err.Error()), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 		}
 		answers[p.id] = res
 	}
@@ -111,13 +111,4 @@ func RunInspect(ctx context.Context, manifest domain.CloudManifest, opts Inspect
 		ScenarioLogs:   answers["scenario_logs"].Stdout,
 		Timestamp:      time.Now().UTC().Format(time.RFC3339),
 	}
-}
-
-func coalesce(values ...string) string {
-	for _, v := range values {
-		if strings.TrimSpace(v) != "" {
-			return v
-		}
-	}
-	return ""
 }

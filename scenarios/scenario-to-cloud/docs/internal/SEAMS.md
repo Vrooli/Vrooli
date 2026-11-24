@@ -362,7 +362,7 @@ Moved domain types into the `domain/` package for consistency:
 Type aliases in the main package preserve backward compatibility.
 
 ### Boundary-of-Responsibility Enforcement (2026-01)
-Extended domain type consolidation following the screaming-architecture-audit and boundary-of-responsibility-enforcement guides:
+Extended domain type consolidation following the architecture-lenses guides:
 
 **New domain files:**
 - `domain/preflight.go` - Preflight check types (PreflightCheckStatus, PreflightCheck, PreflightResponse)

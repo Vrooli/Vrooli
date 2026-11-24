@@ -70,7 +70,7 @@ From `declarations/resources/ledger-store/resource.json`:
 
 | Item | Where | Notes |
 |---|---|---|
-| Target | `scenario-to-cloud manifest init --scenario <id> --host <host> --domain <domain>`, then `deployment create <manifest>` | One deployment record per `(scenario, environment, target)`. Bridge-enrolled targets bind `transport: bridge` (enroll with `vrooli-bridge onboard`); otherwise the bounded SSH adapter with an explicit key |
+| Target | Select a ready Compute Manager instance in the Deployment Manager flow | One deployment record per `(scenario, environment, target)`. Provider access and Bridge enrollment are completed through their owning product flows. |
 | Environment | `environment` in the manifest (`staging`, `production`) | Two environments of one scenario are distinct deployments with distinct target keys, credential binding ids, edge domains and receipts (P24-A02) |
 | Ports | `ports.<name>` | One number per declared listener name |
 | Edge | `edge.domain`, `edge.caddy.{enabled,email}`, DNS records | Routes are derived from the listeners; DNS must point every public host at the target before the external claim |

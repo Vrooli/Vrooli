@@ -13,17 +13,14 @@ package sshadapter
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
-	"os"
 	"path"
 	"strings"
 	"time"
 
 	"scenario-to-cloud/identity"
+	"scenario-to-cloud/internal/filedigest"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/reach"
 )
@@ -168,7 +165,7 @@ func (a *Adapter) Deliver(ctx context.Context, target identity.TargetRef, delive
 	}
 	receipt := reach.DeliveryReceipt{Transport: identity.TransportSSH}
 	for _, file := range delivery.Files {
-		localSum, err := fileSHA256(file.LocalPath)
+		localSum, _, err := filedigest.SHA256File(file.LocalPath)
 		if err != nil {
 			return receipt, &reach.Error{Kind: reach.KindInvalidArgument, Transport: identity.TransportSSH, Target: target.Key(), Detail: "local artifact unreadable: " + file.LocalPath, Err: err}
 		}
@@ -285,17 +282,4 @@ func firstLine(s string) string {
 		}
 	}
 	return ""
-}
-
-func fileSHA256(p string) (string, error) {
-	f, err := os.Open(p) //nolint:gosec // validated local artifact path
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(h.Sum(nil)), nil
 }

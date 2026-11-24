@@ -57,6 +57,9 @@ func (r *Renderer) RenderEnvMap(svc manifest.Service, bin manifest.Binary) (map[
 	// Add standard bundle hints.
 	env["APP_DATA_DIR"] = r.AppData
 	env["BUNDLE_ROOT"] = r.BundlePath
+	// The immutable catalog contains declarative resource manifests needed by
+	// bundled apps that overlay their compiled defaults with shipped data.
+	env["VROOLI_RESOURCE_ROOT"] = filepath.Join(r.BundlePath, "catalog")
 	shimPath := bundledVrooliBin(r.BundlePath, runtime.GOOS)
 	// The native shim is staged in bundle/bin by api/bundle. Bundled services
 	// use this exact owner entrypoint so offline host-profile commands work in
@@ -116,6 +119,9 @@ func (r *Renderer) RenderEnvMap(svc manifest.Service, bin manifest.Binary) (map[
 	// VROOLI_BIN is runtime-owned and cannot be redirected by a service
 	// declaration to a host installation or arbitrary executable.
 	env["VROOLI_BIN"] = shimPath
+	// Catalog overlays are runtime-owned for the same reason: a service must
+	// read only the declarative manifests shipped in this bundle.
+	env["VROOLI_RESOURCE_ROOT"] = filepath.Join(r.BundlePath, "catalog")
 
 	return env, nil
 }

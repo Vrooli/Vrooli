@@ -150,6 +150,23 @@ type Status struct {
 	CheckedAt      time.Time `json:"checked_at"`
 }
 
+type LegacyActiveInterpretation string
+
+const (
+	LegacyActiveAsRawValue LegacyActiveInterpretation = "raw-value"
+	LegacyActiveAsV1Record LegacyActiveInterpretation = "v1-record"
+)
+
+// LegacyActiveMigrationReceipt contains only metadata; the ambiguous source
+// item remains intact so an owner can verify it before any explicit cleanup.
+type LegacyActiveMigrationReceipt struct {
+	Identity       Identity                   `json:"identity"`
+	Field          string                     `json:"field"`
+	Version        string                     `json:"version"`
+	Interpretation LegacyActiveInterpretation `json:"interpretation"`
+	SourceRetained bool                       `json:"source_retained"`
+}
+
 // Authority is the only durable local credential writer. Its Store must be a
 // securestore adapter — a native platform store, or the encrypted file store on
 // a host that has none. Plaintext and process-environment fallbacks are
@@ -256,13 +273,78 @@ func (a *Authority) Put(identity Identity, field, value string) error {
 	if strings.TrimSpace(value) == "" {
 		return fmt.Errorf("credential value is required")
 	}
+	release, err := acquireCredentialStoreLock()
+	if err != nil {
+		return fmt.Errorf("lock credential write: %w", err)
+	}
+	defer release()
+	version, err := newCredentialVersion()
+	if err != nil {
+		return fmt.Errorf("generate credential version: %w", err)
+	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	// Legacy and generated writes retain their existing single-write contract.
-	// Operator input uses PutCandidate/ActivateCandidate, which commits the
-	// opaque active version needed for exercised evidence without changing the
-	// mint path's storage semantics.
-	return classifyStoreError(a.store.Put(credentialService, storeKey(identity, field), value))
+	return classifyStoreError(a.writeActive(identity, field, version, value))
+}
+
+// MigrateAmbiguousLegacyActive requires an explicit interpretation for values
+// using the retired inline marker. It never guesses whether those bytes were a
+// v1 envelope or an operator's raw credential. The source remains untouched.
+func (a *Authority) MigrateAmbiguousLegacyActive(identity Identity, field string, interpretation LegacyActiveInterpretation) (LegacyActiveMigrationReceipt, error) {
+	if a == nil || a.store == nil {
+		return LegacyActiveMigrationReceipt{}, fmt.Errorf("%w: no credential store on this host", ErrProviderAbsent)
+	}
+	parsed, err := ParseIdentity(string(identity))
+	if err != nil {
+		return LegacyActiveMigrationReceipt{}, err
+	}
+	field = strings.TrimSpace(field)
+	if field == "" || strings.ContainsAny(field, "/\\") {
+		return LegacyActiveMigrationReceipt{}, errors.New("credential field is invalid")
+	}
+	if interpretation != LegacyActiveAsRawValue && interpretation != LegacyActiveAsV1Record {
+		return LegacyActiveMigrationReceipt{}, errors.New("legacy credential interpretation must be selected explicitly")
+	}
+	release, err := acquireCredentialStoreLock()
+	if err != nil {
+		return LegacyActiveMigrationReceipt{}, fmt.Errorf("lock legacy credential migration: %w", err)
+	}
+	defer release()
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	stored, err := a.store.Get(credentialService, storeKey(parsed, field))
+	if err != nil {
+		return LegacyActiveMigrationReceipt{}, classifyStoreError(err)
+	}
+	if !strings.HasPrefix(stored, legacyActiveCredentialRecordPrefix) {
+		return LegacyActiveMigrationReceipt{}, errors.New("credential is not an ambiguous retired-marker value")
+	}
+	marker, markerErr := a.store.Get(credentialService, versionKey(parsed, field))
+	if markerErr == nil {
+		if _, isRef, refErr := decodeActiveCredentialReference(marker); refErr != nil {
+			return LegacyActiveMigrationReceipt{}, refErr
+		} else if isRef {
+			return LegacyActiveMigrationReceipt{}, errors.New("credential already has an active versioned reference")
+		}
+	} else if !errors.Is(markerErr, securestore.ErrNotFound) {
+		return LegacyActiveMigrationReceipt{}, classifyStoreError(markerErr)
+	}
+	value := stored
+	version, err := newCredentialVersion()
+	if err != nil {
+		return LegacyActiveMigrationReceipt{}, err
+	}
+	if interpretation == LegacyActiveAsV1Record {
+		record, decodeErr := decodeLegacyActiveRecord(stored)
+		if decodeErr != nil {
+			return LegacyActiveMigrationReceipt{}, decodeErr
+		}
+		value, version = record.Value, record.Version
+	}
+	if err := a.writeActive(parsed, field, version, value); err != nil {
+		return LegacyActiveMigrationReceipt{}, err
+	}
+	return LegacyActiveMigrationReceipt{Identity: parsed, Field: field, Version: version, Interpretation: interpretation, SourceRetained: true}, nil
 }
 
 // Inject resolves values only into the supplied ephemeral environment map.
@@ -302,27 +384,22 @@ func (a *Authority) InjectExpected(identity Identity, field, env string, target 
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	value, err := a.store.Get(credentialService, storeKey(identity, field))
-	err = classifyStoreError(err)
+	value, version, err := a.readActive(identity, field)
 	if err != nil {
 		return "", err
 	}
 	if strings.TrimSpace(value) == "" {
 		return "", ErrUnconfigured
 	}
-	version, versionErr := a.activeVersion(identity, field)
 	if expectedVersion != "" {
-		if versionErr != nil {
-			return "", fmt.Errorf("credential version for %s:%s is unavailable: %w", identity, field, versionErr)
+		if version == "" {
+			return "", fmt.Errorf("credential version for %s:%s is unavailable", identity, field)
 		}
 		if version != expectedVersion {
 			return "", fmt.Errorf("credential version changed for %s:%s: expected %q, active %q", identity, field, expectedVersion, version)
 		}
 	}
 	target[env] = value
-	if versionErr != nil {
-		return "", nil
-	}
 	return version, nil
 }
 
@@ -351,6 +428,10 @@ func (a *Authority) Status(identity Identity, field string) Status {
 	}
 	value, err := a.get(identity, status.Field)
 	status.ProviderState = ProviderStateFor(err)
+	if errors.Is(err, ErrAmbiguousLegacyActiveRecord) {
+		status.ProviderDetail = ProviderDetail(err)
+		return status
+	}
 	if status.ProviderState != ProviderAvailable {
 		status.ProviderDetail = ProviderDetail(err)
 		return status
@@ -382,13 +463,21 @@ func (a *Authority) Delete(identity Identity, field string) error {
 	if _, err := ParseIdentity(string(identity)); err != nil {
 		return err
 	}
+	field = strings.TrimSpace(field)
+	release, err := acquireCredentialStoreLock()
+	if err != nil {
+		return fmt.Errorf("lock credential deletion: %w", err)
+	}
+	defer release()
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	err := a.store.Delete(credentialService, storeKey(identity, strings.TrimSpace(field)))
-	if errors.Is(err, securestore.ErrNotFound) {
-		return nil
+	version, _ := a.activeVersion(identity, field)
+	for _, key := range []string{versionKey(identity, field), activeValueKey(identity, field, version), storeKey(identity, field)} {
+		if err := a.store.Delete(credentialService, key); err != nil && !errors.Is(err, securestore.ErrNotFound) {
+			return classifyStoreError(err)
+		}
 	}
-	return classifyStoreError(err)
+	return nil
 }
 
 func (a *Authority) get(identity Identity, field string) (string, error) {
@@ -397,8 +486,8 @@ func (a *Authority) get(identity Identity, field string) (string, error) {
 	// behind the authority availability mutex: onboarding may check many
 	// declared credentials concurrently, and serialized secure-store reads make
 	// readiness latency scale linearly with the number of descriptors.
-	value, err := a.store.Get(credentialService, storeKey(identity, field))
-	return value, classifyStoreError(err)
+	value, _, err := a.readActive(identity, field)
+	return value, err
 }
 
 func storeKey(identity Identity, field string) string {
@@ -409,16 +498,78 @@ func versionKey(identity Identity, field string) string {
 	return "version/" + storeKey(identity, field)
 }
 
-func (a *Authority) activeVersion(identity Identity, field string) (string, error) {
-	version, err := a.store.Get(credentialService, versionKey(identity, field))
+func activeValueKey(identity Identity, field, version string) string {
+	return "active-value/" + storeKey(identity, field) + ":" + version
+}
+
+// writeActive writes the immutable value first and atomically switches the
+// pointer last. Old raw legacy items remain untouched until an explicit
+// migration or deletion, while reads thereafter resolve exclusively by ref.
+func (a *Authority) writeActive(identity Identity, field, version, value string) error {
+	if strings.TrimSpace(value) == "" {
+		return errors.New("credential value is required")
+	}
+	ref, err := encodeActiveCredentialReference(version)
 	if err != nil {
-		return "", classifyStoreError(err)
+		return err
 	}
-	if len(version) != 32 {
-		return "", fmt.Errorf("credential active version metadata is invalid")
+	if err := a.store.Put(credentialService, activeValueKey(identity, field, version), value); err != nil {
+		return classifyStoreError(err)
 	}
-	if _, err := hex.DecodeString(version); err != nil {
-		return "", fmt.Errorf("credential active version metadata is invalid")
+	if err := a.store.Put(credentialService, versionKey(identity, field), ref); err != nil {
+		return classifyStoreError(err)
+	}
+	return nil
+}
+
+func (a *Authority) readActive(identity Identity, field string) (string, string, error) {
+	marker, markerErr := a.store.Get(credentialService, versionKey(identity, field))
+	if markerErr == nil {
+		version, isRef, err := decodeActiveCredentialReference(marker)
+		if err != nil {
+			return "", "", err
+		}
+		if isRef {
+			value, err := a.store.Get(credentialService, activeValueKey(identity, field, version))
+			if err != nil {
+				return "", "", classifyStoreError(err)
+			}
+			return value, version, nil
+		}
+		if len(marker) != 32 {
+			return "", "", errors.New("credential active version metadata is invalid")
+		}
+		if _, err := hex.DecodeString(marker); err != nil {
+			return "", "", errors.New("credential active version metadata is invalid")
+		}
+		stored, err := a.store.Get(credentialService, storeKey(identity, field))
+		if err != nil {
+			return "", "", classifyStoreError(err)
+		}
+		value, err := decodeLegacyActiveValue(stored)
+		return value, marker, err
+	}
+	if !errors.Is(markerErr, securestore.ErrNotFound) {
+		return "", "", classifyStoreError(markerErr)
+	}
+	stored, err := a.store.Get(credentialService, storeKey(identity, field))
+	if err != nil {
+		return "", "", classifyStoreError(err)
+	}
+	value, err := decodeLegacyActiveValue(stored)
+	return value, "", err
+}
+
+func (a *Authority) activeVersion(identity Identity, field string) (string, error) {
+	value, version, err := a.readActive(identity, field)
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(value) == "" {
+		return "", ErrUnconfigured
+	}
+	if version == "" {
+		return "", ErrUnconfigured
 	}
 	return version, nil
 }

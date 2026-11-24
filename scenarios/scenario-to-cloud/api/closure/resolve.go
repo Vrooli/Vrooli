@@ -127,20 +127,14 @@ type edge struct {
 }
 
 type resolver struct {
-	in        Inputs
-	ctx       context.Context
-	platform  Platform
-	scenarios map[string]*scenarioNode
-	resources map[string]*resourceNode
-	edges     []edge
-	stack     []string
-	// stackRequired[i] records whether the edge that put stack[i] on the
-	// stack was required. A back-edge closes an orchestration cycle only when
-	// every edge on the cycle is required; optional (try_start) cycles are a
-	// declared degradation pattern, not an error.
-	stackRequired []bool
-	onStack       map[string]bool
-	analyzer      struct {
+	in               Inputs
+	ctx              context.Context
+	platform         Platform
+	scenarios        map[string]*scenarioNode
+	resources        map[string]*resourceNode
+	edges            []edge
+	dependencyDigest string
+	analyzer         struct {
 		used bool
 		tool string
 	}
@@ -184,7 +178,6 @@ func Resolve(ctx context.Context, in Inputs) (domain.Closure, error) {
 		platform:    Platform{OS: canonical.OS, Arch: canonical.Arch},
 		scenarios:   map[string]*scenarioNode{},
 		resources:   map[string]*resourceNode{},
-		onStack:     map[string]bool{},
 		selectSet:   toSet(in.Overrides.SelectOptional),
 		deselectSet: toSet(in.Overrides.DeselectOptional),
 	}
@@ -198,9 +191,7 @@ func Resolve(ctx context.Context, in Inputs) (domain.Closure, error) {
 	root.member = true
 	root.startupPolicies = append(root.startupPolicies, "must_start")
 	root.reasons = append(root.reasons, domain.ClosureReason{Kind: domain.ClosureReasonDeclaredBy, From: "selection", Detail: "selected scenario"})
-	if err := r.walkScenario(root, true); err != nil {
-		return domain.Closure{}, err
-	}
+	roots := []*scenarioNode{root}
 
 	if in.Scope == ScopeRepository {
 		ids, err := in.Catalog.SystemRequiredScenarios(ctx)
@@ -218,13 +209,13 @@ func Resolve(ctx context.Context, in Inputs) (domain.Closure, error) {
 			node.member = true
 			node.startupPolicies = append(node.startupPolicies, "must_start")
 			node.reasons = append(node.reasons, domain.ClosureReason{Kind: domain.ClosureReasonSystemRequired, From: "catalog", Detail: "service.system_required is true"})
-			if alreadyIncluded {
-				continue
-			}
-			if err := r.walkScenario(node, true); err != nil {
-				return domain.Closure{}, err
+			if !alreadyIncluded {
+				roots = append(roots, node)
 			}
 		}
+	}
+	if err := r.buildSharedClosure(roots); err != nil {
+		return domain.Closure{}, err
 	}
 
 	r.propagateRequired()

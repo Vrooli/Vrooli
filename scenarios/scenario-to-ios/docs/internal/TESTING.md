@@ -22,6 +22,10 @@ Existing local entry points (choose the domain test for the behavior you change)
 - [ui/src/layout/AppShell.a11y.test.tsx](../../ui/src/layout/AppShell.a11y.test.tsx)
 - [cli/app_test.go](../../cli/app_test.go)
 
+The release matrix must not execute `ios-mirror` targets or allow them to
+satisfy a release gate. Verify catalog and explicit-selection protection with
+`cd scenarios/scenario-to-ios/api && GOWORK=off go test ./internal/releases -run 'TestCatalogMapsProviderTargetsAndConformanceJourney|TestMirrorReleaseGuard|TestExplicitMirrorSelectionCannotPassMatrixReleaseGate' -count=1`.
+
 ## Cross-references
 
 - **Seams definition + adding new seams**: [`SEAMS.md`](SEAMS.md).

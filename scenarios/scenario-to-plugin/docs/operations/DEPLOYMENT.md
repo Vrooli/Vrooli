@@ -79,8 +79,28 @@ than downgrading it to a warning.
    removed command must fail conformance; an unpinned install must fail;
    a package with a credential literal must fail before any network call.
    A publishing pipeline whose refusals are untested is worse than none.
+   The local regression is
+   `GOWORK=off go test ./handlers/pipeline -run '^TestReleaseChecklistSelfTestCarriesBrokenFixturesThroughLocalGates$' -count=1`
+   from `api/`. It uses a local release-gate fake and does not publish. A
+   passing self-test covers these refusal fixtures only; it does not replace
+   the other checklist steps or authorize external publication.
+   `TestInstallChecksumSidecarMatchesDownloadedPayloadBytesInLocalFakeFlow`
+   executes a fixed installer fixture with a fake curl that returns local
+   payload and checksum files, then uses `sha256sum` to accept matching bytes
+   and refuse a wrong digest or filename. `TestPublishFullLocalPipelineSuccessAndRegistryRefusal`
+   uses a local gate, evidence-shaped fixture files, and fake OCI registry to
+   cover publish success and a missing-SBOM refusal. Neither test uses managed
+   signing or a real registry; they verify local code paths only. Synthetic
+   Cosign bundles must name the exact composed artifact digest in their
+   `SHA2_256` message digest; this structural check does not verify a signature.
 8. Confirm no credential literal appears in any emitted artifact, SBOM,
-   attestation, or log for the fixture run.
+   attestation, verdict, rehearsal capture, or log for the fixture run.
+   `TestReleaseChecklistKeepsSecretsOutOfArtifactsEvidenceAndRehearsalCapture`
+   composes a controlled fixture, emits local dry-run evidence, and runs a
+   command that constructs token-shaped values only at runtime. It verifies
+   that artifacts/evidence and the local verdict contain no token and that
+   complete tokens and private-key blocks are redacted from rehearsal output.
+   No real credential or external deployment manager is used.
 9. Record the release in [`../internal/PROGRESS.md`](../internal/PROGRESS.md)
    with validation evidence.
 

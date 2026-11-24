@@ -31,6 +31,7 @@ func TestCatalogMapsProviderTargetsAndConformanceJourney(t *testing.T) {
 	catalog, err := (Catalog{Probe: fakeProber{inventory: deliveryramp.Inventory{Targets: []deliveryramp.Target{
 		{ID: "ios:simulator:linux", Label: "Linux simulator", Available: false, Reason: "Apple tooling is unsupported", Transport: deliveryramp.Transport{Kind: deliveryramp.TransportLocal}},
 		{ID: "ios:macos:bridge-unavailable", Label: "macOS bridge", Available: false, Reason: "no bridge", Transport: deliveryramp.Transport{Kind: deliveryramp.TransportBridge}},
+		{ID: "ios-mirror:iphone-1", Label: "Mirrored iPhone", Platform: "ios", Mode: "ios-mirror", Available: true, Transport: deliveryramp.Transport{Kind: deliveryramp.TransportBridge}},
 	}}}, Journey: validationmatrix.JourneySelection{JourneyID: journeyPlan.ID, DisplayName: "iOS generated-app conformance", Required: true}}).Resolve(context.Background(), "hello-mobile")
 	if err != nil {
 		t.Fatal(err)
@@ -38,11 +39,85 @@ func TestCatalogMapsProviderTargetsAndConformanceJourney(t *testing.T) {
 	if len(catalog.Journeys) != 1 || catalog.Journeys[0].JourneyID != journeys.Plan().ID {
 		t.Fatalf("journey catalog = %+v", catalog.Journeys)
 	}
-	if len(catalog.Targets) != 2 || catalog.Targets[1].Kind != validationmatrix.TargetBridge {
+	if len(catalog.Targets) != 3 || catalog.Targets[1].Kind != validationmatrix.TargetBridge {
 		t.Fatalf("target catalog = %+v", catalog.Targets)
 	}
 	if catalog.Targets[0].Descriptor.GetAvailable() || catalog.Targets[0].Descriptor.GetReason() == "" {
 		t.Fatalf("unsupported target lost its terminal reason: %+v", catalog.Targets[0].Descriptor)
+	}
+	if catalog.Targets[2].Descriptor.GetAvailable() || catalog.Targets[2].Descriptor.GetReason() != mirrorReleaseBlockedReason {
+		t.Fatalf("mirror target must be excluded from release-gating catalog: %+v", catalog.Targets[2].Descriptor)
+	}
+}
+
+type recordingCellTransport struct {
+	calls int
+}
+
+func (f *recordingCellTransport) Execute(context.Context, validationmatrix.CellRequest) validationmatrix.CellResult {
+	f.calls++
+	return validationmatrix.CellResult{
+		Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_PASS,
+		Evidence: []*domainv1.LayeredEvidence{
+			{Kind: domainv1.LayeredEvidence_KIND_DESKTOP_RUNTIME, EvidenceId: "runtime", Uri: "runtime://proof", Sha256: "sha256:runtime", Redacted: true},
+			{Kind: domainv1.LayeredEvidence_KIND_TARGET, EvidenceId: "target", Uri: "target://proof", Sha256: "sha256:target", Redacted: true},
+			{Kind: domainv1.LayeredEvidence_KIND_MACHINE_ASSERTION, EvidenceId: "assertion", Uri: "assertion://proof", Sha256: "sha256:assertion", Redacted: true},
+		},
+	}
+}
+
+func TestMirrorReleaseGuardRejectsExplicitTargetBeforeBridgeExecution(t *testing.T) {
+	bridge := &recordingCellTransport{}
+	cell := &domainv1.ValidationCell{CellId: "mirror-cell", TargetId: "ios:mirror:iphone-1", JourneyId: journeys.Plan().ID}
+	result := (MirrorReleaseGuard{Next: bridge}).Execute(context.Background(), validationmatrix.CellRequest{
+		Cell:   cell,
+		Target: &domainv1.ValidationTargetDescriptor{TargetId: cell.TargetId, DisplayName: "Mirrored iPhone", Available: true},
+	})
+	if bridge.calls != 0 {
+		t.Fatalf("mirror target reached bridge executor %d times", bridge.calls)
+	}
+	if result.Disposition != domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE || result.Reason != mirrorReleaseBlockedReason {
+		t.Fatalf("mirror result = %+v, want unavailable with non-promotable reason", result)
+	}
+}
+
+func TestExplicitMirrorSelectionCannotPassMatrixReleaseGate(t *testing.T) {
+	store, err := validationmatrix.NewFileStore(t.TempDir())
+	require.NoError(t, err)
+	bridge := &recordingCellTransport{}
+	journeyPlan := journeys.Plan()
+	catalog := Catalog{
+		Probe:   fakeProber{inventory: deliveryramp.Inventory{Targets: []deliveryramp.Target{{ID: "ios:macos:bridge-1", Label: "Bridge", Platform: "ios", Available: true, Transport: deliveryramp.Transport{Kind: deliveryramp.TransportBridge}}}}},
+		Journey: validationmatrix.JourneySelection{JourneyID: journeyPlan.ID, DisplayName: "iOS conformance", Required: true, ExecutionMode: "platform"},
+	}
+	service := validationmatrix.NewService(store, validationmatrix.Executors{Bridge: MirrorReleaseGuard{Next: bridge}}, validationmatrix.WithCatalogResolver(catalog))
+	run, err := service.Create(validationmatrix.MatrixSelection{
+		ScenarioName:        "hello-mobile",
+		ArtifactDigest:      "sha256:ios-artifact",
+		Targets:             []validationmatrix.TargetSelection{{Kind: validationmatrix.TargetBridge, Descriptor: &domainv1.ValidationTargetDescriptor{TargetId: "ios:mirror:iphone-1", DisplayName: "Mirrored iPhone", Available: true}}},
+		EnvironmentProfiles: []domainv1.ValidationEnvironmentProfile{domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_NORMAL},
+	})
+	require.NoError(t, err)
+	_, err = service.Start(run.RunID)
+	require.NoError(t, err)
+	completed, err := service.Wait(context.Background(), run.RunID)
+	require.NoError(t, err)
+	if bridge.calls != 0 || completed.State != validationmatrix.RunFailed || completed.Gate.GetPassed() {
+		t.Fatalf("mirror selection reached bridge or passed release gate: bridge calls=%d state=%s gate=%+v", bridge.calls, completed.State, completed.Gate)
+	}
+	if len(completed.Cells) != 1 || completed.Cells[0].Cell.GetDisposition() != domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE {
+		t.Fatalf("mirror cell = %+v, want unavailable", completed.Cells)
+	}
+}
+
+func TestMirrorReleaseGuardDelegatesSemanticTarget(t *testing.T) {
+	bridge := &recordingCellTransport{}
+	result := (MirrorReleaseGuard{Next: bridge}).Execute(context.Background(), validationmatrix.CellRequest{
+		Cell:   &domainv1.ValidationCell{CellId: "sim-cell", TargetId: "ios:macos:bridge-1", JourneyId: journeys.Plan().ID},
+		Target: &domainv1.ValidationTargetDescriptor{TargetId: "ios:macos:bridge-1", DisplayName: "macOS Xcode", Available: true},
+	})
+	if bridge.calls != 1 || result.Disposition != domainv1.ValidationDisposition_VALIDATION_DISPOSITION_PASS {
+		t.Fatalf("semantic target result = %+v; bridge calls=%d", result, bridge.calls)
 	}
 }
 

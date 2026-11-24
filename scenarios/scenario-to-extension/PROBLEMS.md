@@ -181,9 +181,17 @@ This document tracks known issues, acceptable standards violations, and technica
 
 ### TODO Comments: ✅ DOCUMENTED
 All TODO comments in codebase are well-documented placeholders for planned P1/P2 features:
-- **api/main.go (5 TODOs)**: browser-automation-studio integration, template substitution, package.json generation, README generation, extension testing
+- **api/main.go (5 TODOs)**: browser-automation-studio integration, template substitution, package.json generation, README generation, legacy extension testing
 - **ui/app.js (3 TODOs)**: Build download, build details modal, file browser
 - **Status**: Acceptable - all have appropriate fallback messages and are linked to PRD requirements
+
+### Managed-session extension validation (2026-11-19)
+
+- The production API/CLI path accepts an owner-issued build ID and an existing BAS session ID, then calls the BAS extension install, reload, validation, and inventory routes with the Agent Manager identity and browser-grant headers from the current run. BAS must have its existing Agent Access routes and extension controller mounted in the deployment.
+- It resolves the ready build and expected artifact digest through this scenario's build owner; the install request never accepts a host path.
+- It verifies every BAS receipt's operation, freshness, exact session/artifact and stable caller/permission/profile/owner/lease binding. It returns the accepted typed chain without exposing run credentials, and rejects cross-run/replayed responses before issuing later operations. Redirects are disabled on the credential-bearing BAS client.
+- The BAS broker contract delegates to an injected extension controller and fails closed when the managed driver does not support the operation. Fake-owner HTTP composition passes; live install/reload/validation against a browser remains unqualified until MB7 admits a target and the owner path is exercised there.
+- The `SCENARIO_TO_EXTENSION_BROWSER_RUNNER` compatibility process path has been removed. The only production validation endpoint requires a ready artifact build and existing authorized BAS session; local extension paths are rejected with HTTP 410. Live install/reload/validation remains unqualified until MB7 admits a browser target.
 
 ---
 

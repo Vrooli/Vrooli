@@ -218,6 +218,37 @@ func (r *Repository) GetDeployment(ctx context.Context, id string) (*domain.Depl
 	return d, nil
 }
 
+// GetDeploymentByComputeManagerID resolves the deployment bound to one
+// manager-owned instance. Ambiguity is refused because SSH credentials are
+// deployment-scoped; selecting an arbitrary deployment for a shared locator
+// could use the wrong operator key.
+func (r *Repository) GetDeploymentByComputeManagerID(ctx context.Context, managerID string) (*domain.Deployment, error) {
+	managerID = strings.TrimSpace(managerID)
+	if managerID == "" {
+		return nil, errors.New("Compute Manager instance ID is required")
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT `+deploymentColumns+` FROM deployments WHERE target_binding->>'compute_manager_instance_id' = $1 ORDER BY created_at DESC LIMIT 2`, managerID)
+	if err != nil {
+		return nil, fmt.Errorf("find deployment for Compute Manager instance: %w", err)
+	}
+	defer rows.Close()
+	var match *domain.Deployment
+	for rows.Next() {
+		item, err := scanDeployment(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan deployment for Compute Manager instance: %w", err)
+		}
+		if match != nil {
+			return nil, fmt.Errorf("Compute Manager instance %q is bound to multiple deployments", managerID)
+		}
+		match = item
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read deployments for Compute Manager instance: %w", err)
+	}
+	return match, nil
+}
+
 // GetDeploymentRef returns only the stable identity of a deployment, or nil
 // when the record does not exist.
 func (r *Repository) GetDeploymentRef(ctx context.Context, id string) (*identity.DeploymentRef, error) {

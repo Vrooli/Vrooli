@@ -5,16 +5,19 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"scenario-to-cloud/apierrors"
+	"scenario-to-cloud/computemanager"
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/identity"
 	"scenario-to-cloud/persistence"
 
+	instancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/compute-manager/v1/instance"
 	deploymentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/deployments"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/deployments/deploymentsv1connect"
 
@@ -41,6 +44,23 @@ func newIdentityTestServer(t *testing.T, name string) (*Server, *persistence.Rep
 	srv.historyRecorder = repo
 	srv.setupRoutes()
 	return srv, repo
+}
+
+type fixedComputeManagerRefs struct {
+	ref computemanager.InstanceReference
+}
+
+func (f fixedComputeManagerRefs) RequestQEMU(context.Context, computemanager.QEMURequest) (computemanager.InstanceReference, error) {
+	return f.ref, nil
+}
+func (f fixedComputeManagerRefs) GetInstance(_ context.Context, id string) (computemanager.InstanceReference, error) {
+	if id != f.ref.ManagerInstanceID {
+		return computemanager.InstanceReference{}, errors.New("instance not found")
+	}
+	return f.ref, nil
+}
+func (f fixedComputeManagerRefs) DestroyInstance(context.Context, string) (computemanager.InstanceReference, error) {
+	return f.ref, nil
 }
 
 func seedDeployment(t *testing.T, repo *persistence.Repository, id, scenario, environment, host, domainName string) {
@@ -192,6 +212,93 @@ func TestCreateDeploymentKeepsIdentityAcrossManifestResubmit(t *testing.T) {
 	}
 	if third["deployment"].(map[string]any)["environment"] != "staging" {
 		t.Fatalf("environment not persisted: %v", third["deployment"])
+	}
+}
+
+func TestCreateDeploymentBindsAndValidatesComputeManagerInstance(t *testing.T) {
+	srv, repo := newIdentityTestServer(t, "handlers-create-cm-target")
+	srv.computeManager = fixedComputeManagerRefs{ref: computemanager.InstanceReference{
+		ManagerInstanceID: "qemu-abc123", Provider: computemanager.QEMUProvider,
+		Address: "127.0.0.1", SSHUser: "vrooli", SSHPort: 2222,
+		State: instancev1.InstanceState_INSTANCE_STATE_RUNNING,
+	}}
+	manifest := func(host string) map[string]any {
+		return map[string]any{
+			"version": "1", "environment": "qemu-test",
+			"target": map[string]any{"type": "vps", "vps": map[string]any{
+				"host": host, "port": 2222, "user": "vrooli", "workdir": "/srv/vrooli",
+				"compute_manager_instance_id": "qemu-abc123",
+			}},
+			"scenario":     map[string]any{"id": "demo-app"},
+			"dependencies": map[string]any{"scenarios": []string{"demo-app"}, "resources": []string{}, "analyzer": map[string]any{"tool": "scenario-dependency-analyzer"}},
+			"bundle":       map[string]any{"include_packages": true, "include_autoheal": true, "scenarios": []string{"demo-app", "vrooli-autoheal"}},
+			"ports":        map[string]any{"api": 15000, "ui": 3000},
+			"edge":         map[string]any{"domain": "qemu-test.example", "caddy": map[string]any{"enabled": false}},
+		}
+	}
+	post := func(host string) (*httptest.ResponseRecorder, map[string]any) {
+		t.Helper()
+		payload, _ := json.Marshal(map[string]any{"manifest": manifest(host)})
+		rec := httptest.NewRecorder()
+		srv.Router().ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/v1/deployments", bytes.NewReader(payload)))
+		var body map[string]any
+		if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+			t.Fatalf("decode: %v body=%s", err, rec.Body.String())
+		}
+		return rec, body
+	}
+	rec, body := post("127.0.0.1")
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("manager-bound create status=%d body=%v", rec.Code, body)
+	}
+	deployment := body["deployment"].(map[string]any)
+	deploymentID := deployment["id"].(string)
+	stored, err := repo.GetDeployment(context.Background(), deploymentID)
+	if err != nil {
+		t.Fatalf("read created deployment: %v", err)
+	}
+	if stored.Target.ComputeManagerID != "qemu-abc123" || stored.Target.MachineID != "" || stored.Target.Locator.Host != "127.0.0.1" || stored.Target.Locator.Port != 2222 {
+		t.Fatalf("stored target = %+v", stored.Target)
+	}
+	rec, body = post("192.0.2.44")
+	if rec.Code != http.StatusBadRequest || apierrors.FromHTTP(rec.Code, rec.Body.Bytes()).Code != apierrors.CodeInvalidRequest {
+		t.Fatalf("mismatched locator status=%d body=%v", rec.Code, body)
+	}
+}
+
+func TestCreateDeploymentResolvesHostOnlyFromNonQEMUManagerReference(t *testing.T) {
+	srv, repo := newIdentityTestServer(t, "handlers-create-non-qemu-cm-target")
+	srv.computeManager = fixedComputeManagerRefs{ref: computemanager.InstanceReference{
+		ManagerInstanceID: "hetzner-instance-fixture", Provider: "hetzner", Region: "nbg1", Size: "cx23",
+		Address: "203.0.113.24", SSHUser: "vrooli", SSHPort: 22,
+		State: instancev1.InstanceState_INSTANCE_STATE_RUNNING,
+	}}
+	manifest := map[string]any{
+		"version": "1", "environment": "staging",
+		"target":       map[string]any{"type": "vps", "vps": map[string]any{"compute_manager_instance_id": "hetzner-instance-fixture"}},
+		"scenario":     map[string]any{"id": "web-console"},
+		"dependencies": map[string]any{"scenarios": []string{"web-console"}, "resources": []string{}},
+		"bundle":       map[string]any{"include_packages": true, "include_autoheal": true, "scenarios": []string{"web-console"}},
+		"ports":        map[string]any{"api": 15000, "ui": 21233},
+		"edge":         map[string]any{"domain": "staging.vrooli.com", "caddy": map[string]any{"enabled": true}, "health_path": "/health"},
+	}
+	payload, _ := json.Marshal(map[string]any{"manifest": manifest})
+	response := httptest.NewRecorder()
+	srv.Router().ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/v1/deployments", bytes.NewReader(payload)))
+	if response.Code != http.StatusCreated {
+		t.Fatalf("create status=%d body=%s", response.Code, response.Body.String())
+	}
+	var body map[string]any
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	deploymentID := body["deployment"].(map[string]any)["id"].(string)
+	stored, err := repo.GetDeployment(context.Background(), deploymentID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Target.ComputeManagerID != "hetzner-instance-fixture" || stored.Target.Locator.Host != "203.0.113.24" || stored.Target.Locator.Port != 22 || stored.Target.Locator.User != "vrooli" {
+		t.Fatalf("manager-derived target = %+v", stored.Target)
 	}
 }
 

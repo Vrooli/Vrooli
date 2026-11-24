@@ -3,6 +3,10 @@ package deploy
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/vrooli/api-core/servicetoken"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +15,53 @@ import (
 	"strings"
 	"testing"
 )
+
+type staticServiceAuthorization struct {
+	value string
+	err   error
+}
+
+func (s staticServiceAuthorization) Authorization(context.Context) (string, error) {
+	return s.value, s.err
+}
+
+func TestScenarioToDesktopLPBSAuthorizationLimitsLegacyFallbackToUnissuedPrincipal(t *testing.T) {
+	legacy := "synthetic-legacy-token"
+	unissued := fmt.Errorf("wrapped not-issued: %w; %w", servicetoken.ErrNotIssued, credentialauthority.ErrUnconfigured)
+	reads := 0
+	header, err := resolveScenarioToDesktopLPBSAuthorizationLazy(context.Background(), staticServiceAuthorization{err: unissued}, func() string {
+		reads++
+		return legacy
+	})
+	if err != nil || header != "Bearer "+legacy {
+		t.Fatalf("unissued fallback header=%q err=%v", header, err)
+	}
+	if reads != 1 {
+		t.Fatalf("unissued fallback reads=%d, want exactly one", reads)
+	}
+	reads = 0
+	header, err = resolveScenarioToDesktopLPBSAuthorizationLazy(context.Background(), staticServiceAuthorization{value: "Bearer scoped-token"}, func() string {
+		reads++
+		return legacy
+	})
+	if err != nil || header != "Bearer scoped-token" || reads != 0 {
+		t.Fatalf("scoped path header=%q err=%v legacy_reads=%d", header, err, reads)
+	}
+
+	for _, failure := range []error{
+		servicetoken.Kind(servicetoken.ErrExchangeFailed, errors.New("exchange unavailable")),
+		servicetoken.ErrIdentityMismatch,
+		credentialauthority.ErrProviderAbsent,
+	} {
+		header, err = resolveScenarioToDesktopLPBSAuthorizationLazy(context.Background(), staticServiceAuthorization{err: failure}, func() string {
+			reads++
+			return legacy
+		})
+		if err == nil || header != "" || strings.Contains(err.Error(), legacy) || reads != 0 {
+			t.Fatalf("failure %v downgraded or leaked: header=%q err=%v", failure, header, err)
+		}
+	}
+}
 
 // staticResolver returns a BaseURLResolver that always returns the given URL.
 func staticResolver(baseURL string) BaseURLResolver {

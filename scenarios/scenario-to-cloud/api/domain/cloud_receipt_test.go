@@ -1,6 +1,44 @@
 package domain
 
-import "testing"
+import (
+	"context"
+	"testing"
+
+	"github.com/vrooli/api-core/receiptsigning"
+)
+
+func TestCloudDeploymentReceiptSignatureBindsCanonicalPayload(t *testing.T) {
+	receipt := CloudDeploymentReceipt{
+		SchemaVersion: 1,
+		DeploymentID:  "deploy-1",
+		ScenarioID:    "scenario-1",
+		Outcome:       "deployed",
+		Health:        "healthy",
+	}
+	before, err := receipt.CanonicalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	signer := receiptsigning.NewDevelopmentSigner()
+	if err := receipt.Sign(context.Background(), signer); err != nil {
+		t.Fatal(err)
+	}
+	after, err := receipt.CanonicalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(before) {
+		t.Fatal("canonical payload changed when signature was attached")
+	}
+	if err := receipt.VerifySignature(context.Background(), signer); err != nil {
+		t.Fatalf("fresh receipt signature did not verify: %v", err)
+	}
+
+	receipt.DestinationHost = "attacker.example"
+	if err := receipt.VerifySignature(context.Background(), signer); err == nil {
+		t.Fatal("mutated deployment receipt still verified")
+	}
+}
 
 func TestCloudRecoveryReceiptValidatesEffectIdentity(t *testing.T) {
 	valid := CloudRecoveryReceipt{

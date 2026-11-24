@@ -26,6 +26,7 @@ import (
 
 	"scenario-to-cloud/apierrors"
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/internal/filedigest"
 
 	"github.com/vrooli/vrooli/packages/artifactlease"
 	"github.com/vrooli/vrooli/packages/cloudrelease"
@@ -242,7 +243,7 @@ func TestConfigurationDigestIgnoresLocatorAndSecrets(t *testing.T) {
 	moved.Target.VPS.Port = 2222
 	moved.Target.VPS.User = "deploy"
 	moved.Target.VPS.Workdir = "/elsewhere"
-	moved.Target.VPS.Workdir = "/srv/vrooli"
+	moved.Target.VPS.ComputeManagerInstanceID = "qemu-another"
 	moved.Secrets = nil
 	movedDigest, _ := ConfigurationDigest(moved)
 	if movedDigest != baseDigest {
@@ -465,7 +466,7 @@ func TestVerifyRefusesMaliciousArchivesBeforeAnyWrite(t *testing.T) {
 			store, dir := copyRelease(t, good)
 			bundlePath := filepath.Join(dir, cloudrelease.BundleFileName)
 			writeTarGz(t, bundlePath, tc.entries, tc.bodies)
-			sum, _, _ := fileSHA256(bundlePath)
+			sum, _, _ := filedigest.SHA256File(bundlePath)
 			rewriteManifest(t, dir, func(m *cloudrelease.Manifest) {
 				m.BundleSHA256 = sum
 				if tc.limits != nil {

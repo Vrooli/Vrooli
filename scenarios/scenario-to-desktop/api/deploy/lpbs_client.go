@@ -11,6 +11,7 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -21,7 +22,10 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/lpbsidentity"
+	"github.com/vrooli/api-core/servicetoken"
 	"github.com/vrooli/api-core/targetmodel"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
 // BaseURLResolver abstracts URL resolution for testability.
@@ -34,21 +38,82 @@ type HTTPDoer interface {
 
 // LPBSClient calls LPBS admin endpoints to deploy desktop artifacts.
 type LPBSClient struct {
-	resolver   BaseURLResolver
-	httpClient HTTPDoer
-	token      string
+	resolver    BaseURLResolver
+	httpClient  HTTPDoer
+	token       string
+	legacyToken func() string
+	tokens      *servicetoken.Tokens
 }
 
 // NewLPBSClient creates a client that discovers LPBS via the given scenario name
 // and authenticates with the provided service token.
 func NewLPBSClient(scenarioName, serviceToken string) *LPBSClient {
-	return &LPBSClient{
+	client := &LPBSClient{
 		resolver: func(ctx context.Context) (string, error) {
 			return discovery.ResolveScenarioURLDefault(ctx, scenarioName)
 		},
 		httpClient: &http.Client{Timeout: 10 * time.Minute},
 		token:      serviceToken,
 	}
+	client.tokens = scenarioToDesktopLPBSTokens()
+	return client
+}
+
+// NewLPBSClientWithLegacyResolver keeps the shared bearer lazy so the old
+// credential is not read when the scoped service identity succeeds.
+func NewLPBSClientWithLegacyResolver(scenarioName string, resolveLegacy func() string) *LPBSClient {
+	client := NewLPBSClient(scenarioName, "")
+	client.legacyToken = resolveLegacy
+	return client
+}
+
+func scenarioToDesktopLPBSTokens() *servicetoken.Tokens {
+	role := lpbsidentity.ScenarioToDesktopDeployment
+	return servicetoken.New(servicetoken.Config{
+		Name:   "scenario-to-desktop " + role.Label,
+		Expect: servicetoken.ExpectIdentity(role.Principal("scenario-to-desktop"), role.Audience, role.Scope),
+		Credential: func(ctx context.Context) (string, error) {
+			authority, err := credentialauthority.Default()
+			if err != nil {
+				return "", err
+			}
+			identity, err := credentialauthority.ParseIdentity(role.CredentialIdentity("scenario-to-desktop"))
+			if err != nil {
+				return "", err
+			}
+			before := authority.Status(identity, "credential")
+			if string(before.ProviderState) != "available" {
+				return "", fmt.Errorf("LPBS scoped credential authority unavailable")
+			}
+			if !before.Configured {
+				return "", credentialauthority.ErrUnconfigured
+			}
+			if strings.TrimSpace(before.Version) == "" {
+				return "", fmt.Errorf("LPBS scoped credential has no active version")
+			}
+			credential, err := authority.Resolve(identity, "credential")
+			if err != nil {
+				return "", fmt.Errorf("resolve LPBS scoped credential")
+			}
+			after := authority.Status(identity, "credential")
+			if string(after.ProviderState) != "available" || !after.Configured || after.Version != before.Version {
+				return "", fmt.Errorf("LPBS scoped credential changed during resolution")
+			}
+			return credential, nil
+		},
+		MinRemaining: servicetoken.DefaultRefreshMargin,
+		Describe: func(kind, cause error) error {
+			if cause != nil {
+				return fmt.Errorf("%w: %w", kind, cause)
+			}
+			return kind
+		},
+	}, servicetoken.WithExchanger(servicetoken.AuthenticatorExchanger(&http.Client{Timeout: 5 * time.Second}, func(ctx context.Context) (string, error) {
+		if configured := strings.TrimSpace(os.Getenv("SCENARIO_AUTHENTICATOR_API_URL")); configured != "" {
+			return strings.TrimRight(configured, "/"), nil
+		}
+		return discovery.ResolveScenarioURLDefault(ctx, "scenario-authenticator")
+	})))
 }
 
 // NewLPBSClientWithResolver creates a client with custom resolver and HTTP client (for testing).
@@ -58,6 +123,63 @@ func NewLPBSClientWithResolver(resolver BaseURLResolver, httpClient HTTPDoer, to
 		httpClient: httpClient,
 		token:      token,
 	}
+}
+
+func (c *LPBSClient) authorization(ctx context.Context) (string, error) {
+	if c.tokens != nil {
+		return resolveScenarioToDesktopLPBSAuthorizationLazy(ctx, c.tokens, func() string {
+			if c.legacyToken != nil {
+				return c.legacyToken()
+			}
+			return c.token
+		})
+	}
+	if strings.TrimSpace(c.token) != "" {
+		return "Bearer " + c.token, nil
+	}
+	return "", errors.New("LPBS service identity unavailable")
+}
+
+// ResolveScenarioToDesktopLPBSAuthorization prefers its scoped service role.
+// The shared bearer is a recovery bridge only while authority confirms the
+// scoped principal is unissued; exchange and identity failures fail closed.
+func ResolveScenarioToDesktopLPBSAuthorization(ctx context.Context, legacyToken string) (string, error) {
+	return resolveScenarioToDesktopLPBSAuthorizationLazy(ctx, scenarioToDesktopLPBSTokens(), func() string { return legacyToken })
+}
+
+// ResolveScenarioToDesktopLPBSAuthorizationLazy resolves the recovery bearer
+// only when the scoped role is confirmed unissued.
+func ResolveScenarioToDesktopLPBSAuthorizationLazy(ctx context.Context, resolveLegacy func() string) (string, error) {
+	return resolveScenarioToDesktopLPBSAuthorizationLazy(ctx, scenarioToDesktopLPBSTokens(), resolveLegacy)
+}
+
+type serviceAuthorizationSource interface {
+	Authorization(context.Context) (string, error)
+}
+
+func resolveScenarioToDesktopLPBSAuthorization(ctx context.Context, tokens serviceAuthorizationSource, legacyToken string) (string, error) {
+	return resolveScenarioToDesktopLPBSAuthorizationLazy(ctx, tokens, func() string { return legacyToken })
+}
+
+func resolveScenarioToDesktopLPBSAuthorizationLazy(ctx context.Context, tokens serviceAuthorizationSource, resolveLegacy func() string) (string, error) {
+	if tokens == nil {
+		return "", errors.New("LPBS service identity unavailable")
+	}
+	authorization, err := tokens.Authorization(ctx)
+	if err == nil && strings.TrimSpace(authorization) != "" {
+		return authorization, nil
+	}
+	if !errors.Is(err, servicetoken.ErrNotIssued) || !errors.Is(err, credentialauthority.ErrUnconfigured) {
+		return "", errors.New("LPBS scoped service identity unavailable")
+	}
+	legacyToken := ""
+	if resolveLegacy != nil {
+		legacyToken = strings.TrimSpace(resolveLegacy())
+	}
+	if legacyToken == "" {
+		return "", errors.New("LPBS service identity unavailable")
+	}
+	return "Bearer " + strings.TrimSpace(legacyToken), nil
 }
 
 // RemoteProfile represents an LPBS remote profile.
@@ -600,7 +722,11 @@ func (c *LPBSClient) adminRequest(ctx context.Context, method, path string, payl
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-	req.Header.Set("Authorization", "Bearer "+c.token)
+	authorization, err := c.authorization(ctx)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", authorization)
 	if payload != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}

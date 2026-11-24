@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 
+	apicoreset "github.com/vrooli/api-core/coreset"
 	"github.com/vrooli/binaryfetch"
 	hostreq "github.com/vrooli/vrooli/packages/hostreq"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
@@ -23,13 +24,14 @@ import (
 // is resolved before bundle packaging, staged verbatim, and consumed by the
 // desktop runtime. A resource is never silently omitted from a target.
 type ResourceDeploymentPlan struct {
-	SchemaVersion     string                               `json:"schema_version"`
-	ArtifactTrustMode resourcedeployment.ArtifactTrustMode `json:"artifact_trust_mode"`
-	Promotable        bool                                 `json:"promotable"`
-	Resources         []ResourceDeploymentPlanItem         `json:"resources"`
-	HostRequirements  []HostRequirementPlanItem            `json:"host_requirements,omitempty"`
-	RendererPacks     []RendererPackPlanItem               `json:"renderer_packs,omitempty"`
-	DeferredTargets   []DeferredResourceTarget             `json:"deferred_targets,omitempty"`
+	SchemaVersion           string                               `json:"schema_version"`
+	DependencyClosureDigest string                               `json:"dependency_closure_digest"`
+	ArtifactTrustMode       resourcedeployment.ArtifactTrustMode `json:"artifact_trust_mode"`
+	Promotable              bool                                 `json:"promotable"`
+	Resources               []ResourceDeploymentPlanItem         `json:"resources"`
+	HostRequirements        []HostRequirementPlanItem            `json:"host_requirements,omitempty"`
+	RendererPacks           []RendererPackPlanItem               `json:"renderer_packs,omitempty"`
+	DeferredTargets         []DeferredResourceTarget             `json:"deferred_targets,omitempty"`
 }
 
 // RendererPackPlanItem is an explicit, owner-pinned optional renderer tree.
@@ -185,7 +187,7 @@ func resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot, toolArti
 }
 
 func resolveResourceDeploymentPlanWithRights(ctx context.Context, scenarioPath, artifactRoot, toolArtifactRoot string, platformInputs []string, trustMode resourcedeployment.ArtifactTrustMode, rightsEvaluator ModelRightsEvaluator, rendererSelections ...[]string) (*ResourceDeploymentPlan, error) {
-	required, fallbacks, err := requiredBundleResources(scenarioPath)
+	required, fallbacks, closureDigest, err := requiredBundleResources(scenarioPath)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +209,7 @@ func resolveResourceDeploymentPlanWithRights(ctx context.Context, scenarioPath, 
 		platforms = append(platforms, platform)
 	}
 	checksums := map[string]string(nil)
-	plan := &ResourceDeploymentPlan{SchemaVersion: "v6", ArtifactTrustMode: trustMode, Promotable: trustMode == resourcedeployment.ArtifactTrustProduction}
+	plan := &ResourceDeploymentPlan{SchemaVersion: "v6", DependencyClosureDigest: closureDigest, ArtifactTrustMode: trustMode, Promotable: trustMode == resourcedeployment.ArtifactTrustProduction}
 	for _, requested := range required {
 		for _, platform := range platforms {
 			item, bundled, err := resolveResourceForTarget(root, requested, requested, fallbacks[requested], platform, map[string]bool{})
@@ -276,37 +278,26 @@ func resolveResourceDeploymentPlanWithRights(ctx context.Context, scenarioPath, 
 // requiredBundleResources includes the active required resources owned by the
 // root scenario and every locally materialized embed/either peer. A discover
 // edge remains external and does not contribute local resources.
-func requiredBundleResources(scenarioPath string) ([]string, map[string][]string, error) {
-	resources := make(map[string]struct{})
+func requiredBundleResources(scenarioPath string) ([]string, map[string][]string, string, error) {
+	abs, err := filepath.Abs(scenarioPath)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("resolve scenario path %s: %w", scenarioPath, err)
+	}
+	root := filepath.Dir(abs)
+	rootName := filepath.Base(abs)
 	fallbacks := make(map[string][]string)
-	visited := make(map[string]struct{})
-	visiting := make(map[string]struct{})
-	var walk func(string) error
-	walk = func(current string) error {
-		abs, err := filepath.Abs(current)
-		if err != nil {
-			return fmt.Errorf("resolve scenario path %s: %w", current, err)
+	loadErr := func(err error) ([]apicoreset.DependencyEdge, error) { return nil, err }
+	source := apicoreset.DependencySourceFunc(func(id apicoreset.ComponentID) ([]apicoreset.DependencyEdge, error) {
+		if id.Kind == "resource" {
+			return nil, nil
 		}
-		if _, exists := visited[abs]; exists {
-			return nil
+		if id.Kind != "scenario" {
+			return nil, fmt.Errorf("desktop bundle closure encountered unsupported component %s:%s", id.Kind, id.Name)
 		}
-		if _, cycle := visiting[abs]; cycle {
-			return nil
-		}
-		visiting[abs] = struct{}{}
-		defer delete(visiting, abs)
-		servicePath := filepath.Join(abs, ".vrooli", "service.json")
-		required, localFallbacks, err := requiredScenarioResources(servicePath)
-		if err != nil {
-			return err
-		}
-		for _, name := range required {
-			resources[name] = struct{}{}
-			fallbacks[name] = append(fallbacks[name], localFallbacks[name]...)
-		}
+		servicePath := filepath.Join(root, id.Name, ".vrooli", "service.json")
 		data, err := os.ReadFile(servicePath)
 		if err != nil {
-			return fmt.Errorf("read scenario service manifest: %w", err)
+			return loadErr(fmt.Errorf("read scenario service manifest %s: %w", servicePath, err))
 		}
 		var service struct {
 			Dependencies struct {
@@ -316,8 +307,9 @@ func requiredBundleResources(scenarioPath string) ([]string, map[string][]string
 			} `json:"dependencies"`
 		}
 		if err := json.Unmarshal(data, &service); err != nil {
-			return fmt.Errorf("parse scenario peer dependencies: %w", err)
+			return loadErr(fmt.Errorf("parse scenario peer dependencies: %w", err))
 		}
+		edges := make([]apicoreset.DependencyEdge, 0)
 		peerNames := make([]string, 0, len(service.Dependencies.Scenarios))
 		for name, dependency := range service.Dependencies.Scenarios {
 			if dependency.BundlePolicy == "embed" || dependency.BundlePolicy == "either" {
@@ -326,40 +318,48 @@ func requiredBundleResources(scenarioPath string) ([]string, map[string][]string
 		}
 		sort.Strings(peerNames)
 		for _, name := range peerNames {
-			dependency := service.Dependencies.Scenarios[name]
+			policy := service.Dependencies.Scenarios[name].BundlePolicy
 			if strings.TrimSpace(name) == "" || !filepath.IsLocal(name) || strings.ContainsAny(name, `/\\`) {
-				return fmt.Errorf("embedded peer has invalid scenario name %q in %s", name, servicePath)
+				return loadErr(fmt.Errorf("embedded peer has invalid scenario name %q in %s", name, servicePath))
 			}
-			peerPath := filepath.Join(filepath.Dir(abs), name)
+			peerPath := filepath.Join(root, name)
 			if info, statErr := os.Stat(peerPath); statErr != nil || !info.IsDir() {
-				if dependency.BundlePolicy == "embed" {
-					return fmt.Errorf("required embedded peer %s for %s is unavailable: %v", name, abs, statErr)
+				if policy == "embed" {
+					return loadErr(fmt.Errorf("required embedded peer %s for %s is unavailable: %v", name, filepath.Dir(servicePath), statErr))
 				}
 				continue
 			}
 			peerServicePath := filepath.Join(peerPath, ".vrooli", "service.json")
-			if _, statErr := os.Stat(peerServicePath); os.IsNotExist(statErr) && dependency.BundlePolicy == "either" {
+			if _, statErr := os.Stat(peerServicePath); os.IsNotExist(statErr) && policy == "either" {
 				continue
 			} else if statErr != nil {
-				return fmt.Errorf("stat embedded peer service manifest %s: %w", peerServicePath, statErr)
+				return loadErr(fmt.Errorf("stat embedded peer service manifest %s: %w", peerServicePath, statErr))
 			}
-			if err := walk(peerPath); err != nil {
-				return fmt.Errorf("embedded peer %s: %w", name, err)
-			}
+			edges = append(edges, apicoreset.DependencyEdge{To: apicoreset.ComponentID{Kind: "scenario", Name: name}, Relation: "bundle_peer", DeclaredBy: id.Name, Required: policy == "embed", Policy: policy})
 		}
-		visited[abs] = struct{}{}
-		return nil
+		required, localFallbacks, err := requiredScenarioResources(servicePath)
+		if err != nil {
+			return loadErr(err)
+		}
+		for _, name := range required {
+			fallbacks[name] = append(fallbacks[name], localFallbacks[name]...)
+			edges = append(edges, apicoreset.DependencyEdge{To: apicoreset.ComponentID{Kind: "resource", Name: name}, Relation: "required_resource", DeclaredBy: id.Name, Required: true})
+		}
+		return edges, nil
+	})
+	closure, err := apicoreset.ResolveFromSource(source, []apicoreset.ComponentID{{Kind: "scenario", Name: rootName}}, apicoreset.ResolveOptions{AllowCycles: true})
+	if err != nil {
+		return nil, nil, "", err
 	}
-	if err := walk(scenarioPath); err != nil {
-		return nil, nil, err
+	resources := make([]string, 0)
+	for _, member := range closure.Members {
+		if member.Component.Kind == "resource" {
+			resources = append(resources, member.Component.Name)
+			fallbacks[member.Component.Name] = dedupeSorted(fallbacks[member.Component.Name])
+		}
 	}
-	result := make([]string, 0, len(resources))
-	for name := range resources {
-		result = append(result, name)
-		fallbacks[name] = dedupeSorted(fallbacks[name])
-	}
-	sort.Strings(result)
-	return result, fallbacks, nil
+	sort.Strings(resources)
+	return resources, fallbacks, closure.Digest, nil
 }
 
 func dedupeSorted(values []string) []string {

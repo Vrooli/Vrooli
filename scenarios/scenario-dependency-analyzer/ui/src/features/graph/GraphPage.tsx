@@ -5,6 +5,7 @@ import type { DependencyGraphNode, DependencyGraph, GraphType, LayoutMode, EdgeS
 import { ControlPanel } from "./ControlPanel";
 import { GraphCanvas } from "./GraphCanvas";
 import { GraphDataTable } from "./GraphDataTable";
+import { DependencyRationalePanel } from "./DependencyRationalePanel";
 import { SelectedNodePanel } from "./SelectedNodePanel";
 import { StatsPanel } from "./StatsPanel";
 import type { GraphStats } from "./useGraphData";
@@ -161,7 +162,10 @@ export function GraphPage({
             influentialNodes={influentialNodes}
           />
           {selectedNode ? (
-            <SelectedNodePanel node={selectedNode} connections={selectedConnections} />
+            <>
+              <SelectedNodePanel node={selectedNode} connections={selectedConnections} />
+              {selectedNode.type === "scenario" && <DependencyRationalePanel scenario={selectedNode.id} />}
+            </>
           ) : (
             <Card className="glass border border-border/40">
               <CardContent className="space-y-3 py-6 text-sm text-muted-foreground">

@@ -76,8 +76,8 @@ func runCapture(t *testing.T, app *App, args ...string) (string, error) {
 // it showed and waits once on the admitted operation (exit 0), printing the
 // identities consistently.
 func TestExecuteIsPlanReviewApplyWait(t *testing.T) {
-	app := newTestApp(t)
 	ps := newParityServer(t)
+	app := newTestApp(t)
 	out, err := runCapture(t, app, "deployment", "execute", "--scenario", "demo", "--environment", "production", "--request-key", "rk-1", "--show-commands")
 	if err != nil {
 		t.Fatalf("execute: %v\n%s", err, out)
@@ -109,8 +109,8 @@ func TestExecuteIsPlanReviewApplyWait(t *testing.T) {
 // two-step review: `plan` prints a digest, `apply --plan-digest` admits it,
 // and a stale digest is the server's typed refusal (exit 2, nothing waited).
 func TestPlanThenApplyUsesTheReviewedDigest(t *testing.T) {
-	app := newTestApp(t)
 	ps := newParityServer(t)
+	app := newTestApp(t)
 	out, err := runCapture(t, app, "deployment", "plan", "dep-1", "--scope", "start")
 	if err != nil {
 		t.Fatalf("plan: %v", err)
@@ -141,8 +141,8 @@ func TestPlanThenApplyUsesTheReviewedDigest(t *testing.T) {
 // state exits 0 with "no change" and no apply call, and a plan that needs
 // input exits 3 with the durable onboarding handoff, never prompting.
 func TestNoOpAndNeedsInputOutcomes(t *testing.T) {
-	app := newTestApp(t)
 	ps := newParityServer(t)
+	app := newTestApp(t)
 	ps.Plans.Compile = func(id, scope string) *plansv1.CompilePlanResponse {
 		return &plansv1.CompilePlanResponse{SchemaVersion: "1", PlanDigest: "sha256:same", Plan: &plansv1.ExecutablePlan{DeploymentId: id, Outcome: "no_op"}, Preview: &plansv1.Preview{Outcome: "no_op"}}
 	}
@@ -176,8 +176,8 @@ func TestNoOpAndNeedsInputOutcomes(t *testing.T) {
 // ambiguous selector is the server's typed refusal (exit 2, candidates
 // listed) and that no plan is compiled or applied.
 func TestAmbiguousSelectorRefusesBeforeAnyMutation(t *testing.T) {
-	app := newTestApp(t)
 	ps := newParityServer(t)
+	app := newTestApp(t)
 	ps.Deployments.Items = append(ps.Deployments.Items, testfakes.Deployment{Ref: testfakes.Ref("dep-2", "demo", "staging", "203.0.113.11"), Name: "demo-staging", Status: "deployed", Domain: "demo.example.com"})
 	_, err := runCapture(t, app, "deployment", "execute", "--scenario", "demo", "--domain", "demo.example.com", "--yes")
 	if apierr.ExitCode(err) != apierr.ExitRefused {
@@ -204,8 +204,8 @@ func TestAmbiguousSelectorRefusesBeforeAnyMutation(t *testing.T) {
 // failed operation exits 1 and an observer timeout exits 124 leaving the
 // operation untouched and naming the reattach command.
 func TestFailedAndTimedOutOperationsNeverImplySuccess(t *testing.T) {
-	app := newTestApp(t)
 	ps := newParityServer(t)
+	app := newTestApp(t)
 	failed := testfakes.Standing("op-1", "dep-1", "failed", true)
 	failed.Result = &operationsv1.OperationResult{Outcome: "failed", RecoveryOutcome: "service_restored", CompletedSteps: 1}
 	ps.Operations.Script = []*operationsv1.OperationStanding{failed}
@@ -232,8 +232,8 @@ func TestFailedAndTimedOutOperationsNeverImplySuccess(t *testing.T) {
 // operation admitted elsewhere (API or UI) is attached by id: resume and
 // list report the same identity and state without creating anything.
 func TestAPIStartedOperationIsResumedByTheCLI(t *testing.T) {
-	app := newTestApp(t)
 	ps := newParityServer(t)
+	app := newTestApp(t)
 	ps.Operations.Script = []*operationsv1.OperationStanding{testfakes.Standing("op-ui-42", "dep-1", "verifying", false)}
 	out, err := runCapture(t, app, "operation", "resume", "op-ui-42")
 	if apierr.ExitCode(err) != apierr.ExitPending {
@@ -256,8 +256,8 @@ func TestAPIStartedOperationIsResumedByTheCLI(t *testing.T) {
 // TestJSONOutputIsLosslessProtoJSON [REQ:STC-P0-037] proves --json output
 // round-trips through the generated message with proto field names.
 func TestJSONOutputIsLosslessProtoJSON(t *testing.T) {
-	app := newTestApp(t)
 	newParityServer(t)
+	app := newTestApp(t)
 	out, err := runCapture(t, app, "deployment", "resolve", "--scenario", "demo", "--host", "203.0.113.10", "--json")
 	if err != nil {
 		t.Fatalf("resolve --json: %v", err)
@@ -288,8 +288,8 @@ func TestJSONOutputIsLosslessProtoJSON(t *testing.T) {
 // TestOperatorTokenIsAttachedToConnectCalls [REQ:STC-P0-037] [REQ:STC-P0-012]
 // proves the generated-client path carries the operator bearer token.
 func TestOperatorTokenIsAttachedToConnectCalls(t *testing.T) {
-	app := newTestApp(t)
 	ps := newParityServer(t)
+	app := newTestApp(t)
 	if _, err := runCapture(t, app, "deployment", "get", "dep-1"); err != nil {
 		t.Fatalf("get: %v", err)
 	}
@@ -309,8 +309,8 @@ func TestOperatorTokenIsAttachedToConnectCalls(t *testing.T) {
 // API returns after its redaction: the fake stores a canary and redacts it.
 func TestLogsAreBoundedAndCarryNoCanary(t *testing.T) {
 	const canary = "canary-secret-9f3a7c1e"
-	app := newTestApp(t)
 	ps := newParityServer(t)
+	app := newTestApp(t)
 	stored := []string{"listening on :3000", "connecting with password " + canary, "ready"}
 	var tails []string
 	ps.Mux.HandleFunc("/api/v1/deployments/dep-1/logs", func(w http.ResponseWriter, r *http.Request) {
@@ -341,8 +341,8 @@ func TestLogsAreBoundedAndCarryNoCanary(t *testing.T) {
 // TestLegacyAliasesThatBypassedPlanChecksAreGone [REQ:STC-P0-037] proves the
 // removed flags and modes are refused rather than silently ignored.
 func TestLegacyAliasesThatBypassedPlanChecksAreGone(t *testing.T) {
-	app := newTestApp(t)
 	newParityServer(t)
+	app := newTestApp(t)
 	cases := [][]string{
 		{"redeploy", "--domain", "demo.example.com", "--scenario", "demo", "--if-needed"},
 		{"redeploy", "--domain", "demo.example.com", "--scenario", "demo", "--force-run"},

@@ -105,6 +105,7 @@ func TestRenderer_RenderEnvMap(t *testing.T) {
 		{"DBUS_SESSION_BUS_ADDRESS", "unix:path=/session/bus"},
 		{"XDG_RUNTIME_DIR", "/session"},
 		{"BUNDLE_ROOT", "/bundle/root"},
+		{"VROOLI_RESOURCE_ROOT", "/bundle/root/catalog"},
 		{"VROOLI_BIN", "/bundle/root/bin/vrooli"},
 		{"VROOLI_DATA", "/app/data"},
 		{"VROOLI_DESKTOP_MODE", "true"},
@@ -129,6 +130,17 @@ func TestRenderer_RenderEnvMap(t *testing.T) {
 	}
 	if _, ok := env["SCENARIO_ROOT"]; ok {
 		t.Fatal("bundled environment must not inherit SCENARIO_ROOT")
+	}
+}
+
+func TestRendererResourceRootIsRuntimeOwned(t *testing.T) {
+	renderer := NewRenderer("/app/data", "/bundle/root", testutil.NewMockPortAllocator(), mockEnvReader{})
+	env, err := renderer.RenderEnvMap(manifest.Service{ID: "api", Env: map[string]string{"VROOLI_RESOURCE_ROOT": "/host/resources"}}, manifest.Binary{Env: map[string]string{"VROOLI_RESOURCE_ROOT": "/other/resources"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := env["VROOLI_RESOURCE_ROOT"]; got != "/bundle/root/catalog" {
+		t.Fatalf("VROOLI_RESOURCE_ROOT = %q, want bundled catalog", got)
 	}
 }
 

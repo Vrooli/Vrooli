@@ -126,6 +126,12 @@ type CloudOperation struct {
 	TerminalAt      *time.Time      `json:"terminal_at,omitempty"`
 }
 
+// HasLiveLease reports whether the operation has a named owner and an expiry
+// strictly after now. Equality at the expiry instant is already expired.
+func (o *CloudOperation) HasLiveLease(now time.Time) bool {
+	return o.WorkerID != "" && o.LeaseExpiresAt != nil && o.LeaseExpiresAt.After(now)
+}
+
 // Ref returns the operation identity.
 func (o *CloudOperation) Ref() identity.OperationRef {
 	return identity.OperationRef{ID: o.ID, RequestKey: o.RequestKey, PlanDigest: o.PlanDigest, Fence: o.Fence}

@@ -107,15 +107,25 @@ func TestRefreshManifestPreservesLocalHandoffSecretPlan(t *testing.T) {
 		PortsFetcher: fakePortsFetcher{},
 	})
 	base := domain.CloudManifest{
-		Scenario:                domain.ManifestScenario{ID: "app"},
-		Secrets:                 &domain.ManifestSecrets{BundleSecrets: []domain.BundleSecretPlan{{ID: "service-secret", Class: "per_install_generated"}}},
-		LocalCredentialHandoffs: []domain.LocalCredentialHandoff{{SecretID: "service-secret"}},
+		Scenario: domain.ManifestScenario{ID: "app"},
+		Secrets: &domain.ManifestSecrets{BundleSecrets: []domain.BundleSecretPlan{{
+			ID:       lpbsRemoteProfileSecretPlanID,
+			Class:    domain.SecretClassPerInstallGenerated,
+			Required: true,
+			Target:   domain.BundleSecretTarget{Type: "env", Name: "LPBS_SERVICE_SECRET"},
+			Descriptor: &domain.DescriptorAddress{
+				LogicalID: "vrooli/landing-page-business-suite",
+				Field:     "service-secret",
+			},
+			Generator: map[string]interface{}{"type": "random", "length": float64(64), "charset": "hex"},
+		}}},
+		LocalCredentialHandoffs: []domain.LocalCredentialHandoff{{SecretID: lpbsRemoteProfileSecretPlanID}},
 	}
 	refreshed, err := refresher.RefreshManifest(context.Background(), base)
 	if err != nil {
 		t.Fatalf("refresh: %v", err)
 	}
-	if refreshed.Secrets == nil || len(refreshed.Secrets.BundleSecrets) != 1 || refreshed.Secrets.BundleSecrets[0].ID != "service-secret" {
+	if refreshed.Secrets == nil || len(refreshed.Secrets.BundleSecrets) != 1 || refreshed.Secrets.BundleSecrets[0].ID != lpbsRemoteProfileSecretPlanID {
 		t.Fatalf("local handoff secret plan was discarded: %+v", refreshed.Secrets)
 	}
 }

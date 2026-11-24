@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -29,7 +30,7 @@ type cliManifest struct {
 }
 
 var commandLine = regexp.MustCompile(`(?m)^[ \t]*([A-Za-z0-9._-]+)[ \t]+([A-Za-z0-9._-]+)([^\n]*)$`)
-var downloadLine = regexp.MustCompile(`(?i)(curl|wget)[^\n]*(https?://[^\s"']+)`)
+var downloadURL = regexp.MustCompile(`(?i)^https?://[^\s"']+`)
 
 func (h *handler) conformance(p packageRecord) []*conf.Finding {
 	findings := make([]*conf.Finding, 0)
@@ -180,17 +181,170 @@ func (h *handler) conformance(p packageRecord) []*conf.Finding {
 				add("PLG-CONF-INSTALL-PRIV", "install script writes outside its user-scoped prefix", "cli/install.sh")
 			}
 		}
-		for _, match := range downloadLine.FindAllStringSubmatch(s, -1) {
-			u := match[2]
-			if strings.Contains(u, "latest") || strings.Contains(u, "main") || strings.Contains(u, "master") || strings.Contains(u, "@") {
-				add("PLG-CONF-INSTALL-PIN", "download target is mutable", "cli/install.sh")
+		downloads, verifications := parseInstallIntegrity(s)
+		for _, download := range downloads {
+			u := download.url
+			if u == "" || strings.Contains(u, "latest") || strings.Contains(u, "main") || strings.Contains(u, "master") || strings.Contains(u, "@") {
+				add("PLG-CONF-INSTALL-PIN", "download target must use a statically pinned URL", "cli/install.sh")
 			}
-			if !strings.Contains(s, "sha256") && !strings.Contains(s, "sha512") && !strings.Contains(s, "sha1sum") {
-				add("PLG-CONF-INSTALL-SUM", "download has no checksum verification", "cli/install.sh")
-			}
+		}
+		if reason := checksumMappingFailure(downloads, verifications); reason != "" {
+			add("PLG-CONF-INSTALL-SUM", reason, "cli/install.sh")
 		}
 	}
 	return findings
+}
+
+type installDownload struct {
+	url    string
+	output string
+}
+
+type installVerification struct {
+	algorithm string
+	manifest  string
+}
+
+// parseInstallIntegrity handles the install-script command forms supported by
+// this gate. Unknown output forms fail closed because a verifier cannot be
+// associated with the file written by the download.
+func parseInstallIntegrity(script string) ([]installDownload, []installVerification) {
+	var downloads []installDownload
+	var verifications []installVerification
+	for _, sourceLine := range installScriptLines(script) {
+		line := strings.TrimSpace(strings.SplitN(sourceLine, "#", 2)[0])
+		if line == "" {
+			continue
+		}
+		fields := strings.Fields(line)
+		for i := range fields {
+			fields[i] = strings.Trim(fields[i], `"'`)
+		}
+		for i, token := range fields {
+			command := filepath.Base(token)
+			if command != "curl" && command != "wget" {
+				continue
+			}
+			var output, rawURL string
+			remoteName := false
+			for j := i + 1; j < len(fields); j++ {
+				arg := fields[j]
+				if downloadURL.MatchString(arg) {
+					rawURL = arg
+				}
+				if arg == "-O" && command == "curl" || arg == "--remote-name" && command == "curl" {
+					remoteName = true
+					continue
+				}
+				if (arg == "-o" || arg == "--output" || arg == "-O" && command == "wget" || arg == "--output-document") && j+1 < len(fields) {
+					output = fields[j+1]
+					j++
+					continue
+				}
+				for _, prefix := range []string{"--output=", "--output-document="} {
+					if strings.HasPrefix(arg, prefix) {
+						output = strings.TrimPrefix(arg, prefix)
+					}
+				}
+				if len(arg) > 2 && (strings.HasPrefix(arg, "-o") || strings.HasPrefix(arg, "-O") && command == "wget") {
+					output = arg[2:]
+				}
+			}
+			if output == "" && rawURL != "" && (command == "wget" || remoteName) {
+				// curl -O and wget without an output override save the URL basename.
+				output = path.Base(strings.SplitN(rawURL, "?", 2)[0])
+			}
+			if output != "" {
+				output = filepath.Clean(output)
+			}
+			downloads = append(downloads, installDownload{url: rawURL, output: output})
+			break
+		}
+		for i, token := range fields {
+			algorithm := ""
+			if token == "sha256sum" || token == "sha512sum" {
+				algorithm = strings.TrimSuffix(token, "sum")
+			} else if token == "shasum" && i+2 < len(fields) && fields[i+1] == "-a" {
+				if fields[i+2] == "256" || fields[i+2] == "512" {
+					algorithm = "sha" + fields[i+2]
+				}
+			}
+			if algorithm == "" {
+				continue
+			}
+			for j := i + 1; j < len(fields); j++ {
+				if fields[j] == "--check" || fields[j] == "-c" {
+					if j+1 < len(fields) {
+						verifications = append(verifications, installVerification{algorithm: algorithm, manifest: filepath.Clean(fields[j+1])})
+					}
+					break
+				}
+			}
+			break
+		}
+	}
+	return downloads, verifications
+}
+
+func installScriptLines(script string) []string {
+	var lines []string
+	var continuation strings.Builder
+	for _, line := range strings.Split(strings.ReplaceAll(script, "\r\n", "\n"), "\n") {
+		trimmed := strings.TrimRight(line, " \t")
+		if strings.HasSuffix(trimmed, "\\") {
+			continuation.WriteString(strings.TrimSuffix(trimmed, "\\"))
+			continuation.WriteByte(' ')
+			continue
+		}
+		continuation.WriteString(line)
+		lines = append(lines, continuation.String())
+		continuation.Reset()
+	}
+	if continuation.Len() > 0 {
+		lines = append(lines, continuation.String())
+	}
+	return lines
+}
+
+func checksumMappingFailure(downloads []installDownload, verifications []installVerification) string {
+	matched := make([]bool, len(verifications))
+	for _, download := range downloads {
+		if download.output == "" {
+			return fmt.Sprintf("download from %q has no statically identifiable output file", download.url)
+		}
+		isSidecar := false
+		for _, candidate := range downloads {
+			if download.output == candidate.output+".sha256" || download.output == candidate.output+".sha512" {
+				isSidecar = true
+				break
+			}
+		}
+		if isSidecar {
+			continue // a checksum sidecar supplies the expected digest for its payload
+		}
+		match := -1
+		for i, verification := range verifications {
+			if matched[i] {
+				continue
+			}
+			if verification.manifest == download.output+".sha256" && verification.algorithm == "sha256" || verification.manifest == download.output+".sha512" && verification.algorithm == "sha512" {
+				if match >= 0 {
+					return "a download has more than one checksum verifier; each payload must map to exactly one matching verifier"
+				}
+				match = i
+			}
+		}
+		if match < 0 {
+			return fmt.Sprintf("download %q requires a matching sha256 or sha512 --check file named %q.sha256 or %q.sha512", download.output, download.output, download.output)
+		}
+		matched[match] = true
+	}
+	for i := range verifications {
+		if !matched[i] {
+			return "checksum verifier does not map one-to-one to a downloaded payload"
+		}
+	}
+	return ""
 }
 
 func firstByteDifference(left, right string) int {

@@ -95,6 +95,9 @@ func TestResolveTransitiveClosureWithReasons(t *testing.T) {
 	if closure.SchemaVersion != domain.ClosureSchemaVersion {
 		t.Fatalf("schema_version = %q", closure.SchemaVersion)
 	}
+	if !strings.HasPrefix(closure.Sources.DependencyDigest, "sha256:") {
+		t.Fatalf("shared dependency digest = %q", closure.Sources.DependencyDigest)
+	}
 	if len(closure.Unsupported) != 0 {
 		t.Fatalf("unexpected unsupported entries: %+v", closure.Unsupported)
 	}

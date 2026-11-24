@@ -34,6 +34,7 @@ type Commands struct {
 	records    recordsRPC
 	system     systemRPC
 	operations operationsRPC
+	now        func() time.Time
 }
 
 type systemRPC interface {
@@ -55,9 +56,15 @@ type recordsRPC interface {
 }
 
 func New(deps support.Dependencies) *Commands {
+	deps = deps.WithProcessEnvironment()
+	return NewWithClock(deps, deps.Now)
+}
+
+// NewWithClock injects the wall clock used by validation evidence and launch timing.
+func NewWithClock(deps support.Dependencies, now func() time.Time) *Commands {
 	app := deps.Core()
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(app)
-	return &Commands{deps: deps, records: domainconnect.NewDesktopRecordsServiceClient(httpClient, baseURL), system: domainconnect.NewSystemServiceClient(httpClient, baseURL), operations: domainconnect.NewOperationsServiceClient(httpClient, baseURL)}
+	return &Commands{deps: deps, records: domainconnect.NewDesktopRecordsServiceClient(httpClient, baseURL), system: domainconnect.NewSystemServiceClient(httpClient, baseURL), operations: domainconnect.NewOperationsServiceClient(httpClient, baseURL), now: now}
 }
 
 func CommandGroups(deps support.Dependencies) []cliapp.CommandGroup {
@@ -85,7 +92,7 @@ func CommandGroups(deps support.Dependencies) []cliapp.CommandGroup {
 			(cliapp.Command{Name: "validate-artifact", Description: "Validate a placed desktop artifact and write a bounded evidence bundle", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
 				{Name: "artifact", Required: true, Description: "Placed artifact path"}, {Name: "artifact-digest", Required: true, Description: "Expected sha256:<hex> digest"}, {Name: "scenario", Required: true, Description: "Scenario name"}, {Name: "journey", Required: true, Description: "Journey identifier"}, {Name: "profile", Default: "normal", Description: "Validation environment profile"}, {Name: "evidence-output", Required: true, Description: "Evidence archive output path"},
 			}}}).WithPrimitive(cliapp.Action(func(ctx cliapp.OperationContext) (string, error) {
-				return "", validateArtifact(ctx.Flag("artifact"), ctx.Flag("artifact-digest"), ctx.Flag("scenario"), ctx.Flag("journey"), ctx.Flag("profile"), ctx.Flag("evidence-output"))
+				return "", validateArtifact(ctx.Flag("artifact"), ctx.Flag("artifact-digest"), ctx.Flag("scenario"), ctx.Flag("journey"), ctx.Flag("profile"), ctx.Flag("evidence-output"), cmds.now)
 			}, func(_ cliapp.OperationContext, _ string) cliapp.MutationReport {
 				return cliapp.MutationReport{Result: []string{"Validation evidence bundle written"}}
 			})),
@@ -98,7 +105,7 @@ func CommandGroups(deps support.Dependencies) []cliapp.CommandGroup {
 // intentionally batch-shaped: it launches the packaged application in the
 // target session, records the result, and exits; live desktop streaming is not
 // part of the Bridge contract.
-func validateArtifact(artifact, expected, scenario, journey, profile, output string) error {
+func validateArtifact(artifact, expected, scenario, journey, profile, output string, now func() time.Time) error {
 	artifact = strings.TrimSpace(artifact)
 	data, err := os.ReadFile(artifact)
 	if err != nil {
@@ -109,7 +116,7 @@ func validateArtifact(artifact, expected, scenario, journey, profile, output str
 	if !strings.EqualFold(strings.TrimSpace(expected), digest) {
 		return fmt.Errorf("artifact_digest_mismatch: want %s got %s", expected, digest)
 	}
-	launch := launchArtifact(artifact)
+	launch := launchArtifact(artifact, now)
 	status := "failed"
 	if launch.Err == nil {
 		status = "passed"
@@ -117,7 +124,7 @@ func validateArtifact(artifact, expected, scenario, journey, profile, output str
 	bundle := map[string]any{
 		"journey-sidecar.json":   map[string]any{"scenario": scenario, "journey": journey, "profile": profile, "status": status, "steps": []string{"launch"}},
 		"launch-trace.json":      map[string]any{"artifact": filepath.Base(artifact), "digest": digest, "status": status, "command": launch.Command, "exit_code": launch.ExitCode, "duration_ms": launch.Duration.Milliseconds(), "output": launch.Output, "error": errorString(launch.Err)},
-		"machine-assertion.json": map[string]any{"status": status, "os": runtime.GOOS, "architecture": runtime.GOARCH, "target_owned": true, "observed_at": time.Now().UTC().Format(time.RFC3339Nano)},
+		"machine-assertion.json": map[string]any{"status": status, "os": runtime.GOOS, "architecture": runtime.GOARCH, "target_owned": true, "observed_at": now().UTC().Format(time.RFC3339Nano)},
 	}
 	if err := writeValidationBundle(output, bundle); err != nil {
 		return err
@@ -136,18 +143,18 @@ type launchResult struct {
 	Err      error
 }
 
-func launchArtifact(artifact string) launchResult {
+func launchArtifact(artifact string, now func() time.Time) launchResult {
 	if runtime.GOOS == "darwin" && strings.EqualFold(filepath.Ext(artifact), ".zip") {
-		return launchDarwinZip(artifact)
+		return launchDarwinZip(artifact, now)
 	}
 	if runtime.GOOS == "darwin" && strings.EqualFold(filepath.Ext(artifact), ".dmg") {
-		return launchDarwinDiskImage(artifact)
+		return launchDarwinDiskImage(artifact, now)
 	}
 	command, args := artifactCommand(artifact)
 	if command == "" {
 		return launchResult{Err: fmt.Errorf("unsupported desktop artifact %q", filepath.Ext(artifact))}
 	}
-	started := time.Now()
+	started := now()
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, command, args...)
@@ -169,8 +176,8 @@ func launchArtifact(artifact string) launchResult {
 // temporary directory, then launches the contained app. Electron's mac build
 // commonly emits a zip rather than a dmg, so treating the archive as a first-
 // class target keeps artifact validation aligned with the pipeline output.
-func launchDarwinZip(artifact string) launchResult {
-	started := time.Now()
+func launchDarwinZip(artifact string, now func() time.Time) launchResult {
+	started := now()
 	root, err := os.MkdirTemp("", "scenario-to-desktop-maczip-")
 	if err != nil {
 		return launchResult{Command: "unzip + open -W", Duration: time.Since(started), Err: err}
@@ -268,8 +275,8 @@ func prepareDarwinApp(ctx context.Context, app string) (string, error) {
 // launchDarwinDiskImage mounts a disk image read-only, finds the packaged app,
 // and waits for that app to exit. Opening a .dmg in Finder is not validation:
 // it only proves that Finder accepted the container.
-func launchDarwinDiskImage(artifact string) launchResult {
-	started := time.Now()
+func launchDarwinDiskImage(artifact string, now func() time.Time) launchResult {
+	started := now()
 	mountpoint, err := os.MkdirTemp("", "scenario-to-desktop-dmg-")
 	if err != nil {
 		return launchResult{Command: "hdiutil attach + cp + xattr + codesign + open -W", Duration: time.Since(started), Err: err}

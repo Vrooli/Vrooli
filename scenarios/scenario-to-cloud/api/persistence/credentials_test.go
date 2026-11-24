@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -120,7 +121,7 @@ func TestCredentialLedgerRoundTrip(t *testing.T) {
 		Receipts:             []domain.CredentialReceipt{{Step: "new-version", State: "new_version_created", Outcome: "created", At: created, Details: map[string]any{"version": float64(3), "content_ref": "cref_new"}, Limitations: []string{"x"}}},
 		CreatedAt:            created, UpdatedAt: created,
 	}
-	if err := store.SaveRotation(ctx, rotation); err != nil {
+	if err := store.CreateRotation(ctx, rotation); err != nil {
 		t.Fatalf("save rotation: %v", err)
 	}
 	loaded, err := store.GetRotation(ctx, "op-1")
@@ -142,7 +143,7 @@ func TestCredentialLedgerRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	later := &domain.CredentialRotation{ID: "op-2", DeploymentID: "dep-1", BindingID: binding.ID, Kind: domain.CredentialOperationRevoke, State: domain.RotationPlanned, CreatedAt: created.Add(time.Minute), UpdatedAt: created.Add(time.Minute)}
-	if err := store.SaveRotation(ctx, later); err != nil {
+	if err := store.CreateRotation(ctx, later); err != nil {
 		t.Fatal(err)
 	}
 	rotations, _ := store.ListRotations(ctx, "dep-1")
@@ -154,6 +155,80 @@ func TestCredentialLedgerRoundTrip(t *testing.T) {
 	}
 	if err := store.UpsertBinding(ctx, &domain.CredentialBinding{ID: "x", DeploymentID: "dep-1"}); err == nil {
 		t.Fatal("binding without descriptor accepted")
+	}
+}
+
+func TestCredentialOperationReservationIsDurableAcrossStates(t *testing.T) {
+	db := openIdentityTestDB(t, "credential-operation-reservation")
+	ctx := context.Background()
+	repo := NewRepository(db)
+	if err := repo.InitSchemaOnDialect(ctx, db, "sqlite"); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.CreateDeployment(ctx, newDeployment("dep-lock", "demo-app", "production", "203.0.113.18", "lock.example")); err != nil {
+		t.Fatal(err)
+	}
+	binding := &domain.CredentialBinding{ID: "binding-lock", DeploymentID: "dep-lock", Descriptor: domain.CredentialDescriptor{LogicalID: "app/db", Field: "password"}, Class: domain.CredentialClassGeneratedDatabasePassword}
+	if err := repo.UpsertBinding(ctx, binding); err != nil {
+		t.Fatal(err)
+	}
+	first := &domain.CredentialRotation{ID: "revoke-open", DeploymentID: binding.DeploymentID, BindingID: binding.ID, Kind: domain.CredentialOperationRevoke, State: domain.RotationPlanned}
+	if err := repo.CreateRotation(ctx, first); err != nil {
+		t.Fatal(err)
+	}
+	second := &domain.CredentialRotation{ID: "rotate-blocked", DeploymentID: binding.DeploymentID, BindingID: binding.ID, Kind: domain.CredentialOperationRotate, State: domain.RotationPlanned}
+	if err := repo.CreateRotation(ctx, second); !errors.Is(err, domain.ErrCredentialOperationConflict) {
+		t.Fatalf("second active operation error = %v, want conflict", err)
+	}
+	if err := first.TransitionTo(domain.RotationRevocationIncomplete); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.SaveRotation(ctx, first); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.CreateRotation(ctx, second); !errors.Is(err, domain.ErrCredentialOperationConflict) {
+		t.Fatalf("operation during revocation_incomplete error = %v, want conflict", err)
+	}
+	if err := first.TransitionTo(domain.RotationOldVersionRevoked); err != nil {
+		t.Fatal(err)
+	}
+	if err := first.TransitionTo(domain.RotationComplete); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.SaveRotation(ctx, first); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.CreateRotation(ctx, second); err != nil {
+		t.Fatalf("new operation after terminal state: %v", err)
+	}
+}
+
+func TestCredentialOperationReservationBackfillsOpenRows(t *testing.T) {
+	db := openIdentityTestDB(t, "credential-operation-backfill")
+	ctx := context.Background()
+	repo := NewRepository(db)
+	if err := repo.InitSchemaOnDialect(ctx, db, "sqlite"); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.CreateDeployment(ctx, newDeployment("dep-backfill", "demo-app", "production", "203.0.113.17", "backfill.example")); err != nil {
+		t.Fatal(err)
+	}
+	binding := &domain.CredentialBinding{ID: "binding-backfill", DeploymentID: "dep-backfill", Descriptor: domain.CredentialDescriptor{LogicalID: "app/db", Field: "password"}, Class: domain.CredentialClassGeneratedDatabasePassword}
+	if err := repo.UpsertBinding(ctx, binding); err != nil {
+		t.Fatal(err)
+	}
+	legacy := &domain.CredentialRotation{ID: "legacy-open", DeploymentID: binding.DeploymentID, BindingID: binding.ID, Kind: domain.CredentialOperationRevoke, State: domain.RotationRevocationIncomplete}
+	if err := repo.CreateRotation(ctx, legacy); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `DELETE FROM cloud_credential_active_operations WHERE binding_id = $1`, binding.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.InitSchemaOnDialect(ctx, db, "sqlite"); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.CreateRotation(ctx, &domain.CredentialRotation{ID: "new-after-upgrade", DeploymentID: binding.DeploymentID, BindingID: binding.ID, Kind: domain.CredentialOperationRotate, State: domain.RotationPlanned}); !errors.Is(err, domain.ErrCredentialOperationConflict) {
+		t.Fatalf("create after reservation backfill = %v, want conflict", err)
 	}
 }
 

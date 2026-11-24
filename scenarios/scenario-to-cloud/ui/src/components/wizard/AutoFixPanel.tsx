@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Wand2, Check } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "../ui/button-adapter";
 import { cn } from "../../lib/utils";
 import type { ValidationIssue } from "../../lib/api";
 import type { DeploymentManifest } from "../../types/deployment";

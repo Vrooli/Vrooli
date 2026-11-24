@@ -305,6 +305,18 @@ func TestRevokeOnlineAndUnreachableAreClassifiedSeparately(t *testing.T) {
 		t.Fatal("binding marked revoked although the target was never reached")
 	}
 	h.target.unreachable = false
+	if _, err := h.svc.Rotate(context.Background(), RotateRequest{Target: h.targetRef(), DeploymentID: "dep-1", BindingID: unreachable.ID, Value: "canary-signing-key-next"}); !apierrors.Is(err, CodeRotationConflict) {
+		t.Fatalf("rotate during incomplete revoke = %v, want %s", err, CodeRotationConflict)
+	}
+	if _, err := h.svc.Revoke(context.Background(), RevokeBindingRequest{Target: h.targetRef(), DeploymentID: "dep-1", BindingID: unreachable.ID, RequestKey: "second-revoke"}); !apierrors.Is(err, CodeRotationConflict) {
+		t.Fatalf("second revoke during incomplete revoke = %v, want %s", err, CodeRotationConflict)
+	}
+	if _, err := h.svc.BreakGlass(context.Background(), BreakGlassRequest{Target: h.targetRef(), DeploymentID: "dep-1", BindingID: unreachable.ID, Scope: "x", Operator: "o", Window: time.Minute, Confirmation: ExpectedBreakGlassConfirmation(unreachable.ID)}); !apierrors.Is(err, CodeRotationConflict) {
+		t.Fatalf("break-glass during incomplete revoke = %v, want %s", err, CodeRotationConflict)
+	}
+	if _, err := h.svc.Materialize(context.Background(), MaterializeRequest{Target: h.targetRef(), Bindings: []domain.CredentialBinding{h.bindingFor("signing-key")}, OperatorValues: map[string]string{unreachable.ID: "canary-signing-key-deploy"}}); !apierrors.Is(err, CodeRotationConflict) {
+		t.Fatalf("deploy-time replacement during incomplete revoke = %v, want %s", err, CodeRotationConflict)
+	}
 	confirmed, err := h.svc.Resume(context.Background(), h.targetRef(), incomplete.ID, ResumeInput{})
 	if err != nil {
 		t.Fatalf("resume revoke: %v", err)

@@ -156,3 +156,19 @@ func TestReadDesktopBuildFactRejectsUnknownScenario(t *testing.T) {
 		t.Fatal("unknown scenario was accepted")
 	}
 }
+
+func TestDesktopRecordsPathUsesInjectedEnvironmentAndHome(t *testing.T) {
+	commands := &Commands{
+		envLookup: func(key string) (string, bool) {
+			return "/configured/records.json", key == "SCENARIO_TO_DESKTOP_RECORDS_PATH"
+		},
+		userHome: func() (string, error) { return "/home/tester", nil },
+	}
+	if got := commands.desktopRecordsPath(); got != "/configured/records.json" {
+		t.Fatalf("configured records path = %q", got)
+	}
+	commands.envLookup = func(string) (string, bool) { return "", false }
+	if got := commands.desktopRecordsPath(); got != "/home/tester/.vrooli/data/vrooli/scenario-to-desktop/desktop_records_v2.json" {
+		t.Fatalf("home records path = %q", got)
+	}
+}

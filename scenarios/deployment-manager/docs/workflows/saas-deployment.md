@@ -1,5 +1,9 @@
 # SaaS/Cloud Deployment Workflow (Tier 4)
 
+> **Historical workflow reference, not an operator guide.** Provider setup and
+> cloud deployment are moving to Compute Manager and Deployment Manager. Do not
+> use the legacy provider commands below; CD2/CD6 own the supported flow.
+
 Deploy a Vrooli scenario to cloud infrastructure (DigitalOcean, AWS, bare metal) as a hosted service.
 
 ## Implementation Status
@@ -173,12 +177,9 @@ SaaS monitoring includes:
 - App Platform (alternative to Droplets)
 
 **Authentication:**
-```bash
-# Set DigitalOcean token
-deployment-manager configure do_token <your-token>
-```
-
-See [DigitalOcean Provider Guide](../providers/digitalocean.md) for details.
+Provider setup and credentials belong to Compute Manager's shared provider
+catalogue and phone flow. This planning document does not configure provider
+accounts or create infrastructure.
 
 ### AWS
 
@@ -307,10 +308,10 @@ Historical Kubernetes deployment patterns are no longer maintained in this scena
 ## Related Documentation
 
 - [Tier 4 SaaS Reference](../tiers/tier-4-saas.md)
-- [DigitalOcean Provider Guide](../providers/digitalocean.md)
 - [Desktop Deployment Workflow](desktop-deployment.md) - Similar workflow structure
 - [Secrets Management Guide](../guides/secrets-management.md) - Vault integration
-- [Provider guides](../providers/digitalocean.md) - Current infrastructure pattern
+- Provider setup is handled through Compute Manager's provider flow; see the
+  compute-and-deployment mission for the current ownership and rollout.
 
 ---
 

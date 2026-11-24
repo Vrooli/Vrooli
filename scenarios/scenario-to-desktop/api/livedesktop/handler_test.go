@@ -87,6 +87,63 @@ func TestGetSession_NotFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, rr.Code)
 }
 
+func TestLaunchElectronValidationOperationalResolverErrorsStayServerErrors(t *testing.T) {
+	for _, resolverErr := range []string{
+		"invalid renderer configuration from discovery",
+		"required UI_PORT detector is unavailable",
+		"ambiguous renderer configuration",
+	} {
+		t.Run(resolverErr, func(t *testing.T) {
+			h, service := newTestHandler()
+			session, err := service.StartSession(context.Background(), SessionConfig{ScenarioName: "demo"})
+			require.NoError(t, err)
+			rendererCalls, apiCalls := 0, 0
+			service.WithRendererURLResolver(func(context.Context, string) (string, error) {
+				rendererCalls++
+				return "", fmt.Errorf("%s", resolverErr)
+			})
+			service.WithValidationAPIPortResolver(func(context.Context, string) (int, error) {
+				apiCalls++
+				return 19349, nil
+			})
+
+			body := `{"app_path":"/unused","context_id":"ctx","scenario_name":"demo","artifact_digest":"sha256:artifact","target_id":"target","journey_id":"journey","profile_id":"profile","isolation_lease_id":"lease","renderer_url_prefix":"http://127.0.0.1:0"}`
+			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/livedesktop/sessions/%s/launch-electron-validation", session.ID), bytes.NewBufferString(body))
+			recorder := httptest.NewRecorder()
+			newTestRouter(h).ServeHTTP(recorder, req)
+
+			assert.Equal(t, http.StatusInternalServerError, recorder.Code)
+			var response map[string]string
+			require.NoError(t, json.NewDecoder(recorder.Body).Decode(&response))
+			assert.Equal(t, "resolve Electron validation renderer: "+resolverErr, response["error"])
+			assert.Equal(t, 1, rendererCalls)
+			assert.Zero(t, apiCalls)
+		})
+	}
+}
+
+func TestLaunchElectronValidationMissingIdentityIsBadRequest(t *testing.T) {
+	h, service := newTestHandler()
+	session, err := service.StartSession(context.Background(), SessionConfig{ScenarioName: "demo"})
+	require.NoError(t, err)
+	rendererCalls := 0
+	service.WithRendererURLResolver(func(context.Context, string) (string, error) {
+		rendererCalls++
+		return "http://127.0.0.1:41235", nil
+	})
+
+	body := `{"app_path":"/unused","scenario_name":"demo","artifact_digest":"sha256:artifact","target_id":"target","journey_id":"journey","profile_id":"profile","isolation_lease_id":"lease","renderer_id":"renderer"}`
+	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/livedesktop/sessions/%s/launch-electron-validation", session.ID), bytes.NewBufferString(body))
+	recorder := httptest.NewRecorder()
+	newTestRouter(h).ServeHTTP(recorder, req)
+
+	assert.Equal(t, http.StatusBadRequest, recorder.Code)
+	var response map[string]string
+	require.NoError(t, json.NewDecoder(recorder.Body).Decode(&response))
+	assert.Equal(t, "electron validation context_id is required", response["error"])
+	assert.Zero(t, rendererCalls)
+}
+
 func TestStopSession_HTTP(t *testing.T) {
 	h, svc := newTestHandler()
 	router := newTestRouter(h)

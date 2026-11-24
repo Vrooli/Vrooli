@@ -45,17 +45,149 @@ type Repository interface {
 
 // Service implements deploymentsv1connect.DeploymentsServiceHandler.
 type Service struct {
-	repo Repository
+	repo     Repository
+	create   func(context.Context, domain.CreateDeploymentRequest) (*domain.Deployment, bool, error)
+	recovery RecoveryOwner
+}
+
+// RecoveryOwner is the canonical S2C durable recovery boundary. The API
+// transport only projects these owner records; it never creates a parallel
+// operation store.
+type RecoveryOwner interface {
+	PreviewRecovery(context.Context, *deploymentsv1.PreviewDeploymentRecoveryRequest) (*domain.CloudRecoveryPreview, error)
+	StartRecovery(context.Context, *deploymentsv1.StartDeploymentRecoveryRequest) (*domain.RecoveryOperation, error)
+	GetRecovery(context.Context, string, string) (*domain.RecoveryOperation, error)
+	FindRecovery(context.Context, string, string) (*domain.RecoveryOperation, error)
 }
 
 // New builds the service over a repository.
-func New(repo Repository) *Service {
-	return &Service{repo: repo}
+func New(repo Repository, create func(context.Context, domain.CreateDeploymentRequest) (*domain.Deployment, bool, error), recovery ...RecoveryOwner) *Service {
+	s := &Service{repo: repo, create: create}
+	if len(recovery) > 0 {
+		s.recovery = recovery[0]
+	}
+	return s
 }
 
 // Handler returns the Connect mount path and handler.
 func (s *Service) Handler(opts ...connect.HandlerOption) (string, http.Handler) {
 	return deploymentsv1connect.NewDeploymentsServiceHandler(s, opts...)
+}
+
+func (s *Service) StartDeploymentRecovery(ctx context.Context, req *connect.Request[deploymentsv1.StartDeploymentRecoveryRequest]) (*connect.Response[deploymentsv1.DeploymentRecoveryOperation], error) {
+	if s.recovery == nil {
+		return nil, ConnectError(apierrors.New(apierrors.CodeInternal, "Recovery owner is not configured"))
+	}
+	op, err := s.recovery.StartRecovery(ctx, req.Msg)
+	if err != nil {
+		return nil, ConnectError(err)
+	}
+	return connect.NewResponse(RecoveryOperationProto(op)), nil
+}
+
+func (s *Service) PreviewDeploymentRecovery(ctx context.Context, req *connect.Request[deploymentsv1.PreviewDeploymentRecoveryRequest]) (*connect.Response[deploymentsv1.DeploymentRecoveryPreview], error) {
+	if s.recovery == nil {
+		return nil, ConnectError(apierrors.New(apierrors.CodeInternal, "Recovery owner is not configured"))
+	}
+	if req == nil || req.Msg == nil || req.Msg.GetDeploymentId() == "" {
+		return nil, ConnectError(apierrors.New(apierrors.CodeInvalidRequest, "deployment_id is required"))
+	}
+	preview, err := s.recovery.PreviewRecovery(ctx, req.Msg)
+	if err != nil {
+		return nil, ConnectError(err)
+	}
+	if preview == nil {
+		return nil, ConnectError(apierrors.New(apierrors.CodeReceiptInvalid, "Recovery owner returned no preview"))
+	}
+	return connect.NewResponse(RecoveryPreviewProto(preview)), nil
+}
+
+func RecoveryPreviewProto(preview *domain.CloudRecoveryPreview) *deploymentsv1.DeploymentRecoveryPreview {
+	if preview == nil {
+		return nil
+	}
+	return &deploymentsv1.DeploymentRecoveryPreview{
+		DeploymentId: preview.DeploymentID, Action: preview.Action,
+		CurrentBundleSha256: preview.CurrentBundleSHA256, CurrentReleaseDigest: preview.CurrentReleaseDigest,
+		LastGoodReleaseDigest: preview.LastGoodReleaseDigest, RepairBundleSha256: preview.RepairBundleSHA256,
+		ReviewRef: preview.ReviewRef, DataCompatibility: preview.DataCompatibility,
+		RouteKind: preview.RouteKind, ImpactSummary: preview.ImpactSummary, PreviewRef: preview.PreviewRef,
+		IdempotencyKey: preview.IdempotencyKey, DataCompatibilityDeclared: preview.DataCompatibilityDeclared,
+	}
+}
+
+func (s *Service) GetDeploymentRecoveryOperation(ctx context.Context, req *connect.Request[deploymentsv1.GetDeploymentRecoveryOperationRequest]) (*connect.Response[deploymentsv1.DeploymentRecoveryOperation], error) {
+	if s.recovery == nil {
+		return nil, ConnectError(apierrors.New(apierrors.CodeInternal, "Recovery owner is not configured"))
+	}
+	if req.Msg.GetDeploymentId() == "" || req.Msg.GetOperationId() == "" {
+		return nil, ConnectError(apierrors.New(apierrors.CodeInvalidRequest, "deployment_id and operation_id are required"))
+	}
+	op, err := s.recovery.GetRecovery(ctx, req.Msg.GetDeploymentId(), req.Msg.GetOperationId())
+	if err != nil {
+		return nil, ConnectError(err)
+	}
+	return connect.NewResponse(RecoveryOperationProto(op)), nil
+}
+
+func (s *Service) FindDeploymentRecoveryOperation(ctx context.Context, req *connect.Request[deploymentsv1.FindDeploymentRecoveryOperationRequest]) (*connect.Response[deploymentsv1.DeploymentRecoveryOperation], error) {
+	if s.recovery == nil {
+		return nil, ConnectError(apierrors.New(apierrors.CodeInternal, "Recovery owner is not configured"))
+	}
+	if req.Msg.GetDeploymentId() == "" || req.Msg.GetIdempotencyKey() == "" {
+		return nil, ConnectError(apierrors.New(apierrors.CodeInvalidRequest, "deployment_id and idempotency_key are required"))
+	}
+	op, err := s.recovery.FindRecovery(ctx, req.Msg.GetDeploymentId(), req.Msg.GetIdempotencyKey())
+	if err != nil {
+		return nil, ConnectError(err)
+	}
+	return connect.NewResponse(RecoveryOperationProto(op)), nil
+}
+
+// RecoveryOperationProto projects the durable owner row, keeping receipt
+// bytes separate from the operation identity and status.
+func RecoveryOperationProto(op *domain.RecoveryOperation) *deploymentsv1.DeploymentRecoveryOperation {
+	if op == nil {
+		return nil
+	}
+	result := &deploymentsv1.DeploymentRecoveryOperation{
+		SchemaVersion: "1", DeploymentId: op.DeploymentID, OperationId: op.ID,
+		IdempotencyKey: op.IdempotencyKey, Action: op.Action, Status: op.Status,
+		ExpectedCurrentBundleSha256: op.ExpectedBundleSHA, DataCompatibility: op.DataCompatibility,
+		Error: op.ErrorMessage,
+	}
+	if op.Binding != nil {
+		result.LastGoodReleaseDigest, result.ReviewRef, result.PreviewRef = op.Binding.ReleaseDigest, op.Binding.ReviewRef, op.Binding.PreviewRef
+	}
+	if op.Receipt != nil {
+		if raw, err := json.Marshal(op.Receipt); err == nil {
+			result.ReceiptJson = string(raw)
+		}
+	}
+	return result
+}
+
+// CreateDeployment delegates to the canonical REST create flow so manifest
+// validation, target verification, identity upsert, and persistence stay one
+// implementation.
+func (s *Service) CreateDeployment(ctx context.Context, req *connect.Request[deploymentsv1.CreateDeploymentRequest]) (*connect.Response[deploymentsv1.CreateDeploymentResponse], error) {
+	if s.create == nil {
+		return nil, ConnectError(apierrors.New(apierrors.CodeInternal, "Deployment creation is unavailable"))
+	}
+	msg := req.Msg
+	if msg.GetManifestJson() == "" {
+		return nil, ConnectError(apierrors.New(apierrors.CodeManifestInvalid, "manifest_json is required"))
+	}
+	d, created, err := s.create(ctx, domain.CreateDeploymentRequest{
+		Name: msg.GetName(), Manifest: []byte(msg.GetManifestJson()), BundlePath: msg.GetBundlePath(),
+		BundleSHA256: msg.GetBundleSha256(), BundleSizeBytes: msg.GetBundleSizeBytes(),
+	})
+	if err != nil {
+		return nil, ConnectError(err)
+	}
+	return connect.NewResponse(&deploymentsv1.CreateDeploymentResponse{
+		SchemaVersion: SchemaVersion, Ref: DeploymentRefProto(d.Ref()), Created: created,
+	}), nil
 }
 
 // ResolveDeployment maps one selector to exactly one DeploymentRef.
@@ -215,10 +347,11 @@ func DeploymentRefProto(ref identity.DeploymentRef) *identityv1.DeploymentRef {
 // TargetRefProto projects a target binding onto the wire message.
 func TargetRefProto(t identity.TargetRef) *identityv1.TargetRef {
 	return &identityv1.TargetRef{
-		MachineId:            t.MachineID,
-		NodeId:               t.NodeID,
-		EnrollmentGeneration: t.EnrollmentGeneration,
-		Transport:            t.Transport,
+		MachineId:                t.MachineID,
+		ComputeManagerInstanceId: t.ComputeManagerID,
+		NodeId:                   t.NodeID,
+		EnrollmentGeneration:     t.EnrollmentGeneration,
+		Transport:                t.Transport,
 		Locator: &identityv1.TargetLocator{
 			Host:    t.Locator.Host,
 			Port:    int32(t.Locator.Port),
@@ -237,6 +370,7 @@ func DeploymentRefFromProto(msg *identityv1.DeploymentRef) identity.DeploymentRe
 	if t := msg.GetTarget(); t != nil {
 		ref.Target = identity.TargetRef{
 			MachineID:            t.GetMachineId(),
+			ComputeManagerID:     t.GetComputeManagerInstanceId(),
 			NodeID:               t.GetNodeId(),
 			EnrollmentGeneration: t.GetEnrollmentGeneration(),
 			Transport:            t.GetTransport(),

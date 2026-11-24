@@ -75,20 +75,32 @@ scenario-to-desktop pipeline list
 - The deploy stage depends on smoke test completion in pipeline order.
 - The stage is skipped when no deploy config is provided.
 - The stage fails fast when:
-  - `LPBS_SERVICE_SECRET` is missing
+  - the scoped LPBS deployment principal is unavailable (and its temporary fallback is missing)
   - no build artifacts are available
   - remote profile validation fails
   - any upload/commit/apply step fails
 
 ## Authentication
 
-The deploy stage authenticates to the local LPBS using a service bearer token:
+The deploy stage authenticates to LPBS with the scoped
+`scenario-to-desktop-lpbs-deployment-manager` service principal, audience
+`scenario-authenticator:landing-page-business-suite`, and scope
+`lpbs:deployment.manage`. The operator grants that principal through the
+scenario-authenticator service-principals workflow. The credential remains in
+Credential Authority and is exchanged for a short-lived token for LPBS calls.
+During cutover, `LPBS_SERVICE_SECRET` remains an authority-backed recovery
+fallback only while credential authority confirms this scoped principal is
+unissued. S2D never reads it from process environment. Once a scoped
+credential is configured, any exchange, identity, or authority failure stops
+the request without fallback:
 
 ```
-Authorization: Bearer <LPBS_SERVICE_SECRET>
+Authorization: Bearer <short-lived scoped LPBS deployment token>
 ```
 
-This uses the same `LPBS_SERVICE_SECRET` environment variable that LPBS uses for service-to-service auth on usage endpoints. LPBS admin endpoints that s2d needs accept either admin session cookies (browser) or service bearer tokens (inter-scenario calls) via the `requireAdminOrService()` middleware.
+LPBS deployment APIs accept the scoped deployment role. Interactive admin
+step-up uses an admin session and recent reauthentication; a generic shared
+service bearer cannot authorize admin routes.
 
 ## Required LPBS Endpoints
 
@@ -168,7 +180,8 @@ It is sealed by LPBS and is never returned by list, test, or update responses.
 
 ### Service auth readiness fails
 
-Use the deployment UI diagnostics for a triage report and exact next steps. If
-service authentication fails, verify both scopes:
-1) LPBS runtime scope (`landing-page-business-suite` scenario/deployment)
-2) `scenario-to-desktop` scenario scope
+Use the deployment UI diagnostics for a redacted triage report. If service
+authentication fails, stop and hand off the redacted error and deployment
+selector to the service-identity owner. Do not sync, reveal, copy, or rotate
+the legacy bridge as an automatic retry; only the owner can determine whether
+the scoped principal is confirmed unissued and whether recovery is needed.

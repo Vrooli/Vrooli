@@ -17,8 +17,9 @@ import (
 	sharedenv "scenario-to-desktop-api/shared/env"
 )
 
-// LPBSClientFactory creates an LPBSClient for the given scenario and token.
-type LPBSClientFactory func(scenarioName, serviceToken string) *deploy.LPBSClient
+// LPBSClientFactory creates an LPBSClient for the scenario and a lazy legacy
+// credential resolver used only if the scoped service principal is unissued.
+type LPBSClientFactory func(scenarioName string, resolveLegacy func() string) *deploy.LPBSClient
 
 // DMClientFactory creates a DMClient for the legacy profile approval gate used
 // by non-release-bound local preparation.
@@ -76,7 +77,7 @@ func WithDeployDMClientFactory(f DMClientFactory) DeployStageOption {
 // NewDeployStage creates a new deploy stage.
 func NewDeployStage(opts ...DeployStageOption) *DeployStage {
 	s := &DeployStage{
-		clientFactory:   deploy.NewLPBSClient,
+		clientFactory:   deploy.NewLPBSClientWithLegacyResolver,
 		dmClientFactory: deploy.NewDMClient,
 		timeProvider:    NewRealTimeProvider(),
 	}
@@ -160,21 +161,11 @@ func (s *DeployStage) Execute(ctx context.Context, input *StageInput) *StageResu
 	}
 	appendInfo(result, "Deploy target: scenario=%s, profile=%s, app=%s", scenarioName, remoteProfile, cfg.AppKey)
 
-	// Get service token
-	serviceToken := sharedenv.ResolveSecret("LPBS_SERVICE_SECRET")
-	if serviceToken == "" {
-		failStage(result, s.timeProvider, errors.New(errors.CodeUnauthorized, "LPBS_SERVICE_SECRET is not injected for this process").
-			WithRecovery(errors.RecoveryProvideCredentials, "Set LPBS_SERVICE_SECRET to enable service-to-service auth via scenario-to-cloud secrets command").
-			WithManualSteps([]string{
-				"Set LPBS_SERVICE_SECRET using scenario-to-cloud secrets set ... --targets scenario,deployment",
-				"Use the same secret configured in the LPBS instance and this runtime",
-			}).
-			InDomain("deploy"))
-		return result
-	}
-
-	// Create LPBS client
-	client := s.clientFactory(scenarioName, serviceToken)
+	// The legacy bridge remains lazy and is read only if the scoped service
+	// identity is confirmed unissued.
+	client := s.clientFactory(scenarioName, func() string {
+		return sharedenv.ResolveSecret("LPBS_SERVICE_SECRET")
+	})
 
 	// Validate remote profile session
 	appendInfo(result, "Testing remote profile %q session...", remoteProfile)

@@ -10,7 +10,6 @@ import (
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/identity"
 	"scenario-to-cloud/reach"
-	"scenario-to-cloud/reach/sshadapter"
 	"scenario-to-cloud/release"
 	"scenario-to-cloud/releasesvc"
 	"scenario-to-cloud/vps"
@@ -39,22 +38,18 @@ func (s *Server) executionRuntime(manifest domain.CloudManifest, deploymentID, o
 	return rt
 }
 
-// targetReach is the one transport seam of the server: the router when it
-// is wired (production), else the bounded SSH adapter over the server's
-// runner seams resolving each target from its locator (tests, ad hoc runs).
+// targetReach is the server's one transport seam. Production and handler
+// tests must select an explicit configured transport; missing reach fails
+// closed instead of constructing an SSH adapter from ambient host identity.
 func (s *Server) targetReach() reach.Reach {
 	if s.reach != nil {
 		return s.reach
 	}
-	return &sshadapter.Adapter{Runner: s.sshRunner, SCP: s.scpRunner, Config: func(ctx context.Context, target identity.TargetRef) (sshadapter.ConnectionConfig, error) {
-		return s.sshConfigForTarget(ctx, target)
-	}}
+	return &reach.Router{}
 }
 
-// adHocReach selects the reach for a target that may have no deployment
-// record yet (preflight, fixes, disk actions). It is the same seam as every
-// bound deployment; the SSH adapter resolves the key from the credential
-// binding when one exists and uses the operator's ambient identity otherwise.
+// adHocReach selects the same explicitly configured transport seam as every
+// bound deployment. It does not infer SSH authority from a host locator.
 func (s *Server) adHocReach(identity.TargetRef) reach.Reach {
 	return s.targetReach()
 }

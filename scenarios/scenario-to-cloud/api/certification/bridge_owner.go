@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"scenario-to-cloud/domain"
+
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
 	bridgeartifacts "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/artifacts"
@@ -187,7 +189,7 @@ func hasBridgeArtifactIdentity(proof *BridgeAssertionOwnerProof) bool {
 }
 
 func matchesBridgeAssertionBytes(proof *BridgeAssertionOwnerProof, assertion *TestGenieAssertionProof) bool {
-	return proof.SHA256 == assertion.SHA256 && isHexSHA256(proof.SHA256)
+	return proof.SHA256 == assertion.SHA256 && domain.IsSHA256Hex(proof.SHA256)
 }
 
 func matchesBridgeOwnerReceipt(proof *BridgeAssertionOwnerProof, assertion *TestGenieAssertionProof) bool {
@@ -198,14 +200,6 @@ func matchesBridgeOwnerReceipt(proof *BridgeAssertionOwnerProof, assertion *Test
 func matchesBridgeArtifactRef(proof *BridgeAssertionOwnerProof) bool {
 	wantRef := "bridge-run-artifact://" + proof.RunID + "/" + url.PathEscape(proof.Artifact) + "?sha256=" + proof.SHA256
 	return proof.ArtifactRef == wantRef
-}
-
-func isHexSHA256(value string) bool {
-	if len(value) != sha256.Size*2 {
-		return false
-	}
-	_, err := hex.DecodeString(value)
-	return err == nil
 }
 
 // VerifyBridgeAssertionOwnerReceipt reads Bridge's durable run and artifact.

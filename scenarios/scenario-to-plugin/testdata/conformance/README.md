@@ -12,5 +12,6 @@ packaged as release content.
 | `unrestricted-tools/SKILL.md` | `PLG-CONF-TOOLS` |
 | `mutable-download/install.sh` | `PLG-CONF-INSTALL-PIN` |
 | `missing-checksum/install.sh` | `PLG-CONF-INSTALL-SUM` |
+| `credential-literal/install.sh` | `PLG-COMPOSE-SECRET` before an artifact is emitted |
 | `privileged-install/install.sh` | `PLG-CONF-INSTALL-PRIV` |
 | `outside-prefix/install.sh` | `PLG-CONF-INSTALL-PRIV` |

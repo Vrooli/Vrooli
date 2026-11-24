@@ -103,6 +103,39 @@ func TestUpgradeOutcomePersistsDeclineAndFailureWithoutTouchingBundle(t *testing
 	}
 }
 
+func TestRecordUpgradeOutcomeDoesNotFollowStaleTemporarySymlink(t *testing.T) {
+	appData := t.TempDir()
+	sentinel := filepath.Join(t.TempDir(), "sentinel")
+	if err := os.WriteFile(sentinel, []byte("keep me"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tmp := filepath.Join(appData, ".resource-upgrade-outcomes.tmp")
+	if err := os.Symlink(sentinel, tmp); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := RecordUpgradeOutcome(appData, UpgradeOutcome{Resource: "whisper", Decision: "declined"}); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.ReadFile(sentinel); err != nil || string(got) != "keep me" {
+		t.Fatalf("stale-temp symlink target = %q, err %v; want untouched sentinel", got, err)
+	}
+	if target, err := os.Readlink(tmp); err != nil || target != sentinel {
+		t.Fatalf("stale temporary symlink = %q, err %v; want original link retained", target, err)
+	}
+	data, err := os.ReadFile(filepath.Join(appData, "resource-upgrade-outcomes.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var outcomes map[string]UpgradeOutcome
+	if err := json.Unmarshal(data, &outcomes); err != nil {
+		t.Fatal(err)
+	}
+	if outcomes["whisper"].Decision != "declined" {
+		t.Fatalf("persisted decision = %#v", outcomes["whisper"])
+	}
+}
+
 func TestApplyDeferredUpgradeFailureLeavesStagedArtifact(t *testing.T) {
 	root := t.TempDir()
 	resourceDir := filepath.Join(root, "resources", "whisper", "fallback")
@@ -192,6 +225,97 @@ func TestApplyDeferredUpgradeAtomicallyInstallsVerifiedTree(t *testing.T) {
 	}
 	if plan.Resources[0].Service.SHA256 != artifactDigest {
 		t.Fatalf("plan digest = %q", plan.Resources[0].Service.SHA256)
+	}
+}
+
+func TestApplyDeferredUpgradeWriteFailureRestoresDiskAndMemoryPlan(t *testing.T) {
+	root := t.TempDir()
+	resourceDir := filepath.Join(root, "resources", "whisper", "fallback")
+	if err := os.MkdirAll(filepath.Join(resourceDir, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(resourceDir, "bin", "server"), []byte("fallback"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	upgrade := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(upgrade, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	acceleratedBody := []byte(strings.Repeat("accelerated\n", 128))
+	if err := os.WriteFile(filepath.Join(upgrade, "bin", "server"), acceleratedBody, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	artifactDigest, err := binaryfetch.TreeDigest(upgrade)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var layer bytes.Buffer
+	tw := tar.NewWriter(&layer)
+	body := acceleratedBody
+	if err := tw.WriteHeader(&tar.Header{Name: "bin/server", Mode: 0o755, Size: int64(len(body)), Typeflag: tar.TypeReg}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tw.Write(body); err != nil {
+		t.Fatal(err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	layerSum := sha256.Sum256(layer.Bytes())
+	layerDigest := hex.EncodeToString(layerSum[:])
+	planPath := filepath.Join(root, "resource-deployment-plan.json")
+	plan := &Plan{
+		Resources:       []Item{{Resource: "whisper", OS: runtimeOS(), Architecture: runtime.GOARCH, Mode: "bundled-service", Support: "supported", Privilege: "user", Bundling: "vendorable", Service: &Service{Artifact: "fallback", Layout: "dir", EntryPath: "bin/server", Version: "1", SHA256: "old", Files: []Artifact{{Name: "fallback", SHA256: "old"}}}}},
+		DeferredTargets: []DeferredResourceTarget{{Resource: "whisper", OS: runtimeOS(), Architecture: runtime.GOARCH, When: map[string]string{"os": runtimeOS(), "arch": runtime.GOARCH, "accel.backends": "has:vulkan"}, Kind: "oci-image", Image: "http://example.invalid/upgrade@sha256:" + layerDigest, ArtifactSHA256: artifactDigest, Layout: "dir", BinPath: "bin/server"}},
+	}
+	initialPlan, err := json.Marshal(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(planPath, initialPlan, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasSuffix(r.URL.Path, "/blobs/sha256:"+layerDigest) {
+			http.NotFound(w, r)
+			return
+		}
+		if err := os.Remove(planPath); err != nil {
+			t.Errorf("remove plan to simulate write failure: %v", err)
+			return
+		}
+		if err := os.Mkdir(planPath, 0o755); err != nil {
+			t.Errorf("replace plan with directory to simulate write failure: %v", err)
+			return
+		}
+		if err := os.WriteFile(filepath.Join(root, "plan-write-obstructed"), []byte("yes"), 0o600); err != nil {
+			t.Errorf("record plan write obstruction: %v", err)
+			return
+		}
+		_, _ = w.Write(layer.Bytes())
+	}))
+	defer srv.Close()
+	plan.DeferredTargets[0].Image = srv.URL + "/example@sha256:" + layerDigest
+
+	err = ApplyDeferredUpgrade(context.Background(), root, plan, "whisper", binaryfetch.Facts{"os": runtimeOS(), "arch": runtime.GOARCH, "accel.backends": "vulkan"})
+	if err == nil {
+		t.Fatal("expected plan replacement failure")
+	}
+	if _, err := os.Stat(filepath.Join(root, "plan-write-obstructed")); err != nil {
+		t.Fatalf("upgrade did not reach plan replacement fault: %v", err)
+	}
+	if !strings.Contains(err.Error(), "rename") {
+		t.Fatalf("upgrade failed before plan replacement: %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(resourceDir, "bin", "server"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "fallback" {
+		t.Fatalf("fallback after failed plan write = %q", got)
+	}
+	if service := plan.Resources[0].Service; service.SHA256 != "old" || service.EntryPath != "bin/server" || service.Layout != "dir" {
+		t.Fatalf("in-memory plan changed despite failed persistence: %#v", service)
 	}
 }
 

@@ -191,6 +191,7 @@ type ClosureSources struct {
 	Catalog          string `json:"catalog"`
 	Scope            string `json:"scope"`
 	HostRequirements string `json:"host_requirements"`
+	DependencyDigest string `json:"dependency_digest,omitempty"`
 	AnalyzerTool     string `json:"analyzer_tool,omitempty"`
 	AnalyzerUsed     bool   `json:"analyzer_used"`
 }

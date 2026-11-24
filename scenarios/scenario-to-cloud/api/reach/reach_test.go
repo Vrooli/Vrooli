@@ -108,6 +108,23 @@ func TestRouterHonoursExplicitTransportWithoutFallback(t *testing.T) {
 	if bridge.calls != 1 {
 		t.Fatalf("bridge must not be called for an unenrolled binding, calls=%d", bridge.calls)
 	}
+	managedSSH := sshTarget()
+	managedSSH.ComputeManagerID = "qemu-1"
+	managerReach := &recording{}
+	r3 := &Router{SSH: sshr, LocalQEMU: managerReach}
+	if _, err := r3.Exec(context.Background(), managedSSH, cmd); err != nil {
+		t.Fatalf("manager-bound QEMU reach: %v", err)
+	}
+	if managerReach.calls != 1 || sshr.calls != 1 {
+		t.Fatalf("managed QEMU must use its verified adapter only: manager=%d generic ssh=%d", managerReach.calls, sshr.calls)
+	}
+	r4 := &Router{SSH: sshr}
+	if _, err := r4.Exec(context.Background(), managedSSH, cmd); !IsKind(err, KindUnavailable) {
+		t.Fatalf("missing manager adapter must refuse, got %v", err)
+	}
+	if sshr.calls != 1 {
+		t.Fatalf("manager outage must not fall through to generic ssh: calls=%d", sshr.calls)
+	}
 }
 
 // [REQ:STC-P0-024] A revoked enrollment is refused before any transport call

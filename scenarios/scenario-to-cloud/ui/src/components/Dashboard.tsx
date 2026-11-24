@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { fetchHealth } from "../lib/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";
-import { Button } from "./ui/button";
+import { Button } from "./ui/button-adapter";
 import { Badge } from "./ui/badge";
 import { Alert } from "./ui/alert";
 import { EmptyState } from "./ui/empty-state";

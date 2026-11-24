@@ -1064,7 +1064,10 @@ func managedSigningEnv(ctx context.Context, config *signingtypes.SigningConfig) 
 	if err != nil {
 		return nil, noop, fmt.Errorf("create signing homedir: %w", err)
 	}
-	_ = os.Chmod(homedir, 0o700)
+	if err := os.Chmod(homedir, 0o700); err != nil {
+		_ = os.RemoveAll(homedir)
+		return nil, noop, fmt.Errorf("secure signing homedir: %w", err)
+	}
 	cleanup := func() { _ = os.RemoveAll(homedir) }
 
 	if err := importManagedSigningKey(ctx, homedir, secret); err != nil {
@@ -1072,13 +1075,14 @@ func managedSigningEnv(ctx context.Context, config *signingtypes.SigningConfig) 
 		return nil, noop, err
 	}
 
-	envName := strings.TrimSpace(config.Linux.GPGPassphraseEnv)
-	if envName == "" {
-		envName = signingtypes.DefaultPassphraseEnvVar
+	passphraseFile := filepath.Join(homedir, "gpg-passphrase")
+	if err := os.WriteFile(passphraseFile, []byte(passphrase), 0o600); err != nil {
+		cleanup()
+		return nil, noop, fmt.Errorf("materialize ephemeral signing passphrase: %w", err)
 	}
 	return map[string]string{
-		signingtypes.DefaultManagedHomedirEnv: homedir,
-		envName:                               passphrase,
+		signingtypes.DefaultManagedHomedirEnv:        homedir,
+		signingtypes.DefaultManagedPassphraseFileEnv: passphraseFile,
 	}, cleanup, nil
 }
 

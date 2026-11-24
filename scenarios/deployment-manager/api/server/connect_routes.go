@@ -53,7 +53,13 @@ func (s *Server) setupRoutes() {
 		registerBundleExportCompatibilityRoute(s.Router, s.BundlesHandler.ExportBundle)
 	}
 	if s.ReleasesHandler != nil {
+		s.Router.HandleFunc("/api/v1/profiles/{profile_id}/release-operations", s.ReleasesHandler.ListOperationsByProfile).Methods(http.MethodGet)
 		s.Router.HandleFunc("/api/v1/release-operations/{operation_id}", s.ReleasesHandler.GetOperation).Methods(http.MethodGet)
+		s.Router.HandleFunc("/api/v1/release-operations/{operation_id}/resume-cloud", s.ReleasesHandler.ResumeCloudOperation).Methods(http.MethodPost)
+		s.Router.HandleFunc("/api/v1/release-operations/{operation_id}/resume-cloud-verification", s.ReleasesHandler.ResumeCloudVerification).Methods(http.MethodPost)
+		s.Router.HandleFunc("/api/v1/release-operations/{operation_id}/request-cloud-teardown", s.ReleasesHandler.RequestCloudTeardown).Methods(http.MethodPost)
+		s.Router.HandleFunc("/api/v1/release-operations/{operation_id}/request-cloud-lease-renewal", s.ReleasesHandler.RequestCloudLeaseRenewal).Methods(http.MethodPost)
+		s.Router.HandleFunc("/api/v1/release-operations/{operation_id}/reconcile-cloud-recovery", s.ReleasesHandler.ReconcileCloudRecoveryOperation).Methods(http.MethodPost)
 		s.Router.HandleFunc("/api/v1/releases/{release_id}/recover", s.ReleasesHandler.Recover).Methods(http.MethodPost)
 		s.Router.HandleFunc("/api/v1/releases/{release_id}/reconcile", s.ReleasesHandler.Reconcile).Methods(http.MethodPost)
 		s.Router.HandleFunc("/api/v1/releases/{release_id}/dossier", s.ReleasesHandler.Dossier).Methods(http.MethodGet)

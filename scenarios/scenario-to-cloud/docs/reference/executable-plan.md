@@ -65,6 +65,7 @@ because each appears at most once per plan.
 | `credentials.provision` | credential_write | credential authority (ingest verb, value on stdin) | workdir, scenario, descriptors (references only, never values) | runtime, start (when secrets declared) |
 | `runtime.start_dependencies` | runtime_start | `vrooli resource start`, `vrooli scenario start` | workdir, resources, scenarios | runtime, start |
 | `data.backup` | data_write | `cloud-target data backup` | bindings, binding_specs, legacy_preserve, recovery_key_ref, schema_version, configuration_digest, release_digest, migration_posture, retention_policy, recovery_point_required | runtime, when data (declared or legacy) exists |
+| `data.schedule` | data_write | `cloud-target data schedule` through Bridge on the target-local DBM service | scenario, destination, non-secret policy JSON, binding_specs | runtime after release readiness, when manifest.backup is declared |
 | `workload.stop` | runtime_stop | `cloud-target host repair --action process.stop.scoped` | workdir, scenario, ports; declares downtime under `maintenance` | runtime (maintenance), stop, retire |
 | `release.activate` | deployment_write | `cloud-target release activate` | release_digest, release_id, release_dir, scenarios, strategy, ports, data_bindings, legacy_carry, legacy_root, predecessor_digest | runtime |
 | `edge.route.apply` | edge_write | `cloud-target edge route-apply` (typed spec) | domain, upstream_port, tls_email, tls_enabled, config_path, release_id | runtime |
@@ -79,7 +80,7 @@ because each appears at most once per plan.
 
 Scopes: `install` (host, deliver, verify, stage, setup), `runtime`
 (credentials, dependencies, recovery point, maintenance stop, activate, route,
-readiness, retain), `full` = install then runtime, `start` (dependencies,
+readiness, scheduled DBM plan reconciliation, retain), `full` = install then runtime, `start` (dependencies,
 restart of the active pointer, readiness), `stop` (one scoped stop),
 `retire` (route, runtime, grants, data, artifacts; `retention_policy`
 required when data exists).

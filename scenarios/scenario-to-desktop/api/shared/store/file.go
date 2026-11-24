@@ -355,11 +355,7 @@ func (s *JSONFileStore[K, T]) loadPerItem() error {
 			continue
 		}
 
-		// Skip temp files
 		name := entry.Name()
-		if len(name) > 4 && name[len(name)-8:] == ".tmp.json" {
-			continue
-		}
 
 		key, ok := s.fileNameToKey(name)
 		if !ok {

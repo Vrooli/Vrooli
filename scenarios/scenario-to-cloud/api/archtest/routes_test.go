@@ -137,8 +137,6 @@ var unboundEffectfulRoutes = map[string]string{
 	"POST /api/v1/deployments":                                       "creates the deployment record; the id does not exist yet, so the target binding is created here",
 	"POST /api/v1/vps/setup/apply":                                   "legacy route refuses execution without a stored deployment; durable admission requires deployment identity",
 	"POST /api/v1/vps/deploy/apply":                                  "legacy route refuses execution without a stored deployment; durable admission requires deployment identity",
-	"POST /api/v1/instances":                                         "local QEMU qualification instance provider (P20); the host is this machine",
-	"POST /api/v1/instances/{id}/{action}":                           "local QEMU qualification instance provider (P20); {id} is an instance, not a deployment",
 	"POST /api/v1/preflight/fix/firewall":                            "pre-deployment host fix on an explicit connection before a record exists; runs edge.ufw.allow through the bounded adapter (DL-11 remainder)",
 	"POST /api/v1/preflight/fix/stop-processes":                      "pre-deployment host fix on an explicit connection; scoped lifecycle stops through the bounded adapter (DL-11 remainder)",
 	"GET /api/v1/secrets/{scenario}":                                 "reads the scenario's declared secret expectations from the local secrets owner; no target",
@@ -147,6 +145,7 @@ var unboundEffectfulRoutes = map[string]string{
 	"* /vrooli.scenario_to_cloud.v1.credentials.CredentialsService/": "Connect mount; every RPC resolves the deployment and checks its target binding inside the service (P04 service tests)",
 	"* /vrooli.scenario_to_cloud.v1.operations.OperationsService/":   "Connect mount; get/wait/list are reads, cancel and reconcile are operation-scoped",
 	"* /vrooli.scenario_to_cloud.v1.plans.PlansService/":             "Connect mount; CompilePlan/ApplyPlan resolve the deployment inside the service",
+	"* /vrooli.scenario_to_cloud.v1.qemu.QEMUService/":               "Connect mount; acquire/release only Compute Manager-owned local disposable instances; no deployment target exists before qualification",
 	"* /vrooli.scenario_to_cloud.v1.releases.ReleasesService/":       "Connect mount; build/get/verify act on the local release store",
 	"* /vrooli.scenario_to_cloud.v1.evidence.EvidenceService/":       "Connect mount; ApplyPublication resolves the deployment and re-checks approval inside the service (P17)",
 	"* /vrooli.dev_routing.v1.routing.RoutingService/":               "development-only Test Genie routed-pool leases (Optional row)",
@@ -162,11 +161,11 @@ func TestEffectfulRoutesAreTargetBoundOrJustified(t *testing.T) {
 			continue
 		}
 		key := row.Key()
-		if row.TargetBound {
+		if row.TargetBound || row.HandlerTargetBound {
 			if _, listed := unboundEffectfulRoutes[key]; listed {
 				t.Errorf("%s is TargetBound and also allowlisted; drop the entry", key)
 			}
-			if !strings.Contains(row.Path, "{id}") {
+			if row.TargetBound && !strings.Contains(row.Path, "{id}") {
 				t.Errorf("%s is TargetBound but carries no {id}", key)
 			}
 			continue

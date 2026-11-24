@@ -392,12 +392,21 @@ type RevocationPolicy interface {
 type Router struct {
 	Bridge     Reach
 	SSH        Reach
+	LocalQEMU  Reach
 	Revocation RevocationPolicy
 }
 
 var _ Reach = (*Router)(nil)
 
 func (r *Router) adapterFor(target identity.TargetRef) (Reach, error) {
+	// A manager-bound SSH locator is owned by Compute Manager. It has its own
+	// verifier and must not fall through to the generic operator SSH adapter.
+	if target.Transport == identity.TransportSSH && strings.TrimSpace(target.ComputeManagerID) != "" {
+		if r.LocalQEMU == nil {
+			return nil, &Error{Kind: KindUnavailable, Transport: identity.TransportSSH, Target: target.Key(), Detail: "Compute Manager local-QEMU reach is not configured"}
+		}
+		return r.LocalQEMU, nil
+	}
 	switch target.Transport {
 	case identity.TransportBridge:
 		if r.Bridge == nil {

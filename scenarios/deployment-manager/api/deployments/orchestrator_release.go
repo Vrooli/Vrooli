@@ -2,7 +2,10 @@ package deployments
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -18,25 +21,27 @@ import (
 // summary result shaped for the releases.Orchestrator seam.
 func (o *Orchestrator) RunDeploy(ctx context.Context, req releases.DeployRequest) (*releases.DeployResult, error) {
 	internal := DeployDesktopRequest{
-		ProfileID:             req.ProfileID,
-		Platforms:             req.Platforms,
-		GitCommitHash:         req.GitCommitHash,
-		ArtifactDigest:        req.ArtifactDigest,
-		ReleaseID:             req.ReleaseID,
-		Channel:               req.Channel,
-		ReleaseVersion:        req.ReleaseVersion,
-		CandidateID:           req.CandidateID,
-		DestinationRevisionID: req.DestinationRevisionID,
-		AuthorizationEpoch:    req.AuthorizationEpoch,
-		IdempotencyKey:        req.IdempotencyKey,
-		AuthorizationCheck:    req.AuthorizationCheck,
-		ReadinessReviewKey:    req.ReadinessReviewKey,
-		CloudManifest:         req.CloudManifest,
-		CloudDeploymentName:   req.CloudDeploymentName,
-		CloudBundlePath:       req.CloudBundlePath,
-		CloudBundleSHA256:     req.CloudBundleSHA256,
-		CloudBundleSizeBytes:  req.CloudBundleSizeBytes,
-		CloudRunPreflight:     req.CloudRunPreflight,
+		OperationID:                   req.OperationID,
+		ProfileID:                     req.ProfileID,
+		Platforms:                     req.Platforms,
+		GitCommitHash:                 req.GitCommitHash,
+		ArtifactDigest:                req.ArtifactDigest,
+		ReleaseID:                     req.ReleaseID,
+		Channel:                       req.Channel,
+		ReleaseVersion:                req.ReleaseVersion,
+		CandidateID:                   req.CandidateID,
+		DestinationRevisionID:         req.DestinationRevisionID,
+		AuthorizationEpoch:            req.AuthorizationEpoch,
+		IdempotencyKey:                req.IdempotencyKey,
+		AuthorizationCheck:            req.AuthorizationCheck,
+		ReadinessReviewKey:            req.ReadinessReviewKey,
+		CloudManifest:                 req.CloudManifest,
+		CloudDeploymentName:           req.CloudDeploymentName,
+		CloudBundlePath:               req.CloudBundlePath,
+		CloudBundleSHA256:             req.CloudBundleSHA256,
+		CloudBundleSizeBytes:          req.CloudBundleSizeBytes,
+		CloudComputeManagerInstanceID: req.CloudComputeManagerInstanceID,
+		CloudRunPreflight:             req.CloudRunPreflight,
 	}
 	if req.ReleaseID != "" {
 		if o.releaseIdentity == nil {
@@ -72,6 +77,9 @@ func (o *Orchestrator) RunDeploy(ctx context.Context, req releases.DeployRequest
 	if code := o.deployCloud(ds); code != 0 {
 		return summarizeResult(ds), nil
 	}
+	if code := o.markCloudDownstreamStarted(ds); code != 0 {
+		return summarizeResult(ds), nil
+	}
 	o.deployCheckCloudHealth(ds)
 	if releaseStageFailed(ds) {
 		return summarizeResult(ds), nil
@@ -95,6 +103,133 @@ func (o *Orchestrator) RunDeploy(ctx context.Context, req releases.DeployRequest
 	o.finalizeAndVerifyRelease(ds)
 
 	return summarizeResult(ds), nil
+}
+
+// ResumeCloudVerification performs a read-only health observation for the
+// persisted deployment receipt. It never replays acquisition, enrollment,
+// deployment, publication, DNS, or recovery operations.
+func (o *Orchestrator) ResumeCloudVerification(ctx context.Context, req releases.DeployRequest) (*releases.CloudStep, error) {
+	if req.OperationID == "" || req.ReleaseID == "" || len(req.CloudManifest) == 0 || o.cloudClient == nil {
+		return nil, fmt.Errorf("canonical operation, release manifest, and cloud health client are required")
+	}
+	repository, ok := o.releasesRepo.(releases.CloudStepRepository)
+	if !ok {
+		return nil, fmt.Errorf("durable cloud-step storage is unavailable")
+	}
+	step, err := repository.GetCloudStep(ctx, req.OperationID)
+	if err != nil || step == nil {
+		return nil, fmt.Errorf("durable cloud-step standing is unavailable")
+	}
+	if step.OperationID != req.OperationID || step.RequestKey != "dm-cloud:"+req.OperationID || step.RequestDigest == "" || (step.State != "downstream_started" && step.State != "verification_pending" && step.State != "verification_ambiguous" && step.State != "verification_passed" && step.State != "recovery_decision_required") {
+		return nil, fmt.Errorf("cloud step is outside the read-only verification resume boundary")
+	}
+	var receipt CloudDeploymentReceipt
+	if len(step.Receipt) == 0 || json.Unmarshal(step.Receipt, &receipt) != nil || receipt.DeploymentID == "" || receipt.DeploymentID != step.DeploymentID || receipt.OperationID != req.OperationID || receipt.BundleSHA256 == "" || receipt.BundleSHA256 != req.CloudBundleSHA256 || receipt.TargetKey == "" {
+		return nil, fmt.Errorf("persisted deployment receipt does not bind the canonical target and release")
+	}
+	verificationDigest, err := cloudVerificationRequestDigest(req, step, receipt)
+	if err != nil {
+		return nil, err
+	}
+	wantKey := releases.CloudVerificationIdempotencyKey(req.OperationID)
+	if step.VerificationKey != "" && step.VerificationKey != wantKey {
+		return nil, fmt.Errorf("stored verification key conflicts with canonical operation")
+	}
+	if step.VerificationRequestDigest != "" && step.VerificationRequestDigest != verificationDigest {
+		return nil, fmt.Errorf("stored verification request does not match immutable release and target")
+	}
+	if step.VerificationState == "passed" || step.VerificationState == "failed" {
+		return step, nil
+	}
+	if step.State == "recovery_decision_required" && step.VerificationState == "failed" {
+		return step, nil
+	}
+	now := time.Now().UTC()
+	step.VerificationKey, step.VerificationRequestDigest, step.VerificationState, step.VerificationAttemptedAt = wantKey, verificationDigest, "pending", &now
+	step.State = "verification_pending"
+	step.Reason = "read-only cloud health verification resumed for the exact persisted deployment receipt"
+	if err := repository.RecordCloudStep(ctx, *step); err != nil {
+		return nil, fmt.Errorf("persist verification attempt: %w", err)
+	}
+	result, callErr := o.cloudClient.CheckDeploymentHealth(ctx, DeploymentHealthRequest{DeploymentID: receipt.DeploymentID, ExpectedReleaseDigest: receipt.BundleSHA256})
+	if callErr != nil || result == nil {
+		step.VerificationState, step.State = "ambiguous", "verification_ambiguous"
+		if callErr != nil {
+			step.Reason = "health observation was inconclusive: " + callErr.Error()
+		} else {
+			step.Reason = "health observation returned no result"
+		}
+		if err := repository.RecordCloudStep(ctx, *step); err != nil {
+			return nil, fmt.Errorf("persist ambiguous verification result: %w", err)
+		}
+		return step, nil
+	}
+	encoded, err := json.Marshal(result)
+	if err != nil {
+		return nil, err
+	}
+	step.VerificationReceipt = encoded
+	if result.Healthy && result.DeploymentID == receipt.DeploymentID && result.ObservedReleaseDigest == receipt.BundleSHA256 {
+		step.VerificationState, step.State = "passed", "verification_passed"
+		step.Reason = "exact deployment passed the current health and release-digest checks"
+	} else {
+		step.VerificationState, step.State = "failed", "recovery_decision_required"
+		step.Reason = "cloud health did not prove the exact deployment and release digest: " + result.Explain()
+		if step.RecoveryIdempotencyKey == "" {
+			step.RecoveryIdempotencyKey = releases.CloudRecoveryIdempotencyKey(req.OperationID)
+		}
+		if step.RecoveryState == "" {
+			step.RecoveryState = "awaiting_human_recovery"
+			step.RecoveryReason = "no human-started Scenario-to-Cloud recovery operation has been observed"
+		}
+	}
+	if err := repository.RecordCloudStep(ctx, *step); err != nil {
+		return nil, fmt.Errorf("persist verification result: %w", err)
+	}
+	return step, nil
+}
+
+func cloudVerificationRequestDigest(req releases.DeployRequest, step *releases.CloudStep, receipt CloudDeploymentReceipt) (string, error) {
+	if step == nil || req.OperationID == "" || req.ReleaseID == "" || receipt.DeploymentID == "" || receipt.TargetKey == "" {
+		return "", fmt.Errorf("verification request identity is incomplete")
+	}
+	digestInput, err := json.Marshal(struct {
+		OperationID, ReleaseID, RequestDigest, DeploymentID, BundleSHA256, TargetKey, DestinationID, DestinationHost, DestinationWorkdir, DestinationDomain, ManagerInstanceID, Manifest string
+	}{req.OperationID, req.ReleaseID, step.RequestDigest, receipt.DeploymentID, receipt.BundleSHA256, receipt.TargetKey, receipt.DestinationID, receipt.DestinationHost, receipt.DestinationWorkdir, receipt.DestinationDomain, req.CloudComputeManagerInstanceID, string(req.CloudManifest)})
+	if err != nil {
+		return "", err
+	}
+	hash := sha256.Sum256(digestInput)
+	return "sha256:" + hex.EncodeToString(hash[:]), nil
+}
+
+// markCloudDownstreamStarted closes the retry window before any later
+// publication/packaging effects. The resume endpoint may replay a release
+// only while the persisted owner step proves execution has not crossed here.
+func (o *Orchestrator) markCloudDownstreamStarted(ds *deployState) int {
+	if ds == nil || len(strings.TrimSpace(string(ds.req.CloudManifest))) == 0 {
+		return 0
+	}
+	repo, ok := o.releasesRepo.(releases.CloudStepRepository)
+	if !ok {
+		ds.response.Status = "ambiguous"
+		o.markReleaseFailed(ds, releases.StatusAmbiguous)
+		return http.StatusServiceUnavailable
+	}
+	step, err := repo.GetCloudStep(ds.ctx, ds.req.OperationID)
+	if err != nil || step == nil {
+		ds.response.Status = "ambiguous"
+		o.markReleaseFailed(ds, releases.StatusAmbiguous)
+		return http.StatusServiceUnavailable
+	}
+	step.State = "downstream_started"
+	step.Reason = "cloud deployment receipt verified; subsequent release steps may have effects"
+	if err := repo.RecordCloudStep(ds.ctx, *step); err != nil {
+		ds.response.Status = "ambiguous"
+		o.markReleaseFailed(ds, releases.StatusAmbiguous)
+		return http.StatusServiceUnavailable
+	}
+	return 0
 }
 
 // finalizeAndVerifyRelease keeps verification behind the publication gate.
@@ -215,28 +350,62 @@ func (o *Orchestrator) deployCheckCloudHealth(ds *deployState) {
 			step := o.startStep(stepName)
 			o.failStep(&step, "cloud-health client is not configured for commercial publication")
 			ds.response.Steps = append(ds.response.Steps, step)
-			o.markReleaseFailed(ds, releases.StatusFailed)
+			if err := o.persistCloudVerificationFailure(ds, nil, "cloud-health client is not configured for commercial publication"); err != nil {
+				ds.response.Status = "ambiguous"
+				o.markReleaseFailed(ds, releases.StatusAmbiguous)
+			} else {
+				o.markReleaseFailed(ds, releases.StatusFailed)
+			}
 		}
 		return
 	}
 	step := o.startStep(stepName)
+	if err := o.persistCloudVerification(ds, "verification_pending", nil, "requesting a fresh health observation for the exact deployment and release digest"); err != nil {
+		o.failStep(&step, "persist verification intent: "+err.Error())
+		ds.response.Steps = append(ds.response.Steps, step)
+		ds.response.Status = "ambiguous"
+		o.markReleaseFailed(ds, releases.StatusAmbiguous)
+		return
+	}
 	result, err := o.cloudClient.CheckDeploymentHealth(ds.ctx, request)
 	if err != nil {
 		o.failStep(&step, fmt.Sprintf("cloud-health probe failed: %v", err))
 		ds.response.Steps = append(ds.response.Steps, step)
-		o.markReleaseFailed(ds, releases.StatusFailed)
+		if persistErr := o.persistCloudVerificationFailure(ds, nil, "cloud-health probe failed: "+err.Error()); persistErr != nil {
+			ds.response.Status = "ambiguous"
+			o.markReleaseFailed(ds, releases.StatusAmbiguous)
+		} else {
+			o.markReleaseFailed(ds, releases.StatusFailed)
+		}
 		return
 	}
 	if result == nil {
 		o.failStep(&step, "cloud-health probe returned no response")
 		ds.response.Steps = append(ds.response.Steps, step)
-		o.markReleaseFailed(ds, releases.StatusFailed)
+		if persistErr := o.persistCloudVerificationFailure(ds, nil, "cloud-health probe returned no response"); persistErr != nil {
+			ds.response.Status = "ambiguous"
+			o.markReleaseFailed(ds, releases.StatusAmbiguous)
+		} else {
+			o.markReleaseFailed(ds, releases.StatusFailed)
+		}
 		return
 	}
 	if !result.Healthy {
 		o.failStep(&step, "cloud deployment not proven healthy: "+result.Explain())
 		ds.response.Steps = append(ds.response.Steps, step)
-		o.markReleaseFailed(ds, releases.StatusFailed)
+		if persistErr := o.persistCloudVerificationFailure(ds, result, "cloud deployment not proven healthy: "+result.Explain()); persistErr != nil {
+			ds.response.Status = "ambiguous"
+			o.markReleaseFailed(ds, releases.StatusAmbiguous)
+		} else {
+			o.markReleaseFailed(ds, releases.StatusFailed)
+		}
+		return
+	}
+	if err := o.persistCloudVerification(ds, "verification_passed", result, "exact deployment passed the current health and release-digest checks"); err != nil {
+		o.failStep(&step, "persist verified cloud observation: "+err.Error())
+		ds.response.Steps = append(ds.response.Steps, step)
+		ds.response.Status = "ambiguous"
+		o.markReleaseFailed(ds, releases.StatusAmbiguous)
 		return
 	}
 	message := fmt.Sprintf("cloud deployment %s healthy and current (observed %s", result.DeploymentID, result.ObservedAt.UTC().Format(time.RFC3339))
@@ -245,6 +414,83 @@ func (o *Orchestrator) deployCheckCloudHealth(ds *deployState) {
 	}
 	o.successStep(&step, message+")")
 	ds.response.Steps = append(ds.response.Steps, step)
+}
+
+const cloudRollbackGeneratedContractGap = "rollback decision is required: a human may start recovery in Scenario-to-Cloud; Deployment Manager will only read back and settle the operation under this stable key"
+
+func (o *Orchestrator) persistCloudVerificationFailure(ds *deployState, result *CloudHealthResult, reason string) error {
+	reason = strings.TrimSpace(reason)
+	return o.persistCloudVerification(ds, "recovery_decision_required", result, reason+"; "+cloudRollbackGeneratedContractGap)
+}
+
+func (o *Orchestrator) persistCloudVerification(ds *deployState, state string, result *CloudHealthResult, reason string) error {
+	if ds == nil || ds.req.ReleaseID == "" || len(strings.TrimSpace(string(ds.req.CloudManifest))) == 0 {
+		return nil
+	}
+	repository, ok := o.releasesRepo.(releases.CloudStepRepository)
+	if !ok {
+		return fmt.Errorf("durable cloud-step storage is unavailable")
+	}
+	cloudStep, err := repository.GetCloudStep(ds.ctx, ds.req.OperationID)
+	if err != nil {
+		return fmt.Errorf("read durable cloud-step: %w", err)
+	}
+	if cloudStep == nil || cloudStep.OperationID != ds.req.OperationID || cloudStep.RequestKey != "dm-cloud:"+ds.req.OperationID || cloudStep.RequestDigest == "" {
+		return fmt.Errorf("durable cloud-step identity is unavailable or mismatched")
+	}
+	expectedDeploymentID := ""
+	if ds.response.CloudReceipt != nil {
+		expectedDeploymentID = ds.response.CloudReceipt.DeploymentID
+	}
+	if expectedDeploymentID != "" && cloudStep.DeploymentID != expectedDeploymentID {
+		return fmt.Errorf("durable cloud-step deployment identity does not match the verified receipt")
+	}
+	if ds.response.CloudReceipt != nil {
+		verificationDigest, err := cloudVerificationRequestDigest(releases.DeployRequest{OperationID: ds.req.OperationID, ReleaseID: ds.req.ReleaseID, CloudManifest: ds.req.CloudManifest, CloudBundleSHA256: ds.req.CloudBundleSHA256, CloudComputeManagerInstanceID: ds.req.CloudComputeManagerInstanceID}, cloudStep, *ds.response.CloudReceipt)
+		if err != nil {
+			return err
+		}
+		key := releases.CloudVerificationIdempotencyKey(ds.req.OperationID)
+		if cloudStep.VerificationKey != "" && cloudStep.VerificationKey != key {
+			return fmt.Errorf("stored verification key conflicts with canonical operation")
+		}
+		if cloudStep.VerificationRequestDigest != "" && cloudStep.VerificationRequestDigest != verificationDigest {
+			return fmt.Errorf("stored verification request does not match immutable release and target")
+		}
+		cloudStep.VerificationKey, cloudStep.VerificationRequestDigest = key, verificationDigest
+		if state == "verification_pending" {
+			cloudStep.VerificationState = "pending"
+			now := time.Now().UTC()
+			cloudStep.VerificationAttemptedAt = &now
+		}
+		if state == "verification_passed" {
+			cloudStep.VerificationState = "passed"
+		}
+		if state == "recovery_decision_required" {
+			cloudStep.VerificationState = "failed"
+		}
+	}
+	if result != nil {
+		encoded, err := json.Marshal(result)
+		if err != nil {
+			return fmt.Errorf("encode cloud verification receipt: %w", err)
+		}
+		cloudStep.VerificationReceipt = encoded
+	}
+	if state == "recovery_decision_required" {
+		wantRecoveryKey := releases.CloudRecoveryIdempotencyKey(ds.req.OperationID)
+		if cloudStep.RecoveryIdempotencyKey != "" && cloudStep.RecoveryIdempotencyKey != wantRecoveryKey {
+			return fmt.Errorf("stored cloud recovery key does not match this release operation")
+		}
+		cloudStep.RecoveryIdempotencyKey = wantRecoveryKey
+		if cloudStep.RecoveryState == "" {
+			cloudStep.RecoveryState = "awaiting_human_recovery"
+			cloudStep.RecoveryReason = "no human-started Scenario-to-Cloud recovery operation has been observed"
+		}
+	}
+	cloudStep.State = state
+	cloudStep.Reason = reason
+	return repository.RecordCloudStep(ds.ctx, *cloudStep)
 }
 
 // deployCheckLPBSReadiness calls LPBS's deploy-readiness endpoint to confirm
@@ -343,6 +589,13 @@ func (o *Orchestrator) deployCloud(ds *deployState) int {
 		ds.response.Status = "failed"
 		return http.StatusServiceUnavailable
 	}
+	cloudSteps, ok := o.releasesRepo.(releases.CloudStepRepository)
+	if !ok {
+		o.failStep(&step, "cloud deployment requires durable cloud-step storage")
+		ds.response.Steps = append(ds.response.Steps, step)
+		ds.response.Status = "failed"
+		return http.StatusServiceUnavailable
+	}
 	client, ok := o.cloudClient.(CloudDeploymentClient)
 	if !ok {
 		o.failStep(&step, "cloud deployment client is not configured")
@@ -365,7 +618,58 @@ func (o *Orchestrator) deployCloud(ds *deployState) int {
 			return http.StatusPreconditionFailed
 		}
 	}
+	if strings.TrimSpace(ds.req.OperationID) == "" {
+		o.failStep(&step, "cloud deployment requires its durable release operation identity")
+		ds.response.Steps = append(ds.response.Steps, step)
+		ds.response.Status = "blocked"
+		return http.StatusPreconditionFailed
+	}
+	requestKey := "dm-cloud:" + ds.req.OperationID
+	digestPayload, _ := json.Marshal(struct {
+		Name         string               `json:"name"`
+		Manifest     json.RawMessage      `json:"manifest"`
+		BundlePath   string               `json:"bundle_path"`
+		BundleSHA256 string               `json:"bundle_sha256"`
+		BundleSize   int64                `json:"bundle_size_bytes"`
+		RunPreflight bool                 `json:"run_preflight"`
+		Review       *CloudReviewIdentity `json:"review"`
+	}{ds.req.CloudDeploymentName, ds.req.CloudManifest, ds.req.CloudBundlePath, ds.req.CloudBundleSHA256, ds.req.CloudBundleSizeBytes, ds.req.CloudRunPreflight, cloudReviewIdentity(ds.req)})
+	digestBytes := sha256.Sum256(digestPayload)
+	requestDigest := hex.EncodeToString(digestBytes[:])
+	cloudStep, err := cloudSteps.GetCloudStep(ds.ctx, ds.req.OperationID)
+	if err != nil {
+		o.failStep(&step, "read cloud deployment recovery state: "+err.Error())
+		ds.response.Steps = append(ds.response.Steps, step)
+		ds.response.Status = "failed"
+		return http.StatusServiceUnavailable
+	}
+	if cloudStep == nil {
+		cloudStep = &releases.CloudStep{OperationID: ds.req.OperationID, RequestKey: requestKey, RequestDigest: requestDigest, State: "intent", RecoveryIdempotencyKey: releases.CloudRecoveryIdempotencyKey(ds.req.OperationID)}
+		if err := cloudSteps.RecordCloudStep(ds.ctx, *cloudStep); err != nil {
+			o.failStep(&step, "persist cloud deployment intent: "+err.Error())
+			ds.response.Steps = append(ds.response.Steps, step)
+			ds.response.Status = "failed"
+			return http.StatusServiceUnavailable
+		}
+	} else if cloudStep.RequestKey != requestKey || cloudStep.RequestDigest != requestDigest {
+		o.failStep(&step, "stored cloud deployment intent does not match this immutable release request")
+		ds.response.Steps = append(ds.response.Steps, step)
+		ds.response.Status = "blocked"
+		return http.StatusConflict
+	}
+	progress := func(update CloudStepProgress) error {
+		cloudStep.State = update.State
+		cloudStep.DeploymentID = update.DeploymentID
+		cloudStep.OwnerOperationID = update.OwnerOperationID
+		cloudStep.Reason = update.Reason
+		if len(update.Receipt) > 0 {
+			cloudStep.Receipt = append(json.RawMessage(nil), update.Receipt...)
+		}
+		return cloudSteps.RecordCloudStep(ds.ctx, *cloudStep)
+	}
 	receipt, err := client.DeployCloud(ds.ctx, &CloudDeploymentRequest{
+		RequestKey: requestKey, ExistingDeploymentID: cloudStep.DeploymentID,
+		ExistingOperationID: cloudStep.OwnerOperationID, OnProgress: progress,
 		Name: ds.req.CloudDeploymentName, Manifest: ds.req.CloudManifest,
 		BundlePath: ds.req.CloudBundlePath, BundleSHA256: ds.req.CloudBundleSHA256,
 		BundleSizeBytes: ds.req.CloudBundleSizeBytes, RunPreflight: ds.req.CloudRunPreflight,
@@ -374,8 +678,13 @@ func (o *Orchestrator) deployCloud(ds *deployState) int {
 	if err != nil {
 		o.failStep(&step, err.Error())
 		ds.response.Steps = append(ds.response.Steps, step)
-		ds.response.Status = "failed"
-		o.markReleaseFailed(ds, releases.StatusFailed)
+		if errors.Is(err, ErrCloudOperationAmbiguous) {
+			ds.response.Status = "ambiguous"
+			o.markReleaseFailed(ds, releases.StatusAmbiguous)
+		} else {
+			ds.response.Status = "failed"
+			o.markReleaseFailed(ds, releases.StatusFailed)
+		}
 		return http.StatusBadGateway
 	}
 	if receipt == nil {

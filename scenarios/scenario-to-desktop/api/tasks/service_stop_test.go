@@ -6,11 +6,86 @@ import (
 	"testing"
 	"time"
 
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"scenario-to-desktop-api/agentmanager"
 	"scenario-to-desktop-api/domain"
 	"scenario-to-desktop-api/pipeline"
 	"scenario-to-desktop-api/tasks/fix"
 	"scenario-to-desktop-api/tasks/shared"
 )
+
+type cancellationGateAgent struct {
+	started  chan struct{}
+	finished chan struct{}
+}
+
+func (a *cancellationGateAgent) IsAvailable(context.Context) bool { return true }
+func (a *cancellationGateAgent) ExecuteAsync(ctx context.Context, _ agentmanager.ExecuteRequest) (string, error) {
+	close(a.started)
+	<-ctx.Done()
+	close(a.finished)
+	return "", ctx.Err()
+}
+func (*cancellationGateAgent) GetRunStatus(context.Context, string) (*domainpb.Run, error) {
+	return nil, nil
+}
+func (*cancellationGateAgent) StopRun(context.Context, string) error      { return nil }
+func (*cancellationGateAgent) ResolveURL(context.Context) (string, error) { return "", nil }
+
+func newCancellationGateService(taskType domain.TaskType) (*Service, *mockInvStore, *cancellationGateAgent, domain.CreateTaskRequest) {
+	invStore := newMockInvStore()
+	pipelineStore := newMockPipelineStore()
+	pipelineStore.statuses["pipe-1"] = &pipeline.Status{PipelineID: "pipe-1"}
+	agent := &cancellationGateAgent{started: make(chan struct{}), finished: make(chan struct{})}
+	svc := NewService(invStore, pipelineStore, agent, &mockProgressHub{}, "http://127.0.0.1:19001")
+	if taskType == domain.TaskTypeInvestigate {
+		return svc, invStore, agent, validInvestigateRequest("pipe-1")
+	}
+	findings := "a source investigation found a reproducible failure"
+	invStore.investigations["source-1"] = &domain.Investigation{ID: "source-1", PipelineID: "pipe-1", Status: domain.InvestigationStatusCompleted, Findings: &findings}
+	return svc, invStore, agent, validFixRequest("pipe-1", "source-1")
+}
+
+func TestCancellationPersistsForActiveTaskTypes(t *testing.T) {
+	for _, taskType := range []domain.TaskType{domain.TaskTypeInvestigate, domain.TaskTypeFix} {
+		for _, action := range []string{"shutdown", "stop"} {
+			t.Run(string(taskType)+"/"+action, func(t *testing.T) {
+				svc, invStore, agent, request := newCancellationGateService(taskType)
+				inv, err := svc.TriggerTask(context.Background(), request)
+				if err != nil {
+					t.Fatalf("TriggerTask() error = %v", err)
+				}
+				select {
+				case <-agent.started:
+				case <-time.After(time.Second):
+					t.Fatal("task never reached the blocked agent call")
+				}
+
+				if action == "stop" {
+					if err := svc.StopTask(context.Background(), "pipe-1", inv.ID); err != nil {
+						t.Fatalf("StopTask() error = %v", err)
+					}
+				}
+				shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
+				if err := svc.Shutdown(shutdownCtx); err != nil {
+					t.Fatalf("Shutdown() error = %v", err)
+				}
+				select {
+				case <-agent.finished:
+				default:
+					t.Fatal("Shutdown returned before the agent observed cancellation")
+				}
+				if got := invStore.investigations[inv.ID].Status; got != domain.InvestigationStatusCancelled {
+					t.Fatalf("task status after %s = %q, want %q", action, got, domain.InvestigationStatusCancelled)
+				}
+				if invStore.hasCancel(inv.ID) {
+					t.Fatal("completed worker retained its cancel function")
+				}
+			})
+		}
+	}
+}
 
 func TestShutdownCancelsActiveWorkersAndRejectsNewTasks(t *testing.T) {
 	svc, _, pipelineStore, _, _ := newTestService()

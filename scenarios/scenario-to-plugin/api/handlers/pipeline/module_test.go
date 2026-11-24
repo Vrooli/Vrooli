@@ -7,10 +7,12 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -20,6 +22,8 @@ import (
 	decl "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-plugin/v1/declaration"
 	dist "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-plugin/v1/distribution"
 	reh "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-plugin/v1/rehearsal"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func fixtureRoot(t *testing.T, plugin bool) string {
@@ -63,6 +67,24 @@ func fixtureRoot(t *testing.T, plugin bool) string {
 		}
 	}
 	return root
+}
+
+func scenarioRepoRoot(t *testing.T) string {
+	t.Helper()
+	current, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(current, "scenarios", "scenario-to-plugin", "manifest.json")); err == nil {
+			return current
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			t.Fatal("could not locate Vrooli repository root from package working directory")
+		}
+		current = parent
+	}
 }
 
 func TestReadinessNamesMissingDeclaration(t *testing.T) {
@@ -198,8 +220,7 @@ func TestCompositionEmitsCanonicalMCPConfigurationAndAuthPosture(t *testing.T) {
 }
 
 func TestHelloPluginCompositionConformanceAndRehearsal(t *testing.T) {
-	_, file, _, _ := runtime.Caller(0)
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../../.."))
+	repoRoot := scenarioRepoRoot(t)
 	h := &handler{root: repoRoot, packages: map[string]packageRecord{}}
 	resp, err := h.Compose(context.Background(), connect.NewRequest(&comp.ComposeRequest{Scenario: "hello-plugin", SourceRevision: "test-revision"}))
 	if err != nil {
@@ -237,8 +258,7 @@ func TestHelloPluginCompositionConformanceAndRehearsal(t *testing.T) {
 }
 
 func TestWorkspaceSandboxCompositionConformanceAndRehearsal(t *testing.T) {
-	_, file, _, _ := runtime.Caller(0)
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../../.."))
+	repoRoot := scenarioRepoRoot(t)
 	h := &handler{root: repoRoot, packages: map[string]packageRecord{}}
 	resp, err := h.Compose(context.Background(), connect.NewRequest(&comp.ComposeRequest{Scenario: "workspace-sandbox", SourceRevision: "test-revision"}))
 	if err != nil {
@@ -261,8 +281,7 @@ func TestWorkspaceSandboxCompositionConformanceAndRehearsal(t *testing.T) {
 }
 
 func TestAttestationRequiresConformanceAndEmitsDigestBoundEvidence(t *testing.T) {
-	_, file, _, _ := runtime.Caller(0)
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../../.."))
+	repoRoot := scenarioRepoRoot(t)
 	h := &handler{root: repoRoot, packages: map[string]packageRecord{}}
 	resp, err := h.Compose(context.Background(), connect.NewRequest(&comp.ComposeRequest{Scenario: "hello-plugin", SourceRevision: "test-revision"}))
 	if err != nil {
@@ -286,8 +305,7 @@ func TestAttestationRequiresConformanceAndEmitsDigestBoundEvidence(t *testing.T)
 }
 
 func TestManagedAttestationRejectsSecretsBeforePublication(t *testing.T) {
-	_, file, _, _ := runtime.Caller(0)
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../../.."))
+	repoRoot := scenarioRepoRoot(t)
 	h := &handler{root: repoRoot, packages: map[string]packageRecord{}}
 	resp, err := h.Compose(context.Background(), connect.NewRequest(&comp.ComposeRequest{Scenario: "hello-plugin", SourceRevision: "managed-secret"}))
 	if err != nil {
@@ -297,10 +315,10 @@ func TestManagedAttestationRejectsSecretsBeforePublication(t *testing.T) {
 	for _, name := range []string{"cosign.signature.json", "provenance.intoto.json", "bom.json"} {
 		body := []byte(`{"subject":"sha256:artifact"}`)
 		if name == "cosign.signature.json" {
-			body = []byte(`{"verificationMaterial":{"certificate":"sk-leaked-secret"},"messageSignature":{}}`)
+			body = []byte(`{"verificationMaterial":{"certificate":"sk-0123456789abcdef0123456789abcdef"},"messageSignature":{}}`)
 		}
 		if name == "bom.json" {
-			body = []byte(`{"components":[{"name":"sk-leaked-secret"}]}`)
+			body = []byte(`{"components":[{"name":"sk-0123456789abcdef0123456789abcdef"}]}`)
 		}
 		if err := os.WriteFile(filepath.Join(managed, name), body, 0o644); err != nil {
 			t.Fatal(err)
@@ -316,9 +334,40 @@ func TestManagedAttestationRejectsSecretsBeforePublication(t *testing.T) {
 	}
 }
 
+func TestPublishRejectsArtifactSecretBeforeCallingReleaseGate(t *testing.T) {
+	repoRoot := scenarioRepoRoot(t)
+	h := &handler{root: repoRoot, packages: map[string]packageRecord{}}
+	resp, err := h.Compose(context.Background(), connect.NewRequest(&comp.ComposeRequest{Scenario: "hello-plugin", SourceRevision: "secret-before-gate"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(resp.Msg.Package.ArtifactRoot, "credentials.txt"), []byte("sk-0123456789abcdef0123456789abcdef"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ready":true}`))
+	}))
+	defer server.Close()
+	t.Setenv("DEPLOYMENT_MANAGER_API_BASE", server.URL)
+	published, err := h.Publish(context.Background(), connect.NewRequest(&dist.PublishRequest{
+		PackageId: resp.Msg.Package.Id, SourceRevision: "secret-before-gate", Channel: "oci",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if published.Msg.Published || !strings.Contains(published.Msg.Refusal, "PLG-DIST-ATTEST") {
+		t.Fatalf("publish refusal = %+v", published.Msg)
+	}
+	if got := requests.Load(); got != 0 {
+		t.Fatalf("release-gate requests = %d, want zero for a secret-bearing artifact", got)
+	}
+}
+
 func TestManagedAttestationRequiresDigestBoundEvidence(t *testing.T) {
-	_, file, _, _ := runtime.Caller(0)
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../../.."))
+	repoRoot := scenarioRepoRoot(t)
 	h := &handler{root: repoRoot, packages: map[string]packageRecord{}}
 	resp, err := h.Compose(context.Background(), connect.NewRequest(&comp.ComposeRequest{Scenario: "hello-plugin", SourceRevision: "managed-valid"}))
 	if err != nil {
@@ -327,7 +376,7 @@ func TestManagedAttestationRequiresDigestBoundEvidence(t *testing.T) {
 	managed := t.TempDir()
 	digest := strings.TrimPrefix(resp.Msg.Package.Digest, "sha256:")
 	evidence := map[string][]byte{
-		"cosign.signature.json":  []byte(`{"verificationMaterial":{},"messageSignature":{}}`),
+		"cosign.signature.json":  []byte(`{"verificationMaterial":{},"messageSignature":{"messageDigest":{"algorithm":"SHA2_256","digest":"` + digest + `"},"signature":"synthetic"}}`),
 		"provenance.intoto.json": []byte(`{"subject":[{"name":"agent-plugin.tar.gz","digest":{"sha256":"` + digest + `"}}]}`),
 		"bom.json":               []byte(`{"bomFormat":"CycloneDX","specVersion":"1.6","components":[]}`),
 	}
@@ -343,6 +392,32 @@ func TestManagedAttestationRequiresDigestBoundEvidence(t *testing.T) {
 	}
 	if !attested.Msg.Passed || len(attested.Msg.Evidence) != 3 {
 		t.Fatalf("managed attestation = %+v", attested.Msg)
+	}
+}
+
+func TestManagedCosignBundleMustBindExactArtifactDigest(t *testing.T) {
+	const artifact = "sha256:0123456789abcdef"
+	cases := []struct {
+		name, body, wantError string
+	}{
+		{"matching digest", `{"verificationMaterial":{},"messageSignature":{"messageDigest":{"algorithm":"SHA2_256","digest":"0123456789abcdef"}}}`, ""},
+		{"missing digest", `{"verificationMaterial":{},"messageSignature":{}}`, "no SHA2_256 message digest"},
+		{"wrong digest", `{"verificationMaterial":{},"messageSignature":{"messageDigest":{"algorithm":"SHA2_256","digest":"fedcba9876543210"}}}`, "not bound to the composed artifact digest"},
+		{"wrong algorithm", `{"verificationMaterial":{},"messageSignature":{"messageDigest":{"algorithm":"SHA2_512","digest":"0123456789abcdef"}}}`, "no SHA2_256 message digest"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateManagedEvidence("cosign.signature.json", []byte(tc.body), artifact)
+			if tc.wantError == "" {
+				if err != nil {
+					t.Fatalf("matching synthetic bundle rejected: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.wantError) {
+				t.Fatalf("error = %v, want substring %q", err, tc.wantError)
+			}
+		})
 	}
 }
 
@@ -363,8 +438,7 @@ func TestPublishRefusesWithoutMatchingReleaseDecision(t *testing.T) {
 }
 
 func TestPermanentConformanceFixturesFailWithNamedReasons(t *testing.T) {
-	_, file, _, _ := runtime.Caller(0)
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "../../../../.."))
+	repoRoot := scenarioRepoRoot(t)
 	cases := []struct{ name, source, want string }{
 		{"drifted-command", "SKILL.md", "PLG-CONF-DRIFT"},
 		{"angle-frontmatter", "SKILL.md", "PLG-CONF-ANGLE"},
@@ -430,6 +504,213 @@ func TestPermanentConformanceFixturesFailWithNamedReasons(t *testing.T) {
 			}
 			if !found {
 				t.Fatalf("expected %s, findings=%+v", tc.want, check.Msg.Findings)
+			}
+		})
+	}
+}
+
+func TestReleaseChecklistSelfTestCarriesBrokenFixturesThroughLocalGates(t *testing.T) {
+	repoRoot := scenarioRepoRoot(t)
+	cases := []struct {
+		name, source, want string
+		secret             bool
+	}{
+		{name: "drifted-command", source: "SKILL.md", want: "PLG-CONF-DRIFT"},
+		{name: "mutable-download", source: "install.sh", want: "PLG-CONF-INSTALL-PIN"},
+		{name: "credential-literal", source: "install.sh", want: "PLG-COMPOSE-SECRET", secret: true},
+	}
+	var releaseGateRequests atomic.Int32
+	gate := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		releaseGateRequests.Add(1)
+		ready, _ := structpb.NewStruct(map[string]any{"ready": true})
+		response, _ := proto.Marshal(structpb.NewStructValue(ready))
+		w.Header().Set("Content-Type", "application/proto")
+		_, _ = w.Write(response)
+	}))
+	defer gate.Close()
+	t.Setenv("DEPLOYMENT_MANAGER_API_BASE", gate.URL)
+	t.Setenv("PLUGIN_REGISTRY", "")
+	t.Setenv("SCENARIO_TO_PLUGIN_ATTESTATION_DIR", "")
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			releaseGateRequests.Store(0)
+			root := fixtureRoot(t, true)
+			fixturePath := filepath.Join(repoRoot, "scenarios/scenario-to-plugin/testdata/conformance", tc.name, tc.source)
+			body, err := os.ReadFile(fixturePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			destination := filepath.Join(root, "scenarios", "fixture", "cli", "install.sh")
+			if tc.source == "SKILL.md" {
+				destination = filepath.Join(root, "scenarios", "fixture", "skills", "hello", "SKILL.md")
+			}
+			if err := os.WriteFile(destination, body, 0o755); err != nil {
+				t.Fatal(err)
+			}
+
+			h := &handler{root: root, packages: map[string]packageRecord{}}
+			composed, composeErr := h.Compose(context.Background(), connect.NewRequest(&comp.ComposeRequest{Scenario: "fixture", SourceRevision: tc.name}))
+			if tc.secret {
+				if composeErr == nil || !strings.Contains(composeErr.Error(), tc.want) {
+					t.Fatalf("Compose error = %v, want %s", composeErr, tc.want)
+				}
+				if strings.Contains(composeErr.Error(), "sk-0123456789abcdef0123456789abcdef") {
+					t.Fatal("Compose refusal exposed the credential literal")
+				}
+				if len(h.packages) != 0 {
+					t.Fatalf("credential-bearing composition emitted %d package records", len(h.packages))
+				}
+				if got := releaseGateRequests.Load(); got != 0 {
+					t.Fatalf("credential fixture reached release gate %d times", got)
+				}
+				return
+			}
+			if composeErr != nil {
+				t.Fatal(composeErr)
+			}
+			checked, err := h.Check(context.Background(), connect.NewRequest(&conf.CheckRequest{PackageId: composed.Msg.Package.Id}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if checked.Msg.Passed || !hasFinding(checked.Msg.Findings, tc.want) {
+				t.Fatalf("Check = %+v, want refusal %s", checked.Msg, tc.want)
+			}
+			attested, err := h.Attest(context.Background(), connect.NewRequest(&att.AttestRequest{PackageId: composed.Msg.Package.Id, DryRun: true}))
+			if err != nil || attested.Msg.Passed || len(attested.Msg.Findings) == 0 || attested.Msg.Findings[0].Code != "PLG-ATTEST-ORDER" {
+				t.Fatalf("dry-run Attest = %+v, err=%v; want PLG-ATTEST-ORDER", attested, err)
+			}
+
+			artifact, err := os.ReadFile(filepath.Join(composed.Msg.Package.ArtifactRoot, ".agent-plugin.tar.gz"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if secretInBytes(artifact) || findSecret(composed.Msg.Package.ArtifactRoot) != "" {
+				t.Fatal("broken non-secret fixture emitted credential material in its package artifact")
+			}
+			published, err := h.Publish(context.Background(), connect.NewRequest(&dist.PublishRequest{
+				PackageId: composed.Msg.Package.Id, SourceRevision: tc.name, Channel: "local-self-test",
+			}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if published.Msg.Published || !strings.Contains(published.Msg.Refusal, "PLG-DIST-ATTEST") {
+				t.Fatalf("Publish = %+v; want local attestation refusal", published.Msg)
+			}
+			if got := releaseGateRequests.Load(); got != 1 {
+				t.Fatalf("release-gate requests = %d, want one local fake-gate request", got)
+			}
+			for _, evidence := range []string{"cosign.signature.json", "provenance.intoto.json", "bom.json"} {
+				if _, err := os.Stat(filepath.Join(composed.Msg.Package.ArtifactRoot, evidence)); !os.IsNotExist(err) {
+					t.Fatalf("failed fixture emitted %s (stat err=%v)", evidence, err)
+				}
+			}
+		})
+	}
+}
+
+func TestInstallChecksumGateRequiresChecksForEachDownload(t *testing.T) {
+	cases := []struct {
+		name    string
+		script  string
+		wantErr bool
+		wantPin bool
+	}{
+		{
+			name:    "comment-is-not-verification",
+			script:  "curl -fsSL https://example.invalid/releases/tool-v1.0.0 -o tool\n# sha256sum --check tool.sha256\n",
+			wantErr: true,
+		},
+		{
+			name:    "digest-print-is-not-verification",
+			script:  "curl -fsSL https://example.invalid/releases/tool-v1.0.0 -o tool\nsha256sum tool\n",
+			wantErr: true,
+		},
+		{
+			name:    "sha1-check-is-too-weak",
+			script:  "curl -fsSL https://example.invalid/releases/tool-v1.0.0 -o tool\nsha1sum --check tool.sha1\n",
+			wantErr: true,
+		},
+		{
+			name: "every-download-needs-a-check",
+			script: "curl -fsSL https://example.invalid/releases/tool-v1.0.0 -o tool\n" +
+				"curl -fsSL https://example.invalid/releases/data-v1.0.0 -o data\n" +
+				"sha256sum --check tool.sha256\n",
+			wantErr: true,
+		},
+		{
+			name: "checks-must-name-the-corresponding-download",
+			script: "curl -fsSL https://example.invalid/releases/tool-v1.0.0 -o tool\n" +
+				"curl -fsSL https://example.invalid/releases/data-v1.0.0 -o data\n" +
+				"sha256sum --check other.sha256\n" +
+				"sha256sum --check tool.sha256\n",
+			wantErr: true,
+		},
+		{
+			name: "duplicate-check-cannot-cover-two-downloads",
+			script: "curl -fsSL https://example.invalid/releases/tool-v1.0.0 -o tool\n" +
+				"curl -fsSL https://example.invalid/releases/data-v1.0.0 -o data\n" +
+				"sha256sum --check tool.sha256\n" +
+				"sha256sum --check tool.sha256\n",
+			wantErr: true,
+		},
+		{
+			name:    "checked-download",
+			script:  "curl -fsSL https://example.invalid/releases/tool-v1.0.0 -o tool\nsha256sum --check tool.sha256\n",
+			wantErr: false,
+		},
+		{
+			name:    "shasum-checked-download",
+			script:  "curl -fsSL https://example.invalid/releases/tool-v1.0.0 -o tool\nshasum -a 256 -c tool.sha256\n",
+			wantErr: false,
+		},
+		{
+			name: "dynamic-url-is-not-pinned",
+			script: "curl -fsSL \"$ARTIFACT_URL\" -o tool\n" +
+				"sha256sum --check tool.sha256\n",
+			wantErr: false,
+			wantPin: true,
+		},
+		{
+			name: "multiline-download-maps-to-its-checksum",
+			script: "curl \\\n  -fsSL \\\n  https://example.invalid/releases/tool-v1.0.0 \\\n  -o tool\n" +
+				"sha256sum --check tool.sha256\n",
+			wantErr: false,
+		},
+		{
+			name: "each-download-has-its-own-matching-check",
+			script: "curl -fsSL https://example.invalid/releases/tool-v1.0.0 -o tool\n" +
+				"curl -fsSL https://example.invalid/releases/tool-v1.0.0.sha256 -o tool.sha256\n" +
+				"wget -q https://example.invalid/releases/data-v1.0.0 -O data\n" +
+				"wget -q https://example.invalid/releases/data-v1.0.0.sha512 -O data.sha512\n" +
+				"sha256sum --check tool.sha256\n" +
+				"sha512sum -c data.sha512\n",
+			wantErr: false,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := fixtureRoot(t, true)
+			installPath := filepath.Join(root, "scenarios", "fixture", "cli", "install.sh")
+			if err := os.WriteFile(installPath, []byte(tc.script), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			h := &handler{root: root, packages: map[string]packageRecord{}}
+			resp, err := h.Compose(context.Background(), connect.NewRequest(&comp.ComposeRequest{Scenario: "fixture", SourceRevision: tc.name}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			check, err := h.Check(context.Background(), connect.NewRequest(&conf.CheckRequest{PackageId: resp.Msg.Package.Id}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			found := hasFinding(check.Msg.Findings, "PLG-CONF-INSTALL-SUM")
+			if found == !tc.wantErr {
+				t.Fatalf("checksum finding present = %t, want error %t; findings=%+v", found, tc.wantErr, check.Msg.Findings)
+			}
+			pinFound := hasFinding(check.Msg.Findings, "PLG-CONF-INSTALL-PIN")
+			if pinFound != tc.wantPin {
+				t.Fatalf("pin finding present = %t, want %t; findings=%+v", pinFound, tc.wantPin, check.Msg.Findings)
 			}
 		})
 	}

@@ -102,7 +102,13 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
   const { checkRateLimit, recordPipelineCreation } = rateLimiter;
 
   // Track ongoing load requests to prevent duplicate concurrent calls
-  let activeLoadPromise: Promise<void> | null = null;
+  let scenarioSelection = 0;
+  let activeLoad: {
+    scenarioName: string;
+    selection: number;
+    token: object;
+    promise: Promise<void>;
+  } | null = null;
 
   return {
     // Initial state
@@ -121,6 +127,8 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
         );
         return;
       }
+
+      scenarioSelection += 1;
 
       // Guard: Prevent setting scenario while loading is in progress for another
       const { isLoadingActivePipeline } = get();
@@ -327,6 +335,7 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
 
     reset: () => {
       clearPollingTimeout();
+      scenarioSelection += 1;
       const { scenarioName } = get();
       set({
         ...initialPipelineState,
@@ -383,12 +392,17 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
       } = get();
       if (!scenarioName) return;
 
+      const selection = scenarioSelection;
+
       // Guard 1: Prevent concurrent loads - return existing promise if one is active
-      if (activeLoadPromise) {
+      if (
+        activeLoad?.scenarioName === scenarioName &&
+        activeLoad.selection === selection
+      ) {
         console.debug(
           "[pipelineStore] loadActivePipeline skipped - returning existing promise",
         );
-        return activeLoadPromise;
+        return activeLoad.promise;
       }
 
       // Guard 2: Prevent concurrent loads via flag (belt-and-suspenders)
@@ -400,7 +414,7 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
       }
 
       // Guard 3: Debounce - prevent rapid repeated calls (protects against infinite loops)
-      if (!loadDebounceGuard.shouldProceed()) {
+      if (!loadDebounceGuard.shouldProceed(`${scenarioName}:${selection}`)) {
         return;
       }
 
@@ -423,22 +437,25 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
 
       set({ isLoadingActivePipeline: true });
 
-      // Create and track the load promise
-      const loadPromise = (async () => {
-        try {
-          // Capture scenario name at start to detect if it changed during async operation
-          const targetScenario = scenarioName;
+      const targetScenario = scenarioName;
+      const isCurrentSelection = () =>
+        get().scenarioName === targetScenario &&
+        scenarioSelection === selection;
 
+      // Create and track the load promise
+      const loadToken = {};
+      let loadPromise: Promise<void>;
+      loadPromise = (async () => {
+        try {
           const response = await getActivePipeline(targetScenario, {
             autoCreate,
           });
 
           // Guard: If scenario changed during fetch, discard results
-          if (get().scenarioName !== targetScenario) {
+          if (!isCurrentSelection()) {
             console.debug(
               "[pipelineStore] loadActivePipeline discarding stale results - scenario changed",
             );
-            set({ isLoadingActivePipeline: false });
             return;
           }
 
@@ -450,11 +467,10 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
             );
 
             // Guard again after second fetch
-            if (get().scenarioName !== targetScenario) {
+            if (!isCurrentSelection()) {
               console.debug(
                 "[pipelineStore] loadActivePipeline discarding stale status - scenario changed",
               );
-              set({ isLoadingActivePipeline: false });
               return;
             }
 
@@ -486,15 +502,24 @@ export const usePipelineStore = create<PipelineStore>((set, get) => {
             set({ isLoadingActivePipeline: false });
           }
         } catch (err) {
+          if (!isCurrentSelection()) return;
+
           logError("loadActivePipeline", err);
           const errorInfo = createErrorInfo(err);
           set({ errorInfo, isLoadingActivePipeline: false });
         } finally {
-          activeLoadPromise = null;
+          if (activeLoad?.token === loadToken) {
+            activeLoad = null;
+          }
         }
       })();
 
-      activeLoadPromise = loadPromise;
+      activeLoad = {
+        scenarioName: targetScenario,
+        selection,
+        token: loadToken,
+        promise: loadPromise,
+      };
       return loadPromise;
     },
 

@@ -9,7 +9,7 @@ prepared target.
 | Need | How you know it is met |
 |---|---|
 | A target on a certified platform (`docs/reference/support-policy.md`: Ubuntu 24.04 LTS amd64/arm64) | `scenario-to-cloud preflight requirements` prints the policy; `preflight run` reports the target against it |
-| A reach path: the target enrolled through `vrooli-bridge onboard` (`transport: bridge`), or an explicit SSH connection recorded on the manifest (`transport: ssh`) | `deployment resolve` prints `target: machine:<id> (bridge)` or `host:<addr> (ssh)`; a revoked enrollment is `reach_unavailable` and never falls back |
+| A ready target selected from Compute Manager | Deployment status retains the stable target identity; revoked or unavailable enrollment remains an explicit reachability failure and never falls back |
 | DNS for the public domain pointing at the target | `edge dns-check` after the record exists; `dns_policy: required` blocks the plan otherwise |
 | The scenario's declarations complete (`.vrooli/service.json`, resource declarations, credential descriptors) | `manifest doctor` and the closure preview name every unmet requirement |
 | Operator-supplied secrets ready to hand over | the plan's `needs_input` handoff lists the exact addresses |
@@ -126,7 +126,8 @@ baseline every later update and rollback compares against.
   release manifest beside it. Build the release (`deployment plan --force-bundle`
   rebuilds and re-signs) and re-plan.
 - **`reach_unavailable`** with `transport: bridge`: the enrollment was
-  revoked or the node is offline. Re-enroll through `vrooli-bridge onboard`;
+  revoked or the node is offline. Restore target readiness through Compute Manager's supported
+  provider and Onboarding flows;
   the cloud never falls back to SSH on its own.
 - **`operation_conflict` naming `blocking_operation_id`**: another operation
   holds this deployment's lease. Wait on it (`operation wait <id>`); operations

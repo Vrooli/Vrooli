@@ -3,6 +3,7 @@ package generation
 import (
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -327,10 +328,65 @@ func TestGenerateLinuxArtifactSignerManagedKeyUsesAuthorityEnv(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	text := string(content)
-	for _, expected := range []string{"VROOLI_GPG_PASSPHRASE", "process.env.VROOLI_GPG_HOMEDIR"} {
+	for _, expected := range []string{"VROOLI_GPG_PASSPHRASE_FILE", "process.env.VROOLI_GPG_HOMEDIR", "PASSPHRASE_IS_FILE = true", "await fs.readFile(passphraseValue, 'utf8')", "'--passphrase-fd', '0'"} {
 		if !strings.Contains(text, expected) {
 			t.Errorf("managed-key hook does not contain %q", expected)
 		}
+	}
+	if strings.Contains(text, "generated-passphrase") || strings.Contains(text, "VROOLI_GPG_PASSPHRASE'") {
+		t.Fatal("managed-key hook exposes passphrase material or legacy secret environment contract")
+	}
+}
+
+func TestManagedLinuxSignerReadsPassphraseFileAndStreamsToGPG(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node is not installed")
+	}
+	dir := t.TempDir()
+	binDir := dir + "/bin"
+	if err := os.Mkdir(binDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	content, err := generateLinuxArtifactSigner(&types.LinuxSigningConfig{
+		GPGKeyID: "ABC123", ManagedKey: &types.ManagedSigningKey{LogicalID: "vrooli/desktop-signing"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hookPath := dir + "/sign.js"
+	if err := os.WriteFile(hookPath, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	artifact := dir + "/demo-x64.AppImage"
+	if err := os.WriteFile(artifact, []byte("artifact"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	passphraseFile := dir + "/passphrase"
+	if err := os.WriteFile(passphraseFile, []byte("managed-secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	capturePath := dir + "/gpg-stdin"
+	gpgScript := "#!/bin/sh\nwhile [ $# -gt 0 ]; do\n  if [ \"$1\" = \"--output\" ]; then output=$2; shift 2; else shift; fi\ndone\ncat > \"$CAPTURE_GPG_STDIN\"\nprintf 'signature' > \"$output\"\n"
+	if err := os.WriteFile(binDir+"/gpg", []byte(gpgScript), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	runner := dir + "/runner.js"
+	runnerSource := "const hook = require(" + strconv.Quote(hookPath) + ");\nhook({ artifactPaths: [" + strconv.Quote(artifact) + "], outDir: " + strconv.Quote(dir) + ", configuration: { version: '0.0.1' } }).catch((e) => { console.error(e); process.exit(1); });\n"
+	if err := os.WriteFile(runner, []byte(runnerSource), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(node, runner)
+	cmd.Env = append(os.Environ(), "PATH="+binDir+":"+os.Getenv("PATH"), "VROOLI_GPG_PASSPHRASE_FILE="+passphraseFile, "VROOLI_GPG_HOMEDIR="+dir, "CAPTURE_GPG_STDIN="+capturePath)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("managed signing hook failed: %v: %s", err, output)
+	}
+	stdin, err := os.ReadFile(capturePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(stdin) != "managed-secret\n" {
+		t.Fatalf("gpg stdin = %q, want passphrase followed by newline", stdin)
 	}
 }
 

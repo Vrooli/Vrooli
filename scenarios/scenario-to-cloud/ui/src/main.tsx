@@ -1,3 +1,4 @@
+import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1.3.0";
 import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
 import React from "react";
 import ReactDOM from "react-dom/client";
@@ -37,7 +38,7 @@ ReactDOM.createRoot(root).render(
     <SpatialNavProvider controller={spatialNav}>
       <QueryClientProvider client={queryClient}>
         <React.Profiler id="App" onRender={onProfilerRender}>
-          <App />
+          <><BaseStyles /><App /></>
         </React.Profiler>
       </QueryClientProvider>
     </SpatialNavProvider>

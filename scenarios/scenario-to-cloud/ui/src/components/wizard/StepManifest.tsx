@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Code, FormInput, AlertCircle, Check, AlertTriangle, Search, RefreshCw, Undo2, Redo2, RotateCcw, ChevronDown } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "../ui/button-adapter";
 import { Input } from "../ui/input";
 import { Alert } from "../ui/alert";
 import { HelpTooltip } from "../ui/tooltip";

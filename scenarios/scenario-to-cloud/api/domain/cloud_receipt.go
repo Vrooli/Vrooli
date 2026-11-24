@@ -124,15 +124,7 @@ func (r CloudDeploymentReceipt) checkFreshness(expect ReceiptExpectation) error 
 // sorted.
 func (r CloudDeploymentReceipt) CanonicalJSON() ([]byte, error) {
 	r.Signature = nil
-	raw, err := json.Marshal(r)
-	if err != nil {
-		return nil, err
-	}
-	var generic map[string]any
-	if err := json.Unmarshal(raw, &generic); err != nil {
-		return nil, err
-	}
-	return json.Marshal(generic)
+	return receiptsigning.CanonicalJSON(r)
 }
 
 // Sign attaches the producer attestation.
@@ -194,6 +186,25 @@ type CloudRecoveryReceipt struct {
 	RouteKind     string `json:"route_kind,omitempty"`
 }
 
+// CloudRecoveryPreview is a read-only, owner-generated description of the
+// exact recovery effect. Compatibility remains an explicit caller declaration
+// and is not inferred or proven by rendering this preview.
+type CloudRecoveryPreview struct {
+	DeploymentID              string
+	Action                    string
+	CurrentBundleSHA256       string
+	CurrentReleaseDigest      string
+	LastGoodReleaseDigest     string
+	RepairBundleSHA256        string
+	ReviewRef                 string
+	DataCompatibility         string
+	RouteKind                 string
+	ImpactSummary             string
+	PreviewRef                string
+	IdempotencyKey            string
+	DataCompatibilityDeclared bool
+}
+
 // Recovery routes. The cloud-target route is selected when the deployment's
 // target binding carries a Bridge machine identity (native control plane on
 // the target); the bundle pipeline is the documented fallback.
@@ -206,11 +217,12 @@ const (
 // RecoveryBinding ties a repair operation to the governed publication it
 // acts on, the preview the operator reviewed and the owner route chosen.
 type RecoveryBinding struct {
-	ReviewRef     string `json:"review_ref"`
-	PublicationID string `json:"publication_id,omitempty"`
-	ReleaseDigest string `json:"release_digest,omitempty"`
-	PreviewRef    string `json:"preview_ref"`
-	RouteKind     string `json:"route_kind"`
+	ReviewRef            string `json:"review_ref"`
+	PublicationID        string `json:"publication_id,omitempty"`
+	CurrentReleaseDigest string `json:"current_release_digest,omitempty"`
+	ReleaseDigest        string `json:"release_digest,omitempty"`
+	PreviewRef           string `json:"preview_ref"`
+	RouteKind            string `json:"route_kind"`
 }
 
 func (r CloudRecoveryReceipt) Valid() bool {

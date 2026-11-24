@@ -92,26 +92,7 @@ func FindCompressedLog(logs []CompressedLog, serviceID string) *CompressedLog {
 
 // MergeLogs merges new logs into existing logs, replacing by service ID.
 func MergeLogs(existing, newLogs []CompressedLog) []CompressedLog {
-	if len(newLogs) == 0 {
-		return existing
-	}
-
-	// Create map for quick lookup
-	logMap := make(map[string]CompressedLog, len(existing)+len(newLogs))
-	for _, cl := range existing {
-		logMap[cl.ServiceID] = cl
-	}
-	for _, cl := range newLogs {
-		logMap[cl.ServiceID] = cl // Overwrite existing
-	}
-
-	// Convert back to slice
-	result := make([]CompressedLog, 0, len(logMap))
-	for _, cl := range logMap {
-		result = append(result, cl)
-	}
-
-	return result
+	return mergeBy(existing, newLogs, func(log CompressedLog) string { return log.ServiceID })
 }
 
 // countLines counts the number of lines in a string.

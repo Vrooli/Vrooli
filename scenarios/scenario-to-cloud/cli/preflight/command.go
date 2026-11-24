@@ -3,6 +3,8 @@ package preflight
 import (
 	"flag"
 	"fmt"
+
+	"scenario-to-cloud/cli/internal/sizefmt"
 	"strconv"
 	"strings"
 
@@ -209,10 +211,10 @@ Flags:
 		strings.Join(resp.VPS.OS.CompatibleVersions, ", "),
 	)
 	fmt.Printf("RAM: min %s, recommended %s\n",
-		formatSize(resp.VPS.Resources.MinRAMBytes),
-		formatSize(resp.VPS.Resources.RecommendedRAMBytes),
+		sizefmt.FormatBytes(resp.VPS.Resources.MinRAMBytes),
+		sizefmt.FormatBytes(resp.VPS.Resources.RecommendedRAMBytes),
 	)
-	fmt.Printf("Disk: min free %s\n", formatSize(resp.VPS.Resources.MinDiskFreeBytes))
+	fmt.Printf("Disk: min free %s\n", sizefmt.FormatBytes(resp.VPS.Resources.MinDiskFreeBytes))
 	fmt.Printf("Inbound ports: %s\n", joinPorts(resp.VPS.Network.RequiredInboundPorts))
 	fmt.Printf("Auth: %s (bootstrap: %s)\n",
 		resp.VPS.Authentication.RequiredMethod,
@@ -325,25 +327,6 @@ func joinPorts(ports []int) string {
 		values = append(values, strconv.Itoa(p))
 	}
 	return strings.Join(values, ", ")
-}
-
-// formatSize formats bytes into a human-readable string.
-func formatSize(bytes int64) string {
-	const (
-		KB = 1024
-		MB = KB * 1024
-		GB = MB * 1024
-	)
-	switch {
-	case bytes >= GB:
-		return fmt.Sprintf("%.1fG", float64(bytes)/GB)
-	case bytes >= MB:
-		return fmt.Sprintf("%.1fM", float64(bytes)/MB)
-	case bytes >= KB:
-		return fmt.Sprintf("%.1fK", float64(bytes)/KB)
-	default:
-		return fmt.Sprintf("%dB", bytes)
-	}
 }
 
 type intListFlag struct {

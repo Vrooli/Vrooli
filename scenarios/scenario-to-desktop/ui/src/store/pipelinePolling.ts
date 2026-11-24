@@ -75,7 +75,7 @@ export function createStatusSubscriberManager(): StatusSubscriberManager {
  */
 export interface LoadDebounceGuard {
   /** Check if a load attempt should proceed (returns true if OK) */
-  shouldProceed: () => boolean;
+  shouldProceed: (scope?: string) => boolean;
 
   /** The minimum time between load attempts in ms */
   readonly debounceMs: number;
@@ -85,11 +85,12 @@ export interface LoadDebounceGuard {
  * Creates a debounce guard for loadActivePipeline to prevent rapid repeated calls.
  */
 export function createLoadDebounceGuard(debounceMs = 500): LoadDebounceGuard {
+  let lastLoadScope: string | null = null;
   let lastLoadAttemptTime = 0;
 
-  const shouldProceed = (): boolean => {
+  const shouldProceed = (scope = "default"): boolean => {
     const now = Date.now();
-    if (now - lastLoadAttemptTime < debounceMs) {
+    if (lastLoadScope === scope && now - lastLoadAttemptTime < debounceMs) {
       console.debug(
         "[pipelineStore] loadActivePipeline skipped - debounce active",
         {
@@ -99,6 +100,7 @@ export function createLoadDebounceGuard(debounceMs = 500): LoadDebounceGuard {
       );
       return false;
     }
+    lastLoadScope = scope;
     lastLoadAttemptTime = now;
     return true;
   };

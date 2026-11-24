@@ -23,13 +23,14 @@ import (
 )
 
 type cloudRecoveryHTTPRequest struct {
-	Action            string `json:"action"`
-	ExpectedBundleSHA string `json:"expected_bundle_sha256"`
-	RepairBundleSHA   string `json:"repair_bundle_sha256"`
-	DataCompatibility string `json:"data_compatibility"`
-	IdempotencyKey    string `json:"idempotency_key"`
-	Confirmation      string `json:"confirmation"`
-	DryRun            bool   `json:"dry_run"`
+	Action                       string `json:"action"`
+	ExpectedBundleSHA            string `json:"expected_bundle_sha256"`
+	ExpectedCurrentReleaseDigest string `json:"expected_current_release_digest"`
+	RepairBundleSHA              string `json:"repair_bundle_sha256"`
+	DataCompatibility            string `json:"data_compatibility"`
+	IdempotencyKey               string `json:"idempotency_key"`
+	Confirmation                 string `json:"confirmation"`
+	DryRun                       bool   `json:"dry_run"`
 	// ReviewRef binds the repair to the governed publication (its approved
 	// review); ReleaseDigest names the exact release to restore or repair to;
 	// PreviewRef is the dry-run reference the owner issued.
@@ -42,8 +43,8 @@ type cloudRecoveryHTTPRequest struct {
 // exact identity of the effect the preview described. An execution must
 // present it, so a preview for another bundle, action or review cannot be
 // spent on this one.
-func recoveryPreviewRef(deploymentID, action, expectedSHA, repairSHA, reviewRef, routeKind string) string {
-	sum := sha256.Sum256([]byte(strings.Join([]string{deploymentID, action, expectedSHA, repairSHA, reviewRef, routeKind}, "\x00")))
+func recoveryPreviewRef(deploymentID, action, expectedSHA, currentReleaseDigest, repairSHA, reviewRef, routeKind, idempotencyKey string) string {
+	sum := sha256.Sum256([]byte(strings.Join([]string{deploymentID, action, expectedSHA, currentReleaseDigest, repairSHA, reviewRef, routeKind, idempotencyKey}, "\x00")))
 	return "preview:" + hex.EncodeToString(sum[:])
 }
 
@@ -91,7 +92,18 @@ func (s *Server) bindRecoveryToPublication(ctx context.Context, deployment *doma
 			return nil, rollbackErr
 		}
 	}
-	return &domain.RecoveryBinding{ReviewRef: reviewRef, PublicationID: bound.ID, ReleaseDigest: releaseDigest, RouteKind: recoveryRoute(deployment, request.Action)}, nil
+	currentReleaseDigest := strings.TrimSpace(bound.ActivatedReleaseDigest)
+	if currentReleaseDigest == "" {
+		currentReleaseDigest = strings.TrimSpace(bound.ReleaseDigest)
+	}
+	if currentReleaseDigest == "" || (request.ExpectedCurrentReleaseDigest != "" && normalizeRecoverySHA(currentReleaseDigest) != normalizeRecoverySHA(request.ExpectedCurrentReleaseDigest)) {
+		return nil, apierrors.New(apierrors.CodePublicationRefused, "Recovery review does not identify the exact current published release").WithDetail("refusal", "current_release_mismatch")
+	}
+	currentBundleSHA := normalizeRecoverySHA(s.publication().bundleFor(currentReleaseDigest))
+	if currentBundleSHA == "" || currentBundleSHA != normalizeRecoverySHA(request.ExpectedBundleSHA) {
+		return nil, apierrors.New(apierrors.CodePublicationRefused, "The reviewed current release does not match the deployment's current bundle").WithDetail("refusal", "current_bundle_mismatch")
+	}
+	return &domain.RecoveryBinding{ReviewRef: reviewRef, PublicationID: bound.ID, CurrentReleaseDigest: currentReleaseDigest, ReleaseDigest: releaseDigest, RouteKind: recoveryRoute(deployment, request.Action)}, nil
 }
 
 func bindRollbackReleaseDigest(releaseDigest string, bound *evidence.Publication) (string, *apierrors.Error) {
@@ -121,9 +133,9 @@ func (s *Server) handleCloudRepairRecovery(w http.ResponseWriter, r *http.Reques
 	if !ok {
 		return
 	}
-	binding.PreviewRef = recoveryPreviewRef(id, request.Action, currentSHA, repairSHA, binding.ReviewRef, binding.RouteKind)
+	binding.PreviewRef = recoveryPreviewRef(id, request.Action, currentSHA, binding.CurrentReleaseDigest, repairSHA, binding.ReviewRef, binding.RouteKind, strings.TrimSpace(request.IdempotencyKey))
 	if request.DryRun {
-		writeCloudRecoveryPreview(w, id, request.Action, repairSHA, binding)
+		writeCloudRecoveryPreview(w, id, request.Action, currentSHA, binding.CurrentReleaseDigest, repairSHA, request.DataCompatibility, request.IdempotencyKey, binding)
 		return
 	}
 	if !s.cloudRecoveryCanStart(w, request, deployment, binding) {
@@ -162,7 +174,7 @@ func (s *Server) resolveCloudRecoveryRepair(w http.ResponseWriter, r *http.Reque
 	if repairSHA == "" && binding.ReleaseDigest != "" {
 		repairSHA = normalizeRecoverySHA(s.publication().bundleFor(binding.ReleaseDigest))
 	}
-	if !validRecoverySHA(repairSHA) {
+	if !domain.IsSHA256Hex(repairSHA) {
 		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{Code: "invalid_repair_bundle", Message: "repair_bundle_sha256 must be a 64-character hexadecimal SHA256"})
 		return nil, domain.BundleInfo{}, "", false
 	}
@@ -178,9 +190,15 @@ func (s *Server) resolveCloudRecoveryRepair(w http.ResponseWriter, r *http.Reque
 	return binding, repairBundle, repairSHA, true
 }
 
-func writeCloudRecoveryPreview(w http.ResponseWriter, id, action, repairSHA string, binding *domain.RecoveryBinding) {
+func writeCloudRecoveryPreview(w http.ResponseWriter, id, action, currentSHA, currentReleaseDigest, repairSHA, dataCompatibility, idempotencyKey string, binding *domain.RecoveryBinding) {
 	receipt := domain.CloudRecoveryReceipt{SchemaVersion: 1, DeploymentID: id, Action: action, Outcome: "preview", Health: "unknown", BundleSHA256: repairSHA, DryRun: true, PreviewRef: binding.PreviewRef, ReviewKey: binding.ReviewRef, ReleaseDigest: binding.ReleaseDigest, RouteKind: binding.RouteKind}
-	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{"receipt": receipt, "timestamp": time.Now().UTC().Format(time.RFC3339Nano)})
+	impact := "Replace the active deployment bundle with the exact retained predecessor and run the existing owner deployment plan; the preview does not independently test data compatibility or perform a data restore."
+	httputil.WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"receipt": receipt, "timestamp": time.Now().UTC().Format(time.RFC3339Nano),
+		"current_bundle_sha256": currentSHA, "current_release_digest": currentReleaseDigest,
+		"data_compatibility": dataCompatibility, "data_compatibility_declared": dataCompatibility == "compatible",
+		"idempotency_key": idempotencyKey, "impact_summary": impact,
+	})
 }
 
 func (s *Server) cloudRecoveryCanStart(w http.ResponseWriter, request cloudRecoveryHTTPRequest, deployment *domain.Deployment, binding *domain.RecoveryBinding) bool {
@@ -426,14 +444,6 @@ func findLocalRecoveryBundle(scenarioID, wantedSHA string) (domain.BundleInfo, e
 
 func normalizeRecoverySHA(value string) string {
 	return strings.TrimPrefix(strings.ToLower(strings.TrimSpace(value)), "sha256:")
-}
-
-func validRecoverySHA(value string) bool {
-	if len(value) != sha256.Size*2 {
-		return false
-	}
-	_, err := hex.DecodeString(value)
-	return err == nil
 }
 
 func stringPtr(value string) *string { return &value }

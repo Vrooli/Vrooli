@@ -425,7 +425,7 @@ func New() (*Server, error) {
 			return "", err
 		}
 		return principal.Subject, nil
-	}).WithReadAuthorization(func(ctx context.Context) error {
+	}).WithCloudComputeAdmissionVerifier(newCloudComputeAdmissionVerifier()).WithCloudComputeAcquirer(newCloudComputeAcquirer()).WithCloudComputeEnroller(newCloudComputeAcquirer()).WithCloudComputeReleaser(newCloudComputeReleaseAdapter()).WithCloudLeaseRenewer(newCloudComputeReleaseAdapter()).WithReadAuthorization(func(ctx context.Context) error {
 		return authz.RequireRead(ctx)
 	}).WithAlertPublisher(eventbus.NewDiscoveredClient(context.Background())).WithSigningExpiryLookup(signingExpiryLookup{repo: signingRepo}).WithDurableOperations(true).WithRecoveryExecutor(srv.Orchestrator).WithReadinessLookup(func(ctx context.Context, key string) (*releases.ReadinessApproval, error) {
 		review, err := readinessRepo.Get(ctx, key)
@@ -462,12 +462,19 @@ func New() (*Server, error) {
 		return &releases.ReadinessApproval{Key: review.Key, Scenario: review.Identity.Scenario, ProfileID: review.Identity.ProfileID, CandidateCommit: review.Identity.CandidateCommit, ArtifactDigest: review.Identity.ArtifactDigest, CandidateID: review.Identity.CandidateID, DestinationRevisionID: review.Identity.DestinationRevisionID, AuthorizationEpoch: review.Identity.AuthorizationEpoch, EvidenceSetDigest: evidenceDigest, PolicyDigest: policyDigest, Targets: review.Identity.Targets, Channel: review.Identity.Channel, PolicyVersion: review.Identity.PolicyVersion, Status: string(review.Status), ApprovedAt: review.ApprovedAt}, nil
 	}).WithReadinessPromoter(readinessRepo.MarkPromoted)
 	srv.ReleasesHandler.WithIdentityRepository(releasesRepo)
+	srv.ReleasesHandler.WithOperationProfileVisibility(func(ctx context.Context, profileID string) (bool, error) {
+		profile, err := profilesRepo.Get(ctx, profileID)
+		if err != nil {
+			return false, err
+		}
+		return profile != nil && profile.ID == profileID, nil
+	})
 	connectTransport := transport.NewHandler(
 		srv.DependenciesHandler, srv.FitnessHandler, srv.DeploymentsHandler, srv.Orchestrator,
 		srv.SwapsHandler, srv.TelemetryHandler.List, srv.TelemetryHandler.Upload, srv.MigrationTasksHandler.Report, srv.MigrationTasksHandler.Status,
 		srv.ApprovalsHandler, srv.LPBSConfigHandler.Get, srv.LPBSConfigHandler.Upsert,
 		srv.ReleasesHandler.ListByProfile, srv.ReleasesHandler.Get, srv.ReleasesHandler.Verify, srv.ReleasesHandler.Start,
-	).WithReleaseDossierHandler(srv.ReleasesHandler.Dossier).WithReleaseOperationHandler(srv.ReleasesHandler.GetOperation).WithReleaseReconcileHandler(srv.ReleasesHandler.Reconcile).WithReleaseRecoverHandler(srv.ReleasesHandler.Recover).WithAuthorization(func(ctx context.Context) error {
+	).WithReleaseDossierHandler(srv.ReleasesHandler.Dossier).WithReleaseOperationHandler(srv.ReleasesHandler.GetOperation).WithReleaseOperationIndexHandler(srv.ReleasesHandler.ListOperationsByProfile).WithReleaseOperationResumeHandler(srv.ReleasesHandler.ResumeCloudOperation).WithReleaseOperationVerificationResumeHandler(srv.ReleasesHandler.ResumeCloudVerification).WithReleaseOperationTeardownHandler(srv.ReleasesHandler.RequestCloudTeardown).WithReleaseOperationLeaseRenewalHandler(srv.ReleasesHandler.RequestCloudLeaseRenewal).WithReleaseOperationRecoveryReconcileHandler(srv.ReleasesHandler.ReconcileCloudRecoveryOperation).WithReleaseReconcileHandler(srv.ReleasesHandler.Reconcile).WithReleaseRecoverHandler(srv.ReleasesHandler.Recover).WithAuthorization(func(ctx context.Context) error {
 		return authz.RequireWrite(ctx)
 	}).WithClientUpdateReceiptAuthorization(func(ctx context.Context) error {
 		return authz.RequireClientUpdateReceipt(ctx)

@@ -34,16 +34,7 @@ func TestEdgeCases(t *testing.T) {
 			t.Fatalf("Failed to execute request: %v", err)
 		}
 
-		// Should use default site
-		response := assertJSONResponse(t, w, http.StatusOK, nil)
-		if response == nil {
-			t.Fatal("No response received")
-		}
-
-		testResults, ok := response["test_results"].([]interface{})
-		if !ok || len(testResults) == 0 {
-			t.Error("Expected at least one test result with default site")
-		}
+		assertErrorResponse(t, w, http.StatusGone)
 	})
 
 	t.Run("NilTestSites", func(t *testing.T) {
@@ -61,16 +52,7 @@ func TestEdgeCases(t *testing.T) {
 			t.Fatalf("Failed to execute request: %v", err)
 		}
 
-		// Should use default site
-		response := assertJSONResponse(t, w, http.StatusOK, nil)
-		if response == nil {
-			t.Fatal("No response received")
-		}
-
-		testResults, ok := response["test_results"].([]interface{})
-		if !ok || len(testResults) == 0 {
-			t.Error("Expected at least one test result with default site")
-		}
+		assertErrorResponse(t, w, http.StatusGone)
 	})
 
 	t.Run("EmptyScenarioName", func(t *testing.T) {

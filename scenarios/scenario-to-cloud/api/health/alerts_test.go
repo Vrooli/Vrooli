@@ -205,7 +205,7 @@ func TestAlerterStaleOrUnknownObservationRaisesStaleNeverHealthy(t *testing.T) {
 	}
 }
 
-// TestAlerterCertificateExpiringAndRenewalFailed covers the edge
+// TestAlerterCertificateExpiringAndRenewalFailed [REQ:STC-P0-036] covers the edge
 // observation: a certificate inside the 14-day window warns, an expired or
 // unprobeable certificate is critical with reason renewal_failed.
 func TestAlerterCertificateExpiringAndRenewalFailed(t *testing.T) {
@@ -292,6 +292,68 @@ func TestAlerterPublishFailureRetriesNextObservation(t *testing.T) {
 	sink.mu.Unlock()
 	if published := a.Observe(context.Background(), down, report); len(published) != 1 {
 		t.Fatalf("retry did not publish: %+v", published)
+	}
+}
+
+type memoryAlertState struct{ alerts map[string][]perfbudget.Alert }
+
+func (s *memoryAlertState) Load(_ context.Context, deploymentID string) (json.RawMessage, error) {
+	raw, _ := json.Marshal(s.alerts[deploymentID])
+	return raw, nil
+}
+func (s *memoryAlertState) Save(_ context.Context, deploymentID string, raw json.RawMessage) error {
+	var alerts []perfbudget.Alert
+	if err := json.Unmarshal(raw, &alerts); err != nil {
+		return err
+	}
+	s.alerts[deploymentID] = alerts
+	return nil
+}
+
+// TestAlerterRestartPublishesRecoveryFromPersistedOpenState [REQ:STC-P0-036]
+// proves a certificate-failure recovery is not lost across an API restart.
+func TestAlerterRestartPublishesRecoveryFromPersistedOpenState(t *testing.T) {
+	now := time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
+	sink, client := newEventSink(t)
+	state := &memoryAlertState{alerts: map[string][]perfbudget.Alert{}}
+	failedTLS := fixtureTLS()
+	failedTLS.Probe.Valid = false
+	failedTLS.Probe.DaysRemaining = -2
+	failedTLS.Probe.NotAfter = now.Add(-2 * 24 * time.Hour).Format(certTimeLayout)
+	down, downReport := observationFor(t, fixtureLiveState(now, "running"), failedTLS, now)
+	first := fixedAlerter(client, now).WithStateStore(state)
+	if got := first.Observe(context.Background(), down, downReport); len(got) == 0 || len(state.alerts[down.GetDeploymentId()]) == 0 {
+		t.Fatalf("TLS failure was not acknowledged into durable state: emitted=%+v stored=%+v", got, state.alerts)
+	}
+	// A new Alerter instance simulates a scenario-to-cloud API restart. It must
+	// load the previous open incident and emit its recovery when health returns.
+	up, upReport := observationFor(t, fixtureLiveState(now.Add(time.Minute), "running"), fixtureTLS(), now.Add(time.Minute))
+	second := fixedAlerter(client, now.Add(time.Minute)).WithStateStore(state)
+	got := second.Observe(context.Background(), up, upReport)
+	resolvedTLS := false
+	for _, alert := range got {
+		if alert.CheckID == perfbudget.CheckCertificateExpiring && alert.Status == perfbudget.AlertResolved {
+			resolvedTLS = true
+		}
+	}
+	if !resolvedTLS {
+		t.Fatalf("restart lost recovery transition: %+v", got)
+	}
+	if len(state.alerts[up.GetDeploymentId()]) != 0 {
+		t.Fatalf("resolved incident remains open in store: %+v", state.alerts[up.GetDeploymentId()])
+	}
+	facts := sink.facts(t)
+	var opened, resolved bool
+	for _, fact := range facts {
+		if fact["check_id"] == perfbudget.CheckCertificateExpiring && fact["status"] == perfbudget.AlertOpen {
+			opened = true
+		}
+		if fact["check_id"] == perfbudget.CheckCertificateExpiring && fact["status"] == perfbudget.AlertResolved {
+			resolved = true
+		}
+	}
+	if !opened || !resolved {
+		t.Fatalf("TLS open/recovery notification pair = %v", facts)
 	}
 }
 

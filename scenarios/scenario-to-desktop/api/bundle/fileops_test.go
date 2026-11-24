@@ -3,6 +3,7 @@ package bundle
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -264,18 +265,22 @@ func TestPlatformResolver_ParseKey(t *testing.T) {
 
 func TestPlatformResolver_NormalizeRuntime(t *testing.T) {
 	resolver := &defaultPlatformResolver{}
+	shorthandArch := "x64"
+	if runtime.GOARCH == "arm64" {
+		shorthandArch = "arm64"
+	}
 
 	tests := []struct {
 		input    string
 		expected string
 	}{
-		{"linux", "linux-x64"},
+		{"linux", "linux-" + shorthandArch},
 		{"linux-amd64", "linux-x64"},
 		{"linux-arm64", "linux-arm64"},
-		{"mac", "darwin-x64"},
-		{"darwin", "darwin-x64"},
-		{"win", "win-x64"},
-		{"windows", "win-x64"},
+		{"mac", "darwin-" + shorthandArch},
+		{"darwin", "darwin-" + shorthandArch},
+		{"win", "win-" + shorthandArch},
+		{"windows", "win-" + shorthandArch},
 		{"linux-arm64", "linux-arm64"},
 	}
 
@@ -317,54 +322,6 @@ func TestPlatformResolver_BinaryNames(t *testing.T) {
 		name := resolver.RuntimeCtlBinaryName("windows")
 		if name != "runtimectl.exe" {
 			t.Errorf("expected 'runtimectl.exe', got %q", name)
-		}
-	})
-}
-
-func TestAliasPlatformKey(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"windows-x64", "win-x64"},
-		{"win-x64", "windows-x64"},
-		{"darwin-arm64", "mac-arm64"},
-		{"mac-arm64", "darwin-arm64"},
-		{"linux-x64", ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			result := aliasPlatformKey(tt.input)
-			if result != tt.expected {
-				t.Errorf("aliasPlatformKey(%q) = %q, want %q", tt.input, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestExpandShorthandPlatform(t *testing.T) {
-	t.Run("win expands", func(t *testing.T) {
-		keys := expandShorthandPlatform("win")
-		if len(keys) == 0 {
-			t.Errorf("expected keys for 'win'")
-		}
-		found := false
-		for _, k := range keys {
-			if k == "win-x64" || k == "windows-x64" {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("expected win-x64 or windows-x64 in keys")
-		}
-	})
-
-	t.Run("linux expands", func(t *testing.T) {
-		keys := expandShorthandPlatform("linux")
-		if len(keys) == 0 {
-			t.Errorf("expected keys for 'linux'")
 		}
 	})
 }

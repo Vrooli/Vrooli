@@ -117,13 +117,13 @@ func main() {
 	journeyRunner := func(ctx context.Context, request deliveryramp.DriverRequest) (deliveryramp.JourneyResult, error) {
 		return (journeys.Driver{GOOS: runtime.GOOS}).Execute(ctx, request)
 	}
-	matrixExecutor := releases.Executor{JourneyPlan: iosPlan, RunJourney: journeyRunner}
+	matrixExecutor := releases.MirrorReleaseGuard{Next: releases.Executor{JourneyPlan: iosPlan, RunJourney: journeyRunner}}
 	// The bridge executor must not be the local one. A Linux host cannot build
 	// or boot an iOS simulator, so running a "bridge" cell locally could only
 	// fail or, worse, attribute a local result to a remote target.
 	executors := validationmatrix.Executors{Local: matrixExecutor}
 	if bridgeClient != nil {
-		executors.Bridge = bridgeClient
+		executors.Bridge = releases.MirrorReleaseGuard{Next: bridgeClient}
 	}
 	matrixService := validationmatrix.NewService(
 		matrixStore,

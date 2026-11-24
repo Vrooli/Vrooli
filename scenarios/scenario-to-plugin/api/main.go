@@ -91,7 +91,9 @@ func main() {
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "scenario-to-plugin-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
-		pipelineH.NewWithDB(repoRoot, db.Primary()),
+		pipelineH.NewWithArtifactRoot(repoRoot, db.Primary(), func(ctx context.Context) (string, error) {
+			return fileRootPath(ctx, fileRoots, storage.ClassData, "plugin-artifacts")
+		}),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

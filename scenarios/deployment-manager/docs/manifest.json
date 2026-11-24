@@ -565,16 +565,6 @@
           "completion": "optional"
         },
         {
-          "path": "providers/digitalocean.md",
-          "docType": "provider-digitalocean",
-          "title": "provider digitalocean",
-          "maturity": "draft",
-          "requiredBy": [
-            "oriented"
-          ],
-          "completion": "optional"
-        },
-        {
           "path": "providers/hardware-appliance.md",
           "docType": "provider-hardware-appliance",
           "title": "provider hardware appliance",

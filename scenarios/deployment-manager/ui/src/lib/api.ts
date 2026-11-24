@@ -637,6 +637,8 @@ export interface ReleaseOperation {
   created_at: string;
   updated_at: string;
   completed_at?: string;
+  cloud_spend_quote_idempotency_key?: string;
+  cloud_compute_manager_instance_id?: string;
 }
 
 export interface ReleaseListResponse {
@@ -662,6 +664,8 @@ export interface StartReleaseRequest {
   cloud_bundle_sha256?: string;
   cloud_bundle_size_bytes?: number;
   cloud_run_preflight?: boolean;
+  cloud_spend_quote_idempotency_key?: string;
+  cloud_compute_manager_instance_id?: string;
 }
 
 export interface StartReleaseResponse {

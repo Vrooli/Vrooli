@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/vrooli/binaryfetch"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/vrooli/binaryfetch"
+	capabilityregistry "github.com/vrooli/vrooli/packages/capability-registry-go"
 	component "github.com/vrooli/vrooli/packages/desktop-component"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/components"
@@ -27,6 +28,31 @@ func (s *Supervisor) ComponentCatalog(ctx context.Context) ([]component.SignedEn
 func (s *Supervisor) ComponentInstallations(ctx context.Context) ([]components.Installation, error) {
 	return s.components.Installed(ctx)
 }
+
+// OptionalDependencyDeclarations reads the app's staged service manifest and
+// projects it through the shared capability registry. The runtime does not
+// synthesize dependencies from bundle services or release metadata.
+func (s *Supervisor) OptionalDependencyDeclarations(ctx context.Context) ([]capabilityregistry.Def, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if s.opts.Manifest == nil || !component.ValidID(s.opts.Manifest.App.Scenario) {
+		return nil, fmt.Errorf("desktop app scenario identity is unavailable")
+	}
+	serviceManifest := filepath.Join(s.opts.BundlePath, "catalog", "scenarios", s.opts.Manifest.App.Scenario, ".vrooli", "service.json")
+	definitions, err := capabilityregistry.ProjectManifest(serviceManifest, nil)
+	if err != nil {
+		return nil, fmt.Errorf("project staged service manifest: %w", err)
+	}
+	optional := make([]capabilityregistry.Def, 0, len(definitions))
+	for _, definition := range definitions {
+		if !definition.Required {
+			optional = append(optional, definition)
+		}
+	}
+	return optional, nil
+}
+
 func (s *Supervisor) InstallComponent(ctx context.Context, id string) (components.Installation, error) {
 	rows, err := s.components.Catalog(ctx)
 	if err != nil {
@@ -89,38 +115,45 @@ func (s *Supervisor) ResolveFeature(ctx context.Context, owner, feature, request
 	if err != nil {
 		return api.FeatureResolution{}, err
 	}
-	if selected, err := s.resolveFullFeature(ctx, rows, owner, feature, requestedRange); err != nil || selected.Source != "" {
-		return selected, err
-	}
 	peers := append(append([]manifest.Peer(nil), s.opts.Manifest.Peers...), s.opts.Manifest.ProgramBindingPeers...)
-	localBindings := 0
-	for _, peer := range peers {
-		if _, ok := peer.Features[feature]; ok && peer.Scenario == owner {
-			localBindings++
-		}
-	}
-	for i := range rows {
-		if rows[i].State == components.Pending {
-			if active, ok := s.activeComponents[rows[i].Signed.Entry.ID]; ok {
-				rows[i] = active
+	selected, err := firstAvailableFeatureProvider(
+		func() (api.FeatureResolution, error) {
+			return s.resolveFullFeature(ctx, rows, owner, feature, requestedRange)
+		},
+		func() (api.FeatureResolution, error) {
+			for i := range rows {
+				if rows[i].State == components.Pending {
+					if active, ok := s.activeComponents[rows[i].Signed.Entry.ID]; ok {
+						rows[i] = active
+					}
+				}
 			}
-		}
-		if rows[i].State != components.Installed || rows[i].Signed.Entry.Owner != owner {
-			continue
-		}
-		for _, provided := range rows[i].Signed.Entry.Provides {
-			if provided.ID == feature {
-				localBindings++
-			}
-		}
-	}
-	if localBindings > 1 {
-		return api.FeatureResolution{}, fmt.Errorf("ambiguous feature provider")
-	}
-	if selected, err := s.resolveEmbeddedFeature(ctx, peers, owner, feature, requestedRange); err != nil || selected.Source != "" {
+			return s.resolveInstalledFeature(ctx, rows, owner, feature, requestedRange)
+		},
+		func() (api.FeatureResolution, error) {
+			return s.resolveEmbeddedFeature(ctx, peers, owner, feature, requestedRange)
+		},
+	)
+	if err != nil || selected.Source != "" {
 		return selected, err
 	}
-	return s.resolveInstalledFeature(ctx, rows, owner, feature, requestedRange)
+	return api.FeatureResolution{}, fmt.Errorf("feature is not installed")
+}
+
+type featureProviderResolver func() (api.FeatureResolution, error)
+
+// firstAvailableFeatureProvider encodes the user's provider precedence while
+// keeping each provider's discovery and admission rules behind its own seam.
+// Errors from a higher-priority provider fail closed instead of silently
+// switching to a lower-priority copy.
+func firstAvailableFeatureProvider(resolvers ...featureProviderResolver) (api.FeatureResolution, error) {
+	for _, resolve := range resolvers {
+		selected, err := resolve()
+		if err != nil || selected.Source != "" {
+			return selected, err
+		}
+	}
+	return api.FeatureResolution{}, nil
 }
 
 func (s *Supervisor) resolveInstalledFeature(ctx context.Context, rows []components.Installation, owner, feature, requestedRange string) (api.FeatureResolution, error) {
@@ -140,7 +173,7 @@ func (s *Supervisor) resolveInstalledFeature(ctx context.Context, rows []compone
 		}
 	}
 	if candidate == nil {
-		return api.FeatureResolution{}, fmt.Errorf("feature is not installed")
+		return api.FeatureResolution{}, nil
 	}
 	if s.components.Source == nil || candidate.Signed.Verify(s.components.Source.PublicKeyPEM) != nil {
 		return api.FeatureResolution{}, fmt.Errorf("feature signature invalid")
@@ -379,39 +412,48 @@ func (s *Supervisor) resolveFullFeature(ctx context.Context, rows []components.I
 }
 
 func (s *Supervisor) resolveEmbeddedFeature(ctx context.Context, peers []manifest.Peer, owner, feature, requestedRange string) (api.FeatureResolution, error) {
-	for _, peer := range peers {
+	var selected *manifest.Peer
+	for i := range peers {
+		peer := &peers[i]
 		provided, ok := peer.Features[feature]
 		if peer.Scenario != owner || !ok || (peer.BundlePolicy != "embed" && peer.BundlePolicy != "either") {
 			continue
 		}
-		if !manifest.VersionSatisfiesRange(provided.OwnerVersion, requestedRange) || !manifest.VersionSatisfiesRange(provided.OwnerVersion, peerlookup.FeatureVersionRange(s.opts.Manifest, owner)) {
-			return api.FeatureResolution{}, fmt.Errorf("embedded feature owner version is outside the consumer range")
+		if selected != nil {
+			return api.FeatureResolution{}, fmt.Errorf("ambiguous bundled feature provider")
 		}
-		order, err := deps.TopoSort(s.opts.Manifest.Services)
-		if err != nil {
-			return api.FeatureResolution{}, err
+		selected = peer
+	}
+	if selected == nil {
+		return api.FeatureResolution{}, nil
+	}
+	provided := selected.Features[feature]
+	if !manifest.VersionSatisfiesRange(provided.OwnerVersion, requestedRange) || !manifest.VersionSatisfiesRange(provided.OwnerVersion, peerlookup.FeatureVersionRange(s.opts.Manifest, owner)) {
+		return api.FeatureResolution{}, fmt.Errorf("embedded feature owner version is outside the consumer range")
+	}
+	order, err := deps.TopoSort(s.opts.Manifest.Services)
+	if err != nil {
+		return api.FeatureResolution{}, err
+	}
+	for _, id := range order {
+		svc := deps.FindService(s.opts.Manifest.Services, id)
+		if svc == nil || !strings.HasPrefix(id, owner+"--") || svc.ComponentID != "" {
+			continue
 		}
-		for _, id := range order {
-			svc := deps.FindService(s.opts.Manifest.Services, id)
-			if svc == nil || !strings.HasPrefix(id, owner+"--") || svc.ComponentID != "" {
-				continue
-			}
-			if s.getProc(id) == nil {
-				if err := s.startService(s.runtimeCtx, *svc); err != nil {
-					return api.FeatureResolution{}, err
-				}
-			}
-			if err := s.healthChecker.WaitForReadiness(ctx, id); err != nil {
+		if s.getProc(id) == nil {
+			if err := s.startService(s.runtimeCtx, *svc); err != nil {
 				return api.FeatureResolution{}, err
 			}
 		}
-		port := s.portAllocator.Map()[provided.Service][provided.Port]
-		if port <= 0 {
-			return api.FeatureResolution{}, fmt.Errorf("embedded feature port unavailable")
+		if err := s.healthChecker.WaitForReadiness(ctx, id); err != nil {
+			return api.FeatureResolution{}, err
 		}
-		return api.FeatureResolution{URL: fmt.Sprintf("http://127.0.0.1:%d", port), Source: "embedded", Owner: owner, Feature: feature, OwnerVersion: provided.OwnerVersion, RuntimeInstance: s.instanceID}, nil
 	}
-	return api.FeatureResolution{}, nil
+	port := s.portAllocator.Map()[provided.Service][provided.Port]
+	if port <= 0 {
+		return api.FeatureResolution{}, fmt.Errorf("embedded feature port unavailable")
+	}
+	return api.FeatureResolution{URL: fmt.Sprintf("http://127.0.0.1:%d", port), Source: "embedded", Owner: owner, Feature: feature, OwnerVersion: provided.OwnerVersion, RuntimeInstance: s.instanceID}, nil
 }
 
 func (s *Supervisor) stopEmbeddedFeature(ctx context.Context, owner string) error {

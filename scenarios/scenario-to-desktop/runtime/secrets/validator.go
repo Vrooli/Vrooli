@@ -52,21 +52,15 @@ func (v *Validator) Validate(secrets map[string]string) ValidationErrors {
 	var errs ValidationErrors
 
 	for _, sec := range v.manifest.Secrets {
-		value := strings.TrimSpace(secrets[sec.ID])
-
-		// Check required
-		required := true
-		if sec.Required != nil {
-			required = *sec.Required
+		if requiredSecretValueMissing(sec, secrets[sec.ID]) {
+			errs = append(errs, ValidationError{
+				SecretID: sec.ID,
+				Message:  "required secret is missing",
+			})
+			continue
 		}
-
+		value := strings.TrimSpace(secrets[sec.ID])
 		if value == "" {
-			if required {
-				errs = append(errs, ValidationError{
-					SecretID: sec.ID,
-					Message:  "required secret is missing",
-				})
-			}
 			continue
 		}
 
@@ -123,19 +117,14 @@ func (v *Validator) ValidateSecret(id, value string) *ValidationError {
 		}
 	}
 
-	value = strings.TrimSpace(value)
-	required := true
-	if sec.Required != nil {
-		required = *sec.Required
-	}
-
-	if value == "" && required {
+	if requiredSecretValueMissing(*sec, value) {
 		return &ValidationError{
 			SecretID: id,
 			Message:  "required secret is missing",
 		}
 	}
 
+	value = strings.TrimSpace(value)
 	if value != "" && sec.Format != "" {
 		return v.validateFormat(id, value, sec.Format)
 	}
@@ -147,15 +136,7 @@ func (v *Validator) ValidateSecret(id, value string) *ValidationError {
 func (v *Validator) MissingRequired(secrets map[string]string) []string {
 	var missing []string
 	for _, sec := range v.manifest.Secrets {
-		required := true
-		if sec.Required != nil {
-			required = *sec.Required
-		}
-		if !required {
-			continue
-		}
-		val := strings.TrimSpace(secrets[sec.ID])
-		if val == "" {
+		if requiredSecretValueMissing(sec, secrets[sec.ID]) {
 			missing = append(missing, sec.ID)
 		}
 	}

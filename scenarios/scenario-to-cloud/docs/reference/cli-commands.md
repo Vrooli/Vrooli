@@ -218,34 +218,6 @@ scenario-to-cloud vps deploy plan "<manifest>"
 scenario-to-cloud vps deploy apply "<manifest>" [--plan-digest "<value>"]
 ```
 
-### vps instance
-
-Disposable local QEMU instances
-
-| Command | Effect | Agent-runnable | Binding | Description |
-|---|---|---|---|---|
-| `vps instance plan` | read | true | local | Validate the local QEMU lane |
-| `vps instance create` | write | true | local | Register a disposable VM |
-| `vps instance start` | write | true | local | Start a registered VM |
-| `vps instance stop` | write | true | local | Stop a registered VM |
-| `vps instance wait-for-ssh` | read | true | local | Wait until the VM accepts SSH |
-| `vps instance snapshot` | write | true | local | Snapshot a VM |
-| `vps instance reset` | destructive | true | local | Reset a VM to a snapshot |
-| `vps instance destroy` | destructive | true | local | Destroy a VM |
-
-Examples:
-
-```bash
-scenario-to-cloud vps instance plan [--name "<value>"] [--image "<value>"] [--workdir "<value>"]
-scenario-to-cloud vps instance create [--name "<value>"] [--image "<value>"] [--workdir "<value>"] [--memory "<value>"] [--cpus "<value>"] [--profile "<value>"] [--user "<value>"] [--authorized-key "<value>"] [--ssh-port "<value>"]
-scenario-to-cloud vps instance start "<instance_id>"
-scenario-to-cloud vps instance stop "<instance_id>"
-scenario-to-cloud vps instance wait-for-ssh "<instance_id>"
-scenario-to-cloud vps instance snapshot "<instance_id>" [snapshot]
-scenario-to-cloud vps instance reset "<instance_id>" [snapshot]
-scenario-to-cloud vps instance destroy "<instance_id>"
-```
-
 ### inspect
 
 Remote state, drift, metrics, bounded logs and files
@@ -440,8 +412,8 @@ Examples:
 
 ```bash
 scenario-to-cloud wallet-recovery rotate --wallet-id "<wallet-id>" --network "<network>" --successor-id "<successor-id>" --destination-id "<destination-id>" --plan-id "<plan-id>" --staging-dir "<staging-dir>" --receipt-file "<receipt-file>"
-scenario-to-cloud wallet-recovery restore --wallet-id "<wallet-id>" --network "<network>" --bridge-node-id "<durable-node-id>" --bridge-machine-id "<durable-machine-id>" --bridge-scope "scenario-to-cloud:read" --destination-id "<destination-id>" --destination-name "<destination-name>" --backend "<backend>" --location "<location>" --created-at "<created-at>" --staging-dir "<staging-dir>" [--secret-stdin]
-scenario-to-cloud wallet-recovery prove-after-restart --wallet-id "<wallet-id>" --network "<network>" --bridge-node-id "<same-durable-node-id>" --bridge-machine-id "<same-durable-machine-id>" --bridge-scope "scenario-to-cloud:read" --expected-address "<expected-address>" --nonce "<nonce>"
+scenario-to-cloud wallet-recovery restore --wallet-id "<wallet-id>" --network "<network>" --destination-id "<destination-id>" --destination-name "<destination-name>" --backend "<backend>" --location "<location>" --created-at "<created-at>" --staging-dir "<staging-dir>" [--secret-stdin]
+scenario-to-cloud wallet-recovery prove-after-restart --wallet-id "<wallet-id>" --network "<network>" --expected-address "<expected-address>" --nonce "<nonce>"
 ```
 
 ## RPCs without a direct command

@@ -3,11 +3,12 @@ package bundle
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"scenario-to-cloud/internal/filedigest"
 )
 
 // ContentEntry is one file the bundle carries and its content digest.
@@ -44,7 +45,7 @@ func ContentManifest(repoRoot string, spec MiniBundleSpec) ([]ContentEntry, erro
 			digest := sha256.Sum256([]byte(target))
 			sum = hex.EncodeToString(digest[:])
 		} else {
-			sum, err = fileSHA256(abs)
+			sum, _, err = filedigest.SHA256File(abs)
 			if err != nil {
 				return nil, err
 			}
@@ -73,17 +74,4 @@ func ContentManifestDigest(entries []ContentEntry) string {
 	sort.Strings(lines)
 	sum := sha256.Sum256([]byte(strings.Join(lines, "")))
 	return hex.EncodeToString(sum[:])
-}
-
-func fileSHA256(path string) (string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(h.Sum(nil)), nil
 }

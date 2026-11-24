@@ -70,6 +70,11 @@ Commands:
   delete <KEY>         Delete a secret from one or more targets
   plan-get <scenario>  Legacy: get secret plan for a scenario
 
+LPBS_SERVICE_SECRET is a legacy bootstrap bridge, not the LPBS service identity.
+Its set/get/verify/delete operations require --legacy-bridge. Use that flag only
+for a reviewed recovery while the corresponding scoped principal is confirmed
+unissued; it does not issue or rotate a service principal.
+
 Common selector flags (for deployment target):
   --deployment-id <id>
   --domain <domain> --scenario <id>
@@ -78,10 +83,10 @@ Common selector flags (for deployment target):
   --all-deployments --scenario <id>
 
 Examples:
-  scenario-to-cloud secrets set LPBS_SERVICE_SECRET --scenario landing-page-business-suite --generate hex:64 --targets scenario,deployment --domain <domain> --restart
-  scenario-to-cloud secrets get LPBS_SERVICE_SECRET --scenario landing-page-business-suite --targets scenario,deployment --domain <domain>
-  scenario-to-cloud secrets verify LPBS_SERVICE_SECRET --scenario landing-page-business-suite --targets scenario,deployment --domain <domain>
-  scenario-to-cloud secrets delete LPBS_SERVICE_SECRET --scenario landing-page-business-suite --targets scenario,deployment --domain <domain> --restart`)
+  scenario-to-cloud secrets set LPBS_SERVICE_SECRET --legacy-bridge --scenario landing-page-business-suite --generate hex:64 --targets scenario,deployment --domain <domain> --restart
+  scenario-to-cloud secrets get LPBS_SERVICE_SECRET --legacy-bridge --scenario landing-page-business-suite --targets scenario,deployment --domain <domain>
+  scenario-to-cloud secrets verify LPBS_SERVICE_SECRET --legacy-bridge --scenario landing-page-business-suite --targets scenario,deployment --domain <domain>
+  scenario-to-cloud secrets delete LPBS_SERVICE_SECRET --legacy-bridge --scenario landing-page-business-suite --targets scenario,deployment --domain <domain> --restart`)
 	return nil
 }
 
@@ -153,14 +158,15 @@ func runSet(client *Client, deploymentClient *deployment.Client, args []string) 
 }
 
 type setRequest struct {
-	key        string
-	value      string
-	valueStdin bool
-	generate   string
-	targetsRaw string
-	restart    bool
-	jsonOutput bool
-	selector   selectorFlags
+	key          string
+	value        string
+	valueStdin   bool
+	generate     string
+	targetsRaw   string
+	restart      bool
+	jsonOutput   bool
+	legacyBridge bool
+	selector     selectorFlags
 }
 
 func parseSetRequest(args []string) (setRequest, error) {
@@ -171,6 +177,7 @@ func parseSetRequest(args []string) (setRequest, error) {
 	targetsRaw := fs.String("targets", "scenario", "Comma-separated targets: workspace,scenario,deployment")
 	restart := fs.Bool("restart", false, "When targeting deployment, restart scenario after secret update")
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
+	legacyBridge := fs.Bool("legacy-bridge", false, "Acknowledge LPBS_SERVICE_SECRET is a temporary legacy bridge")
 
 	sel := selectorFlags{}.register(fs)
 
@@ -183,12 +190,26 @@ func parseSetRequest(args []string) (setRequest, error) {
 	request := setRequest{
 		key: strings.TrimSpace(fs.Arg(0)), value: *value, valueStdin: *valueStdin,
 		generate: *generate, targetsRaw: *targetsRaw, restart: *restart,
-		jsonOutput: *jsonOutput, selector: *sel,
+		jsonOutput: *jsonOutput, legacyBridge: *legacyBridge, selector: *sel,
+	}
+	if err := validateLegacyLPBSBridge(request.key, request.legacyBridge); err != nil {
+		return setRequest{}, err
 	}
 	if err := validateSetValueOptions(request); err != nil {
 		return setRequest{}, err
 	}
 	return request, nil
+}
+
+func validateLegacyLPBSBridge(key string, acknowledged bool) error {
+	legacyKey := strings.EqualFold(strings.TrimSpace(key), "LPBS_SERVICE_SECRET")
+	if legacyKey && !acknowledged {
+		return apierr.Refused("LPBS_SERVICE_SECRET is a legacy bootstrap bridge; pass --legacy-bridge only for reviewed recovery while its scoped principal is confirmed unissued")
+	}
+	if acknowledged && !legacyKey {
+		return apierr.Refused("--legacy-bridge applies only to LPBS_SERVICE_SECRET")
+	}
+	return nil
 }
 
 func validateSetValueOptions(request setRequest) error {
@@ -319,11 +340,12 @@ func runGet(client *Client, deploymentClient *deployment.Client, args []string) 
 }
 
 type secretReadRequest struct {
-	key        string
-	targetsRaw string
-	reveal     bool
-	jsonOutput bool
-	selector   selectorFlags
+	key          string
+	targetsRaw   string
+	reveal       bool
+	jsonOutput   bool
+	legacyBridge bool
+	selector     selectorFlags
 }
 
 func parseGetRequest(args []string) (secretReadRequest, error) {
@@ -331,6 +353,7 @@ func parseGetRequest(args []string) (secretReadRequest, error) {
 	targetsRaw := fs.String("targets", "scenario", "Comma-separated targets: workspace,scenario,deployment")
 	reveal := fs.Bool("reveal", false, "Reveal secret value")
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
+	legacyBridge := fs.Bool("legacy-bridge", false, "Acknowledge LPBS_SERVICE_SECRET is a temporary legacy bridge")
 
 	sel := selectorFlags{}.register(fs)
 
@@ -340,7 +363,11 @@ func parseGetRequest(args []string) (secretReadRequest, error) {
 	if fs.NArg() != 1 {
 		return secretReadRequest{}, fmt.Errorf("usage: scenario-to-cloud secrets get <KEY> [flags]")
 	}
-	return secretReadRequest{key: strings.TrimSpace(fs.Arg(0)), targetsRaw: *targetsRaw, reveal: *reveal, jsonOutput: *jsonOutput, selector: *sel}, nil
+	request := secretReadRequest{key: strings.TrimSpace(fs.Arg(0)), targetsRaw: *targetsRaw, reveal: *reveal, jsonOutput: *jsonOutput, legacyBridge: *legacyBridge, selector: *sel}
+	if err := validateLegacyLPBSBridge(request.key, request.legacyBridge); err != nil {
+		return secretReadRequest{}, err
+	}
+	return request, nil
 }
 
 func secretCommandTargets(client *deployment.Client, targetsRaw string, selector *selectorFlags) (map[string]bool, []string, error) {
@@ -413,6 +440,7 @@ func runVerify(client *Client, deploymentClient *deployment.Client, args []strin
 	fs := flag.NewFlagSet("secrets verify", flag.ContinueOnError)
 	targetsRaw := fs.String("targets", "scenario,deployment", "Comma-separated targets: workspace,scenario,deployment")
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
+	legacyBridge := fs.Bool("legacy-bridge", false, "Acknowledge LPBS_SERVICE_SECRET is a temporary legacy bridge")
 
 	sel := selectorFlags{}.register(fs)
 
@@ -423,6 +451,9 @@ func runVerify(client *Client, deploymentClient *deployment.Client, args []strin
 		return fmt.Errorf("usage: scenario-to-cloud secrets verify <KEY> [flags]")
 	}
 	key := strings.TrimSpace(fs.Arg(0))
+	if err := validateLegacyLPBSBridge(key, *legacyBridge); err != nil {
+		return err
+	}
 
 	targets, err := parseTargets(*targetsRaw)
 	if err != nil {
@@ -643,11 +674,12 @@ func runDelete(client *Client, deploymentClient *deployment.Client, args []strin
 }
 
 type secretDeleteRequest struct {
-	key        string
-	targetsRaw string
-	restart    bool
-	jsonOutput bool
-	selector   selectorFlags
+	key          string
+	targetsRaw   string
+	restart      bool
+	jsonOutput   bool
+	legacyBridge bool
+	selector     selectorFlags
 }
 
 func parseDeleteRequest(args []string) (secretDeleteRequest, error) {
@@ -655,6 +687,7 @@ func parseDeleteRequest(args []string) (secretDeleteRequest, error) {
 	targetsRaw := fs.String("targets", "scenario", "Comma-separated targets: workspace,scenario,deployment")
 	restart := fs.Bool("restart", false, "When targeting deployment, restart scenario after delete")
 	jsonOutput := fs.Bool("json", false, "Output raw JSON")
+	legacyBridge := fs.Bool("legacy-bridge", false, "Acknowledge LPBS_SERVICE_SECRET is a temporary legacy bridge")
 
 	sel := selectorFlags{}.register(fs)
 
@@ -664,7 +697,11 @@ func parseDeleteRequest(args []string) (secretDeleteRequest, error) {
 	if fs.NArg() != 1 {
 		return secretDeleteRequest{}, fmt.Errorf("usage: scenario-to-cloud secrets delete <KEY> [flags]")
 	}
-	return secretDeleteRequest{key: strings.TrimSpace(fs.Arg(0)), targetsRaw: *targetsRaw, restart: *restart, jsonOutput: *jsonOutput, selector: *sel}, nil
+	request := secretDeleteRequest{key: strings.TrimSpace(fs.Arg(0)), targetsRaw: *targetsRaw, restart: *restart, jsonOutput: *jsonOutput, legacyBridge: *legacyBridge, selector: *sel}
+	if err := validateLegacyLPBSBridge(request.key, request.legacyBridge); err != nil {
+		return secretDeleteRequest{}, err
+	}
+	return request, nil
 }
 
 func deleteSecretTargets(client *Client, request secretDeleteRequest, targets map[string]bool, deploymentIDs []string) ([]map[string]interface{}, error) {

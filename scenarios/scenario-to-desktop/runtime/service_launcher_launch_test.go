@@ -257,6 +257,34 @@ func TestSharedRuntimeReadinessToggleControlsParallelIndependentStarts(t *testin
 	}
 }
 
+func TestLaunchServicesDoesNotStartExistingServicesAgain(t *testing.T) {
+	for _, parallel := range []bool{false, true} {
+		name := "serial"
+		if parallel {
+			name = "parallel"
+		}
+		t.Run(name, func(t *testing.T) {
+			t.Setenv("VROOLI_DESKTOP_PARALLEL_START", fmt.Sprint(parallel))
+			binKey := platformBinaryKey()
+			tmp := t.TempDir()
+			m := &manifest.Manifest{App: manifest.App{Name: "idempotent-launch-test", Version: "1.0.0"}, Services: []manifest.Service{
+				{ID: "api", Binaries: map[string]manifest.Binary{binKey: {Path: "bin/api"}}},
+				{ID: "ui", Binaries: map[string]manifest.Binary{binKey: {Path: "bin/ui"}}},
+			}}
+			s := newTestSupervisor(t, testSupervisorConfig{manifest: m, bundlePath: tmp, appData: tmp})
+
+			for attempt := 1; attempt <= 2; attempt++ {
+				if err := s.launchServices(context.Background()); err != nil {
+					t.Fatalf("launchServices attempt %d: %v", attempt, err)
+				}
+				if got := len(s.procRunner.(*testutil.MockProcessRunner).StartedCmds()); got != len(m.Services) {
+					t.Fatalf("starts after attempt %d = %d, want one start per service (%d)", attempt, got, len(m.Services))
+				}
+			}
+		})
+	}
+}
+
 func TestStopServices_GracefulShutdown(t *testing.T) {
 	mockClock := testutil.NewMockClock(time.Now())
 

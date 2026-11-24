@@ -3,6 +3,7 @@ package deployments
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -139,6 +140,7 @@ func TestOutboundScenarioURLAdaptersShareValidationPolicy(t *testing.T) {
 
 func TestHTTPCloudDeploymentClientRequiresDurableReceipt(t *testing.T) {
 	var statusCalls, observationCalls atomic.Int32
+	var executeCalls, listCalls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v1/deployments":
@@ -158,8 +160,15 @@ func TestHTTPCloudDeploymentClientRequiresDurableReceipt(t *testing.T) {
 			if r.Method != http.MethodPost {
 				t.Fatalf("execute method = %s", r.Method)
 			}
-			w.WriteHeader(http.StatusAccepted)
-			_, _ = w.Write([]byte(`{"run_id":"run-1"}`))
+			executeCalls.Add(1)
+			// The owner commits admission but the caller sees a failed response.
+			w.WriteHeader(http.StatusBadGateway)
+		case "/vrooli.scenario_to_cloud.v1.operations.OperationsService/ListDeploymentOperations":
+			if listCalls.Add(1) == 1 {
+				_, _ = w.Write([]byte(`{"operations":[]}`))
+			} else {
+				_, _ = w.Write([]byte(`{"operations":[{"operationId":"op-1","requestKey":"dm-cloud:release-op-1"}]}`))
+			}
 		case "/api/v1/deployments/dep-1":
 			call := statusCalls.Add(1)
 			status := "deploying"
@@ -185,7 +194,7 @@ func TestHTTPCloudDeploymentClientRequiresDurableReceipt(t *testing.T) {
 	}))
 	defer srv.Close()
 	client := &HTTPCloudHealthClient{httpClient: srv.Client(), baseURL: srv.URL, pollInterval: time.Millisecond}
-	receipt, err := client.DeployCloud(context.Background(), &CloudDeploymentRequest{Manifest: json.RawMessage(`{"scenario":{"id":"demo"}}`), RunPreflight: true})
+	receipt, err := client.DeployCloud(context.Background(), &CloudDeploymentRequest{RequestKey: "dm-cloud:release-op-1", Manifest: json.RawMessage(`{"scenario":{"id":"demo"}}`), RunPreflight: true})
 	if err != nil {
 		t.Fatalf("DeployCloud() error = %v", err)
 	}
@@ -201,6 +210,9 @@ func TestHTTPCloudDeploymentClientRequiresDurableReceipt(t *testing.T) {
 	if observationCalls.Load() != 1 {
 		t.Fatalf("observation calls = %d, the receipt must be backed by the typed observation", observationCalls.Load())
 	}
+	if executeCalls.Load() != 1 || listCalls.Load() != 2 {
+		t.Fatalf("execute/list calls = %d/%d, lost response must reconcile without duplicate admission", executeCalls.Load(), listCalls.Load())
+	}
 }
 
 // TestHTTPCloudDeploymentClientRejectsReceiptWithoutHealthyObservation
@@ -214,6 +226,9 @@ func TestHTTPCloudDeploymentClientRejectsReceiptWithoutHealthyObservation(t *tes
 			_, _ = w.Write([]byte(`{"deployment":{"id":"dep-3"}}`))
 		case "/api/v1/deployments/dep-3/execute":
 			w.WriteHeader(http.StatusAccepted)
+			_, _ = w.Write([]byte(`{"operation_id":"op-3"}`))
+		case "/vrooli.scenario_to_cloud.v1.operations.OperationsService/ListDeploymentOperations":
+			_, _ = w.Write([]byte(`{"operations":[]}`))
 		case "/api/v1/deployments/dep-3":
 			_, _ = w.Write([]byte(`{"deployment":{"status":"deployed"}}`))
 		case "/api/v1/deployments/dep-3/receipt":
@@ -227,9 +242,146 @@ func TestHTTPCloudDeploymentClientRejectsReceiptWithoutHealthyObservation(t *tes
 	}))
 	defer srv.Close()
 	client := &HTTPCloudHealthClient{httpClient: srv.Client(), baseURL: srv.URL, pollInterval: time.Millisecond}
-	_, err := client.DeployCloud(context.Background(), &CloudDeploymentRequest{Manifest: json.RawMessage(`{"scenario":{"id":"demo"}}`)})
+	_, err := client.DeployCloud(context.Background(), &CloudDeploymentRequest{RequestKey: "dm-cloud:release-op-3", Manifest: json.RawMessage(`{"scenario":{"id":"demo"}}`)})
 	if err == nil || !strings.Contains(err.Error(), "status_not_healthy") {
 		t.Fatalf("DeployCloud() error = %v, want the observation verdict", err)
+	}
+}
+
+func TestHTTPCloudDeploymentClientRetriesPreAdmissionFailureWithSameIdentity(t *testing.T) {
+	var createCalls, executeCalls, acceptedCalls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/deployments":
+			createCalls.Add(1)
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"deployment":{"id":"dep-retry"}}`))
+		case "/vrooli.scenario_to_cloud.v1.operations.OperationsService/ListDeploymentOperations":
+			_, _ = w.Write([]byte(`{"operations":[]}`))
+		case "/api/v1/deployments/dep-retry/execute":
+			executeCalls.Add(1)
+			var body map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body["request_key"] != "dm-cloud:release-op-retry" {
+				t.Fatalf("execute request key body=%v err=%v", body, err)
+			}
+			if executeCalls.Load() == 1 {
+				// Refused before the S2C admission transaction.
+				w.WriteHeader(http.StatusServiceUnavailable)
+				return
+			}
+			acceptedCalls.Add(1)
+			w.WriteHeader(http.StatusAccepted)
+			_, _ = w.Write([]byte(`{"operation_id":"s2c-op-retry"}`))
+		case "/api/v1/deployments/dep-retry":
+			_, _ = w.Write([]byte(`{"deployment":{"status":"deployed"}}`))
+		case "/api/v1/deployments/dep-retry/receipt":
+			_, _ = w.Write([]byte(`{"receipt":{}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	client := &HTTPCloudHealthClient{httpClient: srv.Client(), baseURL: srv.URL, pollInterval: time.Millisecond}
+	var deploymentID, ownerOperationID string
+	request := &CloudDeploymentRequest{RequestKey: "dm-cloud:release-op-retry", Manifest: json.RawMessage(`{"scenario":{"id":"demo"}}`), OnProgress: func(update CloudStepProgress) error {
+		if update.DeploymentID != "" {
+			deploymentID = update.DeploymentID
+		}
+		if update.OwnerOperationID != "" {
+			ownerOperationID = update.OwnerOperationID
+		}
+		return nil
+	}}
+	if _, err := client.DeployCloud(context.Background(), request); err == nil {
+		t.Fatal("pre-admission refusal was accepted")
+	}
+	if deploymentID != "dep-retry" {
+		t.Fatalf("persisted deployment identity = %q", deploymentID)
+	}
+	request.ExistingDeploymentID = deploymentID
+	if _, err := client.DeployCloud(context.Background(), request); err == nil {
+		t.Fatal("incomplete fixture receipt should be rejected after accepted retry")
+	}
+	if createCalls.Load() != 1 || executeCalls.Load() != 2 || acceptedCalls.Load() != 1 || ownerOperationID != "s2c-op-retry" {
+		t.Fatalf("create/execute/accepted/owner-op = %d/%d/%d/%q", createCalls.Load(), executeCalls.Load(), acceptedCalls.Load(), ownerOperationID)
+	}
+}
+
+func TestHTTPCloudDeploymentClientMarksLostResponseAmbiguousWhenReadbackFails(t *testing.T) {
+	var listCalls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/deployments":
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"deployment":{"id":"dep-ambiguous"}}`))
+		case "/vrooli.scenario_to_cloud.v1.operations.OperationsService/ListDeploymentOperations":
+			if listCalls.Add(1) == 1 {
+				_, _ = w.Write([]byte(`{"operations":[]}`))
+				return
+			}
+			w.WriteHeader(http.StatusServiceUnavailable)
+		case "/api/v1/deployments/dep-ambiguous/execute":
+			w.WriteHeader(http.StatusBadGateway)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	client := &HTTPCloudHealthClient{httpClient: srv.Client(), baseURL: srv.URL, pollInterval: time.Millisecond}
+	var progress CloudStepProgress
+	_, err := client.DeployCloud(context.Background(), &CloudDeploymentRequest{
+		RequestKey: "dm-cloud:release-op-ambiguous", Manifest: json.RawMessage(`{"scenario":{"id":"demo"}}`),
+		OnProgress: func(next CloudStepProgress) error { progress = next; return nil },
+	})
+	if !errors.Is(err, ErrCloudOperationAmbiguous) {
+		t.Fatalf("error=%v, want ambiguous effect outcome", err)
+	}
+	if progress.State != "reconciliation_required" || progress.DeploymentID != "dep-ambiguous" || progress.Reason == "" {
+		t.Fatalf("reconciliation progress = %+v", progress)
+	}
+}
+
+func TestHTTPCloudDeploymentClientReattachesToSavedPendingOperation(t *testing.T) {
+	var createCalls, executeCalls, listCalls, operationReads atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/vrooli.scenario_to_cloud.v1.operations.OperationsService/GetOperation":
+			operationReads.Add(1)
+			var body map[string]string
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body["operation_id"] != "s2c-op-pending" {
+				t.Fatalf("GetOperation body=%v err=%v", body, err)
+			}
+			_, _ = w.Write([]byte(`{"operation_id":"s2c-op-pending","deployment_id":"dep-pending","request_key":"dm-cloud:release-op-pending","state":"running"}`))
+		case "/api/v1/deployments":
+			createCalls.Add(1)
+		case "/api/v1/deployments/dep-pending/execute":
+			executeCalls.Add(1)
+		case "/vrooli.scenario_to_cloud.v1.operations.OperationsService/ListDeploymentOperations":
+			listCalls.Add(1)
+		case "/api/v1/deployments/dep-pending":
+			_, _ = w.Write([]byte(`{"deployment":{"status":"deploying"}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	client := &HTTPCloudHealthClient{httpClient: srv.Client(), baseURL: srv.URL, pollInterval: time.Millisecond}
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Millisecond)
+	defer cancel()
+	var saved CloudStepProgress
+	_, err := client.DeployCloud(ctx, &CloudDeploymentRequest{
+		RequestKey: "dm-cloud:release-op-pending", ExistingDeploymentID: "dep-pending", ExistingOperationID: "s2c-op-pending",
+		Manifest:   json.RawMessage(`{"scenario":{"id":"demo"}}`),
+		OnProgress: func(update CloudStepProgress) error { saved = update; return nil },
+	})
+	if err == nil || operationReads.Load() < 2 {
+		t.Fatalf("DeployCloud error=%v, operation reads=%d", err, operationReads.Load())
+	}
+	if createCalls.Load() != 0 || executeCalls.Load() != 0 || listCalls.Load() != 0 {
+		t.Fatalf("reattach repeated an effect: create/execute/list=%d/%d/%d", createCalls.Load(), executeCalls.Load(), listCalls.Load())
+	}
+	if saved.DeploymentID != "dep-pending" || saved.OwnerOperationID != "s2c-op-pending" {
+		t.Fatalf("saved owner identity changed during reattach: %+v", saved)
 	}
 }
 
@@ -241,6 +393,9 @@ func TestHTTPCloudDeploymentClientRejectsIncompleteReceipt(t *testing.T) {
 			_, _ = w.Write([]byte(`{"deployment":{"id":"dep-2"}}`))
 		case "/api/v1/deployments/dep-2/execute":
 			w.WriteHeader(http.StatusAccepted)
+			_, _ = w.Write([]byte(`{"operation_id":"op-2"}`))
+		case "/vrooli.scenario_to_cloud.v1.operations.OperationsService/ListDeploymentOperations":
+			_, _ = w.Write([]byte(`{"operations":[]}`))
 		case "/api/v1/deployments/dep-2":
 			_, _ = w.Write([]byte(`{"deployment":{"status":"deployed"}}`))
 		case "/api/v1/deployments/dep-2/receipt":
@@ -251,7 +406,7 @@ func TestHTTPCloudDeploymentClientRejectsIncompleteReceipt(t *testing.T) {
 	}))
 	defer srv.Close()
 	client := &HTTPCloudHealthClient{httpClient: srv.Client(), baseURL: srv.URL, pollInterval: time.Millisecond}
-	if _, err := client.DeployCloud(context.Background(), &CloudDeploymentRequest{Manifest: json.RawMessage(`{"scenario":{"id":"demo"}}`)}); err == nil {
+	if _, err := client.DeployCloud(context.Background(), &CloudDeploymentRequest{RequestKey: "dm-cloud:release-op-2", Manifest: json.RawMessage(`{"scenario":{"id":"demo"}}`)}); err == nil {
 		t.Fatal("incomplete receipt was accepted")
 	}
 }

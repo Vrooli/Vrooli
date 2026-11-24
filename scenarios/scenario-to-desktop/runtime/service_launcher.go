@@ -116,45 +116,7 @@ func (s *Supervisor) launchServices(ctx context.Context) error {
 		if svc == nil {
 			continue
 		}
-		if s.getProc(id) != nil {
-			continue
-		}
-
-		if skip, reason := s.shouldSkipAuthenticationService(*svc); skip {
-			status := ServiceStatus{Ready: false, Skipped: true, Message: reason}
-			s.setStatus(svc.ID, status)
-			continue
-		}
-
-		if skip, reason := shouldSkipService(*svc); skip {
-			status := ServiceStatus{Ready: false, Skipped: true}
-			if reason != "" {
-				status.Message = fmt.Sprintf("skipped: %s", reason)
-			} else {
-				status.Message = "skipped: on-demand service"
-			}
-			s.setStatus(svc.ID, status)
-			continue
-		}
-
-		// Ensure dependencies are ready before starting.
-		if err := s.healthChecker.WaitForDependencies(ctx, svc); err != nil {
-			s.setStatus(svc.ID, ServiceStatus{Ready: false, Message: err.Error()})
-			_ = s.recordTelemetry("service_blocked", map[string]interface{}{
-				"service_id": svc.ID,
-				"reason":     err.Error(),
-			})
-			continue
-		}
-
-		if err := s.startService(ctx, *svc); err != nil {
-			s.setStatus(svc.ID, ServiceStatus{Ready: false, Message: err.Error()})
-			_ = s.recordTelemetry("service_start_failed", map[string]interface{}{
-				"service_id": svc.ID,
-				"error":      err.Error(),
-			})
-			continue
-		}
+		s.launchOneService(ctx, *svc)
 	}
 	return nil
 }
@@ -175,31 +137,40 @@ func (s *Supervisor) launchServicesParallel(ctx context.Context, order []string)
 				return
 			default:
 			}
-			if skip, reason := s.shouldSkipAuthenticationService(svc); skip {
-				s.setStatus(svc.ID, ServiceStatus{Ready: false, Skipped: true, Message: reason})
-				return
-			}
-			if skip, reason := shouldSkipService(svc); skip {
-				message := "skipped: on-demand service"
-				if reason != "" {
-					message = fmt.Sprintf("skipped: %s", reason)
-				}
-				s.setStatus(svc.ID, ServiceStatus{Ready: false, Skipped: true, Message: message})
-				return
-			}
-			if err := s.healthChecker.WaitForDependencies(ctx, &svc); err != nil {
-				s.setStatus(svc.ID, ServiceStatus{Ready: false, Message: err.Error()})
-				_ = s.recordTelemetry("service_blocked", map[string]interface{}{"service_id": svc.ID, "reason": err.Error()})
-				return
-			}
-			if err := s.startService(ctx, svc); err != nil {
-				s.setStatus(svc.ID, ServiceStatus{Ready: false, Message: err.Error()})
-				_ = s.recordTelemetry("service_start_failed", map[string]interface{}{"service_id": svc.ID, "error": err.Error()})
-			}
+			s.launchOneService(ctx, svc)
 		}(*svc)
 	}
 	wg.Wait()
 	return ctx.Err()
+}
+
+// launchOneService applies the same eligibility, dependency and failure policy
+// whether independent services are launched serially or concurrently.
+func (s *Supervisor) launchOneService(ctx context.Context, svc manifest.Service) {
+	if s.getProc(svc.ID) != nil {
+		return
+	}
+	if skip, reason := s.shouldSkipAuthenticationService(svc); skip {
+		s.setStatus(svc.ID, ServiceStatus{Skipped: true, Message: reason})
+		return
+	}
+	if skip, reason := shouldSkipService(svc); skip {
+		message := "skipped: on-demand service"
+		if reason != "" {
+			message = fmt.Sprintf("skipped: %s", reason)
+		}
+		s.setStatus(svc.ID, ServiceStatus{Skipped: true, Message: message})
+		return
+	}
+	if err := s.healthChecker.WaitForDependencies(ctx, &svc); err != nil {
+		s.setStatus(svc.ID, ServiceStatus{Message: err.Error()})
+		_ = s.recordTelemetry("service_blocked", map[string]interface{}{"service_id": svc.ID, "reason": err.Error()})
+		return
+	}
+	if err := s.startService(ctx, svc); err != nil {
+		s.setStatus(svc.ID, ServiceStatus{Message: err.Error()})
+		_ = s.recordTelemetry("service_start_failed", map[string]interface{}{"service_id": svc.ID, "error": err.Error()})
+	}
 }
 
 // shouldSkipAuthenticationService keeps an optional local authenticator

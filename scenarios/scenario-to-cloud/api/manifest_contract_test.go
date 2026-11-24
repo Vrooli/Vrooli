@@ -83,6 +83,23 @@ func TestValidateAndNormalizeManifest_MinimalValidVPS(t *testing.T) {
 	}
 }
 
+func TestValidateAndNormalizeManifest_BackupPolicy(t *testing.T) {
+	m := testManifestBase("test", []string{"test"})
+	m.Backup = &domain.ManifestBackup{DestinationName: "private-recovery", Schedule: "24h", KeepDaily: 7, KeepWeekly: 4, KeepMonthly: 3, RecoveryDrillSchedule: "168h"}
+	_, issues := manifest.ValidateAndNormalize(m)
+	if manifest.HasBlockingIssues(issues) {
+		t.Fatalf("valid scheduled backup policy rejected: %+v", issues)
+	}
+	m.Backup.Schedule = "@daily"
+	_, issues = manifest.ValidateAndNormalize(m)
+	for _, issue := range issues {
+		if issue.Severity == domain.SeverityError && issue.Path == "backup.schedule" {
+			return
+		}
+	}
+	t.Fatalf("cron-like schedule should be refused by DBM interval contract, got %+v", issues)
+}
+
 func TestValidateAndNormalizeManifest_DefaultsAreApplied(t *testing.T) {
 	// [REQ:STC-P0-001] cloud manifest export contract - verify all normalization defaults
 	t.Run("default VPS port is 22", func(t *testing.T) {

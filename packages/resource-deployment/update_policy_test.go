@@ -111,6 +111,21 @@ func TestStatelessUpdatePolicyRequiresRecoverableLaunchContract(t *testing.T) {
 	}
 }
 
+func TestManagedUpdateNamesComposedTreeRecoveryBoundary(t *testing.T) {
+	m := statelessUpdateFixture()
+	m.Artifact.Layout = "dir"
+	m.Artifact.EntryPath = "runtime/bin/service"
+	digest := strings.Repeat("a", 64)
+	m.Acquisition = &binaryfetch.Acquisition{Kind: "composed", Targets: []binaryfetch.AcquisitionTarget{{
+		Kind: "composed", Layout: "dir", ArtifactSHA256: digest,
+		Compose: []binaryfetch.ComposeStep{{Role: "runtime", Kind: "url", Dest: "runtime", URL: "https://example.invalid/runtime.tar.gz", SHA256: digest, Archive: "tar.gz", DownloadBytes: 1 << 20, MaxExpandedBytes: 4 << 20, MaxEntries: 100}},
+	}}}
+	err := m.ValidateUpdatePolicy()
+	if err == nil || !strings.Contains(err.Error(), "entry executable and whole-tree digest") || !strings.Contains(err.Error(), "rollback retention") {
+		t.Fatalf("composed directory update gap was not explicit: %v", err)
+	}
+}
+
 func TestExclusiveStopStartAllowsFrozenFileBackedConfig(t *testing.T) {
 	m := statelessUpdateFixture()
 	m.UpdatePolicy.Strategy = UpdateStrategyExclusiveStopStart

@@ -43,9 +43,18 @@ type Commands struct {
 	http      interface {
 		DoWithContext(context.Context, string, string, url.Values, interface{}) ([]byte, error)
 	}
+	envLookup func(string) (string, bool)
+	userHome  func() (string, error)
 }
 
 func New(deps support.Dependencies) *Commands {
+	deps = deps.WithProcessEnvironment()
+	return NewWithDependencies(deps, deps.LookupEnv, deps.UserHome)
+}
+
+// NewWithDependencies binds process configuration at the owner boundary while
+// keeping command behavior replaceable in unit tests.
+func NewWithDependencies(deps support.Dependencies, envLookup func(string) (string, bool), userHome func() (string, error)) *Commands {
 	app := deps.ScenarioApp()
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(app)
 	restClient := cliutil.NewHTTPClient(cliutil.HTTPClientOptions{
@@ -62,7 +71,7 @@ func New(deps support.Dependencies) *Commands {
 		}
 		return offersconnect.NewGatesServiceClient(httpClient, baseURL), nil
 	}
-	return &Commands{rpc: domainconnect.NewEvidenceServiceClient(httpClient, baseURL), gates: gates, apiPrefix: app.APIPrefix(), http: restClient}
+	return &Commands{rpc: domainconnect.NewEvidenceServiceClient(httpClient, baseURL), gates: gates, apiPrefix: app.APIPrefix(), http: restClient, envLookup: envLookup, userHome: userHome}
 }
 
 func Register(deps support.Dependencies) cliapp.SubcommandGroup {
@@ -155,11 +164,11 @@ type desktopBuildRecord struct {
 	UpdatedAt    string `json:"updated_at"`
 }
 
-func desktopRecordsPath() string {
-	if configured := strings.TrimSpace(os.Getenv("SCENARIO_TO_DESKTOP_RECORDS_PATH")); configured != "" {
+func (c *Commands) desktopRecordsPath() string {
+	if configured, ok := c.envLookup("SCENARIO_TO_DESKTOP_RECORDS_PATH"); ok && strings.TrimSpace(configured) != "" {
 		return configured
 	}
-	home, err := os.UserHomeDir()
+	home, err := c.userHome()
 	if err != nil {
 		return filepath.Join(".vrooli", "data", "vrooli", "scenario-to-desktop", "desktop_records_v2.json")
 	}
@@ -215,7 +224,7 @@ func (c *Commands) publishOfferFactPrimitive() cliapp.PrimitiveHandler {
 			return nil, fmt.Errorf("parse --stale-after-days: value must be positive")
 		}
 		scenario := strings.TrimSpace(ctx.Flag("scenario"))
-		fact, err := readDesktopBuildFact(desktopRecordsPath(), scenario, stale)
+		fact, err := readDesktopBuildFact(c.desktopRecordsPath(), scenario, stale)
 		if err != nil {
 			return nil, err
 		}

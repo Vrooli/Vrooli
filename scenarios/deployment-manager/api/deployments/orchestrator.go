@@ -22,6 +22,8 @@ import (
 
 // DeployDesktopRequest is the request for orchestrated desktop deployment.
 type DeployDesktopRequest struct {
+	// OperationID is set only by the durable release-operation owner.
+	OperationID string `json:"-"`
 	// ProfileID is the profile to deploy (required)
 	ProfileID  string `json:"profile_id"`
 	StrategyID string `json:"strategy_id,omitempty"`
@@ -81,12 +83,13 @@ type DeployDesktopRequest struct {
 	// CloudManifest opts this governed release into scenario-to-cloud's VPS
 	// lifecycle. The cloud service remains the owner of secrets and remote
 	// effects; DM records the receipt it returns.
-	CloudManifest        json.RawMessage `json:"cloud_manifest,omitempty"`
-	CloudDeploymentName  string          `json:"cloud_deployment_name,omitempty"`
-	CloudBundlePath      string          `json:"cloud_bundle_path,omitempty"`
-	CloudBundleSHA256    string          `json:"cloud_bundle_sha256,omitempty"`
-	CloudBundleSizeBytes int64           `json:"cloud_bundle_size_bytes,omitempty"`
-	CloudRunPreflight    bool            `json:"cloud_run_preflight,omitempty"`
+	CloudManifest                 json.RawMessage `json:"cloud_manifest,omitempty"`
+	CloudDeploymentName           string          `json:"cloud_deployment_name,omitempty"`
+	CloudBundlePath               string          `json:"cloud_bundle_path,omitempty"`
+	CloudBundleSHA256             string          `json:"cloud_bundle_sha256,omitempty"`
+	CloudBundleSizeBytes          int64           `json:"cloud_bundle_size_bytes,omitempty"`
+	CloudComputeManagerInstanceID string          `json:"cloud_compute_manager_instance_id,omitempty"`
+	CloudRunPreflight             bool            `json:"cloud_run_preflight,omitempty"`
 }
 
 // Recover routes an exact release recovery request to the owning cloud
@@ -307,6 +310,26 @@ type Orchestrator struct {
 	commandRunner         commandRunner
 	vrooli                string
 	log                   func(string, map[string]interface{})
+}
+
+// GetCloudRecoveryOperation performs an exact, read-only lookup through the
+// configured S2C client. It is used only to reconcile an operation already
+// started by an authorized human.
+func (o *Orchestrator) GetCloudRecoveryOperation(ctx context.Context, deploymentID, operationID string) (*releases.CloudRecoveryOperation, error) {
+	reader, ok := o.cloudClient.(releases.CloudRecoveryOperationReader)
+	if !ok {
+		return nil, fmt.Errorf("cloud recovery readback is unavailable")
+	}
+	return reader.GetCloudRecoveryOperation(ctx, deploymentID, operationID)
+}
+
+// FindCloudRecoveryOperation reconciles a lost first read by DM's durable key.
+func (o *Orchestrator) FindCloudRecoveryOperation(ctx context.Context, deploymentID, idempotencyKey string) (*releases.CloudRecoveryOperation, error) {
+	reader, ok := o.cloudClient.(releases.CloudRecoveryOperationReader)
+	if !ok {
+		return nil, fmt.Errorf("cloud recovery readback is unavailable")
+	}
+	return reader.FindCloudRecoveryOperation(ctx, deploymentID, idempotencyKey)
 }
 
 // NewOrchestrator creates a new deployment orchestrator.

@@ -24,13 +24,17 @@
         "type": { "type": "string", "enum": ["vps"] },
         "vps": {
           "type": "object",
-          "required": ["host"],
+          "anyOf": [
+            { "required": ["host"] },
+            { "required": ["compute_manager_instance_id"] }
+          ],
           "additionalProperties": false,
           "properties": {
             "host": { "type": "string", "minLength": 1 },
             "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
             "user": { "type": "string" },
             "workdir": { "type": "string" },
+            "compute_manager_instance_id": { "type": "string", "minLength": 1 },
             "preserve_paths": {
               "type": "array",
               "items": { "type": "string" }
@@ -60,6 +64,11 @@
         "resources": {
           "type": "array",
           "items": { "type": "string" }
+        },
+        "deselect_optional": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Optional closure components explicitly excluded from this deployment bundle."
         },
         "analyzer": {
           "type": "object",
@@ -136,6 +145,21 @@
         }
       }
     },
+    "backup": {
+      "type": "object",
+      "required": ["destination_name", "schedule", "recovery_drill_schedule"],
+      "additionalProperties": false,
+      "properties": {
+        "destination_name": { "type": "string", "minLength": 1 },
+        "schedule": { "type": "string", "minLength": 1, "description": "Positive Go duration interval supported by data-backup-manager, for example 24h." },
+        "keep_hourly": { "type": "integer", "minimum": 0 },
+        "keep_daily": { "type": "integer", "minimum": 0 },
+        "keep_weekly": { "type": "integer", "minimum": 0 },
+        "keep_monthly": { "type": "integer", "minimum": 0 },
+        "keep_annual": { "type": "integer", "minimum": 0 },
+        "recovery_drill_schedule": { "type": "string", "minLength": 1, "description": "Positive Go duration interval, for example 168h." }
+      }
+    },
     "secrets": {
       "type": "object",
       "properties": {
@@ -173,6 +197,15 @@
                   "logical_id": { "type": "string", "minLength": 1 },
                   "field": { "type": "string", "minLength": 1 }
                 }
+              },
+              "generator": {
+                "type": "object",
+                "description": "Generation policy for per-install credentials. Values are never included in the manifest.",
+                "properties": {
+                  "type": { "type": "string" },
+                  "length": { "type": "integer", "minimum": 1 },
+                  "charset": { "type": "string" }
+                }
               }
             }
           }
@@ -197,10 +230,23 @@
               "field": { "type": "string", "minLength": 1 }
             }
           },
+          "legacy_auth_descriptor": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["logical_id", "field"],
+            "properties": {
+              "logical_id": { "type": "string", "minLength": 1 },
+              "field": { "type": "string", "minLength": 1 }
+            }
+          },
           "profile_tag": { "type": "string", "minLength": 1 },
           "profile_label": { "type": "string" },
           "api_base": { "type": "string", "minLength": 1 },
-          "secret_id": { "type": "string", "minLength": 1 }
+          "secret_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "ID of exactly one generated BundleSecretPlan. Its target-bound descriptor supplies the separate destination-profile credential; it is not the local auth_descriptor or legacy_auth_descriptor."
+          }
         }
       }
     }
