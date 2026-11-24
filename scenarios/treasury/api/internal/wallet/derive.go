@@ -11,7 +11,7 @@ import (
 	secp "github.com/go-webauthn/x/crypto/secp256k1"
 )
 
-// CreateDerived gives a budget a deterministic, domain-separated child key.
+// CreateDerived gives each child wallet a deterministic, domain-separated key.
 // The parent and child stay in the credential authority. The derivation label
 // is public metadata, never a seed or an authority granted to an agent.
 func (s *Service) CreateDerived(ctx context.Context, parentID, label string, in CreateInput) (Wallet, error) {
@@ -34,7 +34,7 @@ func (s *Service) CreateDerived(ctx context.Context, parentID, label string, in 
 	defer clear(seed)
 	return s.create(ctx, in, func() (*secp.PrivateKey, error) {
 		for counter := 0; counter < 256; counter++ {
-			payload, _ := json.Marshal([]any{"vrooli-treasury-budget-key-v1", parent.ID, in.BookID, in.Network, label, counter})
+			payload, _ := json.Marshal([]any{"vrooli-treasury-budget-key-v2", parent.ID, in.ID, in.BookID, in.Network, label, counter})
 			mac := hmac.New(sha256.New, seed)
 			_, _ = mac.Write(payload)
 			raw := mac.Sum(nil)

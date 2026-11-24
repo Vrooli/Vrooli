@@ -39,13 +39,19 @@ func fake(t *testing.T, status int, response string, seen *captured) *httptest.S
 	return server
 }
 
-func TestResidentDeviceReadsTheDaemonPlacement(t *testing.T) {
+func TestResidentsReadTheDaemonPlacementAndUnloadReleasesMemory(t *testing.T) {
+	var unloadBody map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/ps" {
+		switch r.URL.Path {
+		case "/api/ps":
+			_, _ = w.Write([]byte(`{"models":[{"name":"winnow:e4b","model":"winnow:e4b","device":"CUDA:0","size_vram":9000000000},{"name":"laya:en","device":"cpu","size_vram":0}]}`))
+		case "/api/decide":
+			raw, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(raw, &unloadBody)
+			_, _ = w.Write([]byte(`{"model":"winnow:e4b","done_reason":"unload"}`))
+		default:
 			http.NotFound(w, r)
-			return
 		}
-		_, _ = w.Write([]byte(`{"models":[{"name":"winnow:e4b","model":"winnow:e4b","device":"cuda:0","size_vram":9000000000}]}`))
 	}))
 	defer server.Close()
 	client := Client{HTTP: http.DefaultClient, GetEnv: func(key string) string {
@@ -54,12 +60,15 @@ func TestResidentDeviceReadsTheDaemonPlacement(t *testing.T) {
 		}
 		return ""
 	}}
-	device, found, err := client.ResidentDevice(context.Background(), "winnow:e4b")
-	if err != nil || !found || device != "cuda:0" {
-		t.Fatalf("ResidentDevice = %q found=%t err=%v", device, found, err)
+	residents, err := client.Residents(context.Background())
+	if err != nil || len(residents) != 2 || residents[0].Name != "winnow:e4b" || residents[0].Device != "cuda:0" || residents[0].SizeVRAM != 9000000000 || residents[1].Device != "cpu" {
+		t.Fatalf("Residents = %+v err=%v, want both models with lowercase devices and VRAM bytes", residents, err)
 	}
-	if _, found, err := client.ResidentDevice(context.Background(), "laya:en"); err != nil || found {
-		t.Fatalf("non-resident model = found %t err %v, want a clean absence", found, err)
+	if err := client.Unload(context.Background(), "winnow:e4b"); err != nil {
+		t.Fatal(err)
+	}
+	if unloadBody["model"] != "winnow:e4b" || unloadBody["keep_alive"] != float64(0) || unloadBody["state"] != nil {
+		t.Fatalf("unload body = %v, want a stateless keep_alive 0 request", unloadBody)
 	}
 }
 
@@ -80,6 +89,9 @@ func TestLocalDecideUsesNativeEndpointAndReportsDaemonTimings(t *testing.T) {
 	}
 	if string(seen.body["state"]) != string(request.State) {
 		t.Fatalf("state must reach the daemon without being replaced or omitted; got %s", seen.body["state"])
+	}
+	if keepAlive, present := seen.body["keep_alive"]; present {
+		t.Fatalf("keep_alive = %s; residency belongs to the activity edge, not the client", keepAlive)
 	}
 	if result.Model != "laya:en" || *result.Usage.InputTokens != 41 || *result.EvalMS != 16 || result.CostUSD != nil {
 		t.Fatalf("result = %+v, want the answering model, reported tokens and daemon eval time", result)
@@ -149,7 +161,11 @@ func TestFailuresAreClassifiedForGatewayFallback(t *testing.T) {
 		{"bad key", `{"detail":{"message":"Must supply an API key!"}}`, 403, CodeUnconfigured},
 		{"rate limited", `{"error":"slow down"}`, 429, CodeRateLimited},
 		{"queue full", `{"error":"queue full","code":"QUEUE_FULL"}`, 503, CodeProviderOverloaded},
-		{"model refuses options", `{"error":"140 options","code":"TOO_MANY_OPTIONS"}`, 422, CodeProviderFailed},
+		{"model refuses options", `{"error":"140 options","code":"TOO_MANY_OPTIONS"}`, 422, CodeLimitsExceeded},
+		{"load ran out of vram", `{"error":"insufficient_vram: needs 9 GiB","code":"MODEL_LOAD_FAILED"}`, 500, CodeInsufficientVRAM},
+		{"onnx arena could not allocate", `{"error":"pplx-decider:flash failed to load: ERROR ort::logging: Exception during initialization: bfc_arena.cc:359 Failed to allocate memory for requested buffer of size 47185920","code":"MODEL_LOAD_FAILED"}`, 500, CodeInsufficientVRAM},
+		{"llama.cpp cudaMalloc failed", `{"error":"credence failed to load: ERROR llama.cpp: ggml_backend_cuda_buffer_type_alloc_buffer: allocating 559.02 MiB on device 0: cudaMalloc failed: out of memory","code":"MODEL_LOAD_FAILED"}`, 500, CodeInsufficientVRAM},
+		{"load failed for another reason", `{"error":"corrupt weights","code":"MODEL_LOAD_FAILED"}`, 500, CodeProviderFailed},
 		{"empty answers", `{"model":"x","answers":null}`, 200, CodeProviderFailed},
 		{"cloudflare failure", `{"success":false,"errors":[{"message":"quota"}]}`, 200, CodeProviderFailed},
 	}

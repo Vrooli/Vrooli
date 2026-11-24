@@ -11,10 +11,17 @@ package capacitysync
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/buildinfo"
+	broker "github.com/vrooli/vrooli/internal/capacity"
+	hostconfig "github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/ensure"
@@ -39,12 +46,15 @@ type psClient interface {
 // Handlers carries the injectable seams. Tests provide fakes; production takes
 // the defaults.
 type Handlers struct {
-	Stdout    io.Writer
-	Stderr    io.Writer
-	GetEnv    func(string) string
-	NewClient func() psClient
-	Exec      companion.Exec
-	Interval  time.Duration
+	Stdout          io.Writer
+	Stderr          io.Writer
+	GetEnv          func(string) string
+	NewClient       func() psClient
+	Exec            companion.Exec
+	Interval        time.Duration
+	ReservationFile string
+	Now             func() time.Time
+	AdmitModel      func(context.Context, int64, int64, int64) (string, int64, bool, error)
 }
 
 // Default returns Handlers wired to the real runtime and shell.
@@ -76,19 +86,48 @@ func (h *Handlers) Run(args []string) error {
 	return companion.Run(companion.CommandOptions{Config: h.config(), Stderr: h.Stderr}, args)
 }
 
+// LockSync serializes the shared companion's complete observe/reconcile pass
+// with reservation confirmation and release.
+func (h *Handlers) LockSync(ctx context.Context) (func(), error) {
+	return h.reservationStore().LockSync(ctx)
+}
+
+func (h *Handlers) admitModelReservation(ctx context.Context, claimBytes, admissionBytes, observedResidentBytes int64) (string, int64, bool, error) {
+	if h.AdmitModel != nil {
+		return h.AdmitModel(ctx, claimBytes, admissionBytes, observedResidentBytes)
+	}
+	root, err := buildinfo.ResolveSourceRoot()
+	if err != nil {
+		return "", 0, false, fmt.Errorf("resolve Ollama capacity manifest root: %w", err)
+	}
+	result, err := broker.AdmitResource(ctx, broker.AdmitOptions{
+		Root: root, ResourceName: resourceName, NoReclaim: true,
+		PreferredBytesOverride: claimBytes, AdmissionBytesOverride: admissionBytes,
+		ObservedResidentBytes: observedResidentBytes, Log: h.Stderr,
+	})
+	if err != nil {
+		return "", 0, false, err
+	}
+	if result.Skipped || result.ClaimID == "" || !result.Verdict.Granted() || result.ClaimBytes < claimBytes {
+		return "", 0, false, fmt.Errorf("Ollama model reservation admission did not establish %d bytes without reclaim", claimBytes)
+	}
+	return result.ClaimID, result.ClaimBytes, result.ClaimCreated, nil
+}
+
 // config declares ollama's companion.
 func (h *Handlers) config() companion.Config {
 	interval := h.Interval
 	if interval <= 0 {
 		interval = companion.PollInterval(h.GetEnv, intervalEnv, defaultInterval)
 	}
-	return companion.Config{
+	cfg := companion.Config{
 		Resource: resourceName,
 		Observer: h,
 		Exec:     h.Exec,
 		Interval: interval,
 		Log:      h.Stderr,
 	}
+	return cfg
 }
 
 // Observe reports the VRAM the currently loaded models hold.
@@ -101,11 +140,70 @@ func (h *Handlers) Observe(ctx context.Context) (companion.Footprint, error) {
 	if err != nil {
 		return companion.Footprint{}, err
 	}
-	var total int64
+	var observed int64
 	for _, model := range running {
-		total += model.SizeVRAM
+		observed, err = addVRAM(observed, model.SizeVRAM)
+		if err != nil {
+			return companion.Footprint{}, err
+		}
 	}
-	return companion.Footprint{Bytes: total}, nil
+	total := observed
+	reservation, err := h.reservationStore().Read()
+	if err != nil {
+		return companion.Footprint{}, err
+	}
+	activity := ""
+	admissionRequired := false
+	claimPreferred := int64(0)
+	claimFloor := int64(0)
+	if reservation != nil {
+		activity = companion.ActivityActive
+		var targetResident int64
+		for _, model := range running {
+			if sameModel(model.Name, reservation.Model) && model.SizeVRAM > 0 {
+				targetResident, err = addVRAM(targetResident, model.SizeVRAM)
+				if err != nil {
+					return companion.Footprint{}, err
+				}
+			}
+		}
+		held, err := addVRAM(total, reservation.RequestedBytes)
+		if err != nil {
+			return companion.Footprint{}, err
+		}
+		if targetResident > 0 {
+			otherResident := total - targetResident
+			if reservation.RequestedBytes > targetResident {
+				held, err = addVRAM(otherResident, reservation.RequestedBytes)
+				if err != nil {
+					return companion.Footprint{}, err
+				}
+			} else {
+				held = total
+			}
+		}
+		if reservation.CapacityBytes > 0 {
+			if reservation.CapacityBytes > held {
+				held = reservation.CapacityBytes
+			}
+		}
+		admissionRequired = true
+		if total < held {
+			total = held
+		}
+		claimPreferred = total
+		claimFloor = total
+	}
+	return companion.Footprint{
+		Bytes: total, Activity: activity, AdmissionRequired: admissionRequired,
+		ClaimPreferredBytes: claimPreferred, ClaimFloorBytes: claimFloor,
+		ObservedBytes: observed,
+	}, nil
+}
+
+func sameModel(a, b string) bool {
+	a, b = strings.TrimSpace(a), strings.TrimSpace(b)
+	return a == b || a == b+":latest" || b == a+":latest"
 }
 
 func (h *Handlers) client() psClient {
@@ -113,4 +211,17 @@ func (h *Handlers) client() psClient {
 		return h.NewClient()
 	}
 	return ensure.NewClient()
+}
+
+func (h *Handlers) reservationStore() ReservationStore {
+	path := strings.TrimSpace(h.ReservationFile)
+	if path == "" {
+		home, err := hostconfig.HomeDir()
+		if err == nil {
+			if dataRoot, pathErr := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyData); pathErr == nil {
+				path = filepath.Join(dataRoot, "resources", resourceName, "model-capacity-reservation.json")
+			}
+		}
+	}
+	return ReservationStore{Path: path, Now: h.Now}
 }

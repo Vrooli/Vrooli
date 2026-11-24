@@ -3,8 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { AlertCircle, Loader2, Monitor, Plus } from "lucide-react";
 import { listSessions, type Session } from "../lib/api/sessions";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { PlatformSelector } from "../components/sessions/PlatformSelector";
 import { useSessionStore } from "../store/sessionStore";
 

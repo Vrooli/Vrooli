@@ -55,7 +55,7 @@ Use this shape so entries are scannable. Append newest at the bottom.
 |---|---|---|
 | Classifier calibration was below the unattended-use bar in the legacy 17/50 review (34%). | That historical sample is superseded by the repeatable live fixture: 432/432 held-out work records correct (100.00%) and 558/558 fall-through triples unanimous (100.00%) through the normal gateway role, with no provider changes. | Keep the repeatable fixture current; do not treat the legacy human sample as the current calibration gate. See `CALIBRATION-REVIEW.md`. |
 | Facet embedding-space count is a guess (3: topic, rule/implication, entities). | Too few loses clustering recall; too many wastes inference. | `VMEM-P1-005` — needs real clustering output to settle. |
-| `run_id` is nullable for heartbeat-spawned agents. | Memory→run backlink is absent for those writes. Documented upstream in `docs/agent-system/RUNTIME_ATTRIBUTION.md` with the token-claim overlay listed as future strengthening. | `VMEM-P1-002` — write path must tolerate absent correlation. |
+| `run_id` is nullable for heartbeat-spawned agents. | Memory→run backlink is absent for those writes. Documented upstream in `scenarios/prompt-manager/docs/internal/RUNTIME_ATTRIBUTION.md` with the token-claim overlay listed as future strengthening. | `VMEM-P1-002` — write path must tolerate absent correlation. |
 | Curated instruction topology can drift when an alias is deleted or replaced. | A coding-agent harness may stop loading the operator-owned project instructions even though native memory projection remains healthy. | **Resolved in the startup repair path:** project-level `AGENTS.md` is recovered from surviving curated peers and declared aliases are recreated as symlinks. See `VMEM-P1-007`. |
 | Deliberate-write path assumes agents notice what is worth remembering. | Untested. The 1-in-200 records measurement is evidence about *flags*, not about *noticing*. | `VMEM-P2-001` is the fallback if this proves false. |
 | Summarization drift (fact mutation vs. intended fact dropping) is uninstrumented. | Quality-only: `forest` is rebuildable, so drift never costs data. | `VMEM-P2-003`, deferred by decision D-012. |
@@ -155,7 +155,7 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Architecture Drift
 
-Use this section for deferred findings from `screaming-architecture-audit`.
+Use this section for deferred findings from `architecture-lenses`.
 Do not create a standalone architecture-audit report unless the work is
 a migration handoff with a planned retirement path back into
 `ARCHITECTURE.md`, `SEAMS.md`, or this file.

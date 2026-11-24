@@ -36,6 +36,7 @@ export interface ExtractRequest {
   type: "extract";
   request_id: string;
   project_path: string;
+  profile?: "full" | "imports";
 }
 
 export interface RewriteOperation {
@@ -134,6 +135,7 @@ export interface ExtractResponse {
   request_id: string;
   graph: CodeGraph;
   warnings: CodeGraphWarning[];
+  profile: "full" | "imports";
 }
 
 // Canonical per-operation status. Mirrors proto OperationStatus enum

@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -20,7 +19,6 @@ import (
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
-	resourceport "github.com/vrooli/vrooli/packages/resource-port"
 )
 
 const (
@@ -307,22 +305,6 @@ func (o *OrchestratorService) GetStatus(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(status)
-}
-
-// getResourcePort queries the port registry for a resource's port
-func getResourcePort(resourceName string) string {
-	root := os.Getenv("VROOLI_ROOT")
-	if root == "" {
-		root = filepath.Join(os.Getenv("HOME"), "Vrooli")
-	}
-	portName := ""
-	if resourceName == "postgres" {
-		portName = "sql"
-	}
-	if port, err := resourceport.Resolve(root, resourceName, portName); err == nil {
-		return port
-	}
-	return "8080"
 }
 
 func main() {

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight } from "lucide-react";
-import { Button } from "./components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { fetchHealth } from "./lib/api";
 
 export default function App() {

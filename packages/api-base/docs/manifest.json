@@ -74,6 +74,11 @@
           "path": "guides/app-notifications.md",
           "title": "App Notifications",
           "description": "Letting a scenario's installed app show its own notifications instead of Chimesail"
+        },
+        {
+          "path": "guides/experience-telemetry.md",
+          "title": "Local Experience Telemetry",
+          "description": "Recording semantic interaction and friction signal for UX audits, with no scenario code changes"
         }
       ]
     },

@@ -6,6 +6,8 @@ import (
 
 	"github.com/vrooli/vrooli/resources/ollaya/cli/internal/capacitysync"
 	"github.com/vrooli/vrooli/resources/ollaya/cli/internal/commands"
+	"github.com/vrooli/vrooli/resources/ollaya/cli/internal/policy"
+	"github.com/vrooli/vrooli/resources/ollaya/cli/internal/residency"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/vrooli/packages/capacity/activityedge"
@@ -55,6 +57,11 @@ func newApp() (*cliapp.ResourceApp, error) {
 	if err != nil {
 		return nil, err
 	}
+	edgeLog := func(format string, args ...any) { fmt.Fprintf(os.Stderr, format, args...) }
+	live := &residency.Live{Path: policy.PolicyPath(sourceRootEnv), Logf: edgeLog}
+	keeper := &residency.Edge{KeepAlive: live.KeepAliveSeconds}
+	edge.Rewrite = keeper.Rewrite
+	edge.StartupReconcile = keeper.ReconcileLoaded
 	app.SetCommandsWithSubgroups(
 		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{
 			Title: "Capacity",
@@ -73,4 +80,13 @@ func newApp() (*cliapp.ResourceApp, error) {
 		},
 	)
 	return app, nil
+}
+
+// sourceRootEnv is the process environment with the build's source root as the
+// last resort for locating the model policy.
+func sourceRootEnv(key string) string {
+	if value := os.Getenv(key); value != "" || key != "OLLAYA_CLI_SOURCE_ROOT" {
+		return value
+	}
+	return buildSourceRoot
 }

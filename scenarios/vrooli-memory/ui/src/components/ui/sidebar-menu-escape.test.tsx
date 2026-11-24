@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { fireEvent } from "@testing-library/react";
 
 import { renderWithProviders } from "../../test-utils";
-import { useSidebarMenuEscape } from "./sidebar-menu-escape";
+import { useEscapeKey as useSidebarMenuEscape } from "@vrooli/react-component-library/useEscapeKey/1.0.0";
 
 function Harness({ enabled, onEscape }: { enabled: boolean; onEscape: () => void }) {
   useSidebarMenuEscape(enabled, onEscape);

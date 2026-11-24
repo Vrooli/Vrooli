@@ -84,6 +84,74 @@ func TestManagedStreamingProfileMatchesServerPaths(t *testing.T) {
 	}
 }
 
+// Audio Tools can select the local Sherpa adapter, but managed lifecycle must
+// not claim Linux support until the complete native bundle has been signed
+// and published. A local tree digest establishes integrity, but not release
+// provenance or an address from which managed lifecycle can acquire it.
+func TestLinuxManagedLifecycleRemainsGatedOnPublishedBundle(t *testing.T) {
+	_, source, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("resolve test source path")
+	}
+	manifestPath := filepath.Join(filepath.Dir(source), "..", "resource.json")
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest struct {
+		Platforms map[string]string `json:"platforms"`
+		Deployment struct {
+			Profiles map[string]map[string]struct {
+				Support string `json:"support"`
+			} `json:"profiles"`
+		} `json:"deployment"`
+		ManagedService struct {
+			Artifact struct {
+				SHA256ByPlatform map[string]string `json:"sha256_by_platform"`
+			} `json:"artifact"`
+			Acquisition struct {
+				Kind    string `json:"kind"`
+				Targets []struct {
+					When struct {
+						OS   string `json:"os"`
+						Arch string `json:"arch"`
+					} `json:"when"`
+					Unsupported string `json:"unsupported"`
+				} `json:"targets"`
+			} `json:"acquisition"`
+		} `json:"managed_service"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatal(err)
+	}
+
+	const platform = "linux-amd64"
+	if manifest.ManagedService.Artifact.SHA256ByPlatform[platform] == "" {
+		t.Fatalf("expected local bundle digest for %s so the test proves a digest alone does not enable lifecycle", platform)
+	}
+	if manifest.ManagedService.Acquisition.Kind != "none" {
+		t.Fatalf("acquisition kind = %q, want none until signed bundle publication exists", manifest.ManagedService.Acquisition.Kind)
+	}
+	foundTarget := false
+	for _, target := range manifest.ManagedService.Acquisition.Targets {
+		if target.When.OS == "linux" && target.When.Arch == "amd64" {
+			foundTarget = true
+			if !strings.Contains(strings.ToLower(target.Unsupported), "signed") || !strings.Contains(strings.ToLower(target.Unsupported), "published") {
+				t.Errorf("Linux amd64 unsupported reason must state signed publication gate, got %q", target.Unsupported)
+			}
+		}
+	}
+	if !foundTarget {
+		t.Fatal("Linux amd64 must have an explicit unsupported acquisition target")
+	}
+	if got := manifest.Platforms["linux"]; got != "unsupported" {
+		t.Errorf("Linux platform support = %q, want unsupported until bundle publication", got)
+	}
+	if got := manifest.Deployment.Profiles["desktop"]["linux"].Support; got != "unsupported" {
+		t.Errorf("desktop Linux deployment support = %q, want unsupported until bundle publication", got)
+	}
+}
+
 func TestManaged20MZipformerIsSeparatelyPinnedOnDemand(t *testing.T) {
 	_, source, _, ok := runtime.Caller(0)
 	if !ok {

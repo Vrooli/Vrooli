@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	sharedpolicy "github.com/vrooli/ai-provider-go/policy"
 )
@@ -47,6 +48,7 @@ type Policy struct {
 	Upstreams     map[string]Upstream `json:"upstreams"`
 	Roles         map[string]Role     `json:"roles"`
 	Models        map[string]Model    `json:"models"`
+	Residency     Residency           `json:"residency"`
 	LoadedSHA256  string              `json:"-"`
 }
 
@@ -84,26 +86,131 @@ type Model struct {
 	License     string                       `json:"license"`
 	DiskBytes   int64                        `json:"disk_bytes"`
 	Placement   *ModelPlacement              `json:"placement,omitempty"`
+	Limits      *ModelLimits                 `json:"limits,omitempty"`
 	Rights      *sharedpolicy.ArtifactRights `json:"rights,omitempty"`
 }
 
-// ModelPlacement declares where a local model is allowed to execute. Device
-// "gpu" means the model must be served by the accelerator: a CPU load is a
-// typed failure, not a slow success. Device "any" (the default) preserves the
-// daemon's normal placement, which is what lets Laya serve on the CPU.
+// ModelPlacement declares where a local model is allowed to execute and what
+// it costs there. Device "gpu" means the model must be served by the
+// accelerator: a CPU load is a typed failure, not a slow success. Device "cpu"
+// means the model is served from host memory and claims no VRAM. Device "any"
+// serves on whichever the daemon runs on. VRAMBytes is the resident footprint
+// on the accelerator and RAMBytes the resident footprint in host memory; the
+// capacity broker is asked whether the relevant one fits before a model that
+// is not resident is dispatched, so a model that cannot fit is skipped without
+// paying a load.
 type ModelPlacement struct {
 	Device    string `json:"device"`
 	VRAMBytes int64  `json:"vram_bytes,omitempty"`
+	RAMBytes  int64  `json:"ram_bytes,omitempty"`
+	// KeepAlive is how long the daemon keeps the model resident after its last
+	// request (a Go duration such as "2m"). Empty applies the policy's
+	// residency block. Large models declare a short one so they hand their
+	// memory back soon.
+	KeepAlive string `json:"keep_alive,omitempty"`
 }
 
 const (
 	PlacementDeviceAny = "any"
+	PlacementDeviceCPU = "cpu"
 	PlacementDeviceGPU = "gpu"
 )
+
+// ModelLimits are the hard bounds a decision model enforces, so a caller can
+// size digests and batches from data instead of finding out by refusal.
+// ContextTokens is the state the model reads without truncation. MaxOptions is
+// the most options one choice question may carry. ScoreLevels is set only for
+// a model that serves exactly that many score levels (zero means the System
+// One range of 2 to 10). MaxQuestions is set only when the model bounds the
+// questions of one request below the daemon's own cap (zero means no
+// model-specific bound).
+type ModelLimits struct {
+	ContextTokens int `json:"context_tokens"`
+	MaxOptions    int `json:"max_options"`
+	ScoreLevels   int `json:"score_levels,omitempty"`
+	MaxQuestions  int `json:"max_questions,omitempty"`
+}
 
 // RequiresGPU reports whether the model may only run on the accelerator.
 func (m Model) RequiresGPU() bool {
 	return m.Placement != nil && m.Placement.Device == PlacementDeviceGPU
+}
+
+// IsRouter reports whether the entry only forwards to other pinned models.
+func (m Model) IsRouter() bool { return len(m.Routes) > 0 }
+
+// EffectiveLimits returns the limits a caller can rely on for a model. A
+// router can answer with any of its targets, so it promises only what every
+// target does: the smallest context, option and question bounds.
+func (p Policy) EffectiveLimits(name string) *ModelLimits {
+	model, ok := p.Models[name]
+	if !ok {
+		return nil
+	}
+	if !model.IsRouter() {
+		return model.Limits
+	}
+	var out *ModelLimits
+	for _, route := range model.Routes {
+		target := p.EffectiveLimits(route)
+		if target == nil {
+			return nil
+		}
+		if out == nil {
+			clone := *target
+			out = &clone
+			continue
+		}
+		out.ContextTokens = minPositive(out.ContextTokens, target.ContextTokens)
+		out.MaxOptions = minPositive(out.MaxOptions, target.MaxOptions)
+		out.MaxQuestions = minPositive(out.MaxQuestions, target.MaxQuestions)
+		if out.ScoreLevels != target.ScoreLevels {
+			out.ScoreLevels = 0
+		}
+	}
+	return out
+}
+
+// EffectivePlacement returns where a model runs and what it needs. A router
+// needs whatever its most demanding target needs, and is GPU-only only when
+// every target is.
+func (p Policy) EffectivePlacement(name string) *ModelPlacement {
+	model, ok := p.Models[name]
+	if !ok {
+		return nil
+	}
+	if !model.IsRouter() {
+		return model.Placement
+	}
+	out := &ModelPlacement{Device: PlacementDeviceGPU}
+	for _, route := range model.Routes {
+		target := p.EffectivePlacement(route)
+		if target == nil {
+			return nil
+		}
+		if target.Device != PlacementDeviceGPU {
+			out.Device = PlacementDeviceAny
+		}
+		if target.VRAMBytes > out.VRAMBytes {
+			out.VRAMBytes = target.VRAMBytes
+		}
+		if target.RAMBytes > out.RAMBytes {
+			out.RAMBytes = target.RAMBytes
+		}
+	}
+	return out
+}
+
+func minPositive(a, b int) int {
+	switch {
+	case a <= 0:
+		return b
+	case b <= 0:
+		return a
+	case b < a:
+		return b
+	}
+	return a
 }
 
 // Resolution is one role resolved against the current process environment.
@@ -115,6 +222,8 @@ type Resolution struct {
 	Locality               string                                `json:"locality"`
 	Model                  string                                `json:"model"`
 	Rights                 *sharedpolicy.ArtifactRights          `json:"rights,omitempty"`
+	Limits                 *ModelLimits                          `json:"limits,omitempty"`
+	Placement              *ModelPlacement                       `json:"placement,omitempty"`
 	RuntimeIdentity        *sharedpolicy.RuntimeArtifactIdentity `json:"runtime_identity,omitempty"`
 	ObservedRuntimeDigest  string                                `json:"observed_runtime_digest,omitempty"`
 	ExpectedArtifactDigest string                                `json:"expected_artifact_digest,omitempty"`
@@ -175,22 +284,53 @@ func (p Policy) Validate() error {
 		if !isDigest(model.Digest) {
 			return fmt.Errorf("model %q requires a 64-character manifest digest", name)
 		}
-		if model.Placement != nil {
-			switch model.Placement.Device {
-			case PlacementDeviceAny:
-			case PlacementDeviceGPU:
-				if model.Placement.VRAMBytes <= 0 {
-					return fmt.Errorf("model %q requires placement.vram_bytes when placement.device is gpu", name)
-				}
-			default:
-				return fmt.Errorf("model %q placement.device %q must be %q or %q", name, model.Placement.Device, PlacementDeviceAny, PlacementDeviceGPU)
-			}
+		if err := model.validateServing(name); err != nil {
+			return err
 		}
 		for _, route := range model.Routes {
 			if _, ok := p.Models[route]; !ok {
 				return fmt.Errorf("router model %q routes to unpinned model %q", name, route)
 			}
 		}
+	}
+	return p.Residency.validate(p)
+}
+
+// validateServing requires every servable model to say where it runs and what
+// it can read; a router declares neither because it serves its targets'.
+func (m Model) validateServing(name string) error {
+	if m.Placement != nil {
+		switch m.Placement.Device {
+		case PlacementDeviceAny:
+		case PlacementDeviceGPU:
+			if m.Placement.VRAMBytes <= 0 {
+				return fmt.Errorf("model %q requires placement.vram_bytes when placement.device is gpu", name)
+			}
+		case PlacementDeviceCPU:
+			if m.Placement.RAMBytes <= 0 || m.Placement.VRAMBytes != 0 {
+				return fmt.Errorf("model %q requires placement.ram_bytes and no vram_bytes when placement.device is cpu", name)
+			}
+		default:
+			return fmt.Errorf("model %q placement.device %q must be %q, %q or %q", name, m.Placement.Device, PlacementDeviceAny, PlacementDeviceCPU, PlacementDeviceGPU)
+		}
+		if m.Placement.VRAMBytes < 0 || m.Placement.RAMBytes < 0 {
+			return fmt.Errorf("model %q placement footprints cannot be negative", name)
+		}
+		if m.Placement.KeepAlive != "" {
+			if d, err := time.ParseDuration(m.Placement.KeepAlive); err != nil || d <= 0 {
+				return fmt.Errorf("model %q placement.keep_alive %q must be a positive duration", name, m.Placement.KeepAlive)
+			}
+		}
+	}
+	if m.IsRouter() {
+		return nil
+	}
+	if m.Placement == nil {
+		return fmt.Errorf("model %q must declare placement", name)
+	}
+	if m.Limits == nil || m.Limits.ContextTokens <= 0 || m.Limits.MaxOptions < 2 || m.Limits.MaxOptions > 255 ||
+		m.Limits.ScoreLevels < 0 || m.Limits.ScoreLevels == 1 || m.Limits.ScoreLevels > 10 || m.Limits.MaxQuestions < 0 {
+		return fmt.Errorf("model %q must declare limits with context_tokens > 0 and max_options between 2 and 255", name)
 	}
 	return nil
 }
@@ -287,6 +427,8 @@ func (p Policy) Resolve(roleName string, getenv func(string) string) (Resolution
 	if upstream.Locality == LocalityLocal {
 		model := p.Models[role.Model]
 		resolution.Rights = model.Rights
+		resolution.Limits = p.EffectiveLimits(role.Model)
+		resolution.Placement = p.EffectivePlacement(role.Model)
 	}
 	for _, credential := range upstream.Credentials {
 		value := strings.TrimSpace(getenv(credential.Env))
@@ -307,15 +449,26 @@ func (p Policy) Resolve(roleName string, getenv func(string) string) (Resolution
 	return resolution, nil
 }
 
-// PolicyPath locates model-policy.json from the source root the control plane
-// exports, falling back to an explicit override for tests and operators.
+// PolicyPath locates model-policy.json. An explicit override wins; then the
+// resource directory the control plane exports as RESOURCE_ROOT; then the
+// repository source roots. The first candidate that exists is used, so a
+// process whose environment names only one of them still finds the policy.
 func PolicyPath(getenv func(string) string) string {
 	if path := strings.TrimSpace(getenv("OLLAYA_MODEL_POLICY_PATH")); path != "" {
 		return path
 	}
-	for _, key := range []string{"VROOLI_SOURCE_ROOT", "VROOLI_CLI_SOURCE_ROOT", "RESOURCE_ROOT"} {
+	var candidates []string
+	if root := strings.TrimSpace(getenv("RESOURCE_ROOT")); root != "" {
+		candidates = append(candidates, filepath.Join(root, "model-policy.json"))
+	}
+	for _, key := range []string{"VROOLI_SOURCE_ROOT", "VROOLI_CLI_SOURCE_ROOT", "OLLAYA_CLI_SOURCE_ROOT"} {
 		if root := strings.TrimSpace(getenv(key)); root != "" {
-			return filepath.Join(root, "resources", "ollaya", "model-policy.json")
+			candidates = append(candidates, filepath.Join(root, "resources", "ollaya", "model-policy.json"))
+		}
+	}
+	for _, candidate := range candidates {
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			return candidate
 		}
 	}
 	return filepath.Join("resources", "ollaya", "model-policy.json")

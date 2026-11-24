@@ -61,11 +61,12 @@ func (h *connectHandler) Extract(ctx context.Context, req *connect.Request[graph
 	}
 
 	resp := &graphv1.ExtractResponse{
-		Graph:            domainToProtoGraph(out.Graph),
-		Warnings:         warningsToProto(out.Warnings),
-		ExtractionMs:     elapsedMs,
-		GraphHash:        out.GraphHash,
-		SidecarRequestId: out.SidecarRequestID,
+		Graph:             domainToProtoGraph(out.Graph),
+		Warnings:          warningsToProto(out.Warnings),
+		ExtractionMs:      elapsedMs,
+		GraphHash:         out.GraphHash,
+		SidecarRequestId:  out.SidecarRequestID,
+		ExtractionProfile: out.ExtractionProfile,
 	}
 	return connect.NewResponse(resp), nil
 }

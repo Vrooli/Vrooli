@@ -23,6 +23,19 @@ func TestCompactContextNamesTheRereadAndStance(t *testing.T) {
 	}
 }
 
+func TestDiscoveryContextUsesTaskTimeSearchAndProgramLookup(t *testing.T) {
+	out := &bytes.Buffer{}
+	group := Commands(out)
+	if err := group.Subcommands[1].Run(nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"search-hub query", "program-runtime library search", "declared inputs and effects", "partial match"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("discovery context lacks %q: %s", want, out)
+		}
+	}
+}
+
 func TestEnsureStepIsIdempotentAndPreservesSettings(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "settings.json")
 	if err := os.WriteFile(path, []byte(`{"model":"opus","hooks":{"SessionStart":[{"matcher":"startup","hooks":[{"type":"command","command":"user"}]}]}}`), 0o600); err != nil {
@@ -53,7 +66,10 @@ func TestEnsureStepIsIdempotentAndPreservesSettings(t *testing.T) {
 	if n := strings.Count(string(raw), "effort compact-context"); n != 1 {
 		t.Fatalf("hook appears %d times: %s", n, raw)
 	}
-	for _, want := range []string{`"model":"opus"`, `"command":"user"`, `"matcher":"compact"`, `'/opt/vrooli bin/resource-claude-code' effort compact-context`} {
+	if n := strings.Count(string(raw), "effort discover-programs"); n != 1 {
+		t.Fatalf("discovery hook appears %d times: %s", n, raw)
+	}
+	for _, want := range []string{`"model":"opus"`, `"command":"user"`, `"matcher":"compact"`, `"matcher":"startup"`, `'/opt/vrooli bin/resource-claude-code' effort compact-context`, `'/opt/vrooli bin/resource-claude-code' effort discover-programs`} {
 		if !strings.Contains(string(raw), want) {
 			t.Fatalf("settings lack %s: %s", want, raw)
 		}

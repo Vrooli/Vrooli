@@ -44,6 +44,11 @@ type roleEntry struct {
 	MissingCredentials []string                     `json:"missing_credentials,omitempty"`
 	Description        string                       `json:"description"`
 	Rights             *sharedpolicy.ArtifactRights `json:"rights,omitempty"`
+	// Limits and Placement are the served model's declared bounds and
+	// footprint (absent for hosted roles), so callers size digests and batches
+	// from data.
+	Limits    *policy.ModelLimits    `json:"limits,omitempty"`
+	Placement *policy.ModelPlacement `json:"placement,omitempty"`
 }
 
 func (h *Handlers) Roles(args []string) error {
@@ -65,7 +70,7 @@ func (h *Handlers) Roles(args []string) error {
 			RequiredCapabilities: []string{policy.Capability}, Capabilities: []string{policy.Capability},
 			Locality: resolution.Locality, Upstream: resolution.Upstream, Model: resolution.Model,
 			Status: "available", MissingCredentials: resolution.Missing, Description: p.Roles[name].Description,
-			Rights: resolution.Rights,
+			Rights: resolution.Rights, Limits: resolution.Limits, Placement: resolution.Placement,
 		}
 		entry.Modalities.Input = []string{"text"}
 		if !resolution.Configured() {
@@ -112,6 +117,13 @@ func (h *Handlers) Resolve(args []string) error {
 		resolution.RuntimeIdentity = identity
 		resolution.ObservedRuntimeDigest = observedDigest
 		resolution.ExpectedArtifactDigest = identity.Digest
+		// A role whose model cannot fit right now does not resolve, so the
+		// gateway skips it before spending rights or load work on it.
+		ctx, cancel := context.WithTimeout(context.Background(), placementTimeout)
+		defer cancel()
+		if err := h.checkModelPlacement(ctx, p, resolution); err != nil {
+			return h.fail(err)
+		}
 	}
 	payload := map[string]any{
 		"role": resolution.Role, "model": resolution.Model, "canonical_model": resolution.Model,
@@ -120,6 +132,12 @@ func (h *Handlers) Resolve(args []string) error {
 	}
 	if resolution.Rights != nil {
 		payload["rights"] = resolution.Rights
+	}
+	if resolution.Limits != nil {
+		payload["limits"] = resolution.Limits
+	}
+	if resolution.Placement != nil {
+		payload["placement"] = resolution.Placement
 	}
 	if resolution.RuntimeIdentity != nil {
 		payload["runtime_identity"] = resolution.RuntimeIdentity

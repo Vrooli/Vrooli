@@ -34,6 +34,11 @@ var normalizedPaths = map[string]struct{}{
 	"/api/embeddings": {},
 }
 
+var authorizedInferencePaths = map[string]struct{}{
+	"/api/rerank":   {},
+	"/api/classify": {},
+}
+
 // compatPrefix is Ollama's OpenAI- and Anthropic-compatible API. Those
 // endpoints load models but ignore a body keep_alive: on Ollama 0.30.10 a
 // /v1/chat/completions request carrying keep_alive 120 left the model at the
@@ -67,6 +72,10 @@ const defaultReassertDelay = 2 * time.Second
 // requests get it reasserted after they finish.
 type EdgeNormalizer struct {
 	Profile Profile
+	// Authorize checks the exact installed model artifact and current policy
+	// immediately before forwarding an inference request. Nil preserves the
+	// normalizer's test and non-policy use without changing request behavior.
+	Authorize func(context.Context, string) error
 	// KeepAlive returns the keep_alive seconds a request for model carries, or
 	// false to leave the caller's value and the daemon default alone.
 	KeepAlive func(model string) (int, bool)
@@ -93,18 +102,18 @@ func NewEdgeNormalizer(logf func(format string, args ...any)) *EdgeNormalizer {
 	return &EdgeNormalizer{Profile: Current(), Logf: logf, Now: time.Now}
 }
 
-// Rewrite normalizes the load options of a matching request body in place and
-// returns the residency follow-up a compatible request needs. It is
-// fail-open: an unreadable or non-JSON body is forwarded unchanged so Ollama
-// reports the caller's error itself.
+// Rewrite normalizes load options and returns the residency follow-up a
+// compatible request needs. When Authorize is configured, unreadable, oversized
+// or non-JSON inference requests fail closed before reaching Ollama.
 func (n *EdgeNormalizer) Rewrite(r *http.Request) (activityedge.Completion, error) {
 	if r == nil || r.Body == nil || r.Method != http.MethodPost {
 		return nil, nil
 	}
 	path := strings.ToLower(strings.TrimSuffix(r.URL.Path, "/"))
 	_, native := normalizedPaths[path]
+	_, additionalInference := authorizedInferencePaths[path]
 	compat := strings.HasPrefix(path, compatPrefix)
-	if !native && !compat {
+	if !native && !additionalInference && !compat {
 		return nil, nil
 	}
 	original := r.Body
@@ -114,6 +123,10 @@ func (n *EdgeNormalizer) Rewrite(r *http.Request) (activityedge.Completion, erro
 		return nil, fmt.Errorf("read Ollama request body: %w", err)
 	}
 	if len(raw) > maxNormalizedBody {
+		if n.Authorize != nil {
+			_ = original.Close()
+			return nil, fmt.Errorf("Ollama inference request exceeds the authorization inspection limit")
+		}
 		// Too large to inspect: forward the bytes already read followed by the
 		// unread remainder, unchanged.
 		r.Body = struct {
@@ -128,10 +141,31 @@ func (n *EdgeNormalizer) Rewrite(r *http.Request) (activityedge.Completion, erro
 		var req struct {
 			Model string `json:"model"`
 		}
-		if json.Unmarshal(raw, &req) != nil {
+		if err := json.Unmarshal(raw, &req); err != nil {
+			if n.Authorize != nil {
+				return nil, fmt.Errorf("authorize Ollama inference request: invalid JSON model body: %w", err)
+			}
 			return nil, nil
 		}
+		if err := n.authorize(r.Context(), req.Model); err != nil {
+			return nil, err
+		}
 		return n.residencyFollowUp(path, req.Model), nil
+	}
+	if n.Authorize != nil && (native || additionalInference) {
+		var req struct {
+			Model string `json:"model"`
+		}
+		if err := json.Unmarshal(raw, &req); err != nil {
+			return nil, fmt.Errorf("authorize Ollama inference request: invalid JSON model body: %w", err)
+		}
+		if err := n.authorize(r.Context(), req.Model); err != nil {
+			return nil, err
+		}
+	}
+	if additionalInference {
+		setBody(r, raw)
+		return nil, nil
 	}
 	body, model, drift := n.Profile.normalizeBody(raw, n.KeepAlive)
 	setBody(r, body)
@@ -139,6 +173,20 @@ func (n *EdgeNormalizer) Rewrite(r *http.Request) (activityedge.Completion, erro
 		n.record(path, model, drift)
 	}
 	return nil, nil
+}
+
+func (n *EdgeNormalizer) authorize(ctx context.Context, model string) error {
+	if n.Authorize == nil {
+		return nil
+	}
+	model = strings.TrimSpace(model)
+	if model == "" {
+		return fmt.Errorf("Ollama inference request has no model identity")
+	}
+	if err := n.Authorize(ctx, model); err != nil {
+		return fmt.Errorf("authorize Ollama model %q for local inference: %w", model, err)
+	}
+	return nil
 }
 
 // residencyFollowUp returns the completion that reasserts model's policy

@@ -25,6 +25,12 @@
       "scopes": ["agent-manager:write"]
     },
     {
+      "name": "treasury-lpbs-credit-grant",
+      "resource": "landing-page-business-suite",
+      "audience": "scenario-authenticator:landing-page-business-suite",
+      "scopes": ["lpbs:credits.grant-accepted-crypto-receipt"]
+    },
+    {
       "name": "treasury-notification-hub",
       "resource": "notification-hub",
       "audience": "scenario-authenticator:notification-hub",

@@ -135,6 +135,7 @@ export class ParseFailureError extends Error {
 
 export interface ExtractInput {
   projectPath: string;
+  profile?: "full" | "imports";
   /**
    * Test seam: skip the on-disk tsconfig / workspace detection and use the
    * provided pre-built ts-morph Project instead. Production callers do not
@@ -154,6 +155,7 @@ export interface ExtractOutput {
 }
 
 export function extract(input: ExtractInput): ExtractOutput {
+  const importsOnly = input.profile === "imports";
   const resolved = input._project
     ? { project: input._project, rootDir: input._rootDirOverride ?? input.projectPath }
     : buildProject(input.projectPath);
@@ -212,32 +214,35 @@ export function extract(input: ExtractInput): ExtractOutput {
       leading_comments: [],
     });
 
-    // Declarations
-    const decls = collectDeclarations(sf);
     const declarationNodeIds = new Map<Node, string>();
-    for (const d of decls) {
-      const tsKind = classify(d);
-      const shortKind = KIND_SHORT[tsKind] ?? "ts_function";
-      const id = `${shortKind}:${relPath}:${d.name}`;
-      declarationNodeIds.set(d.node, id);
-      nodes.push({
-        id,
-        kind: tsKind,
-        name: d.name,
-        path: relPath,
-        is_test: isTest,
-        attributes: {
-          language: sourceLanguage,
-          kind: KIND_ATTR[tsKind] ?? KIND_ATTR[TS_NODE_KIND_FUNCTION]!,
-          is_test: String(isTest),
-          exported: d.exported ? "true" : "false",
-          ...sourceRangeAttrs(d.node),
-          ...bodySyntaxAttrs(d.node),
-        },
-        leading_comments: d.leadingComments,
-      });
-      if (d.exported) {
-        nodes.push(exportFactNode(relPath, d.name, "declaration", d.node, id));
+    let declarations: CollectedDecl[] = [];
+    if (!importsOnly) {
+      // Declarations
+      declarations = collectDeclarations(sf);
+      for (const d of declarations) {
+        const tsKind = classify(d);
+        const shortKind = KIND_SHORT[tsKind] ?? "ts_function";
+        const id = `${shortKind}:${relPath}:${d.name}`;
+        declarationNodeIds.set(d.node, id);
+        nodes.push({
+          id,
+          kind: tsKind,
+          name: d.name,
+          path: relPath,
+          is_test: isTest,
+          attributes: {
+            language: sourceLanguage,
+            kind: KIND_ATTR[tsKind] ?? KIND_ATTR[TS_NODE_KIND_FUNCTION]!,
+            is_test: String(isTest),
+            exported: d.exported ? "true" : "false",
+            ...sourceRangeAttrs(d.node),
+            ...bodySyntaxAttrs(d.node),
+          },
+          leading_comments: d.leadingComments,
+        });
+        if (d.exported) {
+          nodes.push(exportFactNode(relPath, d.name, "declaration", d.node, id));
+        }
       }
     }
 
@@ -274,21 +279,23 @@ export function extract(input: ExtractInput): ExtractOutput {
       }
       const target = res.target;
       // Emit a TS_RE_EXPORT node + an EDGE_KIND_RE_EXPORT edge.
-      const reExpId = `${KIND_SHORT[TS_NODE_KIND_RE_EXPORT]}:${relPath}:${spec}`;
-      nodes.push({
-        id: reExpId,
-        kind: TS_NODE_KIND_RE_EXPORT,
-        name: spec,
-        path: relPath,
-        attributes: {
-          language: "typescript",
-          kind: KIND_ATTR[TS_NODE_KIND_RE_EXPORT]!,
-          specifier: spec,
-          ...sourceRangeAttrs(exp),
-        },
-        leading_comments: leadingCommentsOf(exp),
-      });
-      nodes.push(exportFactNode(relPath, spec, "re_export", exp, reExpId));
+      if (!importsOnly) {
+        const reExpId = `${KIND_SHORT[TS_NODE_KIND_RE_EXPORT]}:${relPath}:${spec}`;
+        nodes.push({
+          id: reExpId,
+          kind: TS_NODE_KIND_RE_EXPORT,
+          name: spec,
+          path: relPath,
+          attributes: {
+            language: "typescript",
+            kind: KIND_ATTR[TS_NODE_KIND_RE_EXPORT]!,
+            specifier: spec,
+            ...sourceRangeAttrs(exp),
+          },
+          leading_comments: leadingCommentsOf(exp),
+        });
+        nodes.push(exportFactNode(relPath, spec, "re_export", exp, reExpId));
+      }
       edges.push({
         id: `re_export:${moduleId}->${target}`,
         kind: EK_RE_EXPORT,
@@ -299,25 +306,27 @@ export function extract(input: ExtractInput): ExtractOutput {
       });
     }
 
-    const symbolIndex = buildSymbolIndex(decls, declarationNodeIds);
-    appendUsageFactNodes(nodes, relPath, sf, symbolIndex);
+    if (!importsOnly) {
+      const symbolIndex = buildSymbolIndex(declarations, declarationNodeIds);
+      appendUsageFactNodes(nodes, relPath, sf, symbolIndex);
 
     // Diagnostics → warnings
-    for (const diag of sf.getPreEmitDiagnostics()) {
-      if (shouldSuppressDiagnostic(diag.getCode(), flattenMessage(diag.getMessageText()))) {
-        continue;
+      for (const diag of sf.getPreEmitDiagnostics()) {
+        if (shouldSuppressDiagnostic(diag.getCode(), flattenMessage(diag.getMessageText()))) {
+          continue;
+        }
+        const cat = diag.getCategory();
+        // Category: 0=Warning, 1=Error, 2=Suggestion, 3=Message
+        // Map syntax errors to PARSE_ERROR, type-check errors to TYPE_CHECK_FAILURE.
+        const code = diag.getCode();
+        const isSyntax = code >= 1000 && code < 2000;
+        warnings.push({
+          kind: isSyntax ? WK_PARSE_ERROR : WK_TYPE_CHECK_FAILURE,
+          file: relPath,
+          message: flattenMessage(diag.getMessageText()),
+        });
+        void cat; // keep classification rule simple in v1
       }
-      const cat = diag.getCategory();
-      // Category: 0=Warning, 1=Error, 2=Suggestion, 3=Message
-      // Map syntax errors to PARSE_ERROR, type-check errors to TYPE_CHECK_FAILURE.
-      const code = diag.getCode();
-      const isSyntax = code >= 1000 && code < 2000;
-      warnings.push({
-        kind: isSyntax ? WK_PARSE_ERROR : WK_TYPE_CHECK_FAILURE,
-        file: relPath,
-        message: flattenMessage(diag.getMessageText()),
-      });
-      void cat; // keep classification rule simple in v1
     }
   }
 

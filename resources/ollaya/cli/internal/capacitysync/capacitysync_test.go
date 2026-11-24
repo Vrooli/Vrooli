@@ -37,8 +37,8 @@ func TestObserveWithoutAClaimDoesNotStartTheResource(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Observe: %v", err)
 	}
-	if footprint.Bytes != 0 || footprint.Parked {
-		t.Fatalf("footprint = %+v, want an empty unparked result", footprint)
+	if footprint.Bytes != 0 {
+		t.Fatalf("footprint = %+v, want an empty result", footprint)
 	}
 	for _, call := range rec.calls {
 		if strings.Contains(call, "resource start") {
@@ -47,14 +47,11 @@ func TestObserveWithoutAClaimDoesNotStartTheResource(t *testing.T) {
 	}
 }
 
-func TestObserveReportsADegradedCPUClaimAsParked(t *testing.T) {
+func TestObserveReportsADegradedCPUClaimAsZeroBytes(t *testing.T) {
 	rec := &execRecorder{out: `{"claims":[{"owner_id":"ollaya","amount_bytes":0,"observed_bytes":0,"status":"degraded"}]}`}
 	footprint, err := handlers(rec).Observe(context.Background())
 	if err != nil {
 		t.Fatalf("Observe: %v", err)
-	}
-	if !footprint.Parked {
-		t.Fatalf("footprint = %+v, want a parked zero-memory claim", footprint)
 	}
 	if footprint.Bytes != 0 {
 		t.Fatalf("bytes = %d, want 0", footprint.Bytes)
@@ -67,8 +64,8 @@ func TestObserveKeepsTheClaimAmountWhenNoMeasurementExists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Observe: %v", err)
 	}
-	if footprint.Parked || footprint.Bytes != 2147483648 {
-		t.Fatalf("footprint = %+v, want the granted amount and not parked", footprint)
+	if footprint.Bytes != 2147483648 {
+		t.Fatalf("footprint = %+v, want the granted amount", footprint)
 	}
 }
 

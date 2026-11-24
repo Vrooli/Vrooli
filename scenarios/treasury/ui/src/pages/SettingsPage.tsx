@@ -4,8 +4,8 @@ import { MandateStatus } from "@vrooli/proto-types/treasury/v1/mandate/mandate_p
 
 import { cancelStandingMandate, getScenarioFrozen, listOperatorMandates, setScenarioFrozen, type Mandate } from "../api/controls";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { Input } from "../components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";

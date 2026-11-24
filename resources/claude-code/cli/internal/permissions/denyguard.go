@@ -92,9 +92,13 @@ func positiveEnvInt(name string, fallback int64) int64 {
 	return value
 }
 
-// HookEvent is the part of a PreToolUse payload the guard reads.
+// HookEvent is the part of a PreToolUse payload the guard reads. A Bash
+// event carries Command; a file tool event (Read, Write, Edit, ...) carries
+// Tool and FilePath, and only the path is judged, never the file's contents.
 type HookEvent struct {
+	Tool             string
 	Command          string
+	FilePath         string
 	WorkingDirectory string
 	PermissionMode   string
 	// SessionID and TranscriptPath let the delete guard find what the session
@@ -102,26 +106,49 @@ type HookEvent struct {
 	SessionID, TranscriptPath string
 }
 
-// ExtractHookEvent reads a PreToolUse Bash event. The payload is treated
-// strictly as data.
+// ExtractHookEvent reads a PreToolUse Bash or file tool event. The payload is
+// treated strictly as data.
 func ExtractHookEvent(data []byte) (HookEvent, error) {
 	malformed := errors.New("malformed hook input or missing tool_input.command")
 	var payload struct {
+		ToolName       string `json:"tool_name"`
 		Cwd            string `json:"cwd"`
 		PermissionMode string `json:"permission_mode"`
 		SessionID      string `json:"session_id"`
 		TranscriptPath string `json:"transcript_path"`
 		ToolInput      struct {
-			Command *string `json:"command"`
+			Command      *string `json:"command"`
+			FilePath     string  `json:"file_path"`
+			NotebookPath string  `json:"notebook_path"`
 		} `json:"tool_input"`
 	}
 	if err := json.Unmarshal(data, &payload); err != nil {
 		return HookEvent{}, malformed
 	}
+	event := HookEvent{Tool: payload.ToolName, WorkingDirectory: payload.Cwd, PermissionMode: payload.PermissionMode, SessionID: payload.SessionID, TranscriptPath: payload.TranscriptPath}
+	if event.Tool != "" && event.Tool != "Bash" {
+		event.FilePath = payload.ToolInput.FilePath
+		if event.FilePath == "" {
+			event.FilePath = payload.ToolInput.NotebookPath
+		}
+		// A file tool event with no path has nothing the guards judge; it
+		// continues rather than stopping every call if the payload shape moves.
+		return event, nil
+	}
 	if payload.ToolInput.Command == nil || *payload.ToolInput.Command == "" {
 		return HookEvent{}, malformed
 	}
-	return HookEvent{Command: *payload.ToolInput.Command, WorkingDirectory: payload.Cwd, PermissionMode: payload.PermissionMode, SessionID: payload.SessionID, TranscriptPath: payload.TranscriptPath}, nil
+	event.Tool, event.Command = "Bash", *payload.ToolInput.Command
+	return event, nil
+}
+
+// subject is what the guard log and refusal name: the command, or the tool
+// and the path it touches.
+func (e HookEvent) subject() string {
+	if e.Command != "" {
+		return e.Command
+	}
+	return e.Tool + " " + e.FilePath
 }
 
 // GuardDecision is the outcome of one PreToolUse evaluation. Ask continues
@@ -142,10 +169,16 @@ func denyGuard(reason string) GuardDecision {
 // EvaluateGuard decides one event: native deny patterns first, then the
 // shared policy runtime.
 func EvaluateGuard(event HookEvent, patterns []string, env GuardEnv) GuardDecision {
-	if decision := evaluateDenyPatterns(event.Command, patterns, env.Home); decision.Denied() {
-		return decision
+	if event.Tool != "Bash" && event.FilePath == "" {
+		return GuardDecision{Exit: GuardExitContinue}
 	}
-	toolEvent := agentharness.ToolEvent{Runner: "claude-code", Tool: "Bash", Shell: event.Command, WorkingDirectory: event.WorkingDirectory}
+	toolEvent := agentharness.ToolEvent{Runner: "claude-code", Tool: event.Tool, Target: event.FilePath, WorkingDirectory: event.WorkingDirectory}
+	if event.Tool == "Bash" {
+		if decision := evaluateDenyPatterns(event.Command, patterns, env.Home); decision.Denied() {
+			return decision
+		}
+		toolEvent.Tool, toolEvent.Shell = "Bash", event.Command
+	}
 	for key, value := range map[string]string{"permission_mode": event.PermissionMode, agentharness.ContextSessionID: event.SessionID, agentharness.ContextTranscriptPath: event.TranscriptPath} {
 		if value != "" {
 			if toolEvent.Context == nil {
@@ -316,13 +349,13 @@ func RunHookGuard(input io.Reader, stdout, stderr io.Writer, patterns []string, 
 	if err != nil {
 		return refuse(stderr, env, "", err.Error())
 	}
-	env.appendLog(fmt.Sprintf("%s tool=Bash cwd=%q mode=%q cmd=%q patterns=%d", guardTimestamp(), event.WorkingDirectory, event.PermissionMode, env.excerpt(event.Command), len(patterns)))
+	env.appendLog(fmt.Sprintf("%s tool=%s cwd=%q mode=%q cmd=%q patterns=%d", guardTimestamp(), event.Tool, event.WorkingDirectory, event.PermissionMode, env.excerpt(event.subject()), len(patterns)))
 	decision := EvaluateGuard(event, patterns, env)
 	if decision.Denied() {
-		return refuse(stderr, env, event.Command, decision.Reason)
+		return refuse(stderr, env, event.subject(), decision.Reason)
 	}
 	if decision.Ask {
-		env.appendLog(fmt.Sprintf("%s ASK cmd=%q reason=%q", guardTimestamp(), env.excerpt(event.Command), decision.Reason))
+		env.appendLog(fmt.Sprintf("%s ASK cmd=%q reason=%q", guardTimestamp(), env.excerpt(event.subject()), decision.Reason))
 		if stdout != nil {
 			_ = json.NewEncoder(stdout).Encode(map[string]any{"hookSpecificOutput": map[string]string{
 				"hookEventName":            "PreToolUse",

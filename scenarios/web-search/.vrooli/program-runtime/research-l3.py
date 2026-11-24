@@ -1,5 +1,3 @@
-import json
-
 """Start idempotently or reattach to one declared research workflow; never poll."""
 inputs = program.inputs()
 envelope={"program":"web-search.research-l3","version":"1","status":"failed","phase":"validate","signals":{},"errors":[],"evidence":[]}
@@ -39,4 +37,4 @@ except Exception as exc:
     if "grant" in str(exc):envelope["status"]="refused"
     envelope["errors"].append({"class":klass,"detail":str(exc)[:160],"where":envelope["phase"]})
 envelope["phase"]="report"
-print(json.dumps(envelope, sort_keys=True))
+program.report(envelope)

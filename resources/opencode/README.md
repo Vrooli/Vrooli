@@ -97,17 +97,61 @@ syncs the OpenRouter key into `auth.json`.
   `OPENCODE_PROVIDER=orcarouter` or `OPENCODE_PROVIDER=abliteration` to make one
   the active provider; otherwise they remain available in the picker without
   changing the default tier order.
-- **Ollama** is auto-configured as a keyless local provider
-  (OpenAI-compatible, `http://localhost:11434/v1`) when a local daemon is
-  reachable and no OpenRouter key is present. `resource-opencode ensure`
-  projects every installed model that serves a `chat` or `generate` role in
+- **Ollama** is configured as a keyless local provider at the loopback managed
+  activity edge (`http://127.0.0.1:11434/api`). `resource-opencode ensure`
+  projects installed models that serve an allowed `chat` or `generate` role in
   `resources/ollama/model-policy.json` into the provider block, so OpenCode's
-  model picker follows the Ollama policy instead of a hand-maintained list.
-  Operator-added entries and their display names are preserved. Projected
+  model picker follows current Ollama policy and local-inference rights. Each
+  ensure also removes previously projected policy models that are now denied.
+  Operator-added entries outside the policy and their display names are
+  preserved. Projected
   entries follow the policy model's `context_window_tokens` (capped at 32768);
   the coding default still uses `OPENCODE_OLLAMA_NUM_CTX` (default 16384).
   Role `max_tokens` becomes the output limit. Target a model outside the
-  policy explicitly with `-m ollama/<model>`.
+  policy explicitly with `-m ollama/<model>`; the Ollama activity edge still
+  checks current rights before forwarding inference.
+
+### Prepare and select a local model
+
+Use the role-based command to make a policy model ready and select it in one
+operation:
+
+```bash
+resource-opencode local-model select --role code.local
+```
+
+The command resolves the role and checks local inference rights through Ollama
+policy before changing runtime state. It creates a short-lived reservation
+for the target model plus any models already resident in Ollama. Ollama's
+reservation owner obtains strict no-reclaim admission before startup; the
+managed resource then starts with that same exact reservation, so its ordinary
+lifecycle admission cannot substitute a broader manifest rung. A denied
+request does not begin startup or acquisition. The
+reservation remains active through acquisition, tool and chat readiness probes,
+then hands the loaded footprint back to Ollama's companion. A missing model is
+acquired through `resource-ollama ensure`, which owns disk admission and the
+managed daemon lock. The command requires a passing model doctor result, a
+structured tool-call smoke, and a successful short chat before updating
+OpenCode's active model. If capacity, acquisition, or readiness fails, it
+stops before changing the active OpenCode model and releases its reservation
+when possible. Routine config ensure preserves the active local model while
+current rights allow it. Set an explicit non-Ollama `OPENCODE_PROVIDER` to
+choose another provider.
+If Ollama already has the target resident but its aggregate claim is too small,
+the broker corrects accounting only after a fresh, complete GPU process snapshot
+attributes enough VRAM to Ollama. That correction does not authorize another
+model load. If host attribution is unavailable or ambiguous, selection fails
+closed and leaves the active OpenCode model unchanged.
+The OpenCode picker includes only roles whose current trusted-context
+local-inference rights are allowed. Ollama's activity edge checks those rights
+again against the exact installed model digest on every native or compatible
+inference request, so a stale OpenCode config cannot bypass a changed decision.
+The `chat.uncensored` role is currently refused because its artifact license
+evidence is unreviewed; use an eligible role such as `code.local` until that
+review is complete. OpenCode is pinned to the loopback activity-edge endpoint,
+so an inherited `OLLAMA_HOST` setting cannot route around the rights check.
+Use `--json` for a machine-readable completion receipt and
+`--timeout-seconds` to bound the complete operation.
 
 ## Coding-role policy
 

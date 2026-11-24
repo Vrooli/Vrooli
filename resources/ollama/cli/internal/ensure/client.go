@@ -364,7 +364,15 @@ func (c *Client) ListRunning(ctx context.Context) ([]RunningModel, error) {
 		return nil, fmt.Errorf("decode running models: %w", err)
 	}
 	out := make([]RunningModel, 0, len(parsed.Models))
+	var aggregateVRAM int64
 	for _, m := range parsed.Models {
+		if m.SizeVRAM < 0 {
+			return nil, fmt.Errorf("decode running models: model %q reports negative size_vram %d", m.Name, m.SizeVRAM)
+		}
+		if m.SizeVRAM > int64(^uint64(0)>>1)-aggregateVRAM {
+			return nil, fmt.Errorf("decode running models: aggregate size_vram overflows int64")
+		}
+		aggregateVRAM += m.SizeVRAM
 		name := m.Name
 		if name == "" {
 			name = m.Model

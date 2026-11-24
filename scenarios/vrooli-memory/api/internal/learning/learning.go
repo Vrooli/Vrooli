@@ -99,6 +99,14 @@ func Validate(a *pb.Attempt) error {
 			return fmt.Errorf("effort counts must be between zero and 100000")
 		}
 	}
+	for _, count := range []*int32{a.AssertionsRequired, a.AssertionsCompleted} {
+		if count != nil && (*count < 0 || *count > 100000) {
+			return fmt.Errorf("assertion counts must be between zero and 100000")
+		}
+	}
+	if a.AssertionsRequired != nil && a.AssertionsCompleted != nil && *a.AssertionsCompleted > *a.AssertionsRequired {
+		return fmt.Errorf("completed assertions cannot exceed required assertions")
+	}
 	if !oneOf(a.Outcome, "verified_success", "failed", "unavailable", "unknown") {
 		return fmt.Errorf("invalid outcome")
 	}
@@ -382,6 +390,9 @@ func Measure(entries []*source.Entry, scope string, from, to time.Time, operatio
 		c := g.out
 		c.Tasks = int32(len(g.tasks))
 		var counts, seconds, firstActions, toolCalls, visionCalls []float64
+		var requiredAssertions, completedAssertions []float64
+		var minimumRequired, maximumRequired int32
+		hasRequired := false
 		reused := 0
 		for _, task := range g.tasks {
 			// First-action latency has one unambiguous first-attempt sample
@@ -415,6 +426,24 @@ func Measure(entries []*source.Entry, scope string, from, to time.Time, operatio
 				if a.VisualReasoningCalls != nil {
 					visionCalls = append(visionCalls, float64(*a.VisualReasoningCalls))
 				}
+				if a.AssertionsRequired != nil {
+					requiredAssertions = append(requiredAssertions, float64(*a.AssertionsRequired))
+					if !hasRequired || *a.AssertionsRequired < minimumRequired {
+						minimumRequired = *a.AssertionsRequired
+					}
+					if !hasRequired || *a.AssertionsRequired > maximumRequired {
+						maximumRequired = *a.AssertionsRequired
+					}
+					hasRequired = true
+				}
+				if a.AssertionsCompleted != nil {
+					completedAssertions = append(completedAssertions, float64(*a.AssertionsCompleted))
+				}
+				if a.AssertionsRequired == nil || a.AssertionsCompleted == nil {
+					c.AssertionsUnmeasuredAttempts++
+				} else if *a.AssertionsCompleted < *a.AssertionsRequired {
+					c.AssertionsIncompleteAttempts++
+				}
 				if a.ReusedWorkflow != nil {
 					c.ReuseSamples++
 					if *a.ReusedWorkflow {
@@ -429,6 +458,14 @@ func Measure(entries []*source.Entry, scope string, from, to time.Time, operatio
 		c.MedianSecondsToFirstAction = median(firstActions)
 		c.MedianToolRoundTrips = median(toolCalls)
 		c.MedianVisualReasoningCalls = median(visionCalls)
+		c.AssertionsRequiredSamples = int32(len(requiredAssertions))
+		c.AssertionsCompletedSamples = int32(len(completedAssertions))
+		c.MedianAssertionsRequired = median(requiredAssertions)
+		c.MedianAssertionsCompleted = median(completedAssertions)
+		if hasRequired {
+			c.MinAssertionsRequired = &minimumRequired
+			c.MaxAssertionsRequired = &maximumRequired
+		}
 		if c.ReuseSamples > 0 {
 			rate := float64(reused) / float64(c.ReuseSamples)
 			c.WorkflowReuseRate = &rate

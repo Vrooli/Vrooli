@@ -50,17 +50,12 @@ func (c *HTTPClient) client(ctx context.Context) (apiconnect.AgentManagerService
 	return apiconnect.NewAgentManagerServiceClient(c.HTTP, u), nil
 }
 
-func request[T any](ctx context.Context, m *T) *connect.Request[T] {
-	r := connect.NewRequest(m)
-	return r
-}
-
 func (c *HTTPClient) Start(ctx context.Context, r *apipb.StartWorkflowExecutionRequest) (*domainpb.WorkflowExecution, error) {
 	a, e := c.client(ctx)
 	if e != nil {
 		return nil, e
 	}
-	v, e := a.StartWorkflowExecution(ctx, request(ctx, r))
+	v, e := a.StartWorkflowExecution(ctx, connect.NewRequest(r))
 	if e != nil {
 		return nil, e
 	}
@@ -72,7 +67,7 @@ func (c *HTTPClient) Get(ctx context.Context, id string) (*domainpb.WorkflowExec
 	if e != nil {
 		return nil, e
 	}
-	v, e := a.GetWorkflowExecution(ctx, request(ctx, &apipb.GetWorkflowExecutionRequest{ExecutionId: id}))
+	v, e := a.GetWorkflowExecution(ctx, connect.NewRequest(&apipb.GetWorkflowExecutionRequest{ExecutionId: id}))
 	if e != nil {
 		return nil, e
 	}
@@ -84,7 +79,7 @@ func (c *HTTPClient) Result(ctx context.Context, id string) (*domainpb.WorkflowE
 	if e != nil {
 		return nil, e
 	}
-	v, e := a.GetWorkflowExecutionResult(ctx, request(ctx, &apipb.GetWorkflowExecutionResultRequest{ExecutionId: id, ExplicitlyAuthorized: true}))
+	v, e := a.GetWorkflowExecutionResult(ctx, connect.NewRequest(&apipb.GetWorkflowExecutionResultRequest{ExecutionId: id, ExplicitlyAuthorized: true}))
 	if e != nil {
 		return nil, e
 	}
@@ -99,7 +94,7 @@ func (c *HTTPClient) Wait(ctx context.Context, id string, n int) (*domainpb.Work
 	if e != nil {
 		return nil, false, e
 	}
-	v, e := a.WaitWorkflowExecution(ctx, request(ctx, &apipb.WaitWorkflowExecutionRequest{ExecutionId: id, TimeoutSeconds: int32(n)}))
+	v, e := a.WaitWorkflowExecution(ctx, connect.NewRequest(&apipb.WaitWorkflowExecutionRequest{ExecutionId: id, TimeoutSeconds: int32(n)}))
 	if e != nil {
 		return nil, false, e
 	}
@@ -111,7 +106,7 @@ func (c *HTTPClient) Cancel(ctx context.Context, r *apipb.WorkflowExecutionOpera
 	if e != nil {
 		return nil, e
 	}
-	v, e := a.CancelWorkflowExecution(ctx, request(ctx, r))
+	v, e := a.CancelWorkflowExecution(ctx, connect.NewRequest(r))
 	if e != nil {
 		return nil, e
 	}

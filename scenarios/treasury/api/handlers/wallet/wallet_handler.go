@@ -108,11 +108,27 @@ func (h *connectHandler) CommitPortableResearchWalletRotation(ctx context.Contex
 		RestoredTombstoneMatches: request.Msg.GetRestoredTombstoneMatches(), VerifiedAt: request.Msg.GetVerifiedAt(), Address: request.Msg.GetAddress(),
 		ReservationID: request.Msg.GetReservationId(), ReservationExpiresAt: request.Msg.GetReservationExpiresAt(), Attestation: &attestation,
 	}
-	committed, err := h.rotationPhases.CommitPortableRotation(ctx, r.WalletID, r.Network, operator.Subject, r.SuccessorID, r)
+	if request.Msg.GetTargetId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("DBM target ID is required for the commit acknowledgement"))
+	}
+	committed, ack, err := h.rotationPhases.CommitPortableRotationWithAcknowledgement(ctx, r.WalletID, r.Network, operator.Subject, r.SuccessorID, request.Msg.GetTargetId(), r)
 	if err != nil {
 		return nil, walletError(err)
 	}
-	return connect.NewResponse(&walletv1.CommitPortableResearchWalletRotationResponse{Wallet: walletToProto(committed)}), nil
+	ackValue := struct {
+		Acknowledgement receiptsigning.WalletRecoveryCommitAcknowledgement `json:"acknowledgement"`
+		Signature       receiptsigning.SignatureEnvelope                   `json:"signature"`
+	}{Acknowledgement: receiptsigning.WalletRecoveryCommitAcknowledgement{
+		Version: 1, OperationID: r.ReservationID, ReservationID: r.ReservationID,
+		TargetID: request.Msg.GetTargetId(), DestinationID: r.DestinationID, SnapshotID: r.SnapshotID,
+		TombstoneSHA256: r.TombstoneSHA256, SuccessorID: committed.ID,
+		SuccessorAddress: committed.Address, SuccessorPublicKey: committed.PublicKey,
+	}, Signature: ack}
+	ackBytes, err := json.Marshal(ackValue)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&walletv1.CommitPortableResearchWalletRotationResponse{Wallet: walletToProto(committed), CommitAckJson: string(ackBytes)}), nil
 }
 
 func (h *connectHandler) GetResearchWallet(ctx context.Context, request *connect.Request[walletv1.ResearchWalletRequest]) (*connect.Response[walletv1.ResearchWalletResponse], error) {

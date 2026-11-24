@@ -6,7 +6,7 @@ import { VerificationStatus, type Event } from "@vrooli/proto-types/token-econom
 import { minterClient } from "../../api/tokenEconomy";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1";
-import { Input } from "../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";

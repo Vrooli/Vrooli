@@ -13,6 +13,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/hubsender"
+	"github.com/vrooli/api-core/lpbsidentity"
 	"github.com/vrooli/api-core/serviceprincipal"
 	"github.com/vrooli/api-core/servicetoken"
 	accountsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts"
@@ -184,6 +185,7 @@ func TestTreasuryDeclaresExactlyTheServicePrincipalsItUses(t *testing.T) {
 		{Name: MoneyLedgerPrincipal, Resource: MoneyLedgerResource, Audience: "scenario-authenticator:money-ledger", Scopes: []string{"money-ledger:write"}},
 		{Name: AgentManagerPrincipal, Resource: AgentManagerResource, Audience: "scenario-authenticator:agent-manager", Scopes: []string{"agent-manager:write"}},
 		{Name: NoticePrincipal, Resource: NoticeResource, Audience: hubsender.Audience, Scopes: []string{hubsender.Scope}},
+		{Name: lpbsidentity.TreasuryAcceptedReceiptCredit.Principal("treasury"), Resource: lpbsidentity.TreasuryAcceptedReceiptCredit.Resource, Audience: lpbsidentity.TreasuryAcceptedReceiptCredit.Audience, Scopes: []string{lpbsidentity.TreasuryAcceptedReceiptCredit.Scope}},
 	} {
 		require.Equal(t, want, byName[want.Name], "Treasury must declare %s exactly", want.Name)
 	}

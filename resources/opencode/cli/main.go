@@ -4,6 +4,7 @@ import (
 	"github.com/vrooli/vrooli/resources/internal/agentapp"
 	"github.com/vrooli/vrooli/resources/opencode/cli/internal/configcli"
 	"github.com/vrooli/vrooli/resources/opencode/cli/internal/ensurecli"
+	"github.com/vrooli/vrooli/resources/opencode/cli/internal/localmodel"
 	"github.com/vrooli/vrooli/resources/opencode/cli/internal/permissionscli"
 
 	"github.com/vrooli/agentharness"
@@ -47,6 +48,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 		Groups: func(install agentinstall.Spec) ([]cliapp.SubcommandGroup, error) {
 			return []cliapp.SubcommandGroup{
 				configcli.Commands(configcli.Default()),
+				localmodel.Commands(localmodel.Default()),
 				permissionscli.HookCommands(permissionscli.Default(agentapp.Version, upstreamPinnedVersion)),
 				permissionscli.Commands(permissionscli.Default(agentapp.Version, upstreamPinnedVersion)),
 				// npm is the reliable latest-version source: the GitHub

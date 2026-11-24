@@ -1,0 +1,1 @@
+The resource uses the shared `vrooli resource bahmni-lite` entrypoint. Bahmni-specific install, instance lifecycle, health, logs, credential and removal operations are implemented in `internal/cli/resourcehandlers/handlers_bahmni_lite.go` and `internal/resources/bahmnilite`. There is no shell wrapper whose lifecycle can drift from the owner.

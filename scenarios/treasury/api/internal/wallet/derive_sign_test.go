@@ -28,15 +28,17 @@ func TestDerivedBudgetWalletsAreDistinctStableAndCustodySignaturesRecover(t *tes
 	require.NoError(t, err)
 	childInput := in
 	childInput.ID = "budget-one"
-	child, err := s.CreateDerived(ctx, parent.ID, "budget-one", childInput)
+	child, err := s.CreateDerived(ctx, parent.ID, "shared-budget-label", childInput)
 	require.NoError(t, err)
-	again, err := s.CreateDerived(ctx, parent.ID, "budget-one", childInput)
+	again, err := s.CreateDerived(ctx, parent.ID, "shared-budget-label", childInput)
 	require.NoError(t, err)
 	require.Equal(t, child.Address, again.Address)
+	require.Equal(t, child.PublicKey, again.PublicKey)
 	childInput.ID = "budget-two"
-	other, err := s.CreateDerived(ctx, parent.ID, "budget-two", childInput)
+	other, err := s.CreateDerived(ctx, parent.ID, "shared-budget-label", childInput)
 	require.NoError(t, err)
 	require.NotEqual(t, child.Address, other.Address)
+	require.NotEqual(t, child.PublicKey, other.PublicKey)
 	require.NotEqual(t, parent.Address, child.Address)
 	asset := common.HexToAddress("0x036cbd53842c5426634e7929541ec2318f3dcf7e")
 	data := make([]byte, 68)

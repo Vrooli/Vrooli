@@ -31,16 +31,24 @@ func newTestRouter(h *Handler) *mux.Router {
 	return r
 }
 
+func newTestRouterWithService() (*mux.Router, *Service) {
+	h, svc := newTestHandler()
+	return newTestRouter(h), svc
+}
+
+func serveTestRequest(router http.Handler, req *http.Request) *httptest.ResponseRecorder {
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	return rr
+}
+
 func TestStartSession_HTTP(t *testing.T) {
-	h, _ := newTestHandler()
-	router := newTestRouter(h)
+	router, _ := newTestRouterWithService()
 
 	body := `{"width":1024,"height":768,"scenario_name":"test"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	router.ServeHTTP(rr, req)
+	rr := serveTestRequest(router, req)
 
 	assert.Equal(t, http.StatusCreated, rr.Code)
 
@@ -54,17 +62,14 @@ func TestStartSession_HTTP(t *testing.T) {
 }
 
 func TestListSessions_HTTP(t *testing.T) {
-	h, svc := newTestHandler()
-	router := newTestRouter(h)
+	router, svc := newTestRouterWithService()
 
 	// Create a session first
 	_, err := svc.StartSession(context.Background(), SessionConfig{ScenarioName: "s1"})
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/sessions", nil)
-	rr := httptest.NewRecorder()
-
-	router.ServeHTTP(rr, req)
+	rr := serveTestRequest(router, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 
@@ -75,28 +80,22 @@ func TestListSessions_HTTP(t *testing.T) {
 }
 
 func TestGetSession_NotFound(t *testing.T) {
-	h, _ := newTestHandler()
-	router := newTestRouter(h)
+	router, _ := newTestRouterWithService()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/sessions/fake-id-123", nil)
-	rr := httptest.NewRecorder()
-
-	router.ServeHTTP(rr, req)
+	rr := serveTestRequest(router, req)
 
 	assert.Equal(t, http.StatusNotFound, rr.Code)
 }
 
 func TestStopSession_HTTP(t *testing.T) {
-	h, svc := newTestHandler()
-	router := newTestRouter(h)
+	router, svc := newTestRouterWithService()
 
 	session, err := svc.StartSession(context.Background(), SessionConfig{ScenarioName: "test"})
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/v1/sessions/%s", session.ID), nil)
-	rr := httptest.NewRecorder()
-
-	router.ServeHTTP(rr, req)
+	rr := serveTestRequest(router, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 
@@ -107,8 +106,7 @@ func TestStopSession_HTTP(t *testing.T) {
 }
 
 func TestHeartbeat_HTTP(t *testing.T) {
-	h, svc := newTestHandler()
-	router := newTestRouter(h)
+	router, svc := newTestRouterWithService()
 
 	session, err := svc.StartSession(context.Background(), SessionConfig{ScenarioName: "test"})
 	require.NoError(t, err)
@@ -116,9 +114,7 @@ func TestHeartbeat_HTTP(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/sessions/%s/heartbeat", session.ID), nil)
-	rr := httptest.NewRecorder()
-
-	router.ServeHTTP(rr, req)
+	rr := serveTestRequest(router, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 
@@ -129,8 +125,7 @@ func TestHeartbeat_HTTP(t *testing.T) {
 }
 
 func TestLaunchApp_MissingPath(t *testing.T) {
-	h, svc := newTestHandler()
-	router := newTestRouter(h)
+	router, svc := newTestRouterWithService()
 
 	session, err := svc.StartSession(context.Background(), SessionConfig{ScenarioName: "test"})
 	require.NoError(t, err)
@@ -138,9 +133,7 @@ func TestLaunchApp_MissingPath(t *testing.T) {
 	body := `{}`
 	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/sessions/%s/launch", session.ID), bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	router.ServeHTTP(rr, req)
+	rr := serveTestRequest(router, req)
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 
@@ -151,15 +144,12 @@ func TestLaunchApp_MissingPath(t *testing.T) {
 }
 
 func TestStartSession_HeadlessHTTP(t *testing.T) {
-	h, _ := newTestHandler()
-	router := newTestRouter(h)
+	router, _ := newTestRouterWithService()
 
 	body := `{"scenario_name":"test","headless":true}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/sessions", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	router.ServeHTTP(rr, req)
+	rr := serveTestRequest(router, req)
 
 	assert.Equal(t, http.StatusCreated, rr.Code)
 
@@ -174,8 +164,7 @@ func TestStartSession_HeadlessHTTP(t *testing.T) {
 }
 
 func TestVNCProxy_HeadlessReturns400(t *testing.T) {
-	h, svc := newTestHandler()
-	router := newTestRouter(h)
+	router, svc := newTestRouterWithService()
 
 	session, err := svc.StartSession(context.Background(), SessionConfig{
 		ScenarioName: "test",
@@ -184,8 +173,7 @@ func TestVNCProxy_HeadlessReturns400(t *testing.T) {
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/sessions/%s/ws", session.ID), nil)
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	rr := serveTestRequest(router, req)
 
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 
@@ -196,19 +184,16 @@ func TestVNCProxy_HeadlessReturns400(t *testing.T) {
 }
 
 func TestLegacyLivedesktopPrefix_404(t *testing.T) {
-	h, _ := newTestHandler()
-	router := newTestRouter(h)
+	router, _ := newTestRouterWithService()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/livedesktop/sessions", nil)
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	rr := serveTestRequest(router, req)
 
 	assert.Equal(t, http.StatusNotFound, rr.Code)
 }
 
 func TestGetMetrics_WithMonitor(t *testing.T) {
-	h, svc := newTestHandler()
-	router := newTestRouter(h)
+	router, svc := newTestRouterWithService()
 
 	session, err := svc.StartSession(context.Background(), SessionConfig{ScenarioName: "test"})
 	require.NoError(t, err)
@@ -232,8 +217,7 @@ func TestGetMetrics_WithMonitor(t *testing.T) {
 	session.SetMonitor(monitor)
 
 	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/sessions/%s/metrics", session.ID), nil)
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	rr := serveTestRequest(router, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 
@@ -246,15 +230,13 @@ func TestGetMetrics_WithMonitor(t *testing.T) {
 }
 
 func TestGetMetrics_NoMonitor(t *testing.T) {
-	h, svc := newTestHandler()
-	router := newTestRouter(h)
+	router, svc := newTestRouterWithService()
 
 	session, err := svc.StartSession(context.Background(), SessionConfig{ScenarioName: "test"})
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/sessions/%s/metrics", session.ID), nil)
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	rr := serveTestRequest(router, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 
@@ -265,19 +247,16 @@ func TestGetMetrics_NoMonitor(t *testing.T) {
 }
 
 func TestGetMetrics_SessionNotFound(t *testing.T) {
-	h, _ := newTestHandler()
-	router := newTestRouter(h)
+	router, _ := newTestRouterWithService()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/sessions/nonexistent/metrics", nil)
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	rr := serveTestRequest(router, req)
 
 	assert.Equal(t, http.StatusNotFound, rr.Code)
 }
 
 func TestGetSession_IncludesMetricsInView(t *testing.T) {
-	h, svc := newTestHandler()
-	router := newTestRouter(h)
+	router, svc := newTestRouterWithService()
 
 	session, err := svc.StartSession(context.Background(), SessionConfig{ScenarioName: "test"})
 	require.NoError(t, err)
@@ -301,8 +280,7 @@ func TestGetSession_IncludesMetricsInView(t *testing.T) {
 	session.SetMonitor(monitor)
 
 	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/v1/sessions/%s", session.ID), nil)
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, req)
+	rr := serveTestRequest(router, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 

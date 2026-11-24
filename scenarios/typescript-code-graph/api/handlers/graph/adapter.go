@@ -215,5 +215,6 @@ func warningKindToProto(k intgraph.WarningKind) commonv1.CodeGraphWarningKind {
 func requestToInput(req *graphv1.ExtractRequest) intgraph.ExtractInput {
 	return intgraph.ExtractInput{
 		ProjectPath: req.GetProjectPath(),
+		Profile:     req.GetProfile(),
 	}
 }

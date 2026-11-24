@@ -33,6 +33,13 @@ clients are the seam at the wire boundary. REST remains intentional
 only where the payload is not proto-typed, such as multipart file
 uploads; the response metadata still uses generated proto types.
 
+The Web Search research integration follows this rule for Agent Manager:
+`internal/research/agentmanager/client.go` uses the generated
+`AgentManagerService` Connect client for workflow start, metadata/result reads,
+wait, and cancel. It forwards provenance and uses `explicitly_authorized` only
+for the payload-bearing result call. There is no REST exception on this
+outbound boundary; health is not called by this client.
+
 If a piece of production code reaches for `time.Now()`, `*sql.DB`, or
 the network without going through one of the entries below, that's a
 new seam that hasn't been declared yet. Declaring it is the work — the

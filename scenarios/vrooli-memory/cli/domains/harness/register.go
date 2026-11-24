@@ -26,7 +26,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		return cliapp.SubcommandGroup{}, fmt.Errorf("harness: load manifest: %w", err)
 	}
 	g.Subcommands = append(g.Subcommands,
-		cliapp.Command{Name: "hook", Description: "Capture a native memory write from a harness hook", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "runtime", Description: "source harness runtime"}}}, Run: h.hook},
+		cliapp.Command{Name: "hook", Description: "Capture a native memory write from a harness hook", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "runtime", Description: "source harness runtime"}}}, LatencyBound: true, Run: h.hook},
 		cliapp.Command{Name: "hooks", Description: "Install or remove native memory capture hooks", Run: h.hooks},
 	)
 	return g, nil
@@ -82,7 +82,7 @@ func Commands(core *cliapp.ScenarioApp) []cliapp.Command {
 		cliapp.Command{Name: "project", Description: "Project unified memory into a harness file", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "harness", Description: "Harness runtime"}, {Name: "dry-run", Description: "Render without writing", Bool: true}}}}.WithPrimitive(cliapp.ProtoMutation(h.projectCall, h.projectReport)),
 		cliapp.Command{Name: "capture", Description: "Capture a native harness memory write", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "runtime", Description: "Harness runtime"}, {Name: "source-path", Description: "Native memory source path"}, {Name: "content", Description: "Native memory content"}}}}.WithPrimitive(cliapp.ProtoMutation(h.captureCall, h.captureReport)),
 		cliapp.Command{Name: "maintenance-status", Description: "Show the last automatic import and projection run"}.WithPrimitive(cliapp.ProtoList(h.maintenanceCall, h.maintenanceReport)),
-		cliapp.Command{Name: "hook", Description: "Capture a native memory write from a harness hook", Run: h.hook},
+		cliapp.Command{Name: "hook", Description: "Capture a native memory write from a harness hook", LatencyBound: true, Run: h.hook},
 		cliapp.Command{Name: "hooks", Description: "Install or remove native memory capture hooks", Run: h.hooks},
 	}
 }

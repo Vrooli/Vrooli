@@ -1,0 +1,82 @@
+x-owner-labels: &owner-labels
+  com.vrooli.resource: bahmni-lite
+  com.vrooli.bahmni-lite.instance-id: ${INSTANCE_ID:?}
+services:
+  proxy:
+    ports: !reset []
+    labels: *owner-labels
+  bahmni-config:
+    labels: *owner-labels
+  bahmni-lab:
+    labels: *owner-labels
+  openmrs:
+    labels: *owner-labels
+  openmrsdb:
+    labels: *owner-labels
+  crater-php:
+    labels: *owner-labels
+  crater-nginx:
+    ports: !reset []
+    labels: *owner-labels
+  craterdb:
+    image: mysql:5.7@sha256:4bc6bc963e6d8443453676cae56536f4b8156d78bae03c0145cbe47c2aad73bb
+    labels: *owner-labels
+  metabasedb:
+    labels: *owner-labels
+  metabase:
+    labels: *owner-labels
+  martdb:
+    labels: *owner-labels
+  mart:
+    labels: *owner-labels
+  bahmni-web:
+    labels: *owner-labels
+  implementer-interface:
+    labels: *owner-labels
+  reports:
+    labels: *owner-labels
+  reportsdb:
+    image: mysql:5.7@sha256:4bc6bc963e6d8443453676cae56536f4b8156d78bae03c0145cbe47c2aad73bb
+    labels: *owner-labels
+  patient-documents:
+    labels: *owner-labels
+  appointments:
+    labels: *owner-labels
+  sms-service:
+    labels: *owner-labels
+  atomfeed-console:
+    labels: *owner-labels
+  crater-atomfeed:
+    labels: *owner-labels
+  crater-atomfeed-db:
+    image: mysql:5.7@sha256:4bc6bc963e6d8443453676cae56536f4b8156d78bae03c0145cbe47c2aad73bb
+    labels: *owner-labels
+networks:
+  default:
+    internal: true
+    labels: *owner-labels
+volumes:
+  openmrs-data:
+    labels: *owner-labels
+  openmrsdbdata:
+    labels: *owner-labels
+  craterdb:
+    labels: *owner-labels
+  bahmni-patient-images:
+    labels: *owner-labels
+  bahmni-document-images:
+    labels: *owner-labels
+  bahmni-clinical-forms:
+    labels: *owner-labels
+  crater-app-data:
+    labels: *owner-labels
+  bahmni-config:
+    labels: *owner-labels
+  configuration_checksums:
+    labels: *owner-labels
+  mart-data:
+    labels: *owner-labels
+  metabase-data:
+    labels: *owner-labels
+  bahmni-lab-results:
+    labels: *owner-labels

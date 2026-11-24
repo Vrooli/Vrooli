@@ -2,7 +2,7 @@ import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { renderWithProviders } from "../../test-utils";
-import { ExperienceSurface } from "./ExperienceSurface";
+import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1";
 
 describe("ExperienceSurface", () => {
   it("exposes loading status to assistive technology", () => {

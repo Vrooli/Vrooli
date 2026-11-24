@@ -13,6 +13,7 @@ import (
 	"time"
 
 	sharedpolicy "github.com/vrooli/ai-provider-go/policy"
+	"github.com/vrooli/vrooli/packages/capacity/modelretention"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/resources/ollaya/cli/internal/policy"
 	"github.com/vrooli/vrooli/resources/ollaya/cli/internal/upstream"
@@ -35,15 +36,23 @@ type Handlers struct {
 	// PrepareModelPull binds traffic and disk accounting to one managed service
 	// owner while holding its lifecycle lock. Tests inject a fixture endpoint.
 	PrepareModelPull func(context.Context) (string, *upstream.Client, func(context.Context) error, func(), error)
-	// ResidentDevice reports the device a model is currently loaded on.
-	ResidentDevice func(context.Context, string) (string, bool, error)
-	// HostPlacement reports the control plane's observed backend for the daemon.
-	HostPlacement func(context.Context) (string, error)
-	// CapacityAdmit asks the shared broker whether a footprint fits without
-	// recording a claim.
-	CapacityAdmit func(context.Context, int64) (bool, string, error)
+	// Residents lists the models the daemon holds in memory and where.
+	Residents func(context.Context) ([]upstream.ResidentModel, error)
+	// Unload releases a resident model's memory.
+	Unload func(context.Context, string) error
+	// DaemonDevice reports the device the managed daemon is pinned to.
+	DaemonDevice func(context.Context) (string, error)
+	// CapacityAdmit asks the shared broker ("vram" or "ram") whether a
+	// footprint fits without recording a claim.
+	CapacityAdmit func(context.Context, string, int64) (bool, string, error)
+	// LoadSlot takes the per-daemon model-load slot (tests inject a recorder).
+	LoadSlot func(context.Context) (func(), error)
 	// RunControlPlane runs a control-plane command (tests inject a recorder).
 	RunControlPlane func(context.Context, string, ...string) ([]byte, error)
+	// RetentionPaths and ModelRoot locate the eviction fence, usage, receipts
+	// and manifests (tests inject temporary directories).
+	RetentionPaths func() (modelretention.Paths, error)
+	ModelRoot      func() (string, error)
 }
 
 func Default() *Handlers {

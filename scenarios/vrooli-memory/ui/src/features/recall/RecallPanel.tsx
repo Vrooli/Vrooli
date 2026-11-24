@@ -3,10 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 
 import { recallMemory } from "../../api/recall";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
-import { ExperienceSurface, type ExperienceSurfaceState } from "../../components/experience/ExperienceSurface";
-import { Input } from "../../components/ui/input";
+import { ExperienceSurface, type ExperienceSurfaceState } from "@vrooli/react-component-library/ExperienceSurface/1";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";

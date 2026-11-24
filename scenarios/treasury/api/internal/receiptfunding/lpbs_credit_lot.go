@@ -12,14 +12,23 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/lpbsidentity"
+	"github.com/vrooli/api-core/servicetoken"
+	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 	ingestpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const LPBSServiceCredentialIdentity = "vrooli/landing-page-business-suite"
 
+const LPBSLegacyServiceCredentialField = "service-secret"
+
 type LPBSCredentialReader interface {
 	Resolve(context.Context, string, string) (string, error)
+}
+
+type LPBSCredentialStatusReader interface {
+	Status(context.Context, string, string) (credentialclient.CredentialStatus, error)
 }
 
 type LPBSCredentialFunc func(context.Context, string, string) (string, error)
@@ -28,20 +37,25 @@ func (f LPBSCredentialFunc) Resolve(ctx context.Context, identity, field string)
 	return f(ctx, identity, field)
 }
 
-type LPBSCreditLotClient struct {
-	url         string
-	credentials LPBSCredentialReader
-	client      *http.Client
+type LPBSServiceTokenSource interface {
+	Authorization(context.Context) (string, error)
 }
 
-func NewLPBSCreditLotClient(url string, credentials LPBSCredentialReader, client *http.Client) (*LPBSCreditLotClient, error) {
-	if strings.TrimSpace(url) == "" || credentials == nil {
-		return nil, errors.New("LPBS URL and credential authority are required")
+type LPBSCreditLotClient struct {
+	url    string
+	tokens LPBSServiceTokenSource
+	legacy LPBSCredentialReader
+	client *http.Client
+}
+
+func NewLPBSCreditLotClient(url string, tokens LPBSServiceTokenSource, legacy LPBSCredentialReader, client *http.Client) (*LPBSCreditLotClient, error) {
+	if strings.TrimSpace(url) == "" || (tokens == nil && legacy == nil) {
+		return nil, errors.New("LPBS URL and a scoped service identity or legacy credential source are required")
 	}
 	if client == nil {
 		client = &http.Client{Timeout: 15 * time.Second}
 	}
-	return &LPBSCreditLotClient{url: strings.TrimRight(url, "/"), credentials: credentials, client: client}, nil
+	return &LPBSCreditLotClient{url: strings.TrimRight(url, "/"), tokens: tokens, legacy: legacy, client: client}, nil
 }
 
 func (c *LPBSCreditLotClient) GrantAcceptedReceipt(ctx context.Context, receipt *ingestpb.AcceptedCryptoReceipt) (CreditLotLink, error) {
@@ -49,9 +63,32 @@ func (c *LPBSCreditLotClient) GrantAcceptedReceipt(ctx context.Context, receipt 
 	if receipt == nil || receipt.GetId() == "" {
 		return CreditLotLink{}, errors.New("accepted Money Ledger receipt is required")
 	}
-	credential, err := c.credentials.Resolve(ctx, LPBSServiceCredentialIdentity, "service-secret")
-	if err != nil || strings.TrimSpace(credential) == "" {
-		return CreditLotLink{}, errors.New("LPBS service credential is unavailable")
+	authorization, tokenErr := "", error(nil)
+	if c.tokens != nil {
+		authorization, tokenErr = c.tokens.Authorization(ctx)
+		if tokenErr == nil {
+			if strings.TrimSpace(authorization) == "" {
+				return CreditLotLink{}, errors.New("LPBS scoped service identity returned empty authorization")
+			}
+		} else if !errors.Is(tokenErr, servicetoken.ErrNotIssued) {
+			return CreditLotLink{}, errors.New("LPBS scoped service identity failed; refusing legacy downgrade")
+		}
+	}
+	if tokenErr != nil || c.tokens == nil {
+		statusReader, ok := c.legacy.(LPBSCredentialStatusReader)
+		if !ok || c.legacy == nil {
+			return CreditLotLink{}, errors.New("LPBS scoped service identity is unavailable")
+		}
+		principal := lpbsidentity.TreasuryAcceptedReceiptCredit.CredentialIdentity("treasury")
+		status, statusErr := statusReader.Status(ctx, principal, "credential")
+		if statusErr != nil || status.ProviderState != "available" || status.Configured {
+			return CreditLotLink{}, errors.New("LPBS scoped service identity is unavailable")
+		}
+		credential, err := c.legacy.Resolve(ctx, LPBSServiceCredentialIdentity, LPBSLegacyServiceCredentialField)
+		if err != nil || strings.TrimSpace(credential) == "" {
+			return CreditLotLink{}, errors.New("LPBS service identity is unavailable")
+		}
+		authorization = "Bearer " + strings.TrimSpace(credential)
 	}
 	receiptJSON, err := protojson.Marshal(receipt)
 	if err != nil {
@@ -67,7 +104,7 @@ func (c *LPBSCreditLotClient) GrantAcceptedReceipt(ctx context.Context, receipt 
 	if err != nil {
 		return CreditLotLink{}, err
 	}
-	request.Header.Set("Authorization", "Bearer "+strings.TrimSpace(credential))
+	request.Header.Set("Authorization", authorization)
 	request.Header.Set("Content-Type", "application/json")
 	if database.IsTestMode(ctx) {
 		request.Header.Set("X-Vrooli-Test-Mode", "1")

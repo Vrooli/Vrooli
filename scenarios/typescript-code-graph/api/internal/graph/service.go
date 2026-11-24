@@ -57,6 +57,13 @@ func (s *Service) Extract(ctx context.Context, in ExtractInput) (ExtractOutput, 
 		}
 	}
 	abs := filepath.Clean(path)
+	profile := strings.TrimSpace(in.Profile)
+	if profile == "" {
+		profile = "full"
+	}
+	if profile != "full" && profile != "imports" {
+		return ExtractOutput{}, ExtractError{Kind: ExtractErrorInvalidInput, Path: abs, Message: "profile must be full or imports"}
+	}
 
 	unlock := s.mu.Lock(abs)
 	defer unlock()
@@ -69,9 +76,12 @@ func (s *Service) Extract(ctx context.Context, in ExtractInput) (ExtractOutput, 
 		}
 	}
 
-	res, err := s.client.Extract(ctx, abs)
+	res, err := s.client.Extract(ctx, abs, profile)
 	if err != nil {
 		return ExtractOutput{}, fromSidecarError(abs, err)
+	}
+	if res.Profile != profile {
+		return ExtractOutput{}, ExtractError{Kind: ExtractErrorInvalidInput, Path: abs, Message: "sidecar returned a different extraction profile"}
 	}
 
 	g := Normalize(res.Graph)
@@ -79,9 +89,10 @@ func (s *Service) Extract(ctx context.Context, in ExtractInput) (ExtractOutput, 
 	hash := GraphHash(g)
 
 	return ExtractOutput{
-		Graph:            g,
-		Warnings:         warnings,
-		GraphHash:        hash,
-		SidecarRequestID: res.RequestID,
+		Graph:             g,
+		Warnings:          warnings,
+		GraphHash:         hash,
+		SidecarRequestID:  res.RequestID,
+		ExtractionProfile: profile,
 	}, nil
 }

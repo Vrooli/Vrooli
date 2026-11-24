@@ -1193,7 +1193,8 @@
             { "name": "verified-at", "required": true },
             { "name": "reservation-id", "required": true },
             { "name": "reservation-expires-at", "required": true },
-            { "name": "dbm-attestation-json", "required": true }
+            { "name": "dbm-attestation-json", "required": true },
+            { "name": "target-id", "required": true }
           ],
           "binding": {
             "kind": "connect-rpc",

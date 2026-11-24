@@ -121,7 +121,7 @@ func (h *Handlers) Ensure(args []string) error {
 	}
 	// A clean permission map can still need a plugin change after a major
 	// upgrade (V1 module -> V2 module). Reconcile the projection every time.
-	if err := h.Adapter.SyncPlugin(p); err != nil {
+	if err := h.Adapter.SyncPlugin(); err != nil {
 		return fmt.Errorf("sync policy plugin: %w", err)
 	}
 

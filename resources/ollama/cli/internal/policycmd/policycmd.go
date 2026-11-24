@@ -9,7 +9,9 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
+	sharedpolicy "github.com/vrooli/ai-provider-go/policy"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/policy"
@@ -88,13 +90,13 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 			{
 				Name:        "roles",
 				Description: "List roles with resolved model metadata",
-				Usage:       "resource-ollama policy roles [--json]",
+				Usage:       "resource-ollama policy roles [--require-local-inference] [--json]",
 				Run:         h.Roles,
 			},
 			{
 				Name:        "models",
 				Description: "List catalog models and metadata",
-				Usage:       "resource-ollama policy models [--json]",
+				Usage:       "resource-ollama policy models [--require-local-inference] [--json]",
 				Run:         h.Models,
 			},
 			{
@@ -157,6 +159,7 @@ func (h *Handlers) Roles(args []string) error {
 	fs := flag.NewFlagSet("policy roles", flag.ContinueOnError)
 	fs.SetOutput(h.Stderr)
 	asJSON := fs.Bool("json", false, "Emit complete JSON metadata")
+	requireLocalInference := fs.Bool("require-local-inference", false, "Include current trusted-context rights decisions for local inference")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -164,13 +167,25 @@ func (h *Handlers) Roles(args []string) error {
 	if err != nil {
 		return err
 	}
+	var rightsContext sharedpolicy.RightsContext
+	if *requireLocalInference {
+		rightsContext, err = policy.LoadDefaultRightsContext(h.GetEnv)
+		if err != nil {
+			return fmt.Errorf("load trusted local-inference rights context: %w", err)
+		}
+	}
 	report := rolesReport{
 		SchemaVersion: p.SchemaVersion,
 		PolicyPath:    path,
 		Roles:         make([]resolveReport, 0, len(p.Roles)),
 	}
 	for _, name := range p.RoleNames() {
-		resolved, err := p.ResolveRole(name)
+		var resolved policy.ResolvedPolicyModel
+		if *requireLocalInference {
+			resolved, err = p.ResolveRoleWithRights(name, sharedpolicy.RightsUseLocalInference, rightsContext, time.Now().UTC())
+		} else {
+			resolved, err = p.ResolveRole(name)
+		}
 		if err != nil {
 			return err
 		}
@@ -195,12 +210,20 @@ func (h *Handlers) Models(args []string) error {
 	fs := flag.NewFlagSet("policy models", flag.ContinueOnError)
 	fs.SetOutput(h.Stderr)
 	asJSON := fs.Bool("json", false, "Emit complete JSON metadata")
+	requireLocalInference := fs.Bool("require-local-inference", false, "Include current trusted-context rights decisions for local inference")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	p, path, err := h.loadPolicy()
 	if err != nil {
 		return err
+	}
+	var rightsContext sharedpolicy.RightsContext
+	if *requireLocalInference {
+		rightsContext, err = policy.LoadDefaultRightsContext(h.GetEnv)
+		if err != nil {
+			return fmt.Errorf("load trusted local-inference rights context: %w", err)
+		}
 	}
 	report := modelsReport{
 		SchemaVersion: p.SchemaVersion,
@@ -211,6 +234,13 @@ func (h *Handlers) Models(args []string) error {
 		resolved, err := p.ResolveModel(ref)
 		if err != nil {
 			return err
+		}
+		if *requireLocalInference {
+			decision, err := p.EvaluateModelRights(ref, sharedpolicy.RightsUseLocalInference, rightsContext, time.Now().UTC())
+			if err != nil {
+				return err
+			}
+			resolved.RightsDecision = &decision
 		}
 		report.Models = append(report.Models, resolveReport{
 			ResolvedPolicyModel: resolved,

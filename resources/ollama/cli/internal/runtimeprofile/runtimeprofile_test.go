@@ -584,6 +584,45 @@ func TestEdgeNormalizerReassertsResidencyAfterCompatibleRequests(t *testing.T) {
 	}
 }
 
+func TestEdgeNormalizerAuthorizesNativeAndCompatibleInferenceAtDispatch(t *testing.T) {
+	n := NewEdgeNormalizer(nil)
+	var checked []string
+	n.Authorize = func(_ context.Context, model string) error {
+		checked = append(checked, model)
+		if model == "blocked:latest" {
+			return fmt.Errorf("local-inference rights denied")
+		}
+		return nil
+	}
+	for _, tc := range []struct {
+		name string
+		path string
+		body string
+	}{
+		{"native", "/api/chat", `{"model":"allowed:latest","messages":[]}`},
+		{"additional-native", "/api/rerank", `{"model":"allowed:latest","query":"x","documents":["y"]}`},
+		{"compatible", "/v1/chat/completions", `{"model":"blocked:latest","messages":[]}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(tc.body))
+			_, err := n.Rewrite(req)
+			if strings.Contains(tc.name, "native") && err != nil {
+				t.Fatalf("allowed request rejected: %v", err)
+			}
+			if tc.name == "compatible" && (err == nil || !strings.Contains(err.Error(), "local-inference rights denied")) {
+				t.Fatalf("denied request error = %v, want rights denial", err)
+			}
+		})
+	}
+	if len(checked) != 3 || checked[0] != "allowed:latest" || checked[1] != "allowed:latest" || checked[2] != "blocked:latest" {
+		t.Fatalf("dispatch authorization checked %v, want all inference endpoints and exact model identities", checked)
+	}
+	malformed := httptest.NewRequest(http.MethodPost, "/api/chat", strings.NewReader(`not-json`))
+	if _, err := n.Rewrite(malformed); err == nil || !strings.Contains(err.Error(), "invalid JSON model body") {
+		t.Fatalf("malformed inference request error = %v, want fail-closed refusal", err)
+	}
+}
+
 func TestEdgeNormalizerNeverReloadsAnUnloadedModel(t *testing.T) {
 	daemon := &fakeDaemon{loaded: []string{"nomic-embed-text:latest"}, requests: make(chan map[string]any, 1)}
 	server := httptest.NewServer(daemon)

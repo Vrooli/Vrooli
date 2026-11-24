@@ -166,6 +166,7 @@ type Graph struct {
 // concrete tsconfig.json file.
 type ExtractInput struct {
 	ProjectPath string
+	Profile     string
 }
 
 // ExtractOutput bundles everything the handler needs to project onto
@@ -173,11 +174,12 @@ type ExtractInput struct {
 // return) so adding fields (e.g. cache hint, content hash) does not
 // churn every caller.
 type ExtractOutput struct {
-	Graph            Graph
-	Warnings         []Warning
-	ExtractionMs     int64
-	GraphHash        string
-	SidecarRequestID string
+	Graph             Graph
+	Warnings          []Warning
+	ExtractionMs      int64
+	GraphHash         string
+	SidecarRequestID  string
+	ExtractionProfile string
 }
 
 // ExtractErrorKind names the catastrophic conditions that prevent a

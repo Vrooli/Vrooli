@@ -9,10 +9,11 @@ Universal API connectivity for Vrooli scenarios. Handles API resolution, WebSock
 - 🔌 **WebSocket Support**: First-class WS/WSS endpoint resolution
 - 🖥️ **Server Utilities**: Complete server with health, config, and proxy built-in
 - 🔒 **Same-Origin by Default**: Fetch Metadata and CORS refuse cross-origin browser requests ([SECURITY.md](SECURITY.md))
-- 🧪 **Fully Tested**: 156 unit tests covering all edge cases
+- 🧪 **Fully Tested**: 700+ unit and integration tests covering all edge cases
 - 📦 **Zero Config**: Just `resolveApiBase({ appendSuffix: true })` and you're done
 - 🔄 **Backwards Compatible**: Supports existing proxy patterns
 - ⚡ **Proxy Host Cache**: Built-in HTML caching for embedded scenarios (tunable via `cacheProxyHtml`)
+- 🎯 **Local Experience Telemetry**: Opt-in, loopback-only interaction capture that feeds UX audits without touching scenario code ([guide](docs/guides/experience-telemetry.md))
 
 ## Installation
 

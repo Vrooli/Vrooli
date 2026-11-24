@@ -29,15 +29,23 @@ type FakeSidecarClient struct {
 }
 
 // Extract records the call and dispatches to ExtractFn.
-func (f *FakeSidecarClient) Extract(ctx context.Context, projectPath string) (sidecar.ExtractResult, error) {
+func (f *FakeSidecarClient) Extract(ctx context.Context, projectPath string, profiles ...string) (sidecar.ExtractResult, error) {
 	f.mu.Lock()
 	f.ExtractCalls++
 	fn := f.ExtractFn
 	f.mu.Unlock()
-	if fn == nil {
-		return sidecar.ExtractResult{}, nil
+	profile := "full"
+	if len(profiles) > 0 && profiles[0] != "" {
+		profile = profiles[0]
 	}
-	return fn(ctx, projectPath)
+	if fn == nil {
+		return sidecar.ExtractResult{Profile: profile}, nil
+	}
+	result, err := fn(ctx, projectPath)
+	if result.Profile == "" {
+		result.Profile = profile
+	}
+	return result, err
 }
 
 // RewriteApply records the call and dispatches to RewriteApplyFn.

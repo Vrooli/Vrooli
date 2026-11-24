@@ -36,10 +36,8 @@ try:
             observation.pop("attempt_id")
             observation.pop("observation_id")
         observations.append(observation)
-    rows=lib.vrooli_memory.finish_attempt(scope="web-search-usage",attempt=attempt,observations=observations).head(1)
-    if not rows:
-        raise RuntimeError("Shared finish returned no envelope")
-    child=rows[0]
+    child_handle=lib.vrooli_memory.finish_attempt(scope="web-search-usage",attempt=attempt,observations=observations)
+    child=program.child_envelope(child_handle,invalid_class="invalid_response",where="report:memory-finish")
     captured=child.get("signals",{})
     signals={"entry_id":captured.get("entry_id"),"existing":captured.get("existing",False),
              "contributing_finding_ids":used,"quality":quality,

@@ -55,6 +55,11 @@ type guardHost struct {
 
 func newGuardHost(t *testing.T) guardHost {
 	t.Helper()
+	// The broker answers for the session running the tests; a grant held
+	// there must not change what these tests see.
+	grantCheck := agentharness.GuardGrantCheck
+	agentharness.GuardGrantCheck = nil
+	t.Cleanup(func() { agentharness.GuardGrantCheck = grantCheck })
 	base := t.TempDir()
 	h := guardHost{home: filepath.Join(base, "home"), temp: filepath.Join(base, "tmp")}
 	h.repo = filepath.Join(h.home, "Vrooli")
@@ -300,5 +305,50 @@ func TestGuardLetsASessionRemoveWhatItCreated(t *testing.T) {
 	}
 	if got := run("rm -rf "+made, false); !strings.Contains(got.stdout, `"ask"`) {
 		t.Fatalf("without a session the same folder asks: exit %d stdout %q", got.exit, got.stdout)
+	}
+}
+
+// TestFileToolsAreJudgedByPathOnly pins the Claude file tools to the shared
+// guards: a credential file stops, ordinary source files whose names mention
+// credentials or payments do not, and a file event without a path continues.
+func TestFileToolsAreJudgedByPathOnly(t *testing.T) {
+	h := newGuardHost(t)
+	run := func(tool, key, path string) guardRun {
+		t.Helper()
+		payload, err := json.Marshal(map[string]any{"cwd": h.repo, "tool_name": tool, "tool_input": map[string]string{key: path}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var stdout, stderr bytes.Buffer
+		exit := RunHookGuard(bytes.NewReader(payload), &stdout, &stderr, []string{"Bash(git push*)"}, h.env)
+		return guardRun{exit: exit, stdout: stdout.String(), stderr: stderr.String()}
+	}
+	for _, path := range []string{
+		filepath.Join(h.repo, "scenarios/secrets-manager/api/credentials.go"),
+		filepath.Join(h.repo, "scenarios/secrets-manager/api/api_key_test.go"),
+		filepath.Join(h.repo, "scenarios/app/api/payments/refund_handler.go"),
+		filepath.Join(h.repo, "scenarios/app/api/send_message.go"),
+		filepath.Join(h.repo, "packages/agentharness/hard_stops.json"),
+		filepath.Join(h.repo, "scenarios/app/.env.example"),
+		filepath.Join(h.repo, "docs/configuration/secrets.md"),
+	} {
+		for _, tool := range []string{"Read", "Write", "Edit", "MultiEdit"} {
+			if got := run(tool, "file_path", path); got.exit != GuardExitContinue {
+				t.Errorf("%s %s exited %d (%s), want continue", tool, path, got.exit, got.stderr)
+			}
+		}
+	}
+	for _, tc := range []struct{ tool, key, path string }{
+		{"Read", "file_path", filepath.Join(h.repo, "scenarios/app/.env")},
+		{"Write", "file_path", filepath.Join(h.home, ".ssh/id_ed25519")},
+		{"NotebookEdit", "notebook_path", filepath.Join(h.home, ".netrc")},
+	} {
+		got := run(tc.tool, tc.key, tc.path)
+		if got.exit != GuardExitDeny || !strings.Contains(got.stderr, "agent-guard:secret") {
+			t.Errorf("%s %s exited %d (%q), want the credential guard", tc.tool, tc.path, got.exit, got.stderr)
+		}
+	}
+	if got := run("Read", "pattern", "anything"); got.exit != GuardExitContinue {
+		t.Errorf("a file tool event without a path exited %d (%s), want continue", got.exit, got.stderr)
 	}
 }

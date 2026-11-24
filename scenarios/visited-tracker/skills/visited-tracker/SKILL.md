@@ -38,7 +38,7 @@ Compose selection as `lib.visited_tracker.attention_select(campaign_id=..., limi
 
 A new content revision regains attention. Successful review reduces its score; age raises it again. Every fourth new claim selects the least recently attempted eligible file. For a fixed set of N continuously eligible files, each receives an attempt within 4N successful new claims, including when higher-priority work repeatedly ends incomplete. Replays do not advance this cursor. This is an attempt bound within one campaign; callers still own mandatory checks, cross-campaign scheduling, and completion evidence. Increase file priority only from evidence about impact or a known problem; do not lower it to hide unresolved work.
 
-These one-operation CLI leaves stay S1: the state transition belongs to the scenario. Promote a recurring multi-operation shape after recording repeatable evidence. Agents may edit scenario skills and programs within authorized scope. Follow `skill-set-authoring` and Program Runtime's construction and contract guides.
+These one-operation CLI leaves stay S1: the state transition belongs to the scenario. Promote a recurring multi-operation shape after recording repeatable evidence. Agents may edit scenario skills and programs within authorized scope. Follow `scenario-skill-setup` and Program Runtime's construction and contract guides.
 
 | Symptom | In-use setting move | Capture |
 |---|---|---|

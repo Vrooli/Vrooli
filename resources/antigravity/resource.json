@@ -72,7 +72,8 @@
       "goal_mode": false,
       "mcp": true,
       "hooks": true
-    }
+    },
+    "model_source_protocol": "gemini-generate-content"
   },
   "agent_hooks": {
     "document_scopes": ["project"],

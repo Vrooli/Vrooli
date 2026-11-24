@@ -303,6 +303,41 @@ func TestAuthenticatedRecheckPersistenceFailureReturnsInternal(t *testing.T) {
 	require.Equal(t, verified.Msg.CheckId, checks[0].ID)
 }
 
+func TestAuthenticatedVerificationFailsClosedAndRecordsUnboundReceiptEvidence(t *testing.T) {
+	ctx := context.Background()
+	db, err := sql.Open("sqlite", "file:"+filepath.Join(t.TempDir(), "treasury-unbound-receipt.sqlite")+"?_pragma=busy_timeout(1000)")
+	require.NoError(t, err)
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	require.NoError(t, database.EnsureSchemas(ctx, db, database.SchemaProviderFunc(baseusdc.Schema)))
+
+	transactionHash := "0x" + strings.Repeat("a", 64)
+	checkedAt := time.Date(2026, 11, 5, 19, 0, 0, 0, time.UTC)
+	providerID := "fixture-base-rpc"
+	transfer := receiptObservation("wallet-1", transactionHash, "0x"+strings.Repeat("b", 64), providerID, checkedAt)
+	transfer.WalletAddressBinding = "0x3333333333333333333333333333333333333333"
+	store := baseusdc.NewSQLiteStore(db)
+	service := baseusdc.NewService(store, fixedReceiptVerifier{transfers: []baseusdc.Observation{transfer}}, providerID, func() time.Time { return checkedAt })
+	wallets := &scopedReceiptWallets{owners: map[string]string{"wallet-1": "operator-a"}}
+	_, handler := walletconnect.NewWalletAdminServiceHandler(walletHandler.NewConnectHandler(subjectAuthorizer{}, wallets, nil, service))
+	server := httptest.NewServer(handler)
+	defer server.Close()
+	client := walletconnect.NewWalletAdminServiceClient(server.Client(), server.URL)
+
+	request := connect.NewRequest(&walletv1.VerifyBaseUSDCReceiptRequest{WalletId: "wallet-1", TransactionHash: transactionHash})
+	request.Header().Set(operatorauth.HeaderOperatorToken, "operator-a-token")
+	_, err = client.VerifyBaseUSDCReceipt(ctx, request)
+	require.Error(t, err)
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err), "unbound provider evidence must not be verified")
+	list := connect.NewRequest(&walletv1.ListBaseUSDCReceiptChecksRequest{WalletId: "wallet-1", TransactionHash: transactionHash})
+	list.Header().Set(operatorauth.HeaderOperatorToken, "operator-a-token")
+	history, err := client.ListBaseUSDCReceiptChecks(ctx, list)
+	require.NoError(t, err)
+	require.Len(t, history.Msg.Checks, 1, "the failed verification remains visible in the authenticated audit history")
+	require.Equal(t, "invalid_provider_evidence", history.Msg.Checks[0].Outcome)
+	require.Empty(t, history.Msg.Checks[0].Transfers, "invalid provider evidence must not be persisted as receipt proof")
+}
+
 func receiptObservation(walletID, txHash, blockHash, provider string, observedAt time.Time) baseusdc.Observation {
 	walletAddress := "0x1111111111111111111111111111111111111111"
 	return baseusdc.Observation{
@@ -311,7 +346,8 @@ func receiptObservation(walletID, txHash, blockHash, provider string, observedAt
 		WalletID:          walletID, Network: baseusdc.Network, AssetID: baseusdc.TransferAsset, Decimals: 6,
 		From: "0x2222222222222222222222222222222222222222", To: walletAddress, AtomicAmount: "5901522",
 		TransactionHash: txHash, LogIndex: 4, BlockNumber: 100, BlockHash: blockHash,
-		BlockTime: observedAt.Add(-time.Minute), Finality: "finalized", FinalizedHeadNumber: 100,
+		WalletAddressBinding: walletAddress,
+		BlockTime:            observedAt.Add(-time.Minute), Finality: "finalized", FinalizedHeadNumber: 100,
 		FinalizedHeadHash: "0x" + strings.Repeat("c", 64), ProviderID: provider, ObservedAt: observedAt,
 	}
 }

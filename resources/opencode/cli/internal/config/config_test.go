@@ -5,7 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
+	"time"
 )
 
 // TestMain overrides the OpenRouter cloud-model role resolver so Ensure tests
@@ -201,14 +205,49 @@ func TestRender_SamplingOmittedWhenAbsent(t *testing.T) {
 // --- Ensure orchestration (fake Resolver) -------------------------------------
 
 type fakeResolver struct {
-	installed []string
-	listErr   error
-	role      RoleResolution
-	roleErr   error
+	installed      []string
+	listErr        error
+	role           RoleResolution
+	roleErr        error
+	policyModels   []string
+	policyModelErr error
+}
+
+type localRightsFake struct {
+	fakeResolver
+	allowed      bool
+	roleAllowed  bool
+	rightsErr    error
+	roleCheckErr error
+}
+
+func (f localRightsFake) LocalInferenceAllowed(context.Context, string) (bool, error) {
+	return f.allowed, f.rightsErr
+}
+
+func (f localRightsFake) LocalChatRoleEligible(context.Context, string) (bool, error) {
+	return f.roleAllowed, f.roleCheckErr
+}
+
+func TestEnsureDoesNotCreateConfigAfterCancellation(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "opencode.json")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := Ensure(ctx, EnsureOptions{ConfigPath: path})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Ensure error = %v, want context cancellation", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("config stat error = %v, canceled ensure must not write", err)
+	}
 }
 
 func (f fakeResolver) InstalledModels(ctx context.Context) ([]string, error) {
 	return f.installed, f.listErr
+}
+
+func (f fakeResolver) LocalPolicyModels(ctx context.Context) ([]string, error) {
+	return f.policyModels, f.policyModelErr
 }
 
 func (f fakeResolver) LocalRole(ctx context.Context, role string) (RoleResolution, error) {
@@ -378,6 +417,260 @@ func TestEnsure_Idempotent(t *testing.T) {
 	}
 }
 
+func TestEnsure_OllamaUsesRightsCheckedEdgeInsteadOfUpstreamHost(t *testing.T) {
+	t.Setenv("OLLAMA_HOST", "127.0.0.1:43219")
+	path := filepath.Join(t.TempDir(), "opencode.json")
+	_, err := Ensure(context.Background(), EnsureOptions{
+		ConfigPath: path,
+		Defaults:   DefaultDefaults(func(string) string { return "" }),
+		Resolver:   fakeResolver{installed: []string{"gemma4:12b"}, role: RoleResolution{Model: "gemma4:12b"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider := parse(t, mustRead(t, path))["provider"].(map[string]any)["ollama"].(map[string]any)
+	if got := provider["options"].(map[string]any)["baseURL"]; got != "http://127.0.0.1:11434/api" {
+		t.Fatalf("Ollama baseURL = %v, want the rights-checked activity edge", got)
+	}
+}
+
+func TestEnsurePreservesAnAllowedActiveLocalSelectionWhenCloudCredentialsAppear(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "opencode.json")
+	writeFile(t, path, `{"model":"ollama/selected:8b","small_model":"ollama/selected:8b","provider":{"ollama":{"models":{"selected:8b":{}}}}}`)
+	_, err := Ensure(context.Background(), EnsureOptions{
+		ConfigPath:     path,
+		Defaults:       DefaultDefaults(func(string) string { return "" }),
+		HaveOpenRouter: true,
+		Resolver: localRightsFake{
+			fakeResolver: fakeResolver{
+				installed:    []string{"selected:8b"},
+				role:         RoleResolution{Model: "different-default:8b"},
+				policyModels: []string{"selected:8b", "different-default:8b"},
+			},
+			allowed:     true,
+			roleAllowed: true,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := parse(t, mustRead(t, path))
+	if got := doc["model"]; got != "ollama/selected:8b" {
+		t.Fatalf("routine ensure replaced the active local selection with %v", got)
+	}
+}
+
+func TestEnsureRepointsARevokedActiveLocalModelToAnAllowedFallback(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "opencode.json")
+	writeFile(t, path, `{"model":"ollama/revoked:8b","small_model":"ollama/revoked:8b","provider":{"ollama":{"models":{"revoked:8b":{},"allowed:8b":{}}}}}`)
+	_, err := Ensure(context.Background(), EnsureOptions{
+		ConfigPath: path,
+		Defaults:   DefaultDefaults(func(string) string { return "" }),
+		Resolver: localRightsFake{
+			fakeResolver: fakeResolver{
+				installed:    []string{"allowed:8b"},
+				role:         RoleResolution{Model: "allowed:8b"},
+				policyModels: []string{"revoked:8b", "allowed:8b"},
+			},
+			allowed: false,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := parse(t, mustRead(t, path))
+	if got := doc["model"]; got != "ollama/allowed:8b" {
+		t.Fatalf("revoked active model was not replaced by the allowed fallback: %v", got)
+	}
+	models := doc["provider"].(map[string]any)["ollama"].(map[string]any)["models"].(map[string]any)
+	if _, ok := models["revoked:8b"]; ok {
+		t.Fatalf("revoked model remains in the picker: %v", models)
+	}
+}
+
+func TestEnsureRepointsASelectionWhoseChatRoleWasRemoved(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "opencode.json")
+	writeFile(t, path, `{"model":"ollama/retired:8b","small_model":"ollama/retired:8b","provider":{"ollama":{"models":{"retired:8b":{},"allowed:8b":{}}}}}`)
+	_, err := Ensure(context.Background(), EnsureOptions{
+		ConfigPath: path,
+		Defaults:   DefaultDefaults(func(string) string { return "" }),
+		Resolver: localRightsFake{
+			fakeResolver: fakeResolver{
+				installed:    []string{"allowed:8b"},
+				role:         RoleResolution{Model: "allowed:8b"},
+				policyModels: []string{"retired:8b", "allowed:8b"},
+			},
+			allowed:     true,
+			roleAllowed: false,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := parse(t, mustRead(t, path))["model"]; got != "ollama/allowed:8b" {
+		t.Fatalf("selection with a removed chat role was not replaced by fallback: %v", got)
+	}
+}
+
+func TestExecResolverRecognizesOnlyCurrentChatRoleModelsAndFallbacks(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses a POSIX command fixture")
+	}
+	path := filepath.Join(t.TempDir(), "resource-ollama")
+	script := `#!/bin/sh
+if [ "$2" = "roles" ]; then
+cat <<'JSON'
+{"roles":[{"role":"code.local","model":"current:8b","fallbacks":["fallback:8b","partial-fallback:8b","embed-fallback:latest"],"required_capabilities":["chat","generate","summarize"],"capabilities":["chat","generate","summarize"],"policy_sha256":"fixture"},{"role":"embedding.default","model":"embed:latest","required_capabilities":["embeddings"],"capabilities":["embeddings"],"policy_sha256":"fixture"}]}
+JSON
+else
+cat <<'JSON'
+{"models":[{"model":"current:8b","capabilities":["chat","generate","summarize"],"policy_sha256":"fixture"},{"model":"fallback:8b","capabilities":["chat","generate","summarize"],"policy_sha256":"fixture"},{"model":"partial-fallback:8b","capabilities":["chat","generate"],"policy_sha256":"fixture"},{"model":"embed:latest","capabilities":["embeddings"],"policy_sha256":"fixture"},{"model":"embed-fallback:latest","capabilities":["embeddings"],"policy_sha256":"fixture"}]}
+JSON
+fi
+`
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	resolver := ExecResolver{Command: path}
+	for model, want := range map[string]bool{"current:8b": true, "fallback:8b": true, "partial-fallback:8b": false, "embed:latest": false, "embed-fallback:latest": false, "retired:8b": false} {
+		got, err := resolver.LocalChatRoleEligible(context.Background(), model)
+		if err != nil || got != want {
+			t.Errorf("LocalChatRoleEligible(%q) = %t err=%v, want %t", model, got, err, want)
+		}
+	}
+	if err := os.WriteFile(path, []byte(strings.Replace(script, `"policy_sha256":"fixture"`, `"policy_sha256":"stale"`, 1)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := resolver.LocalChatRoleEligible(context.Background(), "current:8b"); err == nil {
+		t.Fatal("policy changes between role and model reads must fail closed")
+	}
+
+}
+
+func TestEnsureWaitsForConfigLockBeforeReadingAndMerging(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "opencode.json")
+	writeFile(t, path, `{"operatorCustomKey":{"version":"before"}}`)
+	unlock, err := LockConfig(context.Background(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, err := Ensure(context.Background(), EnsureOptions{
+			ConfigPath: path,
+			Defaults:   DefaultDefaults(func(string) string { return "" }),
+			Resolver:   fakeResolver{},
+		})
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		unlock()
+		t.Fatalf("Ensure completed while another config transaction held the lock: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+	writeFile(t, path, `{"operatorCustomKey":{"version":"latest"}}`)
+	unlock()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Ensure did not resume after the config lock was released")
+	}
+	var got map[string]any
+	if err := json.Unmarshal(mustRead(t, path), &got); err != nil {
+		t.Fatal(err)
+	}
+	if version := got["operatorCustomKey"].(map[string]any)["version"]; version != "latest" {
+		t.Fatalf("Ensure overwrote the latest config state: operatorCustomKey.version=%v", version)
+	}
+}
+
+func TestEnsurePrunesRetiredPolicyModelsFromOwnershipState(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "opencode.json")
+	_, err := Ensure(context.Background(), EnsureOptions{
+		ConfigPath: path,
+		Defaults:   DefaultDefaults(func(string) string { return "" }),
+		Resolver: fakeResolver{
+			installed:    []string{"eligible:8b"},
+			role:         RoleResolution{Model: "eligible:8b"},
+			policyModels: []string{"retired:4b"},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, path, `{"provider":{"ollama":{"models":{"retired:4b":{"name":"Retired policy model"},"operator/custom:1b":{"name":"Operator model"}}}}}`)
+	_, err = Ensure(context.Background(), EnsureOptions{
+		ConfigPath: path,
+		Defaults:   DefaultDefaults(func(string) string { return "" }),
+		Resolver:   fakeResolver{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	models := parse(t, mustRead(t, path))["provider"].(map[string]any)["ollama"].(map[string]any)["models"].(map[string]any)
+	if _, ok := models["retired:4b"]; ok {
+		t.Fatalf("retired policy model remains selectable after its role was removed: %v", models)
+	}
+	if _, ok := models["operator/custom:1b"]; !ok {
+		t.Fatalf("unmanaged operator model was removed: %v", models)
+	}
+	writeFile(t, path, `{"provider":{"ollama":{"models":{"retired:4b":{"name":"Operator re-added model"},"operator/custom:1b":{"name":"Operator model"}}}}}`)
+	_, err = Ensure(context.Background(), EnsureOptions{
+		ConfigPath: path,
+		Defaults:   DefaultDefaults(func(string) string { return "" }),
+		Resolver: fakeResolver{
+			installed:    []string{"current:8b"},
+			role:         RoleResolution{Model: "current:8b"},
+			policyModels: []string{"current:8b"},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	models = parse(t, mustRead(t, path))["provider"].(map[string]any)["ollama"].(map[string]any)["models"].(map[string]any)
+	if _, ok := models["retired:4b"]; !ok {
+		t.Fatalf("retired model could not be reclaimed as an operator model: %v", models)
+	}
+}
+
+func TestLockConfigSerializesSymlinkAndTargetAliases(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "opencode.json")
+	alias := filepath.Join(dir, "opencode-link.json")
+	writeFile(t, target, `{}`)
+	if err := os.Symlink(target, alias); err != nil {
+		t.Skipf("symlink fixture is unavailable: %v", err)
+	}
+	unlockAlias, err := LockConfig(context.Background(), alias)
+	if err != nil {
+		t.Fatal(err)
+	}
+	acquired := make(chan struct{})
+	go func() {
+		unlockTarget, err := LockConfig(context.Background(), target)
+		if err == nil {
+			close(acquired)
+			unlockTarget()
+		}
+	}()
+	select {
+	case <-acquired:
+		unlockAlias()
+		t.Fatal("target path acquired a separate lock while symlink alias held the config lock")
+	case <-time.After(100 * time.Millisecond):
+	}
+	unlockAlias()
+	select {
+	case <-acquired:
+	case <-time.After(5 * time.Second):
+		t.Fatal("target path did not acquire the lock after symlink alias released it")
+	}
+}
+
 func TestEnsure_CloudRoleResolutionFailsLoud(t *testing.T) {
 	prev := resolveCloudModel
 	resolveCloudModel = func(context.Context, string) (string, error) {
@@ -425,24 +718,33 @@ func TestEnsure_ResolvesCloudModelFromRole(t *testing.T) {
 	}
 }
 
-func TestOllamaBaseURL(t *testing.T) {
-	cases := map[string]string{
-		"":                    "http://localhost:11434",
-		"myhost":              "http://myhost:11434",
-		"myhost:9999":         "http://myhost:9999",
-		"https://gpu.box:443": "https://gpu.box:443",
-		"http://10.0.0.5":     "http://10.0.0.5:11434",
+func TestRender_UsesRightsCheckedActivityEdge(t *testing.T) {
+	op := sampleOllama()
+	op.BaseURL = ollamaActivityEdgeURL + "/api"
+	out, err := Render(nil, Inputs{Ollama: op})
+	if err != nil {
+		t.Fatal(err)
 	}
-	for in, want := range cases {
-		got := ollamaBaseURL(func(k string) string {
-			if k == "OLLAMA_HOST" {
-				return in
-			}
-			return ""
-		})
-		if got != want {
-			t.Errorf("ollamaBaseURL(%q)=%q want %q", in, got, want)
-		}
+	provider := parse(t, out)["provider"].(map[string]any)["ollama"].(map[string]any)
+	if got := provider["options"].(map[string]any)["baseURL"]; got != "http://127.0.0.1:11434/api" {
+		t.Fatalf("Ollama baseURL = %v, want the loopback activity edge", got)
+	}
+}
+
+func TestRender_RemovesRevokedPolicyModelsAndPreservesUnmanagedModels(t *testing.T) {
+	existing := []byte(`{"provider":{"ollama":{"models":{"revoked:8b":{"name":"Old policy model"},"operator/custom:1b":{"name":"Operator model"}}}}}`)
+	op := sampleOllama()
+	op.PolicyModels = []string{"revoked:8b"}
+	out, err := Render(existing, Inputs{Ollama: op})
+	if err != nil {
+		t.Fatal(err)
+	}
+	models := parse(t, out)["provider"].(map[string]any)["ollama"].(map[string]any)["models"].(map[string]any)
+	if _, ok := models["revoked:8b"]; ok {
+		t.Fatalf("revoked policy model remains selectable: %v", models)
+	}
+	if _, ok := models["operator/custom:1b"]; !ok {
+		t.Fatalf("unmanaged operator model was removed: %v", models)
 	}
 }
 
@@ -516,6 +818,25 @@ func TestParseLocalModelsFiltersAndRanks(t *testing.T) {
 	}
 }
 
+func TestParseAuthorizedLocalModelsOmitsDeniedAndUnknownRights(t *testing.T) {
+	raw := []byte(`{"roles":[
+	  {"role":"chat.default","model":"model-allowed","preference":10,"capabilities":["chat","generate"],"context_window_tokens":8192,"rights_decision":{"status":"allowed","use":"local_inference"}},
+	  {"role":"chat.denied","model":"model-denied","preference":20,"capabilities":["chat","generate"],"context_window_tokens":8192,"rights_decision":{"status":"denied","use":"local_inference"}},
+	  {"role":"chat.unknown","model":"model-unknown","preference":30,"capabilities":["chat","generate"],"context_window_tokens":8192,"rights_decision":{"status":"unknown","use":"local_inference"}}
+	]}`)
+	got, err := parseLocalModelsWithRights(raw, []string{"model-allowed", "model-denied", "model-unknown"}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Model != "model-allowed" {
+		t.Fatalf("authorized local models = %+v, want only model-allowed", got)
+	}
+	missing := []byte(`{"roles":[{"role":"chat.default","model":"model-a","capabilities":["chat"]}]}`)
+	if _, err := parseLocalModelsWithRights(missing, []string{"model-a"}, true); err == nil {
+		t.Fatal("missing rights decision must fail closed")
+	}
+}
+
 func TestRender_CapsProjectedContext(t *testing.T) {
 	op := sampleOllama()
 	op.ExtraModels = []LocalModel{{Model: "chat:9b", NumCtx: 262144}}
@@ -529,9 +850,71 @@ func TestRender_CapsProjectedContext(t *testing.T) {
 	}
 }
 
+func TestRender_ProjectsLocalModelsWithoutInstalledCodeDefault(t *testing.T) {
+	op := &OllamaProvider{
+		BaseURL:     "http://localhost:11434/api",
+		NumCtx:      8192,
+		ExtraModels: []LocalModel{{Model: "huihui_ai/granite4.1-abliterated:8b", NumCtx: 20480}},
+	}
+	out, err := Render(nil, Inputs{Ollama: op})
+	if err != nil {
+		t.Fatal(err)
+	}
+	models := parse(t, out)["provider"].(map[string]any)["ollama"].(map[string]any)["models"].(map[string]any)
+	if _, ok := models["huihui_ai/granite4.1-abliterated:8b"]; !ok {
+		t.Fatalf("installed local chat model not projected: %v", models)
+	}
+	if _, ok := models[""]; ok {
+		t.Fatalf("empty default model must not be projected: %v", models)
+	}
+}
+
+func TestSelectOllamaModelRequiresProjectedCatalogAndPreservesOtherConfig(t *testing.T) {
+	existing := []byte(`{"model":"openrouter/paid","small_model":"openrouter/cheap","permission":{"bash":{"git push*":"deny"}},"custom":{"keep":true},"provider":{"ollama":{"models":{"huihui_ai/granite4.1-abliterated:8b":{"name":"Granite abliterated"}}}}}`)
+	out, err := SelectOllamaModel(existing, "huihui_ai/granite4.1-abliterated:8b")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := parse(t, out)
+	want := "ollama/huihui_ai/granite4.1-abliterated:8b"
+	if m["model"] != want || m["small_model"] != want {
+		t.Fatalf("active models=%v/%v, want %q", m["model"], m["small_model"], want)
+	}
+	if m["custom"].(map[string]any)["keep"] != true || m["permission"].(map[string]any)["bash"].(map[string]any)["git push*"] != "deny" {
+		t.Fatalf("unmanaged config was not preserved: %v", m)
+	}
+	if _, err := SelectOllamaModel(out, "unknown:latest"); err == nil {
+		t.Fatal("unknown/unprojected model must not be activated")
+	}
+}
+
 type listingResolver struct {
 	fakeResolver
 	extras []LocalModel
+}
+
+func TestEnsure_ProjectsLocalChatModelWhenCodingRoleIsUnavailable(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/opencode.json"
+	_, err := Ensure(context.Background(), EnsureOptions{
+		ConfigPath: path,
+		Defaults:   DefaultDefaults(func(string) string { return "" }),
+		Resolver: listingResolver{
+			fakeResolver: fakeResolver{installed: []string{"huihui_ai/granite4.1-abliterated:8b"}, roleErr: errors.New("code.local is not installed")},
+			extras:       []LocalModel{{Model: "huihui_ai/granite4.1-abliterated:8b", NumCtx: 20480}},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := parse(t, mustRead(t, path))
+	models := m["provider"].(map[string]any)["ollama"].(map[string]any)["models"].(map[string]any)
+	if _, ok := models["huihui_ai/granite4.1-abliterated:8b"]; !ok {
+		t.Fatalf("eligible installed model is missing from provider catalog: %v", models)
+	}
+	if _, ok := m["model"]; ok {
+		t.Fatalf("explicit-only local model must not silently become the default: %v", m["model"])
+	}
 }
 
 func (r listingResolver) LocalModels(context.Context, []string) ([]LocalModel, error) {

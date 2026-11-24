@@ -37,6 +37,13 @@ const (
 	// placement cannot be honoured. It is retryable (the gateway falls back to
 	// the next candidate) and never means "the host is broken".
 	CodeInsufficientVRAM = "insufficient_vram"
+	// CodeInsufficientMemory is the same refusal for a model that is served
+	// from host memory and does not fit.
+	CodeInsufficientMemory = "insufficient_memory"
+	// CodeLimitsExceeded is a model refusing a request that is outside its
+	// declared bounds (more options than its budget). The next candidate may
+	// accept it.
+	CodeLimitsExceeded = "limits_exceeded"
 )
 
 const defaultLocalURL = "http://127.0.0.1:11435"
@@ -140,6 +147,8 @@ func (c Client) Decide(ctx context.Context, resolution policy.Resolution, reques
 	body := map[string]any{"model": model, "state": request.State, "questions": request.Questions}
 	endpoint := resolution.Endpoint
 	if resolution.Protocol == policy.ProtocolOllaya {
+		// The activity edge behind LocalURL stamps the policy's keep_alive on
+		// every decision (residency package), so residency has one owner.
 		endpoint = LocalURL(c.GetEnv) + "/api/decide"
 	}
 	started := c.now()
@@ -212,32 +221,83 @@ func (c Client) Pull(ctx context.Context, name string) error {
 	return err
 }
 
-// ResidentDevice reports the device a model is currently loaded on ("cpu",
-// "cuda:0", ...). found is false when the model is not resident, which is not
-// an error: a lazily loaded daemon has no placement to report yet.
-func (c Client) ResidentDevice(ctx context.Context, model string) (device string, found bool, err error) {
+// InstalledModel is one tag the daemon lists in /api/tags.
+type InstalledModel struct {
+	Name       string    `json:"name"`
+	Digest     string    `json:"digest"`
+	Size       int64     `json:"size"`
+	ModifiedAt time.Time `json:"modified_at"`
+}
+
+// Installed lists every installed tag with its size and pull time.
+func (c Client) Installed(ctx context.Context) ([]InstalledModel, error) {
+	raw, err := c.get(ctx, LocalURL(c.GetEnv)+"/api/tags")
+	if err != nil {
+		return nil, err
+	}
+	var tags struct {
+		Models []InstalledModel `json:"models"`
+	}
+	if err := json.Unmarshal(raw, &tags); err != nil {
+		return nil, &ProviderError{Code: CodeProviderFailed, Message: "decode /api/tags: " + err.Error()}
+	}
+	return tags.Models, nil
+}
+
+// Delete removes one installed tag. The daemon accepts only DELETE.
+func (c Client) Delete(ctx context.Context, name string) error {
+	payload, err := json.Marshal(map[string]string{"model": name})
+	if err != nil {
+		return err
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodDelete, LocalURL(c.GetEnv)+"/api/delete", bytes.NewReader(payload))
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Content-Type", "application/json")
+	_, err = c.do(request)
+	return err
+}
+
+// ResidentModel is one model the daemon currently holds in memory.
+type ResidentModel struct {
+	Name string `json:"name"`
+	// Device is "cpu" or an accelerator such as "cuda:0".
+	Device string `json:"device"`
+	// SizeVRAM is the bytes the model holds on the accelerator (zero on CPU).
+	SizeVRAM int64 `json:"size_vram"`
+}
+
+// Residents lists the models the daemon holds in memory and where. An empty
+// list is not an error: a lazily loading daemon has nothing resident yet.
+func (c Client) Residents(ctx context.Context) ([]ResidentModel, error) {
 	raw, err := c.get(ctx, LocalURL(c.GetEnv)+"/api/ps")
 	if err != nil {
-		return "", false, err
+		return nil, err
 	}
 	var running struct {
 		Models []struct {
-			Name   string `json:"name"`
-			Model  string `json:"model"`
-			Device string `json:"device"`
+			Name     string `json:"name"`
+			Model    string `json:"model"`
+			Device   string `json:"device"`
+			SizeVRAM int64  `json:"size_vram"`
 		} `json:"models"`
 	}
 	if err := json.Unmarshal(raw, &running); err != nil {
-		return "", false, &ProviderError{Code: CodeProviderFailed, Message: "decode /api/ps: " + err.Error()}
+		return nil, &ProviderError{Code: CodeProviderFailed, Message: "decode /api/ps: " + err.Error()}
 	}
-	want := InstalledName(model)
+	out := make([]ResidentModel, 0, len(running.Models))
 	for _, entry := range running.Models {
-		if entry.Name != want && entry.Model != want && entry.Name != model && entry.Model != model {
-			continue
-		}
-		return strings.ToLower(strings.TrimSpace(entry.Device)), true, nil
+		out = append(out, ResidentModel{Name: firstNonEmpty(entry.Name, entry.Model), Device: strings.ToLower(strings.TrimSpace(entry.Device)), SizeVRAM: entry.SizeVRAM})
 	}
-	return "", false, nil
+	return out, nil
+}
+
+// Unload releases a resident model's memory (a request with no state and
+// keep_alive 0, which never decides).
+func (c Client) Unload(ctx context.Context, model string) error {
+	_, err := c.post(ctx, LocalURL(c.GetEnv)+"/api/decide", "", map[string]any{"model": model, "keep_alive": 0})
+	return err
 }
 
 // Version probes the daemon.
@@ -329,6 +389,10 @@ func classifyStatus(response *http.Response, raw []byte) error {
 	switch {
 	case body.Code == "STATE_TRUNCATED" || body.Code == "INPUT_TOO_LONG":
 		failure.Code = CodeContextOverflow
+	case body.Code == "TOO_MANY_OPTIONS":
+		failure.Code = CodeLimitsExceeded
+	case body.Code == "MODEL_LOAD_FAILED" && loadFailureIsMemory(message):
+		failure.Code = CodeInsufficientVRAM
 	case body.Code == "MODEL_NOT_FOUND":
 		failure.Code = CodeUnconfigured
 	case response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusForbidden:
@@ -341,6 +405,22 @@ func classifyStatus(response *http.Response, raw []byte) error {
 		failure.Code = CodeProviderFailed
 	}
 	return failure
+}
+
+// loadFailureIsMemory reports whether a daemon load failure says the
+// accelerator ran out of memory, which the gateway treats as "this candidate
+// does not fit", not as a broken host. The daemon reports it in the words of
+// its runtime: onnxruntime's BFC arena ("Failed to allocate memory for
+// requested buffer") for its encoders and llama.cpp's "cudaMalloc failed: out
+// of memory" for its GGUF models.
+func loadFailureIsMemory(message string) bool {
+	message = strings.ToLower(message)
+	for _, marker := range []string{"insufficient_vram", "out of memory", "failed to allocate", "cudamalloc failed", "vram"} {
+		if strings.Contains(message, marker) {
+			return true
+		}
+	}
+	return false
 }
 
 func classifyTransport(host string, err error) error {

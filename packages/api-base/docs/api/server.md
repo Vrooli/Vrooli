@@ -78,6 +78,7 @@ function createScenarioServer(options: ServerTemplateOptions): Express.Applicati
 | `setupRoutes` | `(app: Express.Application) => void` | ❌ | Custom route setup |
 | `proxyMetadata` | `ProxyInfo` | ❌ | Proxy metadata to inject |
 | `scenarioConfig` | `ScenarioConfig` | ❌ | Scenario config to inject |
+| `experienceTelemetry` | `boolean \| ExperienceTelemetryOptions` | ❌ | Local-only interaction telemetry. Defaults to on for loopback requests outside tests/CI. See [Local Experience Telemetry](../guides/experience-telemetry.md) |
 
 **Returns:** `Express.Application` - Configured Express app
 
@@ -89,7 +90,7 @@ function createScenarioServer(options: ServerTemplateOptions): Express.Applicati
 - ✅ `/health` endpoint (with API connectivity check)
 - ✅ Static file serving from `distDir`
 - ✅ SPA fallback routing (serves `index.html`)
-- ✅ HTML metadata injection (proxy info, config)
+- ✅ HTML metadata injection (proxy info, config, experience agent on loopback)
 - ✅ Graceful error handling
 
 **Examples:**

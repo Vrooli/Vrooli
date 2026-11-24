@@ -10,7 +10,8 @@ help:
 	@printf "sherpa-onnx resource quality entrypoints\n\n"
 	@printf "  make check                     Run CLI and native-server checks\n"
 	@printf "  make native-test ROOT=...     Run cgo server tests against a pinned runtime\n"
-	@printf "  make release-stage TARGET=... ROOT=... OUT=...  Build, checksum, and sign one target-native bundle\n"
+	@printf "  make release-stage TARGET=... ROOT=... OUT=...  Build and validate a target-native stage (signed by default)\n"
+	@printf "  make release-stage ... SIGN=0   Prepare an unsigned local stage for inspection\n"
 	@printf "  make validate-stage OUT=...     Validate a local stage against resource.json offline\n"
 
 fmt:

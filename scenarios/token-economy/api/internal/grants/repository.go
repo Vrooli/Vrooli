@@ -9,14 +9,9 @@ import (
 	"fmt"
 	"strings"
 	"time"
-)
 
-type SQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
-}
+	"github.com/vrooli/api-core/database"
+)
 
 type Repository interface {
 	Create(context.Context, Grant, Credit) (Grant, error)
@@ -38,11 +33,11 @@ type Credit struct {
 type AppendCreditFunc func(context.Context, *sql.Tx, Credit) error
 
 type sqliteRepository struct {
-	db           SQLExecutor
+	db           database.SQLTxExecutor
 	appendCredit AppendCreditFunc
 }
 
-func NewSQLiteRepository(db SQLExecutor, appendCredit AppendCreditFunc) Repository {
+func NewSQLiteRepository(db database.SQLTxExecutor, appendCredit AppendCreditFunc) Repository {
 	return &sqliteRepository{db: db, appendCredit: appendCredit}
 }
 

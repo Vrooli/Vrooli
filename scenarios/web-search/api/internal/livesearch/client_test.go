@@ -6,7 +6,8 @@ import (
 	"testing"
 
 	"web-search/internal/livesearch"
-	"web-search/internal/testutil/mocks"
+
+	"github.com/vrooli/api-core/apihttptest"
 
 	"github.com/stretchr/testify/require"
 )
@@ -16,7 +17,7 @@ import (
 // previously dropped on the floor (users saw mysteriously bad results with no
 // explanation).
 func TestHTTPSearxngClientParsesUnresponsiveEngines(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(http.StatusOK, []byte(`{
 		"results": [{"url": "https://a.example", "title": "A", "content": "snippet", "engine": "google", "score": 1.5}],
 		"unresponsive_engines": [["duckduckgo", "CAPTCHA"], ["qwant", "parsing error"]]
@@ -33,7 +34,7 @@ func TestHTTPSearxngClientParsesUnresponsiveEngines(t *testing.T) {
 }
 
 func TestHTTPSearxngClientNoUnresponsiveEnginesIsNil(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	doer.AddResponse(http.StatusOK, []byte(`{"results": [], "unresponsive_engines": []}`))
 
 	client := livesearch.NewHTTPSearxngClient("http://searxng.local", doer)
@@ -43,7 +44,7 @@ func TestHTTPSearxngClientNoUnresponsiveEnginesIsNil(t *testing.T) {
 }
 
 func TestHTTPSearxngClientToleratesMalformedUnresponsiveEntries(t *testing.T) {
-	doer := &mocks.FakeDoer{}
+	doer := &apihttptest.FakeDoer{}
 	// Mixed shapes: a bare pair, a triple (newer searxng adds a suspended
 	// flag), an empty entry, and a non-string engine.
 	doer.AddResponse(http.StatusOK, []byte(`{

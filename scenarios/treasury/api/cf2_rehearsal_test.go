@@ -820,30 +820,15 @@ func runTreasuryLocalForkRehearsal(t *testing.T, cf1Only bool) {
 	require.NoError(t, err)
 	require.Equal(t, "local-fork", quoteResponse.Msg.Quote.ExecutionMode)
 	withdrawalRequest := func(key string) *connect.Request[fundingpb.ExecuteWithdrawalRequest] {
-		request := operatorRequest(&fundingpb.ExecuteWithdrawalRequest{QuoteId: quoteResponse.Msg.Quote.Id, IdempotencyKey: key})
-		request.Header().Set("X-Treasury-Mandate-Identity-Token", "cf2-local-agent")
-		return request
+		return operatorRequest(&fundingpb.ExecuteWithdrawalRequest{QuoteId: quoteResponse.Msg.Quote.Id, IdempotencyKey: key})
 	}
-	missingIdentity := operatorRequest(&fundingpb.ExecuteWithdrawalRequest{QuoteId: quoteResponse.Msg.Quote.Id, IdempotencyKey: "cf2-withdrawal-missing-identity"})
-	_, err = fundingClient.ExecuteWithdrawal(ctx, missingIdentity)
-	require.Error(t, err)
+	// The selected operator-session route deliberately does not accept an agent
+	// mandate identity token; approval comes from the authenticated operator and
+	// Treasury resolves the mandate and its run binding server-side.
 	wrongRealm := operatorRequest(&fundingpb.ExecuteWithdrawalRequest{QuoteId: quoteResponse.Msg.Quote.Id, IdempotencyKey: "cf2-withdrawal-mixed-realm"})
 	wrongRealm.Header().Set(identity.HeaderAgentIdentityToken, "cf2-local-agent")
 	_, err = fundingClient.ExecuteWithdrawal(ctx, wrongRealm)
 	require.Error(t, err, "operator auth must keep rejecting the ordinary agent realm header")
-	wrongPrincipalQuote, err := fundingClient.PreviewWithdrawal(ctx, operatorRequest(&fundingpb.PreviewWithdrawalRequest{
-		BudgetId: budgetID, MandateId: mandateResponse.Msg.Mandate.Id, Destination: withdrawalDestination,
-		AtomicAmount: "1000000", MaxFeeWei: "1000000000000000000", FeeValuationMinor: 10,
-		Valuation: &ingestpb.CryptoValuation{AmountMinor: 100, Currency: "USD", Basis: sharedpb.Basis_BASIS_OPERATOR_ASSERTED, BasisReference: "local-fork:test-only-wrong-principal", ValuedAt: timestamppb.Now()},
-	}))
-	require.NoError(t, err)
-	wrongPrincipal := operatorRequest(&fundingpb.ExecuteWithdrawalRequest{QuoteId: wrongPrincipalQuote.Msg.Quote.Id, IdempotencyKey: "cf2-withdrawal-wrong-principal"})
-	wrongPrincipal.Header().Set("X-Treasury-Mandate-Identity-Token", "cf2-other-agent")
-	wrongPrincipalResponse, err := fundingClient.ExecuteWithdrawal(ctx, wrongPrincipal)
-	require.NoError(t, err)
-	require.Equal(t, "refused", wrongPrincipalResponse.Msg.Withdrawal.State)
-	require.Empty(t, wrongPrincipalResponse.Msg.Withdrawal.TransactionHash)
-	writeRehearsalProto(t, filepath.Join(runDir, "withdrawal-wrong-principal-refused.json"), wrongPrincipalResponse.Msg.Withdrawal)
 	pendingResponse, err := fundingClient.ExecuteWithdrawal(ctx, withdrawalRequest("cf2-withdrawal-key"))
 	require.NoError(t, err)
 	require.Equal(t, "pending_approval", pendingResponse.Msg.Withdrawal.State)
@@ -1097,7 +1082,6 @@ func runTreasuryLocalForkRehearsal(t *testing.T, cf1Only bool) {
 	}))
 	require.NoError(t, err)
 	frozenRequest := operatorRequest(&fundingpb.ExecuteWithdrawalRequest{QuoteId: frozenQuote.Msg.Quote.Id, IdempotencyKey: "cf2-frozen-withdrawal-key"})
-	frozenRequest.Header().Set("X-Treasury-Mandate-Identity-Token", "cf2-local-agent")
 	frozenResponse, err := fundingClient.ExecuteWithdrawal(ctx, frozenRequest)
 	require.NoError(t, err)
 	require.Equal(t, "refused", frozenResponse.Msg.Withdrawal.State)
@@ -1743,7 +1727,9 @@ func (h *cf1PairedRunHarness) configure(ctx context.Context, own cf1PairedRunIde
 	if err := h.readBackLiveIdentity(ctx, counterpart); err != nil {
 		return cf1PairedRunConfig{}, fmt.Errorf("read back counterpart live mandate and wallet before config: %w", err)
 	}
-	h.controller.Do(func() { go h.fail(h.releaseGates(ctx, arrivals)) })
+	h.controller.Do(func() {
+		go func() { h.fail(h.releaseGates(ctx, arrivals)) }()
+	})
 	return cf1PairedRunConfig{
 		ForeignBudgetID: counterpart.BudgetID, ForeignMandateID: counterpart.MandateID,
 		CounterpartIdentity: map[string]any{
@@ -2269,9 +2255,9 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 	if err := registerRunInstrument(mandateID, overCapInstrumentID, 110); err != nil {
 		return "", "", "", err
 	}
-	if err := registerRunInstrument(expiryMandateID, expiryInstrumentID, 10); err != nil {
-		return "", "", "", err
-	}
+	// The expiry refusal is decided at mandate liveness before instrument
+	// resolution, so do not register an instrument against this short-lived
+	// mandate after it has expired.
 	if hooks.X402 != nil {
 		x := hooks.X402
 		if x.CatalogURL == "" || x.PriceID == "" || x.CallID == "" || x.Counterparty == "" || x.InstrumentID == "" || x.Credential == "" || x.BuyerAddress == "" {
@@ -2568,6 +2554,9 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 	}
 	if _, err := validateCF1RPCReceipt(overCapReceiptBeforeRestart, overCapSettlement.GetSettlement().GetExternalId(), walletResponse.Msg.GetWallet().GetAddress(), counterparty, 110); err != nil {
 		return "", "", "", fmt.Errorf("validate approved ordinary-run receipt before Treasury restart: %w", err)
+	}
+	if err := waitForCF1FileOrChild(ctx, filepath.Join(coord, "over-cap-headroom-before-restart.json"), nil, childDone); err != nil {
+		return "", "", "", fmt.Errorf("ordinary run did not verify pre-restart headroom before Treasury restart: %w", err)
 	}
 	overCapReceiptBeforeDigest := sha256.Sum256(overCapReceiptBeforeRestart)
 	// The ordinary AM run stays active while Treasury is restarted; its real CLI

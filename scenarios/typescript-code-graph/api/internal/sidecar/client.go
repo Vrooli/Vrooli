@@ -15,7 +15,7 @@ type SidecarClient interface {
 	// pending future locally with ctx.Err(). The returned
 	// ExtractResult.RequestID is the supervisor-minted UUID for the
 	// underlying IPC request (non-empty whenever the sidecar was reached).
-	Extract(ctx context.Context, projectPath string) (ExtractResult, error)
+	Extract(ctx context.Context, projectPath string, profile ...string) (ExtractResult, error)
 
 	// RewriteApply executes the given operations against the project at
 	// projectPath. The result slice matches ops 1:1.

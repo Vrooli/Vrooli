@@ -11,18 +11,13 @@ running a binary by hand or when a scenario adds a new variable.
 
 ### Required at runtime (set by the lifecycle)
 
-| Variable | Range / format | Purpose |
-|---|---|---|
-| `API_PORT` | `15000-19999` | Port for the Go API server |
-| `UI_PORT` | `20000-24999` | Port for the production UI server (`ui/server.js`) |
+See the [canonical port allocation reference](../../../../docs/reference/port-allocation.md) for API and UI ranges and the full listener policy.
 
 If the scenario adds WebSocket channels on the existing API or UI server, do
 not add another `ports` entry. Declare an additional port only when the
 scenario starts a separate listener process.
 
-The canonical bands all sit below 32768 so Linux never hands out the
-ports as outbound source ports. See the project-level port allocation reference
-(`path:../../docs/reference/port-allocation.md`) for the full policy.
+
 
 ### Optional overrides
 
@@ -85,18 +80,11 @@ hyphens replaced by underscores (so `my-scenario` → `MY_SCENARIO`).
 The following are recognised, in precedence order (first-found wins);
 substitute your scenario's prefix for `<PREFIX>`:
 
-| Purpose | Variables |
-|---|---|
-| API base URL | `<PREFIX>_API_BASE`, `<PREFIX>_API_URL`, `VROOLI_API_BASE` |
-| API port | `<PREFIX>_API_PORT` |
-| API token | `<PREFIX>_API_TOKEN`, `VROOLI_API_TOKEN` |
-| Config dir | `<PREFIX>_CONFIG_DIR`, `VROOLI_CLI_CONFIG_DIR` |
-| HTTP timeout | `<PREFIX>_HTTP_TIMEOUT`, `VROOLI_HTTP_TIMEOUT` |
+The standard variable names and order come from `cliapp.StandardScenarioEnv`; see the [CLI Core scenario environment contract](../../../../packages/cli-core/README.md#scenario-cli-environment). Keep scenario-specific additions in this reference.
 
 > **Do not** set the un-prefixed `API_PORT` for a CLI invocation —
 > when CLIs run inside web-console terminals it leaks across scenarios.
 > Use the scenario-prefixed form or the `--api-base` flag.
-
 ## Service manifest (`.vrooli/service.json`)
 
 Single source of truth for everything the lifecycle needs to know.

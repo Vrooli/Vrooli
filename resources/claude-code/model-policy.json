@@ -372,8 +372,8 @@
     ]
   },
   "provenance": {
-    "source": "policy refresh by agent agent-manager run from Claude Code 2.1.321 built-in model catalog",
-    "observed_at": "2026-11-09"
+    "source": "policy refresh by local user matthalloran8 (no agent signal) from Claude Code 2.1.321 built-in model catalog",
+    "observed_at": "2026-11-24"
   },
   "billing": {
     "mode": "subscription",

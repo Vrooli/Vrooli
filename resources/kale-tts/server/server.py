@@ -109,20 +109,40 @@ def speech(request: SpeechRequest):
         raise HTTPException(status_code=400, detail="response_format must be wav or pcm")
     try:
         # ONNX sessions and the Python frontend are serialized to cap CPU/RAM.
+        # Consume the stream while holding the session lock. Converting each
+        # chunk avoids retaining the full float waveform and a second
+        # concatenated copy while producing the response.
+        out = io.BytesIO()
         with _synthesis_lock:
             tts = engine()
-            chunks = list(tts.stream(request.input, voice=request.voice))
-        audio = np.concatenate(chunks).astype(np.float32, copy=False)
+            if fmt == "wav":
+                with wave.open(out, "wb") as wav:
+                    wav.setnchannels(1)
+                    wav.setsampwidth(2)
+                    wav.setframerate(24000)
+                    _write_pcm_chunks(wav, tts.stream(request.input, voice=request.voice))
+            else:
+                _write_pcm_chunks(out, tts.stream(request.input, voice=request.voice))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"synthesis failed: {exc}") from exc
-    # OpenAI's `pcm` convention is headerless signed 16-bit little-endian PCM.
-    pcm = (np.clip(audio, -1.0, 1.0) * 32767.0).astype("<i2").tobytes()
     if fmt == "pcm":
-        return Response(pcm, media_type="audio/pcm", headers={"X-Sample-Rate": "24000"})
-    out = io.BytesIO()
-    with wave.open(out, "wb") as wav:
-        wav.setnchannels(1); wav.setsampwidth(2); wav.setframerate(24000); wav.writeframes(pcm)
+        return Response(out.getvalue(), media_type="audio/pcm", headers={"X-Sample-Rate": "24000"})
     return Response(out.getvalue(), media_type="audio/wav")
+
+
+def _write_pcm_chunks(target, chunks):
+    """Convert float audio chunks to the API's signed 16-bit little-endian PCM."""
+    write = target.write if isinstance(target, io.BytesIO) else target.writeframesraw
+    wrote_audio = False
+    for chunk in chunks:
+        # Do not modify arrays owned by the TTS library. Clipping allocates one
+        # chunk-sized float array; subsequent conversion is chunk bounded.
+        clipped = np.clip(np.asarray(chunk, dtype=np.float32), -1.0, 1.0)
+        np.multiply(clipped, 32767.0, out=clipped)
+        write(clipped.astype("<i2").tobytes())
+        wrote_audio = True
+    if not wrote_audio:
+        raise ValueError("synthesis returned no audio")
 

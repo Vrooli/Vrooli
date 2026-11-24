@@ -82,11 +82,21 @@ type (
 		recoveryPath            RecoveryPath
 		sessionSignAuthorizer   SessionSignAuthorizer
 		rotationReceiptVerifier receiptsigning.ReceiptVerifier
+		rotationCommitAckSigner receiptsigning.ReceiptSigner
 	}
 )
 
 func NewService(repository Repository, books Books, custody Custody, clock schedule.Clock, path RecoveryPath) *Service {
 	return &Service{repository: repository, books: books, custody: custody, clock: clock, recoveryPath: path}
+}
+
+// WithRotationCommitAckSigner installs Treasury's narrowly scoped signer for
+// DBM's exact post-commit reservation release acknowledgement.
+func (s *Service) WithRotationCommitAckSigner(signer receiptsigning.ReceiptSigner) *Service {
+	if s != nil {
+		s.rotationCommitAckSigner = signer
+	}
+	return s
 }
 
 // WithRotationReceiptVerifier installs the trusted DBM receipt verifier. A nil

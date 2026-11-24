@@ -54,7 +54,7 @@ async function handleExtract(req: ExtractRequest): Promise<void> {
       // The caller may have given up while this request waited for the
       // path lock; starting ts-morph then only burns CPU for nobody.
       if (entry.cancelled) return undefined;
-      return extract({ projectPath: req.project_path });
+      return extract({ projectPath: req.project_path, profile: req.profile ?? "full" });
     });
     if (entry.cancelled || result === undefined) {
       logger.debug("discarding result of cancelled extract", { request_id: req.request_id });
@@ -65,6 +65,7 @@ async function handleExtract(req: ExtractRequest): Promise<void> {
       request_id: req.request_id,
       graph: result.graph,
       warnings: result.warnings,
+      profile: req.profile ?? "full",
     });
   } catch (err) {
     if (entry.cancelled) return;

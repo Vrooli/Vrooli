@@ -1,5 +1,3 @@
-import json
-
 """One bounded evidence-policy call; web-search owns freshness and answer truth."""
 inputs = program.inputs()
 envelope = {"program": "web-search.research", "version": "2", "status": "failed", "phase": "validate", "signals": {}, "errors": [], "evidence": []}
@@ -36,4 +34,4 @@ except Exception as exc:
         envelope["status"] = "refused"
     envelope["errors"].append({"class": klass, "detail": message[:180], "where": envelope["phase"]})
 envelope["phase"] = "report"
-print(json.dumps(envelope, sort_keys=True))
+program.report(envelope)

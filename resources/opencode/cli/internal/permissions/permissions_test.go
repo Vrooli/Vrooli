@@ -1,11 +1,16 @@
 package permissions
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/vrooli/vrooli/resources/opencode/cli/internal/config"
 )
 
 func newTestAdapter(t *testing.T) *Adapter {
@@ -35,6 +40,76 @@ func TestLoadMissingReturnsEmpty(t *testing.T) {
 	}
 	if len(p.BashDeny)+len(p.BashAsk)+len(p.BashAllow) != 0 {
 		t.Fatalf("expected empty policy, got %+v", p)
+	}
+}
+
+func TestSaveWaitsForSharedConfigLockAndPreservesConcurrentModelSelection(t *testing.T) {
+	a := newTestAdapter(t)
+	if err := os.WriteFile(a.SettingsPath, []byte(`{"model":"openrouter/old"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	unlock, err := config.LockConfig(context.Background(), a.SettingsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- a.Save(Policy{}, "test") }()
+	select {
+	case err := <-done:
+		unlock()
+		t.Fatalf("permission Save completed while config lock was held: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+	if err := os.WriteFile(a.SettingsPath, []byte(`{"model":"ollama/new"}`), 0o600); err != nil {
+		unlock()
+		t.Fatal(err)
+	}
+	unlock()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("permission Save did not resume after config lock release")
+	}
+	if got := readDoc(t, a)["model"]; got != "ollama/new" {
+		t.Fatalf("permission Save overwrote local model selection: got %v", got)
+	}
+}
+
+func TestPermissionStateUsesCanonicalConfigSymlinkIdentity(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires filesystem symlinks")
+	}
+	root := t.TempDir()
+	targetDir := filepath.Join(root, "target")
+	aliasDir := filepath.Join(root, "alias")
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(aliasDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(targetDir, "managed.json")
+	alias := filepath.Join(aliasDir, "opencode.json")
+	if err := os.WriteFile(target, []byte(`{}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, alias); err != nil {
+		t.Skipf("symlink fixture is unavailable: %v", err)
+	}
+	byTarget := &Adapter{SettingsPath: target}
+	byAlias := &Adapter{SettingsPath: alias}
+	if byTarget.StatePath() != byAlias.StatePath() {
+		t.Fatalf("state paths differ across config aliases: target=%q alias=%q", byTarget.StatePath(), byAlias.StatePath())
+	}
+	if err := byAlias.Save(Policy{BashDeny: []string{"git push *"}}, "test"); err != nil {
+		t.Fatal(err)
+	}
+	state, err := byTarget.LoadState()
+	if err != nil || state == nil || len(state.ManagedBash) != 1 || state.ManagedBash[0] != "git push *" {
+		t.Fatalf("canonical permission state = %+v err=%v", state, err)
 	}
 }
 
@@ -329,7 +404,7 @@ func TestStateRoundTrip(t *testing.T) {
 
 func TestSaveProjectsConfiguredToolBeforePlugin(t *testing.T) {
 	dir := t.TempDir()
-	a := &Adapter{SettingsPath: filepath.Join(dir, "opencode.json"), PluginPath: filepath.Join(dir, "plugins", "vrooli-policy.js")}
+	a := &Adapter{SettingsPath: filepath.Join(dir, "opencode.json"), PluginPath: filepath.Join(dir, "plugins", "vrooli-policy.js"), Major: 1}
 	t.Setenv("VROOLI_AGENT_POLICY_RUNNER", "policy-runner")
 	if err := a.Save(Policy{BashDeny: []string{"pnpm add *"}}, "test"); err != nil {
 		t.Fatal(err)
@@ -417,7 +492,7 @@ func TestSyncPluginReplacesTheOtherMajorWhenPolicyIsClean(t *testing.T) {
 	v2 := filepath.Join(dir, "plugins", "vrooli-policy-v2.js")
 	a := &Adapter{SettingsPath: filepath.Join(dir, "opencode.json"), PluginPath: v1, PluginPathV2: v2, Major: 1}
 	policy := Policy{BashDeny: []string{"git stash *"}}
-	if err := a.SyncPlugin(policy); err != nil {
+	if err := a.Save(policy, "test"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(v1); err != nil {
@@ -425,7 +500,7 @@ func TestSyncPluginReplacesTheOtherMajorWhenPolicyIsClean(t *testing.T) {
 	}
 	// Simulate a major upgrade with an unchanged permission map.
 	a.Major, a.major = 2, 0
-	if err := a.SyncPlugin(policy); err != nil {
+	if err := a.SyncPlugin(); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(v2); err != nil {
@@ -476,7 +551,7 @@ func TestV2ProjectsPermissionsIntoExplicitConfigRoot(t *testing.T) {
 		PluginPathV2:   filepath.Join(dir, "plugins", "vrooli-policy-v2.js"),
 		Major:          2,
 	}
-	if err := a.SyncPlugin(Policy{BashDeny: []string{"git stash *"}}); err != nil {
+	if err := a.Save(Policy{BashDeny: []string{"git stash *"}}, "test"); err != nil {
 		t.Fatal(err)
 	}
 	raw, err := os.ReadFile(projection)

@@ -151,6 +151,22 @@ func TestRolesAndModelsJSON(t *testing.T) {
 	}
 }
 
+func TestRolesIncludeLocalInferenceRightsDecisions(t *testing.T) {
+	h, stdout := testHandlers(t)
+	if err := h.Roles([]string{"--require-local-inference", "--json"}); err != nil {
+		t.Fatalf("Roles: %v", err)
+	}
+	var roles rolesReport
+	if err := json.Unmarshal(stdout.Bytes(), &roles); err != nil {
+		t.Fatal(err)
+	}
+	for _, role := range roles.Roles {
+		if role.RightsDecision == nil || role.RightsDecision.Status == "" || role.RightsDecision.Use != "local_inference" {
+			t.Fatalf("role %q has no local-inference rights decision", role.Role)
+		}
+	}
+}
+
 func TestConstraintsJSON(t *testing.T) {
 	h, stdout := testHandlers(t)
 	if err := h.Constraints([]string{"--json"}); err != nil {
@@ -162,6 +178,25 @@ func TestConstraintsJSON(t *testing.T) {
 	}
 	if got.Constraints.DefaultParallelRequests == 0 {
 		t.Fatal("default_parallel_requests is zero")
+	}
+}
+
+func TestModelsJSONIncludesCurrentLocalInferenceRights(t *testing.T) {
+	h, stdout := testHandlers(t)
+	if err := h.Models([]string{"--require-local-inference", "--json"}); err != nil {
+		t.Fatalf("Models: %v", err)
+	}
+	var got modelsReport
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+		t.Fatalf("decode models: %v", err)
+	}
+	if len(got.Models) == 0 {
+		t.Fatal("policy model report is empty")
+	}
+	for _, model := range got.Models {
+		if model.RightsDecision == nil || model.RightsDecision.Use != "local_inference" {
+			t.Errorf("model %q is missing its local-inference decision: %+v", model.Model, model.RightsDecision)
+		}
 	}
 }
 

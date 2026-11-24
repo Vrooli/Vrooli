@@ -408,8 +408,7 @@ func TestLocaleAction_Empty(t *testing.T) {
 // ===================== Handler Tests =====================
 
 func TestControlEndpoint_UnknownAction(t *testing.T) {
-	h, svc := newTestHandler()
-	router := newTestRouter(h)
+	router, svc := newTestRouterWithService()
 
 	session, err := svc.StartSession(context.Background(), SessionConfig{ScenarioName: "test"})
 	require.NoError(t, err)
@@ -419,53 +418,42 @@ func TestControlEndpoint_UnknownAction(t *testing.T) {
 		fmt.Sprintf("/api/v1/sessions/%s/control", session.ID),
 		bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	router.ServeHTTP(rr, req)
+	rr := serveTestRequest(router, req)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 }
 
 func TestControlEndpoint_SessionNotFound(t *testing.T) {
-	h, _ := newTestHandler()
-	router := newTestRouter(h)
+	router, _ := newTestRouterWithService()
 
 	body := `{"action":"quit_app"}`
 	req := httptest.NewRequest(http.MethodPost,
 		"/api/v1/sessions/fake-id/control",
 		bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	router.ServeHTTP(rr, req)
+	rr := serveTestRequest(router, req)
 	assert.Equal(t, http.StatusNotFound, rr.Code)
 }
 
 func TestControlEndpoint_InvalidJSON(t *testing.T) {
-	h, _ := newTestHandler()
-	router := newTestRouter(h)
+	router, _ := newTestRouterWithService()
 
 	req := httptest.NewRequest(http.MethodPost,
 		"/api/v1/sessions/any-id/control",
 		bytes.NewBufferString("not json"))
 	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	router.ServeHTTP(rr, req)
+	rr := serveTestRequest(router, req)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 }
 
 func TestControlEndpoint_EmptyAction(t *testing.T) {
-	h, _ := newTestHandler()
-	router := newTestRouter(h)
+	router, _ := newTestRouterWithService()
 
 	body := `{"action":""}`
 	req := httptest.NewRequest(http.MethodPost,
 		"/api/v1/sessions/any-id/control",
 		bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	router.ServeHTTP(rr, req)
+	rr := serveTestRequest(router, req)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
 }
 

@@ -78,6 +78,7 @@ func TestHandlerExtractHappyPath(t *testing.T) {
 	require.Len(t, resp.Msg.GetGraph().GetNodes(), 2)
 	require.NotEmpty(t, resp.Msg.GetGraphHash())
 	require.GreaterOrEqual(t, resp.Msg.GetExtractionMs(), int64(0))
+	require.Equal(t, "full", resp.Msg.GetExtractionProfile())
 	require.Equal(t, "req-handler-1", resp.Msg.GetSidecarRequestId(),
 		"sidecar_request_id must round-trip onto the proto response")
 
@@ -93,6 +94,19 @@ func TestHandlerExtractHappyPath(t *testing.T) {
 		}
 	}
 	t.Fatalf("component node missing from response")
+}
+
+func TestHandlerExtractImportProfileRoundTrip(t *testing.T) {
+	t.Parallel()
+	fake := &sidecarmocks.FakeSidecarClient{StatusValue: sidecar.StatusReady}
+	client := newTestClient(t, intgraph.NewService(fake, intgraph.NewPathMutex()))
+
+	resp, err := client.Extract(context.Background(), connect.NewRequest(&graphv1.ExtractRequest{
+		ProjectPath: "/abs/proj",
+		Profile:     "imports",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "imports", resp.Msg.GetExtractionProfile())
 }
 
 func TestHandlerExtractInvalidArgument(t *testing.T) {

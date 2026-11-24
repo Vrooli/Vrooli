@@ -16,6 +16,19 @@ import type { ProxyInfo, ProxyMetadataOptions, ScenarioConfig, PortEntry } from 
 import { escapeForInlineScript } from '../shared/utils.js'
 
 /**
+ * Insert a snippet immediately after an opening tag, tolerating attributes and
+ * letter case (`<head>`, `<head lang="en">`, `<HEAD>`).
+ *
+ * @internal
+ */
+function insertAfterOpeningTag(html: string, tag: 'head' | 'body' | 'html', snippet: string): string | null {
+  const match = new RegExp(`<${tag}(?:\\s[^>]*)?>`, 'i').exec(html)
+  if (!match) return null
+  const at = match.index + match[0].length
+  return `${html.slice(0, at)}\n${snippet}${html.slice(at)}`
+}
+
+/**
  * Build proxy metadata payload
  *
  * Constructs the ProxyInfo object that will be injected into the client.
@@ -489,17 +502,10 @@ export function injectProxyMetadata(
     .replace(/\$/g, '$$$$')
 
   // Inject into <head> if present, otherwise at start of <body>
-  if (html.includes('<head>')) {
-    return html.replace(
-      '<head>',
-      `<head>\n<script id="${PROXY_METADATA_SCRIPT_ID}">${script}</script>`
-    )
-  } else if (html.includes('<body>')) {
-    return html.replace(
-      '<body>',
-      `<body>\n<script id="${PROXY_METADATA_SCRIPT_ID}">${script}</script>`
-    )
-  }
+  const headInjection = insertAfterOpeningTag(html, 'head', `<script id="${PROXY_METADATA_SCRIPT_ID}">${script}</script>`)
+  if (headInjection !== null) return headInjection
+  const bodyInjection = insertAfterOpeningTag(html, 'body', `<script id="${PROXY_METADATA_SCRIPT_ID}">${script}</script>`)
+  if (bodyInjection !== null) return bodyInjection
 
   // Fallback: prepend to entire document
   return `<script id="${PROXY_METADATA_SCRIPT_ID}">${script}</script>\n${html}`
@@ -548,17 +554,10 @@ export function injectScenarioConfig(
 })();`
 
   // Inject into <head> if present, otherwise at start of <body>
-  if (html.includes('<head>')) {
-    return html.replace(
-      '<head>',
-      `<head>\n<script id="${SCENARIO_CONFIG_SCRIPT_ID}">${script}</script>`
-    )
-  } else if (html.includes('<body>')) {
-    return html.replace(
-      '<body>',
-      `<body>\n<script id="${SCENARIO_CONFIG_SCRIPT_ID}">${script}</script>`
-    )
-  }
+  const headInjection = insertAfterOpeningTag(html, 'head', `<script id="${SCENARIO_CONFIG_SCRIPT_ID}">${script}</script>`)
+  if (headInjection !== null) return headInjection
+  const bodyInjection = insertAfterOpeningTag(html, 'body', `<script id="${SCENARIO_CONFIG_SCRIPT_ID}">${script}</script>`)
+  if (bodyInjection !== null) return bodyInjection
 
   // Fallback: prepend to entire document
   return `<script id="${SCENARIO_CONFIG_SCRIPT_ID}">${script}</script>\n${html}`
@@ -638,15 +637,10 @@ export function injectBaseTag(
 
   const baseTag = `<base ${dataAttribute}="injected" href="${normalizedBase}">`
 
-  // Try to inject into <head>
-  if (html.includes('<head>')) {
-    return html.replace('<head>', `<head>\n${baseTag}`)
-  }
-
-  // Try to inject at start of <html>
-  if (html.includes('<html>')) {
-    return html.replace('<html>', `<html>\n${baseTag}`)
-  }
+  const headInjection = insertAfterOpeningTag(html, 'head', baseTag)
+  if (headInjection !== null) return headInjection
+  const htmlInjection = insertAfterOpeningTag(html, 'html', baseTag)
+  if (htmlInjection !== null) return htmlInjection
 
   // Fallback: prepend to entire document
   return `${baseTag}\n${html}`

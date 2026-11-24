@@ -38,6 +38,7 @@ func Module(db *database.RoutedDB, verifier identity.Verifier, clk schedule.Cloc
 	authorizationService := authorization.NewService(authorizations, verifier, mandates, budgets, evidenceRecorder, clk, approvals)
 	instruments := instrument.NewServiceWithCardIssuers(instrument.NewSQLiteRepository(db), mandates, rails, credentials, clk, cardIssuers)
 	settlementService := settlement.NewService(settlement.NewSQLiteRepository(db), authorizations, instruments, rails, verifier, clk, budgets)
+	settlementService.SetOperatorMandates(mandates)
 	if overrides.Authorization != nil {
 		authorizationService = overrides.Authorization
 	}

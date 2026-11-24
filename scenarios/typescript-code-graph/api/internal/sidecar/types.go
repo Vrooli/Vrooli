@@ -49,6 +49,7 @@ type ExtractResult struct {
 	Graph     RawGraph
 	Warnings  []Warning
 	RequestID string
+	Profile   string
 }
 
 // RawNode is a single graph node as emitted by the sidecar. Kind is the

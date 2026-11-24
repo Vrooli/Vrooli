@@ -6,7 +6,7 @@ import { useState } from "react";
 
 import { minterClient, nextIdempotencyKey } from "../../api/tokenEconomy";
 import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1";
-import { Input } from "../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Select } from "@vrooli/react-component-library/Select/1";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { strings } from "../../consts/strings";

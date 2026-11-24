@@ -68,7 +68,7 @@ func TestSaveAddsDenyAndHookEntry(t *testing.T) {
 	if entry["managedBy"] != ManagedByMarker {
 		t.Fatalf("expected managedBy=%q, got %v", ManagedByMarker, entry["managedBy"])
 	}
-	if entry["matcher"] != "Bash" {
+	if entry["matcher"] != GuardMatcher {
 		t.Fatalf("matcher: %v", entry["matcher"])
 	}
 

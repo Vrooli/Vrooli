@@ -117,7 +117,7 @@ Pinned upstream docs: <https://code.claude.com/docs/en/permissions> (see `resour
 
 `vrooli setup` runs `resource-claude-code ensure`. It has two idempotent steps:
 - It reconciles the statusline quota feed (below).
-- It installs a `SessionStart` hook with the `compact` matcher in `~/.claude/settings.json`. After
+- It installs `SessionStart` hooks with the `startup` and `compact` matchers in `~/.claude/settings.json`. A fresh session gets a short task-time reminder to search for the owner skill and matching Program Runtime contract before repeating a multi-step scenario/CLI workflow. After
   every compaction, the hook runs `resource-claude-code effort compact-context`. That command prints
   a reminder to re-read the active goal, plan, charter or brief before acting, because the compacted
   summary can drop its objective, the operator's stance and its closure rules

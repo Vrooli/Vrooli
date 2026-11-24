@@ -220,6 +220,27 @@ export const X = 1;`,
     expect(importEdges[0]!.from_node_id).toBe("ts_module:src/main.ts");
   });
 
+  it("keeps imports-only edges and unresolved warnings equivalent while skipping semantic usage facts", () => {
+    const project = inMemoryProject();
+    project.createSourceFile(
+      "/proj/src/main.ts",
+      `import { U } from "./util"; import { Gone } from "./missing"; function helper(x: number) { return x; } export const M = helper(U) + Gone;`,
+    );
+    project.createSourceFile("/proj/src/util.ts", "export const U = 1;");
+
+    const full = extract({ projectPath: "/proj", _project: project, _rootDirOverride: "/proj" });
+    const imports = extract({ projectPath: "/proj", profile: "imports", _project: project, _rootDirOverride: "/proj" });
+    const importEdges = (edges: typeof full.graph.edges) => edges.filter((edge) => edge.kind === 1 || edge.kind === 3);
+    const importBindings = (nodes: typeof full.graph.nodes) => nodes.filter((node) => node.kind === 210);
+    const unresolvedWarnings = (warnings: typeof full.warnings) => warnings.filter((warning) => warning.kind === 2);
+
+    expect(importEdges(imports.graph.edges)).toEqual(importEdges(full.graph.edges));
+    expect(importBindings(imports.graph.nodes)).toEqual(importBindings(full.graph.nodes));
+    expect(unresolvedWarnings(imports.warnings)).toEqual(unresolvedWarnings(full.warnings));
+    expect(imports.graph.nodes.every((node) => node.kind === 1 || node.kind === 200 || node.kind === 210)).toBe(true);
+    expect(full.graph.nodes.some((node) => node.attributes.kind === "TS_NODE_KIND_CALL")).toBe(true);
+  });
+
   it("emits a WK_UNRESOLVED_IMPORT warning for a dangling relative import (D3)", () => {
     const project = inMemoryProject();
     project.createSourceFile(

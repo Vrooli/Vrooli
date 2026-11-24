@@ -12,7 +12,6 @@ package main
 import "C"
 
 import (
-	"encoding/binary"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -23,12 +22,27 @@ import (
 )
 
 type nativeStreamingEngine struct {
-	mu         sync.Mutex
-	recognizer *C.SherpaOnnxOnlineRecognizer
-	punct      *C.SherpaOnnxOfflinePunctuation
+	// mu protects the recognizer/punctuation lifetimes. CPU operations hold a
+	// read lock so independent OnlineStreams can decode concurrently; Close
+	// takes the write lock and drains every remaining stream before destruction.
+	mu sync.RWMutex
+	// backendMu keeps non-CPU providers serialized until their provider-specific
+	// concurrent execution has been qualified.
+	backendMu sync.Mutex
+	// The punctuation instance is shared and remains serialized independently
+	// from online stream decoding.
+	punctMu          sync.Mutex
+	streamsMu        sync.Mutex
+	recognizer       *C.SherpaOnnxOnlineRecognizer
+	punct            *C.SherpaOnnxOfflinePunctuation
+	streams          map[*nativeSTTStream]struct{}
+	concurrentDecode bool
 }
 
 type nativeSTTStream struct {
+	// sherpa OnlineStream is not thread-safe; serialize every operation on this
+	// stream while allowing separate CPU streams to use the recognizer together.
+	mu                sync.Mutex
 	engine            *nativeStreamingEngine
 	stream            *C.SherpaOnnxOnlineStream
 	totalSamples      int64
@@ -38,6 +52,9 @@ type nativeSTTStream struct {
 	finished          bool
 	maxSegmentSamples int64
 	finishTailMS      int
+	// pcmScratch retains only ordinary packets; oversized packet storage is
+	// discarded after AcceptWaveform returns.
+	pcmScratch []float32
 }
 
 func newStreamingEngineFromEnv() (StreamingSTT, error) {
@@ -70,7 +87,8 @@ func newStreamingEngineFromEnv() (StreamingSTT, error) {
 	decoderC := C.CString(decoder)
 	joinerC := C.CString(joiner)
 	tokensC := C.CString(tokens)
-	providerC := C.CString(envOr("SHERPA_ONNX_PROVIDER", "cpu"))
+	provider := strings.ToLower(strings.TrimSpace(envOr("SHERPA_ONNX_PROVIDER", "cpu")))
+	providerC := C.CString(provider)
 	decodingC := C.CString(envOr("SHERPA_ONNX_STREAMING_DECODING", "greedy_search"))
 	modelType := envOr("SHERPA_ONNX_STREAMING_MODEL_TYPE", "zipformer2")
 	if modelType == "auto" {
@@ -125,7 +143,7 @@ func newStreamingEngineFromEnv() (StreamingSTT, error) {
 		return nil, fmt.Errorf("punctuation model %q is unavailable: %w", punctModel, err)
 	}
 	punctModelC := C.CString(punctModel)
-	providerPunctC := C.CString(envOr("SHERPA_ONNX_PROVIDER", "cpu"))
+	providerPunctC := C.CString(provider)
 	var punctConfig C.SherpaOnnxOfflinePunctuationConfig
 	punctConfig.model.ct_transformer = punctModelC
 	punctConfig.model.num_threads = C.int32_t(envInt("SHERPA_ONNX_THREADS", 2))
@@ -137,14 +155,23 @@ func newStreamingEngineFromEnv() (StreamingSTT, error) {
 		C.SherpaOnnxDestroyOnlineRecognizer(recognizer)
 		return nil, fmt.Errorf("sherpa-onnx failed to load punctuation model %q", punctModel)
 	}
-	return &nativeStreamingEngine{recognizer: recognizer, punct: punct}, nil
+	return &nativeStreamingEngine{
+		recognizer:       recognizer,
+		punct:            punct,
+		streams:          make(map[*nativeSTTStream]struct{}),
+		concurrentDecode: provider == "cpu",
+	}, nil
 }
 
 func (e *nativeStreamingEngine) NewStream() (STTStream, error) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.mu.RLock()
+	defer e.mu.RUnlock()
 	if e.recognizer == nil {
 		return nil, fmt.Errorf("streaming recognizer is closed")
+	}
+	if !e.concurrentDecode {
+		e.backendMu.Lock()
+		defer e.backendMu.Unlock()
 	}
 	stream := C.SherpaOnnxCreateOnlineStream(e.recognizer)
 	if stream == nil {
@@ -152,12 +179,16 @@ func (e *nativeStreamingEngine) NewStream() (STTStream, error) {
 	}
 	maxSeconds := envInt("SHERPA_ONNX_STREAMING_MAX_SEGMENT_SECONDS", 15)
 	finishTailMS := boundedFinishTailMS(envNonNegativeInt("SHERPA_ONNX_STREAMING_FINISH_TAIL_MS", defaultStreamingFinishTailMS))
-	return &nativeSTTStream{
+	result := &nativeSTTStream{
 		engine:            e,
 		stream:            stream,
 		maxSegmentSamples: int64(maxSeconds) * streamingSampleRate,
 		finishTailMS:      finishTailMS,
-	}, nil
+	}
+	e.streamsMu.Lock()
+	e.streams[result] = struct{}{}
+	e.streamsMu.Unlock()
+	return result, nil
 }
 
 // envNonNegativeInt differs from envInt because zero is meaningful for the
@@ -178,6 +209,18 @@ func envNonNegativeInt(name string, fallback int) int {
 func (e *nativeStreamingEngine) Close() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	e.streamsMu.Lock()
+	for stream := range e.streams {
+		stream.mu.Lock()
+		if stream.stream != nil {
+			C.SherpaOnnxDestroyOnlineStream(stream.stream)
+			stream.stream = nil
+		}
+		stream.closed = true
+		stream.mu.Unlock()
+		delete(e.streams, stream)
+	}
+	e.streamsMu.Unlock()
 	if e.recognizer != nil {
 		if e.punct != nil {
 			C.SherpaOnnxDestroyOfflinePunctuation(e.punct)
@@ -192,6 +235,8 @@ func (e *nativeStreamingEngine) punctuate(text string) (string, error) {
 	if e.punct == nil || text == "" {
 		return text, nil
 	}
+	e.punctMu.Lock()
+	defer e.punctMu.Unlock()
 	textC := C.CString(text)
 	defer C.free(unsafe.Pointer(textC))
 	result := C.SherpaOfflinePunctuationAddPunct(e.punct, textC)
@@ -210,12 +255,10 @@ func (s *nativeSTTStream) AcceptPCM(pcm []byte) ([]STTEvent, error) {
 	if len(pcm) == 0 {
 		return nil, nil
 	}
-	samples := make([]float32, len(pcm)/2)
-	for i := range samples {
-		samples[i] = float32(int16(binary.LittleEndian.Uint16(pcm[i*2:]))) / 32768
-	}
-	s.engine.mu.Lock()
-	defer s.engine.mu.Unlock()
+	s.engine.mu.RLock()
+	defer s.engine.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.closed {
 		return nil, fmt.Errorf("streaming session is closed")
 	}
@@ -225,19 +268,31 @@ func (s *nativeSTTStream) AcceptPCM(pcm []byte) ([]STTEvent, error) {
 	if s.engine.recognizer == nil || s.stream == nil {
 		return nil, fmt.Errorf("streaming recognizer is closed")
 	}
+	samples := decodePCM16LE(s.pcmScratch, pcm)
+	if !s.engine.concurrentDecode {
+		s.engine.backendMu.Lock()
+		defer s.engine.backendMu.Unlock()
+	}
 	C.SherpaOnnxOnlineStreamAcceptWaveform(s.stream, C.int32_t(streamingSampleRate), (*C.float)(unsafe.Pointer(&samples[0])), C.int32_t(len(samples)))
+	s.pcmScratch = retainPCMScratch(samples)
 	s.totalSamples += int64(len(samples))
 	return s.collectLocked(false)
 }
 
 func (s *nativeSTTStream) Finish() ([]STTEvent, error) {
-	s.engine.mu.Lock()
-	defer s.engine.mu.Unlock()
+	s.engine.mu.RLock()
+	defer s.engine.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.closed || s.finished {
 		return nil, nil
 	}
 	if s.engine.recognizer == nil || s.stream == nil {
 		return nil, fmt.Errorf("streaming recognizer is closed")
+	}
+	if !s.engine.concurrentDecode {
+		s.engine.backendMu.Lock()
+		defer s.engine.backendMu.Unlock()
 	}
 	// Online decoders can drop the last words when the client ends directly
 	// after speech. Feed a bounded silent tail before InputFinished so the
@@ -294,14 +349,23 @@ func (s *nativeSTTStream) resetLocked() {
 }
 
 func (s *nativeSTTStream) Close() {
-	s.engine.mu.Lock()
-	defer s.engine.mu.Unlock()
+	s.engine.mu.RLock()
+	defer s.engine.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.closed {
 		return
+	}
+	if !s.engine.concurrentDecode {
+		s.engine.backendMu.Lock()
+		defer s.engine.backendMu.Unlock()
 	}
 	if s.stream != nil {
 		C.SherpaOnnxDestroyOnlineStream(s.stream)
 		s.stream = nil
 	}
 	s.closed = true
+	s.engine.streamsMu.Lock()
+	delete(s.engine.streams, s)
+	s.engine.streamsMu.Unlock()
 }

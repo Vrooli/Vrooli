@@ -15,8 +15,6 @@ import (
 	"treasury/internal/walletops"
 )
 
-const HeaderWithdrawalMandateIdentityToken = "X-Treasury-Mandate-Identity-Token"
-
 func (h *connectHandler) SubmitReceiptFunding(ctx context.Context, request *connect.Request[fundingv1.SubmitReceiptFundingRequest]) (*connect.Response[fundingv1.ReceiptFundingResponse], error) {
 	operator, err := h.authorize(ctx, request)
 	if err != nil {
@@ -137,7 +135,7 @@ func (h *connectHandler) ExecuteWithdrawal(ctx context.Context, request *connect
 	if h.walletOps == nil {
 		return nil, walletOpsUnavailable()
 	}
-	value, err := h.walletOps.ExecuteWithdrawal(ctx, operator.Subject, request.Header().Get(HeaderWithdrawalMandateIdentityToken), request.Msg)
+	value, err := h.walletOps.ExecuteWithdrawal(ctx, operator.Subject, request.Msg)
 	if err != nil {
 		return nil, walletOpsError(err)
 	}

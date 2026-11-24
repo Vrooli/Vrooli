@@ -68,6 +68,20 @@ func TestExtractIntegration_ExplicitTsconfigPath(t *testing.T) {
 	require.NotEmpty(t, out.GraphHash)
 }
 
+func TestExtractIntegration_ImportProfileRoundTrip(t *testing.T) {
+	sup := startRealSupervisor(t)
+	service := graph.NewService(sup, graph.NewPathMutex())
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	out, err := service.Extract(ctx, graph.ExtractInput{ProjectPath: fixtureAbsPath(t, "ts-junk-drawer"), Profile: "imports"})
+	require.NoError(t, err)
+	require.Equal(t, "imports", out.ExtractionProfile)
+	require.NotEmpty(t, out.Graph.Edges)
+	for _, node := range out.Graph.Nodes {
+		require.Contains(t, []graph.NodeKind{graph.NodeKindFile, graph.NodeKindModule}, node.Kind)
+	}
+}
+
 func TestExtractIntegration_ScenarioUIProjectPath(t *testing.T) {
 	sup := startRealSupervisor(t)
 	svc := graph.NewService(sup, graph.NewPathMutex())

@@ -78,6 +78,10 @@ type OllamaProvider struct {
 	SmallModel string
 	NumCtx     int
 	Sampling   Sampling
+	// PolicyModels lists identities owned by the current Ollama role policy,
+	// including roles currently denied by rights. Replacing these entries on
+	// each ensure prevents a revoked model from lingering in the picker.
+	PolicyModels []string
 	// ExtraModels are installed, policy-declared local models that should be
 	// selectable in OpenCode's model picker even though they are not the
 	// coding default. ensure.go derives them from the Ollama policy SSOT.
@@ -261,8 +265,15 @@ func writeOllamaProvider(top map[string]json.RawMessage, op *OllamaProvider) err
 			delete(modelsMap, k)
 		}
 	}
+	for _, model := range op.PolicyModels {
+		if model = strings.TrimSpace(model); model != "" {
+			delete(modelsMap, model)
+		}
+	}
 	entry := ollamaModelEntry(op.NumCtx, op.Sampling, 0)
-	modelsMap[op.ChatModel] = entry
+	if model := strings.TrimSpace(op.ChatModel); model != "" {
+		modelsMap[model] = entry
+	}
 	if op.SmallModel != "" {
 		modelsMap[op.SmallModel] = entry
 	}
@@ -286,6 +297,46 @@ func writeOllamaProvider(top map[string]json.RawMessage, op *OllamaProvider) err
 	providers[ollamaProviderID] = mustRaw(ollama)
 	top[keyProvider] = mustRaw(providers)
 	return nil
+}
+
+// SelectOllamaModel sets the active OpenCode model after verifying that the
+// model is present in the resource-projected Ollama catalog. It preserves all
+// unrelated config fields and does not add arbitrary model IDs to the provider.
+func SelectOllamaModel(data []byte, model string) ([]byte, error) {
+	model = strings.TrimSpace(model)
+	if model == "" {
+		return nil, fmt.Errorf("Ollama model reference must be non-empty")
+	}
+	top := map[string]json.RawMessage{}
+	if len(bytes.TrimSpace(data)) > 0 {
+		if err := json.Unmarshal(data, &top); err != nil {
+			return nil, fmt.Errorf("parse existing opencode.json: %w", err)
+		}
+	}
+	var providers map[string]json.RawMessage
+	if raw := top[keyProvider]; len(raw) > 0 {
+		if err := json.Unmarshal(raw, &providers); err != nil {
+			return nil, fmt.Errorf("parse provider block: %w", err)
+		}
+	}
+	var ollama map[string]json.RawMessage
+	if raw := providers[ollamaProviderID]; len(raw) > 0 {
+		if err := json.Unmarshal(raw, &ollama); err != nil {
+			return nil, fmt.Errorf("parse Ollama provider: %w", err)
+		}
+	}
+	var models map[string]json.RawMessage
+	if raw := ollama["models"]; len(raw) > 0 {
+		if err := json.Unmarshal(raw, &models); err != nil {
+			return nil, fmt.Errorf("parse Ollama model catalog: %w", err)
+		}
+	}
+	if len(models[model]) == 0 {
+		return nil, fmt.Errorf("Ollama model %q is not in the prepared OpenCode catalog; run config ensure after Ollama preparation", model)
+	}
+	top[keyModel] = mustRaw(ollamaProviderID + "/" + model)
+	top[keySmallModel] = mustRaw(ollamaProviderID + "/" + model)
+	return marshalDoc(top)
 }
 
 // writeGoProvider writes or refreshes the OpenCode Go provider block.

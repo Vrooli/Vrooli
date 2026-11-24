@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { minterClient, nextIdempotencyKey } from "../../api/tokenEconomy";
 import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1";
-import { Input } from "../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { ConsoleForm, ConsolePage, Field, RequestState } from "../console/ConsolePage";

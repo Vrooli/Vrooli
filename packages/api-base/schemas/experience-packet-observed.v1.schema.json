@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.local/schemas/experience-packet-observed.v1.schema.json",
+  "title": "Redesign packet observed-behavior block",
+  "type": "object",
+  "required": ["schemaVersion", "scenario", "generatedAt", "build", "window", "headline", "topFlow", "topFriction", "timeCostMs", "reportDigest", "caveat"],
+  "properties": {
+    "schemaVersion": { "const": "experience-packet-observed/v1" },
+    "scenario": { "type": "string" },
+    "generatedAt": { "type": "string" },
+    "build": { "type": ["string", "null"] },
+    "sessions": { "type": "array", "items": { "type": "object", "required": ["id", "build"], "properties": { "id": { "type": "string" }, "build": { "type": ["string", "null"] } }, "additionalProperties": false } },
+    "window": { "type": "object" },
+    "headline": { "type": "string" },
+    "topFlow": { "type": ["object", "null"] },
+    "topFriction": { "type": ["object", "null"] },
+    "timeCostMs": { "type": "number", "minimum": 0 },
+    "reportDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "caveat": { "type": "string" }
+  },
+  "additionalProperties": false
+}

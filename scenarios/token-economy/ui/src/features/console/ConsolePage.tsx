@@ -2,8 +2,8 @@ import type { FormEventHandler, ReactNode } from "react";
 import { AlertCircle, CheckCircle2, LoaderCircle } from "lucide-react";
 
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { ExperienceSurface } from "../../components/experience/ExperienceSurface";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
+import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1";
 
 export function ConsolePage({
   testId,

@@ -63,9 +63,36 @@ listener against the admitted path, and rejects an `OLLAYA_URL` that does not
 match the managed resource endpoint. Pull and inventory requests then use the
 verified private listener directly.
 
+### Disk retention
+
+Storage Manager decides when downloaded models leave disk (free-space bands,
+the 20 GiB store budget in `resource.json`, real use); this resource owns the
+deletion.
+
+```bash
+resource-ollaya models retention --json
+resource-ollaya models evict <name> --digest <sha256> --size <bytes> --json
+```
+
+Ollaya models are regenerable: every one is digest-pinned in
+`model-policy.json`, and `resource-ollaya models pull --model <name>` restores
+the exact digest. Default pulls and route targets are required and never
+eligible; a model whose installed digest differs from its pin, or that has no
+pin, is refused because it could not be restored exactly. `models evict` holds
+the managed lifecycle lock and the per-model request fence that the activity
+edge holds for every request, re-checks digest, size, residency and the policy
+under them, and appends the reacquire command and expected size to
+`~/.vrooli/state/resources/ollaya/model-evictions.jsonl` before deleting.
+Request times are recorded in `~/.vrooli/state/resources/ollaya/model-usage.json`.
+
 ## Roles
 
-`resource-ollaya policy roles --json` is the contract ai-gateway reads.
+`resource-ollaya policy roles --json` is the contract ai-gateway reads. Every
+local role carries the served model's `limits` (`context_tokens`, `max_options`,
+`score_levels` when the model serves exactly that many, `max_questions` when it
+bounds a request below the daemon's cap) and `placement` (`device` `gpu`, `cpu`
+or `any`; `vram_bytes`, `ram_bytes`, `keep_alive`), so callers size digests and
+batches from data. A router (`laya`) reports what all its targets honour.
 
 | Role | Upstream | Model | Needs |
 |---|---|---|---|
@@ -74,6 +101,31 @@ verified private listener directly.
 | `decide.jev.edenai` | Eden AI `/v3/alpha/decisions` | `typesafe/jev-latest` | `vrooli/edenai` api-key |
 | `decide.jev.typesafe` | TypeSafe `/v1/systemone` | `jev-latest` | `vrooli/typesafe` api-key (waitlisted) |
 | `decide.clef.cloudflare` | Workers AI REST | `clef-flash` | `vrooli/cloudflare-workers-ai` api-token + account-id |
+
+### Bake-off candidates
+
+These local roles exist to be measured, never for production routing: ai-gateway
+reaches them only through `decide.candidates` with `pin_resource_role`. All are
+`default_pull: false`; pull one with `resource-ollaya models pull --model <name>`.
+Rights are classified only from a fetched license text (URL, sha256,
+`observed_at`); a model whose license evidence is incomplete stays an explicit
+`unknown` with the reason, and the gateway refuses it (`policy resolve` still
+works, so it can be sized, but no decision is dispatched).
+
+| Role | Model | Rights |
+|---|---|---|
+| `decide.local.typed` | `laya:typed-decisions` | Apache-2.0, classified |
+| `decide.local.coba-400m`, `decide.local.coba-1b` | `coba:400m`, `coba:1b` | Apache-2.0, classified |
+| `decide.local.largha` | `largha:150m` | Apache-2.0, classified |
+| `decide.local.decima-clean` | `decima:base-clean` | Apache-2.0, trained without non-commercial data, classified |
+| `decide.local.pplx` | `pplx-decider:flash` | Apache-2.0, classified; GPU only |
+| `decide.local.kev` | `kev:4b` | Apache-2.0, classified; GPU only |
+| `decide.local.decima-agent`, `decide.local.decima-small` | `decima:agent`, `decima:small` | unknown: training data includes non-commercial sets |
+| `decide.local.nli-modernbert`, `decide.local.nli-deberta` | `nli:modernbert-large`, `nli:deberta-v3-large` | unknown: the author's card says non-commercial training data is included |
+| `decide.local.credence` | `credence:e4b-calibrated` | unknown: training-data license manifest unreviewed; GPU only |
+
+Excluded by license: StartLux and `nimble:9b-v3` (CC BY-NC), `d1` and `d1-omni`
+(LFM Open License, revenue-capped).
 
 `policy resolve --role <id>` succeeds only when the role can serve: hosted
 roles need their credentials in the process environment, local roles need the
@@ -111,6 +163,46 @@ The daemon loads models on demand and unloads them after `OLLAYA_KEEP_ALIVE`
 (`capacity-sync`) and degrades to CPU (`capacity degrade --to cpu`, which
 restarts with `OLLAYA_DEVICE=cpu`) when the broker asks. Laya runs well on the
 CPU; Winnow does not.
+
+### Fit before load
+
+A model's declared `placement` is checked against live capacity before it is
+asked to load, both when its role resolves (`policy resolve`, side-effect free)
+and again at dispatch (`gateway decide`). A model that cannot fit is refused
+with a typed `insufficient_vram` or `insufficient_memory`, and ai-gateway
+continues down its ladder without paying a load:
+
+- a resident model already holds its memory, so nothing is asked of the broker;
+- otherwise the shared broker (`vrooli capacity admit`, about 0.1 s) is asked
+  for the declared VRAM (accelerator daemon) or RAM (CPU daemon). The broker
+  excludes Ollaya's own claim, so at dispatch the ask is the footprint plus
+  every model already resident in the daemon, and idle residents are unloaded
+  largest first until it fits; a role resolution only asks whether the model
+  would fit if Ollaya released everything, and never unloads;
+- a model that is not resident is loaded inside a per-daemon load slot (a
+  one-slot host semaphore, `OLLAYA_LOAD_LOCK_DIR`, default under
+  `$VROOLI_RUNTIME_DIR/resources/ollaya/load`) that spans admission and the
+  decision call. The broker answers from memory that is free now, and a load in
+  flight has not taken it yet, so without the slot two cold callers are both
+  told the same memory is free. The second waits, then finds the model resident
+  or asks the broker with the first load visible; a resident model takes no
+  slot and a role resolution never takes one. A wait that outlasts the
+  caller's timeout is a retryable `provider_overloaded`;
+- `vrooli capacity admit` never counts another owner's reclaimable claim (it
+  runs with `NoReclaim`), so a yes means no one has to give memory back and a
+  no does not mean an idle owner could not. Making room from an idle owner is
+  the broker's reclaim path, not something Ollaya triggers;
+- the daemon's pinned device (`OLLAYA_DEVICE`) is read from its owner process,
+  not from a status audit, which costs seconds;
+- a `placement.keep_alive` (for example `2m` on the large bake-off models) makes
+  the daemon release a model's memory soon after its last request instead of
+  holding it for the daemon-wide default;
+- a daemon-side load failure that says it ran out of memory is classified the
+  same way, so a footprint that was declared too low still ends in a typed skip.
+
+Declared footprints are measured on the reference host (see the bake-off notes
+in the Phase 2 work folder), not guessed: an understated `vram_bytes` makes the
+broker admit a load that then fails.
 
 When the CUDA backend is selected the daemon is pinned with
 `OLLAYA_DEVICE=cuda`. A Winnow load that cannot allocate its VRAM now fails with

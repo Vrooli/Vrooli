@@ -45,6 +45,11 @@ const GuardCommandEnv = "VROOLI_CLAUDE_HOOK_GUARD"
 // GuardSubcommand is the verb that performs one PreToolUse decision.
 var GuardSubcommand = []string{"permissions", "hook-guard"}
 
+// GuardMatcher is the set of Claude tools the guard hook sees: Bash, and the
+// file tools, whose path the shared agent guards judge the same way they judge
+// another runner's file tools.
+const GuardMatcher = "Bash|Read|Write|Edit|MultiEdit|NotebookEdit"
+
 // GuardCommand resolves the executable that evaluates the PreToolUse hook. It
 // defaults to the running binary so the installed hook always executes the
 // same implementation that wrote it, with no PATH lookup to go stale.
@@ -339,7 +344,7 @@ func buildHookEntry(guardCommand string, patterns []string) map[string]any {
 		commandParts = append(commandParts, shellQuote(pattern))
 	}
 	return map[string]any{
-		"matcher":   "Bash",
+		"matcher":   GuardMatcher,
 		"managedBy": ManagedByMarker,
 		"patterns":  append([]string(nil), patterns...),
 		"hooks": []map[string]string{

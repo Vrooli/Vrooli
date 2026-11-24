@@ -31,10 +31,19 @@
     "./testing": {
       "import": "./dist/testing/index.js",
       "types": "./dist/testing/index.d.ts"
-    }
+    },
+    "./experience": {
+      "import": "./dist/experience/index.js",
+      "types": "./dist/experience/index.d.ts"
+    },
+    "./schemas/*": "./schemas/*"
+  },
+  "bin": {
+    "vrooli-experience": "./dist/experience/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "schemas"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -43,7 +52,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "experience:report": "node dist/experience/cli.js report",
+    "experience:e2e": "node scripts/experience-e2e.mjs",
+    "experience:overhead": "node scripts/experience-overhead.mjs"
   },
   "peerDependencies": {
     "express": "^4.18.2",

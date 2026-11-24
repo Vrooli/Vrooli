@@ -2,6 +2,7 @@ package permissions
 
 import (
 	"github.com/vrooli/agentharness"
+	"github.com/vrooli/vrooli/resources/opencode/cli/internal/config"
 )
 
 type State = agentharness.PermissionState
@@ -9,7 +10,11 @@ type State = agentharness.PermissionState
 const StateSchemaVersion = agentharness.PermissionStateSchemaVersion
 
 func (a *Adapter) StatePath() string {
-	return agentharness.PermissionStateSettingsPath(a.SettingsPath)
+	settingsPath := a.SettingsPath
+	if canonical, err := config.CanonicalConfigPath(settingsPath); err == nil {
+		settingsPath = canonical
+	}
+	return agentharness.PermissionStateSettingsPath(settingsPath)
 }
 
 func (a *Adapter) LoadState() (*State, error) {

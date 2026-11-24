@@ -6,8 +6,8 @@ import { createFundingIntent, confirmFundingTransfer, executeWithdrawal, getLedg
 import { getOperatorBudgetHeadroom, getOperatorSession, refreshOperatorSession, signInOperator, signOutOperator, type OperatorSession } from "../api/operatorSession";
 import type { AgentBudgetHeadroom } from "@vrooli/proto-types/treasury/v1/authorization/authorization_pb";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { Input } from "../components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";

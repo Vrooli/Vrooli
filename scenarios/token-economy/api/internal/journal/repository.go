@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/database"
 )
 
 type EventKind string
@@ -73,16 +75,11 @@ type Repository interface {
 	Reverse(context.Context, Reversal) (Event, error)
 }
 
-type SQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+type sqliteRepository struct{ db database.SQLTxExecutor }
+
+func NewSQLiteRepository(db database.SQLTxExecutor) *sqliteRepository {
+	return &sqliteRepository{db: db}
 }
-
-type sqliteRepository struct{ db SQLExecutor }
-
-func NewSQLiteRepository(db SQLExecutor) *sqliteRepository { return &sqliteRepository{db: db} }
 
 func (r *sqliteRepository) Append(ctx context.Context, event Event) (Event, error) {
 	tx, err := r.db.BeginTx(ctx, nil)

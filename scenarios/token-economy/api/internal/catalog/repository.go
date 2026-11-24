@@ -7,14 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"time"
-)
 
-type SQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
-}
+	"github.com/vrooli/api-core/database"
+)
 
 type Repository interface {
 	Create(context.Context, Entry, string) (Entry, error)
@@ -24,9 +19,9 @@ type Repository interface {
 	Retire(context.Context, string, time.Time, string) (Entry, error)
 }
 
-type sqliteRepository struct{ db SQLExecutor }
+type sqliteRepository struct{ db database.SQLTxExecutor }
 
-func NewSQLiteRepository(db SQLExecutor) Repository { return &sqliteRepository{db: db} }
+func NewSQLiteRepository(db database.SQLTxExecutor) Repository { return &sqliteRepository{db: db} }
 
 // ReserveInventory revalidates availability and consumes one declared unit in
 // a caller-owned transaction. Redemption uses it before checking spendable

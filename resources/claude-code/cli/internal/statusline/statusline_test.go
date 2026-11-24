@@ -189,6 +189,25 @@ func TestFeedRejectsMalformedSourceRunID(t *testing.T) {
 	}
 }
 
+// A managed run's own variable names its run; otherwise the launcher's
+// locator does (an attached session's run, or a governed session's identity
+// run). Neither present leaves the source unknown.
+func TestSourceRunIDPrefersTheManagedRunThenTheLauncherLocator(t *testing.T) {
+	const managed, launcher = "123e4567-e89b-12d3-a456-426614174000", "223e4567-e89b-12d3-a456-426614174000"
+	for _, tc := range []struct {
+		env  map[string]string
+		want string
+	}{
+		{map[string]string{ManagedSourceRunIDEnv: managed, LauncherSourceRunIDEnv: launcher}, managed},
+		{map[string]string{LauncherSourceRunIDEnv: " " + launcher + " "}, launcher},
+		{map[string]string{}, ""},
+	} {
+		if got := SourceRunIDFromEnv(func(key string) string { return tc.env[key] }); got != tc.want {
+			t.Fatalf("env %v: source run %q, want %q", tc.env, got, tc.want)
+		}
+	}
+}
+
 // A launcher-started session carries its agent session scope; Agent Manager
 // resolves it to the attached run. Values outside the scope alphabet are
 // dropped, never recorded.

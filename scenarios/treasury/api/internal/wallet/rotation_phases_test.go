@@ -9,8 +9,24 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/receiptsigning"
 	ca "github.com/vrooli/vrooli/packages/credential-authority-go"
+	credentialauthoritysigning "github.com/vrooli/vrooli/packages/credential-authority-go/receiptsigning"
 )
+
+func testRotationCommitAckSigner(t *testing.T, authority *ca.Authority) *credentialauthoritysigning.Signer {
+	t.Helper()
+	identity, err := ca.ParseIdentity("scenario/treasury/wallet-recovery-commit-ack-test")
+	require.NoError(t, err)
+	signer, err := credentialauthoritysigning.New(credentialauthoritysigning.Config{
+		Identity: identity, Field: "commit-ack-key-ring", PublicField: "commit-ack-public-key-ring", Store: authority,
+		AllowedPurposes: []receiptsigning.Purpose{receiptsigning.PurposeWalletRecoveryCommitAcknowledgement},
+	})
+	require.NoError(t, err)
+	_, err = signer.Rotate(context.Background())
+	require.NoError(t, err)
+	return signer
+}
 
 type failDeleteOnceCustody struct {
 	Custody
@@ -96,6 +112,85 @@ func TestPortableRotationRetryAfterServiceRestartRetainsExactTombstoneUntilVerif
 	require.Equal(t, committed.Address, retried.Address)
 	got := sha256.Sum256(second.Tombstone)
 	require.Equal(t, hex.EncodeToString(got[:]), receipt.TombstoneSHA256)
+}
+
+func TestPortableRotationCommitAcknowledgementBindsExactReservationAndIsRetryStable(t *testing.T) {
+	ctx := context.Background()
+	service, authority, in := setup(t)
+	publicationSigner, publicationVerifier := testRotationReceiptSigner(t, authority)
+	service.WithRotationReceiptVerifier(publicationVerifier)
+	ackSigner := testRotationCommitAckSigner(t, authority)
+	service.WithRotationCommitAckSigner(ackSigner)
+
+	old, err := service.Create(ctx, in)
+	require.NoError(t, err)
+	const secret = "operator-held test recovery secret for signed acknowledgement"
+	_, err = service.PersistPortableRecoveryBundle(ctx, old.ID, old.Network, old.OperatorIdentity, secret)
+	require.NoError(t, err)
+	oldIdentity, err := ca.ParseIdentity(old.CustodyReference)
+	require.NoError(t, err)
+	prepared, err := service.PreparePortableRotation(ctx, old.ID, old.Network, old.OperatorIdentity, "ack-successor")
+	require.NoError(t, err)
+	receipt := RotationPublicationReceipt{
+		Version: 1, WalletID: old.ID, Network: old.Network, Address: old.Address, SuccessorID: prepared.Successor.ID,
+		DestinationID: "fixture-db", DestinationBackend: "s3", PlanID: "fixture-plan", RunID: "fixture-run",
+		TargetName: "treasury-wallet-recovery-" + old.ID, SnapshotID: "fixture-snapshot", LatestSnapshotID: "fixture-snapshot",
+		TombstoneSHA256: prepared.SHA256, RestoredRevocationSHA256: prepared.SHA256,
+		DBMVerifyPassed: true, RestoredTombstoneMatches: true,
+	}
+	receipt = signTestRotationReceipt(t, publicationSigner, receipt)
+
+	committed, envelope, err := service.CommitPortableRotationWithAcknowledgement(ctx, old.ID, old.Network, old.OperatorIdentity, prepared.Successor.ID, "treasury-target", receipt)
+	require.NoError(t, err)
+	require.Equal(t, prepared.Successor.ID, committed.ID)
+	require.Equal(t, prepared.Successor.Address, committed.Address)
+	require.Equal(t, receiptsigning.PurposeWalletRecoveryCommitAcknowledgement, envelope.Purpose)
+	ack := receiptsigning.WalletRecoveryCommitAcknowledgement{
+		Version: 1, OperationID: receipt.ReservationID, ReservationID: receipt.ReservationID,
+		TargetID: "treasury-target", DestinationID: receipt.DestinationID, SnapshotID: receipt.SnapshotID,
+		TombstoneSHA256: receipt.TombstoneSHA256, SuccessorID: committed.ID,
+		SuccessorAddress: committed.Address, SuccessorPublicKey: committed.PublicKey,
+	}
+	canonical, err := receiptsigning.CanonicalJSON(ack)
+	require.NoError(t, err)
+	require.NoError(t, ackSigner.Verify(ctx, envelope, canonical), "signature must authenticate every exact reservation and successor field")
+	require.False(t, authority.Status(oldIdentity, keyField).Configured, "validated tombstone commit revokes the old scalar before DBM releases its pin")
+
+	retried, retryEnvelope, err := service.CommitPortableRotationWithAcknowledgement(ctx, old.ID, old.Network, old.OperatorIdentity, prepared.Successor.ID, "treasury-target", receipt)
+	require.NoError(t, err)
+	require.Equal(t, committed.ID, retried.ID)
+	require.Equal(t, committed.Address, retried.Address)
+	require.Equal(t, envelope, retryEnvelope, "a lost response must reproduce the exact acknowledgement")
+}
+
+func TestPortableRotationCommitAcknowledgementUnavailableKeepsOldScalarActive(t *testing.T) {
+	ctx := context.Background()
+	service, authority, in := setup(t)
+	publicationSigner, publicationVerifier := testRotationReceiptSigner(t, authority)
+	service.WithRotationReceiptVerifier(publicationVerifier)
+	old, err := service.Create(ctx, in)
+	require.NoError(t, err)
+	_, err = service.PersistPortableRecoveryBundle(ctx, old.ID, old.Network, old.OperatorIdentity, "operator-held test recovery secret for fail-closed acknowledgement")
+	require.NoError(t, err)
+	oldIdentity, err := ca.ParseIdentity(old.CustodyReference)
+	require.NoError(t, err)
+	prepared, err := service.PreparePortableRotation(ctx, old.ID, old.Network, old.OperatorIdentity, "ack-successor")
+	require.NoError(t, err)
+	receipt := RotationPublicationReceipt{
+		Version: 1, WalletID: old.ID, Network: old.Network, Address: old.Address, SuccessorID: prepared.Successor.ID,
+		DestinationID: "fixture-db", DestinationBackend: "s3", PlanID: "fixture-plan", RunID: "fixture-run",
+		TargetName: "treasury-wallet-recovery-" + old.ID, SnapshotID: "fixture-snapshot", LatestSnapshotID: "fixture-snapshot",
+		TombstoneSHA256: prepared.SHA256, RestoredRevocationSHA256: prepared.SHA256,
+		DBMVerifyPassed: true, RestoredTombstoneMatches: true,
+	}
+	receipt = signTestRotationReceipt(t, publicationSigner, receipt)
+
+	_, _, err = service.CommitPortableRotationWithAcknowledgement(ctx, old.ID, old.Network, old.OperatorIdentity, prepared.Successor.ID, "treasury-target", receipt)
+	require.ErrorIs(t, err, ErrUnavailable)
+	require.True(t, authority.Status(oldIdentity, keyField).Configured, "without Treasury's exact acknowledgement signer, the old scalar stays active")
+	metadata, err := service.repository.Get(ctx, old.ID)
+	require.NoError(t, err)
+	require.Empty(t, metadata.RevokedAt, "an unavailable acknowledgement path must not commit revocation")
 }
 
 func TestPortableRotationResumeAfterRevocationCommitButBeforeScalarDelete(t *testing.T) {

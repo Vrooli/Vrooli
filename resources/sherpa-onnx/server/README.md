@@ -61,6 +61,16 @@ declared sherpa punctuation model, which restores punctuation and casing.
 The runtime admits at most four concurrent streaming sessions by default;
 `SHERPA_ONNX_STREAMING_MAX_SESSIONS` can set a value from 1 to 64. Excess
 connections receive a WebSocket error before a decoder session is allocated.
+Separate CPU streams use the shared recognizer concurrently, while operations
+on each individual stream remain ordered. The shared punctuation model stays
+serialized, and non-CPU execution providers remain serialized until their
+concurrency behavior is qualified. This boundary follows the pinned
+[v1.13.2 multi-stream C API](https://github.com/k2-fsa/sherpa-onnx/blob/v1.13.2/sherpa-onnx/c-api/c-api.h)
+and the upstream [maintainer concurrency guidance](https://github.com/k2-fsa/sherpa-onnx/discussions/980#discussioncomment-9709085).
+The optional
+`TestNativeStreamingParallelStreamsSmoke` compares two paced streams against
+the direct-feed transcript path and is opt-in with the same model, fixture, and
+expected-suffix environment variables as the other native smoke tests.
 
 When running the optional native model smoke tests, set
 `SHERPA_ONNX_STREAMING_MODEL_DIR`, `SHERPA_ONNX_STREAMING_TEST_WAV`, and

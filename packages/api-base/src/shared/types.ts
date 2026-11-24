@@ -7,6 +7,7 @@
 
 import type { Agent } from 'node:http'
 import type { OriginPolicy } from '../server/origin-policy.js'
+import type { ExperienceTelemetryOptions } from '../experience/types.js'
 
 /**
  * Browser-like window environment
@@ -572,6 +573,12 @@ export interface ServerTemplateOptions extends LifecycleGuardConfig {
    * it off or an options object to override.
    */
   appNotifications?: AppNotificationsOptions | boolean
+  /**
+   * Local-only interaction telemetry (see docs/guides/experience-telemetry.md).
+   * Defaults to on for loopback requests outside tests/CI; pass false to turn
+   * it off, or an options object to tune retention and sampling.
+   */
+  experienceTelemetry?: ExperienceTelemetryOptions | boolean
 }
 
 /** Options for the opt-in arbitrary loopback-port proxy. */

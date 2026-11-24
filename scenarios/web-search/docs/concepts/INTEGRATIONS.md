@@ -26,9 +26,9 @@ Use this document to answer:
 | Qdrant | resource | optional (try_start) | findings (semantic index) | aisearch-go collection `web-search-findings` | Findings recall falls back to text matching; reindex deferred. |
 | Ollama | resource | optional (try_start) | findings (embeddings), livesearch/research (synthesis, distillation) | `embedding.default` + small chat role | Embeddings/synthesis unavailable; raw hits still returned. |
 | reranker | resource | optional (try_start) | findings (ranking) | TEI cross-encoder (bge-reranker-v2-m3) | Falls back to raw dense order. |
-| browserless | resource | optional, **P1** (disabled) | research (L2 fetch/extract) | headless browser fetch | L2/L3 fall back to snippet-only (L1) synthesis. |
+| browser-automation-studio | scenario | optional (`try_start`) | research (L2 JS-page escalation) | Discovery-resolved `/ux-capture/public` frozen-page bundle | L2 remains HTTP-only when the scenario or browser escalation is unavailable; L0/L1 are unaffected. |
 | search-hub | scenario | optional (try_start) | federation (registration) | RegistryService self-registration from `.vrooli/search.json` | Retries briefly then serves locally; re-registers next boot. |
-| agent-manager | scenario | optional, **P1** (disabled) | research (L3 runs) | agent run lifecycle | Only L0/L1/L2 available; L3 unavailable. |
+| agent-manager | scenario | optional (`try_start`) | research (L3 runs) | Durable Agent Manager run lifecycle | L3 is unavailable while Agent Manager is unavailable; L0/L1/L2 remain available. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Start through lifecycle commands. |
 
 ## Vrooli Resources
@@ -39,16 +39,19 @@ Use this document to answer:
 | ollama | enabled (try_start) | Embeddings for the findings index + LLM for L1/L2/L3 synthesis & distillation. | — |
 | qdrant | enabled (try_start) | Semantic index of findings (collection `web-search-findings`). | — |
 | reranker | enabled (try_start) | Reorders the findings shortlist for best ordering. | — |
-| browserless | disabled (P1) | Page fetch + readable-text extraction for L2/L3. | Enable when OT-P1-001 (L2) lands. |
 
 ## Scenario Dependencies
 
-`vrooli-memory` is an optional `try_start` dependency for `record-attempt` and `learning-read`. When it is unavailable, web-search still serves its domain operation without advice and program-runtime queues captures for later delivery; it is bundled with either deployment variant.
+The scenario rows below mirror `.vrooli/service.json`. Resource-backed search
+dependencies are listed separately above; browserless is no longer a resource
+dependency. The browser leg is supplied by browser-automation-studio.
 
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
+| browser-automation-studio | enabled (`try_start`) | Browser escalation for HTTP failures and JS-shell pages in L2. | Web-search resolves the scenario URL, requests `/ux-capture/public`, validates and reads the frozen-page artifact, then removes the ephemeral bundle. |
 | search-hub | enabled (try_start) | Federated routing. web-search self-registers `web-search.live` (SCOPE_EXTERNAL) and `web-search.learnings` (SCOPE_PROJECT). | Idempotent `RegisterProvider` upsert from `.vrooli/search.json`; control-token handshake gates mutations (overrides/reindex/config). |
-| agent-manager | disabled (P1) | L3 iterative research runs reuse agent-manager's agentic loop (no hand-rolled plumbing). | Spawn a run that calls L2 endpoints + `web-search` CLI as tools; emits a cited brief. Enable when OT-P1-002 lands. |
+| agent-manager | enabled (`try_start`) | Owns iterative L3 research-and-reconcile runs. | Starts a durable run using L2 tools; when unavailable, L3 is unavailable while L0–L2 remain usable. |
+| vrooli-memory | enabled (`try_start`) | Optional attempt capture and learning-read advice. | When unavailable, web-search operates without advice and program-runtime queues captures for delivery. |
 
 ### search-hub registration contract (the shape this scenario must honor)
 
@@ -70,7 +73,7 @@ declares **two**:
 | Service | Status | Reason | Contract |
 |---|---|---|---|
 | External search engines | indirect | SearXNG aggregates Google/Bing/DuckDuckGo/Startpage. | web-search never calls them directly — only via the local SearXNG resource. Rate-limit risk is mitigated by the cache + budget governor (OT-P0-007). |
-| Fetched web pages | indirect (P1) | L2 fetches result pages for extraction. | Via browserless; extracted text feeds synthesis/distillation, not stored wholesale. |
+| Fetched web pages | indirect | L2 fetches result pages over HTTP and escalates difficult pages through browser-automation-studio. | Extracted text feeds synthesis/distillation; external page bundles are ephemeral. |
 
 ## Failure Modes
 

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/fs"
 	"math"
 	"os"
 	"path/filepath"
@@ -31,6 +32,8 @@ func ModelCommands(h *Handlers) cliapp.SubcommandGroup {
 		Subcommands: []cliapp.Command{
 			{Name: "list", Description: "List pinned models and whether the daemon holds the pinned digest", Usage: "resource-ollaya models list [--json]", Run: h.ListModels},
 			{Name: "pull", Description: "Pull pinned models by digest (default: every default_pull model)", Usage: "resource-ollaya models pull [--model <name>] [--timeout 30m] [--json]", Run: h.PullModels},
+			{Name: "retention", Description: "Report each installed model's size, unique bytes, residency and whether disk eviction must keep it", Usage: "resource-ollaya models retention [--json]", Run: h.RetentionInventory},
+			{Name: "evict", Description: "Fenced disk eviction of one idle, non-required, digest-pinned model; records the reacquire command first", Usage: "resource-ollaya models evict <name> --digest <digest> --size <bytes> [--reason <text>] [--requested-by <who>] [--json]", Run: h.EvictModel},
 		},
 	}
 }
@@ -376,32 +379,54 @@ func isPinnedDigest(value string) bool {
 	return err == nil
 }
 
+// modelDirectoryBytes sums the model store while a pull may be writing into it.
+// The daemon downloads into temporary files and renames them into place, so an
+// entry that was listed can be gone by the time it is inspected; that entry has
+// not grown the store and must not abort the sample, because an aborted sample
+// cancels the pull it was only meant to account for.
 func modelDirectoryBytes(root string) (int64, error) {
 	var total int64
 	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
+			if errors.Is(walkErr, fs.ErrNotExist) && path != root {
+				return nil
+			}
 			return walkErr
 		}
-		info, err := entry.Info()
+		size, err := storedEntryBytes(path, entry)
 		if err != nil {
 			return err
 		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			return fmt.Errorf("model store contains symlink %s", path)
-		}
-		if info.IsDir() {
-			return nil
-		}
-		if !info.Mode().IsRegular() {
-			return fmt.Errorf("unsupported model-store entry %s", path)
-		}
-		if info.Size() < 0 || total > math.MaxInt64-info.Size() {
+		if size < 0 || total > math.MaxInt64-size {
 			return errors.New("model-store byte count overflow")
 		}
-		total += info.Size()
+		total += size
 		return nil
 	})
 	return total, err
+}
+
+// storedEntryBytes is the bytes one store entry holds: zero for a directory or
+// an entry that vanished mid-walk, an error for anything that is not a regular
+// file (a symlink could point outside the admitted store).
+func storedEntryBytes(path string, entry os.DirEntry) (int64, error) {
+	info, err := entry.Info()
+	if errors.Is(err, fs.ErrNotExist) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return 0, fmt.Errorf("model store contains symlink %s", path)
+	}
+	if info.IsDir() {
+		return 0, nil
+	}
+	if !info.Mode().IsRegular() {
+		return 0, fmt.Errorf("unsupported model-store entry %s", path)
+	}
+	return info.Size(), nil
 }
 
 func (h *Handlers) modelRows(p policy.Policy, installed map[string]string, localErr error) []modelRow {

@@ -46,6 +46,7 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/lpbsidentity"
 	"github.com/vrooli/api-core/preflight"
 	apireceiptsigning "github.com/vrooli/api-core/receiptsigning"
 	"github.com/vrooli/api-core/schedule"
@@ -346,6 +347,22 @@ func main() {
 		} else {
 			walletService.WithRotationReceiptVerifier(rotationReceiptVerifier)
 		}
+		// This references the specifically approved Treasury commit-ack identity;
+		// construction only reads existing CA fields and never mints key material.
+		ackIdentity, ackIdentityErr := credentialauthority.ParseIdentity("scenario/treasury/wallet-recovery-commit-ack")
+		if ackIdentityErr == nil {
+			ackSigner, signerErr := credentialauthoritysigning.New(credentialauthoritysigning.Config{
+				Identity: ackIdentity, Field: "commit-ack-key-ring", PublicField: "commit-ack-public-key-ring", Store: authority,
+				AllowedPurposes: []apireceiptsigning.Purpose{apireceiptsigning.PurposeWalletRecoveryCommitAcknowledgement},
+			})
+			if signerErr == nil {
+				walletService.WithRotationCommitAckSigner(ackSigner)
+			} else {
+				log.Printf("Treasury rotation commit acknowledgement signer unavailable; DBM reservation release stays fail-closed: %v", signerErr)
+			}
+		} else {
+			log.Printf("Treasury rotation commit acknowledgement identity unavailable; DBM reservation release stays fail-closed: %v", ackIdentityErr)
+		}
 	}
 	var nativeUSDCAdapter *nativeusdc.Adapter
 	if walletService != nil && strings.TrimSpace(os.Getenv("TREASURY_BASE_USDC_MODE")) == "local-fork" {
@@ -405,7 +422,11 @@ func main() {
 		}
 	}
 	if credentialClient != nil {
-		if client, err := receiptfunding.NewLPBSCreditLotClient(scenarioURL(startupCtx, os.Getenv("LANDING_PAGE_BUSINESS_SUITE_API_URL"), "landing-page-business-suite"), credentialClient, nil); err == nil {
+		lpbsAuthenticator := servicetoken.AuthenticatorExchanger(&http.Client{Timeout: 5 * time.Second}, func(context.Context) (string, error) { return authenticatorURL, nil })
+		creditTokens := lpbsidentity.TreasuryAcceptedReceiptCredit.NewTokens("treasury", func(ctx context.Context) (string, error) {
+			return credentialClient.Resolve(ctx, lpbsidentity.TreasuryAcceptedReceiptCredit.CredentialIdentity("treasury"), "credential")
+		}, servicetoken.WithExchanger(lpbsAuthenticator))
+		if client, err := receiptfunding.NewLPBSCreditLotClient(scenarioURL(startupCtx, os.Getenv("LANDING_PAGE_BUSINESS_SUITE_API_URL"), "landing-page-business-suite"), creditTokens, credentialClient, nil); err == nil {
 			creditLotGranter = client
 		}
 	}
@@ -459,6 +480,7 @@ func main() {
 	x402Gate.SetRecoveryVault(walletInstrumentService)
 	walletAuthorizationService := authorization.NewService(authorizationRepository, identityVerifier, mandateService, budgetService, evidenceRecorder, clock, approvalService)
 	walletSettlementService := settlement.NewService(settlement.NewSQLiteRepository(db), authorizationRepository, walletInstrumentService, railRegistry, identityVerifier, clock, budgetService)
+	walletSettlementService.SetOperatorMandates(mandateService)
 	var credentialWriter instrument.CredentialWriter
 	if writer, ok := credentialResolver.(instrument.CredentialWriter); ok {
 		credentialWriter = writer
@@ -509,23 +531,24 @@ func main() {
 		}
 	}
 	go fundingService.Run(ledgerCtx, 2*time.Second, log.Default())
+	if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" && approvalDecisionFlow != nil {
+		target := "http://127.0.0.1:" + port + approval.DecisionWebhookPath
+		go eventbus.RunSubscriptionReconciler(ledgerCtx, eventbus.SubscriptionReconcilerConfig{
+			Interval: 30 * time.Second, AttemptTimeout: 10 * time.Second, Attempts: 1,
+		}, func(ctx context.Context) error {
+			return approval.ReconcileDecisionEventSubscription(ctx, os.Getenv("VROOLI_EVENTS_API_BASE"), target)
+		}, func(err error) {
+			log.Printf("Treasury approval answer subscription reconciliation deferred; retry scheduled: %v", err)
+		})
+	}
 	go func() {
 		ticker := time.NewTicker(3 * time.Second)
 		defer ticker.Stop()
-		lastDecisionSubscriptionAttempt := time.Time{}
 		for {
 			bounded, cancel := context.WithTimeout(ledgerCtx, 10*time.Second)
 			if approvalDecisionFlow != nil {
 				if err := approvalDecisionFlow.RetryQueued(bounded, approvalService); err != nil {
 					log.Printf("Treasury approval decision retry deferred: %v", err)
-				}
-				if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" &&
-					(lastDecisionSubscriptionAttempt.IsZero() || time.Since(lastDecisionSubscriptionAttempt) >= 30*time.Second) {
-					lastDecisionSubscriptionAttempt = time.Now()
-					target := "http://127.0.0.1:" + port + approval.DecisionWebhookPath
-					if err := approval.ReconcileDecisionEventSubscription(bounded, os.Getenv("VROOLI_EVENTS_API_BASE"), target); err != nil {
-						log.Printf("Treasury approval answer subscription reconciliation deferred: %v", err)
-					}
 				}
 			}
 			if err := walletOperations.WatchFundingIntents(bounded); err != nil {

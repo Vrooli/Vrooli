@@ -33,9 +33,14 @@ GROUPS = {
     "agent-round-trips": ["toolRoundTripSamples", "medianToolRoundTrips"],
     "visual-reasoning": ["visualReasoningSamples", "medianVisualReasoningCalls"],
     "workflow-reuse": ["reuseSamples", "workflowReuseRate"],
+    "assertion-integrity": ["assertionsRequiredSamples", "assertionsCompletedSamples",
+                             "medianAssertionsRequired", "medianAssertionsCompleted",
+                             "assertionsIncompleteAttempts", "assertionsUnmeasuredAttempts",
+                             "minAssertionsRequired", "maxAssertionsRequired"],
 }
 OPTIONAL = {"contradictionRate", "medianAttemptsToSuccess", "medianSecondsToSuccess",
-            "medianSecondsToFirstAction", "medianToolRoundTrips", "medianVisualReasoningCalls", "workflowReuseRate"}
+            "medianSecondsToFirstAction", "medianToolRoundTrips", "medianVisualReasoningCalls", "workflowReuseRate",
+            "medianAssertionsRequired", "medianAssertionsCompleted", "minAssertionsRequired", "maxAssertionsRequired"}
 measurement = {}
 
 # validate: the same optional selectors as existing learning-read consumers.
@@ -149,6 +154,25 @@ def step_report():
                     # Nonoptional proto scalars default to zero; optional fields retain absence.
                     projected = {"operation": cohort.get("operation", ""), "context": cohort.get("contextKey", ""), "provenance": cohort.get("provenance", "")}
                     projected.update({key: cohort.get(key, None if key in OPTIONAL else 0) for key in fields})
+                    if name == "assertion-integrity":
+                        reasons = []
+                        if projected["assertionsIncompleteAttempts"] > 0:
+                            reasons.append("incomplete_checks")
+                        if (projected["minAssertionsRequired"] != projected["maxAssertionsRequired"]
+                                and projected["minAssertionsRequired"] is not None
+                                and projected["maxAssertionsRequired"] is not None):
+                            reasons.append("required_count_changed")
+                        if (projected["assertionsUnmeasuredAttempts"] > 0
+                                or projected["assertionsRequiredSamples"] == 0
+                                or projected["assertionsCompletedSamples"] == 0):
+                            reasons.append("assertion_counts_missing")
+                        projected["integrity_reasons"] = reasons
+                        if "incomplete_checks" in reasons:
+                            projected["integrity"] = "regression"
+                        elif reasons:
+                            projected["integrity"] = "unmeasured"
+                        else:
+                            projected["integrity"] = "measured"
                     reading["cohorts"].append(projected)
             rows.append({"row": name, "reading": reading, "target": None, "in_band": None,
                          "unavailable": bool(reason), "reason": reason})

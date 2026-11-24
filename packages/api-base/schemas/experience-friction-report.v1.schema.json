@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.local/schemas/experience-friction-report.v1.schema.json",
+  "title": "Experience friction report",
+  "type": "object",
+  "required": [
+    "schemaVersion", "scenario", "generatedAt", "window", "builds", "totals",
+    "routes", "controls", "flows", "friction", "fields", "journeys",
+    "undeclaredFlows", "errors", "recommendations", "notes"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "experience-friction-report/v1" },
+    "scenario": { "type": "string", "minLength": 1 },
+    "generatedAt": { "type": "string" },
+    "window": {
+      "type": "object",
+      "required": ["from", "to", "sessions"],
+      "properties": {
+        "from": { "type": ["string", "null"] },
+        "to": { "type": ["string", "null"] },
+        "sessions": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "builds": { "type": "array", "items": { "type": "string" } },
+    "sessionRefs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "build", "startedAt", "endedAt"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "build": { "type": ["string", "null"] },
+          "startedAt": { "type": "string" },
+          "endedAt": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "reportDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "totals": {
+      "type": "object",
+      "required": ["sessions", "events", "actions", "activeMs", "medianSessionMs", "routes"],
+      "properties": {
+        "sessions": { "type": "integer", "minimum": 0 },
+        "events": { "type": "integer", "minimum": 0 },
+        "actions": { "type": "integer", "minimum": 0 },
+        "activeMs": { "type": "number", "minimum": 0 },
+        "medianSessionMs": { "type": "number", "minimum": 0 },
+        "routes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "routes": { "type": "array", "items": { "type": "object" } },
+    "controls": { "type": "array", "items": { "type": "object" } },
+    "flows": { "type": "array", "items": { "type": "object" } },
+    "friction": { "type": "array", "items": { "type": "object" } },
+    "fields": { "type": "array", "items": { "type": "object" } },
+    "journeys": { "type": "array", "items": { "type": "object" } },
+    "undeclaredFlows": { "type": "array", "items": { "type": "object" } },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "exercised", "state"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "label": { "type": "string" },
+          "testId": { "type": "string" },
+          "name": { "type": "string" },
+          "exercised": { "type": "integer", "minimum": 0 },
+          "state": { "enum": ["exercised", "unobserved", "insufficient-evidence"] }
+        },
+        "additionalProperties": true
+      }
+    },
+    "errors": { "type": "array", "items": { "type": "object" } },
+    "recommendations": { "type": "array", "items": { "type": "object" } },
+    "notes": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": true
+}

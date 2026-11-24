@@ -2,7 +2,7 @@
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "kale-tts",
   "display_name": "Kale TTS Nano (experimental)",
-  "description": "Experimental local CPU text-to-speech service using the DRAFT, NOT PUBLISHED Kale TTS Nano int8 ONNX model.",
+  "description": "Experimental local CPU text-to-speech service using the public Apache-2.0 Kale TTS Nano int8 ONNX model; product quality and lifecycle qualification remain open.",
   "storage": {
     "entries": {
       "models": {
@@ -93,7 +93,7 @@
       "layout": "dir",
       "entry_path": "runtime/bin/python3.12",
       "sha256_by_platform": {
-        "linux-amd64": "f70d4e25a86a3bb4ef9c269d99cc34164d267e7ffc4ab86a7c8b5d8708fe3061"
+        "linux-amd64": "cf38c6dc79ff578c40454b79c12b35356f6c4049de43b013b525d3fb95facb63"
       },
       "bundle_artifact": "kale-tts_${os}_${arch}"
     },
@@ -110,7 +110,7 @@
             "arch": "amd64"
           },
           "layout": "dir",
-          "artifact_sha256": "f70d4e25a86a3bb4ef9c269d99cc34164d267e7ffc4ab86a7c8b5d8708fe3061",
+          "artifact_sha256": "cf38c6dc79ff578c40454b79c12b35356f6c4049de43b013b525d3fb95facb63",
           "runtime_env": {
             "OMP_NUM_THREADS": "1",
             "OPENBLAS_NUM_THREADS": "1",
@@ -123,8 +123,8 @@
               "kind": "url",
               "dest": "runtime",
               "bin_path": "python",
-              "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260814/cpython-3.12.14%2B20260814-x86_64-unknown-linux-gnu-install_only.tar.gz",
-              "sha256": "3297691ae34f75fed81ac424e040145fccb0bafe8e581cd5cadbddfa1c0766c0",
+              "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260814/cpython-3.12.14%2B20260814-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+              "sha256": "5acfa3e9ba26b51ae161c83aff278da915b590d22373a424b2ba55b8afe91fcc",
               "archive": "tar.gz"
             },
             {
@@ -633,7 +633,7 @@
       "--workers",
       "1",
       "--limit-concurrency",
-      "2",
+      "8",
       "--backlog",
       "16",
       "--timeout-keep-alive",

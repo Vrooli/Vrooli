@@ -1,7 +1,7 @@
 import { cleanup, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { ExperienceSurface } from "./ExperienceSurface";
+import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1";
 import { renderWithProviders } from "../../test-utils";
 
 const tokensLabel = "Tokens";

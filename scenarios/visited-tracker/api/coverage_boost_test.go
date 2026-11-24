@@ -18,6 +18,24 @@ import (
 	"github.com/vrooli/api-core/health"
 )
 
+func chdirToTemp(t *testing.T) string {
+	t.Helper()
+	tempDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("change to temp directory: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(oldWd); err != nil {
+			t.Errorf("restore working directory: %v", err)
+		}
+	})
+	return tempDir
+}
+
 // TestGetAllowedOrigins tests CORS origin configuration [REQ:VT-REQ-001]
 func TestGetAllowedOrigins(t *testing.T) {
 	tests := []struct {
@@ -107,14 +125,7 @@ func TestIsOriginAllowed(t *testing.T) {
 // TestInitFileStoragePermissions tests directory creation [REQ:VT-REQ-001]
 func TestInitFileStoragePermissions(t *testing.T) {
 	// Create a temporary test directory
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-
-	// Change to temp directory
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	tempDir := chdirToTemp(t)
 	initTestStorageRoot(t, tempDir)
 
 	// Initialize logger (needed by initFileStorage)
@@ -141,13 +152,7 @@ func TestSyncCampaignFilesExclusionPatterns(t *testing.T) {
 	defer cleanup()
 
 	// Create temporary directory with test files
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	chdirToTemp(t)
 
 	// Create test files
 	testFiles := []string{"include.go", "data/nested.go"}
@@ -190,13 +195,7 @@ func TestSyncCampaignFilesMaxFilesLimit(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	tempDir := chdirToTemp(t)
 
 	// Create 5 test files
 	for i := 0; i < 5; i++ {
@@ -237,13 +236,7 @@ func TestSyncCampaignFilesDeduplication(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	chdirToTemp(t)
 
 	// Create a test file
 	testFile := "duplicate.go"
@@ -274,13 +267,7 @@ func TestSyncCampaignFilesSkipsDirectories(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	chdirToTemp(t)
 
 	// Create a directory and a file with similar names
 	os.Mkdir("testdir", 0o755)
@@ -310,13 +297,7 @@ func TestSyncCampaignFilesIdempotent(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	chdirToTemp(t)
 
 	testFile := "idempotent.go"
 	os.WriteFile(testFile, []byte("test"), 0o644)
@@ -356,13 +337,7 @@ func TestSyncCampaignFilesMetadata(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	chdirToTemp(t)
 
 	testFile := "metadata.go"
 	content := []byte("package main\n")
@@ -425,13 +400,7 @@ func TestLoadAllCampaignsWithReadOnlyFiles(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	tempDir := chdirToTemp(t)
 	initTestStorageRoot(t, tempDir)
 
 	// Create a campaign file
@@ -463,12 +432,7 @@ func TestCreateCampaignHandlerMissingName(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	tempDir := chdirToTemp(t)
 	initTestStorageRoot(t, tempDir)
 
 	// Create request with missing name
@@ -511,12 +475,7 @@ func TestAdjustVisitHandlerErrors(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	tempDir := chdirToTemp(t)
 	initTestStorageRoot(t, tempDir)
 
 	validFileID := uuid.New().String()
@@ -568,12 +527,7 @@ func TestStructureSyncHandlerErrors(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	tempDir := chdirToTemp(t)
 	initTestStorageRoot(t, tempDir)
 
 	tests := []struct {
@@ -617,12 +571,7 @@ func TestLoadCampaignMissingFile(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	tempDir := chdirToTemp(t)
 	initTestStorageRoot(t, tempDir)
 
 	// Try to load a campaign that doesn't exist
@@ -642,12 +591,7 @@ func TestSaveCampaignWriteError(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	tempDir := chdirToTemp(t)
 	initTestStorageRoot(t, tempDir)
 
 	// Make the data directory read-only
@@ -918,13 +862,7 @@ func TestHealthHandlerDegradedStatus(t *testing.T) {
 	defer cleanup()
 
 	// Create a test environment where data directory doesn't exist
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	tempDir := chdirToTemp(t)
 	setTestStorageRoot(t, tempDir)
 
 	// Don't initialize storage - leave data directory missing
@@ -970,12 +908,7 @@ func TestCreateCampaignHandlerAutoSyncError(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	tempDir := chdirToTemp(t)
 	initTestStorageRoot(t, tempDir)
 
 	// Create request with pattern that will fail sync (exceeds max_files)
@@ -1011,12 +944,7 @@ func TestVisitHandlerCampaignNotFound(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	tempDir := chdirToTemp(t)
 	initTestStorageRoot(t, tempDir)
 
 	nonExistentID := uuid.New()
@@ -1041,12 +969,7 @@ func TestVisitHandlerFileNotInCampaign(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	tempDir := chdirToTemp(t)
 	initTestStorageRoot(t, tempDir)
 
 	// Create a campaign with no tracked files
@@ -1117,12 +1040,7 @@ func TestStructureSyncHandlerEmptyPatterns(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	tempDir := chdirToTemp(t)
 	initTestStorageRoot(t, tempDir)
 
 	// Create a campaign
@@ -1157,12 +1075,7 @@ func TestStructureSyncHandlerSuccess(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	tempDir := chdirToTemp(t)
 	initTestStorageRoot(t, tempDir)
 
 	// Create test files
@@ -1216,12 +1129,7 @@ func TestLoadCampaignCorruptedJSON(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	tempDir := chdirToTemp(t)
 	initTestStorageRoot(t, tempDir)
 
 	// Create a campaign file with invalid JSON
@@ -1242,12 +1150,7 @@ func TestLoadAllCampaignsWithCorruptedFiles(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	tempDir := chdirToTemp(t)
 	initTestStorageRoot(t, tempDir)
 
 	// Create a valid campaign
@@ -1276,12 +1179,7 @@ func TestDeleteCampaignFileSuccess(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	tempDir := chdirToTemp(t)
 	initTestStorageRoot(t, tempDir)
 
 	// Create a campaign
@@ -1320,12 +1218,7 @@ func TestInitFileStorageMultipleCalls(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	chdirToTemp(t)
 
 	// First call
 	if err := initFileStorage(); err != nil {
@@ -1351,12 +1244,7 @@ func TestImportHandlerMissingCampaignData(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	tempDir := chdirToTemp(t)
 	initTestStorageRoot(t, tempDir)
 
 	// Import with missing campaign data
@@ -1381,12 +1269,7 @@ func TestAdjustVisitHandlerFileNotFound(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	tempDir := chdirToTemp(t)
 	initTestStorageRoot(t, tempDir)
 
 	// Create a campaign with no files
@@ -1444,12 +1327,7 @@ func TestCreateCampaignHandlerWithMetadata(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	tempDir := t.TempDir()
-	oldWd, _ := os.Getwd()
-	defer os.Chdir(oldWd)
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to chdir: %v", err)
-	}
+	tempDir := chdirToTemp(t)
 	initTestStorageRoot(t, tempDir)
 
 	// Create test file

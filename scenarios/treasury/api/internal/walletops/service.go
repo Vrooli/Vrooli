@@ -1099,13 +1099,12 @@ func (s *Service) PreviewWithdrawal(ctx context.Context, operator string, in *fu
 	return pub, nil
 }
 
-// ExecuteWithdrawal requires both an authenticated operator request and the
-// exact run-bound agent identity that owns the mandate. Authorization and
-// settlement remain in their canonical services; the native rail stays local
-// fork only.
-func (s *Service) ExecuteWithdrawal(ctx context.Context, operator, identityToken string, in *fundingpb.ExecuteWithdrawalRequest) (*fundingpb.Withdrawal, error) {
-	if s == nil || in == nil || operator == "" || strings.TrimSpace(identityToken) == "" || in.QuoteId == "" || in.IdempotencyKey == "" || s.Native == nil || s.Native.Mode() != "local-fork" || s.Authorizations == nil || s.Instruments == nil || s.Credentials == nil || s.Settlements == nil || s.Mandates == nil {
-		return nil, fmt.Errorf("%w: local-fork withdrawal requires a mandate identity, credential authority, instrument and settlement owners", ErrInvalid)
+// ExecuteWithdrawal is authorized by the verified operator session and a live,
+// signed mandate resolved by Treasury. The browser supplies only the persisted
+// quote ID and an idempotency key; it never supplies agent/run credentials.
+func (s *Service) ExecuteWithdrawal(ctx context.Context, operator string, in *fundingpb.ExecuteWithdrawalRequest) (*fundingpb.Withdrawal, error) {
+	if s == nil || in == nil || operator == "" || in.QuoteId == "" || in.IdempotencyKey == "" || s.Native == nil || s.Native.Mode() != "local-fork" || s.Authorizations == nil || s.Instruments == nil || s.Credentials == nil || s.Settlements == nil || s.Mandates == nil {
+		return nil, fmt.Errorf("%w: local-fork withdrawal requires a verified operator session, live mandate, credential authority, instrument and settlement owners", ErrInvalid)
 	}
 	if existing, getErr := s.withdrawalByIdempotencyKey(ctx, operator, in.IdempotencyKey); getErr == nil {
 		if existing.QuoteId != in.QuoteId {
@@ -1166,9 +1165,9 @@ func (s *Service) ExecuteWithdrawal(ctx context.Context, operator, identityToken
 	settlementKey := stableID("withdrawal-settlement-key", operator, in.IdempotencyKey)
 	instrumentID := stableID("withdrawal-instrument", operator, in.IdempotencyKey)
 	withdrawalID := stableID("withdrawal", operator, in.IdempotencyKey)
-	authRecord, err := s.Authorizations.Propose(ctx, authorization.ProposeInput{
+	authRecord, err := s.Authorizations.ProposeOperator(ctx, authorization.OperatorPrincipal{Subject: operator}, authorization.OperatorProposeInput{
 		ID: authorizationID, IdempotencyKey: authorizationKey, MandateID: grant.ID,
-		IdentityToken: identityToken, AmountMinor: amountMinor, Currency: quote.GetCurrency(), Counterparty: quote.GetDestination(),
+		AmountMinor: amountMinor, Currency: quote.GetCurrency(), Counterparty: quote.GetDestination(),
 		SettlementID: settlementID, InstrumentID: instrumentID, SettlementIdempotencyKey: settlementKey,
 	})
 	if err != nil {
@@ -1237,7 +1236,7 @@ func (s *Service) ExecuteWithdrawal(ctx context.Context, operator, identityToken
 		return nil, fmt.Errorf("%w: retained withdrawal instrument no longer matches quote scope", ErrConflict)
 	}
 	registered := scopedInstrument.Instrument
-	settled, settleErr := s.Settlements.Settle(ctx, settlement.SettleInput{ID: settlementID, AuthorizationID: authRecord.ID, InstrumentID: registered.ID, IdempotencyKey: settlementKey, IdentityToken: identityToken})
+	settled, settleErr := s.Settlements.SettleAuthorizedOperator(ctx, authorization.OperatorPrincipal{Subject: operator}, settlement.SettleInput{ID: settlementID, AuthorizationID: authRecord.ID, InstrumentID: registered.ID, IdempotencyKey: settlementKey})
 	if settleErr != nil && settled.ID == "" {
 		_, _ = s.DB.ExecContext(ctx, `UPDATE withdrawals SET state='in_progress',last_error=? WHERE id=? AND operator_identity=?`, settleErr.Error(), withdrawalID, operator)
 		return nil, settleErr

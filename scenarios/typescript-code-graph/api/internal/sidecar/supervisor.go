@@ -571,11 +571,13 @@ type extractRequest struct {
 	Type        string `json:"type"`
 	RequestID   string `json:"request_id"`
 	ProjectPath string `json:"project_path"`
+	Profile     string `json:"profile"`
 }
 
 type extractResponse struct {
 	Graph        RawGraph  `json:"graph"`
 	Warnings     []Warning `json:"warnings"`
+	Profile      string    `json:"profile"`
 	ExtractionMS int64     `json:"extraction_ms"`
 	GraphHash    string    `json:"graph_hash"`
 }
@@ -599,7 +601,11 @@ type cancelRequest struct {
 }
 
 // Extract implements SidecarClient.
-func (s *Supervisor) Extract(ctx context.Context, projectPath string) (ExtractResult, error) {
+func (s *Supervisor) Extract(ctx context.Context, projectPath string, profiles ...string) (ExtractResult, error) {
+	profile := "full"
+	if len(profiles) > 0 && profiles[0] != "" {
+		profile = profiles[0]
+	}
 	if st := s.Status(); st != StatusReady {
 		return ExtractResult{}, s.statusErr(st)
 	}
@@ -617,7 +623,7 @@ func (s *Supervisor) Extract(ctx context.Context, projectPath string) (ExtractRe
 	if w == nil {
 		return ExtractResult{}, ErrSidecarUnavailable
 	}
-	if err := w.Write(ctx, extractRequest{Type: "extract", RequestID: reqID, ProjectPath: projectPath}); err != nil {
+	if err := w.Write(ctx, extractRequest{Type: "extract", RequestID: reqID, ProjectPath: projectPath, Profile: profile}); err != nil {
 		if ctx.Err() != nil {
 			// The frame may still reach the child once its stdin drains.
 			s.sendCancel(w, reqID)
@@ -644,7 +650,7 @@ func (s *Supervisor) decodeExtractResponse(reqID string, resp rawResponse) (Extr
 		if err := json.Unmarshal(resp.raw, &er); err != nil {
 			return ExtractResult{RequestID: reqID}, fmt.Errorf("decode extract: %w", err)
 		}
-		return ExtractResult{Graph: er.Graph, Warnings: er.Warnings, RequestID: reqID}, nil
+		return ExtractResult{Graph: er.Graph, Warnings: er.Warnings, RequestID: reqID, Profile: er.Profile}, nil
 	case "error":
 		var ee errorEnvelope
 		if err := json.Unmarshal(resp.raw, &ee); err != nil {

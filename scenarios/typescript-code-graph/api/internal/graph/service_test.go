@@ -36,6 +36,23 @@ func TestService_Extract_RejectsRelativePath(t *testing.T) {
 	require.Equal(t, graph.ExtractErrorInvalidInput, ee.Kind)
 }
 
+func TestService_Extract_RejectsUnknownProfileBeforeCallingSidecar(t *testing.T) {
+	fake := &sidecarmocks.FakeSidecarClient{StatusValue: sidecar.StatusReady}
+	svc := newService(t, fake)
+	_, err := svc.Extract(context.Background(), graph.ExtractInput{ProjectPath: "/abs/path", Profile: "semantic-ish"})
+	var ee graph.ExtractError
+	require.ErrorAs(t, err, &ee)
+	require.Equal(t, graph.ExtractErrorInvalidInput, ee.Kind)
+	require.Zero(t, fake.ExtractCalls)
+}
+
+func TestService_Extract_ThreadsAndReportsImportProfile(t *testing.T) {
+	svc := newService(t, &sidecarmocks.FakeSidecarClient{StatusValue: sidecar.StatusReady})
+	out, err := svc.Extract(context.Background(), graph.ExtractInput{ProjectPath: "/abs/path", Profile: "imports"})
+	require.NoError(t, err)
+	require.Equal(t, "imports", out.ExtractionProfile)
+}
+
 func TestService_Extract_SidecarUnavailable(t *testing.T) {
 	svc := newService(t, &sidecarmocks.FakeSidecarClient{StatusValue: sidecar.StatusUnhealthy})
 	_, err := svc.Extract(context.Background(), graph.ExtractInput{ProjectPath: "/abs/path"})

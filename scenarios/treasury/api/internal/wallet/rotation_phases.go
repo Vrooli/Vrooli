@@ -243,6 +243,40 @@ func (s *Service) CommitPortableRotation(ctx context.Context, id, network, opera
 	return s.Get(ctx, successorID, network, operator)
 }
 
+// CommitPortableRotationWithAcknowledgement commits the validated rotation and
+// signs a replay-safe proof for the exact DBM reservation. A retry of an
+// already committed rotation can produce the same bound acknowledgement.
+func (s *Service) CommitPortableRotationWithAcknowledgement(ctx context.Context, id, network, operator, successorID, targetID string, receipt RotationPublicationReceipt) (Wallet, receiptsigning.SignatureEnvelope, error) {
+	if s == nil || s.rotationCommitAckSigner == nil || strings.TrimSpace(targetID) == "" {
+		return Wallet{}, receiptsigning.SignatureEnvelope{}, fmt.Errorf("%w: Treasury commit acknowledgement signer or DBM target is not configured; DBM reservation remains pinned", ErrUnavailable)
+	}
+	committed, err := s.CommitPortableRotation(ctx, id, network, operator, successorID, receipt)
+	if err != nil {
+		return Wallet{}, receiptsigning.SignatureEnvelope{}, err
+	}
+	ack := receiptsigning.WalletRecoveryCommitAcknowledgement{
+		Version: 1, OperationID: receipt.ReservationID, ReservationID: receipt.ReservationID,
+		TargetID: targetID, DestinationID: receipt.DestinationID, SnapshotID: receipt.SnapshotID,
+		TombstoneSHA256: receipt.TombstoneSHA256, SuccessorID: committed.ID,
+		SuccessorAddress: committed.Address, SuccessorPublicKey: committed.PublicKey,
+	}
+	canonical, err := receiptsigning.CanonicalJSON(ack)
+	if err != nil {
+		return Wallet{}, receiptsigning.SignatureEnvelope{}, err
+	}
+	envelope, err := s.rotationCommitAckSigner.Sign(ctx, receiptsigning.PurposeWalletRecoveryCommitAcknowledgement, canonical)
+	if err != nil {
+		return Wallet{}, receiptsigning.SignatureEnvelope{}, fmt.Errorf("rotation committed but Treasury could not sign DBM acknowledgement; retry the same receipt: %w", err)
+	}
+	if envelope.Purpose != receiptsigning.PurposeWalletRecoveryCommitAcknowledgement || envelope.Validate() != nil {
+		return Wallet{}, receiptsigning.SignatureEnvelope{}, errors.New("rotation committed but Treasury signer returned an invalid commit acknowledgement; retry the same receipt")
+	}
+	if err := s.rotationCommitAckSigner.Verify(ctx, envelope, canonical); err != nil {
+		return Wallet{}, receiptsigning.SignatureEnvelope{}, fmt.Errorf("rotation committed but Treasury could not verify its commit acknowledgement; retry the same receipt: %w", err)
+	}
+	return committed, envelope, nil
+}
+
 func rotationReceiptSigningBytes(receipt RotationPublicationReceipt) ([]byte, error) {
 	receipt.Attestation = nil
 	return json.Marshal(receipt)

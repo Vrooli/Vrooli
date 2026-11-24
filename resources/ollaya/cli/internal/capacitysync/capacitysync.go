@@ -67,7 +67,6 @@ func (h *Handlers) config() companion.Config {
 		Observer: h,
 		Exec:     h.Exec,
 		Interval: interval,
-		Priority: "service",
 		Log:      h.Stderr,
 	}
 }
@@ -79,7 +78,6 @@ type residentFootprint struct {
 		OwnerID       string `json:"owner_id"`
 		AmountBytes   int64  `json:"amount_bytes"`
 		ObservedBytes int64  `json:"observed_bytes"`
-		Status        string `json:"status"`
 	} `json:"claims"`
 }
 
@@ -98,9 +96,9 @@ type residentFootprint struct {
 // "ledger unavailable" and blocked the broker's upshift. Admission belongs to
 // the lifecycle start; this companion only maintains a claim that exists.
 //
-// A degraded claim at the CPU rung is marked Parked: the daemon is alive but
-// deliberately holds no VRAM, so its claim records the mode and must survive
-// until the broker upshifts it.
+// A degraded claim at the CPU rung reports zero bytes; the shared companion
+// keeps that claim (the daemon is alive and deliberately holds no VRAM) until
+// the broker upshifts it.
 func (h *Handlers) Observe(ctx context.Context) (companion.Footprint, error) {
 	out, err := h.Exec(ctx, "vrooli", "capacity", "list", "--owner", resourceName, "--active", "--json")
 	if err != nil {
@@ -114,14 +112,13 @@ func (h *Handlers) Observe(ctx context.Context) (companion.Footprint, error) {
 		if claim.OwnerID != resourceName {
 			continue
 		}
-		parked := claim.Status == "degraded" && claim.AmountBytes <= 0
 		// An observed figure is the truth when the host has produced one;
 		// otherwise the claim's own amount keeps the reservation alive without
 		// inventing a measurement.
 		if claim.ObservedBytes > 0 {
-			return companion.Footprint{Bytes: claim.ObservedBytes, Parked: parked}, nil
+			return companion.Footprint{Bytes: claim.ObservedBytes}, nil
 		}
-		return companion.Footprint{Bytes: claim.AmountBytes, Parked: parked}, nil
+		return companion.Footprint{Bytes: claim.AmountBytes}, nil
 	}
 	// No active claim. The lifecycle admission path owns the manifest-derived
 	// values; re-admitting here would mutate the ledger from a read and churn a

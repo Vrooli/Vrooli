@@ -15,6 +15,7 @@ import (
 	"treasury/internal/budget"
 	"treasury/internal/identity"
 	"treasury/internal/instrument"
+	"treasury/internal/mandate"
 	"treasury/internal/rail"
 	settlementflow "treasury/internal/settlement/flow"
 
@@ -84,16 +85,23 @@ type FreezeReader interface {
 }
 
 type Service struct {
-	repository     Repository
-	authorizations Authorizations
-	instruments    Instruments
-	rails          Rails
-	verifier       identity.Verifier
-	clock          schedule.Clock
-	freezes        FreezeReader
-	locks          keyLocks
-	recoveryVault  recoveryCredentialVault
+	repository       Repository
+	authorizations   Authorizations
+	instruments      Instruments
+	rails            Rails
+	verifier         identity.Verifier
+	clock            schedule.Clock
+	freezes          FreezeReader
+	operatorMandates OperatorMandates
+	locks            keyLocks
+	recoveryVault    recoveryCredentialVault
 }
+
+type OperatorMandates interface {
+	RequireLive(context.Context, string) (mandate.Mandate, error)
+}
+
+func (s *Service) SetOperatorMandates(value OperatorMandates) { s.operatorMandates = value }
 
 type recoveryCredentialVault interface {
 	StoreSettlementRecoveryInput(context.Context, string, string) (string, error)
@@ -120,7 +128,7 @@ func (s *Service) Settle(ctx context.Context, in SettleInput) (Record, error) {
 	if in.Attestation != nil {
 		return Record{}, fmt.Errorf("%w: manual attestation requires the operator-authenticated settlement surface", ErrInvalid)
 	}
-	return s.settle(ctx, in, "", false)
+	return s.settle(ctx, in, "", false, false)
 }
 
 // SettleOperator binds a manual attestation to an already-authenticated
@@ -134,10 +142,33 @@ func (s *Service) SettleOperator(ctx context.Context, in SettleInput, operatorSu
 	copy := *in.Attestation
 	copy.ActorIdentity = operatorSubject
 	in.Attestation = &copy
-	return s.settle(ctx, in, operatorSubject, true)
+	return s.settle(ctx, in, operatorSubject, true, true)
 }
 
-func (s *Service) settle(ctx context.Context, in SettleInput, verifiedSubject string, operator bool) (Record, error) {
+// SettleAuthorizedOperator settles a previously approved automated charge
+// from an authenticated operator session. The principal is checked against
+// the persisted approval and its live, operator-owned mandate on every call.
+func (s *Service) SettleAuthorizedOperator(ctx context.Context, principal authorization.OperatorPrincipal, in SettleInput) (Record, error) {
+	principal.Subject = strings.TrimSpace(principal.Subject)
+	if principal.Subject == "" || s.operatorMandates == nil {
+		return Record{}, fmt.Errorf("%w: authenticated operator and live mandate resolver are required", ErrInvalid)
+	}
+	auth, err := s.authorizations.Get(ctx, strings.TrimSpace(in.AuthorizationID))
+	if err != nil {
+		return Record{}, fmt.Errorf("load operator settlement authorization: %w", err)
+	}
+	grant, err := s.operatorMandates.RequireLive(ctx, auth.MandateID)
+	requestingAgent := grant.AgentSubject
+	if requestingAgent == "" {
+		requestingAgent = principal.Subject
+	}
+	if err != nil || grant.Authorizer != principal.Subject || (grant.AgentSubject == "") != (grant.AgentRunID == "") || auth.RequestingAgent != requestingAgent {
+		return Record{}, fmt.Errorf("%w: operator principal does not own the live mandate and approved authorization", ErrInvalid)
+	}
+	return s.settle(ctx, in, principal.Subject, true, false)
+}
+
+func (s *Service) settle(ctx context.Context, in SettleInput, verifiedSubject string, operator bool, manualOperator bool) (Record, error) {
 	if err := s.validateDependencies(!operator); err != nil {
 		return Record{}, err
 	}
@@ -207,8 +238,11 @@ func (s *Service) settle(ctx context.Context, in SettleInput, verifiedSubject st
 	if scoped.Instrument.MandateID != auth.MandateID || scoped.Instrument.BookID == "" || scoped.Instrument.CapMinor < auth.AmountMinor || scoped.Instrument.Currency != auth.Currency || scoped.Instrument.Counterparty != auth.Counterparty {
 		return Record{}, fmt.Errorf("%w: instrument scope does not cover the authorization", ErrInvalid)
 	}
-	if operator && scoped.Instrument.Rail != "manual" {
+	if manualOperator && scoped.Instrument.Rail != "manual" {
 		return Record{}, fmt.Errorf("%w: operator-attested settlement is restricted to the manual rail", ErrInvalid)
+	}
+	if operator && !manualOperator && scoped.Instrument.Rail == "manual" {
+		return Record{}, fmt.Errorf("%w: automated operator settlement cannot dispatch a manual rail", ErrInvalid)
 	}
 	if s.freezes != nil {
 		frozen, scope, freezeErr := s.freezes.IsFrozen(ctx, scoped.Instrument.BookID, auth.BudgetID)

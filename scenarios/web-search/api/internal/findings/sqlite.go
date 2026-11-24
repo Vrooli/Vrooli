@@ -8,33 +8,23 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
-
-// SQLExecutor is the narrow database surface the repository depends on. Both
-// *sql.DB (unit tests) and *database.RoutedDB (production) satisfy it, so the
-// production wiring participates in per-request routing without forcing the
-// test fixture to wrap its handle.
-type SQLExecutor interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
-}
 
 // findingTimeFormat sorts lexicographically in time order for a fixed zone, so
 // string-range comparisons on the TEXT timestamp columns are correct filters.
 const findingTimeFormat = time.RFC3339Nano
 
 type sqliteRepository struct {
-	db    SQLExecutor
+	db    database.SQLTxExecutor
 	clock schedule.Clock
 }
 
 // NewSQLiteRepository constructs the production Repository.
-func NewSQLiteRepository(db SQLExecutor, clk schedule.Clock) Repository {
+func NewSQLiteRepository(db database.SQLTxExecutor, clk schedule.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 

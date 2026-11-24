@@ -109,7 +109,7 @@
         "key": "CLAUDE_CODE_AUTO_COMPACT_WINDOW",
         "minimum": 100000
       },
-      "context_window_source": "claude-statusline",
+      "context_window_source": "claude-statusline/v1",
       "usage_mode": {
         "provider": "anthropic"
       },
@@ -124,7 +124,8 @@
       "goal_mode": true,
       "mcp": true,
       "hooks": true
-    }
+    },
+    "model_source_protocol": "anthropic-messages"
   },
   "agent_hooks": {
     "document_scopes": [

@@ -3,7 +3,7 @@
   "name": "web-search.record-attempt",
   "version": "1",
   "helpers": {
-    "program": "1"
+    "program": "2"
   },
   "purpose": "Record an observed research attempt and explicitly verified finding contributions.",
   "inputs": {
@@ -75,6 +75,7 @@
     "errors": {
       "classes": [
         "invalid_input",
+        "invalid_response",
         "capture_failed",
         "remote_error",
         "no_governed_binding"

@@ -196,17 +196,76 @@ func newApp() (*cliapp.ResourceApp, error) {
 		edgeLog("ollama model policy unavailable to the activity edge; keep_alive stays at the daemon default: %v\n", err)
 	}
 	edge.Rewrite = normalizer.Rewrite
+	normalizer.Authorize = func(ctx context.Context, model string) error {
+		return authorizeOllamaWithWake(ctx, model,
+			func(ctx context.Context, model string) (string, error) {
+				daemon, err := ensure.NewLoopbackClient()
+				if err != nil {
+					return "", fmt.Errorf("verify local Ollama endpoint for inference authorization: %w", err)
+				}
+				return models.CurrentModelDigest(ctx, daemon, model)
+			},
+			func(model string) (string, error) {
+				modelRoot, err := ensure.EffectiveModelRoot()
+				if err != nil {
+					return "", fmt.Errorf("resolve managed Ollama model store before wake: %w", err)
+				}
+				return ensure.InstalledManifestDigest(modelRoot, model)
+			},
+			func(model, digest string) error {
+				return policy.AuthorizeLocalInferenceArtifact(os.Getenv, "", model, digest)
+			},
+			runOllamaWake)
+	}
 	edge.StartupReconcile = normalizer.ReconcileLoadedResidency
+	capacityCommands := companion.LifecycleCapacityCommands(companion.LifecycleVerbsConfig{
+		Resource:      appName,
+		DeclaredSteps: companion.ProfileSteps(os.Getenv, appName, ollamaCapacityStep),
+		Apply:         applyOllamaCapacityRungManaged,
+	})
+	capacityCommands.Subcommands = append(capacityCommands.Subcommands, capacitysync.ReservationCommands(nil)...)
 	app.SetCommandsWithSubgroups(
 		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Health", Commands: []cliapp.Command{{Name: "health-ready", Description: "Succeed only when at least one model is installed", Run: healthReady}}}, ensure.CommandGroup(newAdmissionValidator()),
 			cliapp.CommandGroup{Title: "Capacity", Commands: []cliapp.Command{capacitysync.Command(nil), activityedge.Command(edge), activityedge.BridgeCommand()}}),
-		[]cliapp.SubcommandGroup{gateway.Commands(nil), companion.LifecycleCapacityCommands(companion.LifecycleVerbsConfig{
-			Resource:      appName,
-			DeclaredSteps: companion.ProfileSteps(os.Getenv, appName, ollamaCapacityStep),
-			Apply:         applyOllamaCapacityRungManaged,
-		}), policycmd.Commands(nil), models.Commands(nil), optimize.Commands(nil), runtimeprofile.Commands(nil)},
+		[]cliapp.SubcommandGroup{gateway.Commands(nil), capacityCommands, policycmd.Commands(nil), models.Commands(nil), optimize.Commands(nil), runtimeprofile.Commands(nil)},
 	)
 	return app, nil
+}
+
+// authorizeOllamaWithWake performs the disk-backed artifact and rights checks
+// before starting a stopped resource. It then repeats both checks against the
+// live daemon inventory before inference can proceed.
+func authorizeOllamaWithWake(
+	ctx context.Context,
+	model string,
+	liveDigest func(context.Context, string) (string, error),
+	diskDigest func(string) (string, error),
+	authorize func(string, string) error,
+	wake func(context.Context) error,
+) error {
+	digest, err := liveDigest(ctx, model)
+	if err == nil {
+		return authorize(model, digest)
+	}
+	probeErr := err
+	digest, err = diskDigest(model)
+	if err != nil {
+		return fmt.Errorf("refuse to wake Ollama for an unverified installed model: %w", err)
+	}
+	if err := authorize(model, digest); err != nil {
+		return fmt.Errorf("refuse to wake Ollama for an unauthorized model: %w", err)
+	}
+	if err := wake(ctx); err != nil {
+		return fmt.Errorf("wake managed Ollama for inference authorization: %w (inventory probe: %v)", err, probeErr)
+	}
+	digest, err = liveDigest(ctx, model)
+	if err != nil {
+		return fmt.Errorf("read Ollama model inventory after managed wake: %w", err)
+	}
+	if err := authorize(model, digest); err != nil {
+		return fmt.Errorf("authorize live Ollama model after managed wake: %w", err)
+	}
+	return nil
 }
 
 // applyOllamaCapacityRungManaged closes the managed request boundary and unloads

@@ -16,6 +16,14 @@ import { createConfigEndpoint } from './config.js'
 import { createHealthEndpoint } from './health.js'
 import { createProxyMiddleware, proxyToApi, proxyWebSocketUpgrade } from './proxy.js'
 import { injectProxyMetadata, injectScenarioConfig, injectBaseTag } from './inject.js'
+import {
+  experienceInjectionConfig,
+  resolveExperienceTelemetry,
+  shouldInstrumentRequest,
+} from '../experience/gate.js'
+import { injectExperienceTelemetry } from '../experience/inject.js'
+import { createExperienceTelemetryRouter } from '../experience/router.js'
+import type { ResolvedExperienceTelemetry } from '../experience/types.js'
 import { resolveProxyAgent } from './agent.js'
 import { createEmbeddedProxyRouter } from './embedded.js'
 import { createLocalPortProxy } from './local-port-proxy.js'
@@ -184,13 +192,21 @@ function gzipStaticResponseMiddleware(req: Request, res: Response, next: NextFun
  *
  * @internal
  */
-function createHtmlInjectionMiddleware(options: ServerTemplateOptions) {
+function createHtmlInjectionMiddleware(
+  options: ServerTemplateOptions,
+  experience: ResolvedExperienceTelemetry | null,
+  build?: string,
+) {
   const { proxyMetadata, scenarioConfig } = options
 
   // If nothing to inject, return no-op middleware
-  if (!proxyMetadata && !scenarioConfig) {
+  if (!proxyMetadata && !scenarioConfig && !experience) {
     return (_req: Request, _res: Response, next: NextFunction) => next()
   }
+
+  const experienceConfig = experience
+    ? { ...experienceInjectionConfig(experience), ...(build ? { build } : {}) }
+    : null
 
   return (req: Request, res: Response, next: NextFunction) => {
     // Only intercept HTML responses
@@ -212,6 +228,12 @@ function createHtmlInjectionMiddleware(options: ServerTemplateOptions) {
         // Inject scenario config
         if (scenarioConfig) {
           modifiedBody = injectScenarioConfig(modifiedBody, scenarioConfig)
+        }
+
+        // Inject the local experience agent. Gating is per request because Host
+        // and Fetch Metadata decide whether this is the operator's own browser.
+        if (experienceConfig && shouldInstrumentRequest(req, experience)) {
+          modifiedBody = injectExperienceTelemetry(modifiedBody, experienceConfig)
         }
 
         return originalSend.call(this, modifiedBody)
@@ -350,6 +372,7 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     proxyAgent,
     bodyParser = 'json',
     cacheIndexHtml = true,
+    experienceTelemetry: experienceTelemetryOption,
   } = options
 
   // Parse ports
@@ -363,6 +386,13 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
   if (!parsedApiPort) {
     throw new Error('Invalid API_PORT configuration')
   }
+
+  // Local experience telemetry. Resolved once so every request shares the same
+  // retention policy and session directory. Null means the feature is off.
+  const experienceTelemetry = resolveExperienceTelemetry(experienceTelemetryOption, process.env, serviceName)
+  // Evidence identity: prefer the lifecycle's exact build identity over a
+  // human version string, so a session can be tied to the build it observed.
+  const experienceBuildIdentity = process.env.VROOLI_BUILD_IDENTITY || version
 
   const localPortProxy = localPortProxyOption
     ? createLocalPortProxy({
@@ -395,9 +425,15 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
   // Scenario ingress policy must run before any generic proxy.
   if (setupBeforeProxy) setupBeforeProxy(app)
 
+  // Local experience telemetry endpoints. Mounted before the API proxy and the
+  // global body parser so the ingest route owns its own size-capped parser.
+  if (experienceTelemetry) {
+    app.use(createExperienceTelemetryRouter(experienceTelemetry))
+  }
+
   // HTML injection middleware (if needed)
-  if (proxyMetadata || scenarioConfig) {
-    app.use(createHtmlInjectionMiddleware(options))
+  if (proxyMetadata || scenarioConfig || experienceTelemetry) {
+    app.use(createHtmlInjectionMiddleware(options, experienceTelemetry, experienceBuildIdentity))
   }
 
   const resolvedProxyAgent = resolveProxyAgent({ agent: proxyAgent, keepAlive: proxyKeepAlive })
@@ -505,8 +541,28 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
 
   app.use(gzipStaticResponseMiddleware)
 
-  // Serve static files with production-friendly caching
+  // Serve the entry document explicitly so the HTML injection middleware sees
+  // it. express.static streams index.html directly, bypassing res.send, which
+  // used to restrict metadata/config/experience injection to SPA fallback
+  // routes and silently miss the root document.
+  app.get(['/', '/index.html'], (_req: Request, res: Response, next: NextFunction) => {
+    if (!fs.existsSync(indexPath)) {
+      next()
+      return
+    }
+    try {
+      const html = injectBaseTag(loadIndexHtml(), '/')
+      res.setHeader('Cache-Control', 'no-cache')
+      res.type('html').send(html)
+    } catch (error) {
+      next(error)
+    }
+  })
+
+  // Serve static files with production-friendly caching. `index: false` keeps
+  // the root document on the explicit route above.
   app.use(express.static(absoluteDistDir, {
+    index: false,
     setHeaders: (res, servedPath) => {
       applyStaticCacheHeaders(res as Response, servedPath)
     },
@@ -523,7 +579,7 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
 
     // CRITICAL: Skip proxy routes - they should be handled by custom route handlers
     // Proxy routes contain '/proxy' in the path (e.g., /apps/scenario/proxy/*)
-    if (requestPath.includes('/proxy') || requestPath.startsWith('/embedded/') || requestPath.startsWith(`${APP_NOTIFICATIONS_PREFIX}/`) || (localPortProxy && requestPath.startsWith(`${localPortPathPrefix}/`))) {
+    if (requestPath.includes('/proxy') || requestPath.startsWith('/embedded/') || requestPath.startsWith(`${APP_NOTIFICATIONS_PREFIX}/`) || requestPath.startsWith('/__vrooli/experience/') || (localPortProxy && requestPath.startsWith(`${localPortPathPrefix}/`))) {
       // Don't serve index.html for proxy routes - let them 404 or be handled by custom routes
       if (verbose) {
         console.log(`[server] Skipping SPA fallback for proxy route: ${requestPath}`)

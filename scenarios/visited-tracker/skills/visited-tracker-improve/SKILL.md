@@ -17,7 +17,7 @@ metadata:
 ---
 ## Practice focus: Improve Visited Tracker
 
-Regulate Visited Tracker's attention and ownership behavior. Keep caller priorities outside this scenario. Read `path:docs/agent-system/TARGET_MODEL.md` §2 and `prompt-manager skill read improvement-do-and-dont`. Follow `scenario-work-ladder` before changing code. Skill roles and program contracts are defined in `path:docs/agent-system/SKILL_AUTHORING.md` and `path:scenarios/program-runtime/docs/guides/program-contracts.md`.
+Regulate Visited Tracker's attention and ownership behavior. Keep caller priorities outside this scenario. Read `path:docs/agent-system/STANDING_TEAMS.md` "The loop card" and `prompt-manager skill read improvement-do-and-dont`. Follow `scenario-work-ladder` before changing code. Skill roles and program contracts are defined in `path:docs/agent-system/SKILL_AUTHORING.md` and `path:scenarios/program-runtime/docs/guides/program-contracts.md`.
 
 ### Setpoint and sensors
 
@@ -45,7 +45,7 @@ There is no declared floor-bearing evaluation corpus. `path:scenarios/visited-tr
 | Claim overlap or stale review credit | Preserve the campaign, claim, revision, and rejection evidence; route W3. | Original failing regression |
 | Ranking repeatedly hides required work | Route the scheduling invariant and caller exploration policy; preserve the neglected case. | Same queue-age observation once instrumented |
 | A program copies claim recovery or hashing | Move the invariant into the API, then simplify the consumer. | Consumer success and failure fixtures |
-| Repeated judgment is unclear | Edit the usage skill through skill-set-authoring; keep CLI flags in help. | Skill divergence review |
+| Repeated judgment is unclear | Edit the usage skill through scenario-skill-setup; keep CLI flags in help. | Skill divergence review |
 | Defect owned elsewhere | Use report-bug against that owner. | Owner's evidence |
 
 There is no sanctioned bulk reset, claim-history deletion, or score rebasing curation move. A new campaign partitions future work; it does not erase the previous ledger. Compose other scenarios' programs when their contracts supply the needed evidence. Validate both child success and incomplete/failure paths.

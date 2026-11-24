@@ -288,21 +288,6 @@ func cleanupProfiles(env *TestEnvironment) {
 	env.DB.Exec("UPDATE active_profile SET profile_id = NULL, activated_at = NULL WHERE id = 1")
 }
 
-// assertProfileField validates a specific field in a profile response
-func assertProfileField(t *testing.T, profile map[string]interface{}, fieldName string, expectedValue interface{}) {
-	t.Helper()
-
-	actualValue, exists := profile[fieldName]
-	if !exists {
-		t.Errorf("Expected field '%s' in profile response", fieldName)
-		return
-	}
-
-	if expectedValue != nil && actualValue != expectedValue {
-		t.Errorf("Expected %s='%v', got '%v'", fieldName, expectedValue, actualValue)
-	}
-}
-
 // assertProfileListResponse validates a profile list response
 func assertProfileListResponse(t *testing.T, response map[string]interface{}, expectedCount int) []interface{} {
 	t.Helper()
@@ -324,20 +309,4 @@ func assertProfileListResponse(t *testing.T, response map[string]interface{}, ex
 	}
 
 	return profiles
-}
-
-// waitForDatabaseCondition waits for a database condition to be met
-func waitForDatabaseCondition(t *testing.T, db *sql.DB, query string, timeout time.Duration) bool {
-	t.Helper()
-
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		var result bool
-		err := db.QueryRow(query).Scan(&result)
-		if err == nil && result {
-			return true
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	return false
 }

@@ -30,6 +30,7 @@ package permissions
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -45,6 +46,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/resources/opencode/cli/internal/config"
 )
 
 // legacyManagedKey is the retired pre-1.0 inline top-level key that once
@@ -245,16 +247,22 @@ func (a *Adapter) Load() (Policy, error) {
 // write is what makes the managed set authoritative across calls, so Save is
 // self-consistent: two consecutive Saves correctly drop the first's entries.
 func (a *Adapter) Save(p Policy, writtenByVersion string) error {
-	if err := os.MkdirAll(filepath.Dir(a.SettingsPath), 0o755); err != nil {
-		return fmt.Errorf("mkdir %s: %w", filepath.Dir(a.SettingsPath), err)
+	settingsPath, err := config.CanonicalConfigPath(a.SettingsPath)
+	if err != nil {
+		return err
 	}
+	unlock, err := config.LockConfig(context.Background(), settingsPath)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 
 	doc := &parsedDoc{
 		TopLevel:      map[string]json.RawMessage{},
 		BashMap:       map[string]string{},
 		OtherPermKeys: map[string]json.RawMessage{},
 	}
-	if data, err := os.ReadFile(a.SettingsPath); err == nil && len(data) > 0 {
+	if data, err := os.ReadFile(settingsPath); err == nil && len(data) > 0 {
 		parsed, perr := parseDoc(data)
 		if perr != nil {
 			return perr
@@ -322,12 +330,8 @@ func (a *Adapter) Save(p Policy, writtenByVersion string) error {
 	if err != nil {
 		return err
 	}
-	tmp := a.SettingsPath + ".tmp"
-	if err := os.WriteFile(tmp, pretty, 0o644); err != nil {
-		return fmt.Errorf("write %s: %w", tmp, err)
-	}
-	if err := os.Rename(tmp, a.SettingsPath); err != nil {
-		return fmt.Errorf("rename %s -> %s: %w", tmp, a.SettingsPath, err)
+	if err := config.WriteConfigAtomically(context.Background(), settingsPath, pretty); err != nil {
+		return fmt.Errorf("write %s: %w", settingsPath, err)
 	}
 
 	// The sidecar is the source of truth for the managed list; persist it
@@ -336,7 +340,8 @@ func (a *Adapter) Save(p Policy, writtenByVersion string) error {
 	if err := a.WriteState(p, writtenByVersion); err != nil {
 		return err
 	}
-	return a.syncPlugin(p)
+	unlock()
+	return a.syncPlugin()
 }
 
 // RenderPlugin returns the native OpenCode plugin projection for the detected
@@ -478,16 +483,76 @@ func (a *Adapter) pluginPaths() (string, string) {
 	return v1, v2
 }
 
-// SyncPlugin reconciles the native plugin projection without rewriting the
-// permission map. ensure calls it even when the map is already clean, so a
-// major upgrade still replaces the previous major's plugin module.
-func (a *Adapter) SyncPlugin(p Policy) error { return a.syncPlugin(p) }
+// SyncPlugin reconciles projections from the latest committed settings and
+// ownership state. ensure calls it even when the map is clean, so a major
+// upgrade still replaces the previous major's plugin module.
+func (a *Adapter) SyncPlugin() error { return a.syncPlugin() }
 
-func (a *Adapter) syncPlugin(p Policy) error {
-	if err := a.syncPluginFile(p); err != nil {
+func (a *Adapter) syncPlugin() error {
+	settingsPath, err := config.CanonicalConfigPath(a.SettingsPath)
+	if err != nil {
 		return err
 	}
-	return a.projectPermissions()
+	v1Path, v2Path := a.pluginPaths()
+	if strings.TrimSpace(v1Path) != "" {
+		v1Path, err = config.CanonicalConfigPath(v1Path)
+		if err != nil {
+			return err
+		}
+	}
+	if strings.TrimSpace(v2Path) != "" {
+		v2Path, err = config.CanonicalConfigPath(v2Path)
+		if err != nil {
+			return err
+		}
+	}
+	pluginPaths := []string{settingsPath}
+	if v1Path != "" {
+		pluginPaths = append(pluginPaths, v1Path)
+	}
+	if v2Path != "" {
+		pluginPaths = append(pluginPaths, v2Path)
+	}
+	sort.Strings(pluginPaths)
+	unique := pluginPaths[:0]
+	for _, path := range pluginPaths {
+		if len(unique) == 0 || unique[len(unique)-1] != path {
+			unique = append(unique, path)
+		}
+	}
+	var unlocks []func()
+	for _, path := range unique {
+		unlock, err := config.LockConfig(context.Background(), path)
+		if err != nil {
+			for index := len(unlocks) - 1; index >= 0; index-- {
+				unlocks[index]()
+			}
+			return err
+		}
+		unlocks = append(unlocks, unlock)
+	}
+	defer func() {
+		for index := len(unlocks) - 1; index >= 0; index-- {
+			unlocks[index]()
+		}
+	}()
+	current := *a
+	current.SettingsPath = settingsPath
+	current.PluginPath = v1Path
+	current.PluginPathV2 = v2Path
+	policy, err := current.Load()
+	if err != nil {
+		return fmt.Errorf("load committed OpenCode permissions for plugin projection: %w", err)
+	}
+	if err := current.syncPluginFile(policy); err != nil {
+		return err
+	}
+	// projectPermissions takes its own source and projection locks. Release the
+	// plugin/settings locks first to preserve its global path order.
+	for index := len(unlocks) - 1; index >= 0; index-- {
+		unlocks[index]()
+	}
+	return current.projectPermissions()
 }
 
 func (a *Adapter) syncPluginFile(p Policy) error {
@@ -540,7 +605,36 @@ func (a *Adapter) projectPermissions() error {
 	if projection == "" {
 		return nil
 	}
-	source, err := os.ReadFile(a.SettingsPath)
+	sourcePath, err := config.CanonicalConfigPath(a.SettingsPath)
+	if err != nil {
+		return err
+	}
+	projection, err = config.CanonicalConfigPath(projection)
+	if err != nil {
+		return err
+	}
+	lockPaths := []string{sourcePath}
+	if projection != sourcePath {
+		lockPaths = append(lockPaths, projection)
+	}
+	sort.Strings(lockPaths)
+	var unlocks []func()
+	for _, path := range lockPaths {
+		unlock, err := config.LockConfig(context.Background(), path)
+		if err != nil {
+			for index := len(unlocks) - 1; index >= 0; index-- {
+				unlocks[index]()
+			}
+			return err
+		}
+		unlocks = append(unlocks, unlock)
+	}
+	defer func() {
+		for index := len(unlocks) - 1; index >= 0; index-- {
+			unlocks[index]()
+		}
+	}()
+	source, err := os.ReadFile(sourcePath)
 	if os.IsNotExist(err) {
 		return nil
 	}
@@ -572,15 +666,8 @@ func (a *Adapter) projectPermissions() error {
 	if existing, err := os.ReadFile(projection); err == nil && bytes.Equal(existing, rendered) {
 		return nil
 	}
-	if err := os.MkdirAll(filepath.Dir(projection), 0o755); err != nil {
-		return fmt.Errorf("create projection directory: %w", err)
-	}
-	tmp := projection + ".tmp"
-	if err := os.WriteFile(tmp, rendered, 0o644); err != nil {
+	if err := config.WriteConfigAtomically(context.Background(), projection, rendered); err != nil {
 		return fmt.Errorf("write projection config: %w", err)
-	}
-	if err := os.Rename(tmp, projection); err != nil {
-		return fmt.Errorf("publish projection config: %w", err)
 	}
 	return nil
 }

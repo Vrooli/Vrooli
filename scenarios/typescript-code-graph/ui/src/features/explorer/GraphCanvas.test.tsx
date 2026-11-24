@@ -15,6 +15,13 @@ const graph = create(CodeGraphSchema, {
   ],
   edges: [{ id: "e", kind: EdgeKind.IMPORT, fromNodeId: "ts_module:src/a.ts", toNodeId: "ts_module:src/b.ts" }],
 });
+const cycleGraph = create(CodeGraphSchema, {
+  nodes: graph.nodes,
+  edges: [
+    ...graph.edges,
+    { id: "reverse", kind: EdgeKind.IMPORT, fromNodeId: "ts_module:src/b.ts", toNodeId: "ts_module:src/a.ts" },
+  ],
+});
 
 describe("GraphCanvas", () => {
   afterEach(cleanup);
@@ -25,7 +32,7 @@ describe("GraphCanvas", () => {
     expect(screen.getByTestId(selectors.features.explorer.canvas.summary)).toBeInTheDocument();
   });
 
-  it("renders one focusable node group per module node", () => {
+  it("renders one labelled, focusable static node group per module node", () => {
     renderWithProviders(<GraphCanvas layout={buildGraphLayout(graph)} target="m" />);
     expect(
       screen.getByTestId(selectors.features.explorer.canvas.node({ id: "ts_module:src/a.ts" })),
@@ -33,5 +40,19 @@ describe("GraphCanvas", () => {
     expect(
       screen.getByTestId(selectors.features.explorer.canvas.node({ id: "ts_module:src/b.ts" })),
     ).toBeInTheDocument();
+    const nodeA = screen.getByTestId(selectors.features.explorer.canvas.node({ id: "ts_module:src/a.ts" }));
+    expect(nodeA).toHaveAttribute("role", "group");
+    expect(nodeA).toHaveAttribute("aria-label");
+    expect(nodeA).toHaveAttribute("tabindex", "0");
+  });
+
+  it("marks cycle nodes and import edges with the domain danger token", () => {
+    renderWithProviders(<GraphCanvas layout={buildGraphLayout(cycleGraph)} target="m" />);
+
+    const node = screen.getByTestId(selectors.features.explorer.canvas.node({ id: "ts_module:src/a.ts" }));
+    expect(node.querySelector("rect")).toHaveClass("stroke-app-danger");
+    const edges = screen.getByTestId(selectors.features.explorer.canvas.root).querySelectorAll("line");
+    expect(edges).toHaveLength(2);
+    expect(Array.from(edges).every((edge) => edge.classList.contains("stroke-app-danger"))).toBe(true);
   });
 });

@@ -1,4 +1,3 @@
-import json
 
 """web-search.setpoint-read v1 — read every improve-setpoint row in one submission.
 
@@ -43,10 +42,8 @@ def row(name, reading, target, in_band, unavailable=False, reason=None, sensor=N
 
 def safe(fn):
     """Run one optional read; return (handle, error) so one dead dependency marks its rows, not the board."""
-    try:
-        return fn(), None
-    except Exception as exc:
-        return None, exc
+    result = program.guarded(fn)()
+    return (None, result) if isinstance(result, Exception) else (result, None)
 
 
 def step_validate():
@@ -158,7 +155,7 @@ def step_classify():  # CLASSIFY · every reading is count/head/filter; rows in 
 
 def step_report():  # REPORT
     envelope["phase"] = "report"
-    print(json.dumps(envelope, sort_keys=True))
+    program.report(envelope)
     return None
 
 

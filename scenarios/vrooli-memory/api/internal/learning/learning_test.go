@@ -289,6 +289,46 @@ func TestAgentEffortKeepsMissingDistinctFromZero(t *testing.T) {
 	}
 }
 
+func TestAssertionMeasurementsPreserveAbsenceAndReportIntegrityCounts(t *testing.T) {
+	measured := attempt("measured", "task-1", 1, "verified_success")
+	measured.AssertionsRequired = proto.Int32(2)
+	measured.AssertionsCompleted = proto.Int32(1)
+	zero := attempt("zero", "task-2", 1, "unknown")
+	zero.AssertionsRequired = proto.Int32(0)
+	zero.AssertionsCompleted = proto.Int32(0)
+	unknown := attempt("unknown", "task-3", 1, "unknown")
+	result := measure([]*source.Entry{entry(t, measured), entry(t, zero), entry(t, unknown)})
+	if len(result.Cohorts) != 1 {
+		t.Fatalf("expected one cohort: %+v", result)
+	}
+	c := result.Cohorts[0]
+	if c.AssertionsRequiredSamples != 2 || c.AssertionsCompletedSamples != 2 || c.AssertionsIncompleteAttempts != 1 || c.AssertionsUnmeasuredAttempts != 1 {
+		t.Fatalf("assertion sample and integrity counts lost absence or failure: %+v", c)
+	}
+	if c.MedianAssertionsRequired == nil || c.GetMedianAssertionsRequired() != 1 || c.MedianAssertionsCompleted == nil || c.GetMedianAssertionsCompleted() != 0.5 {
+		t.Fatalf("assertion medians do not retain measured zeroes: %+v", c)
+	}
+	if c.MinAssertionsRequired == nil || *c.MinAssertionsRequired != 0 || c.MaxAssertionsRequired == nil || *c.MaxAssertionsRequired != 2 {
+		t.Fatalf("required-count range did not preserve contract variation: %+v", c)
+	}
+}
+
+func TestAssertionValidationBoundsAndAllowsIndependentAbsence(t *testing.T) {
+	a := attempt("a", "task", 1, "unknown")
+	a.AssertionsCompleted = proto.Int32(100000)
+	if err := Validate(a); err != nil {
+		t.Fatalf("independently absent required count should remain unknown: %v", err)
+	}
+	a.AssertionsRequired = proto.Int32(99999)
+	if Validate(a) == nil {
+		t.Fatal("accepted completed assertions above required count")
+	}
+	a.AssertionsCompleted = proto.Int32(100001)
+	if Validate(a) == nil {
+		t.Fatal("accepted assertion count above bound")
+	}
+}
+
 func TestFirstActionLatencyDoesNotCountRetryAsAnotherTask(t *testing.T) {
 	first := attempt("first", "task", 1, "failed")
 	first.FirstActionAt = proto.String(start.Add(5 * time.Second).Format(time.RFC3339))

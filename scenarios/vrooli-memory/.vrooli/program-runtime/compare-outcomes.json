@@ -27,7 +27,7 @@
       ]
     },
     "signals": {
-      "rows": "Seven standard {row,reading,target,in_band,unavailable,reason} rows with preserved cohorts.",
+      "rows": "Eight standard {row,reading,target,in_band,unavailable,reason} rows with preserved cohorts; assertion-integrity cohorts include measured, regression, or unmeasured status plus integrity_reasons (incomplete_checks, required_count_changed, assertion_counts_missing) without changing source reliability.",
       "aggregate": "Bounded all-cohort advice totals used by setpoint readers; individual cohort rows remain preserved and are not replaced.",
       "reliability": "Source reliable/reason, scan and sample truncation, counts, and interpretation; unknown on transport failure."
     },
@@ -57,7 +57,7 @@
     "output_bytes": 65536
   },
   "name": "vrooli-memory.compare-outcomes",
-  "purpose": "Read seven standard learning comparison rows for explicit scope/window/context selectors, preserving separate cohorts, source reliability, and unknown optional measurements.",
+  "purpose": "Read eight comparison rows while preserving cohorts, reliability and unknowns; report assertion regressions alongside every applicable unmeasured reason.",
   "inputs": {
     "scope": {
       "type": "string",

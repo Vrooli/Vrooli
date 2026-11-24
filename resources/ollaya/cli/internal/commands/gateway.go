@@ -3,7 +3,6 @@ package commands
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -35,6 +34,12 @@ func GatewayCommands(h *Handlers) cliapp.SubcommandGroup {
 				Run:         h.Decide,
 			},
 			{
+				Name:        "decide-batch",
+				Description: "Answer one question set about many states ({questions, states}) read from stdin, admitting the role's model once",
+				Usage:       "resource-ollaya gateway decide-batch --role <id> --input-stdin [--timeout 90s] [--concurrency 4] [--json]",
+				Run:         h.DecideBatch,
+			},
+			{
 				Name:        "health",
 				Description: "Probe the local daemon (GET /api/version)",
 				Usage:       "resource-ollaya gateway health [--json]",
@@ -45,63 +50,112 @@ func GatewayCommands(h *Handlers) cliapp.SubcommandGroup {
 }
 
 func (h *Handlers) Decide(args []string) error {
-	fs := flag.NewFlagSet("gateway decide", flag.ContinueOnError)
-	fs.SetOutput(h.Stderr)
-	role := fs.String("role", "", "Decision role")
-	expectedModel := fs.String("expected-model", "", "Expected local model identity from rights admission")
-	expectedDigest := fs.String("expected-artifact-digest", "", "Expected local manifest digest from rights admission")
-	expectedRightsSHA := fs.String("expected-rights-decision-sha256", "", "Expected canonical rights decision digest")
-	expectedRightsEvaluatedAt := fs.String("expected-rights-evaluated-at", "", "Expected canonical rights evaluation timestamp")
-	expectedRightsReceiptSHA := fs.String("expected-rights-receipt-sha256", "", "Expected canonical persisted rights receipt digest")
-	expectedPolicySHA := fs.String("expected-policy-file-sha256", "", "Expected exact resource model-policy file digest")
-	inputStdin := fs.Bool("input-stdin", false, "Read the {state, questions} JSON body from stdin")
-	timeout := fs.Duration("timeout", 90*time.Second, "Upstream deadline, model load included")
-	jsonOutput := fs.Bool("json", false, "Emit the normalized result as JSON")
-	if err := fs.Parse(args); err != nil {
+	flags, err := h.parseDecisionFlags("gateway decide", args)
+	if err != nil {
 		return err
 	}
-	if strings.TrimSpace(*role) == "" || !*inputStdin {
-		return errors.New("gateway decide requires --role and --input-stdin")
-	}
-	raw, err := io.ReadAll(io.LimitReader(h.Stdin, maxRequestBytes+1))
+	raw, err := readDecisionInput(h.Stdin, maxRequestBytes)
 	if err != nil {
-		return fmt.Errorf("read decision request: %w", err)
-	}
-	if len(raw) > maxRequestBytes {
-		return fmt.Errorf("decision request exceeds %d bytes", maxRequestBytes)
+		return err
 	}
 	var request upstream.Request
 	if err := json.Unmarshal(raw, &request); err != nil {
 		return fmt.Errorf("decode decision request: %w", err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), flags.timeout)
 	defer cancel()
-	p, err := h.policy()
+	resolution, release, err := h.prepareDecision(ctx, flags)
 	if err != nil {
-		return err
+		return h.fail(err)
 	}
-	resolution, err := p.Resolve(*role, h.GetEnv)
-	if err != nil {
-		return err
-	}
-	if resolution.Locality == policy.LocalityLocal {
-		resolution, err = h.authorizeLocalDecision(ctx, p, *role, resolution, strings.TrimSpace(*expectedModel), strings.TrimSpace(*expectedDigest), strings.TrimSpace(*expectedRightsSHA), strings.TrimSpace(*expectedRightsEvaluatedAt), strings.TrimSpace(*expectedRightsReceiptSHA), strings.TrimSpace(*expectedPolicySHA))
-		if err != nil {
-			return h.fail(err)
-		}
-		if err := h.requireModelPlacement(ctx, p, resolution); err != nil {
-			return h.fail(err)
-		}
-	}
+	defer release()
 	result, err := h.client().Decide(ctx, resolution, request)
 	if err != nil {
 		return h.fail(err)
 	}
-	if *jsonOutput {
+	if flags.json {
 		return writeJSON(h.Stdout, result)
 	}
 	fmt.Fprintf(h.Stdout, "upstream=%s model=%s latency_ms=%d\n%s\n", result.Upstream, result.Model, result.LatencyMS, string(result.Answers))
 	return nil
+}
+
+// decisionFlags are the flags every decision command shares: the role, the
+// rights-admission identity the gateway proved, and the per-decision deadline.
+type decisionFlags struct {
+	role, expectedModel, expectedDigest, expectedRightsSHA   string
+	expectedRightsEvaluatedAt, expectedReceiptSHA, policySHA string
+	timeout                                                  time.Duration
+	json                                                     bool
+	concurrency                                              int
+}
+
+func (h *Handlers) parseDecisionFlags(name string, args []string, extra ...func(*flag.FlagSet, *decisionFlags)) (decisionFlags, error) {
+	var out decisionFlags
+	fs := flag.NewFlagSet(name, flag.ContinueOnError)
+	fs.SetOutput(h.Stderr)
+	fs.StringVar(&out.role, "role", "", "Decision role")
+	fs.StringVar(&out.expectedModel, "expected-model", "", "Expected local model identity from rights admission")
+	fs.StringVar(&out.expectedDigest, "expected-artifact-digest", "", "Expected local manifest digest from rights admission")
+	fs.StringVar(&out.expectedRightsSHA, "expected-rights-decision-sha256", "", "Expected canonical rights decision digest")
+	fs.StringVar(&out.expectedRightsEvaluatedAt, "expected-rights-evaluated-at", "", "Expected canonical rights evaluation timestamp")
+	fs.StringVar(&out.expectedReceiptSHA, "expected-rights-receipt-sha256", "", "Expected canonical persisted rights receipt digest")
+	fs.StringVar(&out.policySHA, "expected-policy-file-sha256", "", "Expected exact resource model-policy file digest")
+	inputStdin := fs.Bool("input-stdin", false, "Read the request body from stdin")
+	fs.DurationVar(&out.timeout, "timeout", 90*time.Second, "Deadline of one decision, model load included")
+	fs.BoolVar(&out.json, "json", false, "Emit the normalized result as JSON")
+	for _, register := range extra {
+		register(fs, &out)
+	}
+	if err := fs.Parse(args); err != nil {
+		return decisionFlags{}, err
+	}
+	if strings.TrimSpace(out.role) == "" || !*inputStdin {
+		return decisionFlags{}, fmt.Errorf("%s requires --role and --input-stdin", name)
+	}
+	for _, value := range []*string{&out.role, &out.expectedModel, &out.expectedDigest, &out.expectedRightsSHA, &out.expectedRightsEvaluatedAt, &out.expectedReceiptSHA, &out.policySHA} {
+		*value = strings.TrimSpace(*value)
+	}
+	return out, nil
+}
+
+func readDecisionInput(in io.Reader, limit int64) ([]byte, error) {
+	raw, err := io.ReadAll(io.LimitReader(in, limit+1))
+	if err != nil {
+		return nil, fmt.Errorf("read decision request: %w", err)
+	}
+	if int64(len(raw)) > limit {
+		return nil, fmt.Errorf("decision request exceeds %d bytes", limit)
+	}
+	return raw, nil
+}
+
+// prepareDecision resolves the role and, for a local model, proves its rights
+// and manifest identity and admits its placement. The returned release ends the
+// model-load critical section; call it once the model has answered (or failed)
+// its first decision.
+func (h *Handlers) prepareDecision(ctx context.Context, flags decisionFlags) (policy.Resolution, func(), error) {
+	noop := func() {}
+	p, err := h.policy()
+	if err != nil {
+		return policy.Resolution{}, noop, err
+	}
+	resolution, err := p.Resolve(flags.role, h.GetEnv)
+	if err != nil {
+		return policy.Resolution{}, noop, err
+	}
+	if resolution.Locality != policy.LocalityLocal {
+		return resolution, noop, nil
+	}
+	resolution, err = h.authorizeLocalDecision(ctx, p, flags.role, resolution, flags.expectedModel, flags.expectedDigest, flags.expectedRightsSHA, flags.expectedRightsEvaluatedAt, flags.expectedReceiptSHA, flags.policySHA)
+	if err != nil {
+		return policy.Resolution{}, noop, err
+	}
+	release, err := h.requireModelPlacement(ctx, p, resolution)
+	if err != nil {
+		return policy.Resolution{}, noop, err
+	}
+	return resolution, release, nil
 }
 
 func (h *Handlers) authorizeLocalDecision(ctx context.Context, initialPolicy policy.Policy, role string, initial policy.Resolution, expectedModel, expectedDigest, expectedRightsSHA, expectedRightsEvaluatedAt, expectedReceiptSHA, expectedPolicySHA string) (policy.Resolution, error) {

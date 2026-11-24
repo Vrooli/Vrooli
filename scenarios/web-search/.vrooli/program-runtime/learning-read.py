@@ -1,5 +1,3 @@
-import json
-
 """Read fixed research learning cohorts without inventing baselines or zero counts."""
 inputs = program.inputs()
 envelope = {"program":"web-search.learning-read","version":"1","status":"failed","phase":"validate","signals":{},"errors":[],"evidence":[]}
@@ -18,4 +16,4 @@ except Exception as exc:
     envelope["errors"]=[{"class":"invalid_input" if isinstance(exc,ValueError) else "learning_unavailable","detail":str(exc)[:160],"where":envelope["phase"]}]
     envelope["status"]="failed" if isinstance(exc,ValueError) else "unavailable"
 envelope["phase"]="report"
-print(json.dumps(envelope, sort_keys=True))
+program.report(envelope)

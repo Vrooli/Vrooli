@@ -6,6 +6,7 @@ package configcli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -58,6 +59,12 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 // Ensure resolves the ephemeral OpenRouter injection and writes non-secret
 // OpenCode configuration. It never persists a provider key.
 func (h *Handlers) Ensure(args []string) error {
+	return h.EnsureContext(context.Background(), args)
+}
+
+// EnsureContext preserves an enclosing operation deadline across provider,
+// policy, and credential resolution subprocesses.
+func (h *Handlers) EnsureContext(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("config ensure", flag.ContinueOnError)
 	fs.SetOutput(h.Stderr)
 	if err := fs.Parse(args); err != nil {
@@ -67,16 +74,21 @@ func (h *Handlers) Ensure(args []string) error {
 	if getenv == nil {
 		getenv = os.Getenv
 	}
-	ctx := context.Background()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 
 	secretsOpts := secrets.Options{Getenv: getenv, AuthPath: authPath(getenv)}
-	goKey := resolveKey(secretsOpts, "OPENCODE_GO_KEY", "opencode-go")
+	goKey := resolveKey(ctx, secretsOpts, "OPENCODE_GO_KEY", "opencode-go")
 	haveGo := secrets.KeyUsable(goKey)
-	orKey := resolveKey(secretsOpts, "OPENROUTER_API_KEY", "openrouter")
+	orKey := resolveKey(ctx, secretsOpts, "OPENROUTER_API_KEY", "openrouter")
 	haveOpenRouter := secrets.KeyUsable(orKey)
-	orcaRouterKey := resolveKey(secretsOpts, "ORCAROUTER_API_KEY", "orcarouter")
+	orcaRouterKey := resolveKey(ctx, secretsOpts, "ORCAROUTER_API_KEY", "orcarouter")
 	haveOrcaRouter := secrets.KeyUsable(orcaRouterKey)
-	abliterationKey := resolveKey(secretsOpts, "ABLIT_KEY", "abliteration")
+	abliterationKey := resolveKey(ctx, secretsOpts, "ABLIT_KEY", "abliteration")
 	haveAbliteration := secrets.KeyUsable(abliterationKey)
 
 	changed, err := config.Ensure(ctx, config.EnsureOptions{
@@ -98,6 +110,9 @@ func (h *Handlers) Ensure(args []string) error {
 
 	// Sync available keys into the auth file.
 	if goKey != "" {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		changedAuth, err := secrets.SyncOpenCodeGoAuth(authPath(getenv), goKey)
 		if err != nil {
 			return err
@@ -107,6 +122,9 @@ func (h *Handlers) Ensure(args []string) error {
 		}
 	}
 	if orKey != "" {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		changedAuth, err := secrets.SyncOpenRouterAuth(authPath(getenv), orKey)
 		if err != nil {
 			return err
@@ -125,6 +143,9 @@ func (h *Handlers) Ensure(args []string) error {
 		if provider.key == "" {
 			continue
 		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		changedAuth, err := secrets.SyncProviderAuth(authPath(getenv), provider.id, provider.key)
 		if err != nil {
 			return err
@@ -140,12 +161,94 @@ func (h *Handlers) Ensure(args []string) error {
 	return nil
 }
 
+// PrepareLocalModelContext projects the live Ollama catalog and commits the
+// selected model in one config write. It does not resolve or synchronize cloud
+// credentials, so a failed local preparation cannot repoint OpenCode as a side
+// effect of unrelated provider setup.
+func (h *Handlers) PrepareLocalModelContext(ctx context.Context, model string) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	model = strings.TrimSpace(model)
+	if model == "" {
+		return errors.New("prepared Ollama model is required")
+	}
+	getenv := h.GetEnv
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	changed, err := config.Ensure(ctx, config.EnsureOptions{
+		ConfigPath:          configPath(getenv),
+		Defaults:            config.DefaultDefaults(getenv),
+		Resolver:            config.ExecResolver{},
+		ProviderModels:      providerModels,
+		SelectedOllamaModel: model,
+		Logf: func(format string, a ...any) {
+			fmt.Fprintf(h.Stdout, format+"\n", a...)
+		},
+	})
+	if err != nil {
+		return err
+	}
+	if !changed {
+		fmt.Fprintf(h.Stdout, "OpenCode already projects and selects ollama/%s\n", model)
+	}
+	return nil
+}
+
+// SelectLocalModel activates a model that config ensure already projected from
+// the Ollama policy. It never writes a model ID that is absent from that list.
+func (h *Handlers) SelectLocalModel(model string) error {
+	return h.SelectLocalModelContext(context.Background(), model)
+}
+
+// SelectLocalModelContext preserves cancellation around local config I/O.
+func (h *Handlers) SelectLocalModelContext(ctx context.Context, model string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	getenv := h.GetEnv
+	if getenv == nil {
+		getenv = os.Getenv
+	}
+	path := configPath(getenv)
+	path, err := config.CanonicalConfigPath(path)
+	if err != nil {
+		return err
+	}
+	unlock, err := config.LockConfig(ctx, path)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	existing, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read OpenCode config before model selection: %w", err)
+	}
+	rendered, err := config.SelectOllamaModel(existing, model)
+	if err != nil {
+		return err
+	}
+	if string(existing) == string(rendered) {
+		fmt.Fprintf(h.Stdout, "OpenCode already selects ollama/%s\n", model)
+		return nil
+	}
+	if err := config.WriteConfigAtomically(ctx, path, rendered); err != nil {
+		return fmt.Errorf("write selected OpenCode model: %w", err)
+	}
+	fmt.Fprintf(h.Stdout, "Selected local model ollama/%s in %s\n", model, path)
+	return nil
+}
+
 // resolveKey reads a provider key from the process environment or the OpenCode
 // auth file first. If neither has it, it asks the credential authority, which is
 // where the operator actually provisioned the key. Without this fallback a
 // provider can be configured for Vrooli and still be absent from OpenCode until
 // a lifecycle process happens to inject the value.
-func resolveKey(opts secrets.Options, envVar, providerID string) string {
+func resolveKey(ctx context.Context, opts secrets.Options, envVar, providerID string) string {
 	if key := secrets.ResolveProviderKey(opts, envVar, providerID); key != "" {
 		return key
 	}
@@ -157,7 +260,7 @@ func resolveKey(opts secrets.Options, envVar, providerID string) string {
 	if err != nil {
 		return ""
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	key, err := client.Resolve(ctx, "vrooli/"+providerID, "api-key")
 	if err != nil || !secrets.KeyUsable(key) {

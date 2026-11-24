@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/vrooli/platform-go"
 )
 
 // Defaults carries the static config defaults formerly in config/defaults.sh.
@@ -81,6 +83,29 @@ type LocalModelLister interface {
 	LocalModels(ctx context.Context, installed []string) ([]LocalModel, error)
 }
 
+// LocalPolicyModelLister exposes identities owned by the current policy
+// catalog so Ensure can remove entries whose roles or rights were retired.
+type LocalPolicyModelLister interface {
+	LocalPolicyModels(ctx context.Context) ([]string, error)
+}
+
+// LocalInferenceRightChecker evaluates one catalog model against current
+// trusted context without requiring the Ollama daemon to be running.
+type LocalInferenceRightChecker interface {
+	LocalInferenceAllowed(ctx context.Context, model string) (bool, error)
+}
+
+// LocalChatRoleChecker confirms that a model remains assigned to at least one
+// current chat/generate role, independent of runtime installation state.
+type LocalChatRoleChecker interface {
+	LocalChatRoleEligible(ctx context.Context, model string) (bool, error)
+}
+
+// Ollama's public activity edge owns port 11434. OpenCode must always use this
+// loopback endpoint so inference cannot bypass live artifact-rights checks by
+// inheriting an upstream OLLAMA_HOST value.
+const ollamaActivityEdgeURL = "http://127.0.0.1:11434"
+
 // ProviderModelCatalog lists the concrete models a hosted provider resource
 // declares. A custom OpenAI-compatible provider must name its models in
 // opencode.json; OpenCode only discovers catalogs for its built-in providers.
@@ -96,13 +121,22 @@ type EnsureOptions struct {
 	HaveAbliteration bool
 	Resolver         Resolver
 	ProviderModels   ProviderModelCatalog
-	Logf             func(format string, args ...any)
+	// SelectedOllamaModel commits an explicit local selection into the same
+	// config write that projects its resource-owned model catalog.
+	SelectedOllamaModel string
+	Logf                func(format string, args ...any)
 }
 
 // Ensure decides the provider (OpenCode Go → OpenRouter → local Ollama),
 // renders opencode.json preserving the permission map and unknown keys,
 // and writes only on a real change. Returns whether the file changed.
 func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
 	logf := opts.Logf
 	if logf == nil {
 		logf = func(string, ...any) {}
@@ -125,6 +159,30 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 		} else {
 			localModel = rr.Model
 			sampling = rr.Sampling
+		}
+	}
+
+	var extras []LocalModel
+	if ollamaReachable {
+		if lister, ok := opts.Resolver.(LocalModelLister); ok {
+			models, err := lister.LocalModels(ctx, installed)
+			if err != nil {
+				logf("WARNING: could not project Ollama policy models into OpenCode config: %v", err)
+			} else {
+				extras = models
+			}
+		}
+	}
+	var policyModels []string
+	if lister, ok := opts.Resolver.(LocalPolicyModelLister); ok {
+		models, err := lister.LocalPolicyModels(ctx)
+		if err != nil {
+			if ollamaReachable {
+				return false, fmt.Errorf("resolve Ollama policy model identities for picker reconciliation: %w", err)
+			}
+			logf("WARNING: could not reconcile Ollama policy models while its daemon is unavailable: %v", err)
+		} else {
+			policyModels = models
 		}
 	}
 
@@ -209,28 +267,38 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 
 	// Tier 3: Local Ollama (fallback when no cloud credentials)
 	if provider == "" && !useOpenCodeGo && !useOpenRouter && ollamaReachable {
-		if localModel == "" {
-			return false, fmt.Errorf("resolve local Ollama role %q: %w", d.LocalRole, localRoleErr)
-		}
-		useOllama = true
-		provider = ollamaProviderID
-		chatModel = localModel
-		completionModel = localModel
-		logf("Self-healed to local Ollama (provider=%s, model=%s)", provider, chatModel)
-	}
-
-	var extras []LocalModel
-	if ollamaReachable {
-		if lister, ok := opts.Resolver.(LocalModelLister); ok {
-			models, err := lister.LocalModels(ctx, installed)
-			if err != nil {
-				logf("WARNING: could not project Ollama policy models into OpenCode config: %v", err)
-			} else {
-				extras = models
+		if localModel != "" {
+			useOllama = true
+			provider = ollamaProviderID
+			chatModel = localModel
+			completionModel = localModel
+			logf("Self-healed to local Ollama (provider=%s, model=%s)", provider, chatModel)
+		} else if localRoleErr != nil {
+			if len(extras) == 0 {
+				return false, fmt.Errorf("resolve local Ollama role %q: %w", d.LocalRole, localRoleErr)
 			}
+			logf("WARNING: local Ollama default role %q is unavailable: %v; eligible installed models remain selectable", d.LocalRole, localRoleErr)
 		}
 	}
 
+	canonicalPath, err := CanonicalConfigPath(opts.ConfigPath)
+	if err != nil {
+		return false, err
+	}
+	unlock, err := LockConfig(ctx, canonicalPath)
+	if err != nil {
+		return false, err
+	}
+	defer unlock()
+	opts.ConfigPath = canonicalPath
+	currentPolicyModels := append([]string(nil), policyModels...)
+	if _, ok := opts.Resolver.(LocalPolicyModelLister); ok {
+		previousModels, readErr := readPolicyModelState(canonicalPath)
+		if readErr != nil {
+			return false, readErr
+		}
+		policyModels = mergeModelIDs(previousModels, currentPolicyModels)
+	}
 	existing, readErr := os.ReadFile(opts.ConfigPath)
 	if readErr != nil && !os.IsNotExist(readErr) {
 		return false, fmt.Errorf("read %s: %w", opts.ConfigPath, readErr)
@@ -248,8 +316,55 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 	if i := strings.Index(currentModel, "/"); i >= 0 {
 		currentProvider = currentModel[:i]
 	}
+	localSelectionRejected := false
+	if currentProvider == ollamaProviderID {
+		selectedLocalModel := strings.TrimSpace(strings.TrimPrefix(currentModel, ollamaProviderID+"/"))
+		available := selectedLocalModel != "" && (listErr != nil || containsModel(installed, selectedLocalModel))
+		if checker, ok := opts.Resolver.(LocalInferenceRightChecker); ok && selectedLocalModel != "" {
+			var rightsAllowed bool
+			rightsAllowed, err = checker.LocalInferenceAllowed(ctx, selectedLocalModel)
+			if err != nil {
+				return false, fmt.Errorf("revalidate explicitly selected Ollama model %q: %w", selectedLocalModel, err)
+			}
+			available = available && rightsAllowed
+			if roleChecker, ok := opts.Resolver.(LocalChatRoleChecker); ok {
+				roleAllowed, roleErr := roleChecker.LocalChatRoleEligible(ctx, selectedLocalModel)
+				if roleErr != nil {
+					return false, fmt.Errorf("revalidate chat-role eligibility for explicitly selected Ollama model %q: %w", selectedLocalModel, roleErr)
+				}
+				available = available && roleAllowed
+			} else {
+				available = available && (selectedLocalModel == localModel || containsLocalModel(extras, selectedLocalModel))
+			}
+		} else {
+			available = available && (selectedLocalModel == localModel || containsLocalModel(extras, selectedLocalModel) || listErr != nil)
+		}
+		if available && !explicitNonOllamaPreference(d.ProviderPreference) {
+			// Preserve an explicit local choice when cloud credentials appear
+			// later. The activity edge still authorizes every actual inference.
+			provider = ollamaProviderID
+			chatModel = selectedLocalModel
+			completionModel = selectedLocalModel
+			useOllama = true
+			useOpenCodeGo = false
+			useOpenRouter = false
+			useOrcaRouter = false
+			useAbliteration = false
+			logf("Preserving explicitly selected local Ollama model %s", selectedLocalModel)
+		} else if !available {
+			localSelectionRejected = true
+		}
+	}
+	in.Provider = provider
+	in.ChatModel = chatModel
+	in.CompletionModel = completionModel
 
-	if freshFile {
+	if localSelectionRejected {
+		if provider == "" {
+			return false, fmt.Errorf("active Ollama model %q is no longer installed or locally authorized, and no eligible fallback is available", strings.TrimPrefix(currentModel, ollamaProviderID+"/"))
+		}
+		in.Repoint = true
+	} else if freshFile {
 		in.Repoint = true
 	} else if useOllama && (currentProvider == "" || currentProvider == "openrouter" || currentProvider == goProviderID) {
 		in.Repoint = true
@@ -297,14 +412,15 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 			BaseURL: abliterationBaseURL,
 		})
 	}
-	if ollamaReachable && localModel != "" {
+	if (ollamaReachable && (localModel != "" || len(extras) > 0)) || len(policyModels) > 0 {
 		in.Ollama = &OllamaProvider{
-			BaseURL:     ollamaBaseURL(os.Getenv) + "/api",
-			ChatModel:   localModel,
-			SmallModel:  localModel,
-			NumCtx:      d.NumCtx,
-			Sampling:    sampling,
-			ExtraModels: extras,
+			BaseURL:      ollamaActivityEdgeURL + "/api",
+			ChatModel:    localModel,
+			SmallModel:   localModel,
+			NumCtx:       d.NumCtx,
+			Sampling:     sampling,
+			PolicyModels: policyModels,
+			ExtraModels:  extras,
 		}
 	}
 
@@ -312,15 +428,44 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	if selected := strings.TrimSpace(opts.SelectedOllamaModel); selected != "" {
+		rendered, err = SelectOllamaModel(rendered, selected)
+		if err != nil {
+			return false, fmt.Errorf("select prepared Ollama model: %w", err)
+		}
+	}
 
 	if !freshFile && bytes.Equal(normalize(existing), normalize(rendered)) {
+		if _, ok := opts.Resolver.(LocalPolicyModelLister); ok {
+			if err := writePolicyModelState(ctx, canonicalPath, currentPolicyModels); err != nil {
+				return false, err
+			}
+		}
 		return false, nil
+	}
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	if _, ok := opts.Resolver.(LocalPolicyModelLister); ok {
+		// Persist ownership before config projection. If the config write fails,
+		// the next ensure still knows which entries it owns and must reconcile.
+		if err := writePolicyModelState(ctx, canonicalPath, policyModels); err != nil {
+			return false, err
+		}
 	}
 	if err := os.MkdirAll(filepath.Dir(opts.ConfigPath), 0o755); err != nil {
 		return false, fmt.Errorf("mkdir config dir: %w", err)
 	}
-	if err := os.WriteFile(opts.ConfigPath, rendered, 0o644); err != nil {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	if err := WriteConfigAtomically(ctx, opts.ConfigPath, rendered); err != nil {
 		return false, fmt.Errorf("write %s: %w", opts.ConfigPath, err)
+	}
+	if _, ok := opts.Resolver.(LocalPolicyModelLister); ok {
+		if err := writePolicyModelState(ctx, canonicalPath, currentPolicyModels); err != nil {
+			return false, err
+		}
 	}
 
 	switch {
@@ -342,6 +487,129 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 		logf("WARNING: No usable provider credentials found. Set OPENCODE_GO_KEY, OPENROUTER_API_KEY, ORCAROUTER_API_KEY, or ABLIT_KEY, or ensure Ollama is running.")
 	}
 	return true, nil
+}
+
+func explicitNonOllamaPreference(preference string) bool {
+	preference = strings.TrimSpace(preference)
+	return preference != "" && !strings.EqualFold(preference, ollamaProviderID)
+}
+
+func containsLocalModel(models []LocalModel, target string) bool {
+	for _, model := range models {
+		if strings.TrimSpace(model.Model) == target {
+			return true
+		}
+	}
+	return false
+}
+
+// LockConfig serializes every OpenCode config read-modify-write operation
+// across processes. Atomic rename protects readers from partial files; this
+// lock prevents independent ensure and selection commands from losing updates.
+func LockConfig(ctx context.Context, path string) (func(), error) {
+	absPath, err := CanonicalConfigPath(path)
+	if err != nil {
+		return nil, err
+	}
+	unlock, err := platform.AcquireFileLockContext(ctx, absPath+".lock")
+	if err != nil {
+		return nil, fmt.Errorf("lock OpenCode config: %w", err)
+	}
+	return unlock, nil
+}
+
+// CanonicalConfigPath resolves parent-directory aliases and a leaf config
+// symlink so every read-modify-write command derives the same lock and state
+// paths for the same underlying file.
+func CanonicalConfigPath(path string) (string, error) {
+	if strings.TrimSpace(path) == "" {
+		return "", fmt.Errorf("OpenCode config path is required")
+	}
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("resolve OpenCode config path: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(absPath), 0o755); err != nil {
+		return "", fmt.Errorf("create OpenCode config directory: %w", err)
+	}
+	canonicalDir, err := filepath.EvalSymlinks(filepath.Dir(absPath))
+	if err != nil {
+		return "", fmt.Errorf("resolve OpenCode config directory: %w", err)
+	}
+	canonicalPath := filepath.Join(canonicalDir, filepath.Base(absPath))
+	info, err := os.Lstat(canonicalPath)
+	if err == nil && info.Mode()&os.ModeSymlink != 0 {
+		canonicalPath, err = filepath.EvalSymlinks(canonicalPath)
+	}
+	if err != nil && !os.IsNotExist(err) {
+		return "", fmt.Errorf("resolve OpenCode config symlink: %w", err)
+	}
+	return canonicalPath, nil
+}
+
+// WriteConfigAtomically replaces the OpenCode config without dropping its file
+// mode, symlink, or unrelated content. It checks cancellation immediately
+// before the rename commit point.
+func WriteConfigAtomically(ctx context.Context, path string, data []byte) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	mode := os.FileMode(0o644)
+	if linkInfo, err := os.Lstat(path); err == nil && linkInfo.Mode()&os.ModeSymlink != 0 {
+		resolved, err := filepath.EvalSymlinks(path)
+		if err != nil {
+			return fmt.Errorf("resolve OpenCode config symlink: %w", err)
+		}
+		path = resolved
+	} else if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("inspect OpenCode config path: %w", err)
+	}
+	if info, err := os.Stat(path); err == nil {
+		mode = info.Mode().Perm()
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("inspect OpenCode config permissions: %w", err)
+	}
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create OpenCode config directory: %w", err)
+	}
+	temp, err := os.CreateTemp(dir, ".opencode.json-*")
+	if err != nil {
+		return fmt.Errorf("create temporary OpenCode config: %w", err)
+	}
+	tempPath := temp.Name()
+	defer os.Remove(tempPath)
+	if err := temp.Chmod(mode); err != nil {
+		temp.Close()
+		return fmt.Errorf("set OpenCode config permissions: %w", err)
+	}
+	if _, err := temp.Write(data); err != nil {
+		temp.Close()
+		return fmt.Errorf("write temporary OpenCode config: %w", err)
+	}
+	if err := temp.Sync(); err != nil {
+		temp.Close()
+		return fmt.Errorf("sync temporary OpenCode config: %w", err)
+	}
+	if err := temp.Close(); err != nil {
+		return fmt.Errorf("close temporary OpenCode config: %w", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := os.Rename(tempPath, path); err != nil {
+		return fmt.Errorf("replace OpenCode config: %w", err)
+	}
+	if dirHandle, err := os.Open(dir); err == nil {
+		defer dirHandle.Close()
+		if err := dirHandle.Sync(); err != nil {
+			return fmt.Errorf("sync OpenCode config directory: %w", err)
+		}
+	}
+	return nil
 }
 
 // --- helpers ------------------------------------------------------------------
@@ -376,32 +644,6 @@ func normalize(data []byte) []byte {
 		return data
 	}
 	return out
-}
-
-func ollamaBaseURL(getenv func(string) string) string {
-	if getenv == nil {
-		getenv = os.Getenv
-	}
-	raw := strings.TrimSpace(getenv("OLLAMA_HOST"))
-	if raw == "" {
-		raw = "localhost:11434"
-	}
-	scheme := "http://"
-	switch {
-	case strings.HasPrefix(raw, "https://"):
-		scheme = "https://"
-		raw = strings.TrimPrefix(raw, "https://")
-	case strings.HasPrefix(raw, "http://"):
-		raw = strings.TrimPrefix(raw, "http://")
-	}
-	hostport := raw
-	if i := strings.Index(hostport, "/"); i >= 0 {
-		hostport = hostport[:i]
-	}
-	if !strings.Contains(hostport, ":") {
-		hostport += ":11434"
-	}
-	return scheme + hostport
 }
 
 func parseInt(s string) (int, error) {
@@ -465,50 +707,190 @@ func (r ExecResolver) InstalledModels(ctx context.Context) ([]string, error) {
 }
 
 func (r ExecResolver) LocalRole(ctx context.Context, role string) (RoleResolution, error) {
-	out, err := exec.CommandContext(ctx, r.bin(), "policy", "resolve", "--role", role, "--json").Output()
+	out, err := exec.CommandContext(ctx, r.bin(), "policy", "roles", "--require-local-inference", "--json").Output()
 	if err != nil {
 		return RoleResolution{}, err
 	}
-	var payload struct {
-		Model    string `json:"model"`
-		Sampling *struct {
-			Temperature    float64 `json:"temperature"`
-			TopP           float64 `json:"top_p"`
-			TopK           int     `json:"top_k"`
-			HasTemperature bool    `json:"has_temperature"`
-			HasTopP        bool    `json:"has_top_p"`
-			HasTopK        bool    `json:"has_top_k"`
-		} `json:"sampling"`
-	}
+	var payload policyRolesPayload
 	if err := json.Unmarshal(bytes.TrimSpace(out), &payload); err != nil {
 		return RoleResolution{}, err
 	}
-	rr := RoleResolution{Model: payload.Model}
-	if payload.Sampling != nil {
-		if payload.Sampling.HasTemperature {
-			t := payload.Sampling.Temperature
-			rr.Sampling.Temperature = &t
+	for _, candidate := range payload.Roles {
+		if candidate.Role != role {
+			continue
 		}
-		if payload.Sampling.HasTopP {
-			p := payload.Sampling.TopP
-			rr.Sampling.TopP = &p
+		if candidate.RightsDecision == nil || !strings.EqualFold(strings.TrimSpace(candidate.RightsDecision.Status), "allowed") || !strings.EqualFold(strings.TrimSpace(candidate.RightsDecision.Use), "local_inference") {
+			status := "missing"
+			if candidate.RightsDecision != nil {
+				status = candidate.RightsDecision.Status
+			}
+			return RoleResolution{}, fmt.Errorf("Ollama role %q local-inference rights are %s", role, status)
 		}
-		if payload.Sampling.HasTopK {
-			k := payload.Sampling.TopK
-			rr.Sampling.TopK = &k
+		rr := RoleResolution{Model: candidate.Model}
+		if candidate.Sampling != nil {
+			if candidate.Sampling.HasTemperature {
+				t := candidate.Sampling.Temperature
+				rr.Sampling.Temperature = &t
+			}
+			if candidate.Sampling.HasTopP {
+				p := candidate.Sampling.TopP
+				rr.Sampling.TopP = &p
+			}
+			if candidate.Sampling.HasTopK {
+				k := candidate.Sampling.TopK
+				rr.Sampling.TopK = &k
+			}
 		}
+		return rr, nil
 	}
-	return rr, nil
+	return RoleResolution{}, fmt.Errorf("Ollama policy did not return role %q", role)
 }
 
 // LocalModels projects the installed, policy-declared chat/generate models so
 // OpenCode's picker follows the Ollama policy rather than a manual list.
 func (r ExecResolver) LocalModels(ctx context.Context, installed []string) ([]LocalModel, error) {
-	out, err := exec.CommandContext(ctx, r.bin(), "policy", "roles", "--json").Output()
+	out, err := exec.CommandContext(ctx, r.bin(), "policy", "roles", "--require-local-inference", "--json").Output()
 	if err != nil {
 		return nil, err
 	}
-	return parseLocalModels(out, installed)
+	return parseLocalModelsWithRights(out, installed, true)
+}
+
+func (r ExecResolver) LocalPolicyModels(ctx context.Context) ([]string, error) {
+	out, err := exec.CommandContext(ctx, r.bin(), "policy", "models", "--json").Output()
+	if err != nil {
+		return nil, err
+	}
+	var payload struct {
+		Models []struct {
+			Model string `json:"model"`
+		} `json:"models"`
+	}
+	if err := json.Unmarshal(bytes.TrimSpace(out), &payload); err != nil {
+		return nil, fmt.Errorf("decode Ollama policy model identities: %w", err)
+	}
+	models := make([]string, 0, len(payload.Models))
+	for _, entry := range payload.Models {
+		model := strings.TrimSpace(entry.Model)
+		if model == "" {
+			continue
+		}
+		models = append(models, model)
+	}
+	sort.Strings(models)
+	return models, nil
+}
+
+func (r ExecResolver) LocalInferenceAllowed(ctx context.Context, model string) (bool, error) {
+	out, err := exec.CommandContext(ctx, r.bin(), "policy", "models", "--require-local-inference", "--json").Output()
+	if err != nil {
+		return false, err
+	}
+	var payload struct {
+		Models []struct {
+			Model          string `json:"model"`
+			RightsDecision *struct {
+				Status string `json:"status"`
+				Use    string `json:"use"`
+			} `json:"rights_decision"`
+		} `json:"models"`
+	}
+	if err := json.Unmarshal(bytes.TrimSpace(out), &payload); err != nil {
+		return false, fmt.Errorf("decode Ollama local-inference model decisions: %w", err)
+	}
+	for _, entry := range payload.Models {
+		if strings.TrimSpace(entry.Model) != strings.TrimSpace(model) {
+			continue
+		}
+		if entry.RightsDecision == nil {
+			return false, fmt.Errorf("Ollama model %q has no local-inference rights decision", model)
+		}
+		return strings.EqualFold(strings.TrimSpace(entry.RightsDecision.Status), "allowed") && strings.EqualFold(strings.TrimSpace(entry.RightsDecision.Use), "local_inference"), nil
+	}
+	return false, fmt.Errorf("Ollama policy does not contain model %q", model)
+}
+
+func (r ExecResolver) LocalChatRoleEligible(ctx context.Context, model string) (bool, error) {
+	rolesOut, err := exec.CommandContext(ctx, r.bin(), "policy", "roles", "--json").Output()
+	if err != nil {
+		return false, err
+	}
+	var payload policyRolesPayload
+	if err := json.Unmarshal(bytes.TrimSpace(rolesOut), &payload); err != nil {
+		return false, fmt.Errorf("decode Ollama chat-role catalog: %w", err)
+	}
+	modelsOut, err := exec.CommandContext(ctx, r.bin(), "policy", "models", "--json").Output()
+	if err != nil {
+		return false, err
+	}
+	var models struct {
+		Models []struct {
+			Model        string   `json:"model"`
+			Capabilities []string `json:"capabilities"`
+			PolicySHA256 string   `json:"policy_sha256"`
+		} `json:"models"`
+	}
+	if err := json.Unmarshal(bytes.TrimSpace(modelsOut), &models); err != nil {
+		return false, fmt.Errorf("decode Ollama policy model catalog: %w", err)
+	}
+	modelCapabilities := make(map[string][]string, len(models.Models))
+	modelPolicySHA := ""
+	for _, entry := range models.Models {
+		entrySHA := strings.TrimSpace(entry.PolicySHA256)
+		if entrySHA == "" {
+			return false, fmt.Errorf("Ollama policy model catalog has a model without a policy digest")
+		}
+		if modelPolicySHA == "" {
+			modelPolicySHA = entrySHA
+		} else if entrySHA != modelPolicySHA {
+			return false, fmt.Errorf("Ollama policy model catalog has inconsistent policy digests")
+		}
+		if identity := strings.TrimSpace(entry.Model); identity != "" {
+			modelCapabilities[identity] = entry.Capabilities
+		}
+	}
+	if len(models.Models) == 0 {
+		return false, fmt.Errorf("Ollama policy model catalog is empty")
+	}
+	for _, role := range payload.Roles {
+		if strings.TrimSpace(role.PolicySHA256) == "" || strings.TrimSpace(role.PolicySHA256) != modelPolicySHA {
+			return false, fmt.Errorf("Ollama policy role and model catalogs describe different policy revisions")
+		}
+	}
+	capabilities := modelCapabilities[strings.TrimSpace(model)]
+	if !servesChat(capabilities) {
+		return false, nil
+	}
+	for _, role := range payload.Roles {
+		if strings.TrimSpace(role.Model) == strings.TrimSpace(model) && servesChat(role.RequiredCapabilities) && satisfiesCapabilities(capabilities, role.RequiredCapabilities) {
+			return true, nil
+		}
+		if servesChat(role.RequiredCapabilities) {
+			for _, fallback := range role.Fallbacks {
+				if strings.TrimSpace(fallback) == strings.TrimSpace(model) && satisfiesCapabilities(capabilities, role.RequiredCapabilities) {
+					return true, nil
+				}
+			}
+		}
+	}
+	return false, nil
+}
+
+func satisfiesCapabilities(modelCapabilities, requiredCapabilities []string) bool {
+	available := make(map[string]struct{}, len(modelCapabilities))
+	for _, capability := range modelCapabilities {
+		available[strings.TrimSpace(capability)] = struct{}{}
+	}
+	for _, capability := range requiredCapabilities {
+		required := strings.TrimSpace(capability)
+		if required == "" {
+			continue
+		}
+		if _, ok := available[required]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 type policyRolesPayload struct {
@@ -516,13 +898,20 @@ type policyRolesPayload struct {
 }
 
 type policyRole struct {
-	Role                string   `json:"role"`
-	Model               string   `json:"model"`
-	Preference          int      `json:"preference"`
-	Capabilities        []string `json:"capabilities"`
-	ContextWindowTokens int      `json:"context_window_tokens"`
-	MaxTokens           *int     `json:"max_tokens"`
-	Sampling            *struct {
+	Role                 string   `json:"role"`
+	Model                string   `json:"model"`
+	Fallbacks            []string `json:"fallbacks"`
+	RequiredCapabilities []string `json:"required_capabilities"`
+	Preference           int      `json:"preference"`
+	Capabilities         []string `json:"capabilities"`
+	ContextWindowTokens  int      `json:"context_window_tokens"`
+	MaxTokens            *int     `json:"max_tokens"`
+	PolicySHA256         string   `json:"policy_sha256"`
+	RightsDecision       *struct {
+		Status string `json:"status"`
+		Use    string `json:"use"`
+	} `json:"rights_decision,omitempty"`
+	Sampling *struct {
 		Temperature    float64 `json:"temperature"`
 		TopP           float64 `json:"top_p"`
 		TopK           int     `json:"top_k"`
@@ -533,6 +922,10 @@ type policyRole struct {
 }
 
 func parseLocalModels(raw []byte, installed []string) ([]LocalModel, error) {
+	return parseLocalModelsWithRights(raw, installed, false)
+}
+
+func parseLocalModelsWithRights(raw []byte, installed []string, requireRights bool) ([]LocalModel, error) {
 	var payload policyRolesPayload
 	if err := json.Unmarshal(bytes.TrimSpace(raw), &payload); err != nil {
 		return nil, fmt.Errorf("decode ollama policy roles: %w", err)
@@ -542,6 +935,12 @@ func parseLocalModels(raw []byte, installed []string) ([]LocalModel, error) {
 	for _, role := range payload.Roles {
 		model := strings.TrimSpace(role.Model)
 		if model == "" || !containsModel(installed, model) || !servesChat(role.Capabilities) {
+			continue
+		}
+		if requireRights && role.RightsDecision == nil {
+			return nil, fmt.Errorf("Ollama policy role %q has no local-inference rights decision", role.Role)
+		}
+		if requireRights && (!strings.EqualFold(strings.TrimSpace(role.RightsDecision.Status), "allowed") || !strings.EqualFold(strings.TrimSpace(role.RightsDecision.Use), "local_inference")) {
 			continue
 		}
 		// One entry per model. The most preferred role (lowest policy

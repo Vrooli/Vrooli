@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/vrooli/cli-core/agentcatalog/harness"
 	"github.com/vrooli/cli-core/cliapp"
@@ -25,7 +26,7 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 		Name:        "statusline",
 		Description: "Claude Code statusline quota feed for Agent Manager",
 		Subcommands: []cliapp.Command{
-			{Name: "run", Description: "Statusline command Claude Code invokes: record a quota sample and print the status line", Usage: "resource-claude-code statusline run < statusline.json", Run: func([]string) error { return h.Run() }},
+			{Name: "run", LatencyBound: true, Description: "Statusline command Claude Code invokes: record a quota sample and print the status line", Usage: "resource-claude-code statusline run < statusline.json", Run: func([]string) error { return h.Run() }},
 			{Name: "install", Description: "Reconcile settings.json statusLine to the feed, chaining any previous command (mutating)", Usage: "resource-claude-code statusline install", Run: func([]string) error { return h.Install() }},
 			{Name: "uninstall", Description: "Restore the previous statusLine and remove the feed (mutating)", Usage: "resource-claude-code statusline uninstall", Run: func([]string) error { return h.Uninstall() }},
 			{Name: "status", Description: "Show the installed statusLine command and sample path", Usage: "resource-claude-code statusline status", Run: func([]string) error { return h.Status() }},
@@ -36,8 +37,27 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 func (h *Handlers) Run() error {
 	// An unresolvable home loses only the window record, never the status line.
 	windowsPath, _ := harness.DefaultModelWindowsPath()
-	return Feed{SamplesPath: h.SamplesPath, WindowsPath: windowsPath, StatePath: h.Settings.StatePath, Stderr: h.Stderr, SourceRunID: os.Getenv("VROOLI_ANTHROPIC_SOURCE_RUN_ID"), AgentSession: os.Getenv(AgentSessionEnv)}.Run(h.Stdin, h.Stdout)
+	return Feed{SamplesPath: h.SamplesPath, WindowsPath: windowsPath, StatePath: h.Settings.StatePath, Stderr: h.Stderr, SourceRunID: SourceRunIDFromEnv(os.Getenv), AgentSession: os.Getenv(AgentSessionEnv)}.Run(h.Stdin, h.Stdout)
 }
+
+// SourceRunIDFromEnv names the Agent Manager run a session's usage is
+// accounted to. A managed launch sets the provider-specific variable for its
+// own run; otherwise the agent launcher's locator names the attached run or
+// the run that owns a governed session's identity (cli-core
+// cliutil.SourceRunIDEnv). Both are validated before they are recorded.
+func SourceRunIDFromEnv(getenv func(string) string) string {
+	if id := strings.TrimSpace(getenv(ManagedSourceRunIDEnv)); id != "" {
+		return id
+	}
+	return strings.TrimSpace(getenv(LauncherSourceRunIDEnv))
+}
+
+const (
+	// ManagedSourceRunIDEnv is set by Agent Manager's managed Claude runner.
+	ManagedSourceRunIDEnv = "VROOLI_ANTHROPIC_SOURCE_RUN_ID"
+	// LauncherSourceRunIDEnv is set by the Vrooli agent launcher.
+	LauncherSourceRunIDEnv = "VROOLI_SOURCE_RUN_ID"
+)
 
 func (h *Handlers) Install() error {
 	result, err := h.Settings.Install(SelfCommand())

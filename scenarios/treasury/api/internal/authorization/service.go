@@ -65,6 +65,20 @@ type ProposeInput struct {
 	SettlementIdempotencyKey string
 }
 
+// OperatorPrincipal is supplied by an authenticated operator session at the
+// HTTP boundary. It is deliberately separate from Agent Manager run identity.
+type OperatorPrincipal struct{ Subject string }
+
+// OperatorProposeInput has no agent/run identity, operation grant, policy or
+// verdict fields. Those are resolved from the stored mandate and Treasury.
+type OperatorProposeInput struct {
+	ID, IdempotencyKey, MandateID string
+	AmountMinor                   int64
+	Currency, Counterparty        string
+	SettlementID, InstrumentID    string
+	SettlementIdempotencyKey      string
+}
+
 type Mandates interface {
 	RequireLive(context.Context, string) (mandate.Mandate, error)
 }
@@ -163,6 +177,44 @@ func (s *Service) Propose(ctx context.Context, in ProposeInput) (Record, error) 
 		return refusal, nil
 	}
 
+	return s.proposeStoredPolicy(ctx, in, claims.Subject, &claims, false, now)
+}
+
+// ProposeOperator accepts only an authenticated operator principal and a
+// mandate-scoped spend intent. Delegated agent/run identity is derived only
+// from the stored mandate whose signed authorizer matches the principal.
+func (s *Service) ProposeOperator(ctx context.Context, principal OperatorPrincipal, operatorIn OperatorProposeInput) (Record, error) {
+	if s.repository == nil || s.mandates == nil || s.budgets == nil || s.evidence == nil || s.clock == nil {
+		return Record{}, fmt.Errorf("%w: service dependencies are required", ErrInvalid)
+	}
+	principal.Subject = strings.TrimSpace(principal.Subject)
+	in := ProposeInput{
+		ID: strings.TrimSpace(operatorIn.ID), IdempotencyKey: strings.TrimSpace(operatorIn.IdempotencyKey),
+		MandateID: strings.TrimSpace(operatorIn.MandateID), AmountMinor: operatorIn.AmountMinor,
+		Currency: strings.ToUpper(strings.TrimSpace(operatorIn.Currency)), Counterparty: strings.ToLower(strings.TrimSpace(operatorIn.Counterparty)),
+		SettlementID: strings.TrimSpace(operatorIn.SettlementID), InstrumentID: strings.TrimSpace(operatorIn.InstrumentID),
+		SettlementIdempotencyKey: strings.TrimSpace(operatorIn.SettlementIdempotencyKey),
+	}
+	if principal.Subject == "" || in.ID == "" || in.IdempotencyKey == "" || in.MandateID == "" || in.AmountMinor <= 0 || in.Currency == "" || in.Counterparty == "" || in.SettlementID == "" || in.InstrumentID == "" || in.SettlementIdempotencyKey == "" {
+		return Record{}, fmt.Errorf("%w: authenticated operator and complete settlement intent are required", ErrInvalid)
+	}
+	return s.proposeStoredPolicy(ctx, in, principal.Subject, nil, true, s.clock.Now().UTC())
+}
+
+func (s *Service) proposeStoredPolicy(ctx context.Context, in ProposeInput, subject string, claims *identity.Claims, operator bool, now time.Time) (Record, error) {
+	grant, grantErr := s.mandates.RequireLive(ctx, in.MandateID)
+	if grantErr != nil {
+		return s.deny(ctx, in, subject, now, "mandate_live", "issue or select a live, unexpired mandate")
+	}
+	requestingAgent := subject
+	if operator {
+		if grant.Authorizer != subject || (grant.AgentSubject == "") != (grant.AgentRunID == "") {
+			return s.deny(ctx, in, subject, now, "operator_mandate", "use a live operator-authorized mandate with a complete delegate identity")
+		}
+		if grant.AgentSubject != "" {
+			requestingAgent = grant.AgentSubject
+		}
+	}
 	// The mutex covers the read-derived headroom calculation and insert. SQLite
 	// serializes writers; this additionally prevents two goroutines in the one
 	// supported process from observing the same pre-insert snapshot.
@@ -170,11 +222,15 @@ func (s *Service) Propose(ctx context.Context, in ProposeInput) (Record, error) 
 	defer s.mu.Unlock()
 
 	if existing, err := s.repository.GetByIdempotencyKey(ctx, in.IdempotencyKey); err == nil {
-		if existing.ID != in.ID || existing.MandateID != in.MandateID || existing.AmountMinor != in.AmountMinor || existing.Currency != in.Currency || existing.Counterparty != in.Counterparty || existing.SettlementID != in.SettlementID || existing.InstrumentID != in.InstrumentID || existing.SettlementIdempotencyKey != in.SettlementIdempotencyKey || existing.RequestingAgent != claims.Subject {
+		if existing.ID != in.ID || existing.MandateID != in.MandateID || existing.AmountMinor != in.AmountMinor || existing.Currency != in.Currency || existing.Counterparty != in.Counterparty || existing.SettlementID != in.SettlementID || existing.InstrumentID != in.InstrumentID || existing.SettlementIdempotencyKey != in.SettlementIdempotencyKey || existing.RequestingAgent != requestingAgent {
 			return Record{}, fmt.Errorf("%w: idempotency key was already used for a different charge", ErrInvalid)
 		}
-		if err := identity.Authorize(claims, "treasury.spend", treasurySpendIntentTarget(existing), now); err != nil {
-			return s.deny(ctx, in, claims.Subject, now, "operation_grant", "obtain a live operation grant covering this authorization")
+		if operator {
+			if grant.Authorizer != subject {
+				return Record{}, fmt.Errorf("%w: operator principal does not own the live mandate", ErrInvalid)
+			}
+		} else if err := identity.Authorize(*claims, "treasury.spend", treasurySpendIntentTarget(existing), now); err != nil {
+			return s.deny(ctx, in, subject, now, "operation_grant", "obtain a live operation grant covering this authorization")
 		}
 		if existing.Verdict == VerdictPending {
 			if err := s.ensureApproval(ctx, existing); err != nil {
@@ -187,31 +243,33 @@ func (s *Service) Propose(ctx context.Context, in ProposeInput) (Record, error) 
 		return Record{}, err
 	}
 
-	grant, err := s.mandates.RequireLive(ctx, in.MandateID)
-	if err != nil {
-		return s.deny(ctx, in, claims.Subject, now, "mandate_live", "issue or select a live, unexpired mandate")
-	}
-	if err := identity.Authorize(claims, "treasury.spend", cliutil.TreasurySpendIntentAuthorizationTarget(treasurySpendIntent(in)), now); err != nil {
-		return s.deny(ctx, in, claims.Subject, now, "operation_grant", "obtain a live operation grant covering this authorization")
-	}
-	if grant.AgentSubject == "" || grant.AgentSubject != claims.Subject || grant.AgentRunID != claims.RunID {
-		return s.deny(ctx, in, claims.Subject, now, "mandate_delegate", "use the mandate issued to this agent run")
+	if operator {
+		if grant.Authorizer != subject || (grant.AgentSubject == "") != (grant.AgentRunID == "") {
+			return s.deny(ctx, in, subject, now, "operator_mandate", "use a live operator-authorized mandate with a complete delegate identity")
+		}
+	} else {
+		if err := identity.Authorize(*claims, "treasury.spend", cliutil.TreasurySpendIntentAuthorizationTarget(treasurySpendIntent(in)), now); err != nil {
+			return s.deny(ctx, in, subject, now, "operation_grant", "obtain a live operation grant covering this authorization")
+		}
+		if grant.AgentSubject == "" || grant.AgentSubject != subject || grant.AgentRunID != claims.RunID {
+			return s.deny(ctx, in, subject, now, "mandate_delegate", "use the mandate issued to this agent run")
+		}
 	}
 	policy, err := s.budgets.Get(ctx, grant.BudgetID)
 	if err != nil {
 		return Record{}, fmt.Errorf("load mandate budget: %w", err)
 	}
 	if grant.BookID != policy.BookID {
-		return s.deny(ctx, in, claims.Subject, now, "book_scope", "use a mandate backed by a budget in the same book")
+		return s.deny(ctx, in, subject, now, "book_scope", "use a mandate backed by a budget in the same book")
 	}
 	if in.Currency != grant.Currency || in.Currency != policy.Currency {
-		return s.deny(ctx, in, claims.Subject, now, "currency", "submit the charge in the mandate and budget currency")
+		return s.deny(ctx, in, subject, now, "currency", "submit the charge in the mandate and budget currency")
 	}
 	if in.AmountMinor > grant.CapMinor {
-		return s.deny(ctx, in, claims.Subject, now, "per_transaction_cap", "reduce the amount or ask the operator for a larger scoped grant")
+		return s.deny(ctx, in, subject, now, "per_transaction_cap", "reduce the amount or ask the operator for a larger scoped grant")
 	}
 	if !policy.AllowsCounterparty(in.Counterparty) || !grant.AllowsCounterparty(in.Counterparty) {
-		return s.deny(ctx, in, claims.Subject, now, "counterparty_scope", "use an allowed counterparty or ask the operator to issue a different grant")
+		return s.deny(ctx, in, subject, now, "counterparty_scope", "use an allowed counterparty or ask the operator to issue a different grant")
 	}
 	if freezes, ok := s.budgets.(FreezeReader); ok {
 		frozen, scope, freezeErr := freezes.IsFrozen(ctx, grant.BookID, policy.ID)
@@ -219,10 +277,10 @@ func (s *Service) Propose(ctx context.Context, in ProposeInput) (Record, error) 
 			return Record{}, fmt.Errorf("read kill switch: %w", freezeErr)
 		}
 		if frozen {
-			return s.deny(ctx, in, claims.Subject, now, string(scope)+"_frozen", "ask the operator to release the "+string(scope)+" kill switch")
+			return s.deny(ctx, in, subject, now, string(scope)+"_frozen", "ask the operator to release the "+string(scope)+" kill switch")
 		}
 	} else if policy.Frozen {
-		return s.deny(ctx, in, claims.Subject, now, "budget_frozen", "ask the operator to unfreeze the budget")
+		return s.deny(ctx, in, subject, now, "budget_frozen", "ask the operator to unfreeze the budget")
 	}
 	periodStart := periodBoundary(now, policy.Period)
 	usage, err := s.repository.Usage(ctx, policy.ID, grant.ID, periodStart, now)
@@ -235,22 +293,22 @@ func (s *Service) Propose(ctx context.Context, in ProposeInput) (Record, error) 
 			return Record{}, fmt.Errorf("read accepted receipt funding: %w", fundingErr)
 		}
 		if funding.Required && (funding.CreditedMinor <= usage.BudgetTotalMinor || in.AmountMinor > funding.CreditedMinor-usage.BudgetTotalMinor) {
-			return s.deny(ctx, in, claims.Subject, now, "receipt_funding", "fund the budget and wait for Money Ledger to accept the receipt")
+			return s.deny(ctx, in, subject, now, "receipt_funding", "fund the budget and wait for Money Ledger to accept the receipt")
 		}
 	}
 	switch {
 	case in.AmountMinor > policy.TotalCapMinor-usage.BudgetTotalMinor:
-		return s.deny(ctx, in, claims.Subject, now, "total_headroom", "reduce the amount or ask the operator to increase the total cap")
+		return s.deny(ctx, in, subject, now, "total_headroom", "reduce the amount or ask the operator to increase the total cap")
 	case in.AmountMinor > policy.PeriodicCapMinor-usage.BudgetPeriodMinor:
-		return s.deny(ctx, in, claims.Subject, now, "periodic_headroom", "reduce the amount or wait for the next budget period")
+		return s.deny(ctx, in, subject, now, "periodic_headroom", "reduce the amount or wait for the next budget period")
 	case in.AmountMinor > grant.CapMinor-usage.MandateTotalMinor:
-		return s.deny(ctx, in, claims.Subject, now, "mandate_headroom", "reduce the amount or ask the operator for a new mandate")
+		return s.deny(ctx, in, subject, now, "mandate_headroom", "reduce the amount or ask the operator for a new mandate")
 	}
 
 	record := baseRecord(in, now)
 	record.BookID = grant.BookID
 	record.BudgetID = policy.ID
-	record.RequestingAgent = claims.Subject
+	record.RequestingAgent = requestingAgent
 	record.HoldMinor = in.AmountMinor
 	record.ExpiresAt = minTime(grant.ExpiresAt, now.Add(15*time.Minute))
 	if policy.RequiresApproval || in.AmountMinor > policy.PerTransactionCapMinor {
@@ -268,7 +326,7 @@ func (s *Service) Propose(ctx context.Context, in ProposeInput) (Record, error) 
 	created, err := s.repository.Create(ctx, record)
 	if err != nil {
 		if errors.Is(err, ErrFrozen) {
-			return s.deny(ctx, in, claims.Subject, now, "freeze_gate", "the kill switch engaged before this authorization was admitted")
+			return s.deny(ctx, in, subject, now, "freeze_gate", "the kill switch engaged before this authorization was admitted")
 		}
 		return Record{}, err
 	}

@@ -447,6 +447,20 @@ func TestOperatorManualSettlementBindsActor(t *testing.T) {
 	require.Equal(t, "operator:verified", adapter.command.Attestation.ActorIdentity)
 }
 
+func TestAuthorizedOperatorSettlementUsesStoredApprovedIntentWithoutAgentToken(t *testing.T) {
+	adapter := &adapter{name: "base-usdc", settleResult: settledResult()}
+	fixture := newFixture(t, adapter)
+	fixture.service.SetOperatorMandates(operatorMandateResolver{value: mandate.Mandate{
+		ID: "mandate-1", Authorizer: "operator:1", AgentSubject: "agent:1", AgentRunID: "run-1",
+	}})
+	input := fixture.input
+	input.IdentityToken, input.OperationToken = "", ""
+	value, err := fixture.service.SettleAuthorizedOperator(context.Background(), authorization.OperatorPrincipal{Subject: "operator:1"}, input)
+	require.NoError(t, err)
+	require.Equal(t, settlement.OutcomeSettled, value.Outcome)
+	require.EqualValues(t, 1, adapter.settleCalls.Load())
+}
+
 type fixture struct {
 	now            time.Time
 	db             *sql.DB
@@ -458,6 +472,12 @@ type fixture struct {
 	registry       *rail.Registry
 	clock          *schedule.Fake
 	input          settlement.SettleInput
+}
+
+type operatorMandateResolver struct{ value mandate.Mandate }
+
+func (r operatorMandateResolver) RequireLive(context.Context, string) (mandate.Mandate, error) {
+	return r.value, nil
 }
 
 func newFixture(t *testing.T, railAdapter *adapter) fixture {

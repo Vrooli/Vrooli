@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.local/schemas/experience-advisory-findings.v1.schema.json",
+  "title": "Observed behavior advisory findings",
+  "type": "object",
+  "required": ["schemaVersion", "findings"],
+  "properties": {
+    "schemaVersion": { "const": "experience-advisory-findings/v1" },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["schemaVersion", "id", "severity", "kind", "title", "evidence", "suggestion", "reportDigest", "advisory"],
+        "properties": {
+          "schemaVersion": { "const": "experience-advisory-finding/v1" },
+          "id": { "type": "string", "minLength": 1 },
+          "severity": { "enum": ["high", "medium", "low"] },
+          "kind": {
+            "enum": [
+              "dead_click", "rage_click", "repeated_action", "leave_and_return",
+              "dwell_without_action",
+              "field_abandonment", "undeclared_flow", "declared_unobserved",
+              "repeated_flow", "capability_unobserved", "runtime_error"
+            ]
+          },
+          "title": { "type": "string" },
+          "evidence": { "type": "string" },
+          "suggestion": { "type": "string" },
+          "route": { "type": "string" },
+          "element": { "type": "object" },
+          "reportDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+          "advisory": { "const": true }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": false
+}

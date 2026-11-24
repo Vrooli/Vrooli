@@ -20,6 +20,8 @@ func (h *Handlers) guardCommand() cliapp.Command {
 		Name:        "hook-guard",
 		Description: "Decide one PreToolUse Bash event through the shared agent policy runtime (hook entrypoint)",
 		Usage:       "resource-claude-code permissions hook-guard [deny-pattern]...",
+		// Runs inside Claude Code's PreToolUse time limit: never wait on a rebuild.
+		LatencyBound: true,
 		Run: func(args []string) error {
 			stdin, stdout, stderr := h.Stdin, h.Stdout, h.Stderr
 			if stdin == nil {

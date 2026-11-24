@@ -5,20 +5,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os/exec"
 	"strings"
 	"time"
+
+	"web-search/internal/synthesisruntime"
 )
 
 // DefaultSynthesisRole is the Ollama role used for L1 snippet synthesis.
-const DefaultSynthesisRole = "summarize.default"
+const DefaultSynthesisRole = synthesisruntime.DefaultRole
 
 // abstainNote is the explicit text emitted when synthesis abstains.
 const abstainNote = "sources insufficient or disagree"
 
 // defaultSynthesisTimeout bounds a single L1 synthesis round-trip. Matches
 // L2's budget so cold local model loads do not immediately fail synthesis.
-const defaultSynthesisTimeout = 60 * time.Second
+const defaultSynthesisTimeout = synthesisruntime.DefaultTimeout
 
 // Synthesizer is the L1 seam: an optional LLM pass over the snippets already
 // returned by L0. It NEVER fetches new content — it summarizes the snippets in
@@ -37,19 +38,15 @@ type Synthesizer interface {
 // returned snippets and forbids the model from using outside knowledge.
 type OllamaSynthesizer struct {
 	Role    string
-	Runner  func(ctx context.Context, args []string, stdin string) ([]byte, error)
+	Runner  synthesisruntime.Runner
 	Timeout time.Duration
 }
 
 // NewOllamaSynthesizer constructs an Ollama-backed synthesizer. Empty role
 // falls back to the default role.
 func NewOllamaSynthesizer(role string) *OllamaSynthesizer {
-	role = strings.TrimSpace(role)
-	if role == "" {
-		role = DefaultSynthesisRole
-	}
 	return &OllamaSynthesizer{
-		Role:    role,
+		Role:    synthesisruntime.NormalizeRole(role),
 		Timeout: defaultSynthesisTimeout,
 	}
 }
@@ -95,20 +92,7 @@ func (s *OllamaSynthesizer) Synthesize(ctx context.Context, query string, result
 }
 
 func (s *OllamaSynthesizer) run(ctx context.Context, args []string, stdin string) ([]byte, error) {
-	if s.Runner != nil {
-		return s.Runner(ctx, args, stdin)
-	}
-	// #nosec G204 -- fixed executable and argument vector; query/source text travels only on stdin, never through a shell.
-	cmd := exec.CommandContext(ctx, "resource-ollama", args...)
-	cmd.Stdin = strings.NewReader(stdin)
-	out, err := cmd.Output()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok && len(exitErr.Stderr) > 0 {
-			return nil, fmt.Errorf("%w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
-		}
-		return nil, err
-	}
-	return out, nil
+	return synthesisruntime.Run(ctx, s.Runner, args, stdin)
 }
 
 // abstain returns the canonical abstaining synthesis.
@@ -140,7 +124,7 @@ func buildSynthesisPrompt(query string, results []Result) string {
 // abstain contract, and maps citation indices back to results. An unparseable
 // or uncited reply abstains rather than surfacing an ungrounded answer.
 func parseSynthesisReply(raw string, results []Result) *Synthesis {
-	obj := firstJSONObject(raw)
+	obj := synthesisruntime.FirstJSONObject(raw)
 	if obj == "" {
 		return abstain()
 	}
@@ -171,37 +155,6 @@ func parseSynthesisReply(raw string, results []Result) *Synthesis {
 		return abstain()
 	}
 	return &Synthesis{Text: strings.TrimSpace(reply.Text), Citations: cites}
-}
-
-// firstJSONObject returns the first balanced {…} object in s, ignoring braces
-// inside string literals. Empty string when none is found.
-func firstJSONObject(s string) string {
-	start := strings.Index(s, "{")
-	if start == -1 {
-		return ""
-	}
-	depth, inStr, escaped := 0, false, false
-	for i := start; i < len(s); i++ {
-		c := s[i]
-		switch {
-		case escaped:
-			escaped = false
-		case c == '\\' && inStr:
-			escaped = true
-		case c == '"':
-			inStr = !inStr
-		case inStr:
-			// inside a string literal: ignore structural chars
-		case c == '{':
-			depth++
-		case c == '}':
-			depth--
-			if depth == 0 {
-				return s[start : i+1]
-			}
-		}
-	}
-	return ""
 }
 
 // Compile-time guarantee that the production synthesizer satisfies the seam.

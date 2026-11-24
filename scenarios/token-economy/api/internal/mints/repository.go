@@ -8,14 +8,9 @@ import (
 	"fmt"
 	"math"
 	"time"
-)
 
-type SQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
-}
+	"github.com/vrooli/api-core/database"
+)
 
 type Repository interface {
 	Create(context.Context, TokenType) (TokenType, error)
@@ -25,9 +20,9 @@ type Repository interface {
 	Mint(context.Context, string, int64) (TokenType, error)
 }
 
-type sqliteRepository struct{ db SQLExecutor }
+type sqliteRepository struct{ db database.SQLTxExecutor }
 
-func NewSQLiteRepository(db SQLExecutor) Repository { return &sqliteRepository{db: db} }
+func NewSQLiteRepository(db database.SQLTxExecutor) Repository { return &sqliteRepository{db: db} }
 
 func (r *sqliteRepository) Create(ctx context.Context, tokenType TokenType) (TokenType, error) {
 	tx, err := r.db.BeginTx(ctx, nil)

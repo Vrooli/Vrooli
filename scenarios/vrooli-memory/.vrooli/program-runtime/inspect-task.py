@@ -1,5 +1,4 @@
 """Shared task entry point. Runtime owns durable execution and recovery."""
-import json
 inputs = program.inputs()
 envelope = {"program": "vrooli-memory.inspect-task", "version": "1", "status": "failed", "phase": "report", "signals": {}, "errors": [], "evidence": []}
 try:
@@ -20,4 +19,4 @@ try:
     envelope.update(status="ok", signals={"task": record})
 except Exception as exc:
     envelope["errors"] = [{"class": "task_unavailable", "where": "runtime", "detail": str(exc)[:240]}]
-print(json.dumps(envelope))
+program.report(envelope)

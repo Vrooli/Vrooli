@@ -95,6 +95,13 @@ class ProgramFixture:
     def inputs(self):
         return self.namespace["inputs"]
 
+    def envelope(self, name, version, phase="validate", inputs=None):
+        envelope = {"program": name, "version": version, "phase": phase,
+                    "inputs": inputs or {}, "status": "ok", "signals": {},
+                    "errors": [], "evidence": []}
+        self.namespace["envelope"] = envelope
+        return envelope
+
     def fail(self, status, klass, detail, where):
         envelope = self.namespace.get("envelope")
         if isinstance(envelope, dict):
@@ -109,6 +116,9 @@ class ProgramFixture:
                 return
             state = states[state]()
         raise AssertionError("program did not reach its report boundary")
+
+    def report(self, envelope):
+        print(json.dumps(envelope, ensure_ascii=True, allow_nan=False))
 
     def classify(self, exc):
         if isinstance(exc, (NameError, AttributeError)):
@@ -333,7 +343,7 @@ class CompareTests(unittest.TestCase):
         self.assertEqual(mem.calls[0][1]["from"], first["inputs"]["from"])
         self.assertEqual(mem.calls[0][1]["to"], first["inputs"]["to"])
 
-    def test_seven_rows_multiple_cohorts_zero_and_unknown(self):
+    def test_eight_rows_multiple_cohorts_zero_and_unknown(self):
         mem = Memory()
         mem.cohorts = [{"operation": "inspect", "contextKey": "a", "attempts": 1,
                         "appliedAdvice": 2},
@@ -342,7 +352,7 @@ class CompareTests(unittest.TestCase):
         result = run("compare-outcomes", {"scope": "test", "from": "2026-01-01T00:00:00Z", "to": "2026-01-02T00:00:00Z", "operation": "inspect", "context_key": ""}, mem)
         self.assertEqual(result["status"], "ok")
         rows = {row["row"]: row for row in result["signals"]["rows"]}
-        self.assertEqual(len(rows), 7)
+        self.assertEqual(len(rows), 8)
         self.assertEqual(rows["failure-recurrence"]["reading"]["cohorts"][0]["failed"], 0)
         cohorts = rows["agent-round-trips"]["reading"]["cohorts"]
         self.assertIsNone(cohorts[0]["medianToolRoundTrips"])
@@ -352,6 +362,41 @@ class CompareTests(unittest.TestCase):
         self.assertEqual(result["signals"]["aggregate"]["advice"]["rejected"], 1)
         self.assertEqual(mem.calls[0][1]["rows"], "cohorts")
         self.assertEqual(mem.calls[0][1]["operation"], "inspect")
+
+    def test_assertion_integrity_distinguishes_regression_unmeasured_and_measured(self):
+        mem = Memory()
+        mem.cohorts = [
+            {"operation": "inspect", "contextKey": "regression", "attempts": 1,
+             "assertionsRequiredSamples": 1, "assertionsCompletedSamples": 1,
+             "assertionsIncompleteAttempts": 1, "assertionsUnmeasuredAttempts": 0,
+             "minAssertionsRequired": 3, "maxAssertionsRequired": 3},
+            {"operation": "inspect", "contextKey": "unknown", "attempts": 1},
+            {"operation": "inspect", "contextKey": "changed", "attempts": 2,
+             "assertionsRequiredSamples": 2, "assertionsCompletedSamples": 2,
+             "assertionsIncompleteAttempts": 0, "assertionsUnmeasuredAttempts": 0,
+             "medianAssertionsRequired": 3.0, "medianAssertionsCompleted": 3.0,
+             "minAssertionsRequired": 2, "maxAssertionsRequired": 4},
+            {"operation": "inspect", "contextKey": "combined", "attempts": 2,
+             "assertionsRequiredSamples": 2, "assertionsCompletedSamples": 2,
+             "assertionsIncompleteAttempts": 1, "assertionsUnmeasuredAttempts": 0,
+             "medianAssertionsRequired": 3.0, "medianAssertionsCompleted": 2.0,
+             "minAssertionsRequired": 2, "maxAssertionsRequired": 4},
+            {"operation": "inspect", "contextKey": "measured", "attempts": 1,
+             "assertionsRequiredSamples": 1, "assertionsCompletedSamples": 1,
+             "assertionsIncompleteAttempts": 0, "assertionsUnmeasuredAttempts": 0,
+             "medianAssertionsRequired": 0.0, "medianAssertionsCompleted": 0.0,
+             "minAssertionsRequired": 0, "maxAssertionsRequired": 0},
+        ]
+        result = run("compare-outcomes", {"scope": "test"}, mem)
+        self.assertEqual(result["status"], "ok")
+        row = next(row for row in result["signals"]["rows"] if row["row"] == "assertion-integrity")
+        statuses = {cohort["context"]: cohort["integrity"] for cohort in row["reading"]["cohorts"]}
+        self.assertEqual(statuses, {"regression": "regression", "unknown": "unmeasured",
+                                    "changed": "unmeasured", "combined": "regression",
+                                    "measured": "measured"})
+        combined = next(cohort for cohort in row["reading"]["cohorts"] if cohort["context"] == "combined")
+        self.assertEqual(combined["integrity_reasons"], ["incomplete_checks", "required_count_changed"])
+        self.assertTrue(result["signals"]["reliability"]["reliable"])
 
     def test_scan_unreliability_survives(self):
         mem = Memory()

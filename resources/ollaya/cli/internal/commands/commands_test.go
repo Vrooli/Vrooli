@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -66,23 +67,32 @@ func handlers(t *testing.T, env map[string]string, stdin string) (*Handlers, *by
 		Now: func() time.Time { return time.Date(2026, 11, 11, 20, 0, 0, 0, time.UTC) },
 		// Placement is a host fact; keep the fixture hermetic. Tests that need a
 		// specific device or admission verdict inject their own seams.
-		ResidentDevice: func(context.Context, string) (string, bool, error) { return "", false, nil },
-		HostPlacement:  func(context.Context) (string, error) { return "cuda", nil },
-		CapacityAdmit:  func(context.Context, int64) (bool, string, error) { return true, "", nil },
+		Residents:     func(context.Context) ([]upstream.ResidentModel, error) { return nil, nil },
+		DaemonDevice:  func(context.Context) (string, error) { return "cuda", nil },
+		CapacityAdmit: func(context.Context, string, int64) (bool, string, error) { return true, "", nil },
 	}, &stdout, &stderr
 }
 
-// requireModelPlacement is the policy boundary that keeps Winnow off the CPU.
-// It must refuse with a retryable typed reason, never run the slow load, and
-// never fail a request just because a probe was unavailable.
-func TestRequireModelPlacementRefusesGPUModelsOnTheCPU(t *testing.T) {
-	_, file, _, _ := runtime.Caller(0)
-	p, err := policy.Load(filepath.Join(filepath.Dir(file), "..", "..", "..", "model-policy.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
+// requireModelPlacement is the policy boundary that keeps a model that cannot
+// fit from paying a load. It must refuse with a retryable typed reason, never
+// run the slow load, and never fail a request just because a probe was
+// unavailable.
+func TestRequireModelPlacement(t *testing.T) {
+	p := shippedModelPolicy(t)
 	winnow := policy.Resolution{Role: "decide.local.accurate", Locality: policy.LocalityLocal, Model: "winnow:e4b"}
-	laya := policy.Resolution{Role: "decide.local", Locality: policy.LocalityLocal, Model: "laya:en"}
+	kev := policy.Resolution{Role: "decide.local.kev", Locality: policy.LocalityLocal, Model: "kev:4b"}
+	layaEN := policy.Resolution{Role: "decide.local", Locality: policy.LocalityLocal, Model: "laya:en"}
+	layaRouter := policy.Resolution{Role: "decide.local", Locality: policy.LocalityLocal, Model: "laya"}
+	gib := int64(1 << 30)
+
+	idle := func(context.Context) ([]upstream.ResidentModel, error) { return nil, nil }
+	cuda := func(context.Context) (string, error) { return "cuda", nil }
+	admit := func(ok bool, reason string) func(context.Context, string, int64) (bool, string, error) {
+		return func(context.Context, string, int64) (bool, string, error) { return ok, reason, nil }
+	}
+	resident := func(models ...upstream.ResidentModel) func(context.Context) ([]upstream.ResidentModel, error) {
+		return func(context.Context) ([]upstream.ResidentModel, error) { return models, nil }
+	}
 
 	cases := []struct {
 		name       string
@@ -90,71 +100,50 @@ func TestRequireModelPlacementRefusesGPUModelsOnTheCPU(t *testing.T) {
 		h          *Handlers
 		wantCode   string
 	}{
-		{
-			name:       "Given a CPU-resident Winnow, Then it is refused before inference",
-			resolution: winnow,
-			h: &Handlers{ResidentDevice: func(context.Context, string) (string, bool, error) {
-				return "cpu", true, nil
-			}},
-			wantCode: upstream.CodeInsufficientVRAM,
-		},
-		{
-			name:       "Given a GPU-resident Winnow, Then it proceeds",
-			resolution: winnow,
-			h: &Handlers{ResidentDevice: func(context.Context, string) (string, bool, error) {
-				return "cuda:0", true, nil
-			}},
-		},
-		{
-			name:       "Given a non-resident Winnow on a CPU daemon, Then it is refused",
-			resolution: winnow,
-			h: &Handlers{
-				ResidentDevice: func(context.Context, string) (string, bool, error) { return "", false, nil },
-				HostPlacement:  func(context.Context) (string, error) { return "cpu", nil },
-			},
-			wantCode: upstream.CodeInsufficientVRAM,
-		},
-		{
-			name:       "Given a non-resident Winnow the broker will not admit, Then it is refused with the reason",
-			resolution: winnow,
-			h: &Handlers{
-				ResidentDevice: func(context.Context, string) (string, bool, error) { return "", false, nil },
-				HostPlacement:  func(context.Context) (string, error) { return "cuda", nil },
-				CapacityAdmit: func(context.Context, int64) (bool, string, error) {
-					return false, "insufficient vram: floor exceeds available", nil
-				},
-			},
-			wantCode: upstream.CodeInsufficientVRAM,
-		},
-		{
-			name:       "Given a non-resident Winnow the broker admits, Then it proceeds",
-			resolution: winnow,
-			h: &Handlers{
-				ResidentDevice: func(context.Context, string) (string, bool, error) { return "", false, nil },
-				HostPlacement:  func(context.Context) (string, error) { return "cuda", nil },
-				CapacityAdmit:  func(context.Context, int64) (bool, string, error) { return true, "", nil },
-			},
-		},
-		{
-			name:       "Given unavailable probes, Then placement fails open",
-			resolution: winnow,
-			h: &Handlers{
-				ResidentDevice: func(context.Context, string) (string, bool, error) { return "", false, errors.New("offline") },
-				HostPlacement:  func(context.Context) (string, error) { return "", errors.New("offline") },
-				CapacityAdmit:  func(context.Context, int64) (bool, string, error) { return false, "", errors.New("offline") },
-			},
-		},
-		{
-			name:       "Given Laya on the CPU, Then CPU is allowed",
-			resolution: laya,
-			h: &Handlers{ResidentDevice: func(context.Context, string) (string, bool, error) {
-				return "cpu", true, nil
-			}},
-		},
+		{"a CPU-resident GPU-only model is refused before inference", winnow,
+			&Handlers{Residents: resident(upstream.ResidentModel{Name: "winnow:e4b", Device: "cpu"})}, upstream.CodeInsufficientVRAM},
+		{"a GPU-resident GPU-only model proceeds without asking the broker", winnow,
+			&Handlers{Residents: resident(upstream.ResidentModel{Name: "winnow:e4b", Device: "cuda:0", SizeVRAM: 9 * gib}),
+				CapacityAdmit: func(context.Context, string, int64) (bool, string, error) {
+					t.Fatal("broker asked for a resident model")
+					return true, "", nil
+				}}, ""},
+		{"a GPU-only model on a CPU daemon is refused", winnow,
+			&Handlers{Residents: idle, DaemonDevice: func(context.Context) (string, error) { return "cpu", nil }}, upstream.CodeInsufficientVRAM},
+		{"a GPU-only model the broker will not admit is refused with the reason", winnow,
+			&Handlers{Residents: idle, DaemonDevice: cuda, CapacityAdmit: admit(false, "insufficient vram: floor exceeds available")}, upstream.CodeInsufficientVRAM},
+		{"a GPU-only model the broker admits proceeds", winnow,
+			&Handlers{Residents: idle, DaemonDevice: cuda, CapacityAdmit: admit(true, "")}, ""},
+		{"unavailable probes fail open", winnow,
+			&Handlers{
+				Residents:     func(context.Context) ([]upstream.ResidentModel, error) { return nil, errors.New("offline") },
+				DaemonDevice:  func(context.Context) (string, error) { return "", errors.New("offline") },
+				CapacityAdmit: func(context.Context, string, int64) (bool, string, error) { return false, "", errors.New("offline") },
+			}, ""},
+		{"an any-device model that does not fit the accelerator is refused", layaEN,
+			&Handlers{Residents: idle, DaemonDevice: cuda, CapacityAdmit: admit(false, "insufficient vram")}, upstream.CodeInsufficientVRAM},
+		{"an any-device model on the CPU daemon needs host memory, not VRAM", layaEN,
+			&Handlers{Residents: idle, DaemonDevice: func(context.Context) (string, error) { return "cpu", nil },
+				CapacityAdmit: func(_ context.Context, kind string, _ int64) (bool, string, error) {
+					return kind != "ram", "swap pressure", nil
+				}}, upstream.CodeInsufficientMemory},
+		{"an any-device model on the CPU daemon proceeds when memory fits", layaEN,
+			&Handlers{Residents: idle, DaemonDevice: func(context.Context) (string, error) { return "cpu", nil },
+				CapacityAdmit: func(_ context.Context, kind string, _ int64) (bool, string, error) { return kind == "ram", "", nil }}, ""},
+		{"a CPU-resident any-device model is allowed", layaEN,
+			&Handlers{Residents: resident(upstream.ResidentModel{Name: "laya:en", Device: "cpu"})}, ""},
+		{"a router is resident when one of its targets is", layaRouter,
+			&Handlers{Residents: resident(upstream.ResidentModel{Name: "laya:multilingual", Device: "cuda:0", SizeVRAM: gib}),
+				CapacityAdmit: func(context.Context, string, int64) (bool, string, error) {
+					t.Fatal("broker asked for a resident router target")
+					return true, "", nil
+				}}, ""},
+		{"a router that does not fit is refused", layaRouter,
+			&Handlers{Residents: idle, DaemonDevice: cuda, CapacityAdmit: admit(false, "insufficient vram")}, upstream.CodeInsufficientVRAM},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := tc.h.requireModelPlacement(context.Background(), p, tc.resolution)
+			err := requirePlacement(tc.h, p, tc.resolution)
 			if tc.wantCode == "" {
 				if err != nil {
 					t.Fatalf("requireModelPlacement = %v, want nil", err)
@@ -167,6 +156,68 @@ func TestRequireModelPlacementRefusesGPUModelsOnTheCPU(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("resident models are counted in the ask and idle ones unloaded largest first until it fits", func(t *testing.T) {
+		need := p.Models["kev:4b"].Placement.VRAMBytes
+		var asked []int64
+		var unloaded []string
+		residents := []upstream.ResidentModel{
+			{Name: "laya:en", Device: "cuda:0", SizeVRAM: 1 * gib},
+			{Name: "winnow:e4b", Device: "cuda:0", SizeVRAM: 9 * gib},
+		}
+		h := &Handlers{
+			Residents:    func(context.Context) ([]upstream.ResidentModel, error) { return residents, nil },
+			DaemonDevice: cuda,
+			CapacityAdmit: func(_ context.Context, kind string, bytes int64) (bool, string, error) {
+				asked = append(asked, bytes)
+				// Room for the model and the small resident, not for both residents.
+				return bytes <= need+gib, "insufficient vram", nil
+			},
+			Unload: func(_ context.Context, name string) error { unloaded = append(unloaded, name); return nil },
+		}
+		if err := requirePlacement(h, p, kev); err != nil {
+			t.Fatalf("kev must fit once winnow is unloaded: %v", err)
+		}
+		if len(unloaded) != 1 || unloaded[0] != "winnow:e4b" {
+			t.Fatalf("unloaded = %v, want only the largest resident", unloaded)
+		}
+		if len(asked) != 2 || asked[0] != need+10*gib || asked[1] != need+1*gib {
+			t.Fatalf("asked = %v, want the footprint plus every resident, then plus the one that remains", asked)
+		}
+	})
+
+	t.Run("a resident that cannot be unloaded refuses the load and names why", func(t *testing.T) {
+		h := &Handlers{
+			Residents:     resident(upstream.ResidentModel{Name: "winnow:e4b", Device: "cuda:0", SizeVRAM: 9 * gib}),
+			DaemonDevice:  cuda,
+			CapacityAdmit: admit(false, "insufficient vram"),
+			Unload:        func(context.Context, string) error { return errors.New("daemon refused keep_alive 0") },
+		}
+		err := requirePlacement(h, p, kev)
+		var providerErr *upstream.ProviderError
+		if !errors.As(err, &providerErr) || providerErr.Code != upstream.CodeInsufficientVRAM ||
+			!strings.Contains(providerErr.Message, "winnow:e4b") || !strings.Contains(providerErr.Message, "daemon refused keep_alive 0") {
+			t.Fatalf("err = %v, want insufficient_vram naming the resident and the unload failure", err)
+		}
+	})
+
+	t.Run("a model that cannot fit even alone is refused after unloading what it could", func(t *testing.T) {
+		var unloaded []string
+		h := &Handlers{
+			Residents:     resident(upstream.ResidentModel{Name: "laya:en", Device: "cuda:0", SizeVRAM: gib}),
+			DaemonDevice:  cuda,
+			CapacityAdmit: admit(false, "other claims hold the rest"),
+			Unload:        func(_ context.Context, name string) error { unloaded = append(unloaded, name); return nil },
+		}
+		err := requirePlacement(h, p, kev)
+		var providerErr *upstream.ProviderError
+		if !errors.As(err, &providerErr) || providerErr.Code != upstream.CodeInsufficientVRAM || !strings.Contains(providerErr.Message, "other claims hold the rest") {
+			t.Fatalf("err = %v, want insufficient_vram carrying the broker's reason", err)
+		}
+		if len(unloaded) != 1 {
+			t.Fatalf("unloaded = %v, want the one resident released before giving up", unloaded)
+		}
+	})
 }
 
 func TestRolesReportLocalityAndUnconfiguredHostedRoles(t *testing.T) {
@@ -233,12 +284,13 @@ func TestResolveAndDecideLocalRole(t *testing.T) {
 	if resolved["role"] != "decide.local" || resolved["model"] != "laya" || resolved["locality"] != "local" ||
 		resolved["schema_version"] != shipped.SchemaVersion || resolved["policy_sha256"] != shipped.LoadedSHA256 ||
 		resolved["expected_artifact_digest"] != shipped.Models["laya"].Digest || identity["digest"] != shipped.Models["laya"].Digest ||
-		rights["classification"] != string(sharedpolicy.RightsUnverified) || rights["sha256"] != shipped.Models["laya"].Digest {
+		rights["classification"] != string(sharedpolicy.RightsBehavioralRestrictions) || rights["sha256"] != shipped.Models["laya"].Digest {
 		t.Fatalf("resolve = %v", resolved)
 	}
 
 	// A raw local command cannot use the pinned manifest alone as rights
-	// authority; it must fail before the daemon's /api/decide endpoint.
+	// authority; a model whose rights are unknown must fail before the
+	// daemon's /api/decide endpoint.
 	var tagsCalls, decideCalls int
 	observed := observedDaemon(t, map[string]string{
 		"laya:latest":       shipped.Models["laya"].Digest,
@@ -248,29 +300,45 @@ func TestResolveAndDecideLocalRole(t *testing.T) {
 	h, _, stderr := handlers(t, map[string]string{"OLLAYA_URL": observed.URL}, `{"state":"x","questions":{"q":{"type":"noul"}}}`)
 	unknownContext := sharedpolicy.RightsContext{ID: "fixture", Version: "v1", RevenueStatus: "pre_revenue", AsOf: "2026-11-11", Source: "test_fixture"}
 	h.RightsContext = func(context.Context) (sharedpolicy.RightsContext, error) { return unknownContext, nil }
-	err := h.Decide(localDecisionArgs(t, shippedModelPolicyPath(t), "decide.local", "laya", shipped.Models["laya"].Digest, unknownContext))
+	err := h.Decide(localDecisionArgs(t, shippedModelPolicyPath(t), "decide.local.accurate", "winnow:e4b", shipped.Models["winnow:e4b"].Digest, unknownContext))
 	if err == nil || !strings.Contains(stderr.String(), "not currently allowed (unknown") || tagsCalls != 0 || decideCalls != 0 {
 		t.Fatalf("err=%v stderr=%q tagsCalls=%d decideCalls=%d; want shipped unknown rights refusal before model/provider endpoint", err, stderr.String(), tagsCalls, decideCalls)
 	}
 }
 
-func TestShippedLayaRightsRecordOnlyVerifiedProvenanceAndRemainsUnknown(t *testing.T) {
+// Verified Apache-2.0 facts bound to the pinned manifest admit local use under
+// a trusted context, and every unresolved artifact stays an explicit unknown
+// that the evaluator refuses.
+func TestShippedRightsAdmitVerifiedModelsAndRefuseUnknownOnes(t *testing.T) {
 	shipped := shippedModelPolicy(t)
 	contextValue := fixtureRightsContextValue()
-	for _, name := range []string{"laya", "laya:en", "laya:multilingual"} {
-		model := shipped.Models[name]
-		if model.Rights == nil || model.Rights.Classification != sharedpolicy.RightsUnverified ||
-			model.Rights.SHA256 != model.Digest || model.Rights.LicenseID != "Apache-2.0" {
-			t.Fatalf("%s rights facts = %+v; want digest-bound, provenance-only Apache facts classified unknown", name, model.Rights)
+	at := time.Date(2026, 11, 11, 20, 0, 0, 0, time.UTC)
+	for name, model := range shipped.Models {
+		if model.Rights == nil {
+			t.Fatalf("%s has no rights facts", name)
 		}
-		decision := sharedpolicy.EvaluateRights(model.Rights, sharedpolicy.RightsUseLocalInference, contextValue, time.Date(2026, 11, 11, 20, 0, 0, 0, time.UTC))
-		if decision.Status != sharedpolicy.RightsUnknown {
-			t.Fatalf("%s decision = %+v; source facts alone must not authorize use", name, decision)
+		decision := sharedpolicy.EvaluateRights(model.Rights, sharedpolicy.RightsUseLocalInference, contextValue, at)
+		switch model.Rights.Classification {
+		case sharedpolicy.RightsBehavioralRestrictions:
+			if decision.Status != sharedpolicy.RightsAllowed || model.Rights.SHA256 != model.Digest || model.Rights.LicenseID != "Apache-2.0" {
+				t.Errorf("%s decision = %+v rights = %+v; verified Apache facts bound to the manifest must admit local use", name, decision, model.Rights)
+			}
+		case sharedpolicy.RightsUnverified:
+			if decision.Status != sharedpolicy.RightsUnknown || model.Rights.UnverifiedReason == "" {
+				t.Errorf("%s decision = %+v; an unresolved artifact must stay unknown with a reason", name, decision)
+			}
+		default:
+			t.Errorf("%s classification %q is not one the policy ships", name, model.Rights.Classification)
+		}
+	}
+	for _, name := range []string{"laya", "laya:en", "laya:multilingual", "laya:typed-decisions"} {
+		if shipped.Models[name].Rights.Classification != sharedpolicy.RightsBehavioralRestrictions {
+			t.Errorf("%s must be classified from its fetched Apache-2.0 license text", name)
 		}
 	}
 	winnow := shipped.Models["winnow:e4b"].Rights
-	if winnow == nil || winnow.Classification != sharedpolicy.RightsUnverified || winnow.SHA256 != shipped.Models["winnow:e4b"].Digest || winnow.UnverifiedReason == "" {
-		t.Fatalf("Winnow rights = %+v; unresolved Gemma/Apache source conflict must be recorded as an explicit unknown disposition", winnow)
+	if winnow.Classification != sharedpolicy.RightsUnverified {
+		t.Fatalf("Winnow rights = %+v; the unresolved Gemma/Apache source conflict must stay an explicit unknown", winnow)
 	}
 }
 
@@ -551,5 +619,139 @@ func TestPullVerifiesEveryPinnedDigest(t *testing.T) {
 	}
 	if calls != 0 {
 		t.Fatalf("daemon mutation endpoint calls = %d; refused command must stop before pull", calls)
+	}
+}
+
+// Contract C5: `policy roles` is where callers read each local role's limits
+// and placement, so they can size digests and batches from data. A router
+// reports the bounds every one of its targets honours; hosted roles report none.
+func TestRolesExposeModelLimitsAndPlacement(t *testing.T) {
+	h, stdout, _ := handlers(t, nil, "")
+	if err := h.Roles([]string{"--json"}); err != nil {
+		t.Fatal(err)
+	}
+	var report struct {
+		Roles []struct {
+			Role      string
+			Locality  string
+			Limits    *policy.ModelLimits
+			Placement *policy.ModelPlacement
+		}
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatal(err)
+	}
+	shipped := shippedModelPolicy(t)
+	byRole := map[string]int{}
+	for index, role := range report.Roles {
+		byRole[role.Role] = index
+		if role.Locality == policy.LocalityRemote {
+			if role.Limits != nil || role.Placement != nil {
+				t.Errorf("hosted role %s must not claim local limits or placement", role.Role)
+			}
+			continue
+		}
+		if role.Limits == nil || role.Placement == nil {
+			t.Errorf("local role %s reports no limits or placement", role.Role)
+		}
+	}
+	kev := report.Roles[byRole["decide.local.kev"]]
+	if kev.Limits.ContextTokens != shipped.Models["kev:4b"].Limits.ContextTokens || kev.Placement.Device != policy.PlacementDeviceGPU || kev.Placement.KeepAlive == "" {
+		t.Fatalf("decide.local.kev = %+v / %+v, want the policy's declared bounds and residency", kev.Limits, kev.Placement)
+	}
+	fast := report.Roles[byRole["decide.local"]]
+	if fast.Limits.ContextTokens != shipped.EffectiveLimits("laya").ContextTokens {
+		t.Fatalf("decide.local limits = %+v, want the router's effective bounds", fast.Limits)
+	}
+}
+
+func TestResolveCarriesLimitsAndPlacementForLocalRoles(t *testing.T) {
+	shipped := shippedModelPolicy(t)
+	server := daemon(t, map[string]string{"kev:4b": shipped.Models["kev:4b"].Digest})
+	h, stdout, _ := handlers(t, map[string]string{"OLLAYA_URL": server.URL}, "")
+	if err := h.Resolve([]string{"--role", "decide.local.kev", "--json"}); err != nil {
+		t.Fatal(err)
+	}
+	var resolved struct {
+		Limits    policy.ModelLimits
+		Placement policy.ModelPlacement
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &resolved); err != nil {
+		t.Fatal(err)
+	}
+	if resolved.Limits != *shipped.Models["kev:4b"].Limits || resolved.Placement != *shipped.Models["kev:4b"].Placement {
+		t.Fatalf("resolve = %+v, want the pinned model's declared bounds", resolved)
+	}
+}
+
+// A role whose model cannot fit right now must not resolve, so the gateway
+// skips it before spending rights or load work on it.
+func TestResolveRefusesARoleThatCannotFitWithoutPayingALoad(t *testing.T) {
+	shipped := shippedModelPolicy(t)
+	server := daemon(t, map[string]string{"kev:4b": shipped.Models["kev:4b"].Digest})
+	h, _, stderr := handlers(t, map[string]string{"OLLAYA_URL": server.URL}, "")
+	h.CapacityAdmit = func(context.Context, string, int64) (bool, string, error) { return false, "insufficient vram", nil }
+	if err := h.Resolve([]string{"--role", "decide.local.kev", "--json"}); err == nil {
+		t.Fatal("a role that cannot fit must not resolve")
+	}
+	if !strings.Contains(stderr.String(), upstream.ProviderErrorMarker+`{"code":"insufficient_vram"`) {
+		t.Fatalf("stderr = %q, want the typed insufficient_vram marker", stderr.String())
+	}
+}
+
+// Resolving a role must never evict a warm model: rights may still refuse the
+// request, and the eviction belongs to the dispatch that will use the room.
+func TestResolveTimePlacementCheckNeverUnloadsAResident(t *testing.T) {
+	p := shippedModelPolicy(t)
+	gib := int64(1 << 30)
+	need := p.Models["kev:4b"].Placement.VRAMBytes
+	var asked []int64
+	h := &Handlers{
+		Residents: func(context.Context) ([]upstream.ResidentModel, error) {
+			return []upstream.ResidentModel{{Name: "winnow:e4b", Device: "cuda:0", SizeVRAM: 9 * gib}}, nil
+		},
+		DaemonDevice: func(context.Context) (string, error) { return "cuda", nil },
+		CapacityAdmit: func(_ context.Context, _ string, bytes int64) (bool, string, error) {
+			asked = append(asked, bytes)
+			return bytes <= need+gib, "insufficient vram", nil
+		},
+		Unload: func(context.Context, string) error { t.Fatal("a resolve-time check must not unload"); return nil },
+	}
+	kev := policy.Resolution{Role: "decide.local.kev", Locality: policy.LocalityLocal, Model: "kev:4b"}
+	if err := h.checkModelPlacement(context.Background(), p, kev); err != nil {
+		t.Fatalf("kev fits once winnow is released, so the check must pass: %v", err)
+	}
+	if want := p.Models["kev:4b"].Placement.VRAMBytes; len(asked) != 1 || asked[0] != want {
+		t.Fatalf("asked = %v, want the footprint alone (%d): the broker already excludes Ollaya's own holdings", asked, want)
+	}
+}
+
+// vanishingEntry is a directory entry the daemon renamed away between the
+// directory listing and the inspection, as a finishing download does.
+type vanishingEntry struct{ fs.DirEntry }
+
+func (vanishingEntry) Info() (fs.FileInfo, error) {
+	return nil, &fs.PathError{Op: "lstat", Path: "x", Err: fs.ErrNotExist}
+}
+
+func TestModelStoreSampleToleratesEntriesThatVanishMidWalk(t *testing.T) {
+	if size, err := storedEntryBytes("blobs/x.partial", vanishingEntry{}); err != nil || size != 0 {
+		t.Fatalf("a renamed-away temp file = %d, %v; want zero bytes and no error, because an aborted sample cancels the pull it accounts for", size, err)
+	}
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "blob"), make([]byte, 1234), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := modelDirectoryBytes(root); err != nil || got != 1234 {
+		t.Fatalf("modelDirectoryBytes = %d, %v; want the regular file's bytes", got, err)
+	}
+	if err := os.Symlink("/etc/hostname", filepath.Join(root, "escape")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := modelDirectoryBytes(root); err == nil {
+		t.Fatal("a symlink in the store must still be refused")
+	}
+	if _, err := modelDirectoryBytes(filepath.Join(root, "missing")); err == nil {
+		t.Fatal("a missing store root must still be an error")
 	}
 }

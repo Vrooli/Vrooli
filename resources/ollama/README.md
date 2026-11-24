@@ -120,9 +120,10 @@ to `resource-ollama ensure --config-base64 <base64-json>`. The ensure verb:
 2. Emits warnings for deprecated `model` usage and direct `models` exceptions.
 3. Lists installed tags via `GET /api/tags` (fast, ~10ms).
 4. Computes the missing set.
-5. Preserves installed models without a pull. Missing-model pulls require a
-   shared disk-job admission before the request starts; the production adapter
-   is not yet wired, so `ensure` currently refuses when any model is missing.
+5. Preserves installed models without a pull. A missing-model pull requires a
+   shared disk-job admission before the request starts; the production CLI
+   adapter reserves the model-store peak and binds acquisition to the managed
+   daemon lifecycle lock.
 6. An admitted pull must finish its stream and verify installed inventory and
    cleanup before the disk lease can complete. Scenario startup continues to
    apply the configured `startup_policy` to an `ensure` refusal.
@@ -230,6 +231,16 @@ chat, 256 for routing/rerank, 4096 for code, and 8192 for writing). An explicit
 when the larger budget is intentional.
 
 ## Capacity planning
+
+OpenCode's `local-model select` flow uses Ollama-owned `capacity
+reserve-model`, `confirm-model-reservation`, and `release-model-reservation`
+commands to hold a VRAM claim for the target model and currently resident
+models across startup, acquisition, and the first live inference checks. The
+reservation owner asks the shared capacity broker for strict no-reclaim
+admission before startup. The managed resource starts with that same exact
+reservation, then the capacity companion reconciles the claim to observed
+`/api/ps` residency after readiness succeeds. Reservations expire automatically
+if the preparing client exits before cleanup.
 
 Use the planner before adding a new Ollama dependency or when reviewing model
 churn across scenarios:

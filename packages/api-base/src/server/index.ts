@@ -111,6 +111,27 @@ export {
   PHASE,
 } from './perf.js'
 
+// Local experience telemetry (agent injection, ingest, status, analysis)
+export {
+  createExperienceTelemetryRouter,
+  injectExperienceTelemetry,
+  installExperienceTelemetry,
+  resolveExperienceTelemetry,
+  shouldInstrumentRequest,
+  analyzeExperience,
+  buildSessions,
+  readSessions,
+  renderFrictionMarkdown,
+  computeReportDigest,
+  createObservedEvidence,
+  createPacketObservedBlock,
+  deriveAdvisoryFindings,
+  deriveCorrectionCandidates,
+  validateReport,
+  experienceDataDir,
+  experienceScenarioName,
+} from '../experience/index.js'
+
 // Re-export types that are useful for server code
 export type {
   ProxyInfo,

@@ -83,8 +83,32 @@ make release-stage \
   TARGET=linux-amd64 \
   ROOT=/path/to/extracted/sherpa-onnx-v1.13.2-linux-x64-shared \
   OUT=/secure/release-stage/sherpa \
-  PUBLICATION_URL=https://artifacts.example.invalid/vrooli/sherpa-onnx
+  PUBLICATION_URL="$SHERPA_RELEASE_PUBLICATION_URL" \
+  UPSTREAM_PROVENANCE="$SHERPA_RELEASE_UPSTREAM_PROVENANCE"
 ```
+
+Before using this signed path, set `SHERPA_RELEASE_PUBLICATION_URL` and
+`SHERPA_RELEASE_UPSTREAM_PROVENANCE` to values supplied and verified by the
+release owner. The publication URL must be an HTTPS base URL. Provenance must
+identify the verified upstream runtime/source and Vrooli adapter source used
+for this target; do not substitute a placeholder or a locally inferred claim.
+The release authority status command reports whether the local signing key is
+configured, but it does not provide these owner decisions.
+
+For local build inspection before release-owner details are available, prepare
+an unsigned stage explicitly:
+
+```bash
+make release-stage \
+  TARGET=linux-amd64 \
+  ROOT=/path/to/extracted/sherpa-onnx-v1.13.2-linux-x64-shared \
+  OUT=/tmp/sherpa-stage \
+  SIGN=0
+make validate-stage OUT=/tmp/sherpa-stage
+```
+
+An unsigned stage is local evidence only. It cannot enable managed acquisition
+or change the resource's unsupported platform claims.
 
 `release-stage` refuses a foreign host, rejects a non-empty stage, bundles the
 server with its adjacent runtime libraries, computes the deterministic

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/vrooli/api-core/receiptsigning"
 	"treasury/internal/baseusdc"
 	"treasury/internal/module"
 	"treasury/internal/operatorauth"
@@ -34,7 +35,7 @@ type PortableRecovery interface {
 
 type RotationPhases interface {
 	PreparePortableRotation(context.Context, string, string, string, string) (domain.RotationPreparation, error)
-	CommitPortableRotation(context.Context, string, string, string, string, domain.RotationPublicationReceipt) (domain.Wallet, error)
+	CommitPortableRotationWithAcknowledgement(context.Context, string, string, string, string, string, domain.RotationPublicationReceipt) (domain.Wallet, receiptsigning.SignatureEnvelope, error)
 }
 
 type ReceiptChecker interface {

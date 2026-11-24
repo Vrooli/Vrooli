@@ -1,8 +1,10 @@
 import os
 import json
+import io
 import sys
 import tempfile
 import unittest
+import wave
 from unittest.mock import patch
 
 import numpy as np
@@ -19,7 +21,7 @@ class FakeTTS:
     def stream(self, _text, voice=None):
         if voice not in ("kenzie", "s057b"):
             raise ValueError("unknown voice")
-        return [np.array([0.0, 0.5, -0.5], dtype=np.float32)]
+        return [np.array([0.0, 0.5], dtype=np.float32), np.array([-0.5], dtype=np.float32)]
 
 
 class ServerContractTests(unittest.TestCase):
@@ -49,10 +51,20 @@ class ServerContractTests(unittest.TestCase):
         self.assertEqual(wav.status_code, 200)
         self.assertEqual(wav.headers["content-type"], "audio/wav")
         self.assertTrue(wav.content.startswith(b"RIFF"))
+        with wave.open(io.BytesIO(wav.content), "rb") as audio:
+            self.assertEqual((audio.getnchannels(), audio.getsampwidth(), audio.getframerate()), (1, 2, 24000))
+            self.assertEqual(audio.readframes(3), np.array([0, 16383, -16383], dtype="<i2").tobytes())
         self.assertEqual(pcm.status_code, 200)
         self.assertEqual(pcm.headers["content-type"], "audio/pcm")
         self.assertEqual(pcm.headers["x-sample-rate"], "24000")
-        self.assertEqual(len(pcm.content), 6)
+        self.assertEqual(pcm.content, np.array([0, 16383, -16383], dtype="<i2").tobytes())
+
+    def test_chunk_conversion_clips_without_mutating_source(self):
+        source = np.array([-2.0, 2.0], dtype=np.float32)
+        output = io.BytesIO()
+        sut._write_pcm_chunks(output, [source])
+        self.assertEqual(output.getvalue(), np.array([-32767, 32767], dtype="<i2").tobytes())
+        np.testing.assert_array_equal(source, [-2.0, 2.0])
 
     def test_invalid_request_is_rejected(self):
         for payload in (

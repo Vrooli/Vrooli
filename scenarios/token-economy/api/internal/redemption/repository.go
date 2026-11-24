@@ -9,14 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/database"
 )
-
-type SQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
-}
 
 type Debit struct {
 	ID             string
@@ -60,7 +54,7 @@ func (r *sqliteRepository) FindByIdempotency(ctx context.Context, key string) (R
 }
 
 type sqliteRepository struct {
-	db               SQLExecutor
+	db               database.SQLTxExecutor
 	reserveInventory InventoryReserveFunc
 	releaseInventory InventoryReleaseFunc
 	balance          BalanceFunc
@@ -68,15 +62,15 @@ type sqliteRepository struct {
 	injectFailure    FailureInjector
 }
 
-func NewSQLiteRepository(db SQLExecutor, reserve InventoryReserveFunc, release InventoryReleaseFunc, balance BalanceFunc, appendDebit AppendDebitFunc) Repository {
+func NewSQLiteRepository(db database.SQLTxExecutor, reserve InventoryReserveFunc, release InventoryReleaseFunc, balance BalanceFunc, appendDebit AppendDebitFunc) Repository {
 	return newSQLiteRepository(db, reserve, release, balance, appendDebit, nil)
 }
 
-func NewSQLiteRepositoryWithFailureInjector(db SQLExecutor, reserve InventoryReserveFunc, release InventoryReleaseFunc, balance BalanceFunc, appendDebit AppendDebitFunc, inject FailureInjector) Repository {
+func NewSQLiteRepositoryWithFailureInjector(db database.SQLTxExecutor, reserve InventoryReserveFunc, release InventoryReleaseFunc, balance BalanceFunc, appendDebit AppendDebitFunc, inject FailureInjector) Repository {
 	return newSQLiteRepository(db, reserve, release, balance, appendDebit, inject)
 }
 
-func newSQLiteRepository(db SQLExecutor, reserve InventoryReserveFunc, release InventoryReleaseFunc, balance BalanceFunc, appendDebit AppendDebitFunc, inject FailureInjector) Repository {
+func newSQLiteRepository(db database.SQLTxExecutor, reserve InventoryReserveFunc, release InventoryReleaseFunc, balance BalanceFunc, appendDebit AppendDebitFunc, inject FailureInjector) Repository {
 	return &sqliteRepository{db: db, reserveInventory: reserve, releaseInventory: release, balance: balance, appendDebit: appendDebit, injectFailure: inject}
 }
 

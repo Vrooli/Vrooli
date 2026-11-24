@@ -450,6 +450,7 @@
     {
       "name": "hook",
       "description": "Capture a native memory write from a harness hook",
+      "latency_bound": true,
       "binding": { "kind": "local" },
       "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
     },

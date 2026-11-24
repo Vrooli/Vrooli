@@ -246,6 +246,54 @@ func TestAgentMustHoldCoveredOperationAndExactMandateDelegate(t *testing.T) {
 	}
 }
 
+func TestOperatorProposeUsesLiveOperatorAuthorizedMandate(t *testing.T) {
+	now := time.Now().UTC()
+	grant := validGrant(now)
+	grant.AgentSubject, grant.AgentRunID = "", ""
+	grant.Authorizer = "operator:1"
+	repo := newRepository()
+	service := fixture(now, repo, verifier{}, validPolicy(), grant, &evidence{})
+	result, err := service.ProposeOperator(context.Background(), authorization.OperatorPrincipal{Subject: "operator:1"}, authorization.OperatorProposeInput{
+		ID: "operator-charge", IdempotencyKey: "operator-charge-key", MandateID: grant.ID,
+		AmountMinor: 10, Currency: "USD", Counterparty: "api.example", SettlementID: "operator-settlement",
+		InstrumentID: "operator-instrument", SettlementIdempotencyKey: "operator-settlement-key",
+	})
+	require.NoError(t, err)
+	require.Equal(t, authorization.VerdictPending, result.Verdict)
+	require.Equal(t, "operator:1", result.RequestingAgent)
+	require.Equal(t, "budget-1", result.BudgetID)
+	require.Equal(t, "book-1", result.BookID)
+	require.Equal(t, int64(10), result.HoldMinor)
+}
+
+func TestOperatorProposeAllowsDelegateAndRejectsOtherOperator(t *testing.T) {
+	now := time.Now().UTC()
+	grant := validGrant(now)
+	grant.Authorizer = "operator:1"
+	grant.AgentSubject, grant.AgentRunID = "agent:1", "run-1"
+	service := fixture(now, newRepository(), verifier{}, validPolicy(), grant, &evidence{})
+	result, err := service.ProposeOperator(context.Background(), authorization.OperatorPrincipal{Subject: "operator:1"}, authorization.OperatorProposeInput{
+		ID: "operator-charge", IdempotencyKey: "operator-charge-key", MandateID: grant.ID,
+		AmountMinor: 10, Currency: "USD", Counterparty: "api.example", SettlementID: "operator-settlement",
+		InstrumentID: "operator-instrument", SettlementIdempotencyKey: "operator-settlement-key",
+	})
+	require.NoError(t, err)
+	require.Equal(t, authorization.VerdictPending, result.Verdict)
+	require.Equal(t, "agent:1", result.RequestingAgent)
+
+	other := validGrant(now)
+	other.AgentSubject, other.AgentRunID, other.Authorizer = "", "", "operator:2"
+	service = fixture(now, newRepository(), verifier{}, validPolicy(), other, &evidence{})
+	result, err = service.ProposeOperator(context.Background(), authorization.OperatorPrincipal{Subject: "operator:1"}, authorization.OperatorProposeInput{
+		ID: "other-charge", IdempotencyKey: "other-charge-key", MandateID: other.ID,
+		AmountMinor: 10, Currency: "USD", Counterparty: "api.example", SettlementID: "other-settlement",
+		InstrumentID: "other-instrument", SettlementIdempotencyKey: "other-settlement-key",
+	})
+	require.NoError(t, err)
+	require.Equal(t, authorization.VerdictRefused, result.Verdict)
+	require.Equal(t, "operator_mandate", result.ViolatedConstraint)
+}
+
 // [REQ:TRS-P0-002] A normal Agent Manager run identity and its separate
 // approved operation grant must be reverified together at spend admission.
 func TestSpendAuthorizationUsesPairedOperationGrant(t *testing.T) {

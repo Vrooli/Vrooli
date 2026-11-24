@@ -194,8 +194,11 @@ func TestDoctorRunsAndChecksPin(t *testing.T) {
 	if !strings.Contains(stdout.String(), "opencode 2.5.0") {
 		t.Errorf("expected installed version in stdout: %s", stdout.String())
 	}
-	if !strings.Contains(stderr.String(), "pinned") {
-		t.Errorf("expected drift warning in stderr: %s", stderr.String())
+	if !strings.Contains(stdout.String(), "installed major 2 differs from the default pinned baseline major 1") {
+		t.Errorf("expected non-default major-channel note in stdout: %s", stdout.String())
+	}
+	if strings.Contains(stderr.String(), "pinned") {
+		t.Errorf("major-channel note should not be reported as schema-drift warning: %s", stderr.String())
 	}
 }
 

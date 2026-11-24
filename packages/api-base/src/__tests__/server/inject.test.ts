@@ -443,6 +443,33 @@ describe('injectScenarioConfig', () => {
   })
 })
 
+describe('opening tag variants', () => {
+  it('tolerates attributes and casing on <head>', () => {
+    const html = '<!doctype html><HTML><HEAD lang="en"><title>x</title></HEAD><BODY></BODY></HTML>'
+    const config = injectScenarioConfig(html, {
+      apiUrl: 'http://localhost:1/api',
+      wsUrl: 'ws://localhost:1/ws',
+      apiPort: '1',
+      uiPort: '2',
+    })
+    expect(config).toContain('<HEAD lang="en">\n<script id="vrooli-scenario-config">')
+
+    const base = injectBaseTag(html, '/app')
+    expect(base).toContain('<HEAD lang="en">\n<base data-vrooli-base="injected" href="/app/">')
+  })
+
+  it('tolerates attributes on <body> when no head exists', () => {
+    const html = '<div><body class="app">content</body></div>'
+    const config = injectScenarioConfig(html, {
+      apiUrl: 'http://localhost:1/api',
+      wsUrl: 'ws://localhost:1/ws',
+      apiPort: '1',
+      uiPort: '2',
+    })
+    expect(config).toContain('<body class="app">\n<script id="vrooli-scenario-config">')
+  })
+})
+
 describe('injectBaseTag', () => {
   it('injects base tag into <head>', () => {
     const html = `<!DOCTYPE html>
