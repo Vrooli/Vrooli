@@ -236,10 +236,10 @@ substrate outage cannot masquerade as a clean zero score.
 search-hub strategy benchmark --strategy current --json
 ```
 
-The phase-10 data file records `current`, `lexical-cross-encoder`, and
-`llm-classifier` strategy rows. Only `current` is executable by this command;
-strategy selection becomes an overfit-guarded comparison arm in the later
-strategy-compare phase.
+The active strategy name comes from RoutingService status and is what the
+benchmark runs. Registered candidates are evaluated with the persisted,
+held-out-guarded `search-hub strategy compare` command; the benchmark does not
+pretend a candidate is serving or rewrite the active strategy.
 
 `maturity scan --json` exits non-zero when blocking findings remain, even though
 it returns the complete per-scenario report. Use `finding_class`, `eval_evidence`,

@@ -27,8 +27,9 @@ const GroupName = "federation"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]cliapp.PrimitiveHandler{
-		"RoutingService.Status":    cliapp.ProtoList(h.statusCall, h.statusReport),
-		"RoutingService.Repromote": cliapp.ProtoMutation(h.repromoteCall, h.repromoteReport),
+		"RoutingService.Status":         cliapp.ProtoList(h.statusCall, h.statusReport),
+		"RoutingService.ProviderStatus": cliapp.ProtoList(h.providerStatusCall, h.providerStatusReport),
+		"RoutingService.Repromote":      cliapp.ProtoMutation(h.repromoteCall, h.repromoteReport),
 	}
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {

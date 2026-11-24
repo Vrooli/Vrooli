@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -38,6 +39,46 @@ func (h *handlers) statusCall(_ cliapp.OperationContext) (*routingv1.StatusRespo
 		return nil, fmt.Errorf("server returned no status response")
 	}
 	return resp.Msg, nil
+}
+
+func (h *handlers) providerStatusCall(ctx cliapp.OperationContext) (*routingv1.ProviderStatusResponse, error) {
+	providerID := strings.TrimSpace(ctx.Positional("provider_id"))
+	resp, err := h.client.ProviderStatus(context.Background(), connect.NewRequest(&routingv1.ProviderStatusRequest{ProviderId: providerID}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("federation provider-status", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, fmt.Errorf("server returned no provider status response")
+	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) providerStatusReport(_ cliapp.OperationContext, msg *routingv1.ProviderStatusResponse) cliapp.ListReport {
+	observed := "unknown"
+	if msg.GetObservedAt() != nil {
+		observed = msg.GetObservedAt().AsTime().UTC().Format(time.RFC3339)
+	}
+	indexAge, freshnessBudget, lastIndexed := "unreported", "unreported", "unreported"
+	if health := msg.GetHealth(); health != nil {
+		if health.GetIndexAge() != "" {
+			indexAge = health.GetIndexAge()
+		}
+		if health.GetFreshnessBudget() != "" {
+			freshnessBudget = health.GetFreshnessBudget()
+		}
+		if health.GetLastIndexedAt() != nil {
+			lastIndexed = health.GetLastIndexedAt().AsTime().UTC().Format(time.RFC3339)
+		}
+	}
+	return cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("Selected provider %s health read at %s. Search Hub resolved its scenario route and read its declared status/freshness endpoint when available; it did not execute a search.", msg.GetProviderId(), observed),
+			fmt.Sprintf("Source freshness: age=%s budget=%s last-indexed=%s.", indexAge, freshnessBudget, lastIndexed),
+		},
+		ResultsHeading: "Selected provider health",
+		Results:        renderProviderHealth([]*routingv1.ProviderHealth{msg.GetHealth()}),
+		RetrievalHints: []string{"`search-hub query \"<text>\" --type <active-type>` — exercise the selected provider for the actual task"},
+	}
 }
 
 func (h *handlers) statusReport(_ cliapp.OperationContext, msg *routingv1.StatusResponse) cliapp.ListReport {
@@ -126,6 +167,8 @@ func renderProviderHealth(providers []*routingv1.ProviderHealth) []string {
 		marker := "✓"
 		if !p.GetReachable() {
 			marker = "✗"
+		} else if p.GetDegraded() {
+			marker = "!"
 		}
 		line := fmt.Sprintf("%s %s", marker, p.GetProviderId())
 		if lifecycle := p.GetLifecycle(); lifecycle != "" && lifecycle != "production" {
@@ -136,6 +179,13 @@ func renderProviderHealth(providers []*routingv1.ProviderHealth) []string {
 		}
 		if age := p.GetIndexAge(); age != "" {
 			line += " — index age: " + age
+		}
+		if p.GetDegraded() {
+			reasons := p.GetDegradedStages()
+			if len(reasons) == 0 {
+				reasons = []string{"provider health reports degraded"}
+			}
+			line += " — degraded: " + strings.Join(reasons, ", ")
 		}
 		if state := p.GetRecoveryState(); state != "" {
 			line += " — zero-yield lifecycle: " + state

@@ -190,6 +190,50 @@ func TestStatusReportsProviderHealthAndModels(t *testing.T) {
 	require.False(t, st.GetRerankerAvailable())
 }
 
+func TestProviderStatusProbesOnlyTheExactActiveProvider(t *testing.T) {
+	selected := providerWithStatus(`{"activeGeneration":"gen-7","sourceFiles":3,"state":"ready"}`)
+	selected.ProviderId = "cli-health.commands"
+	other := providerWithStatus(`{"activeGeneration":"other","sourceFiles":9,"state":"ready"}`)
+	other.ProviderId = "ui-health.surfaces"
+	lister := &fakeLister{providers: []*registryv1.ProviderDescriptor{selected, other}}
+	doer := &statusDoer{body: `{"activeGeneration":"gen-7","sourceFiles":3,"state":"ready"}`}
+	r := routing.NewRouter(routing.Deps{
+		Lister: lister,
+		Resolver: staticResolver{urls: map[string]string{
+			"cli-health": "http://cli-health.test",
+			"ui-health":  "http://ui-health.test",
+		}},
+		Doer: doer,
+		Now:  func() time.Time { return time.Date(2026, 11, 24, 2, 0, 0, 0, time.UTC) },
+	})
+
+	resp, err := r.ProviderStatus(context.Background(), " cli-health.commands ")
+	require.NoError(t, err)
+	require.Equal(t, "cli-health.commands", resp.GetProviderId())
+	require.Equal(t, "gen-7", resp.GetHealth().GetActiveGeneration())
+	require.True(t, resp.GetHealth().GetReachable())
+	require.Equal(t, int32(registryv1.ProviderState_PROVIDER_STATE_ACTIVE), lister.lastFilter.State)
+	require.Equal(t, "cli-health.commands", lister.lastFilter.ProviderID)
+	_, err = r.ProviderStatus(context.Background(), "cli-health.commands")
+	require.NoError(t, err)
+	require.Equal(t, 2, doer.statusCalls, "each selected-provider status request performs a fresh probe")
+	require.Equal(t, time.Date(2026, 11, 24, 2, 0, 0, 0, time.UTC), resp.GetObservedAt().AsTime())
+}
+
+func TestProviderStatusRejectsMissingOrInactiveProvider(t *testing.T) {
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands()}},
+		Resolver: threeProviderResolver(),
+		Doer:     threeProviderDoer(),
+	})
+	_, err := r.ProviderStatus(context.Background(), " ")
+	var invalid routing.ErrInvalidProviderStatusRequest
+	require.ErrorAs(t, err, &invalid)
+	_, err = r.ProviderStatus(context.Background(), "not.registered")
+	var notFound routing.ErrProviderStatusNotFound
+	require.ErrorAs(t, err, &notFound)
+}
+
 func TestStatusProbesProvidersConcurrently(t *testing.T) {
 	p1 := providerWithStatus("")
 	p1.ProviderId = "cli-health.commands"
@@ -375,7 +419,10 @@ func TestStatusReportsExplicitIndexAgeAbsence(t *testing.T) {
 			})
 			st, err := r.Status(context.Background())
 			require.NoError(t, err)
-			require.Equal(t, tt.want, st.GetProviders()[0].GetIndexAge())
+			health := st.GetProviders()[0]
+			require.Equal(t, tt.want, health.GetIndexAge())
+			require.True(t, health.GetDegraded(), "unreported declared status must not look healthy")
+			require.Contains(t, health.GetDegradedStages(), "provider_status_unavailable")
 		})
 	}
 }

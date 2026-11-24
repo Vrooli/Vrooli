@@ -68,11 +68,27 @@ func TestLoadActiveStrategyUsesEmbeddedData(t *testing.T) {
 	if got := strategyStringParam(semantic, StageEmbedding, "evidence_scope", ""); got != "all" {
 		t.Fatalf("semantic evidence scope = %q, want all", got)
 	}
+	var typoCandidate RetrievalStrategy
+	for _, candidate := range catalog {
+		if candidate.Name == "lexical-typo-fallback" {
+			typoCandidate = candidate
+		}
+	}
+	if typoCandidate.Name == "" || strategyStringParam(typoCandidate, StageLexical, "typo_policy", "") != routeTypoPolicyOneEditUnique {
+		t.Fatalf("typo candidate = %+v, want the bounded one-edit policy", typoCandidate)
+	}
 	if factors.MaxFanoutWidth != 6 || factors.Concurrency != 8 {
 		t.Fatalf("router factors = %+v", factors)
 	}
 	if factors.PerProviderTimeout != 4*time.Second || factors.QueryBudget != 25*time.Second || factors.DemotionWindow != 15*time.Minute {
 		t.Fatalf("duration factors = %+v", factors)
+	}
+}
+
+func TestValidateStrategiesRejectsUnknownTypoPolicy(t *testing.T) {
+	raw := []byte(`{"active_strategy":"bad","router_factors":{"max_fanout_width":6,"widen_threshold":0.45,"per_provider_timeout":"4s","concurrency":8,"query_budget":"25s","zero_yield_minimum_routes":5,"demotion_window":"15m"},"strategies":[{"name":"bad","stages":[{"kind":"lexical","params":{"typo_policy":"unbounded"}}]}]}`)
+	if _, _, _, err := ValidateStrategies(raw); err == nil {
+		t.Fatal("unsupported typo policy was accepted")
 	}
 }
 

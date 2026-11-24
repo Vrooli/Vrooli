@@ -144,6 +144,15 @@ func (s RetrievalStrategy) Validate() error {
 		if _, ok := stageKinds[stage.Kind]; !ok {
 			return fmt.Errorf("retrieval strategy %q stage %d has unknown kind %q (expected lexical, embedding, cross_encoder, or llm)", s.Name, i, stage.Kind)
 		}
+		if stage.Kind == StageLexical && stage.Params != nil {
+			raw, exists := stage.Params["typo_policy"]
+			if exists {
+				policy, ok := raw.(string)
+				if !ok || policy != "" && policy != routeTypoPolicyOneEditUnique {
+					return fmt.Errorf("retrieval strategy %q stage %d has unsupported typo_policy %v", s.Name, i, raw)
+				}
+			}
+		}
 	}
 	return nil
 }

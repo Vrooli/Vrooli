@@ -9,7 +9,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "core",
-      "description": "The ProviderDescriptor message (registry proto) is implemented with validation: provider_id unique and group-qualified, NL description required (the classifier routes on it), endpoint present for ACTIVE providers, ResultMapping present for ACTIVE providers, scope defaults PROJECT, state in {ACTIVE, CAPABILITY_GAP}.",
+      "description": "The ProviderDescriptor message (registry proto) is implemented with validation: provider_id unique and group-qualified, natural-language description required as automatic provider-selection evidence, endpoint present for ACTIVE providers, ResultMapping present for ACTIVE providers, scope defaults PROJECT, state in {ACTIVE, CAPABILITY_GAP}.",
       "validation": [
         {
           "type": "test",

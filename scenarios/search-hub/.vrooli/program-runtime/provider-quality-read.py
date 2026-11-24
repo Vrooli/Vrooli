@@ -38,10 +38,8 @@ fail = program.fail
 
 
 def safe(fn):
-    try:
-        return fn(), None
-    except Exception as exc:
-        return None, exc
+    result = program.guarded(fn)()
+    return (None, result) if isinstance(result, Exception) else (result, None)
 
 
 def step_validate():

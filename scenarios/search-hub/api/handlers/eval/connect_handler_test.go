@@ -3,6 +3,7 @@ package eval_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -19,6 +20,7 @@ import (
 	handler "search-hub/handlers/eval"
 	internaleval "search-hub/internal/eval"
 	internalregistry "search-hub/internal/registry"
+	internalrouting "search-hub/internal/routing"
 )
 
 // fakeStore is a hand-written eval.Store fake. The real persistence path is
@@ -105,6 +107,23 @@ type fakeRunner struct {
 	lastID   string
 	lastLim  int32
 	gotSuite *evalv1.EvalSuite
+}
+
+type failingStrategyRunner struct {
+	failName string
+	calls    []string
+}
+
+func (f *failingStrategyRunner) Run(context.Context, *evalv1.EvalSuite, string, int32) (*evalv1.EvalRun, error) {
+	return nil, errors.New("ordinary runner should not be used")
+}
+
+func (f *failingStrategyRunner) RunWithStrategy(_ context.Context, suite *evalv1.EvalSuite, tag string, _ int32, strategyName string) (*evalv1.EvalRun, error) {
+	f.calls = append(f.calls, strategyName)
+	if strategyName == f.failName {
+		return nil, errors.New("simulated late-arm provider failure")
+	}
+	return &evalv1.EvalRun{RunId: fmt.Sprintf("run-%s", strategyName), SuiteId: suite.GetSuiteId(), Tag: tag}, nil
 }
 
 func (f *fakeRunner) Run(_ context.Context, suite *evalv1.EvalSuite, tag string, limit int32) (*evalv1.EvalRun, error) {
@@ -311,6 +330,36 @@ func TestRunComposedRouterSuiteDefaultsToFederatedRunner(t *testing.T) {
 	require.Equal(t, internaleval.RouterSuiteID, federated.lastID)
 	require.Nil(t, providerDirect.gotSuite)
 	require.Len(t, store.appended, 1)
+}
+
+func TestCompareStrategiesDoesNotPersistSuccessfulPrefixWhenLaterArmFails(t *testing.T) {
+	store := newFakeStore()
+	store.suites[internaleval.RouterSuiteID] = &evalv1.EvalSuite{SuiteId: internaleval.RouterSuiteID}
+	runner := &failingStrategyRunner{failName: "lexical-typo-cross-encoder"}
+	logger, _ := connectxtest.NewLogger(t)
+	path, h := evalconnect.NewEvalServiceHandler(handler.NewConnectHandler(handler.Deps{
+		Store:          store,
+		Registry:       &fakeRegistry{providers: map[string]*registryv1.ProviderDescriptor{}},
+		Federated:      runner,
+		ActiveStrategy: "lexical-cross-encoder",
+		StrategyCatalog: []internalrouting.RetrievalStrategy{
+			{Name: "lexical-cross-encoder", Stages: []internalrouting.RetrievalStage{{Kind: internalrouting.StageLexical}}},
+			{Name: "lexical-fallback", Stages: []internalrouting.RetrievalStage{{Kind: internalrouting.StageLexical}}},
+			{Name: "lexical-typo-cross-encoder", Stages: []internalrouting.RetrievalStage{{Kind: internalrouting.StageLexical}}},
+		},
+		Logger: logger,
+	}))
+	server := connectxtest.StartTestServer(t, connectx.ServiceMount{Path: path, Handler: h})
+	client := evalconnect.NewEvalServiceClient(server.Client(), server.URL)
+
+	_, err := client.CompareStrategies(context.Background(), connect.NewRequest(&evalv1.CompareStrategiesRequest{
+		SuiteId:       internaleval.RouterSuiteID,
+		StrategyNames: []string{"lexical-cross-encoder", "lexical-fallback", "lexical-typo-cross-encoder"},
+	}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	require.Equal(t, []string{"lexical-cross-encoder", "lexical-fallback", "lexical-typo-cross-encoder"}, runner.calls)
+	require.Empty(t, store.appended, "failed comparison must not leave successful prefix runs in history")
 }
 
 func TestRunSuiteUnknownSuiteNotFound(t *testing.T) {

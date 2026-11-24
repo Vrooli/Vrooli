@@ -18,6 +18,7 @@ import (
 type Querier interface {
 	Query(ctx context.Context, req *routingv1.QueryRequest) (*routingv1.QueryResponse, error)
 	Status(ctx context.Context) (*routingv1.StatusResponse, error)
+	ProviderStatus(ctx context.Context, providerID string) (*routingv1.ProviderStatusResponse, error)
 	RepromoteProvider(ctx context.Context, providerID string) error
 }
 
@@ -46,6 +47,7 @@ var _ = func() any {
 	type routingServiceHandler interface {
 		Query(context.Context, *connect.Request[routingv1.QueryRequest]) (*connect.Response[routingv1.QueryResponse], error)
 		Status(context.Context, *connect.Request[routingv1.StatusRequest]) (*connect.Response[routingv1.StatusResponse], error)
+		ProviderStatus(context.Context, *connect.Request[routingv1.ProviderStatusRequest]) (*connect.Response[routingv1.ProviderStatusResponse], error)
 		Repromote(context.Context, *connect.Request[routingv1.RepromoteRequest]) (*connect.Response[routingv1.RepromoteResponse], error)
 	}
 	var _ routingServiceHandler = (*connectHandler)(nil)
@@ -96,6 +98,20 @@ func (h *connectHandler) Status(ctx context.Context, _ *connect.Request[routingv
 	return connect.NewResponse(resp), nil
 }
 
+// ProviderStatus probes the exact selected provider without invoking the
+// federation-wide status operation.
+func (h *connectHandler) ProviderStatus(ctx context.Context, req *connect.Request[routingv1.ProviderStatusRequest]) (*connect.Response[routingv1.ProviderStatusResponse], error) {
+	resp, err := h.deps.Router.ProviderStatus(ctx, req.Msg.GetProviderId())
+	if err != nil {
+		connectErr := toConnectError(err)
+		if connect.CodeOf(connectErr) == connect.CodeInternal {
+			h.deps.Logger.Printf("routing.ProviderStatus(%q): %v", req.Msg.GetProviderId(), err)
+		}
+		return nil, connectErr
+	}
+	return connect.NewResponse(resp), nil
+}
+
 // toConnectError translates routing-domain sentinels into Connect codes at the
 // transport edge (the domain layer never imports connect). A caller mistake
 // (ErrInvalidQuery) becomes InvalidArgument with its message; everything else
@@ -107,6 +123,14 @@ func toConnectError(err error) error {
 	var invalid internalrouting.ErrInvalidQuery
 	if errors.As(err, &invalid) {
 		return connect.NewError(connect.CodeInvalidArgument, invalid)
+	}
+	var invalidProvider internalrouting.ErrInvalidProviderStatusRequest
+	if errors.As(err, &invalidProvider) {
+		return connect.NewError(connect.CodeInvalidArgument, invalidProvider)
+	}
+	var providerNotFound internalrouting.ErrProviderStatusNotFound
+	if errors.As(err, &providerNotFound) {
+		return connect.NewError(connect.CodeNotFound, providerNotFound)
 	}
 	return connect.NewError(connect.CodeInternal, errors.New("internal error"))
 }

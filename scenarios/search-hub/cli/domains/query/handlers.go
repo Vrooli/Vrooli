@@ -61,16 +61,13 @@ func (h *handlers) queryCall(ctx cliapp.OperationContext) (*routingv1.QueryRespo
 }
 
 func (h *handlers) queryReport(ctx cliapp.OperationContext, msg *routingv1.QueryResponse) cliapp.ListReport {
-	totalHits := 0
-	for _, g := range msg.GetGroups() {
-		totalHits += int(g.GetCount())
-	}
+	totalHits, hitCountLabel := responseHitCount(msg)
 	showAllResults := ctx != nil && ctx.BoolFlag("show-all-results")
 	showDiagnostics := showAllResults || (ctx != nil && ctx.BoolFlag("explain"))
 
 	summary := []string{
-		fmt.Sprintf("Searched %d corpora; %d total hit(s)%s.",
-			len(msg.GetGroups()), totalHits, degradedSummary(msg.GetGroups(), msg.GetDegraded())),
+		fmt.Sprintf("Searched %d corpora; %d %s%s.",
+			searchedCorpusCount(msg), totalHits, hitCountLabel, responseDegradationSummary(msg)),
 	}
 	if showDiagnostics {
 		summary = append(summary, fmt.Sprintf("Latency: %dms. Ranking: %s (ordered by %s descending).", msg.GetLatencyMs(), rankingMode(msg.GetReranked()), orderedBy(msg)))
@@ -92,7 +89,16 @@ func (h *handlers) queryReport(ctx cliapp.OperationContext, msg *routingv1.Query
 		visibleLimit = 0
 	}
 	results := renderGroupsLimit(msg.GetGroups(), visibleLimit)
-	if msg.GetReranked() && len(msg.GetRanked()) > 0 {
+	if len(msg.GetQueryParts()) > 0 {
+		resultsHeading = "Task evidence by request part"
+		results = renderTaskParts(msg, visibleLimit)
+	} else if len(msg.GetCorrectionCandidates()) > 0 {
+		resultsHeading = "Direct entity and correction evidence"
+		results = renderCorrections(msg, visibleLimit)
+	} else if exact := directEntityMatch(ctx, msg); exact != nil {
+		resultsHeading = "Direct entity match"
+		results = renderDirectMatch(exact, visibleLimit)
+	} else if msg.GetReranked() && len(msg.GetRanked()) > 0 {
 		resultsHeading = fmt.Sprintf("Unified ranking (reranked across providers; ordered by %s)", orderedBy(msg))
 		results = renderRankedLimit(msg.GetRanked(), visibleLimit)
 		if showDiagnostics {
@@ -100,10 +106,7 @@ func (h *handlers) queryReport(ctx cliapp.OperationContext, msg *routingv1.Query
 			results = append(results, renderGroupSummaries(msg.GetGroups())...)
 		}
 	}
-	if showDiagnostics {
-		results = append(results, operationHints(msg)...)
-	}
-	var hints []string
+	hints := nextActionHints(ctx, msg)
 	switch {
 	case totalHits == 0 && msg.GetDegraded():
 		hints = append(hints, "Coverage was incomplete. Check the owner directly or use --explain to see which routes failed.")
@@ -126,15 +129,35 @@ var programName = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*\.[a-z0-9][a-z0-9-]*$`)
 // A preparation read is a concrete next step, never an inferred authorization
 // to execute a retrieved program. Validate identifiers before printing shell text.
 func operationHints(msg *routingv1.QueryResponse) []string {
-	hits := msg.GetRanked()
-	if !msg.GetReranked() || len(hits) == 0 {
+	if msg == nil {
 		return nil
 	}
-	hit := hits[0]
-	if hit.GetConfidence().GetWeak() || hit.GetProviderId() != "program-runtime.library" || !programName.MatchString(hit.GetId()) {
+	var candidates []*routingv1.SearchHit
+	if msg.GetReranked() && len(msg.GetRanked()) > 0 {
+		candidates = msg.GetRanked()[:1]
+	} else {
+		for _, group := range msg.GetGroups() {
+			if group != nil && group.GetProviderId() == "program-runtime.library" && len(group.GetHits()) > 0 {
+				candidates = group.GetHits()[:1]
+				break
+			}
+		}
+	}
+	if len(candidates) == 0 {
 		return nil
 	}
-	lines := []string{"", "Read the top program and its owning skill:"}
+	var hit *routingv1.SearchHit
+	for _, candidate := range candidates {
+		if candidate == nil || candidate.GetConfidence().GetWeak() || candidate.GetProviderId() != "program-runtime.library" || !programName.MatchString(candidate.GetId()) {
+			continue
+		}
+		hit = candidate
+		break
+	}
+	if hit == nil {
+		return nil
+	}
+	lines := []string{"", "Inspect the program contract and required skill:"}
 	if usage, ok := libraryUsage(hit); ok {
 		lines = append(lines, fmt.Sprintf("  recorded usage: %d", usage))
 	}
@@ -168,7 +191,7 @@ func orderedBy(msg *routingv1.QueryResponse) string {
 // renderGroups flattens the by-provider grouping into operator-friendly lines:
 // a provider header (with count or a degraded note) followed by each hit's
 // title, snippet, score, and provenance path.
-const defaultVisibleHits = 10
+const defaultVisibleHits = 4
 
 func renderGroups(groups []*routingv1.ProviderResultGroup) []string {
 	return renderGroupsLimit(groups, 0)
@@ -179,33 +202,37 @@ func renderGroupsLimit(groups []*routingv1.ProviderResultGroup, maxHits int) []s
 		return []string{"(no providers matched — pass --type, --all, or --group)"}
 	}
 	out := make([]string, 0, len(groups)*3)
-	shown, total := 0, 0
-	for _, group := range groups {
-		if group != nil {
-			total += len(group.GetHits())
-		}
-	}
+	shown, total := 0, len(deduplicateHits(flattenGroupHits(groups)))
+	seen := make(map[string]struct{}, total)
 	for _, g := range groups {
 		if g == nil {
 			continue
 		}
 		// A degraded provider may still answer (one leg down, the rest ranked):
 		// say so, then show what it returned.
-		if g.GetDegraded() {
-			out = append(out, fmt.Sprintf("▸ %s (%d) — degraded: %s", g.GetProviderId(), g.GetCount(), g.GetNote()))
+		if g.GetDegraded() || len(g.GetDegradations()) > 0 {
+			out = append(out, fmt.Sprintf("▸ %s (%d) — degraded: %s", truncate(g.GetProviderId(), 64), g.GetCount(), providerGroupDegradation(g)))
 			if len(g.GetHits()) == 0 {
 				continue
 			}
 		} else {
-			out = append(out, fmt.Sprintf("▸ %s (%d)", g.GetProviderId(), g.GetCount()))
+			out = append(out, fmt.Sprintf("▸ %s (%d)", truncate(g.GetProviderId(), 64), g.GetCount()))
 		}
 		if len(g.GetHits()) == 0 {
 			out = append(out, "    (no matches)")
 			continue
 		}
-		hits := g.GetHits()
-		if maxHits > 0 && shown+len(hits) > maxHits {
-			hits = hits[:maxHits-shown]
+		hits := make([]*routingv1.SearchHit, 0, len(g.GetHits()))
+		for _, hit := range g.GetHits() {
+			key := hitDedupeKey(hit)
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			if maxHits > 0 && shown+len(hits) >= maxHits {
+				continue
+			}
+			hits = append(hits, hit)
 		}
 		if allWeak(hits) {
 			out = append(out, "    (no confident match — all returned hits are weak)")
@@ -216,9 +243,37 @@ func renderGroupsLimit(groups []*routingv1.ProviderResultGroup, maxHits int) []s
 		}
 	}
 	if total > shown {
-		out = append(out, fmt.Sprintf("… %d additional hit(s) omitted; use --show-all-results to display them", total-shown))
+		out = append(out, fmt.Sprintf("… %d additional unique returned hit(s) omitted; use --show-all-results to display them", total-shown))
 	}
 	return out
+}
+
+func providerGroupDegradation(group *routingv1.ProviderResultGroup) string {
+	if group == nil {
+		return "details unavailable"
+	}
+	if note := strings.TrimSpace(group.GetNote()); note != "" {
+		return truncate(note, 112)
+	}
+	for _, degradation := range group.GetDegradations() {
+		if degradation == nil {
+			continue
+		}
+		parts := make([]string, 0, 3)
+		if leg := strings.TrimSpace(degradation.GetLeg()); leg != "" {
+			parts = append(parts, truncate(leg, 32))
+		}
+		if reason := strings.TrimSpace(degradation.GetReason()); reason != "" {
+			parts = append(parts, truncate(reason, 48))
+		}
+		if detail := strings.TrimSpace(degradation.GetDetail()); detail != "" {
+			parts = append(parts, truncate(detail, 72))
+		}
+		if len(parts) > 0 {
+			return strings.Join(parts, ": ")
+		}
+	}
+	return "details unavailable"
 }
 
 // renderGroupSummaries renders the provider metadata kept beside Ranked. The
@@ -233,12 +288,9 @@ func renderGroupSummaries(groups []*routingv1.ProviderResultGroup) []string {
 		if group == nil {
 			continue
 		}
-		line := fmt.Sprintf("▸ %s (%d)", group.GetProviderId(), group.GetCount())
-		if group.GetDegraded() {
-			line += " — degraded"
-			if note := strings.TrimSpace(group.GetNote()); note != "" {
-				line += ": " + note
-			}
+		line := fmt.Sprintf("▸ %s (%d)", truncate(group.GetProviderId(), 64), group.GetCount())
+		if group.GetDegraded() || len(group.GetDegradations()) > 0 {
+			line += " — degraded: " + providerGroupDegradation(group)
 		}
 		out = append(out, line)
 	}
@@ -256,6 +308,7 @@ func renderRanked(hits []*routingv1.SearchHit) []string {
 }
 
 func renderRankedLimit(hits []*routingv1.SearchHit, maxHits int) []string {
+	hits = deduplicateHits(hits)
 	if len(hits) == 0 {
 		return []string{"(no results)"}
 	}
@@ -269,18 +322,18 @@ func renderRankedLimit(hits []*routingv1.SearchHit, maxHits int) []string {
 		if title == "" {
 			title = hit.GetId()
 		}
-		line := fmt.Sprintf("%d. %s", i+1, truncate(title, 160))
-		if snippet := truncate(hit.GetSnippet(), 80); snippet != "" {
+		line := fmt.Sprintf("%d. %s", i+1, truncate(title, 110))
+		if snippet := truncate(hit.GetSnippet(), 56); snippet != "" {
 			line += " — " + snippet
 		}
-		line += fmt.Sprintf(" [%s %s/%s]", confidenceBand(hit), truncate(hit.GetProviderId(), 64), truncate(provenance(hit), 120))
+		line += fmt.Sprintf(" [%s %s/%s]", confidenceBand(hit), truncate(hit.GetProviderId(), 48), truncate(provenance(hit), 92))
 		if intent := hit.GetMetadata().GetFields()["search_hub_intent_match"].GetStringValue(); intent != "" {
 			line += " · found via: " + truncate(intent, 65)
 		}
 		out = append(out, line)
 	}
 	if len(hits) > shown {
-		out = append(out, fmt.Sprintf("… %d additional hit(s) omitted; use --show-all-results to display them", len(hits)-shown))
+		out = append(out, fmt.Sprintf("… %d additional unique returned hit(s) omitted; use --show-all-results to display them", len(hits)-shown))
 	}
 	return out
 }
@@ -292,13 +345,17 @@ func formatHit(n int, hit *routingv1.SearchHit) string {
 	if title == "" {
 		title = hit.GetId()
 	}
-	line := fmt.Sprintf("    %d. %s", n, truncate(title, 160))
-	if snippet := truncate(hit.GetSnippet(), 80); snippet != "" {
+	line := fmt.Sprintf("    %d. %s", n, truncate(title, 110))
+	if snippet := truncate(hit.GetSnippet(), 56); snippet != "" {
 		line += " — " + snippet
 	}
-	line += fmt.Sprintf(" [%s %s/%s]", confidenceBand(hit), truncate(hit.GetProviderGroup(), 64), truncate(provenance(hit), 120))
+	provider := strings.TrimSpace(hit.GetProviderId())
+	if provider == "" {
+		provider = strings.TrimSpace(hit.GetProviderGroup())
+	}
+	line += fmt.Sprintf(" [%s %s/%s]", confidenceBand(hit), truncate(provider, 48), truncate(provenance(hit), 92))
 	if locs := locationSummary(hit.GetLocations()); locs != "" {
-		line += " locations: " + locs
+		line += " locations: " + truncate(locs, 112)
 	}
 	if intent := hit.GetMetadata().GetFields()["search_hub_intent_match"].GetStringValue(); intent != "" {
 		line += " · found via: " + truncate(intent, 65)
@@ -447,9 +504,11 @@ func rankingMode(reranked bool) string {
 // truncate collapses internal whitespace (provider snippets often carry
 // embedded newlines) to a single clean line, then caps the length.
 func truncate(s string, max int) string {
+	s = strings.ToValidUTF8(s, "�")
 	s = strings.Join(strings.Fields(s), " ")
-	if max <= 0 || len(s) <= max {
+	runes := []rune(s)
+	if max <= 0 || len(runes) <= max {
 		return s
 	}
-	return s[:max] + "…"
+	return string(runes[:max]) + "…"
 }

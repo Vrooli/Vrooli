@@ -15,9 +15,10 @@ Use this document to answer:
 
 ## Storage Overview
 
-Search Hub persists **only its own metadata** — the provider registry
-and per-query telemetry. It stores **no vectors and no corpus content**
-(the thin-router invariant; each provider owns its corpus). The store is
+Search Hub persists its provider registry and per-query telemetry in SQLite.
+The gated fleet index may also store **derived provider-description vectors**
+for bounded owner selection; it stores no provider corpus content or result
+vectors (each provider owns its corpus and retrieval). The store is
 the template's embedded **SQLite** (`modernc.org/sqlite`, CGO-clean),
 rooted at `${SCENARIO_DATA_DIR}/search-hub.db`, resolved by `api-core/storage` from the scenario id.
 Schemas are applied on startup through `api-core/database`'s
@@ -40,6 +41,7 @@ Schemas are applied on startup through `api-core/database`'s
 | Provider descriptors (`providers`) | registry | SQLite | `api/internal/registry/schema.sql` | Until deregistered | **Live — Phase 3.** Full descriptor persisted as a protojson blob plus projected filter columns (`provider_group`, `bucket`, `type`, `state`, `scope`). Includes remaining `CAPABILITY_GAP` stubs (no endpoint); `agent-manager.runs` is a live self-registered provider and no longer has a gap fixture. |
 | Per-query telemetry (`query_telemetry`, `query_telemetry_provider`) | metrics | SQLite | `api/internal/telemetry/schema.sql` | Unbounded for v1 (rolling-window prune is a follow-up) | **Live — Phase 7.** Routed types, per-provider hit counts, total count, latency, degraded/zero-result/reranked flags. Query text is SHA-256 **hashed** before storage (no raw text). |
 | Embedding operation telemetry (`embedding_telemetry`) | metrics | SQLite | `api/internal/telemetry/schema.sql` | Rolling 10,000-row bound | **Source-integrated; serving verification pending.** Typed Search Hub → AI Gateway embedding operations retain only operation kind, stable role/model labels, duration, vector count, outcome and timestamp. The bounded asynchronous observer stores no request text, provenance, vectors or raw errors. |
+| Derived provider-description vectors and metadata | routing adapter | Gated fleet index (Qdrant) | Rebuilt from registered provider descriptions | Index generation/retention lifecycle unverified | **Source-integrated; live cutover unverified.** Used only for bounded owner selection. It contains no provider corpus content or result vectors; the registry descriptor remains authoritative. |
 
 ## Schema Map
 
@@ -49,11 +51,14 @@ Schemas are applied on startup through `api-core/database`'s
 | `query_telemetry` + `query_telemetry_provider` tables | metrics | `api/internal/telemetry/schema.sql` | metrics store (Record via routing telemetry bridge) + Insights aggregates | Live — Phase 7 |
 | `embedding_telemetry` table | metrics | `api/internal/telemetry/schema.sql` | metrics embedding observer and bounded owner reader | Source-integrated; serving verification pending |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup | Live |
+| Provider-description fleet index | routing adapter | `api/internal/routing/provider_index.go` and fleet semantic adapter | automatic provider selection | Gated; live cutover unverified |
 
-The router imports **no qdrant client** and defines **no corpus-content
-tables** — only `providers` + `query_telemetry`(+`_provider`). This is a guarded
-invariant (plan §6 Validation #4): an architectural test asserts the
-absence of a qdrant import and corpus tables.
+SQLite defines **no corpus-content tables** — only `providers` +
+`query_telemetry`(+`_provider`). The derived description index is a separately
+gated fleet adapter and does not make Search Hub authoritative for provider
+corpora. The architectural test still guards the absence of direct qdrant
+client imports in the router package and corpus tables; it does not assert
+that no derived vectors can exist outside SQLite.
 
 ## Migrations And Compatibility
 

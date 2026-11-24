@@ -32,7 +32,7 @@ scenario starts a separate listener process.
 | `SEARCH_HUB_RERANK_BREAKER_COOLDOWN` | `60s` | How long an open reranker circuit stays open before one half-open probe is allowed. Supported range: `1s`-`10m`. |
 | `SEARCH_HUB_PROVIDER_BREAKER_FAILURES` | `3` | Consecutive provider request failures before that provider's transport circuit opens. Supported range: `1`-`20`. A provider circuit is independent of zero-yield demotion. |
 | `SEARCH_HUB_PROVIDER_BREAKER_COOLDOWN` | `30s` | Base delay before one provider recovery probe. Failed probes double the delay up to `max(5m, configured base)`; a successful probe closes the circuit and resets the delay. Supported range: `1s`-`10m`. |
-| `SEARCH_HUB_AUTO_ROUTE_EXTERNAL` | `false` | Allow automatic/classifier routing to reach external providers when a query is confidently web-shaped, and allow fallback escalation when project results are weak. Truthy values: `1`, `true`, `yes`, `on`. |
+| `SEARCH_HUB_AUTO_ROUTE_EXTERNAL` | `false` | Allow automatic provider selection and fallback escalation to include external providers when query evidence meets the configured web-intent threshold. Truthy values: `1`, `true`, `yes`, `on`. |
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
 the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect

@@ -36,6 +36,26 @@
       "type": "string",
       "default": "",
       "description": "Optional corpus facet passed to scoped providers."
+    },
+    "include_skill": {
+      "type": "boolean",
+      "default": false,
+      "description": "Search only the skill corpus and return the selected skill's content through Prompt Manager."
+    },
+    "include_discover": {
+      "type": "boolean",
+      "default": false,
+      "description": "Run Prompt Manager discover on the same query; may be used without reading a skill body."
+    },
+    "capture_note": {
+      "type": "boolean",
+      "default": false,
+      "description": "Explicitly append one query-record containing only the verdict and counts; requires include_discover=true and an authorized memory write."
+    },
+    "repeat_after_status": {
+      "type": "boolean",
+      "default": false,
+      "description": "Run the same query, read Search Hub lifecycle status once, then repeat once if it is running."
     }
   },
   "assumptions": [
@@ -45,8 +65,10 @@
     "when the router's reranker leg is absent the response has no fused `ranked` rows and every hit is in meta `groups[].hits`; the program reads them from the same call"
   ],
   "invariants": [
-    "exactly one binding call per run; no retry, no second query; the groups field is read from that call's meta()",
-    "no binding with effect write or destructive is called",
+    "exactly one Search Hub query by default; repeat_after_status makes exactly two identical queries with one lifecycle status read between them",
+    "Memory is written only when capture_note=true; the single appended query-record is generated from verdict/count metadata and never stores query text, result snippets or skill content",
+    "the groups field is read from the final Search Hub query's meta()",
+    "skill lookup searches only the skill type, calls only the declared Prompt Manager discovery/read bindings and returns one skill body capped at 8500 UTF-8 bytes",
     "ranked rows are at most 6 with snippets cut to 60 characters; nothing else is materialized; the envelope stays under the 4 KB stdout bound",
     "a reranker outage with usable hits is verdict answered_degraded with class reranker_absent; it is never zero_result and never sets escalate_to_web",
     "zero hits with a degraded or partial provider leg are unavailable, preserve the provider degradation reason, and never claim a clean zero or escalate as one",
@@ -56,6 +78,28 @@
     {
       "id": "search-hub/query/query",
       "effect": "read"
+    },
+    {
+      "id": "prompt-manager/discover/discover",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "prompt-manager/skill/read",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "vrooli/scenario/status",
+      "effect": "read",
+      "optional": true,
+      "note": "Used only when repeat_after_status=true; the route exposes lifecycle status only."
+    },
+    {
+      "id": "vrooli-memory/journal/note",
+      "effect": "write",
+      "optional": true,
+      "note": "Used only when capture_note=true after successful discovery; requires explicit write authority."
     }
   ],
   "outputs": {
@@ -93,7 +137,12 @@
       "reranker_leg": "which reranker ordered the rows; none when the leg is absent",
       "ordered_by": "ordering the router applied",
       "routing_explanation": "the --explain rationale, cut to 400 characters",
-      "escalate_to_web": "true only when the verdict is zero_result or no_provider_selected and web was not among the types; unavailable is not a completed negative"
+      "escalate_to_web": "true only when the verdict is zero_result or no_provider_selected and web was not among the types; unavailable is not a completed negative",
+      "skill_lookup": "null unless include_skill=true; then {status,source,id,content,truncated} for one read skill, with content capped at 8500 UTF-8 bytes and partial status when capped",
+      "skill_discovery": "null unless include_discover=true; then status and matched_count only",
+      "memory_capture": "null unless capture_note=true; then status and optional opaque entry_ref only, never the note body",
+      "status_check": "null unless repeat_after_status=true; then one lifecycle status value from before the repeated query",
+      "first_query": "null unless repeat_after_status=true and the status was running; then ranked_count and corpora_count from the first query"
     },
     "errors": {
       "classes": [
@@ -119,7 +168,8 @@
     "wall_ms": 60000,
     "inference_calls": 0,
     "delegated_runs": 0,
-    "materialize_limit": 20
+    "materialize_limit": 20,
+    "output_bytes": 65536
   },
   "fixtures": [
     {
@@ -156,6 +206,25 @@
       "requires": [
         "search-hub"
       ]
+    },
+    {
+      "id": "skill-read-requires-skill-type",
+      "inputs": {
+        "query": "how to discover a task skill",
+        "include_skill": true,
+        "types": ["doc"]
+      },
+      "expect": {"status": ["failed"]},
+      "note": "Skill lookup fails before any binding call when the explicit type excludes skills."
+    },
+    {
+      "id": "capture-note-requires-discovery",
+      "inputs": {
+        "query": "a safe test query",
+        "capture_note": true
+      },
+      "expect": {"status": ["failed"]},
+      "note": "Rejects the memory write option unless Prompt Manager discovery is explicitly selected."
     },
     {
       "id": "library-live",

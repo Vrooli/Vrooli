@@ -25,7 +25,7 @@
     { "id": "MOD-P0-002", "path": "02-explicit-type-federation", "priority": "P0", "title": "Explicit-type federation (router core)" },
     { "id": "MOD-P0-003", "path": "03-graceful-degradation", "priority": "P0", "title": "Graceful degradation" },
     { "id": "MOD-P0-004", "path": "04-operator-friendly-output", "priority": "P0", "title": "Operator-friendly output" },
-    { "id": "MOD-P0-005", "path": "05-automatic-routing", "priority": "P0", "title": "Automatic routing (classifier)" },
+    { "id": "MOD-P0-005", "path": "05-automatic-routing", "priority": "P0", "title": "Automatic routing (provider evidence)" },
     { "id": "MOD-P0-006", "path": "06-thin-router-boundary", "priority": "P0", "title": "Thin-router architecture boundary" },
     { "id": "MOD-P1-007", "path": "07-unified-reranking", "priority": "P1", "title": "Unified cross-provider ranking" },
     { "id": "MOD-P1-008", "path": "08-measurement-backbone", "priority": "P1", "title": "Measurement backbone" },

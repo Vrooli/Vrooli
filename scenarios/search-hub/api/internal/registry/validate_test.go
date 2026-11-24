@@ -162,6 +162,18 @@ func TestValidateActiveFailures(t *testing.T) {
 	}
 }
 
+func TestValidateMissingDescriptionExplainsActiveSelectionContract(t *testing.T) {
+	d := validActive()
+	d.Description = "  "
+	registry.Normalize(d)
+	err := registry.Validate(d)
+	var invalid registry.ErrInvalidDescriptor
+	require.ErrorAs(t, err, &invalid)
+	require.Equal(t, "description", invalid.Field)
+	require.Contains(t, invalid.Reason, "automatic provider selection")
+	require.NotContains(t, invalid.Reason, "classifier")
+}
+
 func TestValidateRejectsNegativeFreshnessBudget(t *testing.T) {
 	d := validActive()
 	d.FreshnessBudget = durationpb.New(-time.Hour)

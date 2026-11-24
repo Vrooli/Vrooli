@@ -20,11 +20,6 @@ import (
 
 const benchmarkTimeout = 45 * time.Minute
 
-// The API's embedded strategy document names this row "lexical-cross-encoder".
-// The CLI remains a separate Go module, so it deliberately treats the name as
-// the public benchmark contract rather than importing API internals.
-const activeStrategyName = "lexical-cross-encoder"
-
 type handlers struct {
 	core *cliapp.ScenarioApp
 }
@@ -174,14 +169,15 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers { return &handlers{core: co
 
 // benchmarkCall is the reproducible command-level harness for the router
 // fixture. It deliberately issues the same public Query RPC an operator uses,
-// so a benchmark cannot accidentally measure a private classifier seam.
+// so a benchmark cannot accidentally measure a private routing seam.
 func (h *handlers) benchmarkCall(ctx cliapp.OperationContext) (benchmarkResult, error) {
-	strategyName := strings.TrimSpace(ctx.Flag("strategy"))
-	if strategyName == "" {
-		strategyName = activeStrategyName
+	status, err := h.listCall(ctx)
+	if err != nil {
+		return benchmarkResult{}, err
 	}
-	if strategyName != activeStrategyName {
-		return benchmarkResult{}, fmt.Errorf("strategy %q is defined but not active; use strategy compare for registered arms", strategyName)
+	strategyName, err := benchmarkStrategyName(ctx.Flag("strategy"), status.GetActiveStrategy())
+	if err != nil {
+		return benchmarkResult{}, err
 	}
 
 	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(h.core, benchmarkTimeout)
@@ -195,7 +191,7 @@ func (h *handlers) benchmarkCall(ctx cliapp.OperationContext) (benchmarkResult, 
 		return benchmarkResult{}, fmt.Errorf("server returned no router.routing suite")
 	}
 	suite := response.Msg.GetSuite()
-	result := benchmarkResult{Strategy: strategyName, ActiveStrategy: activeStrategyName, SuiteID: suite.GetSuiteId()}
+	result := benchmarkResult{Strategy: strategyName, ActiveStrategy: status.GetActiveStrategy(), SuiteID: suite.GetSuiteId()}
 	eligible := make([]*evalv1.EvalCase, 0, len(suite.GetCases()))
 	for _, testCase := range suite.GetCases() {
 		if testCase == nil || testCase.GetStatus() == "candidate" || testCase.GetExpectedProviderId() == "" || len(testCase.GetExpectIds()) == 0 {
@@ -275,6 +271,21 @@ func (h *handlers) benchmarkCall(ctx cliapp.OperationContext) (benchmarkResult, 
 	return result, nil
 }
 
+func benchmarkStrategyName(requested, active string) (string, error) {
+	active = strings.TrimSpace(active)
+	if active == "" {
+		return "", fmt.Errorf("routing status did not report an active retrieval strategy")
+	}
+	requested = strings.TrimSpace(requested)
+	if requested == "" {
+		return active, nil
+	}
+	if requested != active {
+		return "", fmt.Errorf("strategy %q is defined but not active; use strategy compare for registered arms", requested)
+	}
+	return requested, nil
+}
+
 func (h *handlers) benchmarkReport(_ cliapp.OperationContext, result benchmarkResult) cliapp.MutationReport {
 	return cliapp.MutationReport{
 		Result: []string{fmt.Sprintf("Benchmarked %s against %s: denominator %d, routing precision %.4f, top-1 %.4f, top-3 %.4f, top-6 %.4f.", result.Strategy, result.SuiteID, result.Attempted, result.RoutingPrecision, result.Top1, result.Top3, result.Top6)},
@@ -282,7 +293,7 @@ func (h *handlers) benchmarkReport(_ cliapp.OperationContext, result benchmarkRe
 			fmt.Sprintf("Latency p50=%dms p95=%dms; routed=%d; unavailable=%d.", result.LatencyP50Ms, result.LatencyP95Ms, result.Routed, result.Unavailable),
 			result.Note,
 		},
-		NextCommand: []string{"`search-hub evals runs router.routing --json` — inspect persisted federated runs", "`search-hub strategy benchmark --strategy lexical-cross-encoder --json` — reproduce the active measurement"},
+		NextCommand: []string{"`search-hub evals runs router.routing --json` — inspect persisted federated runs", fmt.Sprintf("`search-hub strategy benchmark --strategy %s --json` — reproduce the active measurement", result.ActiveStrategy)},
 	}
 }
 

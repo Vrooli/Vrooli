@@ -39,14 +39,14 @@ Use this document to answer:
 | Per-provider latency | active | `search-hub insights insights --window <duration>` accepts `15m`, `2h`, or a bare day count and reports p50/p95 per provider from persisted fan-out legs; sparse providers return zero percentiles rather than implying stable evidence. |
 | Provider degradation rate | active | `search-hub insights insights --window <days>` reports degraded percentage and reason buckets (`timeout`, `unreachable`, `http_error`, `reranker_unavailable`, `other`). |
 | Declared query telemetry measures | active | `/measures/declarations` and `MeasuresService` serve `query_telemetry.federated-latency`, `query_telemetry.degraded-query-rate`, `query_telemetry.provider-degradation-rate`, and `federation.stuck-provider-count`; the first three use the same `InsightsRange` compute path and the last reads persisted recovery state. |
-| Fleet routing envelope | active | The metrics store buckets telemetry by routing mode and selected fan-out (`1`, `2-6`, `7-12`, `13-24`, `25+`) with p50/p95 total and classifier/resolver/fan-out/rerank stage costs. Query text is never persisted. |
+| Fleet routing envelope | active | The metrics store buckets telemetry by routing mode and selected fan-out (`1`, `2-6`, `7-12`, `13-24`, `25+`) with p50/p95 total and provider-selection/resolver/fan-out/rerank stage costs. Query text is never persisted. |
 
-The classifier and embedding models are expected to remain resident through
-host configuration. Search Hub only applies bounded, leg-specific rerank
-budgets: 500 ms for the measured TEI cross-encoder path and 8 s for the LLM
-fallback. A cold `qwen3:1.7b` load was measured at approximately 16.41 s,
-which is outside the interactive budget and must be addressed by residency,
-not by adding model-management code to the router.
+Only reranker models need host-level residency for interactive query latency;
+the retired interactive classifier is not part of the query path. Search Hub
+applies bounded, leg-specific rerank budgets: 500 ms for the measured TEI
+cross-encoder path and 8 s for the LLM fallback. The approximately 16.41 s cold
+`qwen3:1.7b` load is a historical measurement from the former classifier path,
+not a current routing-stage cost or latency claim.
 
 ## Alerts / Health
 

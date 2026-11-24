@@ -14,13 +14,14 @@ import (
 
 	internaleval "search-hub/internal/eval"
 	internalregistry "search-hub/internal/registry"
+	internalrouting "search-hub/internal/routing"
 
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 )
 
 // CompareStrategies runs every requested strategy through the existing
-// federated evaluator, persists every run before scoring it, and applies the
+// federated evaluator, persists the completed run set before scoring it, and applies the
 // same conservative paired-bootstrap + held-out gates used by parameter
 // sweeps. It intentionally does not mutate the embedded strategy catalog: an
 // accepted proposal is reported as write-back eligible, while an unqualified
@@ -50,6 +51,13 @@ func (h *connectHandler) CompareStrategies(ctx context.Context, req *connect.Req
 	}
 	if !slices.Contains(names, active) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("comparison must include active strategy %q", active))
+	}
+	catalog, catalogErr := h.strategyCatalog()
+	if catalogErr != nil {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("strategy catalog is unavailable"))
+	}
+	if err := validateRequestedStrategies(names, catalog); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	routable := make(map[string]struct{})
 	exclusions := make(map[string]string)
@@ -101,10 +109,25 @@ func (h *connectHandler) CompareStrategies(ctx context.Context, req *connect.Req
 		if runErr != nil {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("strategy %q: %w", name, runErr))
 		}
-		if runErr = h.deps.Store.AppendRun(ctx, run); runErr != nil {
+		runs[name] = run
+	}
+	// Keep failed arm execution from leaving a partial comparison in history.
+	orderedRuns := make([]*evalv1.EvalRun, 0, len(names))
+	for _, name := range names {
+		orderedRuns = append(orderedRuns, runs[name])
+	}
+	if batch, ok := h.deps.Store.(internaleval.RunBatchAppender); ok {
+		if err := batch.AppendRuns(ctx, orderedRuns); err != nil {
 			return nil, connect.NewError(connect.CodeInternal, errors.New("internal error"))
 		}
-		runs[name] = run
+	} else {
+		// Lightweight legacy Store adapters retain compatibility through the
+		// single-row seam; production SQLite storage provides atomic batches.
+		for _, run := range orderedRuns {
+			if err := h.deps.Store.AppendRun(ctx, run); err != nil {
+				return nil, connect.NewError(connect.CodeInternal, errors.New("internal error"))
+			}
+		}
 	}
 
 	result := &evalv1.CompareStrategiesResponse{SuiteId: suite.GetSuiteId(), ActiveStrategy: active}
@@ -168,6 +191,30 @@ func (h *connectHandler) CompareStrategies(ctx context.Context, req *connect.Req
 		}
 	}
 	return connect.NewResponse(result), nil
+}
+
+// validateRequestedStrategies performs a complete catalog preflight before
+// CompareStrategies starts any arm. Without it, a typo in a later arm could
+// leave earlier immutable runs persisted even though the comparison fails.
+// The strategy schema still recognizes the legacy LLM stage, but the serving
+// router explicitly rejects strategies containing it as retired.
+func validateRequestedStrategies(names []string, catalog []internalrouting.RetrievalStrategy) error {
+	available := make(map[string]internalrouting.RetrievalStrategy, len(catalog))
+	for _, strategy := range catalog {
+		available[strategy.Name] = strategy
+	}
+	for _, name := range names {
+		strategy, ok := available[name]
+		if !ok {
+			return fmt.Errorf("unknown retrieval strategy %q", name)
+		}
+		for _, stage := range strategy.Stages {
+			if stage.Kind == internalrouting.StageLLM {
+				return fmt.Errorf("retrieval strategy %q is retired and cannot be evaluated", name)
+			}
+		}
+	}
+	return nil
 }
 
 func uniqueStrategyNames(names []string) []string {

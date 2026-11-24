@@ -57,7 +57,7 @@ func TestAutomaticSelectionUsesLLMLegWithoutDegrading(t *testing.T) {
 		Reranker: &selectorLadderReranker{crossErr: errors.New("cross-encoder down")},
 	})
 
-	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "where is the provider type declared", Explain: true})
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "where is the CLI command component declared", Explain: true})
 	require.NoError(t, err)
 	require.Equal(t, "llm", resp.GetSelectorLeg())
 	require.False(t, resp.GetDegraded(), "a named LLM selection leg is not degradation")
@@ -70,7 +70,7 @@ func TestAutomaticSelectionUsesCrossEncoderLeg(t *testing.T) {
 		Reranker: &selectorLadderReranker{},
 	})
 
-	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "where is the provider type declared"})
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "where is the CLI command component declared"})
 	require.NoError(t, err)
 	require.Equal(t, "cross_encoder", resp.GetSelectorLeg())
 	require.False(t, resp.GetDegraded())
@@ -85,7 +85,7 @@ func TestAutomaticSelectionUsesLexicalLegOnlyWhenBothModelsFail(t *testing.T) {
 		},
 	})
 
-	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "where is the provider type declared", Explain: true})
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "where is the CLI command component declared", Explain: true})
 	require.NoError(t, err)
 	require.Equal(t, "lexical", resp.GetSelectorLeg())
 	require.True(t, resp.GetDegraded())

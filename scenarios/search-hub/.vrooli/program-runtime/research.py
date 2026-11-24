@@ -1,20 +1,4 @@
-"""search-hub.research v1 — one federated project-research call at a named effort level.
-
-Contract: research.json.
-Skill:    search-hub (usage) — the [S3] leaf of the question-shape tree.
-
-Phases: validate -> collect -> classify -> report. Read-only. One binding call:
-search-hub/query/query with rows="ranked"; the per-provider `groups` field arrives in
-meta() on the same call. Effort maps to selector, depth, and limit; explicit `types`
-always override the classifier. Zero results and degraded legs are verdicts in
-signals, never errors; unreachable is unavailable, never zero.
-
-When the router's reranker leg is absent (`rerankerLeg` is "none" or missing) the
-response carries no fused `ranked` rows and every hit sits in `groups[].hits`. The
-program reads the groups and reports verdict `answered_degraded` with error class
-`reranker_absent`; a reranker outage never reads as zero_result and never sets
-escalate_to_web.
-"""
+"""Federated project research and optional bounded skill discovery."""
 
 inputs = program.inputs()
 query = str(inputs.get("query", "") or "").strip()
@@ -22,6 +6,10 @@ effort = str(inputs.get("effort", "standard") or "standard").lower()
 types = list(inputs.get("types", []) or [])
 group = str(inputs.get("group", "") or "")
 scope = str(inputs.get("scope", "") or "")
+include_skill = inputs.get("include_skill", False)
+include_discover = inputs.get("include_discover", False)
+capture_note = inputs.get("capture_note", False)
+repeat_after_status = inputs.get("repeat_after_status", False)
 
 EFFORT = {  # effort -> (fan out to every provider, per-provider limit, rows returned)
     "fast": (False, 5, 5),
@@ -32,13 +20,17 @@ EFFORT = {  # effort -> (fan out to every provider, per-provider limit, rows ret
 envelope = {
     "program": "search-hub.research", "version": "1",
     "status": "failed", "phase": "validate",
-    "inputs": {"query": query, "effort": effort, "types": types, "group": group, "scope": scope},
+    "inputs": {"query": query, "effort": effort, "types": types, "group": group, "scope": scope,
+               "include_skill": include_skill, "include_discover": include_discover,
+               "capture_note": capture_note, "repeat_after_status": repeat_after_status},
     "signals": {
         "verdict": "unavailable", "ranked": [], "ranked_count": 0, "ranked_source": None,
         "corpora_searched": [], "corpora_count": 0, "providers_hit": {},
         "degraded": None, "routing_degrade_reason": None, "partial": None, "pending_providers": None,
         "latency_ms": None, "selector_leg": None, "reranker_leg": None, "ordered_by": None,
-        "routing_explanation": None, "escalate_to_web": False,
+        "routing_explanation": None, "escalate_to_web": False, "skill_lookup": None,
+        "skill_discovery": None, "memory_capture": None, "status_check": None,
+        "first_query": None,
     },
     "errors": [], "evidence": [],
 }
@@ -61,6 +53,12 @@ def step_validate():
         return fail("failed", "invalid_input", f"effort={effort!r} not in {tuple(EFFORT)}", "validate")
     if any(not isinstance(t, str) or not t for t in types):
         return fail("failed", "invalid_input", "types must be non-empty strings", "validate")
+    if any(not isinstance(flag, bool) for flag in (include_skill, include_discover, capture_note, repeat_after_status)):
+        return fail("failed", "invalid_input", "workflow options must be booleans", "validate")
+    if capture_note and not include_discover:
+        return fail("failed", "invalid_input", "capture_note requires include_discover", "validate")
+    if include_skill and types and types != ["skill"]:
+        return fail("failed", "invalid_input", "include_skill requires types=[skill]", "validate")
     return "collect"
 
 
@@ -68,7 +66,9 @@ def step_collect():  # COLLECT · one governed read
     envelope["phase"] = "collect"
     fan_out, limit, _ = EFFORT[effort]
     kwargs = {"text": query, "limit": limit, "explain": True, "rows": "ranked"}
-    if types:
+    if include_skill:
+        kwargs["type"] = ["skill"]
+    elif types:
         kwargs["type"] = types          # explicit tokens override the classifier
     elif fan_out:
         kwargs["all"] = True
@@ -81,12 +81,55 @@ def step_collect():  # COLLECT · one governed read
     except Exception as exc:
         status, klass = program.classify(exc)
         return fail(status, klass, exc, "collect")
+    if repeat_after_status:
+        handles["first_q"] = handles["q"]
+        try:
+            status_rows = vrooli.scenario.status(name="search-hub").materialize(1)
+            status_row = status_rows[0] if status_rows else {}
+            if isinstance(status_row, dict) and isinstance(status_row.get("scenario"), dict):
+                status_row = status_row["scenario"]
+            lifecycle_status = str(status_row.get("status") or "") if isinstance(status_row, dict) else ""
+            envelope["signals"]["status_check"] = {"status": lifecycle_status or "unknown"}
+        except Exception as exc:
+            _, klass = program.classify(exc)
+            envelope["signals"]["status_check"] = {"status": "unavailable"}
+            envelope["errors"].append({"class": klass, "detail": "Search Hub status unavailable; repeated query skipped", "where": "status_check"})
+            envelope["status"] = "unavailable"
+            return "report"
+        if lifecycle_status != "running":
+            envelope["errors"].append({"class": "scenario_unreachable", "detail": "Search Hub is not running; repeated query skipped", "where": "status_check"})
+            envelope["status"] = "unavailable"
+            return "report"
+        try:
+            handles["q"] = search_hub.query.query(**kwargs)
+            envelope["signals"]["first_query"] = {
+                "ranked_count": handles["first_q"].count(),
+                "corpora_count": len(list(handles["first_q"].meta().get("corporaSearched") or [])),
+            }
+        except Exception as exc:
+            _, klass = program.classify(exc)
+            envelope["errors"].append({"class": klass, "detail": "repeated Search Hub query failed", "where": "repeat_query"})
+            envelope["status"] = "unavailable"
+            return "report"
+    if include_discover:
+        try:
+            handles["discover"] = prompt_manager.discover.discover(
+                queries=[query], complexity="moderate", limit=5, type="skill", rows="results")
+        except Exception as exc:
+            status, klass = program.classify(exc)
+            envelope["errors"].append({"class": klass, "detail": str(exc)[:120], "where": "skill_discover"})
+            envelope["signals"]["skill_discovery"] = {"status": "unavailable"}
+            if envelope["status"] == "ok":
+                envelope["status"] = "partial"
     return "classify"
 
 
 def step_classify():  # CLASSIFY · verdict table over the response meta; bounded head
     envelope["phase"] = "classify"
     sig = envelope["signals"]
+    include_skill = envelope.get("inputs", {}).get("include_skill", False)
+    include_discover = envelope.get("inputs", {}).get("include_discover", False)
+    sig.setdefault("skill_lookup", None)
     q = handles["q"]
     meta = q.meta() or {}
     groups = [g for g in (meta.get("groups") or []) if isinstance(g, dict)]
@@ -152,12 +195,73 @@ def step_classify():  # CLASSIFY · verdict table over the response meta; bounde
     else:
         sig["verdict"] = "answered"
     sig["escalate_to_web"] = sig["verdict"] in ("zero_result", "no_provider_selected") and "web" not in types
+
     if sig["verdict"] == "answered_degraded":
         envelope["status"] = "partial"
     elif sig["verdict"] == "unavailable":
         envelope["status"] = "unavailable"
     else:
         envelope["status"] = "ok"
+    if include_skill and sig["skill_lookup"] and sig["skill_lookup"].get("status") in ("unavailable", "partial") and envelope["status"] == "ok":
+        envelope["status"] = "partial"
+
+    if include_skill and sig["skill_lookup"] is None:
+        source = "prompt-manager.discover" if include_discover else "search-hub"
+        if include_discover:
+            candidates = handles.get("discover")
+            candidates = candidates.filter(lambda r: r.get("type") == "skill") if candidates is not None else None
+            candidates = candidates.head(1) if candidates is not None else []
+        else:
+            candidates = [r for r in rows if r.get("type") == "skill" and r.get("providerId") == "prompt-manager.skill"][:1]
+        skill_id = str(candidates[0].get("id") or "") if candidates else ""
+        if not skill_id:
+            sig["skill_lookup"] = {"status": "not_found", "source": source, "id": "", "content": "", "truncated": False}
+        else:
+            try:
+                skills = prompt_manager.skill.read(identifiers=[skill_id], allow_missing=True, rows="skills")
+                skill = next((r for r in skills.head(1) if r.get("id") == skill_id), None)
+                content = skill.get("content") if isinstance(skill, dict) else None
+                if not isinstance(content, str):
+                    sig["skill_lookup"] = {"status": "not_found", "source": source, "id": skill_id, "content": "", "truncated": False}
+                else:
+                    raw = content.encode("utf-8")
+                    truncated = len(raw) > 8500
+                    content = raw[:8500].decode("utf-8", "ignore") if truncated else content
+                    sig["skill_lookup"] = {"status": "partial" if truncated else "ok", "source": source,
+                                           "id": skill_id, "content": content, "truncated": truncated}
+                    if truncated:
+                        envelope["status"] = "partial"
+            except Exception as exc:
+                status, klass = program.classify(exc)
+                envelope["errors"].append({"class": klass, "detail": str(exc)[:120], "where": "skill_read"})
+                sig["skill_lookup"] = {"status": "unavailable", "source": source, "id": skill_id, "content": "", "truncated": False}
+                if envelope["status"] in ("ok", "partial"):
+                    envelope["status"] = "partial"
+    if include_discover and handles.get("discover") is not None:
+        discovery = handles["discover"]
+        envelope["signals"]["skill_discovery"] = {"status": "ok", "matched_count": discovery.count()}
+    if capture_note:
+        discovery = handles.get("discover")
+        if discovery is None or envelope["status"] == "unavailable":
+            envelope["signals"]["memory_capture"] = {"status": "not_written"}
+        else:
+            note_body = f"Search Hub discovery outcome: verdict={sig['verdict']}; results={sig['ranked_count']}; discovered={discovery.count()}."
+            try:
+                receipt = vrooli_memory.journal.note(
+                    body=note_body, scope="search-hub-usage", kind="query-record",
+                    trigger="task-skill discovery", approach="search-hub.research then prompt-manager.discover",
+                    evidence=f"verdict={sig['verdict']};results={sig['ranked_count']};discovered={discovery.count()}",
+                    outcome=str(sig["verdict"])[:40],
+                )
+                entry = (receipt.meta() or {}).get("entry") or {}
+                entry_id = entry.get("id") or entry.get("entryId") if isinstance(entry, dict) else ""
+                envelope["signals"]["memory_capture"] = {"status": "written", "entry_ref": str(entry_id)[:80]}
+            except Exception as exc:
+                _, klass = program.classify(exc)
+                envelope["signals"]["memory_capture"] = {"status": "failed"}
+                envelope["errors"].append({"class": klass, "detail": "memory note failed; search result retained", "where": "memory_capture"})
+                if envelope["status"] == "ok":
+                    envelope["status"] = "partial"
     if reranker_absent:
         envelope["errors"].append({"class": "reranker_absent", "detail": "no reranker leg; hits read from groups, ordered by provider score, not fused", "where": "classify"})
     if sig["degraded"] or sig["partial"]:

@@ -18,6 +18,8 @@ const defaultAutoExternalThreshold = 0.60
 
 const defaultMaxFanoutWidth = aisearch.DefaultRouterMaxFanoutWidth
 
+const routeTypoPolicyOneEditUnique = "one_edit_unique"
+
 const (
 	selectorLegCrossEncoder = "cross_encoder"
 	selectorLegLLM          = "llm"
@@ -54,6 +56,9 @@ type ProviderProfile struct {
 	PositiveExamples   []string
 	Exclusions         []string
 	OmittedProviderIDs []string
+	identityTokens     []string
+	searchTokens       []string
+	exclusionTokens    [][]string
 }
 
 func buildProfiles(active []*registryv1.ProviderDescriptor) []ProviderProfile {
@@ -67,7 +72,7 @@ func buildProfiles(active []*registryv1.ProviderDescriptor) []ProviderProfile {
 		if id == "" || typ == "" {
 			continue
 		}
-		out = append(out, ProviderProfile{
+		profile := ProviderProfile{
 			ProviderID:       id,
 			Type:             typ,
 			Group:            strings.TrimSpace(provider.GetProviderGroup()),
@@ -76,10 +81,46 @@ func buildProfiles(active []*registryv1.ProviderDescriptor) []ProviderProfile {
 			Intents:          cleanRouteValues(provider.GetRoutingProfile().GetIntents()),
 			PositiveExamples: cleanRouteValues(provider.GetRoutingProfile().GetPositiveExamples()),
 			Exclusions:       cleanRouteValues(provider.GetRoutingProfile().GetExclusions()),
-		})
+		}
+		profile.identityTokens = routeWordTokens(profile.ProviderID)
+		profile.searchTokens = routeWordTokens(providerProfileText(profile))
+		profile.exclusionTokens = routePhraseTokens(profile.Exclusions)
+		out = append(out, profile)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ProviderID < out[j].ProviderID })
 	return out
+}
+
+func routePhraseTokens(phrases []string) [][]string {
+	if len(phrases) == 0 {
+		return nil
+	}
+	tokens := make([][]string, 0, len(phrases))
+	for _, phrase := range phrases {
+		if normalized := routeWordTokens(phrase); len(normalized) > 0 {
+			tokens = append(tokens, normalized)
+		}
+	}
+	return tokens
+}
+
+func exactProviderDescriptorIdentityMatch(query string, active []*registryv1.ProviderDescriptor) (*registryv1.ProviderDescriptor, bool) {
+	queryTokens := routeWordTokens(query)
+	var match *registryv1.ProviderDescriptor
+	for _, provider := range active {
+		if provider == nil || provider.GetEndpoint() == nil || strings.TrimSpace(provider.GetType()) == "" {
+			continue
+		}
+		idTokens := routeWordTokens(strings.TrimSpace(provider.GetProviderId()))
+		if len(idTokens) == 0 || (len(idTokens) == 1 && len([]rune(idTokens[0])) < 6) || tokenSequenceIndex(queryTokens, idTokens) < 0 {
+			continue
+		}
+		if match != nil {
+			return nil, false
+		}
+		match = provider
+	}
+	return match, match != nil
 }
 
 // ProviderProfilesForFleet is the shared projection from Search Hub's
@@ -110,21 +151,66 @@ func lexicalProviderShortlist(query string, profiles []ProviderProfile, limit in
 	if limit <= 0 || limit > len(profiles) {
 		limit = len(profiles)
 	}
-	scored := make([]scoredProfile, 0, len(profiles))
-	for _, profile := range profiles {
-		scored = append(scored, scoredProfile{profile: profile, score: lexicalDescriptionScore(query, profile)})
-	}
-	sort.SliceStable(scored, func(i, j int) bool {
-		if scored[i].score == scored[j].score {
-			return scored[i].profile.ProviderID < scored[j].profile.ProviderID
+	scored, _ := scoreProviderProfiles(query, profiles)
+	return profilesFromScores(scored, limit)
+}
+
+func positiveScoredProfiles(ranked []ProviderProfile, scores map[string]float64, limit int) []ProviderProfile {
+	positive := make([]ProviderProfile, 0, len(ranked))
+	for _, profile := range ranked {
+		if scores[profile.ProviderID] > 0 {
+			positive = append(positive, profile)
 		}
-		return scored[i].score > scored[j].score
-	})
-	out := make([]ProviderProfile, 0, limit)
-	for _, item := range scored[:limit] {
-		out = append(out, item.profile)
 	}
-	return out
+	if limit > 0 && len(positive) > limit {
+		positive = positive[:limit]
+	}
+	return positive
+}
+
+func filterRoutingProfileExclusions(query string, profiles []ProviderProfile) ([]ProviderProfile, int) {
+	queryTokens := routeWordTokens(query)
+	filtered := make([]ProviderProfile, 0, len(profiles))
+	excluded := 0
+	for _, profile := range profiles {
+		if routingProfileExcludesTokens(queryTokens, profile) {
+			excluded++
+			continue
+		}
+		filtered = append(filtered, profile)
+	}
+	return filtered, excluded
+}
+
+// scoredCutoffSplitsTie reports when a bounded lexical window would discard
+// eligible owners whose positive evidence equals the last admitted owner.
+// Stable ID ordering is useful for reproducible output, but it does not prove
+// that one tied owner is more relevant than another.
+func scoredCutoffSplitsTie(ranked []ProviderProfile, scores map[string]float64, limit int) bool {
+	if limit <= 0 || limit >= len(ranked) {
+		return false
+	}
+	cutoff := scores[ranked[limit-1].ProviderID]
+	if cutoff <= 0 {
+		return false
+	}
+	for _, profile := range ranked[limit:] {
+		if scores[profile.ProviderID] == cutoff {
+			return true
+		}
+		if scores[profile.ProviderID] < cutoff {
+			break
+		}
+	}
+	return false
+}
+
+func routeProviderShortlist(query string, profiles []ProviderProfile, limit int, typoPolicy string) ([]ProviderProfile, map[string]float64, bool) {
+	if typoPolicy == routeTypoPolicyOneEditUnique {
+		return boundedTypoProviderShortlist(query, profiles, limit)
+	}
+	scored, scores := scoreProviderProfiles(query, profiles)
+	return profilesFromScores(scored, limit), scores, false
 }
 
 // fuseProviderRankings combines the semantic ordering with the named lexical
@@ -288,6 +374,9 @@ func guardedSemanticProviderSelection(query string, picked, semantic, lexical []
 // rerankers that only return an ordering; production rerankers always provide
 // the map through rerankProviderCandidates.
 func semanticCandidateBeatsLexicalFloor(query string, candidate ProviderProfile, lexical []ProviderProfile, rerankScores map[string]float64) bool {
+	if routingProfileExcludesTokens(routeWordTokens(query), candidate) {
+		return false
+	}
 	if len(rerankScores) == 0 {
 		return lexicalCompatibilityWithFloor(query, candidate, lexical)
 	}
@@ -359,11 +448,12 @@ func buildRoutingTraceCandidates(query string, semantic, lexical, union, picked,
 	for rank, profile := range semantic {
 		denseRanks[profile.ProviderID] = rank + 1
 	}
+	_, lexicalScoreMap := scoreProviderProfiles(query, lexical)
 	lexicalRanks := make(map[string]int, len(lexical))
 	lexicalScores := make(map[string]float64, len(lexical))
 	for rank, profile := range lexical {
 		lexicalRanks[profile.ProviderID] = rank + 1
-		lexicalScores[profile.ProviderID] = lexicalDescriptionScore(query, profile)
+		lexicalScores[profile.ProviderID] = lexicalScoreMap[profile.ProviderID]
 	}
 	unionIDs := make(map[string]struct{}, len(union))
 	for _, profile := range union {

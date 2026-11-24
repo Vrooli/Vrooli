@@ -14,7 +14,7 @@ metadata:
   updatedAt: "2026-11-05T01:16:00Z"
   requires:
     scenarios: ["search-hub", "program-runtime", "vrooli-memory"]
-    commands: ["search-hub query query", "search-hub providers list", "search-hub federation status", "search-hub insights insights", "search-hub status", "search-hub configure", "vrooli-memory recall wake", "vrooli-memory recall recall", "vrooli-memory journal note", "vrooli-memory facets pin", "vrooli-memory facets supersede", "vrooli scenario status"]
+    commands: ["search-hub query query", "search-hub providers list", "search-hub federation status", "search-hub federation provider-status", "search-hub insights insights", "search-hub status", "search-hub configure", "vrooli-memory recall wake", "vrooli-memory recall recall", "vrooli-memory journal note", "vrooli-memory facets pin", "vrooli-memory facets supersede", "vrooli scenario status"]
   learning:
     scope: "search-hub-usage"
     capture: "on novel outcome"
@@ -70,7 +70,7 @@ Effort, then one step:
 | standard | automatic selection with `--explain`, or `--type` | 10 | the default for design and debugging questions |
 | deep | `--all` (every active provider) | 20 | you must prove absence, or the shape spans three buckets |
 
-`run search-hub.research` with `query`, `effort` in `fast|standard|deep`, optional `types` (a list), `group`, `scope` **[S3]**. Branch on the envelope:
+`run search-hub.research` with `query`, `effort` in `fast|standard|deep`, optional `types` (a list), `group`, `scope` **[S3]**. For the repeated task-skill lookup, set `types=["skill"]` and `include_skill=true`; add `include_discover=true` when Prompt Manager discovery is part of the sequence. Branch on `signals.skill_lookup.status` and `truncated` before using returned content. For the repeated lookup-and-record sequence, add `include_discover=true capture_note=true`; this explicitly writes one note containing only the verdict and result/discovery counts, never the query or returned content. Check `signals.memory_capture.status` before treating the note as recorded. To safely repeat a query after a lifecycle check, set `repeat_after_status=true`; the program performs one query, reads only Search Hub's lifecycle status, and repeats the identical query once only when status is `running`. Check `signals.status_check` and `first_query`; a non-running/unavailable status skips the repeat. Branch on the envelope:
 
 | `status` | `signals.verdict` / `errors[0].class` | Do |
 |---|---|---|
@@ -100,7 +100,7 @@ One note per novel outcome (a shape you had not routed before, a verdict you did
 
 | Kind | When | Command |
 |---|---|---|
-| `query-record` | A shape → tokens → verdict you will meet again | `vrooli-memory journal note "<shape>: --type <tokens> -> <verdict>, best provider <id>" --scope search-hub-usage --kind query-record --trigger "<question>" --approach "<tokens/effort>" --evidence "<providers_hit, verdict>" --outcome "<answered \| escalated \| dead end>"` [S1] |
+| `query-record` | A shape → tokens → verdict you will meet again | Call `search-hub.research` with `include_discover=true capture_note=true`; inspect `signals.memory_capture`. [S3] |
 | `provider-note` | A provider answered off-topic, timed out twice, or needs its own vocabulary | `vrooli-memory journal note "<provider_id>: <what to know>" --scope search-hub-usage --kind provider-note --trigger ... --approach ... --evidence ... --outcome ...` [S1] |
 
 Curation inside the tree: a `query-record` confirmed on a third distinct question → `vrooli-memory facets pin <entry-id> --scope search-hub-usage` [S1]; advice that stopped working → `vrooli-memory facets supersede <entry-id> --scope search-hub-usage --replacement-entry-id <new-id>` [S1]; a repeated shape that should classify itself → `run vrooli-memory.scope-bootstrap` with a `rules` entry and read its dry-run before enabling [S3] (contract: `scenarios/vrooli-memory/.vrooli/program-runtime/scope-bootstrap.json`).
@@ -110,15 +110,17 @@ Curation inside the tree: a `query-record` confirmed on a third distinct questio
 | Symptom | Move | Journal |
 |---|---|---|
 | Rows from one noisy provider crowd the list | Narrow `--type` to the bucket's tokens, or `--group <scenario>` | `provider-note` naming the provider |
-| Zero rows on a shape that used to answer | `--all --limit 20` once; if still zero, `search-hub federation status` | `query-record` with the verdict |
+| Zero rows on a shape that used to answer | `--all --limit 20` once; if still zero, `search-hub federation status` | Use `search-hub.research` with `include_discover=true capture_note=true` only when recording this result is useful and authorized |
 | CLI reports `Unable to reach the search-hub API` while `vrooli scenario status search-hub` is healthy | `search-hub configure api_base http://localhost:<API_PORT>` with the port from `vrooli scenario status search-hub`; observed 2026-09-02: the CLI's RPC client dialed `127.0.0.1:2026` while the API listened on 19157, and `--api-base` corrected only `/health` | `provider-note` on `search-hub` with both ports; file `report-bug` against search-hub |
 | A variant instance is under test | `search-hub --instance shadow query query "<q>"` | none |
 
-Debug order: `vrooli scenario status search-hub` → `search-hub status` (dependencies: database, federation, ollama, qdrant) → `search-hub federation status` (per-provider reachability, active selector and reranker legs; the classifier-availability field is legacy and remains false) → `search-hub insights insights --window 1` (today's zero-result rate, degradation reasons) → repeat the query with `--explain`.
+Debug order: `vrooli scenario status search-hub` → `search-hub status` (dependencies: database, federation, ollama, qdrant) → `search-hub federation status` (per-provider reachability, active selector and reranker legs; the classifier-availability field is legacy and remains false) → `search-hub insights insights --window 1` (today's zero-result rate, degradation reasons). When the task calls for the same query again after checking lifecycle state, use `search-hub.research` with `repeat_after_status=true`; it records the first result's counts and does not repeat when the scenario is unavailable.
+
+When one provider has already been selected for the next action and its health can change that action, use `search-hub federation provider-status <provider_id>`. This resolves only that exact active provider's scenario route and reads its declared status/freshness endpoint when available. It does not sweep the fleet or execute a search; exercise the selected provider for the actual task after reading its status. Use `federation status` only when the question is federation-wide. If Search Hub itself is unavailable, use the documented direct fallback for the task (for repository/topic search, `rg` over only the approved paths); keep Search Hub coverage `unknown` rather than treating fallback search as proof of complete federation coverage.
 
 ### 7. Safety
 
-- This skill is read-only. `providers register|remove`, `evals run|sweep --apply|generate --apply|promote|reap-orphans --confirm`, `federation repromote`, `strategy compare --apply`, and `embedding` mutations belong to `search-hub-improve` with evidence; never run them to make a query work.
+- Queries and discovery are reads. `capture_note=true` performs one explicit append-only Memory write with verdict/counts only; do not enable it unless that write is appropriate and authorized. `providers register|remove`, `evals run|sweep --apply|generate --apply|promote|reap-orphans --confirm`, `federation repromote`, `strategy compare --apply`, and `embedding` mutations belong to `search-hub-improve` with evidence; never run them to make a query work.
 - `--type web` reaches the external, rate-limited live web through web-search's governor. Never put credentials or private data in a query that may route there.
 - Memory notes name providers and shapes, never result bodies.
 

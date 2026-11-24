@@ -80,6 +80,30 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "routing_provider_status",
+		Path:        routingconnect.RoutingServiceProviderStatusProcedure,
+		Method:      "POST",
+		Summary:     "Selected provider health",
+		Description: "Resolves exactly one active provider's scenario route and reads its declared status/freshness endpoint when available; it does not sweep the federation or execute a search. Use this when selected-owner health can change the next action, then exercise the provider for the actual task.",
+		Category:    "routing",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{
+			"provider_id": "string (required) — exact active provider selected for the pending task",
+		}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{
+			"provider_id": "string — exact provider probed",
+			"health":      "ProviderHealth — live reachability, automatic eligibility and index freshness",
+			"observed_at": "timestamp — time this selected-provider probe ran",
+		}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "provider_id is required"},
+			{Status: 404, Code: "not_found", Description: "provider is not currently active"},
+			{Status: 500, Code: "internal", Description: "Registry read failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Selected provider readiness", Curl: "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.routing.RoutingService/ProviderStatus -H 'Content-Type: application/json' -d '{\"provider_id\":\"cli-health.commands\"}'"},
+		},
+	},
+	{
 		ID:          "routing_repromote",
 		Path:        routingconnect.RoutingServiceRepromoteProcedure,
 		Method:      "POST",

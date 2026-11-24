@@ -33,6 +33,21 @@
       "stages": [
         {"kind": "lexical", "params": {"shortlist_width": 6}}
       ]
+    },
+    {
+      "name": "lexical-typo-cross-encoder",
+      "description": "Candidate: strict lexical ranking plus unique one-edit token evidence, then the existing cross-encoder picker.",
+      "stages": [
+        {"kind": "lexical", "params": {"shortlist_width": 6, "typo_policy": "one_edit_unique"}},
+        {"kind": "cross_encoder", "params": {"selection": "provider_pick", "fanout_width": 6}}
+      ]
+    },
+    {
+      "name": "lexical-typo-fallback",
+      "description": "Model-free candidate: strict lexical ranking plus unique one-edit token evidence and bounded fan-out.",
+      "stages": [
+        {"kind": "lexical", "params": {"shortlist_width": 6, "typo_policy": "one_edit_unique"}}
+      ]
     }
   ]
 }

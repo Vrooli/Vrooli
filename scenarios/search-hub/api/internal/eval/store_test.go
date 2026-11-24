@@ -242,6 +242,30 @@ func TestAppendAndListRuns(t *testing.T) {
 	require.ErrorAs(t, err, &nf)
 }
 
+func TestAppendRunsCommitsCompleteComparisonAtomically(t *testing.T) {
+	store, _ := newStore(t)
+	ctx := context.Background()
+	batch, ok := store.(eval.RunBatchAppender)
+	require.True(t, ok, "SQLite store must expose transactional comparison writes")
+
+	require.NoError(t, batch.AppendRuns(ctx, []*evalv1.EvalRun{
+		{RunId: "batch-one", SuiteId: "router.routing", Tag: "arm-one"},
+		{RunId: "batch-two", SuiteId: "router.routing", Tag: "arm-two"},
+	}))
+	runs, err := store.ListRuns(ctx, eval.ListRunsFilter{SuiteID: "router.routing"})
+	require.NoError(t, err)
+	require.Len(t, runs, 2)
+
+	err = batch.AppendRuns(ctx, []*evalv1.EvalRun{
+		{RunId: "duplicate-batch", SuiteId: "router.routing", Tag: "arm-three"},
+		{RunId: "duplicate-batch", SuiteId: "router.routing", Tag: "arm-four"},
+	})
+	require.Error(t, err, "duplicate run id forces a write failure inside the batch")
+	runs, err = store.ListRuns(ctx, eval.ListRunsFilter{SuiteID: "router.routing"})
+	require.NoError(t, err)
+	require.Len(t, runs, 2, "failed batch must roll back its successful prefix")
+}
+
 func mustUpsert(t *testing.T, store eval.Store, s *evalv1.EvalSuite) error {
 	t.Helper()
 	_, err := store.UpsertSuite(context.Background(), s)

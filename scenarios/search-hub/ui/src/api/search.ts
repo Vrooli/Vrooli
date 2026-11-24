@@ -3,8 +3,9 @@
  *
  * Three Connect services back the search page:
  *   - RoutingService.Query  — fan out a query and return ranked/grouped hits.
- *   - RoutingService.Status — per-provider reachability + classifier/reranker
- *     availability (provider reachability and index age on results).
+ *   - RoutingService.Status — active strategy, reranker availability, and
+ *     per-provider reachability/index-age evidence. The retired classifier
+ *     availability field remains wire compatibility only.
  *   - RegistryService.ListProviders — the ACTIVE leaves, used to build the
  *     type facets (we route on what is actually registered, never a hardcoded
  *     list).
@@ -33,7 +34,7 @@ const registryClient = createClient(RegistryService, transport);
 export interface SearchInput {
   /** Natural-language query text. */
   query: string;
-  /** Explicit leaf types to route to; empty + all=false ⇒ the classifier routes. */
+  /** Explicit leaf types to route to; empty + all=false uses the active strategy. */
   types: string[];
   /** Fan out to every active provider (the "expand search" affordance). */
   all: boolean;

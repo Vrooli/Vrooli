@@ -25,7 +25,7 @@ const GroupName = "query"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]cliapp.PrimitiveHandler{
-		"RoutingService.Query": cliapp.ProtoList(h.queryCall, h.queryReport),
+		"RoutingService.Query": cliapp.ProtoListWithConnectJSONFlag(h.queryCall, h.queryReport, "json-connect"),
 	}
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {

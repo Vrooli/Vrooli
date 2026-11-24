@@ -44,8 +44,8 @@ func Normalize(d *registryv1.ProviderDescriptor) {
 // rules differ by state:
 //
 //   - Always: provider_id, provider_group, type, description, bucket are
-//     required (the classifier routes on description; bucket is the routing
-//     facet, so neither may be unspecified).
+//     required (automatic provider selection uses description evidence; bucket
+//     is the routing facet, so neither may be unspecified).
 //   - ACTIVE leaves must be callable: a present endpoint and a result_mapping
 //     with at least a results_path and id/title/score selectors, so the
 //     generic adapter can map responses with no provider-specific code.
@@ -68,7 +68,7 @@ func Validate(d *registryv1.ProviderDescriptor) error {
 		return ErrInvalidDescriptor{Field: "type", Reason: "required"}
 	}
 	if strings.TrimSpace(d.Description) == "" {
-		return ErrInvalidDescriptor{Field: "description", Reason: "required (the classifier routes on it)"}
+		return ErrInvalidDescriptor{Field: "description", Reason: "required (automatic provider selection uses this evidence)"}
 	}
 	if d.Bucket == registryv1.Bucket_BUCKET_UNSPECIFIED {
 		return ErrInvalidDescriptor{Field: "bucket", Reason: "must be one of DO/REUSE/KNOW/STATE"}

@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"unicode"
+	"unicode/utf8"
 
 	aisearch "github.com/vrooli/ai-go/search"
 )
@@ -330,24 +332,8 @@ func EmbedProviderDescription(ctx context.Context, embedder aisearch.Embedder, d
 }
 
 func fallbackDescriptionProfiles(query string, profiles []ProviderProfile, limit int, _ string) []ProviderProfile {
-	scored := make([]scoredProfile, 0, len(profiles))
-	for _, profile := range profiles {
-		scored = append(scored, scoredProfile{profile: profile, score: lexicalDescriptionScore(query, profile)})
-	}
-	sort.SliceStable(scored, func(a, b int) bool {
-		if scored[a].score == scored[b].score {
-			return scored[a].profile.ProviderID < scored[b].profile.ProviderID
-		}
-		return scored[a].score > scored[b].score
-	})
-	if len(scored) > limit {
-		scored = scored[:limit]
-	}
-	out := make([]ProviderProfile, 0, len(scored))
-	for _, item := range scored {
-		out = append(out, item.profile)
-	}
-	return out
+	scored, _ := scoreProviderProfiles(query, profiles)
+	return profilesFromScores(scored, limit)
 }
 
 func unavailableDescriptionIndexResult(query string, profiles []ProviderProfile, limit int) DescriptionIndexResult {
@@ -366,24 +352,391 @@ func unavailableDescriptionIndexResult(query string, profiles []ProviderProfile,
 }
 
 func lexicalDescriptionScore(query string, profile ProviderProfile) float64 {
-	terms := strings.Fields(strings.ToLower(query))
-	text := strings.ToLower(strings.Join([]string{
-		profile.ProviderID,
-		profile.Type,
-		profile.Group,
-		profile.Description,
-		strings.Join(profile.AnswerSpaces, " "),
-		strings.Join(profile.Intents, " "),
-		strings.Join(profile.PositiveExamples, " "),
-	}, " "))
-	var score float64
+	if routingProfileExcludesTokens(routeWordTokens(query), profile) {
+		return 0
+	}
+	return lexicalProfileScore(routeQueryTerms(query), providerSearchTokens(profile))
+}
+
+func scoreProviderProfiles(query string, profiles []ProviderProfile) ([]scoredProfile, map[string]float64) {
+	queryTerms := routeQueryTerms(query)
+	queryTokens := routeWordTokens(query)
+	scored := make([]scoredProfile, 0, len(profiles))
+	scores := make(map[string]float64, len(profiles))
+	for _, profile := range profiles {
+		score := lexicalProfileScore(queryTerms, providerSearchTokens(profile))
+		if routingProfileExcludesTokens(queryTokens, profile) {
+			score = 0
+		}
+		scores[profile.ProviderID] = score
+		scored = append(scored, scoredProfile{profile: profile, score: score})
+	}
+	sort.SliceStable(scored, func(i, j int) bool {
+		if scored[i].score == scored[j].score {
+			return scored[i].profile.ProviderID < scored[j].profile.ProviderID
+		}
+		return scored[i].score > scored[j].score
+	})
+	return scored, scores
+}
+
+func providerSearchTokens(profile ProviderProfile) []string {
+	if profile.searchTokens != nil {
+		return profile.searchTokens
+	}
+	return routeWordTokens(providerProfileText(profile))
+}
+
+func providerIdentityTokens(profile ProviderProfile) []string {
+	if profile.identityTokens != nil {
+		return profile.identityTokens
+	}
+	return routeWordTokens(profile.ProviderID)
+}
+
+// routingProfileExcludesTokens matches a declared exclusion as an exact
+// contiguous phrase. This is negative lexical evidence only: exclusion text is
+// never appended to the provider's positive search tokens.
+func routingProfileExcludesTokens(queryTokens []string, profile ProviderProfile) bool {
+	exclusions := profile.exclusionTokens
+	if exclusions == nil && len(profile.Exclusions) > 0 {
+		exclusions = routePhraseTokens(profile.Exclusions)
+	}
+	for _, phrase := range exclusions {
+		if tokenSequenceIndex(queryTokens, phrase) >= 0 {
+			return true
+		}
+		used := make([]bool, len(queryTokens))
+		matched := true
+		for _, excludedToken := range phrase {
+			found := false
+			for index, queryToken := range queryTokens {
+				if used[index] || (queryToken != excludedToken && (len([]rune(queryToken)) < 5 || len([]rune(excludedToken)) < 5 || !oneEditApart(queryToken, excludedToken))) {
+					continue
+				}
+				used[index] = true
+				found = true
+				break
+			}
+			if !found {
+				matched = false
+				break
+			}
+		}
+		if matched && len(phrase) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func profilesFromScores(scored []scoredProfile, limit int) []ProviderProfile {
+	if limit <= 0 || limit > len(scored) {
+		limit = len(scored)
+	}
+	out := make([]ProviderProfile, 0, limit)
+	for _, item := range scored[:limit] {
+		out = append(out, item.profile)
+	}
+	return out
+}
+
+func routeQueryTerms(query string) []string {
+	terms := routeWordTokens(query)
+	seen := make(map[string]struct{}, len(terms))
+	unique := make([]string, 0, len(terms))
 	for _, term := range terms {
-		term = strings.Trim(term, " ,.!?:;()[]{}\"'")
-		if term != "" && strings.Contains(text, term) {
-			score++
+		if _, common := routeQueryStopwords[term]; common {
+			continue
+		}
+		if _, exists := seen[term]; exists {
+			continue
+		}
+		seen[term] = struct{}{}
+		unique = append(unique, term)
+	}
+	return unique
+}
+
+func lexicalProfileScore(queryTerms, profileTerms []string) float64 {
+	var score float64
+	for _, queryTerm := range queryTerms {
+		for _, profileTerm := range profileTerms {
+			if queryTerm == profileTerm {
+				score++
+				break
+			}
 		}
 	}
 	return score
+}
+
+var routeQueryStopwords = map[string]struct{}{
+	"a": {}, "an": {}, "and": {}, "are": {}, "as": {}, "at": {}, "be": {}, "by": {},
+	"can": {}, "could": {}, "do": {}, "does": {}, "find": {}, "for": {}, "from": {}, "how": {}, "i": {},
+	"in": {}, "is": {}, "it": {}, "me": {}, "my": {}, "of": {}, "on": {}, "or": {}, "please": {},
+	"search": {}, "should": {}, "the": {}, "their": {}, "then": {}, "this": {}, "to": {}, "was": {}, "what": {},
+	"when": {}, "where": {}, "which": {}, "who": {}, "why": {}, "with": {}, "would": {}, "you": {}, "your": {},
+}
+
+// exactProviderIdentityMatch recognizes an eligible provider ID only when its
+// normalized tokens occur together in the query. It returns a provider only
+// when that exact identity is unique in the already-filtered candidate set;
+// short generic IDs are ignored to avoid turning ordinary words into resource
+// selectors. The caller can then skip embedding and reranking for a named
+// resource without widening authorization or scope.
+func exactProviderIdentityMatch(query string, profiles []ProviderProfile) (ProviderProfile, bool) {
+	queryTokens := routeWordTokens(query)
+	var match ProviderProfile
+	matches := 0
+	for _, profile := range profiles {
+		idTokens := providerIdentityTokens(profile)
+		if len(idTokens) == 0 || (len(idTokens) == 1 && len([]rune(idTokens[0])) < 6) {
+			continue
+		}
+		if tokenSequenceIndex(queryTokens, idTokens) < 0 {
+			continue
+		}
+		match = profile
+		matches++
+	}
+	return match, matches == 1
+}
+
+func tokenSequenceIndex(haystack, needle []string) int {
+	if len(needle) == 0 || len(needle) > len(haystack) {
+		return -1
+	}
+	for start := 0; start+len(needle) <= len(haystack); start++ {
+		matches := true
+		for offset := range needle {
+			if haystack[start+offset] != needle[offset] {
+				matches = false
+				break
+			}
+		}
+		if matches {
+			return start
+		}
+	}
+	return -1
+}
+
+// boundedTypoProviderShortlist adds one bounded edit of lexical evidence only
+// when a query token has one eligible owner. Ambiguous typos do not break ties
+// or widen selection; exact lexical matches retain their full incumbent score.
+func boundedTypoProviderShortlist(query string, profiles []ProviderProfile, limit int) ([]ProviderProfile, map[string]float64, bool) {
+	if limit <= 0 || limit > len(profiles) {
+		limit = len(profiles)
+	}
+	queryTokens := routeWordTokens(query)
+	queryTerms := routeQueryTerms(query)
+	profileTokens := make([][]string, len(profiles))
+	excluded := make([]bool, len(profiles))
+	for index, profile := range profiles {
+		profileTokens[index] = providerSearchTokens(profile)
+		excluded[index] = routingProfileExcludesTokens(queryTokens, profile)
+	}
+
+	fuzzyEvidence := make([]float64, len(profiles))
+	usedTypo := false
+	for _, queryToken := range queryTokens {
+		if len([]rune(queryToken)) < 5 {
+			continue
+		}
+		ownerIndex := -1
+		ambiguousOwner := false
+		for index := range profiles {
+			if excluded[index] {
+				continue
+			}
+			exactToken := false
+			fuzzyToken := false
+			for _, profileToken := range profileTokens[index] {
+				if profileToken == queryToken {
+					exactToken = true
+					break
+				}
+				if len([]rune(profileToken)) >= 5 && oneEditApart(queryToken, profileToken) {
+					fuzzyToken = true
+					break
+				}
+			}
+			if exactToken || !fuzzyToken {
+				continue
+			}
+			if ownerIndex >= 0 && ownerIndex != index {
+				ambiguousOwner = true
+				break
+			}
+			ownerIndex = index
+		}
+		if ownerIndex < 0 || ambiguousOwner {
+			continue
+		}
+		// Fuzzy evidence can break an exact-score tie, but several typo
+		// tokens must not accumulate enough weight to outrank one additional
+		// exact lexical match owned by another provider.
+		fuzzyEvidence[ownerIndex] = 0.35
+		usedTypo = true
+	}
+
+	scored := make([]scoredProfile, 0, len(profiles))
+	scores := make(map[string]float64, len(profiles))
+	for index, profile := range profiles {
+		score := lexicalProfileScore(queryTerms, profileTokens[index]) + fuzzyEvidence[index]
+		if excluded[index] {
+			score = 0
+		}
+		scores[profile.ProviderID] = score
+		scored = append(scored, scoredProfile{profile: profile, score: score})
+	}
+	sort.SliceStable(scored, func(i, j int) bool {
+		if scored[i].score == scored[j].score {
+			return scored[i].profile.ProviderID < scored[j].profile.ProviderID
+		}
+		return scored[i].score > scored[j].score
+	})
+	out := make([]ProviderProfile, 0, len(scored))
+	for _, item := range scored {
+		out = append(out, item.profile)
+	}
+	return out, scores, usedTypo
+}
+
+func providerProfileText(profile ProviderProfile) string {
+	return strings.Join([]string{
+		profile.ProviderID, profile.Type, profile.Group, profile.Description,
+		strings.Join(profile.AnswerSpaces, " "), strings.Join(profile.Intents, " "),
+		strings.Join(profile.PositiveExamples, " "),
+	}, " ")
+}
+
+func routeWordTokens(value string) []string {
+	var tokens []string
+	var word strings.Builder
+	flush := func() {
+		if word.Len() == 0 {
+			return
+		}
+		tokens = append(tokens, word.String())
+		word.Reset()
+	}
+	for _, char := range strings.ToLower(value) {
+		if unicode.IsLetter(char) || unicode.IsDigit(char) {
+			word.WriteRune(char)
+			continue
+		}
+		flush()
+	}
+	flush()
+	return tokens
+}
+
+// oneEditApart accepts one insertion, deletion, substitution, or adjacent
+// transposition. The code exits after the second mismatch to keep matching
+// cost linear in the candidate token length.
+func oneEditApart(left, right string) bool {
+	if isASCII(left) && isASCII(right) {
+		return oneEditApartASCII(left, right)
+	}
+	a, b := []rune(left), []rune(right)
+	if len(a) < len(b) {
+		a, b = b, a
+	}
+	if len(a)-len(b) > 1 || len(a) == 0 {
+		return false
+	}
+	if len(a) == len(b) {
+		first := -1
+		for i := range a {
+			if a[i] == b[i] {
+				continue
+			}
+			if first < 0 {
+				first = i
+				continue
+			}
+			return i == first+1 && a[first] == b[i] && a[i] == b[first]
+		}
+		return first >= 0
+	}
+	i, j := 0, 0
+	for i < len(a) && j < len(b) {
+		if a[i] == b[j] {
+			i++
+			j++
+			continue
+		}
+		if i != j {
+			return false
+		}
+		i++
+	}
+	return true
+}
+
+func isASCII(value string) bool {
+	for i := 0; i < len(value); i++ {
+		if value[i] >= utf8.RuneSelf {
+			return false
+		}
+	}
+	return true
+}
+
+func oneEditApartASCII(left, right string) bool {
+	if len(left) == 0 || len(right) == 0 || absInt(len(left)-len(right)) > 1 {
+		return false
+	}
+	if len(left) == len(right) {
+		first, second := -1, -1
+		for i := range left {
+			if left[i] == right[i] {
+				continue
+			}
+			if first < 0 {
+				first = i
+			} else if second < 0 {
+				second = i
+			} else {
+				return false
+			}
+		}
+		if first < 0 {
+			return false
+		}
+		if second < 0 {
+			return true
+		}
+		return second == first+1 && left[first] == right[second] && left[second] == right[first]
+	}
+	longer, shorter := left, right
+	if len(left) < len(right) {
+		longer, shorter = right, left
+	}
+	i, j := 0, 0
+	skipped := false
+	for i < len(longer) && j < len(shorter) {
+		if longer[i] == shorter[j] {
+			i++
+			j++
+			continue
+		}
+		if skipped {
+			return false
+		}
+		skipped = true
+		i++
+	}
+	return true
+}
+
+func absInt(value int) int {
+	if value < 0 {
+		return -value
+	}
+	return value
 }
 
 func profileFingerprint(profiles []ProviderProfile) string {

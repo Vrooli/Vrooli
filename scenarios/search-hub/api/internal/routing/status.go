@@ -29,6 +29,20 @@ const (
 	statusProbeLatencyScale = 2
 )
 
+// ErrInvalidProviderStatusRequest reports a caller that did not select one
+// concrete provider for the scoped readiness probe.
+type ErrInvalidProviderStatusRequest struct{}
+
+func (ErrInvalidProviderStatusRequest) Error() string { return "provider_id is required" }
+
+// ErrProviderStatusNotFound means the exact provider is not currently active
+// and therefore cannot be the target of a readiness probe.
+type ErrProviderStatusNotFound struct{ ProviderID string }
+
+func (e ErrProviderStatusNotFound) Error() string {
+	return fmt.Sprintf("active provider %q not found", e.ProviderID)
+}
+
 // Status reports federation health (Phase 7): per-provider reachability plus
 // whether the classifier and reranker models are available. It lists the ACTIVE
 // leaves (capability_gap stubs carry no endpoint and are excluded), resolves
@@ -140,6 +154,30 @@ func (r *Router) Status(ctx context.Context) (*routingv1.StatusResponse, error) 
 	r.statusCacheAt = time.Now()
 	r.statusMu.Unlock()
 	return resp, nil
+}
+
+// ProviderStatus performs a live readiness probe for one selected provider.
+// It intentionally skips the federation-wide cache and all unselected leaves.
+func (r *Router) ProviderStatus(ctx context.Context, providerID string) (*routingv1.ProviderStatusResponse, error) {
+	providerID = strings.TrimSpace(providerID)
+	if providerID == "" {
+		return nil, ErrInvalidProviderStatusRequest{}
+	}
+	active, err := r.deps.Lister.List(ctx, internalregistry.ListFilter{
+		ProviderID: providerID,
+		State:      int32(registryv1.ProviderState_PROVIDER_STATE_ACTIVE),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list selected provider: %w", err)
+	}
+	if len(active) != 1 || active[0].GetProviderId() != providerID {
+		return nil, ErrProviderStatusNotFound{ProviderID: providerID}
+	}
+	return &routingv1.ProviderStatusResponse{
+		ProviderId: providerID,
+		Health:     r.providerHealth(ctx, active[0]),
+		ObservedAt: timestamppb.New(r.deps.Now().UTC()),
+	}, nil
 }
 
 func strategyInfos(catalog map[string]RetrievalStrategy) []*routingv1.RetrievalStrategyInfo {
@@ -276,6 +314,13 @@ func (r *Router) providerHealth(ctx context.Context, p *registryv1.ProviderDescr
 	h.IndexState = snapshot.state
 	h.DegradedStages = append([]string(nil), snapshot.degraded...)
 	h.Drifted = snapshot.drifted
+	// A declared status endpoint that cannot report trustworthy freshness is
+	// itself a degraded readiness signal. Keep endpoint reachability separate:
+	// the Search route may resolve even when its status probe fails.
+	if strings.HasPrefix(snapshot.age, "unreported:") {
+		h.Degraded = true
+		h.DegradedStages = append(h.DegradedStages, "provider_status_unavailable")
+	}
 	state := strings.ToLower(snapshot.state)
 	if (state != "" && !strings.Contains(state, "ready") && state != "healthy") || len(snapshot.degraded) > 0 {
 		h.Degraded = true

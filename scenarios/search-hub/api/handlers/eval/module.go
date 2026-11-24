@@ -74,6 +74,10 @@ func ModuleWithRoutability(db *database.RoutedDB, clk schedule.Clock, logger *lo
 	if strategyErr != nil {
 		panic(strategyErr)
 	}
+	strategyCatalog, catalogErr := internalrouting.LoadStrategyCatalog()
+	if catalogErr != nil {
+		panic(catalogErr)
+	}
 	routingClient := newRoutingQueryClient()
 	client := &providerClientWithSubstrate{
 		ProviderClient: newHTTPProviderClient(newScenarioResolver(), httpc.NewDefault()),
@@ -129,6 +133,7 @@ func ModuleWithRoutability(db *database.RoutedDB, clk schedule.Clock, logger *lo
 		Validator:                validator,
 		Sweeper:                  sweeper,
 		ActiveStrategy:           activeStrategy.Name,
+		StrategyCatalog:          strategyCatalog,
 		Routability:              routability,
 		DenominatorReviewReceipt: newIndependentDenominatorReviewVerifier(),
 		// The corpus generator samples the provider through the SAME client the

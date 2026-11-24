@@ -475,6 +475,10 @@ func (s *sqliteStore) List(ctx context.Context, filter ListFilter) ([]*registryv
 		clauses []string
 		args    []any
 	)
+	if strings.TrimSpace(filter.ProviderID) != "" {
+		clauses = append(clauses, "provider_id = ?")
+		args = append(args, strings.TrimSpace(filter.ProviderID))
+	}
 	if filter.Bucket != 0 {
 		clauses = append(clauses, "bucket = ?")
 		args = append(args, filter.Bucket)

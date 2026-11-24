@@ -49,6 +49,13 @@ type Store interface {
 	GetRun(ctx context.Context, id string) (*evalv1.EvalRun, error)
 }
 
+// RunBatchAppender persists a complete multi-arm comparison in one storage
+// transaction. It is optional so lightweight Store fakes and adapters can
+// keep the single-run seam while production comparison writes remain atomic.
+type RunBatchAppender interface {
+	AppendRuns(ctx context.Context, runs []*evalv1.EvalRun) error
+}
+
 // sqliteStore is the production Store impl. Unexported so callers depend on the
 // Store interface and substitute the fake without reaching inside.
 type sqliteStore struct {
@@ -66,6 +73,7 @@ func NewSQLiteStore(db SQLExecutor, clk schedule.Clock) Store {
 
 // Compile-time guarantee.
 var _ Store = (*sqliteStore)(nil)
+var _ RunBatchAppender = (*sqliteStore)(nil)
 
 const timeFormat = time.RFC3339Nano
 
@@ -240,6 +248,40 @@ func (s *sqliteStore) DeleteSuite(ctx context.Context, id string) error {
 }
 
 func (s *sqliteStore) AppendRun(ctx context.Context, run *evalv1.EvalRun) error {
+	return appendRun(ctx, s.db, s.clock, run)
+}
+
+func (s *sqliteStore) AppendRuns(ctx context.Context, runs []*evalv1.EvalRun) error {
+	if len(runs) == 0 {
+		return nil
+	}
+	beginner, ok := s.db.(interface {
+		BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+	})
+	if !ok {
+		return fmt.Errorf("eval store does not support transactional run batches")
+	}
+	tx, err := beginner.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin run batch: %w", err)
+	}
+	for _, run := range runs {
+		if err := appendRun(ctx, tx, s.clock, run); err != nil {
+			_ = tx.Rollback()
+			return err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit run batch: %w", err)
+	}
+	return nil
+}
+
+type runExecutor interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}
+
+func appendRun(ctx context.Context, executor runExecutor, clk schedule.Clock, run *evalv1.EvalRun) error {
 	if run == nil {
 		return fmt.Errorf("nil run")
 	}
@@ -247,13 +289,13 @@ func (s *sqliteStore) AppendRun(ctx context.Context, run *evalv1.EvalRun) error 
 		return fmt.Errorf("run_id required")
 	}
 	if strings.TrimSpace(run.CreatedAt) == "" {
-		run.CreatedAt = s.clock.Now().UTC().Format(timeFormat)
+		run.CreatedAt = clk.Now().UTC().Format(timeFormat)
 	}
 	blob, err := marshalOpts.Marshal(run)
 	if err != nil {
 		return fmt.Errorf("marshal run: %w", err)
 	}
-	_, err = s.db.ExecContext(ctx, `
+	_, err = executor.ExecContext(ctx, `
 INSERT INTO eval_runs (run_id, suite_id, tag, created_at, result)
 VALUES (?, ?, ?, ?, ?)`,
 		run.RunId, run.SuiteId, run.Tag, run.CreatedAt, string(blob))

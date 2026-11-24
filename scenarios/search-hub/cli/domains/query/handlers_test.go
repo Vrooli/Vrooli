@@ -1,6 +1,7 @@
 package query
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -19,6 +20,8 @@ func (c showAllResultsContext) BoolFlag(name string) bool {
 	return name == "show-all-results" && c.enabled
 }
 
+func (showAllResultsContext) Positional(string) string { return "" }
+
 func TestEmptyQueryReportDistinguishesCoverageFromNoMatch(t *testing.T) {
 	h := &handlers{}
 	clean := h.queryReport(nil, &routingv1.QueryResponse{})
@@ -28,6 +31,55 @@ func TestEmptyQueryReportDistinguishesCoverageFromNoMatch(t *testing.T) {
 	}
 	if !strings.Contains(strings.Join(degraded.RetrievalHints, " "), "Coverage was incomplete") {
 		t.Fatalf("degraded no-match guidance = %v", degraded.RetrievalHints)
+	}
+}
+
+func TestInferredIntentDoesNotMasqueradeAsTaskCoverage(t *testing.T) {
+	metadata, err := structpb.NewStruct(map[string]any{
+		"search_hub_intent_match": "Diagnose and recover an Agent Manager runner transcript after a crash",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hit := &routingv1.SearchHit{ProviderId: "content-desk.editorial-history", Id: "draft-1", Title: "marketing eval essay draft", Metadata: metadata}
+	msg := &routingv1.QueryResponse{Reranked: true, Ranked: []*routingv1.SearchHit{hit}}
+	report := (&handlers{}).queryReport(nil, msg)
+	if strings.Contains(report.ResultsHeading, "Task evidence") {
+		t.Fatalf("inferred routing metadata was presented as task coverage: %q", report.ResultsHeading)
+	}
+	if report.ResultsHeading != "Unified ranking (reranked across providers; ordered by rerank_score)" {
+		t.Fatalf("heading = %q, want honest ranked view", report.ResultsHeading)
+	}
+}
+
+func TestMachineJSONConnectFieldNamesAreOptInAndConsumerSpecific(t *testing.T) {
+	call := func(cliapp.OperationContext) (*routingv1.QueryResponse, error) {
+		return &routingv1.QueryResponse{CorporaSearched: []string{"docs"}}, nil
+	}
+	report := func(cliapp.OperationContext, *routingv1.QueryResponse) cliapp.ListReport {
+		return cliapp.ListReport{Summary: []string{"human report"}}
+	}
+	handler := cliapp.ProtoListWithConnectJSONFlag(call, report, "json-connect")
+	render := func(connectNames bool) string {
+		var out strings.Builder
+		ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
+			Schema:    cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "json-connect", Bool: true}}},
+			JSON:      true,
+			BoolFlags: map[string]bool{"json-connect": connectNames},
+			Stdout:    &out,
+		})
+		if err := handler.Run(ctx); err != nil {
+			t.Fatalf("render connectNames=%t: %v", connectNames, err)
+		}
+		return out.String()
+	}
+	legacy := render(false)
+	if !strings.Contains(legacy, `"corpora_searched"`) || strings.Contains(legacy, `"corporaSearched"`) {
+		t.Fatalf("plain --json changed its legacy field-name contract: %s", legacy)
+	}
+	connect := render(true)
+	if !strings.Contains(connect, `"corporaSearched"`) || strings.Contains(connect, `"corpora_searched"`) {
+		t.Fatalf("--json-connect did not match Connect ProtoJSON field names: %s", connect)
 	}
 }
 
@@ -174,7 +226,7 @@ func TestRerankedQueryReportRendersHitPayloadOnceAndKeepsProviderSummary(t *test
 	if !strings.Contains(strings.Join(detailed.Results, "\n"), "agent-manager.runs (1)") {
 		t.Fatalf("detailed output lost provider provenance: %v", detailed.Results)
 	}
-	if !strings.Contains(strings.Join(report.Summary, "\n"), "1 total hit(s)") {
+	if !strings.Contains(strings.Join(report.Summary, "\n"), "1 provider-reported hit(s)") {
 		t.Fatalf("provider hit count is missing from summary: %v", report.Summary)
 	}
 }
@@ -192,7 +244,7 @@ func TestGroupedQueryReportKeepsProviderHitDetails(t *testing.T) {
 	if !strings.Contains(joined, "Grouped evidence remains visible") {
 		t.Fatalf("grouped hit evidence is missing:\n%s", joined)
 	}
-	if !strings.Contains(strings.Join(report.Summary, "\n"), "1 total hit(s)") {
+	if !strings.Contains(strings.Join(report.Summary, "\n"), "1 provider-reported hit(s)") {
 		t.Fatalf("provider count is missing from summary: %v", report.Summary)
 	}
 }
@@ -201,8 +253,8 @@ func TestQueryReportCapsHumanOutputButPreservesOptInAndProvenance(t *testing.T) 
 	hits := make([]*routingv1.SearchHit, 12)
 	for i := range hits {
 		hits[i] = &routingv1.SearchHit{
-			Id: "result", Title: "Result", Snippet: "unique snippet",
-			ProviderGroup: "docs", Path: "docs/result.md",
+			Id: fmt.Sprintf("result-%d", i), Title: "Result", Snippet: "unique snippet",
+			ProviderGroup: "docs", Path: fmt.Sprintf("docs/result-%d.md", i),
 		}
 	}
 	msg := &routingv1.QueryResponse{Groups: []*routingv1.ProviderResultGroup{{
@@ -214,7 +266,7 @@ func TestQueryReportCapsHumanOutputButPreservesOptInAndProvenance(t *testing.T) 
 	if strings.Count(defaultOutput, "unique snippet") != defaultVisibleHits {
 		t.Fatalf("default output showed %d hits, want %d", strings.Count(defaultOutput, "unique snippet"), defaultVisibleHits)
 	}
-	if !strings.Contains(defaultOutput, "2 additional hit(s) omitted") || !strings.Contains(defaultOutput, "docs.provider (12)") || !strings.Contains(defaultOutput, "docs/result") {
+	if !strings.Contains(defaultOutput, "8 additional unique returned hit(s) omitted") || !strings.Contains(defaultOutput, "docs.provider (12)") || !strings.Contains(defaultOutput, "docs/result") {
 		t.Fatalf("default output lost omission count or provenance:\n%s", defaultOutput)
 	}
 
@@ -228,7 +280,7 @@ func TestQueryReportCapsUntrustedHitFieldsAndRankedRows(t *testing.T) {
 	longValue := strings.Repeat("x", 10000)
 	hits := make([]*routingv1.SearchHit, defaultVisibleHits+1)
 	for i := range hits {
-		hits[i] = &routingv1.SearchHit{Id: longValue, Title: longValue, Path: longValue}
+		hits[i] = &routingv1.SearchHit{Id: longValue + fmt.Sprint(i), Title: longValue}
 	}
 	msg := &routingv1.QueryResponse{Reranked: true, Ranked: hits}
 	report := (&handlers{}).queryReport(nil, msg)
@@ -236,7 +288,7 @@ func TestQueryReportCapsUntrustedHitFieldsAndRankedRows(t *testing.T) {
 	if len(output) > defaultVisibleHits*500 {
 		t.Fatalf("bounded ranked output unexpectedly large: %d bytes", len(output))
 	}
-	if !strings.Contains(output, "1 additional hit(s) omitted") {
+	if !strings.Contains(output, "1 additional unique returned hit(s) omitted") {
 		t.Fatalf("ranked output did not report omitted hits:\n%s", output)
 	}
 }
@@ -247,12 +299,16 @@ func TestDegradedProviderWithHitsStillShowsThem(t *testing.T) {
 	lines := renderGroups([]*routingv1.ProviderResultGroup{
 		{ProviderId: "source-ledger.research", Count: 1, Degraded: true, Note: "lexical ranking: vectors warming", Hits: []*routingv1.SearchHit{{Id: "MAP.md", Title: "MAP.md#L3-L5", Snippet: "planner owns week view"}}},
 		{ProviderId: "prompt-manager.skills", Degraded: true, Note: "service unavailable"},
+		{ProviderId: "ui-health.surfaces", Degraded: true, Degradations: []*routingv1.ProviderDegradation{{Leg: "semantic", Reason: "unavailable", Detail: "vector store down"}}},
 	})
 	got := strings.Join(lines, "\n")
 	for _, want := range []string{"source-ledger.research (1) — degraded: lexical ranking", "planner owns week view", "prompt-manager.skills (0) — degraded: service unavailable"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("renderGroups() = %q, missing %q", got, want)
 		}
+	}
+	if !strings.Contains(got, "ui-health.surfaces (0) — degraded: semantic: unavailable: vector store down") {
+		t.Fatalf("structured provider degradation was not shown beside its group:\n%s", got)
 	}
 }
 

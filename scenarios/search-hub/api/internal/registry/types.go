@@ -19,9 +19,10 @@ import "fmt"
 // ListFilter narrows ListProviders. A zero value (UNSPECIFIED enums, empty
 // type) means "no filter" — every field is optional and ANDed together.
 type ListFilter struct {
-	Bucket int32  // registryv1.Bucket; 0 = unspecified = no filter
-	Type   string // empty = no filter
-	State  int32  // registryv1.ProviderState; 0 = unspecified = no filter
+	ProviderID string // exact provider_id match; empty = no filter
+	Bucket     int32  // registryv1.Bucket; 0 = unspecified = no filter
+	Type       string // empty = no filter
+	State      int32  // registryv1.ProviderState; 0 = unspecified = no filter
 }
 
 // ErrInvalidDescriptor is the typed sentinel returned by Validate (and

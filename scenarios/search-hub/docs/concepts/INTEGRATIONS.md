@@ -14,10 +14,10 @@ Use this document to answer:
 
 ## Dependency decisions (orientation rationale)
 
-Search Hub's dependency posture follows directly from the thin-router
-invariant ([`ARCHITECTURE.md`](ARCHITECTURE.md)): it persists only its
-own registry + telemetry, calls a local LLM for classify/rerank, and
-reaches providers at runtime — never owning their data.
+Search Hub's dependency posture follows from the thin-router invariant
+([`ARCHITECTURE.md`](ARCHITECTURE.md)): it persists its registry, telemetry,
+and evaluation state, may use a derived provider-description index for owner
+selection, and reaches provider corpora at runtime without owning their data.
 
 - **Storage — embedded SQLite (no resource dependency).** The `registry`
   (`providers`) and, later, `metrics` (`query_telemetry`) stores live in
@@ -25,12 +25,10 @@ reaches providers at runtime — never owning their data.
   but Phase 3 stayed on SQLite (registry data is tiny; the pure-Go test
   harness needs no external service). See the Intentional Deviations
   table in [`ARCHITECTURE.md`](ARCHITECTURE.md).
-- **`ollama` — required (`try_start` + `degraded_behavior`).** Serves
-  the classifier, the LLM fallback reranker, and optional eval corpus
-  generation; Search Hub declares only `classify.routing` and
-  `rerank.llm_fallback`, both resolving to the resident 4B model. Explicit
-  degradation: classifier down ⇒ fall back to explicit `--type`/`--all`;
-  rerank fallback down ⇒ by-provider grouping after TEI also fails.
+- **`ollama` — degradable.** The interactive classifier role is retired.
+  Ollama remains available for the LLM reranker fallback and optional eval
+  corpus generation. If Ollama is unavailable, a healthy TEI reranker remains
+  usable; if all rerank legs fail, results remain grouped by provider.
 - **`reranker` — optional (`try_start`).** Dedicated TEI cross-encoder
   primary for unified federation rerank. It is preferred over Ollama because it
   is the right primitive for short-list relevance scoring and avoids cold LLM
@@ -45,16 +43,20 @@ reaches providers at runtime — never owning their data.
   which is wrong for an optional federation. The hub degrades
   gracefully — a down/absent provider is skipped with a surfaced
   warning, never failing the query.
-- **No qdrant.** The router holds no vectors; retrieval lives in
-  providers. Declaring qdrant would invite data accretion and break the
-  thin-router boundary (guarded by an architectural test).
+- **Qdrant stores no provider corpus.** The gated fleet path can store derived
+  provider-description vectors and metadata for candidate selection. Owner
+  operation, rights, quality evidence, capacity admission, and explicit index
+  lifecycle govern that path. Provider search corpora and result vectors stay
+  with their owner scenarios; no index cutover is implied by this dependency
+  description.
 
 ## Dependency Inventory
 
 | Dependency | Type | Required? | Startup Policy | Used By | Failure / Degradation Behavior |
 |---|---|---|---|---|---|
 | SQLite | embedded store | n/a (in-process) | n/a | registry, metrics | API unhealthy if the DB file is unwritable; no external service. |
-| `ollama` | shared resource | yes | `try_start` + `degraded_behavior` | routing classifier, LLM rerank fallback, eval corpusgen | Classifier down ⇒ explicit `--type`/`--all`; LLM rerank fallback down ⇒ by-provider grouping when TEI also cannot answer. |
+| `ollama` | shared resource | no (degradable) | `try_start` + `degraded_behavior` | LLM rerank fallback, eval corpusgen, owner-gated description embedding | Interactive classifier is retired; when unavailable, TEI remains the primary rerank path and lexical provider selection remains available. |
+| `qdrant` | shared resource | no (operation-gated) | `try_start` | versioned provider-description fleet index and embedding-arm generation | If semantic index or capacity admission is unavailable, do not run index mutation; the query path can report and use its supported fallback. |
 | `reranker` | shared resource | no | `try_start` | routing rerank primary | Unavailable ⇒ Ollama LLM rerank fallback; all rerank legs unavailable ⇒ by-provider grouping + `degraded` flag. |
 | `cli-health` | scenario (provider) | no | `ignore` | providers / routing fan-out | Absent ⇒ provider skipped with warning. |
 | `ui-health` | scenario (provider) | no | `ignore` | providers / routing fan-out | Absent ⇒ provider skipped with warning. |
@@ -76,9 +78,9 @@ reaches providers at runtime — never owning their data.
 | Resource | Status | Reason | Revisit Trigger |
 |---|---|---|---|
 | SQLite (embedded) | in-process | Registry + metrics persistence (no external service). | If the registry outgrows single-writer SQLite. |
-| `ollama` | required (degradable) | Classifier + LLM rerank fallback + eval corpusgen. | If the fallback role changes or corpusgen gets a dedicated low-cost role. |
+| `ollama` | optional/degradable | LLM rerank fallback, eval corpusgen, and owner-gated description embedding. | If the fallback role changes or corpusgen gets a dedicated low-cost role. |
 | `reranker` | optional (degradable) | TEI cross-encoder primary for unified federation rerank. | If Search Hub no longer uses cross-provider rerank. |
-| qdrant | deliberately excluded | Thin-router invariant; router holds no vectors. | Never (would break the boundary). |
+| qdrant | operation-gated | Stores derived provider-description vectors, not owner corpus vectors; writes require rights evidence and disk admission. | If the semantic selection path is retired or its owner changes. |
 
 ## Scenario Dependencies
 
@@ -98,7 +100,7 @@ reaches providers at runtime — never owning their data.
 |---|---|---|---|
 | SQLite | `PingContext` error (unwritable/corrupt DB file) | `/health` returns unhealthy dependency status. | health handler tests |
 | `reranker` | TEI `/health` or `/rerank` error/timeout | Fall back to Ollama LLM rerank within the router budget. | shared-reranker chain adapter tests |
-| `ollama` | classify/rerank call error or timeout | Degrade per policy above; surface in `status` (`classifier_available` / `reranker_available`). | routing/rerank degradation tests (Phase 5/6) |
+| `ollama` | rerank/embedding call error or timeout | Keep provider-description lexical selection; fall back from Ollama reranking to TEI or honest provider grouping; retain per-part degradation evidence. | routing/rerank degradation tests |
 | Provider scenario | unreachable within per-provider timeout | Skip provider, surface warning, return partial results. | federation-correctness tests (Phase 4) |
 
 ## Cross-References

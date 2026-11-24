@@ -189,6 +189,12 @@
         "required": false,
         "startup_policy": "ignore",
         "description": "Federated provider group: prompt-manager.skill + .action. Degrade-if-absent."
+      },
+      "vrooli-memory": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Optional append-only query-record capture when search-hub.research is explicitly called with capture_note=true."
       }
     }
   },

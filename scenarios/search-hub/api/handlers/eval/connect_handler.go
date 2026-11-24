@@ -19,6 +19,7 @@ import (
 
 	internaleval "search-hub/internal/eval"
 	internalregistry "search-hub/internal/registry"
+	internalrouting "search-hub/internal/routing"
 )
 
 // Runner is the execution seam the handler depends on: it runs a suite against
@@ -74,7 +75,11 @@ type Deps struct {
 	Validator      Validator
 	Sweeper        Sweeper
 	ActiveStrategy string
-	Routability    RoutabilityReader
+	// StrategyCatalog is the immutable startup snapshot used to preflight eval
+	// arms against the router's executable catalog. Empty preserves older
+	// lightweight constructors by falling back to the shared loader.
+	StrategyCatalog []internalrouting.RetrievalStrategy
+	Routability     RoutabilityReader
 	// RerankOwnerReceipt verifies a receipt against its provider-owned source.
 	// A missing verifier leaves qualification blocked even when receipt JSON is
 	// structurally complete.
@@ -301,23 +306,27 @@ func (h *connectHandler) RunSuite(ctx context.Context, req *connect.Request[eval
 	if err != nil {
 		return nil, h.logged("eval.RunSuite.getSuite", suiteID, err)
 	}
+	tier := strings.TrimSpace(req.Msg.GetTier())
+	strategyName := strings.TrimSpace(req.Msg.GetStrategyName())
+	if validationErr := validateRunSuiteTier(tier, strategyName); validationErr != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, validationErr)
+	}
 	runner := h.deps.Runner
 	// The composed router suite is a synthetic corpus owned by Search Hub;
 	// its only meaningful default execution is through the federated path.
 	// Keep `evals run router.routing` useful without requiring callers to know
 	// the implementation detail that this suite has no provider endpoint.
-	if suiteID == internaleval.RouterSuiteID && strings.TrimSpace(req.Msg.GetTier()) == "" {
+	if suiteID == internaleval.RouterSuiteID && tier == "" {
 		if h.deps.Federated == nil {
 			return nil, connect.NewError(connect.CodeUnimplemented, errors.New("federated eval tier is not configured"))
 		}
 		runner = h.deps.Federated
-	} else if req.Msg.GetTier() == "federated" {
+	} else if tier == "federated" {
 		if h.deps.Federated == nil {
 			return nil, connect.NewError(connect.CodeUnimplemented, errors.New("federated eval tier is not configured"))
 		}
 		runner = h.deps.Federated
 	}
-	strategyName := strings.TrimSpace(req.Msg.GetStrategyName())
 	if strategyName != "" {
 		if suiteID != internaleval.RouterSuiteID || runner == nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("strategy_name requires the router.routing federated suite"))
@@ -325,6 +334,13 @@ func (h *connectHandler) RunSuite(ctx context.Context, req *connect.Request[eval
 		strategyRunner, ok := runner.(StrategyRunner)
 		if !ok {
 			return nil, connect.NewError(connect.CodeUnimplemented, errors.New("federated strategy evaluation is not configured"))
+		}
+		catalog, catalogErr := h.strategyCatalog()
+		if catalogErr != nil {
+			return nil, connect.NewError(connect.CodeInternal, errors.New("strategy catalog is unavailable"))
+		}
+		if validationErr := validateRequestedStrategies([]string{strategyName}, catalog); validationErr != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, validationErr)
 		}
 		run, err := strategyRunner.RunWithStrategy(ctx, suite, req.Msg.GetTag(), req.Msg.GetLimit(), strategyName)
 		if err != nil {
@@ -352,6 +368,23 @@ func (h *connectHandler) RunSuite(ctx context.Context, req *connect.Request[eval
 		Run:      run,
 		Adequacy: internaleval.CheckAdequacy(suite, nil),
 	}), nil
+}
+
+func validateRunSuiteTier(tier, strategyName string) error {
+	if tier != "" && tier != "provider_direct" && tier != "federated" {
+		return fmt.Errorf("unsupported eval tier %q; expected provider_direct or federated", tier)
+	}
+	if strategyName != "" && tier == "provider_direct" {
+		return errors.New("strategy_name is not supported for provider_direct evaluation")
+	}
+	return nil
+}
+
+func (h *connectHandler) strategyCatalog() ([]internalrouting.RetrievalStrategy, error) {
+	if len(h.deps.StrategyCatalog) > 0 {
+		return h.deps.StrategyCatalog, nil
+	}
+	return internalrouting.LoadStrategyCatalog()
 }
 
 func (h *connectHandler) getSuite(ctx context.Context, id string) (*evalv1.EvalSuite, error) {

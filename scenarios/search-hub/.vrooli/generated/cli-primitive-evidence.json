@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "search-hub",
   "generator": "v1.0.0",
-  "manifest_hash": "0df0788db33f436c86360bc45bad00b191a65a0f0111de1a80e288f29d8a991b",
+  "manifest_hash": "fe8640803bf09d41ec09140f987fcd483cb5b29a8dc67ddb3137a21f41248fc1",
   "commands": [
     {
       "path": "embedding abort",
@@ -203,6 +203,14 @@
       "group": "evals",
       "command": "validation-receipt",
       "binding": "EvalService.GetLatestCorpusValidation",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "federation provider-status",
+      "group": "federation",
+      "command": "provider-status",
+      "binding": "RoutingService.ProviderStatus",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },

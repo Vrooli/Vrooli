@@ -23,6 +23,21 @@ func TestStatusReportNamesStuckProviderInRecoverySummary(t *testing.T) {
 	require.Contains(t, report.Results[0], "zero-yield lifecycle: stuck")
 }
 
+func TestProviderStatusReportIsScopedAndDoesNotClaimSearchSuccess(t *testing.T) {
+	report := (&handlers{}).providerStatusReport(nil, &routingv1.ProviderStatusResponse{
+		ProviderId: "skills.owner",
+		Health:     &routingv1.ProviderHealth{ProviderId: "skills.owner", Reachable: true, Degraded: true, DegradedStages: []string{"provider_status_unavailable"}, IndexAge: "unreported: status probe failed", FreshnessBudget: "24h"},
+	})
+	joined := strings.Join(append(report.Summary, report.Results...), "\n")
+	require.Contains(t, joined, "Selected provider skills.owner")
+	require.Contains(t, joined, "it did not execute a search")
+	require.Contains(t, joined, "Source freshness: age=unreported: status probe failed budget=24h")
+	require.Contains(t, report.Results[0], "! skills.owner")
+	require.Contains(t, report.Results[0], "index age: unreported: status probe failed")
+	require.Contains(t, report.Results[0], "degraded: provider_status_unavailable")
+	require.NotContains(t, joined, "active provider(s) reachable")
+}
+
 func TestStatusReportDistinguishesTransportCircuitFromYieldDemotion(t *testing.T) {
 	report := (&handlers{}).statusReport(nil, &routingv1.StatusResponse{
 		Providers: []*routingv1.ProviderHealth{{

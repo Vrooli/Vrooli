@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/shared"
 )
 
@@ -341,6 +342,23 @@ func TestDescriptionIndexDropsOnlyFailedEntry(t *testing.T) {
 	require.Equal(t, []string{"bad"}, result.Dropped)
 }
 
+func TestLexicalDescriptionScoreUsesDistinctExactContentTokens(t *testing.T) {
+	profile := ProviderProfile{ProviderID: "cli-health.commands", Type: "command", Description: "CLI commands"}
+	require.Zero(t, lexicalDescriptionScore("a", profile), "common stopwords cannot create a provider match")
+	require.Zero(t, lexicalDescriptionScore("mand", profile), "substring fragments cannot create a provider match")
+	require.Equal(t, float64(2), lexicalDescriptionScore("cli command command", profile), "query terms are exact and counted once")
+	actionOnly := ProviderProfile{ProviderID: "records", Type: "record", Description: "Search and find records"}
+	require.Zero(t, lexicalDescriptionScore("search find", actionOnly), "generic retrieval verbs cannot select owners without a content term")
+	excluded := ProviderProfile{
+		ProviderID: "contracts", Type: "contract", Description: "ordinary implementation references",
+		Exclusions: []string{"ordinary implementation"},
+	}
+	require.Zero(t, lexicalDescriptionScore("ordinary implementation", excluded), "declared exclusions cannot create positive lexical evidence")
+	require.Greater(t, lexicalDescriptionScore("implementation", excluded), float64(0), "partial exclusion overlap does not over-veto unrelated requests")
+	typoRanked, typoScores, _ := routeProviderShortlist("ordinary implementatio", []ProviderProfile{excluded}, 1, routeTypoPolicyOneEditUnique)
+	require.Empty(t, positiveScoredProfiles(typoRanked, typoScores, 1), "one-edit query matches to a declared exclusion remain ineligible")
+}
+
 // TestDescriptionIndexReembedsOnlyChangedDescriptorAndSurvivesRestart [REQ:REQ-P0-014]
 func TestDescriptionIndexReembedsOnlyChangedDescriptorAndSurvivesRestart(t *testing.T) {
 	cache := t.TempDir() + "/description-index.json"
@@ -371,6 +389,105 @@ func TestDescriptionIndexInvalidatesPersistedVectorsWhenModelChanges(t *testing.
 	require.Equal(t, 3, secondEmbedder.calls, "model change must invalidate both cached descriptor vectors plus the query")
 }
 
+func TestBoundedTypoProviderShortlistRequiresUniqueOwnerAndKeepsExactHitsAhead(t *testing.T) {
+	profiles := []ProviderProfile{
+		{ProviderID: "command-owner", Type: "command", Description: "Run a command"},
+		{ProviderID: "workflow-owner", Type: "workflow", Description: "Fitness tracker workflow"},
+	}
+	shortlist, scores, usedTypo := boundedTypoProviderShortlist("commnad workflow", profiles, len(profiles))
+	require.True(t, usedTypo)
+	require.Equal(t, "workflow-owner", shortlist[0].ProviderID, "one exact token outranks the typo-only owner")
+	require.InDelta(t, 0.35, scores["command-owner"], 0.0001)
+
+	ambiguous := []ProviderProfile{
+		{ProviderID: "command-a", Description: "command tools"},
+		{ProviderID: "command-b", Description: "command tools"},
+	}
+	_, ambiguousScores, ambiguousUsed := boundedTypoProviderShortlist("commnad", ambiguous, len(ambiguous))
+	require.False(t, ambiguousUsed, "the same typo matching two owners must not break ambiguity")
+	require.Zero(t, ambiguousScores["command-a"])
+	require.Zero(t, ambiguousScores["command-b"])
+}
+
+func TestMultipleTypoTokensCannotOutweighAnExactOwnerSignal(t *testing.T) {
+	profiles := []ProviderProfile{
+		{ProviderID: "typo-owner", Description: "command metrics settings"},
+		{ProviderID: "exact-owner", Description: "workflow tracker"},
+	}
+	shortlist, scores, usedTypo := boundedTypoProviderShortlist("commnad metrcis setings workflow", profiles, len(profiles))
+	require.True(t, usedTypo)
+	require.Equal(t, "exact-owner", shortlist[0].ProviderID, "several typo matches must not overtake one exact query token")
+	require.InDelta(t, 0.35, scores["typo-owner"], 0.0001, "typo evidence is capped per eligible owner")
+}
+
+func TestExactProviderIdentityMatchRequiresUniqueContiguousIdentity(t *testing.T) {
+	profiles := []ProviderProfile{
+		{ProviderID: "knowledge-observatory.docs"},
+		{ProviderID: "small"},
+	}
+	got, ok := exactProviderIdentityMatch("find something in Knowledge Observatory Docs", profiles)
+	require.True(t, ok)
+	require.Equal(t, "knowledge-observatory.docs", got.ProviderID)
+
+	_, ok = exactProviderIdentityMatch("knowledge unrelated observatory docs", profiles)
+	require.False(t, ok, "identity tokens must be contiguous")
+	_, ok = exactProviderIdentityMatch("small", profiles)
+	require.False(t, ok, "short generic identities must not act as named-resource selectors")
+
+	_, ok = exactProviderIdentityMatch("open alpha beta", []ProviderProfile{
+		{ProviderID: "alpha.beta"},
+		{ProviderID: "alpha-beta"},
+	})
+	require.False(t, ok, "normalization collisions must remain ambiguous")
+}
+
+func TestExactProviderDescriptorIdentityMatchPreservesAmbiguityAndEligibility(t *testing.T) {
+	active := []*registryv1.ProviderDescriptor{
+		{ProviderId: "knowledge-observatory.docs", Type: "doc", Endpoint: &registryv1.Endpoint{}},
+		{ProviderId: "unavailable.skills", Type: "skill"},
+	}
+	match, ok := exactProviderDescriptorIdentityMatch("find Knowledge Observatory Docs", active)
+	require.True(t, ok)
+	require.Equal(t, "knowledge-observatory.docs", match.GetProviderId())
+
+	active = append(active, &registryv1.ProviderDescriptor{ProviderId: "knowledge-observatory-docs", Type: "doc", Endpoint: &registryv1.Endpoint{}})
+	match, ok = exactProviderDescriptorIdentityMatch("find Knowledge Observatory Docs", active)
+	require.False(t, ok, "normalized ID collisions remain ambiguous")
+	require.Nil(t, match)
+}
+
+func TestAutoSelectExactProviderIdentitySkipsModelStages(t *testing.T) {
+	provider := &registryv1.ProviderDescriptor{
+		ProviderId: "knowledge-observatory.docs",
+		Type:       "doc",
+		Endpoint:   &registryv1.Endpoint{},
+	}
+	r := &Router{}
+	targets, explain, fallback, leg, _, selected, widened, bounded, indexReason, selectionReason, trace := r.autoSelect(
+		context.Background(), []*registryv1.ProviderDescriptor{provider}, "search Knowledge Observatory Docs",
+		RetrievalStrategy{Name: "test-semantic", Stages: []RetrievalStage{{Kind: StageEmbedding}, {Kind: StageCrossEncoder}}},
+	)
+	require.Equal(t, []string{"knowledge-observatory.docs"}, profileIDs(buildProfiles(targets)))
+	require.Contains(t, explain[0], "exact eligible provider identity")
+	require.False(t, fallback)
+	require.Equal(t, selectorLegLexical, leg)
+	require.Equal(t, 1, selected)
+	require.Zero(t, widened)
+	require.False(t, bounded)
+	require.Empty(t, indexReason)
+	require.Equal(t, "exact_provider_identity", selectionReason)
+	require.Equal(t, "exact_provider_identity", trace.GetSelectionReason())
+}
+
+func TestOneEditApartIsBounded(t *testing.T) {
+	for _, pair := range [][2]string{{"commnad", "command"}, {"comand", "command"}, {"command", "commands"}, {"command", "comxand"}, {"café", "cafe"}} {
+		require.True(t, oneEditApart(pair[0], pair[1]), "%q and %q should be one edit apart", pair[0], pair[1])
+	}
+	for _, pair := range [][2]string{{"commndx", "command"}, {"command", "command"}, {"tiny", "toolong"}} {
+		require.False(t, oneEditApart(pair[0], pair[1]), "%q and %q should not be one edit apart", pair[0], pair[1])
+	}
+}
+
 func BenchmarkDescriptionIndexShortlist(b *testing.B) {
 	profiles := make([]ProviderProfile, 250)
 	for n := range profiles {
@@ -390,6 +507,63 @@ func BenchmarkDescriptionIndexShortlist(b *testing.B) {
 			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
 				index.Shortlist(context.Background(), testProviderDescriptionQuery("where are the project contracts documented", 8), corpus)
+			}
+		})
+	}
+}
+
+func BenchmarkProviderRouteShortlists(b *testing.B) {
+	for _, size := range []int{34, 250} {
+		profiles := make([]ProviderProfile, size)
+		descriptors := make([]*registryv1.ProviderDescriptor, size)
+		for n := range profiles {
+			profiles[n] = ProviderProfile{
+				ProviderID:  fmt.Sprintf("provider-%03d.docs", n),
+				Group:       "project knowledge",
+				Type:        "documentation",
+				Description: fmt.Sprintf("Searchable project documentation for subsystem %d, ownership, contracts, and operational behavior.", n),
+			}
+			descriptors[n] = &registryv1.ProviderDescriptor{
+				ProviderId: profiles[n].ProviderID, Type: profiles[n].Type, Description: profiles[n].Description,
+				Endpoint: &registryv1.Endpoint{},
+			}
+		}
+		profiles[0].ProviderID = "cli-health.commands"
+		profiles[0].Type = "command"
+		profiles[0].Description = "CLI commands for scenario operations"
+		descriptors[0].ProviderId = profiles[0].ProviderID
+		descriptors[0].Type = profiles[0].Type
+		descriptors[0].Description = profiles[0].Description
+		for index := range profiles {
+			profiles[index].identityTokens = routeWordTokens(profiles[index].ProviderID)
+			profiles[index].searchTokens = routeWordTokens(providerProfileText(profiles[index]))
+		}
+
+		b.Run(fmt.Sprintf("providers-%d/exact-identity", size), func(b *testing.B) {
+			b.ReportAllocs()
+			for n := 0; n < b.N; n++ {
+				exactProviderIdentityMatch("find CLI Health Commands", profiles)
+			}
+		})
+		b.Run(fmt.Sprintf("providers-%d/auto-select-exact-identity", size), func(b *testing.B) {
+			b.ReportAllocs()
+			router := &Router{factors: defaultRouterFactorValues()}
+			strategy := RetrievalStrategy{Name: "benchmark", Stages: []RetrievalStage{{Kind: StageLexical}}}
+			b.ResetTimer()
+			for n := 0; n < b.N; n++ {
+				router.autoSelect(context.Background(), descriptors, "find CLI Health Commands", strategy)
+			}
+		})
+		b.Run(fmt.Sprintf("providers-%d/lexical", size), func(b *testing.B) {
+			b.ReportAllocs()
+			for n := 0; n < b.N; n++ {
+				routeProviderShortlist("search subsystem 17 documentation", profiles, 6, "")
+			}
+		})
+		b.Run(fmt.Sprintf("providers-%d/typo", size), func(b *testing.B) {
+			b.ReportAllocs()
+			for n := 0; n < b.N; n++ {
+				routeProviderShortlist("search commnad", profiles, 6, routeTypoPolicyOneEditUnique)
 			}
 		})
 	}

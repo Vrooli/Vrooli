@@ -5,11 +5,11 @@
   "requirements": [
     {
       "id": "REQ-P0-010",
-      "title": "Description-driven classification",
+      "title": "Provider-description evidence selection",
       "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "core",
-      "description": "The classifier ranks provider leaves using only registry natural-language descriptions and the query — no provider-specific routing code. Search Hub retrieves a bounded description shortlist through the shared embedding contract and retains deterministic enumeration as an explicit degraded fallback.",
+      "description": "Automatic provider selection uses the query and registry natural-language descriptions as evidence without provider-specific routing code. Search Hub uses its active retrieval strategy and a bounded description shortlist when the semantic index is available; the lexical path is an explicit fallback.",
       "validation": [
         {
           "type": "test",
@@ -21,29 +21,29 @@
           "type": "test",
           "phase": "unit",
           "status": "failing",
-          "notes": "Adding a new registry row changes routing with no classifier code change."
+          "notes": "Adding or updating a registry description changes routing evidence without per-provider routing code."
         }
       ]
     },
     {
       "id": "REQ-P0-011",
-      "title": "Widen-on-uncertainty + override",
+      "title": "Evidence ambiguity and explicit override",
       "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "core",
-      "description": "When the classifier is uncertain it widens (more provider types) rather than dropping; explicit --type/--all always override the classifier; --explain returns the routing rationale.",
+      "description": "Automatic selection reports ambiguity or missing positive provider evidence explicitly. Explicit --type/--all override automatic selection; --explain exposes routing rationale.",
       "validation": [
         {
           "type": "test",
           "phase": "unit",
           "status": "failing",
-          "notes": "An ambiguous query routes to a wider set, not an empty/narrow set."
+          "notes": "An ambiguous query preserves bounded evidence and a typed ambiguity reason rather than conflating ambiguity with provider degradation."
         },
         {
           "type": "test",
           "phase": "unit",
           "status": "failing",
-          "notes": "--type overrides classifier output exactly."
+          "notes": "--type overrides automatic provider selection exactly."
         }
       ]
     },

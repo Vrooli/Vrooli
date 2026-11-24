@@ -6,15 +6,18 @@ import (
 
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // Reserve at most one additional local provider per supplemental intent.
-// Only the best lexical match may enter, so a variant with no positive
-// evidence cannot turn into an unrestricted provider sweep.
-func addIntentProviders(selected, eligible []*registryv1.ProviderDescriptor, variants []string) ([]*registryv1.ProviderDescriptor, []string) {
+// Only the best positive lexical match may enter, so a variant cannot turn
+// into an unrestricted provider sweep.
+func addIntentProviders(selected, eligible []*registryv1.ProviderDescriptor, variants []string, typoPolicies ...string) ([]*registryv1.ProviderDescriptor, []string, [][]*registryv1.ProviderDescriptor, []string) {
 	if len(variants) == 0 {
-		return selected, nil
+		return selected, nil, nil, nil
+	}
+	typoPolicy := ""
+	if len(typoPolicies) > 0 {
+		typoPolicy = typoPolicies[0]
 	}
 	profiles := buildProfiles(eligible)
 	byID := make(map[string]*registryv1.ProviderDescriptor, len(eligible))
@@ -26,30 +29,45 @@ func addIntentProviders(selected, eligible []*registryv1.ProviderDescriptor, var
 		seen[provider.GetProviderId()] = true
 	}
 	var added []string
-	for _, variant := range variants {
-		terms := strings.Fields(strings.ToLower(variant))
-		meaningful := terms[:0]
-		for _, term := range terms {
-			switch term {
-			case "a", "an", "the", "to", "in", "of", "for", "its", "my", "and", "please":
-			default:
-				meaningful = append(meaningful, term)
+	byVariant := make([][]*registryv1.ProviderDescriptor, len(variants))
+	reasons := make([]string, len(variants))
+	for variantIndex, variant := range variants {
+		query := variant
+		best, scores, _ := routeProviderShortlist(query, profiles, 1, typoPolicy)
+		if len(best) == 0 || scores[best[0].ProviderID] <= 0 {
+			reasons[variantIndex] = "no_positive_provider_evidence"
+			continue
+		}
+		// Supplemental intent routing is allowed to add one owner only when
+		// the evidence identifies that owner uniquely. The selector sorts ties
+		// by provider ID for determinism, but that ordering is not relevance
+		// evidence and must not resolve an ambiguous subtask.
+		bestScore := scores[best[0].ProviderID]
+		ambiguous := false
+		for _, profile := range profiles {
+			if profile.ProviderID != best[0].ProviderID && scores[profile.ProviderID] == bestScore {
+				ambiguous = true
+				break
 			}
 		}
-		query := strings.Join(meaningful, " ")
-		best := lexicalProviderShortlist(query, profiles, 1)
-		if len(best) == 0 || seen[best[0].ProviderID] || lexicalDescriptionScore(query, best[0]) <= 0 {
+		if ambiguous {
+			reasons[variantIndex] = "ambiguous_provider_evidence"
 			continue
 		}
 		id := best[0].ProviderID
-		seen[id] = true
-		selected = append(selected, byID[id])
-		added = append(added, id)
+		provider := byID[id]
+		if provider == nil {
+			continue
+		}
+		byVariant[variantIndex] = []*registryv1.ProviderDescriptor{provider}
+		if !seen[id] {
+			seen[id] = true
+			selected = append(selected, provider)
+			added = append(added, id)
+		}
 	}
-	return selected, added
+	return selected, added, byVariant, reasons
 }
-
-const intentMatchMetadata = "search_hub_intent_match"
 
 var nextAction = regexp.MustCompile(`(?i)(?:;\s*|,?\s+and\s+(?:then\s+)?|,\s+then\s+)(?:please\s+)?(?:create|design|build|write|generate|find|search|test|deploy|publish|export|review|summarize|inspect|capture|record|run|compare|analyze)\b`)
 var purposeBoundary = regexp.MustCompile(`(?i)\s+for\s+`)
@@ -81,7 +99,7 @@ func intentQueries(query string) []string {
 // mergeIntentHits keeps one provider group and preserves its original health
 // report. Supplemental results contribute candidates without replacing
 // original hits or treating scores across queries as comparable.
-func mergeIntentHits(groups, supplemental []*routingv1.ProviderResultGroup, limit int, intent string) {
+func mergeIntentHits(groups, supplemental []*routingv1.ProviderResultGroup, limit int) {
 	byProvider := make(map[string]*routingv1.ProviderResultGroup, len(groups))
 	for _, group := range groups {
 		byProvider[group.GetProviderId()] = group
@@ -100,29 +118,14 @@ func mergeIntentHits(groups, supplemental []*routingv1.ProviderResultGroup, limi
 		}
 		for _, hit := range extra.GetHits() {
 			if existing := seen[key(hit)]; existing != nil {
-				markIntentMatch(existing, intent)
 				continue
 			}
 			if len(group.Hits) >= limit {
 				continue
 			}
 			seen[key(hit)] = hit
-			markIntentMatch(hit, intent)
 			group.Hits = append(group.Hits, hit)
 		}
 		group.Count = max(group.Count, int32(len(group.Hits)))
 	}
-}
-
-func markIntentMatch(hit *routingv1.SearchHit, intent string) {
-	if intent == "" || hit.GetMetadata().GetFields()[intentMatchMetadata].GetStringValue() != "" {
-		return
-	}
-	if hit.Metadata == nil {
-		hit.Metadata = &structpb.Struct{}
-	}
-	if hit.Metadata.Fields == nil {
-		hit.Metadata.Fields = make(map[string]*structpb.Value)
-	}
-	hit.Metadata.Fields[intentMatchMetadata] = structpb.NewStringValue(intent)
 }

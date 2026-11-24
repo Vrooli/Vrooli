@@ -5,50 +5,26 @@ contexts, and ownership for this scenario. Keep it current whenever a
 domain is added, renamed, split, merged, or removed.
 
 Search Hub is a **thin federated search router**. It owns only the
-registry, classifier, fan-out, reranker, metrics, and eval mirrors — it
-stores **no vectors and no authoritative corpus content**. Each searchable
+registry, strategy-driven provider selection, fan-out, reranker, metrics,
+and eval mirrors — it does **not index provider corpus content**. It may
+maintain derived provider-description vectors for bounded owner selection;
+the registry descriptors remain their source of truth. Each searchable
 corpus and its `search.json` tests stay authoritative in its own scenario
 (a provider) and are reached only through a registered, declarative
 descriptor. This is the load-bearing
 invariant behind the domain boundaries below: a new provider is a
 registry row, never router code. See
-[`ARCHITECTURE.md`](ARCHITECTURE.md) §Thin-router boundary and the plan
-`plan-manager plans get unified-search-hub-federated-ai-search-router-scenario` §3.
+[`ARCHITECTURE.md`](ARCHITECTURE.md) §Thin-router boundary.
 
-> **Domain status (updated 2026-06-03, Phase 9 — plan COMPLETE).** The
-> **Search UI shipped** (`ui/src/features/search/`): a query box, registry-
-> driven type facets, an "expand search" (`--all`) affordance, per-result
-> provenance, and a live federation-status strip (model availability +
-> per-provider reachability from `RoutingService.Status`) — wired to the
-> Query/Status surfaces and the registry's ListProviders. The carried-forward
-> ui-health adapter no-match bug (F.5/G.4/I.4) is **fixed** (an absent/null
-> `results_path` now maps to an honest empty group, verified live:
-> `ui-health.widgets` returns empty-not-degraded). Every product interface
-> (programmatic / CLI / UI) now exists. The plan delivered **axis ① for
-> currently-live providers**; Tracks A (federate the 10 gap corpora) and B
-> (deduplicate onto `packages/ai-go/search`) remain — see plan §9.
->
-> **Domain status (Phase 8).** All five product
-> domains are implemented and **all currently-live providers are
-> federated** (Phase 8): 9 ACTIVE leaves (`cli-health.commands`,
-> `ui-health.surfaces`/`.widgets`, `swarm-manager.records`/`.backlog`/
-> `.initiative`, `knowledge-observatory.docs`, `prompt-manager.skill`/
-> `.action`) + 10 `capability_gap` stubs (the Track-A checklist from
-> `ai-search-routing.md`). The earlier-phase summary below remains accurate.
->
-> **Domain status (Phase 7).** The product
-> domains below (`registry`, `routing`, `rerank`, `metrics`,
-> `providers`) are the **target map**. `registry` + `providers` are live
-> (Phase 3, first vertical slice), `routing` fan-out is live (Phase 4)
-> with the classifier auto-routing layer (Phase 5), `rerank` is live
-> (Phase 6) — implemented as a seam *within* the `routing` package (see
-> the rerank section) — and `metrics` is now **live (Phase 7)**: the
-> `query_telemetry` store, `MetricsService.Insights`, and the implemented
-> `RoutingService.Status` (per-provider health + classifier/reranker
-> availability). The template's `notes` worked example has been
-> **removed**, and `health` is kept. All five product domains are now
-> implemented. The "Build Phase" column records the plan phase that lands
-> each domain.
+> **Current routing snapshot (2026-11-24).** `strategies.json` selects the
+> serving strategy and `RoutingService.Status` reports its name. The current
+> active row is `lexical-cross-encoder`; other registered rows are evaluation
+> candidates, not serving arms. Provider-description selection uses a bounded
+> semantic index when its trusted dependency is available and retains a
+> lexical fallback. The interactive LLM classifier is retired. The
+> `classifier_available` status field remains for older clients and is false
+> on production status responses. No live cutover or current coverage claim is
+> implied by this architecture snapshot.
 
 
 Use this document to answer:
@@ -65,7 +41,7 @@ belong in [`DATA.md`](DATA.md).
 ## The router pipeline (how the domains compose)
 
 ```
-query ─▶ [routing: classifier picks provider types]  (or explicit --type / --all)
+query ─▶ [routing strategy: selects providers from description evidence] (or explicit --type / --all)
       ─▶ [routing: bounded fan-out to matching registered providers]
              each call resolved via [registry] descriptor + [providers] adapter
              (provider runs ITS own retrieval over ITS index)
@@ -77,7 +53,7 @@ query ─▶ [routing: classifier picks provider types]  (or explicit --type / -
 
 - **registry** owns *what providers exist* (the declarative descriptor + its storage/CRUD).
 - **providers** owns *how a descriptor becomes results* (the adapter runtime: call endpoint, apply mapping, normalize score) and the concrete registration rows for live leaves + gap stubs.
-- **routing** owns *which providers to call and how to combine them* (classifier, fan-out, grouping, operator output).
+- **routing** owns *which providers to call and how to combine them* (strategy selection, fan-out, grouping, operator output).
 - **rerank** owns *one comparable ranking* across providers, with graceful degradation.
 - **metrics** owns *measurement* — per-query telemetry and the insights/status aggregates that tell us whether federation is working.
 
@@ -87,7 +63,7 @@ query ─▶ [routing: classifier picks provider types]  (or explicit --type / -
 |---|---|---|---|---|---|---|---|
 | registry | Persist provider descriptors and serve registration CRUD. The contract every provider self-registers against. | Registry / entity | `providers` table (descriptors only — no corpus data). | API, CLI, UI | MOD-P0-001, MOD-P1-010 | 3 | `api/internal/registry/`, `api/handlers/registry/`, `cli/domains/providers/`, `ui/src/features/providers/`, `packages/proto/schemas/search-hub/v1/registry/` |
 | providers | Turn a descriptor into unified `SearchHit`s: call the leaf endpoint (HTTP+JSON or CLI), apply the declarative `ResultMapping`, normalize the score. Holds the live-provider registration rows + gap stubs. | Adapter / integration | None (stateless adapters; descriptor rows owned by `registry`). | API (internal), CLI (register hooks) | MOD-P1-009, MOD-P1-010 | 3 (first leaf), 4/8 (rest) | `api/internal/providers/`, `api/internal/providers/adapters/`, registration descriptors |
-| routing | Classify a free query to provider types, fan out with bounded concurrency + per-provider timeout, collect candidates with provenance, group/return them, render operator-friendly output. | Orchestration / query | None (stateless). | API, CLI, UI | MOD-P0-002, MOD-P0-003, MOD-P0-004, MOD-P0-005, MOD-P0-006 | 4 (fan-out), 5 (classifier) | `api/internal/routing/`, `api/internal/routing/classifier/`, `api/handlers/routing/`, `cli/domains/search/`, `ui/src/features/search/`, `packages/proto/schemas/search-hub/v1/routing/` |
+| routing | Select providers from registered description evidence using the active strategy, then fan out with bounded concurrency and per-provider timeout; preserve per-part provenance and degradation reasons. | Orchestration / query | Registry-derived provider-description index metadata and vectors; no provider corpus content. | API, CLI, UI | MOD-P0-002, MOD-P0-003, MOD-P0-004, MOD-P0-005, MOD-P0-006 | Strategy and fan-out | `api/internal/routing/strategy.go`, `provider_index.go`, `provider_selector.go`, `api/handlers/routing/`, `cli/domains/strategy/`, `ui/src/features/search/`, `packages/proto/schemas/search-hub/v1/routing/` |
 | rerank | Fuse the per-provider shortlists into one comparable, ranked list; degrade gracefully to by-provider grouping when the reranker is unavailable. | Transform / ranking | None (calls Ollama). | API (internal) | MOD-P1-007 | 6 ✅ | `api/internal/routing/reranker.go`, `api/internal/routing/reranker_ollama.go` (a seam *within* the routing package — it post-processes the same fan-out, so co-location keeps the merge step beside what it merges; not a separate Go package) |
 | metrics | Persist per-query telemetry and compute insights: provider utilization, under-used providers, zero-result rate, latency percentiles. The validation backbone. | Telemetry / reporting | `query_telemetry` table (+ derived aggregates). | API, CLI, UI | MOD-P1-008 | 7 | `api/internal/metrics/`, `api/handlers/metrics/`, `ui/src/features/insights/` |
 | eval | Per-provider search-quality baselines: mirror provider-owned golden suites, run them against the provider's registered endpoint (reusing `providers.MapResults` — no provider-specific code), validate labels LIVE/HARD/STALE, generate candidate cases, promote reviewed candidates, and store immutable, **tagged** runs for trend/compare. Soft labels, never a pass/fail gate (opt-in `--assert` per consumer). Sibling of `registry`, not a fork of it. | Telemetry / experimentation | `eval_suites` + `eval_runs` tables (suite mirrors + immutable runs; provider `search.json` remains authoritative). | API, CLI, UI | search-quality-baseline plan | (eval domain) | `api/internal/eval/`, `api/handlers/eval/`, `cli/domains/evals/`, `ui/src/features/evals/`, `packages/proto/schemas/search-hub/v1/eval/` |
@@ -158,15 +134,16 @@ query ─▶ [routing: classifier picks provider types]  (or explicit --type / -
 ### routing
 
 - Purpose: turn one query into the right fan-out and a coherent result.
-  Reads provider `description`s from the registry to classify a free
-  query to provider `type`s (Ollama, `qwen3:1.7b`) — or honors explicit
+  Reads provider `description`s from the registry and applies the active
+  retrieval strategy to select provider IDs (semantic evidence when the
+  trusted index is available, lexical fallback otherwise) — or honors explicit
   `--type` / `--all`. Fans out to matching providers with bounded
   concurrency and per-provider timeouts, returns partial results rather
   than blocking on the slowest, and renders operator-friendly output
   (corpora searched, counts, expand hints, provenance) with `--json` for
   scripting.
 - Primary archetype: orchestration / query.
-- Owns: classifier (behind a `Classifier` interface — swappable),
+- Owns: active strategy selection and provider-description evidence,
   fan-out orchestration, by-provider grouping (the honest pre-rerank
   shape), graceful skip-with-warning for down/stale providers, and the
   `Query` / `Status` RPCs + `search` CLI. On successful rerank, `ranked`
@@ -174,8 +151,8 @@ query ─▶ [routing: classifier picks provider types]  (or explicit --type / -
   degradation provenance; when reranking is skipped or degrades, groups keep
   their hits.
 - Does not own: corpus retrieval (providers), final ranking (rerank),
-  or descriptor persistence (registry). Classification is **widen-on-
-  uncertainty** — over-fetch and let rerank kill noise (plan §4).
+  or descriptor persistence (registry). It reports ambiguous or missing
+  positive provider evidence and retains explicit selector overrides.
 - Storage: none (stateless).
 - Requirements: MOD-P0-002 (explicit-type federation), MOD-P0-003
   (graceful degradation), MOD-P0-004 (operator-friendly output),
@@ -224,7 +201,7 @@ query ─▶ [routing: classifier picks provider types]  (or explicit --type / -
 - Purpose: the validation backbone. Persist per-query telemetry and
   derive the insights that tell us, over time, whether federation is
   actually working and where it is under-used. This is first-class, not
-  an afterthought — it is how the classifier/rerank earn their cost.
+  an afterthought — it is how provider selection and reranking earn their cost.
 - Primary archetype: telemetry / reporting.
 - Owns: the `query_telemetry` + `query_telemetry_provider` tables
   (routed types, per-provider hit counts, total result count, latency,
@@ -232,10 +209,10 @@ query ─▶ [routing: classifier picks provider types]  (or explicit --type / -
   `MetricsService.Insights` (CLI `search-hub insights`): per-provider
   utilization, registered-but-never-routed-to providers (`under_utilized`,
   signals bad descriptions), zero-result rate, p50/p95 latency. Live
-  federation health (per-provider reachability + classifier/reranker
+  federation health (per-provider reachability, active strategy, and reranker
   availability) is surfaced via `RoutingService.Status` (CLI
-  `search-hub federation`) — implemented in the `routing` package since it
-  reads the registry + the model seams, not the telemetry tables.
+  `search-hub federation`). The legacy classifier availability bool remains
+  in the wire response for older clients; it is not a serving signal.
 - Boundary: the router owns the `TelemetrySample` write seam
   (`internal/routing/telemetry.go`); the metrics store implements it via a
   bridge at the wiring edge (`handlers/metrics/recorder.go`), so

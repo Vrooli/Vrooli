@@ -50,10 +50,8 @@ def row(name, reading, target, in_band, unavailable=False, reason=None, sensor=N
 
 
 def safe(fn):
-    try:
-        return fn(), None
-    except Exception as exc:
-        return None, exc
+    result = program.guarded(fn)()
+    return (None, result) if isinstance(result, Exception) else (result, None)
 
 
 def read_error(err, where):

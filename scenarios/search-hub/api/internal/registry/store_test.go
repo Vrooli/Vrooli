@@ -320,6 +320,13 @@ func TestStoreListFilters(t *testing.T) {
 		require.Equal(t, "cli-health.commands", got[0].GetProviderId())
 	})
 
+	t.Run("filter by exact provider ID", func(t *testing.T) {
+		got, err := store.List(ctx, registry.ListFilter{ProviderID: "cli-health.commands"})
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		require.Equal(t, "cli-health.commands", got[0].GetProviderId())
+	})
+
 	t.Run("filter by state finds gaps", func(t *testing.T) {
 		got, err := store.List(ctx, registry.ListFilter{State: int32(registryv1.ProviderState_PROVIDER_STATE_CAPABILITY_GAP)})
 		require.NoError(t, err)

@@ -12,16 +12,18 @@ document below, update that document and link it here.
 ## The load-bearing invariant: thin router
 
 Search Hub is a **federated search router**, not a search engine. It
-owns only the registry, classifier, fan-out, reranker, metrics, and eval
-mirrors. It stores **no vectors and no authoritative corpus content** —
-every searchable corpus and its `search.json` tests stay authoritative in
-the owning scenario (a *provider*) and are reached only through a
-declarative, self-registered descriptor. Two boundaries
+owns the registry, provider-selection strategy, fan-out, reranker, metrics,
+and eval mirrors. It does **not index provider corpus content**. A derived
+provider-description index may retain description vectors and metadata for
+bounded owner selection; registry descriptors remain authoritative, and
+each searchable corpus plus its `search.json` tests stays with its owning
+scenario (a *provider*) behind a declarative, self-registered descriptor. Two boundaries
 follow and are mechanically guarded (plan §6 Validation #4/#5):
 
-- **No data accretion.** The router imports no qdrant client and has no
-  authoritative corpus-content tables — only provider descriptors, telemetry,
-  and eval suite/run mirrors in embedded SQLite.
+- **No corpus data accretion.** The router imports no qdrant client and has no
+  authoritative corpus-content tables. Embedded SQLite holds provider
+  descriptors, telemetry, and eval suite/run mirrors; the bounded routing
+  index is derived from provider descriptions, never owner corpus contents.
 - **No conditional monolith.** There is zero provider-specific code:
   one generic adapter driven by each descriptor's `ResultMapping`.
   Adding a provider is a registry row, never router code.
@@ -145,9 +147,9 @@ and one canonical contract layer.
                           ┌──────────┴───────────┐
                           ▼                      ▼
                    ┌────────────┐         ┌──────────────┐
-                   │   SQLite   │         │   Ollama     │
-                   │ providers  │         │ classifier + │
-                   │ + telemetry│         │   reranker   │
+                   │   SQLite   │         │  Provider    │
+                   │ providers  │         │ selection    │
+                   │ + telemetry│         │ strategy     │
                    └────────────┘         └──────────────┘
                           │
                           ▼  fan-out (HTTP+JSON / CLI), base URL
@@ -276,8 +278,8 @@ that grows + grades those corpora. Any scenario that adopts
 seam.
 
 Three internal domains carry it, all built to the thin-router
-invariant (no vectors, no embedder, no provider-specific code) and the
-boundary-of-responsibility rule (a transport-free core behind small
+invariant (no provider-corpus vectors, injected embedders, no provider-specific
+code) and the boundary-of-responsibility rule (a transport-free core behind small
 seams):
 
 | Domain | Role | Owns | Seams (test-injection boundaries) |
@@ -294,8 +296,11 @@ provider's `search.json` before refreshing the eval mirror. The domain also
 hosts the **adequacy** grader (`eval/adequacy.go`, warn-level — distinct from
 `eval/validate.go`, the hard structural gate). The shared
 `api/internal/ollama/` client is the single path to the local Ollama daemon
-(query classifier, reranker, and corpusgen inverter all route through
-`resource-ollama gateway`, so daemon load stays governed in one place).
+(reranker fallback and corpusgen inversion route through `resource-ollama
+gateway`, so daemon load stays governed in one place). The interactive LLM
+classifier is retired. Provider-description selection uses a bounded semantic
+index when trusted identity and storage are available, with a lexical fallback
+when that path is unavailable.
 
 Both new factor-bearing contracts are **consumed, not redefined**: the
 factor taxonomy and the `search.json` schema are owned by
@@ -337,7 +342,7 @@ this scenario.
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API | Implemented / live-degraded | Registry, routing, eval, metrics, validation, and health domains are wired through the thin router. | Healthy qdrant/Ollama substrate is still required for a clean fleet certification. |
+| API | Implemented / live-degraded | Registry, routing, eval, metrics, validation, and health domains are wired through the thin router. | Qdrant-backed description-index cutover and fleet certification have not been proven in this mission; Ollama rerank fallback is degradable. |
 | UI | Implemented / focused-tested | Typed operator surfaces cover query, federation, eval, insights, providers, and maturity. | Scenario-level browser certification remains a separate lifecycle gate. |
 | CLI | Implemented | Domain command groups expose status, routing, eval, metrics, and maturity evidence. | Keep provider-specific behavior in provider scenarios. |
 | Docs | Reconciled / evidence-bound | Manifest, architecture, flows, decisions, seams, performance, and problems describe current ownership and failure semantics. | Live maturity remains at 23 blocking findings, equal to the phase baseline. |
@@ -355,7 +360,7 @@ when they are deliberate and durable.
 |---|---|---|---|
 | 2026-06-03 | Embedded SQLite (the template default) for the registry + metrics stores. Phase 2 proposed PostgreSQL; Phase 3 reversed it. | The registry holds a handful of provider rows (plus later telemetry); every sibling scenario on this template's `RoutedDB`+modules pattern uses SQLite; staying on SQLite keeps the pure-Go test harness intact with no new test dependency. The provisioned `vrooli_search_hub` postgres DB is left unused. | If the registry ever needs concurrent multi-writer throughput or shared-DB analytics that outgrow SQLite. |
 | 2026-06-03 | Soft scenario deps (`cli-health`, `ui-health`, `swarm-manager`, `knowledge-observatory`, `prompt-manager`) use `startup_policy: ignore`, not `try_start`. | They are *runtime federation targets*, not boot prerequisites. `try_start` force-boots all five on start (observed a 4+ min hang); the hub degrades gracefully when a provider is absent. | If a provider must be guaranteed up for a core flow (none in v1). |
-| 2026-06-03 | No qdrant dependency despite being a "search" scenario. | The router holds no vectors; retrieval lives in providers. This is the thin-router invariant, guarded by an architectural test. | Never (changing it breaks the boundary). |
+| 2026-06-03 / superseded 2026-11-24 | A no-Qdrant posture was chosen when Search Hub stored no vectors. | Query-time routing now has a separately gated provider-description index using derived embeddings; this is not provider-corpus indexing. See `INTEGRATIONS.md`. | Retire the resource if the owner-approved semantic description path is removed. |
 
 ## Documentation Architecture
 

@@ -37,6 +37,7 @@ type fakeStore struct {
 	lastUpsert  *registryv1.ProviderDescriptor
 	lastToken   string
 	lastFilter  internalregistry.ListFilter
+	listCalls   int
 	lastDelete  string
 	descriptor  *registryv1.ProviderDescriptor
 }
@@ -48,6 +49,7 @@ func (f *fakeStore) Upsert(_ context.Context, d *registryv1.ProviderDescriptor, 
 }
 
 func (f *fakeStore) List(_ context.Context, filter internalregistry.ListFilter) ([]*registryv1.ProviderDescriptor, error) {
+	f.listCalls++
 	f.lastFilter = filter
 	return f.listOut, f.listErr
 }
@@ -121,7 +123,12 @@ func validDescriptor() *registryv1.ProviderDescriptor {
 }
 
 func TestRegisterProviderCreated(t *testing.T) {
-	store := &fakeStore{upsertOut: true}
+	store := &fakeStore{
+		upsertOut: true,
+		listOut: []*registryv1.ProviderDescriptor{{
+			ProviderId: "existing.similar", Type: "command", Description: "CLI commands.",
+		}},
+	}
 	client := newClient(t, store)
 
 	resp, err := client.RegisterProvider(context.Background(), connect.NewRequest(&registryv1.RegisterProviderRequest{
@@ -131,6 +138,7 @@ func TestRegisterProviderCreated(t *testing.T) {
 	require.True(t, resp.Msg.GetCreated())
 	require.Equal(t, "cli-health.commands", resp.Msg.GetDescriptor_().GetProviderId())
 	require.Equal(t, "cli-health.commands", store.lastUpsert.GetProviderId())
+	require.Zero(t, store.listCalls, "registration must not run the retired Jaccard scan over the whole provider registry")
 }
 
 func TestRegisterProviderInvalidArgument(t *testing.T) {

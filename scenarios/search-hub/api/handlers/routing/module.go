@@ -15,7 +15,6 @@ import (
 	"context"
 	"log"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -57,10 +56,11 @@ func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, recor
 	return ModuleWithRouter(NewRouter(db, clk, logger, recorder), logger)
 }
 
-// NewRouter builds the production router once so the health domain and the
-// RoutingService observe the same breaker state and registry snapshot.
+// NewRouter builds a source-only router with bounded lexical provider
+// selection. Semantic selection requires the owner-bound fleet store and
+// verified per-request identity supplied through NewRouterWithFleetSemanticStore.
 func NewRouter(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, recorder internalrouting.TelemetryRecorder) *internalrouting.Router {
-	return newRouterWithDescriptionIndex(db, clk, logger, recorder, newProviderDescriptionIndex(), nil)
+	return newRouterWithDescriptionIndex(db, clk, logger, recorder, nil, nil)
 }
 
 // NewRouterWithFleetSemanticStore wires the production owner-bound semantic
@@ -132,23 +132,6 @@ func newRouterWithDescriptionIndex(db *database.RoutedDB, clk schedule.Clock, lo
 		AutoRouteExternal: autoRouteExternalEnabled(),
 	})
 	return router
-}
-
-func newProviderDescriptionIndex() internalrouting.ProviderDescriptionIndex {
-	model := strings.TrimSpace(os.Getenv("SEARCH_HUB_DESCRIPTION_EMBED_MODEL"))
-	if model == "" {
-		model = aisearch.DefaultEmbedModel
-	}
-	cachePath := strings.TrimSpace(os.Getenv("SEARCH_HUB_DESCRIPTION_INDEX_CACHE"))
-	if cachePath == "" {
-		if dataDir := strings.TrimSpace(os.Getenv("SCENARIO_DATA_DIR")); dataDir != "" {
-			cachePath = filepath.Join(dataDir, "provider-description-index.json")
-		}
-	}
-	return internalrouting.NewPersistentEmbeddingDescriptionIndex(aisearch.NewEmbedderForConfig(aisearch.Config{
-		EmbedModel:      model,
-		EmbedTaskPrefix: true,
-	}), cachePath)
 }
 
 // StartRecoveryProbes starts the low-rate, unattended zero-yield recovery

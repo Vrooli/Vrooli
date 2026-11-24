@@ -6,11 +6,10 @@ import { useTranslation } from "../../i18n";
 import { fetchFederationStatus } from "../../api/search";
 
 /**
- * FederationStatusBar surfaces live federation health above the results:
- * classifier/reranker model availability (which gate auto-routing and unified
- * rerank) plus a per-provider reachability chip carrying each leaf's index-age
- * evidence. It reads RoutingService.Status; a failed probe degrades to a quiet
- * inline message and never blocks searching.
+ * FederationStatusBar surfaces the active routing strategy, reranker
+ * availability, and per-provider reachability with each leaf's index-age
+ * evidence. The retired classifier compatibility field is intentionally not
+ * presented as an outage. A failed status probe never blocks searching.
  */
 export function FederationStatusBar() {
   const { t } = useTranslation();
@@ -43,7 +42,9 @@ export function FederationStatusBar() {
       className="flex flex-wrap items-center gap-2 text-xs"
     >
       <span className="font-medium text-app-muted-foreground">{t(strings.search.statusHeading)}:</span>
-      <ModelChip label={t(strings.search.classifier)} ok={data.classifierAvailable} okLabel={t(strings.search.available)} offLabel={t(strings.search.unavailable)} />
+      <span className="rounded-full border border-app-border px-2 py-0.5 text-app-foreground">
+        {t(strings.search.routingStrategy)}: {data.activeStrategy || t(strings.search.notReported)}
+      </span>
       <ModelChip label={t(strings.search.reranker)} ok={data.rerankerAvailable} okLabel={t(strings.search.available)} offLabel={t(strings.search.unavailable)} />
       <span className="text-app-muted-foreground">
         {t(strings.search.providersReachable, { reachable, total: data.providers.length })}

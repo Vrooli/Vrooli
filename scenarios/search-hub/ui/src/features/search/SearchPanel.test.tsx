@@ -25,6 +25,7 @@ import { renderWithProviders } from "../../test-utils";
 // copy-driven-query lint rule (which forbids string *literals* in TL queries)
 // is satisfied while still asserting the hit title threads through to the DOM.
 const HIT_TITLE = "scenario restart";
+const RETIRED_CLASSIFIER_LABEL = "Classifier";
 
 vi.mock("../../api/search", () => ({
   runQuery: vi.fn(),
@@ -34,6 +35,7 @@ vi.mock("../../api/search", () => ({
 
 import { SearchPanel } from "./SearchPanel";
 import { selectors } from "../../consts/selectors";
+import { strings } from "../../consts/strings";
 import * as searchApi from "../../api/search";
 
 const provider = (providerId: string, type: string) =>
@@ -47,7 +49,7 @@ const provider = (providerId: string, type: string) =>
 const status = () =>
   create(StatusResponseSchema, {
     providers: [{ providerId: "cli-health.commands", reachable: true, reachability: "endpoint resolved", indexAge: "not_reported: provider has no status_endpoint" }],
-    classifierAvailable: true,
+    activeStrategy: "lexical-cross-encoder",
     rerankerAvailable: true,
   });
 
@@ -97,6 +99,17 @@ describe("SearchPanel", () => {
     wireDefaults();
     renderWithProviders(<SearchPanel />);
     expect(screen.getByTestId(selectors.search.empty)).toBeInTheDocument();
+  });
+
+  it("shows the active strategy instead of the retired classifier status", async () => {
+    wireDefaults();
+    renderWithProviders(<SearchPanel />);
+
+    await waitFor(() => {
+      const statusBar = screen.getByTestId(selectors.search.statusBar);
+      expect(statusBar).toHaveTextContent(`${strings.search.routingStrategy}: lexical-cross-encoder`);
+      expect(statusBar).not.toHaveTextContent(RETIRED_CLASSIFIER_LABEL);
+    });
   });
 
   it("builds type facets from the active registry providers", async () => {

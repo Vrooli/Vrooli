@@ -43,7 +43,7 @@ function wire() {
   vi.mocked(searchApi.fetchFederationStatus).mockResolvedValue(
     create(StatusResponseSchema, {
       providers: [{ providerId: "cli-health.commands", reachable: true, reachability: "endpoint resolved", indexAge: "not_reported: provider has no status_endpoint" }],
-      classifierAvailable: true,
+      activeStrategy: "lexical-cross-encoder",
       rerankerAvailable: true,
     }),
   );
