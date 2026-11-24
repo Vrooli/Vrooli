@@ -203,6 +203,7 @@ func run() error {
 		log.Printf("warning: runtime recovery ownership gate unavailable: %v", err)
 	} else {
 		registry.SetRecoveryOwnershipGate(checks.RuntimeRecoveryGate{HomeDir: home, CoordinatedScenario: "agent-manager"})
+		registry.Register(checks.RecoveryGateCheck{HomeDir: home})
 	}
 
 	// Wire config manager into registry for enable/autoHeal checks

@@ -72,6 +72,7 @@ func New(credentials *credentialauthority.Authority) (*Authority, error) {
 // Initialize creates the authority only if none exists. Existing public trust
 // anchors are protected: replacing one requires explicit operator intent.
 func (a *Authority) Initialize(root string, replaceTrustAnchor bool) (Status, error) {
+	before := a.credentials.Status(a.identity, privateField)
 	key, configured, err := a.privateKey()
 	if err != nil {
 		return Status{}, err
@@ -86,8 +87,9 @@ func (a *Authority) Initialize(root string, replaceTrustAnchor bool) (Status, er
 			return Status{}, fmt.Errorf("marshal release authority key: %w", err)
 		}
 		privatePEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der})
-		if err := a.credentials.Put(a.identity, privateField, string(privatePEM)); err != nil {
-			return Status{}, fmt.Errorf("store release authority key: %w", err)
+		err = a.activatePrivateKey(privatePEM, before.Version)
+		if err != nil {
+			return Status{}, fmt.Errorf("activate release authority key: %w", err)
 		}
 	}
 
@@ -100,6 +102,10 @@ func (a *Authority) Initialize(root string, replaceTrustAnchor bool) (Status, er
 // Regenerate replaces the private key and trust anchor together. It is a
 // destructive trust-root reset and is deliberately separate from Initialize.
 func (a *Authority) Regenerate(root string) (Status, error) {
+	before := a.credentials.Status(a.identity, privateField)
+	if !before.Configured || before.Version == "" {
+		return Status{}, errors.New("release authority must have a versioned active key before rotation")
+	}
 	key, err := rsa.GenerateKey(rand.Reader, authorityParameterB)
 	if err != nil {
 		return Status{}, fmt.Errorf("generate replacement release authority key: %w", err)
@@ -108,13 +114,31 @@ func (a *Authority) Regenerate(root string) (Status, error) {
 	if err != nil {
 		return Status{}, fmt.Errorf("marshal replacement release authority key: %w", err)
 	}
-	if err := a.credentials.Put(a.identity, privateField, string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der}))); err != nil {
-		return Status{}, fmt.Errorf("store replacement release authority key: %w", err)
+	err = a.activatePrivateKey(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der}), before.Version)
+	if err != nil {
+		return Status{}, fmt.Errorf("activate replacement release authority key: %w", err)
 	}
 	if err := writeTrustAnchors(root, publicPEM(key), true); err != nil {
 		return Status{}, err
 	}
 	return a.statusWithKey(root, key), nil
+}
+
+// activatePrivateKey stages generated signing material and commits it only
+// against the authority version observed before generation. The private PEM
+// remains inside the credential authority API; callers receive only a version.
+func (a *Authority) activatePrivateKey(privatePEM []byte, expectedVersion string) error {
+	candidate, err := a.credentials.PutCandidate(a.identity, privateField, string(privatePEM))
+	if err != nil {
+		return err
+	}
+	if candidate.ExpectedVersion != expectedVersion {
+		return credentialauthority.ErrVersionConflict
+	}
+	if err := a.credentials.ActivateCandidateIfVersion(candidate, expectedVersion); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (a *Authority) Status(root string) (Status, error) {

@@ -71,6 +71,21 @@ const (
 // stale-heartbeat window.
 var loopHeartbeatInterval = 30 * time.Second
 
+// minTickGap is the least rest between two ticks when a tick overran its interval.
+const minTickGap = 5 * time.Second
+
+// untilNextTick paces ticks from the start of the previous one, so the
+// interval is the observation period. Sleeping a full interval after every
+// tick made the period interval plus tick time: 96 s against a 60 s setpoint
+// when slow probes stretched the tick.
+func (l *loop) untilNextTick() time.Duration {
+	interval := l.config.TickInterval
+	if l.tickStartedAt.IsZero() {
+		return interval
+	}
+	return max(interval-time.Since(l.tickStartedAt), min(interval, minTickGap))
+}
+
 // nextBackoff doubles the wait, from healBackoffMin up to healBackoffMax.
 func nextBackoff(current time.Duration) time.Duration {
 	if current < healBackoffMin {
@@ -93,7 +108,9 @@ type loop struct {
 	tickFailures int
 	// ticksSincePreflight counts ticks toward the periodic preflight.
 	ticksSincePreflight int
-	exitCode            int
+	// tickStartedAt is when the last tick began; ticks are paced from it.
+	tickStartedAt time.Time
+	exitCode      int
 	// sleep is the wait seam; tests substitute a recorder.
 	sleep func(ctx context.Context, d time.Duration) bool
 }
@@ -297,7 +314,7 @@ func (l *loop) doVerify(ctx context.Context) loopState {
 }
 
 func (l *loop) doHealthy(ctx context.Context) loopState {
-	if !l.sleep(ctx, l.config.TickInterval) {
+	if !l.sleep(ctx, l.untilNextTick()) {
 		return l.exit(exitSignal, "shutdown signal received")
 	}
 	if l.ticksSincePreflight >= preflightEveryTicks {
@@ -312,7 +329,7 @@ func (l *loop) doHealthy(ctx context.Context) loopState {
 }
 
 func (l *loop) doDegraded(ctx context.Context) loopState {
-	if !l.sleep(ctx, l.config.TickInterval) {
+	if !l.sleep(ctx, l.untilNextTick()) {
 		return l.exit(exitSignal, "shutdown signal received")
 	}
 	if !l.runPreflight(ctx) {
@@ -336,6 +353,7 @@ func (l *loop) doDegraded(ctx context.Context) loopState {
 func (l *loop) tick(ctx context.Context, stay loopState) loopState {
 	l.ticksSincePreflight++
 	started := time.Now().UTC()
+	l.tickStartedAt = started
 	l.record.LastTickAt = &started
 	l.record.LastTickStatus = "running"
 	l.persist()

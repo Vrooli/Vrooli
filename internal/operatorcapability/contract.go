@@ -228,46 +228,10 @@ type Descriptor struct {
 }
 
 func (d Descriptor) Validate() error {
-	if d.Version != ContractVersion {
-		return fmt.Errorf("capability %q uses unsupported contract version %q", d.ID, d.Version)
-	}
-	if strings.TrimSpace(d.ID) == "" || strings.TrimSpace(d.Owner) == "" || strings.TrimSpace(d.Title) == "" || strings.TrimSpace(d.Scope) == "" || strings.TrimSpace(d.Purpose) == "" {
-		return errors.New("capability version, id, owner, title, scope, and purpose are required")
-	}
-	if !validSensitivity(d.Sensitivity) {
-		return fmt.Errorf("capability %q has unknown sensitivity %q", d.ID, d.Sensitivity)
-	}
-	if !validDisposition(d.Disposition) {
-		return fmt.Errorf("capability %q has unknown disposition %q", d.ID, d.Disposition)
-	}
-	if (d.Disposition == DispositionDeferred || d.Disposition == DispositionUnsupported) && strings.TrimSpace(d.DispositionReason) == "" {
-		return fmt.Errorf("capability %q disposition %q requires a reason", d.ID, d.Disposition)
-	}
-	if err := validateDescriptorText(d.ID, "disposition_reason", d.DispositionReason); err != nil {
+	if err := d.validateIdentity(); err != nil {
 		return err
 	}
-	if err := validateDescriptorText(d.ID, "owner", d.Owner); err != nil {
-		return err
-	}
-	if err := validateDescriptorText(d.ID, "scope", d.Scope); err != nil {
-		return err
-	}
-	if err := validateDescriptorText(d.ID, "purpose", d.Purpose); err != nil {
-		return err
-	}
-	if err := validateDescriptorText(d.ID, "title", d.Title); err != nil {
-		return err
-	}
-	if err := validateDescriptorText(d.ID, "description", d.Description); err != nil {
-		return err
-	}
-	if err := validateDescriptorText(d.ID, "risk", d.Risk); err != nil {
-		return err
-	}
-	if err := validateDescriptorText(d.ID, "remediation", d.Remediation); err != nil {
-		return err
-	}
-	if err := validateDescriptorText(d.ID, "lifecycle.recovery", d.Lifecycle.Recovery); err != nil {
+	if err := d.validateTextFields(); err != nil {
 		return err
 	}
 	if err := validateProvenance(d); err != nil {
@@ -279,6 +243,63 @@ func (d Descriptor) Validate() error {
 	if err := validateReferenceURL(d); err != nil {
 		return err
 	}
+	if err := d.validateBounds(); err != nil {
+		return err
+	}
+	if err := d.validateEvidence(); err != nil {
+		return err
+	}
+	return d.validateInputs()
+}
+
+func (d Descriptor) validateIdentity() error {
+	if d.Version != ContractVersion {
+		return fmt.Errorf("capability %q uses unsupported contract version %q", d.ID, d.Version)
+	}
+	if !d.hasRequiredIdentity() {
+		return errors.New("capability version, id, owner, title, scope, and purpose are required")
+	}
+	if !validSensitivity(d.Sensitivity) {
+		return fmt.Errorf("capability %q has unknown sensitivity %q", d.ID, d.Sensitivity)
+	}
+	if !validDisposition(d.Disposition) {
+		return fmt.Errorf("capability %q has unknown disposition %q", d.ID, d.Disposition)
+	}
+	if (d.Disposition == DispositionDeferred || d.Disposition == DispositionUnsupported) && strings.TrimSpace(d.DispositionReason) == "" {
+		return fmt.Errorf("capability %q disposition %q requires a reason", d.ID, d.Disposition)
+	}
+	return nil
+}
+
+func (d Descriptor) hasRequiredIdentity() bool {
+	for _, value := range []string{d.ID, d.Owner, d.Title, d.Scope, d.Purpose} {
+		if strings.TrimSpace(value) == "" {
+			return false
+		}
+	}
+	return true
+}
+
+func (d Descriptor) validateTextFields() error {
+	for _, field := range []struct{ name, value string }{
+		{"disposition_reason", d.DispositionReason},
+		{"owner", d.Owner},
+		{"scope", d.Scope},
+		{"purpose", d.Purpose},
+		{"title", d.Title},
+		{"description", d.Description},
+		{"risk", d.Risk},
+		{"remediation", d.Remediation},
+		{"lifecycle.recovery", d.Lifecycle.Recovery},
+	} {
+		if err := validateDescriptorText(d.ID, field.name, field.value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (d Descriptor) validateBounds() error {
 	if len(d.Inputs) > maxInputs {
 		return fmt.Errorf("capability %q declares too many inputs", d.ID)
 	}
@@ -306,6 +327,10 @@ func (d Descriptor) Validate() error {
 			}
 		}
 	}
+	return nil
+}
+
+func (d Descriptor) validateEvidence() error {
 	for _, stage := range d.Evidence.Stages {
 		if !validVerificationStage(stage) {
 			return fmt.Errorf("capability %q declares unsupported verification stage %q", d.ID, stage)
@@ -317,117 +342,175 @@ func (d Descriptor) Validate() error {
 	if !d.Evidence.SecretFree {
 		return fmt.Errorf("capability %q must declare secret-free evidence", d.ID)
 	}
+	return nil
+}
+
+func (d Descriptor) validateInputs() error {
 	seen := map[string]struct{}{}
 	for _, input := range d.Inputs {
-		if strings.TrimSpace(input.ID) == "" || strings.TrimSpace(input.Label) == "" {
-			return fmt.Errorf("capability %q contains an input without id and label", d.ID)
-		}
-		if err := validateDescriptorText(d.ID, "input id", input.ID); err != nil {
+		if err := d.validateInput(input, seen); err != nil {
 			return err
 		}
-		if _, ok := seen[input.ID]; ok {
-			return fmt.Errorf("capability %q declares input %q more than once", d.ID, input.ID)
-		}
-		seen[input.ID] = struct{}{}
-		if err := validateDescriptorText(d.ID, "input label", input.Label); err != nil {
+	}
+	return nil
+}
+
+func (d Descriptor) validateInput(input InputDescriptor, seen map[string]struct{}) error {
+	if err := validateInputIdentity(d.ID, input, seen); err != nil {
+		return err
+	}
+	if err := validateInputText(d.ID, input); err != nil {
+		return err
+	}
+	if err := validateInputReferences(d.ID, input); err != nil {
+		return err
+	}
+	return validateInputSemantics(d.ID, input)
+}
+
+func validateInputIdentity(capabilityID string, input InputDescriptor, seen map[string]struct{}) error {
+	if strings.TrimSpace(input.ID) == "" || strings.TrimSpace(input.Label) == "" {
+		return fmt.Errorf("capability %q contains an input without id and label", capabilityID)
+	}
+	if err := validateDescriptorText(capabilityID, "input id", input.ID); err != nil {
+		return err
+	}
+	if _, ok := seen[input.ID]; ok {
+		return fmt.Errorf("capability %q declares input %q more than once", capabilityID, input.ID)
+	}
+	seen[input.ID] = struct{}{}
+	return nil
+}
+
+func validateInputText(capabilityID string, input InputDescriptor) error {
+	for _, field := range []struct{ name, value string }{
+		{"input label", input.Label},
+		{"input description", input.Description},
+		{"input validation", input.Validation},
+	} {
+		if err := validateDescriptorText(capabilityID, field.name, field.value); err != nil {
 			return err
 		}
-		if err := validateDescriptorText(d.ID, "input description", input.Description); err != nil {
+	}
+	return nil
+}
+
+func validateInputReferences(capabilityID string, input InputDescriptor) error {
+	for field, value := range map[string]string{
+		"input.credential_logical_id": input.CredentialLogicalID, "input.credential_field": input.CredentialField,
+		"input.provider": input.Provider, "input.requirement_group": input.RequirementGroup,
+		"input.acquisition_ref": input.AcquisitionRef, "input.verification_ref": input.VerificationRef,
+		"input.recovery_ref": input.RecoveryRef, "input.help_ref": input.HelpRef, "input.evidence_policy": input.EvidencePolicy,
+	} {
+		if err := validateDescriptorText(capabilityID, field, value); err != nil {
 			return err
 		}
-		if err := validateDescriptorText(d.ID, "input validation", input.Validation); err != nil {
+		if strings.TrimSpace(value) != "" && strings.ContainsAny(value, "\r\n") {
+			return fmt.Errorf("capability %q %s contains a line break", capabilityID, field)
+		}
+	}
+	if strings.ContainsAny(input.CredentialField, "/\\") {
+		return fmt.Errorf("capability %q input %q credential_field cannot contain a path separator", capabilityID, input.ID)
+	}
+	return validateInputReferenceLists(capabilityID, input)
+}
+
+func validateInputReferenceLists(capabilityID string, input InputDescriptor) error {
+	if len(input.ConsumerRefs) > maxOptions || len(input.CompanionSettings) > maxOptions || len(input.CompanionCredentials) > maxOptions {
+		return fmt.Errorf("capability %q input %q declares too many metadata references", capabilityID, input.ID)
+	}
+	for name, values := range map[string][]string{"consumer reference": input.ConsumerRefs, "companion setting": input.CompanionSettings, "companion credential": input.CompanionCredentials} {
+		seenReferences := map[string]struct{}{}
+		for _, value := range values {
+			value = strings.TrimSpace(value)
+			if value == "" || strings.ContainsAny(value, "\r\n") {
+				return fmt.Errorf("capability %q input %q contains an invalid %s", capabilityID, input.ID, name)
+			}
+			if _, duplicate := seenReferences[value]; duplicate {
+				return fmt.Errorf("capability %q input %q repeats %s %q", capabilityID, input.ID, name, value)
+			}
+			seenReferences[value] = struct{}{}
+		}
+	}
+	return nil
+}
+
+func validateInputSemantics(capabilityID string, input InputDescriptor) error {
+	if input.Declinable && input.Required {
+		return fmt.Errorf("capability %q required input %q cannot be declinable", capabilityID, input.ID)
+	}
+	if err := validateInputOptions(capabilityID, input); err != nil {
+		return err
+	}
+	if len(input.Candidates) > maxCandidates {
+		return fmt.Errorf("capability %q input %q has too many candidates", capabilityID, input.ID)
+	}
+	for _, candidate := range input.Candidates {
+		if err := validateCandidate(capabilityID, input.ID, candidate); err != nil {
 			return err
 		}
-		for field, value := range map[string]string{
-			"input.credential_logical_id": input.CredentialLogicalID, "input.credential_field": input.CredentialField,
-			"input.provider": input.Provider, "input.requirement_group": input.RequirementGroup,
-			"input.acquisition_ref": input.AcquisitionRef, "input.verification_ref": input.VerificationRef,
-			"input.recovery_ref": input.RecoveryRef, "input.help_ref": input.HelpRef, "input.evidence_policy": input.EvidencePolicy,
-		} {
-			if err := validateDescriptorText(d.ID, field, value); err != nil {
-				return err
-			}
-			if strings.TrimSpace(value) != "" && strings.ContainsAny(value, "\r\n") {
-				return fmt.Errorf("capability %q %s contains a line break", d.ID, field)
-			}
+	}
+	if err := input.Constraints.Validate(capabilityID, input.ID, input.Kind); err != nil {
+		return err
+	}
+	return validateInputKind(capabilityID, input)
+}
+
+func validateInputOptions(capabilityID string, input InputDescriptor) error {
+	if len(input.Options) > maxOptions {
+		return fmt.Errorf("capability %q input %q has too many options", capabilityID, input.ID)
+	}
+	if err := validateDescriptorText(capabilityID, "input default", input.Default); err != nil {
+		return err
+	}
+	for _, option := range input.Options {
+		if strings.TrimSpace(option) == "" {
+			return fmt.Errorf("capability %q input %q contains an empty option", capabilityID, input.ID)
 		}
-		if strings.ContainsAny(input.CredentialField, "/\\") {
-			return fmt.Errorf("capability %q input %q credential_field cannot contain a path separator", d.ID, input.ID)
-		}
-		if len(input.ConsumerRefs) > maxOptions || len(input.CompanionSettings) > maxOptions || len(input.CompanionCredentials) > maxOptions {
-			return fmt.Errorf("capability %q input %q declares too many metadata references", d.ID, input.ID)
-		}
-		for name, values := range map[string][]string{"consumer reference": input.ConsumerRefs, "companion setting": input.CompanionSettings, "companion credential": input.CompanionCredentials} {
-			seenReferences := map[string]struct{}{}
-			for _, value := range values {
-				value = strings.TrimSpace(value)
-				if value == "" || strings.ContainsAny(value, "\r\n") {
-					return fmt.Errorf("capability %q input %q contains an invalid %s", d.ID, input.ID, name)
-				}
-				if _, duplicate := seenReferences[value]; duplicate {
-					return fmt.Errorf("capability %q input %q repeats %s %q", d.ID, input.ID, name, value)
-				}
-				seenReferences[value] = struct{}{}
-			}
-		}
-		if input.Declinable && input.Required {
-			return fmt.Errorf("capability %q required input %q cannot be declinable", d.ID, input.ID)
-		}
-		if len(input.Options) > maxOptions {
-			return fmt.Errorf("capability %q input %q has too many options", d.ID, input.ID)
-		}
-		if err := validateDescriptorText(d.ID, "input default", input.Default); err != nil {
+		if err := validateDescriptorText(capabilityID, "input option", option); err != nil {
 			return err
 		}
-		for _, option := range input.Options {
-			if strings.TrimSpace(option) == "" {
-				return fmt.Errorf("capability %q input %q contains an empty option", d.ID, input.ID)
-			}
-			if err := validateDescriptorText(d.ID, "input option", option); err != nil {
-				return err
-			}
-		}
-		if len(input.Candidates) > maxCandidates {
-			return fmt.Errorf("capability %q input %q has too many candidates", d.ID, input.ID)
-		}
-		for _, candidate := range input.Candidates {
-			if strings.TrimSpace(candidate.ID) == "" && strings.TrimSpace(candidate.Location) == "" {
-				return fmt.Errorf("capability %q input %q contains a candidate without id or location", d.ID, input.ID)
-			}
-			for field, value := range map[string]string{"candidate.id": candidate.ID, "candidate.label": candidate.Label, "candidate.location": candidate.Location, "candidate.identity": candidate.StableIdentity, "candidate.device": candidate.DeviceIdentity, "candidate.physical_independence": candidate.PhysicallyIndependent, "candidate.status": candidate.Status, "candidate.risk": candidate.Risk, "candidate.remediation": candidate.Remediation} {
-				if err := validateDescriptorText(d.ID, field, value); err != nil {
-					return err
-				}
-			}
-			if len(candidate.Metadata) > maxMetadataEntries {
-				return fmt.Errorf("capability %q input %q candidate metadata is too large", d.ID, input.ID)
-			}
-			for key, value := range candidate.Metadata {
-				if forbiddenExecutionKey(key) {
-					return fmt.Errorf("capability %q input %q contains forbidden execution metadata %q", d.ID, input.ID, key)
-				}
-				if err := validateDescriptorText(d.ID, "candidate metadata key", key); err != nil {
-					return err
-				}
-				if err := validateDescriptorText(d.ID, "candidate metadata value", value); err != nil {
-					return err
-				}
-			}
-		}
-		if err := input.Constraints.Validate(d.ID, input.ID, input.Kind); err != nil {
+	}
+	return nil
+}
+
+func validateCandidate(capabilityID, inputID string, candidate Candidate) error {
+	if strings.TrimSpace(candidate.ID) == "" && strings.TrimSpace(candidate.Location) == "" {
+		return fmt.Errorf("capability %q input %q contains a candidate without id or location", capabilityID, inputID)
+	}
+	for field, value := range map[string]string{"candidate.id": candidate.ID, "candidate.label": candidate.Label, "candidate.location": candidate.Location, "candidate.identity": candidate.StableIdentity, "candidate.device": candidate.DeviceIdentity, "candidate.physical_independence": candidate.PhysicallyIndependent, "candidate.status": candidate.Status, "candidate.risk": candidate.Risk, "candidate.remediation": candidate.Remediation} {
+		if err := validateDescriptorText(capabilityID, field, value); err != nil {
 			return err
 		}
-		switch input.Kind {
-		case KindSecret, KindPath, KindEnum, KindBoolean, KindDuration, KindConfirmation:
-		default:
-			return fmt.Errorf("capability %q input %q has unsupported kind %q", d.ID, input.ID, input.Kind)
+	}
+	if len(candidate.Metadata) > maxMetadataEntries {
+		return fmt.Errorf("capability %q input %q candidate metadata is too large", capabilityID, inputID)
+	}
+	for key, value := range candidate.Metadata {
+		if forbiddenExecutionKey(key) {
+			return fmt.Errorf("capability %q input %q contains forbidden execution metadata %q", capabilityID, inputID, key)
 		}
-		if input.Kind == KindEnum && len(input.Options) == 0 {
-			return fmt.Errorf("capability %q enum input %q has no options", d.ID, input.ID)
+		if err := validateDescriptorText(capabilityID, "candidate metadata key", key); err != nil {
+			return err
 		}
-		if input.Kind == KindConfirmation && !input.Required {
-			return fmt.Errorf("capability %q confirmation input %q must be required", d.ID, input.ID)
+		if err := validateDescriptorText(capabilityID, "candidate metadata value", value); err != nil {
+			return err
 		}
+	}
+	return nil
+}
+
+func validateInputKind(capabilityID string, input InputDescriptor) error {
+	switch input.Kind {
+	case KindSecret, KindPath, KindEnum, KindBoolean, KindDuration, KindConfirmation:
+	default:
+		return fmt.Errorf("capability %q input %q has unsupported kind %q", capabilityID, input.ID, input.Kind)
+	}
+	if input.Kind == KindEnum && len(input.Options) == 0 {
+		return fmt.Errorf("capability %q enum input %q has no options", capabilityID, input.ID)
+	}
+	if input.Kind == KindConfirmation && !input.Required {
+		return fmt.Errorf("capability %q confirmation input %q must be required", capabilityID, input.ID)
 	}
 	return nil
 }
@@ -774,7 +857,7 @@ func (e EvidenceReference) Validate() error {
 			return errors.New("credential evidence reference requires logical_id, field, and opaque version")
 		}
 	}
-	if e.ExpiresAt.IsZero() == false && !e.ObservedAt.IsZero() && e.ExpiresAt.Before(e.ObservedAt) {
+	if !e.ExpiresAt.IsZero() && !e.ObservedAt.IsZero() && e.ExpiresAt.Before(e.ObservedAt) {
 		return errors.New("evidence expiry cannot precede observation")
 	}
 	if e.EffectsUsed < 0 {

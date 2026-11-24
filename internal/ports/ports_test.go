@@ -1655,11 +1655,11 @@ func repoRoot(t *testing.T) string {
 func TestEnsurePortBindableRejectsEveryDraftResourceReservation(t *testing.T) {
 	root, home := t.TempDir(), t.TempDir()
 	dir := filepath.Join(root, "resources", "draft")
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	body := `{"name":"draft","driver":"managed-service","managed_service":{"artifact":{"sha256":""}},"ports":[{"name":"http","host":19876},{"name":"upstream","host":19877}]}`
-	if err := os.WriteFile(filepath.Join(dir, "resource.json"), []byte(body), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "resource.json"), []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	manager, err := NewManager(root, home)

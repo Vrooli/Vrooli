@@ -83,6 +83,43 @@ func (r *Refusal) Error() string {
 	return base + "\nTo delegate it instead, ask the operator to approve exactly this transition with: `" + command + "` (the approval service must be running a revision that includes the `" + Policy + "` policy)."
 }
 
+// AgentDecision records a transition an agent forced without a standing grant.
+// The compensating controls are the safety boundary, not a human signature: a
+// state snapshot, the retained prior image, a receipt and automatic restore on
+// failure. The receipt names the agent session and run so the decision stays
+// attributable.
+func AgentDecision(target, session, run string) Decision {
+	now := time.Now().UTC()
+	approver := strings.TrimSpace(session)
+	if approver == "" {
+		approver = "agent session"
+	}
+	return Decision{
+		ApprovedBy: approver,
+		RunID:      strings.TrimSpace(run),
+		Operation:  Operation,
+		Target:     target,
+		VerifiedAt: now,
+		ExpiresAt:  now,
+	}
+}
+
+// OperatorDecision records a transition authorized at the operator's own
+// terminal. It is not a grant: no standing delegation exists, so the receipt
+// names the terminal as the approver and the transition still requires its
+// compensating controls (snapshot, retained image, receipt, restore on
+// failure). A grant remains the way an agent acts without the operator present.
+func OperatorDecision(target string) Decision {
+	now := time.Now().UTC()
+	return Decision{
+		ApprovedBy: "operator terminal",
+		Operation:  Operation,
+		Target:     target,
+		VerifiedAt: now,
+		ExpiresAt:  now,
+	}
+}
+
 // Decision records the verified grant behind one forced transition.
 type Decision struct {
 	GrantID    string    `json:"grant_id"`

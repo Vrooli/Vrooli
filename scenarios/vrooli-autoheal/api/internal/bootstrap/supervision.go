@@ -31,8 +31,10 @@ const (
 // plane or from the in-memory last-known-good copy. A source failure never
 // narrows the active set to empty.
 type SupervisionSnapshot struct {
-	Report    coreset.Report
-	Degraded  bool
+	Report   coreset.Report
+	Degraded bool
+	// Partial marks a set the control plane could only resolve to its seed members.
+	Partial   bool
 	SourceErr string
 	LoadedAt  time.Time
 	// DemandErrors reports lease synchronization failures without making the
@@ -65,6 +67,20 @@ func (s *SupervisionSource) Load(ctx context.Context) (SupervisionSnapshot, erro
 			err = fmt.Errorf("decode supervision set: %w", decodeErr)
 		} else if validateErr := validateSupervisionReport(report); validateErr != nil {
 			err = validateErr
+		} else if report.Source == "fallback" {
+			// The control plane could not resolve the closure and returned only its seed set. Keep the
+			// best set we have, but never report it as healthy: on 2026-11-20 a 62-member set silently
+			// became 4 members and this check still said ok (R6: a fallback is a loud signal).
+			reason := fmt.Sprintf("control plane returned its fallback seed set (%d members): %v", len(report.Members), report.LoadErrors)
+			s.mu.RLock()
+			lastGood := s.lastGood
+			s.mu.RUnlock()
+			if lastGood != nil && lastGood.Report.Source != "fallback" && len(lastGood.Report.Members) > len(report.Members) {
+				fallback := *lastGood
+				fallback.Degraded, fallback.Partial, fallback.SourceErr = true, true, reason
+				return fallback, nil
+			}
+			return SupervisionSnapshot{Report: report, LoadedAt: s.now(), Degraded: true, Partial: true, SourceErr: reason}, nil
 		} else {
 			snapshot := SupervisionSnapshot{Report: report, LoadedAt: s.now()}
 			s.mu.Lock()
@@ -109,8 +125,12 @@ func validateSupervisionReport(report coreset.Report) error {
 			return fmt.Errorf("supervision member %q is duplicated", key)
 		}
 		seen[key] = struct{}{}
-		if len(member.AttributionChain) == 0 || member.AttributionChain[len(member.AttributionChain)-1].Source != "core.seed" {
-			return fmt.Errorf("supervision member %q has no complete core.seed attribution chain", key)
+		if len(member.AttributionChain) == 0 {
+			return fmt.Errorf("supervision member %q has no attribution chain", key)
+		}
+		source := member.AttributionChain[len(member.AttributionChain)-1].Source
+		if source != "core.seed" && source != "core.members" && source != "core.important" {
+			return fmt.Errorf("supervision member %q has unsupported root attribution %q", key, source)
 		}
 	}
 	return nil
@@ -181,7 +201,7 @@ func (c *SupervisionController) Refresh(ctx context.Context) (SupervisionSnapsho
 		case coreset.MemberKindScenario:
 			id = "scenario-" + member.Name
 			check = checksvrooli.NewScenarioCheck(member.Name, critical, checksvrooli.WithScenarioSupervision(member.SupervisionIntent, member.AttributionChain))
-			if c.coreDemand != nil {
+			if critical && c.coreDemand != nil {
 				leaseID := demand.StableLeaseID(coreSupervisionConsumerID, member.Name, coreSupervisionRequestID)
 				desiredCoreLeases[leaseID] = member.Name
 			}
@@ -357,6 +377,12 @@ func (c *supervisionSourceCheck) Run(ctx context.Context) checks.Result {
 	result.Details["usingLastKnownGood"] = snapshot.Degraded
 	if len(snapshot.DemandErrors) > 0 {
 		result.Details["demandLeaseErrors"] = append([]string(nil), snapshot.DemandErrors...)
+	}
+	if snapshot.Partial {
+		result.Status = checks.StatusCritical
+		result.Message = "supervision set is partial: the control plane fell back to its seed members, so most scenarios are unwatched"
+		result.Details["sourceError"] = snapshot.SourceErr
+		return result
 	}
 	if snapshot.Degraded {
 		result.Status = checks.StatusWarning

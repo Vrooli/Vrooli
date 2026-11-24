@@ -84,38 +84,6 @@ Accurate time is critical for:
 
 ---
 
-## infra-resolved: DNS Resolver Service
-
-**Interval:** 60 seconds
-**Platforms:** Linux (systemd)
-
-Monitors the systemd-resolved service which handles DNS resolution on modern Linux systems.
-
-### Why It Matters
-systemd-resolved provides:
-- Local DNS caching
-- DNSSEC validation
-- DNS-over-TLS support
-- Split DNS for VPNs
-
-### Status Meanings
-- **OK**: Service running
-- **Warning**: Starting or unknown state
-- **Critical**: Service stopped or failed
-
-### Recovery Actions
-- **Start Service**: `sudo systemctl start systemd-resolved`
-- **Restart Service**: Full restart with cache clear
-- **Flush Cache**: Clear DNS cache only
-- **View Logs**: Check journalctl for errors
-
-### Troubleshooting
-1. Check status: `systemctl status systemd-resolved`
-2. View logs: `journalctl -u systemd-resolved`
-3. Verify resolver symlink: `ls -la <resolver-config-path>`
-
----
-
 ## infra-docker: Docker Daemon
 
 **Interval:** 60 seconds

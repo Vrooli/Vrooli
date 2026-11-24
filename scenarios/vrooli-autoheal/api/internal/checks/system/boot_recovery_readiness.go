@@ -203,7 +203,13 @@ type loopPreflightResult struct {
 	} `json:"checks"`
 }
 
+// Run observes the host and names the repair owner on a failing result: no
+// restart autoheal can run relieves this, so it offers no action.
 func (c *BootRecoveryReadinessCheck) Run(ctx context.Context) checks.Result {
+	return checks.OwnedElsewhere(c.observe(ctx), "operator via project setup: `vrooli setup` applies the safeguards; autoheal never runs setup")
+}
+
+func (c *BootRecoveryReadinessCheck) observe(ctx context.Context) checks.Result {
 	now := c.probes.Now()
 	result := checks.Result{CheckID: c.ID(), Timestamp: now, Details: map[string]interface{}{
 		"remediation": bootRecoveryRemediation,

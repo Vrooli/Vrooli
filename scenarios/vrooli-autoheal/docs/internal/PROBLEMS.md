@@ -12,8 +12,8 @@
   and are retained for explicit host-policy cleanup.
 
 ### P1 Issues
-- The full 24-hour data-retention soak remains outstanding.
-- Test Genie storage/workflow evidence is unavailable while `storage-manager` fails its own API build at `internal/validation/hygiene_common.go:19`.
+- <!-- pt5-id: AUTOHEAL-RETENTION-SOAK; opened: 2026-08-13 --> The full 24-hour data-retention soak remains outstanding.
+- <!-- pt5-id: AUTOHEAL-TESTGENIE-STORAGE-WORKFLOW; opened: 2026-08-13 --> Test Genie storage/workflow evidence is unavailable while `storage-manager` fails its own API build at `internal/validation/hygiene_common.go:19`.
 
 ### P2 Minor Issues
 _None at initialization_

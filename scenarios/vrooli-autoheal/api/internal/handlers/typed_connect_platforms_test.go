@@ -87,3 +87,35 @@ func TestGetOutageSummaryExposesBothDowntimeAggregates(t *testing.T) {
 		t.Fatalf("outage summary = %+v, want 45.25 seconds and one interval", response.Msg.Outage)
 	}
 }
+
+// 129 of 146 "failed" heals in one day were skips. A skip must never be counted
+// as a failure, and each skip class is reported on its own.
+func TestHealOutcomeBucketsReportSkipsApartFromFailures(t *testing.T) {
+	buckets := healOutcomeBuckets([]persistence.ActionOutcomeCount{
+		{ActionID: "restart", Success: true, Count: 4},
+		{ActionID: "start", Success: false, Count: 2},
+		{ActionID: "restart", TimedOut: true, Count: 1},
+		{ActionID: persistence.SkipActionID, SkipClass: "cooldown", Count: 100},
+		{ActionID: persistence.SkipActionID, SkipClass: "update-fence", Count: 5},
+		{ActionID: persistence.SkipActionID, SkipClass: "cooldown", Count: 3},
+		{ActionID: persistence.SkipActionID, Count: 7},
+	})
+	got := map[string]int32{}
+	var order []string
+	for _, b := range buckets {
+		got[b.Outcome] = b.Count
+		order = append(order, b.Outcome)
+	}
+	want := map[string]int32{"SUCCEEDED": 4, "FAILED": 2, "TIMED_OUT": 1, "SKIPPED_COOLDOWN": 103, "SKIPPED_UPDATE_FENCE": 5, "SKIPPED_UNCLASSIFIED": 7}
+	if len(got) != len(want) {
+		t.Fatalf("buckets = %v, want %v", got, want)
+	}
+	for outcome, n := range want {
+		if got[outcome] != n {
+			t.Fatalf("%s = %d, want %d (all %v)", outcome, got[outcome], n, got)
+		}
+	}
+	if order[0] != "SUCCEEDED" || order[1] != "FAILED" || order[2] != "TIMED_OUT" {
+		t.Fatalf("attempt buckets must come first and stay stable: %v", order)
+	}
+}

@@ -9,6 +9,6 @@ import (
 	"github.com/vrooli/vrooli/internal/hostinventory"
 )
 
-func sampleKernelMemoryStacks(context.Context, Executor) (hostinventory.KernelMemoryStackReport, error) {
+func sampleKernelMemoryStacks(context.Context, Executor, string) (hostinventory.KernelMemoryStackReport, error) {
 	return hostinventory.KernelMemoryStackReport{}, platformgo.ErrUnsupported
 }

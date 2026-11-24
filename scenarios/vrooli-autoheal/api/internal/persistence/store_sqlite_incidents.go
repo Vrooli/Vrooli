@@ -704,3 +704,31 @@ func (s *Store) incidentColumns(ctx context.Context) (string, error) {
 	}
 	return strings.Join(names, ", "), nil
 }
+
+// summarizeOpenIncidentsSQLite counts the open backlog by severity and by age
+// since the incident opened. It counts in SQL because a list endpoint caps at
+// 200 rows and the backlog it must describe was larger than that.
+func (s *Store) summarizeOpenIncidentsSQLite(ctx context.Context, now time.Time) (incidents.OpenSummary, error) {
+	day := now.Add(-24 * time.Hour).UTC().Format(time.RFC3339Nano)
+	week := now.Add(-7 * 24 * time.Hour).UTC().Format(time.RFC3339Nano)
+	var summary incidents.OpenSummary
+	var oldest sql.NullString
+	err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*),
+		       COALESCE(SUM(severity = 'critical'), 0),
+		       COALESCE(SUM(detected_at >= ?), 0),
+		       COALESCE(SUM(detected_at < ? AND detected_at >= ?), 0),
+		       COALESCE(SUM(detected_at < ?), 0),
+		       MIN(detected_at)
+		FROM incidents WHERE status = 'open'`, day, day, week, week).
+		Scan(&summary.Open, &summary.Critical, &summary.UnderOneDay, &summary.OneToSevenDays, &summary.OverSevenDays, &oldest)
+	if err != nil {
+		return incidents.OpenSummary{}, fmt.Errorf("summarize open incidents: %w", err)
+	}
+	if oldest.Valid {
+		if opened, parseErr := parseDBTime(oldest.String); parseErr == nil {
+			summary.OldestAgeHours = int(now.Sub(opened).Hours())
+		}
+	}
+	return summary, nil
+}

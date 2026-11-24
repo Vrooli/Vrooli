@@ -172,8 +172,6 @@ func (f *DefaultCheckFactory) CreateInfrastructureChecks(caps *platform.Capabili
 			return infra.ResolveRemoteDesktopIntent(ctx, caps)
 		})),
 		infra.NewNTPCheck(caps),
-		infra.NewResolvedCheck(caps),
-		infra.NewCertificateCheck(),
 		infra.NewDisplayManagerCheck(caps),
 		infra.NewCredentialRecoveryCheck(),
 	}

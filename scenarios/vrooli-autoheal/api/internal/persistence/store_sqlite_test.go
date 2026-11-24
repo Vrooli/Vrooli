@@ -257,6 +257,56 @@ func TestSQLiteStore_ActionLogRoundTrip(t *testing.T) {
 	}
 }
 
+func TestSQLiteStore_CountActionOutcomesSplitsSkipsFromAttemptsAcrossTheWindow(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+	save := func(action string, success, timedOut bool, class string) {
+		t.Helper()
+		if err := store.SaveActionLog(ctx, "scenario-demo", action, success, timedOut, "m", class, "e", 1); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// More rows than GetActionLogs ever returns: the measure must see them all.
+	for i := 0; i < 250; i++ {
+		save(SkipActionID, false, false, "cooldown")
+	}
+	save(SkipActionID, false, false, "update-fence")
+	save(SkipActionID, false, false, "") // a row written before skips carried a class
+	save("restart", true, false, "")
+	save("restart", false, false, "")
+	save("restart", false, true, "")
+	if _, err := db.ExecContext(ctx, `INSERT INTO action_logs (check_id, action_id, success, timed_out, message, created_at) VALUES ('scenario-demo', 'restart', 0, 0, 'old', '2020-01-01T00:00:00Z')`); err != nil {
+		t.Fatal(err)
+	}
+
+	counts, err := store.CountActionOutcomes(ctx, time.Now().Add(-24*time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]int{}
+	for _, c := range counts {
+		key := fmt.Sprintf("%s/success=%t/timedOut=%t/%s", c.ActionID, c.Success, c.TimedOut, c.SkipClass)
+		got[key] += c.Count
+	}
+	want := map[string]int{
+		"autoheal-skip/success=false/timedOut=false/cooldown":     250,
+		"autoheal-skip/success=false/timedOut=false/update-fence": 1,
+		"autoheal-skip/success=false/timedOut=false/":             1,
+		"restart/success=true/timedOut=false/":                    1,
+		"restart/success=false/timedOut=false/":                   1,
+		"restart/success=false/timedOut=true/":                    1,
+	}
+	if len(got) != len(want) {
+		t.Fatalf("outcomes = %v, want %v", got, want)
+	}
+	for key, n := range want {
+		if got[key] != n {
+			t.Fatalf("outcome %s = %d, want %d (all: %v)", key, got[key], n, got)
+		}
+	}
+}
+
 func TestSQLiteStore_SystemEventsDedupFilterAndCorrelate(t *testing.T) {
 	db := openSQLiteTestDB(t)
 	store := NewStore(db)
@@ -1288,5 +1338,60 @@ func TestSQLiteStore_KeylessLegacyRequestIsReplacedAndClosedByEventID(t *testing
 	publishDecision(t, store, replacement)
 	if again, err := store.EnsureRemediationDecisionPublication(ctx, incident.ID, now.Add(2*time.Minute)); err != nil || again != nil {
 		t.Fatalf("reconcile after migration = %#v, %v; want no new request", again, err)
+	}
+}
+
+func TestSQLiteStore_StaleSweepAndOpenSummaryReadTheWholeBacklog(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+	service := incidents.NewService(store)
+	now := time.Now().UTC()
+	open := func(fingerprint string, typ incidents.Type, sev incidents.Severity, seen time.Time) {
+		t.Helper()
+		if _, err := store.UpsertIncident(ctx, incidents.UpsertInput{
+			Fingerprint: fingerprint, Type: typ, Severity: sev, Title: fingerprint, Summary: "s",
+			ObservedAt: seen, SourceCheckID: "check-" + fingerprint,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Past the 200-row list cap: the sweep drains a backlog over several ticks
+	// and the summary counts every row.
+	for i := 0; i < 130; i++ {
+		open(fmt.Sprintf("stale-%03d", i), incidents.TypeHostPressure, incidents.SeverityCritical, now.Add(-10*24*time.Hour))
+	}
+	open("fresh", incidents.TypeScenarioFailure, incidents.SeverityWarning, now.Add(-time.Hour))
+	open("boot", incidents.TypeUncleanBoot, incidents.SeverityCritical, now.Add(-10*24*time.Hour))
+
+	before, err := store.SummarizeOpenIncidents(ctx, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before.Open != 132 || before.Critical != 131 || before.UnderOneDay != 1 || before.OverSevenDays != 131 || before.OldestAgeHours < 9*24 {
+		t.Fatalf("summary before the sweep = %+v", before)
+	}
+
+	first, err := service.ResolveStale(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := service.ResolveStale(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first != 100 || second != 30 {
+		t.Fatalf("sweeps resolved %d then %d, want a bounded 100 then the remaining 30", first, second)
+	}
+	after, err := store.SummarizeOpenIncidents(ctx, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Open != 2 || after.Critical != 1 {
+		t.Fatalf("summary after the sweep = %+v, want the fresh incident and the boot event open", after)
+	}
+	resolved, err := store.ListIncidents(ctx, incidents.ListFilters{Status: incidents.StatusResolved, Limit: 5})
+	if err != nil || len(resolved.Incidents) == 0 || !strings.Contains(resolved.Incidents[0].OperatorNotes, "auto-resolved: not re-observed") {
+		t.Fatalf("the resolved record lost its note: %+v err=%v", resolved, err)
 	}
 }

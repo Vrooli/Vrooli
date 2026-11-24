@@ -28,5 +28,3 @@ func processIncarnation(pid int) (string, error) {
 func formatIncarnation(pid int, created int64) string {
 	return fmt.Sprintf("windows:%d:%d", pid, created)
 }
-
-func incarnationFormatSample() string { return formatIncarnation(1, 1) }

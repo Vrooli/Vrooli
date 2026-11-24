@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"connectrpc.com/connect"
 	"vrooli-autoheal/cli/internal/support"
@@ -95,7 +96,26 @@ func healOutcomes(core *cliapp.ScenarioApp, args []string) error {
 	if err != nil {
 		return cliapp.WrapAPIError("read healing outcome measure", err, nil)
 	}
-	return renderMessage(response.Msg, *jsonOutput, fmt.Sprintf("healing outcomes: %d buckets", len(response.Msg.Outcomes)))
+	return renderMessage(response.Msg, *jsonOutput, healOutcomeSummary(response.Msg.Outcomes))
+}
+
+// healOutcomeSummary reads attempts and skips apart: a skipped heal never ran,
+// so it is not a failure.
+func healOutcomeSummary(outcomes []*measuresv1.HealOutcomeCount) string {
+	var attempts, skips []string
+	for _, outcome := range outcomes {
+		text := fmt.Sprintf("%s %d", strings.ToLower(strings.ReplaceAll(strings.TrimPrefix(outcome.Outcome, "SKIPPED_"), "_", "-")), outcome.Count)
+		if strings.HasPrefix(outcome.Outcome, "SKIPPED_") {
+			skips = append(skips, text)
+		} else {
+			attempts = append(attempts, text)
+		}
+	}
+	summary := "heal attempts: " + strings.Join(attempts, ", ")
+	if len(skips) > 0 {
+		summary += "; skipped (not run): " + strings.Join(skips, ", ")
+	}
+	return summary
 }
 
 func critical(core *cliapp.ScenarioApp, args []string) error {

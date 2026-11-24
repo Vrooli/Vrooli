@@ -64,7 +64,7 @@ func installLocalAdmissionPolicy(ctx context.Context, repoRoot string, uid uint3
 			return err
 		}
 	}
-	return writeAdmissionJSON(LocalAdmissionPolicyPath, policy)
+	return storeAdmissionFile(LocalAdmissionPolicyPath, policy)
 }
 
 func installedLocalAdmission(uid uint32, executor Executor) (*LocalAdmissionManager, error) {

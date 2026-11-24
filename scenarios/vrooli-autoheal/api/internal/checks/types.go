@@ -104,6 +104,8 @@ type Summary struct {
 	CritCount          int       `json:"criticalCount"`
 	NotApplicableCount int       `json:"notApplicableCount"`
 	UndeterminedCount  int       `json:"undeterminedCount"`
+	SuspendedCount     int       `json:"suspendedCount"` // failing checks whose auto-heal is suspended
+	HealHeldCount      int       `json:"healHeldCount"`  // failing checks whose restart is held by a recovery gate
 	Checks             []Result  `json:"checks"`
 	Timestamp          time.Time `json:"timestamp"`
 }
@@ -144,6 +146,12 @@ func ComputeSummary(results []Result) Summary {
 	}
 
 	for _, r := range results {
+		if flagged, _ := r.Details["autoHealSuspended"].(bool); flagged {
+			summary.SuspendedCount++
+		}
+		if flagged, _ := r.Details["healHeld"].(bool); flagged {
+			summary.HealHeldCount++
+		}
 		switch r.Status {
 		case StatusOK:
 			summary.OkCount++

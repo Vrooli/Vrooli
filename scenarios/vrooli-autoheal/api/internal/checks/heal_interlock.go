@@ -87,6 +87,7 @@ func (r *Registry) executeGuardedAction(ctx context.Context, healable HealableCh
 	if result.Timestamp.IsZero() {
 		result.Timestamp = now
 	}
+	result = asUpdateFenceRefusal(result, target)
 	if result.Success && recordsRecentStart(action.ID) {
 		r.recordRecentHealAction(RecentHealAction{CheckID: checkID, ActionID: action.ID, Target: target, At: r.now()})
 	}

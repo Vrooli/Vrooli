@@ -66,9 +66,11 @@ func TestArmRecoveryIndependentRestoreProbe(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	operation := platform.OperationSpec{Path: "/usr/bin/python3", Args: []string{spec.Script, spec.Config, spec.ConfigSHA256}, Dir: spec.ArtifactDir,
+	operation := platform.OperationSpec{
+		Path: "/usr/bin/python3", Args: []string{spec.Script, spec.Config, spec.ConfigSHA256}, Dir: spec.ArtifactDir,
 		Env:    []string{"HOME=" + home, "PATH=" + platform.DefaultPath("linux", home)},
-		Limits: platform.OperationLimits{MemoryMaxBytes: 2 << 30, TasksMax: 1024, CPUWeight: 50, WallTime: 40 * time.Minute}}
+		Limits: platform.OperationLimits{MemoryMaxBytes: 2 << 30, TasksMax: 1024, CPUWeight: 50, WallTime: 40 * time.Minute},
+	}
 	intent, err := platform.NewOperationIntent("recovery-drill-restore", spec.FaultID, operation)
 	if err != nil {
 		t.Fatal(err)
@@ -79,7 +81,7 @@ func TestArmRecoveryIndependentRestoreProbe(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	file, err := config.OpenOwnedFile(intentPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	file, err := config.OpenOwnedFile(intentPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	if err != nil {
 		t.Fatalf("restore intent already exists or cannot be exclusively created: %v", err)
 	}
@@ -113,7 +115,7 @@ func TestArmRecoveryIndependentRestoreProbe(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := config.WriteOwnedFileDurable(filepath.Join(spec.ArtifactDir, "restore-native-ref.json"), encoded, 0600); err != nil {
+	if err := config.WriteOwnedFileDurable(filepath.Join(spec.ArtifactDir, "restore-native-ref.json"), encoded, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	// Deliberately no stop-on-test-exit: survival of caller loss is the safety
@@ -165,7 +167,7 @@ func TestRetireRecoveryIndependentRestoreProbe(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := config.WriteOwnedFileDurable(filepath.Join(spec.ArtifactDir, "restore-native-terminal.json"), encoded, 0600); err != nil {
+	if err := config.WriteOwnedFileDurable(filepath.Join(spec.ArtifactDir, "restore-native-terminal.json"), encoded, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := platform.ReleaseOwnedOperation(ctx, ref); err != nil {
@@ -175,7 +177,7 @@ func TestRetireRecoveryIndependentRestoreProbe(t *testing.T) {
 	if err != nil || !absent {
 		t.Fatalf("native restore retirement remains unproved: absent=%v error=%v", absent, err)
 	}
-	if err := config.WriteOwnedFileDurable(filepath.Join(spec.ArtifactDir, "restore-native-retired.json"), []byte(`{"exact_native_absence":true}`), 0600); err != nil {
+	if err := config.WriteOwnedFileDurable(filepath.Join(spec.ArtifactDir, "restore-native-retired.json"), []byte(`{"exact_native_absence":true}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("independent native restore retired: unit=%s", ref.Unit)

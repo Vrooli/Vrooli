@@ -1,3 +1,6 @@
+// Package rootmetrics records best-effort observations of root operations.
+// No activation, recovery, or authorization decision may read them as
+// authority.
 package rootmetrics
 
 // This file records observations only. No activation, recovery, or authorization
@@ -21,11 +24,13 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/coreactivation"
-	"github.com/vrooli/vrooli/internal/statecontract"
+	"github.com/vrooli/vrooli/internal/stateformat"
 )
 
-const rootAttemptSchema = 1
-const rootAttemptRetention = 90 * 24 * time.Hour
+const (
+	rootAttemptSchema    = 1
+	rootAttemptRetention = 90 * 24 * time.Hour
+)
 
 type rootAttemptEvent struct {
 	At     time.Time `json:"at"`
@@ -134,7 +139,7 @@ func Begin(home, kind string) *Attempt {
 		return nil
 	}
 	dir := filepath.Join(state, "root-rebaseline", "attempts")
-	if _, err = config.EnsureOwnedDirMode(dir, 0700); err != nil {
+	if _, err = config.EnsureOwnedDirMode(dir, 0o700); err != nil {
 		fmt.Fprintln(os.Stderr, "Warning: root operation observation unavailable; activation continues without a complete receipt.")
 		return nil
 	}
@@ -191,6 +196,7 @@ func rootAttemptToken(s string) bool {
 	}
 	return true
 }
+
 func rootAttemptHash(s string) string {
 	if len(s) != 64 {
 		return ""
@@ -202,6 +208,7 @@ func rootAttemptHash(s string) string {
 	}
 	return s
 }
+
 func (a *Attempt) Identities(serving, candidate string) {
 	if a == nil {
 		return
@@ -220,6 +227,7 @@ func (a *Attempt) Operation(id string) {
 	a.record.OperationID = id
 	a.mu.Unlock()
 }
+
 func (a *Attempt) Event(stage, reason string) {
 	if a == nil || !rootAttemptToken(stage) || reason != "" && !rootAttemptToken(reason) {
 		return
@@ -263,7 +271,7 @@ func writeObservation(path string, data []byte) error {
 	}
 	tmp := f.Name()
 	defer os.Remove(tmp)
-	if err = f.Chmod(0600); err == nil {
+	if err = f.Chmod(0o600); err == nil {
 		err = config.ChownToInvokingUser(tmp)
 	}
 	if err == nil {
@@ -288,8 +296,10 @@ func writeObservation(path string, data []byte) error {
 // failures are ignored, and no receipt, pause marker, or transition is touched.
 var ownerName = regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`)
 
-var attemptFileName = regexp.MustCompile(`^[0-9]{8}T[0-9]{6}\.[0-9]{9}Z-[0-9a-f]{32}\.json$`)
-var observationTempName = regexp.MustCompile(`^\.observation-[0-9]+$`)
+var (
+	attemptFileName     = regexp.MustCompile(`^[0-9]{8}T[0-9]{6}\.[0-9]{9}Z-[0-9a-f]{32}\.json$`)
+	observationTempName = regexp.MustCompile(`^\.observation-[0-9]+$`)
+)
 
 func pruneRootAttempts(dir string, now time.Time) {
 	entries, err := os.ReadDir(dir)
@@ -299,7 +309,7 @@ func pruneRootAttempts(dir string, now time.Time) {
 	for _, entry := range entries {
 		if observationTempName.MatchString(entry.Name()) {
 			info, err := entry.Info()
-			if err == nil && info.Mode().IsRegular() && info.Mode().Perm() == 0600 && now.Sub(info.ModTime()) > rootAttemptRetention {
+			if err == nil && info.Mode().IsRegular() && info.Mode().Perm() == 0o600 && now.Sub(info.ModTime()) > rootAttemptRetention {
 				_ = os.Remove(filepath.Join(dir, entry.Name()))
 			}
 			continue
@@ -320,52 +330,52 @@ func pruneRootAttempts(dir string, now time.Time) {
 }
 
 // Attribute compares verified manifests bound to the identities already
-// observed by the caller. Missing/legacy manifests and mismatched identities
-// are explicit; presentation text is never parsed as structured evidence.
+// observed by the caller. Missing manifests and mismatched identities are
+// explicit; presentation text is never parsed as structured evidence.
 func (a *Attempt) Attribute(ctx context.Context, serving, candidate string) {
 	if a == nil {
 		return
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	p, err := coreactivation.ProbeStateManifest(ctx, serving)
+	p, err := coreactivation.ProbeStateFormat(ctx, serving)
 	if err != nil {
 		a.record.Attribution = "serving_unavailable"
 		return
 	}
-	c, err := coreactivation.ProbeStateManifest(ctx, candidate)
+	c, err := coreactivation.ProbeStateFormat(ctx, candidate)
 	if err != nil {
 		a.record.Attribution = "candidate_unavailable"
 		return
 	}
 	a.attributeManifests(p, c)
 }
-func (a *Attempt) attributeManifests(p, c statecontract.Manifest) {
+
+func (a *Attempt) attributeManifests(p, c stateformat.Manifest) {
 	a.record.Owners = nil
-	if p.Contract != a.record.ServingContract || c.Contract != a.record.CandidateContract || p.Contract == "" || c.Contract == "" {
+	if p.Digest != a.record.ServingContract || c.Digest != a.record.CandidateContract || p.Digest == "" || c.Digest == "" {
 		a.record.Attribution = "identity_mismatch"
 		return
 	}
-	if p.Version != c.Version {
-		a.record.Attribution = "format_changed"
-		return
-	}
 	a.record.Attribution = "compared"
-	prior := make(map[string]string, len(p.Owners))
-	next := make(map[string]string, len(c.Owners))
-	for _, o := range p.Owners {
-		if !ownerName.MatchString(o.Owner) || len(prior) >= 256 {
-			a.record.Attribution = "invalid_or_excess_owners"
-			return
+	prior := make(map[string]string, len(p.Stores))
+	next := make(map[string]string, len(c.Stores))
+	for _, stores := range []struct {
+		manifest stateformat.Manifest
+		into     map[string]string
+	}{{p, prior}, {c, next}} {
+		for _, store := range stores.manifest.Stores {
+			if !ownerName.MatchString(store.Name) || len(stores.into) >= 256 {
+				a.record.Attribution = "invalid_or_excess_owners"
+				return
+			}
+			digest, err := stateformat.DigestSchema(store)
+			if err != nil {
+				a.record.Attribution = "invalid_or_excess_owners"
+				return
+			}
+			stores.into[store.Name] = digest
 		}
-		prior[o.Owner] = o.Digest
-	}
-	for _, o := range c.Owners {
-		if !ownerName.MatchString(o.Owner) || len(next) >= 256 {
-			a.record.Attribution = "invalid_or_excess_owners"
-			return
-		}
-		next[o.Owner] = o.Digest
 	}
 	for name, digest := range prior {
 		if next[name] != digest {
@@ -378,7 +388,7 @@ func (a *Attempt) attributeManifests(p, c statecontract.Manifest) {
 		}
 	}
 	sort.Strings(a.record.Owners)
-	if p.Toolchain != c.Toolchain {
-		a.record.Attribution = "compared_toolchain_changed"
+	if p.Format != c.Format {
+		a.record.Attribution = "compared_format_changed"
 	}
 }

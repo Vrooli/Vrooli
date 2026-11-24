@@ -201,6 +201,66 @@ func TestApplyAtRevisionRejectsStaleWriterWithoutChangingState(t *testing.T) {
 	}
 }
 
+func TestApplyAtRevisionWithReceiptReplaysAtomicallyAcrossServiceRestart(t *testing.T) {
+	service, root := testService(t)
+	ctx := context.Background()
+	initial, err := service.Load(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	binding := MutationReceiptBinding{Owner: "vrooli-onboarding", PermissionID: "onboarding/operator-state", ActorID: "operator-a", Target: "local", Subject: "operator-state-document:local", RequestID: "request-1", ExpectedRevision: Revision(initial), RequestDigest: strings.Repeat("a", 64), DecisionRef: "authz:operator-a"}
+	patch := []byte(`{"trust_posture":"shared"}`)
+	first, receipt, replayed, err := service.ApplyAtRevisionWithReceipt(ctx, binding.ExpectedRevision, patch, nil, binding)
+	if err != nil || replayed {
+		t.Fatalf("first apply doc=%+v receipt=%+v replayed=%t err=%v", first, receipt, replayed, err)
+	}
+	if receipt.ID == "" || receipt.ResultRevision != Revision(first) || receipt.RequestID != binding.RequestID || receipt.RequestDigest != binding.RequestDigest || receipt.Outcome != permissionReceiptOutcomeUpdated {
+		t.Fatalf("receipt=%+v", receipt)
+	}
+	path := filepath.Join(root, "state", "vrooli", "vrooli-onboarding", StateFile)
+	stored, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(stored), string(patch)) || !strings.Contains(string(stored), binding.RequestDigest) {
+		t.Fatalf("receipt ledger should persist metadata only: %s", stored)
+	}
+	secondService, _ := testServiceWithRoot(t, root)
+	second, replayReceipt, replayed, err := secondService.ApplyAtRevisionWithReceipt(ctx, binding.ExpectedRevision, patch, nil, binding)
+	if err != nil || !replayed || replayReceipt != receipt || Revision(second) != Revision(first) {
+		t.Fatalf("replay doc=%+v receipt=%+v replayed=%t err=%v", second, replayReceipt, replayed, err)
+	}
+	changed := binding
+	changed.RequestDigest = strings.Repeat("b", 64)
+	if _, _, _, err := secondService.ApplyAtRevisionWithReceipt(ctx, binding.ExpectedRevision, patch, nil, changed); !errors.Is(err, ErrMutationReceiptConflict) {
+		t.Fatalf("changed request reuse error = %v, want receipt conflict", err)
+	}
+	changed = binding
+	changed.ActorID = "operator-b"
+	if _, _, _, err := secondService.ApplyAtRevisionWithReceipt(ctx, binding.ExpectedRevision, patch, nil, changed); !errors.Is(err, ErrMutationReceiptConflict) {
+		t.Fatalf("changed actor reuse error = %v, want receipt conflict", err)
+	}
+	if _, _, _, err := secondService.ApplyAtRevisionWithReceipt(ctx, "stale", []byte(`{"update_control":"guard"}`), nil, bindingForRequest(binding, "new-request", "stale")); !errors.Is(err, ErrRevisionConflict) {
+		t.Fatalf("stale mutation error = %v, want revision conflict", err)
+	}
+}
+
+func testServiceWithRoot(t *testing.T, root string) (*Service, string) {
+	t.Helper()
+	_, current, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(current), "..", ".."))
+	stateRoot := filepath.Join(root, "state", "vrooli", "vrooli-onboarding")
+	return New(Config{RepoRoot: root, StateRoot: stateRoot, SchemaPath: filepath.Join(repoRoot, SchemaPath), Now: func() time.Time { return time.Date(2026, 8, 11, 1, 0, 0, 0, time.UTC) }}), root
+}
+
+func bindingForRequest(binding MutationReceiptBinding, requestID, revision string) MutationReceiptBinding {
+	binding.RequestID, binding.ExpectedRevision = requestID, revision
+	return binding
+}
+
 func TestSaveDraftIsTargetScopedAndDoesNotChangeEffectiveChoices(t *testing.T) {
 	service, _ := testService(t)
 	ctx := context.Background()

@@ -4,7 +4,10 @@ package vrooli
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 	"vrooli-autoheal-langrecover"
@@ -42,6 +45,9 @@ type ScenarioCheck struct {
 	// componentProbe checks whether a non-API component port is answering.
 	// Overridable for tests; defaults to a loopback HTTP probe.
 	componentProbe componentProbe
+	// declaresUI reports whether the scenario manifest declares a UI port.
+	// Overridable for tests; defaults to reading the manifest.
+	declaresUI func() bool
 }
 
 const (
@@ -88,6 +94,12 @@ func WithScenarioDirectHealthChecker(checker func(context.Context) (bool, string
 	return func(c *ScenarioCheck) {
 		c.directHealth = checker
 	}
+}
+
+// WithScenarioDeclaresUI overrides the manifest read that decides whether a
+// missing UI_PORT is a skipped probe worth a warning.
+func WithScenarioDeclaresUI(declares func() bool) ScenarioCheckOption {
+	return func(c *ScenarioCheck) { c.declaresUI = declares }
 }
 
 // WithScenarioComponentProbe overrides the component reachability probe.
@@ -307,6 +319,9 @@ func (c *ScenarioCheck) Run(ctx context.Context) checks.Result {
 	}
 	result.Details["scenarioStatus"] = scenarioStatus
 	result.Details["healthStatus"] = healthStatus
+	if c.reportStuckLifecycle(&result, parsed.Scenario) {
+		return result
+	}
 	if detail := strings.TrimSpace(parsed.Scenario.HealthError); detail != "" {
 		result.Details["healthError"] = detail
 	}
@@ -599,11 +614,13 @@ func (c *ScenarioCheck) ExecuteAction(ctx context.Context, actionID string) chec
 // dev server holds the port without serving, still reports "healthy". Autoheal
 // therefore recorded StatusOK for a scenario no user could load.
 //
-// The escalation is deliberately conservative:
-//   - Only an ALLOCATED port that fails to answer counts. A scenario with no
-//     UI_PORT is skipped, never failed.
-//   - Any HTTP status counts as reachable, so a 404 from a live dev server
-//     does not trigger a restart.
+// The escalation is deliberately narrow:
+//   - Only an ALLOCATED port counts. A scenario whose manifest declares no UI
+//     is skipped, never failed. A manifest that declares a UI port while status
+//     returned none is reported as a skipped probe with a warning, never
+//     silently.
+//   - The UI must serve 200, a non-blank page, and its first script bundle
+//     (probeHTTPPort); a 404 or a blank page is a failure.
 //   - The result is StatusWarning, not StatusCritical: the API is still
 //     serving, so this is a partial outage. It carries healableDegradation so
 //     the "critical+signature" policy can act on it without widening
@@ -615,7 +632,15 @@ func (c *ScenarioCheck) applyComponentReachability(ctx context.Context, result *
 	if probeResult.Detail != "" {
 		result.Details["uiProbeDetail"] = probeResult.Detail
 	}
-	if !probeResult.Unreachable() {
+	if probeResult.State == ComponentProbeSkipped && c.manifestDeclaresUI() {
+		if result.Status == checks.StatusOK {
+			result.Status = checks.StatusWarning
+		}
+		result.Message += "; UI probe skipped: manifest declares a UI port but status returned none"
+		result.Details["uiProbeDetail"] = "manifest declares ports.ui; scenario status returned no UI_PORT"
+		return
+	}
+	if !probeResult.Failed() {
 		return
 	}
 
@@ -623,8 +648,58 @@ func (c *ScenarioCheck) applyComponentReachability(ctx context.Context, result *
 	// false green this probe exists to remove.
 	result.Status = checks.StatusWarning
 	result.Message = c.scenarioName + " scenario is running but its UI is not answering"
+	if probeResult.State == ComponentProbeDegraded {
+		result.Message = c.scenarioName + " scenario is running but its UI serves a blank page or a missing script bundle"
+	}
 	result.Details["rootCause"] = rootCauseUIUnreachable
 	result.Details["recommendedAction"] = recommendedActionRestart
 	result.Details["healableDegradation"] = true
 	result.Details["available"] = true
+}
+
+// manifestDeclaresUI reports whether the scenario's manifest declares a UI port.
+func (c *ScenarioCheck) manifestDeclaresUI() bool {
+	if c.declaresUI != nil {
+		return c.declaresUI()
+	}
+	root := resolveVrooliRoot()
+	if root == "" {
+		return false
+	}
+	data, err := os.ReadFile(filepath.Join(root, "scenarios", c.scenarioName, ".vrooli", "service.json"))
+	if err != nil {
+		return false
+	}
+	var manifest struct {
+		Ports map[string]json.RawMessage `json:"ports"`
+	}
+	if json.Unmarshal(data, &manifest) != nil {
+		return false
+	}
+	_, ok := manifest.Ports["ui"]
+	return ok
+}
+
+// stuckProviderFenceAfter is how long a lifecycle operation may sit in
+// provider_fence before it is a critical finding rather than a wait.
+const stuckProviderFenceAfter = 5 * time.Minute
+
+// reportStuckLifecycle turns a restart that is still draining its provider
+// fence after stuckProviderFenceAfter into a loud critical result naming the
+// initiator and the repair, instead of a silent wait. Another autoheal restart
+// would join the same fence, so the result is not heal-eligible.
+func (c *ScenarioCheck) reportStuckLifecycle(result *checks.Result, detail integration.ScenarioStatusDetail) bool {
+	op := detail.Operation
+	if !op.Running() || op.CurrentStep != "provider_fence" || time.Duration(op.ElapsedSeconds)*time.Second < stuckProviderFenceAfter {
+		return false
+	}
+	result.Status = checks.StatusCritical
+	result.Message = fmt.Sprintf("%s %s has been in provider_fence for %ds (initiator pid %d, fence %s); repair: vrooli scenario restart %s --force-lifecycle",
+		c.scenarioName, op.Kind, op.ElapsedSeconds, op.InitiatorPID, op.FenceOperationID, c.scenarioName)
+	result.Details["rootCause"] = "lifecycle-provider-fence-stuck"
+	result.Details["initiatorPid"] = op.InitiatorPID
+	result.Details["fenceOperationId"] = op.FenceOperationID
+	result.Details["elapsedSeconds"] = op.ElapsedSeconds
+	result.Details["autoHealEligible"] = false
+	return true
 }

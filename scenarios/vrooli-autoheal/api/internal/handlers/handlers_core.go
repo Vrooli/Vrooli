@@ -80,6 +80,16 @@ type StoreInterface interface {
 	GetActionLogsForCheck(ctx context.Context, checkID string, limit int) (*persistence.ActionLogsResponse, error)
 }
 
+// openIncidentStore counts the open incident backlog in the store.
+type openIncidentStore interface {
+	SummarizeOpenIncidents(ctx context.Context, now time.Time) (incidents.OpenSummary, error)
+}
+
+// actionOutcomeStore counts action history over a whole window in the store.
+type actionOutcomeStore interface {
+	CountActionOutcomes(ctx context.Context, since time.Time) ([]persistence.ActionOutcomeCount, error)
+}
+
 type operationalHistoryPruner interface {
 	PruneOperationalHistory(ctx context.Context, before time.Time, batchSize int) (persistence.RetentionResult, error)
 }
@@ -341,9 +351,16 @@ func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
 		// the recovery plane, so its health endpoint must carry the same
 		// contract as every other managed scenario.
 		"build_identity": strings.TrimSpace(os.Getenv("VROOLI_BUILD_IDENTITY")),
-		"readiness":      status == "healthy",
-		"timestamp":      time.Now().UTC().Format(time.RFC3339),
-		"dependencies":   dependencies,
+		// The lifecycle also proves WHICH start it is talking to. Without these
+		// fields every start or restart of autoheal fails with "start operation
+		// mismatch: served \"\"", the recovery plane can never be refreshed, and
+		// its binary silently falls behind the shared runtime registry schema.
+		"runtime_release_id":           strings.TrimSpace(os.Getenv("VROOLI_RUNTIME_RELEASE_ID")),
+		"runtime_release_operation_id": strings.TrimSpace(os.Getenv("VROOLI_RUNTIME_RELEASE_OPERATION_ID")),
+		"start_operation_id":           strings.TrimSpace(os.Getenv("VROOLI_START_OPERATION_ID")),
+		"readiness":                    status == "healthy",
+		"timestamp":                    time.Now().UTC().Format(time.RFC3339),
+		"dependencies":                 dependencies,
 		"summary": func() map[string]int {
 			summary := h.registry.GetSummary()
 			return map[string]int{"total": summary.TotalCount, "ok": summary.OkCount, "warning": summary.WarnCount, "critical": summary.CritCount, "notApplicable": summary.NotApplicableCount}
@@ -437,6 +454,8 @@ func (h *Handlers) Status(w http.ResponseWriter, r *http.Request) {
 			"warning":       summary.WarnCount,
 			"critical":      summary.CritCount,
 			"notApplicable": summary.NotApplicableCount,
+			"suspended":     summary.SuspendedCount,
+			"healHeld":      summary.HealHeldCount,
 		},
 		"checks":          summary.Checks,
 		"healTrackers":    h.registry.GetAllHealTrackers(),
@@ -448,6 +467,16 @@ func (h *Handlers) Status(w http.ResponseWriter, r *http.Request) {
 			"journalctlExecsAvoided": h.systemEventService.ExecsAvoided(),
 		}
 	}
+	// One reading of the incident backlog for the steward: how many are open,
+	// how many critical, and how old they are. A failure to read it is said,
+	// never shown as zero.
+	if backlog, ok := h.store.(openIncidentStore); ok {
+		if open, err := backlog.SummarizeOpenIncidents(r.Context(), time.Now().UTC()); err == nil {
+			response["openIncidents"] = open
+		} else {
+			response["openIncidents"] = map[string]interface{}{"error": err.Error()}
+		}
+	}
 	// A skipped heal is an operational outcome, not an absence of data. Keep
 	// the reason in the same durable action history as executed heals and expose
 	// the recent entries on status so operators can distinguish policy,
@@ -457,16 +486,17 @@ func (h *Handlers) Status(w http.ResponseWriter, r *http.Request) {
 		issues := make(map[string]persistence.ActionLog)
 		latestOutcomeSeen := make(map[string]bool)
 		for _, log := range logs.Logs {
-			if log.ActionID == "autoheal-skip" {
-				skips = append(skips, log)
-			}
 			// Action history is newest-first. The latest outcome, whether
-			// successful or not, is authoritative for the current card. Do not
-			// resurrect an older failure after a later recovery succeeded.
+			// successful or not, is authoritative for the current card and live
+			// skip list. Do not resurrect an older failure after a later recovery
+			// succeeded or a later skip explained why no action was needed.
 			if latestOutcomeSeen[log.CheckID] {
 				continue
 			}
 			latestOutcomeSeen[log.CheckID] = true
+			if log.ActionID == persistence.SkipActionID {
+				skips = append(skips, log)
+			}
 			if !log.Success {
 				issues[log.CheckID] = log
 			}
@@ -499,6 +529,84 @@ func (h *Handlers) Status(w http.ResponseWriter, r *http.Request) {
 		apierrors.LogError("status", "encode_response", err)
 	}
 }
+
+// recordAutoHealResult writes one heal outcome to the action history. A heal
+// still running (Started) has nothing to record yet.
+func (h *Handlers) recordAutoHealResult(ctx context.Context, ahr checks.AutoHealResult) {
+	if ahr.Started {
+		return
+	}
+	if ahr.Attempted {
+		if err := h.store.SaveActionLog(
+			ctx,
+			ahr.ActionResult.CheckID,
+			ahr.ActionResult.ActionID,
+			ahr.ActionResult.Success,
+			ahr.ActionResult.TimedOut,
+			"[auto-heal] "+ahr.ActionResult.Message,
+			ahr.ActionResult.Output,
+			ahr.ActionResult.Error,
+			ahr.ActionResult.Duration.Milliseconds(),
+		); err != nil {
+			apierrors.LogError("heal", "save_autoheal_log:"+ahr.CheckID, err)
+		}
+		// An attempt ends the skip state, so the next skip is a fresh
+		// state change worth recording.
+		h.skipLog.Clear(ahr.CheckID)
+		return
+	}
+	// One row per state change, not one per tick. The first skip and every skip
+	// that says something new are recorded; the repeats that say nothing new
+	// are not.
+	if h.skipLog.ShouldLog(ahr.CheckID, ahr.Reason) {
+		if err := h.store.SaveActionLog(
+			ctx,
+			ahr.CheckID,
+			persistence.SkipActionID,
+			false,
+			false,
+			"[auto-heal skipped] "+ahr.Reason,
+			ahr.SkipClass,
+			ahr.Reason,
+			0,
+		); err != nil {
+			apierrors.LogError("heal", "save_autoheal_skip:"+ahr.CheckID, err)
+		}
+	}
+}
+
+// finishHeal records a background heal when it ends and re-checks its target:
+// the action may have fixed the problem, and the result the tick saved is from
+// before the fix. It re-checks even when the heal reports failure, because the
+// action may have started something that was not ready when verification ended.
+func (h *Handlers) finishHeal(ahr checks.AutoHealResult) {
+	ctx, cancel := context.WithTimeout(context.Background(), healFinishTimeout)
+	defer cancel()
+	ctx = incidents.DeferPublicationDrain(ctx)
+	if h.incidentService != nil {
+		defer h.incidentService.DrainPendingPublications(ctx)
+	}
+	h.recordAutoHealResult(ctx, ahr)
+	if !ahr.Attempted {
+		return
+	}
+	for _, result := range h.registry.RunChecksForIDs(ctx, []string{ahr.CheckID}) {
+		if err := h.store.SaveResult(ctx, result); err != nil {
+			apierrors.LogError("heal", "save_recheck_result:"+result.CheckID, err)
+		}
+		if h.incidentService != nil {
+			if _, err := h.incidentService.UpsertAllFromCheckResult(ctx, result); err != nil {
+				apierrors.LogError("heal", "upsert_recheck_incident:"+result.CheckID, err)
+			}
+		}
+	}
+}
+
+// healFinishTimeout bounds recording and re-checking one finished heal.
+const healFinishTimeout = 2 * time.Minute
+
+// WaitForHeals blocks until every background heal has finished.
+func (h *Handlers) WaitForHeals() { h.registry.WaitForHeals() }
 
 // Tick runs a single health check cycle
 // Uses a lock to prevent concurrent executions - if a tick is already running,
@@ -570,85 +678,22 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 		if _, err := h.incidentService.UpsertFromCheckResults(ctx, results); err != nil {
 			apierrors.LogError("tick", "upsert_incidents", err)
 		}
+		if resolved, err := h.incidentService.ResolveStale(ctx); err != nil {
+			apierrors.LogError("tick", "resolve_stale_incidents", err)
+		} else if resolved > 0 {
+			apierrors.LogInfo("tick", "resolved stale incidents", resolved)
+		}
 	}
 	h.upsertIncidentsFromInventoryChanges(ctx, inventoryChanges)
 	h.refreshSystemEvents(ctx)
 
-	// Run auto-heal for critical checks with auto-heal enabled
+	// Plan auto-heal for critical checks with auto-heal enabled and start the
+	// heals in the background: a restart takes 45-77 s and must not hold the
+	// next observation of the core. Each heal records itself when it finishes.
 	// [REQ:CONFIG-CHECK-001] [REQ:HEAL-ACTION-001]
-	autoHealResults := h.registry.RunAutoHeal(ctx, results)
-
-	// Log auto-heal actions to database
+	autoHealResults := h.registry.StartAutoHeal(ctx, results, h.finishHeal)
 	for _, ahr := range autoHealResults {
-		if ahr.Attempted {
-			if err := h.store.SaveActionLog(
-				ctx,
-				ahr.ActionResult.CheckID,
-				ahr.ActionResult.ActionID,
-				ahr.ActionResult.Success,
-				ahr.ActionResult.TimedOut,
-				"[auto-heal] "+ahr.ActionResult.Message,
-				ahr.ActionResult.Output,
-				ahr.ActionResult.Error,
-				ahr.ActionResult.Duration.Milliseconds(),
-			); err != nil {
-				apierrors.LogError("tick", "save_autoheal_log:"+ahr.CheckID, err)
-			}
-		} else if h.skipLog.ShouldLog(ahr.CheckID, ahr.Reason) {
-			// One row per state change, not one per tick. The first skip and
-			// every skip that says something new are recorded; the repeats that
-			// say nothing new are not.
-			if err := h.store.SaveActionLog(
-				ctx,
-				ahr.CheckID,
-				"autoheal-skip",
-				false,
-				false,
-				"[auto-heal skipped] "+ahr.Reason,
-				"",
-				ahr.Reason,
-				0,
-			); err != nil {
-				apierrors.LogError("tick", "save_autoheal_skip:"+ahr.CheckID, err)
-			}
-		}
-		if ahr.Attempted {
-			// An attempt ends the skip state, so the next skip is a fresh
-			// state change worth recording.
-			h.skipLog.Clear(ahr.CheckID)
-		}
-	}
-
-	// Re-check any items where autoheal was attempted to update their status
-	// This is critical: autoheal may have fixed issues but check results were from BEFORE the fix
-	// We re-check even if autoheal reports failure, because the action might have actually
-	// started something that just wasn't ready during verification polling
-	var recheckIDs []string
-	for _, ahr := range autoHealResults {
-		if ahr.Attempted {
-			recheckIDs = append(recheckIDs, ahr.CheckID)
-		}
-	}
-	if len(recheckIDs) > 0 {
-		recheckResults := h.registry.RunChecksForIDs(ctx, recheckIDs)
-		for _, result := range recheckResults {
-			// Update results array with new result
-			for i, r := range results {
-				if r.CheckID == result.CheckID {
-					results[i] = result
-					break
-				}
-			}
-			// Persist updated result
-			if err := h.store.SaveResult(ctx, result); err != nil {
-				apierrors.LogError("tick", "save_recheck_result:"+result.CheckID, err)
-			}
-			if h.incidentService != nil {
-				if _, err := h.incidentService.UpsertAllFromCheckResult(ctx, result); err != nil {
-					apierrors.LogError("tick", "upsert_recheck_incident:"+result.CheckID, err)
-				}
-			}
-		}
+		h.recordAutoHealResult(ctx, ahr)
 	}
 
 	// Get updated summary
@@ -663,6 +708,8 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 			"warning":       summary.WarnCount,
 			"critical":      summary.CritCount,
 			"notApplicable": summary.NotApplicableCount,
+			"suspended":     summary.SuspendedCount,
+			"healHeld":      summary.HealHeldCount,
 		},
 		"timestamp": time.Now().UTC(),
 	}

@@ -32,7 +32,7 @@ func TestUserLocalPackagePublishesOnlyAfterRuntimeQualification(t *testing.T) {
 					if !reflect.DeepEqual(args, want) {
 						t.Fatalf("download must preserve authentication and fixed package identity: %v", args)
 					}
-					return nil, os.WriteFile(filepath.Join(dir, "example-tool.deb"), []byte("authenticated package fixture"), 0644)
+					return nil, os.WriteFile(filepath.Join(dir, "example-tool.deb"), []byte("authenticated package fixture"), 0o644)
 				case "dpkg-deb":
 					if args[0] == "--show" {
 						return []byte("example-tool 1.0 amd64"), nil
@@ -41,10 +41,10 @@ func TestUserLocalPackagePublishesOnlyAfterRuntimeQualification(t *testing.T) {
 						t.Fatalf("package manager install/scripts must not run: %v", args)
 					}
 					entry := filepath.Join(args[2], payload.Executable)
-					if err := os.MkdirAll(filepath.Dir(entry), 0755); err != nil {
+					if err := os.MkdirAll(filepath.Dir(entry), 0o755); err != nil {
 						return nil, err
 					}
-					return nil, os.WriteFile(entry, []byte("#!/bin/sh\necho 'example-tool 1.0'\n"), 0755)
+					return nil, os.WriteFile(entry, []byte("#!/bin/sh\necho 'example-tool 1.0'\n"), 0o755)
 				default:
 					qualified = true
 					if !strings.HasSuffix(name, payload.Executable) || !strings.Contains(strings.Join(env, "\n"), "LD_LIBRARY_PATH="+filepath.Join(dir, payload.LibraryDir)) {

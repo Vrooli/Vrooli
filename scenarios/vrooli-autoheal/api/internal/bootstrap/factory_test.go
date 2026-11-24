@@ -98,8 +98,6 @@ func TestDefaultCheckFactory_CreateInfrastructureChecks(t *testing.T) {
 		"infra-cloudflared",
 		"infra-rdp",
 		"infra-ntp",
-		"infra-resolved",
-		"infra-certificate",
 		"infra-display",
 	}
 

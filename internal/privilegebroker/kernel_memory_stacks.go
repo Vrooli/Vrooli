@@ -17,7 +17,34 @@ const (
 	kernelMemoryStackOutputLimit   = 32 * 1024
 )
 
-func runKernelMemoryStackSampler(ctx context.Context, executor Executor, tool string) (hostinventory.KernelMemoryStackReport, error) {
+// Stack-sample rankings. The sampler ranks by bytes by default, which hides a
+// leak made of many tiny objects; "count" surfaces it by outstanding
+// allocation count instead. The set is closed so the argv stays fixed.
+const (
+	KernelMemorySortSize  = "size"
+	KernelMemorySortCount = "count"
+)
+
+// NormalizeKernelMemorySort resolves an empty request to the default ranking
+// and rejects anything outside the closed set.
+func NormalizeKernelMemorySort(sort string) (string, error) {
+	switch strings.TrimSpace(sort) {
+	case "":
+		return KernelMemorySortSize, nil
+	case KernelMemorySortSize:
+		return KernelMemorySortSize, nil
+	case KernelMemorySortCount:
+		return KernelMemorySortCount, nil
+	default:
+		return "", fmt.Errorf("unsupported kernel memory sort %q", sort)
+	}
+}
+
+func runKernelMemoryStackSampler(ctx context.Context, executor Executor, tool, sortBy string) (hostinventory.KernelMemoryStackReport, error) {
+	sortBy, err := NormalizeKernelMemorySort(sortBy)
+	if err != nil {
+		return hostinventory.KernelMemoryStackReport{}, err
+	}
 	if executor == nil {
 		return hostinventory.KernelMemoryStackReport{}, fmt.Errorf("privilege broker has no command executor")
 	}
@@ -26,7 +53,7 @@ func runKernelMemoryStackSampler(ctx context.Context, executor Executor, tool st
 	// stacks, and never dumps individual allocation addresses.
 	output, err := executor.Run(ctx, tool,
 		"--combined-only", "--sample-rate", fmt.Sprint(kernelMemoryStackSampleEvery),
-		"--sort", "size", "--top", fmt.Sprint(kernelMemoryStackLimit),
+		"--sort", sortBy, "--top", fmt.Sprint(kernelMemoryStackLimit),
 		fmt.Sprint(kernelMemoryStackWindowSeconds), "1")
 	if err != nil {
 		return hostinventory.KernelMemoryStackReport{}, fmt.Errorf("memleak-bpfcc sample failed: %w: %s", err, strings.TrimSpace(string(output)))
@@ -40,6 +67,7 @@ func runKernelMemoryStackSampler(ctx context.Context, executor Executor, tool st
 		WindowSeconds:   kernelMemoryStackWindowSeconds,
 		SampleEvery:     kernelMemoryStackSampleEvery,
 		StackLimit:      kernelMemoryStackLimit,
+		SortBy:          sortBy,
 		Output:          strings.TrimSpace(string(output)),
 		OutputTruncated: truncated,
 	}, nil

@@ -35,10 +35,10 @@ func trustedKernelMemorySampler() (string, error) {
 	return "", fmt.Errorf("root-owned memleak-bpfcc is not installed in a trusted system path")
 }
 
-func sampleKernelMemoryStacks(ctx context.Context, executor Executor) (hostinventory.KernelMemoryStackReport, error) {
+func sampleKernelMemoryStacks(ctx context.Context, executor Executor, sortBy string) (hostinventory.KernelMemoryStackReport, error) {
 	tool, err := trustedKernelMemorySampler()
 	if err != nil {
 		return hostinventory.KernelMemoryStackReport{}, err
 	}
-	return runKernelMemoryStackSampler(ctx, executor, tool)
+	return runKernelMemoryStackSampler(ctx, executor, tool, sortBy)
 }

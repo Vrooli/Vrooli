@@ -61,8 +61,10 @@ func TestResourceUpdatePreservesDisabledIntentAndMatchingPreparation(t *testing.
 		t.Run(map[bool]string{false: "disabled", true: "enabled"}[enabled], func(t *testing.T) {
 			_, controller, _ := newLightingFixture(t)
 			selection := selectedLighting()
-			before := Intent{SchemaVersion: lightingStateVersion, Phase: Disabled,
-				Preparation: &Preparation{Source: PreparationExisting, Selection: selection, Qualified: true}}
+			before := Intent{
+				SchemaVersion: lightingStateVersion, Phase: Disabled,
+				Preparation: &Preparation{Source: PreparationExisting, Selection: selection, Qualified: true},
+			}
 			if enabled {
 				before.Phase, before.Selection = Enabled, &selection
 			}

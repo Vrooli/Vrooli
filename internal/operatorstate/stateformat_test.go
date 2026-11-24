@@ -23,6 +23,8 @@ func TestStateFormatPinsItsShape(t *testing.T) {
 		Vocabulary: store.Vocabulary,
 		Allow: []string{
 			"operatorStateSchemaDigest",
+			"operatorStateSchemaDigestV1",
+			"operatorStateSchemaDigestV2",
 		},
 	})
 }

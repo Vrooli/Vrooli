@@ -69,6 +69,44 @@ func TestDetailSelectsAddressedVariant(t *testing.T) {
 	}
 }
 
+func TestDetailSelectsDeclaredProfileForHealthAndPorts(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	manifest := testscenario.ScenarioServiceManifest("alpha",
+		testscenario.WithDisplayName("Alpha"),
+	)
+	manifest.Ports = map[string]scenario.Port{
+		"api": {EnvVar: "API_PORT", Range: "18080-18090"},
+		"ui":  {EnvVar: "UI_PORT", Range: "18100-18110"},
+	}
+	manifest.Components = map[string]scenario.Component{
+		"api": {Role: "api", Run: scenario.ComponentRun{Port: "api"}},
+		"ui":  {Role: "ui", Run: scenario.ComponentRun{Port: "ui"}},
+	}
+	manifest.Profiles = map[string]scenario.ComponentProfile{
+		"default": {Components: []string{"api", "ui"}, Ports: []string{"api", "ui"}},
+		"lab":     {Components: []string{"api"}, Ports: []string{"api"}},
+	}
+	manifest.Lifecycle.Health = &scenario.HealthConfig{Checks: []scenario.HealthCheck{
+		{Name: "api_endpoint", Target: "http://localhost:${API_PORT}/health", Critical: true},
+		{Name: "ui_endpoint", Target: "http://localhost:${UI_PORT}/health"},
+	}}
+	testscenario.WriteScenarioService(t, root, "alpha", manifest)
+	apiPort := openTestListener(t)
+	seedVariantInstance(t, home, "alpha", "lab", "API_PORT", apiPort)
+
+	detail, err := New(root, home, io.Discard, io.Discard).Detail("alpha@lab")
+	if err != nil {
+		t.Fatalf("Detail(alpha@lab): %v", err)
+	}
+	if got := detail.Scenario.Manifest.HealthConfig().Checks; len(got) != 1 || got[0].Name != "api_endpoint" {
+		t.Fatalf("lab health checks = %+v, want only api_endpoint", got)
+	}
+	if got := detail.Details.Ports; len(got) != 1 || got["API_PORT"] != apiPort {
+		t.Fatalf("lab runtime ports = %+v, want API_PORT=%d only", got, apiPort)
+	}
+}
+
 func seedVariantInstance(t *testing.T, home, scenarioName, variant, envVar string, port int) {
 	t.Helper()
 	ctx := context.Background()

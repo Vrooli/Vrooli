@@ -251,6 +251,33 @@ func (s *Store) getActionLogsSQLite(ctx context.Context, limit int) (*ActionLogs
 	return &ActionLogsResponse{Logs: logs, Total: len(logs)}, nil
 }
 
+// countActionOutcomesSQLite groups every action row in the window by what
+// happened. A skip row (action autoheal-skip) never ran an action; its class
+// lives in the output column, so skips are counted by class and never as
+// failures. Counting in SQL covers the whole window, not the newest rows.
+func (s *Store) countActionOutcomesSQLite(ctx context.Context, since time.Time) ([]ActionOutcomeCount, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT action_id, success, COALESCE(timed_out, 0),
+		       CASE WHEN action_id = ? THEN COALESCE(output, '') ELSE '' END, COUNT(*)
+		FROM action_logs
+		WHERE created_at >= ?
+		GROUP BY 1, 2, 3, 4
+		ORDER BY 1, 2, 3, 4`, SkipActionID, since.UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return nil, fmt.Errorf("count action outcomes: %w", err)
+	}
+	defer rows.Close()
+	var counts []ActionOutcomeCount
+	for rows.Next() {
+		var c ActionOutcomeCount
+		if err := rows.Scan(&c.ActionID, &c.Success, &c.TimedOut, &c.SkipClass, &c.Count); err != nil {
+			return nil, fmt.Errorf("scan action outcome: %w", err)
+		}
+		counts = append(counts, c)
+	}
+	return counts, rows.Err()
+}
+
 func (s *Store) getActionLogsForCheckSQLite(ctx context.Context, checkID string, limit int) (*ActionLogsResponse, error) {
 	if limit <= 0 || limit > 200 {
 		limit = 20

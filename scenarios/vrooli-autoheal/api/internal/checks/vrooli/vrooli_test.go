@@ -636,7 +636,9 @@ func TestScenarioCheckRunWithMock(t *testing.T) {
 				Error:  tt.cliError,
 			}
 
-			check := NewScenarioCheck(tt.scenarioName, tt.critical, WithScenarioExecutor(mockExecutor))
+			// Hermetic: the table is about status mapping, not the repo's manifests.
+			check := NewScenarioCheck(tt.scenarioName, tt.critical, WithScenarioExecutor(mockExecutor),
+				WithScenarioDeclaresUI(func() bool { return false }))
 			result := check.Run(context.Background())
 
 			if result.Status != tt.expectedStatus {

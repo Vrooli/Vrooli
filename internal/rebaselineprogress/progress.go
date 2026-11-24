@@ -1,3 +1,6 @@
+// Package rebaselineprogress records the effects a root persistent-state
+// rebaseline has already completed. It is evidence of progress, never the
+// authority to perform one.
 package rebaselineprogress
 
 import (
@@ -44,5 +47,5 @@ func Write(path string, p Progress) error {
 	if err != nil {
 		return err
 	}
-	return config.WriteOwnedFileDurable(path, data, 0600)
+	return config.WriteOwnedFileDurable(path, data, 0o600)
 }

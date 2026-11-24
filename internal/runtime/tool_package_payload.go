@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
+	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
-	platform "github.com/vrooli/platform-go"
 )
 
 var packagePayloadCommand = func(ctx context.Context, dir string, env []string, name string, args ...string) ([]byte, error) {
@@ -92,7 +92,7 @@ func (h toolHandler) applyUserLocalAPT(host hostreqkit.Host, status hostreqkit.I
 	if err != nil {
 		return fail(err)
 	}
-	if err = os.MkdirAll(optDir, 0755); err != nil {
+	if err = os.MkdirAll(optDir, 0o755); err != nil {
 		return fail(err)
 	}
 	stage, err := os.MkdirTemp(optDir, ".package-")
@@ -115,7 +115,7 @@ func (h toolHandler) applyUserLocalAPT(host hostreqkit.Host, status hostreqkit.I
 		return fail(fmt.Errorf("expected %d package archives, received %d: %v", len(payload.Packages), len(archives), err))
 	}
 	tree := filepath.Join(stage, "tree")
-	if err := os.Mkdir(tree, 0755); err != nil {
+	if err := os.Mkdir(tree, 0o755); err != nil {
 		return fail(err)
 	}
 	seen := map[string]bool{}
@@ -163,7 +163,7 @@ func (h toolHandler) applyUserLocalAPT(host hostreqkit.Host, status hostreqkit.I
 		return status, nil
 	}
 	receipt, _ := json.MarshalIndent(map[string]any{"packages": receipts, "version": version, "installed_at": time.Now().UTC()}, "", "  ")
-	if err := os.WriteFile(filepath.Join(tree, "package-receipt.json"), receipt, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tree, "package-receipt.json"), receipt, 0o644); err != nil {
 		return fail(err)
 	}
 	final := filepath.Join(optDir, hex.EncodeToString(identity.Sum(nil)))

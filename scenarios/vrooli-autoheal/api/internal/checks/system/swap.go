@@ -87,7 +87,13 @@ func (c *SwapCheck) Category() checks.Category  { return checks.CategorySystem }
 func (c *SwapCheck) IntervalSeconds() int       { return 300 }
 func (c *SwapCheck) Platforms() []platform.Type { return []platform.Type{platform.Linux} }
 
+// Run observes the host and names the repair owner on a failing result: no
+// restart autoheal can run relieves this, so it offers no action.
 func (c *SwapCheck) Run(ctx context.Context) checks.Result {
+	return checks.OwnedElsewhere(c.observe(ctx), "portfolio steward free-host lane (machine-waste risk): reclaim memory or reduce load")
+}
+
+func (c *SwapCheck) observe(ctx context.Context) checks.Result {
 	result := checks.Result{
 		CheckID: c.ID(),
 		Details: make(map[string]interface{}),

@@ -294,10 +294,7 @@ func shouldSkipDiscoveryDir(name string) bool {
 	case "node_modules", "dist", "build", "bundle", "bin", "coverage", ".turbo", ".vite", "generated", "testdata", "logs", "artifacts", "backup", "backups", ".backup", ".backups":
 		return true
 	}
-	if strings.HasPrefix(name, ".git") {
-		return true
-	}
-	return false
+	return strings.HasPrefix(name, ".git")
 }
 
 type parsedGoMod struct {

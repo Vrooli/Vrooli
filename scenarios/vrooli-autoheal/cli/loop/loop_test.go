@@ -288,3 +288,36 @@ func TestHealBackoffRejectsStrangerAndHonorsCancellation(t *testing.T) {
 		t.Fatalf("cancelled recovery: state=%s code=%d port=%s", l.state, l.exitCode, config.APIPort)
 	}
 }
+
+// The 60 s tick averaged 96 s because the loop slept a full interval after
+// every tick. The interval is the period: the wait is what is left of it.
+func TestTicksArePacedFromTheStartOfThePreviousTick(t *testing.T) {
+	isolatedHome(t)
+	config := testConfig(t)
+	config.TickInterval = time.Minute
+	l, slept := testLoop(t, config)
+	l.state = stateHealthy
+
+	if got := l.untilNextTick(); got != time.Minute {
+		t.Fatalf("before any tick the wait is the whole interval, got %v", got)
+	}
+	l.tickStartedAt = time.Now().Add(-40 * time.Second)
+	if got := l.untilNextTick(); got < 19*time.Second || got > 20*time.Second {
+		t.Fatalf("a 40 s tick leaves about 20 s of the interval, got %v", got)
+	}
+	l.tickStartedAt = time.Now().Add(-5 * time.Minute)
+	if got := l.untilNextTick(); got != minTickGap {
+		t.Fatalf("a tick that overran the interval rests %v, got %v", minTickGap, got)
+	}
+	config.TickInterval = time.Second
+	if got := l.untilNextTick(); got != time.Second {
+		t.Fatalf("the rest never exceeds the interval, got %v", got)
+	}
+
+	config.TickInterval = time.Minute
+	l.tickStartedAt = time.Now().Add(-30 * time.Second)
+	l.step(context.Background())
+	if len(*slept) == 0 || (*slept)[0] > 31*time.Second {
+		t.Fatalf("the healthy loop slept %v after a 30 s tick, want at most 30 s", *slept)
+	}
+}

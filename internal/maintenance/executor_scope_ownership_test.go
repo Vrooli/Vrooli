@@ -223,7 +223,7 @@ func TestExecutorScopeUnreadableRegistryCannotGrantServiceExclusion(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte("invalid registry"), 0600); err != nil {
+	if err := os.WriteFile(path, []byte("invalid registry"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	scopeProcessBirths = func(context.Context) (map[int]supervision.ProcessInfo, error) { return f.births, nil }

@@ -294,52 +294,73 @@ func (s *typedMeasures) GetUptimeByCheck(ctx context.Context, req *connect.Reque
 	return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("check %q has no uptime evidence", checkID))
 }
 
+func (s *typedMeasures) actionOutcomes(ctx context.Context, window int) ([]persistence.ActionOutcomeCount, error) {
+	store, ok := s.h.store.(actionOutcomeStore)
+	if !ok {
+		return nil, fmt.Errorf("the configured store cannot count action outcomes")
+	}
+	return store.CountActionOutcomes(ctx, time.Now().UTC().Add(-time.Duration(window)*time.Hour))
+}
+
 func (s *typedMeasures) GetRestartCount(ctx context.Context, req *connect.Request[measures.GetRestartCountRequest]) (*connect.Response[measures.GetRestartCountResponse], error) {
 	window := boundedLimit(int(req.Msg.GetWindowHours()), 24, 168)
-	logs, err := s.h.store.GetActionLogs(ctx, 200)
+	counts, err := s.actionOutcomes(ctx, window)
 	if err != nil {
-		return nil, internalError("load restart evidence", err)
+		return nil, internalError("load restart count", err)
 	}
-	cutoff := time.Now().UTC().Add(-time.Duration(window) * time.Hour)
 	count := 0
-	for _, entry := range logs.Logs {
-		observedAt, parseErr := parseTimestamp(entry.Timestamp)
-		if parseErr != nil || observedAt.Before(cutoff) {
-			continue
-		}
-		if strings.Contains(strings.ToLower(entry.ActionID), "restart") {
-			count++
+	for _, c := range counts {
+		if c.ActionID != persistence.SkipActionID && strings.Contains(strings.ToLower(c.ActionID), "restart") {
+			count += c.Count
 		}
 	}
 	return connect.NewResponse(&measures.GetRestartCountResponse{Restarts: &measures.RestartCount{Count: int32(count), WindowHours: int32(window), ComputedAt: timestamppb.Now()}}), nil
 }
 
+// healOutcomeBuckets splits recorded heal rows into what actually happened. An
+// attempt is SUCCEEDED, FAILED or TIMED_OUT; a heal that did not run is
+// SKIPPED_<CLASS>, one bucket per class, and is never a failure.
+func healOutcomeBuckets(counts []persistence.ActionOutcomeCount) []*measures.HealOutcomeCount {
+	attempts := map[string]int32{"SUCCEEDED": 0, "FAILED": 0, "TIMED_OUT": 0}
+	skips := map[string]int32{}
+	for _, c := range counts {
+		switch {
+		case c.ActionID == persistence.SkipActionID:
+			class := strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(c.SkipClass), "-", "_"))
+			if class == "" {
+				class = "UNCLASSIFIED"
+			}
+			skips["SKIPPED_"+class] += int32(c.Count)
+		case c.Success:
+			attempts["SUCCEEDED"] += int32(c.Count)
+		case c.TimedOut:
+			attempts["TIMED_OUT"] += int32(c.Count)
+		default:
+			attempts["FAILED"] += int32(c.Count)
+		}
+	}
+	outcomes := make([]*measures.HealOutcomeCount, 0, len(attempts)+len(skips))
+	for _, outcome := range []string{"SUCCEEDED", "FAILED", "TIMED_OUT"} {
+		outcomes = append(outcomes, &measures.HealOutcomeCount{Outcome: outcome, Count: attempts[outcome]})
+	}
+	classes := make([]string, 0, len(skips))
+	for class := range skips {
+		classes = append(classes, class)
+	}
+	sort.Strings(classes)
+	for _, class := range classes {
+		outcomes = append(outcomes, &measures.HealOutcomeCount{Outcome: class, Count: skips[class]})
+	}
+	return outcomes
+}
+
 func (s *typedMeasures) GetHealOutcomes(ctx context.Context, req *connect.Request[measures.GetHealOutcomesRequest]) (*connect.Response[measures.GetHealOutcomesResponse], error) {
 	window := boundedLimit(int(req.Msg.GetWindowHours()), 24, 168)
-	logs, err := s.h.store.GetActionLogs(ctx, 200)
+	counts, err := s.actionOutcomes(ctx, window)
 	if err != nil {
 		return nil, internalError("load healing outcomes", err)
 	}
-	cutoff := time.Now().UTC().Add(-time.Duration(window) * time.Hour)
-	counts := map[string]int32{"SUCCEEDED": 0, "FAILED": 0, "TIMED_OUT": 0}
-	for _, entry := range logs.Logs {
-		observedAt, parseErr := parseTimestamp(entry.Timestamp)
-		if parseErr != nil || observedAt.Before(cutoff) {
-			continue
-		}
-		outcome := "FAILED"
-		if entry.Success {
-			outcome = "SUCCEEDED"
-		} else if entry.TimedOut {
-			outcome = "TIMED_OUT"
-		}
-		counts[outcome]++
-	}
-	outcomes := make([]*measures.HealOutcomeCount, 0, len(counts))
-	for _, outcome := range []string{"SUCCEEDED", "FAILED", "TIMED_OUT"} {
-		outcomes = append(outcomes, &measures.HealOutcomeCount{Outcome: outcome, Count: counts[outcome]})
-	}
-	return connect.NewResponse(&measures.GetHealOutcomesResponse{Outcomes: outcomes, WindowHours: int32(window), ComputedAt: timestamppb.Now()}), nil
+	return connect.NewResponse(&measures.GetHealOutcomesResponse{Outcomes: healOutcomeBuckets(counts), WindowHours: int32(window), ComputedAt: timestamppb.Now()}), nil
 }
 
 func (s *typedMeasures) GetCriticalCount(ctx context.Context, req *connect.Request[measures.GetCriticalCountRequest]) (*connect.Response[measures.GetCriticalCountResponse], error) {

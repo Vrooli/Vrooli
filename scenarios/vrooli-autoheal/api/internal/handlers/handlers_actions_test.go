@@ -14,6 +14,7 @@ import (
 	"github.com/vrooli/api-core/apihttptest"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/persistence"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 
 	"github.com/gorilla/mux"
@@ -60,11 +61,71 @@ func TestTick_WithAutoHeal(t *testing.T) {
 		t.Error("autoHeal should have at least one result for critical check")
 	}
 
-	// Verify the safe action was executed (start, not restart)
-	if criticalCheck.executeCalled {
-		if criticalCheck.executeResult.ActionID != "start" {
-			t.Errorf("Auto-heal should execute 'start' (non-dangerous), got %q", criticalCheck.executeResult.ActionID)
-		}
+	// The heal runs in the background; wait for it, then verify the safe action
+	// was executed (start, not restart) and recorded.
+	h.WaitForHeals()
+	if !criticalCheck.executeCalled || criticalCheck.executeResult.ActionID != "start" {
+		t.Errorf("Auto-heal should execute 'start' (non-dangerous), got called=%v action=%q", criticalCheck.executeCalled, criticalCheck.executeResult.ActionID)
+	}
+	if store.lastActionLog.ActionID != "start" || !store.lastActionLog.Success {
+		t.Errorf("finished heal was not recorded: %+v", store.lastActionLog)
+	}
+}
+
+type gatedHealableCheck struct {
+	*mockHealableCheckCritical
+	started chan struct{}
+	release chan struct{}
+}
+
+func (c *gatedHealableCheck) ExecuteAction(ctx context.Context, actionID string) checks.ActionResult {
+	close(c.started)
+	<-c.release
+	return c.mockHealableCheckCritical.ExecuteAction(ctx, actionID)
+}
+
+// A restart takes 45-77 s. The tick used to wait for it, so the core went
+// unobserved for minutes. The tick must return while the heal runs, say so,
+// and the heal must record itself when it finishes.
+func TestTick_ReturnsWhileAHealRunsAndRecordsItWhenDone(t *testing.T) {
+	store := &mockStore{}
+	h, check := setupTestHandlersWithAutoHeal(store)
+	gated := &gatedHealableCheck{mockHealableCheckCritical: check, started: make(chan struct{}), release: make(chan struct{})}
+	h.registry.Register(gated)
+
+	finished := make(chan *httptest.ResponseRecorder, 1)
+	go func() {
+		w := httptest.NewRecorder()
+		h.Tick(w, httptest.NewRequest("POST", "/api/v1/tick?force=true", nil))
+		finished <- w
+	}()
+	var w *httptest.ResponseRecorder
+	select {
+	case w = <-finished:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the tick waited for a running heal")
+	}
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-gated.started:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("the heal never started: %v", resp["autoHeal"])
+	}
+	entries, _ := resp["autoHeal"].([]interface{})
+	if len(entries) != 1 || entries[0].(map[string]interface{})["started"] != true {
+		t.Fatalf("the tick must report the heal as started: %v", resp["autoHeal"])
+	}
+	if store.actionLogCalls != 0 {
+		t.Fatalf("a heal still running was already recorded: %+v", store.lastActionLog)
+	}
+
+	close(gated.release)
+	h.WaitForHeals()
+	if store.lastActionLog.ActionID != "start" || !store.lastActionLog.Success {
+		t.Fatalf("the finished heal did not record itself: %+v", store.lastActionLog)
 	}
 }
 
@@ -140,6 +201,10 @@ func TestTick_AutoHealSkippedWhenDisabled(t *testing.T) {
 	// Verify no action was executed
 	if criticalCheck.executeCalled {
 		t.Error("No action should be executed when auto-heal is disabled")
+	}
+	// The skip is recorded as a skip with its class, never as a failed action.
+	if store.lastActionLog.ActionID != persistence.SkipActionID || store.lastActionLog.Output != checks.SkipNotEnabled {
+		t.Errorf("skip row = %+v, want action %s with class %s", store.lastActionLog, persistence.SkipActionID, checks.SkipNotEnabled)
 	}
 }
 

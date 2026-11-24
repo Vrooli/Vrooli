@@ -3,13 +3,14 @@ package privilegebroker
 import (
 	"context"
 	"errors"
-	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"io"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/hostreqkit"
 )
 
 func TestSetupBrokerInstallationHonorsElevationConsent(t *testing.T) {

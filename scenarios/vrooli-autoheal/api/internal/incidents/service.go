@@ -483,6 +483,52 @@ func (s *Service) resolveRecoveredForCheck(ctx context.Context, result checks.Re
 	return nil
 }
 
+// StaleIncidentAge bounds how long an incident may stay open without being
+// re-observed. Every tick that still sees the condition refreshes its
+// last-seen time, so an incident unseen this long belongs to a check that has
+// been ok, a finding that no longer appears, or a check no longer supervised.
+// Before this bound, 279 critical incidents sat open for days, hiding the few
+// that mattered.
+const StaleIncidentAge = 24 * time.Hour
+
+// staleResolveBatch bounds one sweep; a backlog drains over a few ticks.
+const staleResolveBatch = 100
+
+// ResolveStale resolves open incidents not re-observed for StaleIncidentAge and
+// returns how many it resolved. The record is kept with a note saying why.
+// Unclean-boot and manual incidents are events a person recorded or a boot
+// sensor saw once, so unseen time says nothing about them: they stay open.
+// The sweep is housekeeping, not news: it publishes no "resolved" notice (the
+// operator would receive one per stale incident) but does withdraw any
+// decision request the incident still owns.
+func (s *Service) ResolveStale(ctx context.Context) (int, error) {
+	if s == nil || s.store == nil {
+		return 0, nil
+	}
+	now := s.now()
+	cutoff := now.Add(-StaleIncidentAge)
+	resp, err := s.store.ListIncidents(ctx, ListFilters{Status: StatusOpen, Until: &cutoff, Limit: staleResolveBatch})
+	if err != nil || resp == nil {
+		return 0, err
+	}
+	resolved := 0
+	for _, incident := range resp.Incidents {
+		if incident.Type == TypeUncleanBoot || incident.Type == TypeManual || !incident.LastSeenAt.Before(cutoff) {
+			continue
+		}
+		note := fmt.Sprintf("auto-resolved: not re-observed for %s (last seen %s); its check is ok, no longer reports this finding, or is no longer supervised",
+			now.Sub(incident.LastSeenAt).Round(time.Hour), incident.LastSeenAt.UTC().Format(time.RFC3339))
+		if _, err := s.store.UpdateIncidentStatus(ctx, incident.ID, StatusResolved, note); err != nil {
+			return resolved, err
+		}
+		resolved++
+	}
+	if resolved > 0 && !publicationDrainDeferred(ctx) {
+		s.publishPendingRemediationDecisionWithdrawals(ctx, pendingOpeningPublicationBatch)
+	}
+	return resolved, nil
+}
+
 const pendingOpeningPublicationBatch = 100
 
 // DrainPendingPublications gives one operation a shared maximum of 100

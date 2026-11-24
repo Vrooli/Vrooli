@@ -9,7 +9,7 @@ import (
 
 func TestReadGoModClassifiesUnresolvedTemplatePlaceholders(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "go.mod")
-	if err := os.WriteFile(path, []byte("module example\n\nreplace github.com/vrooli/api-core => {{PACKAGES_REL_FROM_API}}/api-core\n"), 0600); err != nil {
+	if err := os.WriteFile(path, []byte("module example\n\nreplace github.com/vrooli/api-core => {{PACKAGES_REL_FROM_API}}/api-core\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	_, err := readGoMod(path)
@@ -20,7 +20,7 @@ func TestReadGoModClassifiesUnresolvedTemplatePlaceholders(t *testing.T) {
 
 func TestTemplateGoModWithUnresolvedPlaceholdersIsSkippedDuringInventory(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "go.mod")
-	if err := os.WriteFile(path, []byte("module example\n\nreplace github.com/vrooli/api-core => {{PACKAGES_REL_FROM_API}}/api-core\n"), 0600); err != nil {
+	if err := os.WriteFile(path, []byte("module example\n\nreplace github.com/vrooli/api-core => {{PACKAGES_REL_FROM_API}}/api-core\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	inv := dependencyInventory{reports: map[string]DiscoveryReport{}}
@@ -31,7 +31,7 @@ func TestTemplateGoModWithUnresolvedPlaceholdersIsSkippedDuringInventory(t *test
 
 func TestRealGoModParseErrorsRemainErrors(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "go.mod")
-	if err := os.WriteFile(path, []byte("module example\n\nreplace github.com/vrooli/api-core =>\n"), 0600); err != nil {
+	if err := os.WriteFile(path, []byte("module example\n\nreplace github.com/vrooli/api-core =>\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := readGoMod(path); err == nil {

@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
+	"github.com/vrooli/api-core/coreset"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/storage"
@@ -116,8 +117,10 @@ type OptInChoice struct {
 }
 
 type CoreSet struct {
-	Seed        []string `json:"seed"`
-	TrustedBase []string `json:"trusted_base"`
+	Seed        []string              `json:"seed"`
+	TrustedBase []string              `json:"trusted_base"`
+	Important   []coreset.ComponentID `json:"important,omitempty"`
+	CoreMembers []coreset.ComponentID `json:"members,omitempty"`
 }
 
 type Completion struct {
@@ -279,6 +282,7 @@ type Handoff struct {
 	DesiredRevision      uint64           `json:"desired_revision"`
 	ActorScope           string           `json:"actor_scope"`
 	SelectionDigest      string           `json:"selection_digest"`
+	ClosureDigest        string           `json:"closure_digest,omitempty"`
 	Missing              []string         `json:"missing,omitempty"`
 	Selection            HandoffSelection `json:"selection"`
 	State                string           `json:"state"`
@@ -330,6 +334,7 @@ type Document struct {
 	Session             *Session                   `json:"session,omitempty"`
 	Drafts              map[string]Draft           `json:"drafts,omitempty"`
 	Handoffs            map[string]Handoff         `json:"handoffs,omitempty"`
+	PermissionReceipts  map[string]MutationReceipt `json:"permission_receipts,omitempty"`
 	RawFields           map[string]json.RawMessage `json:"-"`
 }
 
@@ -705,69 +710,8 @@ func (s *Service) ApplyAtRevisionValidated(ctx context.Context, expectedRevision
 }
 
 func (s *Service) applyAtRevision(ctx context.Context, expectedRevision string, patch []byte, validate DocumentValidator) (Document, error) {
-	if !json.Valid(patch) {
-		return Document{}, errors.New("operator-state merge patch is invalid JSON")
-	}
-	var patchValue map[string]json.RawMessage
-	if err := json.Unmarshal(patch, &patchValue); err != nil || patchValue == nil {
-		return Document{}, errors.New("operator-state merge patch must be a JSON object")
-	}
-	path, err := s.Path(ctx)
-	if err != nil {
-		return Document{}, err
-	}
-	if err := s.lockContext(ctx); err != nil {
-		return Document{}, err
-	}
-	defer s.lock.Unlock()
-	release, err := s.acquireStateFileLock(ctx, path)
-	if err != nil {
-		return Document{}, err
-	}
-	defer release()
-	current, err := s.loadLocked(path)
-	if err != nil {
-		return Document{}, err
-	}
-	if expectedRevision != "" && Revision(current) != expectedRevision {
-		return Document{}, fmt.Errorf("%w: expected %q, found %q", ErrRevisionConflict, expectedRevision, Revision(current))
-	}
-	currentBytes, err := marshalDocument(current)
-	if err != nil {
-		return Document{}, err
-	}
-	merged, err := mergePatch(currentBytes, patch)
-	if err != nil {
-		return Document{}, err
-	}
-	var next Document
-	if err := unmarshalDocument(merged, &next); err != nil {
-		return Document{}, fmt.Errorf("decode merged operator state: %w", err)
-	}
-	next.Schema = SchemaPath
-	if next.Version == "" {
-		next.Version = "1.0.0"
-	}
-	next.UpdatedAt = nextRevisionTimestamp(current.UpdatedAt, s.cfg.Now()).Format(time.RFC3339Nano)
-	if err := s.validate(merged, next); err != nil {
-		return Document{}, err
-	}
-	if validate != nil {
-		if err := validate(next); err != nil {
-			return Document{}, err
-		}
-	}
-	data, err := marshalDocument(next)
-	if err != nil {
-		return Document{}, err
-	}
-	if err := s.writeStateFile(path, append(data, '\n')); err != nil {
-		return Document{}, fmt.Errorf("write operator state: %w", err)
-	}
-	if s.cfg.Roots != nil {
-		s.cfg.Roots.RecordWrite(ctx)
-	}
-	return next, nil
+	next, _, _, err := s.applyAtRevisionWithReceipt(ctx, expectedRevision, patch, validate, nil)
+	return next, err
 }
 
 func nextRevisionTimestamp(previous string, now time.Time) time.Time {
@@ -899,8 +843,10 @@ func Default() Document {
 
 var knownFields = map[string]bool{
 	"$schema": true, "version": true, "updated_at": true, "trust_posture": true, "host_workload_posture": true, "capacity_posture": true, "accel_preference": true,
-	"core": true, "active_profile": true, repocontractmeta.ScenarioDir: true, "resources": true, "capacity": true,
+	"update_control": true,
+	"core":           true, "active_profile": true, repocontractmeta.ScenarioDir: true, "resources": true, "capacity": true,
 	"host_tools": true, "host_safeguards": true, "completion": true, "session": true, "drafts": true, "handoffs": true,
+	"permission_receipts": true,
 }
 
 func unmarshalDocument(data []byte, doc *Document) error {

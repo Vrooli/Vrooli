@@ -47,6 +47,14 @@ const (
 	ActionKernelMemoryStackSample  = "host.kernel-memory.sample-stacks"
 	ActionServiceRecover           = "host.service.recover"
 
+	// Host power actions. They exist so a human-approved maintenance decision
+	// can be carried out by a scenario through the broker instead of an
+	// interactive sudo prompt. The delay is a bounded scalar, never a command:
+	// the argv is fixed and the scheduled unit is named so a pending reboot can
+	// be found, verified and cancelled.
+	ActionSystemReboot       = "host.system.reboot"
+	ActionSystemRebootCancel = "host.system.reboot-cancel"
+
 	// Cloud target actions replace the shell strings scenario-to-cloud used to
 	// run over SSH. Each has a closed subject: package names from a compiled
 	// allowlist, an edge port from {80, 443}, or one scenario id plus its
@@ -83,6 +91,29 @@ type Request struct {
 	Caddy          *CaddySubject          `json:"caddy,omitempty"`
 	LocalAdmission *LocalAdmissionSubject `json:"local_admission,omitempty"`
 	Service        *ServiceSubject        `json:"service,omitempty"`
+	// KernelMemory selects the ranking for one stack sample. It carries no
+	// cache name, size, or path: the sampler's arguments stay fixed.
+	KernelMemory *KernelMemorySubject `json:"kernel_memory,omitempty"`
+	// Reboot scopes one host power action. The delay is the only variable
+	// input and it is bounded; there is no target, command, or unit field.
+	Reboot *RebootSubject `json:"reboot,omitempty"`
+}
+
+// KernelMemorySubject picks how a stack sample is ranked.
+type KernelMemorySubject struct {
+	// Sort is "size" (bytes held, the default) or "count" (outstanding
+	// allocations). A small-object leak only appears in a count ranking.
+	Sort string `json:"sort,omitempty"`
+}
+
+// RebootSubject scopes one reboot or its cancellation.
+type RebootSubject struct {
+	// DelayMinutes defers the reboot. Zero reboots now, which is why the
+	// caller must already hold a human decision; the broker cannot tell.
+	DelayMinutes int `json:"delay_minutes"`
+	// DecisionID is the operator decision that authorised this reboot. It is
+	// audit evidence only; the broker never verifies it.
+	DecisionID string `json:"decision_id,omitempty"`
 }
 
 type ServiceSubject struct {

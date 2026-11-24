@@ -53,8 +53,10 @@ type LocalAdmissionReport struct {
 	Reason        string `json:"reason,omitempty"`
 }
 
-var admissionID = regexp.MustCompile(`^[a-z][a-z0-9-]{0,47}$`)
-var admissionInterface = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.:-]{0,14}$`)
+var (
+	admissionID        = regexp.MustCompile(`^[a-z][a-z0-9-]{0,47}$`)
+	admissionInterface = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.:-]{0,14}$`)
+)
 
 func (b LocalAdmissionBinding) Validate() error {
 	if !admissionID.MatchString(b.ID) || !admissionID.MatchString(b.Scenario) || b.Listener != "ui" || !admissionInterface.MatchString(b.Interface) {
@@ -154,7 +156,7 @@ func (m *LocalAdmissionManager) loadState() (localAdmissionState, error) {
 	return state, nil
 }
 
-func writeAdmissionJSON(path string, value any) error {
+func storeAdmissionFile(path string, value any) error {
 	data, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
 		return err
@@ -289,7 +291,7 @@ func (m *LocalAdmissionManager) execute(ctx context.Context, action, id string) 
 	if action == ActionLocalAdmissionRevoke {
 		if !state.Disabled[id] {
 			state.Disabled[id] = true
-			if err := writeAdmissionJSON(m.StatePath, state); err != nil {
+			if err := storeAdmissionFile(m.StatePath, state); err != nil {
 				return NewFailure("", action, "local_state_write_failed")
 			}
 		}
@@ -298,7 +300,7 @@ func (m *LocalAdmissionManager) execute(ctx context.Context, action, id string) 
 	}
 	if action == ActionLocalAdmissionEnsure && !report.Enabled {
 		delete(state.Disabled, id)
-		if err := writeAdmissionJSON(m.StatePath, state); err != nil {
+		if err := storeAdmissionFile(m.StatePath, state); err != nil {
 			return NewFailure("", action, "local_state_write_failed")
 		}
 		report.Enabled = true

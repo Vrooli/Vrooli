@@ -90,7 +90,7 @@ type PnpmStoreMismatchError struct {
 }
 
 func (e *PnpmStoreMismatchError) Error() string {
-	return fmt.Sprintf("%s/node_modules was linked against pnpm store %s and pnpm now selects %s; %s, so it cannot be reused. pnpm would recreate node_modules, which a non-interactive run must not do while the consumer may be serving from it. Stop the consumer and rerun setup, which recreates node_modules itself, or recreate it with an interactive `pnpm install` in %s", e.Dir, e.Recorded, e.Effective, e.Detail, e.Dir)
+	return fmt.Sprintf("%s/node_modules was linked against pnpm store %s and pnpm now selects %s; %s, so it cannot be reused. The lifecycle preserved the existing tree because a runtime may be serving from it. Resolve this setup state through Vrooli's scenario lifecycle after the owning runtime is no longer serving", e.Dir, e.Recorded, e.Effective, e.Detail)
 }
 
 // GuardPnpmStore returns env adjusted so a pnpm command that touches
@@ -152,5 +152,5 @@ func ExplainPnpmPurgeAbort(err error, stderr string, dir string) error {
 	if err == nil || !strings.Contains(stderr, pnpmPurgeAbort) {
 		return err
 	}
-	return fmt.Errorf("%w: pnpm needs to recreate %s/node_modules (its settings or store changed since it was installed) and will not do that without a terminal; nothing was changed. Recreate it deliberately with an interactive `pnpm install` in %s, or remove node_modules through storage-manager and rerun", err, dir, dir)
+	return fmt.Errorf("%w: pnpm needs to recreate %s/node_modules (its settings or store changed since it was installed); nothing was changed. The lifecycle must repair this tree when it can safely do so without disrupting a serving runtime", err, dir)
 }

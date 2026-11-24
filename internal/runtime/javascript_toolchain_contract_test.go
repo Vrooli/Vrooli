@@ -113,9 +113,14 @@ func readToolManifest(t *testing.T, name string) hostreqkit.ToolManifest {
 	return manifest
 }
 
+// assertWorkflowReadsToolVersion requires every workflow that installs a tool to
+// derive its version from the tool manifest instead of pinning a second copy.
+// A workflow that never sets the tool up has nothing to derive, so it is not a
+// contract violation; at least one workflow must still exercise the pin.
 func assertWorkflowReadsToolVersion(t *testing.T, tool string, workflows []string) {
 	t.Helper()
 	repoRoot := repositoryRoot(t)
+	checked := 0
 	for _, workflow := range workflows {
 		contents, err := os.ReadFile(filepath.Join(repoRoot, workflow))
 		if err != nil {
@@ -123,10 +128,17 @@ func assertWorkflowReadsToolVersion(t *testing.T, tool string, workflows []strin
 			continue
 		}
 		text := string(contents)
+		if !strings.Contains(text, "tools/"+tool+"/tool.json") && !strings.Contains(text, "setup-"+tool) {
+			continue
+		}
+		checked++
 		if !strings.Contains(text, "jq -r '.version' internal/tools/"+tool+"/tool.json") ||
 			!strings.Contains(text, "steps."+tool+"-version.outputs.value") {
 			t.Errorf("%s must derive %s version from its tool manifest", workflow, tool)
 		}
+	}
+	if checked == 0 {
+		t.Errorf("no workflow installs %s; the pinned manifest is unused", tool)
 	}
 }
 

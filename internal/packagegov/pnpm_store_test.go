@@ -106,7 +106,7 @@ func TestGuardPnpmStoreRefusesWhenTheRecordedStoreCannotBeSelected(t *testing.T)
 	linkedTo(t, dir, "/somewhere/odd-layout")
 	fakeStore(t, "/store/v3")
 	_, _, err := GuardPnpmStore(context.Background(), []string{"pnpm", "install"}, dir, nil)
-	if err == nil || !strings.Contains(err.Error(), "/somewhere/odd-layout") || !strings.Contains(err.Error(), "must not do") {
+	if err == nil || !strings.Contains(err.Error(), "/somewhere/odd-layout") || !strings.Contains(err.Error(), "Vrooli's scenario lifecycle") || strings.Contains(err.Error(), "pnpm install") {
 		t.Fatalf("err = %v", err)
 	}
 
@@ -142,7 +142,7 @@ func TestRunCommandsExplainsAPurgeAbortFromPnpmAndFollowsTheRecordedStore(t *tes
 	}
 	var out, errOut bytes.Buffer
 	err := RunCommandsWithOptions(dir, []CommandSpec{{Name: "install", Run: []string{filepath.Join(bin, "pnpm"), "install", "--frozen-lockfile"}}}, &out, &errOut, CommandOptions{Env: []string{"PATH=" + bin + ":/usr/bin:/bin"}})
-	if err == nil || !strings.Contains(err.Error(), "will not do that without a terminal") {
+	if err == nil || !strings.Contains(err.Error(), "lifecycle must repair") || strings.Contains(err.Error(), "pnpm install") {
 		t.Fatalf("err = %v", err)
 	}
 	if !strings.Contains(out.String(), "store=/store") || !strings.Contains(errOut.String(), "reusing it") {

@@ -115,7 +115,22 @@ type watchdogReport struct {
 	Attribution *hostpressure.AttributionReading `json:"attribution,omitempty"`
 }
 
-func (c *EmergencyWatchdogReportCheck) Run(context.Context) checks.Result {
+// Run reads the emergency watchdog report. When a finding names an agent
+// session scope, contain-storm is a safe supported action and is offered. When
+// none does (a fork storm from systemd, stranded memory, abandoned workloads),
+// no autoheal action relieves it, so the failing result names its repair owner
+// instead of leaving a critical with no owner.
+func (c *EmergencyWatchdogReportCheck) Run(ctx context.Context) checks.Result {
+	result := c.observe(ctx)
+	for _, action := range c.RecoveryActions(&result) {
+		if action.Available {
+			return result
+		}
+	}
+	return checks.OwnedElsewhere(result, "portfolio steward free-host lane for fork storms and stranded memory; operator for abandoned workloads")
+}
+
+func (c *EmergencyWatchdogReportCheck) observe(context.Context) checks.Result {
 	result := checks.Result{CheckID: c.ID(), Details: map[string]interface{}{"reportPath": c.path}}
 	undetermined := func(reason string) checks.Result {
 		result.Status = checks.StatusWarning

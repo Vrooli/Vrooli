@@ -151,6 +151,25 @@ type VerificationRequest struct {
 }
 
 func (r VerificationRequest) Validate() error {
+	if err := r.validateIdentityFields(); err != nil {
+		return err
+	}
+	if err := r.validateCredentialRef(); err != nil {
+		return err
+	}
+	if err := r.validateContext(); err != nil {
+		return err
+	}
+	if err := r.validateRevisions(); err != nil {
+		return err
+	}
+	if err := r.validateEffect(); err != nil {
+		return err
+	}
+	return r.validateTimeout()
+}
+
+func (r VerificationRequest) validateIdentityFields() error {
 	for field, value := range map[string]string{
 		"capability_id": r.CapabilityID, "target_id": r.TargetID, "operation": r.Operation,
 	} {
@@ -161,11 +180,20 @@ func (r VerificationRequest) Validate() error {
 			return fmt.Errorf("%s is invalid", field)
 		}
 	}
-	if r.CredentialRef != nil {
-		if strings.TrimSpace(r.CredentialRef.LogicalID) == "" || strings.TrimSpace(r.CredentialRef.Field) == "" || strings.TrimSpace(r.CredentialRef.Version) == "" {
-			return errors.New("credential_ref requires logical_id, field, and opaque version")
-		}
+	return nil
+}
+
+func (r VerificationRequest) validateCredentialRef() error {
+	if r.CredentialRef == nil {
+		return nil
 	}
+	if strings.TrimSpace(r.CredentialRef.LogicalID) == "" || strings.TrimSpace(r.CredentialRef.Field) == "" || strings.TrimSpace(r.CredentialRef.Version) == "" {
+		return errors.New("credential_ref requires logical_id, field, and opaque version")
+	}
+	return nil
+}
+
+func (r VerificationRequest) validateContext() error {
 	if len(r.Context) > maxMetadataEntries {
 		return errors.New("verification context has too many entries")
 	}
@@ -180,6 +208,10 @@ func (r VerificationRequest) Validate() error {
 			return errors.New("verification context metadata is too large")
 		}
 	}
+	return nil
+}
+
+func (r VerificationRequest) validateRevisions() error {
 	if r.ContextDigest != "" && !validDigest(r.ContextDigest) {
 		return errors.New("context_digest must be a lowercase SHA-256 digest")
 	}
@@ -192,6 +224,10 @@ func (r VerificationRequest) Validate() error {
 			return fmt.Errorf("%s is invalid", field)
 		}
 	}
+	return nil
+}
+
+func (r VerificationRequest) validateEffect() error {
 	if r.Effect.Class != EffectReadOnly && r.Effect.Class != EffectBoundedWrite {
 		return errors.New("verification effect class must be read_only or bounded_write")
 	}
@@ -201,6 +237,10 @@ func (r VerificationRequest) Validate() error {
 	if r.Effect.Class == EffectBoundedWrite && r.Effect.MaxOperations == 0 {
 		return errors.New("bounded_write verification requires a positive effect budget")
 	}
+	return nil
+}
+
+func (r VerificationRequest) validateTimeout() error {
 	if r.Timeout < 0 || r.Timeout > 15*time.Minute {
 		return errors.New("verification timeout is outside the supported bound")
 	}

@@ -56,7 +56,7 @@ Degraded ◀────────  Heal ◀───────────�
   - Backoff: 1 minute, doubling to a 15-minute cap, reset by the first healthy
     tick.
 - **Verify** runs one tick against the freshly adopted API.
-- **Healthy** ticks every `--interval` seconds (default 60) and re-runs the
+- **Healthy** ticks every `--interval` seconds (default 60), paced from the start of the previous tick, and re-runs the
   preflight every 60 ticks. After `--max-failures` consecutive tick failures it
   asks whether autoheal still answers on the adopted port: a live process whose
   ticks fail is busy, not dead (Degraded); a silent one is what Heal is for.

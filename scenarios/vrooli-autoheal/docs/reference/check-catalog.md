@@ -524,37 +524,6 @@ graphical-session layer and makes no statement about RDP.
 
 ---
 
-### infra-certificate
-
-**Purpose:** Monitor SSL/TLS certificate expiration.
-
-| Property | Value |
-|----------|-------|
-| ID | `infra-certificate` |
-| Category | Infrastructure |
-| Interval | 3600 seconds (1 hour) |
-| Platforms | All |
-| Importance | High |
-
-**What it checks:**
-- Certificate expiration dates in ~/.cloudflared/
-- System certificate paths
-
-**Status mapping:**
-| Status | Condition |
-|--------|-----------|
-| OK | All certs > 7 days until expiry |
-| Warning | At least one cert expires within 7 days |
-| Critical | At least one cert expires within 3 days |
-
-**Troubleshooting:**
-- Check cert: `openssl x509 -in ~/.cloudflared/cert.pem -noout -dates`
-- Renew cloudflared: `cloudflared login`
-
-[Detailed documentation](checks/infra-certificate.md)
-
----
-
 ### infra-display
 
 **Purpose:** Monitor display manager and X11/Wayland on Linux.

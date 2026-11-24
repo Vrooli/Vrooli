@@ -143,6 +143,9 @@ func newTestRegistry() *Registry {
 		RestartActionTimeout: DefaultRestartActionTimeout,
 		TimeoutRetryCooldown: DefaultTimeoutRetryCooldown,
 	})
+	// Unrelated heal tests act on the first failed probe; the confirmation rule
+	// has its own tests that restore the defaults.
+	reg.SetFailureConfirmation(1, 0)
 	return reg
 }
 

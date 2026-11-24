@@ -16,9 +16,12 @@ import (
 
 func TestRuntimeCatalogPinsDefaultAndAlternateAcrossSupportedTargets(t *testing.T) {
 	platforms := []struct{ os, arch string }{
-		{"linux", "amd64"}, {"linux", "arm64"},
-		{"darwin", "amd64"}, {"darwin", "arm64"},
-		{"windows", "amd64"}, {"windows", "arm64"},
+		{"linux", "amd64"},
+		{"linux", "arm64"},
+		{"darwin", "amd64"},
+		{"darwin", "arm64"},
+		{"windows", "amd64"},
+		{"windows", "arm64"},
 	}
 	toolData, err := tools.Manifests.ReadFile("node/tool.json")
 	if err != nil {

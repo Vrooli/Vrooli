@@ -14,19 +14,19 @@ type sequenceRecoveryGate struct {
 	calls   int
 }
 
-func (g *sequenceRecoveryGate) AllowsAutoHealRestart(_ context.Context, _, _ string) (bool, string) {
+func (g *sequenceRecoveryGate) AllowsAutoHealRestart(_ context.Context, _, _ string) GateVerdict {
 	g.calls++
 	if len(g.allowed) == 0 {
-		return true, ""
+		return GateAllowed
 	}
 	index := g.calls - 1
 	if index >= len(g.allowed) {
 		index = len(g.allowed) - 1
 	}
 	if !g.allowed[index] {
-		return false, fmt.Sprintf("owner gate call %d refused", g.calls)
+		return GateVerdict{Class: GateClassEpoch, Reason: fmt.Sprintf("owner gate call %d refused", g.calls)}
 	}
-	return true, ""
+	return GateAllowed
 }
 
 func TestRunAutoHealRefreshesRecoveryOwnershipBeforeAction(t *testing.T) {

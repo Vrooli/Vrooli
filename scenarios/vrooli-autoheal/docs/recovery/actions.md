@@ -49,7 +49,6 @@ This ensures you get accurate feedback about whether recovery actually worked.
 | infra-docker | Start, Restart, Prune, Logs, Info, Open Desktop | Yes (start/restart) | systemctl for Linux, Docker Desktop for macOS |
 | infra-cloudflared | Start, Restart, Test Tunnel, Logs, Diagnose | Yes (start/restart) | Cloudflare tunnel service |
 | infra-dns | Restart Resolved, Flush Cache, Test External | Yes (restart) | DNS resolution checks |
-| infra-resolved | Start, Restart, Flush Cache, Logs | Yes (start/restart) | systemd-resolved service |
 | infra-ntp | Enable NTP, Force Sync | Yes | Time synchronization |
 
 ### System Checks

@@ -36,7 +36,7 @@ type Config struct {
 	TemporaryActivity  func(context.Context, uint32) (storageactivity.Snapshot, error)
 	LocalAdmission     *LocalAdmissionManager
 	KernelMemory       func() (hostinventory.KernelMemoryReport, error)
-	KernelMemoryStacks func(context.Context) (hostinventory.KernelMemoryStackReport, error)
+	KernelMemoryStacks func(context.Context, string) (hostinventory.KernelMemoryStackReport, error)
 }
 
 // Executor is the narrow test seam. Implementations receive only broker-built
@@ -64,8 +64,8 @@ func New(config Config) (*Broker, error) {
 		config.KernelMemory = hostinventory.ReadKernelMemory
 	}
 	if config.KernelMemoryStacks == nil {
-		config.KernelMemoryStacks = func(ctx context.Context) (hostinventory.KernelMemoryStackReport, error) {
-			return sampleKernelMemoryStacks(ctx, config.Executor)
+		config.KernelMemoryStacks = func(ctx context.Context, sortBy string) (hostinventory.KernelMemoryStackReport, error) {
+			return sampleKernelMemoryStacks(ctx, config.Executor, sortBy)
 		}
 	}
 	if config.LocalAdmission != nil && config.LocalAdmission.Policy.UID != config.AllowedUID {
@@ -171,7 +171,11 @@ func (b *Broker) dispatch(ctx context.Context, req Request) Result {
 	case ActionKernelMemoryStackSample:
 		operation, cancel := context.WithTimeout(ctx, kernelMemoryStackSampleTimeout)
 		defer cancel()
-		report, err := b.config.KernelMemoryStacks(operation)
+		sortBy := ""
+		if req.KernelMemory != nil {
+			sortBy = req.KernelMemory.Sort
+		}
+		report, err := b.config.KernelMemoryStacks(operation, sortBy)
 		if err != nil {
 			result := NewFailure(req.RequestID, req.Action, "kernel_memory_stack_sample_unavailable")
 			result.Evidence.Detail = err.Error()
@@ -180,6 +184,10 @@ func (b *Broker) dispatch(ctx context.Context, req Request) Result {
 		return Result{Status: "completed", KernelMemoryStacks: &report}
 	case ActionServiceRecover:
 		return executeServiceRecovery(ctx, b.config.Executor, req)
+	case ActionSystemReboot:
+		return executeSystemReboot(ctx, b.config.Executor, req)
+	case ActionSystemRebootCancel:
+		return executeSystemRebootCancel(ctx, b.config.Executor, req)
 	case ActionLocalAdmissionInspect, ActionLocalAdmissionEnsure, ActionLocalAdmissionRevoke:
 		if b.config.LocalAdmission == nil {
 			return NewFailure(req.RequestID, req.Action, "local_admission_not_installed")

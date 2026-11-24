@@ -10,7 +10,7 @@ import (
 	"time"
 
 	repocontract "github.com/vrooli/repo-contract-go"
-	"github.com/vrooli/vrooli/internal/statecontract"
+	"github.com/vrooli/vrooli/internal/stateformat"
 )
 
 func TestRootAttemptRecordsOnlyBoundedObservations(t *testing.T) {
@@ -38,7 +38,7 @@ func TestRootAttemptRecordsOnlyBoundedObservations(t *testing.T) {
 		t.Fatalf("unexpected identity or leaked input: %s", b)
 	}
 	info, err := os.Stat(a.path)
-	if err != nil || info.Mode().Perm() != 0600 {
+	if err != nil || info.Mode().Perm() != 0o600 {
 		t.Fatalf("record permissions: %v %v", info, err)
 	}
 	other := Begin(home, "rebaseline")
@@ -56,7 +56,7 @@ func TestRootAttemptPrunesOnlyOldObservations(t *testing.T) {
 		t.Fatal(err)
 	}
 	dir := filepath.Join(state, "root-rebaseline", "attempts")
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	oldAttempt := Begin(home, "install")
@@ -65,7 +65,7 @@ func TestRootAttemptPrunesOnlyOldObservations(t *testing.T) {
 	foreign := filepath.Join(dir, "keep.json")
 	malformed := filepath.Join(dir, "20000101T000000.000000000Z-00000000000000000000000000000000.json")
 	for _, p := range []string{foreign, malformed} {
-		if err := os.WriteFile(p, []byte("{}"), 0600); err != nil {
+		if err := os.WriteFile(p, []byte("{}"), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -100,10 +100,10 @@ func TestRootAttemptFailureIsBestEffort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(state, 0700); err != nil {
+	if err := os.MkdirAll(state, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(state, "root-rebaseline"), nil, 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(state, "root-rebaseline"), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	a := Begin(home, "install")
@@ -114,17 +114,38 @@ func TestRootAttemptFailureIsBestEffort(t *testing.T) {
 	a.Identities("", "")
 }
 
+func scopedManifest(t *testing.T, stores ...stateformat.Store) stateformat.Manifest {
+	t.Helper()
+	if err := stateformat.SortStores(stores); err != nil {
+		t.Fatal(err)
+	}
+	manifest := stateformat.Manifest{Format: stateformat.ManifestFormat, Stores: stores}
+	if err := manifest.Seal(); err != nil {
+		t.Fatal(err)
+	}
+	return manifest
+}
+
+func scopedStore(t *testing.T, name, label string) stateformat.Store {
+	t.Helper()
+	digest, err := stateformat.DigestSchema(label)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return stateformat.Store{Name: name, Write: 1, Reads: []stateformat.Version{1}, Schemas: map[stateformat.Version]string{1: digest}}
+}
+
 func TestOwnerAttributionUsesManifestDigestsAndBoundIdentities(t *testing.T) {
 	a := Begin(t.TempDir(), "install")
-	p := statecontract.Manifest{Version: 1, Contract: strings.Repeat("a", 64), Toolchain: "go1", Owners: []statecontract.OwnerManifest{{Owner: "changed", Digest: "one"}, {Owner: "removed", Digest: "gone"}, {Owner: "same", Digest: "same"}}}
-	c := statecontract.Manifest{Version: 1, Contract: strings.Repeat("b", 64), Toolchain: "go2", Owners: []statecontract.OwnerManifest{{Owner: "changed", Digest: "two"}, {Owner: "added", Digest: "new"}, {Owner: "same", Digest: "same"}}}
-	a.Identities(p.Contract, c.Contract)
+	p := scopedManifest(t, scopedStore(t, "changed", "one"), scopedStore(t, "removed", "gone"), scopedStore(t, "same", "same"))
+	c := scopedManifest(t, scopedStore(t, "changed", "two"), scopedStore(t, "added", "new"), scopedStore(t, "same", "same"))
+	a.Identities(p.Digest, c.Digest)
 	a.attributeManifests(p, c)
 	a.Event("refused", "state_contract_changed")
-	if a.record.Attribution != "compared_toolchain_changed" || strings.Join(a.record.Owners, ",") != "added,changed,removed" {
+	if a.record.Attribution != "compared" || strings.Join(a.record.Owners, ",") != "added,changed,removed" {
 		t.Fatalf("bad attribution: %+v", a.record)
 	}
-	a.Identities(strings.Repeat("c", 64), c.Contract)
+	a.Identities(strings.Repeat("c", 64), c.Digest)
 	a.record.Owners = nil
 	a.attributeManifests(p, c)
 	if a.record.Attribution != "identity_mismatch" || len(a.record.Owners) != 0 {
@@ -154,9 +175,9 @@ func TestOperationIdentityIsBoundedAndPersisted(t *testing.T) {
 
 func TestAttributionRejectsUnsafeOwnerNames(t *testing.T) {
 	a := Begin(t.TempDir(), "install")
-	p := statecontract.Manifest{Version: 1, Contract: strings.Repeat("a", 64), Owners: []statecontract.OwnerManifest{{Owner: "/private/path", Digest: "one"}}}
-	c := statecontract.Manifest{Version: 1, Contract: strings.Repeat("b", 64)}
-	a.Identities(p.Contract, c.Contract)
+	p := scopedManifest(t, scopedStore(t, "/private/path", "one"), scopedStore(t, "safe", "same"))
+	c := scopedManifest(t, scopedStore(t, "safe", "same"))
+	a.Identities(p.Digest, c.Digest)
 	a.attributeManifests(p, c)
 	a.Event("qualification", "state_contract_changed")
 	data, err := os.ReadFile(a.path)
@@ -273,7 +294,7 @@ func TestPruneRemovesOnlyOldObservationTemps(t *testing.T) {
 	recent := filepath.Join(dir, ".observation-456")
 	foreign := filepath.Join(dir, ".observation-foreign")
 	for _, path := range []string{old, recent, foreign} {
-		if err := os.WriteFile(path, nil, 0600); err != nil {
+		if err := os.WriteFile(path, nil, 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}

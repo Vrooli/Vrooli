@@ -77,7 +77,7 @@ func TestTrackerMutationWaitsForPersistenceWithoutBlockingStatus(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("mutation did not complete")
 	}
-	reg.observeScenarioHealth(Result{CheckID: "scenario-app", Status: StatusOK})
+	reg.observeHealth(Result{CheckID: "scenario-app", Status: StatusOK})
 	loaded, err := store.GetAllHealTrackers(t.Context())
 	if err != nil || loaded["scenario-app"] == nil || loaded["scenario-app"].ConsecutiveFailures != 0 || !loaded["scenario-app"].UnhealthySince.IsZero() {
 		t.Fatalf("newer recovery was not durable: %+v %v", loaded, err)

@@ -248,3 +248,14 @@ func ValidType(value string) bool {
 		return false
 	}
 }
+
+// OpenSummary is the one reading of the open incident backlog: how many are
+// open, how many are critical, and how old they are by when they opened.
+type OpenSummary struct {
+	Open           int `json:"open"`
+	Critical       int `json:"critical"`
+	OldestAgeHours int `json:"oldestAgeHours"`
+	UnderOneDay    int `json:"underOneDay"`
+	OneToSevenDays int `json:"oneToSevenDays"`
+	OverSevenDays  int `json:"overSevenDays"`
+}

@@ -183,6 +183,45 @@ func TestSupervisionControllerReconcilesCanonicalSetAndAdditiveOverrides(t *test
 	}
 }
 
+func TestImportantMemberIsTrackedWithoutCoreStartLease(t *testing.T) {
+	t.Setenv("VROOLI_ROOT", filepath.Clean("../../../../.."))
+	tmp := t.TempDir()
+	mgr := userconfig.NewManager(filepath.Join(tmp, "config.json"), filepath.Join(tmp, "schema.json"))
+	if err := mgr.Load(); err != nil {
+		t.Fatal(err)
+	}
+	executor := &mutableSupervisionExecutor{}
+	important := supervisedMember("important-app", coreset.MemberKindScenario, coreset.IntentTryStart)
+	important.AttributionChain[len(important.AttributionChain)-1].Source = "core.important"
+	executor.set(supervisionReport(important), nil)
+	demandClient := &coreDemandFixture{}
+	registry := checks.NewRegistry(&platform.Capabilities{Platform: platform.Linux})
+	controller := NewSupervisionController(registry, mgr, NewSupervisionSource(executor), demandClient)
+	if _, err := controller.Refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	check, ok := registry.GetCheck("scenario-important-app")
+	if !ok {
+		t.Fatal("important member was not registered for monitoring")
+	}
+	scenario, ok := check.(*checksvrooli.ScenarioCheck)
+	if !ok || scenario.IsCritical() {
+		t.Fatalf("important check=%T critical=%v; want monitor-only", check, ok && scenario.IsCritical())
+	}
+	if len(demandClient.acquires) != 0 {
+		t.Fatalf("important entry acquired core start leases: %+v", demandClient.acquires)
+	}
+
+	executor.set(supervisionReport(), errors.New("canonical source unavailable"))
+	snapshot, err := controller.Refresh(context.Background())
+	if err != nil || !snapshot.Degraded {
+		t.Fatalf("failed source refresh should retain last-known-good policy: snapshot=%+v err=%v", snapshot, err)
+	}
+	if _, ok := registry.GetCheck("scenario-important-app"); !ok {
+		t.Fatal("failed source refresh removed last-known-good important check")
+	}
+}
+
 func TestSupervisionControllerReconcilesCoreDemandLeases(t *testing.T) {
 	t.Setenv("VROOLI_ROOT", filepath.Clean("../../../../.."))
 	tmp := t.TempDir()
@@ -292,5 +331,37 @@ func TestSupervisionSourceCheckReportsDemandLeaseFailure(t *testing.T) {
 	}
 	if result.Details["demandLeaseErrors"] == nil {
 		t.Fatalf("demand lease failure was not exposed: %+v", result.Details)
+	}
+}
+
+func TestSupervisionSourceTreatsControlPlaneFallbackAsPartial(t *testing.T) {
+	executor := &mutableSupervisionExecutor{}
+	full := supervisionReport(
+		supervisedMember("search-hub", coreset.MemberKindScenario, coreset.IntentMustStart),
+		supervisedMember("notification-hub", coreset.MemberKindScenario, coreset.IntentMustStart),
+	)
+	executor.set(full, nil)
+	source := NewSupervisionSource(executor)
+	if _, err := source.Load(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	// 2026-11-20: the closure failed and the control plane returned its seed set as source "fallback".
+	seedOnly := supervisionReport(supervisedMember("search-hub", coreset.MemberKindScenario, coreset.IntentMustStart))
+	seedOnly.Source = "fallback"
+	seedOnly.LoadErrors = map[string]string{"closure": "dependency graph contains a cycle"}
+	executor.set(seedOnly, nil)
+	snap, err := source.Load(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !snap.Partial || !snap.Degraded || len(snap.Report.Members) != 2 {
+		t.Fatalf("fallback must keep the larger last-known-good set and be marked partial: %+v", snap)
+	}
+
+	// With no better set, the fallback is still used (never an empty set) but stays partial.
+	fresh := NewSupervisionSource(executor)
+	snap, err = fresh.Load(context.Background())
+	if err != nil || !snap.Partial || len(snap.Report.Members) != 1 {
+		t.Fatalf("fallback without last-known-good = %+v, %v", snap, err)
 	}
 }

@@ -1,3 +1,6 @@
+// Package nodejsruntime installs and selects the pinned Node.js runtime used
+// by control-plane tooling, so the host PATH and system Node version never
+// decide what a build or test actually runs.
 package nodejsruntime
 
 import (

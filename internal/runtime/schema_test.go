@@ -43,29 +43,6 @@ func loadToolSchema(t *testing.T) *jsonschema.Schema {
 	return schema
 }
 
-func embeddedToolManifests(t *testing.T) map[string][]byte {
-	t.Helper()
-	manifests := map[string][]byte{}
-	err := fs.WalkDir(tools.Manifests, ".", func(path string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if d.IsDir() || d.Name() != "tool.json" {
-			return nil
-		}
-		data, err := fs.ReadFile(tools.Manifests, path)
-		if err != nil {
-			return err
-		}
-		manifests[path] = data
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("walk tool manifests: %v", err)
-	}
-	return manifests
-}
-
 func validateAgainst(t *testing.T, schema *jsonschema.Schema, raw string) error {
 	t.Helper()
 	var payload any

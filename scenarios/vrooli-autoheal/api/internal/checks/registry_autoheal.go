@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -21,7 +23,23 @@ type AutoHealResult struct {
 	Suspended           bool          `json:"suspended,omitempty"`
 	SuspensionReason    string        `json:"suspensionReason,omitempty"`
 	RecoveryRequestID   string        `json:"recoveryRequestId,omitempty"`
+	SkipClass           string        `json:"skipClass,omitempty"` // Why it wasn't attempted, as one of the Skip* classes
+	Started             bool          `json:"started,omitempty"`   // The heal was handed to the background and has not finished
 }
+
+// Skip classes name why a heal did not run. A skip is an outcome, never a
+// failed heal: measures count it apart from attempts that ran and failed.
+// Gate and hold classes (GateClass*) are also skip classes.
+const (
+	SkipNotEnabled   = "not-enabled"
+	SkipNoAction     = "no-action"
+	SkipSuspended    = "suspended"
+	SkipCooldown     = "cooldown"
+	SkipNotConfirmed = "not-confirmed"
+	SkipRecovered    = "recovered"
+	SkipAgentOwned   = "agent-owned"
+	SkipInFlight     = "in-flight"
+)
 
 // healCandidate represents a check that needs healing with its metadata
 type healCandidate struct {
@@ -32,26 +50,71 @@ type healCandidate struct {
 	detectedPID    int // PID at detection time (0 if unknown); used to prevent killing a new process
 }
 
-// getHealPriority returns priority for a check (lower = more important)
-// Priority order: Resources (1) > Scenarios (2) > Others (3)
+// getHealPriority returns priority for a check (lower = more important).
+// Order: the core recovery plane (0) > resources (1) > other scenarios (2) >
+// everything else (3). The per-tick action cap used to cut web-console behind
+// resource-whisper starts; the cap now only ever cuts non-core work.
 func getHealPriority(checkID string) int {
 	switch {
-	case len(checkID) > 9 && checkID[:9] == "resource-":
+	case coreRecoveryCheck(checkID):
+		return 0
+	case strings.HasPrefix(checkID, "resource-"):
 		return 1 // Resources (postgres, redis, etc.) are infrastructure
-	case len(checkID) > 9 && checkID[:9] == "scenario-":
+	case strings.HasPrefix(checkID, "scenario-"):
 		return 2 // Scenarios depend on API and resources
 	default:
 		return 3 // Unknown checks get lowest priority
 	}
 }
 
-// RunAutoHeal attempts to auto-heal any critical checks that have auto-heal enabled.
-// It runs the first available recovery action for each failing check.
-// Implements cooldown and rate limiting to prevent thrashing on flapping services.
-// Actions are prioritized (API > resources > scenarios) and run in parallel with limits.
-// Returns a list of auto-heal results.
-// [REQ:CONFIG-CHECK-001] [REQ:HEAL-ACTION-001]
+// RunAutoHeal plans the heals for the failing checks and runs them to
+// completion before returning: the synchronous form, for callers that need the
+// outcome in hand. The tick uses StartAutoHeal instead, so a slow restart
+// cannot hold up the next observation of the core.
 func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHealResult {
+	planned, jobs := r.planAutoHeal(ctx, results)
+	r.executeHealJobs(ctx, jobs, func(result AutoHealResult) { planned = append(planned, result) })
+	return planned
+}
+
+// StartAutoHeal plans the heals and runs them in the background, one goroutine
+// per call. It returns at once with every skip and a "started" entry per heal;
+// done receives each heal's result when it finishes. Before this, heals ran
+// inside the tick one after another (a restart is 45-77 s), so a tick took up
+// to 2 minutes and the core went unobserved for 592 s. A check with a heal in
+// flight is skipped by the next plan, so an overlapping tick never doubles a
+// restart.
+func (r *Registry) StartAutoHeal(ctx context.Context, results []Result, done func(AutoHealResult)) []AutoHealResult {
+	planned, jobs := r.planAutoHeal(ctx, results)
+	for _, job := range jobs {
+		planned = append(planned, AutoHealResult{CheckID: job.result.CheckID, Started: true,
+			Reason: "heal " + job.selectedAction.ID + " started in the background; its result is recorded in action history"})
+	}
+	if len(jobs) > 0 {
+		r.healWG.Add(1)
+		go func() {
+			defer r.healWG.Done()
+			roundCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), HealRoundTimeout)
+			defer cancel()
+			r.executeHealJobs(roundCtx, jobs, done)
+		}()
+	}
+	return planned
+}
+
+// WaitForHeals blocks until every background heal has finished (shutdown, tests).
+func (r *Registry) WaitForHeals() { r.healWG.Wait() }
+
+func (r *Registry) healInFlight(checkID string) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	_, running := r.healing[checkID]
+	return running
+}
+
+// planAutoHeal selects, orders and caps the heals for this tick and marks each
+// as in flight. Everything it skips is returned with its class.
+func (r *Registry) planAutoHeal(ctx context.Context, results []Result) ([]AutoHealResult, []healCandidate) {
 	autoHealResults := make([]AutoHealResult, 0)
 	candidates := make([]healCandidate, 0)
 	now := r.now()
@@ -60,7 +123,11 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 
 	// Phase 1: Collect and filter candidates
 	for _, result := range results {
-		r.observeScenarioHealth(result)
+		r.observeHealth(result)
+		r.releaseHold(ctx, result)
+		// Lift a stale suspension for every failing check, including ones whose
+		// severity never triggers a heal: a suspension must not outlive its bound.
+		r.expireStaleSuspension(result.CheckID, now)
 		if admission, pending := r.nativeRecoveryPending(result.CheckID); pending && r.shouldTriggerAutoHeal(result) {
 			autoHealResults = append(autoHealResults, pendingRecoveryResult(result.CheckID, admission))
 			continue
@@ -71,6 +138,7 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 				CheckID:           result.CheckID,
 				Attempted:         false,
 				Reason:            "coding-agent recovery receipt retained: " + admission.Outcome,
+				SkipClass:         SkipAgentOwned,
 				RecoveryRequestID: admission.RequestID,
 			})
 			if admission.NativePending {
@@ -87,6 +155,7 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 				CheckID:   result.CheckID,
 				Attempted: false,
 				Reason:    "auto-heal policy not configured",
+				SkipClass: SkipNotEnabled,
 			})
 			continue
 		}
@@ -96,7 +165,16 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 			autoHealResults = append(autoHealResults, AutoHealResult{
 				CheckID:   result.CheckID,
 				Attempted: false,
-				Reason:    "auto-heal not enabled for this check",
+				Reason:    "auto-heal not enabled for this check" + repairOwnerNote(result),
+				SkipClass: SkipNotEnabled,
+			})
+			continue
+		}
+
+		if r.healInFlight(result.CheckID) {
+			autoHealResults = append(autoHealResults, AutoHealResult{
+				CheckID: result.CheckID, Attempted: false, SkipClass: SkipInFlight,
+				Reason: "a heal for this check is already running",
 			})
 			continue
 		}
@@ -109,6 +187,7 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 				CheckID:             result.CheckID,
 				Attempted:           false,
 				Reason:              "auto-heal suspended: " + tracker.SuspensionReason,
+				SkipClass:           SkipSuspended,
 				ConsecutiveFailures: tracker.ConsecutiveFailures,
 				Suspended:           true,
 				SuspensionReason:    tracker.SuspensionReason,
@@ -120,6 +199,7 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 				CheckID:             result.CheckID,
 				Attempted:           false,
 				Reason:              fmt.Sprintf("in cooldown (%.0fs remaining)", tracker.CooldownRemainingAt(now).Seconds()),
+				SkipClass:           SkipCooldown,
 				CooldownRemaining:   tracker.CooldownRemainingAt(now),
 				ConsecutiveFailures: tracker.ConsecutiveFailures,
 			})
@@ -132,7 +212,8 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 			autoHealResults = append(autoHealResults, AutoHealResult{
 				CheckID:   result.CheckID,
 				Attempted: false,
-				Reason:    "check does not support healing",
+				Reason:    "check does not support healing" + repairOwnerNote(result),
+				SkipClass: SkipNoAction,
 			})
 			continue
 		}
@@ -151,14 +232,22 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 			autoHealResults = append(autoHealResults, AutoHealResult{
 				CheckID:   result.CheckID,
 				Attempted: false,
-				Reason:    "no auto-heal recovery action available",
+				Reason:    "no auto-heal recovery action available" + repairOwnerNote(result),
+				SkipClass: SkipNoAction,
+			})
+			continue
+		}
+		if strings.HasPrefix(result.CheckID, "scenario-") && selectedAction.ID != "start" && !r.failureConfirmed(result.CheckID) {
+			autoHealResults = append(autoHealResults, AutoHealResult{
+				CheckID: result.CheckID, Attempted: false, SkipClass: SkipNotConfirmed,
+				Reason: fmt.Sprintf("failure not yet confirmed: a scenario restart needs %d consecutive failed probes at least %s apart", r.confirmProbes, r.confirmSpan),
 			})
 			continue
 		}
 		if _, gatedAction := gatedActionIDs[selectedAction.ID]; gatedAction {
-			if allowed, reason := r.allowsGatedHeal(ctx, result.CheckID, selectedAction.ID); !allowed {
+			if allowed, class, reason := r.allowsGatedHeal(ctx, result.CheckID, selectedAction.ID); !allowed {
 				autoHealResults = append(autoHealResults, AutoHealResult{
-					CheckID: result.CheckID, Attempted: false, Reason: reason,
+					CheckID: result.CheckID, Attempted: false, SkipClass: class, Reason: reason,
 				})
 				continue
 			}
@@ -185,127 +274,180 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 	}
 
 	// Phase 2: Sort candidates by priority (lower priority number = more important)
-	for i := 0; i < len(candidates)-1; i++ {
-		for j := i + 1; j < len(candidates); j++ {
-			if candidates[j].priority < candidates[i].priority {
-				candidates[i], candidates[j] = candidates[j], candidates[i]
+	sort.SliceStable(candidates, func(i, j int) bool { return candidates[i].priority < candidates[j].priority })
+
+	// Phase 3: Limit number of actions. Heals still running from earlier ticks
+	// use slots, and a candidate cut by the cap is a held restart, not a quiet
+	// skip: it is retried next tick, and held past TickCapCriticalAfter it turns
+	// the check critical and opens an incident. The core is never cut: a slot is
+	// always found for every core candidate.
+	limit := MaxAutoHealActionsPerTick - r.healInFlightCount()
+	for core := 0; core < len(candidates) && candidates[core].priority == 0; core++ {
+		limit = max(limit, core+1)
+	}
+	if len(candidates) > limit {
+		for _, c := range candidates[limit:] {
+			reason := fmt.Sprintf("deferred to next tick (max %d heals at once, lower priority)", MaxAutoHealActionsPerTick)
+			hold := r.noteHold(c.result.CheckID, GateVerdict{Class: GateClassTickCap, Reason: reason, CriticalAfter: TickCapCriticalAfter}, now)
+			if r.now().Sub(hold.Since) >= hold.CriticalAfter {
+				r.openHoldIncident(ctx, c.result.CheckID, hold)
 			}
+			autoHealResults = append(autoHealResults, AutoHealResult{CheckID: c.result.CheckID, Attempted: false, SkipClass: GateClassTickCap, Reason: reason})
 		}
+		candidates = candidates[:limit]
 	}
-
-	// Phase 3: Limit number of actions per tick
-	if len(candidates) > MaxAutoHealActionsPerTick {
-		// Mark excess candidates as skipped
-		for _, c := range candidates[MaxAutoHealActionsPerTick:] {
-			autoHealResults = append(autoHealResults, AutoHealResult{
-				CheckID:   c.result.CheckID,
-				Attempted: false,
-				Reason:    fmt.Sprintf("deferred to next tick (max %d actions per tick, lower priority)", MaxAutoHealActionsPerTick),
-			})
-		}
-		candidates = candidates[:MaxAutoHealActionsPerTick]
+	r.mu.Lock()
+	if r.healing == nil {
+		r.healing = make(map[string]struct{})
 	}
-
-	// Phase 4: Execute heal actions with per-action timeout.
-	// Before each action, re-run the health check to guard against TOCTOU races
-	// (e.g., a slow tick detects unhealthy at T=0, but by T=90s a fresh process is healthy).
-	// Also verify that the process PID hasn't changed, which indicates a new process
-	// replaced the unhealthy one and the heal action is no longer needed.
-	if len(candidates) == 0 {
-		return autoHealResults
-	}
-
 	for _, c := range candidates {
-		// Check context before executing
-		select {
-		case <-ctx.Done():
-			actionResult := ActionResult{
-				ActionID:  c.selectedAction.ID,
-				CheckID:   c.result.CheckID,
-				Timestamp: time.Now(),
-				Success:   false,
-				Error:     "context cancelled",
-				Message:   "Heal action cancelled due to timeout",
-			}
-			r.updateHealTracker(c.result.CheckID, outcomeFailure)
-			updatedTracker := r.getHealTrackerSnapshot(c.result.CheckID)
-			r.recordHealIncident(ctx, c.result.CheckID, c.selectedAction.ID, actionResult, outcomeFailure, updatedTracker)
-			autoHealResults = append(autoHealResults, AutoHealResult{
-				CheckID:             c.result.CheckID,
-				Attempted:           true,
-				ActionResult:        actionResult,
-				CooldownRemaining:   updatedTracker.CooldownRemainingAt(r.now()),
-				ConsecutiveFailures: updatedTracker.ConsecutiveFailures,
-				Suspended:           updatedTracker.IsSuspended(),
-				SuspensionReason:    updatedTracker.SuspensionReason,
-			})
-			continue
-		default:
-		}
+		r.healing[c.result.CheckID] = struct{}{}
+	}
+	r.mu.Unlock()
+	return autoHealResults, candidates
+}
 
-		// Pre-heal recheck: re-run the health check to verify the target is
-		// still unhealthy. This prevents the TOCTOU race where detection happens
-		// long before execution (e.g., due to SQLITE_BUSY delays or earlier
-		// heal actions taking time).
-		if skipped := r.preHealRecheck(ctx, c, &autoHealResults); skipped {
-			continue
-		}
-		// A native investigation may have been admitted after collection or by
-		// another requester. Refresh before the mechanical effect, independently
-		// of failure streaks and cooldowns (which healthy observations can reset).
-		r.refreshRecoveryOwnership(ctx)
-		if admission, pending := r.nativeRecoveryPending(c.result.CheckID); pending {
-			autoHealResults = append(autoHealResults, pendingRecoveryResult(c.result.CheckID, admission))
-			continue
-		}
-		// The owner can enter coordinated maintenance while this tick is
-		// rechecking health. Refresh the same gate immediately before invoking
-		// the action so a stale phase-one observation cannot race the lifecycle.
-		if _, gatedAction := gatedActionIDs[c.selectedAction.ID]; gatedAction {
-			if allowed, reason := r.allowsGatedHeal(ctx, c.result.CheckID, c.selectedAction.ID); !allowed {
-				autoHealResults = append(autoHealResults, AutoHealResult{
-					CheckID: c.result.CheckID, Attempted: false, Reason: reason,
-				})
-				continue
-			}
-		}
+func (r *Registry) healInFlightCount() int {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return len(r.healing)
+}
 
-		actionCtx, cancel := context.WithTimeout(ctx, r.actionTimeoutFor(c.selectedAction.ID))
-		actionResult := r.executeAutoHealActionWithTimeout(actionCtx, c)
-		cancel()
+// executeHealJobs runs the planned heals one after another, each with its own
+// action timeout, and reports every result through emit. Before each action it
+// re-runs the health check to guard against TOCTOU races (a heal planned at
+// T=0 whose target is healthy by T=90 s) and verifies the process PID has not
+// changed, which means a new process replaced the unhealthy one.
+func (r *Registry) executeHealJobs(ctx context.Context, candidates []healCandidate, emit func(AutoHealResult)) {
+	for _, c := range candidates {
+		r.executeHealJob(ctx, c, emit)
+		r.mu.Lock()
+		delete(r.healing, c.result.CheckID)
+		r.mu.Unlock()
+	}
+}
 
-		// Update heal tracker based on result
-		outcome := outcomeFromActionResult(actionResult)
-		r.updateHealTracker(c.result.CheckID, outcome)
-
-		// Get updated tracker for result
+// executeHealJob runs one planned heal.
+func (r *Registry) executeHealJob(ctx context.Context, c healCandidate, emit func(AutoHealResult)) {
+	// Check context before executing
+	select {
+	case <-ctx.Done():
+		actionResult := ActionResult{
+			ActionID:  c.selectedAction.ID,
+			CheckID:   c.result.CheckID,
+			Timestamp: time.Now(),
+			Success:   false,
+			Error:     "context cancelled",
+			Message:   "Heal action cancelled due to timeout",
+		}
+		r.updateHealTracker(c.result.CheckID, outcomeFailure)
 		updatedTracker := r.getHealTrackerSnapshot(c.result.CheckID)
-		r.recordHealIncident(ctx, c.result.CheckID, c.selectedAction.ID, actionResult, outcome, updatedTracker)
-		autoHealResults = append(autoHealResults, AutoHealResult{
+		r.recordHealIncident(ctx, c.result.CheckID, c.selectedAction.ID, actionResult, outcomeFailure, updatedTracker)
+		emit(AutoHealResult{
 			CheckID:             c.result.CheckID,
 			Attempted:           true,
 			ActionResult:        actionResult,
-			TimedOut:            actionResult.TimedOut,
 			CooldownRemaining:   updatedTracker.CooldownRemainingAt(r.now()),
 			ConsecutiveFailures: updatedTracker.ConsecutiveFailures,
 			Suspended:           updatedTracker.IsSuspended(),
 			SuspensionReason:    updatedTracker.SuspensionReason,
 		})
+		return
+	default:
 	}
 
-	return autoHealResults
+	// Pre-heal recheck: re-run the health check to verify the target is
+	// still unhealthy. This prevents the TOCTOU race where detection happens
+	// long before execution (e.g., due to SQLITE_BUSY delays or earlier
+	// heal actions taking time).
+	if skipped := r.preHealRecheck(ctx, c, emit); skipped {
+		return
+	}
+	// A native investigation may have been admitted after collection or by
+	// another requester. Refresh before the mechanical effect, independently
+	// of failure streaks and cooldowns (which healthy observations can reset).
+	r.refreshRecoveryOwnership(ctx)
+	if admission, pending := r.nativeRecoveryPending(c.result.CheckID); pending {
+		emit(pendingRecoveryResult(c.result.CheckID, admission))
+		return
+	}
+	// The owner can enter coordinated maintenance while this tick is
+	// rechecking health. Refresh the same gate immediately before invoking
+	// the action so a stale phase-one observation cannot race the lifecycle.
+	if _, gatedAction := gatedActionIDs[c.selectedAction.ID]; gatedAction {
+		if allowed, class, reason := r.allowsGatedHeal(ctx, c.result.CheckID, c.selectedAction.ID); !allowed {
+			emit(AutoHealResult{
+				CheckID: c.result.CheckID, Attempted: false, SkipClass: class, Reason: reason,
+			})
+			return
+		}
+	}
+
+	actionCtx, cancel := context.WithTimeout(ctx, r.actionTimeoutFor(c.selectedAction.ID))
+	actionResult := r.executeAutoHealActionWithTimeout(actionCtx, c)
+	cancel()
+
+	// A heal refused by the root-update fence never ran. It is not a failed
+	// attempt (no failure count, cooldown or suspension): the check stays
+	// failing, the refusal is held on it, and the next tick retries.
+	if actionResult.Refusal != nil && actionResult.Refusal.Kind == UpdateFenceRefusalKind {
+		reason := actionResult.Refusal.Reason
+		hold := r.noteHold(c.result.CheckID, GateVerdict{Class: GateClassUpdateFence, Reason: reason, CriticalAfter: UpdateFenceCriticalAfter}, r.now())
+		if r.now().Sub(hold.Since) >= hold.CriticalAfter {
+			r.openHoldIncident(ctx, c.result.CheckID, hold)
+		}
+		emit(AutoHealResult{CheckID: c.result.CheckID, Attempted: false, SkipClass: GateClassUpdateFence, Reason: reason})
+		return
+	}
+	r.deactivateHold(c.result.CheckID)
+
+	// Update heal tracker based on result
+	outcome := outcomeFromActionResult(actionResult)
+	r.updateHealTracker(c.result.CheckID, outcome)
+
+	// Get updated tracker for result
+	updatedTracker := r.getHealTrackerSnapshot(c.result.CheckID)
+	r.recordHealIncident(ctx, c.result.CheckID, c.selectedAction.ID, actionResult, outcome, updatedTracker)
+	emit(AutoHealResult{
+		CheckID:             c.result.CheckID,
+		Attempted:           true,
+		ActionResult:        actionResult,
+		TimedOut:            actionResult.TimedOut,
+		CooldownRemaining:   updatedTracker.CooldownRemainingAt(r.now()),
+		ConsecutiveFailures: updatedTracker.ConsecutiveFailures,
+		Suspended:           updatedTracker.IsSuspended(),
+		SuspensionReason:    updatedTracker.SuspensionReason,
+	})
 }
 
-func (r *Registry) allowsGatedHeal(ctx context.Context, checkID, actionID string) (bool, string) {
+// allowsGatedHeal asks the recovery gate. A denial is a bounded deferral: it is
+// recorded on the check (overlayHealState), becomes critical and opens an
+// incident once held past the verdict's bound, and is overridden after that
+// bound when the verdict allows it. It is never a quiet skip.
+func (r *Registry) allowsGatedHeal(ctx context.Context, checkID, actionID string) (allowed bool, class, reason string) {
 	gate := r.recoveryOwnershipGate()
 	if gate == nil {
-		return true, ""
+		return true, "", ""
 	}
-	return gate.AllowsAutoHealRestart(ctx, checkID, actionID)
+	verdict := gate.AllowsAutoHealRestart(ctx, checkID, actionID)
+	if verdict.Allowed {
+		r.deactivateHold(checkID)
+		return true, "", ""
+	}
+	hold := r.noteHold(checkID, verdict, r.now())
+	held := r.now().Sub(hold.Since)
+	if held >= verdict.CriticalAfter {
+		r.openHoldIncident(ctx, checkID, hold)
+	}
+	if verdict.OverrideAfter > 0 && held >= verdict.OverrideAfter {
+		r.markHoldOverridden(checkID)
+		return true, "", ""
+	}
+	return false, verdict.Class, verdict.Reason
 }
 
 func pendingRecoveryResult(checkID string, admission RecoveryAdmission) AutoHealResult {
-	return AutoHealResult{CheckID: checkID, Attempted: false, RecoveryRequestID: admission.RequestID,
+	return AutoHealResult{CheckID: checkID, Attempted: false, RecoveryRequestID: admission.RequestID, SkipClass: SkipAgentOwned,
 		Reason: "native coding-agent recovery owns this target until exact execution exit: " + admission.Outcome}
 }
 
@@ -333,7 +475,7 @@ func (r *Registry) requestScenarioRecoveryIfReady(ctx context.Context, result Re
 	}
 	// Agent investigations consume host resources and can restart services.
 	// Escalation must not escape pressure, startup or maintenance coordination.
-	if allowed, _ := r.allowsGatedHeal(ctx, result.CheckID, "restart"); !allowed {
+	if allowed, _, _ := r.allowsGatedHeal(ctx, result.CheckID, "restart"); !allowed {
 		return RecoveryAdmission{}
 	}
 	scenario := strings.TrimPrefix(result.CheckID, "scenario-")
@@ -442,7 +584,7 @@ func outcomeFromActionResult(r ActionResult) healOutcome {
 // PID changed (indicating a new process replaced the unhealthy one), the candidate
 // is skipped and a non-attempted result is appended.
 // Returns true if the candidate was skipped.
-func (r *Registry) preHealRecheck(ctx context.Context, c healCandidate, results *[]AutoHealResult) bool {
+func (r *Registry) preHealRecheck(ctx context.Context, c healCandidate, emit func(AutoHealResult)) bool {
 	// Re-run the check to see if it's still unhealthy.
 	r.mu.RLock()
 	check, exists := r.checks[c.result.CheckID]
@@ -457,10 +599,11 @@ func (r *Registry) preHealRecheck(ctx context.Context, c healCandidate, results 
 
 	// If the check is now healthy, skip the heal action.
 	if freshResult.Status == StatusOK {
-		*results = append(*results, AutoHealResult{
+		emit(AutoHealResult{
 			CheckID:   c.result.CheckID,
 			Attempted: false,
 			Reason:    "pre-heal recheck passed: target is now healthy",
+			SkipClass: SkipRecovered,
 		})
 		return true
 	}
@@ -475,9 +618,10 @@ func (r *Registry) preHealRecheck(ctx context.Context, c healCandidate, results 
 			currentPID = int(pidFloat)
 		}
 		if currentPID > 0 && currentPID != c.detectedPID {
-			*results = append(*results, AutoHealResult{
+			emit(AutoHealResult{
 				CheckID:   c.result.CheckID,
 				Attempted: false,
+				SkipClass: SkipRecovered,
 				Reason: fmt.Sprintf(
 					"PID changed since detection (was %d, now %d): new process started, skipping heal",
 					c.detectedPID, currentPID,
@@ -505,9 +649,10 @@ func (r *Registry) shouldTriggerAutoHeal(result Result) bool {
 		}
 	}
 
+	status := effectiveStatus(result)
 	switch policy {
 	case AutoHealOnWarningCritical:
-		return result.Status == StatusWarning || result.Status == StatusCritical
+		return status == StatusWarning || status == StatusCritical
 	case AutoHealOnCriticalSignature:
 		// Critical always, plus warnings the check has positively classified
 		// with a specific root cause and a targeted recovery action.
@@ -519,12 +664,12 @@ func (r *Registry) shouldTriggerAutoHeal(result Result) bool {
 		// that repairs it. Widening all the way to "warning+critical" would
 		// let every soft signal restart a scenario; this widens only to the
 		// warnings that carry evidence.
-		if result.Status == StatusCritical {
+		if status == StatusCritical {
 			return true
 		}
-		return result.Status == StatusWarning && hasHealableDegradation(result)
+		return status == StatusWarning && hasHealableDegradation(result)
 	default:
-		return result.Status == StatusCritical
+		return status == StatusCritical
 	}
 }
 
@@ -640,20 +785,19 @@ func (r *Registry) getHealTrackerSnapshot(checkID string) HealTracker {
 	return *tracker
 }
 
-// observeScenarioHealth tracks continuous unhealthy time independently from
-// action cooldowns. A restart attempt can fail while the scenario remains
-// unhealthy; the grace window must survive those attempts and be persisted so
-// an autoheal restart does not reset the escalation clock.
-func (r *Registry) observeScenarioHealth(result Result) {
+// observeHealth tracks continuous unhealthy time independently from action
+// cooldowns, and clears a suspension the moment the check is healthy again, for
+// every check. A restart attempt can fail while the target remains unhealthy;
+// the grace window must survive those attempts and be persisted so an autoheal
+// restart does not reset the escalation clock.
+func (r *Registry) observeHealth(result Result) {
 	r.trackerWriteMu.Lock()
 	defer r.trackerWriteMu.Unlock()
-	if !strings.HasPrefix(result.CheckID, "scenario-") {
-		return
-	}
 	now := result.Timestamp
 	if now.IsZero() {
 		now = r.now()
 	}
+	r.observeProbe(result.CheckID, result.Status == StatusOK || result.Status == StatusNotApplicable, now)
 	r.mu.Lock()
 	tracker, exists := r.healTrackers[result.CheckID]
 	if !exists {
@@ -953,23 +1097,27 @@ func (r *Registry) persistentRecoveryCheck(checkID string) bool {
 
 func (r *Registry) persistentRecoveryCheckLocked(checkID string) bool {
 	checkID = strings.TrimSpace(checkID)
+	if coreRecoveryCheck(checkID) {
+		return true
+	}
+	_, supervised := r.supervisedChecks[checkID]
+	return supervised && strings.HasPrefix(checkID, "scenario-")
+}
+
+// coreRecoveryCheck is the operator's core: the declared core seed (which
+// always includes the required recovery plane) and the access/model resources
+// coupled to it. It is the set healed first and checked first.
+func coreRecoveryCheck(checkID string) bool {
+	checkID = strings.TrimSpace(checkID)
 	switch checkID {
 	case "infra-cloudflared", "resource-cloudflared", "resource-openrouter", "resource-opencode":
 		return true
 	}
-	if scenario, ok := strings.CutPrefix(checkID, "scenario-"); ok {
-		_, supervised := r.supervisedChecks[checkID]
-		if supervised {
-			return true
-		}
-		for _, required := range coreset.RequiredOperationalScenarios {
-			if scenario == required {
-				return true
-			}
-		}
-		return coreset.IsCoreSeed(scenario)
+	scenario, ok := strings.CutPrefix(checkID, "scenario-")
+	if !ok {
+		return false
 	}
-	return false
+	return slices.Contains(coreset.RequiredOperationalScenarios, scenario) || coreset.IsCoreSeed(scenario)
 }
 
 // ResetHealTracker resets the heal tracker for a check (for manual intervention)

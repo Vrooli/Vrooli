@@ -116,7 +116,14 @@ func (s *Service) Lookup(name string) (Detail, bool, error) {
 		}
 		return Detail{}, false, err
 	}
-	item.Variant = key.Variant
+	// Runtime variants select owner-declared component profiles. Apply that
+	// same selection on reads as lifecycle start does, so status health checks
+	// are interpreted against the ports/components that actually belong to the
+	// addressed instance (for example, an API-only lab instance has no UI_PORT).
+	item, err = item.SelectProfile(key.Variant)
+	if err != nil {
+		return Detail{}, true, err
+	}
 
 	ctx := context.Background()
 	detail, ok, err := s.registryDetail(ctx, item)

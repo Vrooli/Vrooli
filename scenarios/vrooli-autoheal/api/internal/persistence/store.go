@@ -308,6 +308,19 @@ type ActionLog struct {
 	Timestamp  string `json:"timestamp"`
 }
 
+// SkipActionID is the action id of a row recording a heal that did not run. Its
+// output column carries the skip class (checks.Skip* and checks.GateClass*).
+const SkipActionID = "autoheal-skip"
+
+// ActionOutcomeCount is the number of action rows sharing one outcome.
+type ActionOutcomeCount struct {
+	ActionID  string
+	Success   bool
+	TimedOut  bool
+	SkipClass string
+	Count     int
+}
+
 // ActionLogsResponse contains action history.
 type ActionLogsResponse struct {
 	Logs  []ActionLog `json:"logs"`
@@ -355,6 +368,16 @@ func (s *Store) SaveActionLog(ctx context.Context, checkID, actionID string, suc
 // GetActionLogs retrieves recent action logs.
 func (s *Store) GetActionLogs(ctx context.Context, limit int) (*ActionLogsResponse, error) {
 	return s.getActionLogsSQLite(ctx, limit)
+}
+
+// SummarizeOpenIncidents reads the open incident backlog by severity and age.
+func (s *Store) SummarizeOpenIncidents(ctx context.Context, now time.Time) (incidents.OpenSummary, error) {
+	return s.summarizeOpenIncidentsSQLite(ctx, now)
+}
+
+// CountActionOutcomes counts the action rows recorded since the given time.
+func (s *Store) CountActionOutcomes(ctx context.Context, since time.Time) ([]ActionOutcomeCount, error) {
+	return s.countActionOutcomesSQLite(ctx, since)
 }
 
 // GetActionLogsForCheck retrieves action logs for a specific check.

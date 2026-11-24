@@ -13,6 +13,7 @@ import (
 
 	"github.com/vrooli/api-core/apihttptest"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/persistence"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 
@@ -74,6 +75,23 @@ func TestHealth_Healthy(t *testing.T) {
 	}
 	if db["database"] != "sqlite" {
 		t.Errorf("dependencies.database.database = %v, want sqlite", db["database"])
+	}
+}
+
+// The lifecycle proves which start it is talking to. An autoheal that omits the
+// identity can never be restarted, so its recovery plane silently goes stale.
+func TestHealth_ServesTheLifecycleStartIdentity(t *testing.T) {
+	t.Setenv("VROOLI_START_OPERATION_ID", "startop-test")
+	t.Setenv("VROOLI_RUNTIME_RELEASE_ID", "release-test")
+	t.Setenv("VROOLI_RUNTIME_RELEASE_OPERATION_ID", "select-test")
+	h := setupTestHandlers(&mockStore{pingErr: nil})
+	w := httptest.NewRecorder()
+	h.Health(w, httptest.NewRequest(http.MethodGet, "/health", nil))
+	resp := apihttptest.MustDecodeJSON[map[string]interface{}](t, w.Body.Bytes())
+	for key, want := range map[string]string{"start_operation_id": "startop-test", "runtime_release_id": "release-test", "runtime_release_operation_id": "select-test"} {
+		if resp[key] != want {
+			t.Errorf("%s = %v, want %s", key, resp[key], want)
+		}
 	}
 }
 
@@ -203,6 +221,28 @@ func TestStatus_ExposesLatestHealingIssuePerCheck(t *testing.T) {
 	}
 	if _, exists := issues["recovered-demo"]; exists {
 		t.Fatalf("older failure should not survive a newer successful recovery: %#v", issues["recovered-demo"])
+	}
+}
+
+func TestStatus_DoesNotExposeSupersededSkipAsCurrent(t *testing.T) {
+	store := &mockStore{actionLogs: &persistence.ActionLogsResponse{Logs: []persistence.ActionLog{
+		{CheckID: "scenario-agent-manager", ActionID: "autoheal-skip", Success: false, Error: "coordinated owner agent-manager is still starting", Timestamp: "2026-11-20T18:01:00Z"},
+		{CheckID: "scenario-prompt-manager", ActionID: "restart", Success: true, Message: "recovered", Timestamp: "2026-11-20T18:01:00Z"},
+		{CheckID: "scenario-agent-manager", ActionID: "autoheal-skip", Success: false, Error: "runtime recovery ownership unavailable: runtime registry schema_version 17 > supported 16", Timestamp: "2026-11-20T18:00:00Z"},
+		{CheckID: "scenario-prompt-manager", ActionID: "autoheal-skip", Success: false, Error: "runtime recovery ownership unavailable: runtime registry schema_version 17 > supported 16", Timestamp: "2026-11-20T18:00:00Z"},
+	}}}
+	h := setupTestHandlers(store)
+	w := httptest.NewRecorder()
+	h.Status(w, httptest.NewRequest("GET", "/api/v1/status", nil))
+
+	resp := apihttptest.MustDecodeJSON[map[string]interface{}](t, w.Body.Bytes())
+	skips, ok := resp["autoHealSkips"].([]interface{})
+	if !ok || len(skips) != 1 {
+		t.Fatalf("autoHealSkips = %#v, want only the newest skip for agent-manager", resp["autoHealSkips"])
+	}
+	skip, ok := skips[0].(map[string]interface{})
+	if !ok || skip["checkId"] != "scenario-agent-manager" || skip["error"] != "coordinated owner agent-manager is still starting" {
+		t.Fatalf("current skip = %#v, want agent-manager's latest skip", skips[0])
 	}
 }
 
@@ -840,5 +880,38 @@ func TestWatchdog_WithRefresh(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Watchdog() with refresh status = %d, want %d", w.Code, http.StatusOK)
+	}
+}
+
+type backlogStore struct {
+	*mockStore
+	summary incidents.OpenSummary
+	err     error
+}
+
+func (s *backlogStore) SummarizeOpenIncidents(context.Context, time.Time) (incidents.OpenSummary, error) {
+	return s.summary, s.err
+}
+
+// The steward reads one number for the backlog, and a read failure is said
+// rather than shown as an empty backlog.
+func TestStatus_ReportsOpenIncidentBacklogByAge(t *testing.T) {
+	store := &backlogStore{mockStore: &mockStore{}, summary: incidents.OpenSummary{Open: 12, Critical: 4, OldestAgeHours: 300, UnderOneDay: 2, OneToSevenDays: 3, OverSevenDays: 7}}
+	h := setupTestHandlers(store)
+	w := httptest.NewRecorder()
+	h.Status(w, httptest.NewRequest("GET", "/api/v1/status", nil))
+	resp := apihttptest.MustDecodeJSON[map[string]interface{}](t, w.Body.Bytes())
+	backlog, _ := resp["openIncidents"].(map[string]interface{})
+	if backlog["open"] != float64(12) || backlog["critical"] != float64(4) || backlog["oldestAgeHours"] != float64(300) || backlog["overSevenDays"] != float64(7) {
+		t.Fatalf("openIncidents = %v", resp["openIncidents"])
+	}
+
+	store.err = errors.New("database is locked")
+	w = httptest.NewRecorder()
+	h.Status(w, httptest.NewRequest("GET", "/api/v1/status", nil))
+	resp = apihttptest.MustDecodeJSON[map[string]interface{}](t, w.Body.Bytes())
+	failed, _ := resp["openIncidents"].(map[string]interface{})
+	if failed["error"] != "database is locked" || failed["open"] != nil {
+		t.Fatalf("a failed read must carry its error, not a zero backlog: %v", resp["openIncidents"])
 	}
 }

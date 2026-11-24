@@ -144,18 +144,6 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 		AutoHealOn:      "critical",
 		IntervalSeconds: 60,
 	},
-	"infra-resolved": {
-		Enabled:         true,
-		AutoHeal:        true,
-		AutoHealOn:      "critical",
-		IntervalSeconds: 60,
-	},
-	"infra-certificate": {
-		Enabled:         true,
-		AutoHeal:        false, // Can't auto-renew certificates
-		AutoHealOn:      "critical",
-		IntervalSeconds: 3600,
-	},
 
 	// System checks
 	"system-stale-service-binary": {

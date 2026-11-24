@@ -26,7 +26,23 @@ type ScenarioStatusDetail struct {
 	Ports map[string]int32
 	// HealthError is the health probe's error detail; empty on success.
 	HealthError string
+	// Operation is the latest lifecycle start/restart operation.
+	Operation ScenarioOperation
 }
+
+// ScenarioOperation is the part of a lifecycle operation autoheal needs to tell
+// a finished restart from one that is stuck.
+type ScenarioOperation struct {
+	Kind             string
+	Status           string
+	CurrentStep      string
+	ElapsedSeconds   int
+	InitiatorPID     int
+	FenceOperationID string
+}
+
+// Running reports whether the operation has not reached a terminal state.
+func (o ScenarioOperation) Running() bool { return o.Status == "running" }
 
 // Port returns the allocated port for a role and whether it was present.
 func (s ScenarioStatusDetail) Port(role string) (int32, bool) {
@@ -87,6 +103,12 @@ func scenarioStatusFromProto(resp *cliv1.ScenarioStatusSingle) (ScenarioStatus, 
 		HealthStatus: valueToRawJSON(sc.GetHealthStatus()),
 		Ports:        sc.GetPorts(),
 		HealthError:  sc.GetHealthError(),
+	}
+	if op := sc.GetStartOperation(); op != nil {
+		detail.Operation = ScenarioOperation{
+			Kind: op.GetOperation(), Status: op.GetStatus(), CurrentStep: op.GetCurrentStep(),
+			ElapsedSeconds: int(op.GetElapsedSeconds()), InitiatorPID: int(op.GetInitiatorPid()), FenceOperationID: op.GetFenceOperationId(),
+		}
 	}
 	if err := requiredString(detail.Status, "scenario.status"); err != nil {
 		return ScenarioStatus{}, err

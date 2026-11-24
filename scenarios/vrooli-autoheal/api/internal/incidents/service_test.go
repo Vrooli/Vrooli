@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -946,4 +947,57 @@ func (p *capturingDecisionPublisher) PublishDomainEvent(_ context.Context, event
 	}
 	p.events = append(p.events, event)
 	return nil
+}
+
+type noteStore struct {
+	*memoryStore
+	notes []string
+}
+
+func (s *noteStore) UpdateIncidentStatus(ctx context.Context, id string, status Status, note string) (*Incident, error) {
+	s.notes = append(s.notes, note)
+	return s.memoryStore.UpdateIncidentStatus(ctx, id, status, note)
+}
+
+// 279 critical incidents sat open for days because nothing resolved an incident
+// whose condition stopped being reported. The sweep resolves them, keeps the
+// record with a note, leaves recent and event-record incidents alone, and says
+// nothing to the operator about housekeeping.
+func TestResolveStaleResolvesOnlyUnobservedIncidentsAndKeepsTheRecord(t *testing.T) {
+	now := time.Date(2026, 11, 21, 12, 0, 0, 0, time.UTC)
+	old := now.Add(-3 * 24 * time.Hour)
+	recent := now.Add(-2 * time.Hour)
+	store := &noteStore{memoryStore: &memoryStore{list: []Incident{
+		{ID: "stale-scenario", Type: TypeScenarioFailure, Severity: SeverityCritical, Status: StatusOpen, LastSeenAt: old},
+		{ID: "stale-pressure", Type: TypeHostPressure, Severity: SeverityCritical, Status: StatusOpen, LastSeenAt: old},
+		{ID: "recent", Type: TypeScenarioFailure, Severity: SeverityCritical, Status: StatusOpen, LastSeenAt: recent},
+		{ID: "boot-event", Type: TypeUncleanBoot, Severity: SeverityCritical, Status: StatusOpen, LastSeenAt: old},
+		{ID: "operator-note", Type: TypeManual, Severity: SeverityWarning, Status: StatusOpen, LastSeenAt: old},
+		{ID: "already-resolved", Type: TypeScenarioFailure, Status: StatusResolved, LastSeenAt: old},
+	}}}
+	publisher := &recordingPublisher{}
+	service := NewService(store)
+	service.now = func() time.Time { return now }
+	service.SetEventPublisher(publisher)
+
+	resolved, err := service.ResolveStale(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved != 2 || len(store.updateIDs) != 2 || store.updateIDs[0] != "stale-scenario" || store.updateIDs[1] != "stale-pressure" {
+		t.Fatalf("resolved %d, updated %v; want only the two unobserved incidents", resolved, store.updateIDs)
+	}
+	for _, status := range store.updates {
+		if status != StatusResolved {
+			t.Fatalf("stale incident was %s, want resolved (never deleted or ignored)", status)
+		}
+	}
+	for _, note := range store.notes {
+		if !strings.Contains(note, "auto-resolved: not re-observed for 72h0m0s") {
+			t.Fatalf("resolution note does not say why: %q", note)
+		}
+	}
+	if publisher.count != 0 {
+		t.Fatalf("housekeeping published %v; the operator must not get one notice per stale incident", publisher.events)
+	}
 }

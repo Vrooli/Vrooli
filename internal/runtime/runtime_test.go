@@ -773,6 +773,23 @@ func TestInspectRequirementRejectsInvalidConfigAsTypedUnsupported(t *testing.T) 
 	}
 }
 
+func TestApplyRequirementRefusesInvalidAssembledConfigBeforeHandler(t *testing.T) {
+	status := hostreqkit.InvalidConfigStatus(hostreqspec.ResolvedRequirement{
+		Name: "netconsole", Kind: hostreqspec.KindSafeguard, Required: true,
+	}, "unknown configuration field extra")
+	// A stale/contradictory status must not let a valid-looking partial config
+	// bypass the admission failure and reach the safeguard handler.
+	status.SupportClass = hostreqkit.SupportSupported
+	status.Config = map[string]any{"target": "6666@192.0.2.1/eth0,6666@192.0.2.2/00:11:22:33:44:55"}
+	updated, err := applyRequirement(Host{OS: "linux"}, status, EnsureOptions{DryRun: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.ExecutionState != hostreqkit.ExecutionUnsupported || updated.BlockingReason != hostreqkit.BlockingInvalidParameter {
+		t.Fatalf("invalid configuration reached apply handler: %+v", updated)
+	}
+}
+
 func TestAnnotateBlockingReasonDetectsSudoSentinel(t *testing.T) {
 	// Handlers fold privileged-command errors into Notes via fmt.Sprintf.
 	// annotateBlockingReason should pick up the typed sentinel substring.

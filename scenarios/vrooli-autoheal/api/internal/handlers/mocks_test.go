@@ -471,10 +471,17 @@ func setupTestHandlersWithAutoHeal(store StoreInterface) (*Handlers, *mockHealab
 	}
 
 	registry := checks.NewRegistry(caps)
-	_ = registry.SetAutoHealPolicy(checks.AutoHealPolicy{
-		BaseCooldown:       5 * time.Minute,
-		MaxRestartAttempts: 3,
-	})
+	// A policy that fails validation leaves auto-heal unconfigured and every
+	// heal skipped, so the fixture must be valid.
+	if err := registry.SetAutoHealPolicy(checks.AutoHealPolicy{
+		BaseCooldown:         5 * time.Minute,
+		MaxRestartAttempts:   3,
+		FastActionTimeout:    checks.DefaultFastActionTimeout,
+		RestartActionTimeout: checks.DefaultRestartActionTimeout,
+		TimeoutRetryCooldown: checks.DefaultTimeoutRetryCooldown,
+	}); err != nil {
+		panic(err)
+	}
 
 	// Create a critical check that will trigger auto-heal.
 	criticalCheck := &mockHealableCheckCritical{

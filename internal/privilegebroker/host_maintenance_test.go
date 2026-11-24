@@ -80,7 +80,7 @@ func TestKernelMemoryIsReadOnlySubjectlessAndPermissionErrorsStayUnavailable(t *
 
 func TestKernelMemoryStackSampleUsesBoundedFixedArguments(t *testing.T) {
 	exec := &hostMaintenanceExecutor{output: []byte("stack summary\n")}
-	report, err := runKernelMemoryStackSampler(context.Background(), exec, "/test/memleak-bpfcc")
+	report, err := runKernelMemoryStackSampler(context.Background(), exec, "/test/memleak-bpfcc", KernelMemorySortSize)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestKernelMemoryStackSampleUsesBoundedFixedArguments(t *testing.T) {
 
 func TestKernelMemoryStackSampleIsSubjectlessAndPropagatesFailure(t *testing.T) {
 	called := false
-	b, err := New(Config{SocketPath: "/unused.sock", AllowedUID: 1000, KernelMemoryStacks: func(context.Context) (hostinventory.KernelMemoryStackReport, error) {
+	b, err := New(Config{SocketPath: "/unused.sock", AllowedUID: 1000, KernelMemoryStacks: func(context.Context, string) (hostinventory.KernelMemoryStackReport, error) {
 		called = true
 		return hostinventory.KernelMemoryStackReport{}, errors.New("sampler unavailable")
 	}})

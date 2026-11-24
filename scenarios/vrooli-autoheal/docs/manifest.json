@@ -280,16 +280,6 @@
           "completion": "required"
         },
         {
-          "id": "check-reference-infra-certificate",
-          "path": "reference/checks/infra-certificate.md",
-          "docType": "check-reference-infra-certificate",
-          "title": "Certificate Check",
-          "description": "Infrastructure certificate health check",
-          "maturity": "active",
-          "requiredBy": ["generated"],
-          "completion": "required"
-        },
-        {
           "id": "check-reference-infra-cloudflared",
           "path": "reference/checks/infra-cloudflared.md",
           "docType": "check-reference-infra-cloudflared",

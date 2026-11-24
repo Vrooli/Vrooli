@@ -115,6 +115,9 @@ func TestContainStormRefusesPidOutsideAgentSlice(t *testing.T) {
 	if len(actions) != 1 || actions[0].Available {
 		t.Fatalf("a supervisor scope must not make contain-storm available: %+v", actions)
 	}
+	if owner, _ := result.Details["repairOwner"].(string); owner == "" {
+		t.Fatalf("with no safe action the critical must name its repair owner: %v", result.Details)
+	}
 	outcome := check.ExecuteAction(context.Background(), ContainStormActionID)
 	if outcome.Success || !strings.Contains(outcome.Error, "no sustained finding names an agent session scope") {
 		t.Fatalf("execute = %+v", outcome)
@@ -149,6 +152,9 @@ func TestContainStormFreezesScopeAndRecordsDecision(t *testing.T) {
 	actions := check.RecoveryActions(&result)
 	if len(actions) != 1 || !actions[0].Available || actions[0].Dangerous {
 		t.Fatalf("automatic mode must offer a safe, available action: %+v", actions)
+	}
+	if result.Details["repairOwner"] != nil {
+		t.Fatalf("an available contain-storm action means autoheal owns the repair: %v", result.Details["repairOwner"])
 	}
 	outcome := check.ExecuteAction(context.Background(), ContainStormActionID)
 	if !outcome.Success || !fake.frozen[agentScopePath] {

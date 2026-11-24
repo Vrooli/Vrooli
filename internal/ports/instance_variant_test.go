@@ -2,7 +2,9 @@
 package ports
 
 import (
+	"context"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/portspec"
@@ -74,6 +76,163 @@ func TestBuildEnvironmentVariantIsolatesPortsAndNamespace(t *testing.T) {
 	}
 	if shadow.EnvVars[scenarioruntime.EnvStorageNamespace] != "alpha_shadow" {
 		t.Fatalf("shadow VROOLI_STORAGE_NAMESPACE = %q, want alpha_shadow", shadow.EnvVars[scenarioruntime.EnvStorageNamespace])
+	}
+}
+
+// TestWorkspaceSandboxVariantClaimsAreGlobalAndReplayable binds the stable
+// workspace-sandbox variant to the same global port-claim owner used by every
+// lifecycle caller. Distinct disposable instances can race without sharing a
+// port, while replaying the first instance's allocation returns its original
+// claim after a lost response.
+func TestWorkspaceSandboxVariantClaimsAreGlobalAndReplayable(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	writePortRegistry(t, root, nil)
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	store := newRuntimeClaimStoreForPortTests(t)
+	ctx := context.Background()
+	variantA := "wsb-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	variantB := "wsb-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	instanceA, err := store.CreateInstance(ctx, scenarioruntime.Instance{Scenario: "alpha", Variant: variantA, Status: scenarioruntime.StatusStarting})
+	if err != nil {
+		t.Fatalf("create sandbox A runtime identity: %v", err)
+	}
+	instanceB, err := store.CreateInstance(ctx, scenarioruntime.Instance{Scenario: "alpha", Variant: variantB, Status: scenarioruntime.StatusStarting})
+	if err != nil {
+		t.Fatalf("create sandbox B runtime identity: %v", err)
+	}
+	item := scenario.Scenario{
+		Slug: "alpha",
+		Manifest: scenario.ServiceManifest{Ports: map[string]scenario.Port{
+			"api": {EnvVar: "API_PORT", Range: "16000-16999"},
+		}},
+	}
+	type allocation struct {
+		instance scenarioruntime.Instance
+		env      Environment
+		err      error
+	}
+	results := make(chan allocation, 2)
+	var wg sync.WaitGroup
+	for _, instance := range []scenarioruntime.Instance{instanceA, instanceB} {
+		wg.Add(1)
+		go func(instance scenarioruntime.Instance) {
+			defer wg.Done()
+			candidate := item
+			candidate.Variant = instance.Variant
+			env, buildErr := manager.BuildEnvironmentWithRuntimeClaims(candidate, nil, RuntimeClaimOptions{
+				Enabled: true, Context: ctx, Store: store, InstanceID: instance.InstanceID,
+			})
+			results <- allocation{instance: instance, env: env, err: buildErr}
+		}(instance)
+	}
+	wg.Wait()
+	close(results)
+	var allocations []allocation
+	for result := range results {
+		if result.err != nil {
+			t.Fatalf("allocate %s: %v", result.instance.Variant, result.err)
+		}
+		allocations = append(allocations, result)
+	}
+	if len(allocations) != 2 {
+		t.Fatalf("allocations=%d, want two", len(allocations))
+	}
+	if allocations[0].env.AllocatedPorts["api"] == allocations[1].env.AllocatedPorts["api"] {
+		t.Fatalf("workspace sandboxes shared API port %d", allocations[0].env.AllocatedPorts["api"])
+	}
+	if got, want := allocations[0].env.EnvVars[scenarioruntime.EnvVariant], allocations[0].instance.Variant; got != want {
+		t.Fatalf("sandbox A process variant=%q, want persisted identity %q", got, want)
+	}
+	if got, want := allocations[1].env.EnvVars[scenarioruntime.EnvVariant], allocations[1].instance.Variant; got != want {
+		t.Fatalf("sandbox B process variant=%q, want persisted identity %q", got, want)
+	}
+	if allocations[0].env.EnvVars[scenarioruntime.EnvStorageNamespace] == allocations[1].env.EnvVars[scenarioruntime.EnvStorageNamespace] {
+		t.Fatalf("workspace sandboxes shared storage namespace %q", allocations[0].env.EnvVars[scenarioruntime.EnvStorageNamespace])
+	}
+	claims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{Statuses: []string{scenarioruntime.ClaimStatusReserved, scenarioruntime.ClaimStatusBound}})
+	if err != nil {
+		t.Fatalf("list global runtime claims: %v", err)
+	}
+	if len(claims) != 2 {
+		t.Fatalf("active global claims=%d, want two: %#v", len(claims), claims)
+	}
+	first := allocations[0]
+	replayItem := item
+	replayItem.Variant = first.instance.Variant
+	replayed, err := manager.BuildEnvironmentWithRuntimeClaims(replayItem, nil, RuntimeClaimOptions{
+		Enabled: true, Context: ctx, Store: store, InstanceID: first.instance.InstanceID,
+	})
+	if err != nil {
+		t.Fatalf("replay lost allocation response: %v", err)
+	}
+	if got, want := replayed.AllocatedPorts["api"], first.env.AllocatedPorts["api"]; got != want {
+		t.Fatalf("replayed API port=%d, want original instance port %d", got, want)
+	}
+	claims, err = store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{Statuses: []string{scenarioruntime.ClaimStatusReserved, scenarioruntime.ClaimStatusBound}})
+	if err != nil {
+		t.Fatalf("relist global runtime claims: %v", err)
+	}
+	if len(claims) != 2 {
+		t.Fatalf("replay duplicated or lost claims: %#v", claims)
+	}
+}
+
+func TestBuildEnvironmentProfileRegistersOnlyProfilePorts(t *testing.T) {
+	root := t.TempDir()
+	writePortRegistry(t, root, nil)
+	manager, err := NewManager(root, root)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+	base := scenario.Scenario{
+		Slug: "audio-tools",
+		Path: filepath.Join(root, "scenarios", "audio-tools"),
+		Manifest: scenario.ServiceManifest{
+			Ports: map[string]scenario.Port{
+				"api": {EnvVar: "API_PORT", Range: "15000-19999"},
+				"ui":  {EnvVar: "UI_PORT", Range: "20000-24999"},
+			},
+			Components: map[string]scenario.Component{
+				"product-api": {Role: "api", Run: scenario.ComponentRun{Port: "api"}},
+				"product-ui":  {Role: "ui", Run: scenario.ComponentRun{Port: "ui"}},
+				"lab-api":     {Role: "api", Run: scenario.ComponentRun{Port: "api"}},
+			},
+			Profiles: map[string]scenario.ComponentProfile{
+				"default": {Components: []string{"product-api", "product-ui"}, Ports: []string{"api", "ui"}},
+				"lab":     {Components: []string{"lab-api"}, Ports: []string{"api"}},
+			},
+		},
+	}
+	product, err := base.SelectProfile("live")
+	if err != nil {
+		t.Fatalf("SelectProfile(live): %v", err)
+	}
+	productEnv, err := manager.BuildEnvironment(product, nil)
+	if err != nil {
+		t.Fatalf("BuildEnvironment(live): %v", err)
+	}
+	lab, err := base.SelectProfile("lab")
+	if err != nil {
+		t.Fatalf("SelectProfile(lab): %v", err)
+	}
+	labEnv, err := manager.BuildEnvironment(lab, nil)
+	if err != nil {
+		t.Fatalf("BuildEnvironment(lab): %v", err)
+	}
+	if len(productEnv.AllocatedPorts) != 2 || productEnv.EnvVars["UI_PORT"] == "" {
+		t.Fatalf("live profile ports = %v, env=%v", productEnv.AllocatedPorts, productEnv.EnvVars)
+	}
+	if len(labEnv.AllocatedPorts) != 1 || labEnv.AllocatedPorts["api"] == 0 || labEnv.EnvVars["API_PORT"] == "" {
+		t.Fatalf("lab profile ports = %v, env=%v", labEnv.AllocatedPorts, labEnv.EnvVars)
+	}
+	if _, exists := labEnv.AllocatedPorts["ui"]; exists || labEnv.EnvVars["UI_PORT"] != "" {
+		t.Fatalf("lab profile unexpectedly registers UI port: ports=%v env=%v", labEnv.AllocatedPorts, labEnv.EnvVars)
+	}
+	if labEnv.AllocatedPorts["api"] == productEnv.AllocatedPorts["api"] {
+		t.Fatalf("lab instance reused product API port %d", labEnv.AllocatedPorts["api"])
 	}
 }
 

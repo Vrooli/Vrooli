@@ -43,7 +43,3 @@ func processIncarnation(pid int) (string, error) {
 func formatIncarnation(boot, start string) string {
 	return strings.TrimSpace(boot) + ":" + start
 }
-
-func incarnationFormatSample() string {
-	return formatIncarnation("00000000-0000-0000-0000-000000000000\n", "1")
-}

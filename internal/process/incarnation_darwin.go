@@ -26,5 +26,3 @@ func processIncarnation(pid int) (string, error) {
 func formatIncarnation(pid int, sec, usec int64) string {
 	return fmt.Sprintf("darwin:%d:%d:%d", pid, sec, usec)
 }
-
-func incarnationFormatSample() string { return formatIncarnation(1, 1, 1) }

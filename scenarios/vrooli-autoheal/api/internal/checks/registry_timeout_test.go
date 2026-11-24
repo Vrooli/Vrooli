@@ -478,6 +478,7 @@ func newTimeoutPolicyRegistry(t *testing.T, fast, restart, timeoutRetry, base ti
 	if err := reg.SetAutoHealPolicy(policy); err != nil {
 		t.Fatalf("set policy: %v", err)
 	}
+	reg.SetFailureConfirmation(1, 0)
 	return reg
 }
 

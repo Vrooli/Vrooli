@@ -32,19 +32,28 @@ func Validate(req Request) error {
 	if req.Service != nil && req.Action != ActionServiceRecover {
 		return errSubjectNotAllowed
 	}
+	if req.Reboot != nil && req.Action != ActionSystemReboot {
+		return errSubjectNotAllowed
+	}
+	if req.KernelMemory != nil && req.Action != ActionKernelMemoryStackSample {
+		return errSubjectNotAllowed
+	}
 	switch req.Action {
 	case ActionServiceRecover:
 		return validateServiceRecovery(req)
+	case ActionSystemReboot:
+		return validateSystemReboot(req)
+	case ActionSystemRebootCancel:
+		return validateSystemRebootCancel(req)
+	case ActionKernelMemoryStackSample:
+		return validateKernelMemoryStacks(req)
 	case ActionLocalAdmissionInspect, ActionLocalAdmissionEnsure, ActionLocalAdmissionRevoke:
 		if req.LocalAdmission == nil || !admissionID.MatchString(req.LocalAdmission.Binding) || req.Subject != (Subject{}) || req.Volume != nil || req.RuntimeHome != nil || req.Log != nil || req.Journal != nil || req.Docker != nil || req.Apt != nil || req.Edge != nil || req.Process != nil || req.Caddy != nil {
 			return fmt.Errorf("local_binding_subject_required")
 		}
 		return nil
-	case ActionTemporaryActivityObserve, ActionCapabilitiesInspect, ActionKernelMemoryInspect, ActionKernelMemoryStackSample:
-		if req.Subject != (Subject{}) || req.Volume != nil || req.RuntimeHome != nil || req.Log != nil || req.Journal != nil || req.Docker != nil || hasCloudSubject(req) {
-			return errSubjectNotAllowed
-		}
-		return nil
+	case ActionTemporaryActivityObserve, ActionCapabilitiesInspect, ActionKernelMemoryInspect:
+		return rejectOtherSubjects(req, false, false)
 	case ActionBridgeUFWInspect, ActionBridgeUFWAllow, ActionBridgeUFWVerify, ActionBridgeUFWRevoke:
 		return validateBridge(req)
 	case ActionVolumeFilesystemCheck, ActionVolumeFilesystemRepair:
@@ -172,8 +181,10 @@ func validateBridge(req Request) error {
 // volumeDevicePattern accepts a plain Linux block device path and nothing else,
 // so a device string can never smuggle an option or a shell fragment into the
 // argv the policy builds.
-var volumeDevicePattern = regexp.MustCompile(`^/dev/[A-Za-z0-9][A-Za-z0-9._/-]{0,62}$`)
-var smartSerialPattern = regexp.MustCompile(`^[A-Za-z0-9_.:-]+$`)
+var (
+	volumeDevicePattern = regexp.MustCompile(`^/dev/[A-Za-z0-9][A-Za-z0-9._/-]{0,62}$`)
+	smartSerialPattern  = regexp.MustCompile(`^[A-Za-z0-9_.:-]+$`)
+)
 
 // volumeFilesystems maps an accepted filesystem type onto its repair family.
 // Membership means a fixed argv exists for that family.
@@ -265,4 +276,82 @@ func UFWArgs(req Request) ([]string, error) {
 	default:
 		return nil, errActionNotAllowed
 	}
+}
+
+// --- Host power and kernel-memory subjects ---
+
+const (
+	// rebootMaxDelayMinutes bounds a scheduled reboot to one week. A longer
+	// delay is not a maintenance window; it is a forgotten request.
+	rebootMaxDelayMinutes = 7 * 24 * 60
+	// rebootDecisionIDMax bounds the audit-only decision reference.
+	rebootDecisionIDMax = 128
+)
+
+// rebootDecisionIDPattern keeps the decision reference to the identifier
+// alphabet, so an audit record cannot carry a path, a command fragment, or a
+// line break supplied by a caller.
+var rebootDecisionIDPattern = regexp.MustCompile(`^[A-Za-z0-9._:-]+$`)
+
+// rejectOtherSubjects enforces "exactly one subject family" for the actions
+// that carry no subject of their own. allowKernelMemory and allowReboot name
+// the only families the caller may also carry, so a new family cannot silently
+// ride along on an action that would ignore it.
+func rejectOtherSubjects(req Request, allowKernelMemory, allowReboot bool) error {
+	switch {
+	case req.Subject != (Subject{}) || req.Volume != nil || req.SMART != nil ||
+		req.RuntimeHome != nil || req.Log != nil || req.Journal != nil ||
+		req.Docker != nil || req.Apt != nil || req.Edge != nil ||
+		req.Process != nil || req.Caddy != nil || req.LocalAdmission != nil ||
+		req.Service != nil || hasCloudSubject(req):
+		return errSubjectNotAllowed
+	case req.KernelMemory != nil && !allowKernelMemory:
+		return errSubjectNotAllowed
+	case req.Reboot != nil && !allowReboot:
+		return errSubjectNotAllowed
+	}
+	return nil
+}
+
+// validateKernelMemoryStacks accepts an empty or one-of-two ranking. It carries
+// no cache name, size, path, or duration: the sampler's argv stays fixed and
+// only the sort key varies.
+func validateKernelMemoryStacks(req Request) error {
+	if err := rejectOtherSubjects(req, true, false); err != nil {
+		return err
+	}
+	if req.KernelMemory == nil {
+		return nil
+	}
+	if _, err := NormalizeKernelMemorySort(req.KernelMemory.Sort); err != nil {
+		return fmt.Errorf("kernel_memory_sort_invalid")
+	}
+	return nil
+}
+
+// validateSystemReboot requires a delay in range. The delay is the only input;
+// there is no target, unit, or command. A zero delay reboots immediately, so
+// the caller must already hold a human decision — the broker cannot tell.
+func validateSystemReboot(req Request) error {
+	if req.Reboot == nil {
+		return fmt.Errorf("reboot_subject_required")
+	}
+	if err := rejectOtherSubjects(req, false, true); err != nil {
+		return err
+	}
+	if req.Reboot.DelayMinutes < 0 || req.Reboot.DelayMinutes > rebootMaxDelayMinutes {
+		return fmt.Errorf("reboot_delay_out_of_range")
+	}
+	if id := req.Reboot.DecisionID; id != "" &&
+		(len(id) > rebootDecisionIDMax || !rebootDecisionIDPattern.MatchString(id)) {
+		return fmt.Errorf("reboot_decision_id_invalid")
+	}
+	return nil
+}
+
+// validateSystemRebootCancel takes no subject: there is exactly one scheduled
+// reboot slot per host, named by the broker, so a cancellation cannot be aimed
+// at anything else.
+func validateSystemRebootCancel(req Request) error {
+	return rejectOtherSubjects(req, false, false)
 }

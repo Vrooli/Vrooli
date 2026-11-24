@@ -20,12 +20,16 @@ import (
 const (
 	// DefaultCheckTimeout is the maximum time a single health check can run before timing out
 	DefaultCheckTimeout = 30 * time.Second
+	// DueSlack is how early a tick may run a check that is nearly due.
+	DueSlack = 10 * time.Second
+	// CheckConcurrency bounds how many checks run at once within a tick.
+	CheckConcurrency = 6
 
 	// MaxAutoHealActionsPerTick limits how many heal actions can run per tick to prevent timeout
 	MaxAutoHealActionsPerTick = 5
 
-	// MaxParallelHealActions limits concurrent heal action execution
-	MaxParallelHealActions = 3
+	// HealRoundTimeout bounds one background round of heals.
+	HealRoundTimeout = 15 * time.Minute
 
 	// DefaultFastActionTimeout bounds quick diagnostic / cleanup actions
 	// (logs, diagnose, cleanup-ports, kill). A short ceiling prevents a stuck
@@ -268,9 +272,9 @@ type HealTrackerStore interface {
 // RecoveryOwnershipGate prevents autoheal from racing the runtime supervisor's
 // pressure-epoch recovery controller. It is intentionally narrow: health
 // checks continue to run, but restart-class actions defer while ownership is
-// held elsewhere.
+// held elsewhere. A deferral is bounded and visible (see GateVerdict).
 type RecoveryOwnershipGate interface {
-	AllowsAutoHealRestart(ctx context.Context, checkID, actionID string) (allowed bool, reason string)
+	AllowsAutoHealRestart(ctx context.Context, checkID, actionID string) GateVerdict
 }
 
 // HealIncidentReporter is the narrow persistence seam for operator-facing
@@ -320,6 +324,12 @@ type Registry struct {
 	interlockMu          sync.Mutex
 	recentHealActions    map[HealTarget]RecentHealAction
 	healInterlockWindow  time.Duration
+	holds                map[string]*healHold    // gate deferrals per check; see registry_signals.go
+	streaks              map[string]*probeStreak // consecutive failed probes per check; see registry_signals.go
+	confirmProbes        int
+	confirmSpan          time.Duration
+	healing              map[string]struct{} // checks with a planned or running heal; see registry_autoheal.go
+	healWG               sync.WaitGroup
 }
 
 // SetRecoveryRequester installs the control-plane escalation seam.
@@ -452,6 +462,10 @@ func NewRegistry(plat *platform.Capabilities) *Registry {
 		lastRun:             make(map[string]time.Time),
 		nextRun:             make(map[string]time.Time),
 		healTrackers:        make(map[string]*HealTracker),
+		holds:               make(map[string]*healHold),
+		streaks:             make(map[string]*probeStreak),
+		confirmProbes:       ConfirmProbes,
+		confirmSpan:         ConfirmSpan,
 		recentHealActions:   make(map[HealTarget]RecentHealAction),
 		supervisedChecks:    make(map[string]struct{}),
 		recoveryGracePeriod: DefaultRecoveryGracePeriod,
@@ -637,7 +651,11 @@ func (r *Registry) shouldRunCheck(check Check, forceAll bool) bool {
 	if nextRun.IsZero() {
 		return true
 	}
-	return !r.clock.Now().Before(nextRun)
+	// A check whose interval equals the tick period must run every tick. Its
+	// next run is interval plus up to 10% jitter, which a 60 s tick always
+	// arrived a few seconds before, so every 60 s check ran every second tick
+	// (web-console observed every 120 s under a "60 s" setpoint).
+	return !r.clock.Now().Add(DueSlack).Before(nextRun)
 }
 
 func (r *Registry) platformCompatible(check Check) bool {
@@ -692,32 +710,64 @@ func (r *Registry) RunAll(ctx context.Context, forceAll bool) []Result {
 	// The recovery plane must be observed before optional checks consume the
 	// tick budget. Keep the remaining order deterministic so a long-running
 	// optional check cannot consistently starve one particular core member.
+	recovery := make(map[string]bool, len(checks))
+	for _, check := range checks {
+		recovery[check.ID()] = r.persistentRecoveryCheck(check.ID())
+	}
 	sort.SliceStable(checks, func(i, j int) bool {
-		iRecovery := r.persistentRecoveryCheck(checks[i].ID())
-		jRecovery := r.persistentRecoveryCheck(checks[j].ID())
-		if iRecovery != jRecovery {
-			return iRecovery
+		iID, jID := checks[i].ID(), checks[j].ID()
+		if recovery[iID] != recovery[jID] {
+			return recovery[iID]
 		}
-		return checks[i].ID() < checks[j].ID()
+		return iID < jID
 	})
 
-	results := make([]Result, 0, len(checks))
-	for _, check := range checks {
+	return r.runChecksConcurrently(ctx, checks)
+}
+
+// runChecksConcurrently runs the checks on a bounded worker pool, dispatching
+// in the order given so the recovery plane starts first. A tick used to run
+// every check one after another: a handful of slow resource probes (each up to
+// its own 30-60 s budget) stretched a tick to minutes and delayed the next
+// observation of web-console to 592 s. Results keep the dispatch order; checks
+// not started before ctx ends are omitted, as before.
+func (r *Registry) runChecksConcurrently(ctx context.Context, checks []Check) []Result {
+	slots := make([]*Result, len(checks))
+	next := make(chan int)
+	var wg sync.WaitGroup
+	workers := min(CheckConcurrency, len(checks))
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range next {
+				var result Result
+				if r.platformCompatible(checks[i]) {
+					result = r.runCheck(ctx, checks[i])
+				} else {
+					result = r.notApplicableResult(checks[i])
+					r.storeResult(result)
+				}
+				slots[i] = &result
+			}
+		}()
+	}
+dispatch:
+	for i := range checks {
 		select {
 		case <-ctx.Done():
-			return results
-		default:
-			var result Result
-			if r.platformCompatible(check) {
-				result = r.runCheck(ctx, check)
-			} else {
-				result = r.notApplicableResult(check)
-				r.storeResult(result)
-			}
-			results = append(results, result)
+			break dispatch
+		case next <- i:
 		}
 	}
-
+	close(next)
+	wg.Wait()
+	results := make([]Result, 0, len(checks))
+	for _, slot := range slots {
+		if slot != nil {
+			results = append(results, *slot)
+		}
+	}
 	return results
 }
 
@@ -800,6 +850,7 @@ func (r *Registry) runCheck(ctx context.Context, check Check) Result {
 
 	result.Duration = time.Since(wallStart)
 	result.Timestamp = start
+	result = r.overlayHealState(result, start)
 
 	r.mu.Lock()
 	r.results[check.ID()] = result

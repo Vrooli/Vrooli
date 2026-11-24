@@ -23,7 +23,8 @@ func TestRuntimeRecoveryGateSuppressesRestartDuringGatedEpoch(t *testing.T) {
 	}
 	_ = store.Close()
 	gate := RuntimeRecoveryGate{HomeDir: home}
-	allowed, reason := gate.AllowsAutoHealRestart(context.Background(), "scenario-system-monitor", "restart")
+	verdict := gate.AllowsAutoHealRestart(context.Background(), "scenario-system-monitor", "restart")
+	allowed, reason := verdict.Allowed, verdict.Reason
 	if allowed || reason == "" {
 		t.Fatalf("gate = allowed=%t reason=%q, want suppression", allowed, reason)
 	}
@@ -49,11 +50,13 @@ func TestRuntimeRecoveryGateSuppressesOwnerRestartDuringStartup(t *testing.T) {
 	}
 
 	gate := RuntimeRecoveryGate{HomeDir: home, CoordinatedScenario: "agent-manager"}
-	allowed, reason := gate.AllowsAutoHealRestart(context.Background(), "scenario-agent-manager", "restart")
+	verdict := gate.AllowsAutoHealRestart(context.Background(), "scenario-agent-manager", "restart")
+	allowed, reason := verdict.Allowed, verdict.Reason
 	if allowed || reason == "" {
 		t.Fatalf("gate = allowed=%t reason=%q, want startup suppression", allowed, reason)
 	}
-	allowed, reason = gate.AllowsAutoHealRestart(context.Background(), "scenario-system-monitor", "restart")
+	verdict = gate.AllowsAutoHealRestart(context.Background(), "scenario-system-monitor", "restart")
+	allowed, reason = verdict.Allowed, verdict.Reason
 	if !allowed || reason != "" {
 		t.Fatalf("unrelated gate = allowed=%t reason=%q, want ordinary behavior", allowed, reason)
 	}
@@ -93,7 +96,8 @@ func TestRuntimeRecoveryGateAllowsRepairAfterDeadOwnerLease(t *testing.T) {
 	}
 
 	gate := RuntimeRecoveryGate{HomeDir: home, CoordinatedScenario: "agent-manager"}
-	allowed, reason := gate.AllowsAutoHealRestart(context.Background(), "scenario-agent-manager", "restart")
+	verdict := gate.AllowsAutoHealRestart(context.Background(), "scenario-agent-manager", "restart")
+	allowed, reason := verdict.Allowed, verdict.Reason
 	if !allowed || reason != "" {
 		t.Fatalf("gate = allowed=%t reason=%q, want stale dead owner to be recoverable", allowed, reason)
 	}
@@ -136,7 +140,8 @@ func TestRuntimeRecoveryGateSuppressesOwnerRestartDuringMaintenance(t *testing.T
 	}
 
 	gate := RuntimeRecoveryGate{HomeDir: home, CoordinatedScenario: "agent-manager"}
-	allowed, reason := gate.AllowsAutoHealRestart(context.Background(), "scenario-agent-manager", "restart")
+	verdict := gate.AllowsAutoHealRestart(context.Background(), "scenario-agent-manager", "restart")
+	allowed, reason := verdict.Allowed, verdict.Reason
 	if allowed || reason == "" {
 		t.Fatalf("gate = allowed=%t reason=%q, want maintenance suppression", allowed, reason)
 	}
@@ -187,7 +192,8 @@ func TestRuntimeRecoveryGateRequiresExplicitOwnerAdmissionClosed(t *testing.T) {
 			}
 
 			gate := RuntimeRecoveryGate{HomeDir: home, CoordinatedScenario: "agent-manager"}
-			allowed, reason := gate.AllowsAutoHealRestart(context.Background(), "scenario-agent-manager", "restart")
+			verdict := gate.AllowsAutoHealRestart(context.Background(), "scenario-agent-manager", "restart")
+			allowed, reason := verdict.Allowed, verdict.Reason
 			if allowed || reason == "" {
 				t.Fatalf("gate = allowed=%t reason=%q, want incomplete admission to fail closed", allowed, reason)
 			}

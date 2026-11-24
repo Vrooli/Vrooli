@@ -199,7 +199,11 @@ func loadPackageManifestSchema(repoRoot string) (*jsonschema.Schema, error) {
 
 func packageSchemaDir(repoRoot string) (string, error) {
 	candidate := filepath.Join(filepath.Clean(repoRoot), repocontractmeta.ProjectConfigDir, "schemas")
-	if _, err := os.Stat(filepath.Join(candidate, "package.schema.json")); err == nil {
+	exists, err := fsx.Exists(filepath.Join(candidate, "package.schema.json"))
+	if err != nil {
+		return "", fmt.Errorf("check package schema in %s: %w", candidate, err)
+	}
+	if exists {
 		return candidate, nil
 	}
 
@@ -208,7 +212,11 @@ func packageSchemaDir(repoRoot string) (string, error) {
 		return "", fmt.Errorf("unable to determine package schema path")
 	}
 	fallback := filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", "..", repocontractmeta.ProjectConfigDir, "schemas"))
-	if _, err := os.Stat(filepath.Join(fallback, "package.schema.json")); err != nil {
+	exists, err = fsx.Exists(filepath.Join(fallback, "package.schema.json"))
+	if err != nil {
+		return "", fmt.Errorf("check package schema in %s: %w", fallback, err)
+	}
+	if !exists {
 		return "", fmt.Errorf("package schema not found in %s or %s", candidate, fallback)
 	}
 	return fallback, nil
@@ -395,7 +403,18 @@ func validateManifestSemantics(item Package) []ValidationIssue {
 			})
 			continue
 		}
-		if _, err := os.Stat(filepath.Join(repoRoot, docPath)); err != nil {
+		exists, existsErr := fsx.Exists(filepath.Join(repoRoot, docPath))
+		if existsErr != nil {
+			issues = append(issues, ValidationIssue{
+				Severity:    "error",
+				Code:        "invalid-doc-path",
+				Message:     fmt.Sprintf("package.docs path %q could not be checked: %v", docPath, existsErr),
+				Path:        item.ManifestPath,
+				PackageName: item.Name,
+			})
+			continue
+		}
+		if !exists {
 			issues = append(issues, ValidationIssue{
 				Severity:    "error",
 				Code:        "missing-doc-path",

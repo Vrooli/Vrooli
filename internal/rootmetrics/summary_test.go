@@ -34,11 +34,11 @@ func TestSummarySeparatesIncompleteUnknownAndDeduplicatesOutcomes(t *testing.T) 
 	}
 	r.Schema = 99
 	data, _ = json.Marshal(r)
-	if err = os.WriteFile(unsupported.path, data, 0600); err != nil {
+	if err = os.WriteFile(unsupported.path, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	malformed := Begin(home, "install")
-	if err = os.WriteFile(malformed.path, []byte("{"), 0600); err != nil {
+	if err = os.WriteFile(malformed.path, []byte("{"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	s, err := Summarize(dir)

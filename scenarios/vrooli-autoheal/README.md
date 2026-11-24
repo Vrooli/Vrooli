@@ -1,6 +1,10 @@
 # Vrooli Autoheal
 
-Self-healing supervisor that bootstraps, monitors, and auto-repairs Vrooli infrastructure across platforms.
+Setpoint: core and supervised scenarios serving, no check suspended past 24 h (R6), a tick every 60 s; any skip, suspension or gate hold is a non-ok check; no incident open unseen past 24 h.
+Sensors: ~100 checks incl. strict UI probe (200, root, first bundle 200), `vrooli-supervision-set-source`, `vrooli-recovery-gate`; canary-proven by planted-fault unit tests only.
+Actuators: `vrooli scenario restart/start`, language and resource recovery run in the background, core first (5 at once); a restart needs 2 failed probes >=30 s apart; cooldown, 3-failure suspension, gate holds; a root-update-fence refusal is held and retried, not a failure; a restart stuck >5 min in provider_fence is critical (`--force-lifecycle`).
+Manager: portfolio steward (`core_health`, `steward.py rules`); steward core repair is the independent second path.
+Tooling: Go API, `vrooli-autoheal` CLI, React dashboard.
 
 After a repair, `vrooli-autoheal check run <check-id> --json` refreshes one
 registered observation without waiting for its interval or running recovery
@@ -9,15 +13,6 @@ The operation refuses concurrent observation cycles, leaves recovery settings
 unchanged, and does not mark the whole fleet fresh. For example, run
 `vrooli-autoheal check run system-boot-recovery-readiness --json` after project
 setup refreshes the watchdogs.
-
-## Overview
-
-vrooli-autoheal replaces the legacy bash-based autoheal cronjob with a cross-platform solution featuring:
-
-- **CLI commands** (`vrooli-autoheal tick/loop/status`) for health management
-- **Go API** for health status and configuration
-- **React dashboard** for visualization and monitoring
-- **OS-level watchdog** (systemd/launchd/Windows service) to keep autoheal running
 
 ## Quick Start
 
@@ -37,14 +32,6 @@ vrooli-autoheal tick
 # Run continuous health monitoring
 vrooli-autoheal loop --interval-seconds=60
 ```
-
-## CLI Commands
-
-| Command | Description |
-|---------|-------------|
-| `vrooli-autoheal tick` | Single health cycle (bootstrap + checks + watchdog verify) |
-| `vrooli-autoheal loop` | Continuous monitoring with configurable interval |
-| `vrooli-autoheal status` | Show last-known health summary |
 
 ## Architecture
 
@@ -110,13 +97,16 @@ uncertainty. See [the investigation record](docs/internal/PROBLEMS.md).
 
 Health checks and supervised resources/scenarios are governed via:
 
-1. **Canonical authority**: `vrooli supervision-set --json` computes the operator-declared dependency closure and attribution chains.
+1. **Canonical authority**: `vrooli supervision-set --json` computes the operator-declared dependency closure, `important` monitor-only roots, typed core roots and attribution chains.
 2. **Additive overrides**: `~/.vrooli-autoheal/config.json` may add monitoring targets, but cannot remove or disable canonical members.
 3. **Last-known-good behavior**: a source outage retains the most recent non-empty set and raises `vrooli-supervision-set-source` as degraded; startup fails closed if no good set has ever loaded.
 4. **SQLite** stores bounded health history and action logs, never supervision membership.
 
 Canonical members take precedence when an additive override names the same
-check. `must_start` members are critical; `try_start` members are warning-level.
+check. `important` entries use `try_start`: autoheal tracks and monitors them
+without acquiring a core start lease. `core.seed` and typed core members use
+`must_start`: autoheal treats them as critical and retains their core lifecycle
+demand. Manifest-required dependencies keep their declared stronger intent.
 Use `vrooli supervision-set --json` to inspect the effective member and its
 attribution chain before changing autoheal configuration.
 
