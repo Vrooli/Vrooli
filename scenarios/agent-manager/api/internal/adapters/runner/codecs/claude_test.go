@@ -2,6 +2,7 @@ package codecs
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/agenttranscript"
 )
 
 // =============================================================================
@@ -216,6 +218,23 @@ func TestClaude_BuildArgs_DefaultMaxTurnsAndStdinSentinel(t *testing.T) {
 	}
 	if args[len(args)-1] != "-" {
 		t.Errorf("expected stdin-sentinel '-' as last arg, got %q", args[len(args)-1])
+	}
+}
+
+func TestClaudeBuildCLIArgsKeepInitialAndResumeEnvelopes(t *testing.T) {
+	c := NewClaudeForTest()
+	initial := c.BuildArgs(c.NewState(), runner.ExecuteRequest{
+		RunID: uuid.New(), SystemPrompt: "keep stance",
+	})
+	wantInitial := []string{"--print", "--output-format", "stream-json", "--verbose", "--max-turns", "30", "--append-system-prompt", "keep stance", "-"}
+	if !slices.Equal(initial, wantInitial) {
+		t.Fatalf("initial Claude args = %#v, want %#v", initial, wantInitial)
+	}
+
+	continued := c.BuildContinueArgs(c.NewState(), runner.ContinueRequest{RunID: uuid.New(), SessionID: "session-7"})
+	wantContinued := []string{"--print", "--output-format", "stream-json", "--verbose", "--resume", "session-7", "--max-turns", "30", "-"}
+	if !slices.Equal(continued, wantContinued) {
+		t.Fatalf("continuation Claude args = %#v, want %#v", continued, wantContinued)
 	}
 }
 
@@ -478,6 +497,16 @@ func TestClaude_DecodeStreamLine_ResultSuccess(t *testing.T) {
 	// result text + lastAssistant=="" emits a synthetic assistant message.
 	if len(eventsOfType[*domain.UsageEventData](events)) == 0 || len(eventsOfType[*domain.ChargeEventData](events)) == 0 {
 		t.Errorf("expected UsageEventData and ChargeEventData in %d events", len(events))
+	}
+}
+
+func TestClaudeSharedUsageContractPreservesServerToolCounters(t *testing.T) {
+	c := NewClaudeForTest()
+	line := strings.Replace(claudeCodeSamples["result_success"], `"web_search_requests":0`, `"web_search_requests":4`, 1)
+	events := decodeOne(t, c, line)
+	usage := eventsOfType[*domain.UsageEventData](events)
+	if len(usage) == 0 || usage[0].WebSearchRequests != 4 {
+		t.Fatalf("shared Claude usage wire shape lost server tool counter: %+v", usage)
 	}
 }
 
@@ -1178,6 +1207,12 @@ func TestClaudeMessage_ExtractTextContent_ArrayContent(t *testing.T) {
 	msg := &ClaudeMessage{Role: "assistant", Content: json.RawMessage(content)}
 	if got := msg.ExtractTextContent(); got != "First part\nSecond part" {
 		t.Errorf("got %q", got)
+	}
+
+	archiveLine := []byte(`{"type":"assistant","message":{"role":"assistant","content":` + content + `}}`)
+	shared := agenttranscript.ParseMessages(agenttranscript.HarnessClaude, archiveLine)
+	if len(shared) != 2 || shared[0].Role != msg.Role || shared[0].Text != "First part" || shared[1].Role != msg.Role || shared[1].Text != "Second part" {
+		t.Fatalf("shared archive decode = %+v; runtime content extraction = %q", shared, msg.ExtractTextContent())
 	}
 }
 

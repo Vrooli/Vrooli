@@ -36,9 +36,7 @@ func TestRequestAuthorizationNamesWhyTheLiveSessionCouldNotBeProved(t *testing.T
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			db, cleanup := testutil.SetupTestDB(t)
-			t.Cleanup(cleanup)
-			repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+			db, repos, events := testutil.SetupTestDBWithRepos(t)
 			o := New(nil, nil, repos.Runs,
 				WithEvents(events), WithIdentitySecret([]byte("binding-failure-secret")),
 				WithAuthorizations(database.NewAuthorizationRepository(db)),

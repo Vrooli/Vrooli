@@ -332,6 +332,7 @@ func (a *ConversationSearchAdapter) GetConversationContext(ctx context.Context, 
 			EventId: document.SourceEventID, EventSequence: document.EventSequence, Role: document.Role,
 			OccurredAt: timestamppb.New(document.OccurredAt), BoundedContent: boundedContextContent(document.Content),
 			ContentClass: contentClassToProto(document.ContentClass), Matched: document.SourceEventID == hit.SourceEventID,
+			NativeRecordSequence: document.NativeRecordSequence,
 		})
 	}
 	return output, nil
@@ -504,8 +505,9 @@ func searchHitToProto(hit conversationsearch.SearchHit) *domainpb.ConversationSe
 			Runner: document.Runner, Model: document.Model, Profile: document.Profile,
 			Tags: document.Tags, Workloads: document.Workloads,
 		},
-		DeepLink: hit.DeepLink,
-		Weak:     hit.Weak,
+		DeepLink:             hit.DeepLink,
+		Weak:                 hit.Weak,
+		NativeRecordSequence: document.NativeRecordSequence,
 	}
 	for _, evidence := range hit.Evidence {
 		output.RankEvidence = append(output.RankEvidence, &domainpb.ConversationRankEvidence{
@@ -544,6 +546,8 @@ func searchSortFromProto(value domainpb.ConversationSearchSort) (conversationsea
 		return conversationsearch.SearchSortNewest, nil
 	case domainpb.ConversationSearchSort_CONVERSATION_SEARCH_SORT_OLDEST:
 		return conversationsearch.SearchSortOldest, nil
+	case domainpb.ConversationSearchSort_CONVERSATION_SEARCH_SORT_NATIVE_SEQUENCE:
+		return conversationsearch.SearchSortNativeSequence, nil
 	default:
 		return 0, fmt.Errorf("unsupported search sort %s", value)
 	}
@@ -555,6 +559,8 @@ func searchSortToProto(value conversationsearch.SearchSort) domainpb.Conversatio
 		return domainpb.ConversationSearchSort_CONVERSATION_SEARCH_SORT_NEWEST
 	case conversationsearch.SearchSortOldest:
 		return domainpb.ConversationSearchSort_CONVERSATION_SEARCH_SORT_OLDEST
+	case conversationsearch.SearchSortNativeSequence:
+		return domainpb.ConversationSearchSort_CONVERSATION_SEARCH_SORT_NATIVE_SEQUENCE
 	default:
 		return domainpb.ConversationSearchSort_CONVERSATION_SEARCH_SORT_RELEVANCE
 	}

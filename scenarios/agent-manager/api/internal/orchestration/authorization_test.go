@@ -28,9 +28,7 @@ import (
 
 func TestExistingTokenlessProcessCanAdoptDurableGrantAndRevocationIsImmediate(t *testing.T) {
 	ctx := context.Background()
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+	db, repos, events := testutil.SetupTestDBWithRepos(t)
 	o := New(nil, nil, repos.Runs, WithEvents(events), WithIdentitySecret([]byte("authorization-test-secret")), WithAuthorizations(database.NewAuthorizationRepository(db)))
 	g, err := o.RequestAuthorization(ctx, AuthorizationRequest{PID: os.Getpid(), HarnessKind: "codex", HarnessSession: "fixture", Policy: "swarm-bookkeeping", Targets: []string{"swarm-manager:backlog/execute/obsolete"}, DurationSeconds: 3600})
 	if err != nil {
@@ -131,9 +129,7 @@ func TestExistingTokenlessProcessCanAdoptDurableGrantAndRevocationIsImmediate(t 
 
 func TestAuthorizationAttachmentRetainsVerifiedLauncherSession(t *testing.T) {
 	ctx := context.Background()
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+	db, repos, events := testutil.SetupTestDBWithRepos(t)
 	binding, err := cliutil.ObserveProcessBinding(os.Getpid())
 	if err != nil {
 		t.Fatal(err)
@@ -187,9 +183,7 @@ func TestAuthorizationAttachmentRetainsVerifiedLauncherSession(t *testing.T) {
 
 func TestLegacyPendingAuthorizationResolvesLauncherLocatorOnlyAtFreshApproval(t *testing.T) {
 	ctx := context.Background()
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+	db, repos, events := testutil.SetupTestDBWithRepos(t)
 	binding, err := cliutil.ObserveProcessBinding(os.Getpid())
 	if err != nil {
 		t.Fatal(err)
@@ -253,9 +247,7 @@ func TestLegacyPendingAuthorizationResolvesLauncherLocatorOnlyAtFreshApproval(t 
 
 func TestAuthorizationRefusesMismatchedLauncherProofBeforeCreatingConsent(t *testing.T) {
 	ctx := context.Background()
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+	db, repos, events := testutil.SetupTestDBWithRepos(t)
 	binding, err := cliutil.ObserveProcessBinding(os.Getpid())
 	if err != nil {
 		t.Fatal(err)
@@ -285,9 +277,7 @@ func TestAuthorizationRefusesMismatchedLauncherProofBeforeCreatingConsent(t *tes
 
 func TestAuthorizationRejectsClaimedWebConsoleLocatorWithoutProofReader(t *testing.T) {
 	ctx := context.Background()
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+	db, repos, events := testutil.SetupTestDBWithRepos(t)
 	authRepo := database.NewAuthorizationRepository(db)
 	o := New(nil, nil, repos.Runs,
 		WithEvents(events), WithIdentitySecret([]byte("missing-proof-reader-secret")), WithAuthorizations(authRepo))
@@ -306,9 +296,7 @@ func TestAuthorizationRejectsClaimedWebConsoleLocatorWithoutProofReader(t *testi
 
 func TestAuthorizationApprovalRequiresCurrentWebConsoleProofReader(t *testing.T) {
 	ctx := context.Background()
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+	db, repos, events := testutil.SetupTestDBWithRepos(t)
 	binding, err := cliutil.ObserveProcessBinding(os.Getpid())
 	if err != nil {
 		t.Fatal(err)
@@ -360,9 +348,7 @@ func TestAuthorizationApprovalRequiresCurrentWebConsoleProofReader(t *testing.T)
 
 func TestAuthorizationApprovalRefusesChangedLauncherOwnerBeforeEffects(t *testing.T) {
 	ctx := context.Background()
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+	db, repos, events := testutil.SetupTestDBWithRepos(t)
 	binding, err := cliutil.ObserveProcessBinding(os.Getpid())
 	if err != nil {
 		t.Fatal(err)
@@ -414,9 +400,7 @@ func TestAuthorizationCannotBypassRetainedRunAdmissionByOmittingRunID(t *testing
 	for _, finite := range []bool{false, true} {
 		t.Run(map[bool]string{false: "frozen_scope", true: "finite_lineage"}[finite], func(t *testing.T) {
 			ctx := context.Background()
-			db, cleanup := testutil.SetupTestDB(t)
-			t.Cleanup(cleanup)
-			repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+			db, repos, events := testutil.SetupTestDBWithRepos(t)
 			o := New(nil, nil, repos.Runs, WithEvents(events), WithIdentitySecret([]byte("test-secret")), WithAuthorizations(database.NewAuthorizationRepository(db)))
 			policy, _ := authn.InteractivePolicy("swarm-bookkeeping")
 			p := requestidentity.Principal{Kind: requestidentity.ActorHuman, Subject: "owner", Source: requestidentity.SourceCloudflareAccess, Verified: true, Scopes: append([]string{"agent-manager:write"}, policy.Scopes...), ExpiresAt: time.Now().Add(time.Hour)}
@@ -457,9 +441,7 @@ func TestAuthorizationCannotBypassRetainedRunAdmissionByOmittingRunID(t *testing
 
 func TestAuthorizationRefusesManagedRunAppearingAfterPreparation(t *testing.T) {
 	ctx := context.Background()
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+	db, repos, events := testutil.SetupTestDBWithRepos(t)
 	o := New(nil, nil, repos.Runs, WithEvents(events), WithIdentitySecret([]byte("test-secret")), WithAuthorizations(database.NewAuthorizationRepository(db)))
 	g, err := o.RequestAuthorization(ctx, AuthorizationRequest{PID: os.Getpid(), HarnessKind: "codex", HarnessSession: "fixture", Policy: "swarm-bookkeeping", Targets: []string{"swarm-manager:*"}, DurationSeconds: 3600})
 	if err != nil {
@@ -490,9 +472,7 @@ func TestAuthorizationReviewAllowsDaysAwayAndStartsAuthorityAtApproval(t *testin
 	for _, delay := range []time.Duration{3 * 24 * time.Hour, 7 * 24 * time.Hour} {
 		t.Run(delay.String(), func(t *testing.T) {
 			ctx := context.Background()
-			db, cleanup := testutil.SetupTestDB(t)
-			t.Cleanup(cleanup)
-			repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+			db, repos, events := testutil.SetupTestDBWithRepos(t)
 			now := time.Now().UTC()
 			o := New(nil, nil, repos.Runs, WithClock(func() time.Time { return now }), WithEvents(events), WithIdentitySecret([]byte("review-window-test")), WithAuthorizations(database.NewAuthorizationRepository(db)))
 			req := AuthorizationRequest{PID: os.Getpid(), HarnessKind: "codex", HarnessSession: "delayed-review", Policy: "swarm-bookkeeping", Targets: []string{"swarm-manager:*"}, DurationSeconds: 7200}
@@ -536,9 +516,7 @@ func TestLocalOwnerEligibilityBrokerExcludesActiveRunPeers(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			db, cleanup := testutil.SetupTestDB(t)
-			t.Cleanup(cleanup)
-			repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+			_, repos, events := testutil.SetupTestDBWithRepos(t)
 			run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, RunnerPID: os.Getpid(), ExecutionMode: tc.mode, ApprovalState: domain.ApprovalStateNone}
 			if err := repos.Runs.Create(ctx, run); err != nil {
 				t.Fatal(err)
@@ -554,9 +532,7 @@ func TestLocalOwnerEligibilityBrokerExcludesActiveRunPeers(t *testing.T) {
 
 	t.Run("unbound ordinary process gets explicit empty result", func(t *testing.T) {
 		ctx := context.Background()
-		db, cleanup := testutil.SetupTestDB(t)
-		t.Cleanup(cleanup)
-		repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+		_, repos, events := testutil.SetupTestDBWithRepos(t)
 		o := New(nil, nil, repos.Runs, WithEvents(events), WithIdentitySecret([]byte("local-owner-test-secret")))
 		response := localOwnerEligibilityResponse(t, o, ctx)
 		defer response.Body.Close()
@@ -567,9 +543,7 @@ func TestLocalOwnerEligibilityBrokerExcludesActiveRunPeers(t *testing.T) {
 
 	t.Run("managed root refuses descendant peer", func(t *testing.T) {
 		ctx := context.Background()
-		db, cleanup := testutil.SetupTestDB(t)
-		t.Cleanup(cleanup)
-		repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+		_, repos, events := testutil.SetupTestDBWithRepos(t)
 		run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, RunnerPID: os.Getpid(), ExecutionMode: domain.ExecutionModeCodecPipe, ApprovalState: domain.ApprovalStateNone}
 		if err := repos.Runs.Create(ctx, run); err != nil {
 			t.Fatal(err)
@@ -598,9 +572,7 @@ func TestLocalOwnerEligibilityBrokerExcludesActiveRunPeers(t *testing.T) {
 
 	t.Run("run lookup failure is not absence", func(t *testing.T) {
 		ctx := context.Background()
-		db, cleanup := testutil.SetupTestDB(t)
-		t.Cleanup(cleanup)
-		repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+		_, repos, events := testutil.SetupTestDBWithRepos(t)
 		o := New(nil, nil, failingRunList{RunRepository: repos.Runs}, WithEvents(events), WithIdentitySecret([]byte("local-owner-test-secret")))
 		response := localOwnerEligibilityResponse(t, o, ctx)
 		defer response.Body.Close()

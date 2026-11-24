@@ -101,9 +101,7 @@ func (parkedCurrentDenyResolver) Resolve(_ context.Context, runnerType domain.Ru
 
 func TestWakeRunRejectsCurrentModelExclusionBeforeClearingAwaitHandle(t *testing.T) {
 	ctx := context.Background()
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, eventStore, _ := testutil.SetupTestReposWithDB(t, db)
+	_, repos, eventStore := testutil.SetupTestDBWithRepos(t)
 	registry := runner.NewRegistry()
 	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
 	continued := atomic.Int32{}
@@ -360,9 +358,7 @@ func TestParkRunWithoutRegistryRetainsIsolatedSeam(t *testing.T) {
 
 func TestParkRun_AndWake_PreservesIdentityEnvAndResetsHeartbeat(t *testing.T) {
 	ctx := context.Background()
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, eventStore, _ := testutil.SetupTestReposWithDB(t, db)
+	db, repos, eventStore := testutil.SetupTestDBWithRepos(t)
 	gate := maintenance.NewGate(maintenance.NewRepository(db))
 
 	mockRunner, captured, captureMu, done := newContinuationRunner(t)
@@ -707,9 +703,7 @@ func TestStopRun_Parked_CancelsAndClearsHandle(t *testing.T) {
 
 func TestWakeRunBindsExactLegacyTaskBeforeContinuation(t *testing.T) {
 	ctx := context.Background()
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, eventStore, _ := testutil.SetupTestReposWithDB(t, db)
+	_, repos, eventStore := testutil.SetupTestDBWithRepos(t)
 	mockRunner, _, _, _ := newContinuationRunner(t)
 	started := make(chan struct{})
 	release := make(chan struct{})
@@ -797,9 +791,7 @@ func newWakeOwnershipGuardRunner(t *testing.T) (runner.Registry, *atomic.Int32) 
 
 func TestWakeRunRefusesAmbiguousLegacyTaskOwner(t *testing.T) {
 	ctx := context.Background()
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, eventStore, _ := testutil.SetupTestReposWithDB(t, db)
+	_, repos, eventStore := testutil.SetupTestDBWithRepos(t)
 	registry, calls := newWakeOwnershipGuardRunner(t)
 	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithEvents(eventStore), orchestration.WithRunners(registry), orchestration.WithRunStateRoot(t.TempDir()), newTestRolePolicyOption(t))
 	run := newParkableRun(t, ctx, svc, repos)
@@ -835,9 +827,7 @@ func TestWakeRunRefusesAmbiguousLegacyTaskOwner(t *testing.T) {
 func TestWakeRunRefusesCancelledTaskAndDifferentCurrentOwner(t *testing.T) {
 	ctx := context.Background()
 	t.Run("cancelled task", func(t *testing.T) {
-		db, cleanup := testutil.SetupTestDB(t)
-		t.Cleanup(cleanup)
-		repos, eventStore, _ := testutil.SetupTestReposWithDB(t, db)
+		_, repos, eventStore := testutil.SetupTestDBWithRepos(t)
 		registry, calls := newWakeOwnershipGuardRunner(t)
 		svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithEvents(eventStore), orchestration.WithRunners(registry), orchestration.WithRunStateRoot(t.TempDir()), newTestRolePolicyOption(t))
 		run := newParkableRun(t, ctx, svc, repos)
@@ -866,9 +856,7 @@ func TestWakeRunRefusesCancelledTaskAndDifferentCurrentOwner(t *testing.T) {
 		}
 	})
 	t.Run("different current owner", func(t *testing.T) {
-		db, cleanup := testutil.SetupTestDB(t)
-		t.Cleanup(cleanup)
-		repos, eventStore, _ := testutil.SetupTestReposWithDB(t, db)
+		_, repos, eventStore := testutil.SetupTestDBWithRepos(t)
 		registry, calls := newWakeOwnershipGuardRunner(t)
 		svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithEvents(eventStore), orchestration.WithRunners(registry), orchestration.WithRunStateRoot(t.TempDir()), newTestRolePolicyOption(t))
 		task := mustCreateTask(t, svc, ctx, &domain.Task{Title: "wake owner", Description: "current owner fence", ScopePath: "src/"})

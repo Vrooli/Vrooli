@@ -172,6 +172,34 @@ CREATE TABLE IF NOT EXISTS run_checkpoints (
 CREATE INDEX IF NOT EXISTS idx_run_checkpoints_heartbeat ON run_checkpoints(last_heartbeat);
 
 -- ============================================================================
+-- Imported run policy scope - the source a caller declared for an import
+-- ============================================================================
+-- A run's import_source_harness is its native format ("codex"). A caller may
+-- also declare where the transcript came from ("resource:codex/private"), and
+-- conversation-policy rules can be written for that scope. The declaration is
+-- kept here so restarts, background ticks and recall rebuilds evaluate the
+-- same rules the import did instead of silently dropping exclude or redact.
+CREATE TABLE IF NOT EXISTS run_import_policy_scopes (
+    run_id TEXT PRIMARY KEY REFERENCES runs(id) ON DELETE CASCADE,
+    source_harness TEXT NOT NULL,
+    recorded_at TEXT NOT NULL
+);
+
+-- ============================================================================
+-- Run label generations - which title generator last settled a run's label
+-- ============================================================================
+-- One row per run whose generated or placeholder label a title generator has
+-- settled. generator is the generator revision; a run is regenerated only
+-- when its row is missing or names another revision, so repeated maintenance
+-- calls make no provider calls for work already done.
+CREATE TABLE IF NOT EXISTS run_label_generations (
+    run_id TEXT PRIMARY KEY REFERENCES runs(id) ON DELETE CASCADE,
+    generator TEXT NOT NULL,
+    outcome TEXT NOT NULL,
+    recorded_at TEXT NOT NULL
+);
+
+-- ============================================================================
 -- Idempotency Records - For replay-safe operations
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS idempotency_records (

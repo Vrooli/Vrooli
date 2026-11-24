@@ -9,7 +9,7 @@ import (
 type Program struct {
 	Name string
 	// Scenario owns the program and Purpose says what it does.
-	Scenario, Purpose string
+	Scenario, Purpose, OwnerSkill string
 	// Bindings are the governed callables it calls, as "scenario/group/command".
 	Bindings []string
 }
@@ -29,7 +29,7 @@ const (
 
 // ProgramMatch is the library program closest to a sequence.
 type ProgramMatch struct {
-	Name, Scenario string
+	Name, Scenario, OwnerSkill string
 	// Basis is BasisBinding or BasisAffinity, the weaker match: contracts do
 	// not declare the CLI commands they replace.
 	Basis string
@@ -152,7 +152,7 @@ func (l Library) best(steps []step) *ProgramMatch {
 			if bound {
 				basis = BasisBinding
 			}
-			best, bestScore = &ProgramMatch{Name: p.Name, Scenario: p.Scenario, Basis: basis, Covered: called, Steps: len(steps)}, score
+			best, bestScore = &ProgramMatch{Name: p.Name, Scenario: p.Scenario, OwnerSkill: p.OwnerSkill, Basis: basis, Covered: called, Steps: len(steps)}, score
 		}
 	}
 	return best

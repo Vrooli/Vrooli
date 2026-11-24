@@ -22,9 +22,7 @@ import (
 
 func authorizationFixture(t *testing.T, now *time.Time) *Orchestrator {
 	t.Helper()
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+	db, repos, events := testutil.SetupTestDBWithRepos(t)
 	return New(nil, nil, repos.Runs, WithClock(func() time.Time { return *now }), WithEvents(events), WithIdentitySecret([]byte("authorization-rules-test")), WithAuthorizations(database.NewAuthorizationRepository(db)))
 }
 

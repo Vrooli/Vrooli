@@ -78,11 +78,6 @@ go test . -run '^TestMaintenanceCLI' -race -count=1 -timeout=60s
 go build ./...
 ```
 
-An additional adjacent workflow-launcher race check failed in `SendHeartbeat`
-versus `runFromDomain` during starting-state persistence. It is retained through
-the report-bug skill as `knw-1789228281794385886`, not hidden by the focused green
-selection. That owner repair is separate from maintenance admission.
-
 Follow-up regressions reproduced a CLI evidence loss: the shared client returns
 503 bodies through `APIError.RawResponse`, while maintenance read only the nil
 response bytes. The CLI now displays the bounded error-envelope state (closed

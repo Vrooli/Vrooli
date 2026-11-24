@@ -15,9 +15,7 @@ import (
 
 func TestInteractivePromptTransportUnknownRetainsIdempotencyReservation(t *testing.T) {
 	ctx := context.Background()
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, _, _ := testutil.SetupTestReposWithDB(t, db)
+	db, repos, _ := testutil.SetupTestDBWithRepos(t)
 	sessions := newRecordingSessions()
 	sessions.promptErr = errors.New("submit result lost after paste")
 	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithIdempotency(repos.Idempotency))
@@ -64,9 +62,7 @@ func TestContinueRunRefusesConfiguredRepositoryWithoutContinuationReceipts(t *te
 
 func TestRunningSessionContinuationRecordsDirectiveAsUserMessage(t *testing.T) {
 	ctx := context.Background()
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, eventStore, _ := testutil.SetupTestReposWithDB(t, db)
+	db, repos, eventStore := testutil.SetupTestDBWithRepos(t)
 	sessions := newRecordingSessions()
 	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithEvents(eventStore), WithIdempotency(repos.Idempotency))
 	task := interactiveTestTask(t, svc)

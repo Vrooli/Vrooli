@@ -38,31 +38,32 @@ const (
 // SourceMessage is the canonical, engine-neutral input to normalization. It
 // contains attribution but never a raw transcript path or attachment body.
 type SourceMessage struct {
-	RunID             string
-	EventID           string
-	MessageID         string
-	Sequence          int64
-	Role              string
-	OccurredAt        time.Time
-	Content           string
-	ProviderEventType string
-	EvidenceOnly      bool
-	EvidenceForEvent  string
-	Deleted           bool
-	Disallowed        bool
-	Harness           string
-	SourceSessionID   string
-	ProviderOrigin    string
-	Importer          string
-	ProjectScope      string
-	CWDScope          string
-	Runner            string
-	Model             string
-	Profile           string
-	RunStatus         string
-	RunLabel          string
-	Tags              []string
-	Workloads         []string
+	RunID                string
+	EventID              string
+	MessageID            string
+	Sequence             int64
+	NativeRecordSequence int64
+	Role                 string
+	OccurredAt           time.Time
+	Content              string
+	ProviderEventType    string
+	EvidenceOnly         bool
+	EvidenceForEvent     string
+	Deleted              bool
+	Disallowed           bool
+	Harness              string
+	SourceSessionID      string
+	ProviderOrigin       string
+	Importer             string
+	ProjectScope         string
+	CWDScope             string
+	Runner               string
+	Model                string
+	Profile              string
+	RunStatus            string
+	RunLabel             string
+	Tags                 []string
+	Workloads            []string
 }
 
 type NormalizerConfig struct {
@@ -145,7 +146,7 @@ func (n *Normalizer) Normalize(source SourceMessage) ([]Document, error) {
 		documents = append(documents, Document{
 			DocumentID: documentID, SourceRunID: source.RunID, SourceEventID: source.EventID, SourceMessageID: messageID,
 			ChunkIndex: index, ChunkTotal: len(spans), StartByte: span.start, EndByte: span.end,
-			EventSequence: source.Sequence, Role: strings.ToLower(strings.TrimSpace(source.Role)), OccurredAt: source.OccurredAt.UTC(),
+			EventSequence: source.Sequence, NativeRecordSequence: source.NativeRecordSequence, Role: strings.ToLower(strings.TrimSpace(source.Role)), OccurredAt: source.OccurredAt.UTC(),
 			Content: body, ContentClass: class, SourceHash: sourceHash, ContentHash: digest(body), RecipeVersion: n.recipeVersion,
 			Harness: source.Harness, SourceSessionID: source.SourceSessionID, ProviderOrigin: source.ProviderOrigin, Importer: source.Importer,
 			ProjectScope: source.ProjectScope, CWDScope: source.CWDScope, Runner: source.Runner, Model: source.Model,

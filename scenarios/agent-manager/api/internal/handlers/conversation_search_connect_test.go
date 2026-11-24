@@ -402,6 +402,45 @@ func TestConversationSearchAdapterMapsLexicalHitAndCoverage(t *testing.T) {
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
+func TestConversationSearchAdapterExposesAntigravityNativeContextOrder(t *testing.T) {
+	t.Parallel()
+	db, err := sqlx.Connect("sqlite", "file:handler-antigravity-context?mode=memory&cache=shared")
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+	require.NoError(t, coredb.EnsureSchemas(context.Background(), db, coredb.SchemaProviderFunc(conversationsearch.Schema)))
+	repository := conversationsearch.NewSQLiteRepository(db)
+	service, err := conversationsearch.NewService(repository, repository, repository, []byte("0123456789abcdef0123456789abcdef"))
+	require.NoError(t, err)
+	for _, item := range []struct {
+		id            string
+		native, event int64
+	}{{"step-8", 8, 2}, {"step-3b", 3, 8}, {"step-3a", 3, 3}} {
+		now := time.Date(2026, 9, 4, 12, int(item.native), 0, 0, time.UTC)
+		require.NoError(t, repository.UpsertDocument(context.Background(), conversationsearch.Document{
+			DocumentID: item.id, SourceRunID: "run-antigravity", SourceEventID: item.id + "-event", SourceMessageID: item.id + "-message",
+			ChunkTotal: 1, EventSequence: item.event, NativeRecordSequence: item.native, Role: "assistant", OccurredAt: now,
+			Content: "antigravity native ordering", ContentClass: conversationsearch.ContentClassProse,
+			SourceHash: item.id, ContentHash: item.id, RecipeVersion: "v1", Harness: "antigravity", SourceSessionID: "thread-3",
+			Visible: true, IndexedAt: now,
+		}))
+	}
+	adapter := NewConversationSearchAdapter(service)
+	response, err := adapter.SearchConversations(context.Background(), &domainpb.SearchConversationsRequest{
+		Query: "antigravity native ordering", Mode: domainpb.ConversationSearchMode_CONVERSATION_SEARCH_MODE_TEXT,
+		Sort: domainpb.ConversationSearchSort_CONVERSATION_SEARCH_SORT_NATIVE_SEQUENCE, PageSize: 3,
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"step-3a", "step-3b", "step-8"}, []string{response.Hits[0].StableHitId, response.Hits[1].StableHitId, response.Hits[2].StableHitId})
+	require.EqualValues(t, 3, response.Hits[0].NativeRecordSequence)
+	contextResponse, err := adapter.GetConversationContext(context.Background(), &domainpb.GetConversationContextRequest{
+		StableHitId: "step-3a", BeforeEvents: 1, AfterEvents: 2,
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"step-3a-event", "step-3b-event", "step-8-event"}, []string{contextResponse.Events[0].EventId, contextResponse.Events[1].EventId, contextResponse.Events[2].EventId})
+	require.Equal(t, []int64{3, 3, 8}, []int64{contextResponse.Events[0].NativeRecordSequence, contextResponse.Events[1].NativeRecordSequence, contextResponse.Events[2].NativeRecordSequence})
+	require.Equal(t, []int64{3, 8, 2}, []int64{contextResponse.Events[0].EventSequence, contextResponse.Events[1].EventSequence, contextResponse.Events[2].EventSequence})
+}
+
 func TestConversationSearchConnectHandlerValidatesFieldsAndMapsDomainErrors(t *testing.T) {
 	t.Parallel()
 	handler := NewConversationSearchConnectHandler(conversationSearchOperationsStub{

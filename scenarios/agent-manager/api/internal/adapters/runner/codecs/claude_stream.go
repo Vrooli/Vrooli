@@ -142,19 +142,11 @@ func (m *ClaudeMessage) ExtractToolResults() []ClaudeContentItem {
 	return toolResults
 }
 
-// ClaudeUsage carries detailed token-usage info.
-type ClaudeUsage struct {
-	InputTokens              int               `json:"input_tokens"`
-	OutputTokens             int               `json:"output_tokens"`
-	CacheCreationInputTokens int               `json:"cache_creation_input_tokens,omitempty"`
-	CacheReadInputTokens     int               `json:"cache_read_input_tokens,omitempty"`
-	ServerToolUse            *ClaudeServerTool `json:"server_tool_use,omitempty"`
-}
+// ClaudeUsage keeps the runner's local name while sharing the wire contract.
+type ClaudeUsage = agenttranscript.ClaudeUsage
 
-// ClaudeServerTool carries server-side tool counters (web search, etc.).
-type ClaudeServerTool struct {
-	WebSearchRequests int `json:"web_search_requests,omitempty"`
-}
+// ClaudeServerTool keeps the runner's local name while sharing the wire contract.
+type ClaudeServerTool = agenttranscript.ClaudeServerToolUse
 
 // ClaudeToolUse is the body of a top-level tool_use stream event.
 type ClaudeToolUse struct {
@@ -202,13 +194,8 @@ func (e *ClaudeError) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// ClaudeContentBlock is the body of content_block_start.
-type ClaudeContentBlock struct {
-	Type string `json:"type"`
-	ID   string `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
-	Text string `json:"text,omitempty"`
-}
+// ClaudeContentBlock aliases the shared native content-block wire shape.
+type ClaudeContentBlock = agenttranscript.ClaudeToolBlock
 
 // ClaudeDelta is the body of content_block_delta / message_delta.
 type ClaudeDelta struct {

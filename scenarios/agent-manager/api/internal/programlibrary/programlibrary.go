@@ -73,7 +73,7 @@ func programs(entries []*sharedv1.LibraryProgram) []opportunities.Program {
 			continue
 		}
 		seen[e.GetName()] = true
-		out = append(out, opportunities.Program{Name: e.GetName(), Scenario: e.GetScenario(), Purpose: e.GetPurpose(), Bindings: e.GetCalledBindingIds()})
+		out = append(out, opportunities.Program{Name: e.GetName(), Scenario: e.GetScenario(), Purpose: e.GetPurpose(), OwnerSkill: e.GetOwnerSkill(), Bindings: e.GetCalledBindingIds()})
 	}
 	return out
 }

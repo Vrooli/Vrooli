@@ -44,14 +44,10 @@ def step_collect():
         lambda: safe(lambda: agent_manager.watch.policy_outcomes(policy_version=inputs["policy_version"], limit=32)),
     )
     if policy_error is not None:
-        status, klass = program.classify(policy_error)
-        envelope["status"] = status
-        envelope["errors"].append({"class": klass, "detail": f"policy: {str(policy_error)[:150]}", "where": "collect"})
-        return "report"
+        return program.fail_exception(policy_error, "collect")
     if outcomes_error is not None:
-        _, klass = program.classify(outcomes_error)
         envelope["status"] = "partial"
-        envelope["errors"].append({"class": klass, "detail": f"outcomes: {str(outcomes_error)[:150]}", "where": "collect"})
+        envelope["errors"].append(program.fail_exception(outcomes_error, "collect", record=False))
     work.update(policy=policy, outcomes=outcomes)
     return "classify"
 
@@ -104,10 +100,4 @@ while state:
         envelope["phase"] = state
         state = STATES[state]()
     except Exception as exc:
-        if state == "report":
-            raise
-        try:
-            status, klass = program.classify(exc)
-        except (NameError, AttributeError):
-            status, klass = "failed", "kernel_runtime"
-        state = program.fail(status, klass, exc, state, detail_limit=180)
+        state = program.fail_exception(exc, state, detail_limit=180)

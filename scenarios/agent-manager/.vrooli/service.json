@@ -438,7 +438,10 @@
           "timeout_ms": 300000
         },
         "port": "api",
-        "cwd": "api"
+        "cwd": "api",
+        "env": {
+          "GOMEMLIMIT": "4GiB"
+        }
       }
     },
     "ui": {

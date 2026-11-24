@@ -14,7 +14,7 @@ metadata:
   updatedAt: "2026-09-04T00:00:00Z"
   requires:
     scenarios: ["agent-manager", "program-runtime", "prompt-manager", "vrooli-memory"]
-    commands: ["agent-manager usage recommendations", "agent-manager usage friction", "agent-manager run list", "agent-manager run report", "agent-manager watch policy-get", "agent-manager watch policy-outcomes", "agent-manager conversation index status", "agent-manager measures get", "search-hub evals runs", "search-hub federation status", "search-hub insights insights", "program-runtime bindings condition", "program-runtime programs submit", "prompt-manager skill read", "vrooli-memory journal note"]
+    commands: ["agent-manager usage recommendations", "agent-manager usage friction", "program-runtime library run agent-manager.run-inventory", "agent-manager run report", "agent-manager watch policy-get", "agent-manager watch policy-outcomes", "agent-manager conversation index status", "agent-manager measures get", "search-hub evals runs", "search-hub federation status", "search-hub insights insights", "program-runtime bindings condition", "program-runtime programs submit", "prompt-manager skill read", "vrooli-memory journal note"]
   origin:
     kind: "authored"
 ---
@@ -41,7 +41,7 @@ Bands are targets. Readings are dated observations; re-read them every cycle wit
 | Row | Sensor | Band | Reading |
 |---|---|---|---|
 | command-outcome-coverage | `agent-manager measures get tool-friction --window last_7d` → `coverage.vrooli_outcome_known` ÷ `coverage.vrooli_commands` (Vrooli CLI calls whose outcome is known) | ≥ 0.95 | read it with `setpoint-read`; below the band the failure and shape rates are not banded |
-| investigation-completion-rate | `agent-manager run list --tag-prefix agent-manager-investigation --json` → `RUN_STATUS_COMPLETE` ÷ terminal | ≥ 0.80 | `unreliable:no_terminal_runs_with_tag_prefix` until investigation runs with that tag finish |
+| investigation-completion-rate | `program-runtime library run agent-manager.run-inventory --input tag_prefix=agent-manager-investigation --input limit=50` → `signals.runs`: `RUN_STATUS_COMPLETE` ÷ terminal | ≥ 0.80 | `unreliable:no_terminal_runs_with_tag_prefix` until investigation runs with that tag finish |
 | skill-and-program-identity-on-facts | `agent-manager run report <id> --facts` → facts carrying `skill_id` or `program_id` | every parsed `prompt-manager skill read <name>` fact carries the skill name; every `program-runtime library run <name>` fact carries the program name | evaluate only when the run contains those calls; otherwise unavailable for no attributable sample. Fields are persisted in invocation facts. |
 | tool-friction-validity | `agent-manager measures get tool-friction --window last_7d` → `validity` | `available` | `unreliable` for a small sample; the row carries the reason |
 | bypass-calls | `agent-manager measures get tool-friction --window last_7d` → `bypass_calls` (calls that reached a scenario's database, port or state directory around its CLI) | pending-baseline; direction falling | descriptive until a week of profiles sets the baseline |

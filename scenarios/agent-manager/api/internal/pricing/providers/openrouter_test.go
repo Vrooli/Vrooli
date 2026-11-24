@@ -45,6 +45,11 @@ func TestOpenRouterProvider_RefreshInterval(t *testing.T) {
 	assert.Equal(t, 2*time.Hour, p2.RefreshInterval())
 }
 
+func TestOpenRouterProvider_DefaultHTTPTimeout(t *testing.T) {
+	p := NewOpenRouterProvider()
+	assert.Equal(t, 15*time.Second, p.client.Timeout)
+}
+
 func TestOpenRouterProvider_SupportsModel(t *testing.T) {
 	p := NewOpenRouterProvider()
 
@@ -63,6 +68,7 @@ func TestOpenRouterProvider_FetchAllPricing_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/models", r.URL.Path)
 		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Empty(t, r.Header.Get("Authorization"), "pricing model discovery must not send a key")
 
 		response := openRouterResponseFixture{
 			Data: []openRouterModelFixture{

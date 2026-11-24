@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -14,6 +15,8 @@ import (
 	"agent-manager/internal/pricing"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/ai-provider-go/openai"
+	"github.com/vrooli/ai-provider-go/providererror"
 )
 
 const (
@@ -116,19 +119,24 @@ func (p *OpenRouterProvider) FetchModelPricing(ctx context.Context, canonicalMod
 
 // refresh fetches fresh pricing data from the OpenRouter API.
 func (p *OpenRouterProvider) refresh(ctx context.Context) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.baseURL+"/models", nil)
+	body, err := openai.New(openai.Config{
+		ProviderName: "openrouter",
+		BaseURL:      p.baseURL,
+		HTTPClient:   p.client,
+	}).ListModels(ctx)
 	if err != nil {
+		if providerErr, ok := providererror.As(err); ok {
+			if providerErr.HTTPStatus != 0 && providerErr.HTTPStatus != http.StatusOK {
+				return fmt.Errorf("openrouter pricing status %d", providerErr.HTTPStatus)
+			}
+			if providerErr.Code == providererror.CodeUnreachable {
+				return fmt.Errorf("openrouter pricing request failed: %w", providerErr.Unwrap())
+			}
+			if providerErr.Code == providererror.CodeStreamFailed {
+				return fmt.Errorf("openrouter pricing decode: %w", providerErr.Unwrap())
+			}
+		}
 		return fmt.Errorf("openrouter pricing request: %w", err)
-	}
-
-	resp, err := p.client.Do(req)
-	if err != nil {
-		return fmt.Errorf("openrouter pricing request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("openrouter pricing status %d", resp.StatusCode)
 	}
 
 	var payload struct {
@@ -143,7 +151,7 @@ func (p *OpenRouterProvider) refresh(ctx context.Context) error {
 		} `json:"data"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+	if err := json.NewDecoder(bytes.NewReader(body)).Decode(&payload); err != nil {
 		return fmt.Errorf("openrouter pricing decode: %w", err)
 	}
 

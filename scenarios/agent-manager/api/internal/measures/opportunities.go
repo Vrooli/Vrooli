@@ -88,7 +88,8 @@ func opportunityRows(report opportunities.Report) []map[string]string {
 			"dependency_measured": n(o.MeasuredSteps), "dependency_used": n(o.DependentSteps), "mandated": strconv.FormatBool(o.Mandated), "details": strings.Join(o.Details, "\n"), "run_ids": strings.Join(o.RunIDs, "\n"), "examples": strings.Join(o.Examples, "\n"), "verify": o.Verify,
 		}
 		if o.Program != nil {
-			row["program"], row["program_basis"], row["program_runs"] = o.Program.Name, o.Program.Basis, n(o.Program.Runs)
+			row["program"], row["program_owner_skill"], row["program_basis"], row["program_runs"] = o.Program.Name, o.Program.OwnerSkill, o.Program.Basis, n(o.Program.Runs)
+			row["program_covered_steps"], row["program_total_steps"] = n(o.Program.Covered), n(o.Program.Steps)
 		}
 		rows = append(rows, row)
 	}

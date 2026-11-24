@@ -54,9 +54,14 @@ func TestOpenCodeArchiveParserPreservesSharedOccurrenceTime(t *testing.T) {
 	if len(result.Events) != 2 || !result.Timestamp.Equal(want) {
 		t.Fatalf("parse result timestamp/events = %s / %d, want %s / 2", result.Timestamp, len(result.Events), want)
 	}
-	for _, event := range result.Events {
+	wantText := []string{"first", "second"}
+	for i, event := range result.Events {
 		if !event.Timestamp.Equal(want) {
 			t.Errorf("event timestamp = %s, want %s", event.Timestamp, want)
+		}
+		data, ok := event.Data.(*domain.MessageEventData)
+		if !ok || data.Role != "assistant" || data.Content != wantText[i] {
+			t.Errorf("event %d data = %#v, want assistant text %q from shared archive codec", i, event.Data, wantText[i])
 		}
 	}
 }

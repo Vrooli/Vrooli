@@ -356,6 +356,37 @@ type RunLabelUpdater interface {
 	UpdateRunLabel(ctx context.Context, id uuid.UUID, label string, source domain.RunLabelSource) error
 }
 
+// RunLabelGeneration is a title generator's settled outcome for one run.
+// Generator is the generator revision; Outcome says what it concluded.
+type RunLabelGeneration struct {
+	Generator string
+	Outcome   string
+}
+
+// RunLabelRegenerationStore owns the durable record that makes title
+// regeneration idempotent: a run is a target until the current generator
+// revision has settled it.
+type RunLabelRegenerationStore interface {
+	// LabelRegenerationTargets returns imported runs whose label source is one
+	// of sources and that generator has not settled, newest first, and the
+	// total number of such runs.
+	LabelRegenerationTargets(ctx context.Context, generator string, sources []domain.RunLabelSource, limit int) ([]uuid.UUID, int, error)
+	// SettleRunLabel records generation for a run. A non-empty label replaces
+	// the run's label in the same transaction, but only while the run's label
+	// source is still one of replaceable, so a harness or operator label
+	// written meanwhile is never overwritten. It reports whether the label
+	// changed.
+	SettleRunLabel(ctx context.Context, id uuid.UUID, generation RunLabelGeneration, label string, source domain.RunLabelSource, replaceable []domain.RunLabelSource) (bool, error)
+}
+
+// RunImportPolicyScopeStore keeps the source scope a caller declared when it
+// imported a transcript, which conversation-policy rules may match.
+type RunImportPolicyScopeStore interface {
+	SetRunImportPolicyScope(ctx context.Context, id uuid.UUID, sourceHarness string) error
+	// RunImportPolicyScope returns the declared scope, or "" when none was.
+	RunImportPolicyScope(ctx context.Context, id uuid.UUID) (string, error)
+}
+
 // RunSubjectUpdater updates only the derived subject projection. Keeping this
 // seam separate prevents analytics projection from overwriting live run state.
 type RunSubjectUpdater interface {

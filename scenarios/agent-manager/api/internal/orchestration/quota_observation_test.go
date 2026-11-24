@@ -207,9 +207,7 @@ func TestImportTranscriptRecordsCodexQuotaFrames(t *testing.T) {
 }
 
 func TestNativeQuotaCodecSinkDurableObservationAndPublicEvent(t *testing.T) {
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, eventStore, _ := testutil.SetupTestReposWithDB(t, db)
+	db, repos, eventStore := testutil.SetupTestDBWithRepos(t)
 	task := &domain.Task{ID: uuid.New(), Title: "native quota", ScopePath: ".", Status: domain.TaskStatusQueued}
 	if err := repos.Tasks.Create(t.Context(), task); err != nil {
 		t.Fatal(err)

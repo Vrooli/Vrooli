@@ -21,6 +21,7 @@ func TestSQLiteSourcePagesMessagesInStableOrderAndResolvesDeletion(t *testing.T)
 	require.NoError(t, err)
 	require.Len(t, first.Documents, 1)
 	require.Equal(t, "event-1", first.Documents[0].SourceEventID)
+	require.EqualValues(t, 6, first.Documents[0].NativeRecordSequence)
 	require.NotNil(t, first.NextCursor)
 
 	second, err := source.LoadSourcePage(context.Background(), first.NextCursor, 1)
@@ -196,7 +197,7 @@ func seedSourceFixture(t *testing.T, db *sqlx.DB) {
 	t.Helper()
 	insertRunFixture(t, db)
 	for _, statement := range []string{
-		`INSERT INTO run_events VALUES ('event-1','run-1',1,'message','` + fixtureTime(1) + `',1,'{"role":"operator","content":"first message","messageId":"message-1","providerOrigin":"claude"}')`,
+		`INSERT INTO run_events VALUES ('event-1','run-1',1,'message','` + fixtureTime(1) + `',1,'{"role":"operator","content":"first message","messageId":"message-1","providerOrigin":"claude","nativeRecordSequence":6}')`,
 		`INSERT INTO run_events VALUES ('event-2','run-1',2,'message','` + fixtureTime(2) + `',1,'{"role":"assistant","content":"deleted secret","messageId":"message-2"}')`,
 		`INSERT INTO run_events VALUES ('delete-2','run-1',3,'message_deleted','` + fixtureTime(3) + `',1,'{"targetEventId":"event-2"}')`,
 		`INSERT INTO run_events VALUES ('event-3','run-1',4,'message','` + fixtureTime(4) + `',1,'{"role":"assistant","content":"corrected result","messageId":"message-3"}')`,

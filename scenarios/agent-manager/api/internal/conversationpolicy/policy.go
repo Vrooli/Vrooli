@@ -64,12 +64,19 @@ const (
 // `*` glob (see matchField) so a model prefix such as `claude*` matches
 // `claude-opus-4-8[1m]` — exact equality remains the default when no `*`
 // appears.
+//
+// A conversation can carry two harness labels: Harness is its native format
+// ("codex"), and SourceHarness is the source scope a caller declared when it
+// imported the transcript ("resource:codex/private"). A rule's harness matches
+// either, so a rule written for the declared scope and a rule written for the
+// format both apply.
 type Fields struct {
-	Harness      string
-	Model        string
-	ProjectScope string
-	CwdScope     string
-	Tag          string
+	Harness       string
+	SourceHarness string
+	Model         string
+	ProjectScope  string
+	CwdScope      string
+	Tag           string
 }
 
 // Rule is one declarative match → action mapping. An unset match field is a
@@ -132,7 +139,7 @@ func (r Rule) ImportUnobservableFields() []string {
 }
 
 func (r Rule) matches(f Fields) bool {
-	return matchField(r.Harness, f.Harness) &&
+	return (matchField(r.Harness, f.Harness) || (strings.TrimSpace(f.SourceHarness) != "" && matchField(r.Harness, f.SourceHarness))) &&
 		matchField(r.Model, f.Model) &&
 		matchField(r.ProjectScope, f.ProjectScope) &&
 		matchField(r.CwdScope, f.CwdScope) &&

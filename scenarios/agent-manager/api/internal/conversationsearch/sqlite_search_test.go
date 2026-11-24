@@ -78,6 +78,33 @@ func TestLexicalCandidatesBrowseByStructuredFilterWithoutFTSQuery(t *testing.T) 
 	require.Zero(t, candidates[0].Score)
 }
 
+func TestNativeSequenceSearchPersistsAndPagesBySourceStep(t *testing.T) {
+	t.Parallel()
+	db := openProjectionTestDB(t)
+	applyProjectionSchema(t, db)
+	repository := NewSQLiteRepository(db)
+	for _, item := range []struct {
+		id            string
+		native, event int64
+	}{{"native-7", 7, 90}, {"native-2b", 2, 20}, {"native-2a", 2, 10}} {
+		document := testDocument()
+		document.DocumentID, document.SourceEventID = item.id, item.id+"-event"
+		document.NativeRecordSequence, document.EventSequence = item.native, item.event
+		require.NoError(t, repository.UpsertDocument(context.Background(), document))
+	}
+	first, err := repository.LexicalCandidates(context.Background(), CandidateQuery{Limit: 2, Sort: SearchSortNativeSequence})
+	require.NoError(t, err)
+	require.Len(t, first, 2)
+	require.Equal(t, "native-2a", first[0].Document.DocumentID)
+	require.EqualValues(t, 2, first[0].Document.NativeRecordSequence)
+	require.Equal(t, "native-2b", first[1].Document.DocumentID)
+	next, err := repository.LexicalCandidates(context.Background(), CandidateQuery{Limit: 2, Sort: SearchSortNativeSequence, After: &CandidateCursor{NativeRecordSequence: first[1].Document.NativeRecordSequence, EventSequence: first[1].Document.EventSequence, DocumentID: first[1].Document.DocumentID}})
+	require.NoError(t, err)
+	require.Len(t, next, 1)
+	require.Equal(t, "native-7", next[0].Document.DocumentID)
+	require.Equal(t, int64(7), next[0].Document.NativeRecordSequence)
+}
+
 func TestLexicalCandidatesRejectInjectionAsData(t *testing.T) {
 	t.Parallel()
 	db := openProjectionTestDB(t)
@@ -121,12 +148,46 @@ func TestContextDocumentsBoundsAndOmitsHiddenRows(t *testing.T) {
 		require.NoError(t, repository.UpsertDocument(context.Background(), document))
 	}
 
-	documents, err := repository.ContextDocuments(context.Background(), "run-1", 4, 2, 1)
+	hit := searchDocument("doc-d", "context", ContentClassProse, fixtureTimeValue(4))
+	hit.EventSequence = 4
+	documents, err := repository.ContextDocuments(context.Background(), hit, 2, 1)
 	require.NoError(t, err)
 	require.Len(t, documents, 4)
 	require.Equal(t, []int64{1, 3, 4, 5}, []int64{documents[0].EventSequence, documents[1].EventSequence, documents[2].EventSequence, documents[3].EventSequence})
-	_, err = repository.ContextDocuments(context.Background(), "run-1", 4, 21, 0)
+	_, err = repository.ContextDocuments(context.Background(), hit, 21, 0)
 	require.ErrorContains(t, err, "bounds")
+}
+
+func TestNativeContextDocumentsUsesSourceStepWithEventAndIdentityPreserved(t *testing.T) {
+	t.Parallel()
+	db := openProjectionTestDB(t)
+	applyProjectionSchema(t, db)
+	repository := NewSQLiteRepository(db)
+	items := []struct {
+		id, session   string
+		native, event int64
+	}{
+		{"step-9", "thread-native", 9, 2},
+		{"step-4b", "thread-native", 4, 8},
+		{"step-4a", "thread-native", 4, 3},
+	}
+	for _, item := range items {
+		document := searchDocument(item.id, item.id+" sanitized body", ContentClassProse, fixtureTimeValue(int(item.native)))
+		document.Harness = "antigravity"
+		document.NativeRecordSequence, document.EventSequence = item.native, item.event
+		document.SourceSessionID = item.session
+		require.NoError(t, repository.UpsertDocument(context.Background(), document))
+	}
+	hit := searchDocument("step-4a", "step-4a sanitized body", ContentClassProse, fixtureTimeValue(4))
+	hit.Harness, hit.EventSequence, hit.NativeRecordSequence = "antigravity", 3, 4
+	hit.SourceSessionID = "thread-native"
+	window, err := repository.ContextDocuments(context.Background(), hit, 0, 2)
+	require.NoError(t, err)
+	require.Equal(t, []string{"step-4a", "step-4b", "step-9"}, []string{window[0].DocumentID, window[1].DocumentID, window[2].DocumentID})
+	require.Equal(t, []int64{4, 4, 9}, []int64{window[0].NativeRecordSequence, window[1].NativeRecordSequence, window[2].NativeRecordSequence})
+	require.Equal(t, []int64{3, 8, 2}, []int64{window[0].EventSequence, window[1].EventSequence, window[2].EventSequence})
+	require.Equal(t, []string{"thread-native", "thread-native", "thread-native"}, []string{window[0].SourceSessionID, window[1].SourceSessionID, window[2].SourceSessionID})
+	require.Equal(t, []time.Time{fixtureTimeValue(4), fixtureTimeValue(4), fixtureTimeValue(9)}, []time.Time{window[0].OccurredAt, window[1].OccurredAt, window[2].OccurredAt})
 }
 
 func TestLexicalSearchPersistsAcrossDatabaseRestartWithoutSemanticResources(t *testing.T) {

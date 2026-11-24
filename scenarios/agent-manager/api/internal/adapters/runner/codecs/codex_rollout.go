@@ -39,94 +39,10 @@ const codexTranscriptVersion = 5
 // TranscriptVersion satisfies [runner.TranscriptVersioner].
 func (p *codexTranscriptParser) TranscriptVersion() int { return codexTranscriptVersion }
 
-// codexRolloutPayload is the union of the payload fields this codec maps.
-// Unused fields for a given payload type stay zero.
-type codexRolloutPayload struct {
-	Type string `json:"type"`
-	agenttranscript.CodexRolloutSessionMeta
-	// session_meta. Source is "vscode"/"exec"/... or an object such as
-	// {"subagent":{"thread_spawn":{...}}}.
-	// response_item message
-	Role     string                `json:"role"`
-	Content  json.RawMessage       `json:"content"`
-	Metadata *codexMessageMetadata `json:"internal_chat_message_metadata_passthrough"`
-	// agent_message / user_message
-	Message string `json:"message"`
-	// task_started/task_complete/turn_context
-	TurnID string `json:"turn_id"`
-	// event_msg records of a thread's own activity (thread_settings_applied,
-	// item_completed)
-	ThreadID string `json:"thread_id"`
-	// function_call / custom_tool_call
-	Name      string `json:"name"`
-	Arguments string `json:"arguments"` // function_call: JSON-encoded args
-	Input     string `json:"input"`     // custom_tool_call: raw tool input
-	CallID    string `json:"call_id"`
-	// function_call_output / custom_tool_call_output
-	Output json.RawMessage `json:"output"`
-	// event_msg item_completed; decoded only for a CommandExecution, since
-	// other items' fields (array outputs) do not fit CodexItem.
-	Item json.RawMessage `json:"item"`
-	// turn_context
-	Model string `json:"model"`
-	// turn_aborted
-	Reason string               `json:"reason"`
-	Info   *codexTokenCountInfo `json:"info"`
-	// Native quota metadata is a sibling of info in token_count frames. It is
-	// present even when info is null (for example at session start).
-	RateLimits codexRateLimits `json:"rate_limits"`
-}
-
-// codexRateLimits keeps the window-shaped entries of a token_count frame's
-// rate_limits and skips the rest. Newer Codex CLIs add scalar siblings such as
-// limit_id, plan_type and credits; a strict map type would fail the whole frame
-// and silently drop its usage.
-type codexRateLimits map[string]CodexRateLimitWindow
-
-func (m *codexRateLimits) UnmarshalJSON(data []byte) error {
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil
-	}
-	out := codexRateLimits{}
-	for key, value := range raw {
-		trimmed := bytes.TrimSpace(value)
-		if len(trimmed) == 0 || trimmed[0] != '{' {
-			continue
-		}
-		var window CodexRateLimitWindow
-		if json.Unmarshal(trimmed, &window) == nil && (window.UsedPercent != nil || window.WindowMinutes != 0) {
-			out[key] = window
-		}
-	}
-	*m = out
-	return nil
-}
-
-// codexMessageMetadata is the structural evidence Codex records on a message:
-// the kind of each content item and, from about 2026-10-29, who provided it.
-type codexMessageMetadata struct {
-	ContentItemKinds    []string `json:"content_item_kinds"`
-	ContentItemMetadata []struct {
-		Provenance struct {
-			Type string `json:"type"`
-		} `json:"provenance"`
-	} `json:"content_item_metadata"`
-}
-
-// sourceEvidence returns the item kinds and provenance types; both are empty
-// when the rollout predates the metadata.
-func (m *codexMessageMetadata) sourceEvidence() (kinds, provenance []string) {
-	if m == nil {
-		return nil, nil
-	}
-	for _, item := range m.ContentItemMetadata {
-		if item.Provenance.Type != "" {
-			provenance = append(provenance, item.Provenance.Type)
-		}
-	}
-	return m.ContentItemKinds, provenance
-}
+type codexRolloutPayload = agenttranscript.CodexRolloutPayload
+type codexMessageMetadata = agenttranscript.CodexMessageMetadata
+type codexTokenCountInfo = agenttranscript.CodexTokenCountInfo
+type codexRateLimits = agenttranscript.CodexRateLimits
 
 // isCodexSubagentThread reports whether session_meta names a sub-agent
 // thread: thread_source "subagent", or a source object with a subagent key
@@ -143,20 +59,7 @@ func isCodexSubagentThread(threadSource string, source json.RawMessage) bool {
 	return ok
 }
 
-type codexTokenCountInfo struct {
-	LastTokenUsage  *CodexUsage `json:"last_token_usage"`
-	TotalTokenUsage *CodexUsage `json:"total_token_usage"`
-}
-
-// CodexRateLimitWindow is the bounded, metadata-only native quota shape. The
-// CLI reports a percentage/window/reset rather than an absolute token quota;
-// keeping these as optional fields avoids inventing a ceiling.
-type CodexRateLimitWindow struct {
-	UsedPercent   *float64 `json:"used_percent,omitempty"`
-	WindowMinutes int64    `json:"window_minutes,omitempty"`
-	ResetAt       int64    `json:"reset_at,omitempty"`
-	ResetsAt      int64    `json:"resets_at,omitempty"`
-}
+type CodexRateLimitWindow = agenttranscript.CodexRateLimitWindow
 
 const codexProvider = "openai"
 
@@ -588,7 +491,7 @@ func parseCodexRolloutItem(runID uuid.UUID, pl codexRolloutPayload, state *codex
 			return []*domain.RunEvent{message}
 		case "user", "operator":
 			if state != nil && state.retainUser {
-				kinds, provenance := pl.Metadata.sourceEvidence()
+				kinds, provenance := pl.Metadata.SourceEvidence()
 				source := domain.ClassifyCodexUserMessage(text, state.subagentThread, kinds, provenance)
 				return []*domain.RunEvent{domain.NewProviderMessageEvent(runID, "user", text, domain.MessageEventData{ProviderOrigin: "codex", ProviderEventType: "response_item.message", Source: source})}
 			}

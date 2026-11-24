@@ -22,7 +22,7 @@ import (
 
 const (
 	defaultQueryTimeout  = 30 * time.Second
-	defaultSchemaTimeout = 60 * time.Second
+	defaultSchemaTimeout = 4 * time.Minute
 	defaultPingTimeout   = 5 * time.Second
 )
 
@@ -376,9 +376,22 @@ func isScannable(dest any) bool {
 // are at least two weeks old and have run on every install that follows the
 // branch, so they are not carried: an install older than those cutovers must be
 // upgraded through a build that still has them.
-func (db *DB) initSchema() error {
+func (db *DB) initSchema() (err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultSchemaTimeout)
 	defer cancel()
+	started := time.Now()
+	phase := "additive_column_migrations"
+	defer func() {
+		if db.log == nil {
+			return
+		}
+		fields := logrus.Fields{"phase": phase, "elapsed_ms": time.Since(started).Milliseconds()}
+		if err != nil {
+			db.log.WithFields(fields).WithError(err).Error("Database schema initialization failed")
+			return
+		}
+		db.log.WithFields(fields).Info("Database schema initialized")
+	}()
 	for _, table := range additiveColumnMigrations {
 		columns, err := db.tableColumns(ctx, table.name)
 		if err != nil {
@@ -396,23 +409,23 @@ func (db *DB) initSchema() error {
 			return err
 		}
 	}
+	phase = "declared_schema_apply_and_reconcile"
 	if err := coredb.EnsureSchemas(ctx, db, modules.AllSchemas()...); err != nil {
 		if db.log != nil {
 			db.log.WithError(err).Error("Failed to apply domain schemas")
 		}
 		return &domain.DatabaseError{Operation: "schema_init", EntityType: "Schema", Cause: err}
 	}
+	phase = "store_identity_table"
 	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS agent_manager_store_identity (
 		singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
 		owner_id TEXT NOT NULL UNIQUE
 	)`); err != nil {
 		return &domain.DatabaseError{Operation: "schema_init", EntityType: "Schema", Cause: err}
 	}
+	phase = "one_shot_migrations"
 	if err := db.runOnceMigrations(ctx); err != nil {
 		return err
-	}
-	if db.log != nil {
-		db.log.Info("Database schema initialized successfully")
 	}
 	return nil
 }

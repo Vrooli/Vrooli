@@ -54,6 +54,7 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/stoewer/go-strcase v1.3.1 // indirect
 	github.com/vrooli/ai-go v0.0.0
+	github.com/vrooli/ai-provider-go v0.0.0
 	github.com/vrooli/maturity-go v0.0.0
 	golang.org/x/exp v0.0.0-20250813145105-42675adae3e6 // indirect
 	golang.org/x/sync v0.23.0 // indirect
@@ -89,3 +90,5 @@ replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 replace github.com/vrooli/searchregister-go => ../../../packages/searchregister-go
+
+replace github.com/vrooli/ai-provider-go => ../../../packages/ai-provider-go

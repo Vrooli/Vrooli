@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS conversation_search_catalog (
     start_byte INTEGER NOT NULL CHECK (start_byte >= 0),
     end_byte INTEGER NOT NULL CHECK (end_byte >= start_byte),
     event_sequence INTEGER NOT NULL CHECK (event_sequence >= 0),
+    native_record_sequence INTEGER NOT NULL DEFAULT 0 CHECK (native_record_sequence >= 0),
     role TEXT NOT NULL,
     occurred_at TEXT NOT NULL,
     content TEXT NOT NULL,
@@ -70,7 +71,7 @@ CREATE INDEX IF NOT EXISTS idx_conversation_search_visible_messages
 -- The column list is explicit so the staging copy never carries catalog ids.
 CREATE TABLE IF NOT EXISTS conversation_search_generation_documents AS
 SELECT '' AS generation_id, document_id, source_run_id, source_event_id, source_message_id,
-    chunk_index, chunk_total, start_byte, end_byte, event_sequence, role, occurred_at, content,
+    chunk_index, chunk_total, start_byte, end_byte, event_sequence, native_record_sequence, role, occurred_at, content,
     content_class, source_hash, content_hash, recipe_version, harness, source_session_id,
     provider_origin, importer, project_scope, cwd_scope, runner, model, profile, run_status,
     run_label, tags_json, workloads_json, evidence_ref, visible, indexed_at

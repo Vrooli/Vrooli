@@ -3,6 +3,7 @@ package transcriptindex
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -26,6 +27,30 @@ func ReadCursorSnapshot(ctx context.Context, path, composerID string) ([]byte, e
 		return nil, fmt.Errorf("Cursor composer snapshot exceeds %d-byte import limit", maxTranscriptDocumentBytes)
 	}
 	return snapshot, nil
+}
+
+// cursorComposerRemoved is true only when the native composer header is
+// definitively absent. A malformed or mismatched header remains present and
+// is left to the import gate rather than treated as a deletion.
+func cursorComposerRemoved(ctx context.Context, path, composerID string) (bool, error) {
+	if strings.TrimSpace(composerID) == "" {
+		return false, fmt.Errorf("Cursor composer ID is required")
+	}
+	uri := (&url.URL{Scheme: "file", Path: path, RawQuery: "mode=ro&_pragma=busy_timeout(5000)"}).String()
+	db, err := sql.Open("sqlite", uri)
+	if err != nil {
+		return false, err
+	}
+	defer db.Close()
+	var present int
+	err = db.QueryRowContext(ctx, `SELECT 1 FROM cursorDiskKV WHERE key = ?`, "composerData:"+composerID).Scan(&present)
+	if errors.Is(err, sql.ErrNoRows) {
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return false, nil
 }
 
 func discoverCursorDB(path string, root Root) ([]Candidate, error) {
@@ -66,12 +91,20 @@ func discoverCursorDB(path string, root Root) ([]Candidate, error) {
 			rows.Close()
 			return nil, err
 		}
+		snapshotInfo, err := os.Stat(path)
+		if err != nil || !snapshotInfo.Mode().IsRegular() {
+			rows.Close()
+			if err != nil {
+				return nil, err
+			}
+			return nil, fmt.Errorf("Cursor state database changed type during composer discovery")
+		}
 		abs, err := filepath.Abs(path)
 		if err != nil {
 			rows.Close()
 			return nil, err
 		}
-		out = append(out, Candidate{Root: root, Path: abs, Key: "cursor:" + abs + "#" + id, SessionID: id, Size: int64(len(snapshot)), ContentHash: agenttranscript.SHA256Bytes(snapshot)})
+		out = append(out, Candidate{Root: root, Path: abs, Key: "cursor:" + abs + "#" + id, SessionID: id, Size: int64(len(snapshot)), MtimeUnixNano: snapshotInfo.ModTime().UnixNano(), ContentHash: agenttranscript.SHA256Bytes(snapshot)})
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()

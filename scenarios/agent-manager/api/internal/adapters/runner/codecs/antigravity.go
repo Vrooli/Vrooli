@@ -95,11 +95,11 @@ func (c *Antigravity) BuildArgs(_ State, req runner.ExecuteRequest) []string {
 }
 
 func (c *Antigravity) BuildContinueArgs(_ State, req runner.ContinueRequest) []string {
-	format, ok := agenttranscript.FormatFor("antigravity")
-	if !ok {
-		panic("missing shared Antigravity transcript format")
+	invocation, err := agenttranscript.BuildNativeResumeInvocation("antigravity", req.SessionID, req.Prompt)
+	if err != nil {
+		panic(err)
 	}
-	args := []string{format.ResumeFlag, req.SessionID, "--print", req.Prompt}
+	args := invocation.Args
 	if cfg := req.GetConfig(); cfg != nil {
 		if cfg.Model != "" && !isAntigravityDefaultModel(cfg.Model) {
 			args = append(args, "--model", cfg.Model)
@@ -146,12 +146,17 @@ func (c *Antigravity) DecodeStreamLine(state State, runID uuid.UUID, line string
 	if text == "" {
 		return nil, nil
 	}
-	return []*domain.RunEvent{domain.NewProviderMessageEvent(runID, "assistant", text, domain.MessageEventData{
-		ConversationID:    s.sessionID,
-		ProviderOrigin:    "antigravity",
-		ProviderEventType: "print",
-		RawEvidenceRef:    "antigravity:print",
-	})}, nil
+	event := domain.NewProviderMessageEvent(runID, "assistant", text, domain.MessageEventData{
+		ConversationID:       s.sessionID,
+		ProviderOrigin:       "antigravity",
+		ProviderEventType:    "print",
+		NativeRecordSequence: messages[0].NativeRecordSequence,
+		RawEvidenceRef:       "antigravity:print",
+	})
+	if !messages[0].OccurredAt.IsZero() {
+		event.Timestamp = messages[0].OccurredAt
+	}
+	return []*domain.RunEvent{event}, nil
 }
 
 func (c *Antigravity) NewTranscriptParser() runner.TranscriptParser {
@@ -165,7 +170,11 @@ type antigravityTranscriptParser struct {
 
 func (p *antigravityTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
 	events, err := p.codec.DecodeStreamLine(p.state, runID, line)
-	return runner.TranscriptParseResult{Events: events, SessionID: p.state.sessionID, Err: err}
+	result := runner.TranscriptParseResult{Events: events, SessionID: p.state.sessionID, Err: err}
+	if len(events) > 0 {
+		result.Timestamp = events[0].Timestamp
+	}
+	return result
 }
 
 func (c *Antigravity) UpdateMetrics(event *domain.RunEvent, metrics *runner.ExecutionMetrics, lastAssistant *string) {

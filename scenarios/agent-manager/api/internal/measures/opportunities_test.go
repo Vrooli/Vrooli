@@ -71,6 +71,39 @@ func TestOpportunitiesMeasureServesRankedRowsBeyondCoverage(t *testing.T) {
 	}
 }
 
+func TestOpportunitiesMeasureRoutesMatchedProgramToItsSkill(t *testing.T) {
+	var calls []toolfriction.Call
+	base := time.Date(2026, 10, 29, 9, 0, 0, 0, time.UTC)
+	steps := [][2]string{{"vrooli", "vrooli scenario status"}, {"vrooli", "vrooli scenario freshness"}, {"vrooli", "vrooli scenario logs"}}
+	for run := 0; run < 3; run++ {
+		for i, step := range steps {
+			calls = append(calls, toolfriction.Call{
+				RunID: fmt.Sprintf("triage-%d", run), CallEventID: fmt.Sprintf("triage-%d-%d", run, i),
+				At: base.Add(time.Duration(run*10+i) * time.Minute), Owner: step[0], CommandPath: step[1],
+				Features: toolfriction.Features{Command: step[1] + " program-runtime"},
+			})
+		}
+	}
+	h := NewHandler(nil, func() time.Time { return time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC) })
+	h.tools = &fixedTools{calls: calls}
+	h.programs = fixedLibrary{Programs: []opportunities.Program{{
+		Name: "program-runtime.scenario-triage", Scenario: "program-runtime", OwnerSkill: "program-runtime",
+		Purpose:  "read status and logs for one flagged scenario",
+		Bindings: []string{"vrooli/scenario/status", "vrooli/scenario/freshness", "vrooli/scenario/logs"},
+	}}}
+	served := executeRegisteredMeasure(t, newTestRegistry(t, h), measurelib.MeasureRequest{Measure: UsageOpportunities, Params: map[string]string{"window": "last_7d"}})
+	var matched map[string]string
+	for _, row := range served.Fields {
+		if row["subject"] == "vrooli scenario status → vrooli scenario freshness → vrooli scenario logs" {
+			matched = row
+			break
+		}
+	}
+	if matched == nil || matched["program"] != "program-runtime.scenario-triage" || matched["program_owner_skill"] != "program-runtime" || matched["program_basis"] != "binding" || matched["program_covered_steps"] != "3" || matched["program_total_steps"] != "3" {
+		t.Fatalf("program-to-skill route = %v", matched)
+	}
+}
+
 func TestOpportunitiesMeasureRefusesWithoutSourcesOrWithBadSince(t *testing.T) {
 	h := NewHandler(nil, nil)
 	registry := newTestRegistry(t, h)

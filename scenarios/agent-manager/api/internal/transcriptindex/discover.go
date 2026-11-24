@@ -83,6 +83,8 @@ func Roots(cfg RootConfig) []Root {
 				kind = RootGeminiCLI
 			case "qwen-code":
 				kind = RootQwenCode
+			case "antigravity":
+				kind = RootAntigravity
 			case "cursor":
 				kind = RootCursor
 			}
@@ -220,7 +222,12 @@ func Walk(root Root) ([]Candidate, error) {
 			out = append(out, found...)
 			return nil
 		}
-		if (!IsTranscriptName(entry.Name()) && !agenttranscript.IsNativeArchiveFile(root.Harness, path)) || isTestRollout(root, entry.Name()) {
+		nativeArchive := agenttranscript.IsNativeArchiveFile(root.Harness, path)
+		archiveOnly := agenttranscript.RequiresNativeArchive(root.Harness)
+		if !nativeArchive && (archiveOnly || !IsTranscriptName(entry.Name())) {
+			return nil
+		}
+		if isTestRollout(root, entry.Name()) {
 			return nil
 		}
 		if candidate, ok := Identify(root, path); ok {

@@ -358,13 +358,9 @@ type CodexFileChange struct {
 	Kind string `json:"kind,omitempty"`
 }
 
-// CodexUsage represents token usage in turn.completed events.
-type CodexUsage struct {
-	InputTokens           int `json:"input_tokens"`
-	CachedInputTokens     int `json:"cached_input_tokens,omitempty"`
-	CacheWriteInputTokens int `json:"cache_write_input_tokens,omitempty"`
-	OutputTokens          int `json:"output_tokens"`
-}
+// CodexUsage aliases the shared native wire type used by transcript parsing
+// and interrupted-usage recovery.
+type CodexUsage = agenttranscript.CodexUsage
 
 // CodexError represents an error in the stream.
 type CodexError struct {

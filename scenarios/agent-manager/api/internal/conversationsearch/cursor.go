@@ -20,12 +20,14 @@ type cursorEnvelope struct {
 }
 
 type cursorPayload struct {
-	Version     int        `json:"version"`
-	Fingerprint string     `json:"fingerprint"`
-	Sort        SearchSort `json:"sort"`
-	Score       float64    `json:"score,omitempty"`
-	OccurredAt  time.Time  `json:"occurred_at"`
-	DocumentID  string     `json:"document_id"`
+	Version              int        `json:"version"`
+	Fingerprint          string     `json:"fingerprint"`
+	Sort                 SearchSort `json:"sort"`
+	Score                float64    `json:"score,omitempty"`
+	OccurredAt           time.Time  `json:"occurred_at"`
+	DocumentID           string     `json:"document_id"`
+	NativeRecordSequence int64      `json:"native_record_sequence,omitempty"`
+	EventSequence        int64      `json:"event_sequence,omitempty"`
 }
 
 func newCursorCodec(key []byte) (cursorCodec, error) {

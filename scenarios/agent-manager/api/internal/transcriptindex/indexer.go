@@ -305,7 +305,7 @@ func (ix *Indexer) changed(candidate Candidate, t *tick) bool {
 	if row.Owner == OwnerRun && row.IndexedAt == nil {
 		return true // registered before run-owned files were read for usage (D-16)
 	}
-	return row.Size != candidate.Size || row.MtimeUnixNano != candidate.MtimeUnixNano || row.Path != candidate.Path || row.Status == StatusPending ||
+	return row.Size != candidate.Size || (candidate.Root.Kind != RootCursor && row.MtimeUnixNano != candidate.MtimeUnixNano) || row.Path != candidate.Path || row.Status == StatusPending ||
 		(row.Status == StatusUnreadable && TransientStoreFailure(row.Error)) || // marked unreadable by database contention before 2026-10-29
 		ix.stale(row, t)
 }
@@ -1148,8 +1148,12 @@ func (ix *Indexer) completeIdle(ctx context.Context, t *tick) {
 			ix.settleVanished(ctx, t, row)
 			continue
 		}
+		mtimeChanged := row.MtimeUnixNano != candidate.MtimeUnixNano
+		if row.RootKind == RootCursor {
+			mtimeChanged = false // one workspace DB timestamp covers unrelated composers
+		}
 		if row.Status != StatusIndexed || row.Error != "" || row.Offset < candidate.Size ||
-			row.Path != candidate.Path || row.Size != candidate.Size || row.MtimeUnixNano != candidate.MtimeUnixNano || ix.stale(row, t) {
+			row.Path != candidate.Path || row.Size != candidate.Size || mtimeChanged || ix.stale(row, t) {
 			continue
 		}
 		if t.runActiveElsewhere(row) {
@@ -1189,7 +1193,21 @@ type transcriptCommitter interface {
 // permission or I/O error, a recent file, an uncertain recording and a
 // replacement awaiting effects are left alone.
 func (ix *Indexer) settleVanished(ctx context.Context, t *tick, row *FileRow) {
-	if !settlesWhenGone(row) || t.paths[row.Path] || !sourceGone(row.Path) {
+	if !settlesWhenGone(row) {
+		return
+	}
+	vanished := sourceGone(row.Path)
+	if row.RootKind == RootCursor && !vanished {
+		removed, err := cursorComposerRemoved(ctx, row.Path, row.SessionID)
+		if err != nil {
+			t.summary.Failures = append(t.summary.Failures, row.Path+"#"+row.SessionID+": inspect Cursor composer removal: "+err.Error())
+			return
+		}
+		vanished = removed
+	} else if t.paths[row.Path] {
+		return
+	}
+	if !vanished {
 		return
 	}
 	if t.runObservedElsewhere(row) {

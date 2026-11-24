@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vrooli/cli-core/agenttranscript"
 	_ "modernc.org/sqlite"
 )
 
@@ -306,20 +307,11 @@ func materializeOpenCodeSession(ctx context.Context, db *sql.DB, messageTable, p
 }
 
 func archiveMessageLine(sessionID, messageID string, rawInfo []byte, parts []json.RawMessage) ([]byte, error) {
-	var info map[string]any
-	if err := json.Unmarshal(rawInfo, &info); err != nil || info == nil {
-		return nil, fmt.Errorf("OpenCode message %s has invalid info JSON", messageID)
+	line, err := agenttranscript.MarshalOpenCodeArchiveRecord(sessionID, rawInfo, parts)
+	if err != nil {
+		return nil, fmt.Errorf("OpenCode message %s has invalid native record: %w", messageID, err)
 	}
-	if _, ok := info["sessionID"]; !ok {
-		info["sessionID"] = sessionID
-	}
-	if parts == nil {
-		parts = []json.RawMessage{}
-	}
-	return json.Marshal(struct {
-		Info  map[string]any    `json:"info"`
-		Parts []json.RawMessage `json:"parts"`
-	}{Info: info, Parts: parts})
+	return line, nil
 }
 
 func archiveCacheBytes(root string) (int64, error) {

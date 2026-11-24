@@ -115,6 +115,19 @@ func TestIndependentStepsAreNotAProgramCandidate(t *testing.T) {
 	}
 }
 
+func TestIndependentSequenceStillRoutesItsProgramAndOwningSkill(t *testing.T) {
+	runs, printed := lookupRuns(5, false)
+	outputs, _ := outputsFor(printed)
+	library := Library{Programs: []Program{{
+		Name: "prompt-manager.skill-route", Scenario: "prompt-manager", OwnerSkill: "prompt-manager",
+		Bindings: []string{"search-hub/query", "prompt-manager/skill/read"},
+	}}}
+	o := find(t, Analyze(Input{Calls: flatten(runs...), Library: library, Outputs: outputs}), KindSequence, lookupSubject)
+	if o.Verdict != VerdictIndependent || o.Program == nil || o.Program.Name != "prompt-manager.skill-route" || o.Program.OwnerSkill != "prompt-manager" || o.Program.Basis != BasisBinding || o.Program.Covered != 2 || o.Program.Steps != 3 {
+		t.Fatalf("independent sequence route = %+v program=%+v", o, o.Program)
+	}
+}
+
 // A later step that takes its argument from the earlier output is one a
 // program can run: it stays a candidate and states the rate.
 func TestStepConsumingEarlierOutputStaysACandidate(t *testing.T) {

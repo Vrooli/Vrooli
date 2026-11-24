@@ -345,6 +345,11 @@ func (m motif) opportunity(in Input, programRuns map[string]int) Opportunity {
 		o.Action = fmt.Sprintf("check whether a program covers `%s` (%d times in %d sessions): the program library could not be read", subject, m.occurrences, o.Sessions)
 		return o
 	}
+	match := in.Library.best(m.steps)
+	if match != nil {
+		match.Runs = programRuns[match.Name]
+		o.Program = match
+	}
 	d := m.measureDependency(in.Outputs)
 	o.DependentSteps, o.MeasuredSteps = d.Used, d.Measured
 	switch {
@@ -375,14 +380,11 @@ func (m motif) opportunity(in Input, programRuns map[string]int) Opportunity {
 		low, _ := d.interval()
 		impact += fmt.Sprintf(" (%.0f%% of %d later steps used an earlier step's result, at least %.0f%% at 95%%)", 100*d.rate(), d.Measured, 100*low)
 	}
-	match := in.Library.best(m.steps)
 	if match == nil {
 		o.Verdict = VerdictCandidate
 		o.Action = fmt.Sprintf("write a program for `%s`: run by hand %d times in %d sessions; %s", subject, m.occurrences, o.Sessions, impact)
 		return o
 	}
-	match.Runs = programRuns[match.Name]
-	o.Program = match
 	if match.Basis == BasisBinding && 2*match.Covered > match.Steps {
 		o.Verdict, o.Owner = VerdictAdopt, match.Scenario
 		o.Action = fmt.Sprintf("adopt existing program `%s` (calls %d of %d steps) for `%s`: run by hand %d times in %d sessions against %d program runs; %s", match.Name, match.Covered, match.Steps, subject, m.occurrences, o.Sessions, match.Runs, impact)

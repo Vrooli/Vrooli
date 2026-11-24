@@ -14,6 +14,7 @@ import (
 	"agent-manager/internal/runsignal"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/agenttranscript"
 )
 
 // =============================================================================
@@ -154,13 +155,17 @@ func TestCodex_BuildArgs_NetworkAccessLocalhost(t *testing.T) {
 }
 
 func TestCodex_BuildContinueArgs_IncludesSessionAndPrompt(t *testing.T) {
+	format, ok := agenttranscript.FormatFor(agenttranscript.HarnessCodex)
+	if !ok || format.ResumeCommand != "resume" {
+		t.Fatalf("shared Codex resume command = %q, found=%v", format.ResumeCommand, ok)
+	}
 	c := NewCodexForTest()
 	args := c.BuildContinueArgs(c.NewState(), runner.ContinueRequest{
 		RunID:     uuid.New(),
 		SessionID: "thread-abc",
 		Prompt:    "follow up message",
 	})
-	want := []string{"exec", "resume", "--json", "--skip-git-repo-check", "--dangerously-bypass-approvals-and-sandbox", "thread-abc", "follow up message"}
+	want := []string{"exec", format.ResumeCommand, "--json", "--skip-git-repo-check", "--dangerously-bypass-approvals-and-sandbox", "thread-abc", "follow up message"}
 	if len(args) != len(want) {
 		t.Fatalf("len=%d want=%d args=%v", len(args), len(want), args)
 	}

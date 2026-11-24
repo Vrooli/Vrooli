@@ -265,9 +265,7 @@ func TestFreshRecoveryIndependentOwnersReuseOneReplacement(t *testing.T) {
 }
 
 func TestFreshRecoveryKeepsAdmissionThroughSourceClaimAndCreation(t *testing.T) {
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+	db, repos, events := testutil.SetupTestDBWithRepos(t)
 	gate := maintenance.NewGate(maintenance.NewRepository(db))
 	claims := &maintenanceClosingRecoveryClaims{
 		RunRepository: repos.Runs, RunFreshRecoveryClaimer: repos.Runs.(repository.RunFreshRecoveryClaimer), gate: gate,

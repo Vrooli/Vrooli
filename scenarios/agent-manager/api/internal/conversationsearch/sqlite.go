@@ -38,62 +38,11 @@ func (r *SQLiteRepository) UpsertDocument(ctx context.Context, document Document
 	if err := validateDocument(document); err != nil {
 		return err
 	}
-	tags, err := marshalStringSlice(document.Tags)
+	values, err := projectionDocumentValues(document)
 	if err != nil {
-		return fmt.Errorf("marshal tags: %w", err)
+		return err
 	}
-	workloads, err := marshalStringSlice(document.Workloads)
-	if err != nil {
-		return fmt.Errorf("marshal workloads: %w", err)
-	}
-	visible := 0
-	if document.Visible {
-		visible = 1
-	}
-	_, err = r.db.ExecContext(ctx, `INSERT INTO conversation_search_catalog (
-        document_id, source_run_id, source_event_id, source_message_id,
-        chunk_index, chunk_total, start_byte, end_byte, event_sequence, role, occurred_at, content,
-        content_class, source_hash, content_hash, recipe_version, harness,
-        source_session_id, provider_origin, importer, project_scope, cwd_scope,
-        runner, model, profile, run_status, run_label, tags_json, workloads_json,
-        evidence_ref, visible, indexed_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(document_id) DO UPDATE SET
-        source_run_id=excluded.source_run_id, source_event_id=excluded.source_event_id,
-        source_message_id=excluded.source_message_id, chunk_index=excluded.chunk_index,
-        chunk_total=excluded.chunk_total, start_byte=excluded.start_byte,
-        end_byte=excluded.end_byte, event_sequence=excluded.event_sequence,
-        role=excluded.role, occurred_at=excluded.occurred_at, content=excluded.content,
-        content_class=excluded.content_class, source_hash=excluded.source_hash,
-        content_hash=excluded.content_hash, recipe_version=excluded.recipe_version,
-        harness=excluded.harness, source_session_id=excluded.source_session_id,
-        provider_origin=excluded.provider_origin, importer=excluded.importer,
-        project_scope=excluded.project_scope, cwd_scope=excluded.cwd_scope,
-        runner=excluded.runner, model=excluded.model, profile=excluded.profile,
-        run_status=excluded.run_status, run_label=excluded.run_label,
-        -- Annotation facets live in tags_json and are written after indexing.
-        -- A later source change must not erase them: keep every label: tag from
-        -- the serving row and union the freshly imported tags.
-        tags_json=CASE
-          WHEN json_valid(conversation_search_catalog.tags_json) AND json_valid(excluded.tags_json)
-          THEN (SELECT json_group_array(value) FROM (
-            SELECT value FROM json_each(conversation_search_catalog.tags_json) WHERE value LIKE 'label:%'
-            UNION
-            SELECT value FROM json_each(excluded.tags_json)
-          ))
-          ELSE excluded.tags_json
-        END,
-        workloads_json=excluded.workloads_json,
-        evidence_ref=excluded.evidence_ref, visible=excluded.visible,
-        indexed_at=excluded.indexed_at`,
-		document.DocumentID, document.SourceRunID, document.SourceEventID, document.SourceMessageID,
-		document.ChunkIndex, document.ChunkTotal, document.StartByte, document.EndByte, document.EventSequence, document.Role,
-		formatTime(document.OccurredAt), document.Content, document.ContentClass, document.SourceHash,
-		document.ContentHash, document.RecipeVersion, document.Harness, document.SourceSessionID,
-		document.ProviderOrigin, document.Importer, document.ProjectScope, document.CWDScope,
-		document.Runner, document.Model, document.Profile, document.RunStatus, document.RunLabel,
-		string(tags), string(workloads), document.EvidenceRef, visible, formatTime(document.IndexedAt),
-	)
+	_, err = r.db.ExecContext(ctx, projectionUpsertSQL("conversation_search_catalog", "document_id", false), values...)
 	if err != nil {
 		return fmt.Errorf("upsert conversation search document %q: %w", document.DocumentID, err)
 	}
@@ -496,10 +445,55 @@ func (r *SQLiteRepository) BuildingGenerations(ctx context.Context) ([]Generatio
 }
 
 const projectionDocumentColumns = `document_id, source_run_id, source_event_id, source_message_id,
-chunk_index, chunk_total, start_byte, end_byte, event_sequence, role, occurred_at, content,
+chunk_index, chunk_total, start_byte, end_byte, event_sequence, native_record_sequence, role, occurred_at, content,
 content_class, source_hash, content_hash, recipe_version, harness, source_session_id,
 provider_origin, importer, project_scope, cwd_scope, runner, model, profile, run_status,
 run_label, tags_json, workloads_json, evidence_ref, visible, indexed_at`
+
+const preserveAnnotationTags = `CASE WHEN json_valid(conversation_search_catalog.tags_json) AND json_valid(excluded.tags_json)
+THEN (SELECT json_group_array(value) FROM (SELECT value FROM json_each(conversation_search_catalog.tags_json) WHERE value LIKE 'label:%'
+UNION SELECT value FROM json_each(excluded.tags_json))) ELSE excluded.tags_json END`
+
+func projectionUpsertSQL(table, conflict string, staged bool) string {
+	columns := strings.Split(projectionDocumentColumns, ",")
+	assignments := make([]string, 0, len(columns))
+	for i, column := range columns {
+		columns[i] = strings.TrimSpace(column)
+		if columns[i] == "document_id" {
+			continue
+		}
+		value := "excluded." + columns[i]
+		if columns[i] == "tags_json" && !staged {
+			value = preserveAnnotationTags
+		}
+		assignments = append(assignments, columns[i]+"="+value)
+	}
+	if staged {
+		columns = append([]string{"generation_id"}, columns...)
+	}
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(columns)), ",")
+	return fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s) ON CONFLICT(%s) DO UPDATE SET %s", table, strings.Join(columns, ","), placeholders, conflict, strings.Join(assignments, ","))
+}
+
+func projectionDocumentValues(d Document) ([]any, error) {
+	tags, err := marshalStringSlice(d.Tags)
+	if err != nil {
+		return nil, fmt.Errorf("marshal tags: %w", err)
+	}
+	workloads, err := marshalStringSlice(d.Workloads)
+	if err != nil {
+		return nil, fmt.Errorf("marshal workloads: %w", err)
+	}
+	visible := 0
+	if d.Visible {
+		visible = 1
+	}
+	return []any{d.DocumentID, d.SourceRunID, d.SourceEventID, d.SourceMessageID, d.ChunkIndex, d.ChunkTotal,
+		d.StartByte, d.EndByte, d.EventSequence, d.NativeRecordSequence, d.Role, formatTime(d.OccurredAt), d.Content,
+		d.ContentClass, d.SourceHash, d.ContentHash, d.RecipeVersion, d.Harness, d.SourceSessionID, d.ProviderOrigin,
+		d.Importer, d.ProjectScope, d.CWDScope, d.Runner, d.Model, d.Profile, d.RunStatus, d.RunLabel,
+		string(tags), string(workloads), d.EvidenceRef, visible, formatTime(d.IndexedAt)}, nil
+}
 
 // BeginStagedGeneration clears only the named shadow. The active projection is
 // never touched until PromoteStagedGeneration commits.
@@ -668,40 +662,12 @@ func (r *SQLiteRepository) StageDocument(ctx context.Context, generationID strin
 	if err := validateDocument(document); err != nil {
 		return err
 	}
-	tags, err := marshalStringSlice(document.Tags)
+	values, err := projectionDocumentValues(document)
 	if err != nil {
 		return err
 	}
-	workloads, err := marshalStringSlice(document.Workloads)
-	if err != nil {
-		return err
-	}
-	visible := 0
-	if document.Visible {
-		visible = 1
-	}
-	query := `INSERT INTO conversation_search_generation_documents (generation_id, ` + projectionDocumentColumns + `)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(generation_id, document_id) DO UPDATE SET
-source_run_id=excluded.source_run_id, source_event_id=excluded.source_event_id,
-source_message_id=excluded.source_message_id, chunk_index=excluded.chunk_index,
-chunk_total=excluded.chunk_total, start_byte=excluded.start_byte, end_byte=excluded.end_byte,
-event_sequence=excluded.event_sequence, role=excluded.role, occurred_at=excluded.occurred_at,
-content=excluded.content, content_class=excluded.content_class, source_hash=excluded.source_hash,
-content_hash=excluded.content_hash, recipe_version=excluded.recipe_version, harness=excluded.harness,
-source_session_id=excluded.source_session_id, provider_origin=excluded.provider_origin,
-importer=excluded.importer, project_scope=excluded.project_scope, cwd_scope=excluded.cwd_scope,
-runner=excluded.runner, model=excluded.model, profile=excluded.profile, run_status=excluded.run_status,
-run_label=excluded.run_label, tags_json=excluded.tags_json, workloads_json=excluded.workloads_json,
-evidence_ref=excluded.evidence_ref, visible=excluded.visible, indexed_at=excluded.indexed_at`
-	_, err = r.db.ExecContext(ctx, query, generationID, document.DocumentID, document.SourceRunID,
-		document.SourceEventID, document.SourceMessageID, document.ChunkIndex, document.ChunkTotal,
-		document.StartByte, document.EndByte, document.EventSequence, document.Role,
-		formatTime(document.OccurredAt), document.Content, document.ContentClass, document.SourceHash,
-		document.ContentHash, document.RecipeVersion, document.Harness, document.SourceSessionID,
-		document.ProviderOrigin, document.Importer, document.ProjectScope, document.CWDScope,
-		document.Runner, document.Model, document.Profile, document.RunStatus, document.RunLabel,
-		string(tags), string(workloads), document.EvidenceRef, visible, formatTime(document.IndexedAt))
+	values = append([]any{generationID}, values...)
+	_, err = r.db.ExecContext(ctx, projectionUpsertSQL("conversation_search_generation_documents", "generation_id, document_id", true), values...)
 	if err != nil {
 		return fmt.Errorf("stage conversation document %q: %w", document.DocumentID, err)
 	}
@@ -803,6 +769,7 @@ AND NOT EXISTS (
     AND staged.start_byte IS conversation_search_catalog.start_byte
     AND staged.end_byte IS conversation_search_catalog.end_byte
     AND staged.event_sequence IS conversation_search_catalog.event_sequence
+    AND staged.native_record_sequence IS conversation_search_catalog.native_record_sequence
     AND staged.role IS conversation_search_catalog.role
     AND staged.occurred_at IS conversation_search_catalog.occurred_at
     AND staged.content IS conversation_search_catalog.content
@@ -1170,8 +1137,8 @@ func validateDocument(document Document) error {
 	if document.ChunkIndex < 0 || document.ChunkTotal <= 0 || document.ChunkIndex >= document.ChunkTotal {
 		return errors.New("chunk index must identify a member of chunk total")
 	}
-	if document.EventSequence < 0 || document.Role == "" || document.OccurredAt.IsZero() || document.IndexedAt.IsZero() {
-		return errors.New("event sequence, role, occurred time, and indexed time are required")
+	if document.EventSequence < 0 || document.NativeRecordSequence < 0 || document.Role == "" || document.OccurredAt.IsZero() || document.IndexedAt.IsZero() {
+		return errors.New("event and native record sequences must be non-negative; role, occurred time, and indexed time are required")
 	}
 	if document.SourceHash == "" || document.ContentHash == "" || document.RecipeVersion == "" {
 		return errors.New("source hash, content hash, and recipe version are required")
@@ -1205,39 +1172,40 @@ func parseTime(value string) (time.Time, error) {
 }
 
 type documentRow struct {
-	ID              int64        `db:"id"`
-	DocumentID      string       `db:"document_id"`
-	SourceRunID     string       `db:"source_run_id"`
-	SourceEventID   string       `db:"source_event_id"`
-	SourceMessageID string       `db:"source_message_id"`
-	ChunkIndex      int          `db:"chunk_index"`
-	ChunkTotal      int          `db:"chunk_total"`
-	StartByte       int          `db:"start_byte"`
-	EndByte         int          `db:"end_byte"`
-	EventSequence   int64        `db:"event_sequence"`
-	Role            string       `db:"role"`
-	OccurredAt      string       `db:"occurred_at"`
-	Content         string       `db:"content"`
-	ContentClass    ContentClass `db:"content_class"`
-	SourceHash      string       `db:"source_hash"`
-	ContentHash     string       `db:"content_hash"`
-	RecipeVersion   string       `db:"recipe_version"`
-	Harness         string       `db:"harness"`
-	SourceSessionID string       `db:"source_session_id"`
-	ProviderOrigin  string       `db:"provider_origin"`
-	Importer        string       `db:"importer"`
-	ProjectScope    string       `db:"project_scope"`
-	CWDScope        string       `db:"cwd_scope"`
-	Runner          string       `db:"runner"`
-	Model           string       `db:"model"`
-	Profile         string       `db:"profile"`
-	RunStatus       string       `db:"run_status"`
-	RunLabel        string       `db:"run_label"`
-	TagsJSON        string       `db:"tags_json"`
-	WorkloadsJSON   string       `db:"workloads_json"`
-	EvidenceRef     string       `db:"evidence_ref"`
-	Visible         int          `db:"visible"`
-	IndexedAt       string       `db:"indexed_at"`
+	ID                   int64        `db:"id"`
+	DocumentID           string       `db:"document_id"`
+	SourceRunID          string       `db:"source_run_id"`
+	SourceEventID        string       `db:"source_event_id"`
+	SourceMessageID      string       `db:"source_message_id"`
+	ChunkIndex           int          `db:"chunk_index"`
+	ChunkTotal           int          `db:"chunk_total"`
+	StartByte            int          `db:"start_byte"`
+	EndByte              int          `db:"end_byte"`
+	EventSequence        int64        `db:"event_sequence"`
+	NativeRecordSequence int64        `db:"native_record_sequence"`
+	Role                 string       `db:"role"`
+	OccurredAt           string       `db:"occurred_at"`
+	Content              string       `db:"content"`
+	ContentClass         ContentClass `db:"content_class"`
+	SourceHash           string       `db:"source_hash"`
+	ContentHash          string       `db:"content_hash"`
+	RecipeVersion        string       `db:"recipe_version"`
+	Harness              string       `db:"harness"`
+	SourceSessionID      string       `db:"source_session_id"`
+	ProviderOrigin       string       `db:"provider_origin"`
+	Importer             string       `db:"importer"`
+	ProjectScope         string       `db:"project_scope"`
+	CWDScope             string       `db:"cwd_scope"`
+	Runner               string       `db:"runner"`
+	Model                string       `db:"model"`
+	Profile              string       `db:"profile"`
+	RunStatus            string       `db:"run_status"`
+	RunLabel             string       `db:"run_label"`
+	TagsJSON             string       `db:"tags_json"`
+	WorkloadsJSON        string       `db:"workloads_json"`
+	EvidenceRef          string       `db:"evidence_ref"`
+	Visible              int          `db:"visible"`
+	IndexedAt            string       `db:"indexed_at"`
 }
 
 func (row documentRow) document() (Document, error) {
@@ -1256,7 +1224,7 @@ func (row documentRow) document() (Document, error) {
 	if err != nil {
 		return Document{}, err
 	}
-	return Document{DocumentID: row.DocumentID, SourceRunID: row.SourceRunID, SourceEventID: row.SourceEventID, SourceMessageID: row.SourceMessageID, ChunkIndex: row.ChunkIndex, ChunkTotal: row.ChunkTotal, StartByte: row.StartByte, EndByte: row.EndByte, EventSequence: row.EventSequence, Role: row.Role, OccurredAt: occurredAt, Content: row.Content, ContentClass: row.ContentClass, SourceHash: row.SourceHash, ContentHash: row.ContentHash, RecipeVersion: row.RecipeVersion, Harness: row.Harness, SourceSessionID: row.SourceSessionID, ProviderOrigin: row.ProviderOrigin, Importer: row.Importer, ProjectScope: row.ProjectScope, CWDScope: row.CWDScope, Runner: row.Runner, Model: row.Model, Profile: row.Profile, RunStatus: row.RunStatus, RunLabel: row.RunLabel, Tags: tags, Workloads: workloads, EvidenceRef: row.EvidenceRef, Visible: row.Visible == 1, IndexedAt: indexedAt}, nil
+	return Document{DocumentID: row.DocumentID, SourceRunID: row.SourceRunID, SourceEventID: row.SourceEventID, SourceMessageID: row.SourceMessageID, ChunkIndex: row.ChunkIndex, ChunkTotal: row.ChunkTotal, StartByte: row.StartByte, EndByte: row.EndByte, EventSequence: row.EventSequence, NativeRecordSequence: row.NativeRecordSequence, Role: row.Role, OccurredAt: occurredAt, Content: row.Content, ContentClass: row.ContentClass, SourceHash: row.SourceHash, ContentHash: row.ContentHash, RecipeVersion: row.RecipeVersion, Harness: row.Harness, SourceSessionID: row.SourceSessionID, ProviderOrigin: row.ProviderOrigin, Importer: row.Importer, ProjectScope: row.ProjectScope, CWDScope: row.CWDScope, Runner: row.Runner, Model: row.Model, Profile: row.Profile, RunStatus: row.RunStatus, RunLabel: row.RunLabel, Tags: tags, Workloads: workloads, EvidenceRef: row.EvidenceRef, Visible: row.Visible == 1, IndexedAt: indexedAt}, nil
 }
 
 type generationRow struct {

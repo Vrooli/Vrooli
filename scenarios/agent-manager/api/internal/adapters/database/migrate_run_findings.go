@@ -19,21 +19,28 @@ var retiredRunFindingColumns = []string{"operator_decision", "target_measure", "
 // every recurring fingerprint it found (888 rows, none routed anywhere).
 const genericFindingText = "Review the recurring deterministic friction fingerprint and its suspected owner."
 
-// retireRunFindingReviewState drops the retired columns and deletes the
-// publisher's generic, never-routed rows. Both steps are idempotent: they do
-// nothing once the columns are gone and no such row remains.
+// retireRunFindingReviewState drops the retired columns and removes the
+// publisher's generic rows while the legacy review-state shape is present.
+// Once those columns are gone, the cutover is complete; do not scan the full
+// findings history on every later startup just to prove the stale rows are
+// absent.
 func (db *DB) retireRunFindingReviewState(ctx context.Context) error {
 	columns, err := db.tableColumns(ctx, "run_findings")
 	if err != nil {
 		return err
 	}
+	legacyShape := false
 	for _, column := range retiredRunFindingColumns {
 		if _, ok := columns[column]; !ok {
 			continue
 		}
+		legacyShape = true
 		if _, err := db.ExecContext(ctx, "ALTER TABLE run_findings DROP COLUMN "+column); err != nil {
 			return &domain.DatabaseError{Operation: "schema_migrate", EntityType: "Schema", Cause: err}
 		}
+	}
+	if !legacyShape {
+		return nil
 	}
 	if _, ok := columns["friction_topic"]; !ok {
 		return nil // the column is added after this step; no row has a topic yet

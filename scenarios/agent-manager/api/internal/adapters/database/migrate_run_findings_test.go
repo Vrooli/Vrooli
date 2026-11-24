@@ -58,3 +58,33 @@ func TestRetireRunFindingReviewStateDropsColumnsAndGenericRowsOnly(t *testing.T)
 		t.Fatalf("rows kept = %v, want the routed row and the investigation finding", ids)
 	}
 }
+
+func TestRetireRunFindingReviewStateDoesNotRescanCurrentSchema(t *testing.T) {
+	log := logrus.New()
+	log.SetLevel(logrus.PanicLevel)
+	raw, err := sqlx.Connect("sqlite", "file:"+filepath.Join(t.TempDir(), "current-findings.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = raw.Close() })
+	db := &DB{DB: raw, log: log}
+	ctx := context.Background()
+	if _, err := db.ExecContext(ctx, `CREATE TABLE run_findings (id TEXT PRIMARY KEY, severity TEXT NOT NULL,
+		recommendation_text TEXT NOT NULL, fingerprint TEXT NOT NULL, friction_topic TEXT NOT NULL DEFAULT '')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO run_findings (id, severity, recommendation_text, fingerprint) VALUES (?, ?, ?, ?)`,
+		"historical", "recurring", genericFindingText, "historical"); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.retireRunFindingReviewState(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var count int
+	if err := db.GetContext(ctx, &count, `SELECT COUNT(*) FROM run_findings WHERE id = 'historical'`); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("historical row count = %d, want the legacy row preserved after schema cutover", count)
+	}
+}

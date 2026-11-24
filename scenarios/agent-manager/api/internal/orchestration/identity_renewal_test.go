@@ -103,9 +103,7 @@ func TestExpiredAttachedBaselineRenewsSameRunAndSurvivesBrokerRestart(t *testing
 		}
 		t.Run(name, func(t *testing.T) {
 			ctx := context.Background()
-			db, cleanup := testutil.SetupTestDB(t)
-			t.Cleanup(cleanup)
-			repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+			db, repos, events := testutil.SetupTestDBWithRepos(t)
 			secret := []byte("attached-renewal-test-secret")
 			now := time.Now().UTC()
 			binding, err := cliutil.ObserveProcessBinding(os.Getpid())
@@ -249,9 +247,7 @@ func TestExpiredAttachedBaselineRenewsSameRunAndSurvivesBrokerRestart(t *testing
 
 func TestRenewedOwnerlessBaselineKeepsIndependentGrantOnlyCredential(t *testing.T) {
 	ctx := context.Background()
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+	db, repos, events := testutil.SetupTestDBWithRepos(t)
 	secret := []byte(pairTestSecret)
 	now := time.Now().UTC()
 	clockNow := now.Add(-48 * time.Hour)
@@ -327,9 +323,7 @@ func TestRenewalRefusesRevokedOrTerminalAttachedRoot(t *testing.T) {
 	}{{name: "revoked", revoke: true}, {name: "terminal", terminal: true}, {name: "cancel requested", cancelRequested: true}} {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx := context.Background()
-			db, cleanup := testutil.SetupTestDB(t)
-			t.Cleanup(cleanup)
-			repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+			db, repos, events := testutil.SetupTestDBWithRepos(t)
 			secret := []byte("renewal-refusal-test-secret")
 			now := time.Now().UTC()
 			clockNow := now.Add(-48 * time.Hour)
@@ -385,9 +379,7 @@ func TestRenewalRefusesRevokedOrTerminalAttachedRoot(t *testing.T) {
 
 func TestExpiredOwnerDelegationRenewsOnlyOrdinaryAttachedIdentity(t *testing.T) {
 	ctx := context.Background()
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+	db, repos, events := testutil.SetupTestDBWithRepos(t)
 	now := time.Now().UTC()
 	clock := now.Add(-8 * time.Hour)
 	ownerDeadline := now.Add(-4 * time.Hour)

@@ -2,6 +2,7 @@ package conversationsearch
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -100,29 +101,37 @@ func (r *SQLiteRepository) LexicalCandidates(ctx context.Context, request Candid
 	return candidates, nil
 }
 
-func (r *SQLiteRepository) ContextDocuments(ctx context.Context, runID string, sequence int64, before, after int) ([]Document, error) {
-	if runID == "" || sequence < 0 || before < 0 || after < 0 || before > 20 || after > 20 {
-		return nil, errors.New("context requires a run, non-negative sequence, and before/after bounds no greater than 20")
+func (r *SQLiteRepository) ContextDocuments(ctx context.Context, hit Document, before, after int) ([]Document, error) {
+	if hit.SourceRunID == "" || hit.SourceEventID == "" || before < 0 || after < 0 || before > 20 || after > 20 {
+		return nil, errors.New("context requires a run, event, and before/after bounds no greater than 20")
 	}
-	previous, err := r.contextSide(ctx, runID, sequence, before, "<", "DESC")
+	var row documentRow
+	if err := r.db.GetContext(ctx, &row, `SELECT * FROM conversation_search_catalog
+		WHERE source_run_id = ? AND source_event_id = ? AND visible = 1 AND chunk_index = 0`, hit.SourceRunID, hit.SourceEventID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("load conversation context hit: %w", err)
+	}
+	pivot, err := row.document()
+	if err != nil {
+		return nil, err
+	}
+	previous, err := r.contextSide(ctx, pivot, before, "<", "DESC")
 	if err != nil {
 		return nil, err
 	}
 	for left, right := 0, len(previous)-1; left < right; left, right = left+1, right-1 {
 		previous[left], previous[right] = previous[right], previous[left]
 	}
-	current, err := r.contextSide(ctx, runID, sequence, 1, "=", "ASC")
+	next, err := r.contextSide(ctx, pivot, after, ">", "ASC")
 	if err != nil {
 		return nil, err
 	}
-	next, err := r.contextSide(ctx, runID, sequence, after, ">", "ASC")
-	if err != nil {
-		return nil, err
-	}
-	return append(append(previous, current...), next...), nil
+	return append(append(previous, pivot), next...), nil
 }
 
-func (r *SQLiteRepository) contextSide(ctx context.Context, runID string, sequence int64, limit int, comparator, direction string) ([]Document, error) {
+func (r *SQLiteRepository) contextSide(ctx context.Context, pivot Document, limit int, comparator, direction string) ([]Document, error) {
 	if limit == 0 {
 		return nil, nil
 	}
@@ -132,10 +141,17 @@ func (r *SQLiteRepository) contextSide(ctx context.Context, runID string, sequen
 	if direction != "ASC" && direction != "DESC" {
 		return nil, errors.New("invalid internal context direction")
 	}
-	query := `SELECT * FROM conversation_search_catalog
-        WHERE source_run_id = ? AND visible = 1 AND chunk_index = 0 AND event_sequence ` + comparator + ` ?
-        ORDER BY event_sequence ` + direction + `, document_id ASC LIMIT ?`
-	rows, err := r.db.QueryxContext(ctx, query, runID, sequence, limit)
+	keyFilter := "event_sequence " + comparator + " ?"
+	keyOrder := "event_sequence " + direction + ", document_id ASC"
+	args := []any{pivot.SourceRunID, pivot.EventSequence}
+	if pivot.Harness == "antigravity" {
+		keyFilter = "(native_record_sequence " + comparator + " ? OR (native_record_sequence = ? AND event_sequence " + comparator + " ?) OR (native_record_sequence = ? AND event_sequence = ? AND document_id " + comparator + " ?))"
+		keyOrder = "native_record_sequence " + direction + ", event_sequence " + direction + ", document_id " + direction
+		args = []any{pivot.SourceRunID, pivot.NativeRecordSequence, pivot.NativeRecordSequence, pivot.EventSequence, pivot.NativeRecordSequence, pivot.EventSequence, pivot.DocumentID}
+	}
+	query := `SELECT * FROM conversation_search_catalog WHERE source_run_id = ? AND visible = 1 AND chunk_index = 0 AND ` + keyFilter + ` ORDER BY ` + keyOrder + ` LIMIT ?`
+	args = append(args, limit)
+	rows, err := r.db.QueryxContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query conversation context: %w", err)
 	}
@@ -284,10 +300,17 @@ func lexicalOrder(sort SearchSort, cursor *CandidateCursor) (order, clause strin
 			clause = `(occurred_at > ? OR (occurred_at = ? AND document_id > ?))`
 			args = []any{formatTime(cursor.OccurredAt), formatTime(cursor.OccurredAt), cursor.DocumentID}
 		}
+	case SearchSortNativeSequence:
+		order = "native_record_sequence ASC, event_sequence ASC, document_id ASC"
+		if cursor != nil {
+			clause = `(native_record_sequence > ? OR (native_record_sequence = ? AND event_sequence > ?) OR
+                (native_record_sequence = ? AND event_sequence = ? AND document_id > ?))`
+			args = []any{cursor.NativeRecordSequence, cursor.NativeRecordSequence, cursor.EventSequence, cursor.NativeRecordSequence, cursor.EventSequence, cursor.DocumentID}
+		}
 	default:
 		return "", "", nil, fmt.Errorf("unsupported search sort %d", sort)
 	}
-	if cursor != nil && (cursor.OccurredAt.IsZero() || cursor.DocumentID == "") {
+	if cursor != nil && ((sort != SearchSortNativeSequence && cursor.OccurredAt.IsZero()) || cursor.DocumentID == "") {
 		return "", "", nil, errors.New("candidate cursor requires occurred time and document id")
 	}
 	return order, clause, args, nil

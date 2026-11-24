@@ -107,9 +107,7 @@ func TestImportTranscriptPersistsAgainstSQLite(t *testing.T) {
 }
 
 func TestReplayRebuildsEvictedRecallFromTheSourceFile(t *testing.T) {
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, eventStore, _ := testutil.SetupTestReposWithDB(t, db)
+	db, repos, eventStore := testutil.SetupTestDBWithRepos(t)
 	registry := runner.NewRegistry()
 	if err := registry.Register(runnercore.NewRunner(codecs.NewCodexForTest(), nil, nil)); err != nil {
 		t.Fatalf("register codex runner: %v", err)

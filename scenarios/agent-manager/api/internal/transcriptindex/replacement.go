@@ -312,7 +312,14 @@ func snapshotTranscript(candidate Candidate) (*transcriptSnapshot, error) {
 		if err != nil {
 			return nil, fmt.Errorf("read Cursor snapshot: %w", err)
 		}
-		snapshot := &transcriptSnapshot{data: data, extent: int64(len(data))}
+		info, err := os.Stat(path)
+		if err != nil || !info.Mode().IsRegular() {
+			if err != nil {
+				return nil, fmt.Errorf("stat Cursor state database: %w", err)
+			}
+			return nil, errors.New("Cursor state database is not a regular file")
+		}
+		snapshot := &transcriptSnapshot{data: data, extent: int64(len(data)), mtime: info.ModTime().UnixNano()}
 		snapshot.verify = func() error {
 			current, err := ReadCursorSnapshot(context.Background(), path, candidate.SessionID)
 			if err != nil || agenttranscript.SHA256Bytes(current) != agenttranscript.SHA256Bytes(data) {

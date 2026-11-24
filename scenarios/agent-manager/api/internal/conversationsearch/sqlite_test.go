@@ -947,7 +947,8 @@ func testDocument() Document {
 	return Document{
 		DocumentID: "doc-stable", SourceRunID: "run-1", SourceEventID: "event-1", SourceMessageID: "message-1",
 		ChunkIndex: 0, ChunkTotal: 1, EventSequence: 7, Role: "assistant", OccurredAt: now,
-		Content: "the corrected reasoning found adaptive phase scheduling", ContentClass: 1,
+		NativeRecordSequence: 0,
+		Content:              "the corrected reasoning found adaptive phase scheduling", ContentClass: 1,
 		SourceHash: "source-v1", ContentHash: "content-v1", RecipeVersion: "recipe-v1",
 		Harness: "claude-code", SourceSessionID: "session-public", ProviderOrigin: "agent-manager.runs",
 		ProjectScope: "vrooli", CWDScope: "workspace", Runner: "claude", Model: "model", Profile: "profile",

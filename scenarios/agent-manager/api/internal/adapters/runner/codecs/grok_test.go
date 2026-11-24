@@ -192,15 +192,24 @@ func TestGrok_BuildContinueArgs(t *testing.T) {
 	req := runner.ContinueRequest{
 		RunID:          uuid.New(),
 		SessionID:      "sess-123",
-		Prompt:         "and then?",
+		Prompt:         `continue "the ACP session"; $() stays literal`,
 		WorkingDir:     "/w",
 		ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeGrok, Model: "grok-build", SkipPermissionPrompt: true},
 	}
 	args := c.BuildContinueArgs(c.NewState(), req)
+	wantPrefix := []string{"-p", req.Prompt, "--resume", "sess-123"}
+	if len(args) < len(wantPrefix) {
+		t.Fatalf("Grok continuation args = %#v, want prefix %#v", args, wantPrefix)
+	}
+	for i := range wantPrefix {
+		if args[i] != wantPrefix[i] {
+			t.Fatalf("Grok continuation args = %#v, want shared descriptor prefix %#v", args, wantPrefix)
+		}
+	}
 	if !argPairPresent(args, "--resume", "sess-123") {
 		t.Errorf("expected --resume sess-123: %v", args)
 	}
-	if !argPairPresent(args, "-p", "and then?") {
+	if !argPairPresent(args, "-p", req.Prompt) {
 		t.Errorf("expected -p prompt: %v", args)
 	}
 	if !argPairPresent(args, "--output-format", "streaming-json") {

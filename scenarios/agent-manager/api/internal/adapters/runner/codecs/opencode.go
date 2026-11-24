@@ -24,9 +24,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -43,6 +46,8 @@ import (
 // =============================================================================
 // Constants
 // =============================================================================
+
+const llamaCPPModelPrefix = "llama-cpp/"
 
 // OpenCodeCLICommand is the binary name resolved on the host PATH.
 const OpenCodeCLICommand = "opencode"
@@ -208,7 +213,7 @@ func (c *OpenCode) Capabilities() runner.Capabilities {
 		EffortMappings:           map[string]string{}, // --variant is provider/model-specific; see ControlArgs.
 		EffortModelSpecific:      true,
 		SupportedModels:          c.ollama.list(),
-		DynamicModelPrefixes:     []string{ollamaModelPrefix},
+		DynamicModelPrefixes:     []string{ollamaModelPrefix, llamaCPPModelPrefix},
 		SupportedFeatures:        []string{},
 		AllowedExtraFlags:        []string{"--verbose"},
 	})
@@ -224,6 +229,9 @@ func (c *OpenCode) ProbeModel(ctx context.Context, modelID string) error {
 	if available, msg := c.Available(ctx); !available {
 		return fmt.Errorf("opencode unavailable: %s", msg)
 	}
+	if strings.HasPrefix(strings.TrimSpace(modelID), llamaCPPModelPrefix) {
+		return validateConfiguredLocalProviderModel(modelID, opencodeConfigPath())
+	}
 	if c.capabilities().Catalog == opencodeversion.CatalogNone {
 		// OpenCode 2 does not publish the V1 models.json cache. Do not invent a
 		// second catalog path; local validation is a V1-only capability until a
@@ -236,6 +244,87 @@ func (c *OpenCode) ProbeModel(ctx context.Context, modelID string) error {
 		ollamaModels = c.ollama.list()
 	}
 	return validateOpenCodeModel(modelID, ollamaModels, opencodeCatalogPath())
+}
+
+// opencodeConfigPath follows the same normal XDG config location used by the
+// OpenCode binary. The Agent Manager codec deliberately does not override these
+// variables, so this validates the provider projection the runner will read.
+func opencodeConfigPath() string {
+	if dir := strings.TrimSpace(os.Getenv("OPENCODE_CONFIG_DIR")); dir != "" {
+		return filepath.Join(dir, "opencode.json")
+	}
+	base := strings.TrimSpace(os.Getenv("XDG_CONFIG_HOME"))
+	if base == "" {
+		base, _ = os.UserConfigDir()
+	}
+	if base == "" {
+		return ""
+	}
+	return filepath.Join(base, "opencode", "opencode.json")
+}
+
+// validateConfiguredLocalProviderModel accepts a managed llama.cpp model only
+// when OpenCode's active config names it under the expected provider and points
+// that provider at a loopback HTTP endpoint. It is a local config read, never a
+// provider request or an expansion of Agent Manager's tool permissions.
+func validateConfiguredLocalProviderModel(modelID, configPath string) error {
+	modelID = strings.TrimSpace(modelID)
+	model, ok := strings.CutPrefix(modelID, llamaCPPModelPrefix)
+	if !ok || model == "" {
+		return fmt.Errorf("local llama.cpp model must use %q followed by a model id", llamaCPPModelPrefix)
+	}
+	if strings.TrimSpace(configPath) == "" {
+		return fmt.Errorf("OpenCode config path is unavailable for local model %q", modelID)
+	}
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return fmt.Errorf("read OpenCode config for local model %q: %w", modelID, err)
+	}
+	var config struct {
+		Providers map[string]struct {
+			Options map[string]json.RawMessage `json:"options"`
+			Models  map[string]json.RawMessage `json:"models"`
+		} `json:"provider"`
+	}
+	if err := json.Unmarshal(data, &config); err != nil {
+		return fmt.Errorf("decode OpenCode config for local model %q: %w", modelID, err)
+	}
+	provider, ok := config.Providers["llama-cpp"]
+	if !ok {
+		return fmt.Errorf("local llama.cpp provider is not projected in OpenCode config")
+	}
+	if _, ok := provider.Models[model]; !ok {
+		return fmt.Errorf("local llama.cpp model %q is not projected in OpenCode config", model)
+	}
+	var baseURL string
+	if err := json.Unmarshal(provider.Options["baseURL"], &baseURL); err != nil {
+		return fmt.Errorf("local llama.cpp provider has no valid baseURL")
+	}
+	if err := validateLoopbackProviderBaseURL(baseURL); err != nil {
+		return fmt.Errorf("local llama.cpp provider endpoint: %w", err)
+	}
+	if raw := provider.Options["apiKey"]; len(raw) > 0 {
+		var key string
+		if json.Unmarshal(raw, &key) != nil || strings.TrimSpace(key) != "" {
+			return fmt.Errorf("local llama.cpp provider must not require or persist an API credential")
+		}
+	}
+	return nil
+}
+
+func validateLoopbackProviderBaseURL(raw string) error {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || u.Scheme != "http" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Port() == "" {
+		return fmt.Errorf("expected a loopback HTTP base URL with an explicit port")
+	}
+	port, err := strconv.Atoi(u.Port())
+	if err != nil || port < 1 || port > 65535 {
+		return fmt.Errorf("port must be between 1 and 65535")
+	}
+	if ip := net.ParseIP(strings.Trim(u.Hostname(), "[]")); ip == nil || !ip.IsLoopback() {
+		return fmt.Errorf("endpoint must use a loopback IP address")
+	}
+	return nil
 }
 
 // opencodeCatalogPath returns the path to opencode's local model catalog
@@ -369,17 +458,15 @@ func (c *OpenCode) BuildArgs(state State, req runner.ExecuteRequest) []string {
 // attachments via `-f/--file`.
 func (c *OpenCode) BuildContinueArgs(state State, req runner.ContinueRequest) []string {
 	caps := c.capabilities()
-	format, ok := agenttranscript.FormatFor("opencode")
-	if !ok {
-		panic("missing shared OpenCode transcript format")
+	invocation, err := agenttranscript.BuildNativeResumeInvocation("opencode", req.SessionID, req.Prompt)
+	if err != nil {
+		panic(err)
 	}
-	args := []string{
-		"run",
-		req.Prompt,
-		format.ResumeFlag, req.SessionID,
+	args := append([]string(nil), invocation.Args...)
+	args = append(args,
 		"--format", "json",
 		"--print-logs",
-	}
+	)
 	if caps.PrivateServer {
 		args = append(args, "--standalone")
 	}

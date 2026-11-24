@@ -134,7 +134,7 @@ func TestCreateRunAllowsOnlyVerifiedParentLinkedChildren(t *testing.T) {
 }
 
 func TestCreateRun_Success(t *testing.T) {
-	_, router, repos, _ := setupTestHandlerWithRunnerAndRepos(t, runner.NewMockRunner(domain.RunnerTypeClaudeCode))
+	_, router, repos, events := setupTestHandlerWithRunnerAndRepos(t, runner.NewMockRunner(domain.RunnerTypeClaudeCode))
 
 	// First create a profile
 	body := encodeProtoJSON(t, &apipb.CreateProfileRequest{
@@ -152,11 +152,22 @@ func TestCreateRun_Success(t *testing.T) {
 	decodeProtoJSON(t, rr.Body.Bytes(), &createdProfileResp)
 	createdProfile := createdProfileResp.Profile
 
-	// Create a task
+	// Create a synthetic charter and stance before task creation so the test
+	// exercises the same durable task, run, and message payloads as Quick Run.
+	charterPath := filepath.Join(t.TempDir(), "CHARTER.md")
+	fullStance := "Exact operator stance in full."
+	destination := "finish the verified outcome"
+	if err := os.WriteFile(charterPath, []byte("# Local charter\n\nStance: "+fullStance+"\nDestination: "+destination+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	goalKernel := "Work until this verified end state is true: " + destination + ". Stance: \"Exact operator stance\". Charter: " + charterPath + ". Re-read it at every unit start and after compaction."
+	stanceMessage := "Stance for this handoff, in the operator's words: \"" + fullStance + "\"\nDestination: " + destination + ".\nCharter: " + charterPath + ". Re-read it at every unit start and after every compaction."
+
+	// Create a task carrying the full generated message as the durable fallback.
 	body = encodeProtoJSON(t, &apipb.CreateTaskRequest{
 		Task: &pb.Task{
 			Title:       "Test task for run",
-			Description: "Run the handler test task.",
+			Description: stanceMessage,
 			ScopePath:   "src/",
 		},
 	})
@@ -171,14 +182,10 @@ func TestCreateRun_Success(t *testing.T) {
 
 	// Create a run
 	agentProfileID := createdProfile.Id
-	charterPath := filepath.Join(t.TempDir(), "CHARTER.md")
-	if err := os.WriteFile(charterPath, []byte("# Local contract\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	goalKernel := "Complete the verified local objective. Re-read the charter after compaction."
 	body = encodeProtoJSON(t, &apipb.CreateRunRequest{
 		TaskId:         createdTask.Id,
 		AgentProfileId: &agentProfileID,
+		Prompt:         &stanceMessage,
 		CharterPath:    &charterPath,
 		WorkReferences: []*eventpb.WorkReference{{Kind: "effort", Id: "effort:arbitrary", Revision: "target", Relationship: "supervisor", Verified: true, Visibility: eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC, State: eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE}},
 		InlineConfig: &pb.RunConfigOverrides{Until: &goalKernel, ResultSpec: &pb.ResultSpec{
@@ -233,6 +240,48 @@ func TestCreateRun_Success(t *testing.T) {
 	}
 	if savedRun.CharterPath != charterPath || savedRun.ResolvedConfig.Until != goalKernel {
 		t.Fatalf("persisted brief contract changed: until=%q charter=%q", savedRun.ResolvedConfig.Until, savedRun.CharterPath)
+	}
+	savedTask, err := repos.Tasks.Get(t.Context(), uuid.MustParse(createdTask.Id))
+	if err != nil {
+		t.Fatalf("read persisted task: %v", err)
+	}
+	if savedTask.Description != stanceMessage {
+		t.Fatal("full stance message was not retained as the task's durable fallback")
+	}
+	runEvents, err := events.Get(t.Context(), runID, event.GetOptions{AfterSequence: -1})
+	if err != nil {
+		t.Fatalf("read initial run prompt: %v", err)
+	}
+	foundFullStanceMessage := false
+	for _, runEvent := range runEvents {
+		message, ok := runEvent.Data.(*domain.MessageEventData)
+		if ok && message.Role == "user" && strings.Contains(message.Content, stanceMessage) &&
+			strings.Contains(message.Content, "re-read it at every unit start and after any context compaction") {
+			foundFullStanceMessage = true
+			break
+		}
+	}
+	if !foundFullStanceMessage {
+		var observed []string
+		for _, runEvent := range runEvents {
+			if message, ok := runEvent.Data.(*domain.MessageEventData); ok {
+				observed = append(observed, message.Role+":"+message.Content)
+			} else {
+				observed = append(observed, string(runEvent.EventType))
+			}
+		}
+		t.Fatalf("initial run prompt did not persist the full stance and charter re-read contract; observed=%q", observed)
+	}
+
+	// Cold receiver replay discards the initial message and consumes only the
+	// persisted kernel plus a fresh charter read from the saved path.
+	charter, err := os.ReadFile(savedRun.CharterPath)
+	if err != nil {
+		t.Fatalf("cold receiver could not read persisted charter path: %v", err)
+	}
+	coldView := savedRun.ResolvedConfig.Until + "\n" + string(charter)
+	if !strings.Contains(coldView, fullStance) || !strings.Contains(coldView, destination) {
+		t.Fatal("cold receiver could not recover the full stance and destination from persisted kernel plus charter")
 	}
 }
 

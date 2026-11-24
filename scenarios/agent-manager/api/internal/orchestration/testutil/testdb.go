@@ -81,3 +81,14 @@ func SetupTestReposWithDB(t *testing.T, db *database.DB) (*database.Repositories
 
 	return repos, eventStore, func() {}
 }
+
+// SetupTestDBWithRepos creates one isolated database, wires its repositories
+// and event store, and closes the database at test cleanup. Use it when a test
+// needs both repository-backed behavior and direct SQL access to the same DB.
+func SetupTestDBWithRepos(t *testing.T) (*database.DB, *database.Repositories, event.Store) {
+	t.Helper()
+	db, cleanup := SetupTestDB(t)
+	t.Cleanup(cleanup)
+	repos, events, _ := SetupTestReposWithDB(t, db)
+	return db, repos, events
+}

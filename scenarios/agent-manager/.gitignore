@@ -1,3 +1,6 @@
+# Persistent agent state, transcripts and private ground-truth data.
+/data/
+
 cli/agent-manager
 cli/cli
 coverage.out

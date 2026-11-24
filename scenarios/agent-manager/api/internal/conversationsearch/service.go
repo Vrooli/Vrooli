@@ -171,7 +171,7 @@ func (s *Service) SearchText(ctx context.Context, request TextSearchRequest) (Te
 	}
 	if request.Query == "" {
 		if request.Sort == SearchSortRelevance {
-			return TextSearchResponse{}, invalidRequest("query may be empty only for newest or oldest browsing")
+			return TextSearchResponse{}, invalidRequest("query may be empty only for browsing sorts")
 		}
 		if !hasSearchFilters(request.Filters) {
 			return TextSearchResponse{}, invalidRequest("at least one structured filter is required when query is empty")
@@ -193,7 +193,7 @@ func (s *Service) SearchText(ctx context.Context, request TextSearchRequest) (Te
 		if err != nil {
 			return TextSearchResponse{}, errors.Join(ErrInvalidRequest, err)
 		}
-		after = &CandidateCursor{Score: payload.Score, OccurredAt: payload.OccurredAt, DocumentID: payload.DocumentID}
+		after = &CandidateCursor{Score: payload.Score, OccurredAt: payload.OccurredAt, DocumentID: payload.DocumentID, NativeRecordSequence: payload.NativeRecordSequence, EventSequence: payload.EventSequence}
 	}
 	candidates, err := s.candidates.LexicalCandidates(ctx, CandidateQuery{
 		Query: request.Query, MatchAllTerms: request.matchAllTerms, Limit: request.PageSize + 1, Sort: request.Sort, After: after,
@@ -211,7 +211,7 @@ func (s *Service) SearchText(ctx context.Context, request TextSearchRequest) (Te
 	if len(candidates) > request.PageSize {
 		candidates = candidates[:request.PageSize]
 		last := candidates[len(candidates)-1]
-		response.NextCursor, err = s.cursors.encode(cursorPayload{Fingerprint: fingerprint, Sort: request.Sort, Score: last.Score, OccurredAt: last.Document.OccurredAt, DocumentID: last.Document.DocumentID})
+		response.NextCursor, err = s.cursors.encode(cursorPayload{Fingerprint: fingerprint, Sort: request.Sort, Score: last.Score, OccurredAt: last.Document.OccurredAt, DocumentID: last.Document.DocumentID, NativeRecordSequence: last.Document.NativeRecordSequence, EventSequence: last.Document.EventSequence})
 		if err != nil {
 			return TextSearchResponse{}, err
 		}
@@ -308,7 +308,7 @@ func (s *Service) Context(ctx context.Context, documentID string, before, after 
 	if !hit.Visible {
 		return Document{}, nil, ErrNotFound
 	}
-	documents, err := s.projection.ContextDocuments(ctx, hit.SourceRunID, hit.EventSequence, before, after)
+	documents, err := s.projection.ContextDocuments(ctx, hit, before, after)
 	if err != nil {
 		return Document{}, nil, err
 	}

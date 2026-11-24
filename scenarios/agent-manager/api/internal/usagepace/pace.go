@@ -18,6 +18,11 @@ const (
 
 // Tier is one precomputed operator pace choice. Slots is nil when the current
 // quota and utilization evidence cannot support an honest slot estimate.
+//
+// A tier is a safe concurrency ceiling: how many agents can run through the
+// target without exhausting the allowance. It is not a burn target. A caller
+// that wants to spend a chosen percentage by reset (the steward's 97% policy)
+// must compute that target separately from its own burn model.
 type Tier struct {
 	ID                     string      `json:"id"`
 	Label                  string      `json:"label"`

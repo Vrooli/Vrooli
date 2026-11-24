@@ -57,7 +57,7 @@ func TestCapabilitiesConformance(t *testing.T) {
 				SupportsWarmIteration: true, SupportsImageAttachments: true,
 				ToolRestrictionMappings: map[string]string{}, SupportsEffort: true,
 				EffortMappings: map[string]string{}, EffortModelSpecific: true,
-				SupportsRunnerDefault: true, DynamicModelPrefixes: []string{ollamaModelPrefix},
+				SupportsRunnerDefault: true, DynamicModelPrefixes: []string{ollamaModelPrefix, llamaCPPModelPrefix},
 				SupportedFeatures: []string{}, AllowedExtraFlags: []string{"--verbose"},
 			},
 		},

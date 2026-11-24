@@ -61,7 +61,7 @@ func newRig(t *testing.T, recall int64) *rig {
 	t.Cleanup(cleanup)
 	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
 	registry := runner.NewRegistry()
-	for _, codec := range []runner.Runner{runnercore.NewRunner(codecs.NewCodexForTest(), nil, nil), runnercore.NewRunner(codecs.NewClaudeForTest(), nil, nil), runnercore.NewRunner(codecs.NewGrokForTest(), nil, nil), runnercore.NewRunner(codecs.NewOpenCodeForTest(), nil, nil)} {
+	for _, codec := range []runner.Runner{runnercore.NewRunner(codecs.NewCodexForTest(), nil, nil), runnercore.NewRunner(codecs.NewClaudeForTest(), nil, nil), runnercore.NewRunner(codecs.NewGrokForTest(), nil, nil), runnercore.NewRunner(codecs.NewOpenCodeForTest(), nil, nil), runnercore.NewRunner(codecs.NewAntigravityForTest(), nil, nil)} {
 		if err := registry.Register(codec); err != nil {
 			t.Fatal(err)
 		}

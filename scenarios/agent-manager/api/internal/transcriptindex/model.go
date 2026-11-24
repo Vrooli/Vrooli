@@ -22,6 +22,7 @@ const (
 	RootGrokHome        = "grok-home"
 	RootGeminiCLI       = "gemini-cli-home"
 	RootQwenCode        = "qwen-code-home"
+	RootAntigravity     = "antigravity-cli-brain"
 	RootCursor          = "cursor-workspace-storage"
 	RootOpenCodeArchive = "opencode-archive"
 	RootRunHome         = "agent-manager-run-home"

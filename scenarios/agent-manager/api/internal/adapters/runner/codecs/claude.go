@@ -155,18 +155,33 @@ func (c *Claude) ControlArgs(cfg *domain.RunConfig) ([]string, error) { return c
 // BuildArgs satisfies [Codec]. Claude has no per-run state to stash
 // from the request; the state argument is unused.
 func (c *Claude) BuildArgs(state State, req runner.ExecuteRequest) []string {
-	args := []string{
-		"--print",
-		"--output-format", "stream-json",
-		"--verbose", // required with --print --output-format stream-json
-	}
-
 	cfg := req.GetConfig()
 	if s, ok := state.(*claudeState); ok {
 		s.model = strings.TrimSpace(cfg.Model)
 		if s.model == "" {
 			s.model = "unknown"
 		}
+	}
+	return c.buildCLIArgs(cfg, false, "", req.SystemPrompt)
+}
+
+// BuildContinueArgs satisfies [Codec]. Claude has no per-run state to
+// stash; the state argument is unused.
+func (c *Claude) BuildContinueArgs(_ State, req runner.ContinueRequest) []string {
+	return c.buildCLIArgs(req.GetConfig(), true, req.SessionID, "")
+}
+
+// buildCLIArgs owns the CLI envelope shared by fresh and continuing Claude
+// runs. The descriptor supplies the native resume flag; the remaining flags
+// and order are the same contract for both launch forms.
+func (c *Claude) buildCLIArgs(cfg *domain.RunConfig, continuation bool, sessionID, systemPrompt string) []string {
+	args := []string{"--print", "--output-format", "stream-json", "--verbose"}
+	if continuation {
+		format, ok := agenttranscript.FormatFor(agenttranscript.HarnessClaude)
+		if !ok {
+			panic("missing shared Claude transcript format")
+		}
+		args = append(args, format.ResumeFlag, sessionID)
 	}
 	if cfg.MaxTurns > 0 {
 		args = append(args, "--max-turns", strconv.Itoa(cfg.MaxTurns))
@@ -176,51 +191,16 @@ func (c *Claude) BuildArgs(state State, req runner.ExecuteRequest) []string {
 	// Centralize portable control translation with interactive launches.
 	controlArgs, _ := c.ControlArgs(cfg)
 	args = append(args, controlArgs...)
-
 	if cfg.SkipPermissionPrompt {
 		args = append(args, "--dangerously-skip-permissions")
 	}
-
-	if req.SystemPrompt != "" {
-		args = append(args, "--append-system-prompt", req.SystemPrompt)
-	}
-
-	if extras, ok := cfg.ExtraFlags[domain.RunnerTypeClaudeCode]; ok {
-		args = append(args, extras...)
-	}
-
-	args = append(args, "-") // read prompt from stdin
-	return args
-}
-
-// BuildContinueArgs satisfies [Codec]. Claude has no per-run state to
-// stash; the state argument is unused.
-func (c *Claude) BuildContinueArgs(_ State, req runner.ContinueRequest) []string {
-	format, ok := agenttranscript.FormatFor(agenttranscript.HarnessClaude)
-	if !ok {
-		panic("missing shared Claude transcript format")
-	}
-	args := []string{
-		"--print",
-		"--output-format", "stream-json",
-		"--verbose",
-		format.ResumeFlag, req.SessionID,
-	}
-	cfg := req.GetConfig()
-	if cfg.MaxTurns > 0 {
-		args = append(args, "--max-turns", strconv.Itoa(cfg.MaxTurns))
-	} else {
-		args = append(args, "--max-turns", "30")
-	}
-	controlArgs, _ := c.ControlArgs(cfg)
-	args = append(args, controlArgs...)
-	if cfg.SkipPermissionPrompt {
-		args = append(args, "--dangerously-skip-permissions")
+	if systemPrompt != "" {
+		args = append(args, "--append-system-prompt", systemPrompt)
 	}
 	if extras, ok := cfg.ExtraFlags[domain.RunnerTypeClaudeCode]; ok {
 		args = append(args, extras...)
 	}
-	return append(args, "-")
+	return append(args, "-") // read prompt from stdin
 }
 
 // =============================================================================

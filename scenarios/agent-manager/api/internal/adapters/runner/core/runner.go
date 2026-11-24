@@ -332,6 +332,18 @@ func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runne
 	if _, err := r.codec.ControlArgs(req.GetConfig()); err != nil {
 		return nil, fmt.Errorf("translate runner controls: %w", err)
 	}
+	if r.codec.Type() == domain.RunnerTypeOpenCode {
+		prepareCtx := ctx
+		cancel := func() {}
+		if _, ok := ctx.Deadline(); !ok {
+			prepareCtx, cancel = context.WithTimeout(ctx, 45*time.Minute)
+		}
+		err := prepareManagedLocalOpenCode(prepareCtx, req.GetConfig(), runManagedLocalPreparation)
+		cancel()
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	startTime := time.Now()
 	state := r.codec.NewState()

@@ -138,9 +138,7 @@ func TestRuntimeFrictionReportDoesNotTrustImportedTranscriptEvaluatorMarkers(t *
 }
 
 func TestRuntimeFrictionReportUsesAuthenticatedReceiptsAcrossDistinctRuns(t *testing.T) {
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+	db, repos, events := testutil.SetupTestDBWithRepos(t)
 	ctx := context.Background()
 	since := time.Date(2026, 11, 15, 12, 0, 0, 0, time.UTC)
 	until := since.Add(time.Hour)

@@ -10,7 +10,6 @@ pending_telemetry) never lowers the status. Every reading is a value the sensor 
 """
 
 # ---- inputs: the caller binds a dict named `inputs` before this source; contract defaults otherwise
-import json
 
 inputs = program.inputs()
 window_token = str(inputs.get("window_token", "TIME_WINDOW_TOKEN_LAST_7D"))
@@ -84,10 +83,8 @@ def rate_row(name, record, band_text, predicate):
 # ---- state machine ---------------------------------------------------------------
 def safe(fn):
     """Run one optional read; return (handle, error) so one dead dependency marks its rows, not the board."""
-    try:
-        return fn(), None
-    except Exception as exc:
-        return None, exc
+    result = program.guarded(fn)()
+    return (None, result) if isinstance(result, Exception) else (result, None)
 
 
 def step_validate():
@@ -190,7 +187,7 @@ def step_classify():  # CLASSIFY · deterministic; every reading is count, head(
 
 def step_report():  # REPORT · bounded, always
     envelope["phase"] = "report"
-    print(json.dumps(envelope,separators=(",",":")))
+    program.report(envelope)
     return None
 
 

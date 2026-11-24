@@ -5,7 +5,6 @@ Phases: validate -> collect -> classify -> report. Read-only, deterministic, con
 """
 
 import datetime
-import json
 
 inputs = program.inputs()
 
@@ -309,7 +308,7 @@ def step_classify():
 
 def step_report():
     envelope["phase"] = "report"
-    print(json.dumps(envelope, sort_keys=True, separators=(",", ":")))
+    program.report(envelope)
     return None
 
 

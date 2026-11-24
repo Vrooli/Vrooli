@@ -235,302 +235,186 @@ func TestRecoverInteractivePreservesProviderConfirmedBusyNativeDriver(t *testing
 	}
 }
 
-func TestRecoverInteractiveSelectsNewerCodexRolloutBeforeRetainedGoalReplay(t *testing.T) {
+func TestRecoverInteractiveRolloutOwnershipMatrix(t *testing.T) {
 	const sessionID = "continued-native-session"
-	reconciler, repos := newInteractiveRecoveryReconciler(t, newFakeInteractiveSessions("web-recovery-session"))
-	if err := reconciler.runners.Register(&retainedGoalReplayRunner{mocks.NewTranscriptReplayRunner(domain.RunnerTypeCodex)}); err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name                 string
+		rolloutSessionID     string
+		omitSessionMetadata  bool
+		invocationOffset     time.Duration
+		userMessage          string
+		assistantMessage     string
+		complete             bool
+		persistSelectionFail bool
+		wantStatus           domain.RunStatus
+		wantNewPath          bool
+		wantOldCursor        bool
+		wantZeroCursor       bool
+		wantMessage          string
+		wantNoSessionError   bool
+	}{
+		{
+			name:               "newer same-session rollout owns continued work",
+			rolloutSessionID:   sessionID,
+			invocationOffset:   time.Second,
+			userMessage:        "continue the same assignment",
+			assistantMessage:   "still working",
+			wantStatus:         domain.RunStatusRunning,
+			wantNewPath:        true,
+			wantNoSessionError: true,
+		},
+		{
+			name:             "newer same-session completion finalizes current owner",
+			rolloutSessionID: sessionID,
+			invocationOffset: 2 * time.Second,
+			complete:         true,
+			wantStatus:       domain.RunStatusComplete,
+			wantNewPath:      true,
+			wantZeroCursor:   true,
+		},
+		{
+			name:             "completed rollout from another session is refused",
+			rolloutSessionID: "different-native-session",
+			invocationOffset: time.Second,
+			complete:         true,
+			wantStatus:       domain.RunStatusRunning,
+			wantOldCursor:    true,
+			wantMessage:      "exact owner session",
+		},
+		{
+			name:                "newer completed rollout without session metadata is refused",
+			omitSessionMetadata: true,
+			invocationOffset:    time.Second,
+			complete:            true,
+			wantStatus:          domain.RunStatusRunning,
+			wantOldCursor:       true,
+			wantMessage:         "exact owner session",
+		},
+		{
+			name:                 "failed owner-path persistence retains prior rollout",
+			rolloutSessionID:     sessionID,
+			invocationOffset:     time.Second,
+			userMessage:          "still working",
+			persistSelectionFail: true,
+			wantStatus:           domain.RunStatusRunning,
+			wantOldCursor:        true,
+		},
 	}
-	run := createInteractiveRecoveryRun(t, repos, "web-recovery-session", filepath.Join(t.TempDir(), "unselected.jsonl"))
-	run.SessionID = sessionID
-	run.ResolvedConfig.RunnerType = domain.RunnerTypeCodex
-	run.ResolvedConfig.Until = "finish assignment"
-	started := *run.StartedAt
-	// The earlier rollout's complete marker is pre-invocation evidence. Recovery
-	// must inspect the newer rollout instead of finalizing from the pinned path.
-	invocation := started.Add(time.Second)
-	persistInteractiveInvocation(t, repos.Runs, run, invocation)
-	rolloutA := codexRecoveryTranscriptPath(t, reconciler, run, "rollout-a.jsonl")
-	rolloutDir := filepath.Dir(rolloutA)
-	rolloutB := filepath.Join(rolloutDir, "rollout-b-"+sessionID+".jsonl")
-	oldBody, _ := writeAcceptedRetainedGoalTranscript(t, run, run.ResolvedConfig.Until)
-	if err := os.WriteFile(rolloutA, []byte(oldBody), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	newBody := fmt.Sprintf(
-		"{\"timestamp\":%q,\"type\":\"session_meta\",\"payload\":{\"id\":%q}}\n"+
-			"{\"timestamp\":%q,\"type\":\"event_msg\",\"payload\":{\"type\":\"user_message\",\"message\":\"continue the same assignment\"}}\n"+
-			"{\"timestamp\":%q,\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"still working\"}]}}\n",
-		started.Add(3*time.Second).Format(time.RFC3339Nano), sessionID,
-		invocation.Add(time.Minute).Format(time.RFC3339Nano),
-		invocation.Add(time.Minute+time.Second).Format(time.RFC3339Nano),
-	)
-	if err := os.WriteFile(rolloutB, []byte(newBody), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	oldMod := started.Add(4 * time.Second)
-	newMod := invocation.Add(time.Minute + 2*time.Second)
-	if err := os.Chtimes(rolloutA, oldMod, oldMod); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chtimes(rolloutB, newMod, newMod); err != nil {
-		t.Fatal(err)
-	}
-	run.TranscriptPath = rolloutA
-	run.TranscriptCursor = int64(len(oldBody))
-	if err := repos.Runs.Update(t.Context(), run); err != nil {
-		t.Fatal(err)
-	}
-	result, err := reconciler.RecoverRun(t.Context(), run.ID)
-	if err != nil {
-		t.Fatalf("recoverInteractiveRun: %v", err)
-	}
-	got, err := repos.Runs.Get(t.Context(), run.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Status != domain.RunStatusRunning || result.Run.Status != domain.RunStatusRunning {
-		t.Fatalf("old rollout finalized the continued run: result=%+v stored=%s", result, got.Status)
-	}
-	if got.TranscriptPath != rolloutB || result.Run.TranscriptPath != rolloutB {
-		t.Fatalf("recovery continued with stale rollout: result path=%q durable path=%q, want %q", result.Run.TranscriptPath, got.TranscriptPath, rolloutB)
-	}
-	if result.Run.TranscriptCursor != got.TranscriptCursor {
-		t.Fatalf("recovery result cursor=%d diverges from durable selected-rollout cursor=%d", result.Run.TranscriptCursor, got.TranscriptCursor)
-	}
-	if strings.Contains(got.ErrorMsg, "session") {
-		t.Fatalf("same-session rollout was reported as mismatched: %q", got.ErrorMsg)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reconciler, repos := newInteractiveRecoveryReconciler(t, newFakeInteractiveSessions("web-recovery-session"))
+			if err := reconciler.runners.Register(&retainedGoalReplayRunner{mocks.NewTranscriptReplayRunner(domain.RunnerTypeCodex)}); err != nil {
+				t.Fatal(err)
+			}
+			run := createInteractiveRecoveryRun(t, repos, "web-recovery-session", filepath.Join(t.TempDir(), "unselected.jsonl"))
+			run.SessionID = sessionID
+			run.ResolvedConfig.RunnerType = domain.RunnerTypeCodex
+			run.ResolvedConfig.Until = "finish assignment"
+			started := *run.StartedAt
+			invocation := started.Add(tt.invocationOffset)
+			persistInteractiveInvocation(t, repos.Runs, run, invocation)
+
+			oldPath := codexRecoveryTranscriptPath(t, reconciler, run, "rollout-old.jsonl")
+			oldBody, _ := writeAcceptedRetainedGoalTranscript(t, run, run.ResolvedConfig.Until)
+			if err := os.WriteFile(oldPath, []byte(oldBody), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			newPath := filepath.Join(filepath.Dir(oldPath), "rollout-b-"+sessionID+".jsonl")
+			var lines []string
+			if !tt.omitSessionMetadata {
+				lines = append(lines, codexRecoveryEventLine(t, started.Add(3*time.Second), "session_meta", map[string]any{"id": tt.rolloutSessionID}))
+			}
+			if tt.userMessage != "" {
+				lines = append(lines, codexRecoveryEventLine(t, invocation.Add(time.Minute), "event_msg", map[string]any{
+					"type": "user_message", "message": tt.userMessage,
+				}))
+			}
+			if tt.assistantMessage != "" {
+				lines = append(lines, codexRecoveryEventLine(t, invocation.Add(time.Minute+time.Second), "response_item", map[string]any{
+					"type": "message", "role": "assistant", "content": []any{map[string]any{"type": "output_text", "text": tt.assistantMessage}},
+				}))
+			}
+			if tt.complete {
+				markerAt := invocation.Add(time.Minute)
+				lines = append(lines,
+					codexRecoveryEventLine(t, markerAt, "event_msg", map[string]any{
+						"type": "thread_goal_updated", "goal": map[string]any{
+							"threadId": tt.rolloutSessionID, "objective": run.ResolvedConfig.Until, "status": "complete",
+						},
+					}),
+					codexRecoveryEventLine(t, markerAt.Add(time.Second), "event_msg", map[string]any{
+						"type": "task_complete", "last_agent_message": "finished current assignment",
+					}),
+				)
+			}
+			newBody := strings.Join(lines, "")
+			if err := os.WriteFile(newPath, []byte(newBody), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			oldMod := started.Add(4 * time.Second)
+			if err := os.Chtimes(oldPath, oldMod, oldMod); err != nil {
+				t.Fatal(err)
+			}
+			newMod := invocation.Add(time.Minute + 2*time.Second)
+			if err := os.Chtimes(newPath, newMod, newMod); err != nil {
+				t.Fatal(err)
+			}
+			run.TranscriptPath = oldPath
+			run.TranscriptCursor = int64(len(oldBody))
+			if err := repos.Runs.Update(t.Context(), run); err != nil {
+				t.Fatal(err)
+			}
+			if tt.persistSelectionFail {
+				reconciler.runs = rejectingRunUpdateRepository{RunRepository: repos.Runs, err: errors.New("owner write unavailable")}
+			}
+
+			result, err := reconciler.RecoverRun(t.Context(), run.ID)
+			if err != nil {
+				t.Fatalf("RecoverRun: %v", err)
+			}
+			got, err := repos.Runs.Get(t.Context(), run.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Status != tt.wantStatus || result.Run.Status != tt.wantStatus {
+				t.Fatalf("recovered owner status = result %q, durable %q; want %q", result.Run.Status, got.Status, tt.wantStatus)
+			}
+			wantPath := oldPath
+			if tt.wantNewPath {
+				wantPath = newPath
+			}
+			if got.TranscriptPath != wantPath || result.Run.TranscriptPath != wantPath {
+				t.Fatalf("recovered owner path = result %q, durable %q; want %q", result.Run.TranscriptPath, got.TranscriptPath, wantPath)
+			}
+			if result.Run.TranscriptCursor != got.TranscriptCursor {
+				t.Fatalf("recovery result cursor %d diverges from durable cursor %d", result.Run.TranscriptCursor, got.TranscriptCursor)
+			}
+			if tt.wantOldCursor && got.TranscriptCursor != int64(len(oldBody)) {
+				t.Fatalf("refused rollout cursor = %d, want prior cursor %d", got.TranscriptCursor, len(oldBody))
+			}
+			if tt.wantZeroCursor && got.TranscriptCursor != 0 {
+				t.Fatalf("selected terminal rollout cursor = %d, want 0", got.TranscriptCursor)
+			}
+			if tt.wantMessage != "" && !strings.Contains(result.Message, tt.wantMessage) {
+				t.Fatalf("recovery refusal = %q, want it to identify %q", result.Message, tt.wantMessage)
+			}
+			if tt.wantNoSessionError && strings.Contains(got.ErrorMsg, "session") {
+				t.Fatalf("accepted same-session rollout was reported as mismatched: %q", got.ErrorMsg)
+			}
+		})
 	}
 }
 
-func TestRecoverInteractiveFinalizesSelectedCodexRolloutAndReturnsCurrentOwner(t *testing.T) {
-	const sessionID = "completed-current-session"
-	reconciler, repos := newInteractiveRecoveryReconciler(t, newFakeInteractiveSessions("web-recovery-session"))
-	if err := reconciler.runners.Register(&retainedGoalReplayRunner{mocks.NewTranscriptReplayRunner(domain.RunnerTypeCodex)}); err != nil {
-		t.Fatal(err)
-	}
-	run := createInteractiveRecoveryRun(t, repos, "web-recovery-session", filepath.Join(t.TempDir(), "unselected.jsonl"))
-	run.SessionID = sessionID
-	run.ResolvedConfig.RunnerType = domain.RunnerTypeCodex
-	run.ResolvedConfig.Until = "finish assignment"
-	started := *run.StartedAt
-	invocation := started.Add(2 * time.Second)
-	persistInteractiveInvocation(t, repos.Runs, run, invocation)
-	rolloutA := codexRecoveryTranscriptPath(t, reconciler, run, "rollout-a.jsonl")
-	rolloutB := filepath.Join(filepath.Dir(rolloutA), "rollout-b-"+sessionID+".jsonl")
-	oldBody, _ := writeAcceptedRetainedGoalTranscript(t, run, run.ResolvedConfig.Until)
-	if err := os.WriteFile(rolloutA, []byte(oldBody), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	markerAt := invocation.Add(time.Minute)
-	terminalAt := markerAt.Add(time.Second)
-	newBody := fmt.Sprintf(
-		"{\"timestamp\":%q,\"type\":\"session_meta\",\"payload\":{\"id\":%q}}\n"+
-			"{\"timestamp\":%q,\"type\":\"event_msg\",\"payload\":{\"type\":\"thread_goal_updated\",\"goal\":{\"threadId\":%q,\"objective\":%q,\"status\":\"complete\"}}}\n"+
-			"{\"timestamp\":%q,\"type\":\"event_msg\",\"payload\":{\"type\":\"task_complete\",\"last_agent_message\":\"finished current assignment\"}}\n",
-		started.Add(3*time.Second).Format(time.RFC3339Nano), sessionID,
-		markerAt.Format(time.RFC3339Nano), sessionID, run.ResolvedConfig.Until,
-		terminalAt.Format(time.RFC3339Nano),
-	)
-	if err := os.WriteFile(rolloutB, []byte(newBody), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	newMod := terminalAt.Add(time.Second)
-	if err := os.Chtimes(rolloutB, newMod, newMod); err != nil {
-		t.Fatal(err)
-	}
-	run.TranscriptPath = rolloutA
-	run.TranscriptCursor = int64(len(oldBody))
-	if err := repos.Runs.Update(t.Context(), run); err != nil {
-		t.Fatal(err)
-	}
-
-	result, err := reconciler.RecoverRun(t.Context(), run.ID)
-	if err != nil {
-		t.Fatalf("RecoverRun: %v", err)
-	}
-	got, err := repos.Runs.Get(t.Context(), run.ID)
+func codexRecoveryEventLine(t *testing.T, at time.Time, eventType string, payload any) string {
+	t.Helper()
+	line, err := json.Marshal(map[string]any{
+		"timestamp": at.Format(time.RFC3339Nano), "type": eventType, "payload": payload,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Status != domain.RunStatusComplete || result.Run.Status != domain.RunStatusComplete || got.TranscriptPath != rolloutB || result.Run.TranscriptPath != rolloutB {
-		t.Fatalf("current completed rollout was not the finalized owner: result=%+v durable=%+v", result.Run, got)
-	}
-	if got.TranscriptCursor != 0 || result.Run.TranscriptCursor != 0 {
-		t.Fatalf("selected rollout file cursor was not reset consistently: result=%d durable=%d", result.Run.TranscriptCursor, got.TranscriptCursor)
-	}
-}
-
-func TestRecoverInteractiveRunningPromptFenceRejectsOldGoalWithoutTranscriptGrowth(t *testing.T) {
-	repos, events, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
-	root := t.TempDir()
-	sessions := newRecordingSessions()
-	orchestrator := New(repos.Profiles, repos.Tasks, repos.Runs,
-		WithEvents(events), WithInteractiveSessions(sessions), WithRunStateRoot(root))
-	task := interactiveTestTask(t, orchestrator)
-	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "agent-session", "web-recovery-session")
-	started := time.Now().UTC().Add(-time.Minute).Truncate(time.Millisecond)
-	run.StartedAt = &started
-	run.SessionID = "exact-running-session"
-	run.ResolvedConfig.RunnerType = domain.RunnerTypeCodex
-	run.ResolvedConfig.Until = "finish assignment"
-	// ContinueRun requires a retained native provider session to match both the
-	// persisted thread and owner generation. Model that valid binding here so
-	// the prompt-fence test reaches the recovery behavior it intends to cover.
-	sessions.nativeOwner = "test-native-owner-generation"
-	sessions.nativeThread = run.SessionID
-	oldInvocation := started.Add(500 * time.Millisecond)
-	persistInteractiveInvocation(t, repos.Runs, run, oldInvocation)
-	reconciler := NewReconciler(repos.Runs, runner.NewRegistry(),
-		WithReconcilerEvents(events), WithReconcilerInteractive(sessions), WithReconcilerRunStateRoot(root))
-	reconciler.interactiveDebounce = 40 * time.Millisecond
-	reconciler.interactiveSessionPoll = 20 * time.Millisecond
-	if err := reconciler.runners.Register(&retainedGoalReplayRunner{mocks.NewTranscriptReplayRunner(domain.RunnerTypeCodex)}); err != nil {
-		t.Fatal(err)
-	}
-	path := codexRecoveryTranscriptPath(t, reconciler, run, "rollout-current.jsonl")
-	run.TranscriptPath = path
-	body, goalAt := writeAcceptedRetainedGoalTranscript(t, run, run.ResolvedConfig.Until)
-	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	run.TranscriptCursor = int64(len(body))
-	if err := repos.Runs.Update(t.Context(), run); err != nil {
-		t.Fatal(err)
-	}
-	continued, err := orchestrator.ContinueRun(t.Context(), ContinueRunRequest{RunID: run.ID, Message: "continue the assignment"})
-	if err != nil {
-		t.Fatalf("ContinueRun: %v", err)
-	}
-	if continued.InteractiveInvocationStartedAt == nil || !continued.InteractiveInvocationStartedAt.After(goalAt) {
-		t.Fatalf("accepted prompt did not establish a new invocation fence after the retained goal: goal=%v run=%+v", goalAt, continued)
-	}
-
-	result, err := reconciler.RecoverRun(t.Context(), run.ID)
-	if err != nil {
-		t.Fatalf("RecoverRun: %v", err)
-	}
-	got, err := repos.Runs.Get(t.Context(), run.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Status != domain.RunStatusRunning || result.Run.Status != domain.RunStatusRunning || got.TranscriptPath != path || got.TranscriptCursor != int64(len(body)) {
-		t.Fatalf("accepted prompt without transcript growth was finalized or changed its owner: result=%+v status=%s path=%q cursor=%d", result, got.Status, got.TranscriptPath, got.TranscriptCursor)
-	}
-	messages, err := reconciler.events.Get(t.Context(), run.ID, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeMessage}})
-	if err != nil || len(messages) != 1 {
-		t.Fatalf("accepted prompt receipt was not retained: messages=%d err=%v", len(messages), err)
-	}
-}
-
-func TestRecoverInteractiveDoesNotCommitMismatchedCodexRollout(t *testing.T) {
-	const sessionID = "retained-owner-session"
-	reconciler, repos := newInteractiveRecoveryReconciler(t, newFakeInteractiveSessions("web-recovery-session"))
-	if err := reconciler.runners.Register(&retainedGoalReplayRunner{mocks.NewTranscriptReplayRunner(domain.RunnerTypeCodex)}); err != nil {
-		t.Fatal(err)
-	}
-	run := createInteractiveRecoveryRun(t, repos, "web-recovery-session", filepath.Join(t.TempDir(), "unselected.jsonl"))
-	run.SessionID = sessionID
-	run.ResolvedConfig.RunnerType = domain.RunnerTypeCodex
-	run.ResolvedConfig.Until = "finish assignment"
-	started := *run.StartedAt
-	invocation := started.Add(time.Second)
-	persistInteractiveInvocation(t, repos.Runs, run, invocation)
-	rolloutA := codexRecoveryTranscriptPath(t, reconciler, run, "rollout-a.jsonl")
-	rolloutB := filepath.Join(filepath.Dir(rolloutA), "rollout-b-"+sessionID+".jsonl")
-	oldBody, _ := writeAcceptedRetainedGoalTranscript(t, run, run.ResolvedConfig.Until)
-	if err := os.WriteFile(rolloutA, []byte(oldBody), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	wrongSession := "different-native-session"
-	newBody := fmt.Sprintf(
-		"{\"timestamp\":%q,\"type\":\"session_meta\",\"payload\":{\"id\":%q}}\n"+
-			"{\"timestamp\":%q,\"type\":\"event_msg\",\"payload\":{\"type\":\"thread_goal_updated\",\"goal\":{\"threadId\":%q,\"objective\":%q,\"status\":\"complete\"}}}\n"+
-			"{\"timestamp\":%q,\"type\":\"event_msg\",\"payload\":{\"type\":\"task_complete\",\"last_agent_message\":\"done\"}}\n",
-		started.Add(3*time.Second).Format(time.RFC3339Nano), wrongSession,
-		invocation.Add(time.Minute).Format(time.RFC3339Nano), wrongSession, run.ResolvedConfig.Until,
-		invocation.Add(time.Minute+time.Second).Format(time.RFC3339Nano),
-	)
-	if err := os.WriteFile(rolloutB, []byte(newBody), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	newMod := invocation.Add(time.Minute + 2*time.Second)
-	if err := os.Chtimes(rolloutB, newMod, newMod); err != nil {
-		t.Fatal(err)
-	}
-	run.TranscriptPath = rolloutA
-	run.TranscriptCursor = int64(len(oldBody))
-	if err := repos.Runs.Update(t.Context(), run); err != nil {
-		t.Fatal(err)
-	}
-	result, err := reconciler.RecoverRun(t.Context(), run.ID)
-	if err != nil {
-		t.Fatalf("RecoverRun: %v", err)
-	}
-	got, err := repos.Runs.Get(t.Context(), run.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Status != domain.RunStatusRunning || got.TranscriptPath != rolloutA || got.TranscriptCursor != int64(len(oldBody)) {
-		t.Fatalf("unmatched rollout changed owner or finalized run: status=%s path=%q cursor=%d; result=%+v", got.Status, got.TranscriptPath, got.TranscriptCursor, result)
-	}
-	if !strings.Contains(result.Message, "exact owner session") {
-		t.Fatalf("mismatched-session refusal was not explicit: %q", result.Message)
-	}
-}
-
-func TestRecoverInteractiveDoesNotSelectNewRolloutWhenPathPersistFails(t *testing.T) {
-	const sessionID = "persist-failure-session"
-	reconciler, repos := newInteractiveRecoveryReconciler(t, newFakeInteractiveSessions("web-recovery-session"))
-	if err := reconciler.runners.Register(&retainedGoalReplayRunner{mocks.NewTranscriptReplayRunner(domain.RunnerTypeCodex)}); err != nil {
-		t.Fatal(err)
-	}
-	run := createInteractiveRecoveryRun(t, repos, "web-recovery-session", filepath.Join(t.TempDir(), "unselected.jsonl"))
-	run.SessionID = sessionID
-	run.ResolvedConfig.RunnerType = domain.RunnerTypeCodex
-	run.ResolvedConfig.Until = "finish assignment"
-	started := *run.StartedAt
-	invocation := started.Add(time.Second)
-	persistInteractiveInvocation(t, repos.Runs, run, invocation)
-	rolloutA := codexRecoveryTranscriptPath(t, reconciler, run, "rollout-a.jsonl")
-	rolloutB := filepath.Join(filepath.Dir(rolloutA), "rollout-b-"+sessionID+".jsonl")
-	oldBody, _ := writeAcceptedRetainedGoalTranscript(t, run, run.ResolvedConfig.Until)
-	if err := os.WriteFile(rolloutA, []byte(oldBody), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	newBody := fmt.Sprintf(
-		"{\"timestamp\":%q,\"type\":\"session_meta\",\"payload\":{\"id\":%q}}\n"+
-			"{\"timestamp\":%q,\"type\":\"event_msg\",\"payload\":{\"type\":\"user_message\",\"message\":\"still working\"}}\n",
-		started.Add(3*time.Second).Format(time.RFC3339Nano), sessionID,
-		invocation.Add(time.Minute).Format(time.RFC3339Nano),
-	)
-	if err := os.WriteFile(rolloutB, []byte(newBody), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	newMod := invocation.Add(time.Minute + time.Second)
-	if err := os.Chtimes(rolloutB, newMod, newMod); err != nil {
-		t.Fatal(err)
-	}
-	run.TranscriptPath = rolloutA
-	run.TranscriptCursor = int64(len(oldBody))
-	if err := repos.Runs.Update(t.Context(), run); err != nil {
-		t.Fatal(err)
-	}
-	reconciler.runs = rejectingRunUpdateRepository{RunRepository: repos.Runs, err: errors.New("owner write unavailable")}
-
-	result, err := reconciler.RecoverRun(t.Context(), run.ID)
-	if err != nil {
-		t.Fatalf("RecoverRun: %v", err)
-	}
-	got, err := repos.Runs.Get(t.Context(), run.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Status != domain.RunStatusRunning || result.Run.TranscriptPath != rolloutA || got.TranscriptPath != rolloutA ||
-		result.Run.TranscriptCursor != int64(len(oldBody)) || got.TranscriptCursor != int64(len(oldBody)) {
-		t.Fatalf("failed owner path update changed recovery ownership: result=%+v durable=%+v", result.Run, got)
-	}
+	return string(line) + "\n"
 }
 
 func TestRecoverInteractiveDoesNotInspectCodexGoalWithoutRunScopedContext(t *testing.T) {

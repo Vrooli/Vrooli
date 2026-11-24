@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/cli-core/agenttranscript"
 )
 
 type coldCoverageStatus struct {
@@ -96,6 +97,60 @@ func TestSearchHitProvenanceAndContextBounds(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "doc-c", matched.DocumentID)
 	require.Equal(t, []int64{1, 2, 3, 4}, []int64{contextDocuments[0].EventSequence, contextDocuments[1].EventSequence, contextDocuments[2].EventSequence, contextDocuments[3].EventSequence})
+}
+
+func TestNativeSequenceSearchCarriesSourceOrderAcrossSignedCursor(t *testing.T) {
+	t.Parallel()
+	service, repository := searchFixtureService(t)
+	for _, item := range []struct {
+		id            string
+		native, event int64
+	}{{"source-8", 8, 80}, {"source-3b", 3, 30}, {"source-3a", 3, 10}} {
+		document := searchDocument(item.id, "phase native record", ContentClassProse, fixtureTimeValue(1))
+		document.NativeRecordSequence, document.EventSequence = item.native, item.event
+		require.NoError(t, repository.UpsertDocument(context.Background(), document))
+	}
+	first, err := service.SearchText(context.Background(), TextSearchRequest{Query: "phase", Sort: SearchSortNativeSequence, PageSize: 2})
+	require.NoError(t, err)
+	require.Equal(t, []string{"source-3a", "source-3b"}, []string{first.Hits[0].Document.DocumentID, first.Hits[1].Document.DocumentID})
+	require.EqualValues(t, 3, first.Hits[0].Document.NativeRecordSequence)
+	require.NotEmpty(t, first.NextCursor)
+	next, err := service.SearchText(context.Background(), TextSearchRequest{Query: "phase", Sort: SearchSortNativeSequence, PageSize: 2, Cursor: first.NextCursor})
+	require.NoError(t, err)
+	require.Equal(t, []string{"source-8"}, []string{next.Hits[0].Document.DocumentID})
+}
+
+func TestAntigravitySearchContextAndResumeKeepNativeIdentityAndOrder(t *testing.T) {
+	t.Parallel()
+	service, repository := searchFixtureService(t)
+	items := []struct {
+		id, session   string
+		native, event int64
+	}{
+		{"ag-step-9", "ag-thread-7", 9, 2},
+		{"ag-step-4b", "ag-thread-7", 4, 8},
+		{"ag-step-4a", "ag-thread-7", 4, 3},
+	}
+	for _, item := range items {
+		document := searchDocument(item.id, "antigravity-native-context token", ContentClassProse, fixtureTimeValue(int(item.native)))
+		document.Harness = "antigravity"
+		document.NativeRecordSequence, document.EventSequence = item.native, item.event
+		document.SourceSessionID = item.session
+		require.NoError(t, repository.UpsertDocument(context.Background(), document))
+	}
+	search, err := service.SearchText(context.Background(), TextSearchRequest{Query: "antigravity-native-context", Sort: SearchSortNativeSequence, PageSize: 2})
+	require.NoError(t, err)
+	require.Equal(t, []string{"ag-step-4a", "ag-step-4b"}, []string{search.Hits[0].Document.DocumentID, search.Hits[1].Document.DocumentID})
+	selected := search.Hits[0].Document
+	_, window, err := service.Context(context.Background(), selected.DocumentID, 1, 2)
+	require.NoError(t, err)
+	require.Equal(t, []int64{4, 4, 9}, []int64{window[0].NativeRecordSequence, window[1].NativeRecordSequence, window[2].NativeRecordSequence})
+	require.Equal(t, []int64{3, 8, 2}, []int64{window[0].EventSequence, window[1].EventSequence, window[2].EventSequence})
+	require.Equal(t, selected.SourceSessionID, window[0].SourceSessionID)
+	resume, err := agenttranscript.BuildNativeResumeInvocation(selected.Harness, selected.SourceSessionID, "continue selected native context")
+	require.NoError(t, err)
+	require.Equal(t, "agy", resume.Command)
+	require.Equal(t, []string{"--conversation", selected.SourceSessionID, "--print", "continue selected native context"}, resume.Args)
 }
 
 func TestTextSearchBoundsUnicodeSnippetAndHighlights(t *testing.T) {

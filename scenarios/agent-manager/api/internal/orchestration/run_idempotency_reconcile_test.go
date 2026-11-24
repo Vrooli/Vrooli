@@ -94,9 +94,7 @@ func TestCreateRunReconcilesLostAcceptedResponse(t *testing.T) {
 func TestCreateRunAcceptedReceiptSurvivesCacheExpiryAndDeletion(t *testing.T) {
 	for _, deleteRun := range []bool{false, true} {
 		t.Run(map[bool]string{false: "retained-run", true: "deleted-run"}[deleteRun], func(t *testing.T) {
-			db, cleanup := testutil.SetupTestDB(t)
-			t.Cleanup(cleanup)
-			repos, _, _ := testutil.SetupTestReposWithDB(t, db)
+			db, repos, _ := testutil.SetupTestDBWithRepos(t)
 			ctx := context.Background()
 			o := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithIdempotency(repos.Idempotency), fixtureOwnerIdentityOption())
 			task := &domain.Task{ID: uuid.New(), Title: "accepted-once", ScopePath: ".", Status: domain.TaskStatusQueued}

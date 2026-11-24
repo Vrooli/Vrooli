@@ -22,7 +22,6 @@
 package codecs
 
 import (
-	"encoding/json"
 	"errors"
 	"strconv"
 	"strings"
@@ -183,16 +182,12 @@ func (c *Grok) BuildArgs(_ State, req runner.ExecuteRequest) []string {
 // prior context is retained).
 func (c *Grok) BuildContinueArgs(_ State, req runner.ContinueRequest) []string {
 	cfg := req.GetConfig()
-	format, ok := agenttranscript.FormatFor("grok")
-	if !ok {
-		panic("missing shared Grok transcript format")
+	invocation, err := agenttranscript.BuildNativeResumeInvocation(agenttranscript.HarnessGrok, req.SessionID, req.Prompt)
+	if err != nil {
+		panic(err)
 	}
 
-	args := []string{
-		"-p", req.Prompt,
-		format.ResumeFlag, req.SessionID,
-		"--output-format", "streaming-json",
-	}
+	args := append(invocation.Args, "--output-format", "streaming-json")
 	if cfg.MaxTurns > 0 {
 		args = append(args, "--max-turns", strconv.Itoa(cfg.MaxTurns))
 	} else {
@@ -238,14 +233,7 @@ func (c *Grok) NewState() State { return &grokState{} }
 // stream is a flat sequence of delta events; "thought"/"text" carry a Data
 // string fragment, "end" carries the terminal metadata, "error" carries a
 // Message.
-type GrokStreamEvent struct {
-	Type       string `json:"type"`
-	Data       string `json:"data,omitempty"`
-	StopReason string `json:"stopReason,omitempty"`
-	SessionID  string `json:"sessionId,omitempty"`
-	RequestID  string `json:"requestId,omitempty"`
-	Message    string `json:"message,omitempty"`
-}
+type GrokStreamEvent = agenttranscript.GrokStreamEvent
 
 // =============================================================================
 // Stream decoding
@@ -266,7 +254,7 @@ func (c *Grok) DecodeStreamLine(state State, runID uuid.UUID, line string) ([]*d
 // decode is the shared decode body used by both the live stream and transcript
 // replay so they stay byte-identical.
 func (c *Grok) decode(s *grokState, runID uuid.UUID, line string) []*domain.RunEvent {
-	ev, ok := decodeGrokStreamEvent(line)
+	ev, ok := agenttranscript.ParseGrokStreamEvent([]byte(line))
 	if !ok {
 		return nil
 	}
@@ -289,7 +277,7 @@ func (c *Grok) decode(s *grokState, runID uuid.UUID, line string) []*domain.RunE
 
 	case "end":
 		s.gotEnd = true
-		return flushGrokMessage(runID, s, ev)
+		return flushGrokMessage(runID, s, &ev)
 
 	case "error":
 		if msg := strings.TrimSpace(ev.Message); msg != "" {
@@ -321,18 +309,6 @@ func flushGrokMessage(runID uuid.UUID, s *grokState, ev *GrokStreamEvent) []*dom
 // decodeGrokStreamEvent unwraps a single stdout/transcript line. Returns
 // ok=false for blank or non-JSON lines (grok may print non-JSON banners to
 // stdout before the stream begins).
-func decodeGrokStreamEvent(line string) (*GrokStreamEvent, bool) {
-	line = strings.TrimSpace(line)
-	if line == "" || line[0] != '{' {
-		return nil, false
-	}
-	var ev GrokStreamEvent
-	if err := json.Unmarshal([]byte(line), &ev); err != nil {
-		return nil, false
-	}
-	return &ev, true
-}
-
 // UpdateMetrics satisfies [Codec]. Grok emits no tool or cost events, so only
 // the assistant-message turn counter is tracked.
 func (c *Grok) UpdateMetrics(event *domain.RunEvent, metrics *runner.ExecutionMetrics, lastAssistant *string) {
@@ -373,7 +349,7 @@ func (p *grokTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string)
 		Timestamp: agenttranscript.ParseTimestamp([]byte(line)),
 	}
 
-	if ev, ok := decodeGrokStreamEvent(line); ok {
+	if ev, ok := agenttranscript.ParseGrokStreamEvent([]byte(line)); ok {
 		switch ev.Type {
 		case "end":
 			result.Terminal = &runner.TranscriptTerminal{Success: true, ExitCode: 0}

@@ -61,8 +61,7 @@ def step_classify():
         error = item.get("report_error")
         if error is not None:
             subject["report_availability"] = "unknown"
-            _, klass = program.classify(error)
-            envelope["errors"].append({"class": klass, "detail": str(error)[:180], "where": "collect:" + item["run_id"] + ":report"})
+            envelope["errors"].append(program.fail_exception(error, "collect:" + item["run_id"] + ":report", record=False))
             missing += 1
         if "report" in item:
             report_meta = item["report"].meta()
@@ -93,8 +92,7 @@ def step_classify():
             subject["accounting_availability"] = "unknown"
             error = item.get("accounting_error")
             if error is not None:
-                _, klass = program.classify(error)
-                envelope["errors"].append({"class": klass, "detail": str(error)[:180], "where": "collect:" + item["run_id"] + ":accounting"})
+                envelope["errors"].append(program.fail_exception(error, "collect:" + item["run_id"] + ":accounting", record=False))
             missing += 1
         any_available = "report" in item or accounting is not None
         if any_available:
@@ -128,10 +126,4 @@ while state:
         envelope["phase"] = state
         state = states[state]()
     except Exception as exc:
-        if envelope.get("phase") == "report":
-            raise
-        try:
-            status, klass = program.classify(exc)
-        except (NameError, AttributeError):
-            status, klass = "failed", "kernel_runtime"
-        state = fail(status, klass, exc, envelope.get("phase") or state)
+        state = program.fail_exception(exc, envelope.get("phase") or state)

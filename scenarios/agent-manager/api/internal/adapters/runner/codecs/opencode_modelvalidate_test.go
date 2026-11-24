@@ -88,3 +88,53 @@ func TestValidateOpenCodeModel(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateConfiguredLlamaCPPModelIsLocalAndProjected(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  string
+		wantErr string
+	}{
+		{
+			name:   "projected local model",
+			config: `{"provider":{"llama-cpp":{"options":{"baseURL":"http://127.0.0.1:19080/v1"},"models":{"sensenova-loop:q4_k_m":{}}}}}`,
+		},
+		{
+			name:    "model not projected",
+			config:  `{"provider":{"llama-cpp":{"options":{"baseURL":"http://127.0.0.1:19080/v1"},"models":{}}}}`,
+			wantErr: "not projected",
+		},
+		{
+			name:    "non-loopback endpoint refused",
+			config:  `{"provider":{"llama-cpp":{"options":{"baseURL":"http://203.0.113.8:19080/v1"},"models":{"sensenova-loop:q4_k_m":{}}}}}`,
+			wantErr: "loopback",
+		},
+		{
+			name:    "credential refused",
+			config:  `{"provider":{"llama-cpp":{"options":{"baseURL":"http://127.0.0.1:19080/v1","apiKey":"persisted"},"models":{"sensenova-loop:q4_k_m":{}}}}}`,
+			wantErr: "credential",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "opencode.json")
+			if err := os.WriteFile(path, []byte(tc.config), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			err := validateConfiguredLocalProviderModel("llama-cpp/sensenova-loop:q4_k_m", path)
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("validation error = %v", err)
+				}
+			} else if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("validation error = %v, want %q", err, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateConfiguredLlamaCPPRejectsAbsentConfig(t *testing.T) {
+	if err := validateConfiguredLocalProviderModel("llama-cpp/sensenova-loop:q4_k_m", filepath.Join(t.TempDir(), "missing.json")); err == nil {
+		t.Fatal("accepted a local llama.cpp model without a projected OpenCode config")
+	}
+}

@@ -791,9 +791,7 @@ func TestAuthorizationRetryContextCancellationDoesNotAdvancePastInterruptedRow(t
 }
 
 func TestReconcilerKeepsCompletedAuthorizationRetryCheckpointOnCallbackError(t *testing.T) {
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, _, _ := testutil.SetupTestReposWithDB(t, db)
+	_, repos, _ := testutil.SetupTestDBWithRepos(t)
 	reconciler := NewReconciler(repos.Runs, nil)
 	reconciler.authorizationNotificationCursor = "before"
 	reconciler.authorizationNotificationRetry = func(context.Context, string, int, int) (string, error) {

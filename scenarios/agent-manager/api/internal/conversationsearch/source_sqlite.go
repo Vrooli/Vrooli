@@ -365,10 +365,12 @@ func (row sourceRow) sourceMessage() (SourceMessage, error) {
 		return SourceMessage{}, fmt.Errorf("decode conversation event %q schema %d: %w", row.EventID, row.SchemaVersion, err)
 	}
 	var role, content, messageID, providerOrigin, providerEventType, evidenceFor string
+	var nativeRecordSequence int64
 	var evidenceOnly bool
 	switch value := payload.(type) {
 	case *domain.MessageEventData:
 		role, content, messageID = value.Role, value.Content, value.MessageID
+		nativeRecordSequence = value.NativeRecordSequence
 		providerOrigin, providerEventType = value.ProviderOrigin, value.ProviderEventType
 		evidenceOnly, evidenceFor = value.EvidenceOnly, value.EvidenceForEventID
 	case *domain.ToolCallEventData:
@@ -396,7 +398,7 @@ func (row sourceRow) sourceMessage() (SourceMessage, error) {
 		importer = "agent-manager.transcript-import"
 	}
 	return SourceMessage{
-		RunID: row.RunID, EventID: row.EventID, MessageID: messageID, Sequence: row.Sequence,
+		RunID: row.RunID, EventID: row.EventID, MessageID: messageID, Sequence: row.Sequence, NativeRecordSequence: nativeRecordSequence,
 		Role: role, OccurredAt: occurredAt, Content: content,
 		ProviderEventType: providerEventType, EvidenceOnly: evidenceOnly,
 		EvidenceForEvent: evidenceFor, Harness: row.Harness,

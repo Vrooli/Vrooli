@@ -138,17 +138,18 @@ type MessageEventData struct {
 
 	// Optional provider evidence. Empty fields mean the provider did not emit
 	// that fact; callers must not infer it from transcript position.
-	MessageID          string `json:"messageId,omitempty"`
-	ConversationID     string `json:"conversationId,omitempty"`
-	TurnID             string `json:"turnId,omitempty"`
-	ProviderOrigin     string `json:"providerOrigin,omitempty"`
-	CompletionReason   string `json:"completionReason,omitempty"`
-	Terminal           bool   `json:"terminal,omitempty"`
-	ParentMessageID    string `json:"parentMessageId,omitempty"`
-	ProviderEventType  string `json:"providerEventType,omitempty"`
-	RawEvidenceRef     string `json:"rawEvidenceRef,omitempty"`
-	EvidenceOnly       bool   `json:"evidenceOnly,omitempty"`
-	EvidenceForEventID string `json:"evidenceForEventId,omitempty"`
+	MessageID            string `json:"messageId,omitempty"`
+	NativeRecordSequence int64  `json:"nativeRecordSequence,omitempty"`
+	ConversationID       string `json:"conversationId,omitempty"`
+	TurnID               string `json:"turnId,omitempty"`
+	ProviderOrigin       string `json:"providerOrigin,omitempty"`
+	CompletionReason     string `json:"completionReason,omitempty"`
+	Terminal             bool   `json:"terminal,omitempty"`
+	ParentMessageID      string `json:"parentMessageId,omitempty"`
+	ProviderEventType    string `json:"providerEventType,omitempty"`
+	RawEvidenceRef       string `json:"rawEvidenceRef,omitempty"`
+	EvidenceOnly         bool   `json:"evidenceOnly,omitempty"`
+	EvidenceForEventID   string `json:"evidenceForEventId,omitempty"`
 
 	// Source says who authored a user-role message (MessageSource* constants).
 	// Read it through MessageSource, which derives it for events stored before

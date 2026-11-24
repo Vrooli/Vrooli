@@ -33,9 +33,7 @@ func newCredentialPairFixture(t *testing.T) (*Orchestrator, context.Context, con
 func newCredentialPairFixtureWithOwnerLifetime(t *testing.T, ownerLifetime time.Duration) (*Orchestrator, context.Context, context.Context, *domain.Run, string) {
 	t.Helper()
 	ctx := context.Background()
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, events, _ := testutil.SetupTestReposWithDB(t, db)
+	db, repos, events := testutil.SetupTestDBWithRepos(t)
 	o := New(nil, nil, repos.Runs, WithEvents(events), WithIdentitySecret([]byte(pairTestSecret)), WithAuthorizations(database.NewAuthorizationRepository(db)))
 	policy, ok := authn.InteractivePolicy("swarm-bookkeeping")
 	if !ok {

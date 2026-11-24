@@ -42,9 +42,10 @@ Do not paste snippets or raw conversation text into Vrooli Memory, source record
 3. `agent-manager run events <id> --failed`.
 4. `agent-manager workflow trace <execution-id>` for a workflow node.
 5. Run `vrooli scenario status agent-manager` once only when the API is unreachable
-   or scenario health is part of the evidence. After starting or restarting the
-   scenario, use `vrooli scenario wait agent-manager` once for that lifecycle
-   operation; do not poll status or logs while it runs.
+   or scenario health is part of the evidence. After start/restart, use
+   `program-runtime library run program-runtime.scenario-wait --input scenario=agent-manager --input timeout_seconds=<1..90>`
+   once; it reads status and waits once. Exit 124 means the lifecycle operation
+   continues; reconcile before reattaching. Do not poll status or logs while waiting.
 
 ### 9. Safety
 

@@ -12,7 +12,6 @@ An empty digest is read beside that coverage, never as "no friction".
 """
 
 import datetime
-import json
 
 # ---- inputs: the caller binds a dict named `inputs` before this source; contract defaults otherwise
 inputs = program.inputs()
@@ -201,7 +200,7 @@ def step_report():  # REPORT · bounded, always
     envelope["phase"] = "report"
     if envelope["errors"] and envelope["status"] == "ok":
         envelope["status"] = "partial"
-    print(json.dumps(envelope, sort_keys=True, separators=(",", ":")))
+    program.report(envelope)
     return None
 
 

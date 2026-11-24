@@ -8,38 +8,39 @@ import (
 // Document is a deterministic, bounded projection of one canonical message
 // chunk. DocumentID is stable across rebuilds and never exposes SQLite rowid.
 type Document struct {
-	DocumentID      string
-	SourceRunID     string
-	SourceEventID   string
-	SourceMessageID string
-	ChunkIndex      int
-	ChunkTotal      int
-	StartByte       int
-	EndByte         int
-	EventSequence   int64
-	Role            string
-	OccurredAt      time.Time
-	Content         string
-	ContentClass    ContentClass
-	SourceHash      string
-	ContentHash     string
-	RecipeVersion   string
-	Harness         string
-	SourceSessionID string
-	ProviderOrigin  string
-	Importer        string
-	ProjectScope    string
-	CWDScope        string
-	Runner          string
-	Model           string
-	Profile         string
-	RunStatus       string
-	RunLabel        string
-	Tags            []string
-	Workloads       []string
-	EvidenceRef     string
-	Visible         bool
-	IndexedAt       time.Time
+	DocumentID           string
+	SourceRunID          string
+	SourceEventID        string
+	SourceMessageID      string
+	ChunkIndex           int
+	ChunkTotal           int
+	StartByte            int
+	EndByte              int
+	EventSequence        int64
+	NativeRecordSequence int64
+	Role                 string
+	OccurredAt           time.Time
+	Content              string
+	ContentClass         ContentClass
+	SourceHash           string
+	ContentHash          string
+	RecipeVersion        string
+	Harness              string
+	SourceSessionID      string
+	ProviderOrigin       string
+	Importer             string
+	ProjectScope         string
+	CWDScope             string
+	Runner               string
+	Model                string
+	Profile              string
+	RunStatus            string
+	RunLabel             string
+	Tags                 []string
+	Workloads            []string
+	EvidenceRef          string
+	Visible              bool
+	IndexedAt            time.Time
 }
 
 type SourceCursor struct {
@@ -89,7 +90,7 @@ type ProjectionRepository interface {
 	DeleteSourceEvent(context.Context, string, string) (int64, error)
 	DeleteRun(context.Context, string) (int64, error)
 	GetDocument(context.Context, string) (Document, error)
-	ContextDocuments(context.Context, string, int64, int, int) ([]Document, error)
+	ContextDocuments(context.Context, Document, int, int) ([]Document, error)
 }
 
 type CandidateQuery struct {
@@ -123,12 +124,15 @@ const (
 	SearchSortRelevance SearchSort = iota + 1
 	SearchSortNewest
 	SearchSortOldest
+	SearchSortNativeSequence
 )
 
 type CandidateCursor struct {
-	Score      float64
-	OccurredAt time.Time
-	DocumentID string
+	Score                float64
+	OccurredAt           time.Time
+	DocumentID           string
+	NativeRecordSequence int64
+	EventSequence        int64
 }
 
 type Candidate struct {

@@ -170,9 +170,7 @@ func (r blockedAdmissionTask) Get(ctx context.Context, id uuid.UUID) (*domain.Ta
 }
 
 func TestMaintenanceConcurrentCreateCannotDisappearDuringDrain(t *testing.T) {
-	db, cleanup := testutil.SetupTestDB(t)
-	t.Cleanup(cleanup)
-	repos, _, _ := testutil.SetupTestReposWithDB(t, db)
+	db, repos, _ := testutil.SetupTestDBWithRepos(t)
 	gate := maintenance.NewGate(maintenance.NewRepository(db))
 	tasks := blockedAdmissionTask{TaskRepository: repos.Tasks, entered: make(chan struct{}), release: make(chan struct{})}
 	o := New(repos.Profiles, tasks, repos.Runs, WithMaintenanceGate(gate))

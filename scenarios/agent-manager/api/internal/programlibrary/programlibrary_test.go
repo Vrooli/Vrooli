@@ -23,7 +23,7 @@ func (f fakeLister) ListLibrary(context.Context, *connect.Request[libraryv1.List
 // entries without bindings and older duplicates of a name are not.
 func TestLibraryKeepsValidBindingProgramsOncePerName(t *testing.T) {
 	source := &Source{lister: fakeLister{entries: []*sharedv1.LibraryProgram{
-		{Name: "test-genie.iterate", Scenario: "test-genie", Kind: "contract", CalledBindingIds: []string{"test-genie/validation/create"}},
+		{Name: "test-genie.iterate", Scenario: "test-genie", OwnerSkill: "test-genie", Kind: "contract", CalledBindingIds: []string{"test-genie/validation/create"}},
 		{Name: "probe", Scenario: "x", ValidationError: "bad contract", CalledBindingIds: []string{"x/y/z"}},
 		{Name: "promoted-no-bindings"},
 		{Name: "test-genie.iterate", CalledBindingIds: []string{"old/b/c"}},
@@ -32,7 +32,7 @@ func TestLibraryKeepsValidBindingProgramsOncePerName(t *testing.T) {
 	if library.Unavailable != "" || len(library.Programs) != 1 {
 		t.Fatalf("library = %+v", library)
 	}
-	if p := library.Programs[0]; p.Name != "test-genie.iterate" || p.Scenario != "test-genie" || p.Bindings[0] != "test-genie/validation/create" {
+	if p := library.Programs[0]; p.Name != "test-genie.iterate" || p.Scenario != "test-genie" || p.OwnerSkill != "test-genie" || p.Bindings[0] != "test-genie/validation/create" {
 		t.Fatalf("program = %+v", p)
 	}
 }
