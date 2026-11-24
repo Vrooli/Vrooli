@@ -82,6 +82,333 @@
       ]}
     },
     {
+      "provider_id": "code-facts.composition",
+      "lifecycle": "experimental",
+      "provider_group": "code-facts",
+      "bucket": "BUCKET_KNOW",
+      "type": "code",
+      "class": "local_live",
+      "scope": "SCOPE_PROJECT",
+      "description": "Query-ranked Go composition-root evidence for exactly one scenario. Returns direct constructor-to-interface bindings, one unique top-level same-function local initialized directly by T{} or &T{}, one zero-argument same-package call to a unique function whose sole statement directly returns T{} or &T{}, and supported static main-to-constructor call chains with source hashes, paths and lines. Package type/build correctness is UNKNOWN because this analyzer does not type-check; parameterized or conditional call returns, alias chains and dynamic dispatch remain PARTIAL/UNKNOWN.",
+      "routing_profile": {
+        "answer_spaces": ["composition_wiring", "dependency_binding", "production_test_bindings"],
+        "intents": ["explain", "locate", "identify_ownership", "verify_conformance"],
+        "positive_examples": [
+          "which concrete production dependencies are wired into search-hub",
+          "show test and production bindings for the routing interface in search-hub",
+          "where is this interface dependency supplied and what is its source hash"
+        ],
+        "exclusions": ["import-only dependency claims", "non-Go composition roots", "type/build correctness without compiler evidence", "runtime reachability or execution claims", "parameterized or conditional call-return, alias-chain constructors and dynamic dispatch as proven chains"]
+      },
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "code-facts",
+          "path": "/vrooli.code_facts.v1.facts.CodeFactsService/SearchComposition",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"scenario\":\"{{scope_value}}\",\"limit\":{{limit}}}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "code-facts",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "config_writable": false,
+      "config_pinned_reason": "This owner-backed query and scoring contract is experimental; descriptor policy remains governed by Code Facts and Search Hub review.",
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "score_field": "score",
+        "snippet_field": "text",
+        "title_field": "title",
+        "path_field": "path",
+        "score_scale": "SCORE_SCALE_RAW",
+        "metadata_fields": {
+          "source_hash": "sourceHash",
+          "start_line": "startLine",
+          "end_line": "endLine",
+          "evidence_status": "evidenceStatus",
+          "analyzer": "analyzer"
+        }
+      },
+      "tuning": {"engine": "lexical", "floor": {"hard_floor": 0, "max_gap": 0}},
+      "performance": {"p95_ms": 1500, "minimum_samples": 1, "telemetry_required": false},
+      "scoring": {"recall_at": 5, "recall_target": 0.8, "mrr_at": 3, "deep_k": 20},
+      "tests": {
+        "suite_id": "code-facts.composition.primary",
+        "name": "Go composition binding evidence (candidate suite)",
+        "description": "Owner-reviewed endpoint contract cases for the new scoped composition search path. They are source-level owner evidence only, not independent Search Hub provider-direct or federated grades.",
+        "cases": [
+          {"id": "search-hub-production-binding", "query": "production concrete binding", "scope": "scenario:search-hub", "expect_ids": ["code-facts:composition:301ef3075813c446debd5524"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "strong", "composition-positive"], "note": "Owner-verified by direct Code Facts behavior test; provider-direct/federated grading is still open."},
+          {"id": "search-hub-unrelated-negative", "query": "underwater penguin", "scope": "scenario:search-hub", "expect_no_strong_hit": true, "expect_max_score": 0.2, "status": "reviewed", "tags": ["reviewed", "negative"], "note": "Owner-verified direct API negative; no independent serving grade is implied."}
+        ]
+      }
+    },
+    {
+      "provider_id": "code-facts.import-coupling",
+      "lifecycle": "experimental",
+      "provider_group": "code-facts",
+      "bucket": "BUCKET_KNOW",
+      "type": "import_coupling",
+      "class": "local_index",
+      "scope": "SCOPE_PROJECT",
+      "description": "Bounded Go import edges for exactly one scenario, retrieved from Code Facts' source-hash-fenced index with source path, line, hash and generation provenance. Other languages and broad/project scope are unsupported. Static package imports do not prove runtime reachability, build-tag selection, dependency use, cycles or layering violations.",
+      "routing_profile": {
+        "answer_spaces": ["import_coupling", "package_dependencies", "source_relationships"],
+        "intents": ["explain", "locate", "identify_ownership", "verify_conformance"],
+        "positive_examples": [
+          "which packages does this scenario import",
+          "show the import relationship between two packages in one scenario",
+          "what source packages depend on this shared package"
+        ],
+        "exclusions": ["runtime reachability", "build-tag-selected imports", "dependency use or execution", "cycle detection", "layering violations", "fleet-wide import inventory"]
+      },
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "code-facts",
+          "path": "/vrooli.code_facts.v1.facts.CodeFactsService/Search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"target\":{\"kind\":\"TARGET_KIND_SCENARIO\",\"scenario\":\"{{scope_value}}\"},\"families\":[\"FACT_FAMILY_IMPORTS\"],\"languages\":[\"go\"],\"scope\":\"{{scope}}\",\"expand_edges\":false,\"budget_ms\":1400,\"lexical_budget_ms\":900,\"semantic_budget_ms\":350,\"graph_budget_ms\":150}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "code-facts",
+          "path": "/vrooli.code_facts.v1.facts.CodeFactsService/GetIndexStatus",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "index_timestamp_field": "lastReconcileAtUnix",
+      "freshness_budget": "24h",
+      "reindex_endpoint": {
+        "http_json": {
+          "scenario_id": "code-facts",
+          "path": "/vrooli.search_hub.v1.control.SearchControlService/Reindex",
+          "method": "HTTP_METHOD_POST"
+        }
+      },
+      "config_writable": false,
+      "config_pinned_reason": "This narrow source-family query is owner-defined and experimental; it must not broaden the production code leaf or claim cycle/layer analysis without an independently verified analyzer.",
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "score_field": "score",
+        "snippet_field": "text",
+        "title_field": "title",
+        "path_field": "path",
+        "score_scale": "SCORE_SCALE_RAW",
+        "metadata_fields": {
+          "source_hash": "sourceHash",
+          "start_line": "startLine",
+          "end_line": "endLine",
+          "evidence_status": "evidenceStatus",
+          "analyzer": "analyzer",
+          "fact_kind": "factKind",
+          "generation": "generation"
+        }
+      },
+      "tuning": {"engine": "lexical", "floor": {"hard_floor": 0, "max_gap": 0}}
+    },
+    {
+      "provider_id": "code-facts.control-plane-cli",
+      "lifecycle": "experimental",
+      "provider_group": "code-facts",
+      "bucket": "BUCKET_KNOW",
+      "type": "code",
+      "class": "local_live",
+      "scope": "SCOPE_PROJECT",
+      "description": "Source-backed control-plane CLI composition: top-level command specs joined to explicit root handler registrations, supported nested command-spec tables joined to direct keyed registrations, and main-level conditional early-dispatch call sites. Unsupported table forms degrade to UNKNOWN; predicates and runtime dispatch remain unknown.",
+      "routing_profile": {
+        "answer_spaces": ["cli_composition", "command_handler_wiring", "project_cli_anatomy"],
+        "intents": ["explain", "locate", "identify_ownership", "verify_conformance"],
+        "positive_examples": [
+          "how is the root vrooli resource command connected to its handler",
+          "show the top-level control-plane command and handler composition",
+          "which handler implements the vrooli scenario command",
+          "show vrooli resource archive gc handler registration",
+          "which capacity disk reserve handler is registered",
+          "how is the capacity residency handler assigned",
+          "how does package build map to its handler",
+          "what handles vrooli auth status"
+        ],
+        "exclusions": ["nested command argument predicates", "special early dispatch reachability", "runtime execution traces"]
+      },
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "code-facts",
+          "path": "/vrooli.code_facts.v1.facts.CodeFactsService/SearchComposition",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"scenario\":\"control-plane\",\"limit\":{{limit}}}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "code-facts",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "config_writable": false,
+      "config_pinned_reason": "The project target and command-to-handler parser are owner-defined source evidence; provider-direct and federated grading remain open.",
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "score_field": "score",
+        "snippet_field": "text",
+        "title_field": "title",
+        "path_field": "path",
+        "score_scale": "SCORE_SCALE_RAW",
+        "metadata_fields": {
+          "source_hash": "sourceHash",
+          "start_line": "startLine",
+          "end_line": "endLine",
+          "evidence_status": "evidenceStatus",
+          "analyzer": "analyzer"
+        }
+      },
+      "tuning": {"engine": "lexical", "floor": {"hard_floor": 0, "max_gap": 0}},
+      "performance": {"p95_ms": 1500, "minimum_samples": 1, "telemetry_required": false},
+      "scoring": {"recall_at": 5, "recall_target": 0.8, "mrr_at": 3, "deep_k": 20},
+      "tests": {
+        "minimum": {"reviewed_positive": 2, "negative": 2},
+        "suite_id": "code-facts.control-plane-cli.primary",
+        "name": "Control-plane top-level and nested CLI composition (owner contract examples)",
+        "description": "Owner contract cases describe command specs, root handler registration, and bounded early-dispatch call-site extraction; candidate nested cases remain unverified and no case constitutes a provider-direct or federated grade.",
+        "cases": [
+          {"id": "root-resource-handler", "query": "vrooli root resource command handler", "expect_ids": ["code-facts:cli-composition:resource"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "strong", "cli-composition"], "note": "Source contract identifies the resource command spec and its explicit ResourceHandler registration."},
+          {"id": "root-scenario-handler", "query": "vrooli scenario command handler", "expect_ids": ["code-facts:cli-composition:scenario"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "strong", "cli-composition"], "note": "Source contract identifies the scenario command spec and its explicit root handler registration."},
+          {"id": "root-early-dispatch-probe", "query": "vrooli early dispatch standalone version probe", "expect_ids": ["code-facts:cli-composition:early-dispatch:writeStandaloneVersion"], "expect_within_top_k": 5, "status": "candidate", "tags": ["candidate", "cli-composition", "early-dispatch"], "note": "Source contract identifies a main-level conditional pre-run call site; matching arguments and runtime outcome remain unknown."},
+          {"id": "nested-resource-archive-gc", "query": "vrooli resource archive gc handler registration", "expect_ids": ["code-facts:cli-composition:resource:archive:gc"], "expect_within_top_k": 5, "status": "candidate", "tags": ["candidate", "cli-composition", "nested-command"], "note": "Candidate owner-source case for joining nested ArchiveCommandSpecs to its direct keyed handler map; runtime dispatch remains unknown."},
+          {"id": "nested-resource-n8n-runtime-workflow", "query": "vrooli resource n8n runtime import workflow handler", "expect_ids": ["code-facts:cli-composition:resource:n8n:runtime:import-workflow"], "expect_within_top_k": 5, "status": "candidate", "tags": ["candidate", "cli-composition", "nested-command"], "note": "Candidate owner-source case for joining N8NRuntimeCommandSpecs rows to handlers through the matching spec.Handler range key; runtime loop execution remains unknown."},
+          {"id": "nested-package-build", "query": "vrooli package build handler", "expect_ids": ["code-facts:cli-composition:package:build"], "expect_within_top_k": 5, "status": "candidate", "tags": ["candidate", "cli-composition", "nested-command"], "note": "Candidate owner-source case for joining Package CommandSpecs to direct registrations; execution is not established."},
+          {"id": "nested-capacity-disk-reserve", "query": "vrooli capacity disk reserve handler", "expect_ids": ["code-facts:cli-composition:capacity:disk-reserve"], "expect_within_top_k": 5, "status": "candidate", "tags": ["candidate", "cli-composition", "nested-command"], "note": "Candidate owner-source case for joining the capacity command spec to its direct keyed handler registration; execution is not established."},
+          {"id": "nested-capacity-residency-assignment", "query": "vrooli capacity residency handler assignment", "expect_ids": ["code-facts:cli-composition:capacity:residency"], "expect_within_top_k": 5, "status": "candidate", "tags": ["candidate", "cli-composition", "nested-command"], "note": "Candidate owner-source case for the exact constant-index handler assignment after the capacity map literal; the analyzer does not infer its runtime ordering or execution."},
+          {"id": "nested-auth-status", "query": "vrooli auth status handler", "expect_ids": ["code-facts:cli-composition:auth:status"], "expect_within_top_k": 5, "status": "candidate", "tags": ["candidate", "cli-composition", "nested-command"], "note": "Candidate owner-source case for joining auth command spec to direct handler registration."},
+          {"id": "cli-composition-negative-1", "query": "underwater penguin telescope", "expect_no_strong_hit": true, "expect_max_score": 0.2, "status": "reviewed", "tags": ["reviewed", "negative"]},
+          {"id": "cli-composition-negative-2", "query": "lunar chlorophyll invoice", "expect_no_strong_hit": true, "expect_max_score": 0.2, "status": "reviewed", "tags": ["reviewed", "negative"]}
+        ]
+      }
+    },
+    {
+      "provider_id": "code-facts.feature-flow",
+      "lifecycle": "experimental",
+      "provider_group": "code-facts",
+      "bucket": "BUCKET_KNOW",
+      "type": "code",
+      "class": "local_live",
+      "scope": "SCOPE_PROJECT",
+      "description": "Bounded Go source call-site paths from one Code Facts subdirectory, capped at five results and three edges. Each step carries caller source path/line/graph hash and, when the callee symbol resolves, target source path/graph hash; unresolved symbols and per-step resolution are explicit. DERIVED/PARTIAL source evidence does not prove execution, complete flow, or runtime reachability.",
+      "routing_profile": {
+        "answer_spaces": ["feature_flow", "source_call_path", "control_data_flow"],
+        "intents": ["explain", "locate", "identify_ownership", "verify_conformance"],
+        "positive_examples": [
+          "trace SearchComposition through the Code Facts source call path",
+          "how does Code Facts composition search reach its helper functions",
+          "show the source call graph for SearchComposition"
+        ],
+        "exclusions": ["runtime execution traces", "dynamic dispatch certainty", "reflection and asynchronous scheduling"]
+      },
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "code-facts",
+          "path": "/api/v1/flows/search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"scenario\":\"code-facts\",\"path\":\"api/internal/facts\",\"limit\":{{limit}}}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "status_endpoint": {
+        "http_json": {"scenario_id": "code-facts", "path": "/health", "method": "HTTP_METHOD_GET", "headers": {"Content-Type": "application/json"}}
+      },
+      "config_writable": false,
+      "config_pinned_reason": "The source package and three-edge bound are owner-defined. The provider remains experimental pending direct and federated grade evidence.",
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "score_field": "score",
+        "snippet_field": "text",
+        "title_field": "title",
+        "path_field": "path",
+        "locations_field": "paths",
+        "attestation_field": "attestation",
+        "score_scale": "SCORE_SCALE_RAW",
+        "metadata_fields": {"graph_hash": "graph_hash"}
+      },
+      "tuning": {"engine": "lexical", "floor": {"hard_floor": 0, "max_gap": 0}},
+      "performance": {"p95_ms": 3000, "minimum_samples": 1, "telemetry_required": false},
+      "scoring": {"recall_at": 5, "recall_target": 0.8, "mrr_at": 3, "deep_k": 20},
+      "tests": {
+        "minimum": {"reviewed_positive": 2, "negative": 2},
+        "suite_id": "code-facts.feature-flow.primary",
+        "name": "Bounded source feature flow (owner contract examples)",
+        "description": "Positive/negative cases are owner contract examples verified against synthetic Code Facts graph fixtures; they do not represent a live provider-direct or federated grade.",
+        "cases": [
+          {"id": "search-composition-flow", "query": "SearchComposition", "expect_ids": ["code-facts:flow:SearchComposition:composition_api.go"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "strong", "feature-flow"], "note": "The source graph query targets the Code Facts SearchComposition implementation; runtime reachability remains partial."},
+          {"id": "composition-search-flow", "query": "trace SearchComposition source calls", "expect_ids": ["code-facts:flow:SearchComposition:composition_api.go"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "strong", "feature-flow"]},
+          {"id": "feature-flow-negative-1", "query": "underwater penguin telescope", "expect_no_strong_hit": true, "expect_max_score": 0.2, "status": "reviewed", "tags": ["reviewed", "negative"]},
+          {"id": "feature-flow-negative-2", "query": "lunar chlorophyll invoice", "expect_no_strong_hit": true, "expect_max_score": 0.2, "status": "reviewed", "tags": ["reviewed", "negative"]}
+        ]
+      }
+    },
+    {
+      "provider_id": "code-facts.invariant-candidates",
+      "lifecycle": "experimental",
+      "provider_group": "code-facts",
+      "bucket": "BUCKET_KNOW",
+      "type": "invariant_candidate",
+      "class": "local_live",
+      "scope": "SCOPE_PROJECT",
+      "description": "Bounded lexical source locations for possible domain invariant mechanisms. Results attest only candidate locations; type, database, test and runtime enforcement remain UNKNOWN unless an authoritative verification contract supplies evidence.",
+      "routing_profile": {
+        "answer_spaces": ["domain_invariant", "invariant_candidate", "enforcement_evidence"],
+        "intents": ["locate", "explain", "verify_conformance"],
+        "positive_examples": ["where is the cache max bytes less than zero source candidate", "which source line compares cache max bytes less than zero"],
+        "exclusions": ["claiming candidate source proves enforcement", "fresh test execution status", "runtime observation", "complete invariant detection"]
+      },
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "code-facts",
+          "path": "/vrooli.code_facts.v1.facts.CodeFactsService/SearchInvariantCandidates",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"scenario\":\"code-facts\",\"path\":\"api\",\"limit\":{{limit}}}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "title_field": "title",
+        "score_field": "score",
+        "snippet_field": "text",
+        "path_field": "path",
+        "attestation_field": "attestation",
+        "metadata_fields": {"line": "line", "sha256": "sha256", "evidence_kind": "evidence_kind", "enforcement": "enforcement"}
+      },
+      "performance": {"p95_ms": 3000, "minimum_samples": 1, "telemetry_required": false},
+      "scoring": {"recall_at": 5, "recall_target": 0.75, "mrr_at": 3, "deep_k": 10},
+      "tests": {
+        "minimum": {"reviewed_positive": 2, "negative": 2},
+        "suite_id": "code-facts.invariant-candidates.primary",
+        "name": "Candidate invariant source locations (owner contract examples)",
+        "description": "Owner contract examples exercise source candidate retrieval and abstention; they do not demonstrate enforcement or live verification.",
+        "cases": [
+          {"id":"cache-bytes-guard-candidate","query":"cache max bytes less than zero","expect_ids":["code-facts:invariant-candidate:code-facts:runtime_guard:api/main.go"],"expect_within_top_k":5,"status":"reviewed","tags":["reviewed","strong","invariant-candidate"]},
+          {"id":"cache-byte-limit-candidate","query":"cache max bytes value less than zero","expect_ids":["code-facts:invariant-candidate:code-facts:runtime_guard:api/main.go"],"expect_within_top_k":5,"status":"reviewed","tags":["reviewed","strong","invariant-candidate"]},
+          {"id":"invariant-candidates-negative-1","query":"underwater penguin invoice telescope","expect_no_strong_hit":true,"expect_max_score":0.2,"status":"reviewed","tags":["reviewed","negative"]},
+          {"id":"invariant-candidates-negative-2","query":"lunar chlorophyll gearbox","expect_no_strong_hit":true,"expect_max_score":0.2,"status":"reviewed","tags":["reviewed","negative"]}
+        ]
+      }
+    },
+    {
       "provider_id": "code-facts.contracts",
       "lifecycle": "production",
       "provider_group": "code-facts",
@@ -151,6 +478,104 @@
         {"id": "contract-negative-1", "query": "which proto defines underwater basket weaving automation", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]},
         {"id": "contract-negative-2", "query": "Martian regolith chlorophyll synthesizer", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]},
         {"id": "contract-negative-3", "query": "quantum entanglement invoice neutrino", "expect_no_strong_hit": true, "expect_max_score": 0.3, "status": "reviewed", "tags": ["reviewed", "negative"]}
+      ]}
+    },
+    {
+      "provider_id": "code-facts.ambient-seams",
+      "lifecycle": "experimental",
+      "provider_group": "code-facts",
+      "bucket": "BUCKET_KNOW",
+      "type": "ambient_seam",
+      "class": "local_live",
+      "scope": "SCOPE_PROJECT",
+      "description": "Bounded static Go clock, environment, HTTP-client and logger call sites in one scenario. Results identify test-file or non-test-file candidates, enclosing symbol, source hash/line and explicit argument-to-call context when observed; no binary, runtime, production wiring or test substitution is inferred.",
+      "routing_profile": {
+        "answer_spaces": ["ambient_seam", "test_seam", "production_seam_candidate"],
+        "intents": ["locate", "explain", "identify_ownership", "verify_conformance"],
+        "positive_examples": ["where is the process environment read for cache configuration", "which HTTP default client is passed to the graph providers", "where are clock and test seams used"],
+        "exclusions": ["runtime call tracing", "proof of production binary membership", "proof that tests substitute every production seam"]
+      },
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "code-facts",
+          "path": "/api/v1/ambient-seams/search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"scenario\":\"code-facts\",\"limit\":{{limit}}}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "status_endpoint": {
+        "http_json": {"scenario_id":"code-facts","path":"/health","method":"HTTP_METHOD_GET","headers":{"Content-Type":"application/json"}}
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "id",
+        "score_field": "score",
+        "snippet_field": "summary",
+        "title_field": "title",
+        "path_field": "source_path",
+        "score_scale": "SCORE_SCALE_RAW",
+        "metadata_fields": {"line":"line","sha256":"source_sha256","kind":"kind","source_layer":"source_layer","context_symbol":"context_symbol","argument_context_status":"argument_context_status","argument_callee":"argument_callee","argument_line":"argument_line","matched_terms":"matched_terms","matched_fields":"matched_fields","basis":"basis","limit":"limit"}
+      },
+      "performance": {"p95_ms":3000,"minimum_samples":1,"telemetry_required":false},
+      "scoring": {"recall_at":5,"recall_target":0.75,"mrr_at":3,"deep_k":12},
+      "tuning": {"engine":"lexical","floor":{"hard_floor":0,"max_gap":0}},
+      "tests": {
+        "minimum": {"reviewed_positive":2,"negative":2},
+        "suite_id": "code-facts.ambient-seams.primary",
+        "name": "Static ambient seam source candidates",
+        "description": "Contract cases verify static parser classification and abstention; they are not direct-serving grades or proof of production/test execution.",
+        "cases": [
+          {"id":"environment-cache-config","query":"environment cache bytes setting process variable","expect_ids":["code-facts:ambient:api/main.go:32:environment"],"expect_within_top_k":5,"status":"reviewed","tags":["reviewed","strong","ambient-seam"]},
+          {"id":"http-client-provider-argument","query":"HTTP default client passed into provider constructors","expect_ids":["code-facts:ambient:api/handlers/facts/module.go:28:http_client"],"expect_within_top_k":5,"status":"reviewed","tags":["reviewed","strong","ambient-seam"]},
+          {"id":"ambient-seam-negative-1","query":"underwater penguin telescope","expect_no_strong_hit":true,"expect_max_score":0.2,"status":"reviewed","tags":["reviewed","negative"]},
+          {"id":"ambient-seam-negative-2","query":"lunar chlorophyll invoice","expect_no_strong_hit":true,"expect_max_score":0.2,"status":"reviewed","tags":["reviewed","negative"]}
+        ]
+      }
+    }
+    ,{
+      "provider_id": "code-facts.persistence-patterns",
+      "lifecycle": "experimental",
+      "provider_group": "code-facts",
+      "bucket": "BUCKET_KNOW",
+      "type": "persistence_pattern",
+      "class": "local_live",
+      "scope": "SCOPE_PROJECT",
+      "description": "Joins only exact unquoted schema identifiers with a proven schema.go embed/Schema binding, version-1 migration registration AST, and exact repository SQL string-literal reference. Unsupported or ambiguous lineage is returned as UNKNOWN; no live database state or migration completion is inferred.",
+      "routing_profile": {
+        "answer_spaces": ["persistence", "architecture", "implementation"],
+        "intents": ["locate", "explain", "identify_ownership", "verify_conformance"],
+        "positive_examples": ["where is code facts generation state stored and migrated", "show schema migration and repository evidence for catalog generations"],
+        "exclusions": ["live database state", "migration execution proof", "deployed storage selection"]
+      },
+      "endpoint": {"http_json": {"scenario_id":"code-facts","path":"/api/v1/persistence-patterns/search","method":"HTTP_METHOD_POST","body_template":"{\"query\":\"{{query}}\",\"scenario\":\"code-facts\",\"limit\":{{limit}}}","headers":{"Content-Type":"application/json"}}},
+      "status_endpoint": {"http_json":{"scenario_id":"code-facts","path":"/health","method":"HTTP_METHOD_GET","headers":{"Content-Type":"application/json"}}},
+      "result_mapping": {"results_path":"results","id_field":"id","score_field":"score","snippet_field":"summary","title_field":"title","path_field":"source_path","score_scale":"SCORE_SCALE_RAW","metadata_fields":{"entity":"entity","classification":"classification","line":"line","sha256":"source_sha256","schema":"schema","schema_binding":"schema_binding","migration":"migration","repository":"repository","limits":"limits","unknowns":"unknowns"}},
+      "performance":{"p95_ms":3000,"minimum_samples":1,"telemetry_required":false},
+      "scoring":{"recall_at":5,"recall_target":0.75,"mrr_at":3,"deep_k":12},
+      "tuning":{"engine":"lexical","floor":{"hard_floor":0,"max_gap":0}},
+      "tests":{"minimum":{"reviewed_positive":1,"negative":2},"suite_id":"code-facts.persistence-patterns.primary","name":"Joined static persistence source patterns","description":"Development contracts test exact-source joins and abstention; they are not runtime or independent serving grades.","cases":[
+        {"id":"catalog-generation-persistence","query":"code facts generations catalog sqlite migration repository schema","expect_ids":["code-facts:persistence:code_facts_generations"],"expect_within_top_k":5,"status":"reviewed","tags":["reviewed","strong","persistence-positive"]},
+        {"id":"persistence-negative-1","query":"underwater penguin telescope","expect_no_strong_hit":true,"expect_max_score":0.2,"status":"reviewed","tags":["reviewed","negative"]},
+        {"id":"persistence-negative-2","query":"lunar chlorophyll invoice","expect_no_strong_hit":true,"expect_max_score":0.2,"status":"reviewed","tags":["reviewed","negative"]}
+      ]}
+    }
+    ,{
+      "provider_id":"code-facts.endpoint-anatomy",
+      "lifecycle":"experimental","provider_group":"code-facts","bucket":"BUCKET_KNOW","type":"api_surface_anatomy","class":"local_live","scope":"SCOPE_PROJECT",
+      "description":"Joins literal HTTP routes and Connect Procedure declarations to direct constructor, explicit ServiceMount and RegisterServices source chains. Every Connect edge includes path/line/hash; unsupported or ambiguous forms remain PARTIAL/UNKNOWN. Does not prove outer module mounting, runtime reachability, successful requests or client compatibility.",
+      "routing_profile":{"answer_spaces":["api_surface","architecture","implementation"],"intents":["locate","explain","identify_ownership","verify_conformance"],"positive_examples":["where is persistence pattern search declared routed and handled","show the endpoint descriptor registration and handler for ambient seam search","trace CodeFactsService Search Connect method to its local service mount"],"exclusions":["runtime route mounting","request success","outer runtime module mounting","successful Connect requests","client compatibility","other scenarios"]},
+      "endpoint":{"http_json":{"scenario_id":"code-facts","path":"/api/v1/endpoint-anatomy/search","method":"HTTP_METHOD_POST","body_template":"{\"query\":\"{{query}}\",\"scenario\":\"code-facts\",\"limit\":{{limit}}}","headers":{"Content-Type":"application/json"}}},
+      "status_endpoint":{"http_json":{"scenario_id":"code-facts","path":"/health","method":"HTTP_METHOD_GET","headers":{"Content-Type":"application/json"}}},
+      "result_mapping":{"results_path":"results","id_field":"id","score_field":"score","snippet_field":"summary","title_field":"title","path_field":"source_path","score_scale":"SCORE_SCALE_RAW","metadata_fields":{"route_path":"route_path","method":"method","handler":"handler","state":"state","handler_line":"handler_line","sha256":"source_sha256","declaration":"declaration","registration":"registration","handler_source":"handler_source","transport":"transport","connect_service":"connect_service","connect_method":"connect_method","connect_chain":"connect_chain","limits":"limits"}},
+      "performance":{"p95_ms":3000,"minimum_samples":1,"telemetry_required":false},
+      "scoring":{"recall_at":5,"recall_target":0.75,"mrr_at":3,"deep_k":12},
+      "tuning":{"engine":"lexical","floor":{"hard_floor":0,"max_gap":0}},
+      "tests":{"minimum":{"reviewed_positive":1,"negative":2},"suite_id":"code-facts.endpoint-anatomy.primary","name":"Joined API surface source anatomy","description":"Owner contracts verify descriptor, route and handler linkage plus abstention. They do not establish runtime serving or independent cell grades.","cases":[
+        {"id":"persistence-api-surface","query":"persistence patterns","expect_ids":["code-facts:endpoint:facts_persistence_pattern_search"],"expect_within_top_k":5,"status":"reviewed","tags":["reviewed","strong","api-surface-positive"]},
+        {"id":"connect-service-mount-anatomy","query":"CodeFactsService Search Connect method route registration mount","expect_ids":["code-facts:endpoint:facts_search"],"expect_within_top_k":5,"status":"reviewed","tags":["reviewed","strong","connect-positive"]},
+        {"id":"api-surface-negative-1","query":"underwater penguin telescope","expect_no_strong_hit":true,"expect_max_score":0.2,"status":"reviewed","tags":["reviewed","negative"]},
+        {"id":"api-surface-negative-2","query":"lunar chlorophyll invoice","expect_no_strong_hit":true,"expect_max_score":0.2,"status":"reviewed","tags":["reviewed","negative"]}
       ]}
     }
   ]

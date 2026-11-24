@@ -1,4 +1,9 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { AmbientSeamPanel } from "./AmbientSeamPanel";
+import { PersistencePatternPanel } from "./PersistencePatternPanel";
+import { EndpointAnatomyPanel } from "./EndpointAnatomyPanel";
+import { FeatureFlowPanel } from "./FeatureFlowPanel";
+import { InvariantCandidatePanel } from "./InvariantCandidatePanel";
 import {
   AlertTriangle,
   ArrowRight,
@@ -31,8 +36,8 @@ import {
   scenarioTarget,
   searchCodeFacts,
 } from "../../api/facts";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -86,6 +91,11 @@ const DEFAULT_FAMILIES = new Set<FactFamily>([
 export function FactsWorkbench() {
   return (
     <div className="grid gap-5">
+      <AmbientSeamPanel />
+      <PersistencePatternPanel />
+      <EndpointAnatomyPanel />
+      <FeatureFlowPanel />
+      <InvariantCandidatePanel />
       <EvidenceSearchWorkspace />
       <EvidenceReportWorkbench />
     </div>

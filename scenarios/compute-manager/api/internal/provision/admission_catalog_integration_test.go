@@ -387,7 +387,7 @@ func TestAkashLiveFixtureBindsPersistedIntentToProviderTargetReceipt(t *testing.
 		t.Fatal(err)
 	}
 	client := &akashProvisionClient{}
-	adapter := &akash.Adapter{Config: akash.Config{Network: "testnet", ChainID: "fixture-sandbox", Endpoint: "https://rpc.fixture.invalid", ProviderAddress: "akash1fixture", WalletCredentialRef: "credential-authority://compute-manager/akash-testnet-wallet"}, Gate: effects, Client: client, Now: func() time.Time { return now }}
+	adapter := &akash.Adapter{Config: akash.Config{Network: "testnet", ChainID: "fixture-sandbox", Endpoint: "https://rpc.fixture.invalid", ProviderAddress: "akash1fixture", WalletCredentialRef: "credential-authority://compute-manager/akash-testnet-wallet"}, Gate: effects, Client: client, WalletConfigured: func(context.Context) (bool, error) { return true, nil }, Now: func() time.Time { return now }}
 	svc := Service{Intents: intent.Service{Store: intent.SQLStore{DB: db}, Provider: adapter, Now: func() time.Time { return now }}, Meter: meter.Service{Credits: &sqliteAdmissionCredits{}}, Prices: catalog, MoneyCap: MoneyCap{Currency: "USD", MonthlyMinor: 50_000_000, TaxBasis: "pre-tax"}, Provider: adapter, Effects: effects, Window: time.Hour, DB: db, Now: func() time.Time { return now }}
 	request := intent.Request{IdempotencyKey: "fixture-akash-live", RequestedBy: "cd9-test", Provider: "akash", Spec: provider.Spec{Region: "testnet", Size: "lease", Tags: syntheticAkashTags()}}
 	record, instance, err := svc.Create(context.Background(), request, 60)

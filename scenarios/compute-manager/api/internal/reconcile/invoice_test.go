@@ -13,6 +13,33 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+func TestNormalizeInvoiceSourceLineRequiresStableSourceFactsAndPreservesRange(t *testing.T) {
+	from := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
+	to := from.Add(24 * time.Hour)
+	facts := InvoiceSourceFacts{Provider: "digitalocean", InvoiceID: "fixture-invoice", LineID: "fixture-line", ProviderInstanceID: "fixture-droplet", AmountMinor: -1250, Currency: "usd", Provenance: "FIXTURE ONLY: synthetic source record", OccurredAt: to, RangeFrom: from, RangeTo: to}
+	line, err := NormalizeInvoiceSourceLine(facts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if line.ExternalID() != "compute-manager:digitalocean:invoice:fixture-invoice:line:fixture-line" || line.AmountMinor != -1250 || line.Currency != "USD" || !line.RangeFrom.Equal(from) || !line.RangeTo.Equal(to) || line.Provenance != facts.Provenance {
+		t.Fatalf("normalized line lost source facts: %+v", line)
+	}
+	facts.LineID = ""
+	if _, err := NormalizeInvoiceSourceLine(facts); err == nil {
+		t.Fatal("missing provider line identity was accepted")
+	}
+	facts.LineID = "fixture-line"
+	facts.Currency = ""
+	if _, err := NormalizeInvoiceSourceLine(facts); err == nil {
+		t.Fatal("missing currency was accepted")
+	}
+	facts.Currency = "USD"
+	facts.RangeTo = facts.RangeFrom
+	if _, err := NormalizeInvoiceSourceLine(facts); err == nil {
+		t.Fatal("empty date range was accepted")
+	}
+}
+
 type fixtureInvoiceLedger struct {
 	posts           int
 	keys            map[string]string

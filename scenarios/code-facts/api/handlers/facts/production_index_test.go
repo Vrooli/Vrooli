@@ -78,13 +78,25 @@ func TestDescribeFileMetricsUsesActiveCatalogAndFencesStaleFiles(t *testing.T) {
 	}
 	writeProductionFixture(t, repoRoot, filePath, "package main\nfunc main() { println(1) }\n")
 	facts, _, warnings, err = index.DescribeFileMetrics(context.Background(), target)
-	if err != nil || len(facts) != 0 || len(warnings) != 1 || warnings[0].GetCode() != "file_metrics_stale_catalog" {
+	if err != nil || len(facts) != 1 || len(warnings) != 1 || warnings[0].GetCode() != "file_metrics_stale_catalog" {
 		t.Fatalf("stale catalog facts=%+v warnings=%+v err=%v", facts, warnings, err)
+	}
+	if got := facts[0].GetAttributes()["line_count"]; got != "2" {
+		t.Fatalf("stale catalog line_count = %q, want the current file's 2 lines", got)
 	}
 	writeProductionFixture(t, repoRoot, filePath, string([]byte{0xff, '\n'}))
 	facts, _, warnings, err = index.DescribeFileMetrics(context.Background(), target)
 	if err != nil || len(facts) != 0 || len(warnings) != 1 || warnings[0].GetCode() != "file_metrics_unavailable" {
 		t.Fatalf("unsupported binary source facts=%+v warnings=%+v err=%v", facts, warnings, err)
+	}
+	// A catalog row can outlive its file between reconciliations. A deleted
+	// file contributes no metrics and must not degrade the whole projection.
+	if err := os.Remove(absPath); err != nil {
+		t.Fatal(err)
+	}
+	facts, _, warnings, err = index.DescribeFileMetrics(context.Background(), target)
+	if err != nil || len(facts) != 0 || len(warnings) != 0 {
+		t.Fatalf("deleted catalog row facts=%+v warnings=%+v err=%v", facts, warnings, err)
 	}
 }
 
@@ -472,4 +484,71 @@ func gitOutput(t *testing.T, root string, args ...string) string {
 		t.Fatalf("git %v: %v", args, err)
 	}
 	return string(output)
+}
+
+func TestProductionIndexSearchReturnsScenarioScopedGoImportEdges(t *testing.T) {
+	repoRoot := t.TempDir()
+	const sourcePath = "scenarios/demo/api/server.go"
+	writeProductionFixture(t, repoRoot, sourcePath, "package api\nimport (\n\t\"errors\"\n\t\"context\"\n)\nfunc Serve(context.Context) error { return errors.New(\"x\") }\n")
+	writeProductionFixture(t, repoRoot, "scenarios/other/api/server.go", "package api\nimport \"context\"\n")
+	writeProductionFixture(t, repoRoot, "packages/proto/gen/descriptor/image.binpb", "descriptor-image")
+	runGit(t, repoRoot, "init", "--quiet")
+	runGit(t, repoRoot, "add", ".")
+
+	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "imports.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	if _, err := db.Exec(`PRAGMA foreign_keys=ON`); err != nil {
+		t.Fatal(err)
+	}
+	if err := catalog.Migrate(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	index, err := newProductionIndex(db, repoRoot, NewAdmission())
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	job := indexcontrol.Job{ID: "imports-build", Kind: "reindex", State: "running", Generation: "g-imports", CreatedAt: now, UpdatedAt: now}
+	if err := index.catalog.BeginGeneration(context.Background(), catalog.Generation{ID: job.Generation, Policy: indexPolicy, DescriptorDigest: "fixture", CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	if err := index.jobs.Create(context.Background(), job); err != nil {
+		t.Fatal(err)
+	}
+	if err := index.buildGeneration(context.Background(), &job); err != nil {
+		t.Fatal(err)
+	}
+	job.State, job.UpdatedAt = "succeeded", time.Now().UTC()
+	if err := index.jobs.Update(context.Background(), job); err != nil {
+		t.Fatal(err)
+	}
+	if err := index.Promote(context.Background(), job.Generation); err != nil {
+		t.Fatal(err)
+	}
+
+	response, err := index.Search(context.Background(), &factsv1.SearchRequest{
+		Query: "context", Limit: 5, Families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS},
+		Languages: []string{"go"}, Scope: "scenario:demo",
+		Target: &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_SCENARIO, Scenario: "demo"},
+	})
+	if err != nil || len(response.GetResults()) != 1 {
+		t.Fatalf("scoped import response=%+v err=%v", response, err)
+	}
+	hit := response.GetResults()[0]
+	if hit.GetPath() != sourcePath || hit.GetFactKind() != "imports" || hit.GetStartLine() != 4 || hit.GetEndLine() != 4 || hit.GetSourceHash() == "" || hit.GetGeneration() != job.Generation || hit.GetScope() != "scenario:demo" {
+		t.Fatalf("import edge provenance = %+v", hit)
+	}
+
+	for _, request := range []*factsv1.SearchRequest{
+		{Query: "context", Families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS}, Target: &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PROJECT}},
+		{Query: "context", Families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS}, Scope: "scenario:other", Target: &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_SCENARIO, Scenario: "demo"}},
+	} {
+		if _, err := index.Search(context.Background(), request); err == nil {
+			t.Fatalf("unsupported import search scope was accepted: %+v", request)
+		}
+	}
 }

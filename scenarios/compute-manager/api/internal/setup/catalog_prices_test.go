@@ -30,7 +30,7 @@ func TestAkashOnChainRateIsNotFabricatedAsMonthlyCataloguePrice(t *testing.T) {
 	if err == nil || fact.Provider != "" {
 		t.Fatalf("Akash missing bid source returned a catalogue fact: fact=%+v err=%v", fact, err)
 	}
-	if !strings.Contains(err.Error(), "per-block interval provenance") || !strings.Contains(err.Error(), "USD exchange rate") {
+	if !strings.Contains(err.Error(), "no configured read-only source for the exact selected sandbox bid") || !strings.Contains(err.Error(), "requires an API key and an existing deployment sequence (dseq)") || !strings.Contains(err.Error(), "sourced denomination scale, block interval, explicit admission-month duration") {
 		t.Fatalf("unexpected refusal: %v", err)
 	}
 }

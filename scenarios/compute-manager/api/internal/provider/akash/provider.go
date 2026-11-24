@@ -70,6 +70,10 @@ type Adapter struct {
 	Config Config
 	Gate   *effectgate.Gate
 	Client Client
+	// WalletConfigured reads Credential Authority presence metadata only. It
+	// never resolves key material, and a missing/unavailable callback closes
+	// all Akash mutations even when a test accidentally enables live mode.
+	WalletConfigured func(context.Context) (bool, error)
 	// SandboxClient is the typed, source-backed Akash query/lease client. The
 	// legacy Client remains only for the preceding adapter contract; new runtime
 	// wiring uses SandboxClient and exact, persisted lease references.
@@ -102,6 +106,9 @@ func (a *Adapter) Create(ctx context.Context, spec provider.Spec) (provider.Inst
 	intentID := strings.TrimSpace(spec.Tags["vrooli-intent-id"])
 	if intentID == "" {
 		return provider.Instance{}, errors.New("Akash lease requires a persisted Compute Manager intent")
+	}
+	if err := a.requireConfiguredWallet(ctx); err != nil {
+		return provider.Instance{}, err
 	}
 	if a.SandboxClient != nil {
 		return a.createSandbox(ctx, spec, intentID)
@@ -240,6 +247,9 @@ func (a *Adapter) Destroy(ctx context.Context, id string) error {
 	if err := a.validateConfig(); err != nil {
 		return err
 	}
+	if err := a.requireConfiguredWallet(ctx); err != nil {
+		return err
+	}
 	if a.SandboxClient != nil {
 		ref, err := ParseTargetReference(id)
 		if err != nil {
@@ -254,6 +264,20 @@ func (a *Adapter) Destroy(ctx context.Context, id string) error {
 		return fmt.Errorf("refusing to release invalid target: %w", err)
 	}
 	return a.Client.ReleaseLease(ctx, id)
+}
+
+func (a *Adapter) requireConfiguredWallet(ctx context.Context) error {
+	if a == nil || a.WalletConfigured == nil {
+		return errors.New("Akash mutation refused: Credential Authority wallet status is unavailable")
+	}
+	configured, err := a.WalletConfigured(ctx)
+	if err != nil {
+		return fmt.Errorf("Akash mutation refused: read Credential Authority wallet status: %w", err)
+	}
+	if !configured {
+		return errors.New("Akash mutation refused: sandbox wallet is not configured in Credential Authority")
+	}
+	return nil
 }
 
 func (a *Adapter) createSandbox(ctx context.Context, spec provider.Spec, intentID string) (provider.Instance, error) {

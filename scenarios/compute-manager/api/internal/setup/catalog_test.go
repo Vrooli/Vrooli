@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,7 +33,7 @@ func TestCatalogueHasSecretFreeReadOnlyProviderEntries(t *testing.T) {
 
 func TestAkashCatalogueDeclaresWalletWithoutChainProbeOrEffect(t *testing.T) {
 	item := findProvider("akash")
-	if item == nil || item.CredentialLogicalID != "vrooli/compute-manager" || item.CredentialField != "akash-testnet-wallet" || item.BillingFacts["network"] != "sandbox-2" || item.BillingFacts["effect_mode"] != "stub" || len(item.Probes) != 0 || len(item.ConsoleSteps) != 1 || item.ConsoleSteps[0].ID != "wallet" || item.ConsoleSteps[0].URL != "/embedded/vrooli-onboarding/?target=local&step=credentials" {
+	if item == nil || item.CredentialLogicalID != "vrooli/compute-manager" || item.CredentialField != "akash-testnet-wallet" || item.BillingFacts["network"] != "sandbox-2" || item.BillingFacts["effect_mode"] != "stub" || len(item.Probes) != 0 || len(item.ConsoleSteps) != 2 || item.ConsoleSteps[0].ID != "console-api-key" || item.ConsoleSteps[1].ID != "wallet" || item.BillingFacts["market_source_credential_reference"] != "credential-authority://vrooli/compute-manager/akash-console-api-key" || item.BillingFacts["market_source_auth"] != "Akash Console API x-api-key required" || !strings.Contains(item.BillingFacts["blocked_reason"], "existing deployment dseq") || item.ConsoleSteps[1].URL != "/embedded/vrooli-onboarding/?target=local&step=credentials" {
 		t.Fatalf("unsafe or incomplete Akash phone setup descriptor: %+v", item)
 	}
 }

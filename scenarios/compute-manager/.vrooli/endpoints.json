@@ -190,6 +190,30 @@
       "category": "instance"
     },
     {
+      "id": "instance_destroy_receipt",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/GetDestroyReceipt",
+      "method": "POST",
+      "summary": "Read the exact persisted Compute Manager release receipt",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "instance_request_renewal",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/RequestRenewal",
+      "method": "POST",
+      "summary": "Record an idempotent lease renewal request and exact receipt; unsupported providers are durably refused without an effect",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "instance_renewal_receipt",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/GetRenewalReceipt",
+      "method": "POST",
+      "summary": "Read an exact persisted Compute Manager renewal receipt",
+      "description": "",
+      "category": "instance"
+    },
+    {
       "id": "instance_snapshot",
       "path": "/vrooli.compute_manager.v1.instance.InstanceService/SnapshotInstance",
       "method": "POST",

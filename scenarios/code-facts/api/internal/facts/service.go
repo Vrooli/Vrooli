@@ -617,7 +617,7 @@ func (s *Service) analyze(ctx context.Context, target *factsv1.TargetContext, un
 					return nil, admissionErr
 				}
 				defer release()
-				extracted, extractionErr := extractForFamilies(workCtx, provider, unit, include)
+				extracted, extractionErr := provider.ExtractForFamilies(workCtx, unit, include)
 				if extractionErr != nil {
 					return nil, extractionErr
 				}

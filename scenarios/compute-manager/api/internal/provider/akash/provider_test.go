@@ -2,6 +2,7 @@ package akash
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -43,6 +44,8 @@ func (c *typedFixtureClient) ReleaseLease(context.Context, akashclient.LeaseRefe
 	return nil
 }
 
+func walletConfigured(context.Context) (bool, error) { return true, nil }
+
 func (c *fixtureClient) CreateLease(_ context.Context, request LeaseRequest) (LeaseReceipt, error) {
 	c.createCalls++
 	c.request = request
@@ -77,6 +80,7 @@ func TestCreateRequiresExplicitLiveModeAndPersistsStableTargetReceipt(t *testing
 		t.Fatal(err)
 	}
 	adapter.Gate = live
+	adapter.WalletConfigured = walletConfigured
 	created, err := adapter.Create(context.Background(), spec)
 	if err != nil {
 		t.Fatal(err)
@@ -97,7 +101,7 @@ func TestCreateRequiresPersistedIntentAndTestnetConfiguration(t *testing.T) {
 	}
 	client := &fixtureClient{}
 	base := Config{Network: "testnet", ChainID: "fixture-sandbox", Endpoint: "https://rpc.fixture.invalid", ProviderAddress: "akash1fixture", WalletCredentialRef: "credential-authority://compute-manager/akash-wallet"}
-	adapter := &Adapter{Config: base, Gate: live, Client: client}
+	adapter := &Adapter{Config: base, Gate: live, Client: client, WalletConfigured: walletConfigured}
 	if _, err := adapter.Create(context.Background(), provider.Spec{}); err == nil || !strings.Contains(err.Error(), "persisted Compute Manager intent") {
 		t.Fatalf("missing intent error=%v", err)
 	}
@@ -107,6 +111,31 @@ func TestCreateRequiresPersistedIntentAndTestnetConfiguration(t *testing.T) {
 	}
 	if client.createCalls != 0 {
 		t.Fatal("invalid configuration called Akash client")
+	}
+}
+
+func TestCreateRefusesWhenWalletMetadataIsMissingOrUnavailable(t *testing.T) {
+	live, err := effectgate.New(effectgate.Config{Modes: map[string]effectgate.Mode{Name: effectgate.Live}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &fixtureClient{}
+	base := Config{Network: "testnet", ChainID: "fixture-sandbox", Endpoint: "https://rpc.fixture.invalid", ProviderAddress: "akash1fixture", WalletCredentialRef: TestnetWalletCredentialRef}
+	spec := provider.Spec{Region: "sandbox", Size: "offer", Tags: map[string]string{"vrooli-intent-id": "intent-1"}}
+	for name, status := range map[string]func(context.Context) (bool, error){
+		"callback missing": nil,
+		"not configured":   func(context.Context) (bool, error) { return false, nil },
+		"status unknown":   func(context.Context) (bool, error) { return false, errors.New("authority unavailable") },
+	} {
+		t.Run(name, func(t *testing.T) {
+			adapter := &Adapter{Config: base, Gate: live, Client: client, WalletConfigured: status}
+			if _, err := adapter.Create(context.Background(), spec); err == nil {
+				t.Fatal("create proceeded without positive Credential Authority metadata")
+			}
+			if client.createCalls != 0 {
+				t.Fatalf("missing wallet metadata reached provider client %d times", client.createCalls)
+			}
+		})
 	}
 }
 
@@ -146,6 +175,7 @@ func TestDestroyRequiresExplicitLiveModeAndAkashReference(t *testing.T) {
 	}
 	live, _ := effectgate.New(effectgate.Config{Modes: map[string]effectgate.Mode{Name: effectgate.Live}})
 	adapter.Gate = live
+	adapter.WalletConfigured = walletConfigured
 	if err := adapter.Destroy(context.Background(), "hetzner/id"); err == nil {
 		t.Fatal("non-Akash reference accepted")
 	}
@@ -186,7 +216,7 @@ func TestTypedSandboxCreateRefusesWithoutPersistedBidAndLeaseTuple(t *testing.T)
 		t.Fatal(err)
 	}
 	client := &typedFixtureClient{}
-	adapter := &Adapter{Config: Config{Network: akashclient.NetworkSandbox2, ChainID: "sandbox-2-fixture", Endpoint: "https://rest.fixture.invalid", ProviderAddress: "akash1owner", WalletCredentialRef: TestnetWalletCredentialRef}, Gate: live, SandboxClient: client}
+	adapter := &Adapter{Config: Config{Network: akashclient.NetworkSandbox2, ChainID: "sandbox-2-fixture", Endpoint: "https://rest.fixture.invalid", ProviderAddress: "akash1owner", WalletCredentialRef: TestnetWalletCredentialRef}, Gate: live, SandboxClient: client, WalletConfigured: walletConfigured}
 	spec := provider.Spec{Tags: map[string]string{"vrooli-intent-id": "intent-1"}}
 	if _, err := adapter.Create(context.Background(), spec); err == nil || !strings.Contains(err.Error(), "deployment/bid tuple") {
 		t.Fatalf("missing persisted bid facts error=%v", err)

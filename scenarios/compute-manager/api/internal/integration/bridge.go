@@ -140,6 +140,28 @@ func (c *BridgeClient) ArchiveMachine(ctx context.Context, machineID string) err
 	return nil
 }
 
+// MachineLifecycle reads the exact persisted Bridge machine identifier. A
+// release retry may use this only to confirm an archive; it must not infer
+// archive success from a locator or mutable host address.
+func (c *BridgeClient) MachineLifecycle(ctx context.Context, machineID string) (string, error) {
+	_, machines, err := c.clients()
+	if err != nil {
+		return "", err
+	}
+	req := connect.NewRequest(&machinesv1.GetMachineRequest{Id: strings.TrimSpace(machineID)})
+	if err := c.authorize(ctx, req.Header()); err != nil {
+		return "", err
+	}
+	resp, err := machines.GetMachine(ctx, req)
+	if err != nil {
+		return "", fmt.Errorf("read exact bridge machine lifecycle: %w", err)
+	}
+	if resp.Msg.GetMachine() == nil || resp.Msg.GetMachine().GetId() != strings.TrimSpace(machineID) {
+		return "", fmt.Errorf("bridge returned a different machine identity")
+	}
+	return resp.Msg.GetMachine().GetLifecycle(), nil
+}
+
 func (c *BridgeClient) StartOnboarding(ctx context.Context, host, user, machineID string) (string, error) {
 	return c.startOnboarding(ctx, host, user, machineID, "")
 }

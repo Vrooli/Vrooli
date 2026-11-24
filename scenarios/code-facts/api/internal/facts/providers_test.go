@@ -21,6 +21,27 @@ func TestGraphProjectPathUsesProjectConfigForTypeScriptAndRootForJavaScript(t *t
 	}
 }
 
+func TestTypeScriptImportProfileIsSelectedOnlyForImportFamily(t *testing.T) {
+	if !importsOnlyFamilies([]factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS}) {
+		t.Fatal("imports-only family was not recognized")
+	}
+	if importsOnlyFamilies(nil) {
+		t.Fatal("empty family set must keep the full compatibility profile")
+	}
+	if importsOnlyFamilies([]factsv1.FactFamily{
+		factsv1.FactFamily_FACT_FAMILY_IMPORTS,
+		factsv1.FactFamily_FACT_FAMILY_SYMBOLS,
+	}) {
+		t.Fatal("mixed family set must keep the full compatibility profile")
+	}
+	if got := providerExtractionProfile(&tsGraphProvider{language: "typescript"}, []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS}); got != "typescript-imports-only-v1" {
+		t.Fatalf("import profile cache identity = %q", got)
+	}
+	if got := providerExtractionProfile(&tsGraphProvider{language: "typescript"}, []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_SYMBOLS}); got != "typescript-owned-source-body-identity-js-v1" {
+		t.Fatalf("full profile cache identity = %q", got)
+	}
+}
+
 func TestGoProviderExtractsFromSharedSubstrate(t *testing.T) {
 	root := t.TempDir()
 	write := func(name, contents string) {
@@ -72,7 +93,7 @@ func TestGoProviderPreservesUnsupportedWorkspaceClassification(t *testing.T) {
 		t.Fatal(err)
 	}
 	provider := NewGoGraphProvider()
-	_, err := provider.Extract(context.Background(), &factsv1.ParseUnit{RootPath: root})
+	_, err := provider.ExtractForFamilies(context.Background(), &factsv1.ParseUnit{RootPath: root}, nil)
 	var unsupported ProviderUnsupportedError
 	if !errors.As(err, &unsupported) || unsupported.Analyzer != goProviderScenario {
 		t.Fatalf("workspace error = %#v, want unsupported from %s", err, goProviderScenario)

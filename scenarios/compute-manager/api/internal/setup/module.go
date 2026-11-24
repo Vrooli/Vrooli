@@ -252,6 +252,21 @@ func (s *service) readiness(ctx context.Context, item Provider) (*setupv1.Provid
 		}
 	}
 	out := &setupv1.ProviderReadiness{ProviderId: item.ID, Current: string(current), CredentialStatus: credentialStatus, PurchaseEnabled: false}
+	if item.ID == "akash" {
+		marketStatus := "status_unavailable"
+		if s.configured != nil {
+			configured, statusErr := s.configured(ctx, "akash-console-api-key")
+			if statusErr == nil {
+				marketStatus = "not_configured"
+				if configured {
+					marketStatus = "credential_present_unverified"
+				} else if active.StepID == "console-api-key" && active.State == "pending" {
+					marketStatus = "awaiting_secure_entry"
+				}
+			}
+		}
+		out.MarketSourceCredentialStatus = marketStatus
+	}
 	if active.AskID != "" {
 		out.AskId = active.AskID
 		out.ActiveStep = active.StepID

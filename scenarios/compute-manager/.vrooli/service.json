@@ -199,6 +199,14 @@
         "label": "Akash sandbox-2 wallet signing credential",
         "description": "Existing sandbox-2 wallet signing credential for a future authorized verification step. Enter it only through the secure Vrooli Onboarding credential flow. The descriptor URI does not prove the credential exists, is a wallet, or can sign.",
         "required": false
+      },
+      {
+        "logical_id": "vrooli/compute-manager",
+        "field": "akash-console-api-key",
+        "label": "Akash Console API key for read-only sandbox market observations",
+        "description": "Optional credential for future GET-only reads from the official Akash Console API. The documented bids endpoint requires x-api-key and an existing deployment dseq. Resolved through Credential Authority only when a separately authorized read operation is implemented; never enter it in chat or process environment.",
+        "required": false,
+        "obtain_url": "https://console.akash.network/"
       }
     ]
   },

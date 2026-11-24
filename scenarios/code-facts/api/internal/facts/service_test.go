@@ -2249,7 +2249,7 @@ type fakeProvider struct {
 func (f fakeProvider) Language() string     { return f.language }
 func (f fakeProvider) AnalyzerName() string { return f.analyzer }
 
-func (f fakeProvider) Extract(context.Context, *factsv1.ParseUnit) (*factsv1.LanguageGraph, error) {
+func (f fakeProvider) ExtractForFamilies(context.Context, *factsv1.ParseUnit, []factsv1.FactFamily) (*factsv1.LanguageGraph, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -2286,9 +2286,9 @@ func (f fakeFileDomainProvider) DescribeFileDomains(context.Context, *factsv1.Ta
 	return f.facts, f.evidence, f.warnings, f.err
 }
 
-func (f *countingProvider) Extract(ctx context.Context, unit *factsv1.ParseUnit) (*factsv1.LanguageGraph, error) {
+func (f *countingProvider) ExtractForFamilies(ctx context.Context, unit *factsv1.ParseUnit, families []factsv1.FactFamily) (*factsv1.LanguageGraph, error) {
 	f.calls++
-	return f.fakeProvider.Extract(ctx, unit)
+	return f.fakeProvider.ExtractForFamilies(ctx, unit, families)
 }
 
 type unitProvider struct {
@@ -2300,7 +2300,7 @@ type unitProvider struct {
 func (f unitProvider) Language() string     { return f.language }
 func (f unitProvider) AnalyzerName() string { return f.analyzer }
 
-func (f unitProvider) Extract(_ context.Context, unit *factsv1.ParseUnit) (*factsv1.LanguageGraph, error) {
+func (f unitProvider) ExtractForFamilies(_ context.Context, unit *factsv1.ParseUnit, _ []factsv1.FactFamily) (*factsv1.LanguageGraph, error) {
 	return f.extract(unit), nil
 }
 

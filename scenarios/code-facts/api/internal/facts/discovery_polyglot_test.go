@@ -164,3 +164,20 @@ func TestParseUnitPublishesNeutralToolchainObservation(t *testing.T) {
 	}
 	require.Contains(t, observation.GetRunnerIndicators(), "source:.bats")
 }
+
+func TestDiscoverParseUnitsScopesSubdirectoryTargetsToTheRequestedPath(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/root\n")
+	writeFile(t, filepath.Join(root, "internal", "alpha", "alpha.go"), "package alpha\n")
+	writeFile(t, filepath.Join(root, "nested", "go.mod"), "module example.com/nested\n")
+
+	units := discoverParseUnitsAtRoot(&factsv1.TargetContext{RootPath: filepath.Join(root, "internal")})
+	require.Len(t, units, 1)
+	require.Equal(t, root, units[0].GetRootPath())
+	require.Equal(t, []string{"./internal/..."}, units[0].GetPackagePatterns(),
+		"a target inside a module must load only that subtree; otherwise nested modules make the module tree unloadable")
+
+	units = discoverParseUnitsAtRoot(&factsv1.TargetContext{RootPath: root})
+	require.Len(t, units, 1)
+	require.Empty(t, units[0].GetPackagePatterns(), "the module root keeps the loader's ./... default")
+}

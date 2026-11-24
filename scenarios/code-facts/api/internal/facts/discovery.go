@@ -238,7 +238,10 @@ func discoverParseUnitsAtRoot(target *factsv1.TargetContext) []*factsv1.ParseUni
 	}
 	if scenarioRoot == "" || filepath.Clean(root) != scenarioRoot {
 		if goMod := nearestFile(root, "go.mod"); goMod != "" && (scenarioRoot == "" || strings.HasPrefix(goMod, scenarioRoot+string(filepath.Separator))) {
-			units = append(units, goParseUnit(filepath.Dir(goMod), goMod, hasSourceWithExtension(filepath.Dir(goMod), ".bats")))
+			moduleRoot := filepath.Dir(goMod)
+			unit := goParseUnit(moduleRoot, goMod, hasSourceWithExtension(moduleRoot, ".bats"))
+			unit.PackagePatterns = scopedPackagePatterns(moduleRoot, root)
+			units = append(units, unit)
 		}
 		if tsconfig := nearestFile(root, "tsconfig.json"); tsconfig != "" && (scenarioRoot == "" || strings.HasPrefix(tsconfig, scenarioRoot+string(filepath.Separator))) {
 			units = append(units, tsParseUnit(filepath.Dir(tsconfig), tsconfig, hasSourceWithExtension(filepath.Dir(tsconfig), ".bats")))
@@ -263,6 +266,20 @@ func discoverParseUnitsAtRoot(target *factsv1.TargetContext) []*factsv1.ParseUni
 
 	sort.SliceStable(units, func(i, j int) bool { return units[i].GetId() < units[j].GetId() })
 	return dedupeParseUnits(units)
+}
+
+// scopedPackagePatterns narrows a Go parse unit to the directory the caller
+// asked about when that directory sits inside a module. Without the scope, a
+// PATH target like <module>/internal loads every package in the module, and a
+// module tree that also contains nested modules is rejected outright as
+// multiple_go_mod_files. An empty result means the target is the module root,
+// where the loader's default ./... is already correct.
+func scopedPackagePatterns(moduleRoot, targetRoot string) []string {
+	rel, err := filepath.Rel(filepath.Clean(moduleRoot), filepath.Clean(targetRoot))
+	if err != nil || rel == "." || !filepath.IsLocal(rel) {
+		return nil
+	}
+	return []string{"./" + filepath.ToSlash(rel) + "/..."}
 }
 
 func nearestScenarioRoot(start string) string {

@@ -59,6 +59,11 @@
       "walletDescriptor": "واصف Credential Authority",
       "walletEntryStatus": "حالة الإدخال الآمن",
       "walletIdentifierCaveat": "هذا الواصف معرّف فقط. لا يثبت وجود بيانات الاعتماد أو انتماءها إلى محفظة أو قدرتها على التوقيع. أدخل بيانات اعتماد محفظة sandbox-2 موجودة فقط عبر Vrooli Onboarding الآمن؛ لا تنشئ محفظة أو تستوردها في هذه الخطوة.",
+      "marketApiKey": "مفتاح واجهة Akash للقراءة فقط",
+      "marketApiKeyStatus": "حالة بيانات اعتماد مصدر السوق",
+      "marketApiKeyCaveat": "تتطلب واجهة عروض Akash الرسمية x-api-key و dseq لنشر موجود. أدخل مفتاحاً موجوداً فقط عبر Vrooli Onboarding الآمن؛ لن ينشئ Compute Manager مفتاحاً أو حساباً أو نشراً.",
+      "marketApiKeyNextStep": "إذا كان لديك حساب Akash بالفعل وليس لديك مفتاح، فأنشئ مفتاحاً من Console Settings → API Keys ثم أدخله عبر Vrooli Onboarding الآمن.",
+      "akashConsole": "افتح Akash Console",
       "secureEntryAction": "افتح Vrooli Onboarding الآمن"
     }
   },

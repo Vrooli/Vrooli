@@ -146,7 +146,7 @@ func FetchPriceFact(ctx context.Context, client *http.Client, token, providerID,
 		return fetchDigitalOceanPrice(ctx, client, token, region, size, includeIPv4, now)
 	}
 	if providerID == "akash" {
-		return provider.PriceFact{}, errors.New("Akash bid is not admissible: no current source-backed bid observation is configured; exact chain denomination scale and per-block interval provenance are required; a current source-backed AKT/ACT-to-USD exchange rate and explicit admission-month duration are required before producing the shared USD monthly quote")
+		return provider.PriceFact{}, errors.New("Akash bid quote unavailable: Compute Manager has no configured read-only source for the exact selected sandbox bid; the documented Console bid endpoint requires an API key and an existing deployment sequence (dseq), and neither source access nor a bid-source adapter is wired into the catalogue; the quote path also requires sourced denomination scale, block interval, explicit admission-month duration, and supported USD conversion evidence before it can produce monthly USD")
 	}
 	return provider.PriceFact{}, fmt.Errorf("unknown provider %q", providerID)
 }

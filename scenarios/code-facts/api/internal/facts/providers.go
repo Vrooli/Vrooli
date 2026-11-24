@@ -28,13 +28,6 @@ type URLResolver interface {
 type GraphProvider interface {
 	Language() string
 	AnalyzerName() string
-	Extract(ctx context.Context, unit *factsv1.ParseUnit) (*factsv1.LanguageGraph, error)
-}
-
-// familyAwareGraphProvider is an optional provider extension used when the
-// upstream graph API supports cheaper extraction profiles. Keeping it
-// optional preserves the provider seam for TypeScript and test doubles.
-type familyAwareGraphProvider interface {
 	ExtractForFamilies(ctx context.Context, unit *factsv1.ParseUnit, families []factsv1.FactFamily) (*factsv1.LanguageGraph, error)
 }
 
@@ -51,18 +44,6 @@ func NewBroker(providers ...GraphProvider) *Broker {
 		b.providers[provider.Language()] = provider
 	}
 	return b
-}
-
-func (b *Broker) Analyze(ctx context.Context, unit *factsv1.ParseUnit) (*factsv1.LanguageGraph, GraphProvider, error) {
-	if b == nil {
-		return nil, nil, errNoProvider(unit.GetLanguage())
-	}
-	provider := b.Provider(unit.GetLanguage())
-	if provider == nil {
-		return nil, nil, errNoProvider(unit.GetLanguage())
-	}
-	result, err := provider.Extract(ctx, unit)
-	return result, provider, err
 }
 
 func (b *Broker) Provider(language string) GraphProvider {
@@ -117,10 +98,6 @@ func NewGoGraphProvider() GraphProvider {
 func (p *goGraphProvider) Language() string     { return "go" }
 func (p *goGraphProvider) AnalyzerName() string { return goProviderScenario }
 
-func (p *goGraphProvider) Extract(ctx context.Context, unit *factsv1.ParseUnit) (*factsv1.LanguageGraph, error) {
-	return p.extract(ctx, unit, gograph.ExtractionProfileFull)
-}
-
 func (p *goGraphProvider) ExtractForFamilies(ctx context.Context, unit *factsv1.ParseUnit, families []factsv1.FactFamily) (*factsv1.LanguageGraph, error) {
 	return p.extract(ctx, unit, goExtractionProfile(families))
 }
@@ -170,13 +147,6 @@ func goExtractionProfile(families []factsv1.FactFamily) gograph.ExtractionProfil
 	return gograph.ExtractionProfileStructural
 }
 
-func extractForFamilies(ctx context.Context, provider GraphProvider, unit *factsv1.ParseUnit, families []factsv1.FactFamily) (*factsv1.LanguageGraph, error) {
-	if aware, ok := provider.(familyAwareGraphProvider); ok {
-		return aware.ExtractForFamilies(ctx, unit, families)
-	}
-	return provider.Extract(ctx, unit)
-}
-
 func providerExtractionProfile(provider GraphProvider, families []factsv1.FactFamily) string {
 	if provider == nil {
 		return "default"
@@ -185,6 +155,9 @@ func providerExtractionProfile(provider GraphProvider, families []factsv1.FactFa
 	case "go":
 		return string(goExtractionProfile(families))
 	case "typescript", "javascript":
+		if importsOnlyFamilies(families) {
+			return "typescript-imports-only-v1"
+		}
 		// The provider now emits normalized body identity, includes owned JS
 		// sources in TS projects, and discovers standalone JavaScript packages.
 		// Version this contract so cached pre-identity graphs cannot mask the
@@ -217,7 +190,27 @@ func NewJavaScriptGraphProvider(resolver URLResolver, httpClient connect.HTTPCli
 func (p *tsGraphProvider) Language() string     { return p.language }
 func (p *tsGraphProvider) AnalyzerName() string { return tsProviderScenario }
 
-func (p *tsGraphProvider) Extract(ctx context.Context, unit *factsv1.ParseUnit) (*factsv1.LanguageGraph, error) {
+func (p *tsGraphProvider) ExtractForFamilies(ctx context.Context, unit *factsv1.ParseUnit, families []factsv1.FactFamily) (*factsv1.LanguageGraph, error) {
+	profile := "full"
+	if importsOnlyFamilies(families) {
+		profile = "imports"
+	}
+	return p.extract(ctx, unit, profile)
+}
+
+func importsOnlyFamilies(families []factsv1.FactFamily) bool {
+	if len(families) == 0 {
+		return false
+	}
+	for _, family := range families {
+		if family != factsv1.FactFamily_FACT_FAMILY_IMPORTS {
+			return false
+		}
+	}
+	return true
+}
+
+func (p *tsGraphProvider) extract(ctx context.Context, unit *factsv1.ParseUnit, profile string) (*factsv1.LanguageGraph, error) {
 	if p.resolver == nil {
 		return nil, ProviderUnavailableError{Analyzer: p.AnalyzerName(), Err: errors.New("missing URL resolver")}
 	}
@@ -227,16 +220,30 @@ func (p *tsGraphProvider) Extract(ctx context.Context, unit *factsv1.ParseUnit) 
 	}
 	resp, err := tsgraphconnect.NewTypeScriptCodeGraphServiceClient(p.httpClient, baseURL).Extract(ctx, connect.NewRequest(&tsgraphv1.ExtractRequest{
 		ProjectPath: graphProjectPath(p.language, unit),
+		Profile:     profile,
 	}))
 	if err != nil {
 		return nil, classifyProviderError(p.AnalyzerName(), err)
 	}
 	return &factsv1.LanguageGraph{
-		Graph:        resp.Msg.GetGraph(),
-		Warnings:     resp.Msg.GetWarnings(),
-		GraphHash:    resp.Msg.GetGraphHash(),
-		ExtractionMs: resp.Msg.GetExtractionMs(),
+		Graph:              resp.Msg.GetGraph(),
+		Warnings:           resp.Msg.GetWarnings(),
+		GraphHash:          resp.Msg.GetGraphHash(),
+		ExtractionMs:       resp.Msg.GetExtractionMs(),
+		ExtractionProfile:  resp.Msg.GetExtractionProfile(),
+		OmittedInformation: extractionProfileOmissions(profile),
 	}, nil
+}
+
+func extractionProfileOmissions(profile string) []*factsv1.GraphInformationOmission {
+	if profile != "imports" {
+		return nil
+	}
+	return []*factsv1.GraphInformationOmission{
+		{Capability: "declarations", Reason: "imports-only extraction profile"},
+		{Capability: "usage_facts", Reason: "imports-only extraction profile"},
+		{Capability: "type_diagnostics", Reason: "imports-only extraction profile"},
+	}
 }
 
 func graphProjectPath(language string, unit *factsv1.ParseUnit) string {

@@ -60,6 +60,38 @@ CREATE TABLE IF NOT EXISTS managed_enrollments (
   updated_at TEXT NOT NULL
 );
 
+-- Durable, immutable CM release operation and exact effect receipt.
+CREATE TABLE IF NOT EXISTS release_operations (
+  idempotency_key TEXT PRIMARY KEY,
+  owner TEXT NOT NULL,
+  instance_id TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  provider_instance_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  state TEXT NOT NULL,
+  reason TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+-- Durable renewal intent/readback. This records blocked capability honestly;
+-- provider effects require an adapter with exact renewal reconciliation.
+CREATE TABLE IF NOT EXISTS renewal_operations (
+  idempotency_key TEXT PRIMARY KEY,
+  owner TEXT NOT NULL,
+  instance_id TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  provider_instance_id TEXT NOT NULL,
+  prior_expires_at TEXT NOT NULL,
+  requested_until TEXT NOT NULL,
+  spend_idempotency_key TEXT NOT NULL,
+  quote_fingerprint TEXT NOT NULL,
+  state TEXT NOT NULL,
+  reason TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS adopted_vps_instances (
   instance_id TEXT PRIMARY KEY,
   display_name TEXT NOT NULL DEFAULT '',

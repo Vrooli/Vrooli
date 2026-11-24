@@ -30,6 +30,30 @@ type InvoiceLine struct {
 	AmountMinor                 int64 // signed ledger amount; expense lines are negative
 	Currency, Provenance        string
 	OccurredAt                  time.Time
+	RangeFrom, RangeTo          time.Time
+}
+
+// InvoiceSourceFacts is the strict boundary for turning a provider observation
+// into a matchable invoice line. Values are deliberately supplied by the
+// source adapter; this function never derives stable IDs or currency.
+type InvoiceSourceFacts struct {
+	Provider, InvoiceID, LineID, ProviderInstanceID string
+	AmountMinor                                     int64
+	Currency, Provenance                            string
+	OccurredAt, RangeFrom, RangeTo                  time.Time
+}
+
+func NormalizeInvoiceSourceLine(f InvoiceSourceFacts) (InvoiceLine, error) {
+	if strings.TrimSpace(f.Provider) == "" || strings.TrimSpace(f.InvoiceID) == "" || strings.TrimSpace(f.LineID) == "" || strings.TrimSpace(f.ProviderInstanceID) == "" {
+		return InvoiceLine{}, fmt.Errorf("provider, stable invoice and line IDs, and provider instance ID are required")
+	}
+	if f.AmountMinor == 0 || strings.TrimSpace(f.Currency) == "" || strings.TrimSpace(f.Provenance) == "" {
+		return InvoiceLine{}, fmt.Errorf("nonzero minor amount, currency, and provenance are required")
+	}
+	if f.OccurredAt.IsZero() || f.RangeFrom.IsZero() || f.RangeTo.IsZero() || !f.RangeFrom.Before(f.RangeTo) {
+		return InvoiceLine{}, fmt.Errorf("occurrence and valid source date range are required")
+	}
+	return InvoiceLine{Provider: strings.TrimSpace(f.Provider), InvoiceID: strings.TrimSpace(f.InvoiceID), LineID: strings.TrimSpace(f.LineID), ProviderInstanceID: strings.TrimSpace(f.ProviderInstanceID), AmountMinor: f.AmountMinor, Currency: strings.ToUpper(strings.TrimSpace(f.Currency)), Provenance: strings.TrimSpace(f.Provenance), OccurredAt: f.OccurredAt.UTC(), RangeFrom: f.RangeFrom.UTC(), RangeTo: f.RangeTo.UTC()}, nil
 }
 
 func (l InvoiceLine) ExternalID() string {

@@ -9,7 +9,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"go/parser"
+	"go/token"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,11 +36,14 @@ import (
 )
 
 const (
-	indexPolicy       = "code-facts-corpus-v1"
-	indexBatchSize    = 16
-	maxIndexedFile    = 256 * 1024
-	indexedChunkBytes = 8 * 1024
+	indexPolicy           = "code-facts-corpus-v2-go-import-edges-v1"
+	indexBatchSize        = 16
+	maxIndexedFile        = 256 * 1024
+	indexedChunkBytes     = 8 * 1024
+	maxImportEdgesPerFile = 256
 )
+
+var errImportIndexUnavailable = errors.New("Go import evidence is unavailable in the active index")
 
 type wallClock struct{}
 
@@ -81,12 +87,22 @@ func (index *ProductionIndex) DescribeFileMetrics(ctx context.Context, target *f
 			}
 			metrics, hash, countErr := inspectCatalogFile(ctx, filepath.Join(index.repoRoot, filepath.FromSlash(file.Path)), file.Language)
 			if countErr != nil {
+				// A catalog row can outlive its file until reconciliation drops it.
+				// A deleted file has no metrics to report, so skipping it keeps the
+				// projection complete for every file that still exists; any other
+				// failure is a real measurement problem the caller must see.
+				if errors.Is(countErr, fs.ErrNotExist) {
+					continue
+				}
 				warnings = append(warnings, &factsv1.Warning{Code: "file_metrics_unavailable", Message: fmt.Sprintf("%s: %v", file.Path, countErr), Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN})
 				continue
 			}
 			if hash != file.Hash {
-				warnings = append(warnings, &factsv1.Warning{Code: "file_metrics_stale_catalog", Message: file.Path + " changed after the active catalog generation; reconcile Code Facts before using its metrics.", Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN})
-				continue
+				// The metrics above were computed from the file's current bytes, so
+				// they are fresh even though the catalog generation is behind. Keep
+				// the warning so callers know the generation is stale, but still
+				// project the measurement instead of dropping the file.
+				warnings = append(warnings, &factsv1.Warning{Code: "file_metrics_stale_catalog", Message: file.Path + " changed after the active catalog generation; reconcile Code Facts before treating its catalog evidence as current.", Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN})
 			}
 			relPath := file.Path
 			if rootRel != "" {
@@ -238,9 +254,15 @@ func (index *ProductionIndex) Search(ctx context.Context, req *factsv1.SearchReq
 	if req == nil || strings.TrimSpace(req.GetQuery()) == "" {
 		return nil, fmt.Errorf("query is required")
 	}
+	if err := validateImportSearchScope(req); err != nil {
+		return nil, err
+	}
 	generation, err := index.catalog.Active(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("indexed search unavailable: %w", err)
+	}
+	if hasRequestedFamily(req, factsv1.FactFamily_FACT_FAMILY_IMPORTS) && !generationHasGoImportEdges(generation.Policy) {
+		return nil, fmt.Errorf("%w; reconcile Code Facts before searching imports", errImportIndexUnavailable)
 	}
 	limit := int(req.GetLimit())
 	if limit <= 0 || limit > 100 {
@@ -251,7 +273,13 @@ func (index *ProductionIndex) Search(ctx context.Context, req *factsv1.SearchReq
 		Roles: append([]string(nil), req.GetRoles()...), Languages: append([]string(nil), req.GetLanguages()...),
 	}
 	query.Target, query.Scope = indexedTarget(req.GetTarget(), req.GetScope())
-	query.Families = indexedFamilies(req.GetFamilies())
+	query.Families, err = indexedFamilies(req.GetFamilies())
+	if err != nil {
+		return nil, err
+	}
+	if err := validateImportSearchQuery(req, &query); err != nil {
+		return nil, err
+	}
 	if strings.HasPrefix(query.Scope, "scenario:") && containsString(query.Families, "contract") {
 		query.Target = "packages/proto/schemas/" + strings.TrimPrefix(query.Scope, "scenario:")
 		query.Scope = ""
@@ -271,16 +299,19 @@ func (index *ProductionIndex) Search(ctx context.Context, req *factsv1.SearchReq
 	if err != nil {
 		return nil, err
 	}
-	result := &factsv1.SearchResponse{
-		Generation: generation.ID, DegradedStages: append([]string(nil), response.Degraded...),
-	}
+	result := &factsv1.SearchResponse{Generation: generation.ID, DegradedStages: append([]string(nil), response.Degraded...)}
 	for _, candidate := range response.Results {
 		if result.RetrievalRegime == "" {
 			result.RetrievalRegime = string(candidate.Regime)
 		}
+		evidenceStatus := factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN
+		if candidate.Kind == "imports_partial" {
+			evidenceStatus = factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN
+			result.DegradedStages = append(result.DegradedStages, "import_index_incomplete")
+		}
 		hit := &factsv1.SearchHit{
 			Id: candidate.ID, Title: candidate.Title, Text: candidate.Text, Score: candidate.Score,
-			Path: candidate.Path, Analyzer: "code-facts.sqlite-fts", EvidenceStatus: factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN,
+			Path: candidate.Path, Analyzer: "code-facts.sqlite-fts", EvidenceStatus: evidenceStatus,
 			FactKind: candidate.Kind, SourceHash: candidate.SourceHash, Generation: candidate.Generation,
 			Role: candidate.Role, Scope: candidate.Scope, RetrievalRegime: string(candidate.Regime),
 			RetrievalExplanation: candidate.Explanation, ProofStatus: candidate.Proof,
@@ -299,6 +330,7 @@ func (index *ProductionIndex) Search(ctx context.Context, req *factsv1.SearchReq
 		}
 		result.Results = append(result.Results, hit)
 	}
+	result.DegradedStages = uniqueSortedStrings(result.DegradedStages)
 	return result, nil
 }
 
@@ -336,25 +368,153 @@ func indexedTarget(target *factsv1.CodeTarget, scope string) (pathPrefix, indexe
 	return pathPrefix, indexedScope
 }
 
-func indexedFamilies(families []factsv1.FactFamily) []string {
+func indexedFamilies(families []factsv1.FactFamily) ([]string, error) {
 	seen := map[string]struct{}{}
 	for _, family := range families {
 		var kind string
 		switch family {
 		case factsv1.FactFamily_FACT_FAMILY_SYMBOLS, factsv1.FactFamily_FACT_FAMILY_REFERENCES, factsv1.FactFamily_FACT_FAMILY_CALLS:
 			kind = "source"
+		case factsv1.FactFamily_FACT_FAMILY_IMPORTS:
+			kind = "imports,imports_partial"
 		case factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION, factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS:
 			kind = "contract"
 		case factsv1.FactFamily_FACT_FAMILY_ALL:
-			return nil
+			return nil, nil
+		default:
+			return nil, fmt.Errorf("ranked Code Facts search does not index family %s", family)
 		}
 		if kind != "" {
-			seen[kind] = struct{}{}
+			for _, indexedKind := range strings.Split(kind, ",") {
+				seen[indexedKind] = struct{}{}
+			}
 		}
 	}
 	result := make([]string, 0, len(seen))
 	for kind := range seen {
 		result = append(result, kind)
+	}
+	sort.Strings(result)
+	return result, nil
+}
+
+func validateImportSearchScope(req *factsv1.SearchRequest) error {
+	importsRequested := false
+	allRequested := false
+	for _, family := range req.GetFamilies() {
+		if family == factsv1.FactFamily_FACT_FAMILY_IMPORTS {
+			importsRequested = true
+		}
+		if family == factsv1.FactFamily_FACT_FAMILY_ALL {
+			allRequested = true
+		}
+	}
+	if !importsRequested {
+		return nil
+	}
+	if allRequested {
+		return fmt.Errorf("FACT_FAMILY_IMPORTS cannot be combined with FACT_FAMILY_ALL")
+	}
+	target := req.GetTarget()
+	if target == nil || target.GetKind() != factsv1.TargetKind_TARGET_KIND_SCENARIO || !validImportScenarioSlug(target.GetScenario()) {
+		return fmt.Errorf("FACT_FAMILY_IMPORTS requires one valid TARGET_KIND_SCENARIO target")
+	}
+	if scope := strings.TrimSpace(req.GetScope()); scope != "" && scope != "scenario:"+target.GetScenario() {
+		return fmt.Errorf("FACT_FAMILY_IMPORTS scope must match target scenario %q", target.GetScenario())
+	}
+	for _, language := range req.GetLanguages() {
+		if !strings.EqualFold(strings.TrimSpace(language), "go") {
+			return fmt.Errorf("FACT_FAMILY_IMPORTS ranked search currently supports only Go source")
+		}
+	}
+	return nil
+}
+
+func validImportScenarioSlug(value string) bool {
+	if value == "" || len(value) > 64 {
+		return false
+	}
+	first := value[0]
+	if (first < 'a' || first > 'z') && (first < '0' || first > '9') {
+		return false
+	}
+	for _, char := range value {
+		if (char < 'a' || char > 'z') && (char < '0' || char > '9') && char != '-' {
+			return false
+		}
+	}
+	return true
+}
+
+func validateImportSearchQuery(req *factsv1.SearchRequest, query *retrieval.Query) error {
+	if req == nil || query == nil || !hasRequestedFamily(req, factsv1.FactFamily_FACT_FAMILY_IMPORTS) {
+		return nil
+	}
+	if req.GetTarget() == nil {
+		return fmt.Errorf("FACT_FAMILY_IMPORTS requires one valid TARGET_KIND_SCENARIO target")
+	}
+	normalized, err := retrieval.NormalizeQuery(*query)
+	if err != nil {
+		return err
+	}
+	target := "scenarios/" + req.GetTarget().GetScenario()
+	scope := "scenario:" + req.GetTarget().GetScenario()
+	if normalized.Target != target || normalized.Scope != scope {
+		return fmt.Errorf("FACT_FAMILY_IMPORTS query filters must stay within %q", scope)
+	}
+	allowedFamilies, err := indexedFamilies(req.GetFamilies())
+	if err != nil {
+		return err
+	}
+	allowed := make(map[string]struct{}, len(allowedFamilies))
+	for _, family := range allowedFamilies {
+		allowed[family] = struct{}{}
+	}
+	for _, family := range normalized.Families {
+		if _, exists := allowed[family]; !exists {
+			return fmt.Errorf("FACT_FAMILY_IMPORTS query cannot add family filter %q", family)
+		}
+	}
+	for _, language := range normalized.Languages {
+		if !strings.EqualFold(strings.TrimSpace(language), "go") {
+			return fmt.Errorf("FACT_FAMILY_IMPORTS ranked search currently supports only Go source")
+		}
+	}
+	for index := range normalized.Languages {
+		normalized.Languages[index] = "go"
+	}
+	*query = normalized
+	return nil
+}
+
+func hasRequestedFamily(req *factsv1.SearchRequest, expected factsv1.FactFamily) bool {
+	if req == nil {
+		return false
+	}
+	for _, family := range req.GetFamilies() {
+		if family == expected {
+			return true
+		}
+	}
+	return false
+}
+
+func generationHasGoImportEdges(policy string) bool {
+	return strings.Contains(policy, "go-import-edges-v1")
+}
+
+func uniqueSortedStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
 	}
 	sort.Strings(result)
 	return result
@@ -1100,9 +1260,26 @@ func (index *ProductionIndex) documents(ctx context.Context, source catalog.Sour
 	if source.Role == catalog.RoleContract {
 		kind = "contract"
 	}
+	var documents []retrieval.Document
 	if isLineIndexedSource(source.Path) {
-		return lineDocuments(source, kind, payload)
+		documents, err = lineDocuments(source, kind, payload)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		documents, err = chunkDocuments(source, kind, payload)
+		if err != nil {
+			return nil, err
+		}
 	}
+	imports, _, err := goImportDocuments(source, payload)
+	if err != nil {
+		return nil, fmt.Errorf("index import edges from %q: %w", source.Path, err)
+	}
+	return append(documents, imports...), nil
+}
+
+func chunkDocuments(source catalog.SourceFile, kind string, payload []byte) ([]retrieval.Document, error) {
 	scanner := bufio.NewScanner(bytes.NewReader(payload))
 	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
 	var documents []retrieval.Document
@@ -1138,6 +1315,59 @@ func (index *ProductionIndex) documents(ctx context.Context, source catalog.Sour
 	}
 	flush(line)
 	return documents, nil
+}
+
+func goImportDocuments(source catalog.SourceFile, payload []byte) ([]retrieval.Document, bool, error) {
+	if source.Language != "go" || strings.ToLower(filepath.Ext(source.Path)) != ".go" {
+		return nil, false, nil
+	}
+	if len(payload) >= maxIndexedFile {
+		line := bytes.Count(payload, []byte("\n")) + 1
+		return []retrieval.Document{importIndexPartialDocument(source, line, "source reached the per-file indexed byte cap")}, true, nil
+	}
+	fset := token.NewFileSet()
+	parsed, err := parser.ParseFile(fset, source.Path, payload, parser.ImportsOnly)
+	if err != nil {
+		return []retrieval.Document{importIndexPartialDocument(source, 1, "Go import header could not be parsed")}, true, nil
+	}
+	documents := make([]retrieval.Document, 0, min(len(parsed.Imports), maxImportEdgesPerFile+1))
+	for index, spec := range parsed.Imports {
+		if index >= maxImportEdgesPerFile {
+			position := fset.Position(spec.Pos())
+			documents = append(documents, importIndexPartialDocument(source, position.Line, fmt.Sprintf("import indexing reached the per-file cap of %d edges", maxImportEdgesPerFile)))
+			return documents, true, nil
+		}
+		importPath, err := strconv.Unquote(spec.Path.Value)
+		if err != nil || importPath == "" {
+			if err == nil {
+				err = fmt.Errorf("empty import path")
+			}
+			return nil, false, fmt.Errorf("decode import path at line %d: %w", fset.Position(spec.Pos()).Line, err)
+		}
+		position := fset.Position(spec.Pos())
+		title := fmt.Sprintf("%s imports %s", source.Path, importPath)
+		body := title
+		if spec.Name != nil && spec.Name.Name != "_" && spec.Name.Name != "." {
+			body += " as " + spec.Name.Name
+		}
+		documents = append(documents, retrieval.Document{
+			ID: fmt.Sprintf("code-facts:import:%s:%d:%s", source.Path, position.Line, importPath), SourceFileID: source.ID,
+			SourceHash: source.Hash, Path: source.Path, Language: source.Language, Role: string(source.Role), Scope: source.Scope,
+			Authority: source.Authority, Kind: "imports", Title: title, ExactText: importPath, Body: body,
+			Aliases: []string{importPath, source.Path, filepath.Base(source.Path)}, StartLine: position.Line, EndLine: position.Line,
+		})
+	}
+	return documents, false, nil
+}
+
+func importIndexPartialDocument(source catalog.SourceFile, line int, reason string) retrieval.Document {
+	return retrieval.Document{
+		ID: fmt.Sprintf("code-facts:imports-partial:%s:%d", source.Path, line), SourceFileID: source.ID,
+		SourceHash: source.Hash, Path: source.Path, Language: source.Language, Role: string(source.Role), Scope: source.Scope,
+		Authority: source.Authority, Kind: "imports_partial", Title: "Go import evidence incomplete",
+		ExactText: "Go import evidence incomplete", Body: fmt.Sprintf("%s: %s; import results may be incomplete.", source.Path, reason),
+		Aliases: []string{source.Path, filepath.Base(source.Path)}, StartLine: line, EndLine: line,
+	}
 }
 
 func isLineIndexedSource(path string) bool {

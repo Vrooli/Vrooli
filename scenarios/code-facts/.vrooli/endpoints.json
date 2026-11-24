@@ -85,6 +85,23 @@
       ]
     },
     {
+      "id": "facts_invariant_candidates",
+      "path": "/vrooli.code_facts.v1.facts.CodeFactsService/SearchInvariantCandidates",
+      "method": "POST",
+      "summary": "Search candidate invariant source evidence",
+      "description": "Returns bounded lexical source locations by candidate mechanism. Candidate locations do not prove enforcement; type, database, test and runtime evidence remains UNKNOWN without authoritative verification.",
+      "category": "facts",
+      "request": {"type":"object","properties":{"query":"string (required)","scenario":"one scenario slug","path":"relative source directory inside scenario","limit":"int32 (max 10)"}},
+      "response": {"type":"object","properties":{"results":"array<InvariantCandidate>","degradations":"array<InvariantCandidateDegradation>","scope":"string"}},
+      "errors": [
+        {"status":400,"code":"invalid_argument","description":"Query, scenario, relative path, or result limit is invalid"},
+        {"status":503,"code":"unavailable","description":"Source inventory is unavailable or outside the bounded scope"}
+      ],
+      "examples": [
+        {"name":"Locate candidate cache limit guard","curl":"curl http://localhost:${API_PORT}/vrooli.code_facts.v1.facts.CodeFactsService/SearchInvariantCandidates -H 'Content-Type: application/json' -d '{\"query\":\"cache max bytes less than zero\",\"scenario\":\"code-facts\",\"path\":\"api\",\"limit\":5}'"}
+      ]
+    },
+    {
       "id": "facts_surfaces",
       "path": "/vrooli.code_facts.v1.facts.CodeFactsService/ListSurfaces",
       "method": "POST",

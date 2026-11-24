@@ -38,14 +38,6 @@
           "architecture": { "primitive": "proto_mutation" }
         },
         {
-          "name": "destroy",
-          "description": "Destroy a compute instance",
-          "positionals": [{ "name": "id", "required": true, "description": "Instance id" }],
-          "binding": { "kind": "connect-rpc", "service": "InstanceService", "method": "DestroyInstance" },
-          "governance": { "effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] },
-          "architecture": { "primitive": "proto_mutation" }
-        },
-        {
           "name": "list",
           "description": "List compute instances",
           "binding": { "kind": "connect-rpc", "service": "InstanceService", "method": "ListInstances" },
@@ -194,6 +186,26 @@
   },
   "exceptions": [],
   "omitted": [
+    {
+      "service": "InstanceService",
+      "method": "DestroyInstance",
+      "reason": "Release is a service-authenticated Deployment Manager lifecycle operation; operators inspect it in product status, not through terminal commands."
+    },
+    {
+      "service": "InstanceService",
+      "method": "GetDestroyReceipt",
+      "reason": "Deployment Manager reads the exact durable release receipt by stable key; operators inspect release status in product UI."
+    },
+    {
+      "service": "InstanceService",
+      "method": "RequestRenewal",
+      "reason": "Only Deployment Manager's authenticated lifecycle may request lease renewal; product operators must not need terminal commands."
+    },
+    {
+      "service": "InstanceService",
+      "method": "GetRenewalReceipt",
+      "reason": "Deployment Manager reads exact durable renewal receipts by stable key; operators inspect lifecycle status in product UI."
+    },
     {
       "service": "InstanceService",
       "method": "SubmitAdoptionCredential",

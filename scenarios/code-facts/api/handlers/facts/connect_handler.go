@@ -3,6 +3,7 @@ package facts
 import (
 	"context"
 	"crypto/subtle"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -102,6 +103,9 @@ func (h *connectHandler) DescribeCodeFacts(ctx context.Context, req *connect.Req
 func (h *connectHandler) Search(ctx context.Context, req *connect.Request[factsv1.SearchRequest]) (*connect.Response[factsv1.SearchResponse], error) {
 	response, err := h.deps.Service.Search(ctx, req.Msg)
 	if err != nil {
+		if errors.Is(err, errImportIndexUnavailable) {
+			return nil, connect.NewError(connect.CodeUnavailable, err)
+		}
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	return connect.NewResponse(response), nil
@@ -113,6 +117,41 @@ func (h *connectHandler) DescribeFleetImports(ctx context.Context, req *connect.
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	return connect.NewResponse(report), nil
+}
+
+func (h *connectHandler) DescribeComposition(ctx context.Context, req *connect.Request[factsv1.DescribeCompositionRequest]) (*connect.Response[factsv1.CompositionReport], error) {
+	report, err := h.deps.Service.Composition(ctx, req.Msg)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(report), nil
+}
+
+func (h *connectHandler) SearchComposition(ctx context.Context, req *connect.Request[factsv1.SearchCompositionRequest]) (*connect.Response[factsv1.SearchResponse], error) {
+	response, err := h.deps.Service.SearchComposition(ctx, req.Msg)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(response), nil
+}
+
+func (h *connectHandler) SearchInvariantCandidates(ctx context.Context, req *connect.Request[factsv1.SearchInvariantCandidatesRequest]) (*connect.Response[factsv1.SearchInvariantCandidatesResponse], error) {
+	response, err := h.deps.Service.SearchInvariantCandidates(ctx, req.Msg.GetQuery(), req.Msg.GetScenario(), req.Msg.GetPath(), int(req.Msg.GetLimit()))
+	if err != nil {
+		var invalid internalfacts.InvalidInvariantCandidateScopeError
+		if errors.As(err, &invalid) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		return nil, connect.NewError(connect.CodeUnavailable, err)
+	}
+	wire := &factsv1.SearchInvariantCandidatesResponse{Query: response.Query, Scenario: response.Scenario, Scope: response.Scope}
+	for _, d := range response.Degradations {
+		wire.Degradations = append(wire.Degradations, &factsv1.InvariantCandidateDegradation{Code: d.Code, Message: d.Message})
+	}
+	for _, hit := range response.Results {
+		wire.Results = append(wire.Results, &factsv1.InvariantCandidate{Id: hit.ID, Title: hit.Title, Text: hit.Text, Scenario: hit.Scenario, Path: hit.Path, Line: int32(hit.Line), Sha256: hit.SHA256, EvidenceKind: hit.EvidenceKind, Score: hit.Score, Attestation: hit.Attestation, Enforcement: &factsv1.InvariantEnforcementLayers{Type: hit.Enforcement.Type, Database: hit.Enforcement.Database, Test: hit.Enforcement.Test, Runtime: hit.Enforcement.Runtime}})
+	}
+	return connect.NewResponse(wire), nil
 }
 
 func (h *connectHandler) ListSurfaces(ctx context.Context, req *connect.Request[factsv1.ListSurfacesRequest]) (*connect.Response[factsv1.ListSurfacesResponse], error) {

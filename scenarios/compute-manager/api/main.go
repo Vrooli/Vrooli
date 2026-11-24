@@ -182,6 +182,9 @@ func main() {
 			ProviderAddress: cfg.AkashProviderAddress, WalletCredentialRef: akash.TestnetWalletCredentialRef,
 		},
 		Gate: effects, SandboxClient: akashSandboxClient,
+		WalletConfigured: func(ctx context.Context) (bool, error) {
+			return setupCredentialConfigured(ctx, "akash-testnet-wallet")
+		},
 	}); err != nil {
 		log.Fatalf("provider registry configuration failed: %v", err)
 	}

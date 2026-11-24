@@ -59,6 +59,11 @@
       "walletDescriptor": "Credential Authority の記述子",
       "walletEntryStatus": "安全な入力状態",
       "walletIdentifierCaveat": "この記述子は識別子にすぎません。認証情報が存在すること、ウォレットに属すること、署名できることは証明されません。既存の sandbox-2 ウォレット認証情報だけを安全な Vrooli Onboarding から入力してください。この手順ではウォレットを作成またはインポートしません。",
+      "marketApiKey": "Akash読み取り専用マーケットAPIキー",
+      "marketApiKeyStatus": "マーケットソース資格情報の状態",
+      "marketApiKeyCaveat": "Akash公式Consoleの入札エンドポイントにはx-api-keyと既存デプロイのdseqが必要です。既存キーのみを安全なVrooli Onboardingから入力してください。Compute Managerはキー、アカウント、デプロイを作成しません。",
+      "marketApiKeyNextStep": "Akashアカウントを既にお持ちでキーがない場合は、Console Settings → API Keysでキーを作成し、安全なVrooli Onboardingから入力してください。",
+      "akashConsole": "Akash Consoleを開く",
       "secureEntryAction": "安全な Vrooli Onboarding を開く"
     }
   },

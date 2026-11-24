@@ -93,6 +93,11 @@
       "walletDescriptor": "Credential Authority descriptor",
       "walletEntryStatus": "Secure entry status",
       "walletIdentifierCaveat": "This descriptor is only an identifier. It does not prove the credential exists, belongs to a wallet, or can sign. Enter only an existing sandbox-2 wallet credential through secure Vrooli Onboarding; this step does not create or import a wallet.",
+      "marketApiKey": "Akash read-only market API key",
+      "marketApiKeyStatus": "Market source credential status",
+      "marketApiKeyCaveat": "The official Akash Console bids endpoint requires an x-api-key and an existing deployment dseq. Enter only an existing key through secure Vrooli Onboarding; Compute Manager will not create a key, account, or deployment.",
+      "marketApiKeyNextStep": "If you already have an Akash account but no key, create a key in Console Settings → API Keys, then enter it through secure Vrooli Onboarding.",
+      "akashConsole": "Open Akash Console",
       "secureEntryAction": "Open secure Vrooli Onboarding"
     }
   },

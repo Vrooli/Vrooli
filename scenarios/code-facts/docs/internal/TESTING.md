@@ -56,7 +56,7 @@ time. The pattern from wire to render:
 - **Seams definition + adding new seams**: [`SEAMS.md`](SEAMS.md).
 - **Skill bundle for testing-related work** (load before substantial test changes):
   ```bash
-  prompt-manager skill read seam-discovery-and-enforcement
+  prompt-manager skill read architecture-lenses
   prompt-manager skill read test
   prompt-manager skill read unit-testing-architecture-steer
   ```

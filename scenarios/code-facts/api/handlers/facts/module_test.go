@@ -2,8 +2,11 @@ package facts
 
 import (
 	"database/sql"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/module"
 
 	"github.com/stretchr/testify/require"
@@ -17,6 +20,7 @@ func TestModuleWithoutDatabaseStillMountsFactsEndpoints(t *testing.T) {
 	require.NotEmpty(t, got.Endpoints)
 	requireEndpointIDs(t, got.Endpoints,
 		"facts_describe",
+		"facts_flow_search",
 		"facts_surfaces",
 		"facts_cache_status",
 		"facts_cache_inspect",
@@ -25,6 +29,18 @@ func TestModuleWithoutDatabaseStillMountsFactsEndpoints(t *testing.T) {
 		"search_control_status",
 		"search_control_cancel",
 	)
+}
+
+func TestModuleMountsBoundedFlowSearchRoute(t *testing.T) {
+	got := Module((*sql.DB)(nil), nil, DefaultCacheMaxBytes(), NewAdmission(), "")
+	router := mux.NewRouter()
+	got.Mount(router)
+	req := httptest.NewRequest("POST", "/api/v1/flows/search", strings.NewReader(`{"query":"x","scenario":"code-facts","path":"../../outside","limit":1}`))
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, req)
+	if res.Code != 400 {
+		t.Fatalf("mounted flow route status=%d body=%s", res.Code, res.Body.String())
+	}
 }
 
 func TestCacheStatusEndpointDocumentsBudgetFields(t *testing.T) {

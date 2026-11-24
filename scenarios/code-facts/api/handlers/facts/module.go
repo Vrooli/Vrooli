@@ -70,6 +70,10 @@ func Module(db *sql.DB, logger *log.Logger, cacheMaxBytes int64, admission *Admi
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: controlPath, Handler: controlHandler})
+			r.Handle("/api/v1/flows/search", SearchFlowHTTPHandler(svc)).Methods(http.MethodPost)
+			r.Handle("/api/v1/ambient-seams/search", SearchAmbientSeamsHTTPHandler(svc)).Methods(http.MethodPost)
+			r.Handle("/api/v1/persistence-patterns/search", SearchPersistencePatternsHTTPHandler(svc)).Methods(http.MethodPost)
+			r.Handle("/api/v1/endpoint-anatomy/search", SearchEndpointAnatomyHTTPHandler(svc)).Methods(http.MethodPost)
 		},
 		Endpoints: Endpoints,
 	}
@@ -77,17 +81,64 @@ func Module(db *sql.DB, logger *log.Logger, cacheMaxBytes int64, admission *Admi
 
 var Endpoints = []module.EndpointDescriptor{
 	{
+		ID:          "facts_flow_search",
+		Path:        "/api/v1/flows/search",
+		Method:      "POST",
+		Summary:     "Search bounded feature source flows",
+		Description: "Returns short candidate paths from the selected scenario's Go call graph, capped by package source size, five results, and three call-site edges. Each step carries caller path/line/source-graph hash plus resolved target path/hash or explicit unresolved-symbol status; source edges do not prove complete flow or runtime reachability.",
+		Category:    "facts",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{
+			"query": "string (required)", "scenario": "one scenario slug", "path": "relative source subdirectory inside the scenario", "limit": "integer (optional, max 5)",
+		}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{"results": "array<FlowSearchHit>", "degradations": "array<FlowDegradation>"}},
+		Errors:   []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Query, scenario, relative source path, or result limit is invalid"}, {Status: 503, Code: "unavailable", Description: "Source graph is unavailable or exceeds the bounded analysis scope"}},
+	},
+	{
+		ID: "facts_ambient_seam_search", Path: "/api/v1/ambient-seams/search", Method: "POST",
+		Summary:     "Search static ambient seam source evidence",
+		Description: "Classifies bounded Go clock, environment, HTTP-client and logger source call sites as test-file or non-test-file candidates with source path/line/hash and static argument context. It does not prove production binary membership, runtime wiring, or test substitution.", Category: "facts",
+		Request:  &module.Schema{Type: "object", Properties: map[string]string{"query": "string (required)", "scenario": "one scenario slug", "limit": "integer (optional, max 12)"}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{"results": "array<AmbientSeam>", "degradations": "array<AmbientSeamDegradation>", "scope": "string"}},
+		Errors:   []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Query, scenario slug or limit is invalid"}, {Status: 503, Code: "unavailable", Description: "Scenario source is unavailable or exceeds bounded scope"}},
+	},
+	{
+		ID: "facts_persistence_pattern_search", Path: "/api/v1/persistence-patterns/search", Method: "POST",
+		Summary:     "Search joined static persistence evidence",
+		Description: "Joins only exact unquoted schema identifiers whose schema.go embed/Schema binding, version-1 migration registration AST, and repository SQL string-literal references are proven. Unsupported or ambiguous lineage is surfaced as UNKNOWN; this does not report live database or migration state.", Category: "facts",
+		Request:  &module.Schema{Type: "object", Properties: map[string]string{"query": "string (required)", "scenario": "one scenario slug; currently code-facts only", "limit": "integer (optional, max 5)"}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{"results": "array<PersistencePattern>", "unknowns": "array<PersistenceUnknown>", "scope": "string", "degradations": "array<string>"}},
+		Errors:   []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Query, supported scenario, or result limit is invalid"}, {Status: 503, Code: "unavailable", Description: "Bounded persistence source files are unavailable"}},
+	},
+	{
+		ID: "facts_endpoint_anatomy_search", Path: "/api/v1/endpoint-anatomy/search", Method: "POST",
+		Summary:     "Search joined endpoint surface evidence",
+		Description: "Joins literal HTTP JSON endpoint descriptors with mux routes and Connect Procedure descriptors with generated path constants plus the direct service-constructor → explicit ServiceMount → RegisterServices chain. Every Connect edge has path/line/hash provenance. Duplicate literal HTTP registrations for one method/path are returned as ROUTE_AMBIGUOUS with each registration and handler provenance; no source-order handler is selected and runtime dispatch precedence remains unknown. This is owner-local source evidence only; it does not prove outer module mounting, runtime reachability, request success, or client compatibility.", Category: "facts",
+		Request:  &module.Schema{Type: "object", Properties: map[string]string{"query": "string (required)", "scenario": "one scenario slug; currently code-facts only", "limit": "integer (optional, max 10)"}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{"results": "array<EndpointAnatomy (HTTP JSON or Connect; optional transport/connect_service/connect_method/connect_chain; ambiguous HTTP includes route_candidates, route_candidate_total, route_candidates_omitted)", "scope": "string", "degradations": "array<string>"}},
+		Errors:   []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Query, supported scenario, or result limit is invalid"}, {Status: 503, Code: "unavailable", Description: "Bounded endpoint source evidence is unavailable"}},
+	},
+	{
+		ID: "facts_invariant_candidates", Path: factsconnect.CodeFactsServiceSearchInvariantCandidatesProcedure, Method: "POST",
+		Summary:     "Search candidate invariant source evidence",
+		Description: "Returns bounded lexical source locations by candidate mechanism. Candidate locations do not prove enforcement; type, database, test and runtime verification layers remain UNKNOWN without authoritative evidence.", Category: "facts",
+		Request:  &module.Schema{Type: "object", Properties: map[string]string{"query": "string (required)", "scenario": "one scenario slug", "path": "relative source directory inside scenario", "limit": "integer (optional, max 10)"}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{"results": "array<InvariantCandidate>", "degradations": "array<InvariantCandidateDegradation>", "scope": "string"}},
+		Errors:   []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Query, scenario, relative source path, or result limit is invalid"}, {Status: 503, Code: "unavailable", Description: "Source inventory is unavailable or outside bounded scope"}},
+	},
+	{
 		ID:          "facts_search",
 		Path:        factsconnect.CodeFactsServiceSearchProcedure,
 		Method:      "POST",
 		Summary:     "Search code evidence",
-		Description: "Queries the active persistent catalog generation with exact and hybrid lexical retrieval while preserving source hash, generation, ranking explanation, and proof provenance.",
+		Description: "Queries the active persistent catalog generation with exact and hybrid lexical retrieval while preserving source hash, generation, ranking explanation, and proof provenance. IMPORTS is scenario-scoped and Go-only; import hits preserve source path/hash/generation/line, and incomplete import indexing is UNKNOWN with degradation.",
 		Category:    "facts",
 		Request: &module.Schema{Type: "object", Properties: map[string]string{
 			"query": "string (required)", "limit": "int32 (default 10)", "target": "CodeTarget (optional; defaults to project)",
+			"families": "array<FactFamily> (ranked search supports SYMBOLS, REFERENCES, CALLS, IMPORTS, PROTO_ADOPTION, ENDPOINT_PROOFS, or ALL)",
+			"scope":    "string (IMPORTS requires empty or exact scenario:<target.scenario>)", "languages": "array<string> (IMPORTS is currently Go-only)",
 		}},
 		Response: &module.Schema{Type: "object", Properties: map[string]string{"results": "array<SearchHit>"}},
-		Errors:   []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Query is empty or target is invalid"}},
+		Errors:   []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Query/target is invalid, a requested family is not indexed, or IMPORTS scope/language is unsupported"}, {Status: 503, Code: "unavailable", Description: "The active generation predates Go import-edge indexing; reconcile Code Facts"}},
 	},
 	{
 		ID:          "facts_describe",
@@ -154,6 +205,30 @@ var Endpoints = []module.EndpointDescriptor{
 			"results": "array<CodeFactsResult>",
 		}},
 		Errors: []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Invalid limit or scenario enumeration failure"}},
+	},
+	{
+		ID:          "facts_composition",
+		Path:        factsconnect.CodeFactsServiceDescribeCompositionProcedure,
+		Method:      "POST",
+		Summary:     "Describe composition root bindings",
+		Description: "Returns Go syntax evidence for observed production and test constructor-to-interface bindings with source hashes. It supports direct literals, one unique top-level same-function local initialized directly by T{} or &T{}, and one zero-argument same-package call to a unique function whose sole statement directly returns T{} or &T{}; supported static main-to-constructor calls include a derived source chain. The analyzer does not type-check packages; parameterized or conditional call returns, alias chains and dynamic dispatch remain UNKNOWN/PARTIAL.",
+		Category:    "facts",
+		Request:     targetRequestSchema(),
+		Response: &module.Schema{Type: "object", Properties: map[string]string{
+			"target": "TargetContext", "bindings": "array<CompositionBinding>",
+		}},
+		Errors: []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Target kind or target identifier is missing"}},
+	},
+	{
+		ID:          "facts_composition_search",
+		Path:        factsconnect.CodeFactsServiceSearchCompositionProcedure,
+		Method:      "POST",
+		Summary:     "Search composition evidence",
+		Description: "Returns query-ranked Go composition evidence for exactly one scenario, preserving direct-literal, unique same-function local-initializer, and narrow direct same-package constructor-return provenance; parameterized/conditional call-return, alias-chain and dynamic forms remain UNKNOWN/PARTIAL.",
+		Category:    "facts",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"query": "string (required)", "scenario": "string (required; one scenario slug)", "limit": "integer (optional, max 50)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"results": "array<SearchHit>", "retrieval_regime": "string"}},
+		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Query and exactly one scenario slug are required"}},
 	},
 	{
 		ID:          "facts_proto_adoption",

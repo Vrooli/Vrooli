@@ -185,7 +185,7 @@ func evalSuite(provider aisearch.ProviderConfig) *evalv1.EvalSuite {
 	for _, testCase := range provider.Tests.Cases {
 		suite.Cases = append(suite.Cases, &evalv1.EvalCase{
 			CaseId: testCase.ID, Query: testCase.Query, Scope: testCase.Scope, Status: testCase.Status,
-			Tags: append([]string(nil), testCase.Tags...), ExpectIds: append([]string(nil), testCase.ExpectIDs...),
+			Tags: append([]string(nil), testCase.Tags...), ExpectIds: append([]string(nil), testCase.ExpectIDs...), ExpectedIdentityField: testCase.ExpectedIdentityField,
 			ExpectWithinTopK: int32(testCase.ExpectWithinTopK), ExpectMinScore: testCase.ExpectMinScore,
 			ExpectMaxScore: testCase.ExpectMaxScore, ExpectNoStrongHit: testCase.ExpectNoStrongHit, Note: testCase.Note,
 		})

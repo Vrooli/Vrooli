@@ -100,6 +100,10 @@ export function ProviderSetupPage() {
           <p>{t(strings.providerSetup.akash.walletEntryStatus)}: {result?.credentialStatus ?? "checking"}</p>
           <p>{t(strings.providerSetup.akash.walletIdentifierCaveat)}</p>
           <a className="mt-2 inline-block underline" href={onboardingURL}>{t(strings.providerSetup.akash.secureEntryAction)}</a>
+          <p className="mt-3"><strong>{t(strings.providerSetup.akash.marketApiKey)}:</strong> {provider.billingFacts.market_source_credential_reference}</p>
+          <p>{t(strings.providerSetup.akash.marketApiKeyStatus)}: {result?.marketSourceCredentialStatus ?? "checking"}</p>
+          <p>{t(strings.providerSetup.akash.marketApiKeyCaveat)}</p>
+          <p>{t(strings.providerSetup.akash.marketApiKeyNextStep)} <a className="underline" href={provider.consoleUrl} target="_blank" rel="noreferrer">{t(strings.providerSetup.akash.akashConsole)}</a></p>
         </div>}
         {!isAkash && <>
           <p className="text-sm"><strong>Credential descriptor:</strong> {provider.credentialLabel} ({provider.credentialField})</p>

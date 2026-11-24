@@ -21,13 +21,17 @@ const akashDescriptor = {
   credentialField: "akash-testnet-wallet",
   credentialLabel: "Akash sandbox-2 wallet signing credential",
   credentialScopes: ["sign transactions"],
-  consoleSteps: [{ id: "wallet", title: "Enter the existing sandbox wallet securely", instructions: "fixture step", url: "/embedded/vrooli-onboarding/?target=local&step=credentials", decision: "fixture question" }],
+  consoleSteps: [
+    { id: "console-api-key", title: "Enter an existing Akash Console API key securely", instructions: "fixture step", url: "/embedded/vrooli-onboarding/?target=local&step=credentials", decision: "fixture question" },
+    { id: "wallet", title: "Enter the existing sandbox wallet securely", instructions: "fixture step", url: "/embedded/vrooli-onboarding/?target=local&step=credentials", decision: "fixture question" },
+  ],
   probes: [],
   offers: [],
   billingFacts: {
       network: "sandbox-2",
     effect_mode: "stub",
     credential_reference: "credential-authority://vrooli/compute-manager/akash-testnet-wallet",
+    market_source_credential_reference: "credential-authority://vrooli/compute-manager/akash-console-api-key",
     price_status: "no_valid_price",
     credential_authority_signer_status: "unverified",
     blocked_reason: "No verified signer or authoritative price catalogue",
@@ -51,7 +55,7 @@ describe("ProviderSetupPage Akash status", () => {
     setupMock.listProviders.mockResolvedValue({ providers: [akashDescriptor] });
     setupMock.getReadiness.mockResolvedValue({ readiness: {
       providerId: "akash", current: "credential_needed", credentialStatus: "not_configured", purchaseEnabled: false,
-      evidence: [], prices: [],
+      marketSourceCredentialStatus: "not_configured", evidence: [], prices: [],
     } });
     render(<ProviderSetupPage />);
     const status = await screen.findByTestId("akash-readiness");
@@ -66,11 +70,14 @@ describe("ProviderSetupPage Akash status", () => {
     expect(screen.getByTestId("akash-wallet-entry")).toHaveTextContent("not_configured");
     expect(screen.getByTestId("akash-wallet-entry")).toHaveTextContent("credential-authority://vrooli/compute-manager/akash-testnet-wallet");
     expect(screen.getByTestId("akash-wallet-entry")).toHaveTextContent(strings.providerSetup.akash.walletIdentifierCaveat);
+    expect(screen.getByTestId("akash-wallet-entry")).toHaveTextContent("credential-authority://vrooli/compute-manager/akash-console-api-key");
+    expect(screen.getByTestId("akash-wallet-entry")).toHaveTextContent(strings.providerSetup.akash.marketApiKeyCaveat);
+    expect(screen.getByTestId("akash-wallet-entry")).toHaveTextContent(strings.providerSetup.akash.marketApiKeyNextStep);
     expect(screen.getAllByRole("link", { name: strings.providerSetup.akash.secureEntryAction }).length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: /ask me on my phone/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /ask me on my phone/i })).toHaveLength(2);
     expect(screen.queryByRole("button", { name: /verify/i })).not.toBeInTheDocument();
     expect(setupMock.verifyProvider).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole("button", { name: /ask me on my phone/i }));
-    expect(setupMock.beginSetupStep).toHaveBeenCalledWith(expect.objectContaining({ providerId: "akash", stepId: "wallet" }));
+    await userEvent.click(screen.getAllByRole("button", { name: /ask me on my phone/i })[0]!);
+    expect(setupMock.beginSetupStep).toHaveBeenCalledWith(expect.objectContaining({ providerId: "akash", stepId: "console-api-key" }));
   });
 });
