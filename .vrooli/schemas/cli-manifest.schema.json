@@ -132,6 +132,7 @@
         },
         "description": { "type": "string" },
         "needs_api": { "type": "boolean", "description": "Override the group's API requirement for this command. Use false only for a local command that must fail closed when the scenario API is unavailable." },
+        "latency_bound": { "type": "boolean", "description": "Declare a command that runs under a hard time limit, such as a coding-agent hook or status line. A latency-bound command never waits for a stale-CLI rebuild: it runs the installed binary immediately and a detached, deduplicated background refresh updates the binary for later calls. Every hook entry point must declare it." },
         "positionals": {
           "type": "array",
           "items": { "$ref": "#/$defs/Positional" }

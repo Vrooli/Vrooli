@@ -101,7 +101,7 @@ per [`configuration.md`](configuration.md#cli-config-file)).
 
 ```bash
 {{SCENARIO_ID}} configure api_base http://localhost:15001/api/v1
-{{SCENARIO_ID}} configure token <token>
+{{SCENARIO_ID}} configure token "<token>"
 ```
 
 Read values back without an argument:

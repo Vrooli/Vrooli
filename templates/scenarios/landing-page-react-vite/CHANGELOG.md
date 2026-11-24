@@ -4,6 +4,21 @@ All notable changes to the `landing-page-react-vite` template are documented her
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this template aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - 2026-11-21
+
+### Removed
+
+- Stop copying `cli/domains/README.md`; CLI Core now owns the shared domain
+  authoring guide and the template README links directly to it.
+
+### Migration
+
+- [ ] Delete an unchanged former generated guide, preserving scenario-specific
+      obligations first; remove corresponding manifest entries and incoming links.
+- [ ] Move command usage to `docs/reference/cli-commands.md` and boundary
+      obligations to the relevant architecture/seam document.
+- [ ] Replace remaining links with the CLI Core guide.
+
 ## [3.0.0] - 2026-11-14
 
 ### Breaking

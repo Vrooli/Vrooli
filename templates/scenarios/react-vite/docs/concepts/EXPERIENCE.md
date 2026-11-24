@@ -10,7 +10,7 @@ machine-readable contract in `experience/`; where the two disagree,
 The "Design decision" orientation gate (step id `design-language`) reads this file. It passes when the
 placeholders below are gone and `ui/src/pages/DashboardPage.tsx` no longer
 carries the `PLACEHOLDER:home-surface` marker. See
-`path:../guides/choosing-ui.md` for how to answer each section.
+`path:templates/scenarios/react-vite/docs/guides/choosing-ui.md` for how to answer each section.
 
 ## The Comparison
 
@@ -49,7 +49,7 @@ Three things, in order, that the UI must make true.
 
 ## Cross-References
 
-- `path:../START-HERE.md` — Gate 5
-- `path:../guides/choosing-ui.md` — the reasoning behind each section
-- `path:../../experience/README.md` — the typed contract
-- `path:../../DESIGN.md` — the token contract
+- `path:templates/scenarios/react-vite/docs/START-HERE.md` — Gate 5
+- `path:templates/scenarios/react-vite/docs/guides/choosing-ui.md` — the reasoning behind each section
+- `path:templates/scenarios/react-vite/experience/README.md` — the typed contract
+- `path:templates/design/vrooli-default/DESIGN.md` — the token contract installed by the default design kit

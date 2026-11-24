@@ -335,10 +335,13 @@ resources/doc-parse/build/resource-doc-parse-build
 *.db
 
 #Persistent data
-data/
-!scenarios/tech-tree-designer/data/
-!scenarios/tech-tree-designer/data/seed/
-!scenarios/tech-tree-designer/data/seed/macro_topology.json
+/data/
+# Scenario runtime state remains scoped to its owning scenario. Ignore common
+# SQLite sidecars and opt-in setup markers without hiding curated data/ trees.
+/scenarios/*/data/*.db-shm
+/scenarios/*/data/*.db-wal
+/scenarios/*/data/*.db-journal
+.setup-state
 
 #Backups
 backups/
@@ -613,6 +616,26 @@ scenarios/**/signing/*.key
 /scenarios/*/docs/internal/goal/receipts/**/*epoch-check*.txt
 /scenarios/*/docs/internal/goal/receipts/**/*epoch-check*.json
 /scenarios/*/docs/internal/goal/receipts/**/*.stdout
+
+# Retained multi-hour run evidence belongs in the external research home.
+# Hide raw payloads that fall back into repo or scenario goal evidence trees,
+# while keeping concise notes, indexes and integrity records visible to Git.
+/docs/internal/goal/evidence/**
+!/docs/internal/goal/evidence/**/
+!/docs/internal/goal/evidence/**/*.md
+!/docs/internal/goal/evidence/**/manifest.json
+!/docs/internal/goal/evidence/**/source-map.json
+!/docs/internal/goal/evidence/**/SHA256SUMS*
+!/docs/internal/goal/evidence/**/*sha256sum*.txt
+!/docs/internal/goal/evidence/**/*.sha256
+/scenarios/*/docs/internal/goal/evidence/**
+!/scenarios/*/docs/internal/goal/evidence/**/
+!/scenarios/*/docs/internal/goal/evidence/**/*.md
+!/scenarios/*/docs/internal/goal/evidence/**/manifest.json
+!/scenarios/*/docs/internal/goal/evidence/**/source-map.json
+!/scenarios/*/docs/internal/goal/evidence/**/SHA256SUMS*
+!/scenarios/*/docs/internal/goal/evidence/**/*sha256sum*.txt
+!/scenarios/*/docs/internal/goal/evidence/**/*.sha256
 
 # Agent working state is private by default. Existing tracked documents remain
 # tracked; keep the shared workspace entry points available for new checkouts.

@@ -48,7 +48,7 @@ prompt-manager team knowledge-add marketing-crew \
   --source="<original-url-if-known>"
 ```
 
-Follow the shared [inbox entry contract](../../../agent-system/INTAKE_PIPELINE.md#adding-to-the-inbox) for source fields, attribution, and signal-type placement.
+Follow the shared [inbox entry contract](../../../../scenarios/prompt-manager/docs/internal/INTAKE_PIPELINE.md#adding-to-the-inbox) for source fields, attribution, and signal-type placement.
 
 ### Routing inbox entries
 
@@ -121,7 +121,7 @@ Do not collapse these into one permanent mega-skill. A router may classify and c
 
 ## Evidence Rules
 
-- Apply the shared [evidence rules](../../../agent-system/INTAKE_PIPELINE.md#evidence-rules) for evidence integrity and source confidence.
+- Apply the shared [evidence rules](../../../../scenarios/prompt-manager/docs/internal/INTAKE_PIPELINE.md#evidence-rules) for evidence integrity and source confidence.
 - One source is an observation, not canon.
 - Three converging scans can justify a decision when the sources are meaningfully independent.
 - Single-snapshot data must be labeled `light-interpretation`.

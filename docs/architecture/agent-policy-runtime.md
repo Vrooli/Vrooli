@@ -196,6 +196,117 @@ sequenceDiagram
   end
 ```
 
+## Agent guards
+
+Four guards stop an agent action that needs the operator, under every rollout
+profile and for every runner. Claude Code's hook sees Bash and its file tools
+(Read, Write, Edit, MultiEdit, NotebookEdit); a file tool is judged by its path
+only, never by the file's contents, the same way another runner's file tools
+are:
+
+| Guard | Check ID | Stops |
+| --- | --- | --- |
+| Spending money | `agent-guard:money` | payments, charges, purchases, invoices, refunds |
+| Reading credentials | `agent-guard:secret` | credential files (`.env`, `.ssh`, `.npmrc`, `.netrc`), secret-store reads, another process's `/proc/*/environ` |
+| Messaging the outside world | `agent-guard:outside-message` | chat and email sends, GitHub/GitLab comments, `gh pr create` and similar publishing commands, `git push`, and web requests that send data to a messaging service |
+| Running hidden commands | `agent-guard:hidden-effect` | text decoded and then run (`base64 -d \| sh`, `pwsh -EncodedCommand`) |
+
+**One data file is the policy.** [`packages/agentharness/hard_stops.json`](../../packages/agentharness/hard_stops.json)
+holds each guard's name, reason and alternatives, and every word list that
+recognizes it. The Go code holds no lists. A misspelled key or an empty list
+fails `hard_stops_test.go`; if the embedded file still fails to load at run
+time, every guard matches nothing and nothing is stopped, because a guard that
+crashes or blocks everything stops every agent. `guard_visible_shell_test.go`
+is the table of real commands that must pass and disguised ones that must stop.
+
+**What counts.** A command is judged on what it does, never on the words its
+data carries. Program names, flags, single-word arguments and code handed to an
+interpreter count. Multi-word text (a message, a search pattern, a sed script,
+a heredoc written to a file) is data. Its `$(...)` substitutions still count.
+Web requests are messages only when they send data (`-d`, `-X POST`,
+`requests.post`) to a host in `messages.message_hosts`. A POST to a local
+service or an ordinary API is not a message.
+
+**What a blocked agent sees.** The refusal names the guard and the signal, says
+why, lists what to use instead, and gives the exact approval request:
+
+```text
+Stopped by the agent guard for reading credentials (agent-guard:secret): this command reads or writes a credential file.
+Why: ...
+Instead: Let the owning CLI or scenario fetch the credential itself. Inspect credentials without values: `secrets-manager credentials list|status|doctor`.
+If the action is legitimate, ask the operator to approve it, then retry once approved:
+  vrooli agent authorize "$VROOLI_AGENT_SESSION" --policy agent-guard-override --target agent-guard:secret --reason "<what you need to do and why>"
+```
+
+**Three ways past a guard, all the operator's decision:**
+
+1. *A per-agent grant.* `vrooli agent authorize "$VROOLI_AGENT_SESSION" --policy
+   agent-guard-override --target agent-guard:<guard>` raises an approval in the
+   operator's inbox (`--target agent-guard:*` asks for every guard). When the
+   guard stops an action, the runtime asks the local credential broker for the
+   calling session's credential and verifies it with Agent Manager: an Agent
+   Manager run holds a baseline plus an operation credential, a launcher-attached
+   session one grant-bearing credential. The action continues to the remaining
+   checks only when the verified grant names `agent-guard.override`, this check
+   ID, and has not expired. Outside a known session the broker answers no. A
+   newer approval replaces the session's earlier grant, so an agent asks for
+   every policy it needs in one request.
+2. *Log-only mode for everyone.* A guard in log-only mode lets actions through
+   and logs what it would have stopped. The operator sets it from a terminal
+   (`vrooli guard-mode enable --check agent-guard:secret --expires-at <RFC3339>
+   --reason ...`) or by answering the steward's decision, which applies it with
+   `vrooli guard-mode apply-answer`. Every interval ends within 30 days.
+3. *A permanent change.* Edit `hard_stops.json` (narrow a list or remove a
+   word) and install. The steward's decision offers this as "assign a fix".
+
+Relaxing one guard never relaxes another, and nothing withdraws a relaxation
+early: the former tripwire that restored every relaxation on any stop is gone.
+
+**The steward closes the loop.** Every guard outcome (`blocked`, `log_only`,
+`granted`), and every other stop an agent meets (`blocked` or `asked`), is appended to `guard-events.jsonl` beside the guard modes
+(`~/.config/vrooli/agent-policy/`), with the check, signal, runner, session and
+the first 240 characters of the command. The file rotates to `.1` at 4 MiB and
+writing it never decides an event. A runtime without a store (a test or library
+caller) writes nothing. Stops that are not guards are logged under
+`agent-floor:` IDs named from their evidence code (`agent-floor:deletion-outside`,
+`agent-floor:operator-only`, `agent-floor:provider-unavailable`); a provider's
+own evaluator ID is kept as is. No log-only mode or guard grant relaxes an
+`agent-floor:` check, and `vrooli guard-mode apply-answer` refuses one; the
+steward offers only an owner fix or no change for them. The portfolio steward reads it on its
+structural tick. Stops, confirmation requests and grants all count as
+friction. A check qualifies when it meets two separate sessions within seven
+days, or one session five times (an agent looping on it). The steward then
+sends the operator a decision with recent examples (credential values redacted
+both here and in the log) and a per-day chart by outcome. Relaxable checks
+(guards and provider evaluators) offer log-only for 24 hours, 7 days or 30
+days, an owner fix, turning the check off now (30 days of log-only while its
+owner removes it), or no change; repeated grants make a log-only window the
+recommendation. `agent-floor:` checks offer only an owner fix or no change.
+Every answer except "no change" queues owner work with the examples, the files
+to change, the acceptance and, for log-only answers, the deadline; after any
+answer other than a log-only window the check stays quiet for seven days unless
+new sessions qualify on their own. The steward's daily briefing reports whether
+the log is readable, seven-day counts per check by outcome, and which checks
+are log-only and until when, so a silent log is never mistaken for no friction.
+
+**Provider checks.** The same log-only mode applies to a provider's own
+evaluator IDs (for example `scenario-dependency-analyzer:dependency-addition`).
+Runtime applies such a mode to that provider's decision before combining
+decisions, so another provider's denial is not suppressed. Former `RiskClass`
+strings stay readable in historical state but cannot be selected.
+
+**The store.** Modes are written atomically to `guard-modes.json`, and every
+change is appended to `guard-modes.audit.jsonl`. Hooks read one check's mode
+without the store lock, so concurrent agents never contend. Mutation from a
+terminal checks `agentscope.CallerSessionEvidence()` and refuses inside an
+agent session. An agent's route is the answered decision, whose stable answer
+ID is consumed once (see [internal invariants](../internal/INVARIANTS.md#guard-mode-answers)).
+Audit entries never include command text, message bodies or secret values.
+
+Deletion is not one of these guards. The filesystem-removal floor above has its
+own approval route (`storage-manager deletion-grant request`), and the
+operator-only commands stay with the operator.
+
 ## Compatibility and rollback
 
 The migration rollback point is the pre-migration baseline collection named

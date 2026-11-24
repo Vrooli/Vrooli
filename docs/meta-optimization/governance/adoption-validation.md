@@ -15,7 +15,7 @@ bash scenarios/prompt-manager/test/agent_system_canon_test.sh
 
 The structural plan-of-record manifest should report no missing required files, no missing required headings, no missing package files, and no unregistered durable Markdown files under `docs/meta-optimization/`.
 
-See the canonical [operating-model contract](../../agent-system/OPERATING_GRAPHS.md) for the checks enforced by the validation commands above.
+See the canonical [operating-model contract](../../../scenarios/prompt-manager/docs/internal/OPERATING_GRAPHS.md) for the checks enforced by the validation commands above.
 
 The friction-report taxonomy should resolve from `intake[].taxonomy = "friction-report"` and its `porPath` should point to `docs/meta-optimization/taxonomies/friction-report/README.md`.
 

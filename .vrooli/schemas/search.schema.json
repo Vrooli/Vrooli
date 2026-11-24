@@ -254,6 +254,16 @@
           "minimum": 0,
           "description": "p95 query-latency budget in milliseconds. 0/omitted ⇒ use the class default. Certification reads the latest eval run's p95 latency and reports SEARCH_PERF_BUDGET_BREACH (advisory) when it exceeds this budget."
         },
+        "ask_p95_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Scenario-owned p95 budget for explicit generated-answer requests. Search Hub retrieval certification does not measure this path; the provider owns a separate answer-latency gate. 0/omitted ⇒ no answer SLO declared."
+        },
+        "ask_minimum_samples": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Minimum explicit answer requests required before the scenario-owned Ask latency gate evaluates p95. Independent from retrieval minimum_samples."
+        },
         "degraded_rate_max": {
           "type": "number",
           "minimum": 0,
@@ -368,6 +378,11 @@
           "items": { "type": "string" },
           "description": "Positive label: leaf ids (per the provider's id_field, e.g. 'restart') that should appear within expect_within_top_k"
         },
+      "expected_identity_field": {
+        "type": "string",
+        "pattern": "^[^\\s.]+(\\.[^\\s.]+)*$",
+        "description": "Optional dotted key into the provider's result_mapping.metadata_fields (for example 'run_id') whose value is the durable entity id that expect_ids names. Leave unset when expect_ids are id_field values. Required when hits are finer-grained than the labelled entity (conversation chunks versus runs); without it no hit can match."
+      },
         "expect_within_top_k": {
           "type": "integer",
           "minimum": 1,

@@ -8,7 +8,7 @@
 
 ## Why this document exists
 
-The recursive-self-improvement idea is documented richly but **scattered**: the philosophy lives in `VISION.md`, the measurement model in the meta-optimization-manager's [`COVERAGE-MODEL.md`](../../scenarios/meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md), the machinery in `agent-system/` ([`PROMOTION_LADDER.md`](../agent-system/PROMOTION_LADDER.md), [`TEMPLATE_CONVERGENCE_LOOP.md`](../agent-system/TEMPLATE_CONVERGENCE_LOOP.md)), and the operating cadence in the [`meta-optimization`](../meta-optimization/README.md) plan-of-record. A reader has to island-hop to assemble the whole.
+The recursive-self-improvement idea is documented richly but **scattered**: the philosophy lives in `VISION.md`, the measurement model in the meta-optimization-manager's [`COVERAGE-MODEL.md`](../../scenarios/meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md), the machinery in `agent-system/` ([`SKILL_AUTHORING.md`](../agent-system/SKILL_AUTHORING.md#promotion-ladder), [`TEMPLATE_CONVERGENCE_LOOP.md`](../../scenarios/meta-optimization-manager/docs/reference/TEMPLATE_CONVERGENCE_LOOP.md)), and the operating cadence in the [`meta-optimization`](../meta-optimization/README.md) plan-of-record. A reader has to island-hop to assemble the whole.
 
 This doc is the single read-path. It says, in order: **what the loop is, why it closes, why three measurements suffice, what makes it compound, and who runs it** — deferring the formal detail to the canon each section links. It does *not* restate those docs; it names them as stations on one conveyor belt.
 
@@ -62,8 +62,8 @@ A concern is **born as prose** (a Guide skill: "here's how to think about depend
 
 This is exactly `I1` (**capability compounding**) in motion: judgment (prose, LLM-required) migrating into deterministic code (CLI, phase, provider), so each capability makes later work cheaper. The machinery that drives each step is already canon:
 
-- [`PROMOTION_LADDER.md`](../agent-system/PROMOTION_LADDER.md) — *"stability unlocks compression"*: how a prose skill graduates into a CLI contract, then an Action, then retires. The per-skill version of the gradient.
-- [`TEMPLATE_CONVERGENCE_LOOP.md`](../agent-system/TEMPLATE_CONVERGENCE_LOOP.md) — *"improve the gene, not the organism"*: the same compounding applied to portfolio-wide architecture (improve the template once, mechanize convergence so every scenario climbs without re-deciding).
+- [`SKILL_AUTHORING.md`](../agent-system/SKILL_AUTHORING.md#promotion-ladder) — *"stability unlocks compression"*: how a prose skill graduates into a CLI contract, then an Action, then retires. The per-skill version of the gradient.
+- [`TEMPLATE_CONVERGENCE_LOOP.md`](../../scenarios/meta-optimization-manager/docs/reference/TEMPLATE_CONVERGENCE_LOOP.md) — *"improve the gene, not the organism"*: the same compounding applied to portfolio-wide architecture (improve the template once, mechanize convergence so every scenario climbs without re-deciding).
 
 A graduated pointer-skill is the **success state, not a Guide gap** — measuring readiness per-concern as a *trajectory* up this gradient (rather than three independent buckets) is what keeps the model honest about what's truly mature.
 
@@ -162,12 +162,12 @@ This is a dependency, not a hierarchy of command: infra-health does not run expe
 
 The loop is fed by friction and emits structured improvement:
 
-- **In** — friction enters through a universal inbox (report-friction, audit findings, run lessons), routed by the inbox-router-drain pattern in [`INTAKE_PIPELINE.md`](../agent-system/INTAKE_PIPELINE.md).
+- **In** — friction enters through a universal inbox (report-friction, audit findings, run lessons), routed by the inbox-router-drain pattern in [`INTAKE_PIPELINE.md`](../../scenarios/prompt-manager/docs/internal/INTAKE_PIPELINE.md).
 - **Out** — improvements land as operator-approved decisions and as new artifacts that climb the gradient: a new skill (Guide), a new test phase or auto-fix (Validate), a new derived provider (Answer), or a template change that converges the whole portfolio (`TEMPLATE_CONVERGENCE_LOOP.md`).
 
 **Friction is not the only input, because it only reports what hurts.** A capability that is built, passing every gate, and quietly degrading — or that nothing calls at all — generates no friction, and so this loop never hears about it. That is the **Condition** axis: whether the supply the projections count is still working. It is measured per contributor leg along three families — does the leg answer, is what it serves current, and is anyone calling it — and its honesty rule is that an uninstrumented leg is never reported as healthy. The formal model is [`CONDITION-MODEL.md`](../../scenarios/meta-optimization-manager/docs/concepts/CONDITION-MODEL.md); this doc only needs you to hold the intuition that **coverage growth without condition measurement compounds unverified claims rather than capability.**
 
-Where each lives — truth vs. judgment vs. execution vs. raw learning — is governed by [`LAYERS.md`](../agent-system/LAYERS.md).
+Where each lives — truth vs. judgment vs. execution vs. raw learning — is governed by [`docs/agent-system/README.md`](../agent-system/README.md#where-does-this-paragraph-go).
 
 ## 7. Status is computed, not written here
 
@@ -184,6 +184,6 @@ If you find percentages or "N% done" in this file, treat it as drift and remove 
 - [`ECOSYSTEM.md`](./ECOSYSTEM.md) — how a single scenario fits the whole (the capability flywheel one level down).
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md) — control plane, resources, layers (the technical *how*).
 - [`COVERAGE-MODEL.md`](../../scenarios/meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md) — the formal projection / denominator / attestation model (the *measurement*).
-- [`PROMOTION_LADDER.md`](../agent-system/PROMOTION_LADDER.md), [`TEMPLATE_CONVERGENCE_LOOP.md`](../agent-system/TEMPLATE_CONVERGENCE_LOOP.md) — the gradient's machinery at skill and portfolio scale.
+- [`SKILL_AUTHORING.md`](../agent-system/SKILL_AUTHORING.md#promotion-ladder), [`TEMPLATE_CONVERGENCE_LOOP.md`](../../scenarios/meta-optimization-manager/docs/reference/TEMPLATE_CONVERGENCE_LOOP.md) — the gradient's machinery at skill and portfolio scale.
 - [`OPERATING_MODEL.md`](../meta-optimization/operating/OPERATING_MODEL.md) — the Meta-Optimization Team's operating loops (who runs it).
 - The three space denominators: [`answer-space.md`](../../scenarios/search-hub/docs/spaces/answer-space.md), [`validate-space.md`](../../scenarios/test-genie/docs/spaces/validate-space.md), [`guide-space.md`](../../scenarios/prompt-manager/docs/spaces/guide-space.md).

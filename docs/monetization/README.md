@@ -62,7 +62,7 @@ Decision-context detail lives in [`governance/editing.md`](governance/editing.md
 ## Cross-references
 
 - [`docs/agent-system/team-plan-of-record.manifest.json`](../agent-system/team-plan-of-record.manifest.json) — shared machine-readable PoR contract and extension rules.
-- [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../agent-system/TEAM_DOCS_PATTERNS.md) — typed knowledge flow and plan-of-record write boundary.
+- [`docs/agent-system/README.md#who-may-edit`](../agent-system/README.md#who-may-edit) — typed knowledge flow and plan-of-record write boundary.
 - [`docs/marketing/`](../marketing/README.md) — external voice and channel execution. Marketing reads monetization for pricing, catalog, and tier authority.
 - [`docs/director-swarm/`](../director-swarm/README.md) — portfolio steering and revenue-critical sequencing.
 - [`docs/strategy/idea-pipeline/`](../strategy/idea-pipeline/README.md) — operator-curated idea staging before SKU-shaped items graduate into monetization canon.

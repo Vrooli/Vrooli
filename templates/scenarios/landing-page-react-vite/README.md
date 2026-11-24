@@ -50,6 +50,7 @@ Port bands declared in `.vrooli/service.json` follow the platform policy: `API_P
 
 ## CLI
 
+- Author domain command groups using the shared [CLI Core domain guide](/packages/cli-core/README.md#scenario-cli-domains).
 - `.vrooli/service.json` is the source of truth for the CLI command, Go-module source-build, freshness, and invocation contracts.
 - The control plane builds and installs the Go CLI from `cli/`; the template contains no platform-specific installer wrappers.
 - Health check: `<scenario-id> status` (after the control plane installs the CLI)

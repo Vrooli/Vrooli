@@ -9,7 +9,7 @@
     "go",
     "cli"
   ],
-  "version": "7.0.0",
+  "version": "8.0.0",
   "startDocument": "docs/START-HERE.md",
   "design": {
     "adapter": "react-vite-tailwind",

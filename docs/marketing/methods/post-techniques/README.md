@@ -10,7 +10,7 @@ They do **not** answer: *how does any specific post type apply this technique en
 
 Many marketing patterns are not specific to one post type. *Hook-vs-body asymmetry* applies to dev-logs, scenario-spotlights, and oss-framework posts equally. *Intro-on-first-mention* applies any time a post references a not-yet-introduced internal name. Putting these in a single post type's file misrepresents their scope; duplicating across post-type files invites drift. The technique gets one canonical home and is referenced from each post-type file that uses it.
 
-This mirrors the per-entity guidance in [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../../../agent-system/TEAM_DOCS_PATTERNS.md): each technique is its own entity.
+This mirrors the per-entity guidance in [`docs/agent-system/README.md#who-may-edit`](../../../agent-system/README.md#who-may-edit): each technique is its own entity.
 
 ## Files in this folder
 

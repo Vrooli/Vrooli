@@ -53,7 +53,7 @@ Decision-context detail lives in [`governance/editing.md`](governance/editing.md
 ## Cross-references
 
 - [`docs/agent-system/team-plan-of-record.manifest.json`](../agent-system/team-plan-of-record.manifest.json) — shared machine-readable PoR contract and extension rules.
-- [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../agent-system/TEAM_DOCS_PATTERNS.md) — typed knowledge flow and plan-of-record write boundary.
+- [`docs/agent-system/README.md#who-may-edit`](../agent-system/README.md#who-may-edit) — typed knowledge flow and plan-of-record write boundary.
 - [`docs/narrative/`](../narrative/README.md) — project-identity canon. Marketing owns the linguistic how; narrative owns the what.
 - [`docs/monetization/`](../monetization/README.md) — positioning, pricing, catalog, and bundle ground truth. Marketing reads; monetization owns.
 - [`VISION.md`](../../VISION.md) — operator-authored manifesto and long-term north star.

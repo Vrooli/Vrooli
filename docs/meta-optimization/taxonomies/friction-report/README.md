@@ -157,8 +157,8 @@ Reporter and curator may set:
 
 - [`docs/meta-optimization/README.md`](../../README.md) — meta-optimization team's friction-related canon overview.
 - [`docs/scenario-qa/taxonomies/bug-report/README.md`](../../../scenario-qa/taxonomies/bug-report/README.md) — the sister universal observation flow.
-- [`docs/agent-system/INTAKE_PIPELINE.md`](../../../agent-system/INTAKE_PIPELINE.md) — the inbox-router-drain pattern; friction-inbox uses *deterministic-prefix routing* (no classifier skill).
-- [`docs/agent-system/TOPICS.md`](../../../agent-system/TOPICS.md) — registry of every active topic prefix; meta-optimization entries live there.
-- [`docs/agent-system/TOPICS_SCHEMA.md`](../../../agent-system/TOPICS_SCHEMA.md) — schema reference for `topics.json`; documents `source_team: "*"` (universal-source) semantics.
+- [`scenarios/prompt-manager/docs/internal/INTAKE_PIPELINE.md`](../../../../scenarios/prompt-manager/docs/internal/INTAKE_PIPELINE.md) — the inbox-router-drain pattern; friction-inbox uses *deterministic-prefix routing* (no classifier skill).
+- [`scenarios/prompt-manager/docs/internal/TOPICS.md`](../../../../scenarios/prompt-manager/docs/internal/TOPICS.md) — registry of every active topic prefix; meta-optimization entries live there.
+- [`scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md`](../../../../scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md) — schema reference for `topics.json`; documents `source_team: "*"` (universal-source) semantics.
 - [`scenarios/prompt-manager/store/skills/packs/core/report-friction/SKILL.md`](../../../../scenarios/prompt-manager/store/skills/packs/core/report-friction/SKILL.md) — the universal writer skill any agent invokes to file friction.
 - [`scenarios/prompt-manager/store/skills/packs/core/conversation-friction-analysis/SKILL.md`](../../../../scenarios/prompt-manager/store/skills/packs/core/conversation-friction-analysis/SKILL.md) — the deeper post-hoc analysis skill; complementary, not a replacement for in-flight `report-friction`.

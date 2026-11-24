@@ -51,7 +51,7 @@ durable infrastructure below. In particular:
 
 Binding contract vs. illustrative example: every reference doc this
 scenario ships with — `DESIGN.md`, `PRD.md`, the initial shell configuration,
-and the fenced example domain — mixes two kinds of guidance. Tokens, motion,
+and the fenced example domain — combines binding guidance with illustrative examples. Tokens, motion,
 status-color semantics, accessibility floors, i18n, and the
 domain/proto/API/CLI/UI shape are **binding contracts**: respect them.
 Specific lists of components, settings, page surfaces, or copy

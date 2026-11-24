@@ -7,21 +7,23 @@ Project-level testing guidance is intentionally thin. The canonical rule is:
 - prefer current CLI surfaces and maintained fixtures over shell-era ad hoc test flows
 
 For mutating BAS/E2E workflows, follow the two-engine
-[routed test-storage contract](agent-system/routed-test-db.md): SQL and file
+[routed test-storage contract](../scenarios/test-genie/docs/reference/routed-test-db.md): SQL and file
 writes must be leased and test-mode routed before execution.
 
 ## Start Here
 
-- [Authoring tests that protect behavior](testing/UNIT-TEST-AUTHORING.md) — boundaries, fixtures, expectations, and evidence limits
-- [reference/cli-commands.md](reference/cli-commands.md)
-- [reference/health-maturity-assessments.md](reference/health-maturity-assessments.md)
-- [scenarios/VALIDATION.md](scenarios/VALIDATION.md)
-- [../scenarios/test-genie/docs/QUICKSTART.md](../scenarios/test-genie/docs/QUICKSTART.md)
+| Situation | Start with |
+| --- | --- |
+| Choose checks for a change | [Ordinary iteration versus certification](#ordinary-iteration-versus-certification) |
+| Attach to a server-owned run | Copy its reported wait command. See [waiting on runs](#waiting-on-runs-for-agents) for recovery and cancellation. |
+| Build fails on a generated symbol | [Generated-output freshness](#generated-output-freshness) |
+| Write or revise a test | [Authoring tests that protect behavior](testing/UNIT-TEST-AUTHORING.md) |
+| Certify a scenario | [Scenario validation](scenarios/VALIDATION.md) and [health maturity reports](reference/health-maturity-assessments.md) |
 
 ## Common Commands
 
 ```bash
-vrooli scenario test <name>
+vrooli scenario test <name> --phases <relevant-phases>
 go test ./cmd/vrooli/... ./internal/...
 make hygiene
 make test-packages
@@ -81,6 +83,14 @@ sessions and lifecycle-managed shells, and those carry ambient state:
   for the control plane) or `storagetest.IsolateStorage`. Tests that resolve
   through an injected environment, or that expect default-layout paths under a
   HOME they set, use `storagetest.RunWithPrivateHome` instead.
+  Native resource lifecycle storage has separate
+  `VROOLI_RESOURCE_STORAGE_ROOT` and `VROOLI_RESOURCE_ARTIFACT_DIR` overrides;
+  the contract root alone does not isolate it. The resource package TestMain
+  isolates these roots and HOME-based durable-write locks. Native update
+  fixtures use `isolateNativeUpdateFixtureStorage` so the bounded production
+  wrapper and its parent resolve the same private StateDir. An ordinary test
+  must never inherit an operator resource root or disable package isolation
+  because a live-test flag happens to be set.
 - **Temp location.** `t.TempDir()` follows `GOTMPDIR`, which lifecycle shells
   set to `~/.vrooli/tmp/go-work`. A temp dir can therefore sit under a home
   directory that contains `.vrooli/` (or a stray `.git`), and its paths are
@@ -101,6 +111,16 @@ source.
 server-owned run and returns before the verdict, so its exit status is not the
 result. Block once with the printed
 `test-genie runs wait --json package:<package> <run-id>`.
+
+## Shared-package test helpers
+
+A shared Go package `<pkg>` owns the test assets for its public surface in a top-level sibling package `<pkg>test` (the `httptest` pattern), never `<pkg>/test/`, umbrella `testing`/`testkit`/`testutil` packages or `*kit`/`*util` suffixes. Imports look like `databasetest "github.com/vrooli/api-core/databasetest"`; current companions are `apihttptest`, `databasetest`, `connectxtest`, `servertest` (api-core) and `cliapptest` (cli-core). Add `<pkg>test` when a concrete repeated consumer need appears, not before.
+
+- Put exported consumer-facing helpers in `<pkg>test`: recording fakes for public interfaces (`databasetest.FakeExecer`), server harnesses (`connectxtest.StartTestServer`), test-only constructors and package-specific assertions.
+- Keep an implementation in the production package when it is a valid runtime choice (`blobstore.Memory`).
+- Helpers used only by the package's own tests stay in `_test.go`, `testdata/` or a module-local `internal/testutil` shared across several internal packages.
+- Do not hand-roll a `Fake<X>` for an `api-core` or `cli-core` interface when a `<pkg>test` fake exists, and do not add compatibility shims in templates instead of importing the companion.
+- TypeScript shared packages use subpath exports, `@vrooli/<pkg>/testing`. The first is `@vrooli/api-base/testing` (`renderWithProviders`, `createTestQueryClient`, `createHookWrapper`, `configureTestProviders`, `expectNoA11yViolations`); scenario-specific context goes through `configureTestProviders` or `extraProviders`, never a fork.
 
 ## Generated-output freshness
 

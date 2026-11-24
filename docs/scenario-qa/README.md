@@ -4,7 +4,7 @@ This folder is the **plan-of-record** for Vrooli's scenario-quality discipline: 
 
 The team's live operating rules are at [`scenarios/prompt-manager/store/teams/scenario-qa/shared/TEAM.md`](../../scenarios/prompt-manager/store/teams/scenario-qa/shared/TEAM.md). This folder is the strategic-canon side; that file is the runtime contract.
 
-See [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../agent-system/TEAM_DOCS_PATTERNS.md) for the pattern definition.
+See [`docs/agent-system/README.md#who-may-edit`](../agent-system/README.md#who-may-edit) for the pattern definition.
 
 ## Start here for agents
 
@@ -85,10 +85,10 @@ Enforced by the canon coherence test at `scenarios/prompt-manager/test/agent_sys
 
 ## Cross-references
 
-- `docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md` — the 10-layer model the audit skill uses to evaluate scenario-qa members. The `skillless canon` smell motivated the `methods/audit/` registry's seven paired PoR docs.
-- `docs/agent-system/INTAKE_PIPELINE.md` — the inbox-router-drain pattern used by the bug-investigator.
-- `docs/agent-system/TOPICS.md` — registry of every active topic prefix; scenario-qa entries live there.
-- `docs/agent-system/TOPICS_SCHEMA.md` — schema reference for `topics.json`; documents the `source_team: "*"` (universal-source) semantics that bug-inbox uses.
+- `docs/agent-system/RULES.md` — the 10-layer model the audit skill uses to evaluate scenario-qa members. The `skillless canon` smell motivated the `methods/audit/` registry's seven paired PoR docs.
+- `scenarios/prompt-manager/docs/internal/INTAKE_PIPELINE.md` — the inbox-router-drain pattern used by the bug-investigator.
+- `scenarios/prompt-manager/docs/internal/TOPICS.md` — registry of every active topic prefix; scenario-qa entries live there.
+- `scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md` — schema reference for `topics.json`; documents the `source_team: "*"` (universal-source) semantics that bug-inbox uses.
 - `path:docs/marketing/methods/post-techniques/README.md` — the gold-standard reference this folder's three registries replicate.
 - `path:scenarios/swarm-manager/` — downstream consumer of the team's backlog items.
 

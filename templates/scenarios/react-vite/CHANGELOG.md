@@ -6,6 +6,24 @@ generated scenarios record their origin template id + version in
 `.vrooli/service.json::generation.template`, and agents updating an older
 scenario read this file from the live template tree.
 
+## [8.0.0] - 2026-11-21
+
+### Removed
+
+- Stop copying `cli/domains/README.md`; CLI Core owns the authoring guide and
+  generated root documentation now links to it. Scenario-specific command
+  usage and boundary obligations remain in their local CLI reference and
+  architecture/seam documents.
+
+### Migration (for agents updating older scenarios)
+
+- [ ] If `cli/domains/README.md` is unchanged from the former generated
+      guide, delete it. Keep and migrate any scenario-specific obligations
+      first; remove its manifest entry and incoming links when present.
+- [ ] Add scenario-specific command usage to `docs/reference/cli-commands.md`
+      and boundary obligations to the relevant architecture/seam document.
+- [ ] Replace references to the former local guide with the CLI Core guide.
+
 ## How to read this file (agents updating an older scenario)
 
 1. Open the target scenario's `.vrooli/service.json` and read

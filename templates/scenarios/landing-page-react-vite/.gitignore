@@ -35,5 +35,17 @@
 /logs/
 /api/uploads/
 
+# Keep scenario-owned acceptance evidence visible under docs/evidence/.
+# Multi-hour cross-scenario run evidence belongs in the external research home.
+# If raw goal payloads land here by mistake, keep only notes and compact indexes.
+/docs/internal/goal/evidence/**
+!/docs/internal/goal/evidence/**/
+!/docs/internal/goal/evidence/**/*.md
+!/docs/internal/goal/evidence/**/manifest.json
+!/docs/internal/goal/evidence/**/source-map.json
+!/docs/internal/goal/evidence/**/SHA256SUMS*
+!/docs/internal/goal/evidence/**/*sha256sum*.txt
+!/docs/internal/goal/evidence/**/*.sha256
+
 # Build-freshness stamps
 /.build-fingerprint.json

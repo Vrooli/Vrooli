@@ -27,5 +27,5 @@ shape the library would need, not the local file.
 
 ## Cross-References
 
-- `path:../guides/choosing-ui.md` — when to eject and when to record a gap
-- `path:../concepts/UI-ARCHITECTURE.md` — where local components live
+- `path:templates/scenarios/react-vite/docs/guides/choosing-ui.md` — when to eject and when to record a gap
+- `path:templates/scenarios/react-vite/docs/concepts/UI-ARCHITECTURE.md` — where local components live

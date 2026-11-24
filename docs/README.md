@@ -24,18 +24,17 @@ For the long-term philosophical thesis (recursive intelligence, evolution timeli
 
 ## Start Here (technical / contributor onboarding)
 
-- [QUICKSTART.md](QUICKSTART.md) for the first-touch setup and command flow
-- [concepts/ARCHITECTURE.md](concepts/ARCHITECTURE.md) for the current platform mental model
-- [concepts/IDENTITY-AND-AUTHENTICATION.md](concepts/IDENTITY-AND-AUTHENTICATION.md) for identity, authentication providers, desktop modes, account linking, and entitlements
-- [concepts/AUTHORIZATION.md](concepts/AUTHORIZATION.md) for capability, domain-authorization, agent-delegation, and entitlement boundaries
-- [concepts/RECURSIVE_SELF_IMPROVEMENT.md](concepts/RECURSIVE_SELF_IMPROVEMENT.md) for the self-improvement loop and the four projections (Answer/Validate/Guide/Act)
-- [concepts/GLOSSARY.md](concepts/GLOSSARY.md) for shared vocabulary
-- [reference/cli-commands.md](reference/cli-commands.md) for the current CLI surface
-- [reference/health-maturity-assessments.md](reference/health-maturity-assessments.md) for provider-owned health maturity reports and the human-output-first contract
-- [reference/machine-readable-references.md](reference/machine-readable-references.md) for `[CODE:]` / `[DOC:]` traceability references and marked inline references such as `path:...` and `topic:...`
-- [concepts/REACH-AND-CONFIGURATION.md](concepts/REACH-AND-CONFIGURATION.md) for target-aware reach and the desired/applied configuration model
-- [reference/port-resolution.md](reference/port-resolution.md) for the peer-record, registry, and CLI port-resolution ladder
-- [reference/storage-retention.md](reference/storage-retention.md) for generated-artifact placement, storage classes, retention budgets, and owner-delegated cleanup
+| Task | Open |
+| --- | --- |
+| Set up a new installation | [Quickstart](QUICKSTART.md) |
+| Find a command | [CLI reference](reference/cli-commands.md) |
+| Validate a change or attach to a test run | [Testing](TESTING.md#start-here) |
+| Add or change a dependency | [Dependency install gateway](package-governance.md#installing-through-the-gateway) |
+| Configure, start, or recover a scenario | [Scenario configuration](configuration/scenarios.md) |
+| Determine authority for an operation | [Authorization by situation](concepts/AUTHORIZATION.md#one-path-per-real-situation) |
+| Choose a deployment path | [Deployment hub](deployment/README.md#start-here) |
+| Understand the platform | [Architecture](concepts/ARCHITECTURE.md) and [glossary](concepts/GLOSSARY.md) |
+| Look up reach, ports, or retention | [Target configuration](concepts/REACH-AND-CONFIGURATION.md), [port resolution](reference/port-resolution.md), or [storage and retention](reference/storage-retention.md) |
 
 ## How docs/ is organized: three pillars
 
@@ -43,7 +42,7 @@ Most folders here are one of three canon types. Knowing which you're in tells yo
 
 1. **Identity & concept canon** — *what Vrooli is and how its pieces fit.* [`../VISION.md`](../VISION.md) (the why), [`narrative/`](narrative/) (the story), and [`concepts/`](concepts/): [`ARCHITECTURE.md`](concepts/ARCHITECTURE.md) (technical how), [`IDENTITY-AND-AUTHENTICATION.md`](concepts/IDENTITY-AND-AUTHENTICATION.md) (identity and deployment authentication), [`AUTHORIZATION.md`](concepts/AUTHORIZATION.md) (capability and domain authorization), [`RECURSIVE_SELF_IMPROVEMENT.md`](concepts/RECURSIVE_SELF_IMPROVEMENT.md) (the self-improvement loop that ties the why and how together), [`ECOSYSTEM.md`](concepts/ECOSYSTEM.md) (how a scenario fits the whole), [`MEASURES.md`](concepts/MEASURES.md) (the federated metrics layer), [`PAID_FEATURES.md`](concepts/PAID_FEATURES.md) (paid-feature contract), [`PUBLIC_ASSETS.md`](concepts/PUBLIC_ASSETS.md) (the `/public/*` world-readable-asset convention + its security contract), [`GLOSSARY.md`](concepts/GLOSSARY.md). Operator-curated.
 
-2. **Team plan-of-records (PoR)** — *each agent team's durable, accepted truth.* One folder per team, all following the shared contract in [`agent-system/team-plan-of-record.manifest.json`](agent-system/team-plan-of-record.manifest.json): a README hub → `operating/` → optional `strategy/` `evidence/` `catalogs/` `taxonomies/` → `governance/`. Changes require operator authority; [`TEAM_DOCS_PATTERNS.md`](agent-system/TEAM_DOCS_PATTERNS.md#promotion-rule) defines accepted-work and explicit direct-edit paths. The teams with a PoR (authoritative set: the `docs/<team>/` folders carrying a `manifest.json`):
+2. **Team plan-of-records (PoR)** — *each agent team's durable, accepted truth.* One folder per team, all following the shared contract in [`agent-system/team-plan-of-record.manifest.json`](agent-system/team-plan-of-record.manifest.json): a README hub → `operating/` → optional `strategy/` `evidence/` `catalogs/` `taxonomies/` → `governance/`. Changes require operator authority or the owning manager's grant ([who may edit](agent-system/README.md#who-may-edit)). A PoR holds accepted truth; live state lives in the agent's home ([R4](agent-system/RULES.md)). The teams with a PoR (authoritative set: the `docs/<team>/` folders carrying a `manifest.json`):
    - [`monetization/`](monetization/README.md) — revenue, SKUs, delivery tiers, pricing, funnel
    - [`marketing/`](marketing/) — voice, audiences, channels, campaigns, brand assets
    - [`director-swarm/`](director-swarm/) — portfolio philosophy, roadmap, outcomes charter
@@ -51,7 +50,7 @@ Most folders here are one of three canon types. Knowing which you're in tells yo
    - [`meta-optimization/`](meta-optimization/) — friction-report taxonomy + self-improvement
    - [`scenario-qa/`](scenario-qa/) — bug taxonomy, investigation + audit methods
 
-3. **Agent-system framework canon** — *the rules the teams themselves run on* (skills, agents, teams, decisions, topics, and the PoR contract above). Lives in [`agent-system/`](agent-system/README.md); it is itself a plan-of-record, edited via `meta-optimization` decisions. Unattended scenario development (plan shapes, execution modes, the grant model) is [`agent-system/SCENARIO_DEVELOPMENT.md`](agent-system/SCENARIO_DEVELOPMENT.md).
+3. **Agent rules** — *how agents are set up.* [`agent-system/RULES.md`](agent-system/RULES.md) is the frame and the ten rules (`R1`-`R10`) that every skill, team file and check cites or is deleted; `RULES.md` changes only with the operator. The rest of [`agent-system/`](agent-system/README.md) is the small set of docs that follow from them: home files and decision flow ([`LEVELS.md`](agent-system/LEVELS.md)), sustained goals ([`LONG_EFFORT_DESIGN.md`](agent-system/LONG_EFFORT_DESIGN.md)), skill authoring ([`SKILL_AUTHORING.md`](agent-system/SKILL_AUTHORING.md)), plan-backed development ([`SCENARIO_DEVELOPMENT.md`](agent-system/SCENARIO_DEVELOPMENT.md)) and standing teams ([`STANDING_TEAMS.md`](agent-system/STANDING_TEAMS.md)).
 
 Everything else (`guides/`, `reference/`, `operations/`, `deployment/`, `scenarios/`, `resources/`, `strategy/`, `design/`, `skills/`, `development/`, `internal/`, `plans/`) is supporting documentation, not canon in the above sense.
 
@@ -97,16 +96,6 @@ The project-level docs are organized around a stable taxonomy:
 - `director-swarm/` for portfolio philosophy / roadmap / outcomes charter
 - `internal/` for docs-maintenance notes
 - `plans/` for promoted design context; implementation plans, source briefs, supplements, and execution records live in Plan Manager and its protected runtime-home `plan_artifacts` location
-
-## Current Priorities
-
-The current docs rewrite is focused on:
-
-- replacing shell-era and transitional project-level guidance
-- aligning docs with the Go-native `vrooli` control plane
-- separating current truth from roadmap direction
-- reducing duplication between project docs, scenario docs, and resource docs
-- preserving the project's ambition without overstating maturity
 
 ## Notes For Maintainers
 

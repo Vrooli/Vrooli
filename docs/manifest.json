@@ -345,62 +345,42 @@
         {
           "path": "agent-system/README.md",
           "title": "Agent System Hub",
-          "description": "Plan-of-record for prompt-manager's self-improving agent system"
+          "description": "Index of the agent docs; start at RULES.md"
         },
         {
-          "path": "agent-system/PRIMITIVES.md",
-          "title": "Primitives",
-          "description": "Core nouns: skills, agents, teams, plans, decisions, knowledge, inboxes, actions, CLIs"
+          "path": "agent-system/RULES.md",
+          "title": "Agent Rules",
+          "description": "The frame and ten rules R1-R10 that govern how agents are set up; operator-owned"
         },
         {
-          "path": "agent-system/LAYERS.md",
-          "title": "Layers",
-          "description": "Canonical rule for where truth, judgment, execution, implementation, and raw learning belong"
+          "path": "agent-system/LEVELS.md",
+          "title": "Levels",
+          "description": "Home files at each level, inbox, decision packets and spawn messages"
         },
         {
-          "path": "agent-system/INTAKE_PIPELINE.md",
-          "title": "Intake Pipeline",
-          "description": "Inbox-router-drain pattern and topic-prefix routing conventions"
-        },
-        {
-          "path": "agent-system/TEAM_MEMBER_ARCHITECTURE.md",
-          "title": "Team Member Architecture",
-          "description": "Nine-layer model for evaluating a team member's operating surface"
-        },
-        {
-          "path": "agent-system/PROMOTION_LADDER.md",
-          "title": "Promotion Ladder",
-          "description": "How prose guidance matures into CLI contracts, Actions, and retired prose"
-        },
-        {
-          "path": "agent-system/TEAM_DOCS_PATTERNS.md",
-          "title": "Team Docs Patterns",
-          "description": "Plan-of-record authority, typed knowledge flow, and promotion gates"
+          "path": "agent-system/LONG_EFFORT_DESIGN.md",
+          "title": "Long Effort Design",
+          "description": "Closure, briefs, effort structures, verified Codex settings and baselines for sustained goals"
         },
         {
           "path": "agent-system/SKILL_AUTHORING.md",
           "title": "Skill Authoring",
-          "description": "Universal quality bars for prompt-manager skills"
+          "description": "Skill quality bars, promotion ladder and scenario skill sets"
         },
         {
-          "path": "agent-system/DEPRECATION_POLICY.md",
-          "title": "Deprecation Policy",
-          "description": "Rules for retiring skills, agents, and teams"
+          "path": "agent-system/SCENARIO_DEVELOPMENT.md",
+          "title": "Scenario Development",
+          "description": "Plan-backed grants, work shapes and authority classes"
         },
         {
-          "path": "agent-system/REFERENCE_SCENARIOS.md",
-          "title": "Reference Scenarios",
-          "description": "Gold-star reference scenario registry and rot triage rules"
+          "path": "agent-system/STANDING_TEAMS.md",
+          "title": "Standing Teams",
+          "description": "Loop card for a Prompt Manager standing team"
         },
         {
-          "path": "agent-system/TOPICS_SCHEMA.md",
-          "title": "Topics Schema",
-          "description": "Canonical schema for per-member topic-flow declarations (topics.json)"
-        },
-        {
-          "path": "agent-system/TOPICS.md",
-          "title": "Topics Registry",
-          "description": "Human registry of every topic prefix in active use, with per-team breakdown and adoption checklist"
+          "path": "agent-system/EFFORT_SUPERVISION.md",
+          "title": "Effort Supervision",
+          "description": "Authority and qualification for finite-delivery supervision (retires with finite teams)"
         }
       ]
     },

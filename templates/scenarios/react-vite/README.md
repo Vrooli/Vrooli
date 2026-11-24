@@ -150,6 +150,7 @@ finer-grained presets.
 | Configure env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
 | Add API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |
 | Add CLI commands | [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
+| Implement CLI domains | [CLI Core's domain authoring guide](/packages/cli-core/README.md#scenario-cli-domains) |
 
 ## Working Rules
 

@@ -2,11 +2,11 @@
 
 **Status:** target-state canon. This document defines how the marketing-crew works as a coherent system: loops, roles, topic surfaces, work item handoffs, and known gaps. It is the bridge between the strategic plan-of-record in `path:docs/marketing/` and the live team implementation under `path:scenarios/prompt-manager/store/teams/marketing-crew/`.
 
-The current document adopts the generic team operating-model shape from `path:docs/agent-system/OPERATING_GRAPHS.md`.
+The current document adopts the generic team operating-model shape from `path:scenarios/prompt-manager/docs/internal/OPERATING_GRAPHS.md`.
 
 
 Durable corpus belongs to the Source Ledger scope team:marketing-crew. Members file each actionable finding once through the unified Swarm Manager work feed; operator disposition is read from that same work item.
-**Revised after capability consolidation.** The roster collapsed from six members to three, and roughly half the former topic families moved into the `content-desk` scenario as queryable state. The method is recorded in `prompt-manager skill read team-capability-consolidation`. Topic families marked `future` are target-state surfaces and are not live declarations.
+**Revised after capability consolidation.** The roster collapsed from six members to three, and roughly half the former topic families moved into the `content-desk` scenario as queryable state. Topic families marked `future` are target-state surfaces and are not live declarations.
 
 The team is **disabled** (`enabled: false` in `team.json`); no member heartbeat runs. Its blockers are tracked in §"Current Implementation Gaps": the `content-desk` instrument is not kept running (it is stopped as of 2026-10-07), the I16 Content Desk overhaul will replace the Review/Plan surfaces the member contracts cite, and no wake gate matches the team's real trigger. `content-desk` is the team's operating surface for campaigns, artifact slots, drafts, claims, and publish history; `asset-studio` is substantially built. The single marketing read address now exists (`content-desk.board-read`; see § Instrument). Other open gaps are tracked in §"Current Implementation Gaps", including image/video post-type skills still `v0`.
 

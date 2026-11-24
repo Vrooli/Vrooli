@@ -6,19 +6,12 @@ This is the operator-facing reference for configuring a Vrooli install: which sc
 
 Configuration was scattered: credentials in provider-specific stores and resource manifests, scenario state in service.json files, host-tool opt-ins inferred at runtime, and no single doc walked an operator (or AI agent) from "I want to use X" to "X is declared, stored, validated, and consumed." This folder is the unified description of the configuration substrate. If you're trying to figure out where a knob lives or how a setting reaches the running system, start here.
 
-## What lives where
+## Configuration ownership
 
-There are three categories of configuration data, and every file in the system fits exactly one. Mixing them is the failure mode the layering prevents.
-
-| Category | Lives in | Edited by | Examples |
-|---|---|---|---|
-| **Declarative manifest** — what each thing *is* | `resources/<name>/resource.json`, `scenarios/<name>/.vrooli/service.json`, `internal/tools/<name>/tool.json`, `internal/safeguards/<name>/safeguard.json` | Humans, source-controlled | "This resource needs a Postgres dependency", "this safeguard writes to /etc/sysctl.d", "this scenario is system-required" |
-| **Computed analysis** — what an analyzer figured out | scenario-dependency-analyzer reports, `.vrooli/schemas/resource-definitions.json` | Tools, regenerable | "This scenario needs 2 GB RAM", "tier-3-mobile fitness score 0.4" |
-| **Operator state** — what this install *chose* | `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` | The wizard, or hand | "swarm-manager is enabled", "kernel_config safeguard is opted in", "ollama resource is disabled" |
-
-Generated lifecycle/runtime state is not configuration. Setup markers, resource-populated markers, runtime databases (including the SQLite port-claim registry), logs, and process records belong under `~/.vrooli/`; per-project setup/resource markers use `~/.vrooli/state/projects/<project-key>/` so multiple local checkouts stay disambiguated.
-
-See [`architecture.md`](architecture.md) for the full source-of-truth table and the rules for resolving any specific value at runtime (manifest default vs. operator override).
+Manifests declare, analysis derives, and operator state records install choices.
+The [architecture reference](architecture.md) owns the source-of-truth table
+and runtime resolution rules; the [repo contract](../repo-contract.md) owns
+runtime-state locations.
 
 ## How to find what you need
 
@@ -53,4 +46,4 @@ Two rules keep this folder honest over time:
 - [`.vrooli/schemas/tool.schema.json`](../../.vrooli/schemas/tool.schema.json) — per-host-tool `tool.json`
 - [`.vrooli/schemas/safeguard.schema.json`](../../.vrooli/schemas/safeguard.schema.json) — per-safeguard `safeguard.json`
 - [`.vrooli/schemas/common.schema.json`](../../.vrooli/schemas/common.schema.json) — shared primitives, including `secretDescriptor`
-- [`.vrooli/schemas/operator-state.schema.json`](../../.vrooli/schemas/operator-state.schema.json) — `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json`
+- [`.vrooli/schemas/operator-state.schema.json`](../../.vrooli/schemas/operator-state.schema.json) — `operator state`

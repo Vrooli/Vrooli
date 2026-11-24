@@ -24,4 +24,4 @@ public-hoist-pattern:
   - "*eslint*"
   - "*prettier*"
 allowBuilds:
-  esbuild: set this to true or false
+  esbuild: true

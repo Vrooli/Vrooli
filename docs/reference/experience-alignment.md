@@ -197,12 +197,6 @@ CI failure.
 | `experience.capture_bindings_unjoined` | completed capture joins declared bindings | 1 | det | error (**blocking**) | active |
 | `experience.attestation_expired` | manual-tier claim → unexpired attestation | 0 | det | warning | active (mirror of `business_manual_expired`) |
 | `experience.claim_unproven` | active-page machine claim → has recorded evidence | 0 | det | warning | active (mirror of `business_unproven_claim`) |
-| `experience.floor_no_document_horizontal_overflow` | inherited page floor → document width stays inside captured viewport | 1 | det | error | active |
-| `experience.floor_viewport_fill` | inherited page floor → app surface fills captured viewport | 1 | det | error | active |
-| `experience.floor_chrome_pinned` | inherited page floor → app chrome remains reachable inside viewport geometry | 1 | det | error | active |
-| `experience.floor_safe_area_tap_targets` | inherited mobile floor → interactive targets avoid unsafe device-edge zones | 1 | det | error | active |
-| `experience.floor_single_line_chrome` | inherited page floor → chrome labels remain single-line at captured viewports | 1 | det | error | active |
-| `experience.floor_tap_target_size` | inherited mobile floor → visible controls provide comfortable touch targets | 1 | det | error | active |
 | `experience.oracle_case_uncovered` | regression-oracle cases retain representative machine-checkable claims | 0 | det | error | active |
 | `experience.importance_mismatch` | declared communication priorities ↔ learned importance ranking | 2 | learned-det | warning | **deferred** (seam only, P2) |
 | `experience.glance_judge_mismatch` | page ↔ its communication intent (VLM judge) | 3 | heuristic | warning | **deferred** (seam only, P2) |
@@ -218,6 +212,19 @@ no document-level horizontal overflow, viewport fill, pinned chrome,
 safe-area tap targets, single-line chrome, and mobile tap-target size. These
 are floor expectations every application page should satisfy without authors
 copying boilerplate claims into every `experience/pages/*.json` file.
+
+The checks and verdicts now come from ui-health's canonical geometry pack.
+Experience Manager retains authored floor declarations, opt-outs, and
+claim-specific evidence, but no longer emits a parallel `experience.floor_*`
+finding for the same geometry result.
+
+The mobile tap-target floor is met by the library, not by call sites: `ControlBase`
+(and so `Button`, `Pressable`) raises every sub-44px size to `--tap-target-min` on a
+coarse pointer, and `IconButton` does the same. Do not add `min-h-11` or a local
+`[data-rcl-control]` override. A control packed into a deliberately dense strip opts
+out with `denseTapTarget` (see
+`scenarios/react-component-library/docs/reference/sizing-contract.md#touch-floor`);
+that control then needs its own `floorOptOuts[]` entry or it will fail this floor.
 
 Floors are still open-world: a page can opt out with `floorOptOuts[]`, naming
 the floor and a reason. An opt-out suppresses only that inherited floor on that

@@ -340,7 +340,7 @@
         },
         {
           "name": "status",
-          "description": "Snapshot one scenario's runtime and manifest status. After start/restart, call `vrooli scenario wait <name>` once; do not poll status.",
+          "description": "Snapshot one scenario's runtime and manifest status. The governed wait binding attaches once with a bounded timeout; do not poll status.",
           "positionals": [
             {
               "name": "name",
@@ -376,6 +376,84 @@
           },
           "semantics": {
             "kind": "verify",
+            "verdict": {
+              "path": "success",
+              "pass": "true",
+              "fail": "false"
+            }
+          }
+        },
+        {
+          "name": "wait",
+          "description": "Attach once to an in-flight scenario start, or read current health when none is running, with a bounded timeout ceiling.",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario name."
+            }
+          ],
+          "flags": [
+            {
+              "name": "timeout",
+              "bind": {
+                "field": "timeout_seconds"
+              },
+              "description": "Positive wait ceiling in seconds (1..90). Timeout returns exit code 124; the start continues and may be reattached."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioControlPlaneService",
+            "method": "WaitScenario"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "semantics": {
+            "kind": "verify",
+            "verdict": {
+              "path": "success",
+              "pass": "true",
+              "fail": "false"
+            }
+          }
+        },
+        {
+          "name": "deploy-report",
+          "description": "Read a bounded, privacy-safe summary of source changes and build switches since the running scenario build.",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Scenario name."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioControlPlaneService",
+            "method": "GetScenarioDeployReport"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list",
+            "primary_field": "artifacts"
+          },
+          "semantics": {
+            "kind": "query",
             "verdict": {
               "path": "success",
               "pass": "true",
@@ -611,6 +689,10 @@
             }
           ],
           "flags": [
+            {
+              "name": "path",
+              "description": "Resolve a running scenario started from this physical scenario directory"
+            },
             {
               "name": "instance",
               "local_only": true,
@@ -2630,6 +2712,41 @@
               }
             },
             {
+              "name": "model-cache-artifacts",
+              "description": "Preview, pin, or apply exact owner-fenced on-demand model artifact retention. This versioned route is required for selective per-artifact cleanup.",
+              "positionals": [
+                {
+                  "name": "name",
+                  "required": true
+                }
+              ],
+              "flags": [
+                {
+                  "name": "entry",
+                  "description": "Declared selective storage entry"
+                },
+                {
+                  "name": "apply-preview",
+                  "description": "Apply the exact saved preview JSON"
+                },
+                {
+                  "name": "pin",
+                  "description": "Set selected model-tier pin to true or false"
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
               "name": "inspect-data",
               "description": "Verify bounded pinned non-executable upstream data and emit SHA-256 receipt; never admit execution.",
               "positionals": [
@@ -3909,6 +4026,10 @@
               "name": "sample-stacks",
               "bool": true,
               "description": "Run a one-shot, 10-second sampled kernel allocation stack summary (requires the setup-managed broker and memleak-bpfcc)."
+            },
+            {
+              "name": "sort",
+              "description": "Rank sampled stacks by 'size' (bytes held, default) or 'count' (outstanding allocations). Use count to find small-object leaks."
             }
           ],
           "binding": {
@@ -4100,6 +4221,19 @@
             {
               "name": "sudo-mode",
               "description": "Privilege policy."
+            },
+            {
+              "name": "delay",
+              "description": "Minutes to wait before rebooting (0-10080). Omit or 0 to reboot now."
+            },
+            {
+              "name": "cancel",
+              "description": "Cancel a pending scheduled reboot instead of requesting one.",
+              "bool": true
+            },
+            {
+              "name": "decision-id",
+              "description": "Operator decision that authorised the reboot (audit evidence)."
             }
           ],
           "binding": {
@@ -6185,6 +6319,61 @@
                   "process:spawn"
                 ],
                 "requires_confirmation": true
+              }
+            },
+            {
+              "name": "schedule",
+              "description": "Configure DBM's scheduled encrypted recovery plan on the target host using an existing S3 destination and explicit persistent-data bindings. DBM owns snapshot execution and recovery drills; this command never creates a destination or credentials.",
+              "flags": [
+                {
+                  "name": "deployment",
+                  "description": "Deployment id.",
+                  "required": true
+                },
+                {
+                  "name": "operation",
+                  "description": "Operation id.",
+                  "required": true
+                },
+                {
+                  "name": "step",
+                  "description": "Step id.",
+                  "required": true
+                },
+                {
+                  "name": "fence",
+                  "description": "Operation fence.",
+                  "required": true
+                },
+                {
+                  "name": "scenario",
+                  "description": "Owning scenario id.",
+                  "required": true
+                },
+                {
+                  "name": "policy",
+                  "description": "JSON DBM backup policy. Accepts raw JSON or b64:<base64url JSON>.",
+                  "required": true
+                },
+                {
+                  "name": "binding",
+                  "description": "JSON recoverypoint binding {id,kind,provider,locator,...}; repeat for several.",
+                  "required": true,
+                  "repeatable": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "schedule"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "process:spawn",
+                  "network:internal"
+                ]
               }
             },
             {

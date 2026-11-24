@@ -23,23 +23,16 @@ vrooli setup --include-optional --maintenance-window --sudo-mode=ask --onboardin
 
 Setup performs the bootstrap steps and hands off to `vrooli-onboarding`, which
 asks for every value the operator has to supply: credentials, host-tool and
-safeguard consent, and the operating mode. Anything an operator has to do
-outside this command is a defect, not a workflow.
+safeguard consent, and the operating mode.
 
-What each flag contributes:
+The flags opt into optional safeguards, acknowledge possible session
+interruption, request supported setup privilege, and start onboarding. Use
+`vrooli setup --help` for current defaults and option behavior; platform
+coverage and privilege-session limits are in [setup convergence](../architecture/PRIVILEGE_BROKER.md#setup-convergence).
 
-| Flag | Effect |
-|---|---|
-| `--include-optional` | Applies optional safeguards as well as required ones. Without it, optional items are listed but not installed. |
-| `--maintenance-window` | Acknowledges that a safeguard may interrupt a graphical or remote session. |
-| `--sudo-mode=ask` | Lets the in-process `sudo` wrapper prompt when a host item needs privilege, on an interactive run. The default is `skip`, which lists privileged items instead of installing them. An already-elevated invocation also installs them, but it runs the whole of setup as root and is outside this flow. |
-| `--onboarding=auto` | Opens a browser when the invoking session can show one, and otherwise prints the URL and an exact resume command. |
-
-Setup verifies before it reports. Its last line states a verified readiness
-verdict rather than an unconditional success, and `--result-file` writes that
-verdict into the machine-readable result document under `readiness`. A present
-configuration marker no longer implies success on its own: when the verdict
-contradicts it, setup reports `configuration_pending` and names this command.
+Setup reports its readiness verdict and writes it under `readiness` in
+`--result-file`. A completion marker alone does not prove readiness; a
+conflicting verdict returns `configuration_pending`.
 
 ### Inspection
 
@@ -54,17 +47,7 @@ vrooli doctor
 `vrooli setup status` prints the readiness verdict beside the configuration
 marker line and applies no host change.
 
-These commands are the best current entrypoints for understanding environment expectations, tool availability, and setup posture.
-
-### Resource enablement precedence
-
-The effective resource catalog combines the project `.vrooli/service.json`
-with operator state. An explicit project or operator `enabled: false` wins over
-a scenario dependency declaration, including `startup_policy: "try_start"`.
-The scenario remains free to declare the dependency, but the control plane
-does not start a resource the operator disabled. `vrooli resource status --json`
-reports `disabled_dependency_consumers` with each declaring scenario and its
-startup policy so the decision is observable.
+See [Configuring Resources](../configuration/resources.md) for resource enablement and startup precedence.
 
 Setup progress is intentionally safe in non-interactive environments. It emits
 plain newline-delimited diagnostics by default, with optional structured events
@@ -221,12 +204,6 @@ For scenario-specific runtime expectations:
 
 This page is intentionally conservative until a fuller environment-and-secrets rewrite happens, but it is still the canonical project-level reference for the current posture.
 
-## Platform evidence
-
-Platform-specific setup and lifecycle claims use the canonical
-[platform support matrix](platform-support.md). In particular, macOS is not
-hardware-qualified merely because a setup or cross-build command is available.
-
 ## Host disk floor (operator steps)
 
 > Added after the 2026-07-31 disk-exhaustion incident, in which the host root
@@ -326,26 +303,14 @@ crontab -l | grep -v 'automation/scheduled-monitor.sh' | crontab -
 crontab -l   # confirm no entry references a relative path
 ```
 
-### Rehearsal
+### Read-only watchdog fixture
 
-Never rehearse against the live root filesystem. Drive the watchdog's disk
-logic against a synthetic `df` and a stubbed `storage-manager` instead, or a
-loopback mount if one can be created:
+The documented shell rehearsal is obsolete; setup installs the
+`vrooli-watchdog` binary. Its fixture mode below tests captured host-pressure
+inputs, not disk pressure.
 
-```bash
-truncate -s 200M /tmp/vrooli-rehearsal.img
-mkfs.ext4 -q /tmp/vrooli-rehearsal.img
-mkdir -p /tmp/vrooli-rehearsal-mnt
-sudo mount -o loop /tmp/vrooli-rehearsal.img /tmp/vrooli-rehearsal-mnt
-
-# Fill past each band and observe the watchdog's decisions:
-EMERGENCY_WATCHDOG_MOUNT=/tmp/vrooli-rehearsal-mnt \
-EMERGENCY_WATCHDOG_DISK_FLOOR_MB=100 \
-EMERGENCY_WATCHDOG_DISK_THRESHOLD=0 \
-  sh ~/.vrooli/libexec/emergency-watchdog.sh
-
-Rehearse memory and fork-rate findings without filling the live filesystem by
-running the installed binary against captured inputs:
+Use captured inputs to inspect memory and fork-rate findings without touching
+the live host:
 
 ```bash
 vrooli-watchdog --report-only \
@@ -354,15 +319,3 @@ vrooli-watchdog --report-only \
 
 The fixture path exercises CPU, stranded-memory, fork-rate, workload ownership,
 and crash-loop evidence while leaving the host, swap policy, and disk untouched.
-
-sudo umount /tmp/vrooli-rehearsal-mnt && rm -f /tmp/vrooli-rehearsal.img
-```
-
-### Reading current disk pressure
-
-One command reports usage, the active band, the last violation, and the last
-remediation result:
-
-```bash
-curl -s http://localhost:16914/api/v1/disk-pressure | jq
-```

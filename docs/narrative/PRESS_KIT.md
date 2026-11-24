@@ -2,7 +2,7 @@
 
 Composition skeleton for journalists, podcasters, partners, and external publications. Pulls boilerplate from canonical sources rather than re-deriving each time.
 
-**Write rule:** operator-curated via accepted `brand-guideline-update` decisions. Agents propose; do not edit directly.
+**Write rule:** follow the [narrative posture](README.md#posture).
 
 **Status:** Skeleton composition rule. Final boilerplate copy is operator-authored, populated as the project's external presence matures.
 

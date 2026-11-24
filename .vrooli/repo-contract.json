@@ -56,7 +56,17 @@
       "canonical-seams.json",
       "portability-lint-allowlist.json",
       "testing.json",
-      "work"
+      "work",
+      "artifacts",
+      "disposable-leftovers.json",
+      "endpoints.json",
+      "evidence",
+      "plan-artifacts",
+      "portability",
+      "service-principals.json",
+      "state",
+      "template-validation",
+      "tmp"
     ]
   },
   "targets": {
@@ -335,7 +345,7 @@
   "storage": {
     "roots": [
       { "id": "go-work-dirs", "root": "$VROOLI_HOME/tmp/go-work", "class": "tmp", "tier": "safe", "max_age": "6h", "max_bytes": "20GiB", "protect": [], "lease_check": "open_handle", "platforms": ["linux", "macos", "windows"], "rationale": "policy: bounded Go work directories are disposable after six hours once no process holds a handle, cwd, or mapping inside them; name markers such as *.lock and .keep left in a test fixture home are advisory under this check" },
-      { "id": "go-build-cache", "root": "$USER_HOME/.cache/go-build", "class": "cache", "tier": "conditional", "max_age": "14d", "max_bytes": "40GiB", "protect": ["trim.txt", "README", "*.lock"], "lease_check": "owner", "platforms": ["linux", "macos", "windows"], "tool_prune_command": ["go", "clean", "-cache"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": false }, "rationale": "Shared Go outputs remain in use between compile, link and vet without continuously open handles, so external file deletion needs a build-use or quiescence proof the generic file provider cannot give. The declared whole-cache clean command is withheld: it deletes shards without build-use coordination and resolves its cache from the runner environment. Only native Go age-based trimming currently preserves recently used outputs; operator or standing approval does not prove quiescence or exact target binding." },
+      { "id": "go-build-cache", "root": "$USER_HOME/.cache/go-build", "class": "cache", "tier": "safe_with_owner", "max_age": "14d", "max_bytes": "40GiB", "protect": ["trim.txt", "README", "*.lock"], "lease_check": "owner", "platforms": ["linux", "macos", "windows"], "owner_reclaim_command": ["vrooli", "host", "go-cache"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": false }, "rationale": "Shared Go outputs stay in use from a cache Get or Put until the go command exits, without continuously open handles, so neither file age nor open-handle scans prove an output is released. The control plane owns the proof: GOCACHEPROG routes every go command of this user through vrooli-gocacheprog, whose session journals pin each output a live build holds, and the owner audits the host for go commands outside the protocol before every deletion batch. Storage Manager plans and invokes `vrooli host go-cache`; the owner removes least-recently-used entries idle for at least two hours down to the 40GiB budget declared in internal/tools/go/tool.json. go clean -cache and file walks stay refused." },
       { "id": "uv-cache", "root": "$USER_HOME/.cache/uv", "class": "cache", "tier": "regenerable", "max_age": "30d", "max_bytes": "8GiB", "protect": [], "lease_check": "none", "platforms": ["linux", "macos"], "tool_prune_command": ["uv", "cache", "prune"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": true }, "rationale": "policy: bounded working-set share for a reproducible Python cache" },
       { "id": "huggingface-cache", "root": "$USER_HOME/.cache/huggingface/hub", "class": "cache", "tier": "regenerable", "max_age": "30d", "max_bytes": "20GiB", "protect": [], "lease_check": "model_pin", "platforms": ["linux", "macos"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": true }, "rationale": "policy: bounded downloadable model cache; pinned models require a future lease-aware provider" },
       { "id": "playwright-cache", "root": "$USER_HOME/.cache/ms-playwright", "class": "cache", "tier": "regenerable", "max_age": "30d", "max_bytes": "20GiB", "protect": [], "lease_check": "open_handle", "platforms": ["linux", "macos"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": true }, "rationale": "policy: bounded browser installation cache" },

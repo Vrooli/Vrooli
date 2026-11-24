@@ -133,7 +133,7 @@ Honesty flags the producer must attach to a dev-log draft:
 
 ## Promotion path for craft observations
 
-Patterns observed during production runs of `x-dev-log` are written to `marketing-craft-observation/dev-log/<slug>`. Promotion targets per [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../../../../agent-system/TEAM_DOCS_PATTERNS.md):
+Patterns observed during production runs of `x-dev-log` are written to `marketing-craft-observation/dev-log/<slug>`. Promotion targets per [`docs/agent-system/README.md#who-may-edit`](../../../../agent-system/README.md#who-may-edit):
 
 - **Skill edit** — most observations land as edits to the `x-dev-log` skill (mining-strategy rubric, interestingness-scoring weights, output-contract refinements). Primary promotion target.
 - **This file** — observations that change strategic canon (audience model, conversion goal, new failure mode, type-specific voice rule).

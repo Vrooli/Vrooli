@@ -2,7 +2,7 @@
 
 This is the canonical project description at multiple depths. Advertisers pull from here when grounding drafts. Different audiences and contexts get different depths.
 
-**Write rule:** operator-curated via accepted `brand-guideline-update` decisions. Agents propose; do not edit directly.
+**Write rule:** follow the [narrative posture](README.md#posture).
 
 ---
 

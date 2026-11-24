@@ -4,20 +4,20 @@
 
 `log_volume_bounds` limits the host log store and reports a platform verdict.
 
-`harness_file_ownership` hands root-owned coding-agent files back to the operator,
-which is what `sudo vrooli setup --include-optional` does for an agent in the
-`needs_setup` state. It changes ownership only and never follows a symlink. It acts
-only on paths whose parent resolves inside the invoking user's home, and ignores
-`GROK_HOME`. See
+`harness_file_ownership` restores operator ownership on root-owned coding-agent
+files. Apply this optional safeguard with
+`vrooli setup --include-optional --sudo-mode=ask` from the operator account. It
+changes ownership only, batches affected paths into one `chown` command, never
+follows a symlink, and ignores `GROK_HOME`. See
 [Coding-agent updates](tools.md#coding-agent-updates).
 
 `generated_tree_ownership` does the same for the repository's generated Proto trees
 (`packages/proto/gen`, the replaced copy `gen.previous` and staging directories). A
 root-run materialization can leave root-owned files there that an unprivileged
-`make build` cannot replace. Setup is the one place sudo runs, so setup repairs them. It
-changes ownership recursively and never follows a symlink. Materialization and
-harness installs also hand their files back to the directory's owner when they run as
-root, so the repair is a backstop rather than the normal path.
+`make build` cannot replace. This optional safeguard repairs ownership recursively
+without following symlinks. Materialization and harness installs also hand their
+files back to the directory's owner when they run as root, so the repair is a
+backstop rather than the normal path.
 On Linux it configures the supported rotation and rate-limit controls. On
 macOS and Windows the current handler reports `unsupported` because native
 log-store controls are not implemented yet.
@@ -44,7 +44,7 @@ Safeguards are idempotent host-state modifications Vrooli applies to make the ho
 | Top-level project requirements | `.vrooli/service.json` | `hostSafeguards[]` (each entry: `hostRequirement`) |
 | Per-scenario requirements | `scenarios/<name>/.vrooli/service.json` | `hostSafeguards[]` |
 | Per-resource requirements | `resources/<name>/resource.json` | `hostSafeguards[]` |
-| Operator opt-in | `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` | `host_safeguards.<name>.opted_in` |
+| Operator opt-in | `operator state` | `host_safeguards.<name>.opted_in` |
 
 ## Native bubblewrap namespaces
 
@@ -57,14 +57,14 @@ Inspect with `vrooli host safeguard bubblewrap_userns --dry-run --json`.
 Apply with `vrooli host safeguard bubblewrap_userns --sudo-mode ask --json`
 from an operator terminal. Before the new CLI is installed, use
 `go run ./cmd/vrooli host safeguard bubblewrap_userns --sudo-mode ask --json`
-from the repository. Enter the sudo password only in that terminal.
+from the repository. Enter any sudo password only in that terminal. Main
+setup's supported privilege coverage and limits are in [setup convergence](../../architecture/PRIVILEGE_BROKER.md#setup-convergence).
 
 The handler probes actual user, mount, PID and network namespaces. It grants
 user namespaces only to the system bubblewrap executable through
-`/etc/apparmor.d/vrooli-bubblewrap`. Existing working distribution policy needs
-no rewrite. An unfamiliar file at the managed path is not overwritten. Root
-setup probes as the identified invoking user; root without that identity is
-unverified. macOS and native Windows are not applicable.
+`/etc/apparmor.d/vrooli-bubblewrap`. Root setup probes as the identified
+invoking user; root without that identity is unverified. macOS and native
+Windows are not applicable.
 
 Read `applied` and `execution_state` for the safeguard verdict. A successful
 repair marks an earlier namespace-probe error as `resolved pre-repair failure`
@@ -231,7 +231,7 @@ Identical to tools — a safeguard reference is a `hostRequirement` entry in a `
 A safeguard may declare a JSON Schema `config` object in its
 `internal/safeguards/<name>/safeguard.json` manifest. The operator's selected
 values live beside `opted_in` at
-`~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json → host_safeguards.<name>.config`. Resolution
+`operator state → host_safeguards.<name>.config`. Resolution
 starts with manifest property defaults, overlays recorded values, validates the
 merged object, and passes it to the handler as `ResolvedRequirement.Config`.
 Invalid values are reported as an unsupported safeguard with an
@@ -511,8 +511,8 @@ The three boot-path safeguards (`autoheal_watchdog`, `runtime_supervisor`,
 `emergency_watchdog`) declare it. Each one runs its rendered unit through the
 native validator during Inspect and records the verdict in `evidence`, so a
 render that systemd would refuse is visible while the host is healthy instead
-of at the next boot. An unavailable validator is recorded as a note: unproven
-is not accepted.
+of at the next boot. An unavailable result remains unproven; see the [native
+service validation contract](../../reference/native-service-definitions.md#renderers-and-validators).
 
 Record `host_safeguards.login_keyring_unlock.opted_in=true` through the
 onboarding operator-state `apply` command, then run setup from a session that
@@ -564,7 +564,7 @@ cross-safeguard visibility must match `systemd-sysctl`.
 
 ## Opt-in flow and operator-state states
 
-`~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` is the durable record of the operator's choice.
+`operator state` is the durable record of the operator's choice.
 For each optional safeguard, `host_safeguards.<name>.opted_in` has three
 observable states:
 

@@ -152,8 +152,22 @@ belongs to the desktop-packaging goal and plan `bde99dd3`
 
 ```bash
 vrooli agent list [--json] [--idle-after 168h]
+vrooli agent list --session-id <harness-session-id> [--json]
 vrooli status              # "Agent sessions: N live (M in this tree)"
 ```
+
+The exact `--session-id` read selects one lease directly from the canonical
+runtime registry, including stopped or expired records, and returns only that
+one lease row. It is read-only and does not backfill owner data. `lease_status`,
+`binding_id`, `kernel_state` and `scope_held` distinguish the recorded lease
+from current process/scope observation; a missing scope or dead leader is not
+by itself proof that every descendant is gone.
+
+`vrooli runtime instance inspect <instance-id> --json` includes that exact
+generation's registered process references and a current PID/birth check. A
+reference is `present` only when its host boot ID and process start match; an
+unreadable process inventory or missing identity stays `unknown`. Unregistered
+descendants still require scope/process ownership evidence.
 
 The table shows session, agent, state, owner and owner state, tree, scope,
 pid, age, claims and frozen. `--json` adds, per row, `owner {kind, ref, alive,
@@ -203,6 +217,7 @@ unverified cleanup. A deadline alone is never proof that descendants stopped.
 ```bash
 vrooli agent reap --orphaned --dry-run [--json]       # what would stop, with owner evidence and memory
 vrooli agent reap --orphaned [--older-than 1h] [--json]
+vrooli agent reap --orphaned --exact-scope <scope-unit> --dry-run --json
 ```
 
 Reap considers only `orphaned` sessions; `live`, `idle`, `agentless`,
@@ -222,6 +237,21 @@ Every stop, failure or unsupported outcome writes one row to
 the memory, swap and tasks the scope held (`-1` for a figure that was
 unknown). `--dry-run` never calls the
 platform adapter and writes no audit row.
+
+For a decision that names one session, `--exact-scope` accepts only its full
+`vrooli-agent-….scope` unit. The dry-run requires a held, owner-gone session,
+an unfrozen scope, a canonical cgroup path, and readable PID/start-time/name
+facts for every current member. It prints the exact pre-action RAM/swap
+estimate and an authorization target of the form
+`agent-session:reap/<exact-scope>/proof/<sha256>`. Requesting the
+`agent-session-reaping` policy requires that exact target; wildcard and
+prefix targets are rejected. After an operator approves the request in Agent
+Manager, the CLI verifies the paired baseline/operation credentials and the
+canonical `agent-session.reap` grant. Before a stop, it freshly reconciles the
+owner and recaptures cgroup and process-incarnation evidence; any change makes
+the approval stale. This path never accepts a caller-supplied PID or cgroup
+path. The durable audit row includes the decision ID and proof digest. A
+pre-action estimate is not reported as measured reclaimed memory.
 
 The runtime supervisor can run the same reap unattended. It is **off** by
 default: set `VROOLI_TUNING_AGENT_ORPHAN_REAP_INTERVAL` (for example `1h`) in

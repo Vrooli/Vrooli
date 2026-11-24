@@ -52,14 +52,20 @@ lint-go: ## Lint Go code
 		if command -v golangci-lint >/dev/null 2>&1; then \
 			cd api && GOWORK=off golangci-lint run ./...; \
 		elif command -v go >/dev/null 2>&1; then \
-			cd api && GOWORK=off go vet ./... && GOWORK=off go fmt ./...; \
+			cd api && GOWORK=off go vet ./... && { \
+				unformatted="$$(if command -v gofumpt >/dev/null 2>&1; then gofumpt -l .; else gofmt -l .; fi)" || exit $$?; \
+				if [ -n "$$unformatted" ]; then printf 'Unformatted Go files in api:\n%s\n' "$$unformatted"; exit 1; fi; \
+			}; \
 		fi; \
 	fi
 	@if [ -d cli ] && find cli -name "*.go" | head -1 | grep -q .; then \
 		if command -v golangci-lint >/dev/null 2>&1; then \
 			cd cli && GOWORK=off golangci-lint run ./...; \
 		elif command -v go >/dev/null 2>&1; then \
-			cd cli && GOWORK=off go vet ./... && GOWORK=off go fmt ./...; \
+			cd cli && GOWORK=off go vet ./... && { \
+				unformatted="$$(if command -v gofumpt >/dev/null 2>&1; then gofumpt -l .; else gofmt -l .; fi)" || exit $$?; \
+				if [ -n "$$unformatted" ]; then printf 'Unformatted Go files in cli:\n%s\n' "$$unformatted"; exit 1; fi; \
+			}; \
 		fi; \
 	fi
 endif

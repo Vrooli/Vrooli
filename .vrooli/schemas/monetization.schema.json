@@ -24,6 +24,11 @@
       "type": "array",
       "items": { "$ref": "#/$defs/ai_feature" }
     },
+    "credit_features": {
+      "description": "Scenario-owned AI Gateway role to billing-feature bindings. These bindings define owner scope; they contain no caller-provided authorization or price.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/credit_feature" }
+    },
     "meters": {
       "type": "array",
       "items": { "$ref": "#/$defs/meter" }
@@ -55,6 +60,15 @@
         "max_user_turns": { "type": "integer", "const": 1 },
         "schema": { "type": "object" },
         "pinned_instruction_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "credit_feature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "gateway_roles"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "pattern": "^[a-z][a-z0-9._-]*$" },
+        "gateway_roles": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
       }
     },
     "meter": {

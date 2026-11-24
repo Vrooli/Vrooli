@@ -153,6 +153,6 @@ This document owns the syntax and vocabulary. Individual tools own domain valida
 - Prompt-manager validates `topic` references against `topics.json`.
 - Test-genie validates documentation-phase references such as `path` and `doc` during scenario tests.
 - Knowledge-observatory reports documentation audit issues for relationship references and marked inline references.
-- Swarm-manager is the source of truth for `goal` references. Automated resolution against `swarm-manager goals list` is target-state; until it exists, owning teams diff their `goal:` references against the live goal list in their own loops (see `docs/agent-system/OPERATING_GRAPHS.md` §"State belongs to scenarios; prose holds judgment").
+- Swarm-manager is the source of truth for `goal` references. Automated resolution against `swarm-manager goals list` is target-state; until it exists, owning teams diff their `goal:` references against the live goal list in their own loops (see `scenarios/prompt-manager/docs/internal/OPERATING_GRAPHS.md` §"State belongs to scenarios; prose holds judgment").
 
 Scanners should keep inferred heuristic detection as a permanent backstop for unmarked references. A marked reference is the high-confidence form; an unmarked slash-shaped inline string is an inferred hint that tools may validate when it looks relevant.

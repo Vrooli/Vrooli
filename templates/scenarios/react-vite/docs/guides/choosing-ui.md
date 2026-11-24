@@ -3,7 +3,7 @@
 
 Walk a scenario author through the one path from a generated scaffold to a
 product-shaped UI: decide, configure, adopt, build. Gate 5 in
-`path:../START-HERE.md` is the checklist; this guide is the reasoning and the
+`path:templates/scenarios/react-vite/docs/START-HERE.md` is the checklist; this guide is the reasoning and the
 reference for what the shell and the library can do.
 
 ## Why the order matters
@@ -128,8 +128,8 @@ react-component-library components ingest {{SCENARIO_ID}} ui/src/features/<name>
 
 ## Cross-references
 
-- `path:../START-HERE.md` — Gate 5, the checklist this guide explains
-- `path:../concepts/UI-ARCHITECTURE.md` — where files go and why
-- `path:../concepts/EXPERIENCE.md` — where the decision is written
-- `path:../../DESIGN.md` — the token contract the kit provides
-- `path:../../experience/README.md` — turning the decision into typed claims
+- `path:templates/scenarios/react-vite/docs/START-HERE.md` — Gate 5, the checklist this guide explains
+- `path:templates/scenarios/react-vite/docs/concepts/UI-ARCHITECTURE.md` — where files go and why
+- `path:templates/scenarios/react-vite/docs/concepts/EXPERIENCE.md` — where the decision is written
+- `path:templates/design/vrooli-default/DESIGN.md` — the token contract the default kit provides
+- `path:templates/scenarios/react-vite/experience/README.md` — turning the decision into typed claims

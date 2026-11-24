@@ -6,7 +6,7 @@ This folder is the **plan-of-record** for friction-side canon owned by the `meta
 
 Maintained by the `meta-optimization` team. Operator-curated via `meta-self-improvement` decisions (owned by debt-curator).
 
-See [`docs/agent-system/TEAM_DOCS_PATTERNS.md`](../agent-system/TEAM_DOCS_PATTERNS.md) for the pattern definition.
+See [`docs/agent-system/README.md#who-may-edit`](../agent-system/README.md#who-may-edit) for the pattern definition.
 
 ## Start here for agents
 
@@ -19,7 +19,7 @@ Use this README first, then choose the file that matches the work:
 | How does the meta-optimization team work end to end? | [`operating/OPERATING_MODEL.md`](operating/OPERATING_MODEL.md) |
 | Why is friction reporting cross-team rather than per-team? | this README §"Why cross-team" |
 | What is the cross-team flow? | this README §"Cross-team flow" |
-| What is the team's mission? | [`docs/agent-system/REFERENCE_SCENARIOS.md`](../agent-system/REFERENCE_SCENARIOS.md) and the `meta-optimization/team.json` mission field |
+| What is the team's mission? | [`scenarios/meta-optimization-manager/docs/reference/REFERENCE_SCENARIOS.md`](../../scenarios/meta-optimization-manager/docs/reference/REFERENCE_SCENARIOS.md) and the `meta-optimization/team.json` mission field |
 
 ## Why cross-team
 
@@ -27,7 +27,7 @@ Friction signals — things that were missing, broken, confusing, slow, undocume
 
 `friction-inbox/*` is the universal-source intake on `meta-optimization` that closes that loop. Any agent on any team files friction once via the `report-friction` skill; the `friction-curator` member triages and routes to the appropriate scoped friction topic. The scoped-topic owner (toolchain-validator, run-introspector, team-agent-optimizer, debt-curator) then synthesizes patterns and proposes durable fixes via their existing work types.
 
-This mirrors the bug-inbox pattern on scenario-qa. The two universal observation flows together establish a reusable architectural primitive — see [`docs/agent-system/TOPICS_SCHEMA.md`](../agent-system/TOPICS_SCHEMA.md) § Universal-source intakes.
+This mirrors the bug-inbox pattern on scenario-qa. The two universal observation flows together establish a reusable architectural primitive — see [`scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md`](../../scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md) § Universal-source intakes.
 
 ## Cross-team flow
 
@@ -75,9 +75,9 @@ The curator is a **router, not an analyst**. Synthesis stays with debt-curator. 
 
 ## Cross-references
 
-- [`docs/agent-system/INTAKE_PIPELINE.md`](../agent-system/INTAKE_PIPELINE.md) — the inbox-router-drain pattern used by the friction-curator.
-- [`docs/agent-system/TOPICS.md`](../agent-system/TOPICS.md) — registry of every active topic prefix; meta-optimization entries (including friction-inbox and friction-triage-record) live there.
-- [`docs/agent-system/TOPICS_SCHEMA.md`](../agent-system/TOPICS_SCHEMA.md) — schema reference for `topics.json`; documents `source_team: "*"` (universal-source) semantics that friction-inbox uses.
+- [`scenarios/prompt-manager/docs/internal/INTAKE_PIPELINE.md`](../../scenarios/prompt-manager/docs/internal/INTAKE_PIPELINE.md) — the inbox-router-drain pattern used by the friction-curator.
+- [`scenarios/prompt-manager/docs/internal/TOPICS.md`](../../scenarios/prompt-manager/docs/internal/TOPICS.md) — registry of every active topic prefix; meta-optimization entries (including friction-inbox and friction-triage-record) live there.
+- [`scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md`](../../scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md) — schema reference for `topics.json`; documents `source_team: "*"` (universal-source) semantics that friction-inbox uses.
 - [`docs/scenario-qa/taxonomies/bug-report/README.md`](../scenario-qa/taxonomies/bug-report/README.md) — the sister universal observation flow on scenario-qa.
 - [`docs/scenario-qa/README.md`](../scenario-qa/README.md) — pattern this folder mirrors (paired-doc-and-skill discipline applies).
 - [`scenarios/prompt-manager/store/skills/packs/core/report-friction/SKILL.md`](../../scenarios/prompt-manager/store/skills/packs/core/report-friction/SKILL.md) — universal writer skill.
@@ -89,5 +89,5 @@ Flagged here so future operator-curated decisions can promote them when the subs
 
 - **Friction-routing work type.** If routing becomes non-determinate (e.g., a sixth scope arrives without a natural sub-member owner), the friction-curator may need a `friction-routing` work type. Today routing is determinate; defer until real pressure shows.
 - **Additional scoped friction topics.** If `unknown` scope exceeds 30% of total intake during the observation window (Phase M of the implementation plan), add new scoped friction topics on existing sub-members — candidates include `topic[future]:friction-report/skill/*` on skill-optimizer, `topic[future]:friction-report/docs/*` on a doc owner, `topic[future]:friction-report/policy/*` on meta-contrarian. Empirical, not speculative.
-- **Universal observation flow primitive.** With two instances (bug-inbox, friction-inbox), the pattern becomes worth documenting in [`docs/agent-system/TOPICS_SCHEMA.md`](../agent-system/TOPICS_SCHEMA.md) as a named primitive with three parts: universal-source intake + writer skill + drainer agent + trigger paragraph.
+- **Universal observation flow primitive.** With two instances (bug-inbox, friction-inbox), the pattern becomes worth documenting in [`scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md`](../../scenarios/prompt-manager/docs/internal/TOPICS_SCHEMA.md) as a named primitive with three parts: universal-source intake + writer skill + drainer agent + trigger paragraph.
 - **Cross-team merge of duplicate friction.** Today the curator may flag `repeats-existing-friction-topic` honestly; future work may add automatic merge of duplicate inbox entries before routing.

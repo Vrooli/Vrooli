@@ -164,3 +164,18 @@ Inspection surfaces are part of the seam: `test-genie phases list|inspect|applic
 validation, and atomic persistence. The onboarding `operatorstateapi` package
 and its Connect handlers are a typed transport adapter over that service; they
 do not introduce a second store or constructor.
+
+## Git Control Tower API environment seam
+
+`scenarios/git-control-tower/api/internal/envx.Reader` is the API-owned
+environment boundary. Production composition passes `envx.OS{}`; focused tests
+provide a closed reader. Authentication configuration, baseline storage
+namespace selection, and baseline git sandbox detection consume this seam so
+tests can control the same values that affect runtime behavior. Baseline
+digest/reuse policy reads are also exposed through environment-reader helpers.
+
+The same API owns outbound HTTP through `HTTPDoer` and operation logging through
+`internal/logx.Logger`. `NewServer` wires the configured HTTP client and standard
+logger, while the auth and artifact handlers receive the doer and Connect
+handlers receive the logger explicitly. Tests can substitute both at the
+consumer boundary.

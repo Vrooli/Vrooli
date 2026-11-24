@@ -56,7 +56,11 @@ Flow:
    storage-manager's signed webhook (`POST /api/v1/events/notification-hub`,
    `operatordecision.Webhook` → `deletiongrant.Resolver`). On `approve` the resolver stamps the
    grant's expiry (requested TTL, capped at 30d) on the stored ask; on any other answer it
-   records the refusal. Replay-safe and idempotent.
+   records the refusal. Replay-safe and idempotent. Before the resolver runs, the webhook reads the
+   ask back from the Hub as storage-manager's own ask-reader (`deletiongrant.NewResolutionReader`)
+   and applies the Hub's record, so an event published by anything else on the bus cannot approve
+   a deletion; until the operator issues that credential (`scenario-authenticator service-principals
+   sync --apply`) the body is applied as before and each such resolution is counted and logged.
 4. **Project.** The policy publish loop (`policybridge.Start` → `applyGrants`) queries approved,
    unexpired asks (`deletiongrant.Store.ActiveGrantRoots`) and adds one `allow` PathRule per
    path, at a priority above declared roots so it overrides an `ask`. The hook (unchanged) then
@@ -203,3 +207,44 @@ as a hook allow rule. Implemented 2026-10-28 in
   `~/.vrooli/state/vrooli/agent-manager/evidence-retention/approvals/`, next to the receipts.
   `agent-manager storage evidence-prune --status <decision-id>` reads one.
 - Humans keep the direct path: `--apply --local-owner`.
+
+## Standing rule: what the session created, and declared leftovers
+
+Status: IMPLEMENTED and tested 2026-11-15 on the operator's answer `rule` to hub ask 68107a9e
+(`~/.vrooli/research/topics/repository-hygiene/work/DELETION-STANDING-RULE/BRIEF.md`). The built
+policy runner and Claude Code hook are not installed until the root `make install` runs.
+
+Most deletion requests were not decisions: they were an agent's own scratch, or leftovers that tests
+and build checks make and never clean up. The delete guard now lets an agent remove those without
+asking, and everything else goes through the guard's existing rules unchanged.
+
+**What the session created** (`packages/agentharness/created*.go`). No single source can name every
+file a session made, so independent resolvers each answer with a certainty and the guard loosens
+only for a path the combined answer vouches for:
+
+| Resolver | Source | Certainty |
+|---|---|---|
+| `workspace-sandbox` | The sandbox change record (`GET /api/v1/sandboxes/{id}/diff`), for runs launched into a sandbox; reached through `WORKSPACE_SANDBOX_URL` and `VROOLI_SANDBOX_ID` | recorded (3) |
+| `birth-time` | The file system's birth time is after the session started (24 hour cap), for any identified session. It cannot say whose file it is, so it only corroborates | low (1); with an attributing resolver it lifts a low answer to medium, never higher |
+| `transcript` | The harness transcript: a Claude Code `toolUseResult` of type `create`, a Codex `*** Add File`; the hook payload's `transcript_path`, else the session's harness home (a Web Console terminal session or isolated Agent Manager run sets its own `CODEX_HOME` / `CLAUDE_CONFIG_DIR`) | medium (2); a `mkdir` or `touch` command only low (1) |
+
+Two independent attributing resolvers (sandbox, transcript) that agree raise the result one level. Birth time is not attributing: alone it stays low and loosens nothing, and beside a transcript or sandbox answer it lifts a low answer to medium and leaves medium and recorded as they were. Medium or higher loosens a
+floor-default ask or deny (a folder tree in the repository, a path in the home folder outside every
+declaration); a location an owner declares needs its confirmation (`ask`) needs recorded; an
+owner-protected location (`deny`), the hard floor, a pattern, and a folder holding a stricter
+declared location are never loosened. A path git tracks, or may track, is never vouched. Every
+automatic allowance is appended to `created-deletions.jsonl` beside the snapshot bundle.
+
+One switch returns every deletion to the other rules: `vrooli-policy-runner created-paths off`
+(`on`, `status` and `audit --since 24h` are the same command).
+
+**Declared leftovers** (`.vrooli/disposable-leftovers.json`, read by storage-manager). Each entry
+names the owner, the folder, a generated-name glob and, where possible, the only files a leftover may
+hold. Storage Manager publishes them as `name_rules` (a field an older policy runner ignores, so one
+never reads a name rule as a rule for the whole folder). The guard expands a name rule against the
+folder's existing children when it decides, so a leftover made a moment ago is covered, and a folder
+holding anything beside the declared files asks. `~/.vrooli/tmp` counts as a temporary directory.
+
+The replay in `scenarios/storage-manager/api/internal/policybridge/replay_test.go` runs the 28
+historical Storage Manager deletion questions (`testdata/historical-asks.json`) through the real
+runner with the real declarations; its output is the evidence for what the rule covers.

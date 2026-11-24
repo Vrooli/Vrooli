@@ -209,3 +209,6 @@ design report and pre-cleanup document are recoverable through the
 [documentation preservation record](../internal/PROGRESS.md#documentation-cleanup--2026-09-07).
 
 This is one contract projected into both tiers. Tier 1 and Tier 2 may differ in packaging and process supervision, but they do not differ in what the scenario declares.
+
+
+For the React-Vite template code-surface ownership pattern, see the [React-Vite scenario architecture guide](react-vite-scenario-architecture.md).

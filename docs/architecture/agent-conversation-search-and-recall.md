@@ -516,12 +516,8 @@ delete as a repair shortcut.
 
 ## Preserved visual sources
 
-Historical HTML and editable canvas sources live beneath the protected
-control-plane runtime home (`~/.vrooli` for the invoking user).
-These are dated evidence or design supplements; this relocation does not
-change plan status or establish release readiness.
+Custody, backup, and plan-status rules are in the [control-plane runtime-home contract](../reference/storage-retention.md#control-plane-runtime-home-contract).
 
 - `plan-artifacts/docs-html-progress-20260908/docs/architecture/test-genie-adaptive-admission.html`
 
-The originating installation must retain these artifacts with its durable backups.
 Exact originals and SHA-256 hashes are in `backups/docs-html-progress-20260908/manifest.json`.

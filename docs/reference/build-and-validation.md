@@ -19,7 +19,6 @@ This is distinct from older documentation that described the entire platform as 
 make build
 make install
 make test
-make capability-conformance
 make check-platforms
 ```
 
@@ -101,14 +100,11 @@ old migration.
 
 ## Platform declaration conformance
 
-`vrooli capability conformance` is a pass/fail gate for authored platform
-claims. It discovers tool, safeguard, and scenario claims, maps each to its Go
-module, and cross-compiles each module for the six declared host OS/architecture
-cells: linux/amd64, linux/arm64, macos/amd64, macos/arm64, windows/amd64, and
-windows/arm64. A failure names the manifest, target OS/architecture, module,
-and compiler output. It is deliberately
-not a percentage or portability coverage cell: a false declaration is a gate
-failure.
+`vrooli capability conformance` checks Go modules under repo-contract targets
+across six OS/architecture cells, skipping vendor and documentation subtrees.
+This repository-wide compile/vet policy is independent of runtime platform
+lists. Results identify the manifest, module, target, and diagnostic. Progress
+goes to stderr; `BuildWidth` bounds concurrent tool processes.
 
 Run it locally with:
 

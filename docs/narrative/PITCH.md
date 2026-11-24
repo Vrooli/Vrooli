@@ -2,7 +2,7 @@
 
 This file is the source of truth for how Vrooli is described in any external context. Everything else (dev logs, blog posts, landing pages, family-explainer conversations, pitch decks, press kits) pulls from here.
 
-**Write rule:** operator-curated via accepted `brand-guideline-update` decisions. Agents propose; do not edit directly.
+**Write rule:** follow the [narrative posture](README.md#posture).
 
 ---
 

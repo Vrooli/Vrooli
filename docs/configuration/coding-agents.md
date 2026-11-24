@@ -45,7 +45,7 @@ Change a model in one place, `resources/<harness>/model-policy.json`, then apply
 |---|---|---|
 | `roles` | The model and effort of each role (`code.default`, `code.cheap`, ...) | Agent Manager run creation, `resource-<harness> policy resolve`, Web Console model choices |
 | `excluded_models`, `restricted_models` | Models no role may use, and models only named roles may use | Agent Manager admission, usage mode target validation, the policy validator |
-| `interactive_default` | The model and effort of a session started with no choice (Codex: `gpt-6.1-sol`, `high`) | `resource-codex settings apply` / `ensure` writes it into `~/.codex/config.toml` (`model`, `model_reasoning_effort`) through `native-settings.json` `value_from`; Web Console "full power" |
+| `interactive_default` | The model and effort of a session started with no choice (Codex: `gpt-6.2-sol`, `high`) | `resource-codex settings apply` / `ensure` writes it into `~/.codex/config.toml` (`model`, `model_reasoning_effort`) through `native-settings.json` `value_from`; Web Console "full power" |
 | `usage_tiers` | What a usage mode lowers each model to, the lowered session model, exempt roles | The launcher shim, Agent Manager run overlay, Web Console, read live each time a mode is applied |
 | A usage mode (`~/.vrooli/state/vrooli/usage-mode/mode.json`) | Only intent: kind, scope, expiry, extra exempt roles, an optional override model, effort, context limit | Same readers as `usage_tiers`; see [usage modes](usage-modes.md) |
 
@@ -57,7 +57,7 @@ Changing the interactive default: edit `interactive_default` in `resources/codex
 
 One rule: **do not name a model.** When you spawn a Codex sub-agent natively (`spawn_agent`), omit `model` and `reasoning_effort`. The child inherits the session's model, and the launcher already chose that from role policy (`resources/<harness>/model-policy.json`, roles such as `code.default` and `code.cheap`) and any active [usage mode](usage-modes.md). Nothing else needs to be known.
 
-- Never pass `gpt-6-astra` or any other model by hand. It bypasses role policy (astra is an excluded model) and the usage mode. Two research bursts on 2026-11-08 and 2026-11-09 used about 20% of a weekly Codex quota in about an hour on astra at `max` effort.
+- Never pass `gpt-6.2-astra` or any other model by hand. It bypasses role policy (astra is an excluded model) and the usage mode. Two research bursts on 2026-11-08 and 2026-11-09 used about 20% of a weekly Codex quota in about an hour on astra at `max` effort.
 - To run work on a specific role, start an Agent Manager run with `--role <role>`. Agent Manager applies policy, the usage mode and exclusions.
 - To see the current model for a role: `resource-codex policy resolve --role <role>` (policy default; an active usage mode then lowers new work, see `agent-manager usage mode status`).
 - If a task truly needs a different tier, tell the operator rather than overriding.

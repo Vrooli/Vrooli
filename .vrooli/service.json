@@ -94,6 +94,11 @@
         "enabled": true,
         "required": false
       },
+      "bahmni-lite": {
+        "description": "Explicitly started synthetic Bahmni Lite instances managed through the Bahmni Lite resource owner",
+        "enabled": false,
+        "required": false
+      },
       "claude-code": {
         "description": "Claude Code development assistant",
         "enabled": true,
@@ -142,6 +147,11 @@
         "enabled": true,
         "required": false
       },
+      "kale-tts": {
+        "description": "Experimental CPU-only Kale TTS Nano service (draft model; opt-in only)",
+        "enabled": true,
+        "required": false
+      },
       "kopia": {
         "description": "Content-addressed encrypted backup engine (kopia) for data-backup-manager",
         "enabled": true,
@@ -160,6 +170,11 @@
       },
       "n8n": {
         "description": "Task-scoped n8n workflow rehearsal runtimes; acquired and started only through the F7 runtime owner",
+        "enabled": false,
+        "required": false
+      },
+      "openemr": {
+        "description": "Explicitly started synthetic OpenEMR research instances managed through the openemr resource owner",
         "enabled": false,
         "required": false
       },

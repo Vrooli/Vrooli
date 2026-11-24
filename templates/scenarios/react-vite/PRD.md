@@ -14,16 +14,16 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | [Outcome title] | [One-line description]
-- [ ] OT-P0-002 | [Outcome title] | [One-line description]
+- [ ] OT-P0-001 | Name a measurable outcome | Describe its pass condition
+- [ ] OT-P0-002 | Name a measurable outcome | Describe its pass condition
 
 ### 🟠 P1 – Should have post-launch
-- [ ] OT-P1-001 | [Outcome title] | [One-line description]
-- [ ] OT-P1-002 | [Outcome title] | [One-line description]
+- [ ] OT-P1-001 | Name a measurable outcome | Describe its pass condition
+- [ ] OT-P1-002 | Name a measurable outcome | Describe its pass condition
 
 ### 🟢 P2 – Future / expansion
-- [ ] OT-P2-001 | [Outcome title] | [One-line description]
-- [ ] OT-P2-002 | [Outcome title] | [One-line description]
+- [ ] OT-P2-001 | Name a measurable outcome | Describe its pass condition
+- [ ] OT-P2-002 | Name a measurable outcome | Describe its pass condition
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: [React, Go, etc.]

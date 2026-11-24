@@ -1,10 +1,12 @@
 # Vrooli CLI Commands
 
-`vrooli capacity list` shows the live ledger by default. Use
-`vrooli capacity list --all` when terminal claim history is required.
-This document summarizes the current root CLI surface for the project-level platform.
+Open the command group for the task at hand:
+[project lifecycle](#project-lifecycle), [scenarios](#scenario-commands),
+[resources](#resource-commands), [package governance](#package-governance),
+or [agent sessions](#agent-sessions).
 
-Use `vrooli help` and subcommand `--help` output as the final authority for exact flags and any newly added commands.
+Use the relevant command's `--help` when you need to confirm flags. Use
+`vrooli help` to discover a command group you do not already know.
 
 Scenario and resource CLIs built on cli-core share one command-resolution
 contract: singular/plural names dispatch, unknown names list the closest real
@@ -233,7 +235,7 @@ vrooli supervision-set --kind resource --json
 
 `vrooli supervision-set` is the control-plane authority for the live set of
 scenarios and resources that the platform supervises. It computes the answer
-from `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` `core.seed` and canonical scenario
+from `operator state` → `core.seed` and canonical scenario
 dependency manifests; it does not read a database and does not own another
 configuration file. Each member reports its kind, effective supervision
 intent, and an attribution chain back to the seed that included it.
@@ -249,6 +251,9 @@ control-plane command or the in-process API; the compatibility verb does not
 own a separate list.
 
 ## Project Lifecycle
+
+Use `vrooli capacity list` for live claims and `vrooli capacity list --all`
+when you need terminal claim history.
 
 ```bash
 vrooli setup
@@ -332,6 +337,17 @@ template-manager generate <template> --id <slug> --display-name <name> --descrip
 vrooli scenario completeness <name>
 ```
 
+### Authentication mode and the scenario environment
+
+`vrooli scenario start|restart` never takes an authentication mode, provider
+list, credential, or agent identity from the caller's environment. A managed
+scenario runs in its manifest `authentication.default_mode`, and its processes
+inherit only a documented host allowlist. `vrooli scenario status <name>`
+prints an `Authentication:` section (`authentication` in `--json`) with the
+configured mode, its source, the mode each running process carries, and a
+mismatch warning when they differ. Contract:
+[Configuring Scenarios](../configuration/scenarios.md#scenario-process-environment).
+
 ### Local CPU profiles
 
 `vrooli scenario profile` collects a bounded CPU profile from the exact recorded
@@ -391,7 +407,9 @@ For a deliberate restart that must proceed without an owner lifecycle proof,
 pass `--force-lifecycle --lifecycle-override-reason '<reason>'`. This is an
 explicit risk acceptance: active requests or detached owner work may be
 interrupted. The lifecycle log records the reason and the missing or overridden
-proof. It does not allow replacement when the control plane cannot establish
+proof. When the provider's drain is held by work that never finishes, the forced
+restart waits a bounded 60 seconds, then replaces the provider and logs which
+requests or work were cut off. It does not allow replacement when the control plane cannot establish
 which process owns the target scenario.
 
 `vrooli scenario deploy-report <name>` lists, without git, the source files
@@ -586,8 +604,10 @@ vrooli agent recover list [--json]
 vrooli agent recover reconcile [--limit 32] [--json]
 vrooli agent recover investigate --scenario web-console --reason "API remains unhealthy" [--json]
 vrooli agent list [--json] [--idle-after 168h]
+vrooli agent list --session-id <harness-session-id> [--json]
 vrooli agent reap --orphaned --dry-run [--json]
 vrooli agent reap --orphaned [--older-than 1h] [--json]
+vrooli agent reap --orphaned --exact-scope <scope-unit> --dry-run --json
 vrooli agent thaw <session-or-scope>
 ```
 
@@ -804,6 +824,105 @@ Project-level plan hygiene remains under `vrooli hygiene --plans` and
 Plan lifecycle, inspection, render, import, archive, and authoring workflows
 belong on `plan-manager` directly.
 
+## Notification Hub decisions
+
+Use the `notification-hub` scenario CLI to ask the operator a decision and wait
+for the answer. Write the ask by `prompt-manager skill read notification-hub`;
+the packet model (attachments, answer form, context requests, packet check) is
+in `scenarios/notification-hub/docs/concepts/DECISION_PACKETS.md`.
+
+```bash
+# the minimum: a question, a menu, and a subject key
+notification-hub conversations ask --yes-no --subject-key <situation> --question "..."
+# a fuller ask; deadline 24h, sensitivity private, urgency normal and the idempotency key are defaults
+notification-hub conversations ask --question "..." --option a=Approve --option b=Reject --subject-key <situation> \
+  --explainer why.html --attach plan.md=Plan --attach screenshots/ --form form.yaml
+notification-hub conversations ask --body-file ask.md --yes-no --subject-key <situation> --dry-run   # check and preview, send nothing
+notification-hub conversations ask --yes-no --subject-key <situation> --question "..." --and-wait    # send and wait
+notification-hub conversations wait <id>   # --until-answer ignores context requests; default deadline 30m
+notification-hub conversations get <id>
+notification-hub conversations wait --subject-key <situation>   # resume: re-derive the key, no id needed
+notification-hub conversations request-context --ask-id <id> --question "..."   # operator
+notification-hub conversations answer --ask-id <id> --answer a --responses-file answers.json   # operator
+```
+
+- Exit status of `wait` and `ask --and-wait`: `0` an answer is available (answered,
+  or the default applied), `3` the operator asked for more context, `4` the deadline
+  passed with the ask still open, `5` the ask closed without an answer (withdrawn,
+  dismissed or expired). `wait` carries on across the Hub's ten-minute limit on one
+  wait and across dropped connections until its own deadline. `ask` output ends with
+  `ask_id=... state=... outcome=... next: ...`; `--json` is `{ask_id, state, outcome,
+  warnings[]}`. `--body-file FILE|-` reads the question (first paragraph),
+  `## Background` and `## Details` from markdown. `--yes-no` is the menu yes/no.
+  With no `--idempotency-key` the CLI derives one from the terms (the same terms give
+  the same ask, changed terms a revision) and prints it.
+- A revision (`ask --subject-key K` while that ask is open) says only what changes.
+  The CLI sends only the flags the command gave, and the Hub keeps the open ask's
+  question, answers, big picture, technical details, recommendation, default
+  answer, urgency, context link, lapse window, attachments, explainer and form
+  for everything left out; giving a field an empty value clears it. Naming
+  `--option` changes the menu, which replaces the ask and drops the old
+  recommendation and default. A sent attachment replaces the one with the same
+  name, a sent question the one with its id; `--clear-attachments` and
+  `--clear-questions` drop every current part first. A keyed ask gets a fresh
+  idempotency key on each send, so returning to earlier wording still revises.
+- `--attach PATH[=LABEL]` (repeatable) is a file or a folder. A folder is one
+  attachment of at most 500 files in path order; `.git`, `.hg`, `.svn`,
+  `node_modules`, `__pycache__`, `.venv`, `.mypy_cache`, `.pytest_cache`,
+  `.cache`, `.idea`, `.DS_Store` and `Thumbs.db` are skipped and symlinks inside
+  it are never followed. The attachment name is the sanitized base name
+  (`a.png`, `a-2.png`). A file over 64 MiB, or one that would take the total past
+  256 MiB, is left out from its size alone, without being read. The CLI hashes the files, asks the Hub which
+  blobs it lacks, and uploads only those.
+- Packet parts are optional, so a part that cannot be used never stops the ask:
+  a missing, unreadable or oversize attachment, a form file that cannot be
+  read (all questions left out), a broken question (only that one left out), a
+  broken recommendation, an upload failure (the Hub then leaves that
+  attachment out). Each is named on stderr as "Left out ..." and the ask is
+  sent. Only the cover (question, options, deadline, ...) can fail the command.
+- `--explainer PATH` is one self-contained HTML file (role explainer), sent
+  first.
+- `--form FILE` is YAML or JSON: a `questions:` list (or a bare list) of
+  `{id, type, prompt, help, required, choices, sections, sections_from,
+  recommended, recommendation_reason, unanswered_verdict}` with the proto's snake_case keys.
+  Types are `single_choice`, `multi_choice`, `variant`, `section_review` and
+  `text`. `recommended` is a choice key, a list of keys, a text, or a full
+  response mapping. `unanswered_verdict` (section_review) says what a section the
+  operator leaves alone means: `approve` (default), `change` or `drop`. `sections_from: <attachment name or path>` turns the `##`
+  and `###` headings of an attached Markdown file into review sections (key and
+  anchor are the GitHub-style heading slug). A question missing its id, prompt or type, with a
+  duplicate id or key, or with `sections_from` on something not attached is
+  left out with a warning; a choice or section whose attachment is not
+  attached loses only that link. `sections_from` keeps the first 40 headings and
+  cuts keys (64 characters), titles and anchors (200) to the Hub's limits; other
+  counts and lengths are the Hub's to enforce.
+- `answer --responses-file` takes a JSON list of responses, or an object
+  `{"responses": [...], "attachment_notes": [{"attachment", "path", "note"}]}`
+  (`path` names a file inside a folder attachment). `get` and `wait` show the
+  operator's notes on attachments.
+- `get`, `list` and `wait` read asks, and the Hub shows an ask only to the owner,
+  to a verified agent run for the asks of its conversation, or to the service that
+  raised it as an event. The CLI sends the shell's own credential (the agent
+  identity token, else `NOTIFICATION_HUB_API_TOKEN`); a shell with neither is
+  refused with a message saying what to do. A run's conversation is shared by the
+  runs recovered from it, spawned by it and re-attached to the same harness
+  session, so a recovered run reads, lists and waits on its predecessor's asks.
+  `list` shows only that lineage. An ask outside it answers "not found", except
+  that `get --subject-key K` and `wait --subject-key K` take the exact subject key
+  instead of an id: a run of the same owner may name it (the Hub never lists by
+  key). That is the resume path for an agent that lost its run: re-derive the key,
+  then `wait --subject-key K`. A wait by key follows the key when the asker
+  replaces the ask. `withdraw` follows the same rule.
+- The Hub's packet check prints to stderr after the ask (what it left out, then
+  advice), beside the writing-guide reminder; `--json` stdout stays the plain
+  response.
+- Exit status `3` (the operator asked for more context) is offered only for keyed
+  asks: `ask` sets `accepts_context_requests` whenever `--subject-key` is given, and
+  `--no-context-requests` opts out. Stdout then shows their question and stderr says
+  how to answer it: run `ask --subject-key K` with the answer in
+  `--technical-details`, `--big-picture` or a new attachment (everything else stays),
+  then `wait` again. An answered `wait` prints the plain-text answer summary.
+
 ## Common Make Targets
 
 The project root also exposes a few important Make targets:
@@ -827,12 +946,16 @@ After installation, use `vrooli runtime supervisor install --user` for native
 adoption and inspect status again. Artifact preparation and fallback byte
 retention leave independent activation rollback as a separate obligation.
 
-For a focused privilege-broker upgrade, use `vrooli setup broker --sudo-mode=ask`.
-This project-setup subcommand installs the broker and saved local-service policy
-through the existing setup elevation child. It excludes other host requirements,
-resources, credentials, onboarding and global completion markers. Inspect first
-with `vrooli setup broker --dry-run --json`; the result reports the running
-broker's current capability registry, not a claim that new policy is installed.
+`vrooli runtime instance inspect <instance-id> [--json]` reads one exact
+scenario-instance owner record from the canonical runtime registry in read-only
+mode. It reports the scenario, variant, generation, status, start time and any
+recorded stop completion time; it does not reconcile lifecycle state. A stopped
+instance is owner-liveness evidence and does not by itself prove that its
+process descendants are gone.
+
+Use `vrooli setup broker --sudo-mode=ask` to apply a focused broker upgrade;
+inspect with `vrooli setup broker --dry-run --json`. Scope and elevation behavior:
+[privilege broker setup convergence](../architecture/PRIVILEGE_BROKER.md#setup-convergence).
 
 `vrooli hygiene` is the root hygiene aggregator. Internally, hygiene checks are
 moving to a registered-provider pattern so scenario- or domain-specific checks
@@ -864,3 +987,83 @@ make test
 make logs
 make stop
 ```
+
+## Shared Go build cache
+
+`vrooli host go-cache` owns the per-user Go build cache (`GOCACHE`, normally
+`~/.cache/go-build`). It keeps the cache inside the `build_cache` budget in
+`internal/tools/go/tool.json` and never removes an output that a running build
+still needs. Run it as the user whose builds it serves, not as root.
+
+```bash
+vrooli host go-cache status [--json]          # activation, live sessions, go-command audit, last reclaim
+vrooli host go-cache activate [--json]        # self-test the helper, then set GOCACHEPROG in the go env file
+vrooli host go-cache plan [--fresh] [--json]  # budget, store size, reclaimable bytes, plan token
+vrooli host go-cache reclaim [--token <t>] [--max-bytes <n>] [--time-budget 40s] [--json]
+vrooli host go-cache deactivate [--json]      # remove GOCACHEPROG; running builds keep their sessions
+```
+
+`activate` installs nothing. It requires `~/.vrooli/bin/vrooli-gocacheprog`,
+which `make install` provides. It proves the helper with a private self-test
+before writing `GOCACHEPROG` with `go env -w`, and it refuses to replace another
+cache program. Go commands started before activation run outside the protocol,
+so reclaim refuses until they exit. `plan` and `reclaim` refuse while any go
+command uses the cache outside the protocol, and name the process. Examples are
+`GOENV=off`, another `GOCACHEPROG`, and Go older than 1.24. `reclaim` without
+`--token` plans afresh and applies that plan. `--cache <dir>` selects another
+store; Storage Manager passes its declared root this way.
+
+Storage Manager's `go-build-cache` provider invokes `plan` and `reclaim` during
+pressure recovery. If the helper binary is ever removed while the protocol is
+active, every go command fails until you reinstall the helper or run
+`vrooli host go-cache deactivate` (or `go env -u GOCACHEPROG`). The design and
+its residual risk are in `internal/gocache/doc.go` and the Storage Manager
+[recovery ledger](../../scenarios/storage-manager/docs/reference/recovery-ledger.md#shared-go-build-cache-safety).
+
+## Reviewed host wireless transactions
+
+`vrooli host wireless` keeps unsigned preparation, signed public artifacts,
+root transaction publication, radio effects and recovery evidence separate.
+Use an exact `--profile noble-mt7927` (Wi-Fi) or `--profile noble-mt6639`
+(Bluetooth). Native eligibility remains specific to the reviewed host profile.
+
+All effect actions require `--apply`. Omitting it performs a read-only preview.
+`status`, `activation-plan`, `activation-preflight` and `verify-signed-copy`
+reject `--apply`. Signing and native root operations require an explicitly
+elevated normal command, for example `sudo vrooli host wireless sign ...`;
+the command never invokes generic sudo reexecution itself. Public publication
+from existing signed copies can run unprivileged.
+
+```bash
+vrooli host wireless sign --profile <profile> --bundle <unsigned-generation> \
+  --cert <public-certificate> --json
+sudo vrooli host wireless sign --profile <profile> --bundle <unsigned-generation> \
+  --cert <public-certificate> --receipt-sha256 <reviewed-unsigned-receipt-sha256> --apply --json
+vrooli host wireless publish-signed --profile <profile> --bundle <unsigned-generation> \
+  --signed-dir <signed-module-directory> --cert <public-certificate> --apply --json
+vrooli host wireless record-recovery --profile <profile> \
+  --recovery-kernel <distinct-stock-kernel> --recovery-entry <exact-menu-entry> --json
+vrooli host wireless stage --profile <profile> --bundle <unsigned-generation> \
+  --signed-bundle <signed-receipt-sha256> --receipt-sha256 <reviewed-unsigned-receipt-sha256> \
+  --recovery-kernel <distinct-stock-kernel> --recovery-entry <exact-menu-entry> --json
+vrooli host wireless status --profile <profile> --transaction <transaction-id> --json
+vrooli host wireless activate --profile <profile> --transaction <transaction-id> --json
+vrooli host wireless recover --profile <profile> --transaction <transaction-id> --json
+vrooli host wireless rollback --profile <profile> --transaction <transaction-id> --json
+```
+
+Add `--apply` to a reviewed `record-recovery`, `stage`, `activate`, `recover` or
+`rollback` request only when intending that effect. `stage`, `activate`,
+`recover` and `rollback` also accept `--maintenance-window` for coordinated
+maintenance; native checks still own admission. Stage application requires the signed bundle identity and the
+independently retained unsigned receipt digest. A mutable artifact pathname or
+its current self-reported digest is insufficient for privileged signing.
+
+`publish-signed` without `--apply` authenticates existing signed copies without
+retaining an artifact. Successful publication returns its content-addressed
+signed receipt, module directory and retained public certificate paths. Neither
+a verified signature nor enrollment proves running kernel acceptance, recovery
+bootability or functioning radio hardware. Inspect each operation's checks and
+state, and retain the exact transaction ID for status, recovery or rollback.
+The durable native boundaries and qualification limits are documented in
+[wireless activation and recovery](../../internal/hostwireless/ACTIVATION-DESIGN.md).

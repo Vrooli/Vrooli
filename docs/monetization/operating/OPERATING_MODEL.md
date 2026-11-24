@@ -225,7 +225,7 @@ instrument contract.
    monetization decisions.
 3. Repeated missing facts, stale evidence, or queue failures enter `topic:validation-inbox/*` for `member:market-validator` with the owning scenario named.
 4. `member:monetization-contrarian` checks the change against
-   `docs/agent-system/TARGET_MODEL.md` and the seven monetization failure modes
+   `docs/agent-system/STANDING_TEAMS.md` and the seven monetization failure modes
    before the team adopts a new surface.
 
 ## Current Implementation Gaps
@@ -251,7 +251,6 @@ Validation commands:
 - `prompt-manager graph operating-model diff --team monetization --id monetization-operating-model`
 - `prompt-manager graph operating-model coverage --team monetization --id monetization-operating-model`
 - `prompt-manager graph instruments --json`
-- `prompt-manager graph orientation-cost --json`
 
 This operating model is registered through
 `scenarios/prompt-manager/store/teams/monetization/team.json` and remains
