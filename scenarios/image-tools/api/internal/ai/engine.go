@@ -740,6 +740,15 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	if op == "edit_instruct" {
 		pl.Params, promptMeta = editPromptParams(pl.Params, pl.PreserveIdentity)
 	}
+	if colourParams, colourMeta := colourPromptParams(op, pl.Params); colourMeta != nil {
+		pl.Params = colourParams
+		if promptMeta == nil {
+			promptMeta = map[string]string{}
+		}
+		for k, v := range colourMeta {
+			promptMeta[k] = v
+		}
+	}
 	emit(5, fmt.Sprintf("selected %s on %s", model.ID, bsel.Tier))
 
 	tmpDir, err := os.MkdirTemp("", "imgtools-ai-*")

@@ -33,7 +33,7 @@ func DeclarationsFromRoot(root string) ([]Declaration, error) {
 		if !state.Enabled {
 			continue
 		}
-		manifestPath := filepath.Join(root, "resources", name, "resource.json")
+		manifestPath := repocontractmeta.ResourceManifestPath(root, name)
 		manifestBytes, readErr := os.ReadFile(manifestPath)
 		if readErr != nil {
 			continue

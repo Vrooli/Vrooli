@@ -100,6 +100,7 @@ type Usage struct {
 type ChatResult struct {
 	Raw   []byte
 	Text  string
+	Model string
 	Usage Usage
 }
 
@@ -118,11 +119,11 @@ func (c *Client) Chat(ctx context.Context, request ChatRequest) (ChatResult, err
 	if err != nil {
 		return ChatResult{}, err
 	}
-	text, usage, err := DecodeChat(raw)
+	text, usage, model, err := decodeChat(raw)
 	if err != nil {
 		return ChatResult{}, err
 	}
-	return ChatResult{Raw: raw, Text: text, Usage: usage}, nil
+	return ChatResult{Raw: raw, Text: text, Model: model, Usage: usage}, nil
 }
 
 // GenerateImage performs an OpenAI-compatible image generation request.
@@ -218,7 +219,13 @@ func errorDetail(raw []byte) string {
 // DecodeChat extracts the first choice's text and usage from an OpenAI chat
 // response.
 func DecodeChat(raw []byte) (string, Usage, error) {
+	text, usage, _, err := decodeChat(raw)
+	return text, usage, err
+}
+
+func decodeChat(raw []byte) (string, Usage, string, error) {
 	var envelope struct {
+		Model   string `json:"model"`
 		Choices []struct {
 			Message struct {
 				Content string `json:"content"`
@@ -231,10 +238,10 @@ func DecodeChat(raw []byte) (string, Usage, error) {
 		} `json:"usage"`
 	}
 	if err := json.Unmarshal(raw, &envelope); err != nil {
-		return "", Usage{}, fmt.Errorf("decode chat response: %w", err)
+		return "", Usage{}, "", fmt.Errorf("decode chat response: %w", err)
 	}
 	if len(envelope.Choices) == 0 || strings.TrimSpace(envelope.Choices[0].Message.Content) == "" {
-		return "", Usage{}, fmt.Errorf("provider returned no completion")
+		return "", Usage{}, "", fmt.Errorf("provider returned no completion")
 	}
 	usage := Usage{}
 	if envelope.Usage != nil {
@@ -242,7 +249,7 @@ func DecodeChat(raw []byte) (string, Usage, error) {
 		usage.CompletionTokens = envelope.Usage.CompletionTokens
 		usage.Cost = envelope.Usage.Cost
 	}
-	return envelope.Choices[0].Message.Content, usage, nil
+	return envelope.Choices[0].Message.Content, usage, envelope.Model, nil
 }
 
 // MultimodalEnvelope is the standard-input shape shared by provider CLIs.

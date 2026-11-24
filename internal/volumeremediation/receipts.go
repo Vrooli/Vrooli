@@ -12,6 +12,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/config"
 )
 
 // NativeReceipt is a privacy-safe record of a volume owner operation. Device
@@ -36,15 +39,10 @@ var receiptWriteMu sync.Mutex
 // ReceiptPath resolves the durable host-local receipt ledger. VROOLI_HOME is
 // honored so managed installations keep receipts with their runtime state.
 func ReceiptPath() (string, error) {
-	root := strings.TrimSpace(os.Getenv("VROOLI_HOME"))
-	if root == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		root = filepath.Join(home, ".vrooli")
+	if root := strings.TrimSpace(os.Getenv("VROOLI_HOME")); root != "" {
+		return filepath.Join(root, "state", "volume-remediation", "receipts.jsonl"), nil
 	}
-	return filepath.Join(root, "state", "volume-remediation", "receipts.jsonl"), nil
+	return config.VrooliPath(repocontract.HomeKeyState, "volume-remediation", "receipts.jsonl")
 }
 
 // RecordReceipt stores one operation result. nativeExecution must only be true

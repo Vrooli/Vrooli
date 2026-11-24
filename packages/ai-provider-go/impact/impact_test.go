@@ -1,6 +1,8 @@
 package impact
 
 import (
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -93,13 +95,19 @@ func TestRealRegistriesContextFlipAndRestore(t *testing.T) {
 	for _, m := range baseline.Models {
 		providers[m.Provider]++
 	}
-	for provider, want := range map[string]int{"ollama": 15, "ollaya": 4, "image": 61, "music": 6} {
-		if providers[provider] != want {
-			t.Errorf("real registry inventory has %d %s models, want all %d", providers[provider], provider, want)
+	// The inventory must cover every entry the registries declare; the
+	// expected counts come from the registry files, not from a literal that
+	// drifts each time a model is added.
+	wantTotal := 0
+	for _, registry := range DefaultRegistries(repo) {
+		want := sourceEntryCount(t, registry.Path)
+		wantTotal += want
+		if providers[registry.Provider] != want {
+			t.Errorf("real registry inventory has %d %s models, want all %d source entries", providers[registry.Provider], registry.Provider, want)
 		}
 	}
-	if len(baseline.Models) != 86 {
-		t.Fatalf("real registry inventory has %d models, want all 86 source entries", len(baseline.Models))
+	if len(baseline.Models) != wantTotal {
+		t.Fatalf("real registry inventory has %d models, want all %d source entries", len(baseline.Models), wantTotal)
 	}
 	for _, model := range baseline.Models {
 		if len(model.Paths) == 0 {
@@ -137,7 +145,7 @@ func TestRealRegistriesContextFlipAndRestore(t *testing.T) {
 	}
 	for _, model := range baseline.Models {
 		for _, path := range model.Paths {
-			if path.Use != policy.RightsUseLocalInference {
+			if path.Use != policy.RightsUseMonetizedUse {
 				t.Errorf("registry inventory reported a packaging path without a declared model_artifact: %s", path.Path)
 			}
 		}
@@ -402,4 +410,32 @@ func reasonsByKey(report Report) map[string]string {
 		}
 	}
 	return out
+}
+
+// sourceEntryCount counts the models a registry file declares, independent of
+// the impact loader: a "models" object or array, or a root array.
+func sourceEntryCount(t *testing.T, path string) int {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Models json.RawMessage `json:"models"`
+	}
+	if err := json.Unmarshal(data, &doc); err == nil && len(doc.Models) > 0 {
+		var object map[string]json.RawMessage
+		if json.Unmarshal(doc.Models, &object) == nil {
+			return len(object)
+		}
+		var array []json.RawMessage
+		if json.Unmarshal(doc.Models, &array) == nil {
+			return len(array)
+		}
+	}
+	var root []json.RawMessage
+	if err := json.Unmarshal(data, &root); err != nil {
+		t.Fatalf("%s: no models object, array or root array: %v", path, err)
+	}
+	return len(root)
 }

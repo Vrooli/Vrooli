@@ -29,11 +29,6 @@ func ReserveOperationRAM(ctx context.Context, opts OperationReservationOptions) 
 		return CapacityClaim{}, err
 	}
 	defer store.Close()
-	release, err := LockAdmission(ctx, store)
-	if err != nil {
-		return CapacityClaim{}, err
-	}
-	defer release()
 	policy, err := store.GetPolicy(ctx)
 	if err != nil {
 		return CapacityClaim{}, err
@@ -48,7 +43,7 @@ func ReserveOperationRAM(ctx context.Context, opts OperationReservationOptions) 
 	}
 	// Expire lapsed operation leases through the canonical sweep before looking
 	// for a replay. A later grant is a new row and a fresh capacity decision,
-	// never resurrection of an expired claim.
+	// never resurrection of an expired claim. Expiry needs no admission lock.
 	now := time.Now().UTC()
 	if opts.Admission.Clock != nil {
 		now = opts.Admission.Clock().UTC()
@@ -56,6 +51,14 @@ func ReserveOperationRAM(ctx context.Context, opts OperationReservationOptions) 
 	if _, err := store.ExpireStaleClaims(ctx, now, nil); err != nil {
 		return CapacityClaim{}, err
 	}
+	admission := AdmissionOptions{Source: opts.Admission.Source, MemoryPressure: opts.Admission.MemoryPressure, Attributor: opts.Admission.Attributor, Exec: opts.Admission.Exec, Policy: policy, Enforce: effective, Clock: opts.Admission.Clock}
+	// Sense the host first; the admission lock covers only the replay check,
+	// the decision and the write.
+	sensing, release, err := SenseThenLock(ctx, store, admission)
+	if err != nil {
+		return CapacityClaim{}, err
+	}
+	defer release()
 	claims, err := store.ListClaims(ctx, ClaimFilter{OwnerKind: OwnerKindOp, OwnerID: opts.OwnerID, ResourceKind: ResourceKindRAM, Statuses: ActiveClaimStatuses()})
 	if err != nil {
 		return CapacityClaim{}, err
@@ -73,7 +76,7 @@ func ReserveOperationRAM(ctx context.Context, opts OperationReservationOptions) 
 		return store.HeartbeatClaim(ctx, c.ClaimID, c.Generation, opts.TTL)
 	}
 	req := CapacityRequest{OwnerKind: OwnerKindOp, OwnerID: opts.OwnerID, InstanceID: opts.InstanceID, ResourceKind: ResourceKindRAM, PreferredBytes: opts.AmountBytes, FloorBytes: opts.AmountBytes, Priority: PriorityInteractive, NoReclaim: true, Protected: true, TTL: opts.TTL}
-	v, err := EvaluateAdmission(ctx, store, req, AdmissionOptions{Source: opts.Admission.Source, MemoryPressure: opts.Admission.MemoryPressure, Attributor: opts.Admission.Attributor, Exec: opts.Admission.Exec, Policy: policy, Enforce: effective, Clock: opts.Admission.Clock})
+	v, err := DecideAdmission(ctx, store, req, admission, sensing)
 	if err != nil {
 		return CapacityClaim{}, err
 	}

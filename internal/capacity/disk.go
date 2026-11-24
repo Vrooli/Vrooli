@@ -10,11 +10,19 @@ import (
 	"math"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/sqliteutil"
 )
 
 const diskReservationTTL = 15 * time.Minute
 
 var ErrDiskAdmissionDenied = errors.New("capacity: disk reservation denied")
+
+// ErrDiskLeaseLapsed reports that a disk lease missed its heartbeat deadline and
+// was settled: admission no longer counts its reserved peak, so the owner may
+// not keep writing against it. The owner reserves again (or completes, if it
+// can attest cleanup).
+var ErrDiskLeaseLapsed = errors.New("capacity: disk lease lapsed after its heartbeat deadline")
 
 // DiskReservation describes peak additional bytes for one complete job. Path
 // is an existing directory on the target filesystem. FloorBytes is the free
@@ -84,8 +92,11 @@ func (s *SQLiteStore) ReserveDisk(ctx context.Context, ownerID, dir string, peak
 	var reserved int64
 	var globalFloor int64
 	err = s.withRetryableTx(ctx, func(tx *sql.Tx) error {
-		// A missed heartbeat is evidence of a stale owner, not proof that the
-		// producer stopped or cleaned its staging tree. Keep the lease reserved.
+		// Leases past their heartbeat deadline are not capacity anyone holds
+		// (see disk_job_sweep.go); settle them before summing.
+		if _, _, err := settleLapsedDiskLeasesTx(ctx, tx, now); err != nil {
+			return err
+		}
 		var legacyReserved, jobReserved int64
 		var legacyFloor, jobFloor int64
 		if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(peak_bytes),0), COALESCE(MAX(floor_bytes),0) FROM capacity_disk_reservations WHERE filesystem_id=? AND status='active'`, fsid).Scan(&legacyReserved, &legacyFloor); err != nil {
@@ -119,13 +130,10 @@ func (s *SQLiteStore) HeartbeatDisk(ctx context.Context, id string) error {
 	if strings.TrimSpace(id) == "" {
 		return fmt.Errorf("%w: reservation ID is required", ErrInvalidClaim)
 	}
-	unlock, err := s.LockAdmission(ctx)
-	if err != nil {
-		return fmt.Errorf("lock disk heartbeat: %w", err)
-	}
-	defer unlock()
+	// A guarded single-row update: it decides nothing, so it does not queue
+	// behind the fleet-wide admission lock.
 	now := s.now()
-	res, err := s.db.ExecContext(ctx, `UPDATE capacity_disk_reservations SET updated_at=?, heartbeat_deadline_at=? WHERE reservation_id=? AND status='active'`, formatTime(now), formatTime(now.Add(diskReservationTTL)), id)
+	res, err := s.db.ExecContext(ctx, `UPDATE capacity_disk_reservations SET updated_at=?, heartbeat_deadline_at=? WHERE reservation_id=? AND status='active' AND heartbeat_deadline_at>?`, formatTime(now), formatTime(now.Add(diskReservationTTL)), id, formatTime(now))
 	if err != nil {
 		return fmt.Errorf("heartbeat disk reservation: %w", err)
 	}
@@ -143,27 +151,48 @@ func (s *SQLiteStore) ReleaseDisk(ctx context.Context, id string) error {
 	if strings.TrimSpace(id) == "" {
 		return fmt.Errorf("%w: reservation ID is required", ErrInvalidClaim)
 	}
-	unlock, err := s.LockAdmission(ctx)
-	if err != nil {
-		return fmt.Errorf("lock disk release: %w", err)
-	}
-	defer unlock()
-	_, err = s.db.ExecContext(ctx, `UPDATE capacity_disk_reservations SET status='released',updated_at=? WHERE reservation_id=? AND status='active'`, formatTime(s.now()), id)
+	_, err := s.db.ExecContext(ctx, `UPDATE capacity_disk_reservations SET status='released',updated_at=? WHERE reservation_id=? AND status='active'`, formatTime(s.now()), id)
 	if err != nil {
 		return fmt.Errorf("release disk reservation: %w", err)
 	}
 	return nil
 }
 
+// ReconcileDiskReservation releases an abandoned legacy reservation on the
+// owner's attestation. Legacy rows predate process-bound leases and record no
+// producer PID, so unlike ReconcileDiskJob the store cannot verify the stop
+// itself: the caller must have checked that the owner (and anything it
+// spawned) is gone and that its staging paths are cleaned.
+func (s *SQLiteStore) ReconcileDiskReservation(ctx context.Context, id string, processStoppedVerified, cleanupVerified bool) (DiskReservationRecord, error) {
+	if strings.TrimSpace(id) == "" {
+		return DiskReservationRecord{}, fmt.Errorf("%w: reservation ID is required", ErrInvalidClaim)
+	}
+	if !processStoppedVerified || !cleanupVerified {
+		return DiskReservationRecord{}, fmt.Errorf("disk reservation reconciliation requires verified stopped process and verified cleanup")
+	}
+	res, err := s.db.ExecContext(ctx, `UPDATE capacity_disk_reservations SET status='released',updated_at=? WHERE reservation_id=? AND status='active'`, formatTime(s.now()), id)
+	if err != nil {
+		return DiskReservationRecord{}, fmt.Errorf("reconcile disk reservation: %w", err)
+	}
+	if n, err := res.RowsAffected(); err != nil || n == 0 {
+		return DiskReservationRecord{}, fmt.Errorf("%w: legacy disk reservation %s is absent or not active", ErrNotFound, id)
+	}
+	rows, err := s.listDiskReservationsUnlocked(ctx, DiskReservationFilter{})
+	if err != nil {
+		return DiskReservationRecord{}, err
+	}
+	for _, r := range rows {
+		if r.ID == id {
+			return r, nil
+		}
+	}
+	return DiskReservationRecord{}, fmt.Errorf("%w: legacy disk reservation %s", ErrNotFound, id)
+}
+
 // ListDiskReservations returns reservation receipts for reconciliation. An
 // overdue heartbeat deadline does not release a legacy reservation: only its
 // owner can verify process stop and cleanup and release it.
 func (s *SQLiteStore) ListDiskReservations(ctx context.Context, filter DiskReservationFilter) ([]DiskReservationRecord, error) {
-	unlock, err := s.LockAdmission(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("lock disk reservation listing: %w", err)
-	}
-	defer unlock()
 	return s.listDiskReservationsUnlocked(ctx, filter)
 }
 
@@ -199,15 +228,15 @@ func (s *SQLiteStore) listDiskReservationsUnlocked(ctx context.Context, filter D
 		if err := rows.Scan(&r.ID, &r.OwnerID, &r.FilesystemID, &r.Path, &r.PeakBytes, &r.FloorBytes, &r.Status, &created, &updated, &deadline); err != nil {
 			return nil, err
 		}
-		r.CreatedAt, err = parseRequiredTime(created)
+		r.CreatedAt, err = sqliteutil.ParseRequiredTime(created)
 		if err != nil {
 			return nil, err
 		}
-		r.UpdatedAt, err = parseRequiredTime(updated)
+		r.UpdatedAt, err = sqliteutil.ParseRequiredTime(updated)
 		if err != nil {
 			return nil, err
 		}
-		r.ExpiresAt, err = parseRequiredTime(deadline)
+		r.ExpiresAt, err = sqliteutil.ParseRequiredTime(deadline)
 		if err != nil {
 			return nil, err
 		}

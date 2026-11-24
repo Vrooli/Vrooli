@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/sqliteutil"
 	"github.com/vrooli/vrooli/internal/testenv"
 )
 
@@ -151,7 +152,7 @@ func TestAbsenceMutationReadsClockUnderSQLiteWriteAuthority(t *testing.T) {
 			}
 			select {
 			case probeErr := <-clk.observed:
-				if probeErr == nil || !isSQLiteLockContention(probeErr) {
+				if probeErr == nil || !sqliteutil.IsLockContention(probeErr) {
 					t.Fatalf("absence time read without write authority: competing writer error=%v", probeErr)
 				}
 			case <-ctx.Done():

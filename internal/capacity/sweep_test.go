@@ -311,6 +311,7 @@ func (s *absenceBarrierStore) ExpireStaleClaims(ctx context.Context, at time.Tim
 	}
 	return s.ClaimRepository.ExpireStaleClaims(ctx, at, e)
 }
+
 func (s *absenceBarrierStore) RecordObserved(ctx context.Context, id string, observed, peak int64, at time.Time, proof *AbsenceProof) (CapacityClaim, error) {
 	if s.beforeSample != nil {
 		s.beforeSample()

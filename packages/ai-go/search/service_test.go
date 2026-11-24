@@ -96,6 +96,43 @@ func TestServiceVectorPipelineRerankThenFloorThenProject(t *testing.T) {
 	}
 }
 
+func TestServiceTotalMatchesLimitBoundedVectorPage(t *testing.T) {
+	store := &queryStore{available: true, results: []SearchResult{
+		docResult("a", 0.90, "alpha"),
+		docResult("b", 0.80, "beta"),
+		docResult("c", 0.70, "gamma"),
+	}}
+	svc := NewService(ServiceOptions{Embedder: &countingEmbedder{}, VectorStore: store, Project: docProjector})
+
+	resp, err := svc.Search(context.Background(), SearchQuery{Query: "alpha", Mode: ModeDense, Limit: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Results) != 1 || resp.Total != 1 {
+		t.Fatalf("total/results = %d/%d, want 1/1: %+v", resp.Total, len(resp.Results), resp.Results)
+	}
+}
+
+func TestServiceTotalMatchesLimitBoundedTextPage(t *testing.T) {
+	svc := NewService(ServiceOptions{
+		TextFallback: func(context.Context, SearchQuery) ([]SearchResult, error) {
+			return []SearchResult{
+				docResult("a", 0.90, "alpha"),
+				docResult("b", 0.80, "beta"),
+				docResult("c", 0.70, "gamma"),
+			}, nil
+		},
+	})
+
+	resp, err := svc.Search(context.Background(), SearchQuery{Query: "alpha", Mode: ModeText, Limit: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Results) != 1 || resp.Total != 1 {
+		t.Fatalf("total/results = %d/%d, want 1/1: %+v", resp.Total, len(resp.Results), resp.Results)
+	}
+}
+
 func TestServiceFloorGateOffKeepsLowScores(t *testing.T) {
 	// RRF-style tiny scores with rerank off: ApplyFloor=false must NOT annihilate
 	// them on the cosine HardFloor (the doc/RRF case).

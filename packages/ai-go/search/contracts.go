@@ -499,7 +499,10 @@ type SearchQuery struct {
 // SearchResponse wraps results with the leg that answered and the active
 // reranker, for observability and the degraded-state UI.
 type SearchResponse struct {
-	Results  []SearchResult
+	Results []SearchResult
+	// Total is the number of items in Results for this response. Vector search
+	// reads a bounded candidate shortlist, so this is not a corpus-wide count
+	// and must not be used as a pagination total.
 	Total    int
 	Query    string
 	Method   string // which leg answered: "hybrid" | "dense" | "text"

@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	maxSSELineBytes  = 1024 * 1024
-	maxSSEEventBytes = 2 * 1024 * 1024
+	maxSSELineBytes       = 1024 * 1024
+	maxSSEEventBytes      = 2 * 1024 * 1024
+	maxConfiguredSSEBytes = 16 * 1024 * 1024
 )
 
 // StreamChunk is one decoded OpenAI-compatible streaming event. Raw preserves
@@ -32,12 +33,13 @@ type StreamChunk struct {
 // boundary: the response is not read ahead while the caller processes a chunk.
 // Always call Close when the caller stops before Done or EOF.
 type ChatStream struct {
-	response  *http.Response
-	scanner   *bufio.Scanner
-	data      []string
-	dataBytes int
-	closed    bool
-	done      bool
+	response      *http.Response
+	scanner       *bufio.Scanner
+	maxEventBytes int
+	data          []string
+	dataBytes     int
+	closed        bool
+	done          bool
 }
 
 // StreamChat opens an OpenAI-compatible SSE chat completion. The returned
@@ -45,6 +47,20 @@ type ChatStream struct {
 // backpressures the HTTP body. ctx cancellation interrupts both the request
 // and subsequent reads.
 func (c *Client) StreamChat(ctx context.Context, request ChatRequest) (*ChatStream, error) {
+	return c.streamChat(ctx, request, maxSSELineBytes, maxSSEEventBytes)
+}
+
+// StreamChatWithLimits opens a stream with explicit bounded SSE line and event
+// limits. This is for consumers whose existing protocol accepts larger bounded
+// events; the limits cannot exceed 16 MiB.
+func (c *Client) StreamChatWithLimits(ctx context.Context, request ChatRequest, maxLineBytes, maxEventBytes int) (*ChatStream, error) {
+	if maxLineBytes <= 0 || maxEventBytes <= 0 || maxLineBytes > maxConfiguredSSEBytes || maxEventBytes > maxConfiguredSSEBytes {
+		return nil, fmt.Errorf("SSE limits must be between 1 and %d bytes", maxConfiguredSSEBytes)
+	}
+	return c.streamChat(ctx, request, maxLineBytes, maxEventBytes)
+}
+
+func (c *Client) streamChat(ctx context.Context, request ChatRequest, maxLineBytes, maxEventBytes int) (*ChatStream, error) {
 	if c.baseURL == "" {
 		return nil, &providererror.Error{Code: providererror.CodeUnconfigured, Message: "provider base URL is required"}
 	}
@@ -89,8 +105,8 @@ func (c *Client) StreamChat(ctx context.Context, request ChatRequest) (*ChatStre
 		return nil, &providererror.Error{Code: providererror.CodeStreamFailed, HTTPStatus: response.StatusCode, Message: "provider returned an empty stream body"}
 	}
 	scanner := bufio.NewScanner(response.Body)
-	scanner.Buffer(make([]byte, 4096), maxSSELineBytes)
-	return &ChatStream{response: response, scanner: scanner}, nil
+	scanner.Buffer(make([]byte, 4096), maxLineBytes)
+	return &ChatStream{response: response, scanner: scanner, maxEventBytes: maxEventBytes}, nil
 }
 
 // Next returns the next data event, the terminal [DONE] event, or io.EOF.
@@ -125,13 +141,13 @@ func (s *ChatStream) Next() (StreamChunk, error) {
 		if len(s.data) > 0 {
 			additionalBytes++ // strings.Join inserts one newline between data lines.
 		}
-		if additionalBytes > maxSSEEventBytes-s.dataBytes {
+		if additionalBytes > s.maxEventBytes-s.dataBytes {
 			_ = s.Close()
 			s.done = true
 			return StreamChunk{}, &providererror.Error{
 				Code:       providererror.CodeStreamFailed,
 				HTTPStatus: s.response.StatusCode,
-				Message:    fmt.Sprintf("SSE event exceeds %d bytes", maxSSEEventBytes),
+				Message:    fmt.Sprintf("SSE event exceeds %d bytes", s.maxEventBytes),
 			}
 		}
 		s.dataBytes += additionalBytes

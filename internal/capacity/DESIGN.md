@@ -76,7 +76,7 @@ We mirror the shapes in this package with our own `capacity_claims` table.
 Destabilizing scenarioruntime/lifecycle is the catastrophic risk; the engine is
 a brand-new package and the lifecycle hook is additive + flag-OFF parity-tested.
 
-## Seams (plan §2 seam-discovery-and-enforcement)
+## Seams (plan §2 architecture-lenses)
 
 - **`CapacitySource`** — reads `hostinventory.Snapshot`. Injectable; unit tests
   use a fake snapshot and never shell out to `nvidia-smi`.
@@ -125,12 +125,67 @@ estimate into a measured peak. Manifest seeds do not count as measurements.
 Previously contaminated measured rows cannot be reconstructed from this table;
 an explicit owner reset/rebuild needs original evidence and is not automatic.
 
-Host RAM and CPU sensing (MemAvailable, load average) has no per-claim
+Host RAM and CPU sensing (MemAvailable, measured CPU utilization) has no per-claim
 attribution and may predate a grant. `Decide` therefore charges explicit RAM
 operation reservations and every operation RAM/CPU claim in full above observed
 usage. Only attributable claims overlap it as max(observed, committed).
 Otherwise each grant in a burst spends the same observed headroom. This is
 conservative: a long-running operation's materialized use is counted twice.
+
+Observed CPU use is measured utilization: the busy share (user, kernel,
+interrupt, steal) of a short `/proc/stat` window taken fresh for each snapshot
+(`hostinventory.CPUSampler`), never part of the cached host facts. Idle time
+spent waiting on disk is idle, and memory or I/O stalls stay their own pressure
+signals. The load average is only a labelled fallback for hosts that cannot
+measure utilization: Linux load counts tasks blocked on disk, so under swap
+thrash it read 75-100 on a 32-core host that was mostly idle and admission
+reported "0 free" for every 250m job.
+
+### What the admission lock covers
+
+The fleet-wide admission flock (`capacity.db.admission.lock`) serializes
+decisions that spend shared headroom. It is held across ledger read, `Decide`
+and ledger write only. Host sensing (nvidia-smi, docker, memory pressure, the
+expiry sweep) runs before the lock through `SenseAdmission`; `SenseThenLock`
+re-senses if the evidence is older than `MaxAdmissionSensingAge`, so a long
+queue for the lock cannot decide on a stale snapshot. Heartbeat, completion,
+reattach and reconcile of disk jobs and legacy reservations decide nothing and
+take only the SQLite writer transaction, so a release is never queued behind a
+slow admission. Reserve and extend still take the lock. A new path that senses
+or shells out while holding the lock reintroduces tens-of-seconds stalls for
+every scenario on the host.
+
+Terminal-claim GC runs in bounded chunks (`gcTerminalChunkRows` rows,
+`gcTerminalBudget` total) so a backlog never holds the single SQLite writer for
+tens of seconds, and it skips claims that residency history still references
+instead of failing the whole delete on the foreign key.
+
+### Dead-owner and lapsed-lease release
+
+Two rules release capacity a holder no longer maintains. Process-bound command
+claims release on proof the holder process is gone; disk leases release when
+their heartbeat deadline passes, whatever the process is doing:
+
+- Operation claims whose owner id is `cli-install:pid-<N>[-<start>]:...` are
+  expired by `ExpireStaleClaims` when pid N is gone or its `/proc` start token
+  differs (PID reuse). One local process holds such a claim for one command.
+  Other operation claims are not probed: their PIDs may live in another
+  namespace. The CLI install path also releases on SIGTERM and SIGHUP, and
+  concurrent installs of one CLI serialize per CLI and skip a build that a
+  peer already finished.
+- Disk leases (jobs and legacy reservations) are heartbeat promises. Past
+  `heartbeat_deadline_at` a lease is settled by `settleLapsedDiskLeasesTx`,
+  inside every admission, the lease-expiry pass (`ExpireStaleClaims`),
+  `disk-list`, `disk-observe`, and a refused owner call: a job closes as
+  `reconciled` with `cleanup_verified=0` ("released by lapse, cleanup
+  unverified"), a legacy row as `expired`. The process is not consulted: a
+  live owner that stopped heartbeating lapses like a dead one, and a lapsed
+  lease is never revived by a late heartbeat, extend or sample
+  (`ErrDiskLeaseLapsed`) because its peak may already be spent. A live owner
+  may still complete a settled job, which attests cleanup and upgrades the
+  receipt. Leftover bytes show in measured free space, so admission stays
+  correct. An owner process that exited before the deadline keeps its lease
+  until then, since detached children may still be writing.
 
 Outstanding design gaps are identity-aware overlap between physical usage and
 pending reservations, parent/resource versus operation reservation semantics,

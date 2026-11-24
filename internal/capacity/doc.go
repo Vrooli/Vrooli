@@ -355,7 +355,7 @@
 // UNCLAIMED and OVER_CLAIM emit warn-level findings. Auto-stop stays OFF behind
 // config + an allowlist; reconciliation only observes and warns in V1.
 //
-// # Tunable levers (plan §2 control-surface-tunable-levers-design)
+// # Tunable levers (plan §2 architecture-lenses)
 //
 // Every threshold/policy is a data-declared, tunable lever stored in the
 // capacity_policy table and editable via `vrooli capacity policy set`:

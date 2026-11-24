@@ -510,6 +510,69 @@
       "kind": "judged_comparison",
       "ref": "research:runs/capabilities-20261122/outputs/mask-edit/README.md",
       "date": "2026-11-23"
+    },
+    {
+      "model_id": "juggernaut-xl-v9",
+      "operation": "inpaint",
+      "grade": "recommended",
+      "reason": "The base-checkpoint inpaint route is fixed: no mask crop, no pixel neutralisation, strength 1.0 and Euler sampling. A red-dress replacement on the clothed fictional adult produced the dress in 48 s on GPU with the face, pose and background preserved; the same seed at the old strength/DDPM produced a second head in the mask. Crop plus neutralisation made it worse.",
+      "kind": "live_run",
+      "ref": "research:runs/capabilities-20261122/outputs/nsfw-edit-proxy/product-red-dress-v3.png",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "lustify-sdxl-v9",
+      "operation": "inpaint",
+      "grade": "works",
+      "reason": "All four rerun edits succeeded with the fixed route (lingerie, topless and full nudity all read as sexual by the ensemble; identity to the source 0.99). Awaiting the operator's ratings of the new pictures; the previous fever-dream ratings were caused by the crop/neutralisation/DDPM recipe, not this checkpoint.",
+      "kind": "live_run",
+      "ref": "research:runs/capabilities-20261122/nsfw-private/REVIEW-2.html",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "big-lust-v16",
+      "operation": "inpaint",
+      "grade": "works",
+      "reason": "All three rerun edits succeeded with the fixed route, including the two full-nudity prompts the reviewer had refused for a missing face; identity to the source 0.99. Awaiting the operator's ratings.",
+      "kind": "live_run",
+      "ref": "research:runs/capabilities-20261122/nsfw-private/REVIEW-2.html",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "sdxl-inpainting-0.1",
+      "operation": "inpaint",
+      "grade": "not_recommended",
+      "reason": "The dedicated SDXL inpaint model barely changed the outfit on the fixed full-image route (skin share 0.19 against 0.12 clothed), where the base checkpoints changed it cleanly. Keep it out of outfit edits.",
+      "kind": "live_run",
+      "ref": "research:runs/capabilities-20261122/nsfw-private/REVIEW-2.html",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "falconsai-nsfw",
+      "operation": "nsfw_classify",
+      "grade": "recommended",
+      "reason": "Precise on the diverse SFW set: six clothed studio adults across ethnicities, the consenting subject and the pose chart all scored 0.00 to 0.13 (the old AdamCodd classifier scored three adults 0.42 to 0.65). Alone it missed small-figure fine-art nudity (0.00 to 0.001 on two rated-Good generations), so the reviewer runs it with AdamCodd.",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/nsfw-run/review2.json",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "adamcodd-vit-nsfw",
+      "operation": "nsfw_classify",
+      "grade": "works",
+      "reason": "High recall on the images the precise classifier missed (small-figure nudity 0.97 to 0.99, deep-skin-tone nudity 0.997) but false-positived clothed portraits at up to 0.65. Use it as the reviewer's second signal, not alone; its calibrated bar is 0.80 (0.70 strict).",
+      "kind": "judged_comparison",
+      "ref": "research:runs/capabilities-20261122/nsfw-run/review2.json",
+      "date": "2026-11-23"
+    },
+    {
+      "model_id": "dwpose-ll-384",
+      "operation": "pose_extract",
+      "grade": "recommended",
+      "reason": "Read at least nine of the eighteen body joints on 9 of 9 chart cells with line-art preparation (the bare drawing gave that on 3 of 9); every cell found one figure. Used inside pose_generate to turn a chart cell or photo into the OpenPose control.",
+      "kind": "live_run",
+      "ref": "research:runs/capabilities-20261122/outputs/pose/POSE-REVIEW.html",
+      "date": "2026-11-23"
     }
   ]
 }

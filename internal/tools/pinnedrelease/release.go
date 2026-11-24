@@ -1,3 +1,6 @@
+// Package pinnedrelease shares checksum-pinned native release acquisition
+// mechanics between tool owners while each owner keeps its own manifest,
+// version, license verification, and admission policy.
 package pinnedrelease
 
 import (

@@ -397,6 +397,65 @@ func TestPickerAndExecutionUseSameEligibilityFunction(t *testing.T) {
 	}
 }
 
+func TestAC2MultiSupplierPickerAndExecutionAgreeOnLowestEligibleQuote(t *testing.T) {
+	request, account, records, _, routes := rulesFixture(ReviewApproved)
+	request.model = "model-a"
+	request.useClass = UseHarnessAccess
+	request.harness = "opencode"
+	terms := records[0].Terms
+	terms.PlanRules[0].UseClasses[UseHarnessAccess] = PermissionAllowed
+	firstRecord, err := NewVerifiedRuleRecord("supplier-a", terms, nil, testDecisionVerifier)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondRecord, err := NewVerifiedRuleRecord("router-one", terms, nil, testDecisionVerifier)
+	if err != nil {
+		t.Fatal(err)
+	}
+	records = []RuleRecord{firstRecord, secondRecord}
+
+	allowed := true
+	routes[0].Harness = "opencode"
+	routes[0].HarnessSource = verifiedHarnessSourceFixture(t, &allowed)
+	cheaper := routes[0]
+	cheaper.ID = "route-router-one"
+	cheaper.Supplier = "router-one"
+	cheaper.QuotedCredits = 10
+	cheaper.QuoteRef = "recorded-router-one-quote"
+	moreExpensive := routes[0]
+	moreExpensive.ID = "route-nanogpt"
+	moreExpensive.Supplier = "supplier-a"
+	moreExpensive.QuotedCredits = 25
+	moreExpensive.QuoteRef = "recorded-nanogpt-quote"
+	routes = []Route{moreExpensive, cheaper}
+
+	trust := true
+	agreements := make([]Agreement, 0, 2)
+	for _, supplier := range []string{"supplier-a", "router-one"} {
+		agreement, err := NewVerifiedAgreement(Agreement{
+			Supplier: supplier, Trust: TrustDecision{CustomerCodeAllowed: &trust, DecisionRef: "trust-decision"},
+			UseClasses: []UseClass{UseHarnessAccess}, Models: []string{"model-a"}, DecisionRef: "trust-decision",
+		}, testDecisionVerifier)
+		if err != nil {
+			t.Fatal(err)
+		}
+		agreements = append(agreements, agreement)
+	}
+
+	now := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+	picked := PickRoutes(request, account, records, agreements, routes, now)
+	if len(picked.Routes) != 2 || picked.Routes[0].ID != "route-router-one" || picked.Routes[1].ID != "route-nanogpt" {
+		t.Fatalf("cross-supplier picker did not order current eligible quoted routes: %+v", picked)
+	}
+	selected, err := AuthorizeExecution(request, account, records, agreements, routes, now, picked.Routes[0].ID)
+	if err != nil || selected.ID != picked.Routes[0].ID || selected.Supplier != picked.Routes[0].Supplier {
+		t.Fatalf("picker/execution disagreement for selected supplier route: selected=%+v err=%v", selected, err)
+	}
+	if _, err := AuthorizeExecution(request, account, records, agreements, routes, now, "unavailable-recorded-route"); err == nil {
+		t.Fatal("execution accepted a route absent from the current available route observation")
+	}
+}
+
 func TestProviderTermsValidatorRequiresDecisionEvidenceAndLintReason(t *testing.T) {
 	terms := ProviderTerms{PlanRules: []PlanRule{{Plan: "subscription", AccessTier: AccessTierGrant, UseClasses: map[UseClass]Permission{UseHarnessAccess: PermissionAllowed, UseInApp: PermissionForbidden}}}, Evidence: Evidence{URL: "https://example.invalid"}, Review: Review{Status: ReviewApproved}, EffectiveFrom: "2026-01-01", OnExpiry: "deny"}
 	var errs []error

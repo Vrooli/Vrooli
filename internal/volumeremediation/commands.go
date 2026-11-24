@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-)
 
-const volumeFilesystemExfat = "exfat"
+	"github.com/vrooli/vrooli/packages/driveprofile"
+)
 
 const (
 	commandsNtfs = "ntfs"
@@ -114,51 +114,34 @@ func nativeToolCommand(req Request, state State) ([]string, error) {
 		}
 		return []string{"mount", "-t", filesystemType, "-o", "rw", device, mountpoint}, nil
 	case ActionCheck:
-		return checkArgs(family, device)
+		return checkArgs(req.Device.Filesystem, device)
 	case ActionRepair:
-		return repairArgs(family, device)
+		return repairArgs(req.Device.Filesystem, device)
 	default:
 		return nil, ErrUnsupported{Reason: fmt.Sprintf("native tools have no command for %q", req.Action)}
 	}
 }
 
-// checkArgs returns a strictly non-writing consistency check per filesystem
-// family. Every one of these is the tool's explicit no-action mode.
-func checkArgs(family, device string) ([]string, error) {
-	switch family {
-	case commandsNtfs:
-		return []string{"ntfsfix", "-n", device}, nil
-	case "ext":
-		return []string{"e2fsck", "-f", "-n", device}, nil
-	case volumeFilesystemExfat:
-		return []string{"fsck.exfat", "-n", device}, nil
-	case "vfat":
-		return []string{"fsck.fat", "-n", device}, nil
-	default:
-		return nil, ErrUnsupported{Reason: "no non-writing check adapter for filesystem family " + family}
+// checkArgs returns a strictly non-writing consistency check. The argv comes
+// from the shared drive-profile table so a filesystem's check, repair, and
+// readiness story cannot drift apart.
+func checkArgs(filesystem, device string) ([]string, error) {
+	argv, ok := driveprofile.CheckCommand(filesystem, device)
+	if !ok {
+		return nil, ErrUnsupported{Reason: "no non-writing check adapter for filesystem " + filesystem}
 	}
+	return argv, nil
 }
 
-// repairArgs returns the writing repair command per filesystem family.
-//
-// The ntfs entry clears the volume dirty flag, which is what makes an NTFS
-// volume mountable read/write again. It is not a chkdsk replacement: it fixes a
-// small set of known problems and resets the log. Callers are expected to
-// verify repository-level integrity afterwards rather than treat a successful
-// repair as proof the data is intact.
-func repairArgs(family, device string) ([]string, error) {
-	switch family {
-	case commandsNtfs:
-		return []string{"ntfsfix", "-d", device}, nil
-	case "ext":
-		return []string{"e2fsck", "-f", "-y", device}, nil
-	case "exfat":
-		return []string{"fsck.exfat", "-y", device}, nil
-	case "vfat":
-		return []string{"fsck.fat", "-a", device}, nil
-	default:
-		return nil, ErrUnsupported{Reason: "no repair adapter for filesystem family " + family}
+// repairArgs returns the writing repair command from the shared drive-profile
+// table. Whether that tool is a real metadata repair or only a dirty-flag reset
+// is recorded on the profile, not assumed here.
+func repairArgs(filesystem, device string) ([]string, error) {
+	argv, ok := driveprofile.RepairCommand(filesystem, device)
+	if !ok {
+		return nil, ErrUnsupported{Reason: "no repair adapter for filesystem " + filesystem}
 	}
+	return argv, nil
 }
 
 func diskutilCommand(req Request) ([]string, error) {

@@ -372,7 +372,9 @@ func CommandCorpusTuning() TuningConfig {
 // the LLM reranker on recall for prose — reranking buys ordering parity, not
 // recall — and that the symmetric embedder preserves KO's guarded recall@5=0.818
 // baseline exactly (the recipe-aware drift hash keeps an empty recipe byte
-// identical). Reproduces today's KO behavior.
+// identical). RerankShortlist remains the bounded hybrid candidate pool even
+// when reranking is disabled; KO uses a larger pool to offset Markdown's
+// multiple indexed chunks per source document.
 func DocCorpusTuning() TuningConfig {
 	return TuningConfig{
 		Engine:          EngineHybrid,
@@ -380,7 +382,7 @@ func DocCorpusTuning() TuningConfig {
 		EmbedTaskPrefix: false,
 		RerankEnabled:   false,
 		RerankBlend:     false,
-		RerankShortlist: DefaultRerankShortlist,
+		RerankShortlist: 240,
 		HybridFusion:    HybridFusionRRF,
 	}
 }

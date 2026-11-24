@@ -39,7 +39,7 @@ const (
 // recognized value it takes precedence over the stored policy.
 const EnvEnforce = "VROOLI_CAPACITY_ENFORCE"
 
-// Policy holds the tunable levers (plan §2 control-surface-tunable-levers-design).
+// Policy holds the tunable levers (plan §2 architecture-lenses).
 // Every field is data-declared and editable via `vrooli capacity policy set`.
 // No silent caps: each threshold is surfaced and tunable.
 type Policy struct {

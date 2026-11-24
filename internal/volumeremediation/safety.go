@@ -6,46 +6,45 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/vrooli/vrooli/packages/driveprofile"
 )
 
 const (
 	safetyParameterA = 256
 )
 
-// supportedFilesystems is the allowlist of filesystems this package will act
-// on. Membership means a repair adapter exists and its behaviour is understood
-// — not merely that the name is spelled correctly. An unlisted filesystem is
-// refused rather than handed to a generic fsck that may do the wrong thing.
-var supportedFilesystems = map[string]string{
-	"ntfs":  "ntfs",
-	"ntfs3": "ntfs",
-	"exfat": "exfat",
-	"vfat":  "vfat",
-	"fat":   "vfat",
-	"fat32": "vfat",
-	"msdos": "vfat",
-	"ext2":  "ext",
-	"ext3":  "ext",
-	"ext4":  "ext",
-	"apfs":  "apfs",
-	"hfs":   "hfs",
-	"hfs+":  "hfs",
-}
-
 // filesystemFamily maps a reported filesystem type onto the adapter family
-// that repairs it.
+// used by command construction. The authoritative table lives in
+// packages/driveprofile so readiness, remediation, setup, and the UI cannot
+// disagree about what a filesystem can do.
 func filesystemFamily(fs string) (string, bool) {
-	family, ok := supportedFilesystems[strings.ToLower(strings.TrimSpace(fs))]
-	return family, ok
+	profile, ok := driveprofile.Lookup(fs)
+	if !ok {
+		return "", false
+	}
+	switch profile.Family {
+	case driveprofile.FamilyExt:
+		return "ext", true
+	case driveprofile.FamilyNTFS:
+		return "ntfs", true
+	case driveprofile.FamilyExFAT:
+		return "exfat", true
+	case driveprofile.FamilyFAT:
+		return "vfat", true
+	case driveprofile.FamilyAPFS:
+		return "apfs", true
+	case driveprofile.FamilyHFS:
+		return "hfs", true
+	default:
+		return "", false
+	}
 }
 
 // SupportedFilesystems lists the accepted filesystem names, for error messages
-// and documentation that must not drift from the code.
+// and documentation that must not drift from the profile table.
 func SupportedFilesystems() []string {
-	out := make([]string, 0, len(supportedFilesystems))
-	for name := range supportedFilesystems {
-		out = append(out, name)
-	}
+	out := append([]string(nil), driveprofile.Names()...)
 	slices.Sort(out)
 	return out
 }
@@ -53,9 +52,11 @@ func SupportedFilesystems() []string {
 // devicePathPattern accepts the device spellings the supported platforms use
 // and nothing else. It exists so a device string can never smuggle an argument,
 // a path traversal, or a shell fragment into a command line.
-var devicePathPattern = regexp.MustCompile(`^(/dev/[A-Za-z0-9._/-]+|[A-Za-z]:|\\\\\?\\Volume\{[0-9A-Fa-f-]{36}\}\\)$`)
-var windowsVolumeGUIDPattern = regexp.MustCompile(`^\\\\\?\\Volume\{[0-9A-Fa-f-]{36}\}\\$`)
-var windowsDriveRootPattern = regexp.MustCompile(`^[D-Zd-z]:\\?$`)
+var (
+	devicePathPattern        = regexp.MustCompile(`^(/dev/[A-Za-z0-9._/-]+|[A-Za-z]:|\\\\\?\\Volume\{[0-9A-Fa-f-]{36}\}\\)$`)
+	windowsVolumeGUIDPattern = regexp.MustCompile(`^\\\\\?\\Volume\{[0-9A-Fa-f-]{36}\}\\$`)
+	windowsDriveRootPattern  = regexp.MustCompile(`^[D-Zd-z]:\\?$`)
+)
 
 // validateDevicePath rejects anything that is not a plain device specifier.
 func validateDevicePath(path string) error {

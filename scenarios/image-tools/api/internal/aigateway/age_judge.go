@@ -34,33 +34,38 @@ const ageJudgeTokens = 1500
 // leaves this machine either way, and the model name must match the local model
 // the gateway role selects (docs/internal/SECURITY.md, "Age judge").
 const (
-	ageJudgeOllamaURLEnv = "IMAGE_TOOLS_OLLAMA_URL"
-	ageJudgeModelEnv     = "IMAGE_TOOLS_AGE_JUDGE_MODEL"
-	ageJudgeDefaultURL   = "http://127.0.0.1:11434"
-	// The 4B vision model needs about 7.4 GB; on this shared 16 GB card, beside the
-	// resident chat model and reranker, a cold load died ("unexpected EOF"). The 2B
-	// sibling is the gateway role's first fallback, fits, and answered the measured
-	// portrait as a confident adult.
-	ageJudgeDefaultModel = "qwen3-vl:2b"
+	ageJudgeOllamaURLEnv     = "IMAGE_TOOLS_OLLAMA_URL"
+	ageJudgeModelEnv         = "IMAGE_TOOLS_AGE_JUDGE_MODEL"
+	ageJudgeFallbackModelEnv = "IMAGE_TOOLS_AGE_JUDGE_FALLBACK_MODEL"
+	ageJudgeDefaultURL       = "http://127.0.0.1:11434"
+	// The 2B vision model fits beside the resident models and answered the measured
+	// no-face case as a confident adult; the 7B sibling is the second attempt when
+	// the 2B spends its answer on prose. The 4B primary needs about 7.4 GB and was
+	// not reliable as a cold load on this shared card (one load died "unexpected
+	// EOF", another returned the server's own response object).
+	ageJudgeDefaultModel  = "qwen3-vl:2b"
+	ageJudgeFallbackModel = "llava:7b"
 )
 
 // visionAgeJudge answers the safety package's face-independent age question with
 // the gateway's local vision role, falling back to the same Ollama model on
 // loopback when the gateway route cannot execute.
 type visionAgeJudge struct {
-	gateway   VisionGateway
-	ollamaURL string
-	model     string
-	client    *http.Client
+	gateway       VisionGateway
+	ollamaURL     string
+	model         string
+	fallbackModel string
+	client        *http.Client
 }
 
 // NewAgeJudge builds the second-opinion age judge on a vision gateway.
 func NewAgeJudge(gateway VisionGateway) safety.AgeJudge {
 	return &visionAgeJudge{
-		gateway:   gateway,
-		ollamaURL: envOr(ageJudgeOllamaURLEnv, ageJudgeDefaultURL),
-		model:     envOr(ageJudgeModelEnv, ageJudgeDefaultModel),
-		client:    &http.Client{Timeout: 10 * time.Minute},
+		gateway:       gateway,
+		ollamaURL:     envOr(ageJudgeOllamaURLEnv, ageJudgeDefaultURL),
+		model:         envOr(ageJudgeModelEnv, ageJudgeDefaultModel),
+		fallbackModel: envOr(ageJudgeFallbackModelEnv, ageJudgeFallbackModel),
+		client:        &http.Client{Timeout: 10 * time.Minute},
 	}
 }
 
@@ -90,21 +95,55 @@ func (j *visionAgeJudge) Judge(ctx context.Context, image []byte) (safety.AgeJud
 		}
 		gatewayErr = askErr
 	}
-	text, ollamaErr := j.askOllama(ctx, prepared)
-	if ollamaErr != nil {
-		if gatewayErr != nil {
-			return safety.AgeJudgement{}, fmt.Errorf("age judge gateway: %v; local Ollama: %w", gatewayErr, ollamaErr)
+	var localErr error
+	seen := map[string]bool{}
+	for _, model := range []string{j.model, j.fallbackModel} {
+		if model == "" || seen[model] {
+			continue
 		}
-		return safety.AgeJudgement{}, fmt.Errorf("age judge local Ollama: %w", ollamaErr)
+		seen[model] = true
+		judgement, askErr := j.askModel(ctx, prepared, model)
+		if askErr == nil {
+			return judgement, nil
+		}
+		localErr = askErr
 	}
-	return ParseAgeJudgement(text)
+	if gatewayErr != nil {
+		return safety.AgeJudgement{}, fmt.Errorf("age judge gateway: %v; local Ollama: %v", gatewayErr, localErr)
+	}
+	return safety.AgeJudgement{}, fmt.Errorf("age judge local Ollama: %w", localErr)
+}
+
+// askModel asks one model, first as a plain chat and again with Ollama's JSON
+// format when the reply carries no parseable object. A thinking model sometimes
+// spends a plain answer on prose; the formatted retry is what made the measured
+// no-face case answer with the object.
+func (j *visionAgeJudge) askModel(ctx context.Context, image []byte, model string) (safety.AgeJudgement, error) {
+	var last error
+	// The gateway comment for this same role records that Ollama returns no visible
+	// response when its image template receives a native format; the direct call is
+	// the opposite: a plain chat often spends the whole budget on thinking prose,
+	// while the JSON format returns the object. Try the formatted call only.
+	for _, formatJSON := range []bool{true} {
+		text, err := j.askOllama(ctx, image, model, formatJSON)
+		if err != nil {
+			last = err
+			continue
+		}
+		judgement, parseErr := ParseAgeJudgement(text)
+		if parseErr == nil {
+			return judgement, nil
+		}
+		last = parseErr
+	}
+	return safety.AgeJudgement{}, fmt.Errorf("model %s: %w", model, last)
 }
 
 // askOllama asks the local Ollama server directly. It is a loopback call with one
 // prepared image: no hosted provider, no outbound network, no API key.
-func (j *visionAgeJudge) askOllama(ctx context.Context, image []byte) (string, error) {
-	body, err := json.Marshal(map[string]any{
-		"model":  j.model,
+func (j *visionAgeJudge) askOllama(ctx context.Context, image []byte, model string, formatJSON bool) (string, error) {
+	request := map[string]any{
+		"model":  model,
 		"stream": false,
 		"messages": []map[string]any{{
 			"role":    "user",
@@ -113,8 +152,12 @@ func (j *visionAgeJudge) askOllama(ctx context.Context, image []byte) (string, e
 		}},
 		// The answer is a few dozen tokens. A larger budget lets a thinking model
 		// spend it all on reasoning and return an empty content field.
-		"options": map[string]any{"num_predict": 800},
-	})
+		"options": map[string]any{"num_predict": 700},
+	}
+	if formatJSON {
+		request["format"] = "json"
+	}
+	body, err := json.Marshal(request)
 	if err != nil {
 		return "", fmt.Errorf("encode Ollama request: %w", err)
 	}

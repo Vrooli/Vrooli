@@ -127,6 +127,8 @@ func TestParseSearchFileRejectsBad(t *testing.T) {
 		{"bad status", `{"version":"1.0.0","providers":[{"provider_id":"a","tuning":{"engine":"dense"},"tests":{"cases":[{"id":"c","query":"q","status":"maybe"}]}}]}`},
 		{"bad scope", `{"version":"1.0.0","providers":[{"provider_id":"a","tuning":{"engine":"dense"},"tests":{"cases":[{"id":"c","query":"q","scope":"scenario:"}]}}]}`},
 		{"positive without ids", `{"version":"1.0.0","providers":[{"provider_id":"a","tuning":{"engine":"dense"},"tests":{"cases":[{"id":"c","query":"q","expect_within_top_k":5}]}}]}`},
+		{"identity field without ids", `{"version":"1.0.0","providers":[{"provider_id":"a","tuning":{"engine":"dense"},"tests":{"cases":[{"id":"c","query":"q","expected_identity_field":"run_id"}]}}]}`},
+		{"identity field not a dotted key", `{"version":"1.0.0","providers":[{"provider_id":"a","tuning":{"engine":"dense"},"tests":{"cases":[{"id":"c","query":"q","expect_ids":["x"],"expected_identity_field":"run..id"}]}}]}`},
 		{"empty coverage tag", `{"version":"1.0.0","providers":[{"provider_id":"a","tuning":{"engine":"dense"},"tests":{"coverage":{"required_tags":[""]},"cases":[{"id":"c","query":"q"}]}}]}`},
 		{"coverage group no tags", `{"version":"1.0.0","providers":[{"provider_id":"a","tuning":{"engine":"dense"},"tests":{"coverage":{"required_tag_groups":[{"id":"empty"}]},"cases":[{"id":"c","query":"q"}]}}]}`},
 		{"unknown field", `{"version":"1.0.0","wat":1,"providers":[{"provider_id":"a","tuning":{"engine":"dense"}}]}`},
@@ -141,6 +143,24 @@ func TestParseSearchFileRejectsBad(t *testing.T) {
 				t.Errorf("expected error for %s", tc.name)
 			}
 		})
+	}
+}
+
+// An entity label (a run id) is carried by a metadata key, not by the provider's
+// chunk-level id_field; the file must be able to say which key.
+func TestParseSearchFileKeepsExpectedIdentityField(t *testing.T) {
+	raw := `{"version":"1.0.0","providers":[{"provider_id":"a","tuning":{"engine":"dense"},"tests":{"cases":[` +
+		`{"id":"c","query":"q","expect_ids":["run-1"],"expected_identity_field":"run_id","expect_within_top_k":5}]}}]}`
+	file, err := ParseSearchFile([]byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider, ok := file.Provider("a")
+	if !ok || len(provider.Tests.Cases) != 1 {
+		t.Fatalf("provider or case missing: %+v", provider.Tests)
+	}
+	if got := provider.Tests.Cases[0].ExpectedIdentityField; got != "run_id" {
+		t.Fatalf("expected_identity_field = %q, want run_id", got)
 	}
 }
 
@@ -172,8 +192,14 @@ func TestPerformancePolicyDefaults(t *testing.T) {
 	if DefaultP95BudgetMs(ClassAsync) <= DefaultP95BudgetMs(ClassExternal) {
 		t.Error("async budget must be the loosest")
 	}
-	if err := (PerformanceConfig{P95Ms: 800, DegradedRateMax: 0.1, TelemetryRequired: true, MinimumSamples: 8}).Validate(); err != nil {
+	if err := (PerformanceConfig{P95Ms: 800, AskP95Ms: 8000, AskMinimumSamples: 20, DegradedRateMax: 0.1, TelemetryRequired: true, MinimumSamples: 8}).Validate(); err != nil {
 		t.Errorf("valid performance rejected: %v", err)
+	}
+	if err := (PerformanceConfig{AskP95Ms: -1}).Validate(); err == nil {
+		t.Error("negative Ask p95 budget unexpectedly accepted")
+	}
+	if err := (PerformanceConfig{AskMinimumSamples: -1}).Validate(); err == nil {
+		t.Error("negative Ask minimum samples unexpectedly accepted")
 	}
 	if err := (PerformanceConfig{MinimumSamples: -1}).Validate(); err == nil {
 		t.Error("negative minimum samples unexpectedly accepted")

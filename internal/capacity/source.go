@@ -26,6 +26,10 @@ type HostInventorySource struct{}
 
 // Snapshot collects a live host inventory snapshot.
 func (HostInventorySource) Snapshot(ctx context.Context) (hostinventory.Snapshot, error) {
+	// CPU utilization is a delta over a short window and is never part of the
+	// cached host facts: take the first reading now so the window elapses while
+	// the cached inventory and the GPU process refresh run.
+	cpu := hostinventory.CPUSampler{}.Begin()
 	snapshot, err := hostinventory.Collect(ctx)
 	if err != nil {
 		return hostinventory.Snapshot{}, err
@@ -33,7 +37,16 @@ func (HostInventorySource) Snapshot(ctx context.Context) (hostinventory.Snapshot
 	// Shared host inventory is cached, while GPU process occupancy is the
 	// admission and residency freshness signal. Reuse the stable host facts but
 	// refresh that dynamic process sample before capacity decisions.
-	return hostinventory.SystemCollector().RefreshNvidiaGPUProcesses(ctx, snapshot)
+	snapshot, err = hostinventory.SystemCollector().RefreshNvidiaGPUProcesses(ctx, snapshot)
+	if err != nil {
+		return snapshot, err
+	}
+	// An unmeasured utilization stays nil, and admission then falls back to the
+	// load average with a visible warning instead of treating it as a zero.
+	if util, utilErr := cpu.Finish(ctx); utilErr == nil {
+		snapshot.CPU.Utilization = &util
+	}
+	return snapshot, nil
 }
 
 // StaticSource is a CapacitySource returning a fixed snapshot (tests, and the

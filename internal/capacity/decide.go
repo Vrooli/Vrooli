@@ -136,10 +136,19 @@ func Decide(req CapacityRequest, snapshot hostinventory.Snapshot, ledger []Capac
 			Reason:        fmt.Sprintf("floor %d exceeds available %d; waiting for %d reclaimable claim(s) to idle", floor.amount, availableNow, len(potentialReclaimable(req, ledger, policy))),
 		}
 	}
-	return Verdict{
-		Kind:   VerdictDeny,
-		Reason: fmt.Sprintf("insufficient %s: floor %d exceeds available %d even after reclaiming idle/lower-priority claims", req.ResourceKind, floor.amount, availableNow),
+	return Verdict{Kind: VerdictDeny, Reason: insufficientReason(req, floor.amount, available, reclaimNowBytes, availablePotential)}
+}
+
+// insufficientReason states what the decision actually counted, so a refusal
+// can be checked against the ledger. Decide never frees anything itself: it
+// counts free capacity plus, unless the request is no-reclaim, the claims that
+// the idle and priority rules would let this requester reclaim.
+func insufficientReason(req CapacityRequest, floor, free, reclaimNow, potential int64) string {
+	if req.NoReclaim {
+		return fmt.Sprintf("insufficient %s: floor %d exceeds the %d free (no-reclaim request: other owners' claims were not counted)", req.ResourceKind, floor, free)
 	}
+	return fmt.Sprintf("insufficient %s: floor %d exceeds the %d available now (%d free + %d held by claims already reclaimable at this priority); even if every claim reclaimable at this priority went idle only %d would be available",
+		req.ResourceKind, floor, free+reclaimNow, free, reclaimNow, potential)
 }
 
 // buildCandidates derives the descending grantable steps for a request. When a
@@ -209,25 +218,31 @@ func resolveCapacity(req CapacityRequest, snapshot hostinventory.Snapshot) (tota
 // observedCPUMillis estimates how much CPU the host is already using, in the
 // same millicore unit the claims use.
 //
-// This used to return a literal 0, which meant admission believed every core
-// was free no matter what the host was doing. The snapshot already carried the
-// answer: it collects Load and Swap on every capture, and both were discarded.
-// Admission was therefore blind to load while being the component whose whole
-// job is deciding whether the host can take more work — so a saturated machine
-// admitted phases exactly as readily as an idle one.
+// Measured utilization is the signal: the share of CPU time spent running user,
+// kernel, interrupt and stolen work over a short window (hostinventory.CPUUtilization).
+// Time a CPU sits idle waiting on disk is idle, and memory or I/O stalls are
+// their own pressure signals, so neither is allowed to pose as CPU use.
 //
-// NormalizedLoad1 is preferred: it is already load-per-core, so it does not
-// have to be divided by a core count that may differ from the one the snapshot
-// reports. Raw Load1 is the fallback. Both are run-queue length rather than
-// true utilization, so a value above 1.0 per core means processes are waiting;
-// it is clamped to the total, because "more than fully busy" is still just
-// fully busy as far as remaining capacity is concerned.
+// The load average is only a fallback, and a labelled one. Linux load counts
+// every task in uninterruptible sleep, so under swap or disk thrash it reads
+// 75-100 on a 32-core host whose CPUs are 85% idle, and admission then reported
+// "0 free" and denied every 250m job while cores sat idle. When utilization is
+// not measured the load average (NormalizedLoad1, else Load1 per core) still
+// bounds the estimate, clamped to the total, and the warning says it is a
+// run-queue proxy that over-counts blocked tasks.
 //
-// A snapshot with no load signal at all reports 0 used, with a warning. That is
-// the old behaviour, kept only as an explicit, visible degradation rather than
-// as the silent default it used to be.
+// A snapshot with no CPU signal at all reports 0 used, with a warning, so the
+// degradation is explicit rather than silent.
 func observedCPUMillis(snapshot hostinventory.Snapshot) (int64, string) {
 	total := int64(snapshot.CPU.Cores) * milliPerCore
+
+	if u := snapshot.CPU.Utilization; u != nil && u.Busy >= 0 {
+		used := int64(u.Busy * float64(total))
+		if used > total {
+			used = total
+		}
+		return used, ""
+	}
 
 	perCore := snapshot.Load.NormalizedLoad1
 	if perCore <= 0 && snapshot.Load.Load1 > 0 && snapshot.CPU.Cores > 0 {
@@ -244,7 +259,7 @@ func observedCPUMillis(snapshot hostinventory.Snapshot) (int64, string) {
 	if used < 0 {
 		used = 0
 	}
-	return used, ""
+	return used, "host CPU utilization is not measured; load average (which counts tasks blocked on I/O) is used as a conservative proxy"
 }
 
 // SwapPressure reports the conservative legacy occupancy fallback. It does not

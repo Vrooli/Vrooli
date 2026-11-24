@@ -3,6 +3,7 @@ package capacity
 import (
 	"context"
 	"errors"
+	"math"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -114,13 +115,22 @@ func TestListDiskHeadroomRefreshesAggregateAcrossLeaseTypes(t *testing.T) {
 	if got, want := filesystem.SafeAdditionalPeakBytes, filesystem.CurrentFreeBytes-filesystem.ActiveReservedBytes-filesystem.FloorBytes; got != want {
 		t.Fatalf("safe additional peak = %d, want current free minus all active peaks and floor: %d", got, want)
 	}
-	store.diskFloorMinimum = filesystem.CurrentFreeBytes - filesystem.ActiveReservedBytes + 10
+	// Free bytes are re-observed by every ListDiskHeadroom call, so a shared
+	// host can change them between the two snapshots. Pin the under-floor case
+	// to a floor that is always above the observed free space and compare the
+	// result with that snapshot's own arithmetic.
+	store.diskFloorMinimum = math.MaxInt64 / 2
 	belowFloor, err := store.ListDiskHeadroom(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := belowFloor.Filesystems[0].SafeAdditionalPeakBytes; got != -10 {
-		t.Fatalf("under-floor observation = %d, want negative remaining headroom", got)
+	under := belowFloor.Filesystems[0]
+	want := under.CurrentFreeBytes - under.ActiveReservedBytes - under.FloorBytes
+	if got := under.SafeAdditionalPeakBytes; got != want {
+		t.Fatalf("under-floor observation = %d, want current free minus all active peaks and floor: %d", got, want)
+	}
+	if want >= 0 {
+		t.Fatalf("under-floor observation = %d, want negative remaining headroom", want)
 	}
 }
 

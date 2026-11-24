@@ -189,10 +189,11 @@ configurable control set. It is enforced in code, not asserted in prose:
   asked for a scan. A positive minor + sexual verdict fails the job and deletes the
   output, so the refused bytes never become addressable.
 - The reviewer is **bundled** (`minor_review`, a CPU-only Python sidecar module) and
-  is used unless `IMAGE_TOOLS_MINOR_SAFETY_CMD` names a replacement. Its three
-  weights are acquired through managed acquisition and scoped by need: the sexual
-  classifier (`adamcodd-vit-nsfw`) is read for every output; the face finder and age
-  model (`yunet`, `fairface-vit-age`) only for an output the classifier calls sexual.
+  is used unless `IMAGE_TOOLS_MINOR_SAFETY_CMD` names a replacement. Its four
+  weights are acquired through managed acquisition and scoped by need: the two
+  sexual classifiers (`falconsai-nsfw`, the precise one, and `adamcodd-vit-nsfw`,
+  the high-recall one) are read for every output; the face finder and age
+  model (`yunet`, `fairface-vit-age`) only for an output a classifier calls sexual.
   They are acquired during admission when the producing model is `nsfw_capable`, and
   on demand otherwise (the reviewer exits 4 naming them, the engine acquires exactly
   those and reviews again once). So ordinary SFW work never depends on the age model,
@@ -249,9 +250,17 @@ measurements are below so nobody has to trust prose.
 **Pipeline** (CPU only, so a review never takes VRAM from a generation; the face and
 age models load only when the classifier first says "sexual"):
 
-1. `adamcodd-vit-nsfw` (ViT, 384 px) gives `P(sexual)`. Threshold **0.30**; **0.10**
-   when the producing model is `nsfw_capable` (strict mode, because the classifier is
-   weaker on synthetic explicit images and these are the models that make them).
+1. Two classifiers score `P(sexual)` and either can call the image sexual:
+   - `falconsai-nsfw` (ViT, 224 px, the pinned `onnx-community` export) is the
+     precise one. Threshold **0.30**; **0.10** in strict mode. On the 2026-11-23
+     diverse SFW set it scored six clothed studio adults, the consenting subject and
+     the pose chart **0.00–0.13**; the old AdamCodd classifier scored three of those
+     adults 0.42–0.65.
+   - `adamcodd-vit-nsfw` (ViT, 384 px) is the high-recall one. Threshold **0.80**;
+     **0.70** in strict mode. It catches the cases Falconsai misses: two rated-Good
+     small-figure fine-art nudes at 0.97–0.99, a full-nudity edit at 0.88, and a
+     deep-skin-tone nude at 0.997 that Falconsai scored 0.06. Its own false-positive
+     range is why its bar is higher (worst clothed portrait 0.652).
 2. `yunet` finds faces (score >= 0.5). A face under 40 px on its short side cannot be
    read.
 3. `fairface-vit-age` (ViT-base fine-tuned on FairFace, nine age bins) reads a square
@@ -261,6 +270,26 @@ age models load only when the classifier first says "sexual"):
    image is sexual and has no readable face at all (its subject's age cannot be
    established, so the reviewer will not wave it through). Any error, timeout (90 s) or
    missing weight refuses as well (the engine deletes the output and fails the job).
+   The host's `safety.SecondOpinionReviewer` may clear **only** the "age could not be
+   established" refusal, and only with a confident adult reading from the
+   face-independent age judge below; a minor-appearing face is never overridden.
+
+**Face-independent age second opinion (no readable face).** When the primary reviewer
+refuses a sexual image because it found no readable face, the host asks a local vision
+model (`vision.default`) the age question with the whole body visible, and clears the
+refusal only when the answer is not flagged under 18, is at apparent age **≥ 25**
+(deliberately above 18, so "about 20" is not treated as evidence) and is not low
+confidence. The call is always local-only (never hosted); if the gateway route cannot
+execute, the same Ollama model is asked directly on loopback
+(`IMAGE_TOOLS_OLLAMA_URL`, `IMAGE_TOOLS_AGE_JUDGE_MODEL`, default `qwen3-vl:2b`,
+falling back to `llava:7b`; the 4B primary needs about 7.4 GB and was not reliable as a
+cold load beside the resident chat model on this 16 GB card).
+The job's CPU/GPU/RAM claims are released before the review so the local model can be
+admitted; the manager keeps the worker and disk claims for its final release. Live proof:
+the big-lust full-nudity generation G8, previously refused for "0 faces found", now
+passes with `apparent age 25, medium confidence` (job `46eee983-300e-4dad-aea1-ef89354d8941`).
+The body-only judgment is conservative and was not reliable on every pose/ethnicity in
+the calibration crops; an unparseable or young reading stays refused (fail closed).
 
 **Age signal**, measured on 5,236 age-labelled faces of the FairFace validation split
 through the real code path (`scripts/minor-review-eval.py`; the bins are FairFace's, and
@@ -287,11 +316,14 @@ twenties for six more points of teenagers. A false refusal costs one more genera
 project does not accept. Revisit with `scripts/minor-review-eval.py` whenever a weight or
 threshold changes.
 
-**Ensemble tried and rejected.** A second age model (nateraw ViT), SigLIP2 child/teen
-probabilities and InsightFace genderage were measured beside it on the same faces. None
-catches the roughly 1.5% of small children the primary model misses (the unions stay at
-98.5% on 0-2), and each costs a torch dependency or a non-commercial licence, so the
-shipped reviewer carries one age model. The residual is stated below instead.
+**Age ensemble tried and rejected.** A second age model (nateraw ViT), SigLIP2
+child/teen probabilities and InsightFace genderage were measured beside the FairFace
+model on the same faces. None catches the roughly 1.5% of small children the primary
+model misses (the unions stay at 98.5% on 0-2), and each costs a torch dependency or a
+non-commercial licence, so the shipped reviewer carries one age model. The residual is
+stated below instead. (The **sexual** ensemble is different and is shipped: the two
+classifiers above cover each other's misses; see the 2026-11-23 evidence in
+`runs/capabilities-20261122/nsfw-run/review2.json`.)
 
 **Sexual classifier on safe faces.** On 900 FairFace portraits (100 per age bin, all
 clothed faces) the classifier scored at or above 0.30 for 0-1% of images in every bin

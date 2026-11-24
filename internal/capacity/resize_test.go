@@ -64,8 +64,8 @@ func TestResizeClaimKeepsIdentityAndObservedHistory(t *testing.T) {
 	if resized.ClaimID != claim.ClaimID {
 		t.Fatalf("ClaimID = %q, want %q; a resize must not create a new row", resized.ClaimID, claim.ClaimID)
 	}
-	if resized.AmountBytes != 12<<30 || resized.PreferredBytes != 12<<30 {
-		t.Fatalf("amount/preferred = %d/%d, want both %d", resized.AmountBytes, resized.PreferredBytes, int64(12)<<30)
+	if resized.AmountBytes != 12<<30 || resized.PreferredBytes != 4<<30 {
+		t.Fatalf("amount/preferred = %d/%d, want %d/%d; a resize changes the amount, not the declaration", resized.AmountBytes, resized.PreferredBytes, int64(12)<<30, int64(4)<<30)
 	}
 	// And it is granted, not degraded: a resize is an owner-side fact, not a
 	// broker instruction

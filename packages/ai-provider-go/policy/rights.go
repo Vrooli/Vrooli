@@ -34,7 +34,16 @@ const (
 type RightsUse string
 
 const (
-	RightsUseLocalInference      RightsUse = "local_inference"
+	// RightsUseLocalInference is normal use: running the model on the
+	// operator's own hardware for the operator's own work. Under the standing
+	// operator stance (RightsContext.NormalUseLicensing) every license class,
+	// including non-commercial and unverified ones, is allowed for it.
+	RightsUseLocalInference RightsUse = "local_inference"
+	// RightsUseMonetizedUse is using the model or its outputs in something that
+	// earns or is meant to earn money. Licenses always decide it; the normal-use
+	// stance never applies. It is evaluated against the same source grants that
+	// local-inference conditions have always expressed (revenue and MAU limits).
+	RightsUseMonetizedUse        RightsUse = "monetized_use"
 	RightsUseHostedInference     RightsUse = "hosted_inference"
 	RightsUseRedistributeWeights RightsUse = "redistribute_weights"
 	RightsUseRedistributeDerived RightsUse = "redistribute_derivative"
@@ -136,7 +145,19 @@ type RightsContext struct {
 	MonthlyActiveUsersEvidence map[string]string `json:"monthly_active_users_evidence,omitempty"`
 	AsOf                       string            `json:"as_of"`
 	Source                     string            `json:"source"`
+	// NormalUseLicensing is the operator's standing answer for normal use.
+	// "any_license_class" allows RightsUseLocalInference for every license
+	// class (non-commercial, conditional whose conditions are unmet, and
+	// unverified evidence). Monetized use, hosted inference and every
+	// redistribution use keep being decided by the license evidence. Empty keeps
+	// local inference license-bound.
+	NormalUseLicensing         string `json:"normal_use_licensing,omitempty"`
+	NormalUseLicensingEvidence string `json:"normal_use_licensing_evidence,omitempty"`
 }
+
+// NormalUseLicensingAnyClass is the only value that relaxes the license gate,
+// and only for RightsUseLocalInference. It needs operator evidence to apply.
+const NormalUseLicensingAnyClass = "any_license_class"
 
 type RightsDecision struct {
 	Status            RightsStatus        `json:"status"`
@@ -161,7 +182,27 @@ type RightsDecision struct {
 	DecisionSHA256    string              `json:"decision_sha256"`
 }
 
+// EvaluateRights decides one use of one artifact. The license evidence decides
+// every use; the single exception is normal use (RightsUseLocalInference) when
+// the trusted context carries the operator's standing NormalUseLicensing
+// answer, which turns any license-based refusal or evidence gap into an allow
+// that keeps the license's limits as obligations. Facts that are missing or
+// malformed stay unknown for every use.
 func EvaluateRights(artifact *ArtifactRights, use RightsUse, context RightsContext, now time.Time) RightsDecision {
+	d := evaluateLicenseRights(artifact, use, context, now)
+	if d.Status == RightsAllowed || use != RightsUseLocalInference || d.Reason == "rights_facts_incomplete" || !normalUseAnyLicenseClass(context) {
+		return d
+	}
+	d.Status, d.Reason = RightsAllowed, "operator_normal_use_any_license_class"
+	d.Obligations = appendUniqueStrings(d.Obligations, "Normal local use only: monetized use, hosted inference and redistribution stay license-bound; verify the license before any of them.")
+	return bindDecision(d)
+}
+
+func normalUseAnyLicenseClass(c RightsContext) bool {
+	return c.NormalUseLicensing == NormalUseLicensingAnyClass && strings.TrimSpace(c.NormalUseLicensingEvidence) != "" && validRightsContext(c)
+}
+
+func evaluateLicenseRights(artifact *ArtifactRights, use RightsUse, context RightsContext, now time.Time) RightsDecision {
 	d := RightsDecision{
 		Status: RightsUnknown, Reason: "rights_facts_incomplete", Use: use,
 		ContextID: strings.TrimSpace(context.ID), ContextVersion: strings.TrimSpace(context.Version),
@@ -208,7 +249,7 @@ func EvaluateRights(artifact *ArtifactRights, use RightsUse, context RightsConte
 		if len(artifact.Obligations) == 0 {
 			return bindDecision(d)
 		}
-		if use == RightsUseLocalInference {
+		if use == RightsUseLocalInference || use == RightsUseMonetizedUse {
 			d.Status, d.Reason = RightsAllowed, "behavioral_use_restrictions_apply"
 			return bindDecision(d)
 		}
@@ -224,7 +265,7 @@ func EvaluateRights(artifact *ArtifactRights, use RightsUse, context RightsConte
 		matchedUse := false
 		unknownCondition := false
 		for _, grant := range artifact.ConditionalGrants {
-			if !containsRightsUse(grant.Uses, use) {
+			if !grantCoversUse(grant, use) {
 				continue
 			}
 			matchedUse = true
@@ -338,6 +379,13 @@ func evaluateConditions(conditions []RightsCondition, context RightsContext) (Ri
 func validYearMonth(value string) bool {
 	_, err := time.Parse("2006-01", strings.TrimSpace(value))
 	return err == nil
+}
+
+// grantCoversUse treats a grant written for local inference as the license's
+// commercial grant, because its revenue and MAU conditions have always
+// described commercial use. Monetized use is therefore covered by it.
+func grantCoversUse(grant ConditionalGrant, use RightsUse) bool {
+	return containsRightsUse(grant.Uses, use) || (use == RightsUseMonetizedUse && containsRightsUse(grant.Uses, RightsUseLocalInference))
 }
 
 func containsRightsUse(uses []RightsUse, target RightsUse) bool {
@@ -480,12 +528,15 @@ func validRightsContext(c RightsContext) bool {
 			}
 		}
 	}
+	if c.NormalUseLicensing != "" && c.NormalUseLicensing != NormalUseLicensingAnyClass {
+		return false
+	}
 	return true
 }
 
 func validRightsUse(use RightsUse) bool {
 	switch use {
-	case RightsUseLocalInference, RightsUseHostedInference, RightsUseRedistributeWeights, RightsUseRedistributeDerived, RightsUseDistributeRuntime:
+	case RightsUseLocalInference, RightsUseMonetizedUse, RightsUseHostedInference, RightsUseRedistributeWeights, RightsUseRedistributeDerived, RightsUseDistributeRuntime:
 		return true
 	default:
 		return false

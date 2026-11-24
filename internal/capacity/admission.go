@@ -10,12 +10,11 @@ import (
 	"reflect"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/clock"
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostpressure"
-	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 // ResourceClaimSpec is the optional `acceleration.claim` block declared in
@@ -149,13 +148,6 @@ func AdmitResource(ctx context.Context, opts AdmitOptions) (AdmissionResult, err
 		return AdmissionResult{}, err
 	}
 	defer store.Close()
-	if opts.NoReclaim {
-		release, err := LockAdmission(ctx, store)
-		if err != nil {
-			return AdmissionResult{}, err
-		}
-		defer release()
-	}
 
 	policy, err := store.GetPolicy(ctx)
 	if err != nil {
@@ -164,6 +156,23 @@ func AdmitResource(ctx context.Context, opts AdmitOptions) (AdmissionResult, err
 	effective := policy.EffectiveEnforce(enforceEnv)
 	if effective == EnforceOff {
 		return AdmissionResult{Skipped: true, Reason: "enforcement disabled (policy off)", Enforce: EnforceOff}, nil
+	}
+	admission := AdmissionOptions{
+		Source: opts.Source, MemoryPressure: opts.MemoryPressure, Attributor: opts.Attributor,
+		Exec: opts.Exec, Policy: policy, Enforce: effective, Clock: opts.Clock,
+	}
+	// A strict no-reclaim startup serializes its decision and write against
+	// every other admission, but it senses the host BEFORE taking the lock: it
+	// used to hold the fleet-wide lock across hardware probing, and a lifecycle
+	// restart held it for over 50 s.
+	var sensing AdmissionSensing
+	if opts.NoReclaim {
+		var release func()
+		sensing, release, err = SenseThenLock(ctx, store, admission)
+		if err != nil {
+			return AdmissionResult{}, err
+		}
+		defer release()
 	}
 
 	req := spec.toRequest(opts.ResourceName)
@@ -202,10 +211,12 @@ func AdmitResource(ctx context.Context, opts AdmitOptions) (AdmissionResult, err
 			// request and execute smaller rungs through their own owner path.
 			decisionReq.FloorBytes, decisionReq.Profile = req.PreferredBytes, nil
 		}
-		verdict, err = EvaluateAdmission(ctx, store, decisionReq, AdmissionOptions{
-			Source: opts.Source, MemoryPressure: opts.MemoryPressure, Attributor: opts.Attributor,
-			Exec: opts.Exec, Policy: policy, Enforce: effective, Clock: opts.Clock, ExcludeClaims: ignored,
-		})
+		admission.ExcludeClaims = ignored
+		if opts.NoReclaim {
+			verdict, err = DecideAdmission(ctx, store, decisionReq, admission, sensing)
+		} else {
+			verdict, err = EvaluateAdmission(ctx, store, decisionReq, admission)
+		}
 		if err != nil {
 			return AdmissionResult{}, err
 		}
@@ -272,18 +283,38 @@ type AdmissionOptions struct {
 	ExcludeClaims  []string
 }
 
-// EvaluateAdmission is the shared native CLI/resource decision boundary. It
-// senses once, preserves residents through Sweep, applies pressure policy and
-// realizes only the reclaim cohort selected by Decide. Recording is separate
-// from a grant; unavailable sensing is a denial, including in advisory mode.
-func EvaluateAdmission(ctx context.Context, store ClaimRepository, req CapacityRequest, opts AdmissionOptions) (Verdict, error) {
+// AdmissionSensing is the host observation an admission decision rests on:
+// one capacity snapshot and the liveness sweep run against it. It is gathered
+// WITHOUT the admission lock - sensing shells out to nvidia-smi, docker and
+// systemd and takes seconds on a loaded host - and handed to DecideAdmission,
+// which takes the lock only around the ledger read, the decision and the write.
+type AdmissionSensing struct {
+	Snapshot hostinventory.Snapshot
+	// Unavailable is non-empty when the host could not be sensed; the decision
+	// is then a denial, in advisory mode too.
+	Unavailable string
+	swept       SweepResult
+	sensedAt    time.Time
+}
+
+// SensedAt is when the snapshot was taken.
+func (a AdmissionSensing) SensedAt() time.Time { return a.sensedAt }
+
+// MaxAdmissionSensingAge bounds how stale sensing may be when the decision is
+// made. A caller that queued longer than this for the admission lock senses
+// again before it decides (see SenseThenLock).
+const MaxAdmissionSensingAge = 10 * time.Second
+
+// SenseAdmission reads the host and sweeps stale claims. It never holds the
+// admission lock; every ledger write inside Sweep is its own short transaction.
+func SenseAdmission(ctx context.Context, store ClaimRepository, opts AdmissionOptions) (AdmissionSensing, error) {
 	source := opts.Source
 	if source == nil {
 		source = HostInventorySource{}
 	}
 	snapshot, err := source.Snapshot(ctx)
 	if err != nil {
-		return Verdict{Kind: VerdictDeny, Reason: "capacity sensing unavailable: " + err.Error()}, nil
+		return AdmissionSensing{Unavailable: err.Error()}, nil
 	}
 	now := clock.Real{}.Now()
 	if opts.Clock != nil {
@@ -295,7 +326,62 @@ func EvaluateAdmission(ctx context.Context, store ClaimRepository, req CapacityR
 	}
 	swept, err := Sweep(ctx, store, snapshot, attr, opts.Policy, now)
 	if err != nil {
+		return AdmissionSensing{}, err
+	}
+	return AdmissionSensing{Snapshot: snapshot, swept: swept, sensedAt: time.Now()}, nil
+}
+
+// SenseThenLock senses outside the admission lock, takes the lock, and
+// guarantees the sensing it returns is no older than MaxAdmissionSensingAge at
+// the moment the lock is held. If the lock queue made it older, the sensing is
+// redone and the lock retaken (bounded), so a long queue never turns into a
+// decision on a stale host reading and the lock is still never held while
+// sensing. The returned release must be called exactly once.
+func SenseThenLock(ctx context.Context, store ClaimRepository, opts AdmissionOptions) (AdmissionSensing, func(), error) {
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		sensing, err := SenseAdmission(ctx, store, opts)
+		if err != nil {
+			return AdmissionSensing{}, nil, err
+		}
+		release, err := LockAdmission(ctx, store)
+		if err != nil {
+			return AdmissionSensing{}, nil, err
+		}
+		if sensing.Unavailable != "" || time.Since(sensing.sensedAt) <= MaxAdmissionSensingAge || attempt == 2 {
+			return sensing, release, nil
+		}
+		release()
+		lastErr = fmt.Errorf("admission sensing aged past %s while queued for the admission lock", MaxAdmissionSensingAge)
+	}
+	return AdmissionSensing{}, nil, lastErr
+}
+
+// EvaluateAdmission is the shared native CLI/resource decision boundary. It
+// senses once, preserves residents through Sweep, applies pressure policy and
+// realizes only the reclaim cohort selected by Decide. Recording is separate
+// from a grant; unavailable sensing is a denial, including in advisory mode.
+// Callers that hold the admission lock use SenseThenLock + DecideAdmission so
+// the lock never spans sensing.
+func EvaluateAdmission(ctx context.Context, store ClaimRepository, req CapacityRequest, opts AdmissionOptions) (Verdict, error) {
+	sensing, err := SenseAdmission(ctx, store, opts)
+	if err != nil {
 		return Verdict{}, err
+	}
+	return DecideAdmission(ctx, store, req, opts, sensing)
+}
+
+// DecideAdmission is the decision half of EvaluateAdmission: it reads the
+// ledger, applies pressure policy and Decide to sensing taken earlier, and
+// realizes the selected reclaim cohort.
+func DecideAdmission(ctx context.Context, store ClaimRepository, req CapacityRequest, opts AdmissionOptions, sensing AdmissionSensing) (Verdict, error) {
+	if sensing.Unavailable != "" {
+		return Verdict{Kind: VerdictDeny, Reason: "capacity sensing unavailable: " + sensing.Unavailable}, nil
+	}
+	snapshot, swept := sensing.Snapshot, sensing.swept
+	now := clock.Real{}.Now()
+	if opts.Clock != nil {
+		now = opts.Clock().UTC()
 	}
 	ledger, err := store.ListClaims(ctx, ClaimFilter{ResourceKind: req.ResourceKind, Statuses: ActiveClaimStatuses()})
 	if err != nil {
@@ -395,140 +481,4 @@ func (c clockAdapter) Now() time.Time { return c() }
 // releases the claim. Explicit verified stop owns release.
 func WithResourceAdmission(ctx context.Context, opts AdmitOptions, run func(context.Context) error) error {
 	return withResourceAdmissionTicks(ctx, opts, nil, run)
-}
-
-func withResourceAdmissionTicks(ctx context.Context, opts AdmitOptions, ticks <-chan time.Time, run func(context.Context) error) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	runOwner := func() error {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		return run(ctx)
-	}
-	result, err := AdmitResource(ctx, opts)
-	if err != nil {
-		admissionLog(opts, "admission: %v", err)
-		if opts.NoReclaim {
-			return err
-		}
-		return runOwner()
-	}
-	for _, warning := range result.Verdict.Warnings {
-		admissionLog(opts, "admission: %s", warning)
-	}
-	if result.Skipped || result.ClaimID == "" {
-		if opts.NoReclaim {
-			return fmt.Errorf("no-reclaim admission unavailable: %s", result.Reason)
-		}
-		return runOwner()
-	}
-	admissionLog(opts, "admission claim=%s verdict=%s granted_bytes=%d no_reclaim=%t", result.ClaimID, result.Verdict.Kind, result.Verdict.GrantedBytes, opts.NoReclaim)
-	store, err := openAdmitStore(ctx, opts)
-	if err != nil {
-		admissionLog(opts, "open startup lease: %v", err)
-		if opts.NoReclaim {
-			return err
-		}
-		return runOwner()
-	}
-	defer store.Close()
-	ttl := result.ttl
-
-	interval := ttl / 3
-	if interval <= 0 {
-		interval = time.Nanosecond
-	}
-	if ticks == nil {
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-		ticks = ticker.C
-	}
-	renew := func(parent context.Context) {
-		callCtx, cancel := context.WithTimeout(parent, interval)
-		defer cancel()
-		current, getErr := store.GetClaim(callCtx, result.ClaimID)
-		if getErr == nil && (current.OwnerKind != OwnerKindResource || current.OwnerID != opts.ResourceName) {
-			getErr = fmt.Errorf("claim identity no longer matches resource")
-		}
-		if getErr == nil {
-			_, getErr = store.HeartbeatClaim(callCtx, current.ClaimID, current.Generation, ttl)
-		}
-		if getErr != nil && parent.Err() == nil {
-			admissionLog(opts, "renew startup claim %s: %v", result.ClaimID, getErr)
-		}
-	}
-	leaseCtx, cancel := context.WithCancel(ctx)
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		for {
-			select {
-			case <-leaseCtx.Done():
-				return
-			case <-ticks:
-				renew(leaseCtx)
-			}
-		}
-	}()
-	// Join before closing the store; no stranded renewal goroutine after return.
-	var once sync.Once
-	stop := func() { once.Do(func() { cancel(); <-done }) }
-	defer stop()
-	runErr := runOwner()
-	stop()
-	if ctx.Err() == nil {
-		renew(ctx)
-	}
-	return runErr
-}
-
-// ReleaseResourceAdmissionAfterStop captures this owner's active claims before
-// a stop performed under the caller's lifecycle lock. Only a successful verified
-// terminal stop releases those IDs. Restart and uncertain stop never call this.
-func ReleaseResourceAdmissionAfterStop(ctx context.Context, opts AdmitOptions, stop func() error) error {
-	_, declared, err := LoadResourceClaimSpec(opts.Root, opts.ResourceName)
-	if err != nil {
-		admissionLog(opts, "read stop claims: %v", err)
-	}
-	if !declared || err != nil {
-		return stop()
-	}
-	store, err := openAdmitStore(ctx, opts)
-	if err != nil {
-		admissionLog(opts, "open stop claims: %v", err)
-		return stop()
-	}
-	defer store.Close()
-	claims, err := store.ListClaims(ctx, ClaimFilter{OwnerKind: OwnerKindResource, OwnerID: opts.ResourceName, Statuses: ActiveClaimStatuses()})
-	if err != nil {
-		admissionLog(opts, "capture stop claims: %v", err)
-	}
-	if stopErr := stop(); stopErr != nil {
-		return stopErr
-	}
-	// A successful stop may finish escalation after caller cancellation. Ledger
-	// cleanup is bounded and retains normal stop authority, not a new model task.
-	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), tuning.CredentialServiceTimeout())
-	defer cancel()
-	for _, claim := range claims {
-		current, getErr := store.GetClaim(cleanupCtx, claim.ClaimID)
-		if getErr == nil && (current.OwnerKind != OwnerKindResource || current.OwnerID != opts.ResourceName) {
-			getErr = fmt.Errorf("claim identity no longer matches resource")
-		}
-		if getErr == nil {
-			_, getErr = store.ReleaseClaim(cleanupCtx, claim.ClaimID)
-		}
-		if getErr != nil {
-			admissionLog(opts, "release stopped claim %s: %v", claim.ClaimID, getErr)
-		}
-	}
-	return nil
-}
-
-func admissionLog(opts AdmitOptions, format string, args ...any) {
-	if opts.Log != nil {
-		fmt.Fprintf(opts.Log, "capacity (%s): "+format+"\n", append([]any{opts.ResourceName}, args...)...)
-	}
 }

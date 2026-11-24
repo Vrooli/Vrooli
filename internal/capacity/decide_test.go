@@ -2,6 +2,7 @@
 package capacity
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -238,6 +239,34 @@ func TestDecideQueueVsDeny(t *testing.T) {
 	v := Decide(req, snapshotWith(16, 15), ledger, DefaultPolicy(), now)
 	if v.Kind != VerdictDeny {
 		t.Fatalf("kind = %q, want deny (peer priority, nothing reclaimable) (%s)", v.Kind, v.Reason)
+	}
+}
+
+// A refusal names what was counted so it can be checked against the ledger. It
+// must not claim that anything was reclaimed: Decide only counts.
+func TestDecideDenialStatesWhatWasCounted(t *testing.T) {
+	now := time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC)
+	ledger := []CapacityClaim{{
+		ClaimID: "clm-peer", OwnerID: "kyutai-stt", ResourceKind: ResourceKindVRAM,
+		GPUIndex: gpu(0), AmountBytes: 15 * gib, Status: StatusGranted, Priority: PriorityInteractive,
+		ActivityState: ActivityActive,
+	}}
+
+	v := Decide(vramReq(6, 6, PriorityInteractive), snapshotWith(16, 15), ledger, DefaultPolicy(), now)
+	for _, want := range []string{"insufficient vram", "available now", "free", "reclaimable at this priority"} {
+		if !strings.Contains(v.Reason, want) {
+			t.Errorf("reason %q lacks %q", v.Reason, want)
+		}
+	}
+	if strings.Contains(v.Reason, "even after reclaiming") {
+		t.Errorf("reason %q claims a reclaim happened; Decide only counts", v.Reason)
+	}
+
+	noReclaim := vramReq(6, 6, PriorityInteractive)
+	noReclaim.NoReclaim = true
+	v = Decide(noReclaim, snapshotWith(16, 15), ledger, DefaultPolicy(), now)
+	if !strings.Contains(v.Reason, "no-reclaim request") || !strings.Contains(v.Reason, "were not counted") {
+		t.Errorf("no-reclaim reason %q must say other owners' claims were not counted", v.Reason)
 	}
 }
 

@@ -90,6 +90,7 @@ type VectorStore struct {
 	QueryResults   []aisearch.SearchResult
 	Err            error
 	AvailableValue bool
+	queryHistory   []aisearch.HybridQuery
 }
 
 func NewVectorStore() *VectorStore {
@@ -132,8 +133,24 @@ func (s *VectorStore) BatchDelete(_ context.Context, ids []string) error {
 	return nil
 }
 
-func (s *VectorStore) Query(context.Context, aisearch.HybridQuery) ([]aisearch.SearchResult, error) {
+func (s *VectorStore) Query(_ context.Context, query aisearch.HybridQuery) ([]aisearch.SearchResult, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.queryHistory = append(s.queryHistory, cloneHybridQuery(query))
 	return cloneResults(s.QueryResults), s.Err
+}
+
+// QueryHistory returns copy-safe requests received by this fake vector store.
+// It lets adopter tests verify that shared search filters and hybrid settings
+// reach the vector boundary without each package reimplementing VectorStore.
+func (s *VectorStore) QueryHistory() []aisearch.HybridQuery {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]aisearch.HybridQuery, len(s.queryHistory))
+	for i, query := range s.queryHistory {
+		out[i] = cloneHybridQuery(query)
+	}
+	return out
 }
 
 func (s *VectorStore) CountPoints(context.Context) (int, error) {
@@ -212,6 +229,45 @@ func clonePayload(payload map[string]any) map[string]any {
 		out[key] = value
 	}
 	return out
+}
+
+func cloneHybridQuery(query aisearch.HybridQuery) aisearch.HybridQuery {
+	copyQuery := query
+	copyQuery.Dense = append([]float64(nil), query.Dense...)
+	if query.Sparse != nil {
+		copySparse := *query.Sparse
+		copySparse.Indices = append([]uint32(nil), query.Sparse.Indices...)
+		copySparse.Values = append([]float32(nil), query.Sparse.Values...)
+		copyQuery.Sparse = &copySparse
+	}
+	if query.Filter != nil {
+		copyFilter := *query.Filter
+		copyFilter.Must = append([]aisearch.FieldMatch(nil), query.Filter.Must...)
+		for i := range copyFilter.Must {
+			copyFilter.Must[i].AnyOf = append([]any(nil), query.Filter.Must[i].AnyOf...)
+		}
+		copyFilter.Ranges = append([]aisearch.FieldRange(nil), query.Filter.Ranges...)
+		for i, fieldRange := range query.Filter.Ranges {
+			if fieldRange.GT != nil {
+				value := *fieldRange.GT
+				copyFilter.Ranges[i].GT = &value
+			}
+			if fieldRange.GTE != nil {
+				value := *fieldRange.GTE
+				copyFilter.Ranges[i].GTE = &value
+			}
+			if fieldRange.LT != nil {
+				value := *fieldRange.LT
+				copyFilter.Ranges[i].LT = &value
+			}
+			if fieldRange.LTE != nil {
+				value := *fieldRange.LTE
+				copyFilter.Ranges[i].LTE = &value
+			}
+		}
+		copyQuery.Filter = &copyFilter
+	}
+	return copyQuery
 }
 
 var (

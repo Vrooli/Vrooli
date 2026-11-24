@@ -2,11 +2,14 @@ package capacity
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/scenario"
 )
 
 // declaredResourceManifest is intentionally smaller than the full resource
@@ -157,14 +160,6 @@ type DeclaredResource struct {
 	Tunables       []DeclaredCapacityTunable
 }
 
-type declaredServiceManifest struct {
-	Dependencies struct {
-		Resources map[string]struct {
-			Enabled bool `json:"enabled"`
-		} `json:"resources"`
-	} `json:"dependencies"`
-}
-
 // LoadDeclaredResources is the capacity package's sole resource-manifest walk.
 // Reconciliation and set-level fit both consume this projection.
 func LoadDeclaredResources(root string) ([]DeclaredResource, error) {
@@ -173,16 +168,15 @@ func LoadDeclaredResources(root string) ([]DeclaredResource, error) {
 		return nil, nil
 	}
 	enabled := make(map[string]bool)
-	if data, err := os.ReadFile(filepath.Join(root, ".vrooli", "service.json")); err == nil {
-		var service declaredServiceManifest
-		if err := json.Unmarshal(data, &service); err != nil {
-			return nil, fmt.Errorf("parse root service manifest: %w", err)
+	service, err := scenario.LoadServiceManifest(filepath.Join(root, ".vrooli", "service.json"))
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("load root service manifest: %w", err)
 		}
+	} else {
 		for name, resource := range service.Dependencies.Resources {
 			enabled[name] = resource.Enabled
 		}
-	} else if !os.IsNotExist(err) {
-		return nil, fmt.Errorf("read root service manifest: %w", err)
 	}
 
 	entries, err := os.ReadDir(filepath.Join(root, "resources"))
@@ -224,16 +218,6 @@ func LoadDeclaredResources(root string) ([]DeclaredResource, error) {
 	return resources, nil
 }
 
-// declaresAccelerator reports whether the manifest asks for any backend other
-// than the CPU. It is the single answer to the question two files used to
-// answer differently.
-func (m declaredResourceManifest) declaresAccelerator() bool {
-	if m.Acceleration == nil {
-		return false
-	}
-	return declaresAcceleratorBackends(m.Acceleration.Backends)
-}
-
 func declaresAcceleratorBackends(backends []string) bool {
 	for _, backend := range backends {
 		if strings.TrimSpace(strings.ToLower(backend)) != ResourceKindCPU {
@@ -241,14 +225,6 @@ func declaresAcceleratorBackends(backends []string) bool {
 		}
 	}
 	return false
-}
-
-// claim returns the declared reservation, if any.
-func (m declaredResourceManifest) claim() *ResourceClaimSpec {
-	if m.Acceleration == nil {
-		return nil
-	}
-	return m.Acceleration.Claim
 }
 
 // InstalledPredicate answers whether a resource is installed on this host. It

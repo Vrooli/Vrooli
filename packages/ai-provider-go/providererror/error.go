@@ -23,6 +23,13 @@ const (
 	CodeCommandFailed       = "command_failed"
 	CodeUnconfigured        = "unconfigured"
 	CodeContextOverflow     = "context_overflow"
+	// Capacity refusals: the provider is healthy but this candidate cannot be
+	// served right now (not enough accelerator or host memory, or a request
+	// beyond the model's declared limits). A router moves to the next candidate
+	// and must not count these against the provider's health.
+	CodeInsufficientVRAM   = "insufficient_vram"
+	CodeInsufficientMemory = "insufficient_memory"
+	CodeLimitsExceeded     = "limits_exceeded"
 )
 
 // Marker is the stable line protocol an owner adapter writes to stderr.
@@ -150,7 +157,8 @@ func normalizeCode(code string) string {
 	switch code {
 	case CodeInsufficientCredits, CodeRateLimited, CodeProviderOverloaded,
 		CodeProviderFailed, CodeStreamFailed, CodeUnreachable, CodeCommandFailed,
-		CodeUnconfigured, CodeContextOverflow:
+		CodeUnconfigured, CodeContextOverflow,
+		CodeInsufficientVRAM, CodeInsufficientMemory, CodeLimitsExceeded:
 		return code
 	default:
 		return ""

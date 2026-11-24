@@ -34,6 +34,14 @@ func AdoptObservedResidents(ctx context.Context, store ClaimRepository, snapshot
 	if attr == nil || loadSpec == nil {
 		return nil, nil
 	}
+	// Attribution resolves each GPU process through docker; do it before taking
+	// the admission lock so the lock covers only the ledger read and the writes.
+	attributions := make([]Attribution, len(snapshot.GPUProcesses))
+	for i, proc := range snapshot.GPUProcesses {
+		if int64(proc.UsedBytes) >= policy.TrackingThreshold {
+			attributions[i] = attr.Attribute(ctx, proc.PID)
+		}
+	}
 	release, err := LockAdmission(ctx, store)
 	if err != nil {
 		return nil, err
@@ -52,11 +60,11 @@ func AdoptObservedResidents(ctx context.Context, store ClaimRepository, snapshot
 
 	var created []CapacityClaim
 	adopted := make(map[string]bool) // owners claimed this pass (dedupe within the sweep)
-	for _, proc := range snapshot.GPUProcesses {
+	for i, proc := range snapshot.GPUProcesses {
 		if int64(proc.UsedBytes) < policy.TrackingThreshold {
 			continue
 		}
-		a := attr.Attribute(ctx, proc.PID)
+		a := attributions[i]
 		// Already covered by an active claim → nothing to adopt.
 		if _, matched := matchClaim(activeVRAM, a, proc); matched {
 			continue

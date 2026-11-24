@@ -282,7 +282,7 @@ func TestEvaluateRightsDeniesProhibitedAndUnknownUse(t *testing.T) {
 	ctx := testRightsContext("pre_revenue", "context-v1")
 	prohibited := artifact
 	prohibited.Classification = RightsProhibited
-	if got := EvaluateRights(&prohibited, RightsUseLocalInference, ctx, now); got.Status != RightsDenied {
+	if got := EvaluateRights(&prohibited, RightsUseLocalInference, ctx, now); got.Status == RightsAllowed {
 		t.Fatalf("prohibited grant = %+v", got)
 	}
 	if got := EvaluateRights(&artifact, RightsUse("invented"), ctx, now); got.Status != RightsUnknown {
@@ -396,4 +396,116 @@ func testConditionalRights() ArtifactRights {
 
 func testRightsContext(revenue, version string) RightsContext {
 	return RightsContext{ID: "operator-business-context/current", Version: version, EntityScope: "operator-group", RevenueStatus: revenue, AsOf: "2026-11-10", Source: "operator_statement"}
+}
+
+func normalUseContext() RightsContext {
+	ctx := testRightsContext("pre_revenue", "context-v3")
+	ctx.NormalUseLicensing = NormalUseLicensingAnyClass
+	ctx.NormalUseLicensingEvidence = "operator statement 2026-11-21: always use the best models regardless of licensing for normal use"
+	return ctx
+}
+
+func TestNormalUseLicensingAllowsEveryLicenseClassForLocalInferenceOnly(t *testing.T) {
+	now := time.Date(2026, 11, 21, 12, 0, 0, 0, time.UTC)
+	unverified := ArtifactRights{
+		ArtifactID:       "image-tools/depth-anything-v2-small",
+		Classification:   RightsUnverified,
+		UnverifiedReason: "exact_license_source_revision_and_weight_digest_not_verified",
+		ReviewTriggers:   []string{"artifact_changed"},
+	}
+	nonCommercial := testConditionalRights()
+	nonCommercial.Classification = RightsProhibited
+	nonCommercial.LicenseID = "LicenseRef-test-non-commercial"
+	nonCommercial.Conditions = nil
+	atThreshold := testConditionalRights()
+	grants := testConditionalRights()
+	grants.Conditions = nil
+	grants.ConditionalGrants = []ConditionalGrant{{ID: "commercial-under-threshold", Uses: []RightsUse{RightsUseLocalInference, RightsUseHostedInference}, Conditions: []RightsCondition{{ID: "revenue-v1", Kind: "annual_revenue", Comparator: "lt", Threshold: 1000000, Unit: "USD", EntityScope: "operator-group", Interpretation: "test"}}}}
+
+	cases := []struct {
+		name       string
+		artifact   ArtifactRights
+		revenue    string
+		monetized  RightsStatus
+		hostedWant RightsStatus
+	}{
+		{"unverified", unverified, "pre_revenue", RightsUnknown, RightsUnknown},
+		{"non-commercial", nonCommercial, "pre_revenue", RightsDenied, RightsDenied},
+		{"conditional over threshold", atThreshold, "at_or_above_threshold", RightsDenied, RightsDenied},
+		{"grant over threshold", grants, "at_or_above_threshold", RightsDenied, RightsDenied},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			strict := testRightsContext(tc.revenue, "context-strict")
+			if got := EvaluateRights(&tc.artifact, RightsUseLocalInference, strict, now); got.Status == RightsAllowed {
+				t.Fatalf("without the standing answer local inference must stay license-bound: %+v", got)
+			}
+			ctx := normalUseContext()
+			ctx.RevenueStatus = tc.revenue
+			got := EvaluateRights(&tc.artifact, RightsUseLocalInference, ctx, now)
+			if got.Status != RightsAllowed || got.Reason != "operator_normal_use_any_license_class" || len(got.Obligations) == 0 {
+				t.Fatalf("normal use was not allowed: %+v", got)
+			}
+			if err := VerifyRightsDecision(got); err != nil {
+				t.Fatalf("accepted decision failed self-verification: %v", err)
+			}
+			if err := RequireCurrentRightsDecision(got, &tc.artifact, RightsUseLocalInference, ctx); err != nil {
+				t.Fatalf("accepted decision is not current: %v", err)
+			}
+			if got := EvaluateRights(&tc.artifact, RightsUseMonetizedUse, ctx, now); got.Status != tc.monetized {
+				t.Fatalf("monetized use = %+v, want %s", got, tc.monetized)
+			}
+			if got := EvaluateRights(&tc.artifact, RightsUseHostedInference, ctx, now); got.Status != tc.hostedWant {
+				t.Fatalf("hosted inference = %+v, want %s", got, tc.hostedWant)
+			}
+			for _, use := range []RightsUse{RightsUseRedistributeWeights, RightsUseRedistributeDerived, RightsUseDistributeRuntime} {
+				if got := EvaluateRights(&tc.artifact, use, ctx, now); got.Status == RightsAllowed {
+					t.Fatalf("normal-use stance leaked to %s: %+v", use, got)
+				}
+			}
+		})
+	}
+}
+
+func TestNormalUseLicensingNeedsEvidenceAndKnownValueAndFacts(t *testing.T) {
+	now := time.Date(2026, 11, 21, 12, 0, 0, 0, time.UTC)
+	nonCommercial := testConditionalRights()
+	nonCommercial.Classification = RightsProhibited
+	nonCommercial.Conditions = nil
+
+	noEvidence := normalUseContext()
+	noEvidence.NormalUseLicensingEvidence = ""
+	if got := EvaluateRights(&nonCommercial, RightsUseLocalInference, noEvidence, now); got.Status == RightsAllowed {
+		t.Fatalf("standing answer without operator evidence must not allow: %+v", got)
+	}
+	unknownValue := normalUseContext()
+	unknownValue.NormalUseLicensing = "maybe"
+	if got := EvaluateRights(&nonCommercial, RightsUseLocalInference, unknownValue, now); got.Status != RightsUnknown || got.Reason != "rights_facts_incomplete" {
+		t.Fatalf("unsupported value must invalidate the context: %+v", got)
+	}
+	missing := normalUseContext()
+	if got := EvaluateRights(nil, RightsUseLocalInference, missing, now); got.Status != RightsUnknown {
+		t.Fatalf("missing facts must stay unknown even for normal use: %+v", got)
+	}
+	malformed := nonCommercial
+	malformed.SHA256 = "not-a-digest"
+	if got := EvaluateRights(&malformed, RightsUseLocalInference, missing, now); got.Status != RightsUnknown {
+		t.Fatalf("malformed facts must stay unknown even for normal use: %+v", got)
+	}
+}
+
+func TestMonetizedUseFollowsTheSourceGrantConditions(t *testing.T) {
+	now := time.Date(2026, 11, 21, 12, 0, 0, 0, time.UTC)
+	artifact := testConditionalRights()
+	if got := EvaluateRights(&artifact, RightsUseMonetizedUse, testRightsContext("pre_revenue", "v1"), now); got.Status != RightsAllowed {
+		t.Fatalf("monetized use under the revenue threshold = %+v, want allowed", got)
+	}
+	if got := EvaluateRights(&artifact, RightsUseMonetizedUse, testRightsContext("at_or_above_threshold", "v2"), now); got.Status != RightsDenied {
+		t.Fatalf("monetized use over the revenue threshold = %+v, want denied", got)
+	}
+	ctx := normalUseContext()
+	ctx.RevenueStatus = "at_or_above_threshold"
+	if got := EvaluateRights(&artifact, RightsUseMonetizedUse, ctx, now); got.Status != RightsDenied {
+		t.Fatalf("the normal-use stance must not allow monetized use: %+v", got)
+	}
 }

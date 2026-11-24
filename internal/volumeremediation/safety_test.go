@@ -111,10 +111,10 @@ func TestEverySupportedFilesystemHasBothAdapters(t *testing.T) {
 			// rather than a per-family tool.
 			continue
 		}
-		if _, err := checkArgs(family, "/dev/sda1"); err != nil {
+		if _, err := checkArgs(name, "/dev/sda1"); err != nil {
 			t.Fatalf("%q (family %q) has no check adapter: %v", name, family, err)
 		}
-		if _, err := repairArgs(family, "/dev/sda1"); err != nil {
+		if _, err := repairArgs(name, "/dev/sda1"); err != nil {
 			t.Fatalf("%q (family %q) has no repair adapter: %v", name, family, err)
 		}
 	}

@@ -17,7 +17,7 @@ func TestChatAndModels(t *testing.T) {
 		switch r.URL.Path {
 		case "/v1/chat/completions":
 			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"hello"}}],"usage":{"prompt_tokens":3,"completion_tokens":2,"cost":0.001}}`))
+			_, _ = w.Write([]byte(`{"model":"vendor/served-model","choices":[{"message":{"content":"hello"}}],"usage":{"prompt_tokens":3,"completion_tokens":2,"cost":0.001}}`))
 		case "/v1/models":
 			_, _ = w.Write([]byte(`{"data":[{"id":"vendor/model","owned_by":"vendor"},{"id":"other/model"}]}`))
 		default:
@@ -34,7 +34,7 @@ func TestChatAndModels(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
-	if result.Text != "hello" || result.Usage.PromptTokens == nil || *result.Usage.PromptTokens != 3 {
+	if result.Text != "hello" || result.Model != "vendor/served-model" || result.Usage.PromptTokens == nil || *result.Usage.PromptTokens != 3 {
 		t.Fatalf("result = %+v", result)
 	}
 	raw, err := client.ListModels(context.Background())

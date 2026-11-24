@@ -39,9 +39,11 @@ func (s *demandStub) Acquire(_ context.Context, req demand.AcquireRequest) (dema
 	}
 	return demand.Lease{LeaseID: req.LeaseID}, nil
 }
+
 func (s *demandStub) Renew(context.Context, string, time.Duration) (demand.Lease, error) {
 	return demand.Lease{}, nil
 }
+
 func (s *demandStub) Release(_ context.Context, id, reason string) (demand.Lease, error) {
 	s.released = append(s.released, id)
 	s.releaseReasons = append(s.releaseReasons, reason)

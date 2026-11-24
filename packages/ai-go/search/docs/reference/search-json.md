@@ -90,6 +90,8 @@ latest fresh eval run:
 ```jsonc
 "performance": {
   "p95_ms": 1500,
+  "ask_p95_ms": 8000,
+  "ask_minimum_samples": 20,
   "degraded_rate_max": 0.05,
   "telemetry_required": true,
   "minimum_samples": 8
@@ -101,6 +103,11 @@ production result when it was calculated from a smoke-sized run. Local productio
 providers normally declare at least 8 evaluated cases; external smoke-only
 providers declare 1. A run below this explicit floor produces the required
 `SEARCH_PERF_SAMPLES_UNPROVEN` finding.
+
+`ask_p95_ms` and `ask_minimum_samples` declare a separate budget for a provider's
+explicit generated-answer path. Search Hub's retrieval eval latency does not
+include model generation; scenarios with an Ask mode must run their own answer
+latency gate and must not present the retrieval p95 as an Ask measurement.
 
 ## 3. `tuning` — the control-surface dashboard
 
@@ -117,7 +124,7 @@ one-line decision rule:
 | `embed_task_prefix` | **index-time** | bool | `false` | asymmetric `search_query:` / `search_document:` prefixes for nomic (+0.20 recall on terse command corpora); changes the embedding space → reindex. Leave off for symmetric / already-tuned corpora. |
 | `rerank_enabled` | query-time | bool | `false` | cross-encoder / LLM rerank lifts precision + junk rejection; buys no recall on prose corpora and adds latency + a reranker resource dependency. Off degrades cleanly to retrieval order. |
 | `rerank_blend` | query-time | bool | `false` | fuse the rerank order with retrieval via RRF instead of reordering outright; keeps junk rejection without burying strongly-retrieved canonical hits (+0.20 recall on the command corpus). Requires `rerank_enabled`. |
-| `rerank_shortlist` | query-time | int [1,500] | `50` | over-fetch depth into the reranker; higher = more recall into the rerank but more candidates to score (LLM-leg latency; negligible on the cross-encoder). |
+| `rerank_shortlist` | query-time | int [1,500] | `50` | bounded candidate depth before post-filter/rerank/page limiting, including when reranking is off; higher can improve recall but increases retrieval and (when enabled) reranking work. Chunked document corpora may need a larger source-specific value. |
 | `rerank_preference` | query-time | `cross_encoder` / `llm_fallback` / `auto` | `auto` | Declares the preferred available reranker leg. A preference is advisory when that leg is unavailable; the response and telemetry still name the active leg and degradation reason. |
 | `floor.max_gap` | query-time | float [0,1] | `0` | relative cutoff below the query's top hit; `0` = let the package pick the regime-appropriate band. Raise to cut more of the weak tail. |
 | `floor.hard_floor` | query-time | float [0,1] | `0` | absolute garbage floor; `0` = let the package pick the regime default. Non-zero overrides it (cosine regimes want a real floor; fused regimes want 0). |
@@ -205,6 +212,12 @@ One labelled corpus per provider, in **one canonical rank-centric shape** that i
   cross-encoder, RRF-blend) where a shared absolute band would mislabel a
   rank-correct hit. `expect_min_score`/`expect_max_score` remain available for a
   single-regime corpus but are not the default.
+- **Entity labels need `expected_identity_field`.** `expect_ids` are matched against
+  the provider's `id_field`. When a provider's hits are finer-grained than the thing a
+  label names (Agent Manager returns conversation chunks, labels name runs), set
+  `expected_identity_field` to the dotted `result_mapping.metadata_fields` key that
+  carries the entity id (`"run_id"`). Without it no hit can ever match the label and
+  corpus validation reports every positive as inconclusive. It requires `expect_ids`.
 - **Scope is optional and generic.** Empty/`global` searches the whole provider;
   `scenario:<id>` and `path:<prefix>` are passed through `GradeSuite` to the
   shared `SearchQuery.Scope`. Provider endpoints that want search-hub eval runs

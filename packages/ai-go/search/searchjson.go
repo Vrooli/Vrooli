@@ -179,6 +179,12 @@ type PerformanceConfig struct {
 	// P95Ms is the p95 query-latency budget in milliseconds. 0 ⇒ use the class
 	// default (DefaultP95BudgetMs).
 	P95Ms int `json:"p95_ms,omitempty"`
+	// AskP95Ms is the scenario-owned p95 budget for explicit generated-answer
+	// requests. Search Hub retrieval certification does not measure this path.
+	AskP95Ms int `json:"ask_p95_ms,omitempty"`
+	// AskMinimumSamples is the minimum answer requests needed by the scenario's
+	// answer-latency gate. It is independent of retrieval evaluation samples.
+	AskMinimumSamples int `json:"ask_minimum_samples,omitempty"`
 	// DegradedRateMax is the maximum tolerated fraction (0..1) of queries that
 	// return no result. 0 ⇒ not checked (no declared reliability budget).
 	DegradedRateMax float64 `json:"degraded_rate_max,omitempty"`
@@ -195,6 +201,12 @@ type PerformanceConfig struct {
 func (p PerformanceConfig) Validate() error {
 	if p.P95Ms < 0 {
 		return fmt.Errorf("performance.p95_ms must be >= 0")
+	}
+	if p.AskP95Ms < 0 {
+		return fmt.Errorf("performance.ask_p95_ms must be >= 0")
+	}
+	if p.AskMinimumSamples < 0 {
+		return fmt.Errorf("performance.ask_minimum_samples must be >= 0")
 	}
 	if p.DegradedRateMax < 0 || p.DegradedRateMax > 1 {
 		return fmt.Errorf("performance.degraded_rate_max must be between 0 and 1")
@@ -309,17 +321,24 @@ type CoverageTagGroup struct {
 // evaluation denominator until owner-authored "heldout" membership reviews it;
 // untagged ordinary positives remain in tuning.
 type TestCase struct {
-	ID                string   `json:"id"`
-	Query             string   `json:"query"`
-	Scope             string   `json:"scope,omitempty"`
-	Status            string   `json:"status,omitempty"`
-	Tags              []string `json:"tags,omitempty"`
-	ExpectIDs         []string `json:"expect_ids,omitempty"`
-	ExpectWithinTopK  int      `json:"expect_within_top_k,omitempty"`
-	ExpectMinScore    float64  `json:"expect_min_score,omitempty"`
-	ExpectMaxScore    float64  `json:"expect_max_score,omitempty"`
-	ExpectNoStrongHit bool     `json:"expect_no_strong_hit,omitempty"`
-	Note              string   `json:"note,omitempty"`
+	ID        string   `json:"id"`
+	Query     string   `json:"query"`
+	Scope     string   `json:"scope,omitempty"`
+	Status    string   `json:"status,omitempty"`
+	Tags      []string `json:"tags,omitempty"`
+	ExpectIDs []string `json:"expect_ids,omitempty"`
+	// ExpectedIdentityField names the result metadata key (a dotted path
+	// into the provider's result_mapping.metadata_fields, for example
+	// "run_id") that carries the durable entity id expect_ids refers to. Leave it
+	// empty when expect_ids are the provider's id_field values. A provider whose
+	// hits are finer-grained than the entity a label names (conversation chunks
+	// versus runs) must set it, or no hit can ever match the label.
+	ExpectedIdentityField string  `json:"expected_identity_field,omitempty"`
+	ExpectWithinTopK      int     `json:"expect_within_top_k,omitempty"`
+	ExpectMinScore        float64 `json:"expect_min_score,omitempty"`
+	ExpectMaxScore        float64 `json:"expect_max_score,omitempty"`
+	ExpectNoStrongHit     bool    `json:"expect_no_strong_hit,omitempty"`
+	Note                  string  `json:"note,omitempty"`
 }
 
 // TagGenerated marks a machine-generated (corpus-gen) case. It is excluded
@@ -480,6 +499,16 @@ func (s TestSuite) Validate() error {
 					return fmt.Errorf("tests.cases[%d] (%q): duplicate expect_id %q", i, c.ID, id)
 				}
 				ids[id] = true
+			}
+		}
+		if field := strings.TrimSpace(c.ExpectedIdentityField); field != "" {
+			if len(c.ExpectIDs) == 0 {
+				return fmt.Errorf("tests.cases[%d] (%q): expected_identity_field requires expect_ids", i, c.ID)
+			}
+			for _, part := range strings.Split(field, ".") {
+				if strings.TrimSpace(part) == "" || part != strings.TrimSpace(part) {
+					return fmt.Errorf("tests.cases[%d] (%q): expected_identity_field %q must be a dotted metadata key", i, c.ID, field)
+				}
 			}
 		}
 		if !c.ExpectNoStrongHit && hasPositiveExpectation(c) && len(c.ExpectIDs) == 0 {

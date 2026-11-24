@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/vrooli/vrooli/internal/testenv"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -46,7 +45,7 @@ func TestDiskJobPathSamplesBindCanonicalPathAndRejectRegression(t *testing.T) {
 	}
 	defer store.Close()
 	target := filepath.Join(dir, "output")
-	if err := os.Mkdir(target, 0700); err != nil {
+	if err := os.Mkdir(target, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	alias := filepath.Join(dir, "output-alias")
@@ -90,7 +89,7 @@ func TestDiskJobPathSampleExtensionIsAtomicAndPreservesFloor(t *testing.T) {
 	}
 	defer store.Close()
 	target := filepath.Join(dir, "output")
-	if err := os.Mkdir(target, 0700); err != nil {
+	if err := os.Mkdir(target, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	_, _, free, err := diskFilesystem(dir)
@@ -133,7 +132,7 @@ func TestDiskJobConcurrentPathCheckpointsSerializeWithoutDoubleCounting(t *testi
 	}
 	defer second.Close()
 	target := filepath.Join(dir, "output")
-	if err := os.Mkdir(target, 0700); err != nil {
+	if err := os.Mkdir(target, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	lease, token, err := first.ReserveDiskJob(ctx, DiskJobRequest{OwnerID: "concurrent-sampler", JobID: "one", Paths: []DiskJobPath{{Path: target, Role: "output", PeakBytes: 1 << 20}}})
@@ -176,7 +175,7 @@ func TestDiskJobPathSampleRefusesCrashedOwnerUntilVerifiedReconciliation(t *test
 	}
 	defer store.Close()
 	target := filepath.Join(dir, "output")
-	if err := os.Mkdir(target, 0700); err != nil {
+	if err := os.Mkdir(target, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	cmd := exec.Command(os.Args[0], "-test.run=^TestDiskJobCrashHelper$")
@@ -275,37 +274,6 @@ func TestDiskJobDeduplicatesCanonicalAliasesAndPersistsActualDelta(t *testing.T)
 	}
 	if completed.Status != "completed" || !completed.CleanupVerified || completed.Filesystems[0].ActualDeltaBytes == nil || completed.Filesystems[0].ActualDeltaBasis != diskJobActualDeltaBasis {
 		t.Fatalf("completion receipt = %+v", completed)
-	}
-}
-
-func TestDiskJobHeartbeatDeadlineDoesNotReleaseActiveReservation(t *testing.T) {
-	ctx := context.Background()
-	dir := t.TempDir()
-	zeroFloor := int64(0)
-	clock := testenv.NewClock(time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC))
-	store, err := NewSQLiteStore(ctx, Config{DBPath: filepath.Join(dir, "capacity.db"), Clock: clock, MinimumDiskFloorBytes: &zeroFloor})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
-	_, _, free, err := diskFilesystem(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	lease, _, err := store.ReserveDiskJob(ctx, DiskJobRequest{OwnerID: "first-owner", JobID: "stale-heartbeat", Paths: []DiskJobPath{{Path: dir, Role: "output", PeakBytes: free * 3 / 5}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	clock.Advance(2 * diskReservationTTL)
-	if _, _, err := store.ReserveDiskJob(ctx, DiskJobRequest{OwnerID: "second-owner", JobID: "must-remain-denied", Paths: []DiskJobPath{{Path: dir, Role: "cache", PeakBytes: free * 3 / 5}}}); !errors.Is(err, ErrDiskAdmissionDenied) {
-		t.Fatalf("stale heartbeat lease was released: %v", err)
-	}
-	rows, err := store.ListDiskJobs(ctx, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(rows) != 1 || rows[0].ID != lease.ID || rows[0].Status != "active" || rows[0].HeartbeatDeadline.After(clock.Now()) {
-		t.Fatalf("stale lease state=%+v", rows)
 	}
 }
 

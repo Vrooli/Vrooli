@@ -4,29 +4,47 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
 
 func TestEveryDurationAccessorAppearsInRegistry(t *testing.T) {
-	file, err := parser.ParseFile(token.NewFileSet(), "timing.go", nil, parser.ParseComments)
+	// The invariant is package-wide: an accessor may live in any non-test file
+	// of this package, so the scan follows the package rather than one filename.
+	sources, err := filepath.Glob("*.go")
 	if err != nil {
-		t.Fatalf("parse timing.go: %v", err)
+		t.Fatal(err)
 	}
 	want := map[string]bool{}
-	for _, declaration := range file.Decls {
-		function, ok := declaration.(*ast.FuncDecl)
-		if !ok || function.Recv != nil || !ast.IsExported(function.Name.Name) || function.Type.Results == nil || len(function.Type.Results.List) != 1 {
+	for _, source := range sources {
+		if strings.HasSuffix(source, "_test.go") {
 			continue
 		}
-		selector, ok := function.Type.Results.List[0].Type.(*ast.SelectorExpr)
-		if !ok || selector.Sel.Name != "Duration" {
-			continue
+		file, parseErr := parser.ParseFile(token.NewFileSet(), source, nil, parser.ParseComments)
+		if parseErr != nil {
+			t.Fatalf("parse %s: %v", source, parseErr)
 		}
-		if function.Doc == nil || function.Doc.Text() == "" {
-			t.Errorf("duration accessor %s has no doc comment", function.Name.Name)
+		for _, declaration := range file.Decls {
+			function, ok := declaration.(*ast.FuncDecl)
+			if !ok || function.Recv != nil || !ast.IsExported(function.Name.Name) || function.Type.Results == nil || len(function.Type.Results.List) != 1 {
+				continue
+			}
+			// Duration is the generic resolver every accessor delegates to, not a
+			// lever of its own.
+			if function.Name.Name == "Duration" {
+				continue
+			}
+			selector, ok := function.Type.Results.List[0].Type.(*ast.SelectorExpr)
+			if !ok || selector.Sel.Name != "Duration" {
+				continue
+			}
+			if function.Doc == nil || function.Doc.Text() == "" {
+				t.Errorf("duration accessor %s has no doc comment", function.Name.Name)
+			}
+			want[function.Name.Name] = true
 		}
-		want[function.Name.Name] = true
 	}
 	got := map[string]bool{}
 	for _, definition := range durationDefinitions {

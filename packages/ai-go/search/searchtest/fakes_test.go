@@ -51,3 +51,27 @@ func TestEmbedderAndVectorStoreReturnCopies(t *testing.T) {
 		t.Fatal("stored point must not alias caller-owned slices or maps")
 	}
 }
+
+func TestVectorStoreQueryHistoryReturnsCopies(t *testing.T) {
+	store := NewVectorStore()
+	query := aisearch.HybridQuery{
+		Dense: []float64{1, 2}, Limit: 4,
+		Sparse: &aisearch.SparseVector{Indices: []uint32{7}, Values: []float32{.5}},
+		Filter: &aisearch.QueryFilter{Must: []aisearch.FieldMatch{{Key: "kind", AnyOf: []any{"asset"}}}},
+	}
+	if _, err := store.Query(context.Background(), query); err != nil {
+		t.Fatal(err)
+	}
+	query.Dense[0] = 99
+	query.Sparse.Indices[0] = 99
+	query.Filter.Must[0].AnyOf[0] = "mutated"
+
+	history := store.QueryHistory()
+	if len(history) != 1 || history[0].Dense[0] != 1 || history[0].Sparse.Indices[0] != 7 || history[0].Filter.Must[0].AnyOf[0] != "asset" {
+		t.Fatalf("captured query was not isolated from caller mutation: %+v", history)
+	}
+	history[0].Filter.Must[0].AnyOf[0] = "also-mutated"
+	if got := store.QueryHistory()[0].Filter.Must[0].AnyOf[0]; got != "asset" {
+		t.Fatalf("query history accessor returned aliased data: %v", got)
+	}
+}

@@ -28,23 +28,23 @@ func TestProcessExitDoesNotBecomeAFalsePermissionBlocker(t *testing.T) {
 func TestObservationScopesReferencesToTemporaryRoots(t *testing.T) {
 	root := t.TempDir()
 	proc := filepath.Join(root, "proc", "123")
-	if err := os.MkdirAll(filepath.Join(proc, "fd"), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Join(proc, "fd"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	temporary := filepath.Join(root, "temporary")
-	if err := os.MkdirAll(temporary, 0700); err != nil {
+	if err := os.MkdirAll(temporary, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	payload := filepath.Join(temporary, "payload")
-	if err := os.WriteFile(payload, []byte("fixture"), 0600); err != nil {
+	if err := os.WriteFile(payload, []byte("fixture"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	outside := filepath.Join(root, "private")
 	cache := filepath.Join(temporary, "private-build-cache")
-	if err := os.Mkdir(cache, 0700); err != nil {
+	if err := os.Mkdir(cache, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(proc, "environ"), []byte("GOCACHE="+cache+"\x00API_KEY="+filepath.Join(temporary, "do-not-publish")+"\x00TMPDIR="+temporary+"\x00"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(proc, "environ"), []byte("GOCACHE="+cache+"\x00API_KEY="+filepath.Join(temporary, "do-not-publish")+"\x00TMPDIR="+temporary+"\x00"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	for name, target := range map[string]string{"fd/4": payload, "cwd": temporary, "exe": outside} {
@@ -52,7 +52,7 @@ func TestObservationScopesReferencesToTemporaryRoots(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(proc, "maps"), []byte("0001-0002 r-xp 0000 00:00 1 "+payload+"\n0002-0003 r-xp 0000 00:00 1 "+outside+"\n"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(proc, "maps"), []byte("0001-0002 r-xp 0000 00:00 1 "+payload+"\n0002-0003 r-xp 0000 00:00 1 "+outside+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	got, err := observe(context.Background(), filepath.Dir(proc), uint32(os.Getuid()), []string{temporary})
@@ -63,11 +63,12 @@ func TestObservationScopesReferencesToTemporaryRoots(t *testing.T) {
 		t.Fatalf("out-of-scope references escaped: %v", got.Paths)
 	}
 }
+
 func TestObservationCancellationCannotProduceCompleteProof(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	root := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(root, strconv.Itoa(os.Getpid())), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, strconv.Itoa(os.Getpid())), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	got, err := observe(ctx, root, uint32(os.Getuid()), []string{"/tmp"})
@@ -75,6 +76,7 @@ func TestObservationCancellationCannotProduceCompleteProof(t *testing.T) {
 		t.Fatalf("cancellation produced complete proof: %#v %v", got, err)
 	}
 }
+
 func TestMappedTemporaryPathPreservesSpaces(t *testing.T) {
 	path := "/tmp/build with  two spaces/payload"
 	if got := mappedPath("0001-0002 r-xp 0000 00:00 1     " + path); got != path {

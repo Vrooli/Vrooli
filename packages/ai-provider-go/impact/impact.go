@@ -104,8 +104,8 @@ func Load(registries []Registry, context policy.RightsContext, at time.Time) (Re
 			model := Model{Provider: registry.Provider, ID: item.id, Pointer: item.pointer, Paths: decisions}
 			// Always make the selected inference decision visible, even if a
 			// registry has not yet established any role/caller reference.
-			if !hasUse(decisions, policy.RightsUseLocalInference) {
-				model.Paths = append(model.Paths, PathDecision{Path: registryLabel(registry) + "#" + item.pointer, Use: policy.RightsUseLocalInference, Decision: policy.EvaluateRights(facts, policy.RightsUseLocalInference, context, at)})
+			if !hasUse(decisions, policy.RightsUseMonetizedUse) {
+				model.Paths = append(model.Paths, PathDecision{Path: registryLabel(registry) + "#" + item.pointer, Use: policy.RightsUseMonetizedUse, Decision: policy.EvaluateRights(facts, policy.RightsUseMonetizedUse, context, at)})
 			}
 			report.Models = append(report.Models, model)
 		}
@@ -193,17 +193,17 @@ func derivePaths(reg Registry, item registryItem, context policy.RightsContext, 
 				continue
 			}
 			if refMatches(m["model"], item.id) {
-				add(label+"#/roles/"+escape(role), policy.RightsUseLocalInference)
+				add(label+"#/roles/"+escape(role), policy.RightsUseMonetizedUse)
 			}
 			if refs, ok := m["fallbacks"].([]any); ok {
 				for _, ref := range refs {
 					if refMatches(ref, item.id) {
-						add(label+"#/roles/"+escape(role)+"/fallbacks", policy.RightsUseLocalInference)
+						add(label+"#/roles/"+escape(role)+"/fallbacks", policy.RightsUseMonetizedUse)
 					}
 				}
 			}
 			if refMatches(m["upstream"], item.id) {
-				add(label+"#/roles/"+escape(role), policy.RightsUseLocalInference)
+				add(label+"#/roles/"+escape(role), policy.RightsUseMonetizedUse)
 			}
 		}
 	}
@@ -211,7 +211,7 @@ func derivePaths(reg Registry, item registryItem, context policy.RightsContext, 
 		if values, ok := item.data[field].([]any); ok {
 			for _, op := range values {
 				if name, ok := op.(string); ok {
-					add(label+"#"+item.pointer+"/"+field+"/"+escape(name), policy.RightsUseLocalInference)
+					add(label+"#"+item.pointer+"/"+field+"/"+escape(name), policy.RightsUseMonetizedUse)
 				}
 			}
 		}

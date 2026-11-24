@@ -24,10 +24,36 @@ The package owns **contract and mechanics**, never provider data. Each resource
 keeps its own `model-policy.json`, `resource.json`, credentials, and any
 provider-specific extensions such as OpenRouter spend caps.
 
+## Model-rights uses: normal use versus monetization
+
+`policy.EvaluateRights` decides one use of one artifact. Operator stance
+(2026-11-21): always use the best models regardless of licensing for normal
+use; licensing only matters for monetization and similar uses.
+
+- `local_inference` is normal use. When the trusted context
+  (`scenarios/ai-gateway/config/model-rights-context.json`) carries
+  `normal_use_licensing: "any_license_class"` with operator evidence, every
+  license class is allowed for it: non-commercial (`prohibited`), conditional
+  with unmet conditions, and unverified evidence. The decision keeps the
+  license limits as obligations (`operator_normal_use_any_license_class`).
+  Missing or malformed rights facts stay unknown.
+- `monetized_use` is using the model or its outputs in something that earns
+  money. License evidence always decides it: a `prohibited` license is denied,
+  unverified evidence is unknown, and conditional grants (revenue or
+  monthly-active-user limits, written for `local_inference` or
+  `monetized_use`) are evaluated against the context.
+- `hosted_inference`, `redistribute_weights`, `redistribute_derivative` and
+  `distribute_runtime` are likewise license-bound; the normal-use answer never
+  applies to them.
+
+Without the context field, `local_inference` stays license-bound as well.
+
 ## Model-rights impact
 
 `cmd/rights-impact` evaluates the checked-in Ollama, Ollaya, image, and music
-registries against the canonical trusted business context. Use `--json` for a
+registries against the canonical trusted business context. Paths are evaluated
+for `monetized_use`, the license-sensitive use, so context flips show what
+monetizing would change. Use `--json` for a
 machine-readable path list. `--revenue-status`, `--annual-revenue-usd`, and
 repeatable `--monthly-active-users PERIOD=COUNT|STATUS` flags construct a hypothetical
 target; they do not edit the canonical context. Exact annual revenue is needed

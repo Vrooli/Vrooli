@@ -57,3 +57,19 @@ func TestMarkerIgnoresUnknownCode(t *testing.T) {
 		t.Fatal("error text missing code")
 	}
 }
+
+// A capacity refusal is a typed answer from a healthy provider. If the marker
+// parser dropped these codes the gateway would see a generic failure and could
+// not tell "nothing fits right now" from "the provider is broken".
+func TestMarkerCarriesCapacityRefusals(t *testing.T) {
+	for _, code := range []string{CodeInsufficientVRAM, CodeInsufficientMemory, CodeLimitsExceeded} {
+		line, err := (&Error{Code: code, Message: "needs more"}).MarkerLine()
+		if err != nil {
+			t.Fatal(err)
+		}
+		parsed, ok := ParseMarker(string(line))
+		if !ok || parsed.Code != code || NormalizeCode(code) != code {
+			t.Fatalf("%s: parsed = %+v ok=%v", code, parsed, ok)
+		}
+	}
+}

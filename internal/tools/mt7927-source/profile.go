@@ -207,7 +207,7 @@ func (p Profile) stage(ctx context.Context, parent string, items []input) (strin
 			return "", fmt.Errorf("stage %s: %w", item.Name, err)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(candidate, Manifest), p.manifest, 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(candidate, Manifest), p.manifest, 0o600); err != nil {
 		return "", err
 	}
 	if err := ctx.Err(); err != nil {

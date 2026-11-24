@@ -15,15 +15,15 @@ import (
 func TestDiskJobDockerResolverVerifiesDaemonPathAndHostFilesystem(t *testing.T) {
 	dir := t.TempDir()
 	protected := filepath.Join(dir, "locked", "volume")
-	if err := os.MkdirAll(protected, 0700); err != nil {
+	if err := os.MkdirAll(protected, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chmod(filepath.Dir(protected), 0000); err != nil {
+	if err := os.Chmod(filepath.Dir(protected), 0o000); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chmod(filepath.Dir(protected), 0700)
+	defer os.Chmod(filepath.Dir(protected), 0o700)
 	probe := filepath.Join(dir, "probe")
-	if err := os.Mkdir(probe, 0700); err != nil {
+	if err := os.Mkdir(probe, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	device, _, err := filesystemFromMountInfo(protected)
@@ -41,12 +41,12 @@ func TestDiskJobDockerResolverVerifiesDaemonPathAndHostFilesystem(t *testing.T) 
 		t.Fatal(err)
 	}
 	fakeBin := filepath.Join(dir, "bin")
-	if err := os.Mkdir(fakeBin, 0700); err != nil {
+	if err := os.Mkdir(fakeBin, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	docker := filepath.Join(fakeBin, "docker")
 	script := "#!/bin/sh\nprintf '%s' '" + string(raw) + "'\n"
-	if err := os.WriteFile(docker, []byte(script), 0700); err != nil {
+	if err := os.WriteFile(docker, []byte(script), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	originalPath := os.Getenv("PATH")
@@ -89,7 +89,7 @@ func TestDiskJobDockerResolverVerifiesDaemonPathAndHostFilesystem(t *testing.T) 
 func TestDiskJobDockerRootResolverSupportsPreProvisionReservation(t *testing.T) {
 	dir := t.TempDir()
 	root := filepath.Join(dir, "docker-root")
-	if err := os.Mkdir(root, 0700); err != nil {
+	if err := os.Mkdir(root, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	device, _, err := filesystemFromMountInfo(root)
@@ -97,12 +97,12 @@ func TestDiskJobDockerRootResolverSupportsPreProvisionReservation(t *testing.T) 
 		t.Fatal(err)
 	}
 	fakeBin := filepath.Join(dir, "bin")
-	if err := os.Mkdir(fakeBin, 0700); err != nil {
+	if err := os.Mkdir(fakeBin, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	docker := filepath.Join(fakeBin, "docker")
 	script := "#!/bin/sh\n[ \"$1\" = info ] || exit 2\n[ \"$2\" = --format ] || exit 3\nprintf '%s\\n' '" + root + "'\n"
-	if err := os.WriteFile(docker, []byte(script), 0700); err != nil {
+	if err := os.WriteFile(docker, []byte(script), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	originalPath := os.Getenv("PATH")
@@ -128,7 +128,7 @@ func TestDiskJobDockerRootResolverSupportsPreProvisionReservation(t *testing.T) 
 	if err := os.Symlink(root, rootAlias); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(docker, []byte(strings.Replace(script, root, rootAlias, 1)), 0700); err != nil {
+	if err := os.WriteFile(docker, []byte(strings.Replace(script, root, rootAlias, 1)), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, _, _, err := resolveDiskJobPath(context.Background(), DiskJobPath{Path: rootAlias, Role: "pre-provision", PeakBytes: 1, DockerRootDir: true}); err == nil {
@@ -137,14 +137,14 @@ func TestDiskJobDockerRootResolverSupportsPreProvisionReservation(t *testing.T) 
 	oldTimeout := dockerDiskIdentityTimeout
 	defer func() { dockerDiskIdentityTimeout = oldTimeout }()
 	dockerDiskIdentityTimeout = 20 * time.Millisecond
-	if err := os.WriteFile(docker, []byte("#!/bin/sh\nexec sleep 2\n"), 0700); err != nil {
+	if err := os.WriteFile(docker, []byte("#!/bin/sh\nexec sleep 2\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	started := time.Now()
 	if _, _, _, _, err := resolveDiskJobPath(context.Background(), DiskJobPath{Path: root, Role: "pre-provision", PeakBytes: 1, DockerRootDir: true}); err == nil || time.Since(started) > time.Second {
 		t.Fatalf("Docker daemon query did not honor bounded identity timeout: err=%v elapsed=%s", err, time.Since(started))
 	}
-	if err := os.WriteFile(docker, []byte(script), 0700); err != nil {
+	if err := os.WriteFile(docker, []byte(script), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	zeroFloor := int64(0)

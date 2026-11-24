@@ -658,10 +658,12 @@ func (s *currentPlacementSource) Snapshot(context.Context) (hostinventory.Snapsh
 	s.staticCalls++
 	return s.cached, nil
 }
+
 func (s *currentPlacementSource) PlacementSnapshot(context.Context) (hostinventory.Snapshot, error) {
 	s.currentCalls++
 	return s.current, nil
 }
+
 func TestPlacementUsesCurrentProcessObservationInsteadOfPreSpawnCachedRows(t *testing.T) {
 	for _, test := range []struct {
 		name     string

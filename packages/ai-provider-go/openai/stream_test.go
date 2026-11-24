@@ -183,6 +183,44 @@ func TestStreamChatBoundsCumulativeSSEEventAndAcceptsMultilineData(t *testing.T)
 	})
 }
 
+func TestStreamChatWithLimitsAllowsLargerBoundedEvents(t *testing.T) {
+	text := strings.Repeat("x", 2*1024*1024)
+	event, err := json.Marshal(map[string]any{"choices": []any{map[string]any{"delta": map[string]string{"content": text}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, "data: "+string(event)+"\n\ndata: [DONE]\n\n")
+	}))
+	defer server.Close()
+
+	stream, err := New(Config{BaseURL: server.URL}).StreamChatWithLimits(
+		context.Background(), ChatRequest{Model: "m"}, 3*1024*1024, 3*1024*1024,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	chunk, err := stream.Next()
+	if err != nil || chunk.Text != text {
+		t.Fatalf("large chunk length=%d, err=%v", len(chunk.Text), err)
+	}
+	done, err := stream.Next()
+	if err != nil || !done.Done {
+		t.Fatalf("done = %+v, err=%v", done, err)
+	}
+}
+
+func TestStreamChatWithLimitsRejectsUnboundedConfiguration(t *testing.T) {
+	_, err := New(Config{BaseURL: "https://example.test"}).StreamChatWithLimits(
+		context.Background(), ChatRequest{Model: "m"}, maxConfiguredSSEBytes+1, maxConfiguredSSEBytes+1,
+	)
+	if err == nil || !strings.Contains(err.Error(), "SSE limits") {
+		t.Fatalf("invalid limits error = %v", err)
+	}
+}
+
 func TestStreamNextReturnsEventsIncrementally(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")

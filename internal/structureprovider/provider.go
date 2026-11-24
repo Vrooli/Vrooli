@@ -35,13 +35,13 @@ const (
 // Validation is one shared RPC per declared repository target. Keep the
 // caller deadline large enough for a complete fleet traversal; per-request
 // HTTP work is still bounded by this same context.
-var DefaultTimeout = tuning.StructureProviderExtendedBudget()
-var demandSequence uint64
-
-// ErrUnavailable identifies a missing or unreachable structure-health
-// authority. Callers must surface this error rather than manufacture a local
-// structural verdict.
-var ErrUnavailable = errors.New("structure-health unavailable")
+var (
+	DefaultTimeout = tuning.StructureProviderExtendedBudget()
+	// ErrUnavailable identifies a missing or unreachable structure-health
+	// authority. Callers must surface this error rather than manufacture a local
+	// structural verdict.
+	ErrUnavailable = errors.New("structure-health unavailable")
+)
 
 // URLResolver resolves the live scenario API URL. It is injectable so callers
 // can test delegation without relying on a running control plane.

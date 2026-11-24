@@ -14,6 +14,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/sqliteutil"
 )
 
 // DiskJobPath is one write-capable path and its peak additional bytes. Paths
@@ -192,12 +194,9 @@ func (s *SQLiteStore) ReserveDiskJob(ctx context.Context, req DiskJobRequest) (D
 	default:
 		return DiskJobReceipt{}, "", fmt.Errorf("%w: unknown disk job class %q", ErrInvalidClaim, req.Class)
 	}
-	unlock, err := s.LockAdmission(ctx)
-	if err != nil {
-		return DiskJobReceipt{}, "", fmt.Errorf("lock disk job admission: %w", err)
-	}
-	defer unlock()
-
+	// Path resolution can shell out to docker and probe several filesystems;
+	// it needs no serialization, so it runs before the fleet-wide admission
+	// lock. Only the sum-and-insert below is the admission decision.
 	paths, filesystems, err := resolveDiskJobPaths(ctx, req.Paths)
 	if err != nil {
 		return DiskJobReceipt{}, "", err
@@ -225,10 +224,19 @@ func (s *SQLiteStore) ReserveDiskJob(ctx context.Context, req DiskJobRequest) (D
 		return DiskJobReceipt{}, "", err
 	}
 	capHash := sha256.Sum256([]byte(capability))
+	unlock, err := s.LockAdmission(ctx)
+	if err != nil {
+		return DiskJobReceipt{}, "", fmt.Errorf("lock disk job admission: %w", err)
+	}
+	defer unlock()
 	now := s.now()
 	deadline := now.Add(diskReservationTTL)
 	var receipts []DiskJobFilesystem
 	err = s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		receipts = nil
+		if _, _, err := settleLapsedDiskLeasesTx(ctx, tx, now); err != nil {
+			return err
+		}
 		for _, fs := range filesystems {
 			var oldReserved, jobReserved, globalFloor int64
 			if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(peak_bytes),0), COALESCE(MAX(floor_bytes),0) FROM capacity_disk_reservations WHERE filesystem_id=? AND status='active'`, fs.id).Scan(&oldReserved, &globalFloor); err != nil {
@@ -284,7 +292,7 @@ func (s *SQLiteStore) ReserveDiskJob(ctx context.Context, req DiskJobRequest) (D
 }
 
 func (s *SQLiteStore) HeartbeatDiskJob(ctx context.Context, id, capability string, processID int, processStart string) error {
-	return s.mutateDiskJob(ctx, id, capability, processID, processStart, func(tx *sql.Tx, now time.Time) error {
+	return s.mutateDiskJob(ctx, id, capability, processID, processStart, false, true, func(tx *sql.Tx, now time.Time) error {
 		res, err := tx.ExecContext(ctx, `UPDATE capacity_disk_jobs SET updated_at=?,last_heartbeat_at=?,heartbeat_deadline_at=? WHERE job_lease_id=? AND status='active'`, formatTime(now), formatTime(now), formatTime(now.Add(diskReservationTTL)), id)
 		if err != nil {
 			return err
@@ -315,7 +323,12 @@ func (s *SQLiteStore) SampleDiskJobPath(ctx context.Context, id, capability stri
 	if err != nil {
 		return DiskJobReceipt{}, err
 	}
-	err = s.mutateDiskJob(ctx, id, capability, processID, processStart, func(tx *sql.Tx, now time.Time) error {
+	err = s.mutateDiskJob(ctx, id, capability, processID, processStart, largerPeakBytes > 0, true, func(tx *sql.Tx, now time.Time) error {
+		if largerPeakBytes > 0 {
+			if _, _, err := settleLapsedDiskLeasesTx(ctx, tx, now); err != nil {
+				return err
+			}
+		}
 		currentFS, currentProbe, err := diskJobFilesystemIdentity(canonical)
 		if err != nil {
 			if _, _, _, probeErr := diskFilesystem(canonical); probeErr != nil {
@@ -413,30 +426,40 @@ func (s *SQLiteStore) verifyDiskJobOwner(ctx context.Context, id, capability str
 	if s == nil || s.db == nil || strings.TrimSpace(id) == "" || capability == "" {
 		return fmt.Errorf("disk job lease id and capability are required")
 	}
-	var storedHash, storedStart, status string
-	var storedPID int
-	if err := s.db.QueryRowContext(ctx, `SELECT capability_hash,process_id,process_start,status FROM capacity_disk_jobs WHERE job_lease_id=?`, id).Scan(&storedHash, &storedPID, &storedStart, &status); err != nil {
+	var storedHash, storedStart, status, deadlineText string
+	var storedPID, clean int
+	if err := s.db.QueryRowContext(ctx, `SELECT capability_hash,process_id,process_start,status,heartbeat_deadline_at,cleanup_verified FROM capacity_disk_jobs WHERE job_lease_id=?`, id).Scan(&storedHash, &storedPID, &storedStart, &status, &deadlineText, &clean); err != nil {
 		return err
 	}
 	h := sha256.Sum256([]byte(capability))
 	if storedHash != hex.EncodeToString(h[:]) || storedPID != processID || storedStart != processStart {
 		return fmt.Errorf("disk job lease owner identity does not match")
 	}
-	if status != "active" {
-		return fmt.Errorf("disk job %s is not active", id)
-	}
 	if !processIdentityMatches(processID, processStart) {
 		return fmt.Errorf("disk job owner process %d is stopped or its identity changed", processID)
+	}
+	deadline, err := sqliteutil.ParseRequiredTime(deadlineText)
+	if err != nil {
+		return err
+	}
+	switch classifyDiskJobLease(status, clean != 0, deadline, s.now()) {
+	case diskJobLeaseClosed:
+		return fmt.Errorf("disk job %s is not active", id)
+	case diskJobLeaseLapsed:
+		return fmt.Errorf("%w: disk job %s missed its heartbeat deadline %s; reserve again before writing", ErrDiskLeaseLapsed, id, deadlineText)
 	}
 	return nil
 }
 
 func (s *SQLiteStore) CompleteDiskJob(ctx context.Context, id, capability string, processID int, processStart string) (DiskJobReceipt, error) {
-	err := s.mutateDiskJob(ctx, id, capability, processID, processStart, func(tx *sql.Tx, now time.Time) error {
+	// Completion frees capacity; it decides nothing, so it never queues behind
+	// the admission lock. A release that cannot get the lock inside its short
+	// bounded context used to fail jobs that had already succeeded.
+	err := s.mutateDiskJob(ctx, id, capability, processID, processStart, false, false, func(tx *sql.Tx, now time.Time) error {
 		if err := recordDiskJobGrowth(ctx, tx, id); err != nil {
 			return err
 		}
-		res, err := tx.ExecContext(ctx, `UPDATE capacity_disk_jobs SET status='completed',cleanup_verified=1,updated_at=? WHERE job_lease_id=? AND status='active'`, formatTime(now), id)
+		res, err := tx.ExecContext(ctx, `UPDATE capacity_disk_jobs SET status='completed',cleanup_verified=1,updated_at=? WHERE job_lease_id=? AND (status='active' OR (status='reconciled' AND cleanup_verified=0))`, formatTime(now), id)
 		if err != nil {
 			return err
 		}
@@ -462,13 +485,8 @@ func (s *SQLiteStore) ReconcileDiskJob(ctx context.Context, id string, processSt
 	if !processStoppedVerified || !cleanupVerified {
 		return DiskJobReceipt{}, fmt.Errorf("disk job reconciliation requires verified stopped process and verified cleanup")
 	}
-	unlock, err := s.LockAdmission(ctx)
-	if err != nil {
-		return DiskJobReceipt{}, err
-	}
-	defer unlock()
 	now := s.now()
-	err = s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+	err := s.withRetryableTx(ctx, func(tx *sql.Tx) error {
 		var pid int
 		var start, status string
 		if err := tx.QueryRowContext(ctx, `SELECT process_id,process_start,status FROM capacity_disk_jobs WHERE job_lease_id=?`, id).Scan(&pid, &start, &status); err != nil {
@@ -547,13 +565,16 @@ func (s *SQLiteStore) ExtendDiskJob(ctx context.Context, id, capability string, 
 		return DiskJobReceipt{}, fmt.Errorf("%w: at least one disk job path is required for extension", ErrInvalidClaim)
 	}
 	var receipt DiskJobReceipt
-	err := s.mutateDiskJob(ctx, id, capability, processID, processStart, func(tx *sql.Tx, now time.Time) error {
-		var jobFloor int64
-		if err := tx.QueryRowContext(ctx, `SELECT floor_bytes FROM capacity_disk_jobs WHERE job_lease_id=? AND status='active'`, id).Scan(&jobFloor); err != nil {
+	newPaths, newFS, err := resolveDiskJobPaths(ctx, add)
+	if err != nil {
+		return DiskJobReceipt{}, err
+	}
+	err = s.mutateDiskJob(ctx, id, capability, processID, processStart, true, true, func(tx *sql.Tx, now time.Time) error {
+		if _, _, err := settleLapsedDiskLeasesTx(ctx, tx, now); err != nil {
 			return err
 		}
-		newPaths, newFS, err := resolveDiskJobPaths(ctx, add)
-		if err != nil {
+		var jobFloor int64
+		if err := tx.QueryRowContext(ctx, `SELECT floor_bytes FROM capacity_disk_jobs WHERE job_lease_id=? AND status='active'`, id).Scan(&jobFloor); err != nil {
 			return err
 		}
 		if s.metadataJob(jobFloor) {
@@ -657,11 +678,6 @@ func (s *SQLiteStore) ReattachDiskJob(ctx context.Context, ownerID, jobID, id st
 		return DiskJobReceipt{}, "", err
 	}
 	capHash := sha256.Sum256([]byte(capability))
-	unlock, err := s.LockAdmission(ctx)
-	if err != nil {
-		return DiskJobReceipt{}, "", err
-	}
-	defer unlock()
 	now := s.now()
 	err = s.withRetryableTx(ctx, func(tx *sql.Tx) error {
 		var storedOwner, storedJob, oldStart, status string
@@ -701,20 +717,30 @@ func (s *SQLiteStore) ReattachDiskJob(ctx context.Context, ownerID, jobID, id st
 	return receipt, capability, nil
 }
 
-func (s *SQLiteStore) mutateDiskJob(ctx context.Context, id, capability string, processID int, processStart string, fn func(*sql.Tx, time.Time) error) error {
+// mutateDiskJob verifies the lease owner and runs fn in one ledger transaction.
+// serialized takes the fleet-wide admission lock and is for the mutations that
+// are themselves admission decisions (a job raising its reserved peak). The
+// rest - heartbeat, completion - are guarded single-row updates that SQLite
+// already serializes; making them queue behind the admission lock stalled
+// them for as long as any admission held it.
+func (s *SQLiteStore) mutateDiskJob(ctx context.Context, id, capability string, processID int, processStart string, serialized, requireLive bool, fn func(*sql.Tx, time.Time) error) error {
 	if s == nil || s.db == nil || strings.TrimSpace(id) == "" || capability == "" {
 		return fmt.Errorf("disk job lease id and capability are required")
 	}
-	unlock, err := s.LockAdmission(ctx)
-	if err != nil {
-		return err
+	if serialized {
+		unlock, err := s.LockAdmission(ctx)
+		if err != nil {
+			return err
+		}
+		defer unlock()
 	}
-	defer unlock()
 	now := s.now()
-	return s.withRetryableTx(ctx, func(tx *sql.Tx) error {
-		var storedHash, storedStart string
-		var storedPID int
-		if err := tx.QueryRowContext(ctx, `SELECT capability_hash,process_id,process_start FROM capacity_disk_jobs WHERE job_lease_id=?`, id).Scan(&storedHash, &storedPID, &storedStart); err != nil {
+	var lapsed error
+	err := s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		lapsed = nil
+		var storedHash, storedStart, status, deadlineText string
+		var storedPID, clean int
+		if err := tx.QueryRowContext(ctx, `SELECT capability_hash,process_id,process_start,status,heartbeat_deadline_at,cleanup_verified FROM capacity_disk_jobs WHERE job_lease_id=?`, id).Scan(&storedHash, &storedPID, &storedStart, &status, &deadlineText, &clean); err != nil {
 			return err
 		}
 		h := sha256.Sum256([]byte(capability))
@@ -724,8 +750,30 @@ func (s *SQLiteStore) mutateDiskJob(ctx context.Context, id, capability string, 
 		if !processIdentityMatches(processID, processStart) {
 			return fmt.Errorf("disk job owner process %d is stopped or its identity changed", processID)
 		}
+		if requireLive {
+			deadline, err := sqliteutil.ParseRequiredTime(deadlineText)
+			if err != nil {
+				return err
+			}
+			switch classifyDiskJobLease(status, clean != 0, deadline, now) {
+			case diskJobLeaseClosed:
+				return fmt.Errorf("disk job %s is not active", id)
+			case diskJobLeaseLapsed:
+				// Settle in this transaction so admission stops counting the
+				// peak now, and commit it: the refusal below is not a rollback.
+				if _, _, err := settleLapsedDiskLeasesTx(ctx, tx, now); err != nil {
+					return err
+				}
+				lapsed = fmt.Errorf("%w: disk job %s missed its heartbeat deadline %s; reserve again before writing", ErrDiskLeaseLapsed, id, deadlineText)
+				return nil
+			}
+		}
 		return fn(tx, now)
 	})
+	if err != nil {
+		return err
+	}
+	return lapsed
 }
 
 func (s *SQLiteStore) GetDiskJob(ctx context.Context, id string) (DiskJobReceipt, error) {
@@ -739,19 +787,19 @@ func (s *SQLiteStore) GetDiskJob(ctx context.Context, id string) (DiskJobReceipt
 	if err != nil {
 		return r, err
 	}
-	r.CreatedAt, err = parseRequiredTime(created)
+	r.CreatedAt, err = sqliteutil.ParseRequiredTime(created)
 	if err != nil {
 		return r, err
 	}
-	r.UpdatedAt, err = parseRequiredTime(updated)
+	r.UpdatedAt, err = sqliteutil.ParseRequiredTime(updated)
 	if err != nil {
 		return r, err
 	}
-	r.LastHeartbeatAt, err = parseRequiredTime(heartbeat)
+	r.LastHeartbeatAt, err = sqliteutil.ParseRequiredTime(heartbeat)
 	if err != nil {
 		return r, err
 	}
-	r.HeartbeatDeadline, err = parseRequiredTime(deadline)
+	r.HeartbeatDeadline, err = sqliteutil.ParseRequiredTime(deadline)
 	if err != nil {
 		return r, err
 	}
@@ -788,7 +836,7 @@ func (s *SQLiteStore) GetDiskJob(ctx context.Context, id string) (DiskJobReceipt
 				return r, err
 			}
 			sample.Path, sample.FilesystemID = p.Path, p.FilesystemID
-			sample.ObservedAt, err = parseRequiredTime(observed)
+			sample.ObservedAt, err = sqliteutil.ParseRequiredTime(observed)
 			if err != nil {
 				samples.Close()
 				return r, err
@@ -893,11 +941,14 @@ func (s *SQLiteStore) ListDiskHeadroom(ctx context.Context) (DiskHeadroomSnapsho
 		ActiveJobs: []DiskJobReceipt{}, ActiveLegacyLeases: []DiskReservationRecord{},
 		Filesystems: []DiskFilesystemHeadroom{},
 	}
-	unlock, err := s.LockAdmission(ctx)
-	if err != nil {
-		return out, fmt.Errorf("lock disk headroom observation: %w", err)
+	// Observation takes no admission lock: it reads committed rows and changes
+	// nothing, so holding the fleet-wide lock across its filesystem probes only
+	// delayed real admissions. Lapsed leases are settled first so the view
+	// matches what admission would count.
+	if _, err := s.SettleLapsedDiskLeases(ctx); err != nil {
+		return out, err
 	}
-	defer unlock()
+	var err error
 	out.ObservedAt = s.now()
 	out.ActiveJobs, err = s.ListDiskJobs(ctx, true)
 	if err != nil {
@@ -976,20 +1027,13 @@ func (s *SQLiteStore) ObserveDiskJob(ctx context.Context, id, capability string,
 	if strings.TrimSpace(id) == "" || capability == "" {
 		return out, fmt.Errorf("disk job lease id and capability are required")
 	}
-	var storedHash, storedStart, status string
-	var storedPID int
-	if err := s.db.QueryRowContext(ctx, `SELECT capability_hash,process_id,process_start,status FROM capacity_disk_jobs WHERE job_lease_id=?`, id).Scan(&storedHash, &storedPID, &storedStart, &status); err != nil {
+	// Settle first so the headroom reported here excludes leases admission
+	// would no longer count, including this job's own if it lapsed.
+	if _, err := s.SettleLapsedDiskLeases(ctx); err != nil {
 		return out, err
 	}
-	h := sha256.Sum256([]byte(capability))
-	if storedHash != hex.EncodeToString(h[:]) || storedPID != processID || storedStart != processStart {
-		return out, fmt.Errorf("disk job lease owner identity does not match")
-	}
-	if !processIdentityMatches(processID, processStart) {
-		return out, fmt.Errorf("disk job owner process %d is stopped or its identity changed", processID)
-	}
-	if status != "active" {
-		return out, fmt.Errorf("disk job %s is not active", id)
+	if err := s.verifyDiskJobOwner(ctx, id, capability, processID, processStart); err != nil {
+		return out, err
 	}
 	r, err := s.GetDiskJob(ctx, id)
 	if err != nil {
@@ -1141,12 +1185,6 @@ func resolveDiskJobPath(ctx context.Context, p DiskJobPath) (string, string, int
 		return canonical, fsid, free, probe, nil
 	}
 	return "", "", 0, "", err
-}
-
-func firstDiskJobPath(ctx context.Context, tx *sql.Tx, id, fsid string) (string, error) {
-	var path string
-	err := tx.QueryRowContext(ctx, `SELECT canonical_path FROM capacity_disk_job_paths WHERE job_lease_id=? AND filesystem_id=? ORDER BY canonical_path LIMIT 1`, id, fsid).Scan(&path)
-	return path, err
 }
 
 func newDiskJobCapability() (string, error) {

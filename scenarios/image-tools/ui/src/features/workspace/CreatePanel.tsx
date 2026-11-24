@@ -22,12 +22,13 @@ import {
   type SizePreset,
 } from "./createCatalog";
 import { capabilityMeta, capabilityPresentation, familyIcon, isPanelOperation } from "./capabilityCatalog";
-import type { InpaintOpParams } from "./opParams.generated";
+import type { InpaintOpParams, PoseGenerateOpParams } from "./opParams.generated";
 import { ModelCapacityNote } from "./ModelCapacityNote";
 import { ModelPickerButton } from "../models/ModelPickerButton";
 import { VerdictBadge } from "../models/VerdictBadge";
 import { JobRatingControl } from "./JobRatingControl";
 import { MaskBrush } from "./MaskBrush";
+import { PoseChartPicker } from "./PoseChartPicker";
 import { SwapExtentControl } from "./SwapExtentControl";
 import { defaultSelection, extentOpParams, type ExtentSelection } from "./swapExtent";
 import { MODE_LABEL } from "./modeLabels";
@@ -90,6 +91,8 @@ export function CreatePanel({
   const [cropContextPixels, setCropContextPixels] = useState("96");
   const [mask, setMask] = useState<File | null>(null);
   const [poseSource, setPoseSource] = useState<File | null>(null);
+  const [poseChartFile, setPoseChartFile] = useState<File | null>(null);
+  const [poseCell, setPoseCell] = useState<number | null>(null);
   const [reference, setReference] = useState<File | null>(null);
   const [openRailMAccepted, setOpenRailMAccepted] = useState(false);
   const extent = operation ? capabilityMeta(operation)?.extent : undefined;
@@ -129,6 +132,8 @@ export function CreatePanel({
     setMask(null);
     setReference(null);
     setPoseSource(null);
+    setPoseChartFile(null);
+    setPoseCell(null);
     setOpenRailMAccepted(false);
     setConsentAffirmed(false);
     setCfgScale("");
@@ -138,6 +143,7 @@ export function CreatePanel({
     setCropContextPixels("96");
   }, [operation]);
 
+  const poseChartOp = operation === "pose_generate";
   const requiresImage = opInfo?.requiresImage ?? false;
   const requiresMask = opInfo?.requiresMask ?? false;
   const promptDriven = opInfo?.promptDriven ?? false;
@@ -220,6 +226,14 @@ export function CreatePanel({
           Number.isInteger(context) && context >= 0 && context <= 512 ? context : 96,
       } satisfies InpaintOpParams;
     }
+    if (poseChartOp && poseCell) {
+      out.opParams = {
+        pose_cell: poseCell,
+        pose_prepare: "auto",
+        pose_strength: 1,
+        ...(reference ? { character_strength: 0.6 } : {}),
+      } satisfies PoseGenerateOpParams;
+    }
     if (extent) {
       out.opParams = { ...extentOpParams(extent, extentSelection ?? defaultSelection(extent)) };
     }
@@ -261,9 +275,12 @@ export function CreatePanel({
     extent,
     extentSelection,
     operation,
+    poseChartOp,
+    poseCell,
+    reference,
   ]);
 
-  const missingImage = requiresImage && !input;
+  const missingImage = poseChartOp ? !poseChartFile || !poseCell : requiresImage && !input;
   const missingMask = requiresMask && !mask;
   const missingReference = requiresReference && !reference;
   const missingPrompt = promptDriven && !prompt.trim();
@@ -285,9 +302,15 @@ export function CreatePanel({
       return;
     }
     create.start(operation, params, {
-      input: requiresImage ? input ?? undefined : operation === "text_to_image" ? poseSource ?? undefined : undefined,
+      input: poseChartOp
+        ? poseChartFile ?? undefined
+        : requiresImage
+          ? input ?? undefined
+          : operation === "text_to_image"
+            ? poseSource ?? undefined
+            : undefined,
       mask: requiresMask ? mask ?? undefined : undefined,
-      reference: requiresReference ? reference ?? undefined : undefined,
+      reference: requiresReference || poseChartOp ? reference ?? undefined : undefined,
     });
   };
 
@@ -372,6 +395,27 @@ export function CreatePanel({
             </label>
           )}
 
+          {poseChartOp && (
+            <fieldset className="flex flex-col gap-2 rounded-control border border-app-border bg-app-surface-muted p-3">
+              <legend className="px-1 text-xs font-medium text-app-foreground">{t(strings.workspace.create.poseChart.title)}</legend>
+              <p className="text-xs text-app-muted-foreground">{t(strings.workspace.create.poseChart.hint)}</p>
+              <input
+                data-testid="pose-chart-file"
+                type="file"
+                accept="image/*"
+                disabled={busy}
+                onChange={(event) => { setPoseChartFile(event.currentTarget.files?.[0] ?? null); setPoseCell(null); }}
+              />
+              {poseChartFile ? (
+                <PoseChartPicker chart={poseChartFile} onSelect={setPoseCell} disabled={busy} />
+              ) : (
+                <p className="text-xs text-app-muted-foreground" data-testid="pose-chart-needs-file">
+                  {t(strings.workspace.create.poseChart.needsChart)}
+                </p>
+              )}
+            </fieldset>
+          )}
+
           {showSize && (
             <fieldset className="flex flex-col gap-2 rounded-control border border-app-border bg-app-surface-muted p-3">
               <legend className="px-1 text-xs font-medium text-app-foreground">{t(strings.workspace.create.pose.title)}</legend>
@@ -410,7 +454,7 @@ export function CreatePanel({
             </fieldset>
           )}
 
-          {requiresImage &&
+          {requiresImage && !poseChartOp &&
             (missingImage ? (
               <p
                 data-testid={selectors.workspace.create.needsImage}
@@ -441,9 +485,9 @@ export function CreatePanel({
             </>
           )}
 
-          {requiresReference && (
+          {(requiresReference || poseChartOp) && (
             <label className="flex flex-col gap-1 text-xs text-app-muted-foreground">
-              <span>{t(strings.workspace.create.reference.label)}</span>
+              <span>{poseChartOp ? t(strings.workspace.create.poseChart.reference) : t(strings.workspace.create.reference.label)}</span>
               <input
                 data-testid={selectors.workspace.create.reference}
                 type="file"
@@ -455,7 +499,7 @@ export function CreatePanel({
                   {t(strings.workspace.create.reference.needed)}
                 </span>
               ) : (
-                <span>{t(strings.workspace.create.reference.staged, { name: reference?.name ?? "" })}</span>
+                <span>{poseChartOp && !reference ? t(strings.workspace.create.poseChart.referenceHint) : t(strings.workspace.create.reference.staged, { name: reference?.name ?? "" })}</span>
               )}
             </label>
           )}

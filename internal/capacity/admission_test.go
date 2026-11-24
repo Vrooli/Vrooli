@@ -3,6 +3,7 @@ package capacity
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -96,6 +97,43 @@ func TestAdmitResourceIdempotentReuse(t *testing.T) {
 	claims, _ := store.ListClaims(ctx, ClaimFilter{OwnerID: "whisper", Statuses: ActiveClaimStatuses()})
 	if len(claims) != 1 {
 		t.Fatalf("ledger has %d active whisper claims, want exactly 1 (idempotent)", len(claims))
+	}
+}
+
+// A companion resizes the claim to the model it actually holds. That must not
+// rewrite the declaration, or every later start would see a claim that no
+// longer matches the manifest and replace it.
+func TestAdmitResourceReusesAClaimTheCompanionResized(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	writeResourceManifest(t, root, "ollama", `{"acceleration":{"backends":["cuda","cpu"],"cuda":{},"cpu":{},"claim":{"resource_kind":"vram","default_preferred_bytes":12884901888,"floor_bytes":0,"default_priority":"service","confidence":"estimated","yield_when_idle":true,"idle_grace_seconds":900,"idle_unload_ttl_seconds":900}}}`)
+	open, clk := admitTestStore(t)
+	opts := AdmitOptions{
+		Root: root, ResourceName: "ollama",
+		Source:    StaticSource{Inventory: snapshotWith(16, 0)},
+		OpenStore: open, Clock: clk, EnforceEnv: EnforceAdvisory,
+	}
+	first, err := AdmitResource(ctx, opts)
+	if err != nil || first.ClaimID == "" {
+		t.Fatalf("first AdmitResource() = %+v, err %v", first, err)
+	}
+
+	store, _ := open(ctx)
+	claim, err := store.GetClaim(ctx, first.ClaimID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.ResizeClaim(ctx, claim.ClaimID, claim.Generation, 6<<30); err != nil {
+		t.Fatalf("ResizeClaim: %v", err)
+	}
+	store.Close()
+
+	second, err := AdmitResource(ctx, opts)
+	if err != nil {
+		t.Fatalf("second AdmitResource() error = %v", err)
+	}
+	if second.ClaimID != first.ClaimID {
+		t.Fatalf("claim after resize = %q, want admission to reuse %q (the declaration must survive a resize)", second.ClaimID, first.ClaimID)
 	}
 }
 
@@ -226,13 +264,56 @@ func TestRealWhisperHasRequiredCapacitySpec(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("LoadResourceClaimSpec(whisper) = ok %v err %v, want its mandatory accelerator claim", ok, err)
 	}
-	if spec.PreferredBytes != 2*1024*1024*1024 || spec.FloorBytes != 0 {
-		t.Fatalf("whisper claim = %+v, want 2 GiB preferred and CPU floor", spec)
+	// The tier's exact budget is an operator decision; the invariant is that
+	// Whisper reserves a positive accelerator budget with a floor inside it.
+	if spec.PreferredBytes <= 0 || spec.FloorBytes < 0 || spec.FloorBytes > spec.PreferredBytes {
+		t.Fatalf("whisper claim = %+v, want a positive preferred budget with a floor inside it", spec)
 	}
-	wantModel := ModelIdentity{Name: "ggml-medium.bin", Digest: "6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208"}
-	if spec.Profile == nil || spec.Profile.Model != wantModel {
-		t.Fatalf("whisper residency model = %+v, want %+v", spec.Profile, wantModel)
+	if spec.Profile == nil {
+		t.Fatal("whisper claim has no residency profile")
 	}
+	// The claim must name a model the manifest actually pins. Which tier is the
+	// default is an operator decision; pointing at an undeclared or re-hashed
+	// model is the drift this test exists to catch.
+	if !pinnedWhisperModel(t, findAdmissionRepoRoot(t), spec.Profile.Model) {
+		t.Fatalf("whisper residency model = %+v, want a model pinned by its data artifacts", spec.Profile.Model)
+	}
+}
+
+// pinnedWhisperModel reports whether the claim names a data artifact the
+// manifest declares with the same checksum.
+func pinnedWhisperModel(t *testing.T, root string, model ModelIdentity) bool {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(root, "resources", "whisper", "resource.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		ManagedService struct {
+			DataArtifacts []struct {
+				Path        string `json:"path"`
+				Acquisition struct {
+					Targets []struct {
+						SHA256 string `json:"sha256"`
+					} `json:"targets"`
+				} `json:"acquisition"`
+			} `json:"data_artifacts"`
+		} `json:"managed_service"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	for _, artifact := range doc.ManagedService.DataArtifacts {
+		if filepath.Base(artifact.Path) != model.Name {
+			continue
+		}
+		for _, target := range artifact.Acquisition.Targets {
+			if target.SHA256 == model.Digest {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func TestMissionResidencyResourcesDeclareIdleYieldRungs(t *testing.T) {
@@ -814,5 +895,45 @@ func TestNoReclaimStartupRequiresSelectedManifestBudget(t *testing.T) {
 	err := WithResourceAdmission(context.Background(), opts, func(context.Context) error { ran = true; return nil })
 	if err == nil || ran {
 		t.Fatalf("lower-rung recommendation launched unchanged manifest budget: ran=%v err=%v", ran, err)
+	}
+}
+
+// The resource's own companion may release the startup claim while start is
+// still running (Ollama releases it while no model is loaded). The lease must
+// end quietly instead of renewing a released claim on every tick.
+func TestStartupLeaseEndsWhenTheOwnerReleasesItsClaim(t *testing.T) {
+	opts, clk, renewed := livenessFixture(t)
+	var log bytes.Buffer
+	opts.Log = &log
+	ticks := make(chan time.Time)
+	err := withResourceAdmissionTicks(context.Background(), opts, ticks, func(ctx context.Context) error {
+		store, e := opts.OpenStore(ctx)
+		if e != nil {
+			return e
+		}
+		defer store.Close()
+		claims, e := store.ListClaims(ctx, ClaimFilter{OwnerID: "model", Statuses: ActiveClaimStatuses()})
+		if e != nil || len(claims) != 1 {
+			t.Fatalf("startup claim = %+v %v", claims, e)
+		}
+		if _, e := store.ReleaseClaim(ctx, claims[0].ClaimID); e != nil {
+			return e
+		}
+		for range 3 {
+			clk.Advance(20 * time.Second)
+			ticks <- clk.Now()
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-renewed:
+		t.Fatal("startup lease renewed a released claim")
+	default:
+	}
+	if strings.Contains(log.String(), "renew startup claim") || strings.Count(log.String(), "startup lease ended") != 1 {
+		t.Fatalf("log = %q, want one lease-ended line and no renewal warning", log.String())
 	}
 }

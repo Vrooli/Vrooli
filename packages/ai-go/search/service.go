@@ -482,13 +482,12 @@ func (s *Service) vectorSearch(ctx context.Context, q SearchQuery, hybrid bool, 
 		labelWeak(hits, floorMethod, floorLeg)
 	}
 
-	total := len(hits)
 	if len(hits) > q.Limit {
 		hits = hits[:q.Limit]
 	}
 	return SearchResponse{
 		Results:  hits,
-		Total:    total,
+		Total:    len(hits),
 		Query:    q.Query,
 		Method:   method,
 		Reranker: respLeg,
@@ -524,12 +523,11 @@ func (s *Service) textSearch(ctx context.Context, q SearchQuery) (SearchResponse
 	if err != nil {
 		return SearchResponse{}, fmt.Errorf("text search: %w", err)
 	}
-	total := len(hits)
 	if len(hits) > q.Limit {
 		hits = hits[:q.Limit]
 	}
 	labelWeak(hits, "text", "")
-	return SearchResponse{Results: hits, Total: total, Query: q.Query, Method: "text", Reranker: "none", Regime: RegimeForMethod("text", "none")}, nil
+	return SearchResponse{Results: hits, Total: len(hits), Query: q.Query, Method: "text", Reranker: "none", Regime: RegimeForMethod("text", "none")}, nil
 }
 
 func (s *Service) projectAll(raw []SearchResult) []SearchResult {

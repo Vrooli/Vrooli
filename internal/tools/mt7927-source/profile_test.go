@@ -42,7 +42,7 @@ func TestStagePublishesOnlyCompleteVerifiedInputClosure(t *testing.T) {
 	if reused, err := profile.stage(ctx, parent, items); err != nil || reused != path {
 		t.Fatalf("offline reuse = %q, %v", reused, err)
 	}
-	if err := os.WriteFile(filepath.Join(path, "kernel"), []byte("edited fixture"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(path, "kernel"), []byte("edited fixture"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if reused, err := profile.stage(ctx, parent, items); err == nil || reused != "" {
