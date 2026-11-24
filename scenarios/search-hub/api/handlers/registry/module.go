@@ -30,7 +30,16 @@ import (
 // Module returns the registry domain's contribution to the API: the generated
 // RegistryService Connect handler backed by the SQLite store.
 func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, repoRoot string) module.Module {
-	store := internalregistry.NewSQLiteStore(db, clk)
+	return moduleWithStore(internalregistry.NewSQLiteStore(db, clk), logger, repoRoot)
+}
+
+// ModuleAfterLegacyTokenMigration is for the production composition after
+// main has completed MigrateLegacyControlTokens and fail-stopped on errors.
+func ModuleAfterLegacyTokenMigration(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, repoRoot string) module.Module {
+	return moduleWithStore(internalregistry.NewSQLiteStoreAfterLegacyTokenMigration(db, clk), logger, repoRoot)
+}
+
+func moduleWithStore(store internalregistry.Store, logger *log.Logger, repoRoot string) module.Module {
 	connectPath, connectHandler := registryconnect.NewRegistryServiceHandler(NewConnectHandler(Deps{
 		Store:    store,
 		RepoRoot: repoRoot,

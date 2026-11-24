@@ -94,6 +94,44 @@ func TestTaskViewShowsPerPartEvidenceAndCoverage(t *testing.T) {
 	}
 }
 
+func TestTaskHandoffOnlyUsesVisiblePartEvidence(t *testing.T) {
+	command := &routingv1.SearchHit{
+		ProviderId: "cli-health.commands",
+		Id:         "draft-begin",
+		Title:      "react-component-library components draft-begin",
+		Path:       "react-component-library components draft-begin",
+	}
+	unrelated := &routingv1.SearchHit{
+		ProviderId: "ui-health.surfaces",
+		Id:         "health-card",
+		Title:      "HealthCard surface",
+		Path:       "scenarios/ui-health/ui/src/HealthCard.tsx",
+	}
+	msg := &routingv1.QueryResponse{
+		Reranked: true,
+		Ranked:   []*routingv1.SearchHit{command},
+		Groups: []*routingv1.ProviderResultGroup{{
+			ProviderId: unrelated.GetProviderId(),
+			Hits:       []*routingv1.SearchHit{unrelated},
+		}},
+		QueryParts: []*routingv1.QueryPartEvidence{{
+			PartId: "surface", Label: "Find the health tracking surface",
+			Status: routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED,
+			Evidence: []*routingv1.SearchHitReference{{
+				ProviderId: unrelated.GetProviderId(), GroupIndex: int32Ref(0), HitIndex: int32Ref(0), HitId: unrelated.GetId(),
+			}},
+		}},
+	}
+	ctx := queryTextContext{text: "Find the React component library draft workflow for fixing a typo"}
+	if got := nextActionHints(ctx, msg); len(got) != 0 {
+		t.Fatalf("handoff referenced a command hidden by the task view: %v", got)
+	}
+	visible := visibleResponseHits(ctx, msg)
+	if len(visible) != 1 || visible[0] != unrelated {
+		t.Fatalf("visible task evidence = %#v, want only the referenced part hit", visible)
+	}
+}
+
 func TestCorrectionViewKeepsAmbiguousCandidatesGrounded(t *testing.T) {
 	hit := &routingv1.SearchHit{
 		ProviderId: "react-component-library.components",
@@ -115,10 +153,85 @@ func TestCorrectionViewKeepsAmbiguousCandidatesGrounded(t *testing.T) {
 		},
 	}
 	got := strings.Join((&handlers{}).queryReport(nil, msg).Results, "\n")
-	for _, expected := range []string{"Possible entity corrections:", "everythign", "everything", "everything else", "ambiguous: 2 alternatives", "weak supporting evidence", "Component dependency declarations"} {
+	for _, expected := range []string{"Possible entity corrections (not verified):", `"everythign" → "everything"`, `"everythign" → "everything else"`, "possible candidate, not verified", "ambiguous: 2 alternatives", "weak supporting evidence", "Component dependency declarations"} {
 		if !strings.Contains(got, expected) {
 			t.Fatalf("correction view missing %q:\n%s", expected, got)
 		}
+	}
+	if strings.Contains(got, "Direct entity match") || strings.Contains(got, "Verified correction") {
+		t.Fatalf("possible correction was presented as verified:\n%s", got)
+	}
+}
+
+func TestCorrectionViewOmitsCandidatesWithoutReturnedHitEvidence(t *testing.T) {
+	msg := &routingv1.QueryResponse{
+		Groups: []*routingv1.ProviderResultGroup{{ProviderId: "catalog.docs", Hits: []*routingv1.SearchHit{{ProviderId: "catalog.docs", Id: "unrelated", Title: "Unrelated result"}}}},
+		CorrectionCandidates: []*routingv1.CorrectionCandidate{{
+			SubmittedValue: "everythign", CandidateValue: "everything", ProviderId: "catalog.docs",
+			Strength: routingv1.CorrectionCandidate_STRENGTH_BAND_POSSIBLE,
+			Evidence: &routingv1.SearchHitReference{ProviderId: "catalog.docs", GroupIndex: int32Ref(0), HitIndex: int32Ref(0), HitId: "missing-id"},
+		}},
+	}
+	got := strings.Join((&handlers{}).queryReport(nil, msg).Results, "\n")
+	if strings.Contains(got, `"everythign" → "everything"`) || !strings.Contains(got, "1 correction candidate(s) omitted (unusable evidence or over display budget)") {
+		t.Fatalf("unreferenced possibility was rendered or omission was unclear:\n%s", got)
+	}
+}
+
+func TestCorrectionBudgetDoesNotHintFromAnOmittedSuggestion(t *testing.T) {
+	first := &routingv1.SearchHit{ProviderId: "catalog.docs", Id: "first", Title: "Unrelated first evidence"}
+	omitted := &routingv1.SearchHit{
+		ProviderId: "cli-health.commands",
+		Id:         "draft-begin",
+		Title:      "react-component-library components draft-begin",
+		Path:       "react-component-library components draft-begin",
+	}
+	msg := &routingv1.QueryResponse{
+		Groups: []*routingv1.ProviderResultGroup{
+			{ProviderId: first.GetProviderId(), Hits: []*routingv1.SearchHit{first}},
+			{ProviderId: omitted.GetProviderId(), Hits: []*routingv1.SearchHit{omitted}},
+		},
+		CorrectionCandidates: []*routingv1.CorrectionCandidate{
+			{SubmittedValue: "unrelated typo", CandidateValue: "unrelated term", Evidence: &routingv1.SearchHitReference{ProviderId: first.GetProviderId(), GroupIndex: int32Ref(0), HitIndex: int32Ref(0), HitId: first.GetId()}},
+			{SubmittedValue: "unrelated typo", CandidateValue: "another unrelated term", Evidence: &routingv1.SearchHitReference{ProviderId: first.GetProviderId(), GroupIndex: int32Ref(0), HitIndex: int32Ref(0), HitId: first.GetId()}},
+			{SubmittedValue: "unrelated typo", CandidateValue: "third unrelated term", Evidence: &routingv1.SearchHitReference{ProviderId: first.GetProviderId(), GroupIndex: int32Ref(0), HitIndex: int32Ref(0), HitId: first.GetId()}},
+			{SubmittedValue: "unrelated typo", CandidateValue: "fourth unrelated term", Evidence: &routingv1.SearchHitReference{ProviderId: first.GetProviderId(), GroupIndex: int32Ref(0), HitIndex: int32Ref(0), HitId: first.GetId()}},
+			{SubmittedValue: "React component library draft workflow typo", CandidateValue: "React component library draft workflow", ProviderId: omitted.GetProviderId(), Evidence: &routingv1.SearchHitReference{ProviderId: omitted.GetProviderId(), GroupIndex: int32Ref(1), HitIndex: int32Ref(0), HitId: omitted.GetId()}},
+		},
+	}
+	ctx := queryTextContext{text: "Find React component library draft workflow typo"}
+	report := (&handlers{}).queryReport(ctx, msg)
+	results := strings.Join(report.Results, "\n")
+	if strings.Contains(results, omitted.GetTitle()) || !strings.Contains(results, "1 correction candidate(s) omitted") {
+		t.Fatalf("fixed-hit correction budget did not omit the fifth candidate: %s", results)
+	}
+	if got := nextActionHints(ctx, msg); len(got) != 0 {
+		t.Fatalf("handoff depended on the omitted fifth correction candidate: %v", got)
+	}
+	visible := visibleResponseHits(ctx, msg)
+	if len(visible) != 1 || visible[0] != first {
+		t.Fatalf("visible correction evidence = %#v, want only the displayed first hit", visible)
+	}
+	showAll := queryTextContext{
+		showAllResultsContext: showAllResultsContext{enabled: true},
+		text:                  ctx.text,
+	}
+	fullReport := (&handlers{}).queryReport(showAll, msg)
+	fullResults := strings.Join(fullReport.Results, "\n")
+	if !strings.Contains(fullResults, omitted.GetTitle()) {
+		t.Fatalf("--show-all-results did not expose the fifth correction candidate: %s", fullResults)
+	}
+	if hints := strings.Join(nextActionHints(showAll, msg), "\n"); !strings.Contains(hints, "react-component-library components draft-begin --help") {
+		t.Fatalf("--show-all-results did not ground the visible fifth-candidate action: %s", hints)
+	}
+}
+
+func TestCorrectionViewWithNoCandidatesUsesOrdinaryResults(t *testing.T) {
+	hit := &routingv1.SearchHit{ProviderId: "catalog.docs", Id: "component-guide", Title: "Component guide"}
+	msg := &routingv1.QueryResponse{Groups: []*routingv1.ProviderResultGroup{{ProviderId: hit.GetProviderId(), Hits: []*routingv1.SearchHit{hit}}}}
+	report := (&handlers{}).queryReport(nil, msg)
+	if report.ResultsHeading != "Results by provider" || !strings.Contains(strings.Join(report.Results, "\n"), "Component guide") {
+		t.Fatalf("response without correction candidates changed its ordinary result view: %#v", report)
 	}
 }
 

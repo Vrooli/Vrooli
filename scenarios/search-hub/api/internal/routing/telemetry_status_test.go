@@ -401,17 +401,20 @@ func TestStatusExcludesProviderPastFreshnessBudget(t *testing.T) {
 
 func TestStatusReportsExplicitIndexAgeAbsence(t *testing.T) {
 	tests := []struct {
-		name string
-		body string
-		err  error
-		want string
+		name  string
+		body  string
+		err   error
+		field string
+		want  string
 	}{
 		{name: "no timestamp is unreported", body: `{"point_count":9}`, want: "unreported: status response has no usable declared index timestamp"},
+		{name: "declared timestamp does not borrow another key", body: `{"last_indexed_at":"2026-08-12T07:30:00Z","point_count":9}`, field: "indexedAt", want: "unreported: status response has no usable declared index timestamp"},
 		{name: "probe timeout is unreported", err: context.DeadlineExceeded, want: "unreported: status probe failed: context deadline exceeded"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := providerWithStatus(tt.body)
+			p.IndexTimestampField = tt.field
 			r := routing.NewRouter(routing.Deps{
 				Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{p}},
 				Resolver: staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test"}},

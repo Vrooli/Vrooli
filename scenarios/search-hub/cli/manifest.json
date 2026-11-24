@@ -574,7 +574,7 @@
         },
         {
           "name": "run",
-          "description": "Run an eval suite against its provider and store a tagged run",
+          "description": "Run a provider-owned eval directly, or route synthetic router.routing through federated Query by default; store a tagged run",
           "positionals": [
             {
               "name": "suite_id",
@@ -593,7 +593,7 @@
             },
             {
               "name": "tier",
-              "description": "Execution tier: provider_direct (default) or federated"
+              "description": "Execution tier: provider_direct for provider-owned suites (default); federated for routing comparisons. Synthetic router.routing defaults to federated when omitted"
             },
             {
               "name": "assert",
@@ -1358,23 +1358,6 @@
             "run_eligible": true,
             "permissions": [
               "filesystem:write"
-            ]
-          },
-          "architecture": {
-            "primitive": "action"
-          }
-        },
-        {
-          "name": "abort",
-          "description": "Drop the shadow collection and retain the live pointer",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
             ]
           },
           "architecture": {

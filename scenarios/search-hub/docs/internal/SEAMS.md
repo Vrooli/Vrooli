@@ -369,11 +369,11 @@ Production wiring: `main.go` and sqlite tests pass a real `*sql.DB`; the notes s
 
 | | |
 |---|---|
-| **Seam** | The single transport to the shared Ollama daemon for Search Hub-local LLM callers. Not substituted directly (callers seam at their own `generateFn` field); listed here because it is the one place the `resource-ollama gateway` shell + envelope-unwrap + think-strip lives, reused by the classifier and corpus inverter. |
+| **Seam** | The transport to the shared Ollama daemon for Search Hub-local LLM callers. Callers seam at their own `generateFn` field; this package owns the `resource-ollama gateway` shell, envelope unwrap, and think-block handling. |
 | **Interface** | `internal/ollama`: `Generate(ctx, model, prompt, maxTokens)`, `Available(ctx)`, `UnwrapResponse`, `StripThink`, `ExtractJSONObject`. |
-| **Production wiring** | `routing.NewOllamaClassifier` and `corpusgen.NewOllamaInverter` default their `generate` field to `ollama.Generate`. Production rerank uses the shared `ai-go/search` chain; the older local `OllamaReranker` remains covered by tests but is no longer the routing module's default. |
+| **Production wiring** | No interactive routing classifier is wired; automatic provider selection uses the active retrieval strategy. `corpusgen.NewOllamaInverter` uses `ollama.Generate`. Production rerank uses the shared `ai-go/search` chain, whose LLM fallback is owned by AI Gateway; the older local `OllamaReranker` is not the routing module's default. |
 | **Test fake** | Each caller injects a deterministic `generateFn`; `internal/ollama/gateway_test.go` covers the envelope/think/JSON helpers directly. |
-| **Why it exists** | Three LLM callers were each shelling the gateway + unwrapping its envelope. Extracting it removes the duplication (utils-unification) and gives one governed entry point to the throttled daemon. |
+| **Why it exists** | Corpus inversion uses the governed local gateway. The older local reranker remains a tested adapter, while production rerank uses the shared AI search chain. The retired classifier is not a caller. |
 
 ## Adding a new seam
 

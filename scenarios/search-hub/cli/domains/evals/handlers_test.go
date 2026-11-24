@@ -33,6 +33,19 @@ func TestFormatAggregateShowsFederatedRatesAndUnsetDirectRates(t *testing.T) {
 	}
 }
 
+func TestRunReportRendersRunSuiteAdequacyWarnings(t *testing.T) {
+	report := (&handlers{}).runReport(nil, &evalv1.RunSuiteResponse{
+		Run:      &evalv1.EvalRun{RunId: "run-1", SuiteId: "router.routing", Tier: "federated"},
+		Adequacy: []*evalv1.AdequacyWarning{{Code: "coverage_gap", Message: "compound coverage is underrepresented"}},
+	})
+	changes := strings.Join(report.Changes, "\n")
+	for _, want := range []string{"adequacy: 1 warning(s)", "coverage_gap: compound coverage is underrepresented"} {
+		if !strings.Contains(changes, want) {
+			t.Fatalf("run report changes %q do not contain API adequacy warning %q", changes, want)
+		}
+	}
+}
+
 func TestRateDeltaRequiresPresenceOnBothRuns(t *testing.T) {
 	if delta, ok := rateDelta(0.4, 0.7, true, true); !ok || math.Abs(delta-0.3) > 1e-9 {
 		t.Fatalf("rate delta = %v, %v; want 0.3, true", delta, ok)

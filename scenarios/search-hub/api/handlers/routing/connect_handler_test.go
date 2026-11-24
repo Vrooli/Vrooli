@@ -17,6 +17,7 @@ import (
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
 	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing/routing_v1connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	handler "search-hub/handlers/routing"
 	internalregistry "search-hub/internal/registry"
@@ -339,6 +340,50 @@ func TestProviderStatusForwardsExactProviderAndHealth(t *testing.T) {
 	require.Equal(t, "skills", resp.Msg.GetProviderId())
 	require.True(t, resp.Msg.GetHealth().GetReachable())
 	require.Equal(t, "5m", resp.Msg.GetHealth().GetIndexAge())
+}
+
+func TestProviderStatusDeliversAdditiveSelectedOwnerProjectionHeaders(t *testing.T) {
+	now := time.Date(2026, 11, 24, 12, 0, 0, 0, time.UTC)
+	health := &routingv1.ProviderHealth{
+		ProviderId: "selected.synthetic", Reachable: true, Reachability: "endpoint resolved",
+		IndexAge: "5m", LastIndexedAt: timestamppb.New(now.Add(-5 * time.Minute)), FreshnessBudget: "1h",
+	}
+	router := &fakeRouter{providerStatusOut: &routingv1.ProviderStatusResponse{
+		ProviderId: "selected.synthetic", Health: health, ObservedAt: timestamppb.New(now),
+	}}
+	client := newClient(t, router)
+	response, err := client.ProviderStatus(context.Background(), connect.NewRequest(&routingv1.ProviderStatusRequest{ProviderId: "selected.synthetic"}))
+	require.NoError(t, err)
+	require.Equal(t, "selected.synthetic", router.providerStatusID, "the API must probe the exact selected identity")
+	for header, want := range map[string]string{
+		"X-Search-Hub-Selected-Owner-Identity-Match":          "MATCHED",
+		"X-Search-Hub-Selected-Owner-Status-RPC-Reachability": "REACHABLE",
+		"X-Search-Hub-Selected-Owner-Endpoint-Reachability":   "REACHABLE",
+		"X-Search-Hub-Selected-Owner-Freshness":               "CURRENT",
+		"X-Search-Hub-Selected-Owner-Supported-Fallback":      "UNKNOWN",
+	} {
+		require.Equal(t, want, response.Header().Get(header), "header %s", header)
+	}
+}
+
+func TestProviderStatusFailsClosedOnMismatchedReadinessIdentity(t *testing.T) {
+	cases := []struct {
+		name string
+		resp *routingv1.ProviderStatusResponse
+	}{
+		{name: "response names another provider", resp: &routingv1.ProviderStatusResponse{ProviderId: "other", Health: &routingv1.ProviderHealth{ProviderId: "selected", Reachable: true, IndexAge: "5m"}}},
+		{name: "health names another provider", resp: &routingv1.ProviderStatusResponse{ProviderId: "selected", Health: &routingv1.ProviderHealth{ProviderId: "other", Reachable: true, IndexAge: "5m"}}},
+		{name: "health missing", resp: &routingv1.ProviderStatusResponse{ProviderId: "selected"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			client := newClient(t, &fakeRouter{providerStatusOut: tc.resp})
+			_, err := client.ProviderStatus(context.Background(), connect.NewRequest(&routingv1.ProviderStatusRequest{ProviderId: "selected"}))
+			require.Error(t, err)
+			require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
+			require.NotContains(t, err.Error(), "other", "router internals and mismatched owner IDs stay out of caller-visible readiness")
+		})
+	}
 }
 
 func TestProviderStatusErrorsKeepCallerVersusOwnerStateDistinct(t *testing.T) {

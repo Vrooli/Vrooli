@@ -35,7 +35,7 @@
     },
     "search": {
       "title": "Search",
-      "description": "One query across every registered corpus — the router classifies, fans out, and reranks into a single list."
+      "description": "Ask once across your provider catalog. Search Hub selects eligible providers for the request; when reranking is available, results share one ranking with provider evidence."
     },
     "evals": {
       "title": "Evals",
@@ -91,7 +91,7 @@
     "searching": "Searching…",
     "expandLabel": "Search all providers",
     "typesLabel": "Filter by type",
-    "emptyState": "Enter a query to search across every registered corpus.",
+      "emptyState": "Enter a request. Search Hub selects eligible providers and reports when coverage is incomplete.",
     "noResults": "No results. Try “Search all providers” to widen the search.",
     "error": "Search failed. Make sure the scenario is running through `vrooli scenario start`.",
     "summary": "{{corpora}} corpora · {{hits}} hits · {{latency}} ms",

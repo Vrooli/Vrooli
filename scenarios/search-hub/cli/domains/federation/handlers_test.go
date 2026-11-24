@@ -24,10 +24,13 @@ func TestStatusReportNamesStuckProviderInRecoverySummary(t *testing.T) {
 }
 
 func TestProviderStatusReportIsScopedAndDoesNotClaimSearchSuccess(t *testing.T) {
-	report := (&handlers{}).providerStatusReport(nil, &routingv1.ProviderStatusResponse{
+	message := &routingv1.ProviderStatusResponse{
 		ProviderId: "skills.owner",
 		Health:     &routingv1.ProviderHealth{ProviderId: "skills.owner", Reachable: true, Degraded: true, DegradedStages: []string{"provider_status_unavailable"}, IndexAge: "unreported: status probe failed", FreshnessBudget: "24h"},
-	})
+	}
+	payload, err := providerStatusCLIResponse(message, nil)
+	require.NoError(t, err)
+	report := (&handlers{}).providerStatusReport(nil, payload)
 	joined := strings.Join(append(report.Summary, report.Results...), "\n")
 	require.Contains(t, joined, "Selected provider skills.owner")
 	require.Contains(t, joined, "it did not execute a search")
@@ -99,5 +102,7 @@ func TestStatusReportDoesNotPresentRetiredClassifierAsFault(t *testing.T) {
 	joined := strings.Join(report.Summary, "\n")
 	require.NotContains(t, joined, "Classifier")
 	require.Contains(t, joined, "strategy lexical-cross-encoder")
+	require.NotContains(t, joined, "lexical + cross-encoder selection")
 	require.Contains(t, joined, "retired, not down")
+	require.Contains(t, strings.Join(report.RetrievalHints, "\n"), "--explain")
 }

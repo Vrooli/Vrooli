@@ -42,18 +42,14 @@ type Store interface {
 	// AppendRun stores an immutable run. The run's created_at is stamped by the
 	// store (clock seam) if unset, and run_id must be provided by the caller.
 	AppendRun(ctx context.Context, run *evalv1.EvalRun) error
+	// AppendRuns stores a complete multi-arm comparison atomically. Implementors
+	// must not leave a successful prefix when any run fails to persist.
+	AppendRuns(ctx context.Context, runs []*evalv1.EvalRun) error
 	// ListRuns returns runs for a suite (newest first), optionally filtered by
 	// tag and capped by limit.
 	ListRuns(ctx context.Context, filter ListRunsFilter) ([]*evalv1.EvalRun, error)
 	// GetRun returns the run for id or ErrRunNotFound.
 	GetRun(ctx context.Context, id string) (*evalv1.EvalRun, error)
-}
-
-// RunBatchAppender persists a complete multi-arm comparison in one storage
-// transaction. It is optional so lightweight Store fakes and adapters can
-// keep the single-run seam while production comparison writes remain atomic.
-type RunBatchAppender interface {
-	AppendRuns(ctx context.Context, runs []*evalv1.EvalRun) error
 }
 
 // sqliteStore is the production Store impl. Unexported so callers depend on the
@@ -73,7 +69,6 @@ func NewSQLiteStore(db SQLExecutor, clk schedule.Clock) Store {
 
 // Compile-time guarantee.
 var _ Store = (*sqliteStore)(nil)
-var _ RunBatchAppender = (*sqliteStore)(nil)
 
 const timeFormat = time.RFC3339Nano
 

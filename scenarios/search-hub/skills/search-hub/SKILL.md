@@ -1,17 +1,17 @@
 ---
 name: "search-hub"
-description: "Project research at effort levels: map a question's shape to a Search Hub bucket (DO, REUSE, KNOW, STATE) and the real --type tokens, pick fast, standard, or deep, read degraded, zero-result, and unavailable verdicts correctly, escalate to web-search only for external-world facts, and record what routed well in the search-hub-usage memory scope."
+description: "Project research at effort levels: map question shape to Search Hub buckets and live --type tokens, read degraded and unavailable verdicts, and recover prior work without treating attempts as accepted outcomes or restricted/unavailable sources as absent."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
   schemaVersion: 1
   modes: ["tools"]
-  tags: ["search-hub", "search", "federated", "routing", "research", "recall", "buckets", "effort-levels", "project-research"]
+  tags: ["search-hub", "search", "federated", "routing", "research", "recall", "buckets", "effort-levels", "project-research", "precedent", "outcome-provenance"]
   icon: "search"
   status: "active"
-  revision: 3
+  revision: 4
   createdAt: "2026-09-02T00:00:00Z"
-  updatedAt: "2026-11-05T01:16:00Z"
+  updatedAt: "2026-11-24T00:00:00Z"
   requires:
     scenarios: ["search-hub", "program-runtime", "vrooli-memory"]
     commands: ["search-hub query query", "search-hub providers list", "search-hub federation status", "search-hub federation provider-status", "search-hub insights insights", "search-hub status", "search-hub configure", "vrooli-memory recall wake", "vrooli-memory recall recall", "vrooli-memory journal note", "vrooli-memory facets pin", "vrooli-memory facets supersede", "vrooli scenario status"]
@@ -62,27 +62,54 @@ rows silently, so copy them from this table.
 | Shape unclear, or spans buckets | automatic selection | none: let Search Hub select providers | `search-hub query query "<q>" --explain` [S1] |
 | One scenario's own leaves only | any | `--group <scenario>` | `search-hub query query "<q>" --group <scenario>` [S1] |
 
+### 4. Recovering prior work without overstating it
+
+Use this path when the task asks what was tried, decided, accepted, replaced, or left incomplete. A project filter narrows retrieval; it does not grant access to that project's history. Before searching, confirm that the current task authorizes the named source and exact scope. If the authorization is missing or unclear, stop that source query and use only approved public documentation or synthetic fixtures.
+
+| Evidence source | It can establish | It cannot establish by itself |
+|---|---|---|
+| Agent Manager conversation/run | What a named actor or run discussed, attempted, or recorded; preserve its run/event identity and owner status | Acceptance, correctness, or current validity from a `complete` run or confident wording |
+| Source Ledger work record | A durable journal statement and its source identity when returned by the owner | Acceptance from narrative text, actor verification alone, or a Search Hub score |
+| Vrooli Memory lesson | A synthesized support/contradiction signal and reusable guidance | The raw outcome, exact run, current implementation, or permission to retrieve its source |
+| Research Desk evidence reference | A cited source location and review state | That the cited work executed, passed, or remains current |
+| Repository documentation or code | An authored contract or current source structure | Runtime execution, test success, or historical acceptance |
+
+Classify each requested outcome using the strongest owner evidence available:
+
+| State | Required evidence | Report |
+|---|---|---|
+| accepted | Exact durable record identity, explicit acceptance evidence, attributable actor/run, source reference, and the route needed to repeat the work | Accepted only for the linked scope and time; include source and route |
+| attempted | Attributable record of an attempt without explicit acceptance evidence | Attempted; do not promote it to accepted |
+| superseded | An explicit owner-linked replacement in the same authorized scope | Show the replacement as current and the linked older result as superseded |
+| absent | Owner confirms healthy, complete, authorized coverage for the exact requested scope and returns no match | Absent only in that covered scope |
+| restricted | Owner signals authorization-filtered material without revealing its identity or contents | Restricted/unknown; do not repeat hidden IDs, snippets, routes, or scope names |
+| unavailable or stale | Owner failure, incomplete coverage, stale index, or missing current identity | Unknown/degraded; do not call it absent |
+
+Do not infer acceptance from prose such as “done,” a successful process exit, a passing-looking transcript, an authored test, or a result's rank. Do not infer supersession from timestamps or conflicting text without the owner's explicit link. If the result lacks the identity, outcome source, scope, freshness, or route needed for the requested claim, label that part unknown and state what evidence is missing.
+
+For a safe result, present the outcome state, attributable source, evidence status, execution route, scope/completeness, freshness, and any owner degradation. Summarize only the minimum content needed to choose the next action. Memory capture records the query shape and routing verdict, never source text, private identifiers, or restricted-content hints.
+
 Effort, then one step:
 
 | Effort | Provider selection | `--limit` | When |
 |---|---|---|---|
 | fast | automatic selection, or your `--type` set | 5 | a lookup you expect to hit once |
 | standard | automatic selection with `--explain`, or `--type` | 10 | the default for design and debugging questions |
-| deep | `--all` (every active provider) | 20 | you must prove absence, or the shape spans three buckets |
+| deep | `--all` only when cross-bucket fanout is authorized and useful | 20 | the shape spans three buckets; `--all` alone never proves absence |
 
 `run search-hub.research` with `query`, `effort` in `fast|standard|deep`, optional `types` (a list), `group`, `scope` **[S3]**. For the repeated task-skill lookup, set `types=["skill"]` and `include_skill=true`; add `include_discover=true` when Prompt Manager discovery is part of the sequence. Branch on `signals.skill_lookup.status` and `truncated` before using returned content. For the repeated lookup-and-record sequence, add `include_discover=true capture_note=true`; this explicitly writes one note containing only the verdict and result/discovery counts, never the query or returned content. Check `signals.memory_capture.status` before treating the note as recorded. To safely repeat a query after a lifecycle check, set `repeat_after_status=true`; the program performs one query, reads only Search Hub's lifecycle status, and repeats the identical query once only when status is `running`. Check `signals.status_check` and `first_query`; a non-running/unavailable status skips the repeat. Branch on the envelope:
 
 | `status` | `signals.verdict` / `errors[0].class` | Do |
 |---|---|---|
 | `ok` | `answered` | Read `signals.ranked`; `providers_hit` says which corpus answered; `routing_explanation` says why |
-| `ok` | `zero_result` | Corpora were searched, nothing matched. Rephrase in the corpus's own vocabulary (a doc title, a command name), or add `--all`; if `signals.escalate_to_web` is true and the fact is external, go to web-search |
+| `ok` | `zero_result` | Selected corpora were searched, nothing matched. Rephrase in the corpus's vocabulary or select a known relevant provider; use `--all` only when cross-bucket fanout is authorized and useful. If `signals.escalate_to_web` is true and the fact is external, go to web-search |
 | `ok` | `no_provider_selected` | No corpus was searched: automatic selection found no eligible provider, or the explicit tokens match none. Read the route explanation and provider state; use valid explicit tokens from §3 to bypass automatic selection |
 | `partial` | `degraded_leg` | Some rows are valid; read `routing_degrade_reason` and the provider line `▸ <provider> — degraded: <reason>` in the output. `reranker_absent` or `reranker_unavailable` means rows are grouped by provider, not fused; `unreachable`, `timeout`, or `http_error` means that provider's leg is missing. Preserve the provider and reason when you report partial results. |
 | `unavailable` | `scenario_unreachable` or `degraded_leg` with no hits | Search Hub is down or a selected provider did not answer. Do not conclude absence or treat the query as a completed zero; preserve the reported provider reason and choose an explicitly safe fallback if one is authorized |
 | `refused` | `no_grant`, `not_run_eligible` | Stop; request through the session path |
 | `failed` | `invalid_input` | `effort` outside the enum, or `types` not a list of strings |
 
-### 4. Calling Search Hub from a program
+### 5. Calling Search Hub from a program
 
 Two forms; both return a bounded Handle (`count()`, `head(n)`, `meta()`):
 
@@ -94,7 +121,7 @@ search_hub.query.query(text="<q>", type=["doc", "skill"],       # full control
 
 Rules verified 2026-09-02: `rows="ranked"` is required (the response has several repeated fields; without it the call fails closed); `type` is a list of strings — a comma-joined string is refused by the proto encoder; routing meta (`corporaSearched`, `degraded`, `routingDegradeReason`, `partial`, `latencyMs`, `selectorLeg`, `rerankerLeg`) is in `meta()`, not in rows.
 
-### 5. After acting, always: capture
+### 6. After acting, always: capture
 
 One note per novel outcome (a shape you had not routed before, a verdict you did not expect, a provider that misled you). Skip notes for a repeat of a recorded shape with the same verdict.
 
@@ -105,7 +132,7 @@ One note per novel outcome (a shape you had not routed before, a verdict you did
 
 Curation inside the tree: a `query-record` confirmed on a third distinct question → `vrooli-memory facets pin <entry-id> --scope search-hub-usage` [S1]; advice that stopped working → `vrooli-memory facets supersede <entry-id> --scope search-hub-usage --replacement-entry-id <new-id>` [S1]; a repeated shape that should classify itself → `run vrooli-memory.scope-bootstrap` with a `rules` entry and read its dry-run before enabling [S3] (contract: `scenarios/vrooli-memory/.vrooli/program-runtime/scope-bootstrap.json`).
 
-### 6. In-use settings and debug order
+### 7. In-use settings and debug order
 
 | Symptom | Move | Journal |
 |---|---|---|
@@ -118,13 +145,15 @@ Debug order: `vrooli scenario status search-hub` → `search-hub status` (depend
 
 When one provider has already been selected for the next action and its health can change that action, use `search-hub federation provider-status <provider_id>`. This resolves only that exact active provider's scenario route and reads its declared status/freshness endpoint when available. It does not sweep the fleet or execute a search; exercise the selected provider for the actual task after reading its status. Use `federation status` only when the question is federation-wide. If Search Hub itself is unavailable, use the documented direct fallback for the task (for repository/topic search, `rg` over only the approved paths); keep Search Hub coverage `unknown` rather than treating fallback search as proof of complete federation coverage.
 
-### 7. Safety
+### 8. Safety
 
 - Queries and discovery are reads. `capture_note=true` performs one explicit append-only Memory write with verdict/counts only; do not enable it unless that write is appropriate and authorized. `providers register|remove`, `evals run|sweep --apply|generate --apply|promote|reap-orphans --confirm`, `federation repromote`, `strategy compare --apply`, and `embedding` mutations belong to `search-hub-improve` with evidence; never run them to make a query work.
 - `--type web` reaches the external, rate-limited live web through web-search's governor. Never put credentials or private data in a query that may route there.
+- A project/group filter is not an access grant. Confirm the current task's authorization for the exact source and scope before querying prior-work records; otherwise use only approved public documentation or synthetic fixtures.
+- An owner or provider registry entry does not establish that the caller can read its records. Stop if authorization is unclear, and do not try broader tokens or `--all` to bypass the missing scope.
 - Memory notes name providers and shapes, never result bodies.
 
-### 8. Troubleshooting & Edge Cases
+### 9. Troubleshooting & Edge Cases
 
 | Symptom | Likely cause | First check | Fix |
 |---|---|---|---|

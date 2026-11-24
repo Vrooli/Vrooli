@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"strings"
 
 	"connectrpc.com/connect"
 
@@ -99,7 +100,11 @@ func (h *connectHandler) Status(ctx context.Context, _ *connect.Request[routingv
 }
 
 // ProviderStatus probes the exact selected provider without invoking the
-// federation-wide status operation.
+// federation-wide status operation. Successful responses include separate
+// X-Search-Hub-Selected-Owner-* projection headers for identity, status-RPC
+// delivery, owner endpoint reachability, freshness, and supported fallback.
+// The fallback header remains UNKNOWN until an approved owner/task contract
+// supplies evidence.
 func (h *connectHandler) ProviderStatus(ctx context.Context, req *connect.Request[routingv1.ProviderStatusRequest]) (*connect.Response[routingv1.ProviderStatusResponse], error) {
 	resp, err := h.deps.Router.ProviderStatus(ctx, req.Msg.GetProviderId())
 	if err != nil {
@@ -109,7 +114,17 @@ func (h *connectHandler) ProviderStatus(ctx context.Context, req *connect.Reques
 		}
 		return nil, connectErr
 	}
-	return connect.NewResponse(resp), nil
+	// Keep owner identity, selected scope, and the health payload joined at the
+	// transport boundary. A malformed/mismatched router response must never be
+	// rendered as readiness evidence for the caller's selected provider.
+	expectedID := strings.TrimSpace(req.Msg.GetProviderId())
+	if resp == nil || strings.TrimSpace(resp.GetProviderId()) != expectedID || resp.GetHealth() == nil || strings.TrimSpace(resp.GetHealth().GetProviderId()) != expectedID {
+		h.deps.Logger.Printf("routing.ProviderStatus(%q): response identity contract violated", expectedID)
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal error"))
+	}
+	response := connect.NewResponse(resp)
+	projectSelectedOwnerStatus(expectedID, resp).writeHeaders(response.Header())
+	return response, nil
 }
 
 // toConnectError translates routing-domain sentinels into Connect codes at the

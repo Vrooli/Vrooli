@@ -682,6 +682,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		OrderedBy:        "score",
 	}
 	resp.QueryParts = queryPartEvidence(resp, partStates)
+	resp.CorrectionCandidates = buildCorrectionCandidates(query, resp)
 	resp.Degradations = searchDegradations(groups, selectionFallback, selectionReason, routingIndexReason, rerankDegraded, rerankReason, partial, pendingProviders)
 	if reranked && len(ranked) > 0 {
 		resp.OrderedBy = "rerank_score"
@@ -1248,6 +1249,7 @@ func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDe
 
 	shortlistWidth := strategyIntParam(strategy, StageLexical, "shortlist_width", r.factors.MaxFanoutWidth)
 	lexicalRanking, lexicalScores, typoEvidence := routeProviderShortlist(query, profiles, len(profiles), typoPolicy)
+	excludedLexicalCandidates := 0
 	lexicalEvidence := positiveScoredProfiles(lexicalRanking, lexicalScores, len(profiles))
 	if typoEvidence {
 		explain = append(explain, "bounded one-edit lexical evidence admitted only unique eligible owners")
@@ -1334,7 +1336,8 @@ func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDe
 			shortlist = positiveScoredProfiles(shortlist, lexicalScores, shortlistWidth)
 		}
 		if len(shortlist) == 0 && selectionReason != "ambiguous_lexical_boundary" {
-			if excludedSemanticCandidates > 0 {
+			_, excludedLexicalCandidates = filterRoutingProfileExclusions(query, profiles)
+			if excludedSemanticCandidates+excludedLexicalCandidates > 0 {
 				selectionReason = "routing_profile_exclusion"
 				trace.UnavailableReason = selectionReason
 				explain = append(explain, "no positive lexical evidence remained after routing-profile exclusions; automatic routing abstained")

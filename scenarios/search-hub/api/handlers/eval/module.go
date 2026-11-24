@@ -64,19 +64,28 @@ func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) modul
 // ModuleWithRoutability wires the optional shared router status seam. Keeping
 // Module's original signature preserves lightweight consumers and tests.
 func ModuleWithRoutability(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, routability RoutabilityReader) module.Module {
+	activeStrategy, _, strategyCatalog, strategyErr := internalrouting.LoadStrategySnapshot()
+	if strategyErr != nil {
+		panic(strategyErr)
+	}
+	return moduleWithRoutabilityAndStrategySnapshot(db, clk, logger, routability, activeStrategy.Name, strategyCatalog, false)
+}
+
+// ModuleWithRoutabilityAndStrategySnapshot composes eval from the strategy
+// snapshot validated by the process startup wiring edge.
+func ModuleWithRoutabilityAndStrategySnapshot(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, routability RoutabilityReader, activeStrategy string, strategyCatalog []internalrouting.RetrievalStrategy) module.Module {
+	return moduleWithRoutabilityAndStrategySnapshot(db, clk, logger, routability, activeStrategy, strategyCatalog, true)
+}
+
+func moduleWithRoutabilityAndStrategySnapshot(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, routability RoutabilityReader, activeStrategy string, strategyCatalog []internalrouting.RetrievalStrategy, legacyTokenMigrationComplete bool) module.Module {
 	store := internaleval.NewSQLiteStore(db, clk)
 	// The registry store doubles as the runner's provider resolver (its Get
 	// returns the descriptor whose endpoint the runner reuses) and the sweep's
 	// provider reader (Get + Token, to present the control token on the secured
 	// reindex/config-write verbs).
 	resolver := internalregistry.NewSQLiteStore(db, clk)
-	activeStrategy, _, strategyErr := internalrouting.LoadActiveStrategy()
-	if strategyErr != nil {
-		panic(strategyErr)
-	}
-	strategyCatalog, catalogErr := internalrouting.LoadStrategyCatalog()
-	if catalogErr != nil {
-		panic(catalogErr)
+	if legacyTokenMigrationComplete {
+		resolver = internalregistry.NewSQLiteStoreAfterLegacyTokenMigration(db, clk)
 	}
 	routingClient := newRoutingQueryClient()
 	client := &providerClientWithSubstrate{
@@ -132,7 +141,7 @@ func ModuleWithRoutability(db *database.RoutedDB, clk schedule.Clock, logger *lo
 		Federated:                federated,
 		Validator:                validator,
 		Sweeper:                  sweeper,
-		ActiveStrategy:           activeStrategy.Name,
+		ActiveStrategy:           activeStrategy,
 		StrategyCatalog:          strategyCatalog,
 		Routability:              routability,
 		DenominatorReviewReceipt: newIndependentDenominatorReviewVerifier(),

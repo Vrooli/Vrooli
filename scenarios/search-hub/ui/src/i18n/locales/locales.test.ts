@@ -153,6 +153,19 @@ describe("locale catalogs", () => {
     }
   });
 
+  it("search page description matches provider selection and optional reranking", () => {
+    const strings = flatten(reference);
+    const description = strings["pages.search.description"];
+    const emptyState = strings["search.emptyState"];
+    expect(description).toContain("selects eligible providers");
+    expect(description).toContain("when reranking is available");
+    expect(description).not.toContain("router classifies");
+    expect(description).not.toContain("every registered corpus");
+    expect(emptyState).toContain("selects eligible providers");
+    expect(emptyState).toContain("coverage is incomplete");
+    expect(emptyState).not.toContain("every registered corpus");
+  });
+
   it("every locale's strings are actual strings (not arrays/objects/null)", () => {
     for (const [locale, catalog] of Object.entries(catalogs)) {
       const flat = flatten(catalog);

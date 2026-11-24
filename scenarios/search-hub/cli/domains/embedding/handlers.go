@@ -198,10 +198,6 @@ func (h *handlers) recordCompareCall(ctx cliapp.OperationContext) (result, error
 	return result{Operation: "embedding retarget record-compare", Status: "ok", Migration: &state, Message: "compare verdict recorded; cutover still requires pass"}, nil
 }
 
-func (h *handlers) abortCall(ctx cliapp.OperationContext) (result, error) {
-	return result{}, errors.New("embedding migration abort is unsupported: provider cancellation and collection lease protection are not implemented; no data was changed")
-}
-
 func (h *handlers) cutoverCall(ctx cliapp.OperationContext) (result, error) {
 	state, err := loadState()
 	if err != nil {

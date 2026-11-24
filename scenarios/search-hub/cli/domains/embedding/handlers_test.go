@@ -27,13 +27,6 @@ func TestRequirePassingCompareRejectsMissingOrNonPassingVerdicts(t *testing.T) {
 	}
 }
 
-func TestAbortRefusesUnsupportedDeletion(t *testing.T) {
-	_, err := (&handlers{}).abortCall(nil)
-	if err == nil || !strings.Contains(err.Error(), "no data was changed") {
-		t.Fatalf("abort error=%v, want explicit no-mutation refusal", err)
-	}
-}
-
 type migrationRegistryClient struct {
 	submission *registryv1.ExecuteEmbeddingMigrationResponse
 	status     string

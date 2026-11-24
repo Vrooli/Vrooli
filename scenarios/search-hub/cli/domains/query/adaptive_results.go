@@ -241,49 +241,58 @@ func renderTaskParts(msg *routingv1.QueryResponse, maxHits int) []string {
 	shownHits := 0
 
 	if len(msg.GetCorrectionCandidates()) > 0 {
-		out = append(out, "Possible entity corrections:")
+		out = append(out, "Possible entity corrections (not verified):")
 		candidates := msg.GetCorrectionCandidates()
-		alternatives := correctionAlternativeCounts(candidates)
-		for index, candidate := range candidates {
-			if maxHits > 0 && index >= maxHits {
-				break
-			}
+		alternatives := correctionAlternativeCounts(msg, candidates)
+		shownCandidates := 0
+		omittedCandidates := 0
+		for _, candidate := range candidates {
 			if candidate == nil {
 				continue
 			}
+			hit := resolveHitReference(msg, candidate.GetEvidence())
+			// A suggestion without a returned, identity-checked hit is not evidence
+			// and must not be presented as a correction possibility.
+			if hit == nil || strings.TrimSpace(candidate.GetSubmittedValue()) == "" || strings.TrimSpace(candidate.GetCandidateValue()) == "" {
+				omittedCandidates++
+				continue
+			}
+			if maxHits > 0 && shownCandidates >= maxHits {
+				omittedCandidates++
+				continue
+			}
+			key := hitDedupeKey(hit)
+			previous, evidenceShown := seen[key]
+			if !evidenceShown && maxHits > 0 && shownHits >= maxHits {
+				omittedCandidates++
+				continue
+			}
+			shownCandidates++
 			strength := "strength unreported"
 			switch candidate.GetStrength() {
 			case routingv1.CorrectionCandidate_STRENGTH_BAND_STRONG:
-				strength = "strong candidate"
+				strength = "strong candidate, not verified"
 			case routingv1.CorrectionCandidate_STRENGTH_BAND_POSSIBLE:
-				strength = "possible candidate"
+				strength = "possible candidate, not verified"
 			}
 			line := fmt.Sprintf("  %q → %q (%s; %s)", truncate(candidate.GetSubmittedValue(), 70), truncate(candidate.GetCandidateValue(), 70), strength, truncate(candidate.GetProviderId(), 48))
 			if alternatives[strings.ToLower(candidate.GetSubmittedValue())] > 1 {
 				line += fmt.Sprintf(" [ambiguous: %d alternatives]", alternatives[strings.ToLower(candidate.GetSubmittedValue())])
 			}
-			hit := resolveHitReference(msg, candidate.GetEvidence())
-			if hit == nil {
-				line += " — supporting hit reference unavailable"
+			if hit.GetConfidence().GetWeak() {
+				line += " — weak supporting evidence"
+			}
+			if evidenceShown {
+				line += " — evidence shown above: " + truncate(previous, 120)
 			} else {
-				if hit.GetConfidence().GetWeak() {
-					line += " — weak supporting evidence"
-				}
-				key := hitDedupeKey(hit)
-				if previous, ok := seen[key]; ok {
-					line += " — evidence shown above: " + truncate(previous, 120)
-				} else if maxHits == 0 || shownHits < maxHits {
-					seen[key] = displayTitle(hit) + " (" + hit.GetProviderId() + ")"
-					shownHits++
-					line += " — " + truncate(displayTitle(hit), 70) + " (" + truncate(provenance(hit), 92) + ")"
-				} else {
-					line += " — evidence omitted by display budget"
-				}
+				seen[key] = displayTitle(hit) + " (" + hit.GetProviderId() + ")"
+				shownHits++
+				line += " — " + truncate(displayTitle(hit), 70) + " (" + truncate(provenance(hit), 92) + ")"
 			}
 			out = append(out, line)
 		}
-		if len(candidates) > len(out)-1 {
-			out = append(out, fmt.Sprintf("  … %d additional correction candidate(s) omitted", len(candidates)-(len(out)-1)))
+		if omittedCandidates > 0 {
+			out = append(out, fmt.Sprintf("  … %d correction candidate(s) omitted (unusable evidence or over display budget)", omittedCandidates))
 		}
 	}
 
@@ -409,10 +418,10 @@ func renderCorrections(msg *routingv1.QueryResponse, maxHits int) []string {
 	return renderTaskParts(msg, maxHits)
 }
 
-func correctionAlternativeCounts(candidates []*routingv1.CorrectionCandidate) map[string]int {
+func correctionAlternativeCounts(msg *routingv1.QueryResponse, candidates []*routingv1.CorrectionCandidate) map[string]int {
 	values := make(map[string]map[string]struct{})
 	for _, candidate := range candidates {
-		if candidate == nil {
+		if candidate == nil || resolveHitReference(msg, candidate.GetEvidence()) == nil {
 			continue
 		}
 		submitted := strings.ToLower(strings.TrimSpace(candidate.GetSubmittedValue()))
@@ -485,13 +494,16 @@ func shortProviderList(providers []string) string {
 	return result
 }
 
-func nextActionHints(ctx interface{ Positional(string) string }, msg *routingv1.QueryResponse) []string {
+func nextActionHints(ctx interface {
+	Positional(string) string
+	BoolFlag(string) bool
+}, msg *routingv1.QueryResponse) []string {
 	if hit := bestCommandCandidate(ctx, msg); hit != nil {
 		if command := commandHelpSuggestion(hit); command != "" {
 			return []string{"Inspect this command's supported options before using it: `" + command + "`"}
 		}
 	}
-	for _, hit := range visibleResponseHits(msg) {
+	for _, hit := range visibleResponseHits(ctx, msg) {
 		if actionCandidateRelevant(ctx, msg, hit) {
 			if command := sourceReadCommand(hit.GetPath()); command != "" {
 				return []string{"Read candidate evidence before relying on it: `" + command + "`"}
@@ -503,7 +515,7 @@ func nextActionHints(ctx interface{ Positional(string) string }, msg *routingv1.
 			}
 		}
 	}
-	if hit := operationCandidate(msg); actionCandidateRelevant(ctx, msg, hit) {
+	if hit := operationCandidate(msg); containsVisibleHit(visibleResponseHits(ctx, msg), hit) && actionCandidateRelevant(ctx, msg, hit) {
 		if operation := operationHints(msg); len(operation) > 0 {
 			for _, line := range operation {
 				if strings.Contains(line, "program-runtime library run ") {
@@ -515,10 +527,91 @@ func nextActionHints(ctx interface{ Positional(string) string }, msg *routingv1.
 	return nil
 }
 
-func visibleResponseHits(msg *routingv1.QueryResponse) []*routingv1.SearchHit {
+func containsVisibleHit(visible []*routingv1.SearchHit, candidate *routingv1.SearchHit) bool {
+	if candidate == nil {
+		return false
+	}
+	for _, hit := range visible {
+		if hit == candidate {
+			return true
+		}
+	}
+	return false
+}
+
+// visibleResponseHits mirrors the active human view so handoff hints never
+// point at a candidate the user cannot see in the same response.
+func visibleResponseHits(ctx interface {
+	Positional(string) string
+	BoolFlag(string) bool
+}, msg *routingv1.QueryResponse) []*routingv1.SearchHit {
+	if msg == nil {
+		return nil
+	}
+	limit := defaultVisibleHits
+	if ctx != nil && ctx.BoolFlag("show-all-results") {
+		limit = 0
+	}
+	if len(msg.GetQueryParts()) > 0 || len(msg.GetCorrectionCandidates()) > 0 {
+		var visible []*routingv1.SearchHit
+		seen := make(map[string]struct{}, defaultVisibleHits)
+		add := func(hit *routingv1.SearchHit) bool {
+			if hit == nil {
+				return false
+			}
+			key := hitDedupeKey(hit)
+			if _, ok := seen[key]; ok {
+				return true
+			}
+			if limit > 0 && len(visible) >= limit {
+				return false
+			}
+			seen[key] = struct{}{}
+			visible = append(visible, hit)
+			return true
+		}
+		shownCandidates := 0
+		for _, candidate := range msg.GetCorrectionCandidates() {
+			if candidate == nil || strings.TrimSpace(candidate.GetSubmittedValue()) == "" || strings.TrimSpace(candidate.GetCandidateValue()) == "" {
+				continue
+			}
+			if limit > 0 && shownCandidates >= limit {
+				break // The human correction view caps suggestion rows at the hit budget.
+			}
+			hit := resolveHitReference(msg, candidate.GetEvidence())
+			if hit == nil {
+				continue
+			}
+			_, alreadyVisible := seen[hitDedupeKey(hit)]
+			if !alreadyVisible && limit > 0 && len(visible) >= limit {
+				continue // The human view omits candidates whose unique evidence exceeds budget.
+			}
+			shownCandidates++
+			if !add(hit) {
+				return visible
+			}
+		}
+		for _, part := range msg.GetQueryParts() {
+			if part == nil {
+				continue
+			}
+			for _, ref := range part.GetEvidence() {
+				if hit := resolveHitReference(msg, ref); hit != nil {
+					if !add(hit) {
+						return visible
+					}
+					break // The task view shows one representative for each part.
+				}
+			}
+		}
+		return visible
+	}
+	if exact := directEntityMatch(ctx, msg); exact != nil {
+		return []*routingv1.SearchHit{exact}
+	}
 	hits := allResponseHits(msg)
-	if len(hits) > defaultVisibleHits {
-		hits = hits[:defaultVisibleHits]
+	if limit > 0 && len(hits) > limit {
+		hits = hits[:limit]
 	}
 	return hits
 }
@@ -583,10 +676,13 @@ func tokenOverlap(query, candidate map[string]struct{}) int {
 	return matched
 }
 
-func bestCommandCandidate(ctx interface{ Positional(string) string }, msg *routingv1.QueryResponse) *routingv1.SearchHit {
+func bestCommandCandidate(ctx interface {
+	Positional(string) string
+	BoolFlag(string) bool
+}, msg *routingv1.QueryResponse) *routingv1.SearchHit {
 	var selected *routingv1.SearchHit
 	bestScore := 0
-	for _, hit := range visibleResponseHits(msg) {
+	for _, hit := range visibleResponseHits(ctx, msg) {
 		if commandHelpSuggestion(hit) == "" {
 			continue
 		}

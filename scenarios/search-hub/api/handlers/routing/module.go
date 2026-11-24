@@ -60,7 +60,8 @@ func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, recor
 // selection. Semantic selection requires the owner-bound fleet store and
 // verified per-request identity supplied through NewRouterWithFleetSemanticStore.
 func NewRouter(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, recorder internalrouting.TelemetryRecorder) *internalrouting.Router {
-	return newRouterWithDescriptionIndex(db, clk, logger, recorder, nil, nil)
+	activeStrategy, routerFactors, strategyCatalog := loadStrategySnapshot()
+	return NewRouterWithStrategySnapshot(db, clk, logger, recorder, nil, nil, activeStrategy, routerFactors, strategyCatalog)
 }
 
 // NewRouterWithFleetSemanticStore wires the production owner-bound semantic
@@ -68,14 +69,35 @@ func NewRouter(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, re
 // and a trusted per-request identity resolver are present. With either absent,
 // the router has no semantic index and follows its bounded lexical fallback.
 func NewRouterWithFleetSemanticStore(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, recorder internalrouting.TelemetryRecorder, store aisearch.FleetSemanticStore, identity internalrouting.ProviderSemanticContextResolver) *internalrouting.Router {
+	activeStrategy, routerFactors, strategyCatalog := loadStrategySnapshot()
+	return NewRouterWithFleetSemanticStoreAndSnapshot(db, clk, logger, recorder, store, identity, activeStrategy, routerFactors, strategyCatalog)
+}
+
+// NewRouterWithFleetSemanticStoreAndSnapshot composes the production router
+// from the process startup strategy snapshot shared by API consumers.
+func NewRouterWithFleetSemanticStoreAndSnapshot(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, recorder internalrouting.TelemetryRecorder, store aisearch.FleetSemanticStore, identity internalrouting.ProviderSemanticContextResolver, activeStrategy internalrouting.RetrievalStrategy, routerFactors internalrouting.RouterFactorValues, strategyCatalog []internalrouting.RetrievalStrategy) *internalrouting.Router {
 	index, trustedIdentity := fleetSemanticRoutingDependencies(store, identity)
 	if index == nil || trustedIdentity == nil {
 		if logger != nil {
 			logger.Printf("fleet semantic provider-description index unavailable: store or verified caller context is missing")
 		}
-		return newRouterWithDescriptionIndex(db, clk, logger, recorder, nil, nil)
+		return newRouterWithDescriptionIndex(db, clk, logger, recorder, nil, nil, activeStrategy, routerFactors, strategyCatalog)
 	}
-	return newRouterWithDescriptionIndex(db, clk, logger, recorder, index, trustedIdentity)
+	return newRouterWithDescriptionIndex(db, clk, logger, recorder, index, trustedIdentity, activeStrategy, routerFactors, strategyCatalog)
+}
+
+// NewRouterWithStrategySnapshot builds a bounded lexical router from an
+// already validated process startup snapshot.
+func NewRouterWithStrategySnapshot(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, recorder internalrouting.TelemetryRecorder, descriptionIndex internalrouting.ProviderDescriptionIndex, identity internalrouting.ProviderSemanticContextResolver, activeStrategy internalrouting.RetrievalStrategy, routerFactors internalrouting.RouterFactorValues, strategyCatalog []internalrouting.RetrievalStrategy) *internalrouting.Router {
+	return newRouterWithDescriptionIndex(db, clk, logger, recorder, descriptionIndex, identity, activeStrategy, routerFactors, strategyCatalog)
+}
+
+func loadStrategySnapshot() (internalrouting.RetrievalStrategy, internalrouting.RouterFactorValues, []internalrouting.RetrievalStrategy) {
+	activeStrategy, routerFactors, strategyCatalog, err := internalrouting.LoadStrategySnapshot()
+	if err != nil {
+		panic(err)
+	}
+	return activeStrategy, routerFactors, strategyCatalog
 }
 
 func fleetSemanticRoutingDependencies(store aisearch.FleetSemanticStore, identity internalrouting.ProviderSemanticContextResolver) (internalrouting.ProviderDescriptionIndex, internalrouting.ProviderSemanticContextResolver) {
@@ -89,18 +111,7 @@ func fleetSemanticRoutingDependencies(store aisearch.FleetSemanticStore, identit
 	return index, identity
 }
 
-func newRouterWithDescriptionIndex(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, recorder internalrouting.TelemetryRecorder, descriptionIndex internalrouting.ProviderDescriptionIndex, identity internalrouting.ProviderSemanticContextResolver) *internalrouting.Router {
-	activeStrategy, routerFactors, err := internalrouting.LoadActiveStrategy()
-	if err != nil {
-		// Strategy data is part of the executable's startup contract. Continuing
-		// with guessed defaults would make measurements non-reproducible, so fail
-		// the wiring edge loudly before serving a query.
-		panic(err)
-	}
-	strategyCatalog, err := internalrouting.LoadStrategyCatalog()
-	if err != nil {
-		panic(err)
-	}
+func newRouterWithDescriptionIndex(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, recorder internalrouting.TelemetryRecorder, descriptionIndex internalrouting.ProviderDescriptionIndex, identity internalrouting.ProviderSemanticContextResolver, activeStrategy internalrouting.RetrievalStrategy, routerFactors internalrouting.RouterFactorValues, strategyCatalog []internalrouting.RetrievalStrategy) *internalrouting.Router {
 	store := internalregistry.NewSQLiteStore(db, clk)
 	router := internalrouting.NewRouter(internalrouting.Deps{
 		Lister:                    store,

@@ -1,6 +1,6 @@
 // Package federation is the CLI's federation-status command surface. It mirrors
-// the API's RoutingService.Status Connect-RPC: per-provider reachability plus
-// classifier/reranker availability.
+// the API's RoutingService.Status Connect-RPC: per-provider reachability, the
+// active routing strategy, and unified-rerank availability.
 //
 // The command-line shape is declared in cli/manifest.json (the single source of
 // truth) and loaded via cliapp.LoadFromManifestPrimitives; the handler lives in

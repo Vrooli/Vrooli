@@ -1,6 +1,7 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { SearchPanel } from "../features/search/SearchPanel";
+import { ScenarioEvidencePanel } from "../features/search/ScenarioEvidencePanel";
 import { useTranslation } from "../i18n";
 
 /**
@@ -24,6 +25,7 @@ export function SearchPage() {
         <p className="text-app-muted-foreground">{t(strings.pages.search.description)}</p>
       </div>
       <SearchPanel />
+      <ScenarioEvidencePanel />
     </section>
   );
 }

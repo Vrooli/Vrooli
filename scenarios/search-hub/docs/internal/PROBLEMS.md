@@ -239,13 +239,13 @@ retry + graceful degrade). The embedded-seed path (`providers/seeds.go`, the
 `seeds/` dir, `seeds_test.go`) is **deleted** — greenfield, no fallback.
 
 **What moved, not deleted:** the 19 descriptor fixtures were relocated to
-`api/internal/routing/testdata/provider_corpus/` because the Ollama-gated
-classifier **routing-recall gate** (`routing/classifier_recall_test.go`) still
-needs a representative multi-provider landscape to route across. They are now
-**test data only** (loaded via `os.ReadFile`, never embedded/registered);
-`routing/provider_corpus_test.go` (always-on) guards their validity and the
-live-vs-gap split — inheriting the assertions from the deleted `seeds_test.go`.
-See `provider_corpus/README.md`.
+`api/internal/routing/testdata/provider_corpus/` when the provider seeds were
+removed. They remain **test data only** (loaded via `os.ReadFile`, never
+embedded/registered); `routing/provider_corpus_test.go` guards their descriptor
+validity and live-vs-gap split. The originally stated Ollama-gated classifier
+routing-recall consumer (`routing/classifier_recall_test.go`) has since been
+retired; the fixtures no longer provide routing-recall coverage. See
+`provider_corpus/README.md` for their current, narrower contract.
 
 **Side effect:** `eval/seeds_test.go` previously cross-checked each eval suite's
 `provider_id` against the shipped provider catalog. With a dynamic, self-registered
@@ -521,9 +521,11 @@ corpus carries. Three pieces:
   `GenerateResponse.adequacy`).
 
 Also: extracted **`internal/ollama`** — the single gateway transport (`Generate` /
-`Available` / envelope-unwrap / think-strip) the classifier, reranker, and inverter
-now share (was duplicated across the two routing files); utils-unification, behavior
-preserved verbatim, routing tests unchanged + green.
+`Available` / envelope-unwrap / think-strip) then shared by classifier, reranker,
+and inverter (previously duplicated across routing files). The interactive
+classifier has since been retired. Current production use is corpus inversion;
+the old local reranker adapter is not the router's production default, which is
+the shared AI search chain with an AI Gateway fallback.
 
 **Deliberate limitation (NOT a bug) — two stand-ins gated on follow-ups:**
 1. **The sampler enumerates only what its probes surface.** The unified search

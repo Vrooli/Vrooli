@@ -16,6 +16,67 @@ Queries, result bodies, query-part/provider identifiers, paths and hit text are
 not copied into measurement output. Part status/evidence counts are availability
 signals only; they do not replace SH1's independent per-part grade.
 
+`compare.py` is the post-run attribution step. It requires baseline and
+candidate reports plus separate sanitized grade receipts issued by SH1. A
+receipt has this shape (one row per frozen `case_id`; no expected IDs, query
+text, or result content):
+
+```json
+{
+  "issuer": "SH1",
+  "receipt_id": "sh1-receipt-reference",
+  "cohort_id": "sh1-holdout-v2-20261123",
+  "task_set_sha256": "<frozen-task-set-digest>",
+  "cases": {
+    "case-001": {
+      "parts": {"accepted": 2, "total": 3},
+      "tasks": {"accepted": 0, "total": 1}
+    }
+  }
+}
+```
+
+Each arm has its own receipt because acceptance can change. The comparator
+checks workload digest, phase, concurrency, transport, sampling interval, case
+IDs, and per-case query hashes before computing group CPU per accepted part
+and task. It also requires matching frozen corpus and fault-schedule IDs, and
+matching independently graded cohort/task-set identity and denominators. Each
+comparison is a content-addressed receipt with source artifact hashes, state
+receipt IDs, build IDs, the selected resource-group definition, and a digest of
+case/query hashes. It reports peak memory and keeps cache and Gateway token evidence in
+separate fields. Select exactly one resource group and source; do not add
+process, PSS, and inclusive cgroup totals. Candidate part and task acceptance
+rates must both be non-regressing for a resource improvement to be eligible.
+It also reports point-estimate checks against SH4's 20% CPU-per-accepted-part
+and 15% peak-memory floors. These are not a final pass: repeated paired runs,
+uncertainty, idle bounds, provider/model attribution, and an independently
+reviewed quality gate still apply.
+
+Example, run once per matched phase after SH1 supplies the sanitized receipts:
+
+```sh
+python3 -I scenarios/search-hub/scripts/performance/compare.py \
+  --baseline evidence/baseline-warm.json \
+  --candidate evidence/candidate-warm.json \
+  --baseline-grades evidence/sh1-baseline-grades.json \
+  --candidate-grades evidence/sh1-candidate-grades.json \
+  --resource-source cgroup_groups --resource-group api \
+  --output evidence/warm-comparison.json
+```
+
+Every non-idle measurement report must now declare the externally verified
+build, corpus snapshot, fault-schedule receipt (use `none` for the normal path),
+and owner-issued prepared-state receipt, using `measure.py`'s
+`--build-id`, `--corpus-snapshot-id`, `--fault-schedule-id`, and
+`--state-receipt-id` options. Use the same frozen corpus and fault schedule for
+both arms; state and build receipts are retained per arm.
+
+Repeat this for `cold`, `warm`, `concurrent`, and `degraded` using equal
+workload/corpus/options and the same fault schedule. Obtain cold/degraded state
+through the supported owner lifecycle and cite its receipt with `--note`; this
+harness and comparator do not change service state. Keep the `model-free`
+contrast separately labeled and never merge it into normal-path results.
+
 Each report summarizes `latency_ms` as client wall-time percentiles,
 `api_response_latency_ms` as the server's `latencyMs` percentiles when present,
 and `response_bytes` as output size. The wall/API difference includes client,

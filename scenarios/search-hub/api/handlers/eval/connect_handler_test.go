@@ -30,6 +30,8 @@ type fakeStore struct {
 	suites     map[string]*evalv1.EvalSuite
 	runs       map[string]*evalv1.EvalRun
 	appended   []*evalv1.EvalRun
+	batchCalls int
+	batchErr   error
 	upsertErr  error
 	validation *internaleval.CorpusValidationRecord
 }
@@ -75,6 +77,28 @@ func (f *fakeStore) DeleteSuite(_ context.Context, id string) error {
 func (f *fakeStore) AppendRun(_ context.Context, run *evalv1.EvalRun) error {
 	f.appended = append(f.appended, run)
 	f.runs[run.GetRunId()] = run
+	return nil
+}
+
+func (f *fakeStore) AppendRuns(_ context.Context, runs []*evalv1.EvalRun) error {
+	f.batchCalls++
+	if f.batchErr != nil {
+		return f.batchErr
+	}
+	// Validate the whole batch before mutating the fake, matching the atomic
+	// contract required of production Store implementations.
+	for _, run := range runs {
+		if run == nil || strings.TrimSpace(run.GetRunId()) == "" {
+			return errors.New("invalid run in batch")
+		}
+		if _, exists := f.runs[run.GetRunId()]; exists {
+			return fmt.Errorf("duplicate run id %q", run.GetRunId())
+		}
+	}
+	for _, run := range runs {
+		f.appended = append(f.appended, run)
+		f.runs[run.GetRunId()] = run
+	}
 	return nil
 }
 
@@ -360,6 +384,37 @@ func TestCompareStrategiesDoesNotPersistSuccessfulPrefixWhenLaterArmFails(t *tes
 	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
 	require.Equal(t, []string{"lexical-cross-encoder", "lexical-fallback", "lexical-typo-cross-encoder"}, runner.calls)
 	require.Empty(t, store.appended, "failed comparison must not leave successful prefix runs in history")
+	require.Zero(t, store.batchCalls, "persistence must not start until every arm has completed")
+}
+
+func TestCompareStrategiesBatchPersistenceFailureLeavesNoRuns(t *testing.T) {
+	store := newFakeStore()
+	store.suites[internaleval.RouterSuiteID] = &evalv1.EvalSuite{SuiteId: internaleval.RouterSuiteID}
+	store.batchErr = errors.New("simulated atomic batch failure")
+	runner := &failingStrategyRunner{}
+	logger, _ := connectxtest.NewLogger(t)
+	path, h := evalconnect.NewEvalServiceHandler(handler.NewConnectHandler(handler.Deps{
+		Store: store, Registry: &fakeRegistry{providers: map[string]*registryv1.ProviderDescriptor{}}, Federated: runner,
+		ActiveStrategy: "lexical-cross-encoder",
+		StrategyCatalog: []internalrouting.RetrievalStrategy{
+			{Name: "lexical-cross-encoder", Stages: []internalrouting.RetrievalStage{{Kind: internalrouting.StageLexical}}},
+			{Name: "lexical-fallback", Stages: []internalrouting.RetrievalStage{{Kind: internalrouting.StageLexical}}},
+			{Name: "lexical-typo-cross-encoder", Stages: []internalrouting.RetrievalStage{{Kind: internalrouting.StageLexical}}},
+		},
+		Logger: logger,
+	}))
+	server := connectxtest.StartTestServer(t, connectx.ServiceMount{Path: path, Handler: h})
+	client := evalconnect.NewEvalServiceClient(server.Client(), server.URL)
+
+	_, err := client.CompareStrategies(context.Background(), connect.NewRequest(&evalv1.CompareStrategiesRequest{
+		SuiteId:       internaleval.RouterSuiteID,
+		StrategyNames: []string{"lexical-cross-encoder", "lexical-fallback", "lexical-typo-cross-encoder"},
+	}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
+	require.Equal(t, 1, store.batchCalls, "the comparison must use one required atomic batch operation")
+	require.Empty(t, store.appended, "a failed atomic batch must not leave any persisted prefix")
+	require.Empty(t, store.runs)
 }
 
 func TestRunSuiteUnknownSuiteNotFound(t *testing.T) {

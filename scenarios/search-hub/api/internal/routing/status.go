@@ -457,16 +457,21 @@ func (r *Router) probeIndexStatus(ctx context.Context, p *registryv1.ProviderDes
 		return result
 	}
 	readProviderIndexFields(raw, &result)
-	timestamp, pointCount, ok := parseDeclaredIndexStatus(raw, p.GetIndexTimestampField())
-	if !ok {
+	field := strings.TrimSpace(p.GetIndexTimestampField())
+	var timestamp time.Time
+	var pointCount int64
+	var ok bool
+	if field == "" {
+		// Legacy providers without a declared timestamp retain the key-sniff
+		// compatibility path. A declared field is authoritative and must fail
+		// closed when absent or malformed; another familiar key is not evidence
+		// for the provider's declared freshness contract.
 		if r.deps.Logger != nil {
-			field := p.GetIndexTimestampField()
-			if field == "" {
-				field = "<missing declaration>"
-			}
-			r.deps.Logger.Printf("provider %q did not return declared index timestamp field %q; using deprecated key-sniff fallback", p.GetProviderId(), field)
+			r.deps.Logger.Printf("provider %q has no declared index timestamp field; using legacy key-sniff fallback", p.GetProviderId())
 		}
 		timestamp, pointCount, ok = parseIndexStatus(raw)
+	} else {
+		timestamp, pointCount, ok = parseDeclaredIndexStatus(raw, field)
 	}
 	if !ok {
 		result.age, result.documents = "unreported: status response has no usable declared index timestamp", pointCount

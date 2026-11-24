@@ -245,10 +245,7 @@ func TestAppendAndListRuns(t *testing.T) {
 func TestAppendRunsCommitsCompleteComparisonAtomically(t *testing.T) {
 	store, _ := newStore(t)
 	ctx := context.Background()
-	batch, ok := store.(eval.RunBatchAppender)
-	require.True(t, ok, "SQLite store must expose transactional comparison writes")
-
-	require.NoError(t, batch.AppendRuns(ctx, []*evalv1.EvalRun{
+	require.NoError(t, store.AppendRuns(ctx, []*evalv1.EvalRun{
 		{RunId: "batch-one", SuiteId: "router.routing", Tag: "arm-one"},
 		{RunId: "batch-two", SuiteId: "router.routing", Tag: "arm-two"},
 	}))
@@ -256,7 +253,7 @@ func TestAppendRunsCommitsCompleteComparisonAtomically(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, runs, 2)
 
-	err = batch.AppendRuns(ctx, []*evalv1.EvalRun{
+	err = store.AppendRuns(ctx, []*evalv1.EvalRun{
 		{RunId: "duplicate-batch", SuiteId: "router.routing", Tag: "arm-three"},
 		{RunId: "duplicate-batch", SuiteId: "router.routing", Tag: "arm-four"},
 	})

@@ -34,6 +34,49 @@ func TestEmptyQueryReportDistinguishesCoverageFromNoMatch(t *testing.T) {
 	}
 }
 
+func TestWeakEvidenceHintUsesTheVisibleSelectedView(t *testing.T) {
+	weakRanked := &routingv1.SearchHit{
+		ProviderId: "catalog.docs", Id: "weak-ranked", Title: "Weak ranked hit",
+		Confidence: &commonv1.Confidence{Weak: true, Regime: "fused"},
+	}
+	strongPartHit := &routingv1.SearchHit{
+		ProviderId: "ui-health.surfaces", Id: "strong-part", Title: "Health tracker surface",
+		Confidence: &commonv1.Confidence{Regime: "fused"},
+	}
+	weakPartHit := &routingv1.SearchHit{
+		ProviderId: "ui-health.surfaces", Id: "weak-part", Title: "Weak health tracker surface",
+		Confidence: &commonv1.Confidence{Weak: true, Regime: "fused"},
+	}
+	response := func(partHit, rankedHit *routingv1.SearchHit) *routingv1.QueryResponse {
+		return &routingv1.QueryResponse{
+			Reranked: true,
+			Ranked:   []*routingv1.SearchHit{rankedHit},
+			Groups: []*routingv1.ProviderResultGroup{{
+				ProviderId: partHit.GetProviderId(), Hits: []*routingv1.SearchHit{partHit},
+			}},
+			QueryParts: []*routingv1.QueryPartEvidence{{
+				PartId: "surface", Label: "Find the health tracker surface",
+				Status: routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED,
+				Evidence: []*routingv1.SearchHitReference{{
+					ProviderId: partHit.GetProviderId(), GroupIndex: int32Ref(0), HitIndex: int32Ref(0), HitId: partHit.GetId(),
+				}},
+			}},
+		}
+	}
+	weakHint := "The visible matches are weak."
+	strongVisible := (&handlers{}).queryReport(nil, response(strongPartHit, weakRanked)).RetrievalHints
+	if strings.Contains(strings.Join(strongVisible, " "), weakHint) {
+		t.Fatalf("hidden weak ranked hit caused a warning despite strong visible task evidence: %v", strongVisible)
+	}
+	weakVisible := (&handlers{}).queryReport(nil, response(weakPartHit, &routingv1.SearchHit{
+		ProviderId: "catalog.docs", Id: "strong-ranked", Title: "Strong ranked hit",
+		Confidence: &commonv1.Confidence{Regime: "fused"},
+	})).RetrievalHints
+	if !strings.Contains(strings.Join(weakVisible, " "), weakHint) {
+		t.Fatalf("weak visible task evidence was not called out: %v", weakVisible)
+	}
+}
+
 func TestInferredIntentDoesNotMasqueradeAsTaskCoverage(t *testing.T) {
 	metadata, err := structpb.NewStruct(map[string]any{
 		"search_hub_intent_match": "Diagnose and recover an Agent Manager runner transcript after a crash",

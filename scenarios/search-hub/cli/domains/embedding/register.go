@@ -23,7 +23,6 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"retarget-plan":  cliapp.Action(h.planCall, h.report),
 		"apply-shadow":   cliapp.Action(h.applyShadowCall, h.report),
 		"record-compare": cliapp.Action(h.recordCompareCall, h.report),
-		"abort":          cliapp.Action(h.abortCall, h.report),
 		"cutover":        cliapp.Action(h.cutoverCall, h.report),
 		"rollback":       cliapp.Action(h.rollbackCall, h.report),
 	}

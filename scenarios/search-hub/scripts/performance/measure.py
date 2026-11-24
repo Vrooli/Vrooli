@@ -570,6 +570,10 @@ def main() -> int:
     parser.add_argument("--gateway-cli", default=shutil.which("ai-gateway") or "ai-gateway", help="AI Gateway CLI for model token evidence")
     parser.add_argument("--gateway-evidence-limit", type=int, default=100, help="recent AI Gateway evidence rows to snapshot; API maximum is 100")
     parser.add_argument("--instance", default="", help="scenario instance name, such as shadow")
+    parser.add_argument("--build-id", default="", help="externally verified serving build identity")
+    parser.add_argument("--corpus-snapshot-id", default="", help="approved fixed corpus snapshot identity")
+    parser.add_argument("--fault-schedule-id", default="", help="fault schedule receipt ID; use 'none' for normal path")
+    parser.add_argument("--state-receipt-id", default="", help="owner-issued receipt ID for prepared phase state")
     parser.add_argument("--concurrency", type=int, default=1)
     parser.add_argument("--timeout-s", type=float, default=40)
     parser.add_argument("--evidence-timeout-s", type=float, default=10, help="timeout for optional cache and token snapshots")
@@ -586,6 +590,8 @@ def main() -> int:
         parser.error("--transport connect requires --api-base")
     if args.phase == "concurrent" and args.concurrency < 2:
         parser.error("--phase concurrent requires --concurrency of at least 2")
+    if args.phase != "idle" and not all((args.build_id, args.corpus_snapshot_id, args.fault_schedule_id, args.state_receipt_id)):
+        parser.error("non-idle runs require --build-id, --corpus-snapshot-id, --fault-schedule-id, and --state-receipt-id")
     if args.timeout_s <= 0 or args.evidence_timeout_s <= 0 or args.sample_ms < 20 or args.idle_seconds <= 0:
         parser.error("--timeout-s, --evidence-timeout-s and --idle-seconds must be positive; --sample-ms must be at least 20")
     if args.gateway_evidence_limit < 1 or args.gateway_evidence_limit > 100:
@@ -684,6 +690,12 @@ def main() -> int:
         "started_at_unix_ms": round(started_at * 1000),
         "ended_at_unix_ms": round(ended_at * 1000),
         "target": {"api_base": args.api_base or "cli-default", "instance": args.instance or "live"},
+        "execution_context": {
+            "build_id": args.build_id or None,
+            "corpus_snapshot_id": args.corpus_snapshot_id or None,
+            "fault_schedule_id": args.fault_schedule_id or None,
+            "state_receipt_id": args.state_receipt_id or None,
+        },
         "transport": args.transport,
         "workload": {"sha256": workload_hash, "cases": len(cases)},
         "concurrency": args.concurrency,

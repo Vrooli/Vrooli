@@ -93,7 +93,7 @@ func (h *handlers) queryReport(ctx cliapp.OperationContext, msg *routingv1.Query
 		resultsHeading = "Task evidence by request part"
 		results = renderTaskParts(msg, visibleLimit)
 	} else if len(msg.GetCorrectionCandidates()) > 0 {
-		resultsHeading = "Direct entity and correction evidence"
+		resultsHeading = "Possible entity corrections (not verified)"
 		results = renderCorrections(msg, visibleLimit)
 	} else if exact := directEntityMatch(ctx, msg); exact != nil {
 		resultsHeading = "Direct entity match"
@@ -112,8 +112,8 @@ func (h *handlers) queryReport(ctx cliapp.OperationContext, msg *routingv1.Query
 		hints = append(hints, "Coverage was incomplete. Check the owner directly or use --explain to see which routes failed.")
 	case totalHits == 0:
 		hints = append(hints, "Try a broader capability phrase, or use --group if you know the owner.")
-	case allWeak(msg.GetRanked()):
-		hints = append(hints, "The ranked matches are weak. Check the owner or ask a narrower question before relying on them.")
+	case allWeak(visibleResponseHits(ctx, msg)):
+		hints = append(hints, "The visible matches are weak. Check the owner or ask a narrower question before relying on them.")
 	}
 
 	return cliapp.ListReport{

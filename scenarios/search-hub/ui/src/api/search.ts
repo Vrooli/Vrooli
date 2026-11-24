@@ -40,7 +40,12 @@ export interface SearchInput {
   all: boolean;
   /** Per-provider result cap. */
   limit?: number;
+  /** Optional owner scope forwarded to providers that declare scope_value. */
+  scope?: string;
 }
+
+/** The subset of federation status that the Search UI consumes. */
+export type FederationStatus = Pick<StatusResponse, "activeStrategy" | "rerankerAvailable" | "providers">;
 
 /**
  * Run a federated query. Always requests the routing explanation so the UI can
@@ -53,11 +58,12 @@ export async function runQuery(input: SearchInput): Promise<QueryResponse> {
     all: input.all,
     limit: input.limit ?? 0,
     explain: true,
+    ...(input.scope ? { scope: input.scope } : {}),
   });
 }
 
-/** Fetch federation health: per-provider reachability + model availability. */
-export async function fetchFederationStatus(): Promise<StatusResponse> {
+/** Fetch the active routing strategy, shared reranker state, and provider health. */
+export async function fetchFederationStatus(): Promise<FederationStatus> {
   return routingClient.status({});
 }
 
@@ -70,4 +76,4 @@ export async function listActiveProviders(): Promise<ProviderDescriptor[]> {
   return res.providers;
 }
 
-export type { QueryResponse, StatusResponse, ProviderDescriptor };
+export type { QueryResponse, ProviderDescriptor };

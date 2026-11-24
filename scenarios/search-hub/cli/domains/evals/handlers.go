@@ -17,20 +17,14 @@ import (
 	registryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry/registry_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
-	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
-	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing/routing_v1connect"
 	"search-hub/cli/domains/evals/publicbench"
+	strategycli "search-hub/cli/domains/strategy"
 )
 
 // runSuiteTimeout bounds a single `evals run` invocation. It is generous because
 // the LLM reranker leg scores each case's shortlist with a local model; the
 // cross-encoder and rerank-off legs finish in well under a second.
 const runSuiteTimeout = 10 * time.Minute
-
-// compareStrategiesTimeout bounds the guarded multi-arm router benchmark. It
-// evaluates the composed 213-case suite once per strategy and must outlive
-// the default command HTTP timeout.
-const compareStrategiesTimeout = 45 * time.Minute
 
 // sweepTimeout bounds a full `evals sweep`: it runs the suite once per arm and,
 // on the index-time tier, reindexes the provider per arm — so it can run for many
@@ -60,48 +54,12 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 }
 
 func (h *handlers) compareStrategiesCall(ctx cliapp.OperationContext) (*evalv1.CompareStrategiesResponse, error) {
-	names := make([]string, 0)
-	for _, name := range strings.Split(ctx.Flag("strategy_names"), ",") {
-		if name = strings.TrimSpace(name); name != "" {
-			names = append(names, name)
-		}
-	}
-	if len(names) == 0 {
-		httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(h.core, 30*time.Second)
-		statusClient := routingconnect.NewRoutingServiceClient(httpClient, baseURL)
-		status, err := statusClient.Status(context.Background(), connect.NewRequest(&routingv1.StatusRequest{}))
-		if err != nil {
-			return nil, cliapp.WrapAPIError("list retrieval strategies", err, nil)
-		}
-		if status == nil || status.Msg == nil {
-			return nil, fmt.Errorf("server returned no routing strategies")
-		}
-		for _, strategy := range status.Msg.GetStrategies() {
-			if strategy != nil && strings.TrimSpace(strategy.GetName()) != "" {
-				names = append(names, strategy.GetName())
-			}
-		}
-	}
-	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(h.core, compareStrategiesTimeout)
-	client := evalconnect.NewEvalServiceClient(httpClient, baseURL)
-	resp, err := client.CompareStrategies(context.Background(), connect.NewRequest(&evalv1.CompareStrategiesRequest{
-		SuiteId: "router.routing", StrategyNames: names, Apply: ctx.BoolFlag("apply"), Limit: 10,
-	}))
-	if err != nil {
-		return nil, cliapp.WrapAPIError("compare retrieval strategies", err, nil)
-	}
-	if resp == nil || resp.Msg == nil {
-		return nil, fmt.Errorf("server returned no strategy comparison")
-	}
-	return resp.Msg, nil
+	names := strategycli.ParseStrategyNames(ctx.Flag("strategy_names"))
+	return strategycli.CompareStrategies(h.core, names, ctx.BoolFlag("apply"))
 }
 
 func (h *handlers) compareStrategiesReport(_ cliapp.OperationContext, result *evalv1.CompareStrategiesResponse) cliapp.MutationReport {
-	changes := []string{result.GetWritebackReason()}
-	for _, arm := range result.GetArms() {
-		changes = append(changes, fmt.Sprintf("%s run=%s all=%d precision=%.4f routable=%d precision=%.4f heldout=%t significant=%t accepted=%t rejection=%s", arm.GetStrategyName(), arm.GetRunId(), arm.GetAllDenominator(), arm.GetAllRoutingPrecision(), arm.GetRoutableDenominator(), arm.GetRoutableRoutingPrecision(), arm.GetHeldoutHolds(), arm.GetSignificant(), arm.GetAccepted(), emptyDash(arm.GetRejectionReason())))
-	}
-	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Compared %d strategy arms; active=%s.", len(result.GetArms()), result.GetActiveStrategy())}, Changes: changes}
+	return strategycli.CompareStrategiesReport(result)
 }
 
 // register reads an EvalSuite from --suite (raw JSON, or @path) and upserts it.
@@ -331,9 +289,12 @@ func (h *handlers) runReport(_ cliapp.OperationContext, msg *evalv1.RunSuiteResp
 	if r.GetDegraded() {
 		degraded = " degraded: " + emptyDash(r.GetDegradedReason())
 	}
+	changes := append([]string{}, formatAdequacy(msg.GetAdequacy())...)
+	changes = append(changes, formatAggregate(r), formatConfig(r.GetConfig()))
+	changes = append(changes, formatCaseResults(r)...)
 	return cliapp.MutationReport{
 		Result:  []string{fmt.Sprintf("Ran %s → run %s (tier %s, tag %q).%s", r.GetSuiteId(), r.GetRunId(), displayTier(r), r.GetTag(), degraded)},
-		Changes: append([]string{formatAggregate(r), formatConfig(r.GetConfig())}, formatCaseResults(r)...),
+		Changes: changes,
 		NextCommand: []string{
 			fmt.Sprintf("`evals runs %s` — see this suite's run history", r.GetSuiteId()),
 			fmt.Sprintf("`evals compare <other_run> %s` — diff against another tagged run", r.GetRunId()),

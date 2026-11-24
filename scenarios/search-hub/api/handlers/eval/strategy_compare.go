@@ -42,6 +42,9 @@ func (h *connectHandler) CompareStrategies(ctx context.Context, req *connect.Req
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("federated strategy evaluation is not configured"))
 	}
 	names := uniqueStrategyNames(req.Msg.GetStrategyNames())
+	if len(req.Msg.GetStrategyNames()) == 0 {
+		names = append([]string(nil), h.strategyNames...)
+	}
 	if len(names) < 3 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("at least three registered strategies are required for comparison"))
 	}
@@ -52,11 +55,11 @@ func (h *connectHandler) CompareStrategies(ctx context.Context, req *connect.Req
 	if !slices.Contains(names, active) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("comparison must include active strategy %q", active))
 	}
-	catalog, catalogErr := h.strategyCatalog()
+	_, catalogErr := h.strategyCatalog()
 	if catalogErr != nil {
 		return nil, connect.NewError(connect.CodeInternal, errors.New("strategy catalog is unavailable"))
 	}
-	if err := validateRequestedStrategies(names, catalog); err != nil {
+	if err := validateRequestedStrategiesByName(names, h.strategiesByName); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	routable := make(map[string]struct{})
@@ -116,18 +119,8 @@ func (h *connectHandler) CompareStrategies(ctx context.Context, req *connect.Req
 	for _, name := range names {
 		orderedRuns = append(orderedRuns, runs[name])
 	}
-	if batch, ok := h.deps.Store.(internaleval.RunBatchAppender); ok {
-		if err := batch.AppendRuns(ctx, orderedRuns); err != nil {
-			return nil, connect.NewError(connect.CodeInternal, errors.New("internal error"))
-		}
-	} else {
-		// Lightweight legacy Store adapters retain compatibility through the
-		// single-row seam; production SQLite storage provides atomic batches.
-		for _, run := range orderedRuns {
-			if err := h.deps.Store.AppendRun(ctx, run); err != nil {
-				return nil, connect.NewError(connect.CodeInternal, errors.New("internal error"))
-			}
-		}
+	if err := h.deps.Store.AppendRuns(ctx, orderedRuns); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal error"))
 	}
 
 	result := &evalv1.CompareStrategiesResponse{SuiteId: suite.GetSuiteId(), ActiveStrategy: active}
@@ -203,6 +196,10 @@ func validateRequestedStrategies(names []string, catalog []internalrouting.Retri
 	for _, strategy := range catalog {
 		available[strategy.Name] = strategy
 	}
+	return validateRequestedStrategiesByName(names, available)
+}
+
+func validateRequestedStrategiesByName(names []string, available map[string]internalrouting.RetrievalStrategy) error {
 	for _, name := range names {
 		strategy, ok := available[name]
 		if !ok {

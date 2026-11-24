@@ -16,6 +16,7 @@ import (
 	localmetrics "search-hub/internal/metrics"
 	"search-hub/internal/modules"
 	internalregistry "search-hub/internal/registry"
+	internalrouting "search-hub/internal/routing"
 	"search-hub/internal/server"
 
 	ollamapolicy "github.com/vrooli/ai-go/ollama/policy"
@@ -237,7 +238,11 @@ func main() {
 	// latter remains absent until rights and quality evidence has a current
 	// authenticated owner source; nil keeps routing on lexical fallback without
 	// constructing a legacy generic embedder.
-	router := routingH.NewRouterWithFleetSemanticStore(db, schedule.System(), log.Default(), telemetryRecorder, fleetSemanticStore, nil)
+	activeStrategy, routerFactors, strategyCatalog, err := internalrouting.LoadStrategySnapshot()
+	if err != nil {
+		log.Fatalf("retrieval strategy startup snapshot failed: %v", err)
+	}
+	router := routingH.NewRouterWithFleetSemanticStoreAndSnapshot(db, schedule.System(), log.Default(), telemetryRecorder, fleetSemanticStore, nil, activeStrategy, routerFactors, strategyCatalog)
 	routingH.StartRecoveryProbes(router, log.Default())
 	resourceChecks := requiredResourceChecks(repoRoot)
 	resourceChecks = append(resourceChecks, apihealth.Func("federation", func(ctx context.Context) error {
@@ -255,10 +260,10 @@ func main() {
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "search-hub-api", "1.0.0", resourceChecks...),
 		metricsH.Module(db, schedule.System(), log.Default()),
-		registryH.Module(db, schedule.System(), log.Default(), repoRoot),
+		registryH.ModuleAfterLegacyTokenMigration(db, schedule.System(), log.Default(), repoRoot),
 		experimentH.Module(armRegistry, fleetStage),
 		routingH.ModuleWithRouter(router, log.Default()),
-		evalH.ModuleWithRoutability(db, schedule.System(), log.Default(), router),
+		evalH.ModuleWithRoutabilityAndStrategySnapshot(db, schedule.System(), log.Default(), router, activeStrategy.Name, strategyCatalog),
 		validationH.Module(log.Default(), repoRoot, db, schedule.System(), router),
 		publicbenchH.Module(os.Getenv("SEARCH_HUB_SCIFACT_DATA_DIR")),
 	)

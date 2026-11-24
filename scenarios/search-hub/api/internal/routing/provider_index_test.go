@@ -456,6 +456,26 @@ func TestExactProviderDescriptorIdentityMatchPreservesAmbiguityAndEligibility(t 
 	require.Nil(t, match)
 }
 
+func TestAutoSelectExactProviderIdentityHonorsDeclaredExclusions(t *testing.T) {
+	provider := &registryv1.ProviderDescriptor{
+		ProviderId: "knowledge-observatory.docs",
+		Type:       "doc",
+		Endpoint:   &registryv1.Endpoint{},
+		RoutingProfile: &registryv1.RoutingProfile{
+			Exclusions: []string{"database schema"},
+		},
+	}
+	r := &Router{factors: defaultRouterFactorValues()}
+	targets, _, _, _, _, _, _, _, _, reason, trace := r.autoSelect(
+		context.Background(), []*registryv1.ProviderDescriptor{provider},
+		"search Knowledge Observatory Docs for database schema",
+		RetrievalStrategy{Name: "test-exclusion", Stages: []RetrievalStage{{Kind: StageLexical}}},
+	)
+	require.Empty(t, targets, "named identity must not bypass an explicit exclusion")
+	require.Equal(t, "routing_profile_exclusion", reason)
+	require.Equal(t, "routing_profile_exclusion", trace.GetSelectionReason())
+}
+
 func TestAutoSelectExactProviderIdentitySkipsModelStages(t *testing.T) {
 	provider := &registryv1.ProviderDescriptor{
 		ProviderId: "knowledge-observatory.docs",
@@ -538,6 +558,13 @@ func BenchmarkProviderRouteShortlists(b *testing.B) {
 			profiles[index].identityTokens = routeWordTokens(profiles[index].ProviderID)
 			profiles[index].searchTokens = routeWordTokens(providerProfileText(profiles[index]))
 		}
+		exclusionProfiles := append([]ProviderProfile(nil), profiles...)
+		for index := range exclusionProfiles {
+			if index%2 == 0 {
+				exclusionProfiles[index].Exclusions = []string{"search subsystem"}
+				exclusionProfiles[index].exclusionTokens = routePhraseTokens(exclusionProfiles[index].Exclusions)
+			}
+		}
 
 		b.Run(fmt.Sprintf("providers-%d/exact-identity", size), func(b *testing.B) {
 			b.ReportAllocs()
@@ -564,6 +591,12 @@ func BenchmarkProviderRouteShortlists(b *testing.B) {
 			b.ReportAllocs()
 			for n := 0; n < b.N; n++ {
 				routeProviderShortlist("search commnad", profiles, 6, routeTypoPolicyOneEditUnique)
+			}
+		})
+		b.Run(fmt.Sprintf("providers-%d/lexical-exclusion", size), func(b *testing.B) {
+			b.ReportAllocs()
+			for n := 0; n < b.N; n++ {
+				routeProviderShortlist("search subsystem 17 documentation", exclusionProfiles, 6, "")
 			}
 		})
 	}

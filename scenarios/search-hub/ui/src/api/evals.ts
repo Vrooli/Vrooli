@@ -4,7 +4,6 @@
  * Backed by one Connect service, EvalService:
  *   - ListSuites   — the provider-owned golden suites.
  *   - ListRuns     — a suite's run history (newest first), the trend source.
- *   - GetRun       — one immutable run's per-case detail.
  *   - CompareRuns  — A-vs-B per-case delta (the experimentation surface).
  *
  * Each call is a thin async function (not the raw client) so tests mock this
@@ -32,13 +31,6 @@ export async function listSuites(providerId = ""): Promise<EvalSuite[]> {
 export async function listRuns(suiteId: string, tag = ""): Promise<EvalRun[]> {
   const res = await evalClient.listRuns({ suiteId, tag, limit: 0 });
   return res.runs;
-}
-
-/** Fetch one immutable run by id (per-case detail). */
-export async function getRun(runId: string): Promise<EvalRun> {
-  const res = await evalClient.getRun({ runId });
-  if (!res.run) throw new Error(`run ${runId} not found`);
-  return res.run;
 }
 
 /** Compare two runs; returns both runs plus a per-case delta. */

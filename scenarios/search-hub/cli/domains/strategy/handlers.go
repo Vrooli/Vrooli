@@ -30,6 +30,10 @@ func (h *handlers) routingClient(timeout time.Duration) routingconnect.RoutingSe
 }
 
 func (h *handlers) listCall(_ cliapp.OperationContext) (*routingv1.StatusResponse, error) {
+	return h.strategyStatus()
+}
+
+func (h *handlers) strategyStatus() (*routingv1.StatusResponse, error) {
 	response, err := h.routingClient(30*time.Second).Status(context.Background(), connect.NewRequest(&routingv1.StatusRequest{}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("list retrieval strategies", err, nil)
@@ -83,19 +87,16 @@ func activeSuffix(name, active string) string {
 }
 
 func (h *handlers) compareCall(ctx cliapp.OperationContext) (*evalv1.CompareStrategiesResponse, error) {
-	status, err := h.listCall(ctx)
-	if err != nil {
-		return nil, err
-	}
-	names := splitNames(ctx.Flag("strategies"))
-	if len(names) == 0 {
-		for _, strategy := range status.GetStrategies() {
-			names = append(names, strategy.GetName())
-		}
-	}
-	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(h.core, benchmarkTimeout)
+	return CompareStrategies(h.core, ParseStrategyNames(ctx.Flag("strategies")), ctx.BoolFlag("apply"))
+}
+
+// CompareStrategies is the canonical CLI execution path for the guarded router
+// strategy comparison. The evals command delegates here to preserve its legacy
+// command and flag surface without keeping a second RPC implementation.
+func CompareStrategies(core *cliapp.ScenarioApp, names []string, apply bool) (*evalv1.CompareStrategiesResponse, error) {
+	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, benchmarkTimeout)
 	client := evalconnect.NewEvalServiceClient(httpClient, baseURL)
-	response, err := client.CompareStrategies(context.Background(), connect.NewRequest(&evalv1.CompareStrategiesRequest{SuiteId: "router.routing", StrategyNames: names, Apply: ctx.BoolFlag("apply"), Limit: 10}))
+	response, err := client.CompareStrategies(context.Background(), connect.NewRequest(&evalv1.CompareStrategiesRequest{SuiteId: "router.routing", StrategyNames: names, Apply: apply, Limit: 10}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("compare retrieval strategies", err, nil)
 	}
@@ -106,6 +107,11 @@ func (h *handlers) compareCall(ctx cliapp.OperationContext) (*evalv1.CompareStra
 }
 
 func (h *handlers) compareReport(_ cliapp.OperationContext, result *evalv1.CompareStrategiesResponse) cliapp.MutationReport {
+	return CompareStrategiesReport(result)
+}
+
+// CompareStrategiesReport is shared with the retained evals CLI alias.
+func CompareStrategiesReport(result *evalv1.CompareStrategiesResponse) cliapp.MutationReport {
 	changes := make([]string, 0, len(result.GetArms())+1)
 	for _, arm := range result.GetArms() {
 		changes = append(changes, fmt.Sprintf("%s run=%s all=%d precision=%.4f routable=%d precision=%.4f top1=%d top3=%d top6=%d heldout=%t significant=%t accepted=%t rejection=%s", arm.GetStrategyName(), arm.GetRunId(), arm.GetAllDenominator(), arm.GetAllRoutingPrecision(), arm.GetRoutableDenominator(), arm.GetRoutableRoutingPrecision(), arm.GetTop1(), arm.GetTop3(), arm.GetTop6(), arm.GetHeldoutHolds(), arm.GetSignificant(), arm.GetAccepted(), emptyDash(arm.GetRejectionReason())))
@@ -116,7 +122,9 @@ func (h *handlers) compareReport(_ cliapp.OperationContext, result *evalv1.Compa
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Compared %d strategy arms against %s; active=%s.", len(result.GetArms()), result.GetSuiteId(), result.GetActiveStrategy())}, Changes: changes, NextCommand: []string{"`search-hub evals runs router.routing --tag strategy-compare:... --json` — inspect persisted arm evidence"}}
 }
 
-func splitNames(raw string) []string {
+// ParseStrategyNames trims comma-separated names and removes duplicates for
+// both the canonical strategy command and its retained evals alias.
+func ParseStrategyNames(raw string) []string {
 	seen := map[string]struct{}{}
 	var names []string
 	for _, name := range strings.Split(raw, ",") {

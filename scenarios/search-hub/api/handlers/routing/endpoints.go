@@ -7,20 +7,17 @@ import (
 )
 
 // Endpoints is the machine-readable description of the routing module's public
-// surface. Connect-RPC method paths reference the generated *Procedure
-// constants, so adding or renaming an RPC in routing.proto breaks this file at
-// compile time. The global parity test (TestProtoConnectParity in
-// api/internal/modules/registry_test.go) walks the proto FileDescriptor and
-// asserts every rpc has exactly one entry here — including Status, which
-// reports federation health (per-provider reachability + classifier/reranker
-// availability).
+// surface. Connect-RPC method paths reference generated *Procedure constants,
+// and the endpoint catalog is consumed by API discovery and generated docs.
+// Keep its field and fallback descriptions aligned with the typed runtime
+// contract; proto/Connect parity is checked separately.
 var Endpoints = []module.EndpointDescriptor{
 	{
 		ID:          "routing_query",
 		Path:        routingconnect.RoutingServiceQueryProcedure,
 		Method:      "POST",
 		Summary:     "Federated query across registered providers",
-		Description: "Fans out a query to providers selected by explicit --type, --all, or --group, or automatically via the model-free lexical strategy when no explicit selector is given; maps each response through the generic adapter, and returns results grouped by provider. Degraded providers are skipped with a note, never failing the whole query.",
+		Description: "Routes a query to explicit provider scope (--type, --all, or --group) or, without an explicit selector, through the active provider-selection strategy over eligible provider descriptions. Semantic selection requires a verified current caller context; when it is unavailable, the supported lexical fallback remains available. Provider results retain per-part evidence and degradation details. No-route and partial responses may contain no provider groups.",
 		Category:    "routing",
 		Request: &module.Schema{
 			Type: "object",
@@ -37,12 +34,23 @@ var Endpoints = []module.EndpointDescriptor{
 		Response: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
-				"groups":           "array<ProviderResultGroup> — by-provider grouping (always populated)",
-				"ranked":           "array<SearchHit> — unified ranked list (populated when the reranker fuses the per-provider shortlists)",
-				"corpora_searched": "array<string> — providers hit",
-				"degraded":         "bool — any provider degraded",
-				"reranked":         "bool — true when the unified list was reranked",
-				"latency_ms":       "int64",
+				"groups":                 "array<ProviderResultGroup> — provider summaries when providers return results; may be empty when no provider is routed or returns results",
+				"ranked":                 "array<SearchHit> — complete hit payload when reranking succeeds",
+				"corpora_searched":       "array<string> — providers queried",
+				"routing_explanation":    "array<string> — populated when explain=true",
+				"degraded":               "bool — any provider or retrieval leg degraded",
+				"partial":                "bool — deadline expired after at least one provider returned usable results",
+				"pending_providers":      "int32 — provider groups that did not complete before the deadline",
+				"reranked":               "bool — unified result list was reranked",
+				"reranker_leg":           "string — reranker leg that produced ranked results, or none",
+				"routing_degrade_reason": "string — stable reason for routing-path degradation",
+				"ordered_by":             "string — score field used to order ranked results",
+				"selector_leg":           "string — provider-selection stage used",
+				"routing_trace":          "RoutingTrace — diagnostic selection trace for federated evaluation",
+				"degradations":           "array<SearchDegradation> — per-provider and retrieval-leg failure/fallback details",
+				"query_parts":            "array<QueryPartEvidence> — per-request-part searched owners, evidence references, status, and coverage gaps",
+				"correction_candidates":  "array<CorrectionCandidate> — evidence-backed identifier suggestions; may be empty",
+				"latency_ms":             "int64 — total query latency",
 			},
 		},
 		Errors: []module.ErrorDesc{
@@ -57,16 +65,21 @@ var Endpoints = []module.EndpointDescriptor{
 		ID:          "routing_status",
 		Path:        routingconnect.RoutingServiceStatusProcedure,
 		Method:      "POST",
-		Summary:     "Federation status (per-provider health + model availability)",
-		Description: "Reports each ACTIVE provider's reachability, circuit-open share/quorum, lifecycle and quality exclusions, plus cross-encoder availability. An unreachable leaf is reported degraded rather than failing the call; only a registry read failure errors. Backs `search-hub federation status`.",
+		Summary:     "Federation status (provider health, active strategy, and reranker availability)",
+		Description: "Reports ACTIVE provider reachability, circuit-open share/quorum, lifecycle and quality exclusions, the active provider-selection strategy and strategy catalog, and shared reranker state. The retired classifier field is retained as false for older clients. An unreachable leaf is reported degraded rather than failing the call; only a registry read failure errors. Backs `search-hub federation status`.",
 		Category:    "routing",
 		Request:     &module.Schema{Type: "object"},
 		Response: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
-				"providers":            "array<ProviderHealth> — per-leaf reachability + probed index age",
+				"providers":            "array<ProviderHealth> — active per-leaf reachability and probed index age",
+				"audit_providers":      "array<ProviderHealth> — accounting rows without current registry descriptors; not presented as active",
+				"active_strategy":      "string — configured strategy used for serving provider selection",
+				"strategies":           "array<RetrievalStrategyInfo> — registered data-defined strategy catalog",
 				"classifier_available": "bool — retained compatibility field; false after LLM classifier retirement",
 				"reranker_available":   "bool — unified-rerank model reachable (false ⇒ degraded ranking mode)",
+				"reranker_leg":         "string — current shared reranker leg, or none",
+				"incubating":           "array<IncubatingProvider> — registered providers not yet active",
 				"circuit_open_share":   "double — active leaves with an open transport circuit",
 				"circuit_open_quorum":  "double — declared federation-degraded threshold",
 				"federation_degraded":  "bool — circuit-open share meets quorum",

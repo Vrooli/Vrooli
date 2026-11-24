@@ -64,11 +64,12 @@ type Store interface {
 // sqliteStore is the production Store impl. Unexported so callers depend on
 // the Store interface and substitute the fake without reaching inside.
 type sqliteStore struct {
-	db            database.SQLTxExecutor
-	clock         schedule.Clock
-	credentials   CredentialAuthority
-	credentialID  credentialauthority.Identity
-	credentialErr error
+	db                   database.SQLTxExecutor
+	clock                schedule.Clock
+	credentials          CredentialAuthority
+	credentialID         credentialauthority.Identity
+	credentialErr        error
+	legacyTokensMigrated bool
 }
 
 const (
@@ -86,6 +87,15 @@ var controlTokenSetMu sync.Mutex
 func NewSQLiteStore(db database.SQLTxExecutor, clk schedule.Clock) *sqliteStore {
 	credentials, err := credentialauthority.Default()
 	return NewSQLiteStoreWithCredentialAuthority(db, clk, credentials, err)
+}
+
+// NewSQLiteStoreAfterLegacyTokenMigration constructs a store for a process
+// that completed MigrateLegacyControlTokens before serving requests. This
+// avoids repeating the full legacy-token scan on every credential read/write.
+func NewSQLiteStoreAfterLegacyTokenMigration(db database.SQLTxExecutor, clk schedule.Clock) *sqliteStore {
+	store := NewSQLiteStore(db, clk)
+	store.legacyTokensMigrated = true
+	return store
 }
 
 // NewSQLiteStoreWithCredentialAuthority makes the credential boundary
@@ -117,8 +127,11 @@ func (s *sqliteStore) Upsert(ctx context.Context, d *registryv1.ProviderDescript
 	defer release()
 	controlTokenSetMu.Lock()
 	defer controlTokenSetMu.Unlock()
-	if err := s.migrateLegacyTokensLocked(ctx); err != nil {
-		return false, "", err
+	if !s.legacyTokensMigrated {
+		if err := s.migrateLegacyTokensLocked(ctx); err != nil {
+			return false, "", err
+		}
+		s.legacyTokensMigrated = true
 	}
 	Normalize(d)
 	if err := Validate(d); err != nil {
@@ -194,8 +207,11 @@ WHERE provider_id = ?`,
 func (s *sqliteStore) Token(ctx context.Context, id string) (string, error) {
 	controlTokenSetMu.Lock()
 	defer controlTokenSetMu.Unlock()
-	if err := s.migrateLegacyTokensLocked(ctx); err != nil {
-		return "", err
+	if !s.legacyTokensMigrated {
+		if err := s.migrateLegacyTokensLocked(ctx); err != nil {
+			return "", err
+		}
+		s.legacyTokensMigrated = true
 	}
 	var token string
 	err := s.db.QueryRowContext(ctx, `SELECT control_token FROM providers WHERE provider_id = ?`, id).Scan(&token)
@@ -231,7 +247,11 @@ func (s *sqliteStore) Token(ctx context.Context, id string) (string, error) {
 func (s *sqliteStore) MigrateLegacyControlTokens(ctx context.Context) error {
 	controlTokenSetMu.Lock()
 	defer controlTokenSetMu.Unlock()
-	return s.migrateLegacyTokensLocked(ctx)
+	if err := s.migrateLegacyTokensLocked(ctx); err != nil {
+		return err
+	}
+	s.legacyTokensMigrated = true
+	return nil
 }
 
 func (s *sqliteStore) migrateLegacyTokensLocked(ctx context.Context) error {

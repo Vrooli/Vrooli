@@ -115,6 +115,17 @@ func exactProviderDescriptorIdentityMatch(query string, active []*registryv1.Pro
 		if len(idTokens) == 0 || (len(idTokens) == 1 && len([]rune(idTokens[0])) < 6) || tokenSequenceIndex(queryTokens, idTokens) < 0 {
 			continue
 		}
+		// A named identity can skip semantic work, but it must not bypass a
+		// provider's explicit negative routing evidence. Abort the shortcut
+		// rather than ignoring this identity and accidentally selecting a
+		// colliding descriptor; the ordinary selector handles the request.
+		routingProfile := ProviderProfile{
+			Exclusions:      cleanRouteValues(provider.GetRoutingProfile().GetExclusions()),
+			exclusionTokens: routePhraseTokens(provider.GetRoutingProfile().GetExclusions()),
+		}
+		if routingProfileExcludesTokens(queryTokens, routingProfile) {
+			return nil, false
+		}
 		if match != nil {
 			return nil, false
 		}

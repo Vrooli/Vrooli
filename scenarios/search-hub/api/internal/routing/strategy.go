@@ -200,26 +200,30 @@ var embeddedStrategies embed.FS
 // path is supported for controlled experiments; normal operation uses the
 // embedded, reviewable data file and has no working-directory dependency.
 func LoadActiveStrategy() (RetrievalStrategy, RouterFactorValues, error) {
+	active, factors, _, err := LoadStrategySnapshot()
+	return active, factors, err
+}
+
+// LoadStrategySnapshot reads and validates the scenario-owned strategy data
+// once, returning the active row, router factors and full catalog together.
+func LoadStrategySnapshot() (RetrievalStrategy, RouterFactorValues, []RetrievalStrategy, error) {
 	raw, err := readStrategyData()
 	if err != nil {
-		return RetrievalStrategy{}, RouterFactorValues{}, fmt.Errorf("read retrieval strategy data: %w", err)
+		return RetrievalStrategy{}, RouterFactorValues{}, nil, fmt.Errorf("read retrieval strategy data: %w", err)
 	}
-	active, factors, _, err := ValidateStrategies(raw)
+	active, factors, strategies, err := ValidateStrategies(raw)
 	if err != nil {
-		return RetrievalStrategy{}, RouterFactorValues{}, err
+		return RetrievalStrategy{}, RouterFactorValues{}, nil, err
 	}
-	return active, factors, nil
+	return active, factors, strategies, nil
 }
 
 // LoadStrategyCatalog returns every validated strategy row from the same data
 // source as LoadActiveStrategy. Keeping this read beside the active-row loader
 // prevents compare from silently evaluating a different document than runtime.
 func LoadStrategyCatalog() ([]RetrievalStrategy, error) {
-	raw, err := readStrategyData()
-	if err != nil {
-		return nil, fmt.Errorf("read retrieval strategy data: %w", err)
-	}
-	return StrategiesFromData(raw)
+	_, _, strategies, err := LoadStrategySnapshot()
+	return strategies, err
 }
 
 func readStrategyData() ([]byte, error) {

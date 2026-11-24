@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -75,9 +76,9 @@ type Deps struct {
 	Validator      Validator
 	Sweeper        Sweeper
 	ActiveStrategy string
-	// StrategyCatalog is the immutable startup snapshot used to preflight eval
-	// arms against the router's executable catalog. Empty preserves older
-	// lightweight constructors by falling back to the shared loader.
+	// StrategyCatalog is the required immutable startup snapshot used to
+	// preflight eval arms against the router's executable catalog. Strategy
+	// evaluation fails closed when a constructor omits it.
 	StrategyCatalog []internalrouting.RetrievalStrategy
 	Routability     RoutabilityReader
 	// RerankOwnerReceipt verifies a receipt against its provider-owned source.
@@ -99,7 +100,9 @@ type Deps struct {
 }
 
 type connectHandler struct {
-	deps Deps
+	deps             Deps
+	strategiesByName map[string]internalrouting.RetrievalStrategy
+	strategyNames    []string
 }
 
 // NewConnectHandler constructs the EvalService handler. Logger defaults to
@@ -108,7 +111,14 @@ func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()
 	}
-	return &connectHandler{deps: d}
+	strategiesByName := make(map[string]internalrouting.RetrievalStrategy, len(d.StrategyCatalog))
+	strategyNames := make([]string, 0, len(d.StrategyCatalog))
+	for _, strategy := range d.StrategyCatalog {
+		strategiesByName[strategy.Name] = strategy
+		strategyNames = append(strategyNames, strategy.Name)
+	}
+	sort.Strings(strategyNames)
+	return &connectHandler{deps: d, strategiesByName: strategiesByName, strategyNames: strategyNames}
 }
 
 // Compile-time guarantee the handler satisfies the generated interface: an RPC
@@ -335,11 +345,11 @@ func (h *connectHandler) RunSuite(ctx context.Context, req *connect.Request[eval
 		if !ok {
 			return nil, connect.NewError(connect.CodeUnimplemented, errors.New("federated strategy evaluation is not configured"))
 		}
-		catalog, catalogErr := h.strategyCatalog()
+		_, catalogErr := h.strategyCatalog()
 		if catalogErr != nil {
 			return nil, connect.NewError(connect.CodeInternal, errors.New("strategy catalog is unavailable"))
 		}
-		if validationErr := validateRequestedStrategies([]string{strategyName}, catalog); validationErr != nil {
+		if validationErr := validateRequestedStrategiesByName([]string{strategyName}, h.strategiesByName); validationErr != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, validationErr)
 		}
 		run, err := strategyRunner.RunWithStrategy(ctx, suite, req.Msg.GetTag(), req.Msg.GetLimit(), strategyName)
@@ -384,7 +394,7 @@ func (h *connectHandler) strategyCatalog() ([]internalrouting.RetrievalStrategy,
 	if len(h.deps.StrategyCatalog) > 0 {
 		return h.deps.StrategyCatalog, nil
 	}
-	return internalrouting.LoadStrategyCatalog()
+	return nil, errors.New("strategy catalog startup snapshot is not configured")
 }
 
 func (h *connectHandler) getSuite(ctx context.Context, id string) (*evalv1.EvalSuite, error) {

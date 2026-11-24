@@ -497,7 +497,7 @@ func TestUniqueOneEditCandidateRoutesThroughModelFreeFallback(t *testing.T) {
 		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands()}},
 		Resolver: staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test"}},
 		Doer: routeDoer{byURL: map[string]cannedResponse{
-			"http://cli-health.test/vrooli.cli_health.v1.search.SearchService/Search": {status: 200, body: `{"results":[{"name":"scenario restart","description":"Restart","score":0.9}]}`},
+			"http://cli-health.test/vrooli.cli_health.v1.search.SearchService/Search": {status: 200, body: `{"results":[{"name":"command","description":"Run command","score":0.9}]}`},
 		}},
 		Strategy: &strategy,
 	})
@@ -508,6 +508,13 @@ func TestUniqueOneEditCandidateRoutesThroughModelFreeFallback(t *testing.T) {
 	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "bounded one-edit lexical evidence")
 	require.Len(t, resp.GetQueryParts(), 1)
 	require.Equal(t, routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED, resp.GetQueryParts()[0].GetStatus())
+	require.Len(t, resp.GetCorrectionCandidates(), 1)
+	correction := resp.GetCorrectionCandidates()[0]
+	require.Equal(t, "commnad", correction.GetSubmittedValue())
+	require.Equal(t, "command", correction.GetCandidateValue())
+	require.Equal(t, "cli-health.commands", correction.GetProviderId())
+	require.Equal(t, routingv1.CorrectionCandidate_STRENGTH_BAND_POSSIBLE, correction.GetStrength())
+	require.NotNil(t, correction.GetEvidence(), "suggestion cites a concrete returned hit")
 }
 
 func TestSemanticStrategyRanksEveryEligibleLeafBeforeBoundedSelection(t *testing.T) {
