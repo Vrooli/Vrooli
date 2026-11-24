@@ -62,6 +62,24 @@ func TestReadContractLoadsSiblingSource(t *testing.T) {
 	require.Equal(t, "print('source-backed')\n", got.Source)
 }
 
+func TestRuntimeDeclarationCarriesCompiledOutputSchemaWithoutChangingArtifact(t *testing.T) {
+	original := []byte(`{"name":"demo.program","output_schema":"program.output.schema.json"}`)
+	schema := []byte(`{"type":"object","required":["status"]}`)
+	contract := Contract{Declaration: original, OutputSchemaSource: schema}
+	contract.Digest = ContentDigest(original, nil, schema)
+
+	runtimeDeclaration, err := contract.RuntimeDeclaration()
+	require.NoError(t, err)
+	require.Equal(t, original, contract.Declaration)
+	var document map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(runtimeDeclaration, &document))
+	require.JSONEq(t, string(schema), string(document["_runtime_output_schema"]))
+	require.NotContains(t, string(original), "_runtime_output_schema")
+	contract.OutputSchemaSource = []byte(`{"type":"array"}`)
+	_, err = contract.RuntimeDeclaration()
+	require.ErrorContains(t, err, "content digest does not match")
+}
+
 func TestReadContractLoadsRubricFields(t *testing.T) { // [REQ:PRT-P1-012]
 	document := map[string]any{}
 	require.NoError(t, json.Unmarshal(validContractData(t), &document))

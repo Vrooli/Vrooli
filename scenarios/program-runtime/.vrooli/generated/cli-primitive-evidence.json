@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "program-runtime",
   "generator": "v1.0.0",
-  "manifest_hash": "3eeae21b8c86f18c54ebb849c4dd23ede26076e11b51ed31e572f7892a46321e",
+  "manifest_hash": "fcbfe2e0092209f25e09ac26051d6762fc1866a58b4b845a8833a401dfae897d",
   "commands": [
     {
       "path": "authoring eval",

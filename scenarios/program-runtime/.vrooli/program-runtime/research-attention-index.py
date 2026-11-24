@@ -1,6 +1,5 @@
 """Read the explicit proposal and actionable sections of a caller-authorized research index."""
 import hashlib
-import json
 import os
 import re
 import stat
@@ -89,7 +88,7 @@ def step_collect():
 
 def step_report():
     envelope["phase"] = "report"
-    print(json.dumps(envelope, allow_nan=False, separators=(",", ":")))
+    program.report(envelope)
     return None
 
 

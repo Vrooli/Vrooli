@@ -1,6 +1,5 @@
 """Attach later user or downstream evidence to an opaque result reference."""
 import hashlib
-import json
 
 inputs = program.inputs()
 envelope = program.envelope("program-runtime.learning-feedback", "1")
@@ -21,4 +20,4 @@ except Exception as exc:
     envelope["status"] = status
     envelope["errors"] = [{"class": kind, "detail": str(exc)[:240]}]
 envelope["phase"] = "report"
-print(json.dumps(envelope, sort_keys=True))
+program.report(envelope)

@@ -3,7 +3,7 @@
   "name": "program-runtime.batch-inference",
   "version": "3",
   "helpers": {
-    "program": "1"
+    "program": "2"
   },
   "purpose": "Classify up to 32 texts through ai-gateway.classify-batch and propagate ordered validated labels, partial failures, usage and child artifact evidence.",
   "inputs": {

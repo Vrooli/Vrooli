@@ -3,13 +3,13 @@
   "name": "program-runtime.watch-set",
   "version": "2",
   "helpers": {
-    "program": "1"
+    "program": "2"
   },
   "purpose": "Start up to eight delegated Agent Manager runs from a request list, collect each once, classify the collected outputs with one governed batch call, and summarize by label.",
   "inputs": {
     "requests": {
       "type": "array",
-      "description": "List of {owner, workflow_key, input}; each becomes one agent.start. Default: one skill-experiment-audit smoke request."
+      "description": "List of {owner, workflow_key, input}; each becomes one agent.start. Required; no default workflow is bundled."
     },
     "labels": {
       "type": "array",

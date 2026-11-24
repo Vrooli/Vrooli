@@ -28,18 +28,14 @@ def step_validate():
 def read_child(name, call):
     try:
         handle = call()
-        rows = handle.head(1)
-        if len(rows) != 1 or not isinstance(rows[0], dict):
-            raise ValueError("child did not return one envelope")
-        row = rows[0]
-        if row.get("status") not in ("ok", "partial", "unavailable", "refused", "failed") or not isinstance(row.get("signals"), dict) or not isinstance(row.get("errors"), list):
-            raise ValueError("child returned a malformed envelope")
+        row = program.child_envelope(handle, invalid_class="invalid_response", where="collect:" + name)
         if len(json.dumps(row, allow_nan=False).encode()) > 50000:
             raise ValueError("child evidence exceeds composition byte budget")
         metadata = handle.meta()
         artifact = {key:metadata[key] for key in ("name", "scenario", "version", "digest") if key in metadata}
         envelope["evidence"].append({"program":name, "artifact":artifact})
         envelope["signals"]["children"].append({"program":name, "status":row["status"], "signals":row["signals"], "errors":row["errors"]})
+        envelope["errors"].extend(issue for issue in row["errors"] if issue.get("class") == "invalid_response")
     except Exception as exc:
         program.fail(envelope["status"], "kernel_runtime", name + ': ' + str(exc), envelope["phase"])
         envelope["signals"]["children"].append({"program":name, "status":"failed", "signals":{}, "errors":[]})

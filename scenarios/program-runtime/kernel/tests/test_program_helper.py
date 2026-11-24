@@ -16,6 +16,7 @@ import json
 import sys
 import urllib.error
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -216,9 +217,10 @@ def test_classify_never_relabels_a_missing_kernel_name():
 
 
 class ChildHandle:
-    def __init__(self, rows, output_contract=None):
+    def __init__(self, rows, output_contract=None, digest="a" * 64):
         self.rows = rows
         self.output_contract = output_contract
+        self.digest = digest
 
     def count(self):
         return len(self.rows)
@@ -227,7 +229,7 @@ class ChildHandle:
         return self.rows[:count]
 
     def meta(self):
-        result = {"program": "demo.child", "version": "1"}
+        result = {"program": "demo.child", "version": "1", "digest": self.digest}
         if self.output_contract is not None:
             result["output_contract"] = self.output_contract
         return result
@@ -236,7 +238,7 @@ class ChildHandle:
 PARENT_OUTPUTS = {
     "status": {"enum": ["ok", "partial", "unavailable", "refused", "failed"]},
     "phase": {"enum": ["collect", "report"]},
-    "errors": {"classes": ["invalid_response", "child_error"]},
+    "errors": {"classes": ["invalid_response", "missing_result", "child_error"]},
 }
 CHILD_OUTPUTS = {
     "status": {"enum": ["ok", "partial", "unavailable", "refused", "failed"]},
@@ -260,6 +262,67 @@ def test_child_envelope_preserves_valid_status_and_domain_payload_without_mutati
     assert actual["evidence"] == ["owner:record-1"]
 
 
+def test_child_envelope_enforces_pinned_artifact_digest():
+    child = {"program": "demo.child", "version": "1", "status": "ok", "phase": "report",
+             "signals": {}, "errors": [], "evidence": []}
+    pinned = "a" * 64
+    helper = ProgramHelper("2", PARENT_OUTPUTS)
+
+    matching = helper.child_envelope(ChildHandle([child], CHILD_OUTPUTS, digest=pinned), expected_digest=pinned)
+    assert matching["status"] == "ok"
+    assert matching["errors"] == []
+
+    drifted = helper.child_envelope(ChildHandle([child], CHILD_OUTPUTS, digest="b" * 64), expected_digest=pinned)
+    assert drifted["status"] == "failed"
+    assert drifted["errors"][-1]["class"] == "invalid_response"
+    assert "does not match its declared pin" in drifted["errors"][-1]["detail"]
+
+
+def test_child_envelope_rejects_malformed_artifact_pin():
+    child = {"program": "demo.child", "version": "1", "status": "ok", "phase": "report",
+             "signals": {}, "errors": [], "evidence": []}
+    with pytest.raises(ValueError, match="lowercase SHA-256"):
+        ProgramHelper("2", PARENT_OUTPUTS).child_envelope(
+            ChildHandle([child], CHILD_OUTPUTS), expected_digest="not-a-digest")
+
+
+def test_declared_output_schema_checks_nested_values_and_fails_closed_on_unknown_keywords():
+    schema = {
+        "type": "object", "required": ["signals"],
+        "properties": {"signals": {"type": "object", "required": ["count"],
+                                    "properties": {"count": {"type": "integer", "minimum": 1}}}},
+    }
+    assert program_helper.validate_output_schema({"signals": {"count": 2}}, schema) == []
+    issues = program_helper.validate_output_schema({"signals": {"count": "two"}}, schema)
+    assert issues == ["$.signals.count does not match declared type"]
+    unsupported = program_helper.validate_output_schema(
+        {"signals": {"count": 2}}, {"type": "object", "patternProperties": {}})
+    assert unsupported == ["unsupported output schema keyword patternProperties at $"]
+
+
+def test_all_committed_program_output_schemas_use_the_runtime_supported_subset():
+    supported = program_helper._OUTPUT_SCHEMA_KEYWORDS
+
+    def visit(rule, path, unsupported):
+        if not isinstance(rule, dict):
+            return
+        unsupported.update((path, key) for key in set(rule) - supported)
+        for key, child in rule.get("properties", {}).items():
+            visit(child, f"{path}.properties.{key}", unsupported)
+        if isinstance(rule.get("items"), dict):
+            visit(rule["items"], f"{path}.items", unsupported)
+        if isinstance(rule.get("additionalProperties"), dict):
+            visit(rule["additionalProperties"], f"{path}.additionalProperties", unsupported)
+
+    scenarios = Path(__file__).resolve().parents[3]
+    schemas = sorted(scenarios.glob("*/.vrooli/program-runtime/**/*.output.schema.json"))
+    assert schemas
+    for path in schemas:
+        unsupported = set()
+        visit(json.loads(path.read_text()), str(path.relative_to(scenarios)), unsupported)
+        assert not unsupported, f"{path}: unsupported schema keywords {sorted(unsupported)}"
+
+
 @pytest.mark.parametrize("mutate", [
     lambda row: row.pop("status"),
     lambda row: row.update(status="unknown"),
@@ -280,6 +343,19 @@ def test_child_envelope_normalizes_invalid_child_shape_and_preserves_valid_sibli
     assert actual["errors"][-1]["class"] == "invalid_response"
     assert actual["signals"] == (child.get("signals") if isinstance(child.get("signals"), dict) else {})
     assert actual["evidence"] == (child.get("evidence") if isinstance(child.get("evidence"), list) else [])
+
+
+def test_child_count_disagreement_does_not_mislabel_a_present_row_as_missing():
+    class InconsistentHandle(ChildHandle):
+        def count(self):
+            return 0
+
+    helper = ProgramHelper("2", {**PARENT_OUTPUTS, "errors": {"classes": ["invalid_response", "missing_result", "child_error"]}})
+    child = {"program": "demo.child", "version": "1", "status": "ok", "phase": "report",
+             "signals": {}, "errors": [], "evidence": []}
+    actual = helper.child_envelope(InconsistentHandle([child], CHILD_OUTPUTS))
+    assert actual["status"] == "failed"
+    assert actual["errors"][-1]["class"] == "invalid_response"
 
 
 def test_child_envelope_requires_parent_declared_protocol_error_and_v2():
@@ -306,6 +382,12 @@ def test_child_envelope_without_child_output_metadata_reports_validation_unavail
     assert actual["status"] == "failed"
     assert "child output contract metadata is missing declared status, phase, or error enums" in detail
     assert "outside its declared enum" not in detail
+
+
+def test_empty_child_uses_parent_declared_no_output_class_when_missing_result_is_absent():
+    parent = {**PARENT_OUTPUTS, "errors": {"classes": ["invalid_response", "no_output", "child_error"]}}
+    actual = ProgramHelper("2", parent).child_envelope(ChildHandle([], CHILD_OUTPUTS))
+    assert actual["errors"][-1]["class"] == "no_output"
 
 
 def test_select_field_prefers_first_present_nonempty_across_name_variants():
@@ -368,6 +450,113 @@ def test_run_catches_a_phase_exception_as_kernel_runtime_and_still_reports():
     envelope = json.loads(result["stdout"])
     assert envelope["status"] == "failed"
     assert envelope["errors"][0]["class"] == "kernel_runtime" and envelope["errors"][0]["where"] == "validate"
+
+
+def test_run_refuses_unresolved_name_without_alias_guess_or_retry():
+    kernel = SessionKernel(BINDINGS, "sess", "", "", "", [])
+    source = (
+        "envelope = program.envelope('demo.read', '1')\n"
+        "attempts = {'count': 0}\n"
+        "def step_validate():\n    envelope['phase'] = 'validate'\n    attempts['count'] += 1\n    return missing_binding.invoke()\n"
+        "def step_report():\n    envelope['phase'] = 'report'\n    envelope['signals']['attempts'] = attempts['count']\n    program.report()\n"
+        "program.run({'validate': step_validate, 'report': step_report})\n"
+    )
+    result = kernel.execute(source)
+    assert result["ok"], result
+    envelope = json.loads(result["stdout"])
+    assert envelope["status"] == "failed"
+    assert envelope["errors"][0]["class"] == "unresolved_name"
+    assert "missing_binding" in envelope["errors"][0]["detail"]
+    assert "no alias substitution or retry is safe" in envelope["errors"][0]["detail"]
+    assert envelope["signals"]["attempts"] == 1
+
+
+def test_run_preserves_no_grant_as_refusal_without_retry_or_permission_inference():
+    kernel = SessionKernel(BINDINGS, "sess", BRIDGE, "", "", [])
+    source = (
+        "envelope = program.envelope('demo.read', '1', phase='collect')\n"
+        "def step_collect():\n    return demo.work.run()\n"
+        "def step_report():\n    envelope['phase'] = 'report'\n    program.report()\n"
+        "program.run({'collect': step_collect, 'report': step_report}, 'collect')\n"
+    )
+    denial = http_error(403, {"error": "binding demo/work/run requires an explicit grant", "class": "no_grant", "status": "refused"})
+    def owner_denies(request, timeout=None):
+        if request.full_url.endswith("/reachability"):
+            return _Reachable()
+        raise denial
+
+    with patch("host.engine._open_bridge_request", side_effect=owner_denies) as invoke:
+        result = kernel.execute(source)
+    assert result["ok"], result
+    execute_calls = [call for call in invoke.call_args_list if call.args[0].full_url.endswith("/execute")]
+    assert len(execute_calls) == 1
+    envelope = json.loads(result["stdout"])
+    assert envelope["status"] == "refused"
+    assert envelope["errors"][0]["class"] == "no_grant"
+    detail = envelope["errors"][0]["detail"]
+    assert "permission was not inferred" in detail
+    assert "call was not retried" in detail
+    assert "requires an explicit grant" in detail
+
+
+def test_run_preserves_unreachable_scenario_as_unavailable_without_retry():
+    kernel = SessionKernel(BINDINGS, "sess", BRIDGE, "", "", [])
+    source = (
+        "envelope = program.envelope('demo.read', '1', phase='collect')\n"
+        "def step_collect():\n    return demo.work.run()\n"
+        "def step_report():\n    envelope['phase'] = 'report'\n    program.report()\n"
+        "program.run({'collect': step_collect, 'report': step_report}, 'collect')\n"
+    )
+    outage = http_error(503, {"error": "binding demo/work/run is unreachable: owner API is offline",
+                              "class": "scenario_unreachable", "status": "unavailable", "http_status": 503})
+
+    def owner_unreachable(request, timeout=None):
+        if request.full_url.endswith("/reachability"):
+            return _Reachable()
+        raise outage
+
+    with patch("host.engine._open_bridge_request", side_effect=owner_unreachable) as invoke:
+        result = kernel.execute(source)
+    assert result["ok"], result
+    execute_calls = [call for call in invoke.call_args_list if call.args[0].full_url.endswith("/execute")]
+    assert len(execute_calls) == 1
+    envelope = json.loads(result["stdout"])
+    assert envelope["status"] == "unavailable"
+    assert envelope["errors"][0]["class"] == "scenario_unreachable"
+    detail = envelope["errors"][0]["detail"]
+    assert "retain unavailable state" in detail
+    assert "no retry was attempted" in detail
+    assert "owner API is offline" in detail
+
+
+def test_run_preserves_deadline_owner_cause_without_retry_or_budget_extension():
+    kernel = SessionKernel(BINDINGS, "sess", BRIDGE, "", "", [])
+    source = (
+        "envelope = program.envelope('demo.read', '1', phase='collect')\n"
+        "def step_collect():\n    return demo.work.run()\n"
+        "def step_report():\n    envelope['phase'] = 'report'\n    program.report()\n"
+        "program.run({'collect': step_collect, 'report': step_report}, 'collect')\n"
+    )
+    timeout = http_error(504, {"error": "deadline_exceeded: owner request deadline expired; commit status unknown",
+                              "class": "deadline_exceeded", "status": "failed", "http_status": 504})
+
+    def owner_deadline(request, timeout=None):
+        if request.full_url.endswith("/reachability"):
+            return _Reachable()
+        raise timeout_error
+
+    timeout_error = timeout
+    with patch("host.engine._open_bridge_request", side_effect=owner_deadline) as invoke:
+        result = kernel.execute(source)
+    assert result["ok"], result
+    execute_calls = [call for call in invoke.call_args_list if call.args[0].full_url.endswith("/execute")]
+    assert len(execute_calls) == 1
+    envelope = json.loads(result["stdout"])
+    assert envelope["status"] == "failed"
+    assert envelope["errors"][0]["class"] == "deadline_exceeded"
+    detail = envelope["errors"][0]["detail"]
+    assert "no retry or budget extension is automatic" in detail
+    assert "commit status unknown" in detail
 
 
 def test_run_reraises_a_failure_inside_report():
@@ -489,3 +678,32 @@ def test_root_declared_helper_uses_owner_contract_and_does_not_leak_to_raw_submi
     unsupported = kernel.execute("print('should not run')", declared_helper_contract={"version": "99", "outputs": PARENT_OUTPUTS})
     assert not unsupported["ok"] and "program helper version '99'" in unsupported["error"], unsupported
     assert unsupported["stdout"] == ""
+
+
+def test_write_artifact_uses_fixed_host_bridge_and_returns_metadata_only():
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self, limit):
+            assert limit == 16 << 10
+            return json.dumps({"scenario": "demo", "run_id": "run-1", "artifact_id": "artifact_0123456789abcdef0123456789abcdef", "kind": "findings", "output_path": "evidence/findings.json", "bytes": 9, "sha256": "a" * 64, "legacy_discovered": False}).encode()
+
+    helper = ProgramHelper(invocation_context=engine._INVOCATION_CONTEXT)
+    helper._bind({"__vrooli__": SimpleNamespace(_bridge_url=BRIDGE, _session_id="sess-1")})
+    context_token = engine._INVOCATION_CONTEXT.set({"program_id": "prog-1", "provenance": "PROVENANCE_AGENT"})
+    try:
+        with patch("host.program_helper._open_bridge_request", return_value=Response()) as opener:
+            receipt = helper.write_artifact(scenario="demo", run_id="run-1", artifact_id="artifact_0123456789abcdef0123456789abcdef", path="evidence/findings.json")
+        request = opener.call_args.args[0]
+    finally:
+        engine._INVOCATION_CONTEXT.reset(context_token)
+    assert request.full_url == "http://127.0.0.1:1/internal/program-runtime/artifacts/stream-to-file"
+    sent = json.loads(request.data)
+    assert sent["session_id"] == "sess-1" and sent["program_id"] == "prog-1"
+    assert sent["artifact_id"] == receipt["artifact_id"]
+    assert "synthetic" not in json.dumps(receipt)
+    assert receipt["bytes"] == 9 and receipt["sha256"] == "a" * 64

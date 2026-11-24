@@ -1,6 +1,7 @@
 import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 // Mode-aware config. A regular `vite build` ships the lean prod artifact;
 // `vite build --mode profile` produces a perf-build channel for performance
@@ -29,7 +30,7 @@ export default defineConfig(({ mode }): UserConfig => {
 
   return {
     base: './',  // Required for tunnel/proxy contexts
-    plugins: [react(), stringsCodegen()],
+    plugins: [sourceLibraryResolver({ devOnly: true }), react(), stringsCodegen()],
     resolve: isProfile
       ? {
           alias: {
@@ -83,7 +84,6 @@ export default defineConfig(({ mode }): UserConfig => {
           // Optional template components not mounted by this scenario yet;
           // keep them out of the shipped-surface denominator until adopted.
           'src/components/experience/ExperienceSurface.tsx',
-          'src/components/ui/dialog.tsx',
           'src/components/ui/empty-state.tsx',
           'src/components/ui/data-table.tsx',
           // Performance-only boot instrumentation is loaded dynamically by

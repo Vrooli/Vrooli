@@ -26,12 +26,20 @@ func Module(pinger database.Pinger, service, version string, skippedManifestCoun
 	return moduleWithMetadata(pinger, service, version, skipped, nil)
 }
 
-func ModuleWithDescriptor(pinger database.Pinger, service, version string, skippedManifestCount func() int, descriptorMetadata DescriptorMetadata) module.Module {
-	return moduleWithMetadata(pinger, service, version, skippedManifestCount, descriptorMetadata)
+func ModuleWithDescriptor(pinger database.Pinger, service, version string, skippedManifestCount func() int, descriptorMetadata DescriptorMetadata, sourceIdentity ...string) module.Module {
+	identity := "unknown"
+	if len(sourceIdentity) > 0 {
+		identity = sourceIdentity[0]
+	}
+	return moduleWithMetadata(pinger, service, version, skippedManifestCount, descriptorMetadata, identity)
 }
 
-func moduleWithMetadata(pinger database.Pinger, service, version string, skipped func() int, metadata DescriptorMetadata) module.Module {
-	h := NewHandler(Deps{Pinger: pinger, Service: service, Version: version, SkippedManifestCount: skipped, DescriptorMetadata: metadata})
+func moduleWithMetadata(pinger database.Pinger, service, version string, skipped func() int, metadata DescriptorMetadata, sourceIdentity ...string) module.Module {
+	identity := "unknown"
+	if len(sourceIdentity) > 0 {
+		identity = sourceIdentity[0]
+	}
+	h := NewHandler(Deps{Pinger: pinger, Service: service, Version: version, SourceIdentity: identity, SkippedManifestCount: skipped, DescriptorMetadata: metadata})
 	return module.Module{
 		Name: "health",
 		Mount: func(r *mux.Router) {

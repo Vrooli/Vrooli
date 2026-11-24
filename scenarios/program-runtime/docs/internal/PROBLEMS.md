@@ -674,7 +674,7 @@ Demand-start is repaired and proven by the stopped-Memory all-verb receipt.
 
 **Owner:** browser-automation-studio, vrooli-memory, and program-runtime.
 
-**Refs:** `/home/matthalloran8/.vrooli/plan-artifacts/learn-verbs-in-code-program-learning/baseline/after/README.md`,
+**Refs:** `~/.vrooli/plan-artifacts/learn-verbs-in-code-program-learning/baseline/after/README.md`,
 `baseline/after/final/34-memory-demand-start.json`,
 `baseline/after/final/35-demand-bridge-smoke.json`,
 `baseline/after/final/20-bas-agent-task-only.txt`,
@@ -703,14 +703,14 @@ presentation verdict from the server-owned terminal receipt.
 
 **Owner:** test-genie.
 
-**Refs:** `/home/matthalloran8/.vrooli/plan-artifacts/learn-verbs-in-code-program-learning/baseline/after/final/11-programs-structure.txt`,
+**Refs:** `~/.vrooli/plan-artifacts/learn-verbs-in-code-program-learning/baseline/after/final/11-programs-structure.txt`,
 `baseline/after/bas-programs-phase.json`. Filed Plan Manager bug
 `2ce09d3d-b9bc-4fbd-92e4-dc2e332d97c7`; downstream Scenario QA forwarding
 returned 404 and remains sync-pending.
 
 ## Architecture Drift
 
-Use this section for deferred findings from `screaming-architecture-audit`.
+Use this section for deferred findings from `architecture-lenses`.
 Do not create a standalone architecture-audit report unless the work is
 a migration handoff with a planned retirement path back into
 `ARCHITECTURE.md`, `SEAMS.md`, or this file.
@@ -740,7 +740,7 @@ a migration handoff with a planned retirement path back into
 - Remaining suite findings: control-plane CLI/proto binding drift (`knw-1788670217499139681`); 13 usage-skill conformance probes after repairing the harness's old skill path (`knw-1788670218386465902`); UI QueryClient, locale, and coverage failures (`knw-1788670219241730261`). No finding or assertion was suppressed to make the suite pass.
 - Coverage limit: Code Facts omits the existing Python `kernel` workspace; Unit Health confirms that selector is absent. Report `knw-1788667260047533054` owns discovery repair. The new Go tests exercise the real Python host but do not prove the whole Python suite ran.
 - Limits: this repair does not provide transitive artifact pinning, child output-schema validation, or independent child budget allocation. Those require additional owner contracts and evidence before a broader composition guarantee.
-- Artifacts: `/home/matthalloran8/.vrooli/research/scenario-program-composition-20260906/`.
+- Artifacts: `~/.vrooli/research/scenario-program-composition-20260906/`.
 
 ### Previous ladder assessment
 

@@ -3,6 +3,7 @@ package programsvalidation
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -18,15 +19,6 @@ func writeProgram(t *testing.T, root, scenario, name, contract, source string) {
 	if err := os.WriteFile(filepath.Join(dir, name+".py"), []byte(source), 0o644); err != nil {
 		t.Fatal(err)
 	}
-}
-
-func hasFinding(findings []string, want string) bool {
-	for _, finding := range findings {
-		if finding == want {
-			return true
-		}
-	}
-	return false
 }
 
 // A local copy of the transport table is the drift the kernel helper retired,
@@ -46,13 +38,13 @@ func TestDuplicatedHelperIsAFindingAndProgramReportIsAnEnvelope(t *testing.T) {
 			"program.run({'validate': step_validate, 'report': step_report})\n")
 
 	findings := validateScenario(root, "demo", nil, false)
-	if !hasFinding(findings, "programs.duplicated_helper") {
+	if !slices.Contains(findings, "programs.duplicated_helper") {
 		t.Fatalf("copied classify_transport not reported: %v", findings)
 	}
-	if hasFinding(findings, "programs.envelope_missing") {
+	if slices.Contains(findings, "programs.envelope_missing") {
 		t.Fatalf("program.report() not recognised as the envelope print: %v", findings)
 	}
-	if hasFinding(findings, "programs.preflight_diagnostic") {
+	if slices.Contains(findings, "programs.preflight_diagnostic") {
 		t.Fatalf("program helper members refused by preflight: %v", findings)
 	}
 }

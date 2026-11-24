@@ -1,6 +1,7 @@
 package health_test
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -77,9 +78,10 @@ func TestHealthHandler(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			pinger := &databasetest.FakePinger{PingErr: tc.pingErr}
 			h := health.NewHandler(health.Deps{
-				Pinger:  pinger,
-				Service: "react-vite-test",
-				Version: "1.0.0",
+				Pinger:         pinger,
+				Service:        "react-vite-test",
+				Version:        "1.0.0",
+				SourceIdentity: "source-sha256-test",
 			})
 			mod := module.Module{
 				Name: "health",
@@ -97,9 +99,14 @@ func TestHealthHandler(t *testing.T) {
 			apihttptest.AssertStatus(t, resp, tc.wantStatusCode)
 
 			got := apihttptest.MustUnmarshalProto[healthv1.Response](t, body)
+			var raw map[string]any
+			require.NoError(t, json.Unmarshal(body, &raw))
 			require.Equal(t, tc.wantStatus, got.Status, "response.status")
 			require.Equal(t, "react-vite-test", got.Service, "response.service")
 			require.Equal(t, "1.0.0", got.Version, "response.version")
+			metrics, ok := raw["metrics"].(map[string]any)
+			require.True(t, ok, "response.metrics must be present")
+			require.Equal(t, "source-sha256-test", metrics["source_identity"], "response.metrics.source_identity")
 			require.Equal(t, tc.wantReadiness, got.Readiness, "response.readiness")
 
 			dep, ok := got.Dependencies["database"]

@@ -9,15 +9,9 @@ several runs proceed concurrently instead of serializing on one wait:
 
 ```python
 request = {
-    "owner": "development-toolchain-validator",
-    "workflow_key": "development-toolchain-validator/skill-experiment-audit",
-    "input": {
-        "experiment": {
-            "name": "delegation-pattern",
-            "objective": "Return structured evidence from a bounded audit.",
-        },
-        "assignments": [{"id": "sample", "token": "delegated runtime smoke"}],
-    },
+    "owner": "<workflow owner>",
+    "workflow_key": "<owner>/<workflow>",
+    "input": {...},  # matches the workflow's declared inputSchema
 }
 
 started = agent.start(**request)

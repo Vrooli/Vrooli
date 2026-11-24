@@ -394,6 +394,8 @@ func AuthoringInferenceArgs(instruction, task string) map[string]any {
 	return map[string]any{
 		"source": task, "instruction": instruction, "role": AuthoringRole,
 		"schema_json": AuthoringSchemaJSON, "profile": "PROFILE_LOCAL_ONLY",
+		"privacy_class":      "PRIVACY_CLASS_CONFIDENTIAL",
+		"privacy_provenance": "program_runtime.code_authoring.user_task_and_repository_context",
 	}
 }
 
@@ -798,17 +800,6 @@ func compareCount(stdout, relation string, expected int) bool {
 			if value <= expected {
 				return true
 			}
-		}
-	}
-	return false
-}
-
-func countDigitsAtLeast(stdout string, minimum int) bool {
-	fields := strings.FieldsFunc(stdout, func(r rune) bool { return r < '0' || r > '9' })
-	for _, field := range fields {
-		value := 0
-		if _, err := fmt.Sscanf(field, "%d", &value); err == nil && value >= minimum {
-			return true
 		}
 	}
 	return false

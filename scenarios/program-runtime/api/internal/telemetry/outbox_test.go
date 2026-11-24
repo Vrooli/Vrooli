@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"program-runtime/internal/bindings"
+
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 	db "github.com/vrooli/api-core/databasetest"
@@ -105,8 +107,8 @@ func TestExpiredPendingEventBecomesDeadLetter(t *testing.T) { // [REQ:PRT-P1-009
 func TestTelemetryListingSurvivesRepositoryRestart(t *testing.T) { // [REQ:PRT-P1-009]
 	d := newTelemetryTestDB(t)
 	event := &telemetryv1.ProgramEvent{EventId: "event_restart", SessionId: "sess_1", OccurredAt: "2026-08-11T15:00:00Z", Kind: telemetryv1.EventKind_PROGRAM_SUBMITTED}
-	NewStoreWithDB(d, nil).Append(event)
-	restarted := NewStoreWithDB(d, nil)
+	NewStoreWithOptions(Options{DB: d}).Append(event)
+	restarted := NewStoreWithOptions(Options{DB: d})
 	events := restarted.List("sess_1", telemetryv1.EventKind_EVENT_KIND_UNSPECIFIED)
 	require.Len(t, events, 1)
 	require.Equal(t, "event_restart", events[0].GetEventId())
@@ -140,4 +142,65 @@ func TestDrainerReportsFirstAsyncFailureOnceAndStopsOnCancellation(t *testing.T)
 		t.Fatalf("reported more than the first failure: %v", err)
 	default:
 	}
+}
+
+func TestMeasuredTelemetryOutboxRoundTripsAndCorrelatesBindingLedger(t *testing.T) {
+	ctx := context.Background()
+	d := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(ctx, d, apidb.SchemaProviderFunc(Schema)))
+	require.NoError(t, apidb.EnsureSchemas(ctx, d, apidb.SchemaProviderFunc(bindings.Schema)))
+
+	now := time.Date(2026, 11, 24, 6, 35, 0, 0, time.UTC)
+	store := NewStoreWithOptions(Options{DB: d, Clock: func() time.Time { return now }})
+	executionWallTimeMS := int64(1234)
+	require.NoError(t, store.AppendContext(ctx, &telemetryv1.ProgramEvent{
+		EventId: "event_execution", OccurredAt: now.Format(time.RFC3339Nano),
+		Kind: telemetryv1.EventKind_PROGRAM_SUCCEEDED, ProgramId: "program-1", SessionId: "session-1",
+		ExecutionWallTimeMs: &executionWallTimeMS,
+	}))
+
+	ledger := bindings.NewInvocationRepository(d)
+	recorder := WithInvocationTelemetry(ledger, store)
+	invocation := bindings.Invocation{
+		InvocationID: "inv_ledger_1", BindingID: "ai-gateway/inference/run", TargetScenario: "ai-gateway",
+		SessionID: "session-1", ProgramID: "program-1", Provenance: "PROVENANCE_AGENT",
+		Outcome: "success", LatencyMS: 42, OccurredAt: now.Add(time.Second),
+	}
+	require.NoError(t, recorder.RecordInvocation(ctx, invocation))
+
+	// A new Store instance forces the test through SQLite payload persistence,
+	// then the production typed JSON decode path in Repository.List.
+	restarted := NewStoreWithOptions(Options{DB: d})
+	events := restarted.List("session-1", telemetryv1.EventKind_EVENT_KIND_UNSPECIFIED)
+	require.Len(t, events, 2)
+	var lifecycle, measured *telemetryv1.ProgramEvent
+	for _, event := range events {
+		switch event.GetKind() {
+		case telemetryv1.EventKind_PROGRAM_SUCCEEDED:
+			lifecycle = event
+		case telemetryv1.EventKind_BINDING_CALL_MEASURED:
+			measured = event
+		}
+	}
+	require.NotNil(t, lifecycle)
+	require.NotNil(t, lifecycle.ExecutionWallTimeMs, "measured zero and unknown must remain distinguishable")
+	require.Equal(t, executionWallTimeMS, lifecycle.GetExecutionWallTimeMs())
+	require.NotNil(t, measured)
+	require.Equal(t, "program-1", measured.GetProgramId())
+	require.Equal(t, "ai-gateway/inference/run", measured.GetBindingId())
+	require.Equal(t, invocation.InvocationID, measured.GetBindingInvocationId())
+	require.NotNil(t, measured.BindingCallLatencyMs)
+	require.Equal(t, int64(42), measured.GetBindingCallLatencyMs())
+	require.Equal(t, "success", measured.GetBindingCallOutcome())
+	require.Nil(t, measured.ExecutionWallTimeMs, "binding event has no total execution measurement")
+
+	ledgerRows, err := bindings.NewInvocationRepository(d).ListInvocations(ctx, now, invocation.BindingID, "ai-gateway")
+	require.NoError(t, err)
+	require.Len(t, ledgerRows, 1)
+	require.Equal(t, ledgerRows[0].InvocationID, measured.GetBindingInvocationId())
+	require.Equal(t, ledgerRows[0].ProgramID, measured.GetProgramId())
+	require.Equal(t, ledgerRows[0].BindingID, measured.GetBindingId())
+	require.Equal(t, ledgerRows[0].LatencyMS, measured.GetBindingCallLatencyMs())
+	require.Equal(t, ledgerRows[0].Outcome, measured.GetBindingCallOutcome())
+	require.Equal(t, lifecycle.GetProgramId(), measured.GetProgramId())
 }

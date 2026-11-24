@@ -71,18 +71,21 @@ func TestDeclaredOutputSchemaValidatesWithoutErasingEvidence(t *testing.T) {
 	}
 }
 
-func TestDeclaredPrivateBindingsReachSessionPreflight(t *testing.T) {
+func TestDeclaredBindingsReachSessionPreflightWithEmptyScopeDistinguished(t *testing.T) {
 	var received []BindingSpec
+	var wasRestricted bool
 	service := NewService(Options{PreflightSession: func(_ context.Context, _, _ string, private []BindingSpec) []*programsv1.Diagnostic {
+		wasRestricted = private != nil
 		received = append([]BindingSpec(nil), private...)
 		return nil
 	}})
 	private := BindingSpec{ID: "client-rehearsal/bounty-cases/resolve", Scenario: "client-rehearsal", Group: "bounty-cases", Command: "resolve"}
-	program, diagnostics, err := service.SubmitDeclared(context.Background(), "session", "client_rehearsal.bounty_cases.resolve()", programsv1.Provenance_PROVENANCE_TEST, false, true, Identity{ProgramName: "program-runtime.bounty-replay", PrivateBindings: []BindingSpec{private}}, Caller{})
+	program, diagnostics, err := service.SubmitDeclared(context.Background(), "session", "client_rehearsal.bounty_cases.resolve()", programsv1.Provenance_PROVENANCE_TEST, false, true, Identity{ProgramName: "program-runtime.bounty-replay", BindingScope: true, DeclaredBindings: []BindingSpec{private}}, Caller{})
 	require.NoError(t, err)
 	require.Empty(t, diagnostics)
 	require.Equal(t, programsv1.ProgramStatus_PROGRAM_STATUS_ACCEPTED, program.GetStatus())
 	require.Equal(t, []BindingSpec{private}, received)
+	require.True(t, wasRestricted)
 }
 
 func TestSchemaBackedOutputDistinguishesTruncation(t *testing.T) {
@@ -479,6 +482,34 @@ func TestRetainsProgramSourceAndFailureDetail(t *testing.T) { // [REQ:PRT-P1-006
 	}
 }
 
+func TestProgramLeaseScopeClosesOnEveryTerminalResult(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		runner fakeRunner
+	}{
+		{name: "success", runner: fakeRunner{result: Result{Stdout: "ok"}}},
+		{name: "binding failure", runner: fakeRunner{err: errors.New("dependency call failed")}},
+		{name: "kernel restart failure", runner: fakeRunner{err: errors.New("kernel restarted after EOF")}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			closed := false
+			s := NewService(Options{
+				Runner: tc.runner,
+				ProgramLeaseScope: func(context.Context, string, string) func() {
+					return func() { closed = true }
+				},
+			})
+			_, err := s.Submit(context.Background(), "lease-session", "raise RuntimeError()", programsv1.Provenance_PROVENANCE_AGENT, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !closed {
+				t.Fatal("program demand lease scope was not released at terminal result")
+			}
+		})
+	}
+}
+
 func TestSuccessfulAgentProgramIsRetained(t *testing.T) {
 	s := NewService(Options{Runner: fakeRunner{result: Result{Stdout: "ok"}}})
 	p, err := s.Submit(context.Background(), "s1", "print('ok')", programsv1.Provenance_PROVENANCE_AGENT, false)
@@ -572,6 +603,9 @@ func TestPortfolioStatsReportsUnavailableContractIndex(t *testing.T) { // [REQ:P
 	}
 	if response.GetContractIndexReason() == "" || response.GetRows()[0].GetDeclaredWallMillis() != 0 || len(response.GetNeverExecuted()) != 0 {
 		t.Fatalf("response=%v", response)
+	}
+	if response.GetEligibleRunDenominator() != 1 || response.GetVerifiedAgentRuns() != 0 || response.GetAgentIdentityAbsentRuns() != 1 || response.GetEligibilityScope() == "" {
+		t.Fatalf("eligibility=%v", response)
 	}
 }
 

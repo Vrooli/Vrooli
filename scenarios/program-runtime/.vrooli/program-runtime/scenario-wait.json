@@ -1,0 +1,36 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.scenario-wait",
+  "version": "1",
+  "helpers": {"program": "1"},
+  "purpose": "Read one scenario's status then attach to its lifecycle operation once with a bounded timeout, returning only the status fields and typed wait verdict.",
+  "inputs": {
+    "scenario": {"type": "string", "required": true, "description": "Scenario slug."},
+    "timeout_seconds": {"type": "integer", "required": false, "default": 90, "description": "Positive wait ceiling from 1 through 90 seconds."}
+  },
+  "assumptions": ["The root Vrooli control plane is reachable."],
+  "invariants": [
+    "Calls only the declared read bindings status and wait; it never starts or restarts a scenario.",
+    "The wait is invoked exactly once with a timeout between 1 and 90 seconds.",
+    "The envelope retains only scenario, lifecycle status, health, wait verdict, exit code, source and elapsed seconds."
+  ],
+  "bindings": [
+    {"id": "vrooli/scenario/status", "effect": "read"},
+    {"id": "vrooli/scenario/wait", "effect": "read"}
+  ],
+  "verbs": [],
+  "outputs": {
+    "status": {"enum": ["ok", "partial", "unavailable", "failed"]},
+    "phase": {"enum": ["validate", "collect", "report"]},
+    "signals": {"scenario": "slug", "lifecycle_status": "status label", "health": "health label", "verdict": "healthy|degraded|running|failed|abandoned|timeout", "exit_code": "0|1|2|124", "source": "attached|registry", "waited_seconds": "bounded elapsed seconds"},
+    "errors": {"classes": ["invalid_input", "scenario_unreachable", "binding_error", "deadline_exceeded", "no_governed_binding"]},
+    "evidence": "binding ids called"
+  },
+  "budget": {"wall_ms": 100000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 4},
+  "fixtures": [
+    {"id": "bounded-timeout", "inputs": {"scenario": "fixture", "timeout_seconds": 17}, "expect": {"status": ["partial"]}},
+    {"id": "reject-unbounded-timeout", "inputs": {"scenario": "fixture", "timeout_seconds": 91}, "expect": {"status": ["failed"]}}
+  ],
+  "rung": "S3",
+  "owner_skill": "program-runtime"
+}

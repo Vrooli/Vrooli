@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -208,6 +209,13 @@ func (b *Bridge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256*1024))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if err := dec.Decode(new(any)); err != io.EOF {
+		if err == nil {
+			err = errors.New("multiple JSON values")
+		}
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
@@ -523,7 +531,12 @@ func (b *Bridge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		edge, _ := b.manifestEdge(c.Scenario)
-		writeJSON(w, Spec(c, edge))
+		spec, err := Spec(c, edge)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
+		writeJSON(w, spec)
 		return
 	}
 	if action == "begin" {
@@ -727,12 +740,16 @@ func (b *Bridge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, publicRecord(rec))
 }
 
-func Spec(c contracts.Contract, edge map[string]any) map[string]any {
-	result := map[string]any{"name": c.Name, "scenario": c.Scenario, "contract": true, "current": true, "declaration": json.RawMessage(c.Declaration), "digest": c.Digest, "source": c.Source}
+func Spec(c contracts.Contract, edge map[string]any) (map[string]any, error) {
+	declaration, err := c.RuntimeDeclaration()
+	if err != nil {
+		return nil, err
+	}
+	result := map[string]any{"name": c.Name, "scenario": c.Scenario, "contract": true, "current": true, "declaration": json.RawMessage(declaration), "digest": c.Digest, "source": c.Source}
 	if edge != nil {
 		result["manifest_edge"] = edge
 	}
-	return result
+	return result, nil
 }
 
 func (b *Bridge) manifestEdge(scenario string) (map[string]any, bool) {

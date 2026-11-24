@@ -3,7 +3,7 @@
   "name": "program-runtime.improvement-evidence",
   "version": "1",
   "helpers": {
-    "program": "1"
+    "program": "2"
   },
   "purpose": "Compose revision-aware attention candidates and explicit Agent Manager run evidence for an authorized program or scenario repair; return child validity and artifact identities without inference or mutation.",
   "inputs": {
@@ -69,6 +69,7 @@
     "errors": {
       "classes": [
         "invalid_input",
+        "invalid_response",
         "kernel_runtime",
         "output_limit",
         "remote_error",

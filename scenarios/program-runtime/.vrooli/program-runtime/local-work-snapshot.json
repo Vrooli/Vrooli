@@ -69,6 +69,7 @@
     "Read-only owner calls and selected research files only; no inference, delegation, retries, lifecycle changes or Flywheel writes.",
     "Run labels, enabled teams, active goals, retained research and successful programs never prove live executors or accepted outcomes.",
     "Sources retain separate denominators and collection/producer timestamps; absence and explicit null do not become zero.",
+    "Composition pin: lib.program_runtime.research_workspace_review must match artifact digest 7370a5f43c74f72277829a370a51221396e75f9a92a24eb1aa6f23cd41d37f97; missing or drifted digests produce invalid_response and keep the parent partial.",
     "At most 9 run pages, one team list, objective projection, effort page, goal list, backlog sample, usage window, research catalog and workspace child per call. For each of at most four selected teams, one execution-status read and one bounded task-board page.",
     "Swarm execution listing is not collected by this version; its supported owner CLI remains an explicit gap. Normal useful results remain partial while that gap exists.",
     "No automatic identity matching or task creation; relations require source evidence and owner review."

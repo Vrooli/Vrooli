@@ -35,7 +35,6 @@ kernel adapters (`PRT-P2-004`) — and live in `requirements/06-platform/`.
 Requirement IDs keep their `PRT-P<priority>-<n>` form because they are cited
 from outside this scenario; see `requirements/README.md`.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

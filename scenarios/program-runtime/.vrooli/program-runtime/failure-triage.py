@@ -7,8 +7,6 @@ Demonstrates: one governed read, group_by in the kernel, no rows in the output.
 Phases: validate -> collect -> classify -> report.
 """
 
-import json
-
 inputs = program.inputs()
 include_operator = bool(inputs.get("include_operator", False))
 
@@ -104,7 +102,7 @@ def step_classify():  # CLASSIFY · rank a bounded set and keep evidence linked 
 
 def step_report():  # REPORT
     envelope["phase"] = "report"
-    print(json.dumps(envelope, allow_nan=False, separators=(",", ":")))
+    program.report()
     return None
 
 

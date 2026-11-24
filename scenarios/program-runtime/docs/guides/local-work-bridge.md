@@ -7,7 +7,7 @@ This guide owns the repeatable collection method. The [Local Work Bridge in Goog
 ```sh
 program-runtime library run program-runtime.local-work-snapshot \
   --provenance agent \
-  --input research_root=/home/matthalloran8/.vrooli/research \
+  --input research_root="$HOME/.vrooli/research" \
   --json > /tmp/local-work-snapshot.json
 ```
 

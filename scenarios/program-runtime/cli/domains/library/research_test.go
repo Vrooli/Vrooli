@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -13,6 +15,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 	libraryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library"
 	libraryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library/library_v1connect"
 )
@@ -147,4 +150,20 @@ func TestLibraryGetReadsAResearchProgramFromFilesWhenTheAPIIsUnreachable(t *test
 	require.Error(t, err)
 	_, err = h.run(runContext(t, "research/../etc"))
 	require.ErrorContains(t, err, "invalid research id")
+}
+
+// credentialFails is the CLI transport when this session's credential cannot
+// be resolved: the request never leaves the process.
+type credentialFails struct{}
+
+func (credentialFails) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, fmt.Errorf("resolve agent credential: %w", &cliutil.AgentAuthorizationError{Code: "identity_refresh_unavailable"})
+}
+
+func TestLibraryRunUsesTheFilesWhenTheCredentialCannotBeResolved(t *testing.T) {
+	researchHome(t, pulseSource, "[]")
+	h := &handlers{client: libraryconnect.NewLibraryServiceClient(&http.Client{Transport: credentialFails{}}, "http://program-runtime.invalid")}
+	response, err := h.run(runContext(t, researchProgram, "--input", "limit=1"))
+	require.NoError(t, err, "nothing was submitted, so the research program runs from its files")
+	require.Equal(t, "ok", libraryRunStatus(response.GetProgram().GetStdout()))
 }

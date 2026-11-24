@@ -190,9 +190,6 @@ class SetpointMeters(unittest.TestCase):
         self.assertTrue(rows["attribution"]["unavailable"])
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class RegenerateSetpointReadings(unittest.TestCase):
     """The documented refresh path must not depend on a hand-bumped row count.
@@ -208,13 +205,20 @@ class RegenerateSetpointReadings(unittest.TestCase):
         spec = importlib.util.spec_from_file_location("regenerate_setpoint_readings", script)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        header = "| Row | Sensor | Band | Today (generated) |\n|---|---|---|---|\n"
-        body = "".join(f"| {name} | sensor | band | old |\n" for name in table_rows)
-        skill = Path(tempfile.mkdtemp()) / "SKILL.md"
-        skill.write_text("# Skill\n\n## 2. Setpoint\n\n" + header + body + "\n### 3. Sensors\n\ntail\n")
+        header = "| Row | Sensor | Band |\n|---|---|---|\n"
+        body = "".join(f"| {name} | sensor | band |\n" for name in table_rows)
+        work = Path(tempfile.mkdtemp())
+        skill = work / "SKILL.md"
+        skill_text = "# Skill\n\n## 2. Setpoint\n\n" + header + body + "\n### 3. Sensors\n\ntail\n"
+        skill.write_text(skill_text)
+        out = work / "readings.md"
         envelope = {"signals": {"rows": [{"row": name, "reading": 1, "in_band": True} for name in envelope_rows]}}
-        module.rewrite(skill, envelope, "2026-09-10")
-        return skill.read_text()
+        module.rewrite(skill, envelope, "2026-09-10", out)
+        self.assertEqual(skill_text, skill.read_text(), "the skill must not carry generated readings")
+        first = out.read_text()
+        module.rewrite(skill, envelope, "2026-09-10", out)
+        self.assertEqual(first, out.read_text(), "regeneration must be byte-stable")
+        return first
 
     def test_any_row_count_regenerates_when_table_and_envelope_agree(self):
         names = [f"row-{i}" for i in range(21)]
@@ -227,3 +231,7 @@ class RegenerateSetpointReadings(unittest.TestCase):
     def test_a_row_the_envelope_no_longer_reports_is_refused(self):
         with self.assertRaisesRegex(ValueError, "envelope does not report skill setpoint rows: row-gone"):
             self.regenerate(["row-a", "row-gone"], ["row-a"])
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -3,10 +3,6 @@
 package capabilities
 
 import (
-	"context"
-	"encoding/json"
-	"os/exec"
-	"strings"
 	"time"
 
 	capabilityregistry "github.com/vrooli/vrooli/packages/capability-registry-go"
@@ -15,13 +11,9 @@ import (
 type (
 	Def      = capabilityregistry.Def
 	Registry = capabilityregistry.Registry
-	Status   = capabilityregistry.Status
 )
 
 const (
-	DependencyScenario      = capabilityregistry.DependencyScenario
-	StatusAvailable         = capabilityregistry.StatusAvailable
-	StatusUnavailable       = capabilityregistry.StatusUnavailable
 	ActionKindScenarioStart = capabilityregistry.ActionKindScenarioStart
 )
 
@@ -37,34 +29,12 @@ var Known = []Def{
 	},
 }
 
-type ScenarioChecker struct{ Scenario string }
-
-func (c ScenarioChecker) Check(context.Context) (capabilityregistry.Status, string) {
-	scenario := c.Scenario
-	if scenario == "" {
-		scenario = "audio-tools"
-	}
-	output, err := exec.Command("vrooli", "scenario", "status", scenario, "--json").Output()
-	if err != nil {
-		return capabilityregistry.StatusUnavailable, scenario + " is unavailable; start it with the operator action"
-	}
-	var payload struct {
-		Scenario struct {
-			Status string `json:"status"`
-		} `json:"scenario"`
-	}
-	if err := json.Unmarshal(output, &payload); err != nil {
-		return capabilityregistry.StatusUnavailable, "audio-tools status was not valid JSON"
-	}
-	if strings.EqualFold(payload.Scenario.Status, "running") || strings.EqualFold(payload.Scenario.Status, "healthy") {
-		return capabilityregistry.StatusAvailable, scenario + " is healthy"
-	}
-	return capabilityregistry.StatusUnavailable, scenario + " is not running; start it with the operator action"
-}
-
 func NewRegistry() *Registry {
-	return capabilityregistry.New(Known, map[string]capabilityregistry.Checker{
-		"audio-tools":   ScenarioChecker{Scenario: "audio-tools"},
-		"vrooli-events": ScenarioChecker{Scenario: "vrooli-events"},
-	}, 5*time.Second)
+	checkers := make(map[string]capabilityregistry.Checker)
+	for _, def := range Known {
+		if def.DependencyKind == capabilityregistry.DependencyScenario && def.DependencySlug != "" {
+			checkers[def.ID] = capabilityregistry.ScenarioStatusChecker{Scenario: def.DependencySlug}
+		}
+	}
+	return capabilityregistry.New(Known, checkers, 5*time.Second)
 }

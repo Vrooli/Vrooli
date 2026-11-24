@@ -16,14 +16,7 @@ import json
 
 # ---- inputs: the caller binds a dict named `inputs` before this source; contract defaults otherwise
 inputs = program.inputs()
-requests = inputs["requests"] if "requests" in inputs else [{
-    "owner": "development-toolchain-validator",
-    "workflow_key": "development-toolchain-validator/skill-experiment-audit",
-    "input": {
-        "experiment": {"name": "watch-set-default", "objective": "Check that a bounded delegated audit returns structured evidence."},
-        "assignments": [{"id": "sample", "token": "delegated runtime smoke"}],
-    },
-}]
+requests = inputs["requests"] if "requests" in inputs else []
 labels = inputs["labels"] if "labels" in inputs else ["succeeded", "failed", "needs-review"]
 wait_seconds = min(int(inputs.get("wait_seconds", 120)), 300)
 
@@ -52,7 +45,7 @@ def refine_start(exc, status, klass):
 # ---- state machine ---------------------------------------------------------------
 def step_validate():  # VALIDATE · no bridge call
     if not isinstance(requests, list) or not requests:
-        return fail("failed", "invalid_input", "requests must be a non-empty list", "validate")
+        return fail("failed", "invalid_input", "requests must be a non-empty list (no default workflow is bundled)", "validate")
     for i, req in enumerate(requests):
         if not all(k in req for k in ("owner", "workflow_key", "input")):
             return fail("failed", "invalid_input", f"requests[{i}] lacks owner, workflow_key, or input", "validate")
@@ -93,15 +86,18 @@ def step_classify():  # CLASSIFY: retain original run indices through collection
     envelope["phase"] = "classify"
     collected = [(index, output) for index, output in enumerate(work["outputs"]) if output is not None]
     texts = [json.dumps(output, default=str)[:2000] for _, output in collected]
-    try:
-        child = lib.ai_gateway.classify_batch(
-            corpus=texts, labels=labels,
-            instruction="Label the outcome of this delegated run from its collected output.")
-        result = child.head(1)[0]
-    except Exception as exc:
-        status, klass = program.classify(exc)
-        return fail(status, klass, exc, "classify")
+    child = lib.ai_gateway.classify_batch(
+        corpus=texts, labels=labels,
+        instruction="Label the outcome of this delegated run from its collected output.")
+    result = program.child_envelope(child, invalid_class="invalid_response", where="classify")
     signals = result["signals"]
+    if not isinstance(signals.get("results"), list) or not isinstance(signals.get("by_label"), dict):
+        envelope["status"] = "failed"
+        envelope["errors"].extend(result["errors"])
+        if not any(issue.get("class") in ("invalid_response", "missing_result") for issue in result["errors"]):
+            envelope["errors"].append({"class": "invalid_response", "detail": "AI Gateway returned malformed classification signals", "where": "classify"})
+        envelope["evidence"].append({"program": "ai-gateway.classify-batch", "artifact": child.meta()})
+        return "report"
     for item in signals["results"]:
         envelope["signals"]["runs"].append({"index": collected[item["index"]][0],
             "label": item["label"], "validated": item["validated"], "error": item["error"]})

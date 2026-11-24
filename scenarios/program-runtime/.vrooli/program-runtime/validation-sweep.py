@@ -10,8 +10,6 @@ RECORDED run only; it never starts a validation run.
 Phases: validate -> collect -> classify -> report.
 """
 
-import json
-
 inputs = program.inputs()
 
 envelope = {
@@ -144,7 +142,7 @@ def step_classify():  # CLASSIFY · deterministic labels, no inference
 
 def step_report():  # REPORT
     envelope["phase"] = "report"
-    print(json.dumps(envelope, allow_nan=False, separators=(",", ":")))
+    program.report(envelope)
     return None
 
 

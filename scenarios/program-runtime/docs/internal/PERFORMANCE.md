@@ -3,7 +3,6 @@
 This document records performance budgets, current measurements, known
 constraints, and regression procedures.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

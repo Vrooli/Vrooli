@@ -18,6 +18,7 @@ try:
 except ImportError:  # The kernel also imports host modules as top-level modules.
     from bridge_transport import open_bridge_request
 from contracts import resolve_inputs, _json_copy
+from program_helper import BindingError, validate_output_schema
 
 ACTIVE_TASK = contextvars.ContextVar("program_runtime_task", default=None)
 
@@ -50,6 +51,21 @@ def path_value(value, path):
             return None
         value = value.get(key)
     return value
+
+
+def _validate_learning_measurements(measurements):
+    """Validate the independently admitted finish payload before durable delivery."""
+    for name in ("tool_round_trips", "visual_reasoning_calls", "assertions_required", "assertions_completed"):
+        if name in measurements and (type(measurements[name]) is not int or not 0 <= measurements[name] <= 100000):
+            raise ValueError(name + " must be an int in 0..100000")
+    if "reused_workflow" in measurements and type(measurements["reused_workflow"]) is not bool:
+        raise ValueError("reused_workflow must be a bool")
+    if "first_action_at" in measurements and (not isinstance(measurements["first_action_at"], str)
+            or not measurements["first_action_at"].strip()):
+        raise ValueError("first_action_at must be an RFC3339 timestamp")
+    if ("assertions_required" in measurements and "assertions_completed" in measurements
+            and measurements["assertions_completed"] > measurements["assertions_required"]):
+        raise ValueError("assertions_completed must be less than or equal to assertions_required")
 
 
 class Tasks:
@@ -253,8 +269,10 @@ class Tasks:
                 attempt["recall_status"] = "matched"
         measurements = path_value(result, "signals.learning.measurements") or {}
         if not isinstance(measurements, dict) or set(measurements) - {
-                "first_action_at", "tool_round_trips", "visual_reasoning_calls", "reused_workflow"}:
+                "first_action_at", "tool_round_trips", "visual_reasoning_calls", "reused_workflow",
+                "assertions_required", "assertions_completed"}:
             raise ValueError("unknown learning measurement; supply only observed effort or reuse")
+        _validate_learning_measurements(measurements)
         # Omission means unknown. The runtime never substitutes elapsed execution
         # time for first action or nested binding counts for outer-agent effort.
         attempt.update(_json_copy(measurements))
@@ -294,8 +312,24 @@ class Tasks:
                 result = self.owner._execute_library_source(spec, (), inputs, _task_root=True).head(1)[0]
             except Exception as exc:
                 # An exception cannot establish whether an effect occurred.
-                result = {"status": "failed", "signals": {"outcome": "unknown"},
-                          "errors": [{"class": "domain_interrupted", "detail": str(exc)[:240]}], "evidence": []}
+                if isinstance(exc, BindingError):
+                    # Keep typed runtime contract failures visible through the
+                    # exactly-once checkpoint. Replaying this attempt must not
+                    # hide a schema failure behind a generic interruption.
+                    declaration = spec.get("declaration") or {}
+                    identity = str(declaration.get("name") or operation)
+                    output_contract = declaration.get("outputs") or {}
+                    status_enum = (output_contract.get("status") or {}).get("enum") or []
+                    phase_enum = (output_contract.get("phase") or {}).get("enum") or []
+                    result = {"program": identity, "version": str(declaration.get("version", "1")),
+                              "status": exc.status if exc.status in status_enum else "failed",
+                              "phase": "report" if "report" in phase_enum else (phase_enum[0] if phase_enum else "report"),
+                              "inputs": resolve_inputs(declaration, inputs), "signals": {"outcome": "unknown"},
+                              "errors": [{"class": exc.klass, "detail": exc.detail[:240],
+                                          "where": exc.binding_id or "execute"}], "evidence": []}
+                else:
+                    result = {"status": "failed", "signals": {"outcome": "unknown"},
+                              "errors": [{"class": "domain_interrupted", "detail": str(exc)[:240]}], "evidence": []}
             completed = self.finish(attempt_id=record["attempt_id"], result=result,
                                     resume_token=record.get("resume_token", "")).head(1)[0]
             return self._result(completed, spec)
@@ -323,6 +357,14 @@ class Tasks:
             guidance="Retrieved suggestions do not imply adoption. Inspect this attempt for full advice; use explicit decisions and evidence when applying it.")
         if spec is not None and spec.get("digest") and record.get("digest") == spec.get("digest"):
             metadata = library_result_metadata(spec)
+            declaration = spec.get("declaration") or {}
+            schema = declaration.get("_runtime_output_schema")
+            if declaration.get("output_schema") and isinstance(schema, dict):
+                issues = validate_output_schema(record.get("result"), schema)
+                validation = {"state": "mismatch", "reason": "output_schema_mismatch"} if issues else {"state": "validated"}
+                if issues:
+                    validation["detail"] = "; ".join(issues[:4])[:240]
+                metadata["output_schema_validation"] = validation
         else:
             # A missing or mismatched artifact cannot establish which contract
             # governed a retained result. Never borrow the current declaration.

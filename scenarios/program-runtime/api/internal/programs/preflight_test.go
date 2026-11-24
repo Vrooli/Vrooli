@@ -2,6 +2,7 @@ package programs
 
 import (
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -123,18 +124,9 @@ func TestResolveSourceAcceptsLocallyBoundNames(t *testing.T) {
 
 func TestDeclaredNamesReturnsPersistentModuleBindings(t *testing.T) {
 	names := DeclaredNames("prior_result = {'value': 'reused'}\ndef helper():\n    return prior_result\n", analyzerPath())
-	if !containsName(names, "prior_result") || !containsName(names, "helper") {
+	if !slices.Contains(names, "prior_result") || !slices.Contains(names, "helper") {
 		t.Fatalf("expected persistent module bindings, got %v", names)
 	}
-}
-
-func containsName(names []string, want string) bool {
-	for _, name := range names {
-		if name == want {
-			return true
-		}
-	}
-	return false
 }
 
 // TestResolveSourceAcceptsWithheldBuiltins guards the second half of the same
@@ -261,17 +253,6 @@ func TestOnlyUnresolvedCapabilitiesReachTheLedger(t *testing.T) {
 	}
 	if recorded != 1 {
 		t.Fatalf("expected exactly one recordable capability miss, got %d", recorded)
-	}
-}
-
-func TestLocalHandleNamesAreNotCapabilityNames(t *testing.T) {
-	for _, name := range []string{"handle1", "handle2", "handle_one", "prior_result", "data_store", "left_handle", "right_handle"} {
-		if looksLikeCapabilityName(name) {
-			t.Fatalf("local name %q must not be admitted as an unresolved capability", name)
-		}
-	}
-	if !looksLikeCapabilityName("test_geni") {
-		t.Fatal("capability-shaped name test_geni must remain recordable")
 	}
 }
 

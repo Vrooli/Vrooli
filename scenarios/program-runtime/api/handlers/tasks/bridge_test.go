@@ -49,6 +49,25 @@ func TestTaskRequestPreservesDomainResultNumbers(t *testing.T) {
 	require.NotContains(t, string(encoded), "secret")
 }
 
+func TestTaskBridgeRejectsTrailingJSON(t *testing.T) {
+	bridge := &Bridge{Sessions: sessions.NewManager(sessions.Options{})}
+	for _, tc := range []struct {
+		name, body string
+		want       int
+	}{
+		{name: "whitespace", body: `{"session_id":"unknown"}` + " \n\t", want: http.StatusForbidden},
+		{name: "second object", body: `{"session_id":"unknown"} {"program_id":"second-object"}`, want: http.StatusBadRequest},
+		{name: "trailing token", body: `{"session_id":"unknown"} garbage`, want: http.StatusBadRequest},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/internal/program-runtime/tasks/resolve", strings.NewReader(tc.body))
+			response := httptest.NewRecorder()
+			bridge.ServeHTTP(response, req)
+			require.Equal(t, tc.want, response.Code, response.Body.String())
+		})
+	}
+}
+
 func TestTaskBridgeRequiresTheOwningVerifiedRun(t *testing.T) {
 	ctx := context.Background()
 	db := dbtest.NewSQLite(t)

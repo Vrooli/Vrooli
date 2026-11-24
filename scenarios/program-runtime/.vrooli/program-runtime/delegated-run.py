@@ -14,14 +14,7 @@ workflow_rejected, refined from binding_error at the call site; program.classify
 import json
 
 inputs = program.inputs()
-request = inputs["request"] if "request" in inputs else {
-    "owner": "development-toolchain-validator",
-    "workflow_key": "development-toolchain-validator/skill-experiment-audit",
-    "input": {
-        "experiment": {"name": "program-runtime-example", "objective": "Check that a bounded delegated audit returns structured evidence."},
-        "assignments": [{"id": "sample", "token": "delegated runtime smoke"}],
-    },
-}
+request = inputs["request"] if "request" in inputs else {}
 wait_seconds = min(int(inputs.get("wait_seconds", 30)), 300)
 
 envelope = {
@@ -45,7 +38,7 @@ def refine_start(exc, status, klass):
 
 def step_validate():  # VALIDATE
     if not all(k in request for k in ("owner", "workflow_key", "input")):
-        return fail("failed", "invalid_input", "request needs owner, workflow_key, and input", "validate")
+        return fail("failed", "invalid_input", "request needs owner, workflow_key, and input (no default workflow is bundled)", "validate")
     return "delegate"
 
 

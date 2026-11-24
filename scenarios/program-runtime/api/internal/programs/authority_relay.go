@@ -117,6 +117,42 @@ var taskAuthorityReadOnlyRoutes = map[string]struct{}{
 	"/internal/program-runtime/tasks/get":                    {},
 }
 
+var browserBindingAuthorityIDs = map[string]struct{}{
+	"browser-automation-studio/session/open":          {},
+	"browser-automation-studio/session/observe":       {},
+	"browser-automation-studio/session/act":           {},
+	"browser-automation-studio/session/attach":        {},
+	"browser-automation-studio/session/read-trace":    {},
+	"browser-automation-studio/session/promote-trace": {},
+	"browser-automation-studio/session/close":         {},
+	"browser-automation-studio/task/run-task":         {},
+	"browser-automation-studio/task/replay-flow":      {},
+}
+
+func bindingAuthorityAllowed(id string) bool {
+	if id == "web-console/session/native-thread-state" || id == "web-console/session/native-usage" {
+		return true
+	}
+	_, ok := browserBindingAuthorityIDs[id]
+	return ok
+}
+
+func bindingAuthorityReadOnly(data []byte) bool {
+	var request struct {
+		BindingID string `json:"binding_id"`
+	}
+	if json.Unmarshal(data, &request) != nil {
+		return false
+	}
+	switch request.BindingID {
+	case "web-console/session/native-thread-state", "web-console/session/native-usage",
+		"browser-automation-studio/session/observe", "browser-automation-studio/session/read-trace":
+		return true
+	default:
+		return false
+	}
+}
+
 func strictObject(data []byte) (map[string]json.RawMessage, error) {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	open, err := decoder.Token()
@@ -284,7 +320,7 @@ func (a *authorityRelay) serve(w http.ResponseWriter, r *http.Request) {
 		}
 		if path == "/internal/program-runtime/bindings/execute" {
 			var binding string
-			if json.Unmarshal(fields["binding_id"], &binding) != nil || (binding != "web-console/session/native-thread-state" && binding != "web-console/session/native-usage") {
+			if json.Unmarshal(fields["binding_id"], &binding) != nil || !bindingAuthorityAllowed(binding) {
 				http.Error(w, "binding is not allowed by this relay", http.StatusForbidden)
 				return
 			}
@@ -301,7 +337,10 @@ func (a *authorityRelay) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	uncertain := false
 	_, readOnlyTask := taskAuthorityReadOnlyRoutes[path]
-	readOnly := path == "/internal/program-runtime/bindings/execute" || readOnlyTask
+	readOnly := readOnlyTask
+	if path == "/internal/program-runtime/bindings/execute" {
+		readOnly = bindingAuthorityReadOnly(body)
+	}
 	defer func() { a.endFlight(uncertain) }()
 	request.Header.Set("Content-Type", r.Header.Get("Content-Type"))
 	if database.IsTestMode(a.owner) {

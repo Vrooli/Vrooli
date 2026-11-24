@@ -9,6 +9,7 @@ envelope = program.envelope('program-runtime.local-work-snapshot', '2')
 STATES = ('pending', 'starting', 'running', 'needs_review', 'parked', 'unknown', 'complete', 'failed', 'cancelled')
 SAMPLES = ('teams', 'objectives', 'swarm_goals', 'research_topics', 'research_runs', 'program_usage')
 DEFAULTS = {'research_root': '', 'row_limit': 4, 'run_statuses': list(STATES[:7]), 'run_offsets': {}, 'sample_offsets': {}, 'effort_page_token': '', 'usage_window_days': 7, 'team_ids': [], 'team_task_offsets': {}}
+RESEARCH_WORKSPACE_REVIEW_DIGEST = '7370a5f43c74f72277829a370a51221396e75f9a92a24eb1aa6f23cd41d37f97'
 config = {}
 
 
@@ -324,7 +325,8 @@ def research_read():
     child_item = source('research_workspace', 'program-runtime.research-workspace-review', {'research_root': root})
     try:
         h = lib.program_runtime.research_workspace_review(research_root=root)
-        child = program.child_envelope(h, invalid_class='invalid_response', where='collect:research_workspace')
+        child = program.child_envelope(h, invalid_class='invalid_response', where='collect:research_workspace',
+                                       expected_digest=RESEARCH_WORKSPACE_REVIEW_DIGEST)
         child_item['status'] = child['status']
         child_item['query_complete'] = child['status'] == 'ok'
         child_item['signals'] = bounded(child['signals'])

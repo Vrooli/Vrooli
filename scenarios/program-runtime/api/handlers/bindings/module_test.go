@@ -2,6 +2,7 @@ package bindings
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -19,8 +20,11 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	dbtest "github.com/vrooli/api-core/databasetest"
 	repocontract "github.com/vrooli/repo-contract-go"
+	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func TestEndpointsAreDeclared(t *testing.T) {
@@ -121,6 +125,38 @@ func TestExactReviewedIntentCandidateBeatsLexicalTie(t *testing.T) {
 	competitor := &bindingsv1.Binding{Id: "architecture-cartographer/search/query"}
 	got := exactReviewedIntentCandidate("search the project by intent", []*bindingsv1.Binding{competitor, preferred})
 	require.Equal(t, preferred.GetId(), got.GetId())
+}
+
+func TestJudgeIntentCarriesConfidentialLocalOnlyCallerContract(t *testing.T) {
+	var received inferencev1.RunRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("read Gateway request: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(body, &received); err != nil {
+			t.Errorf("decode Gateway request: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"valueJson":"{\"binding_id\":\"search-hub/query/query\",\"confidence\":\"high\"}"}`))
+	}))
+	defer server.Close()
+
+	registry := liveRegistry(t)
+	registry.SetReachabilityResolver(func(context.Context, string) (string, error) { return server.URL, nil })
+	owner := &service{registry: registry}
+	selected, confidence, err := owner.judgeIntent(t.Context(), "search for a binding", []*bindingsv1.Binding{{Id: "search-hub/query/query"}})
+	require.NoError(t, err)
+	require.Equal(t, "search-hub/query/query", selected.GetId())
+	require.Equal(t, "high", confidence)
+	require.Equal(t, sharedv1.Profile_PROFILE_LOCAL_ONLY, received.GetProfile())
+	require.Equal(t, sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL, received.GetPrivacyClass())
+	require.Equal(t, "program_runtime.binding_discovery.intent_and_candidate_metadata", received.GetPrivacyProvenance())
 }
 
 type collectDelegatorFixture struct{}

@@ -705,7 +705,7 @@ func TestFragmentCachePersistsVerifiedTraceWithoutCountingReads(t *testing.T) {
 	s := NewStore(taskDB(t, filepath.Join(t.TempDir(), "fragments.db")))
 	_, err := s.PutFragment(ctx, Fragment{StepKey: "program|key|find-account", Fragment: "def step(inputs, bindings):\n    return {'id': inputs['id']}", SourceProgramID: "program-1", Source: "learn.act('find-account')", StepName: "find-account", TraceInputs: map[string]any{"id": "42"}, TraceOutput: map[string]any{"id": "42"}}, 1, 0)
 	require.NoError(t, err)
-	got, err := s.GetFragment(ctx, "program|key|find-account")
+	got, err := s.BestFragment(ctx, "program|key|find-account")
 	require.NoError(t, err)
 	require.Equal(t, 1, got.Verified)
 	require.Equal(t, 0, got.CachedRuns)
@@ -715,7 +715,7 @@ func TestFragmentCachePersistsVerifiedTraceWithoutCountingReads(t *testing.T) {
 	require.Len(t, rows, 1)
 	_, err = s.PutFragment(ctx, Fragment{StepKey: got.StepKey, Fragment: got.Fragment, SourceProgramID: got.SourceProgramID}, 1, 1)
 	require.NoError(t, err)
-	_, err = s.GetFragment(ctx, got.StepKey)
+	_, err = s.BestFragment(ctx, got.StepKey)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 

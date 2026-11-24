@@ -113,10 +113,6 @@ func BindingCorpusHandler(registry *bindings.Registry) http.Handler {
 	})
 }
 
-func LibraryCorpusHandler(repo *library.Repository, index *contracts.Index, roots ...string) http.Handler {
-	return LibraryCorpusHandlerWithUsage(repo, index, nil, roots...)
-}
-
 // LibraryCorpusHandlerWithUsage adds a generic, provider-owned usage field to
 // each result. The Search Hub adapter carries it through metadata, so ranking
 // and CLI consumers can distinguish a proven callable from an unexercised one.

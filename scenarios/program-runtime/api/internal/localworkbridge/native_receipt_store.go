@@ -8,9 +8,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"sync"
 	"time"
 
 	coredb "github.com/vrooli/api-core/database"
+	"modernc.org/sqlite"
 )
 
 //go:embed native_receipts.sql
@@ -26,7 +28,12 @@ func (NativeReceiptSchema) Schema() string { return nativeReceiptSchema }
 // supplied SQLite database. The deployment owner must isolate this database
 // from all worker-writable state. This constructor performs no I/O, chmod, path
 // discovery, routing or automatic production migration.
-type NativeReceiptStore struct{ db *sql.DB }
+type NativeReceiptStore struct {
+	db *sql.DB
+
+	schemaMu    sync.Mutex
+	schemaReady bool
+}
 
 func NewNativeReceiptStore(db *sql.DB) *NativeReceiptStore { return &NativeReceiptStore{db: db} }
 
@@ -39,9 +46,18 @@ func (s *NativeReceiptStore) begin(ctx context.Context, digest string) (*sql.Tx,
 	if s == nil || s.db == nil || ctx.Err() != nil {
 		return nil, ErrSourceAuthority
 	}
-	if err := coredb.EnsureSchemas(ctx, s.db, NativeReceiptSchema{}); err != nil {
+	if err := s.ensureSchema(ctx); err != nil {
 		return nil, err
 	}
+	for attempt := 0; ; attempt++ {
+		tx, err := s.beginOnce(ctx, digest)
+		if err == nil || !waitNativeSQLiteWriteLock(ctx, err, attempt) {
+			return tx, err
+		}
+	}
+}
+
+func (s *NativeReceiptStore) beginOnce(ctx context.Context, digest string) (*sql.Tx, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -59,6 +75,54 @@ func (s *NativeReceiptStore) begin(ctx context.Context, digest string) (*sql.Tx,
 		return fail(ErrSourceAuthority)
 	}
 	return tx, nil
+}
+
+func waitNativeSQLiteWriteLock(ctx context.Context, err error, attempt int) bool {
+	var sqliteErr *sqlite.Error
+	if !errors.As(err, &sqliteErr) || ctx.Err() != nil || attempt >= 8 {
+		return false
+	}
+	code := sqliteErr.Code() & 0xff // Include extended BUSY/LOCKED result codes.
+	if code != 5 && code != 6 {
+		return false
+	}
+	delay := 5 * time.Millisecond << attempt
+	if delay > 200*time.Millisecond {
+		delay = 200 * time.Millisecond
+	}
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return true
+	}
+}
+
+// ensureSchema keeps schema migration and drift repair out of each receipt
+// transaction. A store is tied to one database handle and its schema is
+// forward-only; a fresh store after restart validates again. Successful setup
+// is cached, while a canceled or failed attempt remains retryable.
+func (s *NativeReceiptStore) ensureSchema(ctx context.Context) error {
+	if s == nil || s.db == nil || ctx == nil || ctx.Err() != nil {
+		return ErrSourceAuthority
+	}
+	s.schemaMu.Lock()
+	defer s.schemaMu.Unlock()
+	if s.schemaReady {
+		return nil
+	}
+	for attempt := 0; ; attempt++ {
+		err := coredb.EnsureSchemas(ctx, s.db, NativeReceiptSchema{})
+		if err == nil {
+			s.schemaReady = true
+			return nil
+		}
+		if !waitNativeSQLiteWriteLock(ctx, err, attempt) {
+			return err
+		}
+	}
 }
 func (s *NativeReceiptStore) accept(ctx context.Context, digest string, r nativeReceipt) error {
 	tx, err := s.begin(ctx, digest)

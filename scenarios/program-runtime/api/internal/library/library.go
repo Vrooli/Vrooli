@@ -35,7 +35,6 @@ var (
 	ErrSourceProtected = errors.New("program source contains protected resume authority")
 	ErrSourceFailed    = errors.New("only a succeeded program may be promoted")
 	ErrNameRequired    = errors.New("library name is required")
-	ErrVersionRequired = errors.New("library version is required")
 )
 
 type Repository struct{ db SQLExecutor }
@@ -226,22 +225,6 @@ func (r *Repository) PromoteByID(ctx context.Context, programID, name, descripti
 	}
 	if protected {
 		return nil, ErrSourceProtected
-	}
-	program := &programsv1.Program{Id: programID, Source: source, Status: parseProgramStatus(status)}
-	return r.Promote(ctx, program, name, description, promotedBy, reason, coverage, declaredInputs, declaredOutputs, now)
-}
-
-// PromoteSource promotes a reviewed source replacement while retaining the
-// successful execution identity used to derive its binding shape. It is the
-// narrow library seam used by fragment crystallization; callers still pass
-// through the ordinary versioned Promote path.
-func (r *Repository) PromoteSource(ctx context.Context, programID, source, name, description, promotedBy, reason, coverage string, declaredInputs, declaredOutputs []string, now time.Time) (*sharedv1.LibraryProgram, error) {
-	var status string
-	if err := r.db.QueryRowContext(ctx, `SELECT status FROM programs WHERE id=?`, strings.TrimSpace(programID)).Scan(&status); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
-		}
-		return nil, fmt.Errorf("read source program status: %w", err)
 	}
 	program := &programsv1.Program{Id: programID, Source: source, Status: parseProgramStatus(status)}
 	return r.Promote(ctx, program, name, description, promotedBy, reason, coverage, declaredInputs, declaredOutputs, now)

@@ -40,6 +40,36 @@ def test_public_scenario_namespace_and_discovery():
     assert "bridge is not configured" in discovered["stdout"]
 
 
+def test_browser_alias_keeps_broker_id_and_exposes_documented_run_task_root():
+    kernel = SessionKernel([
+        {"id": "browser-automation-studio/session/open", "scenario": "browser-automation-studio", "namespace": "browser", "group": "session", "command": "open", "effect": "write"},
+        {"id": "browser-automation-studio/task/run-task", "scenario": "browser-automation-studio", "namespace": "browser", "group": "", "command": "run_task", "effect": "write"},
+    ], session_id="session-1", bridge_url="http://127.0.0.1:1/internal/program-runtime/bindings/execute")
+    calls = []
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b'{"completed":true}'
+
+    def urlopen(request, timeout=None):
+        calls.append(json.loads(request.data.decode()))
+        return Response()
+
+    with patch("host.engine._open_bridge_request", side_effect=urlopen):
+        result = kernel.execute("browser.session.open(permission_ref='observe')\nbrowser.run_task(session_id='session-1', instructions=[])")
+    assert result["ok"]
+    assert [call["binding_id"] for call in calls] == [
+        "browser-automation-studio/session/open",
+        "browser-automation-studio/task/run-task",
+    ]
+
+
 def test_reachable_reports_scenario_reason_and_blocks_unreachable_binding():
     kernel = SessionKernel([
         {"id": "offline/health/status", "scenario": "offline", "group": "health", "command": "status", "effect": "read", "reachable": False, "reachability_reason": "scenario API is not running"},

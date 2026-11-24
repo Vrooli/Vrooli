@@ -13,6 +13,7 @@
         "type": "Response",
         "properties": {
           "dependencies": "object",
+          "metrics": "object",
           "readiness": "boolean",
           "status": "string"
         }
@@ -287,6 +288,22 @@
       "summary": "Run one declared contract in a fresh bounded session.",
       "description": "",
       "category": "library"
+    },
+    {
+      "id": "optimization_submit",
+      "path": "/vrooli.program_runtime.v1.optimization.OptimizationService/Submit",
+      "method": "POST",
+      "summary": "Submit or resume a durable governed optimization run.",
+      "description": "",
+      "category": "optimization"
+    },
+    {
+      "id": "optimization_wait",
+      "path": "/vrooli.program_runtime.v1.optimization.OptimizationService/Wait",
+      "method": "POST",
+      "summary": "Wait once for an optimizer stage or terminal receipt.",
+      "description": "",
+      "category": "optimization"
     },
     {
       "id": "sessions_create",

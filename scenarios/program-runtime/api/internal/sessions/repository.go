@@ -8,16 +8,13 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/vrooli/api-core/database"
 )
 
-// SQLExecutor is the narrow database seam used by the sessions repository.
-// Both *sql.DB and the routed test/production handles can satisfy it.
-type SQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
-}
+// SQLExecutor preserves the session package's shared repository contract name
+// while API Core owns its transaction-capable method set.
+type SQLExecutor = database.SQLTxExecutor
 
 type Repository interface {
 	Create(context.Context, *Session) error
@@ -59,9 +56,9 @@ var (
 	ErrDelegationNotOwned = errors.New("delegation does not belong to session")
 )
 
-type sqliteRepository struct{ db SQLExecutor }
+type sqliteRepository struct{ db database.SQLTxExecutor }
 
-func NewRepository(db SQLExecutor) Repository { return &sqliteRepository{db: db} }
+func NewRepository(db database.SQLTxExecutor) Repository { return &sqliteRepository{db: db} }
 
 func (r *sqliteRepository) Create(ctx context.Context, s *Session) error {
 	return r.create(ctx, s, false)

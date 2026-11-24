@@ -1,5 +1,4 @@
 """One bounded read of a selected program and its owning usage skill."""
-import json
 MAX_OWNER_SKILL_BYTES = 40_000
 inputs = program.inputs()
 envelope = {"program": "program-runtime.prepare-operation", "version": "1", "status": "failed",
@@ -40,4 +39,4 @@ try:
 except Exception as exc:
     envelope["status"] = "partial" if envelope["signals"] else "unavailable"
     envelope["errors"].append({"class": "read_unavailable", "where": "collect", "detail": str(exc)[:240]})
-print(json.dumps(envelope, ensure_ascii=False))
+program.report(envelope)

@@ -78,9 +78,10 @@ type BindingSpec struct {
 	RowFieldCandidates []string `json:"row_field_candidates,omitempty"`
 }
 
-// PrivateBindingRunner injects exact-contract private callables into one
-// declared execution. Implementations must keep them out of shared sessions.
-type PrivateBindingRunner interface {
+// DeclaredBindingRunner gives one declared execution exactly its pinned
+// contract bindings. Implementations must not merge them with the global
+// binding projection or reuse a kernel with broader authority.
+type DeclaredBindingRunner interface {
 	ExecuteWithMetadataAndLimitsAndCallerAndBindings(context.Context, string, string, string, string, Caller, bool, ExecutionLimits, []BindingSpec) (Result, error)
 }
 
@@ -167,15 +168,6 @@ func NewSubprocessRunnerWithBindings(path string, bindings []BindingSpec, bridge
 	return &SubprocessRunner{path: path, bindings: append([]BindingSpec(nil), bindings...), bridgeURL: strings.TrimSpace(bridgeURL), agentBridgeURL: agentURL, scratchRoot: scratchRoot, processes: make(map[string]*kernelProcess), locks: make(map[string]chan struct{}), workspaces: make(map[string]string), sessionLimits: make(map[string]ExecutionLimits)}
 }
 
-// SetBindings replaces the binding projection used by kernels created after
-// the call. A running kernel keeps the binding set it received at startup so
-// an in-flight program sees one consistent contract generation.
-func (r *SubprocessRunner) SetBindings(bindings []BindingSpec) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.bindings = append([]BindingSpec(nil), bindings...)
-}
-
 // SetBindingProvider lets the runtime refresh the kernel projection whenever a
 // new process is created, without polling or restarting existing programs.
 func (r *SubprocessRunner) SetBindingProvider(provider func() []BindingSpec) {
@@ -225,20 +217,25 @@ func (r *SubprocessRunner) lockFor(sessionID string) chan struct{} {
 	return lock
 }
 
-func (r *SubprocessRunner) process(sessionID, relayPath string, relayUnavailable bool, privateBindings []BindingSpec) (*kernelProcess, error) {
+func (r *SubprocessRunner) process(sessionID, relayPath string, relayUnavailable bool, declaredBindings []BindingSpec, restricted bool) (*kernelProcess, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if p := r.processes[sessionID]; p != nil {
+		if restricted {
+			return nil, errors.New("declared execution cannot reuse a kernel with an earlier binding scope")
+		}
 		return p, nil
 	}
-	if r.bindingProvider != nil {
+	if !restricted && r.bindingProvider != nil {
 		r.bindings = append([]BindingSpec(nil), r.bindingProvider()...)
 	}
 	if r.libraryProvider != nil {
 		r.libraries = append([]LibrarySpec(nil), r.libraryProvider()...)
 	}
 	bindings := append([]BindingSpec(nil), r.bindings...)
-	bindings = append(bindings, privateBindings...)
+	if restricted {
+		bindings = append([]BindingSpec(nil), declaredBindings...)
+	}
 	python, err := pythonInterpreter()
 	if err != nil {
 		return nil, err
@@ -392,7 +389,7 @@ func (r *SubprocessRunner) ExecuteWithMetadataAndLimitsAndCaller(ctx context.Con
 }
 
 func (r *SubprocessRunner) ExecuteWithMetadataAndLimitsAndCallerAndBindings(ctx context.Context, sessionID, programID, provenance, source string, caller Caller, includeMaterialized bool, limits ExecutionLimits, privateBindings []BindingSpec) (Result, error) {
-	return r.executeKernelWithCaller(ctx, sessionID, programID, provenance, source, caller, includeMaterialized, &limits, nil, privateBindings)
+	return r.executeKernelWithCaller(ctx, sessionID, programID, provenance, source, caller, includeMaterialized, &limits, nil, privateBindings, true)
 }
 
 func (r *SubprocessRunner) ExecuteWithMetadataAndLimitsAndProgress(ctx context.Context, sessionID, programID, provenance, source string, includeMaterialized bool, limits ExecutionLimits, progress func(Result)) (Result, error) {
@@ -400,7 +397,7 @@ func (r *SubprocessRunner) ExecuteWithMetadataAndLimitsAndProgress(ctx context.C
 }
 
 func (r *SubprocessRunner) executeWithProgressAndCaller(ctx context.Context, sessionID, programID, provenance, source string, caller Caller, includeMaterialized bool, limits ExecutionLimits, progress func(Result)) (Result, error) {
-	return r.executeKernelWithCaller(ctx, sessionID, programID, provenance, source, caller, includeMaterialized, &limits, progress, nil)
+	return r.executeKernelWithCaller(ctx, sessionID, programID, provenance, source, caller, includeMaterialized, &limits, progress, nil, false)
 }
 
 func (r *SubprocessRunner) execute(ctx context.Context, sessionID, programID, provenance, source string, includeMaterialized bool) (Result, error) {
@@ -408,10 +405,10 @@ func (r *SubprocessRunner) execute(ctx context.Context, sessionID, programID, pr
 }
 
 func (r *SubprocessRunner) executeWithProgress(ctx context.Context, sessionID, programID, provenance, source string, includeMaterialized bool, progress func(Result)) (Result, error) {
-	return r.executeKernelWithCaller(ctx, sessionID, programID, provenance, source, Caller{}, includeMaterialized, nil, progress, nil)
+	return r.executeKernelWithCaller(ctx, sessionID, programID, provenance, source, Caller{}, includeMaterialized, nil, progress, nil, false)
 }
 
-func (r *SubprocessRunner) executeKernelWithCaller(ctx context.Context, sessionID, programID, provenance, source string, caller Caller, includeMaterialized bool, limits *ExecutionLimits, progress func(Result), privateBindings []BindingSpec) (out Result, returnErr error) {
+func (r *SubprocessRunner) executeKernelWithCaller(ctx context.Context, sessionID, programID, provenance, source string, caller Caller, includeMaterialized bool, limits *ExecutionLimits, progress func(Result), declaredBindings []BindingSpec, restricted bool) (out Result, returnErr error) {
 	lock := r.lockFor(sessionID)
 	// A queued execution owns its deadline but does not own the active kernel.
 	// Waiting must be cancellable without killing another submission's process.
@@ -465,7 +462,7 @@ func (r *SubprocessRunner) executeKernelWithCaller(ctx context.Context, sessionI
 	if relay != nil {
 		relayPath = relay.path
 	}
-	p, err := r.process(sessionID, relayPath, relayUnavailable, privateBindings)
+	p, err := r.process(sessionID, relayPath, relayUnavailable, declaredBindings, restricted)
 	if err != nil {
 		return Result{}, err
 	}

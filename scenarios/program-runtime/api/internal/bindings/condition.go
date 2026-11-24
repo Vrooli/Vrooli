@@ -284,57 +284,6 @@ func (r *Registry) servingFailureRate(ctx context.Context) int {
 	return int(float64(failed) / float64(total) * 100)
 }
 
-func conditionFor(binding interface {
-	GetId() string
-	GetScenario() string
-	GetGroup() string
-	GetCommand() string
-	GetService() string
-	GetMethod() string
-}, rows []Invocation, artifactMtime time.Time,
-) *bindingsv1.BindingCondition {
-	return conditionForWithSustained(binding, rows, rows, artifactMtime)
-}
-
-func conditionForWithFreshness(binding interface {
-	GetId() string
-	GetScenario() string
-	GetGroup() string
-	GetCommand() string
-	GetService() string
-	GetMethod() string
-}, rows, sustainedRows []Invocation, metadata freshnessMetadata,
-) *bindingsv1.BindingCondition {
-	condition := conditionForWithSustained(binding, rows, sustainedRows, metadata.generationMtime)
-	freshness := condition.Freshness
-	freshness.SourcePath = metadata.sourcePath
-	freshness.SourceMtime = formatFreshnessTime(metadata.sourceMtime)
-	freshness.GenerationMtime = formatFreshnessTime(metadata.generationMtime)
-	switch {
-	case metadata.generationMtime.IsZero():
-		freshness.Family.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED
-		freshness.Family.Reason = "freshness generation timestamp unavailable"
-		freshness.DriftStatus = freshness.Family.Status
-		freshness.DriftReason = freshness.Family.Reason
-	case metadata.sourceMtime.IsZero():
-		freshness.Family.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_UNINSTRUMENTED
-		freshness.Family.Reason = fmt.Sprintf("freshness source timestamp unavailable: %s", metadata.sourcePath)
-		freshness.DriftStatus = freshness.Family.Status
-		freshness.DriftReason = freshness.Family.Reason
-	case metadata.sourceMtime.After(metadata.generationMtime):
-		freshness.Family.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_DEGRADED
-		freshness.Family.Reason = fmt.Sprintf("freshness source newer than generation: %s source=%s generation=%s", metadata.sourcePath, formatFreshnessTime(metadata.sourceMtime), formatFreshnessTime(metadata.generationMtime))
-		freshness.DriftStatus = freshness.Family.Status
-		freshness.DriftReason = freshness.Family.Reason
-	default:
-		freshness.Family.Status = bindingsv1.ConditionStatus_CONDITION_STATUS_HEALTHY
-		freshness.Family.Reason = fmt.Sprintf("freshness generation covers %s", metadata.sourcePath)
-		freshness.DriftStatus = freshness.Family.Status
-		freshness.DriftReason = freshness.Family.Reason
-	}
-	return condition
-}
-
 func conditionForWithFreshnessAndExercise(binding interface {
 	GetId() string
 	GetScenario() string

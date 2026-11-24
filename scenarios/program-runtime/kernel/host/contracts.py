@@ -41,6 +41,8 @@ def _json_copy(value):
 def _matches_type(value, kind):
     if kind == "boolean":
         return isinstance(value, bool)
+    if kind == "null":
+        return value is None
     if kind in ("number", "integer"):
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             return False

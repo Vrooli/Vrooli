@@ -3,7 +3,7 @@
   "name": "program-runtime.typed-inference",
   "version": "3",
   "helpers": {
-    "program": "1"
+    "program": "2"
   },
   "purpose": "Classify up to 8 texts through ai-gateway.classify-batch and propagate ordered validated labels, partial failures, usage and child artifact evidence.",
   "inputs": {
@@ -29,6 +29,7 @@
     "ai-gateway is running with a provider that serves classify.fast"
   ],
   "invariants": [
+    "Composition pin: lib.ai_gateway.classify_batch must match artifact digest 0e07025e32853027f155dd4216da6f0a28a705b0c887f88fcdcf0fe35b76edd8; a mismatch is reported as invalid_response.",
     "One nested classification workflow; at most one governed batch RPC.",
     "Only validated in-set labels are counted; failed child evidence remains failed.",
     "The envelope is printed exactly once on every path."

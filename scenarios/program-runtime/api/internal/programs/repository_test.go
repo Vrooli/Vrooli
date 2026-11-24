@@ -207,6 +207,44 @@ func TestSQLiteRepositoryPortfolioStatsGroupsPercentilesAndUnattributedRows(t *t
 	require.Equal(t, programsv1.FailureCause_FAILURE_CAUSE_KERNEL_RUNTIME.String(), row.GetTopFailureCause())
 }
 
+func TestPortfolioStatsPublishesEligibleDenominatorAndCallerIdentityPartitions(t *testing.T) {
+	ctx := context.Background()
+	created := "2026-08-11T14:00:00Z"
+	fixture := []*programsv1.Program{
+		{Id: "verified", ProgramName: "demo.program", Provenance: programsv1.Provenance_PROVENANCE_AGENT, CallerRunId: "run-verified", CallerIdentityVerified: true, CreatedAt: created},
+		{Id: "absent", ProgramName: "demo.program", Provenance: programsv1.Provenance_PROVENANCE_AGENT, CreatedAt: created},
+		{Id: "unverified", ProgramName: "demo.program", Provenance: programsv1.Provenance_PROVENANCE_AGENT, CallerRunId: "claimed-run", CallerSkillId: "claimed-skill", CreatedAt: created},
+		{Id: "inconsistent", ProgramName: "demo.program", Provenance: programsv1.Provenance_PROVENANCE_AGENT, CallerIdentityVerified: true, CreatedAt: created},
+		{Id: "operator", ProgramName: "demo.program", Provenance: programsv1.Provenance_PROVENANCE_OPERATOR, CreatedAt: created},
+		{Id: "test", ProgramName: "demo.program", Provenance: programsv1.Provenance_PROVENANCE_TEST, CreatedAt: created},
+		{Id: "replay", ProgramName: "demo.program", Provenance: programsv1.Provenance_PROVENANCE_REPLAY, CreatedAt: created},
+		{Id: "unknown", ProgramName: "demo.program", CreatedAt: created},
+		{Id: "ad-hoc", Provenance: programsv1.Provenance_PROVENANCE_AGENT, CreatedAt: created},
+	}
+	for name, repo := range map[string]Repository{"sqlite": NewRepository(newProgramsTestDB(t)), "memory": newMemoryRepository()} {
+		t.Run(name, func(t *testing.T) {
+			for _, item := range fixture {
+				require.NoError(t, repo.Save(ctx, clone(item)))
+			}
+			// The selected rows are agent-only, but the public adoption denominator
+			// must still include operator runs and count every other exclusion.
+			aggregate, err := repo.PortfolioStats(ctx, PortfolioFilter{Since: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC), Until: time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC), Provenance: strconv.Itoa(int(programsv1.Provenance_PROVENANCE_AGENT))})
+			require.NoError(t, err)
+			require.EqualValues(t, 9, aggregate.PortfolioRunCount)
+			require.EqualValues(t, 5, aggregate.EligibleRunDenominator)
+			require.EqualValues(t, 1, aggregate.VerifiedAgentRuns)
+			require.EqualValues(t, 1, aggregate.AgentIdentityAbsentRuns)
+			require.EqualValues(t, 1, aggregate.AgentIdentityPresentUnverifiedRuns)
+			require.EqualValues(t, 1, aggregate.AgentIdentityVerifiedRuns)
+			require.EqualValues(t, 1, aggregate.AgentIdentityInconsistentRuns)
+			require.EqualValues(t, 1, aggregate.EligibilityExclusions["ad_hoc"])
+			require.EqualValues(t, 1, aggregate.EligibilityExclusions["test"])
+			require.EqualValues(t, 1, aggregate.EligibilityExclusions["replay"])
+			require.EqualValues(t, 1, aggregate.EligibilityExclusions["unknown_provenance"])
+		})
+	}
+}
+
 // The library search corpus ranks by usage on every Search Hub query, so the
 // usage read must agree with PortfolioStats without paying for its full scan.
 func TestSQLiteRepositoryUsageByNameMatchesPortfolioStatsRuns(t *testing.T) {

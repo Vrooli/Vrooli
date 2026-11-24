@@ -12,7 +12,6 @@ var (
 	ErrInvalidRequest   = errors.New("invalid optimization request")
 	ErrQueueFull        = errors.New("optimization queue has reached its active-run limit")
 	ErrRetryNotReady    = errors.New("optimization retry is not due yet")
-	ErrRunLeased        = errors.New("optimization stage is already running")
 	ErrNoAdapter        = errors.New("optimization target adapter is unavailable")
 	ErrOwnerUnavailable = errors.New("optimization target owner is not configured")
 )

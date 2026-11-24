@@ -67,10 +67,18 @@ type PortfolioGroup struct {
 }
 
 type PortfolioAggregate struct {
-	Groups                []PortfolioGroup
-	ProgramsExecuted      int64
-	RowsWithoutIdentity   int64
-	UnattributedAgentRuns int64
+	Groups                             []PortfolioGroup
+	ProgramsExecuted                   int64
+	RowsWithoutIdentity                int64
+	UnattributedAgentRuns              int64
+	PortfolioRunCount                  int64
+	EligibleRunDenominator             int64
+	VerifiedAgentRuns                  int64
+	AgentIdentityAbsentRuns            int64
+	AgentIdentityPresentUnverifiedRuns int64
+	AgentIdentityVerifiedRuns          int64
+	AgentIdentityInconsistentRuns      int64
+	EligibilityExclusions              map[string]int64
 }
 
 type sqliteRepository struct {
@@ -320,6 +328,46 @@ func (r *sqliteRepository) PortfolioStats(ctx context.Context, filter PortfolioF
 	}
 	aggregate.RowsWithoutIdentity = missing.Int64
 	aggregate.UnattributedAgentRuns = unattributed.Int64
+	eligibilityWhere := []string{"1=1"}
+	eligibilityArgs := make([]any, 0, 3)
+	if !filter.Since.IsZero() {
+		eligibilityWhere = append(eligibilityWhere, "created_at >= ?")
+		eligibilityArgs = append(eligibilityArgs, filter.Since.UTC().Format(time.RFC3339Nano))
+	}
+	if !filter.Until.IsZero() {
+		eligibilityWhere = append(eligibilityWhere, "created_at <= ?")
+		eligibilityArgs = append(eligibilityArgs, filter.Until.UTC().Format(time.RFC3339Nano))
+	}
+	if filter.Scenario != "" {
+		eligibilityWhere = append(eligibilityWhere, "CASE WHEN instr(program_name, '.') > 0 THEN substr(program_name, 1, instr(program_name, '.') - 1) ELSE program_name END = ?")
+		eligibilityArgs = append(eligibilityArgs, filter.Scenario)
+	}
+	eligibilityQuery := `SELECT COUNT(*),
+		SUM(CASE WHEN program_name != '' AND provenance IN ('1', '2') THEN 1 ELSE 0 END),
+		SUM(CASE WHEN program_name != '' AND provenance = '1' AND caller_identity_verified = 1 AND caller_run_id != '' THEN 1 ELSE 0 END),
+		SUM(CASE WHEN program_name != '' AND provenance = '1' AND caller_identity_verified = 0 AND caller_run_id = '' AND caller_agent_profile = '' AND caller_skill_id = '' AND caller_harness = '' THEN 1 ELSE 0 END),
+		SUM(CASE WHEN program_name != '' AND provenance = '1' AND caller_identity_verified = 0 AND (caller_run_id != '' OR caller_agent_profile != '' OR caller_skill_id != '' OR caller_harness != '') THEN 1 ELSE 0 END),
+		SUM(CASE WHEN program_name != '' AND provenance = '1' AND caller_identity_verified = 1 AND caller_run_id != '' THEN 1 ELSE 0 END),
+		SUM(CASE WHEN program_name != '' AND provenance = '1' AND caller_identity_verified = 1 AND caller_run_id = '' THEN 1 ELSE 0 END),
+		SUM(CASE WHEN program_name = '' THEN 1 ELSE 0 END),
+		SUM(CASE WHEN program_name != '' AND provenance = '3' THEN 1 ELSE 0 END),
+		SUM(CASE WHEN program_name != '' AND provenance = '4' THEN 1 ELSE 0 END),
+		SUM(CASE WHEN program_name != '' AND provenance NOT IN ('1', '2', '3', '4') THEN 1 ELSE 0 END)
+		FROM programs WHERE ` + strings.Join(eligibilityWhere, " AND ")
+	var absent, presentUnverified, verified, inconsistent, adHoc, test, replay, other sql.NullInt64
+	if err := r.db.QueryRowContext(ctx, eligibilityQuery, eligibilityArgs...).Scan(
+		&aggregate.PortfolioRunCount, &aggregate.EligibleRunDenominator, &aggregate.VerifiedAgentRuns,
+		&absent, &presentUnverified, &verified, &inconsistent, &adHoc, &test, &replay, &other,
+	); err != nil {
+		return nil, fmt.Errorf("count portfolio eligibility: %w", err)
+	}
+	aggregate.AgentIdentityAbsentRuns = absent.Int64
+	aggregate.AgentIdentityPresentUnverifiedRuns = presentUnverified.Int64
+	aggregate.AgentIdentityVerifiedRuns = verified.Int64
+	aggregate.AgentIdentityInconsistentRuns = inconsistent.Int64
+	aggregate.EligibilityExclusions = map[string]int64{
+		"ad_hoc": adHoc.Int64, "test": test.Int64, "replay": replay.Int64, "unknown_provenance": other.Int64,
+	}
 	return aggregate, nil
 }
 
@@ -703,12 +751,10 @@ func (r *memoryRepository) PortfolioStats(_ context.Context, filter PortfolioFil
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	items := make([]*programsv1.Program, 0, len(r.programs))
+	eligibilityItems := make([]*programsv1.Program, 0, len(r.programs))
 	for _, p := range r.programs {
 		created, err := time.Parse(time.RFC3339Nano, p.GetCreatedAt())
 		if !filter.Since.IsZero() && (err != nil || created.Before(filter.Since)) || !filter.Until.IsZero() && (err != nil || created.After(filter.Until)) {
-			continue
-		}
-		if filter.Provenance != "" && strconv.Itoa(int(p.GetProvenance())) != filter.Provenance {
 			continue
 		}
 		name := p.GetProgramName()
@@ -719,12 +765,20 @@ func (r *memoryRepository) PortfolioStats(_ context.Context, filter PortfolioFil
 		if filter.Scenario != "" && scenario != filter.Scenario {
 			continue
 		}
+		eligibilityItems = append(eligibilityItems, clone(p))
+		if filter.Provenance != "" && strconv.Itoa(int(p.GetProvenance())) != filter.Provenance {
+			continue
+		}
 		if name == "" && !filter.IncludeAdHoc {
 			continue
 		}
 		items = append(items, clone(p))
 	}
 	aggregate := &PortfolioAggregate{}
+	aggregate.EligibilityExclusions = map[string]int64{}
+	for _, p := range eligibilityItems {
+		accumulatePortfolioEligibility(aggregate, p)
+	}
 	for _, p := range items {
 		aggregate.ProgramsExecuted++
 		if p.GetProgramName() == "" {
@@ -778,6 +832,41 @@ func (r *memoryRepository) PortfolioStats(_ context.Context, filter PortfolioFil
 	}
 	sort.Slice(aggregate.Groups, func(i, j int) bool { return aggregate.Groups[i].Row.GetRuns() > aggregate.Groups[j].Row.GetRuns() })
 	return aggregate, nil
+}
+
+func accumulatePortfolioEligibility(aggregate *PortfolioAggregate, p *programsv1.Program) {
+	aggregate.PortfolioRunCount++
+	if p.GetProgramName() == "" {
+		aggregate.EligibilityExclusions["ad_hoc"]++
+		return
+	}
+	switch p.GetProvenance() {
+	case programsv1.Provenance_PROVENANCE_AGENT, programsv1.Provenance_PROVENANCE_OPERATOR:
+		aggregate.EligibleRunDenominator++
+	case programsv1.Provenance_PROVENANCE_TEST:
+		aggregate.EligibilityExclusions["test"]++
+	case programsv1.Provenance_PROVENANCE_REPLAY:
+		aggregate.EligibilityExclusions["replay"]++
+	default:
+		aggregate.EligibilityExclusions["unknown_provenance"]++
+	}
+	if p.GetProvenance() != programsv1.Provenance_PROVENANCE_AGENT {
+		return
+	}
+	if p.GetCallerIdentityVerified() {
+		if p.GetCallerRunId() == "" {
+			aggregate.AgentIdentityInconsistentRuns++
+			return
+		}
+		aggregate.AgentIdentityVerifiedRuns++
+		aggregate.VerifiedAgentRuns++
+		return
+	}
+	if p.GetCallerRunId() == "" && p.GetCallerAgentProfile() == "" && p.GetCallerSkillId() == "" && p.GetCallerHarness() == "" {
+		aggregate.AgentIdentityAbsentRuns++
+		return
+	}
+	aggregate.AgentIdentityPresentUnverifiedRuns++
 }
 
 func (r *memoryRepository) UsageByName(_ context.Context, since time.Time) (map[string]int64, error) {

@@ -27,11 +27,6 @@ func journalTimestamp(t time.Time) string {
 	return t.UTC().Format(journalTimestampLayout)
 }
 
-type dbtx interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-}
-
 func NewSQLStore(ctx context.Context, db *sql.DB) (*SQLStore, error) {
 	if db == nil {
 		return nil, fmt.Errorf("optimization database is required")

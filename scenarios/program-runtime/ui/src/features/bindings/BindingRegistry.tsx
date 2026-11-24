@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { fetchBindings, fetchUnbound } from "../../api/bindings";
-import { ExperienceSurface, type ExperienceSurfaceState } from "../../components/experience/ExperienceSurface";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { ExperienceSurface, type ExperienceSurfaceState } from "@vrooli/react-component-library/ExperienceSurface/1";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { selectors } from "../../consts/selectors";
 

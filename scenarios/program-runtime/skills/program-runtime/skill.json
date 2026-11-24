@@ -38,7 +38,7 @@
       "search-hub"
     ]
   },
-  "revision": 15,
+  "revision": 16,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -55,9 +55,6 @@
     "cross-scenario",
     "fan-out",
     "bounded results",
-    "return bounded results",
-    "discard intermediates",
-    "discard intermediate data",
     "tool-call compression",
     "library",
     "shape",
@@ -66,5 +63,5 @@
     "bounded AI decision",
     "subprogram"
   ],
-  "updatedAt": "2026-11-05T08:48:17Z"
+  "updatedAt": "2026-11-20T00:00:00Z"
 }

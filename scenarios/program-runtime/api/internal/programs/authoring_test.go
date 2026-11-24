@@ -160,6 +160,9 @@ func TestAuthoringRequestSerializesLocalOnlyProfile(t *testing.T) {
 	if request.GetProfile() != sharedv1.Profile_PROFILE_LOCAL_ONLY || request.GetRole() != AuthoringRole || request.GetSchemaJson() != AuthoringSchemaJSON {
 		t.Fatalf("serialized authoring request lost its local-only typed contract: %+v", &request)
 	}
+	if request.GetPrivacyClass() != sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL || request.GetPrivacyProvenance() != "program_runtime.code_authoring.user_task_and_repository_context" {
+		t.Fatalf("serialized authoring request lost its owner-derived privacy contract: %s from %q", request.GetPrivacyClass(), request.GetPrivacyProvenance())
+	}
 }
 
 func TestAuthoringRouteRequiresKnownLocalProviderAndModel(t *testing.T) {

@@ -149,9 +149,9 @@ func TestBindingConditionNeverRollsHealthyFromUninstrumentedServing(t *testing.T
 func TestBindingFreshnessNamesManifestWhenSourceIsNewer(t *testing.T) {
 	now := time.Now().UTC()
 	binding := &bindingsv1.Binding{Id: "demo/read/fresh", Scenario: "demo"}
-	condition := conditionForWithFreshness(binding, nil, nil, freshnessMetadata{
+	condition := conditionForWithFreshnessAndExercise(binding, nil, nil, freshnessMetadata{
 		sourcePath: "scenarios/demo/cli/manifest.json", sourceMtime: now, generationMtime: now.Add(-time.Minute),
-	})
+	}, nil, true)
 	require.Equal(t, bindingsv1.ConditionStatus_CONDITION_STATUS_DEGRADED, condition.Freshness.Family.Status)
 	require.Contains(t, condition.Freshness.Family.Reason, "scenarios/demo/cli/manifest.json")
 	require.Contains(t, condition.Freshness.Family.Reason, "source=")

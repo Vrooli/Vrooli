@@ -133,7 +133,7 @@ def step_collect():  # COLLECT · status (required) + freshness + logs (optional
         envelope["evidence"].append("vrooli/scenario/logs")
     except Exception as exc:  # optional read: never aborts the triage
         envelope["errors"].append({"class": "binding_error",
-                                   "detail": "logs: " + str(exc)[:160], "where": "collect"})
+                                   "detail": "logs unavailable; owner detail omitted", "where": "collect"})
     return "classify"
 
 
@@ -157,7 +157,10 @@ def step_classify():  # CLASSIFY · deterministic keyword heuristics, no inferen
                 continue
             if any(n in low for n in needles):
                 seen.add(cause)
-                hypotheses.append({"cause": cause, "evidence": line.strip()[:200]})
+                # Log bodies can contain paths, identifiers, or user content.
+                # Keep the useful deterministic classification, but never copy
+                # the source line into the retained program envelope.
+                hypotheses.append({"cause": cause, "evidence": "matched_declared_keyword:" + cause})
     sig["hypotheses"] = hypotheses
 
     # ok when status was read (an unhealthy scenario is a domain result); partial

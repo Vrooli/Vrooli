@@ -16,8 +16,6 @@ var lockBytes []byte
 
 const LockName = "requirements.lock"
 
-func LockBytes() []byte { return append([]byte(nil), lockBytes...) }
-
 func Materialize(dir string) (string, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("pydeps: create dir %q: %w", dir, err)

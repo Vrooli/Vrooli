@@ -15,6 +15,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/api-core/provenance"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	programsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs/programs_v1connect"
 )
@@ -78,6 +79,9 @@ func (h *handler) RunDiscoveryEval(ctx context.Context, req *connect.Request[pro
 }
 
 func (h *handler) SubmitProgram(ctx context.Context, req *connect.Request[programsv1.SubmitProgramRequest]) (*connect.Response[programsv1.SubmitProgramResponse], error) {
+	if req.Msg.GetProvenance() == programsv1.Provenance_PROVENANCE_AGENT && !provenance.FromContext(ctx).IsVerifiedAgent() {
+		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("agent provenance requires server-verified agent identity"))
+	}
 	if h.service == nil || !h.service.HasSessionAuthorizer() {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("session admission authorization is unavailable"))
 	}

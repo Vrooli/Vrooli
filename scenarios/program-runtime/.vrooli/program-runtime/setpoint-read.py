@@ -34,14 +34,7 @@ dead = {}  # read name -> (status, class) for a read that raised
 fail = program.fail
 
 
-def guarded(call):
-    """Run one read on its own worker; an exception becomes the result so the other reads survive."""
-    def run():
-        try:
-            return call()
-        except Exception as exc:
-            return exc
-    return run
+guarded = program.guarded
 
 
 def row(name, reading, target, in_band, unavailable=False, reason=None, sensor=None):
@@ -186,10 +179,10 @@ def step_classify():  # CLASSIFY · deterministic; every reading is count/head/g
     # recreate its eight-dimension score in the setpoint reader.
     target, sensor = ">= 0.8", "program-runtime library run program-runtime.portfolio-audit --input min_rung=S3 window_days=30"
     if "maturity" in h:
-        audit_rows = h["maturity"].head(1)
-        audit = audit_rows[0] if audit_rows else {}
+        audit = program.child_envelope(h["maturity"], invalid_class="invalid_response", where="classify:portfolio-audit")
         audit_status = audit.get("status")
         score = (audit.get("signals") or {}).get("score")
+        envelope["errors"].extend(issue for issue in audit.get("errors", []) if issue.get("class") == "invalid_response")
         if audit_status == "ok" and score is not None:
             score = float(score)
             row("portfolio-maturity", {"score": score, "scored": int((audit.get("signals") or {}).get("scored", 0))},

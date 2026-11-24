@@ -381,6 +381,32 @@ def test_recall_status_is_not_requested_until_memory_is_asked():
     assert receipt["measurements"] == {"reused_workflow": True, "tool_round_trips": 2}
 
 
+def test_optional_assertion_counts_are_retained_without_changing_outcome():
+    kernel = SessionKernel()
+    result = kernel.execute(
+        "learn.outcome('unknown', [], measurements={'assertions_required': 3, 'assertions_completed': 2})",
+        program_id="demo.program", provenance="agent")
+    assert result["ok"], result
+    receipt = result["learning"]
+    assert receipt["outcome"] == "unknown"
+    assert receipt["attempts"][0]["assertions_required"] == 3
+    assert receipt["attempts"][0]["assertions_completed"] == 2
+    assert receipt["measurements"] == {"assertions_required": 3, "assertions_completed": 2}
+
+
+@pytest.mark.parametrize("measurements", [
+    {"assertions_required": -1},
+    {"assertions_completed": 100001},
+    {"assertions_required": True},
+    {"assertions_required": 1, "assertions_completed": 2},
+])
+def test_assertion_measurements_reject_invalid_counts(measurements):
+    learn = Learn(object(), contextvars.ContextVar("invalid_assertions_ctx", default={}), lambda: {})
+    with pytest.raises(ValueError, match="assertions_"):
+        learn.outcome("unknown", [], measurements=measurements)
+    assert not learn.started
+
+
 def test_outcome_rejects_unknown_measurements():
     learn = Learn(object(), contextvars.ContextVar("m_ctx", default={}), lambda: {})
     with pytest.raises(ValueError, match="measurements accepts only"):

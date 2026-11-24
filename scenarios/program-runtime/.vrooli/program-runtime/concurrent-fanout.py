@@ -7,8 +7,6 @@ Demonstrates: gather with zero-argument callables and elapsed-time evidence; res
 Phases: validate -> collect -> classify -> report.
 """
 
-import json
-
 import time
 
 inputs = program.inputs()
@@ -24,14 +22,7 @@ handles = {}
 fail = program.fail
 
 
-def guarded(call):
-    """Run one read on its own worker; an exception becomes the result so the other reads survive."""
-    def run():
-        try:
-            return call()
-        except Exception as exc:
-            return exc
-    return run
+guarded = program.guarded
 
 
 def step_validate():  # VALIDATE
@@ -99,7 +90,7 @@ def step_classify():  # CLASSIFY · counts only
 
 def step_report():  # REPORT
     envelope["phase"] = "report"
-    print(json.dumps(envelope, allow_nan=False, separators=(",", ":")))
+    program.report()
     return None
 
 

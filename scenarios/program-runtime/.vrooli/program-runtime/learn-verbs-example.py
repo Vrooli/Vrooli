@@ -1,6 +1,4 @@
 """program-runtime.learn-verbs-example — executable documentation for the ten learn verbs."""
-import json
-
 inputs = program.inputs()
 value = str(inputs.get("value", "fixture-value"))
 mode = inputs.get("mode", "baseline")
@@ -101,4 +99,4 @@ envelope["signals"].update({
 envelope["evidence"].append("all-learn-verbs")
 envelope["status"] = "partial" if envelope["errors"] else "ok"
 envelope["phase"] = "report"
-print(json.dumps(envelope, sort_keys=True, separators=(",", ":")))
+program.report(envelope)

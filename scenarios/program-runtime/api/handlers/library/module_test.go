@@ -34,6 +34,10 @@ type captureRunner struct {
 	materialized bool
 	helper       *programs.HelperContract
 	stdout       string
+	programID    string
+	bindings     []programs.BindingSpec
+	grants       map[string]struct{}
+	sessions     *sessions.Manager
 }
 
 type heldRunner struct{ release chan struct{} }
@@ -43,12 +47,30 @@ type countedDeclaredRunner struct {
 	release chan struct{}
 }
 
+func TestAgentProvenanceIsRefusedBeforeDeclaredProgramEffects(t *testing.T) {
+	manager := sessions.NewManager(sessions.Options{})
+	runner := &countedDeclaredRunner{}
+	service := programs.NewService(programs.Options{Runner: runner, AuthorizeSession: manager.AuthorizeSubmission})
+	h := &handler{contracts: contracts.NewIndex(), sessions: manager, programs: service}
+	request := &programsv1.RunDeclaredProgramRequest{Name: "missing.program", Provenance: programspb.Provenance_PROVENANCE_AGENT}
+	_, err := h.RunDeclaredProgram(context.Background(), connect.NewRequest(request))
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	_, err = h.CloseDeclaredAdmission(context.Background(), connect.NewRequest(request))
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	require.Empty(t, manager.List(context.Background()))
+	require.Zero(t, runner.calls.Load())
+}
+
 func (r *countedDeclaredRunner) Execute(context.Context, string, string, bool) (programs.Result, error) {
 	r.calls.Add(1)
 	if r.release != nil {
 		<-r.release
 	}
 	return programs.Result{Stdout: `{"status":"ok"}`}, nil
+}
+
+func (r *countedDeclaredRunner) ExecuteWithMetadataAndLimitsAndCallerAndBindings(ctx context.Context, sessionID, _, _, _ string, _ programs.Caller, _ bool, _ programs.ExecutionLimits, _ []programs.BindingSpec) (programs.Result, error) {
+	return r.Execute(ctx, sessionID, "", false)
 }
 
 func TestGetDeclaredExecutionIsReadOnlyAndPreservesOriginalReceipt(t *testing.T) {
@@ -293,6 +315,10 @@ func (r *heldRunner) Execute(context.Context, string, string, bool) (programs.Re
 	return programs.Result{Stdout: `{"status":"ok"}`}, nil
 }
 
+func (r *heldRunner) ExecuteWithMetadataAndLimitsAndCallerAndBindings(ctx context.Context, sessionID, _, _, _ string, _ programs.Caller, _ bool, _ programs.ExecutionLimits, _ []programs.BindingSpec) (programs.Result, error) {
+	return r.Execute(ctx, sessionID, "", false)
+}
+
 func TestDeclaredAsyncAcceptanceSurvivesObserverCancellation(t *testing.T) { // [REQ:PRT-P0-010]
 	root, err := filepath.Abs("../../../../..")
 	require.NoError(t, err)
@@ -331,6 +357,18 @@ func (r *captureRunner) Execute(_ context.Context, _ string, source string, mate
 
 func (r *captureRunner) ExecuteWithMetadataAndLimitsAndCaller(ctx context.Context, sessionID, _, _, source string, _ programs.Caller, materialized bool, limits programs.ExecutionLimits) (programs.Result, error) {
 	r.helper = limits.DeclaredContract
+	return r.Execute(ctx, sessionID, source, materialized)
+}
+
+func (r *captureRunner) ExecuteWithMetadataAndLimitsAndCallerAndBindings(ctx context.Context, sessionID, programID, _, source string, _ programs.Caller, materialized bool, limits programs.ExecutionLimits, bindings []programs.BindingSpec) (programs.Result, error) {
+	r.programID = programID
+	r.bindings = append([]programs.BindingSpec(nil), bindings...)
+	r.helper = limits.DeclaredContract
+	if r.sessions != nil {
+		if session, err := r.sessions.Get(ctx, sessionID); err == nil {
+			r.grants = session.Grants
+		}
+	}
 	return r.Execute(ctx, sessionID, source, materialized)
 }
 
@@ -568,6 +606,121 @@ func TestRunDeclaredProgramResolvesDefaultsWaitsAndReclaimsSession(t *testing.T)
 	require.True(t, retained.GetUsageAccountingComplete())
 	require.True(t, retained.GetUsageChargeMeasured())
 	require.Equal(t, "dedicated_declared_session", retained.GetUsageBasis())
+}
+
+func TestOperatorPayloadAdmissionKeepsExactBASBindingScope(t *testing.T) {
+	root, err := filepath.Abs("../../../../..")
+	require.NoError(t, err)
+	index := contracts.NewIndex()
+	require.NoError(t, index.Load(root))
+	contract, ok := index.Get("browser-automation-studio", "do-task")
+	require.True(t, ok)
+
+	registry, err := internalbindings.Load(root)
+	require.NoError(t, err)
+	registry.SetReachabilityResolver(func(context.Context, string) (string, error) { return "http://127.0.0.1", nil })
+	manager := sessions.NewManager(sessions.Options{})
+	runner := &captureRunner{
+		source:   make(chan string, 1),
+		sessions: manager,
+		stdout:   `{"program":"browser-automation-studio.do-task","version":"6","status":"ok","phase":"report","inputs":{},"signals":{"result":null,"candidates":[],"search_degradations":[],"reused_workflow":false,"outcome":"unknown","learning":{}},"errors":[],"evidence":[]}`,
+	}
+	service := programs.NewService(programs.Options{Runner: runner, AuthorizeSession: manager.AuthorizeSubmission})
+	h := &handler{contracts: index, repoRoot: root, bindings: registry, sessions: manager, programs: service}
+	inputs, err := structpb.NewStruct(map[string]any{
+		"task":                 "Open the product listing and verify the public price",
+		"workflow_id":          "8d393a2b-7b93-4d39-8cd4-62d8e7d93322",
+		"version":              4,
+		"parameters":           map[string]any{"sku": "public-item-17", "expected_currency": "USD"},
+		"postconditions":       []any{map[string]any{"selector": "[data-testid='price']", "mode": "text_contains", "value": "$"}},
+		"effect_policy":        "read_only",
+		"authorized_workflows": []any{"8d393a2b-7b93-4d39-8cd4-62d8e7d93322@4"},
+	})
+	require.NoError(t, err)
+	response, err := h.RunDeclaredProgram(t.Context(), connect.NewRequest(&programsv1.RunDeclaredProgramRequest{
+		Name: contract.ID, ExpectedDigest: contract.Digest, Inputs: inputs,
+		IdempotencyKey: "mb3-operator-payload-admission", AdmissionDeadline: time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano),
+		Provenance: programspb.Provenance_PROVENANCE_TEST,
+		Caller:     &programspb.Caller{Harness: "mb3-operator-contract-test"},
+	}))
+	require.NoError(t, err)
+	require.True(t, response.Msg.GetTerminal())
+	require.Equal(t, programspb.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, response.Msg.GetProgram().GetStatus())
+	require.Equal(t, contract.ID, response.Msg.GetProgram().GetProgramName())
+	require.Equal(t, contract.Digest, response.Msg.GetProgram().GetProgramDigest())
+	require.NotEmpty(t, response.Msg.GetProgram().GetId())
+	require.Equal(t, response.Msg.GetProgram().GetId(), runner.programID, "the bridge execution must use the durable accepted identity")
+	require.Equal(t, contract.BindingIDs, bindingSpecIDs(runner.bindings), "kernel route namespace must equal the pinned contract allowlist")
+	require.Empty(t, runner.grants, "this read-only payload derives no destructive grant")
+	source := <-runner.source
+	require.Contains(t, source, "Open the product listing and verify the public price")
+	require.Contains(t, source, "public-item-17")
+	require.Contains(t, source, "8d393a2b-7b93-4d39-8cd4-62d8e7d93322")
+	require.NotContains(t, source, "binding:unrelated")
+
+	stored, err := h.GetDeclaredExecution(t.Context(), connect.NewRequest(&programsv1.GetDeclaredExecutionRequest{Name: contract.ID, IdempotencyKey: "mb3-operator-payload-admission"}))
+	require.NoError(t, err)
+	require.True(t, stored.Msg.GetFound())
+	require.Equal(t, response.Msg.GetProgram().GetId(), stored.Msg.GetProgram().GetId())
+	require.Equal(t, contract.ID, stored.Msg.GetProgram().GetProgramName())
+	require.Equal(t, contract.Digest, stored.Msg.GetProgram().GetProgramDigest())
+	require.Empty(t, stored.Msg.GetProgram().GetSource(), "durable readers do not need executable source to prove identity")
+}
+
+func bindingSpecIDs(bindings []programs.BindingSpec) []string {
+	ids := make([]string, 0, len(bindings))
+	for _, binding := range bindings {
+		ids = append(ids, binding.ID)
+	}
+	return ids
+}
+
+func TestDeclaredGrantIsDerivedAtAdmissionAndOverbroadGrantNeverRuns(t *testing.T) {
+	root, err := filepath.Abs("../../../../..")
+	require.NoError(t, err)
+	index := contracts.NewIndex()
+	require.NoError(t, index.Load(root))
+	contract, ok := index.Get("program-runtime", "optimize")
+	require.True(t, ok)
+	registry, err := internalbindings.Load(root)
+	require.NoError(t, err)
+	registry.SetReachabilityResolver(func(context.Context, string) (string, error) { return "http://127.0.0.1", nil })
+	manager := sessions.NewManager(sessions.Options{})
+	runner := &captureRunner{source: make(chan string, 2), sessions: manager}
+	service := programs.NewService(programs.Options{Runner: runner, AuthorizeSession: manager.AuthorizeSubmission})
+	h := &handler{contracts: index, repoRoot: root, bindings: registry, sessions: manager, programs: service}
+	inputs, err := structpb.NewStruct(map[string]any{"request": map[string]any{"run_id": "mb3-admission-grant-proof"}, "wait_ms": 1})
+	require.NoError(t, err)
+	grant := "binding:program-runtime/optimization/submit"
+	accepted, err := h.RunDeclaredProgram(t.Context(), connect.NewRequest(&programsv1.RunDeclaredProgramRequest{
+		Name: contract.ID, ExpectedDigest: contract.Digest, Inputs: inputs,
+		Provenance: programspb.Provenance_PROVENANCE_TEST, Async: true, Grants: []string{grant},
+	}))
+	require.NoError(t, err)
+	require.False(t, accepted.Msg.GetTerminal())
+	<-runner.source
+	require.Equal(t, []string{grant}, sessionGrantList(runner.grants))
+	require.Equal(t, contract.BindingIDs, bindingSpecIDs(runner.bindings))
+
+	_, err = h.RunDeclaredProgram(t.Context(), connect.NewRequest(&programsv1.RunDeclaredProgramRequest{
+		Name: contract.ID, ExpectedDigest: contract.Digest, Inputs: inputs,
+		Provenance: programspb.Provenance_PROVENANCE_TEST, Async: true,
+		Grants: []string{"binding:program-runtime/optimization/*"},
+	}))
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	select {
+	case <-runner.source:
+		t.Fatal("overbroad grant dispatched a second declared execution")
+	default:
+	}
+}
+
+func sessionGrantList(grants map[string]struct{}) []string {
+	values := make([]string, 0, len(grants))
+	for grant := range grants {
+		values = append(values, grant)
+	}
+	return values
 }
 
 func TestDeclaredBriefingSelectsExpandedOutputTier(t *testing.T) {

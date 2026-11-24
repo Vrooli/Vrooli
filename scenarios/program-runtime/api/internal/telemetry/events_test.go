@@ -40,6 +40,28 @@ func TestEmitsSubmissionInvocationAndFailureEvents(t *testing.T) { // [REQ:PRT-P
 			t.Fatalf("missing event kind %v", kind)
 		}
 	}
+	failed := store.List(program.GetSessionId(), telemetryv1.EventKind_PROGRAM_FAILED)
+	if len(failed) != 1 || failed[0].ExecutionWallTimeMs == nil {
+		t.Fatalf("executed failure lacks explicit wall-time presence: %v", failed)
+	}
+}
+
+func TestPreflightFailureDoesNotClaimExecutionTiming(t *testing.T) {
+	store := NewStore()
+	service := programs.NewService(programs.Options{
+		Runner: eventRunner{}, Events: store,
+		Preflight: func(string) []*programsv1.Diagnostic {
+			return []*programsv1.Diagnostic{{Severity: "error", Message: "blocked before execution"}}
+		},
+	})
+	program, err := service.Submit(context.Background(), "session-1", "effect()", programsv1.Provenance_PROVENANCE_AGENT, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	failed := store.List(program.GetSessionId(), telemetryv1.EventKind_PROGRAM_FAILED)
+	if len(failed) != 1 || failed[0].ExecutionWallTimeMs != nil {
+		t.Fatalf("preflight failure timing should remain unknown: %v", failed)
+	}
 }
 
 func TestFailureEventCarriesProgramLocator(t *testing.T) { // [REQ:PRT-P0-006]

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/database"
 )
 
 var (
@@ -66,7 +67,7 @@ type (
 func (systemClock) Now() time.Time { return time.Now().UTC() }
 
 type Options struct {
-	Store                   SQLExecutor
+	Store                   database.SQLTxExecutor
 	IdleTimeout             time.Duration
 	WallTimeout             time.Duration
 	WallBudget              time.Duration

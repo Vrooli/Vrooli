@@ -309,15 +309,19 @@ func TestProjectManifestBindsControlPlaneMethods(t *testing.T) {
 	r, err := Load(repoRoot(t))
 	require.NoError(t, err)
 	bindings := r.List("vrooli", "scenario")
-	require.Len(t, bindings, 8)
+	require.Len(t, bindings, 10)
 	want := map[string]struct{}{
 		"ListScenarios":     {},
-		"GetScenarioStatus": {}, "GetScenarioFreshness": {}, "GetScenarioLogs": {},
+		"GetScenarioStatus": {}, "WaitScenario": {}, "GetScenarioDeployReport": {}, "GetScenarioFreshness": {}, "GetScenarioLogs": {},
 		"StartScenario": {}, "StopScenario": {}, "RestartScenario": {}, "SetupScenario": {},
 	}
 	for _, binding := range bindings {
 		if binding.GetMethod() == "GetScenarioFreshness" {
 			require.Equal(t, "checks", binding.GetRowsField())
+			require.Empty(t, binding.GetRowFieldCandidates())
+		}
+		if binding.GetMethod() == "GetScenarioDeployReport" {
+			require.Equal(t, "artifacts", binding.GetRowsField())
 			require.Empty(t, binding.GetRowFieldCandidates())
 		}
 		delete(want, binding.GetMethod())
@@ -331,7 +335,7 @@ func TestProjectControlPlaneBindingsAreOwnedBySharedCLIContracts(t *testing.T) {
 	r, err := Load(repoRoot(t))
 	require.NoError(t, err)
 	doctor := r.Doctor("vrooli")
-	require.Equal(t, int32(8), doctor.GetBindings())
+	require.Equal(t, int32(10), doctor.GetBindings())
 	require.Zero(t, doctor.GetMisroutes())
 	require.Zero(t, doctor.GetFieldCollisions())
 	require.Zero(t, doctor.GetControlFlagsBound())
@@ -362,6 +366,9 @@ func TestRegistryRefreshesOnManifestGenerationChange(t *testing.T) {
 	require.NoError(t, err)
 	registry, err := LoadFromSource(source)
 	require.NoError(t, err)
+	firstRows, firstDigests, _, _, err := registry.BoundaryExportSnapshot(dir)
+	require.NoError(t, err)
+	require.NotEmpty(t, firstDigests)
 	_, firstGeneration, _, _, _ := registry.SnapshotMetadata()
 	time.Sleep(2 * time.Millisecond)
 	require.NoError(t, os.WriteFile(manifestPath, append(manifest, '\n'), 0o644))
@@ -370,6 +377,11 @@ func TestRegistryRefreshesOnManifestGenerationChange(t *testing.T) {
 	if secondGeneration <= firstGeneration {
 		t.Fatalf("registry generation did not advance: first=%d second=%d", firstGeneration, secondGeneration)
 	}
+	secondRows, secondDigests, _, _, err := registry.BoundaryExportSnapshot(dir)
+	require.NoError(t, err)
+	require.NotEmpty(t, secondDigests, "refreshed current registry must retain source provenance")
+	require.Equal(t, firstRows, secondRows, "whitespace-only manifest rewrite should preserve admitted rows")
+	require.NotEqual(t, firstDigests, secondDigests, "refreshed export must fingerprint the new manifest generation")
 }
 
 func TestNewManifestNeedsNoScenarioCode(t *testing.T) {
@@ -394,6 +406,30 @@ func TestNestedManifestCommandsRetainTheirInvocationPath(t *testing.T) {
 	require.NotNil(t, r.byID["program-runtime/bindings/audit/doctor"], "non-flat child commands retain the complete invocation path")
 	require.Equal(t, "bindings", r.byID["program-runtime/bindings/audit/doctor"].GetGroup())
 	require.Equal(t, "audit/doctor", r.byID["program-runtime/bindings/audit/doctor"].GetCommand())
+}
+
+func TestOutboundRequestPreparerRunsAtTheGovernedConnectBoundary(t *testing.T) {
+	manifest := `{"name":"browser-automation-studio","groups":[{"name":"session","commands":[{"name":"observe","flags":[{"name":"session-id","bind":{"field":"session_id"}}],"binding":{"kind":"connect-rpc","service":"BrowserSessionService","method":"Observe"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}]}]}`
+	registry := fixtureRegistry(t, manifest)
+	var downstreamHeader string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		downstreamHeader = r.Header.Get("X-Invocation-Local-Proof")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"sessionId":"session-1"}`)
+	}))
+	defer server.Close()
+	registry.SetReachabilityResolver(func(context.Context, string) (string, error) { return server.URL, nil })
+	var prepared []string
+	registry.SetOutboundRequestPreparer(func(_ context.Context, id string, request *http.Request) error {
+		prepared = append(prepared, id)
+		request.Header.Set("X-Invocation-Local-Proof", "trusted")
+		return nil
+	})
+	result, err := registry.Execute(context.Background(), "browser-automation-studio/session/observe", map[string]any{"session_id": "session-1"}, []string{"network:internal"}, false, InvocationMetadata{}, server.Client())
+	require.NoError(t, err)
+	require.Equal(t, "session-1", result["sessionId"])
+	require.Equal(t, []string{"browser-automation-studio/session/observe"}, prepared)
+	require.Equal(t, "trusted", downstreamHeader)
 }
 
 func TestMalformedManifestIsSkippedAndReported(t *testing.T) {

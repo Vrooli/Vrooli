@@ -1,5 +1,4 @@
 """Read one authorized tool inventory and preserve distinct health/friction signals."""
-import json
 import os
 import re
 
@@ -113,7 +112,7 @@ def step_collect():
 
 def step_report():
     envelope["phase"] = "report"
-    print(json.dumps(envelope, allow_nan=False, separators=(",", ":")))
+    program.report(envelope)
     return None
 
 

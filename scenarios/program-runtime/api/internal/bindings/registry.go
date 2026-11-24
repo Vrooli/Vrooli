@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -36,7 +37,6 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
@@ -141,38 +141,47 @@ func responseProjectionFor(output protoreflect.MessageDescriptor, declaredPrimar
 // tests while production uses api-core/discovery's cross-platform resolver.
 type ReachabilityResolver func(context.Context, string) (string, error)
 
+// OutboundRequestPreparer may add server-derived, invocation-local credentials
+// to one governed Connect request. Implementations must ignore unrelated
+// binding IDs and must never place credentials in canonical request arguments.
+type OutboundRequestPreparer func(context.Context, string, *http.Request) error
+
 // Registry is a pinned callable fleet surface. A registry returned by Load is
 // backed by a Source and refreshes between requests; each method observes one
 // immutable generation. Registries built by LoadFiles remain deterministic
 // static fixtures for tests.
 type Registry struct {
-	dynamic           *registryDynamic
-	bindings          []*bindingsv1.Binding
-	unbound           []*bindingsv1.UnboundCapability
-	skipped           []*bindingsv1.SkippedManifest
-	methods           map[string]methodInfo
-	required          map[string]map[string]bool
-	schemas           map[string]cliapp.ArgSchema
-	byID              map[string]*bindingsv1.Binding
-	privateByID       map[string]privateProgramBinding
-	operation         map[string][]*bindingsv1.Binding
-	shared            []string
-	semantic          map[string]semanticCounts
-	recorder          InvocationRecorder
-	demandClient      DemandLeaseClient
-	demandHolder      *demand.SharedHolder
-	exerciseReader    ExerciseReader
-	artifactMtime     time.Time
-	generationMtime   time.Time
-	manifestMtimes    map[string]time.Time
-	manifestPaths     map[string]string
-	resolver          ReachabilityResolver
-	manifestCount     int
-	totalScenarios    int
-	reachabilityMu    sync.Mutex
-	reachabilityCache map[string]reachabilityStatus
-	reachabilityAt    map[string]time.Time
-	now               func() time.Time
+	dynamic                *registryDynamic
+	bindings               []*bindingsv1.Binding
+	unbound                []*bindingsv1.UnboundCapability
+	skipped                []*bindingsv1.SkippedManifest
+	methods                map[string]methodInfo
+	required               map[string]map[string]bool
+	schemas                map[string]cliapp.ArgSchema
+	byID                   map[string]*bindingsv1.Binding
+	privateByID            map[string]privateProgramBinding
+	operation              map[string][]*bindingsv1.Binding
+	shared                 []string
+	semantic               map[string]semanticCounts
+	recorder               InvocationRecorder
+	demandClient           DemandLeaseClient
+	demandHolder           *demand.SharedHolder
+	programLeaseScopes     *programLeaseScopes
+	exerciseReader         ExerciseReader
+	artifactMtime          time.Time
+	generationMtime        time.Time
+	manifestMtimes         map[string]time.Time
+	manifestPaths          map[string]string
+	resolver               ReachabilityResolver
+	requestPreparer        OutboundRequestPreparer
+	manifestCount          int
+	totalScenarios         int
+	boundaryTargets        []BoundaryTarget
+	boundaryContractDigest string
+	reachabilityMu         sync.Mutex
+	reachabilityCache      map[string]reachabilityStatus
+	reachabilityAt         map[string]time.Time
+	now                    func() time.Time
 }
 
 type reachabilityStatus struct {
@@ -181,17 +190,19 @@ type reachabilityStatus struct {
 }
 
 type registryDynamic struct {
-	source         *descriptorimage.Source
-	descriptorPath string
-	manifestPaths  []string
-	mu             sync.Mutex
-	current        *Registry
-	generation     uint64
-	recorder       InvocationRecorder
-	demandClient   DemandLeaseClient
-	demandHolder   *demand.SharedHolder
-	exerciseReader ExerciseReader
-	resolver       ReachabilityResolver
+	source             *descriptorimage.Source
+	descriptorPath     string
+	manifestPaths      []string
+	mu                 sync.Mutex
+	current            *Registry
+	generation         uint64
+	recorder           InvocationRecorder
+	demandClient       DemandLeaseClient
+	demandHolder       *demand.SharedHolder
+	programLeaseScopes *programLeaseScopes
+	exerciseReader     ExerciseReader
+	resolver           ReachabilityResolver
+	requestPreparer    OutboundRequestPreparer
 }
 
 // Load resolves the canonical repository artifacts and builds a registry.
@@ -242,7 +253,24 @@ func Load(repoRoot string) (*Registry, error) {
 	if err != nil {
 		return nil, err
 	}
-	return LoadFromSource(source)
+	registry, err := LoadFromSource(source)
+	if err != nil {
+		return nil, err
+	}
+	contractBytes, err := os.ReadFile(filepath.Join(repoRoot, ".vrooli", "repo-contract.json"))
+	if err != nil {
+		return nil, err
+	}
+	contractDigest := sha256.Sum256(contractBytes)
+	registry.boundaryContractDigest = "sha256:" + hex.EncodeToString(contractDigest[:])
+	for _, target := range targets {
+		runtimeName := target.ID
+		if target.Kind == repocontract.TargetKindProject {
+			runtimeName = "vrooli"
+		}
+		registry.boundaryTargets = append(registry.boundaryTargets, BoundaryTarget{Kind: string(target.Kind), ID: target.ID, Root: target.Root, RuntimeName: runtimeName})
+	}
+	return registry, nil
 }
 
 // LoadFromSource builds a registry over a shared descriptor source. The source
@@ -458,9 +486,15 @@ func (d *registryDynamic) refresh() *Registry {
 	if err != nil {
 		return d.current
 	}
+	if d.current != nil {
+		next.boundaryTargets = append([]BoundaryTarget(nil), d.current.boundaryTargets...)
+		next.boundaryContractDigest = d.current.boundaryContractDigest
+	}
+	next.requestPreparer = d.requestPreparer
 	next.recorder = d.recorder
 	next.demandClient = d.demandClient
 	next.demandHolder = d.demandHolder
+	next.programLeaseScopes = d.programLeaseScopes
 	next.exerciseReader = d.exerciseReader
 	if d.resolver != nil {
 		next.resolver = d.resolver
@@ -508,7 +542,8 @@ type DemandLeaseClient interface {
 	Release(context.Context, string, string) (demand.Lease, error)
 }
 
-// SetDemandLeaseClient opts binding execution into call-scoped demand holds.
+// SetDemandLeaseClient opts binding execution into demand holds scoped to the
+// parent program when one is active, and otherwise to the individual call.
 // Existing static fixtures remain lease-free unless explicitly configured.
 func (r *Registry) SetDemandLeaseClient(client DemandLeaseClient) {
 	// One holder per client, shared by every invocation and carried across
@@ -517,21 +552,116 @@ func (r *Registry) SetDemandLeaseClient(client DemandLeaseClient) {
 	// that matters to the control-plane store.
 	var holder *demand.SharedHolder
 	if client != nil {
-		holder = demand.NewSharedHolder(client, "program binding completed")
+		holder = demand.NewSharedHolder(client, "program dependency completed")
 	}
 	if r.dynamic != nil {
 		r.dynamic.mu.Lock()
 		r.dynamic.demandClient = client
 		r.dynamic.demandHolder = holder
+		r.dynamic.programLeaseScopes = newProgramLeaseScopes()
 		if r.dynamic.current != nil {
 			r.dynamic.current.demandClient = client
 			r.dynamic.current.demandHolder = holder
+			r.dynamic.current.programLeaseScopes = r.dynamic.programLeaseScopes
 		}
 		r.dynamic.mu.Unlock()
 		return
 	}
 	r.demandClient = client
 	r.demandHolder = holder
+	r.programLeaseScopes = newProgramLeaseScopes()
+}
+
+// BeginProgramLeaseScope keeps each demand-managed binding target called by a
+// program leased until that program reaches a terminal result. Binding calls
+// still own their own references, so a child error cannot release another
+// active invocation's lease. Process restart drops renewal and the control
+// plane's bounded TTL expires abandoned holds.
+func (r *Registry) BeginProgramLeaseScope(sessionID, programID string) func() {
+	r = r.active()
+	if r == nil || r.programLeaseScopes == nil {
+		return func() {}
+	}
+	return r.programLeaseScopes.begin(sessionID, programID)
+}
+
+type programLeaseScopeKey struct{ sessionID, programID string }
+
+type programLeaseScope struct {
+	mu     sync.Mutex
+	closed bool
+	holds  map[string]*demand.SharedHold
+}
+
+type programLeaseScopes struct {
+	mu     sync.Mutex
+	scopes map[programLeaseScopeKey]*programLeaseScope
+}
+
+func (m *programLeaseScopes) activeCount() int {
+	if m == nil {
+		return 0
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return len(m.scopes)
+}
+
+func newProgramLeaseScopes() *programLeaseScopes {
+	return &programLeaseScopes{scopes: make(map[programLeaseScopeKey]*programLeaseScope)}
+}
+
+func (m *programLeaseScopes) begin(sessionID, programID string) func() {
+	key := programLeaseScopeKey{sessionID: sessionID, programID: programID}
+	scope := &programLeaseScope{holds: make(map[string]*demand.SharedHold)}
+	m.mu.Lock()
+	m.scopes[key] = scope
+	m.mu.Unlock()
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			m.mu.Lock()
+			if m.scopes[key] == scope {
+				delete(m.scopes, key)
+			}
+			m.mu.Unlock()
+			scope.mu.Lock()
+			scope.closed = true
+			holds := make(map[string]*demand.SharedHold, len(scope.holds))
+			for scenario, hold := range scope.holds {
+				holds[scenario] = hold
+			}
+			scope.holds = nil
+			scope.mu.Unlock()
+			for scenario, hold := range holds {
+				if err := hold.Close(); err != nil {
+					slog.Warn("program demand cleanup failed", "scenario", scenario, "lease_id", hold.Lease.LeaseID, "error", err)
+				}
+			}
+		})
+	}
+}
+
+func (m *programLeaseScopes) retain(sessionID, programID, scenario string, hold *demand.SharedHold) bool {
+	if m == nil || hold == nil || sessionID == "" || programID == "" {
+		return false
+	}
+	m.mu.Lock()
+	scope := m.scopes[programLeaseScopeKey{sessionID: sessionID, programID: programID}]
+	m.mu.Unlock()
+	if scope == nil {
+		return false
+	}
+	scope.mu.Lock()
+	defer scope.mu.Unlock()
+	if scope.closed {
+		return false
+	}
+	if _, exists := scope.holds[scenario]; exists {
+		return false
+	}
+	scope.holds[scenario] = hold
+	return true
 }
 
 func (r *Registry) SetInvocationRecorder(recorder InvocationRecorder) {
@@ -558,6 +688,22 @@ func (r *Registry) SetExerciseReader(reader ExerciseReader) {
 		return
 	}
 	r.exerciseReader = reader
+}
+
+// SetOutboundRequestPreparer installs a trusted server-side credential relay
+// at the single governed binding invocation boundary. The callback is carried
+// across descriptor refreshes and runs only for outbound calls made by Execute.
+func (r *Registry) SetOutboundRequestPreparer(preparer OutboundRequestPreparer) {
+	if r.dynamic != nil {
+		r.dynamic.mu.Lock()
+		r.dynamic.requestPreparer = preparer
+		if r.dynamic.current != nil {
+			r.dynamic.current.requestPreparer = preparer
+		}
+		r.dynamic.mu.Unlock()
+		return
+	}
+	r.requestPreparer = preparer
 }
 
 func (r *Registry) RecordInvocation(ctx context.Context, invocation Invocation) {
@@ -633,10 +779,11 @@ func (r *Registry) Execute(ctx context.Context, id string, args map[string]any, 
 		resolver = discovery.ResolveScenarioURLDefault
 	}
 	var hold *demand.SharedHold
+	holdManagedByProgram := false
 	// Cleanup belongs to the invocation, not the acquisition helper. Startup
 	// and the entire response read use the renewable hold's cancellation context.
 	defer func() {
-		if hold == nil {
+		if hold == nil || holdManagedByProgram {
 			return
 		}
 		if releaseErr := hold.Close(); releaseErr != nil {
@@ -678,6 +825,11 @@ func (r *Registry) Execute(ctx context.Context, id string, args map[string]any, 
 		}
 		hold = acquired
 		ctx = hold.Context()
+		if r.programLeaseScopes != nil && r.programLeaseScopes.retain(metadata.SessionID, metadata.ProgramID, binding.GetScenario(), hold) {
+			// The program scope now owns this reference; the invocation's defer
+			// must leave it alive until the parent execution is terminal.
+			holdManagedByProgram = true
+		}
 		return nil
 	}
 	base, err := resolver(ctx, binding.GetScenario())
@@ -719,6 +871,11 @@ func (r *Registry) Execute(ctx context.Context, id string, args map[string]any, 
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if r.requestPreparer != nil {
+		if err := r.requestPreparer(ctx, id, req); err != nil {
+			return nil, fmt.Errorf("prepare %s request: %w", id, err)
+		}
+	}
 	if client == nil {
 		client = &http.Client{}
 	}
@@ -1024,6 +1181,49 @@ func (r *Registry) ProgramPrivateBindings(ctx context.Context, program, digest s
 	return out, true
 }
 
+// ProgramDeclaredBindings resolves each route named by a pinned contract. The
+// result preserves the contract's exact allowlist: public entries must exist
+// in the current governed registry and private entries must match the exact
+// contract digest. Unknown, duplicate, or unresolved IDs fail closed.
+func (r *Registry) ProgramDeclaredBindings(ctx context.Context, program, digest string, declared []string) ([]*bindingsv1.Binding, bool) {
+	r = r.active()
+	out := make([]*bindingsv1.Binding, 0, len(declared))
+	seen := make(map[string]struct{}, len(declared))
+	statusByScenario := map[string]reachabilityStatus{}
+	for _, id := range declared {
+		if id == "" {
+			return nil, false
+		}
+		if _, duplicate := seen[id]; duplicate {
+			return nil, false
+		}
+		seen[id] = struct{}{}
+		binding, public := r.byID[id]
+		if public {
+			binding = proto.Clone(binding).(*bindingsv1.Binding)
+		} else {
+			var ok bool
+			binding, ok = r.ProgramPrivateBinding(id, program, digest)
+			if !ok {
+				return nil, false
+			}
+		}
+		if _, found := statusByScenario[binding.GetScenario()]; !found {
+			statuses, _ := r.reachability(ctx, binding.GetScenario())
+			statusByScenario[binding.GetScenario()] = statuses[binding.GetScenario()]
+		}
+		status := statusByScenario[binding.GetScenario()]
+		binding.Reachable = status.reachable
+		binding.ReachabilityReason = status.reason
+		if public {
+			out = append(out, binding)
+			continue
+		}
+		out = append(out, binding)
+	}
+	return out, true
+}
+
 // privateExecutionView copies the callable maps for one invocation without
 // adding a private operation to the shared registry surface.
 func (r *Registry) privateExecutionView(id, program, digest string) (*Registry, bool) {
@@ -1283,13 +1483,6 @@ func (r *Registry) IsInferenceBinding(id string) bool {
 		return false
 	}
 	return strings.EqualFold(binding.GetScenario(), "ai-gateway") || strings.Contains(strings.ToLower(binding.GetService()), "inference")
-}
-
-// InferenceUsage extracts the canonical ai-gateway Usage projection from a
-// protojson result without coupling the bridge to a provider implementation.
-func InferenceUsage(result map[string]any) (input, output, cost int64, present bool) {
-	input, output, cost, present, _ = InferenceUsageDetails(result)
-	return
 }
 
 // InferenceUsageDetails preserves whether a marginal charge was actually
@@ -1844,20 +2037,11 @@ func schemaArgLocalOnly(schema cliapp.ArgSchema, name string) bool {
 		}
 	}
 	for _, flag := range schema.Flags {
-		if !flag.LocalOnly && !containsString(flag.Aliases, name) {
+		if !flag.LocalOnly && !slices.Contains(flag.Aliases, name) {
 			continue
 		}
-		if flag.Name == name || containsString(flag.Aliases, name) {
+		if flag.Name == name || slices.Contains(flag.Aliases, name) {
 			return flag.LocalOnly
-		}
-	}
-	return false
-}
-
-func containsString(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
 		}
 	}
 	return false
@@ -2180,20 +2364,21 @@ func actOwnerTokens(owner string) []string {
 	return out
 }
 
-func (r *Registry) scenarioBindings(scenario string) []*bindingsv1.Binding {
+// scenarioMatcher resolves a manifest owner token: "*-suffix" matches every
+// scenario ending in that suffix, anything else matches one scenario exactly.
+func scenarioMatcher(scenario string) func(string) bool {
 	if strings.HasPrefix(scenario, "*-") {
 		suffix := strings.TrimPrefix(scenario, "*")
-		var out []*bindingsv1.Binding
-		for _, binding := range r.bindings {
-			if strings.HasSuffix(binding.GetScenario(), suffix) {
-				out = append(out, binding)
-			}
-		}
-		return out
+		return func(name string) bool { return strings.HasSuffix(name, suffix) }
 	}
+	return func(name string) bool { return name == scenario }
+}
+
+func (r *Registry) scenarioBindings(scenario string) []*bindingsv1.Binding {
+	matches := scenarioMatcher(scenario)
 	var out []*bindingsv1.Binding
 	for _, binding := range r.bindings {
-		if binding.GetScenario() == scenario {
+		if matches(binding.GetScenario()) {
 			out = append(out, binding)
 		}
 	}
@@ -2201,46 +2386,9 @@ func (r *Registry) scenarioBindings(scenario string) []*bindingsv1.Binding {
 }
 
 func (r *Registry) scenarioKnown(scenario string) bool {
-	if strings.HasPrefix(scenario, "*-") {
-		suffix := strings.TrimPrefix(scenario, "*")
-		for _, binding := range r.bindings {
-			if strings.HasSuffix(binding.GetScenario(), suffix) {
-				return true
-			}
-		}
-		for _, unbound := range r.unbound {
-			if strings.HasSuffix(unbound.GetScenario(), suffix) {
-				return true
-			}
-		}
-		return false
-	}
-	for _, binding := range r.bindings {
-		if binding.GetScenario() == scenario {
-			return true
-		}
-	}
-	for _, unbound := range r.unbound {
-		if unbound.GetScenario() == scenario {
-			return true
-		}
-	}
-	return false
-}
-
-// ActConfidence is derived from the audit result, not from the authored
-// denominator. A fully audited grid is measured but remains partial while it
-// contains explicit external/unbound cells; an incomplete grid is sketch.
-func ActConfidence(verdicts []*bindingsv1.ActCellVerdict) string {
-	if len(verdicts) == 0 {
-		return "SKETCH"
-	}
-	for _, verdict := range verdicts {
-		if verdict == nil || !verdict.GetAudited() {
-			return "SKETCH"
-		}
-	}
-	return "PARTIAL"
+	matches := scenarioMatcher(scenario)
+	return slices.ContainsFunc(r.bindings, func(b *bindingsv1.Binding) bool { return matches(b.GetScenario()) }) ||
+		slices.ContainsFunc(r.unbound, func(u *bindingsv1.UnboundCapability) bool { return matches(u.GetScenario()) })
 }
 
 // Count returns snapshot sizes for health and measures surfaces.
@@ -2257,10 +2405,6 @@ func (r *Registry) SkippedManifestCount() int {
 	r = r.active()
 	return len(r.skipped)
 }
-
-// Ensure the imported registry package remains used even when a build omits
-// the descriptor path in a platform-specific test.
-var _ protoregistry.Files
 
 // ContractDigest covers transitive request/response descriptor files and binding governance.
 // Reachability is excluded so an outage cannot invalidate a compatible implementation.

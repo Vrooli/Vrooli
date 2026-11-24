@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -101,7 +102,7 @@ func TestProgramDependencyFindingNamesBindingAndManifestFix(t *testing.T) {
 	}{{ID: "vrooli-memory/learning/record", Effect: "write"}}
 	details := []any{}
 	findings := programDependencyFindings("demo", "learned", "", bindings, nil, map[string]struct{}{}, contracts.Contract{}, &details)
-	if !hasFinding(findings, "programs.dependency_undeclared") {
+	if !slices.Contains(findings, "programs.dependency_undeclared") {
 		t.Fatalf("findings = %v, want undeclared dependency", findings)
 	}
 	if len(details) != 1 || !strings.Contains(details[0].(map[string]any)["message"].(string), "vrooli-memory") {
@@ -115,7 +116,7 @@ func TestProgramDependencyFindingNamesBindingAndManifestFix(t *testing.T) {
 
 func TestProgramLibraryAndLearnUsesAreDependencies(t *testing.T) {
 	findings := programDependencyFindings("demo", "learned", "lib.vrooli_memory.choose_option()\nlearn.note('preference', {})", nil, nil, map[string]struct{}{}, contracts.Contract{}, nil)
-	if !hasFinding(findings, "programs.dependency_undeclared") {
+	if !slices.Contains(findings, "programs.dependency_undeclared") {
 		t.Fatalf("findings = %v, want undeclared dependency", findings)
 	}
 }
@@ -252,7 +253,7 @@ func TestPortfolioFindingsCoverMaturityGaps(t *testing.T) { // [REQ:PRT-P0-009]
 	}
 	findings := portfolioFindings([]contracts.Contract{bad}, response)
 	for _, want := range []string{"programs.source_missing_for_contract", "programs.verbs_absent", "programs.no_optional_binding", "programs.no_live_fixture", "programs.budget_exceeded", "programs.never_exercised"} {
-		if !containsString(findings, want) {
+		if !slices.Contains(findings, want) {
 			t.Fatalf("missing finding %q in %v", want, findings)
 		}
 	}
@@ -277,22 +278,13 @@ func TestBudgetFindingExplainsHistoricalNameAggregation(t *testing.T) {
 	}
 	var details []any
 	findings := portfolioFindings([]contracts.Contract{contract}, response, &details)
-	if !hasFinding(findings, "programs.budget_exceeded") || len(details) != 1 {
+	if !slices.Contains(findings, "programs.budget_exceeded") || len(details) != 1 {
 		t.Fatalf("missing budget finding and explanation: %v %+v", findings, details)
 	}
 	detail, ok := details[0].(map[string]any)
 	if !ok || detail["program"] != contract.ID || detail["current_digest"] != contract.Digest || detail["runs"] != int64(4) || detail["p95_millis"] != int64(150) || !strings.Contains(detail["message"].(string), "across all digests") {
 		t.Fatalf("misleading budget diagnostic: %+v", details[0])
 	}
-}
-
-func containsString(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
 }
 
 type fixtureTestRunner struct{ calls int }
@@ -321,7 +313,7 @@ func TestUnavailablePortfolioCannotProduceCleanValidation(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if response.Msg.GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED || !containsString(response.Msg.GetAssessment().GetLocal().GetBlockingFindingCodes(), "programs.portfolio_unavailable") {
+		if response.Msg.GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED || !slices.Contains(response.Msg.GetAssessment().GetLocal().GetBlockingFindingCodes(), "programs.portfolio_unavailable") {
 			t.Fatalf("unavailable portfolio produced clean result: %v", response.Msg)
 		}
 	}
@@ -390,7 +382,7 @@ func TestHistoricalBudgetDebtDoesNotSuppressFreshFixtures(t *testing.T) {
 			if response.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
 				t.Fatal("unresolved debt became a passing qualification")
 			}
-			if tc.scenario == "tech-tree-designer" && !containsString(findings, "programs.budget_exceeded") {
+			if tc.scenario == "tech-tree-designer" && !slices.Contains(findings, "programs.budget_exceeded") {
 				t.Fatalf("historical debt lost: %v", findings)
 			}
 			fixtureFailure := false

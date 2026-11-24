@@ -28,15 +28,16 @@ import (
 
 // researchFallback reports whether a failed call for name should be served
 // from the research files. A run falls back only when nothing was submitted
-// (the API was unreachable) or the API did not know the program; a lost
-// response is never retried locally. A read may also fall back when the API
-// answered unavailable.
+// (the API was unreachable, or this session's credential could not be
+// resolved) or the API did not know the program; a lost response is never
+// retried locally. A read may also fall back when the API answered
+// unavailable.
 func researchFallback(name string, err error, read bool) bool {
 	if !researchhome.IsID(name) {
 		return false
 	}
 	code := connect.CodeOf(err)
-	return unreachable(err) || code == connect.CodeNotFound || (read && code == connect.CodeUnavailable)
+	return unreachable(err) || cliutil.CredentialNotResolved(err) || code == connect.CodeNotFound || (read && code == connect.CodeUnavailable)
 }
 
 // unreachable reports that the request never reached the API: the dial

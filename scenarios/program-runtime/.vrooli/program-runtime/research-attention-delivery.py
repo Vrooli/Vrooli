@@ -1,6 +1,4 @@
 """Reconcile one enrolled effort's retained decisions with Hub delivery evidence."""
-import json
-
 NAME = "program-runtime.research-attention-delivery"
 inputs = program.inputs()
 envelope = program.envelope(NAME, "1")
@@ -122,7 +120,7 @@ def step_collect():
 
 def step_report():
     envelope["phase"] = "report"
-    print(json.dumps(envelope, allow_nan=False, separators=(",", ":")))
+    program.report(envelope)
     return None
 
 program.run({"validate": step_validate, "collect": step_collect, "report": step_report}, "validate")

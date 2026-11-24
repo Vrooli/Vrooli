@@ -1,6 +1,4 @@
 """Publish a reviewed portable baseline; the learn.act call remains in source."""
-import json
-
 inputs = program.inputs()
 envelope = program.envelope("program-runtime.fragment-promote", "2")
 try:
@@ -17,4 +15,4 @@ except Exception as exc:
     envelope["status"] = "failed"
     envelope["errors"].append({"class": "publication_failed", "detail": str(exc)[:240]})
 envelope["phase"] = "report"
-print(json.dumps(envelope, sort_keys=True))
+program.report(envelope)

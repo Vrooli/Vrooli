@@ -58,8 +58,31 @@ def test_observed_effort_and_feedback_survive_automatic_capture():
     assert attempt["reused_workflow"] is False
     assert "first_action_at" not in attempt
     assert "visual_reasoning_calls" not in attempt
+    assert "assertions_required" not in attempt
+    assert "assertions_completed" not in attempt
     assert record["finish_inputs"]["observations"] == [feedback]
     assert "attempt_id" not in feedback
+
+
+def test_assertion_counts_survive_admitted_finish_payload():
+    result = {"signals": {"outcome": "unknown", "learning": {
+        "measurements": {"assertions_required": 4, "assertions_completed": 3}}}}
+    attempt = complete(result)
+    assert attempt["assertions_required"] == 4
+    assert attempt["assertions_completed"] == 3
+    assert attempt["outcome"] == "unknown"
+
+
+@pytest.mark.parametrize("measurements", [
+    {"assertions_required": -1},
+    {"assertions_completed": 100001},
+    {"assertions_required": True},
+    {"assertions_required": 1, "assertions_completed": 2},
+])
+def test_finish_rejects_invalid_assertion_counts_before_delivery(measurements):
+    result = {"signals": {"outcome": "unknown", "learning": {"measurements": measurements}}}
+    with pytest.raises(ValueError, match="assertions_"):
+        complete(result)
 
 
 def test_failure_fingerprint_tracks_stable_cause_not_error_detail():
@@ -140,7 +163,9 @@ def test_task_root_checkpoints_finalized_result_and_replays_without_dispatch(mon
     monkeypatch.setattr("host.engine.Learn.finalize", lambda self, value: {**value, "extra": "x" * 200})
     spec = {"name": "fixture.operation", "scenario": "fixture", "contract": True, "current": True,
             "digest": "digest", "declaration": {"budget": {"output_bytes": 120}, "learning_task": {"outcome": {}},
-                "output_schema": "output.json", "outputs": {"status": {"enum": ["partial"]},
+                "output_schema": "output.json", "_runtime_output_schema": {"type": "object",
+                    "required": ["status", "signals", "errors", "evidence"], "additionalProperties": True},
+                "outputs": {"status": {"enum": ["partial"]},
                 "phase": {"enum": ["report"]}, "errors": {"classes": ["child_error"]}}},
             "source": "print({'status':'partial','signals':{},'errors':[],'evidence':['committed']})"}
     kernel = SessionKernel(libraries=[spec])
@@ -155,8 +180,7 @@ def test_task_root_checkpoints_finalized_result_and_replays_without_dispatch(mon
     assert first_value["learning"]["resume_token"] == receipt
     assert first_result["meta"]["digest"] == "digest"
     assert first_result["meta"]["output_contract"]["status"]["enum"] == ["partial"]
-    assert first_result["meta"]["output_schema_validation"] == {
-        "state": "unavailable", "reason": "nested_schema_validation_unavailable"}
+    assert first_result["meta"]["output_schema_validation"] == {"state": "validated"}
     replay = kernel.execute(source)
     assert replay["ok"], replay
     assert json.loads(replay["stdout"]) == first_result
@@ -172,6 +196,23 @@ def test_task_result_never_borrows_metadata_from_missing_or_mismatched_artifact(
         assert handle.head(1)[0]["evidence"] == ["observed"]
         assert handle.meta()["output_schema_validation"]["state"] == "unknown"
         assert "output_contract" not in handle.meta()
+
+
+def test_task_result_reports_validation_for_matching_schema_artifact():
+    schema = {"type": "object", "required": ["status", "phase", "signals", "errors", "evidence"],
+              "properties": {"status": {"const": "partial"}, "phase": {"const": "report"},
+                             "signals": {"type": "object"}, "errors": {"type": "array"},
+                             "evidence": {"type": "array"}}, "additionalProperties": True}
+    spec = {"name": "fixture.operation", "scenario": "fixture", "digest": "digest",
+            "declaration": {"name": "fixture.operation", "version": "1", "output_schema": "output.json",
+                            "_runtime_output_schema": schema,
+                            "outputs": {"status": {"enum": ["partial"]}, "phase": {"enum": ["report"]},
+                                        "errors": {"classes": ["child_error"]}}}}
+    record = {"digest": "digest", "result": {"status": "partial", "phase": "report", "signals": {},
+              "errors": [], "evidence": ["retained"]}}
+    handle = Tasks(None, None, Handle, 1)._result(record, spec)
+    assert handle.head(1)[0]["evidence"] == ["retained"]
+    assert handle.meta()["output_schema_validation"] == {"state": "validated"}
 
 
 def test_task_missing_artifact_does_not_dispatch_or_invent_metadata(monkeypatch):

@@ -20,6 +20,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/api-core/researchhome"
 	libraryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library"
 	libraryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library/library_v1connect"
@@ -282,22 +283,23 @@ func (h *handler) prepareDeclared(ctx context.Context, req *connect.Request[libr
 	source := "import json\ninputs = json.loads(" + strconv.Quote(string(encoded)) + ")\n# declared-program generated input preamble\n" + contract.Source
 	if contract.LearningTask != nil {
 		source = "import json\nprint(json.dumps(tasks.run(operation=" + strconv.Quote(contract.ID) + ", inputs=json.loads(" + strconv.Quote(string(encoded)) + "), expected_digest=" + strconv.Quote(contract.Digest) + ").head(1)[0]))"
-	} else if len(contract.Learning.Verbs) > 0 && !containsLearningVerb(contract.Learning.Verbs, "task") {
+	} else if len(contract.Learning.Verbs) > 0 && !slices.Contains(contract.Learning.Verbs, "task") {
 		source = "learn.task(operation=" + strconv.Quote(contract.ID) + ")\n" + source
 	}
 	caller := internalprograms.Caller{}
 	if value := req.Msg.GetCaller(); value != nil {
 		caller = internalprograms.Caller{RunID: value.GetRunId(), AgentProfile: value.GetAgentProfile(), SkillID: value.GetSkillId(), Harness: value.GetHarness()}
 	}
-	identity := internalprograms.Identity{ProgramName: contract.ID, ProgramDigest: contract.Digest, IdempotencyKey: req.Msg.GetIdempotencyKey(), AdmissionDeadline: req.Msg.GetAdmissionDeadline(), OutputSchema: contract.OutputSchema}
+	identity := internalprograms.Identity{ProgramName: contract.ID, ProgramDigest: contract.Digest, IdempotencyKey: req.Msg.GetIdempotencyKey(), AdmissionDeadline: req.Msg.GetAdmissionDeadline(), OutputSchema: contract.OutputSchema, BindingScope: true}
 	if h.bindings != nil {
-		private, ok := h.bindings.ProgramPrivateBindings(ctx, contract.ID, contract.Digest, contract.BindingIDs)
+		declared, ok := h.bindings.ProgramDeclaredBindings(ctx, contract.ID, contract.Digest, contract.BindingIDs)
 		if !ok {
-			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("declared program is not authorized for its private bindings at this digest"))
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("declared program routes no longer match the pinned binding allowlist"))
 		}
-		for _, binding := range private {
-			identity.PrivateBindings = append(identity.PrivateBindings, internalprograms.BindingSpec{
-				ID: binding.GetId(), Scenario: binding.GetScenario(), Group: binding.GetGroup(), Command: binding.GetCommand(),
+		for _, binding := range declared {
+			identity.DeclaredBindings = append(identity.DeclaredBindings, internalprograms.BindingSpec{
+				ContractDigest: h.bindings.ContractDigest(binding.GetId()),
+				ID:             binding.GetId(), Scenario: binding.GetScenario(), Group: binding.GetGroup(), Command: binding.GetCommand(),
 				Namespace: strings.ReplaceAll(binding.GetScenario(), "-", "_"), Effect: binding.GetEffect(),
 				Reachable: binding.GetReachable(), ReachabilityReason: binding.GetReachabilityReason(),
 				Signature: binding.GetSignature(), RowsField: binding.GetRowsField(), MetaFields: binding.GetMetaFields(),
@@ -346,6 +348,9 @@ func declaredGrants(contract contracts.Contract, grants []string) ([]string, err
 }
 
 func (h *handler) CloseDeclaredAdmission(ctx context.Context, req *connect.Request[libraryv1.RunDeclaredProgramRequest]) (*connect.Response[libraryv1.RunDeclaredProgramResponse], error) {
+	if err := requireVerifiedAgentProvenance(ctx, req.Msg.GetProvenance()); err != nil {
+		return nil, err
+	}
 	prepared, err := h.prepareDeclared(ctx, req)
 	if err != nil {
 		return nil, err
@@ -358,6 +363,9 @@ func (h *handler) CloseDeclaredAdmission(ctx context.Context, req *connect.Reque
 }
 
 func (h *handler) RunDeclaredProgram(ctx context.Context, req *connect.Request[libraryv1.RunDeclaredProgramRequest]) (*connect.Response[libraryv1.RunDeclaredProgramResponse], error) {
+	if err := requireVerifiedAgentProvenance(ctx, req.Msg.GetProvenance()); err != nil {
+		return nil, err
+	}
 	if h.sessions == nil || h.programs == nil || !h.programs.HasSessionAuthorizer() {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("declared program sessions are unavailable"))
 	}
@@ -405,6 +413,13 @@ func (h *handler) RunDeclaredProgram(ctx context.Context, req *connect.Request[l
 	return h.awaitDeclared(ctx, program, req.Msg.GetAsync(), wait)
 }
 
+func requireVerifiedAgentProvenance(ctx context.Context, value programsv1.Provenance) error {
+	if value == programsv1.Provenance_PROVENANCE_AGENT && !provenance.FromContext(ctx).IsVerifiedAgent() {
+		return connect.NewError(connect.CodePermissionDenied, fmt.Errorf("agent provenance requires server-verified agent identity"))
+	}
+	return nil
+}
+
 func (h *handler) GetDeclaredExecution(ctx context.Context, req *connect.Request[libraryv1.GetDeclaredExecutionRequest]) (*connect.Response[libraryv1.GetDeclaredExecutionResponse], error) {
 	if h.programs == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("declared program runner is unavailable"))
@@ -450,15 +465,6 @@ func (h *handler) awaitDeclared(ctx context.Context, program *programsv1.Program
 		return declaredProgramResponse(program, ok, time.Since(waitStarted)), nil
 	}
 	return declaredProgramResponse(program, true, time.Since(waitStarted)), nil
-}
-
-func containsLearningVerb(verbs []string, wanted string) bool {
-	for _, verb := range verbs {
-		if verb == wanted {
-			return true
-		}
-	}
-	return false
 }
 
 func declaredProgramResponse(program *programsv1.Program, terminal bool, waited time.Duration) *connect.Response[libraryv1.RunDeclaredProgramResponse] {

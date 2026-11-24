@@ -426,6 +426,10 @@ func validateScenarioAt(repoRoot, root, scenario string, registry *bindings.Regi
 			}
 		}
 		findings = append(findings, programDependencyFindings(scenario, base, string(source), contract.Bindings, registry, declaredDependencies, declaredContract, details...)...)
+		if hasDeclaredContract && index != nil {
+			findings = append(findings, transitiveDependencyFindings(scenario, base, declaredContract, index.List(), registry, declaredDependencies, details...)...)
+			findings = append(findings, transitiveBindingEffectFindings(base, declaredContract, index.List(), registry, details...)...)
+		}
 		if includeExecution && !hasFixtures(data) {
 			findings = append(findings, "programs.fixture_missing")
 		} else if includeExecution && !fixturesAreWellFormed(data) {

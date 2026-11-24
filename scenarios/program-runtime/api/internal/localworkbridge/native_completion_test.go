@@ -385,6 +385,11 @@ func TestNativeBindingConcurrentChoicesCannotReplaceWinner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Both stores must finish their lazy schema check before concurrent binding
+	// choices begin; this test targets durable first-writer ownership, not DDL.
+	if err := other.store.ensureSchema(context.Background()); err != nil {
+		t.Fatalf("prepare replacement store schema: %v", err)
+	}
 	events, _, _ := sourceFixture(t, SourceEvents)
 	events.policy.EventIDs = s.EventIDs()
 	raw, _ := json.Marshal(events.policy)

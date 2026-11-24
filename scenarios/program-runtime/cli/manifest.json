@@ -302,7 +302,7 @@
           "flags": [
             {"name": "no-gate", "bool": true, "description": "Report measurements without failing below-floor or unavailable results."},
             {"name": "suite", "description": "Versioned authoring corpus path visible to the API host; relative paths are resolved from the CLI working directory. Omit to use the server default."},
-            {"name": "receipt-file", "description": "Create an immutable raw API response receipt at this new path; existing files are never overwritten."}
+            {"name": "receipt-file", "local_only": true, "description": "Create an immutable raw API response receipt at this new path; existing files are never overwritten."}
           ],
           "architecture": {
             "primitive": "proto_list"
@@ -533,7 +533,7 @@
             {"name": "idempotency-key", "description": "Stable request key scoped to the program; requires expected-digest and admission-deadline."},
             {"name": "admission-deadline", "description": "Fixed RFC3339 deadline within 24h for keyed admission. Never renew on retry."},
             {"name": "input", "description": "key=value inputs; repeat the flag or separate pairs with commas. Values that parse as JSON become typed values; quote numeric, boolean, or null strings as JSON strings (for example window=\"7\"). JSON-quote values containing commas.", "bind": {"field": "inputs"}, "bind_waiver": "The library CLI adapter parses key=value pairs and constructs the structured inputs message."},
-            {"name": "provenance", "description": "Caller provenance: operator, agent, test, or replay.", "default": "operator"},
+            {"name": "provenance", "description": "Caller provenance: operator, agent, test, or replay. Unset: agent inside an agent session (VROOLI_CALLER=human overrides), else operator."},
             {"name": "caller-run-id", "local_only": true, "description": "Explicit caller run id; defaults to VROOLI_RUN_ID."},
             {"name": "caller-agent-profile", "local_only": true, "description": "Explicit caller agent profile; defaults to VROOLI_AGENT_PROFILE."},
             {"name": "caller-skill-id", "local_only": true, "description": "Explicit caller skill id; defaults to VROOLI_SKILL_ID."},

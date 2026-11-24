@@ -1,6 +1,5 @@
 """program-runtime.portfolio-audit v1 — deterministic maturity score for the declared program portfolio."""
 
-import json
 
 
 envelope = {
@@ -127,4 +126,4 @@ except Exception as exc:
     fail("failed", "kernel_runtime", exc)
 
 envelope["phase"] = "report"
-print(json.dumps(envelope, sort_keys=True, separators=(",", ":")))
+program.report(envelope)

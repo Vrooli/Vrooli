@@ -214,6 +214,9 @@ func TestAuthorityRelayRequiresExactPeerRouteAndLiveProof(t *testing.T) {
 	status, body = do(http.MethodPost, "/internal/program-runtime/bindings/execute", `{"session_id":"session-1","program_id":"program-1","binding_id":"web-console/session/native-thread-state"}`)
 	require.Equal(t, http.StatusOK, status)
 	require.NotContains(t, body, "synthetic-proof")
+	status, body = do(http.MethodPost, "/internal/program-runtime/bindings/execute", `{"session_id":"session-1","program_id":"program-1","binding_id":"browser-automation-studio/session/observe"}`)
+	require.Equal(t, http.StatusOK, status)
+	require.NotContains(t, body, "synthetic-proof")
 	status, _ = do(http.MethodPost, "/internal/program-runtime/agent/start", good)
 	require.Equal(t, http.StatusOK, status)
 	for _, tc := range []struct{ method, path, body string }{
@@ -233,7 +236,7 @@ func TestAuthorityRelayRequiresExactPeerRouteAndLiveProof(t *testing.T) {
 		status, _ := do(tc.method, tc.path, tc.body)
 		require.Truef(t, status >= 400, "%s %s unexpectedly admitted", tc.method, tc.path)
 	}
-	require.EqualValues(t, 4, calls.Load(), "refused requests must not reach owner")
+	require.EqualValues(t, 5, calls.Load(), "refused requests must not reach owner")
 	active.Store(false)
 	status, _ = do(http.MethodPost, "/internal/program-runtime/tasks/resolve", good)
 	require.Equal(t, http.StatusUnauthorized, status, "receiving owner must reverify the carried proof")
@@ -250,6 +253,31 @@ s=socket.socket(socket.AF_UNIX); s.connect(sys.argv[1]); s.sendall(b'POST /inter
 	require.True(t, os.IsNotExist(err), "relay socket survives close")
 	_, err = net.DialTimeout("unix", path, time.Second)
 	require.Error(t, err)
+}
+
+func TestBrowserBindingRelayAllowlistAndEffectClassification(t *testing.T) {
+	for _, id := range []string{
+		"browser-automation-studio/session/open",
+		"browser-automation-studio/session/observe",
+		"browser-automation-studio/session/act",
+		"browser-automation-studio/session/attach",
+		"browser-automation-studio/session/read-trace",
+		"browser-automation-studio/session/promote-trace",
+		"browser-automation-studio/session/close",
+		"browser-automation-studio/task/run-task",
+		"browser-automation-studio/task/replay-flow",
+	} {
+		require.Truef(t, bindingAuthorityAllowed(id), "%s should be an exact relay member", id)
+	}
+	require.True(t, bindingAuthorityAllowed("web-console/session/native-thread-state"))
+	require.False(t, bindingAuthorityAllowed("browser-automation-studio/workflows/execute"))
+	require.False(t, bindingAuthorityAllowed("browser-automation-studio/session/observe/extra"))
+
+	require.True(t, bindingAuthorityReadOnly([]byte(`{"binding_id":"browser-automation-studio/session/observe"}`)))
+	require.True(t, bindingAuthorityReadOnly([]byte(`{"binding_id":"browser-automation-studio/session/read-trace"}`)))
+	require.False(t, bindingAuthorityReadOnly([]byte(`{"binding_id":"browser-automation-studio/session/act"}`)))
+	require.False(t, bindingAuthorityReadOnly([]byte(`{"binding_id":"browser-automation-studio/task/run-task"}`)))
+	require.False(t, bindingAuthorityReadOnly([]byte(`{"binding_id":"browser-automation-studio/task/replay-flow"}`)))
 }
 
 func TestAuthorityRelayClosesSaturatedConnections(t *testing.T) {

@@ -104,3 +104,49 @@ func TestBoundWait(t *testing.T) {
 		})
 	}
 }
+
+func TestQualifyLatencyEvidenceRequiresCompleteStrataAndPhases(t *testing.T) {
+	policy := DefaultLatencyEvidencePolicy()
+	if policy.MinSamplesPerStratum != 20 {
+		t.Fatalf("default minimum = %d, want 20", policy.MinSamplesPerStratum)
+	}
+	valid := make([]LatencyObservation, 0, 80)
+	for _, status := range []string{"success", "failure"} {
+		for _, thermal := range []string{"cold", "warm"} {
+			for n := 1; n <= 20; n++ {
+				valid = append(valid, LatencyObservation{Status: status, ThermalState: thermal, Total: time.Duration(n) * time.Second, BindingPhase: time.Second, ModelPhase: 2 * time.Second})
+			}
+		}
+	}
+	got, err := QualifyLatencyEvidence(valid, policy)
+	if err != nil {
+		t.Fatalf("complete evidence rejected: %v", err)
+	}
+	for key, count := range got.Counts {
+		if count != 20 || got.P95[key] != 19*time.Second {
+			t.Fatalf("stratum %s count/p95 = %d/%s, want 20/19s", key, count, got.P95[key])
+		}
+	}
+	if got.PooledP95 != 19*time.Second {
+		t.Fatalf("pooled p95 = %s, want 19s", got.PooledP95)
+	}
+	for _, tc := range []struct {
+		name   string
+		mutate func([]LatencyObservation) []LatencyObservation
+	}{
+		{"missing stratum", func(samples []LatencyObservation) []LatencyObservation { return samples[:60] }},
+		{"unknown status", func(samples []LatencyObservation) []LatencyObservation { samples[0].Status = "partial"; return samples }},
+		{"missing phase", func(samples []LatencyObservation) []LatencyObservation { samples[0].BindingPhase = 0; return samples }},
+		{"unknown thermal state", func(samples []LatencyObservation) []LatencyObservation {
+			samples[0].ThermalState = "unknown"
+			return samples
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			copySamples := append([]LatencyObservation(nil), valid...)
+			if _, err := QualifyLatencyEvidence(tc.mutate(copySamples), policy); err == nil {
+				t.Fatal("incomplete evidence unexpectedly qualified")
+			}
+		})
+	}
+}

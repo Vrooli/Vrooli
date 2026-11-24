@@ -242,6 +242,56 @@
         "runtime_only_rationale": "The program calls Test Genie through manifest-backed Connect bindings and does not import its implementation.",
         "startup_policy": "ignore",
         "type": "scenario"
+      },
+      "flow-verifier": {
+        "degraded_behavior": "The weekly debt ledger emits a partial report with this owner source marked unknown.",
+        "description": "Optional owner reads for the weekly debt ledger",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "The weekly debt ledger calls this owner through a manifest-backed governed binding and reports that source as unknown when unavailable.",
+        "startup_policy": "ignore",
+        "type": "scenario"
+      },
+      "code-facts": {
+        "degraded_behavior": "The weekly debt ledger emits a partial report with this owner source marked unknown.",
+        "description": "Optional owner reads for the weekly debt ledger",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "The weekly debt ledger calls this owner through a manifest-backed governed binding and reports that source as unknown when unavailable.",
+        "startup_policy": "ignore",
+        "type": "scenario"
+      },
+      "template-manager": {
+        "degraded_behavior": "The weekly debt ledger emits a partial report with this owner source marked unknown.",
+        "description": "Optional owner reads for the weekly debt ledger",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "The weekly debt ledger calls this owner through a manifest-backed governed binding and reports that source as unknown when unavailable.",
+        "startup_policy": "ignore",
+        "type": "scenario"
+      },
+      "source-ledger": {
+        "degraded_behavior": "The weekly debt ledger emits a partial report with this owner source marked unknown.",
+        "description": "Optional owner reads for the weekly debt ledger",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "The weekly debt ledger calls this owner through a manifest-backed governed binding and reports that source as unknown when unavailable.",
+        "startup_policy": "ignore",
+        "type": "scenario"
+      },
+      "audio-tools": {
+        "degraded_behavior": "Program execution remains available; Audio Tools reads report an explicit unavailable or partial source result when the selected variant is stopped or unreachable.",
+        "description": "Route declared Audio Tools programs through governed Connect bindings, including same-variant Audio Tools lab reads",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Program Runtime invokes Audio Tools only through manifest-backed governed Connect bindings; no scenario package import is used. Non-live program-runtime instances may opt into same-variant Audio Tools routing through lifecycle variant dependencies.",
+        "startup_policy": "ignore",
+        "type": "scenario"
       }
     }
   },
@@ -252,7 +302,9 @@
       "role": "api",
       "build": {
         "kind": "go_module",
-        "dir": "api"
+        "dir": "api",
+        "output": "api/program-runtime-api-{variant}",
+        "source_identity_symbol": "program-runtime/internal/buildidentity.SourceIdentity"
       },
       "run": {
         "argv": [
@@ -276,6 +328,16 @@
         "cwd": "ui",
         "port": "ui"
       }
+    }
+  },
+  "profiles": {
+    "default": {
+      "components": ["api", "ui"],
+      "ports": ["api", "ui"]
+    },
+    "lab": {
+      "components": ["api"],
+      "ports": ["api"]
     }
   },
   "skills": {

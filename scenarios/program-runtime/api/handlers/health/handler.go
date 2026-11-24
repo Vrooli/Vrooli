@@ -25,6 +25,7 @@ type Deps struct {
 	Pinger               database.Pinger
 	Service              string
 	Version              string
+	SourceIdentity       string
 	SkippedManifestCount func() int
 	DescriptorMetadata   DescriptorMetadata
 }
@@ -34,8 +35,13 @@ type Deps struct {
 // is registered as Critical: a failed ping flips the response to
 // status="unhealthy" with HTTP 503.
 func NewHandler(d Deps) http.HandlerFunc {
+	sourceIdentity := d.SourceIdentity
+	if sourceIdentity == "" {
+		sourceIdentity = "unknown"
+	}
 	base := apihealth.New(d.Service).
 		Version(d.Version).
+		Metric("source_identity", func(time.Time) any { return sourceIdentity }).
 		Check(apihealth.Func("database", func(ctx context.Context) error {
 			return d.Pinger.PingContext(ctx)
 		}), apihealth.Critical).Handler()

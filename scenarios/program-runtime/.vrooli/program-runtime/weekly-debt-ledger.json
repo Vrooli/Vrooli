@@ -1,0 +1,75 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.weekly-debt-ledger",
+  "version": "1",
+  "helpers": { "program": "1" },
+  "purpose": "Publish a reproducible weekly debt snapshot from owner APIs, compare adjacent snapshots, and calculate approach yield only from source-attributed reduction receipts.",
+  "owner_skill": "program-runtime",
+  "rung": "S3",
+  "inputs": {
+    "window_start": { "type": "string", "description": "Inclusive UTC date (YYYY-MM-DD) for this seven-day snapshot window." },
+    "window_end": { "type": "string", "description": "Exclusive UTC date (YYYY-MM-DD); must be exactly seven days after window_start." },
+    "max_scenarios": { "type": "integer", "default": 160, "description": "Upper bound on scenario file-metric reads; the roster stays visible when capped." },
+    "max_journal_rows": { "type": "integer", "default": 100, "description": "Per-scope journal read cap; a saturated scope is marked incomplete." },
+    "detector_snapshot": { "type": "object", "default": {}, "description": "Optional owner CLI recommendation snapshots with scenario, Code Facts source hash, and returned recommendation rows; every target must match the current source hash." },
+    "lifecycle_snapshot": { "type": "object", "default": {}, "description": "Optional retained Flow Verifier evidence with observed_at, artifact path, SHA-256, scenario_count, candidate_count, and persisted_count. Must be inside the requested week; cite the original artifact and do not treat as live inventory." },
+    "publish_snapshot": { "type": "boolean", "default": true, "description": "Append the immutable weekly report to Source Ledger debt-ledger-snapshots for next week's cross-run trend. Test fixtures set false." }
+  },
+  "assumptions": [
+    "Flow Verifier owns the scenario roster and Code Facts owns current lexical file metrics; a missing or incomplete response is unknown, not zero.",
+    "Template Manager owns current template-debt rows.",
+    "A landed-reduction receipt is valid only when its before/after revisions, complete path/language/category added/deleted boundary, validation references, source stream, scenario, and controlled approach tag are present.",
+    "The Source Ledger debt-ledger-snapshots scope retains the prior report across agent-run boundaries; adjacent week windows are comparable only when their dates are contiguous and their schemas match.",
+    "Flow Verifier lifecycle inventory is deliberately not called here; its live all-fleet CLI did not return within the observed 45-second window and the charter forbids retrying or diagnosing that route in this unit. A valid caller-supplied saved artifact may be reported with its original as-of date and SHA-256.",
+    "Programs-phase fixtures use live owner reads but disable snapshot publication; deterministic tests cover missing sources, receipt validation, line aggregation, and week adjacency."
+  ],
+  "invariants": [
+    "All reports distinguish absent evidence from measured zero.",
+    "Code Facts production line counts use FILE_METRICS line_count for role=implementation and retain target source/config hashes.",
+    "No recommendation estimate is presented as landed savings.",
+    "Reduction yield uses only valid source-attributed receipts; duplicate unit IDs are counted once.",
+    "The report uses the requested seven-day half-open UTC window and claims trend only for an immediately adjacent prior window.",
+    "The program prints one bounded JSON envelope and appends one immutable snapshot only when publish_snapshot is true."
+  ],
+  "budget": {
+    "wall_ms": 360000,
+    "async": true,
+    "async_reason": "A fleet Code Facts snapshot reads multiple scenario owners and must be submitted asynchronously with one server-owned wait.",
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 200,
+    "output_bytes": 65536
+  },
+  "verbs": ["lib"],
+  "bindings": [
+    { "id": "flow-verifier/scenarios/list", "effect": "read", "optional": true },
+    { "id": "code-facts/facts/describe", "effect": "read", "optional": true },
+    { "id": "template-manager/debt/list", "effect": "read", "optional": true },
+    { "id": "source-ledger/scopes/list", "effect": "read", "optional": true },
+    { "id": "source-ledger/journal/list", "effect": "read", "optional": true },
+    { "id": "source-ledger/journal/note", "effect": "write", "optional": true }
+  ],
+  "fixtures": [
+    { "id": "weekly-live", "inputs": { "window_start": "2026-11-08", "window_end": "2026-11-15", "max_scenarios": 160, "publish_snapshot": false }, "expect": { "status": ["ok", "partial"] }, "requires": ["program-runtime"], "note": "This executes one real owner snapshot; fixture execution does not write snapshot history." },
+    { "id": "reject-nonweekly-window", "inputs": { "window_start": "2026-11-08", "window_end": "2026-11-16" }, "expect": { "admission_error": "invalid_argument" }, "requires": ["program-runtime"] }
+  ],
+  "outputs": {
+    "status": { "enum": ["ok", "partial", "unavailable", "failed"] },
+    "phase": { "enum": ["validate", "collect", "classify", "report"] },
+    "signals": {
+      "window": "Explicit half-open seven-day UTC range.",
+      "previous_window": "Adjacent prior snapshot identity or unknown.",
+      "snapshot_write": "Whether the current immutable weekly snapshot was stored, skipped, not requested, or failed.",
+      "weekly_snapshot": "The retained report payload: per-scenario production line counts, Code Facts hashes, owner counts, source receipts, approach yield, and coverage.",
+      "line_trend": "Current minus prior weekly role counts only for matching complete scenario rows; unattributed fleet delta.",
+      "source_trend": "Adjacent-week landed-unit and net-line deltas by source, plus per-approach yield comparison; measured only when both full source populations are complete.",
+      "detector_snapshot": "Owner CLI recommendation groups keyed by scenario and the matching Code Facts source hash, or unknown.",
+      "lifecycle_inventory": "Current live route remains unknown; a caller-supplied saved artifact may carry dated candidate and persisted counts with path and SHA-256. Supplied evidence is not verified or treated as current coverage.",
+      "template_debt": "Current Template Manager row count and status breakdown, with read completeness.",
+      "reduction_receipts": "Validated receipts by research, ecosystem-hunt, and delivery source; incomplete streams remain unknown.",
+      "approach_yield": "Per-source and per-approach landed-unit count, production added/deleted/net, mean net production reduction, and boundary added/deleted lines by category and production language."
+    },
+    "errors": { "classes": ["invalid_input", "source_unavailable", "invalid_response", "incomplete_source", "kernel_runtime", "remote_error", "binding_error"] },
+    "evidence": "Owner binding names, requested dates, source hashes, journal IDs, and prior execution identity."
+  }
+}

@@ -9,7 +9,7 @@
   "inputs": {
     "request": {
       "type": "object",
-      "description": "{owner, workflow_key, input}. Default: the development-toolchain-validator skill-experiment-audit smoke request."
+      "description": "{owner, workflow_key, input}. Required; no default workflow is bundled."
     },
     "wait_seconds": {
       "type": "integer",

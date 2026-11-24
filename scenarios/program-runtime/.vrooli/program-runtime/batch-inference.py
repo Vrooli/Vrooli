@@ -20,27 +20,12 @@ def step_validate():
 
 def step_classify():
     envelope["phase"] = "classify"
-    try:
-        child = lib.ai_gateway.classify_batch(
-            corpus=corpus, labels=labels,
-            instruction=inputs.get("instruction", "Choose the primary failure class."))
-        rows = child.head(1)
-        if not rows:
-            return program.fail("failed", "missing_result", "AI Gateway returned no child envelope", "classify")
-        result = rows[0]
-        if (not isinstance(result, dict)
-                or result.get("status") not in ("ok", "partial", "failed", "unavailable", "refused")
-                or not isinstance(result.get("signals"), dict)
-                or not isinstance(result.get("errors"), list)
-                or not isinstance(result.get("evidence"), list)):
-            return program.fail("failed", "invalid_response", "AI Gateway returned a malformed child envelope", "classify")
-        envelope["status"] = result["status"]
-        envelope["signals"] = result["signals"]
-        envelope["errors"] = result["errors"]
-        envelope["evidence"] = result["evidence"] + [{"program": "ai-gateway.classify-batch", "artifact": child.meta()}]
-    except Exception as exc:
-        status, klass = program.classify(exc)
-        return program.fail(status, klass, str(exc), "classify")
+    child = lib.ai_gateway.classify_batch(
+        corpus=corpus, labels=labels,
+        instruction=inputs.get("instruction", "Choose the primary failure class."))
+    result = program.child_envelope(child, invalid_class="invalid_response", where="classify",
+                                    adopt=("status", "signals", "errors", "evidence"))
+    envelope["evidence"].append({"program": "ai-gateway.classify-batch", "artifact": child.meta()})
     return "report"
 
 

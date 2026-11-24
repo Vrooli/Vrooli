@@ -1131,16 +1131,26 @@ def _bound_decisions(decisions):
     return (applied + rest)[:ADVICE_DECISION_LIMIT]
 
 
-MEASUREMENT_KEYS = {"first_action_at", "tool_round_trips", "visual_reasoning_calls", "reused_workflow"}
+MEASUREMENT_KEYS = {
+    "first_action_at", "tool_round_trips", "visual_reasoning_calls", "reused_workflow",
+    "assertions_required", "assertions_completed",
+}
+ASSERTION_COUNT_LIMIT = 100000
 
 
 def _validate_measurements(measurements):
-    """The four optional attempt measurements Memory's compare-outcomes reads."""
+    """Validate bounded optional measurements delivered with a learning attempt."""
     if not isinstance(measurements, dict) or set(measurements) - MEASUREMENT_KEYS:
         raise ValueError("measurements accepts only " + ", ".join(sorted(MEASUREMENT_KEYS)))
     for name in ("tool_round_trips", "visual_reasoning_calls"):
         if name in measurements and (type(measurements[name]) is not int or not 0 <= measurements[name] <= 100000):
             raise ValueError(name + " must be an int in 0..100000")
+    for name in ("assertions_required", "assertions_completed"):
+        if name in measurements and (type(measurements[name]) is not int or not 0 <= measurements[name] <= ASSERTION_COUNT_LIMIT):
+            raise ValueError(name + " must be an int in 0..100000")
+    if ("assertions_required" in measurements and "assertions_completed" in measurements
+            and measurements["assertions_completed"] > measurements["assertions_required"]):
+        raise ValueError("assertions_completed must be less than or equal to assertions_required")
     if "reused_workflow" in measurements and type(measurements["reused_workflow"]) is not bool:
         raise ValueError("reused_workflow must be a bool")
     if "first_action_at" in measurements and (not isinstance(measurements["first_action_at"], str) or not measurements["first_action_at"].strip()):

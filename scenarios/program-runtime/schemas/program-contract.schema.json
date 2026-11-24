@@ -342,6 +342,36 @@
         }
       }
     },
+    "replay_safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "effects"],
+      "description": "Owner-authored proof contract for restart continuation. Runtime recovery remains fail-closed when this declaration or any required receipt is missing.",
+      "properties": {
+        "version": {"const": 1},
+        "effects": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["binding_id", "owner", "mode"],
+            "properties": {
+              "binding_id": {"type": "string", "minLength": 1, "maxLength": 192},
+              "owner": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+              "mode": {"enum": ["unsafe", "idempotent", "owner_receipt"]},
+              "key_input": {"type": "string", "minLength": 1, "maxLength": 128},
+              "idempotency_guarantee": {"const": "owner_deduplicates_same_key"},
+              "receipt_binding": {"type": "string", "minLength": 1, "maxLength": 192},
+              "receipt_id_field": {"type": "string", "pattern": "^[A-Za-z0-9_-]+(?:\\.[A-Za-z0-9_-]+)*$", "maxLength": 128},
+              "outcome_field": {"type": "string", "pattern": "^[A-Za-z0-9_-]+(?:\\.[A-Za-z0-9_-]+)*$", "maxLength": 128}
+            }
+          }
+        }
+      }
+    },
     "verbs": {
       "type": "array",
       "description": "Runtime verbs and helpers the source uses besides scenario bindings.",

@@ -1,5 +1,4 @@
 """Summarize the caller-authorized research root without changing it."""
-import json
 import itertools
 import os
 import stat
@@ -113,7 +112,7 @@ def step_collect():
 
 def step_report():
     envelope["phase"] = "report"
-    print(json.dumps(envelope, allow_nan=False, separators=(",", ":")))
+    program.report(envelope)
     return None
 
 

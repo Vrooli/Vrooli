@@ -391,20 +391,21 @@ success; the captured output remains available when validation fails. A valid
 the execution and schema check passed, not that its envelope reports `ok`.
 Historical idempotent replays return their original receipts and are not
 retroactively validated. Schema failure can follow program effects, so inspect
-the owner before retrying. Nested calls do not yet enforce arbitrary
-`output_schema`; use the helper there and executed fixtures for richer nested
-validation.
+the owner before retrying. Each nested declared call is checked against the
+schema embedded in its selected artifact before a result handle is returned;
+this also applies at every hop in a parent→child→grandchild call chain.
 
 For a nested declared call, `handle.meta()` includes the child digest and
 `output_contract` enums when the artifact is known. Its
-`output_schema_validation.state` is `unavailable` when that child declares a
-schema, `not_declared` when it does not, or `unknown` when the relevant artifact
-cannot be established. `unavailable` is not a schema mismatch or a validation
-pass: it means this nested path has not checked the schema. `tasks.run` carries
-the same metadata on completion and replay only when the retained attempt's
-digest matches the selected artifact; it does not borrow the current contract
-for a missing or mismatched artifact. Inspect the retained result and its
-evidence separately from this metadata.
+`output_schema_validation.state` is `validated` after the selected schema
+passes, `mismatch` when it rejects the returned envelope, `not_declared` when
+the child has no schema, or `unknown` when the relevant artifact cannot be
+established. `tasks.run` carries this metadata on completion and replay only
+when the retained attempt's digest matches the selected artifact; it does not
+borrow the current contract for a missing or mismatched artifact. Inspect the
+retained result and its evidence separately from this metadata. A schema
+failure retains its typed `invalid_response` cause through the task receipt and
+does not trigger an automatic retry.
 
 ### Typed bridge exceptions
 

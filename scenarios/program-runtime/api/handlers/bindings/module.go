@@ -377,20 +377,9 @@ func bridgeWithPrivateIdentity(registry *bindings.Registry, manager *sessions.Ma
 			writeBridgeFailure(w, http.StatusBadRequest, request.BindingID, authorizeErr)
 			return
 		}
-		if request.Rows != "" {
-			valid := false
-			if binding != nil {
-				for _, candidate := range binding.GetRowFieldCandidates() {
-					if candidate == request.Rows {
-						valid = true
-						break
-					}
-				}
-			}
-			if !valid {
-				writeBridgeError(w, http.StatusBadRequest, fmt.Sprintf("binding %s rows must name one of its repeated response fields", request.BindingID))
-				return
-			}
+		if request.Rows != "" && !bindingSupportsRowField(binding, request.Rows) {
+			writeBridgeError(w, http.StatusBadRequest, fmt.Sprintf("binding %s rows must name one of its repeated response fields", request.BindingID))
+			return
 		}
 		metadata := bindings.InvocationMetadata{SessionID: request.SessionID, ProgramID: request.ProgramID, Provenance: request.Provenance}
 		var result map[string]any
@@ -539,6 +528,10 @@ var projectionVerbs = map[string]projectionVerb{
 			return map[string]any{"queries": []string{intent}}, nil
 		},
 	},
+}
+
+func bindingSupportsRowField(binding *bindingsv1.Binding, field string) bool {
+	return binding != nil && slices.Contains(binding.GetRowFieldCandidates(), field)
 }
 
 // projectionWholeResponse is the explicit row projection for operations whose
@@ -1145,7 +1138,15 @@ func (s *service) judgeIntent(ctx context.Context, intent string, candidates []*
 		return nil, "low", fmt.Errorf("encode discovery judge input: %w", err)
 	}
 	schema := `{"type":"object","properties":{"binding_id":{"type":"string"},"confidence":{"enum":["high","medium","low"]}},"required":["binding_id","confidence"]}`
-	result, err := s.registry.Execute(ctx, "ai-gateway/inference/run", map[string]any{"source": string(source), "schema_json": schema, "instruction": "Select exactly one candidate when it directly serves the intent. Return an empty binding_id when no candidate is justified. Confidence must reflect evidence in the candidate contract, not guesswork.", "role": "judge.default"}, nil, false, bindings.InvocationMetadata{Provenance: "program-runtime.discovery"}, &http.Client{Timeout: budgets.BridgeCall})
+	result, err := s.registry.Execute(ctx, "ai-gateway/inference/run", map[string]any{
+		"source":             string(source),
+		"schema_json":        schema,
+		"instruction":        "Select exactly one candidate when it directly serves the intent. Return an empty binding_id when no candidate is justified. Confidence must reflect evidence in the candidate contract, not guesswork.",
+		"role":               "judge.default",
+		"profile":            "PROFILE_LOCAL_ONLY",
+		"privacy-class":      "PRIVACY_CLASS_CONFIDENTIAL",
+		"privacy-provenance": "program_runtime.binding_discovery.intent_and_candidate_metadata",
+	}, nil, false, bindings.InvocationMetadata{Provenance: "program-runtime.discovery"}, &http.Client{Timeout: budgets.BridgeCall})
 	if err != nil {
 		return nil, "low", fmt.Errorf("judge.default unavailable: %v", err)
 	}

@@ -156,6 +156,10 @@ type Options struct {
 	RecordUnresolved func(context.Context, string, string, string) error
 	ShapeSink        ShapeSink
 	ContractIndex    *contracts.Index
+	// ProgramLeaseScope brackets one admitted program execution. The returned
+	// cleanup releases demand leases when success, failure, or cancellation makes
+	// the program terminal.
+	ProgramLeaseScope func(context.Context, string, string) func()
 }
 
 type Service struct {
@@ -172,13 +176,14 @@ type Service struct {
 	events           interface {
 		Append(*telemetryv1.ProgramEvent)
 	}
-	preflight        func(string) []*programsv1.Diagnostic
-	preflightSession func(context.Context, string, string, []BindingSpec) []*programsv1.Diagnostic
-	recordUnresolved func(context.Context, string, string, string) error
-	repo             Repository
-	shapeSink        ShapeSink
-	contractIndex    *contracts.Index
-	eventSequence    atomic.Int64
+	preflight         func(string) []*programsv1.Diagnostic
+	preflightSession  func(context.Context, string, string, []BindingSpec) []*programsv1.Diagnostic
+	recordUnresolved  func(context.Context, string, string, string) error
+	repo              Repository
+	shapeSink         ShapeSink
+	contractIndex     *contracts.Index
+	programLeaseScope func(context.Context, string, string) func()
+	eventSequence     atomic.Int64
 
 	// terminalWaiters is the notification side of WaitForProgram. One API
 	// process owns the runner, so every terminal transition happens in this
@@ -199,7 +204,8 @@ type Identity struct {
 	IdempotencyKey    string
 	AdmissionDeadline string
 	Grants            []string
-	PrivateBindings   []BindingSpec
+	BindingScope      bool
+	DeclaredBindings  []BindingSpec
 	HelperContract    *HelperContract
 	OutputSchema      *jsonschema.Schema
 }
@@ -222,7 +228,7 @@ func NewService(options Options) *Service {
 	if options.Store != nil {
 		repo = NewRepository(options.Store)
 	}
-	return &Service{onTerminal: options.OnTerminal, clock: clock, runner: options.Runner, validateSession: options.ValidateSession, authorizeSession: options.AuthorizeSession, recordMemory: options.RecordMemory, executionBudget: options.ExecutionBudget, chargeExecution: options.ChargeExecution, usageReceipt: options.UsageReceipt, libraryVersion: options.LibraryVersion, events: options.Events, preflight: options.Preflight, preflightSession: options.PreflightSession, recordUnresolved: options.RecordUnresolved, shapeSink: options.ShapeSink, contractIndex: options.ContractIndex, repo: repo}
+	return &Service{onTerminal: options.OnTerminal, clock: clock, runner: options.Runner, validateSession: options.ValidateSession, authorizeSession: options.AuthorizeSession, recordMemory: options.RecordMemory, executionBudget: options.ExecutionBudget, chargeExecution: options.ChargeExecution, usageReceipt: options.UsageReceipt, libraryVersion: options.LibraryVersion, events: options.Events, preflight: options.Preflight, preflightSession: options.PreflightSession, recordUnresolved: options.RecordUnresolved, shapeSink: options.ShapeSink, contractIndex: options.ContractIndex, programLeaseScope: options.ProgramLeaseScope, repo: repo}
 }
 
 // RecoverInterrupted must run before registering handlers or accepting submissions.
@@ -268,7 +274,11 @@ func (s *Service) SubmitDeclared(ctx context.Context, sessionID, source string, 
 	}
 	diagnostics := []*programsv1.Diagnostic(nil)
 	if s.preflightSession != nil {
-		diagnostics = s.preflightSession(ctx, sessionID, source, identity.PrivateBindings)
+		bindings := identity.DeclaredBindings
+		if identity.BindingScope && bindings == nil {
+			bindings = make([]BindingSpec, 0)
+		}
+		diagnostics = s.preflightSession(ctx, sessionID, source, bindings)
 	} else if s.preflight != nil {
 		diagnostics = s.preflight(source)
 	}
@@ -355,8 +365,8 @@ func (s *Service) submit(ctx context.Context, sessionID, source string, provenan
 		// progress; sharing p here would create a data race and expose partial
 		// state across the RPC boundary.
 		execution := clone(p)
-		privateBindings := append([]BindingSpec(nil), identity.PrivateBindings...)
-		go s.execute(context.WithoutCancel(ctx), execution, includeMaterialized, identity.HelperContract, identity.OutputSchema, privateBindings)
+		declaredBindings := cloneDeclaredBindings(identity)
+		go s.execute(context.WithoutCancel(ctx), execution, includeMaterialized, identity.HelperContract, identity.OutputSchema, declaredBindings, identity.BindingScope)
 		return clone(p), nil, nil
 	}
 	// A synchronous submission is bounded well inside the HTTP write deadline.
@@ -373,7 +383,7 @@ func (s *Service) submit(ctx context.Context, sessionID, source string, provenan
 	execution := clone(p)
 	go func() {
 		defer close(done)
-		s.execute(context.WithoutCancel(ctx), execution, includeMaterialized, identity.HelperContract, identity.OutputSchema, append([]BindingSpec(nil), identity.PrivateBindings...))
+		s.execute(context.WithoutCancel(ctx), execution, includeMaterialized, identity.HelperContract, identity.OutputSchema, cloneDeclaredBindings(identity), identity.BindingScope)
 	}()
 	select {
 	case <-done:
@@ -417,7 +427,17 @@ func hasDiagnosticErrors(diagnostics []*programsv1.Diagnostic) bool {
 	return false
 }
 
-func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMaterialized bool, helperContract *HelperContract, outputSchema *jsonschema.Schema, privateBindings []BindingSpec) {
+func cloneDeclaredBindings(identity Identity) []BindingSpec {
+	if identity.DeclaredBindings == nil {
+		if identity.BindingScope {
+			return make([]BindingSpec, 0)
+		}
+		return nil
+	}
+	return append(make([]BindingSpec, 0, len(identity.DeclaredBindings)), identity.DeclaredBindings...)
+}
+
+func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMaterialized bool, helperContract *HelperContract, outputSchema *jsonschema.Schema, declaredBindings []BindingSpec, bindingScope bool) {
 	defer func() {
 		if s.onTerminal != nil {
 			_ = s.onTerminal(context.Background(), p.Id)
@@ -430,6 +450,7 @@ func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMat
 	limits := ExecutionLimits{}
 	if s.executionBudget != nil {
 		if value, err := s.executionBudget(p.SessionId); err != nil {
+			p.WallTimeMillis = time.Since(started).Milliseconds()
 			s.fail(p, err)
 			return
 		} else {
@@ -437,6 +458,11 @@ func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMat
 		}
 	}
 	limits.DeclaredContract = helperContract
+	if s.programLeaseScope != nil {
+		if release := s.programLeaseScope(ctx, p.SessionId, p.Id); release != nil {
+			defer release()
+		}
+	}
 	if limits.Wall > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, limits.Wall)
@@ -454,11 +480,11 @@ func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMat
 			p.Stdout = boundedText(p.Stdout, int(p.OutputLimitBytes))
 			_ = s.repo.Save(context.Background(), p)
 		}
-		if len(privateBindings) > 0 {
-			if scopedRunner, ok := s.runner.(PrivateBindingRunner); ok {
-				result, runErr = scopedRunner.ExecuteWithMetadataAndLimitsAndCallerAndBindings(ctx, p.SessionId, p.Id, p.Provenance.String(), p.Source, Caller{RunID: p.CallerRunId, AgentProfile: p.CallerAgentProfile, SkillID: p.CallerSkillId, Harness: p.CallerHarness}, includeMaterialized, limits, privateBindings)
+		if bindingScope {
+			if scopedRunner, ok := s.runner.(DeclaredBindingRunner); ok {
+				result, runErr = scopedRunner.ExecuteWithMetadataAndLimitsAndCallerAndBindings(ctx, p.SessionId, p.Id, p.Provenance.String(), p.Source, Caller{RunID: p.CallerRunId, AgentProfile: p.CallerAgentProfile, SkillID: p.CallerSkillId, Harness: p.CallerHarness}, includeMaterialized, limits, declaredBindings)
 			} else {
-				runErr = errors.New("private declared bindings require a scoped runtime runner")
+				runErr = errors.New("declared contract bindings require a scoped runtime runner")
 			}
 		} else if callerRunner, ok := s.runner.(CallerBudgetedRunner); ok {
 			result, runErr = callerRunner.ExecuteWithMetadataAndLimitsAndCaller(ctx, p.SessionId, p.Id, p.Provenance.String(), p.Source, Caller{RunID: p.CallerRunId, AgentProfile: p.CallerAgentProfile, SkillID: p.CallerSkillId, Harness: p.CallerHarness}, includeMaterialized, limits)
@@ -531,7 +557,7 @@ func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMat
 		if s.shapeSink != nil {
 			_, _ = s.shapeSink.Observe(context.Background(), p.GetId(), p.GetSessionId(), p.GetProvenance(), s.clock())
 		}
-		s.emitLifecycle(p, telemetryv1.EventKind_PROGRAM_SUCCEEDED)
+		s.emitMeasuredLifecycle(p, telemetryv1.EventKind_PROGRAM_SUCCEEDED)
 		s.notifyTerminal(p.Id)
 	}
 	for _, invocation := range result.Invocations {
@@ -567,7 +593,7 @@ func (s *Service) fail(p *programsv1.Program, runErr error) {
 	if err := s.repo.Save(context.Background(), p); err != nil {
 		clearUsageReceipt(p)
 	}
-	s.emitLifecycle(p, telemetryv1.EventKind_PROGRAM_FAILED)
+	s.emitMeasuredLifecycle(p, telemetryv1.EventKind_PROGRAM_FAILED)
 	s.notifyTerminal(p.Id)
 }
 
@@ -581,13 +607,26 @@ func clearUsageReceipt(p *programsv1.Program) {
 
 func (s *Service) emitLifecycle(p *programsv1.Program, kind telemetryv1.EventKind) {
 	if s.events != nil {
-		event := &telemetryv1.ProgramEvent{EventId: uuid.NewString(), OccurredAt: s.clock().UTC().Format(time.RFC3339Nano), Kind: kind, ProgramId: p.Id, SessionId: p.SessionId, Provenance: p.Provenance.String(), FailureShape: p.FailureShape, ContextBytes: p.ContextBytes, Reason: p.FailureDetail, ProgramName: p.ProgramName, ProgramDigest: p.ProgramDigest, CallerRunId: p.CallerRunId, CallerAgentProfile: p.CallerAgentProfile, CallerSkillId: p.CallerSkillId, CallerHarness: p.CallerHarness}
-		event.Reason = resumeReceiptPattern.ReplaceAllString(event.Reason, "[resume receipt redacted]")
-		if kind == telemetryv1.EventKind_PROGRAM_FAILED {
-			event.FailureLocation = failureLocation(p.FailureDetail)
-		}
+		s.appendEvent(s.lifecycleEvent(p, kind))
+	}
+}
+
+func (s *Service) emitMeasuredLifecycle(p *programsv1.Program, kind telemetryv1.EventKind) {
+	if s.events != nil {
+		event := s.lifecycleEvent(p, kind)
+		wallTimeMillis := p.GetWallTimeMillis()
+		event.ExecutionWallTimeMs = &wallTimeMillis
 		s.appendEvent(event)
 	}
+}
+
+func (s *Service) lifecycleEvent(p *programsv1.Program, kind telemetryv1.EventKind) *telemetryv1.ProgramEvent {
+	event := &telemetryv1.ProgramEvent{EventId: uuid.NewString(), OccurredAt: s.clock().UTC().Format(time.RFC3339Nano), Kind: kind, ProgramId: p.Id, SessionId: p.SessionId, Provenance: p.Provenance.String(), FailureShape: p.FailureShape, ContextBytes: p.ContextBytes, Reason: p.FailureDetail, ProgramName: p.ProgramName, ProgramDigest: p.ProgramDigest, CallerRunId: p.CallerRunId, CallerAgentProfile: p.CallerAgentProfile, CallerSkillId: p.CallerSkillId, CallerHarness: p.CallerHarness}
+	event.Reason = resumeReceiptPattern.ReplaceAllString(event.Reason, "[resume receipt redacted]")
+	if kind == telemetryv1.EventKind_PROGRAM_FAILED {
+		event.FailureLocation = failureLocation(p.FailureDetail)
+	}
+	return event
 }
 
 func (s *Service) appendEvent(event *telemetryv1.ProgramEvent) {
@@ -785,7 +824,22 @@ func (s *Service) PortfolioStats(ctx context.Context, req *programsv1.PortfolioS
 	if err != nil {
 		return nil, err
 	}
-	response := &programsv1.PortfolioStatsResponse{ProgramsExecuted: aggregate.ProgramsExecuted, RowsWithoutIdentity: aggregate.RowsWithoutIdentity, UnattributedAgentRuns: aggregate.UnattributedAgentRuns, WindowEnd: end.Format(time.RFC3339Nano)}
+	response := &programsv1.PortfolioStatsResponse{
+		ProgramsExecuted: aggregate.ProgramsExecuted, RowsWithoutIdentity: aggregate.RowsWithoutIdentity,
+		UnattributedAgentRuns: aggregate.UnattributedAgentRuns, WindowEnd: end.Format(time.RFC3339Nano),
+		PortfolioRunCount: aggregate.PortfolioRunCount, EligibleRunDenominator: aggregate.EligibleRunDenominator,
+		VerifiedAgentRuns: aggregate.VerifiedAgentRuns, AgentIdentityAbsentRuns: aggregate.AgentIdentityAbsentRuns,
+		AgentIdentityPresentUnverifiedRuns: aggregate.AgentIdentityPresentUnverifiedRuns,
+		AgentIdentityVerifiedRuns:          aggregate.AgentIdentityVerifiedRuns,
+		AgentIdentityInconsistentRuns:      aggregate.AgentIdentityInconsistentRuns,
+		EligibilityScope:                   "Invocation rows in the time window and optional scenario, independent of provenance and ad-hoc filters. Eligible means a named agent or operator invocation. Identity-deficient agent rows remain in the denominator and not the numerator. Ad-hoc rows cannot be assigned to a selected scenario; scenario-filtered counts cover named rows only.",
+	}
+	for reason, count := range aggregate.EligibilityExclusions {
+		response.EligibilityExclusions = append(response.EligibilityExclusions, &programsv1.PortfolioEligibilityExclusion{Reason: reason, Runs: count})
+	}
+	sort.Slice(response.EligibilityExclusions, func(i, j int) bool {
+		return response.EligibilityExclusions[i].GetReason() < response.EligibilityExclusions[j].GetReason()
+	})
 	if !start.IsZero() {
 		response.WindowStart = start.Format(time.RFC3339Nano)
 	}

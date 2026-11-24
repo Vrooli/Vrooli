@@ -268,6 +268,31 @@
           "notes": "Focused evidence and scoped Test Genie findings are recorded in docs/internal/PROBLEMS.md; owner synchronization retains completion authority."
         }
       ]
+    },
+    {
+      "id": "LV-16",
+      "title": "Durable assertion measurements",
+      "description": "Learning attempts MAY include optional assertions_required and assertions_completed measurements. Present values MUST be integers from 0 through 100000, and completed MUST NOT exceed required when both are present. Missing values remain unknown, and assertion telemetry MUST NOT redefine the attempt outcome.",
+      "prd_ref": "OT-P1-012",
+      "status": "complete",
+      "category": "learning.measurements",
+      "criticality": "P1",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "kernel/tests/test_learn.py",
+          "status": "passing",
+          "notes": "Optional count propagation, absence-as-unknown, outcome independence, and range/order rejection are covered by the learning verb tests."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "ref": "kernel/tests/test_tasks.py",
+          "status": "passing",
+          "notes": "The admitted finish payload preserves both counts, preserves omitted values as absent, and rejects invalid measurements before the existing finish bridge call."
+        }
+      ]
     }
   ]
 }

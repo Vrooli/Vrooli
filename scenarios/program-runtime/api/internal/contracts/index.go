@@ -61,6 +61,36 @@ type Contract struct {
 	Research bool
 }
 
+// RuntimeDeclaration returns the immutable on-disk declaration augmented with
+// its already-validated output schema. The schema body travels with a library
+// snapshot so the kernel can validate nested results without reading files or
+// trusting a path supplied by a program.
+func (c Contract) RuntimeDeclaration() ([]byte, error) {
+	declaration := append([]byte(nil), c.Declaration...)
+	if c.Digest != "" && c.Digest != ContentDigest(c.Declaration, []byte(c.Source), c.OutputSchemaSource) {
+		return nil, errors.New("contract content digest does not match its declaration, source, and output schema")
+	}
+	if len(c.OutputSchemaSource) == 0 {
+		return declaration, nil
+	}
+	if !json.Valid(c.OutputSchemaSource) {
+		return nil, errors.New("compiled output schema source is not valid JSON")
+	}
+	var document map[string]json.RawMessage
+	if err := json.Unmarshal(declaration, &document); err != nil {
+		return nil, fmt.Errorf("decode contract declaration for runtime: %w", err)
+	}
+	if document == nil {
+		return nil, errors.New("contract declaration for runtime must be an object")
+	}
+	document["_runtime_output_schema"] = append(json.RawMessage(nil), c.OutputSchemaSource...)
+	encoded, err := json.Marshal(document)
+	if err != nil {
+		return nil, fmt.Errorf("encode runtime contract declaration: %w", err)
+	}
+	return encoded, nil
+}
+
 // LearningSummary is the analyzer-derived projection of the in-program
 // learning surface declared by a contract. It is intentionally small: callers
 // need to know which verbs and note kinds are present, not duplicate source.

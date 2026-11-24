@@ -7,8 +7,6 @@ Demonstrates: a dry-run plan read through a governed binding; counts by eligibil
 Phases: validate -> collect -> classify -> report. Dry-run only: this program never passes execute.
 """
 
-import json
-
 inputs = program.inputs()
 scenario = inputs.get("scenario")
 
@@ -56,7 +54,7 @@ def step_classify():  # CLASSIFY · counts, and a key group when the rows carry 
 
 def step_report():  # REPORT
     envelope["phase"] = "report"
-    print(json.dumps(envelope, allow_nan=False, separators=(",", ":")))
+    program.report()
     return None
 
 

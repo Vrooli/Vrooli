@@ -236,3 +236,32 @@ func TestLibraryDiscoveryOmitsSourceAndExplicitGetRetainsIt(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, strings.Repeat("large source\n", 1000), got.Program.Source)
 }
+
+// An agent session's library run counts as an agent run unless it says
+// otherwise; outside one, or with VROOLI_CALLER=human, it is the operator's.
+func TestUnsetProvenanceFollowsTheCaller(t *testing.T) {
+	schema := cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "name"}}, Flags: []cliapp.Flag{
+		{Name: "provenance"},
+		{Name: "input"},
+		{Name: "grant"},
+		{Name: "expected-digest"},
+		{Name: "idempotency-key"},
+		{Name: "admission-deadline"},
+		{Name: "caller-run-id"},
+		{Name: "caller-agent-profile"},
+		{Name: "caller-skill-id"},
+		{Name: "caller-harness"},
+	}}
+	run := func(args ...string) programsv1.Provenance {
+		ctx, err := cliapp.NewTestRunContextFromArgs(schema, append([]string{"research/plan-health"}, args...), nil, nil, nil)
+		require.NoError(t, err)
+		req, err := declaredRequest(ctx)
+		require.NoError(t, err)
+		return req.GetProvenance()
+	}
+	t.Setenv("VROOLI_CALLER", "agent")
+	require.Equal(t, programsv1.Provenance_PROVENANCE_AGENT, run())
+	require.Equal(t, programsv1.Provenance_PROVENANCE_OPERATOR, run("--provenance", "operator"), "an explicit value always wins")
+	t.Setenv("VROOLI_CALLER", "human")
+	require.Equal(t, programsv1.Provenance_PROVENANCE_OPERATOR, run())
+}

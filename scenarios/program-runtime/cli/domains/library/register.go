@@ -15,6 +15,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/researchhome"
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 	libraryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library"
 	libraryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library/library_v1connect"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
@@ -185,9 +186,15 @@ func declaredRequest(ctx cliapp.OperationContext) (*libraryv1.RunDeclaredProgram
 	if err != nil {
 		return nil, fmt.Errorf("encode library run inputs: %w", err)
 	}
+	// Unset provenance follows the caller: an agent session's runs count as
+	// agent runs, so adoption numbers are not credited to the operator.
 	provenance := programsv1.Provenance_PROVENANCE_OPERATOR
 	switch strings.ToLower(strings.TrimSpace(ctx.Flag("provenance"))) {
-	case "", "operator":
+	case "":
+		if cliutil.IsLikelyAgentContext() {
+			provenance = programsv1.Provenance_PROVENANCE_AGENT
+		}
+	case "operator":
 	case "agent":
 		provenance = programsv1.Provenance_PROVENANCE_AGENT
 	case "test":

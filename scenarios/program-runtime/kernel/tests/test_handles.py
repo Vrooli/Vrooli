@@ -1,3 +1,4 @@
+import json
 import sys
 from unittest.mock import patch
 from pathlib import Path
@@ -113,6 +114,30 @@ def test_binding_response_refuses_ambiguous_repeated_fields_with_candidates():
     assert "fixture/query/run" in result["error"]
     assert "first, second" in result["error"]
     invoke.assert_not_called()
+
+
+def test_program_run_returns_typed_ambiguous_response_without_guessing_rows():
+    kernel = SessionKernel([
+        {"id": "fixture/query/run", "scenario": "fixture", "group": "query", "command": "run",
+         "effect": "read", "row_field_candidates": ["first", "second"]}
+    ], session_id="phase-1", bridge_url="http://bridge/internal/program-runtime/bindings/execute")
+    source = (
+        "envelope = program.envelope('fixture.parent', '1', phase='collect')\n"
+        "def step_collect():\n    fixture.query.run()\n"
+        "def step_report():\n    envelope['phase'] = 'report'\n    program.report()\n"
+        "program.run({'collect': step_collect, 'report': step_report}, 'collect')\n"
+    )
+    with patch("host.engine.urllib.request.urlopen") as invoke:
+        result = kernel.execute(source)
+    invoke.assert_not_called()
+    assert result["ok"], result
+    envelope = json.loads(result["stdout"])
+    assert envelope["status"] == "failed"
+    assert envelope["errors"][0]["class"] == "ambiguous_response"
+    detail = envelope["errors"][0]["detail"]
+    assert "no row field was guessed" in detail
+    assert "rows=<owner-approved candidate>" in detail
+    assert "first, second" in detail
 
 
 def test_binding_response_accepts_explicit_rows_projection():
@@ -485,18 +510,14 @@ def test_nested_contract_handle_carries_declared_output_enums():
     assert "'child_error'" in result["stdout"]
 
 
-def test_nested_schema_metadata_does_not_claim_enforcement():
+def test_nested_schema_metadata_fails_closed_without_inline_schema():
     spec = {"name": "demo.child", "scenario": "demo", "contract": True,
             "current": True, "digest": "pinned", "declaration": {"output_schema": "schema.json"},
             "source": "print({'status':'partial','signals':{'value':7}})"}
     kernel = SessionKernel(libraries=[spec])
     result = kernel.execute("import json\nh = lib.demo.child()\nprint(json.dumps({'meta':h.meta(), 'value':h.head(1)[0]}))")
-    assert result["ok"]
-    import json
-    value = json.loads(result["stdout"])
-    assert value["value"]["signals"]["value"] == 7
-    assert value["meta"]["output_schema_validation"] == {
-        "state": "unavailable", "reason": "nested_schema_validation_unavailable"}
+    assert not result["ok"]
+    assert "declared output schema is unavailable for demo.child" in result["error"]
 
 
 def test_nested_contract_rejects_multiple_output_envelopes():

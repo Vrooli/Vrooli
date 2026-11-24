@@ -12,8 +12,8 @@ var runtimeVerbNames = []string{
 // a typo such as `program.clasify` is refused before the kernel runs it.
 // TestProgramHelperMembersMatchKernel keeps the two lists identical.
 var ProgramHelperMembers = []string{
-	"VERSION", "inputs", "child_envelope", "envelope", "attach", "current", "fail", "guarded",
-	"classify", "select_field", "coerce_int", "coerce_float", "run", "report",
+	"VERSION", "inputs", "child_envelope", "deadline_refusal", "fail_exception", "envelope", "attach", "current", "fail", "guarded",
+	"classify", "select_field", "coerce_int", "coerce_float", "run", "report", "write_artifact",
 	"BindingError", "ScenarioUnreachable",
 	"Refused", "InvalidInput", "AmbiguousResponse", "DeadlineExceeded",
 	"RemoteError", "NoGovernedBinding",

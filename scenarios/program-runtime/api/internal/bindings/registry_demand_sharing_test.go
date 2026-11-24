@@ -21,14 +21,16 @@ type sharedDemandFixture struct {
 	acquired atomic.Int64
 	released atomic.Int64
 
-	mu   sync.Mutex
-	live int
-	peak int
+	mu      sync.Mutex
+	live    int
+	peak    int
+	lastTTL time.Duration
 }
 
 func (f *sharedDemandFixture) Acquire(_ context.Context, req demand.AcquireRequest) (demand.Lease, error) {
 	f.acquired.Add(1)
 	f.mu.Lock()
+	f.lastTTL = req.TTL
 	f.live++
 	if f.live > f.peak {
 		f.peak = f.live
@@ -53,6 +55,12 @@ func (f *sharedDemandFixture) peakLive() int {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.peak
+}
+
+func (f *sharedDemandFixture) leaseTTL() time.Duration {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.lastTTL
 }
 
 // TestConcurrentInvocationsAtOneScenarioTakeOneLease pins the fix for the
@@ -110,6 +118,44 @@ func TestConcurrentInvocationsAtOneScenarioTakeOneLease(t *testing.T) {
 	require.Equal(t, int64(1), fixture.acquired.Load(), "overlapping requests at one scenario must share one lease")
 	require.Equal(t, int64(1), fixture.released.Load(), "the shared lease must be released exactly once")
 	require.Equal(t, 1, fixture.peakLive(), "never more than one lease live for one scenario")
+}
+
+func TestProgramLeaseScopeKeepsCalledDependencyHeldUntilTerminal(t *testing.T) {
+	for _, caller := range []string{"program-runtime.typed-inference", "program-runtime.batch-inference"} {
+		for _, outcome := range []struct {
+			name       string
+			statusCode int
+			wantErr    bool
+		}{{name: "available", statusCode: http.StatusOK}, {name: "degraded", statusCode: http.StatusServiceUnavailable, wantErr: true}} {
+			t.Run(caller+"/"+outcome.name, func(t *testing.T) {
+				registry := fixtureRegistry(t, `{"name":"program-runtime","groups":[{"name":"records","commands":[{"name":"list","binding":{"kind":"connect-rpc","service":"BindingRegistryService","method":"ListBindings"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
+				registry.bindings[0].Scenario = "ai-gateway"
+				fixture := &sharedDemandFixture{}
+				registry.SetDemandLeaseClient(fixture)
+				registry.SetReachabilityResolver(func(context.Context, string) (string, error) { return "http://fixture.invalid", nil })
+				sessionID := "program-session"
+				closeScope := registry.BeginProgramLeaseScope(sessionID, caller)
+
+				client := &http.Client{Transport: bindingRoundTripper(func(req *http.Request) (*http.Response, error) {
+					return &http.Response{StatusCode: outcome.statusCode, Body: io.NopCloser(strings.NewReader(`{}`)), Header: make(http.Header), Request: req}, nil
+				})}
+				_, err := registry.Execute(context.Background(), registry.bindings[0].GetId(), map[string]any{}, nil, false,
+					InvocationMetadata{SessionID: sessionID, ProgramID: caller}, client)
+				if outcome.wantErr {
+					require.Error(t, err, "a degraded child call must reach the program's own failure/partial policy")
+				} else {
+					require.NoError(t, err)
+				}
+				require.Equal(t, int64(1), fixture.acquired.Load())
+				require.Equal(t, 10*time.Minute, fixture.leaseTTL(), "process loss must leave only the bounded demand TTL")
+				require.Equal(t, int64(0), fixture.released.Load(), "the dependency remains held until the parent is terminal")
+				closeScope()
+				closeScope() // terminal cleanup is idempotent
+				require.Equal(t, int64(1), fixture.released.Load())
+				require.Equal(t, 0, registry.programLeaseScopes.activeCount())
+			})
+		}
+	}
 }
 
 // TestConcurrentInvocationsAtDifferentScenariosKeepSeparateLeases guards the

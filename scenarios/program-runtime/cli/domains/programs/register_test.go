@@ -16,6 +16,30 @@ func TestProgramListReportHasOneRowPerProgram(t *testing.T) {
 	}
 }
 
+func TestPortfolioReportShowsVerifiedShareAndEveryExclusion(t *testing.T) {
+	report := (&handlers{}).portfolioReport(nil, &programsv1.PortfolioStatsResponse{
+		EligibleRunDenominator: 4, VerifiedAgentRuns: 1,
+		AgentIdentityAbsentRuns: 2, AgentIdentityPresentUnverifiedRuns: 1,
+		AgentIdentityVerifiedRuns: 1, AgentIdentityInconsistentRuns: 1,
+		EligibilityExclusions: []*programsv1.PortfolioEligibilityExclusion{
+			{Reason: "test", Runs: 3}, {Reason: "ad_hoc", Runs: 2},
+		},
+		EligibilityScope: "frozen portfolio window",
+	})
+
+	joined := strings.Join(report.Summary, "\n")
+	for _, expected := range []string{
+		"Verified agent share: 1/4 eligible program invocations (25.0%).",
+		"Agent caller identity: absent=2 present-but-unverified=1 verified=1 inconsistent=1.",
+		"Eligibility exclusions: ad_hoc=2, test=3",
+		"Eligibility scope: frozen portfolio window",
+	} {
+		if !strings.Contains(joined, expected) {
+			t.Fatalf("summary missing %q: %s", expected, joined)
+		}
+	}
+}
+
 func TestGroupName(t *testing.T) {
 	if GroupName != "programs" {
 		t.Fatal(GroupName)

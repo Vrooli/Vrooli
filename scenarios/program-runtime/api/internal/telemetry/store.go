@@ -37,12 +37,6 @@ type Repository interface {
 	DeleteDelivered(context.Context) (int64, error)
 }
 
-// EventSink is the narrow observation seam used by subsystems that emit
-// typed lifecycle facts without depending on the telemetry store internals.
-type EventSink interface {
-	Append(*telemetryv1.ProgramEvent)
-}
-
 func (s *Store) AppendShapeEvent(event shapes.ShapeEvent) {
 	s.Append(&telemetryv1.ProgramEvent{EventId: uuid.NewString(), OccurredAt: event.OccurredAt.Format(time.RFC3339Nano), Kind: event.Kind, ShapeKey: event.ShapeKey, ShapeBindingIds: event.BindingIDs, ShapeOccurrences: event.Occurrences, ShapeSessions: event.Sessions, DominantScenario: event.DominantScenario, CoveringContractId: event.CoveringContractID})
 }
@@ -253,13 +247,6 @@ type Store struct {
 }
 
 func NewStore() *Store { return NewStoreWithOptions(Options{}) }
-func NewStoreWithPublisher(publisher Publisher) *Store {
-	return NewStoreWithOptions(Options{Publisher: publisher})
-}
-
-func NewStoreWithDB(db sessions.SQLExecutor, publisher Publisher) *Store {
-	return NewStoreWithOptions(Options{DB: db, Publisher: publisher})
-}
 
 type Options struct {
 	DB        sessions.SQLExecutor

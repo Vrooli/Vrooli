@@ -16,10 +16,8 @@ and is the only substring table left in the runtime.
 
 Two invariants the old copies encoded and this module keeps:
 
-- `NameError` and `AttributeError` are never relabelled. A kernel-bound name
-  that is missing is a `kernel_runtime` failure, and a program that calls it
-  `binding_error` runs convincingly under plain Python and lies about why it
-  failed.
+- `NameError` stays distinct as `unresolved_name`; no binding alias or retry is
+  guessed. `AttributeError` remains a `kernel_runtime` failure.
 - Exactly one envelope is printed on every path. `run` owns the catch that
   guarantees it; `report` refuses to print twice.
 """
@@ -27,7 +25,15 @@ from __future__ import annotations
 
 import json
 import re
+import urllib.error
+import urllib.request
 from typing import Any, Callable, Iterable
+
+from contracts import _json_equal, _matches_type
+try:
+    from .bridge_transport import open_bridge_request as _open_bridge_request
+except ImportError:  # launched by absolute path without the host package on sys.path
+    from bridge_transport import open_bridge_request as _open_bridge_request
 
 HELPER_VERSION = "2"
 SUPPORTED_HELPER_VERSIONS = {"1", "2"}
@@ -40,6 +46,7 @@ PUBLIC_MEMBERS = (
     "VERSION",
     "inputs",
     "child_envelope",
+    "deadline_refusal", "fail_exception",
     "envelope",
     "attach",
     "current",
@@ -51,6 +58,7 @@ PUBLIC_MEMBERS = (
     "coerce_float",
     "run",
     "report",
+    "write_artifact",
     "BindingError",
     "ScenarioUnreachable",
     "Refused",
@@ -147,6 +155,7 @@ _EXCEPTION_FOR_CLASS: dict[str, type[BindingError]] = {
     "deadline_exceeded": DeadlineExceeded,
     "remote_error": RemoteError,
     "no_governed_binding": NoGovernedBinding,
+    "invalid_response": BindingError,
     "binding_error": BindingError,
 }
 
@@ -199,6 +208,85 @@ def exception_for(klass: str, detail: Any, *, binding_id: str = "", status: str 
     cls = _EXCEPTION_FOR_CLASS.get(str(klass), BindingError)
     resolved_class = str(klass) if str(klass) in _EXCEPTION_FOR_CLASS else BindingError.klass
     return cls(detail, binding_id=binding_id, status=status or None, klass=resolved_class, http_status=http_status)
+
+
+_OUTPUT_SCHEMA_KEYWORDS = {
+    "$schema", "$id", "title", "description", "type", "const", "enum", "required",
+    "properties", "additionalProperties", "items", "minItems", "maxItems", "minLength",
+    "maxLength", "minimum", "maximum",
+}
+
+
+def validate_output_schema(value: Any, schema: Any) -> list[str]:
+    """Validate the JSON Schema subset used by declared program output schemas.
+
+    Unknown schema keywords fail closed. The checked-in Program Runtime output
+    schemas use this subset; this avoids a runtime-only third-party dependency.
+    """
+    issues: list[str] = []
+
+    def visit(candidate: Any, rule: Any, path: str) -> None:
+        if not isinstance(rule, dict):
+            issues.append(f"schema at {path} is not an object")
+            return
+        unknown = set(rule) - _OUTPUT_SCHEMA_KEYWORDS
+        if unknown:
+            issues.append(f"unsupported output schema keyword {sorted(unknown)[0]} at {path}")
+            return
+
+        declared_type = rule.get("type")
+        if declared_type is not None:
+            types = declared_type if isinstance(declared_type, list) else [declared_type]
+            if not any(isinstance(kind, str) and _matches_type(candidate, kind) for kind in types):
+                issues.append(f"{path} does not match declared type")
+                return
+        if "const" in rule and not _json_equal(candidate, rule["const"]):
+            issues.append(f"{path} does not match declared constant")
+        if "enum" in rule and not any(_json_equal(candidate, choice) for choice in rule["enum"]):
+            issues.append(f"{path} is outside the declared enum")
+        if isinstance(candidate, str):
+            if "minLength" in rule and len(candidate) < rule["minLength"]:
+                issues.append(f"{path} is shorter than minLength")
+            if "maxLength" in rule and len(candidate) > rule["maxLength"]:
+                issues.append(f"{path} is longer than maxLength")
+        if isinstance(candidate, (int, float)) and not isinstance(candidate, bool):
+            if "minimum" in rule and candidate < rule["minimum"]:
+                issues.append(f"{path} is below minimum")
+            if "maximum" in rule and candidate > rule["maximum"]:
+                issues.append(f"{path} is above maximum")
+        if isinstance(candidate, list):
+            if "minItems" in rule and len(candidate) < rule["minItems"]:
+                issues.append(f"{path} has fewer than minItems")
+            if "maxItems" in rule and len(candidate) > rule["maxItems"]:
+                issues.append(f"{path} has more than maxItems")
+            if "items" in rule:
+                for index, item in enumerate(candidate):
+                    visit(item, rule["items"], f"{path}[{index}]")
+        if isinstance(candidate, dict):
+            required = rule.get("required", [])
+            if not isinstance(required, list) or any(not isinstance(key, str) for key in required):
+                issues.append(f"schema required at {path} is not a string array")
+                return
+            for key in required:
+                if key not in candidate:
+                    issues.append(f"{path}.{key} is required")
+            properties = rule.get("properties", {})
+            if not isinstance(properties, dict):
+                issues.append(f"schema properties at {path} is not an object")
+                return
+            for key, child_rule in properties.items():
+                if key in candidate:
+                    visit(candidate[key], child_rule, f"{path}.{key}")
+            additional = rule.get("additionalProperties", True)
+            extras = set(candidate) - set(properties)
+            if additional is False and extras:
+                issues.append(f"{path} contains undeclared property {sorted(extras)[0]}")
+            elif isinstance(additional, dict):
+                for key in sorted(extras):
+                    visit(candidate[key], additional, f"{path}.{key}")
+
+    visit(value, schema, "$")
+    return issues
 
 
 def bridge_error(binding_id: str, transport_status: int, body: Any) -> BindingError:
@@ -256,10 +344,11 @@ class ProgramHelper:
     def VERSION(self) -> str:
         return self._version
 
-    def __init__(self, version: str = HELPER_VERSION, output_contract: dict[str, Any] | None = None) -> None:
+    def __init__(self, version: str = HELPER_VERSION, output_contract: dict[str, Any] | None = None, invocation_context: Any = None) -> None:
         self._version = version
         self._output_contract = dict(output_contract or {})
         self._environment: dict[str, Any] | None = None
+        self._invocation_context = invocation_context
         self._envelope: dict[str, Any] | None = None
         self._reported = False
 
@@ -281,10 +370,32 @@ class ProgramHelper:
             return value
         return dict(default or {})
 
-    def child_envelope(self, handle: Any, *, invalid_class: str = "invalid_response", where: str = "collect") -> dict[str, Any]:
-        """Read and validate one nested contract envelope without choosing parent policy."""
+    def child_envelope(self, handle: Any, *, invalid_class: str = "invalid_response", where: str | None = None, expected_digest: str | None = None, adopt: tuple[str, ...] = (), row_groups: dict[str, list[str]] | None = None) -> dict[str, Any]:
+        """Read one nested contract envelope and optionally enforce its pinned artifact digest."""
         if self.VERSION != "2":
             raise RuntimeError("program.child_envelope requires helpers.program version 2")
+        if expected_digest is not None and not re.fullmatch(r"[0-9a-f]{64}", expected_digest):
+            raise ValueError("expected_digest must be a lowercase SHA-256 artifact digest")
+        adoptable = {"inputs", "status", "signals", "errors", "evidence"}
+        if not isinstance(adopt, tuple) or any(field not in adoptable for field in adopt):
+            raise ValueError("adopt must be a tuple of declared child envelope fields")
+
+        def adopt_child(child: dict[str, Any]) -> dict[str, Any]:
+            if row_groups is not None:
+                child = dict(child)
+                signals = dict(child.get("signals") or {})
+                signals["rows"] = [dict(source, reading=dict(source["reading"], cohorts=[
+                    dict({"operation": cohort.get("operation"), "context": cohort.get("context")},
+                         **{key: cohort.get(key) for key in row_groups[source["row"]]})
+                    for cohort in source["reading"].get("cohorts", [])[:1]])
+                    if source.get("reading") is not None else source)
+                    for source in signals.get("rows", []) if source["row"] in row_groups]
+                child["signals"] = signals
+            if adopt:
+                parent = self.current()
+                for field in adopt:
+                    parent[field] = child[field]
+            return child
 
         parent_errors = self._enum(self._output_contract, "errors", "classes")
         if invalid_class not in parent_errors:
@@ -292,16 +403,26 @@ class ProgramHelper:
         parent_statuses = self._enum(self._output_contract, "status", "enum")
         if "failed" not in parent_statuses:
             raise ValueError("parent status.enum must declare 'failed' to normalize an invalid child envelope")
+        if where is None:
+            current = self._envelope if isinstance(self._envelope, dict) else None
+            if current is None and isinstance(self._environment, dict):
+                candidate = dict.get(self._environment, "envelope")
+                current = candidate if isinstance(candidate, dict) else None
+            phase = current.get("phase") if current else None
+            where = phase if isinstance(phase, str) and phase else "collect"
 
         raw: Any = None
         issues: list[str] = []
+        empty_result = False
         try:
             count = handle.count() if callable(getattr(handle, "count", None)) else None
             rows = handle.head(1)
             if count is not None and count != 1:
                 issues.append("nested result must contain exactly one envelope")
+                empty_result = count == 0 and isinstance(rows, list) and not rows
             if not isinstance(rows, list) or len(rows) != 1:
                 issues.append("nested result must contain exactly one envelope")
+                empty_result = empty_result or (isinstance(rows, list) and not rows)
             else:
                 raw = rows[0]
         except Exception as exc:  # malformed handles are protocol failures
@@ -314,6 +435,8 @@ class ProgramHelper:
                 metadata = value
         except Exception:
             pass
+        if expected_digest is not None and metadata.get("digest") != expected_digest:
+            issues.append("child artifact digest is absent or does not match its declared pin")
         child_contract = metadata.get("output_contract") if isinstance(metadata.get("output_contract"), dict) else {}
         child_statuses = self._enum(child_contract, "status", "enum")
         child_phases = self._enum(child_contract, "phase", "enum")
@@ -354,13 +477,15 @@ class ProgramHelper:
             evidence = []
 
         if not issues:
-            return dict(raw)
+            return adopt_child(dict(raw))
 
         parent_statuses = self._enum(self._output_contract, "status", "enum")
         failure_status = "failed"
         child_program = raw.get("program") if isinstance(raw.get("program"), str) else metadata.get("program", "program-runtime.child")
         child_version = raw.get("version") if isinstance(raw.get("version"), str) else metadata.get("version", "1")
         child_phase = raw.get("phase") if isinstance(raw.get("phase"), str) and (not child_phases or raw.get("phase") in child_phases) else "report"
+        empty_class = next((candidate for candidate in ("missing_result", "no_output") if candidate in parent_errors), invalid_class)
+        error_class = empty_class if empty_result else invalid_class
         normalized = {
             "program": child_program,
             "version": child_version,
@@ -369,13 +494,13 @@ class ProgramHelper:
             "inputs": raw.get("inputs") if isinstance(raw.get("inputs"), dict) else {},
             "signals": signals,
             "errors": clean_errors[:4] + [{
-                "class": invalid_class,
+                "class": error_class,
                 "detail": "; ".join(dict.fromkeys(issues))[:ERROR_DETAIL_LIMIT],
                 "where": str(where)[:80],
             }],
             "evidence": evidence[:10],
         }
-        return normalized
+        return adopt_child(normalized)
 
     @staticmethod
     def _enum(contract: dict[str, Any], section: str, field: str) -> list[str]:
@@ -408,6 +533,51 @@ class ProgramHelper:
             return candidate
         raise RuntimeError("no envelope: call program.envelope(name, version) or program.attach(envelope) before program.fail, program.run or program.report")
 
+    def write_artifact(self, *, scenario: str, run_id: str, artifact_id: str, path: str, overwrite: bool = False) -> dict[str, Any]:
+        """Stream one pinned Test Genie artifact into the admitted workspace."""
+        if not all(isinstance(value, str) and value.strip() for value in (scenario, run_id, artifact_id, path)):
+            raise ValueError("scenario, run_id, artifact_id and relative path are required")
+        if type(overwrite) is not bool:
+            raise TypeError("overwrite must be a boolean")
+        environment = self._environment or {}
+        root = dict.get(environment, "__vrooli__") if isinstance(environment, dict) else None
+        bridge_url = str(getattr(root, "_bridge_url", "")).strip()
+        session_id = str(getattr(root, "_session_id", "")).strip()
+        context = self._invocation_context.get({}) if self._invocation_context is not None else {}
+        program_id = str(context.get("program_id", "")).strip()
+        if not bridge_url or not session_id or not program_id:
+            raise RuntimeError("artifact stream effect requires an active governed Program Runtime execution")
+        endpoint = bridge_url.rsplit("/bindings/execute", 1)[0] + "/artifacts/stream-to-file"
+        request = urllib.request.Request(
+            endpoint,
+            data=json.dumps({
+                "session_id": session_id,
+                "program_id": program_id,
+                "scenario": scenario.strip(),
+                "run_id": run_id.strip(),
+                "artifact_id": artifact_id.strip(),
+                "path": path,
+                "overwrite": overwrite,
+            }, separators=(",", ":")).encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with _open_bridge_request(request, timeout=120) as response:
+                payload = json.loads(response.read(16 << 10).decode())
+        except urllib.error.HTTPError as exc:
+            detail = exc.read(4096).decode(errors="replace")
+            try:
+                detail = json.loads(detail).get("error", detail)
+            except json.JSONDecodeError:
+                pass
+            raise RuntimeError(f"artifact stream effect refused: {detail}") from exc
+        except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"artifact stream effect unavailable: {exc}") from exc
+        if not isinstance(payload, dict) or payload.get("artifact_id") != artifact_id.strip():
+            raise RuntimeError("artifact stream effect returned an invalid receipt")
+        return payload
+
     # -- the helpers the copies used to define -----------------------------
 
     def fail(self, status: str, klass: str, detail: Any, where: str, detail_limit: int = ERROR_DETAIL_LIMIT) -> str:
@@ -431,7 +601,50 @@ class ProgramHelper:
 
         return run
 
-    def classify(self, exc: BaseException) -> tuple[str, str]:
+    def deadline_refusal(self, exc: BaseException, *, where: str, detail_limit: int = ERROR_DETAIL_LIMIT) -> dict[str, str]:
+        """Return the shared no-retry refusal for an expired owner deadline."""
+        prefix = "Deadline expired; no retry or budget extension is automatic. Inspect owner evidence before caller-owned resubmission. Cause: "
+        cause = exc.detail if isinstance(exc, BindingError) else str(exc)
+        return {"class": "deadline_exceeded", "detail": (prefix + str(cause))[:max(0, min(detail_limit, ERROR_DETAIL_LIMIT))], "where": str(where)[:80]}
+
+    def fail_exception(self, exc: BaseException, where: str, detail_limit: int = ERROR_DETAIL_LIMIT,
+                       default_class: str = "binding_error", record: bool = True) -> str | dict[str, str]:
+        """Record or return a bounded, no-retry failure response with owner cause."""
+        if record and where == "report":
+            raise exc
+        cause = exc.detail if isinstance(exc, BindingError) else str(exc)
+        status, klass, detail = "failed", default_class, cause
+        if isinstance(exc, NameError):
+            klass = "unresolved_name"
+            detail = "Unresolved name; no alias substitution or retry is safe; correct it at its owning program or binding contract. Cause: " + cause
+        elif isinstance(exc, AmbiguousResponse):
+            klass = "ambiguous_response"
+            detail = "Ambiguous response; no row field was guessed or retried. Pass rows=<owner-approved candidate> or ask the binding owner to declare it. Cause: " + cause
+        elif isinstance(exc, Refused) and exc.klass == "no_grant":
+            status, klass = "refused", "no_grant"
+            detail = "No grant was supplied; permission was not inferred and the call was not retried. Ask the binding owner for the required grant. Cause: " + cause
+        elif isinstance(exc, ScenarioUnreachable):
+            status, klass = "unavailable", "scenario_unreachable"
+            detail = "Scenario is unreachable; retain unavailable state and follow its owner's recovery path; no retry was attempted. Cause: " + cause
+        elif isinstance(exc, DeadlineExceeded):
+            klass = "deadline_exceeded"
+            detail = self.deadline_refusal(exc, where=where, detail_limit=detail_limit)["detail"]
+        else:
+            if default_class == "kernel_runtime":
+                status, klass = "failed", "kernel_runtime"
+            else:
+                try:
+                    status, klass = self.classify(exc)
+                except (NameError, AttributeError):
+                    status, klass = "failed", "kernel_runtime"
+        limit = max(0, min(detail_limit, ERROR_DETAIL_LIMIT))
+        issue = {"class": klass, "detail": str(detail)[:limit], "where": str(where)}
+        if not record:
+            return issue
+        return self.fail(status, klass, issue["detail"], where, detail_limit)
+
+    def classify(self, exc: BaseException, *, owner: bool = False, include_remote: bool = False,
+                 extra_unreachable: tuple[str, ...] = ()) -> tuple[str, str]:
         """Map a caught exception to `(status, class)`.
 
         `NameError` and `AttributeError` are re-raised: a missing kernel-bound
@@ -439,9 +652,19 @@ class ProgramHelper:
         """
         if isinstance(exc, (NameError, AttributeError)):
             raise exc
-        if isinstance(exc, BindingError):
+        if not owner and isinstance(exc, BindingError):
             return exc.classification()
-        return classify_message(str(exc))
+        if not owner:
+            return classify_message(str(exc))
+        lowered = str(exc).lower()
+        if "lease contention" in lowered or "database is locked" in lowered: return "failed", "lease_contention"
+        if "grant" in lowered or "run eligible" in lowered or "run_eligible" in lowered: return "refused", "refused"
+        if any(token in lowered for token in ("unreachable", "connection refused", "no running runtime", "bridge unavailable", *extra_unreachable)):
+            return "unavailable", "scenario_unreachable"
+        if "deadline" in lowered: return "failed", "deadline_exceeded"
+        if include_remote and any(token in lowered for token in ("remote", "5xx", "internal server error")):
+            return "failed", "remote_error"
+        return "failed", "binding_error"
 
     def select_field(self, row: Any, *names: str, default: Any = None) -> Any:
         """Return the first present, non-empty value among `names` on a mapping.
@@ -472,7 +695,8 @@ class ProgramHelper:
         except (TypeError, ValueError):
             return default
 
-    def run(self, states: dict[str, Callable[[], str | None]], start: str = "validate") -> None:
+    def run(self, states: dict[str, Callable[[], str | None]], start: str = "validate", *,
+            detail_limit: int = ERROR_DETAIL_LIMIT) -> None:
         """Drive the phase state machine with the one catch that guarantees an envelope.
 
         Returns nothing on purpose: the kernel echoes a program's final
@@ -488,9 +712,8 @@ class ProgramHelper:
             except Exception as exc:  # noqa: BLE001 - the one catch that guarantees an envelope on every path
                 if envelope.get("phase") == "report":
                     raise
-                envelope["status"] = "failed"
-                envelope.setdefault("errors", []).append({"class": "kernel_runtime", "detail": str(exc)[:ERROR_DETAIL_LIMIT], "where": envelope.get("phase") or state})
-                state = "report"
+                where = envelope.get("phase") or state
+                state = self.fail_exception(exc, where, detail_limit=detail_limit, default_class="kernel_runtime")
 
     def report(self, envelope: dict[str, Any] | None = None) -> None:
         """Print the envelope exactly once as JSON through the environment's `print`."""

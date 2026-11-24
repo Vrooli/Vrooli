@@ -1,0 +1,30 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.scenario-deploy-report",
+  "version": "1",
+  "helpers": {"program": "1"},
+  "purpose": "Read a bounded summary of one scenario's deploy report without exposing build values, capture ids, host roots or environment values.",
+  "inputs": {"scenario": {"type": "string", "required": true, "description": "Scenario slug."}},
+  "assumptions": ["The root Vrooli control plane is reachable."],
+  "invariants": [
+    "Calls only vrooli/scenario/deploy-report with a scenario slug.",
+    "At most 50 artifact summaries and 100 each of changed paths, build key names and environment switch names are retained.",
+    "Only repo-relative changed paths and names are returned; values, source roots, capture ids and file contents are omitted."
+  ],
+  "bindings": [{"id": "vrooli/scenario/deploy-report", "effect": "read"}],
+  "verbs": [],
+  "outputs": {
+    "status": {"enum": ["ok", "unavailable", "failed"]},
+    "phase": {"enum": ["validate", "collect", "report"]},
+    "signals": {"scenario": "slug", "changed": "whether any artifact differs", "source_role": "serving source relationship", "artifacts": "bounded safe build artifact summary", "changed_paths": "bounded repo-relative paths", "build_key_names": "names only", "environment_switch_names": "names only", "truncated": "true when a cap was reached"},
+    "errors": {"classes": ["invalid_input", "scenario_unreachable", "binding_error", "no_governed_binding"]},
+    "evidence": "binding ids called"
+  },
+  "budget": {"wall_ms": 30000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 2},
+  "fixtures": [
+    {"id": "safe-summary", "inputs": {"scenario": "fixture"}, "expect": {"status": ["ok"]}},
+    {"id": "empty-request", "inputs": {"scenario": ""}, "expect": {"status": ["failed"]}}
+  ],
+  "rung": "S3",
+  "owner_skill": "program-runtime"
+}

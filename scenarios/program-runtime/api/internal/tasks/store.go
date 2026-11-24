@@ -145,11 +145,6 @@ type Fragment struct {
 	Published bool `json:"published,omitempty"`
 }
 
-// GetFragment is an observation. Only verified execution records count as reuse.
-func (s *Store) GetFragment(ctx context.Context, stepKey string) (*Fragment, error) {
-	return s.BestFragment(ctx, stepKey)
-}
-
 // BestFragment returns the current verified fragment without recording a use.
 // Promotion and setpoint reads use this view so observation does not alter
 // delivery telemetry.

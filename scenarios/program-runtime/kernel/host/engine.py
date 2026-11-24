@@ -115,6 +115,8 @@ from program_helper import (
     ProgramHelper,
     ScenarioUnreachable,
     bridge_error,
+    exception_for,
+    validate_output_schema,
 )
 from tasks import Tasks, ACTIVE_TASK, library_result_metadata
 from learn import Learn
@@ -796,6 +798,14 @@ class Namespace:
             learn = environment.get("learn")
             if isinstance(learn, Learn):
                 value = learn.finalize(value)
+            if declaration.get("output_schema"):
+                output_schema = declaration.get("_runtime_output_schema")
+                if not isinstance(output_schema, dict):
+                    raise exception_for("invalid_response", f"declared output schema is unavailable for {identity}", binding_id=identity)
+                schema_issues = validate_output_schema(value, output_schema)
+                if schema_issues:
+                    detail = "; ".join(schema_issues[:4])
+                    raise exception_for("invalid_response", f"output schema mismatch for {identity}: {detail}", binding_id=identity)
             # Finalization may attach learning evidence; enforce the same
             # declared budget on the actual value delivered to the caller.
             # A started learning finalizer may already have committed its
@@ -807,7 +817,12 @@ class Namespace:
                 limit = spec.get("declaration", {}).get("budget", {}).get("output_bytes", 4096)
                 if len(encoded.encode("utf-8")) > limit:
                     raise ValueError(f"declared contract envelope exceeds {limit} bytes after finalization")
-            return Handle([value], f"lib.{identity}", metadata=library_result_metadata(spec))
+            metadata = library_result_metadata(spec)
+            schema_validation = metadata.get("output_schema_validation")
+            if declaration.get("output_schema") and isinstance(schema_validation, dict):
+                schema_validation["state"] = "validated"
+                schema_validation.pop("reason", None)
+            return Handle([value], f"lib.{identity}", metadata=metadata)
         value = environment.get("result")
         if isinstance(value, Handle):
             return value
@@ -931,6 +946,9 @@ class _NamespaceScenario:
         self._invocations = invocations
 
     def __getattr__(self, group: str) -> Any:
+        root_commands = self._groups.get("")
+        if isinstance(root_commands, dict) and group in root_commands:
+            return root_commands[group]
         if group not in self._groups:
             raise AttributeError(f"no governed binding group {group!r} in scenario {self._scenario!r}")
         return _NamespaceGroup(f"{self._scenario}/{group}", self._groups[group], self._invocations)
@@ -1330,7 +1348,7 @@ def _program_globals(root: Namespace, project: _ProjectNamespace, name: str, fre
         # The scaffolding every program used to copy: envelope, fail, guarded,
         # classify, run, report. One instance per environment; bound below
         # once the globals exist so `program.inputs()` reads the injected value.
-        "program": ProgramHelper(helper_version, output_contract),
+        "program": ProgramHelper(helper_version, output_contract, _INVOCATION_CONTEXT),
         "learn": None,
     }
     # The surface must cover exactly the declared verbs. A verb added to
@@ -1376,8 +1394,8 @@ class SessionKernel:
             reachability: dict[str, dict[str, Any]] = {}
             for spec in bindings:
                 scenario_name = spec.get("scenario", "")
-                scenario = _segment(scenario_name)
-                group = _segment(spec["group"])
+                scenario = _segment(spec.get("namespace") or scenario_name)
+                group = _segment(spec.get("group", ""))
                 command = _segment(spec["command"])
                 reachable = bool(spec.get("reachable", True))
                 reason = spec.get("reachability_reason", "")
@@ -1434,7 +1452,7 @@ class SessionKernel:
         declared = declared_helper_contract if isinstance(declared_helper_contract, dict) else {}
         helper_version = str(declared.get("version") or HELPER_VERSION)
         helper_outputs = declared.get("outputs") if isinstance(declared.get("outputs"), dict) else {}
-        helper = ProgramHelper(helper_version, helper_outputs)
+        helper = ProgramHelper(helper_version, helper_outputs, _INVOCATION_CONTEXT)
         helper._bind(self.globals)
         dict.__setitem__(self.globals, "program", helper)
         learn = dict.get(self.globals, "learn")

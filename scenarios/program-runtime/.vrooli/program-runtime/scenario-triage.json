@@ -27,6 +27,7 @@
     "no binding with effect write or destructive is called; the scenario is never restarted or mutated",
     "status is the one required read; freshness and logs are optional and degrade to a partial result when unavailable",
     "the log tail is bounded to at most 200 lines",
+    "raw lifecycle log text is never copied into the retained envelope; hypotheses include only a declared category marker",
     "the envelope is printed exactly once, on every path"
   ],
   "bindings": [
@@ -73,7 +74,7 @@
       "freshness": "the artifact-freshness verdict, or unavailable",
       "attention": "true when the scenario is not running or not healthy",
       "log_lines_read": "count of log lines read for classification",
-      "hypotheses": "advisory list of {cause, evidence} where cause is schema_drift|port_conflict|dependency|permission|disk and evidence is the matching log line; empty when healthy or no pattern matched"
+      "hypotheses": "advisory list of {cause, evidence} where cause is schema_drift|port_conflict|dependency|permission|disk and evidence is only matched_declared_keyword:<cause>, never raw log text; empty when healthy or no pattern matched"
     },
     "errors": {
       "classes": [

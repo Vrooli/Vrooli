@@ -14,6 +14,7 @@ import (
 
 	"program-runtime/internal/bindings"
 	"program-runtime/internal/budgets"
+	"program-runtime/internal/buildidentity"
 	"program-runtime/internal/capabilities"
 	"program-runtime/internal/contracts"
 	"program-runtime/internal/library"
@@ -89,17 +90,58 @@ func verifiedAgentBridge(handler http.Handler, verifier provenance.Verifier) htt
 	}))
 }
 
-func declaredPrivateBindingNames(bindings []programs.BindingSpec) []string {
+func declaredBindingNames(bindings []programs.BindingSpec) []string {
 	names := make([]string, 0, len(bindings))
 	for _, binding := range bindings {
-		name := strings.ReplaceAll(binding.Scenario, "-", "_")
+		namespace := binding.Namespace
+		if namespace == "" {
+			namespace = binding.Scenario
+		}
+		name := strings.ReplaceAll(namespace, "-", "_")
 		group := strings.ReplaceAll(binding.Group, "-", "_")
 		command := strings.ReplaceAll(strings.ReplaceAll(binding.Command, "-", "_"), "/", ".")
-		if name != "" && group != "" && command != "" {
-			names = append(names, name+"."+group+"."+command)
+		if name != "" && command != "" {
+			if group == "" {
+				names = append(names, name+"."+command)
+			} else {
+				names = append(names, name+"."+group+"."+command)
+			}
 		}
 	}
 	return names
+}
+
+func runtimeBindingSpec(binding *bindingsv1.Binding, registry *bindings.Registry) programs.BindingSpec {
+	scenario := binding.GetScenario()
+	group := binding.GetGroup()
+	command := binding.GetCommand()
+	namespace := strings.ReplaceAll(scenario, "-", "_")
+	if bindingsH.IsBrowserSessionBindingID(binding.GetId()) {
+		namespace = "browser"
+	}
+	if binding.GetId() == bindingsH.BrowserRunTaskBindingID {
+		// Keep the stable BAS binding ID while publishing this one operation at
+		// the documented browser.run_task root.
+		group, command = "", "run_task"
+	}
+	switch binding.GetId() {
+	case "browser-automation-studio/session/observe":
+		group, command = "", "observe"
+	case "browser-automation-studio/session/act":
+		group, command = "", "act"
+	case "browser-automation-studio/session/promote-trace":
+		group, command = "", "promote_trace"
+	case "browser-automation-studio/session/draft-trace":
+		group, command = "", "draft_trace"
+	case "browser-automation-studio/task/replay-flow":
+		group, command = "", "replay_flow"
+	}
+	return programs.BindingSpec{
+		ID: binding.GetId(), ContractDigest: registry.ContractDigest(binding.GetId()), Signature: binding.GetSignature(),
+		Namespace: namespace, Scenario: scenario, Group: group, Command: command, Effect: binding.GetEffect(),
+		Reachable: binding.GetReachable(), ReachabilityReason: binding.GetReachabilityReason(), DemandStart: scenario != "program-runtime",
+		RowsField: binding.GetRowsField(), MetaFields: binding.GetMetaFields(), RowFieldCandidates: binding.GetRowFieldCandidates(),
+	}
 }
 
 func taskBridgeWithProvenance(handler http.Handler, verifier provenance.Verifier) http.Handler {
@@ -231,9 +273,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("binding registry initialization failed: %v", err)
 	}
-	bindingRegistry.SetInvocationRecorder(bindings.NewInvocationRepository(db.Primary()))
+	invocationRecorder := bindings.NewInvocationRepository(db.Primary())
 	bindingRegistry.SetDemandLeaseClient(demand.Client{})
 	bindingRegistry.SetExerciseReader(bindings.NewReceiptExerciseReader(discovery.ResolveScenarioURLDefault, http.DefaultClient))
+	bindingRegistry.SetOutboundRequestPreparer(bindingsH.NewBrowserContextRequestPreparer(
+		&http.Client{Timeout: 5 * time.Second}, discovery.ResolveScenarioURLDefault,
+	))
 	refusalRepository := bindings.NewRefusalRepository(db.Primary())
 	unresolvedRecorder, _ := refusalRepository.(bindings.UnresolvedRecorder)
 	telemetryStore := telemetry.NewStoreWithOptions(telemetry.Options{
@@ -243,12 +288,13 @@ func main() {
 			log.Printf("telemetry outbox drain failed: %v", err)
 		},
 	})
+	bindingRegistry.SetInvocationRecorder(telemetry.WithInvocationTelemetry(invocationRecorder, telemetryStore))
 	shapeRepository.SetEventSink(telemetryStore)
 	telemetryStore.Start(context.Background())
 	registryBindings := bindingRegistry.List("", "")
 	bindingSpecs := make([]programs.BindingSpec, 0, len(registryBindings))
 	for _, binding := range registryBindings {
-		bindingSpecs = append(bindingSpecs, programs.BindingSpec{ID: binding.GetId(), ContractDigest: bindingRegistry.ContractDigest(binding.GetId()), Signature: binding.GetSignature(), Namespace: strings.ReplaceAll(binding.GetScenario(), "-", "_"), Scenario: binding.GetScenario(), Group: binding.GetGroup(), Command: binding.GetCommand(), Effect: binding.GetEffect(), Reachable: binding.GetReachable(), ReachabilityReason: binding.GetReachabilityReason(), DemandStart: binding.GetScenario() != "program-runtime", RowsField: binding.GetRowsField(), MetaFields: binding.GetMetaFields(), RowFieldCandidates: binding.GetRowFieldCandidates()})
+		bindingSpecs = append(bindingSpecs, runtimeBindingSpec(binding, bindingRegistry))
 	}
 	bridgeURL := ""
 	agentBridgeURL := ""
@@ -261,7 +307,7 @@ func main() {
 		current := bindingRegistry.List("", "")
 		out := make([]programs.BindingSpec, 0, len(current))
 		for _, binding := range current {
-			out = append(out, programs.BindingSpec{ID: binding.GetId(), ContractDigest: bindingRegistry.ContractDigest(binding.GetId()), Signature: binding.GetSignature(), Namespace: strings.ReplaceAll(binding.GetScenario(), "-", "_"), Scenario: binding.GetScenario(), Group: binding.GetGroup(), Command: binding.GetCommand(), Effect: binding.GetEffect(), Reachable: binding.GetReachable(), ReachabilityReason: binding.GetReachabilityReason(), DemandStart: binding.GetScenario() != "program-runtime", RowsField: binding.GetRowsField(), MetaFields: binding.GetMetaFields(), RowFieldCandidates: binding.GetRowFieldCandidates()})
+			out = append(out, runtimeBindingSpec(binding, bindingRegistry))
 		}
 		return out
 	})
@@ -285,7 +331,12 @@ func main() {
 			if contract.ValidationError != "" || contract.Source == "" {
 				continue
 			}
-			out = append(out, programs.LibrarySpec{Name: contract.Name, Scenario: contract.Scenario, Contract: true, InputNames: contract.InputNames, Declaration: contract.Declaration, Digest: contract.Digest, Version: 1, Source: contract.Source, Description: contract.Purpose, Current: true})
+			declaration, err := contract.RuntimeDeclaration()
+			if err != nil {
+				log.Printf("prepare runtime declaration for %s: %v", contract.ID, err)
+				continue
+			}
+			out = append(out, programs.LibrarySpec{Name: contract.Name, Scenario: contract.Scenario, Contract: true, InputNames: contract.InputNames, Declaration: declaration, Digest: contract.Digest, Version: 1, Source: contract.Source, Description: contract.Purpose, Current: true})
 		}
 		return out
 	})
@@ -296,33 +347,39 @@ func main() {
 	sessionManager := sessions.NewManager(sessions.Options{Store: db.Primary(), WallBudget: envDurationMillis("PROGRAM_RUNTIME_WALL_BUDGET_MILLIS"), CPUBudget: envDurationMillis("PROGRAM_RUNTIME_CPU_BUDGET_MILLIS"), InferenceCeilingMicros: envInt64("PROGRAM_RUNTIME_INFERENCE_CEILING_MICROS"), DelegationCeilingMicros: envInt64("PROGRAM_RUNTIME_DELEGATION_CEILING_MICROS"), WorkspaceResolver: workspaceResolver, OnWorkspaceResolved: runner.SetSessionWorkspace, OnReclaimed: func(id string) { runner.KillSession(id); runner.ClearSessionWorkspace(id) }})
 	var programService *programs.Service
 	taskStore := tasks.NewStore(db.Primary())
-	programService = programs.NewService(programs.Options{ContractIndex: contractIndex, OnTerminal: taskStore.Recover, Store: db.Primary(), Runner: runner, Preflight: func(source string) []*programsv1.Diagnostic {
+	programService = programs.NewService(programs.Options{ContractIndex: contractIndex, OnTerminal: taskStore.Recover, Store: db.Primary(), Runner: runner, ProgramLeaseScope: func(_ context.Context, sessionID, programID string) func() {
+		return bindingRegistry.BeginProgramLeaseScope(sessionID, programID)
+	}, Preflight: func(source string) []*programsv1.Diagnostic {
 		current := bindingRegistry.List("", "")
 		known := programs.RuntimeSurfaceNames()
 		for _, binding := range current {
-			name := strings.ReplaceAll(binding.GetScenario(), "-", "_")
-			if name != "" && name != "vrooli" {
-				known = append(known, name)
-				group := strings.ReplaceAll(binding.GetGroup(), "-", "_")
-				command := strings.ReplaceAll(strings.ReplaceAll(binding.GetCommand(), "-", "_"), "/", ".")
-				known = append(known, name+"."+group+"."+command)
-			}
+			spec := runtimeBindingSpec(binding, bindingRegistry)
+			known = append(known, declaredBindingNames([]programs.BindingSpec{spec})...)
+			known = append(known, strings.ReplaceAll(spec.Namespace, "-", "_"))
 		}
 		known = appendLibraryPaths(context.Background(), known, libraryRepository, contractIndex)
 		return programs.ResolveSource(source, known, filepath.Join(repoRoot, "scenarios", "program-runtime", "kernel", "host", "analyze.py"))
-	}, PreflightSession: func(ctx context.Context, sessionID, source string, privateBindings []programs.BindingSpec) []*programsv1.Diagnostic {
-		current := bindingRegistry.List("", "")
+	}, PreflightSession: func(ctx context.Context, sessionID, source string, declaredBindings []programs.BindingSpec) []*programsv1.Diagnostic {
 		known := programs.RuntimeSurfaceNames()
-		for _, binding := range current {
-			name := strings.ReplaceAll(binding.GetScenario(), "-", "_")
-			if name != "" && name != "vrooli" {
-				known = append(known, name)
-				group := strings.ReplaceAll(binding.GetGroup(), "-", "_")
-				command := strings.ReplaceAll(strings.ReplaceAll(binding.GetCommand(), "-", "_"), "/", ".")
-				known = append(known, name+"."+group+"."+command)
+		if declaredBindings == nil {
+			for _, binding := range bindingRegistry.List("", "") {
+				spec := runtimeBindingSpec(binding, bindingRegistry)
+				known = append(known, declaredBindingNames([]programs.BindingSpec{spec})...)
+				known = append(known, strings.ReplaceAll(spec.Namespace, "-", "_"))
+			}
+		} else {
+			for _, binding := range declaredBindings {
+				namespace := binding.Namespace
+				if namespace == "" {
+					namespace = binding.Scenario
+				}
+				name := strings.ReplaceAll(namespace, "-", "_")
+				if name != "" && name != "vrooli" {
+					known = append(known, name)
+					known = append(known, declaredBindingNames([]programs.BindingSpec{binding})...)
+				}
 			}
 		}
-		known = append(known, declaredPrivateBindingNames(privateBindings)...)
 		known = appendLibraryPaths(ctx, known, libraryRepository, contractIndex)
 		for _, previous := range programService.List(ctx, sessionID, true) {
 			known = append(known, programs.DeclaredNames(previous.GetSource(), filepath.Join(repoRoot, "scenarios", "program-runtime", "kernel", "host", "analyze.py"))...)
@@ -438,7 +495,7 @@ func main() {
 
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
-		healthH.ModuleWithDescriptor(db, "program-runtime-api", "1.0.0", bindingRegistry.SkippedManifestCount, bindingRegistry.SnapshotMetadata),
+		healthH.ModuleWithDescriptor(db, "program-runtime-api", "1.0.0", bindingRegistry.SkippedManifestCount, bindingRegistry.SnapshotMetadata, buildidentity.SourceIdentity),
 		capsH.Module(capabilities.NewRegistry()),
 		bindingsH.Module(bindingRegistry, libraryRepository),
 		programsH.ModuleWithLearning(programService, authoringDeps, taskStore, programs.DiscoveryEvalDeps{SuitePath: programs.DefaultDiscoverySuitePath(repoRoot), Resolve: func(ctx context.Context, intent string, limit int32, mode string) (*bindingsv1.ResolveIntentResponse, error) {
@@ -472,6 +529,9 @@ func main() {
 	rootMux.Handle("/internal/program-runtime/tasks/", taskBridgeWithProvenance(&tasksH.Bridge{Store: taskStore, Contracts: contractIndex, Library: libraryRepository, Sessions: sessionManager, Programs: programService, RepoRoot: repoRoot, ReplayKernelPath: filepath.Join(repoRoot, "scenarios", "program-runtime", "kernel", "host", "engine.py")}, provenance.CLIUtilVerifier{}))
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
 	rootMux.Handle("/internal/program-runtime/bindings/execute", provenance.Middleware(provenance.CLIUtilVerifier{})(authoringFixtures.Wrap(bindingsH.BridgeWithPrivateIdentity(bindingRegistry, sessionManager, programService, refusalRepository))))
+	rootMux.Handle("/internal/program-runtime/artifacts/stream-to-file", provenance.Middleware(provenance.CLIUtilVerifier{})(
+		&programsH.ArtifactStreamBridge{Sessions: sessionManager, Programs: programService, Bindings: bindingRegistry},
+	))
 	rootMux.Handle("/internal/program-runtime/bindings/describe", bindingsH.DescribeBridge(bindingRegistry, sessionManager))
 	rootMux.Handle("/internal/program-runtime/bindings/reachability", bindingsH.ReachabilityBridge(bindingRegistry, sessionManager))
 	rootMux.Handle("/internal/program-runtime/bindings/unresolved", bindingsH.UnresolvedBridge(sessionManager, unresolvedRecorder))

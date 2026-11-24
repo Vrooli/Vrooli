@@ -395,6 +395,14 @@ func TestSetpointBoardUsesBoundedFailureEvidence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	auditSchema, err := os.ReadFile(auditBase + ".output.schema.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	auditDeclaration, err = (contracts.Contract{Declaration: auditDeclaration, OutputSchemaSource: auditSchema}).RuntimeDeclaration()
+	if err != nil {
+		t.Fatal(err)
+	}
 	auditSpec := LibrarySpec{
 		Name: "program-runtime.portfolio-audit", Scenario: "program-runtime", Contract: true,
 		Current: true, Version: 1, Source: string(auditSource), Declaration: auditDeclaration, Digest: strings.Repeat("a", 64),

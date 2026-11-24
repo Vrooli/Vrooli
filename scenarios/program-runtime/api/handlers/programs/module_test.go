@@ -117,9 +117,43 @@ func TestSubmitProgramUsesVerifiedCallerAttribution(t *testing.T) {
 	require.True(t, response.Msg.Program.CallerIdentityVerified)
 }
 
+func TestSubmitProgramRequiresVerifiedIdentityForAgentProvenance(t *testing.T) {
+	for name, ctx := range map[string]context.Context{
+		"absent":             context.Background(),
+		"unverified":         provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationAbsent, RunID: "claimed-run"}),
+		"caller-fields-only": context.Background(),
+	} {
+		t.Run(name, func(t *testing.T) {
+			admissionCalls := 0
+			service := internalprograms.NewService(internalprograms.Options{AuthorizeSession: func(context.Context, string) (bool, error) {
+				admissionCalls++
+				return false, nil
+			}})
+			h := &handler{service: service}
+			_, err := h.SubmitProgram(ctx, connect.NewRequest(&programsv1.SubmitProgramRequest{
+				SessionId: "session", Source: "x = 1", Provenance: programsv1.Provenance_PROVENANCE_AGENT, Async: true,
+				Caller: &programsv1.Caller{RunId: "claimed-run", AgentProfile: "claimed-profile"},
+			}))
+			require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+			require.Zero(t, admissionCalls, "refusal must precede session admission and runner/binding effects")
+			require.Empty(t, service.List(ctx, "session", false))
+		})
+	}
+}
+
+func TestSubmitProgramPreservesNonAgentProvenanceWithoutAgentIdentity(t *testing.T) {
+	service := internalprograms.NewService(internalprograms.Options{AuthorizeSession: func(context.Context, string) (bool, error) { return false, nil }})
+	h := &handler{service: service}
+	response, err := h.SubmitProgram(context.Background(), connect.NewRequest(&programsv1.SubmitProgramRequest{
+		SessionId: "session", Source: "x = 1", Provenance: programsv1.Provenance_PROVENANCE_OPERATOR, Async: true,
+	}))
+	require.NoError(t, err)
+	require.Equal(t, programsv1.Provenance_PROVENANCE_OPERATOR, response.Msg.GetProgram().GetProvenance())
+}
+
 func TestSubmitProgramRefusesMissingSessionAuthorizer(t *testing.T) {
 	h := &handler{service: internalprograms.NewService(internalprograms.Options{})}
-	_, err := h.SubmitProgram(context.Background(), connect.NewRequest(&programsv1.SubmitProgramRequest{SessionId: "session", Source: "print(1)", Provenance: programsv1.Provenance_PROVENANCE_AGENT}))
+	_, err := h.SubmitProgram(context.Background(), connect.NewRequest(&programsv1.SubmitProgramRequest{SessionId: "session", Source: "print(1)", Provenance: programsv1.Provenance_PROVENANCE_OPERATOR}))
 	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
 }
 

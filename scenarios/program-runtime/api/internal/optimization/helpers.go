@@ -122,25 +122,6 @@ func integerFromAny(value any) (int, bool) {
 	}
 }
 
-func stringsFromAny(value any) ([]string, bool) {
-	switch v := value.(type) {
-	case []string:
-		return append([]string(nil), v...), true
-	case []any:
-		out := make([]string, len(v))
-		for i, item := range v {
-			s, ok := item.(string)
-			if !ok {
-				return nil, false
-			}
-			out[i] = s
-		}
-		return out, true
-	default:
-		return nil, false
-	}
-}
-
 func stringMapFromAny(value any) (map[string]string, bool) {
 	switch v := value.(type) {
 	case map[string]string:

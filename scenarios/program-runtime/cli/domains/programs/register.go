@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -51,10 +52,33 @@ func (*handlers) portfolioReport(_ cliapp.OperationContext, r *programsv1.Portfo
 		results = append(results, fmt.Sprintf("%s runs=%d success=%.3f p50=%dms p95=%dms pressure=%.3f agent=%d operator=%d test=%d callers=%d days=%d", row.GetName(), row.GetRuns(), row.GetSuccessRate(), row.GetP50Millis(), row.GetP95Millis(), row.GetBudgetPressure(), row.GetAgentRuns(), row.GetOperatorRuns(), row.GetTestRuns(), row.GetDistinctCallers(), row.GetDistinctDays()))
 	}
 	summary := []string{fmt.Sprintf("%d portfolio row(s), %d declared, %d executed.", len(r.GetRows()), r.GetProgramsDeclared(), r.GetProgramsExecuted())}
+	share := 0.0
+	if r.GetEligibleRunDenominator() > 0 {
+		share = float64(r.GetVerifiedAgentRuns()) / float64(r.GetEligibleRunDenominator())
+	}
+	summary = append(summary,
+		fmt.Sprintf("Verified agent share: %d/%d eligible program invocations (%.1f%%).", r.GetVerifiedAgentRuns(), r.GetEligibleRunDenominator(), share*100),
+		fmt.Sprintf("Agent caller identity: absent=%d present-but-unverified=%d verified=%d inconsistent=%d.", r.GetAgentIdentityAbsentRuns(), r.GetAgentIdentityPresentUnverifiedRuns(), r.GetAgentIdentityVerifiedRuns(), r.GetAgentIdentityInconsistentRuns()),
+		"Eligibility exclusions: "+formatEligibilityExclusions(r.GetEligibilityExclusions()),
+		"Eligibility scope: "+r.GetEligibilityScope(),
+	)
 	if r.GetContractIndexReason() != "" {
 		summary = append(summary, "Contract metadata: "+r.GetContractIndexReason())
 	}
 	return cliapp.ListReport{Summary: summary, ResultsHeading: "Program portfolio", Results: results, ListShaped: true, ResultCount: len(results)}
+}
+
+func formatEligibilityExclusions(exclusions []*programsv1.PortfolioEligibilityExclusion) string {
+	items := append([]*programsv1.PortfolioEligibilityExclusion(nil), exclusions...)
+	sort.Slice(items, func(i, j int) bool { return items[i].GetReason() < items[j].GetReason() })
+	parts := make([]string, 0, len(items))
+	for _, exclusion := range items {
+		parts = append(parts, fmt.Sprintf("%s=%d", exclusion.GetReason(), exclusion.GetRuns()))
+	}
+	if len(parts) == 0 {
+		return "none"
+	}
+	return strings.Join(parts, ", ")
 }
 
 func (h *handlers) governanceShare(ctx cliapp.OperationContext) (*programsv1.GovernanceShareResponse, error) {

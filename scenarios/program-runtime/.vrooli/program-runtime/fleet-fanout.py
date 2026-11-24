@@ -7,8 +7,6 @@ Demonstrates: gather over three scenario bindings; count and first-row keys only
 Phases: validate -> collect -> classify -> report.
 """
 
-import json
-
 inputs = program.inputs()
 
 envelope = {
@@ -27,14 +25,7 @@ handles = {}
 fail = program.fail
 
 
-def guarded(call):
-    """Run one read on its own worker; an exception becomes the result so the other reads survive."""
-    def run():
-        try:
-            return call()
-        except Exception as exc:
-            return exc
-    return run
+guarded = program.guarded
 
 
 def step_validate():  # VALIDATE
@@ -78,7 +69,7 @@ def step_classify():  # CLASSIFY · bounded summaries only
 
 def step_report():  # REPORT
     envelope["phase"] = "report"
-    print(json.dumps(envelope, allow_nan=False, separators=(",", ":")))
+    program.report()
     return None
 
 
