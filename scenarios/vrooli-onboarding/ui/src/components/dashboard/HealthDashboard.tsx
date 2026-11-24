@@ -10,6 +10,13 @@ import { HealthIndicator } from "@vrooli/react-component-library/HealthIndicator
 import { Skeleton } from "@vrooli/react-component-library/Skeleton/1";
 import { StatCard } from "@vrooli/react-component-library/StatCard/1";
 import { i18n } from "../../i18n";
+import { PendingOperatorDecisions } from "./PendingOperatorDecisions";
+import { CLIProcessDeclarations } from "./CLIProcessDeclarations";
+import { StandingGrantMetadata } from "./StandingGrantMetadata";
+import { InstallPosture } from "./InstallPosture";
+import { ApprovedDependencies } from "./ApprovedDependencies";
+import { SealedCredentialGrants } from "./SealedCredentialGrants";
+import { CredentialGrantActions } from "./CredentialGrantActions";
 
 interface HealthDashboardProps {
   onNavigateToWizard?: () => void;
@@ -116,6 +123,13 @@ export function HealthDashboard({ onNavigateToWizard }: HealthDashboardProps = {
           ))}
         </div>
       </AsyncPanel>
+      <PendingOperatorDecisions />
+      <CLIProcessDeclarations />
+      <StandingGrantMetadata />
+      <SealedCredentialGrants />
+      <CredentialGrantActions />
+      <InstallPosture />
+      <ApprovedDependencies />
     </div>
   );
 }

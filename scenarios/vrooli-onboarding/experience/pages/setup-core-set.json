@@ -22,6 +22,9 @@
     },
     {
       "statement": "A catalog failure keeps the seed visible and prevents an unpreviewed write."
+    },
+    {
+      "statement": "Optional try_start cycles remain represented in the closure preview; an all-required cycle remains a manifest error."
     }
   ],
   "states": [
@@ -107,6 +110,19 @@
       ],
       "states": [
         "closure-unavailable"
+      ]
+    },
+    {
+      "id": "optional-cycle-remains-visible",
+      "type": "custom",
+      "statement": "A cycle made only of optional try_start dependencies is represented in the closure preview without disabling confirmation.",
+      "tier": "aspirational",
+      "elements": [
+        "closure-preview",
+        "confirm"
+      ],
+      "states": [
+        "draft-preview"
       ]
     }
   ],

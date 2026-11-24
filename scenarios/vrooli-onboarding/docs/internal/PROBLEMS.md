@@ -250,3 +250,41 @@ semantic certification rather than profile data or evaluator availability.
   onboarding journeys are executable, and the targeted onboarding experience
   and workflow suites are green. The comprehensive suite remains an unclaimed
   baseline because its required shared-library member was scheduler-contended.
+
+
+## SE2 core-set first-run follow-up (2026-11-21)
+
+- Fresh operator-state `GetCoreSet` failed without an explicit core authority;
+  optional `try_start` cycle resolution also made `GetClosure` fail. Both API
+  boundaries now return a preview closure/default recovery set without writing
+  authority during GET. Live API checks returned 200 (62 supervision members,
+  51 closure scenarios).
+- Mobile core-set hierarchy now puts the closure summary ahead of the long list,
+  explains protected recovery items and prior-step dependencies, removes the
+  nested tree scroller, and hides inapplicable Important controls. Unsaved or
+  failed changes disable global Next. The independent screenshot reviewer
+  confirms the detached-control issue is resolved. A 390x844 bottom capture
+  confirms the final choice and Confirm action sit above the fixed footer; an
+  intermediate card is overlapped at the first viewport. Control interaction,
+  accessibility, and novice comprehension remain unverified. The Important pill
+  is associated by proximity but could be more explicit about its scenario.
+- Served screenshot and comparison evidence: research run
+  `steward-free-host-maintainability-20261120/evidence/onboarding-core-set-after-review-v5.png`
+  and `.../evidence/se2-core-set-mobile-hierarchy-20261121/evidence.json` and
+  `.../evidence/se2-core-set-footer-clearance-20261121/evidence.json`.
+  `pnpm run type-check`, `pnpm run test:coverage` (52 files / 302 tests), and
+  Test Genie unit runs `20261121-001932-6170b089` and `20261121-005509-3a06b8e4` pass. Test Genie quick preset
+  still fails before phases in queued-plan rebase; experience evaluation was
+  skipped because BAS is unavailable.
+- Linux process test `TestDetachedApplySurvivesParentExitAndComponentReplacement`
+  now passes with a fake host CLI in isolated temp state; it exercises runner
+  detachment, short-lived parent exit, component-image replacement, and durable
+  terminal run status. Evidence: `.../evidence/se2-detached-runner-survival-20261121/evidence.json`.
+  It does not exercise a real lifecycle stop/restart signal, host mutation, or
+  macOS/Windows process semantics. The control-plane audit found host mutations
+  already flow through `controlPlaneExecutor`; no compatible generic job owner
+  exists, so the onboarding runner remains responsible for its cross-resource
+  execution record pending a separate control-plane capability.
+- This is re-entry UI/API plus Linux process-boundary evidence, not clean-install/
+  apply or real interrupted-setup recovery on a disposable host. Identity and
+  business/customer fit are also still open.

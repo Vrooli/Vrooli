@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"connectrpc.com/connect"
@@ -43,6 +44,12 @@ func (h *connectHandler) GetResourceHealth(ctx context.Context, _ *connect.Reque
 func (h *connectHandler) ListDerivedResources(ctx context.Context, _ *connect.Request[resourcesv1.ListDerivedResourcesRequest]) (*connect.Response[resourcesv1.ListDerivedResourcesResponse], error) {
 	value, err := h.service.Derived(ctx)
 	if err != nil {
+		if internalresources.IsCatalogUnavailable(err) {
+			return nil, connect.NewError(connect.CodeUnavailable, errors.New("resource catalog is unavailable in the selected environment"))
+		}
+		if internalresources.IsCatalogInvalid(err) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("resource catalog is invalid in the selected environment"))
+		}
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("list derived resources: %w", err))
 	}
 	return connect.NewResponse(value), nil

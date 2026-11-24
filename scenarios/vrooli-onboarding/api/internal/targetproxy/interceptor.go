@@ -14,6 +14,7 @@ import (
 	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/nodereach"
 	"github.com/vrooli/vrooli/internal/clock"
+	hostv1connect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/host/hostv1connect"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
@@ -32,6 +33,9 @@ func Interceptor(reacher Reacher) connect.Interceptor {
 			if target == "" || target == "local" {
 				return next(ctx, request)
 			}
+			if remoteTargetMutationUnsupported(request.Spec().Procedure) {
+				return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("procedure %s is supported only for the local host target", request.Spec().Procedure))
+			}
 			if reacher == nil {
 				return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("node %q is unavailable", target))
 			}
@@ -45,7 +49,7 @@ func Interceptor(reacher Reacher) connect.Interceptor {
 			if !ok {
 				return nil, connect.NewError(connect.CodeInternal, errors.New("target request is not a protobuf message"))
 			}
-			body, err := proto.Marshal(message)
+			body, err := marshalLocalTargetRequest(message)
 			if err != nil {
 				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("marshal target request: %w", err))
 			}
@@ -68,9 +72,65 @@ func Interceptor(reacher Reacher) connect.Interceptor {
 			if err := proto.Unmarshal(responseBody, output); err != nil {
 				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unmarshal target response: %w", err))
 			}
+			retargetResponse(output.ProtoReflect(), target)
 			return connect.NewResponse(output), nil
 		}
 	})
+}
+
+// These writes mutate local host/operator state. Keep them out of the remote
+// target proxy even though the node-local payload must be normalized to
+// target=local for procedures that are supported remotely.
+func remoteTargetMutationUnsupported(procedure string) bool {
+	switch procedure {
+	case hostv1connect.HostServicePatchHostSafeguardConfigProcedure,
+		hostv1connect.HostServiceSetNotificationRecipientProcedure:
+		return true
+	default:
+		return false
+	}
+}
+
+// The target node owns the local scenario state. Forward the request's selected
+// target separately through Bridge, then translate the payload target to local
+// so the receiving node executes the owner handler instead of proxying it again.
+func marshalLocalTargetRequest(message proto.Message) ([]byte, error) {
+	forwarded := proto.Clone(message)
+	fields := forwarded.ProtoReflect().Descriptor().Fields()
+	field := fields.ByName("target")
+	if field == nil || field.Kind() != protoreflect.StringKind {
+		return nil, errors.New("target request has no string target field")
+	}
+	forwarded.ProtoReflect().Set(field, protoreflect.ValueOfString("local"))
+	return proto.Marshal(forwarded)
+}
+
+// Restore the caller's selected node ID in owner responses. The target node
+// correctly identifies itself as local, while the originating UI remains
+// scoped to the remote target it selected. Walk message fields only; leave
+// arbitrary string maps and user-authored context untouched.
+func retargetResponse(message protoreflect.Message, target string) {
+	fields := message.Descriptor().Fields()
+	for i := 0; i < fields.Len(); i++ {
+		field := fields.Get(i)
+		if field.Name() == "target" && field.Kind() == protoreflect.StringKind && !field.IsList() && !field.IsMap() {
+			if message.Get(field).String() == "local" {
+				message.Set(field, protoreflect.ValueOfString(target))
+			}
+			continue
+		}
+		if field.Kind() != protoreflect.MessageKind || field.IsMap() {
+			continue
+		}
+		if field.IsList() {
+			values := message.Get(field).List()
+			for item := 0; item < values.Len(); item++ {
+				retargetResponse(values.Get(item).Message(), target)
+			}
+		} else if message.Has(field) {
+			retargetResponse(message.Get(field).Message(), target)
+		}
+	}
 }
 
 func targetValue(value any) string {

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"sync"
+
 	"vrooli-onboarding/cli/domains"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -24,34 +26,23 @@ type App struct {
 
 func NewApp() (*App, error) {
 	app := &App{}
-	commandGroups := func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
-		groups, _, err := domains.ManifestCommandGroups(core, manifestBytes)
-		if err != nil {
-			panic(err)
-		}
-		return groups
-	}
-	subcommandGroups := func(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
-		_, groups, err := domains.ManifestCommandGroups(core, manifestBytes)
-		if err != nil {
-			panic(err)
-		}
-		return groups
-	}
+	commandGroups, subcommandGroups := cachedManifestGroupCallbacks(func(core *cliapp.ScenarioApp) ([]cliapp.CommandGroup, []cliapp.SubcommandGroup, error) {
+		return domains.ManifestCommandGroups(core, manifestBytes)
+	})
 	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
-		Name:             appName,
-		Version:          appVersion,
-		Description:      "Vrooli Onboarding CLI",
-		APIPrefix:        "/api",
-		DefaultAPIBase:   defaultAPIBase,
-		ExtraAPIEnvVars:  []string{"API_BASE_URL", "VITE_API_BASE_URL"},
+		Name:              appName,
+		Version:           appVersion,
+		Description:       "Vrooli Onboarding CLI",
+		APIPrefix:         "/api",
+		DefaultAPIBase:    defaultAPIBase,
+		ExtraAPIEnvVars:   []string{"API_BASE_URL", "VITE_API_BASE_URL"},
 		ExtraTokenEnvVars: []string{"VROOLI_AUTH_LOCAL_TOKEN"},
-		BuildFingerprint: buildFingerprint,
-		BuildTimestamp:   buildTimestamp,
-		BuildSourceRoot:  buildSourceRoot,
-		AllowAnonymous:   true,
-		CommandGroups:    commandGroups,
-		SubcommandGroups: subcommandGroups,
+		BuildFingerprint:  buildFingerprint,
+		BuildTimestamp:    buildTimestamp,
+		BuildSourceRoot:   buildSourceRoot,
+		AllowAnonymous:    true,
+		CommandGroups:     commandGroups,
+		SubcommandGroups:  subcommandGroups,
 	})
 	if err != nil {
 		return nil, err
@@ -62,4 +53,28 @@ func NewApp() (*App, error) {
 
 func (a *App) Run(args []string) error {
 	return a.core.CLI.Run(args)
+}
+
+type manifestGroupLoader func(*cliapp.ScenarioApp) ([]cliapp.CommandGroup, []cliapp.SubcommandGroup, error)
+
+func cachedManifestGroupCallbacks(load manifestGroupLoader) (func(*cliapp.ScenarioApp) []cliapp.CommandGroup, func(*cliapp.ScenarioApp) []cliapp.SubcommandGroup) {
+	var once sync.Once
+	var commandGroups []cliapp.CommandGroup
+	var subcommandGroups []cliapp.SubcommandGroup
+	var loadErr error
+	ensureLoaded := func(core *cliapp.ScenarioApp) {
+		once.Do(func() {
+			commandGroups, subcommandGroups, loadErr = load(core)
+		})
+		if loadErr != nil {
+			panic(loadErr)
+		}
+	}
+	return func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
+			ensureLoaded(core)
+			return commandGroups
+		}, func(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
+			ensureLoaded(core)
+			return subcommandGroups
+		}
 }

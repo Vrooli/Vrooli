@@ -66,7 +66,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "CPU baseline: 18–26 min/render on this host (12 Nov 2026); GPU tier requires capacity admission. Add LCM-LoRA to cut steps."
+        "speed_note": "CPU baseline: 18\u201326 min/render on this host (12 Nov 2026); GPU tier requires capacity admission. Add LCM-LoRA to cut steps."
       },
       "io": {
         "native_resolution": "512x512",
@@ -78,7 +78,7 @@
         "commercial_use": "yes",
         "commercial_use_notes": "No revenue cap. OpenRAIL use-based restrictions apply: ship a license copy and propagate restrictions to end users.",
         "base_model_lineage": "Stable Diffusion 1.5 (RunwayML/CompVis, LAION-trained)",
-        "known_risks": "Can generate NSFW; inherent copyright/likeness risk from LAION training data; finetunes are tagged 'license: other' — verify each."
+        "known_risks": "Can generate NSFW; inherent copyright/likeness risk from LAION training data; finetunes are tagged 'license: other' \u2014 verify each."
       },
       "source": {
         "download_url": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5/resolve/451f4fe16113bff5a5d2269ed5ad43b0592e9a14/v1-5-pruned-emaonly.safetensors",
@@ -87,11 +87,11 @@
         "update_source": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5",
         "assets": [
           {
-        "url": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5/resolve/451f4fe16113bff5a5d2269ed5ad43b0592e9a14/v1-5-pruned-emaonly.safetensors",
+            "url": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5/resolve/451f4fe16113bff5a5d2269ed5ad43b0592e9a14/v1-5-pruned-emaonly.safetensors",
             "filename": "v1-5-pruned-emaonly.safetensors",
             "kind": "safetensors",
-        "sha256": "6ce0161689b3853acaa03779ec93eafe75a02f4ced659bee03f50797806fa2fa",
-        "min_bytes": 4000000000
+            "sha256": "6ce0161689b3853acaa03779ec93eafe75a02f4ced659bee03f50797806fa2fa",
+            "min_bytes": 4000000000
           }
         ],
         "hub_companions": [
@@ -106,8 +106,8 @@
         ],
         "checksum": {
           "algo": "sha256",
-        "value": "6ce0161689b3853acaa03779ec93eafe75a02f4ced659bee03f50797806fa2fa",
-        "status": "pinned"
+          "value": "6ce0161689b3853acaa03779ec93eafe75a02f4ced659bee03f50797806fa2fa",
+          "status": "pinned"
         }
       },
       "enabled": true,
@@ -261,7 +261,7 @@
         "nsfw_capable": true,
         "license": "Apache-2.0",
         "commercial_use": "yes",
-        "commercial_use_notes": "Apache-2.0 weights — clean commercial use, no revenue cap.",
+        "commercial_use_notes": "Apache-2.0 weights \u2014 clean commercial use, no revenue cap.",
         "base_model_lineage": "Qwen-Image-Edit-2509 (Alibaba Qwen team; Sept 2025 iteration of Qwen-Image-Edit)",
         "known_risks": "Can generate NSFW; powerful identity-altering edits carry the deployment-gate consent weight (SECURITY.md)."
       },
@@ -338,15 +338,15 @@
       },
       "io": {
         "native_resolution": "1024x1024",
-        "notes": "Unified generate + edit + multi-reference editing in one compact model. edit_instruct and image_to_image pass the source as a reference image and drive the change with `prompt`; output follows the reference aspect at <=1MP. text_to_image generates at 1024x1024 by default (width/height snap to 16). Use the 4B (Apache) build ONLY — not the 9B or dev."
+        "notes": "Unified generate + edit + multi-reference editing in one compact model. edit_instruct and image_to_image pass the source as a reference image and drive the change with `prompt`; output follows the reference aspect at <=1MP. text_to_image generates at 1024x1024 by default (width/height snap to 16). Use the 4B (Apache) build ONLY \u2014 not the 9B or dev."
       },
       "capability_labels": {
         "nsfw_capable": false,
         "license": "Apache-2.0",
         "commercial_use": "yes",
-        "commercial_use_notes": "ONLY the FLUX.2 [klein] 4B weights are Apache-2.0 (clean commercial use). The FLUX.2 [klein] 9B and FLUX.2 [dev] weights are FLUX.2 Non-Commercial — do NOT substitute them. Heavy GPU tier: opt-in (disabled) until the operator confirms the hardware fit.",
+        "commercial_use_notes": "ONLY the FLUX.2 [klein] 4B weights are Apache-2.0 (clean commercial use). The FLUX.2 [klein] 9B and FLUX.2 [dev] weights are FLUX.2 Non-Commercial \u2014 do NOT substitute them. Heavy GPU tier: opt-in (disabled) until the operator confirms the hardware fit.",
         "base_model_lineage": "FLUX.2 [klein] 4B (Black Forest Labs, size-distilled; released 2026-01-15)",
-        "known_risks": "Sibling 9B/dev weights are a non-commercial trap — verify the exact repo at ingest; brand-new architecture needs current diffusers; NSFW unlikely but not guaranteed-safe. size_mb_approx is approximate (VLM text encoder adds to disk/VRAM) — verify at ingest."
+        "known_risks": "Sibling 9B/dev weights are a non-commercial trap \u2014 verify the exact repo at ingest; brand-new architecture needs current diffusers; NSFW unlikely but not guaranteed-safe. size_mb_approx is approximate (VLM text encoder adds to disk/VRAM) \u2014 verify at ingest."
       },
       "source": {
         "download_url": "",
@@ -746,7 +746,7 @@
         "os_arch": [
           "linux/amd64"
         ],
-        "speed_note": "Distilled 10x-faster 'turbo' of LongCat-Image-Edit; only 8 NFEs/inference, bf16. ~18GB VRAM with model CPU offload enabled (more without). diffusers LongCatImageEditPipeline — recent/custom diffusers required; PIN the version at ingest."
+        "speed_note": "Distilled 10x-faster 'turbo' of LongCat-Image-Edit; only 8 NFEs/inference, bf16. ~18GB VRAM with model CPU offload enabled (more without). diffusers LongCatImageEditPipeline \u2014 recent/custom diffusers required; PIN the version at ingest."
       },
       "io": {
         "native_resolution": "1024x1024",
@@ -756,9 +756,9 @@
         "nsfw_capable": false,
         "license": "Apache-2.0",
         "commercial_use": "yes",
-        "commercial_use_notes": "Apache-2.0 weights — clean commercial use. Heavy GPU tier: opt-in (disabled) until the operator confirms the hardware fit.",
+        "commercial_use_notes": "Apache-2.0 weights \u2014 clean commercial use. Heavy GPU tier: opt-in (disabled) until the operator confirms the hardware fit.",
         "base_model_lineage": "LongCat-Image-Edit-Turbo (Meituan LongCat; distilled from LongCat-Image-Edit, released 2026-02-03)",
-        "known_risks": "On-disk size + param count not published upstream — VERIFY size_mb_approx / min_vram at ingest; brand-new architecture needs current diffusers."
+        "known_risks": "On-disk size + param count not published upstream \u2014 VERIFY size_mb_approx / min_vram at ingest; brand-new architecture needs current diffusers."
       },
       "source": {
         "manual": true,
@@ -920,7 +920,7 @@
         "nsfw_capable": false,
         "license": "Apache-2.0",
         "commercial_use": "yes",
-        "commercial_use_notes": "Fully free, no cap, no use-restrictions — the cleanest generative license available.",
+        "commercial_use_notes": "Fully free, no cap, no use-restrictions \u2014 the cleanest generative license available.",
         "base_model_lineage": "FLUX.1 schnell (Black Forest Labs, distilled)",
         "known_risks": "Distilled/timestep-guided; fewer steps. NSFW unlikely but not guaranteed-safe."
       },
@@ -1001,7 +1001,7 @@
         "commercial_use": "yes",
         "commercial_use_notes": "No revenue cap; OpenRAIL restrictions apply.",
         "base_model_lineage": "SD 1.5 inpainting (use stable-diffusion-v1-5 mirror; runwayml repo was deleted in 2024)",
-        "known_risks": "Can generate NSFW. stable-diffusion.cpp issue #1309 (Mar 2026): dedicated-inpaint checkpoints can misbehave on some builds — pin a known-good build or use diffusers where reliability matters."
+        "known_risks": "Can generate NSFW. stable-diffusion.cpp issue #1309 (Mar 2026): dedicated-inpaint checkpoints can misbehave on some builds \u2014 pin a known-good build or use diffusers where reliability matters."
       },
       "source": {
         "download_url": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-inpainting",
@@ -1238,7 +1238,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "CPU ONNX adapter with fixed 512×512 contextual repair crops; latency requires local qualification. Default object_removal model since 2026-11-21 (replaces mi-gan, whose IOPaint backend is not provisioned)."
+        "speed_note": "CPU ONNX adapter with fixed 512\u00d7512 contextual repair crops; latency requires local qualification. Default object_removal model since 2026-11-21 (replaces mi-gan, whose IOPaint backend is not provisioned)."
       },
       "io": {
         "notes": "White mask pixels are removed. The adapter preserves unmasked source pixels and returns source-size output; mask must include superseded shadows/reflections when appropriate."
@@ -1408,7 +1408,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Harmonizes subject lighting to a new background. V2 is Flux-based and NON-COMMERCIAL — only V1 is bundled."
+        "speed_note": "Harmonizes subject lighting to a new background. V2 is Flux-based and NON-COMMERCIAL \u2014 only V1 is bundled."
       },
       "io": {
         "notes": "Background-replace DEFAULT is non-AI: BiRefNet/u2net cutout -> alpha_composite (CPU, instant). IC-Light is the optional GPU realism upgrade."
@@ -1878,7 +1878,7 @@
           "linux/amd64",
           "windows/amd64"
         ],
-        "speed_note": "CPU only in practice: this int8 ONNX export has no CUDA kernel (DequantizeLinear), so it runs on the CPU at the image's own size in tiles (about 15 s for 768x1024). Trained for motion blur (GoPro). 'Non-commercial' reputation is a MYTH — LICENSE is MIT."
+        "speed_note": "CPU only in practice: this int8 ONNX export has no CUDA kernel (DequantizeLinear), so it runs on the CPU at the image's own size in tiles (about 15 s for 768x1024). Trained for motion blur (GoPro). 'Non-commercial' reputation is a MYTH \u2014 LICENSE is MIT."
       },
       "io": {},
       "capability_labels": {
@@ -1947,7 +1947,7 @@
           "linux/amd64",
           "windows/amd64"
         ],
-        "speed_note": "GPU strongly preferred; CPU very slow. 'Academic-only' reputation is STALE — now pure MIT."
+        "speed_note": "GPU strongly preferred; CPU very slow. 'Academic-only' reputation is STALE \u2014 now pure MIT."
       },
       "io": {},
       "capability_labels": {
@@ -2281,7 +2281,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Measured 2026-11-21: CUDA 0.1s per portrait, 2.3s for a 29-face 1920px group photo, 2.3GB process VRAM; CPU 1.3s per portrait, 37s for the group photo, 2.1GB peak RSS. Fidelity weight 0.5 (official default)."
+        "speed_note": "Measured 2026-11-21: CUDA 0.1s per portrait, 2.3s for a 29-face 1920px group photo, 2.3GB process VRAM; CPU 1.3s per portrait, 37s for the group photo, 2.1GB peak RSS. Fidelity defaults to 0.5; pass fidelity 0.9 for a detail pass that keeps identity (0.85 to 0.91 on the measured faces)."
       },
       "io": {
         "native_resolution": "512x512 per face",
@@ -2469,9 +2469,9 @@
         "nsfw_capable": false,
         "license": "Apache-2.0",
         "commercial_use": "yes",
-        "commercial_use_notes": "rembg lib is MIT; model is Apache. Do NOT enable rembg's bria-rmbg (RMBG-1.4/2.0) entry — those are CC-BY-NC.",
+        "commercial_use_notes": "rembg lib is MIT; model is Apache. Do NOT enable rembg's bria-rmbg (RMBG-1.4/2.0) entry \u2014 those are CC-BY-NC.",
         "base_model_lineage": "IS-Net / DIS (xuebinqin)",
-        "known_risks": "rembg model zoo also contains the non-commercial RMBG models — block them explicitly."
+        "known_risks": "rembg model zoo also contains the non-commercial RMBG models \u2014 block them explicitly."
       },
       "source": {
         "download_url": "",
@@ -2720,7 +2720,7 @@
         "nsfw_capable": false,
         "license": "Apache-2.0",
         "commercial_use": "yes",
-        "commercial_use_notes": "Permissive. (Avoid FastSAM — AGPL via Ultralytics.)",
+        "commercial_use_notes": "Permissive. (Avoid FastSAM \u2014 AGPL via Ultralytics.)",
         "base_model_lineage": "MobileSAM (ChaoningZhang), distilled from SAM",
         "known_risks": "Lower mask quality than full SAM2/HQ-SAM."
       },
@@ -3326,7 +3326,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Best boundary precision — ideal for inpaint/removal masks. Light variant is CPU-capable."
+        "speed_note": "Best boundary precision \u2014 ideal for inpaint/removal masks. Light variant is CPU-capable."
       },
       "io": {},
       "capability_labels": {
@@ -3882,7 +3882,7 @@
         "nsfw_capable": false,
         "license": "Apache-2.0",
         "commercial_use": "conditional",
-        "commercial_use_notes": "VERIFY the exact weight card at bundle time — prs-eth has migrated cards between RAIL++-M and Apache-2.0. Avoid DSINE (custom non-commercial).",
+        "commercial_use_notes": "VERIFY the exact weight card at bundle time \u2014 prs-eth has migrated cards between RAIL++-M and Apache-2.0. Avoid DSINE (custom non-commercial).",
         "base_model_lineage": "Marigold (prs-eth / ETH Zurich), SD2 base",
         "known_risks": "No ONNX; GPU-only; confirm weight license string before shipping."
       },
@@ -4594,7 +4594,7 @@
         "commercial_use": "yes",
         "commercial_use_notes": "Permissive. CRITICAL: do NOT use Ultralytics YOLOv8/v11 (AGPL-3.0) or YOLO-NAS (Deci non-commercial weights).",
         "base_model_lineage": "YOLOX (Megvii)",
-        "known_risks": "Lower accuracy than the newest (AGPL/NC) detectors — acceptable tradeoff for license cleanliness."
+        "known_risks": "Lower accuracy than the newest (AGPL/NC) detectors \u2014 acceptable tradeoff for license cleanliness."
       },
       "source": {
         "download_url": "",
@@ -4735,7 +4735,7 @@
         "commercial_use": "yes",
         "commercial_use_notes": "Official repo is Apache. D-FINE (Apache) is a strong 2024/25 alternative.",
         "base_model_lineage": "RT-DETR (Baidu / lyuwenyu)",
-        "known_risks": "Ultralytics' RT-DETR wrapper is AGPL — use the official repo."
+        "known_risks": "Ultralytics' RT-DETR wrapper is AGPL \u2014 use the official repo."
       },
       "source": {
         "manual": true,
@@ -4947,7 +4947,7 @@
         "commercial_use": "yes",
         "commercial_use_notes": "Fully permissive. The commercial-safe face detector (InsightFace weights are non-commercial).",
         "base_model_lineage": "YuNet (OpenCV Zoo / ShiqiYu)",
-        "known_risks": "Detection only — never extend to recognition (project non-goal)."
+        "known_risks": "Detection only \u2014 never extend to recognition (project non-goal)."
       },
       "source": {
         "download_url": "https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet",
@@ -5592,7 +5592,7 @@
         "commercial_use": "yes",
         "commercial_use_notes": "Pure deterministic image processing shipped in-repo; no third-party weights.",
         "base_model_lineage": "n/a (deterministic image processing)",
-        "known_risks": "Not a generative restorer — adds texture/grain; cannot invent lost structure."
+        "known_risks": "Not a generative restorer \u2014 adds texture/grain; cannot invent lost structure."
       },
       "source": {
         "download_url": "",
@@ -5943,7 +5943,7 @@
         "commercial_use": "yes",
         "commercial_use_notes": "Billed per OpenRouter pricing with your own key; commercial use governed by OpenRouter and the upstream model's terms.",
         "base_model_lineage": "OpenRouter-hosted image model resolved by role policy (resource-openrouter)",
-        "known_risks": "Sends prompts (and any input image) to a third-party cloud — not for private/local-only data. Each call costs real money. Availability depends on the upstream model staying listed on OpenRouter."
+        "known_risks": "Sends prompts (and any input image) to a third-party cloud \u2014 not for private/local-only data. Each call costs real money. Availability depends on the upstream model staying listed on OpenRouter."
       },
       "source": {
         "download_url": "https://openrouter.ai/docs",

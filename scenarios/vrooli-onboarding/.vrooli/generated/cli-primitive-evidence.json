@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "vrooli-onboarding",
   "generator": "v1.0.0",
-  "manifest_hash": "0b9882e62c06be5f19e1146455f22a03c361d30eb5882e26c5cdcbc62ad4e2b8",
+  "manifest_hash": "98a755903499260ec157da22286bbb0d30224b02b39b847e7bd7619ef662d93a",
   "commands": [
     {
       "path": "apply cancel",
@@ -154,9 +154,9 @@
       "path": "host set-config",
       "group": "host",
       "command": "set-config",
-      "binding": "HostService.PatchHostSafeguardConfig",
-      "declared_primitive": "proto_mutation",
-      "observed_primitive": "proto_mutation"
+      "binding": ".",
+      "declared_exception": "external_delegation",
+      "observed_primitive": "external_delegation"
     },
     {
       "path": "host set-recipient",
@@ -197,6 +197,38 @@
       "binding": "OperatorStateService.GetOperatorState",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "operator update-control",
+      "group": "operator",
+      "command": "update-control",
+      "binding": ".",
+      "declared_exception": "external_delegation",
+      "observed_primitive": "external_delegation"
+    },
+    {
+      "path": "permissions list",
+      "group": "permissions",
+      "command": "list",
+      "binding": "PermissionRegistryService.ListPermissions",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "permissions read",
+      "group": "permissions",
+      "command": "read",
+      "binding": "PermissionRegistryService.ReadPermission",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "permissions write",
+      "group": "permissions",
+      "command": "write",
+      "binding": "PermissionRegistryService.WritePermission",
+      "declared_exception": "external_delegation",
+      "observed_primitive": "external_delegation"
     },
     {
       "path": "profiles evaluate",

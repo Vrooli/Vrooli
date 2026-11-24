@@ -42,12 +42,9 @@ func (h *connectHandler) ProvisionCredential(ctx context.Context, req *connect.R
 		field = "value"
 	}
 	value := req.Msg.GetValue()
-	if logicalID == "" || strings.TrimSpace(value) == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("logical_id and a non-empty credential value are required"))
-	}
 	provisioned, err := h.service.Provision(ctx, logicalID, field, value)
 	if err != nil {
-		if strings.Contains(err.Error(), "required") || strings.Contains(err.Error(), "missing") {
+		if errors.Is(err, internalcredentials.ErrInvalidProvisionRequest) {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
 		}
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("native credential authority could not provision this credential"))

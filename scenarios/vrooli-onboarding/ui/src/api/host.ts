@@ -1,7 +1,7 @@
 import { createClient } from "@connectrpc/connect";
-import { fromJson } from "@bufbuild/protobuf";
-import { ValueSchema } from "@bufbuild/protobuf/wkt";
 import { onboardingTransport } from "./base";
+import { requireHostMutationCapability } from "./hostCapabilities";
+import { permissionRegistryClient } from "./permissionRegistry";
 import {
   HostService,
   SafeguardDisposition,
@@ -49,11 +49,51 @@ export async function fetchTargets(): Promise<TargetsResponse> {
   return { targets: response.targets.map((target) => ({ id: target.id, name: target.name, status: target.status, os: target.os, architecture: target.architecture, kind: target.kind, online: target.online, available: target.available, reason: target.reason, next_action: target.nextAction, capabilities: target.capabilities, scopes: target.scopes, readiness: target.readiness.map((check) => ({ identity: check.identity, label: check.label, passed: check.passed, state: check.state, detail: check.detail, recovery_action: check.recoveryAction })) })), error: response.error || undefined };
 }
 
-export function patchHostSafeguardConfig(input: { safeguard_name: string; config_key: string; value: unknown }, target = "local") {
-  return client.patchHostSafeguardConfig({ target, safeguardName: input.safeguard_name, configKey: input.config_key, value: fromJson(ValueSchema, input.value as never) });
+export async function writeHostSafeguardPermission(name: string, value: Record<string, unknown>, target = "local") {
+  requireHostMutationCapability(target, "safeguard");
+  const permissionId = `onboarding/host-safeguard/${name}`;
+  const current = await permissionRegistryClient.readPermission({ permissionId, owner: "vrooli-onboarding" });
+  const randomId = idempotencyId();
+  return permissionRegistryClient.writePermission({
+    permissionId, owner: "vrooli-onboarding", expectedRevision: current.revision,
+    idempotencyKey: `host-safeguard:${name}:${randomId}`,
+    valueJson: new TextEncoder().encode(JSON.stringify(value)),
+  });
+}
+export async function writeHostToolPermission(name: string, optedIn: boolean, target = "local") {
+  requireHostMutationCapability(target, "tool");
+  const permissionId = `onboarding/host-tool/selected-closure/${name}`;
+  const current = await permissionRegistryClient.readPermission({ permissionId, owner: "vrooli-onboarding" });
+  const randomId = idempotencyId();
+  return permissionRegistryClient.writePermission({
+    permissionId, owner: "vrooli-onboarding", expectedRevision: current.revision,
+    idempotencyKey: `host-tool:${name}:${randomId}`,
+    valueJson: new TextEncoder().encode(JSON.stringify({ opted_in: optedIn })),
+  });
 }
 export function setNotificationRecipient(subject: string, target = "local") {
-  return client.setNotificationRecipient({ target, subject });
+  requireHostMutationCapability(target, "notification-recipient");
+  const permissionId = "onboarding/operator-state";
+  const trimmedSubject = subject.trim();
+  if (!trimmedSubject) throw new Error("Notification recipient subject is required");
+  return permissionRegistryClient.readPermission({ permissionId, owner: "vrooli-onboarding" }).then((current) => {
+    if (!current.revision) throw new Error("Operator-state owner returned no source revision");
+    const randomId = idempotencyId();
+    return permissionRegistryClient.writePermission({
+      permissionId,
+      owner: "vrooli-onboarding",
+      expectedRevision: current.revision,
+      idempotencyKey: `host-notification-recipient:${randomId}`,
+      valueJson: new TextEncoder().encode(JSON.stringify({
+        state: { notifications: { recipient: trimmedSubject } },
+        update_mask: ["notifications.recipient"],
+      })),
+    });
+  });
+}
+
+function idempotencyId(): string {
+  return globalThis.crypto.randomUUID();
 }
 
 function hostFactsFromProto(response: GetHostFactsResponse): HostFacts {

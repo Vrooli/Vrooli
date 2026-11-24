@@ -1,11 +1,11 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "image-tools.scene-preparation-stage",
-  "version": "1",
+  "version": "2",
   "helpers": {
     "program": "1"
   },
-  "purpose": "Submit, reconcile or cancel a local scene-preparation stage, then assemble and review immutable photographic assets through their native owners.",
+  "purpose": "Submit, reconcile or cancel a local scene-preparation stage, inspect a bounded job snapshot, then assemble and review immutable photographic assets through their native owners.",
   "inputs": {
     "action": {
       "type": "string",
@@ -18,7 +18,8 @@
         "inspect-preparation",
         "review",
         "assess-repair",
-        "import-scene"
+        "import-scene",
+        "inspect-jobs"
       ]
     },
     "operation": {
@@ -46,6 +47,10 @@
     "request": {
       "type": "object",
       "default": {}
+    },
+    "job_limit": {
+      "type": "integer",
+      "default": 10
     }
   },
   "assumptions": [
@@ -57,13 +62,14 @@
     "Device Studio conversion is an optional downstream stage; inference and preparation review remain usable when that scenario is unavailable."
   ],
   "invariants": [
-    "One invocation makes at most one owner request, never polls or retries.",
+    "Each action makes one owner request, except inspect-jobs which makes exactly one get and one bounded recent-list read; none polls or retries.",
     "Local-only stages explicitly prohibit paid provider fallback and reclaim of other resources.",
     "Lost admission responses are recovered using the same operation identity and source bytes, not a replacement job.",
     "Changing source bytes or typed parameters requires a new stage identity and invalidates downstream preparation.",
     "A cancellation acknowledgement does not prove that a running process has exited; observe or wait on the retained job.",
     "Result references remain opaque owner references; the program never opens host paths or downloads models.",
-    "Source changes create a pending preparation; completed reviews are immutable child revisions and never mutate their parent."
+    "Source changes create a pending preparation; completed reviews are immutable child revisions and never mutate their parent.",
+    "inspect-jobs makes exactly one get and one bounded recent-list read, and never polls or mutates jobs."
   ],
   "bindings": [
     {
@@ -98,6 +104,10 @@
       "id": "device-studio/scenes/from-preparation",
       "effect": "write",
       "optional": true
+    },
+    {
+      "id": "image-tools/jobs/list",
+      "effect": "read"
     }
   ],
   "outputs": {
@@ -128,7 +138,11 @@
       "bundle_ref": "Owned retained ZIP for Device Studio conversion.",
       "repair_assessment": "Read-only actual removal-mask/context measurements; no quality acceptance.",
       "scene_revision": "Exact Device Studio candidate revision; separate scene/motion review remains required.",
-      "library_revision": "Immutable asset publication under the declared edit and optional local-render source uses; visual qualification remains separate."
+      "library_revision": "Immutable asset publication under the declared edit and optional local-render source uses; visual qualification remains separate.",
+      "recent_jobs": "Bounded job status metadata; excludes prompts, request payloads, errors and artifact contents.",
+      "job": "Exact requested job status metadata with no prompt, request body, error, or artifact references.",
+      "recent_count": "Number of sanitized recent job rows returned.",
+      "target_in_recent": "Whether the exact requested job id appears in the recent list."
     },
     "errors": {
       "classes": [
@@ -270,6 +284,24 @@
           "sourceLabel": "fixture",
           "allowLocalRender": true
         }
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ],
+        "errors": [
+          {
+            "class": "invalid_input"
+          }
+        ]
+      },
+      "requires": []
+    },
+    {
+      "id": "inspect-jobs-requires-exact-job-id",
+      "inputs": {
+        "action": "inspect-jobs",
+        "job_limit": 10
       },
       "expect": {
         "status": [

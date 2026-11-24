@@ -28,6 +28,7 @@ const (
 	credentialEvidenceUnverified  = "unverified"
 	credentialStatusPending       = "pending"
 	credentialStatusDeferred      = "deferred"
+	credentialStatusBudget        = time.Second
 	// Readiness should provide a useful first interaction even when the
 	// recovery doctor is inspecting a slow or locked native store. A complete
 	// diagnosis remains available through the dedicated credentials surface;
@@ -639,10 +640,6 @@ func credentialReadinessForRefsWithOptions(ctx context.Context, refs []credentia
 	if len(refs) == 0 {
 		return items
 	}
-	statusContext := ctx
-	if client, clientErr := onboardingCredentialClient(); clientErr == nil {
-		statusContext = context.WithValue(ctx, credentialClientContextKey{}, client)
-	}
 	for index := range refs {
 		items[index] = credentialReadinessItem(refs[index], probeAuthority)
 	}
@@ -659,6 +656,32 @@ func credentialReadinessForRefsWithOptions(ctx context.Context, refs []credentia
 		items[index].EvidenceDetail = "This optional input is visible for later setup but does not block the current readiness check."
 		items[index].EvidenceNextAction = "optional-credential"
 	}
+	shouldProbe := false
+	for _, ref := range refs {
+		if ref.Required || probeOptional {
+			shouldProbe = true
+			break
+		}
+	}
+	if !shouldProbe {
+		return items
+	}
+	statusContext := ctx
+	clientContext, cancelClient := context.WithTimeout(ctx, credentialStatusBudget)
+	client, clientErr := onboardingCredentialClientWithin(clientContext)
+	clientWaitEnded := clientContext.Err() != nil
+	cancelClient()
+	if clientWaitEnded {
+		if ctx.Err() == nil {
+			for index, ref := range refs {
+				if ref.Required || probeOptional {
+					markCredentialStatusPending(&items[index])
+				}
+			}
+		}
+		return items
+	}
+	statusContext = context.WithValue(ctx, credentialClientContextKey{}, credentialClientInitResult{client: client, err: clientErr})
 	workers := 32
 	if len(refs) < workers {
 		workers = len(refs)
@@ -679,7 +702,7 @@ func credentialReadinessForRefsWithOptions(ctx context.Context, refs []credentia
 				// Status is a metadata-only probe. A slow provider must not hold
 				// the whole credentials page open; the card can show the resulting
 				// unsupported/deferred state and the operator can retry.
-				probeContext, cancel := context.WithTimeout(statusContext, time.Second)
+				probeContext, cancel := context.WithTimeout(statusContext, credentialStatusBudget)
 				type statusResult struct {
 					output []byte
 					err    error
@@ -700,10 +723,7 @@ func credentialReadinessForRefsWithOptions(ctx context.Context, refs []credentia
 				}
 				cancel()
 				if probeTimedOut {
-					item.Status = credentialStatusPending
-					item.Detail = "credential authority is still checking this address"
-					item.EvidenceDetail = "The provider did not answer within the readiness budget; retry to refresh this status."
-					item.EvidenceNextAction = "retry-credential-verification"
+					markCredentialStatusPending(&item)
 				} else if statusErr != nil {
 					item.Status = "unsupported"
 					// Keep the authority's own reason. A fixed "native credential
@@ -764,6 +784,13 @@ func credentialReadinessForRefsWithOptions(ctx context.Context, refs []credentia
 	close(indices)
 	group.Wait()
 	return items
+}
+
+func markCredentialStatusPending(item *credentialReadiness) {
+	item.Status = credentialStatusPending
+	item.Detail = "credential authority is still checking this address"
+	item.EvidenceDetail = "The provider did not answer within the readiness budget; retry to refresh this status."
+	item.EvidenceNextAction = "retry-credential-verification"
 }
 
 func credentialProviderReadinessDetail(providerState, providerDetail string) string {

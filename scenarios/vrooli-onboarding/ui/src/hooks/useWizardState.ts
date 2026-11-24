@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   fetchOperatorState,
   saveOperatorStateAtRevision,
@@ -15,6 +16,9 @@ import {
   type WizardProfileSessionSaveRequest,
 } from "../api/session";
 import { acceptRecommendation as acceptRecommendationRequest } from "../api/selection";
+import { writeHostSafeguardPermission, writeHostToolPermission } from "../api/host";
+import { readCoreAuthority, writeCoreAuthority, type CoreAuthority } from "../api/coreAuthority";
+import { operatorStateRevision } from "../api/operatorStateRevision";
 import type { Step } from "@vrooli/proto-types/vrooli-onboarding/v1/session/session_pb";
 
 function stepForPath(pathname: string, steps: Step[]) {
@@ -35,7 +39,16 @@ function mergePatches(base: OperatorStatePatch | null, next: OperatorStatePatch)
   };
 }
 
+function selectedScenarioNames(state: OperatorState | null | undefined): Set<string> {
+  return new Set(
+    Object.entries(state?.scenarios ?? {})
+      .filter(([, choice]) => choice.enabled)
+      .map(([name]) => name),
+  );
+}
+
 export function useWizardState(target = "local") {
+  const queryClient = useQueryClient();
   const [steps, setSteps] = useState<Step[]>([]);
   const [stepsLoading, setStepsLoading] = useState(true);
   const [stepsError, setStepsError] = useState<string | null>(null);
@@ -61,6 +74,7 @@ export function useWizardState(target = "local") {
   const operatorStateRef = useRef<OperatorState | null>(null);
   const pendingPatchRef = useRef<OperatorStatePatch | null>(null);
   const failedPatchRef = useRef<OperatorStatePatch | null>(null);
+  const failedCoreAuthorityRef = useRef<{ value: CoreAuthority; expectedRevision: string | null; idempotencyKey: string } | null>(null);
   const saveGenerationRef = useRef(0);
   const profileSessionRef = useRef<WizardProfileSession | null>(null);
   const failedProfileSessionRef = useRef<WizardProfileSessionSaveRequest | null>(null);
@@ -78,6 +92,7 @@ export function useWizardState(target = "local") {
     setProfileSession(null);
     pendingPatchRef.current = null;
     failedPatchRef.current = null;
+    failedCoreAuthorityRef.current = null;
     setOperatorStateError(null);
     setOperatorStateSaveState("idle");
     Promise.all([
@@ -94,12 +109,7 @@ export function useWizardState(target = "local") {
         operatorStateRef.current = state;
         profileSessionRef.current = savedProfileSession;
         setProfileSession(savedProfileSession);
-        const selected = new Set(
-          Object.entries(state.scenarios ?? {})
-            .filter(([, choice]) => choice.enabled)
-            .map(([name]) => name),
-        );
-        setSelectedScenarios(selected);
+        setSelectedScenarios(selectedScenarioNames(state));
       })
       .catch(() => {
         if (active) setStepsError("The onboarding step model could not be loaded.");
@@ -174,7 +184,7 @@ export function useWizardState(target = "local") {
   const persistOperatorState = useCallback((patch: OperatorStatePatch) => {
     const base = operatorStateRef.current ?? { version: "1.0.0", updatedAt: "" };
     const optimistic = mergeOperatorState(base, patch);
-    const expectedRevision = base.updatedAt ?? base.version ?? "";
+    const expectedRevision = operatorStateRevision(base);
     const requestPatch = mergePatches(pendingPatchRef.current, patch);
     const generation = ++saveGenerationRef.current;
     pendingPatchRef.current = requestPatch;
@@ -190,6 +200,7 @@ export function useWizardState(target = "local") {
         if (generation !== saveGenerationRef.current) return;
         operatorStateRef.current = state;
         setOperatorState(state);
+        setSelectedScenarios(selectedScenarioNames(state));
         pendingPatchRef.current = null;
         failedPatchRef.current = null;
         setOperatorStateSaveState("saved");
@@ -208,6 +219,27 @@ export function useWizardState(target = "local") {
   }, [mergeOperatorState, target]);
 
   const retryOperatorStateSave = useCallback(async () => {
+    const failedCore = failedCoreAuthorityRef.current;
+    if (failedCore) {
+      setOperatorStateSaveState("saving");
+      try {
+        const expectedRevision = failedCore.expectedRevision ?? (await readCoreAuthority(target)).revision;
+        failedCore.expectedRevision = expectedRevision;
+        await writeCoreAuthority(failedCore.value, expectedRevision, failedCore.idempotencyKey, target);
+        queryClient.setQueryData(["core-authority", target], await readCoreAuthority(target));
+        const state = await fetchOperatorState(target);
+        operatorStateRef.current = state;
+        setOperatorState(state);
+        failedCoreAuthorityRef.current = null;
+        setOperatorStateSaveState("saved");
+        setOperatorStateError(null);
+      } catch {
+        void queryClient.invalidateQueries({ queryKey: ["core-authority", target] });
+        setOperatorStateSaveState("failed");
+        setOperatorStateError("The core set is still not saved. Your edit remains available for another retry.");
+      }
+      return;
+    }
     const patch = failedPatchRef.current;
     if (!patch) return;
     let latest: OperatorState;
@@ -222,12 +254,14 @@ export function useWizardState(target = "local") {
     operatorStateRef.current = rebased;
     pendingPatchRef.current = patch;
     setOperatorState(rebased);
+    setSelectedScenarios(selectedScenarioNames(rebased));
     setOperatorStateSaveState("saving");
     setOperatorStateError(null);
     try {
-      const saved = await saveOperatorStateAtRevision(patch, latest.updatedAt ?? latest.version ?? "", target);
+      const saved = await saveOperatorStateAtRevision(patch, operatorStateRevision(latest), target);
       operatorStateRef.current = saved;
       setOperatorState(saved);
+      setSelectedScenarios(selectedScenarioNames(saved));
       pendingPatchRef.current = null;
       failedPatchRef.current = null;
       setOperatorStateSaveState("saved");
@@ -236,14 +270,11 @@ export function useWizardState(target = "local") {
       setOperatorStateSaveState(message.toLowerCase().includes("conflict") ? "conflict" : "failed");
       setOperatorStateError("The edit is still not saved. It remains available for another retry.");
     }
-  }, [mergeOperatorState, target]);
+  }, [mergeOperatorState, queryClient, target]);
 
   const persistProfileSession = useCallback((draft: Omit<WizardProfileSessionSaveRequest, "expectedRevision">) => {
     const current = profileSessionRef.current;
-    const expectedRevision = current?.revision
-      ?? operatorStateRef.current?.updatedAt
-      ?? operatorStateRef.current?.version
-      ?? "";
+    const expectedRevision = current?.revision || operatorStateRevision(operatorStateRef.current);
     const request: WizardProfileSessionSaveRequest = {
       ...draft,
       target,
@@ -274,8 +305,8 @@ export function useWizardState(target = "local") {
         const conflict = message.toLowerCase().includes("conflict") || message.toLowerCase().includes("aborted");
         setProfileSessionSaveState(conflict ? "conflict" : "failed");
         setProfileSessionError(conflict
-          ? "Another client changed this setup session. Your answers are retained; retry to rebase them."
-          : "The setup session could not be saved. Your answers are retained; retry when the connection recovers.");
+          ? "Another client changed this setup session. Your answers remain in this tab but are not saved; retry to rebase them."
+          : "Your answers remain in this tab but are not saved. Check the connection, then retry before leaving this page.");
       });
   }, [target]);
 
@@ -284,10 +315,7 @@ export function useWizardState(target = "local") {
     if (!request) return;
     try {
       const latest = await fetchProfileSession(target);
-      const expectedRevision = latest?.revision
-        ?? operatorStateRef.current?.updatedAt
-        ?? operatorStateRef.current?.version
-        ?? "";
+      const expectedRevision = latest?.revision || operatorStateRevision(operatorStateRef.current);
       const rebased = { ...request, expectedRevision };
       failedProfileSessionRef.current = rebased;
       setProfileSessionSaveState("saving");
@@ -304,7 +332,7 @@ export function useWizardState(target = "local") {
       }
     } catch {
       setProfileSessionSaveState("failed");
-      setProfileSessionError("The setup session is still not saved. Your answers remain available for another retry.");
+      setProfileSessionError("Your answers remain in this tab but are still not saved. Check the connection, then retry.");
     }
   }, [target]);
 
@@ -341,15 +369,48 @@ export function useWizardState(target = "local") {
   );
 
   const setCoreSeed = useCallback(
-    (seed: string[]) => {
-      persistOperatorState({
-        core: {
-          seed: Array.from(new Set(seed)).sort(),
-          trustedBase: operatorState?.core?.trustedBase ?? [],
-        },
-      });
+    (seed: string[], important?: { kind: "scenario" | "resource"; name: string }[], members?: { kind: "scenario" | "resource"; name: string }[], sourceRevision?: string) => {
+      const value: CoreAuthority = {
+        seed: Array.from(new Set(seed)).sort(),
+        trusted_base: Array.from(new Set(operatorStateRef.current?.core?.trustedBase ?? [])).sort(),
+        important: important ?? operatorStateRef.current?.core?.important ?? [],
+        members: members ?? operatorStateRef.current?.core?.members ?? [],
+      };
+      const optimistic = {
+        ...(operatorStateRef.current ?? { version: "1.0.0", updatedAt: "" }),
+        core: { seed: value.seed, trustedBase: value.trusted_base, important: value.important, members: value.members },
+      };
+      operatorStateRef.current = optimistic;
+      setOperatorState(optimistic);
+      const request = {
+        value,
+        expectedRevision: sourceRevision ?? null,
+        idempotencyKey: globalThis.crypto?.randomUUID?.() ?? `core-authority-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      };
+      failedCoreAuthorityRef.current = request;
+      void (async () => {
+        setOperatorStateSaveState("saving");
+        setOperatorStateError(null);
+        try {
+          const revision = request.expectedRevision ?? (await readCoreAuthority(target)).revision;
+          request.expectedRevision = revision;
+          await writeCoreAuthority(value, revision, request.idempotencyKey, target);
+          queryClient.setQueryData(["core-authority", target], await readCoreAuthority(target));
+          const state = await fetchOperatorState(target);
+          operatorStateRef.current = state;
+          setOperatorState(state);
+          failedCoreAuthorityRef.current = null;
+          setOperatorStateSaveState("saved");
+          setOperatorStateError(null);
+        } catch (error: unknown) {
+          void queryClient.invalidateQueries({ queryKey: ["core-authority", target] });
+          const message = error instanceof Error ? error.message : String(error);
+          setOperatorStateSaveState(message.toLowerCase().includes("conflict") || message.toLowerCase().includes("aborted") ? "conflict" : "failed");
+          setOperatorStateError("The core set could not be saved. Your edit is retained; retry to replay or rebase it.");
+        }
+      })();
     },
-    [operatorState, persistOperatorState],
+    [queryClient, target],
   );
   const setHostOptIn = useCallback(
     (
@@ -357,10 +418,19 @@ export function useWizardState(target = "local") {
       name: string,
       optedIn: boolean,
     ) => {
-      const field = kind === "host_tools" ? "hostTools" : "hostSafeguards";
-      persistOperatorState({ [field]: { [name]: { optedIn } } });
+      if (kind === "host_safeguards") {
+        void writeHostSafeguardPermission(name, { opted_in: optedIn }, target)
+          .then(() => fetchOperatorState(target))
+          .then((state) => { operatorStateRef.current = state; setOperatorState(state); setOperatorStateSaveState("saved"); setOperatorStateError(null); })
+          .catch((error: unknown) => { setOperatorStateSaveState("failed"); setOperatorStateError(error instanceof Error ? error.message : String(error)); });
+        return;
+      }
+      void writeHostToolPermission(name, optedIn, target)
+        .then(() => fetchOperatorState(target))
+        .then((state) => { operatorStateRef.current = state; setOperatorState(state); setOperatorStateSaveState("saved"); setOperatorStateError(null); })
+        .catch((error: unknown) => { setOperatorStateSaveState("failed"); setOperatorStateError(error instanceof Error ? error.message : String(error)); });
     },
-    [operatorState, persistOperatorState],
+    [persistOperatorState, target],
   );
 
   const setHostConfig = useCallback(
@@ -369,10 +439,17 @@ export function useWizardState(target = "local") {
       name: string,
       config: Record<string, unknown>,
     ) => {
-      const field = kind === "host_tools" ? "hostTools" : "hostSafeguards";
-      persistOperatorState({ [field]: { [name]: { config } } });
+      if (kind === "host_safeguards") {
+        void writeHostSafeguardPermission(name, { config }, target)
+          .then(() => fetchOperatorState(target))
+          .then((state) => { operatorStateRef.current = state; setOperatorState(state); setOperatorStateSaveState("saved"); setOperatorStateError(null); })
+          .catch((error: unknown) => { setOperatorStateSaveState("failed"); setOperatorStateError(error instanceof Error ? error.message : String(error)); });
+        return;
+      }
+      setOperatorStateSaveState("failed");
+      setOperatorStateError(`Host tool configuration for ${name} remains owned by the host control plane.`);
     },
-    [persistOperatorState],
+    [target],
   );
 
   const setResourceEnabled = useCallback(
@@ -388,9 +465,8 @@ export function useWizardState(target = "local") {
 
   const acceptRecommendation = useCallback(async (profile?: string, scenarios?: string[]) => {
     const accepted = await acceptRecommendationRequest(target, profile, scenarios);
-    const session = await fetchSession(target);
     setPlanAccepted(true);
-    moveToStep(accepted.firstUnsatisfiedStep || session.firstUnsatisfiedStep, true);
+    moveToStep(accepted.firstUnsatisfiedStep, true);
   }, [moveToStep, target]);
 
   const goPrev = useCallback(() => {

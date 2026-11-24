@@ -56,3 +56,42 @@ func TestSearchConfigurationRanksNaturalLanguageSetting(t *testing.T) {
 		t.Fatalf("natural-language results = %+v, want setup.credentials first", response.GetResults())
 	}
 }
+
+func TestSearchGlossaryRanksTermMatchBeforeDescriptionMatches(t *testing.T) {
+	response, err := Search(context.Background(), "service")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response.GetEntries()) < 2 {
+		t.Fatalf("glossary search returned %d entries, want a term match and description matches", len(response.GetEntries()))
+	}
+	if got := response.GetEntries()[0].GetTerm(); got != "service.json" {
+		t.Fatalf("first result = %q, want service.json ahead of broad description matches", got)
+	}
+}
+
+func TestSearchGlossaryKeepsStableCatalogOrderForEqualScores(t *testing.T) {
+	response, err := Search(context.Background(), "service")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"service.json", "resource", "scenario", "ollama", "health check", "port", "dependency", "lifecycle", "endpoint"}
+	if len(response.GetEntries()) != len(want) {
+		t.Fatalf("result count = %d, want %d: %+v", len(response.GetEntries()), len(want), response.GetEntries())
+	}
+	for index, term := range want {
+		if got := response.GetEntries()[index].GetTerm(); got != term {
+			t.Fatalf("term at %d = %q, want %q", index, got, term)
+		}
+	}
+
+	empty, err := Search(context.Background(), " ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for index, term := range []string{"resource", "scenario", "service.json"} {
+		if got := empty.GetEntries()[index].GetTerm(); got != term {
+			t.Fatalf("empty-query term at %d = %q, want catalog order %q", index, got, term)
+		}
+	}
+}

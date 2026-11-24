@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	operatorstatev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/operatorstate"
 	sessionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/session"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -64,5 +65,60 @@ func TestV2OperatorStateRejectsStaleConcurrentPatch(t *testing.T) {
 	state := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/GetOperatorState", `{"target":"local"}`)
 	if state.Code != http.StatusOK || !containsJSONString(state.Body.Bytes(), `"enabled":false`) || containsJSONString(state.Body.Bytes(), `"other"`) {
 		t.Fatalf("stale patch changed accepted state = %d: %s", state.Code, state.Body.String())
+	}
+}
+
+func TestV2ScenarioChoiceReloadsAndRebasesAgainstCurrentRevision(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
+	t.Setenv("BUNDLE_ROOT", "")
+	const initialRevision = "2026-11-21T23:53:08.240626093Z"
+	writeFixtureFile(t, operatorStateFixturePath(t, root), `{"version":"1.3.0","updated_at":"`+initialRevision+`","scenarios":{"hello-python":{"enabled":true}}}`)
+
+	get := func() *operatorstatev1.GetOperatorStateResponse {
+		t.Helper()
+		response := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/GetOperatorState", `{"target":"local"}`)
+		var state operatorstatev1.GetOperatorStateResponse
+		if response.Code != http.StatusOK || protojson.Unmarshal(response.Body.Bytes(), &state) != nil {
+			t.Fatalf("operator state read = %d: %s", response.Code, response.Body.String())
+		}
+		return &state
+	}
+	initial := get()
+	if !initial.GetState().GetScenarios()["hello-python"].GetEnabled() || initial.GetState().GetUpdatedAt() != initialRevision {
+		t.Fatalf("initial reloaded state = %+v", initial.GetState())
+	}
+
+	// A new server instance models the API process restart while reusing the
+	// same durable operator-state file.
+	restarted := get()
+	if !restarted.GetState().GetScenarios()["hello-python"].GetEnabled() || restarted.GetState().GetUpdatedAt() != initialRevision {
+		t.Fatalf("state after API restart = %+v", restarted.GetState())
+	}
+
+	// Another owner write makes the browser's original revision stale. The
+	// strict CAS must reject it; an explicit reload/rebase then succeeds.
+	concurrent := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/PatchOperatorState", `{"target":"local","state":{"session":{"step":3,"stepId":"resources"}},"updateMask":"session","expectedRevision":"`+initialRevision+`"}`)
+	if concurrent.Code != http.StatusOK {
+		t.Fatalf("concurrent owner patch = %d: %s", concurrent.Code, concurrent.Body.String())
+	}
+	stale := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/PatchOperatorState", `{"target":"local","state":{"scenarios":{"hello-python":{"enabled":false}}},"updateMask":"scenarios","expectedRevision":"`+initialRevision+`"}`)
+	if stale.Code != http.StatusConflict {
+		t.Fatalf("stale scenario patch = %d: %s; want conflict", stale.Code, stale.Body.String())
+	}
+
+	latest := get()
+	latestRevision := latest.GetState().GetUpdatedAt()
+	if latestRevision == "" || latestRevision == initialRevision {
+		t.Fatalf("latest revision = %q, initial=%q", latestRevision, initialRevision)
+	}
+	rebased := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/PatchOperatorState", `{"target":"local","state":{"scenarios":{"hello-python":{"enabled":false}}},"updateMask":"scenarios","expectedRevision":"`+latestRevision+`"}`)
+	if rebased.Code != http.StatusOK {
+		t.Fatalf("rebased scenario patch = %d: %s", rebased.Code, rebased.Body.String())
+	}
+	final := get().GetState()
+	if final.GetScenarios()["hello-python"].GetEnabled() || final.GetSession().GetStep() != 3 {
+		t.Fatalf("rebased state lost the intended scenario/session values: %s", mustJSON(t, final))
 	}
 }

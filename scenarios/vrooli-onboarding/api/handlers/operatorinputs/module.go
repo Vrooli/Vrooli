@@ -37,6 +37,8 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "invalid_argument", Description: "Malformed or incomplete answers"},
 			{Status: 412, Code: "failed_precondition", Description: "A capability did not become ready; remediation is returned"},
 			{Status: 409, Code: "aborted", Description: "The target configuration revision changed; reload before answering"},
+			{Status: 503, Code: "unavailable", Description: "The selected target's capability provider is unavailable; the pending question remains for same-target retry"},
+			{Status: 504, Code: "deadline_exceeded", Description: "The selected target's capability provider did not finish; retry with the same target and answers"},
 			{Status: 500, Code: "internal", Description: "Queue or control-plane failure"},
 		},
 	},

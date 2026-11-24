@@ -32,31 +32,11 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 func ManifestHandlers(core *cliapp.ScenarioApp) map[string]cliapp.PrimitiveHandler {
 	return map[string]cliapp.PrimitiveHandler{
 		"CredentialsService.ProvisionCredential": cliapp.ExternalDelegation(func(ctx cliapp.RunContext) error {
-			logicalID := strings.TrimSpace(ctx.Flag("logical-id"))
-			field := strings.TrimSpace(ctx.Flag("field"))
-			if field == "" {
-				field = "value"
-			}
-			if logicalID == "" {
-				return fmt.Errorf("--logical-id is required")
-			}
-			value, err := io.ReadAll(os.Stdin)
+			response, err := provisionCredential(ctx.Core(), ctx.Flag("logical-id"), ctx.Flag("field"), os.Stdin)
 			if err != nil {
-				return fmt.Errorf("read credential from standard input: %w", err)
-			}
-			valueText := strings.TrimSpace(string(value))
-			if valueText == "" {
-				return fmt.Errorf("standard input did not contain a credential value")
-			}
-			response := &credentialsv1.ProvisionCredentialResponse{}
-			request := &credentialsv1.ProvisionCredentialRequest{Target: "local", LogicalId: logicalID, Field: field, Value: valueText}
-			if err := requestRPC(ctx.Core(), provisionProcedure, request, response); err != nil {
 				return err
 			}
-			if ctx.JSON() {
-				return printJSON(response)
-			}
-			return cliapp.RenderMutationReport(ctx.Stdout(), cliapp.MutationReport{Result: []string{"Credential provisioned"}, NextCommand: []string{support.CLIName + " readiness"}})
+			return renderProvision(ctx.Stdout(), ctx.JSON(), response)
 		}),
 		"credentials.reveal": cliapp.ExternalDelegation(reveal),
 	}
@@ -118,6 +98,38 @@ func interactiveTerminal(writer io.Writer) bool {
 	return term.IsTerminal(fd)
 }
 
+func provisionCredential(core *cliapp.ScenarioApp, logicalID, field string, input io.Reader) (*credentialsv1.ProvisionCredentialResponse, error) {
+	logicalID = strings.TrimSpace(logicalID)
+	if logicalID == "" {
+		return nil, fmt.Errorf("--logical-id is required")
+	}
+	field = strings.TrimSpace(field)
+	if field == "" {
+		field = "value"
+	}
+	value, err := io.ReadAll(input)
+	if err != nil {
+		return nil, fmt.Errorf("read credential from standard input: %w", err)
+	}
+	valueText := strings.TrimSpace(string(value))
+	if valueText == "" {
+		return nil, fmt.Errorf("standard input did not contain a credential value")
+	}
+	response := &credentialsv1.ProvisionCredentialResponse{}
+	request := &credentialsv1.ProvisionCredentialRequest{Target: "local", LogicalId: logicalID, Field: field, Value: valueText}
+	if err := requestRPC(core, provisionProcedure, request, response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func renderProvision(output io.Writer, jsonOutput bool, response *credentialsv1.ProvisionCredentialResponse) error {
+	if jsonOutput {
+		return support.PrintProto(output, response, "credential")
+	}
+	return cliapp.RenderMutationReport(output, cliapp.MutationReport{Result: []string{"Credential provisioned"}, NextCommand: []string{support.CLIName + " readiness"}})
+}
+
 const (
 	listProcedure      = credentialsconnect.CredentialsServiceListCredentialsProcedure
 	provisionProcedure = credentialsconnect.CredentialsServiceProvisionCredentialProcedure
@@ -149,26 +161,11 @@ func provision(core *cliapp.ScenarioApp, args []string) error {
 	if strings.TrimSpace(*valueFlag) != "" {
 		return fmt.Errorf("--value is not accepted; pipe the credential value on standard input")
 	}
-	if strings.TrimSpace(*logicalID) == "" {
-		return fmt.Errorf("--logical-id is required")
-	}
-	value, err := io.ReadAll(os.Stdin)
+	response, err := provisionCredential(core, *logicalID, *field, os.Stdin)
 	if err != nil {
-		return fmt.Errorf("read credential from standard input: %w", err)
-	}
-	valueText := strings.TrimSpace(string(value))
-	if valueText == "" {
-		return fmt.Errorf("standard input did not contain a credential value")
-	}
-	response := &credentialsv1.ProvisionCredentialResponse{}
-	request := &credentialsv1.ProvisionCredentialRequest{Target: "local", LogicalId: strings.TrimSpace(*logicalID), Field: strings.TrimSpace(*field), Value: valueText}
-	if err := requestRPC(core, provisionProcedure, request, response); err != nil {
 		return err
 	}
-	if *jsonOutput {
-		return printJSON(response)
-	}
-	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{Result: []string{"Credential provisioned"}, NextCommand: []string{support.CLIName + " readiness"}})
+	return renderProvision(os.Stdout, *jsonOutput, response)
 }
 
 func diagnose(core *cliapp.ScenarioApp, args []string) error {

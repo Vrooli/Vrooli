@@ -2,6 +2,7 @@ package readiness
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -75,6 +76,38 @@ func TestAcknowledgeRejectsAnEmptyDigest(t *testing.T) {
 	_, err := handler.AcknowledgeDegradedReadiness(context.Background(), connect.NewRequest(&readinessv1.AcknowledgeDegradedReadinessRequest{}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("error = %v, code %v", err, connect.CodeOf(err))
+	}
+}
+
+func TestAcknowledgeUsesTheCanonicalReadinessTransition(t *testing.T) {
+	calls := 0
+	handler := NewConnectHandler(internalreadiness.Service{Acknowledge: func(_ context.Context, digest string) (internalreadiness.AcknowledgeResult, error) {
+		calls++
+		if digest != "current-set" {
+			t.Fatalf("service digest = %q, want current-set", digest)
+		}
+		return internalreadiness.AcknowledgeResult{
+			Status: "acknowledged", ReadinessDigest: digest,
+			Degraded: []internalreadiness.CompletionBlocker{{Kind: "credential", Name: "optional:token", Reason: "not configured", Remediation: "provide it"}},
+		}, nil
+	}})
+
+	response, err := handler.AcknowledgeDegradedReadiness(context.Background(), connect.NewRequest(&readinessv1.AcknowledgeDegradedReadinessRequest{ReadinessDigest: " current-set "}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 || response.Msg.GetStatus() != "acknowledged" || response.Msg.GetReadinessDigest() != "current-set" || len(response.Msg.GetDegraded()) != 1 || response.Msg.GetDegraded()[0].GetName() != "optional:token" {
+		t.Fatalf("canonical transition calls=%d response=%+v", calls, response.Msg)
+	}
+}
+
+func TestAcknowledgeMapsAStaleCurrentSetToConflict(t *testing.T) {
+	handler := NewConnectHandler(internalreadiness.Service{Acknowledge: func(context.Context, string) (internalreadiness.AcknowledgeResult, error) {
+		return internalreadiness.AcknowledgeResult{}, errors.New("the acknowledged degraded set is not the current one")
+	}})
+	_, err := handler.AcknowledgeDegradedReadiness(context.Background(), connect.NewRequest(&readinessv1.AcknowledgeDegradedReadinessRequest{ReadinessDigest: "stale-set"}))
+	if connect.CodeOf(err) != connect.CodeAborted {
+		t.Fatalf("error = %v, code %v; want aborted conflict", err, connect.CodeOf(err))
 	}
 }
 

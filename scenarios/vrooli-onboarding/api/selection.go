@@ -63,13 +63,19 @@ func (s *Server) getCoreSet(ctx context.Context, seed []string) (*selectionv1.Ge
 	if err != nil {
 		return nil, err
 	}
-	if state.Core == nil {
-		return nil, fmt.Errorf("operator state has no core authority")
+	stored := apicoreset.Authority{}
+	if state.Core != nil {
+		stored = apicoreset.Authority{Seed: state.Core.Seed, TrustedBase: state.Core.TrustedBase, Important: state.Core.Important, CoreMembers: state.Core.CoreMembers}
+	} else {
+		// A genuinely fresh operator-state document has no explicit core yet.
+		// Show the shared recovery-plane defaults as the initial editable set;
+		// persist authority only when the operator confirms a change.
+		stored = apicoreset.NormalizeOperationalAuthority(stored)
 	}
 	if len(seed) == 0 {
-		seed = state.Core.Seed
+		seed = stored.Seed
 	}
-	authority := apicoreset.NormalizeOperationalAuthority(apicoreset.Authority{Seed: normalizeCoreSeed(seed), TrustedBase: append([]string(nil), state.Core.TrustedBase...)})
+	authority := apicoreset.NormalizeOperationalAuthority(apicoreset.Authority{Seed: normalizeCoreSeed(seed), TrustedBase: append([]string(nil), stored.TrustedBase...), Important: append([]apicoreset.ComponentID(nil), stored.Important...), CoreMembers: append([]apicoreset.ComponentID(nil), stored.CoreMembers...)})
 	if err := authority.Validate(); err != nil {
 		return nil, fmt.Errorf("core authority validation failed: %w", err)
 	}
@@ -178,7 +184,10 @@ func (s *Server) getClosure(ctx context.Context) (*selectionv1.GetClosureRespons
 	if err != nil {
 		return nil, err
 	}
-	return &selectionv1.GetClosureResponse{Scenarios: closureMembersProto(result.Scenarios), Resources: closureMembersProto(result.Resources)}, nil
+	return &selectionv1.GetClosureResponse{
+		Scenarios: closureMembersProto(result.Scenarios), Resources: closureMembersProto(result.Resources),
+		ClosureDigest: result.ClosureDigest, HostTools: closureMembersProto(result.Tools), Safeguards: closureMembersProto(result.Safeguards),
+	}, nil
 }
 
 func (s *Server) getUnion(ctx context.Context) (*selectionv1.GetUnionResponse, error) {
@@ -208,15 +217,16 @@ func (s *Server) getUnion(ctx context.Context) (*selectionv1.GetUnionResponse, e
 	if err != nil {
 		return nil, err
 	}
-	tools, safeguards := []string{}, []string{}
-	for _, item := range requirements.Tools {
+	if err := validateSharedHostMembers(closure, requirements); err != nil {
+		return nil, err
+	}
+	tools, safeguards := make([]string, 0, len(closure.Tools)), make([]string, 0, len(closure.Safeguards))
+	for _, item := range closure.Tools {
 		tools = append(tools, item.Name)
 	}
-	for _, item := range requirements.Safeguards {
+	for _, item := range closure.Safeguards {
 		safeguards = append(safeguards, item.Name)
 	}
-	sort.Strings(tools)
-	sort.Strings(safeguards)
 	resources, err := resourceService().Catalog(ctx)
 	if err != nil {
 		// Minimal source fixtures can provide the authoritative closure without
@@ -255,7 +265,29 @@ func (s *Server) getUnion(ctx context.Context) (*selectionv1.GetUnionResponse, e
 	sort.Slice(requiredResources, func(i, j int) bool { return requiredResources[i].Name < requiredResources[j].Name })
 	sort.Slice(optionalResources, func(i, j int) bool { return optionalResources[i].Name < optionalResources[j].Name })
 	sort.Slice(standaloneResources, func(i, j int) bool { return standaloneResources[i].Name < standaloneResources[j].Name })
-	return &selectionv1.GetUnionResponse{Scenarios: closureMembersProto(closure.Scenarios), Resources: closureMembersProto(closure.Resources), HostTools: tools, Safeguards: safeguards, CatalogPaths: []string{"catalog/scenarios", "catalog/resources", "catalog/internal/tools", "catalog/internal/safeguards"}, ResourceModels: allResources, RequiredResources: requiredResources, OptionalResources: optionalResources, StandaloneResources: standaloneResources}, nil
+	return &selectionv1.GetUnionResponse{Scenarios: closureMembersProto(closure.Scenarios), Resources: closureMembersProto(closure.Resources), HostTools: tools, Safeguards: safeguards, CatalogPaths: []string{"catalog/scenarios", "catalog/resources", "catalog/internal/tools", "catalog/internal/safeguards"}, ResourceModels: allResources, RequiredResources: requiredResources, OptionalResources: optionalResources, StandaloneResources: standaloneResources, ClosureDigest: closure.ClosureDigest}, nil
+}
+
+func validateSharedHostMembers(closure closureResult, requirements hostRequirementsResponse) error {
+	tools := make(map[string]struct{}, len(closure.Tools))
+	for _, item := range closure.Tools {
+		tools[item.Name] = struct{}{}
+	}
+	for _, item := range requirements.Tools {
+		if _, ok := tools[item.Name]; !ok {
+			return fmt.Errorf("host tool %q is absent from the shared dependency closure", item.Name)
+		}
+	}
+	safeguards := make(map[string]struct{}, len(closure.Safeguards))
+	for _, item := range closure.Safeguards {
+		safeguards[item.Name] = struct{}{}
+	}
+	for _, item := range requirements.Safeguards {
+		if _, ok := safeguards[item.Name]; !ok {
+			return fmt.Errorf("host safeguard %q is absent from the shared dependency closure", item.Name)
+		}
+	}
+	return nil
 }
 
 func hasClosureProvenance(member closureMember, kind string) bool {
@@ -303,12 +335,19 @@ func (s *Server) createHandoff(ctx context.Context, request *selectionv1.CreateH
 	if err != nil {
 		return nil, err
 	}
+	closureDigest, err := s.handoffClosureDigest(ctx, request, selection)
+	if err != nil {
+		return nil, fmt.Errorf("resolve canonical handoff closure: %w", err)
+	}
 	state, err := loadOperatorStateFor(ctx)
 	if err != nil {
 		return nil, err
 	}
 	for _, existing := range state.Handoffs {
 		if existing.RequestKey == strings.TrimSpace(request.GetRequestKey()) && existing.RequestKey != "" && existing.DeploymentID == strings.TrimSpace(request.GetDeploymentId()) && existing.ActorScope == actorScope {
+			if existing.Target != strings.TrimSpace(request.GetTarget()) || existing.MachineID != strings.TrimSpace(request.GetMachineId()) || existing.NodeID != strings.TrimSpace(request.GetNodeId()) || existing.NodeKind != strings.TrimSpace(request.GetNodeKind()) || existing.EnrollmentGeneration != request.GetEnrollmentGeneration() || existing.DesiredRevision != request.GetDesiredRevision() || existing.SelectionDigest != selectionDigest || existing.ClosureDigest != closureDigest {
+				return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("handoff request key is already bound to a different target revision or selection"))
+			}
 			return &selectionv1.CreateHandoffResponse{Selection: selection, Handoff: handoffProto(existing)}, nil
 		}
 	}
@@ -323,7 +362,7 @@ func (s *Server) createHandoff(ctx context.Context, request *selectionv1.CreateH
 		DeploymentID: strings.TrimSpace(request.GetDeploymentId()), Target: strings.TrimSpace(request.GetTarget()),
 		MachineID: strings.TrimSpace(request.GetMachineId()), NodeID: strings.TrimSpace(request.GetNodeId()), NodeKind: strings.TrimSpace(request.GetNodeKind()),
 		EnrollmentGeneration: request.GetEnrollmentGeneration(), DesiredRevision: request.GetDesiredRevision(), ActorScope: actorScope,
-		SelectionDigest: selectionDigest, Missing: missing, Selection: handoffSelection(selection), State: "pending", CreatedAt: now, UpdatedAt: now,
+		SelectionDigest: selectionDigest, ClosureDigest: closureDigest, Missing: missing, Selection: handoffSelection(selection), State: "pending", CreatedAt: now, UpdatedAt: now,
 	}
 	handoffs := make(map[string]operatorstate.Handoff, len(state.Handoffs)+1)
 	for key, value := range state.Handoffs {
@@ -338,6 +377,40 @@ func (s *Server) createHandoff(ctx context.Context, request *selectionv1.CreateH
 		return nil, fmt.Errorf("persist onboarding handoff: %w", err)
 	}
 	return &selectionv1.CreateHandoffResponse{Selection: selection, Handoff: handoffProto(record)}, nil
+}
+
+func (s *Server) handoffClosureDigest(ctx context.Context, request *selectionv1.CreateHandoffRequest, selection *setupv1.Selection) (string, error) {
+	root, models, err := s.selectionInputs()
+	if err != nil {
+		return "", err
+	}
+	state, err := loadOperatorStateFor(ctx)
+	if err != nil {
+		return "", err
+	}
+	if request.GetDesiredSelection() != nil {
+		selectedScenarios, selectedResources := map[string]bool{}, map[string]bool{}
+		for _, name := range selection.GetScenarios() {
+			selectedScenarios[strings.ToLower(strings.TrimSpace(name))] = true
+		}
+		for _, name := range selection.GetOptionalResources() {
+			selectedResources[strings.ToLower(strings.TrimSpace(name))] = true
+		}
+		for i := range models {
+			name := strings.ToLower(strings.TrimSpace(models[i].Name))
+			models[i].Enabled = models[i].SystemRequired || selectedScenarios[name]
+		}
+		state.Resources = map[string]operatorstate.EnabledChoice{}
+		for name := range selectedResources {
+			enabled := true
+			state.Resources[name] = operatorstate.EnabledChoice{Enabled: &enabled}
+		}
+	}
+	closure, err := resolveClosureForState(root, models, state)
+	if err != nil {
+		return "", err
+	}
+	return closure.ClosureDigest, nil
 }
 
 func (s *Server) effectiveHandoffSelection(ctx context.Context, request *selectionv1.CreateHandoffRequest) (*setupv1.Selection, error) {
@@ -470,7 +543,7 @@ func selectionFromHandoff(value operatorstate.HandoffSelection) *setupv1.Selecti
 }
 
 func handoffProto(value operatorstate.Handoff) *selectionv1.Handoff {
-	return &selectionv1.Handoff{Id: value.ID, Reference: "vrooli-onboarding://handoffs/" + value.ID, DeploymentId: value.DeploymentID, Target: value.Target, MachineId: value.MachineID, NodeId: value.NodeID, NodeKind: value.NodeKind, EnrollmentGeneration: value.EnrollmentGeneration, DesiredRevision: value.DesiredRevision, ActorScope: value.ActorScope, SelectionDigest: value.SelectionDigest, Missing: append([]string(nil), value.Missing...), State: value.State, CreatedAt: value.CreatedAt, UpdatedAt: value.UpdatedAt}
+	return &selectionv1.Handoff{Id: value.ID, Reference: "vrooli-onboarding://handoffs/" + value.ID, DeploymentId: value.DeploymentID, Target: value.Target, MachineId: value.MachineID, NodeId: value.NodeID, NodeKind: value.NodeKind, EnrollmentGeneration: value.EnrollmentGeneration, DesiredRevision: value.DesiredRevision, ActorScope: value.ActorScope, SelectionDigest: value.SelectionDigest, Missing: append([]string(nil), value.Missing...), State: value.State, CreatedAt: value.CreatedAt, UpdatedAt: value.UpdatedAt, ClosureDigest: value.ClosureDigest}
 }
 
 func (s *Server) getHandoff(ctx context.Context, request *selectionv1.GetHandoffRequest) (*selectionv1.GetHandoffResponse, error) {

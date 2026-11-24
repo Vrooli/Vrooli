@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -10,6 +11,10 @@ import (
 	"github.com/vrooli/vrooli/internal/operatorstate"
 	sessiondomain "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/session"
 )
+
+type profileCatalogEnvironment map[string]string
+
+func (e profileCatalogEnvironment) Getenv(key string) string { return e[key] }
 
 func TestProfileSessionReconciliationHelpersAreStableAndRetainRemovedAnswers(t *testing.T) {
 	answers := map[string]json.RawMessage{
@@ -104,5 +109,94 @@ func TestSaveProfileSessionReturnsDurableUpdatedAt(t *testing.T) {
 	want := fixedNow.Format(time.RFC3339Nano)
 	if result.UpdatedAt != want {
 		t.Fatalf("save response updated_at = %q, want durable timestamp %q", result.UpdatedAt, want)
+	}
+}
+
+func TestProfileSessionSurvivesCheckoutBundleCatalogLossAndUnsupportedProfile(t *testing.T) {
+	repoRoot, err := filepath.Abs("../../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	storageRoot := filepath.Join(t.TempDir(), "operator-storage")
+	statePath := filepath.Join(storageRoot, "onboarding-state.json")
+	previousPath, previousRoots, previousEnvironment := operatorStatePath, operatorStateRoots, rootEnvironment
+	operatorStatePath = func() (string, error) { return statePath, nil }
+	operatorStateRoots = nil
+	rootEnvironment = profileCatalogEnvironment{"VROOLI_ROOT": repoRoot, "VROOLI_STORAGE_ROOT": storageRoot}
+	t.Cleanup(func() {
+		operatorStatePath, operatorStateRoots, rootEnvironment = previousPath, previousRoots, previousEnvironment
+	})
+
+	ctx := context.Background()
+	initial, err := operatorStateService().Apply(ctx, []byte(`{}`))
+	if err != nil {
+		t.Fatalf("initialize operator state: %v", err)
+	}
+	revision := operatorstate.Revision(initial)
+	saved, err := (&Server{}).saveProfileSession(ctx, sessiondomain.ProfileSession{
+		Target: "local", Actor: "operator", Mode: "guided", ProfileID: "local-use", ProfileVersion: "1.0.0",
+		CatalogRevision: "source-catalog-r1", BaseRevision: revision,
+		Answers: map[string]json.RawMessage{"purposes": json.RawMessage(`["use-local-apps"]`)},
+	}, revision)
+	if err != nil {
+		t.Fatalf("save profile work from checkout: %v", err)
+	}
+	if saved.Revision == "" || saved.ConsequenceDigest == "" {
+		t.Fatalf("saved profile session lacks durable revision/evaluation: %+v", saved)
+	}
+	before, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatalf("read saved profile state: %v", err)
+	}
+
+	bundleRoot := filepath.Join(t.TempDir(), "bundle")
+	rootEnvironment = profileCatalogEnvironment{"VROOLI_STORAGE_ROOT": storageRoot, "BUNDLE_ROOT": bundleRoot}
+	unavailable, err := (&Server{}).getProfileSession(ctx, "local", "operator")
+	if err != nil || unavailable == nil || unavailable.ReconciliationState != "unavailable" || unavailable.NextAction != "retry-profile-check" {
+		t.Fatalf("missing bundle catalog session=%+v err=%v", unavailable, err)
+	}
+	if string(unavailable.Answers["purposes"]) != `["use-local-apps"]` {
+		t.Fatalf("catalog loss changed saved answers: %#v", unavailable.Answers)
+	}
+
+	profileDir := filepath.Join(bundleRoot, "catalog", "scenarios", "vrooli-onboarding", "profiles")
+	if err := os.MkdirAll(filepath.Join(bundleRoot, "catalog", "scenarios"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(profileDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	generalProfile, err := os.ReadFile(filepath.Join(repoRoot, "scenarios", "vrooli-onboarding", "profiles", "general-purpose.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(profileDir, "general-purpose.json"), generalProfile, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	unsupported, err := (&Server{}).getProfileSession(ctx, "local", "operator")
+	if err != nil || unsupported == nil || unsupported.ReconciliationState != "profile_revoked" || unsupported.NextAction != "choose-profile" {
+		t.Fatalf("bundle without selected profile session=%+v err=%v", unsupported, err)
+	}
+	if len(unsupported.ReconciliationChanges) != 1 || unsupported.ReconciliationChanges[0].Kind != "profile-revoked" || string(unsupported.Answers["purposes"]) != `["use-local-apps"]` {
+		t.Fatalf("unsupported bundle did not retain explicit profile and answers: %+v", unsupported)
+	}
+
+	localProfile, err := os.ReadFile(filepath.Join(repoRoot, "scenarios", "vrooli-onboarding", "profiles", "local-use.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(profileDir, "local-use.json"), localProfile, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	recovered, err := (&Server{}).getProfileSession(ctx, "local", "operator")
+	if err != nil || recovered == nil || recovered.CurrentProfileVersion != "1.0.0" || recovered.ProfileID != "local-use" {
+		t.Fatalf("restored bundle session=%+v err=%v", recovered, err)
+	}
+	if string(recovered.Answers["purposes"]) != `["use-local-apps"]` || recovered.ReconciliationState == "profile_revoked" || recovered.NextAction == "choose-profile" {
+		t.Fatalf("restored profile lost retained work: %+v", recovered)
+	}
+	after, err := os.ReadFile(statePath)
+	if err != nil || string(after) != string(before) {
+		t.Fatalf("reconciliation wrote or lost saved work: err=%v", err)
 	}
 }

@@ -12,6 +12,7 @@ import (
 	internaladapters "image-tools/internal/adapters"
 	internalbackends "image-tools/internal/backends"
 	internalcaps "image-tools/internal/capabilities"
+	internalcapability "image-tools/internal/capability"
 	"image-tools/internal/catalogstate"
 	internalhfmeta "image-tools/internal/hfmeta"
 	internalhosttool "image-tools/internal/hosttool"
@@ -343,15 +344,23 @@ func (h *connectHandler) SelectModel(ctx context.Context, req *connect.Request[m
 		return nil, connect.NewError(connect.CodeInternal, errors.New("load model state"))
 	}
 	op := req.Msg.GetOperation()
+	selectOp := op
+	override := req.Msg.GetOverrideId()
+	if runs, presetModel, _, ok := internalcapability.PresetTarget(op); ok {
+		selectOp = runs
+		if override == "" {
+			override = presetModel
+		}
+	}
 	sel, err := preview.Select(ctx, internalmodels.PreviewRequest{
-		Operation: op,
+		Operation: selectOp,
 		// The caller's routing policy, so the preview resolves the model a
 		// submit with the same policy would resolve. Without it a BYOK-routed
 		// caller was previewed the local default's identity and geometry, and
 		// sized its request from a model that was never going to draw it.
 		QualityPolicy: req.Msg.GetQualityPolicy(),
 		AllowBYOK:     req.Msg.GetAllowByok(),
-		OverrideID:    req.Msg.GetOverrideId(),
+		OverrideID:    override,
 		ForceCPU:      req.Msg.GetForceCpu(),
 	})
 	if err != nil {
@@ -363,7 +372,7 @@ func (h *connectHandler) SelectModel(ctx context.Context, req *connect.Request[m
 		GpuViable: sel.GPUViable,
 		Reason:    sel.Reason,
 		Warnings:  sel.Warnings,
-		Verdict:   verdicts.ToProto(st.verdictFor(sel.Model, op)),
+		Verdict:   verdicts.ToProto(st.verdictFor(sel.Model, selectOp)),
 	}), nil
 }
 

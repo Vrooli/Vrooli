@@ -11,17 +11,23 @@ import (
 
 	"github.com/vrooli/api-core/coreset"
 	"github.com/vrooli/vrooli/internal/operatorstate"
+	"github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/permissions"
 )
 
 type Service struct {
-	store    *operatorstate.Service
-	validate operatorstate.DocumentValidator
+	store     *operatorstate.Service
+	validate  operatorstate.DocumentValidator
+	providers []permissions.Provider
 }
 
 // MarshalDocument includes fields understood by this checkout and opaque
 // fields retained by internal/operatorstate so a read can be projected onto
 // the complete wire message without changing storage ownership.
 func MarshalDocument(document operatorstate.Document) ([]byte, error) {
+	// The permission audit ledger shares the owner-state transaction file but
+	// is delivered to the caller as the dedicated mutation receipt, never as a
+	// bulk part of the operator-state read model.
+	document.PermissionReceipts = nil
 	data, err := json.Marshal(document)
 	if err != nil || len(document.RawFields) == 0 {
 		return data, err
@@ -38,8 +44,8 @@ func MarshalDocument(document operatorstate.Document) ([]byte, error) {
 	return json.Marshal(fields)
 }
 
-func New(store *operatorstate.Service, validate operatorstate.DocumentValidator) Service {
-	return Service{store: store, validate: validate}
+func New(store *operatorstate.Service, validate operatorstate.DocumentValidator, providers ...permissions.Provider) Service {
+	return Service{store: store, validate: validate, providers: append([]permissions.Provider(nil), providers...)}
 }
 
 func (s Service) Get(ctx context.Context) (operatorstate.Document, error) {
@@ -90,19 +96,36 @@ func normalizeCorePatch(patch []byte) ([]byte, error) {
 		return patch, nil
 	}
 	var core struct {
-		Seed        []string `json:"seed"`
-		TrustedBase []string `json:"trusted_base"`
+		Seed        []string              `json:"seed"`
+		TrustedBase []string              `json:"trusted_base"`
+		Important   []coreset.ComponentID `json:"important,omitempty"`
+		CoreMembers []coreset.ComponentID `json:"members,omitempty"`
 	}
 	if err := json.Unmarshal(raw, &core); err != nil {
 		return nil, fmt.Errorf("decode core authority patch: %w", err)
 	}
-	normalized := coreset.NormalizeOperationalAuthority(coreset.Authority{Seed: core.Seed, TrustedBase: core.TrustedBase})
-	core.Seed, core.TrustedBase = normalized.Seed, normalized.TrustedBase
+	normalized := coreset.NormalizeOperationalAuthority(coreset.Authority{Seed: core.Seed, TrustedBase: core.TrustedBase, Important: core.Important, CoreMembers: core.CoreMembers})
+	core.Seed, core.TrustedBase, core.Important, core.CoreMembers = normalized.Seed, normalized.TrustedBase, normalized.Important, normalized.CoreMembers
 	encodedCore, err := json.Marshal(core)
 	if err != nil {
 		return nil, fmt.Errorf("encode core authority patch: %w", err)
 	}
-	root["core"] = encodedCore
+	var normalizedCore map[string]json.RawMessage
+	if err := json.Unmarshal(encodedCore, &normalizedCore); err != nil {
+		return nil, fmt.Errorf("decode normalized core authority patch: %w", err)
+	}
+	// Empty arrays mean clear, while an omitted field means leave that tier
+	// untouched. Preserve that distinction through JSON's `omitempty` pass.
+	if _, present := rawCore["important"]; present {
+		normalizedCore["important"], _ = json.Marshal(core.Important)
+	}
+	if _, present := rawCore["members"]; present {
+		normalizedCore["members"], _ = json.Marshal(core.CoreMembers)
+	}
+	root["core"], err = json.Marshal(normalizedCore)
+	if err != nil {
+		return nil, fmt.Errorf("encode normalized core authority patch: %w", err)
+	}
 	return json.Marshal(root)
 }
 

@@ -63,6 +63,7 @@ type resourceCapacityRESTProjection struct {
 // Bridge. It uses the same service and authorization boundary as Connect, so
 // the two routes cannot develop different selection semantics.
 func RESTHandoffHandler(service internalselection.Service) http.Handler {
+	connectHandler := NewConnectHandler(service)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if err := authz.RequireMutation(r.Context()); err != nil {
 			writeRESTError(w, err)
@@ -89,12 +90,12 @@ func RESTHandoffHandler(service internalselection.Service) http.Handler {
 			}
 			protoRequest.DesiredSelection = selection
 		}
-		response, err := service.Handoff(r.Context(), protoRequest)
+		response, err := connectHandler.CreateHandoff(r.Context(), connect.NewRequest(protoRequest))
 		if err != nil {
 			writeRESTError(w, err)
 			return
 		}
-		selection := response.GetSelection()
+		selection := response.Msg.GetSelection()
 		if selection == nil {
 			writeRESTError(w, connect.NewError(connect.CodeInternal, errors.New("onboarding returned no selection")))
 			return

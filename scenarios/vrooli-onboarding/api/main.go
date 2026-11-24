@@ -17,6 +17,7 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/nodereach"
+	"github.com/vrooli/api-core/operatorsession"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
@@ -31,18 +32,27 @@ import (
 	hostH "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/handlers/host"
 	operatorinputsH "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/handlers/operatorinputs"
 	operatorstateH "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/handlers/operatorstate"
+	permissionsH "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/handlers/permissions"
 	profilesH "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/handlers/profiles"
 	readinessH "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/handlers/readiness"
 	resourcesH "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/handlers/resources"
 	selectionH "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/handlers/selection"
 	sessionH "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/handlers/session"
 	applydomain "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/apply"
+	"github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/approveddependencies"
 	capabilitiesdomain "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/capabilities"
+	"github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/climanifestpermissions"
+	"github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/coresetpermissions"
 	credentialsdomain "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/credentials"
+	"github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/decisionpermissions"
+	"github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/hosttoolpermissions"
 	operatorstateapi "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/operatorstateapi"
+	"github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/posturepermissions"
 	readinessdomain "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/readiness"
 	resourcesdomain "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/resources"
+	"github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/safeguardpermissions"
 	sessiondomain "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/session"
+	"github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/standinggrantpermissions"
 	"github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/targetproxy"
 	_ "modernc.org/sqlite"
 )
@@ -105,7 +115,9 @@ func (s *Server) setupRoutes() {
 	capabilitiesH.Module(capabilitiesdomain.Service{Executor: controlPlaneExecutor{}}, targetproxy.Interceptor(s.bridge)).Mount(s.router)
 	credentialsH.Module(credentialsdomain.Service{ListFn: listCredentials, ProvisionFn: provisionCredential, DiagnoseFn: diagnoseCredentials, RevealFn: revealCredential}, targetproxy.Interceptor(s.bridge)).Mount(s.router)
 	hostH.Module(hostService(s), targetproxy.Interceptor(s.bridge)).Mount(s.router)
-	operatorstateH.Module(operatorstateapi.New(operatorStateService(), validateOperatorState), targetproxy.Interceptor(s.bridge)).Mount(s.router)
+	permissionService := onboardingOperatorStateService()
+	operatorstateH.Module(permissionService, targetproxy.Interceptor(s.bridge)).Mount(s.router)
+	permissionsH.Module(permissionService, targetproxy.Interceptor(s.bridge)).Mount(s.router)
 	profilesH.Module(onboardingProfilesService(), targetproxy.Interceptor(s.bridge)).Mount(s.router)
 	resourcesH.Module(resourceService(), targetproxy.Interceptor(s.bridge)).Mount(s.router)
 	glossaryH.Module().Mount(s.router)
@@ -113,6 +125,60 @@ func (s *Server) setupRoutes() {
 	selectionH.Module(s.selectionService(), targetproxy.Interceptor(s.bridge)).Mount(s.router)
 	s.router.Handle("/api/v2/handoff", selectionH.RESTHandoffHandler(s.selectionService())).Methods(http.MethodPost)
 	mountOnboardingAuthHandler(s.router)
+}
+
+// onboardingOperatorStateService composes owner-defined permission providers
+// around the operator-state owner API. Core authority writes still flow through
+// that API's masked CAS and durable receipt transaction.
+func onboardingOperatorStateService() operatorstateapi.Service {
+	store := operatorStateService()
+	owner := operatorstateapi.New(store, validateOperatorState)
+	enrollmentStore, _ := operatorsession.DefaultFileStore()
+	return operatorstateapi.New(store, validateOperatorState,
+		bridgeScopePermissionProvider(), coresetpermissions.NewOwnerProvider(owner).WithInventory(validateTierInventory), bridgeCredentialGrantPermissionProvider(),
+		approvedDependencyPermissionProvider(), climanifestPermissionProvider(),
+		posturepermissions.NewUpdateControl(owner), posturepermissions.NewSessionMode(enrollmentStore), posturepermissions.NewTrustPosture(owner),
+		decisionpermissions.New(decisionpermissions.NewDiscoveredClient()),
+		standinggrantpermissions.New(standinggrantpermissions.NewDiscoveredClient()),
+		safeguardpermissions.New(owner, safeguardpermissions.NewOwnerWriter(owner), hostSafeguardPermissionInventory),
+		hosttoolpermissions.New(hostToolPermissionInventory, owner, hosttoolpermissions.NewOwnerWriter(owner)),
+	)
+}
+
+func validateTierInventory(kind, name string) error {
+	root, err := manifestRoot()
+	if err != nil {
+		return fmt.Errorf("load canonical inventory: %w", err)
+	}
+	var manifest string
+	switch kind {
+	case "scenario":
+		manifest = filepath.Join(root, "scenarios", name, ".vrooli", "service.json")
+	case "resource":
+		manifest = filepath.Join(root, "resources", name, "resource.json")
+	default:
+		return fmt.Errorf("unsupported tier member kind %q", kind)
+	}
+	if info, err := os.Stat(manifest); err != nil || !info.Mode().IsRegular() {
+		return fmt.Errorf("unknown %s tier member %q", kind, name)
+	}
+	return nil
+}
+
+func climanifestPermissionProvider() *climanifestpermissions.Provider {
+	root, err := manifestRoot()
+	if err != nil {
+		root = ""
+	}
+	return climanifestpermissions.New(root)
+}
+
+func approvedDependencyPermissionProvider() *approveddependencies.PermissionProvider {
+	root, err := manifestRoot()
+	if err != nil {
+		root = ""
+	}
+	return approveddependencies.NewPermissionProvider(approveddependencies.New(root))
 }
 
 func resourceService() resourcesdomain.Service {

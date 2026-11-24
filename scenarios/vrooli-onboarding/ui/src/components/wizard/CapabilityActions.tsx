@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { applyCapability, previewCapability, verifyCapability, type CapabilityInput, type CapabilityPreview, type CapabilityResult, type CapabilityStatus } from "../../api/capabilities";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { Alert } from "@vrooli/react-component-library/Alert/1";
@@ -27,10 +27,40 @@ export function CapabilityActions({ target, statuses, onRefresh }: CapabilityAct
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<Record<string, string | undefined>>({});
   const secretValues = useRef<Record<string, Record<string, string>>>({});
+  const actionKeys = useRef<Record<string, string>>({});
   const [, refreshInputs] = useState(0);
+  const previousTarget = useRef(target);
+
+  useLayoutEffect(() => {
+    if (previousTarget.current === target) return;
+    previousTarget.current = target;
+    setValues({});
+    secretValues.current = {};
+    actionKeys.current = {};
+    setConfirmations({});
+    setPreviews({});
+    setResults({});
+    setError({});
+    refreshInputs((revision) => revision + 1);
+  }, [target]);
 
   const visible = useMemo(() => statuses, [statuses]);
   const attentionCount = visible.filter((status) => status.state !== "ready").length;
+  const adoptionID = new URLSearchParams(window.location.search).get("adoption_id") ?? "";
+  const valuesFor = (status: CapabilityStatus): Record<string, InputValue> => {
+    const current = values[status.descriptor.id] ?? {};
+    return status.descriptor.id === "compute-manager-adoption-first-touch" && target === "local" && adoptionID.startsWith("adopted-vps:")
+      ? { ...current, instance_id: adoptionID }
+      : current;
+  };
+  const requestKeyFor = (status: CapabilityStatus): string => {
+    const existing = actionKeys.current[status.descriptor.id];
+    if (existing) return existing;
+    const bytes = crypto.getRandomValues(new Uint8Array(24));
+    const generated = Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+    actionKeys.current[status.descriptor.id] = generated;
+    return generated;
+  };
 
   if (visible.length === 0) return null;
 
@@ -44,7 +74,7 @@ export function CapabilityActions({ target, statuses, onRefresh }: CapabilityAct
       {visible.map((status) => <CapabilityCard
         key={status.descriptor.id}
         status={status}
-        values={values[status.descriptor.id] ?? {}}
+        values={valuesFor(status)}
         secretValues={secretValues.current[status.descriptor.id] ?? {}}
         confirmed={confirmations[status.descriptor.id] ?? false}
         preview={previews[status.descriptor.id]}
@@ -66,7 +96,7 @@ export function CapabilityActions({ target, statuses, onRefresh }: CapabilityAct
           setBusy(status.descriptor.id);
           setError((current) => ({ ...current, [status.descriptor.id]: undefined }));
           try {
-            const preview = await previewCapability(makeRequest(status, values[status.descriptor.id] ?? {}, secretValues.current[status.descriptor.id] ?? {}, false), target);
+            const preview = await previewCapability(makeRequest(status, valuesFor(status), secretValues.current[status.descriptor.id] ?? {}, false, status.descriptor.id === "compute-manager-adoption-first-touch" ? requestKeyFor(status) : undefined), target);
             setPreviews((current) => ({ ...current, [status.descriptor.id]: preview }));
             setResults((current) => ({ ...current, [status.descriptor.id]: undefined }));
           } catch {
@@ -79,7 +109,7 @@ export function CapabilityActions({ target, statuses, onRefresh }: CapabilityAct
           setBusy(status.descriptor.id);
           setError((current) => ({ ...current, [status.descriptor.id]: undefined }));
           try {
-            const result = await applyCapability(makeRequest(status, values[status.descriptor.id] ?? {}, secretValues.current[status.descriptor.id] ?? {}, confirmations[status.descriptor.id] ?? false), target);
+            const result = await applyCapability(makeRequest(status, valuesFor(status), secretValues.current[status.descriptor.id] ?? {}, confirmations[status.descriptor.id] ?? false, status.descriptor.id === "compute-manager-adoption-first-touch" ? requestKeyFor(status) : undefined), target);
             setResults((current) => ({ ...current, [status.descriptor.id]: result }));
             if (result.state === "ready" || result.state === "degraded") {
               setValues((current) => ({ ...current, [status.descriptor.id]: {} }));
@@ -93,6 +123,11 @@ export function CapabilityActions({ target, statuses, onRefresh }: CapabilityAct
           } catch {
             setError((current) => ({ ...current, [status.descriptor.id]: i18n.t("onboarding.capabilities.applyError") }));
           } finally {
+            if (status.descriptor.id === "compute-manager-adoption-first-touch") {
+              const { [status.descriptor.id]: _clearedSecretValues, ...remainingSecretValues } = secretValues.current;
+              secretValues.current = remainingSecretValues;
+              refreshInputs((revision) => revision + 1);
+            }
             setBusy(null);
           }
         }}
@@ -100,7 +135,7 @@ export function CapabilityActions({ target, statuses, onRefresh }: CapabilityAct
           setBusy(status.descriptor.id);
           setError((current) => ({ ...current, [status.descriptor.id]: undefined }));
           try {
-            const verification = await verifyCapability(status.descriptor.id, target);
+            const verification = await verifyCapability(status.descriptor.id, target, status.descriptor.id === "compute-manager-adoption-first-touch" && adoptionID.startsWith("adopted-vps:") ? { instance_id: adoptionID } : undefined);
             const verified = verification.evidence.length > 0 && verification.evidence.every((item) => item.verified) && !verification.error_code;
             setResults((current) => ({ ...current, [status.descriptor.id]: { capability_id: status.descriptor.id, state: verified ? "ready" : "degraded", outcome: verification.outcome || (verified ? "verified" : "verification_unknown"), retryable: verification.retryable, error_code: verification.error_code, retry_after_seconds: verification.retry_after_seconds, next_action: verification.next_action, remediation: verification.next_action || verification.remediation, evidence: verification.evidence } }));
             onRefresh();
@@ -183,7 +218,7 @@ function CapabilityCard({
     {status.remediation && <p className="mt-2 text-xs text-primary-soft">{i18n.t("onboarding.capabilities.next", { remediation: status.remediation })}</p>}
     {(status.evidence ?? []).length > 0 && <EvidenceList evidence={status.evidence ?? []} />}
     {hasAction && !blocked && <div className="mt-3 space-y-3">
-      {(descriptor.inputs ?? []).map((input) => <CapabilityInput key={input.id} input={input} value={input.kind === "secret" ? secretValues[input.id] : values[input.id]} missing={missing.has(input.id)} onValue={(value) => onValue(input.id, value, input.kind === "secret")} />)}
+      {(descriptor.inputs ?? []).filter((input) => !(descriptor.id === "compute-manager-adoption-first-touch" && (input.id === "instance_id" || input.id === "idempotency_key"))).map((input) => <CapabilityInput key={input.id} input={input} value={input.kind === "secret" ? secretValues[input.id] : values[input.id]} missing={missing.has(input.id)} onValue={(value) => onValue(input.id, value, input.kind === "secret")} />)}
     </div>}
     {hasAction && !blocked && descriptor.policy.requires_confirmation && <Checkbox data-testid={`capability-confirm-${descriptor.id}`} checked={confirmed} onCheckedChange={onConfirm} label={i18n.t("onboarding.capabilities.confirmation")} className="mt-3" />}
     {error && <Alert tone="danger" title={i18n.t("onboarding.capabilities.applyError")} description={error} />}
@@ -206,7 +241,7 @@ function CapabilityInput({ input, value, missing, onValue }: { input: Capability
   const options = input.options ?? [];
   const candidates = input.candidates ?? [];
   const selectOptions = options.length > 0 ? options.map((option) => ({ value: option, label: option })) : candidates.map((candidate) => ({ value: candidate.id, label: candidate.label || candidate.location || candidate.id }));
-  return <label className="block text-sm"><span>{label}</span>{input.description && <span className="mt-1 block text-xs text-muted">{input.description}</span>}{input.validation && <span className="mt-1 block text-xs text-muted">{i18n.t("onboarding.capabilities.validation", { value: input.validation })}</span>}{selectOptions.length > 0 ? <Select value={typeof value === "string" ? value : ""} onValueChange={onValue} className="mt-2" aria-label={input.label} options={selectOptions} placeholder={i18n.t("onboarding.capabilities.choose")} /> : input.kind === "secret" ? <PasswordInput revealable={false} autoComplete="off" maxLength={input.constraints?.max_length} value={typeof value === "string" ? value : ""} placeholder={input.default ?? ""} onValueChange={onValue} className="mt-2" aria-label={input.label} /> : <Input type={input.kind === "duration" ? "text" : "text"} autoComplete="off" maxLength={input.constraints?.max_length} value={typeof value === "string" ? value : ""} placeholder={input.default ?? ""} onChange={(event) => onValue(event.target.value)} className="mt-2" aria-label={input.label} />}</label>;
+  return <label className="block text-sm"><span>{label}</span>{input.description && <span className="mt-1 block text-xs text-muted">{input.description}</span>}{input.validation && <span className="mt-1 block text-xs text-muted">{i18n.t("onboarding.capabilities.validation", { value: input.validation })}</span>}{selectOptions.length > 0 ? <Select value={typeof value === "string" ? value : ""} onValueChange={onValue} className="mt-2" aria-label={input.label} options={selectOptions} placeholder={i18n.t("onboarding.capabilities.choose")} /> : input.kind === "secret" ? <PasswordInput revealable={false} autoComplete="off" maxLength={input.constraints?.max_length} value={typeof value === "string" ? value : ""} placeholder={input.default ?? ""} onValueChange={onValue} className="mt-2" aria-label={input.label} /> : <Input type={input.kind === "duration" ? "text" : "text"} autoComplete="off" maxLength={input.constraints?.max_length} value={typeof value === "string" ? value : input.default ?? ""} placeholder={input.default ?? ""} onChange={(event) => onValue(event.target.value)} className="mt-2" aria-label={input.label} />}</label>;
 }
 
 function EvidenceList({ evidence }: { evidence: Array<{ kind: string; stage?: string; artifact_identity: string; verified: boolean; coverage?: string[]; remediation?: string }> }) {
@@ -220,11 +255,11 @@ function hasInput(input: CapabilityInput, values: Record<string, InputValue>, se
   return typeof value === "boolean" ? true : Boolean(value && value.trim());
 }
 
-function makeRequest(status: CapabilityStatus, values: Record<string, InputValue>, secretValues: Record<string, string>, confirm: boolean) {
+function makeRequest(status: CapabilityStatus, values: Record<string, InputValue>, secretValues: Record<string, string>, confirm: boolean, idempotencyKey?: string) {
   const inputs: Record<string, unknown> = {};
   for (const input of status.descriptor.inputs ?? []) {
     const value = input.kind === "secret" ? secretValues[input.id] : values[input.id] ?? input.default;
     if (value !== undefined && value !== "") inputs[input.id] = value;
   }
-  return { capability_id: status.descriptor.id, confirm, inputs };
+  return { capability_id: status.descriptor.id, ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}), confirm, inputs };
 }

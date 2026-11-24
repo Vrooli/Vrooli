@@ -131,7 +131,9 @@ Contract:
   hidden for `runtime.kind` of `on_demand` or `one_shot`.
 - The footer rolls up the implied resource set, so the consequence is visible on
   the same screen as the choice.
-- A dependency cycle is reported as a manifest defect, not traversed.
+- A cycle made entirely of optional `try_start` dependencies remains represented
+  in the closure union; it is not a startup ordering. A cycle made entirely of
+  required dependencies is reported as a manifest defect.
 
 ### 2 — Core supervision set
 

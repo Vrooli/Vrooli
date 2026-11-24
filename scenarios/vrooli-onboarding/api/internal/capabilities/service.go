@@ -65,9 +65,15 @@ func (s Service) Apply(ctx context.Context, request operatorcapability.ActionReq
 	if err != nil {
 		return result, err
 	}
-	if result.State == operatorcapability.StateReady && s.Executor != nil {
+	if result.State == operatorcapability.StateReady {
 		if err := s.Executor.RemoveCapability(request.CapabilityID); err != nil {
-			return result, fmt.Errorf("capability applied but pending operator metadata could not be reconciled: %w", err)
+			// The capability effect already succeeded. Returning a transport error
+			// would hide that success and invite the operator to repeat the Apply.
+			result.State = operatorcapability.StateDegraded
+			result.Outcome = "applied_with_metadata_cleanup_pending"
+			result.ErrorCode = "operator_metadata_cleanup_pending"
+			result.Retryable = false
+			result.Remediation = "Capability apply succeeded, but onboarding metadata cleanup is pending. Refresh capability status; do not repeat the apply."
 		}
 	}
 	return result, nil

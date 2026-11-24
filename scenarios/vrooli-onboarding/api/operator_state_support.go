@@ -91,7 +91,7 @@ func validateOperatorState(state OperatorState) error {
 	if state.Core == nil {
 		return nil
 	}
-	authority := apicoreset.Authority{Seed: state.Core.Seed, TrustedBase: state.Core.TrustedBase}
+	authority := apicoreset.Authority{Seed: state.Core.Seed, TrustedBase: state.Core.TrustedBase, Important: state.Core.Important, CoreMembers: state.Core.CoreMembers}
 	if err := authority.Validate(); err != nil {
 		return fmt.Errorf("core authority validation failed: %w", err)
 	}

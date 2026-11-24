@@ -86,6 +86,11 @@ export interface MaskCompositeOpParams {
   grow_px?: number;
 }
 
+export interface FaceRestoreOpParams {
+  fidelity?: number;
+  score_threshold?: number;
+}
+
 export interface SegmentOpParamsSegmentationBox {
   height: number;
   width: number;
@@ -126,6 +131,7 @@ export interface ImageToObjectOpParams {
 
 export interface AiOpParamsByOperation {
   "color_transfer": ColorTransferOpParams;
+  "face_restore": FaceRestoreOpParams;
   "face_swap": FaceSwapOpParams;
   "garment_replace": GarmentReplaceOpParams;
   "image_to_object": ImageToObjectOpParams;

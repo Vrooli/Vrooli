@@ -8,6 +8,8 @@ import (
 
 	aiH "image-tools/handlers/ai"
 
+	internalcapability "image-tools/internal/capability"
+
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
 	modelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models"
 )
@@ -55,7 +57,11 @@ func TestAIListDefaultsAreWhatModelsSelectReturns(t *testing.T) {
 		if op.DefaultUnavailable != "" {
 			t.Errorf("%s: has a default but reports unavailable %q", op.Name, op.DefaultUnavailable)
 		}
-		if op.DefaultVerdict.GetOperation() != op.Name || op.DefaultVerdict.GetGrade() != sel.Msg.Verdict.GetGrade() {
+		expectedVerdictOp := op.Name
+		if runs, _, _, ok := internalcapability.PresetTarget(op.Name); ok {
+			expectedVerdictOp = runs
+		}
+		if op.DefaultVerdict.GetOperation() != expectedVerdictOp || op.DefaultVerdict.GetGrade() != sel.Msg.Verdict.GetGrade() {
 			t.Errorf("%s: ai list verdict %v, models select verdict %v", op.Name, op.DefaultVerdict, sel.Msg.Verdict)
 		}
 	}

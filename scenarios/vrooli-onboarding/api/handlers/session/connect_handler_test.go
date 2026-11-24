@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -31,6 +32,43 @@ func TestDraftHandlersBindOwnershipToVerifiedPrincipal(t *testing.T) {
 	want := string(identity.SourceScenarioAuthenticator) + ":verified-operator"
 	if gotActor != want || response.Msg.GetDraft().GetActor() != want {
 		t.Fatalf("draft actor = %q / %q, want verified principal %q", gotActor, response.Msg.GetDraft().GetActor(), want)
+	}
+}
+
+func TestProfileSessionHandlersRejectCorruptPersistedAnswers(t *testing.T) {
+	corrupt := &domain.ProfileSession{Answers: map[string]json.RawMessage{"purpose": json.RawMessage(`{"unfinished"`)}}
+	ctx := identity.WithPrincipal(context.Background(), identity.Principal{
+		Kind: identity.ActorHuman, Subject: "verified-operator", Source: identity.SourceScenarioAuthenticator, Verified: true,
+	})
+
+	t.Run("read", func(t *testing.T) {
+		handler := NewConnectHandler(domain.Service{
+			GetProfileSessionFn: func(context.Context, string, string) (*domain.ProfileSession, error) { return corrupt, nil },
+		})
+		response, err := handler.GetProfileSession(ctx, connect.NewRequest(&sessionv1.GetProfileSessionRequest{Target: "local"}))
+		assertCorruptProfileSessionResponse(t, response, err)
+	})
+
+	t.Run("save readback", func(t *testing.T) {
+		handler := NewConnectHandler(domain.Service{
+			SaveProfileSessionFn: func(context.Context, domain.ProfileSession, string) (*domain.ProfileSession, error) {
+				return corrupt, nil
+			},
+		})
+		response, err := handler.SaveProfileSession(ctx, connect.NewRequest(&sessionv1.SaveProfileSessionRequest{
+			Target: "local", Session: &sessionv1.ProfileSession{Mode: "guided"},
+		}))
+		assertCorruptProfileSessionResponse(t, response, err)
+	})
+}
+
+func assertCorruptProfileSessionResponse(t *testing.T, response *connect.Response[sessionv1.GetProfileSessionResponse], err error) {
+	t.Helper()
+	if response != nil {
+		t.Fatalf("response = %#v, want no partial profile session", response.Msg)
+	}
+	if got := connect.CodeOf(err); got != connect.CodeDataLoss {
+		t.Fatalf("error code = %v, want %v (error: %v)", got, connect.CodeDataLoss, err)
 	}
 }
 

@@ -446,8 +446,10 @@ func DiffusersInpaint(req backends.Request, modelDir string) ([]string, error) {
 // [--feather-px n] [--crop-context-pixels n] [--crop-max-edge-px n] [--full-frame]
 // [--steps n] [--guidance x] [--negative-prompt p] [--seed s].
 func diffusersMaskedEditArgs(req backends.Request, modelDir, family, in, mask string) ([]string, error) {
-	if len(req.Adapters) > 0 {
-		return nil, fmt.Errorf("diffusers %s: conditioning adapters are not supported on family %q (model %q)", req.Operation, family, req.Model.ID)
+	for _, a := range req.Adapters {
+		if a.Kind != adapters.KindLoRA {
+			return nil, fmt.Errorf("diffusers %s: only LoRA conditioning is supported on family %q (model %q)", req.Operation, family, req.Model.ID)
+		}
 	}
 	args := []string{
 		"-m", "image_tools_sidecar.masked_edit",
@@ -459,6 +461,11 @@ func diffusersMaskedEditArgs(req backends.Request, modelDir, family, in, mask st
 		"--prompt", StrParam(req, "prompt"),
 		"--out", req.Output.LocalPath,
 	}
+	lora, err := LoRAArgs(req)
+	if err != nil {
+		return nil, err
+	}
+	args = append(args, lora...)
 	p, err := opparams.DecodeInpaintParams(req.Params)
 	if err != nil {
 		return nil, err
@@ -543,6 +550,11 @@ func DiffusersEditInstruct(req backends.Request, modelDir string) ([]string, err
 	if ig := StrParam(req, "strength"); ig != "" {
 		args = append(args, "--image-guidance", ig)
 	}
+	lora, err := LoRAArgs(req)
+	if err != nil {
+		return nil, err
+	}
+	args = append(args, lora...)
 	if np := StrParam(req, "negative_prompt"); np != "" {
 		args = append(args, "--negative-prompt", np)
 	}
@@ -958,6 +970,18 @@ func OnnxSidecar(req backends.Request, modelDir string) ([]string, error) {
 				return nil, fmt.Errorf("object_removal: encode background_repair: %w", err)
 			}
 			args = append(args, "--params", string(raw))
+		}
+	}
+	if req.Operation == "face_restore" {
+		restore, err := opparams.DecodeFaceRestoreParams(req.Params)
+		if err != nil {
+			return nil, err
+		}
+		if restore.Fidelity != nil {
+			args = append(args, "--fidelity", strconv.FormatFloat(*restore.Fidelity, 'g', -1, 64))
+		}
+		if restore.ScoreThreshold != nil {
+			args = append(args, "--score-threshold", strconv.FormatFloat(*restore.ScoreThreshold, 'g', -1, 64))
 		}
 	}
 	if req.Operation == "face_swap" {

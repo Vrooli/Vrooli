@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 	applyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/apply"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -71,6 +72,12 @@ func startApplyRequest(t *testing.T, server *Server) (*httptest.ResponseRecorder
 
 func prepareApplyRequest(t *testing.T, server *Server, idempotencyKey string) string {
 	t.Helper()
+	previousStatusReader := onboardingApplyPlanStatusReader
+	onboardingApplyPlanStatusReader = fakeApplyPlanStatusReader{
+		resources: map[string]*cliv1.ResourceStatusResponse{},
+		scenarios: &cliv1.ScenarioStatusListResponse{Success: true},
+	}
+	t.Cleanup(func() { onboardingApplyPlanStatusReader = previousStatusReader })
 	planResponse := doRequest(t, server, http.MethodPost, "/vrooli.vrooli_onboarding.v1.apply.ApplyService/GetApplyPlan", `{"target":"local"}`)
 	if planResponse.Code != http.StatusOK {
 		t.Fatalf("get apply plan status = %d: %s", planResponse.Code, planResponse.Body.String())
@@ -250,6 +257,177 @@ func TestV2ApplyReplaysConsumedConsentWithSameIdempotencyKey(t *testing.T) {
 	}
 	if calls := fake.snapshotCalls(); len(calls) > 1 {
 		t.Fatalf("replay issued mutating calls: %#v", calls)
+	}
+}
+
+// TestV2ApplyInterruptedRecoveryAcrossServerReconstruction carries the saved
+// uncertainty through the public API after an API instance is discarded. A
+// partial readback must preserve the barrier; after positive status evidence,
+// the ordinary plan/review/start path may accept the retry. All state and
+// executors are temporary/fake, so this exercises the source contract without
+// applying anything to the host.
+func TestV2ApplyInterruptedRecoveryAcrossServerReconstruction(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", "")
+	t.Setenv("BUNDLE_ROOT", "")
+	t.Setenv("HOME", t.TempDir())
+	stubExternalReadinessProbes(t)
+	writeFixtureFile(t, operatorStateFixturePath(t, root), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","scenarios":{"alpha":{"enabled":true}}}`)
+	writeFixtureFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha","system_required":true},"dependencies":{"resources":{"postgres":{"required":true}}}}`)
+	writeFixtureFile(t, filepath.Join(root, "resources", "postgres", "resource.json"), `{"name":"postgres","hostTools":[],"hostSafeguards":[]}`)
+	writeBootstrapMarker(t, root)
+
+	interrupted := applyRun{
+		ID: "api-reconstructed-recovery", Target: "local", Status: applyRunApplying,
+		RunnerPID: 4242, Heartbeat: operatorStateNow().UTC().Add(-2 * staleApplyHeartbeat).Format(time.RFC3339),
+		Items: []applyItemResult{
+			{applyItem: applyItem{ID: "resource:postgres", Kind: "resource", Name: "postgres"}, Outcome: applyItemApplying},
+			{applyItem: applyItem{ID: "scenario:alpha", Kind: "scenario", Name: "alpha"}, Outcome: applyItemApplying},
+		},
+	}
+	if err := persistApplyRun(interrupted); err != nil {
+		t.Fatalf("persist interrupted journal: %v", err)
+	}
+	// A new API has no useful in-memory Apply cache; the disk journal is its
+	// only source for recovery and replay admission.
+	applyRuns.Lock()
+	applyRuns.items = map[string]applyRun{}
+	applyRuns.Unlock()
+	server := NewServer()
+
+	statusReader := fakeApplyPlanStatusReader{
+		resources: map[string]*cliv1.ResourceStatusResponse{
+			"postgres": {Success: true, Name: "postgres", Resource: &cliv1.ResourceStatus{Resource: &cliv1.Resource{Name: "postgres", Enabled: true}}},
+		},
+		scenarios: &cliv1.ScenarioStatusListResponse{Success: true, Scenarios: []*cliv1.ScenarioStatusItem{{Name: "alpha", Status: "stopped"}}},
+	}
+	previousReader := onboardingApplyPlanStatusReader
+	onboardingApplyPlanStatusReader = &statusReader
+	t.Cleanup(func() { onboardingApplyPlanStatusReader = previousReader })
+	previousAlive := processAliveObserved
+	processAliveObserved = func(int) (bool, error) { return false, nil }
+	t.Cleanup(func() { processAliveObserved = previousAlive })
+
+	makeConsent := func(key string) string {
+		t.Helper()
+		planResponse := doRequest(t, server, http.MethodPost, "/vrooli.vrooli_onboarding.v1.apply.ApplyService/GetApplyPlan", `{"target":"local"}`)
+		if planResponse.Code != http.StatusOK {
+			t.Fatalf("get recovery plan = %d: %s", planResponse.Code, planResponse.Body.String())
+		}
+		var plan applyv1.GetApplyPlanResponse
+		if err := protojson.Unmarshal(planResponse.Body.Bytes(), &plan); err != nil {
+			t.Fatalf("decode recovery plan: %v; body=%s", err, planResponse.Body.String())
+		}
+		reviewBody := `{"target":"local","planId":"` + plan.GetPlanId() + `","planDigest":"` + plan.GetPlanDigest() + `","expectedRevision":"` + plan.GetRevision() + `"}`
+		reviewResponse := doRequest(t, server, http.MethodPost, "/vrooli.vrooli_onboarding.v1.apply.ApplyService/ReviewApply", reviewBody)
+		if reviewResponse.Code != http.StatusOK {
+			t.Fatalf("review recovery plan = %d: %s", reviewResponse.Code, reviewResponse.Body.String())
+		}
+		var review applyv1.ReviewApplyResponse
+		if err := protojson.Unmarshal(reviewResponse.Body.Bytes(), &review); err != nil {
+			t.Fatalf("decode recovery review: %v; body=%s", err, reviewResponse.Body.String())
+		}
+		return `{"target":"local","planId":"` + review.GetPlanId() + `","planDigest":"` + review.GetPlanDigest() + `","expectedRevision":"` + review.GetRevision() + `","consentReceiptId":"` + review.GetConsentReceiptId() + `","idempotencyKey":"` + key + `"}`
+	}
+
+	blockedBody := makeConsent("partial-readback")
+	blocked := doRequest(t, server, http.MethodPost, "/vrooli.vrooli_onboarding.v1.apply.ApplyService/StartApply", blockedBody)
+	if blocked.Code == http.StatusOK || !strings.Contains(blocked.Body.String(), "scenario:alpha") {
+		t.Fatalf("partial recovery start = %d %s; want unresolved scenario to block", blocked.Code, blocked.Body.String())
+	}
+	// The denied attempt must leave the consent usable and the old uncertain
+	// journal unchanged. A fresh plan after positive readback can then retry.
+	statusReader.scenarios = &cliv1.ScenarioStatusListResponse{Success: true, Scenarios: []*cliv1.ScenarioStatusItem{{Name: "alpha", Status: "running"}}}
+	acceptedBody := makeConsent("positive-readback")
+	fake := &recordingApplyExecutor{}
+	previousExecutor := onboardingApplyExecutor
+	onboardingApplyExecutor = fake
+	t.Cleanup(func() { onboardingApplyExecutor = previousExecutor })
+	useInProcessApplyRunner(t)
+	accepted := doRequest(t, server, http.MethodPost, "/vrooli.vrooli_onboarding.v1.apply.ApplyService/StartApply", acceptedBody)
+	if accepted.Code != http.StatusOK {
+		t.Fatalf("positive recovery start = %d: %s", accepted.Code, accepted.Body.String())
+	}
+	var started applyv1.StartApplyResponse
+	if err := protojson.Unmarshal(accepted.Body.Bytes(), &started); err != nil {
+		t.Fatalf("decode accepted recovery start: %v; body=%s", err, accepted.Body.String())
+	}
+	if started.GetRun() == nil {
+		t.Fatalf("accepted recovery had no run: %s", accepted.Body.String())
+	}
+	waitApplyTerminal(t, started.GetRun().GetRunId())
+	status, recovered := getApplyStatusRequest(t, NewServer(), started.GetRun().GetRunId())
+	if status.Code != http.StatusOK || recovered.Status != "applied" {
+		t.Fatalf("recovered run status = %d %s; run=%+v", status.Code, status.Body.String(), recovered)
+	}
+	if calls := fake.snapshotCalls(); len(calls) != 0 {
+		t.Fatalf("positive evidence admitted unexpected host effects: %#v", calls)
+	}
+	durable, err := loadPersistedApplyRun(interrupted.ID)
+	if err != nil || durable.Items[0].Outcome != applyItemApplying || durable.Items[1].Outcome != applyItemApplying {
+		t.Fatalf("recovery rewrote original uncertainty: %+v, %v", durable.Items, err)
+	}
+}
+
+func TestV2ApplyAdmissionReadFailureDoesNotConsumeConsentOrCreateRun(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("VROOLI_STORAGE_ROOT", "")
+	t.Setenv("BUNDLE_ROOT", "")
+	t.Setenv("HOME", t.TempDir())
+	stubExternalReadinessProbes(t)
+	writeFixtureFile(t, operatorStateFixturePath(t, root), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","scenarios":{"alpha":{"enabled":true}}}`)
+	writeFixtureFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha","system_required":true}}`)
+
+	server := NewServer()
+	body := prepareApplyRequest(t, server, "blocked-admission-read")
+	var request applyv1.StartApplyRequest
+	if err := protojson.Unmarshal([]byte(body), &request); err != nil {
+		t.Fatalf("decode apply request: %v", err)
+	}
+	admissionPath, err := applyAdmissionPath(request.GetIdempotencyKey())
+	if err != nil {
+		t.Fatalf("resolve admission path: %v", err)
+	}
+	// A directory at the expected file path reliably causes a non-ENOENT read
+	// error without changing shared state or relying on root-sensitive chmod.
+	if err := os.MkdirAll(filepath.Dir(admissionPath), 0o700); err != nil {
+		t.Fatalf("create admission directory: %v", err)
+	}
+	if err := os.Mkdir(admissionPath, 0o700); err != nil {
+		t.Fatalf("create unreadable admission fixture: %v", err)
+	}
+
+	response := doRequest(t, server, http.MethodPost, "/vrooli.vrooli_onboarding.v1.apply.ApplyService/StartApply", body)
+	if response.Code == http.StatusOK {
+		t.Fatalf("apply admission unexpectedly succeeded: %s", response.Body.String())
+	}
+	reviewPath, err := applyReviewPath(request.GetConsentReceiptId())
+	if err != nil {
+		t.Fatalf("resolve review path: %v", err)
+	}
+	data, err := os.ReadFile(reviewPath)
+	if err != nil {
+		t.Fatalf("read retained review: %v", err)
+	}
+	var review applyReviewRecord
+	if err := json.Unmarshal(data, &review); err != nil {
+		t.Fatalf("decode retained review: %v", err)
+	}
+	if review.ConsumedBy != "" {
+		t.Fatalf("failed admission consumed consent for run %q", review.ConsumedBy)
+	}
+	statePath, err := operatorStatePath()
+	if err != nil {
+		t.Fatalf("resolve operator state path: %v", err)
+	}
+	runs, err := filepath.Glob(filepath.Join(filepath.Dir(statePath), "apply-runs", "*.json"))
+	if err != nil {
+		t.Fatalf("list apply runs: %v", err)
+	}
+	if len(runs) != 0 {
+		t.Fatalf("failed admission published runs: %v", runs)
 	}
 }
 

@@ -1,136 +1,90 @@
 package readiness
 
 import (
-	"bytes"
 	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
 
-	clitest "github.com/vrooli/cli-core/cliapptest"
+	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliapptest"
 )
 
-func TestExitErrorCarriesMachineCode(t *testing.T) {
-	err := &ExitError{Code: 2, Text: "required item is not ready"}
-	if err.Error() != "required item is not ready" || err.ExitCode() != 2 {
-		t.Fatalf("exit error = %q/%d", err.Error(), err.ExitCode())
-	}
-}
-
-// The API owns the completion rule and reports it as typed blockers; the CLI's
-// job is to carry that verdict into an exit code a script can act on.
-func TestRunAcceptsAnAcknowledgedDegradedSet(t *testing.T) {
-	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"status":"degraded","blockers":[],"degraded":[{"kind":"credential","name":"vrooli/remote-desktop:username","reason":"the credential is declared and not configured","remediation":"Provide it on the credentials step."}],"degraded_digest":"abc","degraded_acknowledged":true}`))
+func TestManifestReadinessCarriesBlockersToBothProcessModes(t *testing.T) {
+	core := cliapptest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"status":"READINESS_STATE_MISSING","target":"local","blockers":[{"kind":"credential","name":"calendar:jwt","reason":"secret is not configured","remediation":"Provide it in Credentials."}],"degraded":[]}`))
 	}))
-	if err := run(core, []string{"--json"}); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestRunAcceptsACleanVerdict(t *testing.T) {
-	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"status":"ready","blockers":[],"degraded":[]}`))
-	}))
-	if err := run(core, []string{"--json"}); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestRunReturnsMachineReadableRequiredFailure(t *testing.T) {
-	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"status":"missing","blockers":[{"kind":"credential","name":"vrooli/calendar:jwt-secret","reason":"the credential is declared and not configured","remediation":"Provide it on the credentials step."}],"degraded":[]}`))
-	}))
-	err := run(core, []string{"--json"})
-	exit, ok := err.(*ExitError)
-	if !ok || exit.Code != 2 {
-		t.Fatalf("readiness error = %#v", err)
-	}
-	for _, want := range []string{"vrooli/calendar:jwt-secret", "the credential is declared and not configured", "Provide it on the credentials step."} {
-		if !strings.Contains(exit.Error(), want) {
-			t.Fatalf("readiness error = %q, want %q", exit.Error(), want)
+	handler := ManifestHandlers(core)["ReadinessService.GetReadiness"]
+	modes := cliapptest.RunPrimitiveHandlerModes(t, handler, cliapp.ArgSchema{}, nil, core)
+	for name, err := range map[string]error{"human": modes.HumanErr, "json": modes.JSONErr} {
+		exit, ok := err.(*ExitError)
+		if !ok || exit.Code != 2 || !strings.Contains(exit.Error(), "calendar:jwt") {
+			t.Fatalf("%s mode error = %#v; want readiness exit 2 with blocker", name, err)
 		}
 	}
-}
-
-func TestRunJSONKeepsDiagnosticsOffStdout(t *testing.T) {
-	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"status":"missing","blockers":[{"kind":"host","name":"docker","reason":"tool is missing","remediation":"Apply the selection."}],"degraded":[]}`))
-	}))
-	var stdout, stderr bytes.Buffer
-	err := runWithOutput(core, true, &stdout, &stderr)
-	if _, ok := err.(*ExitError); !ok {
-		t.Fatalf("runWithOutput error = %T %v, want ExitError", err, err)
+	if !strings.Contains(modes.Human, "Required blockers") || !strings.Contains(modes.Human, "Provide it in Credentials") {
+		t.Fatalf("human readiness report omitted actionable blocker: %q", modes.Human)
 	}
 	var document map[string]any
-	if err := json.Unmarshal(stdout.Bytes(), &document); err != nil {
-		t.Fatalf("stdout is not one JSON document: %q: %v", stdout.String(), err)
+	if err := json.Unmarshal([]byte(modes.JSON), &document); err != nil {
+		t.Fatalf("JSON output invalid: %q: %v", modes.JSON, err)
 	}
-	if !strings.Contains(stderr.String(), "Blocked: host docker") {
-		t.Fatalf("stderr = %q, want human blocker diagnostics", stderr.String())
+	if strings.Contains(modes.JSON, "Required blockers") {
+		t.Fatalf("human report leaked into JSON output: %q", modes.JSON)
 	}
 }
 
-func TestRunReturnsFailureForRequiredHostAndUnacknowledgedDegradation(t *testing.T) {
-	for _, body := range []string{
-		`{"status":"missing","blockers":[{"kind":"host","name":"workspace_sandbox_userns","reason":"safeguard is missing on this host","remediation":"Apply the selection."}],"degraded":[]}`,
-		`{"status":"degraded","blockers":[],"degraded":[{"kind":"host","name":"docker","reason":"tool is missing on this host","remediation":"Apply the selection."}],"degraded_digest":"abc","degraded_acknowledged":false}`,
+func TestManifestReadinessAcceptsReadyAndAcknowledgedDegradedStates(t *testing.T) {
+	for name, body := range map[string]string{
+		"ready":                 `{"status":"READINESS_STATE_READY","target":"local","blockers":[],"degraded":[]}`,
+		"acknowledged degraded": `{"status":"READINESS_STATE_DEGRADED","target":"local","blockers":[],"degraded":[{"kind":"credential","name":"optional:key"}],"degradedDigest":"digest-a","degradedAcknowledged":true}`,
 	} {
-		core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			_, _ = w.Write([]byte(body))
-		}))
-		err := run(core, []string{"--json"})
-		if exit, ok := err.(*ExitError); !ok || exit.Code != 2 {
-			t.Fatalf("body %s returned %#v", body, err)
+		t.Run(name, func(t *testing.T) {
+			core := cliapptest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = w.Write([]byte(body))
+			}))
+			handler := ManifestHandlers(core)["ReadinessService.GetReadiness"]
+			modes := cliapptest.RunPrimitiveHandlerModes(t, handler, cliapp.ArgSchema{}, nil, core)
+			if modes.HumanErr != nil || modes.JSONErr != nil {
+				t.Fatalf("readiness errors: human=%v json=%v", modes.HumanErr, modes.JSONErr)
+			}
+		})
+	}
+}
+
+func TestManifestReadinessRequiresDegradedAcknowledgement(t *testing.T) {
+	core := cliapptest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"status":"READINESS_STATE_DEGRADED","target":"local","blockers":[],"degraded":[{"kind":"host","name":"optional-engine","reason":"not installed","remediation":"Install only if needed."}],"degradedDigest":"digest-b","degradedAcknowledged":false}`))
+	}))
+	modes := cliapptest.RunPrimitiveHandlerModes(t, ManifestHandlers(core)["ReadinessService.GetReadiness"], cliapp.ArgSchema{}, nil, core)
+	for name, err := range map[string]error{"human": modes.HumanErr, "json": modes.JSONErr} {
+		exit, ok := err.(*ExitError)
+		if !ok || exit.Code != 2 || !strings.Contains(exit.Error(), "optional-engine") {
+			t.Fatalf("%s mode error = %#v; want unacknowledged degradation exit 2", name, err)
 		}
 	}
 }
 
-// A deferred optional item is not a gap: it is an optional capability the
-// operator did not select. It must not block or need an acknowledgement.
-func TestRunIgnoresDeferredOptionalItems(t *testing.T) {
-	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"status":"ready","hosts":[{"name":"clock","kind":"safeguard","status":"deferred","required":false}],"blockers":[],"degraded":[]}`))
-	}))
-	if err := run(core, []string{"--json"}); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestAcknowledgeDegradedReadsTheCurrentDigestWhenNoneIsGiven(t *testing.T) {
-	var posted string
-	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.URL.Path, "AcknowledgeDegradedReadiness") {
-			body := make([]byte, r.ContentLength)
-			_, _ = r.Body.Read(body)
-			posted = string(body)
-			w.WriteHeader(http.StatusCreated)
-			_, _ = w.Write([]byte(`{"status":"acknowledged"}`))
+func TestManifestAcknowledgeWithoutDegradedDigestRefusesBeforeMutation(t *testing.T) {
+	var mutations int
+	core := cliapptest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/GetReadiness") {
+			_, _ = w.Write([]byte(`{"status":"READINESS_STATE_READY","target":"local","blockers":[],"degraded":[]}`))
 			return
 		}
-		_, _ = w.Write([]byte(`{"status":"degraded","blockers":[],"degraded":[{"kind":"credential","name":"a:b"}],"degraded_digest":"digest-under-test"}`))
+		mutations++
+		w.WriteHeader(http.StatusInternalServerError)
 	}))
-	if err := acknowledgeDegraded(core, []string{"--json"}); err != nil {
-		t.Fatal(err)
+	handler := ManifestHandlers(core)["ReadinessService.AcknowledgeDegradedReadiness"]
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "target"}, {Name: "digest"}}}
+	modes := cliapptest.RunPrimitiveHandlerModes(t, handler, schema, nil, core)
+	for name, err := range map[string]error{"human": modes.HumanErr, "json": modes.JSONErr} {
+		exit, ok := err.(*ExitError)
+		if !ok || exit.Code != 2 || exit.Error() != "there is no degraded set to acknowledge" {
+			t.Fatalf("%s mode error = %#v; want no-degraded-set exit 2", name, err)
+		}
 	}
-	if !strings.Contains(posted, "digest-under-test") {
-		t.Fatalf("posted body = %q, want the current degraded digest", posted)
-	}
-}
-
-func TestAcknowledgeDegradedRefusesWhenThereIsNothingToAcknowledge(t *testing.T) {
-	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"status":"ready","blockers":[],"degraded":[]}`))
-	}))
-	err := acknowledgeDegraded(core, []string{"--json"})
-	if exit, ok := err.(*ExitError); !ok || exit.Code != 2 {
-		t.Fatalf("acknowledge with no degraded set returned %#v", err)
-	}
-}
-
-func TestRegisterExposesReadinessCommand(t *testing.T) {
-	group := Register(nil)
-	if len(group.Commands) != 1 || group.Commands[0].Name != "readiness" || !group.Commands[0].NeedsAPI {
-		t.Fatalf("readiness registration = %+v", group)
+	if mutations != 0 {
+		t.Fatalf("acknowledgement mutation calls = %d, want none", mutations)
 	}
 }

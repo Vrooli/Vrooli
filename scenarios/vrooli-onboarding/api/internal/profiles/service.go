@@ -37,6 +37,10 @@ var (
 	referencePattern  = regexp.MustCompile(`^[a-z0-9][a-z0-9._/-]*$`)
 )
 
+type ProfileNotFoundError struct{ ID string }
+
+func (e ProfileNotFoundError) Error() string { return fmt.Sprintf("profile %q was not found", e.ID) }
+
 type Scenario struct {
 	Name      string
 	Resources []string
@@ -231,7 +235,7 @@ func (s Service) EvaluateWithPreset(ctx context.Context, id string, answers map[
 		}
 	}
 	if selected == nil {
-		return Evaluation{}, fmt.Errorf("profile %q was not found", id)
+		return Evaluation{}, ProfileNotFoundError{ID: id}
 	}
 	catalog, err := s.Catalog(ctx)
 	if err != nil {

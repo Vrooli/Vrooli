@@ -5,6 +5,7 @@ import { HealthDashboard } from "./components/dashboard/HealthDashboard";
 import { GlossaryPanel } from "./components/glossary/GlossaryPanel";
 import { useGlobalKeyboardShortcuts } from "./hooks/useGlobalKeyboardShortcuts";
 import { useWizardState } from "./hooks/useWizardState";
+import { operatorStateRevision } from "./api/operatorStateRevision";
 import { cn } from "./lib/utils";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { TargetSwitcher, type TargetSwitcherOption } from "@vrooli/react-component-library/TargetSwitcher/0";
@@ -76,6 +77,7 @@ export default function App() {
   );
   const [target, setTarget] = useState(() => new URLSearchParams(window.location.search).get("target") || "local");
   const [targetOptions, setTargetOptions] = useState<OnboardingTarget[]>([{ id: "local", name: "This machine", status: "local" }]);
+  const [coreSetPendingChanges, setCoreSetPendingChanges] = useState(false);
   useEffect(() => {
     fetchTargets().then((result) => {
       if (Array.isArray(result?.targets) && result.targets.length > 0) setTargetOptions(result.targets);
@@ -114,6 +116,17 @@ export default function App() {
     retryProfileSessionSave,
     acceptRecommendation,
   } = useWizardState(target);
+  const appliedDeepLink = useRef(false);
+  useEffect(() => {
+    if (appliedDeepLink.current || stepsLoading || stepsError) return;
+    const requestedStep = new URLSearchParams(window.location.search).get("step");
+    if (!requestedStep) return;
+    const index = steps.findIndex((step) => step.id === requestedStep);
+    if (index >= 0) {
+      appliedDeepLink.current = true;
+      goToStep(index);
+    }
+  }, [goToStep, steps, stepsError, stepsLoading]);
   useEffect(() => {
     if (!stepsLoading && !stepsError && !performance.getEntriesByName("app-interactive").length) performance.mark("app-interactive");
   }, [stepsLoading, stepsError]);
@@ -162,6 +175,7 @@ export default function App() {
     operatorState,
     toggleScenario,
     setCoreSeed,
+    onCoreSetPendingChanges: setCoreSetPendingChanges,
     setScenarioAutoRestart,
     setHostOptIn,
     setHostConfig,
@@ -170,7 +184,7 @@ export default function App() {
     acceptRecommendation,
     onAdjustRecommendation: () => goToStep(1),
     profileSession,
-    profileSessionBaseRevision: operatorState?.updatedAt ?? operatorState?.version ?? "",
+    profileSessionBaseRevision: operatorStateRevision(operatorState),
     onProfileSessionChange: persistProfileSession,
     profileSessionError,
     profileSessionSaveState,
@@ -366,8 +380,13 @@ export default function App() {
                 onPrev={goPrev}
                 onGoToStep={goToStep}
                 nextDisabled={
-                  steps[currentStep]?.id === "scenarios" &&
-                  selectedScenarios.size === 0
+                  (steps[currentStep]?.id === "scenarios" && selectedScenarios.size === 0) ||
+                  (steps[currentStep]?.id === "core-set" && (
+                    coreSetPendingChanges ||
+                    operatorStateSaveState === "saving" ||
+                    operatorStateSaveState === "failed" ||
+                    operatorStateSaveState === "conflict"
+                  ))
                 }
                 nextLabel={nextLabel}
                 showPrev={currentStep > 0}

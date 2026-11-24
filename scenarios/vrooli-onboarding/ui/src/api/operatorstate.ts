@@ -29,7 +29,7 @@ export interface OperatorState {
   sessionMode?: string;
   enrollmentReference?: string;
   enrolledAt?: string;
-  core?: { seed: string[]; trustedBase: string[] };
+  core?: { seed: string[]; trustedBase: string[]; important?: { kind: "scenario" | "resource"; name: string }[]; members?: { kind: "scenario" | "resource"; name: string }[] };
   activeProfile?: unknown;
   capacity?: { transientHeadroomReserveBytes?: bigint };
   scenarios?: Record<string, { enabled?: boolean; autoRestart?: boolean }>;
@@ -47,12 +47,19 @@ export interface OperatorState {
 
 export type OperatorStatePatch = Partial<OperatorState>;
 
+function rejectOwnerManagedPosture(patch: OperatorStatePatch) {
+  if ("trustPosture" in patch) throw new Error("Trust posture is control-plane-owned and cannot be changed through onboarding");
+  if ("updateControl" in patch) throw new Error("Use the typed install-posture permission to change update control");
+  if ("sessionMode" in patch) throw new Error("Session mode is enrollment-owned and cannot be changed through operator-state patches");
+}
+
 export async function fetchOperatorState(target = "local"): Promise<OperatorState> {
   const response = await client.getOperatorState({ target }) as unknown as GetOperatorStateResponse;
   return (response.state ?? {}) as OperatorState;
 }
 
 export async function saveOperatorState(patch: OperatorStatePatch, target = "local"): Promise<OperatorState> {
+  rejectOwnerManagedPosture(patch);
   const request = {
     target,
     state: patch,
@@ -67,6 +74,7 @@ export async function saveOperatorStateAtRevision(
   expectedRevision: string,
   target = "local",
 ): Promise<OperatorState> {
+  rejectOwnerManagedPosture(patch);
   const request = {
     target,
     state: patch,

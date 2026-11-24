@@ -1,9 +1,14 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+
+	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
+	applydomain "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/apply"
 )
 
 // TestApplyStateFromReadinessNeverGuesses pins the mapping from a readiness
@@ -27,9 +32,8 @@ func TestApplyStateFromReadinessNeverGuesses(t *testing.T) {
 	}
 }
 
-// TestObservedStateDefaultsToUnknown covers the kinds that are not measured.
-// Resources and scenarios each need a control-plane round trip, so they are
-// reported as unknown rather than assumed satisfied.
+// TestObservedStateDefaultsToUnknown covers states absent from measured input.
+// Runtime observation failures must remain unknown rather than guessed.
 func TestObservedStateDefaultsToUnknown(t *testing.T) {
 	observed := map[string]string{"tool:git": applyStateSatisfied, "tool:blank": ""}
 	if got := observedState(observed, "tool:git"); got != applyStateSatisfied {
@@ -39,6 +43,94 @@ func TestObservedStateDefaultsToUnknown(t *testing.T) {
 		if got := observedState(observed, id); got != applyStateUnknown {
 			t.Fatalf("unmeasured item %q = %q, want %q", id, got, applyStateUnknown)
 		}
+	}
+}
+
+type fakeApplyPlanStatusReader struct {
+	resources    map[string]*cliv1.ResourceStatusResponse
+	resourceList *cliv1.ResourceStatusesResponse
+	scenarios    *cliv1.ScenarioStatusListResponse
+	resourceErr  error
+	scenarioErr  error
+}
+
+func (f fakeApplyPlanStatusReader) ResourceHealthStatus(_ context.Context, name string) (*cliv1.ResourceStatusResponse, error) {
+	return f.resources[name], f.resourceErr
+}
+
+func (f fakeApplyPlanStatusReader) ResourceHealthStatuses(context.Context) (*cliv1.ResourceStatusesResponse, error) {
+	return f.resourceList, f.resourceErr
+}
+
+func (f fakeApplyPlanStatusReader) ScenarioStatuses(context.Context) (*cliv1.ScenarioStatusListResponse, error) {
+	return f.scenarios, f.scenarioErr
+}
+
+func TestApplyRuntimeReadbackMapsPositiveNegativeAndUnavailableEvidence(t *testing.T) {
+	closure := closureResult{
+		Resources: []closureMember{{Name: "postgres"}},
+		Scenarios: []closureMember{{Name: "writer"}},
+	}
+	uncertain := map[string]struct{}{"resource:postgres": {}, "scenario:writer": {}}
+	positive := fakeApplyPlanStatusReader{
+		resources: map[string]*cliv1.ResourceStatusResponse{"postgres": {Success: true, Name: "postgres", Resource: &cliv1.ResourceStatus{Resource: &cliv1.Resource{Name: "postgres", Enabled: true}}}},
+		scenarios: &cliv1.ScenarioStatusListResponse{Success: true, Scenarios: []*cliv1.ScenarioStatusItem{{Name: "writer", Status: "running"}}},
+	}
+	prior := []applyRun{{Target: "local", Items: []applyItemResult{{applyItem: applyItem{ID: "resource:postgres"}, Outcome: applyItemIndeterminate}, {applyItem: applyItem{ID: "scenario:writer"}, Outcome: applyItemIndeterminate}}}}
+	eligibility := func(observed map[string]string) []string {
+		plan := []applydomain.Item{{ID: "resource:postgres", ObservedState: observedState(observed, "resource:postgres")}, {ID: "scenario:writer", ObservedState: observedState(observed, "scenario:writer")}}
+		return applyReplayBlockers(prior, "local", plan)
+	}
+	got := observeApplyStates(context.Background(), "local", t.TempDir(), hostRequirementsResponse{}, closure, uncertain, positive)
+	if got["resource:postgres"] != applyStateSatisfied || got["scenario:writer"] != applyStateSatisfied {
+		t.Fatalf("positive readback = %#v, want both runtime items satisfied", got)
+	}
+	if blockers := eligibility(got); len(blockers) != 0 {
+		t.Fatalf("positive readback did not release retry: %v", blockers)
+	}
+
+	batchClosure := closureResult{Resources: []closureMember{{Name: "postgres"}, {Name: "redis"}}}
+	batchUncertain := map[string]struct{}{"resource:postgres": {}, "resource:redis": {}}
+	batchReader := fakeApplyPlanStatusReader{resourceList: &cliv1.ResourceStatusesResponse{Success: true, Resources: []*cliv1.ResourceStatus{
+		{Resource: &cliv1.Resource{Name: "postgres", Enabled: true}},
+		{Resource: &cliv1.Resource{Name: "redis", Enabled: true}},
+	}}}
+	batchObserved := observeApplyStates(context.Background(), "local", t.TempDir(), hostRequirementsResponse{}, batchClosure, batchUncertain, batchReader)
+	if batchObserved["resource:postgres"] != applyStateSatisfied || batchObserved["resource:redis"] != applyStateSatisfied {
+		t.Fatalf("batched resource status = %#v, want both enabled", batchObserved)
+	}
+
+	negative := fakeApplyPlanStatusReader{
+		resources: map[string]*cliv1.ResourceStatusResponse{"postgres": {Success: true, Name: "postgres", Resource: &cliv1.ResourceStatus{Resource: &cliv1.Resource{Name: "postgres", Enabled: false}}}},
+		scenarios: &cliv1.ScenarioStatusListResponse{Success: true, Scenarios: []*cliv1.ScenarioStatusItem{{Name: "writer", Status: "stopped"}}},
+	}
+	got = observeApplyStates(context.Background(), "local", t.TempDir(), hostRequirementsResponse{}, closure, uncertain, negative)
+	if got["resource:postgres"] != applyStatePending || got["scenario:writer"] != applyStatePending {
+		t.Fatalf("negative readback = %#v, want pending and still ineligible", got)
+	}
+	if blockers := eligibility(got); len(blockers) != 2 {
+		t.Fatalf("negative readback released uncertain retry: %v", blockers)
+	}
+
+	unavailable := fakeApplyPlanStatusReader{resourceErr: errors.New("resource status unavailable"), scenarioErr: errors.New("scenario status unavailable")}
+	got = observeApplyStates(context.Background(), "local", t.TempDir(), hostRequirementsResponse{}, closure, uncertain, unavailable)
+	if observedState(got, "resource:postgres") != applyStateUnknown || observedState(got, "scenario:writer") != applyStateUnknown {
+		t.Fatalf("unavailable readback = %#v, want unknown", got)
+	}
+	if blockers := eligibility(got); len(blockers) != 2 {
+		t.Fatalf("unavailable readback released uncertain retry: %v", blockers)
+	}
+
+	partial := fakeApplyPlanStatusReader{
+		resources: map[string]*cliv1.ResourceStatusResponse{"postgres": {Success: false, Name: "postgres", Resource: &cliv1.ResourceStatus{Resource: &cliv1.Resource{Name: "postgres", Enabled: true}}}},
+		scenarios: &cliv1.ScenarioStatusListResponse{Success: true, Scenarios: []*cliv1.ScenarioStatusItem{{Name: "writer", Status: "running"}}, DiscoveryFailures: []*cliv1.DiscoveryFailure{{Name: "writer"}}},
+	}
+	got = observeApplyStates(context.Background(), "local", t.TempDir(), hostRequirementsResponse{}, closure, uncertain, partial)
+	if observedState(got, "resource:postgres") != applyStateUnknown || observedState(got, "scenario:writer") != applyStateUnknown {
+		t.Fatalf("partial discovery failures overrode missing evidence: %#v", got)
+	}
+	if blockers := eligibility(got); len(blockers) != 2 {
+		t.Fatalf("partial discovery failure released uncertain retry: %v", blockers)
 	}
 }
 

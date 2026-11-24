@@ -10,6 +10,7 @@ import (
 	internalai "image-tools/internal/ai"
 	internalbackends "image-tools/internal/backends"
 	internalcaps "image-tools/internal/capabilities"
+	internalcapability "image-tools/internal/capability"
 	internalmodels "image-tools/internal/models"
 	internalresolver "image-tools/internal/resolver"
 	"image-tools/internal/verdicts"
@@ -152,6 +153,14 @@ func (h *connectHandler) ExplainResolution(ctx context.Context, req *connect.Req
 	if op == "" || !h.deps.Registry.IsOperation(op) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, internalmodels.ErrUnknownOperation)
 	}
+	// A preset is admitted as the operation it runs; explain must describe that
+	// same request, or it would look for a provider for an operation no backend
+	// serves (pose_generate → text_to_image + its standing adapters).
+	presetModel := ""
+	var presetAdapters []internalcapability.PresetAdapter
+	if runs, model, adapters, ok := internalcapability.PresetTarget(op); ok {
+		op, presetModel, presetAdapters = runs, model, adapters
+	}
 	host, err := h.deps.Probe.Inventory(ctx)
 	if err != nil {
 		h.deps.Logger.Printf("models.ExplainResolution probe: %v", err)
@@ -163,12 +172,20 @@ func (h *connectHandler) ExplainResolution(ctx context.Context, req *connect.Req
 		return nil, connect.NewError(connect.CodeInternal, errors.New("load model state"))
 	}
 	override := req.Msg.GetModelId()
+	if override == "" {
+		override = presetModel
+	}
 	if override == "" && h.deps.OpDefaults != nil {
 		if pinned, derr := h.deps.OpDefaults.Get(ctx, op); derr == nil {
 			override = pinned
 		}
 	}
 	adapterReqs := explainAdapterRequests(req.Msg.GetAdapters())
+	for _, a := range presetAdapters {
+		// Explain runs nothing, but the resolver still validates that a ControlNet or
+		// IP-Adapter has an input. Name the preset's port rather than a blob key.
+		adapterReqs = append(adapterReqs, internaladapters.AdapterRequest{ID: a.ID, Scale: a.Scale, ConditioningImageKey: "explain:" + a.Input})
+	}
 	var adapterEnabled func(id string) bool
 	if len(adapterReqs) > 0 && h.deps.AdapterEnabled != nil {
 		fn, aerr := h.deps.AdapterEnabled(ctx)

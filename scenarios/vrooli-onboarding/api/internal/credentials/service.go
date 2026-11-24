@@ -6,11 +6,15 @@ package credentials
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 	readiness "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/readiness"
 )
+
+var ErrInvalidProvisionRequest = errors.New("invalid credential provision request")
 
 type Service struct {
 	ListFn      func(context.Context) ([]readiness.Credential, error)
@@ -38,7 +42,10 @@ func (s Service) Provision(ctx context.Context, logicalID, field, value string) 
 		field = "value"
 	}
 	if logicalID == "" || strings.TrimSpace(value) == "" {
-		return credentialclient.ProvisionResponse{}, errors.New("logical_id and a non-empty credential value are required")
+		return credentialclient.ProvisionResponse{}, fmt.Errorf("%w: logical_id and a non-empty credential value are required", ErrInvalidProvisionRequest)
+	}
+	if _, err := credentialauthority.ParseIdentity(logicalID); err != nil {
+		return credentialclient.ProvisionResponse{}, fmt.Errorf("%w: logical_id is not a valid credential identity", ErrInvalidProvisionRequest)
 	}
 	if s.ProvisionFn == nil {
 		return credentialclient.ProvisionResponse{}, errors.New("credential provisioning is unavailable")

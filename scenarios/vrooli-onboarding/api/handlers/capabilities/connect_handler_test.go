@@ -2,13 +2,17 @@ package capabilities
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/vrooli/internal/operatorcapability"
 	capabilitiesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/capabilities"
 	internalcapabilities "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/capabilities"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func TestActionRequestBindsRPCTargetWhenProviderTargetIsOmitted(t *testing.T) {
@@ -93,5 +97,95 @@ func TestVerifyCapabilityProjectsTypedProviderFailure(t *testing.T) {
 	}
 	if response.Msg.GetRetryAfterSeconds() != 5 || response.Msg.GetNextAction() != "retry-after-provider-backoff" || response.Msg.GetOutcome() != "verification_failed" {
 		t.Fatalf("typed failure remediation = %+v", response.Msg)
+	}
+}
+
+type applyCleanupFailExecutor struct {
+	applyCalls  int
+	removeCalls int
+}
+
+func (e *applyCleanupFailExecutor) DiscoverCapabilities(context.Context) ([]operatorcapability.Status, error) {
+	return nil, nil
+}
+
+func (e *applyCleanupFailExecutor) PreviewCapability(context.Context, operatorcapability.ActionRequest) (operatorcapability.Preview, error) {
+	return operatorcapability.Preview{}, nil
+}
+
+func (e *applyCleanupFailExecutor) ApplyCapability(context.Context, operatorcapability.ActionRequest) (operatorcapability.Result, error) {
+	e.applyCalls++
+	return operatorcapability.Result{
+		CapabilityID: "fixture/action", State: operatorcapability.StateReady,
+		Outcome: "applied", Retryable: true,
+		Mutations: []operatorcapability.Mutation{{ID: "install", Summary: "Synthetic install", Reversible: true}},
+	}, nil
+}
+
+func (e *applyCleanupFailExecutor) VerifyCapability(context.Context, operatorcapability.VerificationRequest) ([]operatorcapability.EvidenceReference, error) {
+	return nil, nil
+}
+
+func (e *applyCleanupFailExecutor) RemoveCapability(string) error {
+	e.removeCalls++
+	return errors.New("synthetic metadata cleanup failure")
+}
+
+func TestApplyCapabilityReturnsSuccessSignalWhenMetadataCleanupFails(t *testing.T) {
+	executor := &applyCleanupFailExecutor{}
+	handler := NewConnectHandler(internalcapabilities.Service{Executor: executor})
+	response, err := handler.ApplyCapability(context.Background(), connect.NewRequest(&capabilitiesv1.ApplyCapabilityRequest{
+		Target: "local",
+		Action: &capabilitiesv1.ActionRequest{CapabilityId: "fixture/action", Confirm: true},
+	}))
+	if err != nil {
+		t.Fatalf("ApplyCapability() error = %v, want successful degraded response", err)
+	}
+	if executor.applyCalls != 1 || executor.removeCalls != 1 {
+		t.Fatalf("calls: apply=%d remove=%d, want one apply and one metadata cleanup", executor.applyCalls, executor.removeCalls)
+	}
+	if response.Msg.GetState() != capabilitiesv1.CapabilityState_CAPABILITY_STATE_DEGRADED || response.Msg.GetOutcome() != "applied_with_metadata_cleanup_pending" {
+		t.Fatalf("response state/outcome = %s/%q", response.Msg.GetState(), response.Msg.GetOutcome())
+	}
+	if response.Msg.GetErrorCode() != "operator_metadata_cleanup_pending" || response.Msg.GetRetryable() {
+		t.Fatalf("response cleanup signal = code %q, retryable %v", response.Msg.GetErrorCode(), response.Msg.GetRetryable())
+	}
+	if len(response.Msg.GetMutations()) != 1 || response.Msg.GetMutations()[0].GetId() != "install" {
+		t.Fatalf("successful mutation information was lost: %+v", response.Msg.GetMutations())
+	}
+	if response.Msg.GetRemediation() == "" {
+		t.Fatal("response needs remediation for pending metadata cleanup")
+	}
+}
+
+func TestServicePrincipalGrantsRequireIndependentHumanEvenWithHumanActorBehindAgent(t *testing.T) {
+	for _, capabilityID := range []string{"compute-manager-notification-hub-principals", "compute-manager-adoption-first-touch", "compute-manager-adoption-first-touch-grant", "compute-manager-money-ledger-invoice-writer"} {
+		t.Run(capabilityID, func(t *testing.T) {
+			executor := &applyCleanupFailExecutor{}
+			handler := NewConnectHandler(internalcapabilities.Service{Executor: executor})
+			ctx := identity.WithPrincipal(context.Background(), identity.Principal{
+				Kind: identity.ActorHuman, Subject: "owner", Verified: true, Source: identity.SourceScenarioAuthenticator,
+			})
+			ctx = provenance.NewContext(ctx, provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "agent-run"})
+			target := "local"
+			var inputs *structpb.Struct
+			if capabilityID == "compute-manager-adoption-first-touch" {
+				var err error
+				inputs, err = structpb.NewStruct(map[string]any{"instance_id": "adopted-vps:fixture-instance"})
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			_, applyErr := handler.ApplyCapability(ctx, connect.NewRequest(&capabilitiesv1.ApplyCapabilityRequest{
+				Target: target,
+				Action: &capabilitiesv1.ActionRequest{CapabilityId: capabilityID, IdempotencyKey: "independent-human-test-key", Inputs: inputs, Confirm: true},
+			}))
+			if connect.CodeOf(applyErr) != connect.CodePermissionDenied {
+				t.Fatalf("delegated human application error = %v, want permission denied", applyErr)
+			}
+			if executor.applyCalls != 0 || executor.removeCalls != 0 {
+				t.Fatalf("agent-attributed request reached provider: apply=%d cleanup=%d", executor.applyCalls, executor.removeCalls)
+			}
+		})
 	}
 }

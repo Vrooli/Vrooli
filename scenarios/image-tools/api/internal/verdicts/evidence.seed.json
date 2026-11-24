@@ -573,6 +573,42 @@
       "kind": "live_run",
       "ref": "research:runs/capabilities-20261122/outputs/pose/POSE-REVIEW.html",
       "date": "2026-11-23"
+    },
+    {
+      "model_id": "flux-2-klein-4b",
+      "operation": "edit_instruct",
+      "grade": "recommended",
+      "reason": "Text-only route for whole-outfit and nudity changes: identity 0.93-0.97, pose within 3-12 px, background SSIM 0.96-0.99; lingerie, topless, bottomless and full nudity (with the target-state wording and 8 steps) all coherent. Prefer this over a masked regenerate on an NSFW base checkpoint for a large region.",
+      "kind": "live_run",
+      "ref": "research:runs/capabilities-20261122/nsfw-run/textedit-metrics.md",
+      "date": "2026-11-24"
+    },
+    {
+      "model_id": "lustify-sdxl-v9",
+      "operation": "inpaint",
+      "grade": "works",
+      "reason": "Masked regenerate keeps the face (outside the mask) exactly, but at strength 1.0 on a large clothing region the generated torso was rated a fever dream on 7 of 8 cases; use it for small objects or a tight selection, and use edit_instruct for a whole outfit.",
+      "kind": "live_run",
+      "ref": "research:runs/capabilities-20261122/nsfw-run/textedit-metrics.md",
+      "date": "2026-11-24"
+    },
+    {
+      "model_id": "big-lust-v16",
+      "operation": "inpaint",
+      "grade": "works",
+      "reason": "Same masked-regenerate behavior as lustify: face untouched, large-region body synthesis not coherent enough to recommend; use it for smaller selections.",
+      "kind": "live_run",
+      "ref": "research:runs/capabilities-20261122/nsfw-run/textedit-metrics.md",
+      "date": "2026-11-24"
+    },
+    {
+      "model_id": "codeformer",
+      "operation": "face_restore",
+      "grade": "works",
+      "reason": "At fidelity 0.9 it keeps identity 0.85-0.91 and roughly doubles/triples eye-band sharpness on small faces; at the 0.5 default identity falls to 0.61. The Portrait Detail Look pins 0.9. It sharpens detail but does not change a vision model's asymmetry verdict.",
+      "kind": "live_run",
+      "ref": "research:runs/capabilities-20261122/nsfw-private/DETAIL-REVIEW.html",
+      "date": "2026-11-24"
     }
   ]
 }

@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	internalai "image-tools/internal/ai"
+	internalcapability "image-tools/internal/capability"
 	"image-tools/internal/models"
 	"image-tools/internal/verdicts"
 
@@ -62,16 +63,20 @@ func (h *connectHandler) ListAIOperations(ctx context.Context, _ *connect.Reques
 			RequiresReference: op.RequiresReference,
 			PromptDriven:      op.PromptDriven,
 		}
+		selectOp, override := op.Name, ""
+		if runs, presetModel, _, ok := internalcapability.PresetTarget(op.Name); ok {
+			selectOp, override = runs, presetModel
+		}
 		if preview == nil {
 			info.DefaultUnavailable = unavailable
-		} else if sel, err := preview.Select(ctx, models.PreviewRequest{Operation: op.Name}); err != nil {
+		} else if sel, err := preview.Select(ctx, models.PreviewRequest{Operation: selectOp, OverrideID: override}); err != nil {
 			info.DefaultUnavailable = err.Error()
 		} else {
 			info.DefaultModelId = sel.Model.ID
 			if board != nil {
-				info.DefaultVerdict = verdicts.ToProto(board.For(sel.Model.ID, op.Name))
+				info.DefaultVerdict = verdicts.ToProto(board.For(sel.Model.ID, selectOp))
 			} else {
-				info.DefaultVerdict = verdicts.ToProto(verdicts.UntestedVerdict(op.Name))
+				info.DefaultVerdict = verdicts.ToProto(verdicts.UntestedVerdict(selectOp))
 			}
 		}
 		resp.Operations = append(resp.Operations, info)

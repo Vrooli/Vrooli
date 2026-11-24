@@ -8,7 +8,6 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 	resourcesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/resources"
-	"google.golang.org/protobuf/proto"
 	"vrooli-onboarding/cli/internal/support"
 )
 
@@ -26,25 +25,18 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	}}
 }
 
-func request(core *cliapp.ScenarioApp, procedure string, message, response proto.Message) error {
-	return support.RequestProto(core, procedure, message, response, "resources")
-}
-
-func targetFlags(name string, args []string) (*string, *bool, error) {
+func targetFlags(name string, args []string) (string, bool, error) {
 	fs := support.NewFlagSet(name)
 	target := fs.String("target", "local", "Onboarding target scenario")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := support.ParseFlags(fs, args); err != nil {
-		return nil, nil, err
+		return "", false, err
 	}
-	if strings.TrimSpace(*target) == "" {
-		return nil, nil, fmt.Errorf("--target is required")
+	targetValue := strings.TrimSpace(*target)
+	if targetValue == "" {
+		return "", false, fmt.Errorf("--target is required")
 	}
-	return target, jsonOutput, nil
-}
-
-func printJSON(message proto.Message) error {
-	return support.PrintProto(os.Stdout, message, "resources")
+	return targetValue, *jsonOutput, nil
 }
 
 func runList(core *cliapp.ScenarioApp, args []string) error {
@@ -53,11 +45,11 @@ func runList(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	response := new(resourcesv1.ListResourcesResponse)
-	if err := request(core, listProcedure, &resourcesv1.ListResourcesRequest{Target: *target}, response); err != nil {
+	if err := support.RequestProto(core, listProcedure, &resourcesv1.ListResourcesRequest{Target: target}, response, "resources"); err != nil {
 		return err
 	}
-	if *jsonOutput {
-		return printJSON(response)
+	if jsonOutput {
+		return support.PrintProto(os.Stdout, response, "resources")
 	}
 	return cliapp.RenderListReport(os.Stdout, cliapp.ListReport{Summary: []string{fmt.Sprintf("Resources: %d", response.GetCount())}, ResultsHeading: "Resources", Results: resourceRows(response.GetResources()), RetrievalHints: []string{fmt.Sprintf("%s resources get <name>", support.CLIName), fmt.Sprintf("%s resources health", support.CLIName)}})
 }
@@ -72,15 +64,15 @@ func getResource(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	response := new(resourcesv1.GetResourceResponse)
-	if err := request(core, getProcedure, &resourcesv1.GetResourceRequest{Target: *target, Name: name}, response); err != nil {
+	if err := support.RequestProto(core, getProcedure, &resourcesv1.GetResourceRequest{Target: target, Name: name}, response, "resources"); err != nil {
 		return err
 	}
 	resource := response.GetResource()
 	if resource == nil {
 		return fmt.Errorf("resource response was empty")
 	}
-	if *jsonOutput {
-		return printJSON(resource)
+	if jsonOutput {
+		return support.PrintProto(os.Stdout, resource, "resources")
 	}
 	return cliapp.RenderListReport(os.Stdout, cliapp.ListReport{Summary: []string{fmt.Sprintf("Resource: %s (%s)", resource.GetName(), resource.GetStatus())}, ResultsHeading: "Details", Results: []string{fmt.Sprintf("Name: %s", resource.GetName()), fmt.Sprintf("Status: %s", resource.GetStatus()), fmt.Sprintf("Category: %s", resource.GetCategory()), fmt.Sprintf("Installed: %t", resource.GetInstalled())}})
 }
@@ -91,11 +83,11 @@ func runHealth(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	response := new(resourcesv1.GetResourceHealthResponse)
-	if err := request(core, healthProcedure, &resourcesv1.GetResourceHealthRequest{Target: *target}, response); err != nil {
+	if err := support.RequestProto(core, healthProcedure, &resourcesv1.GetResourceHealthRequest{Target: target}, response, "resources"); err != nil {
 		return err
 	}
-	if *jsonOutput {
-		return printJSON(response)
+	if jsonOutput {
+		return support.PrintProto(os.Stdout, response, "resources")
 	}
 	return cliapp.RenderListReport(os.Stdout, cliapp.ListReport{Summary: []string{fmt.Sprintf("Resource health: %d/%d healthy", response.GetHealthyCount(), response.GetTotal()), fmt.Sprintf("Checked at: %s", support.FormatTime(response.GetCheckedAt()))}, ResultsHeading: "Statuses", Results: healthRows(response.GetResources()), RetrievalHints: []string{fmt.Sprintf("%s resources list", support.CLIName)}})
 }

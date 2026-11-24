@@ -66,12 +66,14 @@ func TestCapabilitySecretFlagIsRejected(t *testing.T) {
 }
 
 func TestCapabilitySecretComesFromStandardInput(t *testing.T) {
-	var previewBody string
+	var listBody, previewBody string
 	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/ListCapabilities":
+		case capabilitiesconnect.CapabilitiesServiceListCapabilitiesProcedure:
+			body, _ := io.ReadAll(r.Body)
+			listBody = string(body)
 			_, _ = w.Write([]byte(`{"capabilities":[{"descriptor":{"id":"demo","inputs":[{"id":"token","kind":"secret"}]}}]}`))
-		case "/vrooli.vrooli_onboarding.v1.capabilities.CapabilitiesService/PreviewCapability":
+		case capabilitiesconnect.CapabilitiesServicePreviewCapabilityProcedure:
 			body, _ := io.ReadAll(r.Body)
 			previewBody = string(body)
 			_, _ = w.Write([]byte(`{"capability_id":"demo","mutations":[]}`))
@@ -93,6 +95,54 @@ func TestCapabilitySecretComesFromStandardInput(t *testing.T) {
 	}
 	if !strings.Contains(previewBody, `"token":"secret-from-stdin"`) {
 		t.Fatalf("preview body = %q", previewBody)
+	}
+	for name, body := range map[string]string{"capability discovery": listBody, "preview": previewBody} {
+		if !strings.Contains(body, `"target":"local"`) {
+			t.Errorf("%s request = %q, want normalized local target", name, body)
+		}
+	}
+}
+
+func TestCapabilityActionReadsSecretsForSelectedTarget(t *testing.T) {
+	var listBody, previewBody string
+	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case capabilitiesconnect.CapabilitiesServiceListCapabilitiesProcedure:
+			body, _ := io.ReadAll(r.Body)
+			listBody = string(body)
+			if strings.Contains(listBody, `"target":"remote"`) {
+				_, _ = w.Write([]byte(`{"capabilities":[{"descriptor":{"id":"demo","inputs":[{"id":"remote_token","kind":"secret"}]}}]}`))
+				return
+			}
+			_, _ = w.Write([]byte(`{"capabilities":[]}`))
+		case capabilitiesconnect.CapabilitiesServicePreviewCapabilityProcedure:
+			body, _ := io.ReadAll(r.Body)
+			previewBody = string(body)
+			_, _ = w.Write([]byte(`{"capability_id":"demo","mutations":[]}`))
+		default:
+			_, _ = w.Write([]byte(`{"state":"ready"}`))
+		}
+	}))
+	oldStdin := os.Stdin
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = writer.WriteString("remote-secret-from-stdin\n")
+	_ = writer.Close()
+	os.Stdin = reader
+	t.Cleanup(func() { os.Stdin = oldStdin; _ = reader.Close() })
+
+	if err := action(core, []string{"--id", "demo", "--target", "remote", "--json"}, false); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(listBody, `"target":"remote"`) {
+		t.Fatalf("capability discovery request = %q, want selected target remote", listBody)
+	}
+	for _, want := range []string{`"target":"remote"`, `"targetId":"remote"`, `"remote_token":"remote-secret-from-stdin"`} {
+		if !strings.Contains(previewBody, want) {
+			t.Fatalf("preview request = %q, want %q", previewBody, want)
+		}
 	}
 }
 

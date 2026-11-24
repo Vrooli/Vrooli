@@ -24,7 +24,7 @@ export function ScenarioCatalogStep({ selected, onToggle, target = "local" }: Pr
     const matchesSelection = activeFilterIds.length === 0 || (activeFilterIds.includes("selected") ? isSelected : !isSelected);
     if (!matchesSelection) return false;
     if (!normalizedSearch) return true;
-    return scenario.name.toLowerCase().includes(normalizedSearch) || (scenario.description ?? "").toLowerCase().includes(normalizedSearch);
+    return scenario.name.toLowerCase().includes(normalizedSearch) || scenario.description.toLowerCase().includes(normalizedSearch);
   }), [activeFilterIds, normalizedSearch, scenarios, selected]);
   const impliedResources = closure.data?.resources ?? [];
   const pulledIn = (closure.data?.scenarios ?? []).filter((scenario) => !scenario.direct);
@@ -35,6 +35,7 @@ export function ScenarioCatalogStep({ selected, onToggle, target = "local" }: Pr
   return <div data-testid="step-select-scenarios">
     <h1 className="text-xl font-semibold sm:text-2xl">{i18n.t("onboarding.catalog.heading")}</h1>
     <p className="mt-2 text-sm text-muted sm:text-base">{i18n.t("onboarding.catalog.intro")}</p>
+    {!isLoading && !error && selected.size === 0 && <p className="mt-3 rounded-lg border border-muted p-4 text-sm" role="status" data-testid="scenario-selection-guidance">{i18n.t("onboarding.catalog.selectToContinue")}</p>}
     {isLoading && <div className="flex items-center gap-2 py-16 text-muted" role="status"><Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> {i18n.t("onboarding.catalog.loading")}</div>}
     {error && <p data-testid="catalog-error" className="py-10 text-danger" role="alert">{i18n.t("onboarding.catalog.error")}</p>}
     {!isLoading && !error && <>

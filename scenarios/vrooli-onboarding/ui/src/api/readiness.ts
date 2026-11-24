@@ -1,4 +1,5 @@
 import { createClient } from "@connectrpc/connect";
+import type { JsonObject, JsonValue } from "@bufbuild/protobuf";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { onboardingTransport } from "./base";
 import {
@@ -79,7 +80,7 @@ export interface ReadinessResponse {
   hosts: ReadinessItem[];
   integrations: ReadinessItem[];
   checked_at: string;
-  credential_diagnosis?: Record<string, any>;
+  credential_diagnosis?: CredentialDiagnosis;
   recovery?: {
     receipt_exists: boolean;
     exported_at?: string;
@@ -95,6 +96,56 @@ export interface ReadinessResponse {
   degraded_acknowledged: boolean;
 }
 
+export interface CredentialDiagnosis {
+  provider?: {
+    platform?: string;
+    adapter?: string;
+    backend?: string;
+    condition?: string;
+    available?: boolean;
+    writable?: boolean;
+    explanation?: string;
+    fix?: string;
+    write_condition?: string;
+    write_explanation?: string;
+    write_fix?: string;
+  };
+}
+
+function isJsonObject(value: JsonValue | undefined): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function stringProperty(object: JsonObject, key: string): string | undefined {
+  const value = object[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function booleanProperty(object: JsonObject, key: string): boolean | undefined {
+  const value = object[key];
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function credentialDiagnosisFromJson(value: JsonObject | undefined): CredentialDiagnosis | undefined {
+  if (!value || !isJsonObject(value.provider)) return undefined;
+  const provider = value.provider;
+  return {
+    provider: {
+      platform: stringProperty(provider, "platform"),
+      adapter: stringProperty(provider, "adapter"),
+      backend: stringProperty(provider, "backend"),
+      condition: stringProperty(provider, "condition"),
+      available: booleanProperty(provider, "available"),
+      writable: booleanProperty(provider, "writable"),
+      explanation: stringProperty(provider, "explanation"),
+      fix: stringProperty(provider, "fix"),
+      write_condition: stringProperty(provider, "write_condition"),
+      write_explanation: stringProperty(provider, "write_explanation"),
+      write_fix: stringProperty(provider, "write_fix"),
+    },
+  };
+}
+
 export function fetchReadiness(target = "local"): Promise<ReadinessResponse> {
   return (client.getReadiness({ target }) as unknown as Promise<GetReadinessResponse>).then(toReadinessResponse);
 }
@@ -108,20 +159,15 @@ function toReadinessResponse(response: GetReadinessResponse): ReadinessResponse 
     status: stateName(response.status),
     scenarios: response.scenarios,
     resources: response.resources,
-    credentials: response.credentials.map((item) => {
-      // Keep compatibility with an already-installed generated proto package
-      // while the workspace package is refreshed. New builds expose these
-      // fields directly; an absent field is safely treated as unverified.
-      const evidence = item as typeof item & { evidenceStatus?: string; evidenceDetail?: string; evidenceNextAction?: string; evidenceCredentialVersion?: string; providerState?: string; providerDetail?: string; tiers?: string[] };
-      return {
+    credentials: response.credentials.map((item) => ({
       resource: item.resource, logical_id: item.logicalId, field: item.field, label: item.label,
       description: item.description, obtain_url: item.obtainUrl, required: item.required,
       consumer_scope: item.consumerRefs?.join(", "),
-      tiers: evidence.tiers,
+      tiers: item.tiers,
       provisioning: item.provisioning, derived_from: item.derivedFrom,
       status: item.legacyStatus || stateName(item.status), detail: item.detail,
-      evidence_status: evidence.evidenceStatus, evidence_detail: evidence.evidenceDetail, evidence_next_action: evidence.evidenceNextAction, evidence_credential_version: evidence.evidenceCredentialVersion,
-      provider_state: evidence.providerState, provider_detail: evidence.providerDetail,
+      evidence_status: item.evidenceStatus, evidence_detail: item.evidenceDetail, evidence_next_action: item.evidenceNextAction, evidence_credential_version: item.evidenceCredentialVersion,
+      provider_state: item.providerState, provider_detail: item.providerDetail,
       owner: item.owner, source_ref: item.sourceRef, kind: item.kind,
       provenance: item.provenance?.map((entry) => ({
         owner: entry.owner, source_ref: entry.sourceRef, kind: entry.kind, env: entry.env,
@@ -132,17 +178,16 @@ function toReadinessResponse(response: GetReadinessResponse): ReadinessResponse 
           required: consumer.required, reason: consumer.reason, tiers: consumer.tiers,
         })),
       })),
-      };
-    }),
+    })),
     hosts: response.hosts.map((host) => itemFromProto(host.item, host.kind, host.required)),
     integrations: response.integrations.map((item) => itemFromProto(item)),
     checked_at: response.checkedAt ? timestampDate(response.checkedAt).toISOString() : "",
-    credential_diagnosis: response.credentialDiagnosis?.fields as Record<string, any> | undefined,
+    credential_diagnosis: credentialDiagnosisFromJson(response.credentialDiagnosis),
     recovery: response.recovery ? {
       receipt_exists: response.recovery.receiptExists, exported_at: response.recovery.exportedAt,
       entry_count: response.recovery.entryCount, uncovered: response.recovery.uncovered,
       required_absent: response.recovery.requiredAbsent,
-      required_absent_details: response.recovery.requiredAbsentDetails.map((gap) => ({ address: gap.address, description: gap.description })),
+      required_absent_details: response.recovery.requiredAbsentDetails?.map((gap) => ({ address: gap.address, description: gap.description })),
       root_copy_issues: response.recovery.rootCopyIssues,
     } : undefined,
     blockers: response.blockers.map(blockerFromProto), degraded: response.degraded.map(blockerFromProto),

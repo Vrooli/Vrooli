@@ -6,7 +6,7 @@ const rpc = vi.hoisted(() => {
     "listCapabilities", "getCapabilityStatus", "previewCapability", "applyCapability", "verifyCapability",
     "searchConfiguration", "listCredentials", "provisionCredential", "diagnoseCredentials",
     "searchGlossary", "getHostFacts", "listHostRequirements", "listTargets",
-    "patchHostSafeguardConfig", "setNotificationRecipient", "listOperatorInputs",
+    "setNotificationRecipient", "listPermissions", "readPermission", "writePermission", "listOperatorInputs",
     "resolveOperatorInputs", "getOperatorState", "patchOperatorState", "getReadiness",
     "acknowledgeDegradedReadiness", "listResources", "getResource", "getResourceHealth",
     "listDerivedResources", "listScenarios", "getCoreSet", "getRecommendation",
@@ -43,7 +43,8 @@ import { searchConfiguration } from "./configuration";
 import { diagnoseCredentials, fetchCredentials, provisionCredential } from "./credentials";
 import { fetchGlossary } from "./glossary";
 import { fetchHealth } from "./health";
-import { fetchHostFacts, fetchHostRequirements, fetchTargets, patchHostSafeguardConfig, setNotificationRecipient } from "./host";
+import { fetchHostFacts, fetchHostRequirements, fetchTargets, setNotificationRecipient, writeHostSafeguardPermission } from "./host";
+import { readCoreAuthority, writeCoreAuthority } from "./coreAuthority";
 import { fetchOperatorInputs, resolveOperatorInputs } from "./operatorinputs";
 import { fetchOperatorState, saveOperatorState } from "./operatorstate";
 import { acknowledgeDegraded, fetchReadiness } from "./readiness";
@@ -59,6 +60,23 @@ function resetRpc() {
 }
 
 describe("typed onboarding API adapters", () => {
+  it("writes the validated core authority through its typed permission with revision and durable receipt", async () => {
+    rpc.readPermission.mockResolvedValue({ revision: "core-r7", valueJson: new TextEncoder().encode(JSON.stringify({ seed: ["alpha"], trusted_base: ["alpha"], important: [] })) });
+    rpc.writePermission.mockResolvedValue({ receipt: {
+      id: "receipt-1", expectedRevision: "core-r7", resultRevision: "core-r8",
+      permissionId: "onboarding/core-authority", owner: "vrooli-onboarding", actorId: "operator-1", target: {},
+      idempotencyKey: "request-1", outcome: "updated",
+    } });
+    await expect(readCoreAuthority()).resolves.toEqual({ revision: "core-r7", authority: { seed: ["alpha"], trusted_base: ["alpha"], important: [], members: [] } });
+    await expect(writeCoreAuthority({ seed: ["alpha"], trusted_base: ["alpha"] }, "core-r7", "request-1"))
+      .resolves.toEqual({ id: "receipt-1", expectedRevision: "core-r7", resultRevision: "core-r8", idempotencyKey: "request-1", outcome: "updated" });
+    expect(rpc.readPermission).toHaveBeenCalledWith({ permissionId: "onboarding/core-authority", owner: "vrooli-onboarding" });
+    expect(rpc.writePermission).toHaveBeenCalledWith(expect.objectContaining({ permissionId: "onboarding/core-authority", owner: "vrooli-onboarding", expectedRevision: "core-r7", idempotencyKey: "request-1" }));
+    const request = rpc.writePermission.mock.calls[0]?.[0] as { valueJson: Uint8Array };
+    expect(new TextDecoder().decode(request.valueJson)).toBe(JSON.stringify({ seed: ["alpha"], trusted_base: ["alpha"], important: [], members: [] }));
+    await expect(readCoreAuthority("remote")).rejects.toThrow("local OperatorState target");
+    await expect(writeCoreAuthority({ seed: [], trusted_base: [] }, "r1", "request-2", "remote")).rejects.toThrow("local OperatorState target");
+  });
   it("uses deployment-aware API bases and transports", () => {
     expect(API_BASE).toBe("http://onboarding.test/api/v1");
     expect(REST_API_BASE).toBe("http://onboarding.test/api/v1/");
@@ -169,8 +187,6 @@ describe("typed onboarding API adapters", () => {
     rpc.getHostFacts.mockResolvedValue({ available: true, reason: "", cpuCount: 4, memoryTotalBytes: 10n, memoryAvailableBytes: 5n, diskFreeBytes: 2n, gpus: ["gpu"], platform: "linux" });
     rpc.listHostRequirements.mockResolvedValue({ tools: [{ name: "tool", required: true, reason: "required", notes: "note", description: "desc", risk: "low", privilege: "user", bundling: "bundle", platforms: ["linux"], commands: ["tool --version"], configSchema: { type: "object" }, config: { enabled: true }, status: "ready", disposition: SafeguardDisposition.PERMISSION_DENIED, detail: "detail", remediation: "fix" }], safeguards: [] });
     rpc.listTargets.mockResolvedValue({ targets: [{ id: "node", name: "Node", status: "online", os: "linux", architecture: "amd64", kind: "control-plane", online: true, available: true, reason: "", nextAction: "none", capabilities: ["test"], scopes: ["read"], readiness: [{ identity: "health", label: "Health", passed: true, state: "ready", detail: "ok", recoveryAction: "none" }] }], error: "" });
-    rpc.patchHostSafeguardConfig.mockResolvedValue({});
-    rpc.setNotificationRecipient.mockResolvedValue({});
     rpc.listOperatorInputs.mockResolvedValue({ inputs: [] });
     rpc.resolveOperatorInputs.mockResolvedValue({ inputs: [] });
     rpc.getOperatorState.mockResolvedValue({ state: { version: "1" } });
@@ -200,8 +216,20 @@ describe("typed onboarding API adapters", () => {
     await expect(fetchHostFacts()).resolves.toMatchObject({ cpu_count: 4, memory_total_bytes: 10, platform: "linux" });
     await expect(fetchHostRequirements()).resolves.toMatchObject({ tools: [{ disposition: "permission_denied", config_schema: { type: "object" } }] });
     await expect(fetchTargets()).resolves.toMatchObject({ targets: [{ id: "node", readiness: [{ recovery_action: "none" }] }] });
-    await patchHostSafeguardConfig({ safeguard_name: "firewall", config_key: "enabled", value: true }, "remote");
-    await setNotificationRecipient("operator@example.test", "remote");
+    rpc.readPermission.mockResolvedValue({ permissionId: "onboarding/host-safeguard/firewall", owner: "vrooli-onboarding", revision: "r4" });
+    rpc.writePermission.mockResolvedValue({ receipt: { permissionId: "onboarding/host-safeguard/firewall", owner: "vrooli-onboarding", expectedRevision: "r4", resultRevision: "r5", idempotencyKey: "request-1", outcome: "updated" } });
+    await expect(writeHostSafeguardPermission("firewall", { config_key: "enabled", value: true }, "remote")).rejects.toThrow("local host control plane");
+    await writeHostSafeguardPermission("firewall", { config_key: "enabled", value: true });
+    expect(() => setNotificationRecipient("operator@example.test", "remote")).toThrow("local operator-state owner");
+    rpc.readPermission.mockResolvedValue({ permissionId: "onboarding/operator-state", owner: "vrooli-onboarding", revision: "state-r4" });
+    rpc.writePermission.mockResolvedValue({ receipt: { permissionId: "onboarding/operator-state", owner: "vrooli-onboarding", expectedRevision: "state-r4", resultRevision: "state-r5", idempotencyKey: "host-notification-recipient:request", outcome: "updated" } });
+    await setNotificationRecipient(" operator@example.test ");
+    expect(rpc.setNotificationRecipient).not.toHaveBeenCalled();
+    expect(rpc.readPermission).toHaveBeenLastCalledWith({ permissionId: "onboarding/operator-state", owner: "vrooli-onboarding" });
+    const recipientWrite = rpc.writePermission.mock.calls[rpc.writePermission.mock.calls.length - 1]?.[0] as { expectedRevision: string; valueJson: Uint8Array };
+    expect(recipientWrite.expectedRevision).toBe("state-r4");
+    expect(JSON.parse(new TextDecoder().decode(recipientWrite.valueJson))).toEqual({ state: { notifications: { recipient: "operator@example.test" } }, update_mask: ["notifications.recipient"] });
+    expect(() => setNotificationRecipient(" ")).toThrow("subject is required");
     await fetchOperatorInputs("remote");
     const answer: Answer = { $typeName: "vrooli.vrooli_onboarding.v1.operatorinputs.Answer", requestId: "choice", value: "one", declined: false };
     await resolveOperatorInputs([answer], "remote");
@@ -307,7 +335,10 @@ describe("typed onboarding API adapters", () => {
     })).resolves.toMatchObject({ target: "remote", mode: "guided", answers: {}, targetContext: {} });
 
     expect(rpc.searchConfiguration).toHaveBeenCalledWith({ query: "query", target: "remote" });
-    expect(rpc.patchHostSafeguardConfig).toHaveBeenCalledWith({ target: "remote", safeguardName: "firewall", configKey: "enabled", value: { jsonValue: true } });
+    expect(rpc.readPermission).toHaveBeenCalledWith({ permissionId: "onboarding/host-safeguard/firewall", owner: "vrooli-onboarding" });
+    expect(rpc.writePermission).toHaveBeenCalledWith(expect.objectContaining({ permissionId: "onboarding/host-safeguard/firewall", owner: "vrooli-onboarding", expectedRevision: "r4" }));
+    const writtenPermission = rpc.writePermission.mock.calls[0]?.[0] as { valueJson: Uint8Array } | undefined;
+    expect(new TextDecoder().decode(writtenPermission?.valueJson)).toBe(JSON.stringify({ config_key: "enabled", value: true }));
     expect(rpc.getCoreSet).toHaveBeenCalledWith({ target: "remote", seed: ["a", "z"] });
     expect(rpc.advanceSessionStep).toHaveBeenCalledWith({ target: "remote", stepId: "credentials" });
     expect(rpc.acceptRecommendation).toHaveBeenCalledWith({

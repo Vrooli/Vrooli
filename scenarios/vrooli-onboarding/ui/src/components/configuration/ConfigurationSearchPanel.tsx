@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { SearchInput } from "@vrooli/react-component-library/SearchInput/1";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { searchConfiguration, type ConfigurationDescriptor } from "../../api/configuration";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
+import { useManualQueryRecovery } from "../../hooks/useManualQueryRecovery";
 import { i18n } from "../../i18n";
 
 interface ConfigurationSearchPanelProps {
@@ -12,32 +13,11 @@ interface ConfigurationSearchPanelProps {
 
 export function ConfigurationSearchPanel({ target, onNavigate }: ConfigurationSearchPanelProps) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<ConfigurationDescriptor[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
   const { debounced: debouncedQuery } = useDebouncedValue(query, 180);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    searchConfiguration(debouncedQuery, target)
-      .then((response) => {
-        if (!cancelled) {
-          setResults(response.results);
-          setError(false);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setResults([]);
-          setError(true);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, [debouncedQuery, target]);
+  const search = useManualQueryRecovery(["configuration-search", target, debouncedQuery], () => searchConfiguration(debouncedQuery, target));
+  const results = search.data?.results ?? [];
+  const hasResults = search.data !== undefined;
+  const refresh = () => { void search.refetch(); };
 
   return (
     <section className="configuration-search" aria-labelledby="configuration-search-title">
@@ -53,10 +33,15 @@ export function ConfigurationSearchPanel({ target, onNavigate }: ConfigurationSe
         />
       </div>
       <div className="mt-5" aria-live="polite">
-        {loading && <p role="status">{i18n.t("onboarding.configuration.loading")}</p>}
-        {error && <p role="alert">{i18n.t("onboarding.configuration.error")}</p>}
-        {!loading && !error && results.length === 0 && <p>{i18n.t("onboarding.configuration.empty")}</p>}
-        {!loading && !error && results.length > 0 && (
+        {search.isFetching && <p role="status">{i18n.t("onboarding.configuration.loading")}</p>}
+        {search.isError && <div role="alert">
+          <p>{i18n.t("onboarding.configuration.error")}</p>
+          <Button type="button" variant="secondary" onClick={refresh} disabled={search.isFetching}>Retry search</Button>
+        </div>}
+        {!search.isError && hasResults && <Button type="button" variant="secondary" onClick={refresh} disabled={search.isFetching}>Refresh results</Button>}
+        {search.isError && hasResults && results.length > 0 && <p role="status">Showing matching results from the last successful search.</p>}
+        {!search.isFetching && !search.isError && hasResults && results.length === 0 && <p>{i18n.t("onboarding.configuration.empty")}</p>}
+        {hasResults && results.length > 0 && (
           <ul className="space-y-3" data-testid="configuration-results">
             {results.map((descriptor) => (
               <li key={descriptor.id} className="rounded-lg border border-border bg-surface p-4">

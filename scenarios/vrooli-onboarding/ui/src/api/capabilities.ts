@@ -8,7 +8,9 @@ import {
   type CapabilityCandidate as ProtoCapabilityCandidate,
   type CapabilityEvidence as ProtoCapabilityEvidence,
   type CapabilityStatus as ProtoCapabilityStatus,
+  type GetCapabilityStatusResponse,
   type ListCapabilitiesResponse,
+  type VerifyCapabilityResponse,
   type PreviewCapabilityResponse,
   type ApplyCapabilityResponse,
 } from "@vrooli/proto-types/vrooli-onboarding/v1/capabilities/capabilities_pb";
@@ -68,33 +70,13 @@ export interface CapabilityVerificationResult {
 }
 export interface CapabilityActionRequest { capability_id: string; idempotency_key?: string; confirm: boolean; inputs: Record<string, unknown> }
 
-// Keep the client source compatible with an older projected node_modules copy
-// during a rolling proto refresh. The governed generated package is the runtime
-// source; this narrow cast only lets TypeScript consume the additive fields.
-type WireCapabilityInput = { declinable?: boolean; constraints?: { minLength?: number; maxLength?: number; minDuration?: string; maxDuration?: string } };
-type WireCapabilityEvidenceContract = { stages?: string[] };
-type WireCapabilityEvidence = ProtoCapabilityEvidence & {
-  stage?: string;
-  owner?: string;
-  contextDigest?: string;
-  catalogRevision?: string;
-  configurationRevision?: string;
-  providerAdapterVersion?: string;
-};
-type WireCapabilityDescriptor = NonNullable<ProtoCapabilityStatus["descriptor"]> & {
-  scope?: string; purpose?: string; sensitivity?: string; disposition?: string; dispositionReason?: string; referenceUrl?: string;
-  applicability?: { platforms: string[]; environments: string[]; targets: string[] };
-  provenance?: { requester: string; scope: string; grantSource: string; revocationLimit: string };
-  lifecycle?: { preview: boolean; apply: boolean; verify: boolean; revoke: boolean; recover: boolean; recovery: string };
-};
-
 export async function fetchCapabilities(target = "local"): Promise<CapabilityStatusResponse> {
   const response = await client.listCapabilities({ target }) as unknown as ListCapabilitiesResponse;
   return { capabilities: response.capabilities.map(statusFromProto), count: response.count };
 }
 
 export async function fetchCapabilityStatus(target = "local"): Promise<CapabilityStatusResponse> {
-  const response = await client.getCapabilityStatus({ target }) as unknown as { statuses: ProtoCapabilityStatus[]; count: number };
+  const response = await client.getCapabilityStatus({ target }) as unknown as GetCapabilityStatusResponse;
   return { capabilities: response.statuses.map(statusFromProto), count: response.count };
 }
 
@@ -108,12 +90,8 @@ export async function applyCapability(request: CapabilityActionRequest, target =
   return resultFromProto(response);
 }
 
-export async function verifyCapability(capabilityId: string, target = "local"): Promise<CapabilityVerificationResult> {
-  // The generated workspace package can lag one governed projection during
-  // a rolling proto refresh. Keep the additive RPC typed at this boundary so
-  // the UI remains source-compatible while the canonical package updates.
-  const verificationClient = client as unknown as { verifyCapability(request: unknown): Promise<{ capabilityId?: string; evidence: ProtoCapabilityEvidence[]; outcome?: string; errorCode?: string; retryable?: boolean; retryAfterSeconds?: bigint | number; nextAction?: string; remediation?: string }> };
-  const response = await verificationClient.verifyCapability({
+export async function verifyCapability(capabilityId: string, target = "local", context?: Record<string, string>): Promise<CapabilityVerificationResult> {
+  const response = await client.verifyCapability({
     target,
     verification: {
       capabilityId,
@@ -121,22 +99,22 @@ export async function verifyCapability(capabilityId: string, target = "local"): 
       environment: "",
       accountIdentity: "",
       operation: "readiness-check",
-      context: {},
+      context: context ?? {},
       effectClass: "read_only",
       maxOperations: 0,
       cleanupPolicy: "",
       timeoutSeconds: 30n,
     },
-  });
+  }) as unknown as VerifyCapabilityResponse;
   return {
-    capability_id: response.capabilityId ?? capabilityId,
-    outcome: response.outcome ?? (response.errorCode ? "verification_failed" : "verified"),
-    retryable: response.retryable ?? !response.errorCode,
+    capability_id: response.capabilityId || capabilityId,
+    outcome: response.outcome || (response.errorCode ? "verification_failed" : "verified"),
+    retryable: response.retryable,
     error_code: response.errorCode || undefined,
-    retry_after_seconds: response.retryAfterSeconds === undefined ? undefined : Number(response.retryAfterSeconds),
+    retry_after_seconds: Number(response.retryAfterSeconds),
     next_action: response.nextAction || undefined,
     remediation: response.remediation || undefined,
-    evidence: (response.evidence ?? []).map(evidenceFromProto),
+    evidence: response.evidence.map(evidenceFromProto),
   };
 }
 
@@ -151,19 +129,18 @@ function action(request: CapabilityActionRequest) {
 
 function statusFromProto(status: ProtoCapabilityStatus): CapabilityStatus {
   const descriptor = status.descriptor;
-  const extendedDescriptor = descriptor as unknown as WireCapabilityDescriptor | undefined;
   return {
     descriptor: {
       version: descriptor?.version ?? "", id: descriptor?.id ?? "", owner: descriptor?.owner ?? "", title: descriptor?.title ?? "",
       description: descriptor?.description, risk: descriptor?.risk,
-      inputs: descriptor?.inputs.map((input) => { const extendedInput = input as WireCapabilityInput; return { id: input.id, kind: input.kind as CapabilityInputKind, label: input.label, description: input.description, required: input.required, declinable: extendedInput.declinable, options: input.options, default: input.defaultValue, candidates: input.candidates.map(candidateFromProto), validation: input.validation, constraints: extendedInput.constraints ? { min_length: extendedInput.constraints.minLength, max_length: extendedInput.constraints.maxLength, min_duration: extendedInput.constraints.minDuration, max_duration: extendedInput.constraints.maxDuration } : undefined }; }),
-      scope: extendedDescriptor?.scope, purpose: extendedDescriptor?.purpose, sensitivity: extendedDescriptor?.sensitivity, disposition: extendedDescriptor?.disposition, disposition_reason: extendedDescriptor?.dispositionReason, reference_url: extendedDescriptor?.referenceUrl,
-      applicability: extendedDescriptor?.applicability ? { platforms: extendedDescriptor.applicability.platforms, environments: extendedDescriptor.applicability.environments, targets: extendedDescriptor.applicability.targets } : undefined,
-      provenance: extendedDescriptor?.provenance ? { requester: extendedDescriptor.provenance.requester, scope: extendedDescriptor.provenance.scope, grant_source: extendedDescriptor.provenance.grantSource, revocation_limit: extendedDescriptor.provenance.revocationLimit } : undefined,
-      lifecycle: extendedDescriptor?.lifecycle ? { preview: extendedDescriptor.lifecycle.preview, apply: extendedDescriptor.lifecycle.apply, verify: extendedDescriptor.lifecycle.verify, revoke: extendedDescriptor.lifecycle.revoke, recover: extendedDescriptor.lifecycle.recover, recovery: extendedDescriptor.lifecycle.recovery } : undefined,
+      inputs: descriptor?.inputs.map((input) => ({ id: input.id, kind: input.kind as CapabilityInputKind, label: input.label, description: input.description, required: input.required, declinable: input.declinable, options: input.options, default: input.defaultValue, candidates: input.candidates.map(candidateFromProto), validation: input.validation, constraints: input.constraints ? { min_length: input.constraints.minLength, max_length: input.constraints.maxLength, min_duration: input.constraints.minDuration, max_duration: input.constraints.maxDuration } : undefined })),
+      scope: descriptor?.scope, purpose: descriptor?.purpose, sensitivity: descriptor?.sensitivity, disposition: descriptor?.disposition, disposition_reason: descriptor?.dispositionReason, reference_url: descriptor?.referenceUrl,
+      applicability: descriptor?.applicability ? { platforms: descriptor.applicability.platforms, environments: descriptor.applicability.environments, targets: descriptor.applicability.targets } : undefined,
+      provenance: descriptor?.provenance ? { requester: descriptor.provenance.requester, scope: descriptor.provenance.scope, grant_source: descriptor.provenance.grantSource, revocation_limit: descriptor.provenance.revocationLimit } : undefined,
+      lifecycle: descriptor?.lifecycle ? { preview: descriptor.lifecycle.preview, apply: descriptor.lifecycle.apply, verify: descriptor.lifecycle.verify, revoke: descriptor.lifecycle.revoke, recover: descriptor.lifecycle.recover, recovery: descriptor.lifecycle.recovery } : undefined,
       prerequisites: descriptor?.prerequisites,
       policy: { requires_confirmation: descriptor?.policy?.requiresConfirmation ?? false, idempotent: descriptor?.policy?.idempotent ?? false, retryable: descriptor?.policy?.retryable ?? false, protected_roots: descriptor?.policy?.protectedRoots, remediation: descriptor?.policy?.remediation },
-      evidence: { kinds: descriptor?.evidence?.kinds, stages: (descriptor?.evidence as WireCapabilityEvidenceContract | undefined)?.stages, required_fields: descriptor?.evidence?.requiredFields, secret_free: descriptor?.evidence?.secretFree ?? false, freshness: descriptor?.evidence?.freshness },
+      evidence: { kinds: descriptor?.evidence?.kinds, stages: descriptor?.evidence?.stages, required_fields: descriptor?.evidence?.requiredFields, secret_free: descriptor?.evidence?.secretFree ?? false, freshness: descriptor?.evidence?.freshness },
       remediation: descriptor?.remediation,
     },
     state: stateName(status.state), candidates: status.candidates.map(candidateFromProto), missing_inputs: status.missingInputs,
@@ -176,14 +153,13 @@ function candidateFromProto(candidate: ProtoCapabilityCandidate): CapabilityCand
 }
 
 function evidenceFromProto(evidence: ProtoCapabilityEvidence): CapabilityEvidence {
-  const wireEvidence = evidence as WireCapabilityEvidence;
   return {
-    kind: evidence.kind, stage: wireEvidence.stage, artifact_identity: evidence.artifactIdentity, source_generation: evidence.sourceGeneration,
+    kind: evidence.kind, stage: evidence.stage, artifact_identity: evidence.artifactIdentity, source_generation: evidence.sourceGeneration,
     checksum: evidence.checksum, coverage: evidence.coverage, observed_at: evidence.observedAt ? timestampDate(evidence.observedAt).toISOString() : "",
     verified: evidence.verified, remediation: evidence.remediation,
     credential_ref: evidence.credentialRef ? { logical_id: evidence.credentialRef.logicalId, field: evidence.credentialRef.field, version: evidence.credentialRef.version } : undefined,
     target_id: evidence.targetId, environment: evidence.environment, account_identity: evidence.accountIdentity, operation: evidence.operation,
-    owner: wireEvidence.owner, context_digest: wireEvidence.contextDigest, catalog_revision: wireEvidence.catalogRevision, configuration_revision: wireEvidence.configurationRevision, provider_adapter_version: wireEvidence.providerAdapterVersion,
+    owner: evidence.owner, context_digest: evidence.contextDigest, catalog_revision: evidence.catalogRevision, configuration_revision: evidence.configurationRevision, provider_adapter_version: evidence.providerAdapterVersion,
     expires_at: evidence.expiresAt ? timestampDate(evidence.expiresAt).toISOString() : undefined, next_action: evidence.nextAction,
     effect_class: evidence.effectClass, effects_used: evidence.effectsUsed, cleanup_completed: evidence.cleanupCompleted,
   };

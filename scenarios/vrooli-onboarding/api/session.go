@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sort"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/operatorstate"
+	profilesdomain "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/profiles"
 	sessiondomain "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/session"
 )
 
@@ -247,6 +249,10 @@ func (s *Server) saveProfileSession(ctx context.Context, value sessiondomain.Pro
 // current owner-authored catalog. A changed or revoked profile is surfaced as
 // review-required; it never silently changes the selected profile or answers.
 func (s *Server) reconcileProfileSession(ctx context.Context, value *sessiondomain.ProfileSession) *sessiondomain.ProfileSession {
+	return reconcileProfileSessionWithService(ctx, value, onboardingProfilesService())
+}
+
+func reconcileProfileSessionWithService(ctx context.Context, value *sessiondomain.ProfileSession, profileService profilesdomain.Service) *sessiondomain.ProfileSession {
 	if value == nil {
 		return nil
 	}
@@ -261,22 +267,17 @@ func (s *Server) reconcileProfileSession(ctx context.Context, value *sessiondoma
 		value.NextAction = "choose-profile"
 		return value
 	}
-	profiles, err := onboardingProfilesService().List(ctx)
-	if err != nil {
-		value.ReconciliationState = "unavailable"
-		value.ReconciliationReasons = []string{"The current profile catalog could not be checked."}
-		value.NextAction = "retry-profile-check"
-		return value
+	answers := rawAnswerValues(value.Answers)
+	targetContext := make(map[string]any, len(value.TargetContext)+1)
+	for key, item := range value.TargetContext {
+		targetContext[key] = item
 	}
-	var currentProfileVersion string
-	for _, profile := range profiles {
-		if profile.ID != value.ProfileID {
-			continue
-		}
-		currentProfileVersion = profile.Version
-		break
+	if value.CatalogRevision != "" {
+		targetContext["catalogRevision"] = value.CatalogRevision
 	}
-	if currentProfileVersion == "" {
+	evaluation, err := profileService.EvaluateWithManualDecisions(ctx, value.ProfileID, answers, targetContext, value.ManualDecisions)
+	var profileNotFound profilesdomain.ProfileNotFoundError
+	if errors.As(err, &profileNotFound) {
 		value.ReconciliationState = "profile_revoked"
 		value.ReconciliationReasons = []string{fmt.Sprintf("Profile %q is no longer available; existing answers were retained.", value.ProfileID)}
 		value.ReconciliationChanges = []sessiondomain.ReconciliationChange{{
@@ -286,28 +287,18 @@ func (s *Server) reconcileProfileSession(ctx context.Context, value *sessiondoma
 		value.NextAction = "choose-profile"
 		return value
 	}
-	value.CurrentProfileVersion = currentProfileVersion
-	if strings.TrimSpace(value.ProfileVersion) != "" && currentProfileVersion != value.ProfileVersion {
-		value.ReconciliationChanges = append(value.ReconciliationChanges, sessiondomain.ReconciliationChange{
-			Kind: "profile-version", Field: "profileVersion", Before: value.ProfileVersion, After: currentProfileVersion,
-			Impact: "Review profile changes before accepting new recommendations or privileges.", RequiresReview: true,
-		})
-	}
-
-	answers := rawAnswerValues(value.Answers)
-	targetContext := make(map[string]any, len(value.TargetContext)+1)
-	for key, item := range value.TargetContext {
-		targetContext[key] = item
-	}
-	if value.CatalogRevision != "" {
-		targetContext["catalogRevision"] = value.CatalogRevision
-	}
-	evaluation, err := onboardingProfilesService().EvaluateWithManualDecisions(ctx, value.ProfileID, answers, targetContext, value.ManualDecisions)
 	if err != nil {
 		value.ReconciliationState = "unavailable"
 		value.ReconciliationReasons = []string{fmt.Sprintf("The selected profile could not be evaluated: %v", err)}
 		value.NextAction = "retry-profile-check"
 		return value
+	}
+	value.CurrentProfileVersion = evaluation.Profile.Version
+	if strings.TrimSpace(value.ProfileVersion) != "" && value.CurrentProfileVersion != value.ProfileVersion {
+		value.ReconciliationChanges = append(value.ReconciliationChanges, sessiondomain.ReconciliationChange{
+			Kind: "profile-version", Field: "profileVersion", Before: value.ProfileVersion, After: value.CurrentProfileVersion,
+			Impact: "Review profile changes before accepting new recommendations or privileges.", RequiresReview: true,
+		})
 	}
 	value.ConsequenceDigest = evaluation.Digest
 	if previousDigest != "" && previousDigest != evaluation.Digest {

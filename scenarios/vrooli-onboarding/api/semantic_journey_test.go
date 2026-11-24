@@ -19,6 +19,8 @@ import (
 	"connectrpc.com/connect"
 	operatorstatev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/operatorstate"
 	operatorstateconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/operatorstate/operatorstatev1connect"
+	permissionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/permissions"
+	permissionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/permissions/permissionsv1connect"
 	profilesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/profiles"
 	profilesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/profiles/profilesv1connect"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -133,6 +135,7 @@ func TestGeneratedAPIAndBuiltCLIProduceFixtureOutcome(t *testing.T) {
 	t.Setenv("VROOLI_ROOT", root)
 	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
+	writeHostSafeguardCatalog(t, root)
 	srv := NewServer()
 	httpServer := httptest.NewServer(srv.Handler())
 	t.Cleanup(httpServer.Close)
@@ -390,21 +393,66 @@ func applyViaGeneratedAPI(t *testing.T, baseURL string, choices map[string]map[s
 	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(data, state); err != nil {
 		t.Fatal(err)
 	}
+	safeguards := state.GetHostSafeguards()
+	hostTools := state.GetHostTools()
+	state.HostSafeguards = nil
+	state.HostTools = nil
 	paths := make([]string, 0, len(choices))
 	for key := range choices {
+		if key == "host_safeguards" || key == "host_tools" {
+			continue
+		}
 		paths = append(paths, camelCase(key))
 	}
 	sort.Strings(paths)
 	client := operatorstateconnect.NewOperatorStateServiceClient(http.DefaultClient, baseURL)
-	request := connect.NewRequest(&operatorstatev1.PatchOperatorStateRequest{
-		Target: "local", State: state, UpdateMask: &fieldmaskpb.FieldMask{Paths: paths},
-	})
-	request.Header().Set("Authorization", "LocalSession test-personal-local-session")
-	response, err := client.PatchOperatorState(context.Background(), request)
-	if err != nil {
-		t.Fatal(err)
+	if len(paths) > 0 {
+		request := connect.NewRequest(&operatorstatev1.PatchOperatorStateRequest{
+			Target: "local", State: state, UpdateMask: &fieldmaskpb.FieldMask{Paths: paths},
+		})
+		request.Header().Set("Authorization", "LocalSession test-personal-local-session")
+		if _, err = client.PatchOperatorState(context.Background(), request); err != nil {
+			t.Fatal(err)
+		}
 	}
-	return response.Msg.GetState()
+	permissionClient := permissionsconnect.NewPermissionRegistryServiceClient(http.DefaultClient, baseURL)
+	for name, choice := range safeguards {
+		permissionID := "onboarding/host-safeguard/" + name
+		readRequest := connect.NewRequest(&permissionsv1.ReadPermissionRequest{PermissionId: permissionID, Owner: "vrooli-onboarding"})
+		readRequest.Header().Set("Authorization", "LocalSession test-personal-local-session")
+		read, err := permissionClient.ReadPermission(context.Background(), readRequest)
+		if err != nil {
+			t.Fatalf("read safeguard permission %s: %v", name, err)
+		}
+		value, err := json.Marshal(map[string]bool{"opted_in": choice.GetOptedIn()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeRequest := connect.NewRequest(&permissionsv1.WritePermissionRequest{PermissionId: permissionID, Owner: "vrooli-onboarding", ExpectedRevision: read.Msg.GetRevision(), IdempotencyKey: "semantic-api:" + name, ValueJson: value})
+		writeRequest.Header().Set("Authorization", "LocalSession test-personal-local-session")
+		if _, err := permissionClient.WritePermission(context.Background(), writeRequest); err != nil {
+			t.Fatalf("write safeguard permission %s: %v", name, err)
+		}
+	}
+	for name, choice := range hostTools {
+		permissionID := "onboarding/host-tool/selected-closure/" + name
+		readRequest := connect.NewRequest(&permissionsv1.ReadPermissionRequest{PermissionId: permissionID, Owner: "vrooli-onboarding"})
+		readRequest.Header().Set("Authorization", "LocalSession test-personal-local-session")
+		read, err := permissionClient.ReadPermission(context.Background(), readRequest)
+		if err != nil {
+			t.Fatalf("read host tool permission %s: %v", name, err)
+		}
+		value, err := json.Marshal(map[string]bool{"opted_in": choice.GetOptedIn()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeRequest := connect.NewRequest(&permissionsv1.WritePermissionRequest{PermissionId: permissionID, Owner: "vrooli-onboarding", ExpectedRevision: read.Msg.GetRevision(), IdempotencyKey: "semantic-api-host-tool:" + name, ValueJson: value})
+		writeRequest.Header().Set("Authorization", "LocalSession test-personal-local-session")
+		if _, err := permissionClient.WritePermission(context.Background(), writeRequest); err != nil {
+			t.Fatalf("write host tool permission %s: %v", name, err)
+		}
+	}
+	return getViaGeneratedAPI(t, baseURL)
 }
 
 func getViaGeneratedAPI(t *testing.T, baseURL string) *operatorstatev1.OperatorState {

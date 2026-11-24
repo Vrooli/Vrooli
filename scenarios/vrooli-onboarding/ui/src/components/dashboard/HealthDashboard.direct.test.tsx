@@ -43,7 +43,7 @@ describe("HealthDashboard", () => {
     await waitFor(() => {
       expect(screen.getByTestId("health-error")).toBeInTheDocument();
     });
-    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(screen.getByTestId("health-error")).toHaveAttribute("role", "alert");
   });
 
   it("renders resource health cards after loading", async () => {

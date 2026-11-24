@@ -1,5 +1,5 @@
 // INTEROP-CRITICAL: Vite config for vrooli-onboarding UI
-import { defineConfig } from "vite";
+import { defineConfig, type PluginOption } from "vite";
 import react from "@vitejs/plugin-react";
 import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
@@ -8,7 +8,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: './',  // Required for tunnel/proxy contexts
-    plugins: [sourceLibraryResolver({ devOnly: true }), react()],
+    // The resolver comes from the component library's pnpm tree, so its Vite
+    // plugin has a distinct type identity despite using the same plugin API.
+    plugins: [sourceLibraryResolver({ devOnly: true }) as unknown as PluginOption, react()],
     resolve: {
       alias: isProfile ? {
         "react-dom/client": "react-dom/profiling",

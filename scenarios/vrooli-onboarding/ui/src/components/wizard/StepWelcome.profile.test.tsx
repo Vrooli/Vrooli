@@ -4,9 +4,10 @@ import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 import { StepWelcome } from "./StepWelcome";
 import { evaluateProfile, fetchProfiles } from "../../api/profiles";
+import { fetchTargets } from "../../api/host";
 import type { EvaluateProfileResponse } from "@vrooli/proto-types/vrooli-onboarding/v1/profiles/profiles_pb";
 
-vi.mock("../../api/host", () => ({ fetchHostFacts: vi.fn().mockRejectedValue(new Error("not needed")) }));
+vi.mock("../../api/host", () => ({ fetchHostFacts: vi.fn().mockRejectedValue(new Error("not needed")), fetchTargets: vi.fn().mockResolvedValue({ targets: [{ id: "remote-node", kind: "NODE_KIND_AGENT", available: true }] }) }));
 vi.mock("../../api/profiles", () => ({
   fetchProfiles: vi.fn().mockResolvedValue({ profiles: [
     { id: "local-use", version: "1.0.0", titleKey: "profiles.localUse.title", descriptionKey: "profiles.localUse.description" },
@@ -48,7 +49,7 @@ describe("StepWelcome purpose profiles", () => {
     const onAdjust = vi.fn();
     renderWithProviders(<StepWelcome onAccept={vi.fn()} onAdjust={onAdjust} />);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Purpose profiles could not be loaded");
+    expect(await screen.findByTestId("profile-read-failed")).toHaveTextContent("Your saved answers are retained");
     expect((await screen.findAllByText("starter")).length).toBeGreaterThan(0);
   });
 
@@ -94,6 +95,127 @@ describe("StepWelcome purpose profiles", () => {
     screen.getByTestId("purpose-profile-manual").click();
     expect(onAdjust).toHaveBeenCalled();
     expect(onProfileSessionChange).toHaveBeenCalledWith(expect.objectContaining({ mode: "manual" }));
+  });
+
+  it("keeps answers and delayed saves isolated when the selected target changes", async () => {
+    const onProfileSessionChange = vi.fn();
+    vi.mocked(evaluateProfile).mockImplementation(async (_profileId, answers, target) => ({
+      profile: { id: "general-purpose", version: "1.0.0", titleKey: "profiles.generalPurpose.title", descriptionKey: "profiles.generalPurpose.description" },
+      questions: [{ id: "workspace", type: "text", promptKey: "setup.label.prompt", required: false, visible: true, options: [] }],
+      recommendations: [], scenarios: [], resources: [], issues: [], valid: true,
+      digest: `${target}:${JSON.stringify(answers.workspace ?? "empty")}`,
+    } as unknown as EvaluateProfileResponse));
+    const view = renderWithProviders(<StepWelcome target="local" onAccept={vi.fn()} onAdjust={vi.fn()} onProfileSessionChange={onProfileSessionChange} />);
+
+    const localInput = await screen.findByTestId("profile-question-workspace");
+    fireEvent.change(localInput, { target: { value: "local-work" } });
+    await waitFor(() => expect(vi.mocked(evaluateProfile)).toHaveBeenCalledWith("general-purpose", { workspace: "local-work" }, "local", {}));
+
+    view.rerender(<StepWelcome target="remote-node" onAccept={vi.fn()} onAdjust={vi.fn()} onProfileSessionChange={onProfileSessionChange} />);
+    const remoteInput = await screen.findByTestId("profile-question-workspace");
+    expect(remoteInput).toHaveValue("");
+    fireEvent.change(remoteInput, { target: { value: "remote-work" } });
+    await waitFor(() => expect(vi.mocked(evaluateProfile)).toHaveBeenCalledWith("general-purpose", { workspace: "remote-work" }, "remote-node", {}));
+
+    view.rerender(<StepWelcome target="local" onAccept={vi.fn()} onAdjust={vi.fn()} onProfileSessionChange={onProfileSessionChange} />);
+    expect(await screen.findByTestId("profile-question-workspace")).toHaveValue("local-work");
+    await waitFor(() => expect(onProfileSessionChange).toHaveBeenCalledWith(expect.objectContaining({ target: "local", answers: { workspace: "local-work" } })), { timeout: 1000 });
+    expect(onProfileSessionChange.mock.calls.flatMap(([draft]) => draft.target === "remote-node" ? [draft.answers] : [])).not.toContainEqual({ workspace: "local-work" });
+  });
+
+  it("waits for durable target sessions before autosaving catalog defaults", async () => {
+    const onProfileSessionChange = vi.fn();
+    const view = renderWithProviders(<StepWelcome target="local" profileSession={null} onAccept={vi.fn()} onAdjust={vi.fn()} onProfileSessionChange={onProfileSessionChange} />);
+    await screen.findByTestId("purpose-profile-select");
+    await new Promise((resolve) => window.setTimeout(resolve, 320));
+    expect(onProfileSessionChange).not.toHaveBeenCalled();
+
+    const localSession = { target: "local", actor: "operator", mode: "guided" as const, profileId: "local-use", profileVersion: "1.0.0", answers: { purpose: "develop" }, manualDecisions: {}, targetContext: { host: "local" }, baseRevision: "local-r1", revision: "local-r2" };
+    view.rerender(<StepWelcome target="local" profileSession={localSession} onAccept={vi.fn()} onAdjust={vi.fn()} onProfileSessionChange={onProfileSessionChange} />);
+    await waitFor(() => expect(onProfileSessionChange).toHaveBeenCalledWith(expect.objectContaining({ target: "local", profileId: "local-use", answers: { purpose: "develop" } })));
+
+    onProfileSessionChange.mockClear();
+    view.rerender(<StepWelcome target="remote-node" profileSession={null} onAccept={vi.fn()} onAdjust={vi.fn()} onProfileSessionChange={onProfileSessionChange} />);
+    await screen.findByTestId("purpose-profile-select");
+    await new Promise((resolve) => window.setTimeout(resolve, 320));
+    expect(onProfileSessionChange).not.toHaveBeenCalled();
+
+    const remoteSession = { ...localSession, target: "remote-node", profileId: "general-purpose", answers: { purpose: "develop" }, targetContext: { host: "remote" }, baseRevision: "remote-r1", revision: "remote-r2" };
+    view.rerender(<StepWelcome target="remote-node" profileSession={remoteSession} onAccept={vi.fn()} onAdjust={vi.fn()} onProfileSessionChange={onProfileSessionChange} />);
+    await waitFor(() => expect(onProfileSessionChange).toHaveBeenCalledWith(expect.objectContaining({ target: "remote-node", targetContext: { host: "remote" }, answers: { purpose: "develop" } })));
+
+    view.rerender(<StepWelcome target="local" profileSession={localSession} onAccept={vi.fn()} onAdjust={vi.fn()} onProfileSessionChange={onProfileSessionChange} />);
+    await waitFor(() => expect(onProfileSessionChange).toHaveBeenLastCalledWith(expect.objectContaining({ target: "local", targetContext: { host: "local" }, profileId: "local-use", answers: { purpose: "develop" } })));
+  });
+
+  it("does not fetch or save a profile for an unsupported empty target", async () => {
+    vi.mocked(fetchProfiles).mockClear();
+    vi.mocked(evaluateProfile).mockClear();
+    const onProfileSessionChange = vi.fn();
+    renderWithProviders(<StepWelcome target="" onAccept={vi.fn()} onAdjust={vi.fn()} onProfileSessionChange={onProfileSessionChange} />);
+    expect(await screen.findByTestId("unsupported-profile-target")).toHaveTextContent("Choose the local host or an available remote node");
+    expect(fetchProfiles).not.toHaveBeenCalled();
+    expect(evaluateProfile).not.toHaveBeenCalled();
+    expect(onProfileSessionChange).not.toHaveBeenCalled();
+  });
+
+  it("does not read or save profile state for an unknown target ID", async () => {
+    vi.mocked(fetchProfiles).mockClear();
+    vi.mocked(evaluateProfile).mockClear();
+    const onProfileSessionChange = vi.fn();
+    renderWithProviders(<StepWelcome target="unregistered-host" onAccept={vi.fn()} onAdjust={vi.fn()} onProfileSessionChange={onProfileSessionChange} />);
+    expect(await screen.findByTestId("unsupported-profile-target")).toHaveTextContent("not a registered host");
+    expect(fetchProfiles).not.toHaveBeenCalled();
+    expect(evaluateProfile).not.toHaveBeenCalled();
+    expect(onProfileSessionChange).not.toHaveBeenCalled();
+  });
+
+  it("keeps a remote draft when registry admission disappears and restores it when the node returns", async () => {
+    const supported = { targets: [{ id: "remote-node", kind: "NODE_KIND_AGENT", available: true }] };
+    vi.mocked(fetchTargets).mockReset();
+    vi.mocked(fetchTargets).mockResolvedValueOnce(supported).mockResolvedValueOnce(supported).mockResolvedValueOnce({ targets: [] }).mockResolvedValueOnce(supported);
+    vi.mocked(fetchProfiles).mockClear();
+    vi.mocked(evaluateProfile).mockResolvedValue({
+      profile: { id: "general-purpose", version: "1.0.0", titleKey: "profiles.generalPurpose.title", descriptionKey: "profiles.generalPurpose.description" },
+      questions: [{ id: "workspace", type: "text", promptKey: "setup.label.prompt", required: false, visible: true, options: [] }],
+      recommendations: [], scenarios: [], resources: [], issues: [], valid: true,
+    } as unknown as EvaluateProfileResponse);
+    const onProfileSessionChange = vi.fn();
+    const remoteSession = { target: "remote-node", actor: "operator", mode: "guided" as const, profileId: "general-purpose", profileVersion: "1.0.0", answers: { workspace: "saved-on-node" }, manualDecisions: {}, targetContext: { host: "remote" }, baseRevision: "remote-r1", revision: "remote-r2" };
+    const view = renderWithProviders(<StepWelcome target="remote-node" profileSession={remoteSession} onAccept={vi.fn()} onAdjust={vi.fn()} onProfileSessionChange={onProfileSessionChange} />);
+    expect(await screen.findByTestId("profile-question-workspace")).toHaveValue("saved-on-node");
+
+    view.rerender(<StepWelcome target="local" onAccept={vi.fn()} onAdjust={vi.fn()} onProfileSessionChange={onProfileSessionChange} />);
+    await screen.findByTestId("profile-question-workspace");
+    vi.mocked(fetchProfiles).mockRejectedValueOnce(new Error("remote profile read failed"));
+    onProfileSessionChange.mockClear();
+    view.rerender(<StepWelcome target="remote-node" profileSession={remoteSession} onAccept={vi.fn()} onAdjust={vi.fn()} onProfileSessionChange={onProfileSessionChange} />);
+
+    expect(await screen.findByTestId("unsupported-profile-target")).toHaveTextContent("not a registered host");
+    expect(onProfileSessionChange).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Check target again" }));
+    await waitFor(() => expect(screen.getByTestId("profile-question-workspace")).toBeInTheDocument());
+    expect(screen.getByTestId("profile-question-workspace")).toHaveValue("saved-on-node");
+  });
+
+  it("retains a remote saved profile through a failed owner read while the node remains registered", async () => {
+    const supported = { targets: [{ id: "remote-node", kind: "NODE_KIND_AGENT", available: true }] };
+    vi.mocked(fetchTargets).mockReset();
+    vi.mocked(fetchTargets).mockResolvedValueOnce(supported).mockResolvedValueOnce(supported);
+    vi.mocked(fetchProfiles).mockRejectedValueOnce(new Error("remote profile read failed"));
+    vi.mocked(evaluateProfile).mockResolvedValue({
+      profile: { id: "general-purpose", version: "1.0.0", titleKey: "profiles.generalPurpose.title", descriptionKey: "profiles.generalPurpose.description" },
+      questions: [{ id: "workspace", type: "text", promptKey: "setup.label.prompt", required: false, visible: true, options: [] }],
+      recommendations: [], scenarios: [], resources: [], issues: [], valid: true,
+    } as unknown as EvaluateProfileResponse);
+    const onProfileSessionChange = vi.fn();
+    const remoteSession = { target: "remote-node", actor: "operator", mode: "guided" as const, profileId: "general-purpose", profileVersion: "1.0.0", answers: { workspace: "saved-on-node" }, manualDecisions: {}, targetContext: { host: "remote" }, baseRevision: "remote-r1", revision: "remote-r2" };
+    renderWithProviders(<StepWelcome target="remote-node" profileSession={remoteSession} onAccept={vi.fn()} onAdjust={vi.fn()} onProfileSessionChange={onProfileSessionChange} />);
+
+    expect(await screen.findByTestId("profile-read-failed")).toHaveTextContent("Your saved answers are retained");
+    expect(onProfileSessionChange).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Retry profile load" }));
+    expect(await screen.findByTestId("profile-question-workspace")).toHaveValue("saved-on-node");
   });
 
   it("reports profile evaluation failures without hiding manual setup", async () => {

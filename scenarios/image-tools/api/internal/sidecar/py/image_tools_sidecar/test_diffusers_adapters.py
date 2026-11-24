@@ -387,6 +387,53 @@ def test_staged_placement_streams_each_stage_when_vram_is_contended():
     _eq(events, ["sequential encoder", "encode", "sequential denoiser"], "each stage streams with sequential offload")
 
 
+def test_staged_applies_loras_before_placement():
+    events = []
+
+    class Module:
+        def to(self, device):
+            return self
+
+    class Flux2KleinPipeline:
+        @classmethod
+        def from_pretrained(cls, path, **kwargs):
+            pipe = cls()
+            if kwargs.get("transformer", "x") is None:
+                pipe.text_encoder = Module()
+            return pipe
+
+        def encode_prompt(self, prompt, device):
+            return "EMBEDS", "IDS"
+
+        def load_lora_weights(self, path, adapter_name=None):
+            events.append(f"lora {path}")
+
+        def set_adapters(self, names, adapter_weights=None):
+            events.append(f"activate {names}")
+
+        def to(self, device):
+            events.append(f"to {device}")
+            return self
+
+    class NoGrad:
+        def __enter__(self):
+            return None
+
+        def __exit__(self, *exc):
+            return False
+
+    fake_torch = type("T", (), {"no_grad": staticmethod(lambda: NoGrad()), "cuda": type("C", (), {"empty_cache": staticmethod(lambda: None)})})
+    kwargs = {"prompt": "p"}
+    _, placement = _diffusers._load_staged(
+        type("D", (), {"Flux2KleinPipeline": Flux2KleinPipeline}), fake_torch,
+        _diffusers.adapter_for("flux-2-klein"), "/m", {}, kwargs, on_gpu=True,
+        lora_specs=["/l.safetensors:0.8"],
+    )
+    assert "lora /l.safetensors" in events and "activate ['lora_0']" in events, "lora stack applied"
+    assert events.index("lora /l.safetensors") < events.index("to cuda"), "weights fused while still on the host"
+    _eq(placement, "staged_text_encoder_then_denoiser:gpu_resident+lora", "placement records the lora stack")
+
+
 def test_text_only_run_refused_for_edit_only_family():
     raised = None
     try:
@@ -396,20 +443,25 @@ def test_text_only_run_refused_for_edit_only_family():
     _eq(raised, 2, "an edit-only family refuses a text-only run before loading anything")
 
 
-def test_family_cli_refuses_conditioning_adapters():
+def test_family_cli_refuses_controlnet_but_threads_lora():
     import argparse
 
     args = argparse.Namespace(
         family="flux-2-klein", model="/m", out="/o", prompt="p", negative_prompt="", steps=0,
         guidance=None, seed=0, width=0, height=0, lora=["/l.safetensors:0.8"], controlnet=[], ip_adapter=[],
     )
+    with patch.object(_diffusers, "run") as run:
+        _diffusers.run_family_op(args, op="text_to_image", image_paths=[])
+    _eq(run.call_args.kwargs["lora_specs"], ["/l.safetensors:0.8"], "family route threads the LoRA stack")
+
+    args.controlnet = ["/cn:1.0:/c.png"]
     raised = None
     with patch.object(_diffusers, "run") as run:
         try:
             _diffusers.run_family_op(args, op="text_to_image", image_paths=[])
         except SystemExit as exc:
             raised = exc.code
-    _eq(raised, 2, "family route refuses LoRA rather than dropping it")
+    _eq(raised, 2, "family route still refuses ControlNet rather than dropping it")
     assert not run.called, "refused request must not reach the pipeline"
 
 

@@ -40,6 +40,7 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--width", type=int, default=0, help="output width (0 = family default; honored by families that take a size)")
     p.add_argument("--height", type=int, default=0, help="output height (0 = family default)")
     p.add_argument("--seed", type=int, default=0, help="RNG seed (0 = nondeterministic)")
+    p.add_argument("--lora", action="append", default=[], help="conditioning LoRA as <path>:<scale> (repeatable)")
     return _common.parse_device_args(p)
 
 
@@ -66,6 +67,7 @@ def main() -> None:
         out_path=args.out,
         params=params,
         op="edit_instruct",
+        lora_specs=args.lora,
     )
 
 

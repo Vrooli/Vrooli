@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"sync"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
@@ -21,10 +22,9 @@ import (
 // declared ceiling.
 var onboardingAuthority = credentialauthority.Default
 
-// credentialClientContextKey carries one request-scoped client through the
-// readiness status seam. Constructing a fresh client for every descriptor can
-// repeat authority/backend initialization dozens of times on a single page
-// load; the client is safe to share across the bounded status probes.
+// credentialClientContextKey carries the one request-scoped client-init result
+// through readiness status probes. Repeating a failed client construction for
+// every descriptor needlessly rechecks the same unavailable provider.
 type credentialClientContextKey struct{}
 
 // onboardingCredentialClientOptions builds the client the onboarding API uses.
@@ -74,6 +74,53 @@ func onboardingCredentialClient() (credentialclient.Client, error) {
 		return nil, err
 	}
 	return credentialclient.NewClient(options)
+}
+
+type credentialClientInitResult struct {
+	client credentialclient.Client
+	err    error
+}
+
+type credentialClientInitFlight struct {
+	done   chan struct{}
+	result credentialClientInitResult
+}
+
+var credentialClientInitMu sync.Mutex
+var credentialClientInitActive *credentialClientInitFlight
+
+// onboardingCredentialClientWithin bounds synchronous provider discovery for
+// readiness. Overlapping requests share the in-flight construction, so a
+// stalled synchronous provider does not leave one blocked goroutine per
+// readiness poll. Each caller still applies its own response deadline.
+func onboardingCredentialClientWithin(ctx context.Context) (credentialclient.Client, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	credentialClientInitMu.Lock()
+	flight := credentialClientInitActive
+	if flight == nil {
+		flight = &credentialClientInitFlight{done: make(chan struct{})}
+		credentialClientInitActive = flight
+		go func() {
+			client, err := onboardingCredentialClient()
+			credentialClientInitMu.Lock()
+			flight.result = credentialClientInitResult{client: client, err: err}
+			if credentialClientInitActive == flight {
+				credentialClientInitActive = nil
+			}
+			close(flight.done)
+			credentialClientInitMu.Unlock()
+		}()
+	}
+	credentialClientInitMu.Unlock()
+
+	select {
+	case <-flight.done:
+		return flight.result.client, flight.result.err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 // recheckCredentialAuthority discards the cached backend-availability verdict.
@@ -176,11 +223,14 @@ func authorityStatusJSON(logicalID, field string) ([]byte, bool) {
 }
 
 func onboardingStatusJSON(ctx context.Context, logicalID, field string) ([]byte, error) {
-	client, ok := ctx.Value(credentialClientContextKey{}).(credentialclient.Client)
-	if !ok {
-		var err error
-		client, err = onboardingCredentialClient()
-		if err != nil {
+	attempt, hasAttempt := ctx.Value(credentialClientContextKey{}).(credentialClientInitResult)
+	client := attempt.client
+	if client == nil {
+		clientErr := attempt.err
+		if !hasAttempt || clientErr == nil {
+			client, clientErr = onboardingCredentialClient()
+		}
+		if clientErr != nil {
 			// The client refuses to exist while its store is unavailable —
 			// exactly when readiness must say why. Status is metadata-only, so
 			// ask the authority itself: an absent store then reads as
@@ -189,7 +239,7 @@ func onboardingStatusJSON(ctx context.Context, logicalID, field string) ([]byte,
 			if direct, ok := authorityStatusJSON(logicalID, field); ok {
 				return direct, nil
 			}
-			return nil, err
+			return nil, clientErr
 		}
 	}
 	status, err := client.Status(ctx, logicalID, field)

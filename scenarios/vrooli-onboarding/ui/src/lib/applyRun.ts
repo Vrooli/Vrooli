@@ -25,6 +25,8 @@ export interface PollApplyRunOptions {
   onConnectionChange?: (connected: boolean) => void;
   wait: (ms: number) => Promise<void>;
   now: () => number;
+  /** Stops polling when the selected target changes or the owning view unmounts. */
+  signal?: AbortSignal;
   reconnectWindowMs?: number;
   pollIntervalMs?: number;
 }
@@ -46,6 +48,7 @@ export async function pollApplyRun(
     onConnectionChange,
     wait,
     now,
+    signal,
     reconnectWindowMs = APPLY_RECONNECT_WINDOW_MS,
     pollIntervalMs = APPLY_POLL_INTERVAL_MS,
   } = options;
@@ -54,16 +57,14 @@ export async function pollApplyRun(
   let current = accepted;
   let unreachableSince: number | null = null;
 
-  while (!isApplyRunSettled(current.status)) {
+  while (!isApplyRunSettled(current.status) && !signal?.aborted) {
     await wait(pollIntervalMs);
+    if (signal?.aborted) break;
+    let next: GetApplyRunResponse;
     try {
-      current = await fetchStatus(accepted.runId);
-      if (unreachableSince !== null) {
-        unreachableSince = null;
-        onConnectionChange?.(true);
-      }
-      onUpdate(current);
+      next = await fetchStatus(accepted.runId);
     } catch (error) {
+      if (signal?.aborted) break;
       if (unreachableSince === null) {
         unreachableSince = now();
         onConnectionChange?.(false);
@@ -71,7 +72,16 @@ export async function pollApplyRun(
       if (now() - unreachableSince > reconnectWindowMs) {
         throw error;
       }
+      continue;
     }
+
+    if (signal?.aborted) break;
+    current = next;
+    if (unreachableSince !== null) {
+      unreachableSince = null;
+      onConnectionChange?.(true);
+    }
+    onUpdate(current);
   }
   return current;
 }

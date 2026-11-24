@@ -358,6 +358,11 @@ var applyRuns = struct {
 	items map[string]applyRun
 }{items: map[string]applyRun{}}
 
+// persistApplyRunUpdate is the durable write seam for run progress. The normal
+// owner is the atomic JSON writer; recovery tests can inject storage loss at
+// the exact pre-effect boundary through this seam.
+var persistApplyRunUpdate = persistApplyRun
+
 var privilegedApplyAuditMu sync.Mutex
 
 type privilegedApplyAudit struct {
@@ -398,11 +403,29 @@ func selectionDigest(items []applyItem) string {
 }
 
 func applyRunPath(id string) (string, error) {
+	if !validApplyRunID(id) {
+		return "", fmt.Errorf("invalid apply run id %q", id)
+	}
 	statePath, err := operatorStatePath()
 	if err != nil {
 		return "", err
 	}
 	return filepath.Join(filepath.Dir(statePath), "apply-runs", id+".json"), nil
+}
+
+// validApplyRunID limits durable journal names to the opaque IDs produced by
+// the apply owner. Treat an ID as one filename segment on every platform.
+func validApplyRunID(id string) bool {
+	if id == "" || strings.TrimSpace(id) != id {
+		return false
+	}
+	for _, r := range id {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func persistApplyRun(run applyRun) error {
@@ -428,6 +451,31 @@ func persistApplyRun(run applyRun) error {
 	return storage.WriteFileAtomic(path, append(data, '\n'), storage.SecretFilePerm)
 }
 
+// decodeApplyRunJournal is the single validation boundary for durable run
+// records. Unknown lifecycle values cannot be treated as resolved work by a
+// newer replay decision, so readers reject them instead of guessing.
+func decodeApplyRunJournal(expectedID string, data []byte) (applyRun, error) {
+	if !validApplyRunID(expectedID) {
+		return applyRun{}, fmt.Errorf("invalid apply run id %q", expectedID)
+	}
+	var run applyRun
+	if err := json.Unmarshal(data, &run); err != nil {
+		return applyRun{}, fmt.Errorf("decode apply run %s: %w", expectedID, err)
+	}
+	if run.ID != expectedID {
+		return applyRun{}, fmt.Errorf("apply run journal %s contains mismatched id %q", expectedID, run.ID)
+	}
+	if !run.Status.Valid() {
+		return applyRun{}, fmt.Errorf("apply run journal %s contains unknown status %q", expectedID, run.Status)
+	}
+	for index, item := range run.Items {
+		if !item.Outcome.Valid() {
+			return applyRun{}, fmt.Errorf("apply run journal %s contains unknown item outcome at index %d: %q", expectedID, index, item.Outcome)
+		}
+	}
+	return run, nil
+}
+
 func loadPersistedApplyRun(id string) (applyRun, error) {
 	path, err := applyRunPath(id)
 	if err != nil {
@@ -437,15 +485,11 @@ func loadPersistedApplyRun(id string) (applyRun, error) {
 	if err != nil {
 		return applyRun{}, err
 	}
-	var run applyRun
-	if err := json.Unmarshal(data, &run); err != nil {
-		return applyRun{}, fmt.Errorf("decode apply run %s: %w", id, err)
-	}
-	return run, nil
+	return decodeApplyRunJournal(id, data)
 }
 
 func storeApplyRun(run applyRun) error {
-	if err := persistApplyRun(run); err != nil {
+	if err := persistApplyRunProgress(run); err != nil {
 		return err
 	}
 	applyRuns.Lock()
@@ -458,7 +502,7 @@ func updateApplyRun(run applyRun) error {
 	for index := range run.Items {
 		run.Items[index].Disposition = applyDisposition(run.Items[index].Outcome)
 	}
-	if err := persistApplyRun(run); err != nil {
+	if err := persistApplyRunProgress(run); err != nil {
 		transitionErr := run.TransitionStatus(applyRunIndeterminate)
 		run.Error = fmt.Sprintf("durable apply state could not be persisted: %v", err)
 		applyRuns.Lock()
@@ -503,10 +547,13 @@ func applyDisposition(outcome applyItemOutcome) string {
 func applyRunSnapshot(id string) (applyRun, bool) {
 	if persisted, err := loadPersistedApplyRun(id); err == nil {
 		return persisted, true
+	} else if !os.IsNotExist(err) {
+		// An unreadable/corrupt journal is not evidence that the cached copy is
+		// current. Returning it could hide an effect committed by the runner.
+		return applyRun{}, false
 	}
-	// The map is the fallback, for the window between accepting a run and its
-	// first persisted write, and for a host where the state file cannot be read
-	// back. It is never preferred: the executing process is the one that knows.
+	// A pre-persistence in-memory snapshot is useful only while the journal is
+	// absent. Once a file exists, only that durable record can establish state.
 	applyRuns.RLock()
 	run, ok := applyRuns.items[id]
 	applyRuns.RUnlock()
@@ -518,8 +565,19 @@ func (s *Server) buildApplyRun(ctx context.Context, plan applydomain.Plan) (appl
 	run := applyRun{ID: fmt.Sprintf("apply-%d", now.UnixNano()), Target: plan.Target, Status: applyRunPending, SelectionDigest: plan.Digest, StartedAt: now.UTC().Format(time.RFC3339), Items: make([]applyItemResult, 0, len(plan.Items))}
 	for _, planned := range plan.Items {
 		item := applyItem{ID: planned.ID, Kind: planned.Kind, Name: planned.Name, Dependencies: planned.Dependencies, Required: planned.Required, Privileged: planned.Privileged, State: planned.ObservedState}
-		run.Items = append(run.Items, applyItemResult{applyItem: item, Outcome: applyItemPending})
-		if item.State == "not_applicable" {
+		outcome := applyItemPending
+		switch item.State {
+		case applyStateSatisfied:
+			outcome = applyItemAlreadySatisfied
+		case "not_applicable":
+			outcome = applyItemNotApplicable
+		}
+		result := applyItemResult{applyItem: item, Outcome: outcome}
+		if outcome == applyItemAlreadySatisfied {
+			result.CompletedAt = now.UTC().Format(time.RFC3339)
+		}
+		run.Items = append(run.Items, result)
+		if outcome == applyItemNotApplicable {
 			if err := run.Items[len(run.Items)-1].TransitionOutcome(applyItemNotApplicable); err != nil {
 				return applyRun{}, fmt.Errorf("mark item %s not applicable: %w", item.ID, err)
 			}
@@ -633,8 +691,10 @@ func executeApplyRun(ctx context.Context, run applyRun) error {
 			return updateApplyRun(run)
 		}
 		item := run.Items[i].applyItem
-		if run.Items[i].Outcome == applyItemNotApplicable {
-			updateApplyRun(run)
+		if run.Items[i].Outcome == applyItemNotApplicable || run.Items[i].Outcome == applyItemAlreadySatisfied {
+			if err := updateApplyRun(run); err != nil {
+				return err
+			}
 			continue
 		}
 		for _, dependency := range item.Dependencies {
@@ -646,7 +706,9 @@ func executeApplyRun(ctx context.Context, run applyRun) error {
 				run.Items[i].Error = dependencyErr.Error()
 				run.Items[i].Remediation = "resolve the blocking dependency, then re-run setup"
 				failed[item.ID] = fmt.Errorf("blocked by %s", dependency)
-				updateApplyRun(run)
+				if err := updateApplyRun(run); err != nil {
+					return err
+				}
 				continue
 			}
 		}
@@ -664,7 +726,9 @@ func executeApplyRun(ctx context.Context, run applyRun) error {
 				return err
 			}
 			run.Items[i].Remediation = "already running; onboarding does not restart itself mid-apply, because that would stop the process serving this run"
-			updateApplyRun(run)
+			if err := updateApplyRun(run); err != nil {
+				return err
+			}
 			continue
 		}
 		// Publish the in-flight item before executing it. Until this, the run
@@ -675,7 +739,10 @@ func executeApplyRun(ctx context.Context, run applyRun) error {
 			return err
 		}
 		run.Items[i].StartedAt = operatorStateNow().UTC().Format(time.RFC3339)
-		updateApplyRun(run)
+		if err := updateApplyRun(run); err != nil {
+			// Do not begin a host effect until its applying intent is durable.
+			return err
+		}
 
 		if err := executeApplyItem(ctx, item); err != nil {
 			nextOutcome := applyItemTimedOut
@@ -703,7 +770,11 @@ func executeApplyRun(ctx context.Context, run applyRun) error {
 			}
 			run.Items[i].CompletedAt = operatorStateNow().UTC().Format(time.RFC3339)
 		}
-		updateApplyRun(run)
+		if err := updateApplyRun(run); err != nil {
+			// The persisted applying item is the honest recovery state after an
+			// effect with an unknown receipt. Stop before starting another item.
+			return err
+		}
 	}
 	if len(failed) > 0 {
 		if err := run.TransitionStatus(applyRunPartiallyApplied); err != nil {
@@ -865,15 +936,17 @@ func (s *Server) getApplyRun(_ context.Context, id string) (applydomain.Run, err
 }
 
 func (s *Server) cancelApply(_ context.Context, id string) (applydomain.Run, error) {
-	run, ok := applyRunSnapshot(strings.TrimSpace(id))
-	if !ok {
-		return applydomain.Run{}, fmt.Errorf("apply run %s not found", id)
-	}
-	if run.Status.Terminal() {
-		return toApplyDomainRun(run), nil
-	}
-	run.CancelRequested = true
-	if err := updateApplyRun(run); err != nil {
+	id = strings.TrimSpace(id)
+	run, err := mutatePersistedApplyRun(id, func(run *applyRun) error {
+		if !run.Status.Terminal() {
+			run.CancelRequested = true
+		}
+		return nil
+	})
+	if err != nil {
+		if os.IsNotExist(err) {
+			return applydomain.Run{}, fmt.Errorf("apply run %s not found", id)
+		}
 		return applydomain.Run{}, fmt.Errorf("persist cancellation request: %w", err)
 	}
 	return toApplyDomainRun(run), nil

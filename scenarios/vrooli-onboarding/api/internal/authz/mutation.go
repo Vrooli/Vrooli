@@ -15,6 +15,7 @@ import (
 	hostconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/host/hostv1connect"
 	operatorinputsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/operatorinputs/operatorinputsv1connect"
 	operatorstateconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/operatorstate/operatorstatev1connect"
+	permissionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/permissions/permissionsv1connect"
 	profilesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/profiles/profilesv1connect"
 	readinessconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/readiness/readinessv1connect"
 	resourcesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/resources/resourcesv1connect"
@@ -63,6 +64,9 @@ var operationEffects = map[string]OperationEffect{
 	operatorinputsconnect.OperatorInputsServiceResolveOperatorInputsProcedure: OperationEffectMutation,
 	operatorstateconnect.OperatorStateServiceGetOperatorStateProcedure:        OperationEffectRead,
 	operatorstateconnect.OperatorStateServicePatchOperatorStateProcedure:      OperationEffectMutation,
+	permissionsconnect.PermissionRegistryServiceListPermissionsProcedure:      OperationEffectRead,
+	permissionsconnect.PermissionRegistryServiceReadPermissionProcedure:       OperationEffectRead,
+	permissionsconnect.PermissionRegistryServiceWritePermissionProcedure:      OperationEffectMutation,
 	profilesconnect.ProfileServiceListProfilesProcedure:                       OperationEffectRead,
 	profilesconnect.ProfileServiceEvaluateProfileProcedure:                    OperationEffectRead,
 	readinessconnect.ReadinessServiceGetReadinessProcedure:                    OperationEffectRead,

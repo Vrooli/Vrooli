@@ -12,6 +12,7 @@ import (
 	hostH "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/handlers/host"
 	operatorinputsH "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/handlers/operatorinputs"
 	operatorstateH "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/handlers/operatorstate"
+	permissionsH "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/handlers/permissions"
 	profilesH "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/handlers/profiles"
 	readinessH "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/handlers/readiness"
 	resourcesH "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/handlers/resources"
@@ -27,6 +28,7 @@ import (
 	hostv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/host"
 	operatorinputsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/operatorinputs"
 	operatorstatev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/operatorstate"
+	permissionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/permissions"
 	profilesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/profiles"
 	readinessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/readiness"
 	resourcesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/resources"
@@ -50,6 +52,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	result = append(result, credentialsH.Endpoints...)
 	result = append(result, hostH.Endpoints...)
 	result = append(result, operatorstateH.Endpoints...)
+	result = append(result, permissionsH.Endpoints...)
 	result = append(result, profilesH.Endpoints...)
 	result = append(result, resourcesH.Endpoints...)
 	return append(result, glossaryH.Endpoints...)
@@ -66,6 +69,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "credentials", File: credentialsv1.File_vrooli_onboarding_v1_credentials_credentials_proto},
 		{Module: "host", File: hostv1.File_vrooli_onboarding_v1_host_host_proto},
 		{Module: "operatorstate", File: operatorstatev1.File_vrooli_onboarding_v1_operatorstate_operatorstate_proto},
+		{Module: "permissions", File: permissionsv1.File_vrooli_onboarding_v1_permissions_permissions_proto},
 		{Module: "profiles", File: profilesv1.File_vrooli_onboarding_v1_profiles_profiles_proto},
 		{Module: "resources", File: resourcesv1.File_vrooli_onboarding_v1_resources_resources_proto},
 		{Module: "glossary", File: glossaryv1.File_vrooli_onboarding_v1_glossary_glossary_proto},

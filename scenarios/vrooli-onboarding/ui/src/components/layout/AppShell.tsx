@@ -19,7 +19,7 @@ export function AppShell({ children }: AppShellProps) {
       className="onboarding-rcl-shell min-h-full"
       mainClassName="min-h-full p-0"
     >
-      {children}
+      <>{children}</>
     </LibraryAppShell>
   );
 }

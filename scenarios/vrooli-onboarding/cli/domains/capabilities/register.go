@@ -74,10 +74,7 @@ func runVerification(core *cliapp.ScenarioApp, capabilityID, aliasID, target, op
 	if id == "" {
 		return fmt.Errorf("--capability-id is required")
 	}
-	target = strings.TrimSpace(target)
-	if target == "" {
-		target = "local"
-	}
+	target = normalizedTarget(target)
 	request := &capabilitiesv1.VerifyCapabilityRequest{
 		Target: target,
 		Verification: &capabilitiesv1.VerificationRequest{
@@ -95,6 +92,14 @@ func runVerification(core *cliapp.ScenarioApp, capabilityID, aliasID, target, op
 		return err
 	}
 	return renderJSONOrPretty(response, jsonOutput, "capability verification")
+}
+
+func normalizedTarget(target string) string {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return "local"
+	}
+	return target
 }
 
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
@@ -116,7 +121,7 @@ func list(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	response := &capabilitiesv1.ListCapabilitiesResponse{}
-	if err := request(core, capabilitiesconnect.CapabilitiesServiceListCapabilitiesProcedure, &capabilitiesv1.ListCapabilitiesRequest{Target: strings.TrimSpace(*target)}, response); err != nil {
+	if err := request(core, capabilitiesconnect.CapabilitiesServiceListCapabilitiesProcedure, &capabilitiesv1.ListCapabilitiesRequest{Target: normalizedTarget(*target)}, response); err != nil {
 		return err
 	}
 	return renderJSONOrPretty(response, *jsonOutput, "capabilities")
@@ -140,7 +145,8 @@ func action(core *cliapp.ScenarioApp, args []string, apply bool) error {
 	if strings.TrimSpace(*id) == "" {
 		return fmt.Errorf("--id is required")
 	}
-	inputs, secretInputs, err := readCapabilityInputs(core, *id, inputFlags)
+	targetID := normalizedTarget(*target)
+	inputs, secretInputs, err := readCapabilityInputs(core, *id, targetID, inputFlags)
 	if err != nil {
 		return err
 	}
@@ -150,10 +156,6 @@ func action(core *cliapp.ScenarioApp, args []string, apply bool) error {
 	inputStruct, err := structpb.NewStruct(inputs)
 	if err != nil {
 		return fmt.Errorf("encode capability inputs: %w", err)
-	}
-	targetID := strings.TrimSpace(*target)
-	if targetID == "" {
-		targetID = "local"
 	}
 	request := &capabilitiesv1.ActionRequest{CapabilityId: strings.TrimSpace(*id), TargetId: targetID, Confirm: false, Inputs: inputStruct}
 	preview := &capabilitiesv1.PreviewCapabilityResponse{}
@@ -190,7 +192,7 @@ func action(core *cliapp.ScenarioApp, args []string, apply bool) error {
 	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{Result: []string{"Capability applied"}, NextCommand: []string{support.CLIName + " capabilities list"}})
 }
 
-func readCapabilityInputs(core *cliapp.ScenarioApp, capabilityID string, flags []string) (map[string]any, map[string]string, error) {
+func readCapabilityInputs(core *cliapp.ScenarioApp, capabilityID, target string, flags []string) (map[string]any, map[string]string, error) {
 	inputs := map[string]any{}
 	for _, raw := range flags {
 		key, value, ok := strings.Cut(raw, "=")
@@ -200,7 +202,7 @@ func readCapabilityInputs(core *cliapp.ScenarioApp, capabilityID string, flags [
 		inputs[strings.TrimSpace(key)] = value
 	}
 	response := &capabilitiesv1.ListCapabilitiesResponse{}
-	if err := requestRPC(core, capabilitiesconnect.CapabilitiesServiceListCapabilitiesProcedure, &capabilitiesv1.ListCapabilitiesRequest{Target: "local"}, response); err != nil {
+	if err := requestRPC(core, capabilitiesconnect.CapabilitiesServiceListCapabilitiesProcedure, &capabilitiesv1.ListCapabilitiesRequest{Target: target}, response); err != nil {
 		return nil, nil, err
 	}
 	var secrets []string

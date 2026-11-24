@@ -224,6 +224,22 @@ input:focus-visible {
 .scenario-choice-card__badge svg { inline-size: .75rem; block-size: .75rem; flex: 0 0 auto; }
 .scenario-choice-card--compact [data-rcl-card-content] { padding-block: .8rem; }
 .scenario-choice-card--compact .scenario-choice-card__name { font-size: .88rem; }
+.core-set-layout { display: grid; min-inline-size: 0; gap: 1rem; }
+.core-set-preview__details { width: fit-content; color: var(--color-primary); font-size: .84rem; font-weight: 650; text-decoration: underline; text-underline-offset: .18em; cursor: pointer; }
+.core-set-option-card[data-disabled="true"] { opacity: 1; border-style: dashed; border-color: var(--color-border); }
+.core-set-option-card[data-disabled="true"] [data-rcl-card-veil] { display: none; }
+.core-set-option-card--protected { border-color: color-mix(in srgb, var(--color-success) 55%, var(--color-border)); background: color-mix(in srgb, var(--color-success) 7%, var(--color-surface-raised)); }
+.core-set-option-card__protected-label { display: inline-flex; width: fit-content; padding: .18rem .5rem; border: 1px solid color-mix(in srgb, var(--color-success) 48%, var(--color-border)); border-radius: 999px; background: color-mix(in srgb, var(--color-success) 12%, var(--color-surface)); color: var(--color-foreground); font-size: .75rem; font-weight: 650; line-height: 1.35; }
+.core-set-option-card__dependency-label { display: block; color: var(--color-muted-foreground); font-size: .78rem; line-height: 1.45; }
+.core-set-important { display: inline-flex; min-block-size: var(--tap-target-min); align-items: center; gap: .55rem; margin-block-start: .4rem; padding: .2rem .7rem; border: 1px solid var(--color-border-muted); border-radius: 999px; background: var(--color-surface-muted); color: var(--color-foreground); font-size: .8rem; line-height: 1.35; cursor: pointer; }
+.core-set-important input { margin: 0; accent-color: var(--color-primary); }
+.core-set-confirm-hint { padding: .65rem .8rem; border-inline-start: 3px solid var(--color-primary); border-radius: 0 .5rem .5rem 0; background: var(--color-surface-muted); color: var(--color-foreground); font-size: .84rem; line-height: 1.45; }
+@media (min-width: 48rem) {
+  .core-set-layout { grid-template-columns: minmax(0, 1.2fr) minmax(15rem, .8fr); align-items: start; }
+  .core-set-preview { grid-column: 2; grid-row: 1; position: sticky; inset-block-start: 1rem; }
+  .core-set-seeds { grid-column: 1; grid-row: 1; }
+  .core-set-seeds > ul { grid-template-columns: 1fr; }
+}
 @media (max-width: 38rem) {
   .scenario-choice-card [data-rcl-card-rail] { min-inline-size: 2.9rem; }
 }

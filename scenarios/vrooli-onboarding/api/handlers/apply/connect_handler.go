@@ -107,6 +107,8 @@ func applyError(operation string, err error) error {
 		code = connect.CodeInvalidArgument
 	case strings.Contains(message, "stale"), strings.Contains(message, "changed"), strings.Contains(message, "expired"), strings.Contains(message, "does not match"):
 		code = connect.CodeAborted
+	case strings.Contains(message, "retry blocked"):
+		code = connect.CodeFailedPrecondition
 	case strings.Contains(message, "idempotency") && strings.Contains(message, "already"):
 		code = connect.CodeAlreadyExists
 	case strings.Contains(message, "not found"):
@@ -166,6 +168,12 @@ func runState(value string) applyv1.ApplyRunState {
 	case "cancelled":
 		return applyv1.ApplyRunState_APPLY_RUN_STATE_CANCELLED
 	case "indeterminate":
+		return applyv1.ApplyRunState_APPLY_RUN_STATE_INDETERMINATE
+	case "interrupted":
+		// The run record is kept as interrupted on disk; the current wire
+		// contract represents the same terminal unknown-effect condition as
+		// indeterminate. Returning UNSPECIFIED would make clients show it as
+		// still running and omit their recovery action.
 		return applyv1.ApplyRunState_APPLY_RUN_STATE_INDETERMINATE
 	default:
 		return applyv1.ApplyRunState_APPLY_RUN_STATE_UNSPECIFIED

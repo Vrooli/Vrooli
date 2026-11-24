@@ -46,17 +46,6 @@ func generate(outputPath string, check bool) error {
 	if err := json.Unmarshal(data, &current); err != nil {
 		return fmt.Errorf("decode %s: %w", outputPath, err)
 	}
-	byKey := make(map[string]bool, len(current.Endpoints))
-	for _, raw := range current.Endpoints {
-		var endpoint struct {
-			Path   string `json:"path"`
-			Method string `json:"method"`
-		}
-		if err := json.Unmarshal(raw, &endpoint); err != nil {
-			return fmt.Errorf("decode endpoint: %w", err)
-		}
-		byKey[endpoint.Method+" "+endpoint.Path] = true
-	}
 	merged, err := mergeEndpoints(current.Endpoints, modules.AllEndpoints())
 	if err != nil {
 		return err
@@ -67,15 +56,11 @@ func generate(outputPath string, check bool) error {
 		if marshalErr != nil {
 			return fmt.Errorf("encode generated endpoint catalog: %w", marshalErr)
 		}
-		original, readErr := os.ReadFile(outputPath)
-		if readErr != nil {
-			return fmt.Errorf("read %s: %w", outputPath, readErr)
-		}
 		var wantJSON, gotJSON any
 		if err := json.Unmarshal(want, &wantJSON); err != nil {
 			return err
 		}
-		if err := json.Unmarshal(original, &gotJSON); err != nil {
+		if err := json.Unmarshal(data, &gotJSON); err != nil {
 			return fmt.Errorf("decode %s: %w", outputPath, err)
 		}
 		if !bytes.Equal(mustJSON(wantJSON), mustJSON(gotJSON)) {
@@ -90,54 +75,115 @@ func generate(outputPath string, check bool) error {
 	return os.WriteFile(outputPath, append(data, '\n'), 0o644)
 }
 
+type endpointCatalogRow struct {
+	method string
+	path   string
+	raw    json.RawMessage
+}
+
+type endpointKey struct {
+	method string
+	path   string
+}
+
+var migratedEndpointIDs = []string{
+	"operatorinputs_list", "operatorinputs_resolve", "readiness_get", "readiness_acknowledge",
+	"apply_start", "apply_run", "apply_plan", "apply_review", "apply_cancel",
+	"session_get", "session_advance", "session_model",
+}
+
+var migratedEndpointPrefixes = []string{
+	"session_draft_", "selection_", "capabilities_", "credentials_", "host_", "operator_state_",
+	"resources_", "profiles_",
+}
+
+var retiredLegacyPathPrefixes = []string{
+	"/api/v2/operator-inputs", "/api/v2/readiness", "/api/v2/apply", "/api/v2/session",
+	"/api/v2/steps", "/api/v2/scenarios", "/api/v2/core-set", "/api/v2/recommendation",
+	"/api/v2/resources", "/api/v2/closure", "/api/v2/union", "/api/v2/handoff",
+	"/api/v2/capabilities", "/api/v2/credentials", "/api/v2/host-requirements",
+	"/api/v2/host-facts", "/api/v2/targets", "/api/v1/operator-state", "/api/v2/operator-state",
+	"/api/v1/resources", "/api/v1/glossary", "/vrooli.vrooli_onboarding.v1.profiles.ProfileService/",
+}
+
+func decodeCatalogRow(raw json.RawMessage) (endpointCatalogRow, error) {
+	var decoded struct {
+		Method string `json:"method"`
+		Path   string `json:"path"`
+	}
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		return endpointCatalogRow{}, fmt.Errorf("decode endpoint: %w", err)
+	}
+	return endpointCatalogRow{method: decoded.Method, path: decoded.Path, raw: raw}, nil
+}
+
+func moduleOwnsEndpointMetadata(id string) bool {
+	for _, exact := range migratedEndpointIDs {
+		if id == exact {
+			return true
+		}
+	}
+	for _, prefix := range migratedEndpointPrefixes {
+		if strings.HasPrefix(id, prefix) {
+			return true
+		}
+	}
+	return id == "glossary_search" || id == "configuration_search"
+}
+
+func isRetiredLegacyPath(path string) bool {
+	for _, prefix := range retiredLegacyPathPrefixes {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 func mergeEndpoints(current []json.RawMessage, modules []module.EndpointDescriptor) ([]json.RawMessage, error) {
-	merged := append([]json.RawMessage(nil), current...)
+	merged := make([]endpointCatalogRow, 0, len(current)+len(modules))
+	for _, raw := range current {
+		row, err := decodeCatalogRow(raw)
+		if err != nil {
+			return nil, err
+		}
+		merged = append(merged, row)
+	}
 	for _, endpoint := range modules {
 		encoded, err := json.Marshal(endpoint)
 		if err != nil {
 			return nil, fmt.Errorf("encode module endpoint %q: %w", endpoint.ID, err)
 		}
-		key := endpoint.Method + " " + endpoint.Path
+		key := endpointKey{method: endpoint.Method, path: endpoint.Path}
 		found := false
-		for index, raw := range merged {
-			var currentEndpoint struct {
-				Path   string `json:"path"`
-				Method string `json:"method"`
-			}
-			if err := json.Unmarshal(raw, &currentEndpoint); err != nil {
-				return nil, fmt.Errorf("decode endpoint: %w", err)
-			}
-			if currentEndpoint.Method+" "+currentEndpoint.Path == key {
-				merged[index] = encoded
+		for index := range merged {
+			if (endpointKey{method: merged[index].method, path: merged[index].path}) == key {
+				merged[index].raw = encoded
 				found = true
 			}
 		}
 		if found {
 			continue
 		}
-		// The first domain migration replaces the two legacy REST entries.
-		// Later migrations add their explicit replacement here before deleting
-		// the corresponding legacy route metadata.
-		if endpoint.ID == "operatorinputs_list" || endpoint.ID == "operatorinputs_resolve" || endpoint.ID == "readiness_get" || endpoint.ID == "readiness_acknowledge" || endpoint.ID == "apply_start" || endpoint.ID == "apply_run" || endpoint.ID == "apply_plan" || endpoint.ID == "apply_review" || endpoint.ID == "apply_cancel" || endpoint.ID == "session_get" || endpoint.ID == "session_advance" || endpoint.ID == "session_model" || strings.HasPrefix(endpoint.ID, "session_draft_") || strings.HasPrefix(endpoint.ID, "selection_") || strings.HasPrefix(endpoint.ID, "capabilities_") || strings.HasPrefix(endpoint.ID, "credentials_") || strings.HasPrefix(endpoint.ID, "host_") || strings.HasPrefix(endpoint.ID, "operator_state_") || strings.HasPrefix(endpoint.ID, "resources_") || strings.HasPrefix(endpoint.ID, "profiles_") || endpoint.ID == "glossary_search" || endpoint.ID == "configuration_search" {
+		// As Connect modules replace domains, retire their old REST metadata only
+		// when the catalog does not already contain this endpoint's exact route.
+		if moduleOwnsEndpointMetadata(endpoint.ID) {
 			filtered := merged[:0]
-			for _, raw := range merged {
-				var currentEndpoint struct {
-					Path string `json:"path"`
+			for _, row := range merged {
+				if !isRetiredLegacyPath(row.path) {
+					filtered = append(filtered, row)
 				}
-				if err := json.Unmarshal(raw, &currentEndpoint); err != nil {
-					return nil, fmt.Errorf("decode endpoint: %w", err)
-				}
-				if strings.HasPrefix(currentEndpoint.Path, "/api/v2/operator-inputs") || strings.HasPrefix(currentEndpoint.Path, "/api/v2/readiness") || strings.HasPrefix(currentEndpoint.Path, "/api/v2/apply") || strings.HasPrefix(currentEndpoint.Path, "/api/v2/session") || strings.HasPrefix(currentEndpoint.Path, "/api/v2/steps") || strings.HasPrefix(currentEndpoint.Path, "/api/v2/scenarios") || strings.HasPrefix(currentEndpoint.Path, "/api/v2/core-set") || strings.HasPrefix(currentEndpoint.Path, "/api/v2/recommendation") || strings.HasPrefix(currentEndpoint.Path, "/api/v2/resources") || strings.HasPrefix(currentEndpoint.Path, "/api/v2/closure") || strings.HasPrefix(currentEndpoint.Path, "/api/v2/union") || strings.HasPrefix(currentEndpoint.Path, "/api/v2/handoff") || strings.HasPrefix(currentEndpoint.Path, "/api/v2/capabilities") || strings.HasPrefix(currentEndpoint.Path, "/api/v2/credentials") || strings.HasPrefix(currentEndpoint.Path, "/api/v2/host-requirements") || strings.HasPrefix(currentEndpoint.Path, "/api/v2/host-facts") || strings.HasPrefix(currentEndpoint.Path, "/api/v2/targets") || strings.HasPrefix(currentEndpoint.Path, "/api/v1/operator-state") || strings.HasPrefix(currentEndpoint.Path, "/api/v2/operator-state") || strings.HasPrefix(currentEndpoint.Path, "/api/v1/resources") || strings.HasPrefix(currentEndpoint.Path, "/api/v1/glossary") || strings.HasPrefix(currentEndpoint.Path, "/vrooli.vrooli_onboarding.v1.profiles.ProfileService/") {
-					continue
-				}
-				filtered = append(filtered, raw)
 			}
-			merged = append(filtered, encoded)
+			merged = append(filtered, endpointCatalogRow{method: endpoint.Method, path: endpoint.Path, raw: encoded})
 			continue
 		}
 		return nil, fmt.Errorf("module endpoint %s %s has no endpoint metadata; regenerate the catalog", endpoint.Method, endpoint.Path)
 	}
-	return merged, nil
+	result := make([]json.RawMessage, 0, len(merged))
+	for _, row := range merged {
+		result = append(result, row.raw)
+	}
+	return result, nil
 }
 
 func mustJSON(value any) []byte {

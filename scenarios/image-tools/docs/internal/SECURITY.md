@@ -416,6 +416,12 @@ composing scenario) can bypass it:
   future work, tracked in PROBLEMS.md). Attribution/attribution-on-by-default is
   a control, not a restriction: turning it on never blocks an edit.
 
+## Body-age second-opinion calibration (2026-11-24)
+
+The face-independent age judge is a narrow escape hatch, not an age estimator. On the six fictional adult generations it read every subject as **25** and could not distinguish a 23-year-old from a 52-year-old; the 4B model also set `could_be_under_18: true` for five of the six. It is asked only when the primary reviewer refuses a sexual image for an unreadable age, and a face-based minor finding is never overridden. The floor stays at apparent age 25 with `could_be_under_18: false` required; when the judge disagrees with itself or returns no parseable object, the output stays refused. Evidence: `runs/capabilities-20261122/nsfw-private/body-age-calibration.json`.
+
+**Implication:** do not treat a second-opinion clear as proof of adult age, and do not lower the floor to admit young-looking adult bodies. A robust body-age signal (for example a face+body age model) is the next upgrade; until then the conservative refusal is the correct behavior.
+
 ## Cross-References
 
 - [`DECISIONS.md`](DECISIONS.md) — security-relevant design decisions (webhooks, C2PA, NSFW labels)

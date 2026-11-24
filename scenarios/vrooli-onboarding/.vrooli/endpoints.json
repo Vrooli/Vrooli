@@ -12,7 +12,8 @@
     "readiness",
     "session",
     "resources",
-    "documentation"
+    "documentation",
+    "permissions"
   ],
   "cli_commands": [
     {
@@ -233,7 +234,7 @@
       "response": {
         "type": "object",
         "properties": {
-          "requests": "array\u003csetup.OperatorInputRequest\u003e"
+          "requests": "array<setup.OperatorInputRequest>"
         }
       }
     },
@@ -247,7 +248,7 @@
       "request": {
         "type": "object",
         "properties": {
-          "answers": "array\u003cAnswer\u003e (required)",
+          "answers": "array<Answer> (required)",
           "expected_revision": "string",
           "target": "string (required)"
         }
@@ -256,7 +257,7 @@
         "type": "object",
         "properties": {
           "configuration_pending": "boolean",
-          "outcomes": "array\u003cAnswerOutcome\u003e"
+          "outcomes": "array<AnswerOutcome>"
         }
       },
       "errors": [
@@ -751,6 +752,30 @@
       "summary": "List supported onboarding profiles",
       "description": "",
       "category": "selection"
+    },
+    {
+      "id": "permission_registry_list",
+      "path": "/vrooli.vrooli_onboarding.v1.permissions.PermissionRegistryService/ListPermissions",
+      "method": "POST",
+      "summary": "List onboarding permissions",
+      "description": "Enumerates owner-defined permissions through the shared typed registry for the authenticated principal.",
+      "category": "permissions"
+    },
+    {
+      "id": "permission_registry_read",
+      "path": "/vrooli.vrooli_onboarding.v1.permissions.PermissionRegistryService/ReadPermission",
+      "method": "POST",
+      "summary": "Read an onboarding permission",
+      "description": "Reads one permission through its owner authorization and target binding.",
+      "category": "permissions"
+    },
+    {
+      "id": "permission_registry_write",
+      "path": "/vrooli.vrooli_onboarding.v1.permissions.PermissionRegistryService/WritePermission",
+      "method": "POST",
+      "summary": "Write an onboarding permission",
+      "description": "Writes one permission through its owner authorization, revision precondition and idempotent receipt.",
+      "category": "permissions"
     }
   ]
 }

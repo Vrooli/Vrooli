@@ -2,12 +2,14 @@ package capabilities
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/vrooli/internal/operatorcapability"
 	capabilitiesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/capabilities"
 	capabilitiesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/capabilities/capabilitiesv1connect"
@@ -56,6 +58,11 @@ func (h *connectHandler) ApplyCapability(ctx context.Context, req *connect.Reque
 	}
 	if !action.Confirm {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("confirm=true is required for capability apply"))
+	}
+	if action.CapabilityID == "compute-manager-notification-hub-principals" || action.CapabilityID == "compute-manager-adoption-first-touch" || action.CapabilityID == "compute-manager-adoption-first-touch-grant" || action.CapabilityID == "compute-manager-money-ledger-invoice-writer" {
+		if _, err := authn.RequireIndependentHuman(ctx); err != nil {
+			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("an independent verified human must approve this service-principal grant"))
+		}
 	}
 	result, err := h.service.Apply(ctx, action)
 	if err != nil {
@@ -139,6 +146,23 @@ func actionRequest(target string, action *capabilitiesv1.ActionRequest) (operato
 	}
 	if actionTarget == "" {
 		actionTarget = target
+	}
+	if action.GetCapabilityId() == "compute-manager-adoption-first-touch" {
+		if len(action.GetIdempotencyKey()) < 16 || len(action.GetIdempotencyKey()) > 128 {
+			return operatorcapability.ActionRequest{}, errors.New("first-touch requires an independent 16-128 character request identity")
+		}
+		if actionTarget != "local" {
+			return operatorcapability.ActionRequest{}, errors.New("first-touch must execute through the local Onboarding control plane")
+		}
+		if inputs == nil {
+			inputs = make(map[string]json.RawMessage)
+		}
+		var instanceID string
+		if err := json.Unmarshal(inputs["instance_id"], &instanceID); err != nil || !strings.HasPrefix(instanceID, "adopted-vps:") {
+			return operatorcapability.ActionRequest{}, errors.New("first-touch requires a Compute Manager adopted-VPS instance ID")
+		}
+		requestKey, _ := json.Marshal(action.GetIdempotencyKey())
+		inputs["idempotency_key"] = requestKey
 	}
 	request := operatorcapability.ActionRequest{CapabilityID: action.GetCapabilityId(), TargetID: actionTarget, IdempotencyKey: action.GetIdempotencyKey(), Confirm: action.GetConfirm(), Inputs: inputs}
 	if err := internalcapabilities.NormalizeActionRequest(&request); err != nil {

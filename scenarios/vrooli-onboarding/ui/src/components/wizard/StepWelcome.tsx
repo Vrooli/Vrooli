@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Check, HardDrive, ShieldCheck, Undo2 } from "lucide-react";
 import { fetchHostFacts, type HostFacts } from "../../api/host";
 import { StatCard } from "@vrooli/react-component-library/StatCard/1";
 import { StepPlan } from "./StepPlan";
 import { i18n } from "../../i18n";
 import { evaluateProfile, fetchProfiles } from "../../api/profiles";
-import type { EvaluateProfileResponse, Profile, ProfileQuestion } from "@vrooli/proto-types/vrooli-onboarding/v1/profiles/profiles_pb";
+import { useOnboardingTargetCapability } from "../../api/useOnboardingTargetCapability";
+import type { EvaluateProfileResponse, ProfileQuestion } from "@vrooli/proto-types/vrooli-onboarding/v1/profiles/profiles_pb";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { Checkbox } from "@vrooli/react-component-library/Checkbox/1";
 import { Input } from "@vrooli/react-component-library/Input/1";
@@ -23,6 +25,28 @@ type WelcomeProps = {
   profileSessionError?: string | null;
   profileSessionSaveState?: "idle" | "saving" | "saved" | "failed" | "conflict";
   onRetryProfileSessionSave?: () => void;
+};
+
+type ProfileDraftState = {
+  profileId: string;
+  answers: Record<string, unknown>;
+  manualDecisions: Record<string, boolean>;
+  evaluation: EvaluateProfileResponse | null;
+  error: string | null;
+  evaluating: boolean;
+  dirty: boolean;
+  appliedSessionMarker: string | null;
+};
+
+const emptyProfileDraft: ProfileDraftState = {
+  profileId: "",
+  answers: {},
+  manualDecisions: {},
+  evaluation: null,
+  error: null,
+  evaluating: false,
+  dirty: false,
+  appliedSessionMarker: null,
 };
 
 export function StepWelcome({ target = "local", onAccept, onAdjust, profileSession, profileSessionBaseRevision = "", onProfileSessionChange, profileSessionError, profileSessionSaveState = "idle", onRetryProfileSessionSave }: WelcomeProps = {}) {
@@ -65,83 +89,92 @@ export function StepWelcome({ target = "local", onAccept, onAdjust, profileSessi
 }
 
 function PurposeProfile({ target = "local", onAccept, onAdjust, profileSession, profileSessionBaseRevision = "", onProfileSessionChange, profileSessionError, profileSessionSaveState = "idle", onRetryProfileSessionSave }: { target?: string; onAccept: WelcomeProps["onAccept"]; onAdjust: () => void; profileSession?: WizardProfileSession | null; profileSessionBaseRevision?: string; onProfileSessionChange?: WelcomeProps["onProfileSessionChange"]; profileSessionError?: string | null; profileSessionSaveState?: WelcomeProps["profileSessionSaveState"]; onRetryProfileSessionSave?: () => void }) {
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-	const [profileId, setProfileId] = useState("");
-	const [answers, setAnswers] = useState<Record<string, unknown>>({});
-	const [manualDecisions, setManualDecisions] = useState<Record<string, boolean>>({});
-  const [evaluation, setEvaluation] = useState<EvaluateProfileResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [evaluating, setEvaluating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [profilesInitialized, setProfilesInitialized] = useState(false);
-  const appliedSessionMarkerRef = useRef<string | null>(null);
+  const [draftsByTarget, setDraftsByTarget] = useState<Map<string, ProfileDraftState>>(() => new Map());
+  const updateTargetDraft = useCallback((targetId: string, update: (current: ProfileDraftState) => ProfileDraftState) => {
+    setDraftsByTarget((current) => {
+      const next = new Map(current);
+      next.set(targetId, update(current.get(targetId) ?? emptyProfileDraft));
+      return next;
+    });
+  }, []);
+  const draft = draftsByTarget.get(target) ?? emptyProfileDraft;
+  const { profileId, answers, manualDecisions, evaluation, error, evaluating } = draft;
+  const currentSession = profileSession?.target === target ? profileSession : null;
+  const { capability: targetCapability, registryScoped, resolving: resolvingTarget, resolutionError, refreshTarget } = useOnboardingTargetCapability(target);
+  const supportsProfileSession = targetCapability.profileSession === "owner-scoped" && !resolvingTarget && !resolutionError;
+  const profileQuery = useQuery({ queryKey: ["onboarding-profiles", target], queryFn: () => fetchProfiles(target), retry: false, enabled: supportsProfileSession });
+  const profiles = profileQuery.data?.profiles ?? [];
+  const profilesInitialized = profileQuery.isSuccess;
   const selectedProfile = useMemo(() => profiles.find((profile) => profile.id === profileId), [profiles, profileId]);
 
   useEffect(() => {
-    let active = true;
-    fetchProfiles(target)
-      .then((response) => {
-        if (!active) return;
-        setProfiles(response.profiles);
-        setProfilesInitialized(true);
-      })
-      .catch(() => active && setError(i18n.t("onboarding.profile.loadError")))
-      .finally(() => active && setLoading(false));
-    return () => { active = false; };
-  }, [target]);
+    if (!registryScoped || !profileQuery.isError) return;
+    void refreshTarget();
+  }, [profileQuery.isError, refreshTarget, registryScoped]);
 
   useEffect(() => {
     if (!profilesInitialized || profiles.length === 0) return;
-    const sessionMarker = profileSession?.revision || profileSession?.updatedAt?.toString() || "none";
-    if (appliedSessionMarkerRef.current === sessionMarker) return;
-    const savedProfile = profileSession?.reconciliationState === "profile_revoked"
+    const sessionMarker = currentSession?.revision || JSON.stringify(currentSession?.updatedAt) || "none";
+    updateTargetDraft(target, (current) => {
+      if (current.appliedSessionMarker === sessionMarker) return current;
+      const savedProfile = currentSession?.reconciliationState === "profile_revoked"
       ? ""
-      : profileSession?.profileId && profiles.some((profile) => profile.id === profileSession.profileId)
-      ? profileSession.profileId
+      : currentSession?.profileId && profiles.some((profile) => profile.id === currentSession.profileId)
+      ? currentSession.profileId
       : profiles.find((profile) => profile.default)?.id ?? profiles[0]?.id ?? "";
-    setProfileId(savedProfile);
-	const nextAnswers = profileSession?.answers ?? {};
-	setAnswers((current) => JSON.stringify(current) === JSON.stringify(nextAnswers) ? current : nextAnswers);
-	const nextManualDecisions = profileSession?.manualDecisions ?? {};
-	setManualDecisions((current) => JSON.stringify(current) === JSON.stringify(nextManualDecisions) ? current : nextManualDecisions);
-    appliedSessionMarkerRef.current = sessionMarker;
-  }, [profilesInitialized, profiles, profileSession]);
+      if (current.dirty && currentSession === null) return { ...current, appliedSessionMarker: sessionMarker };
+      return {
+        ...current,
+        profileId: savedProfile,
+        answers: currentSession?.answers ?? {},
+        manualDecisions: currentSession?.manualDecisions ?? {},
+        evaluation: null,
+        error: null,
+        dirty: false,
+        appliedSessionMarker: sessionMarker,
+      };
+    });
+  }, [currentSession, profiles, profilesInitialized, target, updateTargetDraft]);
 
   useEffect(() => {
-    if (!profileId) return;
+    if (!profileId || !supportsProfileSession) return;
     let active = true;
-    setEvaluating(true);
+    updateTargetDraft(target, (current) => ({ ...current, evaluating: true }));
 	  evaluateProfile(profileId, answers, target, manualDecisions)
-      .then((result) => active && setEvaluation(result))
-      .catch(() => active && setError(i18n.t("onboarding.profile.evaluateError")))
-      .finally(() => active && setEvaluating(false));
+      .then((result) => active && updateTargetDraft(target, (current) => ({ ...current, evaluation: result, evaluating: false })))
+      .catch(() => active && updateTargetDraft(target, (current) => ({ ...current, error: i18n.t("onboarding.profile.evaluateError"), evaluating: false })))
+      .finally(() => active && updateTargetDraft(target, (current) => ({ ...current, evaluating: false })));
     return () => { active = false; };
-	}, [answers, manualDecisions, profileId, target]);
+	}, [answers, manualDecisions, profileId, target, updateTargetDraft, supportsProfileSession]);
 
   useEffect(() => {
-    if (!onProfileSessionChange || !profileId || !selectedProfile || !profilesInitialized) return;
+    // A profile catalog can resolve before the parent's durable session read.
+    // Do not persist its default selection and erase saved answers in that gap.
+    if (!supportsProfileSession || !onProfileSessionChange || !profileId || !selectedProfile || !profilesInitialized || (!draft.dirty && !currentSession)) return;
     const timer = window.setTimeout(() => onProfileSessionChange({
       target,
       mode: "guided",
       profileId,
       profileVersion: selectedProfile.version,
-      catalogRevision: profileSession?.catalogRevision,
-      consequenceDigest: evaluation?.digest || profileSession?.consequenceDigest,
-      baseRevision: profileSession?.baseRevision || profileSessionBaseRevision,
+      catalogRevision: currentSession?.catalogRevision,
+      consequenceDigest: evaluation?.digest || currentSession?.consequenceDigest,
+      baseRevision: currentSession?.baseRevision || profileSessionBaseRevision,
       answers,
 	      manualDecisions,
-      targetContext: profileSession?.targetContext ?? {},
+      targetContext: currentSession?.targetContext ?? {},
     }), 250);
     return () => window.clearTimeout(timer);
-  }, [answers, manualDecisions, profileId, evaluation?.digest, profileSession?.baseRevision, profileSession?.catalogRevision, profileSession?.consequenceDigest, JSON.stringify(profileSession?.targetContext ?? {}), profileSessionBaseRevision, onProfileSessionChange, profilesInitialized, selectedProfile, target]);
+  }, [answers, manualDecisions, profileId, evaluation?.digest, currentSession, currentSession?.baseRevision, currentSession?.catalogRevision, currentSession?.consequenceDigest, JSON.stringify(currentSession?.targetContext ?? {}), profileSessionBaseRevision, onProfileSessionChange, profilesInitialized, selectedProfile, target, draft.dirty, supportsProfileSession]);
 
   const updateAnswer = (question: ProfileQuestion, value: unknown) => {
-    setError(null);
-    setAnswers((current) => ({ ...current, [question.id]: value }));
+    updateTargetDraft(target, (current) => ({ ...current, error: null, dirty: true, answers: { ...current.answers, [question.id]: value } }));
   };
 
-  if (loading) return <section className="welcome-plan" data-testid="profile-surface"><p role="status">{i18n.t("onboarding.profile.loading")}</p></section>;
-  if (error && profiles.length === 0) return <section className="welcome-plan" data-testid="profile-surface"><p role="alert">{error}</p><StepPlan target={target} onAccept={onAccept ?? (() => Promise.resolve())} onAdjust={onAdjust} /></section>;
+  if (resolvingTarget) return <section className="welcome-plan" data-testid="profile-surface"><p role="status">{i18n.t("onboarding.profile.checkingTarget")}</p></section>;
+  if (resolutionError) return <section className="welcome-plan" data-testid="profile-surface"><p role="alert">{i18n.t("onboarding.profile.targetVerifyError")} {resolutionError instanceof Error ? resolutionError.message : "target list unavailable"}</p>{registryScoped && <button type="button" onClick={() => void refreshTarget()}>{i18n.t("onboarding.profile.checkTargetAgain")}</button>}</section>;
+  if (!supportsProfileSession) return <section className="welcome-plan" data-testid="profile-surface"><p role="alert" data-testid="unsupported-profile-target">{targetCapability.reason}</p>{registryScoped && <button type="button" onClick={() => void refreshTarget()}>{i18n.t("onboarding.profile.checkTargetAgain")}</button>}</section>;
+  if (profileQuery.isLoading) return <section className="welcome-plan" data-testid="profile-surface"><p role="status">{i18n.t("onboarding.profile.loading")}</p></section>;
+  if (profileQuery.isError && profiles.length === 0) return <section className="welcome-plan" data-testid="profile-surface"><p role="alert" data-testid="profile-read-failed">{i18n.t("onboarding.profile.readFailed")}</p><button type="button" onClick={() => void profileQuery.refetch()}>{i18n.t("onboarding.profile.retryRead")}</button><StepPlan target={target} onAccept={onAccept ?? (() => Promise.resolve())} onAdjust={onAdjust} /></section>;
 
   const questions = evaluation?.questions ?? [];
   const recommended = evaluation?.scenarios ?? [];
@@ -153,21 +186,22 @@ function PurposeProfile({ target = "local", onAccept, onAdjust, profileSession, 
       mode: "manual",
       profileId,
       profileVersion: selectedProfile?.version,
-      catalogRevision: profileSession?.catalogRevision,
-      consequenceDigest: evaluation?.digest || profileSession?.consequenceDigest,
-      baseRevision: profileSession?.baseRevision || profileSessionBaseRevision,
+      catalogRevision: currentSession?.catalogRevision,
+      consequenceDigest: evaluation?.digest || currentSession?.consequenceDigest,
+      baseRevision: currentSession?.baseRevision || profileSessionBaseRevision,
       answers,
 	      manualDecisions,
-      targetContext: profileSession?.targetContext ?? {},
+      targetContext: currentSession?.targetContext ?? {},
     });
     onAdjust();
   };
 
-  const profileNeedsReview = profileSession?.reconciliationState === "review_required"
-    || profileSession?.reconciliationState === "profile_revoked"
-    || profileSession?.reconciliationState === "unavailable";
+  const profileNeedsReview = currentSession?.reconciliationState === "review_required"
+    || currentSession?.reconciliationState === "profile_revoked"
+    || currentSession?.reconciliationState === "unavailable";
 
   return <section className="welcome-plan" data-testid="profile-surface">
+    {profileQuery.isError && <p role="alert" data-testid="profile-read-failed">{i18n.t("onboarding.profile.refreshFailed")} <button type="button" onClick={() => void profileQuery.refetch()}>{i18n.t("onboarding.profile.retryRead")}</button></p>}
     <div className="section-divider"><span>{i18n.t("onboarding.profile.eyebrow")}</span></div>
     <h2>{i18n.t("onboarding.profile.heading")}</h2>
     <p>{i18n.t("onboarding.profile.description")}</p>
@@ -178,7 +212,7 @@ function PurposeProfile({ target = "local", onAccept, onAdjust, profileSession, 
         data-testid="purpose-profile-select"
         className="mt-1"
         value={profileId}
-	        onValueChange={(value) => { setProfileId(value); setAnswers({}); setManualDecisions({}); setEvaluation(null); }}
+        onValueChange={(value) => updateTargetDraft(target, (current) => ({ ...current, profileId: value, answers: {}, manualDecisions: {}, evaluation: null, error: null, dirty: true }))}
         options={profiles.map((profile) => ({ value: profile.id, label: profileText(profile.titleKey, profile.id) }))}
       />
     </div>
@@ -187,9 +221,9 @@ function PurposeProfile({ target = "local", onAccept, onAdjust, profileSession, 
     {error && <p role="alert" data-testid="purpose-profile-error">{error}</p>}
     {profileNeedsReview && <div className="profile-session-reconciliation" role="status" data-testid="profile-session-reconciliation">
       <strong>{i18n.t("onboarding.profile.reviewRequired")}</strong>
-      <p>{profileSession?.reconciliationReasons?.join(" ") || i18n.t("onboarding.profile.reviewDescription")}</p>
-      {profileSession?.reconciliationChanges && profileSession.reconciliationChanges.length > 0 && <ul data-testid="profile-session-reconciliation-changes">
-        {profileSession.reconciliationChanges.map((change) => <li key={`${change.kind}-${change.field}-${change.after}`}>
+      <p>{currentSession.reconciliationReasons?.join(" ") || i18n.t("onboarding.profile.reviewDescription")}</p>
+      {currentSession.reconciliationChanges && currentSession.reconciliationChanges.length > 0 && <ul data-testid="profile-session-reconciliation-changes">
+        {currentSession.reconciliationChanges.map((change) => <li key={`${change.kind}-${change.field}-${change.after}`}>
           <strong>{change.field}</strong>: {change.impact}
         </li>)}
       </ul>}
@@ -209,7 +243,7 @@ function PurposeProfile({ target = "local", onAccept, onAdjust, profileSession, 
 	              checked={recommendation.selected}
 	              data-testid={`profile-recommendation-${recommendation.key}`}
 	              disabled={recommendation.required}
-	              onCheckedChange={(checked) => setManualDecisions((current) => ({ ...current, [recommendation.key]: checked }))}
+              onCheckedChange={(checked) => updateTargetDraft(target, (current) => ({ ...current, dirty: true, manualDecisions: { ...current.manualDecisions, [recommendation.key]: checked } }))}
 	              label={i18n.t("onboarding.profile.includeRecommendation", { defaultValue: "Include this recommendation" })}
 	            />}
             <strong>{recommendation.capabilityRef}</strong>

@@ -1,8 +1,8 @@
 import { useState, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Loader2, BookOpen } from "lucide-react";
 import { fetchGlossary } from "../../api/glossary";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
+import { useManualQueryRecovery } from "../../hooks/useManualQueryRecovery";
 import { SearchInput } from "@vrooli/react-component-library/SearchInput/1";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
@@ -14,10 +14,10 @@ export function GlossaryPanel() {
   const searchRef = useRef<HTMLInputElement>(null);
   const { debounced: debouncedSearch, isPending: debouncing } = useDebouncedValue(searchTerm, 300);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["glossary", debouncedSearch],
-    queryFn: () => fetchGlossary(debouncedSearch || undefined),
-  });
+  const search = useManualQueryRecovery(["glossary", debouncedSearch], () => fetchGlossary(debouncedSearch || undefined));
+  const { data, isLoading, isFetching, isError, refetch } = search;
+  const hasData = data !== undefined;
+  const refresh = () => { void refetch(); };
 
   const entries = data?.entries ?? [];
   const categories = Array.from(new Set(entries.map((entry) => entry.category))).sort();
@@ -56,6 +56,14 @@ export function GlossaryPanel() {
         )}
       </div>
 
+      {isFetching && !isLoading && <p role="status" className="mt-2 text-xs text-muted">Refreshing glossary…</p>}
+      {isError && <div className="mt-3 rounded-lg border border-warning/30 bg-warning-surface p-3" role="alert">
+        <p className="text-sm">The glossary service is unavailable. Your search is kept; retry when it is available.</p>
+        <Button type="button" variant="secondary" onClick={refresh} disabled={isFetching}>Retry glossary</Button>
+      </div>}
+      {!isError && hasData && <Button type="button" variant="ghost" onClick={refresh} disabled={isFetching}>Refresh results</Button>}
+      {isError && hasData && entries.length > 0 && <p role="status" className="mt-2 text-xs text-muted">Showing terms from the last successful search.</p>}
+
       {/* Results count */}
       {!isLoading && visibleEntries.length > 0 && (
         <p className="mt-3 text-xs text-muted" aria-live="polite" data-testid="glossary-count">
@@ -70,7 +78,7 @@ export function GlossaryPanel() {
             <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
             <StatusBadge className="ml-2 text-sm">{i18n.t("onboarding.glossary.loading")}</StatusBadge>
           </div>
-        ) : visibleEntries.length === 0 ? (
+        ) : hasData && visibleEntries.length === 0 && !isError ? (
           <div data-testid="glossary-empty" className="flex flex-col items-center justify-center py-12 text-muted">
             <BookOpen className="h-8 w-8" aria-hidden="true" />
             <p className="mt-3 text-sm font-medium">{i18n.t("onboarding.glossary.emptyHeading")}</p>
@@ -92,7 +100,7 @@ export function GlossaryPanel() {
               </p>
             )}
           </div>
-        ) : (
+        ) : hasData && visibleEntries.length > 0 ? (
           <dl data-testid="glossary-list" className="glossary-list">
             {visibleEntries.map((entry) => (
               <div
@@ -112,7 +120,7 @@ export function GlossaryPanel() {
               </div>
             ))}
           </dl>
-        )}
+        ) : null}
       </div>
     </div>
   );

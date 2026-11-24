@@ -160,6 +160,7 @@ def masked_edit(
     max_edge: int = DEFAULT_MAX_EDGE,
     full_frame: bool = False,
     provenance: Optional[dict] = None,
+    lora_specs=(),
 ) -> dict:
     import numpy as np
 
@@ -191,7 +192,8 @@ def masked_edit(
         params = params._replace(width=plan.infer_size[0], height=plan.infer_size[1])
 
     generated, receipt = _diffusers.run_family_images(
-        family=family, model_dir=model_dir, images=[crop], params=params, op="masked_edit", started=started
+        family=family, model_dir=model_dir, images=[crop], params=params, op="masked_edit", started=started,
+        lora_specs=lora_specs,
     )
     x0, y0, x1, y1 = box
     alpha = blend_alpha(grown[y0:y1, x0:x1], feather_px)
@@ -251,6 +253,7 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--crop-context-pixels", type=int, default=0, help="source pixels of context around the mask (0 = automatic)")
     p.add_argument("--crop-max-edge-px", type=int, default=DEFAULT_MAX_EDGE, help="largest edge of the model input")
     p.add_argument("--full-frame", action="store_true", help="edit the whole frame and paste back through the mask (no crop)")
+    p.add_argument("--lora", action="append", default=[], help="conditioning LoRA as <path>:<scale> (repeatable)")
     return _common.parse_device_args(p)
 
 
@@ -286,6 +289,7 @@ def main() -> None:
             max_edge=args.crop_max_edge_px,
             full_frame=args.full_frame,
             provenance=provenance,
+            lora_specs=args.lora,
         )
     except ValueError as exc:
         _common.fail(str(exc), code=2)

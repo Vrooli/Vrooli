@@ -424,6 +424,33 @@ func DecodeMaskCompositeParams(m map[string]string) (MaskCompositeParams, error)
 	return out, nil
 }
 
+// FaceRestoreParams is the typed view of this operation's parameter object.
+type FaceRestoreParams struct {
+	Fidelity       *float64 `json:"fidelity,omitempty"`
+	ScoreThreshold *float64 `json:"score_threshold,omitempty"`
+}
+
+// DecodeFaceRestoreParams turns the persisted string map into a typed view of the "face_restore"
+// parameters. It fails closed on a value that no longer parses.
+func DecodeFaceRestoreParams(m map[string]string) (FaceRestoreParams, error) {
+	var out FaceRestoreParams
+	if raw, ok := m["fidelity"]; ok && raw != "" {
+		v, err := strconv.ParseFloat(raw, float64Bits)
+		if err != nil {
+			return out, fmt.Errorf("face_restore: fidelity: %w", err)
+		}
+		out.Fidelity = &v
+	}
+	if raw, ok := m["score_threshold"]; ok && raw != "" {
+		v, err := strconv.ParseFloat(raw, float64Bits)
+		if err != nil {
+			return out, fmt.Errorf("face_restore: score_threshold: %w", err)
+		}
+		out.ScoreThreshold = &v
+	}
+	return out, nil
+}
+
 // SegmentParamsSegmentationBox is the typed view of this operation's parameter object.
 type SegmentParamsSegmentationBox struct {
 	Height float64 `json:"height"`

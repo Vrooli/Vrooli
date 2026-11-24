@@ -103,7 +103,7 @@ type DerivedTechnique struct {
 var baseDiffusionTechniques = []DerivedTechnique{
 	{Op: "edit_instruct", Technique: "edit-via-img2img", Caveat: "derived: probabilistic edit via low-strength img2img; not identity-preserving like a true instruction-edit model"},
 	{Op: "image_to_image", Technique: "sd-img2img", Ready: true, Caveat: "derived: img2img on a base checkpoint is a first-class use; results follow the checkpoint's style"},
-	{Op: "inpaint", Technique: "diffusers-inpaint", Ready: true, Caveat: "derived: a base checkpoint inpaints via the standard pipeline; a dedicated *-inpainting model blends masked edges more cleanly"},
+	{Op: "inpaint", Technique: "diffusers-inpaint", Ready: true, Caveat: "derived: a base checkpoint inpaints via the standard pipeline; a dedicated *-inpainting model blends masked edges more cleanly. Measured 2026-11-23: for replacing a whole garment or removing most clothing, prefer edit_instruct (text-only) — masked full-strength regenerate produced incoherent anatomy on 7 of 8 measured cases, while the instruction edit kept identity 0.95 and pose within 3 px. Inpaint remains right for small objects and backgrounds."},
 	{Op: "outpaint", Technique: "diffusers-outpaint", Caveat: "derived: outpaint = expand-canvas + inpaint on a base checkpoint; new borders may need a refine pass"},
 }
 

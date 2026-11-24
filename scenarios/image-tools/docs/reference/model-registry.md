@@ -707,6 +707,12 @@ The registry's `blocklist[]` carries two kinds of entry (`gate`):
 | **libpHash** | dup_detect | GPL-3.0 | license — distributed binaries only |
 | **tuotoo/qrcode** | qr_barcode | GPL-3.0 | license — distributed binaries only |
 
+## Conditioning adapters and operation parameters
+
+- **LoRA on unified families.** `edit_instruct` and the masked instruction edit accept a LoRA stack (`--lora <adapter-id>[:scale]`) on `flux-2-klein`, `flux-1-kontext` and `qwen-image-edit-plus`. The sidecar fuses the adapters before any CPU offload, so they travel with the denoiser on both the staged and non-staged paths. ControlNet and IP-Adapter are still refused on those families (they are implemented only for the base-checkpoint pipeline); the refusal is explicit, never a silent drop. The community Klein NSFW LoRAs are trained for the 9B base and do not load on the 4B; no 4B NSFW LoRA was found.
+- **`face_restore` knobs.** `--op-params '{"fidelity":0.9,"score_threshold":0.45}'` sets CodeFormer's identity/restoration balance and the detector threshold. The 0.5 default restores more but changed identity to 0.61 on the measured faces; 0.9 kept 0.85–0.91 while roughly doubling eye-band sharpness. The **Portrait Detail** Look pins 0.9.
+- **Preset explain.** `ai pose-generate --explain` expands the preset to the operation it runs (`text_to_image`) and names its standing adapters, so the dry-run surface reports the real route. The submit path already did this; the explain path now matches it.
+
 ## Keeping this current
 
 - **Per-model updates:** follow each entry's `update_source` (HF model card or GitHub releases).

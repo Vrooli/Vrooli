@@ -186,22 +186,16 @@ func (s *Server) admitApply(ctx context.Context, request applydomain.StartReques
 	// apply may advance the operator-state revision while the client is
 	// waiting for its response; that must not turn a lost-response retry into
 	// a false stale-plan rejection.
-	if data, readErr := os.ReadFile(path); readErr == nil {
-		var admission applyAdmissionRecord
-		if err := json.Unmarshal(data, &admission); err != nil {
-			return applydomain.Plan{}, applyReviewRecord{}, nil, errors.New("idempotency record is corrupt")
-		}
-		if admission.PlanDigest != request.PlanDigest || (admission.PlanID != "" && admission.PlanID != request.PlanID) || (admission.Target != "" && admission.Target != request.Target) || admission.ActorSource != actorSource || admission.ActorSubject != actorSubject {
-			return applydomain.Plan{}, applyReviewRecord{}, nil, errors.New("idempotency key was already used for different apply input")
-		}
-		run, runErr := applyRunSnapshot(admission.RunID)
-		if runErr {
-			return applydomain.Plan{}, applyReviewRecord{}, &run, nil
-		}
-		return applydomain.Plan{}, applyReviewRecord{}, nil, errors.New("idempotency record points to a missing apply run")
+	if run, found, err := loadExistingApplyAdmission(path, request, actorSource, actorSubject); err != nil {
+		return applydomain.Plan{}, applyReviewRecord{}, nil, err
+	} else if found {
+		return applydomain.Plan{}, applyReviewRecord{}, &run, nil
 	}
 	plan, err := s.buildCurrentApplyPlan(ctx, request.Target)
 	if err != nil {
+		return applydomain.Plan{}, applyReviewRecord{}, nil, err
+	}
+	if err := checkApplyReplayEligibility(plan.Target, plan.Items); err != nil {
 		return applydomain.Plan{}, applyReviewRecord{}, nil, err
 	}
 	if request.PlanID != plan.PlanID || request.PlanDigest != plan.Digest || request.ExpectedRevision != plan.Revision {
@@ -228,6 +222,38 @@ func (s *Server) admitApply(ctx context.Context, request applydomain.StartReques
 	if review.ProfileConsequenceDigest != currentProfileDigest {
 		return applydomain.Plan{}, applyReviewRecord{}, nil, errors.New("consent receipt is stale because the onboarding profile consequences changed; review the apply plan again")
 	}
+	return s.publishApplyAdmission(ctx, path, request, plan, review, actorSource, actorSubject)
+}
+
+// loadExistingApplyAdmission resolves an accepted idempotency key before the
+// current plan is rebuilt. A missing record starts a new admission; all other
+// read errors stop the transaction instead of being mistaken for absence.
+func loadExistingApplyAdmission(path string, request applydomain.StartRequest, actorSource, actorSubject string) (applyRun, bool, error) {
+	data, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return applyRun{}, false, nil
+	}
+	if err != nil {
+		return applyRun{}, false, fmt.Errorf("read apply admission: %w", err)
+	}
+	var admission applyAdmissionRecord
+	if err := json.Unmarshal(data, &admission); err != nil {
+		return applyRun{}, false, errors.New("idempotency record is corrupt")
+	}
+	if admission.PlanDigest != request.PlanDigest || (admission.PlanID != "" && admission.PlanID != request.PlanID) || (admission.Target != "" && admission.Target != request.Target) || admission.ActorSource != actorSource || admission.ActorSubject != actorSubject {
+		return applyRun{}, false, errors.New("idempotency key was already used for different apply input")
+	}
+	run, ok := applyRunSnapshot(admission.RunID)
+	if !ok {
+		return applyRun{}, false, errors.New("idempotency record points to a missing apply run")
+	}
+	return run, true, nil
+}
+
+// publishApplyAdmission owns the durable write order after the plan, receipt,
+// and actor have been validated. The consent reservation makes retries recover
+// the same operation if run publication is interrupted.
+func (s *Server) publishApplyAdmission(ctx context.Context, path string, request applydomain.StartRequest, plan applydomain.Plan, review applyReviewRecord, actorSource, actorSubject string) (applydomain.Plan, applyReviewRecord, *applyRun, error) {
 	// A retry with the same owner operation identity can finish an interrupted
 	// admission. The receipt is consumed before the run is published so a
 	// crash cannot let a second operation reuse the same consent. The operation

@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	clitest "github.com/vrooli/cli-core/cliapptest"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+	credentialsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/credentials/credentialsv1connect"
 )
 
 func TestRegisterExposesSafeCredentialCommands(t *testing.T) {
@@ -121,5 +122,52 @@ func TestListDoctorAndProvisionUseSafeTransport(t *testing.T) {
 	}
 	if !strings.Contains(provisionBody, "secret-from-stdin") {
 		t.Fatalf("stdin value was not submitted: %q", provisionBody)
+	}
+}
+
+func TestManifestProvisionUsesSharedCredentialFlow(t *testing.T) {
+	var requestBody string
+	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != credentialsconnect.CredentialsServiceProvisionCredentialProcedure {
+			http.NotFound(w, r)
+			return
+		}
+		body, _ := io.ReadAll(r.Body)
+		requestBody = string(body)
+		_, _ = w.Write([]byte(`{"status":"provisioned","logicalId":"demo","field":"value"}`))
+	}))
+	oldStdin := os.Stdin
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = writer.WriteString("manifest-secret-from-stdin\n")
+	_ = writer.Close()
+	os.Stdin = reader
+	t.Cleanup(func() { os.Stdin = oldStdin; _ = reader.Close() })
+	var output bytes.Buffer
+	ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
+		Core: core,
+		Schema: cliapp.ArgSchema{Flags: []cliapp.Flag{
+			{Name: "logical-id"},
+			{Name: "field"},
+		}},
+		Flags:  map[string]string{"logical-id": " demo "},
+		Stdout: &output,
+	})
+	handler := ManifestHandlers(core)["CredentialsService.ProvisionCredential"]
+	if err := handler.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"target":"local"`, `"logicalId":"demo"`, `"field":"value"`, `"value":"manifest-secret-from-stdin"`} {
+		if !strings.Contains(requestBody, want) {
+			t.Errorf("provision request = %q, want %q", requestBody, want)
+		}
+	}
+	if strings.Contains(output.String(), "manifest-secret-from-stdin") {
+		t.Fatalf("provision output exposed submitted secret: %q", output.String())
+	}
+	if !strings.Contains(output.String(), "Credential provisioned") {
+		t.Fatalf("provision output = %q, want a non-secret success report", output.String())
 	}
 }

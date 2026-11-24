@@ -1,5 +1,7 @@
 // [REQ:REQ-P0-003] Wizard State Management
-import { renderHook, act, waitFor } from "../test-utils";
+import { renderHook as renderHookBase, act, waitFor } from "../test-utils";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import React from "react";
 import { vi } from "vitest";
 
 vi.mock("../api/session", () => ({
@@ -16,11 +18,31 @@ vi.mock("../api/operatorstate", () => ({
 vi.mock("../api/selection", () => ({
   acceptRecommendation: vi.fn(),
 }));
+vi.mock("../api/host", () => ({
+  writeHostSafeguardPermission: vi.fn().mockResolvedValue({}),
+  writeHostToolPermission: vi.fn().mockResolvedValue({}),
+}));
+vi.mock("../api/coreAuthority", () => ({
+  readCoreAuthority: vi.fn().mockResolvedValue({ revision: "core-r1", authority: { seed: [], trusted_base: [], important: [] } }),
+  writeCoreAuthority: vi.fn().mockResolvedValue({ id: "receipt", resultRevision: "core-r2" }),
+}));
 
 import { useWizardState } from "./useWizardState";
 import { advanceSessionStep, fetchProfileSession, fetchSession, fetchStepModel, saveProfileSession } from "../api/session";
 import { fetchOperatorState, saveOperatorStateAtRevision } from "../api/operatorstate";
 import { acceptRecommendation as acceptRecommendationRequest } from "../api/selection";
+import { writeHostSafeguardPermission, writeHostToolPermission } from "../api/host";
+import { readCoreAuthority, writeCoreAuthority } from "../api/coreAuthority";
+
+function renderHook<T>(callback: () => T, options?: Parameters<typeof renderHookBase>[1]) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const inner = options?.wrapper;
+  const Wrapper = ({ children }: { children: React.ReactNode }) => {
+    const content = inner ? React.createElement(inner, null, children) : children;
+    return <QueryClientProvider client={client}>{content}</QueryClientProvider>;
+  };
+  return renderHookBase(callback, { ...options, wrapper: Wrapper });
+}
 import { create } from "@bufbuild/protobuf";
 import {
   GetSessionResponseSchema,
@@ -69,6 +91,10 @@ describe("useWizardState", () => {
     vi.mocked(fetchOperatorState).mockResolvedValue(testAPIResponse);
     vi.mocked(saveOperatorStateAtRevision).mockResolvedValue(testAPIResponse);
     vi.mocked(acceptRecommendationRequest).mockResolvedValue({ firstUnsatisfiedStep: 2 } as never);
+    vi.mocked(writeHostSafeguardPermission).mockResolvedValue({} as never);
+    vi.mocked(writeHostToolPermission).mockResolvedValue({} as never);
+    vi.mocked(readCoreAuthority).mockResolvedValue({ revision: "core-r1", authority: { seed: [], trusted_base: [], important: [] } });
+    vi.mocked(writeCoreAuthority).mockResolvedValue({ id: "receipt", expectedRevision: "core-r1", resultRevision: "core-r2", idempotencyKey: "request", outcome: "applied" });
     // Default: no saved progress
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -213,6 +239,59 @@ describe("useWizardState", () => {
     expect(result.current.operatorStateSaveState).toBe("saved");
   });
 
+  it("restores a persisted scenario after reload and rebases a revision conflict against the latest owner state", async () => {
+    const persistedAfterRestart = {
+      ...testAPIResponse,
+      version: "1.3.0",
+      updatedAt: "",
+      scenarios: { "hello-python": { enabled: true } },
+    };
+    vi.mocked(fetchOperatorState).mockResolvedValueOnce(persistedAfterRestart);
+    vi.mocked(saveOperatorStateAtRevision).mockRejectedValueOnce(new Error("revision conflict"));
+
+    const { result } = renderHook(() => useWizardState());
+    await waitForStepModel(result);
+    await waitFor(() => expect(result.current.selectedScenarios.has("hello-python")).toBe(true));
+
+    // The restarted service has restored the durable selection. A concurrent
+    // owner write advances its revision after this client reads it.
+    act(() => result.current.toggleScenario("hello-python"));
+    await waitFor(() => expect(result.current.operatorStateSaveState).toBe("conflict"));
+    expect(saveOperatorStateAtRevision).toHaveBeenLastCalledWith(
+      { scenarios: { "hello-python": { enabled: false } } },
+      "1.3.0",
+      "local",
+    );
+
+    const latestOwnerState = {
+      ...persistedAfterRestart,
+      updatedAt: "2026-11-22T19:00:00Z",
+      scenarios: {
+        "hello-python": { enabled: true },
+        "other-client-choice": { enabled: true },
+      },
+    };
+    vi.mocked(fetchOperatorState).mockResolvedValueOnce(latestOwnerState);
+    vi.mocked(saveOperatorStateAtRevision).mockResolvedValueOnce({
+      ...latestOwnerState,
+      updatedAt: "2026-11-22T19:00:01Z",
+      scenarios: {
+        "hello-python": { enabled: false },
+        "other-client-choice": { enabled: true },
+      },
+    });
+
+    await act(async () => { await result.current.retryOperatorStateSave(); });
+    expect(saveOperatorStateAtRevision).toHaveBeenLastCalledWith(
+      { scenarios: { "hello-python": { enabled: false } } },
+      "2026-11-22T19:00:00Z",
+      "local",
+    );
+    expect(result.current.selectedScenarios.has("hello-python")).toBe(false);
+    expect(result.current.selectedScenarios.has("other-client-choice")).toBe(true);
+    expect(result.current.operatorStateSaveState).toBe("saved");
+  });
+
   it("persists each owned choice through the revision-aware writer", async () => {
     const { result } = renderHook(() => useWizardState());
     await waitForStepModel(result);
@@ -224,17 +303,85 @@ describe("useWizardState", () => {
       result.current.setHostConfig("host_safeguards", "safe", { mode: "guard" });
       result.current.setResourceEnabled("postgres", true);
     });
-    await waitFor(() => expect(saveOperatorStateAtRevision).toHaveBeenCalledTimes(6));
+    await waitFor(() => expect(saveOperatorStateAtRevision).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(writeCoreAuthority).toHaveBeenCalledWith(
+      { seed: ["alpha", "zeta"], trusted_base: [], important: [], members: [] }, "core-r1", expect.any(String), "local",
+    ));
+    await waitFor(() => expect(writeHostSafeguardPermission).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(writeHostToolPermission).toHaveBeenCalledWith("git", true, "local"));
+    expect(writeHostSafeguardPermission).toHaveBeenNthCalledWith(1, "safe", { opted_in: true }, "local");
+    expect(writeHostSafeguardPermission).toHaveBeenNthCalledWith(2, "safe", { config: { mode: "guard" } }, "local");
     const saveMock = vi.mocked(saveOperatorStateAtRevision);
     const firstPatch = saveMock.mock.calls[0]?.[0];
-    const finalPatch = saveMock.mock.calls[5]?.[0];
+    const finalPatch = saveMock.mock.calls[1]?.[0];
     expect(firstPatch).toMatchObject({ scenarios: { "scenario-a": { autoRestart: true } } });
     expect(finalPatch).toMatchObject({
-      core: { seed: ["alpha", "zeta"], trustedBase: [] },
-      hostTools: { git: { optedIn: true } },
-      hostSafeguards: { safe: { config: { mode: "guard" } } },
       resources: { postgres: { enabled: true } },
     });
+  });
+
+  it("retries an ambiguous core write with the same idempotency key and reads back OperatorState", async () => {
+    vi.mocked(writeCoreAuthority).mockRejectedValueOnce(new Error("network unavailable"));
+    const { result } = renderHook(() => useWizardState());
+    await waitForStepModel(result);
+    act(() => result.current.setCoreSeed(["beta", "alpha", "alpha"]));
+    await waitFor(() => expect(result.current.operatorStateSaveState).toBe("failed"));
+    const [authority, revision, key, target] = vi.mocked(writeCoreAuthority).mock.calls[0]!;
+    vi.mocked(fetchOperatorState).mockResolvedValueOnce({ ...testAPIResponse, core: { seed: ["alpha", "beta"], trustedBase: ["alpha"] } });
+    await act(async () => { await result.current.retryOperatorStateSave(); });
+    expect(writeCoreAuthority).toHaveBeenLastCalledWith(authority, revision, key, target);
+    expect(fetchOperatorState).toHaveBeenCalledTimes(2);
+    expect(result.current.operatorState?.core).toEqual({ seed: ["alpha", "beta"], trustedBase: ["alpha"] });
+    expect(result.current.operatorStateSaveState).toBe("saved");
+  });
+
+  it("saves and retries first profile answers against the default schema revision", async () => {
+    vi.mocked(fetchOperatorState).mockResolvedValue({ ...testAPIResponse, updatedAt: "", version: "1.0.0" });
+    vi.mocked(saveProfileSession)
+      .mockRejectedValueOnce(new Error("temporary network failure"))
+      .mockResolvedValueOnce({
+        target: "local", actor: "test", mode: "guided", profileId: "local-use",
+        baseRevision: "1.0.0", answers: { purpose: "use-local-apps" }, manualDecisions: {},
+        targetContext: {}, revision: "2026-11-22T12:00:00Z",
+      });
+    const { result } = renderHook(() => useWizardState());
+    await waitForStepModel(result);
+    const draft = {
+      target: "local", mode: "guided" as const, profileId: "local-use",
+      baseRevision: "", answers: { purpose: "use-local-apps" }, manualDecisions: {}, targetContext: {},
+    };
+
+    act(() => result.current.persistProfileSession(draft));
+    await waitFor(() => expect(result.current.profileSessionSaveState).toBe("failed"));
+    expect(result.current.profileSessionError).toMatch(/remain in this tab but are not saved/i);
+    expect(vi.mocked(saveProfileSession).mock.calls[0]?.[0]).toMatchObject({
+      baseRevision: "1.0.0", expectedRevision: "1.0.0", answers: { purpose: "use-local-apps" },
+    });
+
+    await act(async () => { await result.current.retryProfileSessionSave(); });
+    expect(vi.mocked(saveProfileSession)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(saveProfileSession).mock.calls[1]?.[0]).toMatchObject({
+      baseRevision: "1.0.0", expectedRevision: "1.0.0", answers: { purpose: "use-local-apps" },
+    });
+    expect(result.current.profileSession?.answers).toEqual({ purpose: "use-local-apps" });
+    expect(result.current.profileSessionSaveState).toBe("saved");
+  });
+
+  it("retains the core request identity when the initial permission read fails", async () => {
+    vi.mocked(readCoreAuthority).mockRejectedValueOnce(new Error("read unavailable"));
+    const { result } = renderHook(() => useWizardState());
+    await waitForStepModel(result);
+    act(() => result.current.setCoreSeed(["beta", "alpha"]));
+    await waitFor(() => expect(result.current.operatorStateSaveState).toBe("failed"));
+    expect(result.current.operatorState?.core?.seed).toEqual(["alpha", "beta"]);
+    expect(writeCoreAuthority).not.toHaveBeenCalled();
+
+    await act(async () => { await result.current.retryOperatorStateSave(); });
+    expect(readCoreAuthority).toHaveBeenCalledTimes(3);
+    expect(writeCoreAuthority).toHaveBeenCalledWith(
+      { seed: ["alpha", "beta"], trusted_base: [], important: [], members: [] }, "core-r1", expect.any(String), "local",
+    );
+    expect(result.current.operatorStateSaveState).toBe("saved");
   });
 
   it("uses the accepted recommendation step and exposes the plan as accepted", async () => {
@@ -244,6 +391,21 @@ describe("useWizardState", () => {
     expect(acceptRecommendationRequest).toHaveBeenCalledWith("local", "balanced", ["demo"]);
     expect(result.current.planAccepted).toBe(true);
     expect(result.current.currentStep).toBe(2);
+  });
+
+  it("honors accepted step zero over a stale session step without rereading the session", async () => {
+    vi.mocked(fetchSession).mockResolvedValue(create(GetSessionResponseSchema, { firstUnsatisfiedStep: 4, completion: false }) as unknown as Awaited<ReturnType<typeof fetchSession>>);
+    vi.mocked(acceptRecommendationRequest).mockResolvedValue({ firstUnsatisfiedStep: 0 } as never);
+
+    const { result } = renderHook(() => useWizardState());
+    await waitForStepModel(result);
+    await waitFor(() => expect(result.current.currentStep).toBe(4));
+    const sessionReads = vi.mocked(fetchSession).mock.calls.length;
+
+    await act(async () => { await result.current.acceptRecommendation("balanced", ["demo"]); });
+
+    expect(result.current.currentStep).toBe(0);
+    expect(fetchSession).toHaveBeenCalledTimes(sessionReads);
   });
 
   it("keeps a generic save failure retryable when the rebase load also fails", async () => {

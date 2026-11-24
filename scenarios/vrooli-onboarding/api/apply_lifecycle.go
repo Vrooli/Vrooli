@@ -13,6 +13,7 @@ const (
 	applyItemFailed           applyItemOutcome = "failed"
 	applyItemTimedOut         applyItemOutcome = "timed_out"
 	applyItemNeedsElevation   applyItemOutcome = "needs_elevation"
+	applyItemIndeterminate    applyItemOutcome = "indeterminate"
 	applyItemNotApplicable    applyItemOutcome = "not_applicable"
 	applyItemSkippedSelf      applyItemOutcome = "skipped_self"
 )
@@ -23,7 +24,7 @@ var applyItemOutcomeTransitions = map[applyItemOutcome]map[applyItemOutcome]stru
 		applyItemNotApplicable: {}, applyItemSkippedSelf: {},
 	},
 	applyItemApplying: {
-		applyItemApplied: {}, applyItemFailed: {}, applyItemTimedOut: {}, applyItemNeedsElevation: {},
+		applyItemApplied: {}, applyItemFailed: {}, applyItemTimedOut: {}, applyItemNeedsElevation: {}, applyItemIndeterminate: {},
 	},
 	applyItemApplied:          {},
 	applyItemAlreadySatisfied: {},
@@ -31,6 +32,7 @@ var applyItemOutcomeTransitions = map[applyItemOutcome]map[applyItemOutcome]stru
 	applyItemFailed:           {},
 	applyItemTimedOut:         {},
 	applyItemNeedsElevation:   {},
+	applyItemIndeterminate:    {},
 	applyItemNotApplicable:    {},
 	applyItemSkippedSelf:      {},
 }

@@ -43,14 +43,38 @@ var configurationDescriptors = []*glossaryv1.ConfigurationDescriptor{
 func Search(_ context.Context, query string) (*glossaryv1.SearchGlossaryResponse, error) {
 	q := strings.ToLower(strings.TrimSpace(query))
 	result := &glossaryv1.SearchGlossaryResponse{Entries: []*glossaryv1.GlossaryEntry{}, Query: q}
+	type rankedEntry struct {
+		entry *glossaryv1.GlossaryEntry
+		score int
+	}
+	ranked := make([]rankedEntry, 0, len(entries))
 	for _, entry := range entries {
 		if q == "" || strings.Contains(strings.ToLower(entry.GetTerm()), q) || strings.Contains(strings.ToLower(entry.GetDescription()), q) {
 			copy := *entry
-			result.Entries = append(result.Entries, &copy)
+			ranked = append(ranked, rankedEntry{entry: &copy, score: glossaryScore(entry, q)})
 		}
+	}
+	sort.SliceStable(ranked, func(i, j int) bool { return ranked[i].score > ranked[j].score })
+	for _, match := range ranked {
+		result.Entries = append(result.Entries, match.entry)
 	}
 	result.Count = int32(len(result.Entries))
 	return result, nil
+}
+
+func glossaryScore(entry *glossaryv1.GlossaryEntry, query string) int {
+	if query == "" {
+		return 0
+	}
+	term := strings.ToLower(entry.GetTerm())
+	switch {
+	case term == query:
+		return 3
+	case strings.HasPrefix(term, query):
+		return 2
+	default:
+		return 1
+	}
 }
 
 func SearchConfiguration(_ context.Context, query, target string) (*glossaryv1.SearchConfigurationResponse, error) {

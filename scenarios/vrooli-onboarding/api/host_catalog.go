@@ -33,6 +33,8 @@ type hostRequirementsResponse struct {
 	Safeguards []hostItem `json:"safeguards"`
 }
 
+type hostManifestCatalog map[string][]byte
+
 func loadHostRequirements(path string) ([]hostRequirement, []hostRequirement, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -62,40 +64,91 @@ func mergeHostRequirements(target map[string]hostRequirement, source []hostRequi
 	}
 }
 
-func hostManifest(root, kind, name string) ([]byte, error) {
-	entries, err := os.ReadDir(filepath.Join(root, "internal", kind))
+func readHostManifestDirectory(root, kind string, readDir func(string) ([]os.DirEntry, error)) (string, []os.DirEntry, error) {
+	directory := filepath.Join(root, "internal", kind)
+	entries, err := readDir(directory)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, &catalogUnavailableError{Missing: filepath.ToSlash(filepath.Join("catalog", "internal", kind)), Remediation: "rebuild the bundle with the tool and safeguard catalogs, then restart onboarding"}
+			return "", nil, &catalogUnavailableError{Missing: filepath.ToSlash(filepath.Join("catalog", "internal", kind)), Remediation: "rebuild the bundle with the tool and safeguard catalogs, then restart onboarding"}
 		}
+		return "", nil, err
+	}
+	return directory, entries, nil
+}
+
+func hostManifestIdentity(data []byte) (string, bool) {
+	var identity struct {
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(data, &identity); err != nil || identity.Name == "" {
+		return "", false
+	}
+	return identity.Name, true
+}
+
+func scanHostManifestCatalog(root, kind string, wanted map[string]struct{}, readDir func(string) ([]os.DirEntry, error), readFile func(string) ([]byte, error)) (hostManifestCatalog, error) {
+	directory, entries, err := readHostManifestDirectory(root, kind, readDir)
+	if err != nil {
 		return nil, err
 	}
 	fileName := strings.TrimSuffix(kind, "s") + ".json"
+	catalog := make(hostManifestCatalog, len(entries))
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
 		}
-		path := filepath.Join(root, "internal", kind, entry.Name(), fileName)
-		data, readErr := os.ReadFile(path)
+		path := filepath.Join(directory, entry.Name(), fileName)
+		data, readErr := readFile(path)
 		if readErr != nil {
 			continue
 		}
-		var identity struct {
-			Name string `json:"name"`
+		if name, valid := hostManifestIdentity(data); valid {
+			// os.ReadDir sorts entries by name. Keep the first matching manifest,
+			// preserving the prior lookup behavior for duplicate identities.
+			if _, requested := wanted[name]; requested {
+				catalog[name] = data
+				delete(wanted, name)
+				if len(wanted) == 0 {
+					return catalog, nil
+				}
+			}
 		}
-		if json.Unmarshal(data, &identity) == nil && identity.Name == name {
-			return data, nil
-		}
+	}
+	return catalog, nil
+}
+
+func hostManifest(root, kind, name string) ([]byte, error) {
+	catalog, err := scanHostManifestCatalog(root, kind, map[string]struct{}{name: {}}, os.ReadDir, os.ReadFile)
+	if err != nil {
+		return nil, err
+	}
+	if data, ok := catalog[name]; ok {
+		return data, nil
 	}
 	return nil, fmt.Errorf("%s manifest for %q not found", strings.TrimSuffix(kind, "s"), name)
 }
 
 func hostItems(root, kind string, requirements map[string]hostRequirement, choices map[string]OptInChoice) ([]hostItem, error) {
+	return hostItemsWithIO(root, kind, requirements, choices, os.ReadDir, os.ReadFile)
+}
+
+func hostItemsWithIO(root, kind string, requirements map[string]hostRequirement, choices map[string]OptInChoice, readDir func(string) ([]os.DirEntry, error), readFile func(string) ([]byte, error)) ([]hostItem, error) {
+	if len(requirements) == 0 {
+		return []hostItem{}, nil
+	}
+	wanted := make(map[string]struct{}, len(requirements))
+	for name := range requirements {
+		wanted[name] = struct{}{}
+	}
+	catalog, err := scanHostManifestCatalog(root, kind, wanted, readDir, readFile)
+	if err != nil {
+		return nil, err
+	}
 	items := make([]hostItem, 0, len(requirements))
 	for name, requirement := range requirements {
-		data, err := hostManifest(root, kind, name)
-		if err != nil {
-			return nil, err
+		data, ok := catalog[name]
+		if !ok {
+			return nil, fmt.Errorf("%s manifest for %q not found", strings.TrimSuffix(kind, "s"), name)
 		}
 		var meta struct {
 			Description string         `json:"description"`

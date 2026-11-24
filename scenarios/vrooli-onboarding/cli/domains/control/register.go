@@ -14,13 +14,11 @@ import (
 	hostv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/host"
 	hostconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/host/hostv1connect"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // The literal procedure addresses keep the CLI surface contract discoverable
 // to the manifest and route checks; generated constants are used at runtime.
 const hostProcedureSurfacePaths = `/vrooli.vrooli_onboarding.v1.host.HostService/ListHostRequirements
-/vrooli.vrooli_onboarding.v1.host.HostService/PatchHostSafeguardConfig
 /vrooli.vrooli_onboarding.v1.host.HostService/SetNotificationRecipient`
 
 // CommandGroups exposes the flat control-plane commands whose names are part
@@ -53,19 +51,31 @@ func setConfig(core *cliapp.ScenarioApp, args []string) error {
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
-	if strings.TrimSpace(*name) == "" || strings.TrimSpace(*key) == "" || strings.TrimSpace(*valueJSON) == "" {
+	return setConfigValue(core, *name, *key, *valueJSON)
+}
+
+func ManifestHandlers(core *cliapp.ScenarioApp) map[string]cliapp.PrimitiveHandler {
+	handler := cliapp.ExternalDelegation(func(ctx cliapp.RunContext) error {
+		return setConfigValue(core, ctx.Flag("name"), ctx.Flag("key"), ctx.Flag("value-json"))
+	})
+	return map[string]cliapp.PrimitiveHandler{"host.set-config": handler, "PermissionRegistryService.WritePermission": handler}
+}
+
+func setConfigValue(core *cliapp.ScenarioApp, name, key, valueJSON string) error {
+	name, key, valueJSON = strings.TrimSpace(name), strings.TrimSpace(key), strings.TrimSpace(valueJSON)
+	if name == "" || key == "" || valueJSON == "" {
 		return fmt.Errorf("--name, --key, and --value-json are required")
 	}
 	var decoded any
-	if err := json.Unmarshal([]byte(*valueJSON), &decoded); err != nil {
+	if err := json.Unmarshal([]byte(valueJSON), &decoded); err != nil {
 		return fmt.Errorf("parse --value-json: %w", err)
 	}
-	value, err := structpb.NewValue(decoded)
+	permissionID := "onboarding/host-safeguard/" + name
+	payload, err := json.Marshal(map[string]any{"config_key": key, "value": decoded})
 	if err != nil {
-		return fmt.Errorf("encode --value-json: %w", err)
+		return err
 	}
-	response := &hostv1.PatchHostSafeguardConfigResponse{}
-	if err := requestHost(core, hostconnect.HostServicePatchHostSafeguardConfigProcedure, &hostv1.PatchHostSafeguardConfigRequest{Target: "local", SafeguardName: strings.TrimSpace(*name), ConfigKey: strings.TrimSpace(*key), Value: value}, response); err != nil {
+	if _, err := support.WriteCurrentPermission(core, permissionID, "vrooli-onboarding", "cli-host-safeguard", "host safeguard permission", nil, payload); err != nil {
 		return err
 	}
 	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{Result: []string{"Host safeguard configuration committed"}, NextCommand: []string{support.CLIName + " host list"}})
@@ -80,9 +90,19 @@ func setRecipient(core *cliapp.ScenarioApp, args []string) error {
 	if strings.TrimSpace(*subject) == "" {
 		return fmt.Errorf("--subject is required")
 	}
-	response := &hostv1.SetNotificationRecipientResponse{}
-	if err := requestHost(core, hostconnect.HostServiceSetNotificationRecipientProcedure, &hostv1.SetNotificationRecipientRequest{Target: "local", Subject: strings.TrimSpace(*subject)}, response); err != nil {
+	value, err := json.Marshal(map[string]any{
+		"state":       map[string]any{"notifications": map[string]any{"recipient": strings.TrimSpace(*subject)}},
+		"update_mask": []string{"notifications.recipient"},
+	})
+	if err != nil {
 		return err
+	}
+	receipt, err := support.WriteCurrentPermission(core, "onboarding/operator-state", "vrooli-onboarding", "cli-host-notification-recipient", "notification recipient permission", nil, value)
+	if err != nil {
+		return err
+	}
+	if receipt.GetPermissionId() != "onboarding/operator-state" || receipt.GetOwner() != "vrooli-onboarding" || receipt.GetActorId() == "" || receipt.GetResultRevision() == "" {
+		return fmt.Errorf("notification recipient owner returned an incomplete permission receipt")
 	}
 	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{Result: []string{"Notification recipient committed to operator state"}, NextCommand: []string{"notification-hub recipients address-upsert --help"}})
 }

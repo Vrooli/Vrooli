@@ -11,9 +11,14 @@ import (
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/nodereach"
+	hostv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/host"
+	hostconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/host/hostv1connect"
 	operatorinputsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/operatorinputs"
 	operatorinputsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/operatorinputs/operatorinputsv1connect"
+	hosthandler "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/handlers/host"
+	hostdomain "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/host"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type fakeReacher struct {
@@ -110,6 +115,74 @@ func TestInterceptorDoesNotTreatPersonalLocalPeerAsRemoteAuthority(t *testing.T)
 	}
 	if reacher.request.Procedure != "" {
 		t.Fatalf("unauthorized remote call reached Bridge: %q", reacher.request.Procedure)
+	}
+}
+
+func TestRemoteHostMutationsFailClosedBeforeBridgeDispatch(t *testing.T) {
+	mutationCalls := 0
+	service := hostdomain.Service{
+		PatchSafeguardConfigFn: func(context.Context, string, string, string, any) error {
+			mutationCalls++
+			return nil
+		},
+		SetNotificationRecipient: func(context.Context, string, string) error {
+			mutationCalls++
+			return nil
+		},
+	}
+	readResponse, err := proto.Marshal(&hostv1.ListHostRequirementsResponse{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reacher := &fakeReacher{result: readResponse}
+	path, handler := hostconnect.NewHostServiceHandler(hosthandler.NewConnectHandler(service), connect.WithInterceptors(Interceptor(reacher)))
+	if path == "" {
+		t.Fatal("host handler returned an empty path")
+	}
+	server := httptest.NewServer(handler)
+	defer server.Close()
+	client := hostconnect.NewHostServiceClient(http.DefaultClient, server.URL)
+	value, err := structpb.NewValue("enabled")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, call := range []struct {
+		name   string
+		invoke func() error
+	}{
+		{name: "safeguard", invoke: func() error {
+			_, err := client.PatchHostSafeguardConfig(context.Background(), connect.NewRequest(&hostv1.PatchHostSafeguardConfigRequest{Target: "node-1", SafeguardName: "firewall", ConfigKey: "mode", Value: value}))
+			return err
+		}},
+		{name: "notification recipient", invoke: func() error {
+			_, err := client.SetNotificationRecipient(context.Background(), connect.NewRequest(&hostv1.SetNotificationRecipientRequest{Target: "node-1", Subject: "operator@example.test"}))
+			return err
+		}},
+	} {
+		t.Run(call.name, func(t *testing.T) {
+			err := call.invoke()
+			if connect.CodeOf(err) != connect.CodeFailedPrecondition || !strings.Contains(err.Error(), "local host target") {
+				t.Fatalf("remote mutation error = %v", err)
+			}
+			if mutationCalls != 0 || reacher.request.Procedure != "" {
+				t.Fatalf("mutation calls = %d, Bridge procedure = %q", mutationCalls, reacher.request.Procedure)
+			}
+		})
+	}
+
+	if _, err := client.ListHostRequirements(context.Background(), connect.NewRequest(&hostv1.ListHostRequirementsRequest{Target: "node-1"})); err != nil {
+		t.Fatalf("remote read was unexpectedly blocked: %v", err)
+	}
+	if reacher.request.Procedure != hostconnect.HostServiceListHostRequirementsProcedure {
+		t.Fatalf("supported remote read procedure = %q", reacher.request.Procedure)
+	}
+	var forwarded hostv1.ListHostRequirementsRequest
+	if err := proto.Unmarshal(reacher.request.Body, &forwarded); err != nil {
+		t.Fatal(err)
+	}
+	if forwarded.GetTarget() != "local" {
+		t.Fatalf("remote read owner target = %q, want local", forwarded.GetTarget())
 	}
 }
 

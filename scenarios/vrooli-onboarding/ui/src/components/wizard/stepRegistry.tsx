@@ -18,7 +18,8 @@ export interface StepRegistryProps {
   selectedScenarios: Set<string>;
   operatorState: OperatorState | null;
   toggleScenario: (name: string) => void;
-  setCoreSeed: (seed: string[]) => void;
+  setCoreSeed: (seed: string[], important: { kind: "scenario" | "resource"; name: string }[], members?: { kind: "scenario" | "resource"; name: string }[], expectedRevision?: string) => void;
+  onCoreSetPendingChanges?: (pending: boolean) => void;
   setScenarioAutoRestart: (name: string, autoRestart: boolean) => void;
   setHostOptIn: (
     kind: "host_tools" | "host_safeguards",
@@ -53,20 +54,23 @@ export const stepRegistry: Record<string, StepRenderer> = {
       onToggle={toggleScenario}
     />
   ),
-  "core-set": ({ operatorState, setCoreSeed, target }) => (
+  "core-set": ({ operatorState, selectedScenarios, setCoreSeed, onCoreSetPendingChanges, target }) => (
     <StepCoreSet
       target={target}
       seed={new Set(operatorState?.core?.seed ?? [])}
       trustedBase={new Set(operatorState?.core?.trustedBase ?? [])}
+      selectedScenarios={selectedScenarios}
+      onPendingChangesChange={onCoreSetPendingChanges}
       onChange={setCoreSeed}
     />
   ),
-  resources: ({ selectedScenarios, operatorState, setResourceEnabled, target }) => (
+  resources: ({ selectedScenarios, operatorState, setResourceEnabled, setCoreSeed, target }) => (
     <DerivedResourceStep
       target={target}
       selected={selectedScenarios}
       operatorState={operatorState}
       onToggle={setResourceEnabled}
+      onTierChange={(important, members, expectedRevision) => setCoreSeed(operatorState?.core?.seed ?? [], important, members, expectedRevision)}
     />
   ),
   credentials: ({ target }) => <StepCredentials target={target} />,

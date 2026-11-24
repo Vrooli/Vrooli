@@ -1,10 +1,13 @@
-import { cleanup, fireEvent, screen } from "../../test-utils";
+import { cleanup, fireEvent, screen, waitFor } from "../../test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@vrooli/api-base/testing";
 import { WizardShell, actForStep } from "./WizardShell";
 import type { WizardStep } from "../../api/session";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 const steps: WizardStep[] = [
   { id: "welcome", ordinal: 0, title: "Welcome", route: "/", deferred: false },
@@ -103,6 +106,38 @@ describe("WizardShell", () => {
       </WizardShell>,
     );
     expect(screen.getByRole("alert")).toHaveTextContent("Conflict from another session");
+  });
+
+  it("keeps one lifecycle observer while measuring changed child content", async () => {
+    const observe = vi.spyOn(MutationObserver.prototype, "observe");
+    const disconnect = vi.spyOn(MutationObserver.prototype, "disconnect");
+    const renderShellWithChild = (child: React.ReactNode) => renderWithProviders(
+      <WizardShell currentStep={1} steps={steps} onNext={vi.fn()} onPrev={vi.fn()}>
+        {child}
+      </WizardShell>,
+    );
+    const rendered = renderShellWithChild(<div>Initial content</div>);
+    const shellObservationCount = () => observe.mock.calls.filter(([target]) =>
+      target instanceof HTMLElement && target.classList.contains("onboarding-wizard"),
+    ).length;
+    const shellObserverIndex = observe.mock.calls.findIndex(([target]) =>
+      target instanceof HTMLElement && target.classList.contains("onboarding-wizard"),
+    );
+    const shellObserver = observe.mock.contexts[shellObserverIndex];
+
+    expect(shellObservationCount()).toBe(1);
+    rendered.rerender(
+      <WizardShell currentStep={1} steps={steps} onNext={vi.fn()} onPrev={vi.fn()}>
+        <div data-rcl-selection-indicator="true">Updated content</div>
+      </WizardShell>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("wizard-shell").dataset.planEvidenceSwitchMarginBlockStart).toBeDefined();
+    });
+    expect(shellObservationCount()).toBe(1);
+    rendered.unmount();
+    expect(disconnect.mock.contexts).toContain(shellObserver);
   });
 
   it.each([

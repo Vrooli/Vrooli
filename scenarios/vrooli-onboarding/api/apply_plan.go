@@ -12,8 +12,18 @@ import (
 	"strings"
 	"time"
 
+	vroolicli "github.com/vrooli/vrooli-cli-go"
+	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 	applydomain "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/apply"
 )
+
+type applyPlanStatusReader interface {
+	ResourceHealthStatus(context.Context, string) (*cliv1.ResourceStatusResponse, error)
+	ResourceHealthStatuses(context.Context) (*cliv1.ResourceStatusesResponse, error)
+	ScenarioStatuses(context.Context) (*cliv1.ScenarioStatusListResponse, error)
+}
+
+var onboardingApplyPlanStatusReader applyPlanStatusReader = vroolicli.New()
 
 // applyPlanInput is the single input to planning. The review endpoint and the
 // executor both consume the result of buildApplyPlan; neither surface derives
@@ -50,11 +60,11 @@ func plannedRequirementState(status string, observed map[string]string, id strin
 // the control plane's read-only inspection boundary. This is the same
 // inspection the readiness endpoint performs.
 //
-// Resources and scenarios are reported as unknown. That is a cost verdict, not
-// a capability one: sampling them means a control-plane round trip per item
-// (`vrooli resource status` alone takes tens of seconds), which is too slow to
-// run before every plan render. They are the only remaining unknowns by design.
-func observeApplyStates(root string, requirements hostRequirementsResponse) map[string]string {
+// Resource and scenario states use the CLI's typed, read-only status surfaces,
+// but only for IDs in prior uncertain runs. This keeps ordinary plan rendering
+// from adding fleet probes. Missing/error rows stay unknown; only enabled
+// resources and running scenarios count as satisfied.
+func observeApplyStates(ctx context.Context, target, root string, requirements hostRequirementsResponse, closure closureResult, uncertainIDs map[string]struct{}, reader applyPlanStatusReader) map[string]string {
 	observed := map[string]string{}
 	for _, tool := range requirements.Tools {
 		observed["tool:"+tool.Name] = applyStateFromReadiness(inspectToolReadiness(tool).Status)
@@ -62,7 +72,94 @@ func observeApplyStates(root string, requirements hostRequirementsResponse) map[
 	for _, safeguard := range requirements.Safeguards {
 		observed["safeguard:"+safeguard.Name] = applyStateFromReadiness(inspectSafeguardReadiness(root, safeguard).Status)
 	}
+	if target != "local" || reader == nil {
+		return observed
+	}
+	resourceNames := make(map[string]struct{}, len(closure.Resources))
+	for _, item := range closure.Resources {
+		if _, uncertain := uncertainIDs["resource:"+item.Name]; uncertain {
+			resourceNames[item.Name] = struct{}{}
+		}
+	}
+	scenarioNames := make(map[string]struct{}, len(closure.Scenarios))
+	for _, item := range closure.Scenarios {
+		if _, uncertain := uncertainIDs["scenario:"+item.Name]; uncertain {
+			scenarioNames[item.Name] = struct{}{}
+		}
+	}
+	if len(resourceNames) == 1 {
+		for name := range resourceNames {
+			if response, err := reader.ResourceHealthStatus(ctx, name); err == nil && response.GetSuccess() && response.GetName() == name {
+				if state, ok := applyResourceState(response.GetResource(), name); ok {
+					observed["resource:"+name] = state
+				}
+			}
+		}
+	} else if len(resourceNames) > 1 {
+		if response, err := reader.ResourceHealthStatuses(ctx); err == nil && response.GetSuccess() {
+			seen := map[string]int{}
+			for _, status := range response.GetResources() {
+				name := status.GetResource().GetName()
+				if _, wanted := resourceNames[name]; !wanted || name == "" || statusDiscoveryFailed(response.GetDiscoveryFailures(), name) {
+					continue
+				}
+				seen[name]++
+				if state, ok := applyResourceState(status, name); ok {
+					observed["resource:"+name] = state
+				}
+			}
+			for name, count := range seen {
+				if count > 1 || statusDiscoveryFailed(response.GetDiscoveryFailures(), name) {
+					delete(observed, "resource:"+name)
+				}
+			}
+		}
+	}
+	if len(scenarioNames) > 0 {
+		if response, err := reader.ScenarioStatuses(ctx); err == nil && response.GetSuccess() {
+			seen := map[string]int{}
+			for _, item := range response.GetScenarios() {
+				name := item.GetName()
+				if _, wanted := scenarioNames[name]; !wanted || name == "" || statusDiscoveryFailed(response.GetDiscoveryFailures(), name) {
+					continue
+				}
+				seen[name]++
+				state := applyStateUnknown
+				switch strings.ToLower(strings.TrimSpace(item.GetStatus())) {
+				case "running":
+					state = applyStateSatisfied
+				case "stopped":
+					state = applyStatePending
+				}
+				observed["scenario:"+name] = state
+			}
+			for name, count := range seen {
+				if count > 1 {
+					delete(observed, "scenario:"+name)
+				}
+			}
+		}
+	}
 	return observed
+}
+
+func applyResourceState(status *cliv1.ResourceStatus, name string) (string, bool) {
+	if status == nil || status.GetResource() == nil || status.GetResource().GetName() != name {
+		return applyStateUnknown, false
+	}
+	if status.GetResource().GetEnabled() {
+		return applyStateSatisfied, true
+	}
+	return applyStatePending, true
+}
+
+func statusDiscoveryFailed(failures []*cliv1.DiscoveryFailure, name string) bool {
+	for _, failure := range failures {
+		if failure.GetName() == "" || failure.GetName() == name {
+			return true
+		}
+	}
+	return false
 }
 
 func applyStateFromReadiness(status string) string {
@@ -147,7 +244,8 @@ func (s *Server) buildCurrentApplyPlan(ctx context.Context, target string) (appl
 	if err != nil {
 		return applydomain.Plan{}, err
 	}
-	items := buildApplyPlan(applyPlanInput{Closure: closure, Requirements: requirements, State: state, Observed: observeApplyStates(root, requirements)})
+	uncertainIDs, _ := priorUncertainApplyItemIDs(target)
+	items := buildApplyPlan(applyPlanInput{Closure: closure, Requirements: requirements, State: state, Observed: observeApplyStates(ctx, target, root, requirements, closure, uncertainIDs, onboardingApplyPlanStatusReader)})
 	catalogDigest, err := catalogIdentity(root, models)
 	if err != nil {
 		return applydomain.Plan{}, fmt.Errorf("identify apply catalog: %w", err)
@@ -176,14 +274,17 @@ func (s *Server) getApplyPlan(ctx context.Context, target string) (applydomain.P
 // Volatile observations and completion/session pointers are intentionally
 // excluded; the plan carries those as separate, fresh metadata.
 func planDigest(target string, state OperatorState, items []applyItem, catalogDigest ...string) string {
-	// Schema is a storage annotation, not an operator choice. Older greenfield
-	// state files may omit it while the authority adds it on the first write;
-	// treating that migration as a changed apply effect would invalidate a
-	// review without changing anything the host will do.
+	// Version and schema are storage annotations, not operator choices. Older
+	// greenfield state files may omit them while the authority adds them on the
+	// first write; treating that migration as a changed apply effect would
+	// invalidate a review without changing anything the host will do.
 	state.Schema = ""
+	state.Version = ""
 	state.UpdatedAt = ""
 	state.Completion = nil
 	state.Session = nil
+	state.PermissionReceipts = nil
+	state.PermissionReceipts = nil
 	stateJSON, _ := json.Marshal(state)
 	var semantic map[string]json.RawMessage
 	_ = json.Unmarshal(stateJSON, &semantic)

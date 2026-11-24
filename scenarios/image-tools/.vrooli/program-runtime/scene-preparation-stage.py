@@ -4,22 +4,23 @@ import hashlib
 import uuid
 
 inputs = program.inputs()
-envelope = program.envelope("image-tools.scene-preparation-stage", "1")
+envelope = program.envelope("image-tools.scene-preparation-stage", "2")
 action = inputs.get("action", "")
 operation = inputs.get("operation", "")
 operation_id = inputs.get("operation_id", "")
 job_id = inputs.get("job_id", "")
+job_limit = inputs.get("job_limit", 10)
 params = inputs.get("params", {})
 request = inputs.get("request", {})
 preparation_id = inputs.get("preparation_id", "")
 # Keep the envelope bounded and avoid copying image prompts into reports.
 envelope["inputs"] = {"action": action, "operation": operation,
-                      "operation_id": operation_id, "job_id": job_id}
+                      "operation_id": operation_id, "job_id": job_id, "job_limit": job_limit}
 
 
 
 def step_validate():
-    if action not in ("submit", "observe", "cancel", "assemble", "inspect-preparation", "review", "assess-repair", "import-scene"):
+    if action not in ("submit", "observe", "cancel", "assemble", "inspect-preparation", "review", "assess-repair", "import-scene", "inspect-jobs"):
         return program.fail("failed", "invalid_input", "unsupported preparation action", "validate")
     if action == "submit":
         if operation not in ("segment", "scene_geometry", "object_removal", "inpaint", "image_to_object"):
@@ -75,6 +76,11 @@ def step_validate():
     elif action == "inspect-preparation":
         if not isinstance(preparation_id, str) or len(preparation_id) != 64 or any(c not in "0123456789abcdef" for c in preparation_id):
             return program.fail("failed", "invalid_input", "inspect-preparation requires an immutable SHA256 identity", "validate")
+    elif action == "inspect-jobs":
+        if not isinstance(job_id, str) or not job_id.strip() or len(job_id) > 128:
+            return program.fail("failed", "invalid_input", "inspect-jobs requires the exact retained job_id", "validate")
+        if not isinstance(job_limit, int) or isinstance(job_limit, bool) or not 1 <= job_limit <= 20:
+            return program.fail("failed", "invalid_input", "job_limit must be an integer from 1 to 20", "validate")
     elif not isinstance(job_id, str) or not job_id or len(job_id) > 128:
         return program.fail("failed", "invalid_input", "observe and cancel require the retained job_id", "validate")
     return "act"
@@ -83,7 +89,26 @@ def step_validate():
 def step_act():
     envelope["phase"] = "act"
     try:
-        if action == "import-scene":
+        if action == "inspect-jobs":
+            current = image_tools.jobs.get(id=job_id).raw().get("job", {})
+            if current.get("id") != job_id:
+                return program.fail("failed", "owner_identity_mismatch", "owner returned a different job identity", "act")
+            recent = image_tools.jobs.list(limit=job_limit).raw().get("jobs", [])
+            safe_jobs = []
+            for item in recent[:job_limit]:
+                if not isinstance(item, dict) or not isinstance(item.get("id"), str):
+                    return program.fail("failed", "owner_identity_mismatch", "owner returned malformed recent job metadata", "act")
+                safe_jobs.append({"id": item["id"], "operation": item.get("operation", ""),
+                                  "state": item.get("state", "JOB_STATE_UNSPECIFIED"),
+                                  "progress": item.get("progress", 0), "created_at": item.get("createdAt", "")})
+            envelope["signals"] = {
+                "job": {"id": current["id"], "operation": current.get("operation", ""),
+                        "state": current.get("state", "JOB_STATE_UNSPECIFIED"),
+                        "progress": current.get("progress", 0), "created_at": current.get("createdAt", "")},
+                "recent_jobs": safe_jobs, "recent_count": len(safe_jobs),
+                "target_in_recent": any(item["id"] == job_id for item in safe_jobs)}
+            envelope["evidence"] = [job_id] + [item["id"] for item in safe_jobs]
+        elif action == "import-scene":
             envelope["inputs"]["request_sha256"] = hashlib.sha256(json.dumps(request, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
             response = device_studio.scenes.from_preparation(preparation_id=request["preparationId"], expected_bundle_sha256=request["expectedBundleSha256"], license_id=request["licenseId"], attribution=request["attribution"], source_label=request["sourceLabel"], allow_local_render=request.get("allowLocalRender", False), source_use_rationale=request.get("sourceUseRationale", "")).raw()
             revision = response.get("revision", {})
@@ -156,7 +181,7 @@ def step_act():
     except Exception as exc:
         status, klass = program.classify(exc)
         envelope["signals"]["recovery"] = {
-            "action": action if action in ("submit", "assemble", "review", "inspect-preparation", "import-scene") else "observe",
+            "action": action if action in ("submit", "assemble", "review", "inspect-preparation", "import-scene", "inspect-jobs") else "observe",
             "preparation_id": preparation_id,
             "operation_id": operation_id, "job_id": job_id,
             "instruction": "Preserve the exact original inputs. Retry admission with the same identity; never mint a replacement for an unknown outcome."}

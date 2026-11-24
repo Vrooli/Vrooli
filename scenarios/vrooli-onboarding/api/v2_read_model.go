@@ -20,6 +20,8 @@ func (e *catalogUnavailableError) Error() string {
 	return fmt.Sprintf("catalog %q is unavailable: %s", e.Missing, e.Remediation)
 }
 
+func (e *catalogUnavailableError) CatalogUnavailable() bool { return e != nil }
+
 func writeCatalogDegraded(w http.ResponseWriter, err error) bool {
 	var unavailable *catalogUnavailableError
 	if !errors.As(err, &unavailable) {

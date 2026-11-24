@@ -82,3 +82,38 @@ func TestCleanupOnboardingArtifactsUsesControlledClockAndProtectsActiveRuns(t *t
 		}
 	}
 }
+
+func TestCleanupApplyRunsKeepsRunWhenLogRemovalFailsAndRetries(t *testing.T) {
+	root := t.TempDir()
+	runs := filepath.Join(root, "apply-runs")
+	now := time.Date(2026, 9, 9, 0, 0, 0, 0, time.UTC)
+	runPath := filepath.Join(runs, "old.json")
+	logPath := filepath.Join(runs, "old.log")
+	writeRetentionFixture(t, runPath, applyRun{ID: "old", Status: "applied", CompletedAt: now.Add(-8 * 24 * time.Hour).Format(time.RFC3339)})
+	if err := os.Mkdir(logPath, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(logPath, ".keep"), []byte("preserve"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := cleanupApplyRuns(runs, now); err == nil {
+		t.Fatal("cleanup succeeded despite log removal failure")
+	}
+	if _, err := os.Stat(runPath); err != nil {
+		t.Fatalf("run record was removed before its log cleanup succeeded: %v", err)
+	}
+
+	if err := os.Remove(filepath.Join(logPath, ".keep")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(logPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := cleanupApplyRuns(runs, now); err != nil {
+		t.Fatalf("retry cleanup: %v", err)
+	}
+	if _, err := os.Stat(runPath); !os.IsNotExist(err) {
+		t.Fatalf("expired run record remains after cleanup retry, err=%v", err)
+	}
+}

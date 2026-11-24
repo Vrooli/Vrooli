@@ -5,10 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"net/http"
 	"sort"
 	"strings"
-	"time"
 
 	readinessdomain "github.com/vrooli/vrooli/scenarios/vrooli-onboarding/internal/readiness"
 )
@@ -288,10 +286,6 @@ func configurationMayComplete(assessment completionAssessment, state OperatorSta
 	return degradedAcknowledgementMatches(state, assessment.DegradedDigest)
 }
 
-type degradedAcknowledgementRequest struct {
-	ReadinessDigest string `json:"readiness_digest"`
-}
-
 func acknowledgeDegradedReadiness(ctx context.Context, digest string) (readinessdomain.AcknowledgeResult, error) {
 	// Acknowledgement is part of the completion contract, so it must evaluate
 	// the same optional credential set that apply uses. The normal readiness
@@ -309,43 +303,4 @@ func acknowledgeDegradedReadiness(ctx context.Context, digest string) (readiness
 		return readinessdomain.AcknowledgeResult{}, err
 	}
 	return readinessdomain.AcknowledgeResult{Status: "acknowledged", ReadinessDigest: digest, Degraded: readiness.Degraded}, nil
-}
-
-func (s *Server) handleV2DegradedAcknowledgement(w http.ResponseWriter, r *http.Request) {
-	var request degradedAcknowledgementRequest
-	if !decodeJSONBody(w, r, &request) {
-		return
-	}
-	digest := strings.TrimSpace(request.ReadinessDigest)
-	if digest == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "readiness_digest is required"})
-		return
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-	defer cancel()
-	readiness, err := buildReadinessResponseForApply(ctx)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		return
-	}
-	// The digest must name the gap that exists now. Accepting a stale digest
-	// would let an acknowledgement recorded for one gap authorise completion
-	// over a different one.
-	if readiness.DegradedDigest != digest {
-		writeJSON(w, http.StatusConflict, map[string]any{
-			"error":                   "the acknowledged degraded set is not the current one",
-			"current_degraded_digest": readiness.DegradedDigest,
-			"degraded":                readiness.Degraded,
-		})
-		return
-	}
-	if _, err := operatorStateService().RecordDegradedAcknowledgement(ctx, digest, operatorStateNow()); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-		return
-	}
-	writeJSON(w, http.StatusCreated, map[string]any{
-		"status":           "acknowledged",
-		"readiness_digest": digest,
-		"degraded":         readiness.Degraded,
-	})
 }

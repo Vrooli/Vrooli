@@ -54,7 +54,7 @@ func (h *connectHandler) ResolveOperatorInputs(ctx context.Context, req *connect
 		}
 		answers = append(answers, operatorcapability.Answer{RequestID: answer.GetRequestId(), Value: answer.GetValue(), Declined: answer.GetDeclined()})
 	}
-	if err := h.service.Resolve(ctx, req.Msg.GetExpectedRevision(), answers); err != nil {
+	if err := h.service.Resolve(ctx, req.Msg.GetTarget(), req.Msg.GetExpectedRevision(), answers); err != nil {
 		code := connect.CodeInternal
 		switch {
 		case errors.Is(err, internaloperatorinputs.ErrInvalidAnswer):
@@ -63,6 +63,18 @@ func (h *connectHandler) ResolveOperatorInputs(ctx context.Context, req *connect
 			code = connect.CodeFailedPrecondition
 		case errors.Is(err, internaloperatorinputs.ErrRevisionConflict):
 			code = connect.CodeAborted
+		case errors.Is(err, internaloperatorinputs.ErrCapabilityUnavailable):
+			return nil, connect.NewError(connect.CodeUnavailable, errors.New("the selected target's capability provider is unavailable; the question remains pending, so retry with the same target and answers"))
+		default:
+			var applyErr *internaloperatorinputs.CapabilityApplyError
+			if errors.As(err, &applyErr) {
+				switch connect.CodeOf(applyErr.Err) {
+				case connect.CodeUnavailable:
+					return nil, connect.NewError(connect.CodeUnavailable, errors.New("the selected target's capability provider is unavailable; retry with the same target and answers"))
+				case connect.CodeDeadlineExceeded:
+					return nil, connect.NewError(connect.CodeDeadlineExceeded, errors.New("the selected target's capability provider did not finish; retry with the same target and answers"))
+				}
+			}
 		}
 		return nil, connect.NewError(code, err)
 	}

@@ -102,6 +102,26 @@ describe("pollApplyRun", () => {
     expect(connectionEvents).toEqual([false, true]);
   });
 
+  it("propagates update callback errors instead of treating them as an API outage", async () => {
+    const clock = controlledClock();
+    const fetchStatus = vi.fn().mockResolvedValue(run(ApplyRunState.APPLYING));
+    const callbackError = new Error("render failed");
+    const connectionEvents: boolean[] = [];
+
+    await expect(pollApplyRun(run(ApplyRunState.PENDING), {
+      fetchStatus,
+      onUpdate: (current) => {
+        if (current.status === ApplyRunState.APPLYING) throw callbackError;
+      },
+      onConnectionChange: (connected) => connectionEvents.push(connected),
+      wait: clock.wait,
+      now: clock.now,
+    })).rejects.toBe(callbackError);
+
+    expect(fetchStatus).toHaveBeenCalledTimes(1);
+    expect(connectionEvents).toEqual([]);
+  });
+
   it("gives up only after the reconnect window", async () => {
     const clock = controlledClock();
     const fetchStatus = vi.fn().mockRejectedValue(new Error("still down"));
@@ -131,5 +151,52 @@ describe("pollApplyRun", () => {
 
     expect(final.status).toBe(ApplyRunState.ALREADY_SATISFIED);
     expect(fetchStatus).not.toHaveBeenCalled();
+  });
+
+  it("stops polling after the selected target changes", async () => {
+    const controller = new AbortController();
+    const fetchStatus = vi.fn().mockResolvedValue(run(ApplyRunState.APPLYING));
+    const wait = vi.fn(async () => controller.abort());
+
+    const final = await pollApplyRun(run(ApplyRunState.PENDING), {
+      fetchStatus,
+      onUpdate: () => {},
+      wait,
+      now: () => 0,
+      signal: controller.signal,
+    });
+
+    expect(final.status).toBe(ApplyRunState.PENDING);
+    expect(wait).toHaveBeenCalledTimes(1);
+    expect(fetchStatus).not.toHaveBeenCalled();
+  });
+
+  it("does not publish a status response that arrives after abort", async () => {
+    const controller = new AbortController();
+    let resolveStatus!: (value: GetApplyRunResponse) => void;
+    const statusResponse = new Promise<GetApplyRunResponse>((resolve) => { resolveStatus = resolve; });
+    let markFetchStarted!: () => void;
+    const fetchStarted = new Promise<void>((resolve) => { markFetchStarted = resolve; });
+    const fetchStatus = vi.fn(() => {
+      markFetchStarted();
+      return statusResponse;
+    });
+    const onUpdate = vi.fn();
+    const polling = pollApplyRun(run(ApplyRunState.APPLYING), {
+      fetchStatus,
+      onUpdate,
+      wait: async () => {},
+      now: () => 0,
+      signal: controller.signal,
+    });
+
+    await fetchStarted;
+    controller.abort();
+    resolveStatus(run(ApplyRunState.APPLIED));
+    const final = await polling;
+
+    expect(final.status).toBe(ApplyRunState.APPLYING);
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(onUpdate.mock.calls[0]?.[0].status).toBe(ApplyRunState.APPLYING);
   });
 });

@@ -269,6 +269,11 @@ func TestArgBuilders(t *testing.T) {
 			want: []string{"-m", "image_tools_sidecar.face_restore", "--model", "/models/m1", "--image", "/in.png", "--out", "/out.png", "--device", "cpu"},
 		},
 		{
+			name: "onnx face restore forwards the fidelity knob",
+			args: mustArgs(t, OnnxSidecar, req("face_restore", []string{"/in.png"}, map[string]string{"fidelity": "0.9", "score_threshold": "0.4"})),
+			want: []string{"-m", "image_tools_sidecar.face_restore", "--model", "/models/m1", "--image", "/in.png", "--out", "/out.png", "--device", "cpu", "--fidelity", "0.9", "--score-threshold", "0.4"},
+		},
+		{
 			// The swapper, embedder, detector and occluder share one model dir; the
 			// face comes from the third input (after the empty mask slot) and the
 			// typed options travel as JSON.
@@ -643,6 +648,29 @@ func TestDiffusersInpaintPinsRepoRevisionAndWeightVariant(t *testing.T) {
 	}
 }
 
+func TestEditInstructThreadsLoRA(t *testing.T) {
+	dir := t.TempDir()
+	weight := filepath.Join(dir, "uncensored.safetensors")
+	if err := os.WriteFile(weight, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r := backends.Request{
+		Operation: "edit_instruct",
+		Model:     models.Model{ID: "flux-2-klein-4b", Architecture: "flux", Runtime: models.Runtime{Family: "flux-2-klein"}},
+		InputKeys: []string{"/in.png"},
+		Output:    storage.OutputTarget{LocalPath: "/out.png"},
+		Params:    map[string]string{"prompt": "remove her top"},
+		Adapters:  []adapters.ResolvedAdapter{{ID: "uncensored", Kind: adapters.KindLoRA, Dir: dir, Scale: 0.9}},
+	}
+	args, err := DiffusersEditInstruct(r, "/models/flux-2-klein-4b")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(args, "--lora") || !slices.Contains(args, weight+":0.9") {
+		t.Fatalf("edit_instruct must thread the LoRA stack to the sidecar: %v", args)
+	}
+}
+
 func TestInpaintOnInstructionFamilyRunsTheMaskedEdit(t *testing.T) {
 	r := backends.Request{
 		Operation: "inpaint",
@@ -675,9 +703,23 @@ func TestInpaintOnInstructionFamilyRunsTheMaskedEdit(t *testing.T) {
 	if err != nil || !slices.Contains(args, "--full-frame") {
 		t.Fatalf("crop_to_mask=false must request the full frame: %v %v", args, err)
 	}
-	r.Adapters = []adapters.ResolvedAdapter{{ID: "any-lora"}}
+	r.Adapters = []adapters.ResolvedAdapter{{ID: "any-lora", Kind: adapters.KindLoRA}}
 	if _, err := DiffusersInpaint(r, "/models/flux-2-klein-4b"); err == nil {
-		t.Fatal("conditioning adapters on an instruction family must be refused, not dropped")
+		t.Fatal("a LoRA with no resolvable weight file must be refused, not dropped")
+	}
+	dir := t.TempDir()
+	weight := filepath.Join(dir, "style.safetensors")
+	if err := os.WriteFile(weight, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r.Adapters = []adapters.ResolvedAdapter{{ID: "style", Kind: adapters.KindLoRA, Dir: dir, Scale: 0.8}}
+	args, err = DiffusersInpaint(r, "/models/flux-2-klein-4b")
+	if err != nil || !slices.Contains(args, "--lora") || !slices.Contains(args, weight+":0.8") {
+		t.Fatalf("a LoRA on a masked family edit must reach the sidecar: %v %v", args, err)
+	}
+	r.Adapters = []adapters.ResolvedAdapter{{ID: "cn", Kind: adapters.KindControlNet}}
+	if _, err := DiffusersInpaint(r, "/models/flux-2-klein-4b"); err == nil {
+		t.Fatal("ControlNet on an instruction family must be refused, not dropped")
 	}
 }
 

@@ -6,6 +6,7 @@ package resources
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -19,6 +20,35 @@ import (
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 	resourcesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/resources"
 )
+
+type catalogUnavailableError struct{ cause error }
+
+func (e catalogUnavailableError) Error() string {
+	return "resource catalog is unavailable in the selected environment"
+}
+func (e catalogUnavailableError) Unwrap() error          { return e.cause }
+func (catalogUnavailableError) CatalogUnavailable() bool { return true }
+
+type catalogInvalidError struct{ cause error }
+
+func (e catalogInvalidError) Error() string {
+	return "resource catalog is invalid in the selected environment"
+}
+func (e catalogInvalidError) Unwrap() error      { return e.cause }
+func (catalogInvalidError) CatalogInvalid() bool { return true }
+
+func NewCatalogUnavailable(cause error) error { return catalogUnavailableError{cause: cause} }
+func NewCatalogInvalid(cause error) error     { return catalogInvalidError{cause: cause} }
+
+func IsCatalogUnavailable(err error) bool {
+	var marked interface{ CatalogUnavailable() bool }
+	return errors.As(err, &marked) && marked.CatalogUnavailable()
+}
+
+func IsCatalogInvalid(err error) bool {
+	var marked interface{ CatalogInvalid() bool }
+	return errors.As(err, &marked) && marked.CatalogInvalid()
+}
 
 type Scenario struct {
 	Name    string
@@ -202,7 +232,7 @@ func categorize(root, name string) string {
 func loadCatalog(root string, state operatorstate.Document) ([]*resourcesv1.Resource, error) {
 	entries, err := os.ReadDir(filepath.Join(root, "resources"))
 	if err != nil {
-		return nil, err
+		return nil, NewCatalogUnavailable(err)
 	}
 	result := make([]*resourcesv1.Resource, 0, len(entries))
 	for _, entry := range entries {
@@ -215,7 +245,7 @@ func loadCatalog(root string, state operatorstate.Document) ([]*resourcesv1.Reso
 			continue
 		}
 		if err != nil {
-			return nil, err
+			return nil, NewCatalogUnavailable(err)
 		}
 		var manifest struct {
 			Name        string `json:"name"`
@@ -224,7 +254,7 @@ func loadCatalog(root string, state operatorstate.Document) ([]*resourcesv1.Reso
 			Category    string `json:"category"`
 		}
 		if err := json.Unmarshal(data, &manifest); err != nil {
-			return nil, fmt.Errorf("decode %s: %w", path, err)
+			return nil, NewCatalogInvalid(err)
 		}
 		name := strings.TrimSpace(manifest.Name)
 		if name == "" {

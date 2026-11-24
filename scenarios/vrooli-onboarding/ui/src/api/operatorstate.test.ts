@@ -27,5 +27,13 @@ describe("typed operator-state client", () => {
     await saveOperatorState(patch);
     expect(calls.patch).toHaveBeenCalledWith(expect.objectContaining({ target: "local", state: patch }));
     expect(calls.patch.mock.calls[0]?.[0]?.updateMask?.paths).toEqual(["scenarios"]);
+    calls.patch.mockClear();
+  });
+
+  it("refuses posture fields before calling the generic operator-state writer", async () => {
+    await expect(saveOperatorState({ updateControl: "guard" })).rejects.toThrow(/typed install-posture permission/);
+    await expect(saveOperatorState({ sessionMode: "shared" })).rejects.toThrow(/enrollment-owned/);
+    await expect(saveOperatorState({ trustPosture: "shared" })).rejects.toThrow(/control-plane-owned/);
+    expect(calls.patch).not.toHaveBeenCalled();
   });
 });

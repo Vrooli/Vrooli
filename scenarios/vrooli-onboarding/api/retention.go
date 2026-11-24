@@ -35,41 +35,23 @@ func cleanupOnboardingArtifacts() error {
 }
 
 func cleanupApplyReviews(dir, runsDir string, now time.Time) error {
-	entries, err := os.ReadDir(dir)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("read apply reviews: %w", err)
-	}
 	cutoff := now.Add(-applyReviewCleanupGrace)
-	for _, entry := range entries {
-		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
-			continue
-		}
-		path := filepath.Join(dir, entry.Name())
-		data, err := os.ReadFile(path)
-		if err != nil {
-			continue
-		}
+	return cleanupJSONArtifacts(dir, "read apply reviews", "remove expired apply review", func(data []byte) bool {
 		var review applyReviewRecord
 		if json.Unmarshal(data, &review) != nil {
-			continue
+			return false
 		}
 		expires, err := time.Parse(time.RFC3339, review.ExpiresAt)
 		if err != nil || expires.After(cutoff) {
-			continue
+			return false
 		}
 		if review.ConsumedBy != "" {
 			if run, ok := readRetainedApplyRun(filepath.Join(runsDir, review.ConsumedBy+".json")); !ok || !isTerminalApplyStatus(run.Status) {
-				continue
+				return false
 			}
 		}
-		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("remove expired apply review: %w", err)
-		}
-	}
-	return nil
+		return true
+	})
 }
 
 func cleanupApplyRuns(dir string, now time.Time) error {
@@ -94,7 +76,7 @@ func cleanupApplyRuns(dir string, now time.Time) error {
 		if err != nil || completed.After(cutoff) {
 			continue
 		}
-		if err := removeApplyArtifact(path, strings.TrimSuffix(path, ".json")+".log"); err != nil {
+		if err := removeApplyArtifact(strings.TrimSuffix(path, ".json")+".log", path); err != nil {
 			return err
 		}
 	}
@@ -102,37 +84,46 @@ func cleanupApplyRuns(dir string, now time.Time) error {
 }
 
 func cleanupApplyAdmissions(dir, runsDir string, now time.Time) error {
+	cutoff := now.Add(-applyArtifactRetention)
+	return cleanupJSONArtifacts(dir, "read apply admissions", "remove expired apply admission", func(data []byte) bool {
+		var admission applyAdmissionRecord
+		if json.Unmarshal(data, &admission) != nil {
+			return false
+		}
+		created, err := time.Parse(time.RFC3339, admission.CreatedAt)
+		if err != nil || created.After(cutoff) {
+			return false
+		}
+		run, ok := readRetainedApplyRun(filepath.Join(runsDir, admission.RunID+".json"))
+		if !ok || !isTerminalApplyStatus(run.Status) {
+			return false
+		}
+		return true
+	})
+}
+
+// cleanupJSONArtifacts centralizes the shared safe walk used by the two
+// record-retention policies. Policy callbacks only decide whether one decoded
+// file is eligible; malformed, unreadable, and non-JSON entries stay intact.
+func cleanupJSONArtifacts(dir, readError, removeError string, eligible func([]byte) bool) error {
 	entries, err := os.ReadDir(dir)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("read apply admissions: %w", err)
+		return fmt.Errorf("%s: %w", readError, err)
 	}
-	cutoff := now.Add(-applyArtifactRetention)
 	for _, entry := range entries {
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
 			continue
 		}
 		path := filepath.Join(dir, entry.Name())
 		data, err := os.ReadFile(path)
-		if err != nil {
-			continue
-		}
-		var admission applyAdmissionRecord
-		if json.Unmarshal(data, &admission) != nil {
-			continue
-		}
-		created, err := time.Parse(time.RFC3339, admission.CreatedAt)
-		if err != nil || created.After(cutoff) {
-			continue
-		}
-		run, ok := readRetainedApplyRun(filepath.Join(runsDir, admission.RunID+".json"))
-		if !ok || !isTerminalApplyStatus(run.Status) {
+		if err != nil || !eligible(data) {
 			continue
 		}
 		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("remove expired apply admission: %w", err)
+			return fmt.Errorf("%s: %w", removeError, err)
 		}
 	}
 	return nil

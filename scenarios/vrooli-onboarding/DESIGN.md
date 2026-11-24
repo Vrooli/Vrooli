@@ -80,6 +80,16 @@ Every non-ready state names its cause and its next action. Required gaps block; 
 
 The UI renders through the shared component library and design tokens, in light and dark, meets WCAG 2.1 AA, and is fully keyboard operable. Its page states, claims, and journeys are declared in [`experience/`](experience/) and checked against the built UI.
 
+### Current target: core supervision step
+
+The existing product concept remains one guided flow that shows each choice's operational consequence. For the core-set step, the content model is (1) editable supervision seeds, (2) protected recovery services with an explicit reason, (3) a live count of the dependency closure, and (4) an optional full closure list. Desktop may place choices and consequences side by side; mobile presents the consequence summary first, followed by a naturally scrolling choice list. Neither medium uses a nested scroll pane for the primary content, and the persistent action area must not cover the last item.
+
+Current target mockup: [`docs/mockups/core-set-journey.html`](docs/mockups/core-set-journey.html).
+
+| ID | Source / author / date | Affected surface and state | Change and preserved behavior | Rationale and tradeoff | Evidence | Disposition |
+|---|---|---|---|---|---|---|
+| `refinement/se2-core-set-mobile-scroll-2026-11-20` | Independent agent screenshot review; agent-authored, 2026-11-20 | Setup wizard · core-set step · mobile and desktop | Put the closure summary before the long list on mobile, keep details on demand, remove the navigation-tree scroll container from this choice list, explain recovery locks and prior-step selection, scope the Important control to eligible selected scenarios, and keep the wizard action from skipping unconfirmed edits. Preserve the same choices, dependency closure, explicit confirmation, and desktop overview. | The mobile view nested two scroll regions and the closure appeared below the long list; lock reasons were low contrast and Important controls looked detached. The summary now precedes naturally scrolling choices and preserves the full preview in a disclosure. Sticky footer overlays an intermediate card in the initial viewport; a 390×844 bottom capture confirms the final card and Confirm action scroll fully above it. Independent review says the Important control is reasonably associated but remains a separate tier row. | Before: `runs/steward-free-host-maintainability-20261120/evidence/onboarding-core-set-after-review-v4.png`. After: `.../evidence/onboarding-core-set-after-review-v5.png`; bottom: `.../evidence/onboarding-core-set-bottom-v1.png`; independent screenshot review confirms detached controls are gone and final-item/footer clearance. | Adopted for current core-set layout. Keyboard/accessibility interaction, contrast measurement, novice comprehension, and precise Important-control semantics remain unverified. |
+
 ## Purpose profiles and goal intake
 
 Purpose intake is active, data-driven behavior rather than a release-only

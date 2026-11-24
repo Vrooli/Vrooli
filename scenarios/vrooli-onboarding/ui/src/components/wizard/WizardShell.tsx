@@ -60,7 +60,7 @@ export function WizardShell({
       cancelAnimationFrame(frame);
       observer.disconnect();
     };
-  });
+  }, []);
   return (
     <div ref={shellRef} className="onboarding-wizard" data-testid="wizard-shell" data-act={act} data-step-id={active?.id} data-rcl-progress-count="1">
       <div className="wizard-progress" aria-label={`${actLabel}: ${active?.title ?? i18n.t("onboarding.shell.setup")}`}>

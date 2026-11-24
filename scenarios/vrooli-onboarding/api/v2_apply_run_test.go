@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -78,9 +80,9 @@ func TestApplyRunSnapshotPrefersTheExecutingProcessesRecord(t *testing.T) {
 	}
 }
 
-// Memory still answers before the first persisted write lands, and on a host
-// where the state file cannot be read back.
-func TestApplyRunSnapshotFallsBackToMemory(t *testing.T) {
+// Memory can answer before the first persisted write lands, while an
+// unreadable existing journal must fail closed instead of serving stale state.
+func TestApplyRunSnapshotFallsBackOnlyWhenJournalIsAbsent(t *testing.T) {
 	t.Setenv("VROOLI_ROOT", t.TempDir())
 	run := applyRun{ID: "apply-memory-only", Status: "pending"}
 	applyRuns.Lock()
@@ -90,5 +92,18 @@ func TestApplyRunSnapshotFallsBackToMemory(t *testing.T) {
 	observed, ok := applyRunSnapshot(run.ID)
 	if !ok || observed.Status != "pending" {
 		t.Fatalf("snapshot = %#v, found=%v; want the in-memory run", observed, ok)
+	}
+	path, err := applyRunPath(run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("{"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if observed, ok := applyRunSnapshot(run.ID); ok {
+		t.Fatalf("corrupt durable journal served cached status %#v", observed)
 	}
 }

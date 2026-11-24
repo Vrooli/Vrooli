@@ -106,6 +106,14 @@ per concern. These are the contract; no surface reimplements them.
 3. schema default (false)
 ```
 
+The Operating mode step reads scenario recommendations for the selected target.
+The scenario query cache is keyed by that target. If a refresh fails, cached
+rows stay visible but become read-only on failure and while an explicit retry
+is in progress. The step does not automatically repeat the failed read. Without
+a cached list, it shows a clear retry state and renders no guessed
+manifest defaults. A failed read does not patch operator state. The saved
+`scenarios.<n>.auto_restart` value remains authoritative after recovery.
+
 **Host tool / safeguard**
 ```
 1. operator-state → host_*.<n>.opted_in            →  if present
@@ -154,9 +162,15 @@ The lifecycle exports these. Set them yourself only when running a piece by hand
 | `BUNDLE_ROOT` | Desktop bundle root; selects the staged catalog |
 | `VROOLI_STORAGE_ROOT` | Storage root for a bundled install's operator state |
 
-Exactly one of `VROOLI_ROOT` or `BUNDLE_ROOT` identifies the catalog. With
-neither, the affected step returns a typed degraded state naming the missing
-catalog rather than failing.
+`VROOLI_ROOT` selects the repository catalog when set; unset it to select a
+bundle catalog through `BUNDLE_ROOT`. `VROOLI_STORAGE_ROOT` can keep operator
+state at the same location across that catalog transition. If a bundle catalog
+is unavailable, profile-session reconciliation returns `unavailable` with a
+retry action. If the catalog exists but no longer supplies the saved profile,
+it returns `profile_revoked` and asks the operator to choose a supported profile.
+Both read paths preserve the saved answers without rewriting the session. Once
+the profile is staged again, the same selection and answers reconcile without a
+new prompt write.
 
 ## Cross-References
 

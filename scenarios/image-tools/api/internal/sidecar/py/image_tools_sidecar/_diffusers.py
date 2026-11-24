@@ -455,6 +455,7 @@ def run(
     out_path: str,
     params: "Params",
     op: str = "edit_instruct",
+    lora_specs=(),
 ) -> None:
     """Load the family's pipeline from model_dir and run one op, writing a PNG.
 
@@ -482,7 +483,8 @@ def run(
         source_rasters.append(raster)
 
     result, receipt = run_family_images(
-        family=family, model_dir=model_dir, images=images, params=params, op=op, started=started
+        family=family, model_dir=model_dir, images=images, params=params, op=op, started=started,
+        lora_specs=lora_specs,
     )
     receipt["source_rasters"] = source_rasters
     try:
@@ -501,10 +503,16 @@ def run_family_images(
     params: "Params",
     op: str,
     started: Optional[float] = None,
+    lora_specs=(),
 ):
     """Run one family op on already-decoded PIL ``images`` and return
     ``(result_image, receipt)``. The shared core of ``run`` (which decodes and
-    writes a PNG) and the masked edit (which crops, runs, then composites)."""
+    writes a PNG) and the masked edit (which crops, runs, then composites).
+
+    ``lora_specs`` is the repeatable ``<path>:<scale>`` conditioning stack. It is
+    applied AFTER the pipeline is constructed and BEFORE any CPU offload, so the
+    fused weights travel with the denoiser instead of being stranded on the host.
+    """
     started = time.perf_counter() if started is None else started
     adapter = adapter_for(family)
     if not adapter.ready:
@@ -535,10 +543,16 @@ def run_family_images(
     repo_index = os.path.isfile(os.path.join(model_dir, "model_index.json"))
     if adapter.staged and use_cuda and repo_index:
         on_gpu = _free_vram(torch) >= staged_min_free_bytes(model_dir)
-        pipe, placement = _load_staged(diffusers, torch, adapter, model_dir, load_kwargs, kwargs, on_gpu=on_gpu)
+        pipe, placement = _load_staged(
+            diffusers, torch, adapter, model_dir, load_kwargs, kwargs, on_gpu=on_gpu,
+            lora_specs=lora_specs,
+        )
     else:
         pipe = _load_family_pipe(diffusers, adapter, family, model_dir, load_kwargs)
+        names = _adapters.apply_loras(pipe, lora_specs)
         placement = _place_family_pipe(pipe, torch, use_cuda, adapter.offload)
+        if names:
+            placement = f"{placement}+lora"
     loaded_s = time.perf_counter() - started
 
     try:
@@ -560,6 +574,7 @@ def run_family_images(
         "reference_images": len(images),
         "output_size": list(result.size),
         "placement": placement,
+        "lora_specs": [str(spec) for spec in lora_specs],
         "load_s": round(loaded_s, 3),
         "elapsed_ms": round((time.perf_counter() - started) * 1000, 3),
         "process_peak_rss_bytes": int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024),
@@ -641,11 +656,15 @@ def _assert_pipeline_class(pipe, adapter: "Adapter", model_dir: str) -> None:
         )
 
 
-def _load_staged(diffusers, torch, adapter: "Adapter", model_dir: str, load_kwargs: dict, kwargs: dict, on_gpu: bool = True):
+def _load_staged(diffusers, torch, adapter: "Adapter", model_dir: str, load_kwargs: dict, kwargs: dict, on_gpu: bool = True, lora_specs=()):
     """Encode the prompt with only the text encoder loaded, free it, then load
     the denoiser + VAE. Each stage is GPU-resident when on_gpu, else streamed
     with sequential CPU offload. Mutates kwargs: `prompt` becomes
-    `prompt_embeds`. Returns (pipeline, placement)."""
+    `prompt_embeds`. Returns (pipeline, placement).
+
+    A LoRA stack is fused onto the denoiser while it is still on the host, before
+    either placement strategy runs; loading it after ``enable_sequential_cpu_offload``
+    would leave the adapter modules off-device and silently inert."""
     import gc
 
     def place(stage_pipe, modules):
@@ -668,6 +687,7 @@ def _load_staged(diffusers, torch, adapter: "Adapter", model_dir: str, load_kwar
         gc.collect()
         torch.cuda.empty_cache()
         pipe = cls.from_pretrained(model_dir, **{name: None for name in adapter.text_components}, **load_kwargs)
+        _adapters.apply_loras(pipe, lora_specs)
         place(pipe, [pipe])
     except SystemExit:
         raise
@@ -677,6 +697,8 @@ def _load_staged(diffusers, torch, adapter: "Adapter", model_dir: str, load_kwar
     _assert_pipeline_class(pipe, adapter, model_dir)
     kwargs.update(embeds)
     stage = "gpu_resident" if on_gpu else "sequential_cpu_offload"
+    if lora_specs:
+        stage += "+lora"
     return pipe, f"staged_text_encoder_then_denoiser:{stage}"
 
 
@@ -684,10 +706,10 @@ def run_family_op(args, *, op: str, image_paths) -> None:
     """Shared CLI tail for the unified-family route of text_to_image /
     image_to_image: a model whose registry row names a runtime.family is loaded
     by that family adapter for every op it declares (never by the base-checkpoint
-    AutoPipeline path, which cannot resolve unified pipelines). The conditioning
-    adapter stack is not proven on family pipelines, so it is refused rather than
-    silently dropped."""
-    for flag in ("lora", "controlnet", "ip_adapter"):
+    AutoPipeline path, which cannot resolve unified pipelines). LoRA stacks are
+    supported on family pipelines; ControlNet and IP-Adapter are not yet proven
+    there and are refused rather than silently dropped."""
+    for flag in ("controlnet", "ip_adapter"):
         if getattr(args, flag, None):
             _common.fail(
                 f"{op} on family {args.family!r}: --{flag.replace('_', '-')} conditioning is not "
@@ -704,7 +726,8 @@ def run_family_op(args, *, op: str, image_paths) -> None:
         width=getattr(args, "width", 0) or 0,
         height=getattr(args, "height", 0) or 0,
     )
-    run(family=args.family, model_dir=args.model, image_paths=image_paths, out_path=args.out, params=params, op=op)
+    run(family=args.family, model_dir=args.model, image_paths=image_paths, out_path=args.out, params=params, op=op,
+        lora_specs=getattr(args, "lora", None) or ())
 
 
 def _place_family_pipe(pipe, torch, use_cuda: bool, offload: bool) -> str:

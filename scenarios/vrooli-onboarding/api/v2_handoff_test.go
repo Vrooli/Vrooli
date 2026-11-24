@@ -3,10 +3,12 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/vrooli/api-core/authn"
 	selectionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/selection"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -131,6 +133,7 @@ func TestV2HandoffIsOwnerIssuedDurableAndTargetBound(t *testing.T) {
 	t.Setenv("VROOLI_ROOT", root)
 	t.Setenv("VROOLI_STORAGE_ROOT", filepath.Join(root, "test-storage"))
 	t.Setenv("BUNDLE_ROOT", "")
+	writeFixtureFile(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha","system_required":true},"runtime":{"auto_restart_default":false},"dependencies":{"resources":{}}}`)
 	selection := `{"schemaVersion":"v1","scenarios":["alpha"],"operatingMode":{"alpha":"manual"},"apply":true}`
 	request := `{"target":"local","machineId":"machine-1","nodeId":"node-1","nodeKind":"agent","deploymentId":"deployment-1","enrollmentGeneration":"7","desiredRevision":"12","requestKey":"plan-digest-1","missing":["alpha:api-key"],"desiredSelection":` + selection + `}`
 	w := doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.selection.SelectionService/CreateHandoff", request)
@@ -141,7 +144,7 @@ func TestV2HandoffIsOwnerIssuedDurableAndTargetBound(t *testing.T) {
 	if err := protojson.Unmarshal(w.Body.Bytes(), &created); err != nil {
 		t.Fatal(err)
 	}
-	if created.GetHandoff().GetId() == "" || !strings.HasPrefix(created.GetHandoff().GetReference(), "vrooli-onboarding://handoffs/") || created.GetHandoff().GetActorScope() == "" {
+	if created.GetHandoff().GetId() == "" || !strings.HasPrefix(created.GetHandoff().GetReference(), "vrooli-onboarding://handoffs/") || created.GetHandoff().GetActorScope() == "" || created.GetHandoff().GetClosureDigest() == "" {
 		t.Fatalf("handoff identity = %+v", created.GetHandoff())
 	}
 	if strings.Contains(created.GetHandoff().GetReference(), "api-key") {
@@ -158,6 +161,11 @@ func TestV2HandoffIsOwnerIssuedDurableAndTargetBound(t *testing.T) {
 	if replayedResponse.GetHandoff().GetId() != created.GetHandoff().GetId() {
 		t.Fatalf("idempotent handoff id = %q, want %q", replayedResponse.GetHandoff().GetId(), created.GetHandoff().GetId())
 	}
+	changedIntent := strings.Replace(request, `"desiredRevision":"12"`, `"desiredRevision":"13"`, 1)
+	w = doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.selection.SelectionService/CreateHandoff", changedIntent)
+	if w.Code == http.StatusOK || !strings.Contains(w.Body.String(), "already bound to a different target revision or selection") {
+		t.Fatalf("reused request key with changed revision was not rejected: %d: %s", w.Code, w.Body.String())
+	}
 
 	resolve := `{"reference":"` + created.GetHandoff().GetReference() + `","deploymentId":"deployment-1","target":"local","enrollmentGeneration":"7","desiredRevision":"12","selectionDigest":"` + created.GetHandoff().GetSelectionDigest() + `"}`
 	w = doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetHandoff", resolve)
@@ -171,10 +179,27 @@ func TestV2HandoffIsOwnerIssuedDurableAndTargetBound(t *testing.T) {
 	if resolved.GetSelection().GetScenarios()[0] != "alpha" || resolved.GetHandoff().GetDesiredRevision() != 12 {
 		t.Fatalf("resolved handoff = %+v", resolved)
 	}
+	otherOwner := NewServer()
+	otherOwner.auth = authn.Config{Providers: []authn.Provider{authn.NewPersonalLocalProviderWithSessionToken("other-owner-token", "vrooli-onboarding:read", "vrooli-onboarding:write")}}
+	wrongActor := doRequestWithAuthorization(t, otherOwner, http.MethodPost, "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetHandoff", resolve, "LocalSession other-owner-token")
+	if wrongActor.Code == http.StatusOK {
+		t.Fatal("handoff receipt was accepted for a different verified owner")
+	}
 
 	stale := strings.Replace(resolve, `"enrollmentGeneration":"7"`, `"enrollmentGeneration":"8"`, 1)
 	w = doRequest(t, NewServer(), http.MethodPost, "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetHandoff", stale)
 	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "failed_precondition") {
 		t.Fatalf("stale handoff status = %d, want Connect failed_precondition: %s", w.Code, w.Body.String())
 	}
+}
+
+func doRequestWithAuthorization(t *testing.T, srv *Server, method, path, body, authorization string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(method, path, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", authorization)
+	req.RemoteAddr = "127.0.0.1:12345"
+	w := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w, req)
+	return w
 }

@@ -74,10 +74,7 @@ func (h *connectHandler) SaveDraft(ctx context.Context, req *connect.Request[ses
 	}
 	value, err := h.service.SaveDraft(ctx, strings.TrimSpace(req.Msg.GetTarget()), actor, strings.TrimSpace(req.Msg.GetExpectedRevision()), strings.TrimSpace(req.Msg.GetBaseRevision()), strings.TrimSpace(req.Msg.GetStepId()), req.Msg.GetChoices())
 	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "conflict") {
-			return nil, connect.NewError(connect.CodeAborted, err)
-		}
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		return nil, sessionWriteError(err)
 	}
 	return connect.NewResponse(&sessionv1.GetDraftResponse{Draft: draftToProto(value)}), nil
 }
@@ -103,7 +100,11 @@ func (h *connectHandler) GetProfileSession(ctx context.Context, req *connect.Req
 	if err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
-	return connect.NewResponse(&sessionv1.GetProfileSessionResponse{Session: profileSessionToProto(value)}), nil
+	projected, err := profileSessionToProto(value)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeDataLoss, fmt.Errorf("profile session contains invalid stored data: %w", err))
+	}
+	return connect.NewResponse(&sessionv1.GetProfileSessionResponse{Session: projected}), nil
 }
 
 func (h *connectHandler) SaveProfileSession(ctx context.Context, req *connect.Request[sessionv1.SaveProfileSessionRequest]) (*connect.Response[sessionv1.GetProfileSessionResponse], error) {
@@ -132,12 +133,21 @@ func (h *connectHandler) SaveProfileSession(ctx context.Context, req *connect.Re
 		ManualDecisions: wire.GetManualDecisions(), TargetContext: targetContext,
 	}, strings.TrimSpace(req.Msg.GetExpectedRevision()))
 	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "conflict") {
-			return nil, connect.NewError(connect.CodeAborted, err)
-		}
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		return nil, sessionWriteError(err)
 	}
-	return connect.NewResponse(&sessionv1.GetProfileSessionResponse{Session: profileSessionToProto(value)}), nil
+	projected, err := profileSessionToProto(value)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeDataLoss, fmt.Errorf("profile session contains invalid stored data: %w", err))
+	}
+	return connect.NewResponse(&sessionv1.GetProfileSessionResponse{Session: projected}), nil
+}
+
+func sessionWriteError(err error) *connect.Error {
+	code := connect.CodeInvalidArgument
+	if strings.Contains(strings.ToLower(err.Error()), "conflict") {
+		code = connect.CodeAborted
+	}
+	return connect.NewError(code, err)
 }
 
 // verifiedDraftActor is the sole ownership binding for durable drafts. The
@@ -164,9 +174,9 @@ func draftToProto(value session.Draft) *sessionv1.Draft {
 	return result
 }
 
-func profileSessionToProto(value *session.ProfileSession) *sessionv1.ProfileSession {
+func profileSessionToProto(value *session.ProfileSession) (*sessionv1.ProfileSession, error) {
 	if value == nil {
-		return nil
+		return nil, nil
 	}
 	result := &sessionv1.ProfileSession{
 		Target: value.Target, Actor: value.Actor, Mode: value.Mode, ProfileId: value.ProfileID,
@@ -188,21 +198,25 @@ func profileSessionToProto(value *session.ProfileSession) *sessionv1.ProfileSess
 		for key, raw := range value.Answers {
 			var decoded any
 			if err := json.Unmarshal(raw, &decoded); err != nil {
-				continue
+				return nil, fmt.Errorf("answer %q: %w", key, err)
 			}
 			answers[key] = decoded
 		}
-		if encoded, err := structpb.NewStruct(answers); err == nil {
-			result.Answers = encoded
+		encoded, err := structpb.NewStruct(answers)
+		if err != nil {
+			return nil, fmt.Errorf("answers: %w", err)
 		}
+		result.Answers = encoded
 	}
-	if context, err := structpb.NewStruct(stringMapAny(value.TargetContext)); err == nil {
-		result.TargetContext = context
+	context, err := structpb.NewStruct(stringMapAny(value.TargetContext))
+	if err != nil {
+		return nil, fmt.Errorf("target context: %w", err)
 	}
+	result.TargetContext = context
 	if parsed, err := time.Parse(time.RFC3339Nano, value.UpdatedAt); err == nil {
 		result.UpdatedAt = timestamppb.New(parsed)
 	}
-	return result
+	return result, nil
 }
 
 func rawAnswers(value *structpb.Struct) (map[string]json.RawMessage, error) {

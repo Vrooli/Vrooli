@@ -13,9 +13,10 @@ import (
 )
 
 var (
-	ErrInvalidAnswer      = errors.New("invalid operator input answer")
-	ErrFailedPrecondition = errors.New("operator capability is not ready")
-	ErrRevisionConflict   = errors.New("operator input configuration revision conflict")
+	ErrInvalidAnswer         = errors.New("invalid operator input answer")
+	ErrFailedPrecondition    = errors.New("operator capability is not ready")
+	ErrCapabilityUnavailable = errors.New("operator capability provider is unavailable")
+	ErrRevisionConflict      = errors.New("operator input configuration revision conflict")
 )
 
 // CapabilityApplier is the narrow seam to the control plane. Queue handling
@@ -23,6 +24,14 @@ var (
 type CapabilityApplier interface {
 	ApplyCapability(context.Context, operatorcapability.ActionRequest) (operatorcapability.Result, error)
 }
+
+// CapabilityApplyError marks errors from the provider call so transports do
+// not mistake revision/queue failures with the same error code for provider
+// loss.
+type CapabilityApplyError struct{ Err error }
+
+func (e *CapabilityApplyError) Error() string { return e.Err.Error() }
+func (e *CapabilityApplyError) Unwrap() error { return e.Err }
 
 type Service struct {
 	Applier         CapabilityApplier
@@ -33,7 +42,11 @@ func (s Service) List(context.Context) (operatorcapability.Pending, error) {
 	return operatorcapability.Load()
 }
 
-func (s Service) Resolve(ctx context.Context, expectedRevision string, answers []operatorcapability.Answer) error {
+func (s Service) Resolve(ctx context.Context, target, expectedRevision string, answers []operatorcapability.Answer) error {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return fmt.Errorf("%w: target is required", ErrInvalidAnswer)
+	}
 	if len(answers) == 0 {
 		return fmt.Errorf("%w: at least one answer is required", ErrInvalidAnswer)
 	}
@@ -54,7 +67,7 @@ func (s Service) Resolve(ctx context.Context, expectedRevision string, answers [
 		if err != nil {
 			return fmt.Errorf("load operator input queue for apply: %w", err)
 		}
-		requests, err := BuildCapabilityRequests(queue, values)
+		requests, err := BuildCapabilityRequests(queue, values, target)
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrInvalidAnswer, err)
 		}
@@ -68,12 +81,18 @@ func (s Service) Resolve(ctx context.Context, expectedRevision string, answers [
 		for _, request := range requests {
 			result, applyErr := s.Applier.ApplyCapability(ctx, request)
 			if applyErr != nil {
-				return fmt.Errorf("apply capability %q: %w", request.CapabilityID, applyErr)
+				if result.State == operatorcapability.StateRetryableFailure && result.Retryable {
+					return fmt.Errorf("%w: retry the same target and answers", ErrCapabilityUnavailable)
+				}
+				return &CapabilityApplyError{Err: fmt.Errorf("apply capability %q: %w", request.CapabilityID, applyErr)}
 			}
 			if result.State != operatorcapability.StateReady {
 				remediation := strings.TrimSpace(result.Remediation)
 				if remediation == "" {
 					remediation = "review the capability status and retry"
+				}
+				if result.State == operatorcapability.StateRetryableFailure && result.Retryable {
+					return fmt.Errorf("%w: %s", ErrCapabilityUnavailable, remediation)
 				}
 				return fmt.Errorf("%w: capability %q did not become ready: %s", ErrFailedPrecondition, request.CapabilityID, remediation)
 			}
@@ -88,7 +107,11 @@ func (s Service) Resolve(ctx context.Context, expectedRevision string, answers [
 	return nil
 }
 
-func BuildCapabilityRequests(queue operatorcapability.Pending, values map[string]string) ([]operatorcapability.ActionRequest, error) {
+func BuildCapabilityRequests(queue operatorcapability.Pending, values map[string]string, target string) ([]operatorcapability.ActionRequest, error) {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return nil, errors.New("target is required")
+	}
 	groups := map[string]*operatorcapability.ActionRequest{}
 	for _, request := range queue.Requests {
 		if request.Decision == operatorcapability.DecisionDeclined {
@@ -105,7 +128,7 @@ func BuildCapabilityRequests(queue operatorcapability.Pending, values map[string
 		}
 		group := groups[capabilityID]
 		if group == nil {
-			group = &operatorcapability.ActionRequest{CapabilityID: capabilityID, Inputs: map[string]json.RawMessage{}}
+			group = &operatorcapability.ActionRequest{CapabilityID: capabilityID, TargetID: target, Inputs: map[string]json.RawMessage{}}
 			groups[capabilityID] = group
 		}
 		if inputID == "confirm" {
@@ -125,7 +148,7 @@ func BuildCapabilityRequests(queue operatorcapability.Pending, values map[string
 	}
 	requests := make([]operatorcapability.ActionRequest, 0, len(groups))
 	for _, request := range groups {
-		request.IdempotencyKey = operatorcapability.StableIdempotencyKey(request.CapabilityID, request.Inputs)
+		request.IdempotencyKey = operatorcapability.StableIdempotencyKey(request.CapabilityID, request.Inputs, request.TargetID)
 		requests = append(requests, *request)
 	}
 	return requests, nil

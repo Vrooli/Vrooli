@@ -10,8 +10,59 @@ Connect requests that declare a `target` field use the same generated procedure
 address for local and remote calls. Empty and `local` targets continue through
 the handler. A named node is forwarded through `nodereach` with the request
 serialized as protobuf and the response decoded from the generated method
-descriptor. Offline nodes map to `unavailable`, missing grants to
+descriptor. Host safeguard and notification-recipient mutations fail at this
+source boundary with `failed_precondition`; they never reach Bridge for a
+remote target. Offline nodes map to `unavailable`, missing grants to
 `permission_denied`, and expired deadlines to `deadline_exceeded`.
+
+## Host requirement capability
+
+The setup wizard resolves non-local selections against `ListTargets` before
+profile-session or host-requirement reads. The capability policy recognizes
+registered `NODE_KIND_AGENT` and `NODE_KIND_SSH` IDs as remote host candidates;
+unknown IDs and attached/control-plane/unspecified node kinds stop with an
+unsupported state. Registry failure also blocks target-scoped reads and saves
+until the selection can be resolved. Host-tool opt-ins and safeguard writes
+remain owned by the local control plane. `ui/src/api/hostCapabilities.ts` is the
+shared owner policy for client-adapter guards and wizard affordances; a remote
+host candidate remains readable and its controls are visibly disabled. Do not
+infer remote host mutation support from successful target discovery or
+requirement reads. The target-proxy gate
+also rejects the two host write procedures before remote dispatch; direct
+low-level Bridge dispatch and real node behavior remain unqualified. The wizard
+edits boolean, enum, string and numeric manifest fields. Other schema types are
+reported as not editable instead of being coerced to text.
+
+When a remote profile read fails, the wizard refreshes target admission. If the
+node has disappeared, its profile surface becomes explicitly unsupported and
+offers a target refresh action. If the registry still includes it, the wizard
+shows a remote read failure and retains the target-keyed draft. Re-admitting the
+same node resumes its saved answers; it does not copy answers to another target.
+
+## Target-bound wizard work
+
+Credential form values and save feedback live in
+`ui/src/hooks/useCredentialTargetState.ts`, keyed by target. Provision and
+reveal operations capture their selected target; reveal values and timers clear
+on switch, and late reveal responses are ignored. Apply run IDs retain the
+existing target-keyed local-storage format. `StepReadiness` aborts polling on
+target switch/unmount, binds review/start/cancel to the captured target, and
+uses a per-target idempotency key until a run is accepted. A failed start
+retains its key for safe retry. `StepPlan` uses the target in its React Query
+key, so recommendations and acceptance feedback cannot appear under another
+target. Mocked target-transition tests cover these contracts; no real Bridge or
+remote target behavior is implied.
+
+## Credential diagnosis projection
+
+`google.protobuf.Struct credential_diagnosis` crosses the Connect response as
+a JSON object at its root. `ui/src/api/readiness.ts` converts known provider
+fields into `CredentialDiagnosis`; consumers should not read a protobuf-style
+`.fields` property or cast the map to `any`. The adapter test covers the JSON
+shape and malformed provider data. Credential evidence also uses the committed
+generated protobuf fields directly; do not add compatibility casts for fields
+the generated owner already provides. This read path does not grant remote
+credential mutation or secret reveal capabilities.
 
 ## main-process
 

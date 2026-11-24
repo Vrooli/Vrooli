@@ -29,6 +29,9 @@ func TestV2ClosureFollowsScenarioAndResourceDependenciesWithProvenance(t *testin
 	if len(body.Scenarios) != 2 || len(body.Resources) != 2 {
 		t.Fatalf("closure = %#v", body)
 	}
+	if !strings.HasPrefix(body.ClosureDigest, "sha256:") {
+		t.Fatalf("closure digest = %q", body.ClosureDigest)
+	}
 	if body.Scenarios[1].Name != "beta" || body.Scenarios[1].Provenance[0].Kind != "required" || body.Scenarios[1].Provenance[0].From != "alpha" {
 		t.Fatalf("beta provenance = %#v", body.Scenarios[1])
 	}
@@ -101,6 +104,38 @@ func TestClosureRejectsDisabledRequiredDependency(t *testing.T) {
 	_, err := resolveClosureForState(root, []ScenarioReadModel{{Name: "writer", Enabled: true}}, OperatorState{})
 	if err == nil || !strings.Contains(err.Error(), `required resource "db"`) {
 		t.Fatalf("error = %v, want disabled required dependency", err)
+	}
+}
+
+func TestSharedClosureIncludesHostToolsAndSafeguardsFromSelectedResourceUnion(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("VROOLI_ROOT", root)
+	writeFixtureFile(t, filepath.Join(root, "scenarios", "writer", ".vrooli", "service.json"), `{
+  "service":{"name":"writer"},
+  "hostTools":[{"name":"tmux","required":true,"reason":"terminal session"}],
+  "dependencies":{"resources":{"redis":{"required":true}}}
+}`)
+	writeFixtureFile(t, filepath.Join(root, "resources", "redis", "resource.json"), `{
+  "name":"redis",
+  "hostTools":[{"name":"curl","required":false,"reason":"health check"}],
+  "hostSafeguards":[{"name":"nat-protection","required":true,"reason":"network exposure"}]
+}`)
+	closure, err := resolveClosureForState(root, []ScenarioReadModel{{Name: "writer", Enabled: true}}, OperatorState{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(closure.Tools) != 2 || len(closure.Safeguards) != 1 || !strings.HasPrefix(closure.ClosureDigest, "sha256:") {
+		t.Fatalf("shared host requirement closure = %+v", closure)
+	}
+	tools := map[string]closureMember{}
+	for _, item := range closure.Tools {
+		tools[item.Name] = item
+	}
+	if !tools["tmux"].Required || tools["curl"].Required || tools["tmux"].Provenance[0].From != "writer" || tools["curl"].Provenance[0].From != "resource:redis" {
+		t.Fatalf("tool projection = %+v", tools)
+	}
+	if !closure.Safeguards[0].Required || closure.Safeguards[0].Name != "nat-protection" {
+		t.Fatalf("safeguard projection = %+v", closure.Safeguards)
 	}
 }
 

@@ -2,6 +2,8 @@ package wizard
 
 import (
 	"bufio"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -13,6 +15,7 @@ import (
 	onboardingselection "vrooli-onboarding/cli/domains/selection"
 	"vrooli-onboarding/cli/internal/support"
 
+	"github.com/vrooli/api-core/coreset"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 	setupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1"
@@ -21,6 +24,7 @@ import (
 	credentialsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/credentials/credentialsv1connect"
 	operatorinputsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/operatorinputs"
 	operatorstatev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/operatorstate"
+	permissionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/permissions"
 	readinessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/readiness"
 	selectionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/selection"
 	sessionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/session"
@@ -52,14 +56,11 @@ type Selection struct {
 	Apply bool `json:"apply,omitempty"`
 }
 
-// selectionPatch is the one translation from the stable automation document
-// to operator-state fields. Keeping it pure makes the interactive and
-// declarative surfaces provably share the same write contract.
+// selectionPatch translates non-CoreSet choices from the stable automation
+// document to OperatorState fields. CoreSet uses its dedicated typed owner
+// permission so CLI mutations share the same authority and receipt contract.
 func selectionPatch(selection Selection) map[string]any {
 	patch := map[string]any{"scenarios": map[string]any{}}
-	if selection.CoreSeed != nil {
-		patch["core"] = map[string]any{"seed": normalizedNames(selection.CoreSeed)}
-	}
 	if strings.TrimSpace(selection.ActiveProfile) != "" {
 		patch["active_profile"] = selection.ActiveProfile
 	}
@@ -330,6 +331,7 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	selection.CoreSeed = append([]string(nil), currentCore.Seed...)
+	initialCoreSeed := normalizedNames(currentCore.Seed)
 	recommendation := &selectionv1.GetRecommendationResponse{}
 	if err := onboardingselection.Request(core, onboardingselection.GetRecommendationProcedure, &selectionv1.GetRecommendationRequest{Target: strings.TrimSpace(*target)}, recommendation); err != nil {
 		return err
@@ -563,6 +565,21 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 			if err := patchOperatorState(core, strings.TrimSpace(*target), patch); err != nil {
 				return err
 			}
+			if selection.CoreSeed != nil && !equalStrings(initialCoreSeed, normalizedNames(selection.CoreSeed)) {
+				authority, revision, err := readCoreAuthorityPermission(core, strings.TrimSpace(*target))
+				if err != nil {
+					return err
+				}
+				proposed := normalizedNames(selection.CoreSeed)
+				current := coreset.NormalizeOperationalAuthority(authority).Seed
+				if !equalStrings(current, proposed) {
+					authority.Seed = proposed
+					authority = coreset.NormalizeOperationalAuthority(authority)
+					if err := writeCoreAuthorityPermission(core, authority, revision); err != nil {
+						return err
+					}
+				}
+			}
 			planResponse := &applyv1.GetApplyPlanResponse{}
 			if err := requestApply(core, applyPlanProcedure, &applyv1.GetApplyPlanRequest{Target: strings.TrimSpace(*target)}, planResponse); err != nil {
 				return err
@@ -663,6 +680,12 @@ func runCoreSet(core *cliapp.ScenarioApp, args []string) error {
 	target := fs.String("target", "local", "Onboarding target scenario")
 	add := fs.String("add", "", "Comma-separated scenarios to add to core.seed")
 	remove := fs.String("remove", "", "Comma-separated scenarios to remove from core.seed")
+	importantScenarios := fs.String("important-scenario", "", "Comma-separated selected scenarios to monitor without auto-start")
+	unimportantScenarios := fs.String("unimportant-scenario", "", "Comma-separated scenarios to remove from important monitoring")
+	importantResources := fs.String("important-resource", "", "Comma-separated selected resources to monitor")
+	unimportantResources := fs.String("unimportant-resource", "", "Comma-separated resources to remove from important monitoring")
+	coreResources := fs.String("core-resource", "", "Comma-separated selected resources to auto-start and monitor")
+	nonCoreResources := fs.String("uncore-resource", "", "Comma-separated resources to remove from core auto-start")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
@@ -670,38 +693,92 @@ func runCoreSet(core *cliapp.ScenarioApp, args []string) error {
 	if strings.TrimSpace(*target) == "" {
 		return fmt.Errorf("--target is required")
 	}
-	current, err := fetchCoreSetForTarget(core, nil, strings.TrimSpace(*target))
-	if err != nil {
-		return err
+	hasSeedChange := strings.TrimSpace(*add) != "" || strings.TrimSpace(*remove) != ""
+	hasTierChange := strings.TrimSpace(*importantScenarios) != "" || strings.TrimSpace(*unimportantScenarios) != "" || strings.TrimSpace(*importantResources) != "" || strings.TrimSpace(*unimportantResources) != "" || strings.TrimSpace(*coreResources) != "" || strings.TrimSpace(*nonCoreResources) != ""
+	if hasSeedChange && hasTierChange {
+		return fmt.Errorf("apply core.seed edits and autoheal tier edits in separate commands so each durable receipt describes one owner mutation")
 	}
-	seed := map[string]bool{}
-	for _, name := range current.Seed {
-		seed[name] = true
+	if (hasSeedChange || hasTierChange) && strings.TrimSpace(*target) != "local" {
+		return fmt.Errorf("core authority changes currently require the local OperatorState target")
 	}
-	for _, name := range normalizedNames(strings.Split(*add, ",")) {
-		seed[name] = true
-	}
-	for _, name := range normalizedNames(strings.Split(*remove, ",")) {
-		delete(seed, name)
-	}
-	proposed := make([]string, 0, len(seed))
-	for name := range seed {
-		proposed = append(proposed, name)
-	}
-	sort.Strings(proposed)
-	preview, err := fetchCoreSetForTarget(core, proposed, strings.TrimSpace(*target))
-	if err != nil {
-		return err
-	}
-	if strings.TrimSpace(*add) != "" || strings.TrimSpace(*remove) != "" {
-		if !preview.Available {
-			return fmt.Errorf("core-set closure unavailable; seed remains unchanged: %s", preview.Error)
-		}
-		body, err := json.Marshal(map[string]any{"core": map[string]any{"seed": proposed}})
+	var authority coreset.Authority
+	var sourceRevision string
+	var err error
+	if hasSeedChange || hasTierChange {
+		authority, sourceRevision, err = readCoreAuthorityPermission(core, strings.TrimSpace(*target))
 		if err != nil {
 			return err
 		}
-		if err := patchOperatorState(core, strings.TrimSpace(*target), body); err != nil {
+	}
+	if hasSeedChange {
+		seed := map[string]bool{}
+		for _, name := range authority.Seed {
+			seed[name] = true
+		}
+		for _, name := range normalizedNames(strings.Split(*add, ",")) {
+			seed[name] = true
+		}
+		for _, name := range normalizedNames(strings.Split(*remove, ",")) {
+			delete(seed, name)
+		}
+		authority.Seed = authority.Seed[:0]
+		for name := range seed {
+			authority.Seed = append(authority.Seed, name)
+		}
+	}
+	important := map[coreset.ComponentID]struct{}{}
+	for _, member := range authority.Important {
+		important[member] = struct{}{}
+	}
+	for _, name := range normalizedNames(strings.Split(*importantScenarios, ",")) {
+		important[coreset.ComponentID{Kind: coreset.MemberKindScenario, Name: name}] = struct{}{}
+	}
+	for _, name := range normalizedNames(strings.Split(*importantResources, ",")) {
+		important[coreset.ComponentID{Kind: coreset.MemberKindResource, Name: name}] = struct{}{}
+	}
+	for _, name := range normalizedNames(strings.Split(*unimportantScenarios, ",")) {
+		delete(important, coreset.ComponentID{Kind: coreset.MemberKindScenario, Name: name})
+	}
+	for _, name := range normalizedNames(strings.Split(*unimportantResources, ",")) {
+		delete(important, coreset.ComponentID{Kind: coreset.MemberKindResource, Name: name})
+	}
+	coreMembers := map[coreset.ComponentID]struct{}{}
+	for _, member := range authority.CoreMembers {
+		coreMembers[member] = struct{}{}
+	}
+	for _, name := range normalizedNames(strings.Split(*coreResources, ",")) {
+		coreMembers[coreset.ComponentID{Kind: coreset.MemberKindResource, Name: name}] = struct{}{}
+	}
+	for _, name := range normalizedNames(strings.Split(*nonCoreResources, ",")) {
+		delete(coreMembers, coreset.ComponentID{Kind: coreset.MemberKindResource, Name: name})
+	}
+	if hasTierChange {
+		authority.Important = sortedComponentIDs(important)
+		authority.CoreMembers = sortedComponentIDs(coreMembers)
+	}
+	if hasSeedChange || hasTierChange {
+		authority = coreset.NormalizeOperationalAuthority(authority)
+		if err := authority.Validate(); err != nil {
+			return fmt.Errorf("core authority selection is invalid: %w", err)
+		}
+	}
+	previewSeed := authority.Seed
+	if !hasSeedChange && !hasTierChange {
+		current, err := fetchCoreSetForTarget(core, nil, strings.TrimSpace(*target))
+		if err != nil {
+			return err
+		}
+		previewSeed = current.Seed
+	}
+	preview, err := fetchCoreSetForTarget(core, previewSeed, strings.TrimSpace(*target))
+	if err != nil {
+		return err
+	}
+	if hasSeedChange || hasTierChange {
+		if !preview.Available {
+			return fmt.Errorf("core-set closure unavailable; authority remains unchanged: %s", preview.Error)
+		}
+		if err := writeCoreAuthorityPermission(core, authority, sourceRevision); err != nil {
 			return err
 		}
 	}
@@ -715,6 +792,68 @@ func runCoreSet(core *cliapp.ScenarioApp, args []string) error {
 	}
 	_, err = fmt.Fprintf(os.Stdout, "Core seed: %s\nClosure: %d scenario(s), %d resource(s)\n", strings.Join(preview.Seed, ", "), preview.MemberCounts["scenario"], preview.MemberCounts["resource"])
 	return err
+}
+
+func readCoreAuthorityPermission(core *cliapp.ScenarioApp, target string) (coreset.Authority, string, error) {
+	if target != "local" {
+		return coreset.Authority{}, "", fmt.Errorf("core authority currently requires the local OperatorState target")
+	}
+	const permissionID, owner = "onboarding/core-authority", "vrooli-onboarding"
+	read := new(permissionsv1.ReadPermissionResponse)
+	if err := support.RequestProto(core, "/vrooli.vrooli_onboarding.v1.permissions.PermissionRegistryService/ReadPermission", &permissionsv1.ReadPermissionRequest{PermissionId: permissionID, Owner: owner}, read, "core authority permission"); err != nil {
+		return coreset.Authority{}, "", fmt.Errorf("read core authority: %w", err)
+	}
+	var authority coreset.Authority
+	if err := json.Unmarshal(read.GetValueJson(), &authority); err != nil {
+		return coreset.Authority{}, "", fmt.Errorf("decode core authority: %w", err)
+	}
+	if read.GetPermissionId() != permissionID || read.GetOwner() != owner || strings.TrimSpace(read.GetRevision()) == "" {
+		return coreset.Authority{}, "", fmt.Errorf("core authority read returned an unbound revision")
+	}
+	return authority, read.GetRevision(), nil
+}
+
+func writeCoreAuthorityPermission(core *cliapp.ScenarioApp, authority coreset.Authority, expectedRevision string) error {
+	const permissionID, owner = "onboarding/core-authority", "vrooli-onboarding"
+	if strings.TrimSpace(expectedRevision) == "" {
+		return fmt.Errorf("core authority write requires the exact source revision")
+	}
+	if err := authority.Validate(); err != nil {
+		return fmt.Errorf("core authority is invalid: %w", err)
+	}
+	value, err := json.Marshal(authority)
+	if err != nil {
+		return err
+	}
+	var requestID [16]byte
+	if _, err := rand.Read(requestID[:]); err != nil {
+		return fmt.Errorf("create core authority request id: %w", err)
+	}
+	requestIDString := "cli-core-authority:" + hex.EncodeToString(requestID[:])
+	request := &permissionsv1.WritePermissionRequest{PermissionId: permissionID, Owner: owner, ExpectedRevision: expectedRevision, IdempotencyKey: requestIDString, ValueJson: value}
+	response := new(permissionsv1.WritePermissionResponse)
+	if err := support.RequestProto(core, "/vrooli.vrooli_onboarding.v1.permissions.PermissionRegistryService/WritePermission", request, response, "core authority permission"); err != nil {
+		return fmt.Errorf("write core authority: %w", err)
+	}
+	receipt := response.GetReceipt()
+	if receipt == nil || receipt.GetPermissionId() != permissionID || receipt.GetOwner() != owner || receipt.GetExpectedRevision() != expectedRevision || receipt.GetResultRevision() == "" || receipt.GetResultRevision() == expectedRevision || receipt.GetIdempotencyKey() != requestIDString || receipt.GetRequestDigest() == "" || receipt.GetOutcome() == "" {
+		return fmt.Errorf("core authority write returned no correctly bound durable receipt")
+	}
+	return nil
+}
+
+func sortedComponentIDs(values map[coreset.ComponentID]struct{}) []coreset.ComponentID {
+	result := make([]coreset.ComponentID, 0, len(values))
+	for member := range values {
+		result = append(result, member)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Kind == result[j].Kind {
+			return result[i].Name < result[j].Name
+		}
+		return result[i].Kind < result[j].Kind
+	})
+	return result
 }
 
 func fetchCoreSet(core *cliapp.ScenarioApp, seed []string) (*coreSetView, error) {
@@ -738,6 +877,18 @@ func normalizedNames(values []string) []string {
 	}
 	sort.Strings(result)
 	return result
+}
+
+func equalStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func applyRecommendation(core *cliapp.ScenarioApp, target string) error {
@@ -893,26 +1044,114 @@ func requestOperator(core *cliapp.ScenarioApp, procedure string, message, respon
 }
 
 func patchOperatorState(core *cliapp.ScenarioApp, target string, body []byte) error {
-	state := &operatorstatev1.OperatorState{}
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(body, state); err != nil {
-		return fmt.Errorf("decode operator-state patch: %w", err)
-	}
 	var patch map[string]json.RawMessage
 	if err := json.Unmarshal(body, &patch); err != nil {
 		return fmt.Errorf("decode operator-state patch fields: %w", err)
 	}
-	paths := make([]string, 0, len(patch))
-	for path := range patch {
-		paths = append(paths, path)
+	var safeguards map[string]json.RawMessage
+	var hostTools map[string]json.RawMessage
+	if raw, ok := patch["host_safeguards"]; ok {
+		if strings.TrimSpace(target) != "local" {
+			return fmt.Errorf("host safeguards can only be changed on the local host control plane")
+		}
+		if err := json.Unmarshal(raw, &safeguards); err != nil {
+			return fmt.Errorf("decode host safeguard choices: %w", err)
+		}
+		delete(patch, "host_safeguards")
+		body, _ = json.Marshal(patch)
 	}
-	sort.Strings(paths)
-	response := &operatorstatev1.PatchOperatorStateResponse{}
-	if err := support.RequestProto(core, operatorStatePatchProcedure, &operatorstatev1.PatchOperatorStateRequest{
-		Target:     target,
-		State:      state,
-		UpdateMask: &fieldmaskpb.FieldMask{Paths: paths},
-	}, response, "operator state"); err != nil {
+	if raw, ok := patch["host_tools"]; ok {
+		if strings.TrimSpace(target) != "local" {
+			return fmt.Errorf("host tools can only be opted in on the local host control plane")
+		}
+		if err := json.Unmarshal(raw, &hostTools); err != nil {
+			return fmt.Errorf("decode host tool choices: %w", err)
+		}
+		delete(patch, "host_tools")
+		body, _ = json.Marshal(patch)
+	}
+	if len(patch) > 0 {
+		state := &operatorstatev1.OperatorState{}
+		if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(body, state); err != nil {
+			return fmt.Errorf("decode operator-state patch: %w", err)
+		}
+		paths := make([]string, 0, len(patch))
+		for path := range patch {
+			paths = append(paths, path)
+		}
+		sort.Strings(paths)
+		response := &operatorstatev1.PatchOperatorStateResponse{}
+		if err := support.RequestProto(core, operatorStatePatchProcedure, &operatorstatev1.PatchOperatorStateRequest{Target: target, State: state, UpdateMask: &fieldmaskpb.FieldMask{Paths: paths}}, response, "operator state"); err != nil {
+			return err
+		}
+	}
+	for name, choice := range safeguards {
+		if err := writeSafeguardChoice(core, name, choice); err != nil {
+			return fmt.Errorf("write safeguard %s: %w", name, err)
+		}
+	}
+	for name, choice := range hostTools {
+		if err := writeHostToolChoice(core, name, choice); err != nil {
+			return fmt.Errorf("write host tool %s: %w", name, err)
+		}
+	}
+	return nil
+}
+
+func writeHostToolChoice(core *cliapp.ScenarioApp, name string, raw json.RawMessage) error {
+	var choice map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &choice); err != nil {
 		return err
+	}
+	value, ok := choice["opted_in"]
+	if !ok || len(choice) != 1 {
+		return fmt.Errorf("host tool permission accepts only opted_in")
+	}
+	read := &permissionsv1.ReadPermissionResponse{}
+	id := "onboarding/host-tool/selected-closure/" + name
+	if err := support.RequestProto(core, "/vrooli.vrooli_onboarding.v1.permissions.PermissionRegistryService/ReadPermission", &permissionsv1.ReadPermissionRequest{PermissionId: id, Owner: "vrooli-onboarding"}, read, "host tool permission"); err != nil {
+		return err
+	}
+	randomID := make([]byte, 16)
+	if _, err := rand.Read(randomID); err != nil {
+		return err
+	}
+	write := &permissionsv1.WritePermissionResponse{}
+	if err := support.RequestProto(core, "/vrooli.vrooli_onboarding.v1.permissions.PermissionRegistryService/WritePermission", &permissionsv1.WritePermissionRequest{PermissionId: id, Owner: "vrooli-onboarding", ExpectedRevision: read.GetRevision(), IdempotencyKey: "cli-host-tool:" + hex.EncodeToString(randomID), ValueJson: value}, write, "host tool permission"); err != nil {
+		return err
+	}
+	return nil
+}
+
+func writeSafeguardChoice(core *cliapp.ScenarioApp, name string, raw json.RawMessage) error {
+	var choice map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &choice); err != nil {
+		return err
+	}
+	for _, field := range []string{"config", "opted_in"} {
+		value, ok := choice[field]
+		if !ok {
+			continue
+		}
+		payload := value
+		if field == "config" {
+			payload, _ = json.Marshal(map[string]json.RawMessage{"config": value})
+		} else {
+			payload, _ = json.Marshal(map[string]json.RawMessage{"opted_in": value})
+		}
+		read := &permissionsv1.ReadPermissionResponse{}
+		id := "onboarding/host-safeguard/" + name
+		if err := support.RequestProto(core, "/vrooli.vrooli_onboarding.v1.permissions.PermissionRegistryService/ReadPermission", &permissionsv1.ReadPermissionRequest{PermissionId: id, Owner: "vrooli-onboarding"}, read, "host safeguard permission"); err != nil {
+			return err
+		}
+		randomID := make([]byte, 16)
+		if _, err := rand.Read(randomID); err != nil {
+			return err
+		}
+		write := &permissionsv1.WritePermissionResponse{}
+		if err := support.RequestProto(core, "/vrooli.vrooli_onboarding.v1.permissions.PermissionRegistryService/WritePermission", &permissionsv1.WritePermissionRequest{PermissionId: id, Owner: "vrooli-onboarding", ExpectedRevision: read.GetRevision(), IdempotencyKey: "cli-safeguard:" + hex.EncodeToString(randomID), ValueJson: payload}, write, "host safeguard permission"); err != nil {
+			return err
+		}
 	}
 	return nil
 }

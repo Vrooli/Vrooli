@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -61,6 +62,25 @@ func runApplyRunner(ctx context.Context, id string) error {
 	if strings.TrimSpace(id) == "" {
 		return fmt.Errorf("%s requires an apply run id", applyRunnerFlag)
 	}
+	lockPath, err := applyRunnerLockPath(id)
+	if err != nil {
+		return fmt.Errorf("resolve apply runner lock: %w", err)
+	}
+	release, acquired, err := tryClaimApplyRunner(lockPath)
+	if err != nil {
+		return fmt.Errorf("claim apply runner: %w", err)
+	}
+	if !acquired {
+		// A replay may start another detached process before the first has
+		// published its PID. Exit quietly instead of holding one waiter per
+		// retry for the lifetime of a long apply.
+		return nil
+	}
+	defer release()
+
+	// The run must be read only after taking its lock. A retried StartApply can
+	// launch another process while the first is still starting; a pre-lock
+	// pending snapshot would let both processes execute the same host effects.
 	run, err := loadPersistedApplyRun(id)
 	if err != nil {
 		return fmt.Errorf("load apply run %s: %w", id, err)
@@ -81,6 +101,40 @@ func runApplyRunner(ctx context.Context, id string) error {
 	return executeApplyRun(ctx, run)
 }
 
+func tryClaimApplyRunner(path string) (func(), bool, error) {
+	file, err := platform.OpenLockFile(path, 0o600)
+	if err != nil {
+		return nil, false, err
+	}
+	release, err := platform.LockFile(file, true)
+	if errors.Is(err, platform.ErrLockUnavailable) {
+		_ = file.Close()
+		return nil, false, nil
+	}
+	if err != nil {
+		_ = file.Close()
+		return nil, false, err
+	}
+	if err := platform.VerifyLockFile(file, path); err != nil {
+		release()
+		_ = file.Close()
+		return nil, false, err
+	}
+	return func() { release(); _ = file.Close() }, true, nil
+}
+
+func applyRunnerLockPath(id string) (string, error) {
+	statePath, err := operatorStatePath()
+	if err != nil {
+		return "", err
+	}
+	dir := filepath.Join(filepath.Dir(statePath), "apply-runs")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", fmt.Errorf("create apply runner state directory: %w", err)
+	}
+	return filepath.Join(dir, id+".runner.lock"), nil
+}
+
 // startApplyHeartbeat restamps the run's liveness until the returned function
 // is called. It reads the run back each tick rather than closing over a
 // snapshot, so it never overwrites progress the executor has recorded.
@@ -99,9 +153,11 @@ func startApplyHeartbeat(id string) func() {
 				if !ok || isTerminalApplyStatus(current.Status) {
 					return
 				}
-				current.RunnerPID = os.Getpid()
-				current.Heartbeat = operatorStateNow().UTC().Format(time.RFC3339)
-				updateApplyRun(current)
+				if err := restampApplyRunHeartbeat(id); err != nil {
+					// A readback/write failure must not be masked by a stale
+					// snapshot. The runner's next progress write will report it.
+					return
+				}
 			}
 		}
 	}()
@@ -244,11 +300,30 @@ func observedApplyRun(run applyRun) applyRun {
 	if run.Error == "" {
 		run.Error = "the process executing this apply is no longer running, so the remaining items were not attempted"
 	}
+	for index := range run.Items {
+		item := &run.Items[index]
+		if item.Outcome != applyItemApplying {
+			continue
+		}
+		if err := item.TransitionOutcome(applyItemIndeterminate); err != nil {
+			continue
+		}
+		item.ErrorCode = "effect_outcome_unknown"
+		item.Error = "the apply process stopped while this item was in progress; the control plane cannot confirm whether its effect completed"
+		item.Remediation = "Review this target item before retrying; repeating an unobserved desired-state action may run it again"
+		item.Disposition = applyDisposition(item.Outcome)
+		run.Blockers = append(run.Blockers, completionBlocker{
+			Kind:        "apply_item",
+			Name:        item.ID,
+			Reason:      item.Error,
+			Remediation: item.Remediation,
+		})
+	}
 	run.Blockers = append(run.Blockers, completionBlocker{
 		Kind:        "apply",
 		Name:        "apply-runner",
 		Reason:      "the apply run was interrupted before it finished",
-		Remediation: "Review the items already applied, then apply the selection again to resume the remainder.",
+		Remediation: "Review completed and uncertain items, then apply the retained selection again. Effects without a current observation may be repeated.",
 	})
 	return run
 }
@@ -271,9 +346,18 @@ func applyRunnerAlive(run applyRun) bool {
 	if operatorStateNow().UTC().Sub(beat.UTC()) < staleApplyHeartbeat {
 		return true
 	}
-	return run.RunnerPID > 0 && processAlive(run.RunnerPID)
+	if run.RunnerPID <= 0 {
+		return false
+	}
+	alive, err := processAliveObserved(run.RunnerPID)
+	if err != nil {
+		// A failed or forbidden observation cannot prove the runner is gone.
+		// Keep ownership active so recovery never races a possibly running effect.
+		return true
+	}
+	return alive
 }
 
-var processAlive = func(pid int) bool {
-	return platform.IsPIDRunning(pid)
+var processAliveObserved = func(pid int) (bool, error) {
+	return platform.ProcessAliveObserved(pid)
 }

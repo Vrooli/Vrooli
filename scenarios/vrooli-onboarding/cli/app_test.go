@@ -4,7 +4,34 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/cli-core/cliapp"
 )
+
+func TestManifestCommandViewsShareOneLoadedTree(t *testing.T) {
+	loads := 0
+	core := &cliapp.ScenarioApp{}
+	commandGroups, subcommandGroups := cachedManifestGroupCallbacks(func(gotCore *cliapp.ScenarioApp) ([]cliapp.CommandGroup, []cliapp.SubcommandGroup, error) {
+		loads++
+		if gotCore != core {
+			t.Fatalf("loader core = %p, want shared core %p", gotCore, core)
+		}
+		return []cliapp.CommandGroup{{Title: "flat"}}, []cliapp.SubcommandGroup{{Name: "nested"}}, nil
+	})
+
+	if got := commandGroups(core); len(got) != 1 || got[0].Title != "flat" {
+		t.Fatalf("flat command groups = %+v", got)
+	}
+	if got := subcommandGroups(core); len(got) != 1 || got[0].Name != "nested" {
+		t.Fatalf("nested command groups = %+v", got)
+	}
+	if got := subcommandGroups(core); len(got) != 1 || got[0].Name != "nested" {
+		t.Fatalf("reloaded nested command groups = %+v", got)
+	}
+	if loads != 1 {
+		t.Fatalf("manifest group loader calls = %d, want 1", loads)
+	}
+}
 
 func TestNewAppConstructs(t *testing.T) {
 	app, err := NewApp()

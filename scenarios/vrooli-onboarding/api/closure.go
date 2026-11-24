@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/vrooli/api-core/coreset"
 )
 
 type dependencySpec struct {
@@ -28,6 +30,8 @@ type closureManifest struct {
 		Scenarios map[string]dependencySpec `json:"scenarios"`
 		Resources map[string]dependencySpec `json:"resources"`
 	} `json:"optional_dependencies"`
+	HostTools      []hostRequirement `json:"hostTools"`
+	HostSafeguards []hostRequirement `json:"hostSafeguards"`
 }
 
 type closureProvenance struct {
@@ -46,8 +50,11 @@ type closureMember struct {
 }
 
 type closureResult struct {
-	Scenarios []closureMember `json:"scenarios"`
-	Resources []closureMember `json:"resources"`
+	ClosureDigest string          `json:"closureDigest"`
+	Scenarios     []closureMember `json:"scenarios"`
+	Resources     []closureMember `json:"resources"`
+	Tools         []closureMember `json:"host_tools"`
+	Safeguards    []closureMember `json:"safeguards"`
 }
 
 func readClosureManifest(root, name string) (closureManifest, error) {
@@ -148,123 +155,257 @@ func resolveClosure(root string, models []ScenarioReadModel) (closureResult, err
 func resolveClosureForState(root string, models []ScenarioReadModel, state OperatorState) (closureResult, error) {
 	scenarios := map[string]*closureMember{}
 	resources := map[string]*closureMember{}
-	visiting := map[string]bool{}
-	visited := map[string]bool{}
-	stack := make([]string, 0)
-
-	var visit func(string, closureProvenance, bool) error
-	visit = func(name string, provenance closureProvenance, direct bool) error {
-		if visiting[name] {
-			cycleStart := 0
-			for i, item := range stack {
-				if item == name {
-					cycleStart = i
-					break
-				}
-			}
-			cycle := append(append([]string(nil), stack[cycleStart:]...), name)
-			return fmt.Errorf("scenario dependency cycle detected: %s", strings.Join(cycle, " -> "))
-		}
-		if visited[name] {
-			appendClosureMember(scenarios, name, provenance, provenance.Kind == "required", direct)
-			return nil
-		}
-		manifest, err := readClosureManifest(root, name)
-		if err != nil {
-			return err
-		}
-		visiting[name] = true
-		stack = append(stack, name)
-		appendClosureMember(scenarios, name, provenance, provenance.Kind == "required", direct)
-
-		for _, depName := range sortedDependencyNames(manifest.Dependencies.Resources, manifest.OptionalDependencies.Resources) {
-			spec, ok := manifest.Dependencies.Resources[depName]
-			if !ok {
-				spec = manifest.OptionalDependencies.Resources[depName]
-			}
-			policy := dependencyPolicy(spec)
-			if dependencyIgnored(spec) {
-				markClosureMember(resources, depName, "ignored", "startup policy is ignore", policy)
-				continue
-			}
-			if !dependencyEnabled(spec) {
-				if spec.Required {
-					return fmt.Errorf("required resource %q from scenario %q is disabled", depName, name)
-				}
-				markClosureMember(resources, depName, "ignored", "dependency is disabled by manifest", policy)
-				continue
-			}
-			if !spec.Required {
-				if choice, ok := state.Resources[depName]; ok && choice.Enabled != nil && !*choice.Enabled {
-					markClosureMember(resources, depName, "ignored", "dependency declined by operator", policy)
-					continue
-				}
-			}
-			appendClosureMember(resources, depName, closureProvenance{Kind: dependencyKind(spec), From: name}, spec.Required, false)
-			markClosureMember(resources, depName, "included", "declared by dependency", policy)
-		}
-		for _, depName := range sortedDependencyNames(manifest.Dependencies.Scenarios, manifest.OptionalDependencies.Scenarios) {
-			spec, ok := manifest.Dependencies.Scenarios[depName]
-			if !ok {
-				spec = manifest.OptionalDependencies.Scenarios[depName]
-			}
-			policy := dependencyPolicy(spec)
-			if dependencyIgnored(spec) {
-				markClosureMember(scenarios, depName, "ignored", "startup policy is ignore", policy)
-				continue
-			}
-			if !dependencyEnabled(spec) {
-				if spec.Required {
-					return fmt.Errorf("required scenario %q from scenario %q is disabled", depName, name)
-				}
-				markClosureMember(scenarios, depName, "ignored", "dependency is disabled by manifest", policy)
-				continue
-			}
-			if err := visit(depName, closureProvenance{Kind: dependencyKind(spec), From: name}, false); err != nil {
-				return err
-			}
-			markClosureMember(scenarios, depName, "included", "declared by dependency", policy)
-		}
-		delete(visiting, name)
-		stack = stack[:len(stack)-1]
-		visited[name] = true
-		return nil
-	}
-
+	tools := map[string]*closureMember{}
+	safeguards := map[string]*closureMember{}
+	roots := make([]coreset.ComponentID, 0, len(models)+len(state.Resources))
+	rootNames := map[string]bool{}
+	var projectTools, projectSafeguards []hostRequirement
 	for _, model := range models {
 		if !model.Enabled {
 			continue
 		}
-		if err := visit(model.Name, closureProvenance{Kind: "selected"}, true); err != nil {
-			return closureResult{}, err
+		name := strings.ToLower(strings.TrimSpace(model.Name))
+		if name == "" {
+			continue
 		}
-		markClosureMember(scenarios, model.Name, "selected", "selected by operator", "must_start")
+		id := coreset.ComponentID{Kind: "scenario", Name: name}
+		roots = append(roots, id)
+		rootNames[name] = true
+		markClosureMember(scenarios, name, "selected", "selected by operator", "must_start")
 	}
-	// Standalone resources are operator choices rather than scenario closure
-	// members. Include only explicit enablement, preserving required resources
-	// already discovered above.
+	// Each adapter call reads and adapts one declaration. Reachability, cycle
+	// handling, provenance and canonical union are all owned by api-core.
+	dependencySource := coreset.DependencySourceFunc(func(from coreset.ComponentID) ([]coreset.DependencyEdge, error) {
+		if from.Kind == "scenario" {
+			manifest, err := readClosureManifest(root, from.Name)
+			if err != nil {
+				return nil, err
+			}
+			graph := coreset.DependencyGraph{}
+			appendHostRequirementEdges(&graph, from, from.Name, manifest.HostTools, manifest.HostSafeguards)
+			out := graph.Edges
+			for _, depName := range sortedDependencyNames(manifest.Dependencies.Resources, manifest.OptionalDependencies.Resources) {
+				spec, required := manifest.Dependencies.Resources[depName]
+				if !required {
+					spec = manifest.OptionalDependencies.Resources[depName]
+				}
+				policy := dependencyPolicy(spec)
+				if dependencyIgnored(spec) {
+					markClosureMember(resources, depName, "ignored", "startup policy is ignore", policy)
+					continue
+				}
+				if !dependencyEnabled(spec) {
+					if spec.Required {
+						return nil, fmt.Errorf("required resource %q from scenario %q is disabled", depName, from.Name)
+					}
+					markClosureMember(resources, depName, "ignored", "dependency is disabled by manifest", policy)
+					continue
+				}
+				if !spec.Required {
+					if choice, ok := state.Resources[depName]; ok && choice.Enabled != nil && !*choice.Enabled {
+						markClosureMember(resources, depName, "ignored", "dependency declined by operator", policy)
+						continue
+					}
+				}
+				target := coreset.ComponentID{Kind: "resource", Name: depName}
+				out = append(out, coreset.DependencyEdge{
+					From: from, To: target, Relation: "resource", DeclaredBy: from.Name,
+					Required: spec.Required, Policy: policy,
+				})
+				markClosureMember(resources, depName, "included", "declared by dependency", policy)
+			}
+			for _, depName := range sortedDependencyNames(manifest.Dependencies.Scenarios, manifest.OptionalDependencies.Scenarios) {
+				spec, required := manifest.Dependencies.Scenarios[depName]
+				if !required {
+					spec = manifest.OptionalDependencies.Scenarios[depName]
+				}
+				policy := dependencyPolicy(spec)
+				if dependencyIgnored(spec) {
+					markClosureMember(scenarios, depName, "ignored", "startup policy is ignore", policy)
+					continue
+				}
+				if !dependencyEnabled(spec) {
+					if spec.Required {
+						return nil, fmt.Errorf("required scenario %q from scenario %q is disabled", depName, from.Name)
+					}
+					markClosureMember(scenarios, depName, "ignored", "dependency is disabled by manifest", policy)
+					continue
+				}
+				targetName := strings.ToLower(strings.TrimSpace(depName))
+				target := coreset.ComponentID{Kind: "scenario", Name: targetName}
+				out = append(out, coreset.DependencyEdge{
+					From: from, To: target, Relation: "scenario", DeclaredBy: from.Name,
+					Required: spec.Required, Policy: policy,
+				})
+				markClosureMember(scenarios, targetName, "included", "declared by dependency", policy)
+			}
+			return out, nil
+		}
+		if from.Kind == "resource" {
+			manifestPath := filepath.Join(root, "resources", from.Name, "resource.json")
+			data, err := os.ReadFile(manifestPath)
+			if err != nil {
+				if os.IsNotExist(err) {
+					return nil, nil
+				}
+				return nil, err
+			}
+			var manifest struct {
+				Dependencies []string `json:"dependencies"`
+			}
+			if err := json.Unmarshal(data, &manifest); err != nil {
+				return nil, fmt.Errorf("decode %s: %w", manifestPath, err)
+			}
+			var graph coreset.DependencyGraph
+			resourceTools, resourceSafeguards, err := loadHostRequirements(manifestPath)
+			if err != nil && !os.IsNotExist(err) {
+				return nil, err
+			}
+			appendHostRequirementEdges(&graph, from, "resource:"+from.Name, resourceTools, resourceSafeguards)
+			out := graph.Edges
+			dependencies := append([]string(nil), manifest.Dependencies...)
+			sort.Strings(dependencies)
+			for _, dependency := range dependencies {
+				dependency = strings.ToLower(strings.TrimSpace(dependency))
+				if dependency == "" {
+					continue
+				}
+				out = append(out, coreset.DependencyEdge{From: from, To: coreset.ComponentID{Kind: "resource", Name: dependency}, Relation: "resource", DeclaredBy: "resource:" + from.Name, Detail: "declared in resource.json", Required: true, Policy: "must_start"})
+			}
+			return out, nil
+		}
+		if from.Kind == "project" {
+			var graph coreset.DependencyGraph
+			appendHostRequirementEdges(&graph, from, "project", projectTools, projectSafeguards)
+			return graph.Edges, nil
+		}
+		return nil, nil
+	})
+
+	// Standalone resources are also roots, but only explicit operator enables
+	// are included. They share the same union and digest as scenario roots.
 	for name, choice := range state.Resources {
 		if choice.Enabled == nil || !*choice.Enabled {
 			continue
 		}
-		if _, exists := resources[name]; exists {
-			continue
-		}
+		name = strings.ToLower(strings.TrimSpace(name))
 		if _, err := os.Stat(filepath.Join(root, "resources", name, "resource.json")); err != nil {
 			if os.IsNotExist(err) {
 				continue
 			}
 			return closureResult{}, err
 		}
-		appendClosureMember(resources, name, closureProvenance{Kind: "operator_enabled", From: "operator-state"}, false, true)
+		id := coreset.ComponentID{Kind: "resource", Name: name}
+		roots = append(roots, id)
 		markClosureMember(resources, name, "selected", "selected as a standalone resource", "try_start")
 	}
 
+	// Host tools and safeguards declared by selected resources join the same
+	// graph. A missing resource manifest remains an absent optional catalog
+	// entry here, matching the existing host requirement projection contract.
+
+	// Repository-scoped host requirements are rooted independently from the
+	// selected scenarios. A staged bundle has no project scope by design.
+	if projectScopeAvailable() {
+		var err error
+		projectTools, projectSafeguards, err = loadHostRequirements(filepath.Join(root, ".vrooli", "service.json"))
+		if err != nil && !os.IsNotExist(err) {
+			return closureResult{}, fmt.Errorf("read project host requirements: %w", err)
+		}
+		if err == nil && (len(projectTools) > 0 || len(projectSafeguards) > 0) {
+			project := coreset.ComponentID{Kind: "project", Name: "repository"}
+			roots = append(roots, project)
+		}
+	}
+
+	// The onboarding preview is a set union, not a startup ordering. Optional
+	// try_start edges can form a cycle when two services have reciprocal runtime
+	// integrations; keep those members in the closure while still rejecting a
+	// cycle made entirely of required edges.
+	closure, err := coreset.ResolveFromSource(dependencySource, roots, coreset.ResolveOptions{AllowCyclesWithOptionalEdges: true})
+	if err != nil {
+		return closureResult{}, err
+	}
+	for _, item := range closure.Members {
+		name := item.Component.Name
+		var target map[string]*closureMember
+		if item.Component.Kind == "scenario" {
+			target = scenarios
+		} else if item.Component.Kind == "resource" {
+			target = resources
+		} else if item.Component.Kind == "tool" {
+			target = tools
+		} else if item.Component.Kind == "safeguard" {
+			target = safeguards
+		} else {
+			continue
+		}
+		if target[name] == nil {
+			stateName, reason, policy := "included", "declared by dependency", "try_start"
+			if item.Selected {
+				stateName, reason, policy = "selected", "selected by operator", "must_start"
+			}
+			markClosureMember(target, name, stateName, reason, policy)
+		}
+		if item.Selected && (item.Component.Kind == "scenario" || item.Component.Kind == "resource") {
+			provenance := closureProvenance{Kind: "selected"}
+			if item.Component.Kind == "resource" {
+				provenance = closureProvenance{Kind: "operator_enabled", From: "operator-state"}
+			}
+			appendClosureMember(target, name, provenance, false, true)
+		}
+		for _, edge := range item.Reasons {
+			kind := "try_start"
+			if edge.Required {
+				kind = "required"
+			}
+			fromName := edge.From.Name
+			if edge.From.Kind == "resource" {
+				fromName = "resource:" + fromName
+			} else if edge.From.Kind == "project" {
+				fromName = "project"
+			}
+			appendClosureMember(target, name, closureProvenance{Kind: kind, From: fromName}, edge.Required, item.Selected && rootNames[name])
+			if edge.Required {
+				target[name].Required = true
+			}
+			if target[name].Policy == "" || edge.Required {
+				target[name].Policy = edge.Policy
+			}
+		}
+	}
+
 	result := closureResult{
-		Scenarios: mapClosureMembers(scenarios),
-		Resources: mapClosureMembers(resources),
+		ClosureDigest: closure.Digest,
+		Scenarios:     mapClosureMembers(scenarios),
+		Resources:     mapClosureMembers(resources),
+		Tools:         mapClosureMembers(tools),
+		Safeguards:    mapClosureMembers(safeguards),
 	}
 	return result, nil
+}
+
+func appendHostRequirementEdges(graph *coreset.DependencyGraph, from coreset.ComponentID, declaredBy string, tools, safeguards []hostRequirement) {
+	appendItems := func(kind string, items []hostRequirement) {
+		for _, item := range items {
+			name := strings.ToLower(strings.TrimSpace(item.Name))
+			if name == "" {
+				continue
+			}
+			to := coreset.ComponentID{Kind: kind, Name: name}
+			policy := "optional"
+			if item.Required {
+				policy = "required"
+			}
+			graph.Components = append(graph.Components, to)
+			graph.Edges = append(graph.Edges, coreset.DependencyEdge{
+				From: from, To: to, Relation: kind, DeclaredBy: declaredBy,
+				Detail: item.Reason, Required: item.Required, Policy: policy,
+			})
+		}
+	}
+	appendItems("tool", tools)
+	appendItems("safeguard", safeguards)
 }
 
 func mapClosureMembers(members map[string]*closureMember) []closureMember {
@@ -352,21 +493,24 @@ func (s *Server) handleV2Union(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-	tools := make([]string, 0, len(requirements.Tools))
-	for _, item := range requirements.Tools {
+	if err := validateSharedHostMembers(closure, requirements); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	tools := make([]string, 0, len(closure.Tools))
+	for _, item := range closure.Tools {
 		tools = append(tools, item.Name)
 	}
-	safeguards := make([]string, 0, len(requirements.Safeguards))
-	for _, item := range requirements.Safeguards {
+	safeguards := make([]string, 0, len(closure.Safeguards))
+	for _, item := range closure.Safeguards {
 		safeguards = append(safeguards, item.Name)
 	}
-	sort.Strings(tools)
-	sort.Strings(safeguards)
 	writeJSON(w, http.StatusOK, map[string]any{
-		"scenarios":     closure.Scenarios,
-		"resources":     closure.Resources,
-		"host_tools":    tools,
-		"safeguards":    safeguards,
-		"catalog_paths": []string{"catalog/scenarios", "catalog/resources", "catalog/internal/tools", "catalog/internal/safeguards"},
+		"closure_digest": closure.ClosureDigest,
+		"scenarios":      closure.Scenarios,
+		"resources":      closure.Resources,
+		"host_tools":     tools,
+		"safeguards":     safeguards,
+		"catalog_paths":  []string{"catalog/scenarios", "catalog/resources", "catalog/internal/tools", "catalog/internal/safeguards"},
 	})
 }

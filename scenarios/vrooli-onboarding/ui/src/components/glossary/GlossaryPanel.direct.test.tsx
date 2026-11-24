@@ -204,4 +204,29 @@ describe("GlossaryPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: /clear the search/i }));
     expect(searchInput).toHaveValue("");
   });
+
+  it("retains the same search result and draft through provider loss and explicit retry", async () => {
+    let providerUnavailable = false;
+    glossaryApi.fetchGlossary.mockImplementation((query: string) => {
+      if (!query) return Promise.resolve({ entries: [], count: 0 });
+      if (providerUnavailable) return Promise.reject(new Error("glossary provider unavailable"));
+      return Promise.resolve({ entries: [mockGlossaryData.entries[0]], count: 1 });
+    });
+    renderWithQueryClient(<GlossaryPanel />);
+    const input = screen.getByTestId("glossary-search");
+    fireEvent.change(input, { target: { value: "resource" } });
+    await waitFor(() => expect(screen.getByText("Resource")).toBeInTheDocument());
+
+    providerUnavailable = true;
+    fireEvent.click(screen.getByRole("button", { name: "Refresh results" }));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.getByText("Resource")).toBeInTheDocument();
+    expect(input).toHaveValue("resource");
+
+    providerUnavailable = false;
+    fireEvent.click(screen.getByRole("button", { name: "Retry glossary" }));
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    expect(screen.getByText("Resource")).toBeInTheDocument();
+    expect(glossaryApi.fetchGlossary).toHaveBeenLastCalledWith("resource");
+  });
 });

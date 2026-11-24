@@ -92,6 +92,18 @@ func validatePreset(r *Registry, m Manifest) error {
 	return nil
 }
 
+// PresetTarget reports what a preset operation runs: the target operation, the
+// default model (empty when the preset names none) and its standing adapters.
+// The submit edge uses it to expand the request; the read-only explain surface
+// uses it for the same expansion so `--explain` describes the job that would run.
+func PresetTarget(op string) (runs string, model string, adapters []PresetAdapter, ok bool) {
+	m, found := Get(op)
+	if !found || m.Preset == nil {
+		return "", "", nil, false
+	}
+	return m.Preset.Runs, m.Preset.Model, m.Preset.Adapters, true
+}
+
 // schemaDeclares reports whether a params_schema has a property of this name.
 func schemaDeclares(schema json.RawMessage, name string) bool {
 	var doc struct {

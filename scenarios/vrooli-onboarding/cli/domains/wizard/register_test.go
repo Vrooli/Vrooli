@@ -1,7 +1,9 @@
 package wizard
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -11,6 +13,7 @@ import (
 
 	localtest "vrooli-onboarding/cli/internal/testutil"
 
+	"github.com/vrooli/api-core/coreset"
 	"github.com/vrooli/cli-core/cliapp"
 	clitest "github.com/vrooli/cli-core/cliapptest"
 	credentialsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/credentials"
@@ -372,36 +375,45 @@ func TestSelectionPatchCoversAllAutomationChoices(t *testing.T) {
 	if decoded["host_tools"].(map[string]any)["demo-tool"].(map[string]any)["opted_in"] != true {
 		t.Fatal("host tools must be represented in the shared patch")
 	}
-	if decoded["core"].(map[string]any)["seed"].([]any)[0] != "alpha" {
-		t.Fatal("core seed must be represented in the shared patch")
+	if _, exists := decoded["core"]; exists {
+		t.Fatal("CoreSet authority must stay on its dedicated typed permission")
 	}
 }
 
-func TestCoreSetCommandPreviewsBeforeFieldScopedPatch(t *testing.T) {
+func TestCoreSetCommandPreviewsBeforeTypedCoreAuthorityWrite(t *testing.T) {
 	order := []string{}
-	var patched []string
+	var written coreset.Authority
+	var sourceRevision string
+	var requestID string
+	authorityBytes, _ := json.Marshal(coreset.Authority{Seed: []string{"alpha"}, TrustedBase: []string{}, Important: []coreset.ComponentID{}, CoreMembers: []coreset.ComponentID{}})
 	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
-		case r.Method == http.MethodPost && r.URL.Path == "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetCoreSet" && len(order) == 0:
-			order = append(order, "current")
-			_, _ = w.Write([]byte(`{"available":true,"seed":["alpha"],"trustedBase":[]}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/vrooli.vrooli_onboarding.v1.permissions.PermissionRegistryService/ReadPermission":
+			order = append(order, "authority-read")
+			_, _ = fmt.Fprintf(w, `{"permissionId":"onboarding/core-authority","owner":"vrooli-onboarding","revision":"core-r4","valueJson":%q}`, base64.StdEncoding.EncodeToString(authorityBytes))
 		case r.Method == http.MethodPost && r.URL.Path == "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetCoreSet":
 			order = append(order, "preview")
 			_, _ = w.Write([]byte(`{"available":true,"seed":["beta"],"trustedBase":[],"memberCounts":{"scenario":1,"resource":0}}`))
-		case r.Method == http.MethodPost && r.URL.Path == "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/PatchOperatorState":
-			order = append(order, "patch")
+		case r.Method == http.MethodPost && r.URL.Path == "/vrooli.vrooli_onboarding.v1.permissions.PermissionRegistryService/WritePermission":
+			order = append(order, "authority-write")
 			var body struct {
-				State struct {
-					Core struct {
-						Seed []string `json:"seed"`
-					} `json:"core"`
-				} `json:"state"`
+				ExpectedRevision string `json:"expectedRevision"`
+				IdempotencyKey   string `json:"idempotencyKey"`
+				ValueJson        string `json:"valueJson"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				t.Fatal(err)
 			}
-			patched = body.State.Core.Seed
-			_, _ = w.Write([]byte(`{"state":{"version":"1.0.0"}}`))
+			sourceRevision = body.ExpectedRevision
+			requestID = body.IdempotencyKey
+			payload, err := base64.StdEncoding.DecodeString(body.ValueJson)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := json.Unmarshal(payload, &written); err != nil {
+				t.Fatal(err)
+			}
+			_, _ = fmt.Fprintf(w, `{"receipt":{"permissionId":"onboarding/core-authority","owner":"vrooli-onboarding","expectedRevision":"core-r4","resultRevision":"core-r5","idempotencyKey":%q,"requestDigest":"sha256:abc","outcome":"updated"}}`, requestID)
 		default:
 			http.NotFound(w, r)
 		}
@@ -410,19 +422,37 @@ func TestCoreSetCommandPreviewsBeforeFieldScopedPatch(t *testing.T) {
 	if err := runCoreSet(core, []string{"--add", "beta", "--remove", "alpha", "--json"}); err != nil {
 		t.Fatal(err)
 	}
-	if got := strings.Join(order, ","); got != "current,preview,patch" {
+	if got := strings.Join(order, ","); got != "authority-read,preview,authority-write" {
 		t.Fatalf("request order = %s", got)
 	}
-	if got := strings.Join(patched, ","); got != "beta" {
-		t.Fatalf("patched seed = %s", got)
+	if !containsCLIName(written.Seed, "beta") || containsCLIName(written.Seed, "alpha") || sourceRevision != "core-r4" {
+		t.Fatalf("typed authority write seed=%v source revision=%q", written.Seed, sourceRevision)
 	}
+	for _, required := range coreset.RequiredOperationalScenarios {
+		if !containsCLIName(written.Seed, required) {
+			t.Fatalf("required recovery seed %q missing from typed write: %v", required, written.Seed)
+		}
+	}
+}
+
+func containsCLIName(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
 
 func TestCoreSetCommandDoesNotWriteWithoutClosure(t *testing.T) {
 	patched := false
 	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/vrooli.vrooli_onboarding.v1.operatorstate.OperatorStateService/PatchOperatorState" {
+		if r.URL.Path == "/vrooli.vrooli_onboarding.v1.permissions.PermissionRegistryService/WritePermission" {
 			patched = true
+		}
+		if r.URL.Path == "/vrooli.vrooli_onboarding.v1.permissions.PermissionRegistryService/ReadPermission" {
+			_, _ = w.Write([]byte(`{"permissionId":"onboarding/core-authority","owner":"vrooli-onboarding","revision":"core-r4","valueJson":"eyJzZWVkIjpbImFscGhhIl0sInRydXN0ZWRfYmFzZSI6W119"}`))
+			return
 		}
 		if r.URL.Path == "/vrooli.vrooli_onboarding.v1.selection.SelectionService/GetCoreSet" {
 			_, _ = w.Write([]byte(`{"available":false,"seed":["alpha","beta"],"error":"catalog unavailable"}`))

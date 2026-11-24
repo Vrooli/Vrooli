@@ -46,5 +46,22 @@ describe("StepPlan", () => {
 
     await user.click(await screen.findByRole("button", { name: "Use recommended setup" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("recommendation could not be accepted");
+    expect(screen.getByTestId("plan-summary")).toBeInTheDocument();
+  });
+
+  it("does not show the previous target recommendation while the next target loads", async () => {
+    let finishRemote!: (value: GetRecommendationResponse) => void;
+    vi.mocked(fetchRecommendation).mockImplementation((target) => target === "node-1"
+      ? new Promise<GetRecommendationResponse>((resolve) => { finishRemote = resolve; })
+      : Promise.resolve({ profile: "local profile", scenarios: ["local-only"], resources: [], explanation: "local plan" } as unknown as GetRecommendationResponse));
+    const view = renderWithProviders(<StepPlan target="local" onAccept={vi.fn()} onAdjust={vi.fn()} />);
+    expect(await screen.findByText("local-only")).toBeInTheDocument();
+
+    view.rerender(<StepPlan target="node-1" onAccept={vi.fn()} onAdjust={vi.fn()} />);
+    expect(screen.getByTestId("plan-loading")).toBeInTheDocument();
+    expect(screen.queryByText("local-only")).not.toBeInTheDocument();
+
+    finishRemote({ profile: "remote profile", scenarios: ["remote-only"], resources: [], explanation: "remote plan" } as unknown as GetRecommendationResponse);
+    expect(await screen.findByText("remote-only")).toBeInTheDocument();
   });
 });

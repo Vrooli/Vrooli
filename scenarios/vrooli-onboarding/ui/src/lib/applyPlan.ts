@@ -105,12 +105,5 @@ export const APPLY_KIND_ACTIONS: Array<{ kind: string; command: string; effect: 
   { kind: "scenario", command: "vrooli scenario start <name>", effect: i18n.t("onboarding.applyDisclosure.scenarioEffect") },
 ];
 
-/**
- * Two facts an operator asked for that are not visible from the item list.
- * Both are properties of the executor, not wording choices: every item runs
- * even when already present because the run-level already_satisfied check is
- * keyed on the whole selection digest, and nothing is ever removed because the
- * planner skips deselected items rather than emitting a removal.
- */
-export const APPLY_CONVERGENCE_NOTE = i18n.t("onboarding.applyDisclosure.convergence");
+/** The planner skips deselected items rather than emitting removal actions. */
 export const APPLY_NO_REMOVAL_NOTE = i18n.t("onboarding.applyDisclosure.noRemoval");

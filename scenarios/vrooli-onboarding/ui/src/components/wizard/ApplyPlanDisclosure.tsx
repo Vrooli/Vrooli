@@ -1,7 +1,6 @@
 import { ShieldAlert } from "lucide-react";
 
 import {
-  APPLY_CONVERGENCE_NOTE,
   APPLY_KIND_ACTIONS,
   APPLY_NO_REMOVAL_NOTE,
   type ApplyPlanItem,
@@ -51,7 +50,6 @@ export function ApplyPlanDisclosure({ items }: { items: ApplyPlanItem[] }) {
             </li>
           ))}
         </ul>
-        <p className="mt-2 text-muted">{APPLY_CONVERGENCE_NOTE}</p>
         <p className="mt-1 text-muted">{APPLY_NO_REMOVAL_NOTE}</p>
       </details>
 

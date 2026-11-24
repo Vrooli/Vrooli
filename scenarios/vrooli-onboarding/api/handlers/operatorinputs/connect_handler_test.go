@@ -2,6 +2,7 @@ package operatorinputs
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -52,5 +53,22 @@ func TestResolveOperatorInputsMapsStaleRevisionToAborted(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "reload the target questions") {
 		t.Fatalf("error = %v, want actionable conflict explanation", err)
+	}
+}
+
+func TestResolveOperatorInputsDoesNotClassifyRevisionProviderCodeAsCapabilityLoss(t *testing.T) {
+	handler := NewConnectHandler(internaloperatorinputs.Service{
+		CurrentRevision: func(context.Context) (string, error) {
+			return "", connect.NewError(connect.CodeUnavailable, errors.New("revision registry unavailable"))
+		},
+	})
+	_, err := handler.ResolveOperatorInputs(context.Background(), connect.NewRequest(&operatorinputsv1.ResolveOperatorInputsRequest{
+		Target: "local", ExpectedRevision: "revision-1", Answers: []*operatorinputsv1.Answer{{RequestId: "input", Value: "value"}},
+	}))
+	if connect.CodeOf(err) != connect.CodeInternal {
+		t.Fatalf("Connect code = %v, want existing internal configuration failure mapping; error=%v", connect.CodeOf(err), err)
+	}
+	if strings.Contains(err.Error(), "capability provider") {
+		t.Fatalf("revision lookup failure was misreported as provider loss: %v", err)
 	}
 }

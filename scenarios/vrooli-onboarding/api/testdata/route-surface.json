@@ -319,10 +319,8 @@
     {
       "method": "POST",
       "path": "/vrooli.vrooli_onboarding.v1.host.HostService/PatchHostSafeguardConfig",
-      "surfaces": [
-        "cli",
-        "ui"
-      ]
+      "surfaces": [],
+      "internal_reason": "Compatibility adapter retained while typed permission registry becomes the supported UI and CLI mutation path."
     },
     {
       "method": "POST",
@@ -409,6 +407,30 @@
       "path": "/api/v2/handoff",
       "surfaces": [],
       "internal_reason": "Authenticated Bridge compatibility adapter over the canonical onboarding selection handoff"
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.permissions.PermissionRegistryService/ListPermissions",
+      "surfaces": [
+        "api"
+      ],
+      "internal_reason": "Generic owner-defined onboarding permission transport; UI and CLI consumers are not yet migrated."
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.permissions.PermissionRegistryService/ReadPermission",
+      "surfaces": [
+        "api"
+      ],
+      "internal_reason": "Generic owner-defined onboarding permission transport; UI and CLI consumers are not yet migrated."
+    },
+    {
+      "method": "POST",
+      "path": "/vrooli.vrooli_onboarding.v1.permissions.PermissionRegistryService/WritePermission",
+      "surfaces": [
+        "api"
+      ],
+      "internal_reason": "Generic owner-defined onboarding permission transport; UI and CLI consumers are not yet migrated."
     }
   ]
 }

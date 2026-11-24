@@ -1,10 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, CircleAlert, Copy, Eye, EyeOff, Loader2, Save, Search } from "lucide-react";
+import { CheckCircle2, CircleAlert, Eye, EyeOff, Loader2, Save, Search } from "lucide-react";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { fetchCapabilities, type CapabilityStatus } from "../../api/capabilities";
 import { fetchCredentials, provisionCredential, revealCredential, type CredentialListItem } from "../../api/credentials";
-import { cancelApply, fetchApplyPlan, fetchApplyRun, reviewApply, startApply } from "../../api/apply";
+import { cancelApply, fetchApplyPlan, fetchApplyRun, reviewApply, startApply, type ApplyPlanItem } from "../../api/apply";
 import { acknowledgeDegraded, fetchReadiness } from "../../api/readiness";
 import { fetchOperatorInputs, resolveOperatorInputs } from "../../api/operatorinputs";
 import { loginAuthenticator } from "../../api/auth";
@@ -36,24 +36,24 @@ import { InputGroup } from "@vrooli/react-component-library/InputGroup";
 import { Select } from "@vrooli/react-component-library/Select/1";
 import { PasswordInput as SecureValueInput } from "@vrooli/react-component-library/PasswordInput/2";
 import { i18n } from "../../i18n";
+import { useCredentialTargetState, type ProvisionError } from "../../hooks/useCredentialTargetState";
+import { useOperatorQuestionDraft } from "../../hooks/useOperatorQuestionDraft";
+import { operatorAnswerValue } from "../../lib/operatorAnswer";
+import { credentialNeedsAttention as needsCredentialAttention, summarizeCredentials } from "../../lib/credentialSummary";
 
 type ReadinessSurfaceProps = { title: "Credentials" | "Apply" | "Validation"; target?: string };
 
-type ProvisionError = {
-  kind: "operator" | "generic";
-  logicalID: string;
-  field: string;
-  recoveryURL?: string;
-  authSource?: string;
-  authProviders?: string[];
-};
-
 function applyRunStateName(state: ApplyRunState): string {
-  return ApplyRunState[state]?.toLowerCase().replace(/_/g, " ") ?? "unknown";
+  return ApplyRunState[state].toLowerCase().replace(/_/g, " ");
 }
 
 function applyRunStorageKey(target: string) {
   return `vrooli-onboarding.apply-run.${target}`;
+}
+
+function withoutKey<T>(values: Record<string, T>, key: string): Record<string, T> {
+  const { [key]: _removed, ...remaining } = values;
+  return remaining;
 }
 
 function isApplyRunActive(status: ApplyRunState) {
@@ -82,7 +82,7 @@ type ApplyRunView = {
   run_id: string;
   status: ApplyRunState;
   status_name: string;
-  items: Array<{ name: string; outcome: string; error?: string }>;
+  items: Array<{ id: string; name: string; outcome: string; error?: string }>;
 };
 
 function applyRunView(current: GetApplyRunResponse): ApplyRunView {
@@ -91,11 +91,29 @@ function applyRunView(current: GetApplyRunResponse): ApplyRunView {
     status: current.status,
     status_name: current.legacyStatus || applyRunStateName(current.status),
     items: current.steps.map((item) => ({
+      id: item.id,
       name: item.name,
-      outcome: item.legacyOutcome || ApplyStepState[item.state]?.toLowerCase().replace(/_/g, " ") || "unknown",
+      outcome: item.legacyOutcome || ApplyStepState[item.state].toLowerCase().replace(/_/g, " ") || "unknown",
       error: item.error,
     })),
   };
+}
+
+const retrySafeApplyOutcomes = new Set([
+  "pending", "applied", "already_satisfied", "already satisfied", "success", "succeeded",
+  "blocked", "needs_elevation", "not_applicable", "not applicable", "skipped_self",
+]);
+const uncertainApplyOutcomes = new Set(["applying", "running", "indeterminate", "failed", "timed_out", "timed out"]);
+
+function hasUnresolvedApplyEffect(run: ApplyRunView, planItems?: ApplyPlanItem[]): boolean {
+  return run.items.some((item) => {
+    const outcome = item.outcome.trim().toLowerCase();
+    if (retrySafeApplyOutcomes.has(outcome)) return false;
+    if (!uncertainApplyOutcomes.has(outcome)) return true;
+    if (!item.id || !planItems) return true;
+    const current = planItems.find((planItem) => planItem.id === item.id);
+    return current !== undefined && current.state !== "satisfied" && current.state !== "not_applicable";
+  });
 }
 
 export function StepCredentials({ target = "local" }: { target?: string }) {
@@ -107,6 +125,7 @@ export function StepReady({ target = "local" }: { target?: string }) {
 }
 
 export function ReadinessSurface({ title, target = "local" }: ReadinessSurfaceProps) {
+  const queryClient = useQueryClient();
   const [credentialDetailsOpen, setCredentialDetailsOpen] = useState(false);
   const [credentialConfigTab, setCredentialConfigTab] = useState("provider");
   const { data, isLoading, error, refetch } = useQuery({
@@ -116,7 +135,7 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
     retry: false,
     refetchOnWindowFocus: false,
   });
-  const { data: credentialInventory, isLoading: credentialsLoading, error: credentialsError, refetch: refetchCredentials } = useQuery({
+  const { data: credentialInventory, isLoading: credentialsLoading, error: credentialsError } = useQuery({
     queryKey: ["credential-inventory", target],
     queryFn: () => fetchCredentials(target),
     enabled: title === "Credentials",
@@ -143,20 +162,19 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
     retry: false,
     refetchOnWindowFocus: false,
   });
-  const { data: plan } = useQuery({ queryKey: ["apply-plan", target], queryFn: () => fetchApplyPlan(target), enabled: title === "Apply" });
+  const { data: plan, refetch: refetchApplyPlan, isFetching: applyPlanFetching } = useQuery({ queryKey: ["apply-plan", target], queryFn: () => fetchApplyPlan(target), enabled: title === "Apply" });
   useLayoutEffect(() => {
     if (title !== "Apply") return;
     document.querySelector<HTMLButtonElement>('[data-testid="plan-summary"] button')?.setAttribute("data-testid", "apply-confirm");
   }, [title, data?.status, plan?.items.length]);
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [provisioning, setProvisioning] = useState<string | null>(null);
-  const [provisionedCredential, setProvisionedCredential] = useState<string | null>(null);
-  const [provisionError, setProvisionError] = useState<ProvisionError | null>(null);
+  const { state: credentialState, updateTargetState: updateCredentialTarget } = useCredentialTargetState(target);
+  const { values, provisioning, provisionedCredential, provisionError } = credentialState;
   const [revealedValues, setRevealedValues] = useState<Record<string, string>>({});
   const [revealing, setRevealing] = useState<string | null>(null);
   const [revealError, setRevealError] = useState<string | null>(null);
   const [copiedReveal, setCopiedReveal] = useState<string | null>(null);
   const revealTimers = useRef<Record<string, number>>({});
+  const targetGeneration = useRef(0);
   const [applyState, setApplyState] = useState<ApplyRunView | null>(null);
   const [applyError, setApplyError] = useState<string | null>(null);
   const [applyReconnecting, setApplyReconnecting] = useState(false);
@@ -164,52 +182,71 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
   const [acknowledging, setAcknowledging] = useState(false);
   const [acknowledgeError, setAcknowledgeError] = useState<string | null>(null);
   const applyController = useRef<AbortController | null>(null);
-  const observationGeneration = useRef(0);
-  const idempotencyKey = useRef<string>(globalThis.crypto?.randomUUID?.() ?? `onboarding-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const idempotencyKeys = useRef<Record<string, string>>({});
 
   useEffect(() => () => {
-    observationGeneration.current += 1;
     applyController.current?.abort();
   }, []);
 
-  const observeApplyRun = async (accepted: GetApplyRunResponse) => {
-    if (title !== "Apply") return;
-    const generation = observationGeneration.current;
+  useLayoutEffect(() => {
+    targetGeneration.current += 1;
+    applyController.current?.abort();
+    applyController.current = null;
+    if (title === "Apply") {
+      setApplyState(null);
+      setApplyError(null);
+      setApplyReconnecting(false);
+      setCancelling(false);
+    }
+    Object.values(revealTimers.current).forEach((timer) => window.clearTimeout(timer));
+    revealTimers.current = {};
+    setRevealedValues({});
+    setRevealing(null);
+    setRevealError(null);
+    setCopiedReveal(null);
+  }, [target, title]);
+
+  const observeApplyRun = async (accepted: GetApplyRunResponse, operationTarget: string, expectedGeneration = targetGeneration.current) => {
+    if (title !== "Apply" || expectedGeneration !== targetGeneration.current) return;
+    applyController.current?.abort();
+    const controller = new AbortController();
+    applyController.current = controller;
+    const generation = expectedGeneration;
     const update = (current: GetApplyRunResponse) => {
-      if (generation !== observationGeneration.current) return;
-      window.localStorage.setItem(applyRunStorageKey(target), current.runId);
+      if (generation !== targetGeneration.current || controller.signal.aborted) return;
+      window.localStorage.setItem(applyRunStorageKey(operationTarget), current.runId);
       setApplyState(applyRunView(current));
     };
     update(accepted);
     const settled = await pollApplyRun(accepted, {
-      fetchStatus: (runID) => fetchApplyRun(runID, target),
+      fetchStatus: (runID) => fetchApplyRun(runID, operationTarget),
       onUpdate: update,
-      onConnectionChange: (connected) => {
-        if (generation === observationGeneration.current) setApplyReconnecting(!connected);
-      },
+      onConnectionChange: (connected) => { if (generation === targetGeneration.current && !controller.signal.aborted) setApplyReconnecting(!connected); },
       wait: (ms) => new Promise((resolve) => window.setTimeout(resolve, ms)),
       now: () => Date.now(),
+      signal: controller.signal,
     });
-    if (generation !== observationGeneration.current) return;
+    if (generation !== targetGeneration.current || controller.signal.aborted) return;
     setApplyState(applyRunView(settled));
     setApplyReconnecting(false);
   };
 
   useEffect(() => {
     if (title !== "Apply") return;
-    const storedRunID = window.localStorage.getItem(applyRunStorageKey(target));
+    const operationTarget = target;
+    const expectedGeneration = targetGeneration.current;
+    const storedRunID = window.localStorage.getItem(applyRunStorageKey(operationTarget));
     if (!storedRunID) return;
     let cancelled = false;
-    void fetchApplyRun(storedRunID, target)
+    void fetchApplyRun(storedRunID, operationTarget)
       .then((run) => {
-        if (!cancelled) void observeApplyRun(run);
+        if (!cancelled) void observeApplyRun(run, operationTarget, expectedGeneration);
       })
       .catch(() => {
-        if (!cancelled) setApplyError(i18n.t("onboarding.readiness.applyError"));
+        if (!cancelled && expectedGeneration === targetGeneration.current) setApplyError(i18n.t("onboarding.readiness.applyError"));
       });
     return () => {
       cancelled = true;
-      observationGeneration.current += 1;
     };
   }, [target, title]);
 
@@ -217,28 +254,34 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
     const key = `${logicalID}/${field}`;
     const value = values[key]?.trim() ?? "";
     if (!value) return;
-    setProvisioning(key);
-    setProvisionError(null);
-    setProvisionedCredential(null);
+    const operationTarget = target;
+    updateCredentialTarget(operationTarget, (current) => ({ ...current, provisioning: key, provisionError: null, provisionedCredential: null }));
     try {
-      await provisionCredential({ logical_id: logicalID, field, value }, target);
-      setValues((current) => ({ ...current, [key]: "" }));
-      setProvisionedCredential(key);
+      await provisionCredential({ logical_id: logicalID, field, value }, operationTarget);
+      updateCredentialTarget(operationTarget, (current) => ({
+        ...current,
+        values: { ...current.values, [key]: "" },
+        provisioning: null,
+        provisionError: null,
+        provisionedCredential: key,
+      }));
       // The write is complete at this point. Refreshing readiness is useful
       // follow-up work, but it must not delay or hide confirmation of the
       // successful credential save when either read is slow or unavailable.
-      void Promise.all([refetch(), refetchCredentials()]).catch(() => undefined);
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["readiness", operationTarget] }),
+        queryClient.invalidateQueries({ queryKey: ["credential-inventory", operationTarget] }),
+      ]).catch(() => undefined);
     } catch (error) {
-      setProvisionError({
+      const provisionError: ProvisionError = {
         kind: error instanceof ConnectError && error.code === Code.Unauthenticated ? "operator" : "generic",
         logicalID,
         field,
         recoveryURL: error instanceof ConnectError ? error.metadata.get("Vrooli-Auth-Recovery-Url") ?? undefined : undefined,
         authSource: error instanceof ConnectError ? error.metadata.get("Vrooli-Auth-Source") ?? undefined : undefined,
         authProviders: error instanceof ConnectError ? (error.metadata.get("Vrooli-Auth-Providers") ?? "").split(",").map((value) => value.trim()).filter(Boolean) : undefined,
-      });
-    } finally {
-      setProvisioning(null);
+      };
+      updateCredentialTarget(operationTarget, (current) => ({ ...current, provisioning: null, provisionError }));
     }
   };
 
@@ -248,16 +291,12 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
   };
 
   const hideRevealedValue = (key: string) => {
-    setRevealedValues((current) => {
-      const next = { ...current };
-      delete next[key];
-      return next;
-    });
+    setRevealedValues((current) => withoutKey(current, key));
     setCopiedReveal((current) => (current === key ? null : current));
     const timer = revealTimers.current[key];
     if (timer) {
       window.clearTimeout(timer);
-      delete revealTimers.current[key];
+      revealTimers.current = withoutKey(revealTimers.current, key);
     }
   };
 
@@ -269,18 +308,22 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
       hideRevealedValue(key);
       return;
     }
+    const operationTarget = target;
+    const operationGeneration = targetGeneration.current;
     setRevealing(key);
     setRevealError(null);
     try {
-      const value = await revealCredential({ logical_id: logicalID, field }, target);
+      const value = await revealCredential({ logical_id: logicalID, field }, operationTarget);
+      if (operationGeneration !== targetGeneration.current) return;
       setRevealedValues((current) => ({ ...current, [key]: value }));
       revealTimers.current[key] = window.setTimeout(() => hideRevealedValue(key), 30_000);
     } catch (error) {
+      if (operationGeneration !== targetGeneration.current) return;
       setRevealError(error instanceof ConnectError && error.code === Code.PermissionDenied
         ? i18n.t("onboarding.readiness.credentialRevealDenied")
         : i18n.t("onboarding.readiness.credentialRevealError"));
     } finally {
-      setRevealing(null);
+      if (operationGeneration === targetGeneration.current) setRevealing(null);
     }
   };
 
@@ -321,27 +364,35 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
   const apply = async () => {
     if (applyState && isApplyRunActive(applyState.status)) return;
     setApplyError(null);
-    applyController.current?.abort();
-    const controller = new AbortController();
-    applyController.current = controller;
+    const operationTarget = target;
+    const expectedGeneration = targetGeneration.current;
     try {
       if (!plan?.plan_id || !plan.plan_digest || !plan.revision) throw new Error("apply plan is not reviewable");
-      const review = await reviewApply({ target, plan_id: plan.plan_id, plan_digest: plan.plan_digest, expected_revision: plan.revision });
+      const review = await reviewApply({ target: operationTarget, plan_id: plan.plan_id, plan_digest: plan.plan_digest, expected_revision: plan.revision });
+      if (expectedGeneration !== targetGeneration.current) return;
+      const idempotencyKey = idempotencyKeys.current[operationTarget] ?? globalThis.crypto.randomUUID();
+      idempotencyKeys.current = { ...idempotencyKeys.current, [operationTarget]: idempotencyKey };
       const accepted = await startApply({
-        target,
+        target: operationTarget,
         plan_id: review.planId,
         plan_digest: review.planDigest,
         expected_revision: review.revision,
         consent_receipt_id: review.consentReceiptId,
-        idempotency_key: idempotencyKey.current,
+        idempotency_key: idempotencyKey,
       });
       if (!accepted.run) throw new Error("apply response did not include a run");
-      await observeApplyRun(accepted.run);
+      idempotencyKeys.current = withoutKey(idempotencyKeys.current, operationTarget);
+      window.localStorage.setItem(applyRunStorageKey(operationTarget), accepted.run.runId);
+      await observeApplyRun(accepted.run, operationTarget, expectedGeneration);
+      if (expectedGeneration !== targetGeneration.current) return;
       setApplyReconnecting(false);
       await refetch();
-    } catch {
+    } catch (error) {
+      if (expectedGeneration !== targetGeneration.current) return;
       setApplyReconnecting(false);
-      setApplyError(i18n.t("onboarding.readiness.applyError"));
+      setApplyError(error instanceof ConnectError && error.code === Code.FailedPrecondition
+        ? i18n.t("onboarding.readiness.applyRetryBlocked")
+        : i18n.t("onboarding.readiness.applyError"));
     }
   };
 
@@ -349,13 +400,15 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
     if (!applyState || !isApplyRunActive(applyState.status)) return;
     setCancelling(true);
     setApplyError(null);
+    const operationTarget = target;
+    const expectedGeneration = targetGeneration.current;
     try {
-      const response = await cancelApply(applyState.run_id, target);
-      if (response.run) setApplyState(applyRunView(response.run));
+      const response = await cancelApply(applyState.run_id, operationTarget);
+      if (expectedGeneration === targetGeneration.current && response.run) setApplyState(applyRunView(response.run));
     } catch {
-      setApplyError(i18n.t("onboarding.readiness.cancelError"));
+      if (expectedGeneration === targetGeneration.current) setApplyError(i18n.t("onboarding.readiness.cancelError"));
     } finally {
-      setCancelling(false);
+      if (expectedGeneration === targetGeneration.current) setCancelling(false);
     }
   };
 
@@ -386,15 +439,16 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
     return readinessCredential ? { ...credential, status: readinessCredential.status, detail: readinessCredential.detail, consumer_scope: readinessCredential.consumer_scope, evidence_status: readinessCredential.evidence_status, evidence_detail: readinessCredential.evidence_detail, evidence_next_action: readinessCredential.evidence_next_action, evidence_credential_version: readinessCredential.evidence_credential_version, provider_state: readinessCredential.provider_state, provider_detail: readinessCredential.provider_detail, owner: readinessCredential.owner, source_ref: readinessCredential.source_ref, kind: readinessCredential.kind, provenance: readinessCredential.provenance } : credential;
   });
   const credentialCount = credentials.length;
-  const outstandingCredentialCount = credentials.filter(credentialNeedsAttention).length;
+  const credentialSummary = summarizeCredentials(credentials, provisionedCredential);
+  const outstandingCredentialCount = credentialSummary.requiredNeedsAttention;
   const hasCredentialInventory = credentialInventory !== undefined || data !== undefined;
   // Readiness and credential inventory are intentionally separate requests.
   // If readiness wins the race, its contextual credential projection is enough
   // to render the actual rows while the richer inventory catches up. This
   // keeps the page stable when a native-store or source-inventory probe is
   // slow, without hiding that the richer request is still in flight.
-  const credentialListLoading = credentialsLoading && credentialInventory === undefined && data === undefined;
-  const credentialListError = Boolean(credentialsError) && credentialInventory === undefined && data === undefined;
+  const credentialListLoading = credentialsLoading && data === undefined;
+  const credentialListError = Boolean(credentialsError) && data === undefined;
   const credentialTone: "info" | "success" | "warning" | "danger" = error ? "danger" : isLoading ? "info" : data?.status === "ready" ? "success" : "warning";
   const credentialStatus = error
     ? i18n.t("onboarding.readiness.error")
@@ -417,7 +471,7 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
       {isApplyRunActive(applyState.status) && <Button data-testid="apply-cancel" type="button" variant="secondary" disabled={cancelling} onClick={() => { void cancel(); }}>{cancelling ? i18n.t("onboarding.readiness.cancelling") : i18n.t("onboarding.readiness.cancelApply")}</Button>}
     </div>}
     {title === "Credentials" && <>
-      {provisionError && <CredentialRecoveryDialog error={provisionError} onDismiss={() => setProvisionError(null)} onOpenRecovery={openAuthRecovery} onRetry={retryProvision} />}
+      {provisionError && <CredentialRecoveryDialog error={provisionError} onDismiss={() => updateCredentialTarget(target, (current) => ({ ...current, provisionError: null }))} onOpenRecovery={openAuthRecovery} onRetry={retryProvision} />}
       <section className="credential-overview" data-testid="credential-overview" aria-labelledby="credential-overview-title">
         <div className="credential-overview__header">
           <div className="credential-overview__heading">
@@ -429,8 +483,17 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
         </div>
         <div className="credential-overview__facts" aria-label={i18n.t("onboarding.readiness.credentialInputs")}>
           <div><strong>{hasCredentialInventory ? credentialCount : "—"}</strong><span>{i18n.t("onboarding.readiness.credentialInputs")}</span></div>
-          <div><strong data-testid="credential-outstanding-count">{hasCredentialInventory ? outstandingCredentialCount : "—"}</strong><span>{i18n.t("onboarding.readiness.requiredStatus")}</span></div>
+          <div><strong data-testid="credential-outstanding-count">{hasCredentialInventory ? outstandingCredentialCount : "—"}</strong><span>{i18n.t("onboarding.readiness.credentialRequiredOutstanding")}</span></div>
         </div>
+        {hasCredentialInventory && <p className="credential-overview__scope" role="note" data-testid="credential-scope-summary">
+          {i18n.t("onboarding.readiness.credentialScopeSummary", {
+            total: credentialSummary.total,
+            required: credentialSummary.required,
+            outstanding: credentialSummary.requiredNeedsAttention,
+            optional: credentialSummary.optional,
+            deferred: credentialSummary.optionalDeferred,
+          })}
+        </p>}
         <div className="credential-overview__footer">
           <Button type="button" onClick={() => setCredentialDetailsOpen(true)}>{i18n.t("onboarding.readiness.reviewCredentialSetup")}</Button>
           {isLoading && <span className="credential-overview__loading" role="status"><Loader2 className="h-4 w-4 animate-spin" />{i18n.t("onboarding.readiness.loading")}</span>}
@@ -445,7 +508,7 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
         values={values}
         provisioning={provisioning}
         lastSavedCredential={provisionedCredential}
-        onValueChange={(key, value) => setValues((current) => ({ ...current, [key]: value }))}
+        onValueChange={(key, value) => updateCredentialTarget(target, (current) => ({ ...current, values: { ...current.values, [key]: value } }))}
         onProvision={(logicalID, field) => { void provision(logicalID, field); }}
         revealedValues={revealedValues}
         revealing={revealing}
@@ -506,22 +569,22 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
             reconnecting={applyReconnecting}
             resumeNote={i18n.t("onboarding.readiness.safeToClose")}
             phases={[{ id: "apply", label: i18n.t("onboarding.readiness.applyPhase"), state: applyState.status === ApplyRunState.FAILED || applyState.status === ApplyRunState.PARTIALLY_APPLIED || applyState.status === ApplyRunState.CANCELLED || applyState.status === ApplyRunState.INDETERMINATE ? "failed" : applyState.status === ApplyRunState.APPLIED || applyState.status === ApplyRunState.ALREADY_SATISFIED ? "complete" : "active" }]}
-            items={applyState.items.map((item) => ({ name: item.name, outcome: item.outcome === "success" || item.outcome === "succeeded" || item.outcome === "applied" || item.outcome === "already satisfied" ? "succeeded" : item.outcome === "failed" || item.outcome === "blocked" ? "failed" : item.outcome === "applying" || item.outcome === "running" ? "running" : "pending", error: item.error }))}
+            items={applyState.items.map((item) => ({ name: item.name, outcome: item.outcome === "success" || item.outcome === "succeeded" || item.outcome === "applied" || item.outcome === "already satisfied" ? "succeeded" : item.outcome === "failed" || item.outcome === "blocked" || item.outcome === "indeterminate" ? "failed" : item.outcome === "applying" || item.outcome === "running" ? "running" : "pending", error: item.error }))}
           />
         </div>
         <div data-testid="apply-report" role="table" aria-label={i18n.t("onboarding.readiness.applyReport")} />
       </>}
-      {applyState && [ApplyRunState.PARTIALLY_APPLIED, ApplyRunState.FAILED, ApplyRunState.CANCELLED].includes(applyState.status) && <><p data-testid="skipped-note" role="note" className="mt-3 text-sm text-warning">{i18n.t("onboarding.readiness.skipped")}</p><Button data-testid="retry" type="button" variant="secondary" onClick={() => { void apply(); }}>{i18n.t("onboarding.readiness.applyAgain")}</Button></>}
+      {applyState && [ApplyRunState.PARTIALLY_APPLIED, ApplyRunState.FAILED, ApplyRunState.CANCELLED, ApplyRunState.INDETERMINATE].includes(applyState.status) && <><p data-testid="skipped-note" role="note" className="mt-3 text-sm text-warning">{i18n.t("onboarding.readiness.skipped")}</p>{hasUnresolvedApplyEffect(applyState, plan?.items) ? <><p data-testid="apply-retry-blocked" role="note" className="mt-2 text-sm text-warning">{i18n.t("onboarding.readiness.applyRetryBlocked")}</p><Button data-testid="apply-recheck" type="button" variant="secondary" disabled={applyPlanFetching} onClick={() => { void refetchApplyPlan(); }}>{i18n.t("onboarding.readiness.recheck")}</Button></> : <Button data-testid="retry" type="button" variant="secondary" onClick={() => { void apply(); }}>{i18n.t("onboarding.readiness.applyAgain")}</Button>}</>}
       {title === "Validation" && <>
-        <BlockerList title={i18n.t("onboarding.readiness.blocking")} testID="readiness-blockers" items={data.blockers ?? []} tone="danger" />
-        <BlockerList title={i18n.t("onboarding.readiness.degraded")} testID="readiness-degraded" items={data.degraded ?? []} tone="warning" />
+        <BlockerList title={i18n.t("onboarding.readiness.blocking")} testID="readiness-blockers" items={data.blockers} tone="danger" />
+        <BlockerList title={i18n.t("onboarding.readiness.degraded")} testID="readiness-degraded" items={data.degraded} tone="warning" />
         {acknowledgeError && <p className="mt-3 text-sm text-danger" role="alert">{acknowledgeError}</p>}
         <div className="mt-4 flex flex-wrap gap-3">
           <Button data-testid="recheck" type="button" variant="secondary" onClick={() => { void refetch(); }}>{i18n.t("onboarding.readiness.recheck")}</Button>
-          {(data.blockers ?? []).length === 0 && (data.degraded ?? []).length > 0 && !data.degraded_acknowledged && <Button data-testid="readiness-continue-degraded" type="button" variant="secondary" disabled={acknowledging} onClick={() => { void acceptDegraded(); }}>{acknowledging ? i18n.t("onboarding.readiness.recording") : i18n.t("onboarding.readiness.acceptDegraded")}</Button>}
-          {(data.degraded ?? []).length > 0 && data.degraded_acknowledged && <p role="status" className="text-sm text-warning">{i18n.t("onboarding.readiness.degradedAccepted")}</p>}
+          {data.blockers.length === 0 && data.degraded.length > 0 && !data.degraded_acknowledged && <Button data-testid="readiness-continue-degraded" type="button" variant="secondary" disabled={acknowledging} onClick={() => { void acceptDegraded(); }}>{acknowledging ? i18n.t("onboarding.readiness.recording") : i18n.t("onboarding.readiness.acceptDegraded")}</Button>}
+          {data.degraded.length > 0 && data.degraded_acknowledged && <p role="status" className="text-sm text-warning">{i18n.t("onboarding.readiness.degradedAccepted")}</p>}
         </div>
-        {(data.blockers ?? []).length > 0 && <p data-testid="finish-blocked" role="note" className="mt-3 text-sm text-danger">{i18n.t("onboarding.readiness.finishBlocked")}</p>}
+        {data.blockers.length > 0 && <p data-testid="finish-blocked" role="note" className="mt-3 text-sm text-danger">{i18n.t("onboarding.readiness.finishBlocked")}</p>}
       </>}
       {title === "Validation" && <><ReadinessGroup title={i18n.t("onboarding.readiness.hostRequirements")} items={data.hosts} /><ReadinessGroup title={i18n.t("onboarding.readiness.integrations")} items={data.integrations.filter((item) => item.category === "integration")} /><ReadinessGroup title={i18n.t("onboarding.readiness.systemChecks")} items={data.integrations.filter((item) => item.category === "system")} /></>}
     </>}
@@ -530,9 +593,8 @@ export function ReadinessSurface({ title, target = "local" }: ReadinessSurfacePr
 
 type Credential = CredentialListItem & { consumer_scope?: string; evidence_status?: string; evidence_detail?: string; evidence_next_action?: string; evidence_credential_version?: string; provider_state?: string; provider_detail?: string; owner?: string; source_ref?: string; kind?: string; provenance?: CredentialProvenance[] };
 
-function credentialNeedsAttention(credential: Credential) {
-  if (!credential.required || credential.status !== "configured") return credential.required && credential.status !== "configured";
-  return ["unverified", "unknown", "pending", "verification_unknown"].includes(credential.evidence_status ?? "");
+function credentialNeedsAttention(credential: Credential, lastSavedCredential?: string | null) {
+  return needsCredentialAttention(credential, lastSavedCredential);
 }
 
 function formatCredentialCondition(condition?: string) {
@@ -619,7 +681,7 @@ function CredentialList({
     const query = search.trim().toLowerCase();
     const filtered = credentials.filter((credential) => {
       const stored = credential.status === "configured" || `${credential.logical_id}/${credential.field}` === lastSavedCredential;
-      const attention = credentialNeedsAttention(credential);
+      const attention = credentialNeedsAttention(credential, lastSavedCredential);
       const matchesFilter = filter === "all"
         || (filter === "attention" && attention)
         || (filter === "configured" && stored)
@@ -633,7 +695,7 @@ function CredentialList({
     return filtered.sort((left, right) => {
       if (sort === "name") return (left.label || left.field).localeCompare(right.label || right.field);
       if (sort === "resource") return left.resource.localeCompare(right.resource) || (left.label || left.field).localeCompare(right.label || right.field);
-      return Number(credentialNeedsAttention(right)) - Number(credentialNeedsAttention(left))
+      return Number(credentialNeedsAttention(right, lastSavedCredential)) - Number(credentialNeedsAttention(left, lastSavedCredential))
         || Number(right.required) - Number(left.required)
         || (left.label || left.field).localeCompare(right.label || right.field);
     });
@@ -644,8 +706,9 @@ function CredentialList({
         <p className="surface-eyebrow">{i18n.t("onboarding.readiness.credentialPurpose")}</p>
         <h2 id="credential-list-title">{i18n.t("onboarding.readiness.credentialInputs")}</h2>
         <p>{i18n.t("onboarding.readiness.credentialListDescription")}</p>
+        <p className="credential-list__item-copy" role="note" data-testid="credential-draft-privacy">{i18n.t("onboarding.readiness.credentialDraftPrivacy")}</p>
       </div>
-      {!loading && !error && <StatusBadge tone={credentials.some(credentialNeedsAttention) ? "warning" : "success"}>{credentials.length}</StatusBadge>}
+      {!loading && !error && <StatusBadge tone={credentials.some((credential) => credentialNeedsAttention(credential, lastSavedCredential)) ? "warning" : "success"}>{credentials.length}</StatusBadge>}
     </div>
     {!loading && !error && credentials.length > 0 && <div className="credential-list__controls" aria-label={i18n.t("onboarding.readiness.credentialControls")}>
       <InputGroup className="credential-list__search" size="lg" shape="rounded" testId="credential-search-group">
@@ -908,9 +971,15 @@ function ConfigurationSkeleton() {
 }
 
 function SchemaQuestionSet({ target, requests }: { target: string; requests: OperatorInputRequest[] }) {
-  const [secretValues, setSecretValues] = useState<Record<string, string>>({});
-  const [declined, setDeclined] = useState<Record<string, boolean>>({});
+  const { state: credentialState, updateTargetState } = useCredentialTargetState(target);
+  const secretValues = credentialState.questionSecrets;
   const [message, setMessage] = useState<string | null>(null);
+  const questionDraft = useOperatorQuestionDraft(target, requests.map((request) => ({
+    id: request.id,
+    kind: inputKindName(request.kind),
+    defaultValue: request.defaultValue,
+  })));
+  const { declined } = questionDraft;
   const secrets = requests.filter((request) => inputKindName(request.kind) === "secret");
   const regular = requests.filter((request) => inputKindName(request.kind) !== "secret");
   const adapted = requests.map((request) => ({
@@ -920,23 +989,32 @@ function SchemaQuestionSet({ target, requests }: { target: string; requests: Ope
     description: request.description,
     required: request.required,
     defaultValue: request.defaultValue,
-    options: request.options?.map((value) => ({ value, label: value })),
-    candidates: request.candidates?.map((candidate) => ({ label: candidate.label, value: candidate.id, status: candidate.status, risk: candidate.risk, remediation: candidate.remediation })),
+    options: request.options.map((value) => ({ value, label: value })),
+    candidates: request.candidates.map((candidate) => ({ label: candidate.label, value: candidate.id, status: candidate.status, risk: candidate.risk, remediation: candidate.remediation })),
     validation: request.validation,
   }));
   const fields = toGeneratedFields(adapted.filter((request) => request.kind !== "secret") as OperatorInput[]) as GeneratedField[];
   const submit = async (values: Record<string, unknown>) => {
     const answers = requests.map((request) => {
-      const answer = create(AnswerSchema, { requestId: request.id, value: String(inputKindName(request.kind) === "secret" ? secretValues[request.id] ?? "" : values[request.id] ?? "") });
+      const value = inputKindName(request.kind) === "secret" ? secretValues[request.id] ?? "" : operatorAnswerValue(values[request.id]);
+      const answer = create(AnswerSchema, { requestId: request.id, value }) as unknown as Answer;
       // The additive declined field is present in the governed generated
       // schema. Keep this cast compatible with an older projected node_modules
       // copy while the source package refreshes.
       (answer as unknown as { declined?: boolean }).declined = declined[request.id] === true;
       return answer;
-    }) as unknown as Answer[];
+    });
     try {
-      await resolveOperatorInputs(answers as Answer[], target);
+      await resolveOperatorInputs(answers, target);
+      updateTargetState(target, (current) => {
+        const questionSecrets = { ...current.questionSecrets };
+        for (const request of secrets) delete questionSecrets[request.id];
+        return { ...current, questionSecrets };
+      });
       setMessage(i18n.t("onboarding.readiness.answersSubmitted"));
+      // A successful target write must remain reported as successful even if
+      // best-effort draft cleanup is temporarily unavailable.
+      void questionDraft.clear().catch(() => undefined);
     } catch {
       setMessage(i18n.t("onboarding.readiness.answersRejected"));
     }
@@ -945,10 +1023,17 @@ function SchemaQuestionSet({ target, requests }: { target: string; requests: Ope
   return <section className="mt-4 rounded-lg border border-muted bg-surface-muted p-4" data-testid="target-question-set" aria-label={i18n.t("onboarding.readiness.outstandingQuestions", { target })}>
     <h2 className="text-lg font-medium">{i18n.t("onboarding.readiness.outstandingQuestions", { target: "" }).replace(/\s+$/, "")} <code>{target}</code></h2>
     <p className="mt-1 text-sm text-muted">{i18n.t("onboarding.readiness.schemaDescription")}</p>
-    {secrets.map((request) => <SecureValueInput key={request.id} name={request.id} label={request.title} value={secretValues[request.id] ?? ""} onValueChange={(value: string) => setSecretValues((current) => ({ ...current, [request.id]: value }))} autoComplete="new-password" revealable={false} />)}
-    {regular.length > 0 && <GeneratedForm mode="uncontrolled" fields={fields} onSubmit={submit} submitLabel={i18n.t("onboarding.readiness.submitAnswers")} />}
-    {requests.filter((request) => (request as unknown as { declinable?: boolean }).declinable).map((request) => <Checkbox key={`decline-${request.id}`} className="mt-3" checked={declined[request.id] === true} onCheckedChange={(checked) => setDeclined((current) => ({ ...current, [request.id]: checked }))} label={<>{i18n.t("onboarding.capabilities.decline")} — {request.title}{declined[request.id] ? ` · ${i18n.t("onboarding.capabilities.declined")}` : ""}</>} />)}
-    {secrets.length > 0 && <Button type="button" className="mt-3" onClick={() => { void submit({}); }}>{i18n.t("onboarding.readiness.submitSecretAnswers")}</Button>}
+    {questionDraft.loading && <p className="mt-3 text-sm text-muted" role="status">{i18n.t("onboarding.readiness.questionDraftRestoring")}</p>}
+    {questionDraft.loadError && <div className="mt-3" role="alert"><p>{i18n.t("onboarding.readiness.questionDraftLoadError")}</p><Button type="button" variant="secondary" className="mt-2" onClick={() => { void questionDraft.retryLoad(); }}>{i18n.t("onboarding.readiness.questionDraftRetryLoad")}</Button></div>}
+    {!questionDraft.loading && !questionDraft.loadError && <>
+      {secrets.map((request) => <SecureValueInput key={request.id} name={request.id} label={request.title} value={secretValues[request.id] ?? ""} onValueChange={(value: string) => updateTargetState(target, (current) => ({ ...current, questionSecrets: { ...current.questionSecrets, [request.id]: value } }))} autoComplete="new-password" revealable={false} />)}
+      {regular.length > 0 && <GeneratedForm store={questionDraft.store} fields={fields} onSubmit={submit} submitLabel={i18n.t("onboarding.readiness.submitAnswers")} />}
+      {requests.filter((request) => (request as unknown as { declinable?: boolean }).declinable).map((request) => <Checkbox key={`decline-${request.id}`} className="mt-3" checked={declined[request.id] === true} onCheckedChange={(checked) => questionDraft.setDeclined(request.id, checked)} label={<>{i18n.t("onboarding.capabilities.decline")} — {request.title}{declined[request.id] ? ` · ${i18n.t("onboarding.capabilities.declined")}` : ""}</>} />)}
+      {secrets.length > 0 && <Button type="button" className="mt-3" onClick={() => { void submit({}); }}>{i18n.t("onboarding.readiness.submitSecretAnswers")}</Button>}
+      {questionDraft.phase === "saving" && <p className="mt-3 text-sm text-muted" role="status" data-testid="question-draft-status">{i18n.t("onboarding.readiness.questionDraftSaving")}</p>}
+      {questionDraft.phase === "success" && <p className="mt-3 text-sm text-primary" role="status" data-testid="question-draft-status">{i18n.t("onboarding.readiness.questionDraftSaved")}</p>}
+      {questionDraft.phase === "error" && <div className="mt-3" role="alert"><p data-testid="question-draft-status">{i18n.t("onboarding.readiness.questionDraftSaveError")}</p><Button type="button" variant="secondary" className="mt-2" onClick={() => { void questionDraft.retry(); }}>{i18n.t("onboarding.readiness.questionDraftRetry")}</Button></div>}
+    </>}
     {message && <p className="mt-3 text-sm" role="status" data-testid="target-question-status">{message}</p>}
   </section>;
 }

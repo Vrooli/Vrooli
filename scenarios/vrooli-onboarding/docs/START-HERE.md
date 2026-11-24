@@ -22,6 +22,32 @@ install chose. Onboarding is the surface between them and the only thing that
 turns a choice into applied host state. It owns no database, stores no credential
 value, and writes operator state only through `internal/operatorstate`.
 
+## First-run selection model
+
+A profile may recommend capabilities without selecting a scenario. If the
+Scenarios step has no optional selection, choose a scenario from the catalog to
+continue; the required recovery plane remains included automatically. Shared
+core-set policy starts with `agent-manager`, `prompt-manager`, `web-console`,
+and `vrooli-autoheal` ([owner source](../../../packages/api-core/coreset/coreset.go)).
+The Core Set step previews their manifest dependency closure, so its
+scenario/resource count can be much larger than the scenarios you selected
+directly. The credential screen also includes descriptors declared by
+system-required scenarios and their dependencies; its input count is not the
+number of secrets you must enter. Resources and credential requirements are
+derived from this resulting closure. Review the explanation and required vs
+optional labels rather than treating every listed item as a separate profile
+choice. These choices are onboarding draft state; host changes are owned by the
+explicit Apply step.
+
+Readiness separates required credentials needing attention from optional
+credentials deferred until needed. Operator setup-question answers that are not
+secret-kind are saved in the target-scoped onboarding draft and restored when
+you return. Secret-kind text stays in the current browser tab's memory across
+setup navigation and is cleared by a full reload; it is never included in the
+draft. A credential's final value is sent only when you choose its secure-save
+action. Do not treat any other question type as secret storage: secret answers
+must be declared with the secret kind.
+
 ## Working here
 
 Contract changes have an order: document the configurability in

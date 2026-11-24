@@ -12,9 +12,12 @@ import { StepReady } from "./StepReady";
 import { ScenarioCatalogStep } from "./ScenarioCatalogStep";
 import { StepCoreSet } from "./StepCoreSet";
 import { ApplyRunState, ApplyStepState } from "@vrooli/proto-types/vrooli-onboarding/v1/apply/apply_pb";
+import { resetCredentialTargetState } from "../../hooks/useCredentialTargetState";
+import { encodeOperatorQuestionDraft } from "../../lib/operatorQuestionDraft";
 
 const api = vi.hoisted(() => ({
   fetchHostRequirements: vi.fn(),
+  fetchTargets: vi.fn().mockResolvedValue({ targets: [], error: undefined }),
 }));
 const credentialsApi = vi.hoisted(() => ({ fetchCredentials: vi.fn(), provisionCredential: vi.fn(), revealCredential: vi.fn() }));
 const capabilitiesApi = vi.hoisted(() => ({
@@ -29,6 +32,7 @@ const selectionApi = vi.hoisted(() => ({
   fetchClosure: vi.fn(),
 }));
 const resourcesApi = vi.hoisted(() => ({ fetchDerivedResources: vi.fn() }));
+const coreAuthorityApi = vi.hoisted(() => ({ readCoreAuthority: vi.fn().mockResolvedValue({ revision: "r1", authority: { seed: [], trusted_base: [], important: [], members: [] } }) }));
 
 const applyApi = vi.hoisted(() => ({
   startApply: vi.fn(),
@@ -40,15 +44,19 @@ const applyApi = vi.hoisted(() => ({
 
 const readinessApi = vi.hoisted(() => ({ fetchReadiness: vi.fn(), acknowledgeDegraded: vi.fn() }));
 const operatorInputsApi = vi.hoisted(() => ({ fetchOperatorInputs: vi.fn(), resolveOperatorInputs: vi.fn() }));
+const draftApi = vi.hoisted(() => ({ fetchDraft: vi.fn(), saveDraft: vi.fn(), discardDraft: vi.fn() }));
 
 vi.mock("../../api/host", () => api);
 vi.mock("../../api/credentials", () => credentialsApi);
 vi.mock("../../api/capabilities", () => capabilitiesApi);
 vi.mock("../../api/selection", () => selectionApi);
 vi.mock("../../api/resources", () => resourcesApi);
+vi.mock("../../api/coreAuthority", () => coreAuthorityApi);
 vi.mock("../../api/apply", () => applyApi);
 vi.mock("../../api/readiness", () => readinessApi);
 vi.mock("../../api/operatorinputs", () => operatorInputsApi);
+vi.mock("../../api/session", () => draftApi);
+vi.mock("../../api/operatorstate", () => ({ fetchOperatorState: vi.fn().mockResolvedValue({ version: "v1" }) }));
 
 const scenarios = {
   scenarios: [
@@ -59,6 +67,10 @@ const scenarios = {
 };
 
 beforeEach(() => {
+  ["local", "node-7", "remote"].forEach(resetCredentialTargetState);
+  draftApi.fetchDraft.mockResolvedValue({ target: "local", actor: "onboarding-questionnaire", baseRevision: "v1", revision: "", stepId: "credentials", choices: {} });
+  draftApi.saveDraft.mockResolvedValue({ target: "local", actor: "onboarding-questionnaire", baseRevision: "v1", revision: "draft-r1", stepId: "credentials", choices: {} });
+  draftApi.discardDraft.mockResolvedValue({});
   window.localStorage.clear();
   selectionApi.fetchScenarios.mockResolvedValue(scenarios);
   selectionApi.fetchCoreSet.mockResolvedValue({
@@ -76,6 +88,7 @@ beforeEach(() => {
     tools: [{ name: "git", required: true, reason: "source control", status: "required" }],
     safeguards: [{ name: "firewall", required: false, reason: "network safety", status: "optional", risk: "medium", config_schema: { type: "object", properties: { target: { type: "string", description: "collector target" } } } }],
   });
+  api.fetchTargets.mockResolvedValue({ targets: [], error: undefined });
   readinessApi.fetchReadiness.mockResolvedValue({
     status: "degraded",
     scenarios: ["control-plane"],
@@ -120,15 +133,16 @@ async function openCredentialDetails(tab: "actions" | "questions" = "actions") {
 describe("V2 onboarding wizard steps", () => {
   it("previews the supervision closure and prevents trusted-base removal", async () => {
     const onChange = vi.fn();
-    renderWithProviders(<StepCoreSet seed={new Set(["control-plane"])} trustedBase={new Set(["control-plane"])} onChange={onChange} />);
+    renderWithProviders(<StepCoreSet seed={new Set(["control-plane"])} trustedBase={new Set(["control-plane"])} selectedScenarios={new Set(["writer"])} onChange={onChange} />);
     expect(await screen.findByText("2 scenarios · 1 resources")).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: "Supervise control-plane" })).toBeDisabled();
+    expect(screen.getByText("Required for recovery · always included")).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "Supervise control-plane" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("checkbox", { name: "Supervise writer" }));
     expect(onChange).not.toHaveBeenCalled();
     const confirm = screen.getByRole("button", { name: "Confirm supervision set" });
     await waitFor(() => expect(confirm).toBeEnabled());
     fireEvent.click(confirm);
-    expect(onChange).toHaveBeenCalledWith(["control-plane", "writer"]);
+    expect(onChange).toHaveBeenCalledWith(["control-plane", "writer"], [], [], "r1");
   });
 
   it("keeps the seed visible when closure computation is unavailable", async () => {
@@ -150,14 +164,14 @@ describe("V2 onboarding wizard steps", () => {
     expect(await screen.findByTestId("scenario-card-writer")).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(screen.getByTestId("scenario-card-writer"));
     expect(onToggle).toHaveBeenCalledWith("writer");
-    expect(await screen.findByRole("checkbox", { name: /ollama/i })).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: /postgres/i })).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: /qdrant/i })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("checkbox", { name: /ollama/i }));
+    expect(await screen.findByRole("checkbox", { name: "Enable ollama" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Enable postgres" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Enable qdrant" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Enable ollama" }));
     expect(onResourceToggle).toHaveBeenCalledWith("ollama", false);
-    fireEvent.click(screen.getByRole("checkbox", { name: /qdrant/i }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Enable qdrant" }));
     expect(onResourceToggle).toHaveBeenCalledWith("qdrant", true);
-    expect(screen.getByRole("checkbox", { name: /postgres/i })).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: "Enable postgres" })).toBeDisabled();
     fireEvent.change(screen.getByRole("searchbox", { name: "Search scenarios" }), { target: { value: "does-not-exist" } });
     expect(screen.getByText("No scenarios match this filter. Clear it to see the full catalog.")).toBeInTheDocument();
     fireEvent.change(screen.getByRole("searchbox", { name: "Search scenarios" }), { target: { value: "" } });
@@ -304,6 +318,8 @@ describe("V2 onboarding wizard steps", () => {
       hosts: [],
       integrations: [],
       checked_at: "2026-07-29T00:00:00Z",
+      blockers: [],
+      degraded: [],
       credential_diagnosis: { provider: { backend: "native", condition: "ready", explanation: "Available", fix: "None" } },
       recovery: { receipt_exists: false, entry_count: 0, uncovered: [] },
     });
@@ -479,6 +495,8 @@ describe("V2 onboarding wizard steps", () => {
       hosts: [],
       integrations: [],
       checked_at: "2026-07-29T00:00:00Z",
+      blockers: [],
+      degraded: [],
     });
     renderWithProviders(<StepReady />);
     expect(await screen.findByTestId("readiness-summary")).toHaveTextContent("missing");
@@ -494,7 +512,7 @@ describe("V2 onboarding wizard steps", () => {
     const initialApplyCalls = applyApi.startApply.mock.calls.length;
     applyApi.startApply.mockResolvedValueOnce({ run: { runId: "apply-pending", status: ApplyRunState.PENDING, legacyStatus: "pending", steps: [] } });
     applyApi.fetchApplyRun.mockResolvedValueOnce({ runId: "apply-pending", status: ApplyRunState.PARTIALLY_APPLIED, legacyStatus: "partially_applied", steps: [
-      { name: "firewall", state: ApplyStepState.FAILED, legacyOutcome: "failed", error: "permission denied" },
+      { name: "firewall", state: ApplyStepState.NEEDS_ELEVATION, legacyOutcome: "needs_elevation", error: "permission denied" },
       { name: "writer", state: ApplyStepState.BLOCKED, legacyOutcome: "blocked", error: "blocked by firewall" },
     ] });
     renderWithProviders(<StepApply />);
@@ -513,6 +531,117 @@ describe("V2 onboarding wizard steps", () => {
     await waitFor(() => expect(applyApi.cancelApply).toHaveBeenCalledWith("apply-cancel", "local"));
     expect(screen.getByTestId("apply-state")).toHaveTextContent("apply stopped safely");
     expect(screen.getByTestId("apply-state")).toHaveTextContent("apply-cancel");
+  });
+
+  it("surfaces an interrupted run as uncertain and blocks retry until target evidence resolves it", async () => {
+    const initialApplyCalls = applyApi.startApply.mock.calls.length;
+    applyApi.fetchApplyPlan.mockResolvedValueOnce({ target: "local", plan_id: "retained-plan", plan_digest: "retained-digest", revision: "r3", items: [
+      { id: "resource:postgres", kind: "resource", name: "postgres", required: true, privileged: false, state: "unknown" },
+      { id: "scenario:writer", kind: "scenario", name: "writer", required: true, privileged: false, state: "unknown" },
+    ] });
+    applyApi.fetchApplyRun.mockResolvedValueOnce({
+      runId: "interrupted-run",
+      status: ApplyRunState.INDETERMINATE,
+      legacyStatus: "interrupted",
+      steps: [
+        { id: "tool:git", name: "git", state: ApplyStepState.APPLIED, legacyOutcome: "applied" },
+        { id: "resource:postgres", name: "postgres", state: ApplyStepState.UNSPECIFIED, legacyOutcome: "indeterminate", error: "The process stopped before confirming this item." },
+        { id: "scenario:writer", name: "writer", state: ApplyStepState.PENDING, legacyOutcome: "pending" },
+      ],
+    });
+    window.localStorage.setItem("vrooli-onboarding.apply-run.local", "interrupted-run");
+
+    renderWithProviders(<StepApply />);
+    expect(await screen.findByTestId("apply-state")).toHaveTextContent("The run outcome is unknown");
+    expect(screen.getByTestId("apply-progress")).toHaveTextContent("The process stopped before confirming this item.");
+    expect(screen.getByTestId("apply-retry-blocked")).toHaveTextContent("retry is available only after each uncertain item is observed satisfied or removed");
+    expect(screen.queryByTestId("retry")).not.toBeInTheDocument();
+    expect(applyApi.startApply).toHaveBeenCalledTimes(initialApplyCalls);
+  });
+
+  it("blocks retry when an interrupted run contains an unknown outcome", async () => {
+    applyApi.fetchApplyRun.mockResolvedValueOnce({
+      runId: "future-outcome-run",
+      status: ApplyRunState.INDETERMINATE,
+      legacyStatus: "interrupted",
+      steps: [{ id: "resource:postgres", name: "postgres", state: ApplyStepState.UNSPECIFIED, legacyOutcome: "future_outcome" }],
+    });
+    window.localStorage.setItem("vrooli-onboarding.apply-run.local", "future-outcome-run");
+
+    renderWithProviders(<StepApply />);
+    expect(await screen.findByTestId("apply-state")).toHaveTextContent("The run outcome is unknown");
+    expect(screen.getByTestId("apply-retry-blocked")).toBeInTheDocument();
+    expect(screen.queryByTestId("retry")).not.toBeInTheDocument();
+  });
+
+  it("recovers an interrupted apply through recheck, review, and retry", async () => {
+    let currentPlan = { target: "local", plan_id: "recovery-plan-r1", plan_digest: "digest-r1", revision: "r1", items: [
+      { id: "resource:postgres", kind: "resource", name: "postgres", required: true, privileged: false, state: "unknown" },
+      { id: "scenario:writer", kind: "scenario", name: "writer", required: true, privileged: false, state: "unknown" },
+    ] };
+    applyApi.fetchApplyPlan.mockImplementation(async () => currentPlan);
+    applyApi.fetchApplyRun.mockResolvedValueOnce({
+      runId: "recheck-run",
+      status: ApplyRunState.INDETERMINATE,
+      legacyStatus: "interrupted",
+      steps: [
+        { id: "resource:postgres", name: "postgres", state: ApplyStepState.UNSPECIFIED, legacyOutcome: "indeterminate" },
+        { id: "scenario:writer", name: "writer", state: ApplyStepState.UNSPECIFIED, legacyOutcome: "indeterminate" },
+      ],
+    });
+    applyApi.reviewApply.mockResolvedValueOnce({ target: "local", planId: "recovery-plan-r3", planDigest: "digest-r3", revision: "r3", consentReceiptId: "recovery-consent" });
+    window.localStorage.setItem("vrooli-onboarding.apply-run.local", "recheck-run");
+
+    renderWithProviders(<StepApply />);
+    expect(await screen.findByTestId("apply-retry-blocked")).toBeInTheDocument();
+    expect(screen.queryByTestId("retry")).not.toBeInTheDocument();
+
+    let callsBeforeRecheck = applyApi.fetchApplyPlan.mock.calls.length;
+    currentPlan = { ...currentPlan, plan_id: "recovery-plan-r2", plan_digest: "digest-r2", revision: "r2", items: [
+      { id: "resource:postgres", kind: "resource", name: "postgres", required: true, privileged: false, state: "satisfied" },
+      { id: "scenario:writer", kind: "scenario", name: "writer", required: true, privileged: false, state: "unknown" },
+    ] };
+    fireEvent.click(screen.getByTestId("apply-recheck"));
+    await waitFor(() => expect(applyApi.fetchApplyPlan.mock.calls.length).toBeGreaterThan(callsBeforeRecheck));
+    expect(await screen.findByTestId("apply-plan-summary")).toHaveTextContent("1 already in place, 1 not sampled");
+    expect(screen.getByTestId("apply-retry-blocked")).toBeInTheDocument();
+    expect(screen.queryByTestId("retry")).not.toBeInTheDocument();
+
+    callsBeforeRecheck = applyApi.fetchApplyPlan.mock.calls.length;
+    currentPlan = { ...currentPlan, plan_id: "recovery-plan-r3", plan_digest: "digest-r3", revision: "r3", items: [
+      { id: "resource:postgres", kind: "resource", name: "postgres", required: true, privileged: false, state: "satisfied" },
+      { id: "scenario:writer", kind: "scenario", name: "writer", required: true, privileged: false, state: "satisfied" },
+    ] };
+    fireEvent.click(screen.getByTestId("apply-recheck"));
+    expect(await screen.findByTestId("retry")).toBeInTheDocument();
+    expect(screen.queryByTestId("apply-retry-blocked")).not.toBeInTheDocument();
+    await waitFor(() => expect(applyApi.fetchApplyPlan.mock.calls.length).toBeGreaterThan(callsBeforeRecheck));
+
+    fireEvent.click(screen.getByTestId("retry"));
+    await waitFor(() => expect(applyApi.startApply).toHaveBeenCalled());
+    expect(applyApi.reviewApply).toHaveBeenCalledWith({ target: "local", plan_id: "recovery-plan-r3", plan_digest: "digest-r3", expected_revision: "r3" });
+    expect(applyApi.startApply).toHaveBeenCalledWith(expect.objectContaining({
+      target: "local", plan_id: "recovery-plan-r3", plan_digest: "digest-r3", expected_revision: "r3", consent_receipt_id: "recovery-consent",
+    }));
+  });
+
+  it("enables retry when rechecked plan no longer selects the uncertain item", async () => {
+    applyApi.fetchApplyPlan.mockResolvedValueOnce({ target: "local", plan_id: "plan-1", plan_digest: "digest-1", revision: "r1", items: [
+      { id: "scenario:writer", kind: "scenario", name: "writer", required: true, privileged: false, state: "unknown" },
+    ] });
+    applyApi.fetchApplyPlan.mockResolvedValueOnce({ target: "local", plan_id: "plan-2", plan_digest: "digest-2", revision: "r2", items: [] });
+    applyApi.fetchApplyRun.mockResolvedValueOnce({
+      runId: "removed-run",
+      status: ApplyRunState.INDETERMINATE,
+      legacyStatus: "interrupted",
+      steps: [{ id: "scenario:writer", name: "writer", state: ApplyStepState.UNSPECIFIED, legacyOutcome: "indeterminate" }],
+    });
+    window.localStorage.setItem("vrooli-onboarding.apply-run.local", "removed-run");
+
+    renderWithProviders(<StepApply />);
+    expect(await screen.findByTestId("apply-retry-blocked")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("apply-recheck"));
+    expect(await screen.findByTestId("retry")).toBeInTheDocument();
   });
 
   it("reports credential provisioning failure without clearing the input", async () => {
@@ -601,12 +730,12 @@ describe("V2 onboarding wizard steps", () => {
         { id: "secret", kind: 1, title: "Secret", description: "Sensitive", required: true, options: [], candidates: [], validation: "required", declinable: true },
         { id: "choice", kind: 2, title: "Choice", description: "Pick one", required: true, options: ["one", "two"], candidates: [], validation: "select" },
         { id: "confirm", kind: 3, title: "Confirm", description: "Confirm it", required: false, options: [], candidates: [] },
-        { id: "path", kind: 4, title: "Path", description: "Path", required: false },
-        { id: "enum", kind: 5, title: "Enum", description: "Enum", required: false, options: ["value"] },
-        { id: "boolean", kind: 6, title: "Boolean", description: "Boolean", required: false },
-        { id: "duration", kind: 7, title: "Duration", description: "Duration", required: false },
-        { id: "confirmation", kind: 8, title: "Confirmation", description: "Confirmation", required: false },
-        { id: "unknown", kind: 99, title: "Unknown", description: "Fallback", required: false },
+        { id: "path", kind: 4, title: "Path", description: "Path", required: false, options: [], candidates: [] },
+        { id: "enum", kind: 5, title: "Enum", description: "Enum", required: false, options: ["value"], candidates: [] },
+        { id: "boolean", kind: 6, title: "Boolean", description: "Boolean", required: false, options: [], candidates: [] },
+        { id: "duration", kind: 7, title: "Duration", description: "Duration", required: false, options: [], candidates: [] },
+        { id: "confirmation", kind: 8, title: "Confirmation", description: "Confirmation", required: false, options: [], candidates: [] },
+        { id: "unknown", kind: 99, title: "Unknown", description: "Fallback", required: false, options: [], candidates: [] },
       ],
     });
     readinessApi.fetchReadiness.mockResolvedValueOnce({ status: "ready", scenarios: [], resources: [], credentials: [], hosts: [], integrations: [], checked_at: "now", blockers: [], degraded: [] });
@@ -619,6 +748,102 @@ describe("V2 onboarding wizard steps", () => {
     fireEvent.click(screen.getByRole("button", { name: "Submit secret answers" }));
     await waitFor(() => expect(operatorInputsApi.resolveOperatorInputs).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ requestId: "secret", value: "temporary", declined: false })]), "remote"));
     expect(await screen.findByTestId("target-question-status")).toHaveTextContent("Answers submitted");
+  });
+
+  it("keeps unsaved secret answers across route remounts without drafting them", async () => {
+    draftApi.fetchDraft.mockClear();
+    draftApi.saveDraft.mockClear();
+    operatorInputsApi.resolveOperatorInputs.mockReset();
+    operatorInputsApi.fetchOperatorInputs.mockResolvedValue({
+      requests: [{ id: "secret", kind: 1, title: "Secret", description: "Sensitive", required: true, options: [], candidates: [], validation: "required" }],
+    });
+
+    const firstRoute = renderWithProviders(<StepCredentials target="remote" />);
+    await openCredentialDetails("questions");
+    const input = await screen.findByLabelText("Secret");
+    fireEvent.change(input, { target: { value: "temporary-secret" } });
+    firstRoute.unmount();
+
+    const recoveredRoute = renderWithProviders(<StepCredentials target="remote" />);
+    await openCredentialDetails("questions");
+    const recoveredInput = await screen.findByLabelText("Secret");
+    await waitFor(() => expect(recoveredInput).toHaveValue("temporary-secret"));
+    expect(window.localStorage.length).toBe(0);
+    expect(draftApi.saveDraft).not.toHaveBeenCalled();
+
+    operatorInputsApi.resolveOperatorInputs.mockRejectedValueOnce(new Error("temporary target write failure"));
+    fireEvent.click(screen.getByRole("button", { name: "Submit secret answers" }));
+    expect(await screen.findByTestId("target-question-status")).toHaveTextContent("target rejected these answers");
+    expect(recoveredInput).toHaveValue("temporary-secret");
+
+    operatorInputsApi.resolveOperatorInputs.mockResolvedValueOnce({ configurationPending: false, outcomes: [] });
+    fireEvent.click(screen.getByRole("button", { name: "Submit secret answers" }));
+    await waitFor(() => expect(screen.getByTestId("target-question-status")).toHaveTextContent("Answers submitted"));
+    expect(recoveredInput).toHaveValue("");
+    expect(window.localStorage.length).toBe(0);
+    for (const [request] of draftApi.saveDraft.mock.calls) {
+      expect(JSON.stringify(request.choices)).not.toContain("temporary-secret");
+    }
+  });
+
+  it("recovers target questions through draft outage, remount, and same-target retry", async () => {
+    operatorInputsApi.resolveOperatorInputs.mockClear();
+    const question = { id: "region", kind: "choice", defaultValue: "" };
+    const questionRequest = { id: "region", kind: 2, title: "Region", description: "Choose a region", required: true, options: ["eu-west", "asia", "us-east"], candidates: [], validation: "select" };
+    const drafts: Record<string, { target: string; actor: string; baseRevision: string; revision: string; stepId: string; choices: Record<string, string> }> = {
+      remote: { target: "remote", actor: "onboarding-questionnaire", baseRevision: "remote-base", revision: "remote-r1", stepId: "credentials", choices: encodeOperatorQuestionDraft([question], { region: "eu-west" }, {}) },
+      local: { target: "local", actor: "onboarding-questionnaire", baseRevision: "local-base", revision: "local-r1", stepId: "credentials", choices: encodeOperatorQuestionDraft([question], { region: "us-east" }, {}) },
+    };
+    let loseFirstRemoteRead = true;
+    draftApi.fetchDraft.mockImplementation(async (target: string) => {
+      if (target === "remote" && loseFirstRemoteRead) {
+        loseFirstRemoteRead = false;
+        throw new Error("temporary draft owner outage");
+      }
+      const draft = drafts[target];
+      if (!draft) throw new Error(`missing draft for ${target}`);
+      return { ...draft, choices: { ...draft.choices } };
+    });
+    draftApi.saveDraft.mockImplementation(async (request: { target: string; actor: string; baseRevision: string; expectedRevision?: string; stepId?: string; choices?: Record<string, string> }) => {
+      const current = drafts[request.target];
+      if (!current) throw new Error(`missing draft for ${request.target}`);
+      const saved = { ...current, ...request, revision: `${request.target}-r2`, stepId: request.stepId ?? current.stepId, choices: { ...(request.choices ?? {}) } };
+      drafts[request.target] = saved;
+      return saved;
+    });
+    operatorInputsApi.fetchOperatorInputs.mockResolvedValue({ requests: [questionRequest] });
+    operatorInputsApi.resolveOperatorInputs.mockRejectedValueOnce(new Error("selected target provider unavailable"));
+
+    const firstRoute = renderWithProviders(<StepCredentials target="remote" />);
+    await openCredentialDetails("questions");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Saved setup answers could not be loaded");
+    fireEvent.click(screen.getByRole("button", { name: "Retry restoring answers" }));
+    const remoteInput = await screen.findByTestId("forms.generated-form");
+    expect(remoteInput).toHaveValue("eu-west");
+
+    fireEvent.change(remoteInput, { target: { value: "asia" } });
+    await waitFor(() => expect(screen.getByTestId("question-draft-status")).toHaveTextContent("Non-secret answers are saved for this target"));
+    firstRoute.unmount();
+
+    const resumedRoute = renderWithProviders(<StepCredentials target="remote" />);
+    await openCredentialDetails("questions");
+    const resumedRemoteInput = await screen.findByTestId("forms.generated-form");
+    expect(resumedRemoteInput).toHaveValue("asia");
+    resumedRoute.rerender(<StepCredentials target="local" />);
+    await waitFor(() => expect(screen.getByTestId("forms.generated-form")).toHaveValue("us-east"));
+    resumedRoute.rerender(<StepCredentials target="remote" />);
+    await waitFor(() => expect(screen.getByTestId("forms.generated-form")).toHaveValue("asia"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit answers" }));
+    expect(await screen.findByTestId("target-question-status")).toHaveTextContent("target rejected these answers");
+    expect(screen.getByTestId("forms.generated-form")).toHaveValue("asia");
+    operatorInputsApi.resolveOperatorInputs.mockResolvedValueOnce({ configurationPending: false, outcomes: [] });
+    fireEvent.click(screen.getByRole("button", { name: "Submit answers" }));
+    await waitFor(() => expect(screen.getByTestId("target-question-status")).toHaveTextContent("Answers submitted"));
+    expect(operatorInputsApi.resolveOperatorInputs).toHaveBeenNthCalledWith(1, expect.arrayContaining([expect.objectContaining({ requestId: "region", value: "asia" })]), "remote");
+    expect(operatorInputsApi.resolveOperatorInputs).toHaveBeenNthCalledWith(2, expect.arrayContaining([expect.objectContaining({ requestId: "region", value: "asia" })]), "remote");
+    expect(draftApi.fetchDraft.mock.calls.map(([target]) => target)).toContain("local");
+    expect(draftApi.fetchDraft.mock.calls.map(([target]) => target)).toContain("remote");
   });
 
 

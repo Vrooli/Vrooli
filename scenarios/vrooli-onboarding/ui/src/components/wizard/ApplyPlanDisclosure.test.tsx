@@ -26,6 +26,15 @@ describe("ApplyPlanDisclosure", () => {
     expect(within(satisfied).getByText(/git, jq/)).toBeInTheDocument();
   });
 
+  it("does not say already-satisfied items run during apply", () => {
+    renderWithProviders(<ApplyPlanDisclosure items={allItems} />);
+
+    const disclosure = screen.getByTestId("apply-plan").textContent;
+    expect(disclosure).not.toContain("Every item runs even when already in place");
+    expect(disclosure).toContain("Already in place");
+    expect(disclosure).toContain("Not yet in place");
+  });
+
   it("marks every elevated item and counts them, instead of hedging", () => {
     renderWithProviders(<ApplyPlanDisclosure items={allItems} />);
     const elevated = screen.getByTestId("apply-plan-item-safeguard:host_hardening");
@@ -62,7 +71,7 @@ describe("ApplyPlanDisclosure", () => {
   // system can check is the defect this heading previously carried.
   it("attributes the unsampled group to its cost, not to a handler", () => {
     renderWithProviders(<ApplyPlanDisclosure items={[postgresItem]} />);
-    const unsampled = screen.getByTestId("apply-plan-unknown").textContent ?? "";
+    const unsampled = screen.getByTestId("apply-plan-unknown").textContent;
     expect(unsampled).toContain("Not sampled");
     expect(unsampled).toContain("control-plane round trip");
     expect(unsampled).not.toContain("reported by the handler during apply");
