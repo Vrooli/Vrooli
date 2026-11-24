@@ -210,7 +210,7 @@ func TestJ1_PersonalWalletPathRetired(t *testing.T) {
 func TestJ1_HeldOrTestLotCannotFundRealRoute(t *testing.T) {
 	s := newSpine(t)
 	live := true
-	server := httptest.NewServer(&aidoor.Door{Keys: aidoor.KeyStore{DB: s.db}, Wallet: commerce.NewBusinessAccountUsageService(commerce.BusinessAccountUsageOptions{DB: s.db, Limits: commerce.NewLimitsService(s.db, "postgres", nil), Dialect: "postgres", LiveMode: &live}), GatewayURL: s.gateway})
+	server := httptest.NewServer(&aidoor.Door{Keys: aidoor.KeyStore{DB: s.db}, Wallet: commerce.NewBusinessAccountUsageService(commerce.BusinessAccountUsageOptions{DB: s.db, Limits: commerce.NewLimitsService(s.db, "postgres", nil), Dialect: "postgres", LiveMode: &live}), GatewayURL: s.gateway, SignCreditAssertion: func(aidoor.Key, string, string) (string, error) { return "fixture-credit-assertion", nil }})
 	defer server.Close()
 	original := s.server
 	s.server = server

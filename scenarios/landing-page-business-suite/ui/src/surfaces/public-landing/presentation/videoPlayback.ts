@@ -30,10 +30,15 @@ export function assertProductDemo(block: Block<'product-demo'>): void {
   const content = block.content;
   if (block.variant === 'recorded') {
     const p = content.playback;
-    if (content.renderer_ref !== 'video' || content.fixture_ref || content.media_ref || !content.poster_ref || !p) throw new Error('Invalid recorded demo sources');
+    if (content.renderer_ref !== 'video' || content.fixture_ref || !content.poster_ref || !p) throw new Error('Invalid recorded demo sources');
     if (!['stacked', 'split'].includes(p.layout)) throw new Error('Unsupported video layout');
     if (![content.alt_text, p.play_label, p.caption, p.unavailable_label].every(value => typeof value === 'string' && value.trim())) throw new Error('Missing video copy');
-    videoEmbedUrl(p.provider, p.external_url);
+    if (p.provider === 'local') {
+      if (!content.media_ref || !/^[a-f0-9]{64}$/.test(content.media_ref) || p.external_url) throw new Error('Invalid local video hash');
+    } else {
+      if (content.media_ref) throw new Error('External video cannot carry local media');
+      videoEmbedUrl(p.provider, p.external_url);
+    }
   } else {
     if (!content.fixture_ref || content.playback || content.media_ref || content.poster_ref || !['workspace', 'backdrop', 'workflow'].includes(content.renderer_ref)) throw new Error('Invalid fixture demo sources');
   }

@@ -23,9 +23,12 @@ func isProductionEnvironment() bool {
 // production workloads cannot silently fall back to development security
 // behavior when LPBS_ENVIRONMENT is absent.
 func runtimeEnvironment() string {
-	env := strings.ToLower(strings.TrimSpace(envx.Get("LPBS_ENVIRONMENT")))
+	// The control plane is authoritative for deployed instances. A manifest may
+	// provide LPBS_ENVIRONMENT=development for local runs, but it must not mask
+	// an explicit production environment exported by scenario-to-cloud.
+	env := strings.ToLower(strings.TrimSpace(envx.Get("VROOLI_ENVIRONMENT")))
 	if env == "" {
-		env = strings.ToLower(strings.TrimSpace(envx.Get("VROOLI_ENVIRONMENT")))
+		env = strings.ToLower(strings.TrimSpace(envx.Get("LPBS_ENVIRONMENT")))
 	}
 	return env
 }

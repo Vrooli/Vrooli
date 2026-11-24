@@ -19,3 +19,11 @@ CREATE TABLE IF NOT EXISTS ai_key_charges (
  actual_credits BIGINT,
  PRIMARY KEY(operation_id,key_id)
 );
+CREATE TABLE IF NOT EXISTS ai_gateway_run_operations (
+ operation_id TEXT PRIMARY KEY,
+ key_id TEXT NOT NULL,
+ feature_id TEXT NOT NULL,
+ role TEXT NOT NULL,
+ request_digest TEXT NOT NULL,
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

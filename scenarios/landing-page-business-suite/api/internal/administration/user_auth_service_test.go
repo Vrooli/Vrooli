@@ -48,6 +48,24 @@ func TestConsumerAccessTokenUsesRS256AndKeyID(t *testing.T) {
 	}
 }
 
+func TestSignAICreditAssertionUsesBoundShortLivedConsumerCredential(t *testing.T) {
+	service := NewUserAuthService(UserAuthServiceOptions{JWTIssuer: "lpbs.test", ConsumerSigningKeyID: "credit-key", AccessTTL: time.Hour})
+	expect := consumeridentity.CreditAssertionExpectation{BusinessAccountID: "acct-1", ActorID: "user-1", AppKey: "audio-tools", FeatureID: "audio-tools.summarize", MaxCredits: 500, Audience: consumeridentity.CreditGatewayAudience, OperationID: "op-1", Source: consumeridentity.CreditAssertionSource}
+	token, err := service.SignAICreditAssertion(expect)
+	if err != nil {
+		t.Fatal(err)
+	}
+	verifier := consumeridentity.Verifier{Keys: service.consumerKeys, Issuer: "lpbs.test", Now: time.Now}
+	if _, err := consumeridentity.VerifyCreditAssertion(verifier, token, expect); err != nil {
+		t.Fatalf("signed assertion rejected: %v", err)
+	}
+	wrong := expect
+	wrong.AppKey = "web-console"
+	if _, err := consumeridentity.VerifyCreditAssertion(verifier, token, wrong); err == nil {
+		t.Fatal("cross-app assertion accepted")
+	}
+}
+
 func TestConsumerAccessTokenRejectsLegacyHS256(t *testing.T) {
 	service := NewUserAuthService(UserAuthServiceOptions{JWTIssuer: "lpbs.test"})
 	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{

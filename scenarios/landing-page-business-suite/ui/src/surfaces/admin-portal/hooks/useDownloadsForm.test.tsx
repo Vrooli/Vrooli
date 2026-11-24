@@ -56,7 +56,7 @@ const mockApp: DownloadApp = {
     {
       store: 'app_store',
       label: 'App Store',
-      url: 'https://apps.apple.com/123',
+      url: 'https://apps.apple.com/us/app/aquila/id123',
     },
   ],
 };
@@ -409,6 +409,31 @@ describe('useDownloadsForm', () => {
       expect(saveDownloadAppAdminMock).not.toHaveBeenCalled();
       expect(createDownloadAppAdminMock).not.toHaveBeenCalled();
     });
+    it('blocks invalid enabled store links before the API call', async () => {
+      const { result } = renderHook(() => useDownloadsForm());
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
+      act(() => {
+        result.current.handleFieldChange('test-app', 'appleUrl', 'https://apps.apple.com.evil.test/app/id123');
+      });
+      await act(async () => { await result.current.handleSave('test-app'); });
+      expect(saveDownloadAppAdminMock).not.toHaveBeenCalled();
+      expect(result.current.forms[0]).toMatchObject({
+        saving: false,
+        error: 'App Store URL must be an HTTPS listing on apps.apple.com or itunes.apple.com.',
+      });
+    });
+    it('blocks unrelated edits when an enabled managed asset has no checksum', async () => {
+      listDownloadAppsAdminMock.mockResolvedValue({ apps: [{
+        ...mockApp,
+        platforms: [{ ...mockApp.platforms[0]!, artifact_source: 'managed', artifact_id: 42, checksum: '', artifact_url: 'https://stale.example/app.exe' }],
+      }] });
+      const { result } = renderHook(() => useDownloadsForm());
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
+      act(() => { result.current.handleFieldChange('test-app', 'name', 'Edited'); });
+      await act(async () => { await result.current.handleSave('test-app'); });
+      expect(saveDownloadAppAdminMock).not.toHaveBeenCalled();
+      expect(result.current.forms[0]).toMatchObject({ saving: false, error: 'windows managed download needs its checksum or must be disabled.' });
+    });
     it('saves existing app', async () => {
       const { result } = renderHook(() => useDownloadsForm());
 
@@ -518,6 +543,66 @@ describe('useDownloadsForm', () => {
   });
 
   describe('handleSaveAll', () => {
+    it('skips invalid storefront forms and preserves an actionable error', async () => {
+      const { result } = renderHook(() => useDownloadsForm());
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
+      act(() => {
+        result.current.handleFieldChange('test-app', 'googleEnabled', true);
+        result.current.handleFieldChange('test-app', 'googleUrl', 'https://play.google.com.evil.test/store/apps/details?id=org.vrooli.aquila');
+      });
+      await act(async () => { await result.current.handleSaveAll(); });
+      expect(saveDownloadAppAdminMock).not.toHaveBeenCalled();
+      expect(result.current.forms[0]).toMatchObject({
+        saving: false,
+        error: 'Google Play URL must be an HTTPS listing on play.google.com with an app ID.',
+      });
+      expect(result.current.savingAll).toBe(false);
+    });
+
+    it('saves valid dirty forms while leaving invalid storefront forms untouched', async () => {
+      listDownloadAppsAdminMock.mockResolvedValue({ apps: [mockApp, mockApp2] });
+      const { result } = renderHook(() => useDownloadsForm());
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
+      act(() => {
+        result.current.handleFieldChange('test-app', 'googleEnabled', true);
+        result.current.handleFieldChange('test-app', 'googleUrl', 'https://play.google.com.evil.test/store/apps/details?id=org.vrooli.aquila');
+        result.current.handleFieldChange('test-app-2', 'name', 'Valid updated app');
+      });
+      await act(async () => { await result.current.handleSaveAll(); });
+      expect(saveDownloadAppAdminMock).toHaveBeenCalledTimes(1);
+      expect(saveDownloadAppAdminMock.mock.calls[0]?.[0]).toBe('test-app-2');
+      expect(result.current.forms.find((form) => form.key === 'test-app')).toMatchObject({
+        saving: false,
+        error: 'Google Play URL must be an HTTPS listing on play.google.com with an app ID.',
+      });
+      expect(result.current.forms.find((form) => form.key === 'test-app-2')).toMatchObject({
+        values: { name: 'Valid updated app' },
+        error: undefined,
+      });
+    });
+
+    it('keeps incomplete managed rows untouched and saves valid siblings', async () => {
+      const incompleteManaged = {
+        ...mockApp,
+        platforms: [{ ...mockApp.platforms[0]!, artifact_source: 'managed' as const, artifact_id: 42, checksum: '', artifact_url: 'https://stale.example/app.exe' }],
+      };
+      listDownloadAppsAdminMock.mockResolvedValue({ apps: [incompleteManaged, mockApp2] });
+      const { result } = renderHook(() => useDownloadsForm());
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
+      act(() => {
+        result.current.handleFieldChange('test-app', 'name', 'Managed edited');
+        result.current.handleFieldChange('test-app-2', 'name', 'Valid updated app');
+      });
+      await act(async () => { await result.current.handleSaveAll(); });
+      expect(saveDownloadAppAdminMock).toHaveBeenCalledTimes(1);
+      expect(saveDownloadAppAdminMock.mock.calls[0]?.[0]).toBe('test-app-2');
+      expect(result.current.forms.find((form) => form.key === 'test-app')).toMatchObject({
+        values: { name: 'Managed edited' },
+        saving: false,
+        error: 'windows managed download needs its checksum or must be disabled.',
+      });
+    });
+
     it('saves all dirty forms', async () => {
       listDownloadAppsAdminMock.mockResolvedValue({ apps: [mockApp, mockApp2] });
 

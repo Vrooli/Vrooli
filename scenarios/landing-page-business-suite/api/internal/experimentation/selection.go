@@ -107,28 +107,35 @@ func SelectVariantForVisitor(variants []*VariantSnapshot, visitorID string) *Var
 	if len(variants) == 0 {
 		return nil
 	}
-	totalWeight := 0
+	totalWeight := new(big.Int)
 	for _, variant := range variants {
-		totalWeight += VariantWeight(variant)
+		totalWeight.Add(totalWeight, big.NewInt(int64(VariantWeight(variant))))
 	}
-	if totalWeight == 0 {
+	if totalWeight.Sign() == 0 {
 		return variants[0]
 	}
-	var picked int64
+	var picked *big.Int
 	if strings.TrimSpace(visitorID) != "" {
 		digest := sha256.Sum256([]byte(visitorID))
-		picked = int64(binary.BigEndian.Uint64(digest[:8]) % uint64(totalWeight))
+		bucket := new(big.Int).SetUint64(binary.BigEndian.Uint64(digest[:8]))
+		if totalWeight.BitLen() > 64 {
+			// Preserve existing 64-bit assignments for ordinary ranges. When the
+			// range exceeds 64 bits, use the full digest so high weights remain
+			// reachable instead of silently collapsing selection into the prefix.
+			bucket.SetBytes(digest[:])
+		}
+		picked = bucket.Mod(bucket, totalWeight)
 	} else {
-		value, err := rand.Int(rand.Reader, big.NewInt(int64(totalWeight)))
+		value, err := rand.Int(rand.Reader, totalWeight)
 		if err != nil {
 			return variants[0]
 		}
-		picked = value.Int64()
+		picked = value
 	}
-	cumulative := 0
+	cumulative := new(big.Int)
 	for _, variant := range variants {
-		cumulative += VariantWeight(variant)
-		if picked < int64(cumulative) {
+		cumulative.Add(cumulative, big.NewInt(int64(VariantWeight(variant))))
+		if picked.Cmp(cumulative) < 0 {
 			return variant
 		}
 	}

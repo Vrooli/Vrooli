@@ -40,6 +40,16 @@ func TestDefaultRolePoliciesLeavesAudioToItsFeatureOwner(t *testing.T) {
 	}
 }
 
+func TestDefaultRolePoliciesIncludeScenarioOwnedStandardGatewayRoles(t *testing.T) {
+	policies := DefaultRolePolicies()
+	for _, role := range []string{"author.generator", "write.default"} {
+		policy, ok := policies[role]
+		if !ok || policy.Model == "" {
+			t.Fatalf("scenario-owned role %q has no server policy: %#v", role, policy)
+		}
+	}
+}
+
 func TestCodeRoleHasMeteredPolicyAndToolDeclarationsIncreaseReservation(t *testing.T) {
 	policy, ok := DefaultRolePolicies()["code.default"]
 	if !ok || policy.Model != "openai/gpt-4o-mini" || policy.Pricing.PromptCostPer1K <= 0 || policy.Pricing.CompletionCostPer1K <= 0 {

@@ -30,6 +30,7 @@ type StripeService struct {
 	apiBase           string
 	mu                sync.RWMutex
 	runtimeConfig     stripeRuntimeConfig
+	testWebhookSecret string
 	configLoader      stripeConfigLoader
 	introCouponConfig IntroCouponConfig
 }
@@ -40,6 +41,7 @@ type StripeServiceStore interface {
 	QueryRow(string, ...any) *sql.Row
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 	Exec(string, ...any) (sql.Result, error)
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
 	Begin() (*sql.Tx, error)
 	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
 }
@@ -280,22 +282,10 @@ func (s *StripeService) loadStripeConfig(ctx context.Context) (stripeRuntimeConf
 		source:         "authority",
 	}
 
-	if !cfg.hasPublishable {
-		logx.Info("Stripe publishable key missing", map[string]interface{}{
-			"level":   "warn",
-			"message": "stripe-publishable-key is not configured in the credential authority",
-		})
-	}
-	if !cfg.hasSecret {
-		logx.Info("Stripe restricted key missing", map[string]interface{}{
-			"level":   "warn",
-			"message": "stripe-secret-key is not configured in the credential authority",
-		})
-	}
-	if !cfg.hasWebhook {
-		logx.Info("Stripe webhook secret missing", map[string]interface{}{
-			"level":   "warn",
-			"message": "stripe-webhook-secret is not configured in the credential authority",
+	if !cfg.hasPublishable || !cfg.hasSecret || !cfg.hasWebhook {
+		logx.Info("active Stripe credential set incomplete", map[string]interface{}{
+			"level": "warn", "stripe_mode": strings.ToLower(strings.TrimSpace(envx.Get("STRIPE_MODE"))),
+			"publishable_configured": cfg.hasPublishable, "secret_configured": cfg.hasSecret, "webhook_configured": cfg.hasWebhook,
 		})
 	}
 
@@ -306,6 +296,24 @@ func (s *StripeService) getConfig() stripeRuntimeConfig {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.runtimeConfig
+}
+
+// useEphemeralWebhookSecret is limited to the explicit test-mode replay. The
+// local Stripe CLI prints a listener-specific signing secret; retain it only
+// as an additional temporary verifier so ordinary authority-backed webhook
+// deliveries continue to validate while the listener is active.
+func (s *StripeService) useEphemeralWebhookSecret(secret string) func() {
+	s.mu.Lock()
+	previousSecret := s.testWebhookSecret
+	s.testWebhookSecret = strings.TrimSpace(secret)
+	s.mu.Unlock()
+	return func() {
+		s.mu.Lock()
+		if s.testWebhookSecret == strings.TrimSpace(secret) {
+			s.testWebhookSecret = previousSecret
+		}
+		s.mu.Unlock()
+	}
 }
 
 func (s *StripeService) getHTTPClient() *http.Client {
@@ -339,6 +347,10 @@ func (s *StripeService) stripeAPIURL(path string) string {
 }
 
 func (s *StripeService) doStripeRequest(ctx context.Context, method, path string, body io.Reader, contentType string) ([]byte, error) {
+	return s.doStripeRequestWithHeaders(ctx, method, path, body, contentType, nil)
+}
+
+func (s *StripeService) doStripeRequestWithHeaders(ctx context.Context, method, path string, body io.Reader, contentType string, headers http.Header) ([]byte, error) {
 	cfg := s.getConfig()
 	if !cfg.hasSecret {
 		return nil, &StripeConfigError{MissingKey: "secret_key"}
@@ -353,6 +365,11 @@ func (s *StripeService) doStripeRequest(ctx context.Context, method, path string
 	req.Header.Set("Authorization", "Bearer "+cfg.secretKey)
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
+	}
+	for key, values := range headers {
+		for _, value := range values {
+			req.Header.Add(key, value)
+		}
 	}
 
 	client := s.getHTTPClient()
@@ -491,8 +508,12 @@ type checkoutSessionRecord struct {
 }
 
 func (s *StripeService) loadCheckoutSession(sessionID string) (*checkoutSessionRecord, error) {
+	return s.loadCheckoutSessionContext(context.Background(), sessionID)
+}
+
+func (s *StripeService) loadCheckoutSessionContext(ctx context.Context, sessionID string) (*checkoutSessionRecord, error) {
 	record := &checkoutSessionRecord{}
-	err := s.db.QueryRow(`
+	err := s.db.QueryRowContext(ctx, `
 		SELECT session_id, status, price_id, session_type, amount_cents, schedule_id, customer_id, customer_email, subscription_id
 		FROM checkout_sessions
 		WHERE session_id = $1
@@ -513,9 +534,9 @@ func (s *StripeService) loadCheckoutSession(sessionID string) (*checkoutSessionR
 	// Older test fixtures and pre-migration databases may not have the
 	// account column. The account-scoped production schema does; the best
 	// effort fallback preserves compatibility for unscoped legacy checkouts.
-	_ = s.db.QueryRow(`SELECT business_account_id FROM checkout_sessions WHERE session_id = $1`, sessionID).Scan(&record.BusinessAccountID)
+	_ = s.db.QueryRowContext(ctx, `SELECT business_account_id FROM checkout_sessions WHERE session_id = $1`, sessionID).Scan(&record.BusinessAccountID)
 	var metadata []byte
-	_ = s.db.QueryRow(`SELECT metadata, visitor_id, attribution_session_id, variant_slug, landing_path, device_class, utm_source, utm_medium, utm_campaign, referrer_kind, country_code FROM checkout_sessions WHERE session_id = $1`, sessionID).Scan(&metadata, &record.VisitorID, &record.AttributionSessionID, &record.VariantSlug, &record.LandingPath, &record.DeviceClass, &record.UTMSource, &record.UTMMedium, &record.UTMCampaign, &record.ReferrerKind, &record.CountryCode)
+	_ = s.db.QueryRowContext(ctx, `SELECT metadata, visitor_id, attribution_session_id, variant_slug, landing_path, device_class, utm_source, utm_medium, utm_campaign, referrer_kind, country_code FROM checkout_sessions WHERE session_id = $1`, sessionID).Scan(&metadata, &record.VisitorID, &record.AttributionSessionID, &record.VariantSlug, &record.LandingPath, &record.DeviceClass, &record.UTMSource, &record.UTMMedium, &record.UTMCampaign, &record.ReferrerKind, &record.CountryCode)
 	if len(metadata) > 0 {
 		_ = json.Unmarshal(metadata, &record.Metadata)
 	}

@@ -232,6 +232,24 @@ func TestUndeliveredSignInIsReportedUsableAndVisibleInHealth(t *testing.T) {
 	}
 }
 
+func TestSignInDeliveryHealthTreatsProviderBounceAsFailure(t *testing.T) {
+	db := setupTestDB(t)
+	service, _ := signInServiceWithCapture(t, db, recordingSignInSender{})
+	const email = "signin-bounced@example.invalid"
+	if _, err := service.RequestSignIn(context.Background(), administration.SignInRequest{Email: email}); err != nil {
+		t.Fatal(err)
+	}
+	// Provider acceptance is not delivery. A later terminal bounce is written
+	// by the signed provider webhook and must make the readiness signal fail.
+	if _, err := db.Exec(`UPDATE auth_tokens SET delivery_status='rejected', provider_status='bounce', provider_reason_class='invalid_recipient', provider_status_at=NOW() WHERE email=$1`, email); err != nil {
+		t.Fatal(err)
+	}
+	health, err := service.DeliveryHealth(context.Background(), time.Hour)
+	if err != nil || health.Failed != 1 || health.LastFailure == nil || health.LastError != "invalid_recipient" {
+		t.Fatalf("bounced sign-in health = %+v err=%v", health, err)
+	}
+}
+
 func TestAuthThrottlePersistsAcrossInstances(t *testing.T) {
 	db := setupTestDB(t)
 	bucket := administration.ThrottleBucket("test-persist", "throttle@example.com")

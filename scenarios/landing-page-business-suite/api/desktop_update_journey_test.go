@@ -6,13 +6,19 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/sha512"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -38,7 +44,7 @@ func TestDesktopUpdateJourneyServer(t *testing.T) {
 		t.Skip("J10_NEXT_APPIMAGE selects an actual generated artifact")
 	}
 	db := setupTestDB(t)
-	endpoint, access, secret := setupDesktopJourneyMinIO(t)
+	endpoint, access, secret, minioHTTP := setupDesktopJourneyMinIO(t)
 	ctx := t.Context()
 	const bundle = "desktop-journey"
 	const bucket = "desktop-journey-downloads"
@@ -50,7 +56,11 @@ func TestDesktopUpdateJourneyServer(t *testing.T) {
 		t.Fatal(err)
 	}
 	catalog := delivery.NewCatalogService(db)
-	if _, err := catalog.UpsertApp(delivery.App{BundleKey: bundle, AppKey: "web-console", Name: "Aquila journey"}); err != nil {
+	appKey := os.Getenv("J10_APP_KEY")
+	if appKey == "" {
+		appKey = "web-console"
+	}
+	if _, err := catalog.UpsertApp(delivery.App{BundleKey: bundle, AppKey: appKey, Name: "Aquila journey"}); err != nil {
 		t.Fatal(err)
 	}
 	f, err := os.Open(artifactPath)
@@ -69,7 +79,7 @@ func TestDesktopUpdateJourneyServer(t *testing.T) {
 	if _, err := f.Seek(0, 0); err != nil {
 		t.Fatal(err)
 	}
-	upload, err := service.PresignUpload(ctx, bundle, delivery.PresignUploadRequest{Filename: filepath.Base(artifactPath), ContentType: "application/octet-stream", AppKey: "web-console", Platform: "linux-x64", ReleaseVersion: "0.0.2"})
+	upload, err := service.PresignUpload(ctx, bundle, delivery.PresignUploadRequest{Filename: filepath.Base(artifactPath), ContentType: "application/octet-stream", AppKey: appKey, Platform: "linux-x64", ReleaseVersion: "0.0.2"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +91,7 @@ func TestDesktopUpdateJourneyServer(t *testing.T) {
 	for key, value := range upload.RequiredHeaders {
 		request.Header.Set(key, value)
 	}
-	response, err := http.DefaultClient.Do(request)
+	response, err := minioHTTP.Do(request)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,11 +99,11 @@ func TestDesktopUpdateJourneyServer(t *testing.T) {
 	if response.StatusCode != 200 {
 		t.Fatalf("real MinIO upload HTTP %d", response.StatusCode)
 	}
-	artifact, err := service.CommitArtifact(ctx, bundle, delivery.CommitArtifactRequest{Bucket: upload.Bucket, ObjectKey: upload.ObjectKey, OriginalFilename: filepath.Base(artifactPath), ContentType: "application/octet-stream", AppKey: "web-console", Platform: "linux-x64", ReleaseVersion: "0.0.2", SHA256: hex.EncodeToString(h256.Sum(nil)), SHA512: base64.StdEncoding.EncodeToString(h512.Sum(nil))})
+	artifact, err := service.CommitArtifact(ctx, bundle, delivery.CommitArtifactRequest{Bucket: upload.Bucket, ObjectKey: upload.ObjectKey, OriginalFilename: filepath.Base(artifactPath), ContentType: "application/octet-stream", AppKey: appKey, Platform: "linux-x64", ReleaseVersion: "0.0.2", SHA256: hex.EncodeToString(h256.Sum(nil)), SHA512: base64.StdEncoding.EncodeToString(h512.Sum(nil))})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := catalog.PromoteChannel(ctx, delivery.ChannelPromotionRequest{BundleKey: bundle, AppKey: "web-console", VariantKey: "default", ArtifactIDs: map[string]int64{"linux-x64": artifact.ID}}); err != nil {
+	if _, err := catalog.PromoteChannel(ctx, delivery.ChannelPromotionRequest{BundleKey: bundle, AppKey: appKey, VariantKey: "default", ArtifactIDs: map[string]int64{"linux-x64": artifact.ID}}); err != nil {
 		t.Fatal(err)
 	}
 	deps := updateDependencies(desktopJourneyBundle{}, db)
@@ -147,7 +157,7 @@ func TestDesktopUpdateJourneyServer(t *testing.T) {
 // Use the same staged native artifact and ephemeral lifecycle as the resource
 // owner's managed-service integration tests. Verify the resource-owned digest
 // before launch; never install or reconfigure an operator's MinIO instance.
-func setupDesktopJourneyMinIO(t *testing.T) (string, string, string) {
+func setupDesktopJourneyMinIO(t *testing.T) (string, string, string, *http.Client) {
 	t.Helper()
 	var spec struct {
 		ManagedService struct {
@@ -209,12 +219,30 @@ func setupDesktopJourneyMinIO(t *testing.T) (string, string, string) {
 		if err == nil {
 			response.Body.Close()
 			if response.StatusCode == 200 {
-				return endpoint, "minioadmin", "minioadmin"
+				// LPBS accepts HTTPS-only presigned URLs. Keep the digest-verified
+				// MinIO binary and real S3 signing, but terminate a local TLS
+				// endpoint in front of this isolated HTTP-only MinIO process.
+				target, parseErr := url.Parse(endpoint)
+				if parseErr != nil {
+					t.Fatal(parseErr)
+				}
+				proxy := httptest.NewTLSServer(httputil.NewSingleHostReverseProxy(target))
+				t.Cleanup(proxy.Close)
+				roots := x509.NewCertPool()
+				roots.AddCert(proxy.Certificate())
+				bundle := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: proxy.Certificate().Raw})
+				caPath := filepath.Join(private, "minio-proxy-ca.pem")
+				if err := os.WriteFile(caPath, bundle, 0o600); err != nil {
+					t.Fatal(err)
+				}
+				t.Setenv("AWS_CA_BUNDLE", caPath)
+				client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots}}}
+				return proxy.URL, "minioadmin", "minioadmin", client
 			}
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
 	output, _ := os.ReadFile(log.Name())
 	t.Fatal(fmt.Sprintf("isolated MinIO did not become ready: %s", output))
-	return "", "", ""
+	return "", "", "", nil
 }

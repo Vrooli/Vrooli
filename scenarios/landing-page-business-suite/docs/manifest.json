@@ -433,6 +433,21 @@
           "completion": "optional"
         },
         {
+          "path": "reference/ACCOUNT_CREDIT_LIFECYCLE.md",
+          "title": "Account Credit Lifecycle",
+          "description": "Authenticated app-scoped account-credit reservation, dispatch, settlement, release, and recovery API",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "docType": "reference-account-credit-lifecycle",
+          "maturity": "draft",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
           "path": "reference/EMAIL_DELIVERY.md",
           "title": "Email Delivery",
           "description": "Authoritative design for outbound email: delivery subsystem, provider registry and routing, DNS authorization, data model, and operator surface",

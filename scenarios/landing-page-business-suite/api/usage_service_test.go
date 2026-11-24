@@ -204,7 +204,6 @@ func TestUsageService_RecordUsage_InsertsNewRecord(t *testing.T) {
 		UserIdentity: "user@example.com",
 		LimitKey:     "compute_minutes",
 		Amount:       100000,
-		AppBundleKey: "browser-automation-studio",
 	}
 
 	err := svc.RecordUsage(ctx, req)
@@ -238,7 +237,6 @@ func TestUsageService_RecordUsage_IncrementsExisting(t *testing.T) {
 		UserIdentity: "user@example.com",
 		LimitKey:     "compute_minutes",
 		Amount:       100000,
-		AppBundleKey: "browser-automation-studio",
 	}
 	err := svc.RecordUsage(ctx, req)
 	if err != nil {
@@ -279,7 +277,6 @@ func TestUsageService_RecordUsage_BYOK_ZeroAmount(t *testing.T) {
 		UserIdentity: "user@example.com",
 		LimitKey:     "compute_minutes",
 		Amount:       100000, // This should be ignored because IsBYOK is true
-		AppBundleKey: "browser-automation-studio",
 		IsBYOK:       true,
 	}
 
@@ -727,7 +724,6 @@ func TestUsageService_RecordUsage_WithOperationID_FirstTime_RecordsUsage(t *test
 		UserIdentity: "user@example.com",
 		LimitKey:     "compute_minutes",
 		Amount:       100000,
-		AppBundleKey: "browser-automation-studio",
 		OperationID:  &operationID,
 	}
 
@@ -762,7 +758,6 @@ func TestUsageService_RecordUsage_WithOperationID_Duplicate_NoIncrement(t *testi
 		UserIdentity: "user@example.com",
 		LimitKey:     "compute_minutes",
 		Amount:       100000,
-		AppBundleKey: "browser-automation-studio",
 		OperationID:  &operationID,
 	}
 
@@ -812,7 +807,6 @@ func TestUsageService_RecordUsage_WithOperationID_DifferentUser_BothRecorded(t *
 		UserIdentity: "user1@example.com",
 		LimitKey:     "compute_minutes",
 		Amount:       100000,
-		AppBundleKey: "browser-automation-studio",
 		OperationID:  &operationID1,
 	}
 	err := svc.RecordUsage(ctx, req1)
@@ -825,7 +819,6 @@ func TestUsageService_RecordUsage_WithOperationID_DifferentUser_BothRecorded(t *
 		UserIdentity: "user2@example.com",
 		LimitKey:     "compute_minutes",
 		Amount:       50000,
-		AppBundleKey: "browser-automation-studio",
 		OperationID:  &operationID2,
 	}
 	err = svc.RecordUsage(ctx, req2)
@@ -863,7 +856,6 @@ func TestUsageService_RecordUsage_NoOperationID_BackwardCompatible(t *testing.T)
 		UserIdentity: "user@example.com",
 		LimitKey:     "compute_minutes",
 		Amount:       100000,
-		AppBundleKey: "browser-automation-studio",
 		// No OperationID set
 	}
 
@@ -906,7 +898,6 @@ func TestUsageService_RecordUsage_EmptyOperationID_TreatedAsNil(t *testing.T) {
 		UserIdentity: "user@example.com",
 		LimitKey:     "compute_minutes",
 		Amount:       100000,
-		AppBundleKey: "browser-automation-studio",
 		OperationID:  &emptyID,
 	}
 
@@ -950,7 +941,6 @@ func TestUsageService_RecordUsage_DifferentOperationIDs_BothRecorded(t *testing.
 		UserIdentity: "user@example.com",
 		LimitKey:     "compute_minutes",
 		Amount:       100000,
-		AppBundleKey: "browser-automation-studio",
 		OperationID:  &operationID1,
 	}
 	err := svc.RecordUsage(ctx, req1)
@@ -962,7 +952,6 @@ func TestUsageService_RecordUsage_DifferentOperationIDs_BothRecorded(t *testing.
 		UserIdentity: "user@example.com",
 		LimitKey:     "compute_minutes",
 		Amount:       50000,
-		AppBundleKey: "browser-automation-studio",
 		OperationID:  &operationID2,
 	}
 	err = svc.RecordUsage(ctx, req2)

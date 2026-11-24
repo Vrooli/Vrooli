@@ -462,6 +462,7 @@ export interface CreateBundlePricePayload {
   cta_label?: string;
   highlight?: boolean;
   features?: string[];
+  app_entitlements?: Record<string, { features?: string[]; limits?: Record<string, number> }>;
 }
 
 /**

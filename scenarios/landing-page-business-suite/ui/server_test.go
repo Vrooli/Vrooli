@@ -13,6 +13,9 @@ import (
 
 func TestUIHandlerHealthMatchesRecognizedSchema(t *testing.T) {
 	t.Setenv(buildIdentityEnv, "sha256:test-identity")
+	t.Setenv(runtimeReleaseIDEnv, "release-42")
+	t.Setenv(runtimeReleaseOperationIDEnv, "selection-7")
+	t.Setenv(startOperationIDEnv, "startop-test")
 	h := newUIHandler(t.TempDir(), http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		t.Fatal("health check must not reach the API proxy")
 	}))
@@ -24,10 +27,13 @@ func TestUIHandlerHealthMatchesRecognizedSchema(t *testing.T) {
 	}
 
 	var body struct {
-		Status        string `json:"status"`
-		Service       string `json:"service"`
-		Timestamp     string `json:"timestamp"`
-		BuildIdentity string `json:"build_identity"`
+		Status                    string `json:"status"`
+		Service                   string `json:"service"`
+		Timestamp                 string `json:"timestamp"`
+		BuildIdentity             string `json:"build_identity"`
+		RuntimeReleaseID          string `json:"runtime_release_id"`
+		RuntimeReleaseOperationID string `json:"runtime_release_operation_id"`
+		StartOperationID          string `json:"start_operation_id"`
 	}
 	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode health response: %v", err)
@@ -43,6 +49,10 @@ func TestUIHandlerHealthMatchesRecognizedSchema(t *testing.T) {
 	}
 	if body.BuildIdentity != "sha256:test-identity" {
 		t.Fatalf("build_identity = %q, want sha256:test-identity", body.BuildIdentity)
+	}
+	if body.RuntimeReleaseID != "release-42" || body.RuntimeReleaseOperationID != "selection-7" || body.StartOperationID != "startop-test" {
+		t.Fatalf("runtime provenance = %q/%q/%q, want release-42/selection-7/startop-test",
+			body.RuntimeReleaseID, body.RuntimeReleaseOperationID, body.StartOperationID)
 	}
 }
 

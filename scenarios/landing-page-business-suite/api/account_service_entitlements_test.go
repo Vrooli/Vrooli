@@ -187,7 +187,8 @@ func TestAccountServiceEntitlementsIncludesFeatures(t *testing.T) {
 		t.Fatalf("failed to seed subscription: %v", err)
 	}
 
-	// Seed credit wallet so entitlements can return some credit info
+	// Seed the retired email wallet cache. A subscription-only lookup without a
+	// selected business account must not expose this un-attributed balance.
 	if _, err := db.Exec(`
 		INSERT INTO credit_wallets (customer_email, balance_credits, bonus_credits, updated_at)
 		VALUES ($1, $2, $3, $4)
@@ -216,8 +217,8 @@ func TestAccountServiceEntitlementsIncludesFeatures(t *testing.T) {
 	if entitlements.Credits == nil {
 		t.Fatal("expected credits populated")
 	}
-	if entitlements.Credits.BalanceCredits != 2_000_000 {
-		t.Fatalf("expected credit balance to match wallet seed, got %d", entitlements.Credits.BalanceCredits)
+	if entitlements.Credits.BalanceCredits != 0 {
+		t.Fatalf("subscription-only entitlements leaked un-attributed email-wallet credits: got %d, want 0", entitlements.Credits.BalanceCredits)
 	}
 	expectedFeatures := []string{"Download gating", "Credits top-up"}
 	if !reflect.DeepEqual(entitlements.Features, expectedFeatures) {

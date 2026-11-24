@@ -68,11 +68,27 @@ func (s *StripeService) webhookService() *commerce.StripeWebhookService {
 		PlanService: s.planService,
 		Config: func() commerce.StripeWebhookConfig {
 			cfg := s.getConfig()
-			return commerce.StripeWebhookConfig{WebhookSecret: cfg.webhookSecret, HasWebhook: cfg.hasWebhook}
+			s.mu.RLock()
+			testWebhookSecret := s.testWebhookSecret
+			s.mu.RUnlock()
+			return commerce.StripeWebhookConfig{WebhookSecret: cfg.webhookSecret, AdditionalWebhookSecret: testWebhookSecret, HasWebhook: cfg.hasWebhook || testWebhookSecret != ""}
 		},
 		NormalizeEmail: NormalizeEmail,
 		LoadCheckoutSession: func(id string) (*commerce.CheckoutSessionRecord, error) {
 			record, err := s.loadCheckoutSession(id)
+			if err != nil {
+				return nil, err
+			}
+			return &commerce.CheckoutSessionRecord{
+				SessionID: record.SessionID, Status: record.Status, PriceID: record.PriceID,
+				SessionType: record.SessionType.String, AmountCents: record.AmountCents,
+				ScheduleID: record.ScheduleID, CustomerID: record.CustomerID,
+				CustomerEmail: record.CustomerEmail, BusinessAccountID: record.BusinessAccountID, SubscriptionID: record.SubscriptionID,
+				Metadata: record.Metadata,
+			}, nil
+		},
+		LoadCheckoutSessionContext: func(ctx context.Context, id string) (*commerce.CheckoutSessionRecord, error) {
+			record, err := s.loadCheckoutSessionContext(ctx, id)
 			if err != nil {
 				return nil, err
 			}
@@ -96,17 +112,15 @@ func (s *StripeService) webhookService() *commerce.StripeWebhookService {
 			}
 			return s.extractAmount(obj, legacy)
 		},
-		HandleCreditTopup: func(email string, amount int64, plan *commerce.PlanOption, eventID string, metadata map[string]interface{}) error {
-			return s.handleCreditTopup(email, amount, plan, eventID, metadata)
-		},
-		RefreshSubscription:   s.refreshSubscriptionFromStripe,
-		PersistSubscription:   s.persistSubscriptionFromStripe,
-		CheckIntroEligibility: s.checkIntroEligibility,
-		MarkIntroUsed:         s.markIntroUsed,
-		ExtractIntroCoupon:    s.extractIntroCouponFromInvoice,
-		LogIntroAnomaly:       s.logIntroAnomaly,
-		Log:                   logx.Info,
-		LogError:              logx.Error,
+		HandleCreditTopupContext:   s.handleCreditTopupContext,
+		RefreshSubscriptionContext: s.refreshSubscriptionFromStripeContext,
+		PersistSubscriptionContext: s.persistSubscriptionFromStripeContext,
+		CheckIntroEligibility:      s.checkIntroEligibility,
+		MarkIntroUsed:              s.markIntroUsed,
+		ExtractIntroCoupon:         s.extractIntroCouponFromInvoice,
+		LogIntroAnomaly:            s.logIntroAnomaly,
+		Log:                        logx.Info,
+		LogError:                   logx.Error,
 	})
 }
 

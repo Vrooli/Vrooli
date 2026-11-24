@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -53,20 +54,27 @@ type UserAuthStore interface {
 
 // UserAuthService handles user authentication (magic links + JWT).
 type UserAuthService struct {
-	db             UserAuthStore
-	emailService   MagicLinkSender
-	consumerSigner *consumeridentity.Signer
-	consumerKeys   *consumeridentity.KeySet
-	jwtIssuer      string
-	accessTTL      time.Duration
-	consumerLeeway time.Duration
-	refreshTTL     time.Duration
-	idleTTL        time.Duration
-	absoluteTTL    time.Duration
-	refreshGrace   time.Duration
-	magicLinkTTL   time.Duration
-	baseURL        string // For magic link URLs
-	appName        string // For email subject lines
+	consumerReloadMu               sync.Mutex
+	consumerKeyMu                  sync.RWMutex
+	db                             UserAuthStore
+	emailService                   MagicLinkSender
+	consumerSigner                 *consumeridentity.Signer
+	consumerKeys                   *consumeridentity.KeySet
+	consumerCurrentPublic          consumeridentity.PublicKey
+	consumerPreviousKeys           []consumeridentity.PublicKey
+	consumerPreviousKeyExpirations map[string]time.Time
+	consumerSigningVersion         string
+	consumerSigningSource          *AuthorityConsumerSigningSource
+	jwtIssuer                      string
+	accessTTL                      time.Duration
+	consumerLeeway                 time.Duration
+	refreshTTL                     time.Duration
+	idleTTL                        time.Duration
+	absoluteTTL                    time.Duration
+	refreshGrace                   time.Duration
+	magicLinkTTL                   time.Duration
+	baseURL                        string // For magic link URLs
+	appName                        string // For email subject lines
 	// Test hook for capturing generated tokens
 	onMagicLinkGenerated  MagicLinkTokenCallback
 	onSignInCodeGenerated func(email, code string)
@@ -143,26 +151,29 @@ var ErrSessionExpired = errors.New("session has expired")
 // composition boundary. Identity policy does not read environment variables or
 // depend on a root-package mail implementation.
 type UserAuthServiceOptions struct {
-	Store                 UserAuthStore
-	EmailService          MagicLinkSender
-	ConsumerSigningKeyPEM string
-	ConsumerSigningKeyID  string
-	ConsumerPreviousKeys  []consumeridentity.PublicKey
-	JWTIssuer             string
-	BaseURL               string
-	AppName               string
-	AccessTTL             time.Duration
-	ConsumerClockSkew     time.Duration
-	RefreshTTL            time.Duration
-	IdleTTL               time.Duration
-	AbsoluteTTL           time.Duration
-	ReauthMaxAge          time.Duration
-	RefreshGrace          time.Duration
-	MagicLinkTTL          time.Duration
-	Log                   func(string, map[string]interface{})
-	LogError              func(string, map[string]interface{})
-	OutboxEnabled         bool
-	SenderIdentity        string
+	Store                          UserAuthStore
+	EmailService                   MagicLinkSender
+	ConsumerSigningKeyPEM          string
+	ConsumerSigningKeyID           string
+	ConsumerPreviousKeys           []consumeridentity.PublicKey
+	ConsumerPreviousKeyExpirations map[string]time.Time
+	ConsumerSigningVersion         string
+	ConsumerSigningSource          *AuthorityConsumerSigningSource
+	JWTIssuer                      string
+	BaseURL                        string
+	AppName                        string
+	AccessTTL                      time.Duration
+	ConsumerClockSkew              time.Duration
+	RefreshTTL                     time.Duration
+	IdleTTL                        time.Duration
+	AbsoluteTTL                    time.Duration
+	ReauthMaxAge                   time.Duration
+	RefreshGrace                   time.Duration
+	MagicLinkTTL                   time.Duration
+	Log                            func(string, map[string]interface{})
+	LogError                       func(string, map[string]interface{})
+	OutboxEnabled                  bool
+	SenderIdentity                 string
 }
 
 // NewUserAuthService creates a user-authentication service from explicit
@@ -178,10 +189,7 @@ func NewUserAuthService(opts UserAuthServiceOptions) *UserAuthService {
 	if logError == nil {
 		logError = func(string, map[string]interface{}) {}
 	}
-	jwtIssuer := opts.JWTIssuer
-	if jwtIssuer == "" {
-		jwtIssuer = "landing-page-business-suite"
-	}
+	jwtIssuer := ConsumerSigningIssuer(opts.JWTIssuer)
 
 	baseURL := opts.BaseURL
 
@@ -244,24 +252,29 @@ func NewUserAuthService(opts UserAuthServiceOptions) *UserAuthService {
 		keys.Add(previous)
 	}
 	return &UserAuthService{
-		db:             opts.Store,
-		emailService:   opts.EmailService,
-		consumerSigner: signer,
-		consumerKeys:   keys,
-		jwtIssuer:      jwtIssuer,
-		accessTTL:      accessTTL,
-		consumerLeeway: opts.ConsumerClockSkew,
-		refreshTTL:     refreshTTL,
-		idleTTL:        idleTTL,
-		absoluteTTL:    absoluteTTL,
-		refreshGrace:   refreshGrace,
-		magicLinkTTL:   magicLinkTTL,
-		baseURL:        baseURL,
-		appName:        appName,
-		log:            log,
-		logError:       logError,
-		outboxEnabled:  opts.OutboxEnabled,
-		senderIdentity: strings.TrimSpace(opts.SenderIdentity),
+		db:                             opts.Store,
+		emailService:                   opts.EmailService,
+		consumerSigner:                 signer,
+		consumerKeys:                   keys,
+		consumerCurrentPublic:          consumeridentity.PublicKey{ID: keyID, Key: &signingKey.PublicKey},
+		consumerPreviousKeys:           append([]consumeridentity.PublicKey(nil), opts.ConsumerPreviousKeys...),
+		consumerPreviousKeyExpirations: cloneKeyExpirations(opts.ConsumerPreviousKeyExpirations),
+		consumerSigningVersion:         strings.TrimSpace(opts.ConsumerSigningVersion),
+		consumerSigningSource:          opts.ConsumerSigningSource,
+		jwtIssuer:                      jwtIssuer,
+		accessTTL:                      accessTTL,
+		consumerLeeway:                 opts.ConsumerClockSkew,
+		refreshTTL:                     refreshTTL,
+		idleTTL:                        idleTTL,
+		absoluteTTL:                    absoluteTTL,
+		refreshGrace:                   refreshGrace,
+		magicLinkTTL:                   magicLinkTTL,
+		baseURL:                        baseURL,
+		appName:                        appName,
+		log:                            log,
+		logError:                       logError,
+		outboxEnabled:                  opts.OutboxEnabled,
+		senderIdentity:                 strings.TrimSpace(opts.SenderIdentity),
 	}
 }
 
@@ -441,7 +454,16 @@ func (s *UserAuthService) CreateSessionWithMetadata(ctx context.Context, user *U
 
 // generateAccessToken creates a signed JWT access token.
 func (s *UserAuthService) GenerateAccessToken(userID, email, sessionID string) (string, time.Time, error) {
-	if s == nil || s.consumerSigner == nil {
+	if s == nil {
+		return "", time.Time{}, errors.New("consumer signing key is unavailable")
+	}
+	if err := s.refreshConsumerSigningKeyset(); err != nil {
+		return "", time.Time{}, errors.New("consumer signing authority could not be refreshed")
+	}
+	s.consumerKeyMu.RLock()
+	signer := s.consumerSigner
+	s.consumerKeyMu.RUnlock()
+	if signer == nil {
 		return "", time.Time{}, errors.New("consumer signing key is unavailable")
 	}
 	claims := consumeridentity.Claims{
@@ -456,7 +478,7 @@ func (s *UserAuthService) GenerateAccessToken(userID, email, sessionID string) (
 			claims.AuthTime = authenticatedAt.Unix()
 		}
 	}
-	return s.consumerSigner.Sign(claims)
+	return signer.Sign(claims)
 }
 
 // ValidateSession checks server-side revocation and both customer expiry
@@ -485,10 +507,38 @@ func (s *UserAuthService) ValidateSession(ctx context.Context, sessionID string)
 // private consumer key never leaves LPBS; bundled apps receive only the
 // short-lived lease and the public JWKS needed to verify it.
 func (s *UserAuthService) SignEntitlementLease(payload entitlementclient.Payload) (string, error) {
-	if s == nil || s.consumerSigner == nil {
+	if s == nil {
 		return "", errors.New("consumer signing key is unavailable")
 	}
-	return entitlementclient.Sign(payload, s.consumerSigner.KeyID, s.consumerSigner.Private)
+	if err := s.refreshConsumerSigningKeyset(); err != nil {
+		return "", errors.New("consumer signing authority could not be refreshed")
+	}
+	s.consumerKeyMu.RLock()
+	signer := s.consumerSigner
+	s.consumerKeyMu.RUnlock()
+	if signer == nil {
+		return "", errors.New("consumer signing key is unavailable")
+	}
+	return entitlementclient.Sign(payload, signer.KeyID, signer.Private)
+}
+
+// SignAICreditAssertion uses the existing credential-authority-backed LPBS
+// consumer signing key to issue a one-operation Gateway delegation.
+func (s *UserAuthService) SignAICreditAssertion(expect consumeridentity.CreditAssertionExpectation) (string, error) {
+	if s == nil {
+		return "", errors.New("consumer signing key is unavailable")
+	}
+	if err := s.refreshConsumerSigningKeyset(); err != nil {
+		return "", errors.New("consumer signing authority could not be refreshed")
+	}
+	s.consumerKeyMu.RLock()
+	signer := s.consumerSigner
+	s.consumerKeyMu.RUnlock()
+	if signer == nil {
+		return "", errors.New("consumer signing key is unavailable")
+	}
+	token, _, err := signer.SignCreditAssertion(expect, 30*time.Second)
+	return token, err
 }
 
 // HashToken returns the SHA-256 hash of a token for persistence comparisons.

@@ -27,8 +27,8 @@ func Register(deps support.Dependencies) cliapp.CommandGroup {
 		{Name: "admin-logout", NeedsAPI: true, Description: "Admin logout (clears session)", Run: func(args []string) error { return runLogout(deps, args) }},
 		{Name: "admin-session", NeedsAPI: true, Description: "Admin session status", Run: func(args []string) error { return runSession(deps, args) }},
 		{Name: "admin-reauthenticate", NeedsAPI: true, Description: "Reauthenticate the stored administrator session for sensitive operations", Run: func(args []string) error { return runReauthenticate(deps, args) }},
-		{Name: "admin-mfa-reset", NeedsAPI: true, Description: "Turn off admin two-factor authentication (operator recovery; uses the service credential)", Run: func(args []string) error { return runMFAReset(deps, args) }},
-		{Name: "admin-credential-reset", NeedsAPI: true, Description: "Reset the admin sign-in credential (operator recovery; local service credential or a remote profile)", Run: func(args []string) error { return runCredentialReset(deps, args) }},
+		{Name: "admin-mfa-reset", NeedsAPI: true, Description: "Turn off admin two-factor authentication (operator recovery; uses the scoped recovery identity)", Run: func(args []string) error { return runMFAReset(deps, args) }},
+		{Name: "admin-credential-reset", NeedsAPI: true, Description: "Reset the admin sign-in credential (operator recovery; scoped local identity or a remote profile)", Run: func(args []string) error { return runCredentialReset(deps, args) }},
 	}
 	commands = append(commands, deps.EndpointCommands([]support.EndpointDef{
 		{Name: "admin-profile", Method: "GET", Path: "/admin/profile", Description: "Admin profile"},

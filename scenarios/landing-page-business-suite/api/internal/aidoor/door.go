@@ -16,16 +16,18 @@ import (
 	"strings"
 	"time"
 
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 	"landing-page-business-suite-api/internal/commerce"
 )
 
 type Door struct {
-	ObserveTransition func(RequestTransition)
-	Keys              KeyStore
-	Wallet            *commerce.BusinessAccountUsageService
-	ResolveGateway    func(context.Context) (string, error)
-	GatewayURL        string
-	Client            *http.Client
+	ObserveTransition   func(RequestTransition)
+	Keys                KeyStore
+	Wallet              *commerce.BusinessAccountUsageService
+	ResolveGateway      func(context.Context) (string, error)
+	GatewayURL          string
+	Client              *http.Client
+	SignCreditAssertion func(Key, string, string) (string, error)
 }
 
 const agentSessionFeature = "agent.session"
@@ -46,11 +48,15 @@ type plan struct {
 		MaxCostMicros   int64  `json:"max_cost_micros"`
 		TokenLimitField string `json:"token_limit_field"`
 	} `json:"stream_quote"`
-	CreditMultiplier int64  `json:"credit_multiplier"`
-	RouteID          string `json:"route_id,omitempty"`
-	Supplier         string `json:"supplier,omitempty"`
-	Model            string `json:"model,omitempty"`
-	Reason           string `json:"reason,omitempty"`
+	CreditMultiplier  int64  `json:"credit_multiplier"`
+	RouteID           string `json:"route_id,omitempty"`
+	Supplier          string `json:"supplier,omitempty"`
+	Model             string `json:"model,omitempty"`
+	Reason            string `json:"reason,omitempty"`
+	BusinessAccountID string `json:"business_account_id"`
+	ActorID           string `json:"actor_id"`
+	AppKey            string `json:"app_key"`
+	MaxCredits        int64  `json:"max_credits"`
 }
 type receipt struct {
 	OperationID      string `json:"operation_id"`
@@ -87,7 +93,21 @@ func (d *Door) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/api/v1/ai/receipt" {
 		w.Header().Set("Cache-Control", "no-store")
 	}
-	key, err := d.Keys.Authenticate(r.Context(), r.Header.Get("Authorization"))
+	credential := r.Header.Get("Authorization")
+	if credential == "" {
+		for _, header := range []string{"x-api-key", "x-goog-api-key"} {
+			if value := strings.TrimSpace(r.Header.Get(header)); value != "" {
+				credential = "Bearer " + value
+				break
+			}
+		}
+	}
+	if credential == "" && (strings.HasPrefix(r.URL.Path, "/api/v1/ai/models/") || strings.HasPrefix(r.URL.Path, "/api/v1/ai/v1beta/models/")) {
+		if value := strings.TrimSpace(r.URL.Query().Get("key")); value != "" {
+			credential = "Bearer " + value
+		}
+	}
+	key, err := d.Keys.Authenticate(r.Context(), credential)
 	if err != nil {
 		fail(w, 401, err.Error())
 		return
@@ -107,10 +127,16 @@ func (d *Door) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(204)
 	case r.Method == "POST" && r.URL.Path == "/api/v1/ai/responses":
 		d.responses(w, r, key)
+	case r.Method == "POST" && r.URL.Path == "/api/v1/ai/run":
+		d.run(w, r, key)
 	case r.Method == "POST" && strings.HasPrefix(r.URL.Path, "/api/v1/features/"):
 		d.feature(w, r, key)
 	case r.Method == "POST" && r.URL.Path == "/api/v1/ai/chat/completions":
 		d.chat(w, r, key)
+	case r.Method == "POST" && (r.URL.Path == "/api/v1/ai/v1/messages" || r.URL.Path == "/api/v1/ai/messages"):
+		d.anthropicMessages(w, r, key)
+	case r.Method == "POST" && isGeminiGenerateContentPath(r.URL.Path):
+		d.geminiGenerateContent(w, r, key)
 	default:
 		fail(w, 404, "route not found")
 	}
@@ -137,6 +163,10 @@ func (d *Door) session(w http.ResponseWriter, r *http.Request, key Key) {
 }
 
 func (d *Door) post(ctx context.Context, path string, input any) (*http.Response, error) {
+	return d.postWithAssertion(ctx, path, input, "")
+}
+
+func (d *Door) postWithAssertion(ctx context.Context, path string, input any, assertion string) (*http.Response, error) {
 	base := d.GatewayURL
 	if d.ResolveGateway != nil {
 		var err error
@@ -154,6 +184,9 @@ func (d *Door) post(ctx context.Context, path string, input any) (*http.Response
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if strings.TrimSpace(assertion) != "" {
+		req.Header.Set("Authorization", "Bearer "+assertion)
+	}
 	return d.client().Do(req)
 }
 
@@ -176,11 +209,34 @@ func (d *Door) chat(w http.ResponseWriter, r *http.Request, key Key) {
 }
 
 func (d *Door) funded(w http.ResponseWriter, r *http.Request, key Key, featureID, model string, input map[string]json.RawMessage, feature json.RawMessage) {
+	if !validCreditKeyScope(key) {
+		fail(w, http.StatusForbidden, "credit key app audience is invalid")
+		return
+	}
+	owners, err := monetization.EmbeddedCreditFeatureRegistry()
+	if err != nil {
+		fail(w, http.StatusServiceUnavailable, "credit feature owners are unavailable")
+		return
+	}
+	owner, ok := owners.OwnerForFeature(featureID)
+	if !ok || owner.AppKey != key.App {
+		fail(w, http.StatusForbidden, "credit feature is outside the key app scope")
+		return
+	}
+	if d.SignCreditAssertion == nil {
+		fail(w, http.StatusServiceUnavailable, "credit authority is unavailable")
+		return
+	}
 	operation := r.Header.Get("Idempotency-Key")
 	if operation == "" {
 		operation = randomID()
 	}
 	operation = callerOperationID(key, operation)
+	assertion, err := d.SignCreditAssertion(key, operation, featureID)
+	if err != nil || strings.TrimSpace(assertion) == "" {
+		fail(w, http.StatusServiceUnavailable, "credit authority is unavailable")
+		return
+	}
 	flow := d.requestLifecycle(operation, requestAccepted)
 	defer flow.finish()
 	tier, multiplier, err := d.Wallet.AccountCreditScope(r.Context(), key.Account, key.App)
@@ -195,7 +251,7 @@ func (d *Door) funded(w http.ResponseWriter, r *http.Request, key Key, featureID
 		return
 	}
 	harness := key.Harness
-	planResponse, err := d.post(r.Context(), "/api/v1/private/provider-routes/plan", map[string]any{"operation_id": operation, "feature_id": featureID, "model": model, "budget_micros": budget.Int64(), "harness": harness, "credit_multiplier": multiplier})
+	planResponse, err := d.postWithAssertion(r.Context(), "/api/v1/private/provider-routes/plan", map[string]any{"operation_id": operation, "feature_id": featureID, "model": model, "budget_micros": budget.Int64(), "harness": harness, "credit_multiplier": multiplier, "business_account_id": key.Account, "actor_id": key.Actor, "app_key": key.App, "max_credits": key.MaxCredits}, assertion)
 	if err != nil {
 		fail(w, 503, "AI Gateway unavailable")
 		return
@@ -260,7 +316,7 @@ func (d *Door) funded(w http.ResponseWriter, r *http.Request, key Key, featureID
 		fail(w, 500, err.Error())
 		return
 	}
-	upstream, err := d.post(ctx, "/api/v1/private/provider-routes/stream", map[string]any{"operation_id": operation, "plan": selected, "chat": json.RawMessage(chat), "feature": feature})
+	upstream, err := d.postWithAssertion(ctx, "/api/v1/private/provider-routes/stream", map[string]any{"operation_id": operation, "business_account_id": key.Account, "actor_id": key.Actor, "app_key": key.App, "plan": selected, "chat": json.RawMessage(chat), "feature": feature}, assertion)
 	if err != nil {
 		var dial *net.OpError
 		var dns *net.DNSError
@@ -412,6 +468,10 @@ func (f *requestLifecycle) recover(ctx context.Context, key Key) error {
 }
 
 func (d *Door) models(w http.ResponseWriter, r *http.Request, key Key) {
+	// Model eligibility and availability can change between requests. Do not let
+	// a caller or intermediary pin a stale credits catalog after a route is
+	// withdrawn or becomes unavailable.
+	w.Header().Set("Cache-Control", "no-store")
 	harness := key.Harness
 	if harness == "" {
 		harness = r.URL.Query().Get("harness")

@@ -11,6 +11,7 @@ import (
 
 	"github.com/vrooli/api-core/health"
 
+	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/emaildelivery"
 	"landing-page-business-suite-api/internal/envx"
 	"landing-page-business-suite-api/internal/logx"
@@ -305,9 +306,22 @@ func (s *Server) signInProviderCredentialCheck() health.Checker {
 // providerVerificationReport serves the cached verdicts to the admin portal.
 func (s *Server) providerVerificationReport(w http.ResponseWriter, r *http.Request) {
 	results := s.providerVerification.snapshot()
-	if len(results) == 0 {
-		writeJSON(w, map[string]any{"results": []providerprobe.Result{}, "message": "no provider verification has run yet"})
-		return
+	if results == nil {
+		results = []providerprobe.Result{}
 	}
-	writeJSON(w, map[string]any{"results": results})
+	versions := make([]map[string]any, 0, len(adminProviderCredentialFields))
+	for field := range adminProviderCredentialFields {
+		status, err := administration.AuthorityCredentialStatus(field)
+		if err != nil {
+			// Do not leak provider diagnostics or values through the admin API.
+			versions = append(versions, map[string]any{"identity": "vrooli/landing-page-business-suite", "field": field, "available": false})
+			continue
+		}
+		versions = append(versions, map[string]any{
+			"identity": status.Identity, "field": status.Field, "version": status.Version,
+			"configured": status.Configured, "available": string(status.ProviderState) == "available",
+			"scope": administration.AuthorityScopeForField(status.Field),
+		})
+	}
+	writeJSON(w, map[string]any{"results": results, "credential_versions": versions})
 }

@@ -51,7 +51,6 @@ CREATE TABLE IF NOT EXISTS email_providers (
   enabled BOOLEAN NOT NULL DEFAULT FALSE,
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
-ALTER TABLE email_providers DROP CONSTRAINT IF EXISTS email_providers_transport_check;
 CREATE TABLE IF NOT EXISTS email_outbox (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   dedupe_key TEXT UNIQUE NOT NULL,

@@ -80,10 +80,19 @@ Use validated theme tokens and finite visual variants, not arbitrary CSS/JSX.
 
 `product-demo` also preserves the existing configurable video-demo obligation
 (OT-P1-009). Its `recorded` variant selects `renderer_ref: video` and a typed
-`playback` object: provider (`youtube` or `vimeo`), external URL, layout (`stacked`
+`playback` object: provider (`youtube`, `vimeo`, or `local`), external URL, layout (`stacked`
 or `split`), localized load-player label, caption and unavailable-player label.
-Require a released `poster_ref` and player `alt_text`. Reject fixture_ref,
-media_ref, unsupported providers/layouts and conflicting fields in this mode.
+Require a released `poster_ref` and player `alt_text`. External providers reject
+`media_ref`; local playback requires an empty external URL and a lowercase
+SHA-256 `media_ref` that identifies the exact MP4 bytes. Local MP4s use the
+separate `presentation-media` owner: step-up admin upload is raw `video/mp4`,
+bounded to 256 MiB and admitted through the shared disk broker with the 120 GiB
+free-space floor. Draft playback requires admin access and the current draft
+revision; public playback requires the active revision and reachability from a
+canonical public view. Publication rechecks the stored MP4 hash and MP4
+signature. The PNG-only Backdrop asset verifier remains responsible only for
+the poster image. Reject fixture_ref, unsupported providers/layouts and
+conflicting fields in recorded mode.
 Fixture modes retain their required fixture_ref and do not accept ignored
 playback/media fields. No arbitrary iframe HTML or configurable player options.
 Normalize only exact HTTPS provider host/path/ID forms; reject credentials,
@@ -95,9 +104,9 @@ Keep the caption visible, support focus and failure states, tear down the player
 on revision/source changes, and collapse both layouts on mobile. The public and
 private renderer share these behaviors; private URLs must not become referrers.
 A loaded iframe is not proof that the provider played the video or supplied
-captions. Playback and subtitle availability need separate evidence. Native
-video/WebVTT delivery is not represented by the PNG-only Backdrop asset owner;
-do not add a new media-storage owner to close this legacy external-video gap.
+captions. Playback and subtitle availability need separate evidence. Local
+playback uses the browser's native controls only after explicit activation; it
+does not autoplay. A private draft URL is never used as a public media source.
 
 Artifacts are typed plan/image/html-preview/video/audio/code/pdf examples with
 configured filenames, captions, alt text, dimensions and safe references. Do not

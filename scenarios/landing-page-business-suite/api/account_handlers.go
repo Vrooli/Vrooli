@@ -23,6 +23,56 @@ type managedDownloadResolutionError struct {
 func (e *managedDownloadResolutionError) Error() string { return e.err.Error() }
 func (e *managedDownloadResolutionError) Unwrap() error { return e.err }
 
+// classifyDownloadAuthorizationError keeps REST and Connect error mapping in
+// one owner contract so the two public delivery transports cannot drift.
+func classifyDownloadAuthorizationError(err error) downloadhttp.ErrorKind {
+	switch {
+	case errors.Is(err, delivery.ErrAssetNotFound):
+		return downloadhttp.ErrorNotFound
+	case errors.Is(err, delivery.ErrAppNotFound):
+		return downloadhttp.ErrorAppNotFound
+	case errors.Is(err, delivery.ErrRequiresActiveSubscription):
+		return downloadhttp.ErrorSubscriptionRequired
+	case errors.Is(err, delivery.ErrIdentityRequired):
+		return downloadhttp.ErrorIdentityRequired
+	case errors.Is(err, delivery.ErrPlatformRequired):
+		return downloadhttp.ErrorPlatformRequired
+	case errors.Is(err, delivery.ErrEntitlementsUnavailable):
+		return downloadhttp.ErrorEntitlementsUnavailable
+	case errors.Is(err, delivery.ErrAssetSelectorUnavailable):
+		return downloadhttp.ErrorAssetSelectorUnavailable
+	default:
+		return ""
+	}
+}
+
+func resolveManagedDownloadArtifact(hosting *delivery.Service, bundleKey string) func(context.Context, int64) (string, bool, error) {
+	return func(ctx context.Context, id int64) (string, bool, error) {
+		artifact, err := hosting.GetArtifact(ctx, bundleKey, id)
+		if err != nil {
+			return "", false, &managedDownloadResolutionError{stage: "fetch", err: err}
+		}
+		if artifact == nil {
+			return "", false, nil
+		}
+		url, err := hosting.PresignGetArtifact(ctx, bundleKey, *artifact)
+		if err != nil {
+			return "", true, &managedDownloadResolutionError{stage: "presign", err: err}
+		}
+		return url, true, nil
+	}
+}
+
+func recordDeliveryEvent(db StartupStore, bundleKey string) func(context.Context, string, string, string) error {
+	return func(ctx context.Context, app, platform, event string) error {
+		if db == nil {
+			return nil
+		}
+		_, err := db.ExecContext(ctx, `INSERT INTO delivery_events (event_type,bundle_key,app_key,platform) VALUES ($1,$2,$3,$4)`, event, bundleKey, app, platform)
+		return err
+	}
+}
+
 func downloadAuthorizationDependencies(authorizer *delivery.DownloadAuthorizer, hosting *delivery.Service, plans *commerce.PlanService, db StartupStore) downloadhttp.Dependencies {
 	return downloadhttp.Dependencies{
 		UserEmail: getUserEmail,
@@ -37,39 +87,8 @@ func downloadAuthorizationDependencies(authorizer *delivery.DownloadAuthorizer, 
 			}
 			return downloadhttp.Authorization{Payload: asset, Managed: asset.ArtifactSource == "managed", ArtifactID: artifactID, SetURL: func(url string) { asset.ArtifactURL = url }}, nil
 		},
-		ClassifyError: func(err error) downloadhttp.ErrorKind {
-			switch {
-			case errors.Is(err, delivery.ErrAssetNotFound):
-				return downloadhttp.ErrorNotFound
-			case errors.Is(err, delivery.ErrAppNotFound):
-				return downloadhttp.ErrorAppNotFound
-			case errors.Is(err, delivery.ErrRequiresActiveSubscription):
-				return downloadhttp.ErrorSubscriptionRequired
-			case errors.Is(err, delivery.ErrIdentityRequired):
-				return downloadhttp.ErrorIdentityRequired
-			case errors.Is(err, delivery.ErrPlatformRequired):
-				return downloadhttp.ErrorPlatformRequired
-			case errors.Is(err, delivery.ErrEntitlementsUnavailable):
-				return downloadhttp.ErrorEntitlementsUnavailable
-			case errors.Is(err, delivery.ErrAssetSelectorUnavailable):
-				return downloadhttp.ErrorAssetSelectorUnavailable
-			}
-			return ""
-		},
-		ResolveManaged: func(ctx context.Context, id int64) (string, bool, error) {
-			artifact, err := hosting.GetArtifact(ctx, plans.BundleKey(), id)
-			if err != nil {
-				return "", false, &managedDownloadResolutionError{stage: "fetch", err: err}
-			}
-			if artifact == nil {
-				return "", false, nil
-			}
-			url, err := hosting.PresignGetArtifact(ctx, plans.BundleKey(), *artifact)
-			if err != nil {
-				return "", true, &managedDownloadResolutionError{stage: "presign", err: err}
-			}
-			return url, true, nil
-		},
+		ClassifyError:  classifyDownloadAuthorizationError,
+		ResolveManaged: resolveManagedDownloadArtifact(hosting, plans.BundleKey()),
 		ManagedError: func(err error) (string, string) {
 			var resolution *managedDownloadResolutionError
 			if errors.As(err, &resolution) && resolution.stage == "fetch" {
@@ -77,16 +96,10 @@ func downloadAuthorizationDependencies(authorizer *delivery.DownloadAuthorizer, 
 			}
 			return "presign_url_failed", "Failed to generate download link. Please try again."
 		},
-		WriteJSON:  writeJSON,
-		WriteError: writeJSONError,
-		Log:        logx.Error,
-		RecordEvent: func(ctx context.Context, app, platform, event string) error {
-			if db == nil {
-				return nil
-			}
-			_, err := db.ExecContext(ctx, `INSERT INTO delivery_events (event_type,bundle_key,app_key,platform) VALUES ($1,$2,$3,$4)`, event, plans.BundleKey(), app, platform)
-			return err
-		},
+		WriteJSON:   writeJSON,
+		WriteError:  writeJSONError,
+		Log:         logx.Error,
+		RecordEvent: recordDeliveryEvent(db, plans.BundleKey()),
 	}
 }
 
@@ -98,47 +111,10 @@ func downloadConnectAuthorizationDependencies(authorizer *delivery.DownloadAutho
 		UserEmail:         getUserEmail,
 		Authorize:         authorizer.Authorize,
 		AuthorizeSelected: authorizer.AuthorizeSelected,
-		ClassifyError: func(err error) downloadhttp.ErrorKind {
-			switch {
-			case errors.Is(err, delivery.ErrAssetNotFound):
-				return downloadhttp.ErrorNotFound
-			case errors.Is(err, delivery.ErrAppNotFound):
-				return downloadhttp.ErrorAppNotFound
-			case errors.Is(err, delivery.ErrRequiresActiveSubscription):
-				return downloadhttp.ErrorSubscriptionRequired
-			case errors.Is(err, delivery.ErrIdentityRequired):
-				return downloadhttp.ErrorIdentityRequired
-			case errors.Is(err, delivery.ErrPlatformRequired):
-				return downloadhttp.ErrorPlatformRequired
-			case errors.Is(err, delivery.ErrEntitlementsUnavailable):
-				return downloadhttp.ErrorEntitlementsUnavailable
-			case errors.Is(err, delivery.ErrAssetSelectorUnavailable):
-				return downloadhttp.ErrorAssetSelectorUnavailable
-			}
-			return ""
-		},
-		ResolveManaged: func(ctx context.Context, id int64) (string, bool, error) {
-			artifact, err := hosting.GetArtifact(ctx, plans.BundleKey(), id)
-			if err != nil {
-				return "", false, &managedDownloadResolutionError{stage: "fetch", err: err}
-			}
-			if artifact == nil {
-				return "", false, nil
-			}
-			url, err := hosting.PresignGetArtifact(ctx, plans.BundleKey(), *artifact)
-			if err != nil {
-				return "", true, &managedDownloadResolutionError{stage: "presign", err: err}
-			}
-			return url, true, nil
-		},
-		Log: logx.Error,
-		RecordEvent: func(ctx context.Context, app, platform, event string) error {
-			if db == nil {
-				return nil
-			}
-			_, err := db.ExecContext(ctx, `INSERT INTO delivery_events (event_type,bundle_key,app_key,platform) VALUES ($1,$2,$3,$4)`, event, plans.BundleKey(), app, platform)
-			return err
-		},
+		ClassifyError:     classifyDownloadAuthorizationError,
+		ResolveManaged:    resolveManagedDownloadArtifact(hosting, plans.BundleKey()),
+		Log:               logx.Error,
+		RecordEvent:       recordDeliveryEvent(db, plans.BundleKey()),
 	}
 }
 

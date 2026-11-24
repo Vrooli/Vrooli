@@ -98,7 +98,8 @@ func Validate(document Document) error {
 		validatePageReferences(page, path, appsByKey, pageCapabilities, assets, fixtures, issues)
 		validateDisplay(page, path+".display", appsByKey, pageCapabilities, assets, fixtures, issues)
 	}
-	for pageID, pages := range pageByID {
+	for _, pageID := range sortedStringKeys(pageByID) {
+		pages := pageByID[pageID]
 		configuredDefault := false
 		for _, page := range pages {
 			if normalizedLocale(page.Locale) == normalizedLocale(document.Bundle.DefaultLocale) {
@@ -110,7 +111,8 @@ func Validate(document Document) error {
 			issues.add("pages", "missing_default_locale_page", fmt.Sprintf("page %q must define the configured bundle default locale", pageID))
 		}
 	}
-	for pageID, owners := range appPageOwners {
+	for _, pageID := range sortedStringKeys(appPageOwners) {
+		owners := appPageOwners[pageID]
 		if len(owners) != 1 {
 			issues.add("pages["+pageID+"]", "ambiguous_page_owner", "each app requires its own page identity; localized pages share only that app's identity")
 			continue
@@ -372,8 +374,9 @@ func validateFixture(fixture Fixture, path string, issues *ValidationError) {
 }
 
 func validateMonitorFixture(fixture MonitorFixture, path string, issues *ValidationError) {
-	for key, value := range map[string]string{"title": fixture.Title, "host": fixture.Host, "metrics_label": fixture.MetricsLabel, "investigation_label": fixture.InvestigationLabel, "investigation_title": fixture.InvestigationTitle, "investigation_body": fixture.InvestigationBody, "action_note": fixture.ActionNote, "status": fixture.Status, "uptime": fixture.Uptime} {
-		validateText(value, path+"."+key, issues, true)
+	values := map[string]string{"title": fixture.Title, "host": fixture.Host, "metrics_label": fixture.MetricsLabel, "investigation_label": fixture.InvestigationLabel, "investigation_title": fixture.InvestigationTitle, "investigation_body": fixture.InvestigationBody, "action_note": fixture.ActionNote, "status": fixture.Status, "uptime": fixture.Uptime}
+	for _, key := range sortedStringKeys(values) {
+		validateText(values[key], path+"."+key, issues, true)
 	}
 	if len(fixture.Metrics) == 0 {
 		issues.add(path+".metrics", "empty_fixture_data", "must contain at least one metric")
@@ -381,11 +384,13 @@ func validateMonitorFixture(fixture MonitorFixture, path string, issues *Validat
 	for i, metric := range fixture.Metrics {
 		p := fmt.Sprintf("%s.metrics[%d]", path, i)
 		validateID(metric.ID, p+".id", issues)
-		for key, value := range map[string]string{"label": metric.Label, "value": metric.Value, "status": metric.Status} {
-			validateText(value, p+"."+key, issues, true)
+		values := map[string]string{"label": metric.Label, "value": metric.Value, "status": metric.Status}
+		for _, key := range sortedStringKeys(values) {
+			validateText(values[key], p+"."+key, issues, true)
 		}
-		for key, value := range map[string]string{"unit": metric.Unit, "detail": metric.Detail} {
-			validateText(value, p+"."+key, issues, false)
+		optionalValues := map[string]string{"unit": metric.Unit, "detail": metric.Detail}
+		for _, key := range sortedStringKeys(optionalValues) {
+			validateText(optionalValues[key], p+"."+key, issues, false)
 		}
 		if len(metric.Trend) == 0 {
 			issues.add(p+".trend", "empty_fixture_data", "must contain at least one trend sample")
@@ -404,10 +409,12 @@ func validateMonitorFixture(fixture MonitorFixture, path string, issues *Validat
 
 func validateWorkspaceFixture(fixture WorkspaceFixture, path string, issues *ValidationError) {
 	values := map[string]string{"title": fixture.Title, "group": fixture.Group, "group_label": fixture.GroupLabel, "sessions_label": fixture.SessionsLabel, "role": fixture.Role, "model": fixture.Model, "reviewer": fixture.Reviewer, "reviewer_model": fixture.ReviewerModel, "branch": fixture.Branch, "prompt": fixture.Prompt, "answer": fixture.Answer, "file_label": fixture.FileLabel, "command": fixture.Command, "ready": fixture.Ready, "composer": fixture.Composer, "return_label": fixture.ReturnLabel, "return_title": fixture.ReturnTitle, "review_message": fixture.ReviewMessage, "message_label": fixture.MessageLabel, "reply_label": fixture.ReplyLabel, "status": fixture.Status, "today": fixture.Today}
-	for key, value := range values {
-		validateText(value, path+"."+key, issues, true)
+	for _, key := range sortedStringKeys(values) {
+		validateText(values[key], path+"."+key, issues, true)
 	}
-	for key, values := range map[string][]string{"groups": fixture.Groups, "sessions": fixture.Sessions, "files": fixture.Files, "diff": fixture.Diff, "checks": fixture.Checks, "keyboard": fixture.Keyboard} {
+	listValues := map[string][]string{"groups": fixture.Groups, "sessions": fixture.Sessions, "files": fixture.Files, "diff": fixture.Diff, "checks": fixture.Checks, "keyboard": fixture.Keyboard}
+	for _, key := range sortedStringKeys(listValues) {
+		values := listValues[key]
 		if len(values) == 0 {
 			issues.add(path+"."+key, "empty_fixture_data", "must contain at least one item")
 		}
@@ -416,10 +423,13 @@ func validateWorkspaceFixture(fixture WorkspaceFixture, path string, issues *Val
 }
 
 func validateBackdropFixture(fixture BackdropFixture, path string, issues *ValidationError) {
-	for key, value := range map[string]string{"title": fixture.Title, "label": fixture.Label, "selected": fixture.Selected, "surface": fixture.Surface, "palette": fixture.Palette, "panel": fixture.Panel, "caption": fixture.Caption, "export": fixture.Export, "badge": fixture.Badge} {
-		validateText(value, path+"."+key, issues, true)
+	values := map[string]string{"title": fixture.Title, "label": fixture.Label, "selected": fixture.Selected, "surface": fixture.Surface, "palette": fixture.Palette, "panel": fixture.Panel, "caption": fixture.Caption, "export": fixture.Export, "badge": fixture.Badge}
+	for _, key := range sortedStringKeys(values) {
+		validateText(values[key], path+"."+key, issues, true)
 	}
-	for key, values := range map[string][]string{"styles": fixture.Styles, "options": fixture.Options, "asset_refs": fixture.AssetRefs} {
+	listValues := map[string][]string{"styles": fixture.Styles, "options": fixture.Options, "asset_refs": fixture.AssetRefs}
+	for _, key := range sortedStringKeys(listValues) {
+		values := listValues[key]
 		if len(values) == 0 {
 			issues.add(path+"."+key, "empty_fixture_data", "must contain at least one item")
 		}
@@ -494,7 +504,9 @@ func validateTheme(theme Theme, path string, issues *ValidationError) {
 	if !validTheme[theme.Variant] {
 		issues.add(path+".variant", "invalid_theme_variant", "must be signal or studio")
 	}
-	for name, value := range map[string]string{"primary": theme.Primary, "background": theme.Background, "accent": theme.Accent} {
+	values := map[string]string{"primary": theme.Primary, "background": theme.Background, "accent": theme.Accent}
+	for _, name := range sortedStringKeys(values) {
+		value := values[name]
 		if !colorPattern.MatchString(value) {
 			issues.add(path+"."+name, "invalid_theme_token", "must be a six-digit hexadecimal color")
 		}
@@ -703,8 +715,15 @@ func validateProductDemo(variant string, content map[string]any, path string, is
 		if fixtureRef != "" {
 			issues.add(path+".fixture_ref", "forbidden_recorded_fixture", "recorded product demos cannot use fixture_ref")
 		}
-		if mediaRef != "" {
-			issues.add(path+".media_ref", "forbidden_recorded_media", "recorded product demos cannot use media_ref")
+		localVideo := playbackIsLocal(playback) && resolvedAssetHashPattern.MatchString(mediaRef)
+		if playbackIsLocal(playback) && mediaRef == "" {
+			issues.add(path+".media_ref", "missing_local_media_hash", "local video playback requires a content SHA-256 media_ref")
+		}
+		if playbackIsLocal(playback) && mediaRef != "" && !resolvedAssetHashPattern.MatchString(mediaRef) {
+			issues.add(path+".media_ref", "invalid_local_media_hash", "local video media_ref must be a lowercase SHA-256 hash")
+		}
+		if mediaRef != "" && !localVideo {
+			issues.add(path+".media_ref", "forbidden_recorded_media", "media_ref is allowed only for a hash-bound local video")
 		}
 		if posterRef == "" {
 			issues.add(path+".poster_ref", "missing_recorded_poster", "recorded product demos require a released poster_ref")
@@ -741,11 +760,17 @@ func validateProductDemoPlayback(value any, path string, issues *ValidationError
 		return
 	}
 	provider := stringValue(playback["provider"])
-	if provider != "youtube" && provider != "vimeo" {
-		issues.add(path+".provider", "unsupported_playback_provider", "provider must be youtube or vimeo")
-	}
-	if _, err := CanonicalPlaybackURL(provider, stringValue(playback["external_url"])); err != nil {
-		issues.add(path+".external_url", "invalid_playback_url", err.Error())
+	if provider == "local" {
+		if stringValue(playback["external_url"]) != "" {
+			issues.add(path+".external_url", "local_playback_external_url", "local playback cannot carry an external URL")
+		}
+	} else {
+		if provider != "youtube" && provider != "vimeo" {
+			issues.add(path+".provider", "unsupported_playback_provider", "provider must be youtube, vimeo, or local")
+		}
+		if _, err := CanonicalPlaybackURL(provider, stringValue(playback["external_url"])); err != nil {
+			issues.add(path+".external_url", "invalid_playback_url", err.Error())
+		}
 	}
 	layout := stringValue(playback["layout"])
 	if layout != "stacked" && layout != "split" {
@@ -754,6 +779,11 @@ func validateProductDemoPlayback(value any, path string, issues *ValidationError
 	for _, field := range []string{"play_label", "caption", "unavailable_label"} {
 		validateTextValue(playback[field], path+"."+field, issues, true)
 	}
+}
+
+func playbackIsLocal(value any) bool {
+	playback, ok := value.(map[string]any)
+	return ok && stringValue(playback["provider"]) == "local"
 }
 
 // CanonicalPlaybackURL validates an external provider URL and returns the

@@ -16,22 +16,27 @@ import (
 	internal "landing-page-business-suite-api/internal/delivery"
 )
 
-// ConnectCatalog is the app-catalog portion of delivery's persistence seam.
-type ConnectCatalog interface {
-	ListApps(string) ([]internal.App, error)
-	UpsertApp(internal.App) (*internal.App, error)
-	DeleteApp(string, string) error
-}
+// ConnectCatalog remains a named alias for callers of the former interface;
+// REST and Connect now share the same catalog contract.
+type ConnectCatalog = AppCatalog
 
 type ConnectHandler struct {
 	lpbsconnect.UnimplementedDownloadServiceHandler
 	bundleKey     func() string
 	catalog       ConnectCatalog
+	getArtifact   func(context.Context, string, int64) (*internal.Artifact, error)
 	authorization *ConnectAuthorizationDependencies
 }
 
 func NewConnectHandler(bundleKey func() string, catalog ConnectCatalog) *ConnectHandler {
 	return &ConnectHandler{bundleKey: bundleKey, catalog: catalog}
+}
+
+// WithArtifactLookup binds Connect app saves to the same immutable managed
+// artifact owner records that REST app saves validate before persistence.
+func (h *ConnectHandler) WithArtifactLookup(lookup func(context.Context, string, int64) (*internal.Artifact, error)) *ConnectHandler {
+	h.getArtifact = lookup
+	return h
 }
 
 // ConnectAuthorizationDependencies isolates entitlement authorization from
@@ -84,7 +89,15 @@ func (h *ConnectHandler) AuthorizeDownload(ctx context.Context, request *connect
 	if asset == nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("authorize download returned no asset"))
 	}
+	if asset.ArtifactSource == "managed" && (asset.ArtifactID == nil || *asset.ArtifactID <= 0) {
+		h.authorization.Log("managed_artifact_id_missing", map[string]any{"app_key": appKey, "platform": platform})
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("managed download artifact is not configured"))
+	}
 	if asset.ArtifactSource == "managed" && asset.ArtifactID != nil {
+		if h.authorization.ResolveManaged == nil {
+			h.authorization.Log("managed_delivery_unavailable", map[string]any{"app_key": appKey, "platform": platform, "artifact_id": *asset.ArtifactID})
+			return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("managed download artifact resolver is not configured"))
+		}
 		url, found, resolveErr := h.authorization.ResolveManaged(ctx, *asset.ArtifactID)
 		if resolveErr != nil {
 			h.authorization.Log("download_artifact_resolution_failed", map[string]any{"app_key": appKey, "platform": platform, "artifact_id": *asset.ArtifactID, "error": resolveErr.Error()})
@@ -138,12 +151,12 @@ func (h *ConnectHandler) ListDownloadApps(_ context.Context, _ *connect.Request[
 	return connect.NewResponse(&lpbsv1.ListDownloadAppsResponse{Apps: result}), nil
 }
 
-func (h *ConnectHandler) CreateDownloadApp(_ context.Context, request *connect.Request[lpbsv1.CreateDownloadAppRequest]) (*connect.Response[lpbsv1.DownloadAppResponse], error) {
-	return h.save(request.Msg.GetApp(), "")
+func (h *ConnectHandler) CreateDownloadApp(ctx context.Context, request *connect.Request[lpbsv1.CreateDownloadAppRequest]) (*connect.Response[lpbsv1.DownloadAppResponse], error) {
+	return h.save(ctx, request.Msg.GetApp(), "")
 }
 
-func (h *ConnectHandler) SaveDownloadApp(_ context.Context, request *connect.Request[lpbsv1.SaveDownloadAppRequest]) (*connect.Response[lpbsv1.DownloadAppResponse], error) {
-	return h.save(request.Msg.GetApp(), request.Msg.GetAppKey())
+func (h *ConnectHandler) SaveDownloadApp(ctx context.Context, request *connect.Request[lpbsv1.SaveDownloadAppRequest]) (*connect.Response[lpbsv1.DownloadAppResponse], error) {
+	return h.save(ctx, request.Msg.GetApp(), request.Msg.GetAppKey())
 }
 
 func (h *ConnectHandler) DeleteDownloadApp(_ context.Context, request *connect.Request[lpbsv1.DeleteDownloadAppRequest]) (*connect.Response[lpbsv1.DeleteDownloadAppResponse], error) {
@@ -160,15 +173,30 @@ func (h *ConnectHandler) DeleteDownloadApp(_ context.Context, request *connect.R
 	return connect.NewResponse(&lpbsv1.DeleteDownloadAppResponse{}), nil
 }
 
-func (h *ConnectHandler) save(message *shared.DownloadApp, overrideKey string) (*connect.Response[lpbsv1.DownloadAppResponse], error) {
+func (h *ConnectHandler) save(ctx context.Context, message *shared.DownloadApp, overrideKey string) (*connect.Response[lpbsv1.DownloadAppResponse], error) {
 	payload := appRequestFromProto(message)
-	app, err := BuildAppFromPayload(payload, h.bundleKey(), overrideKey)
+	saved, err := upsertAppFromPayload(ctx, payload, h.bundleKey(), overrideKey, h.getArtifact, h.catalog)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	saved, err := h.catalog.UpsertApp(app)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save download app: %w", err))
+		var payloadErr *appPayloadValidationError
+		if errors.As(err, &payloadErr) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, payloadErr)
+		}
+		var artifactErr *AppArtifactValidationError
+		if !errors.As(err, &artifactErr) {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save download app: %w", err))
+		}
+		code := connect.CodeInternal
+		switch artifactErr.Status {
+		case http.StatusBadRequest:
+			code = connect.CodeInvalidArgument
+		case http.StatusServiceUnavailable:
+			code = connect.CodeUnavailable
+		case http.StatusNotFound:
+			code = connect.CodeNotFound
+		case http.StatusConflict:
+			code = connect.CodeFailedPrecondition
+		}
+		return nil, connect.NewError(code, artifactErr)
 	}
 	result, err := appProto(*saved)
 	if err != nil {
@@ -262,8 +290,8 @@ func int32FromInt(value int, field string) (int32, error) {
 }
 
 // RegisterConnectAppRoutes mounts only the fully implemented app catalog RPCs.
-func RegisterConnectAppRoutes(router *mux.Router, bundleKey func() string, catalog ConnectCatalog, requireAdmin func(http.HandlerFunc) http.HandlerFunc) {
-	_, service := lpbsconnect.NewDownloadServiceHandler(NewConnectHandler(bundleKey, catalog))
+func RegisterConnectAppRoutes(router *mux.Router, bundleKey func() string, catalog ConnectCatalog, getArtifact func(context.Context, string, int64) (*internal.Artifact, error), requireAdmin func(http.HandlerFunc) http.HandlerFunc) {
+	_, service := lpbsconnect.NewDownloadServiceHandler(NewConnectHandler(bundleKey, catalog).WithArtifactLookup(getArtifact))
 	for _, path := range []string{lpbsconnect.DownloadServiceListDownloadAppsProcedure, lpbsconnect.DownloadServiceCreateDownloadAppProcedure, lpbsconnect.DownloadServiceSaveDownloadAppProcedure, lpbsconnect.DownloadServiceDeleteDownloadAppProcedure} {
 		router.Handle(path, requireAdmin(service.ServeHTTP)).Methods(http.MethodPost)
 	}

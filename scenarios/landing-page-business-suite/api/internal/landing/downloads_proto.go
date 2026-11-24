@@ -33,10 +33,7 @@ func ProtoDownloads(downloads []delivery.App) ([]*sharedv1.DownloadApp, error) {
 		if err != nil {
 			return nil, fmt.Errorf("download %d (%q): %w", index, app.AppKey, err)
 		}
-		storefronts := make([]*sharedv1.DownloadStorefront, 0, len(app.Storefronts))
-		for _, storefront := range app.Storefronts {
-			storefronts = append(storefronts, &sharedv1.DownloadStorefront{Store: storefront.Store, Label: storefront.Label, Url: storefront.URL, Badge: storefront.Badge})
-		}
+		storefronts := protoStorefronts(app.Storefronts)
 		order, err := downloadInt32(app.DisplayOrder, fmt.Sprintf("download %d (%q) display order", index, app.AppKey))
 		if err != nil {
 			return nil, err
@@ -46,10 +43,23 @@ func ProtoDownloads(downloads []delivery.App) ([]*sharedv1.DownloadApp, error) {
 	return result, nil
 }
 
+func protoStorefronts(values []delivery.Storefront) []*sharedv1.DownloadStorefront {
+	result := make([]*sharedv1.DownloadStorefront, 0, len(values))
+	for _, storefront := range values {
+		normalized, err := delivery.NormalizeStorefrontLinks([]delivery.Storefront{storefront})
+		if err != nil {
+			continue
+		}
+		value := normalized[0]
+		result = append(result, &sharedv1.DownloadStorefront{Store: value.Store, Label: value.Label, Url: value.URL, Badge: value.Badge})
+	}
+	return result
+}
+
 // ProtoPresentationDownloads projects delivery facts for the typed
 // presentation response. Presentation copy owns names and instructions; the
-// owner catalog contributes only stable identity, chooser facts, and the
-// validated web launch destination. In particular, installer URLs and
+// owner catalog contributes stable identity, chooser facts, verified store
+// links, and the validated web launch destination. Installer URLs and private
 // delivery metadata stay behind the authorized download operation.
 func ProtoPresentationDownloads(downloads []delivery.App) ([]*sharedv1.DownloadApp, error) {
 	public := make([]delivery.App, 0, len(downloads))
@@ -69,8 +79,9 @@ func ProtoPresentationDownloads(downloads []delivery.App) ([]*sharedv1.DownloadA
 		}
 		item := delivery.App{
 			ID: app.ID, BundleKey: app.BundleKey, AppKey: app.AppKey,
-			Metadata:  metadata,
-			Platforms: make([]delivery.Asset, 0, len(app.Platforms)),
+			Metadata:    metadata,
+			Storefronts: app.Storefronts,
+			Platforms:   make([]delivery.Asset, 0, len(app.Platforms)),
 		}
 		for _, asset := range app.Platforms {
 			assetMetadata := map[string]interface{}{}

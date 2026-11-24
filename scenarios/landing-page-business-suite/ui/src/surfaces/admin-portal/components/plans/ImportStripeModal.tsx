@@ -493,8 +493,8 @@ export function ImportStripeModal({ stripeImport }: ImportStripeModalProps) {
             )}
           </div>
           <OverlayActionBar className="sm:w-auto sm:min-w-64" actions={[
-            { id: 'cancel', label: 'Cancel', onSelect: closeModal, disabled: importing },
             { id: 'import-selected', label: importing ? 'Importing...' : 'Import Selected', onSelect: () => { void handleImport(); }, disabled: importing || loading || !canImport, primary: true },
+            { id: 'cancel', label: 'Cancel', onSelect: closeModal, disabled: importing },
           ]} />
         </DialogFooter>
       </DialogContent>

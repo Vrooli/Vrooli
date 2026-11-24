@@ -1,6 +1,7 @@
 package delivery
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -45,12 +46,71 @@ type (
 	AppDependencies struct {
 		BundleKey    func() string
 		PathParam    func(*http.Request, string) (string, bool)
+		GetArtifact  func(context.Context, string, int64) (*internal.Artifact, error)
 		DecodeJSON   func(http.ResponseWriter, *http.Request, any) bool
 		WriteError   func(http.ResponseWriter, int, string, string)
 		WriteData    func(http.ResponseWriter, any)
 		WriteSuccess func(http.ResponseWriter)
 	}
 )
+
+// AppArtifactValidationError is the shared result of validating managed
+// artifacts before either REST or Connect persists an app catalog revision.
+type AppArtifactValidationError struct {
+	Status  int
+	Kind    string
+	Message string
+}
+
+func (e *AppArtifactValidationError) Error() string { return e.Message }
+
+type appPayloadValidationError struct{ err error }
+
+func (e *appPayloadValidationError) Error() string { return e.err.Error() }
+
+// upsertAppFromPayload is the shared app-catalog mutation boundary. REST and
+// Connect own only decoding/projection and transport-specific error mapping.
+func upsertAppFromPayload(ctx context.Context, payload AppRequest, bundleKey, overrideKey string, lookup func(context.Context, string, int64) (*internal.Artifact, error), catalog AppCatalog) (*internal.App, error) {
+	app, err := BuildAppFromPayload(payload, bundleKey, overrideKey)
+	if err != nil {
+		return nil, &appPayloadValidationError{err: err}
+	}
+	if err := validateManagedAppArtifactRecords(ctx, app, lookup); err != nil {
+		return nil, err
+	}
+	return catalog.UpsertApp(app)
+}
+
+func validateManagedAppArtifactRecords(ctx context.Context, app internal.App, lookup func(context.Context, string, int64) (*internal.Artifact, error)) *AppArtifactValidationError {
+	for _, asset := range app.Platforms {
+		if !strings.EqualFold(strings.TrimSpace(asset.ArtifactSource), "managed") {
+			continue
+		}
+		if asset.ArtifactID == nil || *asset.ArtifactID <= 0 {
+			return &AppArtifactValidationError{Status: http.StatusBadRequest, Kind: "validation", Message: "artifact_id is required for managed platform " + asset.Platform}
+		}
+		if lookup == nil {
+			return &AppArtifactValidationError{Status: http.StatusServiceUnavailable, Kind: "unavailable", Message: "managed artifact identity verification is unavailable"}
+		}
+		artifact, err := lookup(ctx, app.BundleKey, *asset.ArtifactID)
+		if err != nil {
+			return &AppArtifactValidationError{Status: http.StatusInternalServerError, Kind: "server_error", Message: fmt.Sprintf("failed to load managed artifact: %v", err)}
+		}
+		if artifact == nil {
+			return &AppArtifactValidationError{Status: http.StatusNotFound, Kind: "not_found", Message: "managed artifact not found"}
+		}
+		if err := validateArtifactTarget(artifact, app.BundleKey, app.AppKey, asset.Platform); err != nil {
+			return &AppArtifactValidationError{Status: http.StatusConflict, Kind: "artifact_identity_mismatch", Message: err.Error()}
+		}
+		if !strings.EqualFold(strings.TrimSpace(asset.Checksum), strings.TrimSpace(artifact.SHA256)) {
+			return &AppArtifactValidationError{Status: http.StatusConflict, Kind: "artifact_identity_mismatch", Message: "checksum does not match the selected artifact"}
+		}
+		if recordedVersion := strings.TrimSpace(artifact.ReleaseVersion); recordedVersion != "" && recordedVersion != strings.TrimSpace(asset.ReleaseVersion) {
+			return &AppArtifactValidationError{Status: http.StatusConflict, Kind: "artifact_identity_mismatch", Message: "release_version does not match the selected artifact"}
+		}
+	}
+	return nil
+}
 
 // ListApps returns the active bundle's download application catalog.
 func ListApps(deps AppDependencies, catalog AppCatalog) http.HandlerFunc {
@@ -87,13 +147,18 @@ func saveApp(deps AppDependencies, catalog AppCatalog, overrideKey string) http.
 		if !deps.DecodeJSON(w, r, &payload) {
 			return
 		}
-		app, err := BuildAppFromPayload(payload, deps.BundleKey(), overrideKey)
+		saved, err := upsertAppFromPayload(r.Context(), payload, deps.BundleKey(), overrideKey, deps.GetArtifact, catalog)
 		if err != nil {
-			deps.WriteError(w, http.StatusBadRequest, err.Error(), "validation")
-			return
-		}
-		saved, err := catalog.UpsertApp(app)
-		if err != nil {
+			var payloadErr *appPayloadValidationError
+			if errors.As(err, &payloadErr) {
+				deps.WriteError(w, http.StatusBadRequest, payloadErr.Error(), "validation")
+				return
+			}
+			var artifactErr *AppArtifactValidationError
+			if errors.As(err, &artifactErr) {
+				deps.WriteError(w, artifactErr.Status, artifactErr.Message, artifactErr.Kind)
+				return
+			}
 			deps.WriteError(w, http.StatusInternalServerError, fmt.Sprintf("failed to save download app: %v", err), "server_error")
 			return
 		}
@@ -150,11 +215,11 @@ func BuildAppFromPayload(payload AppRequest, bundleKey, overrideKey string) (int
 	if app.Name == "" {
 		return internal.App{}, fmt.Errorf("name is required")
 	}
-	for _, s := range app.Storefronts {
-		if strings.TrimSpace(s.URL) == "" {
-			return internal.App{}, fmt.Errorf("storefront url is required when storefront entries are provided")
-		}
+	storefronts, err := internal.NormalizeStorefrontLinks(app.Storefronts)
+	if err != nil {
+		return internal.App{}, err
 	}
+	app.Storefronts = storefronts
 	for _, p := range payload.Platforms {
 		if strings.TrimSpace(p.Platform) == "" {
 			return internal.App{}, fmt.Errorf("platform is required for all installers")
@@ -170,8 +235,10 @@ func BuildAppFromPayload(payload AppRequest, bundleKey, overrideKey string) (int
 			if err := internal.ValidateDirectArtifactURL(p.ArtifactURL); err != nil {
 				return internal.App{}, fmt.Errorf("platform %s: %w", p.Platform, err)
 			}
-		} else if p.ArtifactID == nil || *p.ArtifactID == 0 {
+		} else if p.ArtifactID == nil || *p.ArtifactID <= 0 {
 			return internal.App{}, fmt.Errorf("artifact_id is required for managed platform %s", p.Platform)
+		} else if strings.TrimSpace(p.Checksum) == "" {
+			return internal.App{}, fmt.Errorf("checksum is required for managed platform %s", p.Platform)
 		}
 		if strings.TrimSpace(p.ReleaseVersion) == "" {
 			return internal.App{}, fmt.Errorf("release_version is required for platform %s", p.Platform)

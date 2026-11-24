@@ -552,7 +552,7 @@ export function decodeProductPresentation(value: Wire.ResolvedProductPresentatio
     },
     diagnostics: {
       preview: diagnostics.preview, eligible_app_keys: [...diagnostics.eligibleAppKeys],
-      noindex: diagnostics.noindex, no_store: diagnostics.noStore, resolved_revision: diagnostics.resolvedRevision, fallback: diagnostics.fallback,
+      noindex: diagnostics.noindex, no_store: diagnostics.noStore, resolved_revision: diagnostics.resolvedRevision, resolved_variant: diagnostics.resolvedVariant, fallback: diagnostics.fallback,
     },
   };
   if (diagnostics.preview && (!diagnostics.noindex || !diagnostics.noStore)) throw new Error('Unsafe preview diagnostics');

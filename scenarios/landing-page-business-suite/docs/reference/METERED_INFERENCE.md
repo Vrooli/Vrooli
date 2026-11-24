@@ -102,6 +102,25 @@ holds with `GET /api/v1/usage/business-account-summary?business_account_id=…`.
 The endpoint resolves membership and subscription server-side; a caller cannot
 select a tier or bill a different account by editing the response request.
 
+Browser inference binds the authenticated Gateway operation to an LPBS browser
+session reservation and an AM run/grant plus opaque BAS evidence reference.
+Caller-supplied `browser_usage` counters are rejected; LPBS accepts minutes,
+actions, and bytes only from the BAS verifier after the signed session closes.
+The verified browser counters and the provider, model, token counts, provider
+cost, and settled credits are recorded on the same immutable reservation and
+`business_account_usage_events` receipt. Browser time is attributed on that
+existing credit receipt and does not create a second wallet or charge.
+
+An authenticated business-account member can retrieve that final receipt with
+`GET /api/v1/usage/business-accounts/{reservationID}/browser-receipt?business_account_id=…`.
+The route returns the reservation status, session-level token and browser-time
+totals, plus each settled Gateway child with its actual provider, model, token
+counts, cost, and credits. It returns 404
+for an unknown reservation or one owned by another account, and does not expose
+the AM grant, raw BAS proof, run ID, or session ID. A pending receipt reports
+its status until proof-verified close completes; clients should refresh the
+same reservation instead of constructing a second receipt or charge.
+
 ```
 data: {"type":"chunk","content":"Hello"}
 

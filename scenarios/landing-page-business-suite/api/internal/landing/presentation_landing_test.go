@@ -542,8 +542,9 @@ func TestRecordPresentationExposureValidatesPinnedPublicProof(t *testing.T) {
 func TestPublicOwnerSnapshotRefIsStableAndExcludesPrivateDeliveryFields(t *testing.T) {
 	first := int64(7)
 	second := int64(99)
-	left := []delivery.App{{AppKey: "web-console", Name: "Aquila", Platforms: []delivery.Asset{{ID: first, AppKey: "web-console", Platform: "linux", ReleaseVersion: "1.0.0", ArtifactURL: "private-a", ArtifactID: &first, Checksum: "sha256:a", Metadata: map[string]interface{}{"secret": "one"}}}}}
-	right := []delivery.App{{AppKey: "web-console", Name: "Aquila", Platforms: []delivery.Asset{{ID: second, AppKey: "web-console", Platform: "linux", ReleaseVersion: "1.0.0", ArtifactURL: "private-b", ArtifactID: &second, Checksum: "sha256:a", Metadata: map[string]interface{}{"secret": "two"}}}}}
+	storefronts := []delivery.Storefront{{Store: "app_store", Label: "App Store", URL: "https://apps.apple.com/us/app/aquila/id123"}}
+	left := []delivery.App{{AppKey: "web-console", Name: "Aquila", Storefronts: storefronts, Platforms: []delivery.Asset{{ID: first, AppKey: "web-console", Platform: "linux", ReleaseVersion: "1.0.0", ArtifactURL: "private-a", ArtifactID: &first, Checksum: "sha256:a", Metadata: map[string]interface{}{"secret": "one"}}}}}
+	right := []delivery.App{{AppKey: "web-console", Name: "Aquila", Storefronts: storefronts, Platforms: []delivery.Asset{{ID: second, AppKey: "web-console", Platform: "linux", ReleaseVersion: "1.0.0", ArtifactURL: "private-b", ArtifactID: &second, Checksum: "sha256:a", Metadata: map[string]interface{}{"secret": "two"}}}}}
 	if got, want := publicOwnerSnapshotRef(nil, left), publicOwnerSnapshotRef(nil, right); got != want {
 		t.Fatalf("private delivery fields changed public snapshot ref: %q != %q", got, want)
 	}
@@ -551,5 +552,9 @@ func TestPublicOwnerSnapshotRefIsStableAndExcludesPrivateDeliveryFields(t *testi
 	changed := []delivery.App{{AppKey: "web-console", Name: "Aquila", Platforms: []delivery.Asset{{Platform: "linux", ReleaseVersion: "2.0.0", Checksum: "sha256:a"}}}}
 	if publicOwnerSnapshotRef(nil, left) == publicOwnerSnapshotRef(nil, changed) {
 		t.Fatal("public release change did not change snapshot ref")
+	}
+	changedStore := []delivery.App{{AppKey: "web-console", Name: "Aquila", Storefronts: []delivery.Storefront{{Store: "app_store", Label: "App Store", URL: "https://apps.apple.com/us/app/aquila/id124"}}, Platforms: left[0].Platforms}}
+	if publicOwnerSnapshotRef(nil, left) == publicOwnerSnapshotRef(nil, changedStore) {
+		t.Fatal("public storefront change did not change snapshot ref")
 	}
 }

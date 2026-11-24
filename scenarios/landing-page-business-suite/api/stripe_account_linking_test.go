@@ -330,6 +330,7 @@ func TestAccountLink_CreditsTopup_LinksAccount(t *testing.T) {
 			utm_campaign VARCHAR(128),
 			referrer_kind VARCHAR(16),
 			country_code CHAR(2),
+			business_account_id VARCHAR(255),
 			completed_at TIMESTAMP,
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
@@ -359,24 +360,27 @@ func TestAccountLink_CreditsTopup_LinksAccount(t *testing.T) {
 
 	// Pre-create checkout session
 	_, err = db.Exec(`
-		INSERT INTO checkout_sessions (session_id, customer_email, price_id, status, session_type, amount_cents)
-		VALUES ($1, $2, $3, $4, $5, $6)
-	`, "cs_credits_link", "credits@example.com", "price_credits_link", "open", sessionTypeCreditsTopup, 1000)
+		INSERT INTO checkout_sessions (session_id, customer_email, price_id, status, session_type, amount_cents, business_account_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, "cs_credits_link", "credits@example.com", "price_credits_link", "open", sessionTypeCreditsTopup, 1000, "acct-credits-link")
 	require.NoError(t, err)
+	seedBusinessAccountCreditEmail(t, db, "acct-credits-link", "credits@example.com")
 
 	cfg := DefaultStripeTestConfig()
 	service := ConfigureStripeService(t, db, cfg, nil)
 
 	// Simulate checkout.session.completed webhook for credits
 	event := map[string]interface{}{
-		"id":   "evt_credits_link_123",
-		"type": "checkout.session.completed",
+		"id":       "evt_credits_link_123",
+		"type":     "checkout.session.completed",
+		"livemode": false,
 		"data": map[string]interface{}{
 			"object": map[string]interface{}{
 				"id":             "cs_credits_link",
 				"customer_email": "credits@example.com",
 				"customer":       "cus_credits_link",
 				"amount_total":   1000,
+				"payment_status": "paid",
 			},
 		},
 	}
@@ -399,11 +403,15 @@ func TestAccountLink_CreditsTopup_LinksAccount(t *testing.T) {
 	assert.True(t, customerID.Valid)
 	assert.Equal(t, "cus_credits_link", customerID.String)
 
-	// Verify credits were added
+	// Verify one test-mode funding lot was attributed to the selected account.
 	var balance int64
-	err = db.QueryRow(`SELECT balance_credits FROM credit_wallets WHERE customer_email = $1`, "credits@example.com").Scan(&balance)
+	err = db.QueryRow(`SELECT COALESCE(SUM(granted), 0) FROM credit_funding_lots WHERE business_account_id = $1 AND provider_ref = $2 AND livemode = FALSE AND settlement_state = 'settled'`, "acct-credits-link", "evt_credits_link_123").Scan(&balance)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1000), balance)
+	var legacyCount int
+	err = db.QueryRow(`SELECT COUNT(*) FROM credit_wallets WHERE customer_email = $1`, "credits@example.com").Scan(&legacyCount)
+	require.NoError(t, err)
+	assert.Zero(t, legacyCount, "top-up must not create an email-keyed legacy wallet")
 }
 
 // ============================================================================
@@ -653,6 +661,7 @@ func TestCustomerUpdated_EmailMigration_AllTables(t *testing.T) {
 	oldEmail := "oldemail@example.com"
 	newEmail := "newemail@example.com"
 	customerID := "cus_migrate_all"
+	seedBusinessAccountCreditEmail(t, db, "acct-migrate-all", oldEmail)
 
 	// Insert data in all tables with old email
 	_, err = db.Exec(`INSERT INTO users (email, stripe_customer_id) VALUES ($1, $2)`, oldEmail, customerID)
@@ -700,22 +709,18 @@ func TestCustomerUpdated_EmailMigration_AllTables(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, newEmail, email)
 
-	// Check credit_wallets table
-	var balance int64
-	err = db.QueryRow(`SELECT balance_credits FROM credit_wallets WHERE customer_email = $1`, newEmail).Scan(&balance)
-	require.NoError(t, err)
-	assert.Equal(t, int64(1000), balance)
-
-	// Verify old email no longer exists in credit_wallets
+	// Current business-account wallet and transaction projections follow the
+	// identity change; the retired email-keyed wallet remains untouched.
+	assertBusinessAccountCreditEmail(t, db, "acct-migrate-all", newEmail)
 	var count int
-	err = db.QueryRow(`SELECT COUNT(*) FROM credit_wallets WHERE customer_email = $1`, oldEmail).Scan(&count)
+	err = db.QueryRow(`SELECT COUNT(*) FROM credit_wallets WHERE customer_email = $1 AND balance_credits = 1000`, oldEmail).Scan(&count)
 	require.NoError(t, err)
-	assert.Equal(t, 0, count)
+	assert.Equal(t, 1, count, "legacy wallet rows are not migrated or treated as authority")
 
 	// Check credit_transactions table
 	err = db.QueryRow(`SELECT customer_email FROM credit_transactions WHERE amount_credits = 1000`).Scan(&email)
 	require.NoError(t, err)
-	assert.Equal(t, newEmail, email)
+	assert.Equal(t, oldEmail, email, "legacy transactions are not the current account ledger")
 
 	// Check intro_coupon_usage table
 	err = db.QueryRow(`SELECT email FROM intro_coupon_usage WHERE stripe_customer_id = $1`, customerID).Scan(&email)
@@ -961,6 +966,7 @@ func TestStripeRepository_MigrateCustomerEmail(t *testing.T) {
 	oldEmail := "repo_old@example.com"
 	newEmail := "repo_new@example.com"
 	customerID := "cus_repo_migrate"
+	seedBusinessAccountCreditEmail(t, db, "acct-repo-migrate", oldEmail)
 
 	// Insert test data
 	_, err = db.Exec(`INSERT INTO users (email, stripe_customer_id) VALUES ($1, $2)`, oldEmail, customerID)
@@ -988,10 +994,11 @@ func TestStripeRepository_MigrateCustomerEmail(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, newEmail, email)
 
-	var balance int64
-	err = db.QueryRow(`SELECT balance_credits FROM credit_wallets WHERE customer_email = $1`, newEmail).Scan(&balance)
+	assertBusinessAccountCreditEmail(t, db, "acct-repo-migrate", newEmail)
+	var count int
+	err = db.QueryRow(`SELECT COUNT(*) FROM credit_wallets WHERE customer_email = $1`, oldEmail).Scan(&count)
 	require.NoError(t, err)
-	assert.Equal(t, int64(500), balance)
+	assert.Equal(t, 1, count, "legacy wallet remains outside the account-scoped ledger")
 }
 
 // TestStripeRepository_LookupCustomerID verifies the repository lookup method.

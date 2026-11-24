@@ -1,0 +1,11 @@
+-- LPBS operator-owned one-shot migration.
+--
+-- Purpose: remove the pre-registry transport allowlist constraint so the
+-- provider registry can represent configured provider transports beyond the
+-- original fixed set. Fresh databases do not contain this legacy constraint.
+--
+-- Preconditions: inspect the target database and confirm this LPBS schema is
+-- deployed. Apply through the approved database owner path before enabling a
+-- provider that needs the expanded transport set. Do not run at application
+-- startup. The statement is idempotent and does not modify provider rows.
+ALTER TABLE email_providers DROP CONSTRAINT IF EXISTS email_providers_transport_check;

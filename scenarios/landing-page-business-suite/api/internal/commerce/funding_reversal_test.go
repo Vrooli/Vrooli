@@ -100,7 +100,7 @@ func TestFundingDisputeWorkflowConformsToSpec(t *testing.T) {
 	var kinds []string
 	for _, decl := range webhook.Decls {
 		fn, ok := decl.(*ast.FuncDecl)
-		if !ok || fn.Name.Name != "HandleWebhook" {
+		if !ok || fn.Name.Name != "processEventPayload" {
 			continue
 		}
 		ast.Inspect(fn.Body, func(n ast.Node) bool {

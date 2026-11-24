@@ -128,6 +128,7 @@ func TestWebhook_CreditTopup_Idempotent(t *testing.T) {
 			status VARCHAR(50) NOT NULL,
 			session_type VARCHAR(50) DEFAULT 'subscription',
 			amount_cents INTEGER,
+			business_account_id VARCHAR(255),
 			schedule_id VARCHAR(255),
 			metadata JSONB DEFAULT '{}'::jsonb,
 			completed_at TIMESTAMP,
@@ -154,10 +155,11 @@ func TestWebhook_CreditTopup_Idempotent(t *testing.T) {
 
 	// Insert initial checkout session
 	_, err = db.Exec(`
-		INSERT INTO checkout_sessions (session_id, customer_email, price_id, status, session_type, amount_cents)
-		VALUES ($1, $2, $3, $4, $5, $6)
-	`, "cs_credits_test_123", "topup@example.com", "price_credits_topup", "open", sessionTypeCreditsTopup, 1000)
+		INSERT INTO checkout_sessions (session_id, customer_email, price_id, status, session_type, amount_cents, business_account_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, "cs_credits_test_123", "topup@example.com", "price_credits_topup", "open", sessionTypeCreditsTopup, 1000, "acct-topup-idempotent")
 	require.NoError(t, err)
+	seedBusinessAccountCreditEmail(t, db, "acct-topup-idempotent", "topup@example.com")
 
 	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -177,6 +179,7 @@ func TestWebhook_CreditTopup_Idempotent(t *testing.T) {
 				"customer_email": "topup@example.com",
 				"customer":       "cus_credits_123",
 				"amount_total":   1000,
+				"payment_status": "paid",
 			},
 		},
 	}
@@ -193,10 +196,9 @@ func TestWebhook_CreditTopup_Idempotent(t *testing.T) {
 	err = service.HandleWebhook(payload, signatureHeader)
 	require.NoError(t, err)
 
-	// Check credits were added
-	// Calculation: (creditsPerUSD * amountCents) / 100 = (100 * 1000) / 100 = 1000 credits
+	// Check account-attributed credits were added once.
 	var balance int64
-	err = db.QueryRow(`SELECT balance_credits FROM credit_wallets WHERE customer_email = $1`, "topup@example.com").Scan(&balance)
+	err = db.QueryRow(`SELECT COALESCE(SUM(granted),0) FROM credit_funding_lots WHERE business_account_id=$1 AND provider_ref=$2 AND livemode=FALSE AND settlement_state='settled'`, "acct-topup-idempotent", "evt_credits_123").Scan(&balance)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1000), balance)
 
@@ -205,7 +207,7 @@ func TestWebhook_CreditTopup_Idempotent(t *testing.T) {
 	require.NoError(t, err)
 
 	// Credits should not have doubled (should still be 1000, not 2000)
-	err = db.QueryRow(`SELECT balance_credits FROM credit_wallets WHERE customer_email = $1`, "topup@example.com").Scan(&balance)
+	err = db.QueryRow(`SELECT COALESCE(SUM(granted),0) FROM credit_funding_lots WHERE business_account_id=$1 AND provider_ref=$2 AND livemode=FALSE AND settlement_state='settled'`, "acct-topup-idempotent", "evt_credits_123").Scan(&balance)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1000), balance, "webhook retry should not add credits twice")
 }

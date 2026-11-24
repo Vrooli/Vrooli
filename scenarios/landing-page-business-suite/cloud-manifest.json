@@ -14,18 +14,39 @@
     "id": "landing-page-business-suite"
   },
   "dependencies": {
-    "scenarios": ["ai-gateway", "landing-page-business-suite"],
-    "resources": ["postgres"],
+    "scenarios": [
+      "ai-gateway",
+      "data-backup-manager",
+      "landing-page-business-suite"
+    ],
+    "resources": [
+      "kopia",
+      "postgres"
+    ],
     "analyzer": {
       "tool": "scenario-dependency-analyzer"
     },
-    "deselect_optional": ["ollama", "ollaya", "openrouter", "orcarouter", "abliteration"]
+    "deselect_optional": [
+      "ollama",
+      "ollaya",
+      "openrouter",
+      "orcarouter",
+      "abliteration"
+    ]
   },
   "bundle": {
     "include_packages": true,
     "include_autoheal": true,
-    "scenarios": ["ai-gateway", "landing-page-business-suite", "vrooli-autoheal"],
-    "resources": ["postgres"]
+    "scenarios": [
+      "ai-gateway",
+      "data-backup-manager",
+      "landing-page-business-suite",
+      "vrooli-autoheal"
+    ],
+    "resources": [
+      "kopia",
+      "postgres"
+    ]
   },
   "ports": {
     "api": 18080,
@@ -35,27 +56,46 @@
     "domain": "vrooli.com",
     "dns_policy": "required",
     "mail_dns": [
-      {"name": "mailgun", "spf_mechanism": "include:mailgun.org", "dkim": [{"selector": "k1", "type": "TXT"}]}
+      {
+        "name": "mailgun",
+        "spf_mechanism": "include:mailgun.org",
+        "dkim": [
+          {
+            "selector": "k1",
+            "type": "TXT"
+          }
+        ]
+      }
     ],
     "health_path": "/api/v1/health",
     "caddy": {
       "enabled": true
     }
   },
+  "backup": {
+    "destination_name": "vrooli-lpbs-prod-recovery",
+    "schedule": "24h",
+    "keep_hourly": 0,
+    "keep_daily": 7,
+    "keep_weekly": 4,
+    "keep_monthly": 3,
+    "keep_annual": 0,
+    "recovery_drill_schedule": "168h"
+  },
   "secrets": {
     "summary": {
-      "total_secrets": 4,
+      "total_secrets": 15,
       "per_install_generated": 1,
-      "user_prompt": 1,
+      "user_prompt": 14,
       "remote_fetch": 0,
       "infrastructure": 0
     },
     "bundle_secrets": [
       {
-        "id": "service-secret",
+        "id": "remote-profile-service-secret",
         "class": "per_install_generated",
         "required": true,
-        "description": "Service identity used by LPBS and its local release handoff.",
+        "description": "Target-bound service credential for the hosted LPBS destination profile. The deployment credential authority materializes this binding on the destination; the same in-memory generated value is handed to LPBS to store encrypted for that remote profile. It is separate from local handoff authorization.",
         "target": {
           "type": "env",
           "name": "LPBS_SERVICE_SECRET"
@@ -63,6 +103,11 @@
         "descriptor": {
           "logical_id": "vrooli/landing-page-business-suite",
           "field": "service-secret"
+        },
+        "generator": {
+          "type": "random",
+          "length": 64,
+          "charset": "hex"
         }
       },
       {
@@ -86,8 +131,14 @@
         "required": false,
         "description": "Mailgun API key for transactional sign-in email delivery through the HTTPS API.",
         "capability": "customer sign-in email (Mailgun)",
-        "target": { "type": "env", "name": "MAILGUN_API_KEY" },
-        "descriptor": { "logical_id": "vrooli/landing-page-business-suite", "field": "mailgun-api-key" }
+        "target": {
+          "type": "env",
+          "name": "MAILGUN_API_KEY"
+        },
+        "descriptor": {
+          "logical_id": "vrooli/landing-page-business-suite",
+          "field": "mailgun-api-key"
+        }
       },
       {
         "id": "smtp-password",
@@ -110,8 +161,14 @@
         "required": false,
         "description": "Restricted SendGrid API key for transactional sign-in email delivery.",
         "capability": "customer sign-in email",
-        "target": { "type": "env", "name": "SENDGRID_API_KEY" },
-        "descriptor": { "logical_id": "vrooli/landing-page-business-suite", "field": "sendgrid-api-key" }
+        "target": {
+          "type": "env",
+          "name": "SENDGRID_API_KEY"
+        },
+        "descriptor": {
+          "logical_id": "vrooli/landing-page-business-suite",
+          "field": "sendgrid-api-key"
+        }
       },
       {
         "id": "sendgrid-webhook-public-key",
@@ -119,8 +176,149 @@
         "required": false,
         "description": "Public key used to verify SendGrid Signed Event Webhook requests.",
         "capability": "sign-in email delivery tracking",
-        "target": { "type": "env", "name": "SENDGRID_WEBHOOK_PUBLIC_KEY" },
-        "descriptor": { "logical_id": "vrooli/landing-page-business-suite", "field": "sendgrid-webhook-public-key" }
+        "target": {
+          "type": "env",
+          "name": "SENDGRID_WEBHOOK_PUBLIC_KEY"
+        },
+        "descriptor": {
+          "logical_id": "vrooli/landing-page-business-suite",
+          "field": "sendgrid-webhook-public-key"
+        }
+      },
+      {
+        "id": "delivery-s3-access-key-id",
+        "class": "user_prompt",
+        "required": false,
+        "description": "Scoped S3-compatible access key held by the host credential authority for customer download storage.",
+        "capability": "S3 download storage",
+        "target": {
+          "type": "env",
+          "name": "DELIVERY_S3_ACCESS_KEY_ID"
+        },
+        "descriptor": {
+          "logical_id": "vrooli/landing-page-business-suite",
+          "field": "delivery-s3-access-key-id"
+        }
+      },
+      {
+        "id": "delivery-s3-secret-access-key",
+        "class": "user_prompt",
+        "required": false,
+        "description": "Scoped S3-compatible secret key held by the host credential authority for customer download storage.",
+        "capability": "S3 download storage",
+        "target": {
+          "type": "env",
+          "name": "DELIVERY_S3_SECRET_ACCESS_KEY"
+        },
+        "descriptor": {
+          "logical_id": "vrooli/landing-page-business-suite",
+          "field": "delivery-s3-secret-access-key"
+        }
+      },
+      {
+        "id": "delivery-s3-session-token",
+        "class": "user_prompt",
+        "required": false,
+        "description": "Optional short-lived S3-compatible session token held by the host credential authority.",
+        "capability": "S3 download storage",
+        "target": {
+          "type": "env",
+          "name": "DELIVERY_S3_SESSION_TOKEN"
+        },
+        "descriptor": {
+          "logical_id": "vrooli/landing-page-business-suite",
+          "field": "delivery-s3-session-token"
+        }
+      },
+      {
+        "id": "stripe-test-secret-key",
+        "class": "user_prompt",
+        "required": false,
+        "description": "Credential-authority binding for test-mode Stripe server payments; the value is never stored in the cloud manifest.",
+        "capability": "card payments",
+        "target": {
+          "type": "env",
+          "name": "STRIPE_TEST_SECRET_KEY"
+        },
+        "descriptor": {
+          "logical_id": "vrooli/landing-page-business-suite",
+          "field": "stripe-test-secret-key"
+        }
+      },
+      {
+        "id": "stripe-test-webhook-secret",
+        "class": "user_prompt",
+        "required": false,
+        "description": "Credential-authority binding for test-mode Stripe webhook verification; the value is never stored in the cloud manifest.",
+        "capability": "card payments",
+        "target": {
+          "type": "env",
+          "name": "STRIPE_TEST_WEBHOOK_SECRET"
+        },
+        "descriptor": {
+          "logical_id": "vrooli/landing-page-business-suite",
+          "field": "stripe-test-webhook-secret"
+        }
+      },
+      {
+        "id": "stripe-test-publishable-key",
+        "class": "user_prompt",
+        "required": false,
+        "description": "Credential-authority binding for test-mode browser checkout configuration; the value is never stored in the cloud manifest.",
+        "capability": "card payments",
+        "target": {
+          "type": "env",
+          "name": "STRIPE_TEST_PUBLISHABLE_KEY"
+        },
+        "descriptor": {
+          "logical_id": "vrooli/landing-page-business-suite",
+          "field": "stripe-test-publishable-key"
+        }
+      },
+      {
+        "id": "stripe-live-secret-key",
+        "class": "user_prompt",
+        "required": false,
+        "description": "Credential-authority binding for live-mode Stripe server payments; the value is never stored in the cloud manifest.",
+        "capability": "card payments",
+        "target": {
+          "type": "env",
+          "name": "STRIPE_LIVE_SECRET_KEY"
+        },
+        "descriptor": {
+          "logical_id": "vrooli/landing-page-business-suite",
+          "field": "stripe-live-secret-key"
+        }
+      },
+      {
+        "id": "stripe-live-webhook-secret",
+        "class": "user_prompt",
+        "required": false,
+        "description": "Credential-authority binding for live-mode Stripe webhook verification; the value is never stored in the cloud manifest.",
+        "capability": "card payments",
+        "target": {
+          "type": "env",
+          "name": "STRIPE_LIVE_WEBHOOK_SECRET"
+        },
+        "descriptor": {
+          "logical_id": "vrooli/landing-page-business-suite",
+          "field": "stripe-live-webhook-secret"
+        }
+      },
+      {
+        "id": "stripe-live-publishable-key",
+        "class": "user_prompt",
+        "required": false,
+        "description": "Credential-authority binding for live-mode browser checkout configuration; the value is never stored in the cloud manifest.",
+        "capability": "card payments",
+        "target": {
+          "type": "env",
+          "name": "STRIPE_LIVE_PUBLISHABLE_KEY"
+        },
+        "descriptor": {
+          "logical_id": "vrooli/landing-page-business-suite",
+          "field": "stripe-live-publishable-key"
+        }
       }
     ]
   },
@@ -129,13 +327,17 @@
       "consumer_scenario": "landing-page-business-suite",
       "consumer_path": "/api/v1/admin/remote-profiles",
       "auth_descriptor": {
+        "logical_id": "scenario-authenticator/service-principal/scenario-to-cloud-lpbs-profile-reconciler/landing-page-business-suite",
+        "field": "credential"
+      },
+      "legacy_auth_descriptor": {
         "logical_id": "vrooli/landing-page-business-suite",
         "field": "service-secret"
       },
       "profile_tag": "prod",
       "profile_label": "Production",
       "api_base": "https://vrooli.com/api/v1",
-      "secret_id": "service-secret"
+      "secret_id": "remote-profile-service-secret"
     }
   ]
 }

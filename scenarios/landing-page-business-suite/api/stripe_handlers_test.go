@@ -29,7 +29,7 @@ func newMockStripeServer(t *testing.T) *httptest.Server {
 			return
 		case r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/v1/subscriptions/"):
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"id":"%s","status":"canceled"}`, strings.TrimPrefix(r.URL.Path, "/v1/subscriptions/"))
+			fmt.Fprintf(w, `{"id":"%s","status":"active","cancel_at_period_end":true}`, strings.TrimPrefix(r.URL.Path, "/v1/subscriptions/"))
 			return
 		case r.Method == http.MethodPost && r.URL.Path == "/v1/billing_portal/sessions":
 			w.Header().Set("Content-Type", "application/json")
@@ -177,7 +177,8 @@ func TestHandleStripeWebhookCreditTopup(t *testing.T) {
 	)
 	cfg := DefaultStripeTestConfig().WithKeys("pk_test_handlers", "sk_test_handlers", "whsec_handlers")
 	stripeService := ConfigureStripeService(t, db, cfg, stripeServer)
-	session, err := stripeService.CreateCheckoutSession("price_credits_topup", "/ok", "/cancel", "credits@example.com")
+	seedBusinessAccountCreditEmail(t, db, "acct-handler-topup", "credits@example.com")
+	session, err := stripeService.CreateCheckoutSessionForBusinessAccount("price_credits_topup", "/ok", "/cancel", "credits@example.com", "acct-handler-topup")
 	if err != nil {
 		t.Fatalf("checkout creation failed: %v", err)
 	}
@@ -193,6 +194,7 @@ func TestHandleStripeWebhookCreditTopup(t *testing.T) {
 				"customer_email": "credits@example.com",
 				"subscription":   "",
 				"amount_total":   1000,
+				"payment_status": "paid",
 			},
 		},
 	}
@@ -208,26 +210,27 @@ func TestHandleStripeWebhookCreditTopup(t *testing.T) {
 	}
 
 	var balance int64
-	if err := db.QueryRow(`SELECT balance_credits FROM credit_wallets WHERE customer_email = $1`, "credits@example.com").Scan(&balance); err != nil {
-		t.Fatalf("expected credit wallet: %v", err)
+	if err := db.QueryRow(`SELECT COALESCE(SUM(granted),0) FROM credit_funding_lots WHERE business_account_id=$1 AND provider_ref=$2 AND livemode=FALSE AND settlement_state='settled'`, "acct-handler-topup", "evt_credits_topup_123").Scan(&balance); err != nil {
+		t.Fatalf("expected attributed funding lot: %v", err)
 	}
-	if balance == 0 {
-		t.Fatalf("expected non-zero credit balance after top-up")
+	if balance != 10000 {
+		t.Fatalf("funding lot credits=%d, want 10000", balance)
 	}
 	var testMode string
-	if err := db.QueryRow(`SELECT metadata->>'livemode' FROM credit_transactions WHERE source='stripe' AND external_event_id=$1`, "evt_credits_topup_123").Scan(&testMode); err != nil {
+	if err := db.QueryRow(`SELECT metadata->>'livemode' FROM business_account_credit_transactions WHERE source='stripe' AND external_event_id=$1`, "evt_credits_topup_123").Scan(&testMode); err != nil {
 		t.Fatalf("read propagated test mode: %v", err)
 	}
 	if testMode != "false" {
 		t.Fatalf("test event livemode=%q, want false", testMode)
 	}
-	liveSession, err := stripeService.CreateCheckoutSession("price_credits_topup", "/ok", "/cancel", "credits-live@example.com")
+	seedBusinessAccountCreditEmail(t, db, "acct-handler-live", "credits-live@example.com")
+	liveSession, err := stripeService.CreateCheckoutSessionForBusinessAccount("price_credits_topup", "/ok", "/cancel", "credits-live@example.com", "acct-handler-live")
 	if err != nil {
 		t.Fatalf("create live-mode fixture session: %v", err)
 	}
 	livePayload, _ := json.Marshal(map[string]interface{}{
 		"id": "evt_credits_topup_live_123", "type": "checkout.session.completed", "livemode": true,
-		"data": map[string]interface{}{"object": map[string]interface{}{"id": liveSession.SessionId, "customer_email": "credits-live@example.com", "subscription": "", "amount_total": 1000}},
+		"data": map[string]interface{}{"object": map[string]interface{}{"id": liveSession.SessionId, "customer_email": "credits-live@example.com", "subscription": "", "amount_total": 1000, "payment_status": "paid"}},
 	})
 	liveReq := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewReader(livePayload))
 	liveReq.Header.Set("Stripe-Signature", signStripePayload(t, livePayload, "", "whsec_handlers"))
@@ -237,7 +240,7 @@ func TestHandleStripeWebhookCreditTopup(t *testing.T) {
 		t.Fatalf("live-mode webhook failed: %d %s", liveRec.Code, liveRec.Body.String())
 	}
 	var liveMode string
-	if err := db.QueryRow(`SELECT metadata->>'livemode' FROM credit_transactions WHERE source='stripe' AND external_event_id=$1`, "evt_credits_topup_live_123").Scan(&liveMode); err != nil {
+	if err := db.QueryRow(`SELECT metadata->>'livemode' FROM business_account_credit_transactions WHERE source='stripe' AND external_event_id=$1`, "evt_credits_topup_live_123").Scan(&liveMode); err != nil {
 		t.Fatalf("read propagated live mode: %v", err)
 	}
 	if liveMode != "true" {
@@ -398,6 +401,7 @@ func TestHandleStripeWebhookSubscriptionLifecycle(t *testing.T) {
 }
 
 func TestStripeSettingsHandlers(t *testing.T) {
+	t.Setenv("STRIPE_MODE", "test")
 	db := setupTestDB(t)
 
 	resetStripeTestData(t, db)
@@ -453,8 +457,8 @@ func TestSubscriptionHandlersVerifyAndCancel(t *testing.T) {
 	if err := db.QueryRow(`SELECT status FROM subscriptions WHERE subscription_id = $1`, "sub_cancelme").Scan(&status); err != nil {
 		t.Fatalf("failed to reload subscription: %v", err)
 	}
-	if status != "canceled" {
-		t.Fatalf("expected canceled status, got %s", status)
+	if status != "active" {
+		t.Fatalf("expected active status until the period ends, got %s", status)
 	}
 }
 

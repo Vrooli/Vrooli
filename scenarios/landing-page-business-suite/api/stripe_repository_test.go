@@ -529,6 +529,7 @@ func TestStripeRepository_MigrateCustomerEmail_Extended(t *testing.T) {
 	repo := commerce.NewStripeRepository(db)
 	ctx := context.Background()
 
+	seedBusinessAccountCreditEmail(t, db, "acct-repository-extended", "old@example.com")
 	// Set up test data
 	_, err := db.Exec(`
 		INSERT INTO users (email, stripe_customer_id, created_at, updated_at) VALUES ('old@example.com', 'cus_migrate', NOW(), NOW());
@@ -558,10 +559,11 @@ func TestStripeRepository_MigrateCustomerEmail_Extended(t *testing.T) {
 			t.Errorf("expected subscription email to be migrated")
 		}
 
-		// Verify credit_wallets table
-		err = db.QueryRow(`SELECT COUNT(*) FROM credit_wallets WHERE customer_email = 'new@example.com'`).Scan(&count)
+		assertBusinessAccountCreditEmail(t, db, "acct-repository-extended", "new@example.com")
+		// Legacy wallet rows are not moved into the account-scoped ledger.
+		err = db.QueryRow(`SELECT COUNT(*) FROM credit_wallets WHERE customer_email = 'old@example.com'`).Scan(&count)
 		if err != nil || count != 1 {
-			t.Errorf("expected credit wallet email to be migrated")
+			t.Errorf("expected legacy wallet identity to remain unchanged")
 		}
 
 		// Verify old email no longer exists

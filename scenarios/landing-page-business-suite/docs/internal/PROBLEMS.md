@@ -128,7 +128,7 @@ db.QueryRowContext(ctx,
 **Severity:** Low
 **Status:** ✅ Resolved
 **Reported:** 2026-01-16
-**Resolved:** 2026-01-16 by Claude (signal-and-feedback-surface-design)
+**Resolved:** 2026-01-16 by Claude (resilience-lenses)
 
 The Customization page has been updated to use InlineAlert, and other admin pages now use Toast notifications:
 
@@ -273,7 +273,7 @@ The import modal used per-row action dropdowns (import/overwrite/skip), which ma
 **Severity:** Low
 **Status:** ✅ Resolved
 **Reported:** 2026-01-16
-**Resolved:** 2026-01-16 by Claude (signal-and-feedback-surface-design)
+**Resolved:** 2026-01-16 by Claude (resilience-lenses)
 
 ~~When variant operations succeed (archive, delete, weight update), there's no visual confirmation. Consider adding toast notifications for success messages.~~
 

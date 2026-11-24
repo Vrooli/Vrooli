@@ -26,6 +26,11 @@ type Payments interface {
 	CreateBillingPortalSession(context.Context, string, string) (*lpbsv1.BillingPortalResponse, error)
 }
 
+type ContextPayments interface {
+	VerifySubscriptionContext(context.Context, string) (*shared.SubscriptionStatus, error)
+	CancelSubscriptionContext(context.Context, string) (*lpbsv1.CancelSubscriptionResponse, error)
+}
+
 type AttributedPayments interface {
 	CreateCheckoutSessionWithAttribution(string, string, string, string, commerce.Attribution) (*lpbsv1.CheckoutSession, error)
 }
@@ -120,24 +125,36 @@ func (h *ConnectHandler) CreateCheckoutSession(ctx context.Context, request *con
 	return connect.NewResponse(&lpbsv1.CreateCheckoutSessionResponse{Session: session}), nil
 }
 
-func (h *ConnectHandler) VerifySubscription(_ context.Context, request *connect.Request[lpbsv1.VerifySubscriptionRequest]) (*connect.Response[shared.VerifySubscriptionResponse], error) {
+func (h *ConnectHandler) VerifySubscription(ctx context.Context, request *connect.Request[lpbsv1.VerifySubscriptionRequest]) (*connect.Response[shared.VerifySubscriptionResponse], error) {
 	identity := strings.TrimSpace(request.Msg.GetUserIdentity())
 	if identity == "" {
 		return nil, invalidArgument("user_identity is required")
 	}
-	status, err := h.deps.Payments.VerifySubscription(identity)
+	var status *shared.SubscriptionStatus
+	var err error
+	if contextual, ok := h.deps.Payments.(ContextPayments); ok {
+		status, err = contextual.VerifySubscriptionContext(ctx, identity)
+	} else {
+		status, err = h.deps.Payments.VerifySubscription(identity)
+	}
 	if err != nil {
 		return nil, internal("verify subscription", err)
 	}
 	return connect.NewResponse(&shared.VerifySubscriptionResponse{Status: status}), nil
 }
 
-func (h *ConnectHandler) CancelSubscription(_ context.Context, request *connect.Request[lpbsv1.CancelSubscriptionRequest]) (*connect.Response[lpbsv1.CancelSubscriptionResponse], error) {
+func (h *ConnectHandler) CancelSubscription(ctx context.Context, request *connect.Request[lpbsv1.CancelSubscriptionRequest]) (*connect.Response[lpbsv1.CancelSubscriptionResponse], error) {
 	identity := strings.TrimSpace(request.Msg.GetUserIdentity())
 	if identity == "" {
 		return nil, invalidArgument("user_identity is required")
 	}
-	response, err := h.deps.Payments.CancelSubscription(identity)
+	var response *lpbsv1.CancelSubscriptionResponse
+	var err error
+	if contextual, ok := h.deps.Payments.(ContextPayments); ok {
+		response, err = contextual.CancelSubscriptionContext(ctx, identity)
+	} else {
+		response, err = h.deps.Payments.CancelSubscription(identity)
+	}
 	if err != nil {
 		return nil, internal("cancel subscription", err)
 	}

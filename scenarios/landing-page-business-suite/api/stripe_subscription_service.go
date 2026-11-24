@@ -21,6 +21,10 @@ import (
 // VerifySubscription checks subscription status for a user
 // [REQ:SUB-VERIFY] GET /api/subscription/verify endpoint
 func (s *StripeService) VerifySubscription(userIdentity string) (*shared.SubscriptionStatus, error) {
+	return s.VerifySubscriptionContext(context.Background(), userIdentity)
+}
+
+func (s *StripeService) VerifySubscriptionContext(ctx context.Context, userIdentity string) (*shared.SubscriptionStatus, error) {
 	user := strings.TrimSpace(userIdentity)
 	if user == "" {
 		return &shared.SubscriptionStatus{
@@ -43,7 +47,7 @@ func (s *StripeService) VerifySubscription(userIdentity string) (*shared.Subscri
 	var bundleKey sql.NullString
 	var subscriptionID sql.NullString
 
-	err := s.db.QueryRow(`
+	err := s.db.QueryRowContext(ctx, `
 		SELECT status, canceled_at, updated_at, price_id, plan_tier, bundle_key, subscription_id
 		FROM subscriptions
 		WHERE customer_email = $1 OR customer_id = $1
@@ -66,7 +70,7 @@ func (s *StripeService) VerifySubscription(userIdentity string) (*shared.Subscri
 	}
 
 	if needRefresh {
-		if refreshed, err := s.refreshSubscriptionFromStripe(user, subscriptionID.String); err == nil && refreshed != nil {
+		if refreshed, err := s.refreshSubscriptionFromStripeContext(ctx, user, subscriptionID.String); err == nil && refreshed != nil {
 			return refreshed, nil
 		} else if err != nil {
 			logx.Info("Stripe verification fallback to cache", map[string]interface{}{
@@ -113,7 +117,7 @@ func (s *StripeService) VerifySubscription(userIdentity string) (*shared.Subscri
 				})
 				planTier.String = ""
 			} else if subscriptionID.Valid {
-				_, _ = s.db.Exec(`
+				_, _ = s.db.ExecContext(ctx, `
 					UPDATE subscriptions
 					SET plan_tier = COALESCE(NULLIF($1,''), plan_tier),
 						bundle_key = COALESCE(NULLIF($2,''), bundle_key),
@@ -139,7 +143,11 @@ func (s *StripeService) VerifySubscription(userIdentity string) (*shared.Subscri
 // CancelSubscription cancels an active subscription
 // [REQ:SUB-CANCEL] POST /api/subscription/cancel endpoint
 func (s *StripeService) CancelSubscription(userIdentity string) (*landing_page_business_suite_v1.CancelSubscriptionResponse, error) {
-	return s.subscriptionManagementService().Cancel(context.Background(), userIdentity)
+	return s.CancelSubscriptionContext(context.Background(), userIdentity)
+}
+
+func (s *StripeService) CancelSubscriptionContext(ctx context.Context, userIdentity string) (*landing_page_business_suite_v1.CancelSubscriptionResponse, error) {
+	return s.subscriptionManagementService().Cancel(ctx, userIdentity)
 }
 
 // CreateBillingPortalSession creates a Stripe billing portal session for subscription management.
@@ -149,10 +157,18 @@ func (s *StripeService) CreateBillingPortalSession(ctx context.Context, userIden
 
 // refreshSubscriptionFromStripe fetches subscription data from Stripe and updates local cache.
 func (s *StripeService) refreshSubscriptionFromStripe(userIdentity string, currentSubscriptionID string) (*shared.SubscriptionStatus, error) {
-	return s.subscriptionRefresher().Refresh(context.Background(), userIdentity, currentSubscriptionID)
+	return s.refreshSubscriptionFromStripeContext(context.Background(), userIdentity, currentSubscriptionID)
+}
+
+func (s *StripeService) refreshSubscriptionFromStripeContext(ctx context.Context, userIdentity string, currentSubscriptionID string) (*shared.SubscriptionStatus, error) {
+	return s.subscriptionRefresher().Refresh(ctx, userIdentity, currentSubscriptionID)
 }
 
 // persistSubscriptionFromStripe saves subscription data from Stripe to local database.
 func (s *StripeService) persistSubscriptionFromStripe(userHint string, sub *commerce.StripeSubscription) (*shared.SubscriptionStatus, error) {
-	return commerce.NewSubscriptionPersistenceService(s.db, s.planService, logx.Info).Persist(userHint, sub)
+	return s.persistSubscriptionFromStripeContext(context.Background(), userHint, sub)
+}
+
+func (s *StripeService) persistSubscriptionFromStripeContext(ctx context.Context, userHint string, sub *commerce.StripeSubscription) (*shared.SubscriptionStatus, error) {
+	return commerce.NewSubscriptionPersistenceService(s.db, s.planService, logx.Info).PersistContext(ctx, userHint, sub)
 }

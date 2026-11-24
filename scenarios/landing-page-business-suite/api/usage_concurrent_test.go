@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -39,10 +40,10 @@ func TestConcurrent_MultipleUsageReports_SameUser(t *testing.T) {
 			defer wg.Done()
 			for j := 0; j < reportsPerGoroutine; j++ {
 				err := svc.RecordUsage(ctx, commerce.UsageReportRequest{
+					Tier:         "solo",
 					UserIdentity: "concurrent-user@example.com",
-					LimitKey:     "ai_credits",
+					LimitKey:     "compute_minutes",
 					Amount:       1000,
-					AppBundleKey: "test-app",
 				})
 				if err != nil {
 					atomic.AddInt32(&errors, 1)
@@ -59,7 +60,7 @@ func TestConcurrent_MultipleUsageReports_SameUser(t *testing.T) {
 	}
 
 	// Verify total usage is correct
-	usage, err := svc.GetUsage(ctx, "concurrent-user@example.com", "ai_credits", nil)
+	usage, err := svc.GetUsage(ctx, "concurrent-user@example.com", "compute_minutes", nil)
 	if err != nil {
 		t.Fatalf("GetUsage() returned error: %v", err)
 	}
@@ -88,10 +89,10 @@ func TestConcurrent_MultipleUsageReports_DifferentUsers(t *testing.T) {
 			defer wg.Done()
 			for j := 0; j < reportsPerUser; j++ {
 				err := svc.RecordUsage(ctx, commerce.UsageReportRequest{
+					Tier:         "solo",
 					UserIdentity: email,
-					LimitKey:     "ai_credits",
+					LimitKey:     "compute_minutes",
 					Amount:       1000,
-					AppBundleKey: "test-app",
 				})
 				if err != nil {
 					atomic.AddInt32(&errors, 1)
@@ -110,7 +111,7 @@ func TestConcurrent_MultipleUsageReports_DifferentUsers(t *testing.T) {
 	// Verify each user has correct usage
 	for i := 0; i < numUsers; i++ {
 		userEmail := "user" + string(rune('0'+i)) + "@example.com"
-		usage, err := svc.GetUsage(ctx, userEmail, "ai_credits", nil)
+		usage, err := svc.GetUsage(ctx, userEmail, "compute_minutes", nil)
 		if err != nil {
 			t.Fatalf("GetUsage() for %s returned error: %v", userEmail, err)
 		}
@@ -143,9 +144,9 @@ func TestConcurrent_CheckLimit_RaceCondition(t *testing.T) {
 			default:
 				err := svc.RecordUsage(ctx, commerce.UsageReportRequest{
 					UserIdentity: "race-test@example.com",
-					LimitKey:     "ai_credits",
+					Tier:         "solo",
+					LimitKey:     "compute_minutes",
 					Amount:       1000,
-					AppBundleKey: "test-app",
 				})
 				if err != nil {
 					atomic.AddInt32(&recordErrors, 1)
@@ -164,7 +165,7 @@ func TestConcurrent_CheckLimit_RaceCondition(t *testing.T) {
 		go func(workerID int) {
 			defer wg.Done()
 			for j := 0; j < 50; j++ {
-				_, _, err := svc.CheckLimit(ctx, "race-test@example.com", "solo", "ai_credits", 1000)
+				_, _, err := svc.CheckLimit(ctx, "race-test@example.com", "solo", "compute_minutes", 1000)
 				if err != nil {
 					atomic.AddInt32(&checkErrors, 1)
 					t.Logf("Worker %d check %d failed: %v", workerID, j, err)
@@ -201,10 +202,10 @@ func TestConcurrent_RecordUsage_AtomicUpsert(t *testing.T) {
 		go func(workerID int) {
 			defer wg.Done()
 			err := svc.RecordUsage(ctx, commerce.UsageReportRequest{
+				Tier:         "solo",
 				UserIdentity: "atomic-test@example.com",
-				LimitKey:     "ai_credits",
+				LimitKey:     "compute_minutes",
 				Amount:       amountPerReport,
-				AppBundleKey: "same-app",
 			})
 			if err != nil {
 				atomic.AddInt32(&errors, 1)
@@ -220,7 +221,7 @@ func TestConcurrent_RecordUsage_AtomicUpsert(t *testing.T) {
 	}
 
 	// Verify the final amount is correct (all upserts should have succeeded)
-	usage, err := svc.GetUsage(ctx, "atomic-test@example.com", "ai_credits", nil)
+	usage, err := svc.GetUsage(ctx, "atomic-test@example.com", "compute_minutes", nil)
 	if err != nil {
 		t.Fatalf("GetUsage() returned error: %v", err)
 	}
@@ -235,7 +236,7 @@ func TestConcurrent_RecordUsage_AtomicUpsert(t *testing.T) {
 	err = db.QueryRow(`
 		SELECT COUNT(*) FROM usage_records
 		WHERE user_identity = ? AND limit_key = ?
-	`, "atomic-test@example.com", "ai_credits").Scan(&count)
+	`, "atomic-test@example.com", "compute_minutes").Scan(&count)
 	if err != nil {
 		t.Fatalf("Failed to count records: %v", err)
 	}
@@ -268,10 +269,10 @@ func TestConcurrent_GetUsageSummary_DuringRecords(t *testing.T) {
 					return
 				default:
 					err := svc.RecordUsage(ctx, commerce.UsageReportRequest{
+						Tier:         "solo",
 						UserIdentity: "summary-test@example.com",
-						LimitKey:     "ai_credits",
+						LimitKey:     "compute_minutes",
 						Amount:       1000,
-						AppBundleKey: "test-app",
 					})
 					if err != nil {
 						atomic.AddInt32(&writeErrors, 1)
@@ -310,16 +311,15 @@ func TestConcurrent_GetUsageSummary_DuringRecords(t *testing.T) {
 	}
 }
 
-func TestConcurrent_MultipleApps_SameUser(t *testing.T) {
+func TestConcurrent_AppScopedReportsFailClosed(t *testing.T) {
 	svc, _, db := createTestUsageService(t)
 	defer db.Close()
 
 	ctx := context.Background()
 	apps := []string{"browser-automation-studio", "other-app-1", "other-app-2"}
 	const reportsPerApp = 15
-
 	var wg sync.WaitGroup
-	var errors int32
+	var unexpected atomic.Int32
 
 	for _, app := range apps {
 		wg.Add(1)
@@ -328,47 +328,27 @@ func TestConcurrent_MultipleApps_SameUser(t *testing.T) {
 			for j := 0; j < reportsPerApp; j++ {
 				err := svc.RecordUsage(ctx, commerce.UsageReportRequest{
 					UserIdentity: "multiapp-user@example.com",
-					LimitKey:     "ai_credits",
+					LimitKey:     "compute_minutes",
 					Amount:       1000,
 					AppBundleKey: appKey,
 				})
-				if err != nil {
-					atomic.AddInt32(&errors, 1)
-					t.Logf("App %s report %d failed: %v", appKey, j, err)
+				if !errors.Is(err, commerce.ErrDirectUsageScopeUnavailable) {
+					unexpected.Add(1)
+					t.Errorf("app-scoped direct report for %s returned %v, want fail-closed scope error", appKey, err)
 				}
 			}
 		}(app)
 	}
-
 	wg.Wait()
-
-	if errors > 0 {
-		t.Errorf("Expected 0 errors, got %d", errors)
+	if unexpected.Load() != 0 {
+		t.Fatalf("%d app-scoped reports did not fail closed", unexpected.Load())
 	}
-
-	// Verify total usage (summed across all apps)
-	totalUsage, err := svc.GetUsage(ctx, "multiapp-user@example.com", "ai_credits", nil)
-	if err != nil {
-		t.Fatalf("GetUsage() returned error: %v", err)
+	var rows int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM usage_records WHERE user_identity=?`, "multiapp-user@example.com").Scan(&rows); err != nil {
+		t.Fatal(err)
 	}
-
-	expectedTotal := int64(len(apps) * reportsPerApp * 1000)
-	if totalUsage != expectedTotal {
-		t.Errorf("Expected total usage %d, got %d", expectedTotal, totalUsage)
-	}
-
-	// Verify per-app breakdown
-	for _, app := range apps {
-		appKey := app
-		appUsage, err := svc.GetUsage(ctx, "multiapp-user@example.com", "ai_credits", &appKey)
-		if err != nil {
-			t.Fatalf("GetUsage() for app %s returned error: %v", app, err)
-		}
-
-		expectedAppUsage := int64(reportsPerApp * 1000)
-		if appUsage != expectedAppUsage {
-			t.Errorf("App %s: expected usage %d, got %d", app, expectedAppUsage, appUsage)
-		}
+	if rows != 0 {
+		t.Fatalf("rejected app-scoped reports wrote %d usage rows", rows)
 	}
 }
 
@@ -389,10 +369,10 @@ func TestConcurrent_BYOKAndNonBYOK_Interleaved(t *testing.T) {
 			defer wg.Done()
 			for j := 0; j < 10; j++ {
 				err := svc.RecordUsage(ctx, commerce.UsageReportRequest{
+					Tier:         "solo",
 					UserIdentity: "byok-test@example.com",
-					LimitKey:     "ai_credits",
+					LimitKey:     "compute_minutes",
 					Amount:       1000,
-					AppBundleKey: "test-app",
 					IsBYOK:       byok,
 				})
 				if err != nil {
@@ -411,7 +391,7 @@ func TestConcurrent_BYOKAndNonBYOK_Interleaved(t *testing.T) {
 
 	// Verify usage: only non-BYOK should be counted
 	// Half the goroutines are BYOK (amount=0), half are non-BYOK (amount=1000)
-	usage, err := svc.GetUsage(ctx, "byok-test@example.com", "ai_credits", nil)
+	usage, err := svc.GetUsage(ctx, "byok-test@example.com", "compute_minutes", nil)
 	if err != nil {
 		t.Fatalf("GetUsage() returned error: %v", err)
 	}
@@ -440,10 +420,10 @@ func TestConcurrent_HighContention_StressTest(t *testing.T) {
 			defer wg.Done()
 			for j := 0; j < opsPerGoroutine; j++ {
 				err := svc.RecordUsage(ctx, commerce.UsageReportRequest{
+					Tier:         "solo",
 					UserIdentity: "stress-test@example.com",
-					LimitKey:     "ai_credits",
+					LimitKey:     "compute_minutes",
 					Amount:       1,
-					AppBundleKey: "test-app",
 				})
 				if err != nil {
 					atomic.AddInt32(&errors, 1)
@@ -459,7 +439,7 @@ func TestConcurrent_HighContention_StressTest(t *testing.T) {
 	}
 
 	// Verify final count
-	usage, err := svc.GetUsage(ctx, "stress-test@example.com", "ai_credits", nil)
+	usage, err := svc.GetUsage(ctx, "stress-test@example.com", "compute_minutes", nil)
 	if err != nil {
 		t.Fatalf("GetUsage() returned error: %v", err)
 	}
@@ -475,7 +455,15 @@ func TestConcurrent_DifferentLimitKeys(t *testing.T) {
 	defer db.Close()
 
 	ctx := context.Background()
-	limitKeys := []string{"ai_credits", "api_calls", "storage_bytes", "compute_minutes"}
+	limitKeys := []string{"compute_minutes", "api_calls", "storage_bytes", "browser_actions"}
+	for _, key := range limitKeys {
+		if key == "compute_minutes" {
+			continue
+		}
+		if _, err := db.Exec(`INSERT INTO subscription_tier_limits (tier_id, limit_type, limit_key, limit_value) VALUES (?, ?, ?, ?)`, "solo", "count_based", key, 1000000); err != nil {
+			t.Fatalf("seed global count meter %s: %v", key, err)
+		}
+	}
 	const reportsPerKey = 20
 
 	var wg sync.WaitGroup
@@ -487,10 +475,10 @@ func TestConcurrent_DifferentLimitKeys(t *testing.T) {
 			defer wg.Done()
 			for j := 0; j < reportsPerKey; j++ {
 				err := svc.RecordUsage(ctx, commerce.UsageReportRequest{
+					Tier:         "solo",
 					UserIdentity: "multikey-user@example.com",
 					LimitKey:     limitKey,
 					Amount:       1000,
-					AppBundleKey: "test-app",
 				})
 				if err != nil {
 					atomic.AddInt32(&errors, 1)

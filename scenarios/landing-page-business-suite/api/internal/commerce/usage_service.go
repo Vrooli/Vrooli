@@ -103,12 +103,84 @@ func (s *UsageService) ReserveBusinessAccountCreditsWithID(ctx context.Context, 
 	return s.businessAccountUsageService().ReserveCreditsWithID(ctx, account, actor, tier, key, amount, operation)
 }
 
-func (s *UsageService) FinalizeBusinessAccountReservationWithCost(ctx context.Context, account, actor, id string, amount int64, app, model string, cost int64, prompt, completion int, provider string) error {
+// ReserveBusinessAccountInferenceCreditsWithID reserves inference credits
+// inside the feature owner's app scope and binds the hold to one operation.
+func (s *UsageService) ReserveBusinessAccountInferenceCreditsWithID(ctx context.Context, account, actor, tier, app string, amount int64, operation string) (string, bool, error) {
+	return s.businessAccountUsageService().ReserveScopedCreditsWithID(ctx, account, actor, tier, "ai_credits", app, amount, operation)
+}
+
+func (s *UsageService) ReserveBusinessAccountBrowserSession(ctx context.Context, account, actor, tier, app string, amount int64, operation string) (string, bool, error) {
+	return s.businessAccountUsageService().ReserveScopedCreditsWithID(ctx, account, actor, tier, "ai_credits", app, amount, operation)
+}
+
+func (s *UsageService) BindBusinessAccountBrowserEvidence(ctx context.Context, account, actor, id, runID, fingerprint string) error {
 	owner := s.businessAccountUsageService()
 	if err := owner.VerifyActor(ctx, account, actor, id); err != nil {
 		return err
 	}
-	return owner.FinalizeReservationWithCost(ctx, account, id, amount, app, model, cost, prompt, completion, provider)
+	return owner.BindBrowserEvidenceToReservation(ctx, account, id, runID, fingerprint)
+}
+
+func (s *UsageService) BindBusinessAccountBrowserSession(ctx context.Context, account, actor, id, tier, runID, sessionID, grantFingerprint string) error {
+	owner := s.businessAccountUsageService()
+	if err := owner.VerifyActor(ctx, account, actor, id); err != nil {
+		return err
+	}
+	return owner.BindBrowserSessionIdentity(ctx, account, actor, id, tier, runID, sessionID, grantFingerprint)
+}
+
+func (s *UsageService) BeginBusinessAccountBrowserGatewayReceipt(ctx context.Context, account, actor, tier, app, id, runID, sessionID, grantFingerprint, rootOperationID, requestFingerprint string, estimatedCredits int64) (bool, error) {
+	owner := s.businessAccountUsageService()
+	if err := owner.VerifyActor(ctx, account, actor, id); err != nil {
+		return false, err
+	}
+	return owner.BeginBrowserGatewayReceipt(ctx, account, actor, tier, app, id, runID, sessionID, grantFingerprint, rootOperationID, requestFingerprint, estimatedCredits)
+}
+
+func (s *UsageService) RecordBusinessAccountBrowserGatewayReceipt(ctx context.Context, account, actor, id string, receipt BrowserGatewayReceipt) error {
+	owner := s.businessAccountUsageService()
+	if err := owner.VerifyActor(ctx, account, actor, id); err != nil {
+		return err
+	}
+	return owner.RecordBrowserGatewayReceipt(ctx, account, actor, id, receipt)
+}
+
+func (s *UsageService) MarkBusinessAccountBrowserGatewayUncertain(ctx context.Context, account, actor, id, rootOperationID string) error {
+	owner := s.businessAccountUsageService()
+	if err := owner.VerifyActor(ctx, account, actor, id); err != nil {
+		return err
+	}
+	return owner.MarkBrowserGatewayOperationUncertain(ctx, account, actor, id, rootOperationID)
+}
+
+func (s *UsageService) BusinessAccountBrowserGatewayAggregate(ctx context.Context, account, actor, id string) (BrowserGatewayAggregate, error) {
+	owner := s.businessAccountUsageService()
+	if err := owner.VerifyActor(ctx, account, actor, id); err != nil {
+		return BrowserGatewayAggregate{}, err
+	}
+	return owner.BrowserGatewayReceiptAggregate(ctx, account, actor, id)
+}
+
+func (s *UsageService) FinalizeBusinessAccountBrowserSession(ctx context.Context, account, actor, id, runID, sessionID, grantFingerprint, evidenceFingerprint, app string, aggregate BrowserGatewayAggregate, minutes, actions, bytes int64) error {
+	owner := s.businessAccountUsageService()
+	if err := owner.VerifyActor(ctx, account, actor, id); err != nil {
+		return err
+	}
+	return owner.FinalizeBrowserSessionAggregate(ctx, account, id, runID, sessionID, grantFingerprint, evidenceFingerprint, app, aggregate, minutes, actions, bytes)
+}
+
+func (s *UsageService) FinalizeBusinessAccountReservationWithCost(ctx context.Context, account, actor, id string, amount int64, app, model string, cost int64, prompt, completion int, provider string) error {
+	return s.FinalizeBusinessAccountReservationWithBrowserUsage(ctx, account, actor, id, amount, app, model, cost, prompt, completion, provider, 0, 0, 0, "", "", "")
+}
+
+// FinalizeBusinessAccountReservationWithBrowserUsage verifies the actor against
+// the original hold, then settles browser and model usage as one LPBS receipt.
+func (s *UsageService) FinalizeBusinessAccountReservationWithBrowserUsage(ctx context.Context, account, actor, id string, amount int64, app, model string, cost int64, prompt, completion int, provider string, sessionMinutes, actions, bytes int64, runID, sessionID, evidenceFingerprint string) error {
+	owner := s.businessAccountUsageService()
+	if err := owner.VerifyActor(ctx, account, actor, id); err != nil {
+		return err
+	}
+	return owner.FinalizeReservationWithBrowserUsage(ctx, account, id, amount, app, model, cost, prompt, completion, provider, sessionMinutes, actions, bytes, runID, sessionID, evidenceFingerprint)
 }
 
 func (s *UsageService) ReleaseBusinessAccountReservation(ctx context.Context, account, actor, id string) error {
@@ -131,6 +203,12 @@ func (s *UsageService) RecordBusinessAccountUsage(ctx context.Context, account, 
 	return s.businessAccountUsageService().RecordUsage(ctx, account, actor, tier, key, amount, operation, app, model, cost, prompt, completion, provider)
 }
 
+// AdjustBusinessAccountUsage exposes the account-owned adjustment operation to
+// consumers that use the common metered-inference usage contract.
+func (s *UsageService) AdjustBusinessAccountUsage(ctx context.Context, account, key string, amount int64) error {
+	return s.businessAccountUsageService().AdjustUsage(ctx, account, key, amount)
+}
+
 func (s *UsageService) GetBusinessAccountUsageSummary(ctx context.Context, account, tier string) (BusinessAccountUsageSummary, error) {
 	owner := s.businessAccountUsageService()
 	summary, err := owner.GetUsageSummary(ctx, account, tier)
@@ -139,6 +217,18 @@ func (s *UsageService) GetBusinessAccountUsageSummary(ctx context.Context, accou
 	}
 	summary.Wallet, err = owner.WalletView(ctx, account)
 	return summary, err
+}
+
+// GetBusinessAccountBrowserSessionReceipt reads the finalized session meter
+// from the same LPBS reservation that carries the inference token settlement.
+func (s *UsageService) GetBusinessAccountBrowserSessionReceipt(ctx context.Context, account, reservation string) (BrowserSessionReceipt, bool, error) {
+	return s.businessAccountUsageService().GetBrowserSessionReceipt(ctx, account, reservation)
+}
+
+// ResolveBrowserSessionSettlementBinding derives the private LPBS reservation
+// owner for an exact AM run/session/grant binding.
+func (s *UsageService) ResolveBrowserSessionSettlementBinding(ctx context.Context, runID, sessionID, grantFingerprint string) (reservationID, accountID, actorIdentity, status, evidenceFingerprint string, found bool, err error) {
+	return s.businessAccountUsageService().ResolveBrowserSessionSettlementBinding(ctx, runID, sessionID, grantFingerprint)
 }
 
 // CreditReservationBinding exposes immutable ownership for the authenticated
@@ -324,7 +414,11 @@ func (s *UsageService) RecordUsage(ctx context.Context, req UsageReportRequest) 
 	billingPeriod := getCurrentBillingPeriod()
 
 	// Use UPSERT to atomically increment usage
-	var appKey interface{}
+	// Global direct usage uses an empty-string scope key so the composite
+	// unique key can serialize concurrent upserts. SQL NULL values do not
+	// conflict under UNIQUE(user_identity, billing_period, limit_key,
+	// app_bundle_key), which allowed duplicate global rows.
+	var appKey interface{} = ""
 	if appBundleKey != "" {
 		appKey = appBundleKey
 	}
@@ -444,7 +538,7 @@ func (s *UsageService) GetUsageSummary(ctx context.Context, userIdentity, tier s
 		}
 
 		usage[limitKey] += amount
-		if appKey.Valid {
+		if appKey.Valid && strings.TrimSpace(appKey.String) != "" {
 			byApp[appKey.String] += amount
 		}
 	}

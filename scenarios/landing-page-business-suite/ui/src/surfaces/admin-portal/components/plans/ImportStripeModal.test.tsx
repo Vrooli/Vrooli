@@ -2,6 +2,7 @@ import { fireEvent, screen } from '@testing-library/react';
 import { renderWithProviders as render } from "@vrooli/api-base/testing";
 import { describe, expect, it, vi } from 'vitest';
 import { ImportStripeModal } from './ImportStripeModal';
+import { expectActionBarOrder } from '../../../../test/overlayActionBarAssertions';
 import type { UseStripeImportReturn } from '../../hooks/useStripeImport';
 
 const stripeImport = (): UseStripeImportReturn => ({
@@ -24,6 +25,7 @@ describe('ImportStripeModal', () => {
   it('filters Stripe data and invokes selection/import controls with destructive confirmation', () => {
     const data = stripeImport();
     render(<ImportStripeModal stripeImport={data} />);
+    expectActionBarOrder('import-selected', 'cancel');
 
     expect(screen.getByText('Imported: 1 | Overwritten: 2 | Skipped: 0 | Errors: 1')).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText('Search products'), { target: { value: 'other' } });

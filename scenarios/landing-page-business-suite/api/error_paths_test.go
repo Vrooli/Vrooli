@@ -27,10 +27,10 @@ func TestErrorPaths_ContextCancellation(t *testing.T) {
 
 	// Test that operations properly handle cancelled context
 	err := usageSvc.RecordUsage(ctx, commerce.UsageReportRequest{
+		Tier:         "solo",
 		UserIdentity: "cancel-test@example.com",
-		LimitKey:     "ai_credits",
+		LimitKey:     "compute_minutes",
 		Amount:       1000,
-		AppBundleKey: "test-app",
 	})
 
 	if !errors.Is(err, context.Canceled) {
@@ -50,10 +50,10 @@ func TestErrorPaths_ContextTimeout(t *testing.T) {
 	time.Sleep(1 * time.Millisecond)
 
 	err := usageSvc.RecordUsage(ctx, commerce.UsageReportRequest{
+		Tier:         "solo",
 		UserIdentity: "timeout-test@example.com",
-		LimitKey:     "ai_credits",
+		LimitKey:     "compute_minutes",
 		Amount:       1000,
-		AppBundleKey: "test-app",
 	})
 
 	if !errors.Is(err, context.DeadlineExceeded) {

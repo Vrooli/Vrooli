@@ -46,6 +46,7 @@ func TestUpdate_RejectsNonHTTPSWebhookURL(t *testing.T) {
 }
 
 func TestUpdate_RefreshesAnomalyConfig(t *testing.T) {
+	t.Setenv("STRIPE_MODE", "test")
 	db := setupTestDB(t)
 	resetStripeTestData(t, db)
 
@@ -108,6 +109,7 @@ func TestUpdate_RefreshesAnomalyConfig(t *testing.T) {
 }
 
 func TestUpdate_AcceptsRateLimitsObject(t *testing.T) {
+	t.Setenv("STRIPE_MODE", "test")
 	db := setupTestDB(t)
 	resetStripeTestData(t, db)
 

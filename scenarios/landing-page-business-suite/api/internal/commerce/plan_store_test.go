@@ -3,6 +3,7 @@ package commerce
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -78,6 +79,26 @@ func setupTestPlansFile(t *testing.T, content []byte) string {
 	require.NoError(t, os.MkdirAll(filepath.Dir(plansPath), 0o755))
 	require.NoError(t, os.WriteFile(plansPath, content, 0o644))
 	return plansPath
+}
+
+func newStripePlanStore(t *testing.T, productID string, plans ...*PlanOption) *PlanStore {
+	t.Helper()
+	store := NewPlanStoreWithOptions(PlanStoreOptions{
+		PlansPath:  filepath.Join(t.TempDir(), ".vrooli", "plans.json"),
+		BundleKey:  "test_bundle",
+		DisplayEnv: "test",
+	})
+	bundle := &BundleProduct{
+		BundleKey:                "test_bundle",
+		Name:                     "Test Bundle",
+		StripeProductId:          productID,
+		CreditsPerUsd:            1_000_000,
+		DisplayCreditsMultiplier: 1,
+		DisplayCreditsLabel:      "credits",
+		Environment:              "test",
+	}
+	require.NoError(t, store.SetPlans(bundle, plans))
+	return store
 }
 
 func TestNewPlanStore(t *testing.T) {
@@ -681,15 +702,28 @@ func TestConcurrentAccess(t *testing.T) {
 
 	var wg sync.WaitGroup
 	iterations := 100
+	start := make(chan struct{})
+	errs := make(chan error, iterations+20)
 
 	// Concurrent readers
 	for i := 0; i < iterations; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_ = ps.GetBundle()
-			_ = ps.GetPlans()
-			_, _ = ps.GetPricingOverview()
+			<-start
+			if ps.GetBundle() == nil {
+				errs <- fmt.Errorf("GetBundle returned nil during concurrent updates")
+				return
+			}
+			for _, plan := range ps.GetPlans() {
+				if plan == nil || plan.StripePriceId == "" {
+					errs <- fmt.Errorf("GetPlans returned an incomplete plan during concurrent updates: %+v", plan)
+					return
+				}
+			}
+			if _, err := ps.GetPricingOverview(); err != nil {
+				errs <- fmt.Errorf("GetPricingOverview: %w", err)
+			}
 		}()
 	}
 
@@ -698,8 +732,9 @@ func TestConcurrentAccess(t *testing.T) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
+			<-start
 			priceID := "price_concurrent_" + string(rune('a'+idx))
-			_, _ = ps.AddPlan(&PlanOption{
+			if _, err := ps.AddPlan(&PlanOption{
 				StripePriceId:   priceID,
 				PlanName:        "Concurrent Plan",
 				PlanTier:        "pro",
@@ -708,12 +743,27 @@ func TestConcurrentAccess(t *testing.T) {
 				Currency:        "usd",
 				DisplayWeight:   10,
 				DisplayEnabled:  true,
-			})
-			_ = ps.DeletePlan(priceID)
+			}); err != nil {
+				errs <- fmt.Errorf("AddPlan(%s): %w", priceID, err)
+				return
+			}
+			if err := ps.DeletePlan(priceID); err != nil {
+				errs <- fmt.Errorf("DeletePlan(%s): %w", priceID, err)
+			}
 		}(i)
 	}
 
+	close(start)
 	wg.Wait()
+	close(errs)
+	for err := range errs {
+		require.NoError(t, err)
+	}
+	plans := ps.GetPlans()
+	require.Len(t, plans, 3, "all temporary plans should be deleted")
+	for _, plan := range plans {
+		assert.NotContains(t, plan.StripePriceId, "price_concurrent_")
+	}
 }
 
 func TestBillingIntervalMapping(t *testing.T) {
@@ -811,25 +861,6 @@ func TestNormalizePlanOptionRejectsCreditsNonOneTime(t *testing.T) {
 }
 
 func TestApplyStripeImportSelections_OverwritesTier(t *testing.T) {
-	tmpDir := t.TempDir()
-	plansPath := filepath.Join(tmpDir, ".vrooli", "plans.json")
-
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{
-		PlansPath:  plansPath,
-		BundleKey:  "test_bundle",
-		DisplayEnv: "test",
-	})
-
-	bundle := &BundleProduct{
-		BundleKey:                "test_bundle",
-		Name:                     "Test Bundle",
-		StripeProductId:          "prod_test",
-		CreditsPerUsd:            1_000_000,
-		DisplayCreditsMultiplier: 1,
-		DisplayCreditsLabel:      "credits",
-		Environment:              "test",
-	}
-
 	existing := &PlanOption{
 		StripePriceId:   "price_existing",
 		PlanName:        "Solo Plan",
@@ -842,8 +873,7 @@ func TestApplyStripeImportSelections_OverwritesTier(t *testing.T) {
 		PlanRank:        planRankForTier("solo"),
 		Kind:            planKindForTier("solo"),
 	}
-
-	require.NoError(t, ps.SetPlans(bundle, []*PlanOption{existing}))
+	ps := newStripePlanStore(t, "prod_test", existing)
 
 	fetcher := func(ctx context.Context, priceID string) (*StripePriceImport, error) {
 		return &StripePriceImport{
@@ -872,180 +902,42 @@ func TestApplyStripeImportSelections_OverwritesTier(t *testing.T) {
 	assert.Equal(t, planKindForTier("pro"), updated.Kind)
 }
 
-func TestUpdatePlanWithStripeDetails_RejectsMismatchedProduct(t *testing.T) {
-	tmpDir := t.TempDir()
-	plansPath := filepath.Join(tmpDir, ".vrooli", "plans.json")
-
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{
-		PlansPath:  plansPath,
-		BundleKey:  "test_bundle",
-		DisplayEnv: "test",
-	})
-
-	bundle := &BundleProduct{
-		BundleKey:                "test_bundle",
-		Name:                     "Test Bundle",
-		StripeProductId:          "prod_bundle",
-		CreditsPerUsd:            1_000_000,
-		DisplayCreditsMultiplier: 1,
-		DisplayCreditsLabel:      "credits",
-		Environment:              "test",
+func TestUpdatePlanWithStripeDetailsRejectsInvalidStripePrice(t *testing.T) {
+	month := landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_MONTH
+	tests := []struct {
+		name, priceID, planName, tier string
+		planInterval                  landing_page_business_suite_v1.BillingInterval
+		planAmount, stripeAmount      int64
+		productID, productName        string
+		stripeInterval, wantError     string
+	}{
+		{name: "mismatched product", priceID: "price_existing", planName: "Existing Plan", tier: "pro", planInterval: month, planAmount: 1000, stripeAmount: 2000, productID: "prod_other", productName: "Other Bundle", stripeInterval: "month", wantError: "product"},
+		{name: "free amount mismatch", priceID: "price_free", planName: "Free Plan", tier: "free", planInterval: month, stripeAmount: 500, productID: "prod_bundle", productName: "Test Bundle", stripeInterval: "month", wantError: "free plan amount_cents"},
+		{name: "credits interval mismatch", priceID: "price_credits", planName: "Credits Pack", tier: "credits", planInterval: landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_ONE_TIME, planAmount: 1000, stripeAmount: 1000, productID: "prod_bundle", productName: "Test Bundle", stripeInterval: "month", wantError: "credits plans must use one_time"},
 	}
 
-	existing := &PlanOption{
-		StripePriceId:   "price_existing",
-		PlanName:        "Existing Plan",
-		PlanTier:        "pro",
-		BillingInterval: landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
-		AmountCents:     1000,
-		Currency:        "usd",
-		DisplayWeight:   10,
-		DisplayEnabled:  true,
-		PlanRank:        planRankForTier("pro"),
-		Kind:            planKindForTier("pro"),
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			plan := &PlanOption{
+				StripePriceId: tc.priceID, PlanName: tc.planName, PlanTier: tc.tier,
+				BillingInterval: tc.planInterval, AmountCents: tc.planAmount, Currency: "usd",
+				DisplayWeight: 10, DisplayEnabled: true,
+				PlanRank: planRankForTier(tc.tier), Kind: planKindForTier(tc.tier),
+			}
+			store := newStripePlanStore(t, "prod_bundle", plan)
+			name := "Updated Plan"
+			_, err := store.UpdatePlanWithStripeDetails(tc.priceID, UpdateBundlePriceInput{PlanName: &name}, &StripePriceImport{
+				PriceID: tc.priceID, Currency: "usd", AmountCents: tc.stripeAmount, Interval: tc.stripeInterval,
+				ProductID: tc.productID, ProductName: tc.productName, Active: true,
+			})
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.wantError)
+		})
 	}
-
-	require.NoError(t, ps.SetPlans(bundle, []*PlanOption{existing}))
-
-	newName := "Updated Plan"
-	_, err := ps.UpdatePlanWithStripeDetails("price_existing", UpdateBundlePriceInput{
-		PlanName: &newName,
-	}, &StripePriceImport{
-		PriceID:     "price_existing",
-		Currency:    "usd",
-		AmountCents: 2000,
-		Interval:    "month",
-		ProductID:   "prod_other",
-		ProductName: "Other Bundle",
-		Active:      true,
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "product")
-}
-
-func TestUpdatePlanWithStripeDetails_RejectsFreeAmountMismatch(t *testing.T) {
-	tmpDir := t.TempDir()
-	plansPath := filepath.Join(tmpDir, ".vrooli", "plans.json")
-
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{
-		PlansPath:  plansPath,
-		BundleKey:  "test_bundle",
-		DisplayEnv: "test",
-	})
-
-	bundle := &BundleProduct{
-		BundleKey:                "test_bundle",
-		Name:                     "Test Bundle",
-		StripeProductId:          "prod_bundle",
-		CreditsPerUsd:            1_000_000,
-		DisplayCreditsMultiplier: 1,
-		DisplayCreditsLabel:      "credits",
-		Environment:              "test",
-	}
-
-	freePlan := &PlanOption{
-		StripePriceId:   "price_free",
-		PlanName:        "Free Plan",
-		PlanTier:        "free",
-		BillingInterval: landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_MONTH,
-		AmountCents:     0,
-		Currency:        "usd",
-		DisplayWeight:   10,
-		DisplayEnabled:  true,
-		PlanRank:        planRankForTier("free"),
-		Kind:            planKindForTier("free"),
-	}
-
-	require.NoError(t, ps.SetPlans(bundle, []*PlanOption{freePlan}))
-
-	newName := "Updated Free"
-	_, err := ps.UpdatePlanWithStripeDetails("price_free", UpdateBundlePriceInput{
-		PlanName: &newName,
-	}, &StripePriceImport{
-		PriceID:     "price_free",
-		Currency:    "usd",
-		AmountCents: 500,
-		Interval:    "month",
-		ProductID:   "prod_bundle",
-		ProductName: "Test Bundle",
-		Active:      true,
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "free plan amount_cents")
-}
-
-func TestUpdatePlanWithStripeDetails_RejectsCreditsIntervalMismatch(t *testing.T) {
-	tmpDir := t.TempDir()
-	plansPath := filepath.Join(tmpDir, ".vrooli", "plans.json")
-
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{
-		PlansPath:  plansPath,
-		BundleKey:  "test_bundle",
-		DisplayEnv: "test",
-	})
-
-	bundle := &BundleProduct{
-		BundleKey:                "test_bundle",
-		Name:                     "Test Bundle",
-		StripeProductId:          "prod_bundle",
-		CreditsPerUsd:            1_000_000,
-		DisplayCreditsMultiplier: 1,
-		DisplayCreditsLabel:      "credits",
-		Environment:              "test",
-	}
-
-	creditsPlan := &PlanOption{
-		StripePriceId:   "price_credits",
-		PlanName:        "Credits Pack",
-		PlanTier:        "credits",
-		BillingInterval: landing_page_business_suite_v1.BillingInterval_BILLING_INTERVAL_ONE_TIME,
-		AmountCents:     1000,
-		Currency:        "usd",
-		DisplayWeight:   10,
-		DisplayEnabled:  true,
-		PlanRank:        planRankForTier("credits"),
-		Kind:            planKindForTier("credits"),
-	}
-
-	require.NoError(t, ps.SetPlans(bundle, []*PlanOption{creditsPlan}))
-
-	newName := "Updated Credits"
-	_, err := ps.UpdatePlanWithStripeDetails("price_credits", UpdateBundlePriceInput{
-		PlanName: &newName,
-	}, &StripePriceImport{
-		PriceID:     "price_credits",
-		Currency:    "usd",
-		AmountCents: 1000,
-		Interval:    "month",
-		ProductID:   "prod_bundle",
-		ProductName: "Test Bundle",
-		Active:      true,
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "credits plans must use one_time")
 }
 
 func TestApplyStripeImportSelections_RejectsMismatchedProduct(t *testing.T) {
-	tmpDir := t.TempDir()
-	plansPath := filepath.Join(tmpDir, ".vrooli", "plans.json")
-
-	ps := NewPlanStoreWithOptions(PlanStoreOptions{
-		PlansPath:  plansPath,
-		BundleKey:  "test_bundle",
-		DisplayEnv: "test",
-	})
-
-	bundle := &BundleProduct{
-		BundleKey:                "test_bundle",
-		Name:                     "Test Bundle",
-		StripeProductId:          "prod_bundle",
-		CreditsPerUsd:            1_000_000,
-		DisplayCreditsMultiplier: 1,
-		DisplayCreditsLabel:      "credits",
-		Environment:              "test",
-	}
-
-	require.NoError(t, ps.SetPlans(bundle, []*PlanOption{}))
+	ps := newStripePlanStore(t, "prod_bundle")
 
 	fetcher := func(ctx context.Context, priceID string) (*StripePriceImport, error) {
 		return &StripePriceImport{

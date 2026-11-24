@@ -531,13 +531,21 @@ type publicAssetSnapshot struct {
 }
 
 type publicAppSnapshot struct {
-	AppKey        string                 `json:"app_key"`
-	Name          string                 `json:"name"`
-	Tagline       string                 `json:"tagline,omitempty"`
-	Description   string                 `json:"description,omitempty"`
-	WebURL        string                 `json:"web_url,omitempty"`
-	SigningNotice map[string]interface{} `json:"signing_notice,omitempty"`
-	Platforms     []publicAssetSnapshot  `json:"platforms"`
+	AppKey        string                     `json:"app_key"`
+	Name          string                     `json:"name"`
+	Tagline       string                     `json:"tagline,omitempty"`
+	Description   string                     `json:"description,omitempty"`
+	WebURL        string                     `json:"web_url,omitempty"`
+	SigningNotice map[string]interface{}     `json:"signing_notice,omitempty"`
+	Storefronts   []publicStorefrontSnapshot `json:"storefronts"`
+	Platforms     []publicAssetSnapshot      `json:"platforms"`
+}
+
+type publicStorefrontSnapshot struct {
+	Store string `json:"store"`
+	Label string `json:"label"`
+	URL   string `json:"url"`
+	Badge string `json:"badge,omitempty"`
 }
 
 func publicOwnerSnapshotRef(pricing *commerce.PricingOverview, downloads []delivery.App) string {
@@ -584,7 +592,7 @@ func publicOwnerSnapshotRef(pricing *commerce.PricingOverview, downloads []deliv
 	sort.Slice(value.Yearly, func(i, j int) bool { return planLess(value.Yearly[i], value.Yearly[j]) })
 	sort.Slice(value.Topups, func(i, j int) bool { return planLess(value.Topups[i], value.Topups[j]) })
 	for _, app := range downloads {
-		projection := publicAppSnapshot{AppKey: app.AppKey, Name: app.Name, Tagline: app.Tagline, Description: app.Description, WebURL: presentationWebURL(app.Metadata), SigningNotice: sanitizeSigningNotice(app.Metadata[signingNoticeMetadataKey]), Platforms: []publicAssetSnapshot{}}
+		projection := publicAppSnapshot{AppKey: app.AppKey, Name: app.Name, Tagline: app.Tagline, Description: app.Description, WebURL: presentationWebURL(app.Metadata), SigningNotice: sanitizeSigningNotice(app.Metadata[signingNoticeMetadataKey]), Storefronts: publicStorefrontSnapshots(app.Storefronts), Platforms: []publicAssetSnapshot{}}
 		for _, asset := range app.Platforms {
 			projection.Platforms = append(projection.Platforms, publicAssetSnapshot{AppKey: asset.AppKey, Platform: asset.Platform, ReleaseVersion: asset.ReleaseVersion, ReleaseNotes: asset.ReleaseNotes, Checksum: asset.Checksum, RequiresEntitlement: asset.RequiresEntitlement, SigningNotice: sanitizeSigningNotice(asset.Metadata[signingNoticeMetadataKey])})
 		}
@@ -606,4 +614,17 @@ func publicOwnerSnapshotRef(pricing *commerce.PricingOverview, downloads []deliv
 	data, _ := json.Marshal(value)
 	digest := sha256.Sum256(data)
 	return hex.EncodeToString(digest[:])
+}
+
+func publicStorefrontSnapshots(values []delivery.Storefront) []publicStorefrontSnapshot {
+	result := make([]publicStorefrontSnapshot, 0, len(values))
+	for _, storefront := range values {
+		normalized, err := delivery.NormalizeStorefrontLinks([]delivery.Storefront{storefront})
+		if err != nil {
+			continue
+		}
+		value := normalized[0]
+		result = append(result, publicStorefrontSnapshot{Store: value.Store, Label: value.Label, URL: value.URL, Badge: value.Badge})
+	}
+	return result
 }

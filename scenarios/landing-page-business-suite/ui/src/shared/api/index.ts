@@ -3,6 +3,7 @@ export * from './common';
 export * from './health';
 export * from './landing';
 export * from './downloads';
+export * from './storefronts';
 export * from './remoteProfiles';
 export * from './account';
 export * from './auth';

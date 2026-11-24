@@ -23,14 +23,50 @@ func (p *routedTestStorageProvider) New(context.Context, StorageSettings) (Stora
 	return p.storage, nil
 }
 
-type routedTestStorage struct{}
+type routedTestStorage struct {
+	getURL string
+	putURL string
+}
+
+func TestValidatePresignedURL(t *testing.T) {
+	tests := []struct {
+		name    string
+		url     string
+		wantErr bool
+	}{
+		{name: "signed HTTPS query", url: "https://storage.example/object?signature=temporary"},
+		{name: "relative URL", url: "/object", wantErr: true},
+		{name: "HTTP URL", url: "http://storage.example/object", wantErr: true},
+		{name: "userinfo URL", url: "https://user@storage.example/object", wantErr: true},
+		{name: "fragment URL", url: "https://storage.example/object#fragment", wantErr: true},
+		{name: "empty fragment marker", url: "https://storage.example/object#", wantErr: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := validatePresignedURL(test.url)
+			if (err != nil) != test.wantErr {
+				t.Fatalf("validatePresignedURL() error = %v, wantErr %v", err, test.wantErr)
+			}
+			if err == nil && got != test.url {
+				t.Fatalf("validated URL = %q, want %q", got, test.url)
+			}
+		})
+	}
+}
 
 func (routedTestStorage) TestConnection(context.Context, string) error { return nil }
-func (routedTestStorage) PresignGet(context.Context, string, string, time.Duration) (string, error) {
+
+func (s routedTestStorage) PresignGet(context.Context, string, string, time.Duration) (string, error) {
+	if s.getURL != "" {
+		return s.getURL, nil
+	}
 	return "https://leased.example/presigned", nil
 }
-func (routedTestStorage) PresignPut(context.Context, string, string, time.Duration, string) (string, map[string]string, error) {
-	return "", nil, nil
+func (s routedTestStorage) PresignPut(context.Context, string, string, time.Duration, string) (string, map[string]string, error) {
+	if s.putURL != "" {
+		return s.putURL, map[string]string{"content-type": "application/octet-stream"}, nil
+	}
+	return "https://leased.example/upload", nil, nil
 }
 func (routedTestStorage) HeadObject(context.Context, string, string) (string, int64, string, error) {
 	return "", 0, "", nil
@@ -137,13 +173,24 @@ func TestStrictRoutedStorePresignUsesLeaseAndRefusesMissingOrExpiredLease(t *tes
 	if provider.newCalls != 1 {
 		t.Fatalf("provider construction calls = %d, want 1", provider.newCalls)
 	}
+	provider.storage = routedTestStorage{getURL: "javascript:alert(1)"}
+	if _, err := service.PresignGetArtifact(ctx, "business-suite", Artifact{Bucket: "leased-bucket", ObjectKey: "asset.bin"}); err == nil {
+		t.Fatal("unsafe managed download URL was returned")
+	}
+	provider.storage = routedTestStorage{putURL: "http://storage.example/upload"}
+	if _, err := service.PresignUpload(ctx, "business-suite", PresignUploadRequest{Filename: "app.zip", AppKey: "app", Platform: "linux", ReleaseVersion: "1.0.0"}); err == nil {
+		t.Fatal("insecure upload URL was returned")
+	}
+	if provider.newCalls != 3 {
+		t.Fatalf("provider construction calls after unsafe URLs = %d, want 3", provider.newCalls)
+	}
 
 	clock.Advance(2 * time.Minute)
 	if _, err := service.PresignGetArtifact(ctx, "business-suite", Artifact{Bucket: "primary-bucket", ObjectKey: "asset.bin"}); err == nil {
 		t.Fatal("expired lease reached primary settings or provider")
 	}
-	if provider.newCalls != 1 {
-		t.Fatalf("expired lease constructed provider %d times, want 1", provider.newCalls)
+	if provider.newCalls != 3 {
+		t.Fatalf("expired lease constructed provider %d times, want 3", provider.newCalls)
 	}
 
 	if got := routed.LeaseStats().PrimaryDuringTestModeRequests; got != 0 {

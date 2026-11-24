@@ -40,11 +40,11 @@ func protoResponse(response Response) *lpbsv1.CheckDeploymentReadinessResponse {
 	return result
 }
 
-// RegisterConnectRoutes mounts the typed deployment readiness endpoint with
-// the same admin-or-service authorization policy as the legacy REST route.
-func RegisterConnectRoutes(router *mux.Router, deps Dependencies, requireAdminOrService func(http.HandlerFunc) http.HandlerFunc) {
+// RegisterConnectRoutes mounts deployment readiness behind its scoped service
+// identity or an interactive LPBS admin session.
+func RegisterConnectRoutes(router *mux.Router, deps Dependencies, requireDeploymentPrincipal func(http.HandlerFunc) http.HandlerFunc) {
 	_, generated := lpbsconnect.NewDeploymentServiceHandler(NewConnectHandler(deps))
-	router.Handle(lpbsconnect.DeploymentServiceCheckReadinessProcedure, requireAdminOrService(generated.ServeHTTP)).Methods(http.MethodPost)
+	router.Handle(lpbsconnect.DeploymentServiceCheckReadinessProcedure, requireDeploymentPrincipal(generated.ServeHTTP)).Methods(http.MethodPost)
 }
 
 var _ lpbsconnect.DeploymentServiceHandler = (*ConnectHandler)(nil)

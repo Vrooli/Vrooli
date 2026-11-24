@@ -38,13 +38,20 @@ func (d *Door) publicReceipt(w http.ResponseWriter, r *http.Request, key Key) {
 		return
 	}
 	if result.Status == "pending" {
-		// Only an authenticated, matching durable claim may reach the private
-		// recovery owner. Recovery can settle a hold but can never dispatch.
-		_ = d.recover(r.Context(), key, operation)
-		result, err = d.accountingReceipt(r.Context(), key, operation)
-		if err != nil {
+		gatewayRun, markerErr := d.Keys.IsGatewayRun(r.Context(), operation, key)
+		if markerErr != nil {
 			fail(w, http.StatusServiceUnavailable, "receipt unavailable")
 			return
+		}
+		if !gatewayRun {
+			// Only an authenticated, matching durable claim may reach the private
+			// recovery owner. Recovery can settle a hold but can never dispatch.
+			_ = d.recover(r.Context(), key, operation)
+			result, err = d.accountingReceipt(r.Context(), key, operation)
+			if err != nil {
+				fail(w, http.StatusServiceUnavailable, "receipt unavailable")
+				return
+			}
 		}
 	}
 	status := http.StatusOK

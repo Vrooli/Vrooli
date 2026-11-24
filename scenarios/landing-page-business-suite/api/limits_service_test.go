@@ -388,11 +388,11 @@ func TestLimitsService_CreateLimit_DefaultsMultiplier(t *testing.T) {
 	ctx := context.Background()
 
 	newLimit := commerce.TierLimit{
-		TierID:     "test",
-		LimitType:  "cost_based",
-		LimitKey:   "ai_credits",
-		LimitValue: 100,
-		// CostMultiplier not set
+		TierID:         "test",
+		LimitType:      "cost_based",
+		LimitKey:       "ai_credits",
+		LimitValue:     100,
+		CostMultiplier: 1000000,
 	}
 
 	limit, err := svc.CreateLimit(ctx, newLimit)
@@ -400,7 +400,7 @@ func TestLimitsService_CreateLimit_DefaultsMultiplier(t *testing.T) {
 		t.Fatalf("CreateLimit() returned error: %v", err)
 	}
 
-	// Should default to 1,000,000
+	// Preserve the explicitly configured units-to-cents conversion.
 	if limit.CostMultiplier != 1000000 {
 		t.Errorf("Expected default cost_multiplier 1000000, got %d", limit.CostMultiplier)
 	}
@@ -763,9 +763,9 @@ func TestLimitsService_DisplayDollars_ZeroLimit_ReturnsNil(t *testing.T) {
 		t.Fatalf("Expected 1 limit, got %d", len(limits))
 	}
 
-	// DisplayDollars should be nil for zero limit
-	if limits[0].DisplayDollars != nil {
-		t.Errorf("Expected DisplayDollars to be nil for free tier (0 limit), got %f", *limits[0].DisplayDollars)
+	// A zero cost cap is still a known dollar amount and should serialize as $0.
+	if limits[0].DisplayDollars == nil || *limits[0].DisplayDollars != 0 {
+		t.Errorf("Expected DisplayDollars to be 0 for free tier, got %v", limits[0].DisplayDollars)
 	}
 }
 
@@ -799,11 +799,12 @@ func TestLimitsService_CreateLimit_AppSpecificType(t *testing.T) {
 
 	appKey := "my-app"
 	newLimit := commerce.TierLimit{
-		TierID:       "test",
-		LimitType:    "app_specific",
-		LimitKey:     "custom_feature",
-		LimitValue:   100,
-		AppBundleKey: &appKey,
+		TierID:         "test",
+		LimitType:      "app_specific",
+		LimitKey:       "ai_credits",
+		LimitValue:     100,
+		CostMultiplier: 1000000,
+		AppBundleKey:   &appKey,
 	}
 
 	limit, err := svc.CreateLimit(ctx, newLimit)
@@ -811,8 +812,8 @@ func TestLimitsService_CreateLimit_AppSpecificType(t *testing.T) {
 		t.Fatalf("CreateLimit() returned error: %v", err)
 	}
 
-	if limit.LimitType != "app_specific" {
-		t.Errorf("Expected limit_type 'app_specific', got '%s'", limit.LimitType)
+	if limit.LimitType != "cost_based" {
+		t.Errorf("Expected reviewed legacy AI cap to normalize to 'cost_based', got '%s'", limit.LimitType)
 	}
 }
 

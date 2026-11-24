@@ -134,7 +134,7 @@ func TestJ2_ReleasedKeyClaimCannotRedispatchAfterTopup(t *testing.T) {
 
 func TestJ1_AccountTierAndExactAppCapsGovernDoor(t *testing.T) {
 	s := newSpine(t)
-	if _, err := s.db.Exec(`INSERT INTO subscriptions(subscription_id,business_account_id,status,plan_tier) VALUES('paid','account','active','pro');INSERT INTO subscription_tier_limits(tier_id,limit_type,limit_key,limit_value,cost_multiplier) VALUES('pro','cost_based','ai_credits',10000,2000000);INSERT INTO subscription_tier_limits(tier_id,limit_type,limit_key,limit_value,cost_multiplier,app_bundle_key) VALUES('pro','app_specific','ai_credits',1000,2000000,'journey')`); err != nil {
+	if _, err := s.db.Exec(`INSERT INTO subscriptions(subscription_id,business_account_id,status,plan_tier) VALUES('paid','account','active','pro');INSERT INTO subscription_tier_limits(tier_id,limit_type,limit_key,limit_value,cost_multiplier) VALUES('pro','cost_based','ai_credits',10000,2000000);INSERT INTO subscription_tier_limits(tier_id,limit_type,limit_key,limit_value,cost_multiplier,app_bundle_key) VALUES('pro','app_specific','ai_credits',1000,2000000,'web-console')`); err != nil {
 		t.Fatal(err)
 	}
 	resp := s.request(t, s.key.Token, "paid-first", "hello")
@@ -151,26 +151,27 @@ func TestJ1_AccountTierAndExactAppCapsGovernDoor(t *testing.T) {
 	assertCharged(t, s, 400)
 }
 
-func TestJ1_UnverifiedGlobalKeyCannotEvadeAppCaps(t *testing.T) {
+func TestJ1_GlobalCreditKeyWithoutAppScopeIsRefused(t *testing.T) {
 	s := newSpine(t)
-	key, err := (aidoor.KeyStore{DB: s.db}).IssueDevice(context.Background(), "account", "actor", "", 10000)
-	if err != nil {
+	var before int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM ai_access_keys`).Scan(&before); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.db.Exec(`INSERT INTO subscription_tier_limits(tier_id,limit_type,limit_key,limit_value,cost_multiplier,app_bundle_key) VALUES('free','app_specific','ai_credits',1000,1000000,'protected-app')`); err != nil {
+	if _, err := (aidoor.KeyStore{DB: s.db}).IssueDevice(context.Background(), "account", "actor", "", 10000); err == nil {
+		t.Fatal("global credit key without an app scope was issued")
+	}
+	var after int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM ai_access_keys`).Scan(&after); err != nil {
 		t.Fatal(err)
 	}
-	resp := s.request(t, key.Token, "unverified-app", "hello")
-	io.Copy(io.Discard, resp.Body)
-	if resp.StatusCode != 503 {
-		t.Fatalf("unverified app evaded configured cap: %d", resp.StatusCode)
+	if after != before {
+		t.Fatalf("app-scope refusal wrote a key: before=%d after=%d", before, after)
 	}
-	assertCharged(t, s, 0)
 }
 
 func TestJ1_ExactAppCapIncludesConcurrentHolds(t *testing.T) {
 	s := newSpine(t)
-	if _, err := s.db.Exec(`INSERT INTO subscription_tier_limits(tier_id,limit_type,limit_key,limit_value,cost_multiplier,app_bundle_key) VALUES('free','app_specific','ai_credits',1000,1000000,'journey')`); err != nil {
+	if _, err := s.db.Exec(`INSERT INTO subscription_tier_limits(tier_id,limit_type,limit_key,limit_value,cost_multiplier,app_bundle_key) VALUES('free','app_specific','ai_credits',1000,1000000,'web-console')`); err != nil {
 		t.Fatal(err)
 	}
 	var group sync.WaitGroup

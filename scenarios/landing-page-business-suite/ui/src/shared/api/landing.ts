@@ -20,6 +20,7 @@ import { normalizeTimestampOrNow } from '../lib/protobuf-utils';
 import { isRecord } from '../lib/utils';
 import { LandingConfigResponseSchema, PricingOverviewSchema } from './schemas';
 import { parseOrThrow } from './safeParse';
+import { normalizeStorefrontLink } from './storefronts';
 
 const pricingClient = createClient(
   PricingService,
@@ -191,9 +192,15 @@ function normalizeDownloads(value: unknown): JsonRecord[] {
       screenshot_url: stringValue(field(app, 'screenshot_url', 'screenshotUrl')) || undefined,
       install_overview: stringValue(field(app, 'install_overview', 'installOverview')) || undefined,
       install_steps: arrayValue(field(app, 'install_steps', 'installSteps')).filter((step): step is string => typeof step === 'string'),
-      storefronts: arrayValue(field(app, 'storefronts', 'storefronts')).map((storefront) => {
+      storefronts: arrayValue(field(app, 'storefronts', 'storefronts')).flatMap((storefront) => {
         const value = asRecord(storefront);
-        return { store: stringValue(field(value, 'store', 'store')), label: stringValue(field(value, 'label', 'label')), url: stringValue(field(value, 'url', 'url')), badge: stringValue(field(value, 'badge', 'badge')) || undefined };
+        const normalized = normalizeStorefrontLink({
+          store: stringValue(field(value, 'store', 'store')),
+          label: stringValue(field(value, 'label', 'label')),
+          url: stringValue(field(value, 'url', 'url')),
+          badge: stringValue(field(value, 'badge', 'badge')) || undefined,
+        });
+        return normalized ? [normalized] : [];
       }),
       metadata: normalizeStruct(field(app, 'metadata', 'metadata')),
       display_order: field(app, 'display_order', 'displayOrder') == null ? undefined : numberValue(field(app, 'display_order', 'displayOrder')),

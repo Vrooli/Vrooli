@@ -11,11 +11,12 @@ func TestAdminMFARequiredDerivesFromEitherEnvironmentVariable(t *testing.T) {
 		lpbs, vrooli string
 		want         bool
 	}{
-		"control plane production only": {"", "production", true},
-		"scenario production only":      {"production", "", true},
-		"prod shorthand":                {"", "prod", true},
-		"development":                   {"development", "", false},
-		"nothing declared":              {"", "", false},
+		"control plane production only":                    {"", "production", true},
+		"local development default cannot mask production": {"development", "production", true},
+		"scenario production only":                         {"production", "", true},
+		"prod shorthand":                                   {"", "prod", true},
+		"development":                                      {"development", "", false},
+		"nothing declared":                                 {"", "", false},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Setenv("ADMIN_REQUIRE_MFA", "")

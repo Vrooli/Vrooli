@@ -148,6 +148,19 @@ func newServiceOrderSandbox(t *testing.T, verifier commerce.ServiceOrderVerifier
 	if err != nil {
 		t.Fatal(err)
 	}
+	target := commerce.PY1TestLedgerTarget{AdapterID: config["adapter"], BookID: config["book"], RevenueAccountID: config["service_order_revenue"]}
+	if err := writer.ValidatePY1Target(target); err != nil {
+		t.Fatalf("fixture did not prove its configured PY1 target: %v", err)
+	}
+	derivedTarget, err := writer.PY1Target()
+	if err != nil || derivedTarget != target {
+		t.Fatalf("fixture-derived PY1 target = %+v, err=%v; want %+v", derivedTarget, err, target)
+	}
+	wrongTarget := target
+	wrongTarget.RevenueAccountID = "unrelated-account"
+	if err := writer.ValidatePY1Target(wrongTarget); err == nil {
+		t.Fatal("fixture accepted a PY1 revenue account outside its scope")
+	}
 	provider.treasuryLedger = writer
 	provider.treasuryAdapter = config["adapter"]
 	provider.treasuryBook = config["book"]

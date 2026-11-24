@@ -8,54 +8,6 @@ declare global {
 
 type ProtoSchema<_T> = unknown;
 
-declare module '@vrooli/proto-types/landing-page-business-suite/v1/billing_pb' {
-  import type { Message } from '@bufbuild/protobuf';
-  import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
-  export enum SubscriptionState {
-    UNSPECIFIED = 0,
-    ACTIVE = 1,
-    TRIALING = 2,
-    PAST_DUE = 3,
-    CANCELED = 4,
-  }
-
-  export interface SubscriptionStatus {
-    state?: SubscriptionState;
-    subscriptionId?: string;
-    userIdentity?: string;
-    planTier?: string;
-    stripePriceId?: string;
-    bundleKey?: string;
-    cachedAt?: { toJsonString?: () => string };
-  }
-
-  export interface VerifySubscriptionResponse {
-    status?: SubscriptionStatus;
-  }
-
-  export const VerifySubscriptionResponseSchema: ProtoSchema<VerifySubscriptionResponse>;
-
-  export enum SessionKind {
-    UNSPECIFIED = 0,
-    SUBSCRIPTION = 1,
-    CREDITS_TOPUP = 2,
-    SUPPORTER_CONTRIBUTION = 3,
-  }
-  export interface CheckoutSession { sessionId: string; url: string; sessionKind: SessionKind; status: number; publishableKey: string; customerEmail: string; stripePriceId: string; amountCents: bigint; currency: string; successUrl: string; cancelUrl: string; }
-  export interface CreateCheckoutSessionRequest extends Message<'landing_page_business_suite.v1.CreateCheckoutSessionRequest'> { priceId: string; customerEmail: string; successUrl: string; cancelUrl: string; sessionKind: SessionKind; businessAccountId: string; }
-  export interface CreateCheckoutSessionResponse extends Message<'landing_page_business_suite.v1.CreateCheckoutSessionResponse'> { session?: CheckoutSession; }
-  export interface GetBillingPortalRequest extends Message<'landing_page_business_suite.v1.GetBillingPortalRequest'> { returnUrl: string; }
-  export interface BillingPortalResponse extends Message<'landing_page_business_suite.v1.BillingPortalResponse'> { url: string; }
-  export const CreateCheckoutSessionRequestSchema: GenMessage<CreateCheckoutSessionRequest>;
-  export const CreateCheckoutSessionResponseSchema: GenMessage<CreateCheckoutSessionResponse>;
-  export const GetBillingPortalRequestSchema: GenMessage<GetBillingPortalRequest>;
-  export const BillingPortalResponseSchema: GenMessage<BillingPortalResponse>;
-  export const LandingPagePaymentsService: GenService<{
-    createCheckoutSession: { methodKind: 'unary'; input: typeof CreateCheckoutSessionRequestSchema; output: typeof CreateCheckoutSessionResponseSchema };
-    getBillingPortal: { methodKind: 'unary'; input: typeof GetBillingPortalRequestSchema; output: typeof BillingPortalResponseSchema };
-  }>;
-}
-
 declare module '@vrooli/proto-types/landing-page-business-suite/v1/assets_pb' {
   import type { Message } from '@bufbuild/protobuf';
   import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';

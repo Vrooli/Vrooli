@@ -680,7 +680,10 @@ func assetRefs(content BlockContent) []string {
 		}
 		return result
 	case ProductDemoContent:
-		return []string{typed.PosterRef, typed.MediaRef}
+		// Local MP4 media_ref is a byte hash served by the separate protected
+		// presentation-media owner. Only the poster participates in released
+		// image asset resolution and the Backdrop verifier.
+		return nonEmpty(typed.PosterRef)
 	case ProductStoryContent:
 		result := []string{}
 		for _, item := range typed.Items {

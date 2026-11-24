@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { create, fromBinary, toBinary } from '@bufbuild/protobuf';
+import { CreateCheckoutSessionRequestSchema } from '@vrooli/proto-types/landing-page-business-suite/v1/billing_pb';
 import * as billing from './billing';
 import { apiCall } from './common';
 
@@ -111,6 +113,32 @@ describe('billing API transport', () => {
     expect(paymentsClient.createCheckoutSession).toHaveBeenCalledWith(expect.objectContaining({ priceId: 'price_credits' }));
     expect(paymentsClient.getBillingPortal).toHaveBeenCalledWith({ returnUrl: '' });
     expect(paymentsClient.getBillingPortal).toHaveBeenCalledWith({ returnUrl: 'https://app.example/return' });
+  });
+
+  it('preserves checkout visitor attribution in the generated protobuf request wire payload', async () => {
+    const connectCheckout = { sessionId: 'cs_attributed', url: 'https://checkout.stripe.example/attributed', customerEmail: '', stripePriceId: '', amountCents: 0n, currency: '', successUrl: '', cancelUrl: '' };
+    paymentsClient.createCheckoutSession.mockResolvedValueOnce({ session: connectCheckout });
+
+    await expect(billing.createCheckoutSession({
+      price_id: 'price_attributed',
+      customer_email: 'buyer@example.test',
+      attribution: {
+        visitor_id: 'visitor_123', session_id: 'session_456', variant_slug: 'spring', landing_path: '/plans',
+        utm_source: 'newsletter', utm_medium: 'email', utm_campaign: 'spring-launch', referrer: 'https://referrer.example.test/',
+      },
+    })).resolves.toMatchObject({ session_id: 'cs_attributed' });
+
+    const request = paymentsClient.createCheckoutSession.mock.calls[0]?.[0];
+    expect(request).toMatchObject({
+      visitorId: 'visitor_123', sessionId: 'session_456', variantSlug: 'spring', landingPath: '/plans',
+      utmSource: 'newsletter', utmMedium: 'email', utmCampaign: 'spring-launch',
+    });
+    const generatedRequest = create(CreateCheckoutSessionRequestSchema, request);
+    const decoded = fromBinary(CreateCheckoutSessionRequestSchema, toBinary(CreateCheckoutSessionRequestSchema, generatedRequest));
+    expect(decoded).toMatchObject({
+      visitorId: 'visitor_123', sessionId: 'session_456', variantSlug: 'spring', landingPath: '/plans',
+      utmSource: 'newsletter', utmMedium: 'email', utmCampaign: 'spring-launch',
+    });
   });
 
   it('preserves populated generated checkout fields in the legacy UI shape', async () => {

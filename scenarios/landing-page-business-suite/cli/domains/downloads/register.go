@@ -2,6 +2,9 @@ package downloads
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/sha512"
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -51,6 +54,27 @@ func client(deps support.Dependencies) (lpbsconnect.DownloadServiceClient, error
 		return nil, err
 	}
 	return lpbsconnect.NewDownloadServiceClient(httpClient, baseURL), nil
+}
+
+type artifactDigestReader struct {
+	reader    io.Reader
+	digest    io.Writer
+	bytesRead int64
+}
+
+func (r *artifactDigestReader) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	if n > 0 {
+		written, writeErr := r.digest.Write(p[:n])
+		if writeErr != nil {
+			return written, writeErr
+		}
+		if written != n {
+			return written, io.ErrShortWrite
+		}
+		r.bytesRead += int64(n)
+	}
+	return n, err
 }
 
 func listAppsCommand(deps support.Dependencies) cliapp.Command {
@@ -186,12 +210,6 @@ func runUploadManaged(deps support.Dependencies, args []string) error {
 	}
 
 	sha512Value := strings.TrimSpace(*sha512Flag)
-	if sha512Value == "" {
-		sha512Value, err = support.ComputeSHA512(pathValue)
-		if err != nil {
-			return fmt.Errorf("compute sha512: %w", err)
-		}
-	}
 
 	contentTypeValue := support.ResolveContentType(pathValue, strings.TrimSpace(*contentType))
 	remoteProfileID := strings.TrimSpace(*remoteProfile)
@@ -241,7 +259,9 @@ func runUploadManaged(deps support.Dependencies, args []string) error {
 		return fmt.Errorf("stat artifact file: %w", err)
 	}
 
-	uploadReq, err := http.NewRequest("PUT", presignResp.UploadURL, artifactFile)
+	sha256Hash, sha512Hash := sha256.New(), sha512.New()
+	stream := &artifactDigestReader{reader: artifactFile, digest: io.MultiWriter(sha256Hash, sha512Hash)}
+	uploadReq, err := http.NewRequest("PUT", presignResp.UploadURL, stream)
 	if err != nil {
 		return fmt.Errorf("create upload request: %w", err)
 	}
@@ -272,6 +292,16 @@ func runUploadManaged(deps support.Dependencies, args []string) error {
 		}
 		return fmt.Errorf("upload failed (%d)", uploadResp.StatusCode)
 	}
+	if stream.bytesRead != artifactInfo.Size() {
+		return fmt.Errorf("uploaded artifact changed while reading: sent %d bytes, expected %d", stream.bytesRead, artifactInfo.Size())
+	}
+	sha256Value := fmt.Sprintf("%x", sha256Hash.Sum(nil))
+	computedSHA512 := base64.StdEncoding.EncodeToString(sha512Hash.Sum(nil))
+	if sha512Value == "" {
+		sha512Value = computedSHA512
+	} else if sha512Value != computedSHA512 {
+		return fmt.Errorf("provided sha512 does not match the bytes uploaded")
+	}
 
 	commitRespBytes, err := deps.RequestAdminJSON(remoteProfileID, "POST", "/admin/download-artifacts/commit", map[string]interface{}{
 		"bucket":            presignResp.Bucket,
@@ -281,6 +311,7 @@ func runUploadManaged(deps support.Dependencies, args []string) error {
 		"app_key":           appKeyValue,
 		"platform":          platformValue,
 		"release_version":   releaseVersionValue,
+		"sha256":            sha256Value,
 		"sha512":            sha512Value,
 	})
 	if err != nil {

@@ -3,6 +3,7 @@ package commerce
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -51,6 +52,39 @@ type BusinessAccountUsageSummary struct {
 	Remaining         map[string]int64   `json:"remaining"`
 	DisplayCredits    map[string]float64 `json:"display_credits"`
 	Wallet            *AccountWalletView `json:"wallet,omitempty"`
+}
+
+// BrowserSessionReceipt is the customer-readable, finalized receipt for one
+// browser session reservation. It intentionally omits the AM grant, BAS proof,
+// run ID and raw session identifier; authorization is performed against the
+// owning business account before this value is returned.
+type BrowserSessionReceipt struct {
+	ReservationID       string                    `json:"reservation_id"`
+	Status              string                    `json:"status"`
+	BusinessAccountID   string                    `json:"business_account_id"`
+	Provider            string                    `json:"provider"`
+	Model               string                    `json:"model"`
+	CostMicros          int64                     `json:"cost_micros"`
+	PromptTokens        int64                     `json:"prompt_tokens"`
+	CompletionTokens    int64                     `json:"completion_tokens"`
+	CreditsCharged      int64                     `json:"credits_charged"`
+	SessionMinutes      int64                     `json:"browser_session_minutes"`
+	Actions             int64                     `json:"browser_actions"`
+	Bytes               int64                     `json:"browser_bytes"`
+	SettledAt           *time.Time                `json:"settled_at,omitempty"`
+	InferenceOperations []BrowserInferenceReceipt `json:"inference_operations,omitempty"`
+}
+
+// BrowserInferenceReceipt retains each immutable Gateway child so a session
+// with more than one provider/model does not collapse into an ambiguous label.
+type BrowserInferenceReceipt struct {
+	RootOperationID  string `json:"root_operation_id"`
+	Provider         string `json:"provider"`
+	Model            string `json:"model"`
+	CreditsCharged   int64  `json:"credits_charged"`
+	CostMicros       int64  `json:"cost_micros"`
+	PromptTokens     int64  `json:"prompt_tokens"`
+	CompletionTokens int64  `json:"completion_tokens"`
 }
 
 func NewBusinessAccountUsageService(opts BusinessAccountUsageOptions) *BusinessAccountUsageService {
@@ -111,6 +145,56 @@ func (s *BusinessAccountUsageService) ReserveCredits(ctx context.Context, accoun
 // replay. Callers that dispatch a provider must use created to avoid dispatching twice.
 func (s *BusinessAccountUsageService) ReserveCreditsWithID(ctx context.Context, account, actor, tier, key string, amount int64, operation string) (string, bool, error) {
 	return s.ReserveScopedCreditsWithID(ctx, account, actor, tier, key, "", amount, operation)
+}
+
+// BindBrowserEvidenceToReservation claims one broker proof fingerprint for a
+// pending LPBS hold before provider dispatch. A proof can bind to only one
+// reservation; an identical retry on that hold is idempotent.
+func (s *BusinessAccountUsageService) BindBrowserEvidenceToReservation(ctx context.Context, accountID, reservationID, runID, fingerprint string) error {
+	accountID, reservationID, runID = strings.TrimSpace(accountID), strings.TrimSpace(reservationID), strings.TrimSpace(runID)
+	if s.db == nil || accountID == "" || reservationID == "" || runID == "" || len(fingerprint) != 64 {
+		return errors.New("account, reservation, browser run, and SHA-256 evidence fingerprint are required")
+	}
+	if _, err := hex.DecodeString(fingerprint); err != nil {
+		return errors.New("browser evidence fingerprint must be a SHA-256 digest")
+	}
+	tx, err := s.beginAccountTransaction(ctx, accountID)
+	if err != nil {
+		return fmt.Errorf("begin browser evidence binding: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	query := `SELECT status,browser_run_id,browser_evidence_fingerprint FROM business_account_credit_reservations WHERE id=? AND business_account_id=?`
+	if s.dialect != "sqlite" {
+		query = `SELECT status,browser_run_id,browser_evidence_fingerprint FROM business_account_credit_reservations WHERE id=$1 AND business_account_id=$2 FOR UPDATE`
+	}
+	var status, existingRun, existingFingerprint string
+	if err := tx.QueryRowContext(ctx, query, reservationID, accountID).Scan(&status, &existingRun, &existingFingerprint); err != nil {
+		return fmt.Errorf("load browser evidence reservation: %w", err)
+	}
+	if status != string(reservationstate.ReservationPending) {
+		return errors.New("browser evidence can bind only to a pending LPBS reservation")
+	}
+	if existingFingerprint == fingerprint && existingRun == runID {
+		return nil
+	}
+	if existingFingerprint != "" {
+		return errors.New("LPBS reservation is already bound to different browser evidence")
+	}
+	update := `UPDATE business_account_credit_reservations SET browser_run_id=?,browser_evidence_fingerprint=? WHERE id=? AND business_account_id=? AND status=? AND browser_evidence_fingerprint=''`
+	if s.dialect != "sqlite" {
+		update = `UPDATE business_account_credit_reservations SET browser_run_id=$1,browser_evidence_fingerprint=$2 WHERE id=$3 AND business_account_id=$4 AND status=$5 AND browser_evidence_fingerprint=''`
+	}
+	result, err := tx.ExecContext(ctx, update, runID, fingerprint, reservationID, accountID, string(reservationstate.ReservationPending))
+	if err != nil {
+		return fmt.Errorf("claim browser evidence for LPBS reservation: %w", err)
+	}
+	if affected, err := result.RowsAffected(); err != nil || affected != 1 {
+		if err != nil {
+			return fmt.Errorf("verify browser evidence binding: %w", err)
+		}
+		return errors.New("LPBS reservation could not claim browser evidence")
+	}
+	return tx.Commit()
 }
 
 // ReserveScopedCreditsWithID pins the authenticated app with the hold and checks
@@ -281,15 +365,53 @@ func (s *BusinessAccountUsageService) reserveCreditsInTransaction(ctx context.Co
 // FinalizeReservationWithCost settles exactly once. A replay with identical
 // measured usage succeeds; conflicting settlement data is rejected.
 func (s *BusinessAccountUsageService) FinalizeReservationWithCost(ctx context.Context, accountID, reservationID string, actualAmount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider string) error {
-	return s.FinalizeFeatureReservationWithCost(ctx, accountID, reservationID, actualAmount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider, "")
+	return s.FinalizeReservationWithBrowserUsage(ctx, accountID, reservationID, actualAmount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider, 0, 0, 0, "", "", "")
+}
+
+// FinalizeReservationWithBrowserUsage stores browser workload beside the model
+// usage in the same account receipt and reservation settlement.
+func (s *BusinessAccountUsageService) FinalizeReservationWithBrowserUsage(ctx context.Context, accountID, reservationID string, actualAmount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider string, sessionMinutes, actions, bytes int64, runID, sessionID, evidenceFingerprint string) error {
+	return s.finalizeFeatureReservationWithBrowserUsage(ctx, accountID, reservationID, actualAmount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider, "", sessionMinutes, actions, bytes, runID, sessionID, evidenceFingerprint, "")
+}
+
+// FinalizeBrowserSessionAggregate reconciles one closed BAS session onto its
+// single LPBS hold. The transaction checks the pre-dispatch grant/run/session
+// binding and exact sum of all immutable Gateway child receipts before it
+// records provider totals and BAS-measured browser time together.
+func (s *BusinessAccountUsageService) FinalizeBrowserSessionAggregate(ctx context.Context, accountID, reservationID, runID, sessionID, grantFingerprint, evidenceFingerprint, appBundleKey string, aggregate BrowserGatewayAggregate, sessionMinutes, actions, bytes int64) error {
+	if aggregate.Operations == 0 {
+		return errors.New("browser session cannot settle without a Gateway operation receipt")
+	}
+	if aggregate.Credits < 0 || aggregate.CostMicros < 0 || aggregate.PromptTokens < 0 || aggregate.CompletionTokens < 0 || aggregate.PromptTokens > math.MaxInt || aggregate.CompletionTokens > math.MaxInt {
+		return errors.New("browser Gateway aggregate is outside supported settlement bounds")
+	}
+	return s.finalizeFeatureReservationWithBrowserUsage(ctx, accountID, reservationID, aggregate.Credits, appBundleKey, "multiple", aggregate.CostMicros, int(aggregate.PromptTokens), int(aggregate.CompletionTokens), "ai-gateway-session", "", sessionMinutes, actions, bytes, runID, sessionID, evidenceFingerprint, grantFingerprint)
 }
 
 // FinalizeFeatureReservationWithCost retains the server-selected feature with
 // the immutable settlement. A replay cannot change that attribution.
 func (s *BusinessAccountUsageService) FinalizeFeatureReservationWithCost(ctx context.Context, accountID, reservationID string, actualAmount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider, feature string) error {
+	return s.finalizeFeatureReservationWithBrowserUsage(ctx, accountID, reservationID, actualAmount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider, feature, 0, 0, 0, "", "", "", "")
+}
+
+func (s *BusinessAccountUsageService) finalizeFeatureReservationWithBrowserUsage(ctx context.Context, accountID, reservationID string, actualAmount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider, feature string, sessionMinutes, actions, bytes int64, runID, sessionID, evidenceFingerprint, browserGrantFingerprint string) error {
+	if sessionMinutes < 0 || actions < 0 || bytes < 0 {
+		return errors.New("browser usage counters must be non-negative")
+	}
+	if (sessionMinutes > 0 || actions > 0 || bytes > 0) && (strings.TrimSpace(runID) == "" || strings.TrimSpace(sessionID) == "" || len(evidenceFingerprint) != 64) {
+		return errors.New("browser usage settlement requires BAS run/session identity and evidence fingerprint")
+	}
+	if evidenceFingerprint != "" {
+		if len(evidenceFingerprint) != 64 {
+			return errors.New("browser evidence fingerprint must be a SHA-256 digest")
+		}
+		if _, err := hex.DecodeString(evidenceFingerprint); err != nil {
+			return errors.New("browser evidence fingerprint must be a SHA-256 digest")
+		}
+	}
 	var err error
 	for attempt := 0; attempt < 4; attempt++ {
-		err = s.finalizeReservationOnce(ctx, accountID, reservationID, actualAmount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider, feature)
+		err = s.finalizeReservationOnce(ctx, accountID, reservationID, actualAmount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider, feature, sessionMinutes, actions, bytes, runID, sessionID, evidenceFingerprint, browserGrantFingerprint)
 		if err == nil || !retryableCommerceTransaction(err) || attempt == 3 {
 			return err
 		}
@@ -300,9 +422,9 @@ func (s *BusinessAccountUsageService) FinalizeFeatureReservationWithCost(ctx con
 	return errors.New("settlement retry budget exhausted")
 }
 
-func (s *BusinessAccountUsageService) finalizeReservationOnce(ctx context.Context, accountID, reservationID string, actualAmount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider, feature string) error {
+func (s *BusinessAccountUsageService) finalizeReservationOnce(ctx context.Context, accountID, reservationID string, actualAmount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider, feature string, sessionMinutes, actions, bytes int64, runID, sessionID, evidenceFingerprint, browserGrantFingerprint string) error {
 	accountID, reservationID = strings.TrimSpace(accountID), strings.TrimSpace(reservationID)
-	if s.db == nil || accountID == "" || reservationID == "" || actualAmount < 0 || costMicros < 0 || promptTokens < 0 || completionTokens < 0 {
+	if s.db == nil || accountID == "" || reservationID == "" || actualAmount < 0 || costMicros < 0 || promptTokens < 0 || completionTokens < 0 || sessionMinutes < 0 || actions < 0 || bytes < 0 {
 		return errors.New("business_account_id, reservation_id, and non-negative actual amount are required")
 	}
 	appBundleKey = strings.ToLower(strings.TrimSpace(appBundleKey))
@@ -325,15 +447,42 @@ func (s *BusinessAccountUsageService) finalizeReservationOnce(ctx context.Contex
 	var existingCost sql.NullInt64
 	var existingPrompt, existingCompletion sql.NullInt64
 	var existingMode sql.NullBool
-	selectReservation := `SELECT actor_identity,billing_period,limit_key,status,reserved_amount,actual_amount,charged_amount,overrun_amount,cost_micros,prompt_tokens,completion_tokens,app_bundle_key,model,provider,livemode FROM business_account_credit_reservations WHERE id=? AND business_account_id=?`
+	selectReservation := `SELECT actor_identity,billing_period,limit_key,status,reserved_amount,actual_amount,charged_amount,overrun_amount,cost_micros,prompt_tokens,completion_tokens,app_bundle_key,model,provider,livemode,browser_session_minutes,browser_actions,browser_bytes,browser_run_id,browser_session_id,browser_grant_fingerprint,browser_evidence_fingerprint FROM business_account_credit_reservations WHERE id=? AND business_account_id=?`
 	if s.dialect != "sqlite" {
-		selectReservation = `SELECT actor_identity,billing_period,limit_key,status,reserved_amount,actual_amount,charged_amount,overrun_amount,cost_micros,prompt_tokens,completion_tokens,app_bundle_key,model,provider,livemode FROM business_account_credit_reservations WHERE id=$1 AND business_account_id=$2 FOR UPDATE`
+		selectReservation = `SELECT actor_identity,billing_period,limit_key,status,reserved_amount,actual_amount,charged_amount,overrun_amount,cost_micros,prompt_tokens,completion_tokens,app_bundle_key,model,provider,livemode,browser_session_minutes,browser_actions,browser_bytes,browser_run_id,browser_session_id,browser_grant_fingerprint,browser_evidence_fingerprint FROM business_account_credit_reservations WHERE id=$1 AND business_account_id=$2 FOR UPDATE`
 	}
-	if err := tx.QueryRowContext(ctx, selectReservation, reservationID, accountID).Scan(&actor, &period, &limitKey, &status, &reservedAmount, &existing, &existingCharged, &existingOverrun, &existingCost, &existingPrompt, &existingCompletion, &existingApp, &existingModel, &existingProvider, &existingMode); err != nil {
+	var existingBrowserMinutes, existingBrowserActions, existingBrowserBytes int64
+	var existingRunID, existingSessionID, existingGrantFingerprint, existingEvidenceFingerprint string
+	if err := tx.QueryRowContext(ctx, selectReservation, reservationID, accountID).Scan(&actor, &period, &limitKey, &status, &reservedAmount, &existing, &existingCharged, &existingOverrun, &existingCost, &existingPrompt, &existingCompletion, &existingApp, &existingModel, &existingProvider, &existingMode, &existingBrowserMinutes, &existingBrowserActions, &existingBrowserBytes, &existingRunID, &existingSessionID, &existingGrantFingerprint, &existingEvidenceFingerprint); err != nil {
 		return fmt.Errorf("load business-account reservation: %w", err)
+	}
+	if browserGrantFingerprint != "" {
+		if existingRunID != runID || existingSessionID != sessionID || strings.TrimSpace(existingGrantFingerprint) != browserGrantFingerprint || evidenceFingerprint == "" {
+			return errors.New("closed-session proof does not match the pre-dispatch account, run, grant and BAS session binding")
+		}
+		var count, pending int64
+		var credits, childCost, childPrompt, childCompletion int64
+		children := `SELECT COUNT(*),COUNT(CASE WHEN state<>'settled' THEN 1 END),COALESCE(SUM(credits),0),COALESCE(SUM(cost_micros),0),COALESCE(SUM(prompt_tokens),0),COALESCE(SUM(completion_tokens),0) FROM business_account_browser_gateway_receipts WHERE reservation_id=? AND business_account_id=? AND actor_identity=?`
+		if s.dialect != "sqlite" {
+			children = `SELECT COUNT(*),COUNT(*) FILTER (WHERE state<>'settled'),COALESCE(SUM(credits),0),COALESCE(SUM(cost_micros),0),COALESCE(SUM(prompt_tokens),0),COALESCE(SUM(completion_tokens),0) FROM business_account_browser_gateway_receipts WHERE reservation_id=$1 AND business_account_id=$2 AND actor_identity=$3`
+		}
+		if err := tx.QueryRowContext(ctx, children, reservationID, accountID, actor).Scan(&count, &pending, &credits, &childCost, &childPrompt, &childCompletion); err != nil {
+			return fmt.Errorf("aggregate browser Gateway child receipts: %w", err)
+		}
+		if count == 0 || pending != 0 || credits != actualAmount || childCost != costMicros || childPrompt != int64(promptTokens) || childCompletion != int64(completionTokens) {
+			return errors.New("closed browser session settlement must equal all settled Gateway child receipts")
+		}
 	}
 	if err := reservationFundingMode(existingMode, s.liveMode); err != nil {
 		return err
+	}
+	if browserGrantFingerprint != "" {
+		// The app attribution was bound when the session hold was reserved. A
+		// close callback cannot replace it with caller-selected metadata.
+		appBundleKey = existingApp
+	}
+	if evidenceFingerprint != "" && actualAmount > reservedAmount {
+		return errors.New("browser receipt settlement exceeds its LPBS reservation")
 	}
 	chargedAmount := actualAmount
 	if chargedAmount > reservedAmount {
@@ -347,7 +496,7 @@ func (s *BusinessAccountUsageService) finalizeReservationOnce(ctx context.Contex
 		event = reservationstate.ReservationFinalizeOverrun
 	}
 	if status == string(reservationstate.ReservationFinalized) || status == string(reservationstate.ReservationOverrun) {
-		if status == string(terminalStatus) && existing.Valid && existing.Int64 == actualAmount && existingCharged.Valid && existingCharged.Int64 == chargedAmount && existingOverrun.Valid && existingOverrun.Int64 == overrunAmount && existingCost.Valid && existingCost.Int64 == costMicros && existingPrompt.Valid && existingPrompt.Int64 == int64(promptTokens) && existingCompletion.Valid && existingCompletion.Int64 == int64(completionTokens) && existingApp == appBundleKey && existingModel == model && existingProvider == provider {
+		if status == string(terminalStatus) && existing.Valid && existing.Int64 == actualAmount && existingCharged.Valid && existingCharged.Int64 == chargedAmount && existingOverrun.Valid && existingOverrun.Int64 == overrunAmount && existingCost.Valid && existingCost.Int64 == costMicros && existingPrompt.Valid && existingPrompt.Int64 == int64(promptTokens) && existingCompletion.Valid && existingCompletion.Int64 == int64(completionTokens) && existingApp == appBundleKey && existingModel == model && existingProvider == provider && existingBrowserMinutes == sessionMinutes && existingBrowserActions == actions && existingBrowserBytes == bytes && existingRunID == runID && existingSessionID == sessionID && strings.TrimSpace(existingEvidenceFingerprint) == evidenceFingerprint {
 			return nil
 		}
 		return errors.New("business-account reservation was already settled with different usage")
@@ -372,16 +521,16 @@ func (s *BusinessAccountUsageService) finalizeReservationOnce(ctx context.Contex
 	if _, err := tx.ExecContext(ctx, upsert, upsertArgs...); err != nil {
 		return fmt.Errorf("record business-account usage: %w", err)
 	}
-	if err := s.writeSettlementEvent(ctx, tx, reservationID, businessAccountUsageEvent{accountID: accountID, actor: actor, appKey: appBundleKey, model: model, credits: chargedAmount, costMicros: costMicros, promptTokens: int64(promptTokens), completionTokens: int64(completionTokens), provider: provider}, feature); err != nil {
+	if err := s.writeSettlementEvent(ctx, tx, reservationID, businessAccountUsageEvent{accountID: accountID, actor: actor, appKey: appBundleKey, model: model, credits: chargedAmount, costMicros: costMicros, promptTokens: int64(promptTokens), completionTokens: int64(completionTokens), provider: provider, browserSessionMinutes: sessionMinutes, browserActions: actions, browserBytes: bytes, browserRunID: runID, browserSessionID: sessionID, browserEvidenceFingerprint: evidenceFingerprint}, feature); err != nil {
 		return fmt.Errorf("write business-account usage event: %w", err)
 	}
-	update := `UPDATE business_account_credit_reservations SET status=?,actual_amount=?,charged_amount=?,overrun_amount=?,settled_at=?,app_bundle_key=?,model=?,cost_micros=?,prompt_tokens=?,completion_tokens=?,provider=? WHERE id=? AND business_account_id=? AND status=?`
+	update := `UPDATE business_account_credit_reservations SET status=?,actual_amount=?,charged_amount=?,overrun_amount=?,settled_at=?,app_bundle_key=?,model=?,cost_micros=?,prompt_tokens=?,completion_tokens=?,provider=?,browser_session_minutes=?,browser_actions=?,browser_bytes=?,browser_run_id=?,browser_session_id=?,browser_evidence_fingerprint=? WHERE id=? AND business_account_id=? AND status=?`
 	if s.dialect != "sqlite" {
-		update = `UPDATE business_account_credit_reservations SET status=$1,actual_amount=$2,charged_amount=$3,overrun_amount=$4,settled_at=NOW(),app_bundle_key=$5,model=$6,cost_micros=$7,prompt_tokens=$8,completion_tokens=$9,provider=$10 WHERE id=$11 AND business_account_id=$12 AND status=$13`
+		update = `UPDATE business_account_credit_reservations SET status=$1,actual_amount=$2,charged_amount=$3,overrun_amount=$4,settled_at=NOW(),app_bundle_key=$5,model=$6,cost_micros=$7,prompt_tokens=$8,completion_tokens=$9,provider=$10,browser_session_minutes=$11,browser_actions=$12,browser_bytes=$13,browser_run_id=$14,browser_session_id=$15,browser_evidence_fingerprint=$16 WHERE id=$17 AND business_account_id=$18 AND status=$19`
 	}
-	updateArgs := []any{string(nextStatus), actualAmount, chargedAmount, overrunAmount, s.now(), appBundleKey, model, costMicros, promptTokens, completionTokens, provider, reservationID, accountID, string(reservationstate.ReservationPending)}
+	updateArgs := []any{string(nextStatus), actualAmount, chargedAmount, overrunAmount, s.now(), appBundleKey, model, costMicros, promptTokens, completionTokens, provider, sessionMinutes, actions, bytes, runID, sessionID, evidenceFingerprint, reservationID, accountID, string(reservationstate.ReservationPending)}
 	if s.dialect != "sqlite" {
-		updateArgs = []any{string(nextStatus), actualAmount, chargedAmount, overrunAmount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider, reservationID, accountID, string(reservationstate.ReservationPending)}
+		updateArgs = []any{string(nextStatus), actualAmount, chargedAmount, overrunAmount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider, sessionMinutes, actions, bytes, runID, sessionID, evidenceFingerprint, reservationID, accountID, string(reservationstate.ReservationPending)}
 	}
 	result, err := tx.ExecContext(ctx, update, updateArgs...)
 	if err != nil {
@@ -569,8 +718,10 @@ func (s *BusinessAccountUsageService) recordUsageOnce(ctx context.Context, accou
 }
 
 type businessAccountUsageEvent struct {
-	accountID, actor, appKey, model, provider           string
-	credits, costMicros, promptTokens, completionTokens int64
+	accountID, actor, appKey, model, provider                  string
+	credits, costMicros, promptTokens, completionTokens        int64
+	browserSessionMinutes, browserActions, browserBytes        int64
+	browserRunID, browserSessionID, browserEvidenceFingerprint string
 }
 
 func loadBusinessAccountUsageEvent(ctx context.Context, tx *sql.Tx, dialect, operationID string) (businessAccountUsageEvent, bool, error) {
@@ -681,6 +832,160 @@ func (s *BusinessAccountUsageService) GetUsageSummary(ctx context.Context, accou
 		}
 	}
 	return summary, nil
+}
+
+// GetBrowserSessionReceipt returns only the row for the reservation and
+// account both supplied by the already-authorized transport. A missing row is
+// indistinguishable from a reservation owned by another account.
+func (s *BusinessAccountUsageService) GetBrowserSessionReceipt(ctx context.Context, accountID, reservationID string) (BrowserSessionReceipt, bool, error) {
+	accountID, reservationID = strings.TrimSpace(accountID), strings.TrimSpace(reservationID)
+	if s == nil || s.db == nil || accountID == "" || reservationID == "" {
+		return BrowserSessionReceipt{}, false, errors.New("business account and browser reservation are required")
+	}
+	query := `SELECT id,status,business_account_id,provider,model,cost_micros,prompt_tokens,completion_tokens,charged_amount,browser_session_minutes,browser_actions,browser_bytes,settled_at FROM business_account_credit_reservations WHERE id=? AND business_account_id=? AND browser_session_id<>''`
+	if s.dialect != "sqlite" {
+		query = `SELECT id,status,business_account_id,provider,model,cost_micros,prompt_tokens,completion_tokens,charged_amount,browser_session_minutes,browser_actions,browser_bytes,settled_at FROM business_account_credit_reservations WHERE id=$1 AND business_account_id=$2 AND browser_session_id<>''`
+	}
+	var receipt BrowserSessionReceipt
+	var reservationStatus string
+	var settledAt sql.NullTime
+	err := s.db.QueryRowContext(ctx, query, reservationID, accountID).Scan(
+		&receipt.ReservationID, &reservationStatus, &receipt.BusinessAccountID, &receipt.Provider,
+		&receipt.Model, &receipt.CostMicros, &receipt.PromptTokens, &receipt.CompletionTokens,
+		&receipt.CreditsCharged, &receipt.SessionMinutes, &receipt.Actions, &receipt.Bytes, &settledAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return BrowserSessionReceipt{}, false, nil
+	}
+	if err != nil {
+		return BrowserSessionReceipt{}, false, fmt.Errorf("read browser session receipt: %w", err)
+	}
+	receipt.Status = browserSessionReceiptStatus(reservationStatus)
+	if settledAt.Valid {
+		value := settledAt.Time.UTC()
+		receipt.SettledAt = &value
+	}
+	if receipt.Status == "settled" {
+		childrenQuery := `SELECT gateway_root_operation_id,provider,model,credits,cost_micros,prompt_tokens,completion_tokens FROM business_account_browser_gateway_receipts WHERE reservation_id=? AND business_account_id=? AND state='settled' ORDER BY gateway_root_operation_id`
+		if s.dialect != "sqlite" {
+			childrenQuery = `SELECT gateway_root_operation_id,provider,model,credits,cost_micros,prompt_tokens,completion_tokens FROM business_account_browser_gateway_receipts WHERE reservation_id=$1 AND business_account_id=$2 AND state='settled' ORDER BY gateway_root_operation_id`
+		}
+		rows, err := s.db.QueryContext(ctx, childrenQuery, reservationID, accountID)
+		if err != nil {
+			return BrowserSessionReceipt{}, false, fmt.Errorf("read browser inference receipts: %w", err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var child BrowserInferenceReceipt
+			if err := rows.Scan(&child.RootOperationID, &child.Provider, &child.Model, &child.CreditsCharged, &child.CostMicros, &child.PromptTokens, &child.CompletionTokens); err != nil {
+				return BrowserSessionReceipt{}, false, fmt.Errorf("scan browser inference receipt: %w", err)
+			}
+			receipt.InferenceOperations = append(receipt.InferenceOperations, child)
+		}
+		if err := rows.Err(); err != nil {
+			return BrowserSessionReceipt{}, false, fmt.Errorf("read browser inference receipts: %w", err)
+		}
+		if err := validateBrowserSessionReceipt(receipt); err != nil {
+			return BrowserSessionReceipt{}, false, fmt.Errorf("browser session receipt is inconsistent: %w", err)
+		}
+	}
+	return receipt, true, nil
+}
+
+// validateBrowserSessionReceipt protects the customer-facing receipt boundary
+// from a partial or drifted persisted timeline. Settlement checks these same
+// totals before closing the reservation; this read-side check keeps later
+// storage corruption from being presented as a valid receipt.
+func validateBrowserSessionReceipt(receipt BrowserSessionReceipt) error {
+	if receipt.Status != "settled" || strings.TrimSpace(receipt.ReservationID) == "" ||
+		strings.TrimSpace(receipt.BusinessAccountID) == "" || strings.TrimSpace(receipt.Provider) == "" ||
+		strings.TrimSpace(receipt.Model) == "" || receipt.SessionMinutes < 0 || receipt.Actions < 0 ||
+		receipt.Bytes < 0 || receipt.CreditsCharged < 0 || receipt.CostMicros < 0 ||
+		receipt.PromptTokens < 0 || receipt.CompletionTokens < 0 || len(receipt.InferenceOperations) == 0 {
+		return errors.New("settled browser receipt is incomplete")
+	}
+	var credits, cost, prompt, completion int64
+	seen := make(map[string]struct{}, len(receipt.InferenceOperations))
+	for _, operation := range receipt.InferenceOperations {
+		id := strings.TrimSpace(operation.RootOperationID)
+		if id == "" || strings.TrimSpace(operation.Provider) == "" || strings.TrimSpace(operation.Model) == "" ||
+			operation.CreditsCharged < 0 || operation.CostMicros < 0 || operation.PromptTokens < 0 || operation.CompletionTokens < 0 {
+			return errors.New("settled browser receipt contains an invalid inference operation")
+		}
+		if _, duplicate := seen[id]; duplicate {
+			return errors.New("settled browser receipt contains a duplicate inference operation")
+		}
+		seen[id] = struct{}{}
+		var ok bool
+		if credits, ok = addBrowserReceiptTotal(credits, operation.CreditsCharged); !ok {
+			return errors.New("settled browser receipt totals overflow")
+		}
+		if cost, ok = addBrowserReceiptTotal(cost, operation.CostMicros); !ok {
+			return errors.New("settled browser receipt totals overflow")
+		}
+		if prompt, ok = addBrowserReceiptTotal(prompt, operation.PromptTokens); !ok {
+			return errors.New("settled browser receipt totals overflow")
+		}
+		if completion, ok = addBrowserReceiptTotal(completion, operation.CompletionTokens); !ok {
+			return errors.New("settled browser receipt totals overflow")
+		}
+	}
+	if credits != receipt.CreditsCharged || cost != receipt.CostMicros ||
+		prompt != receipt.PromptTokens || completion != receipt.CompletionTokens {
+		return errors.New("settled browser receipt totals do not match inference operations")
+	}
+	return nil
+}
+
+func addBrowserReceiptTotal(total, value int64) (int64, bool) {
+	if value < 0 || total > math.MaxInt64-value {
+		return 0, false
+	}
+	return total + value, true
+}
+
+// ResolveBrowserSessionSettlementBinding derives LPBS ownership from the
+// already-created reservation. Callers may provide the run/session/grant
+// binding but never an account, actor, or reservation identifier.
+func (s *BusinessAccountUsageService) ResolveBrowserSessionSettlementBinding(ctx context.Context, runID, sessionID, grantFingerprint string) (reservationID, accountID, actorIdentity, status, evidenceFingerprint string, found bool, err error) {
+	runID, sessionID, grantFingerprint = strings.TrimSpace(runID), strings.TrimSpace(sessionID), strings.TrimSpace(grantFingerprint)
+	if s == nil || s.db == nil || runID == "" || sessionID == "" || grantFingerprint == "" {
+		return "", "", "", "", "", false, errors.New("run, browser session, and grant fingerprint are required")
+	}
+	query := `SELECT id,business_account_id,actor_identity,status,browser_evidence_fingerprint FROM business_account_credit_reservations WHERE browser_session_id=? AND browser_run_id=? AND browser_grant_fingerprint=? AND browser_session_id<>''`
+	if s.dialect != "sqlite" {
+		query = `SELECT id,business_account_id,actor_identity,status,browser_evidence_fingerprint FROM business_account_credit_reservations WHERE browser_session_id=$1 AND browser_run_id=$2 AND browser_grant_fingerprint=$3 AND browser_session_id<>''`
+	}
+	rows, err := s.db.QueryContext(ctx, query, sessionID, runID, grantFingerprint)
+	if err != nil {
+		return "", "", "", "", "", false, fmt.Errorf("resolve browser settlement binding: %w", err)
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return "", "", "", "", "", false, fmt.Errorf("read browser settlement binding: %w", err)
+		}
+		return "", "", "", "", "", false, nil
+	}
+	if err := rows.Scan(&reservationID, &accountID, &actorIdentity, &status, &evidenceFingerprint); err != nil {
+		return "", "", "", "", "", false, fmt.Errorf("scan browser settlement binding: %w", err)
+	}
+	if rows.Next() {
+		return "", "", "", "", "", false, errors.New("browser settlement binding is not unique")
+	}
+	if err := rows.Err(); err != nil {
+		return "", "", "", "", "", false, fmt.Errorf("read browser settlement binding: %w", err)
+	}
+	return reservationID, accountID, actorIdentity, browserSessionReceiptStatus(status), evidenceFingerprint, true, nil
+}
+
+// browserSessionReceiptStatus translates LPBS's durable reservation state to
+// the stable browser-settlement contract consumed by Agent Manager and BAS.
+func browserSessionReceiptStatus(status string) string {
+	if status == string(reservationstate.ReservationFinalized) {
+		return "settled"
+	}
+	return status
 }
 
 func (s *BusinessAccountUsageService) CleanupExpiredReservations(ctx context.Context) (int64, error) {

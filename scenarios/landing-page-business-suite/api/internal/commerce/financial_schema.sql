@@ -25,7 +25,77 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_transactions_stripe_event ON credit
 -- purchased credits merely because their billing email matches.
 CREATE TABLE IF NOT EXISTS business_account_credit_wallets (business_account_id VARCHAR(255) PRIMARY KEY, customer_email VARCHAR(255) NOT NULL, balance_credits BIGINT DEFAULT 0, bonus_credits BIGINT DEFAULT 0, updated_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE IF NOT EXISTS business_account_credit_transactions (id SERIAL PRIMARY KEY, business_account_id VARCHAR(255) NOT NULL, customer_email VARCHAR(255) NOT NULL, amount_credits BIGINT NOT NULL, transaction_type VARCHAR(50) NOT NULL, source VARCHAR(100) NOT NULL DEFAULT 'stripe', external_event_id VARCHAR(255), lot_id UUID, metadata JSONB DEFAULT '{}'::jsonb, created_at TIMESTAMP DEFAULT NOW(), UNIQUE (source, external_event_id));
+-- Audio Tools and other explicitly authorized apps use this owner-side state
+-- machine to fence dispatch, safe pre-dispatch release, measured settlement,
+-- lease renewal, and uncertain-outcome recovery for account-credit holds.
+CREATE TABLE IF NOT EXISTS business_account_credit_lifecycle (reservation_id TEXT PRIMARY KEY, business_account_id TEXT NOT NULL, actor_identity TEXT NOT NULL, app_bundle_key TEXT NOT NULL, phase TEXT NOT NULL CHECK (phase IN ('reserved','dispatched','settling','settled','released','expired','uncertain')), lease_expires_at TIMESTAMPTZ NOT NULL, settlement_fingerprint TEXT NOT NULL DEFAULT '', provider_receipt_id TEXT NOT NULL DEFAULT '', contract_version INTEGER NOT NULL DEFAULT 0, usd_budget_micros BIGINT NOT NULL DEFAULT 0, cost_multiplier BIGINT NOT NULL DEFAULT 0, updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP);
+-- Forward migration for installs that created the lifecycle table before the
+-- versioned USD contract existed. Safe to replay on both fresh and upgraded DBs.
+ALTER TABLE business_account_credit_lifecycle ADD COLUMN IF NOT EXISTS contract_version INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE business_account_credit_lifecycle ADD COLUMN IF NOT EXISTS usd_budget_micros BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE business_account_credit_lifecycle ADD COLUMN IF NOT EXISTS cost_multiplier BIGINT NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS idx_account_credit_lifecycle_recovery ON business_account_credit_lifecycle(app_bundle_key,phase,lease_expires_at);
 CREATE TABLE IF NOT EXISTS payment_settings (id INTEGER PRIMARY KEY CHECK (id = 1), dashboard_url TEXT, anomaly_webhook_url TEXT, anomaly_webhook_enabled BOOLEAN NOT NULL DEFAULT FALSE, operations_alert_webhook_url TEXT, operations_alert_enabled BOOLEAN NOT NULL DEFAULT FALSE, anomaly_rate_limits JSONB NOT NULL DEFAULT '{}'::jsonb, updated_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE IF NOT EXISTS intro_coupon_usage (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), email VARCHAR(255) NOT NULL, stripe_customer_id VARCHAR(255), coupon_id VARCHAR(255) NOT NULL, plan_tier VARCHAR(50), subscription_id VARCHAR(255), used_at TIMESTAMP DEFAULT NOW(), created_at TIMESTAMP DEFAULT NOW()); CREATE INDEX IF NOT EXISTS idx_intro_coupon_usage_email ON intro_coupon_usage(email);
 CREATE TABLE IF NOT EXISTS payment_anomaly_log (id BIGSERIAL PRIMARY KEY, anomaly_type VARCHAR(64) NOT NULL, severity VARCHAR(16) NOT NULL DEFAULT 'warn', email VARCHAR(255), customer_id VARCHAR(255), subject_id VARCHAR(255), subject_kind VARCHAR(64), details JSONB NOT NULL DEFAULT '{}'::jsonb, dispatch_status VARCHAR(16) NOT NULL DEFAULT 'pending', dispatch_attempts INTEGER NOT NULL DEFAULT 0, dispatched_at TIMESTAMP, dispatch_error TEXT, created_at TIMESTAMP NOT NULL DEFAULT NOW());
 CREATE INDEX IF NOT EXISTS idx_payment_anomaly_log_type ON payment_anomaly_log(anomaly_type); CREATE INDEX IF NOT EXISTS idx_payment_anomaly_log_email ON payment_anomaly_log(email); CREATE INDEX IF NOT EXISTS idx_payment_anomaly_log_subject ON payment_anomaly_log(subject_kind, subject_id); CREATE INDEX IF NOT EXISTS idx_payment_anomaly_log_created ON payment_anomaly_log(created_at); CREATE INDEX IF NOT EXISTS idx_payment_anomaly_log_dispatch_pending ON payment_anomaly_log(created_at) WHERE dispatch_status = 'pending';
+-- One durable, fenced lease and monotone Stripe-event cursor for the canonical
+-- LPBS payment reconciler. Event payloads and credential values are never stored.
+CREATE TABLE IF NOT EXISTS payment_reconciliation_checkpoint (
+  scope_id TEXT PRIMARY KEY CHECK (scope_id = 'stripe-events'),
+  lease_owner TEXT NOT NULL DEFAULT '',
+  lease_generation BIGINT NOT NULL DEFAULT 0 CHECK (lease_generation >= 0),
+  lease_expires_at TIMESTAMPTZ,
+  cursor_created_at TIMESTAMPTZ,
+  cursor_event_id TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CHECK ((cursor_created_at IS NULL) = (cursor_event_id IS NULL))
+);
+INSERT INTO payment_reconciliation_checkpoint(scope_id) VALUES('stripe-events') ON CONFLICT(scope_id) DO NOTHING;
+-- Backfill pages are checkpointed independently of the committed scheduler
+-- cursor. Only event IDs and ordering metadata are retained; payloads are
+-- fetched again by ID immediately before application.
+CREATE TABLE IF NOT EXISTS payment_reconciliation_backfill_state (
+  scope_id TEXT PRIMARY KEY CHECK (scope_id = 'stripe-events'),
+  scan_active BOOLEAN NOT NULL DEFAULT FALSE,
+  scan_complete BOOLEAN NOT NULL DEFAULT FALSE,
+  starting_after TEXT NOT NULL DEFAULT '',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS payment_reconciliation_backfill_events (
+  scope_id TEXT NOT NULL REFERENCES payment_reconciliation_backfill_state(scope_id) ON DELETE CASCADE,
+  event_id TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  event_type TEXT NOT NULL,
+  object_id TEXT NOT NULL,
+  PRIMARY KEY(scope_id,event_id)
+);
+CREATE INDEX IF NOT EXISTS idx_payment_reconciliation_backfill_order ON payment_reconciliation_backfill_events(scope_id,created_at,event_id);
+CREATE TABLE IF NOT EXISTS payment_reconciliation_incidents (
+  incident_key TEXT PRIMARY KEY,
+  incident_type TEXT NOT NULL,
+  severity TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('open','resolved')),
+  generation BIGINT NOT NULL CHECK (generation > 0),
+  details JSONB NOT NULL DEFAULT '{}'::jsonb,
+  opened_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  resolved_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS payment_reconciliation_incident_events (
+  id BIGSERIAL PRIMARY KEY,
+  incident_key TEXT NOT NULL REFERENCES payment_reconciliation_incidents(incident_key),
+  generation BIGINT NOT NULL CHECK (generation > 0),
+  transition TEXT NOT NULL CHECK (transition IN ('opened','resolved')),
+  incident_type TEXT NOT NULL,
+  severity TEXT NOT NULL,
+  details JSONB NOT NULL DEFAULT '{}'::jsonb,
+  dispatch_status TEXT NOT NULL DEFAULT 'pending' CHECK (dispatch_status IN ('pending','dispatching','retryable_failed','sent')),
+  dispatch_attempts INTEGER NOT NULL DEFAULT 0 CHECK (dispatch_attempts >= 0),
+  dispatch_error TEXT,
+  dispatch_after TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  claim_token TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(incident_key,generation,transition)
+);
+CREATE INDEX IF NOT EXISTS idx_payment_reconciliation_incident_events_pending ON payment_reconciliation_incident_events(dispatch_after,id) WHERE dispatch_status IN ('pending','retryable_failed','dispatching');

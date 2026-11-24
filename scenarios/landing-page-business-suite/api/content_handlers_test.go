@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -170,7 +171,7 @@ func TestHandleGetSections_ResponseFormat(t *testing.T) {
 
 func TestLegacyPublicSnapshotsAreNotPublicationRoutes(t *testing.T) { // [REQ:LP-PRES-012]
 	store := setupTestConfigStore(t)
-	server := &Server{router: mux.NewRouter(), configStore: store, sessionManager: NewMockSessionManager()}
+	server := &Server{router: mux.NewRouter(), configStore: store, sessionManager: &MockSessionManager{GetError: errors.New("no session")}}
 	registerVariantRoutes(server)
 	for _, route := range []string{"/api/v1/public/variants/control", "/api/v1/public/variants/control/sections", "/api/v1/public/variants/missing/sections"} {
 		response := httptest.NewRecorder()

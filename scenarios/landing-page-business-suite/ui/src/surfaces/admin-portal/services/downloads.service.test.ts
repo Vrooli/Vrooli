@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { DownloadApp, DownloadAsset } from '../../../shared/api';
+import { computeDownloadsHealth } from './adminHome.service';
 import {
   buildPlatformForm,
   deserializeApp,
@@ -8,6 +9,7 @@ import {
   normalizePayload,
   isFormDirty,
   computeDownloadHealthFromForms,
+  isOfficialStorefrontLink,
   buildDefaultStorageForm,
   buildDefaultCredentialsForm,
   buildStorageUpdatePayload,
@@ -61,6 +63,7 @@ describe('downloads.service', () => {
         artifactSource: 'direct',
         artifactUrl: '',
         artifactId: '',
+        checksum: '',
         releaseVersion: '',
         releaseNotes: '',
         requiresEntitlement: false,
@@ -251,7 +254,7 @@ describe('downloads.service', () => {
           {
             store: 'app_store',
             label: 'Download on App Store',
-            url: 'https://apps.apple.com/app/123',
+            url: 'https://apps.apple.com/us/app/aquila/id123',
             badge: 'Featured',
           },
         ],
@@ -261,7 +264,7 @@ describe('downloads.service', () => {
 
       expect(result.appleEnabled).toBe(true);
       expect(result.appleLabel).toBe('Download on App Store');
-      expect(result.appleUrl).toBe('https://apps.apple.com/app/123');
+      expect(result.appleUrl).toBe('https://apps.apple.com/us/app/aquila/id123');
       expect(result.appleBadge).toBe('Featured');
     });
 
@@ -272,7 +275,7 @@ describe('downloads.service', () => {
           {
             store: 'play_store',
             label: 'Get it on Google Play',
-            url: 'https://play.google.com/store/apps/123',
+            url: 'https://play.google.com/store/apps/details?id=org.vrooli.aquila',
           },
         ],
       });
@@ -281,7 +284,22 @@ describe('downloads.service', () => {
 
       expect(result.googleEnabled).toBe(true);
       expect(result.googleLabel).toBe('Get it on Google Play');
-      expect(result.googleUrl).toBe('https://play.google.com/store/apps/123');
+      expect(result.googleUrl).toBe('https://play.google.com/store/apps/details?id=org.vrooli.aquila');
+    });
+
+    it('keeps invalid legacy store links editable without marking them configured', () => {
+      const app = createApp({
+        app_key: 'test',
+        storefronts: [
+          { store: 'app_store', label: 'App Store', url: 'https://apps.apple.com.evil.test/app/id123' },
+          { store: 'play_store', label: 'Google Play', url: 'http://play.google.com/store/apps/details?id=org.vrooli.aquila' },
+        ],
+      });
+      const result = deserializeApp(app);
+      expect(result.appleEnabled).toBe(false);
+      expect(result.googleEnabled).toBe(false);
+      expect(result.appleUrl).toBe('https://apps.apple.com.evil.test/app/id123');
+      expect(result.googleUrl).toContain('http://play.google.com/');
     });
 
     it('deserializes platforms', () => {
@@ -412,7 +430,7 @@ describe('downloads.service', () => {
       const values: AppFormValues = {
         ...buildDefaultAppValues(),
         appleEnabled: true,
-        appleUrl: 'https://apps.apple.com/123',
+        appleUrl: 'https://apps.apple.com/us/app/aquila/id123',
         appleLabel: 'Get on App Store',
         appleBadge: 'New',
       };
@@ -423,7 +441,7 @@ describe('downloads.service', () => {
       expect(result.storefronts![0]).toEqual({
         store: 'app_store',
         label: 'Get on App Store',
-        url: 'https://apps.apple.com/123',
+        url: 'https://apps.apple.com/us/app/aquila/id123',
         badge: 'New',
       });
     });
@@ -444,7 +462,7 @@ describe('downloads.service', () => {
       const values: AppFormValues = {
         ...buildDefaultAppValues(),
         googleEnabled: true,
-        googleUrl: 'https://play.google.com/123',
+        googleUrl: 'https://play.google.com/store/apps/details?id=org.vrooli.aquila',
         googleBadge: '  ',
       };
 
@@ -534,6 +552,7 @@ describe('downloads.service', () => {
             artifactSource: 'managed',
             artifactUrl: '',
             artifactId: '42',
+            checksum: 'a'.repeat(64),
             releaseVersion: '1.0.0',
             releaseNotes: '',
           }),
@@ -547,6 +566,22 @@ describe('downloads.service', () => {
       expect(result.platforms).toHaveLength(1);
       expect(result.platforms[0]?.artifact_id).toBe(42);
       expect(result.platforms[0]?.artifact_url).toBe('');
+    });
+
+    it('preserves managed artifact checksum and omits incomplete managed identities', () => {
+      const values: AppFormValues = {
+        ...buildDefaultAppValues(),
+        platforms: {
+          windows: windowsPlatform({ enabled: true, artifactSource: 'managed', artifactId: '42', releaseVersion: '1.0.0', checksum: 'a'.repeat(64) }),
+          mac: windowsPlatform({ platform: 'mac', enabled: true, artifactSource: 'managed', artifactId: '43', releaseVersion: '1.0.0', checksum: '' }),
+          linux: buildPlatformForm('linux'),
+        },
+      };
+
+      const result = serializeApp(values);
+      expect(result.platforms).toHaveLength(1);
+      expect(result.platforms[0]?.checksum).toBe('a'.repeat(64));
+      expect(result.platforms[0]?.artifact_id).toBe(42);
     });
 
     it('excludes managed platforms without artifact_id', () => {
@@ -672,21 +707,43 @@ describe('downloads.service', () => {
       };
 
       const result = computeDownloadHealthFromForms([{ values }]);
-
       expect(result.platformsConfigured).toBe(1);
       expect(result.platformsMissing).toBe(2);
     });
 
-    it('counts storefronts from URL presence', () => {
+    it('counts only official HTTPS app listing URLs as storefronts', () => {
       const values: AppFormValues = {
         ...buildDefaultAppValues('test'),
-        appleUrl: 'https://apps.apple.com/123',
-        googleUrl: 'https://play.google.com/123',
+        appleUrl: 'https://apps.apple.com/us/app/aquila/id123',
+        googleUrl: 'https://play.google.com/store/apps/details?id=org.vrooli.aquila',
       };
 
       const result = computeDownloadHealthFromForms([{ values }]);
 
       expect(result.storefrontsConfigured).toBe(2);
+    });
+
+    it('requires Apple links to end with a numeric App Store listing ID', () => {
+      expect(isOfficialStorefrontLink('app_store', 'https://apps.apple.com/us/app/aquila/id123456')).toBe(true);
+      expect(isOfficialStorefrontLink('app_store', 'https://apps.apple.com/app/id123456')).toBe(true);
+      expect(isOfficialStorefrontLink('app_store', 'https://apps.apple.com/us/app/aquila')).toBe(false);
+      expect(isOfficialStorefrontLink('app_store', 'https://apps.apple.com/us/app/aquila/id-app')).toBe(false);
+      expect(isOfficialStorefrontLink('app_store', 'https://apps.apple.com/us/app/aquila/id%31%32%33')).toBe(false);
+      expect(isOfficialStorefrontLink('app_store', 'https://apps.apple.com/us/app/aquila/extra/id123456')).toBe(false);
+    });
+
+    it('does not count malformed or host-confused store links', () => {
+      const values: AppFormValues = {
+        ...buildDefaultAppValues('test'),
+        appleUrl: 'https://apps.apple.com.evil.test/us/app/aquila/id123',
+        googleUrl: 'https://play.google.com.evil.test/store/apps/details?id=org.vrooli.aquila',
+      };
+      expect(computeDownloadHealthFromForms([{ values }]).storefrontsConfigured).toBe(0);
+    });
+
+    it('rejects empty userinfo the backend also rejects', () => {
+      expect(isOfficialStorefrontLink('play_store', 'https://@play.google.com/store/apps/details?id=org.vrooli.aquila')).toBe(false);
+      expect(isOfficialStorefrontLink('play_store', 'https://play.google.com/store/apps/details?id=org.vrooli.aquila#')).toBe(false);
     });
 
     it('counts managed platforms as configured', () => {
@@ -698,6 +755,7 @@ describe('downloads.service', () => {
             artifactSource: 'managed',
             artifactUrl: '',
             artifactId: '42',
+            checksum: 'a'.repeat(64),
             releaseVersion: '1.0.0',
             releaseNotes: '',
           }),
@@ -709,6 +767,49 @@ describe('downloads.service', () => {
       const result = computeDownloadHealthFromForms([{ values }]);
 
       expect(result.platformsConfigured).toBe(1);
+    });
+
+    it('uses the same managed readiness contract as the admin health snapshot', () => {
+      const values: AppFormValues = {
+        ...buildDefaultAppValues('test'),
+        platforms: {
+          windows: windowsPlatform({
+            enabled: true,
+            artifactSource: 'managed',
+            artifactId: '42',
+            checksum: '',
+            releaseVersion: '1.0.0',
+          }),
+          mac: windowsPlatform({
+            platform: 'mac',
+            enabled: true,
+            artifactSource: 'managed',
+            artifactId: '43',
+            checksum: 'a'.repeat(64),
+            releaseVersion: '1.0.0',
+          }),
+          linux: buildPlatformForm('linux'),
+        },
+      };
+
+      const result = computeDownloadHealthFromForms([{ values }]);
+      const serialized = serializeApp(values);
+      const adminHealth = computeDownloadsHealth([{
+        bundle_key: 'test-bundle',
+        app_key: values.appKey,
+        name: values.name,
+        storefronts: serialized.storefronts,
+        platforms: serialized.platforms.map((asset) => ({
+          ...asset,
+          bundle_key: 'test-bundle',
+          app_key: values.appKey,
+          requires_entitlement: asset.requires_entitlement ?? false,
+        })),
+      }]);
+
+      expect(result.platformsConfigured).toBe(1);
+      expect(result.platformsMissing).toBe(2);
+      expect(adminHealth.platformsConfigured).toBe(result.platformsConfigured);
     });
   });
 

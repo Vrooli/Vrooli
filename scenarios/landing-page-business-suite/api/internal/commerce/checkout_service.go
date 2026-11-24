@@ -43,7 +43,10 @@ type CheckoutServiceOptions struct {
 	Log         func(string, map[string]interface{})
 }
 
-type Attribution struct{ VisitorID, SessionID, VariantSlug, LandingPath, DeviceClass, UTMSource, UTMMedium, UTMCampaign, ReferrerKind, CountryCode string }
+type Attribution struct {
+	VisitorID, SessionID, VariantSlug, LandingPath, DeviceClass, UTMSource, UTMMedium, UTMCampaign, ReferrerKind, CountryCode string
+	StripeTestRunID, StripeTestOutcome                                                                                        string
+}
 
 func NewCheckoutService(options CheckoutServiceOptions) *CheckoutService {
 	return &CheckoutService{store: options.Store, plans: options.Plans, requester: options.Requester, introOffers: options.IntroOffers, introCoupon: options.IntroCoupon, publicKey: options.PublicKey, logf: options.Log}
@@ -101,6 +104,17 @@ func (s *CheckoutService) create(ctx context.Context, priceID, successURL, cance
 	}
 	mode, kind, sessionType := checkoutShape(plan)
 	values := url.Values{"mode": {mode}, "success_url": {successURL}, "cancel_url": {cancelURL}, "line_items[0][price]": {resolvedPriceID}, "line_items[0][quantity]": {"1"}, "metadata[bundle_key]": {plan.BundleKey}, "metadata[plan_tier]": {plan.PlanTier}}
+	if attribution.StripeTestRunID != "" || attribution.StripeTestOutcome != "" {
+		if !strings.HasPrefix(attribution.StripeTestRunID, "py1-") || !stripeTestOutcomeNameAllowed(attribution.StripeTestOutcome) {
+			return nil, fmt.Errorf("invalid Stripe test outcome metadata")
+		}
+		values.Set("metadata[lpbs_py1_test_run_id]", attribution.StripeTestRunID)
+		values.Set("metadata[lpbs_py1_test_outcome]", attribution.StripeTestOutcome)
+		if mode == "subscription" {
+			values.Set("subscription_data[metadata][lpbs_py1_test_run_id]", attribution.StripeTestRunID)
+			values.Set("subscription_data[metadata][lpbs_py1_test_outcome]", attribution.StripeTestOutcome)
+		}
+	}
 	businessAccountID = strings.TrimSpace(businessAccountID)
 	if businessAccountID != "" {
 		values.Set("metadata[business_account_id]", businessAccountID)
@@ -262,6 +276,10 @@ func (s *CheckoutService) record(response stripeCheckoutResponse, priceID, sessi
 	}
 	if couponID != "" {
 		metadata["intro_coupon_applied"] = couponID
+	}
+	if attribution.StripeTestRunID != "" && stripeTestOutcomeNameAllowed(attribution.StripeTestOutcome) {
+		metadata["lpbs_py1_test_run_id"] = attribution.StripeTestRunID
+		metadata["lpbs_py1_test_outcome"] = attribution.StripeTestOutcome
 	}
 	encoded, _ := json.Marshal(metadata)
 	if strings.TrimSpace(businessAccountID) != "" {

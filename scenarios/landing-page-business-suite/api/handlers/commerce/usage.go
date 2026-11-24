@@ -2,15 +2,19 @@ package billing
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 	"landing-page-business-suite-api/internal/commerce"
+	"landing-page-business-suite-api/internal/intelligence"
 )
 
 // UsageDependencies are API composition concerns used by the usage transport.
@@ -64,6 +68,122 @@ func GetBusinessAccountUsageSummary(svc *commerce.UsageService, accountSvc *comm
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(summary); err != nil {
 			deps.LogError("encode_response_failed", map[string]any{"error": err.Error()})
+		}
+	}
+}
+
+// GetBusinessAccountBrowserSessionReceipt exposes the same finalized LPBS
+// receipt to any browser adapter after the BAS session proof is reconciled.
+// Account membership is resolved from the authenticated principal; a caller
+// cannot use a reservation ID to discover another account's usage.
+func GetBusinessAccountBrowserSessionReceipt(svc *commerce.UsageService, deps UsageDependencies) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userIdentity := deps.UserEmail(r.Context())
+		userID := deps.UserID(r.Context())
+		if userIdentity == "" || userID == "" {
+			deps.WriteError(w, http.StatusUnauthorized, "Authentication required", "unauthorized")
+			return
+		}
+		requestedAccount := strings.TrimSpace(r.URL.Query().Get("business_account_id"))
+		reservationID := strings.TrimSpace(mux.Vars(r)["reservationID"])
+		if requestedAccount == "" || reservationID == "" || deps.ResolveBusinessAccount == nil || svc == nil {
+			deps.WriteError(w, http.StatusBadRequest, "business_account_id and reservation_id are required", "validation")
+			return
+		}
+		accountID, err := deps.ResolveBusinessAccount(r.Context(), userID, userIdentity, requestedAccount)
+		if err != nil {
+			deps.WriteError(w, http.StatusForbidden, "Business account access is not available", "forbidden")
+			return
+		}
+		receipt, found, err := svc.GetBusinessAccountBrowserSessionReceipt(r.Context(), accountID, reservationID)
+		if err != nil {
+			deps.LogError("get_browser_session_receipt_failed", map[string]any{"error": err.Error(), "business_account_id": accountID})
+			deps.WriteError(w, http.StatusInternalServerError, "Failed to get browser session receipt", "server_error")
+			return
+		}
+		if !found {
+			deps.WriteError(w, http.StatusNotFound, "Browser session receipt is not available for this account", "not_found")
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(receipt); err != nil && deps.LogError != nil {
+			deps.LogError("encode_browser_session_receipt_failed", map[string]any{"error": err.Error()})
+		}
+	}
+}
+
+type agentManagerBrowserSessionCloseRequest struct {
+	RunID          string `json:"run_id"`
+	SessionID      string `json:"session_id"`
+	GrantReceipt   string `json:"grant_receipt"`
+	ProofReference string `json:"proof_reference"`
+}
+
+// SettleAgentManagerBrowserSession binds settlement to LPBS's existing
+// reservation using AM's run/session/grant tuple. Account, actor and
+// reservation ownership are resolved from LPBS storage, never from the body.
+func SettleAgentManagerBrowserSession(usage *commerce.UsageService, metered *intelligence.MeteredInferenceService, deps UsageDependencies) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if usage == nil || metered == nil {
+			deps.WriteError(w, http.StatusServiceUnavailable, "Browser session settlement is unavailable.", "server_error")
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields()
+		var request agentManagerBrowserSessionCloseRequest
+		if err := decoder.Decode(&request); err != nil || decoder.Decode(new(any)) != io.EOF {
+			deps.WriteError(w, http.StatusBadRequest, "Invalid browser session close request.", "validation")
+			return
+		}
+		request.RunID = strings.TrimSpace(request.RunID)
+		request.SessionID = strings.TrimSpace(request.SessionID)
+		request.GrantReceipt = strings.TrimSpace(request.GrantReceipt)
+		request.ProofReference = strings.TrimSpace(request.ProofReference)
+		if request.RunID == "" || request.SessionID == "" || request.GrantReceipt == "" || request.ProofReference == "" || len(request.GrantReceipt) > 512 || len(request.ProofReference) > 256 {
+			deps.WriteError(w, http.StatusBadRequest, "run_id, session_id, grant_receipt and proof_reference are required.", "validation")
+			return
+		}
+		grantDigest := sha256.Sum256([]byte(request.GrantReceipt))
+		grantFingerprint := hex.EncodeToString(grantDigest[:])
+		reservationID, accountID, actor, status, evidenceFingerprint, found, err := usage.ResolveBrowserSessionSettlementBinding(r.Context(), request.RunID, request.SessionID, grantFingerprint)
+		if err != nil {
+			deps.WriteError(w, http.StatusInternalServerError, "Failed to resolve browser session reservation.", "server_error")
+			return
+		}
+		if !found {
+			deps.WriteError(w, http.StatusNotFound, "Browser session reservation is not available.", "not_found")
+			return
+		}
+		if status == "pending" {
+			binding := intelligence.BrowserSessionBinding{ReservationID: reservationID, RunID: request.RunID, SessionID: request.SessionID, GrantReceipt: request.GrantReceipt}
+			proof := intelligence.BrowserEvidenceProof{RunID: request.RunID, GrantReceipt: request.GrantReceipt, Reference: request.ProofReference}
+			if err := metered.ReconcileClosedBrowserSessionFromAgentManager(r.Context(), actor, accountID, binding, proof); err != nil {
+				deps.WriteError(w, http.StatusConflict, "Browser session proof could not be verified and settled.", "validation")
+				return
+			}
+		} else if status == "settled" {
+			proofDigest := sha256.Sum256([]byte(request.ProofReference))
+			if evidenceFingerprint != hex.EncodeToString(proofDigest[:]) {
+				deps.WriteError(w, http.StatusConflict, "Browser session proof does not match the settled reservation.", "validation")
+				return
+			}
+		} else {
+			deps.WriteError(w, http.StatusConflict, "Browser session reservation is not in a settleable state.", "validation")
+			return
+		}
+		receipt, found, err := usage.GetBusinessAccountBrowserSessionReceipt(r.Context(), accountID, reservationID)
+		if err != nil {
+			deps.WriteError(w, http.StatusInternalServerError, "Failed to read browser session receipt.", "server_error")
+			return
+		}
+		if !found {
+			deps.WriteError(w, http.StatusConflict, "Browser session receipt is not finalized.", "validation")
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(receipt); err != nil {
+			return
 		}
 	}
 }

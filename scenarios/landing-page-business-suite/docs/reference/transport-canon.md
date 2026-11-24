@@ -27,6 +27,7 @@ Deliberate REST exceptions:
 - Sitemap and robots are crawler documents, not application RPCs.
 - Health is the lifecycle probe used by the control plane.
 - Asset serving is a byte-oriented delivery surface.
+- Presentation MP4 staging and playback use byte-oriented REST routes: admin upload and unreferenced-delete require recent step-up authentication, draft reads require an admin session and the current draft revision, and public reads require the active published revision. This is separate from the PNG-only Backdrop asset owner.
 - `GET /api/v1/readiness/state` is the documented deployment-manager JSON
   projection used by Command Center to display readiness state.
 

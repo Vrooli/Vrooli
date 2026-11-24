@@ -36,6 +36,7 @@ func requestWithUserAuth(method, url string, body []byte, userEmail string) *htt
 func usageReportHandler(svc *commerce.UsageService) http.HandlerFunc {
 	deps := usageHTTPDependencies()
 	deps.UserEmail = func(context.Context) string { return "user@example.com" }
+	deps.SubscriptionTier = func(context.Context, string) (string, error) { return "solo", nil }
 	return billinghttp.ReportUsage(svc, deps)
 }
 
@@ -59,9 +60,8 @@ func TestHandleReportUsage_ValidRequest_Returns200(t *testing.T) {
 
 	body := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
-		LimitKey:     "ai_credits",
+		LimitKey:     "compute_minutes",
 		Amount:       100000,
-		AppBundleKey: "browser-automation-studio",
 	}
 	bodyBytes, _ := json.Marshal(body)
 
@@ -79,7 +79,7 @@ func TestHandleReportUsage_ValidRequest_Returns200(t *testing.T) {
 	err := db.QueryRow(`
 		SELECT usage_amount FROM usage_records
 		WHERE user_identity = ? AND limit_key = ?
-	`, "user@example.com", "ai_credits").Scan(&usageAmount)
+	`, "user@example.com", "compute_minutes").Scan(&usageAmount)
 	if err != nil {
 		t.Fatalf("Failed to query usage record: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestHandleReportUsage_MissingVerifiedIdentity_Returns401(t *testing.T) {
 	deps := usageHTTPDependencies()
 	deps.UserEmail = func(context.Context) string { return "" }
 	handler := billinghttp.ReportUsage(svc, deps)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/usage/report", bytes.NewReader([]byte(`[{"limit_key":"ai_credits","amount":100000}]`)))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/usage/report", bytes.NewReader([]byte(`[{"limit_key":"compute_minutes","amount":100000}]`)))
 	w := httptest.NewRecorder()
 	handler(w, req)
 	testutil.RequireHTTPStatus(t, w, http.StatusUnauthorized)
@@ -134,7 +134,7 @@ func TestHandleReportUsage_MissingRequiredFields_Returns400(t *testing.T) {
 			name: "zero amount without BYOK",
 			body: commerce.UsageReportRequest{
 				UserIdentity: "user@example.com",
-				LimitKey:     "ai_credits",
+				LimitKey:     "compute_minutes",
 				Amount:       0,
 				IsBYOK:       false,
 			},
@@ -169,9 +169,8 @@ func TestHandleReportUsage_BYOK_RecordsZeroAmount(t *testing.T) {
 
 	body := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
-		LimitKey:     "ai_credits",
+		LimitKey:     "compute_minutes",
 		Amount:       100000, // Should be ignored
-		AppBundleKey: "browser-automation-studio",
 		IsBYOK:       true,
 	}
 	bodyBytes, _ := json.Marshal(body)
@@ -190,7 +189,7 @@ func TestHandleReportUsage_BYOK_RecordsZeroAmount(t *testing.T) {
 	err := db.QueryRow(`
 		SELECT usage_amount FROM usage_records
 		WHERE user_identity = ? AND limit_key = ?
-	`, "user@example.com", "ai_credits").Scan(&usageAmount)
+	`, "user@example.com", "compute_minutes").Scan(&usageAmount)
 	if err != nil {
 		t.Fatalf("Failed to query usage record: %v", err)
 	}
@@ -214,14 +213,14 @@ func TestHandleCheckLimit_ValidCheck_ReturnsCanProceedAndRemaining(t *testing.T)
 	_, err := db.Exec(`
 		INSERT INTO usage_records (user_identity, billing_period, limit_key, usage_amount)
 		VALUES (?, ?, ?, ?)
-	`, "user@example.com", currentPeriod, "ai_credits", 100000000) // 100 million (below solo's $5 = 500 million)
+	`, "user@example.com", currentPeriod, "compute_minutes", 100000000) // 100 million (below solo's $5 = 500 million)
 	if err != nil {
 		t.Fatalf("Failed to seed usage: %v", err)
 	}
 
 	handler := usageCheckHandler(svc)
 
-	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/check?tier=solo&limit_key=ai_credits", nil, "user@example.com")
+	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/check?tier=solo&limit_key=compute_minutes", nil, "user@example.com")
 	w := httptest.NewRecorder()
 	handler(w, req)
 
@@ -250,14 +249,14 @@ func TestHandleCheckLimit_UserAtLimit_ReturnsCanProceedFalse(t *testing.T) {
 	_, err := db.Exec(`
 		INSERT INTO usage_records (user_identity, billing_period, limit_key, usage_amount)
 		VALUES (?, ?, ?, ?)
-	`, "user@example.com", currentPeriod, "ai_credits", 500000000) // At solo limit
+	`, "user@example.com", currentPeriod, "compute_minutes", 500000000) // At solo limit
 	if err != nil {
 		t.Fatalf("Failed to seed usage: %v", err)
 	}
 
 	handler := usageCheckHandler(svc)
 
-	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/check?tier=solo&limit_key=ai_credits", nil, "user@example.com")
+	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/check?tier=solo&limit_key=compute_minutes", nil, "user@example.com")
 	w := httptest.NewRecorder()
 	handler(w, req)
 
@@ -296,7 +295,7 @@ func TestHandleCheckLimit_Unauthenticated_Returns401(t *testing.T) {
 	handler := usageCheckHandler(svc)
 
 	// Request without auth context
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/check?tier=solo&limit_key=ai_credits", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/check?tier=solo&limit_key=compute_minutes", nil)
 	w := httptest.NewRecorder()
 	handler(w, req)
 
@@ -311,7 +310,7 @@ func TestHandleCheckLimit_UnlimitedTier_ReturnsNegativeOneRemaining(t *testing.T
 
 	handler := usageCheckHandler(svc)
 
-	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/check?tier=business&limit_key=ai_credits", nil, "user@example.com")
+	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/check?tier=business&limit_key=compute_minutes", nil, "user@example.com")
 	w := httptest.NewRecorder()
 	handler(w, req)
 
@@ -344,8 +343,8 @@ func TestHandleGetUsageSummary_ReturnsCorrectValues(t *testing.T) {
 		INSERT INTO usage_records (user_identity, billing_period, limit_key, usage_amount, app_bundle_key)
 		VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)
 	`,
-		"user@example.com", currentPeriod, "ai_credits", 100000000, "browser-automation-studio",
-		"user@example.com", currentPeriod, "ai_credits", 50000000, "other-app",
+		"user@example.com", currentPeriod, "compute_minutes", 100000000, "browser-automation-studio",
+		"user@example.com", currentPeriod, "compute_minutes", 50000000, "other-app",
 	)
 	if err != nil {
 		t.Fatalf("Failed to seed usage: %v", err)
@@ -363,13 +362,13 @@ func TestHandleGetUsageSummary_ReturnsCorrectValues(t *testing.T) {
 	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	// Total usage should be 100000000 + 50000000 = 150000000
-	if resp.Usage["ai_credits"] != 150000000 {
-		t.Errorf("Expected usage 150000000, got %d", resp.Usage["ai_credits"])
+	if resp.Usage["compute_minutes"] != 150000000 {
+		t.Errorf("Expected usage 150000000, got %d", resp.Usage["compute_minutes"])
 	}
 
 	// Remaining should be 500000000 - 150000000 = 350000000
-	if resp.Remaining["ai_credits"] != 350000000 {
-		t.Errorf("Expected remaining 350000000, got %d", resp.Remaining["ai_credits"])
+	if resp.Remaining["compute_minutes"] != 350000000 {
+		t.Errorf("Expected remaining 350000000, got %d", resp.Remaining["compute_minutes"])
 	}
 
 	// By-app breakdown
@@ -399,13 +398,13 @@ func TestHandleGetUsageSummary_NewUser_ReturnsEmptyUsage(t *testing.T) {
 	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	// New user should have 0 usage
-	if resp.Usage["ai_credits"] != 0 {
-		t.Errorf("Expected usage 0 for new user, got %d", resp.Usage["ai_credits"])
+	if resp.Usage["compute_minutes"] != 0 {
+		t.Errorf("Expected usage 0 for new user, got %d", resp.Usage["compute_minutes"])
 	}
 
 	// Full remaining balance (solo tier = 500000000)
-	if resp.Remaining["ai_credits"] != 500000000 {
-		t.Errorf("Expected remaining 500000000, got %d", resp.Remaining["ai_credits"])
+	if resp.Remaining["compute_minutes"] != 500000000 {
+		t.Errorf("Expected remaining 500000000, got %d", resp.Remaining["compute_minutes"])
 	}
 }
 
@@ -423,7 +422,7 @@ func TestHandleReportUsage_BearerOnly_Returns401(t *testing.T) {
 
 	body := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
-		LimitKey:     "ai_credits",
+		LimitKey:     "compute_minutes",
 		Amount:       100000,
 	}
 	bodyBytes, _ := json.Marshal(body)
@@ -446,7 +445,7 @@ func TestHandleReportUsage_BodyIdentityIsIgnored(t *testing.T) {
 
 	body := commerce.UsageReportRequest{
 		UserIdentity: "stranger@example.com",
-		LimitKey:     "ai_credits",
+		LimitKey:     "compute_minutes",
 		Amount:       100000,
 	}
 	bodyBytes, _ := json.Marshal(body)
@@ -458,7 +457,7 @@ func TestHandleReportUsage_BodyIdentityIsIgnored(t *testing.T) {
 
 	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 	var user string
-	if err := db.QueryRow(`SELECT user_identity FROM usage_records WHERE limit_key = ?`, "ai_credits").Scan(&user); err != nil {
+	if err := db.QueryRow(`SELECT user_identity FROM usage_records WHERE limit_key = ?`, "compute_minutes").Scan(&user); err != nil {
 		t.Fatalf("query usage identity: %v", err)
 	}
 	if user != "user@example.com" {
@@ -471,7 +470,7 @@ func TestHandleReportUsage_BatchReplayIsIdempotent(t *testing.T) {
 	defer db.Close()
 	handler := usageReportHandler(svc)
 	operationID := "11111111-1111-1111-1111-111111111111"
-	body := []commerce.UsageReportRequest{{UserIdentity: "stranger@example.com", LimitKey: "ai_credits", Amount: 100, OperationID: &operationID}}
+	body := []commerce.UsageReportRequest{{UserIdentity: "stranger@example.com", LimitKey: "compute_minutes", Amount: 100, OperationID: &operationID}}
 	bodyBytes, _ := json.Marshal(body)
 	for i := 0; i < 2; i++ {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/usage/report", bytes.NewReader(bodyBytes))
@@ -500,9 +499,8 @@ func TestHandleReportUsage_WithMetadata(t *testing.T) {
 
 	body := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
-		LimitKey:     "ai_credits",
+		LimitKey:     "compute_minutes",
 		Amount:       100000,
-		AppBundleKey: "browser-automation-studio",
 		Operation:    "ai.workflow_generate",
 		Metadata: map[string]string{
 			"model":         "gpt-4",
@@ -540,7 +538,7 @@ func TestHandleReportUsage_ResponseFormat(t *testing.T) {
 
 	body := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
-		LimitKey:     "ai_credits",
+		LimitKey:     "compute_minutes",
 		Amount:       100000,
 	}
 	bodyBytes, _ := json.Marshal(body)
@@ -571,7 +569,7 @@ func TestHandleCheckLimit_ResponseFormat(t *testing.T) {
 
 	handler := usageCheckHandler(svc)
 
-	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/check?tier=solo&limit_key=ai_credits", nil, "user@example.com")
+	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/check?tier=solo&limit_key=compute_minutes", nil, "user@example.com")
 	w := httptest.NewRecorder()
 	handler(w, req)
 

@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/sha512"
 	"database/sql"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"io"
 	"strings"
@@ -695,6 +697,53 @@ func TestDownloadHostingService_CommitArtifact_RejectsDownloadedByteMismatch(t *
 	}
 	if count != 0 {
 		t.Fatalf("byte-mismatched artifact was persisted: %d rows", count)
+	}
+}
+
+func TestDownloadHostingService_CommitArtifact_RejectsSHA256Mismatch(t *testing.T) {
+	db := setupTestDB(t)
+	cleanupDownloadStorageSettings(t, db)
+	cleanupDownloadArtifacts(t, db)
+	actualPayload := []byte("actual object bytes")
+	expectedPayload := []byte("different artifact bytes")
+	expectedDigest := sha256.Sum256(expectedPayload)
+	mockStorage := &mockDownloadStorage{headEtag: "sha256-mismatch", headSize: int64(len(actualPayload)), readBody: actualPayload}
+	service := NewDownloadHostingService(db, &mockStorageProvider{storage: mockStorage})
+	if _, err := db.Exec(`INSERT INTO download_storage_settings (bundle_key, provider, bucket, region, signed_url_ttl_seconds) VALUES ('commit_sha256_mismatch', 's3', 'test-bucket', 'us-east-1', 900)`); err != nil {
+		t.Fatalf("insert storage settings: %v", err)
+	}
+	_, err := service.CommitArtifact(context.Background(), "commit_sha256_mismatch", CommitArtifactRequest{
+		Bucket: "test-bucket", ObjectKey: "artifacts/mismatch/app.zip", SHA256: hex.EncodeToString(expectedDigest[:]),
+	})
+	if err == nil || !strings.Contains(err.Error(), "object SHA256") {
+		t.Fatalf("expected SHA256 mismatch refusal, got %v", err)
+	}
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM download_artifacts WHERE bundle_key = 'commit_sha256_mismatch'`).Scan(&count); err != nil {
+		t.Fatalf("count rejected artifacts: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("SHA256-mismatched artifact was persisted: %d rows", count)
+	}
+}
+
+func TestDownloadHostingService_CommitArtifact_VerifiesAndStoresSHA256(t *testing.T) {
+	db := setupTestDB(t)
+	cleanupDownloadStorageSettings(t, db)
+	cleanupDownloadArtifacts(t, db)
+	payload := []byte("verified object bytes")
+	digest := sha256.Sum256(payload)
+	mockStorage := &mockDownloadStorage{headEtag: "sha256-verified", headSize: int64(len(payload)), readBody: payload}
+	service := NewDownloadHostingService(db, &mockStorageProvider{storage: mockStorage})
+	if _, err := db.Exec(`INSERT INTO download_storage_settings (bundle_key, provider, bucket, region, signed_url_ttl_seconds) VALUES ('commit_sha256_verified', 's3', 'test-bucket', 'us-east-1', 900)`); err != nil {
+		t.Fatalf("insert storage settings: %v", err)
+	}
+	wantSHA256 := hex.EncodeToString(digest[:])
+	artifact, err := service.CommitArtifact(context.Background(), "commit_sha256_verified", CommitArtifactRequest{
+		Bucket: "test-bucket", ObjectKey: "artifacts/verified/app.zip", SHA256: wantSHA256,
+	})
+	if err != nil || artifact == nil || artifact.SHA256 != wantSHA256 {
+		t.Fatalf("artifact=%+v err=%v, want verified sha256 %s", artifact, err, wantSHA256)
 	}
 }
 

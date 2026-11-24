@@ -2,6 +2,7 @@ package admin
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -12,7 +13,6 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
-	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	"landing-page-business-suite/cli/internal/support"
 )
 
@@ -83,7 +83,7 @@ func runCredentialReset(deps support.Dependencies, args []string) error {
 			return fmt.Errorf("reset administrator credential: %w", err)
 		}
 	} else {
-		response, err = postCredentialResetWithServiceSecret(deps, payload)
+		response, err = postCredentialResetWithServiceIdentity(deps, payload)
 		if err != nil {
 			return err
 		}
@@ -96,17 +96,13 @@ func runCredentialReset(deps support.Dependencies, args []string) error {
 	return nil
 }
 
-// postCredentialResetWithServiceSecret authenticates the local recovery call
-// with the LPBS service credential from the credential authority, so only an
-// operator on a host that holds that credential can use it.
-func postCredentialResetWithServiceSecret(deps support.Dependencies, payload []byte) ([]byte, error) {
-	authority, err := credentialauthority.Default()
+// postCredentialResetWithServiceIdentity authenticates local recovery with the
+// scoped LPBS recovery principal, retaining the old service bearer only as a
+// temporary fallback until operator issuance is complete.
+func postCredentialResetWithServiceIdentity(deps support.Dependencies, payload []byte) ([]byte, error) {
+	authorization, err := support.ResolveLPBSRecoveryAuthorization(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("initialize credential authority: %w", err)
-	}
-	secret, err := authority.Require(credentialauthority.Identity(support.LPBSCredentialIdentity), "service-secret")
-	if err != nil {
-		return nil, fmt.Errorf("resolve the LPBS service credential (run on the host that owns it): %w", err)
+		return nil, fmt.Errorf("resolve the LPBS administrator recovery identity (run on the host that owns it): %w", err)
 	}
 	target, err := deps.ResolveURL("/admin/admin-credentials/reset", false, nil)
 	if err != nil {
@@ -117,7 +113,7 @@ func postCredentialResetWithServiceSecret(deps support.Dependencies, payload []b
 		return nil, err
 	}
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Authorization", "Bearer "+strings.TrimSpace(secret))
+	request.Header.Set("Authorization", authorization)
 	response, err := (&http.Client{Timeout: 30 * time.Second}).Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("reset administrator credential: %w", err)

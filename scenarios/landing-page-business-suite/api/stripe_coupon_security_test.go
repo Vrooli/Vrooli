@@ -454,7 +454,7 @@ func TestCancelSubscription_StripeSuccess_BothUpdated(t *testing.T) {
 	// Create a mock Stripe server that returns success
 	mockStripe := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, `{"id":"sub_success_cancel","status":"canceled","cancel_at_period_end":true}`)
+		fmt.Fprint(w, `{"id":"sub_success_cancel","status":"active","cancel_at_period_end":true}`)
 	}))
 	defer mockStripe.Close()
 
@@ -470,8 +470,8 @@ func TestCancelSubscription_StripeSuccess_BothUpdated(t *testing.T) {
 	var canceledAt *time.Time
 	err = db.QueryRow(`SELECT status, canceled_at FROM subscriptions WHERE subscription_id = $1`, "sub_success_cancel").Scan(&status, &canceledAt)
 	require.NoError(t, err)
-	assert.Equal(t, "canceled", status, "status should be canceled")
-	assert.NotNil(t, canceledAt, "canceled_at should be set")
+	assert.Equal(t, "active", status, "status should remain active until the period ends")
+	assert.Nil(t, canceledAt, "canceled_at should remain unset until terminal cancellation")
 }
 
 // TestWebhookTimestampValidation_OldTimestamp verifies that old timestamps are rejected.

@@ -258,10 +258,14 @@ func VerifyUpdate(deps UpdateDependencies, assets UpdateAssetLookup, artifacts U
 			bytesVerified, actualSize, actualSHA512 := false, int64(0), ""
 			if artifactAccessible && presignValid {
 				body, declaredSize, _, readErr := artifacts.ReadArtifact(r.Context(), bundleKey, *artifact)
-				if readErr == nil && body != nil {
-					actualSize, actualSHA512, readErr = digestArtifact(body, declaredSize)
-					bytesVerified = readErr == nil && digestMatches(actualSHA512, artifact.SHA512) &&
-						(artifact.SizeBytes <= 0 || actualSize == artifact.SizeBytes)
+				if body != nil {
+					if readErr == nil {
+						actualSize, actualSHA512, readErr = digestArtifact(body, declaredSize)
+						bytesVerified = readErr == nil && digestMatches(actualSHA512, artifact.SHA512) &&
+							(artifact.SizeBytes <= 0 || actualSize == artifact.SizeBytes)
+					} else {
+						_ = body.Close()
+					}
 				}
 			}
 			resp["bytes_verified"] = bytesVerified

@@ -1,0 +1,72 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "landing-page-business-suite",
+  "phase": "cloud-production-health",
+  "displayName": "Cloud Production Health",
+  "description": "Runs the CL3 owner contract suites and fails closed until staging and production showcase receipts exist.",
+  "source": "validation-provider",
+  "orderHint": 21,
+  "timeout": "1800s",
+  "findingSource": "business",
+  "validation": {
+    "contract": "scenario-validation/v1",
+    "execution": true,
+    "includeExecution": true,
+    "detailCommand": "test-genie phases inspect cloud-production-health --json"
+  },
+  "comparison": { "mode": "additive" },
+  "targets": {
+    "kinds": ["scenario"],
+    "selection": "enumerate",
+    "notApplicableKinds": [
+      { "kind": "control-plane", "reason": "CL3 production-health contracts apply to scenario-to-cloud scenario deployments, not to the control-plane process itself." }
+    ]
+  },
+  "applicability": {
+    "default": "not_applicable",
+    "any": [
+      { "fileExists": "api/health/alerts.go" }
+    ]
+  },
+  "policy": {
+    "selection": "default_when_applicable",
+    "providerReadiness": "required_when_applicable",
+    "providerLifecycle": "check_only",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "fail"
+  },
+  "runnability": { "needsAPI": true, "needsUI": false, "mutatesLifecycle": false, "dbIsolation": "none" },
+  "docs": { "path": "scenarios/test-genie/docs/phases/cloud-production-health/README.md" },
+  "concurrency": { "mode": "provider-serial", "reason": "The phase launches bounded Go owner-test commands and must not overlap another CL3 or LPBS phase run." },
+  "determinism": { "default": "observational", "reason": "The phase executes the current owner test suites and requires remote staging/production receipts that change independently of source files." },
+  "phaseClass": "capability",
+  "runtimeClass": "execution",
+  "freshnessRequirement": "always",
+  "dimensions": ["operational-targets"],
+  "evidenceKinds": ["owner-test-results", "staging-showcase-receipt", "production-health-receipt"],
+  "maturity": {
+    "version": "0.1.0",
+    "levels": [
+      { "id": "L0", "name": "Unverified", "description": "Local contracts have not been run.", "entry_criteria": ["The target is scenario-to-cloud."], "exit_criteria": ["The owner contract suite has run and is retained in the Test Genie phase result."] },
+      { "id": "L1", "name": "Local contracts verified", "description": "The local health, TLS, DBM, CLI, and LPBS delivery-health contracts passed.", "entry_criteria": ["The exact owner tests ran against current source."], "exit_criteria": ["CL2 staging rehearsal and restore receipts are verified."] },
+      { "id": "L2", "name": "Staging showcase verified", "description": "Staging runs the current build with delivered mail/alerts and a verified off-host restore.", "entry_criteria": ["Local owner contracts passed."], "exit_criteria": ["A1-approved production redeploy and current production observation are retained."] },
+      { "id": "L3", "name": "Production health verified", "description": "Production is healthy on the current release with TLS and health observation, after the reviewed redeploy.", "entry_criteria": ["Staging showcase receipts passed and A1 approved the redeploy."], "exit_criteria": ["Production health is healthy, TLS exceeds 60 days, build identity matches the release, and sign-in mail and alert delivery are verified."] }
+    ],
+    "capabilities": [
+      { "id": "production_health", "label": "Production Health", "description": "Local contracts, staging backup/restore and delivery, and current production health are independent evidence stages.", "levels": [
+        { "id": "L0", "name": "Unverified", "description": "Owner contracts were not run.", "entry_criteria": ["Applicable target."], "exit_criteria": ["Local contract results retained."], "status_label": "Unverified", "next_unlock": "Run the descriptor-backed owner suites." },
+        { "id": "L1", "name": "Local contracts", "description": "Owner tests pass with local test doubles.", "entry_criteria": ["All local owner suites pass."], "exit_criteria": ["CL2 staging rehearsal, mail/alert delivery, off-host schedule, verification, and restore receipts pass."], "status_label": "Local only", "capability_summary": "The local code contracts have evidence, but no staging or production claim is made.", "next_unlock": "Prove the current build and restore on CL2 staging." },
+        { "id": "L2", "name": "Staging proven", "description": "Staging provides current-build rehearsal and off-host restore receipts.", "entry_criteria": ["All required staging receipts are verified."], "exit_criteria": ["A1-approved production deploy and healthy current-build observation pass."], "status_label": "Staging proven", "next_unlock": "Obtain A1 approval and verify production." },
+        { "id": "L3", "name": "Production healthy", "description": "The current release is healthy and monitored on production.", "entry_criteria": ["Staging evidence passed and A1-approved deploy completed."], "exit_criteria": ["Healthy production, current build identity, TLS over 60 days, sign-in mail and delivered alerts are verified."], "status_label": "Production healthy", "capability_summary": "Production health is observed on the current release with delivery and recovery evidence.", "next_unlock": "Keep scheduled health, TLS, mail, and backup evidence current." }
+      ] }
+    ],
+    "findings": {
+      "cl3.local_contracts_failed": { "capability_id": "production_health", "local_level_impact": "L0", "global_impact": "capability_gap", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Run and repair the owner test suites." },
+      "cl3.staging_showcase_missing": { "capability_id": "production_health", "local_level_impact": "L1", "global_impact": "capability_gap", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Prove current build, mail/alerts, off-host backup verification and restore on CL2 staging." },
+      "cl3.production_showcase_missing": { "capability_id": "production_health", "local_level_impact": "L2", "global_impact": "capability_gap", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "After staging, obtain A1 approval and retain a healthy production observation with current build identity and TLS evidence." }
+    },
+    "fallback": { "capability_id": "production_health", "local_level_impact": "L0", "global_impact": "advisory", "dimension": "operational-targets", "severity_default": "SEVERITY_INFO", "clean_requirement": "advisory" }
+  }
+}

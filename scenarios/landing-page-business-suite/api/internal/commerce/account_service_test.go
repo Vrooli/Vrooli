@@ -243,6 +243,45 @@ func TestBusinessAccountEntitlementsRejectMixedScopedAndUnscopedPlans(t *testing
 	}
 }
 
+func TestBusinessAccountEntitlementsKeepSameAppScopesSeparateByBundle(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	db.SetMaxOpenConns(1)
+	if _, err := db.Exec(`CREATE TABLE subscriptions (subscription_id TEXT, status TEXT, source TEXT, external_subscription_id TEXT, plan_tier TEXT, price_id TEXT, bundle_key TEXT, canceled_at DATETIME, updated_at DATETIME, customer_email TEXT, customer_id TEXT, business_account_id TEXT, billing_cycle_start INTEGER)`); err != nil {
+		t.Fatal(err)
+	}
+	const email, accountID = "buyer@example.test", "acct-multi-bundle"
+	for _, row := range []struct{ id, price, bundle string }{
+		{"sub-audio", "price_audio", "audio_bundle"},
+		{"sub-suite", "price_suite", "business_suite"},
+	} {
+		if _, err := db.Exec(`INSERT INTO subscriptions (subscription_id,status,source,plan_tier,price_id,bundle_key,updated_at,customer_email,business_account_id) VALUES (?, 'active', 'stripe', 'pro', ?, ?, '2026-11-01', ?, ?)`, row.id, row.price, row.bundle, email, accountID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	catalog := appScopedPlanCatalog{plans: map[string]*shared.PlanOption{
+		"price_audio": {StripePriceId: "price_audio", PlanTier: "pro", Metadata: appEntitlementsMetadata(map[string]any{"audio-tools": map[string]any{"features": []any{"audio:export"}}})},
+		"price_suite": {StripePriceId: "price_suite", PlanTier: "pro", Metadata: appEntitlementsMetadata(map[string]any{"audio-tools": map[string]any{"features": []any{"audio:bundle"}}})},
+	}}
+	service := NewService(db, catalog, Runtime{})
+	grants, scoped, err := service.deriveAppEntitlements(context.Background(), email, accountID)
+	if err != nil || !scoped {
+		t.Fatalf("derive multi-bundle entitlements scoped=%v err=%v", scoped, err)
+	}
+	if len(grants) != 2 {
+		t.Fatalf("same app in separate bundles produced %d merged grants: %#v", len(grants), grants)
+	}
+	if grants[0].AppKey != "audio-tools" || grants[0].BundleKey != "audio_bundle" || !containsString(grants[0].Features, "audio:export") {
+		t.Fatalf("audio bundle grant = %#v", grants[0])
+	}
+	if grants[1].AppKey != "audio-tools" || grants[1].BundleKey != "business_suite" || !containsString(grants[1].Features, "audio:bundle") {
+		t.Fatalf("suite bundle grant = %#v", grants[1])
+	}
+}
+
 func appEntitlementsMetadata(values map[string]any) map[string]*commonv1.JsonValue {
 	return map[string]*commonv1.JsonValue{"app_entitlements": toJsonValue(values)}
 }

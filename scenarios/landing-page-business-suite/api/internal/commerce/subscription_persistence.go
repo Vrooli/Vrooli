@@ -1,6 +1,7 @@
 package commerce
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -24,6 +25,10 @@ func NewSubscriptionPersistenceService(store StripeStore, plans *PlanService, lo
 }
 
 func (s *SubscriptionPersistenceService) Persist(userHint string, sub *StripeSubscription) (*shared.SubscriptionStatus, error) {
+	return s.PersistContext(context.Background(), userHint, sub)
+}
+
+func (s *SubscriptionPersistenceService) PersistContext(ctx context.Context, userHint string, sub *StripeSubscription) (*shared.SubscriptionStatus, error) {
 	if sub == nil {
 		return nil, nil
 	}
@@ -68,7 +73,7 @@ func (s *SubscriptionPersistenceService) Persist(userHint string, sub *StripeSub
 		value := time.Unix(sub.CanceledAt, 0)
 		canceledAt = &value
 	}
-	if err := s.repository.UpsertSubscription(&SubscriptionRecord{
+	if err := s.repository.UpsertSubscriptionContext(ctx, &SubscriptionRecord{
 		SubscriptionID: sub.ID, CustomerID: sub.Customer, CustomerEmail: sub.CustomerEmail,
 		BusinessAccountID: strings.TrimSpace(metadataString(sub.Metadata, "business_account_id")),
 		Status:            SubscriptionStateLabel(state), PlanTier: nullableString(planTier), PriceID: nullableString(priceID), BundleKey: nullableString(bundleKey),

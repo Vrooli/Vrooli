@@ -2,6 +2,7 @@ package admin
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -10,14 +11,13 @@ import (
 	"strings"
 	"time"
 
-	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	"landing-page-business-suite/cli/internal/support"
 )
 
 // runMFAReset is the recovery path for an administrator who lost both the
 // authenticator and the recovery codes. It authenticates with the LPBS
-// service credential from the credential authority, so only an operator on a
-// host that holds that credential can use it; a browser session cannot.
+// scoped service identity from the credential authority, so only an operator
+// on a host that holds that principal can use it; a browser session cannot.
 func runMFAReset(deps support.Dependencies, args []string) error {
 	fs := flag.NewFlagSet("admin-mfa-reset", flag.ContinueOnError)
 	email := fs.String("email", "", "Administrator email whose two-factor authentication to turn off (defaults to the seeded admin)")
@@ -27,13 +27,9 @@ func runMFAReset(deps support.Dependencies, args []string) error {
 	if len(fs.Args()) > 0 {
 		return fmt.Errorf("usage: admin-mfa-reset [--email <email>]")
 	}
-	authority, err := credentialauthority.Default()
+	authorization, err := support.ResolveLPBSRecoveryAuthorization(context.Background())
 	if err != nil {
-		return fmt.Errorf("initialize credential authority: %w", err)
-	}
-	secret, err := authority.Require(credentialauthority.Identity(support.LPBSCredentialIdentity), "service-secret")
-	if err != nil {
-		return fmt.Errorf("resolve the LPBS service credential (run on the host that owns it): %w", err)
+		return fmt.Errorf("resolve the LPBS administrator recovery identity (run on the host that owns it): %w", err)
 	}
 	target, err := deps.ResolveURL("/admin/mfa/reset", false, nil)
 	if err != nil {
@@ -45,7 +41,7 @@ func runMFAReset(deps support.Dependencies, args []string) error {
 		return err
 	}
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Authorization", "Bearer "+strings.TrimSpace(secret))
+	request.Header.Set("Authorization", authorization)
 	response, err := (&http.Client{Timeout: 30 * time.Second}).Do(request)
 	if err != nil {
 		return fmt.Errorf("reset two-factor authentication: %w", err)

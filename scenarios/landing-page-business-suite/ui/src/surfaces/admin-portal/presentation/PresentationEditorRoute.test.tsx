@@ -6,6 +6,7 @@ import { AdminAuthContext } from '../../../app/providers/AdminAuthContext';
 import { formatPresentationDocument, parsePresentationDocument } from '../../../shared/api/productPresentation';
 import * as legacyAdapter from '../../../shared/lib/presentationLegacyImport';
 import { PresentationEditorRoute, type PresentationEditorRouteProps } from './PresentationEditorRoute';
+import { expectActionBarOrder } from '../../../test/overlayActionBarAssertions';
 import { admin, clientFixture, snapshot } from './testFixtures';
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
@@ -187,6 +188,7 @@ describe('authenticated presentation editor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Publish draft…' }));
     expect(client.publish).not.toHaveBeenCalled();
     expect(screen.getByRole('dialog')).toHaveTextContent('9007199254740993');
+    expectActionBarOrder('confirm', 'cancel');
     fireEvent.click(screen.getByRole('button', { name: 'Confirm publish' }));
     await waitFor(() => { expect(client.publish).toHaveBeenCalledWith({ variantSlug: 'control', revision: 'draft-revision', expectedGeneration: 9007199254740993n }, expect.anything()); });
     expect(client.publish.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);

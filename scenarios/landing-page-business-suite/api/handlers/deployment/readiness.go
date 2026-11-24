@@ -15,7 +15,9 @@ import (
 type Request struct {
 	AppKey        string `json:"app_key"`
 	RemoteProfile string `json:"remote_profile,omitempty"`
-	Channel       string `json:"channel,omitempty"`
+	// Channel marks a release-target readiness check. In this mode both
+	// app_key and remote_profile identify the exact destination being proved.
+	Channel string `json:"channel,omitempty"`
 }
 
 type Gate struct {
@@ -86,24 +88,40 @@ func Readiness(deps Dependencies) http.HandlerFunc {
 // CheckReadiness contains the transport-neutral deployment validation. Both
 // the legacy REST compatibility endpoint and Connect use this exact workflow.
 func CheckReadiness(ctx context.Context, deps Dependencies, request Request) Response {
-	bundleKey := deps.BundleKey()
-	gates := []Gate{storageGate(ctx, deps.Storage, deps.TestStorage, bundleKey)}
+	bundleKey := ""
+	gates := make([]Gate, 0, 5)
+	if deps.BundleKey == nil {
+		gates = append(gates, Gate{Name: "bundle_key", Message: "bundle identity is unavailable"})
+	} else {
+		bundleKey = deps.BundleKey()
+	}
+	gates = append(gates, storageGate(ctx, deps.Storage, deps.TestStorage, bundleKey))
 	if deps.StripeReadiness != nil {
 		gates = append(gates, deps.StripeReadiness(ctx))
 	}
-	if strings.TrimSpace(request.AppKey) != "" {
-		gates = append(gates, appGate(deps.Catalog, bundleKey, request.AppKey))
+	appKey := strings.TrimSpace(request.AppKey)
+	remoteProfile := strings.TrimSpace(request.RemoteProfile)
+	if strings.TrimSpace(request.Channel) != "" {
+		if appKey == "" {
+			gates = append(gates, Gate{Name: "app_key", Message: "app_key is required for release-channel readiness"})
+		}
+		if remoteProfile == "" {
+			gates = append(gates, Gate{Name: "remote_profile_session", Message: "remote_profile is required for release-channel readiness"})
+		}
 	}
-	if strings.TrimSpace(request.RemoteProfile) != "" {
-		profileGate, profileID := remoteProfileGate(ctx, deps.RemoteProfiles, request.RemoteProfile)
+	if appKey != "" {
+		gates = append(gates, appGate(deps.Catalog, bundleKey, appKey))
+	}
+	if remoteProfile != "" {
+		profileGate, profileID := remoteProfileGate(ctx, deps.RemoteProfiles, remoteProfile)
 		gates = append(gates, profileGate)
 		// The remote target, not the local proxy host, owns the bucket and the
 		// app registry that a remote release writes to. Prove both, and only
 		// when the session is active so the proxy call cannot masquerade as a
 		// missing-permission failure.
 		gates = append(gates, remoteStorageGate(ctx, deps.RemoteProfiles, profileID, profileGate.Ready))
-		if strings.TrimSpace(request.AppKey) != "" {
-			gates = append(gates, remoteAppGate(ctx, deps.RemoteProfiles, profileID, request.AppKey, profileGate.Ready))
+		if appKey != "" {
+			gates = append(gates, remoteAppGate(ctx, deps.RemoteProfiles, profileID, appKey, profileGate.Ready))
 		}
 	}
 	response := Response{Ready: true, Gates: gates}
@@ -119,6 +137,10 @@ func CheckReadiness(ctx context.Context, deps Dependencies, request Request) Res
 
 func storageGate(ctx context.Context, storage StorageService, tester StorageTester, bundleKey string) Gate {
 	gate := Gate{Name: "download_storage"}
+	if storage == nil {
+		gate.Message = "download storage service is unavailable"
+		return gate
+	}
 	settings, err := storage.GetSettings(ctx, bundleKey)
 	if err != nil {
 		gate.Message = fmt.Sprintf("read storage settings: %v", err)
@@ -128,13 +150,15 @@ func storageGate(ctx context.Context, storage StorageService, tester StorageTest
 		gate.Message = "S3 download storage is not configured"
 		return gate
 	}
-	if tester != nil {
-		probeCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
-		defer cancel()
-		if err := tester.TestConnection(probeCtx, bundleKey); err != nil {
-			gate.Message = fmt.Sprintf("distribution object operations failed: %v", err)
-			return gate
-		}
+	if tester == nil {
+		gate.Message = "download storage operation tester is unavailable"
+		return gate
+	}
+	probeCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	if err := tester.TestConnection(probeCtx, bundleKey); err != nil {
+		gate.Message = fmt.Sprintf("distribution object operations failed: %v", err)
+		return gate
 	}
 	gate.Ready = true
 	return gate
@@ -142,6 +166,10 @@ func storageGate(ctx context.Context, storage StorageService, tester StorageTest
 
 func appGate(catalog CatalogService, bundleKey, appKey string) Gate {
 	gate := Gate{Name: "app_registered"}
+	if catalog == nil {
+		gate.Message = "download catalog service is unavailable"
+		return gate
+	}
 	app, err := catalog.GetApp(bundleKey, appKey)
 	if err != nil {
 		gate.Message = fmt.Sprintf("lookup app %q: %v", appKey, err)

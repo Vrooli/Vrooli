@@ -19,6 +19,7 @@ import (
 	"github.com/vrooli/api-core/servicetoken"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	"landing-page-business-suite-api/handlers/serviceorders"
+	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/commerce"
 )
 
@@ -113,11 +114,12 @@ func rehearsalServicePrincipalCredential(name string) servicetoken.CredentialSou
 		if err != nil {
 			return "", fmt.Errorf("parse rehearsal service-principal identity: %w", err)
 		}
-		credential, err := authority.Require(identity, "credential")
+		scope := map[string]string{"treasury-x402-order": "treasury:x402-authorize", "treasury-x402-receipt": "treasury:x402-receipt-read", "money-ledger": "money-ledger:write"}[name]
+		binding, err := administration.ResolveBoundCredentialFromAuthority(authority, identity, "credential", scope)
 		if err != nil {
 			return "", fmt.Errorf("resolve scoped rehearsal service credential: %w", err)
 		}
-		return credential, nil
+		return binding.Value, nil
 	}
 }
 

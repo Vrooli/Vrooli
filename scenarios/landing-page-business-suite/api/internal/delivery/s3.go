@@ -57,23 +57,33 @@ func newS3Storage(ctx context.Context, settings StorageSettings, resolve Credent
 		//nolint:staticcheck // legacy resolver remains required by custom S3-compatible endpoints.
 		loadOptions = append(loadOptions, config.WithEndpointResolverWithOptions(endpointResolverForS3(settings.Endpoint)))
 	}
-	if resolve != nil {
-		accessKey, accessErr := resolveOptionalS3Credential(ctx, resolve, "delivery-s3-access-key-id")
-		secretKey, secretErr := resolveOptionalS3Credential(ctx, resolve, "delivery-s3-secret-access-key")
-		sessionToken, sessionErr := resolveOptionalS3Credential(ctx, resolve, "delivery-s3-session-token")
-		if accessErr != nil || secretErr != nil || sessionErr != nil {
-			return nil, fmt.Errorf("resolve download bucket credentials: %w", firstCredentialError(accessErr, secretErr, sessionErr))
-		}
-		if strings.TrimSpace(accessKey) != "" || strings.TrimSpace(secretKey) != "" {
-			loadOptions = append(loadOptions, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKey, secretKey, sessionToken)))
-		}
+	if resolve == nil {
+		return nil, errors.New("delivery S3 requires credential-authority resolution; ambient AWS credential sources are disabled")
 	}
+	accessKey, accessErr := resolveRequiredS3Credential(ctx, resolve, "delivery-s3-access-key-id")
+	secretKey, secretErr := resolveRequiredS3Credential(ctx, resolve, "delivery-s3-secret-access-key")
+	sessionToken, sessionErr := resolveOptionalS3Credential(ctx, resolve, "delivery-s3-session-token")
+	if accessErr != nil || secretErr != nil || sessionErr != nil {
+		return nil, fmt.Errorf("resolve download bucket credentials: %w", firstCredentialError(accessErr, secretErr, sessionErr))
+	}
+	loadOptions = append(loadOptions, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKey, secretKey, sessionToken)))
 	awsCfg, err := config.LoadDefaultConfig(ctx, loadOptions...)
 	if err != nil {
 		return nil, err
 	}
 	client := s3.NewFromConfig(awsCfg, func(options *s3.Options) { options.UsePathStyle = settings.ForcePathStyle })
 	return &s3Storage{client: client, presigner: s3.NewPresignClient(client), region: region}, nil
+}
+
+func resolveRequiredS3Credential(ctx context.Context, resolve CredentialResolver, field string) (string, error) {
+	value, err := resolve(ctx, field)
+	if errors.Is(err, credentialauthority.ErrUnconfigured) || (err == nil && strings.TrimSpace(value) == "") {
+		return "", fmt.Errorf("required credential %s is not configured", field)
+	}
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(value), nil
 }
 
 func resolveOptionalS3Credential(ctx context.Context, resolve CredentialResolver, field string) (string, error) {

@@ -75,6 +75,30 @@ func TestSelectVariantForVisitorIsSticky(t *testing.T) {
 	}
 }
 
+func TestSelectVariantForVisitorPreservesOrdinaryWeightAssignment(t *testing.T) {
+	variants := []*VariantSnapshot{
+		{Variant: VariantSnapshotMeta{Slug: "a", Weight: 70, Status: "active"}},
+		{Variant: VariantSnapshotMeta{Slug: "b", Weight: 30, Status: "active"}},
+	}
+	if got := SelectVariantForVisitor(variants, "normal-sticky-3"); got == nil || got.Variant.Slug != "b" {
+		t.Fatalf("ordinary weighted assignment = %#v, want b", got)
+	}
+}
+
+func TestSelectVariantForVisitorAccumulatesLargeWeightsWithoutOverflow(t *testing.T) {
+	maxInt := int(^uint(0) >> 1)
+	variants := []*VariantSnapshot{
+		{Variant: VariantSnapshotMeta{Slug: "first", Weight: maxInt, Status: "active"}},
+		{Variant: VariantSnapshotMeta{Slug: "second", Weight: maxInt, Status: "active"}},
+	}
+	// For this fixed visitor, the independent 64-bit hash bucket lands in the
+	// second equal-weight range. Two maximum int weights overflow native int on
+	// both 32-bit and 64-bit systems without wide accumulation.
+	if got := SelectVariantForVisitor(variants, "overflow-fixture-5"); got == nil || got.Variant.Slug != "second" {
+		t.Fatalf("large equal-weight assignment = %#v, want second", got)
+	}
+}
+
 func TestSelectVariantForVisitorDistributesAcrossVisitors(t *testing.T) {
 	variants := []*VariantSnapshot{{Variant: VariantSnapshotMeta{Slug: "a", Weight: 70, Status: "active"}}, {Variant: VariantSnapshotMeta{Slug: "b", Weight: 30, Status: "active"}}}
 	counts := map[string]int{}

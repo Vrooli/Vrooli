@@ -8,15 +8,19 @@
     "display_credits_label": "credits",
     "environment": "test",
     "metadata": {
-      "credit_policy": "subscriptions grant entitlements; credits are separate, non-expiring, one-time purchases",
-      "credit_topup_amounts_cents": [1000, 5000, 10000],
       "credit_expiry": "never",
+      "credit_policy": "subscriptions grant entitlements; credits are separate, non-expiring, one-time purchases",
+      "credit_topup_amounts_cents": [
+        1000,
+        5000,
+        10000
+      ],
       "subscription_credits": false
     }
   },
   "plans": [
     {
-      "stripe_price_id": "price_1UGElYJq1sLW02CVHi3meCO1",
+      "stripe_price_id": "price_1UdYOcJq1sLW02CVwSocPjrM",
       "plan_name": "Business",
       "plan_tier": "business",
       "billing_interval": "year",
@@ -32,18 +36,18 @@
       "intro_enabled": false,
       "is_variable_amount": false,
       "metadata": {
-        "subtitle": "For a company running the suite at scale",
         "cta_label": "Scale with Business",
         "features": [
           "Everything in Studio",
           "Highest usage limits across the suite",
           "Priority support with onboarding help",
           "Cancel anytime"
-        ]
+        ],
+        "subtitle": "For a company running the suite at scale"
       }
     },
     {
-      "stripe_price_id": "price_1UGElYJq1sLW02CVuCPj0ioB",
+      "stripe_price_id": "price_1UdYOcJq1sLW02CV2y3my4Te",
       "plan_name": "Studio",
       "plan_tier": "studio",
       "billing_interval": "year",
@@ -59,18 +63,18 @@
       "intro_enabled": false,
       "is_variable_amount": false,
       "metadata": {
-        "subtitle": "For teams shipping client work every week",
         "cta_label": "Choose Studio",
         "features": [
           "Everything in Pro",
           "Studio-scale usage limits",
           "Priority support",
           "Cancel anytime"
-        ]
+        ],
+        "subtitle": "For teams shipping client work every week"
       }
     },
     {
-      "stripe_price_id": "price_1UGElYJq1sLW02CVXWz0IHKP",
+      "stripe_price_id": "price_1UdYOdJq1sLW02CV6WHt0yC5",
       "plan_name": "Pro",
       "plan_tier": "pro",
       "billing_interval": "year",
@@ -86,16 +90,16 @@
       "intro_enabled": false,
       "is_variable_amount": false,
       "metadata": {
-        "subtitle": "For founders running real daily volume",
         "badge": "Most popular",
-        "highlight": true,
         "cta_label": "Choose Pro",
         "features": [
           "Everything in Solo",
           "Usage limits sized for production work",
           "Priority support",
           "Cancel anytime"
-        ]
+        ],
+        "highlight": true,
+        "subtitle": "For founders running real daily volume"
       }
     },
     {
@@ -115,14 +119,14 @@
       "intro_enabled": false,
       "is_variable_amount": false,
       "metadata": {
-        "subtitle": "For one founder shipping alone",
         "cta_label": "Start with Solo",
         "features": [
           "Every suite app on desktop and web",
           "Linux, macOS, and Windows installers",
           "All releases and updates included",
           "Email support"
-        ]
+        ],
+        "subtitle": "For one founder shipping alone"
       }
     },
     {
@@ -142,16 +146,16 @@
       "intro_enabled": false,
       "is_variable_amount": false,
       "metadata": {
-        "subtitle": "For founders running real daily volume",
         "badge": "Most popular",
-        "highlight": true,
         "cta_label": "Choose Pro",
         "features": [
           "Everything in Solo",
           "Usage limits sized for production work",
           "Priority support",
           "Cancel anytime"
-        ]
+        ],
+        "highlight": true,
+        "subtitle": "For founders running real daily volume"
       }
     },
     {
@@ -171,14 +175,14 @@
       "intro_enabled": false,
       "is_variable_amount": false,
       "metadata": {
-        "subtitle": "For a company running the suite at scale",
         "cta_label": "Scale with Business",
         "features": [
           "Everything in Studio",
           "Highest usage limits across the suite",
           "Priority support with onboarding help",
           "Cancel anytime"
-        ]
+        ],
+        "subtitle": "For a company running the suite at scale"
       }
     },
     {
@@ -198,14 +202,14 @@
       "intro_enabled": false,
       "is_variable_amount": false,
       "metadata": {
-        "subtitle": "For one founder shipping alone",
         "cta_label": "Start with Solo",
         "features": [
           "Every suite app on desktop and web",
           "Linux, macOS, and Windows installers",
           "All releases and updates included",
           "Email support"
-        ]
+        ],
+        "subtitle": "For one founder shipping alone"
       }
     },
     {
@@ -225,14 +229,14 @@
       "intro_enabled": false,
       "is_variable_amount": false,
       "metadata": {
-        "subtitle": "For teams shipping client work every week",
         "cta_label": "Choose Studio",
         "features": [
           "Everything in Pro",
           "Studio-scale usage limits",
           "Priority support",
           "Cancel anytime"
-        ]
+        ],
+        "subtitle": "For teams shipping client work every week"
       }
     },
     {
@@ -294,8 +298,24 @@
       "metadata": {
         "subtitle": "One-time purchase. Credits never expire."
       }
+    },
+    {
+      "stripe_price_id": "price_1UdYOdJq1sLW02CVmJ9wYhZX",
+      "plan_name": "Donation test only",
+      "plan_tier": "donation",
+      "billing_interval": "one_time",
+      "amount_cents": 100,
+      "currency": "usd",
+      "display_weight": 30,
+      "display_enabled": true,
+      "monthly_included_credits": 0,
+      "one_time_bonus_credits": 0,
+      "plan_rank": 6,
+      "bonus_type": "",
+      "kind": "supporter_contribution",
+      "intro_enabled": false,
+      "is_variable_amount": false
     }
   ],
-  "coupon_mappings": {},
-  "updated_at": "2026-09-17T00:00:00Z"
+  "updated_at": "2026-11-19T16:41:15Z"
 }

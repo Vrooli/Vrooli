@@ -324,76 +324,19 @@ func TestRequireAdmin_NoSession(t *testing.T) {
 	}
 }
 
-func TestRequireAdminOrService_RejectsBearerWithoutAdminSession(t *testing.T) {
-	server := &Server{db: setupTestDB(t), sessionManager: NewMockSessionManager()}
+func TestRequireAdminStepUpRejectsServiceBearerWithoutAdminSession(t *testing.T) {
+	server := &Server{sessionManager: &MockSessionManager{GetError: errors.New("missing session")}}
 	called := false
-	handler := server.requireAdminOrService(func(w http.ResponseWriter, r *http.Request) {
+	handler := server.requireAdminStepUp(func(w http.ResponseWriter, _ *http.Request) {
 		called = true
 		w.WriteHeader(http.StatusNoContent)
 	})
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/protected", nil)
-	req.Header.Set("Authorization", "Bearer service-token")
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/high-impact", nil)
+	req.Header.Set("Authorization", "Bearer old-shared-service-secret")
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	if called || rr.Code != http.StatusUnauthorized {
-		t.Fatalf("shared bearer token must be rejected: called=%v status=%d", called, rr.Code)
-	}
-}
-
-func TestRequireAdminOrService_AllowsConfiguredServiceToken(t *testing.T) {
-	t.Setenv("LPBS_TEST_CREDENTIAL_FALLBACK", "1")
-	t.Setenv("LPBS_SERVICE_SECRET", "service-token")
-	server := &Server{}
-	called := false
-	handler := server.requireAdminOrService(func(w http.ResponseWriter, r *http.Request) {
-		called = r.Context().Value(servicePrincipalContextKey) == "lpbs-service"
-		w.WriteHeader(http.StatusNoContent)
-	})
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("Authorization", "Bearer service-token")
-	rr := httptest.NewRecorder()
-	handler(rr, req)
-	if rr.Code != http.StatusNoContent || !called {
-		t.Fatalf("service request was not accepted and attributed: status=%d called=%v", rr.Code, called)
-	}
-}
-
-func TestRequireAdminOrService_RejectsMalformedAuthorization(t *testing.T) {
-	server := &Server{}
-	handler := server.requireAdminOrService(func(http.ResponseWriter, *http.Request) { t.Fatal("malformed token reached handler") })
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.Header.Set("Authorization", "Token service-token")
-	rr := httptest.NewRecorder()
-	handler(rr, req)
-	if rr.Code != http.StatusUnauthorized {
-		t.Fatalf("status=%d, want %d", rr.Code, http.StatusUnauthorized)
-	}
-}
-
-func TestRequireAdminOrService_AllowsValidAdminSessionFallback(t *testing.T) {
-	db := setupTestDB(t)
-	cleanupAdminSessions(t, db)
-	mockSession := NewMockSessionManager()
-	mockSession.SetSessionValues("admin_session", map[interface{}]interface{}{
-		"email": "admin@test.com", "session_id": "session-fallback",
-	})
-	if _, err := db.Exec(`INSERT INTO admin_sessions (id, admin_email, expires_at) VALUES ('session-fallback', 'admin@test.com', NOW() + INTERVAL '1 hour')`); err != nil {
-		t.Fatal(err)
-	}
-	server := &Server{db: db, sessionManager: mockSession}
-	called := false
-	handler := server.requireAdminOrService(func(w http.ResponseWriter, r *http.Request) {
-		called = true
-		w.WriteHeader(http.StatusNoContent)
-	})
-	rr := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/protected", nil)
-	req.Header.Set("Authorization", "Bearer wrong-token")
-
-	handler.ServeHTTP(rr, req)
-
-	if !called || rr.Code != http.StatusNoContent {
-		t.Errorf("admin-session fallback = called %v, status %d; want true, %d", called, rr.Code, http.StatusNoContent)
+		t.Fatalf("service bearer must not bypass administrator step-up: called=%v status=%d", called, rr.Code)
 	}
 }
 

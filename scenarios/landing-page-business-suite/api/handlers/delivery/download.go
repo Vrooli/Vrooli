@@ -76,6 +76,11 @@ func Authorize(deps Dependencies) http.HandlerFunc {
 			return
 		}
 		if asset.Managed && asset.ArtifactID > 0 {
+			if deps.ResolveManaged == nil || asset.SetURL == nil {
+				deps.Log("managed_delivery_unavailable", map[string]any{"app_key": appKey, "platform": platform, "artifact_id": asset.ArtifactID})
+				deps.WriteError(w, http.StatusServiceUnavailable, "Download artifact is not configured. Please try again later.", "server_error")
+				return
+			}
 			url, found, err := deps.ResolveManaged(r.Context(), asset.ArtifactID)
 			if err != nil {
 				event, message := deps.ManagedError(err)
@@ -89,6 +94,13 @@ func Authorize(deps Dependencies) http.HandlerFunc {
 				return
 			}
 			asset.SetURL(url)
+		} else if asset.Managed {
+			// A managed catalog row must never fall back to its stored ArtifactURL.
+			// That value may be stale or public; only a fresh URL resolved from the
+			// managed artifact record is suitable for delivery.
+			deps.Log("managed_artifact_id_missing", map[string]any{"app_key": appKey, "platform": platform, "artifact_id": asset.ArtifactID})
+			deps.WriteError(w, http.StatusServiceUnavailable, "Download artifact is not configured. Please try again later.", "server_error")
+			return
 		}
 		if deps.RecordEvent != nil {
 			if err := deps.RecordEvent(r.Context(), appKey, platform, "download_authorized"); err != nil {

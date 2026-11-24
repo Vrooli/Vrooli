@@ -132,9 +132,10 @@ func TestCheckoutSession_NormalizesEmail(t *testing.T) {
 	}
 }
 
-// TestIntroEligibility_CaseInsensitive verifies that users cannot use the intro
-// coupon twice by using different email case variations.
-func TestIntroEligibility_CaseInsensitive(t *testing.T) {
+// TestIntroEligibility_NormalizesEmailBeforeLookup verifies that a used address
+// cannot reuse an intro offer through case or whitespace variations, while an
+// unseen address remains eligible.
+func TestIntroEligibility_NormalizesEmailBeforeLookup(t *testing.T) {
 	db := setupTestDB(t)
 	resetStripeTestData(t, db)
 
@@ -185,11 +186,19 @@ func TestIntroEligibility_CaseInsensitive(t *testing.T) {
 			email:            "Used@Example.COM",
 			expectedEligible: false,
 		},
+		{name: "partial uppercase matches existing", email: "Used@example.com", expectedEligible: false},
+		{name: "domain uppercase matches existing", email: "used@EXAMPLE.COM", expectedEligible: false},
 		{
 			name:             "different user is eligible",
 			email:            "new@example.com",
 			expectedEligible: true,
 		},
+		{name: "leading whitespace matches", email: " used@example.com", expectedEligible: false},
+		{name: "trailing whitespace matches", email: "used@example.com ", expectedEligible: false},
+		{name: "surrounding whitespace matches", email: "  used@example.com  ", expectedEligible: false},
+		{name: "tab whitespace matches", email: "\tused@example.com\t", expectedEligible: false},
+		{name: "newline whitespace matches", email: "\nused@example.com\n", expectedEligible: false},
+		{name: "whitespace-only email is ineligible", email: " \t\n ", expectedEligible: false},
 	}
 
 	for _, tt := range tests {

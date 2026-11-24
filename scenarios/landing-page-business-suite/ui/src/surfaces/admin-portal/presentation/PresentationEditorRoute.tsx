@@ -129,8 +129,8 @@ function AuthenticatedEditor({ variantSlug, client = productPresentationClient, 
           <DialogDescription>{confirmation === 'reload' ? 'Reload replaces all unsaved text with the current server draft. Cancel to keep your edits.' : 'This explicitly changes the active public revision, subject to server validation and the loaded generation. Saving alone does not perform this action.'}</DialogDescription></DialogHeader>
         {confirmActivation && <dl className="space-y-2 break-all text-sm text-slate-200"><dt>Revision</dt><dd className="font-mono">{confirmActivation.revision}</dd><dt>Expected generation</dt><dd>{confirmActivation.generation.toString()}</dd></dl>}
         <DialogFooter><OverlayActionBar actions={[
-          { id: 'cancel', label: 'Cancel', onSelect: () => { setConfirmation(undefined); } },
           { id: 'confirm', label: confirmation === 'reload' ? 'Discard and reload' : confirmActivation?.kind === 'publish' ? 'Confirm publish' : 'Confirm rollback', onSelect: () => { if (confirmation === 'reload') editor.reload(); else if (confirmActivation) editor.activate(confirmActivation); setConfirmation(undefined); }, primary: true },
+          { id: 'cancel', label: 'Cancel', onSelect: () => { setConfirmation(undefined); } },
         ]} /></DialogFooter>
       </DialogContent>
     </Dialog>

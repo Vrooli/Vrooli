@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -112,9 +113,13 @@ func TestDeployReadiness_StorageAndAppOK(t *testing.T) {
 
 func deployReadinessHandler(storage *delivery.Service, catalog *delivery.CatalogService, profiles *administration.RemoteProfileService, plans *commerce.PlanService) http.HandlerFunc {
 	return deploymenthttp.Readiness(deploymenthttp.Dependencies{
-		Storage: storage, Catalog: catalog, RemoteProfiles: profiles, BundleKey: plans.BundleKey,
+		Storage: storage, TestStorage: readinessStorageProbeStub{}, Catalog: catalog, RemoteProfiles: profiles, BundleKey: plans.BundleKey,
 		WriteError: func(w http.ResponseWriter, status int, message, kind string) {
 			writeJSONError(w, status, message, kind)
 		},
 	})
 }
+
+type readinessStorageProbeStub struct{}
+
+func (readinessStorageProbeStub) TestConnection(context.Context, string) error { return nil }

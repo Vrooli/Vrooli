@@ -2,6 +2,7 @@ import { fireEvent, screen } from '@testing-library/react';
 import { renderWithProviders as render } from "@vrooli/api-base/testing";
 import { describe, expect, it, vi } from 'vitest';
 import { ImportCouponModal } from './ImportCouponModal';
+import { expectActionBarOrder } from '../../../../test/overlayActionBarAssertions';
 import type { UseCouponImportReturn } from '../../hooks/useCouponImport';
 import type { CouponImportPreview } from '../../../../shared/api/billing';
 
@@ -17,14 +18,17 @@ function couponImport(overrides: Partial<UseCouponImportReturn> = {}): UseCoupon
 }
 
 describe('ImportCouponModal', () => {
-  it('presents Stripe coupon state, assignment data, discounts, and safe external management link', () => {
+  it('presents Stripe coupon state and opens safe external management from the primary action', () => {
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
     render(<ImportCouponModal couponImport={couponImport()} />);
+    expectActionBarOrder('manage-stripe', 'close');
     expect(screen.getByText('2 coupons found')).toBeInTheDocument();
     expect(screen.getByText('1 assigned to plans')).toBeInTheDocument();
     expect(screen.getByText('20% off')).toBeInTheDocument();
     expect(screen.getByText('$10.00 USD off')).toBeInTheDocument();
     expect(screen.getByText('Expired/Invalid')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Manage in Stripe/ })).toHaveAttribute('rel', 'noopener noreferrer');
+    fireEvent.click(screen.getByRole('button', { name: 'Manage in Stripe' }));
+    expect(open).toHaveBeenCalledWith('https://dashboard.stripe.com/coupons', '_blank', 'noopener,noreferrer');
   });
 
   it('filters available coupons and requests a fresh Stripe preview', () => {

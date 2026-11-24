@@ -107,6 +107,127 @@ func TestTestStorageReportsStructuredDiagnostic(t *testing.T) {
 	}
 }
 
+func TestApplyArtifactUsesVerifiedArtifactChecksum(t *testing.T) {
+	deps := adminTestDependencies()
+	deps.GetArtifact = func(context.Context, string, int64) (*delivery.Artifact, error) {
+		return &delivery.Artifact{ID: 41, BundleKey: "bundle", AppKey: "desktop", Platform: "linux", SHA256: strings.Repeat("a", 64), ReleaseVersion: "1.2.3"}, nil
+	}
+	var saved ManagedAsset
+	deps.UpsertManagedAsset = func(_ context.Context, asset ManagedAsset) (any, error) { saved = asset; return asset, nil }
+	body := `{"app_key":"desktop","platform":"linux","artifact_id":41,"checksum":"` + strings.Repeat("a", 64) + `"}`
+	response := httptest.NewRecorder()
+	ApplyArtifact(deps)(response, httptest.NewRequest(http.MethodPost, "/api/v1/admin/downloads/artifacts/apply", strings.NewReader(body)))
+	if response.Code != http.StatusOK || saved.Checksum != strings.Repeat("a", 64) || saved.ArtifactID == nil || *saved.ArtifactID != 41 {
+		t.Fatalf("status=%d saved=%+v body=%s", response.Code, saved, response.Body.String())
+	}
+}
+
+func TestApplyArtifactRejectsChecksumMismatchBeforeUpsert(t *testing.T) {
+	deps := adminTestDependencies()
+	deps.GetArtifact = func(context.Context, string, int64) (*delivery.Artifact, error) {
+		return &delivery.Artifact{ID: 41, BundleKey: "bundle", AppKey: "desktop", Platform: "linux", SHA256: strings.Repeat("a", 64), ReleaseVersion: "1.2.3"}, nil
+	}
+	upserted := false
+	deps.UpsertManagedAsset = func(context.Context, ManagedAsset) (any, error) { upserted = true; return nil, nil }
+	body := `{"app_key":"desktop","platform":"linux","artifact_id":41,"checksum":"` + strings.Repeat("b", 64) + `"}`
+	response := httptest.NewRecorder()
+	ApplyArtifact(deps)(response, httptest.NewRequest(http.MethodPost, "/api/v1/admin/downloads/artifacts/apply", strings.NewReader(body)))
+	if response.Code != http.StatusConflict || upserted {
+		t.Fatalf("status=%d upserted=%v body=%s", response.Code, upserted, response.Body.String())
+	}
+}
+
+func TestSetArtifactCurrentPersistsVerifiedArtifactChecksum(t *testing.T) {
+	deps := adminTestDependencies()
+	deps.GetArtifact = func(context.Context, string, int64) (*delivery.Artifact, error) {
+		return &delivery.Artifact{ID: 41, BundleKey: "bundle", AppKey: "desktop", Platform: "linux", SHA256: strings.Repeat("c", 64), ReleaseVersion: "1.2.3"}, nil
+	}
+	deps.GetManagedAsset = func(string, string, string) (*ManagedAsset, error) { return nil, errors.New("missing") }
+	deps.IsAssetNotFound = func(error) bool { return true }
+	var saved ManagedAsset
+	deps.UpsertManagedAsset = func(_ context.Context, asset ManagedAsset) (any, error) { saved = asset; return asset, nil }
+	body := `{"app_key":"desktop","platform":"linux","artifact_id":41}`
+	response := httptest.NewRecorder()
+	SetArtifactCurrent(deps)(response, httptest.NewRequest(http.MethodPost, "/api/v1/admin/downloads/artifacts/current", strings.NewReader(body)))
+	if response.Code != http.StatusOK || saved.Checksum != strings.Repeat("c", 64) {
+		t.Fatalf("status=%d saved=%+v body=%s", response.Code, saved, response.Body.String())
+	}
+}
+
+func TestArtifactAssociationRejectsWrongOwnerOrPlatformBeforeUpsert(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		artifact delivery.Artifact
+		current  bool
+		body     string
+	}{
+		{name: "wrong app", artifact: delivery.Artifact{ID: 41, BundleKey: "bundle", AppKey: "other", Platform: "linux", SHA256: strings.Repeat("a", 64), ReleaseVersion: "1.2.3"}},
+		{name: "wrong platform", artifact: delivery.Artifact{ID: 41, BundleKey: "bundle", AppKey: "desktop", Platform: "windows", SHA256: strings.Repeat("a", 64), ReleaseVersion: "1.2.3"}},
+		{name: "set current wrong platform", current: true, artifact: delivery.Artifact{ID: 41, BundleKey: "bundle", AppKey: "desktop", Platform: "windows", SHA256: strings.Repeat("a", 64), ReleaseVersion: "1.2.3"}},
+		{name: "release version mismatch", artifact: delivery.Artifact{ID: 41, BundleKey: "bundle", AppKey: "desktop", Platform: "linux", SHA256: strings.Repeat("a", 64), ReleaseVersion: "1.2.3"}, body: `{"app_key":"desktop","platform":"linux","artifact_id":41,"release_version":"9.9.9"}`},
+		{name: "set current missing release version", current: true, artifact: delivery.Artifact{ID: 41, BundleKey: "bundle", AppKey: "desktop", Platform: "linux", SHA256: strings.Repeat("a", 64)}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			deps := adminTestDependencies()
+			deps.GetArtifact = func(context.Context, string, int64) (*delivery.Artifact, error) { return &test.artifact, nil }
+			upserted, existingRead := false, false
+			deps.UpsertManagedAsset = func(context.Context, ManagedAsset) (any, error) { upserted = true; return nil, nil }
+			deps.GetManagedAsset = func(string, string, string) (*ManagedAsset, error) {
+				existingRead = true
+				return nil, errors.New("missing")
+			}
+			deps.IsAssetNotFound = func(error) bool { return true }
+			body := test.body
+			if body == "" {
+				body = `{"app_key":"desktop","platform":"linux","artifact_id":41}`
+			}
+			recorder := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/downloads/artifacts/apply", strings.NewReader(body))
+			if test.current {
+				SetArtifactCurrent(deps)(recorder, request)
+			} else {
+				ApplyArtifact(deps)(recorder, request)
+			}
+			if recorder.Code != http.StatusConflict || upserted || existingRead {
+				t.Fatalf("status=%d upserted=%v existingRead=%v body=%s", recorder.Code, upserted, existingRead, recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestArtifactMutationHandlersFailClosedWhenDependenciesAreMissing(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		current bool
+		remove  func(*AdminDependencies)
+	}{
+		{name: "apply resolver missing", remove: func(d *AdminDependencies) { d.GetArtifact = nil }},
+		{name: "apply writer missing", remove: func(d *AdminDependencies) { d.UpsertManagedAsset = nil }},
+		{name: "current existing lookup missing", current: true, remove: func(d *AdminDependencies) { d.GetManagedAsset = nil }},
+		{name: "current not-found classifier missing", current: true, remove: func(d *AdminDependencies) { d.IsAssetNotFound = nil }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			deps := adminTestDependencies()
+			deps.GetArtifact = func(context.Context, string, int64) (*delivery.Artifact, error) { return nil, nil }
+			deps.UpsertManagedAsset = func(context.Context, ManagedAsset) (any, error) { return nil, nil }
+			deps.GetManagedAsset = func(string, string, string) (*ManagedAsset, error) { return nil, errors.New("missing") }
+			deps.IsAssetNotFound = func(error) bool { return true }
+			test.remove(&deps)
+			body := `{"app_key":"desktop","platform":"linux","artifact_id":41}`
+			recorder := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodPost, "/api/v1/admin/downloads/artifacts", strings.NewReader(body))
+			if test.current {
+				SetArtifactCurrent(deps)(recorder, request)
+			} else {
+				ApplyArtifact(deps)(recorder, request)
+			}
+			if recorder.Code != http.StatusServiceUnavailable {
+				t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+			}
+		})
+	}
+}
+
 func TestSetChannelHaltDryRunDoesNotMutateOwner(t *testing.T) {
 	deps := adminTestDependencies()
 	called := false

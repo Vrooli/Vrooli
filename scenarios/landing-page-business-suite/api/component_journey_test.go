@@ -14,6 +14,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"fmt"
 	"github.com/gorilla/mux"
 	"io"
 	"net"
@@ -119,7 +120,7 @@ func TestDesktopComponentJourneyServer(t *testing.T) {
 	}
 	entry := signed.Entry
 	db := setupTestDB(t)
-	endpoint, access, secret := setupDesktopJourneyMinIO(t)
+	endpoint, access, secret, minioHTTP := setupDesktopJourneyMinIO(t)
 	ctx := t.Context()
 	const bundleKey = "component-journey"
 	const bucket = "component-journey-downloads"
@@ -150,7 +151,7 @@ func TestDesktopComponentJourneyServer(t *testing.T) {
 	for key, value := range upload.RequiredHeaders {
 		req.Header.Set(key, value)
 	}
-	response, err := http.DefaultClient.Do(req)
+	response, err := minioHTTP.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,6 +195,10 @@ func TestDesktopComponentJourneyServer(t *testing.T) {
 	}
 	router := http.NewServeMux()
 	router.HandleFunc("/api/v1/components", deliveryhttp.Components(func() string { return bundleKey }, catalog, service))
+	updates := mux.NewRouter()
+	updateDeps := updateDependencies(componentJourneyBundle(bundleKey), db)
+	updates.HandleFunc("/api/v1/updates/{app_key}/{channel}/{file}", deliveryhttp.RequireUpdateAPIKey(updateDeps, catalog)(deliveryhttp.UpdateFile(updateDeps, catalog, service))).Methods("GET")
+	router.Handle("/api/v1/updates/", updates)
 	var expectedArtifacts atomic.Int64
 	expectedArtifacts.Store(1)
 	if fullApp != "" && signed.Entry.Owner == "audio-tools" {
@@ -228,7 +233,7 @@ func TestDesktopComponentJourneyServer(t *testing.T) {
 		for key, value := range upload.RequiredHeaders {
 			req.Header.Set(key, value)
 		}
-		response, err := http.DefaultClient.Do(req)
+		response, err := minioHTTP.Do(req)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -243,10 +248,15 @@ func TestDesktopComponentJourneyServer(t *testing.T) {
 		if _, err = catalog.PromoteChannel(ctx, delivery.ChannelPromotionRequest{BundleKey: bundleKey, AppKey: "audio-tools-full", VariantKey: "default", ArtifactIDs: map[string]int64{"linux-x64": artifact.ID}}); err != nil {
 			t.Fatal(err)
 		}
-		deps := updateDependencies(componentJourneyBundle(bundleKey), db)
-		updates := mux.NewRouter()
-		updates.HandleFunc("/api/v1/updates/{app_key}/{channel}/{file}", deliveryhttp.RequireUpdateAPIKey(deps, catalog)(deliveryhttp.UpdateFile(deps, catalog, service))).Methods("GET")
-		router.Handle("/api/v1/updates/", updates)
+		expectedArtifacts.Add(1)
+	}
+	// The app family shares the same LPBS catalog and update API. Keep the
+	// second desktop app independent from the optional-component bundle above:
+	// it has its own key, channel and real AppImage bytes.
+	if agentManagerApp := os.Getenv("J11_AGENT_MANAGER_APPIMAGE"); agentManagerApp != "" {
+		if err := registerDesktopAppImage(ctx, t, service, catalog, minioHTTP, bundleKey, bucket, agentManagerApp, "agent-manager", entry.Version); err != nil {
+			t.Fatal(err)
+		}
 		expectedArtifacts.Add(1)
 	}
 	// Publish a deliberately invalid newer artifact through the actual catalog.
@@ -348,7 +358,7 @@ func TestDesktopComponentJourneyServer(t *testing.T) {
 		for key, value := range upload.RequiredHeaders {
 			req.Header.Set(key, value)
 		}
-		response, err := http.DefaultClient.Do(req)
+		response, err := minioHTTP.Do(req)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -403,4 +413,54 @@ func TestDesktopComponentJourneyServer(t *testing.T) {
 		t.Fatalf("real artifact persistence count %d", count)
 	}
 	_, _ = io.WriteString(os.Stdout, "real LPBS component artifact persistence confirmed\n")
+}
+
+func registerDesktopAppImage(ctx context.Context, t *testing.T, service *delivery.Service, catalog *delivery.CatalogService, minioHTTP *http.Client, bundleKey, bucket, path, appKey, version string) error {
+	t.Helper()
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	stat, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	h256, h512 := sha256.New(), sha512.New()
+	if _, err = io.Copy(io.MultiWriter(h256, h512), f); err != nil {
+		return err
+	}
+	if _, err = f.Seek(0, 0); err != nil {
+		return err
+	}
+	filename := filepath.Base(path)
+	if _, err = catalog.UpsertApp(ctx, delivery.App{BundleKey: bundleKey, AppKey: appKey, Name: "Agent Manager", Metadata: map[string]any{"kind": "desktop"}}); err != nil {
+		return err
+	}
+	upload, err := service.PresignUpload(ctx, bundleKey, delivery.PresignUploadRequest{Filename: filename, ContentType: "application/octet-stream", AppKey: appKey, Platform: "linux-x64", ReleaseVersion: version})
+	if err != nil {
+		return err
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPut, upload.UploadURL, f)
+	if err != nil {
+		return err
+	}
+	request.ContentLength = stat.Size()
+	for key, value := range upload.RequiredHeaders {
+		request.Header.Set(key, value)
+	}
+	response, err := minioHTTP.Do(request)
+	if err != nil {
+		return err
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("Agent Manager MinIO upload HTTP %d", response.StatusCode)
+	}
+	artifact, err := service.CommitArtifact(ctx, bundleKey, delivery.CommitArtifactRequest{Bucket: bucket, ObjectKey: upload.ObjectKey, OriginalFilename: filename, ContentType: "application/octet-stream", AppKey: appKey, Platform: "linux-x64", ReleaseVersion: version, SHA256: hex.EncodeToString(h256.Sum(nil)), SHA512: base64.StdEncoding.EncodeToString(h512.Sum(nil))})
+	if err != nil {
+		return err
+	}
+	_, err = catalog.PromoteChannel(ctx, delivery.ChannelPromotionRequest{BundleKey: bundleKey, AppKey: appKey, VariantKey: "default", ArtifactIDs: map[string]int64{"linux-x64": artifact.ID}})
+	return err
 }

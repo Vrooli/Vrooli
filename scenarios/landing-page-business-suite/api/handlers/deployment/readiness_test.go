@@ -46,10 +46,29 @@ func TestConnectReadinessUsesSharedWorkflow(t *testing.T) {
 	}
 }
 
+func TestConnectReadinessReleaseChannelRequiresTargetIdentity(t *testing.T) {
+	handler := NewConnectHandler(Dependencies{
+		BundleKey:   func() string { return "bundle" },
+		Storage:     readinessStorageWithSettings{},
+		TestStorage: readinessStorageProbe{},
+		Catalog:     readinessCatalog{apps: map[string]bool{"web-console": true}},
+	})
+	response, err := handler.CheckReadiness(context.Background(), connect.NewRequest(&lpbsv1.CheckDeploymentReadinessRequest{
+		AppKey: "web-console", Channel: "stable",
+	}))
+	if err != nil {
+		t.Fatalf("CheckReadiness: %v", err)
+	}
+	if response.Msg.GetReady() || !strings.Contains(response.Msg.GetError(), "remote_profile is required for release-channel readiness") {
+		t.Fatalf("missing target profile must be an explicit release readiness failure, got %+v", response.Msg)
+	}
+}
+
 func TestReadinessIncludesStripeGateWhenConfigured(t *testing.T) {
 	handler := Readiness(Dependencies{
-		BundleKey: func() string { return "bundle" },
-		Storage:   readinessStorageWithSettings{},
+		BundleKey:   func() string { return "bundle" },
+		Storage:     readinessStorageWithSettings{},
+		TestStorage: readinessStorageProbe{},
 		StripeReadiness: func(context.Context) Gate {
 			return Gate{Name: "stripe_commerce", Message: "missing active Stripe credential fields: stripe-test-secret-key"}
 		},
@@ -57,8 +76,9 @@ func TestReadinessIncludesStripeGateWhenConfigured(t *testing.T) {
 	})
 
 	response := CheckReadiness(context.Background(), Dependencies{
-		BundleKey: func() string { return "bundle" },
-		Storage:   readinessStorageWithSettings{},
+		BundleKey:   func() string { return "bundle" },
+		Storage:     readinessStorageWithSettings{},
+		TestStorage: readinessStorageProbe{},
 		StripeReadiness: func(context.Context) Gate {
 			return Gate{Name: "stripe_commerce", Message: "missing active Stripe credential fields: stripe-test-secret-key"}
 		},
@@ -94,6 +114,45 @@ func TestReadinessUsesBoundedStorageProbeWhenProvided(t *testing.T) {
 	if response.Msg.GetReady() || !strings.Contains(response.Msg.GetGates()[0].GetMessage(), "put object denied") {
 		t.Fatalf("probe failure opened readiness: %+v", response.Msg.GetGates())
 	}
+}
+
+func TestReadinessFailsClosedWhenRequiredDependenciesAreMissing(t *testing.T) {
+	t.Run("storage owner missing", func(t *testing.T) {
+		response := CheckReadiness(context.Background(), Dependencies{
+			BundleKey: func() string { return "bundle" },
+		}, Request{})
+		if response.Ready || len(response.Gates) != 1 || response.Gates[0].Name != "download_storage" || response.Gates[0].Message != "download storage service is unavailable" {
+			t.Fatalf("missing storage owner must produce a closed gate, got %+v", response)
+		}
+	})
+	t.Run("storage operation tester missing", func(t *testing.T) {
+		response := CheckReadiness(context.Background(), Dependencies{
+			BundleKey: func() string { return "bundle" },
+			Storage:   readinessStorageWithSettings{},
+		}, Request{})
+		if response.Ready || len(response.Gates) != 1 || response.Gates[0].Name != "download_storage" || response.Gates[0].Message != "download storage operation tester is unavailable" {
+			t.Fatalf("missing storage operation tester must close readiness, got %+v", response)
+		}
+	})
+
+	t.Run("bundle identity missing", func(t *testing.T) {
+		response := CheckReadiness(context.Background(), Dependencies{
+			Storage: readinessStorageWithSettings{},
+		}, Request{})
+		if response.Ready || len(response.Gates) != 2 || response.Gates[0].Name != "bundle_key" || response.Gates[1].Name != "download_storage" {
+			t.Fatalf("missing bundle identity must produce closed gates, got %+v", response)
+		}
+	})
+
+	t.Run("catalog owner missing for named app", func(t *testing.T) {
+		response := CheckReadiness(context.Background(), Dependencies{
+			BundleKey: func() string { return "bundle" },
+			Storage:   readinessStorageWithSettings{},
+		}, Request{AppKey: "web-console"})
+		if response.Ready || len(response.Gates) != 2 || response.Gates[1].Name != "app_registered" || response.Gates[1].Message != "download catalog service is unavailable" {
+			t.Fatalf("missing catalog owner must produce a closed app gate, got %+v", response)
+		}
+	})
 }
 
 type readinessStorage struct{}
@@ -151,9 +210,56 @@ func remoteReadyDeps(remote readinessRemote) Dependencies {
 	return Dependencies{
 		BundleKey:      func() string { return "bundle" },
 		Storage:        readinessStorageWithSettings{},
+		TestStorage:    readinessStorageProbe{},
 		Catalog:        readinessCatalog{apps: map[string]bool{"web-console": true}},
 		RemoteProfiles: remote,
 	}
+}
+
+func TestCheckReadinessReleaseChannelRequiresAppAndRemoteProfileIdentity(t *testing.T) {
+	deps := remoteReadyDeps(readinessRemote{
+		profiles: []administration.RemoteProfile{{ID: 7, Tag: "prod"}},
+		proxyFn:  remoteProxyByPath(http.StatusOK, http.StatusOK),
+	})
+
+	t.Run("missing app key is an explicit closed gate", func(t *testing.T) {
+		response := CheckReadiness(context.Background(), deps, Request{RemoteProfile: "prod", Channel: "stable"})
+		if response.Ready {
+			t.Fatalf("release channel without app identity must fail closed: %+v", response)
+		}
+		if !strings.Contains(response.Error, "app_key is required for release-channel readiness") {
+			t.Fatalf("missing app identity should be explicit, got %q", response.Error)
+		}
+	})
+
+	t.Run("missing remote profile is an explicit closed gate", func(t *testing.T) {
+		response := CheckReadiness(context.Background(), deps, Request{AppKey: "web-console", Channel: "stable"})
+		if response.Ready {
+			t.Fatalf("release channel without remote target identity must fail closed: %+v", response)
+		}
+		if !strings.Contains(response.Error, "remote_profile is required for release-channel readiness") {
+			t.Fatalf("missing profile identity should be explicit, got %q", response.Error)
+		}
+	})
+
+	t.Run("complete release identity runs both target gates", func(t *testing.T) {
+		response := CheckReadiness(context.Background(), deps, Request{AppKey: "web-console", RemoteProfile: "prod", Channel: "stable"})
+		if !response.Ready {
+			t.Fatalf("complete release identity should pass mocked readiness: %+v", response)
+		}
+		for _, want := range []string{"app_registered", "remote_profile_session", "remote_download_storage", "remote_app_key"} {
+			found := false
+			for _, gate := range response.Gates {
+				if gate.Name == want && gate.Ready {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Fatalf("expected ready gate %q; got %+v", want, response.Gates)
+			}
+		}
+	})
 }
 
 func remoteProxyByPath(storageStatus, appStatus int) func(administration.RemoteProfileProxyRequest) (*administration.RemoteProxyResponse, error) {

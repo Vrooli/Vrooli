@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders as render } from "@vrooli/api-base/testing";
 import { describe, expect, it, vi } from 'vitest';
 import { EditCouponModal } from './EditCouponModal';
+import { expectActionBarOrder } from '../../../../test/overlayActionBarAssertions';
 
 const coupon = { id: 'launch-20', name: 'Launch discount', percent_off: 20, duration: 'repeating' as const, duration_in_months: 3, times_redeemed: 0, valid: true, created: 1_704_067_200, is_intro_coupon: false };
 
@@ -15,6 +16,7 @@ describe('EditCouponModal', () => {
     const onClose = vi.fn();
     const onSave = vi.fn().mockResolvedValue({ success: true });
     render(<EditCouponModal coupon={coupon} isOpen onClose={onClose} onSave={onSave} saving={false} />);
+    expectActionBarOrder('save', 'cancel');
 
     expect(screen.getByText('20% off')).toBeInTheDocument();
     expect(screen.getByText('Duration: repeating (3 months)')).toBeInTheDocument();

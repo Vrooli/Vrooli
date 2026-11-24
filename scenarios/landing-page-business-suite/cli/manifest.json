@@ -847,7 +847,7 @@
         },
         {
           "name": "admin-credential-reset",
-          "description": "Reset the admin sign-in credential for operator recovery using the service credential or a stored remote profile.",
+          "description": "Reset the admin sign-in credential for operator recovery using the scoped local recovery identity or a stored remote profile.",
           "binding": {
             "kind": "local"
           },
@@ -861,7 +861,7 @@
         },
         {
           "name": "admin-mfa-reset",
-          "description": "Turn off admin two-factor authentication for operator recovery using the service credential.",
+          "description": "Turn off admin two-factor authentication for operator recovery using the scoped local recovery identity.",
           "binding": {
             "kind": "local"
           },

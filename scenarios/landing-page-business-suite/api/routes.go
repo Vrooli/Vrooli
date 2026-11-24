@@ -42,6 +42,7 @@ import (
 	seohttp "landing-page-business-suite-api/handlers/seo"
 	variantspacehttp "landing-page-business-suite-api/handlers/variant_space"
 	authadmin "landing-page-business-suite-api/internal/administration"
+	"landing-page-business-suite-api/internal/bridgeadmin"
 	"landing-page-business-suite-api/internal/emailevents"
 	"landing-page-business-suite-api/internal/logx"
 	"landing-page-business-suite-api/internal/monetization"
@@ -108,7 +109,7 @@ func (s *Server) setupRoutes() {
 	registerContentRoutes(s)
 	registerMetricsRoutes(s)
 	registerBusinessDigestRoutes(s)
-	monetization.RegisterRoutes(s.router, s.primaryDB(), s.planService.BundleKey)
+	monetization.RegisterRoutes(s.router, s.primaryDB(), s.planService.BundleKey, s.stripeOutcomeReplay, monetization.RunCL3HealthContracts, monetization.RunCredentialLeakProof)
 	registerFeedbackRoutes(s)
 	registerWaitlistRoutes(s)
 	registerCreditsRoutes(s)
@@ -259,12 +260,17 @@ func registerBusinessDigestRoutes(s *Server) {
 }
 
 func registerPresentationAssetRoutes(s *Server) {
-	if s.presentationAssetHandler == nil {
-		return
+	if s.presentationAssetHandler != nil {
+		// A literal byte route keeps the generated endpoint inventory complete;
+		// the cache handler validates the full content-addressed PNG filename.
+		s.router.HandleFunc("/api/v1/presentation-assets/{file}", s.presentationAssetHandler.ServeHTTP).Methods("GET", "HEAD")
 	}
-	// A literal byte route keeps the generated endpoint inventory complete;
-	// the cache handler validates the full content-addressed PNG filename.
-	s.router.HandleFunc("/api/v1/presentation-assets/{file}", s.presentationAssetHandler.ServeHTTP).Methods("GET", "HEAD")
+	if s.presentationMediaHandler != nil {
+		s.router.HandleFunc("/api/v1/admin/presentation-media", s.requireAdminStepUp(func(w http.ResponseWriter, r *http.Request) { s.presentationMediaHandler.Upload(w, r) })).Methods("POST")
+		s.router.HandleFunc("/api/v1/admin/presentation-media/{hash}", s.requireAdminStepUp(s.presentationMediaHandler.DeleteUnreferenced)).Methods("DELETE")
+		s.router.HandleFunc("/api/v1/admin/presentation-media/{variant}/{revision}/{hash}", s.requireAdmin(s.presentationMediaHandler.DraftPlayback)).Methods("GET", "HEAD")
+		s.router.HandleFunc("/api/v1/presentation-media/{variant}/{revision}/{hash}", s.presentationMediaHandler.PublishedPlayback).Methods("GET", "HEAD")
+	}
 }
 
 // registerBackdropRoutes keeps the dynamic Backdrop Studio address on the
@@ -359,7 +365,7 @@ func registerReceiptRoutes(s *Server) {
 }
 
 func registerMeasuresRoutes(s *Server) {
-	if err := measureshandler.RegisterRoutes(s.router, s.primaryDB(), nil, s.requireAdminOrService); err != nil {
+	if err := measureshandler.RegisterRoutes(s.router, s.primaryDB(), nil, s.requireMetricsReader); err != nil {
 		panic("register measures routes: " + err.Error())
 	}
 }
@@ -384,11 +390,11 @@ func registerDeployReadinessRoute(s *Server) {
 			writeJSONError(w, status, message, kind)
 		},
 	}
-	deploymenthttp.RegisterConnectRoutes(s.router, deps, s.requireAdminOrService)
+	deploymenthttp.RegisterConnectRoutes(s.router, deps, s.requireDeploymentPrincipal)
 	// Preserve the documented JSON endpoint until its existing callers migrate.
 	s.router.HandleFunc(
 		"/api/v1/deploy-readiness",
-		s.requireAdminOrService(deploymenthttp.Readiness(deps)),
+		s.requireDeploymentPrincipal(deploymenthttp.Readiness(deps)),
 	).Methods("POST")
 }
 
@@ -431,7 +437,7 @@ func registerAuthRoutes(s *Server) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Cache-Control", "public, max-age=300")
+		w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", int(authadmin.ConsumerSigningJWKSCacheMaxAge.Seconds())))
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(body)
 	}).Methods("GET")
@@ -606,6 +612,8 @@ func registerAdminCoreRoutes(s *Server) {
 	registerAdminCredentialResetRoutes(s)
 	s.router.HandleFunc("/api/v1/admin/auth/delivery", s.requireMetricsReader(s.signInDeliveryReport)).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/auth/email-readiness", s.requireAdmin(s.emailReadinessReport)).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/auth/consumer-signing/status", s.requireAdmin(s.adminConsumerSigningStatus)).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/auth/consumer-signing/rotate", s.requireAdmin(s.requireAdminStepUp(s.adminConsumerSigningRotation))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/provider-credentials", s.requireAdmin(s.providerVerificationReport)).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/provider-credentials", s.requireAdmin(s.adminProviderCredentialWrite)).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/security-events", s.requireAdmin(s.adminSecurityEvents)).Methods("GET")
@@ -615,24 +623,25 @@ func registerAdminCoreRoutes(s *Server) {
 	billinghttp.RegisterStripeSettingsConnectRoutes(s.router, s.paymentSettings, s.stripeService, s.paymentAnomaly, s.requireAdminStepUp)
 	s.router.HandleFunc("/api/v1/admin/stripe/verify-price", s.requireAdminStepUp(bundlehttp.VerifyStripePrice(bundleStripeHandlerDependencies(s.stripeService)))).Methods("GET")
 	adminhttp.RegisterAPIKeyConnectRoutes(s.router, s.apiKeyService, s.requireAdminStepUp)
+	s.router.HandleFunc("/api/v1/admin/bridge/dispatch", s.requireAdminStepUp(bridgeadmin.Handler(s.bridgeAdmin, func(r *http.Request) (string, bool) { return s.sessionAdminEmail(r) }))).Methods("POST")
 }
 
 func registerRemoteProfileRoutes(s *Server) {
-	// List and test/proxy use requireAdminOrService so inter-scenario clients (e.g. s2d) can call them with a service bearer token.
+	// Remote-profile machine access uses per-owner scoped principals.
 	deps := remoteProfileHandlerDependencies(s.remoteProfileService, s.sessionAdminEmail)
-	s.router.HandleFunc("/api/v1/admin/remote-profiles", s.requireAdminOrService(adminhttp.ListRemoteProfiles(deps))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/remote-profiles", s.requireRemoteProfileReader(adminhttp.ListRemoteProfiles(deps))).Methods("GET")
 	// The local LPBS service identity is used by scenario-to-cloud during a
 	// governed deployment to reconcile a sealed target credential. It is not a
 	// browser/admin credential and cannot access the remaining profile controls.
-	s.router.HandleFunc("/api/v1/admin/remote-profiles", s.requireAdminOrService(adminhttp.CreateRemoteProfile(deps))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}", s.requireAdminOrService(adminhttp.UpdateRemoteProfile(deps))).Methods("PUT")
+	s.router.HandleFunc("/api/v1/admin/remote-profiles", s.requireRemoteProfileReconcile(adminhttp.CreateRemoteProfile(deps))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}", s.requireRemoteProfileReconcile(adminhttp.UpdateRemoteProfile(deps))).Methods("PUT")
 	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}", s.requireAdminStepUp(adminhttp.DeleteRemoteProfile(deps))).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/login", s.requireAdminStepUp(adminhttp.LoginRemoteProfile(deps))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/logout", s.requireAdminStepUp(adminhttp.LogoutRemoteProfile(deps))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/test", s.requireAdminOrService(adminhttp.TestRemoteProfile(deps))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/test", s.requireRemoteProfileReader(adminhttp.TestRemoteProfile(deps))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/session-links", s.requireAdminStepUp(adminhttp.RemoteProfileSessionLinks(deps))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/remote-revoke", s.requireAdminStepUp(adminhttp.RevokeRemoteProfileSessions(deps))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/proxy", s.requireAdminOrService(adminhttp.ProxyRemoteProfile(deps))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/remote-profiles/{id}/proxy", s.requireRemoteProfileReader(adminhttp.ProxyRemoteProfile(deps))).Methods("POST")
 	sessionDeps := remoteProfileSessionDependencies(s.routedDB)
 	s.router.HandleFunc("/api/v1/admin/remote-profile-sessions", s.requireAdminStepUp(adminhttp.ListIncomingRemoteProfileSessions(sessionDeps))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/remote-profile-sessions/{session_id}", s.requireAdminStepUp(adminhttp.RevokeIncomingRemoteProfileSession(sessionDeps))).Methods("DELETE")
@@ -640,28 +649,28 @@ func registerRemoteProfileRoutes(s *Server) {
 
 func registerCommerceAdminRoutes(s *Server) {
 	// Download hosting + assets
-	downloadhttp.RegisterConnectAppRoutes(s.router, s.planService.BundleKey, s.downloadService, s.requireAdminStepUp)
-	downloadAppDependencies := deliveryAppDependencies(s.planService)
-	s.router.HandleFunc("/api/v1/admin/download-apps", s.requireAdminOrService(downloadhttp.ListApps(downloadAppDependencies, s.downloadService))).Methods("GET")
+	downloadhttp.RegisterConnectAppRoutes(s.router, s.planService.BundleKey, s.downloadService, s.downloadHosting.GetArtifact, s.requireAdminStepUp)
+	downloadAppDependencies := deliveryAppDependencies(s.planService, s.downloadHosting)
+	s.router.HandleFunc("/api/v1/admin/download-apps", s.requireDeploymentPrincipal(downloadhttp.ListApps(downloadAppDependencies, s.downloadService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/download-apps", s.requireAdminStepUp(downloadhttp.CreateApp(downloadAppDependencies, s.downloadService))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/download-apps/{app_key}", s.requireAdminStepUp(downloadhttp.SaveApp(downloadAppDependencies, s.downloadService))).Methods("PUT")
+	s.router.HandleFunc("/api/v1/admin/download-apps/{app_key}", s.requireScenarioToDesktopDeployment(downloadhttp.SaveApp(downloadAppDependencies, s.downloadService))).Methods("PUT")
 	s.router.HandleFunc("/api/v1/admin/download-apps/{app_key}", s.requireAdminStepUp(downloadhttp.DeleteApp(downloadAppDependencies, s.downloadService))).Methods("DELETE")
 	downloadAdminDependencies := downloadAdminDependencies(s.downloadHosting, s.planService)
 	downloadAdminAssetDependencies := downloadAdminAssetDependencies(s.downloadService, s.downloadHosting, s.planService)
 	s.router.HandleFunc("/api/v1/admin/download-storage", s.requireAdmin(downloadhttp.GetStorage(downloadAdminDependencies))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/download-storage", s.requireAdminStepUp(downloadhttp.UpdateStorage(downloadAdminDependencies))).Methods("PUT")
-	s.router.HandleFunc("/api/v1/admin/download-storage/test", s.requireAdminOrService(downloadhttp.TestStorage(downloadAdminDependencies))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/download-storage/test", s.requireDeploymentPrincipal(downloadhttp.TestStorage(downloadAdminDependencies))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/download-artifacts", s.requireAdmin(downloadhttp.ListArtifacts(downloadAdminDependencies))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/download-artifacts/by-app", s.requireAdmin(downloadhttp.ListArtifactsByApp(downloadAdminDependencies))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/download-artifacts/presign-upload", s.requireAdminOrService(downloadhttp.PresignUpload(downloadAdminDependencies))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/download-artifacts/commit", s.requireAdminOrService(downloadhttp.CommitArtifact(downloadAdminDependencies))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/download-artifacts/presign-upload", s.requireDeploymentPrincipal(downloadhttp.PresignUpload(downloadAdminDependencies))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/download-artifacts/commit", s.requireDeploymentPrincipal(downloadhttp.CommitArtifact(downloadAdminDependencies))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/download-artifacts/{artifact_id}/presign-get", s.requireAdmin(downloadhttp.PresignGet(downloadAdminDependencies))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/download-assets/apply", s.requireAdminOrService(downloadhttp.ApplyArtifact(downloadAdminAssetDependencies))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/download-assets/apply", s.requireDeploymentPrincipal(downloadhttp.ApplyArtifact(downloadAdminAssetDependencies))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/download-assets/set-current", s.requireAdminStepUp(downloadhttp.SetArtifactCurrent(downloadAdminAssetDependencies))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/download-channels/promote", s.requireAdminOrService(downloadhttp.PromoteChannel(downloadAdminAssetDependencies))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/download-channels/head", s.requireAdminOrService(downloadhttp.GetChannelHead(downloadAdminAssetDependencies))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/download-channels/halt", s.requireAdminOrService(downloadhttp.SetChannelHalt(downloadAdminAssetDependencies))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/download-channels/recover", s.requireAdminOrService(downloadhttp.RecoverChannel(downloadAdminAssetDependencies))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/download-channels/promote", s.requireDeploymentPrincipal(downloadhttp.PromoteChannel(downloadAdminAssetDependencies))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/download-channels/head", s.requireDeploymentPrincipal(downloadhttp.GetChannelHead(downloadAdminAssetDependencies))).Methods("GET")
+	s.router.HandleFunc("/api/v1/admin/download-channels/halt", s.requireDeploymentPrincipal(downloadhttp.SetChannelHalt(downloadAdminAssetDependencies))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/download-channels/recover", s.requireDeploymentPrincipal(downloadhttp.RecoverChannel(downloadAdminAssetDependencies))).Methods("POST")
 
 	// Bundles + pricing
 	registerBundleAdminConnectRoutes(s.router, s.planService, s.stripeService, s.requireAdminStepUp)
@@ -762,6 +771,8 @@ func registerCreditsRoutes(s *Server) {
 	s.router.HandleFunc("/api/v1/usage/reservations/{reservationID}/release", s.requireUserAuth(billinghttp.ReleaseReservation(s.usageService, usageDeps))).Methods("POST")
 	s.router.HandleFunc("/api/v1/usage/summary", s.requireUserAuth(billinghttp.GetUsageSummary(s.usageService, s.accountService, usageDeps))).Methods("GET")
 	s.router.HandleFunc("/api/v1/usage/business-account-summary", s.requireUserAuth(billinghttp.GetBusinessAccountUsageSummary(s.usageService, s.accountService, usageDeps))).Methods("GET")
+	s.router.HandleFunc("/api/v1/usage/business-accounts/{reservationID}/browser-receipt", s.requireUserAuth(billinghttp.GetBusinessAccountBrowserSessionReceipt(s.usageService, usageDeps))).Methods("GET")
+	s.router.HandleFunc("/api/v1/internal/browser-sessions/settle-and-receipt", s.requireAgentManagerBrowserSessionSettlement(billinghttp.SettleAgentManagerBrowserSession(s.usageService, s.meteredInferenceService, usageDeps))).Methods("POST")
 	s.router.HandleFunc("/api/v1/usage/check", s.requireUserAuth(billinghttp.CheckLimit(s.usageService, usageDeps))).Methods("GET")
 	s.router.HandleFunc("/api/v1/usage/health", billinghttp.UsageHealth(s.usageService, usageDeps)).Methods("GET") // Unauthenticated for monitoring
 	s.router.HandleFunc("/api/v1/admin/usage", s.requireAdmin(billinghttp.AdminUsageSummary(s.usageService, usageDeps))).Methods("GET")
@@ -776,6 +787,7 @@ func usageHTTPDependencies() billinghttp.UsageDependencies {
 }
 
 func registerAIRoutes(s *Server) {
+	registerAccountCreditLifecycleRoutes(s)
 	registerAIDoor(s)
 	intelligencehandler.RegisterConnectRoutes(s.router, s.meteredInferenceDeps, s.requireUserAuth)
 

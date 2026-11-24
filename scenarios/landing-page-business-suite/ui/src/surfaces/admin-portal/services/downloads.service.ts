@@ -6,6 +6,10 @@ import type {
   DownloadStorageSettingsUpdate,
 } from '../../../shared/api';
 import { isFormDirtyNormalized } from '../../../shared/lib/formUtils';
+import { isOfficialStorefrontLink } from '../../../shared/api/storefronts';
+import { isDownloadAssetConfigured } from '../../../shared/api/downloadReadiness';
+
+export { isOfficialStorefrontLink } from '../../../shared/api/storefronts';
 
 /**
  * Platform keys supported for desktop installers
@@ -27,6 +31,7 @@ export interface PlatformFormValues {
   artifactSource: 'direct' | 'managed';
   artifactUrl: string;
   artifactId: string;
+  checksum?: string;
   releaseVersion: string;
   releaseNotes: string;
   requiresEntitlement: boolean;
@@ -84,6 +89,35 @@ export interface AppFormValues {
   googleUrl: string;
   googleBadge: string;
   platforms: Record<PlatformKey, PlatformFormValues>;
+}
+
+/** Return an actionable admin error before invalid store links reach the API. */
+export function validateStorefrontLinks(values: AppFormValues): string | null {
+  if (values.appleEnabled && values.appleUrl.trim() && !isOfficialStorefrontLink('app_store', values.appleUrl)) {
+    return 'App Store URL must be an HTTPS listing on apps.apple.com or itunes.apple.com.';
+  }
+  if (values.googleEnabled && values.googleUrl.trim() && !isOfficialStorefrontLink('play_store', values.googleUrl)) {
+    return 'Google Play URL must be an HTTPS listing on play.google.com with an app ID.';
+  }
+  return null;
+}
+
+/** Prevent whole-app saves from silently dropping an enabled incomplete asset. */
+export function validateDownloadAssets(values: AppFormValues): string | null {
+  for (const key of PLATFORM_KEYS) {
+    const platform = values.platforms[key];
+    if (!platform.enabled) continue;
+    if (!platform.releaseVersion.trim()) return `${key} download needs a release version or must be disabled.`;
+    if (platform.artifactSource === 'managed') {
+      if (!Number.isSafeInteger(Number(platform.artifactId)) || Number(platform.artifactId) <= 0) {
+        return `${key} managed download needs a valid artifact ID or must be disabled.`;
+      }
+      if (!platform.checksum?.trim()) return `${key} managed download needs its checksum or must be disabled.`;
+    } else if (!platform.artifactUrl.trim()) {
+      return `${key} direct download needs a URL or must be disabled.`;
+    }
+  }
+  return null;
 }
 
 /**
@@ -206,6 +240,7 @@ export function buildPlatformForm(platform: PlatformKey, asset?: DownloadAsset):
     artifactSource,
     artifactUrl: asset?.artifact_url ?? '',
     artifactId: asset?.artifact_id ? String(asset.artifact_id) : '',
+    checksum: asset?.checksum ?? '',
     releaseVersion: asset?.release_version ?? '',
     releaseNotes: asset?.release_notes ?? '',
     requiresEntitlement: asset?.requires_entitlement ?? false,
@@ -245,9 +280,10 @@ export function deserializeApp(app: DownloadApp): AppFormValues {
     return acc;
   }, {} as Record<PlatformKey, PlatformFormValues>);
 
-  // Storefront enabled status: true if URL exists
-  const appleEnabled = appleStore ? Boolean(appleStore.url) : false;
-  const googleEnabled = googleStore ? Boolean(googleStore.url) : false;
+  // A malformed legacy URL stays visible in the field for correction, but is
+  // not presented as a configured storefront.
+  const appleEnabled = appleStore ? isOfficialStorefrontLink('app_store', appleStore.url) : false;
+  const googleEnabled = googleStore ? isOfficialStorefrontLink('play_store', googleStore.url) : false;
 
   return {
     appKey: app.app_key,
@@ -381,6 +417,7 @@ export function serializeApp(values: AppFormValues): DownloadAppInput {
       platform: entry.platform,
       artifact_source: artifactSource,
       artifact_id: artifactSource === 'managed' ? Number(entry.artifactId) || undefined : undefined,
+      checksum: entry.checksum?.trim() ?? '',
       artifact_url: artifactSource === 'direct' ? entry.artifactUrl.trim() : '',
       release_version: entry.releaseVersion.trim(),
       release_notes: entry.releaseNotes.trim(),
@@ -390,8 +427,13 @@ export function serializeApp(values: AppFormValues): DownloadAppInput {
   }).filter((platform) => {
     if (!platform.metadata.enabled) return false;
     if (!platform.release_version.length) return false;
-    if (platform.artifact_source === 'managed') return Boolean(platform.artifact_id);
-    return platform.artifact_url.length > 0;
+    return isDownloadAssetConfigured({
+      artifact_source: platform.artifact_source,
+      artifact_id: platform.artifact_id,
+      artifact_url: platform.artifact_url,
+      release_version: platform.release_version,
+      checksum: platform.checksum,
+    });
   });
 
   const metadata: Record<string, unknown> = { ...(values.metadata ?? {}) };
@@ -477,17 +519,21 @@ export function computeDownloadHealthFromForms(
   forms.forEach((form) => {
     PLATFORM_KEYS.forEach((platform) => {
       const p = form.values.platforms[platform];
-      const configured =
-        Boolean(p.releaseVersion) &&
-        (p.artifactSource === 'managed' ? Boolean(p.artifactId) : Boolean(p.artifactUrl));
+      const configured = isDownloadAssetConfigured({
+        artifact_source: p.artifactSource,
+        artifact_id: Number(p.artifactId) || undefined,
+        artifact_url: p.artifactUrl,
+        checksum: p.checksum,
+        release_version: p.releaseVersion,
+      });
       if (configured) {
         platformsConfigured++;
       } else {
         platformsMissing++;
       }
     });
-    if (form.values.appleUrl) storefrontsConfigured++;
-    if (form.values.googleUrl) storefrontsConfigured++;
+    if (isOfficialStorefrontLink('app_store', form.values.appleUrl)) storefrontsConfigured++;
+    if (isOfficialStorefrontLink('play_store', form.values.googleUrl)) storefrontsConfigured++;
   });
 
   return {

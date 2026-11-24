@@ -22,6 +22,7 @@ require (
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	golang.org/x/crypto v0.57.0
 	google.golang.org/protobuf v1.36.11
+	vrooli-bridge v0.0.0
 )
 
 require (
@@ -101,6 +102,7 @@ require (
 	github.com/ebitengine/purego v0.10.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-chi/chi/v5 v5.3.1 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.1
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
@@ -140,6 +142,8 @@ require (
 )
 
 replace github.com/vrooli/vrooli => ../../..
+
+replace vrooli-bridge => ../../vrooli-bridge/api
 
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
 

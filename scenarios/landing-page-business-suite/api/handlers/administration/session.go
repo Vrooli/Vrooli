@@ -322,13 +322,13 @@ func AdminMFARequired() bool {
 	return value != "0" && value != "false" && value != "no"
 }
 
-// AdminEnvironmentIsProduction resolves the deployment environment the same
-// way the rest of the API does: the scenario-specific variable first, then the
-// control-plane one exported for cloud execution.
+// AdminEnvironmentIsProduction treats the control-plane environment as
+// authoritative. Local scenario defaults such as LPBS_ENVIRONMENT=development
+// must not weaken production MFA when VROOLI_ENVIRONMENT=production.
 func AdminEnvironmentIsProduction() bool {
-	environment := strings.ToLower(strings.TrimSpace(os.Getenv("LPBS_ENVIRONMENT")))
+	environment := strings.ToLower(strings.TrimSpace(os.Getenv("VROOLI_ENVIRONMENT")))
 	if environment == "" {
-		environment = strings.ToLower(strings.TrimSpace(os.Getenv("VROOLI_ENVIRONMENT")))
+		environment = strings.ToLower(strings.TrimSpace(os.Getenv("LPBS_ENVIRONMENT")))
 	}
 	return environment == "production" || environment == "prod"
 }

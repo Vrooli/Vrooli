@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -700,10 +702,14 @@ func TestHandleAdminApplyArtifact_Success(t *testing.T) {
 	cleanupDownloadAssets(t, db)
 	cleanupDownloadApps(t, db)
 
+	payload := []byte("verified test application release")
+	digest := sha256.Sum256(payload)
+	sha256Hex := hex.EncodeToString(digest[:])
 	mockStorage := &mockDownloadStorage{
 		headEtag:        "abc123",
-		headSize:        512000,
+		headSize:        int64(len(payload)),
 		headContentType: "application/zip",
+		readBody:        payload,
 	}
 	mockProvider := &mockStorageProvider{storage: mockStorage}
 
@@ -733,7 +739,10 @@ func TestHandleAdminApplyArtifact_Success(t *testing.T) {
 	commitReq := CommitArtifactRequest{
 		Bucket:         "test-bucket",
 		ObjectKey:      "apply/test.zip",
+		AppKey:         "my-app",
+		Platform:       "windows",
 		ReleaseVersion: "1.0.0",
+		SHA256:         sha256Hex,
 	}
 	artifact, err := hosting.CommitArtifact(testContext(t), "apply_test", commitReq)
 	if err != nil {

@@ -9,11 +9,9 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // SubscriptionManagementService owns provider-backed cancellation and billing
@@ -48,15 +46,24 @@ func (s *SubscriptionManagementService) Cancel(ctx context.Context, userIdentity
 		return nil, err
 	}
 	values := url.Values{"cancel_at_period_end": {"true"}}
-	if _, err := s.requester.Request(ctx, http.MethodPost, "/v1/subscriptions/"+url.PathEscape(subscriptionID), strings.NewReader(values.Encode()), "application/x-www-form-urlencoded"); err != nil {
+	body, err := s.requester.Request(ctx, http.MethodPost, "/v1/subscriptions/"+url.PathEscape(subscriptionID), strings.NewReader(values.Encode()), "application/x-www-form-urlencoded")
+	if err != nil {
 		s.log("failed_to_cancel_subscription_on_stripe", map[string]interface{}{"id": subscriptionID, "user": userIdentity, "error": err.Error()})
 		return nil, fmt.Errorf("failed to cancel subscription with Stripe: %w", err)
 	}
-	now := time.Now()
-	if _, err := s.store.Exec(`UPDATE subscriptions SET status = $1, canceled_at = $2, updated_at = $3 WHERE subscription_id = $4`, "canceled", now, now, subscriptionID); err != nil {
-		return nil, err
+	var result struct {
+		ID                string `json:"id"`
+		Status            string `json:"status"`
+		CancelAtPeriodEnd bool   `json:"cancel_at_period_end"`
 	}
-	return &lpbsv1.CancelSubscriptionResponse{SubscriptionId: proto.String(subscriptionID), State: MapSubscriptionState("canceled"), CanceledAt: timestamppb.New(now), Message: proto.String("Subscription canceled successfully")}, nil
+	if err := json.Unmarshal(body, &result); err != nil || result.ID != subscriptionID || !result.CancelAtPeriodEnd || (result.Status != "active" && result.Status != "trialing") {
+		return nil, errors.New("Stripe did not confirm period-end cancellation for the active subscription")
+	}
+	return &lpbsv1.CancelSubscriptionResponse{
+		SubscriptionId: proto.String(subscriptionID),
+		State:          MapSubscriptionState(result.Status),
+		Message:        proto.String("Cancellation scheduled for the end of the current billing period; access remains active until then."),
+	}, nil
 }
 
 func (s *SubscriptionManagementService) CreateBillingPortalSession(ctx context.Context, userIdentity, returnURL string) (*lpbsv1.BillingPortalResponse, error) {

@@ -23,14 +23,14 @@ func NewSubscriptionRefresher(store StripeStore, plans *PlanService, requester S
 func (s *SubscriptionRefresher) Refresh(ctx context.Context, userIdentity, currentSubscriptionID string) (*shared.SubscriptionStatus, error) {
 	if currentSubscriptionID != "" {
 		if sub, err := s.provider.FetchSubscription(ctx, currentSubscriptionID); err == nil {
-			return s.persistence.Persist(userIdentity, sub)
+			return s.persistence.PersistContext(ctx, userIdentity, sub)
 		} else {
 			s.log("stripe fetch subscription failed", map[string]interface{}{"level": "warn", "id": currentSubscriptionID, "error": err.Error(), "user_id": userIdentity})
 		}
 	}
 	if strings.HasPrefix(strings.TrimSpace(userIdentity), "sub_") {
 		if sub, err := s.provider.FetchSubscription(ctx, userIdentity); err == nil {
-			return s.persistence.Persist(userIdentity, sub)
+			return s.persistence.PersistContext(ctx, userIdentity, sub)
 		}
 	}
 	if strings.Contains(userIdentity, "@") {
@@ -45,7 +45,7 @@ func (s *SubscriptionRefresher) Refresh(ctx context.Context, userIdentity, curre
 		if err != nil {
 			return nil, err
 		}
-		return s.persistence.Persist(userIdentity, sub)
+		return s.persistence.PersistContext(ctx, userIdentity, sub)
 	}
 	if strings.TrimSpace(userIdentity) == "" {
 		return nil, nil
@@ -54,7 +54,7 @@ func (s *SubscriptionRefresher) Refresh(ctx context.Context, userIdentity, curre
 	if err != nil {
 		return nil, err
 	}
-	return s.persistence.Persist(userIdentity, sub)
+	return s.persistence.PersistContext(ctx, userIdentity, sub)
 }
 
 func (s *SubscriptionRefresher) log(event string, fields map[string]interface{}) {

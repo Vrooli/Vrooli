@@ -233,8 +233,8 @@ export function RemoteProfileOwnerSettingsDialog({ profile, open, onOpenChange }
 
         <DialogFooter>
           <OverlayActionBar actions={[
-            { id: 'refresh', label: 'Refresh', onSelect: () => { void load(); }, disabled: loading || busy !== null },
             { id: 'close', label: 'Close', onSelect: () => { onOpenChange(false); }, primary: true },
+            { id: 'refresh', label: 'Refresh', onSelect: () => { void load(); }, disabled: loading || busy !== null },
           ]} />
         </DialogFooter>
       </DialogContent>

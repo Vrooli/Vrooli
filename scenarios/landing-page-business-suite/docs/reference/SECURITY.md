@@ -324,7 +324,7 @@ cannot revert it, revokes the account's other sessions, and records an
 `admin_credential_reset` security event. It is reachable:
 
 - locally: `landing-page-business-suite admin-credential-reset --new-password-stdin`
-  (the CLI presents the LPBS service credential from the credential authority);
+  (the CLI presents its scoped recovery principal from the credential authority);
 - through a stored remote profile: the same command with `--profile-tag <tag>`;
 - through the deployment credential lifecycle: rotate the declared
   `admin-default-password` binding in `scenario-to-cloud`, which redistributes

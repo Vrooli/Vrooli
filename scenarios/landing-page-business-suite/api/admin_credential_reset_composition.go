@@ -40,5 +40,5 @@ func (s *Server) adminCredentialResetDependencies() adminhttp.AdminCredentialRes
 
 func registerAdminCredentialResetRoutes(s *Server) {
 	deps := s.adminCredentialResetDependencies()
-	s.router.HandleFunc("/api/v1/admin/admin-credentials/reset", s.requireAdminOrService(adminhttp.ResetAdminCredential(deps))).Methods("POST")
+	s.router.HandleFunc("/api/v1/admin/admin-credentials/reset", s.requireAdminRecovery(adminhttp.ResetAdminCredential(deps))).Methods("POST")
 }

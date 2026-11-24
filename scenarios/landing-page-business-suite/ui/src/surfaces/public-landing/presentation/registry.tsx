@@ -77,7 +77,7 @@ export const rendererRegistry: Registry = {
     return <div key={item.capability_id}>{target ? <a href={target}>{content}</a> : content}</div>;
   })}</section>,
   'product-story': (block, { resources }) => <section id={block.id} data-block={block.kind} className="story wrap"><Intro heading={block.content.heading} body={block.content.body} eyebrow={resources.blocks[block.id]?.eyebrow} breaks={resources.blocks[block.id]?.heading_breaks} /><div className="story-grid">{block.content.items.map((item, index) => <article key={index}><span className="item-number">{String(index + 1).padStart(2, '0')}</span><div className="story-rule" /><h3>{item.title}</h3><p>{item.description}</p>{item.visual_ref && <AssetImage assetRef={item.visual_ref} resources={resources} alt={item.alt_text} />}</article>)}</div></section>,
-  'product-demo': (block, { resources, presentation }) => <ProductDemo block={block} resources={resources} revision={presentation.diagnostics.resolved_revision} />,
+  'product-demo': (block, { resources, presentation }) => <ProductDemo block={block} resources={resources} revision={presentation.diagnostics.resolved_revision} variant={presentation.diagnostics.resolved_variant} preview={presentation.diagnostics.preview} />,
   'artifact-explorer': (block, { resources }) => <ArtifactExplorer key={block.content.selected_example_id} block={block} resources={resources} />,
   'voice-story': (block, { resources }) => {
     const content = block.content;

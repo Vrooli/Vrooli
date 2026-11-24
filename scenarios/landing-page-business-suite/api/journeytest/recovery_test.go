@@ -32,7 +32,7 @@ func TestJourneyRecoveryServer(t *testing.T) {
 	}
 	defer db.Close()
 	live := false
-	door := &aidoor.Door{Keys: aidoor.KeyStore{DB: db}, Wallet: commerce.NewBusinessAccountUsageService(commerce.BusinessAccountUsageOptions{DB: db, Limits: commerce.NewLimitsService(db, "postgres", nil), Dialect: "postgres", LiveMode: &live}), GatewayURL: os.Getenv("VROOLI_JOURNEY_RECOVERY_GATEWAY"), ObserveTransition: func(row aidoor.RequestTransition) {
+	door := &aidoor.Door{Keys: aidoor.KeyStore{DB: db}, Wallet: commerce.NewBusinessAccountUsageService(commerce.BusinessAccountUsageOptions{DB: db, Limits: commerce.NewLimitsService(db, "postgres", nil), Dialect: "postgres", LiveMode: &live}), GatewayURL: os.Getenv("VROOLI_JOURNEY_RECOVERY_GATEWAY"), SignCreditAssertion: func(aidoor.Key, string, string) (string, error) { return "fixture-credit-assertion", nil }, ObserveTransition: func(row aidoor.RequestTransition) {
 		data, _ := json.Marshal(row)
 		fmt.Println("DOOR_TRACE=" + string(data))
 	}}

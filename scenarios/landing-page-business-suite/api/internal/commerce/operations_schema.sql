@@ -71,8 +71,42 @@ CREATE TABLE IF NOT EXISTS business_account_credit_reservations (
   cost_micros BIGINT NOT NULL DEFAULT 0,
   prompt_tokens BIGINT NOT NULL DEFAULT 0,
   completion_tokens BIGINT NOT NULL DEFAULT 0,
-  provider VARCHAR(100) NOT NULL DEFAULT 'openrouter'
+  provider VARCHAR(100) NOT NULL DEFAULT 'openrouter',
+  browser_session_minutes BIGINT NOT NULL DEFAULT 0,
+  browser_actions BIGINT NOT NULL DEFAULT 0,
+  browser_bytes BIGINT NOT NULL DEFAULT 0,
+  browser_run_id TEXT NOT NULL DEFAULT '',
+  browser_session_id TEXT NOT NULL DEFAULT '',
+  browser_grant_fingerprint CHAR(64) NOT NULL DEFAULT '',
+  browser_tier VARCHAR(50) NOT NULL DEFAULT '',
+  browser_evidence_fingerprint CHAR(64) NOT NULL DEFAULT ''
 );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_business_account_reservation_evidence_fingerprint ON business_account_credit_reservations(browser_evidence_fingerprint) WHERE browser_evidence_fingerprint <> '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_business_account_browser_session_owner ON business_account_credit_reservations(business_account_id,browser_session_id) WHERE browser_session_id <> '';
+
+-- Immutable provider operations are children of one pending browser-session
+-- reservation. The session reservation remains the sole credit hold/settlement.
+CREATE TABLE IF NOT EXISTS business_account_browser_gateway_receipts (
+  reservation_id UUID NOT NULL REFERENCES business_account_credit_reservations(id),
+  gateway_root_operation_id TEXT NOT NULL,
+  business_account_id TEXT NOT NULL,
+  actor_identity VARCHAR(255) NOT NULL,
+  request_fingerprint CHAR(64) NOT NULL,
+  reserved_amount BIGINT NOT NULL DEFAULT 0,
+  state VARCHAR(20) NOT NULL CHECK (state IN ('dispatching','settled','uncertain')),
+  provider VARCHAR(100) NOT NULL DEFAULT '',
+  model VARCHAR(255) NOT NULL DEFAULT '',
+  credits BIGINT NOT NULL DEFAULT 0,
+  cost_micros BIGINT NOT NULL DEFAULT 0,
+  prompt_tokens BIGINT NOT NULL DEFAULT 0,
+  completion_tokens BIGINT NOT NULL DEFAULT 0,
+  receipt_fingerprint CHAR(64) NOT NULL DEFAULT '',
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  settled_at TIMESTAMP,
+  PRIMARY KEY(reservation_id,gateway_root_operation_id),
+  UNIQUE(gateway_root_operation_id)
+);
+CREATE INDEX IF NOT EXISTS idx_browser_gateway_receipts_account ON business_account_browser_gateway_receipts(business_account_id,reservation_id,state);
 
 -- Per-job service orders have a separate identity and lifecycle from plan and
 -- credit checkout sessions. The current provider implementation is sandbox
@@ -92,6 +126,8 @@ CREATE TABLE IF NOT EXISTS service_orders (
   x402_price_id TEXT NOT NULL DEFAULT '',
   x402_payer TEXT NOT NULL DEFAULT '',
   x402_network TEXT NOT NULL DEFAULT '',
+  ledger_receipt_id TEXT,
+  treasury_external_id TEXT,
   mode TEXT NOT NULL CHECK (mode = 'sandbox'),
   state TEXT NOT NULL CHECK (state IN ('created','authorized','verification_failed','verified','capture_pending','captured','voided','declined','ledger_pending','reconciled')),
   authorization_id TEXT,
@@ -101,12 +137,6 @@ CREATE TABLE IF NOT EXISTS service_orders (
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
-ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS x402_price_id TEXT NOT NULL DEFAULT '';
-ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS agent_manager_run_id TEXT NOT NULL DEFAULT '';
-ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS x402_payer TEXT NOT NULL DEFAULT '';
-ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS x402_network TEXT NOT NULL DEFAULT '';
-ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS ledger_receipt_id TEXT;
-ALTER TABLE service_orders ADD COLUMN IF NOT EXISTS treasury_external_id TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS service_orders_treasury_external_id ON service_orders(treasury_external_id) WHERE treasury_external_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS service_orders_state_created ON service_orders(state, created_at);
 
@@ -137,11 +167,8 @@ CREATE TABLE IF NOT EXISTS service_order_ledger_outbox (
   duplicate BOOLEAN NOT NULL DEFAULT FALSE
 );
 CREATE INDEX IF NOT EXISTS service_order_ledger_pending ON service_order_ledger_outbox(delivered_at, occurred_at);
-ALTER TABLE business_account_credit_reservations ADD COLUMN IF NOT EXISTS charged_amount BIGINT NOT NULL DEFAULT 0;
-ALTER TABLE business_account_credit_reservations ADD COLUMN IF NOT EXISTS overrun_amount BIGINT NOT NULL DEFAULT 0;
 -- Null means the funding mode was not recorded. Never infer it from an
 -- account's current lots; active unknown-mode holds fail closed.
-ALTER TABLE business_account_credit_reservations ADD COLUMN IF NOT EXISTS livemode BOOLEAN;
 CREATE TABLE IF NOT EXISTS credit_funding_lots (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_account_id TEXT NOT NULL,
@@ -176,13 +203,6 @@ CREATE TABLE IF NOT EXISTS credit_funding_lots (
   crypto_no_chargeback BOOLEAN,
   UNIQUE (business_account_id, provider, provider_ref)
 );
-ALTER TABLE credit_funding_lots ADD COLUMN IF NOT EXISTS crypto_network TEXT;
-ALTER TABLE credit_funding_lots ADD COLUMN IF NOT EXISTS crypto_asset_id TEXT;
-ALTER TABLE credit_funding_lots ADD COLUMN IF NOT EXISTS crypto_atomic_amount NUMERIC(78,0);
-ALTER TABLE credit_funding_lots ADD COLUMN IF NOT EXISTS crypto_payer_address TEXT;
-ALTER TABLE credit_funding_lots ADD COLUMN IF NOT EXISTS crypto_payer_identity TEXT;
-ALTER TABLE credit_funding_lots ADD COLUMN IF NOT EXISTS money_ledger_receipt_id TEXT;
-ALTER TABLE credit_funding_lots ADD COLUMN IF NOT EXISTS crypto_no_chargeback BOOLEAN;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_funding_lots_money_ledger_receipt ON credit_funding_lots(money_ledger_receipt_id) WHERE money_ledger_receipt_id IS NOT NULL;
 CREATE TABLE IF NOT EXISTS crypto_payer_customer_bindings (
   payer_identity TEXT NOT NULL,
@@ -285,9 +305,15 @@ CREATE TABLE IF NOT EXISTS business_account_usage_events (
   completion_tokens BIGINT NOT NULL DEFAULT 0,
   provider VARCHAR(100) NOT NULL DEFAULT 'openrouter',
   feature_id TEXT NOT NULL DEFAULT '',
+  browser_session_minutes BIGINT NOT NULL DEFAULT 0,
+  browser_actions BIGINT NOT NULL DEFAULT 0,
+  browser_bytes BIGINT NOT NULL DEFAULT 0,
+  browser_run_id TEXT NOT NULL DEFAULT '',
+  browser_session_id TEXT NOT NULL DEFAULT '',
+  browser_evidence_fingerprint CHAR(64) NOT NULL DEFAULT '',
   created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
-ALTER TABLE business_account_usage_events ADD COLUMN IF NOT EXISTS feature_id TEXT NOT NULL DEFAULT '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_business_account_usage_evidence_fingerprint ON business_account_usage_events(browser_evidence_fingerprint) WHERE browser_evidence_fingerprint <> '';
 CREATE INDEX IF NOT EXISTS idx_business_account_usage_events_account ON business_account_usage_events(business_account_id, created_at);
 -- The outbox commits with the lot mutation, independently of ledger uptime.
 -- Separate mode-specific sinks prevent test reversals reaching a live book.

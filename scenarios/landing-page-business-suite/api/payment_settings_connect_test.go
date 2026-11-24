@@ -26,6 +26,7 @@ func newStripeSettingsConnectHandler(t *testing.T) (billinghttp.StripeSettingsCo
 }
 
 func TestStripeSettingsConnectUpdateRedactsSecretsAndRefreshesRuntime(t *testing.T) {
+	t.Setenv("STRIPE_MODE", "test")
 	handler, _ := newStripeSettingsConnectHandler(t)
 	response, err := handler.UpdateStripeSettings(context.Background(), connect.NewRequest(&lpbsv1.UpdateStripeSettingsRequest{
 		PublishableKey: protoString("pk_live_connect"), SecretKey: protoString("sk_live_connect"), WebhookSecret: protoString("whsec_live_connect"), DashboardUrl: protoString("https://dashboard.stripe.com/test"),
@@ -54,6 +55,7 @@ func TestStripeSettingsConnectRejectsInvalidUpdate(t *testing.T) {
 }
 
 func TestStripeSettingsConnectGetAndRevealKeepSecretsSeparated(t *testing.T) {
+	t.Setenv("STRIPE_MODE", "test")
 	handler, _ := newStripeSettingsConnectHandler(t)
 	_, err := handler.UpdateStripeSettings(context.Background(), connect.NewRequest(&lpbsv1.UpdateStripeSettingsRequest{SecretKey: protoString("sk_live_connect")}))
 	if err != nil {

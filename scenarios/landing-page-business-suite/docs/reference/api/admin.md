@@ -66,8 +66,8 @@ the current password and TOTP or recovery code for the current admin session.
 | POST | `/admin/mfa/confirm` | `{code}` → turns two-factor on and returns ten one-use `recovery_codes` |
 | POST | `/admin/mfa/disable` | `{code}` (authenticator or recovery code) → turns two-factor off |
 | POST | `/admin/mfa/recovery-codes` | `{code}` → replaces all recovery codes |
-| POST | `/admin/mfa/reset` | `{email}`; **service credential only** (browser sessions are refused). Operator recovery for a lost authenticator and lost recovery codes; the CLI wraps it as `landing-page-business-suite admin-mfa-reset --email <email>` |
-| POST | `/admin/admin-credentials/reset` | `{email, new_password?, new_email?}`; **service credential only** (browser sessions are refused). Operator recovery for a locked-out administrator. Updates the stored bcrypt hash, mirrors the new password into the `admin-default-password` authority value so a restart cannot revert it, revokes the account's sessions, and records a security event. The password is never echoed. |
+| POST | `/admin/mfa/reset` | `{email}`; **scoped local recovery principal or temporary legacy service-secret overlap** (browser sessions are refused). Operator recovery for a lost authenticator and lost recovery codes; the CLI wraps it as `landing-page-business-suite admin-mfa-reset --email <email>` |
+| POST | `/admin/admin-credentials/reset` | `{email, new_password?, new_email?}`; **scoped local recovery principal or temporary legacy service-secret overlap** (browser sessions are refused). Operator recovery for a locked-out administrator. Updates the stored bcrypt hash, mirrors the new password into the `admin-default-password` authority value so a restart cannot revert it, revokes the account's sessions, and records a security event. The password is never echoed. |
 
 Secrets are sealed with the generated `admin-mfa-encryption-key` ring;
 recovery codes are stored as bcrypt hashes.

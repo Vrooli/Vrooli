@@ -263,8 +263,8 @@ export function ImportCouponModal({ couponImport }: ImportCouponModalProps) {
 
         <DialogFooter className="border-t border-slate-700/50 pt-4">
           <OverlayActionBar actions={[
-            { id: 'close', label: 'Close', onSelect: closeModal },
             { id: 'manage-stripe', label: 'Manage in Stripe', onSelect: () => { window.open('https://dashboard.stripe.com/coupons', '_blank', 'noopener,noreferrer'); }, primary: true },
+            { id: 'close', label: 'Close', onSelect: closeModal },
           ]} />
         </DialogFooter>
       </DialogContent>

@@ -11,6 +11,7 @@ import (
 )
 
 func TestPaymentSettingsServiceUpsert(t *testing.T) {
+	t.Setenv("STRIPE_MODE", "live")
 	db := setupTestDB(t)
 	t.Cleanup(func() { _ = db.Close() })
 	t.Cleanup(func() {
@@ -64,6 +65,7 @@ func TestPaymentSettingsServiceUpsert(t *testing.T) {
 }
 
 func TestPaymentSettingsService_TrimsWhitespace(t *testing.T) {
+	t.Setenv("STRIPE_MODE", "live")
 	db := setupTestDB(t)
 	t.Cleanup(func() { _ = db.Close() })
 	t.Cleanup(func() {
@@ -119,6 +121,7 @@ func TestPaymentSettingsServiceReturnsNilWhenNoRecord(t *testing.T) {
 }
 
 func TestPaymentSettingsServicePropagatesCredentialProviderFailure(t *testing.T) {
+	t.Setenv("STRIPE_MODE", "test")
 	db := setupTestDB(t)
 	t.Cleanup(func() { _ = db.Close() })
 	if _, err := db.Exec("DELETE FROM payment_settings"); err != nil {
@@ -197,41 +200,51 @@ func TestPaymentSettingsServiceUsesStrictTestCredentialNamespace(t *testing.T) {
 	}
 }
 
-func TestPaymentSettingsServiceDefaultsToLiveMigrationFallback(t *testing.T) {
-	t.Setenv("STRIPE_MODE", "")
+func TestPaymentSettingsServiceRejectsLegacyLiveFallback(t *testing.T) {
+	t.Setenv("STRIPE_MODE", "live")
 	db := setupTestDB(t)
 	t.Cleanup(func() { _ = db.Close() })
 	if _, err := db.Exec(`INSERT INTO payment_settings (id, dashboard_url) VALUES (1, 'https://dashboard.example.test') ON CONFLICT (id) DO UPDATE SET dashboard_url = EXCLUDED.dashboard_url`); err != nil {
 		t.Fatalf("failed to seed payment_settings: %v", err)
 	}
 
-	values := map[string]string{
-		"stripe-publishable-key": "pk_live_legacy",
-		"stripe-secret-key":      "rk_live_legacy",
-		"stripe-webhook-secret":  "whsec_legacy",
-	}
-	requested := make([]string, 0, 6)
+	requested := make([]string, 0, 3)
 	service := commerce.NewPaymentSettingsServiceWithCredentials(db, func(_ context.Context, field string) (string, error) {
 		requested = append(requested, field)
-		if strings.HasPrefix(field, "stripe-live-") {
-			return "", credentialauthority.ErrUnconfigured
-		}
-		value, ok := values[field]
-		if !ok {
-			return "", credentialauthority.ErrUnconfigured
-		}
-		return value, nil
+		return "", credentialauthority.ErrUnconfigured
 	}, nil)
 
 	record, err := service.GetStripeSettings(context.Background())
 	if err != nil {
 		t.Fatalf("get live settings failed: %v", err)
 	}
-	if record.GetPublishableKey() != values["stripe-publishable-key"] || record.GetSecretKey() != values["stripe-secret-key"] || record.GetWebhookSecret() != values["stripe-webhook-secret"] {
-		t.Fatalf("legacy live fallback values were not loaded: %+v", record)
+	if record.GetPublishableKey() != "" || record.GetSecretKey() != "" || record.GetWebhookSecret() != "" {
+		t.Fatalf("legacy credentials must not populate mode-specific live settings: %+v", record)
 	}
-	if len(requested) != 6 {
-		t.Fatalf("requested fields = %v, want explicit live fields followed by legacy fallback fields", requested)
+	requestedSet := make(map[string]bool, len(requested))
+	for _, field := range requested {
+		requestedSet[field] = true
+	}
+	if len(requestedSet) != 3 || !requestedSet["stripe-live-publishable-key"] || !requestedSet["stripe-live-secret-key"] || !requestedSet["stripe-live-webhook-secret"] {
+		t.Fatalf("requested fields = %v, want only the explicit live fields", requested)
+	}
+}
+
+func TestPaymentSettingsServiceWithUnsetModeDoesNotResolveStripeCredentials(t *testing.T) {
+	t.Setenv("STRIPE_MODE", "")
+	db := setupTestDB(t)
+	t.Cleanup(func() { _ = db.Close() })
+	if _, err := db.Exec(`INSERT INTO payment_settings (id, dashboard_url) VALUES (1, 'https://dashboard.example.test') ON CONFLICT (id) DO UPDATE SET dashboard_url = EXCLUDED.dashboard_url`); err != nil {
+		t.Fatalf("failed to seed payment_settings: %v", err)
+	}
+	called := false
+	service := commerce.NewPaymentSettingsServiceWithCredentials(db, func(context.Context, string) (string, error) {
+		called = true
+		return "must-not-be-read", nil
+	}, nil)
+	record, err := service.GetStripeSettings(context.Background())
+	if err != nil || record == nil || record.GetSecretKey() != "" || called {
+		t.Fatalf("unset mode resolved Stripe credentials: record=%+v called=%v err=%v", record, called, err)
 	}
 }
 

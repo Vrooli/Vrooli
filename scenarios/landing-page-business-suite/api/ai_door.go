@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 
+	"github.com/vrooli/api-core/consumeridentity"
 	"github.com/vrooli/api-core/discovery"
 	"landing-page-business-suite-api/internal/aidoor"
 	"landing-page-business-suite-api/internal/commerce"
@@ -16,7 +18,9 @@ func registerAIDoor(s *Server) {
 		return
 	}
 	live := isProductionEnvironment()
-	door := &aidoor.Door{Keys: aidoor.KeyStore{DB: db}, Wallet: commerce.NewBusinessAccountUsageService(commerce.BusinessAccountUsageOptions{DB: db, Limits: commerce.NewLimitsService(db, "postgres", nil), Dialect: "postgres", LiveMode: &live}), ResolveGateway: func(ctx context.Context) (string, error) {
+	door := &aidoor.Door{Keys: aidoor.KeyStore{DB: db}, Wallet: commerce.NewBusinessAccountUsageService(commerce.BusinessAccountUsageOptions{DB: db, Limits: commerce.NewLimitsService(db, "postgres", nil), Dialect: "postgres", LiveMode: &live}), SignCreditAssertion: func(key aidoor.Key, operation, featureID string) (string, error) {
+		return s.userAuthService.SignAICreditAssertion(consumeridentity.CreditAssertionExpectation{BusinessAccountID: key.Account, ActorID: key.Actor, AppKey: key.App, FeatureID: featureID, MaxCredits: key.MaxCredits, Audience: consumeridentity.CreditGatewayAudience, OperationID: operation, Source: consumeridentity.CreditAssertionSource})
+	}, ResolveGateway: func(ctx context.Context) (string, error) {
 		return discovery.ResolveScenarioURLDefault(ctx, "ai-gateway")
 	}}
 	go door.RunRecovery(context.Background())
@@ -34,10 +38,37 @@ func registerAIDoorRoutes(s *Server, door *aidoor.Door) {
 			writeJSONError(w, 400, "invalid device key request", "invalid_request")
 			return
 		}
-		// A public client label is attribution, never app billing authority.
-		// Until app-bound issuance has an authenticated owner, this is a global
-		// account credential; configured app caps fail closed at admission.
-		key, err := door.Keys.IssueDevice(r.Context(), input.Account, getUserID(r.Context()), "", input.MaxCredits)
+		if s.businessAccounts == nil || s.accountService == nil || s.userAuthService == nil {
+			writeJSONError(w, 503, "app credit authority is unavailable", ApiErrorTypeServerError)
+			return
+		}
+		actor := getUserID(r.Context())
+		account, err := s.businessAccounts.ResolveForUser(r.Context(), actor, getUserEmail(r.Context()), strings.TrimSpace(input.Account))
+		if err != nil {
+			writeJSONError(w, 403, "business account access is not available", ApiErrorTypeForbidden)
+			return
+		}
+		appKey := strings.ToLower(strings.TrimSpace(input.App))
+		entitlements, err := s.accountService.GetEntitlementsForBusinessAccountContext(r.Context(), getUserEmail(r.Context()), account.ID)
+		if err != nil {
+			writeJSONError(w, 503, "app credit entitlement is unavailable", ApiErrorTypeServerError)
+			return
+		}
+		appAllowed := false
+		for _, grant := range entitlements.AppEntitlements {
+			if grant.AppKey != appKey {
+				continue
+			}
+			switch strings.ToLower(strings.TrimSpace(grant.Status)) {
+			case "active", "trialing", "past_due":
+				appAllowed = true
+			}
+		}
+		if !appAllowed {
+			writeJSONError(w, 403, "active app entitlement is required", ApiErrorTypeForbidden)
+			return
+		}
+		key, err := door.Keys.IssueDevice(r.Context(), account.ID, actor, appKey, input.MaxCredits)
 		if err != nil {
 			writeJSONError(w, 403, err.Error(), "forbidden")
 			return
@@ -50,6 +81,7 @@ func registerAIDoorRoutes(s *Server, door *aidoor.Door) {
 	s.router.Handle("/api/v1/ai/receipt", door).Methods("GET")
 	s.router.Handle("/api/v1/ai/responses", door).Methods("POST")
 	s.router.Handle("/api/v1/ai/chat/completions", door).Methods("POST")
+	s.router.PathPrefix("/api/v1/ai/").Handler(door).Methods("POST")
 	s.router.Handle("/api/v1/ai/keys/session", door).Methods("POST")
 	s.router.Handle("/api/v1/ai/keys/{id}", door).Methods("DELETE")
 }

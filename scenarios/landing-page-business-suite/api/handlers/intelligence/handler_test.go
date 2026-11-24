@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/lpbsidentity"
 	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	"landing-page-business-suite-api/internal/intelligence"
 )
@@ -31,6 +32,30 @@ func (meteredInferenceStub) ExecuteChatStream(context.Context, string, intellige
 }
 func (meteredInferenceStub) GetAvailableModels() []string      { return nil }
 func (meteredInferenceStub) HealthCheck(context.Context) error { return nil }
+
+type callerInferenceStub struct {
+	called bool
+	err    error
+}
+
+func (s *callerInferenceStub) ExecuteInferenceForCaller(_ context.Context, user, caller string, _ intelligence.InferenceRequest) (*intelligence.AIResponse, error) {
+	s.called = user == "actor@example.test" && caller == "web-console"
+	if s.err != nil {
+		return nil, s.err
+	}
+	return &intelligence.AIResponse{Content: "safe result"}, nil
+}
+func (*callerInferenceStub) ExecuteInferenceStreamForCaller(context.Context, string, string, intelligence.InferenceRequest, http.ResponseWriter) error {
+	return nil
+}
+func (*callerInferenceStub) ExecuteChat(context.Context, string, intelligence.AIRequest) (*intelligence.AIResponse, error) {
+	return nil, nil
+}
+func (*callerInferenceStub) ExecuteChatStream(context.Context, string, intelligence.AIRequest, http.ResponseWriter) error {
+	return nil
+}
+func (*callerInferenceStub) GetAvailableModels() []string      { return nil }
+func (*callerInferenceStub) HealthCheck(context.Context) error { return nil }
 
 var (
 	_ intelligence.MeteredInferenceProvider = meteredInferenceStub{}
@@ -131,6 +156,85 @@ func TestInferenceRejectsBusinessAccountWithoutMembership(t *testing.T) {
 	handler.Inference()(response, httptest.NewRequest(http.MethodPost, "/api/v1/ai/inference", bytes.NewReader(body)))
 	if response.Code != http.StatusForbidden || !resolverCalled {
 		t.Fatalf("status=%d resolverCalled=%t body=%s", response.Code, resolverCalled, response.Body.String())
+	}
+}
+
+func TestStandardInferenceUsesVerifiedScenarioRoleAndDefaultHumanAccount(t *testing.T) {
+	service := &callerInferenceStub{}
+	verifiedCaller := false
+	resolvedAccount := false
+	handler := New(Dependencies{
+		Service:         service,
+		UserRateLimiter: allowLimiter{}, IPRateLimiter: allowLimiter{}, IPKeyFunc: func(*http.Request) string { return "ip" },
+		UserID:       func(context.Context) string { return "actor-1" },
+		UserIdentity: func(context.Context) string { return "actor@example.test" },
+		ResolveBusinessAccount: func(_ context.Context, userID, identity, requested string) (string, error) {
+			resolvedAccount = userID == "actor-1" && identity == "actor@example.test" && requested == ""
+			return "acct-default", nil
+		},
+		ResolveCreditCallerScenario: func(_ context.Context, authorization string) (string, error) {
+			verifiedCaller = authorization == "Bearer synthetic-scenario-principal"
+			if !verifiedCaller {
+				return "", errors.New("synthetic principal refused")
+			}
+			return "web-console", nil
+		},
+		WriteJSONError: writeTestError, Log: func(string, map[string]interface{}) {}, LogError: func(string, map[string]interface{}) {},
+	})
+	body := []byte(`{"role":"author.generator","messages":[{"role":"user","content":"synthetic prompt"}],"metadata":{"gateway_root_operation_id":"0123456789abcdef0123456789abcdef","app_bundle_key":"caller-controlled"}}`)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/ai/inference", bytes.NewReader(body))
+	request.Header.Set("Authorization", "Bearer synthetic-human-session")
+	request.Header.Set(lpbsidentity.CreditCallerAuthorizationHeader, "Bearer synthetic-scenario-principal")
+	response := httptest.NewRecorder()
+	handler.Inference()(response, request)
+	if response.Code != http.StatusOK || !verifiedCaller || !resolvedAccount || !service.called {
+		t.Fatalf("status=%d verifiedCaller=%t resolvedAccount=%t body=%s", response.Code, verifiedCaller, resolvedAccount, response.Body.String())
+	}
+}
+
+func TestStandardInferenceRejectsUnverifiedCallerBeforeReservation(t *testing.T) {
+	service := &callerInferenceStub{}
+	handler := New(Dependencies{
+		Service:         service,
+		UserRateLimiter: allowLimiter{}, IPRateLimiter: allowLimiter{}, IPKeyFunc: func(*http.Request) string { return "ip" },
+		UserID: func(context.Context) string { return "actor-1" }, UserIdentity: func(context.Context) string { return "actor@example.test" },
+		ResolveBusinessAccount:      func(context.Context, string, string, string) (string, error) { return "acct-default", nil },
+		ResolveCreditCallerScenario: func(context.Context, string) (string, error) { return "", errors.New("signature refused") },
+		WriteJSONError:              writeTestError, Log: func(string, map[string]interface{}) {}, LogError: func(string, map[string]interface{}) {},
+	})
+	body := []byte(`{"role":"author.generator","messages":[{"role":"user","content":"synthetic prompt"}],"metadata":{"gateway_root_operation_id":"0123456789abcdef0123456789abcdef"}}`)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/ai/inference", bytes.NewReader(body))
+	request.Header.Set("Authorization", "Bearer synthetic-human-session")
+	request.Header.Set(lpbsidentity.CreditCallerAuthorizationHeader, "Bearer forged")
+	response := httptest.NewRecorder()
+	handler.Inference()(response, request)
+	if response.Code != http.StatusForbidden || service.called {
+		t.Fatalf("status=%d called=%t body=%s", response.Code, service.called, response.Body.String())
+	}
+}
+
+func TestStandardInferenceSurfacesUncertainOutcomeAndRootOperation(t *testing.T) {
+	rootOperationID := "0123456789abcdef0123456789abcdef"
+	service := &callerInferenceStub{err: errors.Join(intelligence.ErrInferenceOutcomeUncertain, intelligence.ErrInferenceReservationRetentionFailed)}
+	handler := New(Dependencies{
+		Service:         service,
+		UserRateLimiter: allowLimiter{}, IPRateLimiter: allowLimiter{}, IPKeyFunc: func(*http.Request) string { return "ip" },
+		UserID: func(context.Context) string { return "actor-1" }, UserIdentity: func(context.Context) string { return "actor@example.test" },
+		ResolveBusinessAccount:      func(context.Context, string, string, string) (string, error) { return "acct-default", nil },
+		ResolveCreditCallerScenario: func(context.Context, string) (string, error) { return "web-console", nil },
+		WriteJSONError:              writeTestError, Log: func(string, map[string]interface{}) {}, LogError: func(string, map[string]interface{}) {},
+	})
+	body := []byte(`{"role":"author.generator","messages":[{"role":"user","content":"synthetic"}],"metadata":{"gateway_root_operation_id":"` + rootOperationID + `"}}`)
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/ai/inference", bytes.NewReader(body))
+	request.Header.Set(lpbsidentity.CreditCallerAuthorizationHeader, "Bearer signed-synthetic-principal")
+	response := httptest.NewRecorder()
+	handler.Inference()(response, request)
+	var envelope map[string]string
+	if err := json.NewDecoder(response.Body).Decode(&envelope); err != nil {
+		t.Fatalf("decode error response: %v", err)
+	}
+	if response.Code != http.StatusBadGateway || response.Header().Get("X-Vrooli-Root-Operation-ID") != rootOperationID || envelope["type"] != "outcome_uncertain" || !service.called {
+		t.Fatalf("status=%d root=%q envelope=%#v serviceCalled=%t", response.Code, response.Header().Get("X-Vrooli-Root-Operation-ID"), envelope, service.called)
 	}
 }
 

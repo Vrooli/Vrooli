@@ -2,6 +2,7 @@ package delivery
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/sha512"
 	"crypto/subtle"
 	"database/sql"
@@ -623,6 +624,10 @@ func (s *Service) PresignUpload(ctx context.Context, bundleKey string, req Presi
 	if err != nil {
 		return nil, err
 	}
+	uploadURL, err = validatePresignedURL(uploadURL)
+	if err != nil {
+		return nil, err
+	}
 
 	return &PresignUploadResponse{
 		UploadURL:       uploadURL,
@@ -674,8 +679,8 @@ func (s *Service) CommitArtifact(ctx context.Context, bundleKey string, req Comm
 	if err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(req.SHA512) != "" {
-		if err := verifyStoredObjectBytes(ctx, storage, bucket, req.ObjectKey, size, req.SHA512); err != nil {
+	if strings.TrimSpace(req.SHA256) != "" || strings.TrimSpace(req.SHA512) != "" {
+		if err := verifyStoredObjectBytes(ctx, storage, bucket, req.ObjectKey, size, req.SHA256, req.SHA512); err != nil {
 			return nil, fmt.Errorf("verify uploaded artifact bytes: %w", err)
 		}
 	}
@@ -741,7 +746,7 @@ func (s *Service) CommitArtifact(ctx context.Context, bundleKey string, req Comm
 	return &artifact, nil
 }
 
-func verifyStoredObjectBytes(ctx context.Context, storage Storage, bucket, objectKey string, expectedSize int64, expectedSHA512 string) error {
+func verifyStoredObjectBytes(ctx context.Context, storage Storage, bucket, objectKey string, expectedSize int64, expectedSHA256, expectedSHA512 string) error {
 	reader, ok := storage.(ObjectReader)
 	if !ok {
 		return fmt.Errorf("storage provider does not support byte reads")
@@ -755,8 +760,8 @@ func verifyStoredObjectBytes(ctx context.Context, storage Storage, bucket, objec
 	}
 	defer body.Close()
 
-	hash := sha512.New()
-	count, err := io.Copy(hash, body)
+	sha256Hash, sha512Hash := sha256.New(), sha512.New()
+	count, err := io.Copy(io.MultiWriter(sha256Hash, sha512Hash), body)
 	if err != nil {
 		return err
 	}
@@ -766,9 +771,17 @@ func verifyStoredObjectBytes(ctx context.Context, storage Storage, bucket, objec
 	if declaredSize > 0 && count != declaredSize {
 		return fmt.Errorf("object size %d differs from GET content length %d", count, declaredSize)
 	}
-	actual := base64.StdEncoding.EncodeToString(hash.Sum(nil))
-	if !digestEqual(actual, expectedSHA512) {
-		return fmt.Errorf("object SHA512 %q does not match expected digest", actual)
+	if expectedSHA256 = strings.TrimSpace(expectedSHA256); expectedSHA256 != "" {
+		actual := hex.EncodeToString(sha256Hash.Sum(nil))
+		if !digestEqual(actual, expectedSHA256) {
+			return fmt.Errorf("object SHA256 %q does not match expected digest", actual)
+		}
+	}
+	if expectedSHA512 = strings.TrimSpace(expectedSHA512); expectedSHA512 != "" {
+		actual := base64.StdEncoding.EncodeToString(sha512Hash.Sum(nil))
+		if !digestEqual(actual, expectedSHA512) {
+			return fmt.Errorf("object SHA512 %q does not match expected digest", actual)
+		}
 	}
 	return nil
 }
@@ -788,7 +801,9 @@ func digestEqual(actual, expected string) bool {
 }
 
 func decodeDigest(value string) ([]byte, error) {
-	value = strings.TrimSpace(strings.TrimPrefix(value, "sha512:"))
+	value = strings.TrimSpace(value)
+	value = strings.TrimPrefix(value, "sha512:")
+	value = strings.TrimPrefix(value, "sha256:")
 	if decoded, err := base64.StdEncoding.DecodeString(value); err == nil {
 		return decoded, nil
 	}
@@ -1074,7 +1089,11 @@ func (s *Service) PresignGetArtifact(ctx context.Context, bundleKey string, arti
 		ttl = 15 * time.Minute
 	}
 
-	return storage.PresignGet(ctx, artifact.Bucket, artifact.ObjectKey, ttl)
+	signedURL, err := storage.PresignGet(ctx, artifact.Bucket, artifact.ObjectKey, ttl)
+	if err != nil {
+		return "", err
+	}
+	return validatePresignedURL(signedURL)
 }
 
 // HeadArtifact checks if an artifact's S3 object is accessible.

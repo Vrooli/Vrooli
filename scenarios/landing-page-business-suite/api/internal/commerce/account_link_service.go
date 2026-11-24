@@ -23,13 +23,17 @@ func NewAccountLinkService(db StripeStore) *AccountLinkService {
 // LinkUserToStripeCustomer creates or updates a user record with the Stripe
 // customer ID supplied by a completed checkout.
 func (s *AccountLinkService) LinkUserToStripeCustomer(email, customerID string) error {
+	return s.LinkUserToStripeCustomerContext(context.Background(), email, customerID)
+}
+
+func (s *AccountLinkService) LinkUserToStripeCustomerContext(ctx context.Context, email, customerID string) error {
 	email = normalizeEmail(email)
 	customerID = strings.TrimSpace(customerID)
 	if email == "" || customerID == "" {
 		return errors.New("email and customer ID are required")
 	}
 
-	_, err := s.db.Exec(`
+	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO users (email, stripe_customer_id, email_verified)
 		VALUES ($1, $2, FALSE)
 		ON CONFLICT (email) DO UPDATE SET
@@ -127,6 +131,12 @@ func (s *AccountLinkService) MigrateCustomerEmail(ctx context.Context, oldEmail,
 		label string
 	}{
 		{`UPDATE subscriptions SET customer_email = $1, updated_at = NOW() WHERE customer_email = $2 OR customer_id = $3`, []any{normalizedNew, normalizedOld, customerID}, "migrate subscriptions table"},
+		// Credit identity is scoped to a business account. Keep its current
+		// projection and transaction attribution in sync with the account's
+		// email, while leaving the retired email-keyed credit_wallets ledger
+		// untouched (it is not an authority for spendable credit).
+		{`UPDATE business_account_credit_wallets SET customer_email = $1, updated_at = NOW() WHERE customer_email = $2`, []any{normalizedNew, normalizedOld}, "migrate business account credit wallets"},
+		{`UPDATE business_account_credit_transactions SET customer_email = $1 WHERE customer_email = $2`, []any{normalizedNew, normalizedOld}, "migrate business account credit transactions"},
 		{`UPDATE intro_coupon_usage SET email = $1 WHERE email = $2 OR stripe_customer_id = $3`, []any{normalizedNew, normalizedOld, customerID}, "migrate intro_coupon_usage table"},
 	}
 	for _, update := range updates {

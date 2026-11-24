@@ -154,7 +154,10 @@ func (s *UserAuthService) ValidateAccessToken(tokenString string) (*UserClaims, 
 	if tokenString == "" {
 		return nil, ErrTokenInvalid
 	}
-	claims, err := consumeridentity.NewVerifier(s.consumerKeys, s.jwtIssuer, s.consumerLeeway).Verify(tokenString)
+	if err := s.refreshConsumerSigningKeyset(); err != nil {
+		return nil, ErrTokenInvalid
+	}
+	claims, err := consumeridentity.NewVerifier(s.consumerKeySetAt(time.Now().UTC()), s.jwtIssuer, s.consumerLeeway).Verify(tokenString)
 	if err != nil {
 		if errors.Is(err, consumeridentity.ErrExpired) {
 			return nil, ErrTokenExpired
@@ -174,9 +177,34 @@ func registeredClaims(claims consumeridentity.Claims) jwt.RegisteredClaims {
 	}
 }
 
-// PublicKeySet returns the currently active public keys. It is safe to serve
-// this value publicly; no private signing material is included.
-func (s *UserAuthService) PublicKeySet() ([]byte, error) { return s.consumerKeys.JWKS() }
+// PublicKeySet returns the currently active public keys. Expired overlap keys
+// are omitted even if the process has not restarted since the rotation.
+func (s *UserAuthService) PublicKeySet() ([]byte, error) {
+	if err := s.refreshConsumerSigningKeyset(); err != nil {
+		return nil, errors.New("consumer signing authority could not be refreshed")
+	}
+	return s.consumerKeySetAt(time.Now().UTC()).JWKS()
+}
+
+func (s *UserAuthService) consumerKeySetAt(now time.Time) *consumeridentity.KeySet {
+	s.consumerKeyMu.RLock()
+	defer s.consumerKeyMu.RUnlock()
+	return s.consumerKeySetAtLocked(now)
+}
+
+func (s *UserAuthService) consumerKeySetAtLocked(now time.Time) *consumeridentity.KeySet {
+	set := consumeridentity.NewKeySet(s.consumerCurrentPublic)
+	for _, previous := range s.consumerPreviousKeys {
+		if previous.Key == nil || previous.ID == s.consumerCurrentPublic.ID {
+			continue
+		}
+		if expires, ok := s.consumerPreviousKeyExpirations[previous.ID]; ok && !now.Before(expires) {
+			continue
+		}
+		set.Add(previous)
+	}
+	return set
+}
 
 // Logout revokes the session associated with the given session ID.
 func (s *UserAuthService) Logout(ctx context.Context, sessionID string) error {

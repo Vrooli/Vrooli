@@ -95,7 +95,7 @@ describe('landing API', () => {
         },
         downloads: [{
           bundle_key: 'suite', app_key: 'example', name: 'Owner app', metadata: { web_url: 'https://launch.example/app', enabled: true },
-          install_steps: ['Install'], storefronts: [{ store: 'direct', label: 'Owner store', url: 'https://store.example/app', badge: 'Open' }], display_order: 3,
+          install_steps: ['Install'], storefronts: [{ store: 'play_store', label: 'Google Play', url: 'https://play.google.com/store/apps/details?id=org.vrooli.aquila', badge: 'Open' }], display_order: 3,
           platforms: [{ id: '9', bundle_key: 'suite', app_key: 'example', platform: 'linux', artifact_url: '/authorized/app',
             artifact_source: 'managed', artifact_id: '22', release_version: '1.2.3', release_notes: 'Owner release',
             checksum: 'sha', requires_entitlement: true, artifact_filename: 'app.AppImage', artifact_size_bytes: '4096', artifact_count: 1,
@@ -110,6 +110,24 @@ describe('landing API', () => {
       expect(result.pricing?.credit_topups[0]).toMatchObject({ stripe_price_id: 'price_credits', kind: 'credits_topup', billing_interval: 'one_time' });
       expect(result.downloads[0]).toMatchObject({ bundle_key: 'suite', app_key: 'example', metadata: { web_url: 'https://launch.example/app', enabled: true }, storefronts: [{ badge: 'Open' }], display_order: 3 });
       expect(result.downloads[0]?.platforms[0]).toMatchObject({ id: 9, artifact_id: 22, artifact_source: 'managed', artifact_url: '/authorized/app', release_version: '1.2.3', requires_entitlement: true, artifact_size_bytes: 4096, artifact_count: 1, metadata: { channel: 'stable' } });
+    });
+
+    it('normalizes official owner storefront links and drops invalid legacy rows', async () => {
+      const wire = fromJsonString(LandingConfigResponseSchema, JSON.stringify({
+        presentation: toJson(ResolvedProductPresentationSchema, publicConfig().presentation),
+        downloads: [{ bundle_key: 'suite', app_key: 'example', name: 'Owner app', storefronts: [
+          { store: 'app_store', label: ' App Store ', url: ' https://apps.apple.com/us/app/aquila/id123 ' },
+          { store: 'app_store', label: 'Fake Apple', url: 'https://apps.apple.com.evil.test/us/app/aquila/id123' },
+          { store: 'custom', label: 'Custom', url: 'https://store.example.test/aquila' },
+        ] }],
+      }));
+      landingConfigClient.getLandingConfig.mockResolvedValue(wire);
+
+      const result = await getLandingConfig();
+
+      expect(result.downloads[0]?.storefronts).toEqual([{
+        store: 'app_store', label: 'App Store', url: 'https://apps.apple.com/us/app/aquila/id123',
+      }]);
     });
 
     it('preserves typed nested pricing metadata and unsafe int64 precision through the real generated codec', async () => {
@@ -136,7 +154,7 @@ describe('landing API', () => {
       const wire = fromJsonString(LandingConfigResponseSchema, JSON.stringify({
         presentation: toJson(ResolvedProductPresentationSchema, publicConfig().presentation),
         downloads: [{ bundle_key: 'suite', app_key: 'example', name: 'Owner app',
-          storefronts: [{ store: 'direct', label: 'Owner store', url: 'https://store.example/app' }],
+          storefronts: [{ store: 'play_store', label: 'Google Play', url: 'https://play.google.com/store/apps/details?id=org.vrooli.aquila' }],
           platforms: [{ id: '23', bundle_key: 'suite', app_key: 'example', platform: 'linux', release_version: '1.2.3' }],
         }],
       }));

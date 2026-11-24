@@ -119,7 +119,7 @@ func TestPublicReceiptRecoversLostResponseWithoutRedispatchOrPrivateContent(t *t
 	// memory retained by the request that lost its response.
 	door := s.server.Config.Handler.(*aidoor.Door)
 	s.server.Close()
-	s.server = httptest.NewServer(&aidoor.Door{Keys: door.Keys, Wallet: door.Wallet, GatewayURL: door.GatewayURL})
+	s.server = httptest.NewServer(&aidoor.Door{Keys: door.Keys, Wallet: door.Wallet, GatewayURL: door.GatewayURL, SignCreditAssertion: door.SignCreditAssertion})
 	t.Cleanup(s.server.Close)
 	for i := 0; i < 2; i++ {
 		code, body = s.readReceipt(t, s.key.Token, operation)
@@ -152,7 +152,7 @@ func TestPublicReceiptRequiresOriginalKeyAndAccountAndDoesNotProbeUnknownOperati
 	response := s.request(t, s.key.Token, "owned-operation", "hello")
 	io.Copy(io.Discard, response.Body)
 	keys := aidoor.KeyStore{DB: s.db}
-	sameAccount, err := keys.IssueDevice(context.Background(), "account", "actor", "journey", 10000)
+	sameAccount, err := keys.IssueDevice(context.Background(), "account", "actor", "web-console", 10000)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +166,7 @@ func TestPublicReceiptRequiresOriginalKeyAndAccountAndDoesNotProbeUnknownOperati
 	tracker := &receiptReadTransport{}
 	door := s.server.Config.Handler.(*aidoor.Door)
 	s.server.Close()
-	s.server = httptest.NewServer(&aidoor.Door{Keys: door.Keys, Wallet: door.Wallet, GatewayURL: door.GatewayURL, Client: &http.Client{Transport: tracker}})
+	s.server = httptest.NewServer(&aidoor.Door{Keys: door.Keys, Wallet: door.Wallet, GatewayURL: door.GatewayURL, Client: &http.Client{Transport: tracker}, SignCreditAssertion: door.SignCreditAssertion})
 	t.Cleanup(s.server.Close)
 	for _, tc := range []struct{ name, token, operation string }{
 		{"unknown", s.key.Token, "never-dispatched"},

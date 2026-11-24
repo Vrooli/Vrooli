@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -103,47 +104,18 @@ func testRelease(uri string) *backdroprelease.ReleasedBackdrop {
 
 func verifierFixture(t *testing.T, body []byte, release *backdroprelease.ReleasedBackdrop) (*Verifier, *fakeBackdropOwner, *Cache, *filerouting.RoutedRoots, *httptest.Server) {
 	t.Helper()
-	cache, roots, _ := newCache(t)
-	digest := sha256.Sum256(body)
-	if release.ContentHash == "" {
-		release.ContentHash = hex.EncodeToString(digest[:])
-	}
-	owner := &fakeBackdropOwner{release: release}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/backdrops/release-1/asset" {
-			http.NotFound(w, r)
-			return
-		}
-		hash := hex.EncodeToString(digest[:])
-		w.Header().Set("Content-Type", "image/png")
-		w.Header().Set("Content-Length", stringInt(len(body)))
-		w.Header().Set("ETag", `"`+hash+`"`)
-		w.Header().Set("X-Content-SHA256", hash)
-		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-		_, _ = w.Write(body)
-	}))
-	t.Cleanup(server.Close)
-	verifier, err := NewVerifier(Config{
-		Owner:                owner,
-		OwnerClientOrigin:    server.URL,
-		ResolveOwnerEndpoint: func(context.Context) (string, error) { return server.URL, nil },
-		Cache:                cache,
-		SurfacePolicy: SurfacePolicyFunc(func(_ context.Context, surface string, width, height int, crop string, _ presentation.FocalPoint, placement string) error {
-			if surface != "web.hero" || width != 8 || height != 8 || crop != "center" || placement != "hero" {
-				return os.ErrInvalid
-			}
-			return nil
-		}),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return verifier, owner, cache, roots, server
+	return verifierFixtureWithPolicy(t, body, release, "/api/v1/backdrops/release-1/asset", testSurfacePolicy())
 }
 
 func verifierFixtureForSurface(t *testing.T, body []byte, release *backdroprelease.ReleasedBackdrop, policy SurfacePolicy) *Verifier {
 	t.Helper()
-	cache, _, _ := newCache(t)
+	verifier, _, _, _, _ := verifierFixtureWithPolicy(t, body, release, release.GetUri(), policy)
+	return verifier
+}
+
+func verifierFixtureWithPolicy(t *testing.T, body []byte, release *backdroprelease.ReleasedBackdrop, requestPath string, policy SurfacePolicy) (*Verifier, *fakeBackdropOwner, *Cache, *filerouting.RoutedRoots, *httptest.Server) {
+	t.Helper()
+	cache, roots, _ := newCache(t)
 	digest := sha256.Sum256(body)
 	hash := hex.EncodeToString(digest[:])
 	if release.ContentHash == "" {
@@ -151,12 +123,12 @@ func verifierFixtureForSurface(t *testing.T, body []byte, release *backdroprelea
 	}
 	owner := &fakeBackdropOwner{release: release}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != release.GetUri() {
+		if r.URL.Path != requestPath {
 			http.NotFound(w, r)
 			return
 		}
 		w.Header().Set("Content-Type", "image/png")
-		w.Header().Set("Content-Length", stringInt(len(body)))
+		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 		w.Header().Set("ETag", `"`+hash+`"`)
 		w.Header().Set("X-Content-SHA256", hash)
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
@@ -171,21 +143,16 @@ func verifierFixtureForSurface(t *testing.T, body []byte, release *backdroprelea
 	if err != nil {
 		t.Fatal(err)
 	}
-	return verifier
+	return verifier, owner, cache, roots, server
 }
 
-func stringInt(value int) string {
-	if value == 0 {
-		return "0"
-	}
-	var digits [20]byte
-	i := len(digits)
-	for value > 0 {
-		i--
-		digits[i] = byte('0' + value%10)
-		value /= 10
-	}
-	return string(digits[i:])
+func testSurfacePolicy() SurfacePolicy {
+	return SurfacePolicyFunc(func(_ context.Context, surface string, width, height int, crop string, _ presentation.FocalPoint, placement string) error {
+		if surface != "web.hero" || width != 8 || height != 8 || crop != "center" || placement != "hero" {
+			return os.ErrInvalid
+		}
+		return nil
+	})
 }
 
 func TestResolveAssetServesVerifiedBytesAfterCacheRestart(t *testing.T) {
@@ -433,7 +400,7 @@ func TestResolveAssetRejectsSSRFAndNonImmutableOwnerResponses(t *testing.T) {
 	owner.release.ContentHash = hex.EncodeToString(digest[:])
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/png")
-		w.Header().Set("Content-Length", stringInt(len(body)))
+		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 		digest := sha256.Sum256(body)
 		hash := hex.EncodeToString(digest[:])
 		w.Header().Set("ETag", `"`+hash+`"`)

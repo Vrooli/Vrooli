@@ -11,6 +11,8 @@ import {
   deserializeApp,
   serializeApp,
   isFormDirty,
+  validateStorefrontLinks,
+  validateDownloadAssets,
   computeDownloadHealthFromForms,
   type AppFormValues,
   type PlatformKey,
@@ -270,6 +272,12 @@ export function useDownloadsForm(): UseDownloadsFormReturn {
       return;
     }
 
+    const validationError = validateStorefrontLinks(target.values) ?? validateDownloadAssets(target.values);
+    if (validationError) {
+      setForms((prev) => prev.map((form) => form.key === key ? { ...form, error: validationError } : form));
+      return;
+    }
+
     setForms((prev) =>
       prev.map((form) =>
         form.key === key ? { ...form, saving: true, error: undefined } : form
@@ -320,18 +328,32 @@ export function useDownloadsForm(): UseDownloadsFormReturn {
     const dirtyForms = forms.filter((form) => isFormDirty(form.values, form.original));
     if (dirtyForms.length === 0) return;
 
-    setSavingAll(true);
+    const invalid = new Map<string, string>();
+    for (const form of dirtyForms) {
+      const validationError = validateStorefrontLinks(form.values) ?? validateDownloadAssets(form.values);
+      if (validationError) invalid.set(form.key, validationError);
+    }
+    const saveableForms = dirtyForms.filter((form) => !invalid.has(form.key));
 
-    // Mark all dirty forms as saving
+    if (saveableForms.length > 0) setSavingAll(true);
+
+    // Invalid forms keep their actionable error; other dirty forms may save.
     setForms((prev) =>
-      prev.map((form) =>
-        isFormDirty(form.values, form.original) ? { ...form, saving: true, error: undefined } : form
-      )
+      prev.map((form) => {
+        const validationError = invalid.get(form.key);
+        if (validationError) return { ...form, saving: false, error: validationError };
+        if (isFormDirty(form.values, form.original) && saveableForms.length > 0) {
+          return { ...form, saving: true, error: undefined };
+        }
+        return form;
+      })
     );
+
+    if (saveableForms.length === 0) return;
 
     // Save all dirty forms in parallel
     const results = await Promise.allSettled(
-      dirtyForms.map(async (form) => {
+      saveableForms.map(async (form) => {
         const payload = serializeApp(form.values);
         const response = form.isNew
           ? await createDownloadAppAdmin(payload)
@@ -343,7 +365,7 @@ export function useDownloadsForm(): UseDownloadsFormReturn {
     // Update forms based on results
     setForms((prev) =>
       prev.map((form) => {
-        const result = results.find((r, i) => dirtyForms[i]?.key === form.key);
+        const result = results.find((r, i) => saveableForms[i]?.key === form.key);
         if (!result) return form;
 
         if (result.status === 'fulfilled') {

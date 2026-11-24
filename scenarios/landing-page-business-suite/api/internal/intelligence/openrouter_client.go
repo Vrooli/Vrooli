@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -86,7 +87,11 @@ func (c *httpOpenRouterClient) Chat(ctx context.Context, req OpenRouterChatReque
 			"status": resp.StatusCode,
 			"body":   string(bodyBytes),
 		})
-		return nil, fmt.Errorf("%w: status %d", ErrProvider, resp.StatusCode)
+		providerErr := fmt.Errorf("%w: status %d", ErrProvider, resp.StatusCode)
+		if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+			return nil, errors.Join(providerErr, ErrProviderRequestRejected)
+		}
+		return nil, providerErr
 	}
 
 	// Parse the OpenRouter response format
@@ -176,7 +181,11 @@ func (c *httpOpenRouterClient) ChatStreamEvents(ctx context.Context, req OpenRou
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("%w: status %d: %s", ErrProvider, resp.StatusCode, string(bodyBytes))
+		providerErr := fmt.Errorf("%w: status %d: %s", ErrProvider, resp.StatusCode, string(bodyBytes))
+		if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+			return nil, errors.Join(providerErr, ErrProviderRequestRejected)
+		}
+		return nil, providerErr
 	}
 
 	// Parse SSE stream

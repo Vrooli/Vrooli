@@ -74,34 +74,29 @@ func NewPaymentSettingsService(db PaymentSettingsStore) *PaymentSettingsService 
 	return &PaymentSettingsService{db: db, testCredentials: make(map[string]string)}
 }
 
-// stripeCredentialFields selects mode-specific authority fields. Test mode is
-// intentionally strict: it never falls back to the legacy/live fields. Live
-// mode keeps a fallback for existing deployments that have not yet copied
-// their legacy credentials into the explicit live namespace.
-func stripeCredentialFields() (fields map[string]string, legacyFallback bool) {
+// stripeCredentialFields selects only the active, mode-specific authority
+// fields. An unset mode means commerce is not configured; an unknown mode is
+// an explicit configuration error. No live or legacy credential is inferred.
+func stripeCredentialFields() (map[string]string, error) {
 	mode := strings.ToLower(strings.TrimSpace(envx.Get("STRIPE_MODE")))
 	if mode == "" {
-		mode = "live"
+		return nil, nil
 	}
 	if mode == "test" {
 		return map[string]string{
 			"publishable": "stripe-test-publishable-key",
 			"secret":      "stripe-test-secret-key",
 			"webhook":     "stripe-test-webhook-secret",
-		}, false
+		}, nil
 	}
 	if mode == "live" {
 		return map[string]string{
 			"publishable": "stripe-live-publishable-key",
 			"secret":      "stripe-live-secret-key",
 			"webhook":     "stripe-live-webhook-secret",
-		}, true
+		}, nil
 	}
-	return map[string]string{
-		"publishable": "stripe-publishable-key",
-		"secret":      "stripe-secret-key",
-		"webhook":     "stripe-webhook-secret",
-	}, false
+	return nil, fmt.Errorf("unsupported STRIPE_MODE %q: expected test or live", mode)
 }
 
 // GetStripeSettings returns the latest persisted Stripe configuration.
@@ -124,18 +119,17 @@ func (s *PaymentSettingsService) GetStripeSettings(ctx context.Context) (*landin
 		return nil, err
 	}
 
-	fields, legacyFallback := stripeCredentialFields()
+	fields, err := stripeCredentialFields()
+	if err != nil {
+		return nil, err
+	}
 	for role, target := range map[string]*string{"publishable": &record.PublishableKey, "secret": &record.SecretKey, "webhook": &record.WebhookSecret} {
 		field := fields[role]
+		if field == "" {
+			continue
+		}
 		if s.readCredential != nil {
 			value, readErr := s.readCredential(ctx, field)
-			if readErr != nil && legacyFallback && errors.Is(readErr, credentialauthority.ErrUnconfigured) {
-				value, readErr = s.readCredential(ctx, map[string]string{
-					"publishable": "stripe-publishable-key",
-					"secret":      "stripe-secret-key",
-					"webhook":     "stripe-webhook-secret",
-				}[role])
-			}
 			if readErr != nil && !errors.Is(readErr, credentialauthority.ErrUnconfigured) {
 				return nil, fmt.Errorf("read Stripe credential %s: %w", field, readErr)
 			}
@@ -143,15 +137,7 @@ func (s *PaymentSettingsService) GetStripeSettings(ctx context.Context) (*landin
 				*target = value
 			}
 		} else {
-			value := s.testCredentials[field]
-			if value == "" && legacyFallback {
-				value = s.testCredentials[map[string]string{
-					"publishable": "stripe-publishable-key",
-					"secret":      "stripe-secret-key",
-					"webhook":     "stripe-webhook-secret",
-				}[role]]
-			}
-			*target = value
+			*target = s.testCredentials[field]
 		}
 	}
 	if dashboard.Valid {
@@ -227,7 +213,13 @@ func (s *PaymentSettingsService) SaveStripeSettings(ctx context.Context, input S
 		nextAnomalyEnabled = *input.AnomalyWebhookEnabled
 	}
 	nextAnomalyLimits := updateStringField(current.AnomalyRateLimits, anomalyLimits)
-	fields, _ := stripeCredentialFields()
+	fields, err := stripeCredentialFields()
+	if err != nil {
+		return nil, err
+	}
+	if fields == nil {
+		return nil, errors.New("STRIPE_MODE must be explicitly set to test or live before payment credentials can be updated")
+	}
 	for _, credential := range []struct {
 		field   string
 		value   string

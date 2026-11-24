@@ -2,9 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/lpbsidentity"
 	aihandler "landing-page-business-suite-api/handlers/intelligence"
 	"landing-page-business-suite-api/internal/businessaccount"
 	"landing-page-business-suite-api/internal/commerce"
@@ -15,13 +19,13 @@ import (
 // newMeteredInferenceHandler is the API composition point for the AI HTTP boundary.
 // Rate-limit lifecycle, authentication context, response envelopes, and logging
 // are application concerns; handlers/intelligence only translates the request.
-func newMeteredInferenceDependencies(service intelligence.MeteredInferenceProvider, usage *commerce.UsageService, account *commerce.Service, accounts businessaccount.Repository) aihandler.Dependencies {
+func newMeteredInferenceDependencies(service intelligence.MeteredInferenceProvider, usage *commerce.UsageService, account *commerce.Service, accounts businessaccount.Repository, callerVerifier ...authn.TokenVerifier) aihandler.Dependencies {
 	userLimiter := NewRateLimiter(60, time.Minute)
 	userLimiter.StartCleanup(5*time.Minute, 10*time.Minute)
 	ipLimiter := NewRateLimiter(120, time.Minute)
 	ipLimiter.StartCleanup(5*time.Minute, 10*time.Minute)
 
-	return aihandler.Dependencies{
+	deps := aihandler.Dependencies{
 		Service: service,
 		Usage: func(ctx context.Context, identity, tier string) (aihandler.UsageSummary, error) {
 			summary, err := usage.GetUsageSummary(ctx, identity, tier)
@@ -55,4 +59,20 @@ func newMeteredInferenceDependencies(service intelligence.MeteredInferenceProvid
 		Log:      logx.Info,
 		LogError: logx.Error,
 	}
+	if len(callerVerifier) > 0 && callerVerifier[0] != nil {
+		verifier := callerVerifier[0]
+		deps.ResolveCreditCallerScenario = func(ctx context.Context, rawAuthorization string) (string, error) {
+			rawAuthorization = strings.TrimSpace(rawAuthorization)
+			token, found := strings.CutPrefix(rawAuthorization, "Bearer ")
+			if !found || strings.TrimSpace(token) == "" || strings.ContainsAny(token, " \t\r\n") {
+				return "", errors.New("caller service bearer is required")
+			}
+			principal, err := verifier.Verify(ctx, strings.TrimSpace(token))
+			if err != nil {
+				return "", err
+			}
+			return lpbsidentity.GatewayCreditInference.Source(principal)
+		}
+	}
+	return deps
 }

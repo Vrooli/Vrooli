@@ -16,7 +16,7 @@ import {
   XCircle,
   type LucideIcon,
 } from 'lucide-react';
-import { getEmailReadiness, getSignInDeliveryAdminReport, saveProviderCredential, sendDeliveryProbe, type EmailReadinessReport, type ProviderCredentialField, type SignInDeliveryAdminReport } from '../../../shared/api/emailReadiness';
+import { getEmailReadiness, getProviderCredentialVersions, getSignInDeliveryAdminReport, saveProviderCredential, sendDeliveryProbe, type EmailReadinessReport, type ProviderCredentialField, type ProviderCredentialVersion, type SignInDeliveryAdminReport } from '../../../shared/api/emailReadiness';
 import { Button } from '../../../shared/ui/button';
 import { PageHeader } from '../components/PageHeader';
 
@@ -80,15 +80,17 @@ export function EmailDelivery() {
   const [credentialValue, setCredentialValue] = useState('');
   const [credentialMessage, setCredentialMessage] = useState('');
   const [credentialError, setCredentialError] = useState('');
+  const [credentialVersions, setCredentialVersions] = useState<ProviderCredentialVersion[]>([]);
   const [savingCredential, setSavingCredential] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const refresh = async (recipient = '') => {
     setLoading(true);
     try {
-      const [nextReadiness, nextDelivery] = await Promise.all([getEmailReadiness(), getSignInDeliveryAdminReport(recipient)]);
+      const [nextReadiness, nextDelivery, versionReport] = await Promise.all([getEmailReadiness(), getSignInDeliveryAdminReport(recipient), getProviderCredentialVersions()]);
       setReadiness(nextReadiness);
       setDelivery(nextDelivery);
+      setCredentialVersions(versionReport.credential_versions ?? []);
     } finally {
       setLoading(false);
     }
@@ -122,9 +124,11 @@ export function EmailDelivery() {
     setCredentialError('');
     setSavingCredential(true);
     try {
-      const result = await saveProviderCredential(credentialField, credentialValue);
+      const observed = credentialVersions.find((item) => item.field === credentialField);
+      if (!observed?.available) throw new Error('Credential authority is unavailable. Refresh before trying again.');
+      const result = await saveProviderCredential(credentialField, credentialValue, observed.version ?? '');
       setCredentialValue('');
-      setCredentialMessage(`${result.field} was stored securely. Provider verification has been refreshed.`);
+      setCredentialMessage(`${result.field} was stored securely at a new authority version. Provider verification has been refreshed.`);
       await refresh();
     } catch (error) {
       setCredentialError(error instanceof Error ? error.message : 'Unable to store the provider credential.');
@@ -174,7 +178,7 @@ export function EmailDelivery() {
                 <input id="provider-credential-value" className="mt-2 w-full rounded-lg border border-white/15 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20" type="password" autoComplete="new-password" required value={credentialValue} onChange={(event) => { setCredentialValue(event.target.value); }} placeholder="Paste the value once; it will not be displayed again" />
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                <Button type="submit" disabled={savingCredential || !credentialValue.trim()}><KeyRound className="mr-2 h-4 w-4" />{savingCredential ? 'Storing securely…' : 'Store and verify'}</Button>
+                <Button type="submit" disabled={savingCredential || !credentialValue.trim() || !credentialVersions.some((item) => item.field === credentialField && item.available)}><KeyRound className="mr-2 h-4 w-4" />{savingCredential ? 'Storing securely…' : 'Store and verify'}</Button>
                 {credentialMessage && <span className="text-sm text-emerald-200" role="status">{credentialMessage}</span>}
                 {credentialError && <span className="text-sm text-rose-200" role="alert">{credentialError}</span>}
               </div>

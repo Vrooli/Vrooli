@@ -7,6 +7,29 @@ import (
 	"landing-page-business-suite-api/internal/delivery"
 )
 
+func TestProtoDownloadsDropsInvalidLegacyStorefronts(t *testing.T) {
+	apps, err := ProtoDownloads([]delivery.App{{
+		BundleKey: "suite",
+		AppKey:    "aquila",
+		Name:      "Aquila",
+		Storefronts: []delivery.Storefront{
+			{Store: "app_store", Label: " App Store ", URL: " https://apps.apple.com/us/app/aquila/id123 "},
+			{Store: "app_store", Label: "Fake Apple", URL: "https://apps.apple.com.evil.test/us/app/aquila/id123"},
+			{Store: "custom", Label: "Unknown", URL: "https://store.example.test/aquila"},
+		},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(apps) != 1 || len(apps[0].Storefronts) != 1 {
+		t.Fatalf("public storefronts = %#v, want only one verified listing", apps)
+	}
+	storefront := apps[0].Storefronts[0]
+	if storefront.GetStore() != "app_store" || storefront.GetLabel() != "App Store" || storefront.GetUrl() != "https://apps.apple.com/us/app/aquila/id123" {
+		t.Fatalf("public storefront = %v, want normalized official Apple listing", storefront)
+	}
+}
+
 func TestSanitizeSigningNotice(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -166,6 +189,27 @@ func TestProtoPresentationDownloadsForwardsSigningNotice(t *testing.T) {
 	mac := projected[0].Platforms[1].Metadata.AsMap()["signing_notice"].(map[string]interface{})
 	if mac["enabled"] != false || len(mac) != 1 {
 		t.Fatalf("mac suppression notice = %#v", mac)
+	}
+}
+
+func TestProtoPresentationDownloadsIncludesVerifiedOwnerStorefronts(t *testing.T) {
+	apps, err := ProtoPresentationDownloads([]delivery.App{{
+		BundleKey: "business_suite", AppKey: "web-console", Name: "Aquila",
+		Storefronts: []delivery.Storefront{
+			{Store: "play_store", Label: " Google Play ", URL: " https://play.google.com/store/apps/details?id=org.vrooli.aquila "},
+			{Store: "app_store", Label: "Fake Apple", URL: "https://apps.apple.com.evil.test/us/app/aquila/id123"},
+		},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(apps) != 1 || len(apps[0].Storefronts) != 1 {
+		t.Fatalf("presentation storefronts = %#v, want one verified owner link", apps)
+	}
+	storefront := apps[0].Storefronts[0]
+	if storefront.GetStore() != "play_store" || storefront.GetLabel() != "Google Play" ||
+		storefront.GetUrl() != "https://play.google.com/store/apps/details?id=org.vrooli.aquila" {
+		t.Fatalf("presentation storefront = %v, want normalized owner Play link", storefront)
 	}
 }
 

@@ -18,5 +18,8 @@ export const getEmailReadiness = () => apiCall<EmailReadinessReport>('/admin/aut
 export const getSignInDeliveryAdminReport = (recipient = '') => apiCall<SignInDeliveryAdminReport>(`/admin/auth/delivery${recipient ? `?recipient=${encodeURIComponent(recipient)}` : ''}`);
 export const sendDeliveryProbe = (to: string) => apiCall<{ request_id: string; expires_at: string }>('/admin/auth/delivery-probe', { method: 'POST', body: JSON.stringify({ to }) });
 export type ProviderCredentialField = 'mailgun-api-key' | 'smtp-password' | 'sendgrid-api-key' | 'sendgrid-webhook-public-key';
-export type ProviderCredentialWriteResponse = { stored: boolean; field: ProviderCredentialField; results?: Array<{ provider: string; capability: string; status: string; detail: string; checked_at: string }> };
-export const saveProviderCredential = (field: ProviderCredentialField, value: string) => apiCall<ProviderCredentialWriteResponse>('/admin/provider-credentials', { method: 'POST', body: JSON.stringify({ field, value }) });
+export type ProviderCredentialVersion = { identity: string; field: ProviderCredentialField; version?: string; configured: boolean; available: boolean; scope?: string };
+export type ProviderCredentialVersionReport = { credential_versions: ProviderCredentialVersion[] };
+export type ProviderCredentialWriteResponse = { stored: boolean; identity: string; field: ProviderCredentialField; version: string; scope: string; cleanup_pending: boolean; results?: Array<{ provider: string; capability: string; status: string; detail: string; checked_at: string }> };
+export const getProviderCredentialVersions = () => apiCall<ProviderCredentialVersionReport>('/admin/provider-credentials');
+export const saveProviderCredential = (field: ProviderCredentialField, value: string, expectedVersion: string) => apiCall<ProviderCredentialWriteResponse>('/admin/provider-credentials', { method: 'POST', body: JSON.stringify({ field, value, expected_version: expectedVersion }) });

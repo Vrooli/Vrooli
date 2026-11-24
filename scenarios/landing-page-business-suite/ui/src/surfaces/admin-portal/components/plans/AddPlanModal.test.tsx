@@ -3,6 +3,7 @@ import { renderWithProviders as render } from "@vrooli/api-base/testing";
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddPlanModal } from './AddPlanModal';
+import { expectActionBarOrder } from '../../../../test/overlayActionBarAssertions';
 import { createBundlePrice, verifyStripePrice } from '../../../../shared/api/billing';
 
 vi.mock('../../../../shared/api/billing', () => ({
@@ -18,6 +19,7 @@ describe('AddPlanModal', () => {
   it('validates a Stripe price ID before verifying or creating a plan', async () => {
     const user = userEvent.setup();
     render(<AddPlanModal {...props()} />);
+    expectActionBarOrder('create-plan', 'cancel');
 
     await user.type(screen.getByPlaceholderText('price_...'), 'invalid');
     await user.click(screen.getByRole('button', { name: 'Create Plan' }));
@@ -105,6 +107,40 @@ describe('AddPlanModal', () => {
       plan_tier: 'business', billing_interval: 'month', currency: 'usd', display_weight: 25,
       monthly_included_credits: 5000, display_enabled: false, highlight: true,
     })); });
+  });
+
+  it('maps declared app features and limits into the owner API create payload', async () => {
+    const user = userEvent.setup();
+    vi.mocked(verifyStripePrice).mockResolvedValue({ id: 'price_audio', product: 'Audio', currency: 'usd', amount_cents: 500, interval: 'month' });
+    vi.mocked(createBundlePrice).mockResolvedValue({} as Awaited<ReturnType<typeof createBundlePrice>>);
+    render(<AddPlanModal {...props()} />);
+    await user.type(screen.getByPlaceholderText('price_...'), 'price_audio');
+    await user.click(screen.getByRole('button', { name: 'Verify Stripe price' }));
+    await screen.findByText('Price verified and fields auto-filled');
+    await user.click(screen.getByRole('button', { name: 'Add app' }));
+    await user.type(screen.getByRole('textbox', { name: 'App 1 key' }), 'audio-tools');
+    await user.type(screen.getByRole('textbox', { name: 'App 1 features' }), 'audio:transcribe\naudio:summarize');
+    await user.type(screen.getByRole('textbox', { name: 'App 1 limits' }), 'ai_credits=1000\nminutes=60');
+    await user.click(screen.getByRole('button', { name: 'Create Plan' }));
+
+    await waitFor(() => expect(createBundlePrice).toHaveBeenCalledWith('business-suite', expect.objectContaining({
+      app_entitlements: { 'audio-tools': { features: ['audio:transcribe', 'audio:summarize'], limits: { ai_credits: 1000, minutes: 60 } } },
+    })));
+  });
+
+  it('rejects malformed app entitlement limits before creating a plan', async () => {
+    const user = userEvent.setup();
+    vi.mocked(verifyStripePrice).mockResolvedValue({ id: 'price_audio', product: 'Audio', currency: 'usd', amount_cents: 500, interval: 'month' });
+    render(<AddPlanModal {...props()} />);
+    await user.type(screen.getByPlaceholderText('price_...'), 'price_audio');
+    await user.click(screen.getByRole('button', { name: 'Verify Stripe price' }));
+    await screen.findByText('Price verified and fields auto-filled');
+    await user.click(screen.getByRole('button', { name: 'Add app' }));
+    await user.type(screen.getByRole('textbox', { name: 'App 1 key' }), 'audio-tools');
+    await user.type(screen.getByRole('textbox', { name: 'App 1 limits' }), 'ai_credits=-1');
+    await user.click(screen.getByRole('button', { name: 'Create Plan' }));
+    expect(screen.getByText('App entitlement 1: limits must use name=non-negative-integer lines.')).toBeInTheDocument();
+    expect(createBundlePrice).not.toHaveBeenCalled();
   });
 
   it('rejects invalid credits before sending a catalog mutation', async () => {

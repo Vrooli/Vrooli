@@ -27,16 +27,21 @@ import (
 	"github.com/vrooli/api-core/consumeridentity"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/lpbsidentity"
+	"github.com/vrooli/api-core/nodereach"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/servicetoken"
 	corestorage "github.com/vrooli/api-core/storage"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	maildns "github.com/vrooli/vrooli/packages/maildns-go"
+	"github.com/vrooli/vrooli/packages/monetization-go"
 	aihandler "landing-page-business-suite-api/handlers/intelligence"
 	accountsecurity "landing-page-business-suite-api/internal/accountsecurity"
 	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/aidoor"
 	"landing-page-business-suite-api/internal/analytics"
+	"landing-page-business-suite-api/internal/bridgeadmin"
 	"landing-page-business-suite-api/internal/businessaccount"
 	"landing-page-business-suite-api/internal/commerce"
 	"landing-page-business-suite-api/internal/content"
@@ -51,6 +56,7 @@ import (
 	domainmetrics "landing-page-business-suite-api/internal/metrics"
 	nativegrants "landing-page-business-suite-api/internal/nativegrants"
 	"landing-page-business-suite-api/internal/passkeys"
+	"landing-page-business-suite-api/internal/presentationmedia"
 	"landing-page-business-suite-api/internal/presentationseed"
 	runtimeschema "landing-page-business-suite-api/internal/schema"
 	"landing-page-business-suite-api/internal/securevalue"
@@ -89,7 +95,9 @@ type Server struct {
 	backdropResolver         func(context.Context) (string, error)
 	backdropHTTPClient       *http.Client
 	serviceOrderHTTP         http.Handler
+	bridgeAdmin              *bridgeadmin.Service
 	presentationAssetHandler http.Handler
+	presentationMediaHandler *presentationmedia.Handler
 	adminAuthService         *administration.AdminAuthService
 	readerTokens             *administration.ReaderTokens
 	emailService             *EmailService
@@ -101,26 +109,28 @@ type Server struct {
 	// Remote profile service (admin-managed remote connections)
 	remoteProfileService *administration.RemoteProfileService
 	// User authentication services
-	userAuthService         *administration.UserAuthService
-	nativeGrants            *nativegrants.Repository
-	userManagementService   *administration.UserManagementService
-	accountSecurityService  *accountsecurity.Service
-	passkeyService          *passkeys.Service
-	passkeyChallenges       *passkeys.Repository
-	passkeyCredentials      *passkeys.Credentials
-	mailDNSService          *maildns.Service
-	providerVerification    *providerVerificationCache
-	businessAccounts        businessaccount.Repository
-	desktopLinkService      *desktoplink.Service
-	desktopLinkVerifier     authn.TokenVerifier
-	magicLinkLimiter        *RateLimiter
-	authThrottle            *administration.AuthThrottle
-	adminMFA                *administration.AdminMFA
-	stopAuthJanitor         func()
-	stopAuthDeliveryAlerts  func()
-	stopEmailDeliveryWorker func()
-	stopProviderChecks      func()
-	stopCreditMaintenance   func()
+	userAuthService           *administration.UserAuthService
+	nativeGrants              *nativegrants.Repository
+	userManagementService     *administration.UserManagementService
+	accountSecurityService    *accountsecurity.Service
+	passkeyService            *passkeys.Service
+	passkeyChallenges         *passkeys.Repository
+	passkeyCredentials        *passkeys.Credentials
+	mailDNSService            *maildns.Service
+	providerVerification      *providerVerificationCache
+	businessAccounts          businessaccount.Repository
+	desktopLinkService        *desktoplink.Service
+	desktopLinkVerifier       authn.TokenVerifier
+	servicePrincipalVerifier  authn.TokenVerifier
+	magicLinkLimiter          *RateLimiter
+	authThrottle              *administration.AuthThrottle
+	adminMFA                  *administration.AdminMFA
+	stopAuthJanitor           func()
+	stopAuthDeliveryAlerts    func()
+	stopEmailDeliveryWorker   func()
+	stopProviderChecks        func()
+	stopCreditMaintenance     func()
+	stopPaymentReconciliation func()
 	// AI MeteredInferenceProvider service
 	meteredInferenceService *intelligence.MeteredInferenceService
 	meteredInferenceHandler *aihandler.Handler
@@ -128,6 +138,36 @@ type Server struct {
 	// Session management for admin auth
 	sessionManager SessionManager
 }
+
+// meteredInferenceUsageAdapter exposes LPBS's account-aware commerce usage
+// implementation to the legacy inference interface. The remaining user-only
+// adjustment method is intentionally unavailable; standard paid inference
+// always uses the embedded BusinessAccountUsageServicer methods.
+type meteredInferenceUsageAdapter struct{ *commerce.UsageService }
+
+func (meteredInferenceUsageAdapter) ReserveAndCharge(context.Context, string, string, string, int64, intelligence.UsageReport) error {
+	return errors.New("user-scoped usage reservation is unavailable")
+}
+func (meteredInferenceUsageAdapter) ReserveCredits(context.Context, string, string, string, int64) (string, error) {
+	return "", errors.New("user-scoped usage reservation is unavailable")
+}
+func (meteredInferenceUsageAdapter) FinalizeReservation(context.Context, string, int64) error {
+	return errors.New("user-scoped usage settlement is unavailable")
+}
+func (meteredInferenceUsageAdapter) ReleaseReservation(context.Context, string) error {
+	return errors.New("user-scoped usage release is unavailable")
+}
+func (meteredInferenceUsageAdapter) AdjustUsage(context.Context, string, string, int64, string) error {
+	return errors.New("user-scoped usage adjustment is unavailable")
+}
+func (meteredInferenceUsageAdapter) RecordUsage(context.Context, intelligence.UsageReport) error {
+	return errors.New("user-scoped usage recording is unavailable")
+}
+
+var (
+	_ intelligence.UsageServicer                = meteredInferenceUsageAdapter{}
+	_ intelligence.BusinessAccountUsageServicer = meteredInferenceUsageAdapter{}
+)
 
 type StartupStore interface {
 	Close() error
@@ -152,8 +192,26 @@ func runtimeSchema() string {
 		delivery.Schema(),
 		content.Schema(),
 		commerce.OperationsSchema(),
+		bridgeadmin.Schema(),
 		aidoor.Schema(),
 	}, "\n")
+}
+
+func newBridgeAdminDispatcher() *nodereach.Client {
+	tokens := servicetoken.New(servicetoken.Config{
+		Name: "LPBS scoped Bridge dispatcher",
+		Credential: func(context.Context) (string, error) {
+			identity, err := credentialauthority.ParseIdentity("scenario-authenticator/service-principal/landing-page-business-suite/landing-page-business-suite-bridge-dispatch/vrooli-bridge")
+			if err != nil {
+				return "", err
+			}
+			binding, err := administration.ResolveBoundCredential(identity, "credential", "vrooli-bridge:dispatch")
+			return binding.Value, err
+		},
+		Expect:    servicetoken.ExpectIdentity("landing-page-business-suite-bridge-dispatch", "scenario-authenticator:vrooli-bridge-dispatch", "vrooli-bridge:dispatch"),
+		IssueHint: "operator must configure and issue the LPBS Bridge dispatch principal before dispatch is available",
+	})
+	return nodereach.New(nodereach.Config{TokenProvider: tokens.Token})
 }
 
 func (s *Server) primaryDB() *sql.DB {
@@ -293,15 +351,7 @@ func NewServer() (*Server, error) {
 	planService := NewPlanService(db)
 	downloadService := delivery.NewCatalogService(delivery.NewRoutedCatalogStore(routedDB))
 	downloadHosting := delivery.NewServiceWithRequestStore(delivery.NewStrictRoutedStore(routedDB), delivery.S3StorageProvider{ResolveCredential: func(_ context.Context, field string) (string, error) {
-		authority, err := credentialauthority.Default()
-		if err != nil {
-			return "", err
-		}
-		identity, err := credentialauthority.ParseIdentity("vrooli/landing-page-business-suite")
-		if err != nil {
-			return "", err
-		}
-		return authority.Require(identity, field)
+		return administration.ResolveAuthorityCredential(field)
 	}}).WithCredentialIO(delivery.CredentialIO{
 		Read: func(_ context.Context, field string) (string, error) {
 			return administration.ResolveAuthorityCredential(field)
@@ -316,29 +366,11 @@ func NewServer() (*Server, error) {
 	limitsService := commerce.NewLimitsService(routedDB, "postgres", logx.Info)
 	accountService := newAccountService(routedDB, planService, limitsService)
 	downloadAuthorizer := delivery.NewDownloadAuthorizer(downloadService, accountService, planService.BundleKey())
-	readStripeCredential := func(ctx context.Context, field string) (string, error) {
-		_ = ctx
-		authority, err := credentialauthority.Default()
-		if err != nil {
-			return "", err
-		}
-		identity, err := credentialauthority.ParseIdentity("vrooli/landing-page-business-suite")
-		if err != nil {
-			return "", err
-		}
-		return authority.Require(identity, field)
+	readStripeCredential := func(_ context.Context, field string) (string, error) {
+		return administration.ResolveAuthorityCredential(field)
 	}
-	writeStripeCredential := func(ctx context.Context, field, value string) error {
-		_ = ctx
-		authority, err := credentialauthority.Default()
-		if err != nil {
-			return err
-		}
-		identity, err := credentialauthority.ParseIdentity("vrooli/landing-page-business-suite")
-		if err != nil {
-			return err
-		}
-		return authority.Put(identity, field, value)
+	writeStripeCredential := func(_ context.Context, field, value string) error {
+		return administration.PutAuthorityCredential(field, value)
 	}
 	paymentSettings := commerce.NewPaymentSettingsServiceWithCredentials(routedDB, readStripeCredential, writeStripeCredential)
 	paymentAnomaly := commerce.NewPaymentAnomalyService(context.Background(), routedDB, context.Background(), commerce.PaymentAnomalyRuntime{
@@ -361,7 +393,8 @@ func NewServer() (*Server, error) {
 	// With no admitted capability bindings, claims fail closed; draft bootstrap
 	// remains usable and never performs an owner release or publication.
 	publicationVerifier := composePresentationQualification(assetVerifier, nil)
-	configStore.SetPresentationStorage(fileRoots, publicationVerifier.VerifyPublication)
+	presentationMediaHandler := presentationmedia.New(fileRoots, configStore)
+	configStore.SetPresentationStorage(fileRoots, combinePresentationPublicationVerifiers(publicationVerifier.VerifyPublication, presentationMediaHandler.VerifyPublication))
 	for _, variant := range configStore.ListVariants() {
 		if _, created, err := presentationseed.EnsureDraft(context.Background(), configStore, variant.Variant.Slug, planService.BundleKey()); err != nil {
 			return nil, fmt.Errorf("initialize presentation draft for %s: %w", variant.Variant.Slug, err)
@@ -407,40 +440,91 @@ func NewServer() (*Server, error) {
 	if keyErr != nil {
 		return nil, fmt.Errorf("resolve consumer signing key: %w", keyErr)
 	}
+	signingAuthority, keyErr := administration.OpenCredentialAuthority()
+	if keyErr != nil {
+		return nil, fmt.Errorf("initialize consumer signing authority reload: %w", keyErr)
+	}
+	signingBinding, keyErr := administration.ResolveBoundCredentialFromAuthority(
+		signingAuthority,
+		credentialauthority.Identity("vrooli/landing-page-business-suite"),
+		"consumer-auth-private-key",
+		administration.ConsumerSigningAuthorityScope,
+	)
+	if keyErr != nil {
+		return nil, fmt.Errorf("resolve version-bound consumer signing credential: %w", keyErr)
+	}
+	consumerSigningKeyPEM = signingBinding.Value
+	consumerSigningCredential, keyErr := administration.ParseConsumerSigningCredential(
+		consumerSigningKeyPEM,
+		resolveConfig("CONSUMER_AUTH_KEY_ID"),
+		resolveConfig("CONSUMER_AUTH_PREVIOUS_JWKS"),
+	)
+	if keyErr != nil {
+		return nil, fmt.Errorf("parse consumer signing credential: %w", keyErr)
+	}
 	if isProductionEnvironment() && strings.TrimSpace(consumerSigningKeyPEM) == "" {
 		return nil, fmt.Errorf("CONSUMER_AUTH_PRIVATE_KEY is required in production")
 	}
-	consumerKeyID := strings.TrimSpace(resolveConfig("CONSUMER_AUTH_KEY_ID"))
+	consumerKeyID := consumerSigningCredential.KeyID
 	if isProductionEnvironment() && consumerKeyID == "" {
 		return nil, fmt.Errorf("CONSUMER_AUTH_KEY_ID is required in production")
-	}
-	previousConsumerKeys, keyErr := resolvePreviousConsumerKeys()
-	if keyErr != nil {
-		return nil, fmt.Errorf("resolve previous consumer signing keys: %w", keyErr)
 	}
 	sessionConfig, sessionConfigErr := resolveUserSessionConfig()
 	if sessionConfigErr != nil {
 		return nil, sessionConfigErr
 	}
+	consumerIssuer := administration.ConsumerSigningIssuer(resolveConfig("JWT_ISSUER"))
+	consumerSigningSource, keyErr := administration.NewAuthorityConsumerSigningSource(
+		signingAuthority, signingBinding.Identity, signingBinding.Field, signingBinding.Scope,
+		resolveConfig("CONSUMER_AUTH_KEY_ID"), resolveConfig("CONSUMER_AUTH_PREVIOUS_JWKS"), consumerIssuer, sessionConfig.AccessTTL,
+	)
+	if keyErr != nil {
+		return nil, fmt.Errorf("configure consumer signing keyset reload: %w", keyErr)
+	}
+	previousJWKS := consumerSigningCredential.PreviousJWKS
+	if !strings.HasPrefix(strings.TrimSpace(consumerSigningKeyPEM), "{") {
+		previousJWKS = resolveConfig("CONSUMER_AUTH_PREVIOUS_JWKS")
+	}
+	previousConsumerKeys, keyErr := parsePreviousConsumerKeys(previousJWKS)
+	if keyErr != nil {
+		return nil, fmt.Errorf("resolve previous consumer signing keys: %w", keyErr)
+	}
+	previousKeyExpirations := make(map[string]time.Time, len(previousConsumerKeys))
+	for id, expiresAt := range consumerSigningCredential.PreviousKeyExpirations {
+		previousKeyExpirations[id] = expiresAt
+	}
+	maxConsumerTokenTTL := sessionConfig.AccessTTL
+	if leaseTTL := entitlementLeaseTTL(); leaseTTL > maxConsumerTokenTTL {
+		maxConsumerTokenTTL = leaseTTL
+	}
+	legacyOverlapExpiry := time.Now().UTC().Add(maxConsumerTokenTTL + 30*time.Second + administration.ConsumerSigningJWKSCacheMaxAge)
+	for _, key := range previousConsumerKeys {
+		if previousKeyExpirations[key.ID].IsZero() {
+			previousKeyExpirations[key.ID] = legacyOverlapExpiry
+		}
+	}
 	userAuthService := administration.NewUserAuthService(administration.UserAuthServiceOptions{
-		Store:                 routedDB,
-		EmailService:          emailService,
-		JWTIssuer:             resolveConfig("JWT_ISSUER"),
-		ConsumerSigningKeyPEM: consumerSigningKeyPEM,
-		ConsumerSigningKeyID:  consumerKeyID,
-		ConsumerPreviousKeys:  previousConsumerKeys,
-		ConsumerClockSkew:     30 * time.Second,
-		AccessTTL:             sessionConfig.AccessTTL,
-		IdleTTL:               sessionConfig.IdleTTL,
-		AbsoluteTTL:           sessionConfig.AbsoluteTTL,
-		ReauthMaxAge:          sessionConfig.ReauthMaxAge,
-		RefreshGrace:          sessionConfig.RefreshGrace,
-		BaseURL:               resolveMagicLinkBaseURL(),
-		AppName:               resolveConfig("EMAIL_FROM_NAME"),
-		OutboxEnabled:         isProductionEnvironment(),
-		SenderIdentity:        resolveConfig("EMAIL_FROM_ADDRESS"),
-		Log:                   logx.Info,
-		LogError:              logx.Error,
+		Store:                          routedDB,
+		EmailService:                   emailService,
+		JWTIssuer:                      consumerIssuer,
+		ConsumerSigningKeyPEM:          consumerSigningCredential.PrivateKeyPEM,
+		ConsumerSigningKeyID:           consumerKeyID,
+		ConsumerPreviousKeys:           previousConsumerKeys,
+		ConsumerPreviousKeyExpirations: previousKeyExpirations,
+		ConsumerSigningVersion:         signingBinding.Version,
+		ConsumerSigningSource:          consumerSigningSource,
+		ConsumerClockSkew:              30 * time.Second,
+		AccessTTL:                      sessionConfig.AccessTTL,
+		IdleTTL:                        sessionConfig.IdleTTL,
+		AbsoluteTTL:                    sessionConfig.AbsoluteTTL,
+		ReauthMaxAge:                   sessionConfig.ReauthMaxAge,
+		RefreshGrace:                   sessionConfig.RefreshGrace,
+		BaseURL:                        resolveMagicLinkBaseURL(),
+		AppName:                        resolveConfig("EMAIL_FROM_NAME"),
+		OutboxEnabled:                  isProductionEnvironment(),
+		SenderIdentity:                 resolveConfig("EMAIL_FROM_ADDRESS"),
+		Log:                            logx.Info,
+		LogError:                       logx.Error,
 	})
 	if userAuthService == nil {
 		return nil, fmt.Errorf("failed to initialize consumer signing key")
@@ -481,23 +565,38 @@ func NewServer() (*Server, error) {
 	})
 	// Rate limiter: 5 requests per 15 minutes per email for magic link
 	magicLinkLimiter := NewRateLimiter(5, 15*time.Minute)
+	servicePrincipalVerifier := lpbsidentity.GatewayCreditInference.NewVerifier()
+	creditFeatureOwners, creditFeatureRegistryErr := monetization.EmbeddedCreditFeatureRegistry()
+	if creditFeatureRegistryErr != nil {
+		logx.Error("credit_feature_registry_unavailable", map[string]interface{}{"error": creditFeatureRegistryErr.Error()})
+	}
 
-	// Legacy role adapters remain fail-closed during their caller migration;
-	// production paid inference is exclusively composed through registerAIDoor.
-	meteredInferenceService := intelligence.NewMeteredInferenceService(intelligence.MeteredInferenceServiceOptions{AccountService: accountService, Logger: logx.Info})
+	// Standard Gateway inference is admitted only with a verified caller
+	// principal and canonical feature owner. Provider credentials remain resolved
+	// through LPBS's existing owner-managed API-key service.
+	meteredInferenceService := intelligence.NewMeteredInferenceService(intelligence.MeteredInferenceServiceOptions{
+		APIKeyService: apiKeyService, UsageService: meteredInferenceUsageAdapter{UsageService: usageService}, AccountService: accountService, Logger: logx.Info,
+		ClientFactory: func(apiKey string, logger func(string, map[string]interface{})) intelligence.OpenRouterClient {
+			return intelligence.NewOpenRouterClient(intelligence.OpenRouterClientOptions{APIKey: apiKey, Logger: logger})
+		},
+		BrowserEvidenceAttester: intelligence.NewDiscoveredAgentManagerBrowserEvidenceAttester(),
+		CreditFeatureOwners:     creditFeatureOwners,
+	})
 
 	// Create metered inference provider dependencies with rate limiters
-	meteredInferenceDeps := newMeteredInferenceDependencies(meteredInferenceService, usageService, accountService, businessAccounts)
+	meteredInferenceDeps := newMeteredInferenceDependencies(meteredInferenceService, usageService, accountService, businessAccounts, servicePrincipalVerifier)
 	meteredInferenceHandler := aihandler.New(meteredInferenceDeps)
 
 	metricsService := domainmetrics.NewServiceWithContextStore(db, strictPresentationExposureStore{routed: routedDB})
 	metricsService.SetVariantConfigReader(configStore)
+	bridgeDispatcher := newBridgeAdminDispatcher()
 	srv := &Server{
 		config:                   &RuntimeConfig{},
 		db:                       db,
 		routedDB:                 routedDB,
 		fileRoots:                fileRoots,
 		presentationAssetHandler: assetCache.Handler(),
+		presentationMediaHandler: presentationMediaHandler,
 		router:                   mux.NewRouter(),
 		variantSpace:             variantSpace,
 		configStore:              configStore,
@@ -527,25 +626,27 @@ func NewServer() (*Server, error) {
 		// Remote profile service
 		remoteProfileService: remoteProfileService,
 		// User authentication services
-		userAuthService:        userAuthService,
-		userManagementService:  userManagementService,
-		accountSecurityService: accountSecurityService,
-		passkeyService:         passkeyService,
-		passkeyChallenges:      &passkeys.Repository{DB: routedDB},
-		passkeyCredentials:     &passkeys.Credentials{DB: routedDB},
-		mailDNSService:         mailDNSService,
-		providerVerification:   newProviderVerificationCache(),
-		nativeGrants:           nativeGrantsRepository,
-		businessAccounts:       businessAccounts,
-		desktopLinkService:     desktopLinkService,
-		desktopLinkVerifier:    desktopLinkVerifier,
-		magicLinkLimiter:       magicLinkLimiter,
-		authThrottle:           administration.NewAuthThrottle(routedDB),
-		adminMFA:               administration.NewAdminMFA(routedDB, resolveAdminMFARing, adminMFAIssuer(configStore)),
+		userAuthService:          userAuthService,
+		userManagementService:    userManagementService,
+		accountSecurityService:   accountSecurityService,
+		passkeyService:           passkeyService,
+		passkeyChallenges:        &passkeys.Repository{DB: routedDB},
+		passkeyCredentials:       &passkeys.Credentials{DB: routedDB},
+		mailDNSService:           mailDNSService,
+		providerVerification:     newProviderVerificationCache(),
+		nativeGrants:             nativeGrantsRepository,
+		businessAccounts:         businessAccounts,
+		desktopLinkService:       desktopLinkService,
+		desktopLinkVerifier:      desktopLinkVerifier,
+		servicePrincipalVerifier: servicePrincipalVerifier,
+		magicLinkLimiter:         magicLinkLimiter,
+		authThrottle:             administration.NewAuthThrottle(routedDB),
+		adminMFA:                 administration.NewAdminMFA(routedDB, resolveAdminMFARing, adminMFAIssuer(configStore)),
 		// AI MeteredInferenceProvider service
 		meteredInferenceService: meteredInferenceService,
 		meteredInferenceHandler: meteredInferenceHandler,
 		meteredInferenceDeps:    meteredInferenceDeps,
+		bridgeAdmin:             bridgeadmin.New(bridgeDispatcher, bridgeadmin.NewSQLStore(routedDB), nil),
 		// Session management
 		sessionManager: initSessionManager(),
 	}
@@ -622,11 +723,10 @@ func resolveUserSessionConfig() (userSessionConfig, error) {
 	return config, nil
 }
 
-// resolvePreviousConsumerKeys loads the public overlap set used during key
-// rotation. It is deliberately configuration, not a credential: only public
-// keys are accepted and no private material is ever read here.
-func resolvePreviousConsumerKeys() ([]consumeridentity.PublicKey, error) {
-	raw := strings.TrimSpace(resolveConfig("CONSUMER_AUTH_PREVIOUS_JWKS"))
+// parsePreviousConsumerKeys parses only public keys from a JWKS overlap set.
+// Private material is never read here.
+func parsePreviousConsumerKeys(raw string) ([]consumeridentity.PublicKey, error) {
+	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return nil, nil
 	}
@@ -675,8 +775,8 @@ func newRuntimeUsageService(db commerce.UsageStore, limitsSvc commerce.LimitsSer
 		// checks: whether the shared service secret resolves from the
 		// authority. A missing secret is the only real "disabled" state.
 		ServiceAuthConfigured: func() bool {
-			value, err := resolveAuthorityCredential("LPBS_" + "SERVICE_SECRET")
-			return err == nil && strings.TrimSpace(value) != ""
+			binding, err := administration.ResolveCredentialBinding("LPBS_" + "SERVICE_SECRET")
+			return err == nil && binding.Scope == "service:lpbs-bootstrap" && strings.TrimSpace(binding.Value) != ""
 		},
 	})
 }
@@ -744,6 +844,9 @@ func (s *Server) Router() http.Handler {
 
 // Cleanup releases resources when the server shuts down
 func (s *Server) Cleanup() error {
+	if s.stopPaymentReconciliation != nil {
+		s.stopPaymentReconciliation()
+	}
 	if s.stopCreditMaintenance != nil {
 		s.stopCreditMaintenance()
 	}
@@ -766,6 +869,68 @@ func (s *Server) Cleanup() error {
 		return s.db.Close()
 	}
 	return nil
+}
+
+// startPaymentReconciliation runs the durable Stripe event reconciler only
+// when the active provider credential explicitly identifies test mode. Live
+// mode requires the operator's prepared approval and is never started here.
+func (s *Server) startPaymentReconciliation() func() {
+	if s == nil || s.stripeService == nil || s.db == nil || s.routedDB == nil || !strings.HasPrefix(strings.TrimSpace(s.stripeService.getConfig().secretKey), "sk_test_") {
+		return nil
+	}
+	state, err := commerce.NewSQLPaymentReconciliationStateStore(s.db)
+	if err != nil {
+		logx.Error("payment_reconciliation_store_unavailable", map[string]interface{}{"error": err.Error()})
+		return nil
+	}
+	source, err := commerce.NewDurableStripeEventReconciliationSource(stripeCouponRequester{service: s.stripeService}, s.routedDB.Primary(), false)
+	if err != nil {
+		logx.Error("payment_reconciliation_source_unavailable", map[string]interface{}{"error": err.Error()})
+		return nil
+	}
+	incidents, err := s.paymentAnomaly.NewReconciliationIncidentService()
+	if err != nil {
+		logx.Error("payment_reconciliation_incidents_unavailable", map[string]interface{}{"error": err.Error()})
+		return nil
+	}
+	runner := commerce.PaymentReconciliationRunner{
+		State: state, Source: source,
+		Processor: commerce.StripeWebhookReconciliationProcessor{Webhook: s.stripeService.webhookService()},
+		OnError: func(err error) {
+			logx.Error("payment_reconciliation_run_failed", map[string]interface{}{"error": err.Error()})
+			incidentCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			if _, openErr := incidents.Open(incidentCtx, "stripe-event-reconciliation", "error", map[string]interface{}{"code": "stripe_event_reconciliation_failed"}); openErr != nil {
+				logx.Error("payment_reconciliation_incident_open_failed", map[string]interface{}{"error": openErr.Error()})
+			}
+		},
+		OnSuccess: func(commerce.PaymentReconciliationReport) {
+			incidentCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			if _, resolveErr := incidents.Resolve(incidentCtx, "stripe-event-reconciliation", map[string]interface{}{"code": "stripe_event_reconciliation_recovered"}); resolveErr != nil {
+				logx.Error("payment_reconciliation_incident_resolve_failed", map[string]interface{}{"error": resolveErr.Error()})
+			}
+		},
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	runnerDone, alertsDone := make(chan struct{}), make(chan struct{})
+	go func() {
+		defer close(runnerDone)
+		if err := runner.Run(ctx, time.Minute); err != nil && !errors.Is(err, context.Canceled) {
+			logx.Error("payment_reconciliation_stopped", map[string]interface{}{"error": err.Error()})
+		}
+	}()
+	go func() {
+		defer close(alertsDone)
+		if err := incidents.Run(ctx, 30*time.Second); err != nil && !errors.Is(err, context.Canceled) {
+			logx.Error("payment_reconciliation_alert_worker_stopped", map[string]interface{}{"error": err.Error()})
+		}
+	}()
+	return func() {
+		cancel()
+		<-runnerDone
+		<-alertsDone
+	}
 }
 
 func (s *Server) resetDemoData(ctx context.Context) error {
@@ -852,6 +1017,7 @@ func main() {
 	srv.stopAuthDeliveryAlerts = srv.startAuthDeliveryAlerts()
 	srv.stopProviderChecks = srv.startProviderVerification()
 	srv.stopCreditMaintenance = srv.usageService.StartReservationCleanup(time.Minute)
+	srv.stopPaymentReconciliation = srv.startPaymentReconciliation()
 
 	if err := server.Run(server.Config{
 		Handler: apihttp.TestModeMiddleware(srv.Router()),

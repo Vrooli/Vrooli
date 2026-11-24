@@ -20,27 +20,32 @@ import (
 // processing. Application composition injects provider configuration,
 // normalization, logging, and workflows that belong to adjacent domains.
 type StripeWebhookService struct {
-	db                    StripeStore
-	provider              StripeRequester
-	planService           *PlanService
-	getConfig             func() StripeWebhookConfig
-	normalizeEmailFn      func(string) string
-	loadCheckoutSession   func(string) (*CheckoutSessionRecord, error)
-	extractAmount         func(map[string]interface{}, *CheckoutSessionRecord) int64
-	handleCreditTopup     func(string, int64, *PlanOption, string, map[string]interface{}) error
-	refreshSubscription   func(string, string) (*shared.SubscriptionStatus, error)
-	persistSubscription   func(string, *StripeSubscription) (*shared.SubscriptionStatus, error)
-	checkIntroEligibility func(context.Context, string) (bool, error)
-	markIntroUsed         func(context.Context, string, string, string, string, string) error
-	extractIntroCoupon    func(map[string]interface{}) string
-	logIntroAnomaly       func(string, string, string, string, map[string]interface{})
-	logf                  func(string, map[string]interface{})
-	logErrorf             func(string, map[string]interface{})
+	db                         StripeStore
+	provider                   StripeRequester
+	planService                *PlanService
+	getConfig                  func() StripeWebhookConfig
+	normalizeEmailFn           func(string) string
+	loadCheckoutSession        func(string) (*CheckoutSessionRecord, error)
+	loadCheckoutSessionContext func(context.Context, string) (*CheckoutSessionRecord, error)
+	extractAmount              func(map[string]interface{}, *CheckoutSessionRecord) int64
+	handleCreditTopup          func(string, int64, *PlanOption, string, map[string]interface{}) error
+	handleCreditTopupContext   func(context.Context, string, int64, *PlanOption, string, map[string]interface{}) error
+	refreshSubscription        func(string, string) (*shared.SubscriptionStatus, error)
+	refreshSubscriptionContext func(context.Context, string, string) (*shared.SubscriptionStatus, error)
+	persistSubscription        func(string, *StripeSubscription) (*shared.SubscriptionStatus, error)
+	persistSubscriptionContext func(context.Context, string, *StripeSubscription) (*shared.SubscriptionStatus, error)
+	checkIntroEligibility      func(context.Context, string) (bool, error)
+	markIntroUsed              func(context.Context, string, string, string, string, string) error
+	extractIntroCoupon         func(map[string]interface{}) string
+	logIntroAnomaly            func(string, string, string, string, map[string]interface{})
+	logf                       func(string, map[string]interface{})
+	logErrorf                  func(string, map[string]interface{})
 }
 
 type StripeWebhookConfig struct {
-	WebhookSecret string
-	HasWebhook    bool
+	WebhookSecret           string
+	AdditionalWebhookSecret string
+	HasWebhook              bool
 }
 
 func (s *StripeWebhookService) log(message string, fields map[string]interface{}) {
@@ -63,30 +68,36 @@ func (s *StripeWebhookService) normalizeEmail(value string) string {
 }
 
 type StripeWebhookOptions struct {
-	DB                    StripeStore
-	Provider              StripeRequester
-	PlanService           *PlanService
-	Config                func() StripeWebhookConfig
-	NormalizeEmail        func(string) string
-	LoadCheckoutSession   func(string) (*CheckoutSessionRecord, error)
-	ExtractAmount         func(map[string]interface{}, *CheckoutSessionRecord) int64
-	HandleCreditTopup     func(string, int64, *PlanOption, string, map[string]interface{}) error
-	RefreshSubscription   func(string, string) (*shared.SubscriptionStatus, error)
-	PersistSubscription   func(string, *StripeSubscription) (*shared.SubscriptionStatus, error)
-	CheckIntroEligibility func(context.Context, string) (bool, error)
-	MarkIntroUsed         func(context.Context, string, string, string, string, string) error
-	ExtractIntroCoupon    func(map[string]interface{}) string
-	LogIntroAnomaly       func(string, string, string, string, map[string]interface{})
-	Log                   func(string, map[string]interface{})
-	LogError              func(string, map[string]interface{})
+	DB                         StripeStore
+	Provider                   StripeRequester
+	PlanService                *PlanService
+	Config                     func() StripeWebhookConfig
+	NormalizeEmail             func(string) string
+	LoadCheckoutSession        func(string) (*CheckoutSessionRecord, error)
+	LoadCheckoutSessionContext func(context.Context, string) (*CheckoutSessionRecord, error)
+	ExtractAmount              func(map[string]interface{}, *CheckoutSessionRecord) int64
+	HandleCreditTopup          func(string, int64, *PlanOption, string, map[string]interface{}) error
+	HandleCreditTopupContext   func(context.Context, string, int64, *PlanOption, string, map[string]interface{}) error
+	RefreshSubscription        func(string, string) (*shared.SubscriptionStatus, error)
+	RefreshSubscriptionContext func(context.Context, string, string) (*shared.SubscriptionStatus, error)
+	PersistSubscription        func(string, *StripeSubscription) (*shared.SubscriptionStatus, error)
+	PersistSubscriptionContext func(context.Context, string, *StripeSubscription) (*shared.SubscriptionStatus, error)
+	CheckIntroEligibility      func(context.Context, string) (bool, error)
+	MarkIntroUsed              func(context.Context, string, string, string, string, string) error
+	ExtractIntroCoupon         func(map[string]interface{}) string
+	LogIntroAnomaly            func(string, string, string, string, map[string]interface{})
+	Log                        func(string, map[string]interface{})
+	LogError                   func(string, map[string]interface{})
 }
 
 func NewStripeWebhookService(options StripeWebhookOptions) *StripeWebhookService {
 	return &StripeWebhookService{
 		db: options.DB, provider: options.Provider, planService: options.PlanService, getConfig: options.Config,
-		normalizeEmailFn: options.NormalizeEmail, loadCheckoutSession: options.LoadCheckoutSession,
+		normalizeEmailFn: options.NormalizeEmail, loadCheckoutSession: options.LoadCheckoutSession, loadCheckoutSessionContext: options.LoadCheckoutSessionContext,
 		extractAmount: options.ExtractAmount, handleCreditTopup: options.HandleCreditTopup,
-		refreshSubscription: options.RefreshSubscription, persistSubscription: options.PersistSubscription,
+		handleCreditTopupContext: options.HandleCreditTopupContext,
+		refreshSubscription:      options.RefreshSubscription, refreshSubscriptionContext: options.RefreshSubscriptionContext,
+		persistSubscription: options.PersistSubscription, persistSubscriptionContext: options.PersistSubscriptionContext,
 		checkIntroEligibility: options.CheckIntroEligibility, markIntroUsed: options.MarkIntroUsed,
 		extractIntroCoupon: options.ExtractIntroCoupon, logIntroAnomaly: options.LogIntroAnomaly,
 		logf: options.Log, logErrorf: options.LogError,
@@ -114,7 +125,7 @@ func withTransaction(ctx context.Context, db StripeStore, fn func(*sql.Tx) error
 // copyTrafficAttribution copies the first-touch tuple from the originating
 // checkout metadata. The capability is optional for compatibility with old
 // installations whose subscription table predates the attribution columns.
-func copyTrafficAttribution(tx *sql.Tx, subscriptionID string, metadata map[string]interface{}) error {
+func copyTrafficAttribution(ctx context.Context, tx *sql.Tx, subscriptionID string, metadata map[string]interface{}) error {
 	if subscriptionID == "" || len(metadata) == 0 {
 		return nil
 	}
@@ -128,17 +139,17 @@ func copyTrafficAttribution(tx *sql.Tx, subscriptionID string, metadata map[stri
 		return nil
 	}
 	var available int
-	if err := tx.QueryRow(`SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'visitor_id'`).Scan(&available); err != nil || available == 0 {
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'subscriptions' AND column_name = 'visitor_id'`).Scan(&available); err != nil || available == 0 {
 		return nil
 	}
-	_, err := tx.Exec(`UPDATE subscriptions SET visitor_id = NULLIF($1, ''), utm_source = NULLIF($2, ''), utm_medium = NULLIF($3, ''), utm_campaign = NULLIF($4, ''), referrer_kind = NULLIF($5, ''), country_code = NULLIF($6, '') WHERE subscription_id = $7`, visitorID, source, medium, campaign, referrer, country, subscriptionID)
+	_, err := tx.ExecContext(ctx, `UPDATE subscriptions SET visitor_id = NULLIF($1, ''), utm_source = NULLIF($2, ''), utm_medium = NULLIF($3, ''), utm_campaign = NULLIF($4, ''), referrer_kind = NULLIF($5, ''), country_code = NULLIF($6, '') WHERE subscription_id = $7`, visitorID, source, medium, campaign, referrer, country, subscriptionID)
 	if err != nil {
 		return fmt.Errorf("copy subscription traffic attribution: %w", err)
 	}
 	return nil
 }
 
-func recordConversion(tx *sql.Tx, session *CheckoutSessionRecord, amount int64, currency, kind string) error {
+func recordConversion(ctx context.Context, tx *sql.Tx, session *CheckoutSessionRecord, amount int64, currency, kind string) error {
 	if session == nil || strings.TrimSpace(session.SessionID) == "" {
 		return nil
 	}
@@ -151,7 +162,7 @@ func recordConversion(tx *sql.Tx, session *CheckoutSessionRecord, amount int64, 
 		v, _ := metadata[key].(string)
 		return v
 	}
-	_, err := tx.Exec(`INSERT INTO metrics_events (event_type,event_id,event_data,session_id,visitor_id,variant_slug,utm_source,utm_medium,utm_campaign,landing_path,referrer_kind,country_code,device_class,traffic_class) VALUES ('conversion',$1,$2,NULLIF($3,''),NULLIF($4,''),NULLIF($5,''),NULLIF($6,''),NULLIF($7,''),NULLIF($8,''),NULLIF($9,''),NULLIF($10,''),NULLIF($11,''),NULLIF($12,''),'human') ON CONFLICT (event_id) WHERE event_id IS NOT NULL DO NOTHING`, "conversion:"+session.SessionID, data, value("session_id"), value("visitor_id"), value("variant_slug"), value("utm_source"), value("utm_medium"), value("utm_campaign"), value("landing_path"), value("referrer_kind"), value("country_code"), value("device_class"))
+	_, err := tx.ExecContext(ctx, `INSERT INTO metrics_events (event_type,event_id,event_data,session_id,visitor_id,variant_slug,utm_source,utm_medium,utm_campaign,landing_path,referrer_kind,country_code,device_class,traffic_class) VALUES ('conversion',$1,$2,NULLIF($3,''),NULLIF($4,''),NULLIF($5,''),NULLIF($6,''),NULLIF($7,''),NULLIF($8,''),NULLIF($9,''),NULLIF($10,''),NULLIF($11,''),NULLIF($12,''),'human') ON CONFLICT (event_id) WHERE event_id IS NOT NULL DO NOTHING`, "conversion:"+session.SessionID, data, value("session_id"), value("visitor_id"), value("variant_slug"), value("utm_source"), value("utm_medium"), value("utm_campaign"), value("landing_path"), value("referrer_kind"), value("country_code"), value("device_class"))
 	return err
 }
 
@@ -169,11 +180,25 @@ func (s *StripeWebhookService) subscriptionRefresh(identity, subscriptionID stri
 	return s.refreshSubscription(identity, subscriptionID)
 }
 
+func (s *StripeWebhookService) subscriptionRefreshContext(ctx context.Context, identity, subscriptionID string) (*shared.SubscriptionStatus, error) {
+	if s.refreshSubscriptionContext != nil {
+		return s.refreshSubscriptionContext(ctx, identity, subscriptionID)
+	}
+	return s.subscriptionRefresh(identity, subscriptionID)
+}
+
 func (s *StripeWebhookService) subscriptionPersist(identity string, subscription *StripeSubscription) (*shared.SubscriptionStatus, error) {
 	if s.persistSubscription == nil {
 		return nil, errors.New("subscription persistence unavailable")
 	}
 	return s.persistSubscription(identity, subscription)
+}
+
+func (s *StripeWebhookService) subscriptionPersistContext(ctx context.Context, identity string, subscription *StripeSubscription) (*shared.SubscriptionStatus, error) {
+	if s.persistSubscriptionContext != nil {
+		return s.persistSubscriptionContext(ctx, identity, subscription)
+	}
+	return s.subscriptionPersist(identity, subscription)
 }
 
 func (s *StripeWebhookService) persistSubscriptionFromStripe(identity string, subscription *StripeSubscription) (*shared.SubscriptionStatus, error) {
@@ -258,13 +283,18 @@ func (s *StripeWebhookService) VerifyWebhookSignature(payload []byte, signature 
 	// Construct signed payload: timestamp.payload
 	signedPayload := timestamp + "." + string(payload)
 
-	// Compute HMAC-SHA256
-	mac := hmac.New(sha256.New, []byte(cfg.WebhookSecret))
-	mac.Write([]byte(signedPayload))
-	expectedSig := hex.EncodeToString(mac.Sum(nil))
-
-	// Compare signatures
-	return hmac.Equal([]byte(sig), []byte(expectedSig))
+	for _, secret := range []string{cfg.WebhookSecret, cfg.AdditionalWebhookSecret} {
+		if secret == "" {
+			continue
+		}
+		mac := hmac.New(sha256.New, []byte(secret))
+		mac.Write([]byte(signedPayload))
+		expectedSig := hex.EncodeToString(mac.Sum(nil))
+		if hmac.Equal([]byte(sig), []byte(expectedSig)) {
+			return true
+		}
+	}
+	return false
 }
 
 // HandleWebhook processes Stripe webhook events
@@ -274,15 +304,59 @@ func (s *StripeWebhookService) HandleWebhook(body []byte, signature string) erro
 	if !s.VerifyWebhookSignature(body, signature) {
 		return errors.New("invalid webhook signature")
 	}
+	_, err := s.processEventPayload(context.Background(), body)
+	return err
+}
+
+// ApplyReconciliationEvent routes an authenticated Stripe API event through
+// the same durable receipt and transition handlers as a signed webhook. The
+// reconciliation source has already authenticated the provider response; this
+// method verifies the event envelope against the source cursor before it
+// allows the shared dispatcher to run.
+func (s *StripeWebhookService) ApplyReconciliationEvent(ctx context.Context, expected PaymentReconciliationEvent) (PaymentReconciliationOutcome, error) {
+	if ctx == nil || !expected.Cursor.Valid() || expected.Type == "" || expected.ObjectID == "" || len(expected.Payload) == 0 {
+		return "", ErrInvalidReconciliationEvent
+	}
+	var event stripeEventEnvelope
+	if err := json.Unmarshal(expected.Payload, &event); err != nil {
+		return "", fmt.Errorf("decode Stripe reconciliation event: %w", err)
+	}
+	createdAt := time.Unix(event.Created, 0).UTC().Truncate(time.Microsecond)
+	if event.ID != expected.Cursor.EventID || event.Type != expected.Type || event.LiveMode != expected.LiveMode || event.Data.Object.ID != expected.ObjectID || !createdAt.Equal(expected.Cursor.CreatedAt.UTC().Truncate(time.Microsecond)) {
+		return "", ErrInvalidReconciliationEvent
+	}
+	processed, err := s.processEventPayload(ctx, expected.Payload)
+	if err != nil {
+		return "", err
+	}
+	if !processed {
+		return PaymentReconciliationReplay, nil
+	}
+	return PaymentReconciliationApplied, nil
+}
+
+type stripeEventEnvelope struct {
+	ID       string `json:"id"`
+	Type     string `json:"type"`
+	Created  int64  `json:"created"`
+	LiveMode bool   `json:"livemode"`
+	Data     struct {
+		Object struct {
+			ID string `json:"id"`
+		} `json:"object"`
+	} `json:"data"`
+}
+
+func (s *StripeWebhookService) processEventPayload(ctx context.Context, body []byte) (bool, error) {
 
 	var event map[string]interface{}
 	if err := json.Unmarshal(body, &event); err != nil {
-		return err
+		return false, err
 	}
 
 	eventType, ok := event["type"].(string)
 	if !ok {
-		return errors.New("missing event type")
+		return false, errors.New("missing event type")
 	}
 
 	// Extract event ID for idempotency - required for safe webhook processing
@@ -291,50 +365,70 @@ func (s *StripeWebhookService) HandleWebhook(body []byte, signature string) erro
 		s.logError("webhook_missing_event_id", map[string]interface{}{
 			"event_type": eventType,
 		})
-		return errors.New("missing or invalid event ID - cannot process webhook safely")
+		return false, errors.New("missing or invalid event ID - cannot process webhook safely")
 	}
 
 	data, ok := event["data"].(map[string]interface{})
 	if !ok {
-		return errors.New("missing event data")
+		return false, errors.New("missing event data")
 	}
 
 	obj, ok := data["object"].(map[string]interface{})
 	if !ok {
-		return errors.New("missing event object")
+		return false, errors.New("missing event object")
 	}
 	eventLiveMode, _ := event["livemode"].(bool)
+	link, err := stripeTestOutcomeLink(stripeObjectOutcomeMetadata(eventType, obj), eventLiveMode)
+	if err != nil {
+		return false, err
+	}
+	claimToken, shouldProcess, receiptErr := s.beginWebhookReceipt(ctx, eventID, eventType, stripeObjectID(obj), eventLiveMode, body, link)
+	if receiptErr != nil {
+		return false, receiptErr
+	}
+	if !shouldProcess {
+		return false, nil
+	}
 
 	// Handle different event types
+	var handlerErr error
 	switch eventType {
 	case "charge.dispute.created", "charge.dispute.updated", "charge.dispute.closed", "charge.dispute.funds_withdrawn", "charge.dispute.funds_reinstated", "charge.refunded", "radar.early_fraud_warning.created", "radar.early_fraud_warning.updated":
-		return s.handleFundingReversal(context.Background(), eventID, eventType, obj, eventLiveMode)
+		handlerErr = s.handleFundingReversal(ctx, eventID, eventType, obj, eventLiveMode)
 	case "checkout.session.completed", "checkout.session.async_payment_succeeded":
-		return s.handleCheckoutCompleted(obj, eventID, eventLiveMode)
+		handlerErr = s.handleCheckoutCompleted(ctx, obj, eventID, eventLiveMode)
 	case "customer.subscription.created":
-		return s.handleSubscriptionCreated(obj)
+		handlerErr = s.handleSubscriptionCreated(ctx, obj)
 	case "customer.subscription.updated":
-		return s.handleSubscriptionUpdated(obj)
+		handlerErr = s.handleSubscriptionUpdated(ctx, obj)
 	case "customer.subscription.deleted":
-		return s.handleSubscriptionDeleted(obj)
+		handlerErr = s.handleSubscriptionDeleted(ctx, obj)
 	case "customer.updated":
-		return s.handleCustomerUpdated(obj)
+		handlerErr = s.handleCustomerUpdated(ctx, obj)
 	case "invoice.paid":
-		return s.handleInvoicePaid(obj)
+		handlerErr = s.handleInvoicePaid(ctx, obj)
 	case "invoice.payment_failed":
-		return s.handleInvoicePaymentFailed(obj)
+		handlerErr = s.handleInvoicePaymentFailed(ctx, obj)
 	default:
 		s.log("Unhandled webhook event", map[string]interface{}{
 			"event_type": eventType,
 		})
 	}
-
-	return nil
+	if handlerErr == nil && link != nil && !eventLiveMode && (eventType == "checkout.session.completed" || eventType == "checkout.session.async_payment_succeeded") {
+		handlerErr = s.recordStripeTestEconomicReceipt(ctx, eventID, obj, link)
+	}
+	if handlerErr == nil && link != nil && !eventLiveMode && (eventType == "invoice.paid" || eventType == "invoice.payment_failed" || eventType == "customer.subscription.updated" || eventType == "customer.subscription.deleted") {
+		handlerErr = s.recordStripeTestLifecycleReceipt(ctx, eventID, eventType, obj, link)
+	}
+	if receiptErr := s.finishWebhookReceipt(ctx, eventID, claimToken, handlerErr); receiptErr != nil {
+		return false, receiptErr
+	}
+	return true, handlerErr
 }
 
 // HandleCustomerUpdated exposes the customer update operation to the API adapter.
 func (s *StripeWebhookService) HandleCustomerUpdated(obj map[string]interface{}) error {
-	return s.handleCustomerUpdated(obj)
+	return s.handleCustomerUpdated(context.Background(), obj)
 }
 
 func (s *StripeWebhookService) PersistInvoiceStatus(subscriptionID, customerID, customerEmail, priceID, status string) error {
@@ -345,7 +439,7 @@ func (s *StripeWebhookService) BillingIntervalDuration(interval shared.BillingIn
 	return s.billingIntervalDuration(interval)
 }
 
-func (s *StripeWebhookService) handleCheckoutCompleted(obj map[string]interface{}, stripeEventID string, eventLiveMode bool) error {
+func (s *StripeWebhookService) handleCheckoutCompleted(ctx context.Context, obj map[string]interface{}, stripeEventID string, eventLiveMode bool) error {
 	sessionID, ok := obj["id"].(string)
 	if !ok {
 		return errors.New("missing session id")
@@ -360,7 +454,7 @@ func (s *StripeWebhookService) handleCheckoutCompleted(obj map[string]interface{
 
 	// Link user account to Stripe customer (creates user if not exists)
 	if customerEmail != "" && customerID != "" {
-		if err := NewAccountLinkService(s.db).LinkUserToStripeCustomer(customerEmail, customerID); err != nil {
+		if err := NewAccountLinkService(s.db).LinkUserToStripeCustomerContext(ctx, customerEmail, customerID); err != nil {
 			s.logError("link_stripe_customer_failed", map[string]interface{}{
 				"email":       customerEmail,
 				"customer_id": customerID,
@@ -376,7 +470,15 @@ func (s *StripeWebhookService) handleCheckoutCompleted(obj map[string]interface{
 		}
 	}
 
-	sessionRec, err := s.loadCheckoutSession(sessionID)
+	var sessionRec *CheckoutSessionRecord
+	var err error
+	if s.loadCheckoutSessionContext != nil {
+		sessionRec, err = s.loadCheckoutSessionContext(ctx, sessionID)
+	} else if s.loadCheckoutSession != nil {
+		sessionRec, err = s.loadCheckoutSession(sessionID)
+	} else {
+		return errors.New("checkout session loader unavailable")
+	}
 	if err != nil {
 		return err
 	}
@@ -417,21 +519,29 @@ func (s *StripeWebhookService) handleCheckoutCompleted(obj map[string]interface{
 		if sessionRec.BusinessAccountID.Valid && strings.TrimSpace(sessionRec.BusinessAccountID.String) != "" {
 			metadata["business_account_id"] = strings.TrimSpace(sessionRec.BusinessAccountID.String)
 		}
-		if err := s.handleCreditTopup(customerEmail, amountCents, plan, stripeEventID, metadata); err != nil {
+		var err error
+		if s.handleCreditTopupContext != nil {
+			err = s.handleCreditTopupContext(ctx, customerEmail, amountCents, plan, stripeEventID, metadata)
+		} else if s.handleCreditTopup != nil {
+			err = s.handleCreditTopup(customerEmail, amountCents, plan, stripeEventID, metadata)
+		} else {
+			err = errors.New("credit top-up handler unavailable")
+		}
+		if err != nil {
 			return err
 		}
-		if _, err := s.db.Exec(`
+		if _, err := s.db.ExecContext(ctx, `
 			UPDATE checkout_sessions
 			SET status = $1, subscription_id = $2, customer_id = $3, customer_email = $4, completed_at = $5, updated_at = $5
 			WHERE session_id = $6
 		`, "complete", subscriptionID, customerID, customerEmail, time.Now(), sessionID); err != nil {
 			return err
 		}
-		return withTransaction(context.Background(), s.db, func(tx *sql.Tx) error {
-			return recordConversion(tx, sessionRec, amountCents, "usd", sessionRec.SessionType)
+		return withTransaction(ctx, s.db, func(tx *sql.Tx) error {
+			return recordConversion(ctx, tx, sessionRec, amountCents, "usd", sessionRec.SessionType)
 		})
 	case plan != nil && plan.Kind == shared.PlanKind_PLAN_KIND_SUPPORTER_CONTRIBUTION:
-		if _, err := s.db.Exec(`
+		if _, err := s.db.ExecContext(ctx, `
 			UPDATE checkout_sessions
 			SET status = $1, subscription_id = $2, customer_id = $3, customer_email = $4, completed_at = $5, updated_at = $5
 			WHERE session_id = $6
@@ -443,27 +553,27 @@ func (s *StripeWebhookService) handleCheckoutCompleted(obj map[string]interface{
 			"email":      customerEmail,
 			"amount":     amountCents,
 		})
-		return withTransaction(context.Background(), s.db, func(tx *sql.Tx) error {
-			return recordConversion(tx, sessionRec, amountCents, "usd", sessionRec.SessionType)
+		return withTransaction(ctx, s.db, func(tx *sql.Tx) error {
+			return recordConversion(ctx, tx, sessionRec, amountCents, "usd", sessionRec.SessionType)
 		})
 	default:
-		return withTransaction(context.Background(), s.db, func(tx *sql.Tx) error {
-			if _, err := tx.Exec(`
+		return withTransaction(ctx, s.db, func(tx *sql.Tx) error {
+			if _, err := tx.ExecContext(ctx, `
 				UPDATE checkout_sessions
 				SET status = $1, subscription_id = $2, customer_id = $3, customer_email = $4, completed_at = $5, updated_at = $5
 				WHERE session_id = $6
 			`, "complete", subscriptionID, customerID, customerEmail, time.Now(), sessionID); err != nil {
 				return err
 			}
-			if err := s.handleSubscriptionCompletion(tx, subscriptionID, customerID, customerEmail, plan, sessionRec, amountCents); err != nil {
+			if err := s.handleSubscriptionCompletion(ctx, tx, subscriptionID, customerID, customerEmail, plan, sessionRec, amountCents); err != nil {
 				return err
 			}
-			return recordConversion(tx, sessionRec, amountCents, "usd", sessionRec.SessionType)
+			return recordConversion(ctx, tx, sessionRec, amountCents, "usd", sessionRec.SessionType)
 		})
 	}
 }
 
-func (s *StripeWebhookService) handleSubscriptionCompletion(tx *sql.Tx, subscriptionID, customerID, customerEmail string, plan *PlanOption, session *CheckoutSessionRecord, amountCents int64) error {
+func (s *StripeWebhookService) handleSubscriptionCompletion(ctx context.Context, tx *sql.Tx, subscriptionID, customerID, customerEmail string, plan *PlanOption, session *CheckoutSessionRecord, amountCents int64) error {
 	if plan == nil {
 		// Without plan metadata we cannot create enriched entries
 		return nil
@@ -484,14 +594,14 @@ func (s *StripeWebhookService) handleSubscriptionCompletion(tx *sql.Tx, subscrip
 	}
 	var err error
 	if businessAccountID != "" {
-		_, err = tx.Exec(`
+		_, err = tx.ExecContext(ctx, `
 		INSERT INTO subscriptions (subscription_id, customer_id, customer_email, business_account_id, status, plan_tier, price_id, bundle_key, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		ON CONFLICT (subscription_id) DO UPDATE
 		SET status = $5, customer_email = $3, customer_id = $2, business_account_id = $4, plan_tier = $6, price_id = $7, bundle_key = $8, updated_at = $10
 	`, subscriptionID, customerID, customerEmail, businessAccountID, "active", plan.PlanTier, plan.StripePriceId, plan.BundleKey, now, now)
 	} else {
-		_, err = tx.Exec(`
+		_, err = tx.ExecContext(ctx, `
 		INSERT INTO subscriptions (subscription_id, customer_id, customer_email, status, plan_tier, price_id, bundle_key, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT (subscription_id) DO UPDATE
@@ -502,18 +612,18 @@ func (s *StripeWebhookService) handleSubscriptionCompletion(tx *sql.Tx, subscrip
 		return err
 	}
 	if session != nil {
-		if err := copyTrafficAttribution(tx, subscriptionID, session.Metadata); err != nil {
+		if err := copyTrafficAttribution(ctx, tx, subscriptionID, session.Metadata); err != nil {
 			return err
 		}
 	}
 
 	if plan.IntroEnabled && plan.BillingInterval == shared.BillingInterval_BILLING_INTERVAL_MONTH {
-		scheduleID, err := s.createSubscriptionSchedule(tx, subscriptionID, plan, amountCents)
+		scheduleID, err := s.createSubscriptionSchedule(ctx, tx, subscriptionID, plan, amountCents)
 		if err != nil {
 			return err
 		}
 		if scheduleID != "" && session != nil {
-			if _, err := tx.Exec(`
+			if _, err := tx.ExecContext(ctx, `
 				UPDATE checkout_sessions
 				SET schedule_id = $1
 				WHERE session_id = $2
@@ -539,7 +649,7 @@ func (s *StripeWebhookService) handleSubscriptionCompletion(tx *sql.Tx, subscrip
 	return nil
 }
 
-func (s *StripeWebhookService) createSubscriptionSchedule(tx *sql.Tx, subscriptionID string, plan *PlanOption, amountCents int64) (string, error) {
+func (s *StripeWebhookService) createSubscriptionSchedule(ctx context.Context, tx *sql.Tx, subscriptionID string, plan *PlanOption, amountCents int64) (string, error) {
 	if plan == nil || subscriptionID == "" {
 		return "", nil
 	}
@@ -560,7 +670,7 @@ func (s *StripeWebhookService) createSubscriptionSchedule(tx *sql.Tx, subscripti
 	}
 	metaBytes, _ := json.Marshal(meta)
 
-	_, err := tx.Exec(`
+	_, err := tx.ExecContext(ctx, `
 		INSERT INTO subscription_schedules (
 			schedule_id, subscription_id, price_id, billing_interval,
 			intro_enabled, intro_amount_cents, intro_periods, normal_amount_cents,
@@ -599,7 +709,7 @@ func (s *StripeWebhookService) billingIntervalDuration(interval shared.BillingIn
 	}
 }
 
-func (s *StripeWebhookService) handleSubscriptionCreated(obj map[string]interface{}) error {
+func (s *StripeWebhookService) handleSubscriptionCreated(ctx context.Context, obj map[string]interface{}) error {
 	subscriptionID, ok := obj["id"].(string)
 	if !ok {
 		return errors.New("missing subscription id")
@@ -608,7 +718,7 @@ func (s *StripeWebhookService) handleSubscriptionCreated(obj map[string]interfac
 	status, _ := obj["status"].(string)
 	customerID, _ := obj["customer"].(string)
 
-	_, err := s.db.Exec(`
+	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO subscriptions (subscription_id, customer_id, status, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (subscription_id) DO UPDATE
@@ -618,7 +728,7 @@ func (s *StripeWebhookService) handleSubscriptionCreated(obj map[string]interfac
 	return err
 }
 
-func (s *StripeWebhookService) handleSubscriptionUpdated(obj map[string]interface{}) error {
+func (s *StripeWebhookService) handleSubscriptionUpdated(ctx context.Context, obj map[string]interface{}) error {
 	subscriptionID, ok := obj["id"].(string)
 	if !ok {
 		return errors.New("missing subscription id")
@@ -628,14 +738,14 @@ func (s *StripeWebhookService) handleSubscriptionUpdated(obj map[string]interfac
 	if payload, err := json.Marshal(obj); err == nil {
 		var sub StripeSubscription
 		if err := json.Unmarshal(payload, &sub); err == nil && sub.ID != "" {
-			if _, persistErr := s.persistSubscriptionFromStripe("", &sub); persistErr == nil {
+			if _, persistErr := s.subscriptionPersistContext(ctx, "", &sub); persistErr == nil {
 				return nil
 			}
 		}
 	}
 
 	// [REQ:SUB-CACHE] Cache invalidation - update subscription status
-	_, err := s.db.Exec(`
+	_, err := s.db.ExecContext(ctx, `
 		UPDATE subscriptions
 		SET status = $1, updated_at = $2
 		WHERE subscription_id = $3
@@ -644,7 +754,7 @@ func (s *StripeWebhookService) handleSubscriptionUpdated(obj map[string]interfac
 	return err
 }
 
-func (s *StripeWebhookService) handleSubscriptionDeleted(obj map[string]interface{}) error {
+func (s *StripeWebhookService) handleSubscriptionDeleted(ctx context.Context, obj map[string]interface{}) error {
 	subscriptionID, ok := obj["id"].(string)
 	if !ok {
 		return errors.New("missing subscription id")
@@ -656,13 +766,13 @@ func (s *StripeWebhookService) handleSubscriptionDeleted(obj map[string]interfac
 		if err := json.Unmarshal(payload, &sub); err == nil && sub.ID != "" {
 			sub.Status = "canceled"
 			sub.CanceledAt = now.Unix()
-			if _, persistErr := s.persistSubscriptionFromStripe("", &sub); persistErr == nil {
+			if _, persistErr := s.subscriptionPersistContext(ctx, "", &sub); persistErr == nil {
 				return nil
 			}
 		}
 	}
 
-	_, err := s.db.Exec(`
+	_, err := s.db.ExecContext(ctx, `
 		UPDATE subscriptions
 		SET status = $1, canceled_at = $2, updated_at = $3
 		WHERE subscription_id = $4
@@ -696,6 +806,10 @@ func (s *StripeWebhookService) extractInvoicePriceID(obj map[string]interface{})
 }
 
 func (s *StripeWebhookService) persistInvoiceStatus(subscriptionID, customerID, customerEmail, priceID, status string) error {
+	return s.persistInvoiceStatusContext(context.Background(), subscriptionID, customerID, customerEmail, priceID, status)
+}
+
+func (s *StripeWebhookService) persistInvoiceStatusContext(ctx context.Context, subscriptionID, customerID, customerEmail, priceID, status string) error {
 	if subscriptionID == "" {
 		return nil
 	}
@@ -719,7 +833,7 @@ func (s *StripeWebhookService) persistInvoiceStatus(subscriptionID, customerID, 
 
 	if strings.TrimSpace(planTier) == "" {
 		var current sql.NullString
-		if err := s.db.QueryRow(`SELECT plan_tier FROM subscriptions WHERE subscription_id = $1`, subscriptionID).Scan(&current); err == nil && current.Valid {
+		if err := s.db.QueryRowContext(ctx, `SELECT plan_tier FROM subscriptions WHERE subscription_id = $1`, subscriptionID).Scan(&current); err == nil && current.Valid {
 			planTier = current.String
 		}
 	}
@@ -741,7 +855,7 @@ func (s *StripeWebhookService) persistInvoiceStatus(subscriptionID, customerID, 
 	}
 
 	now := time.Now()
-	_, err := s.db.Exec(`
+	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO subscriptions (subscription_id, customer_id, customer_email, status, plan_tier, price_id, bundle_key, created_at, updated_at)
 		VALUES ($1::varchar,$2::varchar,$3::varchar,$4::varchar,$5::varchar,$6::varchar,$7::varchar,COALESCE((SELECT created_at FROM subscriptions WHERE subscription_id = $1::varchar), $8::timestamp), $8::timestamp)
 		ON CONFLICT (subscription_id) DO UPDATE SET
@@ -756,14 +870,14 @@ func (s *StripeWebhookService) persistInvoiceStatus(subscriptionID, customerID, 
 	return err
 }
 
-func (s *StripeWebhookService) handleInvoicePaid(obj map[string]interface{}) error {
+func (s *StripeWebhookService) handleInvoicePaid(ctx context.Context, obj map[string]interface{}) error {
 	subscriptionID, _ := obj["subscription"].(string)
 	customerID, _ := obj["customer"].(string)
 	customerEmail, _ := obj["customer_email"].(string)
 	priceID := s.extractInvoicePriceID(obj)
 	billingReason, _ := obj["billing_reason"].(string)
 
-	if err := s.persistInvoiceStatus(subscriptionID, customerID, customerEmail, priceID, "active"); err != nil {
+	if err := s.persistInvoiceStatusContext(ctx, subscriptionID, customerID, customerEmail, priceID, "active"); err != nil {
 		return err
 	}
 
@@ -774,7 +888,7 @@ func (s *StripeWebhookService) handleInvoicePaid(obj map[string]interface{}) err
 		if couponID != "" {
 			// Payment-time eligibility re-check: verify user is still eligible
 			// This catches cases where eligibility changed between checkout and payment
-			eligible, eligErr := s.checkIntroEligibility(context.Background(), customerEmail)
+			eligible, eligErr := s.checkIntroEligibility(ctx, customerEmail)
 			if eligErr != nil {
 				s.logError("payment_time_eligibility_check_failed", map[string]interface{}{
 					"email":           customerEmail,
@@ -802,7 +916,7 @@ func (s *StripeWebhookService) handleInvoicePaid(obj map[string]interface{}) err
 				}
 			}
 
-			if err := s.markIntroUsed(context.Background(), customerEmail, customerID, couponID, planTier, subscriptionID); err != nil {
+			if err := s.markIntroUsed(ctx, customerEmail, customerID, couponID, planTier, subscriptionID); err != nil {
 				s.logError("mark_intro_used_failed", map[string]interface{}{
 					"email":           customerEmail,
 					"customer_id":     customerID,
@@ -817,20 +931,20 @@ func (s *StripeWebhookService) handleInvoicePaid(obj map[string]interface{}) err
 
 	// Proactively refresh from Stripe if we have an ID to backfill details
 	if subscriptionID != "" {
-		if refreshed, err := s.refreshSubscriptionFromStripe(customerEmail, subscriptionID); err == nil && refreshed != nil {
+		if refreshed, err := s.subscriptionRefreshContext(ctx, customerEmail, subscriptionID); err == nil && refreshed != nil {
 			return nil
 		}
 	}
 	return nil
 }
 
-func (s *StripeWebhookService) handleInvoicePaymentFailed(obj map[string]interface{}) error {
+func (s *StripeWebhookService) handleInvoicePaymentFailed(ctx context.Context, obj map[string]interface{}) error {
 	subscriptionID, _ := obj["subscription"].(string)
 	customerID, _ := obj["customer"].(string)
 	customerEmail, _ := obj["customer_email"].(string)
 	priceID := s.extractInvoicePriceID(obj)
 
-	if err := s.persistInvoiceStatus(subscriptionID, customerID, customerEmail, priceID, "past_due"); err != nil {
+	if err := s.persistInvoiceStatusContext(ctx, subscriptionID, customerID, customerEmail, priceID, "past_due"); err != nil {
 		return err
 	}
 	return nil
@@ -839,7 +953,7 @@ func (s *StripeWebhookService) handleInvoicePaymentFailed(obj map[string]interfa
 // handleCustomerUpdated handles the customer.updated webhook event.
 // When a user changes their email in the Stripe billing portal, this updates
 // all local records to prevent orphaned data.
-func (s *StripeWebhookService) handleCustomerUpdated(obj map[string]interface{}) error {
+func (s *StripeWebhookService) handleCustomerUpdated(ctx context.Context, obj map[string]interface{}) error {
 	customerID, ok := obj["id"].(string)
 	if !ok || customerID == "" {
 		return errors.New("missing customer id in customer.updated event")
@@ -862,7 +976,7 @@ func (s *StripeWebhookService) handleCustomerUpdated(obj map[string]interface{})
 
 	// If we don't have a previous email, look it up from our database
 	if oldEmail == "" {
-		err := s.db.QueryRow(`
+		err := s.db.QueryRowContext(ctx, `
 			SELECT customer_email FROM subscriptions
 			WHERE customer_id = $1
 			ORDER BY updated_at DESC
@@ -887,14 +1001,14 @@ func (s *StripeWebhookService) handleCustomerUpdated(obj map[string]interface{})
 	})
 
 	// Use transaction to update all tables atomically
-	tx, err := s.db.Begin()
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin email migration transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
 	// Update subscriptions table
-	_, err = tx.Exec(`
+	_, err = tx.ExecContext(ctx, `
 		UPDATE subscriptions
 		SET customer_email = $1, updated_at = NOW()
 		WHERE customer_id = $2 OR customer_email = $3
@@ -903,8 +1017,19 @@ func (s *StripeWebhookService) handleCustomerUpdated(obj map[string]interface{})
 		return fmt.Errorf("migrate subscriptions email: %w", err)
 	}
 
+	// Current credit ownership is business-account scoped. Update its email
+	// projection and transaction attribution together; the retired
+	// email-keyed credit_wallets/credit_transactions tables are intentionally
+	// not consulted or mutated by this migration.
+	if _, err = tx.ExecContext(ctx, `UPDATE business_account_credit_wallets SET customer_email = $1, updated_at = NOW() WHERE customer_email = $2`, newEmail, oldEmail); err != nil {
+		return fmt.Errorf("migrate business account credit wallet email: %w", err)
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE business_account_credit_transactions SET customer_email = $1 WHERE customer_email = $2`, newEmail, oldEmail); err != nil {
+		return fmt.Errorf("migrate business account credit transaction email: %w", err)
+	}
+
 	// Update users table
-	_, err = tx.Exec(`
+	_, err = tx.ExecContext(ctx, `
 		UPDATE users
 		SET email = $1, updated_at = NOW()
 		WHERE email = $2 OR stripe_customer_id = $3
@@ -914,7 +1039,7 @@ func (s *StripeWebhookService) handleCustomerUpdated(obj map[string]interface{})
 	}
 
 	// Update intro_coupon_usage table
-	_, err = tx.Exec(`
+	_, err = tx.ExecContext(ctx, `
 		UPDATE intro_coupon_usage
 		SET email = $1
 		WHERE email = $2 OR stripe_customer_id = $3
@@ -924,7 +1049,7 @@ func (s *StripeWebhookService) handleCustomerUpdated(obj map[string]interface{})
 	}
 
 	// Update checkout_sessions table
-	_, err = tx.Exec(`
+	_, err = tx.ExecContext(ctx, `
 		UPDATE checkout_sessions
 		SET customer_email = $1, updated_at = NOW()
 		WHERE customer_email = $2 OR customer_id = $3

@@ -133,8 +133,8 @@ export function EditCouponModal({
 
         <DialogFooter>
           <OverlayActionBar actions={[
-            { id: 'cancel', label: 'Cancel', onSelect: handleClose, disabled: saving },
             { id: 'save', label: saving ? 'Saving...' : 'Save Changes', onSelect: () => { void handleSave(); }, disabled: saving, primary: true },
+            { id: 'cancel', label: 'Cancel', onSelect: handleClose, disabled: saving },
           ]} />
         </DialogFooter>
       </DialogContent>

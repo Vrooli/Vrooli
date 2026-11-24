@@ -2,9 +2,21 @@ package delivery
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"net/url"
+	"strings"
 	"time"
 )
+
+func validatePresignedURL(raw string) (string, error) {
+	value := strings.TrimSpace(raw)
+	parsed, err := url.Parse(value)
+	if err != nil || !parsed.IsAbs() || !strings.EqualFold(parsed.Scheme, "https") || parsed.Hostname() == "" || parsed.User != nil || strings.Contains(value, "#") {
+		return "", fmt.Errorf("storage provider returned an invalid presigned URL: expected absolute HTTPS without credentials or fragment")
+	}
+	return value, nil
+}
 
 // Storage is the provider-neutral binary object boundary for release delivery.
 //

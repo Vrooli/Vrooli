@@ -22,6 +22,7 @@ import (
 
 // [REQ:STRIPE-CONFIG] Test Stripe credential-authority configuration
 func TestNewStripeService(t *testing.T) {
+	t.Setenv("STRIPE_MODE", "test")
 	db := setupTestDB(t)
 
 	payment := NewPaymentSettingsService(db)
@@ -227,6 +228,33 @@ func TestVerifyWebhookSignature(t *testing.T) {
 	}
 }
 
+func TestEphemeralStripeWebhookSecretPreservesAuthorityWebhookVerification(t *testing.T) {
+	db := setupTestDB(t)
+	service := ConfigureStripeService(t, db, DefaultStripeTestConfig().WithKeys("pk_test_valid", "sk_test_valid", "whsec_authority"), nil)
+	payload := []byte(`{"id":"evt_test","type":"customer.updated","data":{"object":{}}}`)
+	timestamp := fmt.Sprintf("%d", time.Now().Unix())
+	signatureFor := func(secret string) string {
+		mac := hmac.New(sha256.New, []byte(secret))
+		mac.Write([]byte(timestamp + "." + string(payload)))
+		return "t=" + timestamp + ",v1=" + hex.EncodeToString(mac.Sum(nil))
+	}
+
+	restore := service.useEphemeralWebhookSecret("whsec_cli_listener")
+	if !service.VerifyWebhookSignature(payload, signatureFor("whsec_authority")) {
+		t.Fatal("authority webhook signature was rejected while the test listener was active")
+	}
+	if !service.VerifyWebhookSignature(payload, signatureFor("whsec_cli_listener")) {
+		t.Fatal("listener webhook signature was rejected")
+	}
+	restore()
+	if !service.VerifyWebhookSignature(payload, signatureFor("whsec_authority")) {
+		t.Fatal("authority webhook signature was rejected after the test listener closed")
+	}
+	if service.VerifyWebhookSignature(payload, signatureFor("whsec_cli_listener")) {
+		t.Fatal("listener webhook signature remained valid after the test listener closed")
+	}
+}
+
 // [REQ:STRIPE-ROUTES] Test webhook handling
 func TestHandleWebhook_CheckoutCompleted(t *testing.T) {
 	db := setupTestDB(t)
@@ -250,13 +278,22 @@ func TestHandleWebhook_CheckoutCompleted(t *testing.T) {
 	service := ConfigureStripeService(t, db, cfg, nil)
 
 	event := map[string]interface{}{
-		"id":   "evt_checkout_123",
-		"type": "checkout.session.completed",
+		"id":       "evt_checkout_123",
+		"type":     "checkout.session.completed",
+		"livemode": false,
 		"data": map[string]interface{}{
 			"object": map[string]interface{}{
 				"id":             "cs_test_123",
 				"customer_email": "test@example.com",
 				"subscription":   "sub_123",
+				"payment_intent": "pi_test_123",
+				"payment_status": "paid",
+				"amount_total":   5000,
+				"currency":       "usd",
+				"metadata": map[string]interface{}{
+					"lpbs_py1_test_run_id":  "py1-checkout-run-123",
+					"lpbs_py1_test_outcome": "checkout_success",
+				},
 			},
 		},
 	}
@@ -289,6 +326,19 @@ func TestHandleWebhook_CheckoutCompleted(t *testing.T) {
 
 	if subscriptionID != "sub_123" {
 		t.Errorf("Expected subscription_id sub_123, got %s", subscriptionID)
+	}
+	var eventID, checkoutSessionID, paymentIntentID, retainedRunID, outcome, currency, ledgerStatus string
+	var amount int64
+	err = db.QueryRow(`SELECT stripe_event_id,checkout_session_id,payment_intent_id,run_id,outcome,amount_minor,currency,money_ledger_status FROM py1_test_economic_receipts`).Scan(&eventID, &checkoutSessionID, &paymentIntentID, &retainedRunID, &outcome, &amount, &currency, &ledgerStatus)
+	if err != nil || eventID != "evt_checkout_123" || checkoutSessionID != "cs_test_123" || paymentIntentID != "pi_test_123" || retainedRunID != "py1-checkout-run-123" || outcome != "checkout_success" || amount != 5000 || currency != "usd" || ledgerStatus != "pending" {
+		t.Fatalf("PY1 economic receipt = event %q session %q payment %q run %q outcome %q amount %d currency %q ledger %q err=%v", eventID, checkoutSessionID, paymentIntentID, retainedRunID, outcome, amount, currency, ledgerStatus, err)
+	}
+	if err := service.HandleWebhook(payload, signatureHeader); err != nil {
+		t.Fatalf("duplicate completed checkout webhook: %v", err)
+	}
+	var receiptCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM py1_test_economic_receipts`).Scan(&receiptCount); err != nil || receiptCount != 1 {
+		t.Fatalf("PY1 economic receipt count = %d, err=%v; want one", receiptCount, err)
 	}
 
 	// Verify subscription was created
@@ -382,7 +432,7 @@ func TestCancelSubscription(t *testing.T) {
 	mockStripe := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/v1/subscriptions/") {
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"id":"%s","status":"canceled"}`, strings.TrimPrefix(r.URL.Path, "/v1/subscriptions/"))
+			fmt.Fprintf(w, `{"id":"%s","status":"active","cancel_at_period_end":true}`, strings.TrimPrefix(r.URL.Path, "/v1/subscriptions/"))
 			return
 		}
 		http.NotFound(w, r)
@@ -401,8 +451,14 @@ func TestCancelSubscription(t *testing.T) {
 		t.Errorf("Expected subscription_id sub_cancel_test, got %v", result.GetSubscriptionId())
 	}
 
-	if result.State != shared.SubscriptionState_SUBSCRIPTION_STATE_CANCELED {
-		t.Errorf("Expected status canceled, got %v", result.State)
+	if result.State != shared.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE {
+		t.Errorf("Expected active state until the period ends, got %v", result.State)
+	}
+	if result.GetCanceledAt() != nil {
+		t.Error("Expected no terminal cancellation timestamp before period end")
+	}
+	if !strings.Contains(result.GetMessage(), "access remains active") {
+		t.Errorf("Expected period-end cancellation message, got %q", result.GetMessage())
 	}
 
 	// Verify database was updated
@@ -415,12 +471,12 @@ func TestCancelSubscription(t *testing.T) {
 		t.Fatalf("Failed to query subscription: %v", err)
 	}
 
-	if status != "canceled" {
-		t.Errorf("Expected database status canceled, got %s", status)
+	if status != "active" {
+		t.Errorf("Expected database status active until period end, got %s", status)
 	}
 
-	if canceledAt == nil {
-		t.Error("Expected canceled_at to be set")
+	if canceledAt != nil {
+		t.Error("Expected canceled_at to remain unset until terminal cancellation")
 	}
 
 	// Test canceling non-existent subscription
@@ -1376,6 +1432,7 @@ func TestHandleCustomerUpdated_EmailMigration(t *testing.T) {
 	oldEmail := "old@example.com"
 	newEmail := "new@example.com"
 	customerID := "cus_migrate_123"
+	seedBusinessAccountCreditEmail(t, db, "acct-service-email", oldEmail)
 
 	// Insert test data with old email
 	_, err = db.Exec(`INSERT INTO users (email, stripe_customer_id) VALUES ($1, $2)`, oldEmail, customerID)
@@ -1432,22 +1489,17 @@ func TestHandleCustomerUpdated_EmailMigration(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, newEmail, email, "checkout_sessions.customer_email should be updated")
 
-	// Check credit_wallets table
-	var balance int64
-	err = db.QueryRow(`SELECT balance_credits FROM credit_wallets WHERE customer_email = $1`, newEmail).Scan(&balance)
-	require.NoError(t, err)
-	assert.Equal(t, int64(500), balance, "credit_wallets should be migrated")
-
-	// Verify old email no longer exists in credit_wallets
+	assertBusinessAccountCreditEmail(t, db, "acct-service-email", newEmail)
+	// Legacy email-keyed rows stay unchanged and do not grant authority.
 	var count int
-	err = db.QueryRow(`SELECT COUNT(*) FROM credit_wallets WHERE customer_email = $1`, oldEmail).Scan(&count)
+	err = db.QueryRow(`SELECT COUNT(*) FROM credit_wallets WHERE customer_email = $1 AND balance_credits = 500`, oldEmail).Scan(&count)
 	require.NoError(t, err)
-	assert.Equal(t, 0, count, "old email should not exist in credit_wallets")
+	assert.Equal(t, 1, count)
 
 	// Check credit_transactions table
 	err = db.QueryRow(`SELECT customer_email FROM credit_transactions WHERE amount_credits = 500`).Scan(&email)
 	require.NoError(t, err)
-	assert.Equal(t, newEmail, email, "credit_transactions.customer_email should be updated")
+	assert.Equal(t, oldEmail, email, "legacy transactions are not the current account ledger")
 
 	// Check intro_coupon_usage table
 	err = db.QueryRow(`SELECT email FROM intro_coupon_usage WHERE stripe_customer_id = $1`, customerID).Scan(&email)

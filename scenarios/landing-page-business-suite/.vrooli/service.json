@@ -37,6 +37,7 @@
     }
   },
   "environment": {
+    "LPBS_ENVIRONMENT": "development",
     "PUBLIC_BASE_URL": "https://vrooli.com",
     "AUTH_MAGIC_LINK_BASE_URL": "https://vrooli.com/auth/verify",
     "CONSUMER_AUTH_KEY_ID": "lpbs-consumer-v1",
@@ -322,7 +323,6 @@
       {
         "logical_id": "vrooli/landing-page-business-suite",
         "field": "mailgun-api-key",
-        "env": "MAILGUN_API_KEY",
         "label": "Mailgun API key",
         "description": "Authenticates outbound transactional email through the Mailgun HTTPS API for the configured sender domain. Keep a recovery copy locally and provision the production copy through the credential authority.",
         "placeholder": "key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
@@ -337,7 +337,6 @@
       {
         "logical_id": "vrooli/landing-page-business-suite",
         "field": "sendgrid-api-key",
-        "env": "SENDGRID_API_KEY",
         "label": "SendGrid API key",
         "description": "Optional outbound transactional email credential. Create a restricted API key with only the mail-send permission, keep a recovery copy in the local credential authority, and provision the production copy through the production credential authority.",
         "placeholder": "SG.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
@@ -352,7 +351,6 @@
       {
         "logical_id": "vrooli/landing-page-business-suite",
         "field": "sendgrid-webhook-public-key",
-        "env": "SENDGRID_WEBHOOK_PUBLIC_KEY",
         "label": "SendGrid Signed Event Webhook public key",
         "description": "Optional public verification key copied from SendGrid Signed Event Webhook settings. Keep a recovery copy locally and provision the production copy through the credential authority.",
         "required": false,
@@ -372,49 +370,6 @@
         "required": false,
         "provisioning": "operator",
         "obtain_url": "https://app.mailgun.com/app/sending/domains",
-        "tiers": [
-          "tier-1-local",
-          "tier-4-saas"
-        ]
-      },
-      {
-        "logical_id": "vrooli/landing-page-business-suite",
-        "field": "stripe-secret-key",
-        "label": "Stripe restricted secret key",
-        "description": "Legacy migration fallback for live-mode server requests. Prefer stripe-live-secret-key.",
-        "placeholder": "sk_live_a1b2c3d4e5f6...",
-        "required": false,
-        "provisioning": "operator",
-        "obtain_url": "https://dashboard.stripe.com/apikeys",
-        "tiers": [
-          "tier-1-local",
-          "tier-4-saas"
-        ]
-      },
-      {
-        "logical_id": "vrooli/landing-page-business-suite",
-        "field": "stripe-webhook-secret",
-        "label": "Stripe webhook signing secret",
-        "description": "Legacy migration fallback for live-mode webhook verification. Prefer stripe-live-webhook-secret.",
-        "placeholder": "whsec_a1b2c3d4e5f6...",
-        "required": false,
-        "provisioning": "operator",
-        "obtain_url": "https://dashboard.stripe.com/webhooks",
-        "tiers": [
-          "tier-1-local",
-          "tier-4-saas"
-        ]
-      },
-      {
-        "logical_id": "vrooli/landing-page-business-suite",
-        "field": "stripe-publishable-key",
-        "env": "STRIPE_PUBLISHABLE_KEY",
-        "label": "Stripe publishable key",
-        "description": "Legacy migration fallback for live-mode browser checkout. Prefer stripe-live-publishable-key.",
-        "placeholder": "pk_live_a1b2c3d4e5f6...",
-        "required": false,
-        "provisioning": "operator",
-        "obtain_url": "https://dashboard.stripe.com/apikeys",
         "tiers": [
           "tier-1-local",
           "tier-4-saas"
@@ -466,7 +421,7 @@
         "logical_id": "vrooli/landing-page-business-suite",
         "field": "stripe-live-secret-key",
         "label": "Stripe live restricted secret key",
-        "description": "Explicit live-mode server key used when STRIPE_MODE=live. Legacy stripe-secret-key remains a migration fallback only.",
+        "description": "Explicit live-mode server key used only when STRIPE_MODE=live.",
         "placeholder": "rk_live_...",
         "required": false,
         "provisioning": "operator",
@@ -480,7 +435,7 @@
         "logical_id": "vrooli/landing-page-business-suite",
         "field": "stripe-live-webhook-secret",
         "label": "Stripe live webhook signing secret",
-        "description": "Explicit live-mode webhook signing secret used when STRIPE_MODE=live. Legacy stripe-webhook-secret remains a migration fallback only.",
+        "description": "Explicit live-mode webhook signing secret used only when STRIPE_MODE=live.",
         "placeholder": "whsec_...",
         "required": false,
         "provisioning": "operator",
@@ -494,7 +449,7 @@
         "logical_id": "vrooli/landing-page-business-suite",
         "field": "stripe-live-publishable-key",
         "label": "Stripe live publishable key",
-        "description": "Explicit live-mode browser key used when STRIPE_MODE=live. Legacy stripe-publishable-key remains a migration fallback only.",
+        "description": "Explicit live-mode browser key used only when STRIPE_MODE=live.",
         "placeholder": "pk_live_...",
         "required": false,
         "provisioning": "operator",
@@ -632,7 +587,8 @@
         "kind": "generated",
         "consumer": "session cookie manager",
         "source_ref": "api/auth.go:110",
-        "required": true
+        "required": true,
+        "reason": "Custody binding: logical_id=vrooli/landing-page-business-suite, field=session-secret; scope=signing:session-cookie; caller resolves from credential authority with active-version metadata. Rotate through candidate activation; callers fail closed on unavailable authority."
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -640,7 +596,8 @@
         "kind": "generated",
         "consumer": "Command Center business analytics reader",
         "source_ref": "api/main.go:198",
-        "required": true
+        "required": true,
+        "reason": "Custody binding: logical_id=vrooli/landing-page-business-suite, field=metrics-reader-token; scope=service:metrics-read; caller resolves from credential authority with active-version metadata. Rotate through candidate activation; callers fail closed on unavailable authority."
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -648,7 +605,8 @@
         "kind": "authority",
         "consumer": "session rotation verifier",
         "source_ref": "api/auth.go:135",
-        "required": false
+        "required": false,
+        "reason": "Custody binding: logical_id=vrooli/landing-page-business-suite, field=session-secret-previous; scope=signing:session-cookie-verify-overlap; caller resolves from credential authority with active-version metadata. Rotate through candidate activation; callers fail closed on unavailable authority."
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -656,7 +614,8 @@
         "kind": "generated",
         "consumer": "LPBS service identity bootstrap",
         "source_ref": "api/main.go:209",
-        "required": true
+        "required": true,
+        "reason": "Custody binding: logical_id=vrooli/landing-page-business-suite, field=service-secret; scope=service:lpbs-bootstrap; caller resolves from credential authority with active-version metadata. Rotate through candidate activation; callers fail closed on unavailable authority."
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -664,7 +623,8 @@
         "kind": "generated",
         "consumer": "provider-key encryption ring",
         "source_ref": "api/main.go:209",
-        "required": true
+        "required": true,
+        "reason": "Custody binding: logical_id=vrooli/landing-page-business-suite, field=api-key-encryption-key; scope=signing:provider-key-encryption; caller resolves from credential authority with active-version metadata. Rotate through candidate activation; callers fail closed on unavailable authority."
       },
       {
         "logical_id": "vrooli/openrouter",
@@ -680,7 +640,8 @@
         "kind": "generated",
         "consumer": "remote-profile encryption ring",
         "source_ref": "api/main.go:209",
-        "required": true
+        "required": true,
+        "reason": "Custody binding: logical_id=vrooli/landing-page-business-suite, field=remote-profile-encryption-key; scope=signing:remote-profile-encryption; caller resolves from credential authority with active-version metadata. Rotate through candidate activation; callers fail closed on unavailable authority."
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -688,7 +649,8 @@
         "kind": "generated",
         "consumer": "admin two-factor secret encryption ring",
         "source_ref": "api/admin_mfa_composition.go:12",
-        "required": true
+        "required": true,
+        "reason": "Custody binding: logical_id=vrooli/landing-page-business-suite, field=admin-mfa-encryption-key; scope=signing:admin-mfa-encryption; caller resolves from credential authority with active-version metadata. Rotate through candidate activation; callers fail closed on unavailable authority."
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -696,7 +658,8 @@
         "kind": "generated",
         "consumer": "customer token signer",
         "source_ref": "api/main.go:464",
-        "required": true
+        "required": true,
+        "reason": "Custody binding: logical_id=vrooli/landing-page-business-suite, field=consumer-auth-private-key; scope=signing:consumer-token; caller resolves from credential authority with active-version metadata. Rotate through candidate activation; callers fail closed on unavailable authority."
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -704,7 +667,8 @@
         "kind": "authority",
         "consumer": "seeded administrator bootstrap",
         "source_ref": "api/auth.go:79",
-        "required": true
+        "required": true,
+        "reason": "Custody binding: logical_id=vrooli/landing-page-business-suite, field=admin-default-password; scope=service:admin-bootstrap; caller resolves from credential authority with active-version metadata. Rotate through candidate activation; callers fail closed on unavailable authority."
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -712,7 +676,8 @@
         "kind": "authority",
         "consumer": "Mailgun HTTPS API sign-in email delivery",
         "source_ref": "api/email_service.go:570; api/internal/emaildelivery/registry.go:21",
-        "required": false
+        "required": false,
+        "reason": "Custody binding: logical_id=vrooli/landing-page-business-suite, field=mailgun-api-key; scope=mail:transactional:send; caller resolves from credential authority with active-version metadata. Rotate through candidate activation; callers fail closed on unavailable authority."
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -720,7 +685,8 @@
         "kind": "authority",
         "consumer": "SendGrid sign-in code and link mail delivery",
         "source_ref": "api/email_service.go:70",
-        "required": false
+        "required": false,
+        "reason": "Custody binding: logical_id=vrooli/landing-page-business-suite, field=sendgrid-api-key; scope=mail:transactional:send; caller resolves from credential authority with active-version metadata. Rotate through candidate activation; callers fail closed on unavailable authority."
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -728,7 +694,8 @@
         "kind": "authority",
         "consumer": "signed SendGrid delivery event verification",
         "source_ref": "api/routes.go:355",
-        "required": false
+        "required": false,
+        "reason": "Custody binding: logical_id=vrooli/landing-page-business-suite, field=sendgrid-webhook-public-key; scope=mail:transactional:webhook-verify; caller resolves from credential authority with active-version metadata. Rotate through candidate activation; callers fail closed on unavailable authority."
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -736,34 +703,8 @@
         "kind": "authority",
         "consumer": "legacy SMTP and feedback notification delivery",
         "source_ref": "api/email_service.go:197",
-        "required": false
-      },
-      {
-        "logical_id": "vrooli/landing-page-business-suite",
-        "field": "stripe-secret-key",
-        "kind": "authority",
-        "consumer": "Stripe API migration fallback",
-        "source_ref": "api/internal/commerce/payment_settings_service.go:100",
         "required": false,
-        "reason": "Legacy fallback only when STRIPE_MODE=live and the explicit live field is absent."
-      },
-      {
-        "logical_id": "vrooli/landing-page-business-suite",
-        "field": "stripe-webhook-secret",
-        "kind": "authority",
-        "consumer": "Stripe webhook migration fallback",
-        "source_ref": "api/internal/commerce/payment_settings_service.go:103",
-        "required": false,
-        "reason": "Legacy fallback only when STRIPE_MODE=live and the explicit live field is absent."
-      },
-      {
-        "logical_id": "vrooli/landing-page-business-suite",
-        "field": "stripe-publishable-key",
-        "kind": "environment",
-        "consumer": "browser checkout migration fallback",
-        "source_ref": "api/internal/commerce/payment_settings_service.go:101",
-        "required": false,
-        "reason": "Legacy fallback only; active mode-specific credentials are authority-backed."
+        "reason": "Custody binding: logical_id=vrooli/landing-page-business-suite, field=smtp-password; scope=mail:transactional:send; caller resolves from credential authority with active-version metadata. Rotate through candidate activation; callers fail closed on unavailable authority."
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -772,7 +713,7 @@
         "consumer": "Stripe API client when STRIPE_MODE=test",
         "source_ref": "api/internal/commerce/payment_settings_service.go:88",
         "required": true,
-        "reason": "Required when STRIPE_MODE=test; never falls back to live or legacy fields."
+        "reason": "Required when STRIPE_MODE=test; never falls back to live or legacy fields. Custody binding: logical_id=vrooli/landing-page-business-suite, field=stripe-test-secret-key; scope=stripe:test:payments; caller resolves from credential authority with active-version metadata. Rotate through candidate activation; callers fail closed on unavailable authority."
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -781,7 +722,7 @@
         "consumer": "Stripe webhook verifier when STRIPE_MODE=test",
         "source_ref": "api/internal/commerce/payment_settings_service.go:90",
         "required": true,
-        "reason": "Required when STRIPE_MODE=test; never falls back to live or legacy fields."
+        "reason": "Required when STRIPE_MODE=test; never falls back to live or legacy fields. Custody binding: logical_id=vrooli/landing-page-business-suite, field=stripe-test-webhook-secret; scope=stripe:test:webhook-verify; caller resolves from credential authority with active-version metadata. Rotate through candidate activation; callers fail closed on unavailable authority."
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -790,7 +731,7 @@
         "consumer": "browser checkout configuration when STRIPE_MODE=test",
         "source_ref": "api/internal/commerce/payment_settings_service.go:88",
         "required": true,
-        "reason": "Required when STRIPE_MODE=test; never falls back to live or legacy fields."
+        "reason": "Required when STRIPE_MODE=test; never falls back to live or legacy fields. Custody binding: logical_id=vrooli/landing-page-business-suite, field=stripe-test-publishable-key; scope=stripe:test:browser-config; caller resolves from credential authority with active-version metadata. Rotate through candidate activation; callers fail closed on unavailable authority."
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -799,7 +740,7 @@
         "consumer": "Stripe API client when STRIPE_MODE=live",
         "source_ref": "api/internal/commerce/payment_settings_service.go:95",
         "required": true,
-        "reason": "Required when STRIPE_MODE=live; legacy fields are migration fallback only."
+        "reason": "Required when STRIPE_MODE=live; legacy fields are migration fallback only. Custody binding: logical_id=vrooli/landing-page-business-suite, field=stripe-live-secret-key; scope=stripe:live:payments; caller resolves from credential authority with active-version metadata. Rotate through candidate activation; callers fail closed on unavailable authority."
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -808,7 +749,7 @@
         "consumer": "Stripe webhook verifier when STRIPE_MODE=live",
         "source_ref": "api/internal/commerce/payment_settings_service.go:97",
         "required": true,
-        "reason": "Required when STRIPE_MODE=live; legacy fields are migration fallback only."
+        "reason": "Required when STRIPE_MODE=live; legacy fields are migration fallback only. Custody binding: logical_id=vrooli/landing-page-business-suite, field=stripe-live-webhook-secret; scope=stripe:live:webhook-verify; caller resolves from credential authority with active-version metadata. Rotate through candidate activation; callers fail closed on unavailable authority."
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -817,34 +758,34 @@
         "consumer": "browser checkout configuration when STRIPE_MODE=live",
         "source_ref": "api/internal/commerce/payment_settings_service.go:95",
         "required": true,
-        "reason": "Required when STRIPE_MODE=live; legacy fields are migration fallback only."
+        "reason": "Required when STRIPE_MODE=live; legacy fields are migration fallback only. Custody binding: logical_id=vrooli/landing-page-business-suite, field=stripe-live-publishable-key; scope=stripe:live:browser-config; caller resolves from credential authority with active-version metadata. Rotate through candidate activation; callers fail closed on unavailable authority."
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
         "field": "delivery-s3-access-key-id",
         "kind": "authority",
         "consumer": "download artifact S3 client",
-        "source_ref": "api/internal/delivery/s3.go:62",
+        "source_ref": "api/internal/delivery/s3.go:65",
         "required": true,
-        "reason": "Required for the private delivery bucket; separate pair per local and production host."
+        "reason": "Required for the private delivery bucket; separate pair per local and production host. Custody binding: logical_id=vrooli/landing-page-business-suite, field=delivery-s3-access-key-id; scope=s3:delivery:object-read-write; caller resolves from credential authority with active-version metadata. Rotate through candidate activation; callers fail closed on unavailable authority."
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
         "field": "delivery-s3-secret-access-key",
         "kind": "authority",
         "consumer": "download artifact S3 client",
-        "source_ref": "api/internal/delivery/s3.go:63",
+        "source_ref": "api/internal/delivery/s3.go:66",
         "required": true,
-        "reason": "Required for the private delivery bucket; paired with delivery-s3-access-key-id."
+        "reason": "Required for the private delivery bucket; paired with delivery-s3-access-key-id. Custody binding: logical_id=vrooli/landing-page-business-suite, field=delivery-s3-secret-access-key; scope=s3:delivery:object-read-write; caller resolves from credential authority with active-version metadata. Rotate through candidate activation; callers fail closed on unavailable authority."
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
         "field": "delivery-s3-session-token",
         "kind": "authority",
         "consumer": "download artifact S3 client",
-        "source_ref": "api/internal/delivery/s3.go:64",
+        "source_ref": "api/internal/delivery/s3.go:67",
         "required": false,
-        "reason": "Optional; only for temporary AWS STS credentials."
+        "reason": "Optional; only for temporary AWS STS credentials. Custody binding: logical_id=vrooli/landing-page-business-suite, field=delivery-s3-session-token; scope=s3:delivery:object-read-write; caller resolves from credential authority with active-version metadata. Rotate through candidate activation; callers fail closed on unavailable authority."
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -852,7 +793,8 @@
         "kind": "authority",
         "consumer": "Google Play receipt verifier",
         "source_ref": "api/receipt_registration.go:87",
-        "required": false
+        "required": false,
+        "reason": "Optional; only used by the server-side Google Play receipt verifier. Custody binding: logical_id=vrooli/landing-page-business-suite, field=google-play-oauth-token; scope=google-play:receipt-verify; caller resolves from credential authority with active-version metadata. Rotate through candidate activation; callers fail closed on unavailable authority."
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",

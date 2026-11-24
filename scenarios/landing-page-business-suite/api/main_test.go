@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gorilla/mux"
 	maildns "github.com/vrooli/vrooli/packages/maildns-go"
 	"landing-page-business-suite-api/internal/logx"
 
@@ -21,6 +22,29 @@ func newHealthTestServer(t *testing.T) (*Server, func()) {
 	t.Helper()
 	db := setupTestDB(t)
 	return &Server{db: db}, func() { db.Close() }
+}
+
+func productionHealthHandler(srv *Server) http.Handler {
+	srv.router = mux.NewRouter()
+	registerHealthRoutes(srv)
+	return srv.router
+}
+
+func TestDeployReadinessRouteRequiresAdminOrService(t *testing.T) {
+	srv := &Server{router: mux.NewRouter(), sessionManager: NewMockSessionManager()}
+	registerDeployReadinessRoute(srv)
+
+	for _, path := range []string{"/api/v1/deploy-readiness", "/landing_page_business_suite.v1.DeploymentService/CheckReadiness"} {
+		t.Run(path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{}`))
+			w := httptest.NewRecorder()
+			srv.router.ServeHTTP(w, req)
+
+			if w.Code != http.StatusUnauthorized {
+				t.Fatalf("unauthenticated deployment readiness returned %d, want %d: %s", w.Code, http.StatusUnauthorized, w.Body.String())
+			}
+		})
+	}
 }
 
 func TestRuntimeSchemaIsDeclarativeAndCoversRuntimeTables(t *testing.T) {
@@ -38,7 +62,8 @@ func TestRuntimeSchemaIsDeclarativeAndCoversRuntimeTables(t *testing.T) {
 		"api_keys", "users", "auth_tokens", "user_sessions", "native_auth_grants", "auth_email_events", "auth_alert_log", "payment_anomaly_log",
 		"business_accounts", "business_account_members", "desktop_link_authorizations",
 		"desktop_account_links", "desktop_link_audit", "business_account_credit_wallets",
-		"business_account_credit_transactions",
+		"business_account_credit_transactions", "payment_reconciliation_backfill_state",
+		"payment_reconciliation_backfill_events",
 	} {
 		if !strings.Contains(sql, "create table if not exists "+table) {
 			t.Errorf("missing declarative definition for %s", table)
@@ -47,33 +72,42 @@ func TestRuntimeSchemaIsDeclarativeAndCoversRuntimeTables(t *testing.T) {
 }
 
 func TestHealthEndpoint(t *testing.T) {
-	t.Run("healthy when database reachable", func(t *testing.T) {
+	t.Run("optional sign-in gaps degrade while database readiness stays available", func(t *testing.T) {
 		srv, cleanup := newHealthTestServer(t)
 		defer cleanup()
 
-		req := httptest.NewRequest("GET", "/health", nil)
-		w := httptest.NewRecorder()
+		router := productionHealthHandler(srv)
+		for _, path := range []string{"/health", "/api/v1/health"} {
+			t.Run(path, func(t *testing.T) {
+				req := httptest.NewRequest("GET", path, nil)
+				w := httptest.NewRecorder()
+				router.ServeHTTP(w, req)
 
-		healthHandler := health.New().Version("1.0.0").Check(health.DB(srv.primaryDB()), health.Critical).Handler()
-		healthHandler.ServeHTTP(w, req)
+				if w.Code != http.StatusOK {
+					t.Fatalf("Expected status 200, got %d", w.Code)
+				}
+				if contentType := w.Header().Get("Content-Type"); contentType != "application/json" {
+					t.Fatalf("Expected Content-Type application/json, got %s", contentType)
+				}
 
-		if w.Code != http.StatusOK {
-			t.Fatalf("Expected status 200, got %d", w.Code)
-		}
-		if contentType := w.Header().Get("Content-Type"); contentType != "application/json" {
-			t.Fatalf("Expected Content-Type application/json, got %s", contentType)
-		}
-
-		var payload health.Response
-		if err := json.NewDecoder(w.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode health response: %v", err)
-		}
-		if payload.Status != "healthy" || !payload.Readiness {
-			t.Fatalf("expected healthy status and readiness, got status=%s readiness=%v", payload.Status, payload.Readiness)
-		}
-		dbStatus, ok := payload.Dependencies["database"]
-		if !ok || !dbStatus.Connected {
-			t.Fatalf("expected database dependency to be connected")
+				var payload health.Response
+				if err := json.NewDecoder(w.Body).Decode(&payload); err != nil {
+					t.Fatalf("failed to decode health response: %v", err)
+				}
+				if payload.Status != "degraded" || !payload.Readiness {
+					t.Fatalf("expected optional gaps to degrade status without blocking readiness, got status=%s readiness=%v", payload.Status, payload.Readiness)
+				}
+				dbStatus, ok := payload.Dependencies["database"]
+				if !ok || !dbStatus.Connected {
+					t.Fatalf("expected database dependency to be connected")
+				}
+				for _, name := range []string{"sign_in_email", "sign_in_email_dns"} {
+					status, present := payload.Dependencies[name]
+					if !present || status.Connected || status.Error == nil {
+						t.Errorf("dependency %q = %+v, present=%t; missing optional owner must be visible as degraded", name, status, present)
+					}
+				}
+			})
 		}
 	})
 
@@ -87,8 +121,7 @@ func TestHealthEndpoint(t *testing.T) {
 		req := httptest.NewRequest("GET", "/health", nil)
 		w := httptest.NewRecorder()
 
-		healthHandler := health.New().Version("1.0.0").Check(health.DB(srv.primaryDB()), health.Critical).Handler()
-		healthHandler.ServeHTTP(w, req)
+		productionHealthHandler(srv).ServeHTTP(w, req)
 
 		if w.Code != http.StatusServiceUnavailable {
 			t.Fatalf("Expected status 503 when unhealthy, got %d", w.Code)
@@ -122,6 +155,23 @@ func TestSignInEmailDNSCheckRunsOutsideProduction(t *testing.T) {
 	if result.Error == nil {
 		t.Fatal("non-production email DNS check must report the unavailable resolver")
 	}
+}
+
+func TestRuntimeEnvironmentUsesLocalDefaultButHonorsControlPlaneProduction(t *testing.T) {
+	t.Run("local manifest default", func(t *testing.T) {
+		t.Setenv("LPBS_ENVIRONMENT", "development")
+		t.Setenv("VROOLI_ENVIRONMENT", "")
+		if got := runtimeEnvironment(); got != "development" {
+			t.Fatalf("runtimeEnvironment() = %q, want development", got)
+		}
+	})
+	t.Run("control plane overrides local default", func(t *testing.T) {
+		t.Setenv("LPBS_ENVIRONMENT", "development")
+		t.Setenv("VROOLI_ENVIRONMENT", "production")
+		if got := runtimeEnvironment(); got != "production" {
+			t.Fatalf("runtimeEnvironment() = %q, want production", got)
+		}
+	})
 }
 
 // NOTE: TestParseEnvBool has been removed - parseEnvBool function was deleted

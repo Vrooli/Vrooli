@@ -4,6 +4,8 @@ import {
   formatRelativeTime,
   DAY_MS,
 } from '../../../shared/lib/dateFormatters';
+import { isOfficialStorefrontLink } from '../../../shared/api/storefronts';
+import { isDownloadAssetConfigured } from '../../../shared/api/downloadReadiness';
 
 /**
  * Shared constants for variant staleness calculations
@@ -304,10 +306,11 @@ export function computeDownloadsHealth(apps: DownloadApp[]): DownloadsHealthStat
     const partialApp = app as Partial<DownloadApp>;
     const platforms = partialApp.platforms ?? [];
     const storefronts = partialApp.storefronts ?? [];
-    platformsConfigured += platforms.filter(
-      (platform) => platform.artifact_url && platform.release_version
+    platformsConfigured += platforms.filter(isDownloadAssetConfigured).length;
+    storefrontsConfigured += storefronts.filter((storefront) =>
+      (storefront.store === 'app_store' || storefront.store === 'play_store') &&
+      isOfficialStorefrontLink(storefront.store, storefront.url)
     ).length;
-    storefrontsConfigured += storefronts.filter((storefront) => storefront.url).length;
   });
 
   return {

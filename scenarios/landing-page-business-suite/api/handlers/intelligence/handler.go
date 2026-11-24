@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/lpbsidentity"
 	"landing-page-business-suite-api/internal/intelligence"
 )
 
@@ -22,18 +23,19 @@ type Limiter interface {
 // Dependencies are supplied by API composition. The handler package never
 // reads authentication context, creates rate limiters, or reaches root helpers.
 type Dependencies struct {
-	Service                intelligence.MeteredInferenceProvider
-	Usage                  func(context.Context, string, string) (UsageSummary, error)
-	SubscriptionTier       func(context.Context, string) (string, error)
-	UserRateLimiter        Limiter
-	IPRateLimiter          Limiter
-	IPKeyFunc              func(*http.Request) string
-	UserID                 func(context.Context) string
-	UserIdentity           func(context.Context) string
-	ResolveBusinessAccount func(context.Context, string, string, string) (string, error)
-	WriteJSONError         func(http.ResponseWriter, int, string, string)
-	Log                    func(string, map[string]interface{})
-	LogError               func(string, map[string]interface{})
+	Service                     intelligence.MeteredInferenceProvider
+	Usage                       func(context.Context, string, string) (UsageSummary, error)
+	SubscriptionTier            func(context.Context, string) (string, error)
+	UserRateLimiter             Limiter
+	IPRateLimiter               Limiter
+	IPKeyFunc                   func(*http.Request) string
+	UserID                      func(context.Context) string
+	UserIdentity                func(context.Context) string
+	ResolveBusinessAccount      func(context.Context, string, string, string) (string, error)
+	ResolveCreditCallerScenario func(context.Context, string) (string, error)
+	WriteJSONError              func(http.ResponseWriter, int, string, string)
+	Log                         func(string, map[string]interface{})
+	LogError                    func(string, map[string]interface{})
 }
 
 // UsageSummary is the transport-neutral usage view needed by AI endpoints.
@@ -48,6 +50,11 @@ type UsageSummary struct {
 
 // Handler translates AI HTTP requests to the intelligence domain.
 type Handler struct{ deps Dependencies }
+
+type callerInferenceProvider interface {
+	ExecuteInferenceForCaller(context.Context, string, string, intelligence.InferenceRequest) (*intelligence.AIResponse, error)
+	ExecuteInferenceStreamForCaller(context.Context, string, string, intelligence.InferenceRequest, http.ResponseWriter) error
+}
 
 func New(deps Dependencies) *Handler { return &Handler{deps: deps} }
 
@@ -154,13 +161,20 @@ func (h *Handler) Inference() http.HandlerFunc {
 			return
 		}
 		req.BusinessAccountID = accountID
-		service, ok := deps.Service.(*intelligence.MeteredInferenceService)
+		service, ok := deps.Service.(callerInferenceProvider)
 		if !ok {
 			deps.WriteJSONError(w, http.StatusServiceUnavailable, "metered inference provider is unavailable", "unavailable")
 			return
 		}
-		response, err := service.ExecuteInference(r.Context(), identity, req)
+		callerScenario, callerOK := h.resolveCreditCallerScenario(w, r)
+		if !callerOK {
+			return
+		}
+		response, err := service.ExecuteInferenceForCaller(r.Context(), identity, callerScenario, req)
 		if err != nil {
+			if errors.Is(err, intelligence.ErrInferenceOutcomeUncertain) || errors.Is(err, intelligence.ErrInferenceReservationCleanupFailed) {
+				w.Header().Set("X-Vrooli-Root-Operation-ID", req.Metadata.GatewayRootOperationID)
+			}
 			WriteError(deps, w, err)
 			return
 		}
@@ -202,7 +216,7 @@ func (h *Handler) InferenceStream() http.HandlerFunc {
 			deps.WriteJSONError(w, http.StatusBadRequest, err.Error(), "validation")
 			return
 		}
-		accountID, ok := h.resolveBusinessAccount(w, r, req.BusinessAccountID, true)
+		accountID, ok := h.resolveBusinessAccount(w, r, req.BusinessAccountID, false)
 		if !ok {
 			return
 		}
@@ -210,14 +224,21 @@ func (h *Handler) InferenceStream() http.HandlerFunc {
 			deps.WriteJSONError(w, http.StatusBadRequest, "spend-limited inference is not supported by account-scoped streaming", "validation")
 			return
 		}
-		service, ok := deps.Service.(*intelligence.MeteredInferenceService)
+		service, ok := deps.Service.(callerInferenceProvider)
 		if !ok {
 			deps.WriteJSONError(w, http.StatusServiceUnavailable, "metered inference provider is unavailable", "unavailable")
 			return
 		}
+		callerScenario, callerOK := h.resolveCreditCallerScenario(w, r)
+		if !callerOK {
+			return
+		}
 		req.BusinessAccountID = accountID
-		if err := service.ExecuteInferenceStream(r.Context(), identity, req, w); err != nil {
+		if err := service.ExecuteInferenceStreamForCaller(r.Context(), identity, callerScenario, req, w); err != nil {
 			if w.Header().Get("Content-Type") != "text/event-stream" {
+				if errors.Is(err, intelligence.ErrInferenceOutcomeUncertain) || errors.Is(err, intelligence.ErrInferenceReservationCleanupFailed) {
+					w.Header().Set("X-Vrooli-Root-Operation-ID", req.Metadata.GatewayRootOperationID)
+				}
 				WriteError(deps, w, err)
 				return
 			}
@@ -230,6 +251,21 @@ func (h *Handler) InferenceStream() http.HandlerFunc {
 	}
 }
 
+func (h *Handler) resolveCreditCallerScenario(w http.ResponseWriter, r *http.Request) (string, bool) {
+	deps := h.deps
+	callerToken := strings.TrimSpace(r.Header.Get(lpbsidentity.CreditCallerAuthorizationHeader))
+	if deps.ResolveCreditCallerScenario == nil || callerToken == "" {
+		deps.WriteJSONError(w, http.StatusServiceUnavailable, intelligence.ErrBillingScopeUnavailable.Error(), "billing_scope_unavailable")
+		return "", false
+	}
+	scenario, err := deps.ResolveCreditCallerScenario(r.Context(), callerToken)
+	if err != nil || strings.TrimSpace(scenario) == "" {
+		deps.WriteJSONError(w, http.StatusForbidden, intelligence.ErrBillingScopeUnavailable.Error(), "billing_scope_unavailable")
+		return "", false
+	}
+	return strings.TrimSpace(scenario), true
+}
+
 func (h *Handler) resolveBusinessAccount(w http.ResponseWriter, r *http.Request, requestedID string, required bool) (string, bool) {
 	requestedID = strings.TrimSpace(requestedID)
 	if requestedID == "" {
@@ -237,7 +273,22 @@ func (h *Handler) resolveBusinessAccount(w http.ResponseWriter, r *http.Request,
 			WriteError(h.deps, w, intelligence.ErrBillingAccountRequired)
 			return "", false
 		}
-		return "", true
+		// When a caller omits an account, resolve the authenticated user's
+		// default LPBS account. The caller cannot choose an account through
+		// headers or arbitrary metadata; repository membership remains the gate.
+		if h.deps.ResolveBusinessAccount == nil || h.deps.UserID == nil || strings.TrimSpace(h.deps.UserID(r.Context())) == "" {
+			return "", true
+		}
+		userIdentity := ""
+		if h.deps.UserIdentity != nil {
+			userIdentity = h.deps.UserIdentity(r.Context())
+		}
+		resolvedID, err := h.deps.ResolveBusinessAccount(r.Context(), h.deps.UserID(r.Context()), userIdentity, "")
+		if err != nil || strings.TrimSpace(resolvedID) == "" {
+			h.deps.WriteJSONError(w, http.StatusForbidden, "default business account is unavailable to this user", "forbidden")
+			return "", false
+		}
+		return strings.TrimSpace(resolvedID), true
 	}
 	if h.deps.ResolveBusinessAccount == nil || h.deps.UserID == nil || strings.TrimSpace(h.deps.UserID(r.Context())) == "" {
 		h.deps.WriteJSONError(w, http.StatusServiceUnavailable, "business-account authority unavailable", "unavailable")
@@ -567,6 +618,16 @@ func ValidateRequest(req *intelligence.AIRequest) error {
 // Centralizes error mapping to keep handlers thin.
 func WriteError(deps Dependencies, w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, intelligence.ErrInferenceOutcomeUncertain):
+		fields := map[string]interface{}{"error_code": "provider_outcome_uncertain"}
+		if errors.Is(err, intelligence.ErrInferenceReservationRetentionFailed) {
+			fields["error_code"] = "uncertain_reservation_retain_failed"
+		}
+		deps.LogError("metered_inference_outcome_uncertain", fields)
+		deps.WriteJSONError(w, http.StatusBadGateway, "AI provider outcome is uncertain; retry only with the same root operation ID", "outcome_uncertain")
+	case errors.Is(err, intelligence.ErrInferenceReservationCleanupFailed):
+		deps.LogError("metered_inference_reservation_cleanup_failed", map[string]interface{}{"error_code": "reservation_cleanup_failed"})
+		deps.WriteJSONError(w, http.StatusBadGateway, "AI credit reservation cleanup is incomplete; retry only with the same root operation ID", "reservation_cleanup_failed")
 	case errors.Is(err, intelligence.ErrBillingAccountRequired):
 		deps.WriteJSONError(w, http.StatusForbidden, intelligence.ErrBillingAccountRequired.Error(), "billing_account_required")
 	case errors.Is(err, intelligence.ErrBillingScopeUnavailable):

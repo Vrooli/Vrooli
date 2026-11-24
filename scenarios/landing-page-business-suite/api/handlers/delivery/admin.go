@@ -249,6 +249,10 @@ func PresignGet(deps AdminDependencies) http.HandlerFunc {
 // ApplyArtifact associates a managed artifact with an app/platform release.
 func ApplyArtifact(deps AdminDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !artifactMutationDependenciesReady(deps, false) {
+			deps.WriteError(w, http.StatusServiceUnavailable, "managed artifact association is not configured", "unavailable")
+			return
+		}
 		var payload applyArtifactRequest
 		if !deps.DecodeJSON(w, r, &payload) {
 			return
@@ -271,9 +275,27 @@ func ApplyArtifact(deps AdminDependencies) http.HandlerFunc {
 			deps.WriteError(w, http.StatusNotFound, "artifact not found", "not_found")
 			return
 		}
+		if err := validateArtifactTarget(artifact, deps.BundleKey(), appKey, platform); err != nil {
+			deps.WriteError(w, http.StatusConflict, err.Error(), "artifact_identity_mismatch")
+			return
+		}
+		artifactChecksum := strings.TrimSpace(artifact.SHA256)
+		if artifactChecksum == "" {
+			deps.WriteError(w, http.StatusConflict, "artifact has no verified sha256 digest", "artifact_identity_incomplete")
+			return
+		}
+		if requestedChecksum := strings.TrimSpace(payload.Checksum); requestedChecksum != "" && !strings.EqualFold(requestedChecksum, artifactChecksum) {
+			deps.WriteError(w, http.StatusConflict, "checksum does not match the selected artifact", "artifact_identity_mismatch")
+			return
+		}
 		releaseVersion := strings.TrimSpace(payload.ReleaseVersion)
+		artifactVersion := strings.TrimSpace(artifact.ReleaseVersion)
+		if artifactVersion != "" && releaseVersion != "" && artifactVersion != releaseVersion {
+			deps.WriteError(w, http.StatusConflict, "release_version does not match the selected artifact", "artifact_identity_mismatch")
+			return
+		}
 		if releaseVersion == "" {
-			releaseVersion = strings.TrimSpace(artifact.ReleaseVersion)
+			releaseVersion = artifactVersion
 		}
 		if releaseVersion == "" {
 			deps.WriteError(w, http.StatusBadRequest, "release_version is required (provide it or set one on the artifact)", "validation")
@@ -284,7 +306,7 @@ func ApplyArtifact(deps AdminDependencies) http.HandlerFunc {
 			requiresEntitlement = *payload.RequiresEntitlement
 		}
 		id := payload.ArtifactID
-		updated, err := deps.UpsertManagedAsset(r.Context(), ManagedAsset{BundleKey: deps.BundleKey(), AppKey: appKey, Platform: platform, VariantKey: payload.VariantKey, ArtifactSource: "managed", ArtifactID: &id, ReleaseVersion: releaseVersion, ReleaseNotes: payload.ReleaseNotes, Checksum: payload.Checksum, RequiresEntitlement: requiresEntitlement, Metadata: payload.Metadata})
+		updated, err := deps.UpsertManagedAsset(r.Context(), ManagedAsset{BundleKey: deps.BundleKey(), AppKey: appKey, Platform: platform, VariantKey: payload.VariantKey, ArtifactSource: "managed", ArtifactID: &id, ReleaseVersion: releaseVersion, ReleaseNotes: payload.ReleaseNotes, Checksum: artifactChecksum, RequiresEntitlement: requiresEntitlement, Metadata: payload.Metadata})
 		if err != nil {
 			deps.WriteError(w, http.StatusBadRequest, err.Error(), "validation")
 			return
@@ -296,6 +318,10 @@ func ApplyArtifact(deps AdminDependencies) http.HandlerFunc {
 // SetArtifactCurrent promotes an artifact while preserving existing release settings.
 func SetArtifactCurrent(deps AdminDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !artifactMutationDependenciesReady(deps, true) {
+			deps.WriteError(w, http.StatusServiceUnavailable, "managed artifact promotion is not configured", "unavailable")
+			return
+		}
 		var payload setCurrentArtifactRequest
 		if !deps.DecodeJSON(w, r, &payload) {
 			return
@@ -318,22 +344,29 @@ func SetArtifactCurrent(deps AdminDependencies) http.HandlerFunc {
 			deps.WriteError(w, http.StatusNotFound, "artifact not found", "not_found")
 			return
 		}
+		if err := validateArtifactTarget(artifact, deps.BundleKey(), appKey, platform); err != nil {
+			deps.WriteError(w, http.StatusConflict, err.Error(), "artifact_identity_mismatch")
+			return
+		}
+		artifactChecksum := strings.TrimSpace(artifact.SHA256)
+		if artifactChecksum == "" {
+			deps.WriteError(w, http.StatusConflict, "artifact has no verified sha256 digest", "artifact_identity_incomplete")
+			return
+		}
+		artifactVersion := strings.TrimSpace(artifact.ReleaseVersion)
+		if artifactVersion == "" {
+			deps.WriteError(w, http.StatusConflict, "artifact has no release version", "artifact_identity_incomplete")
+			return
+		}
 		existing, err := deps.GetManagedAsset(deps.BundleKey(), appKey, platform)
 		if err != nil && !deps.IsAssetNotFound(err) {
 			deps.WriteError(w, http.StatusInternalServerError, fmt.Sprintf("failed to load existing asset: %v", err), "server_error")
 			return
 		}
-		releaseVersion, releaseNotes, requiresEntitlement := strings.TrimSpace(artifact.ReleaseVersion), "", false
+		releaseVersion, releaseNotes, requiresEntitlement := artifactVersion, "", false
 		var metadata map[string]any
 		if existing != nil {
-			if releaseVersion == "" {
-				releaseVersion = existing.ReleaseVersion
-			}
 			releaseNotes, requiresEntitlement, metadata = existing.ReleaseNotes, existing.RequiresEntitlement, existing.Metadata
-		}
-		if releaseVersion == "" {
-			deps.WriteError(w, http.StatusBadRequest, "artifact has no release_version and no existing version to use", "validation")
-			return
 		}
 		if metadata == nil {
 			metadata = make(map[string]any)
@@ -342,7 +375,7 @@ func SetArtifactCurrent(deps AdminDependencies) http.HandlerFunc {
 			metadata["size_mb"] = float64(artifact.SizeBytes) / (1024 * 1024)
 		}
 		id := payload.ArtifactID
-		updated, err := deps.UpsertManagedAsset(r.Context(), ManagedAsset{BundleKey: deps.BundleKey(), AppKey: appKey, Platform: platform, ArtifactSource: "managed", ArtifactID: &id, ReleaseVersion: releaseVersion, ReleaseNotes: releaseNotes, RequiresEntitlement: requiresEntitlement, Metadata: metadata})
+		updated, err := deps.UpsertManagedAsset(r.Context(), ManagedAsset{BundleKey: deps.BundleKey(), AppKey: appKey, Platform: platform, ArtifactSource: "managed", ArtifactID: &id, ReleaseVersion: releaseVersion, ReleaseNotes: releaseNotes, Checksum: artifactChecksum, RequiresEntitlement: requiresEntitlement, Metadata: metadata})
 		if err != nil {
 			deps.WriteError(w, http.StatusBadRequest, err.Error(), "validation")
 			return
@@ -496,6 +529,32 @@ func RecoverChannel(deps AdminDependencies) http.HandlerFunc {
 		}
 		deps.WriteSuccessData(w, receipt)
 	}
+}
+
+func validateArtifactTarget(artifact *delivery.Artifact, bundleKey, appKey, platform string) error {
+	if strings.TrimSpace(artifact.BundleKey) != strings.TrimSpace(bundleKey) ||
+		strings.TrimSpace(artifact.AppKey) != strings.TrimSpace(appKey) {
+		return errors.New("artifact does not belong to the selected app")
+	}
+	artifactPlatform, _, err := delivery.NormalizeCatalogPlatform(artifact.Platform)
+	if err != nil {
+		return fmt.Errorf("artifact has invalid platform identity: %w", err)
+	}
+	targetPlatform, _, err := delivery.NormalizeCatalogPlatform(platform)
+	if err != nil {
+		return fmt.Errorf("selected platform is invalid: %w", err)
+	}
+	if artifactPlatform != targetPlatform {
+		return errors.New("artifact platform does not match the selected platform")
+	}
+	return nil
+}
+
+func artifactMutationDependenciesReady(deps AdminDependencies, requireExisting bool) bool {
+	if deps.GetArtifact == nil || deps.UpsertManagedAsset == nil {
+		return false
+	}
+	return !requireExisting || (deps.GetManagedAsset != nil && deps.IsAssetNotFound != nil)
 }
 
 func storageError(err error) (int, string) {

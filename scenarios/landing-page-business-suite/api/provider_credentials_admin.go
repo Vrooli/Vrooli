@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	"landing-page-business-suite-api/internal/administration"
 )
 
@@ -20,8 +22,9 @@ var adminProviderCredentialFields = map[string]struct{}{
 }
 
 type adminProviderCredentialRequest struct {
-	Field string `json:"field"`
-	Value string `json:"value"`
+	Field           string `json:"field"`
+	Value           string `json:"value"`
+	ExpectedVersion string `json:"expected_version"`
 }
 
 // adminProviderCredentialWrite accepts a secret only long enough to put it in
@@ -42,7 +45,12 @@ func (s *Server) adminProviderCredentialWrite(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if err := administration.PutAuthorityCredential(request.Field, request.Value); err != nil {
+	receipt, err := administration.PutAuthorityCredentialIfVersion(request.Field, request.Value, request.ExpectedVersion)
+	if err != nil {
+		if errors.Is(err, credentialauthority.ErrVersionConflict) {
+			writeJSONError(w, http.StatusConflict, "The provider credential changed. Refresh its status before retrying.", ApiErrorTypeValidation)
+			return
+		}
 		writeJSONError(w, http.StatusServiceUnavailable, "The credential could not be stored in the credential authority.", ApiErrorTypeServerError)
 		return
 	}
@@ -56,8 +64,12 @@ func (s *Server) adminProviderCredentialWrite(w http.ResponseWriter, r *http.Req
 	}
 	s.providerVerification.store(results...)
 	writeJSON(w, map[string]any{
-		"stored":  true,
-		"field":   request.Field,
-		"results": results,
+		"stored":          true,
+		"identity":        receipt.Identity,
+		"field":           receipt.Field,
+		"version":         receipt.Version,
+		"scope":           receipt.Scope,
+		"cleanup_pending": receipt.CleanupPending,
+		"results":         results,
 	})
 }

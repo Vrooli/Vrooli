@@ -120,8 +120,8 @@ func TestOpenRouterClient_Chat_401Unauthorized_ReturnsError(t *testing.T) {
 		Messages: []OpenRouterMessage{{Role: "user", Content: "Hello"}},
 	})
 
-	if err == nil {
-		t.Error("expected error for 401 status, got nil")
+	if !errors.Is(err, ErrProviderRequestRejected) {
+		t.Errorf("401 error=%v; want definitive provider rejection classification", err)
 	}
 }
 

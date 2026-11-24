@@ -25,10 +25,10 @@ func TestChannelPromotionUsesPredecessorCASAndRetainsHistory(t *testing.T) {
 		var id int64
 		err := db.QueryRow(`
 			INSERT INTO download_artifacts
-				(bundle_key, app_key, provider, bucket, object_key, etag, size_bytes, sha512, platform, release_version)
-			VALUES ($1,$2,'s3','bucket',$3,$4,10,$5,$6,$7)
+				(bundle_key, app_key, provider, bucket, object_key, etag, size_bytes, sha512, platform, release_version, sha256)
+			VALUES ($1,$2,'s3','bucket',$3,$4,10,$5,$6,$7,$8)
 			RETURNING id
-		`, bundle, app, "releases/"+version+"/"+platform, version+"-etag", version+"-digest", platform, version).Scan(&id)
+		`, bundle, app, "releases/"+version+"/"+platform, version+"-etag", version+"-digest", platform, version, strings.Repeat("a", 64)).Scan(&id)
 		if err != nil {
 			t.Fatalf("insert artifact: %v", err)
 		}
@@ -122,6 +122,38 @@ func TestChannelPromotionRejectsArtifactWithoutSHA512Identity(t *testing.T) {
 	}
 }
 
+func TestChannelPromotionRejectsArtifactWithoutSHA256Checksum(t *testing.T) {
+	db := setupTestDB(t)
+	const bundle, app, variant = "channel_missing_sha256_bundle", "desktop", "stable"
+	if _, err := db.Exec(`INSERT INTO download_apps (bundle_key, app_key, name) VALUES ($1,$2,'Desktop')`, bundle, app); err != nil {
+		t.Fatalf("insert app: %v", err)
+	}
+	var artifactID int64
+	if err := db.QueryRow(`INSERT INTO download_artifacts (bundle_key, app_key, provider, bucket, object_key, sha512, platform, release_version) VALUES ($1,$2,'s3','bucket','missing-sha256.zip','sha512-digest','windows','1.0.0') RETURNING id`, bundle, app).Scan(&artifactID); err != nil {
+		t.Fatalf("insert artifact: %v", err)
+	}
+	_, err := delivery.NewCatalogService(db).PromoteChannel(context.Background(), delivery.ChannelPromotionRequest{BundleKey: bundle, AppKey: app, VariantKey: variant, ArtifactIDs: map[string]int64{"windows": artifactID}})
+	if err == nil || !strings.Contains(err.Error(), "sha256 checksum identity") {
+		t.Fatalf("expected missing SHA256 refusal, got %v", err)
+	}
+}
+
+func TestChannelPromotionRejectsArtifactOwnedByDifferentApp(t *testing.T) {
+	db := setupTestDB(t)
+	const bundle, app, variant = "channel_cross_app_bundle", "desktop", "stable"
+	if _, err := db.Exec(`INSERT INTO download_apps (bundle_key, app_key, name) VALUES ($1,$2,'Desktop')`, bundle, app); err != nil {
+		t.Fatalf("insert app: %v", err)
+	}
+	var artifactID int64
+	if err := db.QueryRow(`INSERT INTO download_artifacts (bundle_key, app_key, provider, bucket, object_key, sha256, sha512, platform, release_version) VALUES ($1,'other','s3','bucket','other-app.zip',$2,'sha512-digest','windows','1.0.0') RETURNING id`, bundle, strings.Repeat("f", 64)).Scan(&artifactID); err != nil {
+		t.Fatalf("insert artifact: %v", err)
+	}
+	_, err := delivery.NewCatalogService(db).PromoteChannel(context.Background(), delivery.ChannelPromotionRequest{BundleKey: bundle, AppKey: app, VariantKey: variant, ArtifactIDs: map[string]int64{"windows": artifactID}})
+	if err == nil || !strings.Contains(err.Error(), `app_key "other" does not match "desktop"`) {
+		t.Fatalf("expected cross-app refusal, got %v", err)
+	}
+}
+
 func TestReleaseBoundChannelPromotionRequiresMatchingArtifactIdentity(t *testing.T) {
 	db := setupTestDB(t)
 	const bundle, app, variant = "channel_release_identity_bundle", "desktop", "stable"
@@ -131,10 +163,10 @@ func TestReleaseBoundChannelPromotionRequiresMatchingArtifactIdentity(t *testing
 	var artifactID int64
 	if err := db.QueryRow(`
 		INSERT INTO download_artifacts
-			(bundle_key, app_key, provider, bucket, object_key, release_id, sha512, platform, release_version, metadata)
-		VALUES ($1,$2,'s3','bucket','release.zip','release-1','digest','windows','1.0.0',$3::jsonb)
+			(bundle_key, app_key, provider, bucket, object_key, release_id, sha512, platform, release_version, metadata, sha256)
+		VALUES ($1,$2,'s3','bucket','release.zip','release-1','digest','windows','1.0.0',$3::jsonb,$4)
 		RETURNING id
-	`, bundle, app, `{"bundle_key":"channel_release_identity_bundle","app_key":"desktop","release_id":"release-1","artifact_manifest_digest":"sha256:manifest","candidate_id":"candidate-1","destination_revision_id":"destination-1","authorization_epoch":7,"readiness_review_key":"review-1"}`).Scan(&artifactID); err != nil {
+	`, bundle, app, `{"bundle_key":"channel_release_identity_bundle","app_key":"desktop","release_id":"release-1","artifact_manifest_digest":"sha256:manifest","candidate_id":"candidate-1","destination_revision_id":"destination-1","authorization_epoch":7,"readiness_review_key":"review-1"}`, strings.Repeat("b", 64)).Scan(&artifactID); err != nil {
 		t.Fatalf("insert artifact: %v", err)
 	}
 	catalog := delivery.NewCatalogService(db)
@@ -171,9 +203,9 @@ func TestChannelHaltBindsToCurrentRevisionAndStopsOffers(t *testing.T) {
 	}
 	artifactID := int64(0)
 	if err := db.QueryRow(`
-		INSERT INTO download_artifacts (bundle_key, app_key, provider, bucket, object_key, sha512, platform, release_version)
-		VALUES ($1,$2,'s3','bucket','halt.zip','digest','windows','1.0.0') RETURNING id
-	`, bundle, app).Scan(&artifactID); err != nil {
+		INSERT INTO download_artifacts (bundle_key, app_key, provider, bucket, object_key, sha512, platform, release_version, sha256)
+		VALUES ($1,$2,'s3','bucket','halt.zip','digest','windows','1.0.0',$3) RETURNING id
+	`, bundle, app, strings.Repeat("c", 64)).Scan(&artifactID); err != nil {
 		t.Fatalf("insert artifact: %v", err)
 	}
 	if _, err := db.Exec(`
@@ -216,7 +248,7 @@ func TestChannelRecoveryBindsPredecessorAndRefusesUnsafeRollback(t *testing.T) {
 	artifact := func(name, version string) int64 {
 		t.Helper()
 		var id int64
-		if err := db.QueryRow(`INSERT INTO download_artifacts (bundle_key, app_key, provider, bucket, object_key, sha512, platform, release_version) VALUES ($1,$2,'s3','bucket',$3,$4,'windows',$5) RETURNING id`, bundle, app, name, name+"-digest", version).Scan(&id); err != nil {
+		if err := db.QueryRow(`INSERT INTO download_artifacts (bundle_key, app_key, provider, bucket, object_key, sha512, platform, release_version, sha256) VALUES ($1,$2,'s3','bucket',$3,$4,'windows',$5,$6) RETURNING id`, bundle, app, name, name+"-digest", version, strings.Repeat("d", 64)).Scan(&id); err != nil {
 			t.Fatal(err)
 		}
 		return id
@@ -253,10 +285,10 @@ func TestChannelPromotionNormalizesArchitectureQualifiedTargets(t *testing.T) {
 	var artifactID int64
 	if err := db.QueryRow(`
 		INSERT INTO download_artifacts
-			(bundle_key, app_key, provider, bucket, object_key, sha512, platform, release_version, metadata)
-		VALUES ($1,$2,'s3','bucket','releases/1.0.0/web-console-x64','digest','linux','1.0.0',$3::jsonb)
+			(bundle_key, app_key, provider, bucket, object_key, sha512, platform, release_version, metadata, sha256)
+		VALUES ($1,$2,'s3','bucket','releases/1.0.0/web-console-x64','digest','linux','1.0.0',$3::jsonb,$4)
 		RETURNING id
-	`, bundle, app, `{"platform":"linux","architecture":"amd64","target_id":"linux-x64"}`).Scan(&artifactID); err != nil {
+	`, bundle, app, `{"platform":"linux","architecture":"amd64","target_id":"linux-x64"}`, strings.Repeat("e", 64)).Scan(&artifactID); err != nil {
 		t.Fatal(err)
 	}
 	catalog := delivery.NewCatalogService(db)

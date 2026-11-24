@@ -46,6 +46,13 @@ interface FormState {
   ctaLabel: string;
   highlight: boolean;
   featuresText: string;
+  appEntitlements: AppEntitlementDraft[];
+}
+
+interface AppEntitlementDraft {
+  appKey: string;
+  featuresText: string;
+  limitsText: string;
 }
 
 interface VerifiedStripePrice {
@@ -73,7 +80,35 @@ const DEFAULT_FORM: FormState = {
   ctaLabel: '',
   highlight: false,
   featuresText: '',
+  appEntitlements: [],
 };
+
+function buildAppEntitlements(drafts: AppEntitlementDraft[]): NonNullable<CreateBundlePricePayload['app_entitlements']> {
+  const result: NonNullable<CreateBundlePricePayload['app_entitlements']> = {};
+  for (const [index, draft] of drafts.entries()) {
+    const appKey = draft.appKey.trim();
+    const features = draft.featuresText.split('\n').map((value) => value.trim()).filter(Boolean);
+    const limits: Record<string, number> = {};
+    for (const line of draft.limitsText.split('\n').map((value) => value.trim()).filter(Boolean)) {
+      const separator = line.indexOf('=');
+      const key = separator < 0 ? '' : line.slice(0, separator).trim();
+      const raw = separator < 0 ? '' : line.slice(separator + 1).trim();
+      const limit = Number(raw);
+      if (!key || !/^\d+$/.test(raw) || !Number.isSafeInteger(limit)) {
+        throw new Error(`App entitlement ${index + 1}: limits must use name=non-negative-integer lines.`);
+      }
+      if (Object.prototype.hasOwnProperty.call(limits, key)) throw new Error(`App entitlement ${index + 1}: duplicate limit "${key}".`);
+      limits[key] = limit;
+    }
+    if (!appKey && !features.length && !Object.keys(limits).length) continue;
+    if (!appKey) throw new Error(`App entitlement ${index + 1}: app key is required.`);
+    if (!/^[a-z0-9][a-z0-9._-]*$/.test(appKey)) throw new Error(`App entitlement ${index + 1}: use a lowercase app key (letters, numbers, dots, underscores, hyphens).`);
+    if (Object.prototype.hasOwnProperty.call(result, appKey)) throw new Error(`App entitlement app key "${appKey}" is declared more than once.`);
+    if (!features.length && !Object.keys(limits).length) throw new Error(`App entitlement ${index + 1}: add a feature or limit.`);
+    result[appKey] = { ...(features.length ? { features } : {}), ...(Object.keys(limits).length ? { limits } : {}) };
+  }
+  return result;
+}
 
 const normalizeStripeInterval = (interval?: string | null): string | null => {
   const raw = interval?.trim().toLowerCase();
@@ -224,6 +259,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
         .split('\n')
         .map((f) => f.trim())
         .filter((f) => f.length > 0);
+      const appEntitlements = buildAppEntitlements(form.appEntitlements);
 
       const payload: CreateBundlePricePayload = {
         stripe_price_id: stripePriceId,
@@ -235,6 +271,7 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
         display_enabled: form.displayEnabled,
         highlight: form.highlight,
         features: features.length > 0 ? features : undefined,
+        app_entitlements: Object.keys(appEntitlements).length ? appEntitlements : undefined,
       };
 
       payload.amount_cents = amountCents;
@@ -488,12 +525,33 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
               rows={4}
             />
           </div>
+
+          <section className="space-y-3 border-t border-slate-700 pt-4" aria-label="App entitlements">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-medium">App entitlements</h3>
+                <p className="text-xs text-slate-400">Declare app-specific features and limits included with this plan.</p>
+              </div>
+              <Button type="button" variant="outline" onClick={() => handleChange('appEntitlements', [...form.appEntitlements, { appKey: '', featuresText: '', limitsText: '' }])}>Add app</Button>
+            </div>
+            {form.appEntitlements.map((entry, index) => (
+              <fieldset key={index} className="space-y-2 rounded border border-slate-700 p-3">
+                <legend className="px-1 text-xs text-slate-400">App {index + 1}</legend>
+                <div className="flex gap-2">
+                  <Input aria-label={`App ${index + 1} key`} placeholder="audio-tools" value={entry.appKey} onChange={(event) => handleChange('appEntitlements', form.appEntitlements.map((item, itemIndex) => itemIndex === index ? { ...item, appKey: event.target.value } : item))} />
+                  <Button type="button" variant="outline" aria-label={`Remove app ${index + 1}`} onClick={() => handleChange('appEntitlements', form.appEntitlements.filter((_, itemIndex) => itemIndex !== index))}>Remove</Button>
+                </div>
+                <Textarea aria-label={`App ${index + 1} features`} placeholder={'audio:transcribe\naudio:summarize'} rows={2} value={entry.featuresText} onChange={(event) => handleChange('appEntitlements', form.appEntitlements.map((item, itemIndex) => itemIndex === index ? { ...item, featuresText: event.target.value } : item))} />
+                <Textarea aria-label={`App ${index + 1} limits`} placeholder={'ai_credits=1000\nminutes=60'} rows={2} value={entry.limitsText} onChange={(event) => handleChange('appEntitlements', form.appEntitlements.map((item, itemIndex) => itemIndex === index ? { ...item, limitsText: event.target.value } : item))} />
+              </fieldset>
+            ))}
+          </section>
         </div>
 
         <DialogFooter className="border-t border-slate-700 pt-4">
           <OverlayActionBar actions={[
-            { id: 'cancel', label: 'Cancel', onSelect: handleClose, disabled: saving },
             { id: 'create-plan', label: saving ? 'Creating...' : 'Create Plan', onSelect: () => { void handleSave(); }, disabled: saving, primary: true },
+            { id: 'cancel', label: 'Cancel', onSelect: handleClose, disabled: saving },
           ]} />
         </DialogFooter>
       </DialogContent>

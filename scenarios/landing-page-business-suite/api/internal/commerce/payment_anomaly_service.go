@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"sync/atomic"
@@ -244,6 +245,22 @@ func (s *PaymentAnomalyService) DispatchConfig() PaymentAnomalyDispatchConfig {
 		Enabled:    config.enabled,
 		RateLimits: limits,
 	}
+}
+
+// NewReconciliationIncidentService gives the canonical payment reconciler a
+// durable open/resolve alert path while sharing LPBS's configured webhook
+// dispatcher and delivery transport.
+func (s *PaymentAnomalyService) NewReconciliationIncidentService() (*PaymentReconciliationIncidentService, error) {
+	if s == nil || s.dispatcher == nil {
+		return nil, errors.New("payment anomaly dispatcher is unavailable")
+	}
+	return NewPaymentReconciliationIncidentService(s.db, s.dispatcher, func() string {
+		config := s.currentConfig()
+		if !config.enabled {
+			return ""
+		}
+		return config.webhookURL
+	}, DispatcherRuntime{ScenarioName: s.runtime.ScenarioName, LogError: s.runtime.LogError})
 }
 
 func (s *PaymentAnomalyService) currentConfig() *anomalyConfig {

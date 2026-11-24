@@ -17,7 +17,12 @@ import (
 	"time"
 )
 
-const buildIdentityEnv = "VROOLI_BUILD_IDENTITY"
+const (
+	buildIdentityEnv             = "VROOLI_BUILD_IDENTITY"
+	runtimeReleaseIDEnv          = "VROOLI_RUNTIME_RELEASE_ID"
+	runtimeReleaseOperationIDEnv = "VROOLI_RUNTIME_RELEASE_OPERATION_ID"
+	startOperationIDEnv          = "VROOLI_START_OPERATION_ID"
+)
 
 // writeUIHealth serves the Vrooli health response schema the control plane
 // recognizes. A process that answers 200 with a non-conforming body is reported
@@ -47,6 +52,15 @@ func writeUIHealthStatus(w http.ResponseWriter, presentationCheck func() error) 
 	}
 	if identity := strings.TrimSpace(os.Getenv(buildIdentityEnv)); identity != "" {
 		response["build_identity"] = identity
+	}
+	for key, env := range map[string]string{
+		"runtime_release_id":           runtimeReleaseIDEnv,
+		"runtime_release_operation_id": runtimeReleaseOperationIDEnv,
+		"start_operation_id":           startOperationIDEnv,
+	} {
+		if value := strings.TrimSpace(os.Getenv(env)); value != "" {
+			response[key] = value
+		}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

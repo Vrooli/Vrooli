@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"landing-page-business-suite-api/internal/commerce"
+	"landing-page-business-suite-api/internal/envx"
 	"landing-page-business-suite-api/internal/logx"
 
 	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
@@ -65,6 +68,23 @@ func (s *StripeService) CreateCheckoutSession(priceID, successURL, cancelURL, cu
 
 func (s *StripeService) CreateCheckoutSessionWithAttribution(priceID, successURL, cancelURL, customerEmail string, attribution commerce.Attribution) (*lpbsv1.CheckoutSession, error) {
 	return s.checkoutService().CreateWithAttribution(context.Background(), priceID, successURL, cancelURL, customerEmail, attribution)
+}
+
+// CreateTestOutcomeCheckoutSession is an internal-only path for the Test Genie
+// payment replay. It uses the same checkout service as customer requests and
+// adds correlation metadata only when both the host and Stripe key are test
+// mode. The public handlers never call this method.
+func (s *StripeService) CreateTestOutcomeCheckoutSession(ctx context.Context, priceID, successURL, cancelURL, customerEmail, runID, outcome string) (*lpbsv1.CheckoutSession, error) {
+	if s == nil || !stripeOutcomeEnvironmentAllowed(runtimeEnvironment()) || !strings.EqualFold(strings.TrimSpace(envx.Get("STRIPE_MODE")), "test") {
+		return nil, fmt.Errorf("test outcome checkout is restricted to explicit Stripe test targets")
+	}
+	config := s.getConfig()
+	if !strings.HasPrefix(config.secretKey, "sk_test_") && !strings.HasPrefix(config.secretKey, "rk_test_") {
+		return nil, fmt.Errorf("test outcome checkout requires an authority-resolved Stripe test key")
+	}
+	return s.checkoutService().CreateWithAttribution(ctx, priceID, successURL, cancelURL, customerEmail, commerce.Attribution{
+		StripeTestRunID: runID, StripeTestOutcome: outcome,
+	})
 }
 
 // CreateCheckoutSessionForBusinessAccount binds a checkout to the explicitly

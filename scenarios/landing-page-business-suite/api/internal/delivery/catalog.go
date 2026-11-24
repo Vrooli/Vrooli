@@ -60,6 +60,13 @@ func ValidateDirectArtifactURL(raw string) error {
 		return fmt.Errorf("artifact_url is required for direct downloads")
 	}
 	if strings.HasPrefix(raw, "/") {
+		if strings.HasPrefix(raw, "//") || strings.Contains(raw, "\\") || strings.Contains(raw, "#") {
+			return fmt.Errorf("artifact_url must be a same-origin relative path")
+		}
+		parsed, err := url.Parse(raw)
+		if err != nil || parsed.IsAbs() || parsed.Host != "" || parsed.Path == "" {
+			return fmt.Errorf("artifact_url must be a same-origin relative path")
+		}
 		return nil
 	}
 	parsed, err := url.Parse(raw)
@@ -69,8 +76,11 @@ func ValidateDirectArtifactURL(raw string) error {
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
 		return fmt.Errorf("artifact_url must be http(s) or a relative path")
 	}
-	if parsed.Host == "" {
+	if parsed.Hostname() == "" {
 		return fmt.Errorf("artifact_url must include a host")
+	}
+	if parsed.User != nil || strings.Contains(raw, "#") {
+		return fmt.Errorf("artifact_url must not contain URL credentials or a fragment")
 	}
 	return nil
 }
@@ -240,6 +250,21 @@ func (s *CatalogService) UpsertApp(app App) (*App, error) {
 	if strings.TrimSpace(app.Name) == "" {
 		return nil, fmt.Errorf("app name is required")
 	}
+	storefronts, err := NormalizeStorefrontLinks(app.Storefronts)
+	if err != nil {
+		return nil, err
+	}
+	app.Storefronts = storefronts
+	for _, asset := range app.Platforms {
+		if strings.EqualFold(strings.TrimSpace(asset.ArtifactSource), "managed") {
+			if asset.ArtifactID == nil || *asset.ArtifactID <= 0 {
+				return nil, fmt.Errorf("artifact_id is required when artifact_source is managed")
+			}
+			if strings.TrimSpace(asset.Checksum) == "" {
+				return nil, fmt.Errorf("checksum is required when artifact_source is managed")
+			}
+		}
+	}
 
 	tx, err := s.db.BeginTx(context.Background(), nil)
 	if err != nil {
@@ -332,7 +357,7 @@ func (s *CatalogService) UpsertApp(app App) (*App, error) {
 				if err := ValidateDirectArtifactURL(asset.ArtifactURL); err != nil {
 					return nil, err
 				}
-			} else if asset.ArtifactID == nil || *asset.ArtifactID == 0 {
+			} else if asset.ArtifactID == nil || *asset.ArtifactID <= 0 {
 				return nil, fmt.Errorf("artifact_id is required when artifact_source is managed")
 			}
 			metadataBytes, err := json.Marshal(asset.Metadata)
@@ -340,7 +365,7 @@ func (s *CatalogService) UpsertApp(app App) (*App, error) {
 				return nil, fmt.Errorf("marshal asset metadata: %w", err)
 			}
 			var artifactID interface{}
-			if asset.ArtifactID != nil && *asset.ArtifactID != 0 {
+			if asset.ArtifactID != nil && *asset.ArtifactID > 0 {
 				artifactID = *asset.ArtifactID
 			}
 			if _, err := stmt.Exec(
@@ -573,8 +598,10 @@ func (s *CatalogService) UpsertAsset(ctx context.Context, asset Asset) (*Asset, 
 		if err := ValidateDirectArtifactURL(asset.ArtifactURL); err != nil {
 			return nil, err
 		}
-	} else if asset.ArtifactID == nil || *asset.ArtifactID == 0 {
+	} else if asset.ArtifactID == nil || *asset.ArtifactID <= 0 {
 		return nil, fmt.Errorf("artifact_id is required when artifact_source is managed")
+	} else if asset.Checksum == "" {
+		return nil, fmt.Errorf("checksum is required when artifact_source is managed")
 	}
 
 	metadataBytes, err := json.Marshal(asset.Metadata)
@@ -582,7 +609,7 @@ func (s *CatalogService) UpsertAsset(ctx context.Context, asset Asset) (*Asset, 
 		return nil, fmt.Errorf("marshal asset metadata: %w", err)
 	}
 	var artifactID interface{}
-	if asset.ArtifactID != nil && *asset.ArtifactID != 0 {
+	if asset.ArtifactID != nil && *asset.ArtifactID > 0 {
 		artifactID = *asset.ArtifactID
 	}
 

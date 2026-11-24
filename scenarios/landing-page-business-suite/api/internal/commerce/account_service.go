@@ -486,7 +486,12 @@ func (s *Service) deriveAppEntitlements(ctx context.Context, userIdentity, busin
 	}
 	defer rows.Close()
 
-	merged := make(map[string]entitlementclient.AppEntitlement)
+	// App keys are scenario identifiers, but the signed grant is also scoped
+	// to the purchased bundle. Keep those scopes separate when an account owns
+	// plans from more than one bundle; merging by app key would let one bundle's
+	// features/limits ride on the other bundle's grant.
+	type appBundleKey struct{ app, bundle string }
+	merged := make(map[appBundleKey]entitlementclient.AppEntitlement)
 	unscopedPlans := 0
 	scopedPlans := 0
 	for rows.Next() {
@@ -537,7 +542,8 @@ func (s *Service) deriveAppEntitlements(ctx context.Context, userIdentity, busin
 				}
 			}
 			grant.Limits = mergeUniqueLimits(grant.Limits)
-			merged[appKey] = mergeAppEntitlement(merged[appKey], grant)
+			key := appBundleKey{app: appKey, bundle: grant.BundleKey}
+			merged[key] = mergeAppEntitlement(merged[key], grant)
 		}
 	}
 	if err := rows.Err(); err != nil {
@@ -549,14 +555,19 @@ func (s *Service) deriveAppEntitlements(ctx context.Context, userIdentity, busin
 	if unscopedPlans > 0 {
 		return nil, false, fmt.Errorf("%d active subscription plan(s) lack app entitlement declarations", unscopedPlans)
 	}
-	appKeys := make([]string, 0, len(merged))
-	for appKey := range merged {
-		appKeys = append(appKeys, appKey)
+	keys := make([]appBundleKey, 0, len(merged))
+	for key := range merged {
+		keys = append(keys, key)
 	}
-	sort.Strings(appKeys)
-	result := make([]entitlementclient.AppEntitlement, 0, len(appKeys))
-	for _, appKey := range appKeys {
-		grant := merged[appKey]
+	sort.Slice(keys, func(i, j int) bool {
+		if keys[i].app != keys[j].app {
+			return keys[i].app < keys[j].app
+		}
+		return keys[i].bundle < keys[j].bundle
+	})
+	result := make([]entitlementclient.AppEntitlement, 0, len(keys))
+	for _, key := range keys {
+		grant := merged[key]
 		grant.Limits = mergeUniqueLimits(grant.Limits)
 		grant.Features = uniqueSortedStrings(grant.Features)
 		result = append(result, grant)

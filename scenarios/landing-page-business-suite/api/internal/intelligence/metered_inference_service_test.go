@@ -2,6 +2,8 @@ package intelligence
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -9,7 +11,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/packages/monetization-go"
 	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // TestMeteredInferenceService_CalculateCost tests cost calculation.
@@ -415,10 +419,11 @@ func TestAIStreamEvent_JSON(t *testing.T) {
 		event := AIStreamEvent{
 			Type: "done",
 			Usage: &struct {
-				PromptTokens     int   `json:"prompt_tokens"`
-				CompletionTokens int   `json:"completion_tokens"`
-				TotalTokens      int   `json:"total_tokens"`
-				CreditsCharged   int64 `json:"credits_charged"`
+				PromptTokens     int          `json:"prompt_tokens"`
+				CompletionTokens int          `json:"completion_tokens"`
+				TotalTokens      int          `json:"total_tokens"`
+				CreditsCharged   int64        `json:"credits_charged"`
+				BrowserUsage     BrowserUsage `json:"browser_usage,omitempty"`
 			}{
 				PromptTokens:     10,
 				CompletionTokens: 20,
@@ -475,14 +480,18 @@ func containsHelper(s, substr string) bool {
 }
 
 type MockUsageService struct {
-	ReserveAndChargeFn    func(ctx context.Context, userIdentity, tier, limitKey string, amount int64, metadata UsageReport) error
-	ReserveCreditsFn      func(ctx context.Context, userIdentity, tier, limitKey string, amount int64) (string, error)
-	FinalizeReservationFn func(ctx context.Context, reservationID string, actualAmount int64) error
-	ReleaseReservationFn  func(ctx context.Context, reservationID string) error
-	RetainReservationFn   func(ctx context.Context, reservationID string) error
-	AdjustUsageFn         func(ctx context.Context, userIdentity, limitKey string, adjustment int64, reason string) error
-	RecordUsageFn         func(ctx context.Context, req UsageReport) error
-	Calls                 map[string][]interface{}
+	ReserveAndChargeFn             func(ctx context.Context, userIdentity, tier, limitKey string, amount int64, metadata UsageReport) error
+	ReserveCreditsFn               func(ctx context.Context, userIdentity, tier, limitKey string, amount int64) (string, error)
+	FinalizeReservationFn          func(ctx context.Context, reservationID string, actualAmount int64) error
+	ReleaseReservationFn           func(ctx context.Context, reservationID string) error
+	RetainReservationFn            func(ctx context.Context, reservationID string) error
+	ReserveBusinessAccountWithIDFn func(ctx context.Context, accountID, actor, tier, limitKey string, amount int64, operationID string) (string, bool, error)
+	RetainBusinessAccountFn        func(ctx context.Context, accountID, actor, reservationID string) error
+	ReleaseBusinessAccountFn       func(ctx context.Context, accountID, actor, reservationID string) error
+	FinalizeBusinessAccountFn      func(ctx context.Context, accountID, actor, reservationID string, amount int64) error
+	AdjustUsageFn                  func(ctx context.Context, userIdentity, limitKey string, adjustment int64, reason string) error
+	RecordUsageFn                  func(ctx context.Context, req UsageReport) error
+	Calls                          map[string][]interface{}
 }
 
 func NewMockUsageService() *MockUsageService {
@@ -515,6 +524,27 @@ func (m *MockUsageService) ReserveBusinessAccountCredits(_ context.Context, acco
 	return "account-test-reservation-id", nil
 }
 
+func (m *MockUsageService) ReserveBusinessAccountCreditsWithID(ctx context.Context, accountID, actor, tier, limitKey string, amount int64, operationID string) (string, bool, error) {
+	m.Calls["ReserveBusinessAccountCreditsWithID"] = append(m.Calls["ReserveBusinessAccountCreditsWithID"], []interface{}{accountID, actor, tier, limitKey, amount, operationID})
+	if m.ReserveBusinessAccountWithIDFn != nil {
+		return m.ReserveBusinessAccountWithIDFn(ctx, accountID, actor, tier, limitKey, amount, operationID)
+	}
+	return "account-test-reservation-id", true, nil
+}
+
+func (m *MockUsageService) ReserveBusinessAccountInferenceCreditsWithID(ctx context.Context, accountID, actor, tier, appBundleKey string, amount int64, operationID string) (string, bool, error) {
+	m.Calls["ReserveBusinessAccountInferenceCreditsWithID"] = append(m.Calls["ReserveBusinessAccountInferenceCreditsWithID"], []interface{}{accountID, actor, tier, appBundleKey, amount, operationID})
+	if m.ReserveBusinessAccountWithIDFn != nil {
+		return m.ReserveBusinessAccountWithIDFn(ctx, accountID, actor, tier, "ai_credits", amount, operationID)
+	}
+	return "account-test-reservation-id", true, nil
+}
+
+func (m *MockUsageService) BindBusinessAccountBrowserEvidence(_ context.Context, accountID, actor, reservationID, runID, fingerprint string) error {
+	m.Calls["BindBusinessAccountBrowserEvidence"] = append(m.Calls["BindBusinessAccountBrowserEvidence"], []interface{}{accountID, actor, reservationID, runID, fingerprint})
+	return nil
+}
+
 func (m *MockUsageService) FinalizeReservation(ctx context.Context, reservationID string, actualAmount int64) error {
 	m.Calls["FinalizeReservation"] = append(m.Calls["FinalizeReservation"], []interface{}{reservationID, actualAmount})
 	if m.FinalizeReservationFn != nil {
@@ -539,18 +569,35 @@ func (m *MockUsageService) RetainUncertainReservation(ctx context.Context, reser
 	return nil
 }
 
-func (m *MockUsageService) FinalizeBusinessAccountReservationWithCost(_ context.Context, accountID, reservationID string, amount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider string) error {
-	m.Calls["FinalizeBusinessAccountReservationWithCost"] = append(m.Calls["FinalizeBusinessAccountReservationWithCost"], []interface{}{accountID, reservationID, amount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider})
+func (m *MockUsageService) FinalizeBusinessAccountReservationWithCost(ctx context.Context, accountID, actor, reservationID string, amount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider string) error {
+	m.Calls["FinalizeBusinessAccountReservationWithCost"] = append(m.Calls["FinalizeBusinessAccountReservationWithCost"], []interface{}{accountID, actor, reservationID, amount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider, int64(0), int64(0), int64(0)})
+	if m.FinalizeBusinessAccountFn != nil {
+		return m.FinalizeBusinessAccountFn(ctx, accountID, actor, reservationID, amount)
+	}
 	return nil
 }
 
-func (m *MockUsageService) ReleaseBusinessAccountReservation(_ context.Context, accountID, reservationID string) error {
-	m.Calls["ReleaseBusinessAccountReservation"] = append(m.Calls["ReleaseBusinessAccountReservation"], []interface{}{accountID, reservationID})
+func (m *MockUsageService) FinalizeBusinessAccountReservationWithBrowserUsage(ctx context.Context, accountID, actor, reservationID string, amount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider string, sessionMinutes, actions, bytes int64, runID, sessionID, evidenceFingerprint string) error {
+	m.Calls["FinalizeBusinessAccountReservationWithCost"] = append(m.Calls["FinalizeBusinessAccountReservationWithCost"], []interface{}{accountID, actor, reservationID, amount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider, sessionMinutes, actions, bytes, runID, sessionID, evidenceFingerprint})
+	if m.FinalizeBusinessAccountFn != nil {
+		return m.FinalizeBusinessAccountFn(ctx, accountID, actor, reservationID, amount)
+	}
 	return nil
 }
 
-func (m *MockUsageService) RetainUncertainBusinessAccountReservation(_ context.Context, reservationID string) error {
-	m.Calls["RetainUncertainBusinessAccountReservation"] = append(m.Calls["RetainUncertainBusinessAccountReservation"], []interface{}{reservationID})
+func (m *MockUsageService) ReleaseBusinessAccountReservation(ctx context.Context, accountID, actor, reservationID string) error {
+	m.Calls["ReleaseBusinessAccountReservation"] = append(m.Calls["ReleaseBusinessAccountReservation"], []interface{}{accountID, actor, reservationID})
+	if m.ReleaseBusinessAccountFn != nil {
+		return m.ReleaseBusinessAccountFn(ctx, accountID, actor, reservationID)
+	}
+	return nil
+}
+
+func (m *MockUsageService) RetainUncertainBusinessAccountReservation(ctx context.Context, accountID, actor, reservationID string) error {
+	m.Calls["RetainUncertainBusinessAccountReservation"] = append(m.Calls["RetainUncertainBusinessAccountReservation"], []interface{}{accountID, actor, reservationID})
+	if m.RetainBusinessAccountFn != nil {
+		return m.RetainBusinessAccountFn(ctx, accountID, actor, reservationID)
+	}
 	return nil
 }
 
@@ -663,6 +710,315 @@ func (m *MockFlusherResponseWriter) Flush() {
 }
 
 // TestExecuteChat_Success tests a successful non-streaming chat request.
+func TestBrowserUsageRejectsNegativeCounters(t *testing.T) {
+	for _, usage := range []BrowserUsage{{SessionMinutes: -1}, {Actions: -1}, {Bytes: -1}} {
+		if err := usage.validate(); err == nil {
+			t.Fatalf("negative browser usage accepted: %+v", usage)
+		}
+	}
+	if err := (BrowserUsage{SessionMinutes: 3, Actions: 12, Bytes: 4096}).validate(); err != nil {
+		t.Fatalf("valid browser usage rejected: %v", err)
+	}
+}
+
+type fixedBrowserEvidenceAttester struct {
+	got      BrowserEvidenceProof
+	result   AttestedBrowserUsage
+	err      error
+	verified int
+}
+
+type browserSessionSettlementStub struct {
+	*MockUsageService
+	aggregate commerce.BrowserGatewayAggregate
+	finalized []interface{}
+}
+
+func (s *browserSessionSettlementStub) BusinessAccountBrowserGatewayAggregate(context.Context, string, string, string) (commerce.BrowserGatewayAggregate, error) {
+	return s.aggregate, nil
+}
+
+func (*browserSessionSettlementStub) ReserveBusinessAccountBrowserSession(context.Context, string, string, string, string, int64, string) (string, bool, error) {
+	return "", false, errors.New("unexpected reservation during reconciliation")
+}
+
+func (*browserSessionSettlementStub) BindBusinessAccountBrowserSession(context.Context, string, string, string, string, string, string, string) error {
+	return errors.New("unexpected bind during reconciliation")
+}
+
+func (*browserSessionSettlementStub) BeginBusinessAccountBrowserGatewayReceipt(context.Context, string, string, string, string, string, string, string, string, string, string, int64) (bool, error) {
+	return false, errors.New("unexpected dispatch during reconciliation")
+}
+
+func (*browserSessionSettlementStub) RecordBusinessAccountBrowserGatewayReceipt(context.Context, string, string, string, commerce.BrowserGatewayReceipt) error {
+	return errors.New("unexpected receipt write during reconciliation")
+}
+
+func (*browserSessionSettlementStub) MarkBusinessAccountBrowserGatewayUncertain(context.Context, string, string, string, string) error {
+	return errors.New("unexpected uncertainty update during reconciliation")
+}
+
+func (s *browserSessionSettlementStub) FinalizeBusinessAccountBrowserSession(_ context.Context, account, actor, reservation, run, session, grantFingerprint, proofFingerprint, provider string, aggregate commerce.BrowserGatewayAggregate, minutes, actions, bytes int64) error {
+	s.finalized = []interface{}{account, actor, reservation, run, session, grantFingerprint, proofFingerprint, provider, aggregate, minutes, actions, bytes}
+	return nil
+}
+
+type unavailableBrowserEvidenceAttester struct{ readyCalls int }
+
+func (a *unavailableBrowserEvidenceAttester) Ready(context.Context) error {
+	a.readyCalls++
+	return errors.New("operator-issued LPBS service credential is absent")
+}
+
+func (*unavailableBrowserEvidenceAttester) VerifyAndConsumeBrowserEvidence(context.Context, BrowserEvidenceProof) (AttestedBrowserUsage, error) {
+	return AttestedBrowserUsage{}, errors.New("unreachable: attestation must be preflighted")
+}
+
+func TestBrowserEvidenceIdentityReadinessBlocksBeforeReservationAndInference(t *testing.T) {
+	for _, streaming := range []bool{false, true} {
+		t.Run(map[bool]string{false: "chat", true: "stream"}[streaming], func(t *testing.T) {
+			usage := NewMockUsageService()
+			attester := &unavailableBrowserEvidenceAttester{}
+			service := &MeteredInferenceService{usageService: usage, browserEvidenceAttester: attester}
+			request := AIRequest{Model: "openai/gpt-4o-mini", Messages: []AIMessage{{Role: "user", Content: "hello"}}, BusinessAccountID: "acct-test", Metadata: AIMetadata{BrowserEvidence: &BrowserEvidenceProof{RunID: "run-1", GrantReceipt: "grant", Reference: "proof"}}}
+			var err error
+			if streaming {
+				err = service.ExecuteChatStream(context.Background(), "actor", request, httptest.NewRecorder())
+			} else {
+				_, err = service.ExecuteChat(context.Background(), "actor", request)
+			}
+			if err == nil || !strings.Contains(err.Error(), "verifier identity is unavailable") {
+				t.Fatalf("unavailable attester error=%v", err)
+			}
+			if attester.readyCalls != 1 || len(usage.Calls["ReserveBusinessAccountCreditsWithID"]) != 0 || len(usage.Calls["ReserveCredits"]) != 0 {
+				t.Fatalf("not ready attester reached billing/provider path: ready=%d calls=%#v", attester.readyCalls, usage.Calls)
+			}
+		})
+	}
+}
+
+func (a *fixedBrowserEvidenceAttester) VerifyAndConsumeBrowserEvidence(_ context.Context, proof BrowserEvidenceProof) (AttestedBrowserUsage, error) {
+	a.got = proof
+	a.verified++
+	return a.result, a.err
+}
+
+func TestClosedBrowserSessionReconcilesImmutableGatewayAggregate(t *testing.T) {
+	const account, actor, reservation, run, session, grant, proofRef = "acct-7", "operator@example.test", "7e026a72-90ba-4e0b-9897-b2b09dc8a750", "87026a72-90ba-4e0b-9897-b2b09dc8a750", "bas-session-7", "grant-7", "opaque-proof-7"
+	aggregate := commerce.BrowserGatewayAggregate{Credits: 15, CostMicros: 820, PromptTokens: 21, CompletionTokens: 9, Operations: 2}
+	usage := &browserSessionSettlementStub{MockUsageService: NewMockUsageService(), aggregate: aggregate}
+	attester := &fixedBrowserEvidenceAttester{result: AttestedBrowserUsage{RunID: run, ReservationID: reservation, SessionID: session, State: "closed", SessionMinutes: 4, Actions: 12, Bytes: 4096}}
+	service := &MeteredInferenceService{usageService: usage, browserEvidenceAttester: attester}
+	binding := BrowserSessionBinding{ReservationID: reservation, RunID: run, SessionID: session, GrantReceipt: grant}
+	proof := BrowserEvidenceProof{RunID: run, GrantReceipt: grant, Reference: proofRef}
+	if err := service.reconcileClosedBrowserSessionAuthorized(context.Background(), actor, account, binding, proof); err != nil {
+		t.Fatal(err)
+	}
+	if attester.verified != 1 || attester.got.ReservationID != reservation || attester.got.Reference != proofRef {
+		t.Fatalf("attester received wrong proof binding: %+v (calls=%d)", attester.got, attester.verified)
+	}
+	if len(usage.finalized) != 12 {
+		t.Fatalf("finalization fields = %#v", usage.finalized)
+	}
+	if usage.finalized[0] != account || usage.finalized[1] != actor || usage.finalized[2] != reservation || usage.finalized[3] != run || usage.finalized[4] != session {
+		t.Fatalf("finalization scope = %#v", usage.finalized[:5])
+	}
+	if usage.finalized[6] != browserEvidenceFingerprint(proofRef) || usage.finalized[7] != "" || usage.finalized[8] != aggregate {
+		t.Fatalf("settlement did not bind proof and persisted Gateway aggregate: %#v", usage.finalized[6:9])
+	}
+	if usage.finalized[9] != int64(4) || usage.finalized[10] != int64(12) || usage.finalized[11] != int64(4096) {
+		t.Fatalf("caller/browser counters replaced attested measurements: %#v", usage.finalized[9:])
+	}
+}
+
+func TestClosedBrowserSessionPublicReconciliationKeepsBillingScopeFailClosed(t *testing.T) {
+	attester := &fixedBrowserEvidenceAttester{result: AttestedBrowserUsage{RunID: "87026a72-90ba-4e0b-9897-b2b09dc8a750", ReservationID: "7e026a72-90ba-4e0b-9897-b2b09dc8a750", SessionID: "bas-session-7", State: "closed"}}
+	usage := &browserSessionSettlementStub{MockUsageService: NewMockUsageService(), aggregate: commerce.BrowserGatewayAggregate{Operations: 1}}
+	service := &MeteredInferenceService{usageService: usage, browserEvidenceAttester: attester}
+	binding := BrowserSessionBinding{ReservationID: "7e026a72-90ba-4e0b-9897-b2b09dc8a750", RunID: "87026a72-90ba-4e0b-9897-b2b09dc8a750", SessionID: "bas-session-7", GrantReceipt: "grant-7"}
+	err := service.ReconcileClosedBrowserSession(context.Background(), "operator@example.test", "acct-7", binding, BrowserEvidenceProof{RunID: binding.RunID, GrantReceipt: binding.GrantReceipt, Reference: "opaque-proof-7"})
+	if !errors.Is(err, ErrBillingScopeUnavailable) {
+		t.Fatalf("public reconciliation error = %v, want fail-closed billing scope", err)
+	}
+	if attester.verified != 0 || usage.finalized != nil {
+		t.Fatalf("closed proof or settlement reached without billing scope: verified=%d finalized=%#v", attester.verified, usage.finalized)
+	}
+}
+
+func TestClosedBrowserSessionWithoutGatewayChildrenDoesNotConsumeProof(t *testing.T) {
+	attester := &fixedBrowserEvidenceAttester{}
+	usage := &browserSessionSettlementStub{MockUsageService: NewMockUsageService()}
+	service := &MeteredInferenceService{usageService: usage, browserEvidenceAttester: attester}
+	binding := BrowserSessionBinding{ReservationID: "7e026a72-90ba-4e0b-9897-b2b09dc8a750", RunID: "87026a72-90ba-4e0b-9897-b2b09dc8a750", SessionID: "bas-session-7", GrantReceipt: "grant-7"}
+	err := service.reconcileClosedBrowserSessionAuthorized(context.Background(), "operator@example.test", "acct-7", binding, BrowserEvidenceProof{RunID: binding.RunID, GrantReceipt: binding.GrantReceipt, Reference: "opaque-proof-7"})
+	if err == nil || !strings.Contains(err.Error(), "no completed Gateway operation receipt") {
+		t.Fatalf("empty session aggregate error = %v", err)
+	}
+	if attester.verified != 0 {
+		t.Fatalf("proof was consumed for a session without model operations: %d", attester.verified)
+	}
+}
+
+func TestCallerReportedBrowserUsageCannotReachSettlement(t *testing.T) {
+	err := validateBrowserEvidenceInput(AIMetadata{BrowserUsage: BrowserUsage{SessionMinutes: 2, Actions: 9, Bytes: 1024}})
+	if err == nil || !strings.Contains(err.Error(), "caller-reported browser usage") {
+		t.Fatalf("caller supplied browser measurements were not rejected: %v", err)
+	}
+}
+
+func TestBrowserInferenceRequiresRunGrantProofBoundToReservation(t *testing.T) {
+	if err := validateInferenceBrowserEvidence("browser.plan", AIMetadata{}); err == nil || !strings.Contains(err.Error(), "BAS run, grant and session binding") {
+		t.Fatalf("browser inference without evidence error=%v, want fail-closed run/grant requirement", err)
+	}
+	proof := &BrowserEvidenceProof{RunID: "run-1", GrantReceipt: "grant-1", Reference: "opaque-proof-1"}
+	if err := validateInferenceBrowserEvidence("browser.plan", AIMetadata{BrowserEvidence: proof}); err == nil || !strings.Contains(err.Error(), "only after provider operations finish") {
+		t.Fatalf("pre-close BAS proof must not authorize inference dispatch: %v", err)
+	}
+	binding := &BrowserSessionBinding{RunID: "87026a72-90ba-4e0b-9897-b2b09dc8a750", SessionID: "bas-session-1", GrantReceipt: "grant-1"}
+	if err := validateInferenceBrowserEvidence("browser.plan", AIMetadata{BrowserSession: binding}); err != nil {
+		t.Fatalf("valid BAS open-session binding rejected: %v", err)
+	}
+	if err := validateInferenceBrowserEvidence("classify.fast", AIMetadata{}); err != nil {
+		t.Fatalf("non-browser inference unexpectedly requires browser evidence: %v", err)
+	}
+}
+
+func TestBrowserInferenceRequiresBoundedGatewayRootOperation(t *testing.T) {
+	if err := validateInferenceRootOperationID("browser.plan", ""); err == nil || !strings.Contains(err.Error(), "requires gateway_root_operation_id") {
+		t.Fatalf("browser inference without recovery identity error=%v", err)
+	}
+	if err := validateInferenceRootOperationID("browser.plan", "short"); err == nil || !strings.Contains(err.Error(), "bounded") {
+		t.Fatalf("malformed browser root operation accepted: %v", err)
+	}
+	root := strings.Repeat("d", 64)
+	if err := validateInferenceRootOperationID("browser.plan", root); err != nil {
+		t.Fatalf("valid browser root operation rejected: %v", err)
+	}
+	if err := validateInferenceRootOperationID("chat.default", ""); err != nil {
+		t.Fatalf("legacy non-browser request unexpectedly requires a root: %v", err)
+	}
+}
+
+func TestBASProofResolutionRejectsWrongRunOrUnclosedSession(t *testing.T) {
+	proof := &BrowserEvidenceProof{RunID: "run-17", GrantReceipt: "grant-exact", Reference: "opaque-proof"}
+	for _, observation := range []AttestedBrowserUsage{
+		{RunID: "run-other", ReservationID: "reservation-1", SessionID: "session-9", State: "closed", Actions: 2},
+		{RunID: "run-17", ReservationID: "reservation-1", SessionID: "session-9", State: "open", Actions: 2},
+	} {
+		service := &MeteredInferenceService{browserEvidenceAttester: &fixedBrowserEvidenceAttester{result: observation}}
+		if _, err := service.resolveBrowserUsage(context.Background(), proof, "reservation-1"); err == nil {
+			t.Fatalf("unbound BAS observation accepted: %+v", observation)
+		}
+	}
+}
+
+func TestBASProofUsesExistingIdempotentLPBSReserveAndRejectsReplayBeforeDispatch(t *testing.T) {
+	usage := NewMockUsageService()
+	service := &MeteredInferenceService{usageService: usage}
+	proof := &BrowserEvidenceProof{RunID: "run-17", GrantReceipt: "grant-exact", Reference: "opaque-proof"}
+	rootOperationID := strings.Repeat("a", 64)
+	operationID := browserEvidenceOperationID(rootOperationID)
+	if len(operationID) != 36 || operationID[14] != '5' || !strings.ContainsRune("89ab", rune(operationID[19])) {
+		t.Fatalf("proof-derived operation id is not a PostgreSQL UUID: %q", operationID)
+	}
+	first, err := service.reserveCredits(context.Background(), "buyer@example.com", "buyer@example.com", "acct-fixture", "pro", "fixture-app", 50, proof, rootOperationID)
+	if err != nil || first != "account-test-reservation-id" {
+		t.Fatalf("first browser reservation id=%q err=%v", first, err)
+	}
+	calls := usage.Calls["ReserveBusinessAccountInferenceCreditsWithID"]
+	if len(calls) != 1 || calls[0].([]interface{})[3] != "fixture-app" || calls[0].([]interface{})[5] != operationID {
+		t.Fatalf("browser reservation did not use stable proof idempotency: %#v", calls)
+	}
+	usage.ReserveBusinessAccountWithIDFn = func(context.Context, string, string, string, string, int64, string) (string, bool, error) {
+		return "existing-reservation", false, nil
+	}
+	if _, err := service.reserveCredits(context.Background(), "buyer@example.com", "buyer@example.com", "acct-fixture", "pro", "fixture-app", 50, proof, rootOperationID); !errors.Is(err, ErrBrowserEvidenceReplay) {
+		t.Fatalf("replayed browser proof reserve error=%v, want replay denial", err)
+	}
+}
+
+func TestGatewayRootOperationReplayRefusedBeforeSecondInferenceDispatch(t *testing.T) {
+	usage := NewMockUsageService()
+	service := &MeteredInferenceService{usageService: usage}
+	rootOperationID := strings.Repeat("b", 64)
+	first, err := service.reserveCredits(context.Background(), "buyer@example.com", "buyer@example.com", "acct-fixture", "pro", "fixture-app", 50, nil, rootOperationID)
+	if err != nil || first != "account-test-reservation-id" {
+		t.Fatalf("first root-bound reservation id=%q err=%v", first, err)
+	}
+	operationID := browserEvidenceOperationID(rootOperationID)
+	calls := usage.Calls["ReserveBusinessAccountInferenceCreditsWithID"]
+	if len(calls) != 1 || calls[0].([]interface{})[3] != "fixture-app" || calls[0].([]interface{})[5] != operationID {
+		t.Fatalf("Gateway root operation was not used as LPBS idempotency input: %#v", calls)
+	}
+	usage.ReserveBusinessAccountWithIDFn = func(context.Context, string, string, string, string, int64, string) (string, bool, error) {
+		return "existing-reservation", false, nil
+	}
+	if _, err := service.reserveCredits(context.Background(), "buyer@example.com", "buyer@example.com", "acct-fixture", "pro", "fixture-app", 50, nil, rootOperationID); !errors.Is(err, ErrInferenceOperationReplay) {
+		t.Fatalf("replayed Gateway root operation error=%v, want dispatch refusal", err)
+	}
+}
+
+func TestClosedBASProofBindsBrowserMeasurementsToTokenSettlement(t *testing.T) {
+	usage := NewMockUsageService()
+	attester := &fixedBrowserEvidenceAttester{
+		result: AttestedBrowserUsage{RunID: "run-17", ReservationID: "reservation-1", SessionID: "session-9", State: "closed", SessionMinutes: 4, Actions: 13, Bytes: 8192},
+	}
+	service := &MeteredInferenceService{usageService: usage, browserEvidenceAttester: attester}
+	proof := &BrowserEvidenceProof{RunID: "run-17", GrantReceipt: "grant-exact", Reference: "opaque-proof"}
+	if err := validateBrowserEvidenceInput(AIMetadata{BrowserEvidence: proof}); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.bindBrowserEvidence(context.Background(), "buyer@example.com", "acct-fixture", "reservation-1", proof); err != nil {
+		t.Fatal(err)
+	}
+	bindings := usage.Calls["BindBusinessAccountBrowserEvidence"]
+	if len(bindings) != 1 || bindings[0].([]interface{})[2] != "reservation-1" || bindings[0].([]interface{})[3] != "run-17" {
+		t.Fatalf("proof was not bound to the exact LPBS reservation and run: %#v", bindings)
+	}
+	browserUsage, err := service.resolveBrowserUsage(context.Background(), proof, "reservation-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	boundProof := *proof
+	boundProof.ReservationID = "reservation-1"
+	if attester.verified != 1 || attester.got != boundProof {
+		t.Fatalf("attester request=%+v calls=%d", attester.got, attester.verified)
+	}
+	proofDigest := sha256.Sum256([]byte(proof.Reference))
+	wantBrowserUsage := BrowserUsage{SessionMinutes: 4, Actions: 13, Bytes: 8192, RunID: "run-17", SessionID: "session-9", EvidenceFingerprint: hex.EncodeToString(proofDigest[:])}
+	if browserUsage != wantBrowserUsage {
+		t.Fatalf("attested usage=%+v", browserUsage)
+	}
+	if err := service.finalizeReservationWithCost(context.Background(), "buyer@example.com", "acct-fixture", "reservation-1", 123, "browser-automation-studio", "openai/gpt-4o-mini", 77, 21, 8, "openrouter", browserUsage); err != nil {
+		t.Fatal(err)
+	}
+	settlements := usage.Calls["FinalizeBusinessAccountReservationWithCost"]
+	if len(settlements) != 1 {
+		t.Fatalf("settlements=%d, want 1", len(settlements))
+	}
+	settlement := settlements[0].([]interface{})
+	if settlement[5] != "openai/gpt-4o-mini" || settlement[6] != int64(77) || settlement[7] != 21 || settlement[8] != 8 || settlement[9] != "openrouter" || settlement[10] != int64(4) || settlement[11] != int64(13) || settlement[12] != int64(8192) || settlement[13] != "run-17" || settlement[14] != "session-9" || settlement[15] != hex.EncodeToString(proofDigest[:]) {
+		t.Fatalf("single LPBS receipt did not reconcile model/token/browser evidence: %#v", settlement)
+	}
+}
+
+func TestFinalizeReservationWithBrowserUsageUsesAccountReceiptAdapter(t *testing.T) {
+	usage := NewMockUsageService()
+	service := &MeteredInferenceService{usageService: usage}
+	err := service.finalizeReservationWithCost(context.Background(), "actor@example.com", "acct-1", "reservation-1", 23, "browser-automation-studio", "provider/model", 17, 5, 3, "provider", BrowserUsage{SessionMinutes: 7, Actions: 11, Bytes: 2048})
+	if err != nil {
+		t.Fatal(err)
+	}
+	calls := usage.Calls["FinalizeBusinessAccountReservationWithCost"]
+	if len(calls) != 1 {
+		t.Fatalf("account receipt adapter calls=%d, want 1", len(calls))
+	}
+	got := calls[0].([]interface{})
+	if got[0] != "acct-1" || got[1] != "actor@example.com" || got[2] != "reservation-1" || got[10] != int64(7) || got[11] != int64(11) || got[12] != int64(2048) {
+		t.Fatalf("account receipt adapter args=%#v", got)
+	}
+}
+
 func TestExecuteChat_Success(t *testing.T) {
 	mockUsage := NewMockUsageService()
 	mockAccount := &MockAccountService{}
@@ -1056,7 +1412,7 @@ func TestExecuteChatStream_BusinessAccountChargesMeasuredPartialUsage(t *testing
 	if err == nil {
 		t.Fatal("expected the interrupted stream error")
 	}
-	reserve := mockUsage.Calls["ReserveBusinessAccountCredits"]
+	reserve := mockUsage.Calls["ReserveBusinessAccountCreditsWithID"]
 	if len(reserve) != 1 || reserve[0].([]interface{})[0] != "acct-fixture" || reserve[0].([]interface{})[1] != "buyer@example.com" {
 		t.Fatalf("business-account reservation attribution = %#v", reserve)
 	}
@@ -1066,8 +1422,8 @@ func TestExecuteChatStream_BusinessAccountChargesMeasuredPartialUsage(t *testing
 	}
 	settlement := settlements[0].([]interface{})
 	wantCost := CalculateCost(defaultModelPricing(), "openai/gpt-4o-mini", 100, 20)
-	if settlement[0] != "acct-fixture" || settlement[2] != wantCost || settlement[5] != int64(1234) || settlement[6] != 100 || settlement[7] != 20 {
-		t.Fatalf("account partial settlement = %#v, want measured usage %d credits and provider cost 1234 micros", settlement, wantCost)
+	if settlement[0] != "acct-fixture" || settlement[1] != "buyer@example.com" || settlement[3] != wantCost || settlement[6] != int64(1234) || settlement[7] != 100 || settlement[8] != 20 || settlement[10] != int64(0) || settlement[11] != int64(0) || settlement[12] != int64(0) {
+		t.Fatalf("account partial settlement = %#v, want token usage %d credits and no unattested browser usage", settlement, wantCost)
 	}
 	if len(mockUsage.Calls["ReleaseBusinessAccountReservation"]) != 0 {
 		t.Fatal("measured partial output must not release the account reservation")
@@ -1075,6 +1431,10 @@ func TestExecuteChatStream_BusinessAccountChargesMeasuredPartialUsage(t *testing
 }
 
 func TestExecuteInferenceStream_CodeRoleForwardsToolsAndSettlesAccountUsage(t *testing.T) {
+	owners, err := monetization.EmbeddedCreditFeatureRegistry()
+	if err != nil {
+		t.Fatalf("EmbeddedCreditFeatureRegistry: %v", err)
+	}
 	mockUsage := NewMockUsageService()
 	toolSpec := json.RawMessage(`{"type":"function","function":{"name":"read_file","parameters":{"type":"object","properties":{"path":{"type":"string"}}}}}`)
 	provider := &MockOpenRouterClient{
@@ -1091,12 +1451,12 @@ func TestExecuteInferenceStream_CodeRoleForwardsToolsAndSettlesAccountUsage(t *t
 	}
 	svc := &MeteredInferenceService{
 		usageService: mockUsage, accountService: &MockAccountService{}, openRouterClient: provider,
-		modelPricing: defaultModelPricing(), rolePolicies: DefaultRolePolicies(), log: func(string, map[string]interface{}) {},
+		modelPricing: defaultModelPricing(), rolePolicies: DefaultRolePolicies(), creditFeatureOwners: owners, log: func(string, map[string]interface{}) {},
 	}
 	writer := NewMockFlusherResponseWriter()
-	err := svc.ExecuteInferenceStream(context.Background(), "actor@example.com", InferenceRequest{
-		Role: "code.default", BusinessAccountID: "acct-fixture", Messages: []AIMessage{{Role: "user", Content: "inspect src/main.go"}},
-		Tools: []json.RawMessage{toolSpec}, ToolChoice: json.RawMessage(`"auto"`),
+	err = svc.ExecuteInferenceStreamForCaller(context.Background(), "actor@example.com", "web-console", InferenceRequest{
+		Role: "author.generator", BusinessAccountID: "acct-fixture", Messages: []AIMessage{{Role: "user", Content: "inspect src/main.go"}},
+		Tools: []json.RawMessage{toolSpec}, ToolChoice: json.RawMessage(`"auto"`), Metadata: AIMetadata{GatewayRootOperationID: strings.Repeat("a", 32)},
 	}, writer)
 	if err != nil {
 		t.Fatalf("ExecuteInferenceStream() error: %v", err)
@@ -1104,9 +1464,9 @@ func TestExecuteInferenceStream_CodeRoleForwardsToolsAndSettlesAccountUsage(t *t
 	if !strings.Contains(writer.Body.String(), `"tool_calls":[{"index":0,"id":"call_1"`) {
 		t.Fatalf("SSE did not preserve tool-call delta: %s", writer.Body.String())
 	}
-	reserve := mockUsage.Calls["ReserveBusinessAccountCredits"]
-	if len(reserve) != 1 || reserve[0].([]interface{})[0] != "acct-fixture" || reserve[0].([]interface{})[1] != "actor@example.com" {
-		t.Fatalf("reservation attribution = %#v", reserve)
+	reserve := mockUsage.Calls["ReserveBusinessAccountInferenceCreditsWithID"]
+	if len(reserve) != 1 || reserve[0].([]interface{})[0] != "acct-fixture" || reserve[0].([]interface{})[1] != "actor@example.com" || reserve[0].([]interface{})[3] != "web-console" {
+		t.Fatalf("feature-scoped reservation attribution = %#v", reserve)
 	}
 	if got := len(mockUsage.Calls["FinalizeBusinessAccountReservationWithCost"]); got != 1 {
 		t.Fatalf("account settlements = %d, want 1 after measured tool-call stream", got)
@@ -1114,6 +1474,10 @@ func TestExecuteInferenceStream_CodeRoleForwardsToolsAndSettlesAccountUsage(t *t
 }
 
 func TestExecuteInference_CodeRoleForwardsToolHistoryAndReturnsToolCall(t *testing.T) {
+	owners, err := monetization.EmbeddedCreditFeatureRegistry()
+	if err != nil {
+		t.Fatalf("EmbeddedCreditFeatureRegistry: %v", err)
+	}
 	mockUsage := NewMockUsageService()
 	toolSpec := json.RawMessage(`{"type":"function","function":{"name":"read_file","parameters":{"type":"object"}}}`)
 	provider := &MockOpenRouterClient{
@@ -1133,10 +1497,10 @@ func TestExecuteInference_CodeRoleForwardsToolHistoryAndReturnsToolCall(t *testi
 	}
 	svc := &MeteredInferenceService{
 		usageService: mockUsage, accountService: &MockAccountService{}, openRouterClient: provider,
-		modelPricing: defaultModelPricing(), rolePolicies: DefaultRolePolicies(), log: func(string, map[string]interface{}) {},
+		modelPricing: defaultModelPricing(), rolePolicies: DefaultRolePolicies(), creditFeatureOwners: owners, log: func(string, map[string]interface{}) {},
 	}
-	response, err := svc.ExecuteInference(context.Background(), "actor@example.com", InferenceRequest{
-		Role: "code.default", BusinessAccountID: "acct-fixture",
+	response, err := svc.ExecuteInferenceForCaller(context.Background(), "actor@example.com", "web-console", InferenceRequest{
+		Role: "author.generator", BusinessAccountID: "acct-fixture", Metadata: AIMetadata{GatewayRootOperationID: strings.Repeat("b", 32)},
 		Messages: []AIMessage{{Role: "assistant", ToolCalls: []OpenRouterToolCall{{ID: "call_1", Type: "function", Function: OpenRouterToolFunction{Name: "read_file", Arguments: `{"path":"src/main.go"}`}}}}, {Role: "tool", Content: "package main", Name: "read_file", ToolCallID: "call_1"}},
 		Tools:    []json.RawMessage{toolSpec}, ToolChoice: json.RawMessage(`"auto"`),
 	})
@@ -1146,8 +1510,199 @@ func TestExecuteInference_CodeRoleForwardsToolHistoryAndReturnsToolCall(t *testi
 	if len(response.ToolCalls) != 1 || response.ToolCalls[0].ID != "call_2" {
 		t.Fatalf("response tool calls = %#v", response.ToolCalls)
 	}
+	reservations := mockUsage.Calls["ReserveBusinessAccountInferenceCreditsWithID"]
+	if len(reservations) != 1 || reservations[0].([]interface{})[3] != "web-console" {
+		t.Fatalf("feature-scoped reservation = %#v, want app web-console", reservations)
+	}
 	if len(mockUsage.Calls["FinalizeBusinessAccountReservationWithCost"]) != 1 {
 		t.Fatalf("account settlements = %d, want 1", len(mockUsage.Calls["FinalizeBusinessAccountReservationWithCost"]))
+	}
+	settlement := mockUsage.Calls["FinalizeBusinessAccountReservationWithCost"][0].([]interface{})
+	if settlement[4] != "web-console" {
+		t.Fatalf("settlement app = %#v, want generated owner web-console", settlement[4])
+	}
+}
+
+func TestExecuteInferenceForCallerRejectsOwnerMismatchesBeforeEffects(t *testing.T) {
+	owners, err := monetization.EmbeddedCreditFeatureRegistry()
+	if err != nil {
+		t.Fatalf("EmbeddedCreditFeatureRegistry: %v", err)
+	}
+	service := NewMeteredInferenceService(MeteredInferenceServiceOptions{CreditFeatureOwners: owners})
+	cases := []struct {
+		name, caller, role string
+	}{
+		{name: "wrong scenario", caller: "browser-automation-studio", role: "author.generator"},
+		{name: "wrong role for caller", caller: "web-console", role: "write.default"},
+		{name: "unowned role", caller: "web-console", role: "code.default"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := service.ExecuteInferenceForCaller(context.Background(), "actor@example.test", tc.caller, InferenceRequest{
+				Role: tc.role, BusinessAccountID: "acct", Messages: []AIMessage{{Role: "user", Content: "safe synthetic request"}},
+				Metadata: AIMetadata{GatewayRootOperationID: strings.Repeat("c", 32), AppBundleKey: "caller-controlled"},
+			})
+			if !errors.Is(err, ErrBillingScopeUnavailable) {
+				t.Fatalf("ExecuteInferenceForCaller error = %v, want closed owner mismatch", err)
+			}
+		})
+	}
+}
+
+func TestExecuteInferenceForCallerRefusesRepeatedOperationBeforeProvider(t *testing.T) {
+	owners, err := monetization.EmbeddedCreditFeatureRegistry()
+	if err != nil {
+		t.Fatalf("EmbeddedCreditFeatureRegistry: %v", err)
+	}
+	usage := NewMockUsageService()
+	created := false
+	usage.ReserveBusinessAccountWithIDFn = func(_ context.Context, accountID, actor, tier, limitKey string, amount int64, operationID string) (string, bool, error) {
+		if created {
+			return "account-test-reservation-id", false, nil
+		}
+		created = true
+		return "account-test-reservation-id", true, nil
+	}
+	providerCalls := 0
+	provider := &MockOpenRouterClient{ChatFn: func(_ context.Context, request OpenRouterChatRequest) (*OpenRouterChatResponse, error) {
+		providerCalls++
+		return &OpenRouterChatResponse{ID: "synthetic", Model: request.Model, Content: "ok", Usage: OpenRouterUsage{PromptTokens: 2, CompletionTokens: 1}}, nil
+	}}
+	service := NewMeteredInferenceService(MeteredInferenceServiceOptions{UsageService: usage, AccountService: &MockAccountService{}, OpenRouterClient: provider, CreditFeatureOwners: owners})
+	req := InferenceRequest{Role: "author.generator", BusinessAccountID: "acct", Messages: []AIMessage{{Role: "user", Content: "synthetic"}}, Metadata: AIMetadata{GatewayRootOperationID: strings.Repeat("d", 32)}}
+	if _, err := service.ExecuteInferenceForCaller(context.Background(), "actor@example.test", "web-console", req); err != nil {
+		t.Fatalf("first operation: %v", err)
+	}
+	if _, err := service.ExecuteInferenceForCaller(context.Background(), "actor@example.test", "web-console", req); !errors.Is(err, ErrInferenceOperationReplay) {
+		t.Fatalf("replay error = %v, want %v", err, ErrInferenceOperationReplay)
+	}
+	if providerCalls != 1 {
+		t.Fatalf("provider calls = %d, want exactly one", providerCalls)
+	}
+}
+
+func TestExecuteInferenceForCallerRetainsAmbiguousProviderReservation(t *testing.T) {
+	owners, err := monetization.EmbeddedCreditFeatureRegistry()
+	if err != nil {
+		t.Fatalf("EmbeddedCreditFeatureRegistry: %v", err)
+	}
+	for _, tc := range []struct {
+		name               string
+		retainErr          error
+		providerErr        error
+		releaseErr         error
+		wantRetentionError bool
+		wantUncertain      bool
+		wantCleanupError   bool
+	}{
+		{name: "retained after timeout", providerErr: context.DeadlineExceeded, wantUncertain: true},
+		{name: "retention failure surfaced", providerErr: context.DeadlineExceeded, retainErr: errors.New("synthetic database unavailable"), wantRetentionError: true, wantUncertain: true},
+		{name: "explicit provider rejection releases", providerErr: errors.Join(ErrProvider, ErrProviderRequestRejected)},
+		{name: "release failure surfaced", providerErr: errors.Join(ErrProvider, ErrProviderRequestRejected), releaseErr: errors.New("synthetic database unavailable"), wantCleanupError: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			usage := NewMockUsageService()
+			cleanupContextIndependent := false
+			releaseContextIndependent := false
+			usage.RetainBusinessAccountFn = func(ctx context.Context, account, actor, reservation string) error {
+				cleanupContextIndependent = ctx.Err() == nil && account == "acct" && actor == "actor@example.test" && reservation == "account-test-reservation-id"
+				return tc.retainErr
+			}
+			usage.ReleaseBusinessAccountFn = func(ctx context.Context, _, _, _ string) error {
+				releaseContextIndependent = ctx.Err() == nil
+				return tc.releaseErr
+			}
+			providerCalls := 0
+			provider := &MockOpenRouterClient{ChatFn: func(context.Context, OpenRouterChatRequest) (*OpenRouterChatResponse, error) {
+				providerCalls++
+				return nil, tc.providerErr
+			}}
+			service := NewMeteredInferenceService(MeteredInferenceServiceOptions{UsageService: usage, AccountService: &MockAccountService{}, OpenRouterClient: provider, CreditFeatureOwners: owners})
+			_, err := service.ExecuteInferenceForCaller(context.Background(), "actor@example.test", "web-console", InferenceRequest{
+				Role: "author.generator", BusinessAccountID: "acct", Messages: []AIMessage{{Role: "user", Content: "synthetic ambiguous request"}},
+				Metadata: AIMetadata{GatewayRootOperationID: strings.Repeat("e", 32)},
+			})
+			if errors.Is(err, ErrInferenceOutcomeUncertain) != tc.wantUncertain || errors.Is(err, ErrProviderRequestRejected) != (tc.providerErr != nil && errors.Is(tc.providerErr, ErrProviderRequestRejected)) {
+				t.Fatalf("error=%v wantUncertain=%t providerRejected=%t", err, tc.wantUncertain, errors.Is(tc.providerErr, ErrProviderRequestRejected))
+			}
+			if errors.Is(err, ErrInferenceReservationRetentionFailed) != tc.wantRetentionError {
+				t.Fatalf("retention error classification=%v, want %v", errors.Is(err, ErrInferenceReservationRetentionFailed), tc.wantRetentionError)
+			}
+			if errors.Is(err, ErrInferenceReservationCleanupFailed) != tc.wantCleanupError {
+				t.Fatalf("cleanup error classification=%v, want %v", errors.Is(err, ErrInferenceReservationCleanupFailed), tc.wantCleanupError)
+			}
+			if providerCalls != 1 || (tc.wantUncertain && !cleanupContextIndependent) || (tc.providerErr != nil && errors.Is(tc.providerErr, ErrProviderRequestRejected) && !releaseContextIndependent) {
+				t.Fatalf("providerCalls=%d retainIndependent=%t releaseIndependent=%t", providerCalls, cleanupContextIndependent, releaseContextIndependent)
+			}
+			wantRetains, wantReleases := 0, 0
+			if tc.wantUncertain {
+				wantRetains = 1
+			} else {
+				wantReleases = 1
+			}
+			if len(usage.Calls["RetainUncertainBusinessAccountReservation"]) != wantRetains || len(usage.Calls["ReleaseBusinessAccountReservation"]) != wantReleases {
+				t.Fatalf("retain=%#v release=%#v", usage.Calls["RetainUncertainBusinessAccountReservation"], usage.Calls["ReleaseBusinessAccountReservation"])
+			}
+		})
+	}
+}
+
+func TestExecuteInferenceStreamRetainsAmbiguousReservationWithoutUsage(t *testing.T) {
+	owners, err := monetization.EmbeddedCreditFeatureRegistry()
+	if err != nil {
+		t.Fatalf("EmbeddedCreditFeatureRegistry: %v", err)
+	}
+	usage := NewMockUsageService()
+	cleanupIndependent := false
+	usage.RetainBusinessAccountFn = func(ctx context.Context, _, _, _ string) error {
+		cleanupIndependent = ctx.Err() == nil
+		return nil
+	}
+	providerCalls := 0
+	provider := &MockOpenRouterClient{ChatStreamEventsFn: func(context.Context, OpenRouterChatRequest, func(OpenRouterStreamEvent)) (*OpenRouterUsage, error) {
+		providerCalls++
+		return nil, context.Canceled
+	}}
+	service := NewMeteredInferenceService(MeteredInferenceServiceOptions{UsageService: usage, AccountService: &MockAccountService{}, OpenRouterClient: provider, CreditFeatureOwners: owners})
+	err = service.ExecuteInferenceStreamForCaller(context.Background(), "actor@example.test", "web-console", InferenceRequest{
+		Role: "author.generator", BusinessAccountID: "acct", Messages: []AIMessage{{Role: "user", Content: "synthetic stream"}},
+		Metadata: AIMetadata{GatewayRootOperationID: strings.Repeat("f", 32)},
+	}, NewMockFlusherResponseWriter())
+	if !errors.Is(err, ErrInferenceOutcomeUncertain) || providerCalls != 1 || !cleanupIndependent {
+		t.Fatalf("err=%v providerCalls=%d cleanupIndependent=%t", err, providerCalls, cleanupIndependent)
+	}
+	if len(usage.Calls["RetainUncertainBusinessAccountReservation"]) != 1 || len(usage.Calls["ReleaseBusinessAccountReservation"]) != 0 {
+		t.Fatalf("retain=%#v release=%#v", usage.Calls["RetainUncertainBusinessAccountReservation"], usage.Calls["ReleaseBusinessAccountReservation"])
+	}
+}
+
+func TestExecuteInferenceStreamSurfacesPartialSettlementAndRetentionFailure(t *testing.T) {
+	owners, err := monetization.EmbeddedCreditFeatureRegistry()
+	if err != nil {
+		t.Fatalf("EmbeddedCreditFeatureRegistry: %v", err)
+	}
+	usage := NewMockUsageService()
+	usage.FinalizeBusinessAccountFn = func(context.Context, string, string, string, int64) error {
+		return errors.New("synthetic settlement failure")
+	}
+	retentionContextIndependent := false
+	usage.RetainBusinessAccountFn = func(ctx context.Context, _, _, _ string) error {
+		retentionContextIndependent = ctx.Err() == nil
+		return errors.New("synthetic retention failure")
+	}
+	provider := &MockOpenRouterClient{ChatStreamEventsFn: func(context.Context, OpenRouterChatRequest, func(OpenRouterStreamEvent)) (*OpenRouterUsage, error) {
+		return &OpenRouterUsage{PromptTokens: 10, CompletionTokens: 2, TotalTokens: 12, UsageReported: true}, context.Canceled
+	}}
+	service := NewMeteredInferenceService(MeteredInferenceServiceOptions{UsageService: usage, AccountService: &MockAccountService{}, OpenRouterClient: provider, CreditFeatureOwners: owners})
+	err = service.ExecuteInferenceStreamForCaller(context.Background(), "actor@example.test", "web-console", InferenceRequest{
+		Role: "author.generator", BusinessAccountID: "acct", Messages: []AIMessage{{Role: "user", Content: "synthetic partial stream"}},
+		Metadata: AIMetadata{GatewayRootOperationID: strings.Repeat("a", 32)},
+	}, NewMockFlusherResponseWriter())
+	if !errors.Is(err, ErrInferenceOutcomeUncertain) || !errors.Is(err, ErrInferenceReservationRetentionFailed) || !retentionContextIndependent {
+		t.Fatalf("error=%v retentionContextIndependent=%t", err, retentionContextIndependent)
+	}
+	if len(usage.Calls["FinalizeBusinessAccountReservationWithCost"]) != 1 || len(usage.Calls["RetainUncertainBusinessAccountReservation"]) != 1 || len(usage.Calls["ReleaseBusinessAccountReservation"]) != 0 {
+		t.Fatalf("finalize=%#v retain=%#v release=%#v", usage.Calls["FinalizeBusinessAccountReservationWithCost"], usage.Calls["RetainUncertainBusinessAccountReservation"], usage.Calls["ReleaseBusinessAccountReservation"])
 	}
 }
 

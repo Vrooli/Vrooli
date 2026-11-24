@@ -491,11 +491,11 @@ func (s *UserAuthService) DeliveryHealth(ctx context.Context, window time.Durati
 	var lastError sql.NullString
 	err := s.db.QueryRowContext(ctx, `
 		SELECT
-			COUNT(*) FILTER (WHERE delivery_status = 'sent'),
-			COUNT(*) FILTER (WHERE delivery_status = 'failed'),
-			MAX(created_at) FILTER (WHERE delivery_status = 'failed'),
-			MAX(created_at) FILTER (WHERE delivery_status = 'sent'),
-			(SELECT delivery_error FROM auth_tokens WHERE token_type = $1 AND delivery_status = 'failed' ORDER BY created_at DESC LIMIT 1)
+			COUNT(*) FILTER (WHERE delivery_status IN ('sent','accepted') OR provider_status = 'delivered'),
+			COUNT(*) FILTER (WHERE delivery_status IN ('failed','rejected') OR provider_status IN ('bounce','dropped','spamreport') OR (provider_status = 'deferred' AND provider_status_at < NOW() - INTERVAL '15 minutes')),
+			MAX(COALESCE(provider_status_at, created_at)) FILTER (WHERE delivery_status IN ('failed','rejected') OR provider_status IN ('bounce','dropped','spamreport') OR (provider_status = 'deferred' AND provider_status_at < NOW() - INTERVAL '15 minutes')),
+			MAX(COALESCE(provider_status_at, created_at)) FILTER (WHERE delivery_status IN ('sent','accepted') OR provider_status = 'delivered'),
+			(SELECT COALESCE(NULLIF(delivery_error,''), NULLIF(provider_reason_class,''), provider_status) FROM auth_tokens WHERE token_type = $1 AND (delivery_status IN ('failed','rejected') OR provider_status IN ('bounce','dropped','spamreport') OR (provider_status = 'deferred' AND provider_status_at < NOW() - INTERVAL '15 minutes')) ORDER BY COALESCE(provider_status_at, created_at) DESC LIMIT 1)
 		FROM auth_tokens
 		WHERE token_type = $1 AND created_at > NOW() - ($2 * INTERVAL '1 second')
 	`, signInTokenType, int64(window/time.Second)).Scan(&health.Sent, &health.Failed, &lastFailure, &lastSuccess, &lastError)

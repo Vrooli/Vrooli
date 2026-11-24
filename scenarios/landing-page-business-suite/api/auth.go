@@ -1,9 +1,7 @@
 package main
 
 import (
-	"context"
 	"crypto/rand"
-	"crypto/subtle"
 	"database/sql"
 	"encoding/hex"
 	"errors"
@@ -21,6 +19,7 @@ import (
 	"landing-page-business-suite-api/internal/logx"
 	passkeyinternal "landing-page-business-suite-api/internal/passkeys"
 
+	"github.com/vrooli/api-core/lpbsidentity"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -177,23 +176,18 @@ func initSessionManager() SessionManager {
 // RotateSessionSecret overlaps verification: the old secret remains readable
 // for the session lifetime while only the new active secret signs cookies.
 func RotateSessionSecret() error {
-	authority, err := credentialauthority.Default()
-	if err != nil {
-		return fmt.Errorf("initialize credential authority: %w", err)
-	}
-	identity := credentialauthority.Identity("vrooli/landing-page-business-suite")
-	active, err := authority.Require(identity, "session-secret")
+	active, err := resolveAuthorityCredential("SESSION_SECRET")
 	if err != nil {
 		return fmt.Errorf("resolve active session secret: %w", err)
 	}
-	if err := authority.Put(identity, "session-secret-previous", active); err != nil {
+	if err := administration.PutAuthorityCredential("SESSION_SECRET_PREVIOUS", active); err != nil {
 		return fmt.Errorf("retain previous session secret: %w", err)
 	}
 	newSecret, err := credentialauthority.RandomBase64(32)
 	if err != nil {
 		return err
 	}
-	if err := authority.Put(identity, "session-secret", newSecret); err != nil {
+	if err := administration.PutAuthorityCredential("SESSION_SECRET", newSecret); err != nil {
 		return fmt.Errorf("store rotated session secret: %w", err)
 	}
 	return nil
@@ -287,40 +281,15 @@ func (s *Server) adminAuth() *administration.AdminAuthService {
 	return administration.NewAdminAuthService(s.db)
 }
 
-// requireAdminOrService accepts either a normal admin session or the
-// server-to-server service principal. The credential is resolved from the
-// credential authority and compared in constant time; it is never logged.
-func (s *Server) requireAdminOrService(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if header := strings.TrimSpace(r.Header.Get("Authorization")); header != "" {
-			const prefix = "Bearer "
-			if !strings.HasPrefix(header, prefix) {
-				writeJSONError(w, http.StatusUnauthorized, "Invalid service authorization.", ApiErrorTypeUnauthorized)
-				return
-			}
-			provided := strings.TrimSpace(extractBearerToken(r))
-			expected, err := resolveAuthorityCredential("LPBS_" + "SERVICE_SECRET")
-			if err == nil && provided != "" && len(provided) == len(expected) && subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) == 1 {
-				next(w, r.WithContext(context.WithValue(r.Context(), servicePrincipalContextKey, "lpbs-service")))
-				return
-			}
-		}
-		// A service credential is optional. Preserve the existing session path
-		// when it is absent or invalid so browser admins can still authenticate.
-		s.requireAdmin(next)(w, r)
-	}
-}
-
 // requireMetricsReader accepts an admin session, a narrowly scoped LPBS reader
-// token, or the server-to-server service principal. The latter is used only
-// by the local remote-profile relay for deployment-owned read projections.
+// token. Machine readers must present the Command Center analytics role.
 func (s *Server) requireMetricsReader(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if s.verifiedLPBSRoleExact(r, lpbsidentity.CommandCenterAnalytics, "command-center") {
+			next(w, r)
+			return
+		}
 		if token := strings.TrimSpace(extractBearerToken(r)); token != "" {
-			if expected, err := resolveAuthorityCredential("LPBS_" + "SERVICE_SECRET"); err == nil && len(token) == len(expected) && subtle.ConstantTimeCompare([]byte(token), []byte(expected)) == 1 {
-				next(w, r)
-				return
-			}
 			if s.readerTokens == nil || s.readerTokens.Authenticate(r.Context(), token, administration.ScopeMetricsRead) != nil {
 				writeJSONError(w, http.StatusUnauthorized, "reader_token_rejected", ApiErrorTypeUnauthorized)
 				return
@@ -406,15 +375,11 @@ func adminStepUpMaxAge() time.Duration {
 	return d
 }
 
-// requireAdminStepUp protects high-impact administrator operations. A service
-// principal already has an independently scoped machine credential and is
-// allowed through without a browser reauthentication proof.
+// requireAdminStepUp protects high-impact administrator operations. Machine
+// principals must use a capability-specific route guard and cannot bypass the
+// administrator's recent reauthentication proof.
 func (s *Server) requireAdminStepUp(next http.HandlerFunc) http.HandlerFunc {
-	return s.requireAdminOrService(func(w http.ResponseWriter, r *http.Request) {
-		if principal, _ := r.Context().Value(servicePrincipalContextKey).(string); principal != "" {
-			next(w, r)
-			return
-		}
+	return func(w http.ResponseWriter, r *http.Request) {
 		session, err := s.sessionManager.GetSession(r, "admin_session")
 		if err != nil || session == nil {
 			writeJSONError(w, http.StatusUnauthorized, "Session expired. Please log in again.", ApiErrorTypeUnauthorized)
@@ -433,7 +398,7 @@ func (s *Server) requireAdminStepUp(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		next(w, r)
-	})
+	}
 }
 
 // requireAdminProfile keeps profile reads available to the authenticated

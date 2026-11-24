@@ -7,6 +7,7 @@ import { PresentationEditorRoute } from './PresentationEditorRoute';
 import { presentationSystemUi } from '../../public-landing/presentation/systemUi';
 import { updateMetaTags } from '../../../shared/lib/seo';
 import { rememberVariantSession } from '../../../shared/lib/adminExperience';
+import { LocalFilmStage } from './LocalFilmStage';
 
 /** BrowserRouter-compatible guard scoped to this editor, not global history patches. */
 function DirtyNavigation({ dirty, children }: { dirty: boolean; children: ReactNode }) {
@@ -44,11 +45,12 @@ function DirtyNavigation({ dirty, children }: { dirty: boolean; children: ReactN
 
 export function PresentationAdminPage() {
   const [dirty, setDirty] = useState(false);
+  const [localFilmStage, setLocalFilmStage] = useState(() => new URLSearchParams(window.location.search).get('local-film-stage') === '1');
   useEffect(() => { updateMetaTags({ title: 'Presentation editor', noindex: true }); document.querySelector('link[rel="canonical"]')?.remove(); }, []);
-  return <DirtyNavigation dirty={dirty}><EditorSelection onDirtyChange={setDirty} dirty={dirty} /></DirtyNavigation>;
+  return <DirtyNavigation dirty={dirty}><EditorSelection onDirtyChange={setDirty} dirty={dirty} localFilmStage={localFilmStage} onLocalFilmStageChange={setLocalFilmStage} /></DirtyNavigation>;
 }
 
-function EditorSelection({ onDirtyChange, dirty }: { onDirtyChange: (dirty: boolean) => void; dirty: boolean }) {
+function EditorSelection({ onDirtyChange, dirty, localFilmStage, onLocalFilmStageChange }: { onDirtyChange: (dirty: boolean) => void; dirty: boolean; localFilmStage: boolean; onLocalFilmStageChange: (show: boolean) => void }) {
   const { variantSlug } = useParams();
   const navigate = useNavigate();
   const linkBase = useHref('/');
@@ -67,6 +69,7 @@ function EditorSelection({ onDirtyChange, dirty }: { onDirtyChange: (dirty: bool
     }
   }, [selected, variantSlug]);
   return <AdminLayout maxWidth="full" beforeLogout={() => { const leave = !dirty || window.confirm(presentationSystemUi.leave); if (leave) onDirtyChange(false); return leave; }}>
+    {selected && variantSlug && localFilmStage && <div className="mb-6"><LocalFilmStage variantSlug={variantSlug} /></div>}
     <section className="mb-6 space-y-2" aria-label="Presentation variant selection">
       <label htmlFor="presentation-variant">Presentation variant</label>
       <select id="presentation-variant" className="block max-w-full rounded border border-white/20 bg-slate-900 px-3 py-2" value={selected ? variantSlug : ''} disabled={!variants} onChange={event => { navigate(event.target.value ? `/admin/presentation/${encodeURIComponent(event.target.value)}` : '/admin/presentation'); }}>
@@ -74,6 +77,7 @@ function EditorSelection({ onDirtyChange, dirty }: { onDirtyChange: (dirty: bool
         {variants?.map(variant => <option key={variant.slug} value={variant.slug}>{variant.name || variant.slug}</option>)}
       </select>
       {error ? <p role="alert">Variants could not be loaded. Reload to try again.</p> : !variants ? <p role="status">Loading variants…</p> : variantSlug && !selected ? <p role="alert">The selected variant is unavailable.</p> : null}
+      {selected && <button type="button" className="rounded border border-cyan-200/30 px-3 py-2 text-sm hover:bg-white/10" onClick={() => onLocalFilmStageChange(!localFilmStage)}>{localFilmStage ? 'Hide local film stage' : 'Open private local film stage'}</button>}
     </section>
     {selected && variantSlug && <PresentationEditorRoute key={variantSlug} variantSlug={variantSlug} onDirtyChange={onDirtyChange} linkBase={linkBase} />}
   </AdminLayout>;

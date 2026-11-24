@@ -17,6 +17,30 @@
       "resource": "money-ledger",
       "audience": "scenario-authenticator:money-ledger",
       "scopes": ["money-ledger:write"]
+    },
+    {
+      "name": "landing-page-business-suite-browser-evidence-attester",
+      "resource": "agent-manager",
+      "audience": "scenario-authenticator:agent-manager",
+      "scopes": ["agent-manager:browser-evidence.attest"]
+    },
+    {
+      "name": "agent-manager-browser-session-settler",
+      "resource": "landing-page-business-suite",
+      "audience": "scenario-authenticator:landing-page-business-suite",
+      "scopes": ["lpbs:browser-session.settle-and-receipt"]
+    },
+    {
+      "name": "landing-page-business-suite-bridge-dispatch",
+      "resource": "vrooli-bridge",
+      "audience": "scenario-authenticator:vrooli-bridge-dispatch",
+      "scopes": ["vrooli-bridge:dispatch"]
+    },
+    {
+      "name": "landing-page-business-suite-lpbs-admin-recovery",
+      "resource": "landing-page-business-suite",
+      "audience": "scenario-authenticator:landing-page-business-suite",
+      "scopes": ["lpbs:admin-recovery.reset"]
     }
   ]
 }

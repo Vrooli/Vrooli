@@ -54,7 +54,11 @@ func validateRemoteProfileEnvironment(raw string) string {
 }
 
 func isRemoteProfileProductionEnvironment() bool {
-	return validateRemoteProfileEnvironment(envx.Get("LPBS_ENVIRONMENT")) == "production"
+	environment := strings.TrimSpace(envx.Get("VROOLI_ENVIRONMENT"))
+	if environment == "" {
+		environment = envx.Get("LPBS_ENVIRONMENT")
+	}
+	return validateRemoteProfileEnvironment(environment) == "production"
 }
 
 func validateRemoteProfileURL(raw string) (string, error) {

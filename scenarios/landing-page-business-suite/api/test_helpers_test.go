@@ -91,6 +91,30 @@ func configuredTestDatabaseURL() (string, bool) {
 	return dbURL, dbURL != ""
 }
 
+func seedBusinessAccountCreditEmail(t *testing.T, db *sql.DB, accountID, email string) {
+	t.Helper()
+	if _, err := db.Exec(`INSERT INTO business_account_credit_wallets (business_account_id, customer_email, balance_credits, bonus_credits) VALUES ($1, $2, 0, 0) ON CONFLICT (business_account_id) DO UPDATE SET customer_email = EXCLUDED.customer_email`, accountID, email); err != nil {
+		t.Fatalf("seed business-account credit wallet: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO business_account_credit_transactions (business_account_id, customer_email, amount_credits, transaction_type, source) VALUES ($1, $2, 17, 'email_migration_probe', 'fixture')`, accountID, email); err != nil {
+		t.Fatalf("seed business-account credit transaction: %v", err)
+	}
+}
+
+func assertBusinessAccountCreditEmail(t *testing.T, db *sql.DB, accountID, email string) {
+	t.Helper()
+	var walletEmail, transactionEmail string
+	if err := db.QueryRow(`SELECT customer_email FROM business_account_credit_wallets WHERE business_account_id = $1`, accountID).Scan(&walletEmail); err != nil {
+		t.Fatalf("read business-account wallet email: %v", err)
+	}
+	if err := db.QueryRow(`SELECT customer_email FROM business_account_credit_transactions WHERE business_account_id = $1 AND transaction_type = 'email_migration_probe'`, accountID).Scan(&transactionEmail); err != nil {
+		t.Fatalf("read business-account transaction email: %v", err)
+	}
+	if walletEmail != email || transactionEmail != email {
+		t.Fatalf("business-account email attribution = wallet:%q transaction:%q, want %q", walletEmail, transactionEmail, email)
+	}
+}
+
 func openAndPrepareTestDatabase(dbURL string) (*sql.DB, error) {
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {

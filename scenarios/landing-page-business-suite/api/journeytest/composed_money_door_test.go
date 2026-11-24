@@ -132,7 +132,7 @@ func TestJ17_ComposedMoneyDoorReceipt(t *testing.T) {
 	if err := s.db.QueryRow(`SELECT COUNT(*) FROM funding_ledger_outbox`).Scan(&ledger); err != nil {
 		t.Fatal(err)
 	}
-	if status != "finalized" || account != "account" || actor != "actor" || app != "journey" || measured != 200 || charged != 200 || overrun != 0 || allocated != 200 || usage != 200 || eventCredits != 200 || eventRows != 1 || remaining != 9800 || ledger != 0 {
+	if status != "finalized" || account != "account" || actor != "actor" || app != "web-console" || measured != 200 || charged != 200 || overrun != 0 || allocated != 200 || usage != 200 || eventCredits != 200 || eventRows != 1 || remaining != 9800 || ledger != 0 {
 		t.Fatalf("door receipt status=%s account=%s actor=%s app=%s measured=%d charged=%d overrun=%d allocation=%d usage=%d event=%d/%d remaining=%d ledger=%d", status, account, actor, app, measured, charged, overrun, allocated, usage, eventCredits, eventRows, remaining, ledger)
 	}
 }

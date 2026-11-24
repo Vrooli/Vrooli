@@ -24,9 +24,17 @@ import (
 // the LPBS catalog. The live reader is injected at the composition root so
 // the provider never invents a second catalog authority.
 type Handler struct {
-	catalog   catalogReader
-	bundleKey func() string
+	catalog              catalogReader
+	bundleKey            func() string
+	outcomeRunner        StripeOutcomeRunner
+	healthRunner         CL3HealthRunner
+	credentialLeakRunner CredentialLeakRunner
 }
+
+// StripeOutcomeRunner is the owner-side execution seam for the Stripe test
+// outcome phase. The phase is separate from static monetization conformance:
+// it must return provider evidence and may never infer behavior from source.
+type StripeOutcomeRunner func(context.Context) (*StripeOutcomeReport, error)
 
 type catalogReader interface {
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
@@ -62,12 +70,51 @@ type reservation struct {
 	ReleasePath string `json:"release_path"`
 }
 
-func RegisterRoutes(router *mux.Router, catalog catalogReader, bundleKey func() string) {
-	path, handler := scenariovalidationconnect.NewScenarioValidationServiceHandler(Handler{catalog: catalog, bundleKey: bundleKey})
+func RegisterRoutes(router *mux.Router, catalog catalogReader, bundleKey func() string, outcomeRunner StripeOutcomeRunner, healthRunner CL3HealthRunner, leakRunner ...CredentialLeakRunner) {
+	handlerValue := Handler{catalog: catalog, bundleKey: bundleKey, outcomeRunner: outcomeRunner, healthRunner: healthRunner}
+	if len(leakRunner) > 0 {
+		handlerValue.credentialLeakRunner = leakRunner[0]
+	}
+	path, handler := scenariovalidationconnect.NewScenarioValidationServiceHandler(handlerValue)
 	connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: handler})
 }
 
 func (h Handler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+	if req.Msg.GetPhase() == credentialLeakPhase {
+		if req.Msg.GetScenario() != "landing-page-business-suite" {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%s only applies to landing-page-business-suite", credentialLeakPhase))
+		}
+		if !req.Msg.GetIncludeExecution() {
+			return connect.NewResponse(credentialLeakPhaseResponse(&CredentialLeakReport{Status: "not_evaluated", LocalContracts: "not_run", TestGenArtifacts: "unverified", NegativeControl: "not_run", Limitations: []string{"This phase requires execution; it never resolves real credentials."}})), nil
+		}
+		if h.credentialLeakRunner == nil {
+			return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("credential leak proof runner is unavailable"))
+		}
+		report, err := h.credentialLeakRunner(ctx, req.Msg.GetPath())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("credential leak proof phase failed"))
+		}
+		return connect.NewResponse(credentialLeakPhaseResponse(report)), nil
+	}
+	if req.Msg.GetPhase() == "stripe-test-outcomes" {
+		return h.validateStripeOutcomes(ctx, req)
+	}
+	if req.Msg.GetPhase() == cl3HealthPhase {
+		if req.Msg.GetScenario() != "scenario-to-cloud" {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%s only applies to scenario-to-cloud", cl3HealthPhase))
+		}
+		if !req.Msg.GetIncludeExecution() {
+			return connect.NewResponse(cl3HealthResponse(req.Msg.GetScenario(), &CL3HealthReport{Status: "not_evaluated", LocalContracts: "not_run", StagingShowcase: "unverified", ProductionShowcase: "unverified", Limitations: []string{"This phase requires execution; local contracts and remote showcase receipts are evaluated separately."}})), nil
+		}
+		if h.healthRunner == nil {
+			return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("CL3 health phase runner is unavailable"))
+		}
+		report, err := h.healthRunner(ctx, req.Msg.GetPath())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("CL3 health phase failed: %w", err))
+		}
+		return connect.NewResponse(cl3HealthResponse(req.Msg.GetScenario(), report)), nil
+	}
 	path := req.Msg.GetPath()
 	if path == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("scenario path is required"))
@@ -112,11 +159,29 @@ func (h Handler) ValidateTarget(ctx context.Context, req *connect.Request[scenar
 	return connect.NewResponse(&scenariovalidationv1.ValidateTargetResponse{Target: req.Msg.GetTarget(), Status: status, Assessment: assessment, NativeDetail: native, FailureClassification: failureClass(status)}), nil
 }
 
-func (Handler) DescribeProvider(context.Context, *connect.Request[scenariovalidationv1.DescribeProviderRequest]) (*connect.Response[scenariovalidationv1.DescribeProviderResponse], error) {
-	return connect.NewResponse(&scenariovalidationv1.DescribeProviderResponse{
-		Provider: "landing-page-business-suite", Phase: "monetization-conformance", SpecVersion: "1.3.0", Contract: "scenario-validation/v1",
-		Capabilities: &scenariovalidationv1.ProviderCapabilities{DeliveryMode: "inline", SupportsExecution: false, SupportsFixes: false, TargetKinds: []commonv1.ValidationTargetKind{commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO}},
-	}), nil
+func (Handler) DescribeProvider(_ context.Context, req *connect.Request[scenariovalidationv1.DescribeProviderRequest]) (*connect.Response[scenariovalidationv1.DescribeProviderResponse], error) {
+	phase := strings.TrimSpace(req.Msg.GetPhase())
+	response := &scenariovalidationv1.DescribeProviderResponse{
+		Provider: "landing-page-business-suite", Phase: phase, Contract: "scenario-validation/v1",
+		Capabilities: &scenariovalidationv1.ProviderCapabilities{DeliveryMode: "inline", SupportsFixes: false, TargetKinds: []commonv1.ValidationTargetKind{commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO}},
+	}
+	switch phase {
+	case "monetization-conformance":
+		response.SpecVersion = "1.3.0"
+		response.Capabilities.SupportsExecution = false
+	case "stripe-test-outcomes":
+		response.SpecVersion = "0.1.1"
+		response.Capabilities.SupportsExecution = true
+	case cl3HealthPhase:
+		response.SpecVersion = "0.1.0"
+		response.Capabilities.SupportsExecution = true
+	case credentialLeakPhase:
+		response.SpecVersion = "0.1.0"
+		response.Capabilities.SupportsExecution = true
+	default:
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported LPBS validation phase %q", phase))
+	}
+	return connect.NewResponse(response), nil
 }
 
 func (Handler) PreviewFix(context.Context, *connect.Request[scenariovalidationv1.FixRequest]) (*connect.Response[scenariovalidationv1.FixResponse], error) {
@@ -637,6 +702,10 @@ func finding(code, title, location, remediation string) *commonv1.AssessmentFind
 }
 
 func buildAssessment(scenario string, findings []*commonv1.AssessmentFinding) *commonv1.MaturityAssessment {
+	return buildAssessmentIdentity(scenario, "monetization-conformance", "1.1.0", findings)
+}
+
+func buildAssessmentIdentity(scenario, phase, version string, findings []*commonv1.AssessmentFinding) *commonv1.MaturityAssessment {
 	blocking := make([]string, 0, len(findings))
 	findingsBySeverity := make(map[string]int32)
 	for _, f := range findings {
@@ -649,7 +718,7 @@ func buildAssessment(scenario string, findings []*commonv1.AssessmentFinding) *c
 	if len(findings) > 0 {
 		level = "L1"
 	}
-	return &commonv1.MaturityAssessment{Scenario: scenario, Provider: "landing-page-business-suite", Phase: "monetization-conformance", Version: "1.1.0", Findings: findings, FindingsBySeverity: findingsBySeverity, Local: &commonv1.LocalMaturityAssessment{CurrentLevel: level, NextLevel: "L4", BlockingFindingCodes: blocking, Clean: len(findings) == 0}}
+	return &commonv1.MaturityAssessment{Scenario: scenario, Provider: "landing-page-business-suite", Phase: phase, Version: version, Findings: findings, FindingsBySeverity: findingsBySeverity, Local: &commonv1.LocalMaturityAssessment{CurrentLevel: level, NextLevel: "L4", BlockingFindingCodes: blocking, Clean: len(findings) == 0}}
 }
 
 func failureClass(status scenariovalidationv1.ValidationStatus) string {

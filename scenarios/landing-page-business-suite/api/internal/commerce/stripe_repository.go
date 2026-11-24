@@ -20,6 +20,7 @@ type StripeStore interface {
 	QueryRow(string, ...any) *sql.Row
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 	Exec(string, ...any) (sql.Result, error)
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
 	Begin() (*sql.Tx, error)
 	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
 }
@@ -116,8 +117,12 @@ func (r *StripeRepository) GetSubscriptionByUser(userIdentity string) (*Subscrip
 
 // UpsertSubscription inserts or updates a subscription record.
 func (r *StripeRepository) UpsertSubscription(rec *SubscriptionRecord) error {
+	return r.UpsertSubscriptionContext(context.Background(), rec)
+}
+
+func (r *StripeRepository) UpsertSubscriptionContext(ctx context.Context, rec *SubscriptionRecord) error {
 	if rec.BusinessAccountID != "" {
-		_, err := r.db.Exec(`
+		_, err := r.db.ExecContext(ctx, `
 			INSERT INTO subscriptions (subscription_id, customer_id, customer_email, business_account_id, status, plan_tier, price_id, bundle_key, billing_cycle_start, canceled_at, created_at, updated_at)
 			VALUES ($1::varchar,$2::varchar,$3::varchar,$4::varchar,$5::varchar,$6::varchar,$7::varchar,$8::varchar,$9::int,$10::timestamp,COALESCE((SELECT created_at FROM subscriptions WHERE subscription_id = $1::varchar), NOW()), NOW())
 			ON CONFLICT (subscription_id) DO UPDATE SET
@@ -135,7 +140,7 @@ func (r *StripeRepository) UpsertSubscription(rec *SubscriptionRecord) error {
 			nullString(rec.PlanTier), nullString(rec.PriceID), nullString(rec.BundleKey), rec.BillingCycleStart, rec.CanceledAt)
 		return err
 	}
-	_, err := r.db.Exec(`
+	_, err := r.db.ExecContext(ctx, `
 		INSERT INTO subscriptions (subscription_id, customer_id, customer_email, status, plan_tier, price_id, bundle_key, billing_cycle_start, canceled_at, created_at, updated_at)
 		VALUES ($1::varchar,$2::varchar,$3::varchar,$4::varchar,$5::varchar,$6::varchar,$7::varchar,$8::int,$9::timestamp,COALESCE((SELECT created_at FROM subscriptions WHERE subscription_id = $1::varchar), NOW()), NOW())
 		ON CONFLICT (subscription_id) DO UPDATE SET

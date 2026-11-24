@@ -37,7 +37,7 @@ func TestSensitiveAdminRouteInventoryUsesStepUp(t *testing.T) {
 		"RegisterProfileConnectRoutes(s.router, profileDeps, s.requireAdminProfile)",
 		"/api/v1/admin/mfa/disable", "s.requireAdminStepUp(adminhttp.DisableAdminMFA",
 		"/api/v1/admin/mfa/recovery-codes", "s.requireAdminStepUp(adminhttp.RegenerateAdminRecoveryCodes",
-		"/api/v1/admin/admin-credentials/reset", "s.requireAdminOrService(adminhttp.ResetAdminCredential",
+		"/api/v1/admin/admin-credentials/reset", "s.requireAdminRecovery(adminhttp.ResetAdminCredential",
 		"wrapped := s.requireAdminStepUp(http.HandlerFunc(handler.ServeHTTP))",
 	}
 	for _, fragment := range required {

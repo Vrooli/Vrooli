@@ -719,12 +719,33 @@ func TestPlanService_CreateBundlePricePersistsAppOfferScope(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create app offer: %v", err)
 	}
+	if plan.AmountCents != 1000 || plan.Currency != "usd" || BillingIntervalLabel(plan.BillingInterval) != "month" {
+		t.Fatalf("test Audio-only offer price = %d %s / %s; want 1000 usd / month", plan.AmountCents, plan.Currency, BillingIntervalLabel(plan.BillingInterval))
+	}
 	declarations, declared, err := parseAppEntitlementDeclarations(plan.Metadata)
 	if err != nil || !declared {
 		t.Fatalf("created offer app scope declared=%v err=%v metadata=%v", declared, err, plan.Metadata)
 	}
 	if got := declarations["audio-tools"]; len(got.features) != 1 || got.features[0] != "audio:export" || len(got.limits) != 1 || got.limits[0].Value != 100 {
 		t.Fatalf("created offer scope = %#v", got)
+	}
+	if len(declarations) != 1 {
+		t.Fatalf("Audio-only offer grants %d apps, want exactly audio-tools: %#v", len(declarations), declarations)
+	}
+
+	// A second app can use the same shared plan model with a disjoint scope.
+	webPlan, err := service.CreateBundlePrice(context.Background(), bundle.BundleKey, CreateBundlePriceInput{
+		StripePriceID: "price_web_monthly", PlanName: "Web Console", PlanTier: "pro", BillingInterval: "month",
+		AppEntitlements: map[string]AppEntitlementPlanSpec{"web-console": {Features: []string{"web:workspace"}}},
+	}, func(ctx context.Context, priceID string) (*StripePriceImport, error) {
+		return &StripePriceImport{PriceID: priceID, LookupKey: "web_monthly", Currency: "usd", AmountCents: 1000, Interval: "month", ProductID: bundle.StripeProductID, ProductName: "Web Console", Active: true}, nil
+	})
+	if err != nil {
+		t.Fatalf("create second app offer through shared model: %v", err)
+	}
+	webDeclarations, declared, err := parseAppEntitlementDeclarations(webPlan.Metadata)
+	if err != nil || !declared || len(webDeclarations) != 1 || len(webDeclarations["web-console"].features) != 1 || webDeclarations["web-console"].features[0] != "web:workspace" {
+		t.Fatalf("second app scope declared=%v err=%v metadata=%v", declared, err, webPlan.Metadata)
 	}
 }
 

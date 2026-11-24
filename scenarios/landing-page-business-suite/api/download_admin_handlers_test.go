@@ -548,7 +548,7 @@ func TestBuildDownloadApp_Success_Full(t *testing.T) {
 		InstallSteps:    []string{"Step 1", "Step 2", ""},
 		DisplayOrder:    &displayOrder,
 		Storefronts: []DownloadStorefront{
-			{Store: "app_store", Label: "App Store", URL: "https://appstore.com/app"},
+			{Store: "app_store", Label: "App Store", URL: "https://apps.apple.com/app/id123456789"},
 		},
 		Metadata: map[string]interface{}{"version": "1.0"},
 		Platforms: []downloadAssetRequest{

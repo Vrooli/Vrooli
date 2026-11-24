@@ -97,6 +97,10 @@ func TestLandingConfigProtoTypedPresentationSanitizesDeliveryOwner(t *testing.T)
 		Downloads: []delivery.App{{
 			ID: 9, BundleKey: "business-suite", AppKey: "web-console", Name: "owner-private name",
 			InstallSteps: []string{"/srv/private/install.sh"}, UpdateAPIKey: "secret-update-key",
+			Storefronts: []delivery.Storefront{
+				{Store: "play_store", Label: " Google Play ", URL: " https://play.google.com/store/apps/details?id=org.vrooli.aquila "},
+				{Store: "app_store", Label: "Fake Apple", URL: "https://apps.apple.com.evil.test/us/app/aquila/id123"},
+			},
 			Metadata: map[string]interface{}{"web_url": "/apps/aquila", "secret": "BAS prose"},
 			Platforms: []delivery.Asset{{
 				ID: 11, BundleKey: "business-suite", AppKey: "web-console", Platform: "linux",
@@ -117,6 +121,11 @@ func TestLandingConfigProtoTypedPresentationSanitizesDeliveryOwner(t *testing.T)
 	}
 	if app.GetMetadata().GetFields()["web_url"].GetStringValue() != "/apps/aquila" || len(app.GetMetadata().GetFields()) != 1 {
 		t.Fatalf("typed delivery web launch projection = %+v", app.GetMetadata())
+	}
+	if len(app.GetStorefronts()) != 1 || app.GetStorefronts()[0].GetStore() != "play_store" ||
+		app.GetStorefronts()[0].GetLabel() != "Google Play" ||
+		app.GetStorefronts()[0].GetUrl() != "https://play.google.com/store/apps/details?id=org.vrooli.aquila" {
+		t.Fatalf("typed delivery storefront projection = %+v", app.GetStorefronts())
 	}
 	asset := app.GetPlatforms()[0]
 	if asset.GetId() != 11 || asset.GetArtifactId() != artifactID || asset.GetPlatform() != "linux" || asset.GetReleaseVersion() != "1.2.3" || asset.GetChecksum() != "sha256:abc" || !asset.GetRequiresEntitlement() {

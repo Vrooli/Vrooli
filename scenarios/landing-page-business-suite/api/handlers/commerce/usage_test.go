@@ -56,6 +56,70 @@ func TestUsageSummaryRequiresAuthenticatedIdentity(t *testing.T) {
 	}
 }
 
+func TestBrowserSessionReceiptRequiresAccountMembershipAndReturnsJointReceipt(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	_, err = db.Exec(`CREATE TABLE business_account_credit_reservations (id TEXT PRIMARY KEY,business_account_id TEXT NOT NULL,status TEXT NOT NULL,provider TEXT NOT NULL,model TEXT NOT NULL,cost_micros INTEGER NOT NULL,prompt_tokens INTEGER NOT NULL,completion_tokens INTEGER NOT NULL,charged_amount INTEGER NOT NULL,browser_session_minutes INTEGER NOT NULL,browser_actions INTEGER NOT NULL,browser_bytes INTEGER NOT NULL,settled_at DATETIME,browser_session_id TEXT NOT NULL)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`CREATE TABLE business_account_browser_gateway_receipts (reservation_id TEXT NOT NULL,gateway_root_operation_id TEXT NOT NULL,business_account_id TEXT NOT NULL,provider TEXT NOT NULL,model TEXT NOT NULL,credits INTEGER NOT NULL,cost_micros INTEGER NOT NULL,prompt_tokens INTEGER NOT NULL,completion_tokens INTEGER NOT NULL,state TEXT NOT NULL)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`INSERT INTO business_account_credit_reservations (id,business_account_id,status,provider,model,cost_micros,prompt_tokens,completion_tokens,charged_amount,browser_session_minutes,browser_actions,browser_bytes,settled_at,browser_session_id) VALUES ('receipt-1','acct-owner','settled','ai-gateway-session','multiple',900,12,5,7,3,8,4096,'2026-11-21T10:11:12Z','opaque-session')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = db.Exec(`INSERT INTO business_account_browser_gateway_receipts (reservation_id,gateway_root_operation_id,business_account_id,provider,model,credits,cost_micros,prompt_tokens,completion_tokens,state) VALUES ('receipt-1','root-op-1','acct-owner','hosted-provider','hosted-model',7,900,12,5,'settled')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := commerce.NewUsageServiceWithOptions(commerce.UsageServiceOptions{DB: db, Dialect: "sqlite"})
+	deps, status, message := usageTestDependencies(t, "customer@example.com")
+	deps.UserID = func(context.Context) string { return "user-1" }
+	deps.ResolveBusinessAccount = func(_ context.Context, userID, email, requested string) (string, error) {
+		if userID != "user-1" || email != "customer@example.com" || requested != "acct-owner" {
+			return "", errors.New("membership denied")
+		}
+		return "acct-owner", nil
+	}
+	deps.WriteError = func(w http.ResponseWriter, gotStatus int, gotMessage, _ string) {
+		*status, *message = gotStatus, gotMessage
+		http.Error(w, gotMessage, gotStatus)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/usage/business-accounts/receipt-1/browser-receipt?business_account_id=acct-owner", nil)
+	req = mux.SetURLVars(req, map[string]string{"reservationID": "receipt-1"})
+	response := httptest.NewRecorder()
+	GetBusinessAccountBrowserSessionReceipt(service, deps).ServeHTTP(response, req)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	var got commerce.BrowserSessionReceipt
+	if err := json.NewDecoder(response.Body).Decode(&got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != "settled" || got.Provider != "ai-gateway-session" || got.Model != "multiple" || got.PromptTokens != 12 || got.CompletionTokens != 5 || got.SessionMinutes != 3 || got.Actions != 8 || got.Bytes != 4096 {
+		t.Fatalf("customer receipt missing joint usage fields: %+v", got)
+	}
+	if len(got.InferenceOperations) != 1 || got.InferenceOperations[0].Provider != "hosted-provider" || got.InferenceOperations[0].Model != "hosted-model" {
+		t.Fatalf("customer receipt missing per-operation route identity: %+v", got.InferenceOperations)
+	}
+
+	deps.ResolveBusinessAccount = func(context.Context, string, string, string) (string, error) {
+		return "", errors.New("membership denied")
+	}
+	denied := httptest.NewRecorder()
+	GetBusinessAccountBrowserSessionReceipt(service, deps).ServeHTTP(denied, req)
+	if *status != http.StatusForbidden || denied.Code != http.StatusForbidden {
+		t.Fatalf("foreign account status=%d response=%d", *status, denied.Code)
+	}
+}
+
 func TestCheckLimitValidatesLimitKeyBeforeService(t *testing.T) {
 	deps, status, message := usageTestDependencies(t, "customer@example.com")
 	CheckLimit(nil, deps).ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/usage/check", nil))
@@ -266,7 +330,7 @@ func TestDirectUsageAdmissionHasNoCallerBillingAuthority(t *testing.T) {
 	if err := db.QueryRow(`SELECT user_identity,usage_amount,app_bundle_key FROM usage_records`).Scan(&subject, &amount, &app); err != nil {
 		t.Fatal(err)
 	}
-	if subject != "owner@example.test" || amount != 3 || app.Valid {
+	if subject != "owner@example.test" || amount != 3 || !app.Valid || app.String != "" {
 		t.Fatalf("subject=%s amount=%d app=%v", subject, amount, app)
 	}
 	// BYOK retains a zero-amount global count observation and its metadata.
@@ -286,7 +350,7 @@ func TestDirectUsageAdmissionHasNoCallerBillingAuthority(t *testing.T) {
 	if err := db.QueryRow(`SELECT usage_amount,app_bundle_key FROM usage_records WHERE user_identity='byok@example.test'`).Scan(&amount, &app); err != nil {
 		t.Fatal(err)
 	}
-	if amount != 0 || app.Valid {
+	if amount != 0 || !app.Valid || app.String != "" {
 		t.Fatalf("BYOK amount=%d app=%v", amount, app)
 	}
 	// The service boundary independently denies a forged cost request.

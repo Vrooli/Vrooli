@@ -1,0 +1,234 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "landing-page-business-suite",
+  "phase": "stripe-test-outcomes",
+  "displayName": "Stripe Test Outcomes",
+  "description": "Reconciles the LPBS test-mode catalog against Stripe and executes payment outcome journeys with durable provider evidence.",
+  "source": "validation-provider",
+  "orderHint": 20,
+  "timeout": "1800s",
+  "findingSource": "business",
+  "validation": {
+    "contract": "scenario-validation/v1",
+    "execution": true,
+    "detailCommand": "test-genie phases inspect stripe-test-outcomes --json"
+  },
+  "comparison": {
+    "mode": "additive"
+  },
+  "targets": {
+    "kinds": [
+      "scenario"
+    ],
+    "selection": "enumerate",
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "This provider requires scenario monetization declarations and local metering posture; the control plane has no product monetization contract."
+      }
+    ]
+  },
+  "applicability": {
+    "default": "applies"
+  },
+  "policy": {
+    "selection": "never_by_default",
+    "providerReadiness": "required_when_applicable",
+    "providerLifecycle": "start_if_needed",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "fail"
+  },
+  "runnability": {
+    "needsAPI": true,
+    "needsUI": true,
+    "mutatesLifecycle": true,
+    "dbIsolation": "none",
+    "requiredResources": [
+      "postgres"
+    ]
+  },
+  "docs": {
+    "path": "scenarios/test-genie/docs/phases/stripe-test-outcomes/README.md"
+  },
+  "concurrency": {
+    "mode": "provider-serial"
+  },
+  "determinism": {
+    "default": "observational",
+    "reason": "The phase reads the authority-backed Stripe test catalog and retains only observed test-mode outcomes; unrun behaviors stay unknown."
+  },
+  "maturity": {
+    "version": "0.1.1",
+    "levels": [
+      {
+        "id": "L0",
+        "name": "Inventory unavailable",
+        "description": "Monetization surfaces cannot be inspected.",
+        "entry_criteria": [
+          "The target is applicable."
+        ],
+        "exit_criteria": [
+          "Source and declaration surfaces are readable."
+        ]
+      },
+      {
+        "id": "L1",
+        "name": "Trust boundary",
+        "description": "The static trust-boundary checks run and findings are visible.",
+        "entry_criteria": [
+          "Source surfaces are readable."
+        ],
+        "exit_criteria": [
+          "No shared service secret or symmetric verifier is present."
+        ]
+      },
+      {
+        "id": "L2",
+        "name": "Declared",
+        "description": "The monetization surface is declared and enforcement paths are inspectable.",
+        "entry_criteria": [
+          "Trust-boundary checks are clean."
+        ],
+        "exit_criteria": [
+          "Manifest and enforcement paths are present."
+        ]
+      },
+      {
+        "id": "L3",
+        "name": "Hardened",
+        "description": "Class A and Class B meters have the required server or durable-local posture.",
+        "entry_criteria": [
+          "Declaration is valid."
+        ],
+        "exit_criteria": [
+          "Meter posture is clean.",
+          "Each Class B meter declares exactly one supported accounting mode."
+        ]
+      },
+      {
+        "id": "L4",
+        "name": "Complete",
+        "description": "The scenario is ready for monetization assurance.",
+        "entry_criteria": [
+          "All gating checks are clean."
+        ],
+        "exit_criteria": [
+          "All declared monetization checks pass."
+        ]
+      }
+    ],
+    "capabilities": [
+      {
+        "id": "stripe_outcomes",
+        "label": "Stripe Test Outcomes",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Not run",
+            "description": "Stripe test outcomes have no durable receipt.",
+            "entry_criteria": [
+              "Applicable target."
+            ],
+            "exit_criteria": [
+              "Readable source."
+            ],
+            "status_label": "Not run",
+            "next_unlock": "Run the local Stripe outcome phase."
+          },
+          {
+            "id": "L1",
+            "name": "Catalog checked",
+            "description": "Test catalog IDs are reconciled against Stripe.",
+            "entry_criteria": [
+              "Readable source."
+            ],
+            "exit_criteria": [
+              "All configured Stripe test price IDs, amounts, currencies, intervals, and active status reconcile with LPBS."
+            ],
+            "status_label": "Catalog checked",
+            "next_unlock": "Deliver a signed test webhook to LPBS."
+          },
+          {
+            "id": "L2",
+            "name": "Webhook delivered",
+            "description": "A test-mode Stripe webhook is processed, its minimized event receipt is persisted in LPBS Postgres, and its event/object IDs and status are retained in Test Genie evidence.",
+            "entry_criteria": [
+              "No gating boundary findings."
+            ],
+            "exit_criteria": [
+              "LPBS stores event ID, type, object ID, test mode and processed status without retaining the provider payload.",
+              "Test Genie retains the matched event ID, type, object ID and status from the Postgres receipt."
+            ],
+            "status_label": "Webhook delivered",
+            "capability_summary": "A scenario has a declared, server-authoritative monetization boundary with clean trust-boundary checks.",
+            "next_unlock": "Replay subscription and payment lifecycle outcomes."
+          },
+          {
+            "id": "L3",
+            "name": "Lifecycle replayed",
+            "description": "Checkout and billing outcomes have durable receipts.",
+            "entry_criteria": [
+              "Declaration and enforcement paths are valid."
+            ],
+            "exit_criteria": [
+              "Every required checkout, subscription, top-up, and donation outcome has a durable Postgres and money-ledger receipt."
+            ],
+            "status_label": "Lifecycle replayed",
+            "next_unlock": "Repeat on CL2 staging with ledger evidence."
+          },
+          {
+            "id": "L4",
+            "name": "Staging proven",
+            "description": "Every required outcome passed on staging with Postgres and money-ledger evidence.",
+            "entry_criteria": [
+              "All static and live checks pass."
+            ],
+            "exit_criteria": [
+              "Every required outcome and corresponding money-ledger evidence passes on CL2 staging in Stripe test mode."
+            ],
+            "status_label": "Staging proven",
+            "capability_summary": "The declared monetization boundary is live-reconciled and behaviorally evidenced across desktop and service surfaces.",
+            "next_unlock": "Keep test mode evidence current."
+          }
+        ]
+      }
+    ],
+    "findings": {
+      "stripe.behavior_not_replayed": {
+        "capability_id": "stripe_outcomes",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "business",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Run and retain the required test-mode Stripe webhook and lifecycle evidence."
+      },
+      "stripe.catalog_mismatch": {
+        "capability_id": "stripe_outcomes",
+        "local_level_impact": "L1",
+        "global_impact": "foundation_blocker",
+        "dimension": "business",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Reconcile each test catalog entry with the Stripe provider before checkout."
+      }
+    },
+    "fallback": {
+      "capability_id": "stripe_outcomes",
+      "local_level_impact": "L1",
+      "global_impact": "advisory",
+      "dimension": "operational-targets",
+      "severity_default": "SEVERITY_INFO",
+      "clean_requirement": "advisory"
+    }
+  },
+  "phaseClass": "runtime",
+  "runtimeClass": "execution",
+  "dimensions": [
+    "business"
+  ]
+}

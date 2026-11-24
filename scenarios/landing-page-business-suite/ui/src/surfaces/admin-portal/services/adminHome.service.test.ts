@@ -492,13 +492,26 @@ describe('adminHome.service', () => {
       expect(result.platformsConfigured).toBe(0);
     });
 
+    it('requires managed artifact identity and checksum for configured platform', () => {
+      const apps = [createDownloadApp({
+        app_key: 'app1',
+        name: 'App 1',
+        platforms: [
+          createDownloadAsset({ platform: 'windows', artifact_source: 'managed', artifact_id: 41, artifact_url: 'https://stale.example/app.exe', release_version: '1.0.0' }),
+          createDownloadAsset({ platform: 'mac', artifact_source: 'managed', artifact_id: 42, checksum: 'a'.repeat(64), release_version: '1.0.0' }),
+          createDownloadAsset({ platform: 'linux', artifact_source: 'managed', artifact_id: 0, checksum: 'b'.repeat(64), release_version: '1.0.0' }),
+        ],
+      })];
+      expect(computeDownloadsHealth(apps).platformsConfigured).toBe(1);
+    });
+
     it('counts configured storefronts', () => {
       const apps = [
         createDownloadApp({
           app_key: 'app1',
           name: 'App 1',
           storefronts: [
-            { store: 'app_store', label: 'App Store', url: 'https://apps.apple.com/123' },
+            { store: 'app_store', label: 'App Store', url: 'https://apps.apple.com/us/app/aquila/id123' },
             { store: 'play_store', label: 'Google Play', url: '' }, // Not configured
           ],
         }),
@@ -507,6 +520,19 @@ describe('adminHome.service', () => {
       const result = computeDownloadsHealth(apps);
 
       expect(result.storefrontsConfigured).toBe(1);
+    });
+
+    it('ignores invalid, unknown and host-confused storefront links', () => {
+      const apps = [createDownloadApp({
+        storefronts: [
+          { store: 'app_store', label: 'Fake Apple', url: 'https://apps.apple.com.evil.test/us/app/aquila/id123' },
+          { store: 'play_store', label: 'HTTP Play', url: 'http://play.google.com/store/apps/details?id=org.vrooli.aquila' },
+          { store: 'play_store', label: 'Empty userinfo', url: 'https://@play.google.com/store/apps/details?id=org.vrooli.aquila' },
+          { store: 'custom', label: 'Custom', url: 'https://store.example.test/apps/aquila' },
+        ],
+      })];
+
+      expect(computeDownloadsHealth(apps).storefrontsConfigured).toBe(0);
     });
 
     it('handles apps without platforms or storefronts', () => {
@@ -531,7 +557,7 @@ describe('adminHome.service', () => {
             createDownloadAsset({ platform: 'windows', artifact_url: 'https://example.com/app1.exe', release_version: '1.0.0' }),
           ],
           storefronts: [
-            { store: 'app_store', label: 'App Store', url: 'https://apps.apple.com/1' },
+            { store: 'app_store', label: 'App Store', url: 'https://apps.apple.com/us/app/aquila/id1' },
           ],
         }),
         createDownloadApp({
@@ -542,7 +568,7 @@ describe('adminHome.service', () => {
             createDownloadAsset({ platform: 'linux', artifact_url: 'https://example.com/app2.deb', release_version: '2.0.0' }),
           ],
           storefronts: [
-            { store: 'play_store', label: 'Google Play', url: 'https://play.google.com/2' },
+            { store: 'play_store', label: 'Google Play', url: 'https://play.google.com/store/apps/details?id=org.vrooli.aquila' },
           ],
         }),
       ];

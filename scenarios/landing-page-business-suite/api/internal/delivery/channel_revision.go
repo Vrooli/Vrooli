@@ -381,7 +381,7 @@ func (s *CatalogService) PromoteChannel(ctx context.Context, req ChannelPromotio
 		if strings.TrimSpace(storedPlatform) != platform {
 			return nil, fmt.Errorf("artifact %d platform %q does not match %q", artifactID, storedPlatform, platform)
 		}
-		if releaseBound && strings.TrimSpace(storedAppKey) != req.AppKey {
+		if strings.TrimSpace(storedAppKey) != req.AppKey {
 			return nil, fmt.Errorf("artifact %d app_key %q does not match %q", artifactID, storedAppKey, req.AppKey)
 		}
 		if releaseBound && strings.TrimSpace(storedReleaseID) != req.ReleaseID {
@@ -392,6 +392,9 @@ func (s *CatalogService) PromoteChannel(ctx context.Context, req ChannelPromotio
 		}
 		if strings.TrimSpace(sha512) == "" {
 			return nil, fmt.Errorf("artifact %d has no sha512 identity", artifactID)
+		}
+		if strings.TrimSpace(sha256) == "" {
+			return nil, fmt.Errorf("artifact %d has no sha256 checksum identity", artifactID)
 		}
 		if len(metadata) == 0 {
 			metadata = []byte(`{}`)

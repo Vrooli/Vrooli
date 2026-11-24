@@ -36,41 +36,8 @@ type spine struct {
 
 func newSpine(t *testing.T, observe ...func([]byte)) *spine {
 	t.Helper()
-	ctx := context.Background()
-	container, err := postgres.Run(ctx, "postgres:16-alpine", postgres.WithDatabase("journey"), postgres.WithUsername("journey"), postgres.WithPassword("isolated-fixture-password"), postgres.BasicWaitStrategies())
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = container.Terminate(context.Background()) })
-
-	url, err := container.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		t.Fatal(err)
-	}
-	db, err := sql.Open("postgres", url)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
-	for _, schema := range []string{businessaccount.Schema(), commerce.FinancialSchema(), commerce.OperationsSchema(), aidoor.Schema()} {
-		if _, err := db.Exec(schema); err != nil {
-			t.Fatal(err)
-		}
-	}
-	now := time.Now().UTC()
-	for _, query := range []string{
-		`INSERT INTO business_accounts(id,display_name,billing_email) VALUES('account','Journey','actor@example.invalid')`,
-		`INSERT INTO business_account_members(business_account_id,user_id,role) VALUES('account','actor','owner')`,
-		`INSERT INTO subscription_tier_limits(tier_id,limit_type,limit_key,limit_value) VALUES('free','cost_based','ai_credits',10000)`,
-	} {
-		if _, err := db.Exec(query); err != nil {
-			t.Fatal(err)
-		}
-	}
-	_, err = db.Exec(`INSERT INTO credit_funding_lots(id,business_account_id,source_kind,provider,provider_ref,livemode,settlement_state,granted,remaining,status,created_at) VALUES(gen_random_uuid(),'account','paid','stripe','fixture-payment',FALSE,'settled',10000,10000,'open',$1)`, now)
-	if err != nil {
-		t.Fatal(err)
-	}
+	fixture := newSpineDB(t)
+	db, key, url := fixture.db, fixture.key, fixture.dbURL
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/chat/completions" {
 			http.NotFound(w, r)
@@ -127,16 +94,58 @@ func newSpine(t *testing.T, observe ...func([]byte)) *spine {
 	live := false
 	wallet := commerce.NewBusinessAccountUsageService(commerce.BusinessAccountUsageOptions{DB: db, Limits: commerce.NewLimitsService(db, "postgres", nil), Dialect: "postgres", LiveMode: &live})
 	keys := aidoor.KeyStore{DB: db}
-	key, err := keys.IssueDevice(ctx, "account", "actor", "journey", 10000)
-	if err != nil {
-		t.Fatal(err)
-	}
 	trace := newRequestTrace(t)
-	server := httptest.NewUnstartedServer(&aidoor.Door{Keys: keys, Wallet: wallet, GatewayURL: gateway, ObserveTransition: trace.observe})
+	door := &aidoor.Door{Keys: keys, Wallet: wallet, GatewayURL: gateway, ObserveTransition: trace.observe, SignCreditAssertion: func(aidoor.Key, string, string) (string, error) { return "fixture-credit-assertion", nil }}
+	server := httptest.NewUnstartedServer(door)
 	server.Config.WriteTimeout = 30 * time.Second
 	server.Start()
 	t.Cleanup(server.Close)
 	return &spine{trace: trace, db: db, server: server, key: key, gateway: gateway, dbURL: url}
+}
+
+func newSpineDB(t *testing.T) *spine {
+	t.Helper()
+	ctx := context.Background()
+	container, err := postgres.Run(ctx, "postgres:16-alpine", postgres.WithDatabase("journey"), postgres.WithUsername("journey"), postgres.WithPassword("isolated-fixture-password"), postgres.BasicWaitStrategies())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = container.Terminate(context.Background()) })
+
+	url, err := container.ConnectionString(ctx, "sslmode=disable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("postgres", url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	for _, schema := range []string{businessaccount.Schema(), commerce.FinancialSchema(), commerce.OperationsSchema(), aidoor.Schema()} {
+		if _, err := db.Exec(schema); err != nil {
+			t.Fatal(err)
+		}
+	}
+	now := time.Now().UTC()
+	for _, query := range []string{
+		`INSERT INTO business_accounts(id,display_name,billing_email) VALUES('account','Journey','actor@example.invalid')`,
+		`INSERT INTO business_account_members(business_account_id,user_id,role) VALUES('account','actor','owner')`,
+		`INSERT INTO subscription_tier_limits(tier_id,limit_type,limit_key,limit_value) VALUES('free','cost_based','ai_credits',10000)`,
+	} {
+		if _, err := db.Exec(query); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err = db.Exec(`INSERT INTO credit_funding_lots(id,business_account_id,source_kind,provider,provider_ref,livemode,settlement_state,granted,remaining,status,created_at) VALUES(gen_random_uuid(),'account','paid','stripe','fixture-payment',FALSE,'settled',10000,10000,'open',$1)`, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys := aidoor.KeyStore{DB: db}
+	key, err := keys.IssueDevice(ctx, "account", "actor", "web-console", 10000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &spine{db: db, key: key, dbURL: url}
 }
 
 func startGateway(t *testing.T, upstream string) string {

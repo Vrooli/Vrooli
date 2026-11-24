@@ -22,7 +22,7 @@ export interface Spotlight {
 }
 export interface HeroItem { app_key: string; visual_ref: string; exhibit_kind: string; detail_label: string }
 export interface DemoPlayback {
-  provider: 'youtube' | 'vimeo'; external_url: string; layout: 'stacked' | 'split';
+  provider: 'youtube' | 'vimeo' | 'local'; external_url: string; layout: 'stacked' | 'split';
   play_label: string; caption: string; unavailable_label: string;
 }
 export interface ArtifactExample {
@@ -70,7 +70,7 @@ export interface Presentation {
   schema_version: number; mode: Mode; scope: 'app' | 'bundle'; app_key?: string;
   page: Page; selected_app_keys: string[]; spotlights?: Spotlight[]; capabilities?: Capability[];
   fixtures?: ConfiguredFixture[]; assets?: ResolvedAsset[];
-  diagnostics: { preview: boolean; fallback?: boolean; eligible_app_keys: string[]; noindex: boolean; no_store: boolean; resolved_revision: string };
+  diagnostics: { preview: boolean; fallback?: boolean; eligible_app_keys: string[]; noindex: boolean; no_store: boolean; resolved_revision: string; resolved_variant: string };
 }
 export type ResolvedAction =
   | { status: 'ready'; href: string; onActivate?: never }

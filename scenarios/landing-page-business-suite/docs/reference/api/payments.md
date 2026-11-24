@@ -99,7 +99,10 @@ cache policy.
 ---
 
 `CancelSubscription` accepts `user_identity` and is admin-protected. It
-requests period-end cancellation and returns the resulting subscription state.
+requests period-end cancellation. A successful request returns the provider's
+still-active state; access and entitlements remain active until Stripe sends
+`customer.subscription.deleted` at the end of the paid period. A failed or
+unconfirmed provider response does not change local subscription state.
 
 ---
 

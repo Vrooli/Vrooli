@@ -331,10 +331,11 @@ func TestHandleCreateTierLimit_Success(t *testing.T) {
 	handler := billinghttp.CreateTierLimit(svc, billingLimitsDependencies())
 
 	body := map[string]interface{}{
-		"tier_id":     "new_tier",
-		"limit_type":  "cost_based",
-		"limit_key":   "ai_credits",
-		"limit_value": 1000000,
+		"tier_id":         "new_tier",
+		"limit_type":      "cost_based",
+		"limit_key":       "ai_credits",
+		"limit_value":     1000000,
+		"cost_multiplier": 1000000,
 	}
 	jsonBody, _ := json.Marshal(body)
 
@@ -550,7 +551,7 @@ func TestHandleDeleteTierLimit_WithAppBundleKey(t *testing.T) {
 	appKey := "test-app"
 	_, err := db.Exec(`
 		INSERT INTO subscription_tier_limits (tier_id, limit_type, limit_key, limit_value, cost_multiplier, app_bundle_key)
-		VALUES ('solo', 'app_specific', 'feature', 10, 1, ?)
+		VALUES ('solo', 'app_specific', 'ai_credits', 10, 1000000, ?)
 	`, appKey)
 	if err != nil {
 		t.Fatalf("failed to seed: %v", err)
@@ -560,7 +561,7 @@ func TestHandleDeleteTierLimit_WithAppBundleKey(t *testing.T) {
 
 	body := map[string]interface{}{
 		"tier_id":        "solo",
-		"limit_key":      "feature",
+		"limit_key":      "ai_credits",
 		"app_bundle_key": appKey,
 	}
 	jsonBody, _ := json.Marshal(body)
@@ -588,7 +589,7 @@ func TestHandleUpdateTierLimits_WithAppBundleKey(t *testing.T) {
 	appKey := "test-app"
 	_, err := db.Exec(`
 		INSERT INTO subscription_tier_limits (tier_id, limit_type, limit_key, limit_value, cost_multiplier, app_bundle_key)
-		VALUES ('solo', 'app_specific', 'feature', 10, 1, ?)
+		VALUES ('solo', 'app_specific', 'ai_credits', 10, 1000000, ?)
 	`, appKey)
 	if err != nil {
 		t.Fatalf("failed to seed: %v", err)
@@ -598,7 +599,7 @@ func TestHandleUpdateTierLimits_WithAppBundleKey(t *testing.T) {
 
 	newValue := int64(20)
 	body := map[string]interface{}{
-		"limit_key":      "feature",
+		"limit_key":      "ai_credits",
 		"app_bundle_key": appKey,
 		"update": map[string]interface{}{
 			"limit_value": newValue,

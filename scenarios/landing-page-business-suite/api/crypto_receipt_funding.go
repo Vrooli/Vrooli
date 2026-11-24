@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"io"
@@ -10,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/lpbsidentity"
 	ingestpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -22,14 +22,14 @@ type acceptedCryptoReceiptRequest struct {
 // sessions cannot submit accounting receipts or choose an LPBS grant amount.
 func (s *Server) requireTreasuryReceiptService(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		header := strings.TrimSpace(r.Header.Get("Authorization"))
-		const prefix = "Bearer "
-		provided := ""
-		if strings.HasPrefix(header, prefix) {
-			provided = strings.TrimSpace(strings.TrimPrefix(header, prefix))
+		if s.servicePrincipalVerifier != nil {
+			if source, err := lpbsidentity.TreasuryAcceptedReceiptCredit.VerifiedSource(r.Context(), s.servicePrincipalVerifier, r.Header); err == nil && source == "treasury" {
+				next(w, r)
+				return
+			}
 		}
-		expected, err := resolveAuthorityCredential("LPBS_" + "SERVICE_SECRET")
-		if err != nil || provided == "" || len(provided) != len(expected) || subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) != 1 {
+		// Temporary overlap is valid only until the Treasury principal is issued.
+		if !s.legacyServiceBearerMatchesForUnissuedRole(r, lpbsidentity.TreasuryAcceptedReceiptCredit, "treasury") {
 			writeJSONError(w, http.StatusUnauthorized, "Invalid service authorization.", ApiErrorTypeUnauthorized)
 			return
 		}
