@@ -21,6 +21,7 @@ import (
 // it receives and returns a canned plan.
 type stubPlansService struct {
 	gotCreate *plansv1.CreatePlanRequest
+	gotList   *plansv1.ListPlansRequest
 	gotUpdate *plansv1.UpdatePlanRequest
 	current   *plansv1.Plan
 	plans     []*plansv1.Plan
@@ -46,8 +47,26 @@ func (s *stubPlansService) GetPlan(_ context.Context, req *connect.Request[plans
 	return connect.NewResponse(&plansv1.GetPlanResponse{Plan: &plansv1.Plan{Id: req.Msg.Id}}), nil
 }
 
-func (s *stubPlansService) ListPlans(_ context.Context, _ *connect.Request[plansv1.ListPlansRequest]) (*connect.Response[plansv1.ListPlansResponse], error) {
+func (s *stubPlansService) ListPlans(_ context.Context, req *connect.Request[plansv1.ListPlansRequest]) (*connect.Response[plansv1.ListPlansResponse], error) {
+	s.gotList = req.Msg
 	return connect.NewResponse(&plansv1.ListPlansResponse{Plans: s.plans}), nil
+}
+
+func TestListForwardsPaginationFlags(t *testing.T) {
+	stub := &stubPlansService{}
+	mux := http.NewServeMux()
+	path, h := plansconnect.NewPlansServiceHandler(stub)
+	mux.Handle(path, h)
+	app := testutil.NewTestApp(t, mux)
+	hs := newHandlers(app)
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "page-size"}, {Name: "page-token"}}}
+	ctx, _ := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{Flags: map[string]string{"page-size": "25", "page-token": "cursor-a"}})
+	if err := hs.list(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if stub.gotList == nil || stub.gotList.PageSize != 25 || stub.gotList.PageToken != "cursor-a" {
+		t.Fatalf("list request did not forward pagination: %+v", stub.gotList)
+	}
 }
 
 func (s *stubPlansService) UpdatePlan(_ context.Context, req *connect.Request[plansv1.UpdatePlanRequest]) (*connect.Response[plansv1.UpdatePlanResponse], error) {

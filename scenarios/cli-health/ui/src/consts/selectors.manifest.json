@@ -41,6 +41,46 @@
       "testId": "nav-tab-status",
       "selector": "[data-testid=\"nav-tab-status\"]"
     },
+    "nav.tabComposition": {
+      "testId": "nav-tab-composition",
+      "selector": "[data-testid=\"nav-tab-composition\"]"
+    },
+    "composition.card": {
+      "testId": "composition-card",
+      "selector": "[data-testid=\"composition-card\"]"
+    },
+    "composition.query": {
+      "testId": "composition-query",
+      "selector": "[data-testid=\"composition-query\"]"
+    },
+    "composition.scenario": {
+      "testId": "composition-scenario",
+      "selector": "[data-testid=\"composition-scenario\"]"
+    },
+    "composition.submit": {
+      "testId": "composition-submit",
+      "selector": "[data-testid=\"composition-submit\"]"
+    },
+    "composition.loading": {
+      "testId": "composition-loading",
+      "selector": "[data-testid=\"composition-loading\"]"
+    },
+    "composition.error": {
+      "testId": "composition-error",
+      "selector": "[data-testid=\"composition-error\"]"
+    },
+    "composition.empty": {
+      "testId": "composition-empty",
+      "selector": "[data-testid=\"composition-empty\"]"
+    },
+    "composition.result": {
+      "testId": "composition-result",
+      "selector": "[data-testid=\"composition-result\"]"
+    },
+    "composition.degradation": {
+      "testId": "composition-degradation",
+      "selector": "[data-testid=\"composition-degradation\"]"
+    },
     "search.card": {
       "testId": "search-card",
       "selector": "[data-testid=\"search-card\"]"
@@ -168,54 +208,6 @@
     "status.lastReconcile": {
       "testId": "status-last-reconcile",
       "selector": "[data-testid=\"status-last-reconcile\"]"
-    },
-    "status.reindex": {
-      "testId": "status-reindex",
-      "selector": "[data-testid=\"status-reindex\"]"
-    },
-    "status.reindexed": {
-      "testId": "status-reindexed",
-      "selector": "[data-testid=\"status-reindexed\"]"
-    },
-    "nav.tabComposition": {
-      "testId": "nav-tab-composition",
-      "selector": "[data-testid=\"nav-tab-composition\"]"
-    },
-    "composition.card": {
-      "testId": "composition-card",
-      "selector": "[data-testid=\"composition-card\"]"
-    },
-    "composition.query": {
-      "testId": "composition-query",
-      "selector": "[data-testid=\"composition-query\"]"
-    },
-    "composition.scenario": {
-      "testId": "composition-scenario",
-      "selector": "[data-testid=\"composition-scenario\"]"
-    },
-    "composition.submit": {
-      "testId": "composition-submit",
-      "selector": "[data-testid=\"composition-submit\"]"
-    },
-    "composition.loading": {
-      "testId": "composition-loading",
-      "selector": "[data-testid=\"composition-loading\"]"
-    },
-    "composition.error": {
-      "testId": "composition-error",
-      "selector": "[data-testid=\"composition-error\"]"
-    },
-    "composition.empty": {
-      "testId": "composition-empty",
-      "selector": "[data-testid=\"composition-empty\"]"
-    },
-    "composition.result": {
-      "testId": "composition-result",
-      "selector": "[data-testid=\"composition-result\"]"
-    },
-    "composition.degradation": {
-      "testId": "composition-degradation",
-      "selector": "[data-testid=\"composition-degradation\"]"
     }
   },
   "dynamicSelectors": {
@@ -238,7 +230,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
-    "ui/src/consts/selectors.ts": "4e652cd185bfa2ff7292e320078b526ffda36e5ed25de66d24a0badf323836e2",
+    "ui/src/consts/selectors.ts": "ec1bfa6d931f0f738125f496feee48b8adc24767f247a9ee8d491c78fa0cc8b7",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

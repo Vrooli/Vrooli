@@ -145,7 +145,10 @@ func PreviewPlacements(candidate []byte, placements []string, verdict func([]byt
 			if viewport == "mobile" {
 				w, h = 390, 844
 			}
-			preview := composePlacement(img, placement, w, h)
+			preview, err := composePlacement(img, placement, w, h)
+			if err != nil {
+				return nil, err
+			}
 			var b bytes.Buffer
 			if err := png.Encode(&b, preview); err != nil {
 				return nil, err
@@ -167,7 +170,7 @@ func PreviewPlacements(candidate []byte, placements []string, verdict func([]byt
 // and the artifact showed no placement at all. A placement preview exists to
 // answer one question — does this image work behind this copy, in this
 // arrangement — so it has to draw the copy and the arrangement.
-func composePlacement(src image.Image, placement string, w, h int) *image.RGBA {
+func composePlacement(src image.Image, placement string, w, h int) (*image.RGBA, error) {
 	page := image.NewRGBA(image.Rect(0, 0, w, h))
 	paper := color.RGBA{247, 247, 245, 255}
 	fill(page, page.Bounds(), paper)
@@ -177,6 +180,61 @@ func composePlacement(src image.Image, placement string, w, h int) *image.RGBA {
 	scrim := "none"
 
 	switch placement {
+	case "device_center", "caption_above_device", "caption_below_device":
+		// A selected candidate is the backdrop, not the consumer screenshot. The
+		// preview therefore uses a neutral device silhouette to show the real
+		// occlusion footprint without pretending to capture or invent app UI.
+		imageRect = page.Bounds()
+		drawScaled(page, imageRect, src)
+		phoneH := h * 70 / 100
+		if mobile {
+			phoneH = h * 54 / 100
+		}
+		phoneW := phoneH * 9 / 19
+		if phoneW > w*66/100 {
+			phoneW = w * 66 / 100
+		}
+		phone := image.Rect((w-phoneW)/2, (h-phoneH)/2, (w+phoneW)/2, (h+phoneH)/2)
+		if placement == "caption_above_device" {
+			phone = image.Rect((w-phoneW)/2, h*26/100, (w+phoneW)/2, h*92/100)
+			copyRect = image.Rect(w*8/100, h*6/100, w*92/100, h*20/100)
+		} else if placement == "caption_below_device" {
+			phone = image.Rect((w-phoneW)/2, h*5/100, (w+phoneW)/2, h*71/100)
+			copyRect = image.Rect(w*8/100, h*78/100, w*92/100, h*94/100)
+		}
+		drawDeviceMockup(page, phone)
+		if placement != "device_center" {
+			drawCaptionBlock(page, copyRect)
+		}
+		return page, nil
+	case "caption_only":
+		imageRect = page.Bounds()
+		drawScaled(page, imageRect, src)
+		if mobile {
+			copyRect = image.Rect(w*8/100, h*54/100, w*92/100, h*86/100)
+			scrim = "bottom"
+		} else {
+			copyRect = image.Rect(w*8/100, h*28/100, w*70/100, h*72/100)
+			scrim = "left"
+		}
+	case "feature_graphic":
+		// Store furniture may crop the edges; keep the title safe in the centre.
+		bannerH := w * 500 / 1024
+		if bannerH > h*72/100 {
+			bannerH = h * 72 / 100
+		}
+		imageRect = image.Rect(w*5/100, (h-bannerH)/2, w*95/100, (h+bannerH)/2)
+		drawScaled(page, imageRect, src)
+		// The destination store supplies its own furniture. Keep the central
+		// title-safe area quiet and empty instead of inventing a headline.
+		quiet := image.Rect(w*32/100, imageRect.Min.Y+imageRect.Dy()/3, w*68/100, imageRect.Min.Y+imageRect.Dy()*2/3)
+		fill(page, quiet, color.RGBA{247, 247, 245, 255})
+		return page, nil
+	case "type_mask":
+		// The image is visible only through the headline glyphs; the surrounding
+		// page remains quiet paper, matching the taxonomy's type-mask definition.
+		drawTypeMask(page, src)
+		return page, nil
 	case "split_panel":
 		if mobile {
 			imageRect = image.Rect(0, 0, w, h*45/100)
@@ -201,7 +259,7 @@ func composePlacement(src image.Image, placement string, w, h int) *image.RGBA {
 			imageRect = image.Rect(w*46/100, 0, w, h*78/100)
 			copyRect = image.Rect(w*6/100, h*30/100, w*42/100, h*74/100)
 		}
-	default: // full_bleed
+	case "full_bleed":
 		imageRect = page.Bounds()
 		scrim = "left"
 		if mobile {
@@ -210,6 +268,8 @@ func composePlacement(src image.Image, placement string, w, h int) *image.RGBA {
 		} else {
 			copyRect = image.Rect(w*6/100, h*26/100, w*52/100, h*76/100)
 		}
+	default:
+		return nil, fmt.Errorf("render: unsupported placement %q", placement)
 	}
 
 	drawScaled(page, imageRect, src)
@@ -217,7 +277,42 @@ func composePlacement(src image.Image, placement string, w, h int) *image.RGBA {
 		applyScrim(page, imageRect, scrim)
 	}
 	drawCopyBlock(page, copyRect, DefaultCopy(), "")
-	return page
+	return page, nil
+}
+
+func drawDeviceMockup(dst *image.RGBA, phone image.Rectangle) {
+	// Neutral hardware and an intentionally blank screen indicate the screenshot
+	// input slot without fabricating consumer content.
+	fill(dst, phone, color.RGBA{24, 27, 33, 255})
+	inner := phone.Inset(maxInt(5, phone.Dx()/24))
+	fill(dst, inner, color.RGBA{232, 234, 237, 255})
+	screen := inner.Inset(maxInt(4, inner.Dx()/18))
+	fill(dst, screen, color.RGBA{249, 249, 247, 255})
+	bar := image.Rect(phone.Min.X+phone.Dx()*42/100, phone.Min.Y+phone.Dy()/50, phone.Min.X+phone.Dx()*58/100, phone.Min.Y+phone.Dy()/25)
+	fill(dst, bar, color.RGBA{80, 84, 91, 255})
+}
+
+func drawCaptionBlock(dst *image.RGBA, r image.Rectangle) {
+	fill(dst, r, color.RGBA{247, 247, 245, 255})
+	drawTextScaled(dst, r.Min.X+r.Dx()/12, r.Min.Y+r.Dy()/6, "A BETTER WAY TO WORK", maxInt(1, r.Dy()/70), color.RGBA{25, 27, 32, 255})
+	drawTextScaled(dst, r.Min.X+r.Dx()/12, r.Min.Y+r.Dy()/2, "Your work, in focus.", maxInt(1, r.Dy()/42), color.RGBA{25, 27, 32, 255})
+}
+
+func drawTypeMask(dst *image.RGBA, src image.Image) {
+	b := dst.Bounds()
+	mask := image.NewRGBA(b)
+	text := "MAKE IT MATTER"
+	scale := maxInt(2, b.Dx()/110)
+	x := (b.Dx() - textWidth(text, scale)) / 2
+	y := b.Dy()/2 - glyphHeight*scale/2
+	drawTextScaled(mask, x, y, text, scale, color.RGBA{255, 255, 255, 255})
+	for py := 0; py < b.Dy(); py++ {
+		for px := 0; px < b.Dx(); px++ {
+			if mask.RGBAAt(px, py).A > 0 {
+				dst.Set(px, py, sampleFiltered(src, float64(px)*float64(src.Bounds().Dx())/float64(b.Dx()), float64(py)*float64(src.Bounds().Dy())/float64(b.Dy()), 1, false))
+			}
+		}
+	}
 }
 
 func fill(dst *image.RGBA, r image.Rectangle, c color.RGBA) {

@@ -351,7 +351,7 @@ func TestHTTPCloudDeploymentClientReattachesToSavedPendingOperation(t *testing.T
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body["operation_id"] != "s2c-op-pending" {
 				t.Fatalf("GetOperation body=%v err=%v", body, err)
 			}
-			_, _ = w.Write([]byte(`{"operation_id":"s2c-op-pending","deployment_id":"dep-pending","request_key":"dm-cloud:release-op-pending","state":"running"}`))
+			_, _ = w.Write([]byte(`{"operationId":"s2c-op-pending","deploymentId":"dep-pending","requestKey":"dm-cloud:release-op-pending","state":"running","stepReceipts":[{"step":"edge.dns.ensure","outcome":"succeeded","detail":"provider-record-id"}]}`))
 		case "/api/v1/deployments":
 			createCalls.Add(1)
 		case "/api/v1/deployments/dep-pending/execute":
@@ -371,7 +371,7 @@ func TestHTTPCloudDeploymentClientReattachesToSavedPendingOperation(t *testing.T
 	var saved CloudStepProgress
 	_, err := client.DeployCloud(ctx, &CloudDeploymentRequest{
 		RequestKey: "dm-cloud:release-op-pending", ExistingDeploymentID: "dep-pending", ExistingOperationID: "s2c-op-pending",
-		Manifest:   json.RawMessage(`{"scenario":{"id":"demo"}}`),
+		Manifest:   json.RawMessage(`{"scenario":{"id":"demo"},"edge":{"managed_dns_profile":"staging"}}`),
 		OnProgress: func(update CloudStepProgress) error { saved = update; return nil },
 	})
 	if err == nil || operationReads.Load() < 2 {
@@ -382,6 +382,9 @@ func TestHTTPCloudDeploymentClientReattachesToSavedPendingOperation(t *testing.T
 	}
 	if saved.DeploymentID != "dep-pending" || saved.OwnerOperationID != "s2c-op-pending" {
 		t.Fatalf("saved owner identity changed during reattach: %+v", saved)
+	}
+	if saved.ManagedDNSState != "succeeded" || saved.ManagedDNSEvidenceSHA256 == "" || strings.Contains(saved.ManagedDNSEvidenceSHA256, "provider-record-id") {
+		t.Fatalf("managed DNS standing was not reduced to durable redacted evidence: %+v", saved)
 	}
 }
 

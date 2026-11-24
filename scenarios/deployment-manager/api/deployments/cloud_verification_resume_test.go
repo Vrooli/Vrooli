@@ -32,13 +32,17 @@ func TestResumeCloudVerificationPersistsAndReusesExactReadback(t *testing.T) {
 	receipt, _ := json.Marshal(CloudDeploymentReceipt{DeploymentID: "dep-exact", OperationID: operationID, BundleSHA256: bundle, TargetKey: "target-key-1", DestinationID: "cm-instance-1", DestinationHost: "203.0.113.8"})
 	repo := newFakeReleasesRepo()
 	repo.cloudSteps[operationID] = releases.CloudStep{OperationID: operationID, RequestKey: "dm-cloud:" + operationID, RequestDigest: "sha256:immutable-request", State: "downstream_started", DeploymentID: "dep-exact", Receipt: receipt}
-	cloud := &verificationResumeCloud{result: &CloudHealthResult{Healthy: true, DeploymentID: "dep-exact", ObservedReleaseDigest: bundle, ObservedAt: time.Now().UTC()}}
+	cloud := &verificationResumeCloud{result: &CloudHealthResult{Healthy: true, DeploymentID: "dep-exact", ObservedReleaseDigest: bundle, ObservedAt: time.Now().UTC(), TLSStatus: "healthy", TLSReason: "certificate_valid", TLSEvidenceSHA256: "sha256:tls-sample", CertificateLifecycleState: "valid", CertificateLifecycleReason: "renewal_state_not_reported_by_tls_snapshot", CertificateNotAfter: time.Now().UTC().Add(24 * time.Hour), CertificateObservedAt: time.Now().UTC(), CertificateRenewalState: "blocked", CertificateEvidenceSHA256: "sha256:cert-sample"}}
 	o := &Orchestrator{releasesRepo: repo, cloudClient: cloud}
 	request := releases.DeployRequest{OperationID: operationID, ReleaseID: releaseID, CloudManifest: json.RawMessage(`{"scenario":{"id":"fixture"},"environment":"staging"}`), CloudBundleSHA256: bundle}
 
 	step, err := o.ResumeCloudVerification(context.Background(), request)
 	if err != nil || step == nil || step.VerificationState != "passed" || step.State != "verification_passed" || step.VerificationKey != releases.CloudVerificationIdempotencyKey(operationID) || !strings.HasPrefix(step.VerificationRequestDigest, "sha256:") || step.VerificationAttemptedAt == nil || cloud.calls != 1 {
 		t.Fatalf("first verification: step=%+v calls=%d err=%v", step, cloud.calls, err)
+	}
+	var verification CloudHealthResult
+	if err := json.Unmarshal(step.VerificationReceipt, &verification); err != nil || verification.TLSStatus != "healthy" || verification.TLSReason != "certificate_valid" || verification.TLSEvidenceSHA256 != "sha256:tls-sample" || verification.CertificateLifecycleState != "valid" || verification.CertificateRenewalState != "blocked" || verification.CertificateNotAfter.IsZero() || verification.CertificateEvidenceSHA256 != "sha256:cert-sample" {
+		t.Fatalf("TLS verification readback=%+v err=%v", verification, err)
 	}
 	step, err = o.ResumeCloudVerification(context.Background(), request)
 	if err != nil || step == nil || step.VerificationState != "passed" || cloud.calls != 1 {

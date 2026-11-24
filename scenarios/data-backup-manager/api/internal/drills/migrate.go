@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"data-backup-manager/internal/dbschema"
+
+	"github.com/vrooli/api-core/database"
 )
 
 var addedColumns = []struct {
@@ -19,7 +21,7 @@ var addedColumns = []struct {
 
 // EnsureColumns applies additive, idempotent notification and retirement columns.
 // Old failed rows are marked not_replayed so startup does not replay historical alerts.
-func EnsureColumns(ctx context.Context, db SQLExecutor) error {
+func EnsureColumns(ctx context.Context, db database.SQLTxExecutor) error {
 	existing, err := dbschema.TableColumns(ctx, db, "recovery_drills")
 	if err != nil {
 		return err

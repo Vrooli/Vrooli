@@ -312,11 +312,8 @@ func Check(ctx context.Context, in Input) Result {
 			continue
 		}
 		if err := sourceEstimateErrors[id]; err != nil {
-			cause := failures.Classify(err)
-			cause.Code, cause.Category = failures.SourceMissing, failures.CategorySource
+			cause := failures.ClassifyCapture(err)
 			cause.TargetIDs, cause.Scope = []string{id}, failures.ScopeTarget
-			cause.Message = fmt.Sprintf("source tree could not be completely enumerated: %v", err)
-			cause.NextAction = "restore authorized read access to the full source tree and retry preflight"
 			r.add(cause)
 			continue
 		}

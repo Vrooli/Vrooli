@@ -126,10 +126,13 @@ func readBoardSettings() (BoardSettings, error) {
 	if strings.TrimSpace(settings.Transition) == "" {
 		settings.Transition = "crossfade"
 	}
+	if err := validateBoardSettings(settings); err != nil {
+		return BoardSettings{}, fmt.Errorf("invalid saved board settings: %w", err)
+	}
 	return settings, nil
 }
 
-func writeBoardSettings(settings BoardSettings) error {
+func validateBoardSettings(settings BoardSettings) error {
 	if settings.CycleSeconds < 5 || settings.CycleSeconds > 3600 {
 		return fmt.Errorf("cycleSeconds must be between 5 and 3600")
 	}
@@ -142,6 +145,13 @@ func writeBoardSettings(settings BoardSettings) error {
 			return fmt.Errorf("invalid or duplicate room id %q", room.ID)
 		}
 		seen[room.ID] = true
+	}
+	return nil
+}
+
+func writeBoardSettings(settings BoardSettings) error {
+	if err := validateBoardSettings(settings); err != nil {
+		return err
 	}
 	if err := ensureConfigRoot(); err != nil {
 		return err

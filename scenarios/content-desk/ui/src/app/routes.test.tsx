@@ -42,9 +42,14 @@ describe("AppRouter", () => {
     mocks.listRemediations.mockResolvedValue({ remediations: [] });
   });
 
-  it("renders the dashboard at /", () => {
+  it("opens Today as the default workspace at /", async () => {
     renderWithProviders(<Providers><TestAppRouter initialEntries={["/"]} /></Providers>, { withoutRouter: true });
-    expect(screen.getByTestId(selectors.pages.dashboard)).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.pages.today)).toBeInTheDocument();
+  });
+
+  it("redirects saved Board links into the 0.3 Today workspace", async () => {
+    renderWithProviders(<Providers><TestAppRouter initialEntries={["/board"]} /></Providers>, { withoutRouter: true });
+    expect(await screen.findByTestId(selectors.pages.today)).toBeInTheDocument();
   });
 
   it("renders the settings page at /settings", () => {

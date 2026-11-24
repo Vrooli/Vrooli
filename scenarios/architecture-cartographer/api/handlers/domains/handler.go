@@ -26,12 +26,17 @@ import (
 // internal/domains application Service.
 type Handler struct {
 	domains_v1connect.UnimplementedDomainsServiceHandler
-	svc domains.Service
+	svc     domains.Service
+	locator domains.ScenarioLocator
 }
 
 // NewHandler constructs the Connect handler for the domains service.
-func NewHandler(svc domains.Service) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc domains.Service, locator ...domains.ScenarioLocator) *Handler {
+	h := &Handler{svc: svc}
+	if len(locator) > 0 {
+		h.locator = locator[0]
+	}
+	return h
 }
 
 var _ domains_v1connect.DomainsServiceHandler = (*Handler)(nil)
@@ -236,7 +241,14 @@ func domainAttestation(d domains.DerivedDomain) *commonv1.AttestedAnswer {
 		Basis(basis).
 		Sufficiency(suff)
 	if hasDoc {
-		b.CiteDoc(domains.DomainsDocPath, "declared in the Domain Inventory")
+		locator := domains.DomainsDocPath
+		if d.DeclarationSource != "" {
+			locator = d.DeclarationSource
+			if d.DeclarationLine > 0 {
+				locator = fmt.Sprintf("%s:%d", locator, d.DeclarationLine)
+			}
+		}
+		b.CiteDoc(locator, "declared in this Domain Inventory row")
 	}
 	for _, p := range d.Paths {
 		b.CiteCode(p, "")

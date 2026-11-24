@@ -359,6 +359,63 @@ func TestToggleFavoriteHandler(t *testing.T) {
 	})
 }
 
+func TestToggleFavoriteInvalidatesCachedStory(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	testDB := setupTestDatabase(t)
+	defer testDB.Cleanup()
+
+	cached := setupTestStory(t, "Cached favorite", "6-8")
+	defer cached.Cleanup()
+	cache := newStoryCache(20)
+	cache.Set(cached.Story.ID, cached.Story)
+
+	testDB.Mock.ExpectQuery("UPDATE stories SET is_favorite = NOT is_favorite").
+		WithArgs(cached.Story.ID).
+		WillReturnRows(sqlmock.NewRows([]string{"is_favorite"}).AddRow(true))
+
+	toggled := serveRequest(t, toggleFavoriteHandlerWithCache(cache), HTTPTestRequest{
+		Method:  http.MethodPost,
+		Path:    "/api/v1/stories/" + cached.Story.ID + "/favorite",
+		URLVars: map[string]string{"id": cached.Story.ID},
+	})
+	assert.Equal(t, http.StatusOK, toggled.Code)
+	response := assertJSONResponse(t, toggled, http.StatusOK, map[string]interface{}{"success": true})
+	require.NotNil(t, response)
+	assert.Equal(t, true, response["is_favorite"])
+
+	dbStory := *cached.Story
+	dbStory.IsFavorite = true
+	charactersJSON, err := json.Marshal(dbStory.CharacterNames)
+	require.NoError(t, err)
+	illustrationsJSON, err := json.Marshal(dbStory.Illustrations)
+	require.NoError(t, err)
+	testDB.Mock.ExpectQuery("SELECT (.+) FROM stories WHERE id = (.+)").
+		WithArgs(dbStory.ID).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"id", "title", "content", "age_group", "theme", "story_length",
+			"reading_time_minutes", "page_count", "character_names", "created_at",
+			"times_read", "last_read", "is_favorite", "illustrations",
+		}).AddRow(
+			dbStory.ID, dbStory.Title, dbStory.Content, dbStory.AgeGroup, dbStory.Theme,
+			dbStory.StoryLength, dbStory.ReadingTime, dbStory.PageCount,
+			string(charactersJSON), dbStory.CreatedAt, dbStory.TimesRead, dbStory.LastRead,
+			dbStory.IsFavorite, string(illustrationsJSON),
+		))
+
+	readback := serveRequest(t, getStoryHandlerWithCache(cache), HTTPTestRequest{
+		Method:  http.MethodGet,
+		Path:    "/api/v1/stories/" + dbStory.ID,
+		URLVars: map[string]string{"id": dbStory.ID},
+	})
+	assert.Equal(t, http.StatusOK, readback.Code)
+	var loaded Story
+	require.NoError(t, json.Unmarshal(readback.Body.Bytes(), &loaded))
+	assert.True(t, loaded.IsFavorite, "GET after a successful favorite toggle must not return stale cache data")
+	require.NoError(t, testDB.Mock.ExpectationsWereMet())
+}
+
 // TestStartReadingHandler tests the start reading session endpoint
 func TestStartReadingHandler(t *testing.T) {
 	cleanup := setupTestLogger()

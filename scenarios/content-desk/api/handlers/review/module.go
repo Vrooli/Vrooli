@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	internalartifacts "content-desk/internal/artifacts"
@@ -73,12 +74,23 @@ func (h handler) ListReviewRuns(ctx context.Context, _ *connect.Request[reviewv1
 	}
 	response := &reviewv1.ListReviewRunsResponse{}
 	for _, run := range runs {
-		response.ReviewRuns = append(response.ReviewRuns, &reviewv1.ReviewRun{Id: run.ID, DraftId: run.DraftID, Outcome: run.Outcome})
+		response.ReviewRuns = append(response.ReviewRuns, reviewRunMessage(run))
 	}
 	return connect.NewResponse(response), nil
 }
 
+func (h handler) ListRequiredReviewModes(ctx context.Context, request *connect.Request[reviewv1.ListRequiredReviewModesRequest]) (*connect.Response[reviewv1.ListRequiredReviewModesResponse], error) {
+	modes, err := h.service.ListRequiredModes(ctx, request.Msg.PostTypeId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(&reviewv1.ListRequiredReviewModesResponse{Modes: modes}), nil
+}
+
 func (h handler) RecordReviewRun(ctx context.Context, request *connect.Request[reviewv1.RecordReviewRunRequest]) (*connect.Response[reviewv1.RecordReviewRunResponse], error) {
+	if strings.TrimSpace(request.Msg.ExpectedBody) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("exact expected body is required for a revision-bound review"))
+	}
 	verdicts := make([]internalreview.Verdict, 0, len(request.Msg.Verdicts))
 	for _, verdict := range request.Msg.Verdicts {
 		if verdict == nil {
@@ -86,7 +98,7 @@ func (h handler) RecordReviewRun(ctx context.Context, request *connect.Request[r
 		}
 		verdicts = append(verdicts, internalreview.Verdict{Mode: verdict.Mode, Passed: verdict.Passed, Evidence: verdict.Evidence, Finding: verdict.Finding})
 	}
-	run, err := h.service.Record(ctx, request.Msg.DraftId, verdicts)
+	run, err := h.service.RecordExact(ctx, request.Msg.DraftId, request.Msg.ExpectedRevisionId, request.Msg.ExpectedBody, verdicts)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -110,7 +122,7 @@ func (h handler) GetEditorialPackage(ctx context.Context, request *connect.Reque
 }
 
 func reviewRunMessage(run internalreview.Run) *reviewv1.ReviewRun {
-	return &reviewv1.ReviewRun{Id: run.ID, DraftId: run.DraftID, Outcome: run.Outcome}
+	return &reviewv1.ReviewRun{Id: run.ID, DraftId: run.DraftID, Outcome: run.Outcome, SourceRevisionId: run.SourceRevisionID}
 }
 
 func editorialPackageMessage(item internalreview.EditorialPackage) *reviewv1.EditorialPackage {
@@ -125,7 +137,8 @@ func Schema() string { return internalreview.Schema() }
 
 var Endpoints = []module.EndpointDescriptor{
 	{ID: "review_list", Path: reviewconnect.ReviewServiceListReviewRunsProcedure, Method: "POST", Summary: "List review runs", Category: "review"},
-	{ID: "review_record", Path: reviewconnect.ReviewServiceRecordReviewRunProcedure, Method: "POST", Summary: "Record re-runnable craft and policy verdicts", Category: "review"},
+	{ID: "review_modes", Path: reviewconnect.ReviewServiceListRequiredReviewModesProcedure, Method: "POST", Summary: "Read the required review modes for a native post type", Category: "review"},
+	{ID: "review_record", Path: reviewconnect.ReviewServiceRecordReviewRunProcedure, Method: "POST", Summary: "Record exact-revision-bound craft and policy verdicts", Category: "review"},
 	{ID: "review_package_create", Path: reviewconnect.ReviewServiceCreateEditorialPackageProcedure, Method: "POST", Summary: "Create immutable destination-unbound wording snapshot with revision guard", Category: "review"},
 	{ID: "review_package_get", Path: reviewconnect.ReviewServiceGetEditorialPackageProcedure, Method: "POST", Summary: "Read and digest-check an immutable editorial wording package", Category: "review"},
 }

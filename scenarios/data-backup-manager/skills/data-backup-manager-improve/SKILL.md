@@ -86,9 +86,9 @@ No `evals/` corpus or approved floor exists (2026-11-19). The recovery evidence 
 | A verified restore is missing | Schedule or run a drill for the target's plan; verify the remaining destination copies. | A `DRILL_STATUS_VERIFIED` receipt and a coverage verified count. |
 | A write is blocked although the drive is writable | Inspect the write verdict and the probe; repair `destinationreadiness` or the run gate that regressed. | A run reaches capture on the same destination. |
 | A listed Test Genie phase fails | Select the owning rung through `scenario-work-ladder`; the phase names the provider. | A new run id passes the same phase. |
-| A role or declaration is missing | `skill-set-authoring` for the role; `skill-authoring-*` for content. | `prompt-manager skill-set validate` reports both roles. |
+| A role or declaration is missing | `scenario-skill-setup` for the role; `skill-authoring-*` for content. | `prompt-manager skill-set validate` reports both roles. |
 | `setpoint-read` is absent | `program-runtime` under the active grant; compose only owner reads. | A contract and fixture exist; the board returns the declared rows. |
-| The usage skill names a leaf that repeats unchanged | Promote the leaf to a CLI command or Action per `PROMOTION_LADDER.md`; record the candidate in the scenario's problem ledger. | The command exists and the skill cites it. |
+| The usage skill names a leaf that repeats unchanged | Promote the leaf to a CLI command or Action per `SKILL_AUTHORING.md`; record the candidate in the scenario's problem ledger. | The command exists and the skill cites it. |
 
 ### 6. Anti-gaming
 

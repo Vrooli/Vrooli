@@ -5,8 +5,12 @@ package search
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
+	"strings"
 	"sync"
 
 	"connectrpc.com/connect"
@@ -14,6 +18,7 @@ import (
 	"github.com/vrooli/api-core/connectx"
 
 	"business-health/internal/aisearch"
+	"business-health/internal/changeintent"
 	"business-health/internal/module"
 
 	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/business-health/v1/search"
@@ -62,14 +67,50 @@ type handler struct {
 
 // Module mounts the SearchService. searcher may be nil (no search backend
 // configured — the handler answers Unimplemented).
-func Module(logger *log.Logger, searcher *aisearch.Service) module.Module {
+func Module(logger *log.Logger, searcher *aisearch.Service, repoRoot string) module.Module {
 	path, svc := searchconnect.NewSearchServiceHandler(&handler{logger: logger, searcher: searcher})
 	return module.Module{
 		Name: "search",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: svc})
+			r.HandleFunc("/api/v1/change-intent/assess", assessIntent(repoRoot)).Methods(http.MethodPost)
 		},
 		Endpoints: Endpoints,
+	}
+}
+
+func assessIntent(repoRoot string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, 8<<10)
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields()
+		var request changeintent.Request
+		if err := decoder.Decode(&request); err != nil {
+			http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := decoder.Decode(&struct{}{}); err != io.EOF {
+			http.Error(w, "request must contain one JSON object", http.StatusBadRequest)
+			return
+		}
+		if strings.TrimSpace(request.Scenario) != "business-health" {
+			http.Error(w, "scenario must be business-health", http.StatusBadRequest)
+			return
+		}
+		response, err := changeintent.Assess(repoRoot, request)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store")
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			return
+		}
 	}
 }
 
@@ -133,6 +174,15 @@ func (h *handler) Status(ctx context.Context, req *connect.Request[searchv1.Stat
 }
 
 var Endpoints = []module.EndpointDescriptor{
+	{
+		ID: "change_intent_assess", Path: "/api/v1/change-intent/assess", Method: "POST",
+		Summary:     "Relate one explicit change statement to bounded requirement and source anchors",
+		Description: "One-scenario, read-only traceability candidates from checked-in requirements and exact [REQ:ID] source tags. Every relation carries scenario identity and declaration path/line/hash; support means an exact ID mention only, lexical candidates remain unknown, and source pointers are not verified change rationale. Partial source scans are reported as degradations. Does not read generated PRD or runtime/test status.",
+		Category:    "search",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string (must be business-health)", "intent": "string (max 4096 bytes)", "limit": "integer (max 20)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "results": "array<RequirementRelation(scenario, requirement_id, relation, relation_basis, requirement_source.path/line/sha256, implementation_anchors[])>", "limitations": "array<string>", "degradations": "array<string> (partial scan/cap state)"}},
+		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Invalid statement, unsupported scenario or malformed JSON"}},
+	},
 	{
 		ID:          "search_query",
 		Path:        searchconnect.SearchServiceSearchProcedure,

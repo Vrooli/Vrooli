@@ -21,7 +21,9 @@ type Repository interface {
 	CreateRelation(context.Context, Relation) (Relation, error)
 	ListRelations(context.Context, string) ([]Relation, error)
 	CreateCollection(context.Context, string, string) (Collection, error)
+	ListCollections(context.Context, string) ([]Collection, error)
 	AddCollectionItem(context.Context, CollectionItem) error
+	RemoveCollectionItem(context.Context, CollectionItem) error
 	ListCollectionItems(context.Context, string) ([]CollectionItem, error)
 	PreviewImpact(context.Context, string, string) (Impact, error)
 }
@@ -102,6 +104,27 @@ func (r *sqliteRepository) CreateCollection(ctx context.Context, projectID, name
 	return c, nil
 }
 
+func (r *sqliteRepository) ListCollections(ctx context.Context, projectID string) ([]Collection, error) {
+	projectID = strings.TrimSpace(projectID)
+	if projectID == "" {
+		return nil, ErrInvalid
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT id,project_id,name FROM saved_collections WHERE project_id = ? ORDER BY name COLLATE NOCASE,id`, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Collection
+	for rows.Next() {
+		var item Collection
+		if err := rows.Scan(&item.ID, &item.ProjectID, &item.Name); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
 func (r *sqliteRepository) AddCollectionItem(ctx context.Context, item CollectionItem) error {
 	var collectionProject, draftProject string
 	if err := r.db.QueryRowContext(ctx, `SELECT project_id FROM saved_collections WHERE id = ?`, item.CollectionID).Scan(&collectionProject); err != nil {
@@ -115,6 +138,25 @@ func (r *sqliteRepository) AddCollectionItem(ctx context.Context, item Collectio
 	}
 	_, err := r.db.ExecContext(ctx, `INSERT INTO saved_collection_items(collection_id,draft_id,revision_id,created_at) VALUES(?,?,?,?)`, item.CollectionID, item.DraftID, item.RevisionID, time.Now().UTC().Format(time.RFC3339Nano))
 	return err
+}
+
+func (r *sqliteRepository) RemoveCollectionItem(ctx context.Context, item CollectionItem) error {
+	item.CollectionID, item.DraftID, item.RevisionID = strings.TrimSpace(item.CollectionID), strings.TrimSpace(item.DraftID), strings.TrimSpace(item.RevisionID)
+	if item.CollectionID == "" || item.DraftID == "" || item.RevisionID == "" {
+		return ErrInvalid
+	}
+	result, err := r.db.ExecContext(ctx, `DELETE FROM saved_collection_items WHERE collection_id = ? AND draft_id = ? AND revision_id = ?`, item.CollectionID, item.DraftID, item.RevisionID)
+	if err != nil {
+		return err
+	}
+	deleted, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if deleted == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (r *sqliteRepository) ListCollectionItems(ctx context.Context, collectionID string) ([]CollectionItem, error) {

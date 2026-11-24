@@ -642,6 +642,9 @@
         "path_field": "path",
         "attestation_field": "attestation"
       },
+      "tuning": {
+        "engine": "dense"
+      },
       "performance": {
         "p95_ms": 2500,
         "minimum_samples": 1,

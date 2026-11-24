@@ -361,7 +361,7 @@ func (f cloudStepReadRepoFake) GetCloudStep(context.Context, string) (*CloudStep
 func (f cloudStepReadRepoFake) RecordCloudStep(context.Context, CloudStep) error { return nil }
 
 func TestGetOperationIncludesDurableCloudStep(t *testing.T) {
-	step := &CloudStep{OperationID: "op-1", RequestKey: "dm-cloud:op-1", RequestDigest: "sha256:request", State: "operation_admitted", DeploymentID: "dep-1", OwnerOperationID: "s2c-op-1"}
+	step := &CloudStep{OperationID: "op-1", RequestKey: "dm-cloud:op-1", RequestDigest: "sha256:request", State: "operation_admitted", DeploymentID: "dep-1", OwnerOperationID: "s2c-op-1", ManagedDNSState: "pending", ManagedDNSReason: "awaiting owner receipt", ManagedDNSEvidenceSHA256: "sha256:standing"}
 	repo := cloudStepReadRepoFake{Repository: newMockRepo(), operation: &Operation{ID: "op-1", ReleaseID: "rel-1", Status: OperationRunning}, step: step}
 	if _, ok := interface{}(repo).(CloudStepRepository); !ok {
 		t.Fatal("read repo does not satisfy cloud-step repository")
@@ -378,8 +378,33 @@ func TestGetOperationIncludesDurableCloudStep(t *testing.T) {
 	if err := json.NewDecoder(response.Body).Decode(&got); err != nil {
 		t.Fatal(err)
 	}
-	if got.CloudStep == nil || got.CloudStep.RequestKey != step.RequestKey || got.CloudStep.OwnerOperationID != step.OwnerOperationID {
+	if got.CloudStep == nil || got.CloudStep.RequestKey != step.RequestKey || got.CloudStep.OwnerOperationID != step.OwnerOperationID || got.CloudStep.ManagedDNSState != "pending" || got.CloudStep.ManagedDNSReason != "awaiting owner receipt" || got.CloudStep.ManagedDNSEvidenceSHA256 != "sha256:standing" {
 		t.Fatalf("cloud step read-back = %#v body=%s", got.CloudStep, string(body))
+	}
+}
+
+func TestGetOperationIncludesRecoveryHandoffForDecisionRequired(t *testing.T) {
+	op := &Operation{ID: operationIDForRelease("rel-handoff"), ReleaseID: "rel-handoff", Status: OperationFailed}
+	step := &CloudStep{
+		OperationID: op.ID, State: "recovery_decision_required", DeploymentID: "dep-handoff",
+		RecoveryIdempotencyKey: CloudRecoveryIdempotencyKey(op.ID), VerificationState: "failed",
+		VerificationReceipt: json.RawMessage(`{"healthy":false,"deployment_id":"dep-handoff","reason_code":"release_mismatch"}`),
+		Receipt:             json.RawMessage(`{"receipt":{"deployment_id":"dep-handoff"},"publication":{"release_digest":"sha256:current","predecessor_release_digest":"sha256:last-good","state":"published"}}`),
+	}
+	repo := cloudStepReadRepoFake{Repository: newMockRepo(), operation: op, step: step}
+	handler := NewHandler(repo, nil, nil, nil, nil).WithReadAuthorization(func(context.Context) error { return nil })
+	req := mux.SetURLVars(httptest.NewRequest(http.MethodGet, "/api/v1/release-operations/op-handoff", nil), map[string]string{"operation_id": op.ID})
+	response := httptest.NewRecorder()
+	handler.GetOperation(response, req)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	var got Operation
+	if err := json.NewDecoder(response.Body).Decode(&got); err != nil {
+		t.Fatal(err)
+	}
+	if got.CloudRecoveryHandoff == nil || got.CloudRecoveryHandoff.OperationID != op.ID || got.CloudRecoveryHandoff.State != "awaiting_human_decision" || got.CloudRecoveryHandoff.LastGoodReleaseDigest != "sha256:last-good" || got.CloudRecoveryHandoff.Available {
+		t.Fatalf("recovery handoff = %+v", got.CloudRecoveryHandoff)
 	}
 }
 

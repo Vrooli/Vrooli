@@ -2,6 +2,8 @@ package releases
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +14,77 @@ import (
 	"deployment-manager/shared"
 	"github.com/gorilla/mux"
 )
+
+func buildCloudRecoveryHandoff(operation *Operation, step *CloudStep) *CloudRecoveryHandoff {
+	if operation == nil || step == nil || step.State != "recovery_decision_required" || step.OperationID != operation.ID || operation.ID != operationIDForRelease(operation.ReleaseID) || operation.Status != OperationFailed && operation.Status != OperationAmbiguous {
+		return nil
+	}
+	handoff := &CloudRecoveryHandoff{
+		OperationID: operation.ID, ReleaseID: operation.ReleaseID, DeploymentID: step.DeploymentID,
+		RecoveryKey: step.RecoveryIdempotencyKey, State: "awaiting_human_decision", VerificationState: step.VerificationState,
+		EvidenceFreshness: "unknown", Available: false,
+		NextAction:    "Review this exact operation in Scenario-to-Cloud and provide its separate human start authorization.",
+		BlockedReason: "Deployment Manager cannot start recovery. Scenario-to-Cloud keeps recovery start human-only; no human start grant is recorded.",
+	}
+	if handoff.RecoveryKey != CloudRecoveryIdempotencyKey(operation.ID) || len(step.VerificationReceipt) == 0 || !json.Valid(step.VerificationReceipt) {
+		handoff.State = "handoff_incomplete"
+		handoff.BlockedReason = "The durable operation-bound recovery key or failed verification evidence is unavailable."
+		return handoff
+	}
+	digest := sha256.Sum256(step.VerificationReceipt)
+	handoff.EvidenceSHA256 = "sha256:" + hex.EncodeToString(digest[:])
+	var health struct {
+		Healthy      bool      `json:"healthy"`
+		DeploymentID string    `json:"deployment_id"`
+		ReasonCode   string    `json:"reason_code"`
+		Details      string    `json:"details"`
+		ObservedAt   time.Time `json:"observed_at"`
+	}
+	if json.Unmarshal(step.VerificationReceipt, &health) != nil || health.Healthy || health.DeploymentID != step.DeploymentID {
+		handoff.State = "handoff_incomplete"
+		handoff.BlockedReason = "The stored verification receipt is not a failed observation for this exact deployment."
+		return handoff
+	}
+	handoff.VerificationReason = strings.TrimSpace(strings.Join([]string{health.ReasonCode, health.Details}, ": "))
+	handoff.EvidenceObservedAt = health.ObservedAt.UTC()
+	if health.ObservedAt.IsZero() && step.VerificationAttemptedAt != nil {
+		handoff.EvidenceObservedAt = step.VerificationAttemptedAt.UTC()
+	}
+	if !handoff.EvidenceObservedAt.IsZero() {
+		age := time.Since(handoff.EvidenceObservedAt)
+		if age >= 0 && age <= 120*time.Second || age < 0 && age >= -time.Minute {
+			handoff.EvidenceFreshness = "fresh"
+		} else {
+			handoff.EvidenceFreshness = "stale"
+		}
+	}
+	var deployment struct {
+		Receipt struct {
+			DeploymentID string `json:"deployment_id"`
+		} `json:"receipt"`
+		Publication struct {
+			ReleaseDigest            string `json:"release_digest"`
+			ActivatedReleaseDigest   string `json:"activated_release_digest"`
+			PredecessorReleaseDigest string `json:"predecessor_release_digest"`
+			State                    string `json:"state"`
+		} `json:"publication"`
+	}
+	if json.Unmarshal(step.Receipt, &deployment) != nil || deployment.Receipt.DeploymentID != step.DeploymentID || deployment.Publication.State != "published" {
+		handoff.State = "handoff_incomplete"
+		handoff.BlockedReason = "The persisted deployment receipt does not prove current and last-good release identities for this target."
+		return handoff
+	}
+	handoff.CurrentReleaseDigest = deployment.Publication.ActivatedReleaseDigest
+	if handoff.CurrentReleaseDigest == "" {
+		handoff.CurrentReleaseDigest = deployment.Publication.ReleaseDigest
+	}
+	handoff.LastGoodReleaseDigest = deployment.Publication.PredecessorReleaseDigest
+	if handoff.CurrentReleaseDigest == "" || handoff.LastGoodReleaseDigest == "" {
+		handoff.State = "handoff_incomplete"
+		handoff.BlockedReason = "Current or last-good release identity is missing from the durable deployment receipt."
+	}
+	return handoff
+}
 
 // ReconcileCloudRecoveryOperation observes and settles only an owner recovery
 // that a human already started in Scenario-to-Cloud. It never calls Start.

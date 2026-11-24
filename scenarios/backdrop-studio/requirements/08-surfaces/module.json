@@ -24,7 +24,7 @@
         {
           "type": "unit",
           "status": "planned",
-          "notes": "Assert a surface without geometry, without a kind, or without a cited authority is rejected, and that a valid surface round-trips with its placement list intact."
+          "notes": "`TestSurfaceRecordRequiresGeometryAndSourceProvenance` rejects a missing id, kind, width, height, placement, source citation, or confirmation date and proves a valid source-backed record round-trips. `TestSeedIncludesCurrentOfficialStoreSurfacePack` asserts the five Play/current Apple required-class rows and the three retained Apple accepted-size rows."
         }
       ]
     },
@@ -66,7 +66,7 @@
         {
           "type": "integration",
           "status": "planned",
-          "notes": "Produce a candidate one pixel off in each dimension; assert release refuses and names both geometries. Assert an exact match releases."
+          "notes": "`TestReleaseRefusesStoreSurfaceGeometryMismatchWithBothSizes` asserts a current Apple store target refuses candidate bytes one pixel narrow and one pixel short, reporting the exact expected 1206x2622 and actual 1205x2622 / 1206x2621 dimensions. Existing release success tests cover matching candidate evidence."
         }
       ]
     },
@@ -87,7 +87,7 @@
         {
           "type": "integration",
           "status": "planned",
-          "notes": "Assert every seeded store surface carries geometry, a cited authority, and a confirmation date, and that the pack loads without a code change."
+          "notes": "`TestSeedIncludesCurrentOfficialStoreSurfacePack` asserts exact geometry, official-source URL, confirmation date, and kind for Google Play feature/phone/tablet surfaces and Apple's current required iPhone/iPad display classes; seed v14 loads the store-only data upgrade without a code change."
         }
       ]
     }

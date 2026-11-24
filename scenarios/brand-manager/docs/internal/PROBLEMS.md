@@ -49,30 +49,32 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### 2026-06-27 — Rebuild in progress: authoring domains not yet ported
+### 2026-06-27 — Rebuild validation remains incomplete
 
-**Symptom:** A comprehensive `vrooli scenario test brand-manager` shows several non-green phases
-(docs/business/measures/dependencies/tidiness/unit) and the authoring domains (brands,
-assignments, assets, generation, apply, discovery, design) are not yet implemented on the new
-Connect stack. Requirements are all `status: planned`.
+**Symptom:** The 2026-06-27 comprehensive `vrooli scenario test brand-manager` snapshot
+reported non-green docs/business/measures/dependencies/tidiness/unit phases. The old claim
+that the brands, assignments, assets, generation, apply, discovery, and design domains were
+not implemented on Connect is superseded: current API handlers and focused handler tests exist
+for all seven domains. Requirement statuses are mixed (`in_progress`, `complete`, and `planned`),
+not all `planned`; this does not establish comprehensive acceptance. No current comprehensive
+run was performed for this reconciliation, so the scenario-level validation concern remains open.
 
-**Root cause:** The scenario was regenerated from `react-vite` (2026-06-27) and is mid-port. The
-transport-agnostic algorithms (aigen/contrast/repository/apply/discovery/DESIGN-export) live in
-`/tmp/brand-manager-OLD-reference` and are being lifted into `api/internal/<domain>/` domain by
-domain. Until each domain lands, its requirements stay `planned` and its phase coverage is thin.
+**Root cause:** The register snapshot predates the current domain implementation and its
+focused API tests. Requirement validation notes still contain some scaffold-era “once ported”
+text; broader scenario phase and requirement reconciliation is not proven by this unit.
 
-**Workaround:** Treat the post-regen test-genie baseline (`brand-manager-postregen`) as the anchor;
-the remaining reds are expected scaffold-incompleteness, not regressions. The example `notes`
-domain reds (e.g. `notes attach` undeclared, `notes/flow/generated/replay.go` test-helper import)
-clear once `vrooli scenario detemplate brand-manager` runs.
+**Workaround:** Use the passing focused Connect handler tests only as domain-level evidence.
+Treat the cited 2026-06-27 Test Genie baseline and `notes` examples as historical; they are not
+a current comprehensive result or a present domain-port blocker.
 
-**Real fix:** Complete the domain port (Phase 2) and the validation phase (Phase 3); flip
-requirement statuses from `planned` to `complete`/`implemented` as each lands.
+**Real fix:** Reconcile each requirement's implementation and validation evidence, then rerun
+the current scenario-level validation gates before changing this broader finding's status.
 
-**Owner:** unassigned (rebuild executor).
+**Owner:** Brand Manager maintainers.
 
-**Refs:** `~/.vrooli/plans/brand-manager-regenerate-validation-as-test-genie-phase.md`;
-`/tmp/brand-manager-OLD-reference` (port source); `docs/internal/DECISIONS.md`.
+**Refs:** `api/handlers/{brands,assignments,assets,generation,apply,discovery,design}/` and
+their `connect_handler_test.go` files; `requirements/` (mixed current statuses);
+`docs/internal/DECISIONS.md`.
 
 ### 2026-09-15 — First live explore produced unusable candidates (fixed)
 

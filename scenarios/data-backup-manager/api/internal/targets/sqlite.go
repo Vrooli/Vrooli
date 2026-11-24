@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/vrooli/api-core/database"
+
 	"data-backup-manager/internal/sources"
 
 	"github.com/vrooli/api-core/schedule"
@@ -14,22 +16,16 @@ import (
 	"github.com/google/uuid"
 )
 
-// SQLExecutor is the narrow database surface sqliteRepository depends on.
+// SQLExecutor is the shared database surface sqliteRepository depends on.
 // Both *sql.DB (repository unit tests via testutil/db.NewSQLite) and
 // *database.RoutedDB (production) satisfy it.
-type SQLExecutor interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-}
-
 type sqliteRepository struct {
-	db    SQLExecutor
+	db    database.SQLExecutor
 	clock schedule.Clock
 }
 
 // NewSQLiteRepository constructs the production Repository.
-func NewSQLiteRepository(db SQLExecutor, clk schedule.Clock) Repository {
+func NewSQLiteRepository(db database.SQLExecutor, clk schedule.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 
@@ -158,6 +154,36 @@ func (s *sqliteRepository) List(ctx context.Context, owner string, limit int) ([
 		return nil, fmt.Errorf("iterate targets: %w", err)
 	}
 	return targets, nil
+}
+
+// ListPage provides a stable owner-scoped page for the list RPC.
+func (s *sqliteRepository) ListPage(ctx context.Context, owner string, limit, offset int) ([]Target, error) {
+	if limit <= 0 || offset < 0 {
+		return nil, nil
+	}
+	query := `SELECT id, owner, name, source_kind, locator, critical, created_at, updated_at FROM targets ORDER BY owner ASC, name ASC LIMIT ? OFFSET ?`
+	args := []any{limit, offset}
+	if owner != "" {
+		query = `SELECT id, owner, name, source_kind, locator, critical, created_at, updated_at FROM targets WHERE owner = ? ORDER BY name ASC LIMIT ? OFFSET ?`
+		args = []any{owner, limit, offset}
+	}
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list target page: %w", err)
+	}
+	defer rows.Close()
+	var out []Target
+	for rows.Next() {
+		t, err := scanTarget(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (s *sqliteRepository) DeleteByOwnerName(ctx context.Context, owner, name string) (bool, error) {

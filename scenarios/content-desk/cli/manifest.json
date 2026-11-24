@@ -937,6 +937,16 @@
       "description": "Manage re-runnable review outcomes",
       "commands": [
         {
+          "name": "modes",
+          "description": "List the required failure modes for a native post type",
+          "flags": [
+            { "name": "post-type", "required": true, "description": "Native post type id", "bind": { "field": "post_type_id" } }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ReviewService", "method": "ListRequiredReviewModes" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "architecture": { "primitive": "proto_list" }
+        },
+        {
           "name": "list",
           "description": "List review runs",
           "binding": {
@@ -1176,8 +1186,23 @@
     },
     {
       "service": "RelationshipsService",
+      "method": "ListCollections",
+      "reason": "Saved collections are read from a selected project workspace so membership and project scope remain visible."
+    },
+    {
+      "service": "ArtifactsService",
+      "method": "GetDraftRevision",
+      "reason": "Historical wording is opened from a saved collection with its exact draft and revision pins; detached shell output has no adjacent collection context."
+    },
+    {
+      "service": "RelationshipsService",
       "method": "AddCollectionItem",
       "reason": "Collection membership pins a selected draft revision and must be reviewed in its project workspace."
+    },
+    {
+      "service": "RelationshipsService",
+      "method": "RemoveCollectionItem",
+      "reason": "Removing a saved reference is scoped to the selected project collection and exact draft revision in the workspace."
     },
     {
       "service": "RelationshipsService",

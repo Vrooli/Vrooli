@@ -35,8 +35,9 @@ import (
 // Handler implements graph_v1connect.GraphServiceHandler.
 type Handler struct {
 	graph_v1connect.UnimplementedGraphServiceHandler
-	svc        graph.Service
-	domainsSvc intdomains.Service
+	svc             graph.Service
+	domainsSvc      intdomains.Service
+	scenarioLocator intdomains.ScenarioLocator
 }
 
 // NewHandler constructs the Connect handler.
@@ -46,6 +47,10 @@ func NewHandler(svc graph.Service, domainsSvc ...intdomains.Service) *Handler {
 		h.domainsSvc = domainsSvc[0]
 	}
 	return h
+}
+
+func NewHandlerWithLocator(svc graph.Service, domainsSvc intdomains.Service, locator intdomains.ScenarioLocator) *Handler {
+	return &Handler{svc: svc, domainsSvc: domainsSvc, scenarioLocator: locator}
 }
 
 var _ graph_v1connect.GraphServiceHandler = (*Handler)(nil)
@@ -415,11 +420,15 @@ func archetypeReport(snap graph.GraphSnapshot, d intdomains.DerivedDomain) *grap
 		if i == 0 {
 			inferredPrimary = r.Name
 		}
+		evidence := append([]string(nil), r.Evidence...)
+		for _, source := range r.SourceEvidence {
+			evidence = append(evidence, "snapshot source path: "+source.Path+" — "+source.Note)
+		}
 		report.Archetypes = append(report.Archetypes, &domainsv1.DomainArchetype{
 			Archetype:  domainshandler.ArchetypeNameToProto(r.Name),
 			Source:     domainsv1.ArchetypeSource_ARCHETYPE_SOURCE_INFERRED,
 			Confidence: r.Confidence,
-			Evidence:   append([]string(nil), r.Evidence...),
+			Evidence:   evidence,
 		})
 	}
 
@@ -435,8 +444,11 @@ func archetypeReport(snap graph.GraphSnapshot, d intdomains.DerivedDomain) *grap
 		b.CiteDoc(intdomains.DomainsDocPath, "declared Primary Archetype")
 	}
 	for _, r := range inferred {
-		for _, ev := range r.Evidence {
-			b.CiteCode(firstPath(d.Paths), ev)
+		for _, source := range r.SourceEvidence {
+			b.CiteCode(source.Path, source.Note)
+		}
+		for _, evidence := range r.DocumentEvidence {
+			b.CiteDoc(intdomains.DomainsDocPath, evidence)
 		}
 	}
 	if report.ConvergenceDrift {

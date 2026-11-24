@@ -63,7 +63,7 @@ func (h *handlers) compositionSearchCall(ctx cliapp.OperationContext) (*structpb
 	return structpb.NewStruct(value)
 }
 
-func (h *handlers) compositionSearchReport(_ cliapp.OperationContext, response *structpb.Struct) cliapp.ListReport {
+func (h *handlers) compositionSearchReport(ctx cliapp.OperationContext, response *structpb.Struct) cliapp.ListReport {
 	body := response.AsMap()
 	raw, _ := body["results"].([]any)
 	results := make([]string, 0, len(raw))
@@ -76,7 +76,18 @@ func (h *handlers) compositionSearchReport(_ cliapp.OperationContext, response *
 		d, _ := item.(map[string]any)
 		results = append(results, fmt.Sprintf("degraded %v: %v", d["code"], d["message"]))
 	}
-	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d static CLI composition result(s); runtime dispatch remains unverified.", len(raw))}, ResultsHeading: "Composition evidence", Results: results}
+	return cliapp.ListReport{Summary: []string{compositionSearchSummary(ctx.Positional("query"), ctx.Positional("scenario"), body, len(raw))}, ResultsHeading: "Composition evidence", Results: results}
+}
+
+func compositionSearchSummary(query, requestedScenario string, response map[string]any, resultCount int) string {
+	query = strings.TrimSpace(query)
+	requestedScenario = strings.TrimSpace(requestedScenario)
+	selectedScenario, _ := response["scenario"].(string)
+	scope := "requested scenario " + strconv.Quote(requestedScenario) + "; selected source scope unavailable"
+	if selectedScenario != "" {
+		scope = "scenario:" + selectedScenario
+	}
+	return fmt.Sprintf("Static CLI composition for query %s (%s): found %d result(s); runtime dispatch remains unverified.", strconv.Quote(query), scope, resultCount)
 }
 
 // searchCall runs the SearchService.Search RPC. It is the operation half of the

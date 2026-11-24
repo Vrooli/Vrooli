@@ -222,6 +222,22 @@ func TestDataTransform(t *testing.T) {
 			t.Errorf("Server error on empty transformations: %d", w.Code)
 		}
 	})
+
+}
+
+func TestDataTransformRejectsInvalidFilterAsClientError(t *testing.T) {
+	server := &Server{config: &Config{APIToken: "test-token"}}
+	body := map[string]interface{}{
+		"data": []map[string]interface{}{{"age": 30}},
+		"transformations": []map[string]interface{}{{
+			"type":       "filter",
+			"parameters": map[string]interface{}{"condition": "age = not-a-number"},
+		}},
+	}
+	req := makeHTTPRequest("POST", "/api/v1/data/transform", body, "test-token")
+	w := httptest.NewRecorder()
+	server.handleDataTransform(w, req)
+	assertErrorResponse(t, w, http.StatusBadRequest, `transformation failed: invalid filter condition "age = not-a-number": value "not-a-number" is not a number`)
 }
 
 func TestDataValidate(t *testing.T) {

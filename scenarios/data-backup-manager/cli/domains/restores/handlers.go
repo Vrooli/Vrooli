@@ -10,12 +10,15 @@ import (
 	restoresv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/restores"
 	restoresconnect "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/restores/restores_v1connect"
 
+	"data-backup-manager/cli/internal/asyncpoll"
+	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/cli-core/cliapp"
 )
 
 type handlers struct {
 	core   *cliapp.ScenarioApp
 	client restoresconnect.RestoresServiceClient
+	clock  schedule.Clock
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
@@ -23,6 +26,7 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	return &handlers{
 		core:   core,
 		client: restoresconnect.NewRestoresServiceClient(httpClient, baseURL),
+		clock:  schedule.System(),
 	}
 }
 
@@ -92,23 +96,18 @@ func (h *handlers) verify(ctx cliapp.RunContext) error {
 // Restore/verify now run in the background, so the CLI waits here rather than
 // holding a long request open — each poll is a quick GetRestore.
 func (h *handlers) pollToTerminal(id string) (*restoresv1.Restore, error) {
-	deadline := time.Now().Add(restorePollDeadline)
-	for {
-		resp, err := h.client.GetRestore(context.Background(), connect.NewRequest(&restoresv1.GetRestoreRequest{Id: id}))
-		if err != nil {
-			return nil, err
-		}
-		if resp == nil || resp.Msg == nil || resp.Msg.Restore == nil {
-			return nil, fmt.Errorf("server returned no restore for %q", id)
-		}
-		if isTerminalRestore(resp.Msg.Restore.Status) {
-			return resp.Msg.Restore, nil
-		}
-		if time.Now().After(deadline) {
-			return nil, fmt.Errorf("restore %q did not reach a terminal state within %s (still %s)", id, restorePollDeadline, restoreStatusLabel(resp.Msg.Restore.Status))
-		}
-		time.Sleep(restorePollInterval)
-	}
+	return asyncpoll.UntilTerminal(h.clock, restorePollInterval, restorePollDeadline,
+		func() (*restoresv1.Restore, bool, string, error) {
+			resp, err := h.client.GetRestore(context.Background(), connect.NewRequest(&restoresv1.GetRestoreRequest{Id: id}))
+			if err != nil {
+				return nil, false, "", err
+			}
+			if resp == nil || resp.Msg == nil || resp.Msg.Restore == nil {
+				return nil, false, "", fmt.Errorf("server returned no restore for %q", id)
+			}
+			restore := resp.Msg.Restore
+			return restore, isTerminalRestore(restore.Status), restoreStatusLabel(restore.Status), nil
+		}, "restore", id)
 }
 
 func isTerminalRestore(s restoresv1.RestoreStatus) bool {

@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"deployment-manager/shared"
+	instancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/compute-manager/v1/instance"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // SQLRepository implements Repository with PostgreSQL.
@@ -218,8 +221,8 @@ func (r *SQLRepository) UpdateOperationSnapshot(ctx context.Context, operationID
 		if previous.CloudTeardownReceipt != nil && !validCloudTeardownAdvance(previous.CloudTeardownReceipt, nextRequest.CloudTeardownReceipt) {
 			return fmt.Errorf("persisted cloud teardown identity is immutable or state transition is invalid")
 		}
-		if previous.CloudLeaseRenewalReceipt != nil && !sameCloudLeaseRenewalReceipt(previous.CloudLeaseRenewalReceipt, nextRequest.CloudLeaseRenewalReceipt) {
-			return fmt.Errorf("persisted cloud lease renewal standing is immutable")
+		if previous.CloudLeaseRenewalReceipt != nil && !validCloudLeaseRenewalAdvance(previous.CloudLeaseRenewalReceipt, nextRequest.CloudLeaseRenewalReceipt) {
+			return fmt.Errorf("persisted cloud lease renewal identity is immutable or state transition is invalid")
 		}
 	}
 	query := `UPDATE release_operations SET request_snapshot=$2, updated_at=$3 WHERE id=$1 AND request_snapshot IS NULL AND EXISTS (SELECT 1 FROM release_operation_leases WHERE operation_id=$1 AND owner=$4 AND fence=$5 AND lease_until>CURRENT_TIMESTAMP)`
@@ -246,7 +249,34 @@ func sameCloudLeaseRenewalReceipt(a, b *CloudLeaseRenewalReceipt) bool {
 	if a == nil || b == nil {
 		return a == nil && b == nil
 	}
-	return a.SchemaVersion == b.SchemaVersion && a.OperationID == b.OperationID && a.ReleaseID == b.ReleaseID && a.ProfileID == b.ProfileID && a.RenewalKey == b.RenewalKey && a.AcquisitionReceiptFingerprint == b.AcquisitionReceiptFingerprint && a.InstanceID == b.InstanceID && a.OldExpiresAt.Equal(b.OldExpiresAt) && a.NewExpiresAt.Equal(b.NewExpiresAt) && a.QuoteKey == b.QuoteKey && a.QuoteFingerprint == b.QuoteFingerprint && a.AuthorizationFact == b.AuthorizationFact && a.State == b.State && a.Reason == b.Reason && a.PersistedAt.Equal(b.PersistedAt)
+	return a.SchemaVersion == b.SchemaVersion && a.OperationID == b.OperationID && a.ReleaseID == b.ReleaseID && a.ProfileID == b.ProfileID && a.RenewalKey == b.RenewalKey && a.AcquisitionReceiptFingerprint == b.AcquisitionReceiptFingerprint && a.InstanceID == b.InstanceID && a.Provider == b.Provider && a.ProviderInstanceID == b.ProviderInstanceID && a.OldExpiresAt.Equal(b.OldExpiresAt) && a.NewExpiresAt.Equal(b.NewExpiresAt) && a.RequestedUntil.Equal(b.RequestedUntil) && a.QuoteKey == b.QuoteKey && a.QuoteFingerprint == b.QuoteFingerprint && a.AuthorizationFact == b.AuthorizationFact && a.State == b.State && a.Reason == b.Reason && a.PersistedAt.Equal(b.PersistedAt) && sameRenewalOwnerReceipt(a.OwnerReceipt, b.OwnerReceipt)
+}
+
+func sameRenewalOwnerReceipt(a, b json.RawMessage) bool {
+	if len(a) == 0 || len(b) == 0 {
+		return len(a) == 0 && len(b) == 0
+	}
+	left, right := &instancev1.RenewalReceipt{}, &instancev1.RenewalReceipt{}
+	return protojson.Unmarshal(a, left) == nil && protojson.Unmarshal(b, right) == nil && proto.Equal(left, right)
+}
+
+func validCloudLeaseRenewalAdvance(a, b *CloudLeaseRenewalReceipt) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	if a.SchemaVersion != b.SchemaVersion || a.OperationID != b.OperationID || a.ReleaseID != b.ReleaseID || a.ProfileID != b.ProfileID || a.RenewalKey != b.RenewalKey || a.AcquisitionReceiptFingerprint != b.AcquisitionReceiptFingerprint || a.InstanceID != b.InstanceID || a.Provider != b.Provider || a.ProviderInstanceID != b.ProviderInstanceID || !a.OldExpiresAt.Equal(b.OldExpiresAt) || !a.RequestedUntil.Equal(b.RequestedUntil) || a.QuoteKey != b.QuoteKey || a.QuoteFingerprint != b.QuoteFingerprint || a.AuthorizationFact != b.AuthorizationFact {
+		return false
+	}
+	if sameCloudLeaseRenewalReceipt(a, b) {
+		return true
+	}
+	if (a.State == "pending" || a.State == "blocked" || a.State == "due") && (b.State == "pending" || b.State == "blocked" || b.State == "renewed") && (b.OwnerReceipt != nil || b.State == "blocked") {
+		return true
+	}
+	if a.State == "pending" && b.State == "pending" && a.OwnerReceipt == nil && b.OwnerReceipt == nil {
+		return true
+	}
+	return false
 }
 
 func sameCloudTeardownReceipt(a, b *CloudTeardownReceipt) bool {
@@ -302,8 +332,8 @@ func (r *SQLRepository) RecordCloudStep(ctx context.Context, step CloudStep) err
 	}
 	result, err := r.db.ExecContext(ctx, `
 		INSERT INTO release_operation_cloud_steps
-			(operation_id, fence, request_key, request_digest, state, deployment_id, owner_operation_id, receipt_json, verification_receipt_json, verification_key, verification_request_digest, verification_state, verification_attempted_at, recovery_idempotency_key, recovery_owner_operation_id, recovery_state, recovery_preview_ref, recovery_receipt_json, recovery_reason, reason, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+			(operation_id, fence, request_key, request_digest, state, deployment_id, owner_operation_id, receipt_json, verification_receipt_json, verification_key, verification_request_digest, verification_state, verification_attempted_at, recovery_idempotency_key, recovery_owner_operation_id, recovery_state, recovery_preview_ref, recovery_receipt_json, recovery_reason, managed_dns_state, managed_dns_reason, managed_dns_evidence_sha256, reason, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
 		ON CONFLICT (operation_id) DO UPDATE SET
 			fence = EXCLUDED.fence,
 			state = EXCLUDED.state,
@@ -321,6 +351,9 @@ func (r *SQLRepository) RecordCloudStep(ctx context.Context, step CloudStep) err
 			recovery_preview_ref = COALESCE(EXCLUDED.recovery_preview_ref, release_operation_cloud_steps.recovery_preview_ref),
 			recovery_receipt_json = COALESCE(EXCLUDED.recovery_receipt_json, release_operation_cloud_steps.recovery_receipt_json),
 			recovery_reason = COALESCE(EXCLUDED.recovery_reason, release_operation_cloud_steps.recovery_reason),
+			managed_dns_state = COALESCE(EXCLUDED.managed_dns_state, release_operation_cloud_steps.managed_dns_state),
+			managed_dns_reason = COALESCE(EXCLUDED.managed_dns_reason, release_operation_cloud_steps.managed_dns_reason),
+			managed_dns_evidence_sha256 = COALESCE(EXCLUDED.managed_dns_evidence_sha256, release_operation_cloud_steps.managed_dns_evidence_sha256),
 			reason = EXCLUDED.reason,
 			updated_at = EXCLUDED.updated_at
 		WHERE release_operation_cloud_steps.request_key = EXCLUDED.request_key
@@ -335,7 +368,7 @@ func (r *SQLRepository) RecordCloudStep(ctx context.Context, step CloudStep) err
 	`, step.OperationID, step.Fence, step.RequestKey, step.RequestDigest, step.State,
 		nullString(step.DeploymentID), nullString(step.OwnerOperationID), nullString(string(step.Receipt)), nullString(string(step.VerificationReceipt)),
 		nullString(step.VerificationKey), nullString(step.VerificationRequestDigest), nullString(step.VerificationState), nullTime(step.VerificationAttemptedAt),
-		nullString(step.RecoveryIdempotencyKey), nullString(step.RecoveryOwnerOperationID), nullString(step.RecoveryState), nullString(step.RecoveryPreviewRef), nullString(string(step.RecoveryReceipt)), nullString(step.RecoveryReason), nullString(step.Reason), step.UpdatedAt)
+		nullString(step.RecoveryIdempotencyKey), nullString(step.RecoveryOwnerOperationID), nullString(step.RecoveryState), nullString(step.RecoveryPreviewRef), nullString(string(step.RecoveryReceipt)), nullString(step.RecoveryReason), nullString(step.ManagedDNSState), nullString(step.ManagedDNSReason), nullString(step.ManagedDNSEvidenceSHA256), nullString(step.Reason), step.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("record cloud step: %w", err)
 	}
@@ -351,12 +384,12 @@ func (r *SQLRepository) RecordCloudStep(ctx context.Context, step CloudStep) err
 
 func (r *SQLRepository) GetCloudStep(ctx context.Context, operationID string) (*CloudStep, error) {
 	step := &CloudStep{}
-	var deploymentID, ownerOperationID, receipt, verificationReceipt, verificationKey, verificationDigest, verificationState, recoveryKey, recoveryOperationID, recoveryState, recoveryPreview, recoveryReceipt, recoveryReason, reason sql.NullString
+	var deploymentID, ownerOperationID, receipt, verificationReceipt, verificationKey, verificationDigest, verificationState, recoveryKey, recoveryOperationID, recoveryState, recoveryPreview, recoveryReceipt, recoveryReason, managedDNSState, managedDNSReason, managedDNSEvidenceSHA256, reason sql.NullString
 	var verificationAttemptedAt sql.NullTime
 	err := r.db.QueryRowContext(ctx, `
-		SELECT operation_id, fence, request_key, request_digest, state, deployment_id, owner_operation_id, receipt_json, verification_receipt_json, verification_key, verification_request_digest, verification_state, verification_attempted_at, recovery_idempotency_key, recovery_owner_operation_id, recovery_state, recovery_preview_ref, recovery_receipt_json, recovery_reason, reason, updated_at
+		SELECT operation_id, fence, request_key, request_digest, state, deployment_id, owner_operation_id, receipt_json, verification_receipt_json, verification_key, verification_request_digest, verification_state, verification_attempted_at, recovery_idempotency_key, recovery_owner_operation_id, recovery_state, recovery_preview_ref, recovery_receipt_json, recovery_reason, managed_dns_state, managed_dns_reason, managed_dns_evidence_sha256, reason, updated_at
 		FROM release_operation_cloud_steps WHERE operation_id = $1
-	`, operationID).Scan(&step.OperationID, &step.Fence, &step.RequestKey, &step.RequestDigest, &step.State, &deploymentID, &ownerOperationID, &receipt, &verificationReceipt, &verificationKey, &verificationDigest, &verificationState, &verificationAttemptedAt, &recoveryKey, &recoveryOperationID, &recoveryState, &recoveryPreview, &recoveryReceipt, &recoveryReason, &reason, &step.UpdatedAt)
+	`, operationID).Scan(&step.OperationID, &step.Fence, &step.RequestKey, &step.RequestDigest, &step.State, &deploymentID, &ownerOperationID, &receipt, &verificationReceipt, &verificationKey, &verificationDigest, &verificationState, &verificationAttemptedAt, &recoveryKey, &recoveryOperationID, &recoveryState, &recoveryPreview, &recoveryReceipt, &recoveryReason, &managedDNSState, &managedDNSReason, &managedDNSEvidenceSHA256, &reason, &step.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -364,6 +397,7 @@ func (r *SQLRepository) GetCloudStep(ctx context.Context, operationID string) (*
 		return nil, err
 	}
 	step.DeploymentID, step.OwnerOperationID, step.Reason = deploymentID.String, ownerOperationID.String, reason.String
+	step.ManagedDNSState, step.ManagedDNSReason, step.ManagedDNSEvidenceSHA256 = managedDNSState.String, managedDNSReason.String, managedDNSEvidenceSHA256.String
 	step.RecoveryIdempotencyKey, step.RecoveryOwnerOperationID = recoveryKey.String, recoveryOperationID.String
 	step.RecoveryState, step.RecoveryPreviewRef, step.RecoveryReason = recoveryState.String, recoveryPreview.String, recoveryReason.String
 	step.VerificationKey, step.VerificationRequestDigest, step.VerificationState = verificationKey.String, verificationDigest.String, verificationState.String

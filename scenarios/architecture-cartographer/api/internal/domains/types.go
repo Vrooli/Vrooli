@@ -74,6 +74,11 @@ type DerivedDomain struct {
 	Archetypes []DomainArchetype
 	// Provenance lists every source that declared a domain with this name.
 	Provenance []Source
+	// DeclarationSource and DeclarationLine identify the exact authoritative
+	// row when the domain came from a structured source such as DOMAINS.md.
+	// A zero line means the extractor cannot provide a stable row locator.
+	DeclarationSource string
+	DeclarationLine   int
 }
 
 type ArchetypeSource string
@@ -287,6 +292,10 @@ type ExtractedDomain struct {
 	OwnsData        string
 	SecondaryTraits []string
 	Archetypes      []DomainArchetype
+	// SourcePath and SourceLine locate this declaration in its source. These
+	// remain empty/zero for extractors that do not expose stable row locations.
+	SourcePath string
+	SourceLine int
 }
 
 // Extraction is the full output of one extractor for one scenario.

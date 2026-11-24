@@ -58,7 +58,7 @@ export function TodayPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8" data-experience-surface="today" data-testid="page-today">
+    <section className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8" data-experience-surface="today" data-testid="page-today">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.1em] text-app-primary">{t(strings.today.eyebrow)}</p>
@@ -86,7 +86,7 @@ export function TodayPage() {
             <CardContent className="space-y-3">
               <p className="text-sm text-app-muted-foreground">{t(strings.today.quietDescription)}</p>
               <p className="text-sm text-app-muted-foreground">{t(strings.today.viewWorkDescription)}</p>
-              <Button variant="secondary" onClick={() => navigate("/board")}>{t(strings.today.viewWork)}</Button>
+              <Button variant="secondary" onClick={() => navigate("/content")}>{t(strings.today.viewWork)}</Button>
             </CardContent>
           </Card>
         </section>
@@ -115,7 +115,7 @@ export function TodayPage() {
             <CardContent>
               <p className="text-sm text-app-muted-foreground">{reviewDraft ? t(strings.today.reviewDescription) : t(strings.today.noApprovalDescription)}</p>
               <p className="mt-3 text-sm">{reviewCount === 1 ? t(strings.today.reviewCount_one, { count: reviewCount }) : t(strings.today.reviewCount_other, { count: reviewCount })}</p>
-              <Button variant="secondary" className="mt-4" onClick={() => reviewDraft ? openForReview(reviewDraft) : suggestedDraft ? openDraft(suggestedDraft) : navigate("/board")}>{reviewDraft ? t(strings.today.reviewWorkbench) : t(strings.today.openWorkbench)}</Button>
+              <Button variant="secondary" className="mt-4" onClick={() => reviewDraft ? openForReview(reviewDraft) : suggestedDraft ? openDraft(suggestedDraft) : navigate("/create")}>{reviewDraft ? t(strings.today.reviewWorkbench) : t(strings.today.openWorkbench)}</Button>
             </CardContent>
           </Card>
 
@@ -141,6 +141,6 @@ export function TodayPage() {
           </div>)}
         </CardContent>
       </Card> : null}
-    </main>
+    </section>
   );
 }

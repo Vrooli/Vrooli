@@ -1,16 +1,9 @@
 # Integrations — CLI Health
 
-This document is the canonical dependency contract for resources,
-other scenarios, and third-party services used by the scenario.
+## Purpose Of This Document
 
-
-Use this document to answer:
-
-- What does the scenario depend on?
-- Which dependencies are required versus optional?
-- Which domain uses each dependency?
-- What is the failure or degradation behavior?
-- Where is the dependency declared or configured?
+This guide records CLI Health's declared resources, scenario dependencies,
+integration contracts, and failure behavior.
 
 ## Dependency Inventory
 
@@ -21,19 +14,19 @@ Use this document to answer:
 
 ## Vrooli Resources
 
-The generated template does not declare external Vrooli resources. Add
-resources to `.vrooli/service.json` only when a real scenario domain
-requires them.
+## Vrooli Resources
 
-| Resource | Status | Reason | Revisit Trigger |
-|---|---|---|---|
-| None yet. | not-applicable | SQLite is embedded by default. | Add when PRD/requirements demand shared resource behavior. |
+| Resource | Enabled | Required | Startup policy | Purpose | Degraded behavior |
+|---|---:|---:|---|---|---|
+| qdrant | yes | no | `try_start` | Vector database for cross-scenario CLI command semantic search (collection: `cli-health-commands`). | Semantic search falls back to BM25-style text matching; reindex is deferred. |
+| ollama | yes | no | `try_start` | Local embedding role for command index generation (`embedding.default`). | Embedding generation is unavailable; text-mode search still works. |
+| reranker | yes | no | `try_start` | Cross-encoder reranker (BAAI/bge-reranker-v2-m3 via TEI) reorders the dense command-search shortlist. | Reranking falls back to raw dense (cosine) order; search still returns results, only the final ordering is less precise. Local-LLM fallback is best-effort: qwen3:1.7b cannot discriminate and qwen3:4b is too slow (~38s/query), so the cross-encoder is effectively required for the rerank quality win. |
 
 ## Scenario Dependencies
 
-| Scenario | Status | Reason | Contract |
-|---|---|---|---|
-| None yet. | not-applicable | Generated scenario is standalone. | Add when this scenario calls or composes another scenario. |
+| Scenario | Enabled | Required | Startup policy | Purpose | Degraded behavior |
+|---|---:|---:|---|---|---|
+| search-hub | yes | no | `try_start` | CLI Health self-registers its `cli-health.commands` provider from `.vrooli/search.json`, allowing federated command search and quality sweeps. | Registration retries briefly and then gives up if Search Hub is down; CLI Health continues serving command search and retries on its next boot. |
 
 ## Third-Party Services
 

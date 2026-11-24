@@ -3,12 +3,14 @@ package targets
 import (
 	"context"
 	"fmt"
+
+	"github.com/vrooli/api-core/database"
 )
 
 // EnsureColumns applies additive target migrations to existing catalogs. The
 // critical classification was added after the original target table shipped;
 // old rows remain non-critical until an operator explicitly approves them.
-func EnsureColumns(ctx context.Context, db SQLExecutor) error {
+func EnsureColumns(ctx context.Context, db database.SQLExecutor) error {
 	rows, err := db.QueryContext(ctx, "PRAGMA table_info(targets)")
 	if err != nil {
 		return fmt.Errorf("inspect targets columns: %w", err)

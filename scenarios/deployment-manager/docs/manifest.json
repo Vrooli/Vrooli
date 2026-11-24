@@ -535,6 +535,16 @@
           "completion": "required"
         },
         {
+          "path": "internal/RELEASE-GOVERNANCE-REFERENCE.md",
+          "docType": "internal-release-governance-reference",
+          "title": "release governance engineering reference",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
           "path": "internal/PROBLEMS.md",
           "docType": "internal-problems",
           "title": "internal problems",
@@ -680,16 +690,6 @@
           "path": "tiers/tier-3-mobile.md",
           "docType": "tier-3-mobile",
           "title": "tier 3 mobile",
-          "maturity": "draft",
-          "requiredBy": [
-            "oriented"
-          ],
-          "completion": "optional"
-        },
-        {
-          "path": "tiers/tier-4-saas.md",
-          "docType": "tier-4-saas",
-          "title": "tier 4 saas",
           "maturity": "draft",
           "requiredBy": [
             "oriented"

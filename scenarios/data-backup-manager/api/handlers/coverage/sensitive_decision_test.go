@@ -108,6 +108,38 @@ func sensitiveFlowFixture(t *testing.T) (*SensitiveDecisionFlow, *sensitiveFlowS
 	return flow, svc, publisher, store
 }
 
+func requestSensitiveAsk(t *testing.T, ctx context.Context, flow *SensitiveDecisionFlow, store *destinationreadiness.FileDecisionStore) (string, *operatordecision.PendingAsk, int) {
+	t.Helper()
+	askID, count, err := flow.Request(ctx)
+	if err != nil {
+		t.Fatalf("request sensitive review: %v", err)
+	}
+	ask, err := store.Get(ctx, askID)
+	if err != nil || ask == nil {
+		t.Fatalf("get sensitive review %q = %+v, %v", askID, ask, err)
+	}
+	return askID, ask, count
+}
+
+func postSignedDecision(t *testing.T, flow *SensitiveDecisionFlow, resolution operatordecision.DecisionResolution) *httptest.ResponseRecorder {
+	t.Helper()
+	body, err := json.Marshal(map[string]any{"event_type": operatordecision.AskResolvedEventType, "payload": resolution})
+	if err != nil {
+		t.Fatal(err)
+	}
+	const secret = "signed-test-secret"
+	mac := hmac.New(sha256.New, []byte(secret))
+	_, _ = mac.Write(body)
+	req := httptest.NewRequest(http.MethodPost, "/callback", strings.NewReader(string(body)))
+	req.Header.Set(operatordecision.SignatureHeader, hex.EncodeToString(mac.Sum(nil)))
+	resp := httptest.NewRecorder()
+	webhook := operatordecision.NewWebhook(operatordecision.WebhookConfig{
+		Secret: operatordecision.StaticSecret(secret), Effects: []operatordecision.DomainEffect{flow},
+	})
+	webhook.ServeHTTP(resp, req)
+	return resp
+}
+
 func humanResolution(ask *operatordecision.PendingAsk, answer, note string) operatordecision.DecisionResolution {
 	return operatordecision.DecisionResolution{
 		AskID: ask.ID, State: operatordecision.StateAnswered, Answer: answer, Note: note,
@@ -120,13 +152,12 @@ func humanResolution(ask *operatordecision.PendingAsk, answer, note string) oper
 func TestSensitiveDecisionFlow_ProtectsCurrentBatchOnceAndRecordsResult(t *testing.T) {
 	ctx := context.Background()
 	flow, svc, publisher, store := sensitiveFlowFixture(t)
-	askID, count, err := flow.Request(ctx)
-	if err != nil || count != 2 {
-		t.Fatalf("Request = %q, %d, %v", askID, count, err)
+	askID, ask, count := requestSensitiveAsk(t, ctx, flow, store)
+	if count != 2 {
+		t.Fatalf("Request count = %d, want 2", count)
 	}
-	ask, err := store.Get(ctx, askID)
-	if err != nil || ask == nil || !ask.Published {
-		t.Fatalf("stored ask = %+v, %v", ask, err)
+	if !ask.Published {
+		t.Fatalf("stored ask is not published: %+v", ask)
 	}
 	requestText, _ := json.Marshal(publisher.events[0].Payload)
 	if strings.Contains(string(requestText), "/secret/") {
@@ -165,39 +196,15 @@ func TestSensitiveDecisionFlow_ProtectsCurrentBatchOnceAndRecordsResult(t *testi
 func TestSensitiveDecisionFlow_UsesSignedWebhookEndToEnd(t *testing.T) {
 	ctx := context.Background()
 	flow, svc, publisher, store := sensitiveFlowFixture(t)
-	askID, _, err := flow.Request(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ask, err := store.Get(ctx, askID)
-	if err != nil || ask == nil {
-		t.Fatalf("get ask = %+v, %v", ask, err)
-	}
+	_, ask, _ := requestSensitiveAsk(t, ctx, flow, store)
 	resolution := humanResolution(ask, "protect_all", "")
-	body, err := json.Marshal(map[string]any{
-		"event_type": operatordecision.AskResolvedEventType,
-		"payload":    resolution,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	const secret = "signed-test-secret"
-	mac := hmac.New(sha256.New, []byte(secret))
-	_, _ = mac.Write(body)
-	makeRequest := func() *httptest.ResponseRecorder {
-		req := httptest.NewRequest(http.MethodPost, "/callback", strings.NewReader(string(body)))
-		req.Header.Set(operatordecision.SignatureHeader, hex.EncodeToString(mac.Sum(nil)))
-		resp := httptest.NewRecorder()
-		operatordecision.NewWebhook(operatordecision.WebhookConfig{Secret: operatordecision.StaticSecret(secret), Effects: []operatordecision.DomainEffect{flow}}).ServeHTTP(resp, req)
-		return resp
-	}
-	if resp := makeRequest(); resp.Code != http.StatusOK {
+	if resp := postSignedDecision(t, flow, resolution); resp.Code != http.StatusOK {
 		t.Fatalf("signed callback status=%d body=%s", resp.Code, resp.Body.String())
 	}
 	if len(svc.registered) != 2 || len(publisher.events) != 2 || publisher.events[1].EventType != sensitiveResultEvent {
 		t.Fatalf("registered=%v events=%v; want one batch and result notice", svc.registered, publisher.events)
 	}
-	if resp := makeRequest(); resp.Code != http.StatusOK {
+	if resp := postSignedDecision(t, flow, resolution); resp.Code != http.StatusOK {
 		t.Fatalf("replayed signed callback status=%d body=%s", resp.Code, resp.Body.String())
 	}
 	if len(svc.registered) != 2 || len(publisher.events) != 2 {
@@ -208,11 +215,7 @@ func TestSensitiveDecisionFlow_UsesSignedWebhookEndToEnd(t *testing.T) {
 func TestSensitiveDecisionFlow_RejectsChangedCandidatesWithoutRegistering(t *testing.T) {
 	ctx := context.Background()
 	flow, svc, publisher, store := sensitiveFlowFixture(t)
-	askID, _, err := flow.Request(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ask, _ := store.Get(ctx, askID)
+	askID, ask, _ := requestSensitiveAsk(t, ctx, flow, store)
 	svc.report.Sensitive[1].Locator = "/secret/rotated"
 	if handled, err := flow.Apply(ctx, humanResolution(ask, "protect_all", "")); err != nil || !handled {
 		t.Fatalf("Apply = %v, %v", handled, err)
@@ -232,11 +235,7 @@ func TestSensitiveDecisionFlow_RejectsChangedCandidatesWithoutRegistering(t *tes
 func TestSensitiveDecisionFlow_OtherRequiresCompleteExplicitReasons(t *testing.T) {
 	ctx := context.Background()
 	flow, svc, _, store := sensitiveFlowFixture(t)
-	askID, _, err := flow.Request(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ask, _ := store.Get(ctx, askID)
+	askID, ask, _ := requestSensitiveAsk(t, ctx, flow, store)
 	choices := `[{"suggestion_id":"secret-a","decision":"exclude","reason":"Owner confirms this is a temporary token"},{"suggestion_id":"secret-b","decision":"reacquire"}]`
 	if handled, err := flow.Apply(ctx, humanResolution(ask, "other", choices)); err != nil || !handled {
 		t.Fatalf("Apply = %v, %v", handled, err)
@@ -268,11 +267,7 @@ func TestSensitiveDecisionFlow_NeverPublishesAskWithoutConfiguredCallback(t *tes
 func TestSensitiveDecisionFlow_UnverifiedApprovalCannotRegister(t *testing.T) {
 	ctx := context.Background()
 	flow, svc, _, store := sensitiveFlowFixture(t)
-	askID, _, err := flow.Request(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ask, _ := store.Get(ctx, askID)
+	_, ask, _ := requestSensitiveAsk(t, ctx, flow, store)
 	resolution := humanResolution(ask, "protect_all", "")
 	resolution.AnsweredByIdentityKind = "agent"
 	if handled, err := flow.Apply(ctx, resolution); err != nil || !handled {
@@ -286,11 +281,7 @@ func TestSensitiveDecisionFlow_UnverifiedApprovalCannotRegister(t *testing.T) {
 func TestSensitiveDecisionFlow_RetriesResultNoticeWithoutReplayingRegistration(t *testing.T) {
 	ctx := context.Background()
 	flow, svc, publisher, store := sensitiveFlowFixture(t)
-	askID, _, err := flow.Request(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ask, _ := store.Get(ctx, askID)
+	askID, ask, _ := requestSensitiveAsk(t, ctx, flow, store)
 	resolution := humanResolution(ask, "protect_all", "")
 	publisher.failEvent, publisher.failures = sensitiveResultEvent, 1
 	if handled, err := flow.Apply(ctx, resolution); !handled || err == nil {
@@ -313,11 +304,7 @@ func TestSensitiveDecisionFlow_RetriesResultNoticeWithoutReplayingRegistration(t
 
 func TestSensitiveDecisionFlow_ReacquireRequiresOwnerEvidence(t *testing.T) {
 	flow, _, _, store := sensitiveFlowFixture(t)
-	askID, _, err := flow.Request(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	ask, _ := store.Get(context.Background(), askID)
+	_, ask, _ := requestSensitiveAsk(t, context.Background(), flow, store)
 	resolution := humanResolution(ask, "other", `[{"suggestion_id":"secret-a","decision":"reacquire"},{"suggestion_id":"secret-b","decision":"protect"}]`)
 	if _, _, err := choicesForResolution(resolution, snapshotCandidates([]coverage.Suggestion{{ID: "secret-a", Sensitive: true}, {ID: "secret-b", Sensitive: true}}), time.Time{}); err == nil || !strings.Contains(err.Error(), "owner evidence") {
 		t.Fatalf("reacquire without owner proof error = %v", err)
@@ -340,10 +327,7 @@ func TestSensitiveReviewLeadsWithWhatWouldBeLostAndOffersTheStandingRule(t *test
 	ctx := context.Background()
 	flow, svc, publisher, store := sensitiveFlowFixture(t)
 	svc.report.Sensitive = realisticSensitive()
-	askID, _, err := flow.Request(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
+	askID, ask, _ := requestSensitiveAsk(t, ctx, flow, store)
 	payload := publisher.events[0].Payload
 	question, _ := payload["question"].(string)
 	subject, _ := payload["subject"].(string)
@@ -386,7 +370,6 @@ func TestSensitiveReviewLeadsWithWhatWouldBeLostAndOffersTheStandingRule(t *test
 		t.Fatalf("page is %d bytes", len(page))
 	}
 
-	ask, _ := store.Get(ctx, askID)
 	if handled, err := flow.Apply(ctx, humanResolution(ask, answerLater, "")); err != nil || !handled {
 		t.Fatalf("Apply(later) = %v, %v", handled, err)
 	}
@@ -430,9 +413,7 @@ func TestSensitiveDecisionFlow_AskedBeforeIsSaidOnTheCover(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, _, err := flow.Request(ctx); err != nil {
-		t.Fatal(err)
-	}
+	requestSensitiveAsk(t, ctx, flow, store)
 	if big, _ := publisher.events[0].Payload["big_picture"].(string); !strings.Contains(big, "third time") {
 		t.Fatalf("a question asked twice before does not say so: %s", big)
 	}
@@ -442,14 +423,10 @@ func TestSensitiveReviewFollowsPerItemRecommendationWhenOwnersCanReacquire(t *te
 	ctx := context.Background()
 	flow, svc, publisher, store := sensitiveFlowFixture(t)
 	svc.report.Sensitive = append(realisticSensitive()[:1], coverage.Suggestion{ID: "model-cache", Owner: "ollama", OwnerKind: "resource", Name: "credentials", Sensitive: true, ReacquisitionCommand: "ollama signin", ReacquisitionEvidence: "docs"})
-	askID, _, err := flow.Request(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, ask, _ := requestSensitiveAsk(t, ctx, flow, store)
 	if got := publisher.events[0].Payload["recommended"]; got != answerAsRecommended {
 		t.Fatalf("recommended = %v, want the per-item recommendation", got)
 	}
-	ask, _ := store.Get(ctx, askID)
 	if handled, err := flow.Apply(ctx, humanResolution(ask, answerAsRecommended, "")); err != nil || !handled {
 		t.Fatalf("Apply = %v, %v", handled, err)
 	}
@@ -483,10 +460,7 @@ func TestStandingAnswerRegistersEverythingAndRecordsWhoConsentedAndWhen(t *testi
 	ctx := context.Background()
 	flow, svc, _, store := sensitiveFlowFixture(t)
 	svc.report.Sensitive = realisticSensitive()
-	askID, _, err := flow.Request(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
+	askID, _, _ := requestSensitiveAsk(t, ctx, flow, store)
 	if policy, _ := flow.Policy(ctx); policy.Active {
 		t.Fatal("the rule was on before anyone consented")
 	}
@@ -513,8 +487,7 @@ func TestStandingAnswerRegistersEverythingAndRecordsWhoConsentedAndWhen(t *testi
 func TestStandingConsentNeedsAVerifiedHuman(t *testing.T) {
 	ctx := context.Background()
 	flow, svc, _, store := sensitiveFlowFixture(t)
-	askID, _, _ := flow.Request(ctx)
-	ask, _ := store.Get(ctx, askID)
+	_, ask, _ := requestSensitiveAsk(t, ctx, flow, store)
 	res := humanResolution(ask, answerStanding, "")
 	res.AnsweredByIdentityKind = "agent"
 	if handled, err := flow.Apply(ctx, res); err != nil || !handled {
@@ -528,7 +501,7 @@ func TestStandingConsentNeedsAVerifiedHuman(t *testing.T) {
 func TestStandingAnswerReplayChangesNothing(t *testing.T) {
 	ctx := context.Background()
 	flow, svc, _, store := sensitiveFlowFixture(t)
-	askID, _, _ := flow.Request(ctx)
+	askID, _, _ := requestSensitiveAsk(t, ctx, flow, store)
 	resolveWith(t, flow, store, askID, answerStanding, "")
 	first, _ := flow.Policy(ctx)
 	resolveWith(t, flow, store, askID, answerStanding, "")
@@ -538,65 +511,89 @@ func TestStandingAnswerReplayChangesNothing(t *testing.T) {
 	}
 }
 
-func TestGroupAnswerBacksUpOnlyTheChosenGroups(t *testing.T) {
-	ctx := context.Background()
-	flow, svc, _, store := sensitiveFlowFixture(t)
-	svc.report.Sensitive = realisticSensitive()
-	askID, _, _ := flow.Request(ctx)
-	resolveWithGroups(t, flow, store, askID, answerGroups, "", []string{"tool", "resource", "scenario"})
-	if len(svc.registered) != 3 {
-		t.Fatalf("registered %v, want the three non-host-setting items", svc.registered)
+func TestGroupAnswerAppliesOnlyCurrentSelectedGroups(t *testing.T) {
+	tests := []struct {
+		name          string
+		selected      []string
+		wantDecisions []sensitiveChoice
+		wantResult    string
+	}{
+		{
+			name:     "selected groups",
+			selected: []string{"tool", "resource", "scenario"},
+			wantDecisions: []sensitiveChoice{
+				{SuggestionID: "a58721892ba534c6", Decision: "protect"},
+				{SuggestionID: "dbd0bda4864ffc49", Decision: "protect"},
+				{SuggestionID: "ddcb84c33ac12841", Decision: "protect"},
+				{SuggestionID: "f1d3160e7e889ab5", Decision: "exclude", Reason: "Left out when choosing which groups to back up."},
+			},
+		},
+		{
+			name:     "safeguard only",
+			selected: []string{"safeguard"},
+			wantDecisions: []sensitiveChoice{
+				{SuggestionID: "a58721892ba534c6", Decision: "exclude", Reason: "Left out when choosing which groups to back up."},
+				{SuggestionID: "dbd0bda4864ffc49", Decision: "exclude", Reason: "Left out when choosing which groups to back up."},
+				{SuggestionID: "ddcb84c33ac12841", Decision: "exclude", Reason: "Left out when choosing which groups to back up."},
+				{SuggestionID: "f1d3160e7e889ab5", Decision: "protect"},
+			},
+		},
+		{name: "no groups", wantResult: "no group was switched on"},
+		{name: "no current group", selected: []string{"nonsense"}, wantResult: "chosen groups hold none of the current items"},
 	}
-	for _, id := range svc.registered {
-		if id == "f1d3160e7e889ab5" {
-			t.Fatal("the host setting group was not chosen but was registered")
-		}
-	}
-	stored, _ := store.Get(ctx, askID)
-	var decisions []sensitiveChoice
-	_ = json.Unmarshal([]byte(stored.Extra["decisions"]), &decisions)
-	left := 0
-	for _, d := range decisions {
-		if d.Decision == "exclude" && d.Reason != "" {
-			left++
-		}
-	}
-	if left != 1 {
-		t.Fatalf("decisions %+v, want the left-out group recorded as excluded with a reason", decisions)
-	}
-	if policy, _ := flow.Policy(ctx); policy.Active {
-		t.Fatal("choosing groups turned the standing rule on")
-	}
-}
-
-func TestGroupAnswerWithNothingSwitchedOnIsRefusedWithoutRegistering(t *testing.T) {
-	ctx := context.Background()
-	flow, svc, _, store := sensitiveFlowFixture(t)
-	svc.report.Sensitive = realisticSensitive()
-	askID, _, _ := flow.Request(ctx)
-	resolveWith(t, flow, store, askID, answerGroups, "")
-	stored, _ := store.Get(ctx, askID)
-	if len(svc.registered) != 0 || stored.State != operatordecision.PendingStateRejected || !strings.Contains(stored.Extra["result"], "no group was switched on") {
-		t.Fatalf("registered=%v state=%s result=%q", svc.registered, stored.State, stored.Extra["result"])
-	}
-}
-
-func TestGroupAnswerNamingNoCurrentGroupIsRefusedWithoutRegistering(t *testing.T) {
-	ctx := context.Background()
-	flow, svc, _, store := sensitiveFlowFixture(t)
-	svc.report.Sensitive = realisticSensitive()
-	askID, _, _ := flow.Request(ctx)
-	resolveWithGroups(t, flow, store, askID, answerGroups, "", []string{"nonsense"})
-	stored, _ := store.Get(ctx, askID)
-	if len(svc.registered) != 0 || stored.State != operatordecision.PendingStateRejected {
-		t.Fatalf("registered=%v state=%s", svc.registered, stored.State)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			flow, svc, _, store := sensitiveFlowFixture(t)
+			svc.report.Sensitive = realisticSensitive()
+			askID, _, _ := requestSensitiveAsk(t, ctx, flow, store)
+			resolveWithGroups(t, flow, store, askID, answerGroups, "", tc.selected)
+			stored, err := store.Get(ctx, askID)
+			if err != nil || stored == nil {
+				t.Fatalf("stored decision = %+v, %v", stored, err)
+			}
+			if tc.wantResult != "" {
+				if stored.State != operatordecision.PendingStateRejected || !strings.Contains(stored.Extra["result"], tc.wantResult) {
+					t.Fatalf("refusal state=%s result=%q, want %q", stored.State, stored.Extra["result"], tc.wantResult)
+				}
+				return
+			}
+			var decisions []sensitiveChoice
+			if err := json.Unmarshal([]byte(stored.Extra["decisions"]), &decisions); err != nil {
+				t.Fatal(err)
+			}
+			if stored.State != operatordecision.PendingStateApproved {
+				t.Fatalf("state=%s, want approved", stored.State)
+			}
+			gotByID := make(map[string]sensitiveChoice, len(decisions))
+			for _, decision := range decisions {
+				gotByID[decision.SuggestionID] = decision
+			}
+			if len(gotByID) != len(tc.wantDecisions) {
+				t.Fatalf("decisions %+v, want %d distinct items", decisions, len(tc.wantDecisions))
+			}
+			for _, want := range tc.wantDecisions {
+				if got := gotByID[want.SuggestionID]; got != want {
+					t.Errorf("decision for %q = %+v, want %+v", want.SuggestionID, got, want)
+				}
+				if want.Decision == "protect" && !contains(svc.registered, want.SuggestionID) {
+					t.Errorf("registered %v, missing selected item %q", svc.registered, want.SuggestionID)
+				}
+				if want.Decision == "exclude" && contains(svc.registered, want.SuggestionID) {
+					t.Errorf("excluded item %q was registered", want.SuggestionID)
+				}
+			}
+			if policy, _ := flow.Policy(ctx); policy.Active {
+				t.Fatal("choosing groups turned the standing rule on")
+			}
+		})
 	}
 }
 
 func TestStandingWithExceptionsKeepsExcludedItemsOutOfTheRule(t *testing.T) {
 	ctx := context.Background()
 	flow, svc, _, store := sensitiveFlowFixture(t)
-	askID, _, _ := flow.Request(ctx)
+	askID, _, _ := requestSensitiveAsk(t, ctx, flow, store)
 	note := `{"standing":true,"decisions":[{"suggestion_id":"secret-a","decision":"exclude","reason":"Too large"},{"suggestion_id":"secret-b","decision":"protect"}]}`
 	resolveWith(t, flow, store, askID, "other", note)
 	if len(svc.registered) != 1 || svc.registered[0] != "secret-b" {
@@ -634,10 +631,7 @@ func TestSweepDoesNothingWithoutConsent(t *testing.T) {
 func grantStanding(t *testing.T, flow *SensitiveDecisionFlow, svc *sensitiveFlowService, store *destinationreadiness.FileDecisionStore) {
 	t.Helper()
 	svc.consume = true
-	askID, _, err := flow.Request(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
+	askID, _, _ := requestSensitiveAsk(t, context.Background(), flow, store)
 	resolveWith(t, flow, store, askID, answerStanding, "")
 	svc.registered = nil
 }
@@ -705,9 +699,9 @@ func TestRevokedRuleStopsAddingAndNewCandidatesAskAgain(t *testing.T) {
 		t.Fatalf("a revoked rule still added %v", svc.registered)
 	}
 	events := len(publisher.events)
-	askID, count, err := flow.Request(ctx)
-	if err != nil || askID == "" || count != 1 || len(publisher.events) != events+1 {
-		t.Fatalf("after revoking, Request = %q, %d, %v; want a new question", askID, count, err)
+	askID, _, count := requestSensitiveAsk(t, ctx, flow, store)
+	if askID == "" || count != 1 || len(publisher.events) != events+1 {
+		t.Fatalf("after revoking, Request = %q, %d; want a new question", askID, count)
 	}
 }
 
@@ -784,10 +778,7 @@ func TestRequestSensitiveReviewWithTheRuleOnIsNotPending(t *testing.T) {
 func TestChangedCandidatesReviseTheOpenDecisionUnderTheSameSubjectKeyWithoutAWithdrawal(t *testing.T) {
 	ctx := context.Background()
 	flow, svc, publisher, store := sensitiveFlowFixture(t)
-	first, _, err := flow.Request(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
+	first, _, _ := requestSensitiveAsk(t, ctx, flow, store)
 	svc.report.Sensitive = append(svc.report.Sensitive, coverage.Suggestion{ID: "secret-c", Owner: "grok", OwnerKind: "resource", Name: "home", Sensitive: true})
 	second, count, err := flow.Request(ctx)
 	if err != nil || second == first || count != 3 {
@@ -811,7 +802,7 @@ func TestChangedCandidatesReviseTheOpenDecisionUnderTheSameSubjectKeyWithoutAWit
 func TestFailedRevisionReopensTheStaleReview(t *testing.T) {
 	ctx := context.Background()
 	flow, svc, publisher, store := sensitiveFlowFixture(t)
-	first, _, _ := flow.Request(ctx)
+	first, _, _ := requestSensitiveAsk(t, ctx, flow, store)
 	svc.report.Sensitive = append(svc.report.Sensitive, coverage.Suggestion{ID: "secret-c", Owner: "grok", Name: "home", Sensitive: true})
 	publisher.failEvent, publisher.failures = operatordecision.DecisionRequestedEventType("data-backup-manager", sensitiveDecisionKind), 1
 	if _, _, err := flow.Request(ctx); err == nil {
@@ -827,21 +818,10 @@ func TestSignedCallbackCarriesTheGroupSelectionToTheFlow(t *testing.T) {
 	ctx := context.Background()
 	flow, svc, _, store := sensitiveFlowFixture(t)
 	svc.report.Sensitive = realisticSensitive()
-	askID, _, err := flow.Request(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ask, _ := store.Get(ctx, askID)
+	_, ask, _ := requestSensitiveAsk(t, ctx, flow, store)
 	resolution := humanResolution(ask, answerGroups, "")
 	resolution.Responses = []operatordecision.Response{{QuestionID: groupsQuestionID, Selected: []string{"tool", "scenario"}}}
-	body, _ := json.Marshal(map[string]any{"event_type": operatordecision.AskResolvedEventType, "payload": resolution})
-	const secret = "signed-test-secret"
-	mac := hmac.New(sha256.New, []byte(secret))
-	_, _ = mac.Write(body)
-	req := httptest.NewRequest(http.MethodPost, "/callback", strings.NewReader(string(body)))
-	req.Header.Set(operatordecision.SignatureHeader, hex.EncodeToString(mac.Sum(nil)))
-	resp := httptest.NewRecorder()
-	operatordecision.NewWebhook(operatordecision.WebhookConfig{Secret: operatordecision.StaticSecret(secret), Effects: []operatordecision.DomainEffect{flow}}).ServeHTTP(resp, req)
+	resp := postSignedDecision(t, flow, resolution)
 	if resp.Code != http.StatusOK {
 		t.Fatalf("status=%d %s", resp.Code, resp.Body.String())
 	}
@@ -871,10 +851,7 @@ func TestAdoptedFreeTextAnswerRecordsConsentVerbatimAppliesItAndClosesTheStaleRe
 	ctx := context.Background()
 	flow, svc, publisher, store := sensitiveFlowFixture(t)
 	svc.consume = true
-	askID, _, err := flow.Request(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
+	askID, _, _ := requestSensitiveAsk(t, ctx, flow, store)
 	events := len(publisher.events)
 	flow.WithAskReader(fakeAskReader{ask: answeredOther()})
 	policy, swept, err := flow.AdoptAnswerAsConsent(ctx, "hub-ask-1")

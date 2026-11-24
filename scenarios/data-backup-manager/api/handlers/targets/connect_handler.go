@@ -63,11 +63,18 @@ func (h *connectHandler) GetTarget(ctx context.Context, req *connect.Request[tar
 }
 
 func (h *connectHandler) ListTargets(ctx context.Context, req *connect.Request[targetsv1.ListTargetsRequest]) (*connect.Response[targetsv1.ListTargetsResponse], error) {
-	list, err := h.deps.Service.List(ctx, req.Msg.Owner, int(req.Msg.PageSize))
+	var list []targets.Target
+	var next string
+	var err error
+	if pager, ok := h.deps.Service.(targets.PageService); ok {
+		list, next, err = pager.ListPage(ctx, req.Msg.Owner, int(req.Msg.PageSize), req.Msg.PageToken)
+	} else {
+		list, err = h.deps.Service.List(ctx, req.Msg.Owner, int(req.Msg.PageSize))
+	}
 	if err != nil {
 		return nil, h.translate("ListTargets", err)
 	}
-	resp := &targetsv1.ListTargetsResponse{Targets: make([]*targetsv1.Target, 0, len(list))}
+	resp := &targetsv1.ListTargetsResponse{Targets: make([]*targetsv1.Target, 0, len(list)), NextPageToken: next}
 	for _, t := range list {
 		resp.Targets = append(resp.Targets, domainToProto(t))
 	}

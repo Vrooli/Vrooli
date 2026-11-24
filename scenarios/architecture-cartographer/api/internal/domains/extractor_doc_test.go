@@ -80,6 +80,9 @@ func TestDomainsDocExtractor_Golden(t *testing.T) {
 
 	// graph: paths (backtick-stripped, comma-split), multi-archetype set, glossary.
 	graph := byName["graph"]
+	if graph.SourcePath != DomainsDocPath || graph.SourceLine != 7 {
+		t.Fatalf("graph declaration = %q:%d, want %s:7", graph.SourcePath, graph.SourceLine, DomainsDocPath)
+	}
 	if !reflect.DeepEqual(graph.Paths, []string{"api/internal/graph/", "api/handlers/graph/"}) {
 		t.Fatalf("graph paths = %v", graph.Paths)
 	}

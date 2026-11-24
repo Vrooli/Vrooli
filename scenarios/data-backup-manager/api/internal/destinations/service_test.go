@@ -394,43 +394,60 @@ func TestImportFilesystemDestinationAttachesAnchoredRepositoryWithoutCreating(t 
 	}
 }
 
-func TestImportExistingRemoteDestinationBindsDescriptorToExpectedSnapshots(t *testing.T) {
+func TestImportExistingRemoteDestinationBindsDescriptorAndFailsClosed(t *testing.T) {
 	createdAt := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	for _, tc := range []struct {
-		name     string
-		backend  destinations.BackendKind
-		location string
-		check    func(t *testing.T, spec engine.RepoSpec)
+		name        string
+		backend     destinations.BackendKind
+		location    string
+		check       func(t *testing.T, spec engine.RepoSpec)
+		connectErr  error
+		snapshots   []engine.Snapshot
+		wantErrText string
 	}{
-		{name: "S3", backend: destinations.BackendS3, location: "s3+https://s3.example.test/bucket/dbm?region=us-east-1", check: func(t *testing.T, spec engine.RepoSpec) {
+		{name: "S3", backend: destinations.BackendS3, location: "s3+https://s3.example.test/bucket/dbm?region=us-east-1", snapshots: []engine.Snapshot{{ID: "required-snapshot"}, {ID: "other-snapshot"}}, check: func(t *testing.T, spec engine.RepoSpec) {
 			t.Helper()
 			if spec.Backend != string(destinations.BackendS3) || spec.Bucket != "bucket" || spec.Prefix != "dbm" || spec.Region != "us-east-1" {
 				t.Fatalf("S3 connect descriptor = %+v", spec)
 			}
 		}},
-		{name: "SFTP", backend: destinations.BackendSFTP, location: "sftp://backup@example.test:22/dbm/repo?known_hosts=%2Fhome%2Foperator%2F.ssh%2Fknown_hosts", check: func(t *testing.T, spec engine.RepoSpec) {
+		{name: "SFTP", backend: destinations.BackendSFTP, location: "sftp://backup@example.test:22/dbm/repo?known_hosts=%2Fhome%2Foperator%2F.ssh%2Fknown_hosts", snapshots: []engine.Snapshot{{ID: "required-snapshot"}, {ID: "other-snapshot"}}, check: func(t *testing.T, spec engine.RepoSpec) {
 			t.Helper()
 			if spec.Backend != string(destinations.BackendSFTP) || spec.SFTPHost != "example.test" || spec.SFTPUsername != "backup" || spec.SFTPRemotePath != "/dbm/repo" {
 				t.Fatalf("SFTP connect descriptor = %+v", spec)
 			}
 		}},
+		{name: "credential unavailable", backend: destinations.BackendS3, location: "s3+https://s3.example.test/bucket/dbm?region=us-east-1", connectErr: errors.New("credential_missing"), wantErrText: "credential_missing"},
+		{name: "expected snapshot absent", backend: destinations.BackendS3, location: "s3+https://s3.example.test/bucket/dbm?region=us-east-1", snapshots: []engine.Snapshot{{ID: "different-snapshot"}}, wantErrText: "expected snapshot"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			repo := mocks.NewFakeRepository()
 			eng := &enginemocks.FakeKopiaEngine{
 				RepoConnectFn: func(_ context.Context, spec engine.RepoSpec) error {
-					tc.check(t, spec)
-					return nil
+					if tc.check != nil {
+						tc.check(t, spec)
+					}
+					return tc.connectErr
 				},
 				SnapshotListFn: func(context.Context, string, string) ([]engine.Snapshot, error) {
-					return []engine.Snapshot{{ID: "required-snapshot"}, {ID: "other-snapshot"}}, nil
+					return tc.snapshots, nil
 				},
 			}
 			svc := destinations.NewService(repo, eng, nil, filepath.Join(t.TempDir(), "protected"))
-			got, err := svc.ImportExistingDestination(context.Background(), destinations.ImportExistingInput{
+			input := destinations.ImportExistingInput{
 				ID: "stable-remote-id", Name: "offhost", Backend: tc.backend, Location: tc.location,
 				CreatedAt: createdAt, ExpectedSnapshotIDs: []string{"required-snapshot"},
-			})
+			}
+			got, err := svc.ImportExistingDestination(context.Background(), input)
+			if tc.wantErrText != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErrText) {
+					t.Fatalf("import error = %v, want text %q", err, tc.wantErrText)
+				}
+				if repo.Creates.Load() != 0 {
+					t.Fatalf("failed remote import created %d catalog rows", repo.Creates.Load())
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("import existing remote repository: %v", err)
 			}
@@ -447,38 +464,6 @@ func TestImportExistingRemoteDestinationBindsDescriptorToExpectedSnapshots(t *te
 			}
 		})
 	}
-}
-
-func TestImportExistingRemoteDestinationFailsClosedOnMissingCredentialOrSnapshot(t *testing.T) {
-	base := destinations.ImportExistingInput{
-		ID: "remote-id", Name: "offhost", Backend: destinations.BackendS3,
-		Location:  "s3+https://s3.example.test/bucket/dbm?region=us-east-1",
-		CreatedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), ExpectedSnapshotIDs: []string{"required-snapshot"},
-	}
-	t.Run("missing credential authority value", func(t *testing.T) {
-		eng := &enginemocks.FakeKopiaEngine{RepoConnectFn: func(context.Context, engine.RepoSpec) error { return errors.New("credential_missing") }}
-		repo := mocks.NewFakeRepository()
-		svc := destinations.NewService(repo, eng, nil, filepath.Join(t.TempDir(), "protected"))
-		if _, err := svc.ImportExistingDestination(context.Background(), base); err == nil || !strings.Contains(err.Error(), "credential_missing") {
-			t.Fatalf("missing credential outcome = %v", err)
-		}
-		if len(eng.Calls) != 1 || repo.Creates.Load() != 0 {
-			t.Fatalf("missing credentials crossed catalog persistence: calls=%v creates=%d", eng.Calls, repo.Creates.Load())
-		}
-	})
-	t.Run("expected snapshot absent", func(t *testing.T) {
-		eng := &enginemocks.FakeKopiaEngine{SnapshotListFn: func(context.Context, string, string) ([]engine.Snapshot, error) {
-			return []engine.Snapshot{{ID: "different-snapshot"}}, nil
-		}}
-		repo := mocks.NewFakeRepository()
-		svc := destinations.NewService(repo, eng, nil, filepath.Join(t.TempDir(), "protected"))
-		if _, err := svc.ImportExistingDestination(context.Background(), base); err == nil || !strings.Contains(err.Error(), "expected snapshot") {
-			t.Fatalf("snapshot mismatch outcome = %v", err)
-		}
-		if repo.Creates.Load() != 0 {
-			t.Fatal("repository catalog row persisted despite expected-snapshot mismatch")
-		}
-	})
 }
 
 func TestImportFilesystemDestinationRejectsRepositoryAnchorMismatchBeforeConnect(t *testing.T) {

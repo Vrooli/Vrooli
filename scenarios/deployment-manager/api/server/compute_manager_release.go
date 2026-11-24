@@ -147,11 +147,17 @@ func (a *cloudComputeReleaseAdapter) RenewCloudLease(ctx context.Context, reques
 		return nil, fmt.Errorf("exact CM renewal key, instance and requested expiry are required")
 	}
 	service, err := a.cmClient(ctx)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	read := func() (*instancev1.RenewalReceipt, error) {
 		response, err := service.GetRenewalReceipt(ctx, connect.NewRequest(&instancev1.GetRenewalReceiptRequest{IdempotencyKey: request.IdempotencyKey}))
-		if err != nil { return nil, err }
-		if response == nil || response.Msg.GetReceipt() == nil { return nil, fmt.Errorf("CM renewal readback returned no receipt") }
+		if err != nil {
+			return nil, err
+		}
+		if response == nil || response.Msg.GetReceipt() == nil {
+			return nil, fmt.Errorf("CM renewal readback returned no receipt")
+		}
 		return response.Msg.GetReceipt(), nil
 	}
 	receipt, readErr := read()
@@ -159,10 +165,16 @@ func (a *cloudComputeReleaseAdapter) RenewCloudLease(ctx context.Context, reques
 		_, requestErr := service.RequestRenewal(ctx, connect.NewRequest(&instancev1.RequestRenewalRequest{IdempotencyKey: request.IdempotencyKey, InstanceId: request.InstanceID, RequestedUntil: timestamppb.New(request.RequestedUntil.UTC())}))
 		// Regardless of the immediate reply, only exact keyed readback is evidence.
 		receipt, readErr = read()
-		if readErr != nil && requestErr != nil { return nil, fmt.Errorf("renewal reply uncertain (%v); exact CM readback unavailable: %w", requestErr, readErr) }
-	} 
-	if readErr != nil { return nil, fmt.Errorf("exact CM renewal receipt lookup failed: %w", readErr) }
+		if readErr != nil && requestErr != nil {
+			return nil, fmt.Errorf("renewal reply uncertain (%v); exact CM readback unavailable: %w", requestErr, readErr)
+		}
+	}
+	if readErr != nil {
+		return nil, fmt.Errorf("exact CM renewal receipt lookup failed: %w", readErr)
+	}
 	encoded, err := protojson.Marshal(receipt)
-	if err != nil { return nil, fmt.Errorf("encode exact CM renewal receipt: %w", err) }
+	if err != nil {
+		return nil, fmt.Errorf("encode exact CM renewal receipt: %w", err)
+	}
 	return &releases.CloudLeaseRenewalResult{Receipt: encoded}, nil
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, FolderTree, HardDrive, ShieldCheck } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { Dialog } from "../../components/ui/dialog";
 import { StatusChip } from "../../components/ui/status-chip";
 import {
@@ -25,6 +25,7 @@ import { formatBytes } from "../../lib/format";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
+import { cn } from "../../lib/utils";
 
 /**
  * Onboarding Suggestions panel. Surfaces discovered targets worth protecting and
@@ -160,14 +161,17 @@ export function SuggestionsPanel({
                       data-testid={selectors.discovery.enableButton({ id: s.id })}
                       disabled={activeId === s.id}
                       onClick={() => void enableTarget(s)}
+                      shape="square"
                     >
                       {enableLabel(s.id)}
                     </Button>
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant="ghost"
                       data-testid={selectors.discovery.dismissButton({ id: s.id })}
                       onClick={() => dismiss.mutate(s.id)}
+                      shape="square"
+                      className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
                     >
                       {t(strings.discovery.dismiss)}
                     </Button>
@@ -230,14 +234,17 @@ export function SuggestionsPanel({
                         data-testid={selectors.discovery.enableButton({ id: s.id })}
                         disabled={activeId === s.id || !s.separateRootOk}
                         onClick={() => setReviewSuggestion(s)}
+                        shape="square"
                       >
                         {t(strings.discovery.review)}
                       </Button>
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="ghost"
                         data-testid={selectors.discovery.dismissButton({ id: s.id })}
                         onClick={() => dismiss.mutate(s.id)}
+                        shape="square"
+                        className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
                       >
                         {t(strings.discovery.dismiss)}
                       </Button>
@@ -327,7 +334,14 @@ function DestinationReviewDialog({
       data-testid={selectors.discovery.destinationReview}
       footer={
         <>
-          <Button variant="outline" size="sm" onClick={onClose} disabled={active}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            disabled={active}
+            shape="square"
+            className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
+          >
             {t(strings.common.cancel)}
           </Button>
           <Button
@@ -335,6 +349,7 @@ function DestinationReviewDialog({
             disabled={!canCreate || active}
             onClick={() => suggestion && onCreate(suggestion, report)}
             data-testid={selectors.discovery.reviewCreateButton}
+            shape="square"
           >
             {active ? t(strings.discovery.enabling) : t(strings.discovery.createReviewed)}
           </Button>

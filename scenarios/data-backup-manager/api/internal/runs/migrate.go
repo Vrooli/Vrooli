@@ -3,6 +3,8 @@ package runs
 import (
 	"context"
 	"fmt"
+
+	"github.com/vrooli/api-core/database"
 )
 
 // addedColumns lists columns introduced on the runs table after it first
@@ -33,7 +35,7 @@ var addedOutcomeColumns = []struct{ name, ddl string }{
 // already exist, so nothing is added). Call it after EnsureSchemas has created
 // the base table. This is what lets the async-execution columns (error,
 // updated_at) land on a database that predates them without losing run history.
-func EnsureColumns(ctx context.Context, db SQLExecutor) error {
+func EnsureColumns(ctx context.Context, db database.SQLExecutor) error {
 	existing, err := tableColumns(ctx, db)
 	if err != nil {
 		return err
@@ -73,7 +75,7 @@ func EnsureColumns(ctx context.Context, db SQLExecutor) error {
 // are equal. Without target_ids in the key the second one violated the
 // constraint and its evidence was dropped. SQLite cannot alter a primary key
 // in place, so the table is rebuilt and copied.
-func ensureIncidentTargetKey(ctx context.Context, db SQLExecutor) error {
+func ensureIncidentTargetKey(ctx context.Context, db database.SQLExecutor) error {
 	columns, err := tableColumns(ctx, db, "run_incidents")
 	if err != nil {
 		return err
@@ -132,7 +134,7 @@ func ensureIncidentTargetKey(ctx context.Context, db SQLExecutor) error {
 	return nil
 }
 
-func primaryKeyColumns(ctx context.Context, db SQLExecutor, table string) (map[string]bool, error) {
+func primaryKeyColumns(ctx context.Context, db database.SQLExecutor, table string) (map[string]bool, error) {
 	rows, err := db.QueryContext(ctx, "PRAGMA table_info("+table+")")
 	if err != nil {
 		return nil, fmt.Errorf("introspect %s primary key: %w", table, err)
@@ -158,7 +160,7 @@ func primaryKeyColumns(ctx context.Context, db SQLExecutor, table string) (map[s
 	return key, rows.Err()
 }
 
-func tableColumns(ctx context.Context, db SQLExecutor, table ...string) (map[string]struct{}, error) {
+func tableColumns(ctx context.Context, db database.SQLExecutor, table ...string) (map[string]struct{}, error) {
 	name := "runs"
 	if len(table) > 0 && table[0] != "" {
 		name = table[0]

@@ -10,6 +10,7 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 
 	localdb "data-backup-manager/internal/database"
+	"data-backup-manager/internal/listcursor"
 	"data-backup-manager/internal/plans"
 
 	testdb "github.com/vrooli/api-core/databasetest"
@@ -122,6 +123,28 @@ func TestSQLiteRepository_MembershipRoundTrip(t *testing.T) {
 	var notFound plans.ErrPlanNotFound
 	if _, err := repo.GetByID(ctx, created.ID); !errors.As(err, &notFound) {
 		t.Fatalf("expected ErrPlanNotFound after delete, got %v", err)
+	}
+}
+
+func TestPageServiceReturnsCursorAcrossPlanPages(t *testing.T) {
+	ctx := context.Background()
+	repo := plans.NewSQLiteRepository(newPlansDB(t), scheduletest.New(time.Time{}))
+	for _, name := range []string{"a", "b", "c"} {
+		if _, err := repo.Create(ctx, plans.Plan{Name: name, Schedule: "24h", KeepLatest: 1, Enabled: true, ProtectionTier: plans.TierFullPrimary, RecoveryDrillSchedule: plans.DefaultRecoveryDrillSchedule}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	pageService := plans.NewService(repo, nil).(plans.PageService)
+	first, token, err := pageService.ListPage(ctx, 2, "")
+	if err != nil || len(first) != 2 || token == "" {
+		t.Fatalf("first page rows=%d token=%q err=%v", len(first), token, err)
+	}
+	second, token, err := pageService.ListPage(ctx, 2, token)
+	if err != nil || len(second) != 1 || token != "" {
+		t.Fatalf("second page rows=%d token=%q err=%v", len(second), token, err)
+	}
+	if _, _, err := pageService.ListPage(ctx, 2, listcursor.Encode("targets:owner-a", 2)); err == nil {
+		t.Fatal("accepted cursor from another list")
 	}
 }
 

@@ -119,7 +119,7 @@ export function IntakePage() {
     }
   }
 
-  return <main className="mx-auto w-full max-w-5xl space-y-4 px-4 py-6 sm:px-6 lg:px-8" data-experience-surface="intake" data-testid="page-intake">
+  return <section className="mx-auto w-full max-w-5xl space-y-4 px-4 py-6 sm:px-6 lg:px-8" data-experience-surface="intake" data-testid="page-intake">
     <header>
       <h1 className="font-serif text-4xl font-medium tracking-tight">{t(LABEL.title)}</h1>
       <p className="mt-2 max-w-3xl text-sm text-app-muted-foreground">{t(LABEL.description)}</p>
@@ -169,5 +169,5 @@ export function IntakePage() {
         <Button disabled={!canPromote} onClick={() => void promoteSelected()}>{t(LABEL.promote)}</Button>
       </CardContent>
     </Card> : null}
-  </main>;
+  </section>;
 }

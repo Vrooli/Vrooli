@@ -6,19 +6,6 @@ Full owner approval Sentinel_7062584135208191865fc82f43a4ded8 at 20:54 UTC gover
 
 Required new targets own exact immutable package/actor/destination/window admission, final eligibility/cadence/consent/asset reservation, stable ordered-item/attempt identity, uncertain/partial/cancellation reconciliation and versioned observation corrections. Immediate release plus unrelated enqueue is insufficient. Keep manual, provider-held/scheduled and verified outcomes distinct; unsupported provider controls remain explicit. No Marketing-private release or metrics implementation replaces this owner.
 
-
-This document is the canonical dependency contract for resources,
-other scenarios, and third-party services used by the scenario.
-
-
-Use this document to answer:
-
-- What does the scenario depend on?
-- Which dependencies are required versus optional?
-- Which domain uses each dependency?
-- What is the failure or degradation behavior?
-- Where is the dependency declared or configured?
-
 ## Dependency Inventory
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |

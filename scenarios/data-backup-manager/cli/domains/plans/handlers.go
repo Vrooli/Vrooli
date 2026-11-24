@@ -97,7 +97,7 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) list(ctx cliapp.RunContext) error {
-	resp, err := h.client.ListPlans(context.Background(), connect.NewRequest(&plansv1.ListPlansRequest{}))
+	resp, err := h.client.ListPlans(context.Background(), connect.NewRequest(&plansv1.ListPlansRequest{PageSize: parsePageSize(ctx.Flag("page-size")), PageToken: ctx.Flag("page-token")}))
 	if err != nil {
 		return cliapp.WrapAPIError("list plans", err, nil)
 	}
@@ -117,6 +117,14 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 			"`plans create --name <n> --targets <ids> --destinations <ids>` — create a plan",
 		},
 	})
+}
+
+func parsePageSize(raw string) int32 {
+	n, err := strconv.Atoi(raw)
+	if err != nil || n < 1 || n > 100 {
+		return 0
+	}
+	return int32(n)
 }
 
 // update is a partial update: it reads the current plan and overrides only the

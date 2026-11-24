@@ -6,19 +6,6 @@ Full owner approval Sentinel_7062584135208191865fc82f43a4ded8 at 20:54 UTC gover
 
 Required new targets own honest external producer/source identity, original digests/bytes/rights and derivative lineage, candidate admission/reconciliation and separately attributable human conformance/release receipts. Content Desk may retain pending candidate links but cannot treat them as released. No fake producing-scenario attribution or private Content Desk blob store.
 
-
-This document is the canonical dependency contract for resources,
-other scenarios, and third-party services used by the scenario.
-
-
-Use this document to answer:
-
-- What does the scenario depend on?
-- Which dependencies are required versus optional?
-- Which domain uses each dependency?
-- What is the failure or degradation behavior?
-- Where is the dependency declared or configured?
-
 ## Dependency Inventory
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |

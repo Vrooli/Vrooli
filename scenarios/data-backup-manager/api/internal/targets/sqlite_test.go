@@ -10,6 +10,7 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 
 	localdb "data-backup-manager/internal/database"
+	"data-backup-manager/internal/listcursor"
 	"data-backup-manager/internal/sources"
 	"data-backup-manager/internal/targets"
 
@@ -107,6 +108,28 @@ func TestSQLiteRepository_UpsertRoundTrip(t *testing.T) {
 	var notFound targets.ErrTargetNotFound
 	if _, err := repo.GetByID(ctx, created.ID); !errors.As(err, &notFound) {
 		t.Fatalf("expected ErrTargetNotFound after delete, got %v", err)
+	}
+}
+
+func TestPageServiceContinuationIsOwnerScoped(t *testing.T) {
+	ctx := context.Background()
+	repo := targets.NewSQLiteRepository(newSchemaDB(t), scheduletest.New(time.Time{}))
+	for _, name := range []string{"a", "b", "c"} {
+		if _, err := repo.Create(ctx, targets.Target{Owner: "owner-a", Name: name, SourceKind: sources.KindFilesystem, Locator: "/fixture/" + name}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	pageService := targets.NewService(repo).(targets.PageService)
+	first, token, err := pageService.ListPage(ctx, "owner-a", 2, "")
+	if err != nil || len(first) != 2 || token == "" {
+		t.Fatalf("first page rows=%d token=%q err=%v", len(first), token, err)
+	}
+	second, token, err := pageService.ListPage(ctx, "owner-a", 2, token)
+	if err != nil || len(second) != 1 || token != "" {
+		t.Fatalf("second page rows=%d token=%q err=%v", len(second), token, err)
+	}
+	if _, _, err := pageService.ListPage(ctx, "owner-b", 2, listcursor.Encode("targets:owner-a", 2)); err == nil {
+		t.Fatal("accepted another owner's cursor")
 	}
 }
 

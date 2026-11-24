@@ -139,7 +139,7 @@ func (s Service) Attest(ctx context.Context, requestID, targetID, destinationID 
 	if ttl <= 0 {
 		ttl = 5 * time.Minute
 	}
-	res := Reservation{RequestID: stableReservationID, TargetID: targetID, DestinationID: destinationID, SnapshotID: e.SnapshotID, TombstoneSHA256: strings.ToLower(e.RestoredTombstoneSHA256), SnapshotGeneration: e.SnapshotGeneration, ExpiresAt: now.Add(ttl)}
+	res := Reservation{RequestID: stableReservationID, TargetID: targetID, DestinationID: destinationID, SnapshotID: e.SnapshotID, SuccessorID: e.SuccessorID, TombstoneSHA256: strings.ToLower(e.RestoredTombstoneSHA256), SnapshotGeneration: e.SnapshotGeneration, ExpiresAt: now.Add(ttl)}
 	if err := s.Reservations.Reserve(ctx, res, now); err != nil {
 		return SignedReceipt{}, fmt.Errorf("reserve newest snapshot against concurrent writes: %w", err)
 	}

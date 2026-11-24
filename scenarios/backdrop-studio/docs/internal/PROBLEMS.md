@@ -146,13 +146,7 @@ suites pass; no real candidate was released.
   neither the proto nor the handler mapping, and therefore invisible to every
   consumer. The studio could show a treatment chain with no parameters under it
   and offer a fork it could not record.
-- **No surface exists for Apple's current primary iPhone class.** Verified
-  2026-08-12: the 6.9-inch class at 1320×2868 is now primary and the seeded
-  6.7-inch record at 1290×2796 is a fallback Apple still accepts. Assets for the
-  primary class therefore have no surface to render into. The fix is one seed
-  row, not code — the device classes are data by design — but it needs the
-  geometry checked against App Store Connect Help at the time it is added,
-  because that is the number a submission is rejected on.
+- ~~No surface exists for Apple's current primary iPhone class.~~ **Resolved 2026-11-24.** The current required iPhone class is Dynamic Island (medium display), represented by app-store-iphone-dynamic-island-medium at 1206×2622. Seed v14 also declares Apple's conditional 13-inch iPad class at 2064×2752 and refreshes the Play feature graphic, phone and tablet records plus the accepted Apple alternate sizes. Each row carries its official source URL and confirmation date. TestSeedIncludesCurrentOfficialStoreSurfacePack verifies all eight store rows appear through ListSurfaces with exact geometry and provenance; TestReleaseRefusesStoreSurfaceGeometryMismatchWithBothSizes verifies one-pixel width and height deviations report expected and actual sizes. See scenarios/backdrop-studio/docs/reference/surfaces.md and this evidence file.
 - **Six placements have no mockup and silently preview as `full_bleed`.**
   `render.composePlacement` has cases for `split_panel`, `framed_inset` and
   `corner_bleed`, and a `default` that everything else falls into — so
@@ -170,9 +164,19 @@ suites pass; no real candidate was released.
   used to do: the system answers a request it cannot honour with a nearby
   answer and says nothing.
 
-  This is the baseline for the studio-UX phase, which owns the store-listing
-  mockup. Until then, treat a store or syndication placement preview as
-  decorative rather than as evidence.
+  Treat a store or syndication placement preview as decorative rather than as
+  evidence until the placement-aware mockup is available.
+
+  **Resolved 2026-11-24.** `composePlacement` now has explicit compositions for
+  all six values: centred device, caption above or below the device, caption
+  only, a wide feature graphic with an empty title-safe centre, and a headline
+  type mask. The device is a neutral frame placeholder; the preview does not
+  claim to capture or invent consumer UI. `PreviewPlacements` now returns an
+  error and no partial result for unsupported placement values instead of
+  falling through to `full_bleed`. Owner tests cover every placement at desktop
+  and mobile sizes, assert per-viewport compositions and layout landmarks, and
+  pin fail-closed handling. See the problem-triage run evidence linked from the
+  durable work record `7ff4de07-7756-4a1b-8d83-e2d673216c3c`.
 
 ## Open after the 2026-08-12 catalog seeding
 

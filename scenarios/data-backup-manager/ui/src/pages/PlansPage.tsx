@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { CalendarClock, Pencil, Play, Plus, Trash2 } from "lucide-react";
 
-import { PageHeader } from "../components/PageHeader";
-import { EmptyState } from "../components/EmptyState";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { AsyncSection } from "../components/AsyncSection";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { StatusChip } from "../components/ui/status-chip";
 import { PlanFormDialog } from "../features/plans/PlanFormDialog";
 import { CoverageBanner } from "../features/backup-coverage/CoverageBanner";
@@ -123,7 +123,7 @@ export function PlansPage() {
       <div id="plans-heading">
         <PageHeader
           title={t(strings.layout.nav.plans)}
-          subtitle={t(strings.plans.subtitle)}
+          description={t(strings.plans.subtitle)}
           actions={
             <Button size="sm" data-testid={selectors.plans.createButton} onClick={() => setCreateOpen(true)}>
               <Plus aria-hidden="true" className="me-1.5 h-4 w-4" />
@@ -142,7 +142,7 @@ export function PlansPage() {
         onRetry={() => void refetch()}
         emptyState={
           <EmptyState
-            icon={CalendarClock}
+            icon={<CalendarClock size={32} />}
             title={t(strings.plans.empty)}
             description={t(strings.plans.emptyHint)}
             action={

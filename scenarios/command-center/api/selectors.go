@@ -56,9 +56,9 @@ var selectors = map[string]selector{
 	"scope_stats":          scopeCount,
 
 	// landing-page-business-suite · GET /api/v1/admin/dashboard/summary
-	"visitors":              number("visitors"),
-	"conversions":           number("conversions"),
-	"cta_clicks":            number("cta_clicks"),
+	"visitors":              analyticsSummaryNumber("totalVisitors"),
+	"conversions":           analyticsVariantTotal("conversions"),
+	"cta_clicks":            analyticsVariantTotal("ctaClicks"),
 	"scroll_depth":          number("scroll_depth"),
 	"variant_ab":            number("variant_ab"),
 	"revenue_mrr":           scaledNumber(0.01, "mrr_minor"),
@@ -90,6 +90,48 @@ var selectors = map[string]selector{
 	"digest_revenue_today":  number("revenue", "today"),
 	"digest_revenue_window": number("revenue", "month"),
 	"usage_operations_30d":  number("usage_records_window"),
+}
+
+// analyticsSummaryNumber reads the lower-camel JSON shape emitted by the
+// LPBS AnalyticsSummary protobuf response.
+func analyticsSummaryNumber(field string) selector {
+	return func(payload any) (float64, bool) {
+		root, ok := payload.(map[string]any)
+		if !ok {
+			return 0, false
+		}
+		value, exists := root[field]
+		if !exists {
+			return 0, false
+		}
+		return asFloat(value)
+	}
+}
+
+func analyticsVariantTotal(field string) selector {
+	return func(payload any) (float64, bool) {
+		root, ok := payload.(map[string]any)
+		if !ok {
+			return 0, false
+		}
+		variants, ok := root["variantStats"].([]any)
+		if !ok {
+			return 0, false
+		}
+		var total float64
+		for _, raw := range variants {
+			variant, ok := raw.(map[string]any)
+			if !ok {
+				return 0, false
+			}
+			value, ok := asFloat(variant[field])
+			if !ok {
+				return 0, false
+			}
+			total += value
+		}
+		return total, true
+	}
 }
 
 var postureSelectors = map[string]postureSelector{

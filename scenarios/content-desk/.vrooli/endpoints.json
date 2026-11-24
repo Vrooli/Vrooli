@@ -101,6 +101,14 @@
       "category": "artifacts"
     },
     {
+      "id": "artifacts_get_revision",
+      "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/GetDraftRevision",
+      "method": "POST",
+      "summary": "Read exact historical draft wording without review or release authority",
+      "description": "",
+      "category": "artifacts"
+    },
+    {
       "id": "artifacts_update_body",
       "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/UpdateDraftBody",
       "method": "POST",
@@ -476,10 +484,26 @@
       "category": "relationships"
     },
     {
+      "id": "relationships_list_collections",
+      "path": "/vrooli.content_desk.v1.relationships.RelationshipsService/ListCollections",
+      "method": "POST",
+      "summary": "List saved collections in one project",
+      "description": "",
+      "category": "relationships"
+    },
+    {
       "id": "relationships_add_collection_item",
       "path": "/vrooli.content_desk.v1.relationships.RelationshipsService/AddCollectionItem",
       "method": "POST",
       "summary": "Add a pinned revision to a saved collection",
+      "description": "",
+      "category": "relationships"
+    },
+    {
+      "id": "relationships_remove_collection_item",
+      "path": "/vrooli.content_desk.v1.relationships.RelationshipsService/RemoveCollectionItem",
+      "method": "POST",
+      "summary": "Remove one pinned revision from a saved collection",
       "description": "",
       "category": "relationships"
     },
@@ -508,10 +532,18 @@
       "category": "review"
     },
     {
+      "id": "review_modes",
+      "path": "/vrooli.content_desk.v1.review.ReviewService/ListRequiredReviewModes",
+      "method": "POST",
+      "summary": "Read the required review modes for a native post type",
+      "description": "",
+      "category": "review"
+    },
+    {
       "id": "review_record",
       "path": "/vrooli.content_desk.v1.review.ReviewService/RecordReviewRun",
       "method": "POST",
-      "summary": "Record re-runnable craft and policy verdicts",
+      "summary": "Record exact-revision-bound craft and policy verdicts",
       "description": "",
       "category": "review"
     },

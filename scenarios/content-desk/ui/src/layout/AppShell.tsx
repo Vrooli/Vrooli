@@ -1,5 +1,5 @@
 import { Home, Settings } from "lucide-react";
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { AppShell as LibraryAppShell } from "@vrooli/react-component-library/AppShell/2";
 
 import { selectors } from "../consts/selectors";
@@ -23,19 +23,20 @@ export function AppShell() {
   const { choice, setTheme } = useTheme();
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const todayIsCurrent = pathname === "/" || pathname === "/today" || pathname === "/board";
   return (
     <LibraryAppShell
       density="sidebar"
       mobileNav="tabs"
       mainMode="scroll"
       brand={<span data-testid={selectors.app.title}>{t(strings.app.title)}</span>}
-      brandHref="/"
+      brandHref="/today"
       items={NAV_ITEMS.map(item => ({
         id: item.key,
         href: item.path,
         label: t(item.labelKey),
         icon: item.key === "settings" ? <Settings aria-hidden className="h-5 w-5" /> : <Home aria-hidden className="h-5 w-5" />,
-        current: item.end ? pathname === item.path : pathname === item.path || pathname.startsWith(item.path + "/"),
+        current: item.key === "today" ? todayIsCurrent : item.end ? pathname === item.path : pathname === item.path || pathname.startsWith(item.path + "/"),
         testId: selectors.layout.sidebarLink({ key: item.key }),
       }))}
       utility={(
@@ -53,7 +54,7 @@ export function AppShell() {
         </label>
       )}
       renderLink={(item, { href, children, ...props }) => (
-        <NavLink to={href} end={item.id === "brand" || NAV_ITEMS.find(entry => entry.key === item.id)?.end} {...props}>{children}</NavLink>
+        <a href={href} {...props} aria-current={item.current ? "page" : undefined} className={item.current ? "active" : undefined}>{children}</a>
       )}
       onNavigate={item => navigate(item.href)}
       navigationLabel={t(strings.layout.sidebarLabel)}

@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "content-desk",
   "generator": "v1.0.0",
-  "manifest_hash": "601445128bcfef5c8505c45ab0940a088c67db6c334a4d5194c7c59156c460d2",
+  "manifest_hash": "816617963b5df426030d58facdca5da59f7f7dc88e06de0c9b76d2c83c1ecbb9",
   "commands": [
     {
       "path": "artifacts create",
@@ -235,6 +235,14 @@
       "group": "review",
       "command": "list",
       "binding": "ReviewService.ListReviewRuns",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "review modes",
+      "group": "review",
+      "command": "modes",
+      "binding": "ReviewService.ListRequiredReviewModes",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },

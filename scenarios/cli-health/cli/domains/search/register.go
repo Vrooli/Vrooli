@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // GroupName is the manifest group this package owns.
@@ -21,7 +22,15 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		// any output-format branch. The primitive carries proof of proto_list that
 		// LoadFromManifestPrimitives reconciles against the manifest declaration.
 		"SearchService.Search": cliapp.ProtoList(h.searchCall, h.searchReport),
-		"composition-search":   cliapp.Action(h.compositionSearchCall, h.compositionSearchReport),
+		"composition-search": cliapp.ActionCustomRenderers(
+			h.compositionSearchCall,
+			func(ctx cliapp.RunContext, response *structpb.Struct) error {
+				return ctx.RenderList(h.compositionSearchReport(ctx, response))
+			},
+			func(ctx cliapp.RunContext, response *structpb.Struct) error {
+				return cliapp.PrintProtoJSON(ctx.Stdout(), response)
+			},
+		),
 		// status is declared architecture.primitive "operational" — backend
 		// availability rendered through the Status -> Triage -> Next Steps contract.
 		"SearchService.Status": cliapp.ProtoOperational(h.statusCall, h.statusReport),

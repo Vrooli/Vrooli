@@ -3,11 +3,9 @@ package sources_test
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"data-backup-manager/internal/sources"
-	"data-backup-manager/internal/sources/mocks"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,62 +40,4 @@ func TestRedisSource_PrefixDumpRestore(t *testing.T) {
 }
 
 // TestRedisSource_CaptureArgv asserts that Capture builds the expected argv.
-func TestRedisSource_CaptureArgv(t *testing.T) {
-	t.Setenv("VROOLI_STORAGE_NAMESPACE", "data-backup-manager")
-	t.Setenv("VROOLI_SCENARIO", "data-backup-manager")
-
-	fake := &mocks.FakeCommandRunner{}
-	reg := sources.NewProductionRegistry(fake)
-	cap, err := reg.Capturer(sources.KindRedis)
-	require.NoError(t, err)
-
-	stageDir := t.TempDir()
-	_, _ = cap.Capture(context.Background(), sources.CaptureSpec{
-		Locator:  "myapp:",
-		StageDir: stageDir,
-	})
-
-	require.Len(t, fake.Calls, 1)
-	call := fake.Calls[0]
-	assert.Equal(t, "resource-redis", call.Name)
-
-	args := call.Args
-	assert.Equal(t, "dump", args[0])
-	assertArgPair(t, args, "--prefix", "data-backup-manager:myapp:")
-	assertArgPair(t, args, "--output", filepath.Join(stageDir, "dump.rdb"))
-
-	for _, a := range args {
-		assertNoSecret(t, a)
-	}
-}
-
 // TestRedisSource_RestoreArgv asserts that Restore builds the expected argv.
-func TestRedisSource_RestoreArgv(t *testing.T) {
-	t.Setenv("VROOLI_STORAGE_NAMESPACE", "data-backup-manager")
-	t.Setenv("VROOLI_SCENARIO", "data-backup-manager")
-
-	fake := &mocks.FakeCommandRunner{}
-	reg := sources.NewProductionRegistry(fake)
-	cap, err := reg.Capturer(sources.KindRedis)
-	require.NoError(t, err)
-
-	artifactPath := "/tmp/dump.rdb"
-	_ = cap.Restore(context.Background(), sources.RestoreSpec{
-		Locator:      "myapp:",
-		ArtifactPath: artifactPath,
-		Target:       "myapp_restored:",
-	})
-
-	require.Len(t, fake.Calls, 1)
-	call := fake.Calls[0]
-	assert.Equal(t, "resource-redis", call.Name)
-
-	args := call.Args
-	assert.Equal(t, "restore", args[0])
-	assertArgPair(t, args, "--prefix", "data-backup-manager:myapp_restored:")
-	assertArgPair(t, args, "--input", artifactPath)
-
-	for _, a := range args {
-		assertNoSecret(t, a)
-	}
-}

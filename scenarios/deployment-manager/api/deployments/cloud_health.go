@@ -2,6 +2,8 @@ package deployments
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -38,6 +40,8 @@ const (
 	HealthReasonStale               = "stale_observation"
 	HealthReasonObservedAtMissing   = "observed_at_missing"
 	HealthReasonPartialObservation  = "partial_observation"
+	HealthReasonTLSEvidenceMissing  = "tls_evidence_unavailable"
+	HealthReasonTLSNotHealthy       = "tls_not_healthy"
 )
 
 // DeploymentSelector names a cloud deployment by identity facets when the
@@ -82,15 +86,28 @@ type CloudNextAction struct {
 // CloudHealthResult is the DM verdict over one cloud observation. Healthy is
 // true only when every gate in evaluateCloudHealthObservation passed.
 type CloudHealthResult struct {
-	Healthy               bool              `json:"healthy"`
-	ReasonCode            string            `json:"reason_code,omitempty"`
-	Details               string            `json:"details,omitempty"`
-	DeploymentID          string            `json:"deployment_id,omitempty"`
-	Status                string            `json:"status,omitempty"`
-	Freshness             string            `json:"freshness,omitempty"`
-	ObservedAt            time.Time         `json:"observed_at,omitempty"`
-	ObservedReleaseDigest string            `json:"observed_release_digest,omitempty"`
-	NextActions           []CloudNextAction `json:"next_actions,omitempty"`
+	Healthy               bool      `json:"healthy"`
+	ReasonCode            string    `json:"reason_code,omitempty"`
+	Details               string    `json:"details,omitempty"`
+	DeploymentID          string    `json:"deployment_id,omitempty"`
+	Status                string    `json:"status,omitempty"`
+	Freshness             string    `json:"freshness,omitempty"`
+	ObservedAt            time.Time `json:"observed_at,omitempty"`
+	ObservedReleaseDigest string    `json:"observed_release_digest,omitempty"`
+	TLSStatus             string    `json:"tls_status"`
+	TLSReason             string    `json:"tls_reason,omitempty"`
+	TLSEvidenceSHA256     string    `json:"tls_evidence_sha256,omitempty"`
+	// CertificateLifecycleState is deliberately blocked until the S2C health
+	// observation carries certificate expiry and renewal facts bound to this
+	// same deployment/target/release sample. The separate EdgeObservation has
+	// no release identity and must not be joined here.
+	CertificateLifecycleState  string            `json:"certificate_lifecycle_state"`
+	CertificateLifecycleReason string            `json:"certificate_lifecycle_reason"`
+	CertificateNotAfter        time.Time         `json:"certificate_not_after,omitempty"`
+	CertificateObservedAt      time.Time         `json:"certificate_observed_at,omitempty"`
+	CertificateRenewalState    string            `json:"certificate_renewal_state,omitempty"`
+	CertificateEvidenceSHA256  string            `json:"certificate_evidence_sha256,omitempty"`
+	NextActions                []CloudNextAction `json:"next_actions,omitempty"`
 }
 
 // Explain renders the verdict for a step message.
@@ -121,7 +138,7 @@ func (r *CloudHealthResult) Explain() string {
 }
 
 func unhealthy(reason, details string) *CloudHealthResult {
-	return &CloudHealthResult{Healthy: false, ReasonCode: reason, Details: details}
+	return &CloudHealthResult{Healthy: false, ReasonCode: reason, Details: details, TLSStatus: "unknown", TLSReason: details, CertificateLifecycleState: "blocked", CertificateLifecycleReason: "S2C health observation does not include certificate expiry or renewal state bound to this deployment, target and release sample"}
 }
 
 // CheckDeploymentHealth resolves the exact deployment, fetches its typed
@@ -226,14 +243,18 @@ func evaluateCloudHealthObservation(body []byte, request DeploymentHealthRequest
 	}
 	obs := envelope.GetObservation()
 	result := &CloudHealthResult{
-		DeploymentID:          deploymentID,
-		Status:                obs.GetStatus().String(),
-		Freshness:             obs.GetFreshness().String(),
-		ObservedReleaseDigest: obs.GetObservedReleaseDigest(),
+		DeploymentID:               deploymentID,
+		Status:                     obs.GetStatus().String(),
+		Freshness:                  obs.GetFreshness().String(),
+		ObservedReleaseDigest:      obs.GetObservedReleaseDigest(),
+		CertificateLifecycleState:  "blocked",
+		CertificateLifecycleReason: "S2C health observation does not include certificate expiry or renewal state bound to this deployment, target and release sample",
 	}
 	for _, action := range obs.GetNextActions() {
 		result.NextActions = append(result.NextActions, CloudNextAction{Owner: action.GetOwner(), Kind: action.GetKind(), Reference: action.GetReference(), Label: action.GetLabel()})
 	}
+	result.TLSStatus, result.TLSReason, result.TLSEvidenceSHA256 = projectTLSHealthCheck(obs)
+	projectCertificateLifecycle(result, obs)
 	if obs.GetObservedAt() != nil {
 		result.ObservedAt = obs.GetObservedAt().AsTime()
 	}
@@ -279,14 +300,121 @@ func evaluateCloudHealthObservation(body []byte, request DeploymentHealthRequest
 	if expected := normalizeDigest(request.ExpectedReleaseDigest); expected != "" {
 		observed := normalizeDigest(obs.GetObservedReleaseDigest())
 		if observed != expected {
+			result.TLSStatus = "ambiguous"
+			result.TLSReason = "TLS observation is bound to a different release digest"
 			return fail(HealthReasonReleaseMismatch, fmt.Sprintf("observed release %q is not the expected %q", observed, expected))
 		}
 	}
 	if obs.GetPartial() {
 		return fail(HealthReasonPartialObservation, "observation is partial; missing "+strings.Join(obs.GetMissingDependencies(), ", "))
 	}
+	if result.CertificateLifecycleState == "blocked" {
+		return fail(HealthReasonTLSEvidenceMissing, result.CertificateLifecycleReason)
+	}
+	if result.TLSStatus == "ambiguous" {
+		return fail(HealthReasonTLSEvidenceMissing, result.TLSReason)
+	}
+	if result.TLSStatus != "healthy" && result.TLSStatus != "not_applicable" {
+		return fail(HealthReasonTLSNotHealthy, result.TLSReason)
+	}
 	result.Healthy = true
 	return result
+}
+
+func projectCertificateLifecycle(result *CloudHealthResult, obs *healthv1.HealthObservation) {
+	blocked := func(reason string) {
+		result.CertificateLifecycleState = "blocked"
+		result.CertificateLifecycleReason = reason
+	}
+	if obs == nil || obs.GetCertificateLifecycle() == nil {
+		blocked("S2C health observation has no certificate lifecycle sample bound to deployment, target, release and observation")
+		return
+	}
+	c := obs.GetCertificateLifecycle()
+	if c.GetObservedAt() == nil || !c.GetObservedAt().IsValid() || c.GetNotAfter() == nil || !c.GetNotAfter().IsValid() || obs.GetTargetId() == "" || obs.GetObservedReleaseDigest() == "" {
+		blocked("certificate lifecycle sample is missing expiry, sample time or deployment/target/release identity")
+		return
+	}
+	observedAt, notAfter := c.GetObservedAt().AsTime().UTC(), c.GetNotAfter().AsTime().UTC()
+	if observedAt.After(time.Now().Add(time.Minute)) || time.Since(observedAt) > DefaultCloudHealthMaxAge || notAfter.IsZero() {
+		blocked("certificate lifecycle sample is stale, future-dated or invalid")
+		return
+	}
+	if c.GetRenewalState() != "blocked" || (c.GetCertificateState() != "valid" && c.GetCertificateState() != "expired") {
+		blocked("certificate lifecycle state is unsupported or malformed")
+		return
+	}
+	if (c.GetCertificateState() == "valid") != notAfter.After(observedAt) {
+		blocked("certificate state contradicts expiry in the same sample")
+		return
+	}
+	material := strings.Join([]string{obs.GetDeploymentId(), obs.GetTargetId(), normalizeDigest(obs.GetObservedReleaseDigest()), observedAt.Format(time.RFC3339Nano), notAfter.Format(time.RFC3339Nano), c.GetCertificateState(), c.GetRenewalState(), c.GetReasonCode()}, "\x00")
+	digest := sha256.Sum256([]byte(material))
+	result.CertificateNotAfter = notAfter
+	result.CertificateObservedAt = observedAt
+	result.CertificateRenewalState = c.GetRenewalState()
+	result.CertificateEvidenceSHA256 = "sha256:" + hex.EncodeToString(digest[:])
+	result.CertificateLifecycleState = c.GetCertificateState()
+	result.CertificateLifecycleReason = c.GetReasonCode()
+}
+
+// projectTLSHealthCheck retains only the exact TLS check from the same typed
+// deployment/release observation. The digest binds its verdict to the sample
+// identity and producer timestamp without retaining arbitrary check detail.
+func projectTLSHealthCheck(obs *healthv1.HealthObservation) (string, string, string) {
+	if obs == nil {
+		return "ambiguous", "health observation is absent", ""
+	}
+	var found *healthv1.HealthCheck
+	for _, check := range obs.GetChecks() {
+		if check == nil || check.GetId() != "edge_tls" {
+			continue
+		}
+		if found != nil {
+			return "ambiguous", "health observation contains duplicate edge_tls checks", ""
+		}
+		found = check
+	}
+	if found == nil || obs.GetDeploymentId() == "" || obs.GetTargetId() == "" || obs.GetObservedReleaseDigest() == "" || obs.GetObservedAt() == nil {
+		return "ambiguous", "exact edge_tls check or its deployment, target, release, or observation time is missing", ""
+	}
+	status := "ambiguous"
+	switch found.GetStatus() {
+	case healthv1.CheckStatus_CHECK_STATUS_PASSED:
+		status = "healthy"
+	case healthv1.CheckStatus_CHECK_STATUS_WARNED:
+		status = "degraded"
+	case healthv1.CheckStatus_CHECK_STATUS_FAILED:
+		status = "unhealthy"
+	case healthv1.CheckStatus_CHECK_STATUS_UNAVAILABLE:
+		status = "unknown"
+	case healthv1.CheckStatus_CHECK_STATUS_SKIPPED:
+		status = "not_applicable"
+	}
+	reason := strings.TrimSpace(found.GetReasonCode())
+	if detail := strings.TrimSpace(found.GetDetail()); detail != "" {
+		if reason != "" {
+			reason += ": "
+		}
+		reason += detail
+	}
+	if reason == "" {
+		reason = "edge_tls check status " + found.GetStatus().String()
+	}
+	evidence, err := json.Marshal(struct {
+		DeploymentID  string `json:"deployment_id"`
+		TargetID      string `json:"target_id"`
+		ReleaseDigest string `json:"release_digest"`
+		ObservedAt    string `json:"observed_at"`
+		Status        string `json:"status"`
+		ReasonCode    string `json:"reason_code"`
+		Detail        string `json:"detail"`
+	}{obs.GetDeploymentId(), obs.GetTargetId(), obs.GetObservedReleaseDigest(), obs.GetObservedAt().AsTime().UTC().Format(time.RFC3339Nano), found.GetStatus().String(), found.GetReasonCode(), found.GetDetail()})
+	if err != nil {
+		return "ambiguous", "edge_tls evidence could not be encoded", ""
+	}
+	digest := sha256.Sum256(evidence)
+	return status, reason, "sha256:" + hex.EncodeToString(digest[:])
 }
 
 // rejectUnknownEnumValues fails when a mandatory status vocabulary carries a

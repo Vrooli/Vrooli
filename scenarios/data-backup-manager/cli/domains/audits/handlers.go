@@ -11,12 +11,15 @@ import (
 	auditsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/audits"
 	auditsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/audits/audits_v1connect"
 
+	"data-backup-manager/cli/internal/asyncpoll"
+	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/cli-core/cliapp"
 )
 
 type handlers struct {
 	core   *cliapp.ScenarioApp
 	client auditsconnect.AuditsServiceClient
+	clock  schedule.Clock
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
@@ -24,6 +27,7 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	return &handlers{
 		core:   core,
 		client: auditsconnect.NewAuditsServiceClient(httpClient, baseURL),
+		clock:  schedule.System(),
 	}
 }
 
@@ -69,23 +73,18 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 
 // pollToTerminal polls GetAudit until the record reaches a terminal state.
 func (h *handlers) pollToTerminal(id string) (*auditsv1.Audit, error) {
-	deadline := time.Now().Add(auditPollDeadline)
-	for {
-		resp, err := h.client.GetAudit(context.Background(), connect.NewRequest(&auditsv1.GetAuditRequest{Id: id}))
-		if err != nil {
-			return nil, err
-		}
-		if resp == nil || resp.Msg == nil || resp.Msg.Audit == nil {
-			return nil, fmt.Errorf("server returned no audit for %q", id)
-		}
-		if isTerminalAudit(resp.Msg.Audit.Status) {
-			return resp.Msg.Audit, nil
-		}
-		if time.Now().After(deadline) {
-			return nil, fmt.Errorf("audit %q did not reach a terminal state within %s (still %s)", id, auditPollDeadline, auditStatusLabel(resp.Msg.Audit.Status))
-		}
-		time.Sleep(auditPollInterval)
-	}
+	return asyncpoll.UntilTerminal(h.clock, auditPollInterval, auditPollDeadline,
+		func() (*auditsv1.Audit, bool, string, error) {
+			resp, err := h.client.GetAudit(context.Background(), connect.NewRequest(&auditsv1.GetAuditRequest{Id: id}))
+			if err != nil {
+				return nil, false, "", err
+			}
+			if resp == nil || resp.Msg == nil || resp.Msg.Audit == nil {
+				return nil, false, "", fmt.Errorf("server returned no audit for %q", id)
+			}
+			audit := resp.Msg.Audit
+			return audit, isTerminalAudit(audit.Status), auditStatusLabel(audit.Status), nil
+		}, "audit", id)
 }
 
 func isTerminalAudit(s auditsv1.AuditStatus) bool {

@@ -1,18 +1,30 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
+import type { InputHTMLAttributes, SelectHTMLAttributes } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@vrooli/api-base/testing";
+import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
 import { strings } from "../consts/strings";
 import { PlanPage } from "./PlanPage";
 
-const mocks = vi.hoisted(() => ({ listDrafts: vi.fn(), listCampaigns: vi.fn(), listProjects: vi.fn(), listPublicationIntents: vi.fn(), getDraftCurrentRevision: vi.fn(), setPublicationIntent: vi.fn() }));
+const mocks = vi.hoisted(() => ({ listDrafts: vi.fn(), listCampaigns: vi.fn(), listProjects: vi.fn(), listPublicationIntents: vi.fn(), getDraftCurrentRevision: vi.fn(), setPublicationIntent: vi.fn(), readBoard: vi.fn() }));
 vi.mock("../api/artifacts", () => ({ artifactsClient: { listDrafts: mocks.listDrafts, getDraftCurrentRevision: mocks.getDraftCurrentRevision } }));
 vi.mock("../api/campaigns", () => ({ campaignsClient: { listCampaigns: mocks.listCampaigns } }));
 vi.mock("../api/projects", () => ({ projectsClient: { listProjects: mocks.listProjects } }));
 vi.mock("../api/intents", () => ({ intentsClient: { listPublicationIntents: mocks.listPublicationIntents, setPublicationIntent: mocks.setPublicationIntent } }));
+vi.mock("../api/board", () => ({ readBoard: mocks.readBoard }));
+type MockSelectProps = SelectHTMLAttributes<HTMLSelectElement> & { options: Array<{ value: string; label: string }> };
+vi.mock("@vrooli/react-component-library/Input/1", () => ({ Input: (props: InputHTMLAttributes<HTMLInputElement>) => <input {...props} /> }));
+vi.mock("@vrooli/react-component-library/Select/1", () => ({
+  Select: ({ options, ...props }: MockSelectProps) => <select {...props}>{options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>,
+}));
 
-function renderPlan() {
-  return renderWithProviders(<MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}><PlanPage /></MemoryRouter>, { withoutRouter: true });
+function renderPlan(initialEntry = "/plan") {
+  return renderWithProviders(<MemoryRouter initialEntries={[initialEntry]} future={{ v7_relativeSplatPath: true, v7_startTransition: true }}><PlanPage /><Location /></MemoryRouter>, { withoutRouter: true });
+}
+function Location() { const location = useLocation(); return <div data-testid="location">{location.pathname}{location.search}</div>; }
+
+function renderedPlanText(): string {
+  return document.querySelector('[data-testid="page-plan"]')?.textContent ?? "";
 }
 
 describe("PlanPage", () => {
@@ -27,6 +39,7 @@ describe("PlanPage", () => {
     mocks.listPublicationIntents.mockResolvedValue({ intents: [] });
     mocks.getDraftCurrentRevision.mockResolvedValue({ currentRevision: { body: "A useful post", revisionId: "rev-1" } });
     mocks.setPublicationIntent.mockResolvedValue({ intent: {} });
+    mocks.readBoard.mockResolvedValue({ signals: { offer_readiness: { launch_targets: [{ scenario: "offer-desk", node_id: "o14", status: "ready", next_action: "Review offer", blocked_by: [] }] } } });
   });
 
   it("summarizes editorial mix and keeps time reservation and publication authority distinct", async () => {
@@ -37,6 +50,9 @@ describe("PlanPage", () => {
     expect(screen.getByText((content) => content.includes("content-desk") && content.includes("linkedDrafts"))).toBeInTheDocument();
     expect(screen.getByText("linkedin")).toBeInTheDocument();
     expect(screen.getByText("article")).toBeInTheDocument();
+    await screen.findByText(strings.board.offerTitle);
+    expect(renderedPlanText()).toContain("offer-desk");
+    expect(renderedPlanText()).toContain("Review offer");
     expect(mocks.listDrafts).toHaveBeenCalledOnce();
     expect(mocks.listCampaigns).toHaveBeenCalledOnce();
     expect(mocks.listProjects).toHaveBeenCalledOnce();
@@ -50,6 +66,29 @@ describe("PlanPage", () => {
     mocks.listCampaigns.mockResolvedValue({ campaigns: [] });
     fireEvent.click(screen.getByRole("button", { name: strings.pages.plan.retry }));
     await waitFor(() => expect(screen.getByText(strings.pages.plan.noCampaigns)).toBeInTheDocument());
+  });
+
+  it("keeps editorial planning available when Offer Desk readiness is unavailable", async () => {
+    mocks.readBoard.mockRejectedValueOnce(new Error("offer service offline"));
+    renderPlan();
+    expect(await screen.findByText(strings.board.offerUnavailable)).toBeInTheDocument();
+    expect(renderedPlanText()).toContain("Launch story");
+  });
+
+  it("focuses the reviewed draft and preserves a safe return to Review", async () => {
+    renderPlan("/plan?draft=d2&return=%2Freview%3Fdraft%3Dd2");
+    expect(await screen.findByText(strings.pages.plan.exactDraftPlanTitle)).toBeInTheDocument();
+    expect(screen.getByText("d2", { selector: "p" })).toBeInTheDocument();
+    expect(screen.getByTestId("draft-intent-d2")).toBeInTheDocument();
+    expect(screen.queryByTestId("draft-intent-d1")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: strings.pages.plan.returnToReview }));
+    expect(screen.getByTestId("location")).toHaveTextContent("/review?draft=d2");
+  });
+
+  it("keeps the Plan and Offer Desk surfaces accessible", async () => {
+    const { container } = renderPlan();
+    await screen.findByText(strings.board.offerTitle);
+    await expectNoA11yViolations(container);
   });
 
   it("renders a truthful empty workspace with no invented campaign, project or draft", async () => {

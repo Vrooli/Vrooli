@@ -16,6 +16,8 @@ identify the helpers and gates this scenario currently uses.
 
 Existing local entry points (choose the domain test for the behavior you change):
 
+- [api/internal/catalog/seed_test.go](../../api/internal/catalog/seed_test.go) — surface seed records, source citations, confirmation dates, and upgrade-safe listing.
+- [api/internal/release/release_contract_test.go](../../api/internal/release/release_contract_test.go) — release refuses geometry that differs from the requested surface size and reports both dimensions.
 - [api/handlers/health/handler_test.go](../../api/handlers/health/handler_test.go)
 - [ui/src/App.test.tsx](../../ui/src/App.test.tsx)
 - [ui/src/api/health.test.ts](../../ui/src/api/health.test.ts)

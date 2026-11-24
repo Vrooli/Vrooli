@@ -18,11 +18,8 @@ release.
   "kind": "store",                    // product | store | social | email | document
   "geometry": { "width": 1024, "height": 500 },
   "placements": ["feature_graphic"],  // intersected with the style's own set
-  "authority": {
-    "name": "Google Play Console Help — Graphic assets",
-    "url": "https://support.google.com/googleplay/android-developer/answer/9866151",
-    "confirmed_on": "UNVERIFIED"      // ISO date once a human has checked
-  },
+  "authority": "Google Play Console Help — Graphic assets (https://support.google.com/googleplay/android-developer/answer/9866151)",
+  "confirmed_on": "2026-11-24",       // ISO date checked against that source
   "notes": "Play overlays its own furniture and may crop on some layouts; keep the centre quiet."
 }
 ```
@@ -157,48 +154,43 @@ consumer is.
 | `play.feature-graphic` | 1024x500 | Play listing banner | `feature_graphic` | yes (v1) |
 | `play.phone-screenshot` | 1080x1920 | Play phone screenshot | `device_center`, `caption_above_device`, `caption_below_device`, `caption_only` | yes (v1) |
 | `play.tablet-screenshot` | 1920x1080 | Play tablet screenshot | same as phone | yes (v1) |
-| `app-store-6.7-screenshot` | 1290x2796 | App Store screenshot, primary iPhone class | same as phone | yes (v1) |
-| `app-store-6.5-screenshot` | 1284x2778 | App Store screenshot, secondary iPhone class | same as phone | yes (v1) |
-| `app-store-12.9-screenshot` | 2048x2732 | App Store screenshot, iPad class | same as phone | yes (v1) |
+| `app-store-iphone-dynamic-island-medium` | 1206x2622 | Required iPhone Dynamic Island medium-display screenshot | same as phone | yes (v14) |
+| `app-store-ipad-13-inch` | 2064x2752 | Required iPad 13-inch display screenshot | same as phone | yes (v14) |
+| `app-store-6.7-screenshot` | 1290x2796 | Accepted iPhone Dynamic Island large-display size | same as phone | yes (v1, reconfirmed v14) |
+| `app-store-6.5-screenshot` | 1284x2778 | Accepted iPhone Face ID large-display size | same as phone | yes (v1, reconfirmed v14) |
+| `app-store-12.9-screenshot` | 2048x2732 | Accepted iPad 13-inch size (legacy id retained) | same as phone | yes (v1, reconfirmed v14) |
 | `chrome.marquee` | — | Chrome Web Store marquee tile | `feature_graphic` | aspirational |
 | `chrome.small-tile` | — | Chrome Web Store small promotional tile | `feature_graphic`, `caption_only` | aspirational |
 | `chrome.screenshot` | — | Chrome Web Store screenshot | `device_center`, `caption_above_device` | aspirational |
 
-### Verification status, 2026-08-12
+### Verified store geometry, 2026-11-24
 
-Two store rows were checked against the authority their record cites, and both
-are correct as seeded:
+Seed v14 records the current required Apple display classes and refreshes each
+existing Play and Apple store record's citation/date against the published
+requirements. Every seeded store record carries the source URL and
+`confirmed_on` date in the same `authority` string + date fields exposed by the
+surface registry; seed tests assert the required records round-trip with the
+verified dimensions.
 
-- `play.feature-graphic` at 1024×500, against
-  [Play Console Help — Add preview assets](https://support.google.com/googleplay/android-developer/answer/9866151).
-  Google requires exactly this size; there is no tolerance.
-- `app-store-6.7-screenshot` at 1290×2796, against
-  [App Store Connect Help — Screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/).
+- Apple requires at least one screenshot for iPhone with Dynamic Island
+  (medium display), accepting 1179×2556 or 1206×2622 portrait. The seeded
+  `app-store-iphone-dynamic-island-medium` chooses the larger accepted 1206×2622
+  geometry. If an app supports iPadOS, Apple also requires a 13-inch iPad
+  screenshot; `app-store-ipad-13-inch` uses 2064×2752. Apple's current page also
+  accepts 2048×2732 for that class, retained under the existing
+  `app-store-12.9-screenshot` id. See [App Store Connect Help — Screenshot
+  specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/).
+- `play.feature-graphic` is exactly 1024×500 as required by [Google Play Console
+  Help — Add preview assets](https://support.google.com/googleplay/android-developer/answer/9866151).
+  `play.phone-screenshot` at 1080×1920 is an allowed 9:16 phone image within
+  Google's 320–3840 side range. `play.tablet-screenshot` at 1920×1080 is an
+  allowed 16:9 large-screen image within the 1080–7680 range.
+- The retained 1290×2796 and 1284×2778 Apple rows are still accepted large
+  display sizes; their stable IDs remain available for released assets. Apple
+  and Google may revise their device classes; seed data and `confirmed_on` are
+  the authoritative refresh points, not these prose descriptions.
 
-**The 6.7-inch class is no longer Apple's primary iPhone class.** The current
-primary is 6.9-inch at 1320×2868; 1290×2796 is accepted as a fallback. This
-catalog has no 6.9-inch surface, so an operator producing assets for the primary
-class today has no record to render into. That is a gap in the seeded set rather
-than a wrong number in it, and it is the reason this section exists: the device
-classes are data, and Apple revises them as hardware ships.
-
-`app-store-6.5-screenshot` (1284×2778), `app-store-12.9-screenshot`
-(2048×2732), `play.phone-screenshot` and `play.tablet-screenshot` carry their
-2026-08-11 stamp and were **not** re-checked today. Their `confirmed_on` dates
-say when someone last looked, which is exactly what that field is for — do not
-read a stamp as a guarantee that the vendor has not moved since.
-
-**The App Store ids name the device class, not the marketing name.** This
-document previously called them `appstore.iphone-primary` and its siblings while
-the seeded records were `app-store-6.7-screenshot` and its siblings, so the two
-disagreed on the identifier an operator would type. The seeded ids win, because
-released assets reference them and a rename would break that reference — and
-because the screen diagonal is the fact Apple's requirement is actually stated
-in, while "primary iPhone class" is a fact that changes every autumn.
-
-Apple and Google both revise their required device classes as hardware ships.
-Treat the class list itself as data too — adding a class must not require a code
-change. The `chrome.*` rows are seeded ahead of a consumer: `scenario-to-extension`
+The `chrome.*` rows are seeded ahead of a consumer: `scenario-to-extension`
 declares no listing-asset target today, so these stay unbuilt until it does.
 
 ## Admitting a new surface

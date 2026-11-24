@@ -15,7 +15,8 @@ commercial delivery tiers in `docs/monetization/strategy/TIERS.md`.
 - [Desktop workflow](workflows/desktop-deployment.md) — scenario-to-desktop release path
 - [Commercial release runbook](workflows/commercial-release.md) — governed desktop publication into LPBS
 - [Tier 2 desktop](tiers/tier-2-desktop.md) — desktop target requirements
-- [General deployment guide](DEPLOYMENT-GUIDE.md) — governance workflow and target map
+- [Cloud deployment guide](DEPLOYMENT-GUIDE.md) — phone-facing operator route and support status
+- [Release governance engineering reference](internal/RELEASE-GOVERNANCE-REFERENCE.md) — release commands and contracts
 - [CLI overview](cli/overview-commands.md) — current command surface
 - [API reference](api/bundles.md) — representative Connect/API contracts
 - [Product requirements](../PRD.md) — operational targets and traceability

@@ -78,7 +78,7 @@ func (e *DomainsDocExtractor) parseWithContract(content string, contract domainI
 // the audit pipeline so the operator sees what was silently dropped
 // rather than guessing why a domain count looks off.
 func parseDomainInventory(content string, contract domainInventoryContract) ([]ExtractedDomain, []ExtractionWarning, error) {
-	section, ok := sectionBody(content, "Domain Inventory")
+	section, sectionStartLine, ok := sectionBodyWithLine(content, "Domain Inventory")
 	if !ok {
 		return nil, nil, fmt.Errorf("%s: missing '## Domain Inventory' section", DomainsDocPath)
 	}
@@ -160,6 +160,8 @@ func parseDomainInventory(content string, contract domainInventoryContract) ([]E
 			Purpose:         cleanTextCell(cell(cells, idxPurpose)),
 			OwnsData:        cleanTextCell(cell(cells, idxOwnsData)),
 			SecondaryTraits: parseArchetypeNames(cell(cells, idxSecondaryTraits)),
+			SourcePath:      DomainsDocPath,
+			SourceLine:      sectionStartLine + lineNo - 1,
 		}
 		primary := parseArchetypeNames(cell(cells, idxPrimary))
 		d.Archetypes = DeclaredArchetypes(append(primary, d.SecondaryTraits...)...)
@@ -219,6 +221,13 @@ func parseNonDomains(content string) (shared, names []string) {
 // sectionBody returns the lines under a "## <title>" heading, up to the
 // next heading of the same or higher level (## or #).
 func sectionBody(content, title string) (string, bool) {
+	body, _, ok := sectionBodyWithLine(content, title)
+	return body, ok
+}
+
+// sectionBodyWithLine returns the section body and its first physical source
+// line (1-based), so row-derived facts can retain exact document provenance.
+func sectionBodyWithLine(content, title string) (string, int, bool) {
 	lines := strings.Split(content, "\n")
 	want := "## " + title
 	start := -1
@@ -230,7 +239,7 @@ func sectionBody(content, title string) (string, bool) {
 		}
 	}
 	if start < 0 {
-		return "", false
+		return "", 0, false
 	}
 	var b strings.Builder
 	for i := start; i < len(lines); i++ {
@@ -241,7 +250,7 @@ func sectionBody(content, title string) (string, bool) {
 		b.WriteString(lines[i])
 		b.WriteByte('\n')
 	}
-	return b.String(), true
+	return b.String(), start + 1, true
 }
 
 func splitTableRow(line string) []string {

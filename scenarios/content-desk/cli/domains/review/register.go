@@ -8,17 +8,20 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	reviewv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/review"
 	reviewconnect "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/review/review_v1connect"
+	artifactsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/artifacts"
+	artifactsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/artifacts/artifacts_v1connect"
 )
 
 const GroupName = "review"
 
 type handlers struct {
-	client reviewconnect.ReviewServiceClient
+	client    reviewconnect.ReviewServiceClient
+	artifacts artifactsconnect.ArtifactsServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-	return &handlers{client: reviewconnect.NewReviewServiceClient(httpClient, baseURL)}
+	return &handlers{client: reviewconnect.NewReviewServiceClient(httpClient, baseURL), artifacts: artifactsconnect.NewArtifactsServiceClient(httpClient, baseURL)}
 }
 
 func (h *handlers) listCall(_ cliapp.OperationContext) (*reviewv1.ListReviewRunsResponse, error) {
@@ -83,7 +86,15 @@ func (h *handlers) recordCall(ctx cliapp.OperationContext) (*reviewv1.RecordRevi
 	if len(verdicts) == 0 {
 		return nil, fmt.Errorf("record at least one verdict with --mode <declared-mode> (repeatable) or --blocked <declared-mode>")
 	}
-	response, err := h.client.RecordReviewRun(context.Background(), connect.NewRequest(&reviewv1.RecordReviewRunRequest{DraftId: ctx.Flag("draft"), Verdicts: verdicts}))
+	current, err := h.artifacts.GetDraftCurrentRevision(context.Background(), connect.NewRequest(&artifactsv1.GetDraftCurrentRevisionRequest{Id: ctx.Flag("draft")}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("read exact draft revision", err, nil)
+	}
+	if current == nil || current.Msg == nil || current.Msg.CurrentRevision == nil {
+		return nil, fmt.Errorf("server returned no current draft revision")
+	}
+	revision := current.Msg.CurrentRevision
+	response, err := h.client.RecordReviewRun(context.Background(), connect.NewRequest(&reviewv1.RecordReviewRunRequest{DraftId: ctx.Flag("draft"), Verdicts: verdicts, ExpectedRevisionId: revision.RevisionId, ExpectedBody: revision.Body}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("record review run", err, nil)
 	}
@@ -93,13 +104,28 @@ func (h *handlers) recordCall(ctx cliapp.OperationContext) (*reviewv1.RecordRevi
 	return response.Msg, nil
 }
 
+func (h *handlers) modesCall(ctx cliapp.OperationContext) (*reviewv1.ListRequiredReviewModesResponse, error) {
+	response, err := h.client.ListRequiredReviewModes(context.Background(), connect.NewRequest(&reviewv1.ListRequiredReviewModesRequest{PostTypeId: ctx.Flag("post-type")}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("list required review modes", err, nil)
+	}
+	if response == nil || response.Msg == nil {
+		return nil, fmt.Errorf("server returned no review-mode response")
+	}
+	return response.Msg, nil
+}
+
+func (h *handlers) modesReport(_ cliapp.OperationContext, message *reviewv1.ListRequiredReviewModesResponse) cliapp.ListReport {
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d required review mode(s).", len(message.Modes))}, ResultsHeading: "Required review modes", Results: message.Modes}
+}
+
 func (h *handlers) recordReport(_ cliapp.OperationContext, message *reviewv1.RecordReviewRunResponse) cliapp.MutationReport {
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Recorded review %s: %s.", message.ReviewRun.Id, message.ReviewRun.Outcome)}}
 }
 
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{"ReviewService.ListReviewRuns": cliapp.ProtoList(h.listCall, h.listReport), "ReviewService.RecordReviewRun": cliapp.ProtoMutation(h.recordCall, h.recordReport)})
+	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{"ReviewService.ListReviewRuns": cliapp.ProtoList(h.listCall, h.listReport), "ReviewService.ListRequiredReviewModes": cliapp.ProtoList(h.modesCall, h.modesReport), "ReviewService.RecordReviewRun": cliapp.ProtoMutation(h.recordCall, h.recordReport)})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("review: load from manifest: %w", err)
 	}

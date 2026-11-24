@@ -1,6 +1,7 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { HealthCard } from "../features/health/HealthCard";
+import { ChangeIntentPanel } from "../features/change-intent/ChangeIntentPanel";
 import { useTranslation } from "../i18n";
 
 /**
@@ -35,6 +36,7 @@ export function DashboardPage() {
           <p className="mt-2 text-2xl font-semibold">—</p>
         </div>
       </div>
+      <ChangeIntentPanel />
     </section>
   );
 }

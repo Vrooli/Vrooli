@@ -2,6 +2,8 @@ package artifacts
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"strings"
 	"testing"
 	"time"
@@ -14,41 +16,50 @@ import (
 	internalreview "content-desk/internal/review"
 
 	"github.com/google/uuid"
-	"github.com/vrooli/api-core/database"
-	_ "modernc.org/sqlite"
+	"github.com/vrooli/api-core/databasetest"
 )
 
 func newRepository(t *testing.T) Repository {
 	t.Helper()
-	db, err := database.Open(context.Background(), database.Config{Driver: database.DriverSQLite, DSN: "file:artifacts-test?mode=memory&cache=shared", MaxOpenConns: 1, MaxIdleConns: 1})
-	if err != nil {
-		t.Fatal(err)
+	db := databasetest.NewSQLite(t)
+	ctx := context.Background()
+	schemas := []struct{ name, ddl string }{
+		{"artifacts", Schema()},
+		{"campaigns", internalcampaigns.Schema()},
+		{"ledger", internalledger.Schema()},
+		{"review", internalreview.Schema()},
+		{"post types", internalposttypes.Schema()},
+		{"projects", internalprojects.Schema()},
 	}
-	t.Cleanup(func() { _ = db.Close() })
-	if _, err = db.ExecContext(context.Background(), Schema()); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = db.ExecContext(context.Background(), internalcampaigns.Schema()); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = db.ExecContext(context.Background(), internalledger.Schema()); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = db.ExecContext(context.Background(), internalreview.Schema()); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = db.ExecContext(context.Background(), internalposttypes.Schema()); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = db.ExecContext(context.Background(), internalprojects.Schema()); err != nil {
-		t.Fatal(err)
+	for _, schema := range schemas {
+		if _, err := db.ExecContext(ctx, schema.ddl); err != nil {
+			t.Fatalf("apply %s schema: %v", schema.name, err)
+		}
 	}
 	for _, campaignID := range []string{"campaign-1", "campaign", "slot-campaign"} {
-		if _, err = db.ExecContext(context.Background(), `INSERT INTO campaign_slots (campaign_id, channel, format, capacity, reserved) VALUES (?, 'x-twitter', 'thread', 2, 0)`, campaignID); err != nil {
-			t.Fatal(err)
+		if _, err := db.ExecContext(ctx, `INSERT INTO campaigns (id, name, status, created_at) VALUES (?, ?, 'active', '2026-01-01T00:00:00Z')`, campaignID, campaignID); err != nil {
+			t.Fatalf("seed campaign %s: %v", campaignID, err)
+		}
+		if _, err := db.ExecContext(ctx, `INSERT INTO campaign_slots (campaign_id, channel, format, capacity, reserved) VALUES (?, 'x-twitter', 'thread', 2, 0)`, campaignID); err != nil {
+			t.Fatalf("seed campaign slot %s: %v", campaignID, err)
 		}
 	}
 	return NewSQLiteRepository(db)
+}
+
+func insertTestReviewRun(t *testing.T, db SQLExecutor, repo Repository, runID, draftID, outcome, createdAt string) {
+	t.Helper()
+	current, err := repo.GetCurrentRevision(context.Background(), draftID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(context.Background(), `INSERT INTO review_runs (id,draft_id,outcome,created_at) VALUES (?,?,?,?)`, runID, draftID, outcome, createdAt); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256([]byte(current.Body))
+	if _, err := db.ExecContext(context.Background(), `INSERT INTO review_run_basis (run_id,source_revision_id,body_sha256) VALUES (?,?,?)`, runID, current.RevisionID, hex.EncodeToString(digest[:])); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestCreateCampaignFreeDraftCanUseActiveProject(t *testing.T) {
@@ -310,9 +321,7 @@ func TestApprovalPersistsOnlyAfterEveryStoredGatePasses(t *testing.T) {
 	if _, err := db.ExecContext(ctx, `UPDATE post_types SET status = 'active' WHERE id = ?`, "single-image-ad"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO review_runs (id, draft_id, outcome, created_at) VALUES (?, ?, 'passed', ?)`, uuid.NewString(), draft.ID, "2026-07-28T00:00:00Z"); err != nil {
-		t.Fatal(err)
-	}
+	insertTestReviewRun(t, db, repo, uuid.NewString(), draft.ID, "passed", "2026-07-28T00:00:00Z")
 	approved, err := repo.Approve(ctx, draft.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -395,9 +404,7 @@ func TestUpdateBodyInvalidatesReviewAndApprovalOnRevision(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO review_runs (id, draft_id, outcome, created_at) VALUES (?, ?, 'passed', ?)`, uuid.NewString(), draft.ID, "2026-07-28T00:00:00Z"); err != nil {
-		t.Fatal(err)
-	}
+	insertTestReviewRun(t, db, repo, uuid.NewString(), draft.ID, "passed", "2026-07-28T00:00:00Z")
 	if _, err := repo.Approve(ctx, draft.ID); err != nil {
 		t.Fatalf("approve original body: %v", err)
 	}
@@ -441,9 +448,7 @@ func TestUpdateBodyInvalidatesReviewAndApprovalOnRevision(t *testing.T) {
 		t.Fatal("invalidated review satisfied approval")
 	}
 	// A fresh passed review re-earns approval for the current body.
-	if _, err := db.ExecContext(ctx, `INSERT INTO review_runs (id, draft_id, outcome, created_at) VALUES (?, ?, 'passed', ?)`, uuid.NewString(), draft.ID, "2026-07-29T00:00:00Z"); err != nil {
-		t.Fatal(err)
-	}
+	insertTestReviewRun(t, db, repo, uuid.NewString(), draft.ID, "passed", "2026-07-29T00:00:00Z")
 	approved, err := repo.Approve(ctx, draft.ID)
 	if err != nil {
 		t.Fatalf("approve after fresh review: %v", err)
@@ -655,9 +660,7 @@ func TestGetCurrentRevisionSelectsCurrentBodyAndApplicableAuthority(t *testing.T
 			t.Fatal(err)
 		}
 	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO review_runs (id, draft_id, outcome, created_at) VALUES (?, ?, 'passed', ?)`, "review-passed", draft.ID, "2026-07-28T00:00:00Z"); err != nil {
-		t.Fatal(err)
-	}
+	insertTestReviewRun(t, db, repo, "review-passed", draft.ID, "passed", "2026-07-28T00:00:00Z")
 	if _, err := repo.Approve(ctx, draft.ID); err != nil {
 		t.Fatalf("approve: %v", err)
 	}
@@ -686,14 +689,22 @@ func TestGetCurrentRevisionSelectsCurrentBodyAndApplicableAuthority(t *testing.T
 	if current.Body != "revised" || !current.HasStoredRevision() || current.ActorKind != "operator" {
 		t.Fatalf("revised current = %#v", current)
 	}
+	stored, err := repo.GetStoredRevision(ctx, draft.ID, current.RevisionID)
+	if err != nil {
+		t.Fatalf("read exact stored revision: %v", err)
+	}
+	if stored.DraftID != draft.ID || stored.RevisionID != current.RevisionID || stored.Body != "revised" || stored.ActorKind != "operator" {
+		t.Fatalf("stored revision snapshot = %#v", stored)
+	}
+	if _, err := repo.GetStoredRevision(ctx, draft.ID, "revision-from-another-draft"); err == nil {
+		t.Fatal("unknown or cross-draft revision unexpectedly resolved")
+	}
 	if current.HasApplicableReview() || current.HasApplicableApproval() {
 		t.Fatalf("revised authority was not withdrawn: %#v", current)
 	}
 
 	// A superseding blocked review leaves no applicable passed authority.
-	if _, err := db.ExecContext(ctx, `INSERT INTO review_runs (id, draft_id, outcome, created_at) VALUES (?, ?, 'blocked', ?)`, "review-blocked", draft.ID, "2026-07-30T00:00:00Z"); err != nil {
-		t.Fatal(err)
-	}
+	insertTestReviewRun(t, db, repo, "review-blocked", draft.ID, "blocked", "2026-07-30T00:00:00Z")
 	if _, err := db.ExecContext(ctx, `INSERT INTO review_supersessions (superseded_run_id, superseding_run_id) VALUES (?, ?)`, "review-passed", "review-blocked"); err != nil {
 		t.Fatal(err)
 	}
@@ -728,9 +739,7 @@ func TestUpdateBodyInvalidatesStaleReviewOnBlockedDraft(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO review_runs (id, draft_id, outcome, created_at) VALUES (?, ?, 'passed', ?)`, "stale-passed", draft.ID, "2026-07-28T00:00:00Z"); err != nil {
-		t.Fatal(err)
-	}
+	insertTestReviewRun(t, db, repo, "stale-passed", draft.ID, "passed", "2026-07-28T00:00:00Z")
 	if draft, err = repo.Transition(ctx, draft.ID, DraftBlock); err != nil {
 		t.Fatal(err)
 	}

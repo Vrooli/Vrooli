@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, History } from "lucide-react";
 
-import { PageHeader } from "../components/PageHeader";
-import { EmptyState } from "../components/EmptyState";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { AsyncSection } from "../components/AsyncSection";
 import { StatusChip } from "../components/ui/status-chip";
 import { usePlans } from "../hooks/usePlans";
@@ -109,7 +109,7 @@ export function RunsPage() {
   return (
     <section data-testid={selectors.pages.runs} aria-labelledby="runs-heading" className="flex flex-col gap-6">
       <div id="runs-heading">
-        <PageHeader title={t(strings.layout.nav.runs)} subtitle={t(strings.runs.subtitle)} />
+        <PageHeader title={t(strings.layout.nav.runs)} description={t(strings.runs.subtitle)} />
       </div>
 
       <AsyncSection
@@ -118,7 +118,7 @@ export function RunsPage() {
         isEmpty={runs.length === 0}
         onRetry={() => void refetch()}
         emptyState={
-          <EmptyState icon={History} title={t(strings.runs.empty)} description={t(strings.runs.emptyHint)} />
+          <EmptyState icon={<History size={32} />} title={t(strings.runs.empty)} description={t(strings.runs.emptyHint)} />
         }
       >
         <ul data-testid={selectors.runs.table} className="flex flex-col divide-y divide-app-border rounded-panel border border-app-border bg-app-surface">

@@ -1,3 +1,6 @@
 # Operator-local maintenance scripts are host-specific and are never repository
 # source. Generate them with the safe-operator-script skill.
 .private/
+
+# Local database initialization marker.
+/data/*.initialized

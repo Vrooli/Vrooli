@@ -23,7 +23,6 @@ var _ Preparer = (*LocalPreparer)(nil)
 func NewLocalPreparer() *LocalPreparer {
 	return &LocalPreparer{
 		MkdirAll:    os.MkdirAll,
-		WriteFile:   os.WriteFile,
 		Remove:      os.Remove,
 		ProbeSuffix: ".vrooli-write-probe",
 	}
@@ -39,7 +38,7 @@ func (p *LocalPreparer) Supported(action PreparationAction) (bool, string) {
 }
 
 // Execute creates the requested backup subdirectory and verifies it is writable
-// with a short-lived probe file. It refuses every destructive action.
+// with an exclusive, short-lived probe file. It refuses every destructive action.
 func (p *LocalPreparer) Execute(ctx context.Context, plan Plan) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -60,9 +59,6 @@ func (p *LocalPreparer) Execute(ctx context.Context, plan Plan) error {
 		mkdirAll = os.MkdirAll
 	}
 	writeFile := p.WriteFile
-	if writeFile == nil {
-		writeFile = os.WriteFile
-	}
 	remove := p.Remove
 	if remove == nil {
 		remove = os.Remove
@@ -71,13 +67,42 @@ func (p *LocalPreparer) Execute(ctx context.Context, plan Plan) error {
 	if probeSuffix == "" {
 		probeSuffix = ".vrooli-write-probe"
 	}
+	if filepath.Base(probeSuffix) != probeSuffix || probeSuffix == "." || probeSuffix == ".." {
+		return ErrInvalidReadiness{Field: "probe_suffix", Reason: "must be a filename prefix"}
+	}
 
 	if err := mkdirAll(target, 0o700); err != nil {
 		return fmt.Errorf("create preparation subdirectory: %w", err)
 	}
-	probe := filepath.Join(target, probeSuffix)
-	if err := writeFile(probe, []byte("ok\n"), 0o600); err != nil {
-		return fmt.Errorf("write preparation probe: %w", err)
+	probeFile, err := os.CreateTemp(target, probeSuffix+"-*")
+	if err != nil {
+		return fmt.Errorf("create preparation probe: %w", err)
+	}
+	probe := probeFile.Name()
+	probeContents := []byte("ok\n")
+	var probeErr error
+	if p.WriteFile != nil {
+		if probeErr = probeFile.Close(); probeErr == nil {
+			probeErr = writeFile(probe, probeContents, 0o600)
+		}
+	} else {
+		var written int
+		written, probeErr = probeFile.Write(probeContents)
+		if probeErr == nil && written != len(probeContents) {
+			probeErr = fmt.Errorf("short write: wrote %d of %d bytes", written, len(probeContents))
+		}
+		if probeErr == nil {
+			probeErr = probeFile.Sync()
+		}
+		if closeErr := probeFile.Close(); probeErr == nil {
+			probeErr = closeErr
+		}
+	}
+	if probeErr != nil {
+		if cleanupErr := remove(probe); cleanupErr != nil {
+			return fmt.Errorf("write preparation probe: %v (cleanup failed: %w)", probeErr, cleanupErr)
+		}
+		return fmt.Errorf("write preparation probe: %w", probeErr)
 	}
 	if err := remove(probe); err != nil {
 		return fmt.Errorf("remove preparation probe: %w", err)

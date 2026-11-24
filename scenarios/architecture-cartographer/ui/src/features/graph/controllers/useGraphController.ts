@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import type { GraphSnapshot } from "@vrooli/proto-types/architecture-cartographer/v1/graph/graph_pb";
 
-import { graphClient } from "../../../api/graph";
+import { graphClient, searchSlices, type SliceSearchResponseView } from "../../../api/graph";
 import { domainsClient } from "../../../api/domains";
 import { conflictsClient } from "../../../api/conflicts";
 
@@ -18,6 +18,7 @@ export const graphKeys = {
     [...graphKeys.all(), "latest", scenario] as const,
   domains: (scenario: string) => [...graphKeys.all(), "domains", scenario] as const,
   slice: (scenario: string, domain: string) => [...graphKeys.all(), "slice", scenario, domain] as const,
+  rankedSlice: (scenario: string, domain: string) => [...graphKeys.all(), "ranked-slice", scenario, domain] as const,
 };
 
 export function useGetDomainSlice(scenario: string, domain: string, enabled = true) {
@@ -28,6 +29,14 @@ export function useGetDomainSlice(scenario: string, domain: string, enabled = tr
       if (!response.slice) throw new Error("No slice anatomy was returned");
       return response.slice;
     },
+    enabled: enabled && scenario.length > 0 && domain.length > 0,
+  });
+}
+
+export function useSearchDomainSlice(scenario: string, domain: string, enabled = true) {
+  return useQuery({
+    queryKey: graphKeys.rankedSlice(scenario, domain),
+    queryFn: (): Promise<SliceSearchResponseView> => searchSlices(domain, `scenario:${scenario}`, 5),
     enabled: enabled && scenario.length > 0 && domain.length > 0,
   });
 }

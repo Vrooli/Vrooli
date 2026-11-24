@@ -3,6 +3,7 @@ package targets
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"connectrpc.com/connect"
@@ -97,7 +98,7 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 
 func (h *handlers) list(ctx cliapp.RunContext) error {
 	resp, err := h.client.ListTargets(context.Background(), connect.NewRequest(&targetsv1.ListTargetsRequest{
-		Owner: ctx.Flag("owner"),
+		Owner: ctx.Flag("owner"), PageSize: parsePageSize(ctx.Flag("page-size")), PageToken: ctx.Flag("page-token"),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("list targets", err, nil)
@@ -118,6 +119,14 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 			"`targets register --owner <o> --name <n> --kind <k> --locator <l>` — register a target",
 		},
 	})
+}
+
+func parsePageSize(raw string) int32 {
+	n, err := strconv.Atoi(raw)
+	if err != nil || n < 1 || n > 100 {
+		return 0
+	}
+	return int32(n)
 }
 
 // parseKind maps the --kind flag string to the proto SourceKind enum.

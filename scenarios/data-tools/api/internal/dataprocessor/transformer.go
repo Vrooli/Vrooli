@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -105,11 +106,19 @@ func (t *Transformer) applyFilter(data []map[string]interface{}, params map[stri
 	if !ok {
 		return nil, fmt.Errorf("filter requires 'condition' parameter")
 	}
+	field, operator, value, err := parseFilterCondition(condition)
+	if err != nil {
+		return nil, err
+	}
 
 	result := []map[string]interface{}{}
 
 	for _, row := range data {
-		if t.evaluateCondition(row, condition) {
+		matches, err := t.evaluateCondition(row, condition, field, operator, value)
+		if err != nil {
+			return nil, err
+		}
+		if matches {
 			result = append(result, row)
 		}
 	}
@@ -444,36 +453,44 @@ func (t *Transformer) aggregate(data []map[string]interface{}, field string, agg
 }
 
 // evaluateCondition evaluates a filter condition
-func (t *Transformer) evaluateCondition(row map[string]interface{}, condition string) bool {
-	// Simple condition evaluation
-	// In production, use a proper expression parser
-
-	// Handle simple comparisons like "age > 25"
+func parseFilterCondition(condition string) (field, operator, value string, err error) {
 	parts := strings.Fields(condition)
-	if len(parts) == 3 {
-		field := parts[0]
-		operator := parts[1]
-		valueStr := parts[2]
-
-		fieldValue := row[field]
-
-		switch operator {
-		case ">":
-			return t.compareValues(fieldValue, valueStr) > 0
-		case ">=":
-			return t.compareValues(fieldValue, valueStr) >= 0
-		case "<":
-			return t.compareValues(fieldValue, valueStr) < 0
-		case "<=":
-			return t.compareValues(fieldValue, valueStr) <= 0
-		case "=", "==":
-			return t.compareValues(fieldValue, valueStr) == 0
-		case "!=":
-			return t.compareValues(fieldValue, valueStr) != 0
-		}
+	if len(parts) != 3 {
+		return "", "", "", fmt.Errorf("invalid filter condition %q: expected '<field> <operator> <value>'", condition)
 	}
+	field, operator, value = parts[0], parts[1], parts[2]
+	if operator != ">" && operator != ">=" && operator != "<" && operator != "<=" && operator != "=" && operator != "==" && operator != "!=" {
+		return "", "", "", fmt.Errorf("invalid filter condition %q: unsupported operator %q", condition, operator)
+	}
+	return field, operator, value, nil
+}
 
-	return false
+func (t *Transformer) evaluateCondition(row map[string]interface{}, condition, field, operator, value string) (bool, error) {
+	fieldValue, exists := row[field]
+	if !exists {
+		return false, fmt.Errorf("invalid filter condition %q: field %q does not exist", condition, field)
+	}
+	if _, ok := fieldValue.(bool); ok && operator != "=" && operator != "==" && operator != "!=" {
+		return false, fmt.Errorf("invalid filter condition %q: operator %q is not supported for boolean fields", condition, operator)
+	}
+	comparison, err := t.compareValues(fieldValue, value)
+	if err != nil {
+		return false, fmt.Errorf("invalid filter condition %q: %w", condition, err)
+	}
+	switch operator {
+	case ">":
+		return comparison > 0, nil
+	case ">=":
+		return comparison >= 0, nil
+	case "<":
+		return comparison < 0, nil
+	case "<=":
+		return comparison <= 0, nil
+	case "=", "==":
+		return comparison == 0, nil
+	default:
+		return comparison != 0, nil
+	}
 }
 
 // evaluateExpression evaluates a mapping expression
@@ -492,21 +509,40 @@ func (t *Transformer) evaluateExpression(row map[string]interface{}, expr interf
 }
 
 // compareValues compares a field value with a string value
-func (t *Transformer) compareValues(fieldValue interface{}, strValue string) int {
-	// Convert string value to appropriate type for comparison
+func (t *Transformer) compareValues(fieldValue interface{}, strValue string) (int, error) {
 	switch v := fieldValue.(type) {
 	case int:
-		if intVal, err := parseInt(strValue); err == nil {
-			return compareOrdered(v, intVal)
+		intVal, err := strconv.ParseInt(strValue, 10, 0)
+		if err != nil {
+			return 0, fmt.Errorf("value %q is not an integer", strValue)
 		}
+		return compareOrdered(v, int(intVal)), nil
 	case float64:
-		if floatVal, err := parseFloat(strValue); err == nil {
-			return compareOrdered(v, floatVal)
+		floatVal, err := strconv.ParseFloat(strValue, 64)
+		if err != nil {
+			return 0, fmt.Errorf("value %q is not a number", strValue)
 		}
+		return compareOrdered(v, floatVal), nil
 	case string:
-		return strings.Compare(v, strValue)
+		if len(strValue) >= 2 && ((strValue[0] == '\'' && strValue[len(strValue)-1] == '\'') || (strValue[0] == '"' && strValue[len(strValue)-1] == '"')) {
+			strValue = strValue[1 : len(strValue)-1]
+		}
+		return strings.Compare(v, strValue), nil
+	case bool:
+		boolValue, err := strconv.ParseBool(strValue)
+		if err != nil {
+			return 0, fmt.Errorf("value %q is not a boolean", strValue)
+		}
+		return compareOrdered(boolRank(v), boolRank(boolValue)), nil
+	default:
+		return 0, fmt.Errorf("field value has unsupported type %T", fieldValue)
 	}
+}
 
+func boolRank(value bool) int {
+	if value {
+		return 1
+	}
 	return 0
 }
 
@@ -598,18 +634,6 @@ func (t *Transformer) inferType(value interface{}) string {
 func getCurrentTimeMs() int {
 	// Simplified - in production use proper time tracking
 	return 0
-}
-
-func parseInt(s string) (int, error) {
-	var i int
-	_, err := fmt.Sscanf(s, "%d", &i)
-	return i, err
-}
-
-func parseFloat(s string) (float64, error) {
-	var f float64
-	_, err := fmt.Sscanf(s, "%f", &f)
-	return f, err
 }
 
 type orderedNumber interface {

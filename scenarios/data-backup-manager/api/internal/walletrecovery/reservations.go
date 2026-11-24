@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/receiptsigning"
 )
 
 var (
@@ -16,10 +18,10 @@ var (
 )
 
 type Reservation struct {
-	RequestID, TargetID, DestinationID, SnapshotID string
-	TombstoneSHA256                                string
-	SnapshotGeneration                             int64
-	ExpiresAt                                      time.Time
+	RequestID, TargetID, DestinationID, SnapshotID, SuccessorID string
+	TombstoneSHA256                                             string
+	SnapshotGeneration                                          int64
+	ExpiresAt                                                   time.Time
 }
 
 // ReservationStore is the durable CAS boundary. Reserve is idempotent for the
@@ -85,6 +87,12 @@ func (s SQLiteReservations) EnsureSchema(ctx context.Context) error {
 	if err := ensureReservationColumn(ctx, s.DB, "snapshot_generation", "INTEGER NOT NULL DEFAULT 0"); err != nil {
 		return err
 	}
+	if err := ensureReservationColumn(ctx, s.DB, "commit_ack_sha256", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		return err
+	}
+	if err := ensureReservationColumn(ctx, s.DB, "successor_id", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		return err
+	}
 	_, err = s.DB.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS dbm_wallet_snapshot_mutations (
 	 target_id TEXT NOT NULL, destination_id TEXT NOT NULL, mutation_id TEXT NOT NULL,
 	 started_at TEXT NOT NULL, PRIMARY KEY(target_id,destination_id,mutation_id))`)
@@ -95,6 +103,50 @@ func (s SQLiteReservations) EnsureSchema(ctx context.Context) error {
 	 target_id TEXT NOT NULL, destination_id TEXT NOT NULL, generation INTEGER NOT NULL,
 	 PRIMARY KEY(target_id,destination_id))`)
 	return err
+}
+
+// ReleaseAcknowledged releases only the exact commit_pending reservation
+// covered by a Treasury signature. The signature is verified by the HTTP
+// boundary; this method atomically binds the acknowledgement to durable DBM
+// state and makes identical retries idempotent while refusing changed replay.
+func (s SQLiteReservations) ReleaseAcknowledged(ctx context.Context, ack receiptsigning.WalletRecoveryCommitAcknowledgement, ackDigest string) error {
+	if s.DB == nil || ack.Version != 1 || ack.OperationID == "" || ack.OperationID != ack.ReservationID || ack.TargetID == "" || ack.DestinationID == "" || ack.SnapshotID == "" || !isSHA256(ack.TombstoneSHA256) || ack.SuccessorID == "" || ack.SuccessorAddress == "" || ack.SuccessorPublicKey == "" || !isSHA256(strings.TrimPrefix(ackDigest, "sha256:")) {
+		return errors.New("complete Treasury commit acknowledgement is required")
+	}
+	if err := s.EnsureSchema(ctx); err != nil {
+		return err
+	}
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var dest, snapshot, tombstone, state, priorDigest, successorID string
+	err = tx.QueryRowContext(ctx, `SELECT destination_id,snapshot_id,tombstone_sha256,state,commit_ack_sha256,successor_id FROM dbm_wallet_recovery_reservations WHERE request_id=? AND target_id=?`, ack.ReservationID, ack.TargetID).Scan(&dest, &snapshot, &tombstone, &state, &priorDigest, &successorID)
+	if err != nil {
+		return errors.New("matching DBM reservation not found")
+	}
+	if dest != ack.DestinationID || snapshot != ack.SnapshotID || !strings.EqualFold(tombstone, ack.TombstoneSHA256) || successorID == "" || successorID != ack.SuccessorID {
+		return errors.New("Treasury commit acknowledgement does not match the reserved destination, snapshot, tombstone, or successor")
+	}
+	if state == "released" {
+		if priorDigest == ackDigest {
+			return tx.Commit()
+		}
+		return errors.New("reservation was already released with a different Treasury acknowledgement")
+	}
+	if state != "commit_pending" {
+		return errors.New("reservation is not commit-pending")
+	}
+	res, err := tx.ExecContext(ctx, `UPDATE dbm_wallet_recovery_reservations SET state='released',commit_ack_sha256=? WHERE request_id=? AND target_id=? AND state='commit_pending' AND destination_id=? AND snapshot_id=? AND tombstone_sha256=?`, ackDigest, ack.ReservationID, ack.TargetID, ack.DestinationID, ack.SnapshotID, ack.TombstoneSHA256)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil || n != 1 {
+		return errors.New("DBM reservation changed while applying Treasury acknowledgement")
+	}
+	return tx.Commit()
 }
 
 // ReserveRead pins an exact current DBM snapshot while Treasury consumes it.
@@ -155,8 +207,8 @@ func (s SQLiteReservations) ReserveRead(ctx context.Context, r Reservation, now 
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO dbm_wallet_recovery_reservations(target_id,destination_id,request_id,snapshot_id,tombstone_sha256,snapshot_generation,expires_at,state)
-	 VALUES(?,?,?,?, '', ?,?,'read_reserved') ON CONFLICT(target_id,destination_id) DO UPDATE SET request_id=excluded.request_id,snapshot_id=excluded.snapshot_id,tombstone_sha256='',snapshot_generation=excluded.snapshot_generation,expires_at=excluded.expires_at,state='read_reserved'`, r.TargetID, r.DestinationID, r.RequestID, r.SnapshotID, r.SnapshotGeneration, r.ExpiresAt.UTC().Format(time.RFC3339Nano))
+	_, err = tx.ExecContext(ctx, `INSERT INTO dbm_wallet_recovery_reservations(target_id,destination_id,request_id,snapshot_id,tombstone_sha256,snapshot_generation,expires_at,state,successor_id,commit_ack_sha256)
+	 VALUES(?,?,?,?, '', ?,?,'read_reserved','','') ON CONFLICT(target_id,destination_id) DO UPDATE SET request_id=excluded.request_id,snapshot_id=excluded.snapshot_id,tombstone_sha256='',snapshot_generation=excluded.snapshot_generation,expires_at=excluded.expires_at,state='read_reserved',successor_id='',commit_ack_sha256=''`, r.TargetID, r.DestinationID, r.RequestID, r.SnapshotID, r.SnapshotGeneration, r.ExpiresAt.UTC().Format(time.RFC3339Nano))
 	if err != nil {
 		return err
 	}
@@ -254,8 +306,8 @@ func (s SQLiteReservations) Reserve(ctx context.Context, r Reservation, now time
 	if generation != r.SnapshotGeneration {
 		return errors.New("snapshot mutation occurred after evidence collection; recollect evidence")
 	}
-	var req, snap, tombstone, expires, state string
-	err = tx.QueryRowContext(ctx, `SELECT request_id,snapshot_id,tombstone_sha256,expires_at,state FROM dbm_wallet_recovery_reservations WHERE target_id=? AND destination_id=?`, r.TargetID, r.DestinationID).Scan(&req, &snap, &tombstone, &expires, &state)
+	var req, snap, tombstone, expires, state, successorID string
+	err = tx.QueryRowContext(ctx, `SELECT request_id,snapshot_id,tombstone_sha256,expires_at,state,successor_id FROM dbm_wallet_recovery_reservations WHERE target_id=? AND destination_id=?`, r.TargetID, r.DestinationID).Scan(&req, &snap, &tombstone, &expires, &state, &successorID)
 	if err == nil {
 		until, parseErr := time.Parse(time.RFC3339Nano, expires)
 		if parseErr != nil {
@@ -264,7 +316,12 @@ func (s SQLiteReservations) Reserve(ctx context.Context, r Reservation, now time
 		if state != "reserved" && state != "commit_pending" && state != "read_reserved" && state != "released" {
 			return fmt.Errorf("unknown reservation state %q; failing closed", state)
 		}
-		if req == r.RequestID && snap == r.SnapshotID && tombstone == r.TombstoneSHA256 && (state == "reserved" || state == "commit_pending") {
+		if req == r.RequestID && snap == r.SnapshotID && tombstone == r.TombstoneSHA256 && (successorID == "" || r.SuccessorID == "" || successorID == r.SuccessorID) && (state == "reserved" || state == "commit_pending") {
+			if r.SuccessorID != "" && successorID == "" {
+				if _, err = tx.ExecContext(ctx, `UPDATE dbm_wallet_recovery_reservations SET successor_id=? WHERE target_id=? AND destination_id=? AND request_id=?`, r.SuccessorID, r.TargetID, r.DestinationID, r.RequestID); err != nil {
+					return err
+				}
+			}
 			if state == "reserved" && !until.After(now) {
 				_, err = tx.ExecContext(ctx, `UPDATE dbm_wallet_recovery_reservations SET expires_at=? WHERE target_id=? AND destination_id=? AND request_id=?`, r.ExpiresAt.UTC().Format(time.RFC3339Nano), r.TargetID, r.DestinationID, r.RequestID)
 				if err != nil {
@@ -287,8 +344,8 @@ func (s SQLiteReservations) Reserve(ctx context.Context, r Reservation, now time
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO dbm_wallet_recovery_reservations(target_id,destination_id,request_id,snapshot_id,tombstone_sha256,snapshot_generation,expires_at,state)
-	 VALUES(?,?,?,?,?,?,?,'reserved') ON CONFLICT(target_id,destination_id) DO UPDATE SET request_id=excluded.request_id,snapshot_id=excluded.snapshot_id,tombstone_sha256=excluded.tombstone_sha256,snapshot_generation=excluded.snapshot_generation,expires_at=excluded.expires_at,state='reserved'`, r.TargetID, r.DestinationID, r.RequestID, r.SnapshotID, r.TombstoneSHA256, r.SnapshotGeneration, r.ExpiresAt.UTC().Format(time.RFC3339Nano))
+	_, err = tx.ExecContext(ctx, `INSERT INTO dbm_wallet_recovery_reservations(target_id,destination_id,request_id,snapshot_id,tombstone_sha256,snapshot_generation,expires_at,state,successor_id)
+	 VALUES(?,?,?,?,?,?,?,'reserved',?) ON CONFLICT(target_id,destination_id) DO UPDATE SET request_id=excluded.request_id,snapshot_id=excluded.snapshot_id,tombstone_sha256=excluded.tombstone_sha256,snapshot_generation=excluded.snapshot_generation,expires_at=excluded.expires_at,state='reserved',successor_id=excluded.successor_id,commit_ack_sha256=''`, r.TargetID, r.DestinationID, r.RequestID, r.SnapshotID, r.TombstoneSHA256, r.SnapshotGeneration, r.ExpiresAt.UTC().Format(time.RFC3339Nano), r.SuccessorID)
 	if err != nil {
 		return err
 	}

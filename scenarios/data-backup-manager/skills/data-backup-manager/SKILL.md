@@ -36,32 +36,18 @@ In scope: registering owned targets, creating and inspecting destinations, bindi
 
 Out of scope: inventing a second backup engine, copying a target's database by hand, treating a snapshot list as a restore, counting destination rows as storage devices, or formatting a disk without a person.
 
-### 2. Decision tree
+### 2. Decision path
 
-```
-I need to protect or recover state
-├─ Is the target registered with an owner and a locator?
-│  ├─ no  → coverage report; accept-defaults for non-sensitive, review-sensitive otherwise [S1]
-│  └─ yes
-├─ Is the target bound to an enabled plan?
-│  ├─ no  → create a plan, or add a destination to every enabled plan [S1]
-│  └─ yes
-├─ Is the destination writable and healthy?
-│  ├─ readiness unknown but mounted and writable → treat as a warning; the probe decides [S0]
-│  ├─ dirty, read-only, or a failed probe → inspect readiness [S1]
-│  └─ healthy → continue
-├─ Protect the state now
-│  └─ runs trigger; read the run receipt and per-target outcome [S1]
-├─ Prove the recovery point
-│  ├─ drills preview; run a drill; accept DRILL_STATUS_VERIFIED only [S1]
-│  └─ restores verify or restore into a clean, owned target [S1]
-├─ Move or unplug the drive
-│  └─ destinations safe-eject --id <id> --apply [S1]
-└─ Make a damaged destination whole
-   ├─ destinations repair-options --id <id> [S1]
-   ├─ repair=metadata → prepare-plan --action repair-filesystem, then execute [S1]
-   └─ repair=limited  → repair-drive.sh --auto (probe in-place; staging when available) [S1]
-```
+For a combined read of registered targets and plans, run `program-runtime library run data-backup-manager.catalog-read --json`; add `--input owner=<scenario>` only when the target inventory should be filtered. The program follows up to four 50-row pages for each list. Treat `partial` plus a non-empty token as continuation, and continue with the corresponding owner list command using `--page-token` if needed. This is read-only; the bounded scan reports whether either list continues.
+
+For protection or recovery, use the owner CLI after this quick check:
+
+- Unregistered target: review the coverage report; register only after resolving its owner and locator.
+- No enabled plan: create or update a plan after reviewing its target and destination set.
+- Destination concern: inspect readiness; a write probe determines whether an unknown filesystem state blocks writes.
+- Backup now: trigger one run and read its durable receipt; a timeout does not cancel it.
+- Recovery proof: preview a drill, then accept only a verified drill or verified restore.
+- Drive removal or repair: use the safe-eject or repair workflow below; neither is implied by a catalog read.
 
 A caller timeout is not a cancellation. Reattach to the durable run and read its receipt. An uncertain effect is reconciled before it is replayed.
 

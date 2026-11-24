@@ -98,21 +98,24 @@ func ClassifyCapture(err error) Cause {
 	if err == nil {
 		return Cause{}
 	}
+	// Permission failures must be recognized before Classify's broad "stat"
+	// match. Otherwise lstat(...): permission denied is reported as a missing
+	// source, which sends owners down the wrong repair path and invites repeats.
+	lower := strings.ToLower(err.Error())
+	if strings.Contains(lower, "permission denied") || strings.Contains(lower, "operation not permitted") {
+		return Cause{
+			Code: SourceUnreadable, Category: CategorySource, Scope: ScopeTarget,
+			Message:    "source tree cannot be read: " + BoundedDetail(err),
+			NextAction: "restore owner-authorized read and traversal access to this source, or explicitly deregister it and leave coverage degraded",
+		}
+	}
 	c := Classify(err)
 	if c.Code != Unknown {
 		return c
 	}
-	text := strings.ToLower(err.Error())
-	switch {
-	case strings.Contains(text, "permission denied"), strings.Contains(text, "operation not permitted"):
-		c.Code, c.Category, c.Scope = SourceUnreadable, CategorySource, ScopeTarget
-		c.Message = "source tree could not be read: " + BoundedDetail(err)
-		c.NextAction = "grant read access to the full source tree, or deregister the target"
-	default:
-		c.Code, c.Category, c.Scope = SourceCaptureFailed, CategorySource, ScopeTarget
-		c.Message = "source capture failed: " + BoundedDetail(err)
-		c.NextAction = "resolve the reported source error, then retry the plan"
-	}
+	c.Code, c.Category, c.Scope = SourceCaptureFailed, CategorySource, ScopeTarget
+	c.Message = "source capture failed: " + BoundedDetail(err)
+	c.NextAction = "resolve the reported source error, then retry the plan"
 	return c
 }
 

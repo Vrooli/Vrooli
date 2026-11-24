@@ -16,14 +16,15 @@ other scenarios, and third-party services used by the scenario.
 
 ## Vrooli Resources
 
-Cartographer does not require any external Vrooli resource in v1.
-This is a deliberate choice — see Intentional Deviations in
-[`ARCHITECTURE.md`](ARCHITECTURE.md).
+Cartographer uses optional Vrooli resources for domain-map semantic search.
+SQLite remains its owned state store; resource loss degrades search rather than
+the graph and audit domains.
 
 | Resource | Status | Reason | Revisit Trigger |
 |---|---|---|---|
-| Ollama | not-applicable in v1 | Embeddings deferred to P2 (OT-P2-001) as a suggestion-only ranker. Deterministic signals cover the v1 ladder. | Add only if v1 evidence shows high residual conflicts the deterministic ladder cannot answer. |
-| Qdrant | not-applicable in v1 | Same as Ollama — required only if/when the embedding ranker ships. | Same as Ollama. |
+| Ollama | enabled, optional (`try_start`) | Generates embeddings for the domain-map index. If unavailable, domain search uses text matching. | Restore the `embedding.default` role when semantic indexing is enabled. |
+| Qdrant | enabled, optional (`try_start`) | Stores the `architecture-cartographer-domains` semantic index. If unavailable, domain search uses BM25-style text matching and reindexing is deferred. | Restore the index when cross-scenario semantic lookup is enabled. |
+| Reranker | enabled, optional (`try_start`) | Cross-encoder reorders dense domain-search candidates. If unavailable, search returns raw dense order with weaker no-match rejection. | Restore the cross-encoder endpoint and verify reranking status. |
 | PostgreSQL / shared DB | not-applicable | Cartographer state is per-scenario and local; SQLite suffices. | Add only if a multi-tenant or shared-history use case emerges. |
 
 ## Scenario Dependencies

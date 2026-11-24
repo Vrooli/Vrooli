@@ -97,6 +97,7 @@ type Operation struct {
 	UpdatedAt                     time.Time                 `json:"updated_at"`
 	CompletedAt                   *time.Time                `json:"completed_at,omitempty"`
 	CloudStep                     *CloudStep                `json:"cloud_step,omitempty"`
+	CloudRecoveryHandoff          *CloudRecoveryHandoff     `json:"cloud_recovery_handoff,omitempty"`
 	CloudSpendQuoteIdempotencyKey string                    `json:"cloud_spend_quote_idempotency_key,omitempty"`
 	CloudComputeManagerInstanceID string                    `json:"cloud_compute_manager_instance_id,omitempty"`
 	CloudAcquireCompute           bool                      `json:"cloud_acquire_compute,omitempty"`
@@ -105,6 +106,26 @@ type Operation struct {
 	CloudAcquireReceipt           *CloudAcquireReceipt      `json:"cloud_acquire_receipt,omitempty"`
 	CloudTeardownReceipt          *CloudTeardownReceipt     `json:"cloud_teardown_receipt,omitempty"`
 	CloudLeaseRenewalReceipt      *CloudLeaseRenewalReceipt `json:"cloud_lease_renewal_receipt,omitempty"`
+}
+
+// CloudRecoveryHandoff projects only durable DM-owned facts for phone review.
+// It is bound to the canonical release operation and does not authorize S2C.
+type CloudRecoveryHandoff struct {
+	OperationID           string    `json:"operation_id"`
+	ReleaseID             string    `json:"release_id"`
+	DeploymentID          string    `json:"deployment_id"`
+	RecoveryKey           string    `json:"recovery_idempotency_key"`
+	State                 string    `json:"state"`
+	CurrentReleaseDigest  string    `json:"current_release_digest,omitempty"`
+	LastGoodReleaseDigest string    `json:"last_good_release_digest,omitempty"`
+	VerificationState     string    `json:"verification_state"`
+	VerificationReason    string    `json:"verification_reason,omitempty"`
+	EvidenceSHA256        string    `json:"evidence_sha256,omitempty"`
+	EvidenceObservedAt    time.Time `json:"evidence_observed_at,omitempty"`
+	EvidenceFreshness     string    `json:"evidence_freshness"`
+	Available             bool      `json:"available"`
+	NextAction            string    `json:"next_action"`
+	BlockedReason         string    `json:"blocked_reason,omitempty"`
 }
 
 // CloudAcquireReceipt is DM's immutable, operation-bound envelope around the
@@ -144,24 +165,24 @@ type CloudTeardownReceipt struct {
 // CloudLeaseRenewalReceipt binds DM's standing to the immutable CM acquisition
 // and, when available, the exact typed CM renewal readback.
 type CloudLeaseRenewalReceipt struct {
-	SchemaVersion                 int       `json:"schema_version"`
-	OperationID                   string    `json:"operation_id"`
-	ReleaseID                     string    `json:"release_id"`
-	ProfileID                     string    `json:"profile_id"`
-	RenewalKey                    string    `json:"renewal_idempotency_key"`
-	AcquisitionReceiptFingerprint string    `json:"acquisition_receipt_sha256"`
-	InstanceID                    string    `json:"compute_manager_instance_id"`
-	Provider                      string    `json:"compute_manager_provider"`
-	ProviderInstanceID            string    `json:"compute_manager_provider_instance_id"`
-	OldExpiresAt                  time.Time `json:"old_expires_at"`
-	NewExpiresAt                  time.Time `json:"new_expires_at,omitempty"`
-	RequestedUntil                time.Time `json:"requested_until"`
-	QuoteKey                      string    `json:"quote_idempotency_key"`
-	QuoteFingerprint              string    `json:"quote_fingerprint"`
-	AuthorizationFact             string    `json:"authorization_fact"`
-	State                         string    `json:"state"`
-	Reason                        string    `json:"reason"`
-	PersistedAt                   time.Time `json:"persisted_at"`
+	SchemaVersion                 int             `json:"schema_version"`
+	OperationID                   string          `json:"operation_id"`
+	ReleaseID                     string          `json:"release_id"`
+	ProfileID                     string          `json:"profile_id"`
+	RenewalKey                    string          `json:"renewal_idempotency_key"`
+	AcquisitionReceiptFingerprint string          `json:"acquisition_receipt_sha256"`
+	InstanceID                    string          `json:"compute_manager_instance_id"`
+	Provider                      string          `json:"compute_manager_provider"`
+	ProviderInstanceID            string          `json:"compute_manager_provider_instance_id"`
+	OldExpiresAt                  time.Time       `json:"old_expires_at"`
+	NewExpiresAt                  time.Time       `json:"new_expires_at,omitempty"`
+	RequestedUntil                time.Time       `json:"requested_until"`
+	QuoteKey                      string          `json:"quote_idempotency_key"`
+	QuoteFingerprint              string          `json:"quote_fingerprint"`
+	AuthorizationFact             string          `json:"authorization_fact"`
+	State                         string          `json:"state"`
+	Reason                        string          `json:"reason"`
+	PersistedAt                   time.Time       `json:"persisted_at"`
 	OwnerReceipt                  json.RawMessage `json:"compute_manager_receipt,omitempty"`
 }
 
@@ -189,6 +210,9 @@ type CloudStep struct {
 	RecoveryReceipt           json.RawMessage `json:"recovery_receipt,omitempty"`
 	RecoveryReason            string          `json:"recovery_reason,omitempty"`
 	Reason                    string          `json:"reason,omitempty"`
+	ManagedDNSState           string          `json:"managed_dns_state,omitempty"`
+	ManagedDNSReason          string          `json:"managed_dns_reason,omitempty"`
+	ManagedDNSEvidenceSHA256  string          `json:"managed_dns_evidence_sha256,omitempty"`
 	UpdatedAt                 time.Time       `json:"updated_at"`
 }
 

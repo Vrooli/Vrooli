@@ -206,7 +206,7 @@ mean every platform or release profile has been approved.
 
 ## Related Documentation
 
-- [DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md) - User-facing deployment guide
+- [DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md) - Cloud deployment operator boundary
 - [internal/PROBLEMS.md](internal/PROBLEMS.md) - Known issues and blockers
 - [PROGRESS.md](PROGRESS.md) - Implementation progress notes
 - [Integration seams](internal/SEAMS.md) - Integration points

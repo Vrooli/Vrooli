@@ -52,6 +52,17 @@ func (h handler) CreateCollection(ctx context.Context, req *connect.Request[v1.C
 	}
 	return connect.NewResponse(&v1.CreateCollectionResponse{Collection: &v1.Collection{Id: c.ID, ProjectId: c.ProjectID, Name: c.Name}}), nil
 }
+func (h handler) ListCollections(ctx context.Context, req *connect.Request[v1.ListCollectionsRequest]) (*connect.Response[v1.ListCollectionsResponse], error) {
+	items, err := h.repo.ListCollections(ctx, req.Msg.ProjectId)
+	if err != nil {
+		return nil, relationError(err)
+	}
+	out := &v1.ListCollectionsResponse{}
+	for _, item := range items {
+		out.Collections = append(out.Collections, &v1.Collection{Id: item.ID, ProjectId: item.ProjectID, Name: item.Name})
+	}
+	return connect.NewResponse(out), nil
+}
 func (h handler) AddCollectionItem(ctx context.Context, req *connect.Request[v1.AddCollectionItemRequest]) (*connect.Response[v1.AddCollectionItemResponse], error) {
 	if req.Msg.Item == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, internal.ErrInvalid)
@@ -61,6 +72,16 @@ func (h handler) AddCollectionItem(ctx context.Context, req *connect.Request[v1.
 		return nil, relationError(err)
 	}
 	return connect.NewResponse(&v1.AddCollectionItemResponse{Item: itemMessage(i)}), nil
+}
+func (h handler) RemoveCollectionItem(ctx context.Context, req *connect.Request[v1.RemoveCollectionItemRequest]) (*connect.Response[v1.RemoveCollectionItemResponse], error) {
+	if req.Msg.Item == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, internal.ErrInvalid)
+	}
+	i := internal.CollectionItem{CollectionID: req.Msg.Item.CollectionId, DraftID: req.Msg.Item.DraftId, RevisionID: req.Msg.Item.RevisionId}
+	if err := h.repo.RemoveCollectionItem(ctx, i); err != nil {
+		return nil, relationError(err)
+	}
+	return connect.NewResponse(&v1.RemoveCollectionItemResponse{Item: itemMessage(i)}), nil
 }
 func (h handler) ListCollectionItems(ctx context.Context, req *connect.Request[v1.ListCollectionItemsRequest]) (*connect.Response[v1.ListCollectionItemsResponse], error) {
 	items, err := h.repo.ListCollectionItems(ctx, req.Msg.CollectionId)
@@ -108,7 +129,9 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "relationships_create_relation", Path: connectv1.RelationshipsServiceCreateRelationProcedure, Method: "POST", Summary: "Create an exact-revision same-project content relation", Category: "relationships"},
 	{ID: "relationships_list", Path: connectv1.RelationshipsServiceListRelationsProcedure, Method: "POST", Summary: "List pinned content relations", Category: "relationships"},
 	{ID: "relationships_create_collection", Path: connectv1.RelationshipsServiceCreateCollectionProcedure, Method: "POST", Summary: "Create a non-owning saved collection", Category: "relationships"},
+	{ID: "relationships_list_collections", Path: connectv1.RelationshipsServiceListCollectionsProcedure, Method: "POST", Summary: "List saved collections in one project", Category: "relationships"},
 	{ID: "relationships_add_collection_item", Path: connectv1.RelationshipsServiceAddCollectionItemProcedure, Method: "POST", Summary: "Add a pinned revision to a saved collection", Category: "relationships"},
+	{ID: "relationships_remove_collection_item", Path: connectv1.RelationshipsServiceRemoveCollectionItemProcedure, Method: "POST", Summary: "Remove one pinned revision from a saved collection", Category: "relationships"},
 	{ID: "relationships_list_collection_items", Path: connectv1.RelationshipsServiceListCollectionItemsProcedure, Method: "POST", Summary: "List saved collection references", Category: "relationships"},
 	{ID: "relationships_preview_impact", Path: connectv1.RelationshipsServicePreviewImpactProcedure, Method: "POST", Summary: "Preview detach, move, or archive impact without mutation", Category: "relationships"},
 }

@@ -20,6 +20,12 @@ type fakeService struct {
 func (*fakeService) Record(context.Context, string, []internal.Verdict) (internal.Run, error) {
 	return internal.Run{}, nil
 }
+func (*fakeService) RecordExact(_ context.Context, draft, revision, body string, verdicts []internal.Verdict) (internal.Run, error) {
+	return internal.Run{ID: "run-exact", DraftID: draft, SourceRevisionID: revision, Outcome: internal.OutcomePassed, Verdicts: verdicts}, nil
+}
+func (*fakeService) ListRequiredModes(context.Context, string) ([]string, error) {
+	return []string{"policy"}, nil
+}
 func (*fakeService) List(context.Context) ([]internal.Run, error) { return nil, nil }
 func (f *fakeService) CreateEditorialPackage(_ context.Context, draft, revision, body, key string) (internal.EditorialPackage, error) {
 	f.createdID = draft + "|" + revision + "|" + body + "|" + key
@@ -67,8 +73,16 @@ func TestReviewHandlerRejectsStaleCreateAndMissingPackage(t *testing.T) {
 
 func TestReviewHandlerRejectsNilVerdict(t *testing.T) {
 	h := handler{service: &fakeService{}}
-	_, err := h.RecordReviewRun(context.Background(), connect.NewRequest(&v1.RecordReviewRunRequest{DraftId: "draft-1", Verdicts: []*v1.Verdict{nil}}))
+	_, err := h.RecordReviewRun(context.Background(), connect.NewRequest(&v1.RecordReviewRunRequest{DraftId: "draft-1", ExpectedBody: "body", Verdicts: []*v1.Verdict{nil}}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("nil verdict returned %v", err)
+	}
+}
+
+func TestReviewHandlerRequiresExactDisplayedBody(t *testing.T) {
+	h := handler{service: &fakeService{}}
+	_, err := h.RecordReviewRun(context.Background(), connect.NewRequest(&v1.RecordReviewRunRequest{DraftId: "draft-1", Verdicts: []*v1.Verdict{{Mode: "policy", Passed: true}}}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("missing exact body returned %v", err)
 	}
 }

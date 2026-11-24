@@ -2,7 +2,6 @@ package ledger
 
 import (
 	"context"
-	"database/sql"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,19 +15,16 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/databasetest"
 	ledgerv1 "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/ledger"
 	ledgerconnect "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/ledger/ledger_v1connect"
-	_ "modernc.org/sqlite"
 )
 
 // [REQ:CHANMGR-P1-007] The generated Content Desk ingress accepts one metric
 // sample identity exactly once, proving the replay-safe handoff contract.
 func TestIngestMetricSampleOverConnectIsIdempotent(t *testing.T) {
-	db, err := sql.Open("sqlite", "file:ledger-connect?mode=memory&cache=shared")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	db := databasetest.NewSQLite(t)
+	var err error
 	if err = database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(localdb.SystemSchema), database.SchemaProviderFunc(artifacts.Schema), database.SchemaProviderFunc(claims.Schema), database.SchemaProviderFunc(internalledger.Schema)); err != nil {
 		t.Fatal(err)
 	}
@@ -51,11 +47,8 @@ func TestIngestMetricSampleOverConnectIsIdempotent(t *testing.T) {
 // [REQ:CONTENTD-P2-001] The read surface reports a measured zero as present and
 // a draft with no samples as missing, so the two are never conflated.
 func TestGetDraftMetricsOverConnectDistinguishesZeroFromMissing(t *testing.T) {
-	db, err := sql.Open("sqlite", "file:ledger-metrics-connect?mode=memory&cache=shared")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	db := databasetest.NewSQLite(t)
+	var err error
 	if err = database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(localdb.SystemSchema), database.SchemaProviderFunc(artifacts.Schema), database.SchemaProviderFunc(claims.Schema), database.SchemaProviderFunc(internalledger.Schema)); err != nil {
 		t.Fatal(err)
 	}

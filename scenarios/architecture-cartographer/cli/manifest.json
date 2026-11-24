@@ -229,6 +229,23 @@
       ]
     },
     {
+      "name": "drift",
+      "description": "Compare documented API source-path claims with bounded Go-source candidates in one scenario",
+      "commands": [
+        {
+          "name": "search",
+          "description": "Find structural docs-versus-API-source path matches, missing candidates, and undocumented source candidates",
+          "architecture": {"primitive":"action"},
+          "positionals": [
+            {"name":"scenario","required":true,"description":"One target scenario slug"},
+            {"name":"query","required":true,"description":"Domain, source path, or documented responsibility query"}
+          ],
+          "binding": {"kind":"local","handler":"search"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal","filesystem:read"]}
+        }
+      ]
+    },
+    {
       "name": "slice",
       "description": "Inspect a domain's proto-to-surface implementation slice",
       "commands": [

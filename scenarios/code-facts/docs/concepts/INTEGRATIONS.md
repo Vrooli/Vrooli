@@ -16,13 +16,29 @@ Track provider, resource, and consumer relationships for Code Facts.
 
 ## Vrooli Resources
 
-SQLite stores the source catalog, generations, derived projections, jobs, and cache metadata. Exact catalog operations do not require Ollama, Qdrant, or a reranker.
-
-Qdrant stores selective code-card vectors under generation-specific collections and a serving alias. Promotion moves the alias before the SQLite active pointer; query-time generation and source-hash fences prevent a transient alias mismatch from returning stale evidence. Ollama supplies the governed embedding model. Both are optional for exact lexical service.
+SQLite stores the source catalog, generations, derived projections, jobs,
+lexical index, and model-scoped semantic vectors. `.vrooli/service.json`
+declares no Vrooli resource dependencies: Code Facts does not use Qdrant or an
+Ollama client. Optional embeddings go through AI Gateway's typed
+`InferenceService.Embed` contract; if the gateway or role is unavailable,
+semantic search degrades or is omitted while lexical search remains available.
 
 ## Scenario Dependencies
 
-The Go provider calls API Core `gograph` in-process. TypeScript and JavaScript providers use Connect-RPC clients behind the provider interfaces in `api/internal/facts`. Unit tests use local modules or fakes and must not require live graph services.
+The following runtime scenario dependencies mirror
+`.vrooli/service.json`:
+
+| Scenario | Required? | Startup policy | Purpose | Unavailable behavior |
+|---|---|---|---|---|
+| `architecture-cartographer` | no | `try_start` | File-domain facts for targets requiring domain partitioning. | Falls back to local source and import evidence. |
+| `search-hub` | no | `try_start` | Registers the scoped `code` and `contracts` search leaves. | Code Facts remains directly queryable; registration retries on next lifecycle start. |
+| `go-code-graph` | no | `try_start` | Go analyzer backend for Go source graph extraction. | Go graph facts are unavailable for targets needing analyzer execution. |
+| `typescript-code-graph` | no | `try_start` | TypeScript analyzer backend for TypeScript source graph extraction. | TypeScript graph facts are unavailable for targets needing analyzer execution. |
+| `ai-gateway` | no | `ignore` | Typed embedding provider for semantic code search. | Semantic mode degrades or is omitted; lexical search continues. |
+
+The Go provider calls API Core `gograph` in-process. Language providers use
+Connect-RPC clients behind interfaces in `api/internal/facts`. Unit tests use
+local modules or fakes and do not require live graph services.
 
 ## Third-Party Services
 

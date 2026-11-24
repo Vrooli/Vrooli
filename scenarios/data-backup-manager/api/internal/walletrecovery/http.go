@@ -1,10 +1,14 @@
 package walletrecovery
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
+	"strings"
+
+	"github.com/vrooli/api-core/receiptsigning"
 )
 
 // Authorizer is mandatory for the internal HTTP bridge that scenario-to-cloud
@@ -72,25 +76,30 @@ type FinishReservationRequest struct {
 	ReservationID string `json:"reservation_id"`
 	TargetID      string `json:"target_id"`
 	State         string `json:"state"`
+	CommitAckJSON string `json:"commit_ack_json,omitempty"`
+}
+
+type ReservationAckStore interface {
+	ReleaseAcknowledged(context.Context, receiptsigning.WalletRecoveryCommitAcknowledgement, string) error
+}
+
+type CommitAckVerifier interface {
+	Verify(context.Context, receiptsigning.SignatureEnvelope, []byte) error
+}
+
+type signedCommitAcknowledgement struct {
+	Acknowledgement receiptsigning.WalletRecoveryCommitAcknowledgement `json:"acknowledgement"`
+	Signature       receiptsigning.SignatureEnvelope                   `json:"signature"`
 }
 
 // NewReservationFinishHandler exposes reservation commit and release actions.
-// A commit-pending reservation cannot be released until DBM receives a
-// verifiable Treasury commit acknowledgment; that owner contract is not yet
-// wired, so release fails closed.
-func NewReservationFinishHandler(store ReservationStore, auth Authorizer) http.Handler {
+// Operator authorization may pin an attestation; release additionally
+// requires a Treasury signature bound to the durable reservation.
+func NewReservationFinishHandler(store ReservationStore, auth Authorizer, verifier CommitAckVerifier) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.Header().Set("Allow", http.MethodPost)
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		if auth == nil {
-			http.Error(w, "wallet recovery reservation is not configured", http.StatusServiceUnavailable)
-			return
-		}
-		if err := auth.AuthorizeWalletRecovery(r); err != nil {
-			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
 		var req FinishReservationRequest
@@ -107,9 +116,39 @@ func NewReservationFinishHandler(store ReservationStore, auth Authorizer) http.H
 		var err error
 		switch req.State {
 		case "commit":
+			if auth == nil {
+				http.Error(w, "wallet recovery reservation is not configured", http.StatusServiceUnavailable)
+				return
+			}
+			if err := auth.AuthorizeWalletRecovery(r); err != nil {
+				http.Error(w, "forbidden", http.StatusForbidden)
+				return
+			}
 			err = store.Commit(r.Context(), req.ReservationID, req.TargetID)
 		case "release":
-			err = store.Release(r.Context(), req.ReservationID, req.TargetID)
+			ackStore, ok := store.(ReservationAckStore)
+			if !ok || verifier == nil || strings.TrimSpace(req.CommitAckJSON) == "" {
+				err = ErrCommitAcknowledgementRequired
+				break
+			}
+			var signed signedCommitAcknowledgement
+			dec := json.NewDecoder(strings.NewReader(req.CommitAckJSON))
+			dec.DisallowUnknownFields()
+			if decodeErr := dec.Decode(&signed); decodeErr != nil || signed.Acknowledgement.ReservationID != req.ReservationID || signed.Acknowledgement.TargetID != req.TargetID {
+				err = ErrCommitAcknowledgementRequired
+				break
+			}
+			var extra any
+			if decodeErr := dec.Decode(&extra); !errors.Is(decodeErr, io.EOF) {
+				err = ErrCommitAcknowledgementRequired
+				break
+			}
+			canonical, canonErr := receiptsigning.CanonicalJSON(signed.Acknowledgement)
+			if canonErr != nil || signed.Signature.Purpose != receiptsigning.PurposeWalletRecoveryCommitAcknowledgement || verifier.Verify(r.Context(), signed.Signature, canonical) != nil {
+				err = ErrCommitAcknowledgementRequired
+				break
+			}
+			err = ackStore.ReleaseAcknowledged(r.Context(), signed.Acknowledgement, receiptsigning.Digest(canonical))
 		default:
 			http.Error(w, "state must be commit or release", http.StatusBadRequest)
 			return

@@ -166,7 +166,7 @@ func (s *Server) handleDataTransform(w http.ResponseWriter, r *http.Request) {
 	transformer := dataprocessor.NewTransformer()
 	result, err := transformer.Transform(data, req.Transformations)
 	if err != nil {
-		s.sendError(w, http.StatusInternalServerError, fmt.Sprintf("transformation failed: %v", err))
+		s.sendError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 

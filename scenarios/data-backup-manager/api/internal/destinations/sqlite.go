@@ -7,28 +7,24 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/vrooli/api-core/database"
+
 	"data-backup-manager/internal/destinationreadiness"
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
 
-// SQLExecutor is the narrow database surface sqliteRepository depends on.
+// SQLExecutor is the shared database surface sqliteRepository depends on.
 // Both *sql.DB (repository unit tests via testutil/db.NewSQLite) and
 // *database.RoutedDB (production) satisfy it.
-type SQLExecutor interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-}
-
 type sqliteRepository struct {
-	db    SQLExecutor
+	db    database.SQLExecutor
 	clock schedule.Clock
 }
 
 // NewSQLiteRepository constructs the production Repository.
-func NewSQLiteRepository(db SQLExecutor, clk schedule.Clock) Repository {
+func NewSQLiteRepository(db database.SQLExecutor, clk schedule.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 

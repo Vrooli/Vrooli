@@ -8,7 +8,6 @@ import { ValidationStatus } from "@vrooli/proto-types/scenario-validation/v1/val
 vi.mock("../../api/clients", () => ({
   searchClient: { search: vi.fn(), status: vi.fn() },
   validationClient: { validateScenario: vi.fn() },
-  reindexClient: { reindex: vi.fn() },
 }));
 
 import { validationClient } from "../../api/clients";

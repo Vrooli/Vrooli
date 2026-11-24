@@ -101,7 +101,11 @@ func (f *SensitiveDecisionFlow) Request(ctx context.Context) (string, int, error
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.policy != nil {
-		if standing, err := f.policy.Load(); err == nil && standing.Active {
+		standing, err := f.policy.Load()
+		if err != nil {
+			return "", 0, fmt.Errorf("read sensitive coverage standing policy: %w", err)
+		}
+		if standing.Active {
 			// The operator already consented to everything that holds secrets, so there
 			// is nothing to ask: apply the rule and report what it covered.
 			swept, err := f.sweepLocked(ctx)

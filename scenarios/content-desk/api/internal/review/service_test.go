@@ -66,6 +66,65 @@ func TestReviewRunRefusesIncompleteOrUndeclaredModes(t *testing.T) {
 	require.ErrorContains(t, err, "not declared")
 }
 
+func TestRecordExactBindsReviewToCurrentRevisionAndReportsRequiredModes(t *testing.T) {
+	ctx := context.Background()
+	d := db.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(ctx, d, database.SchemaProviderFunc(localdb.SystemSchema), database.SchemaProviderFunc(artifacts.Schema), database.SchemaProviderFunc(posttypes.Schema), database.SchemaProviderFunc(review.Schema)))
+	_, err := d.ExecContext(ctx, `INSERT INTO drafts (id,campaign_id,post_type_id,body,status,created_at,updated_at) VALUES ('exact-review','','dev-log','synthetic evidence-backed note','checking','2026-07-01T00:00:00Z','2026-07-01T00:00:00Z')`)
+	require.NoError(t, err)
+	repo := artifacts.NewSQLiteRepository(d)
+	current, err := repo.GetCurrentRevision(ctx, "exact-review")
+	require.NoError(t, err)
+	svc := review.NewService(d, testRevisionSource{repo: repo})
+	modes, err := svc.ListRequiredModes(ctx, "dev-log")
+	require.NoError(t, err)
+	require.Contains(t, modes, "credential_claim_by_persona")
+	require.Contains(t, modes, "missing_platform_disclosure")
+	verdicts := devLogVerdicts()
+	for i := range verdicts {
+		verdicts[i].Evidence = "Synthetic local evidence review."
+	}
+	run, err := svc.RecordExact(ctx, "exact-review", current.RevisionID, current.Body, verdicts)
+	require.NoError(t, err)
+	require.Equal(t, current.RevisionID, run.SourceRevisionID)
+
+	_, err = repo.UpdateBody(ctx, "exact-review", "new synthetic wording")
+	require.NoError(t, err)
+	_, err = svc.RecordExact(ctx, "exact-review", current.RevisionID, current.Body, verdicts)
+	require.ErrorContains(t, err, "changed")
+	runs, err := svc.List(ctx)
+	require.NoError(t, err)
+	require.Len(t, runs, 1, "a stale retry must not create or supersede a review run")
+	var bases int
+	require.NoError(t, d.QueryRowContext(ctx, `SELECT COUNT(*) FROM review_run_basis`).Scan(&bases))
+	require.Equal(t, 1, bases)
+}
+
+func TestRecordExactRequiresEvidenceAndFailureFinding(t *testing.T) {
+	ctx := context.Background()
+	d := db.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(ctx, d, database.SchemaProviderFunc(localdb.SystemSchema), database.SchemaProviderFunc(artifacts.Schema), database.SchemaProviderFunc(posttypes.Schema), database.SchemaProviderFunc(review.Schema)))
+	_, err := d.ExecContext(ctx, `INSERT INTO drafts (id,campaign_id,post_type_id,body,status,created_at,updated_at) VALUES ('evidence-review','','dev-log','synthetic text','checking','2026-07-01T00:00:00Z','2026-07-01T00:00:00Z')`)
+	require.NoError(t, err)
+	repo := artifacts.NewSQLiteRepository(d)
+	current, err := repo.GetCurrentRevision(ctx, "evidence-review")
+	require.NoError(t, err)
+	svc := review.NewService(d, testRevisionSource{repo: repo})
+	verdicts := devLogVerdicts()
+	for i := range verdicts {
+		verdicts[i].Evidence = "Synthetic evidence."
+	}
+	verdicts[0].Evidence = " "
+	_, err = svc.RecordExact(ctx, "evidence-review", current.RevisionID, current.Body, verdicts)
+	require.ErrorContains(t, err, "evidence is required")
+	verdicts[0] = review.Verdict{Mode: "what_without_why", Passed: false, Evidence: "A synthetic checklist found a gap."}
+	_, err = svc.RecordExact(ctx, "evidence-review", current.RevisionID, current.Body, verdicts)
+	require.ErrorContains(t, err, "finding is required")
+	var runs int
+	require.NoError(t, d.QueryRowContext(ctx, `SELECT COUNT(*) FROM review_runs`).Scan(&runs))
+	require.Zero(t, runs)
+}
+
 func TestReviewRerunSupersedesWithoutDeletingPriorRun(t *testing.T) {
 	d := db.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), d, database.SchemaProviderFunc(localdb.SystemSchema), database.SchemaProviderFunc(artifacts.Schema), database.SchemaProviderFunc(posttypes.Schema), database.SchemaProviderFunc(review.Schema)))

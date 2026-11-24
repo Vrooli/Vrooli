@@ -91,7 +91,7 @@ export function CreatePage() {
     }
   }
 
-  return <main className="mx-auto w-full max-w-3xl space-y-6 px-4 py-6 sm:px-6 lg:px-8" data-experience-surface="create" data-testid="page-create">
+  return <section className="mx-auto w-full max-w-3xl space-y-6 px-4 py-6 sm:px-6 lg:px-8" data-experience-surface="create" data-testid="page-create">
     <header>
       <p className="text-sm font-semibold uppercase tracking-[0.1em] text-app-primary">{t(strings.pages.create.eyebrow)}</p>
       <h1 className="mt-1 font-serif text-4xl font-medium tracking-tight">{t(strings.pages.create.title)}</h1>
@@ -137,5 +137,5 @@ export function CreatePage() {
         </form> : null}
       </CardContent>
     </Card>
-  </main>;
+  </section>;
 }

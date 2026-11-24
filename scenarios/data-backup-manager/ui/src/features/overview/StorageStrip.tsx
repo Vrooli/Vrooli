@@ -1,7 +1,7 @@
 import { HardDrive } from "lucide-react";
 
 import { AsyncSection } from "../../components/AsyncSection";
-import { EmptyState } from "../../components/EmptyState";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { DestinationUsageChip, DestinationUsageMeter } from "../destinations/DestinationUsage";
 import { useDestinations } from "../../hooks/useDestinations";
 import { backendSlug, capPolicySlug } from "../../lib/status";
@@ -29,11 +29,13 @@ export function StorageStrip() {
         isEmpty={destinations.length === 0}
         onRetry={() => void refetch()}
         emptyState={
-          <EmptyState
-            icon={HardDrive}
-            title={t(strings.overview.storageEmpty)}
-            data-testid={selectors.overview.storageEmpty}
-          />
+          <div data-testid={selectors.overview.storageEmpty}>
+            <EmptyState
+              density="compact"
+              icon={<HardDrive size={32} />}
+              title={t(strings.overview.storageEmpty)}
+            />
+          </div>
         }
       >
         <ul className="grid gap-3 sm:grid-cols-2">

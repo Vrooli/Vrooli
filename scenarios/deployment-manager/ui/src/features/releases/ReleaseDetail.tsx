@@ -1,10 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Copy, Loader2, ShieldCheck } from "lucide-react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
-import { getRelease, getReleaseDossier, getReleaseOperation, type Release, type ReleaseHealth, type ReleaseOperation } from "../../lib/api";
+import { getRelease, getReleaseDossier, getReleaseOperation, prepareLeaseRenewalReview, type Release, type ReleaseHealth, type ReleaseOperation } from "../../lib/api";
 import { getErrorMessage } from "../../lib/utils";
 
 function CopyableValue({ label, value }: { label: string; value?: string }) {
@@ -132,7 +132,7 @@ function HealthCard({ health, missingProof }: { health?: ReleaseHealth; missingP
   );
 }
 
-function OperationCard({ operation }: { operation?: ReleaseOperation }) {
+function OperationCard({ operation, onPrepareRenewal, preparing, renewalError }: { operation?: ReleaseOperation; onPrepareRenewal: () => void; preparing: boolean; renewalError?: string }) {
   if (!operation) return null;
   const terminal = ["completed", "failed", "ambiguous", "cancelled"].includes(operation.status.toLowerCase());
   return (
@@ -152,6 +152,30 @@ function OperationCard({ operation }: { operation?: ReleaseOperation }) {
           <span>Idempotency key: <code className="break-all">{operation.idempotency_key || "unavailable"}</code></span>
         </div>
         {operation.error && <p className="text-red-200">Required attention: {operation.error}</p>}
+        {operation.cloud_recovery_handoff && <section className="mt-4 space-y-3 rounded border border-amber-500/30 bg-amber-500/5 p-3" aria-label="Failed verification recovery handoff">
+          <div><p className="font-medium text-amber-100">Failed verification recovery handoff</p><p className="mt-1 text-slate-300">Durable review for this exact operation. Preparing this handoff does not start recovery or change pipeline status.</p></div>
+          <div className="grid gap-2 break-all md:grid-cols-2">
+            <span>Handoff state: <Badge variant="warning">{operation.cloud_recovery_handoff.state}</Badge></span>
+            <span>Deployment target: <code>{operation.cloud_recovery_handoff.deployment_id || "unavailable"}</code></span>
+            <span>Failed release: <code>{operation.cloud_recovery_handoff.current_release_digest || "unavailable"}</code></span>
+            <span>Last-good release: <code>{operation.cloud_recovery_handoff.last_good_release_digest || "unavailable"}</code></span>
+            <span>Verification: <code>{operation.cloud_recovery_handoff.verification_state}</code> · {operation.cloud_recovery_handoff.verification_reason || "no reason recorded"}</span>
+            <span>Evidence freshness: <code>{operation.cloud_recovery_handoff.evidence_freshness}</code>{operation.cloud_recovery_handoff.evidence_observed_at ? ` · ${new Date(operation.cloud_recovery_handoff.evidence_observed_at).toLocaleString()}` : ""}</span>
+            <span className="md:col-span-2">Evidence digest: <code>{operation.cloud_recovery_handoff.evidence_sha256 || "unavailable"}</code></span>
+            <span className="md:col-span-2">Stable recovery key: <code>{operation.cloud_recovery_handoff.recovery_idempotency_key || "unavailable"}</code></span>
+          </div>
+          <p className="text-amber-100">{operation.cloud_recovery_handoff.next_action}</p>
+          {operation.cloud_recovery_handoff.blocked_reason && <p className="text-slate-300">Blocked: {operation.cloud_recovery_handoff.blocked_reason}</p>}
+        </section>}
+        {operation.cloud_compute_manager_instance_id && <section className="mt-4 space-y-3 rounded border border-cyan-500/20 bg-cyan-500/5 p-3" aria-label="Lease renewal review">
+          <div><p className="font-medium text-cyan-100">Lease renewal review</p><p className="mt-1 text-slate-300">Review is bound to this deployment operation and its Compute Manager instance. A review records a proposed 30-day term; it does not change the expiry.</p></div>
+          {operation.cloud_lease_renewal_receipt ? <>
+            <div className="grid gap-2 md:grid-cols-2"><span>Review status: <Badge variant="warning">{operation.cloud_lease_renewal_receipt.state}</Badge></span><span>Provider target: <code>{operation.cloud_lease_renewal_receipt.compute_manager_provider} · {operation.cloud_lease_renewal_receipt.compute_manager_provider_instance_id}</code></span><span>Current expiry: <code>{operation.cloud_lease_renewal_receipt.old_expires_at ? new Date(operation.cloud_lease_renewal_receipt.old_expires_at).toLocaleString() : "unavailable"}</code></span><span>Proposed expiry: <code>{operation.cloud_lease_renewal_receipt.requested_until ? new Date(operation.cloud_lease_renewal_receipt.requested_until).toLocaleString() : "unavailable"}</code></span></div>
+            <p className="text-amber-100">{operation.cloud_lease_renewal_receipt.reason}</p>
+            <p className="text-xs text-slate-400">No fresh incremental quote/cap or verified-human approval receipt is available. The original acquisition quote does not authorize this term.</p>
+          </> : <><p className="text-sm text-amber-100">No renewal review is stored yet. Preparing it records the exact operation, target, current expiry and proposed term. Renewal cost is unavailable until Compute Manager supplies a fresh incremental quote and cap.</p><Button variant="outline" disabled={preparing} onClick={onPrepareRenewal}>{preparing ? "Preparing review…" : "Prepare renewal review"}</Button></>}
+          {renewalError && <p role="alert" className="text-red-200">{renewalError}</p>}
+        </section>}
         <p className="text-xs text-slate-400">The page is bound to this operation identity; refresh or reconnect does not create a second execution.</p>
       </CardContent>
     </Card>
@@ -161,10 +185,12 @@ function OperationCard({ operation }: { operation?: ReleaseOperation }) {
 export function ReleaseDetail() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
   const query = useQuery({ queryKey: ["release", id], queryFn: () => getRelease(id ?? ""), enabled: Boolean(id) });
   const dossierQuery = useQuery({ queryKey: ["release-dossier", id], queryFn: () => getReleaseDossier(id ?? ""), enabled: Boolean(id) });
   const operationId = searchParams.get("operation_id") ?? query.data?.operation_id ?? "";
   const operationQuery = useQuery({ queryKey: ["release-operation", operationId], queryFn: () => getReleaseOperation(operationId), enabled: Boolean(operationId) });
+  const renewalReview = useMutation({ mutationFn: () => prepareLeaseRenewalReview(operationId), onSuccess: (operation) => queryClient.setQueryData(["release-operation", operationId], operation) });
   if (query.isLoading) return <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />;
   if (query.error) return <p className="rounded border border-red-500/30 bg-red-500/10 p-3 text-red-200">{getErrorMessage(query.error)}</p>;
   const release = query.data;
@@ -177,7 +203,7 @@ export function ReleaseDetail() {
       </div>
       <IdentityCard release={release} />
       <CandidateCard release={release} />
-      <OperationCard operation={operationQuery.data} />
+      <OperationCard operation={operationQuery.data} onPrepareRenewal={() => renewalReview.mutate()} preparing={renewalReview.isPending} renewalError={renewalReview.error ? getErrorMessage(renewalReview.error) : undefined} />
       {operationQuery.error && <p role="alert" className="rounded border border-red-500/30 bg-red-500/10 p-3 text-red-200">Operation standing unavailable: {getErrorMessage(operationQuery.error)}</p>}
       <HealthCard health={dossierQuery.data?.health} missingProof={dossierQuery.data?.missing_proof ?? []} />
       <Card><CardHeader><CardTitle>Destination and review</CardTitle></CardHeader><CardContent className="grid gap-2 text-sm text-slate-300 md:grid-cols-2"><span>Destination kind: <code>{release.destination_revision?.kind ?? "unavailable"}</code></span><span>Destination: <code>{release.destination_revision?.destination_id ?? "unavailable"}</code></span><span>Review channel: <code>{release.review_binding?.channel ?? release.channel}</code></span><span>Targets: <code>{release.review_binding?.targets?.join(", ") ?? release.platforms?.map((platform) => platform.platform).join(", ") ?? "unavailable"}</code></span><span className="break-all">Evidence digest: <code>{release.review_binding?.evidence_set_digest ?? "unavailable"}</code></span><span className="break-all">Configuration digest: <code>{release.destination_revision?.configuration_digest ?? "unavailable"}</code></span></CardContent></Card>

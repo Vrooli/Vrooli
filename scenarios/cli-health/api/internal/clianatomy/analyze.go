@@ -39,6 +39,7 @@ type Degradation struct {
 	Message string `json:"message"`
 }
 type Response struct {
+	Scenario     string        `json:"scenario,omitempty"`
 	Results      []Result      `json:"results"`
 	Degradations []Degradation `json:"degradations"`
 	Scope        string        `json:"scope"`
@@ -47,11 +48,25 @@ type registration struct {
 	Package string
 	Line    int
 }
+type groupRegistration struct {
+	Name       string
+	Line       int
+	Bindings   []string
+	Default    string
+	BindingsOK bool
+	DefaultOK  bool
+}
 type manifest struct {
 	Groups []struct {
 		Name     string `json:"name"`
 		Commands []struct {
-			Name string `json:"name"`
+			Name    string `json:"name"`
+			Binding struct {
+				Kind    string `json:"kind"`
+				Service string `json:"service"`
+				Method  string `json:"method"`
+				Handler string `json:"handler"`
+			} `json:"binding"`
 		} `json:"commands"`
 	} `json:"groups"`
 }
@@ -59,7 +74,7 @@ type manifest struct {
 // Search inspects one scenario's CLI app, domain aggregator, registered group
 // constructors and manifest. It reads no more than 11 files, each <=1 MiB.
 func Search(repoRoot, scenario, query string) Response {
-	out := Response{Results: []Result{}, Degradations: []Degradation{}, Scope: "one scenario cli/app.go, cli/domains/domains.go, at most eight registered group constructors, and cli/manifest.json; source declarations only"}
+	out := Response{Results: []Result{}, Degradations: []Degradation{}, Scope: "unresolved: no scenario source scope has been selected"}
 	scenario, query = strings.TrimSpace(scenario), strings.TrimSpace(query)
 	if !scenarioSlug.MatchString(scenario) || query == "" {
 		out.Degradations = append(out.Degradations, Degradation{"invalid_scope_or_query", "A scenario slug and non-empty query are required."})
@@ -81,6 +96,8 @@ func Search(repoRoot, scenario, query string) Response {
 		degrade(&out, "invalid_scope_or_query", "Scenario source resolves outside the repository scenarios directory.")
 		return out
 	}
+	out.Scenario = scenario
+	out.Scope = fmt.Sprintf("scenario:%s; one scenario cli/app.go, cli/domains/domains.go, at most eight registered group constructors, and cli/manifest.json; source declarations only", scenario)
 	base := filepath.Join(scenarioRoot, "cli")
 	app, err := readScenarioFile(base, "app.go", 1<<20)
 	if err != nil {
@@ -116,44 +133,85 @@ func Search(repoRoot, scenario, query string) Response {
 		degrade(&out, "manifest_invalid", "CLI command manifest could not be parsed.")
 		return out
 	}
-	manifestGroups := map[string]int{}
+	manifestGroups := map[string][]string{}
 	manifestNames := make([]string, 0, len(m.Groups))
 	for _, g := range m.Groups {
-		manifestGroups[g.Name] = len(g.Commands)
+		keys := make([]string, 0, len(g.Commands))
+		for _, c := range g.Commands {
+			keys = append(keys, manifestBindingKey(c.Name, c.Binding.Kind, c.Binding.Service, c.Binding.Method, c.Binding.Handler))
+		}
+		manifestGroups[g.Name] = keys
 		manifestNames = append(manifestNames, g.Name)
 	}
 	sort.Strings(manifestNames)
 	groupEvidence := make([]Evidence, 0, len(regs))
 	groupMappings := make([]string, 0, len(regs))
 	partial := false
+	registeredNames := map[string]bool{}
+	registrationMembershipUnknown := false
 	for _, reg := range regs {
 		rel := filepath.ToSlash(filepath.Join("domains", reg.Package, "register.go"))
 		src, readErr := readScenarioFile(base, rel, 1<<20)
 		if readErr != nil {
 			partial = true
+			registrationMembershipUnknown = true
 			groupMappings = append(groupMappings, reg.Package+".Register: source unavailable")
 			continue
 		}
-		groupName, line, loaded := parseGroupRegistration(src)
+		group, loaded := parseGroupRegistration(src)
 		if !loaded {
 			partial = true
+			registrationMembershipUnknown = true
 			groupMappings = append(groupMappings, reg.Package+".Register: manifest binding unresolved")
 			continue
 		}
-		commands, exists := manifestGroups[groupName]
+		registeredNames[group.Name] = true
+		commands, exists := manifestGroups[group.Name]
 		if !exists {
 			partial = true
-			groupMappings = append(groupMappings, reg.Package+".Register → "+groupName+": no matching manifest group")
+			groupMappings = append(groupMappings, reg.Package+".Register → "+group.Name+": no matching manifest group")
 		} else {
-			groupMappings = append(groupMappings, reg.Package+".Register → "+groupName+" ("+fmt.Sprint(commands)+" declared commands)")
+			if !group.BindingsOK {
+				partial = true
+				groupMappings = append(groupMappings, reg.Package+".Register → "+group.Name+": handler binding map unsupported; leaf compatibility UNKNOWN")
+			} else {
+				leafState := compareBindings(commands, group.Bindings)
+				if strings.Contains(leafState, "UNKNOWN") || strings.Contains(leafState, "MISSING") || strings.Contains(leafState, "UNUSED") {
+					partial = true
+				}
+				groupMappings = append(groupMappings, reg.Package+".Register → "+group.Name+" ("+fmt.Sprint(len(commands))+" manifest commands; "+leafState+")")
+			}
+			if group.DefaultOK && group.Default != "" {
+				if contains(manifestCommandNames(m, group.Name), group.Default) {
+					groupMappings = append(groupMappings, "default "+group.Name+" → "+group.Default+" (manifest command exists)")
+				} else {
+					partial = true
+					groupMappings = append(groupMappings, "default "+group.Name+" → "+group.Default+" (MISSING from manifest)")
+				}
+			} else if !group.DefaultOK {
+				partial = true
+				groupMappings = append(groupMappings, group.Name+" default command UNKNOWN (unsupported source form)")
+			} else {
+				groupMappings = append(groupMappings, group.Name+" has no explicit DefaultSubcommand assignment")
+			}
 		}
-		groupEvidence = append(groupEvidence, Evidence{Path: rel, Line: line, SHA256: digest(src)})
+		groupEvidence = append(groupEvidence, Evidence{Path: rel, Line: group.Line, SHA256: digest(src)})
+	}
+	for _, name := range manifestNames {
+		if !registeredNames[name] {
+			partial = true
+			if registrationMembershipUnknown {
+				groupMappings = append(groupMappings, "manifest group "+name+": registration membership UNKNOWN (one or more registered constructors unresolved)")
+			} else {
+				groupMappings = append(groupMappings, "manifest group "+name+": NOT REGISTERED by domains.SubcommandGroups")
+			}
+		}
 	}
 	if len(groupEvidence) == 0 {
 		degrade(&out, "group_binding_unresolved", "No registered group could be joined to a manifest-loading constructor.")
 		return out
 	}
-	text := fmt.Sprintf("%s CLI wires cliapp.NewStandardScenarioApp with %s. domains.SubcommandGroups registers %s. The registered constructors resolve as %s. Manifest groups: %s. This is source/manifest composition evidence; it does not establish runtime dispatch or installed CLI availability.", scenario, appWiring, strings.Join(packageNames(regs), ", "), strings.Join(groupMappings, "; "), strings.Join(manifestNames, ", "))
+	text := fmt.Sprintf("%s CLI wires cliapp.NewStandardScenarioApp with %s. domains.SubcommandGroups registers %s. Source-level group/leaf compatibility: %s. Manifest groups: %s. These are declarations and direct binding-key comparisons; actual invocation, argument parsing, conditional dispatch, installed help and runtime behavior remain UNKNOWN.", scenario, appWiring, strings.Join(packageNames(regs), ", "), strings.Join(groupMappings, "; "), strings.Join(manifestNames, ", "))
 	score := lexicalScore(query, text)
 	if score < 0.2 {
 		degrade(&out, "no_matching_composition", "No strong source-composition match for this query.")
@@ -277,13 +335,13 @@ func parseGroups(src []byte) ([]registration, int, bool) {
 	sort.Slice(unique, func(i, j int) bool { return unique[i].Package < unique[j].Package })
 	return unique, line, line > 0
 }
-func parseGroupRegistration(src []byte) (string, int, bool) {
+func parseGroupRegistration(src []byte) (groupRegistration, bool) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "register.go", src, 0)
 	if err != nil {
-		return "", 0, false
+		return groupRegistration{}, false
 	}
-	name, line := "", 0
+	group := groupRegistration{}
 	consts := map[string]string{}
 	for _, decl := range f.Decls {
 		gen, ok := decl.(*ast.GenDecl)
@@ -310,7 +368,20 @@ func parseGroupRegistration(src []byte) (string, int, bool) {
 			}
 		}
 	}
-	ast.Inspect(f, func(n ast.Node) bool {
+	var register *ast.FuncDecl
+	for _, decl := range f.Decls {
+		if fn, ok := decl.(*ast.FuncDecl); ok && fn.Name.Name == "Register" {
+			register = fn
+			break
+		}
+	}
+	if register == nil {
+		return groupRegistration{}, false
+	}
+	loaderFound := false
+	loaderCount := 0
+	var bindingsName string
+	ast.Inspect(register.Body, func(n ast.Node) bool {
 		c, ok := n.(*ast.CallExpr)
 		if !ok {
 			return true
@@ -319,21 +390,206 @@ func parseGroupRegistration(src []byte) (string, int, bool) {
 		if !ok || !strings.HasPrefix(sel.Sel.Name, "LoadFromManifest") {
 			return true
 		}
-		if len(c.Args) < 2 {
+		loaderCount++
+		if loaderCount > 1 {
 			return true
 		}
+		if len(c.Args) < 3 {
+			return true
+		}
+		loaderFound = true
+		group.Line = fset.Position(c.Pos()).Line
 		switch value := c.Args[1].(type) {
 		case *ast.BasicLit:
-			name, _ = strconv.Unquote(value.Value)
+			group.Name, _ = strconv.Unquote(value.Value)
 		case *ast.Ident:
-			name = consts[value.Name]
+			group.Name = consts[value.Name]
 		}
-		if name != "" {
-			line = fset.Position(c.Pos()).Line
+		if id, ok := c.Args[2].(*ast.Ident); ok {
+			bindingsName = id.Name
 		}
 		return true
 	})
-	return name, line, name != ""
+	if loaderFound && group.Name != "" && bindingsName != "" {
+		group.Bindings, group.BindingsOK = parseBindingKeys(register, bindingsName)
+	}
+	group.Default, group.DefaultOK = parseDefaultSubcommand(register)
+	return group, loaderFound && loaderCount == 1 && group.Name != ""
+}
+
+func parseBindingKeys(register *ast.FuncDecl, name string) ([]string, bool) {
+	for _, stmt := range register.Body.List {
+		if assign, ok := stmt.(*ast.AssignStmt); ok {
+			for i, lhs := range assign.Lhs {
+				id, ok := lhs.(*ast.Ident)
+				if !ok || id.Name != name || i >= len(assign.Rhs) {
+					continue
+				}
+				return bindingKeysFromExpr(assign.Rhs[i])
+			}
+		}
+		decl, ok := stmt.(*ast.DeclStmt)
+		if !ok {
+			continue
+		}
+		gen, ok := decl.Decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.VAR {
+			continue
+		}
+		for _, spec := range gen.Specs {
+			value, ok := spec.(*ast.ValueSpec)
+			if !ok {
+				continue
+			}
+			for i, id := range value.Names {
+				if id.Name != name || i >= len(value.Values) {
+					continue
+				}
+				return bindingKeysFromExpr(value.Values[i])
+			}
+		}
+	}
+	return nil, false
+}
+
+func bindingKeysFromExpr(expr ast.Expr) ([]string, bool) {
+	lit, ok := expr.(*ast.CompositeLit)
+	if !ok {
+		return nil, false
+	}
+	keys := []string{}
+	for _, elt := range lit.Elts {
+		pair, ok := elt.(*ast.KeyValueExpr)
+		if !ok {
+			return nil, false
+		}
+		key, ok := pair.Key.(*ast.BasicLit)
+		if !ok {
+			return nil, false
+		}
+		value, err := strconv.Unquote(key.Value)
+		if err != nil {
+			return nil, false
+		}
+		keys = append(keys, value)
+	}
+	sort.Strings(keys)
+	return keys, true
+}
+
+func parseDefaultSubcommand(register *ast.FuncDecl) (string, bool) {
+	allAssignments := map[*ast.AssignStmt]bool{}
+	ast.Inspect(register.Body, func(n ast.Node) bool {
+		if assign, ok := n.(*ast.AssignStmt); ok {
+			for _, lhs := range assign.Lhs {
+				if sel, ok := lhs.(*ast.SelectorExpr); ok && sel.Sel.Name == "DefaultSubcommand" {
+					allAssignments[assign] = true
+				}
+			}
+		}
+		return true
+	})
+	if len(allAssignments) == 0 {
+		return "", true
+	}
+	if len(allAssignments) != 1 {
+		return "", false
+	}
+	for _, stmt := range register.Body.List {
+		assign, ok := stmt.(*ast.AssignStmt)
+		if !ok || !allAssignments[assign] {
+			continue
+		}
+		for i, lhs := range assign.Lhs {
+			sel, ok := lhs.(*ast.SelectorExpr)
+			if !ok || sel.Sel.Name != "DefaultSubcommand" {
+				continue
+			}
+			if i >= len(assign.Rhs) {
+				return "", false
+			}
+			lit, ok := assign.Rhs[i].(*ast.BasicLit)
+			if !ok {
+				return "", false
+			}
+			value, err := strconv.Unquote(lit.Value)
+			return value, err == nil && value != ""
+		}
+	}
+	return "", false
+}
+
+func manifestBindingKey(name, kind, service, method, handler string) string {
+	switch kind {
+	case "connect-rpc":
+		return service + "." + method
+	case "local":
+		if strings.TrimSpace(handler) != "" {
+			return handler
+		}
+		return name
+	default:
+		return "UNKNOWN:" + name
+	}
+}
+
+func compareBindings(manifestKeys, sourceKeys []string) string {
+	manifestSet, sourceSet := map[string]bool{}, map[string]bool{}
+	for _, k := range manifestKeys {
+		manifestSet[k] = true
+	}
+	for _, k := range sourceKeys {
+		sourceSet[k] = true
+	}
+	missing, unused := []string{}, []string{}
+	for k := range manifestSet {
+		if strings.HasPrefix(k, "UNKNOWN:") {
+			missing = append(missing, k)
+			continue
+		}
+		if !sourceSet[k] {
+			missing = append(missing, k)
+		}
+	}
+	for k := range sourceSet {
+		if !manifestSet[k] {
+			unused = append(unused, k)
+		}
+	}
+	sort.Strings(missing)
+	sort.Strings(unused)
+	if len(missing) == 0 && len(unused) == 0 {
+		return "all declared handler keys match"
+	}
+	parts := []string{}
+	if len(missing) > 0 {
+		parts = append(parts, "MISSING handlers "+strings.Join(missing, ","))
+	}
+	if len(unused) > 0 {
+		parts = append(parts, "UNUSED handlers "+strings.Join(unused, ","))
+	}
+	return strings.Join(parts, "; ")
+}
+
+func manifestCommandNames(m manifest, group string) []string {
+	for _, g := range m.Groups {
+		if g.Name == group {
+			names := make([]string, 0, len(g.Commands))
+			for _, c := range g.Commands {
+				names = append(names, c.Name)
+			}
+			return names
+		}
+	}
+	return nil
+}
+func contains(values []string, want string) bool {
+	for _, v := range values {
+		if v == want {
+			return true
+		}
+	}
+	return false
 }
 func exprName(e ast.Expr) string {
 	switch x := e.(type) {

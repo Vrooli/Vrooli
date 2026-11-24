@@ -117,28 +117,7 @@ func (s *FileExceptionStore) save(p string, f exceptionFile) error {
 	if err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(p), ".exceptions-*.tmp")
-	if err != nil {
-		return err
-	}
-	name := tmp.Name()
-	defer os.Remove(name)
-	if err := tmp.Chmod(0o600); err != nil {
-		_ = tmp.Close()
-		return err
-	}
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		return err
-	}
-	if err := tmp.Sync(); err != nil {
-		_ = tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	return os.Rename(name, p)
+	return writePrivateFileAtomically(p, ".exceptions-*.tmp", data)
 }
 
 func (s *FileExceptionStore) List(ctx context.Context, destinationID string) ([]Exception, error) {

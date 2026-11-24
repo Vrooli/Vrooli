@@ -30,7 +30,11 @@ func (*fakeRepository) ListRelations(context.Context, string) ([]internal.Relati
 func (*fakeRepository) CreateCollection(context.Context, string, string) (internal.Collection, error) {
 	return internal.Collection{}, nil
 }
+func (*fakeRepository) ListCollections(context.Context, string) ([]internal.Collection, error) {
+	return []internal.Collection{{ID: "c1", ProjectID: "p1", Name: "Reading list"}}, nil
+}
 func (*fakeRepository) AddCollectionItem(context.Context, internal.CollectionItem) error { return nil }
+func (*fakeRepository) RemoveCollectionItem(context.Context, internal.CollectionItem) error { return nil }
 func (*fakeRepository) ListCollectionItems(context.Context, string) ([]internal.CollectionItem, error) {
 	return nil, nil
 }
@@ -83,5 +87,28 @@ func TestPreviewImpactIsExplicitlyNonMutating(t *testing.T) {
 	_, err = h.PreviewImpact(context.Background(), connect.NewRequest(&v1.PreviewImpactRequest{DraftId: "d1", Operation: "archive"}))
 	if connect.CodeOf(err) != connect.CodeInternal {
 		t.Fatalf("storage error returned %v", err)
+	}
+}
+
+func TestListCollectionsMapsProjectScopedResults(t *testing.T) {
+	h := handler{repo: &fakeRepository{}}
+	resp, err := h.ListCollections(context.Background(), connect.NewRequest(&v1.ListCollectionsRequest{ProjectId: "p1"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Msg.Collections) != 1 || resp.Msg.Collections[0].Id != "c1" || resp.Msg.Collections[0].ProjectId != "p1" {
+		t.Fatalf("unexpected collection mapping: %#v", resp.Msg.Collections)
+	}
+}
+
+func TestRemoveCollectionItemRequiresExactItemAndMapsResult(t *testing.T) {
+	h := handler{repo: &fakeRepository{}}
+	_, err := h.RemoveCollectionItem(context.Background(), connect.NewRequest(&v1.RemoveCollectionItemRequest{}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("missing item returned %v", err)
+	}
+	resp, err := h.RemoveCollectionItem(context.Background(), connect.NewRequest(&v1.RemoveCollectionItemRequest{Item: &v1.CollectionItem{CollectionId: "c1", DraftId: "d1", RevisionId: "r2"}}))
+	if err != nil || resp.Msg.Item.GetRevisionId() != "r2" {
+		t.Fatalf("exact membership response failed: %#v, %v", resp, err)
 	}
 }

@@ -2,13 +2,14 @@ import { useState } from "react";
 import { ChevronUp, File, Folder } from "lucide-react";
 
 import { AsyncSection } from "../../components/AsyncSection";
-import { EmptyState } from "../../components/EmptyState";
-import { Button } from "../../components/ui/button";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { useSnapshotEntries } from "../../hooks/useRuns";
 import { formatBytes } from "../../lib/format";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
+import { cn } from "../../lib/utils";
 
 const basename = (path: string) => path.split("/").filter(Boolean).pop() ?? path;
 const parentOf = (path: string) => path.split("/").filter(Boolean).slice(0, -1).join("/");
@@ -34,11 +35,13 @@ export function SnapshotBrowser({
     <div data-testid={selectors.snapshot.browser} className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           data-testid={selectors.snapshot.up}
           disabled={path === ""}
           onClick={() => setPath(parentOf(path))}
+          shape="square"
+          className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
         >
           <ChevronUp aria-hidden="true" className="me-1 h-4 w-4" />
           {t(strings.snapshot.up)}
@@ -52,7 +55,7 @@ export function SnapshotBrowser({
         isEmpty={entries.length === 0}
         onRetry={() => void refetch()}
         skeletonRows={3}
-        emptyState={<EmptyState title={t(strings.snapshot.empty)} />}
+        emptyState={<EmptyState density="compact" title={t(strings.snapshot.empty)} />}
       >
         <ul className="max-h-60 overflow-y-auto rounded-control border border-app-border">
           {entries.map((e) => (

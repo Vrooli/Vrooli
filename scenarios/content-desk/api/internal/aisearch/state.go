@@ -56,12 +56,36 @@ func resolveProductReference(references ...string) (string, []string) {
 // to its canonical id so the alias and canonical queries resolve identically.
 func normalizeProductQueryAliases(query string) string {
 	fields := strings.Fields(query)
-	for i, field := range fields {
-		if canonical, ok := resolveProductIdentity(field); ok {
-			fields[i] = canonical
+	normalized := make([]string, 0, len(fields))
+	for i := 0; i < len(fields); {
+		matched := false
+		for length := len(fields) - i; length > 1; length-- {
+			parts := make([]string, length)
+			for offset := 0; offset < length; offset++ {
+				parts[offset] = productAliasQueryField(fields[i+offset])
+			}
+			if canonical, ok := resolveProductIdentity(strings.Join(parts, " ")); ok {
+				normalized = append(normalized, canonical)
+				i += length
+				matched = true
+				break
+			}
 		}
+		if matched {
+			continue
+		}
+		field := fields[i]
+		if canonical, ok := resolveProductIdentity(productAliasQueryField(field)); ok {
+			field = canonical
+		}
+		normalized = append(normalized, field)
+		i++
 	}
-	return strings.Join(fields, " ")
+	return strings.Join(normalized, " ")
+}
+
+func productAliasQueryField(field string) string {
+	return strings.Trim(field, ".,!?;:()[]{}\"'")
 }
 
 // boardDraftNextActions mirrors the board program's NEXT_ACTION lifecycle table

@@ -68,6 +68,33 @@ func TestRevenueSummarySelectorsHonorProducerUnits(t *testing.T) {
 	}
 }
 
+func TestLPBSAnalyticsSummarySelectorsMatchProducerJSON(t *testing.T) {
+	payload := map[string]any{
+		"totalVisitors": float64(31),
+		"variantStats": []any{
+			map[string]any{"conversions": float64(3), "ctaClicks": float64(7)},
+			map[string]any{"conversions": float64(5), "ctaClicks": float64(11)},
+		},
+	}
+	for _, tc := range []struct {
+		name string
+		want float64
+	}{
+		{"visitors", 31}, {"conversions", 8}, {"cta_clicks", 18},
+	} {
+		got, ok := selectors[tc.name](payload)
+		if !ok || got != tc.want {
+			t.Errorf("%s = %v, ok=%t; want %v", tc.name, got, ok, tc.want)
+		}
+	}
+	if _, ok := selectors["conversions"](map[string]any{"variantStats": []any{map[string]any{}}}); ok {
+		t.Fatal("missing producer conversion field must remain unavailable")
+	}
+	if got, ok := selectors["cta_clicks"](map[string]any{"variantStats": []any{}}); !ok || got != 0 {
+		t.Fatalf("empty producer variants = %v, ok=%t; want measured zero", got, ok)
+	}
+}
+
 func TestExecutionTimingSelectorsKeepMeanAndMedianDistinct(t *testing.T) {
 	payload := map[string]any{
 		"agent":  map[string]any{"avg_execution_minutes": 5194.663306311462},

@@ -639,6 +639,36 @@ export interface ReleaseOperation {
   completed_at?: string;
   cloud_spend_quote_idempotency_key?: string;
   cloud_compute_manager_instance_id?: string;
+  cloud_recovery_handoff?: {
+    operation_id: string;
+    release_id: string;
+    deployment_id: string;
+    recovery_idempotency_key: string;
+    state: string;
+    current_release_digest?: string;
+    last_good_release_digest?: string;
+    verification_state: string;
+    verification_reason?: string;
+    evidence_sha256?: string;
+    evidence_observed_at?: string;
+    evidence_freshness: string;
+    available: boolean;
+    next_action: string;
+    blocked_reason?: string;
+  };
+  cloud_lease_renewal_receipt?: {
+    renewal_idempotency_key: string;
+    compute_manager_instance_id: string;
+    compute_manager_provider: string;
+    compute_manager_provider_instance_id: string;
+    old_expires_at?: string;
+    requested_until?: string;
+    quote_fingerprint: string;
+    authorization_fact: string;
+    state: string;
+    reason: string;
+    persisted_at?: string;
+  };
 }
 
 export interface ReleaseListResponse {
@@ -698,6 +728,10 @@ export function getReleaseDossier(releaseId: string): Promise<ReleaseDossier> {
 
 export function getReleaseOperation(operationId: string): Promise<ReleaseOperation> {
   return operatorApi.releaseOperation(operationId) as Promise<ReleaseOperation>;
+}
+
+export function prepareLeaseRenewalReview(operationId: string): Promise<ReleaseOperation> {
+  return apiFetch<ReleaseOperation>(`/api/v1/release-operations/${encodeURIComponent(operationId)}/request-cloud-lease-renewal`, { method: "POST" });
 }
 
 export function reverifyRelease(releaseId: string, deep = false): Promise<Release> {

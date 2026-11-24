@@ -37,6 +37,15 @@ describe("ReleaseDetail", () => {
     vi.mocked(api.getReleaseOperation).mockResolvedValue({
       operation_id: "operation-1", release_id: "release-1", profile_id: "p1", idempotency_key: "release-1-stable",
       status: "publishing", active_stage: "publish_lpbs", created_at: "2026-09-08T12:00:00Z", updated_at: "2026-09-08T12:01:00Z",
+      cloud_compute_manager_instance_id: "cm-instance-1",
+      cloud_recovery_handoff: {
+        operation_id: "operation-1", release_id: "release-1", deployment_id: "cloud-deployment-1",
+        recovery_idempotency_key: "dm-recovery:operation-1", state: "awaiting_human_decision",
+        current_release_digest: "sha256:failed", last_good_release_digest: "sha256:last-good",
+        verification_state: "failed", verification_reason: "release_mismatch", evidence_sha256: "sha256:evidence",
+        evidence_observed_at: "2026-09-08T12:02:00Z", evidence_freshness: "fresh", available: false,
+        next_action: "Review this exact operation in Scenario-to-Cloud.", blocked_reason: "S2C start remains human-only.",
+      },
     });
 
     renderWithProviders(<MemoryRouter initialEntries={["/releases/release-1?operation_id=operation-1"]}><Routes><Route path="/releases/:id" element={<ReleaseDetail />} /></Routes></MemoryRouter>, { withoutRouter: true });
@@ -49,6 +58,11 @@ describe("ReleaseDetail", () => {
     expect(screen.getByText("Release operation")).toBeInTheDocument();
     expect(screen.getByText("publishing")).toBeInTheDocument();
     expect(screen.getByText("publish_lpbs")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Failed verification recovery handoff" })).toBeInTheDocument();
+    expect(screen.getByText("sha256:last-good")).toBeInTheDocument();
+    expect(screen.getByText(/S2C start remains human-only/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Prepare renewal review" })).toBeInTheDocument();
+    expect(screen.getByText(/Renewal cost is unavailable until Compute Manager supplies a fresh incremental quote and cap/)).toBeInTheDocument();
     expect(screen.getAllByText("cloud-deployment-1").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("lpbs://staging/stable/linux-x64/1")).toBeInTheDocument();
     expect(screen.getByText("halt · owner recovery")).toBeInTheDocument();

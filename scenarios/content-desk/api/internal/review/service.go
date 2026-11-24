@@ -26,8 +26,8 @@ type (
 		Finding  string
 	}
 	Run struct {
-		ID, DraftID, Outcome string
-		Verdicts             []Verdict
+		ID, DraftID, Outcome, SourceRevisionID string
+		Verdicts                               []Verdict
 	}
 	EditorialPackage struct {
 		ID, DraftID, SourceRevisionID, Scope, Body, BodySHA256, PackageSHA256, ManifestJSON string
@@ -80,6 +80,8 @@ type (
 	}
 	Service interface {
 		Record(context.Context, string, []Verdict) (Run, error)
+		RecordExact(context.Context, string, string, string, []Verdict) (Run, error)
+		ListRequiredModes(context.Context, string) ([]string, error)
 		List(context.Context) ([]Run, error)
 		CreateEditorialPackage(context.Context, string, string, string, string) (EditorialPackage, error)
 		GetEditorialPackage(context.Context, string) (EditorialPackage, error)
@@ -333,6 +335,124 @@ func (s *service) Record(ctx context.Context, draftID string, verdicts []Verdict
 	return run, nil
 }
 
+// RecordExact stores a review only when its complete verdict set is bound to
+// the exact editorial snapshot that the reviewer saw.
+func (s *service) RecordExact(ctx context.Context, draftID, expectedRevisionID, expectedBody string, verdicts []Verdict) (Run, error) {
+	draftID = strings.TrimSpace(draftID)
+	if draftID == "" || strings.TrimSpace(expectedBody) == "" || len(verdicts) == 0 {
+		return Run{}, fmt.Errorf("draft, exact body, and complete review verdicts are required")
+	}
+	for _, verdict := range verdicts {
+		if strings.TrimSpace(verdict.Evidence) == "" {
+			return Run{}, fmt.Errorf("review evidence is required for mode %q", verdict.Mode)
+		}
+		if !verdict.Passed && strings.TrimSpace(verdict.Finding) == "" {
+			return Run{}, fmt.Errorf("review finding is required for failed mode %q", verdict.Mode)
+		}
+	}
+	if err := s.validateDeclaredModes(ctx, draftID, verdicts); err != nil {
+		return Run{}, err
+	}
+	snapshotSource, ok := s.revisions.(EditorialSnapshotSource)
+	if !ok {
+		return Run{}, fmt.Errorf("transactional editorial snapshot source is required for exact review")
+	}
+	txBeginner, ok := s.db.(interface {
+		BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+	})
+	if !ok {
+		return Run{}, fmt.Errorf("transactional storage is required for exact review")
+	}
+	tx, err := txBeginner.BeginTx(ctx, nil)
+	if err != nil {
+		return Run{}, err
+	}
+	defer tx.Rollback()
+	snapshot, err := snapshotSource.CurrentEditorialSnapshotTx(ctx, tx, draftID)
+	if err != nil {
+		return Run{}, fmt.Errorf("read exact review basis: %w", err)
+	}
+	if snapshot.RevisionID != expectedRevisionID || snapshot.Body != expectedBody {
+		return Run{}, fmt.Errorf("draft changed since the review was prepared; refresh the exact wording")
+	}
+	priorRunIDs, err := queryUnsupersededRunIDs(ctx, tx, draftID)
+	if err != nil {
+		return Run{}, err
+	}
+	run := Run{ID: uuid.NewString(), DraftID: draftID, SourceRevisionID: expectedRevisionID, Outcome: OutcomePassed, Verdicts: verdicts}
+	for _, verdict := range verdicts {
+		if !verdict.Passed {
+			run.Outcome = OutcomeBlocked
+		}
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	if _, err := tx.ExecContext(ctx, `INSERT INTO review_runs (id,draft_id,outcome,created_at) VALUES (?,?,?,?)`, run.ID, draftID, run.Outcome, now); err != nil {
+		return Run{}, err
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO review_run_basis (run_id,source_revision_id,body_sha256) VALUES (?,?,?)`, run.ID, expectedRevisionID, digest([]byte(expectedBody))); err != nil {
+		return Run{}, err
+	}
+	for _, verdict := range verdicts {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO review_verdicts (run_id,mode,passed,evidence,finding) VALUES (?,?,?,?,?)`, run.ID, verdict.Mode, boolInt(verdict.Passed), verdict.Evidence, verdict.Finding); err != nil {
+			return Run{}, err
+		}
+	}
+	for _, priorID := range priorRunIDs {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO review_supersessions (superseded_run_id,superseding_run_id) VALUES (?,?)`, priorID, run.ID); err != nil {
+			return Run{}, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return Run{}, err
+	}
+	return run, nil
+}
+
+func queryUnsupersededRunIDs(ctx context.Context, q interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}, draftID string) ([]string, error) {
+	rows, err := q.QueryContext(ctx, `SELECT id FROM review_runs WHERE draft_id = ? AND id NOT IN (SELECT superseded_run_id FROM review_supersessions)`, draftID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+func (s *service) ListRequiredModes(ctx context.Context, postTypeID string) ([]string, error) {
+	if strings.TrimSpace(postTypeID) == "" {
+		return nil, fmt.Errorf("post type id is required")
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT failure_mode FROM post_type_failure_modes WHERE post_type_id = ? UNION SELECT mode FROM review_policy_failure_modes ORDER BY 1`, postTypeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var modes []string
+	for rows.Next() {
+		var mode string
+		if err := rows.Scan(&mode); err != nil {
+			return nil, err
+		}
+		modes = append(modes, mode)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(modes) == 0 {
+		return nil, fmt.Errorf("post type %q has no declared failure modes", postTypeID)
+	}
+	return modes, nil
+}
+
 func (s *service) unsupersededRunIDs(ctx context.Context, draftID string) ([]string, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id FROM review_runs WHERE draft_id = ? AND id NOT IN (SELECT superseded_run_id FROM review_supersessions)`, draftID)
 	if err != nil {
@@ -396,7 +516,7 @@ func (s *service) validateDeclaredModes(ctx context.Context, draftID string, ver
 }
 
 func (s *service) List(ctx context.Context) ([]Run, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,draft_id,outcome FROM review_runs ORDER BY created_at DESC,id DESC`)
+	rows, err := s.db.QueryContext(ctx, `SELECT rr.id,rr.draft_id,rr.outcome,COALESCE(rb.source_revision_id,'') FROM review_runs rr LEFT JOIN review_run_basis rb ON rb.run_id=rr.id ORDER BY rr.created_at DESC,rr.id DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -404,7 +524,7 @@ func (s *service) List(ctx context.Context) ([]Run, error) {
 	var out []Run
 	for rows.Next() {
 		var run Run
-		if err := rows.Scan(&run.ID, &run.DraftID, &run.Outcome); err != nil {
+		if err := rows.Scan(&run.ID, &run.DraftID, &run.Outcome, &run.SourceRevisionID); err != nil {
 			return nil, err
 		}
 		out = append(out, run)

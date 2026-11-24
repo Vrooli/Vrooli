@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"data-backup-manager/internal/listcursor"
 	"data-backup-manager/internal/sources"
 	repocontract "github.com/vrooli/repo-contract-go"
 )
@@ -36,6 +37,11 @@ type Service interface {
 	// List returns targets, optionally filtered by owner. limit <= 0 uses the
 	// default.
 	List(ctx context.Context, owner string, limit int) ([]Target, error)
+}
+
+// PageService is the cursor-aware read surface used by the list RPC.
+type PageService interface {
+	ListPage(context.Context, string, int, string) ([]Target, string, error)
 }
 
 type service struct {
@@ -164,4 +170,29 @@ func (s *service) List(ctx context.Context, owner string, limit int) ([]Target, 
 		limit = defaultListLimit
 	}
 	return s.repo.List(ctx, strings.TrimSpace(owner), limit)
+}
+
+func (s *service) ListPage(ctx context.Context, owner string, limit int, token string) ([]Target, string, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	owner = strings.TrimSpace(owner)
+	offset, err := listcursor.Decode("targets:"+owner, token)
+	if err != nil {
+		return nil, "", ErrInvalidTarget{Field: "page_token", Reason: "invalid cursor"}
+	}
+	repo, ok := s.repo.(interface {
+		ListPage(context.Context, string, int, int) ([]Target, error)
+	})
+	if !ok {
+		return nil, "", errors.New("target repository does not support pagination")
+	}
+	rows, err := repo.ListPage(ctx, owner, limit+1, offset)
+	if err != nil {
+		return nil, "", err
+	}
+	if len(rows) <= limit {
+		return rows, "", nil
+	}
+	return rows[:limit], listcursor.Encode("targets:"+owner, offset+limit), nil
 }

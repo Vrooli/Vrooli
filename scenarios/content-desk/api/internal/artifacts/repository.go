@@ -2,7 +2,9 @@ package artifacts
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -37,6 +39,13 @@ type CurrentRevision struct {
 	ApprovalActorKind string
 	ApprovalCapacity  string
 	ApprovedAt        time.Time
+}
+
+// StoredRevision is an immutable historical wording snapshot. It carries no
+// review, approval, or release authority; callers must not infer those from it.
+type StoredRevision struct {
+	DraftID, RevisionID, Body, ActorKind, Capacity string
+	CreatedAt                                      time.Time
 }
 
 func (r CurrentRevision) HasStoredRevision() bool     { return r.RevisionID != "" }
@@ -89,6 +98,7 @@ type Repository interface {
 	List(context.Context) ([]Draft, error)
 	Get(context.Context, string) (Draft, error)
 	GetCurrentRevision(context.Context, string) (CurrentRevision, error)
+	GetStoredRevision(context.Context, string, string) (StoredRevision, error)
 	Transition(context.Context, string, DraftEvent) (Draft, error)
 	Approve(context.Context, string) (Draft, error)
 	ApproveExact(context.Context, string, string, string) (Draft, error)
@@ -478,11 +488,20 @@ func (r *sqliteRepository) approve(ctx context.Context, id string, expected *Cur
 	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM post_types WHERE id = ? AND status = 'active'`, draft.PostTypeID).Scan(&active); err != nil {
 		return Draft{}, err
 	}
+	var currentRevisionID, currentRevisionBody string
+	err = tx.QueryRowContext(ctx, `SELECT id,body FROM draft_revisions WHERE draft_id = ? ORDER BY created_at DESC,id DESC LIMIT 1`, id).Scan(&currentRevisionID, &currentRevisionBody)
+	if err != nil && err != sql.ErrNoRows {
+		return Draft{}, err
+	}
+	if err == sql.ErrNoRows || currentRevisionBody != draft.Body {
+		currentRevisionID = ""
+	}
+	bodyDigest := sha256.Sum256([]byte(draft.Body))
 	var passed int
 	// Only a passed review that still applies to the current body counts.
 	// Invalidated runs were performed before a revision; superseded runs were
 	// replaced by a later review. Either must be re-earned before approval.
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM review_runs WHERE draft_id = ? AND outcome = 'passed' AND invalidated_at = '' AND id NOT IN (SELECT superseded_run_id FROM review_supersessions)`, id).Scan(&passed); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM review_runs rr JOIN review_run_basis rb ON rb.run_id=rr.id WHERE rr.draft_id=? AND rr.outcome='passed' AND rr.invalidated_at='' AND rb.source_revision_id=? AND rb.body_sha256=? AND rr.id NOT IN (SELECT superseded_run_id FROM review_supersessions)`, id, currentRevisionID, hex.EncodeToString(bodyDigest[:])).Scan(&passed); err != nil {
 		return Draft{}, err
 	}
 	verdict := EvaluateApproval(ctx, ApprovalInput{DraftStatus: draft.Status, UnverifiedClaimIDs: unverified, PostTypeActive: active > 0, ReviewPassed: passed > 0})
@@ -646,7 +665,8 @@ func (r *sqliteRepository) GetCurrentRevision(ctx context.Context, id string) (C
 		return CurrentRevision{}, err
 	}
 	var runID, outcome, runCreated string
-	err = r.db.QueryRowContext(ctx, `SELECT id, outcome, created_at FROM review_runs WHERE draft_id = ? AND invalidated_at = '' AND id NOT IN (SELECT superseded_run_id FROM review_supersessions) ORDER BY created_at DESC, id DESC LIMIT 1`, id).Scan(&runID, &outcome, &runCreated)
+	bodyDigest := sha256.Sum256([]byte(draftBody))
+	err = r.db.QueryRowContext(ctx, `SELECT rr.id,rr.outcome,rr.created_at FROM review_runs rr JOIN review_run_basis rb ON rb.run_id=rr.id WHERE rr.draft_id=? AND rr.invalidated_at='' AND rb.source_revision_id=? AND rb.body_sha256=? AND rr.id NOT IN (SELECT superseded_run_id FROM review_supersessions) ORDER BY rr.created_at DESC,rr.id DESC LIMIT 1`, id, current.RevisionID, hex.EncodeToString(bodyDigest[:])).Scan(&runID, &outcome, &runCreated)
 	switch {
 	case err == nil:
 		if outcome == "passed" {
@@ -671,6 +691,19 @@ func (r *sqliteRepository) GetCurrentRevision(ctx context.Context, id string) (C
 		return CurrentRevision{}, err
 	}
 	return current, nil
+}
+
+func (r *sqliteRepository) GetStoredRevision(ctx context.Context, draftID, revisionID string) (StoredRevision, error) {
+	var stored StoredRevision
+	var created string
+	err := r.db.QueryRowContext(ctx, `SELECT draft_id,id,body,actor_kind,capacity,created_at FROM draft_revisions WHERE draft_id = ? AND id = ?`, draftID, revisionID).Scan(&stored.DraftID, &stored.RevisionID, &stored.Body, &stored.ActorKind, &stored.Capacity, &created)
+	if err != nil {
+		return StoredRevision{}, err
+	}
+	if parsed, err := time.Parse(time.RFC3339Nano, created); err == nil {
+		stored.CreatedAt = parsed
+	}
+	return stored, nil
 }
 
 func (r *sqliteRepository) Transition(ctx context.Context, id string, event DraftEvent) (Draft, error) {

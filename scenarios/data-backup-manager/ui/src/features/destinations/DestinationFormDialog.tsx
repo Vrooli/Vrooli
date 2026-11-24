@@ -2,9 +2,9 @@ import { useState } from "react";
 
 import { Dialog } from "../../components/ui/dialog";
 import { Field } from "../../components/ui/field";
-import { Input } from "../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Select } from "../../components/ui/select";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { useCreateDestination, useUpdateDestination } from "../../hooks/useDestinations";
 import { BackendKind, CapPolicy, type Destination } from "../../api/destinations";
 import { backendSlug, capPolicySlug } from "../../lib/status";
@@ -12,6 +12,7 @@ import { BACKEND_STRINGS, CAP_POLICY_STRINGS } from "../../consts/statusStrings"
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
+import { cn } from "../../lib/utils";
 
 const BYTES_PER_GB = 1024 ** 3;
 const gbToBytes = (gb: string): bigint => BigInt(Math.max(0, Math.round((parseFloat(gb) || 0) * BYTES_PER_GB)));
@@ -111,7 +112,14 @@ export function DestinationFormDialog({
       data-testid={selectors.destinations.form}
       footer={
         <>
-          <Button variant="outline" size="sm" onClick={close} disabled={mutation.isPending}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={close}
+            disabled={mutation.isPending}
+            shape="square"
+            className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
+          >
             {t(strings.common.cancel)}
           </Button>
           <Button
@@ -119,6 +127,7 @@ export function DestinationFormDialog({
             onClick={submit}
             disabled={mutation.isPending}
             data-testid={selectors.destinations.formSubmit}
+            shape="square"
           >
             {mutation.isPending
               ? t(strings.common.saving)

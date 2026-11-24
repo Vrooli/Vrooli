@@ -34,19 +34,37 @@ type Input struct {
 	// CallsExternal is true when the domain imports outbound HTTP/integration
 	// clients (an integration service).
 	CallsExternal bool
+
+	// SourcePaths identify snapshot files that support the corresponding
+	// structural signal. Name/path heuristics remain document-backed and do not
+	// populate these fields.
+	HTTPHandlerPaths []string
+	StoragePaths     []string
+	MutationPaths    []string
+	WorkflowPaths    []string
+	ExternalPaths    []string
 }
 
 // Result is one inferred archetype with its confidence and evidence.
 type Result struct {
-	Name       string
-	Confidence float64
-	Evidence   []string
+	Name             string
+	Confidence       float64
+	Evidence         []string
+	SourceEvidence   []SourceEvidence
+	DocumentEvidence []string
+}
+
+type SourceEvidence struct {
+	Path string
+	Note string
 }
 
 type signal struct {
-	archetype  string
-	confidence float64 // specificity weight
-	evidence   string
+	archetype   string
+	confidence  float64 // specificity weight
+	evidence    string
+	sourcePaths []string
+	document    bool
 }
 
 // Infer returns the inferred archetypes for a domain, highest confidence first.
@@ -59,32 +77,32 @@ func Infer(in Input) []Result {
 
 	// Specific code signals (high specificity).
 	if in.WritesFiles {
-		signals = append(signals, signal{string(Mutation), 0.9, "performs file writes / AST rewrites"})
+		signals = append(signals, signal{archetype: string(Mutation), confidence: 0.9, evidence: "performs file writes / AST rewrites", sourcePaths: in.MutationPaths})
 	}
 	if isMutationDomain(name, paths) {
-		signals = append(signals, signal{string(Mutation), 0.9, "domain name/path indicates write-side apply workflow"})
+		signals = append(signals, signal{archetype: string(Mutation), confidence: 0.9, evidence: "domain name/path indicates write-side apply workflow", document: true})
 	}
 	if in.HasWorkflow {
-		signals = append(signals, signal{string(Orchestration), 0.85, "imports workflow/state-machine coordination machinery"})
+		signals = append(signals, signal{archetype: string(Orchestration), confidence: 0.85, evidence: "imports workflow/state-machine coordination machinery", sourcePaths: in.WorkflowPaths})
 	}
 	if in.CallsExternal {
-		signals = append(signals, signal{string(Service), 0.65, "imports outbound integration clients"})
+		signals = append(signals, signal{archetype: string(Service), confidence: 0.65, evidence: "imports outbound integration clients", sourcePaths: in.ExternalPaths})
 	}
 	if in.OwnsStorage {
-		signals = append(signals, signal{string(Service), 0.7, "owns persistent storage"})
+		signals = append(signals, signal{archetype: string(Service), confidence: 0.7, evidence: "owns persistent storage", sourcePaths: in.StoragePaths})
 	}
 
 	// Name/path heuristics (medium specificity).
 	if isReportingDomain(name, paths) {
-		signals = append(signals, signal{string(Reporting), 0.85, "domain name/path indicates read/reporting surface"})
+		signals = append(signals, signal{archetype: string(Reporting), confidence: 0.85, evidence: "domain name/path indicates read/reporting surface", document: true})
 	}
 
 	// Generic structural signals (low specificity).
 	if in.HasHTTPHandler {
-		signals = append(signals, signal{string(Service), 0.6, "owns an api/handlers transport package (served capability)"})
+		signals = append(signals, signal{archetype: string(Service), confidence: 0.6, evidence: "owns an api/handlers transport package (served capability)", sourcePaths: in.HTTPHandlerPaths})
 	}
 	if hasAPIDomainPath(paths) {
-		signals = append(signals, signal{string(Service), 0.6, "domain owns api/internal implementation path"})
+		signals = append(signals, signal{archetype: string(Service), confidence: 0.6, evidence: "domain owns api/internal implementation path", document: true})
 	}
 
 	return mergeSignals(signals)
@@ -109,7 +127,17 @@ func mergeSignals(signals []signal) []Result {
 			r.Confidence = s.confidence
 		}
 		r.Evidence = append(r.Evidence, s.evidence)
+		if s.document {
+			r.DocumentEvidence = append(r.DocumentEvidence, s.evidence)
+		}
 		counts[s.archetype]++
+		for _, path := range s.sourcePaths {
+			path = strings.TrimSpace(path)
+			if path == "" || hasSourceEvidence(r.SourceEvidence, path, s.evidence) {
+				continue
+			}
+			r.SourceEvidence = append(r.SourceEvidence, SourceEvidence{Path: path, Note: s.evidence})
+		}
 	}
 	out := make([]Result, 0, len(order))
 	for _, a := range order {
@@ -125,7 +153,24 @@ func mergeSignals(signals []signal) []Result {
 		}
 		return out[i].Name < out[j].Name
 	})
+	for i := range out {
+		sort.Slice(out[i].SourceEvidence, func(a, b int) bool {
+			if out[i].SourceEvidence[a].Path == out[i].SourceEvidence[b].Path {
+				return out[i].SourceEvidence[a].Note < out[i].SourceEvidence[b].Note
+			}
+			return out[i].SourceEvidence[a].Path < out[i].SourceEvidence[b].Path
+		})
+	}
 	return out
+}
+
+func hasSourceEvidence(evidence []SourceEvidence, path, note string) bool {
+	for _, candidate := range evidence {
+		if candidate.Path == path && candidate.Note == note {
+			return true
+		}
+	}
+	return false
 }
 
 func isMutationDomain(name string, paths []string) bool {

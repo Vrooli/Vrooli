@@ -1,6 +1,4 @@
 """Read the Content Desk marketing board once: current campaign/draft work, the deterministic next action per draft, capability readiness gaps, and a baseline diff."""
-import json
-
 inputs = program.inputs()
 
 envelope = program.envelope('content-desk.board-read', '1', phase="validate", inputs={})
@@ -365,7 +363,7 @@ def _diff(snapshot, baseline, title_of):
 def step_report():
     # phase: report — one envelope on every path.
     envelope['phase'] = 'report'
-    print(json.dumps(envelope, allow_nan=False, separators=(',', ':')))
+    program.report(envelope)
     return None
 
 

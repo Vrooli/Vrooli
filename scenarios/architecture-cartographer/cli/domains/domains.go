@@ -12,6 +12,7 @@ import (
 	"architecture-cartographer/cli/domains/campaign"
 	"architecture-cartographer/cli/domains/conflicts"
 	domainsdomain "architecture-cartographer/cli/domains/domains"
+	driftdomain "architecture-cartographer/cli/domains/drift"
 	"architecture-cartographer/cli/domains/graph"
 	"architecture-cartographer/cli/domains/reindex"
 	"architecture-cartographer/cli/domains/search"
@@ -51,6 +52,12 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, fmt.Errorf("register domains: %w", err)
 	}
 	out = append(out, domainsGroup)
+
+	driftGroup, err := driftdomain.Register(core, manifest)
+	if err != nil {
+		return nil, fmt.Errorf("register drift: %w", err)
+	}
+	out = append(out, driftGroup)
 
 	graphGroup, err := graph.Register(core, manifest)
 	if err != nil {

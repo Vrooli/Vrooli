@@ -365,5 +365,22 @@
         ]
       }
     }
+    ,{
+      "provider_id":"architecture-cartographer.docs-code-drift",
+      "lifecycle":"experimental","provider_group":"architecture-cartographer","bucket":"BUCKET_KNOW","type":"doc_code_drift","class":"local_live","scope":"SCOPE_PROJECT",
+      "description":"Compares curated DOMAINS.md API Source Paths with bounded Go source and links only supported literal HTTP route → handler → direct internal call → target declaration chains. Generated Connect or dynamic routes, duplicate chains, low-confidence documentation, parser failures and scan caps remain UNKNOWN/PARTIAL; no semantic or runtime conformance is inferred.",
+      "routing_profile":{"answer_spaces":["documentation","architecture","conformance","implementation"],"intents":["explain","locate","verify_conformance"],"positive_examples":["does the domains path connect to a literal HTTP route and direct handler call","does the graph domain's documented API source path exist in its Go implementation","find documented API paths with no matching source candidate"],"exclusions":["fleet inventory","semantic correctness","runtime reachability","UI CLI or protobuf source claims","generated Connect route reachability"]},
+      "endpoint":{"http_json":{"scenario_id":"architecture-cartographer","path":"/api/v1/doc-code-drift/search","method":"HTTP_METHOD_POST","body_template":"{\"query\":\"{{query}}\",\"scope\":\"{{scope}}\",\"limit\":{{limit}}}","headers":{"Content-Type":"application/json"}}},
+      "result_mapping":{"results_path":"results","id_field":"id","score_field":"score","snippet_field":"summary","title_field":"title","path_field":"documentation.path","score_scale":"SCORE_SCALE_RAW","metadata_fields":{"domain":"domain","claim":"claim","classification":"classification","status":"status","documentation":"documentation","code":"code","api_status":"api_status","api":"api","limits":"limits"}},
+      "performance":{"p95_ms":3000,"minimum_samples":1,"telemetry_required":false},
+      "scoring":{"recall_at":5,"recall_target":0.75,"mrr_at":3,"deep_k":12},
+      "tuning":{"engine":"lexical","floor":{"hard_floor":0,"max_gap":0}},
+      "tests":{"minimum":{"reviewed_positive":1,"negative":2},"suite_id":"architecture-cartographer.docs-code-drift.primary","name":"Scoped docs/API-source structural comparison","description":"Owner contracts distinguish path presence, missing candidates and unknown authority; no semantic behavior or independent serving grade is implied.","cases":[
+        {"id":"documented-domain-to-http-chain","query":"domains api internal direct HTTP route handler call source path","scope":"scenario:architecture-cartographer","expect_ids":["cartographer:doc-code:domains:api-internal-domains"],"expect_within_top_k":5,"status":"reviewed","tags":["reviewed","strong","api-call-chain-positive"]},
+        {"id":"documented-graph-api-path","query":"graph api internal source path responsibility","scope":"scenario:architecture-cartographer","expect_ids":["cartographer:doc-code:graph:api-internal-graph"],"expect_within_top_k":5,"status":"reviewed","tags":["reviewed","strong","docs-code-positive"]},
+        {"id":"docs-code-negative-1","query":"underwater penguin telescope","scope":"scenario:architecture-cartographer","expect_no_strong_hit":true,"expect_max_score":0.2,"status":"reviewed","tags":["reviewed","negative"]},
+        {"id":"docs-code-negative-2","query":"lunar chlorophyll invoice","scope":"scenario:architecture-cartographer","expect_no_strong_hit":true,"expect_max_score":0.2,"status":"reviewed","tags":["reviewed","negative"]}
+      ]}
+    }
   ]
 }

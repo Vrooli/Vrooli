@@ -69,9 +69,13 @@ type StoryCache struct {
 	maxSize int
 }
 
-var storyCache = &StoryCache{
-	stories: make(map[string]*Story),
-	maxSize: 20, // Cache up to 20 most recent stories
+var storyCache = newStoryCache(20)
+
+func newStoryCache(maxSize int) *StoryCache {
+	return &StoryCache{
+		stories: make(map[string]*Story),
+		maxSize: maxSize,
+	}
 }
 
 func (c *StoryCache) Get(id string) (*Story, bool) {
@@ -494,70 +498,82 @@ func getStoriesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getStoryHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
+	getStoryHandlerWithCache(storyCache)(w, r)
+}
 
-	// Check cache first
-	if cachedStory, ok := storyCache.Get(id); ok {
-		log.Printf("Cache hit for story: %s", id)
-		json.NewEncoder(w).Encode(cachedStory)
-		return
-	}
+func getStoryHandlerWithCache(cache *StoryCache) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		id := vars["id"]
 
-	var s Story
-	var charactersJSON, illustrationsJSON string
-	err := db.QueryRow(`
+		// Check cache first
+		if cachedStory, ok := cache.Get(id); ok {
+			log.Printf("Cache hit for story: %s", id)
+			json.NewEncoder(w).Encode(cachedStory)
+			return
+		}
+
+		var s Story
+		var charactersJSON, illustrationsJSON string
+		err := db.QueryRow(`
 		SELECT id, title, content, age_group, theme, story_length,
 			reading_time_minutes, page_count, character_names::text,
 			created_at, times_read, last_read, is_favorite,
 			COALESCE(illustrations::text, '{}') as illustrations
 		FROM stories WHERE id = $1`, id).Scan(
-		&s.ID, &s.Title, &s.Content, &s.AgeGroup, &s.Theme,
-		&s.StoryLength, &s.ReadingTime, &s.PageCount, &charactersJSON,
-		&s.CreatedAt, &s.TimesRead, &s.LastRead, &s.IsFavorite, &illustrationsJSON)
+			&s.ID, &s.Title, &s.Content, &s.AgeGroup, &s.Theme,
+			&s.StoryLength, &s.ReadingTime, &s.PageCount, &charactersJSON,
+			&s.CreatedAt, &s.TimesRead, &s.LastRead, &s.IsFavorite, &illustrationsJSON)
 
-	if err == sql.ErrNoRows {
-		http.Error(w, "Story not found", http.StatusNotFound)
-		return
-	} else if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		if err == sql.ErrNoRows {
+			http.Error(w, "Story not found", http.StatusNotFound)
+			return
+		} else if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		json.Unmarshal([]byte(charactersJSON), &s.CharacterNames)
+		json.Unmarshal([]byte(illustrationsJSON), &s.Illustrations)
+
+		// Add to cache for future requests
+		cache.Set(id, &s)
+		log.Printf("Cached story: %s", id)
+
+		json.NewEncoder(w).Encode(s)
 	}
-
-	json.Unmarshal([]byte(charactersJSON), &s.CharacterNames)
-	json.Unmarshal([]byte(illustrationsJSON), &s.Illustrations)
-
-	// Add to cache for future requests
-	storyCache.Set(id, &s)
-	log.Printf("Cached story: %s", id)
-
-	json.NewEncoder(w).Encode(s)
 }
 
 func toggleFavoriteHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
+	toggleFavoriteHandlerWithCache(storyCache)(w, r)
+}
 
-	var isFavorite bool
-	err := db.QueryRow(`
+func toggleFavoriteHandlerWithCache(cache *StoryCache) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		id := vars["id"]
+
+		var isFavorite bool
+		err := db.QueryRow(`
 		UPDATE stories 
 		SET is_favorite = NOT is_favorite, updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1
 		RETURNING is_favorite`, id).Scan(&isFavorite)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			http.Error(w, "Story not found", http.StatusNotFound)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				http.Error(w, "Story not found", http.StatusNotFound)
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		cache.Delete(id)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":     true,
+			"is_favorite": isFavorite,
+		})
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success":     true,
-		"is_favorite": isFavorite,
-	})
 }
 
 func startReadingHandler(w http.ResponseWriter, r *http.Request) {

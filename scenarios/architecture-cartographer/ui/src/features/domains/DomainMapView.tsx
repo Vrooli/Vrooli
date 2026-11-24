@@ -18,8 +18,9 @@ import {
 } from "./controllers/useDomainsController";
 import { ConvergenceReport } from "./ConvergenceReport";
 import { BoundaryHealth } from "./BoundaryHealth";
-import { useGetDomainSlice } from "../graph/controllers/useGraphController";
+import { useSearchDomainSlice } from "../graph/controllers/useGraphController";
 import { useState } from "react";
+import { DocCodeDriftPanel } from "./DocCodeDriftPanel";
 
 export interface DomainMapViewProps {
   scenario: string;
@@ -40,6 +41,11 @@ function domainSourceLabel(source: DomainSource): string {
     default:
       return "unspecified";
   }
+}
+
+function sliceEvidenceAnchor(domain: string, rung: string, index: number): string {
+  const safe = (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, "-");
+  return `slice-evidence-${safe(domain)}-${safe(rung)}-${index}`;
 }
 
 const ARCHETYPE_LABELS: Record<Archetype, string> = {
@@ -124,6 +130,8 @@ export function DomainMapView({ scenario }: DomainMapViewProps) {
 
           {map.domains.length > 0 && <DomainSliceAnatomy scenario={scenario} domains={map.domains} />}
 
+          <DocCodeDriftPanel scenario={scenario} />
+
           <section
             aria-labelledby="domains-shared-substrate-heading"
             data-testid={selectors.features.domains.sharedSubstrate.root}
@@ -193,32 +201,75 @@ export function DomainMapView({ scenario }: DomainMapViewProps) {
 }
 
 function DomainSliceAnatomy({ scenario, domains }: { scenario: string; domains: readonly DerivedDomain[] }) {
-  const [domain, setDomain] = useState(domains[0]?.name ?? "");
-  const slice = useGetDomainSlice(scenario, domain);
+  const [domainName, setDomainName] = useState(domains[0]?.name ?? "");
+  const search = useSearchDomainSlice(scenario, domainName);
+  const selectedDomain = domains.find((item) => item.name === domainName);
+  const hit = search.data?.results.find((item) => item.domain === domainName);
+  const expectedRungs = ["proto", "handler", "internal", "cli", "ui"];
+  const returnedRungs = hit?.slice.rungs ?? [];
+  const rungs = expectedRungs.map((name) => returnedRungs.find((item) => item.name === name));
+  const attestation = hit?.slice.attestation;
+  const basis = attestation?.basis === 1 ? "DERIVED" : attestation?.basis === 2 ? "VALIDATED" : attestation?.basis === 3 ? "DECLARED_UNVERIFIED" : attestation?.basis === 4 ? "CONTRADICTED" : "UNKNOWN";
+  const sufficiency = attestation?.sufficiency === 1 ? "FULL" : attestation?.sufficiency === 2 ? "PARTIAL" : attestation?.sufficiency === 3 ? "INSUFFICIENT" : "UNKNOWN";
+  const edges = hit?.slice.layer_edges ?? [];
+
   return (
-    <section aria-labelledby="domain-slice-heading" className="flex flex-col gap-2">
+    <section aria-labelledby="domain-slice-heading" className="flex flex-col gap-3" data-testid="domain-slice-anatomy">
       <h4 id="domain-slice-heading" className="text-lg font-semibold">Implementation slice anatomy</h4>
       <label className="flex items-center gap-2 text-sm">
         <span>Domain</span>
-        <select aria-label="Slice domain" value={domain} onChange={(event) => setDomain(event.target.value)} className="rounded border border-app-border bg-app-surface px-2 py-1">
+        <select aria-label="Slice domain" value={domainName} onChange={(event) => setDomainName(event.target.value)} className="rounded border border-app-border bg-app-surface px-2 py-1">
           {domains.map((item) => <option key={item.name} value={item.name}>{item.name}</option>)}
         </select>
       </label>
-      {slice.isPending ? <p role="status">Loading slice…</p> : null}
-      {slice.isError ? <p role="alert">Slice anatomy unavailable: {slice.error instanceof Error ? slice.error.message : String(slice.error)}</p> : null}
-      {slice.data ? (
-        <div className="flex flex-col gap-2">
-          <p className="text-sm">Attestation: DERIVED / PARTIAL. Symbol-level links are not resolved in this view.</p>
-          <ol className="grid gap-2 md:grid-cols-2">
-            {slice.data.rungs.map((rung) => (
-              <li key={rung.name} className="rounded border border-app-border p-2">
-                <h5 className="font-medium">{rung.name} · {rung.present ? "present" : "missing"}</h5>
-                {rung.files.length > 0 && <ul className="mt-1 list-disc pl-5 font-mono text-xs">{rung.files.slice(0, 4).map((file) => <li key={file.path}>{file.path}</li>)}</ul>}
-                {rung.evidence.length > 0 && <p className="mt-1 text-xs text-app-muted-foreground">{rung.evidence.slice(0, 3).map((item) => item.value).join(" · ")}</p>}
-              </li>
-            ))}
-          </ol>
-          {slice.data.layerEdges.length > 0 && <p className="text-xs">Layer edges: {slice.data.layerEdges.slice(0, 8).map((edge) => `${edge.fromRung}→${edge.toRung}`).join(", ")}</p>}
+      <p className="text-xs text-app-muted-foreground">Read scope: scenario:{scenario}. This view searches an existing cached graph snapshot and does not initiate graph extraction. Snapshot age/freshness and current coverage are not established by this view.</p>
+      {search.isPending ? <p role="status">Loading bounded slice…</p> : null}
+      {search.isError ? <p role="alert">Slice search unavailable: {search.error instanceof Error ? search.error.message : String(search.error)}</p> : null}
+      {search.data && !hit ? (
+        <div role="status" className="rounded border border-app-border p-3">
+          <p>No ranked slice was returned for {domainName}.</p>
+          {search.data.degradations.map((item) => <p key={item.code} className="mt-1 text-sm">{item.code}: {item.message}</p>)}
+          {!search.data.degradations.length && <p className="mt-1 text-sm">No exact domain candidate matched within this scenario-scoped result set.</p>}
+          <p className="mt-1 text-xs text-app-muted-foreground">No extraction was attempted by this search view.</p>
+        </div>
+      ) : null}
+      {hit ? (
+        <div className="flex flex-col gap-3">
+          <header className="rounded border border-app-border p-3">
+            <h5 className="font-semibold">{hit.title}</h5>
+            <p className="mt-1 text-sm">Scenario {hit.scenario} · domain {hit.domain} · cached snapshot {hit.snapshot_id} · rank score {hit.score.toFixed(3)}</p>
+            <p className="mt-1 text-xs text-app-muted-foreground">Derived domain ownership: {selectedDomain?.responsibility || "responsibility not declared"}. Purpose: {selectedDomain?.purpose || "purpose not declared"}. Owns data: {selectedDomain?.ownsData || "no data-ownership claim declared"}.</p>
+            <p className="mt-1 text-xs text-app-muted-foreground">Domain declaration provenance: {selectedDomain?.provenance?.length ? selectedDomain.provenance.map(domainSourceLabel).join(", ") : "unknown"}</p>
+            <p className="mt-2 text-sm">Attestation: {basis} / {sufficiency}. {attestation?.claim || "Attestation claim unavailable."}</p>
+            {attestation?.citations?.length ? <ul aria-label="Attestation citation links" className="mt-1 list-disc pl-5 text-xs">{attestation.citations.map((citation, index) => {
+              const match = rungs.flatMap((rung) => rung?.evidence.map((item, itemIndex) => ({ rung: rung.name, item, itemIndex })) ?? []).find(({ item }) => item.value === citation.locator);
+              return <li key={`${citation.locator}:${index}`}>{citation.kind}: {citation.locator}{citation.note ? ` — ${citation.note}` : ""}{match ? <> · <a className="underline" href={`#${sliceEvidenceAnchor(hit.domain, match.rung, match.itemIndex)}`}>{match.rung} rung evidence row</a></> : <span> · Not linked to a returned rung evidence row (bounded sample).</span>}</li>;
+            })}</ul> : <p className="mt-1 text-xs">No attestation citations returned.</p>}
+            {attestation?.gaps?.length ? <p className="mt-1 text-xs text-app-muted-foreground">Known gaps: {attestation.gaps.join("; ")}</p> : null}
+          </header>
+          <section aria-labelledby="slice-rungs-heading">
+            <h5 id="slice-rungs-heading" className="font-medium">Five-rung source anatomy</h5>
+            <ol className="mt-2 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+              {rungs.map((rung, index) => <li key={expectedRungs[index]} className="rounded border border-app-border p-3">
+                <h6 className="font-medium">{expectedRungs[index]} · {rung ? (rung.present ? "present" : "missing") : "not returned"}</h6>
+                {rung?.files?.length ? <ul className="mt-1 list-disc pl-5 font-mono text-xs">{rung.files.slice(0, 4).map((file) => <li key={file.path}>{file.path} · {file.lines} lines{file.is_test ? " · test source" : ""}</li>)}</ul> : <p className="mt-1 text-xs text-app-muted-foreground">No file rows in this bounded slice.</p>}
+                {rung?.symbols?.length ? <p className="mt-1 text-xs">Symbols: {rung.symbols.slice(0, 4).map((symbol) => `${symbol.name} (${symbol.kind}) — ${symbol.file}`).join("; ")}</p> : null}
+                {rung?.evidence?.length ? <ul className="mt-1 space-y-1 text-xs text-app-muted-foreground">{rung.evidence.slice(0, 4).map((item, itemIndex) => <li id={sliceEvidenceAnchor(hit.domain, rung.name, itemIndex)} key={`${item.kind}:${item.value}:${itemIndex}`}>{item.kind} · {item.source}: {item.value}</li>)}</ul> : null}
+              </li>)}
+            </ol>
+          </section>
+          <section aria-labelledby="slice-transitions-heading" className="rounded border border-app-border p-3">
+            <h5 id="slice-transitions-heading" className="font-medium">Layer handoffs</h5>
+            <p className="text-xs text-app-muted-foreground">Observed edges are package-level imports from this graph snapshot, not symbol-level or runtime call flow. Missing edges mean no direct edge was reported in this slice.</p>
+            <ol className="mt-2 flex flex-wrap items-center gap-2 text-xs">{expectedRungs.slice(0, -1).map((from, index) => {
+              const to = expectedRungs[index + 1];
+              const observed = edges.filter((edge) => edge.from_rung === from && edge.to_rung === to);
+              return <li key={`${from}:${to}`} className="rounded bg-app-muted px-2 py-1">{from} → {to}: {observed.length ? observed.map((edge) => `${edge.kind} observed`).join(", ") : "no direct edge reported"}</li>;
+            })}</ol>
+            {edges.some((edge) => !expectedRungs.includes(edge.from_rung) || !expectedRungs.includes(edge.to_rung)) ? <p className="mt-2 text-xs">Other package transitions: {edges.filter((edge) => !expectedRungs.includes(edge.from_rung) || !expectedRungs.includes(edge.to_rung)).map((edge) => `${edge.from_rung}→${edge.to_rung} (${edge.kind})`).join(", ")}</p> : null}
+            <p className="mt-2 text-xs text-app-muted-foreground">Surfaces: {hit.slice.surfaces.length ? hit.slice.surfaces.join(", ") : "none reported"} · returned evidence paths: {hit.paths.length ? hit.paths.join(", ") : "none"}</p>
+          </section>
+          {search.data?.degradations.map((item) => <p key={item.code} role="status" className="text-sm">{item.code}: {item.message}</p>)}
         </div>
       ) : null}
     </section>

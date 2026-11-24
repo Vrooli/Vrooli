@@ -1,6 +1,4 @@
 """Read the marketing capability catalog and report readiness gaps, limitations and next actions."""
-import json
-
 inputs = program.inputs()
 
 envelope = program.envelope('content-desk.capabilities-read', '1', phase="validate", inputs={})
@@ -198,7 +196,7 @@ def step_classify():
 def step_report():
     # phase: report — one envelope on every path.
     envelope['phase'] = 'report'
-    print(json.dumps(envelope, allow_nan=False, separators=(',', ':')))
+    program.report(envelope)
     return None
 
 

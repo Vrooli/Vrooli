@@ -43,6 +43,18 @@ func TestConfigClassify(t *testing.T) {
 	if got := cfg.Classify("api/internal/orders/service.go", m); got.Domain != "orders" || got.Archetype != "service" || !got.Declared {
 		t.Fatalf("orders classification = %+v", got)
 	}
+	if got := cfg.Classify("api/internal/orders/service.go", m); got.Basis != "domain_path_pattern" {
+		t.Fatalf("domain path basis = %q, want domain_path_pattern", got.Basis)
+	}
+	if got := cfg.Classify("api/internal/customkernel", m); got.Basis != "domain_map_shared_substrate" {
+		t.Fatalf("shared substrate basis = %q, want domain_map_shared_substrate", got.Basis)
+	}
+	if got := cfg.Classify("api/internal/app", m); got.Basis != "composition_root_segment" {
+		t.Fatalf("composition root basis = %q, want composition_root_segment", got.Basis)
+	}
+	if got := cfg.Classify("docs/unmapped", m); got.Zone != Unknown || got.Basis != "unclassified" {
+		t.Fatalf("unknown path = %+v, want explicit unclassified", got)
+	}
 }
 
 func TestLoadForScenarioReadsManifestAndEnv(t *testing.T) {

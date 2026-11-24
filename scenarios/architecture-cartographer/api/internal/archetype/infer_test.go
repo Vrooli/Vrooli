@@ -29,6 +29,26 @@ func TestInfer(t *testing.T) {
 	}
 }
 
+func TestInferCarriesDeduplicatedStructuralSourcePaths(t *testing.T) {
+	got := Infer(Input{
+		Name: "billing", HasHTTPHandler: true, OwnsStorage: true,
+		HTTPHandlerPaths: []string{"api/handlers/billing/connect.go"},
+		StoragePaths:     []string{"api/internal/billing/repository.go", "api/internal/billing/repository.go"},
+	})
+	if len(got) != 1 || got[0].Name != string(Service) {
+		t.Fatalf("inferred archetypes = %+v", got)
+	}
+	want := []string{"api/handlers/billing/connect.go", "api/internal/billing/repository.go"}
+	if len(got[0].SourceEvidence) != len(want) {
+		t.Fatalf("source evidence = %v, want paths %v", got[0].SourceEvidence, want)
+	}
+	for i := range want {
+		if got[0].SourceEvidence[i].Path != want[i] || got[0].SourceEvidence[i].Note == "" {
+			t.Fatalf("source evidence = %v, want paths %v and evidence notes", got[0].SourceEvidence, want)
+		}
+	}
+}
+
 func TestInfer_CodeSignals(t *testing.T) {
 	// File-writing + storage + handler: mutation (specific) is primary over the
 	// generic service signals.

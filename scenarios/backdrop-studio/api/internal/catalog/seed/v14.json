@@ -1,0 +1,87 @@
+{
+  "version": 14,
+  "note": "Refreshes store-surface provenance against the current official Apple and Google Play requirements and adds records for Apple's current required iPhone and iPad display classes. The existing Play, iPhone alternate, and 12.9-inch accepted-size rows keep their stable ids.",
+  "surfaces": [
+    {
+      "id": "play.feature-graphic",
+      "name": "Google Play feature graphic",
+      "kind": "store",
+      "width": 1024,
+      "height": 500,
+      "placements": ["feature_graphic"],
+      "authority": "Google Play Console Help — Add preview assets to showcase your app (https://support.google.com/googleplay/android-developer/answer/9866151); feature graphic is required at exactly 1024x500 pixels, JPEG or 24-bit PNG without alpha.",
+      "confirmed_on": "2026-11-24"
+    },
+    {
+      "id": "play.phone-screenshot",
+      "name": "Google Play phone screenshot",
+      "kind": "store",
+      "width": 1080,
+      "height": 1920,
+      "placements": ["device_center", "caption_above_device", "caption_below_device", "caption_only"],
+      "authority": "Google Play Console Help — Add preview assets to showcase your app (https://support.google.com/googleplay/android-developer/answer/9866151); 1080x1920 is within the 320–3840 pixel side limits and is 9:16 portrait.",
+      "confirmed_on": "2026-11-24"
+    },
+    {
+      "id": "play.tablet-screenshot",
+      "name": "Google Play tablet screenshot",
+      "kind": "store",
+      "width": 1920,
+      "height": 1080,
+      "placements": ["device_center", "caption_above_device", "caption_below_device", "caption_only"],
+      "authority": "Google Play Console Help — Add preview assets to showcase your app (https://support.google.com/googleplay/android-developer/answer/9866151); 1920x1080 is within the 1080–7680 pixel large-screen range and is 16:9 landscape.",
+      "confirmed_on": "2026-11-24"
+    },
+    {
+      "id": "app-store-6.7-screenshot",
+      "name": "App Store 6.7-inch screenshot",
+      "kind": "store",
+      "width": 1290,
+      "height": 2796,
+      "placements": ["device_center", "caption_above_device", "caption_below_device", "caption_only"],
+      "authority": "Apple App Store Connect Help — Screenshot specifications (https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/); 1290x2796 portrait is an accepted screenshot size for iPhone with Dynamic Island (large display).",
+      "confirmed_on": "2026-11-24"
+    },
+    {
+      "id": "app-store-6.5-screenshot",
+      "name": "App Store 6.5-inch screenshot",
+      "kind": "store",
+      "width": 1284,
+      "height": 2778,
+      "placements": ["device_center", "caption_above_device", "caption_below_device", "caption_only"],
+      "authority": "Apple App Store Connect Help — Screenshot specifications (https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/); 1284x2778 portrait is an accepted screenshot size for iPhone with Face ID (large display).",
+      "confirmed_on": "2026-11-24"
+    },
+    {
+      "id": "app-store-12.9-screenshot",
+      "name": "App Store 12.9-inch accepted screenshot size",
+      "kind": "store",
+      "width": 2048,
+      "height": 2732,
+      "placements": ["device_center", "caption_above_device", "caption_below_device", "caption_only"],
+      "authority": "Apple App Store Connect Help — Screenshot specifications (https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/); 2048x2732 portrait is accepted for the 13-inch iPad display and the legacy 12.9-inch display.",
+      "confirmed_on": "2026-11-24"
+    },
+    {
+      "id": "app-store-iphone-dynamic-island-medium",
+      "name": "App Store iPhone Dynamic Island medium-display screenshot",
+      "kind": "store",
+      "width": 1206,
+      "height": 2622,
+      "placements": ["device_center", "caption_above_device", "caption_below_device", "caption_only"],
+      "authority": "Apple App Store Connect Help — Screenshot specifications (https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/); iPhone with Dynamic Island (medium display) is required and accepts 1206x2622 portrait or 2622x1206 landscape.",
+      "confirmed_on": "2026-11-24"
+    },
+    {
+      "id": "app-store-ipad-13-inch",
+      "name": "App Store iPad 13-inch display screenshot",
+      "kind": "store",
+      "width": 2064,
+      "height": 2752,
+      "placements": ["device_center", "caption_above_device", "caption_below_device", "caption_only"],
+      "authority": "Apple App Store Connect Help — Screenshot specifications (https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/); 13-inch iPad display is required for iPadOS apps and accepts 2064x2752 portrait or 2752x2064 landscape.",
+      "confirmed_on": "2026-11-24"
+    }
+  ],
+  "styles": []
+}

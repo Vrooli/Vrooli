@@ -12,6 +12,7 @@ import (
 	"math"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 
 	"backdrop-studio/internal/catalog"
@@ -521,9 +522,17 @@ func TestProceduralLaneRendersFinishedScenesAtDeliverySize(t *testing.T) {
 // something. It used to be ignored entirely: PreviewPlacements resized the
 // candidate to the viewport and returned the same pixels for every placement,
 // so a "placement preview" showed no placement.
-func TestPlacementsProduceDistinctLayouts(t *testing.T) {
-	src := scenePNG(t, "horizon", 7)
-	places := []string{"full_bleed", "split_panel", "framed_inset", "corner_bleed"}
+func TestStorePlacementsProduceDistinctMockups(t *testing.T) {
+	solid := image.NewRGBA(image.Rect(0, 0, 320, 200))
+	for y := 0; y < solid.Bounds().Dy(); y++ {
+		for x := 0; x < solid.Bounds().Dx(); x++ {
+			solid.SetRGBA(x, y, color.RGBA{R: 190, G: 48, B: 76, A: 255})
+		}
+	}
+	var input bytes.Buffer
+	require.NoError(t, png.Encode(&input, solid))
+	src := input.Bytes()
+	places := []string{"device_center", "caption_above_device", "caption_below_device", "caption_only", "feature_graphic", "type_mask"}
 	previews, err := PreviewPlacements(src, places, nil)
 	require.NoError(t, err)
 	require.Len(t, previews, len(places)*2)
@@ -533,38 +542,68 @@ func TestPlacementsProduceDistinctLayouts(t *testing.T) {
 		key := p.Placement + "/" + p.Viewport
 		sum := fmt.Sprintf("%x", sha256.Sum256(p.PNG))
 		for otherKey, otherSum := range seen {
-			if otherSum == sum {
+			if strings.HasSuffix(otherKey, "/"+p.Viewport) && otherSum == sum {
 				t.Fatalf("%s and %s produced byte-identical previews; the placement is not being applied", key, otherKey)
 			}
 		}
 		seen[key] = sum
 	}
 
-	// Every preview must carry copy chrome, so it reads as a layout rather than
-	// a bare image: assert a run of identical pixels wide enough to be a bar.
+	// Each placement has its own canonical composition: device footprint,
+	// caption position, title-safe banner or glyph-clipped image.
 	for _, p := range previews {
 		img, err := png.Decode(bytes.NewReader(p.PNG))
 		require.NoError(t, err)
-		b := img.Bounds()
-		widest := 0
-		for y := b.Min.Y; y < b.Max.Y; y += 4 {
-			run, prev := 0, uint32(0xffffffff)
-			for x := b.Min.X; x < b.Max.X; x++ {
-				r, g, bl, _ := img.At(x, y).RGBA()
-				cur := r>>8<<16 | g>>8<<8 | bl>>8
-				if cur == prev {
-					run++
-					if run > widest {
-						widest = run
+		wantWidth := 1280
+		if p.Viewport == "mobile" {
+			wantWidth = 390
+		}
+		require.Equal(t, wantWidth, img.Bounds().Dx())
+		if p.Viewport != "desktop" {
+			continue
+		}
+		// Assert the layout landmarks themselves on a solid backdrop so the
+		// expectations cannot pass from incidental texture differences.
+		switch p.Placement {
+		case "device_center":
+			require.Equal(t, color.RGBA{24, 27, 33, 255}, pixelRGBA(img, 522, 180))  // bezel
+			require.Equal(t, color.RGBA{190, 48, 76, 255}, pixelRGBA(img, 100, 100)) // exposed backdrop
+		case "caption_above_device":
+			require.Equal(t, color.RGBA{247, 247, 245, 255}, pixelRGBA(img, 120, 80)) // upper caption band
+			require.Equal(t, color.RGBA{24, 27, 33, 255}, pixelRGBA(img, 522, 240))   // device below
+		case "caption_below_device":
+			require.Equal(t, color.RGBA{24, 27, 33, 255}, pixelRGBA(img, 522, 80))     // device above
+			require.Equal(t, color.RGBA{247, 247, 245, 255}, pixelRGBA(img, 120, 590)) // lower caption band
+		case "feature_graphic":
+			require.Equal(t, color.RGBA{247, 247, 245, 255}, pixelRGBA(img, 10, 10))   // banner letterbox
+			require.Equal(t, color.RGBA{190, 48, 76, 255}, pixelRGBA(img, 100, 150))   // wide banner image
+			require.Equal(t, color.RGBA{247, 247, 245, 255}, pixelRGBA(img, 640, 360)) // empty title-safe centre
+		case "type_mask":
+			require.Equal(t, color.RGBA{247, 247, 245, 255}, pixelRGBA(img, 10, 10)) // quiet page
+			sourcePixels := 0
+			for y := 0; y < img.Bounds().Dy(); y += 2 {
+				for x := 0; x < img.Bounds().Dx(); x += 2 {
+					if pixelRGBA(img, x, y) == (color.RGBA{190, 48, 76, 255}) {
+						sourcePixels++
 					}
-				} else {
-					run, prev = 1, cur
 				}
 			}
+			require.Positive(t, sourcePixels, "type mask must expose backdrop pixels inside its glyphs")
+		case "caption_only":
+			require.Equal(t, color.RGBA{190, 48, 76, 255}, pixelRGBA(img, 1200, 10)) // no device or page chrome
 		}
-		require.Greater(t, widest, b.Dx()/8,
-			"%s/%s has no flat copy bar; the preview is a bare image, not a layout", p.Placement, p.Viewport)
 	}
+}
+
+func pixelRGBA(img image.Image, x, y int) color.RGBA {
+	return color.RGBAModel.Convert(img.At(x, y)).(color.RGBA)
+}
+
+func TestPreviewPlacementsRejectsUnknownInsteadOfUsingFullBleed(t *testing.T) {
+	src := scenePNG(t, "horizon", 7)
+	previews, err := PreviewPlacements(src, []string{"full_bleed", "invented_layout"}, nil)
+	require.ErrorContains(t, err, `unsupported placement "invented_layout"`)
+	require.Nil(t, previews)
 }
 
 // TestDrawScaledCoverCropsWithoutDistortion pins the cover-crop at the level

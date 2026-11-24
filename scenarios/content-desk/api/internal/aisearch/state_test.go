@@ -259,6 +259,20 @@ func TestProductAliasResolutionIsCanonicalAndRetrievable(t *testing.T) {
 	require.NotContains(t, offerRecord.Metadata, "product_canonical", "an unrelated product must not be aliased to web-console")
 }
 
+func TestNormalizeProductQueryAliasesHandlesPhrasesAndPunctuation(t *testing.T) {
+	for _, test := range []struct {
+		query string
+		want  string
+	}{
+		{query: "web console", want: "web-console"},
+		{query: "Prepare Web Console? release", want: "Prepare web-console release"},
+		{query: "AQUILA?", want: "web-console"},
+		{query: "webconsole", want: "web-console"},
+	} {
+		require.Equal(t, test.want, normalizeProductQueryAliases(test.query), "query: %q", test.query)
+	}
+}
+
 func TestOwnerlessCapabilityIsExplicitlyUnsupported(t *testing.T) {
 	repo := capabilityRepoStub{caps: []internalcapabilities.Capability{{
 		ID:                       "cap-short-form",

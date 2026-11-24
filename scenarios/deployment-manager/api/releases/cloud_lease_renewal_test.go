@@ -12,11 +12,30 @@ import (
 
 	internalreleases "deployment-manager/internal/releases"
 	"github.com/gorilla/mux"
+	instancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/compute-manager/v1/instance"
 	releasesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/releases"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	_ "modernc.org/sqlite"
 )
 
-func TestCloudLeaseRenewalStandingPersistsAndReplaysBlockedWithoutOwnerCall(t *testing.T) {
+type refusedLeaseRenewer struct {
+	calls   int
+	receipt json.RawMessage
+}
+
+func (f *refusedLeaseRenewer) RenewCloudLease(_ context.Context, request CloudLeaseRenewalRequest) (*CloudLeaseRenewalResult, error) {
+	f.calls++
+	if f.receipt == nil {
+		now := timestamppb.Now()
+		owner := &instancev1.RenewalReceipt{IdempotencyKey: request.IdempotencyKey, Owner: "deployment-manager", InstanceId: request.InstanceID, Provider: request.Provider, ProviderInstanceId: request.ProviderInstanceID, PriorExpiresAt: timestamppb.New(request.OldExpiresAt), RequestedUntil: timestamppb.New(request.RequestedUntil), SpendIdempotencyKey: request.QuoteKey, QuoteFingerprint: request.QuoteFingerprint, State: instancev1.RenewalState_RENEWAL_STATE_REFUSED, Reason: "provider adapter has no exact lease-renewal capability; no provider call was made", CreatedAt: now, UpdatedAt: now}
+		encoded, _ := protojson.Marshal(owner)
+		f.receipt = encoded
+	}
+	return &CloudLeaseRenewalResult{Receipt: f.receipt}, nil
+}
+
+func TestCloudLeaseRenewalConsumerPersistsRefusalAndReplaysExactOwnerReceipt(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "lease-renewal.db")
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
@@ -33,7 +52,8 @@ func TestCloudLeaseRenewalStandingPersistsAndReplaysBlockedWithoutOwnerCall(t *t
 	if _, err := db.Exec(`UPDATE release_operations SET status=? WHERE id=?`, OperationComplete, opID); err != nil {
 		t.Fatal(err)
 	}
-	h := NewHandler(repo, nil, nil, nil, nil).WithAuthorization(func(context.Context) error { return nil }).WithDurableOperations(true)
+	owner := &refusedLeaseRenewer{}
+	h := NewHandler(repo, nil, nil, nil, nil).WithAuthorization(func(context.Context) error { return nil }).WithCloudLeaseRenewer(owner).WithDurableOperations(true)
 	call := func() *Operation {
 		req := mux.SetURLVars(httptest.NewRequest("POST", "/api/v1/release-operations/"+opID+"/request-cloud-lease-renewal", nil), map[string]string{"operation_id": opID})
 		w := httptest.NewRecorder()
@@ -49,15 +69,19 @@ func TestCloudLeaseRenewalStandingPersistsAndReplaysBlockedWithoutOwnerCall(t *t
 	}
 	first := call()
 	r := first.CloudLeaseRenewalReceipt
-	if r == nil || r.State != "blocked" || r.RenewalKey != "dm-lease-renew:"+opID || r.QuoteFingerprint != "sha256:fixture-price" || !strings.Contains(r.Reason, "no call was made") {
+	if r == nil || r.State != "blocked" || r.RenewalKey != "dm-lease-renew:"+opID || r.QuoteFingerprint == "" || r.OwnerReceipt != nil || !strings.Contains(r.Reason, "No fresh incremental renewal quote") || owner.calls != 0 {
 		t.Fatalf("lease standing = %+v", r)
 	}
 	wire := first.Proto().GetCloudLeaseRenewalReceipt()
-	if wire == nil || wire.GetState() != releasesv1.CloudLeaseRenewalState_CLOUD_LEASE_RENEWAL_STATE_BLOCKED || wire.GetOldExpiresAt() == nil {
+	if wire == nil || wire.GetState() != releasesv1.CloudLeaseRenewalState_CLOUD_LEASE_RENEWAL_STATE_BLOCKED || wire.GetOldExpiresAt() == nil || wire.GetComputeManagerReceipt() != nil {
 		t.Fatalf("typed readback = %+v", wire)
 	}
+	readback := operationFromProto(first.Proto())
+	if readback.CloudLeaseRenewalReceipt == nil || !sameCloudLeaseRenewalReceipt(r, readback.CloudLeaseRenewalReceipt) {
+		t.Fatalf("typed operation round-trip lost exact owner receipt: %+v", readback.CloudLeaseRenewalReceipt)
+	}
 	second := call()
-	if !sameCloudLeaseRenewalReceipt(r, second.CloudLeaseRenewalReceipt) {
+	if !sameCloudLeaseRenewalReceipt(r, second.CloudLeaseRenewalReceipt) || owner.calls != 0 {
 		t.Fatalf("duplicate request changed receipt: %+v", second.CloudLeaseRenewalReceipt)
 	}
 	standing, err := repo.GetOperation(ctx, opID)

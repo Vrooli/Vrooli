@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 
-import { PageHeader } from "../components/PageHeader";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
@@ -23,7 +23,7 @@ export function OverviewPage() {
       className="flex flex-col gap-6"
     >
       <div id="overview-heading">
-        <PageHeader title={t(strings.overview.title)} subtitle={t(strings.overview.subtitle)} />
+        <PageHeader title={t(strings.overview.title)} description={t(strings.overview.subtitle)} />
       </div>
       <Suspense fallback={<div role="status" aria-live="polite">{t(strings.common.loading)}</div>}>
         <OverviewDashboard />

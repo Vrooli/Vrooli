@@ -398,11 +398,24 @@ func (d *ImageToolsDispatcher) Dispatch(ctx context.Context, req RenderDispatchR
 		if err != nil {
 			return RenderDispatchResult{}, err
 		}
-		if submitted.Tier == "byok-cloud" {
+		if strings.TrimSpace(submitted.JobID) == "" {
+			return RenderDispatchResult{}, errors.New("Image Tools submit receipt omitted its job id")
+		}
+		if strings.TrimSpace(submitted.ModelID) == "" {
+			return RenderDispatchResult{}, errors.New("Image Tools submit receipt omitted its model id")
+		}
+		switch submitted.Tier {
+		case "local-cpu", "local-gpu":
+			// These are the only tiers for which Asset Studio can truthfully
+			// record zero external cost. Keep this allowlist closed: an unknown
+			// tier may describe a new remote route whose receipt has no charge.
+		case "byok-cloud":
 			// Image Tools currently does not expose an actual provider charge on
 			// its job receipt. A successful cloud image with an invented zero
 			// cost would make Asset Studio provenance dishonest.
 			return RenderDispatchResult{}, errors.New("Image Tools cloud receipt did not report actual cost")
+		default:
+			return RenderDispatchResult{}, fmt.Errorf("Image Tools submit receipt has unsupported execution tier %q", submitted.Tier)
 		}
 		job, err := d.wait(ctx, client, submitted.JobID)
 		if err != nil {

@@ -9,8 +9,6 @@ import { strings } from "../consts/strings";
 export interface NavItem {
   /** Selector parameter; stable across locales. */
   key:
-    | "dashboard"
-    | "board"
     | "today"
     | "plan"
     | "create"
@@ -27,8 +25,6 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
-  { key: "board", path: "/board", labelKey: strings.layout.nav.board },
   { key: "today", path: "/today", labelKey: strings.layout.nav.today },
   { key: "plan", path: "/plan", labelKey: strings.layout.nav.plan },
   { key: "create", path: "/create", labelKey: strings.layout.nav.create },

@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Archive, Plus, Trash2 } from "lucide-react";
 
-import { PageHeader } from "../components/PageHeader";
-import { EmptyState } from "../components/EmptyState";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { AsyncSection } from "../components/AsyncSection";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { StatusChip } from "../components/ui/status-chip";
 import { VerifiedChip } from "../components/ui/verified-chip";
 import { RegisterTargetDialog } from "../features/targets/RegisterTargetDialog";
@@ -67,7 +67,7 @@ export function TargetsPage() {
       <div id="targets-heading">
         <PageHeader
           title={t(strings.layout.nav.targets)}
-          subtitle={t(strings.targets.subtitle)}
+          description={t(strings.targets.subtitle)}
           actions={
             <Button
               size="sm"
@@ -90,7 +90,7 @@ export function TargetsPage() {
         onRetry={refetch}
         emptyState={
           <EmptyState
-            icon={Archive}
+            icon={<Archive size={32} />}
             title={t(strings.targets.empty)}
             description={t(strings.targets.emptyHint)}
             action={

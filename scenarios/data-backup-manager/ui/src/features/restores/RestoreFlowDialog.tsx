@@ -2,9 +2,9 @@ import { useMemo, useState } from "react";
 
 import { Dialog } from "../../components/ui/dialog";
 import { Field } from "../../components/ui/field";
-import { Input } from "../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Select } from "../../components/ui/select";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { SnapshotBrowser } from "../snapshot/SnapshotBrowser";
 import { AuditReport } from "../audits/AuditReport";
 import { useRuns } from "../../hooks/useRuns";
@@ -16,6 +16,7 @@ import { tsToDate } from "../../lib/proto";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
+import { cn } from "../../lib/utils";
 
 interface SnapshotChoice {
   key: string;
@@ -121,7 +122,14 @@ export function RestoreFlowDialog({ open, onClose }: { open: boolean; onClose: (
       onClose={close}
       title={t(strings.restores.start)}
       footer={
-        <Button variant="outline" size="sm" onClick={close} disabled={busy}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={close}
+          disabled={busy}
+          shape="square"
+          className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
+        >
           {t(strings.common.close)}
         </Button>
       }
@@ -137,7 +145,14 @@ export function RestoreFlowDialog({ open, onClose }: { open: boolean; onClose: (
           </p>
           {restore.isError && <p className="text-sm text-app-danger">{t(strings.restores.restoreError)}</p>}
           <div className="flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => setConfirming(false)} disabled={busy}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setConfirming(false)}
+              disabled={busy}
+              shape="square"
+              className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
+            >
               {t(strings.common.cancel)}
             </Button>
             <Button
@@ -146,6 +161,7 @@ export function RestoreFlowDialog({ open, onClose }: { open: boolean; onClose: (
               onClick={confirmRestore}
               disabled={busy}
               className="bg-app-danger text-white hover:brightness-95"
+              shape="square"
             >
               {busy ? t(strings.common.saving) : t(strings.restores.restore)}
             </Button>
@@ -182,7 +198,13 @@ export function RestoreFlowDialog({ open, onClose }: { open: boolean; onClose: (
           {selected && (
             <>
               <div className="flex flex-wrap items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => setShowBrowse((v) => !v)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowBrowse((v) => !v)}
+                  shape="square"
+                  className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
+                >
                   {t(strings.restores.browse)}
                 </Button>
                 <Button
@@ -190,15 +212,18 @@ export function RestoreFlowDialog({ open, onClose }: { open: boolean; onClose: (
                   data-testid={selectors.restores.verifyButton}
                   onClick={runVerify}
                   disabled={busy}
+                  shape="square"
                 >
                   {verify.isPending ? t(strings.common.saving) : t(strings.restores.verify)}
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
                   data-testid={selectors.audits.runButton}
                   onClick={runAudit}
                   disabled={busy || audit.isPending}
+                  shape="square"
+                  className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
                 >
                   {audit.isPending ? t(strings.audits.running) : t(strings.audits.action)}
                 </Button>
@@ -225,11 +250,12 @@ export function RestoreFlowDialog({ open, onClose }: { open: boolean; onClose: (
                 )}
               </Field>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 data-testid={selectors.restores.restoreButton}
                 onClick={beginRestore}
-                className="self-start"
+                className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted", "self-start")}
+                shape="square"
               >
                 {t(strings.restores.restore)}
               </Button>

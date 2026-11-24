@@ -238,7 +238,7 @@
 - ✅ PDF export functional (3484 bytes tested)
 - ✅ 10 themes available and accessible
 - ✅ Character name customization working
-- ⚠️ Favorite toggle endpoint responds but may have minor timing issue
+- ✅ `TestToggleFavoriteInvalidatesCachedStory`: fixed (2026-11-24).
 **Security**: 0 vulnerabilities found (confirmed via scenario-auditor)
 **Standards**: 691 style violations remain (Level 1 trivial - non-blocking)
 

@@ -644,7 +644,11 @@ func (o *Orchestrator) deployCloud(ds *deployState) int {
 		return http.StatusServiceUnavailable
 	}
 	if cloudStep == nil {
-		cloudStep = &releases.CloudStep{OperationID: ds.req.OperationID, RequestKey: requestKey, RequestDigest: requestDigest, State: "intent", RecoveryIdempotencyKey: releases.CloudRecoveryIdempotencyKey(ds.req.OperationID)}
+		dnsState := "not_configured"
+		if managedDNSConfigured(ds.req.CloudManifest) {
+			dnsState = "pending"
+		}
+		cloudStep = &releases.CloudStep{OperationID: ds.req.OperationID, RequestKey: requestKey, RequestDigest: requestDigest, State: "intent", ManagedDNSState: dnsState, RecoveryIdempotencyKey: releases.CloudRecoveryIdempotencyKey(ds.req.OperationID)}
 		if err := cloudSteps.RecordCloudStep(ds.ctx, *cloudStep); err != nil {
 			o.failStep(&step, "persist cloud deployment intent: "+err.Error())
 			ds.response.Steps = append(ds.response.Steps, step)
@@ -662,6 +666,12 @@ func (o *Orchestrator) deployCloud(ds *deployState) int {
 		cloudStep.DeploymentID = update.DeploymentID
 		cloudStep.OwnerOperationID = update.OwnerOperationID
 		cloudStep.Reason = update.Reason
+		if update.ManagedDNSState != "" {
+			cloudStep.ManagedDNSState, cloudStep.ManagedDNSReason, cloudStep.ManagedDNSEvidenceSHA256 = mergeManagedDNSReadback(
+				cloudStep.ManagedDNSState, cloudStep.ManagedDNSReason, cloudStep.ManagedDNSEvidenceSHA256,
+				update.ManagedDNSState, update.ManagedDNSReason, update.ManagedDNSEvidenceSHA256,
+			)
+		}
 		if len(update.Receipt) > 0 {
 			cloudStep.Receipt = append(json.RawMessage(nil), update.Receipt...)
 		}

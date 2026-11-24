@@ -3,7 +3,7 @@ import { Archive } from "lucide-react";
 import { StatusChip } from "../../components/ui/status-chip";
 import { VerifiedChip } from "../../components/ui/verified-chip";
 import { AsyncSection } from "../../components/AsyncSection";
-import { EmptyState } from "../../components/EmptyState";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { useCoverage, type CoverageRow } from "../../hooks/useCoverage";
 import { RunStatus } from "../../api/runs";
 import { runStatusMeta, sourceKindSlug } from "../../lib/status";
@@ -51,11 +51,13 @@ export function CoverageGrid({
         isEmpty={rows.length === 0}
         onRetry={refetch}
         emptyState={
-          <EmptyState
-            icon={Archive}
-            title={t(strings.overview.coverageEmpty)}
-            data-testid={selectors.overview.coverageEmpty}
-          />
+          <div data-testid={selectors.overview.coverageEmpty}>
+            <EmptyState
+              density="compact"
+              icon={<Archive size={32} />}
+              title={t(strings.overview.coverageEmpty)}
+            />
+          </div>
         }
         skeletonRows={3}
       >

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/vrooli/api-core/database"
+
 	"data-backup-manager/internal/dbschema"
 )
 
@@ -34,7 +36,7 @@ var addedColumns = []struct {
 // table. It is safe to call on every boot and on a freshly created table (the
 // columns already exist, so nothing is added). Call it after EnsureSchemas has
 // created the base table.
-func EnsureColumns(ctx context.Context, db SQLExecutor) error {
+func EnsureColumns(ctx context.Context, db database.SQLExecutor) error {
 	existing, err := dbschema.TableColumns(ctx, db, "destinations")
 	if err != nil {
 		return err

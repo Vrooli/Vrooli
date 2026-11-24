@@ -44,6 +44,38 @@ func TestSeedIsIdempotentAndCatalogIsQueryable(t *testing.T) {
 	require.Equal(t, "riso-horizon", styles[0].ID)
 }
 
+func TestSurfaceRecordRequiresGeometryAndSourceProvenance(t *testing.T) {
+	store := testStore(t)
+	base := Surface{
+		ID: "app-store-iphone-dynamic-island-medium", Name: "Apple iPhone medium display",
+		Kind: "store", Width: 1206, Height: 2622,
+		Placements:  []string{"device_center"},
+		Authority:   "Apple App Store Connect Help — Screenshot specifications (https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/)",
+		ConfirmedOn: "2026-11-24",
+	}
+	cases := map[string]func(*Surface){
+		"identifier":      func(v *Surface) { v.ID = "" },
+		"kind":            func(v *Surface) { v.Kind = "" },
+		"positive width":  func(v *Surface) { v.Width = 0 },
+		"positive height": func(v *Surface) { v.Height = 0 },
+		"placement":       func(v *Surface) { v.Placements = nil },
+		"source citation": func(v *Surface) { v.Authority = "" },
+		"confirmation":    func(v *Surface) { v.ConfirmedOn = "" },
+	}
+	for name, mutate := range cases {
+		t.Run(name, func(t *testing.T) {
+			surface := base
+			mutate(&surface)
+			require.Error(t, store.PutSurface(context.Background(), surface))
+		})
+	}
+
+	require.NoError(t, store.PutSurface(context.Background(), base))
+	got, err := store.GetSurface(context.Background(), base.ID)
+	require.NoError(t, err)
+	require.Equal(t, base, got, "valid source-backed surface records must round-trip exactly")
+}
+
 // TestSeededStylesCarryTheirOwnParameters guards the reason TreatmentParams
 // exists. Before it, every style naming an op rendered with one hardcoded
 // parameter set, so a catalog of sixteen entries produced about four distinct

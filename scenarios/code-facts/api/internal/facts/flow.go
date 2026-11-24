@@ -24,6 +24,7 @@ type FlowSearchHit struct {
 	Paths       []string   `json:"paths"`
 	GraphHash   string     `json:"graph_hash"`
 	Attestation string     `json:"attestation"`
+	DepthLimited bool      `json:"depth_limited"`
 	Steps       []FlowStep `json:"steps"`
 }
 
@@ -129,9 +130,9 @@ func DeriveFeatureFlows(graphs []*factsv1.LanguageGraph, query, scenario string,
 		return response
 	}
 	for _, start := range starts {
-		steps := bestFlowPath(start.symbol, byCaller, symbols, map[string]bool{start.symbol.id: true}, 0)
+		steps, depthLimited := bestFlowPath(start.symbol, byCaller, symbols, map[string]bool{start.symbol.id: true}, 0)
 		if len(steps) > 0 {
-			hit := makeFlowHit(start.symbol, start.score, steps, flowGraphHash(graphs))
+			hit := makeFlowHit(start.symbol, start.score, steps, flowGraphHash(graphs), depthLimited)
 			if baseIDCounts[hit.ID] > 1 {
 				hit.ID += ":" + filepath.ToSlash(start.symbol.path) + ":" + start.symbol.id
 			}
@@ -147,9 +148,9 @@ func DeriveFeatureFlows(graphs []*factsv1.LanguageGraph, query, scenario string,
 	return response
 }
 
-func bestFlowPath(start flowSymbol, byCaller map[string][]flowCall, symbols map[string]flowSymbol, visited map[string]bool, depth int) []FlowStep {
+func bestFlowPath(start flowSymbol, byCaller map[string][]flowCall, symbols map[string]flowSymbol, visited map[string]bool, depth int) ([]FlowStep, bool) {
 	if depth >= maxFlowDepth {
-		return nil
+		return nil, flowHasContinuation(start, byCaller, symbols, visited)
 	}
 	calls := byCaller[start.id]
 	sort.Slice(calls, func(i, j int) bool {
@@ -164,6 +165,7 @@ func bestFlowPath(start flowSymbol, byCaller map[string][]flowCall, symbols map[
 		return calls[i].name < calls[j].name
 	})
 	var best []FlowStep
+	bestDepthLimited := false
 	for _, call := range calls {
 		target, resolved := symbols[call.callee]
 		step := FlowStep{From: start.name, Call: call.name, Path: call.path, Line: call.line, GraphHash: call.graphHash, Resolution: "callee_symbol_unmatched"}
@@ -174,25 +176,39 @@ func bestFlowPath(start flowSymbol, byCaller map[string][]flowCall, symbols map[
 			step.Resolution = "source_symbol_resolved"
 		}
 		candidate := []FlowStep{step}
+		candidateDepthLimited := false
 		if resolved && !visited[target.id] {
 			nextVisited := make(map[string]bool, len(visited)+1)
 			for id := range visited {
 				nextVisited[id] = true
 			}
 			nextVisited[target.id] = true
-			candidate = append(candidate, bestFlowPath(target, byCaller, symbols, nextVisited, depth+1)...)
+			tail, depthLimited := bestFlowPath(target, byCaller, symbols, nextVisited, depth+1)
+			candidate = append(candidate, tail...)
+			candidateDepthLimited = depthLimited
 		}
 		if len(candidate) > len(best) {
 			best = candidate
+			bestDepthLimited = candidateDepthLimited
 		}
 		if len(best) == maxFlowDepth {
-			return best
+			return best, bestDepthLimited
 		}
 	}
-	return best
+	return best, bestDepthLimited
 }
 
-func makeFlowHit(start flowSymbol, score float64, steps []FlowStep, graphHash string) FlowSearchHit {
+func flowHasContinuation(start flowSymbol, byCaller map[string][]flowCall, symbols map[string]flowSymbol, visited map[string]bool) bool {
+	for _, call := range byCaller[start.id] {
+		target, resolved := symbols[call.callee]
+		if !resolved || !visited[target.id] {
+			return true
+		}
+	}
+	return false
+}
+
+func makeFlowHit(start flowSymbol, score float64, steps []FlowStep, graphHash string, depthLimited bool) FlowSearchHit {
 	paths := []string{start.path}
 	parts := []string{start.name}
 	for _, step := range steps {
@@ -201,7 +217,11 @@ func makeFlowHit(start flowSymbol, score float64, steps []FlowStep, graphHash st
 			paths = append(paths, step.ToPath)
 		}
 	}
-	return FlowSearchHit{ID: flowBaseID(start), Title: start.name + " source call path", Text: strings.Join(parts, "; ") + "; DERIVED/PARTIAL: source call edges do not prove runtime reachability", Score: score, Path: start.path, Paths: paths, GraphHash: graphHash, Attestation: "DERIVED/PARTIAL", Steps: steps}
+	text := strings.Join(parts, "; ") + "; DERIVED/PARTIAL: source call edges do not prove runtime reachability"
+	if depthLimited {
+		text += "; depth limit reached: additional source calls are omitted"
+	}
+	return FlowSearchHit{ID: flowBaseID(start), Title: start.name + " source call path", Text: text, Score: score, Path: start.path, Paths: paths, GraphHash: graphHash, Attestation: "DERIVED/PARTIAL", DepthLimited: depthLimited, Steps: steps}
 }
 
 func flowBaseID(start flowSymbol) string {

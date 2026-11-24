@@ -3,6 +3,7 @@ package domains
 import (
 	"github.com/vrooli/cli-core/cliapp"
 
+	changeintent "business-health/cli/domains/changeintent"
 	"business-health/cli/domains/contract"
 	"business-health/cli/domains/fix"
 	"business-health/cli/domains/fleet"
@@ -18,8 +19,7 @@ import (
 // registrations here. For greenfield scenarios, domain packages are the
 // default architecture; do not treat flat command files as the long-term plan.
 func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
-	_ = core
-	return nil
+	return []cliapp.CommandGroup{changeintent.Register(core)}
 }
 
 // SubcommandGroups aggregates hierarchical command groups from domain packages.

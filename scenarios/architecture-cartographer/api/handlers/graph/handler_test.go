@@ -171,6 +171,37 @@ func TestHandler_GetSlice_RejectsUnknownDomain(t *testing.T) {
 	require.Equal(t, connect.CodeNotFound, ce.Code())
 }
 
+func TestHandler_InferArchetypeCitesTheActualSignalSourcePath(t *testing.T) {
+	snap := graph.GraphSnapshot{
+		ID: "snap:demo:archetype", Scenario: "demo", ContentHash: "archetype",
+		Files: []graph.FileNode{{ID: "f-handler", Path: "api/handlers/orders/connect.go", PackageID: "p-handler"}},
+		Packages: []graph.PackageNode{
+			{ID: "p-handler", ImportPath: "demo/handlers/orders", RepoPath: "api/handlers/orders"},
+			{ID: "p-db", ImportPath: "database/sqlite"},
+		},
+		Imports: []graph.ImportEdge{{From: "f-handler", ToPackageID: "p-db"}},
+	}
+	graphSvc := &mocks.FakeService{Snapshots: []graph.GraphSnapshot{snap}}
+	domainsSvc := &domainmocks.FakeService{Map: intdomains.DerivedDomainMap{
+		Scenario: "demo",
+		Domains:  []intdomains.DerivedDomain{{Name: "orders", Paths: []string{"api/internal/orders/**", "api/handlers/orders/**"}}},
+	}}
+	h := graphh.NewHandler(graphSvc, domainsSvc)
+	response, err := h.InferArchetype(context.Background(), connect.NewRequest(&graphv1.InferArchetypeRequest{Scenario: "demo", Domain: "orders"}))
+	require.NoError(t, err)
+	require.Len(t, response.Msg.GetReports(), 1)
+	report := response.Msg.GetReports()[0]
+	require.NotEmpty(t, report.GetArchetypes())
+	require.Contains(t, report.GetArchetypes()[0].GetEvidence(), "snapshot source path: api/handlers/orders/connect.go — owns persistent storage")
+	var citedSource bool
+	for _, citation := range report.GetAttestation().GetCitations() {
+		if citation.GetLocator() == "api/handlers/orders/connect.go" && citation.GetKind() == "code" {
+			citedSource = true
+		}
+	}
+	require.True(t, citedSource, "attestation must cite the importing source file, not the first declared domain path")
+}
+
 func TestHandler_InterfaceSatisfied(t *testing.T) {
 	var _ graph_v1connect.GraphServiceHandler = (*graphh.Handler)(nil)
 }

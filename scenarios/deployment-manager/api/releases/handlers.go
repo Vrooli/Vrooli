@@ -76,9 +76,14 @@ type CloudReleaseRequest struct {
 type CloudReleaseResult struct{ Receipt json.RawMessage }
 
 type CloudLeaseRenewalRequest struct {
-	IdempotencyKey string
-	InstanceID string
-	RequestedUntil time.Time
+	IdempotencyKey     string
+	InstanceID         string
+	Provider           string
+	ProviderInstanceID string
+	OldExpiresAt       time.Time
+	RequestedUntil     time.Time
+	QuoteKey           string
+	QuoteFingerprint   string
 }
 type CloudLeaseRenewalResult struct{ Receipt json.RawMessage }
 
@@ -609,6 +614,7 @@ func (h *Handler) GetOperation(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		operation.CloudStep = step
+		operation.CloudRecoveryHandoff = buildCloudRecoveryHandoff(operation, step)
 	}
 	shared.JSONOK(w, operation)
 }

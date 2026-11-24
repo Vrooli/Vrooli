@@ -82,15 +82,17 @@ func Resolve(scenario string, extractions []Extraction, derivedAt time.Time) (De
 			Paths: d.Paths,
 		})...)
 		m.Domains = append(m.Domains, DerivedDomain{
-			Name:            d.Name,
-			Paths:           append([]string(nil), d.Paths...),
-			Glossary:        append([]string(nil), d.Glossary...),
-			Responsibility:  d.Responsibility,
-			Purpose:         d.Purpose,
-			OwnsData:        d.OwnsData,
-			SecondaryTraits: append([]string(nil), d.SecondaryTraits...),
-			Archetypes:      archetypes,
-			Provenance:      prov,
+			Name:              d.Name,
+			Paths:             append([]string(nil), d.Paths...),
+			Glossary:          append([]string(nil), d.Glossary...),
+			Responsibility:    d.Responsibility,
+			Purpose:           d.Purpose,
+			OwnsData:          d.OwnsData,
+			SecondaryTraits:   append([]string(nil), d.SecondaryTraits...),
+			Archetypes:        archetypes,
+			Provenance:        prov,
+			DeclarationSource: d.SourcePath,
+			DeclarationLine:   d.SourceLine,
 		})
 	}
 	sort.Slice(m.Domains, func(i, j int) bool { return m.Domains[i].Name < m.Domains[j].Name })

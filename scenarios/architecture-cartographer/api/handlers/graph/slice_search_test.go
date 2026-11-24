@@ -35,6 +35,14 @@ func TestSearchSlicesHTTP_RanksWithinScenarioAndUsesCachedEvidence(t *testing.T)
 	require.Equal(t, "demo/billing", body.Results[0].ID)
 	require.Contains(t, body.Results[0].Text, "DERIVED/PARTIAL")
 	require.Equal(t, "snap:demo:h1", body.Results[0].SnapshotID)
+	require.NotEmpty(t, body.Results[0].EvidenceBounds.Rungs)
+	for _, rung := range body.Results[0].EvidenceBounds.Rungs {
+		for _, count := range []evidenceCountFixture{rung.Files, rung.Symbols, rung.Evidence} {
+			require.Equal(t, count.Total-count.Returned, count.Omitted)
+			require.LessOrEqual(t, count.Returned, 4)
+		}
+	}
+	require.Equal(t, body.Results[0].EvidenceBounds.LayerEdges.Total-body.Results[0].EvidenceBounds.LayerEdges.Returned, body.Results[0].EvidenceBounds.LayerEdges.Omitted)
 	require.Equal(t, int64(1), svc.ListCalls.Load())
 	require.Zero(t, svc.ExtractCalls.Load(), "search must not trigger graph extraction")
 	require.Equal(t, int64(1), domainsSvc.GetCalls.Load())
@@ -88,11 +96,25 @@ func TestSearchSlicesHTTP_IsMountedAtDocumentedPath(t *testing.T) {
 
 type sliceSearchResponseFixture struct {
 	Results []struct {
-		ID         string `json:"id"`
-		Text       string `json:"text"`
-		SnapshotID string `json:"snapshot_id"`
+		ID             string `json:"id"`
+		Text           string `json:"text"`
+		SnapshotID     string `json:"snapshot_id"`
+		EvidenceBounds struct {
+			Rungs []struct {
+				Files    evidenceCountFixture `json:"files"`
+				Symbols  evidenceCountFixture `json:"symbols"`
+				Evidence evidenceCountFixture `json:"evidence"`
+			} `json:"rungs"`
+			LayerEdges evidenceCountFixture `json:"layer_edges"`
+		} `json:"evidence_bounds"`
 	} `json:"results"`
 	Degradations []struct {
 		Code string `json:"code"`
 	} `json:"degradations"`
+}
+
+type evidenceCountFixture struct {
+	Total    int `json:"total"`
+	Returned int `json:"returned"`
+	Omitted  int `json:"omitted"`
 }

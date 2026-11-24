@@ -22,6 +22,7 @@ function renderToday() {
     <MemoryRouter initialEntries={["/today"]} future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
       <Routes>
         <Route path="/today" element={<TodayPage />} />
+        <Route path="/content" element={<p>Content collection</p>} />
         <Route path="/" element={<SelectedDraft />} />
         <Route path="/review" element={<SelectedDraft />} />
       </Routes>
@@ -40,6 +41,8 @@ describe("TodayPage", () => {
     renderToday();
     expect(await screen.findByText(strings.today.quietTitle)).toBeInTheDocument();
     expect(screen.getByText(strings.today.quietDescription)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: strings.today.viewWork }));
+    expect(await screen.findByText("Content collection")).toBeInTheDocument();
   });
 
   it("resumes the exact native draft identity", async () => {

@@ -1,17 +1,5 @@
 # Integrations — Data Backup Manager
 
-This document is the canonical dependency contract for resources,
-other scenarios, and third-party services used by the scenario.
-
-
-Use this document to answer:
-
-- What does the scenario depend on?
-- Which dependencies are required versus optional?
-- Which domain uses each dependency?
-- What is the failure or degradation behavior?
-- Where is the dependency declared or configured?
-
 The guiding principle is **wrap-not-use**: this scenario does not
 hand-roll crypto, dedup, an object-storage client, or an external
 orchestrator. It wraps the `kopia` resource for all snapshot/restore

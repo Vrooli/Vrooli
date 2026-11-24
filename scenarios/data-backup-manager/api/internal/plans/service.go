@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"data-backup-manager/internal/listcursor"
 )
 
 // defaultListLimit caps List when the caller passes 0.
@@ -36,6 +38,11 @@ type Service interface {
 	// satisfies the scheduler.PlanSource seam without the scheduler importing
 	// this package concretely.
 	SchedulablePlans(ctx context.Context) ([]SchedulablePlan, error)
+}
+
+// PageService is the cursor-aware read surface used by the list RPC.
+type PageService interface {
+	ListPage(context.Context, int, string) ([]Plan, string, error)
 }
 
 // SchedulablePlan is a narrow projection of Plan used by the scheduler seam and
@@ -214,6 +221,35 @@ func (s *service) List(ctx context.Context, limit int) ([]Plan, error) {
 		}
 	}
 	return list, nil
+}
+
+func (s *service) ListPage(ctx context.Context, limit int, token string) ([]Plan, string, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	offset, err := listcursor.Decode("plans", token)
+	if err != nil {
+		return nil, "", ErrInvalidPlan{Field: "page_token", Reason: "invalid cursor"}
+	}
+	repo, ok := s.repo.(interface {
+		ListPage(context.Context, int, int) ([]Plan, error)
+	})
+	if !ok {
+		return nil, "", fmt.Errorf("plan repository does not support pagination")
+	}
+	rows, err := repo.ListPage(ctx, limit+1, offset)
+	if err != nil {
+		return nil, "", err
+	}
+	for i := range rows {
+		if rows[i], err = s.expose(ctx, rows[i]); err != nil {
+			return nil, "", err
+		}
+	}
+	if len(rows) <= limit {
+		return rows, "", nil
+	}
+	return rows[:limit], listcursor.Encode("plans", offset+limit), nil
 }
 
 func (s *service) Update(ctx context.Context, in UpdateInput) (Plan, error) {

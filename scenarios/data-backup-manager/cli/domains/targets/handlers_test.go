@@ -22,6 +22,7 @@ import (
 // request it receives and returns a canned target.
 type stubTargetsService struct {
 	gotRegister *targetsv1.RegisterTargetRequest
+	gotList     *targetsv1.ListTargetsRequest
 }
 
 func (s *stubTargetsService) RegisterTarget(_ context.Context, req *connect.Request[targetsv1.RegisterTargetRequest]) (*connect.Response[targetsv1.RegisterTargetResponse], error) {
@@ -40,8 +41,26 @@ func (s *stubTargetsService) GetTarget(_ context.Context, req *connect.Request[t
 	return connect.NewResponse(&targetsv1.GetTargetResponse{Target: &targetsv1.Target{Id: req.Msg.Id}}), nil
 }
 
-func (s *stubTargetsService) ListTargets(_ context.Context, _ *connect.Request[targetsv1.ListTargetsRequest]) (*connect.Response[targetsv1.ListTargetsResponse], error) {
+func (s *stubTargetsService) ListTargets(_ context.Context, req *connect.Request[targetsv1.ListTargetsRequest]) (*connect.Response[targetsv1.ListTargetsResponse], error) {
+	s.gotList = req.Msg
 	return connect.NewResponse(&targetsv1.ListTargetsResponse{}), nil
+}
+
+func TestListForwardsPaginationFlags(t *testing.T) {
+	stub := &stubTargetsService{}
+	mux := http.NewServeMux()
+	path, h := targetsconnect.NewTargetsServiceHandler(stub)
+	mux.Handle(path, h)
+	app := testutil.NewTestApp(t, mux)
+	hs := newHandlers(app)
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "owner"}, {Name: "page-size"}, {Name: "page-token"}}}
+	ctx, _ := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{Flags: map[string]string{"owner": "owner-a", "page-size": "25", "page-token": "cursor-a"}})
+	if err := hs.list(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if stub.gotList == nil || stub.gotList.Owner != "owner-a" || stub.gotList.PageSize != 25 || stub.gotList.PageToken != "cursor-a" {
+		t.Fatalf("list request did not forward pagination: %+v", stub.gotList)
+	}
 }
 
 // TestRegisterCommand is the per-domain DBM-CLI-001 check: the register

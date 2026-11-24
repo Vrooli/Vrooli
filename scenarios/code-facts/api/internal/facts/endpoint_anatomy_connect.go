@@ -84,7 +84,7 @@ func scanConnectEndpointAnatomy(root string, module *ast.File, fset *token.FileS
 				row.Limits = append(row.Limits, "The static Mount closure contains this service registration; outer app invocation/runtime route mounting is not established.")
 			case 0:
 				row.Limits = append(row.Limits, "No supported direct service-handler constructor to connectx.ServiceMount to connectx.RegisterServices chain was proven.")
-			case len(mounts) > 1:
+			default:
 				row.State = "CONNECT_MOUNT_UNKNOWN"
 				row.Limits = append(row.Limits, "Multiple matching service mount chains make the static registration ambiguous.")
 			}

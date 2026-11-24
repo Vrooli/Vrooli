@@ -74,12 +74,24 @@ func Module(db *sql.DB, logger *log.Logger, cacheMaxBytes int64, admission *Admi
 			r.Handle("/api/v1/ambient-seams/search", SearchAmbientSeamsHTTPHandler(svc)).Methods(http.MethodPost)
 			r.Handle("/api/v1/persistence-patterns/search", SearchPersistencePatternsHTTPHandler(svc)).Methods(http.MethodPost)
 			r.Handle("/api/v1/endpoint-anatomy/search", SearchEndpointAnatomyHTTPHandler(svc)).Methods(http.MethodPost)
+			r.Handle("/api/v1/proto-handler-conformance", ProtoHandlerConformanceHTTPHandler(svc)).Methods(http.MethodPost)
 		},
 		Endpoints: Endpoints,
 	}
 }
 
 var Endpoints = []module.EndpointDescriptor{
+	{
+		ID:          "facts_proto_handler_conformance",
+		Path:        "/api/v1/proto-handler-conformance",
+		Method:      "POST",
+		Summary:     "Compare Connect handler signatures to generated service interfaces",
+		Description: "For one scenario, compares concrete Go Connect handler method parameter/result types with the imported generated ServiceHandler interface. It does not verify .proto-to-generated-code freshness, module route mounting, runtime behavior, or client compatibility.",
+		Category:    "facts",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "one scenario slug"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"services": "array of generated Connect service signature comparisons", "degradations": "array<string>"}},
+		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "One scenario slug is required"}, {Status: 503, Code: "unavailable", Description: "Bounded generated or handler source is unavailable"}},
+	},
 	{
 		ID:          "facts_flow_search",
 		Path:        "/api/v1/flows/search",

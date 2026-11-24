@@ -10,7 +10,7 @@ vi.mock("./controllers/useDomainsController", () => ({
 }));
 
 vi.mock("../graph/controllers/useGraphController", () => ({
-  useGetDomainSlice: vi.fn(),
+  useSearchDomainSlice: vi.fn(),
 }));
 
 vi.mock("./ConvergenceReport", () => ({
@@ -28,14 +28,14 @@ vi.mock("./BoundaryHealth", () => ({
 import { selectors } from "../../consts/selectors";
 import { renderWithProviders } from "../../test-utils";
 import { useExtractDomains, useGetDomainMap } from "./controllers/useDomainsController";
-import { useGetDomainSlice } from "../graph/controllers/useGraphController";
+import { useSearchDomainSlice } from "../graph/controllers/useGraphController";
 import { DomainMapView } from "./DomainMapView";
 
 afterEach(() => {
   cleanup();
   vi.mocked(useGetDomainMap).mockReset();
   vi.mocked(useExtractDomains).mockReset();
-  vi.mocked(useGetDomainSlice).mockReset();
+  vi.mocked(useSearchDomainSlice).mockReset();
 });
 
 function mockDomainMap(state: Partial<ReturnType<typeof useGetDomainMap>>) {
@@ -50,10 +50,10 @@ function mockDomainMap(state: Partial<ReturnType<typeof useGetDomainMap>>) {
 }
 
 function mockExtract(state: Partial<ReturnType<typeof useExtractDomains>> = {}) {
-  vi.mocked(useGetDomainSlice).mockReturnValue({
+  vi.mocked(useSearchDomainSlice).mockReturnValue({
     isPending: false,
     isError: false,
-    data: { rungs: [], layerEdges: [] },
+    data: { results: [], degradations: [] },
   } as never);
   const mutate = vi.fn();
   vi.mocked(useExtractDomains).mockReturnValue({
@@ -167,27 +167,87 @@ describe("DomainMapView", () => {
     expect(mutate).toHaveBeenCalledTimes(1);
   });
 
-  it("renders the selected domain's five-rung partial slice anatomy", () => {
+  it("renders five-rung evidence, declared ownership, and bounded layer handoffs", () => {
     mockExtract();
     mockDomainMap({ data: { domainMap: {
-      domains: [{ name: "graph", paths: ["api/internal/graph"], archetypes: [], provenance: [DomainSource.API_MANIFEST] }],
+      domains: [{ name: "graph", paths: ["api/internal/graph"], responsibility: "Own graph snapshots and imports", purpose: "Map domain code", ownsData: "Graph snapshots", archetypes: [], provenance: [DomainSource.API_MANIFEST, DomainSource.DOMAINS_DOC] }],
       sharedSubstrate: [], nonDomains: [], declarations: [],
     } } as never });
-    vi.mocked(useGetDomainSlice).mockReturnValue({
+    vi.mocked(useSearchDomainSlice).mockReturnValue({
       isPending: false,
       isError: false,
       data: {
-        rungs: ["proto", "handler", "internal", "cli", "ui"].map((name) => ({ name, present: name === "handler", files: [{ path: `src/${name}.go` }], evidence: [], symbols: [] })),
-        layerEdges: [{ fromRung: "handler", toRung: "internal" }],
+        query: "graph", scope: "scenario:demo",
+        results: [{ id: "demo/graph", title: "demo/graph implementation slice", score: 1, text: "DERIVED/PARTIAL", path: "api/internal/graph/service.go", paths: ["api/internal/graph/service.go"], scenario: "demo", domain: "graph", snapshot_id: "snap:demo:h1", slice: {
+          scenario: "demo", domain: "graph", snapshot_id: "snap:demo:h1", surfaces: ["api"],
+          rungs: ["proto", "handler", "internal", "cli", "ui"].map((name) => ({ name, present: name === "handler", files: [{ path: `src/${name}.go`, lines: 12, is_test: false }], symbols: [{ name: `${name}Entry`, kind: "func", file: `src/${name}.go` }], evidence: [{ kind: "package", value: `api/internal/${name}`, source: "code" }] })),
+          layer_edges: [{ from_rung: "handler", to_rung: "internal", kind: "import" }],
+          attestation: { claim: "A partial graph-derived vertical slice.", basis: 1, sufficiency: 2, citations: [
+            { locator: "api/internal/internal", kind: "code", note: "Package evidence" },
+            { locator: "outside/bounded-sample.go", kind: "code", note: "Citation omitted from bounded rung rows" },
+          ], gaps: ["Symbol-level links are not resolved."], suggested_follow_ups: [] },
+        } }], degradations: [],
       },
     } as never);
 
     renderWithProviders(<DomainMapView scenario="demo" />);
 
-    expect(screen.getByRole("region", { name: "Implementation slice anatomy" })).toHaveTextContent("DERIVED / PARTIAL");
-    expect(screen.getByText("proto · missing")).toBeInTheDocument();
-    expect(screen.getByText("handler · present")).toBeInTheDocument();
-    expect(screen.getByText("Layer edges: handler→internal")).toBeInTheDocument();
-    expect(useGetDomainSlice).toHaveBeenCalledWith("demo", "graph");
+    const region = screen.getByRole("region", { name: "Implementation slice anatomy" });
+    expect(region).toHaveTextContent("DERIVED / PARTIAL");
+    expect(region).toHaveTextContent("Owns data: Graph snapshots");
+    expect(region).toHaveTextContent("api manifest, DOMAINS.md");
+    expect(region).toHaveTextContent("proto · missing");
+    expect(region).toHaveTextContent("handler · present");
+    expect(region).toHaveTextContent("Graph snapshots");
+    expect(region).toHaveTextContent("graphEntry (func) — src/graph.go");
+    expect(region).toHaveTextContent("api/internal/handler · code");
+    expect(region).toHaveTextContent("handler → internal: import observed");
+    expect(region).toHaveTextContent("no direct edge reported");
+    expect(region).toHaveTextContent("Symbol-level links are not resolved.");
+    expect(screen.getByRole("link", { name: "internal rung evidence row" })).toHaveAttribute("href", "#slice-evidence-graph-internal-0");
+    expect(region).toHaveTextContent("Not linked to a returned rung evidence row (bounded sample).");
+    expect(region).toHaveTextContent("Snapshot age/freshness and current coverage are not established by this view.");
+    expect(useSearchDomainSlice).toHaveBeenCalledWith("demo", "graph");
   });
+
+  it("surfaces the no-cached-snapshot degradation without offering extraction", () => {
+    mockExtract();
+    mockDomainMap({ data: { domainMap: {
+      domains: [{ name: "graph", paths: [], archetypes: [], provenance: [] }],
+      sharedSubstrate: [], nonDomains: [], declarations: [],
+    } } as never });
+    vi.mocked(useSearchDomainSlice).mockReturnValue({
+      isPending: false,
+      isError: false,
+      data: { query: "graph", scope: "scenario:demo", results: [], degradations: [{ code: "graph_snapshot_unavailable", message: "No cached graph snapshot exists." }] },
+    } as never);
+
+    renderWithProviders(<DomainMapView scenario="demo" />);
+
+    const region = screen.getByRole("region", { name: "Implementation slice anatomy" });
+    expect(region).toHaveTextContent("graph_snapshot_unavailable");
+    expect(region).toHaveTextContent("No extraction was attempted by this search view.");
+  });
+
+  it("keeps unavailable snapshot requests degraded when the owner query fails", () => {
+    mockExtract();
+    mockDomainMap({ data: { domainMap: {
+      domains: [{ name: "graph", paths: [], archetypes: [], provenance: [] }],
+      sharedSubstrate: [], nonDomains: [], declarations: [],
+    } } as never });
+    vi.mocked(useSearchDomainSlice).mockReturnValue({
+      isPending: false,
+      isError: true,
+      error: new Error("cached graph snapshot is stale or unavailable"),
+      data: undefined,
+    } as never);
+
+    renderWithProviders(<DomainMapView scenario="demo" />);
+
+    const region = screen.getByRole("region", { name: "Implementation slice anatomy" });
+    expect(region).toHaveTextContent("Slice search unavailable: cached graph snapshot is stale or unavailable");
+    expect(region).toHaveTextContent("Snapshot age/freshness and current coverage are not established by this view.");
+    expect(region).not.toHaveTextContent("No matching slice means no implementation exists");
+  });
+
 });

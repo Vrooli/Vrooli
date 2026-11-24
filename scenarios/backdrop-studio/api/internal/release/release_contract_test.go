@@ -23,10 +23,14 @@ func (f fakeCandidateSource) CandidateEvidence(id string) (CandidateEvidence, bo
 }
 
 func solidPNG(t *testing.T, fill color.Color) []byte {
+	return solidPNGSize(t, 8, 8, fill)
+}
+
+func solidPNGSize(t *testing.T, width, height int, fill color.Color) []byte {
 	t.Helper()
-	img := image.NewRGBA(image.Rect(0, 0, 8, 8))
-	for y := 0; y < 8; y++ {
-		for x := 0; x < 8; x++ {
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
 			img.Set(x, y, fill)
 		}
 	}
@@ -127,6 +131,35 @@ func TestReleaseRefusesCandidateMetadataMismatch(t *testing.T) {
 
 	_, err := store.Release(Request{CandidateID: "c", StyleID: "s", Strategy: "procedural", AltText: "A backdrop"})
 	require.ErrorContains(t, err, "candidate dimensions")
+}
+
+func TestReleaseRefusesStoreSurfaceGeometryMismatchWithBothSizes(t *testing.T) {
+	for _, tc := range []struct {
+		name, actual  string
+		width, height int
+	}{
+		{name: "one pixel narrow", actual: "1205x2622", width: 1205, height: 2622},
+		{name: "one pixel short", actual: "1206x2621", width: 1206, height: 2621},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			candidate := authoritativeCandidate(t)
+			candidate.SurfaceID = "app-store-iphone-dynamic-island-medium"
+			candidate.Width, candidate.Height = tc.width, tc.height
+			candidate.ImagePNG = solidPNGSize(t, tc.width, tc.height, color.Black)
+			store := evidenceStore(t, candidate)
+
+			_, err := store.Release(Request{
+				CandidateID:    "c",
+				StyleID:        candidate.StyleID,
+				Strategy:       candidate.Strategy,
+				SurfaceID:      candidate.SurfaceID,
+				AltText:        "A qualified ambient backdrop",
+				ExpectedWidth:  1206,
+				ExpectedHeight: 2622,
+			})
+			require.ErrorContains(t, err, "dimensions mismatch: expected 1206x2622, got "+tc.actual)
+		})
+	}
 }
 
 func TestReleaseRefusesContradictoryProvenance(t *testing.T) {

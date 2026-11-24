@@ -1,9 +1,9 @@
 import { ShieldCheck } from "lucide-react";
 
 import { AsyncSection } from "../components/AsyncSection";
-import { EmptyState } from "../components/EmptyState";
-import { PageHeader } from "../components/PageHeader";
-import { Button } from "../components/ui/button";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { StatusChip } from "../components/ui/status-chip";
 import { useDrills, useRunDrill } from "../hooks/useDrills";
 import { usePlans } from "../hooks/usePlans";
@@ -63,8 +63,8 @@ export function DrillsPage() {
 
   return (
     <section data-testid={selectors.pages.drills} aria-labelledby="drills-heading" className="flex flex-col gap-6">
-      <PageHeader title={t(strings.layout.nav.drills)} subtitle={t(strings.drills.subtitle)} />
-      <AsyncSection isLoading={plans.isLoading || drills.isLoading || targets.isLoading || destinations.isLoading} isError={plans.isError || drills.isError || targets.isError || destinations.isError} isEmpty={plans.data?.length === 0 && records.length === 0} onRetry={() => { void plans.refetch(); void drills.refetch(); void targets.refetch(); void destinations.refetch(); }} emptyState={<EmptyState icon={ShieldCheck} title={t(strings.drills.empty)} description={t(strings.drills.emptyHint)} />}>
+      <PageHeader title={t(strings.layout.nav.drills)} description={t(strings.drills.subtitle)} />
+      <AsyncSection isLoading={plans.isLoading || drills.isLoading || targets.isLoading || destinations.isLoading} isError={plans.isError || drills.isError || targets.isError || destinations.isError} isEmpty={plans.data?.length === 0 && records.length === 0} onRetry={() => { void plans.refetch(); void drills.refetch(); void targets.refetch(); void destinations.refetch(); }} emptyState={<EmptyState icon={<ShieldCheck size={32} />} title={t(strings.drills.empty)} description={t(strings.drills.emptyHint)} />}>
         <div className="flex flex-col gap-3">
           <section aria-labelledby="weekly-proof-heading" className="rounded-panel border border-app-border bg-app-surface p-4">
             <h2 id="weekly-proof-heading" className="font-medium text-app-foreground">{t(strings.drills.weeklyTitle)}</h2>

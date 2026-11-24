@@ -4,7 +4,8 @@
  * per-page tests; this file only verifies the shell composes correctly.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../test-utils";
@@ -15,6 +16,12 @@ import ja from "../i18n/locales/ja.json";
 import ar from "../i18n/locales/ar.json";
 import { TestAppRouter } from "../app/routes";
 import { Providers } from "../app/providers";
+import { AppShell } from "./AppShell";
+
+function ShellWithPath() {
+  const { pathname } = useLocation();
+  return <><AppShell /><output data-testid="current-path">{pathname}</output></>;
+}
 
 const renderShell = () =>
   renderWithProviders(<Providers><TestAppRouter initialEntries={["/"]} /></Providers>, { withoutRouter: true });
@@ -41,11 +48,24 @@ describe("AppShell structure (cimode)", () => {
   });
 
   it("renders the canonical nav links in both sidebar and bottom nav", () => {
-    renderWithProviders(<Providers><TestAppRouter initialEntries={["/settings"]} /></Providers>, { withoutRouter: true });
-    for (const key of ["dashboard", "settings"] as const) {
+    renderWithProviders(<Providers><TestAppRouter initialEntries={["/"]} /></Providers>, { withoutRouter: true });
+    for (const key of ["today", "settings"] as const) {
       expect(screen.getByTestId(selectors.layout.sidebarLink({ key }))).toBeInTheDocument();
       expect(screen.getByTestId(`${selectors.layout.sidebarLink({ key })}-tab`)).toBeInTheDocument();
     }
+    expect(screen.getByTestId(selectors.layout.sidebarLink({ key: "today" }))).toHaveAttribute("aria-current", "page");
+    expect(screen.queryByTestId(selectors.layout.sidebarLink({ key: "board" }))).not.toBeInTheDocument();
+  });
+
+  it("keeps the Today navigation link client-routed from the root landing", () => {
+    renderWithProviders(
+      <Providers><MemoryRouter initialEntries={["/"]} future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+        <Routes><Route path="*" element={<ShellWithPath />} /></Routes>
+      </MemoryRouter></Providers>,
+      { withoutRouter: true },
+    );
+    fireEvent.click(screen.getByTestId(selectors.layout.sidebarLink({ key: "today" })));
+    expect(screen.getByTestId("current-path")).toHaveTextContent("/today");
   });
 });
 
@@ -61,7 +81,7 @@ describe("Locale switching through the shell (real locales)", () => {
   it("renders English copy by default and reflects it on <html>", async () => {
     renderShell();
     // Sidebar + bottom-nav both render the label, so there will be ≥1 match.
-    expect((await screen.findAllByText(en.layout.nav.dashboard)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(en.layout.nav.today)).length).toBeGreaterThan(0);
     expect(document.documentElement.lang).toBe("en");
     expect(document.documentElement.dir).toBe("ltr");
   });
@@ -72,7 +92,7 @@ describe("Locale switching through the shell (real locales)", () => {
     await user.click(screen.getByTestId(selectors.settingsPage.localeOption({ code: "ja" })));
 
     await waitFor(() => {
-      expect(screen.getAllByText(ja.layout.nav.dashboard).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(ja.layout.nav.today).length).toBeGreaterThan(0);
     });
     expect(document.documentElement.lang).toBe("ja");
   });
@@ -84,7 +104,7 @@ describe("Locale switching through the shell (real locales)", () => {
 
     await waitFor(() => {
       expect(document.documentElement.dir).toBe("rtl");
-      expect(screen.getAllByText(ar.layout.nav.dashboard).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(ar.layout.nav.today).length).toBeGreaterThan(0);
     });
   });
 });

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -54,6 +55,63 @@ func TestImageToolsDispatcherRejectsCloudReceiptWithoutActualCost(t *testing.T) 
 	_, err := (&ImageToolsDispatcher{BaseURL: server.URL, Client: server.Client()}).Dispatch(context.Background(), RenderDispatchRequest{Prompt: "x", CandidateCount: 1})
 	if err == nil || !strings.Contains(err.Error(), "actual cost") {
 		t.Fatalf("expected truthful cloud-cost error, got %v", err)
+	}
+}
+
+func TestImageToolsDispatcherAcceptsKnownLocalCPUTier(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/ai/text_to_image" {
+			w.WriteHeader(http.StatusAccepted)
+			_, _ = io.WriteString(w, `{"jobId":"job-1","modelId":"cpu-image","tier":"local-cpu"}`)
+			return
+		}
+		_, _ = io.WriteString(w, `{"job":{"state":"JOB_STATE_SUCCEEDED","resultRef":"outputs/job-1.png"}}`)
+	}))
+	defer server.Close()
+
+	got, err := (&ImageToolsDispatcher{BaseURL: server.URL, Client: server.Client()}).Dispatch(context.Background(), RenderDispatchRequest{Prompt: "local CPU illustration", CandidateCount: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Model != "cpu-image" || !got.CostRecorded || got.ActualCost != 0 {
+		t.Fatalf("local CPU dispatch result = %#v", got)
+	}
+}
+
+func TestImageToolsDispatcherFailsClosedOnUntrustworthySubmitReceipt(t *testing.T) {
+	tests := []struct {
+		name, receipt string
+	}{
+		{name: "missing job id", receipt: `{"modelId":"local-image","tier":"local-gpu"}`},
+		{name: "missing model id", receipt: `{"jobId":"job-1","tier":"local-gpu"}`},
+		{name: "missing execution tier", receipt: `{"jobId":"job-1","modelId":"local-image"}`},
+		{name: "unknown execution tier", receipt: `{"jobId":"job-1","modelId":"local-image","tier":"future-remote"}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var waits atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/api/v1/ai/text_to_image":
+					w.WriteHeader(http.StatusAccepted)
+					_, _ = io.WriteString(w, tt.receipt)
+				case "/vrooli.image_tools.v1.jobs.JobsService/WaitJob":
+					waits.Add(1)
+					_, _ = io.WriteString(w, `{"job":{"state":"JOB_STATE_SUCCEEDED","resultRef":"outputs/job-1.png"}}`)
+				default:
+					w.WriteHeader(http.StatusNotFound)
+				}
+			}))
+			defer server.Close()
+
+			_, err := (&ImageToolsDispatcher{BaseURL: server.URL, Client: server.Client()}).Dispatch(context.Background(), RenderDispatchRequest{Prompt: "launch image", CandidateCount: 1})
+			if err == nil {
+				t.Fatal("untrustworthy submit receipt was accepted")
+			}
+			if got := waits.Load(); got != 0 {
+				t.Fatalf("wait requests = %d, want none after rejected submit receipt", got)
+			}
+		})
 	}
 }
 

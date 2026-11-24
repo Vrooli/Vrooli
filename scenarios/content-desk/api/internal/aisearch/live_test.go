@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/ai-go/search/searchtest"
 
 	internalartifacts "content-desk/internal/artifacts"
 )
@@ -26,6 +27,24 @@ func TestLiveSearchServesLexicalWithoutEngine(t *testing.T) {
 	require.NotEmpty(t, response.Hits)
 	require.NotEmpty(t, response.Generation)
 	require.Equal(t, "draft/draft-1", response.Hits[0].FollowUp)
+}
+
+func TestLiveSearchCanonicalizesMultiwordProductAliasForEngine(t *testing.T) {
+	source := NewStoreSource(
+		sourceDraftsStub{
+			drafts:    []internalartifacts.Draft{{ID: "draft-1", Body: "Web Console launch evidence"}},
+			revisions: map[string]internalartifacts.CurrentRevision{"draft-1": {DraftID: "draft-1"}},
+		},
+		sourceLedgerStub{},
+	)
+	embedder := &searchtest.Embedder{Vector: []float64{1, 0, 0}, AvailableValue: true}
+	store := searchtest.NewVectorStore()
+	live := NewLiveSearch(newTestEngine(store, embedder, &fakeSource{}), NewService(source))
+
+	_, err := live.Search(context.Background(), "web console", 10)
+	require.NoError(t, err)
+	require.NotEmpty(t, embedder.Texts)
+	require.Equal(t, "web-console", embedder.Texts[0], "the multiword alias must reach the vector engine as the canonical product id")
 }
 
 func TestApplyIndexTimeUsesReconcileOverMaterialization(t *testing.T) {

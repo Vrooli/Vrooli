@@ -10,7 +10,6 @@ vi.mock("../../api/clients", () => ({
     search: vi.fn(),
   },
   validationClient: { validateScenario: vi.fn() },
-  reindexClient: { reindex: vi.fn() },
 }));
 
 import { searchClient } from "../../api/clients";

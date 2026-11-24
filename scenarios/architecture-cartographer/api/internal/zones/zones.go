@@ -57,6 +57,7 @@ type Info struct {
 	Domain    string
 	Archetype string
 	Declared  bool
+	Basis     string
 }
 
 func LoadForScenario(scenarioDir string) Config {
@@ -94,24 +95,27 @@ func (c Config) Classify(repoPath string, m domains.DerivedDomainMap) Info {
 	declared := domain != ""
 
 	if zone, owner, ok := c.matchDomainPattern(path, Transport, domain); ok {
-		return Info{Path: path, Zone: zone, Domain: FirstNonEmpty(domain, owner), Archetype: archetype, Declared: declared}
+		return Info{Path: path, Zone: zone, Domain: FirstNonEmpty(domain, owner), Archetype: archetype, Declared: declared, Basis: "domain_path_pattern"}
 	}
 	if zone, owner, ok := c.matchDomainPattern(path, CLI, domain); ok {
-		return Info{Path: path, Zone: zone, Domain: FirstNonEmpty(domain, owner), Archetype: archetype, Declared: declared}
+		return Info{Path: path, Zone: zone, Domain: FirstNonEmpty(domain, owner), Archetype: archetype, Declared: declared, Basis: "domain_path_pattern"}
 	}
 	if zone, owner, ok := c.matchDomainPattern(path, UI, domain); ok {
-		return Info{Path: path, Zone: zone, Domain: FirstNonEmpty(domain, owner), Archetype: archetype, Declared: declared}
+		return Info{Path: path, Zone: zone, Domain: FirstNonEmpty(domain, owner), Archetype: archetype, Declared: declared, Basis: "domain_path_pattern"}
 	}
 	if c.isCompositionRoot(path) {
-		return Info{Path: path, Zone: CompositionRoot, Archetype: CompositionRoot, Declared: true}
+		return Info{Path: path, Zone: CompositionRoot, Archetype: CompositionRoot, Declared: true, Basis: "composition_root_segment"}
 	}
-	if m.IsSharedSubstrate(path) || c.isSubstrate(path) {
-		return Info{Path: path, Zone: Substrate, Declared: true}
+	if m.IsSharedSubstrate(path) {
+		return Info{Path: path, Zone: Substrate, Declared: true, Basis: "domain_map_shared_substrate"}
+	}
+	if c.isSubstrate(path) {
+		return Info{Path: path, Zone: Substrate, Declared: true, Basis: "substrate_segment"}
 	}
 	if zone, owner, ok := c.matchDomainPattern(path, Domain, domain); ok {
-		return Info{Path: path, Zone: zone, Domain: FirstNonEmpty(domain, owner), Archetype: archetype, Declared: declared}
+		return Info{Path: path, Zone: zone, Domain: FirstNonEmpty(domain, owner), Archetype: archetype, Declared: declared, Basis: "domain_path_pattern"}
 	}
-	return Info{Path: path, Zone: Unknown, Domain: domain, Archetype: archetype, Declared: declared}
+	return Info{Path: path, Zone: Unknown, Domain: domain, Archetype: archetype, Declared: declared, Basis: "unclassified"}
 }
 
 func (c Config) MayCoordinate(archetype string) bool {

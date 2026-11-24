@@ -161,7 +161,7 @@ func main() {
 		validationH.Module(logger, root, scenarioDir, engine),
 		wizardH.Module(logger, root, filepath.Join(scenarioDir, "data"), engine, hinter),
 		fleetH.Module(logger, root, engine),
-		searchH.Module(logger, aiService),
+		searchH.Module(logger, aiService, root),
 		searchcontrolH.Module(logger, searchcontrolH.Deps{
 			Logger:       logger,
 			Reindexer:    searchcontrolH.ServiceAdapter{Service: aiService},

@@ -607,7 +607,23 @@ func run(ctx context.Context) error {
 		Signer:       walletRecoverySigner,
 	}
 	rootMux.Handle("/api/wallet-recovery/attest", walletrecovery.NewHTTPHandler(walletAttestor, nil))
-	rootMux.Handle("/api/wallet-recovery/reservation/finish", walletrecovery.NewReservationFinishHandler(walletReservations, nil))
+	var treasuryCommitAckVerifier walletrecovery.CommitAckVerifier
+	treasuryAckIdentity, treasuryAckIdentityErr := credentialauthority.ParseIdentity("scenario/treasury/wallet-recovery-commit-ack")
+	if treasuryAckIdentityErr == nil {
+		ca, caErr := credentialauthority.Default()
+		if caErr == nil {
+			treasuryCommitAckVerifier, caErr = credentialauthoritysigning.NewPublicVerifier(
+				treasuryAckIdentity, "commit-ack-public-key-ring", ca,
+				[]apireceiptsigning.Purpose{apireceiptsigning.PurposeWalletRecoveryCommitAcknowledgement},
+			)
+		}
+		if caErr != nil {
+			log.Printf("Treasury commit acknowledgement verifier unavailable; DBM reservation release stays fail-closed: %v", caErr)
+		}
+	} else {
+		log.Printf("Treasury commit acknowledgement identity unavailable; DBM reservation release stays fail-closed: %v", treasuryAckIdentityErr)
+	}
+	rootMux.Handle("/api/wallet-recovery/reservation/finish", walletrecovery.NewReservationFinishHandler(walletReservations, nil, treasuryCommitAckVerifier))
 	walletReadLease := walletrecovery.ReadLeaseService{
 		Catalog: dbmWalletRecoverySnapshotCatalog{Targets: targetsSvc, Destinations: destSvc, Generation: walletReservations},
 		Store:   walletReservations, TTL: 15 * time.Minute,

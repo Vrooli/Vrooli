@@ -64,11 +64,18 @@ func (h *connectHandler) GetPlan(ctx context.Context, req *connect.Request[plans
 }
 
 func (h *connectHandler) ListPlans(ctx context.Context, req *connect.Request[plansv1.ListPlansRequest]) (*connect.Response[plansv1.ListPlansResponse], error) {
-	list, err := h.deps.Service.List(ctx, int(req.Msg.PageSize))
+	var list []plans.Plan
+	var next string
+	var err error
+	if pager, ok := h.deps.Service.(plans.PageService); ok {
+		list, next, err = pager.ListPage(ctx, int(req.Msg.PageSize), req.Msg.PageToken)
+	} else {
+		list, err = h.deps.Service.List(ctx, int(req.Msg.PageSize))
+	}
 	if err != nil {
 		return nil, h.translate("ListPlans", err)
 	}
-	resp := &plansv1.ListPlansResponse{Plans: make([]*plansv1.Plan, 0, len(list))}
+	resp := &plansv1.ListPlansResponse{Plans: make([]*plansv1.Plan, 0, len(list)), NextPageToken: next}
 	for _, p := range list {
 		resp.Plans = append(resp.Plans, domainToProto(p))
 	}

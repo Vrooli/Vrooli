@@ -1,3 +1,4 @@
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { cn } from "../../lib/utils";
 import { TONE_TEXT_CLASS, type Tone } from "../../lib/status";
 import type { StringKey } from "../../consts/strings";
@@ -21,6 +22,18 @@ export function StatusChip({
   "data-testid"?: string;
 }) {
   const { t } = useTranslation();
+  const label = t(labelKey);
+
+  // StatusBadge/1.2.5 covers every shared status tone except DBM's `primary`
+  // role. Keep only that still-unpublished token variant local.
+  if (tone !== "primary") {
+    return (
+      <StatusBadge tone={tone} className={className} data-testid={testId}>
+        {label}
+      </StatusBadge>
+    );
+  }
+
   return (
     <span
       data-testid={testId}
@@ -31,7 +44,7 @@ export function StatusChip({
       )}
     >
       <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
-      {t(labelKey)}
+      {label}
     </span>
   );
 }

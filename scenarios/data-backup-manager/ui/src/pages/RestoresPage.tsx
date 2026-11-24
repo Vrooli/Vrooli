@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Plus, RotateCcw } from "lucide-react";
 
-import { PageHeader } from "../components/PageHeader";
-import { EmptyState } from "../components/EmptyState";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { AsyncSection } from "../components/AsyncSection";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { StatusChip } from "../components/ui/status-chip";
 import { RestoreFlowDialog } from "../features/restores/RestoreFlowDialog";
 import { useRestores } from "../hooks/useRestores";
@@ -34,7 +34,7 @@ export function RestoresPage() {
       <div id="restores-heading">
         <PageHeader
           title={t(strings.layout.nav.restores)}
-          subtitle={t(strings.restores.subtitle)}
+          description={t(strings.restores.subtitle)}
           actions={
             <Button size="sm" data-testid={selectors.restores.startButton} onClick={() => setFlowOpen(true)}>
               <Plus aria-hidden="true" className="me-1.5 h-4 w-4" />
@@ -51,7 +51,7 @@ export function RestoresPage() {
         onRetry={() => void refetch()}
         emptyState={
           <EmptyState
-            icon={RotateCcw}
+            icon={<RotateCcw size={32} />}
             title={t(strings.restores.empty)}
             description={t(strings.restores.emptyHint)}
             action={

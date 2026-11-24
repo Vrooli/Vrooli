@@ -826,7 +826,7 @@ validation failed: api error (400): bundle failed validation: services array is 
 
 ## Related
 
-- [Deployment Guide](../DEPLOYMENT-GUIDE.md) - Single entry point for deploying scenarios
+- [Release governance engineering reference](../internal/RELEASE-GOVERNANCE-REFERENCE.md) - Release commands and contracts
 - [Profile Commands](profile-commands.md) - Create and configure profiles
 - [Desktop Workflow](../workflows/desktop-deployment.md) - Full desktop deployment guide
 - [Bundle API Reference](../api/bundles.md) - REST API for bundle operations

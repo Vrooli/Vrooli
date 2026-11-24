@@ -438,6 +438,12 @@ func TestCheckKeepsEachUnreadableTargetsOwnCause(t *testing.T) {
 		if !blocked {
 			t.Fatalf("%s must be blocked on its own: %+v", name, r.Incidents)
 		}
+		if cause.Code != failures.SourceUnreadable {
+			t.Fatalf("%s permission failure code = %q, want %q", name, cause.Code, failures.SourceUnreadable)
+		}
+		if !strings.Contains(cause.NextAction, "owner-authorized") || !strings.Contains(cause.NextAction, "coverage degraded") {
+			t.Fatalf("%s must explain the safe owner decision: %q", name, cause.NextAction)
+		}
 		if !strings.Contains(cause.Message, name) {
 			t.Fatalf("%s was reported with another target's cause: %q", name, cause.Message)
 		}

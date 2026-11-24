@@ -7,17 +7,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/vrooli/api-core/database"
+
 	"github.com/vrooli/api-core/schedule"
 )
 
-// SQLExecutor is the narrow database surface the sqlite dismissal store depends
+// SQLExecutor is the shared database surface the sqlite dismissal store depends
 // on. Both *sql.DB (tests) and *database.RoutedDB (production) satisfy it.
-type SQLExecutor interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-}
-
 const dismissalTimeFormat = time.RFC3339Nano
 
 const (
@@ -30,12 +26,12 @@ ON CONFLICT(id) DO NOTHING
 )
 
 type sqliteDismissalStore struct {
-	db    SQLExecutor
+	db    database.SQLExecutor
 	clock schedule.Clock
 }
 
 // NewSQLiteDismissalStore constructs the production DismissalStore.
-func NewSQLiteDismissalStore(db SQLExecutor, clk schedule.Clock) DismissalStore {
+func NewSQLiteDismissalStore(db database.SQLExecutor, clk schedule.Clock) DismissalStore {
 	return &sqliteDismissalStore{db: db, clock: clk}
 }
 

@@ -322,6 +322,48 @@
           "negative": 1
         }
       }
+    },
+    {
+      "provider_id": "business-health.change-intent-evidence",
+      "lifecycle": "experimental",
+      "provider_group": "business-health",
+      "bucket": "BUCKET_STATE",
+      "type": "requirements",
+      "description": "EXPERIMENTAL, bounded relation view for one explicit change statement against checked-in business-health requirements and exact [REQ:ID] source references. Relation states are traceability evidence only; lexical candidates and pointers are never verified change rationale, implementation, passing tests, or runtime behavior. Does not read PRD.md or protected source sessions.",
+      "routing_profile": {
+        "answer_spaces": ["requirements", "scenario_change_intent"],
+        "intents": ["relate_change_to_requirement", "trace_change_intent"],
+        "positive_examples": ["relate this change statement to business-health requirement anchors"],
+        "exclusions": ["generate a plan", "claim implementation acceptance", "verify runtime behavior"]
+      },
+      "scope": "SCOPE_SCENARIO",
+      "class": "local_live",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "business-health",
+          "path": "/api/v1/change-intent/assess",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"scenario\":\"business-health\",\"intent\":\"{{query}}\",\"limit\":{{limit}}}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "result_mapping": {
+        "results_path": "results",
+        "id_field": "requirement_id",
+        "title_field": "title",
+        "score_field": "lexical_overlap",
+        "snippet_field": "snippet",
+        "path_field": "requirement_source.path",
+        "score_scale": "SCORE_SCALE_RAW",
+        "metadata_fields": {
+          "relation": "relation",
+          "relation_basis": "relation_basis",
+          "declared_status": "declared_status",
+          "requirement_source": "requirement_source",
+          "implementation_anchors": "implementation_anchors",
+          "limitations": "limitations"
+        }
+      }
     }
   ]
 }

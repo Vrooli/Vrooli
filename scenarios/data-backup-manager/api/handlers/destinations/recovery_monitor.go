@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"time"
 
 	"data-backup-manager/internal/destinationreadiness"
@@ -32,9 +31,7 @@ type VolumeRecoveryWorker struct {
 	logger       *log.Logger
 	interval     time.Duration
 
-	mu     sync.Mutex
-	cancel context.CancelFunc
-	done   chan struct{}
+	lifecycle periodicWorker
 }
 
 func newVolumeRecoveryWorker(dests destinations.Service, readiness *destinationreadiness.Service, recoveries *destinationreadiness.FileRecoveryStore, decisions *RecoveryDecisionFlow, logger *log.Logger) *VolumeRecoveryWorker {
@@ -58,49 +55,14 @@ func (w *VolumeRecoveryWorker) Start() error {
 	if w == nil {
 		return nil
 	}
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if w.cancel != nil {
-		return nil
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
-	w.cancel, w.done = cancel, done
-	go func() {
-		defer close(done)
-		ticker := time.NewTicker(w.interval)
-		defer ticker.Stop()
-		w.reconcile(ctx)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				w.reconcile(ctx)
-			}
-		}
-	}()
-	return nil
+	return w.lifecycle.start(w.interval, nil, w.reconcile)
 }
 
 func (w *VolumeRecoveryWorker) Stop(ctx context.Context) error {
 	if w == nil {
 		return nil
 	}
-	w.mu.Lock()
-	cancel, done := w.cancel, w.done
-	w.cancel, w.done = nil, nil
-	w.mu.Unlock()
-	if cancel == nil {
-		return nil
-	}
-	cancel()
-	select {
-	case <-done:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	return w.lifecycle.stop(ctx, nil)
 }
 
 func (w *VolumeRecoveryWorker) reconcile(ctx context.Context) {

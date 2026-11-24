@@ -97,12 +97,20 @@ var Endpoints = []module.EndpointDescriptor{
 			"query": "string (required)", "scope": "scenario:<slug> (required)", "limit": "integer (default 5, max 5)", "snapshot_id": "string (optional; must belong to scope)",
 		}},
 		Response: &module.Schema{Type: "object", Properties: map[string]string{
-			"results": "array<{id,title,score,text,path,paths,scenario,domain,snapshot_id,slice}>", "degradations": "array<Degradation>",
+			"results": "array<{id,title,score,text,path,paths,scenario,domain,snapshot_id,slice,evidence_bounds}>", "evidence_bounds": "per-rung total/returned/omitted counts for files, symbols and evidence plus layer edges; slice arrays are capped at four items each", "degradations": "array<Degradation>",
 		}},
 		Errors: []module.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Query, scenario scope, limit, or snapshot scope is invalid"},
 			{Status: 503, Code: "unavailable", Description: "Domain map or requested graph snapshot is unavailable"},
 		},
+	},
+	{
+		ID: "docs-code.drift.search", Path: "/api/v1/doc-code-drift/search", Method: "POST",
+		Summary:     "Compare documented API paths with source candidates",
+		Description: "Compares authored Source Paths in one high-confidence DOMAINS.md with bounded Go source, then links supported Gorilla literal Methods chains and statically identified net/http ServeMux registrations (typed parameter/receiver, DefaultServeMux, or package-level Handle*) through handler → direct internal-package call → target declaration chains. Generated Connect, custom routers, dynamic routes, duplicate chains, low-confidence authored authority, parser failures, and scan caps remain UNKNOWN/PARTIAL; direct path presence does not establish semantic or runtime conformance.", Category: "docs-code",
+		Request:  &module.Schema{Type: "object", Properties: map[string]string{"query": "string (required)", "scope": "scenario:<slug> (required; one scenario)", "limit": "integer (default 10, max 10)"}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{"results": "array<DocCodeDrift {api_status, api?: array<DriftEvidence>}>", "authority": "string", "scope": "string", "degradations": "array<string>"}},
+		Errors:   []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Query, scenario scope, or result limit is invalid"}, {Status: 503, Code: "unavailable", Description: "Scenario domain map or bounded source comparison unavailable"}},
 	},
 	{
 		ID:          "archetype.infer",

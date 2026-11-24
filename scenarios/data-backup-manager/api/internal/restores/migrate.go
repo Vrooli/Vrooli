@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/vrooli/api-core/database"
+
 	"data-backup-manager/internal/dbschema"
 )
 
@@ -24,7 +26,7 @@ var addedColumns = []struct {
 // it after EnsureSchemas has created the base table. This is what lets the
 // async-restore heartbeat column (updated_at) land on a database that predates
 // it without losing restore history.
-func EnsureColumns(ctx context.Context, db SQLExecutor) error {
+func EnsureColumns(ctx context.Context, db database.SQLExecutor) error {
 	existing, err := dbschema.TableColumns(ctx, db, "restores")
 	if err != nil {
 		return err

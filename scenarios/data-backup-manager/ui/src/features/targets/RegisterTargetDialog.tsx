@@ -2,9 +2,9 @@ import { useState } from "react";
 
 import { Dialog } from "../../components/ui/dialog";
 import { Field } from "../../components/ui/field";
-import { Input } from "../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { Select } from "../../components/ui/select";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { useRegisterTarget } from "../../hooks/useTargets";
 import { SourceKind } from "../../api/targets";
 import { SOURCE_KIND_OPTIONS, sourceKindSlug } from "../../lib/status";
@@ -12,6 +12,7 @@ import { SOURCE_KIND_STRINGS } from "../../consts/statusStrings";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
+import { cn } from "../../lib/utils";
 
 /**
  * Register-target form. Co-equal with scenario self-registration: an operator
@@ -72,7 +73,14 @@ export function RegisterTargetDialog({ open, onClose }: { open: boolean; onClose
       data-testid={selectors.targets.form}
       footer={
         <>
-          <Button variant="outline" size="sm" onClick={close} disabled={register.isPending}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={close}
+            disabled={register.isPending}
+            shape="square"
+            className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
+          >
             {t(strings.common.cancel)}
           </Button>
           <Button
@@ -80,6 +88,7 @@ export function RegisterTargetDialog({ open, onClose }: { open: boolean; onClose
             onClick={submit}
             disabled={register.isPending}
             data-testid={selectors.targets.formSubmit}
+            shape="square"
           >
             {register.isPending ? t(strings.common.saving) : t(strings.common.create)}
           </Button>

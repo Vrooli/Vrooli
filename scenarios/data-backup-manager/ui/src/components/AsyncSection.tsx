@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
+import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1";
 
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
+import { cn } from "../lib/utils";
 
 /**
  * Wraps an async surface so every list/panel honors the full request lifecycle
@@ -32,33 +34,63 @@ export function AsyncSection({
 
   if (isLoading) {
     return (
-      <div data-testid={selectors.async.loading} className="flex flex-col gap-2" aria-busy="true">
+      <ExperienceSurface
+        as="div"
+        surfaceId="data-backup-manager.async-section"
+        state="loading"
+        statusMessage={t(strings.common.loading)}
+        data-testid={selectors.async.loading}
+        className="flex flex-col gap-2"
+      >
         {Array.from({ length: skeletonRows }).map((_, i) => (
           <div key={i} className="h-12 animate-pulse rounded-panel bg-app-surface-muted" />
         ))}
-      </div>
+      </ExperienceSurface>
     );
   }
 
   if (isError) {
     return (
-      <div
+      <ExperienceSurface
+        as="div"
+        surfaceId="data-backup-manager.async-section"
+        state="error"
+        statusMessage={t(strings.common.loadError)}
         data-testid={selectors.async.error}
-        role="alert"
-        className="flex flex-col items-start gap-3 rounded-panel border border-app-border bg-app-surface p-4"
       >
-        <p className="text-sm text-app-danger">{t(strings.common.loadError)}</p>
-        {onRetry && (
-          <Button variant="outline" size="sm" data-testid={selectors.async.retry} onClick={onRetry}>
-            {t(strings.common.retry)}
-          </Button>
-        )}
-      </div>
+        <div
+          role="alert"
+          className="flex flex-col items-start gap-3 rounded-panel border border-app-border bg-app-surface p-4"
+        >
+          <p className="text-sm text-app-danger">{t(strings.common.loadError)}</p>
+          {onRetry && (
+            <Button
+              variant="ghost"
+              size="sm"
+              data-testid={selectors.async.retry}
+              onClick={onRetry}
+              shape="square"
+              className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
+            >
+              {t(strings.common.retry)}
+            </Button>
+          )}
+        </div>
+      </ExperienceSurface>
     );
   }
 
   if (isEmpty) {
-    return <div data-testid={selectors.async.empty}>{emptyState}</div>;
+    return (
+      <ExperienceSurface
+        as="div"
+        surfaceId="data-backup-manager.async-section"
+        state="empty"
+        data-testid={selectors.async.empty}
+      >
+        {emptyState}
+      </ExperienceSurface>
+    );
   }
 
   return <>{children}</>;

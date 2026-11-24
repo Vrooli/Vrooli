@@ -19,8 +19,8 @@ const (
 // healthyObservationJSON is a complete, current, healthy observation in the
 // exact wire shape scenario-to-cloud produces (proto names, enum names).
 func healthyObservationJSON(deploymentID, releaseDigest string, observedAt time.Time) string {
-	return fmt.Sprintf(`{"schema_version":"1","observation":{"deployment_id":%q,"target_id":"host:203.0.113.10","observed_release_digest":%q,"observed_configuration_digest":"sha256:cfg","observed_at":%q,"status":"HEALTH_STATUS_HEALTHY","checks":[{"id":"host_presence","status":"CHECK_STATUS_PASSED","reason_code":"","detail":""},{"id":"application_readiness","status":"CHECK_STATUS_PASSED","reason_code":"","detail":""}],"freshness":"FRESHNESS_CURRENT","producer_ref":"scenario-to-cloud:health:v1","partial":false,"missing_dependencies":[],"next_actions":[]}}`,
-		deploymentID, releaseDigest, observedAt.UTC().Format(time.RFC3339Nano))
+	return fmt.Sprintf(`{"schema_version":"1","observation":{"deployment_id":%q,"target_id":"host:203.0.113.10","observed_release_digest":%q,"observed_configuration_digest":"sha256:cfg","observed_at":%q,"status":"HEALTH_STATUS_HEALTHY","checks":[{"id":"host_presence","status":"CHECK_STATUS_PASSED","reason_code":"","detail":""},{"id":"application_readiness","status":"CHECK_STATUS_PASSED","reason_code":"","detail":""},{"id":"edge_tls","status":"CHECK_STATUS_PASSED","reason_code":"certificate_valid","detail":"certificate is valid"}],"freshness":"FRESHNESS_CURRENT","producer_ref":"scenario-to-cloud:health:v1","partial":false,"missing_dependencies":[],"next_actions":[],"certificate_lifecycle":{"observed_at":%q,"not_after":"2030-01-01T00:00:00Z","certificate_state":"valid","renewal_state":"blocked","reason_code":"renewal_state_not_reported_by_tls_snapshot"}}}`,
+		deploymentID, releaseDigest, observedAt.UTC().Format(time.RFC3339Nano), observedAt.UTC().Format(time.RFC3339Nano))
 }
 
 func mutateObservation(t *testing.T, body string, edit func(obs map[string]any)) string {
@@ -87,6 +87,11 @@ func TestCheckDeploymentHealthFailsClosed(t *testing.T) {
 		{name: "wrong release", body: healthyObservationJSON(testCloudDeploymentID, "sha256:"+strings.Repeat("0", 64), now), expect: testCloudReleaseSHA, reason: HealthReasonReleaseMismatch},
 		{name: "release absent when expected", body: mutateObservation(t, healthy, func(o map[string]any) { o["observed_release_digest"] = "" }), expect: testCloudReleaseSHA, reason: HealthReasonReleaseMismatch},
 		{name: "partial observation", body: mutateObservation(t, healthy, func(o map[string]any) { o["partial"] = true; o["missing_dependencies"] = []string{"edge_tls"} }), reason: HealthReasonPartialObservation},
+		{name: "certificate sample absent", body: mutateObservation(t, healthy, func(o map[string]any) { delete(o, "certificate_lifecycle") }), reason: HealthReasonTLSEvidenceMissing},
+		{name: "certificate expiry absent", body: mutateObservation(t, healthy, func(o map[string]any) { delete(o["certificate_lifecycle"].(map[string]any), "not_after") }), reason: HealthReasonTLSEvidenceMissing},
+		{name: "certificate sample stale", body: mutateObservation(t, healthy, func(o map[string]any) {
+			o["certificate_lifecycle"].(map[string]any)["observed_at"] = now.Add(-DefaultCloudHealthMaxAge - time.Second).Format(time.RFC3339Nano)
+		}), reason: HealthReasonTLSEvidenceMissing},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -119,6 +124,55 @@ func TestCheckDeploymentHealthFailsClosed(t *testing.T) {
 			}
 			if result.DeploymentID != testCloudDeploymentID || result.ObservedReleaseDigest != "sha256:"+testCloudReleaseSHA || result.ObservedAt.IsZero() {
 				t.Fatalf("result = %+v", result)
+			}
+			if result.TLSStatus != "healthy" || result.TLSReason != "certificate_valid: certificate is valid" || !strings.HasPrefix(result.TLSEvidenceSHA256, "sha256:") {
+				t.Fatalf("TLS projection = %+v", result)
+			}
+			if result.CertificateLifecycleState != "valid" || result.CertificateRenewalState != "blocked" || result.CertificateNotAfter.IsZero() || !strings.HasPrefix(result.CertificateEvidenceSHA256, "sha256:") {
+				t.Fatalf("certificate lifecycle projection = %+v", result)
+			}
+		}
+	})
+
+	t.Run("TLS evidence fails closed when absent or duplicated", func(t *testing.T) {
+		for _, tc := range []struct {
+			name string
+			edit func(map[string]any)
+		}{
+			{name: "absent", edit: func(o map[string]any) { o["checks"] = []any{} }},
+			{name: "duplicated", edit: func(o map[string]any) { checks := o["checks"].([]any); o["checks"] = append(checks, checks[2]) }},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				body := mutateObservation(t, healthy, tc.edit)
+				client := newObservationServer(t, testCloudDeploymentID, http.StatusOK, body)
+				result, err := client.CheckDeploymentHealth(context.Background(), DeploymentHealthRequest{DeploymentID: testCloudDeploymentID})
+				if err != nil || result.Healthy || result.ReasonCode != HealthReasonTLSEvidenceMissing || result.TLSStatus != "ambiguous" || result.TLSEvidenceSHA256 != "" {
+					t.Fatalf("result=%+v err=%v", result, err)
+				}
+			})
+		}
+	})
+
+	t.Run("TLS check status is distinct and blocks nonhealthy checks", func(t *testing.T) {
+		for _, tc := range []struct {
+			wireStatus  string
+			wantStatus  string
+			wantHealthy bool
+		}{
+			{wireStatus: "CHECK_STATUS_FAILED", wantStatus: "unhealthy"},
+			{wireStatus: "CHECK_STATUS_UNAVAILABLE", wantStatus: "unknown"},
+			{wireStatus: "CHECK_STATUS_SKIPPED", wantStatus: "not_applicable", wantHealthy: true},
+		} {
+			body := mutateObservation(t, healthy, func(o map[string]any) {
+				checks := o["checks"].([]any)
+				tlsCheck := checks[2].(map[string]any)
+				tlsCheck["status"] = tc.wireStatus
+				tlsCheck["reason_code"] = "fixture_state"
+			})
+			client := newObservationServer(t, testCloudDeploymentID, http.StatusOK, body)
+			result, err := client.CheckDeploymentHealth(context.Background(), DeploymentHealthRequest{DeploymentID: testCloudDeploymentID})
+			if err != nil || result.TLSStatus != tc.wantStatus || result.Healthy != tc.wantHealthy {
+				t.Fatalf("wire status %s: result=%+v err=%v", tc.wireStatus, result, err)
 			}
 		}
 	})

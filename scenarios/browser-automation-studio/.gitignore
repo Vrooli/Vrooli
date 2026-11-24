@@ -14,3 +14,6 @@ bundle/runtime/linux-x64/runtime
 # snapshots are disposable capture output.
 /runs/
 /playwright-driver/.playwright-mcp/
+
+# Generated scenario-dependency report cache.
+/.vrooli/deployment/

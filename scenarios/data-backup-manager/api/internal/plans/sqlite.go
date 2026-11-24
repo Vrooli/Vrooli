@@ -7,27 +7,23 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/vrooli/api-core/database"
+
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
 )
 
-// SQLExecutor is the narrow database surface sqliteRepository depends on.
+// SQLExecutor is the shared database surface sqliteRepository depends on.
 // Both *sql.DB (repository unit tests via testutil/db.NewSQLite) and
 // *database.RoutedDB (production) satisfy it.
-type SQLExecutor interface {
-	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-}
-
 type sqliteRepository struct {
-	db    SQLExecutor
+	db    database.SQLExecutor
 	clock schedule.Clock
 }
 
 // NewSQLiteRepository constructs the production Repository.
-func NewSQLiteRepository(db SQLExecutor, clk schedule.Clock) Repository {
+func NewSQLiteRepository(db database.SQLExecutor, clk schedule.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 
@@ -207,6 +203,39 @@ func (s *sqliteRepository) List(ctx context.Context, limit int) ([]Plan, error) 
 		return nil, fmt.Errorf("iterate plans: %w", err)
 	}
 
+	for i := range out {
+		if err := s.loadMembership(ctx, &out[i]); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+// ListPage provides a stable name-ordered page for the list RPC.
+func (s *sqliteRepository) ListPage(ctx context.Context, limit, offset int) ([]Plan, error) {
+	if limit <= 0 || offset < 0 {
+		return nil, nil
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT id, name, schedule, keep_latest, keep_hourly, keep_daily, keep_weekly, keep_monthly, keep_annual, enabled, protection_tier, recovery_drill_schedule, target_selector, created_at, updated_at FROM plans ORDER BY name ASC LIMIT ? OFFSET ?`, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("list plan page: %w", err)
+	}
+	defer rows.Close()
+	var out []Plan
+	for rows.Next() {
+		p, err := scanPlan(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
 	for i := range out {
 		if err := s.loadMembership(ctx, &out[i]); err != nil {
 			return nil, err

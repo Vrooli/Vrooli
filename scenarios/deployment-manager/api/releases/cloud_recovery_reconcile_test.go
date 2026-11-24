@@ -124,6 +124,21 @@ func validCloudRecoveryReconcileFixture(t *testing.T) (*cloudRecoveryReconcileRe
 	return repo, operationID, owner
 }
 
+func TestCloudRecoveryHandoffIsExactAndHumanAuthorized(t *testing.T) {
+	repo, operationID, _ := validCloudRecoveryReconcileFixture(t)
+	repo.step.VerificationReceipt = json.RawMessage(`{"healthy":false,"deployment_id":"dep-human","reason_code":"release_mismatch","details":"wrong release","observed_at":"` + time.Now().UTC().Format(time.RFC3339Nano) + `"}`)
+	handoff := buildCloudRecoveryHandoff(repo.operation, repo.step)
+	if handoff == nil || handoff.OperationID != operationID || handoff.ReleaseID != repo.operation.ReleaseID || handoff.DeploymentID != "dep-human" || handoff.RecoveryKey != CloudRecoveryIdempotencyKey(operationID) {
+		t.Fatalf("handoff identity = %+v", handoff)
+	}
+	if handoff.CurrentReleaseDigest != "sha256:current-release" || handoff.LastGoodReleaseDigest != "sha256:last-good" || handoff.VerificationReason != "release_mismatch: wrong release" || handoff.EvidenceSHA256 == "" || handoff.EvidenceFreshness != "fresh" {
+		t.Fatalf("handoff evidence = %+v", handoff)
+	}
+	if handoff.Available || handoff.State != "awaiting_human_decision" || handoff.BlockedReason == "" || handoff.NextAction == "" {
+		t.Fatalf("handoff crossed human authorization boundary: %+v", handoff)
+	}
+}
+
 func reconcileCloudRecoveryRequest(handler *Handler, operationID string) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/release-operations/"+operationID+"/reconcile-cloud-recovery", nil)
 	req = mux.SetURLVars(req, map[string]string{"operation_id": operationID})

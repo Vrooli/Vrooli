@@ -102,6 +102,9 @@ CREATE TABLE IF NOT EXISTS release_operation_cloud_steps (
     recovery_preview_ref TEXT,
     recovery_receipt_json TEXT,
     recovery_reason TEXT,
+    managed_dns_state TEXT,
+    managed_dns_reason TEXT,
+    managed_dns_evidence_sha256 TEXT,
     reason TEXT,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

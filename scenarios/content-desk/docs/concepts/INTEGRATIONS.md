@@ -6,19 +6,6 @@ Full owner approval Sentinel_7062584135208191865fc82f43a4ded8 at 20:54 UTC gover
 
 Content Desk owns the full Today/Plan/Create/Review/Learn/Content experience, native structured formats, campaign-free project scope, exact source/revision/method/import/package state and safe recovery. Asset Studio is the media byte/candidate/release owner; Channel Manager owns timed release/actions/outcomes; Planner owns accepted human time. External writing remains first-class and generation optional. D-003 does not prohibit manual/external composition or qualified suggestions; D-013/D-018 hypothetical media ownership, D-015 blanket collaboration deferral and unchanged default-console expression are superseded at this bounded accepted scope. Campaign slots constrain actual campaign-attached drafts, not unrelated projects/collections. Per-variant approval never inherits. The append-only legacy importer does not implement article restore/update. Real provider collection remains qualified, while safe native/manual observations are mandatory.
 
-
-This document is the canonical dependency contract for resources,
-other scenarios, and third-party services used by the scenario.
-
-
-Use this document to answer:
-
-- What does the scenario depend on?
-- Which dependencies are required versus optional?
-- Which domain uses each dependency?
-- What is the failure or degradation behavior?
-- Where is the dependency declared or configured?
-
 ## Dependency Inventory
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |

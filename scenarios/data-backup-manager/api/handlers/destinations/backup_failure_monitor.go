@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"data-backup-manager/internal/destinationreadiness"
@@ -55,9 +54,7 @@ type BackupFailureWorker struct {
 	logger     *log.Logger
 	interval   time.Duration
 
-	mu     sync.Mutex
-	cancel context.CancelFunc
-	done   chan struct{}
+	lifecycle periodicWorker
 
 	lastDiagnosed   map[string]time.Time
 	lastNoticeCheck time.Time
@@ -116,53 +113,21 @@ func (w *BackupFailureWorker) Start() error {
 	if w == nil {
 		return nil
 	}
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	if w.cancel != nil {
-		return nil
-	}
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan struct{})
-	w.cancel, w.done = cancel, done
-	w.noticesNotBefore = w.now().Add(backupNoticeStartupGrace)
-	go func() {
-		defer close(done)
-		ticker := time.NewTicker(w.interval)
-		defer ticker.Stop()
-		w.reconcile(ctx)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				w.reconcile(ctx)
-			}
-		}
-	}()
-	return nil
+	return w.lifecycle.start(w.interval, func() {
+		w.noticesNotBefore = w.now().Add(backupNoticeStartupGrace)
+	}, w.reconcile)
 }
 
 func (w *BackupFailureWorker) Stop(ctx context.Context) error {
 	if w == nil {
 		return nil
 	}
-	w.mu.Lock()
-	cancel, done := w.cancel, w.done
-	w.cancel, w.done = nil, nil
-	w.mu.Unlock()
-	if cancel == nil {
-		return nil
-	}
-	cancel()
-	select {
-	case <-done:
+	return w.lifecycle.stop(ctx, func(ctx context.Context) error {
 		if w.flow != nil {
 			return w.flow.WaitFreshMigrations(ctx)
 		}
 		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	})
 }
 
 func (w *BackupFailureWorker) reconcile(ctx context.Context) {

@@ -8,14 +8,15 @@ import (
 	"github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/domains/domains_v1connect"
 )
 
-// Module returns the domains domain's contribution to the API router: the
-// DomainsService Connect-RPC routes plus the descriptor the codegen reads.
-func Module(svc domains.Service) module.Module {
-	h := NewHandler(svc)
+// Module returns the domains owner's Connect-RPC and scoped zone-classifier
+// routes plus endpoint descriptors.
+func Module(svc domains.Service, locator ...domains.ScenarioLocator) module.Module {
+	h := NewHandler(svc, locator...)
 	pattern, connectHandler := domains_v1connect.NewDomainsServiceHandler(h)
 	return module.Module{
 		Name: "domains",
 		Mount: func(r *mux.Router) {
+			r.HandleFunc(classifyZonesPath, h.ClassifyZones).Methods("POST")
 			r.PathPrefix(pattern).Handler(connectHandler)
 		},
 		Endpoints: Endpoints,

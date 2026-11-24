@@ -129,6 +129,14 @@
             {
               "name": "owner",
               "description": "Filter by owning scenario/service id"
+            },
+            {
+              "name": "page-size",
+              "description": "Page size (1-100)"
+            },
+            {
+              "name": "page-token",
+              "description": "Opaque continuation token returned by the preceding list response"
             }
           ],
           "binding": {
@@ -1110,6 +1118,10 @@
         {
           "name": "list",
           "description": "List all backup plans",
+          "flags": [
+            { "name": "page-size", "description": "Page size (1-100)" },
+            { "name": "page-token", "description": "Opaque continuation token returned by the preceding list response" }
+          ],
           "binding": {
             "kind": "connect-rpc",
             "service": "PlansService",
@@ -2061,6 +2073,11 @@
               "name": "state",
               "required": true,
               "description": "commit pins through Treasury commit; release follows Treasury confirmation (commit|release)"
+            },
+            {
+              "name": "commit-ack-json",
+              "required": false,
+              "description": "Treasury-signed exact commit acknowledgement, required for release"
             }
           ],
           "binding": {

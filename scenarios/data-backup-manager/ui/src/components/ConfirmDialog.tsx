@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 
 import { Dialog } from "./ui/dialog";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
+import { cn } from "../lib/utils";
 
 /**
  * Confirmation dialog for consequential actions (deregister, delete, restore).
@@ -45,7 +46,14 @@ export function ConfirmDialog({
       data-testid={testId}
       footer={
         <>
-          <Button variant="outline" size="sm" onClick={onClose} disabled={busy}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            disabled={busy}
+            shape="square"
+            className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
+          >
             {t(strings.common.cancel)}
           </Button>
           <Button
@@ -54,6 +62,7 @@ export function ConfirmDialog({
             disabled={busy}
             data-testid={confirmTestId}
             className={danger ? "bg-app-danger text-white hover:brightness-95" : undefined}
+            shape="square"
           >
             {confirmLabel}
           </Button>

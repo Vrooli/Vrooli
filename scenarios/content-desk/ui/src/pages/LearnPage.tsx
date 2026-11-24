@@ -44,7 +44,7 @@ export function LearnPage() {
 
   useEffect(() => { void refresh(); }, [refresh]);
 
-  return <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 sm:px-6 lg:px-8" data-experience-surface="learn" data-testid="page-learn">
+  return <section className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 sm:px-6 lg:px-8" data-experience-surface="learn" data-testid="page-learn">
     <header>
       <p className="text-sm font-semibold uppercase tracking-[0.1em] text-app-primary">{t(strings.pages.learn.eyebrow)}</p>
       <h1 className="mt-1 font-serif text-4xl font-medium tracking-tight">{t(strings.pages.learn.title)}</h1>
@@ -75,5 +75,5 @@ export function LearnPage() {
         <p className="text-xs text-app-muted-foreground">{t(strings.pages.learn.limits)}</p>
       </CardContent>
     </Card>
-  </main>;
+  </section>;
 }

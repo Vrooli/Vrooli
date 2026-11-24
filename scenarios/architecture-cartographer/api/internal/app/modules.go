@@ -8,8 +8,8 @@ import (
 	"architecture-cartographer/internal/config"
 	"architecture-cartographer/internal/conflicts"
 	"architecture-cartographer/internal/domains"
-	"github.com/vrooli/api-core/module"
 	"architecture-cartographer/internal/suppressions"
+	"github.com/vrooli/api-core/module"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -65,8 +65,8 @@ func Modules(db *database.RoutedDB, repoRoot string, cfg config.Config) []module
 		applyH.Module(applySvc),
 		auditH.Module(auditSvc, repoRoot, nil),
 		conflictsH.Module(conflictsH.Deps{Conflicts: conflictsSvc, Graph: graphSvc, Domains: domainsSvc, Signals: signalsSvc, Suppressions: suppressionProvider}),
-		domainsH.Module(domainsSvc),
-		graphH.Module(graphSvc, domainsSvc),
+		domainsH.Module(domainsSvc, scenarioLocator),
+		graphH.ModuleWithLocator(graphSvc, domainsSvc, scenarioLocator),
 		campaignH.Module(campaignSvc),
 		signalsH.Module(signalsSvc),
 	}

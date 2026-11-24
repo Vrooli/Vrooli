@@ -19,11 +19,16 @@ type repositoryStub struct {
 	target                         internalartifacts.ReleaseTarget
 	attachment                     internalartifacts.Attachment
 	current                        internalartifacts.CurrentRevision
+	stored                         internalartifacts.StoredRevision
 	approvedRevision, approvedBody string
 }
 
 func (r repositoryStub) GetCurrentRevision(context.Context, string) (internalartifacts.CurrentRevision, error) {
 	return r.current, nil
+}
+
+func (r repositoryStub) GetStoredRevision(context.Context, string, string) (internalartifacts.StoredRevision, error) {
+	return r.stored, nil
 }
 
 func (r *repositoryStub) ApproveExact(_ context.Context, _ string, revisionID, body string) (internalartifacts.Draft, error) {
@@ -256,4 +261,16 @@ func TestGetDraftCurrentRevisionReportsApplicableAuthority(t *testing.T) {
 	require.True(t, current.HasApplicableApproval)
 	require.Equal(t, "run-1", current.ReviewRunId)
 	require.Equal(t, "operator", current.ApprovalActorKind)
+}
+
+func TestGetDraftRevisionReturnsExactHistoricalTextWithoutAuthority(t *testing.T) {
+	repo := &repositoryStub{stored: internalartifacts.StoredRevision{DraftID: "draft-1", RevisionID: "rev-old", Body: "old body", ActorKind: "operator", Capacity: "editor"}}
+	h := handler{repo: repo}
+	response, err := h.GetDraftRevision(context.Background(), connect.NewRequest(&artifactsv1.GetDraftRevisionRequest{DraftId: "draft-1", RevisionId: "rev-old"}))
+	require.NoError(t, err)
+	require.Equal(t, "draft-1", response.Msg.Revision.DraftId)
+	require.Equal(t, "rev-old", response.Msg.Revision.RevisionId)
+	require.Equal(t, "old body", response.Msg.Revision.Body)
+	_, err = h.GetDraftRevision(context.Background(), connect.NewRequest(&artifactsv1.GetDraftRevisionRequest{DraftId: "draft-1"}))
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }

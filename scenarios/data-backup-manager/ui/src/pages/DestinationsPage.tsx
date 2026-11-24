@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { HardDrive, Pencil, Plus, Trash2 } from "lucide-react";
 
-import { PageHeader } from "../components/PageHeader";
-import { EmptyState } from "../components/EmptyState";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { AsyncSection } from "../components/AsyncSection";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { DestinationFormDialog } from "../features/destinations/DestinationFormDialog";
 import { DestinationUsageChip, DestinationUsageMeter } from "../features/destinations/DestinationUsage";
 import { useDeleteDestination, useDestinations } from "../hooks/useDestinations";
@@ -56,7 +56,7 @@ export function DestinationsPage() {
       <div id="destinations-heading">
         <PageHeader
           title={t(strings.layout.nav.destinations)}
-          subtitle={t(strings.destinations.subtitle)}
+          description={t(strings.destinations.subtitle)}
           actions={
             <Button size="sm" data-testid={selectors.destinations.createButton} onClick={() => setCreateOpen(true)}>
               <Plus aria-hidden="true" className="me-1.5 h-4 w-4" />
@@ -73,7 +73,7 @@ export function DestinationsPage() {
         onRetry={() => void refetch()}
         emptyState={
           <EmptyState
-            icon={HardDrive}
+            icon={<HardDrive size={32} />}
             title={t(strings.destinations.empty)}
             description={t(strings.destinations.emptyHint)}
             action={

@@ -36,7 +36,7 @@ func (h *handlers) attest(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) finish(ctx cliapp.RunContext) error {
-	return h.post(ctx, finishPath, map[string]string{"reservation_id": ctx.Flag("reservation-id"), "target_id": ctx.Flag("target-id"), "state": ctx.Flag("state")}, "finalize wallet recovery reservation")
+	return h.post(ctx, finishPath, map[string]string{"reservation_id": ctx.Flag("reservation-id"), "target_id": ctx.Flag("target-id"), "state": ctx.Flag("state"), "commit_ack_json": ctx.Flag("commit-ack-json")}, "finalize wallet recovery reservation")
 }
 
 func (h *handlers) readLeaseAcquire(ctx cliapp.RunContext) error {

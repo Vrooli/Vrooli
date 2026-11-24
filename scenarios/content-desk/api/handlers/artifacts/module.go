@@ -272,6 +272,19 @@ func (h handler) GetDraftCurrentRevision(ctx context.Context, request *connect.R
 	return connect.NewResponse(&artifactsv1.GetDraftCurrentRevisionResponse{CurrentRevision: currentRevisionMessage(current)}), nil
 }
 
+// GetDraftRevision reads exact historical wording only. It does not return or
+// grant review, approval, or publication authority for that historical body.
+func (h handler) GetDraftRevision(ctx context.Context, request *connect.Request[artifactsv1.GetDraftRevisionRequest]) (*connect.Response[artifactsv1.GetDraftRevisionResponse], error) {
+	if request.Msg.DraftId == "" || request.Msg.RevisionId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("draft and revision ids are required"))
+	}
+	stored, err := h.repo.GetStoredRevision(ctx, request.Msg.DraftId, request.Msg.RevisionId)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	return connect.NewResponse(&artifactsv1.GetDraftRevisionResponse{Revision: &artifactsv1.DraftRevisionSnapshot{DraftId: stored.DraftID, RevisionId: stored.RevisionID, Body: stored.Body, ActorKind: stored.ActorKind, Capacity: stored.Capacity, CreatedAt: formatTimestamp(stored.CreatedAt)}}), nil
+}
+
 func draftMessage(draft internalartifacts.Draft) *artifactsv1.Draft {
 	return &artifactsv1.Draft{Id: draft.ID, CampaignId: draft.CampaignID, Status: string(draft.Status), PostTypeId: draft.PostTypeID, Body: draft.Body, Channel: draft.Channel, Format: draft.Format, Lane: draft.Lane, Sku: draft.SKU, ScenarioName: draft.ScenarioName, ProjectId: draft.ProjectID}
 }
@@ -322,6 +335,7 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "artifacts_record_release_outcome", Path: artifactsconnect.ArtifactsServiceRecordReleaseOutcomeProcedure, Method: "POST", Summary: "Record an idempotent Channel Manager publication outcome", Category: "artifacts"},
 	{ID: "artifacts_transition", Path: artifactsconnect.ArtifactsServiceTransitionDraftProcedure, Method: "POST", Summary: "Transition draft", Category: "artifacts"},
 	{ID: "artifacts_get_current_revision", Path: artifactsconnect.ArtifactsServiceGetDraftCurrentRevisionProcedure, Method: "POST", Summary: "Read a draft's effective body and applicable review/approval authority", Category: "artifacts"},
+	{ID: "artifacts_get_revision", Path: artifactsconnect.ArtifactsServiceGetDraftRevisionProcedure, Method: "POST", Summary: "Read exact historical draft wording without review or release authority", Category: "artifacts"},
 	{ID: "artifacts_update_body", Path: artifactsconnect.ArtifactsServiceUpdateDraftBodyProcedure, Method: "POST", Summary: "Create attributed draft revision", Category: "artifacts"},
 	{ID: "artifacts_attach_asset", Path: artifactsconnect.ArtifactsServiceAttachReleasedAssetProcedure, Method: "POST", Summary: "Attach a released Asset Studio reference", Category: "artifacts"},
 	{ID: "artifacts_list_attachments", Path: artifactsconnect.ArtifactsServiceListDraftAttachmentsProcedure, Method: "POST", Summary: "List draft asset references", Category: "artifacts"},

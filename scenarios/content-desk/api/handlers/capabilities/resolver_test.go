@@ -2,32 +2,25 @@ package capabilities
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
 	"content-desk/internal/artifacts"
 	internalcapabilities "content-desk/internal/capabilities"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vrooli/api-core/database"
-	_ "modernc.org/sqlite"
+	"github.com/vrooli/api-core/databasetest"
 )
 
-func newArtifactOwner(t *testing.T) *database.RoutedDB {
+func newArtifactOwner(t *testing.T) *sql.DB {
 	t.Helper()
-	db, err := database.Open(context.Background(), database.Config{
-		Driver:       database.DriverSQLite,
-		DSN:          "file:capabilities-resolver-test?mode=memory&cache=shared",
-		MaxOpenConns: 1,
-		MaxIdleConns: 1,
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = db.Close() })
-	_, err = db.ExecContext(context.Background(), artifacts.Schema())
+	db := databasetest.NewSQLite(t)
+	_, err := db.ExecContext(context.Background(), artifacts.Schema())
 	require.NoError(t, err)
 	return db
 }
 
-func insertDraft(t *testing.T, db *database.RoutedDB, id, status string) {
+func insertDraft(t *testing.T, db *sql.DB, id, status string) {
 	t.Helper()
 	_, err := db.ExecContext(context.Background(),
 		`INSERT INTO drafts (id, campaign_id, post_type_id, status, created_at, updated_at) VALUES (?, 'campaign-1', 'post-type-1', ?, '2026-09-12T00:00:00Z', '2026-09-12T00:00:00Z')`,

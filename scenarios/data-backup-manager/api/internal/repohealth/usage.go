@@ -39,6 +39,9 @@ type UsageEngine struct {
 
 	mu    sync.Mutex
 	cache map[string]cachedScan
+	// cacheEpoch prevents a scan already in progress from repopulating a cache
+	// entry after any repository mutation invalidates its observation.
+	cacheEpoch uint64
 }
 
 type cachedScan struct {
@@ -62,24 +65,42 @@ func (u *UsageEngine) ttl() time.Duration {
 	return 5 * time.Minute
 }
 
+func (u *UsageEngine) cachedScan(root string) (Scan, uint64, bool) {
+	now := u.now()
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	epoch := u.cacheEpoch
+	hit, ok := u.cache[root]
+	if ok && now.Sub(hit.at) < u.ttl() {
+		return hit.scan, epoch, true
+	}
+	return Scan{}, epoch, false
+}
+
+func (u *UsageEngine) storeScan(root string, epoch uint64, scan Scan) {
+	at := u.now()
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	if u.cacheEpoch != epoch {
+		return
+	}
+	if u.cache == nil {
+		u.cache = map[string]cachedScan{}
+	}
+	u.cache[root] = cachedScan{scan: scan, at: at}
+}
+
 // CachedScan returns a scan of root, reusing a recent one.
 func (u *UsageEngine) CachedScan(ctx context.Context, root string) (Scan, error) {
-	u.mu.Lock()
-	if hit, ok := u.cache[root]; ok && u.now().Sub(hit.at) < u.ttl() {
-		u.mu.Unlock()
-		return hit.scan, nil
+	hit, epoch, ok := u.cachedScan(root)
+	if ok {
+		return hit, nil
 	}
-	u.mu.Unlock()
 	scan, err := u.Scanner.Walk(ctx, root)
 	if err != nil {
 		return Scan{}, err
 	}
-	u.mu.Lock()
-	if u.cache == nil {
-		u.cache = map[string]cachedScan{}
-	}
-	u.cache[root] = cachedScan{scan: scan, at: u.now()}
-	u.mu.Unlock()
+	u.storeScan(root, epoch, scan)
 	return scan, nil
 }
 
@@ -88,12 +109,10 @@ func (u *UsageEngine) CachedScan(ctx context.Context, root string) (Scan, error)
 // seam for non-production fakes that do not implement RepoDamageScanner.
 func (u *UsageEngine) CachedRepoScan(ctx context.Context, repo, root string) (Scan, error) {
 	if owner, ok := u.KopiaEngine.(engine.RepoDamageScanner); ok {
-		u.mu.Lock()
-		if hit, found := u.cache[root]; found && u.now().Sub(hit.at) < u.ttl() {
-			u.mu.Unlock()
-			return hit.scan, nil
+		hit, epoch, found := u.cachedScan(root)
+		if found {
+			return hit, nil
 		}
-		u.mu.Unlock()
 		owned, err := owner.RepoDamageScan(ctx, repo)
 		if err != nil {
 			return Scan{}, err
@@ -109,12 +128,7 @@ func (u *UsageEngine) CachedRepoScan(ctx context.Context, repo, root string) (Sc
 		for _, entry := range owned.Unreadable {
 			scan.Unreadable = append(scan.Unreadable, Entry{RelPath: entry.RelativePath, Class: EntryClass(entry.Class), BlobKind: BlobKind(entry.BlobKind), Problem: Problem(entry.Problem), Orphan: entry.Orphan, Detail: entry.Detail})
 		}
-		u.mu.Lock()
-		if u.cache == nil {
-			u.cache = map[string]cachedScan{}
-		}
-		u.cache[root] = cachedScan{scan: scan, at: u.now()}
-		u.mu.Unlock()
+		u.storeScan(root, epoch, scan)
 		return scan, nil
 	}
 	return u.CachedScan(ctx, root)
@@ -151,6 +165,7 @@ func (u *UsageEngine) RepoDamageScan(ctx context.Context, repo string) (engine.R
 func (u *UsageEngine) InvalidateScan(root string) {
 	u.mu.Lock()
 	delete(u.cache, root)
+	u.cacheEpoch++
 	u.mu.Unlock()
 }
 

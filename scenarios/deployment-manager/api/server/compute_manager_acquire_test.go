@@ -32,6 +32,9 @@ type acquireCMFixture struct {
 	enrollErr       error
 	enrollment      *instancev1.EnrollmentReceipt
 	enrollmentReads int
+	renewalCalls    int
+	renewalReceipt  *instancev1.RenewalReceipt
+	renewalReads    int
 	notFoundFirst   bool
 	acquireState    string
 	acquireReason   string
@@ -122,6 +125,23 @@ func (*acquireCMFixture) DestroyInstance(context.Context, *connect.Request[insta
 }
 func (*acquireCMFixture) GetDestroyReceipt(context.Context, *connect.Request[instancev1.GetDestroyReceiptRequest]) (*connect.Response[instancev1.GetDestroyReceiptResponse], error) {
 	return nil, connect.NewError(connect.CodeNotFound, nil)
+}
+func (f *acquireCMFixture) RequestRenewal(_ context.Context, req *connect.Request[instancev1.RequestRenewalRequest]) (*connect.Response[instancev1.RequestRenewalResponse], error) {
+	f.renewalCalls++
+	if req.Msg.GetIdempotencyKey() == "" || req.Msg.GetInstanceId() == "" || req.Msg.GetRequestedUntil() == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
+	}
+	if f.renewalReceipt == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, nil)
+	}
+	return connect.NewResponse(&instancev1.RequestRenewalResponse{Receipt: f.renewalReceipt}), nil
+}
+func (f *acquireCMFixture) GetRenewalReceipt(context.Context, *connect.Request[instancev1.GetRenewalReceiptRequest]) (*connect.Response[instancev1.GetRenewalReceiptResponse], error) {
+	f.renewalReads++
+	if f.renewalReceipt == nil {
+		return nil, connect.NewError(connect.CodeNotFound, nil)
+	}
+	return connect.NewResponse(&instancev1.GetRenewalReceiptResponse{Receipt: f.renewalReceipt}), nil
 }
 func (*acquireCMFixture) SnapshotInstance(context.Context, *connect.Request[instancev1.SnapshotInstanceRequest]) (*connect.Response[instancev1.SnapshotInstanceResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, nil)

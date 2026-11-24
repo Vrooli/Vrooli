@@ -11,18 +11,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/database"
 )
 
-type SQLExecutor interface {
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
-}
+type sqliteRepository struct{ db database.SQLTxExecutor }
 
-type sqliteRepository struct{ db SQLExecutor }
-
-func NewSQLiteRepository(db SQLExecutor) Repository { return &sqliteRepository{db: db} }
+func NewSQLiteRepository(db database.SQLTxExecutor) Repository { return &sqliteRepository{db: db} }
 
 const drillTime = time.RFC3339Nano
 

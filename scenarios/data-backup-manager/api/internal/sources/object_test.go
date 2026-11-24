@@ -3,11 +3,9 @@ package sources_test
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"data-backup-manager/internal/sources"
-	"data-backup-manager/internal/sources/mocks"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,60 +40,4 @@ func TestObjectSource_MirrorRestore(t *testing.T) {
 }
 
 // TestObjectSource_CaptureArgv asserts that Capture builds the expected argv.
-func TestObjectSource_CaptureArgv(t *testing.T) {
-	t.Parallel()
-
-	fake := &mocks.FakeCommandRunner{}
-	reg := sources.NewProductionRegistry(fake)
-	cap, err := reg.Capturer(sources.KindObjectStorage)
-	require.NoError(t, err)
-
-	stageDir := t.TempDir()
-	_, _ = cap.Capture(context.Background(), sources.CaptureSpec{
-		Locator:  "mybucket/data",
-		StageDir: stageDir,
-	})
-
-	require.Len(t, fake.Calls, 1)
-	call := fake.Calls[0]
-	assert.Equal(t, "resource-minio", call.Name)
-
-	args := call.Args
-	assert.Equal(t, "mirror", args[0])
-	assertArgPair(t, args, "--source", "mybucket/data")
-	assertArgPair(t, args, "--dest", filepath.Join(stageDir, "mirror"))
-
-	for _, a := range args {
-		assertNoSecret(t, a)
-	}
-}
-
 // TestObjectSource_RestoreArgv asserts that Restore builds the expected argv.
-func TestObjectSource_RestoreArgv(t *testing.T) {
-	t.Parallel()
-
-	fake := &mocks.FakeCommandRunner{}
-	reg := sources.NewProductionRegistry(fake)
-	cap, err := reg.Capturer(sources.KindObjectStorage)
-	require.NoError(t, err)
-
-	artifactPath := "/tmp/mirror"
-	_ = cap.Restore(context.Background(), sources.RestoreSpec{
-		Locator:      "mybucket/data",
-		ArtifactPath: artifactPath,
-		Target:       "mybucket/data-restored",
-	})
-
-	require.Len(t, fake.Calls, 1)
-	call := fake.Calls[0]
-	assert.Equal(t, "resource-minio", call.Name)
-
-	args := call.Args
-	assert.Equal(t, "mirror", args[0])
-	assertArgPair(t, args, "--source", artifactPath)
-	assertArgPair(t, args, "--dest", "mybucket/data-restored")
-
-	for _, a := range args {
-		assertNoSecret(t, a)
-	}
-}

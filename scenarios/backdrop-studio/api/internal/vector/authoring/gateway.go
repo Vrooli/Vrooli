@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/discovery"
+	aigatewayclient "github.com/vrooli/vrooli/packages/ai-gateway-client-go"
 
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
 	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing/routing_v1connect"
@@ -60,11 +61,10 @@ func (c *GatewayClient) Author(ctx context.Context, prompt string) (string, stri
 	if c.Resolve == nil {
 		return "", "", fmt.Errorf("ai-gateway URL resolver is not configured")
 	}
-	base, err := c.Resolve(ctx)
+	base, err := aigatewayclient.ResolveBaseURL(ctx, c.Resolve)
 	if err != nil {
 		return "", "", fmt.Errorf("resolve ai-gateway: %w", err)
 	}
-	base = strings.TrimRight(strings.TrimSpace(base), "/")
 	if base == "" {
 		return "", "", fmt.Errorf("ai-gateway discovery returned an empty URL")
 	}
@@ -77,7 +77,9 @@ func (c *GatewayClient) Author(ctx context.Context, prompt string) (string, stri
 		timeout = 5 * time.Minute
 	}
 
-	client := routingconnect.NewRoutingServiceClient(httpClient, base)
+	client := aigatewayclient.NewClient(httpClient, base, func(h *http.Client, url string) routingconnect.RoutingServiceClient {
+		return routingconnect.NewRoutingServiceClient(h, url)
+	})
 	response, err := client.ExecuteRoute(ctx, connect.NewRequest(&routingv1.ExecuteRouteRequest{
 		Request: &sharedv1.GatewayRequest{
 			Kind: sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,

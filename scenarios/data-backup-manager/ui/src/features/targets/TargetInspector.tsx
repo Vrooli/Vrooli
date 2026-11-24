@@ -2,7 +2,7 @@ import { Dialog } from "../../components/ui/dialog";
 import { StatusChip } from "../../components/ui/status-chip";
 import { VerifiedChip } from "../../components/ui/verified-chip";
 import { AsyncSection } from "../../components/AsyncSection";
-import { EmptyState } from "../../components/EmptyState";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { useRestores } from "../../hooks/useRestores";
 import type { CoverageRow } from "../../hooks/useCoverage";
 import { restoreStatusMeta, sourceKindSlug } from "../../lib/status";
@@ -69,7 +69,7 @@ export function TargetInspector({ row, onClose }: { row: CoverageRow | null; onC
               isEmpty={restores.length === 0}
               onRetry={() => void refetch()}
               skeletonRows={2}
-              emptyState={<EmptyState title={t(strings.targets.noRestores)} />}
+              emptyState={<EmptyState density="compact" title={t(strings.targets.noRestores)} />}
             >
               <ul className="flex flex-col divide-y divide-app-border">
                 {restores.map((r) => {

@@ -75,8 +75,6 @@ locale: {
     qdrant: "status-qdrant",
     indexed: "status-indexed",
     lastReconcile: "status-last-reconcile",
-    reindex: "status-reindex",
-    reindexed: "status-reindexed",
   },
 } satisfies LiteralSelectorTree;
 

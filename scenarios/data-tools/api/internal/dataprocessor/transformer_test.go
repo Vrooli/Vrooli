@@ -46,7 +46,54 @@ func TestCompareOrdered(t *testing.T) {
 	if got := transformer.compare(math.NaN(), 1.0); got != 0 {
 		t.Errorf("compare(NaN, 1) = %d, want 0", got)
 	}
-	if got := transformer.compareValues(math.Inf(1), "-Inf"); got != 1 {
+	if got, err := transformer.compareValues(math.Inf(1), "-Inf"); err != nil || got != 1 {
 		t.Errorf("compareValues(+Inf, -Inf) = %d, want 1", got)
 	}
+}
+
+func TestFilterRejectsInvalidConditionsInsteadOfReturningMisleadingRows(t *testing.T) {
+	transformer := NewTransformer()
+	data := []map[string]interface{}{{"age": 30, "name": "A"}}
+	tests := []struct {
+		name      string
+		condition string
+	}{
+		{name: "nonnumeric equality literal", condition: "age = not-a-number"},
+		{name: "numeric literal with trailing junk", condition: "age > 20junk"},
+		{name: "missing field", condition: "salary = 10"},
+		{name: "unsupported operator", condition: "age ~~ 20"},
+		{name: "malformed condition", condition: "age >"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := transformer.Transform(data, []Transformation{{
+				Type:       TransformFilter,
+				Parameters: map[string]interface{}{"condition": tt.condition},
+			}})
+			if err == nil {
+				t.Fatalf("Transform accepted invalid condition %q", tt.condition)
+			}
+		})
+	}
+
+	t.Run("malformed condition is rejected for empty input", func(t *testing.T) {
+		_, err := transformer.Transform(nil, []Transformation{{
+			Type:       TransformFilter,
+			Parameters: map[string]interface{}{"condition": "age >"},
+		}})
+		if err == nil {
+			t.Fatal("Transform accepted malformed condition for empty input")
+		}
+	})
+
+	t.Run("boolean fields reject ordering operators", func(t *testing.T) {
+		_, err := transformer.Transform([]map[string]interface{}{{"active": true}}, []Transformation{{
+			Type:       TransformFilter,
+			Parameters: map[string]interface{}{"condition": "active > false"},
+		}})
+		if err == nil {
+			t.Fatal("Transform accepted ordering comparison on a boolean field")
+		}
+	})
 }

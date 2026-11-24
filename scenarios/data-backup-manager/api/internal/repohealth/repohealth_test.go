@@ -368,6 +368,54 @@ func TestUsageEngineReusesARecentWalk(t *testing.T) {
 	}
 }
 
+func TestUsageEngineDoesNotRepublishScanAfterConcurrentInvalidation(t *testing.T) {
+	f := newFakeFS(readable)
+	f.set(readable, fakeNode{size: 200})
+	scanFinished := make(chan struct{})
+	resumeScan := make(chan struct{})
+	clockCalls := 0
+	u := &UsageEngine{
+		Scanner: &Scanner{
+			FS: f,
+			Now: func() time.Time {
+				clockCalls++
+				if clockCalls == 2 {
+					close(scanFinished)
+					<-resumeScan
+				}
+				return fixedNow
+			},
+		},
+		Now: func() time.Time { return fixedNow },
+	}
+	type scanResult struct {
+		scan Scan
+		err  error
+	}
+	finished := make(chan scanResult, 1)
+	go func() {
+		scan, err := u.CachedScan(context.Background(), root)
+		finished <- scanResult{scan: scan, err: err}
+	}()
+
+	<-scanFinished // the walk counted the old size but has not published to cache
+	u.InvalidateScan(root)
+	f.set(readable, fakeNode{size: 300})
+	close(resumeScan)
+	first := <-finished
+	if first.err != nil || first.scan.Bytes != 200 {
+		t.Fatalf("in-flight scan = %+v, %v; want its 200-byte observation", first.scan, first.err)
+	}
+
+	refreshed, err := u.CachedScan(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if refreshed.Bytes != 300 {
+		t.Fatalf("scan after invalidation = %+v, want fresh 300-byte observation", refreshed)
+	}
+}
+
 func diagnoseInput(f *fakeFS, eng *fakeEngine, ex ExceptionStore) DiagnoseInput {
 	return DiagnoseInput{
 		Now: fixedNow, DestinationID: "dest-1", DestinationName: "elements-local", Location: "/media/Elements/vrooli-backups",

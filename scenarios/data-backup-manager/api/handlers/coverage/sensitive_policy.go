@@ -146,7 +146,35 @@ func (s *PolicyStore) load() (StandingPolicy, error) {
 	if err := json.Unmarshal(data, &p); err != nil {
 		return StandingPolicy{}, fmt.Errorf("read sensitive coverage policy: %w", err)
 	}
+	if err := p.validate(); err != nil {
+		return StandingPolicy{}, fmt.Errorf("read sensitive coverage standing policy: %w", err)
+	}
 	return p, nil
+}
+
+func (p StandingPolicy) validate() error {
+	if !p.Active {
+		return nil
+	}
+	if strings.TrimSpace(p.GrantAskID) == "" {
+		return errors.New("active rule is missing its verified decision id")
+	}
+	if strings.TrimSpace(p.GrantedBy) == "" || !isVerifiedHumanKind(p.GrantedByKind) || strings.TrimSpace(p.GrantedBySource) == "" {
+		return errors.New("active rule is missing verified human identity evidence")
+	}
+	if p.GrantedAt == nil || p.GrantedAt.IsZero() {
+		return errors.New("active rule is missing its consent time")
+	}
+	switch p.GrantBasis {
+	case "option":
+	case "free_text":
+		if strings.TrimSpace(p.GrantText) == "" {
+			return errors.New("free-text consent is missing the operator's words")
+		}
+	default:
+		return fmt.Errorf("active rule has unknown consent basis %q", p.GrantBasis)
+	}
+	return nil
 }
 
 // Update loads the rule, lets fn change it and persists the result atomically.
@@ -163,6 +191,9 @@ func (s *PolicyStore) Update(fn func(*StandingPolicy) error) (StandingPolicy, er
 	}
 	if err := fn(&p); err != nil {
 		return p, err
+	}
+	if err := p.validate(); err != nil {
+		return p, fmt.Errorf("write sensitive coverage standing policy: %w", err)
 	}
 	data, err := json.MarshalIndent(p, "", "  ")
 	if err != nil {

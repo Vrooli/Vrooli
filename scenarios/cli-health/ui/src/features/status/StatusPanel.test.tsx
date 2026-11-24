@@ -57,8 +57,7 @@ describe("StatusPanel", () => {
         "status.availableNo",
       ),
     );
-    expect(screen.queryByTestId(selectors.status.reindex)).not.toBeInTheDocument();
-    expect(screen.queryByTestId(selectors.status.reindexed)).not.toBeInTheDocument();
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
   });
 
   it("renders an error when status() rejects", async () => {

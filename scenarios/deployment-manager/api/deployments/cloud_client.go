@@ -3,6 +3,8 @@ package deployments
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -58,11 +60,14 @@ type CloudDeploymentRequest struct {
 
 // CloudStepProgress describes a durable transition in DM's S2C hand-off.
 type CloudStepProgress struct {
-	State            string
-	DeploymentID     string
-	OwnerOperationID string
-	Reason           string
-	Receipt          json.RawMessage
+	State                    string
+	DeploymentID             string
+	OwnerOperationID         string
+	Reason                   string
+	Receipt                  json.RawMessage
+	ManagedDNSState          string
+	ManagedDNSReason         string
+	ManagedDNSEvidenceSHA256 string
 }
 
 // CloudReviewIdentity mirrors the readiness review identity for the cloud
@@ -349,6 +354,7 @@ func (c *HTTPCloudHealthClient) DeployCloud(ctx context.Context, request *CloudD
 	if request == nil || len(bytes.TrimSpace(request.Manifest)) == 0 {
 		return nil, fmt.Errorf("cloud deployment manifest is required")
 	}
+	dnsConfigured := managedDNSConfigured(request.Manifest)
 	createPayload := map[string]interface{}{
 		"name":              request.Name,
 		"manifest":          json.RawMessage(request.Manifest),
@@ -419,6 +425,28 @@ func (c *HTTPCloudHealthClient) DeployCloud(ctx context.Context, request *CloudD
 	// This read is observational and happens before any further polling or
 	// receipt acceptance.
 	treatAsReattach := strings.TrimSpace(request.ExistingOperationID) != ""
+	observeManagedDNS := func() error {
+		if !dnsConfigured {
+			return nil
+		}
+		standing, err := c.cloudOperationStanding(ctx, ownerOperationID)
+		if err != nil {
+			_ = c.progress(request, CloudStepProgress{State: "reconciliation_required", DeploymentID: deploymentID, OwnerOperationID: ownerOperationID, ManagedDNSState: "ambiguous", ManagedDNSReason: "S2C managed DNS standing could not be read: " + err.Error()})
+			return fmt.Errorf("%w: read managed DNS step standing: %v", ErrCloudOperationAmbiguous, err)
+		}
+		if standing.OperationID != ownerOperationID || standing.DeploymentID != deploymentID || standing.RequestKey != request.RequestKey {
+			_ = c.progress(request, CloudStepProgress{State: "reconciliation_required", DeploymentID: deploymentID, OwnerOperationID: ownerOperationID, ManagedDNSState: "ambiguous", ManagedDNSReason: "S2C operation identity does not match the saved deployment and request key", ManagedDNSEvidenceSHA256: managedDNSStandingDigest(standing)})
+			return fmt.Errorf("%w: S2C managed DNS standing identity does not match the saved request", ErrCloudOperationAmbiguous)
+		}
+		projection := projectManagedDNSStanding(standing)
+		if projection.EvidenceSHA256 == "" {
+			projection.EvidenceSHA256 = managedDNSStandingDigest(standing)
+		}
+		if err := c.progress(request, CloudStepProgress{State: "operation_admitted", DeploymentID: deploymentID, OwnerOperationID: ownerOperationID, ManagedDNSState: projection.State, ManagedDNSReason: projection.Reason, ManagedDNSEvidenceSHA256: projection.EvidenceSHA256}); err != nil {
+			return fmt.Errorf("persist managed DNS read-back: %w", err)
+		}
+		return nil
+	}
 	if treatAsReattach {
 		standing, err := c.cloudOperationStanding(ctx, ownerOperationID)
 		if err != nil {
@@ -427,6 +455,9 @@ func (c *HTTPCloudHealthClient) DeployCloud(ctx context.Context, request *CloudD
 		}
 		if standing.OperationID != ownerOperationID || standing.DeploymentID != deploymentID || standing.RequestKey != request.RequestKey {
 			return nil, fmt.Errorf("%w: persisted cloud operation identity does not match the saved request", ErrCloudOperationAmbiguous)
+		}
+		if err := observeManagedDNS(); err != nil {
+			return nil, err
 		}
 		switch standing.State {
 		case "failed", "failed_recovery", "cancelled":
@@ -456,6 +487,9 @@ func (c *HTTPCloudHealthClient) DeployCloud(ctx context.Context, request *CloudD
 			if standing.OperationID != ownerOperationID || standing.DeploymentID != deploymentID || standing.RequestKey != request.RequestKey {
 				return nil, fmt.Errorf("%w: observed cloud operation identity does not match the saved request", ErrCloudOperationAmbiguous)
 			}
+			if err := observeManagedDNS(); err != nil {
+				return nil, err
+			}
 			switch standing.State {
 			case "failed", "failed_recovery", "cancelled":
 				return nil, fmt.Errorf("cloud operation %s ended %s: %s", ownerOperationID, standing.State, standing.ErrorMessage)
@@ -471,6 +505,11 @@ func (c *HTTPCloudHealthClient) DeployCloud(ctx context.Context, request *CloudD
 				}
 			default:
 				return nil, fmt.Errorf("%w: cloud operation %s has unknown state %q", ErrCloudOperationAmbiguous, ownerOperationID, standing.State)
+			}
+		}
+		if !treatAsReattach {
+			if err := observeManagedDNS(); err != nil {
+				return nil, err
 			}
 		}
 		status, err := c.cloudDeploymentStatus(ctx, deploymentID)
@@ -536,14 +575,58 @@ func (c *HTTPCloudHealthClient) DeployCloud(ctx context.Context, request *CloudD
 }
 
 type cloudOperationStanding struct {
-	OperationID  string `json:"operation_id"`
-	DeploymentID string `json:"deployment_id"`
-	RequestKey   string `json:"request_key"`
-	State        string `json:"state"`
-	ErrorMessage string `json:"error_message,omitempty"`
-	Error        struct {
+	OperationID         string                        `json:"operation_id"`
+	OperationIDCamel    string                        `json:"operationId"`
+	DeploymentID        string                        `json:"deployment_id"`
+	DeploymentIDCamel   string                        `json:"deploymentId"`
+	RequestKey          string                        `json:"request_key"`
+	RequestKeyCamel     string                        `json:"requestKey"`
+	State               string                        `json:"state"`
+	ErrorMessage        string                        `json:"error_message,omitempty"`
+	StepReceipts        []cloudOperationStepReceipt   `json:"step_receipts,omitempty"`
+	StepReceiptsCamel   []cloudOperationStepReceipt   `json:"stepReceipts,omitempty"`
+	UnknownEffects      []cloudOperationUnknownEffect `json:"unknown_effects,omitempty"`
+	UnknownEffectsCamel []cloudOperationUnknownEffect `json:"unknownEffects,omitempty"`
+	ActiveStep          string                        `json:"active_step,omitempty"`
+	ActiveStepCamel     string                        `json:"activeStep,omitempty"`
+	Error               struct {
 		Message string `json:"message"`
 	} `json:"error,omitempty"`
+}
+
+type cloudOperationStepReceipt struct {
+	Step    string `json:"step"`
+	Outcome string `json:"outcome"`
+	Source  string `json:"source,omitempty"`
+	Fence   uint64 `json:"fence,omitempty"`
+	Detail  string `json:"detail,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+type cloudOperationUnknownEffect struct {
+	Step   string `json:"step"`
+	Reason string `json:"reason,omitempty"`
+}
+
+func (s *cloudOperationStanding) normalize() {
+	if s.OperationID == "" {
+		s.OperationID = s.OperationIDCamel
+	}
+	if s.DeploymentID == "" {
+		s.DeploymentID = s.DeploymentIDCamel
+	}
+	if s.RequestKey == "" {
+		s.RequestKey = s.RequestKeyCamel
+	}
+	if s.ActiveStep == "" {
+		s.ActiveStep = s.ActiveStepCamel
+	}
+	if len(s.StepReceipts) == 0 {
+		s.StepReceipts = s.StepReceiptsCamel
+	}
+	if len(s.UnknownEffects) == 0 {
+		s.UnknownEffects = s.UnknownEffectsCamel
+	}
 }
 
 func (c *HTTPCloudHealthClient) cloudOperationStanding(ctx context.Context, operationID string) (cloudOperationStanding, error) {
@@ -552,10 +635,116 @@ func (c *HTTPCloudHealthClient) cloudOperationStanding(ctx context.Context, oper
 	if err := c.cloudJSON(ctx, http.MethodPost, path, map[string]string{"operation_id": operationID}, http.StatusOK, &standing); err != nil {
 		return standing, err
 	}
+	standing.normalize()
 	if standing.ErrorMessage == "" {
 		standing.ErrorMessage = standing.Error.Message
 	}
 	return standing, nil
+}
+
+type managedDNSProjection struct {
+	State          string
+	Reason         string
+	EvidenceSHA256 string
+}
+
+func managedDNSConfigured(manifest json.RawMessage) bool {
+	var value struct {
+		Edge struct {
+			ManagedDNSProfile string `json:"managed_dns_profile"`
+		} `json:"edge"`
+	}
+	if json.Unmarshal(manifest, &value) != nil {
+		return false
+	}
+	return strings.TrimSpace(value.Edge.ManagedDNSProfile) != ""
+}
+
+func projectManagedDNSStanding(standing cloudOperationStanding) managedDNSProjection {
+	const stepID = "edge.dns.ensure"
+	var receipts []cloudOperationStepReceipt
+	var unknown []cloudOperationUnknownEffect
+	for _, receipt := range standing.StepReceipts {
+		if receipt.Step == stepID {
+			receipts = append(receipts, receipt)
+		}
+	}
+	for _, effect := range standing.UnknownEffects {
+		if effect.Step == stepID {
+			unknown = append(unknown, effect)
+		}
+	}
+	if len(receipts) > 1 || (len(receipts) > 0 && len(unknown) > 0) {
+		return dnsProjection("ambiguous", "S2C returned contradictory managed DNS step evidence", receipts, unknown)
+	}
+	if len(unknown) > 0 {
+		return dnsProjection("ambiguous", "S2C could not determine whether the managed DNS effect completed", nil, unknown)
+	}
+	if len(receipts) == 1 {
+		receipt := receipts[0]
+		switch receipt.Outcome {
+		case "succeeded", "unchanged":
+			return dnsProjection("succeeded", "S2C committed the managed DNS step receipt", receipts, nil)
+		case "failed":
+			return dnsProjection("failed", nonEmptyOr(receipt.Error, "S2C committed a failed managed DNS step"), receipts, nil)
+		case "unknown":
+			return dnsProjection("ambiguous", nonEmptyOr(receipt.Error, "S2C marked the managed DNS outcome unknown"), receipts, nil)
+		default:
+			return dnsProjection("ambiguous", "S2C returned an unsupported managed DNS step outcome", receipts, nil)
+		}
+	}
+	if standing.ActiveStep == stepID || (standing.State != "succeeded" && standing.State != "failed" && standing.State != "failed_recovery" && standing.State != "cancelled") {
+		return managedDNSProjection{State: "pending", Reason: "S2C has not committed a managed DNS step receipt"}
+	}
+	if standing.State == "failed" || standing.State == "failed_recovery" || standing.State == "cancelled" {
+		return managedDNSProjection{State: "not_reached", Reason: "S2C ended before committing a managed DNS step receipt"}
+	}
+	return managedDNSProjection{State: "ambiguous", Reason: "S2C operation succeeded without the configured managed DNS step receipt"}
+}
+
+func nonEmptyOr(value, fallback string) string {
+	if strings.TrimSpace(value) != "" {
+		return value
+	}
+	return fallback
+}
+
+func dnsProjection(state, reason string, receipts []cloudOperationStepReceipt, unknown []cloudOperationUnknownEffect) managedDNSProjection {
+	value := struct {
+		Receipts []cloudOperationStepReceipt   `json:"receipts,omitempty"`
+		Unknown  []cloudOperationUnknownEffect `json:"unknown_effects,omitempty"`
+	}{receipts, unknown}
+	encoded, _ := json.Marshal(value)
+	digest := sha256.Sum256(encoded)
+	return managedDNSProjection{State: state, Reason: reason, EvidenceSHA256: "sha256:" + hex.EncodeToString(digest[:])}
+}
+
+func managedDNSStandingDigest(standing cloudOperationStanding) string {
+	value := struct {
+		OperationID    string                        `json:"operation_id"`
+		DeploymentID   string                        `json:"deployment_id"`
+		RequestKey     string                        `json:"request_key"`
+		State          string                        `json:"state"`
+		ActiveStep     string                        `json:"active_step,omitempty"`
+		StepReceipts   []cloudOperationStepReceipt   `json:"step_receipts,omitempty"`
+		UnknownEffects []cloudOperationUnknownEffect `json:"unknown_effects,omitempty"`
+	}{standing.OperationID, standing.DeploymentID, standing.RequestKey, standing.State, standing.ActiveStep, standing.StepReceipts, standing.UnknownEffects}
+	encoded, _ := json.Marshal(value)
+	digest := sha256.Sum256(encoded)
+	return "sha256:" + hex.EncodeToString(digest[:])
+}
+
+func mergeManagedDNSReadback(oldState, oldReason, oldDigest, newState, newReason, newDigest string) (string, string, string) {
+	if oldState == "" || oldState == "pending" || oldState == "ambiguous" {
+		return newState, newReason, newDigest
+	}
+	if oldState == newState && (oldDigest == "" || oldDigest == newDigest) {
+		return newState, newReason, newDigest
+	}
+	if (oldState == "succeeded" || oldState == "failed") && oldState == newState && oldDigest == newDigest {
+		return oldState, oldReason, oldDigest
+	}
+	return "ambiguous", "new S2C DNS evidence conflicts with previously persisted " + oldState + " standing", newDigest
 }
 
 func (c *HTTPCloudHealthClient) progress(request *CloudDeploymentRequest, update CloudStepProgress) error {

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AlertTriangle, KeyRound, ShieldCheck } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { StatusChip } from "../../components/ui/status-chip";
 import { useAcceptDefaultTargets, useCoverageReport, useRequestSensitiveReview } from "../../hooks/useCoverageReport";
 import { sourceKindSlug } from "../../lib/status";
@@ -9,6 +9,7 @@ import { SOURCE_KIND_STRINGS } from "../../consts/statusStrings";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
+import { cn } from "../../lib/utils";
 
 /**
  * CoverageBanner — the first-real-backup readiness surface. It reads the live
@@ -149,6 +150,7 @@ export function CoverageBanner({
               data-testid={selectors.coverage.registerRecommended}
               disabled={accept.isPending}
               onClick={registerRecommended}
+              shape="square"
             >
               {mode === "recommended"
                 ? t(strings.coverage.registering)
@@ -272,10 +274,12 @@ export function CoverageBanner({
           <div>
             <Button
               size="sm"
-              variant="outline"
+              variant="ghost"
               data-testid={selectors.coverage.requestSensitiveReview}
               disabled={reviewSensitive.isPending}
               onClick={requestSensitiveDecision}
+              shape="square"
+              className={cn("border border-app-border text-app-foreground hover:bg-app-surface-muted")}
             >
               {mode === "sensitive"
                 ? t(strings.coverage.requestingSensitiveReview)

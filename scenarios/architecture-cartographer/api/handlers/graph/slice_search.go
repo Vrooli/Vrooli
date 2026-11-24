@@ -44,16 +44,35 @@ type sliceSearchResponse struct {
 }
 
 type sliceSearchHit struct {
-	ID         string               `json:"id"`
-	Title      string               `json:"title"`
-	Score      float64              `json:"score"`
-	Text       string               `json:"text"`
-	Path       string               `json:"path,omitempty"`
-	Paths      []string             `json:"paths,omitempty"`
-	Scenario   string               `json:"scenario"`
-	Domain     string               `json:"domain"`
-	SnapshotID string               `json:"snapshot_id"`
-	Slice      *graphv1.DomainSlice `json:"slice"`
+	ID             string               `json:"id"`
+	Title          string               `json:"title"`
+	Score          float64              `json:"score"`
+	Text           string               `json:"text"`
+	Path           string               `json:"path,omitempty"`
+	Paths          []string             `json:"paths,omitempty"`
+	Scenario       string               `json:"scenario"`
+	Domain         string               `json:"domain"`
+	SnapshotID     string               `json:"snapshot_id"`
+	Slice          *graphv1.DomainSlice `json:"slice"`
+	EvidenceBounds sliceEvidenceBounds  `json:"evidence_bounds"`
+}
+
+type sliceEvidenceCount struct {
+	Total    int `json:"total"`
+	Returned int `json:"returned"`
+	Omitted  int `json:"omitted"`
+}
+
+type sliceRungEvidenceBounds struct {
+	Name     string             `json:"name"`
+	Files    sliceEvidenceCount `json:"files"`
+	Symbols  sliceEvidenceCount `json:"symbols"`
+	Evidence sliceEvidenceCount `json:"evidence"`
+}
+
+type sliceEvidenceBounds struct {
+	Rungs      []sliceRungEvidenceBounds `json:"rungs"`
+	LayerEdges sliceEvidenceCount        `json:"layer_edges"`
 }
 
 type sliceDegradation struct {
@@ -286,7 +305,30 @@ func projectSliceHit(domainMap domains.DerivedDomainMap, slice *graphv1.DomainSl
 		ID: id, Title: id + " implementation slice", Score: score,
 		Text: strings.Join(parts, "; "), Path: path, Paths: paths,
 		Scenario: slice.GetScenario(), Domain: slice.GetDomain(), SnapshotID: slice.GetSnapshotId(), Slice: boundedSlice(slice),
+		EvidenceBounds: sliceEvidenceBoundsFor(slice),
 	}
+}
+
+func sliceEvidenceBoundsFor(in *graphv1.DomainSlice) sliceEvidenceBounds {
+	bounds := sliceEvidenceBounds{Rungs: make([]sliceRungEvidenceBounds, 0, len(in.GetRungs()))}
+	for _, rung := range in.GetRungs() {
+		bounds.Rungs = append(bounds.Rungs, sliceRungEvidenceBounds{
+			Name:     rung.GetName(),
+			Files:    boundedEvidenceCount(len(rung.GetFiles())),
+			Symbols:  boundedEvidenceCount(len(rung.GetSymbols())),
+			Evidence: boundedEvidenceCount(len(rung.GetEvidence())),
+		})
+	}
+	bounds.LayerEdges = boundedEvidenceCount(len(in.GetLayerEdges()))
+	return bounds
+}
+
+func boundedEvidenceCount(total int) sliceEvidenceCount {
+	returned := total
+	if returned > maxSliceEvidenceItems {
+		returned = maxSliceEvidenceItems
+	}
+	return sliceEvidenceCount{Total: total, Returned: returned, Omitted: total - returned}
 }
 
 // boundedSlice keeps each rung's anatomy useful while limiting payload growth

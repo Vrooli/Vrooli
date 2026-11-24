@@ -3,12 +3,14 @@ package plans
 import (
 	"context"
 	"fmt"
+
+	"github.com/vrooli/api-core/database"
 )
 
 const defaultRecoveryDrillSchedule = "168h"
 
 // EnsureColumns applies additive GFS policy migrations to existing catalogs.
-func EnsureColumns(ctx context.Context, db SQLExecutor) error {
+func EnsureColumns(ctx context.Context, db database.SQLExecutor) error {
 	rows, err := db.QueryContext(ctx, "PRAGMA table_info(plans)")
 	if err != nil {
 		return fmt.Errorf("inspect plans columns: %w", err)

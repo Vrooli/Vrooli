@@ -290,28 +290,7 @@ func (s *FileIncidentStore) Put(ctx context.Context, in Incident) error {
 			return fmt.Errorf("backup incident %q generation changed from %d to %d; want %d", in.ID, current.Generation, in.Generation, wantGeneration)
 		}
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(p), ".incident-*.tmp")
-	if err != nil {
-		return err
-	}
-	name := tmp.Name()
-	defer os.Remove(name)
-	if err := tmp.Chmod(0o600); err != nil {
-		_ = tmp.Close()
-		return err
-	}
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		return err
-	}
-	if err := tmp.Sync(); err != nil {
-		_ = tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	return os.Rename(name, p)
+	return writePrivateFileAtomically(p, ".incident-*.tmp", data)
 }
 
 func (s *FileIncidentStore) List(ctx context.Context) ([]Incident, error) {
@@ -506,26 +485,5 @@ func (s *NoticeStateStore) saveFile(f noticeFile) error {
 	if err := os.MkdirAll(filepath.Dir(s.Path), 0o700); err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(s.Path), ".notices-*.tmp")
-	if err != nil {
-		return err
-	}
-	name := tmp.Name()
-	defer os.Remove(name)
-	if err := tmp.Chmod(0o600); err != nil {
-		_ = tmp.Close()
-		return err
-	}
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		return err
-	}
-	if err := tmp.Sync(); err != nil {
-		_ = tmp.Close()
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	return os.Rename(name, s.Path)
+	return writePrivateFileAtomically(s.Path, ".notices-*.tmp", data)
 }
