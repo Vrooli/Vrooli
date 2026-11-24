@@ -3,7 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Button } from "@vrooli/react-component-library/Button/2";
 
 import { conversationsClient } from "../../../api/notifications";
-import { Dialog } from "../../../components/ui/dialog";
+import { Dialog } from "@vrooli/react-component-library/Dialog/1.3.10";
 import { selectors } from "../../../consts/selectors";
 import { strings } from "../../../consts/strings";
 import { useTranslation } from "../../../i18n";

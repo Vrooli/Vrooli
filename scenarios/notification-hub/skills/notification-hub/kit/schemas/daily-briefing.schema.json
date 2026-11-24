@@ -464,6 +464,74 @@
           "maximum": 90,
           "description": "Bottom of the chart's percent axis, to zoom in. Default 0."
         },
+        "target": {
+          "type": "object",
+          "required": [
+            "label",
+            "pct",
+            "slots"
+          ],
+          "additionalProperties": false,
+          "description": "The steward's burn target for the allowance. This is separate from the safe-concurrency tiers: a tier's slots are not this target.",
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "e.g. '97% burn target'."
+            },
+            "pct": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "Target percent of the allowance to use by reset."
+            },
+            "slots": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Steward research-window agents needed to reach the target."
+            },
+            "used": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Allowance used now."
+            },
+            "note": {
+              "type": "string",
+              "description": "One sentence explaining the target and the current candidate limit."
+            },
+            "extraJobs": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Jobs scheduled beyond the default tier in the shown window."
+            },
+            "idleHours": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Hours with no agents within the shown schedule window."
+            },
+            "endUsed": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Allowance percent at reset under this target."
+            },
+            "runOut": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time",
+              "description": "Projected run-out, or null when it lasts to reset."
+            },
+            "points": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/reading"
+              },
+              "description": "Projected used percent after now at this target."
+            }
+          }
+        },
         "window": {
           "type": "object",
           "required": [
@@ -551,12 +619,12 @@
               },
               "extraJobs": {
                 "type": "integer",
-                "description": "Jobs finished before the reset beyond the default tier."
+                "description": "Jobs scheduled beyond the default tier in the shown window."
               },
               "idleHours": {
                 "type": "number",
                 "minimum": 0,
-                "description": "Hours with no agents between run-out and reset."
+                "description": "Hours with no agents within the shown schedule window."
               },
               "note": {
                 "type": "string",

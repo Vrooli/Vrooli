@@ -35,7 +35,6 @@ import (
 func TestLeasedTestModeRequestReadsOnlyTheDisposableAsk(t *testing.T) {
 	ctx := context.Background()
 	routed := filedb.Open(t, "primary.db")
-	defer routed.Close()
 	require.NoError(t, database.EnsureSchemas(ctx, routed.Primary(), modules.AllSchemas()...))
 	routed.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
 		if err := database.EnsureSchemas(ctx, pool, modules.AllSchemas()...); err != nil {
@@ -112,7 +111,6 @@ func TestLeasedTestModeRequestReadsOnlyTheDisposableAsk(t *testing.T) {
 
 func TestInactiveRoutedTestLeaseReturnsRecoverySignalWithoutCallingHandler(t *testing.T) {
 	db := filedb.Open(t, "primary.db")
-	defer db.Close()
 	called := false
 	handler := requireRoutedTestLease(db, http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true }))
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -128,7 +126,6 @@ func TestInactiveRoutedTestLeaseReturnsRecoverySignalWithoutCallingHandler(t *te
 func TestLeasedTestModeAcceptsAndReadsRealProducerNotification(t *testing.T) {
 	ctx := context.Background()
 	routed := filedb.Open(t, "primary.db")
-	defer routed.Close()
 	require.NoError(t, database.EnsureSchemas(ctx, routed.Primary(), modules.AllSchemas()...))
 	routed.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
 		if err := database.EnsureSchemas(ctx, pool, modules.AllSchemas()...); err != nil {
@@ -172,7 +169,6 @@ func TestLeasedTestModeAcceptsAndReadsRealProducerNotification(t *testing.T) {
 func TestTestModeRequestsFailClosedWithoutAnActiveLease(t *testing.T) {
 	ctx := context.Background()
 	routed := filedb.Open(t, "primary.db")
-	defer routed.Close()
 	require.NoError(t, database.EnsureSchemas(ctx, routed.Primary(), modules.AllSchemas()...))
 	service := hubtest.New(t, routed, schedule.System(), log.New(io.Discard, "", 0))
 	called := false
@@ -214,7 +210,6 @@ func TestTestModeRequestsFailClosedWithoutAnActiveLease(t *testing.T) {
 func TestE4DeliveryAnalyticsFailureIsOneShotLeaseOnlyAndRecordsRemainAvailable(t *testing.T) {
 	ctx := context.Background()
 	routed := filedb.Open(t, "primary.db")
-	defer routed.Close()
 	require.NoError(t, database.EnsureSchemas(ctx, routed.Primary(), modules.AllSchemas()...))
 	routed.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
 		if err := database.EnsureSchemas(ctx, pool, modules.AllSchemas()...); err != nil {
@@ -316,7 +311,6 @@ func TestE4DeliveryAnalyticsFailureIsOneShotLeaseOnlyAndRecordsRemainAvailable(t
 func TestE4DeliveryUnknownStateTransitionsSelectedRecordOnlyInLeasedPool(t *testing.T) {
 	ctx := context.Background()
 	routed := filedb.Open(t, "primary.db")
-	defer routed.Close()
 	require.NoError(t, database.EnsureSchemas(ctx, routed.Primary(), modules.AllSchemas()...))
 	routed.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
 		if err := database.EnsureSchemas(ctx, pool, modules.AllSchemas()...); err != nil {
@@ -397,7 +391,6 @@ func TestE4FixtureProfilesStayInsideThePinnedTestPool(t *testing.T) {
 		t.Run(fixture, func(t *testing.T) {
 			ctx := context.Background()
 			routed := filedb.Open(t, "primary.db")
-			defer routed.Close()
 			require.NoError(t, database.EnsureSchemas(ctx, routed.Primary(), modules.AllSchemas()...))
 			routed.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
 				if err := database.EnsureSchemas(ctx, pool, modules.AllSchemas()...); err != nil {
@@ -475,7 +468,6 @@ func TestE4FixtureProfilesStayInsideThePinnedTestPool(t *testing.T) {
 func TestE4DecisionLinksPhoneFixtureChangesOnlyTheLeasedAskAndRestoresIt(t *testing.T) {
 	ctx := context.Background()
 	routed := filedb.Open(t, "primary.db")
-	defer routed.Close()
 	require.NoError(t, database.EnsureSchemas(ctx, routed.Primary(), modules.AllSchemas()...))
 	routed.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
 		if err := database.EnsureSchemas(ctx, pool, modules.AllSchemas()...); err != nil {
@@ -540,7 +532,6 @@ func TestE4DecisionLinksPhoneFixtureChangesOnlyTheLeasedAskAndRestoresIt(t *test
 func TestE4DeliveryFixtureStartsFromTheCommonSeedAfterTheHistoryFixture(t *testing.T) {
 	ctx := context.Background()
 	routed := filedb.Open(t, "primary.db")
-	defer routed.Close()
 	require.NoError(t, database.EnsureSchemas(ctx, routed.Primary(), modules.AllSchemas()...))
 	routed.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
 		if err := database.EnsureSchemas(ctx, pool, modules.AllSchemas()...); err != nil {
@@ -580,7 +571,6 @@ func TestE4DeliveryFixtureStartsFromTheCommonSeedAfterTheHistoryFixture(t *testi
 func TestE4NH162HistoryFixtureIsDeterministicAndLeasePinned(t *testing.T) {
 	ctx := context.Background()
 	routed := filedb.Open(t, "primary.db")
-	defer routed.Close()
 	require.NoError(t, database.EnsureSchemas(ctx, routed.Primary(), modules.AllSchemas()...))
 	routed.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
 		if err := database.EnsureSchemas(ctx, pool, modules.AllSchemas()...); err != nil {
@@ -688,7 +678,6 @@ func (c pushBudgetSettings) PushBudget() hub.PushBudgetConfig { return c[0] }
 func TestTestPoolSeedDeclaresOnePreferenceSourceWithoutOwnerChoices(t *testing.T) {
 	ctx := context.Background()
 	routed := filedb.Open(t, "seeded.db")
-	defer routed.Close()
 	require.NoError(t, database.EnsureSchemas(ctx, routed.Primary(), modules.AllSchemas()...))
 	require.NoError(t, seedTestRecipient(ctx, routed.Primary()))
 
@@ -709,7 +698,6 @@ func TestTestPoolSeedDeclaresOnePreferenceSourceWithoutOwnerChoices(t *testing.T
 func TestOwnerResetCallsCanOnlyReachTheLeasedPool(t *testing.T) {
 	ctx := context.Background()
 	routed := filedb.Open(t, "primary.db")
-	defer routed.Close()
 	require.NoError(t, database.EnsureSchemas(ctx, routed.Primary(), modules.AllSchemas()...))
 	routed.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
 		if err := database.EnsureSchemas(ctx, pool, modules.AllSchemas()...); err != nil {

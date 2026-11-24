@@ -64,6 +64,12 @@ func templateConversationTitle(name string, data map[string]any, question string
 			return "Usage mode: " + title
 		}
 	case "structural-change":
+		// The page title is the shared question the answer contract binds to;
+		// the inbox title names the exact check so three checks do not read as
+		// three copies of one decision.
+		if specific := field("notificationTitle"); specific != "" {
+			return "Structural change: " + specific
+		}
 		if title != "" {
 			if strings.HasPrefix(strings.ToLower(title), "structural change:") {
 				return title

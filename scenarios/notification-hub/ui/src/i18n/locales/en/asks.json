@@ -17,6 +17,12 @@
     "escalated": "Escalated",
     "closesIn": "Closes {{when}}"
   },
+  "kind": {
+    "judge": "Judge",
+    "approve": "Approve",
+    "review": "Review",
+    "do": "Do"
+  },
   "urgency": {
     "low": "Low",
     "normal": "Normal",

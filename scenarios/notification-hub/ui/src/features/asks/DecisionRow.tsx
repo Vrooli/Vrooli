@@ -57,6 +57,7 @@ export function DecisionRow({ ask, queue, search, from, onOpen }: {
           {queue && ask.state === "escalated" && <StatusBadge tone="danger">{t(strings.asks.row.escalated)}</StatusBadge>}
           {!queue && ask.state === "escalated" && <StatusBadge tone="danger">{t(strings.pages.history.escalated)}</StatusBadge>}
           {urgency && <StatusBadge tone={urgencyTone}>{t(urgency)}</StatusBadge>}
+          {ask.decisionKind && <StatusBadge tone="neutral">{t(strings.asks.kind[ask.decisionKind as keyof typeof strings.asks.kind] ?? strings.asks.kind.review)}</StatusBadge>}
           {due && ask.closingSoon && (
             <StatusBadge tone={dueTone === "danger" ? "danger" : "warning"}>
               <span className="inline-flex items-center gap-1"><Clock size={14} aria-hidden="true" />{t(strings.asks.row.closesIn, { when: due })}</span>

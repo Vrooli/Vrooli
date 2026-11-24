@@ -3,6 +3,8 @@ package main
 import (
 	"path/filepath"
 	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // linkedArtifactRoots lists the folders a decision's file links may open from.
@@ -12,12 +14,18 @@ func linkedArtifactRoots(repoRoot, home, researchDir, extra string) []string {
 	roots := []string{}
 	if repoRoot != "" {
 		roots = append(roots, filepath.Join(repoRoot, ".vrooli", "work"))
+		// Decision prose commonly names repository files relative to the repo
+		// (for example, scenarios/notification-hub/README.md). Keep that source
+		// available to the owner while the resolver still enforces repo containment.
+		roots = append(roots, repoRoot)
 	}
 	if home != "" {
-		roots = append(roots,
-			filepath.Join(home, ".vrooli", "work"),
-			filepath.Join(home, ".vrooli", "portfolio", "steward", "delegations"),
-		)
+		if runtimeHome, err := repocontract.VrooliUserRoot(home); err == nil {
+			roots = append(roots,
+				filepath.Join(runtimeHome, "work"),
+				filepath.Join(runtimeHome, "portfolio", "steward", "delegations"),
+			)
+		}
 	}
 	if strings.TrimSpace(researchDir) != "" {
 		roots = append(roots, researchDir)

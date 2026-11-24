@@ -104,14 +104,37 @@ export const TIER_LABEL = {
   low: URGENCY_LABEL.low,
 } as const satisfies Record<AttentionTier, string>;
 
-/** Consecutive asks of one tier, which is how an attention-ordered list reads. */
-export function groupByTier(asks: readonly Ask[]): { tier: AttentionTier; asks: Ask[] }[] {
-  const groups: { tier: AttentionTier; asks: Ask[] }[] = [];
+/** Explicit producer family only: unclassified asks remain independent. Groups follow the first ask's list position. */
+export function groupByFamily(asks: readonly Ask[]): { key: string; cause: string; asks: Ask[] }[] {
+  const groups: { key: string; cause: string; asks: Ask[] }[] = [];
+  const byFamily = new Map<string, { key: string; cause: string; asks: Ask[] }>();
   for (const ask of asks) {
-    const tier = attentionTier(ask);
+    const family = ask.decisionFamily.trim();
+    const cause = ask.decisionCause.trim();
+    if (!family || !cause) {
+      groups.push({ key: `ask:${ask.id}`, cause: "", asks: [ask] });
+      continue;
+    }
+    const key = `${family}\u0000${cause}`;
+    let group = byFamily.get(key);
+    if (!group) {
+      group = { key: family, cause, asks: [] };
+      byFamily.set(key, group);
+      groups.push(group);
+    }
+    group.asks.push(ask);
+  }
+  return groups;
+}
+
+/** Families move together under the highest-attention tier of their first listed ask. */
+export function groupByAttentionAndFamily(asks: readonly Ask[], attention: boolean): { tier: AttentionTier; families: ReturnType<typeof groupByFamily> }[] {
+  const groups: { tier: AttentionTier; families: ReturnType<typeof groupByFamily> }[] = [];
+  for (const family of groupByFamily(asks)) {
+    const tier = attention ? attentionTier(family.asks[0]!) : "normal";
     const last = groups.at(-1);
-    if (last?.tier === tier) last.asks.push(ask);
-    else groups.push({ tier, asks: [ask] });
+    if (last?.tier === tier) last.families.push(family);
+    else groups.push({ tier, families: [family] });
   }
   return groups;
 }

@@ -635,11 +635,13 @@
         <div class="kc-chart" id="pace-chart" role="img" aria-label="Allowance used until the reset at each pace"><svg aria-hidden="true"></svg></div>
         <div class="kc-pace__stats">
           <div class="kc-stat"><span class="kc-stat__lbl">Agents at once</span><span class="kc-slots" id="pace-slots"></span></div>
+          <div class="kc-stat"><span class="kc-stat__lbl">Burn target</span><span class="kc-stat__big" id="pace-target">&ndash;</span></div>
           <div class="kc-stat"><span class="kc-stat__lbl">Extra jobs before reset</span><span class="kc-stat__big" id="pace-jobs">&ndash;</span></div>
           <div class="kc-stat"><span class="kc-stat__lbl">No agents for</span><span class="kc-stat__big" id="pace-gap">&ndash;</span></div>
         </div>
       </div>
       <p class="kc-small kc-muted" id="pace-note"></p>
+      <p class="kc-small kc-muted" id="pace-target-note"></p>
     </div>
   </section>
 
@@ -1836,6 +1838,14 @@
 
   // Pace drives the schedule
   var P = D.pace, SCHED = D.schedules || {}, SI = D.schedule || {};
+  var target = P && P.target;
+  if (target) {
+    $("pace-target").textContent = K.num(target.slots) ? target.slots + " agents" : "–";
+    $("pace-target-note").textContent = target.note || (target.pct + "% by reset; " + target.slots + " agents.");
+  } else {
+    $("pace-target").textContent = "–";
+    $("pace-target-note").textContent = "No steward burn target is available; the tiers below are safe concurrency ceilings.";
+  }
   var tiers = P && P.tiers ? P.tiers : [], byTier = {};
   tiers.forEach(function (t) { byTier[t.key] = t; });
   var baseTier = P && P.current && byTier[P.current] ? P.current : (tiers[0] || {}).key;

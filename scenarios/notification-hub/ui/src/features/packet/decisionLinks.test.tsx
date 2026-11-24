@@ -76,12 +76,15 @@ describe("renderDecisionText", () => {
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
 
-  it("lays links out at the surrounding line height in dense mode, and as touch targets otherwise", () => {
+  it("keeps the 44px touch target in dense headings and body text", () => {
     const { unmount } = show("https://example.test/a");
     expect(screen.getByRole("link")).toHaveClass("min-h-11");
     unmount();
     show("https://example.test/a", { dense: true });
-    expect(screen.getByRole("link")).not.toHaveClass("min-h-11");
+    expect(screen.getByRole("link")).toHaveClass("min-h-11");
+    const onOpenAttachment = vi.fn();
+    show(`\`${PLAN_PATH}\``, { attachments: [plan], onOpenAttachment, dense: true });
+    expect(screen.getByRole("button", { name: PLAN_PATH })).toHaveClass("min-h-11");
   });
 
   it("returns plain text, and only text, when there is nothing to link", () => {

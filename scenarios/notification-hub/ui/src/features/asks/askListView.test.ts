@@ -2,7 +2,7 @@ import { create } from "@bufbuild/protobuf";
 import { AskSchema, ListAsksRequest_Order } from "@vrooli/proto-types/notification-hub/v1/conversations/conversations_pb";
 import { describe, expect, it } from "vitest";
 
-import { attentionTier, closingHours, filterCount, groupByTier, listViewRequest, readListView, writeListView } from "./askListView";
+import { attentionTier, closingHours, filterCount, groupByAttentionAndFamily, groupByFamily, listViewRequest, readListView, writeListView } from "./askListView";
 
 const params = (query: string) => new URLSearchParams(query);
 const ask = (state: string, urgency: string, closingSoon = false) => create(AskSchema, { id: `${state}-${urgency}${closingSoon ? "-closing" : ""}`, state, urgency, closingSoon });
@@ -72,8 +72,8 @@ describe("attention groups", () => {
   it("puts an ask the Hub marked closing soon above its urgency, and below an escalated one", () => {
     expect(attentionTier(ask("pending", "low", true))).toBe("closing");
     expect(attentionTier(ask("escalated", "low", true))).toBe("escalated");
-    const groups = groupByTier([ask("escalated", "normal"), ask("pending", "low", true), ask("pending", "normal", true), ask("pending", "critical")]);
-    expect(groups.map((group) => [group.tier, group.asks.length])).toEqual([["escalated", 1], ["closing", 2], ["critical", 1]]);
+    const groups = groupByAttentionAndFamily([ask("escalated", "normal"), ask("pending", "low", true), ask("pending", "normal", true), ask("pending", "critical")], true);
+    expect(groups.map((group) => [group.tier, group.families.reduce((count, family) => count + family.asks.length, 0)])).toEqual([["escalated", 1], ["closing", 2], ["critical", 1]]);
   });
 
   it("reads the window in whole hours", () => {
@@ -82,11 +82,51 @@ describe("attention groups", () => {
   });
 
   it("groups consecutive asks of one tier, in the order they came", () => {
-    const groups = groupByTier([ask("escalated", "normal"), ask("pending", "critical"), ask("pending", "critical"), ask("pending", "normal")]);
-    expect(groups.map((group) => [group.tier, group.asks.map((a) => a.id)])).toEqual([
+    const groups = groupByAttentionAndFamily([ask("escalated", "normal"), ask("pending", "critical"), ask("pending", "critical"), ask("pending", "normal")], true);
+    expect(groups.map((group) => [group.tier, group.families.flatMap((family) => family.asks.map((a) => a.id))])).toEqual([
       ["escalated", ["escalated-normal"]],
       ["critical", ["pending-critical", "pending-critical"]],
       ["normal", ["pending-normal"]],
     ]);
+  });
+});
+
+describe("decision families", () => {
+  it("shows three guard checks as one cause group while retaining each answerable ask", () => {
+    const checks = ["network", "backup", "permissions"].map((id) => create(AskSchema, {
+      id,
+      question: `May the ${id} guard pass?`,
+      decisionFamily: "release-guards",
+      decisionCause: "The release is waiting on its three independent safety checks.",
+      decisionKind: "review",
+    }));
+    const groups = groupByFamily(checks);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toMatchObject({ key: "release-guards", cause: "The release is waiting on its three independent safety checks." });
+    expect(groups[0]!.asks.map((item) => item.id)).toEqual(["network", "backup", "permissions"]);
+  });
+
+  it("keeps a family together when its checks have different attention tiers", () => {
+    const family = [
+      create(AskSchema, { id: "urgent", state: "escalated", decisionFamily: "release", decisionCause: "Same release cause" }),
+      create(AskSchema, { id: "routine", state: "pending", decisionFamily: "release", decisionCause: "Same release cause" }),
+    ];
+    const groups = groupByAttentionAndFamily(family, true);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.tier).toBe("escalated");
+    expect(groups[0]!.families[0]!.asks.map((item) => item.id)).toEqual(["urgent", "routine"]);
+  });
+
+  it("keeps asks without a complete family isolated and does not infer grouping from sender", () => {
+    const first = create(AskSchema, { id: "one", sender: "same", decisionFamily: "release" });
+    const second = create(AskSchema, { id: "two", sender: "same", decisionCause: "same reason" });
+    const groups = groupByFamily([first, second]);
+    expect(groups.map((group) => group.asks.map((item) => item.id))).toEqual([["one"], ["two"]]);
+  });
+
+  it("keeps distinct causes separate even when a producer reuses a family key", () => {
+    const first = create(AskSchema, { id: "one", decisionFamily: "release", decisionCause: "Cause A" });
+    const second = create(AskSchema, { id: "two", decisionFamily: "release", decisionCause: "Cause B" });
+    expect(groupByFamily([first, second]).map((group) => group.cause)).toEqual(["Cause A", "Cause B"]);
   });
 });

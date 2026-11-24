@@ -196,6 +196,13 @@ func newTestService(t *testing.T, stub *hubStub) *service {
 	return &service{client: client, waitClient: client, uploadClient: client, now: time.Now}
 }
 
+// newStubService pairs the ordinary empty Hub stub with its HTTP-backed CLI service.
+func newStubService(t *testing.T) (*hubStub, *service) {
+	t.Helper()
+	stub := &hubStub{}
+	return stub, newTestService(t, stub)
+}
+
 // runCommand runs `conversations <name> args...` through the real manifest and
 // argument parser, with the guide check stubbed out so nothing touches the network.
 func runCommand(t *testing.T, svc *service, name string, args ...string) (stdout, stderr string, err error) {

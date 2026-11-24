@@ -22,7 +22,7 @@ import { preserveRoutedTestMode } from "../routedTestMode";
 import { useSession } from "../session/useSession";
 import { SignedOutCard } from "../session/SignedOutCard";
 import { SessionUnavailable } from "../session/SessionGate";
-import { closingHours as hoursOf, filterCount, groupByTier, listViewRequest, readListView, TIER_LABEL, writeListView, type ListView } from "./askListView";
+import { closingHours as hoursOf, filterCount, groupByAttentionAndFamily, listViewRequest, readListView, TIER_LABEL, writeListView, type ListView } from "./askListView";
 import { parseStateFilter, STATE_FILTERS, STATE_LABEL } from "./askState";
 import { DecisionRow } from "./DecisionRow";
 import { ListControls } from "./ListControls";
@@ -178,7 +178,7 @@ export function RequestList({ queue = false }: { queue?: boolean }) {
   const pending = list.isPending || list.isPlaceholderData || searching;
   // Ordered by attention the list reads as groups (escalated, closing soon, then each urgency),
   // which is what makes the order explain itself; one group needs no heading.
-  const groups = view.sort === "attention" ? groupByTier(rows) : [{ tier: "normal" as const, asks: rows }];
+  const groups = groupByAttentionAndFamily(rows, view.sort === "attention");
   const grouped = view.sort === "attention" && groups.length > 1;
   const updatedAgo = list.dataUpdatedAt > 0 ? formatAgo(new Date(list.dataUpdatedAt).toISOString(), now) : null;
 
@@ -276,20 +276,27 @@ export function RequestList({ queue = false }: { queue?: boolean }) {
       )}
       {rows.length > 0 && (
         <div data-testid={queue ? selectors.asks.list : undefined} aria-busy={searching || list.isFetching} className="flex flex-col gap-4">
-          {groups.map(({ tier, asks }) => {
+          {groups.map(({ tier, families }) => {
             const list = (
-              <ListGroup key={tier}>
-                {asks.map((ask) => (
-                  <DecisionRow
-                    key={ask.id}
-                    ask={ask}
-                    queue={queue}
-                    search={location.search}
-                    from={from}
-                    onOpen={() => { returnPosition = { from, askId: ask.id, index: rows.indexOf(ask), top: document.querySelector<HTMLElement>("main")?.scrollTop ?? window.scrollY }; }}
-                  />
+              <div className="flex flex-col gap-3" key={tier}>
+                {families.map((family) => (
+                  <section key={family.key} aria-label={family.cause || undefined}>
+                    {family.cause && <h3 className="mb-1 text-xs font-semibold text-app-muted-foreground">{family.cause}</h3>}
+                    <ListGroup>
+                      {family.asks.map((ask) => (
+                        <DecisionRow
+                          key={ask.id}
+                          ask={ask}
+                          queue={queue}
+                          search={location.search}
+                          from={from}
+                          onOpen={() => { returnPosition = { from, askId: ask.id, index: rows.indexOf(ask), top: document.querySelector<HTMLElement>("main")?.scrollTop ?? window.scrollY }; }}
+                        />
+                      ))}
+                    </ListGroup>
+                  </section>
                 ))}
-              </ListGroup>
+              </div>
             );
             return grouped ? (
               <section key={tier} data-testid={selectors.asks.group} aria-labelledby={`${HEADING_ID}-${tier}`}>

@@ -54,7 +54,7 @@ urgency, sensitivity) is different: changing it replaces the ask and pushes once
 | Answer "I need more context" | `--context-response '...'` (see below) |
 | Preview | add `--dry-run`: packet check and push text, nothing stored |
 | Obsolete | `conversations withdraw --subject-key K --reason '...'` |
-| Read it | `conversations get --subject-key K`; `conversations list --open` |
+| Read it | `program-runtime library run notification-hub.conversation-read --input subject_key=K`; `conversations list --open` |
 
 Before opening a new situation, `conversations list --open --query '<words>'`. Same
 decision with new facts: revise. Answering one would not answer the other: new key.
@@ -114,7 +114,7 @@ answers, the other uses `wait --until-answer`.
 
 ## Recover after a restart
 
-Rebuild the subject key and run `get --subject-key K` / `wait --subject-key K`.
+Rebuild the subject key and run `program-runtime library run notification-hub.conversation-read --input subject_key=K` / `wait --subject-key K`.
 Otherwise `conversations list --open --query '<words>'`. Access: by id, the runs of
 the conversation that sent it; by exact subject key, any run of the same owner
 account; `list` shows only your conversation's asks.
@@ -195,5 +195,5 @@ not resend.
 | `answer key "other" is reserved` | Remove your `other` option. |
 | `default answer is allowed only for a reversible decision` | Drop `--default`, or add `--reversible` if it truly can be undone. |
 | `already exists with different terms` | Drop `--idempotency-key`; use `--subject-key` to revise. |
-| `your revision was not applied: ... was answered` | Read it with `get --subject-key K`; send the whole ask to ask again. |
+| `your revision was not applied: ... was answered` | Read it with `notification-hub.conversation-read` and `subject_key=K`; send the whole ask to ask again. |
 | Read-receipt reminder after a new ask | Read the skill through `prompt-manager skill read notification-hub`; it never blocks. |

@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/vrooli/api-core/operatordecision"
 )
 
 // AskOrder is how a page of asks is ordered.
@@ -181,13 +183,19 @@ type AskListOptions struct {
 	// OR, the two filters with AND.
 	Urgencies []string
 	Senders   []string
+	// PendingDecisionOnly restricts the result to pending event-sourced
+	// operator decisions; status asks and direct asks are excluded before paging.
+	PendingDecisionOnly bool
 }
 
 type AskListPage struct {
 	Asks       []AskRecord
 	NextCursor string
-	// TotalAwaiting is how many pending and escalated asks the reader may see,
-	// whatever the query, state filter or cursor of the request.
+	// TotalAwaiting is how many pending and escalated asks that await an
+	// answer the reader may see, whatever the query, state filter or cursor of
+	// the request. Status updates are pending but await a read, not an answer,
+	// so they are not counted: the owner badge and the decision queue count
+	// decisions.
 	TotalAwaiting int
 	// Facets are the filter choices with the number of asks each would show.
 	Facets AskFacets
@@ -254,8 +262,10 @@ func askVisibility(audience AskAudience) (condition string, args []any, ok bool)
 }
 
 // CountAwaiting is how many pending and escalated asks of recipient the
-// audience may see. The condition on state is the one idx_asks_open_attention
-// is partial on, so the count reads only open asks.
+// audience may see that await an answer. A status update is pending until it
+// is read, so it is excluded: "awaiting" means the operator owes a decision,
+// not a glance. The condition on state is the one idx_asks_open_attention is
+// partial on, so the count reads only open asks.
 func (s *Service) CountAwaiting(ctx context.Context, recipient string, audience AskAudience) (int, error) {
 	if strings.TrimSpace(recipient) == "" {
 		return 0, ErrNotFound
@@ -274,7 +284,7 @@ func (s *Service) CountAwaiting(ctx context.Context, recipient string, audience 
 // the rest of the query selects (a few open ones), not the notifications table.
 const forRecipientSQL = `EXISTS (SELECT 1 FROM notifications rn WHERE rn.id = a.notification_id AND rn.requested_by = ?)`
 
-const awaitingCountSQL = `SELECT COUNT(*) FROM asks a WHERE a.state IN ('pending', 'escalated') AND ` + forRecipientSQL
+const awaitingCountSQL = `SELECT COUNT(*) FROM asks a WHERE a.state IN ('pending', 'escalated') AND a.kind <> 'status' AND ` + forRecipientSQL
 
 // ListAsksPage searches the recipient's full retained inventory before applying
 // a stable keyset boundary. Reads never resolve, answer or otherwise change asks.
@@ -340,7 +350,10 @@ func (s *Service) ListAsksPageFor(ctx context.Context, recipient string, audienc
 	if err != nil {
 		return AskListPage{}, err
 	}
-	scopeBytes, _ := json.Marshal([]any{recipient, opts.Query, state, audience.scopeKey(), string(order), urgencies, senders})
+	if opts.PendingDecisionOnly && state != AskPending {
+		return AskListPage{}, fmt.Errorf("%w: pending decision projection requires the pending state", ErrInvalidArgument)
+	}
+	scopeBytes, _ := json.Marshal([]any{recipient, opts.Query, state, audience.scopeKey(), string(order), urgencies, senders, opts.PendingDecisionOnly})
 	scope := fmt.Sprintf("%x", sha256.Sum256(scopeBytes))
 	// The reference time is read once, by the first page, and carried in the
 	// cursor: the band of asks closing soon is measured against it on every page.
@@ -357,7 +370,7 @@ func (s *Service) ListAsksPageFor(ctx context.Context, recipient string, audienc
 	if after != nil && len(after.Keys) != len(columns) {
 		return AskListPage{}, fmt.Errorf("%w: cursor does not match this search", ErrInvalidArgument)
 	}
-	base := askBaseWhere(recipient, visible, visibleArgs, state, opts.Query)
+	base := askBaseWhere(recipient, visible, visibleArgs, state, opts.Query, opts.PendingDecisionOnly)
 	query, args := askListSQL(base, urgencies, senders, columns, after, opts.Limit+1)
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -464,14 +477,20 @@ type askWhere struct {
 	args []any
 }
 
-func askBaseWhere(recipient, visible string, visibleArgs []any, state, text string) askWhere {
+func askBaseWhere(recipient, visible string, visibleArgs []any, state, text string, pendingDecisionOnly bool) askWhere {
 	where := ` WHERE ` + forRecipientSQL + visible
 	args := append([]any{recipient}, visibleArgs...)
 	if state == "awaiting" {
-		where += ` AND a.state IN ('pending', 'escalated')`
+		// A status update is pending until it is read. It does not await an
+		// answer, so it is not in the decision queue or its count.
+		where += ` AND a.state IN ('pending', 'escalated') AND a.kind <> 'status'`
 	} else if state != "all" {
 		where += ` AND a.state = ?`
 		args = append(args, state)
+	}
+	if pendingDecisionOnly {
+		where += ` AND substr(a.source_event_type, -length(?)) = ? AND a.source <> '' AND a.kind <> 'status'`
+		args = append(args, operatordecision.DecisionRequestedSuffix, operatordecision.DecisionRequestedSuffix)
 	}
 	if text != "" {
 		// User wildcards are literal. Include option labels so readable answers,

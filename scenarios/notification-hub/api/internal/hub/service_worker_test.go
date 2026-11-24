@@ -14,7 +14,6 @@ import (
 
 func TestWorkerDispatchKeepsPinnedTestPoolForAsyncReceipt(t *testing.T) {
 	db := hub.OpenTestDB(t, "primary.db")
-	t.Cleanup(func() { _ = db.Close() })
 	require.NoError(t, database.EnsureSchemas(context.Background(), db, modules.AllSchemas()...))
 	service := hub.New(db, nil, nil)
 	t.Cleanup(service.Close)

@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Night Desk — phone decision</title>
+<link rel="stylesheet" href="night.css">
+<style>
+  body { background: var(--void); }
+  .d { min-height: 100dvh; padding: 0 20px calc(92px + env(safe-area-inset-bottom)); }
+
+  .d-top { display: flex; align-items: center; gap: 4px; padding-top: calc(8px + env(safe-area-inset-top)); }
+  .d-back { width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 10px; background: transparent; color: var(--muted); cursor: pointer; }
+  .d-back:active { background: var(--panel-2); color: var(--moon); }
+  .d-crumb { font: 560 10.5px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+  .d-more { margin-left: auto; }
+
+  .d-head { padding-top: 16px; }
+  .d-head h1 { margin-top: 12px; font-size: 25px; font-weight: 630; letter-spacing: -0.032em; line-height: 1.16; text-wrap: balance; }
+  .d-head p { margin-top: 9px; font-size: 13px; line-height: 1.55; color: var(--muted); }
+  .d-kicker { margin-top: 10px; }
+
+  .family { margin-top: 16px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); overflow: hidden; }
+  .family-head { display: flex; align-items: baseline; justify-content: space-between; padding: 11px 14px 9px; border-bottom: 1px solid var(--line); }
+  .family-head b { font-size: 11px; font-weight: 580; color: var(--moon-2); }
+  .family-head span { font: 600 9px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+  .check { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 9px; align-items: start; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+  .check:last-child { border-bottom: 0; }
+  .check .tick { width: 15px; height: 15px; margin-top: 1px; border-radius: 50%; background: var(--cyan); display: grid; place-items: center; }
+  .check .tick::after { content: ""; width: 7px; height: 4px; border-left: 1.6px solid var(--cyan-ink); border-bottom: 1.6px solid var(--cyan-ink); transform: rotate(-45deg) translateY(-1px); }
+  .check .name { display: block; font-size: 12px; font-weight: 540; color: var(--moon-2); }
+  .check .sub { display: block; margin-top: 1px; font-size: 10.5px; line-height: 1.4; color: var(--faint); }
+
+  .rec { margin-top: 14px; padding: 13px 14px; border-radius: var(--r-lg); background: var(--panel-2); border: 1px solid var(--line); }
+  .rec-label { display: flex; align-items: center; gap: 6px; font: 600 9px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--cyan); }
+  .rec h2 { margin-top: 7px; font-size: 14px; font-weight: 600; letter-spacing: -0.012em; line-height: 1.35; }
+  .rec p { margin-top: 4px; font-size: 12px; line-height: 1.5; color: var(--muted); }
+
+  .options { margin-top: 12px; display: grid; gap: 6px; }
+  .opt { display: grid; grid-template-columns: 19px minmax(0, 1fr); gap: 10px; align-items: start; width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 11px; background: transparent; text-align: left; cursor: pointer; }
+  .opt[aria-pressed="true"] { border-color: color-mix(in srgb, var(--cyan) 55%, var(--line)); background: var(--cyan-wash); }
+  .radio { width: 18px; height: 18px; margin-top: 1px; border-radius: 50%; border: 1.5px solid var(--panel-3); display: grid; place-items: center; }
+  .opt[aria-pressed="true"] .radio { border-color: var(--cyan); }
+  .opt[aria-pressed="true"] .radio::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); }
+  .opt b { display: block; font-size: 12px; font-weight: 550; color: var(--moon-2); }
+  .opt span { display: block; margin-top: 2px; font-size: 10.5px; line-height: 1.4; color: var(--faint); }
+
+  .evidence { display: flex; align-items: center; gap: 7px; width: 100%; margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 11px; background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; }
+  .evidence b { color: var(--moon-2); font-weight: 550; }
+  .note { margin-top: 12px; display: flex; gap: 7px; font-size: 11.5px; line-height: 1.5; color: var(--faint); }
+  .note svg { flex: none; margin-top: 2px; }
+  .note b { color: var(--muted); font-weight: 550; }
+
+  .answer { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; align-items: center; gap: 8px; padding: 10px 16px max(10px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: color-mix(in srgb, var(--void) 90%, transparent); backdrop-filter: blur(16px); }
+  .answer .btn.primary { flex: 1; min-width: 0; height: 48px; font-size: 13px; border-radius: 12px; }
+  .answer .btn.icon { flex: none; width: 48px; height: 48px; border-radius: 12px; border-color: var(--line); color: var(--muted); }
+
+  @media (max-width: 360px) {
+    .d { padding-left: 16px; padding-right: 16px; }
+    .d-head h1 { font-size: 22px; }
+    .answer .btn.ghost { padding: 0 10px; }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="moon" viewBox="0 0 24 24">
+    <defs><mask id="crescent"><rect width="24" height="24" fill="#000"/><circle cx="11.3" cy="12" r="9.4" fill="#fff"/><circle cx="17" cy="11" r="7.5" fill="#000"/></mask></defs>
+    <rect width="24" height="24" fill="currentColor" mask="url(#crescent)"/>
+    <circle cx="18.3" cy="17.6" r="1.75" fill="var(--cyan)"/>
+  </symbol>
+</svg>
+
+<div class="d">
+  <header class="d-top">
+    <button class="d-back" type="button" aria-label="Back to decisions">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m14.5 6-6 6 6 6"/></svg>
+    </button>
+    <span class="d-crumb">Needs you · 1 of 6</span>
+    <button class="d-back d-more" type="button" aria-label="More">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5.5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18.5" cy="12" r="1.6"/></svg>
+    </button>
+  </header>
+
+  <main class="d-head">
+    <div class="cluster" style="gap:6px">
+      <span class="chip attn"><span class="dot"></span>Closing today · 19:06</span>
+      <span class="chip">2 checks</span>
+    </div>
+    <p class="kicker d-kicker">Structural change · Steward</p>
+    <h1>Stop the deletion floors asking the same question twice.</h1>
+    <p>Two checks stop runs that delete files. They are correct, but they ask the same agent twice and never show the safe route.</p>
+
+    <section class="family" aria-label="The checks in this cause">
+      <div class="family-head"><b>One cause, two checks</b><span>Answer both</span></div>
+      <div class="check">
+        <span class="tick" aria-hidden="true"></span>
+        <span><span class="name">Deleting declared paths</span><span class="sub">Fires before a run deletes a path the plan declared.</span></span>
+      </div>
+      <div class="check">
+        <span class="tick" aria-hidden="true"></span>
+        <span><span class="name">Deleting files in an unresolved path</span><span class="sub">Fires when the run deletes inside a path it never resolved.</span></span>
+      </div>
+    </section>
+
+    <section class="rec" aria-label="Recommendation">
+      <div class="rec-label">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="m4 12 5 5L20 6"/></svg>
+        Recommended
+      </div>
+      <h2>Restructure both floors. Keep the hidden-effect guard.</h2>
+      <p>The floors are doing their job. Explain the safe route and stop asking the same run twice.</p>
+    </section>
+
+    <div class="options" role="group" aria-label="Choices">
+      <button class="opt" type="button" aria-pressed="true">
+        <span class="radio" aria-hidden="true"></span>
+        <span><b>Restructure both floors</b><span>One owner packet. Both checks keep blocking until the route lands.</span></span>
+      </button>
+      <button class="opt" type="button" aria-pressed="false">
+        <span class="radio" aria-hidden="true"></span>
+        <span><b>Restructure the declared-paths floor only</b><span>The unresolved-path check keeps asking every time.</span></span>
+      </button>
+      <button class="opt" type="button" aria-pressed="false">
+        <span class="radio" aria-hidden="true"></span>
+        <span><b>Leave both as they are</b><span>Nothing changes. Runs keep confirming the same deletion.</span></span>
+      </button>
+    </div>
+
+    <button class="evidence" type="button">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg>
+      <span><b>Decision page</b> · 1 file</span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="margin-left:auto"><path d="m9 6 6 6-6 6"/></svg>
+    </button>
+    <div class="note">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8.5"/><path d="M12 8h.01M11 11.5h1V16h1"/></svg>
+      <span><b>If you do nothing:</b> both floors stay enforced, and runs that delete files keep confirming.</span>
+    </div>
+  </main>
+
+  <div class="answer">
+    <button class="btn primary" type="button">Accept recommendation</button>
+    <button class="btn icon" type="button" aria-label="Answer later">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="8.5"/></svg>
+    </button>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var root = document.documentElement;
+    var requested = new URLSearchParams(location.search).get("theme");
+    if (requested === "dark" || requested === "light") root.setAttribute("data-theme", requested);
+    document.querySelectorAll(".opt").forEach(function (b) {
+      b.addEventListener("click", function () {
+        document.querySelectorAll(".opt").forEach(function (o) { o.setAttribute("aria-pressed", "false"); });
+        b.setAttribute("aria-pressed", "true");
+      });
+    });
+  })();
+</script>
+</body>
+</html>

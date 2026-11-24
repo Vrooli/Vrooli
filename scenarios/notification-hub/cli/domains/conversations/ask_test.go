@@ -15,8 +15,7 @@ import (
 )
 
 func TestAskWithoutPacketPartsSendsNoAttachmentsOrQuestions(t *testing.T) {
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 	stdout, _, err := runCommand(t, svc, "ask", askArgs()...)
 	require.NoError(t, err)
 	require.Contains(t, stdout, "Created ask ask-1.")
@@ -24,6 +23,20 @@ func TestAskWithoutPacketPartsSendsNoAttachmentsOrQuestions(t *testing.T) {
 	require.Len(t, stub.asks, 1)
 	require.Empty(t, stub.asks[0].GetAttachments())
 	require.Empty(t, stub.asks[0].GetQuestions())
+}
+
+func TestAskCarriesDecisionFamilyCauseAndWorkKind(t *testing.T) {
+	stub, svc := newStubService(t)
+	_, _, err := runCommand(t, svc, "ask", askArgs(
+		"--decision-family", "release-guards",
+		"--decision-cause", "The release waits on three independent checks.",
+		"--decision-kind", "review",
+	)...)
+	require.NoError(t, err)
+	require.Len(t, stub.asks, 1)
+	require.Equal(t, "release-guards", stub.asks[0].GetDecisionFamily())
+	require.Equal(t, "The release waits on three independent checks.", stub.asks[0].GetDecisionCause())
+	require.Equal(t, "review", stub.asks[0].GetDecisionKind())
 }
 
 func TestAskFeatureCardBuildsPhoneDecisionAndBoundPacket(t *testing.T) {
@@ -48,8 +61,7 @@ func TestAskFeatureCardBuildsPhoneDecisionAndBoundPacket(t *testing.T) {
 	page := writeFile(t, dir, id+".html", "<html><meta name=viewport content=x></html>")
 	brief := writeFile(t, dir, id+".BRIEF.md", "# Restore the feature after the operator chooses keep.\n")
 	require.FileExists(t, page)
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 	_, _, err = runCommand(t, svc, "ask", "--feature-card", cardPath, "--expires", "24h", "--sensitivity-label", "private", "--idempotency-key", "k1")
 	require.NoError(t, err)
 	require.Len(t, stub.asks, 1)
@@ -99,8 +111,7 @@ func TestAskSendsAFolderAsOneAttachmentWithEntries(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "shots/a.png", "a")
 	writeFile(t, dir, "shots/sub/b.png", "b")
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 
 	_, _, err := runCommand(t, svc, "ask", askArgs("--attach", filepath.Join(dir, "shots"))...)
 	require.NoError(t, err)
@@ -132,8 +143,7 @@ questions:
     prompt: Review the plan.
     sections_from: plan.md
 `)
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 
 	_, _, err := runCommand(t, svc, "ask", askArgs("--attach", plan, "--explainer", explainer, "--form", form)...)
 	require.NoError(t, err)
@@ -154,8 +164,7 @@ func TestAskPacketNamesTheBriefAndAttachesIt(t *testing.T) {
 	work := filepath.Join(t.TempDir(), "work", "NAV-1")
 	require.NoError(t, os.MkdirAll(work, 0o700))
 	brief := writeFile(t, work, "BRIEF.md", "# Nav\nOn menu: build the menu.\n")
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 	_, _, err := runCommand(t, svc, "ask", askArgs("--packet", work)...)
 	require.NoError(t, err)
 	require.Equal(t, brief, stub.asks[0].GetPacket(), "a packet folder names its BRIEF.md")
@@ -176,8 +185,7 @@ func TestAskStillSendsWhenPacketPartsAreBrokenAndSaysWhatWasLeftOut(t *testing.T
 	good := writeFile(t, dir, "good.txt", "good")
 	huge := sparseFile(t, dir, "huge.bin", maxAttachmentFileBytes+1)
 	form := writeFile(t, dir, "form.yaml", "- {id: ok, type: text, prompt: Fine}\n- {id: bad, type: single_choice, prompt: P}\n")
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 
 	stdout, stderr, err := runCommand(t, svc, "ask", askArgs(
 		"--attach", good, "--attach", filepath.Join(dir, "nope.txt"), "--attach", huge,
@@ -205,8 +213,7 @@ func TestAskStillSendsWhenPacketPartsAreBrokenAndSaysWhatWasLeftOut(t *testing.T
 }
 
 func TestAskStillRequiresAValidCover(t *testing.T) {
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 	_, _, err := runCommand(t, svc, "ask", "--question", "Q?", "--option", "only", "--expires", "24h", "--sensitivity-label", "private", "--idempotency-key", "k")
 	require.Error(t, err)
 	require.Empty(t, stub.asks)
@@ -246,8 +253,7 @@ func TestAskWarnsLocallyWhenAFolderIsTruncated(t *testing.T) {
 	for i := 0; i < maxFolderFiles+3; i++ {
 		writeFile(t, dir, "big/"+strings.Repeat("0", 4-len(itoa(i)))+itoa(i)+".txt", "x")
 	}
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 	_, stderr, err := runCommand(t, svc, "ask", askArgs("--attach", filepath.Join(dir, "big"))...)
 	require.NoError(t, err)
 	require.Contains(t, stderr, "only the first 500")
@@ -262,8 +268,7 @@ func TestAnswerSendsFormResponsesFromAJSONFile(t *testing.T) {
 	  {"question_id": "layout", "selected": ["cards"]},
 	  {"question_id": "plan", "sections": [{"section_key": "storage", "verdict": "change", "note": "shorter"}]}
 	]`)
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 	_, _, err := runCommand(t, svc, "answer", "--ask-id", "a1", "--answer", "approve", "--responses-file", file)
 	require.NoError(t, err)
 	require.Len(t, stub.answers[0].GetResponses(), 2)
@@ -278,8 +283,7 @@ func TestAnswerRejectsAMalformedResponsesFile(t *testing.T) {
 		"no question id":  `[{"selected": ["x"]}]`,
 		"not json at all": `nope`,
 	} {
-		stub := &hubStub{}
-		svc := newTestService(t, stub)
+		stub, svc := newStubService(t)
 		_, _, err := runCommand(t, svc, "answer", "--ask-id", "a1", "--answer", "approve", "--responses-file", writeFile(t, dir, name+".json", content))
 		require.Error(t, err, name)
 		require.Empty(t, stub.answers, name)
@@ -287,8 +291,7 @@ func TestAnswerRejectsAMalformedResponsesFile(t *testing.T) {
 }
 
 func TestRequestContextRecordsTheOperatorsQuestion(t *testing.T) {
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 	stdout, _, err := runCommand(t, svc, "request-context", "--ask-id", "a1", "--question", "Which region?")
 	require.NoError(t, err)
 	require.Equal(t, "a1", stub.contexts[0].GetAskId())
@@ -304,8 +307,7 @@ func TestAnswerSendsAttachmentNotesFromAnObjectFile(t *testing.T) {
 	    {"attachment": "shots", "path": "a.png", "note": "Crop tighter."}
 	  ]
 	}`)
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 	_, _, err := runCommand(t, svc, "answer", "--ask-id", "a1", "--answer", "approve", "--responses-file", file)
 	require.NoError(t, err)
 	require.Len(t, stub.answers[0].GetResponses(), 1)
@@ -323,8 +325,7 @@ func TestAnswerRejectsAMalformedAttachmentNote(t *testing.T) {
 		"unknown field": `{"attachment_notes": [{"attachment": "a", "note": "x", "file": "b"}]}`,
 		"unknown key":   `{"notes": []}`,
 	} {
-		stub := &hubStub{}
-		svc := newTestService(t, stub)
+		stub, svc := newStubService(t)
 		_, _, err := runCommand(t, svc, "answer", "--ask-id", "a1", "--answer", "approve", "--responses-file", writeFile(t, dir, name+".json", content))
 		require.Error(t, err, name)
 		require.Empty(t, stub.answers, name)

@@ -5,6 +5,7 @@ import { useTranslation } from "../../../i18n";
 import { DecisionText } from "../DecisionText";
 import type { TextLinks } from "../decisionLinks";
 import { describeResponse } from "../model/describeResponse";
+import { answerFileUrl } from "../../../api/attachments";
 
 /**
  * What the operator said besides the choice: what they said to each typed
@@ -18,7 +19,7 @@ export function AnswerRecord({ ask, links }: { ask: Ask; links: TextLinks }) {
     const lines = question ? describeResponse(question, response, t) : [];
     return question && lines.length > 0 ? [{ question, lines }] : [];
   });
-  if (said.length === 0 && ask.attachmentNotes.length === 0) return null;
+  if (said.length === 0 && ask.attachmentNotes.length === 0 && ask.answerAttachments.length === 0) return null;
   return (
     <dl className="flex flex-col gap-2">
       {said.map(({ question, lines }) => (
@@ -40,6 +41,14 @@ export function AnswerRecord({ ask, links }: { ask: Ask; links: TextLinks }) {
                 <DecisionText value={note.note} links={links} inheritText />
               </p>
             ))}
+          </dd>
+        </div>
+      )}
+      {ask.answerAttachments.length > 0 && (
+        <div>
+          <dt className="text-app-muted-foreground">{t(strings.packet.status.answerFileNotes)}</dt>
+          <dd className="flex flex-col gap-1">
+            {ask.answerAttachments.map((file) => <a key={file.name} href={answerFileUrl(ask.id, file.name)} className="inline-flex min-h-11 items-center break-all underline">{file.name}</a>)}
           </dd>
         </div>
       )}

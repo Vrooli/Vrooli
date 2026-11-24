@@ -6,12 +6,12 @@ metadata:
   kind: "skill"
   schemaVersion: 1
   status: "active"
-  revision: 13
+  revision: 14
   modes: ["tools"]
   tags: ["notification-hub", "decisions", "asks", "operator", "notifications", "writing", "operator-legibility", "html-explainer"]
   requires:
-    scenarios: ["notification-hub"]
-    commands: ["notification-hub conversations ask"]
+    scenarios: ["notification-hub", "program-runtime"]
+    commands: ["notification-hub conversations ask", "program-runtime library run"]
   origin:
     kind: "authored"
 ---
@@ -115,8 +115,15 @@ know; the schema documents each field.
 | `research-report.html` | Status update when a research commission ends: workstream states, measured results, scorecard progress with judged levels, feedback read-back, next lines; per-workstream weights | `kit/schemas/research-report.schema.json`, `kit/samples/research-report.json` |
 
 Preview with `node kit/tools/render.mjs <template> data.json --out page.html`, then
-`notification-hub pages check page.html`. Answer keys, components and the render
-contract: `kit/README.md`.
+`notification-hub pages check page.html` sends a non-storing packet check. Review
+the result before `pages shoot`: shooting writes local screenshots under separate
+filesystem authorization. See `kit/README.md` for answer keys and render contract.
+
+## Read one conversation
+
+Use `program-runtime library run notification-hub.conversation-read`
+with `--input ask_id=<id>` or `--input subject_key=<key>`. Owner access remains
+enforced; keep returned private content out of Memory, logs and evidence.
 
 A topic that presents one kind of decision often keeps its own presentation skill in
 its `skills/` folder and points back here. Scenario code sets
@@ -138,6 +145,27 @@ decision in text too:
 
 Write "you" for the operator and "I" for yourself, in everyday words. One ask holds
 one decision.
+
+## Group checks with one cause
+
+When several decisions exist because of the same underlying cause, give each the
+same stable `--decision-family` key and the same plain-language `--decision-cause`.
+The inbox groups those asks under the cause while keeping every check separately
+answerable. Use `--decision-kind` to say what work the operator is doing: `judge`,
+`approve`, `review`, or `do`. Do not group unrelated choices just because they
+come from the same sender or project.
+
+```bash
+notification-hub conversations ask \
+  --subject-key release-guards:network \
+  --question 'May the network guard pass for this release?' --yes-no \
+  --decision-family release-guards \
+  --decision-cause 'The release is waiting on three independent safety checks.' \
+  --decision-kind review
+```
+
+Use the same family and cause with a different `--subject-key` and question for
+each remaining check.
 
 ## Send, revise, wait
 

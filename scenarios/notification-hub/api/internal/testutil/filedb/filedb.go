@@ -31,5 +31,10 @@ func Open(t testing.TB, name string) *database.RoutedDB {
 	t.Helper()
 	db, err := database.Open(context.Background(), database.Config{Driver: database.DriverSQLite, DSN: DSN(t, name)})
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Errorf("close test database: %v", err)
+		}
+	})
 	return db
 }

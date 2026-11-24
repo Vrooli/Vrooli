@@ -26,6 +26,7 @@ const (
 	// attachmentContentPath serves one stored file of an ask to its recipient.
 	attachmentContentPath      = "/api/v1/asks/{ask_id}/attachments/{name}"
 	answerImageContentPath     = "/api/v1/asks/{ask_id}/answer-images/{name}"
+	answerFileContentPath      = "/api/v1/asks/{ask_id}/answer-files/{name}"
 	linkedArtifactMetadataPath = "/api/v1/asks/{ask_id}/linked-artifact/metadata"
 	linkedArtifactContentPath  = "/api/v1/asks/{ask_id}/linked-artifact/content"
 	// putMessageLimit is what the upload RPC may receive: a 64 MiB file, which
@@ -211,6 +212,36 @@ func (h *handler) serveAnswerImage(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, image.Name, time.Time{}, bytes.NewReader(content))
 }
 
+func (h *handler) serveAnswerFile(w http.ResponseWriter, r *http.Request) {
+	owner, err := identity.Subject(r.Context(), r.Header, h.verifier)
+	if err != nil || owner == "" {
+		http.Error(w, "verified owner identity is required", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	file, content, err := h.service.AnswerFile(r.Context(), vars["ask_id"], owner, vars["name"])
+	if errors.Is(err, hub.ErrNotFound) {
+		notFound(w)
+		return
+	}
+	if err != nil {
+		http.Error(w, "answer file could not be read", http.StatusInternalServerError)
+		return
+	}
+	header := w.Header()
+	header.Set("Content-Type", file.MediaType)
+	header.Set("X-Content-Type-Options", "nosniff")
+	header.Set("Cache-Control", "private, no-cache")
+	header.Set("ETag", `"sha256-`+file.SHA256+`"`)
+	header.Set("Content-Security-Policy", attachmentContentCSP)
+	disposition := mime.FormatMediaType("attachment", map[string]string{"filename": file.Name})
+	if disposition != "" {
+		header.Set("Content-Disposition", disposition)
+	}
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(transferTimeout))
+	http.ServeContent(w, r, file.Name, time.Time{}, bytes.NewReader(content))
+}
+
 func notFound(w http.ResponseWriter) { http.Error(w, "not found", http.StatusNotFound) }
 
 // attachmentContentEndpoint documents the content route. It serves raw bytes
@@ -237,6 +268,12 @@ var answerImageContentEndpoint = module.EndpointDescriptor{
 	ID: "conversations_answer_image_content", Path: answerImageContentPath, Method: http.MethodGet,
 	Summary: "Read one image sent with an answer", Category: "conversations",
 	RESTException: &module.RESTException{Reason: module.RESTReasonBrowserSurface, Note: "Streams one image attached to the owner's stored answer. Requires verified owner identity; unknown or foreign answers return 404."},
+}
+
+var answerFileContentEndpoint = module.EndpointDescriptor{
+	ID: "conversations_answer_file_content", Path: answerFileContentPath, Method: http.MethodGet,
+	Summary: "Download one file sent with an answer", Category: "conversations",
+	RESTException: &module.RESTException{Reason: module.RESTReasonBrowserSurface, Note: "Downloads one file attached to the owner's stored answer. Requires verified owner identity; unknown or foreign answers return 404."},
 }
 
 func attachmentsFromProto(in []*v1.AskAttachment) []hub.AskAttachment {

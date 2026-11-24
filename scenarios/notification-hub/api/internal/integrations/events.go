@@ -569,17 +569,6 @@ func EventWebhookFromSecretSourceWithDecisionDefaults(service *hub.Service, secr
 	})
 }
 
-func eventDedupeKey(eventType string, raw json.RawMessage) string {
-	var facts struct {
-		IncidentID string `json:"incident_id"`
-	}
-	_ = json.Unmarshal(raw, &facts)
-	if strings.TrimSpace(facts.IncidentID) == "" {
-		return eventType
-	}
-	return eventType + ":" + facts.IncidentID
-}
-
 type RenderedEvent struct {
 	Title            string
 	Body             string

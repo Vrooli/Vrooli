@@ -137,7 +137,7 @@ idempotency key, so a redelivery or re-publish returns the same ask and
 sends nothing new.
 
 Write operator-facing questions to the shared [operator legibility
-standard](../../../../docs/agent-system/SWARM_MANAGER_WORK.md#operator-legibility).
+standard](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#work-shapes).
 The recipient may not know the sending scenario or its terms. Explain the
 problem and its practical effect in the question, define necessary acronyms at
 first use, and state what each option causes the owner to do. Put detailed

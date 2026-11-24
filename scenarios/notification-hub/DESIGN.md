@@ -321,6 +321,30 @@ Respect reduced-motion preferences. Animations should clarify spatial change, su
 - Use silent failure, blank panels, disabled controls without explanation, or toasts as the only record of a blocking error.
 
 
+## Night Desk — the decision room (proposal, 2026-11-24)
+
+**Concept.** One system, two compositions, built from the product mark: deep
+space, moonlight, and one cyan signal. The desk answers three questions before
+the operator arrives — how many decisions exist, which close, and which are one
+cause wearing two hats — then gets out of the way. No left accent bars, no
+gradient text, no card grid; hierarchy is typographic and colour names attention
+only.
+
+**Composition.** Desktop is a rail + list + detail field with a focus-review
+mode. Phone is a briefing: a count, one lead, a compact stack, then a full-screen
+decision with a bottom answer bar. Neither is a reflow of the other.
+
+**Mockups.** `docs/mockups/night-desk/` — `index.html` (case study),
+`desktop.html`, `mobile.html`, `mobile-detail.html`, `focus.html`, the
+`PROPOSALS.md` feature spec, and light/dark captures in `shots/` at 1440×940,
+390×844 and 320 px. The proposal is `rendered`, not a captured before/after.
+`docs/mockups/hub-ux/` is the earlier direction and is superseded by this one.
+
+**Maturity.** L1 (mockups + concept + field map). No product code has changed for
+the redesign. The decision count, decisions-only semantics, and per-guard titles
+are live; the family key, readiness projection, semantic relatedness, aftermath
+and impact facts are specified in `PROPOSALS.md` and not yet built.
+
 ## Chimesail install and browser identity
 
 The customer-facing identity is Chimesail, adopted through Brand Manager.

@@ -237,6 +237,18 @@
               "description": "decision (default) or status. A status update has no required answer and no default expiry."
             },
             {
+              "name": "decision-family",
+              "description": "Stable family key shared by related decisions; use with --decision-cause to group them in the Hub."
+            },
+            {
+              "name": "decision-cause",
+              "description": "Plain-language reason these related decisions exist. Set together with --decision-family."
+            },
+            {
+              "name": "decision-kind",
+              "description": "Operator work type: judge, approve, review, or do."
+            },
+            {
               "name": "template",
               "description": "Hub kit template name. Give this with --data-file; the Hub renders the page from the embedded object."
             },

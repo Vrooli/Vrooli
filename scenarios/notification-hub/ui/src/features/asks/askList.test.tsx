@@ -72,6 +72,28 @@ describe("sorting and filtering a decision list", () => {
     await waitFor(() => expect(lastRequest()).toMatchObject({ order: ListAsksRequest_Order.ATTENTION }));
   });
 
+  it("shows related guard checks under one cause while keeping each decision independently answerable", async () => {
+    const cause = "The release is waiting on its three independent safety checks.";
+    const checks = ["network", "backup", "permissions"].map((name) => makeAsk({
+      id: `guard-${name}`,
+      question: `May the ${name} guard pass?`,
+      decisionFamily: "release-guards",
+      decisionCause: cause,
+      decisionKind: "review",
+      sender: "Release checks",
+    }));
+    listAsks.mockImplementation(listAsksFor(() => ({ asks: checks, totalAwaiting: 3, facets: { urgencies: [["normal", 3]], senders: [["Release checks", 3]] } })));
+    show("/asks");
+    await screen.findByText(cause);
+    for (const check of checks) {
+      const link = screen.getByRole("link", { name: new RegExp(check.question) });
+      expect(link).toHaveAttribute("href", `/asks/${check.id}`);
+      expect(within(link).getByText(en.asks.kind.review)).toBeInTheDocument();
+    }
+    expect(screen.getByRole("region", { name: cause })).toContainElement(screen.getByText(checks[0]!.question));
+    expect(screen.getByRole("region", { name: cause }).querySelectorAll("[data-request-id]")).toHaveLength(3);
+  });
+
   it("filters by urgency and sender from a sheet that shows what each choice would leave, and stays open while choosing", async () => {
     listAsks.mockImplementation(listAsksFor((request) => ({
       asks: request.urgencies?.includes("high") ? [treasuryAsk] : [treasuryAsk, deskAsk],

@@ -14,10 +14,12 @@ export interface NeedsYou {
 }
 
 /**
- * How many things are waiting on the owner, for the Needs-you tab and the
+ * How many decisions are waiting on the owner, for the Needs-you tab and the
  * installed app's badge. Decisions come from the Hub's exact `total_awaiting`,
  * which every page carries, so a one-row read is enough however long the queue
- * is. Native permission requests are not in that total and are added here.
+ * is. It counts decisions, not status updates: a status waits for a read, not
+ * an answer. Native permission requests are not in that total and are added
+ * here.
  */
 export function useNeedsYou(): NeedsYou {
   const session = useSession();

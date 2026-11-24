@@ -107,6 +107,7 @@ func (h *handler) module() module.Module {
 		r.HandleFunc("/api/v1/identity/root-enrollment", h.rootEnrollment).Methods(http.MethodPost, http.MethodDelete)
 		r.HandleFunc(attachmentContentPath, h.serveAttachment).Methods(http.MethodGet, http.MethodHead)
 		r.HandleFunc(answerImageContentPath, h.serveAnswerImage).Methods(http.MethodGet, http.MethodHead)
+		r.HandleFunc(answerFileContentPath, h.serveAnswerFile).Methods(http.MethodGet, http.MethodHead)
 		r.HandleFunc(linkedArtifactMetadataPath, h.linkedArtifactMetadata).Methods(http.MethodGet)
 		r.HandleFunc(linkedArtifactContentPath, h.serveLinkedArtifact).Methods(http.MethodGet, http.MethodHead)
 		r.HandleFunc("/api/v1/conversations/asks/{ask_id}/portfolio-continuity", h.attestPortfolioContinuity).Methods(http.MethodPost)
@@ -292,13 +293,14 @@ func (h *handler) Answer(ctx context.Context, req *connect.Request[v1.AnswerRequ
 		Note:                     req.Msg.GetNote(),
 		Changes:                  structMap(req.Msg.GetChanges()),
 		Images:                   answerImagesFromProto(req.Msg.GetImages()),
+		Attachments:              answerAttachmentsFromProto(req.Msg.GetAttachments()),
 		Responses:                responsesFromProto(req.Msg.GetResponses()),
 		AttachmentNotes:          attachmentNotesFromProto(req.Msg.GetAttachmentNotes()),
 	})
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&v1.AnswerResponse{AskId: ask.ID, Answer: ask.Answer, AnsweredAt: ask.AnsweredAt, Late: ask.Late, Changes: structValue(ask.AnswerChanges), Images: answerImagesToProto(ask.AnswerImages)}), nil
+	return connect.NewResponse(&v1.AnswerResponse{AskId: ask.ID, Answer: ask.Answer, AnsweredAt: ask.AnsweredAt, Late: ask.Late, Changes: structValue(ask.AnswerChanges), Images: answerImagesToProto(ask.AnswerImages), Attachments: answerAttachmentsToProto(ask.AnswerAttachments)}), nil
 }
 
 func (h *handler) MarkRead(ctx context.Context, req *connect.Request[v1.MarkReadRequest]) (*connect.Response[v1.MarkReadResponse], error) {
@@ -492,7 +494,7 @@ func (h *handler) Wait(ctx context.Context, req *connect.Request[v1.WaitRequest]
 		AskId: result.Ask.ID, State: result.Ask.State, Answer: result.Ask.Answer, Reason: result.Reason, Note: result.Ask.Note,
 		Responses: responsesToProto(result.Ask.Responses), AnswerSummary: result.Ask.AnswerSummary,
 		AttachmentNotes: attachmentNotesToProto(result.Ask.AttachmentNotes), Packet: result.Ask.Packet,
-		Changes: structValue(result.Ask.AnswerChanges), Images: answerImagesToProto(result.Ask.AnswerImages),
+		Changes: structValue(result.Ask.AnswerChanges), Images: answerImagesToProto(result.Ask.AnswerImages), Attachments: answerAttachmentsToProto(result.Ask.AnswerAttachments),
 	}
 	if result.ContextRequest != nil {
 		response.ContextRequest = contextRequestToProto(*result.ContextRequest)
@@ -572,6 +574,58 @@ func (h *handler) ListAsks(ctx context.Context, req *connect.Request[v1.ListAsks
 	return connect.NewResponse(&v1.ListAsksResponse{Asks: out, NextCursor: page.NextCursor, TotalAwaiting: int32(page.TotalAwaiting), Facets: askFacetsToProto(page.Facets), ClosingWindowSeconds: int32(page.ClosingWindow / time.Second)}), nil
 }
 
+func (h *handler) ListPendingDecisionReferences(ctx context.Context, req *connect.Request[v1.ListPendingDecisionReferencesRequest]) (*connect.Response[v1.ListPendingDecisionReferencesResponse], error) {
+	owner, err := h.pendingDecisionOwner(ctx, req.Header())
+	if err != nil {
+		return nil, err
+	}
+	page, err := h.service.ListPendingDecisionReferences(ctx, owner, req.Msg.GetCursor(), int(req.Msg.GetLimit()))
+	if err != nil {
+		return nil, connectError(err)
+	}
+	out := &v1.ListPendingDecisionReferencesResponse{NextCursor: page.NextCursor, Decisions: make([]*v1.PendingDecisionReference, 0, len(page.Decisions))}
+	for _, value := range page.Decisions {
+		if err := hub.ValidatePendingDecisionReference(value); err != nil {
+			return nil, connect.NewError(connect.CodeDataLoss, errors.New("pending decision projection is incomplete"))
+		}
+		out.Decisions = append(out.Decisions, pendingDecisionReferenceToProto(value))
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h *handler) ReadPendingDecisionReference(ctx context.Context, req *connect.Request[v1.ReadPendingDecisionReferenceRequest]) (*connect.Response[v1.ReadPendingDecisionReferenceResponse], error) {
+	owner, err := h.pendingDecisionOwner(ctx, req.Header())
+	if err != nil {
+		return nil, err
+	}
+	value, err := h.service.ReadPendingDecisionReference(ctx, owner, req.Msg.GetDecisionRef(), req.Msg.GetExpectedRevision())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&v1.ReadPendingDecisionReferenceResponse{Decision: pendingDecisionReferenceToProto(value)}), nil
+}
+
+func (h *handler) pendingDecisionOwner(ctx context.Context, headers http.Header) (string, error) {
+	owner, err := h.owner(ctx, headers)
+	if err != nil {
+		return "", err
+	}
+	recipient := h.service.ResolveRecipient(ctx)
+	if recipient == "" || owner != recipient {
+		return "", connect.NewError(connect.CodeUnauthenticated, errors.New("verified decision owner required"))
+	}
+	return owner, nil
+}
+
+func pendingDecisionReferenceToProto(value hub.PendingDecisionReference) *v1.PendingDecisionReference {
+	return &v1.PendingDecisionReference{
+		DecisionRef: value.DecisionRef, OwnerId: value.OwnerID, Source: value.Source,
+		SourceEventType: value.SourceEventType, Revision: value.Revision, State: value.State,
+		CreatedAt: value.CreatedAt, UpdatedAt: value.UpdatedAt, Deadline: value.Deadline,
+		Urgency: value.Urgency,
+	}
+}
+
 func askFacetsToProto(facets hub.AskFacets) *v1.AskFacets {
 	convert := func(counts []hub.AskFacetCount) []*v1.AskFacetCount {
 		out := make([]*v1.AskFacetCount, 0, len(counts))
@@ -635,8 +689,9 @@ func (h *handler) toProto(ask hub.AskRecord) *v1.Ask {
 		Sender:      ask.Sender,
 		ClosingSoon: ask.ClosingSoon,
 		Packet:      ask.Packet, ApprovalUrl: ask.NativeApprovalURL(),
-		Kind: ask.Kind, AnswerChanges: structValue(ask.AnswerChanges), AnswerImages: answerImagesToProto(ask.AnswerImages),
+		Kind: ask.Kind, AnswerChanges: structValue(ask.AnswerChanges), AnswerImages: answerImagesToProto(ask.AnswerImages), AnswerAttachments: answerAttachmentsToProto(ask.AnswerAttachments),
 		TemplateName: ask.TemplateName, TemplateData: structValue(ask.TemplateData),
+		DecisionFamily: ask.DecisionFamily, DecisionCause: ask.DecisionCause, DecisionKind: ask.DecisionKind,
 	}
 }
 
@@ -672,6 +727,24 @@ func answerImagesToProto(images []hub.AnswerImage) []*v1.AnswerImage {
 	out := make([]*v1.AnswerImage, 0, len(images))
 	for _, image := range images {
 		out = append(out, &v1.AnswerImage{Name: image.Name, Sha256: image.SHA256, MediaType: image.MediaType, SizeBytes: image.SizeBytes})
+	}
+	return out
+}
+
+func answerAttachmentsFromProto(files []*v1.AnswerAttachment) []hub.AnswerAttachment {
+	out := make([]hub.AnswerAttachment, 0, len(files))
+	for _, file := range files {
+		if file != nil {
+			out = append(out, hub.AnswerAttachment{Name: file.GetName(), SHA256: file.GetSha256(), MediaType: file.GetMediaType(), SizeBytes: file.GetSizeBytes()})
+		}
+	}
+	return out
+}
+
+func answerAttachmentsToProto(files []hub.AnswerAttachment) []*v1.AnswerAttachment {
+	out := make([]*v1.AnswerAttachment, 0, len(files))
+	for _, file := range files {
+		out = append(out, &v1.AnswerAttachment{Name: file.Name, Sha256: file.SHA256, MediaType: file.MediaType, SizeBytes: file.SizeBytes})
 	}
 	return out
 }
@@ -725,7 +798,7 @@ func connectError(err error) error {
 	switch {
 	case errors.Is(err, hub.ErrNotFound):
 		return connect.NewError(connect.CodeNotFound, err)
-	case errors.Is(err, hub.ErrAskResolved), errors.Is(err, hub.ErrAskWithdrawn), errors.Is(err, hub.ErrAskStale):
+	case errors.Is(err, hub.ErrAskResolved), errors.Is(err, hub.ErrAskWithdrawn), errors.Is(err, hub.ErrAskStale), errors.Is(err, hub.ErrDecisionRevisionConflict):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	case errors.Is(err, hub.ErrRelatedDecision):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
@@ -760,6 +833,7 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "conversations_put_attachment_blob", Path: connectv1.ConversationsServicePutAttachmentBlobProcedure, Method: http.MethodPost, Summary: "Store one attachment file under its SHA-256 (at most 64 MiB; sender identity is optional)", Category: "conversations"},
 	attachmentContentEndpoint,
 	answerImageContentEndpoint,
+	answerFileContentEndpoint,
 	{ID: "conversations_linked_artifact_metadata", Path: linkedArtifactMetadataPath, Method: http.MethodGet, Summary: "Resolve one decision-linked artifact inside an allowed local root", Category: "conversations", RESTException: linkedArtifactRESTException},
 	{ID: "conversations_linked_artifact_content", Path: linkedArtifactContentPath, Method: http.MethodGet, Summary: "Stream one owner-authorized decision-linked artifact", Category: "conversations", RESTException: linkedArtifactRESTException},
 	{ID: "conversations_list_native_consents", Path: connectv1.ConversationsServiceListNativeConsentsProcedure, Method: http.MethodPost, Summary: "Read source-owned native consent without approving or creating an ask", Category: "conversations"},
@@ -774,6 +848,8 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "conversations_request_context", Path: connectv1.ConversationsServiceRequestContextProcedure, Method: http.MethodPost, Summary: "Ask the requester for more context on an open ask", Category: "conversations"},
 	{ID: "conversations_get_ask", Path: connectv1.ConversationsServiceGetAskProcedure, Method: http.MethodPost, Summary: "Read one ask without changing it", Category: "conversations"},
 	{ID: "conversations_list_asks", Path: connectv1.ConversationsServiceListAsksProcedure, Method: http.MethodPost, Summary: "List the owner's asks, optionally only open ones", Category: "conversations"},
+	{ID: "conversations_list_pending_decision_references", Path: connectv1.ConversationsServiceListPendingDecisionReferencesProcedure, Method: http.MethodPost, Summary: "List safe references to pending owner decisions", Category: "conversations"},
+	{ID: "conversations_read_pending_decision_reference", Path: connectv1.ConversationsServiceReadPendingDecisionReferenceProcedure, Method: http.MethodPost, Summary: "Read one safe pending owner decision reference", Category: "conversations"},
 }
 
 var linkedArtifactRESTException = &module.RESTException{

@@ -63,8 +63,7 @@ func TestEveryStateTheHubFiltersByIsAccepted(t *testing.T) {
 }
 
 func TestOpenIsTheShortcutForTheAwaitingState(t *testing.T) {
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 	_, _, err := runCommand(t, svc, "list", "--open")
 	require.NoError(t, err)
 	_, _, err = runCommand(t, svc, "list", "--open", "--state", "awaiting")
@@ -225,8 +224,7 @@ func TestAskRefusesAFromNameTheHubWouldRefuseBeforeSendingAnything(t *testing.T)
 }
 
 func TestTheSenderTakesPartInTheDerivedKeySoTwoSendersAsksStayApart(t *testing.T) {
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 	for _, from := range []string{"Research Desk", "Treasury steward"} {
 		_, _, err := runCommand(t, svc, "ask", minimalAsk("--from", from)...)
 		require.NoError(t, err)

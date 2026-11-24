@@ -49,7 +49,6 @@ export interface DecisionLinks {
 }
 
 const LINK_CLASS = "inline-flex min-h-11 max-w-full items-center break-words underline";
-const DENSE_LINK_CLASS = "break-words underline";
 
 /**
  * Render safe web links and file references in decision prose. Attached files
@@ -57,7 +56,6 @@ const DENSE_LINK_CLASS = "break-words underline";
  */
 export function renderDecisionText(value: string, links: DecisionLinks = {}): ReactNode[] {
   const { attachments = [], onOpenAttachment, onOpenLinkedArtifact, openLinkedArtifactTitle, dense = false } = links;
-  const linkClass = dense ? DENSE_LINK_CLASS : LINK_CLASS;
   const parts: ReactNode[] = [];
   let cursor = 0;
   const tokens = [
@@ -110,7 +108,7 @@ export function renderDecisionText(value: string, links: DecisionLinks = {}): Re
           data-testid={selectors.packet.textLink}
           title={links.openAttachmentTitle}
           onClick={() => onOpenAttachment(attachment)}
-          className={`${linkClass} text-start`}
+          className={`${LINK_CLASS} text-start`}
         >
           {label}
         </button>,
@@ -119,7 +117,7 @@ export function renderDecisionText(value: string, links: DecisionLinks = {}): Re
     }
     if (localPath && onOpenLinkedArtifact) {
       parts.push(
-        <button key={`linked-artifact-${index}`} type="button" data-testid={selectors.packet.textLink} title={openLinkedArtifactTitle} onClick={() => onOpenLinkedArtifact(localPath)} className={`${linkClass} text-start`}>
+        <button key={`linked-artifact-${index}`} type="button" data-testid={selectors.packet.textLink} title={openLinkedArtifactTitle} onClick={() => onOpenLinkedArtifact(localPath)} className={`${LINK_CLASS} text-start`}>
           {label}
         </button>,
       );
@@ -128,7 +126,7 @@ export function renderDecisionText(value: string, links: DecisionLinks = {}): Re
     const href = httpUrl;
     parts.push(
       href ? (
-        <a key={`link-${index}`} href={href} data-testid={selectors.packet.textLink} target="_blank" rel="noopener noreferrer" className={linkClass}>
+        <a key={`link-${index}`} href={href} data-testid={selectors.packet.textLink} target="_blank" rel="noopener noreferrer" className={LINK_CLASS}>
           {label}
         </a>
       ) : (

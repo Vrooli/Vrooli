@@ -94,7 +94,6 @@ func TestRecipientResolvesFromOperatorStateBeforeSourceFallback(t *testing.T) {
 func TestTestModeRecipientRequiresAnInstalledLease(t *testing.T) {
 	ctx := database.WithTestMode(context.Background())
 	db := OpenTestDB(t, "primary.db")
-	defer db.Close()
 	service := New(db, schedule.System(), log.Default())
 	t.Cleanup(service.Close)
 	service.SetOwnerFallback(OperatorSubject)

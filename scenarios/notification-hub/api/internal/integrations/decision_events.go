@@ -147,6 +147,9 @@ type decisionFacts struct {
 	// SubjectKey, ReassertWithinSeconds and AssertedAt are the decision-subject
 	// fields (see operatordecision.Facts); all are optional.
 	SubjectKey            string `json:"subject_key"`
+	DecisionFamily        string `json:"decision_family"`
+	DecisionCause         string `json:"decision_cause"`
+	DecisionKind          string `json:"decision_kind"`
 	ReassertWithinSeconds int64  `json:"reassert_within_seconds"`
 	AssertedAt            string `json:"asserted_at"`
 	// AcceptsContextRequests declares that the producer answers the operator's
@@ -264,6 +267,9 @@ func DecisionAskSpecWithDefaults(recipient, sourceScenario, eventType, eventID s
 		SourceEventType:        eventType,
 		Correlation:            facts.Correlation,
 		SubjectKey:             strings.TrimSpace(facts.SubjectKey),
+		DecisionFamily:         strings.TrimSpace(facts.DecisionFamily),
+		DecisionCause:          strings.TrimSpace(facts.DecisionCause),
+		DecisionKind:           strings.TrimSpace(facts.DecisionKind),
 		ReassertWithin:         time.Duration(facts.ReassertWithinSeconds) * time.Second,
 		AssertedAt:             assertedAt,
 		AcceptsContextRequests: facts.AcceptsContextRequests,

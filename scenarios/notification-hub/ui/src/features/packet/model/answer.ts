@@ -34,6 +34,7 @@ export interface AnswerPayload {
   attachmentNotes: AttachmentNoteDraft[];
   changes: JsonObject;
   images: { name: string; sha256: string; mediaType: string; sizeBytes: number }[];
+  attachments?: { name: string; sha256: string; mediaType: string; sizeBytes: number }[];
 }
 
 function jsonValue(value: unknown): value is JsonValue {
@@ -124,7 +125,8 @@ export function buildAnswer(ask: Ask, draft: PacketDraft): AnswerPayload {
   const changes: JsonObject = {};
   for (const [key, change] of Object.entries(draft.answerChanges)) if (jsonValue(change.value)) changes[key] = change.value;
   const images = draft.answerImages.slice(0, 8).map((image) => ({ ...image }));
-  return { answer: draft.answer, note: draft.note.trim(), responses, attachmentNotes, changes, images };
+  const attachments = draft.answerAttachments.slice(0, 8).map((file) => ({ ...file }));
+  return { answer: draft.answer, note: draft.note.trim(), responses, attachmentNotes, changes, images, ...(attachments.length ? { attachments } : {}) };
 }
 
 /**

@@ -27,6 +27,11 @@
           "minLength": 1,
           "description": "The decision as a question."
         },
+        "notificationTitle": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional inbox title naming the exact check or subject; the page keeps meta.title as the shared question. The Hub renders it as 'Structural change: <notificationTitle>'."
+        },
         "producer": {
           "type": "string",
           "description": "Who sends it, e.g. 'Portfolio steward'."

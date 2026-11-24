@@ -3,6 +3,7 @@ module notification-hub
 go 1.26.0
 
 require (
+	github.com/vrooli/cliresolve v0.0.0
 	connectrpc.com/connect v1.19.2
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/handlers v1.5.2
@@ -57,3 +58,5 @@ replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
+
+replace github.com/vrooli/cliresolve => ../../../packages/cliresolve

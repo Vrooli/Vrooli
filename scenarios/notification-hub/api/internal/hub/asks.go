@@ -80,11 +80,11 @@ var (
 )
 
 const (
-	maxAnswerImageBytes   = 12 << 20
-	maxAnswerImageCount   = 8
-	maxAnswerImageTotal   = 24 << 20
-	maxAnswerChangesBytes = 64 << 10
-	maxAnswerChangeCount  = 128
+	maxAnswerAttachmentBytes = 12 << 20
+	maxAnswerAttachmentCount = 8
+	maxAnswerAttachmentTotal = 24 << 20
+	maxAnswerChangesBytes    = 64 << 10
+	maxAnswerChangeCount     = 128
 )
 
 // AskOption is one structured answer. Key is what the requester receives;
@@ -98,6 +98,9 @@ type AskOption struct {
 // SensitivityLabel, and IdempotencyKey are required; everything else is
 // optional.
 type AskSpec struct {
+	DecisionFamily       string
+	DecisionCause        string
+	DecisionKind         string
 	AllowRelated         bool
 	Kind                 string
 	TemplateName         string
@@ -226,13 +229,14 @@ type AskSpec struct {
 // AskKeep names the fields of an AskSpec its request left unsaid. Each is kept
 // from the open ask the request revises.
 type AskKeep struct {
-	Question, Options                      bool
-	Recommended, RecommendationReason      bool
-	DefaultAnswer, Reversible              bool
-	Urgency, ContextURL                    bool
-	BigPicture, TechnicalDetails           bool
-	ReassertWithin, AcceptsContextRequests bool
-	Packet                                 bool
+	Question, Options                           bool
+	Recommended, RecommendationReason           bool
+	DefaultAnswer, Reversible                   bool
+	Urgency, ContextURL                         bool
+	BigPicture, TechnicalDetails                bool
+	ReassertWithin, AcceptsContextRequests      bool
+	Packet                                      bool
+	DecisionFamily, DecisionCause, DecisionKind bool
 }
 
 // Any reports whether the request left any field unsaid.
@@ -240,11 +244,15 @@ func (k AskKeep) Any() bool { return k != AskKeep{} }
 
 // AskRecord is the read model of one ask. Reading it never changes it.
 type AskRecord struct {
+	DecisionFamily           string
+	DecisionCause            string
+	DecisionKind             string
 	Kind                     string
 	TemplateName             string
 	TemplateData             map[string]any
 	AnswerChanges            map[string]any
 	AnswerImages             []AnswerImage
+	AnswerAttachments        []AnswerAttachment
 	ID                       string
 	Title                    string
 	NotificationID           string
@@ -357,6 +365,7 @@ type AnswerInput struct {
 	RootEnrollmentOwners []RootEnrollmentGrant
 	Changes              map[string]any
 	Images               []AnswerImage
+	Attachments          []AnswerAttachment
 	// Responses answer the ask's Questions. An unknown question id or a response
 	// of the wrong shape is refused; required questions bind only when Answer is
 	// one of the requester's options.
@@ -371,6 +380,14 @@ type AnswerInput struct {
 
 // AnswerImage is an image attachment referenced by its verified Hub blob hash.
 type AnswerImage struct {
+	Name      string `json:"name"`
+	SHA256    string `json:"sha256"`
+	MediaType string `json:"media_type"`
+	SizeBytes int64  `json:"size_bytes"`
+}
+
+// AnswerAttachment is a file referenced by its verified Hub blob hash.
+type AnswerAttachment struct {
 	Name      string `json:"name"`
 	SHA256    string `json:"sha256"`
 	MediaType string `json:"media_type"`
@@ -482,6 +499,24 @@ func normalizeAskSpec(spec AskSpec) (AskSpec, error) {
 	}
 	if spec.Kind != "decision" && spec.Kind != "status" {
 		return spec, fmt.Errorf("%w: kind must be decision or status", ErrInvalidArgument)
+	}
+	spec.DecisionFamily = strings.TrimSpace(spec.DecisionFamily)
+	spec.DecisionCause = normalizeExplanation(spec.DecisionCause)
+	spec.DecisionKind = strings.ToLower(strings.TrimSpace(spec.DecisionKind))
+	if !spec.Keep.DecisionFamily && !spec.Keep.DecisionCause && (spec.DecisionFamily == "") != (spec.DecisionCause == "") {
+		return spec, fmt.Errorf("%w: decision_family and decision_cause must be set together", ErrInvalidArgument)
+	}
+	if spec.DecisionFamily != "" && !operatordecision.SubjectKeyRule.MatchString(spec.DecisionFamily) {
+		return spec, fmt.Errorf("%w: decision_family must be 1-128 letters, digits, '.', '_', ':', '/', '@' or '-', starting with a letter or digit", ErrInvalidArgument)
+	}
+	if utf8.RuneCountInString(spec.DecisionCause) > 300 {
+		return spec, fmt.Errorf("%w: decision_cause must be at most 300 Unicode code points", ErrInvalidArgument)
+	}
+	if !spec.Keep.DecisionKind && spec.DecisionKind != "" && spec.DecisionKind != "judge" && spec.DecisionKind != "approve" && spec.DecisionKind != "review" && spec.DecisionKind != "do" {
+		return spec, fmt.Errorf("%w: decision_kind must be judge, approve, review, or do", ErrInvalidArgument)
+	}
+	if spec.Kind == "status" && (spec.DecisionFamily != "" || spec.DecisionKind != "") {
+		return spec, fmt.Errorf("%w: decision family and decision kind apply only to decisions", ErrInvalidArgument)
 	}
 	spec.TemplateName = strings.TrimSpace(spec.TemplateName)
 	if spec.TemplateName != "" && !templateNameRule.MatchString(spec.TemplateName) {
@@ -953,6 +988,7 @@ func sameAskTerms(existing AskRecord, notification Notification, spec AskSpec) b
 		existing.DefaultAnswer != spec.DefaultAnswer || existing.Reversible != spec.Reversible ||
 		existing.Urgency != spec.Urgency || existing.ContextURL != spec.ContextURL ||
 		existing.BigPicture != spec.BigPicture || existing.TechnicalDetails != spec.TechnicalDetails ||
+		existing.DecisionFamily != spec.DecisionFamily || existing.DecisionCause != spec.DecisionCause || existing.DecisionKind != spec.DecisionKind ||
 		existing.Packet != spec.Packet || existing.SourceEventType != spec.SourceEventType || len(existing.Options) != len(spec.Options) ||
 		!sameProviderDecisionContext(existing.ProviderDecisionContext, spec.ProviderDecisionContext) ||
 		!sameQuestions(existing.Questions, spec.Questions) ||
@@ -997,6 +1033,7 @@ func sameCorrelation(a, b map[string]string) bool {
 
 const askSelect = `SELECT a.id, a.notification_id, a.question, a.allowed_answers, a.options_json, a.recommended, a.recommendation_reason, a.default_answer, a.reversible, a.urgency, a.context_url, a.big_picture, a.technical_details, a.source, a.source_event_type, a.requester_ref, a.correlation_json, a.deadline, a.state, a.reason, a.default_applied_at, a.resolved_at, a.created_at, a.updated_at,
   a.subject_key, a.last_asserted_at, a.reassert_within_seconds, a.revision_count, a.superseded_by_ask_id, a.current_event_id,
+  a.decision_family, a.decision_cause, a.decision_kind,
   a.questions_json, a.accepts_context_requests, COALESCE(ans.responses_json, ''), COALESCE(ans.attachment_notes_json, ''),
   (SELECT COUNT(*) FROM ask_context_requests c WHERE c.ask_id = a.id AND c.addressed_at = ''),
   a.attachment_count, a.attachments_digest, a.created_by, a.created_conversation, a.created_subject, a.sender, a.packet,
@@ -1005,20 +1042,21 @@ const askSelect = `SELECT a.id, a.notification_id, a.question, a.allowed_answers
   COALESCE((SELECT MIN(r.delivered_at) FROM receipts r WHERE r.notification_id = a.notification_id), ''),
   COALESCE((SELECT n.requested_by FROM notifications n WHERE n.id = a.notification_id), ''),
   COALESCE((SELECT n.title FROM notifications n WHERE n.id = a.notification_id), ''),
-  a.kind, a.template_name, a.template_data_json, COALESCE(ans.changes_json, ''), COALESCE(ans.images_json, '')
+  a.kind, a.template_name, a.template_data_json, COALESCE(ans.changes_json, ''), COALESCE(ans.images_json, ''), COALESCE(ans.attachments_json, '')
 FROM asks a LEFT JOIN answers ans ON ans.ask_id = a.id LEFT JOIN answer_identity ai ON ai.ask_id = a.id`
 
 func scanAsk(row rowScanner) (AskRecord, error) {
 	var record AskRecord
 	var allowedJSON, optionsJSON, correlationJSON, questionsJSON, responsesJSON, notesJSON string
-	var templateDataJSON, changesJSON, imagesJSON string
+	var templateDataJSON, changesJSON, imagesJSON, attachmentsJSON string
 	var reversible, late, acceptsContext int
 	err := row.Scan(&record.ID, &record.NotificationID, &record.Question, &allowedJSON, &optionsJSON, &record.Recommended, &record.RecommendationReason, &record.DefaultAnswer, &reversible, &record.Urgency, &record.ContextURL, &record.BigPicture, &record.TechnicalDetails, &record.Source, &record.SourceEventType, &record.RequesterRef, &correlationJSON, &record.Deadline, &record.State, &record.Reason, &record.DefaultAppliedAt, &record.ResolvedAt, &record.CreatedAt, &record.UpdatedAt,
 		&record.SubjectKey, &record.LastAssertedAt, &record.ReassertWithinSeconds, &record.RevisionCount, &record.SupersededByAskID, &record.CurrentEventID,
+		&record.DecisionFamily, &record.DecisionCause, &record.DecisionKind,
 		&questionsJSON, &acceptsContext, &responsesJSON, &notesJSON, &record.OpenContextRequestCount,
 		&record.AttachmentCount, &record.AttachmentsDigest, &record.CreatedBy, &record.CreatedConversation, &record.CreatedSubject, &record.Sender, &record.Packet,
 		&record.Answer, &record.AnsweredBy, &record.AnsweredAt, &record.Note, &late, &record.AnsweredByIdentityKind, &record.AnsweredByIdentitySource, &record.FirstDeliveredAt, &record.Recipient, &record.Title,
-		&record.Kind, &record.TemplateName, &templateDataJSON, &changesJSON, &imagesJSON)
+		&record.Kind, &record.TemplateName, &templateDataJSON, &changesJSON, &imagesJSON, &attachmentsJSON)
 	if errors.Is(err, sql.ErrNoRows) {
 		return AskRecord{}, ErrNotFound
 	}
@@ -1037,6 +1075,9 @@ func scanAsk(row rowScanner) (AskRecord, error) {
 	}
 	if imagesJSON != "" {
 		_ = json.Unmarshal([]byte(imagesJSON), &record.AnswerImages)
+	}
+	if attachmentsJSON != "" {
+		_ = json.Unmarshal([]byte(attachmentsJSON), &record.AnswerAttachments)
 	}
 	record.Late = late != 0
 	if record.Sender == "" {
@@ -1215,6 +1256,10 @@ func (s *Service) AnswerAsk(ctx context.Context, in AnswerInput) (AskRecord, err
 	if err != nil {
 		return AskRecord{}, err
 	}
+	attachments, err := s.validateAnswerAttachments(ctx, in.Attachments)
+	if err != nil {
+		return AskRecord{}, err
+	}
 	// answered_by records the ACTUAL verified human; it falls back to the
 	// recipient-check actor when the request carried no per-human identity.
 	answeredBy := strings.TrimSpace(in.AnsweredBy)
@@ -1232,7 +1277,7 @@ func (s *Service) AnswerAsk(ctx context.Context, in AnswerInput) (AskRecord, err
 	}
 	return s.commitAnswer(ctx, record, answerPlan{
 		answer: answer, note: in.Note, late: late, responses: responses, notes: notes,
-		changes: in.Changes, images: images,
+		changes: in.Changes, images: images, attachments: attachments,
 		answeredBy: answeredBy, identityKind: identityKind, identitySource: identitySource, enrollmentOwners: in.RootEnrollmentOwners,
 	})
 }
@@ -1254,8 +1299,8 @@ func validateAnswerChanges(changes map[string]any) error {
 }
 
 func (s *Service) validateAnswerImages(ctx context.Context, images []AnswerImage) ([]AnswerImage, error) {
-	if len(images) > maxAnswerImageCount {
-		return nil, fmt.Errorf("%w: an answer can include at most %d images", ErrInvalidArgument, maxAnswerImageCount)
+	if len(images) > maxAnswerAttachmentCount {
+		return nil, fmt.Errorf("%w: an answer can include at most %d images", ErrInvalidArgument, maxAnswerAttachmentCount)
 	}
 	seen := make(map[string]bool, len(images))
 	var total int64
@@ -1271,22 +1316,57 @@ func (s *Service) validateAnswerImages(ctx context.Context, images []AnswerImage
 		if image.MediaType == "" || !strings.HasPrefix(image.MediaType, "image/") {
 			return nil, fmt.Errorf("%w: answer image %q must have an image media type", ErrInvalidArgument, image.Name)
 		}
-		content, err := s.ReadAttachmentBlob(ctx, image.SHA256, maxAnswerImageBytes)
+		content, err := s.ReadAttachmentBlob(ctx, image.SHA256, maxAnswerAttachmentBytes)
 		if err != nil {
 			return nil, fmt.Errorf("%w: answer image %q is not stored in the Hub", ErrInvalidArgument, image.Name)
 		}
-		if len(content) == 0 || len(content) > maxAnswerImageBytes || int64(len(content)) != image.SizeBytes {
-			return nil, fmt.Errorf("%w: answer image %q has a mismatched size or exceeds %d bytes", ErrInvalidArgument, image.Name, maxAnswerImageBytes)
+		if len(content) == 0 || len(content) > maxAnswerAttachmentBytes || int64(len(content)) != image.SizeBytes {
+			return nil, fmt.Errorf("%w: answer image %q has a mismatched size or exceeds %d bytes", ErrInvalidArgument, image.Name, maxAnswerAttachmentBytes)
 		}
 		actual := strings.ToLower(strings.Split(http.DetectContentType(content), ";")[0])
 		if actual != image.MediaType {
 			return nil, fmt.Errorf("%w: answer image %q declares %s but its content is %s", ErrInvalidArgument, image.Name, image.MediaType, actual)
 		}
 		total += image.SizeBytes
-		if total > maxAnswerImageTotal {
-			return nil, fmt.Errorf("%w: answer images exceed %d bytes total", ErrInvalidArgument, maxAnswerImageTotal)
+		if total > maxAnswerAttachmentTotal {
+			return nil, fmt.Errorf("%w: answer images exceed %d bytes total", ErrInvalidArgument, maxAnswerAttachmentTotal)
 		}
 		out = append(out, image)
+	}
+	return out, nil
+}
+
+func (s *Service) validateAnswerAttachments(ctx context.Context, attachments []AnswerAttachment) ([]AnswerAttachment, error) {
+	if len(attachments) > maxAnswerAttachmentCount {
+		return nil, fmt.Errorf("%w: an answer can include at most %d files", ErrInvalidArgument, maxAnswerAttachmentCount)
+	}
+	seen := make(map[string]bool, len(attachments))
+	var total int64
+	out := make([]AnswerAttachment, 0, len(attachments))
+	for _, file := range attachments {
+		file.Name = strings.TrimSpace(file.Name)
+		file.SHA256 = strings.ToLower(strings.TrimSpace(file.SHA256))
+		file.MediaType = strings.ToLower(strings.TrimSpace(strings.Split(file.MediaType, ";")[0]))
+		if !answerImageNameRule.MatchString(file.Name) || seen[file.Name] {
+			return nil, fmt.Errorf("%w: answer file names must be unique and contain 1-96 letters, digits, '.', '_' or '-'", ErrInvalidArgument)
+		}
+		seen[file.Name] = true
+		content, err := s.ReadAttachmentBlob(ctx, file.SHA256, maxAnswerAttachmentBytes)
+		if err != nil {
+			return nil, fmt.Errorf("%w: answer file %q is not stored in the Hub", ErrInvalidArgument, file.Name)
+		}
+		if len(content) == 0 || int64(len(content)) != file.SizeBytes {
+			return nil, fmt.Errorf("%w: answer file %q has a mismatched size or exceeds %d bytes", ErrInvalidArgument, file.Name, maxAnswerAttachmentBytes)
+		}
+		actual := strings.ToLower(strings.Split(http.DetectContentType(content), ";")[0])
+		if file.MediaType == "" || (file.MediaType != "application/octet-stream" && actual != file.MediaType) {
+			return nil, fmt.Errorf("%w: answer file %q declares %s but its content is %s", ErrInvalidArgument, file.Name, file.MediaType, actual)
+		}
+		total += file.SizeBytes
+		if total > maxAnswerAttachmentTotal {
+			return nil, fmt.Errorf("%w: answer files exceed %d bytes total", ErrInvalidArgument, maxAnswerAttachmentTotal)
+		}
+		out = append(out, file)
 	}
 	return out, nil
 }
@@ -1326,6 +1406,7 @@ type answerPlan struct {
 	notes                                    []AskAttachmentNote
 	changes                                  map[string]any
 	images                                   []AnswerImage
+	attachments                              []AnswerAttachment
 	answeredBy, identityKind, identitySource string
 	enrollmentOwners                         []RootEnrollmentGrant
 }
@@ -1388,7 +1469,8 @@ func (s *Service) commitAnswer(ctx context.Context, record AskRecord, plan answe
 	}
 	changesJSON, _ := json.Marshal(plan.changes)
 	imagesJSON, _ := json.Marshal(plan.images)
-	if _, err := tx.ExecContext(ctx, `INSERT INTO answers (id, ask_id, answer, answered_by, answered_at, note, late, responses_json, attachment_notes_json, changes_json, images_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, uuid.NewString(), record.ID, plan.answer, plan.answeredBy, now, plan.note, dbvalue.BoolInt(plan.late), encodeResponses(plan.responses), encodeAttachmentNotes(plan.notes), string(changesJSON), string(imagesJSON)); err != nil {
+	attachmentsJSON, _ := json.Marshal(plan.attachments)
+	if _, err := tx.ExecContext(ctx, `INSERT INTO answers (id, ask_id, answer, answered_by, answered_at, note, late, responses_json, attachment_notes_json, changes_json, images_json, attachments_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, uuid.NewString(), record.ID, plan.answer, plan.answeredBy, now, plan.note, dbvalue.BoolInt(plan.late), encodeResponses(plan.responses), encodeAttachmentNotes(plan.notes), string(changesJSON), string(imagesJSON), string(attachmentsJSON)); err != nil {
 		return AskRecord{}, fmt.Errorf("%w: ask already has an answer", ErrAskResolved)
 	}
 	for index, image := range plan.images {

@@ -243,13 +243,32 @@ func (s *Service) AnswerImage(ctx context.Context, askID, recipient, name string
 		if image.Name != name {
 			continue
 		}
-		content, err := s.ReadAttachmentBlob(ctx, image.SHA256, maxAnswerImageBytes)
+		content, err := s.ReadAttachmentBlob(ctx, image.SHA256, maxAnswerAttachmentBytes)
 		if err != nil || int64(len(content)) != image.SizeBytes {
 			return AnswerImage{}, nil, ErrNotFound
 		}
 		return image, content, nil
 	}
 	return AnswerImage{}, nil, ErrNotFound
+}
+
+// AnswerFile reads one file already included in a recipient's stored answer.
+func (s *Service) AnswerFile(ctx context.Context, askID, recipient, name string) (AnswerAttachment, []byte, error) {
+	ask, err := s.GetAskForRecipient(ctx, askID, recipient)
+	if err != nil {
+		return AnswerAttachment{}, nil, err
+	}
+	for _, file := range ask.AnswerAttachments {
+		if file.Name != name {
+			continue
+		}
+		content, err := s.ReadAttachmentBlob(ctx, file.SHA256, maxAnswerAttachmentBytes)
+		if err != nil || int64(len(content)) != file.SizeBytes {
+			return AnswerAttachment{}, nil, ErrNotFound
+		}
+		return file, content, nil
+	}
+	return AnswerAttachment{}, nil, ErrNotFound
 }
 
 // sniffBlob returns the first bytes of a blob for content classification.

@@ -18,8 +18,7 @@ func minimalAsk(extra ...string) []string {
 }
 
 func TestAskNeedsOnlyAQuestionAndAMenuAndFillsInTheRest(t *testing.T) {
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 	_, _, err := runCommand(t, svc, "ask", minimalAsk()...)
 	require.NoError(t, err)
 	require.Len(t, stub.asks, 1)
@@ -32,8 +31,7 @@ func TestAskNeedsOnlyAQuestionAndAMenuAndFillsInTheRest(t *testing.T) {
 }
 
 func TestAskDerivesTheSameKeyForTheSameTermsAndANewOneForChangedTerms(t *testing.T) {
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 	for _, args := range [][]string{minimalAsk(), minimalAsk(), minimalAsk("--expires", "2h"), minimalAsk("--expires", "2h"), minimalAsk("--expires", "3h"), {"--question", "Retry tonight's backup now, or after the weekend?", "--yes-no"}} {
 		_, _, err := runCommand(t, svc, "ask", args...)
 		require.NoError(t, err)
@@ -50,8 +48,7 @@ func TestAskDerivesTheSameKeyForTheSameTermsAndANewOneForChangedTerms(t *testing
 }
 
 func TestAKeyedAskGetsAFreshKeyEachSendSoReturningToEarlierWordingIsNotIgnored(t *testing.T) {
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 	for i := 0; i < 2; i++ {
 		_, _, err := runCommand(t, svc, "ask", "--subject-key", "release-check", "--technical-details", "Run 42 finished.")
 		require.NoError(t, err)
@@ -142,8 +139,7 @@ Not for the operator.
 }
 
 func TestAskBodyFileReadsStandardInputAndRefusesTheSamePartTwice(t *testing.T) {
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 	svc.stdin = strings.NewReader("Retry now?\n\n## Details\nvolume=elements\n")
 	_, _, err := runCommand(t, svc, "ask", "--yes-no", "--body-file", "-")
 	require.NoError(t, err)
@@ -159,8 +155,7 @@ func TestAskBodyFileReadsStandardInputAndRefusesTheSamePartTwice(t *testing.T) {
 }
 
 func TestAskDeclaresContextRequestsClearsAndSendsTheDeadlineOnlyWhenGiven(t *testing.T) {
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 	_, _, err := runCommand(t, svc, "ask", minimalAsk("--subject-key", "backup", "--expires", "2h", "--clear-attachments", "--clear-questions")...)
 	require.NoError(t, err)
 	req := stub.asks[0]

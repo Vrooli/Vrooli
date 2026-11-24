@@ -174,9 +174,9 @@ func insertAskTx(ctx context.Context, tx dbTx, id, notificationID string, spec A
 	if !spec.Deadline.IsZero() {
 		deadline = storedTime(spec.Deadline)
 	}
-	_, err := tx.ExecContext(ctx, `INSERT INTO asks (id, notification_id, question, allowed_answers, deadline, state, reason, created_at, updated_at, options_json, recommended, recommendation_reason, default_answer, reversible, urgency, context_url, big_picture, technical_details, source, source_event_type, requester_ref, correlation_json, subject_key, last_asserted_at, reassert_within_seconds, current_event_id, questions_json, accepts_context_requests, created_by, created_conversation, created_subject, sender, packet, kind, template_name, template_data_json) VALUES (?, ?, ?, ?, ?, 'pending', '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	_, err := tx.ExecContext(ctx, `INSERT INTO asks (id, notification_id, question, allowed_answers, deadline, state, reason, created_at, updated_at, options_json, recommended, recommendation_reason, default_answer, reversible, urgency, context_url, big_picture, technical_details, source, source_event_type, requester_ref, correlation_json, subject_key, last_asserted_at, reassert_within_seconds, current_event_id, questions_json, accepts_context_requests, created_by, created_conversation, created_subject, sender, packet, kind, template_name, template_data_json, decision_family, decision_cause, decision_kind) VALUES (?, ?, ?, ?, ?, 'pending', '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		id, notificationID, spec.Question, enc.allowed, deadline, now, now, enc.options, spec.Recommended, strings.TrimSpace(spec.RecommendationReason), spec.DefaultAnswer, dbvalue.BoolInt(spec.Reversible), spec.Urgency, strings.TrimSpace(spec.ContextURL), spec.BigPicture, spec.TechnicalDetails, spec.Source, strings.TrimSpace(spec.SourceEventType), spec.IdempotencyKey, enc.correlation,
-		spec.SubjectKey, asserted, int(spec.ReassertWithin/time.Second), spec.IdempotencyKey, enc.questions, dbvalue.BoolInt(spec.AcceptsContextRequests), spec.CreatedBy, spec.CreatedConversation, spec.CreatedSubject, spec.Sender, spec.Packet, spec.Kind, spec.TemplateName, string(templateData))
+		spec.SubjectKey, asserted, int(spec.ReassertWithin/time.Second), spec.IdempotencyKey, enc.questions, dbvalue.BoolInt(spec.AcceptsContextRequests), spec.CreatedBy, spec.CreatedConversation, spec.CreatedSubject, spec.Sender, spec.Packet, spec.Kind, spec.TemplateName, string(templateData), spec.DecisionFamily, spec.DecisionCause, spec.DecisionKind)
 	return err
 }
 
@@ -223,20 +223,30 @@ func (s *Service) beginWriteTx(ctx context.Context) (*sql.Tx, error) {
 }
 
 func (s *Service) askSubject(ctx context.Context, spec AskSpec, pushSource string) (AskResult, error) {
+	return retrySubject(ctx, func() (AskResult, bool, error) {
+		return s.askSubjectOnce(ctx, spec, pushSource)
+	})
+}
+
+// retrySubject is the shared bounded retry policy for keyed request and
+// withdrawal writes. The callback owns the domain-specific retry decision;
+// this helper owns attempt limits, backoff, and cancellation.
+func retrySubject[T any](ctx context.Context, operation func() (T, bool, error)) (T, error) {
 	var lastErr error
+	var zero T
 	for attempt := 0; attempt < maxSubjectAttempts; attempt++ {
-		result, retry, err := s.askSubjectOnce(ctx, spec, pushSource)
+		result, retry, err := operation()
 		if !retry {
 			return result, err
 		}
 		lastErr = err
 		select {
 		case <-ctx.Done():
-			return AskResult{}, ctx.Err()
+			return zero, ctx.Err()
 		case <-time.After(time.Duration(attempt+1) * 10 * time.Millisecond):
 		}
 	}
-	return AskResult{}, lastErr
+	return zero, lastErr
 }
 
 // retryableSubjectError reports a lost race: a concurrent request for the same
@@ -363,6 +373,7 @@ func sameSubjectContent(existing AskRecord, n Notification, spec AskSpec) bool {
 		sameQuestions(existing.Questions, spec.Questions) &&
 		existing.AcceptsContextRequests == spec.AcceptsContextRequests &&
 		existing.AttachmentsDigest == attachmentDigest(spec.Attachments) && existing.Packet == spec.Packet &&
+		existing.DecisionFamily == spec.DecisionFamily && existing.DecisionCause == spec.DecisionCause && existing.DecisionKind == spec.DecisionKind &&
 		sameCorrelation(existing.Correlation, spec.Correlation)
 }
 
@@ -765,8 +776,8 @@ func updateSubjectAskTx(ctx context.Context, tx dbTx, open AskRecord, n Notifica
 		return err
 	}
 	templateData, _ := json.Marshal(spec.TemplateData)
-	if _, err := tx.ExecContext(ctx, `UPDATE asks SET question=?, recommendation_reason=?, context_url=?, big_picture=?, technical_details=?, options_json=?, questions_json=?, accepts_context_requests=?, correlation_json=?, packet=?, deadline=?, kind=?, template_name=?, template_data_json=?, revision_count=revision_count+1, requester_ref=?, current_event_id=?, last_asserted_at=?, reassert_within_seconds=?, updated_at=? WHERE id=? AND state IN ('pending','escalated')`,
-		spec.Question, strings.TrimSpace(spec.RecommendationReason), strings.TrimSpace(spec.ContextURL), spec.BigPicture, spec.TechnicalDetails, enc.options, enc.questions, dbvalue.BoolInt(spec.AcceptsContextRequests), enc.correlation, spec.Packet, deadline, spec.Kind, spec.TemplateName, string(templateData), spec.IdempotencyKey, spec.IdempotencyKey, subjectTime(asserted), int(spec.ReassertWithin/time.Second), nowText, open.ID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE asks SET question=?, recommendation_reason=?, context_url=?, big_picture=?, technical_details=?, options_json=?, questions_json=?, accepts_context_requests=?, correlation_json=?, packet=?, deadline=?, kind=?, template_name=?, template_data_json=?, decision_family=?, decision_cause=?, decision_kind=?, revision_count=revision_count+1, requester_ref=?, current_event_id=?, last_asserted_at=?, reassert_within_seconds=?, updated_at=? WHERE id=? AND state IN ('pending','escalated')`,
+		spec.Question, strings.TrimSpace(spec.RecommendationReason), strings.TrimSpace(spec.ContextURL), spec.BigPicture, spec.TechnicalDetails, enc.options, enc.questions, dbvalue.BoolInt(spec.AcceptsContextRequests), enc.correlation, spec.Packet, deadline, spec.Kind, spec.TemplateName, string(templateData), spec.DecisionFamily, spec.DecisionCause, spec.DecisionKind, spec.IdempotencyKey, spec.IdempotencyKey, subjectTime(asserted), int(spec.ReassertWithin/time.Second), nowText, open.ID); err != nil {
 		return err
 	}
 	// The revision answers every context request still open.
@@ -894,20 +905,10 @@ func (s *Service) WithdrawDecisionSubject(ctx context.Context, in SubjectWithdra
 	in.AssertedAt = assertedTime(in.AssertedAt, now)
 	nowText := storedTime(now)
 
-	var lastErr error
-	for attempt := 0; attempt < maxSubjectAttempts; attempt++ {
+	return retrySubject(ctx, func() (bool, bool, error) {
 		changed, err := s.withdrawSubjectOnce(ctx, in, nowText)
-		if err == nil || !retryableSubjectError(err) {
-			return changed, err
-		}
-		lastErr = err
-		select {
-		case <-ctx.Done():
-			return false, ctx.Err()
-		case <-time.After(time.Duration(attempt+1) * 10 * time.Millisecond):
-		}
-	}
-	return false, lastErr
+		return changed, retryableSubjectError(err), err
+	})
 }
 
 // withdrawalTargetTx finds the ask a withdrawal names: the open ask of the
@@ -1046,15 +1047,10 @@ func (s *Service) WithdrawDirectSubject(ctx context.Context, source, subject, re
 	if reason == "" || len(reason) > 2_000 {
 		return AskRecord{}, fmt.Errorf("%w: a withdrawal reason of 1-2000 bytes is required", ErrInvalidArgument)
 	}
-	var lastErr error
-	for attempt := 0; attempt < maxSubjectAttempts; attempt++ {
+	return retrySubject(ctx, func() (AskRecord, bool, error) {
 		record, err := s.withdrawDirectSubjectOnce(ctx, source, subject, reason, audience)
-		if err == nil || !retryableSubjectError(err) {
-			return record, err
-		}
-		lastErr = err
-	}
-	return AskRecord{}, lastErr
+		return record, retryableSubjectError(err), err
+	})
 }
 
 func (s *Service) withdrawDirectSubjectOnce(ctx context.Context, source, subject, reason string, audience AskAudience) (AskRecord, error) {

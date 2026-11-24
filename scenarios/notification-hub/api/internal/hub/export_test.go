@@ -40,7 +40,7 @@ func AskListSQL(state string, order AskOrder) (string, []any) {
 			cursor.Keys[i] = "1"
 		}
 	}
-	return askListSQL(askBaseWhere("alice", "", nil, state, ""), nil, nil, columns, cursor, 51)
+	return askListSQL(askBaseWhere("alice", "", nil, state, "", false), nil, nil, columns, cursor, 51)
 }
 
 // StoredTime is the text a timestamp is persisted as.

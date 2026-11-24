@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { Input } from "../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 

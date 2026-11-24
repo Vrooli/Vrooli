@@ -15,6 +15,7 @@ func TestTemplateConversationTitle(t *testing.T) {
 		{"usage-mode", map[string]any{"title": "Keep Claude on low power?"}, "Usage mode: Keep Claude on low power?"},
 		{"usage-mode", map[string]any{"title": "Usage mode: choose?"}, "Usage mode: choose?"},
 		{"structural-change", map[string]any{"title": "Change the check?"}, "Structural change: Change the check?"},
+		{"structural-change", map[string]any{"title": "Change the check?", "notificationTitle": "deleting files in unresolved paths"}, "Structural change: deleting files in unresolved paths"},
 		{"other", map[string]any{"title": "A named update"}, "A named update"},
 	}
 	for _, tt := range tests {

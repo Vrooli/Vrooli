@@ -34,6 +34,12 @@ export const strings = {
       escalated: "asks.row.escalated",
       closesIn: "asks.row.closesIn",
     },
+    kind: {
+      judge: "asks.kind.judge",
+      approve: "asks.kind.approve",
+      review: "asks.kind.review",
+      do: "asks.kind.do",
+    },
     urgency: {
       low: "asks.urgency.low",
       normal: "asks.urgency.normal",
@@ -431,14 +437,14 @@ export const strings = {
       label: "packet.navigation.label",
       position: "packet.navigation.position",
     },
-    images: {
-      tooMany: "packet.images.tooMany",
-      tooLarge: "packet.images.tooLarge",
-      singleTooLarge: "packet.images.singleTooLarge",
-      failed: "packet.images.failed",
-      attach: "packet.images.attach",
-      listLabel: "packet.images.listLabel",
-      remove: "packet.images.remove",
+    responseFiles: {
+      tooMany: "packet.responseFiles.tooMany",
+      tooLarge: "packet.responseFiles.tooLarge",
+      singleTooLarge: "packet.responseFiles.singleTooLarge",
+      failed: "packet.responseFiles.failed",
+      attach: "packet.responseFiles.attach",
+      listLabel: "packet.responseFiles.listLabel",
+      remove: "packet.responseFiles.remove",
     },
     kitTemplate: {
       noData: "packet.kitTemplate.noData",

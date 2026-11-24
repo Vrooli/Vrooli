@@ -30,6 +30,7 @@ import { blockerFor, withPrefill } from "./model/answer";
 import { usePacketDraft } from "./usePacketDraft";
 import { PacketBack } from "./PacketBack";
 import { PacketCover } from "./PacketCover";
+import { ObservedPacketBlock } from "./ObservedPacketBlock";
 import { PacketNavigation, PacketNavigationButton, usePacketNavigation, usePacketSwipe } from "./PacketNavigation";
 import { Revisions } from "./Revisions";
 import { RootDecisionRead } from "./RootDecisionRead";
@@ -264,6 +265,7 @@ function PacketBody({ ask, subject, attemptSubject, signedIn, rootRead = false, 
                 </>
               }
             />
+            <ObservedPacketBlock askId={ask.id} attachments={ask.attachments} />
             <AttachmentStrip askId={ask.id} attachments={ask.attachments} notedAttachments={notedAttachments} onOpen={openAttachment} />
             <Revisions ask={ask} links={links} open={revisionsOpen} onToggle={setRevisionsOpen} />
             {open && status}

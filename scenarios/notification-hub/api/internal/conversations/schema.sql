@@ -67,7 +67,10 @@ CREATE TABLE IF NOT EXISTS asks (
   packet TEXT NOT NULL DEFAULT '',
   kind TEXT NOT NULL DEFAULT 'decision',
   template_name TEXT NOT NULL DEFAULT '',
-  template_data_json TEXT NOT NULL DEFAULT ''
+  template_data_json TEXT NOT NULL DEFAULT '',
+  decision_family TEXT NOT NULL DEFAULT '',
+  decision_cause TEXT NOT NULL DEFAULT '',
+  decision_kind TEXT NOT NULL DEFAULT ''
 );
 -- A recipient's explicit approval for one verified service to continue one
 -- existing direct ask. This is an audit fact, never inferred from its key.
@@ -121,7 +124,8 @@ CREATE TABLE IF NOT EXISTS answers (
   -- Notes the operator pinned to the ask's attachments: [AskAttachmentNote] JSON.
   attachment_notes_json TEXT NOT NULL DEFAULT '',
   changes_json TEXT NOT NULL DEFAULT '',
-  images_json TEXT NOT NULL DEFAULT ''
+  images_json TEXT NOT NULL DEFAULT '',
+  attachments_json TEXT NOT NULL DEFAULT ''
 );
 -- Answer attribution is sourced only from the request authenticator. Keeping
 -- it beside the durable Hub answer lets downstream decision verifiers fail

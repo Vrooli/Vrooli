@@ -59,6 +59,16 @@ describe("buildAnswer", () => {
     expect(payload.responses[1]?.selected).toEqual(["demo"]);
   });
 
+  it("keeps general response files alongside the existing image records", () => {
+    const payload = buildAnswer(ask, draftWith({
+      answer: "close",
+      answerImages: [{ name: "chart.png", sha256: "a".repeat(64), mediaType: "image/png", sizeBytes: 12 }],
+      answerAttachments: [{ name: "notes.txt", sha256: "b".repeat(64), mediaType: "text/plain", sizeBytes: 18 }],
+    }));
+    expect(payload.images).toHaveLength(1);
+    expect(payload.attachments).toEqual([{ name: "notes.txt", sha256: "b".repeat(64), mediaType: "text/plain", sizeBytes: 18 }]);
+  });
+
   it("gives every section a verdict, so a skipped heading takes the question's default", () => {
     const payload = buildAnswer(ask, draftWith({ answer: "close", responses: { brief: { selected: [], text: "", sections: { timeline: { verdict: "drop", note: "no" } } } } }));
     expect(payload.responses.find((response) => response.questionId === "brief")?.sections).toEqual([

@@ -292,13 +292,13 @@
     "label": "Conversation navigation",
     "position": "{{current}} of {{total}}"
   },
-  "images": {
-    "tooMany": "An answer can include at most 8 images.",
-    "tooLarge": "An answer can include at most 24 MiB of images.",
-    "singleTooLarge": "{{name}} must be an image no larger than 12 MiB.",
-    "failed": "The image could not be added.",
-    "attach": "Attach images",
-    "listLabel": "Images to send",
+  "responseFiles": {
+    "tooMany": "An answer can include at most 8 files.",
+    "tooLarge": "An answer can include at most 24 MiB of files.",
+    "singleTooLarge": "{{name}} must be no larger than 12 MiB.",
+    "failed": "The file could not be added.",
+    "attach": "Attach files or images",
+    "listLabel": "Files to send",
     "remove": "Remove {{name}}"
   },
   "kitTemplate": {

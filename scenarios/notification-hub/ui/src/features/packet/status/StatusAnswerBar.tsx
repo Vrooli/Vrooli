@@ -5,8 +5,8 @@ import { Paperclip } from "lucide-react";
 import type { Ask } from "@vrooli/proto-types/notification-hub/v1/conversations/conversations_pb";
 
 import { conversationsClient } from "../../../api/notifications";
-import { answerImageUrl } from "../../../api/attachments";
-import { AnswerImages } from "../form/AnswerImages";
+import { answerFileUrl, answerImageUrl } from "../../../api/attachments";
+import { AnswerAttachments } from "../form/AnswerAttachments";
 import type { PacketDraft } from "../model/draft";
 import { PacketNavigationButton, type PacketNavigationState } from "../PacketNavigation";
 import { useMediaQuery } from "../../../hooks/useMediaQuery";
@@ -95,6 +95,7 @@ export function StatusAnswerBar({ ask, draft, onDraftChange, onRefresh, navigati
         note: draft.note,
         changes: changesJson(draft),
         images: draft.answerImages.map((image) => ({ name: image.name, sha256: image.sha256, mediaType: image.mediaType, sizeBytes: BigInt(image.sizeBytes) })),
+        ...(draft.answerAttachments.length ? { attachments: draft.answerAttachments.map((file) => ({ name: file.name, sha256: file.sha256, mediaType: file.mediaType, sizeBytes: BigInt(file.sizeBytes) })) } : {}),
       });
       onRefresh();
     } catch (cause) {
@@ -153,10 +154,10 @@ export function StatusAnswerBar({ ask, draft, onDraftChange, onRefresh, navigati
               ))}
             </div>
           ) : interactive ? <p className="text-sm text-app-muted-foreground">{t(strings.packet.statusBar.hint)}</p> : null}
-          {noting || draft.note || draft.answerImages.length ? (
+          {noting || draft.note || draft.answerImages.length || draft.answerAttachments.length ? (
             <div className="flex flex-col gap-2">
               <textarea aria-label={t(strings.packet.statusBar.note)} placeholder={t(strings.packet.statusBar.notePlaceholder)} value={draft.note} rows={3} maxLength={4000} onChange={(event) => onDraftChange((current) => ({ ...current, note: event.target.value }))} className="min-h-20 rounded-control border border-app-border bg-app-surface px-3 py-2 text-sm text-app-foreground" />
-              <AnswerImages images={draft.answerImages} disabled={busy} onBusyChange={setUploading} onChange={onDraftChange} />
+              <AnswerAttachments images={draft.answerImages} attachments={draft.answerAttachments} disabled={busy} onBusyChange={setUploading} onChange={onDraftChange} />
             </div>
           ) : (
             <button type="button" onClick={() => setNoting(true)} className="flex min-h-11 items-center justify-between rounded-control border border-dashed border-app-border px-3 text-start text-sm text-app-muted-foreground hover:border-app-primary hover:text-app-foreground">
@@ -171,7 +172,7 @@ export function StatusAnswerBar({ ask, draft, onDraftChange, onRefresh, navigati
           )}
           <div className="flex gap-2 [&>*]:flex-1">
             {total > 0 && <Button type="button" variant="outline" disabled={busy || uploading} onClick={clearAll}>{t(strings.packet.statusBar.clear)}</Button>}
-            {total > 0 || draft.note.trim() || draft.answerImages.length
+            {total > 0 || draft.note.trim() || draft.answerImages.length || draft.answerAttachments.length
               ? <Button type="button" variant="primary" disabled={busy || uploading} onClick={() => void send()}>{busy ? t(strings.packet.statusBar.sending) : total > 0 ? t(strings.packet.statusBar.sendCount, { count: total }) : t(strings.packet.statusBar.send)}</Button>
               : <Button type="button" variant="primary" disabled={busy || uploading} onClick={() => void markRead()}>{t(strings.packet.statusBar.markRead)}</Button>}
           </div>
@@ -180,6 +181,7 @@ export function StatusAnswerBar({ ask, draft, onDraftChange, onRefresh, navigati
       )}
       {ask.note && <p className="whitespace-pre-wrap text-sm">{ask.note}</p>}
       {ask.answerImages.map((image) => <img key={image.name} src={answerImageUrl(ask.id, image.name)} alt={image.name} className="max-h-64 max-w-full rounded-panel border border-app-border object-contain" />)}
+      {ask.answerAttachments.map((file) => <a key={file.name} href={answerFileUrl(ask.id, file.name)} className="block min-h-11 break-all rounded-control border border-app-border px-3 py-2 text-sm underline">{file.name}</a>)}
       {error && <p role="alert" className="text-sm text-app-danger">{error}</p>}
     </section>
   );

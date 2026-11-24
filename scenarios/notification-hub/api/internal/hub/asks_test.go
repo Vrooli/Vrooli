@@ -13,6 +13,7 @@ import (
 	"notification-hub/internal/testutil/hubtest"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/eventbus"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -168,6 +169,40 @@ func TestAskWithSpec_PersistsStructuredDecisionAtNormalUrgencyUnlessTheRequester
 	require.Equal(t, map[string]string{"decision_id": "BAS-D-065"}, got.Correlation)
 }
 
+func TestFamilyMetadataPersistsAndAnswersRemainPerAsk(t *testing.T) {
+	service, _ := testService(t)
+	now := time.Date(2026, time.November, 24, 12, 0, 0, 0, time.UTC)
+	service.SetClockForTest(fixedClock{now: now})
+	var asks []hub.AskRecord
+	for _, check := range []string{"network", "backup", "permissions"} {
+		spec := decisionSpec(now, "guard-"+check)
+		spec.Question = "May the " + check + " guard pass?"
+		spec.SubjectKey = "guard-" + check
+		spec.DecisionFamily = "release-guards"
+		spec.DecisionCause = "The release waits on its three independent safety checks."
+		spec.DecisionKind = "review"
+		ask, _, err := service.AskWithSpec(context.Background(), spec)
+		require.NoError(t, err)
+		asks = append(asks, ask)
+	}
+	for _, ask := range asks {
+		got, err := service.GetAsk(context.Background(), ask.ID)
+		require.NoError(t, err)
+		require.Equal(t, "release-guards", got.DecisionFamily)
+		require.Equal(t, "The release waits on its three independent safety checks.", got.DecisionCause)
+		require.Equal(t, "review", got.DecisionKind)
+	}
+
+	answered, err := service.AnswerAsk(context.Background(), hub.AnswerInput{AskID: asks[0].ID, Answer: asks[0].Options[0].Key, Actor: asks[0].Recipient})
+	require.NoError(t, err)
+	require.Equal(t, hub.AskAnswered, answered.State)
+	for _, ask := range asks[1:] {
+		stillOpen, err := service.GetAsk(context.Background(), ask.ID)
+		require.NoError(t, err)
+		require.Equal(t, hub.AskPending, stillOpen.State, "answering one guard must not answer its family")
+	}
+}
+
 func TestGetAskByRequesterRequiresExactProviderDecisionIdentity(t *testing.T) {
 	service, _ := testService(t)
 	now := time.Date(2026, time.November, 1, 12, 0, 0, 0, time.UTC)
@@ -295,28 +330,12 @@ func TestAskWithSpec_ConcurrentRequesterIdentityHasOneImmutableOwner(t *testing.
 		service.SetPushSender(sender)
 		registerSubscription(t, service, "alice")
 		base := decisionSpec(now, "evt-concurrent-same")
-		const callers = 12
-		start := make(chan struct{})
-		type result struct {
-			ask hub.AskRecord
-			err error
+		specs := make([]hub.AskSpec, 12)
+		for i := range specs {
+			specs[i] = base
 		}
-		results := make(chan result, callers)
-		var wg sync.WaitGroup
-		for i := 0; i < callers; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				<-start
-				ask, _, err := service.AskWithSpec(context.Background(), base)
-				results <- result{ask: ask, err: err}
-			}()
-		}
-		close(start)
-		wg.Wait()
-		close(results)
 		var askID string
-		for got := range results {
+		for _, got := range concurrentAskWithSpecs(service, specs) {
 			require.NoError(t, got.err)
 			if askID == "" {
 				askID = got.ask.ID
@@ -344,29 +363,9 @@ func TestAskWithSpec_ConcurrentRequesterIdentityHasOneImmutableOwner(t *testing.
 		base := decisionSpec(now, "evt-concurrent-recipients")
 		specs := []hub.AskSpec{base, base}
 		specs[1].Recipient = "bob"
-		const callers = 2
-		start := make(chan struct{})
-		type result struct {
-			ask hub.AskRecord
-			err error
-		}
-		results := make(chan result, callers)
-		var wg sync.WaitGroup
-		for _, spec := range specs {
-			wg.Add(1)
-			go func(spec hub.AskSpec) {
-				defer wg.Done()
-				<-start
-				ask, _, err := service.AskWithSpec(context.Background(), spec)
-				results <- result{ask: ask, err: err}
-			}(spec)
-		}
-		close(start)
-		wg.Wait()
-		close(results)
 		var winner hub.AskRecord
 		var success, conflicts int
-		for got := range results {
+		for _, got := range concurrentAskWithSpecs(service, specs) {
 			switch {
 			case got.err == nil:
 				success++
@@ -393,6 +392,34 @@ func TestAskWithSpec_ConcurrentRequesterIdentityHasOneImmutableOwner(t *testing.
 			return getErr == nil && notification.State == "unroutable"
 		}, asyncWait, 10*time.Millisecond, "finish the committed winner's worker delivery before closing the test store")
 	})
+}
+
+type concurrentAskResult struct {
+	ask hub.AskRecord
+	err error
+}
+
+func concurrentAskWithSpecs(service *hub.Service, specs []hub.AskSpec) []concurrentAskResult {
+	start := make(chan struct{})
+	results := make(chan concurrentAskResult, len(specs))
+	var wg sync.WaitGroup
+	for _, spec := range specs {
+		wg.Add(1)
+		go func(spec hub.AskSpec) {
+			defer wg.Done()
+			<-start
+			ask, _, err := service.AskWithSpec(context.Background(), spec)
+			results <- concurrentAskResult{ask: ask, err: err}
+		}(spec)
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+	var completed []concurrentAskResult
+	for result := range results {
+		completed = append(completed, result)
+	}
+	return completed
 }
 
 func TestAskWithSpec_RejectsInvalidOrOversizeContext(t *testing.T) {
@@ -505,26 +532,34 @@ func TestProcessEscalations_AppliesDefaultAtLeastTheFloorAfterDelivery(t *testin
 	require.Equal(t, "evt-floor", event.Payload["requester_ref"])
 }
 
-// [REQ:NOTIFICA-P1-011]
-func TestProcessEscalations_CriticalAskAdvancesAndRecordsStep(t *testing.T) {
+type escalationFixture struct {
+	service *hub.Service
+	db      *database.RoutedDB
+	ask     hub.AskRecord
+	email   *recordingEmail
+	start   time.Time
+}
+
+// newUnroutedAskWithEmailEscalation installs the channel only after the ask's
+// initial routing has completed, so each caller isolates escalation delivery.
+func newUnroutedAskWithEmailEscalation(t *testing.T, urgency, requesterRef string) escalationFixture {
+	t.Helper()
 	service, db := testService(t)
 	ctx := context.Background()
 	start := time.Date(2026, time.October, 7, 12, 0, 0, 0, time.UTC)
 	service.SetClockForTest(fixedClock{now: start})
-	spec := decisionSpec(start, "evt-critical-escalation")
+	spec := decisionSpec(start, requesterRef)
 	spec.DefaultAnswer = ""
 	spec.Reversible = false
-	spec.Urgency = "critical"
+	spec.Urgency = urgency
 	spec.SensitivityLabel = "public"
 	ask, _, err := service.AskWithSpec(ctx, spec)
 	require.NoError(t, err)
 	require.Eventually(t, func() bool {
-		n, _, getErr := service.Get(ctx, ask.NotificationID)
-		return getErr == nil && n.State == "unroutable"
+		notification, _, getErr := service.Get(ctx, ask.NotificationID)
+		return getErr == nil && notification.State == "unroutable"
 	}, asyncWait, 10*time.Millisecond)
 
-	// Configure the fake adapter after initial routing so this call can only
-	// observe a delivery caused by the escalation step.
 	email := &recordingEmail{}
 	service.SetEmailSender(email)
 	device, err := service.UpsertDevice(ctx, "alice", hub.Device{Name: "owner laptop", MachineID: "local"})
@@ -533,65 +568,45 @@ func TestProcessEscalations_CriticalAskAdvancesAndRecordsStep(t *testing.T) {
 	require.NoError(t, err)
 	_, err = service.SetEscalationChain(ctx, "alice", []string{"email"})
 	require.NoError(t, err)
-	service.SetClockForTest(fixedClock{now: start.Add(2 * time.Hour)})
-	require.NoError(t, service.ProcessEscalations(ctx))
-	got, err := service.GetAsk(ctx, ask.ID)
+	return escalationFixture{service: service, db: db, ask: ask, email: email, start: start}
+}
+
+// [REQ:NOTIFICA-P1-011]
+func TestProcessEscalations_CriticalAskAdvancesAndRecordsStep(t *testing.T) {
+	fixture := newUnroutedAskWithEmailEscalation(t, "critical", "evt-critical-escalation")
+	ctx := context.Background()
+	fixture.service.SetClockForTest(fixedClock{now: fixture.start.Add(2 * time.Hour)})
+	require.NoError(t, fixture.service.ProcessEscalations(ctx))
+	got, err := fixture.service.GetAsk(ctx, fixture.ask.ID)
 	require.NoError(t, err)
 	require.Equal(t, hub.AskEscalated, got.State)
 	require.Equal(t, "critical", got.Urgency)
-	require.Equal(t, []string{"owner@example.test"}, email.addresses)
-	var steps int
-	require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM escalation_steps WHERE ask_id=? AND channel='email' AND outcome='delivered'`, ask.ID).Scan(&steps))
+	require.Equal(t, []string{"owner@example.test"}, fixture.email.addresses)
+	steps := rowCount(t, fixture.db, `SELECT COUNT(*) FROM escalation_steps WHERE ask_id=? AND channel='email' AND outcome='delivered'`, fixture.ask.ID)
 	require.Equal(t, 1, steps)
 }
 
 // [REQ:NOTIFICA-P1-011]
 func TestProcessEscalations_NonCriticalAskExpiresWithoutEscalationEffects(t *testing.T) {
-	service, db := testService(t)
+	fixture := newUnroutedAskWithEmailEscalation(t, "high", "evt-high-expiry")
 	ctx := context.Background()
-	start := time.Date(2026, time.October, 7, 12, 0, 0, 0, time.UTC)
-	service.SetClockForTest(fixedClock{now: start})
-	spec := decisionSpec(start, "evt-high-expiry")
-	spec.DefaultAnswer = ""
-	spec.Reversible = false
-	spec.Urgency = "high"
-	spec.SensitivityLabel = "public"
-	ask, _, err := service.AskWithSpec(ctx, spec)
-	require.NoError(t, err)
-	require.Eventually(t, func() bool {
-		n, _, getErr := service.Get(ctx, ask.NotificationID)
-		return getErr == nil && n.State == "unroutable"
-	}, asyncWait, 10*time.Millisecond)
+	attemptsBefore := rowCount(t, fixture.db, `SELECT COUNT(*) FROM delivery_attempts WHERE notification_id=?`, fixture.ask.NotificationID)
+	receiptsBefore := rowCount(t, fixture.db, `SELECT COUNT(*) FROM receipts WHERE notification_id=?`, fixture.ask.NotificationID)
 
-	// A configured chain and recording adapter make any accidental escalation
-	// visible while keeping this package test fully isolated.
-	email := &recordingEmail{}
-	service.SetEmailSender(email)
-	device, err := service.UpsertDevice(ctx, "alice", hub.Device{Name: "owner laptop", MachineID: "local"})
-	require.NoError(t, err)
-	_, err = service.UpsertChannelAddress(ctx, "alice", hub.ChannelAddress{DeviceID: device.ID, Channel: "email", Address: "owner@example.test", ApprovedLabels: []string{"public"}})
-	require.NoError(t, err)
-	_, err = service.SetEscalationChain(ctx, "alice", []string{"email"})
-	require.NoError(t, err)
-	var attemptsBefore, receiptsBefore int
-	require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM delivery_attempts WHERE notification_id=?`, ask.NotificationID).Scan(&attemptsBefore))
-	require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM receipts WHERE notification_id=?`, ask.NotificationID).Scan(&receiptsBefore))
-
-	service.SetClockForTest(fixedClock{now: start.Add(2 * time.Hour)})
-	require.NoError(t, service.ProcessEscalations(ctx))
-	got, err := service.GetAsk(ctx, ask.ID)
+	fixture.service.SetClockForTest(fixedClock{now: fixture.start.Add(2 * time.Hour)})
+	require.NoError(t, fixture.service.ProcessEscalations(ctx))
+	got, err := fixture.service.GetAsk(ctx, fixture.ask.ID)
 	require.NoError(t, err)
 	require.Equal(t, hub.AskExpired, got.State)
 	require.Contains(t, got.Reason, "non-critical")
-	require.Empty(t, email.addresses, "non-critical expiry must not call the escalation adapter")
-	var steps, attempts, receipts int
-	require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM escalation_steps WHERE ask_id=?`, ask.ID).Scan(&steps))
-	require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM delivery_attempts WHERE notification_id=?`, ask.NotificationID).Scan(&attempts))
-	require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM receipts WHERE notification_id=?`, ask.NotificationID).Scan(&receipts))
+	require.Empty(t, fixture.email.addresses, "non-critical expiry must not call the escalation adapter")
+	steps := rowCount(t, fixture.db, `SELECT COUNT(*) FROM escalation_steps WHERE ask_id=?`, fixture.ask.ID)
+	attempts := rowCount(t, fixture.db, `SELECT COUNT(*) FROM delivery_attempts WHERE notification_id=?`, fixture.ask.NotificationID)
+	receipts := rowCount(t, fixture.db, `SELECT COUNT(*) FROM receipts WHERE notification_id=?`, fixture.ask.NotificationID)
 	require.Zero(t, steps, "direct expiry must not create an escalation step or report delivery success")
 	require.Equal(t, attemptsBefore, attempts, "direct expiry must not create an escalation delivery attempt")
 	require.Equal(t, receiptsBefore, receipts, "direct expiry must not create a delivery receipt")
-	n, _, err := service.Get(ctx, ask.NotificationID)
+	n, _, err := fixture.service.Get(ctx, fixture.ask.NotificationID)
 	require.NoError(t, err)
 	require.NotEqual(t, "delivered", n.State)
 }

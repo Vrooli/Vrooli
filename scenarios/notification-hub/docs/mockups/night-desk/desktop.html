@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Night Desk — desktop</title>
+<link rel="stylesheet" href="night.css">
+<style>
+  body { overflow: hidden; }
+  .app { display: grid; grid-template-columns: 236px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); height: 100dvh; min-height: 640px; overflow: hidden; }
+
+  /* ---- rail ---- */
+  .rail { background: var(--hull); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 20px 12px 12px; min-width: 0; }
+  .rail .brand { padding: 0 8px; }
+  .rail-date { padding: 22px 8px 18px; }
+  .rail-date b { display: block; font-size: 12.5px; font-weight: 580; letter-spacing: -0.01em; color: var(--moon-2); }
+  .rail-date span { display: block; margin-top: 2px; font: 560 10px/1.3 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+
+  .nav { display: grid; gap: 2px; }
+  .nav a {
+    display: flex; align-items: center; gap: 10px;
+    height: 36px; padding: 0 10px; border-radius: 9px;
+    color: var(--muted); font-size: 13px; font-weight: 520;
+  }
+  .nav a svg { width: 15px; height: 15px; opacity: .8; }
+  .nav a b { margin-left: auto; font: 600 10.5px/1 var(--mono); color: var(--faint); }
+  .nav a:hover { background: var(--panel); color: var(--moon-2); }
+  .nav a[aria-current="page"] { background: var(--panel-2); color: var(--moon); box-shadow: inset 0 0 0 1px var(--line); }
+  .nav a[aria-current="page"] b { color: var(--cyan); }
+  .nav a.attn b { color: var(--amber); }
+
+  .rail-label { margin: 22px 10px 8px; display: flex; align-items: center; justify-content: space-between; }
+  .rail-label span { font: 600 9.5px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--faint); }
+  .rail-label a { font: 560 10px/1 var(--mono); color: var(--faint); }
+  .rail-label a:hover { color: var(--cyan); }
+
+  .source { display: flex; align-items: center; gap: 9px; height: 32px; padding: 0 10px; border-radius: 8px; color: var(--muted); font-size: 12.5px; }
+  .source:hover { background: var(--panel); color: var(--moon-2); }
+  .source .pip { width: 5px; height: 5px; border-radius: 50%; background: var(--panel-3); flex: none; }
+  .source b { margin-left: auto; font: 600 10.5px/1 var(--mono); color: var(--faint); }
+  .source.on .pip { background: var(--cyan); }
+  .source.on { color: var(--moon); }
+
+  .rail-foot { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line); }
+  .operator { display: flex; align-items: center; gap: 9px; padding: 10px 8px 2px; }
+  .avatar { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--panel-3); color: var(--moon); font: 600 10px/1 var(--mono); }
+  .operator b { display: block; font-size: 12px; font-weight: 560; color: var(--moon-2); }
+  .operator span { display: block; font: 500 9.5px/1.3 var(--mono); color: var(--faint); }
+
+  /* ---- main ---- */
+  .main { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; min-height: 0; overflow: hidden; }
+  .topbar { display: flex; align-items: center; gap: 14px; padding: 0 26px; height: 72px; }
+  .title h1 { font-size: 19px; font-weight: 620; letter-spacing: -0.02em; }
+  .title p { margin-top: 2px; font-size: 12px; color: var(--faint); }
+  .title p b { color: var(--amber); font-weight: 560; }
+  .top-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+
+  .body { display: grid; grid-template-columns: 352px minmax(0, 1fr); min-height: 0; overflow: hidden; border-top: 1px solid var(--line); }
+
+  /* ---- list ---- */
+  .list { min-height: 0; border-right: 1px solid var(--line); overflow: auto; padding: 14px 10px 30px; }
+  .group-head { display: flex; align-items: baseline; gap: 8px; padding: 14px 12px 6px; }
+  .group-head:first-child { padding-top: 4px; }
+  .group-head b { font: 600 9.5px/1 var(--mono); letter-spacing: 0.15em; text-transform: uppercase; color: var(--faint); }
+  .group-head span { font: 600 10px/1 var(--mono); color: var(--faint); opacity: .8; }
+  .group-head i { flex: 1; height: 1px; background: var(--line); }
+  .group-head.attn b, .group-head.attn span { color: var(--amber); }
+
+  /* ---- detail ---- */
+  .detail { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; min-height: 0; overflow: hidden; }
+  .detail-scroll { min-height: 0; overflow: auto; padding: 22px 32px 18px;
+    background: radial-gradient(680px 320px at 82% -12%, color-mix(in srgb, var(--cyan) 7%, transparent), transparent 68%); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .d-head { margin-top: 13px; max-width: none; }
+  .d-head h2 { max-width: 34ch; font-size: 26px; font-weight: 640; letter-spacing: -0.034em; line-height: 1.1; }
+  .d-head p { margin-top: 8px; max-width: 52ch; font-size: 13.5px; line-height: 1.55; color: var(--muted); }
+
+  .family { margin-top: 16px; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--panel); overflow: hidden; }
+  .family-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 12px 15px 10px; border-bottom: 1px solid var(--line); }
+  .family-head b { font-size: 11.5px; font-weight: 580; color: var(--moon-2); }
+  .family-head span { font: 600 9.5px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
+  .check { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 15px; border-bottom: 1px solid var(--line); }
+  .check:last-child { border-bottom: 0; }
+  .check .tick { width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid var(--panel-3); display: grid; place-items: center; }
+  .check .tick.on { border-color: var(--cyan); background: var(--cyan); }
+  .check .tick.on::after { content: ""; width: 7px; height: 4px; border-left: 1.6px solid var(--cyan-ink); border-bottom: 1.6px solid var(--cyan-ink); transform: rotate(-45deg) translateY(-1px); }
+  .check .name { display: block; font-size: 12.5px; font-weight: 540; color: var(--moon-2); }
+  .check .sub { display: block; margin-top: 1px; font-size: 11px; color: var(--faint); }
+  .check .pick { font: 560 10px/1 var(--mono); letter-spacing: 0.04em; color: var(--cyan); }
+
+  .rec { margin-top: 14px; padding: 13px 15px; border-radius: var(--r-lg); background: var(--panel-2); border: 1px solid var(--line); }
+  .rec-label { display: flex; align-items: center; gap: 7px; font: 600 9.5px/1 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--cyan); }
+  .rec h3 { margin-top: 8px; font-size: 14.5px; font-weight: 600; letter-spacing: -0.012em; line-height: 1.35; color: var(--moon); }
+  .rec p { margin-top: 5px; font-size: 12.5px; line-height: 1.5; color: var(--muted); }
+
+  .options { margin-top: 12px; display: grid; gap: 6px; }
+  .opt {
+    display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 11px; align-items: start; width: 100%;
+    padding: 10px 13px; border: 1px solid var(--line); border-radius: 11px;
+    background: transparent; text-align: left; cursor: pointer;
+  }
+  .opt:hover { background: var(--panel); }
+  .opt[aria-pressed="true"] { border-color: color-mix(in srgb, var(--cyan) 55%, var(--line)); background: var(--cyan-wash); }
+  .radio { width: 18px; height: 18px; margin-top: 1px; border-radius: 50%; border: 1.5px solid var(--panel-3); display: grid; place-items: center; }
+  .opt[aria-pressed="true"] .radio { border-color: var(--cyan); }
+  .opt[aria-pressed="true"] .radio::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); }
+  .opt b { display: block; font-size: 12.5px; font-weight: 560; color: var(--moon-2); }
+  .opt[aria-pressed="true"] b { color: var(--moon); }
+  .opt span { display: block; margin-top: 2px; font-size: 11px; line-height: 1.45; color: var(--faint); }
+
+  .footrow { margin-top: 12px; display: flex; align-items: start; gap: 16px; }
+  .note { display: flex; gap: 8px; align-items: start; flex: 1; min-width: 0; font-size: 12px; line-height: 1.5; color: var(--faint); }
+  .evidence { display: inline-flex; align-items: center; gap: 6px; flex: none; padding: 4px 8px; margin: -4px 0; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font-size: 11.5px; font-weight: 540; cursor: pointer; }
+  .evidence:hover { background: var(--panel-2); color: var(--moon); }
+  .evidence span { color: var(--faint); font-weight: 450; }
+  .note svg { flex: none; margin-top: 2px; opacity: .8; }
+  .note b { color: var(--muted); font-weight: 560; }
+
+  .answerbar { display: flex; align-items: center; gap: 8px; padding: 13px 32px; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--void) 62%, transparent); backdrop-filter: blur(10px); }
+  .answerbar .hint { margin-left: auto; font: 500 10px/1.4 var(--mono); color: var(--faint); }
+  .answerbar .hint kbd { font: inherit; border: 1px solid var(--line-strong); border-radius: 4px; padding: 1px 4px; color: var(--muted); }
+
+  @media (max-width: 1180px) {
+    .body { grid-template-columns: 316px minmax(0, 1fr); }
+    .detail-scroll { padding: 20px 24px; }
+    .answerbar { padding: 12px 24px; }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="moon" viewBox="0 0 24 24">
+    <defs><mask id="crescent"><rect width="24" height="24" fill="#000"/><circle cx="11.3" cy="12" r="9.4" fill="#fff"/><circle cx="17" cy="11" r="7.5" fill="#000"/></mask></defs>
+    <rect width="24" height="24" fill="currentColor" mask="url(#crescent)"/>
+    <circle cx="18.3" cy="17.6" r="1.75" fill="var(--cyan)"/>
+  </symbol>
+</svg>
+
+<div class="app">
+  <aside class="rail" aria-label="Navigation">
+    <a class="brand" href="#" aria-label="Chimesail">
+      <svg class="moon-mark" style="color:var(--moon)"><use href="#moon"/></svg>
+      <span><span class="brand-name">Chimesail</span><span class="brand-sub">Night desk</span></span>
+    </a>
+
+    <div class="rail-date"><b>Tuesday, 24 November</b><span>26 open · 2 due today</span></div>
+
+    <nav class="nav" aria-label="Main">
+      <a href="#" aria-current="page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 6h16M4 12h9M4 18h6"/></svg>
+        Needs you <b>6</b>
+      </a>
+      <a href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 4h12v16l-6-3.5L6 20V4Z"/></svg>
+        Updates <b>17</b>
+      </a>
+      <a href="#">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 5h16v12H7l-3 3V5Z"/></svg>
+        History
+      </a>
+    </nav>
+
+    <div class="rail-label"><span>By source</span><a href="#" style="color:var(--cyan)">All 26</a></div>
+    <nav aria-label="Filter by source">
+      <a class="source" href="#"><span class="pip"></span>Research Desk <b>12</b></a>
+      <a class="source" href="#"><span class="pip"></span>Portfolio steward <b>4</b></a>
+      <a class="source" href="#"><span class="pip"></span>Portal <b>2</b></a>
+      <a class="source" href="#"><span class="pip"></span>Agent Manager <b>1</b></a>
+      <a class="source" href="#"><span class="pip"></span>Agent run <b>1</b></a>
+    </nav>
+
+    <div class="rail-foot">
+      <nav class="nav" aria-label="Account">
+        <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 0 1-.1 1.2l1.9 1.5-2 3.4-2.2-.9a7 7 0 0 1-2 1.2l-.3 2.3h-4l-.3-2.3a7 7 0 0 1-2-1.2l-2.2.9-2-3.4 1.9-1.5A7 7 0 0 1 5 12"/></svg>Settings</a>
+      </nav>
+      <div class="operator"><span class="avatar">M</span><div><b>Matthalloran</b><span>THIS DEVICE</span></div></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="title">
+        <h1>Needs you</h1>
+        <p>6 need you · <b>2 close today</b> · 1 permission</p>
+      </div>
+      <div class="top-actions">
+        <button class="btn icon" type="button" aria-label="Search (Command K)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+        </button>
+        <button class="btn icon" id="theme" type="button" aria-label="Toggle theme">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8Z"/></svg>
+        </button>
+        <button class="btn primary" type="button">Start review
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="body">
+      <section class="list" aria-label="Decisions">
+        <div class="group-head"><b>Permissions</b><span>1</span><i></i></div>
+        <button class="row" type="button" aria-current="false">
+          <span class="row-title"><span class="pip"></span>Codex may launch research commissions</span>
+          <span class="row-meta">Agent Manager<span class="sep"></span>reviewed in its own app<span class="sep"></span>4 days</span>
+        </button>
+
+        <div class="group-head attn"><b>Closing today</b><span>2</span><i></i></div>
+
+        <button class="row" type="button" aria-current="true">
+          <span class="row-title"><span class="pip attn"></span>Deleting declared paths</span>
+          <span class="row-meta">Structural change<span class="sep"></span>Steward<span class="sep"></span>due 19:06</span>
+        </button>
+        <button class="row" type="button" aria-current="false">
+          <span class="row-title"><span class="pip attn"></span>Hidden-side-effect guard</span>
+          <span class="row-meta">Structural change<span class="sep"></span>Steward<span class="sep"></span>due today</span>
+        </button>
+
+        <div class="group-head"><b>Later</b><span>3</span><i></i></div>
+
+        <button class="row" type="button" aria-current="false">
+          <span class="row-title"><span class="pip"></span>Portal may provision a Memory scope</span>
+          <span class="row-meta">Portal completion<span class="sep"></span>5 days</span>
+        </button>
+        <button class="row" type="button" aria-current="false">
+          <span class="row-title"><span class="pip"></span>Use LPBS as the signed catalog source</span>
+          <span class="row-meta">Research Desk<span class="sep"></span>6 days</span>
+        </button>
+        <button class="row" type="button" aria-current="false">
+          <span class="row-title"><span class="pip"></span>Aquila: choose the next edit base</span>
+          <span class="row-meta">Agent run<span class="sep"></span>5 days</span>
+        </button>
+
+        <div class="group-head"><b>Can wait</b><span>20</span><i></i></div>
+        <button class="row" type="button" aria-current="false">
+          <span class="row-title"><span class="pip"></span>20 older decisions</span>
+          <span class="row-meta">Nothing closes in the next 7 days</span>
+        </button>
+      </section>
+
+      <article class="detail" aria-label="Selected decision">
+        <div class="detail-scroll">
+          <div class="chips">
+            <span class="chip attn"><span class="dot"></span>Closing today</span>
+            <span class="chip">2 checks, one cause</span>
+          </div>
+
+          <div class="d-head">
+            <p class="kicker" style="margin-bottom:8px">Structural change · Steward · due 19:06</p>
+            <h2>Stop the deletion floors asking the same question twice.</h2>
+            <p>Two checks stop runs that delete files. They are correct, but they ask the same agent twice.</p>
+          </div>
+
+          <section class="family" aria-label="The decisions in this cause">
+            <div class="family-head"><b>One cause, two checks</b><span>Answer both</span></div>
+            <div class="check">
+              <span class="tick on" aria-hidden="true"></span>
+              <span><span class="name">Deleting declared paths</span><span class="sub">Fires before a run deletes a path the plan declared.</span></span>
+              <span class="pick">RESTRUCTURE</span>
+            </div>
+            <div class="check">
+              <span class="tick on" aria-hidden="true"></span>
+              <span><span class="name">Deleting files in an unresolved path</span><span class="sub">Fires when the run deletes inside a path it never resolved.</span></span>
+              <span class="pick">RESTRUCTURE</span>
+            </div>
+          </section>
+
+          <section class="rec" aria-label="Recommendation">
+            <div class="rec-label">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="m4 12 5 5L20 6"/></svg>
+              Recommended
+            </div>
+            <h3>Restructure both floors. Keep the hidden-effect guard.</h3>
+            <p>The floors are doing their job. The fix is to explain the safe route in the block message and stop asking the same run twice. The guard is catching real mistakes, so it stays.</p>
+          </section>
+
+          <div class="options" role="group" aria-label="Choices">
+            <button class="opt" type="button" aria-pressed="true">
+              <span class="radio" aria-hidden="true"></span>
+              <span><b>Restructure both floors</b><span>One owner packet. Both checks keep blocking until the route lands.</span></span>
+            </button>
+            <button class="opt" type="button" aria-pressed="false">
+              <span class="radio" aria-hidden="true"></span>
+              <span><b>Restructure the declared-paths floor only</b><span>The unresolved-path check keeps asking every time.</span></span>
+            </button>
+            <button class="opt" type="button" aria-pressed="false">
+              <span class="radio" aria-hidden="true"></span>
+              <span><b>Leave both as they are</b><span>Nothing changes. Runs keep confirming the same deletion.</span></span>
+            </button>
+          </div>
+
+          <div class="footrow">
+            <div class="note">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8.5"/><path d="M12 8h.01M11 11.5h1V16h1"/></svg>
+              <span><b>If you do nothing:</b> both floors stay enforced and runs keep confirming.</span>
+            </div>
+            <button class="evidence" type="button">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></svg>
+              Decision page <span>· 1 file</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="answerbar">
+          <button class="btn primary lg" type="button">Accept recommendation</button>
+          <button class="btn lg" type="button">Change one</button>
+          <button class="btn icon lg" type="button" aria-label="Answer later">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="8.5"/></svg>
+          </button>
+          <span class="hint"><kbd>A</kbd> accept · <kbd>J</kbd><kbd>K</kbd> move · <kbd>L</kbd> later</span>
+        </div>
+      </article>
+    </div>
+  </main>
+</div>
+
+<script>
+  (function () {
+    var root = document.documentElement;
+    var requested = new URLSearchParams(location.search).get("theme");
+    if (requested === "dark" || requested === "light") root.setAttribute("data-theme", requested);
+    document.getElementById("theme").addEventListener("click", function () {
+      root.setAttribute("data-theme", root.getAttribute("data-theme") === "light" ? "" : "light");
+    });
+    document.querySelectorAll(".opt").forEach(function (b) {
+      b.addEventListener("click", function () {
+        document.querySelectorAll(".opt").forEach(function (o) { o.setAttribute("aria-pressed", "false"); });
+        b.setAttribute("aria-pressed", "true");
+      });
+    });
+    document.querySelectorAll(".list .row").forEach(function (r) {
+      r.addEventListener("click", function () {
+        document.querySelectorAll(".list .row").forEach(function (o) { o.setAttribute("aria-current", "false"); });
+        r.setAttribute("aria-current", "true");
+      });
+    });
+  })();
+</script>
+</body>
+</html>

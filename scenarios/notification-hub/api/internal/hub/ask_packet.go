@@ -280,6 +280,15 @@ func keepOpenTerms(spec AskSpec, open AskRecord) AskSpec {
 	if keep.Packet {
 		spec.Packet = open.Packet
 	}
+	if keep.DecisionFamily {
+		spec.DecisionFamily = open.DecisionFamily
+	}
+	if keep.DecisionCause {
+		spec.DecisionCause = open.DecisionCause
+	}
+	if keep.DecisionKind {
+		spec.DecisionKind = open.DecisionKind
+	}
 	return spec
 }
 

@@ -5,7 +5,7 @@ import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 import { Button } from "@vrooli/react-component-library/Button/2";
 
 import { identityClient } from "../../api/notifications";
-import { Input } from "../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";

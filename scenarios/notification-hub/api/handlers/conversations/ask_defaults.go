@@ -72,6 +72,9 @@ func askSpecFromProto(msg *v1.AskRequest, producer identity.Producer, now time.T
 	return hub.AskSpec{
 		RevisionAudience:        &audience,
 		AllowRelated:            msg.GetAllowRelated(),
+		DecisionFamily:          msg.GetDecisionFamily(),
+		DecisionCause:           msg.GetDecisionCause(),
+		DecisionKind:            msg.GetDecisionKind(),
 		Keep:                    keep,
 		Kind:                    kind,
 		TemplateName:            msg.GetTemplateName(),
@@ -134,5 +137,8 @@ func askKeepFromProto(msg *v1.AskRequest) hub.AskKeep {
 		ReassertWithin:         msg.ReassertWithinSeconds == nil,
 		AcceptsContextRequests: msg.AcceptsContextRequests == nil,
 		Packet:                 msg.Packet == nil,
+		DecisionFamily:         msg.DecisionFamily == nil,
+		DecisionCause:          msg.DecisionCause == nil,
+		DecisionKind:           msg.DecisionKind == nil,
 	}
 }

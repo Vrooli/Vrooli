@@ -31,8 +31,7 @@ func labelled(label string, calls *atomic.Int32) senderSource {
 
 func askWithSource(t *testing.T, source senderSource, args ...string) *hubStub {
 	t.Helper()
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 	svc.senderSource = source
 	_, _, err := runCommand(t, svc, "ask", args...)
 	require.NoError(t, err)
@@ -57,8 +56,7 @@ func TestFromWinsOverTheResolvedLabelAndTheLabelIsNotEvenLookedUp(t *testing.T) 
 
 func TestAnAskIsSentWithoutADefaultWhenTheLookupFailsAndNothingIsSaid(t *testing.T) {
 	failing := func(context.Context) (string, error) { return "", errors.New("agent-manager is down") }
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 	svc.senderSource = failing
 	stdout, stderr, err := runCommand(t, svc, "ask", minimalAsk()...)
 	require.NoError(t, err)
@@ -78,8 +76,7 @@ func TestAnAskIsNeverHeldUpLongerThanTheBudgetByASlowLookup(t *testing.T) {
 		<-release // ignores the context, as a port lookup that shells out does
 		return "too late", nil
 	}
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 	svc.senderSource = slow
 	started := time.Now()
 	_, _, err := runCommand(t, svc, "ask", minimalAsk()...)
@@ -90,8 +87,7 @@ func TestAnAskIsNeverHeldUpLongerThanTheBudgetByASlowLookup(t *testing.T) {
 
 func TestTheLookupRunsOncePerProcess(t *testing.T) {
 	var calls atomic.Int32
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 	svc.senderSource = labelled("Backup watcher", &calls)
 	for range 3 {
 		_, _, err := runCommand(t, svc, "ask", minimalAsk("--idempotency-key", "k")...)
@@ -325,8 +321,7 @@ func TestDryRunJSONCarriesTheHubsSenderAndItsSource(t *testing.T) {
 
 func TestDryRunAsksTheHubAboutTheSameSenderARealSendWouldCarry(t *testing.T) {
 	var calls atomic.Int32
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 	svc.senderSource = labelled("Research Desk", &calls)
 	_, _, err := runCommand(t, svc, "ask", minimalAsk("--dry-run")...)
 	require.NoError(t, err)

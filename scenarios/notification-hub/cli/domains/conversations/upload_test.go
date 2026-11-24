@@ -44,8 +44,7 @@ func TestUploadStatsThenPutsOnlyMissingBlobs(t *testing.T) {
 
 func TestUploadSendsIdenticalContentOnce(t *testing.T) {
 	files := filesOf(t, t.TempDir(), "same", "same", "same")
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 	require.NoError(t, uploader{client: svc.client}.upload(context.Background(), files))
 	require.Len(t, stub.statCalls[0], 1)
 	require.Len(t, stub.puts, 1)
@@ -84,8 +83,7 @@ func TestUploadBoundsConcurrency(t *testing.T) {
 		contents[i] = "blob-" + strconv.Itoa(i)
 	}
 	files := filesOf(t, t.TempDir(), contents...)
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 	require.NoError(t, uploader{client: svc.client}.upload(context.Background(), files))
 	require.Len(t, stub.puts, 16)
 	require.LessOrEqual(t, stub.maxInFlight, uploadConcurrency)
@@ -104,8 +102,7 @@ func TestUploadRefusesAFileThatChangedAfterItWasHashed(t *testing.T) {
 	dir := t.TempDir()
 	files := filesOf(t, dir, "before")
 	require.NoError(t, os.WriteFile(files[0].Path, []byte("after!"), 0o644))
-	stub := &hubStub{}
-	svc := newTestService(t, stub)
+	stub, svc := newStubService(t)
 	err := uploader{client: svc.client}.upload(context.Background(), files)
 	require.ErrorContains(t, err, "changed while the ask was being prepared")
 	require.Empty(t, stub.puts, "bytes that do not match their hash must never be sent")

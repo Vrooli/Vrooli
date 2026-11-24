@@ -91,11 +91,16 @@ func TestStatusUpdateStoresSteeringImagesAndSubjectRecurrence(t *testing.T) {
 	require.NoError(t, err)
 	imageBytes := []byte{0x89, 'P', 'N', 'G', 13, 10, 26, 10, 0, 0, 0, 0}
 	imageHash := fmt.Sprintf("%x", sha256.Sum256(imageBytes))
+	fileBytes := []byte("response evidence, v1\n")
+	fileHash := fmt.Sprintf("%x", sha256.Sum256(fileBytes))
 	_, err = client.PutAttachmentBlob(ctx, connect.NewRequest(&v1.PutAttachmentBlobRequest{Sha256: imageHash, MediaType: "image/png", Content: imageBytes}))
+	require.NoError(t, err)
+	_, err = client.PutAttachmentBlob(ctx, connect.NewRequest(&v1.PutAttachmentBlobRequest{Sha256: fileHash, MediaType: "text/plain", Content: fileBytes}))
 	require.NoError(t, err)
 	_, err = client.Answer(ctx, connect.NewRequest(&v1.AnswerRequest{
 		AskId: first.ID, Note: "Use the Wednesday capacity tier.", Changes: changes,
-		Images: []*v1.AnswerImage{{Name: "schedule.png", Sha256: imageHash, MediaType: "image/png", SizeBytes: int64(len(imageBytes))}},
+		Images:      []*v1.AnswerImage{{Name: "schedule.png", Sha256: imageHash, MediaType: "image/png", SizeBytes: int64(len(imageBytes))}},
+		Attachments: []*v1.AnswerAttachment{{Name: "evidence.txt", Sha256: fileHash, MediaType: "text/plain", SizeBytes: int64(len(fileBytes))}},
 	}))
 	require.NoError(t, err)
 
@@ -112,6 +117,7 @@ func TestStatusUpdateStoresSteeringImagesAndSubjectRecurrence(t *testing.T) {
 	require.Equal(t, "Use the Wednesday capacity tier.", firstReadback.Msg.GetAsk().GetNote())
 	require.Equal(t, map[string]any{"pace": map[string]any{"tier": "wednesday"}, "review": true}, firstReadback.Msg.GetAsk().GetAnswerChanges().AsMap())
 	require.Equal(t, imageHash, firstReadback.Msg.GetAsk().GetAnswerImages()[0].GetSha256())
+	require.Equal(t, fileHash, firstReadback.Msg.GetAsk().GetAnswerAttachments()[0].GetSha256())
 
 	imageURL := server.URL + "/api/v1/asks/" + first.ID + "/answer-images/schedule.png"
 	request, err := http.NewRequest(http.MethodGet, imageURL, nil)
@@ -124,6 +130,25 @@ func TestStatusUpdateStoresSteeringImagesAndSubjectRecurrence(t *testing.T) {
 	served, err := io.ReadAll(response.Body)
 	require.NoError(t, err)
 	require.Equal(t, imageBytes, served)
+	fileURL := server.URL + "/api/v1/asks/" + first.ID + "/answer-files/evidence.txt"
+	fileRequest, err := http.NewRequest(http.MethodGet, fileURL, nil)
+	require.NoError(t, err)
+	fileRequest.Header.Set("X-Vrooli-Identity-Subject", "alice")
+	foreignFileRequest, err := http.NewRequest(http.MethodGet, fileURL, nil)
+	require.NoError(t, err)
+	foreignFileRequest.Header.Set("X-Vrooli-Identity-Subject", "mallory")
+	foreignFileResponse, err := server.Client().Do(foreignFileRequest)
+	require.NoError(t, err)
+	defer foreignFileResponse.Body.Close()
+	require.Equal(t, http.StatusNotFound, foreignFileResponse.StatusCode)
+	fileResponse, err := server.Client().Do(fileRequest)
+	require.NoError(t, err)
+	defer fileResponse.Body.Close()
+	require.Equal(t, http.StatusOK, fileResponse.StatusCode)
+	require.Equal(t, "attachment; filename=evidence.txt", fileResponse.Header.Get("Content-Disposition"))
+	servedFile, err := io.ReadAll(fileResponse.Body)
+	require.NoError(t, err)
+	require.Equal(t, fileBytes, servedFile)
 
 	marked, err := client.MarkRead(ctx, connect.NewRequest(&v1.MarkReadRequest{AskId: second.ID}))
 	require.NoError(t, err)

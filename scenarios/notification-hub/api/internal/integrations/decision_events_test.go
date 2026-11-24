@@ -13,11 +13,14 @@ import (
 
 func TestDecisionAskSpecCarriesContextAndUsesProducerNoteFallback(t *testing.T) {
 	base := map[string]any{
-		"question":    "Apply this change?",
-		"options":     []map[string]string{{"key": "apply", "label": "Apply"}, {"key": "reject", "label": "Reject"}},
-		"recommended": "apply",
-		"big_picture": "Purpose and impact",
-		"note":        "Requester evidence",
+		"question":        "Apply this change?",
+		"options":         []map[string]string{{"key": "apply", "label": "Apply"}, {"key": "reject", "label": "Reject"}},
+		"decision_family": "release-guards",
+		"decision_cause":  "The release waits on three independent checks.",
+		"decision_kind":   "review",
+		"recommended":     "apply",
+		"big_picture":     "Purpose and impact",
+		"note":            "Requester evidence",
 	}
 	encoded, err := json.Marshal(base)
 	require.NoError(t, err)
@@ -25,6 +28,9 @@ func TestDecisionAskSpecCarriesContextAndUsesProducerNoteFallback(t *testing.T) 
 	require.NoError(t, err)
 	require.Equal(t, "Purpose and impact", spec.BigPicture)
 	require.Equal(t, "Requester evidence", spec.TechnicalDetails)
+	require.Equal(t, "release-guards", spec.DecisionFamily)
+	require.Equal(t, "The release waits on three independent checks.", spec.DecisionCause)
+	require.Equal(t, "review", spec.DecisionKind)
 
 	base["technical_details"] = "Explicit evidence"
 	encoded, err = json.Marshal(base)

@@ -3,7 +3,7 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import type { Ask } from "@vrooli/proto-types/notification-hub/v1/conversations/conversations_pb";
 import { conversationsClient } from "../../api/notifications";
-import { Input } from "../../components/ui/input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 

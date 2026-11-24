@@ -70,7 +70,7 @@ source's. Write for that:
   id only when nothing else names the subject.
 
 Follow the shared [operator legibility
-standard](../../../../docs/agent-system/SWARM_MANAGER_WORK.md#operator-legibility).
+standard](../../../../docs/agent-system/SCENARIO_DEVELOPMENT.md#work-shapes).
 Assume the recipient has not read the sending scenario's chat or files. Explain
 necessary technical terms in familiar words, and lead with the practical
 effect. A phone notification should make the update clear by itself; use its

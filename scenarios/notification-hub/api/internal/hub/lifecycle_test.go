@@ -14,7 +14,6 @@ import (
 
 func TestClose_StopsTheWorkerPromptlyAndIsIdempotent(t *testing.T) {
 	db := OpenTestDB(t, "hub.db")
-	t.Cleanup(func() { _ = db.Close() })
 	service := New(db, nil, log.New(&bytes.Buffer{}, "", 0))
 
 	closed := make(chan struct{})
@@ -37,7 +36,6 @@ func TestClose_StopsTheWorkerPromptlyAndIsIdempotent(t *testing.T) {
 
 func TestDispatchAfterCloseDoesNotLeakASender(t *testing.T) {
 	db := OpenTestDB(t, "hub.db")
-	t.Cleanup(func() { _ = db.Close() })
 	service := New(db, nil, log.New(&bytes.Buffer{}, "", 0))
 	service.Close()
 	baseline := runtime.NumGoroutine()
@@ -90,7 +88,20 @@ func TestMaintain_AClosedDatabaseIsLoggedNotFatal(t *testing.T) {
 	logs.Reset()
 
 	require.NotPanics(t, func() { service.maintain(context.Background()) })
-	require.Contains(t, logs.String(), "recovered from", "the failed step is reported")
+	output := logs.String()
+	require.Contains(t, output, "process ask escalations: sql: database is closed", "the failed escalation step is reported")
+	require.Contains(t, output, "retention: sql: database is closed", "maintenance continues to the later retention step")
+}
+
+func TestSafely_LogsRecoveredPanics(t *testing.T) {
+	db := OpenTestDB(t, "hub.db")
+	var logs lockedBuffer
+	service := New(db, nil, log.New(&logs, "", 0))
+	t.Cleanup(service.Close)
+
+	service.safely("maintenance test step", func() { panic("boom") })
+
+	require.Contains(t, logs.String(), "notification hub: maintenance test step: recovered from boom")
 }
 
 func TestMaintain_IsSkippedOnceClosing(t *testing.T) {

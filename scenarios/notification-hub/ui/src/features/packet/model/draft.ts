@@ -31,11 +31,12 @@ export interface PacketDraft {
   attachmentNotes: AttachmentNoteDraft[];
   answerChanges: Record<string, { label: string; value: unknown }>;
   answerImages: { name: string; sha256: string; mediaType: string; sizeBytes: number }[];
+  answerAttachments: { name: string; sha256: string; mediaType: string; sizeBytes: number }[];
 }
 
 export const emptyResponse = (): ResponseDraft => ({ selected: [], text: "", sections: {} });
 
-export const emptyDraft = (): PacketDraft => ({ answer: "", note: "", responses: {}, attachmentNotes: [], answerChanges: {}, answerImages: [] });
+export const emptyDraft = (): PacketDraft => ({ answer: "", note: "", responses: {}, attachmentNotes: [], answerChanges: {}, answerImages: [], answerAttachments: [] });
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -83,7 +84,12 @@ export function normalizeDraft(value: unknown): PacketDraft | null {
       ? [{ name: item.name, sha256: item.sha256, mediaType: item.mediaType, sizeBytes: item.sizeBytes }]
       : [])
     : [];
-  return { answer: value.answer, note: value.note, responses, attachmentNotes, answerChanges, answerImages };
+  const answerAttachments = Array.isArray(value.answerAttachments)
+    ? value.answerAttachments.flatMap((item) => isRecord(item) && typeof item.name === "string" && typeof item.sha256 === "string" && typeof item.mediaType === "string" && typeof item.sizeBytes === "number"
+      ? [{ name: item.name, sha256: item.sha256, mediaType: item.mediaType, sizeBytes: item.sizeBytes }]
+      : [])
+    : [];
+  return { answer: value.answer, note: value.note, responses, attachmentNotes, answerChanges, answerImages, answerAttachments };
 }
 
 /** The draft with one question's response replaced. */

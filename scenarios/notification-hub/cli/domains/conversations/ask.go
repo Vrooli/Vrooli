@@ -107,7 +107,7 @@ func (s *service) buildAsk(ctx cliapp.RunContext) (askRequest, error) {
 		if err != nil {
 			return askRequest{}, err
 		}
-		for _, flag := range []string{"question", "body-file", "big-picture", "technical-details", "option", "yes-no", "recommend", "recommend-reason", "subject-key", "attach", "explainer", "form", "template", "data-file", "kind"} {
+		for _, flag := range []string{"question", "body-file", "big-picture", "technical-details", "option", "yes-no", "recommend", "recommend-reason", "subject-key", "decision-family", "decision-cause", "decision-kind", "attach", "explainer", "form", "template", "data-file", "kind"} {
 			if ctx.Flag(flag) != "" || len(ctx.FlagValues(flag)) > 0 || ctx.BoolFlag(flag) {
 				return askRequest{}, fmt.Errorf("--feature-card cannot be combined with --%s; edit the card packet itself", flag)
 			}
@@ -204,6 +204,9 @@ func (s *service) buildAsk(ctx cliapp.RunContext) (askRequest, error) {
 	// value clears it.
 	req := &v1.AskRequest{
 		AllowRelated:          ctx.BoolFlag("allow-related"),
+		DecisionFamily:        given(ctx, "decision-family"),
+		DecisionCause:         given(ctx, "decision-cause"),
+		DecisionKind:          given(ctx, "decision-kind"),
 		Question:              text.Question,
 		Options:               askOptions,
 		Recommended:           given(ctx, "recommend"),

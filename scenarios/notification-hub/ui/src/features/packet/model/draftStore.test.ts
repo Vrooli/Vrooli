@@ -22,7 +22,7 @@ describe("draft store", () => {
     clearAskDrafts();
     window.sessionStorage.setItem(key, JSON.stringify({ draft: { answer: "close", note: "kept" } }));
     // A draft written before questions existed has no responses or notes.
-    expect(readAskDraft("owner-1", "ask-1")).toEqual({ answer: "close", note: "kept", responses: {}, attachmentNotes: [], answerChanges: {}, answerImages: [] });
+    expect(readAskDraft("owner-1", "ask-1")).toEqual({ answer: "close", note: "kept", responses: {}, attachmentNotes: [], answerChanges: {}, answerImages: [], answerAttachments: [] });
   });
 
   it("ignores a corrupt stored draft instead of failing to read the ask", () => {

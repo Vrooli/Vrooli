@@ -20,6 +20,11 @@ export function answerImageUrl(askId: string, name: string): string {
   return buildApiUrl(`/asks/${encodeURIComponent(askId)}/answer-images/${encodeURIComponent(name)}`, { baseUrl: REST_API_BASE });
 }
 
+/** Same-origin download URL for a file saved with the recipient's answer. */
+export function answerFileUrl(askId: string, name: string): string {
+  return buildApiUrl(`/asks/${encodeURIComponent(askId)}/answer-files/${encodeURIComponent(name)}`, { baseUrl: REST_API_BASE });
+}
+
 /** Fetch attachment bytes through the session fetch (routed test headers, sign-in expiry). */
 export async function fetchAttachment(askId: string, name: string, entryPath = "", signal?: AbortSignal): Promise<Response> {
   const response = await sessionFetch(attachmentUrl(askId, name, entryPath), { signal });

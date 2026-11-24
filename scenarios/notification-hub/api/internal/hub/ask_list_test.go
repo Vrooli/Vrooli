@@ -42,6 +42,9 @@ type raise struct {
 	conv       string
 	urgency    string
 	sender     string
+	// kind is "decision" unless the ask is a status update, which is pending
+	// until it is read rather than answered.
+	kind string
 	// direct is an ask sent by a caller, not raised as an event: its source is
 	// the recipient and it has no event type.
 	direct bool
@@ -65,6 +68,15 @@ func (l *listAsks) ask(r raise) hub.AskRecord {
 	}
 	spec.CreatedBy, spec.CreatedConversation = r.by, r.conv
 	spec.Urgency, spec.Sender = r.urgency, r.sender
+	if r.kind != "" {
+		spec.Kind = r.kind
+	}
+	if r.kind == "status" {
+		// A status update is read, not answered: it has no answer menu, default,
+		// recommendation or deadline.
+		spec.Options, spec.Recommended, spec.RecommendationReason = nil, "", ""
+		spec.DefaultAnswer, spec.Reversible, spec.Deadline = "", false, time.Time{}
+	}
 	ask, _, err := l.service.AskWithSpec(context.Background(), spec)
 	require.NoError(l.t, err)
 	if r.noDeadline {
@@ -141,6 +153,27 @@ func TestCountAwaitingFollowsTheReadersAudience(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 4, first.TotalAwaiting)
 	require.Equal(t, 4, next.TotalAwaiting, "every page carries the exact count, not the rows left")
+}
+
+func TestAwaitingExcludesStatusUpdates(t *testing.T) {
+	l := newListAsks(t)
+	ctx := context.Background()
+	decision := l.ask(raise{age: 2 * time.Minute, by: "run:1", state: hub.AskPending})
+	status := l.ask(raise{age: time.Minute, by: "run:1", kind: "status"})
+
+	open, err := l.service.ListAsksPage(ctx, "alice", hub.AskListOptions{OpenOnly: true})
+	require.NoError(t, err)
+	require.Equal(t, []string{decision.ID}, askIDs(open.Asks), "a status update is not a decision in the queue")
+	require.Equal(t, 1, open.TotalAwaiting, "the owner badge counts decisions, not status updates")
+
+	// It is still retained and visible to History, and a filter for the pending
+	// state still returns it: only "awaiting an answer" excludes it.
+	all, err := l.service.ListAsksPage(ctx, "alice", hub.AskListOptions{StateFilter: "all"})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{decision.ID, status.ID}, askIDs(all.Asks))
+	pending, err := l.service.ListAsksPage(ctx, "alice", hub.AskListOptions{StateFilter: hub.AskPending})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{decision.ID, status.ID}, askIDs(pending.Asks))
 }
 
 // sortedBy is the order a list must show, written out independently of the SQL.

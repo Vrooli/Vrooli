@@ -5,7 +5,7 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { create, toJson } from "@bufbuild/protobuf";
 import { AskSchema, AskAttachmentNoteSchema, AskContextRequestSchema, AskQuestionResponseSchema, AskRevisionSchema, AskOptionSchema } from "@vrooli/proto-types/notification-hub/v1/conversations/conversations_pb";
 
-import { resolveLinkedArtifact } from "../../api/attachments";
+import { fetchAttachment, resolveLinkedArtifact } from "../../api/attachments";
 import { conversationsClient, identityClient } from "../../api/notifications";
 import { TestAppRouter } from "../../app/routes";
 import { selectors } from "../../consts/selectors";
@@ -895,9 +895,8 @@ describe("links in the decision text", () => {
       expect(link).toHaveAttribute("rel", "noopener noreferrer");
       expect(link).toHaveClass("break-words");
       expect(link).not.toHaveClass("break-all");
-      // Prose links are 44px touch targets; one inside the heading sits inline so the question keeps an even line height.
-      if (label === "the run") expect(link).not.toHaveClass("min-h-11");
-      else expect(link).toHaveClass("min-h-11");
+      // Links remain comfortable 44px touch targets even when they sit in a heading.
+      expect(link).toHaveClass("min-h-11");
     }
   });
 
@@ -935,6 +934,21 @@ describe("links in the decision text", () => {
     await user.click(screen.getByRole("button", { name: "Close viewer" }));
     expect(screen.queryByTestId("viewer-stub")).not.toBeInTheDocument();
     expect(await optionByKey("re-aim")).toBeChecked();
+  });
+
+  it("keeps the decision answerable when its linked file source is unavailable", async () => {
+    const user = userEvent.setup();
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({ ask: makeAsk({ technicalDetails: "Read /work/plan.md before answering." }) } as never);
+    vi.mocked(resolveLinkedArtifact).mockRejectedValueOnce(new Error("source unavailable"));
+    renderAsk();
+
+    await user.click(await optionByKey("re-aim"));
+    await user.click(await screen.findByRole("button", { name: "/work/plan.md" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(text.text.fileLinksUnavailable);
+    expect(await optionByKey("re-aim")).toBeChecked();
+    expect(send()).toBeEnabled();
+    expect(screen.getByTestId(selectors.asks.retryFileLinks)).toBeEnabled();
+    expect(screen.queryByTestId("viewer-stub")).not.toBeInTheDocument();
   });
 
   it("opens a path that names an attachment in the Hub's own viewer, without asking Web Console", async () => {
@@ -1011,6 +1025,45 @@ describe("a decision packet", () => {
     expect(tiles[1]!.querySelector("img")).toHaveAttribute("src", "/files/ask-1/set-a.png");
     await user.click(tiles[4]!);
     expect(screen.getByTestId("viewer-stub")).toHaveTextContent("renders|");
+  });
+
+  it("renders an optional observed block from the decision packet without a fidelity label", async () => {
+    const block = {
+      schemaVersion: "experience-packet-observed/v1",
+      scenario: "audio-tools",
+      generatedAt: "2026-11-24T13:07:33.901Z",
+      build: "sha256:4e4e0059945491efb6f996b99828e12cac10c5ae0e24722b6dc9b6c4c4dc79f4",
+      sessions: [{ id: "session-1", build: "sha256:4e4e0059945491efb6f996b99828e12cac10c5ae0e24722b6dc9b6c4c4dc79f4" }],
+      window: { from: "2026-11-24T00:00:00.000Z", to: "2026-11-24T00:01:00.000Z", sessions: 1 },
+      headline: "Repeated dictation flow observed",
+      topFlow: { id: "flow-1", steps: ["dictation-record-start"], count: 4, medianDurationMs: 1000, totalDurationMs: 4000 },
+      topFriction: { kind: "repeated_action", count: 2, routes: [], elements: [] },
+      timeCostMs: 4000,
+      reportDigest: `sha256:${"a".repeat(64)}`,
+      caveat: "Local operator observation; advisory only, not a verdict.",
+    };
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({ ask: makeAsk({ attachments: [makeAttachment({ name: "packet-observed.json", mediaType: "application/json", previewKind: "text", sizeBytes: 900 })] }) } as never);
+    vi.mocked(fetchAttachment).mockResolvedValue(new Response(JSON.stringify(block)));
+
+    renderAsk();
+
+    const observed = await screen.findByRole("note", { name: "Observed behavior packet context" });
+    expect(within(observed).getByText("Repeated dictation flow observed")).toBeInTheDocument();
+    expect(within(observed).getByText(/Top flow: dictation-record-start/)).toBeInTheDocument();
+    expect(within(observed).getByText(/not a fidelity label/)).toBeInTheDocument();
+    expect(within(observed).getAllByText(/sha256:4e4e0059945491ef/)).toHaveLength(2);
+    expect(within(observed).getByText(/report digest:/)).toBeInTheDocument();
+    expect(fetchAttachment).toHaveBeenCalledWith("ask-1", "packet-observed.json", "", expect.any(AbortSignal));
+  });
+
+  it("marks a malformed observed packet block not evaluated and leaves the decision available", async () => {
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({ ask: makeAsk({ attachments: [makeAttachment({ name: "packet-observed.json", mediaType: "application/json", sizeBytes: 32 })] }) } as never);
+    vi.mocked(fetchAttachment).mockResolvedValue(new Response(JSON.stringify({ schemaVersion: "wrong" })));
+
+    renderAsk();
+
+    expect(await screen.findByRole("status", { name: "Observed behavior packet" })).toHaveTextContent("not evaluated");
+    expect(screen.getByText("Close the goal")).toBeInTheDocument();
   });
 
   it("draws each question by type, with any unknown type as a text box", async () => {

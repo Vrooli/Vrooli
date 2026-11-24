@@ -16,7 +16,7 @@ import { PinnedNotes } from "./PinnedNotes";
 import { QuestionField } from "./QuestionField";
 import { ReviewSummary } from "./ReviewSummary";
 import { TextArea } from "./TextArea";
-import { AnswerImages } from "./AnswerImages";
+import { AnswerAttachments } from "./AnswerAttachments";
 
 export interface AnswerPanelProps {
   ask: Ask;
@@ -97,7 +97,7 @@ export function AnswerPanel(props: AnswerPanelProps) {
     />
   ));
   const pinned = <PinnedNotes ask={ask} draft={draft} disabled={locked} onChange={onDraftChange} />;
-  const answerImages = <AnswerImages images={draft.answerImages} disabled={locked || frozen} onBusyChange={setImageUploading} onChange={onDraftChange} />;
+  const answerImages = <AnswerAttachments images={draft.answerImages} attachments={draft.answerAttachments} disabled={locked || frozen} onBusyChange={setImageUploading} onChange={onDraftChange} />;
 
   const send = { label: t(strings.packet.form.submit), onClick: onSubmit, disabled: blocker !== null || imageUploading, testId: selectors.packet.send };
   const secondary = open && !frozen && <SecondaryActions canRequestContext={ask.canRequestContext} onRequestContext={onRequestContext} onDismiss={onDismiss} dismissing={dismissing} disabled={locked} />;
