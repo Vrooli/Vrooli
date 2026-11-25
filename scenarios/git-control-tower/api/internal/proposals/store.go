@@ -71,6 +71,13 @@ func (s *Store) LatestAnchor(ctx context.Context, repositoryID, effortRef, epoch
 }
 
 func (s *Store) Insert(ctx context.Context, proposal Proposal) error {
+	return s.InsertWithBlobs(ctx, proposal, nil)
+}
+
+// InsertWithBlobs retains a proposal and the immutable content it references
+// in one commit. A failed insert must not strand up to a full capture in the
+// content table.
+func (s *Store) InsertWithBlobs(ctx context.Context, proposal Proposal, blobs map[string][]byte) error {
 	if proposal.State != StateOpen {
 		return fmt.Errorf("%w: new proposal must start open", ErrInvalid)
 	}
@@ -83,6 +90,9 @@ func (s *Store) Insert(ctx context.Context, proposal Proposal) error {
 		return err
 	}
 	defer tx.Rollback()
+	if err = saveBlobsTx(ctx, tx, blobs); err != nil {
+		return err
+	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO gct_proposals (id, repository_id, state, revision, effort_ref, epoch, record_json, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
 		proposal.ID, proposal.RepositoryID, string(proposal.State), proposal.Revision, proposal.Work.EffortRef, proposal.Work.Epoch,
 		string(data), proposal.CreatedAt.UTC().Format(time.RFC3339Nano), proposal.UpdatedAt.UTC().Format(time.RFC3339Nano))
@@ -98,6 +108,13 @@ func (s *Store) Insert(ctx context.Context, proposal Proposal) error {
 // Update replaces a proposal only when the stored revision and state still
 // match what the caller read.
 func (s *Store) Update(ctx context.Context, proposal Proposal, expectedRevision int, expectedState State) error {
+	return s.UpdateWithBlobs(ctx, proposal, expectedRevision, expectedState, nil)
+}
+
+// UpdateWithBlobs stores a new content revision only if its compare-and-swap
+// wins. Blob rows and proposal metadata share a transaction, so a conflict
+// rolls back both.
+func (s *Store) UpdateWithBlobs(ctx context.Context, proposal Proposal, expectedRevision int, expectedState State, blobs map[string][]byte) error {
 	if err := validateStateTransition(expectedState, proposal.State); err != nil {
 		return err
 	}
@@ -122,6 +139,9 @@ func (s *Store) Update(ctx context.Context, proposal Proposal, expectedRevision 
 	}
 	if rows, rowsErr := result.RowsAffected(); rowsErr != nil || rows != 1 {
 		return ErrConflict
+	}
+	if err = saveBlobsTx(ctx, tx, blobs); err != nil {
+		return err
 	}
 	if proposal.Revision != expectedRevision {
 		if _, err = tx.ExecContext(ctx, `INSERT INTO gct_proposal_revisions (proposal_id, revision, record_json) VALUES (?,?,?)`, proposal.ID, proposal.Revision, string(data)); err != nil {
@@ -154,15 +174,22 @@ func (s *Store) SaveBlobs(ctx context.Context, blobs map[string][]byte) error {
 		return err
 	}
 	defer tx.Rollback()
+	if err = saveBlobsTx(ctx, tx, blobs); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func saveBlobsTx(ctx context.Context, tx *sql.Tx, blobs map[string][]byte) error {
 	for id, data := range blobs {
 		if data == nil {
 			data = []byte{}
 		}
-		if _, err = tx.ExecContext(ctx, `INSERT OR IGNORE INTO gct_proposal_blobs (blob_id, content) VALUES (?,?)`, id, data); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO gct_proposal_blobs (blob_id, content) VALUES (?,?)`, id, data); err != nil {
 			return err
 		}
 	}
-	return tx.Commit()
+	return nil
 }
 
 func (s *Store) Blob(ctx context.Context, id string) ([]byte, error) {

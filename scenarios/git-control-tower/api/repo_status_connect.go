@@ -53,7 +53,7 @@ func (s *Server) getRepoStatusConnect(ctx context.Context, req *repov1.GetRepoSt
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
-		identity, err := repodomain.NewService(newWorktreeInspector()).GetRepoStatus(ctx, resolved.Path)
+		identity, err := repodomain.NewService(newWorktreeInspector()).GetRepoStatusWithSnapshot(ctx, resolved.Path, status.Branch.Head, status.Branch.OID)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeUnavailable, err)
 		}
@@ -284,14 +284,15 @@ func projectRepoStatusPage(full *repov1.GetRepoStatusResponse, snapshot string, 
 	f.Conflicts = selectPart(source.GetConflicts())
 	f.Ignored = selectPart(source.GetIgnored())
 	selected := map[string]bool{}
+	selectedPaths := make([]string, 0, limit)
 	for _, group := range [][]string{f.Staged, f.Unstaged, f.Untracked, f.Conflicts, f.Ignored} {
-		for _, p := range group {
-			selected[p] = true
+		for _, path := range group {
+			if selected[path] {
+				continue
+			}
+			selected[path] = true
+			selectedPaths = append(selectedPaths, path)
 		}
-	}
-	selectedPaths := make([]string, 0, len(selected))
-	for _, group := range [][]string{f.Staged, f.Unstaged, f.Untracked, f.Conflicts, f.Ignored} {
-		selectedPaths = append(selectedPaths, group...)
 	}
 	filterString := func(src map[string]string) map[string]string {
 		dst := make(map[string]string)

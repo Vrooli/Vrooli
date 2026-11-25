@@ -10,9 +10,9 @@ import { PlanPage } from "./PlanPage";
 
 function CurrentLocation() { const location = useLocation(); return <output data-testid="journey-location">{location.pathname}{location.search}</output>; }
 
-const mocks = vi.hoisted(() => ({ listPostTypes: vi.fn(), createDraft: vi.fn(), listProjects: vi.fn(), createProject: vi.fn(), listDrafts: vi.fn(), getDraftCurrentRevision: vi.fn(), transitionDraft: vi.fn(), listRequiredReviewModes: vi.fn(), recordReviewRun: vi.fn(), listCampaigns: vi.fn(), listPublicationIntents: vi.fn(), setPublicationIntent: vi.fn(), readBoard: vi.fn() }));
+const mocks = vi.hoisted(() => ({ listPostTypes: vi.fn(), createDraft: vi.fn(), listProjects: vi.fn(), createProject: vi.fn(), listDrafts: vi.fn(), getDraftCurrentRevision: vi.fn(), transitionDraft: vi.fn(), approveDraft: vi.fn(), listRequiredReviewModes: vi.fn(), recordReviewRun: vi.fn(), listCampaigns: vi.fn(), listPublicationIntents: vi.fn(), setPublicationIntent: vi.fn(), readBoard: vi.fn() }));
 vi.mock("../api/posttypes", () => ({ posttypesClient: { listPostTypes: mocks.listPostTypes } }));
-vi.mock("../api/artifacts", () => ({ artifactsClient: { createDraft: mocks.createDraft, listDrafts: mocks.listDrafts, getDraftCurrentRevision: mocks.getDraftCurrentRevision, transitionDraft: mocks.transitionDraft } }));
+vi.mock("../api/artifacts", () => ({ artifactsClient: { createDraft: mocks.createDraft, listDrafts: mocks.listDrafts, getDraftCurrentRevision: mocks.getDraftCurrentRevision, transitionDraft: mocks.transitionDraft, approveDraft: mocks.approveDraft } }));
 vi.mock("../api/projects", () => ({ projectsClient: { listProjects: mocks.listProjects, createProject: mocks.createProject } }));
 vi.mock("../api/review", () => ({ reviewClient: { listRequiredReviewModes: mocks.listRequiredReviewModes, recordReviewRun: mocks.recordReviewRun } }));
 vi.mock("../api/campaigns", () => ({ campaignsClient: { listCampaigns: mocks.listCampaigns } }));
@@ -38,6 +38,7 @@ function renderCreate() {
 describe("CreatePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.sessionStorage.clear();
     mocks.listPostTypes.mockResolvedValue({ postTypes: [{ id: "dev-log", status: "active" }, { id: "stub", status: "v0" }] });
     mocks.listProjects.mockResolvedValue({ projects: [{ id: "project-o14", name: "O14" }] });
     mocks.createDraft.mockResolvedValue({ draft: { id: "saved-native-draft" } });
@@ -46,6 +47,7 @@ describe("CreatePage", () => {
     let hasReview = false;
     mocks.getDraftCurrentRevision.mockImplementation(() => Promise.resolve({ currentRevision: { revisionId: "rev-campaign-free", body: "A short observation.", hasApplicableReview: hasReview, reviewRunId: hasReview ? "run-campaign-free" : "" } }));
     mocks.transitionDraft.mockResolvedValue({});
+    mocks.approveDraft.mockResolvedValue({});
     mocks.listRequiredReviewModes.mockResolvedValue({ modes: ["evidence_grounding"] });
     mocks.recordReviewRun.mockImplementation(() => { hasReview = true; return Promise.resolve({ reviewRun: { id: "run-campaign-free", outcome: "passed", sourceRevisionId: "rev-campaign-free" } }); });
     mocks.listCampaigns.mockResolvedValue({ campaigns: [] });
@@ -85,6 +87,30 @@ describe("CreatePage", () => {
     fireEvent.click(screen.getByRole("button", { name: strings.pages.create.save }));
     await screen.findByRole("link", { name: strings.pages.create.reviewDraft });
     expect(mocks.createDraft.mock.calls.at(-1)?.[0].idempotencyKey).toBe(firstKey);
+  });
+
+  it("reuses the exact create operation after remount without storing the draft wording", async () => {
+    mocks.createDraft.mockRejectedValueOnce(new Error("response unknown")).mockResolvedValueOnce({ draft: { id: "recovered-draft" } });
+    const firstPage = renderCreate();
+    const draftBody = "Synthetic retry test copy.";
+    fireEvent.change(await screen.findByLabelText(strings.pages.create.body), { target: { value: draftBody } });
+    fireEvent.click(screen.getByRole("button", { name: strings.pages.create.save }));
+    await screen.findByRole("alert");
+    const firstKey = mocks.createDraft.mock.calls.at(-1)?.[0].idempotencyKey;
+    const storedPairs = Object.entries(window.sessionStorage);
+    const [storedKey, storedOperationID] = storedPairs[0] ?? ["", ""];
+    expect(storedPairs).toHaveLength(1);
+    expect(storedKey).toMatch(/^content-desk\.create-operation\.v1:[a-f0-9]{64}$/);
+    expect(storedKey).not.toContain(draftBody);
+    expect(storedOperationID).toBe(firstKey);
+
+    firstPage.unmount();
+    renderCreate();
+    fireEvent.change(await screen.findByLabelText(strings.pages.create.body), { target: { value: draftBody } });
+    fireEvent.click(screen.getByRole("button", { name: strings.pages.create.save }));
+    await screen.findByRole("link", { name: strings.pages.create.reviewDraft });
+    expect(mocks.createDraft.mock.calls.at(-1)?.[0].idempotencyKey).toBe(firstKey);
+    expect(window.sessionStorage.length).toBe(0);
   });
 
   it("creates a named project and saves the draft into it", async () => {
@@ -163,6 +189,7 @@ describe("CreatePage", () => {
       draft.status = nextStatus[event] ?? draft.status;
       return Promise.resolve({});
     });
+    mocks.approveDraft.mockImplementation(() => { draft.status = "approved"; return Promise.resolve({}); });
     renderWithProviders(<MemoryRouter initialEntries={["/create"]} future={{ v7_relativeSplatPath: true, v7_startTransition: true }}><Routes>
       <Route path="/create" element={<CreatePage />} />
       <Route path="/review" element={<ReviewPage />} />
@@ -192,6 +219,11 @@ describe("CreatePage", () => {
     fireEvent.click(screen.getByRole("button", { name: strings.pages.plan.returnToReview }));
     expect(await screen.findByTestId("review-basis-receipt")).toHaveAttribute("data-run-id", "run-campaign-free");
     expect(screen.getByTestId("journey-location")).toHaveTextContent("/review?draft=saved-native-draft");
+    const approveButton = await screen.findByRole("button", { name: strings.pages.review.approveExact });
+    await waitFor(() => expect(approveButton).not.toBeDisabled());
+    fireEvent.click(approveButton);
+    expect(await screen.findByText(strings.pages.review.approvalReceipt)).toBeInTheDocument();
+    expect(mocks.approveDraft).toHaveBeenCalledWith({ id: "saved-native-draft", expectedRevisionId: "rev-campaign-free", expectedBody: "A short observation.", identityId: "", lane: "" });
     expect(mocks.listCampaigns).toHaveBeenCalled();
   });
 });

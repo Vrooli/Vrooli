@@ -39,7 +39,7 @@ func TestRegistryDeclaresTheDocumentMatrixHandlers(t *testing.T) { // [REQ:DOC-P
 }
 
 func TestBlockedHandlerIsDistinctFromMissingHandler(t *testing.T) {
-	registry := testRegistry()
+	registry := Registry{Handlers: []Handler{{ID: "native-text", Version: "1", Formats: []string{"text/plain"}, Capabilities: []string{"content"}, Tier: 1, Runtime: "in-process"}}}
 	registry.Handlers = append(registry.Handlers, Handler{ID: "heavy", Formats: []string{"application/pdf"}, Tier: 2})
 	_, err := registry.Match("application/pdf", documentpb.Tier_TIER_ONE)
 	require.ErrorIs(t, err, ErrBlockedByPolicy)

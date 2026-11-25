@@ -267,6 +267,11 @@
       "reviewPassed": "passed",
       "reviewBlocked": "blocked",
       "checkingOnly": "Move this draft through its required lifecycle steps before recording review.",
+      "approvalDescription": "Approve only the exact reviewed wording at revision {{revision}}. This does not schedule or publish it.",
+      "approveExact": "Approve this exact version",
+      "approving": "Approving…",
+      "approvalReceipt": "Approved exact revision {{revision}}. No schedule or publication was created.",
+      "approvalError": "The exact draft version could not be approved.",
       "reviewRunReceipt": "Current review: {{run}} · revision {{revision}}",
       "noRevision": "body-only basis"
     },

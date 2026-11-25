@@ -1,4 +1,5 @@
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1.0.1";
 import { AlertTriangle, CheckCircle2, Clock3, FileCode2, GitBranch, ShieldCheck, Sparkles } from "lucide-react";
 import type { MutationPreviewResponse } from "../lib/api";
 
@@ -56,26 +57,19 @@ export function CommitAuthorizationDialog({
       avoidKeyboard
       testId="commit-authorization-dialog"
       footer={
-        <div className="flex flex-row items-center justify-end gap-2">
-          <button
-            type="button"
-            className="rounded-xl border border-slate-700 px-4 py-2.5 text-xs font-medium text-slate-300 transition hover:bg-slate-800 disabled:opacity-60"
-            onClick={onClose}
-            disabled={isAuthorizing}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-blue-950/40 transition hover:bg-blue-500 disabled:opacity-60"
-            onClick={onConfirm}
-            disabled={isAuthorizing || !repositoryMatches}
-            data-testid="confirm-commit-authorization"
-          >
-            <CheckCircle2 className="h-4 w-4" />
-            {isAuthorizing ? "Authorizing…" : skipPrecommit ? "Authorize & commit" : "Authorize and commit"}
-          </button>
-        </div>
+        <OverlayActionBar
+          actions={[
+            { id: "cancel", label: "Cancel", onSelect: onClose, disabled: isAuthorizing },
+            {
+              id: "authorize",
+              label: isAuthorizing ? "Authorizing…" : skipPrecommit ? "Authorize & commit" : "Authorize and commit",
+              onSelect: onConfirm,
+              disabled: isAuthorizing || !repositoryMatches,
+              primary: true,
+              testId: "confirm-commit-authorization",
+            },
+          ]}
+        />
       }
     >
       <div className="space-y-4 p-5">

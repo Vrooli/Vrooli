@@ -72,7 +72,6 @@ func (g *gitInspector) List(ctx context.Context, repoPath string) ([]Worktree, e
 }
 
 func (g *gitInspector) IdentifyPath(ctx context.Context, repoPath string) (Identity, error) {
-	id := Identity{}
 	var commonDirOut, gitDirOut, topOut, headOut, branchOut []byte
 	var worktrees []Worktree
 	var commonDirErr, gitDirErr, topErr error
@@ -104,6 +103,39 @@ func (g *gitInspector) IdentifyPath(ctx context.Context, repoPath string) (Ident
 		return nil
 	})
 	_ = group.Wait() // Optional HEAD/branch/worktree reads retain their best-effort behavior.
+	return g.identityFromReads(commonDirOut, commonDirErr, gitDirOut, gitDirErr, topOut, topErr, headOut, branchOut, worktrees)
+}
+
+// IdentifyPathWithStatus reuses branch and HEAD data already collected by the
+// repository status snapshot. It keeps the worktree-specific reads live while
+// avoiding duplicate rev-parse HEAD and symbolic-ref subprocesses on polling.
+func (g *gitInspector) IdentifyPathWithStatus(ctx context.Context, repoPath, branch, head string) (Identity, error) {
+	var commonDirOut, gitDirOut, topOut []byte
+	var worktrees []Worktree
+	var commonDirErr, gitDirErr, topErr error
+	group, gctx := errgroup.WithContext(ctx)
+	group.Go(func() error {
+		commonDirOut, commonDirErr = g.runner.Run(gctx, repoPath, "rev-parse", "--git-common-dir")
+		return nil
+	})
+	group.Go(func() error {
+		gitDirOut, gitDirErr = g.runner.Run(gctx, repoPath, "rev-parse", "--git-dir")
+		return nil
+	})
+	group.Go(func() error {
+		topOut, topErr = g.runner.Run(gctx, repoPath, "rev-parse", "--show-toplevel")
+		return nil
+	})
+	group.Go(func() error {
+		worktrees, _ = g.List(gctx, repoPath)
+		return nil
+	})
+	_ = group.Wait()
+	return g.identityFromReads(commonDirOut, commonDirErr, gitDirOut, gitDirErr, topOut, topErr, []byte(head), []byte(branch), worktrees)
+}
+
+func (g *gitInspector) identityFromReads(commonDirOut []byte, commonDirErr error, gitDirOut []byte, gitDirErr error, topOut []byte, topErr error, headOut, branchOut []byte, worktrees []Worktree) (Identity, error) {
+	id := Identity{}
 	if commonDirErr != nil {
 		return id, fmt.Errorf("rev-parse --git-common-dir: %w: %s", commonDirErr, string(commonDirOut))
 	}

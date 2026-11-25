@@ -459,10 +459,17 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/derivation/service_test.go::TestAllTerminalStatesHaveDistinctRemedies",
+          "ref": "api/internal/derivation/service_test.go::TestDeriveWritesDistinctTerminalStatesAndRemedies",
           "phase": "unit",
-          "status": "failing",
-          "notes": "The derivation test enumerates the five distinct terminal states and their remedies. Test carries [REQ:DOC-P0-027]."
+          "status": "passing",
+          "notes": "Calls Service.Derive through each of the five unsupported terminal paths, checks distinct state/reason/remedy, and verifies each custody result is appended. Partial-success skipped-capability behavior remains outside this test; DOC-P0-027 stays in_progress. Test carries [REQ:DOC-P0-027]."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/derivation/sqlite_test.go::TestSQLiteStorePersistsTerminalDispositionFields",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Verifies terminal state, reason, remedy, and skipped JSON are written to the SQLite custody row. Partial-success skipped-capability behavior remains uncovered; DOC-P0-027 stays in_progress. Test carries [REQ:DOC-P0-027]."
         }
       ]
     },

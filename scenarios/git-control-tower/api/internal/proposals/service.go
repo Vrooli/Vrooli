@@ -184,10 +184,7 @@ func (s *Service) Create(ctx context.Context, repo Repo, req CreateRequest) (Cre
 
 	result := CreateResult{Issues: issues}
 	if !req.ValidateOnly {
-		if err := s.store.SaveBlobs(ctx, blobs); err != nil {
-			return CreateResult{}, err
-		}
-		if err := s.store.Insert(ctx, proposal); err != nil {
+		if err := s.store.InsertWithBlobs(ctx, proposal, blobs); err != nil {
 			return CreateResult{}, err
 		}
 		result.Stored = true
@@ -755,6 +752,7 @@ func (s *Service) Refresh(ctx context.Context, repo Repo, id string, expectedRev
 	if err != nil {
 		return View{}, nil, err
 	}
+	var capturedBlobs map[string][]byte
 	if len(files) > 0 {
 		var blobs map[string][]byte
 		files, blobs, err = repo.Git.Capture(ctx, snap.head, files)
@@ -762,9 +760,7 @@ func (s *Service) Refresh(ctx context.Context, repo Repo, id string, expectedRev
 			return View{}, nil, err
 		}
 		files, excluded = excludeUnchangedCapture(files, excluded)
-		if err := s.store.SaveBlobs(ctx, blobs); err != nil {
-			return View{}, nil, err
-		}
+		capturedBlobs = referencedProposalBlobs(files, blobs)
 	}
 	var dropped []string
 	for _, exclusion := range excluded {
@@ -795,11 +791,33 @@ func (s *Service) Refresh(ctx context.Context, repo Repo, id string, expectedRev
 		detail += "; dropped " + strings.Join(dropped, ", ")
 	}
 	proposal.Events = append(proposal.Events, Event{Action: "refreshed", Actor: actor, Revision: proposal.Revision, Detail: detail, Timestamp: now})
-	if err := s.store.Update(ctx, proposal, previous, StateOpen); err != nil {
+	if err := s.store.UpdateWithBlobs(ctx, proposal, previous, StateOpen, capturedBlobs); err != nil {
 		return View{}, nil, err
 	}
 	view, err := s.Get(ctx, repo, id)
 	return view, dropped, err
+}
+
+func referencedProposalBlobs(files []File, captured map[string][]byte) map[string][]byte {
+	if len(captured) == 0 {
+		return nil
+	}
+	wanted := make(map[string]struct{}, len(files)*2)
+	for _, file := range files {
+		if file.BaseBlobID != "" {
+			wanted[file.BaseBlobID] = struct{}{}
+		}
+		if !file.Deleted && file.BlobID != "" {
+			wanted[file.BlobID] = struct{}{}
+		}
+	}
+	retained := make(map[string][]byte, len(wanted))
+	for id := range wanted {
+		if content, ok := captured[id]; ok {
+			retained[id] = content
+		}
+	}
+	return retained
 }
 
 func (s *Service) openRevision(ctx context.Context, repo Repo, id string, expectedRevision int) (Proposal, error) {

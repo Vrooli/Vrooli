@@ -32,6 +32,10 @@ type Service struct {
 	inspector worktree.Inspector
 }
 
+type statusSnapshotInspector interface {
+	IdentifyPathWithStatus(context.Context, string, string, string) (worktree.Identity, error)
+}
+
 // NewService wires the seam.
 func NewService(insp worktree.Inspector) *Service {
 	return &Service{inspector: insp}
@@ -54,6 +58,23 @@ func (s *Service) GetRepoStatus(ctx context.Context, repoPath string) (Status, e
 		Detached: id.Detached,
 		Identity: id,
 	}, nil
+}
+
+// GetRepoStatusWithSnapshot reuses branch and HEAD facts already read by the
+// status collector when the inspector supports that fast path. Test and custom
+// inspectors retain the regular behavior through the same domain boundary.
+func (s *Service) GetRepoStatusWithSnapshot(ctx context.Context, repoPath, branch, head string) (Status, error) {
+	if strings.TrimSpace(repoPath) == "" {
+		return Status{}, fmt.Errorf("%w: repo_path required", ErrInvalid)
+	}
+	if inspector, ok := s.inspector.(statusSnapshotInspector); ok {
+		identity, err := inspector.IdentifyPathWithStatus(ctx, repoPath, branch, head)
+		if err != nil {
+			return Status{}, err
+		}
+		return Status{Branch: identity.Branch, Detached: identity.Detached, Identity: identity}, nil
+	}
+	return s.GetRepoStatus(ctx, repoPath)
 }
 
 // ErrInvalid is the InvalidArgument-class error for this domain.

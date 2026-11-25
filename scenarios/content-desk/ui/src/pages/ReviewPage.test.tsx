@@ -6,8 +6,8 @@ import { renderWithProviders } from "@vrooli/api-base/testing";
 import { strings } from "../consts/strings";
 import { ReviewPage } from "./ReviewPage";
 
-const mocks = vi.hoisted(() => ({ listDrafts: vi.fn(), getDraftCurrentRevision: vi.fn(), transitionDraft: vi.fn(), createEditorialPackage: vi.fn(), listRequiredReviewModes: vi.fn(), recordReviewRun: vi.fn() }));
-vi.mock("../api/artifacts", () => ({ artifactsClient: { listDrafts: mocks.listDrafts, getDraftCurrentRevision: mocks.getDraftCurrentRevision, transitionDraft: mocks.transitionDraft } }));
+const mocks = vi.hoisted(() => ({ listDrafts: vi.fn(), getDraftCurrentRevision: vi.fn(), transitionDraft: vi.fn(), approveDraft: vi.fn(), createEditorialPackage: vi.fn(), listRequiredReviewModes: vi.fn(), recordReviewRun: vi.fn() }));
+vi.mock("../api/artifacts", () => ({ artifactsClient: { listDrafts: mocks.listDrafts, getDraftCurrentRevision: mocks.getDraftCurrentRevision, transitionDraft: mocks.transitionDraft, approveDraft: mocks.approveDraft } }));
 vi.mock("../api/review", () => ({ reviewClient: { createEditorialPackage: mocks.createEditorialPackage, listRequiredReviewModes: mocks.listRequiredReviewModes, recordReviewRun: mocks.recordReviewRun } }));
 vi.mock("./DashboardPage", () => ({ DashboardPage: ({ initialSelectedDraftId, preserveEmptySelection }: { initialSelectedDraftId?: string; preserveEmptySelection?: boolean }) => <div data-testid="existing-review-workbench" data-selected-draft-id={initialSelectedDraftId ?? ""} data-preserve-empty={String(Boolean(preserveEmptySelection))} /> }));
 function Location() { const location = useLocation(); return <output data-testid="location">{location.pathname}{location.search}</output>; }
@@ -20,6 +20,7 @@ describe("ReviewPage", () => {
     vi.clearAllMocks();
     mocks.getDraftCurrentRevision.mockResolvedValue({ currentRevision: { revisionId: "rev-current", body: "Evidence-backed note" } });
     mocks.transitionDraft.mockResolvedValue({});
+    mocks.approveDraft.mockResolvedValue({});
     mocks.listRequiredReviewModes.mockResolvedValue({ modes: ["evidence_grounding", "fabricated_testimonial"] });
     mocks.recordReviewRun.mockResolvedValue({ reviewRun: { outcome: "passed", sourceRevisionId: "rev-current" } });
     mocks.createEditorialPackage.mockResolvedValue({ editorialPackage: { id: "package-1", draftId: "draft-needs-review", sourceRevisionId: "rev-current", scope: "destination_unbound_wording", body: "Evidence-backed note", bodySha256: "body-hash", packageSha256: "package-hash", manifestJson: JSON.stringify({ context: { channel: "linkedin", format: "article", project_id: "project-a", campaign_id: "campaign-1", post_type_id: "dev-log", lane: "engineering", sku: "starter", scenario_name: "content-desk", revision_authoring: { actor_kind: "agent", capacity: "author", created_at: "2026-11-21T01:00:00Z" }, attachments: [{ id: "a1", asset_id: "asset-1", role: "hero", aspect_ratio: "16:9", alt_text: "diagram", position: 0 }] } }), createdAt: "2026-11-21T00:00:00Z" } });
@@ -125,6 +126,34 @@ describe("ReviewPage", () => {
     expect(receipt).toHaveTextContent(strings.pages.review.reviewRunReceipt);
     expect(receipt).toHaveAttribute("data-run-id", "run-persisted");
     expect(receipt).toHaveAttribute("data-revision-id", "rev-current");
+  });
+
+  it("approves only the reviewed current revision from Review and reports that nothing was scheduled", async () => {
+    mocks.listDrafts.mockResolvedValue({ drafts: [{ id: "draft-needs-review", status: "reviewed", body: "Evidence-backed note", postTypeId: "dev-log" }] });
+    mocks.getDraftCurrentRevision.mockResolvedValue({ currentRevision: { body: "Evidence-backed note", revisionId: "rev-current", reviewRunId: "run-persisted", hasApplicableReview: true } });
+    renderReview("/review?draft=draft-needs-review");
+    fireEvent.click(await screen.findByRole("button", { name: strings.pages.review.approveExact }));
+    expect(await screen.findByText(strings.pages.review.approvalReceipt)).toBeInTheDocument();
+    expect(mocks.approveDraft).toHaveBeenCalledWith({ id: "draft-needs-review", expectedRevisionId: "rev-current", expectedBody: "Evidence-backed note", identityId: "", lane: "" });
+    expect(mocks.listDrafts).toHaveBeenCalledTimes(2);
+  });
+
+  it("refuses Review approval when the wording changed after the review basis loaded", async () => {
+    mocks.listDrafts.mockResolvedValue({ drafts: [{ id: "draft-needs-review", status: "reviewed", body: "Evidence-backed note", postTypeId: "dev-log" }] });
+    mocks.getDraftCurrentRevision.mockResolvedValueOnce({ currentRevision: { body: "Evidence-backed note", revisionId: "rev-current", reviewRunId: "run-persisted", hasApplicableReview: true } });
+    mocks.getDraftCurrentRevision.mockResolvedValueOnce({ currentRevision: { body: "Changed wording", revisionId: "rev-new", hasApplicableReview: false } });
+    renderReview("/review?draft=draft-needs-review");
+    fireEvent.click(await screen.findByRole("button", { name: strings.pages.review.approveExact }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(strings.pages.review.staleWording);
+    expect(mocks.approveDraft).not.toHaveBeenCalled();
+  });
+
+  it("keeps approval unavailable when no passed review applies to the current revision", async () => {
+    mocks.listDrafts.mockResolvedValue({ drafts: [{ id: "draft-needs-review", status: "reviewed", body: "Evidence-backed note", postTypeId: "dev-log" }] });
+    mocks.getDraftCurrentRevision.mockResolvedValue({ currentRevision: { body: "Evidence-backed note", revisionId: "rev-current", hasApplicableReview: false } });
+    renderReview("/review?draft=draft-needs-review");
+    expect(await screen.findByRole("button", { name: strings.pages.review.approveExact })).toBeDisabled();
+    expect(mocks.approveDraft).not.toHaveBeenCalled();
   });
 
   it("prepares a requested campaign-free draft by applying each allowed lifecycle event", async () => {

@@ -45,6 +45,9 @@ export function ReviewPage() {
   const [reviewError, setReviewError] = useState("");
   const [reviewReceipt, setReviewReceipt] = useState("");
   const [reviewBasis, setReviewBasis] = useState<{ hasReview: boolean; runID: string; revisionID: string } | null>(null);
+  const [approvalBusy, setApprovalBusy] = useState(false);
+  const [approvalError, setApprovalError] = useState("");
+  const [approvalReceipt, setApprovalReceipt] = useState("");
   const packageOperationKeys = useRef(new Map<string, string>());
   const savedFilter = searchParams.get("queue") as ReviewFilter | null;
   const filter = savedFilter && REVIEW_FILTERS.includes(savedFilter) ? savedFilter : "needsReview";
@@ -74,6 +77,7 @@ export function ReviewPage() {
     setVerdicts({});
     setReviewReceipt("");
     setReviewError("");
+    setApprovalError("");
     setReviewBasis(null);
     if (!selectedDraft) return () => { active = false; };
     void Promise.all([
@@ -88,6 +92,7 @@ export function ReviewPage() {
     });
     return () => { active = false; };
   }, [selectedDraft, t]);
+  useEffect(() => { setApprovalReceipt(""); setApprovalError(""); }, [selectedID]);
   const savedPackageContext = savedPackage?.manifestJson ? parseEditorialPackageContext(savedPackage.manifestJson) : null;
 
   async function createWordingPackage() {
@@ -153,6 +158,22 @@ export function ReviewPage() {
       setReviewError(caught instanceof Error ? caught.message : t(strings.pages.review.loadError));
     } finally { setReviewBusy(false); }
   }
+  async function approveExactDraft() {
+    if (!selectedDraft || selectedDraft.status.toLowerCase() !== "reviewed" || !reviewBasis?.hasReview) return;
+    setApprovalBusy(true); setApprovalError(""); setApprovalReceipt("");
+    try {
+      const current = await artifactsClient.getDraftCurrentRevision({ id: selectedDraft.id });
+      const revision = current.currentRevision;
+      if (!revision || revision.body !== selectedDraft.body || revision.revisionId !== reviewBasis.revisionID) {
+        throw new Error(t(strings.pages.review.staleWording));
+      }
+      await artifactsClient.approveDraft({ id: selectedDraft.id, expectedRevisionId: revision.revisionId, expectedBody: revision.body, identityId: "", lane: "" });
+      setApprovalReceipt(t(strings.pages.review.approvalReceipt, { revision: revision.revisionId }));
+      await refresh();
+    } catch (caught) {
+      setApprovalError(caught instanceof Error ? caught.message : t(strings.pages.review.approvalError));
+    } finally { setApprovalBusy(false); }
+  }
   return <section className="mx-auto w-full max-w-7xl space-y-4 px-4 py-6 sm:px-6 lg:px-8" data-experience-surface="review" data-testid="page-review">
     <header>
       <h1 className="font-serif text-4xl font-medium tracking-tight">{t(strings.pages.review.title)}</h1>
@@ -199,6 +220,12 @@ export function ReviewPage() {
           <p className="mt-1 text-sm text-app-muted-foreground">{t(strings.pages.review.manualReviewDescription)}</p>
           {selectedDraft.status === "reviewed" ? <Button className="mt-3" onClick={() => navigate(`/plan?draft=${encodeURIComponent(selectedDraft.id)}&return=${encodeURIComponent(`/review?draft=${selectedDraft.id}`)}`)}>{t(strings.pages.review.planExactDraft)}</Button> : null}
           {reviewBasis?.hasReview ? <p data-testid="review-basis-receipt" data-run-id={reviewBasis.runID} data-revision-id={reviewBasis.revisionID} role="status" className="mt-3 break-all text-sm">{t(strings.pages.review.reviewRunReceipt, { run: reviewBasis.runID, revision: reviewBasis.revisionID || t(strings.pages.review.noRevision) })}</p> : null}
+          {selectedDraft.status.toLowerCase() === "reviewed" || approvalReceipt ? <div className="mt-3 rounded-control border border-app-border p-3">
+            {selectedDraft.status.toLowerCase() === "reviewed" ? <><p className="text-sm text-app-muted-foreground">{t(strings.pages.review.approvalDescription, { revision: reviewBasis?.revisionID || t(strings.pages.review.noRevision) })}</p>
+            <Button className="mt-2" disabled={approvalBusy || !reviewBasis?.hasReview} onClick={() => void approveExactDraft()}>{approvalBusy ? t(strings.pages.review.approving) : t(strings.pages.review.approveExact)}</Button></> : null}
+            {approvalError ? <p role="alert" className="mt-2 text-sm text-app-danger">{approvalError}</p> : null}
+            {approvalReceipt ? <p role="status" className="mt-2 text-sm">{approvalReceipt}</p> : null}
+          </div> : null}
           {["requested", "drafting", "drafted", "blocked"].includes(selectedDraft.status.toLowerCase()) ? <Button className="mt-3" variant="secondary" disabled={reviewBusy} onClick={() => void prepareReview()}>{t(strings.pages.review.prepareReview)}</Button> : null}
           {selectedDraft.status.toLowerCase() === "checking" ? <div className="mt-3 space-y-3">
             {requiredModes.map((mode) => {

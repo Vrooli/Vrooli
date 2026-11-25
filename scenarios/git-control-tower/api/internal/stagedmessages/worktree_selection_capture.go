@@ -229,10 +229,14 @@ type stagedIndexEntry struct{ mode, oid, stage string }
 const maxQueuedCaptureBytes = 12 << 20
 
 func readQueuedBlobs(ctx context.Context, dir string, oids []string) (map[string][]byte, map[string]int, error) {
+	return readQueuedBlobsWithin(ctx, dir, oids, maxQueuedCaptureBytes)
+}
+
+func readQueuedBlobsWithin(ctx context.Context, dir string, oids []string, budget int) (map[string][]byte, map[string]int, error) {
 	if len(oids) == 0 {
 		return map[string][]byte{}, map[string]int{}, nil
 	}
-	batchInput, sizesByOID, err := inspectQueuedBlobInventory(ctx, dir, oids)
+	batchInput, sizesByOID, err := inspectQueuedBlobInventory(ctx, dir, oids, budget)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -249,7 +253,7 @@ func readQueuedBlobs(ctx context.Context, dir string, oids []string) (map[string
 
 // inspectQueuedBlobInventory validates object identities and enforces the
 // aggregate immutable-capture budget before Git returns any blob contents.
-func inspectQueuedBlobInventory(ctx context.Context, dir string, oids []string) ([]byte, map[string]int, error) {
+func inspectQueuedBlobInventory(ctx context.Context, dir string, oids []string, budget int) ([]byte, map[string]int, error) {
 	input := make([]byte, 0, len(oids)*42)
 	for _, oid := range oids {
 		input = append(input, oid...)
@@ -267,7 +271,7 @@ func inspectQueuedBlobInventory(ctx context.Context, dir string, oids []string) 
 	var batchInput []byte
 	total := 0
 	for index, row := range checks {
-		size, sizeErr := queuedBlobInventorySize(row, oids[index], maxQueuedCaptureBytes-total)
+		size, sizeErr := queuedBlobInventorySize(row, oids[index], budget-total)
 		if sizeErr != nil {
 			return nil, nil, sizeErr
 		}

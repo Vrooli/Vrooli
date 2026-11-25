@@ -763,7 +763,7 @@ function FileListImpl({
             label={`${group.label} actions`}
             releaseMode="rest"
             open={swipeOpenGroupId === group.id}
-            onOpenChange={(open) => setSwipeOpenGroupId(open ? group.id : null)}
+            onOpenChange={(open: boolean) => setSwipeOpenGroupId(open ? group.id : null)}
             testId={`file-group-swipe-${group.id}`}
           >
             {groupHeader}

@@ -15,6 +15,32 @@ import { useTranslation } from "../i18n";
 
 type PostType = { id: string; status: string };
 type Project = { id: string; name: string };
+const CREATE_OPERATION_PREFIX = "content-desk.create-operation.v1:";
+
+async function createOperationStorageKey(scope: string): Promise<string> {
+  try {
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(scope));
+    const hex = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return CREATE_OPERATION_PREFIX + hex;
+  } catch {
+    return "";
+  }
+}
+
+function readSessionOperation(key: string): string {
+  if (!key) return "";
+  try { return sessionStorage.getItem(key) ?? ""; } catch { return ""; }
+}
+
+function writeSessionOperation(key: string, operationID: string): void {
+  if (!key) return;
+  try { sessionStorage.setItem(key, operationID); } catch { /* In-memory retry remains available when session storage is disabled. */ }
+}
+
+function clearSessionOperation(key: string): void {
+  if (!key) return;
+  try { sessionStorage.removeItem(key); } catch { /* Successful response still clears the active-page key. */ }
+}
 
 export function CreatePage() {
   const { t } = useTranslation();
@@ -79,10 +105,12 @@ export function CreatePage() {
     try {
       const projectId = projectID === "unassigned" ? "" : projectID;
       const scope = JSON.stringify({ campaignId: "", projectId, postTypeId: postTypeID, body, channel: "x-twitter", format: "post" });
+      const storageKey = await createOperationStorageKey(scope);
       let idempotencyKey = createOperations.current.get(scope);
       if (!idempotencyKey) {
-        idempotencyKey = crypto.randomUUID();
+        idempotencyKey = readSessionOperation(storageKey) || crypto.randomUUID();
         createOperations.current.set(scope, idempotencyKey);
+        writeSessionOperation(storageKey, idempotencyKey);
       }
       const response = await artifactsClient.createDraft({
         campaignId: "",
@@ -95,7 +123,10 @@ export function CreatePage() {
       });
       setSavedDraftID(response.draft?.id ?? "");
       setMessage(t(strings.pages.create.savedDetail, { id: response.draft?.id ?? "" }));
-      if (response.draft?.id) createOperations.current.delete(scope);
+      if (response.draft?.id) {
+        createOperations.current.delete(scope);
+        clearSessionOperation(storageKey);
+      }
       setState("saved");
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : t(strings.pages.create.saveError));

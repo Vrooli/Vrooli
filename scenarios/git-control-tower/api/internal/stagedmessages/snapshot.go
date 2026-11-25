@@ -66,7 +66,51 @@ func captureWorktreeSnapshot(ctx context.Context, repo, dir string, paths []stri
 	}
 	snap := &v1.StagedMessageSnapshot{RepositoryId: repo, BaseHead: strings.TrimSpace(string(headBytes))}
 	captured := Captured{Snapshot: snap, Bytes: map[string]FileBytes{}}
+	// Read index identities in bounded batches. This keeps large selections
+	// from launching one Git process per path while retaining exact path/stage
+	// validation for every selected file.
+	indexEntries := make(map[string][]stagedIndexEntry, len(selected))
+	selectedSet := make(map[string]struct{}, len(selected))
+	for _, path := range selected {
+		selectedSet[path] = struct{}{}
+	}
+	for start := 0; start < len(selected); start += 128 {
+		end := min(start+128, len(selected))
+		args := append([]string{"ls-files", "--stage", "-z", "--"}, selected[start:end]...)
+		index, readErr := gitRead(ctx, dir, args...)
+		if readErr != nil {
+			return Captured{}, readErr
+		}
+		for _, row := range bytes.Split(index, []byte{0}) {
+			if len(row) == 0 {
+				continue
+			}
+			meta, path, ok := strings.Cut(string(row), "\t")
+			fields := strings.Fields(meta)
+			if _, selectedPath := selectedSet[path]; !ok || len(fields) != 3 || !selectedPath {
+				return Captured{}, fmt.Errorf("invalid or unexpected index entry in selected worktree paths")
+			}
+			indexEntries[path] = append(indexEntries[path], stagedIndexEntry{mode: fields[0], oid: fields[1], stage: fields[2]})
+		}
+	}
+	untrackedPaths := make(map[string]bool)
+	for start := 0; start < len(selected); start += 128 {
+		end := min(start+128, len(selected))
+		args := append([]string{"ls-files", "--others", "--exclude-standard", "-z", "--"}, selected[start:end]...)
+		untracked, readErr := gitRead(ctx, dir, args...)
+		if readErr != nil {
+			return Captured{}, readErr
+		}
+		for _, path := range bytes.Split(untracked, []byte{0}) {
+			if len(path) > 0 {
+				untrackedPaths[string(path)] = true
+			}
+		}
+	}
+
 	total := 0
+	afterByPath := make(map[string][]byte, len(selected))
+	oldOIDs := make([]string, 0, len(selected))
 	for _, path := range selected {
 		parts := strings.Split(filepath.FromSlash(path), string(os.PathSeparator))
 		parent := dir
@@ -80,27 +124,16 @@ func captureWorktreeSnapshot(ctx context.Context, repo, dir string, paths []stri
 				return Captured{}, fmt.Errorf("selected path %q has an unsafe parent", path)
 			}
 		}
-		idx, e := gitRead(ctx, dir, "ls-files", "--stage", "-z", "--", path)
-		if e != nil {
-			return Captured{}, e
-		}
 		var oldID, oldMode string
-		for _, row := range bytes.Split(idx, []byte{0}) {
-			if len(row) == 0 {
-				continue
-			}
-			meta, got, ok := strings.Cut(string(row), "\t")
-			fields := strings.Fields(meta)
-			if !ok || got != path || len(fields) != 3 || fields[2] != "0" {
-				return Captured{}, fmt.Errorf("invalid or unmerged index entry for %q", path)
-			}
-			oldMode, oldID = fields[0], fields[1]
+		entries := indexEntries[path]
+		if len(entries) > 1 || len(entries) == 1 && entries[0].stage != "0" {
+			return Captured{}, fmt.Errorf("invalid or unmerged index entry for %q", path)
+		}
+		if len(entries) == 1 {
+			oldMode, oldID = entries[0].mode, entries[0].oid
 		}
 		full := filepath.Join(dir, filepath.FromSlash(path))
-		readLimit := int64(maxFileBytes)
-		if remaining := int64(maxTotalBytes - total); remaining < readLimit {
-			readLimit = remaining
-		}
+		readLimit := int64(maxQueuedCaptureBytes - total)
 		after, info, e := readRegularFileBounded(full, readLimit)
 		var newMode, newID, status string
 		if e == nil {
@@ -127,38 +160,47 @@ func captureWorktreeSnapshot(ctx context.Context, repo, dir string, paths []stri
 			return Captured{}, fmt.Errorf("selected path %q has no index-to-worktree change", path)
 		}
 		if oldID == "" { // New paths must be visible as untracked, not ignored.
-			untracked, e := gitRead(ctx, dir, "ls-files", "--others", "--exclude-standard", "--", path)
-			if e != nil || strings.TrimSuffix(string(untracked), "\n") != path {
+			if !untrackedPaths[path] {
 				return Captured{}, fmt.Errorf("selected path %q is not an untracked worktree file", path)
 			}
 		}
 		f := &v1.StagedMessageFile{Path: path, OldPath: path, OldMode: oldMode, NewMode: newMode, OldBlobId: oldID, NewBlobId: newID, Status: status}
-		if f.OldBlobId != "" {
-			before, e := gitRead(ctx, dir, "cat-file", "blob", f.OldBlobId)
-			if e != nil {
-				return Captured{}, e
-			}
-			if len(before) > maxFileBytes || total+len(before) > maxTotalBytes {
-				return Captured{}, fmt.Errorf("selected index content exceeds bounded capture limit")
-			}
-			total += len(before)
-			captured.Bytes[path] = FileBytes{Before: before, After: after}
-		} else {
-			captured.Bytes[path] = FileBytes{After: after}
+		if oldID != "" {
+			oldOIDs = append(oldOIDs, oldID)
 		}
-		if bytes.IndexByte(after, 0) >= 0 || !utf8.Valid(after) {
-			f.Binary = true
-			f.OmissionReason = "binary content omitted"
-		} else if patch, e := renderPatch(ctx, path, captured.Bytes[path].Before, after); e != nil {
-			f.OmissionReason = e.Error()
-		} else {
-			f.Patch = patch
-			if len(f.Patch) > maxPatchBytes {
-				f.Patch = ""
-				f.OmissionReason = "patch exceeds per-file detail bound"
-			}
-		}
+		afterByPath[path] = after
 		snap.Files = append(snap.Files, f)
+	}
+	oldBlobs, _, err := readQueuedBlobsWithin(ctx, dir, oldOIDs, maxQueuedCaptureBytes-total)
+	if err != nil {
+		return Captured{}, err
+	}
+	detailFiles := representativeDetails(snap.Files)
+	patchTotal := 0
+	for i, file := range snap.Files {
+		before := oldBlobs[file.OldBlobId]
+		after := afterByPath[file.Path]
+		captured.Bytes[file.Path] = FileBytes{Before: before, After: after}
+		if bytes.IndexByte(before, 0) >= 0 || bytes.IndexByte(after, 0) >= 0 || !utf8.Valid(before) || !utf8.Valid(after) {
+			file.Binary = true
+			file.OmissionReason = "binary content omitted"
+			continue
+		}
+		if !detailFiles[i] {
+			file.OmissionReason = "detail omitted by 64-file scope-balanced sample; full index identity retained"
+			continue
+		}
+		patch, patchErr := renderPatch(ctx, file.Path, before, after)
+		if patchErr != nil {
+			file.OmissionReason = patchErr.Error()
+			continue
+		}
+		if len(patch) > maxPatchBytes || patchTotal+len(patch) > maxPatchBytes {
+			file.OmissionReason = "patch omitted by 96 KiB aggregate detail bound"
+			continue
+		}
+		file.Patch = patch
+		patchTotal += len(patch)
 	}
 	encoded, _ := json.Marshal(snap)
 	sum := sha256.Sum256(encoded)

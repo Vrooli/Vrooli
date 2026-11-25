@@ -280,14 +280,28 @@ range, or structural path and character offset." The Tech Direction
 snapshot should name the handler registry as the format source of truth
 rather than naming parsers.
 
-A further target is missing entirely: nothing covers the unsupported
-terminal states (`no_handler_for_format`, `handler_unavailable`,
-`handler_failed`, `blocked_by_policy`, `unsupported_variant`), and
-those are a user-facing contract, not an implementation detail. It
-belongs in P0 — a corpus that silently drops the files it cannot parse
-fails the custody claim.
+A further target, DOC-P0-027, now exists in the P0 requirements module, but
+its original unit test only checked a hand-written map of nonempty remedy
+strings; it never called `Service.Derive`. On 2026-11-24 the test was replaced
+with service-level cases for all five unsupported states. Each case checks
+the returned state, reason, distinct remedy, and appended custody result.
 
-**Owner:** whoever authors the implementation plan.
+The requirement remains in progress: the decisions and format matrix require
+content without geometry to be reported as partial success with geometry named
+as skipped, but the executable service selects one handler and maps every
+successful result directly to `PARSED`. `Runner.Run` returns only a model and
+error; it cannot return successful/skipped capabilities. The resource registry
+does not encode per-format required versus desirable capabilities, and the
+public terminal enum has no partial state. The Document Manager derivation
+owner must decide whether partial is `PARSED` plus `skipped_capabilities` or a
+new state, define the first supported required/desirable case and refusal
+boundary, and extend the runner/resource result contract. Then verify partial
+success, required-handler refusal/error, and nonempty skipped-capability
+custody in SQLite. The old terminal-state unit tests and empty-list SQLite
+test do not prove that behavior. No production parsing failure or lost source
+bytes was observed in this unit.
+
+**Owner:** Document Manager derivation domain owner.
 
 **Refs:** `PRD.md` (Operational Targets, Tech Direction Snapshot,
 Dependencies), `docs/reference/format-matrix.md`,

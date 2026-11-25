@@ -233,6 +233,11 @@
       "reviewPassed": "合格",
       "reviewBlocked": "要対応",
       "checkingOnly": "レビュー記録の前に、必要なライフサイクル手順を進めてください。",
+      "approvalDescription": "レビュー済みのリビジョン {{revision}} の文面だけを承認します。予約や公開は行いません。",
+      "approveExact": "この版を承認",
+      "approving": "承認中…",
+      "approvalReceipt": "リビジョン {{revision}} を承認しました。予約や公開は作成されていません。",
+      "approvalError": "正確なドラフト版を承認できませんでした。",
       "reviewRunReceipt": "現在のレビュー: {{run}} · リビジョン {{revision}}",
       "noRevision": "本文のみの基準"
     },
