@@ -567,13 +567,16 @@ function SourceView({
   highlightedLines: HighlightedLine[] | null;
 }) {
   const lines = useMemo(() => content.split("\n"), [content]);
+  const highlightMap = useMemo(() => {
+    if (!highlightedLines) return new Map<number, HighlightToken[]>();
+    return new Map(highlightedLines.map((line) => [line.lineNumber, line.tokens]));
+  }, [highlightedLines]);
 
   return (
     <div className="divide-y divide-slate-800/30" data-testid="source-content">
       {lines.map((line, index) => {
         const lineNum = index + 1;
-        const highlighted = highlightedLines?.find((h) => h.lineNumber === lineNum);
-        const tokens = highlighted?.tokens || [{ content: line }];
+        const tokens = highlightMap.get(lineNum) || [{ content: line }];
 
         return (
           <HighlightedCodeLine

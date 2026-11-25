@@ -10,6 +10,7 @@ function row(
   id: string,
   verdict: ContextCheckRow["verdict"],
   evidence: ContextCheckRow["evidence"],
+  group: ContextCheckRow["group"] = "fit",
 ): ContextCheckRow {
   return {
     id,
@@ -18,6 +19,7 @@ function row(
     verdict,
     evidence,
     scored: true,
+    group,
   };
 }
 
@@ -27,6 +29,28 @@ describe("InContextChecksPanel", () => {
 
     expect(screen.getByText(strings.workbench.component.ctxChecksEmpty)).toBeInTheDocument();
     expect(document.querySelector(".ic-checks")).not.toBeInTheDocument();
+  });
+
+  it("separates component fit from page health, evidence and human checks", () => {
+    const rows = [
+      row("slot", "pass", "declared", "fit"),
+      row("overflow", "fail", "measured", "page"),
+      row("states", "warn", "measured", "evidence"),
+      row("squint", "unmeasured", "none", "human"),
+    ];
+    renderWithProviders(<InContextChecksPanel rows={rows} />, { withoutRouter: true });
+    expect(
+      screen.getByRole("heading", { name: "workbench.component.ctxGroupFit" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "workbench.component.ctxGroupPage" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "workbench.component.ctxGroupEvidence" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "workbench.component.ctxGroupHuman" }),
+    ).toBeInTheDocument();
   });
 
   it("shows each verdict with its evidence provenance", () => {

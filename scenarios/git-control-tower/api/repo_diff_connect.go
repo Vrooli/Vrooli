@@ -127,11 +127,11 @@ func (s *Server) getRepoGroupsConnect(ctx context.Context, req *repov1.GetRepoGr
 		if pageCache == nil {
 			pageCache = defaultRepoStatusPageCache
 		}
-		snapshot, snapshotErr := pageCache.Snapshot(resolved.Path, snapshotID)
+		filesSnapshot, snapshotErr := pageCache.FilesSnapshot(resolved.Path, snapshotID)
 		if snapshotErr != nil {
 			return nil, snapshotErr
 		}
-		files = repoFilesStatusFromProto(snapshot.GetFiles())
+		files = repoFilesStatusFromProto(filesSnapshot)
 	} else {
 		// Preserve compatibility for callers that have not yet sent a snapshot
 		// id. Current GCT clients bind groups to the already captured status.

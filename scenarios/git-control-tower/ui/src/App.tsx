@@ -1,8 +1,8 @@
 import { usePendingWorkspaceChanges } from "./lib/hooks-core";
 import { useAppViewport } from "./hooks/useAppViewport";
 import { PushSafetyProvider } from "./components/PushSafetyIndicators";
-import { PushSafetyDialog } from "./components/PushSafetyDialog";
-import { CommitAuthorizationDialog, readSkipPrecommitPreference, writeSkipPrecommitPreference, type PendingCommitAuthorization } from "./components/CommitAuthorizationDialog";
+import type { PendingCommitAuthorization } from "./components/CommitAuthorizationDialog";
+import { readSkipPrecommitPreference, writeSkipPrecommitPreference } from "./lib/commitAuthorizationPreference";
 // DOC: docs/concepts/ARCHITECTURE.md
 // App orchestrates the 3-pane git-control-tower UI. See the Architecture
 // doc for component boundaries and the operational targets (OT-P1-002 etc.)
@@ -23,7 +23,6 @@ import { FileList } from "./components/FileList";
 import { HistoryFileList } from "./components/HistoryFileList";
 import { DiffViewer } from "./components/DiffViewer";
 import { CommitPanel } from "./components/CommitPanel";
-import { GitHistory } from "./components/GitHistory";
 import { mergeContinuationMessage } from "./features/commit-message/message";
 import { DiscardConfirmationModal, type DiscardFile } from "./components/DiscardConfirmationModal";
 import { DeleteConfirmationModal } from "./components/DeleteConfirmationModal";
@@ -32,14 +31,10 @@ import { StageDuringSuggestionModal } from "./components/StageDuringSuggestionMo
 import { inspectQueueCommitReadiness, queueCommitBlockMessage, toQueuedStageSelection, type QueuedCommitTarget, type QueuedStageSelection } from "./features/commit-message/stageQueue";
 import { listWorktreeSuggestionQueue } from "./features/commit-message/api";
 import { useWorktreeSuggestionQueue, type PendingSuggestionStage } from "./features/commit-message/useWorktreeSuggestionQueue";
-import { UpstreamInfoModal } from "./components/UpstreamInfoModal";
-import { FileSearchModal } from "./components/FileSearchModal";
-import { MobileFileSearch } from "./components/MobileFileSearch";
 import { RelatedFilesPanel } from "./components/RelatedFilesPanel";
 import { type LayoutPreset, type LayoutSection } from "./components/LayoutSettingsModal";
 import { DeferredSettingsModal as SettingsModal } from "./components/DeferredSettingsModal";
 
-import { SourceDistributionPanel } from "./components/SourceDistributionPanel";
 import { useGlobalKeydown, useIsMobile, useUrlState, parseUrlState, useScenarioReviewState } from "./hooks";
 import type { UrlState, ReviewTab } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
@@ -49,7 +44,6 @@ import { createStageBatcher, type StageBatcher } from "./lib/stage-batcher";
 import { commitPreviewMatchesCurrent } from "./lib/commit-authorization";
 import { getFileTypeInfo } from "./lib/fileTypes";
 import { GCT_CHROME_COLOR } from "./lib/chrome";
-import { buildRunIndex } from "./lib/runAttribution";
 import type { ViewingCommit } from "./components/HistoryModeHeader";
 import { computeNextSelection, moveDesktopPane, normalizeDesktopPaneOrder, selectStackSlots, type DesktopPane, type DesktopPaneOrder, type SelectionEntry } from "./AppSelection";
 import { ProposalsSection } from "./features/proposals/ProposalsSection";
@@ -64,13 +58,10 @@ import {
   TRANSIENT_MS
 } from "./lib/notifications";
 import {
-  useHealth,
   useRepoStatus,
   useRepoHistory,
   useDiff,
   useSyncStatus,
-  useApprovedChanges,
-  useProvenance,
   useStageFiles,
   useUnstageFiles,
   useCommit,
@@ -81,16 +72,15 @@ import {
   usePush,
   usePull,
   useSaveFileContent,
-  useBranches,
-  useCreateBranch,
-  useSwitchBranch,
-  usePublishBranch,
   useDeletePath,
   useRepos,
   useOpenRepo,
   useCloneRepo,
   useSetActiveRepo,
   useRemoveRepo,
+  useCreateBranch,
+  useSwitchBranch,
+  usePublishBranch,
   useRepoSelection,
   useGroupingRules,
   useRepoGroups,
@@ -101,7 +91,20 @@ import { invalidateFileDiffVariants, invalidateManualRefresh } from "./lib/hooks
 
 const ScenarioReviewPanel = lazy(() => import("./components/ScenarioReviewPanel").then(module => ({ default: module.ScenarioReviewPanel })));
 const ProposalWorkspace = lazy(() => import("./features/proposals/ProposalWorkspace").then(module => ({ default: module.ProposalWorkspace })));
+const SourceDistributionPanel = lazy(() => import("./components/SourceDistributionPanel").then(module => ({ default: module.SourceDistributionPanel })));
+const GitHistory = lazy(() => import("./components/GitHistory").then(module => ({ default: module.GitHistory })));
+const UpstreamInfoModal = lazy(() => import("./components/UpstreamInfoModal").then(module => ({ default: module.UpstreamInfoModal })));
+const FileSearchModal = lazy(() => import("./components/FileSearchModal").then(module => ({ default: module.FileSearchModal })));
+const MobileFileSearch = lazy(() => import("./components/MobileFileSearch").then(module => ({ default: module.MobileFileSearch })));
+const PushSafetyDialog = lazy(() => import("./components/PushSafetyDialog").then(module => ({ default: module.PushSafetyDialog })));
+const CommitAuthorizationDialog = lazy(() => import("./components/CommitAuthorizationDialog").then(module => ({ default: module.CommitAuthorizationDialog })));
 const panelLoading = <div role="status" className="p-4 text-sm text-slate-400">Loading workspace…</div>;
+const historyLoading = <div role="status" className="flex h-full items-center justify-center text-sm text-slate-400">Loading history…</div>;
+const sourceDistributionLoading = <ModalLoading label="Loading source distributions…" />;
+const searchLoading = <ModalLoading label="Loading file search…" />;
+const upstreamInfoLoading = <ModalLoading label="Loading upstream details…" />;
+const pushSafetyLoading = <ModalLoading label="Loading push safety review…" />;
+const commitAuthorizationLoading = <ModalLoading label="Loading commit authorization…" />;
 const layoutRestoreState = (
   <div className="h-full w-full p-4" role="status" aria-label="Restoring workspace layout" aria-busy="true">
     <div className="mb-3 h-8 w-40 animate-pulse rounded-md bg-slate-800/70" />
@@ -117,6 +120,16 @@ const layoutRestoreState = (
 );
 
 type GroupingRuleLike = Partial<GroupingRule> & { prefix?: string };
+
+function ModalLoading({ label }: { label: string }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/80 p-3 sm:p-8" role="dialog" aria-modal="true" aria-label={label}>
+      <section className="w-full max-w-6xl rounded-2xl border border-slate-700 bg-slate-900 p-5 text-sm text-slate-300 shadow-2xl" role="status">
+        {label}
+      </section>
+    </div>
+  );
+}
 
 function precommitResultForPanel(result: NonNullable<CommitResponse["precommit"]>): PrecommitRunResult {
   return {
@@ -266,6 +279,11 @@ export default function App() {
   const [isUpstreamInfoOpen, setIsUpstreamInfoOpen] = useState(false);
   // File search state
   const [isFileSearchOpen, setIsFileSearchOpen] = useState(false);
+  const [hasOpenedFileSearch, setHasOpenedFileSearch] = useState(false);
+  const openFileSearch = useCallback(() => {
+    setHasOpenedFileSearch(true);
+    setIsFileSearchOpen(true);
+  }, []);
   // Track if viewing a non-changed file (any file from search)
   const [isViewingAnyFile, setIsViewingAnyFile] = useState(false);
   // Related files panel state
@@ -506,10 +524,6 @@ export default function App() {
   const topStackCollapsed = topCollapsed && middleCollapsed;
 
   // Queries
-  const healthQuery = useHealth();
-  useEffect(() => {
-    if (healthQuery.isSuccess && !performance.getEntriesByName("app-interactive").length) performance.mark("app-interactive");
-  }, [healthQuery.isSuccess]);
   const authorityQuery = useQuery<AuthorityStatus>({
     queryKey: ["authority-status"],
     queryFn: fetchAuthorityStatus,
@@ -538,10 +552,6 @@ export default function App() {
   const historyEffectiveLimit = historyGrepPrefix ? 1000 : historyLimit;
   const historyQuery = useRepoHistory(historyEffectiveLimit, true, repoId, historyGrepPattern, true, historyNeedsDetails || Boolean(historyGrepPattern));
   const syncStatusQuery = useSyncStatus(repoId);
-  const changesDataVisible = isMobile ? mobileActivePanel === "changes" : !changesCollapsed;
-  const approvedChangesQuery = useApprovedChanges(repoId, changesDataVisible);
-  const provenanceQuery = useProvenance(repoId, changesDataVisible);
-  const runIndex = useMemo(() => buildRunIndex(approvedChangesQuery.data?.files ?? [], provenanceQuery.data?.runGroups ?? []), [approvedChangesQuery.data?.files, provenanceQuery.data?.runGroups]);
   const diffQuery = useDiff(
     selectedFile,
     viewingCommit || isViewingAnyFile ? false : selectedIsStaged,
@@ -576,11 +586,10 @@ export default function App() {
   const pushMutation = usePush(repoId);
   const pullMutation = usePull(repoId);
   const saveFileContentMutation = useSaveFileContent(repoId);
-  const branchesQuery = useBranches(repoId);
+  const deletePathMutation = useDeletePath(repoId);
   const createBranchMutation = useCreateBranch(repoId);
   const switchBranchMutation = useSwitchBranch(repoId);
   const publishBranchMutation = usePublishBranch(repoId);
-  const deletePathMutation = useDeletePath(repoId);
   const reposQuery = useRepos();
   const openRepoMutation = useOpenRepo();
   const cloneRepoMutation = useCloneRepo();
@@ -589,6 +598,25 @@ export default function App() {
   const groupingRulesQuery = useGroupingRules(repoId);
   const repoGroupsQuery = useRepoGroups(repoId, statusQuery.data?.status_snapshot_id);
   const saveGroupingRulesMutation = useSaveGroupingRules(repoId);
+
+  // Branch data polling is owned by the visible header; App retains the
+  // mutation callbacks and error toasts, which change only after user actions.
+  const branchActions = useMemo(() => ({
+    createBranch: createBranchMutation.mutateAsync,
+    switchBranch: switchBranchMutation.mutateAsync,
+    publishBranch: publishBranchMutation.mutateAsync,
+    isCreating: createBranchMutation.isPending,
+    isSwitching: switchBranchMutation.isPending,
+    isPublishing: publishBranchMutation.isPending,
+    isLoading: false,
+  }), [
+    createBranchMutation.mutateAsync,
+    createBranchMutation.isPending,
+    switchBranchMutation.mutateAsync,
+    switchBranchMutation.isPending,
+    publishBranchMutation.mutateAsync,
+    publishBranchMutation.isPending,
+  ]);
 
   // Mutation result objects change on every render; their mutate functions
   // are stable and keep file-action callbacks from invalidating the list.
@@ -697,29 +725,6 @@ export default function App() {
   const handleRefresh = useCallback(() => {
     invalidateManualRefresh(queryClient, repoId, selectedFile);
   }, [queryClient, repoId, selectedFile]);
-
-  const branchActions = useMemo(
-    () => ({
-      branches: branchesQuery.data,
-      isLoading: branchesQuery.isLoading,
-      createBranch: createBranchMutation.mutateAsync,
-      switchBranch: switchBranchMutation.mutateAsync,
-      publishBranch: publishBranchMutation.mutateAsync,
-      isCreating: createBranchMutation.isPending,
-      isSwitching: switchBranchMutation.isPending,
-      isPublishing: publishBranchMutation.isPending
-    }),
-    [
-      branchesQuery.data,
-      branchesQuery.isLoading,
-      createBranchMutation.isPending,
-      createBranchMutation.mutateAsync,
-      switchBranchMutation.isPending,
-      switchBranchMutation.mutateAsync,
-      publishBranchMutation.isPending,
-      publishBranchMutation.mutateAsync
-    ]
-  );
 
   const repoActions = useMemo(
     () => ({
@@ -1923,7 +1928,7 @@ export default function App() {
         });
         return;
       }
-        setIsFileSearchOpen(true);
+        openFileSearch();
       }
   });
 
@@ -2507,6 +2512,20 @@ export default function App() {
     }
   };
 
+  const sourceDistributionOverlay = isSourceDistributionOpen ? (
+    <Suspense fallback={sourceDistributionLoading}>
+      <SourceDistributionPanel
+        repoId={repoId}
+        initialDistributionId={sourceDistributionId}
+        onSelectDistribution={setSourceDistributionId}
+        onClose={() => {
+          setSourceDistributionId(null);
+          setIsSourceDistributionOpen(false);
+        }}
+      />
+    </Suspense>
+  ) : null;
+
   const handleResetLayout = () => {
     const width = Math.max(1, mainRef.current?.clientWidth || window.innerWidth);
     const height = Math.max(1, mainRef.current?.clientHeight || window.innerHeight);
@@ -2582,7 +2601,6 @@ export default function App() {
             loading={statusQuery.isLoading && !statusQuery.data}
             loadError={statusQuery.error?.message ?? null}
             onRetryLoad={() => { void statusQuery.refetch(); }}
-            runIndex={runIndex}
             onRevealInTree={handleRevealChangeInTree}
             fileStats={statusQuery.data?.file_stats}
             previewFileStats={statusQuery.data?.file_stats_preview}
@@ -2633,7 +2651,8 @@ export default function App() {
         );
       case "history":
         return (
-          <GitHistory
+          <Suspense fallback={historyLoading}>
+            <GitHistory
             lines={historyQuery.data?.lines}
             entries={historyQuery.data?.entries}
             isLoading={historyQuery.isLoading}
@@ -2674,7 +2693,8 @@ export default function App() {
             activeGroupFilter={activeGroupFilter}
             onFilterGroup={setHistoryGrepPrefix}
             onClearGroupFilter={() => setHistoryGrepPrefix(null)}
-          />
+            />
+          </Suspense>
         );
       case "commit":
         return (
@@ -2770,7 +2790,7 @@ export default function App() {
               isHistoryMode={isHistoryMode}
               commitHash={viewingCommit?.hash}
               onShowRelatedFiles={handleShowRelatedFiles}
-              onOpenSearch={() => setIsFileSearchOpen(true)}
+              onOpenSearch={openFileSearch}
               onOpenReview={() => setPrimaryPanel("review")}
               isReadOnly={isViewingAnyFile}
               onSaveFileContent={handleSaveFileContent}
@@ -2924,7 +2944,6 @@ export default function App() {
             loading={statusQuery.isLoading && !statusQuery.data}
             loadError={statusQuery.error?.message ?? null}
             onRetryLoad={() => { void statusQuery.refetch(); }}
-            runIndex={runIndex}
             onRevealInTree={handleRevealChangeInTree}
             fileStats={statusQuery.data?.file_stats}
             previewFileStats={statusQuery.data?.file_stats_preview}
@@ -2997,7 +3016,7 @@ export default function App() {
               // On mobile, switch to changes view to see the related files panel
               setMobileActivePanel("changes");
             }}
-            onOpenSearch={() => setIsFileSearchOpen(true)}
+            onOpenSearch={openFileSearch}
             onOpenReview={() => setMobileActivePanel("review")}
             isReadOnly={isViewingAnyFile}
             onSaveFileContent={handleSaveFileContent}
@@ -3072,7 +3091,8 @@ export default function App() {
         );
       case "history":
         return (
-          <GitHistory
+          <Suspense fallback={historyLoading}>
+            <GitHistory
             lines={historyQuery.data?.lines}
             entries={historyQuery.data?.entries}
             isLoading={historyQuery.isLoading}
@@ -3114,7 +3134,8 @@ export default function App() {
             activeGroupFilter={activeGroupFilter}
             onFilterGroup={setHistoryGrepPrefix}
             onClearGroupFilter={() => setHistoryGrepPrefix(null)}
-          />
+            />
+          </Suspense>
         );
       case "review":
         return (
@@ -3164,18 +3185,18 @@ export default function App() {
         <TopSafeArea testId="mobile-chrome">
         <MobileHeader
           status={statusQuery.data}
-          health={healthQuery.data}
           syncStatus={syncStatusQuery.data}
           branchActions={branchActions}
+          repoId={repoId}
           repoActions={repoActions}
           onRepoChange={handleRepoChange}
-          isLoading={statusQuery.isLoading || healthQuery.isLoading}
+          isLoading={statusQuery.isLoading}
           onRefresh={handleRefresh}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenSourceDistributions={() => { setSourceDistributionId(null); setIsSourceDistributionOpen(true); }}
 
           onOpenUpstreamInfo={() => setIsUpstreamInfoOpen(true)}
-          onOpenFileSearch={() => setIsFileSearchOpen(true)}
+          onOpenFileSearch={openFileSearch}
           viewingCommit={viewingCommit}
           onExitHistoryMode={handleExitHistoryMode}
           viewingFileBlame={viewingFileBlame}
@@ -3203,7 +3224,7 @@ export default function App() {
 
         {/* Modals */}
         {pendingCommitAuthorization && (
-          <CommitAuthorizationDialog
+          <Suspense fallback={commitAuthorizationLoading}><CommitAuthorizationDialog
             pending={pendingCommitAuthorization}
             activeRepositoryId={repoId ?? ""}
             isAuthorizing={isAuthorizingCommit}
@@ -3216,7 +3237,7 @@ export default function App() {
             onClose={() => {
               if (!isAuthorizingCommit) setPendingCommitAuthorization(null);
             }}
-          />
+          /></Suspense>
         )}
         <SettingsModal
           isOpen={isSettingsOpen}
@@ -3235,16 +3256,20 @@ export default function App() {
           onChangeGroupingRules={handleGroupingRulesChange}
           onClose={() => setIsSettingsOpen(false)}
         />
-        {pushSafetyOpen && <PushSafetyDialog key={repoId ?? "active"} repoId={repoId ?? undefined} focus={pushSafetyFocus} onClose={() => setPushSafetyOpen(false)} onPush={() => { setPushSafetyOpen(false); runPushAfterSafety(); }} />}
-      <UpstreamInfoModal
-          isOpen={isUpstreamInfoOpen}
+        {pushSafetyOpen && (
+          <Suspense fallback={pushSafetyLoading}>
+            <PushSafetyDialog key={repoId ?? "active"} repoId={repoId ?? undefined} focus={pushSafetyFocus} onClose={() => setPushSafetyOpen(false)} onPush={() => { setPushSafetyOpen(false); runPushAfterSafety(); }} />
+          </Suspense>
+        )}
+        {isUpstreamInfoOpen && <Suspense fallback={upstreamInfoLoading}><UpstreamInfoModal
+          isOpen
           localBranch={pushSourceBranch}
           upstreamRef={pushTargetRef}
           ahead={upstreamAhead}
           behind={upstreamBehind}
           repoId={repoId}
           onClose={() => setIsUpstreamInfoOpen(false)}
-        />
+        /></Suspense>}
         <DiscardConfirmationModal
           isOpen={pendingDiscardFiles !== null}
           files={pendingDiscardFiles ?? []}
@@ -3277,13 +3302,13 @@ export default function App() {
           queuedSelections={suggestionStageQueue.length}
           onCancel={() => setPendingSuggestionStage(null)}
         />
-        <MobileFileSearch
+        {hasOpenedFileSearch && <Suspense fallback={isFileSearchOpen ? searchLoading : null}><MobileFileSearch
           isOpen={isFileSearchOpen}
           onClose={() => setIsFileSearchOpen(false)}
           onSelectFile={handleSelectAnyFile}
           repoId={repoId}
-        />
-        {isSourceDistributionOpen && <SourceDistributionPanel repoId={repoId} initialDistributionId={sourceDistributionId} onSelectDistribution={setSourceDistributionId} onClose={() => { setSourceDistributionId(null); setIsSourceDistributionOpen(false); }} />}
+        /></Suspense>}
+        {sourceDistributionOverlay}
       </div>
       </PushSafetyProvider>
     );
@@ -3300,20 +3325,19 @@ export default function App() {
       {/* Status Header */}
       <StatusHeader
         status={statusQuery.data}
-        health={healthQuery.data}
         syncStatus={syncStatusQuery.data}
         branchActions={branchActions}
         repoActions={repoActions}
         onRepoChange={handleRepoChange}
         repoId={repoId}
-        isLoading={statusQuery.isLoading || healthQuery.isLoading}
+        isLoading={statusQuery.isLoading}
         onRefresh={handleRefresh}
         onOpenSettings={() => setIsSettingsOpen(true)}
         paneDragEnabled={paneDragEnabled}
         onTogglePaneDrag={() => setPaneDragEnabled(value => !value)}
         onOpenSourceDistributions={() => { setSourceDistributionId(null); setIsSourceDistributionOpen(true); }}
         onOpenUpstreamInfo={() => setIsUpstreamInfoOpen(true)}
-        onOpenFileSearch={() => setIsFileSearchOpen(true)}
+        onOpenFileSearch={openFileSearch}
         onOpenReview={() => setPrimaryPanel("review")}
         viewingCommit={viewingCommit}
         onExitHistoryMode={handleExitHistoryMode}
@@ -3377,7 +3401,7 @@ export default function App() {
       </div>
 
       {pendingCommitAuthorization && (
-        <CommitAuthorizationDialog
+        <Suspense fallback={commitAuthorizationLoading}><CommitAuthorizationDialog
           pending={pendingCommitAuthorization}
           activeRepositoryId={repoId ?? ""}
           isAuthorizing={isAuthorizingCommit}
@@ -3390,7 +3414,7 @@ export default function App() {
           onClose={() => {
             if (!isAuthorizingCommit) setPendingCommitAuthorization(null);
           }}
-        />
+        /></Suspense>
       )}
       <SettingsModal
         isOpen={isSettingsOpen}
@@ -3409,17 +3433,21 @@ export default function App() {
         onChangeGroupingRules={handleGroupingRulesChange}
         onClose={() => setIsSettingsOpen(false)}
       />
-      {isSourceDistributionOpen && <SourceDistributionPanel repoId={repoId} initialDistributionId={sourceDistributionId} onSelectDistribution={setSourceDistributionId} onClose={() => { setSourceDistributionId(null); setIsSourceDistributionOpen(false); }} />}
-      {pushSafetyOpen && <PushSafetyDialog key={repoId ?? "active"} repoId={repoId ?? undefined} focus={pushSafetyFocus} onClose={() => setPushSafetyOpen(false)} onPush={() => { setPushSafetyOpen(false); runPushAfterSafety(); }} />}
-      <UpstreamInfoModal
-        isOpen={isUpstreamInfoOpen}
+      {sourceDistributionOverlay}
+      {pushSafetyOpen && (
+        <Suspense fallback={pushSafetyLoading}>
+          <PushSafetyDialog key={repoId ?? "active"} repoId={repoId ?? undefined} focus={pushSafetyFocus} onClose={() => setPushSafetyOpen(false)} onPush={() => { setPushSafetyOpen(false); runPushAfterSafety(); }} />
+        </Suspense>
+      )}
+      {isUpstreamInfoOpen && <Suspense fallback={upstreamInfoLoading}><UpstreamInfoModal
+        isOpen
         localBranch={pushSourceBranch}
         upstreamRef={pushTargetRef}
         ahead={upstreamAhead}
         behind={upstreamBehind}
         repoId={repoId}
         onClose={() => setIsUpstreamInfoOpen(false)}
-      />
+      /></Suspense>}
       <DiscardConfirmationModal
         isOpen={pendingDiscardFiles !== null}
         files={pendingDiscardFiles ?? []}
@@ -3452,12 +3480,12 @@ export default function App() {
         queuedSelections={suggestionStageQueue.length}
         onCancel={() => setPendingSuggestionStage(null)}
       />
-      <FileSearchModal
+      {hasOpenedFileSearch && <Suspense fallback={isFileSearchOpen ? searchLoading : null}><FileSearchModal
         isOpen={isFileSearchOpen}
         onClose={() => setIsFileSearchOpen(false)}
         onSelectFile={handleSelectAnyFile}
         repoId={repoId}
-      />
+      /></Suspense>}
     </div>
     </PushSafetyProvider>
   );

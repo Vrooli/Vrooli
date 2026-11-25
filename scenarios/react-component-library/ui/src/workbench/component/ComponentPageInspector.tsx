@@ -178,7 +178,7 @@ export function ComponentPageInspector({
               <p className="wb-small wb-muted">
                 {t("workbench.component.fixtureNote", {
                   defaultValue:
-                    "Drag a fixture by its header to arrange the canvas. Select a fixture to inspect it. Arrangement is a local draft and never changes a release.",
+                    "Fixtures are grouped by the question they answer. Select a frame to inspect it; open the preview for a full-size view.",
                 })}
               </p>
             </div>

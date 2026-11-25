@@ -44,6 +44,7 @@ const chosenSlot = {
   rolePoints: 45,
   sizePoints: 25,
   positionPoints: 15,
+  roleMatch: "exact" as const,
   index: 0,
   box: { x: 0, y: 0, w: 180, h: 48 },
 };

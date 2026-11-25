@@ -75,7 +75,7 @@ These are targets, not current measurements:
 
 | Surface | Target | Why |
 |---|---|---|
-| Fixture drag | 60 fps pointer movement; no per-frame React state update for all fixtures | A canvas that rerenders every card per frame will feel worse than the current grid |
+| Fixture bench first paint | Show the anatomy stage before secondary frames; no per-frame React state update while measuring frames | The bench mounts real harnesses, so measurement must not turn into a whole-page rerender on every pointer move |
 | Home / Components first paint | No synthetic blocking work; real projections stream or show explicit loading | The current catalog already exposes pending previews |
 | Drawer open/close | 120–200 ms transition, no layout thrash | The drawer is a frequent evidence surface |
 | Design artboard resize | Stable geometry during pointer move; no per-frame full page rerender | Resize must not drop the selected component or reset scroll |

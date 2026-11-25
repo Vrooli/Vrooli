@@ -103,7 +103,7 @@ describe("curated workspace seeds", () => {
   it("is a versioned shelf of curated workspace aggregates", () => {
     expect(seed.schemaVersion).toBe(1);
     expect(seed.seedVersion).toBeGreaterThan(0);
-    expect(seed.workspaces.length).toBe(16);
+    expect(seed.workspaces.length).toBe(19);
     expect(
       seed.workspaces
         .filter((workspace) => workspace.id.startsWith("ws_curated_eight_"))
@@ -154,6 +154,52 @@ describe("curated workspace seeds", () => {
     for (const display of displays) {
       expect(display.states, `${display.id} must have one named state`).toHaveLength(1);
       expect(display.states[0]?.name.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it("ships focused context scenes for components without a page region", () => {
+    const scenes = seed.workspaces.filter((workspace) => workspace.id.startsWith("ws_curated_scene_"));
+    expect(scenes.map((workspace) => workspace.name)).toEqual([
+      "Scene · Toolbar",
+      "Scene · Card",
+      "Scene · Dialog footer",
+    ]);
+    for (const scene of scenes) {
+      const page = scene.pages[0]!;
+      const spec = JSON.parse(page.specJson) as TemplateNode;
+      const slots: TemplateNode[] = [];
+      walk(spec, (node) => {
+        if (node.type === "slot") slots.push(node);
+      });
+      expect(slots, `${scene.id} needs one focused slot`).toHaveLength(1);
+      expect(slots[0]?.role).toBeDefined();
+    }
+  });
+
+  it("authors typed component slots in every curated page", () => {
+    for (const workspace of seed.workspaces) {
+      for (const page of workspace.pages) {
+        const specs: TemplateNode[] = [];
+        const pageSpec = JSON.parse(page.specJson) as { spec?: TemplateNode } | TemplateNode;
+        specs.push((pageSpec as { spec?: TemplateNode }).spec ?? (pageSpec as TemplateNode));
+        for (const display of page.displays) {
+          for (const state of display.states) {
+            const parsed = JSON.parse(state.argsJson) as { spec?: TemplateNode };
+            if (parsed.spec) specs.push(parsed.spec);
+          }
+        }
+        for (const spec of specs) {
+          const slots: TemplateNode[] = [];
+          walk(spec, (node) => {
+            if (node.type === "slot") slots.push(node);
+          });
+          expect(slots.length, `${workspace.id}/${page.name} must declare a slot`).toBeGreaterThan(0);
+          for (const slot of slots) {
+            expect(slot.role, `${workspace.id}/${slot.id} needs a role`).toBeDefined();
+            expect(slot.accepts?.length, `${workspace.id}/${slot.id} needs accepted kinds`).toBeGreaterThan(0);
+          }
+        }
+      }
     }
   });
 

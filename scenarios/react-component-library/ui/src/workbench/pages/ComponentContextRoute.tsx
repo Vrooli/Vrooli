@@ -5,8 +5,10 @@ import { useTranslation } from "../../i18n";
 import { strings } from "../../consts/strings";
 import { appRoutes, workspacePath } from "../../routes";
 import { getWorkspace, WorkspaceProvenance } from "../../api/workspaces";
+import type { CatalogAsset } from "../../api/components";
 import { Banner, Skeleton, WbButton } from "../primitives";
 import { loadComponentBundle } from "../data";
+import { placeComponent } from "../component/placement";
 import { readLegacyTemplateForMigration } from "../templates/readLegacyTemplate";
 import type { Template } from "../templates/spec";
 import {
@@ -14,7 +16,12 @@ import {
   createComponentWorkspaceFromTemplate,
   curatedWorkspaceIdForTemplate,
   DEFAULT_COMPONENT_WORKSPACE_ID,
+  workspaceTemplate,
 } from "../workspaces/componentContext";
+
+function hasAsset(value: CatalogAsset | undefined): value is CatalogAsset {
+  return Boolean(value);
+}
 
 interface LegacyMigrationChoice {
   key: string;
@@ -22,6 +29,7 @@ interface LegacyMigrationChoice {
   componentId: string;
   storyId: string;
   componentVersion?: string;
+  asset?: CatalogAsset;
 }
 
 /** Converts bookmarked legacy component-context URLs into durable workspaces. */
@@ -66,6 +74,7 @@ export function ComponentContextRoute() {
         return getWorkspace(templateId).then((templateWorkspace) => ({
           templateWorkspace,
           selectedStory,
+          asset: bundle.asset,
         }));
       })
       .then((resolved) => {
@@ -75,12 +84,26 @@ export function ComponentContextRoute() {
         if (started.current !== key) return null;
         if (!resolved) return null;
         const { templateWorkspace, selectedStory } = resolved;
+        const asset = resolved.asset;
         if (templateWorkspace?.provenance === WorkspaceProvenance.CURATED) {
+          const placement = hasAsset(asset)
+            ? placeComponent({
+                spec: workspaceTemplate(templateWorkspace, "desktop").spec,
+                asset,
+                viewportWidth: 1180,
+              })
+            : null;
           return createComponentWorkspace({
             templateWorkspace,
             componentId,
             storyId: selectedStory.id,
             componentVersion: selectedStory.version,
+            ...(placement?.chosen
+              ? {
+                  preferredSlotId: placement.chosen.slotId,
+                  preferredSlotRole: placement.chosen.role,
+                }
+              : {}),
           });
         }
         const legacyId = templateRef ?? templateId.replace(/^ws_curated_/, "");
@@ -99,6 +122,7 @@ export function ComponentContextRoute() {
           componentId,
           storyId: selectedStory.id,
           componentVersion: selectedStory.version,
+          asset,
         });
         return null;
       })
@@ -121,11 +145,24 @@ export function ComponentContextRoute() {
     setImportingLegacy(true);
     setError(null);
     try {
+      const placement = choice.asset
+        ? placeComponent({
+            spec: choice.template.spec,
+            asset: choice.asset,
+            viewportWidth: 1180,
+          })
+        : null;
       const workspace = await createComponentWorkspaceFromTemplate({
         template: choice.template,
         componentId: choice.componentId,
         storyId: choice.storyId,
         componentVersion: choice.componentVersion,
+        ...(placement?.chosen
+          ? {
+              preferredSlotId: placement.chosen.slotId,
+              preferredSlotRole: placement.chosen.role,
+            }
+          : {}),
       });
       if (started.current === choice.key) {
         void navigate(workspacePath(workspace.id), { replace: true });

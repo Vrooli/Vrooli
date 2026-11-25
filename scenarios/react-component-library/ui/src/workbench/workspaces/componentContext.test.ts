@@ -9,12 +9,13 @@ import {
   saveWorkspace,
   type Workspace,
 } from "../../api/workspaces";
-import { findSlot, node, slotNode, type Template, type TemplateNode } from "../templates/spec";
+import { findSlot, node, slotNode, slotsOf, type Template, type TemplateNode } from "../templates/spec";
 import {
   bindComponentToSlot,
   createComponentWorkspace,
   createComponentWorkspaceFromTemplate,
   curatedWorkspaceIdForTemplate,
+  withComponentSlot,
 } from "./componentContext";
 
 vi.mock("../../api/workspaces", async (importOriginal) => {
@@ -98,6 +99,31 @@ describe("component workspace context", () => {
     });
     expect(source.children).toHaveLength(1);
     expect(result.children).toHaveLength(2);
+  });
+
+  it("adds a typed context section when a workspace declares no slot", () => {
+    const source = node("page", "page", {}, [node("title", "text", { text: "Original" })]);
+    const result = withComponentSlot(source);
+    const slots: TemplateNode[] = [];
+    const walk = (entry: TemplateNode) => {
+      if (entry.type === "slot") slots.push(entry);
+      for (const child of entry.children ?? []) walk(child);
+    };
+    walk(result);
+    expect(slots.map((slot) => slot.role)).toEqual(["action", "metric", "list"]);
+    for (const slot of slots) {
+      expect(slot.accepts?.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("binds the preferred role when the display's slot ids differ", () => {
+    const source = node("page", "page", {}, [
+      slotNode("desktop-action", { role: "action", accepts: ["button"] }),
+      slotNode("desktop-list", { role: "list", accepts: ["card"] }),
+    ]);
+    const result = bindComponentToSlot(source, "cmp-card", "story", undefined, undefined, "list");
+    const bound = slotsOf(result).find((slot) => slot.props.componentId === "cmp-card");
+    expect(bound?.id).toBe("desktop-list");
   });
 
   it("preserves an authored slot while binding the component and story", () => {

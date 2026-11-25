@@ -78,7 +78,7 @@ describe("ReviewFindingDetail", () => {
     );
     expect(props.props.copyEvidence).toHaveBeenCalledWith(props.props.selected);
     fireEvent.click(screen.getByText(i18n.t(strings.workbench.review.evidence)));
-    expect(region).toHaveTextContent(props.props.selected.evidenceJson);
+    expect(region).toHaveTextContent('"selector": "button"');
   });
 
   it("enables assignment and decision recording only when required fields are ready", () => {

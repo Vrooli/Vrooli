@@ -6,6 +6,7 @@ import { TemplateRenderer } from "../templates/TemplateRenderer";
 import type { Template } from "../templates/spec";
 import { DeviceFrame } from "./DeviceFrame";
 import { FixtureFrame, type FixtureStatus } from "./FixtureFrame";
+import type { FixturePaint } from "./fixtureBench";
 import type { PlacementDecision } from "./placement";
 import { REFERENCE_WIDTHS, type DeviceKind, type ViewportPreset } from "./viewports";
 
@@ -40,6 +41,7 @@ interface InContextCanvasProps {
   version: string;
   template: Template;
   renderSpec: Template["spec"];
+  activeSlotId?: string;
   decision: PlacementDecision;
   device: DeviceKind;
   viewport: ViewportPreset;
@@ -59,6 +61,7 @@ interface InContextCanvasProps {
   slotWrapRef: RefObject<HTMLDivElement>;
   probeRef: RefObject<HTMLDivElement>;
   onStatus: (status: FixtureStatus) => void;
+  onMeasure?: (paint: FixturePaint) => void;
   onReload: () => void;
 }
 
@@ -68,6 +71,7 @@ export function InContextCanvas({
   version,
   template,
   renderSpec,
+  activeSlotId,
   decision,
   device,
   viewport,
@@ -87,6 +91,7 @@ export function InContextCanvas({
   slotWrapRef,
   probeRef,
   onStatus,
+  onMeasure,
   onReload,
 }: InContextCanvasProps) {
   const { t } = useTranslation();
@@ -122,6 +127,7 @@ export function InContextCanvas({
             <TemplateRenderer
               template={template}
               spec={renderSpec}
+              activeSlotId={activeSlotId}
               mode="preview"
               slot={
                 story ? (
@@ -151,6 +157,7 @@ export function InContextCanvas({
                         template: template.name,
                       })}
                       onStatus={onStatus}
+                      onMeasure={onMeasure}
                       onRetry={onReload}
                     />
                   </div>

@@ -78,6 +78,7 @@ func TestPublishFreezesBareLibrarySpecifierAndDependencyLock(t *testing.T) {
 	authoring := svc.(components.AuthoringService)
 	draft, err := authoring.BeginComponentVersion(context.Background(), components.BeginComponentVersionInput{Component: "react-component-library:Panel", Bump: "patch"})
 	require.NoError(t, err)
+	writeValidDraftContract(t, root, "Panel", "react-component-library:Panel", draft.Version.Version)
 	writer := svc.(interface {
 		UpdateVersionContentAt(context.Context, string, string, string, components.WriteContentInput) (components.Content, error)
 	})
@@ -113,6 +114,7 @@ func TestPublishPreservesExplicitLibraryPinAndOlderReleaseBytes(t *testing.T) {
 	authoring := svc.(components.AuthoringService)
 	draft, err := authoring.BeginComponentVersion(context.Background(), components.BeginComponentVersionInput{Component: "react-component-library:Panel", Bump: "patch"})
 	require.NoError(t, err)
+	writeValidDraftContract(t, root, "Panel", "react-component-library:Panel", draft.Version.Version)
 	writer := svc.(interface {
 		UpdateVersionContentAt(context.Context, string, string, string, components.WriteContentInput) (components.Content, error)
 	})
@@ -128,6 +130,7 @@ func TestPublishPreservesExplicitLibraryPinAndOlderReleaseBytes(t *testing.T) {
 
 	stackDraft, err := authoring.BeginComponentVersion(context.Background(), components.BeginComponentVersionInput{Component: "react-component-library:Stack", Bump: "patch"})
 	require.NoError(t, err)
+	writeValidDraftContract(t, root, "Stack", "react-component-library:Stack", stackDraft.Version.Version)
 	_, err = authoring.PublishComponentVersion(context.Background(), components.PublishComponentVersionInput{Component: "react-component-library:Stack", DraftVersion: stackDraft.Version.Version})
 	require.NoError(t, err)
 	panelAfter, err := os.ReadFile(filepath.Join(root, "components", "Panel", "versions", "1.0.1", "Panel.tsx"))
@@ -524,6 +527,7 @@ func TestAuthoringWorkflowBeginsChecksAndPublishesByLibraryID(t *testing.T) {
 			require.Equal(t, body, copied, "begin must preserve %s byte-for-byte", name)
 		}
 	}
+	writeValidDraftContract(t, root, "Button", created.Component.LibraryID, draft.Version.Version)
 
 	authoredStory := []byte(`{
   "schemaVersion": 5,
@@ -808,6 +812,7 @@ func TestAuthoringVersionCopiesRewriteExperienceStoryRef(t *testing.T) {
 		Bump:      "patch",
 	})
 	require.NoError(t, err)
+	writeValidDraftContract(t, root, "Panel", created.Component.LibraryID, draft.Version.Version)
 	draftContract, err := os.ReadFile(filepath.Join(root, "components", "Panel", "versions", draft.Version.Version, "experience-contract.json"))
 	require.NoError(t, err)
 	require.Contains(t, string(draftContract), "/versions/1.0.1-draft.1/story.json")
@@ -1051,6 +1056,7 @@ func TestService_IngestNewComponentPublishesItsDraftAsTheFirstRelease(t *testing
 	})
 	require.NoError(t, err)
 	require.Equal(t, "1.0.0-draft.1", got.DraftVersion)
+	writeValidDraftContract(t, root, "panel", got.Component.LibraryID, got.DraftVersion)
 	require.Empty(t, got.Component.LatestVersion)
 	require.Equal(t, got.DraftVersion, got.Component.DraftVersion)
 	entries, err := os.ReadDir(filepath.Join(root, "components", "panel", "versions"))
@@ -1093,6 +1099,7 @@ func TestService_IngestRefusesStaleVersionAndUnknownSlotWithoutWriting(t *testin
 		Scenario: "web-console", SourceFile: "ui/src/components/Panel.tsx", Slug: "panel", Version: "1.0.0",
 	})
 	require.NoError(t, err)
+	writeValidDraftContract(t, root, "panel", got.Component.LibraryID, got.DraftVersion)
 	_, err = svc.(components.AuthoringService).PublishComponentVersion(context.Background(), components.PublishComponentVersionInput{Component: got.Component.LibraryID})
 	require.NoError(t, err)
 	_, err = svc.IngestComponent(context.Background(), components.IngestComponentInput{
@@ -1122,6 +1129,7 @@ func TestService_IngestTransfersExplicitExperienceContractIntoReleasedVersion(t 
 		ExperienceContractPath: "experience/components/panel.json",
 	})
 	require.NoError(t, err)
+	writeValidDraftContract(t, root, "panel", ingested.Component.LibraryID, ingested.DraftVersion)
 	draftPath := filepath.Join(root, "components", "panel", "versions", ingested.DraftVersion, "experience-contract.json")
 	require.FileExists(t, draftPath)
 	draftContract, err := os.ReadFile(draftPath)
@@ -1268,6 +1276,7 @@ func TestService_CreateComponentVersionRequiresExplicitParityWaiver(t *testing.T
 	}))
 	created, err := svc.IngestComponent(context.Background(), components.IngestComponentInput{Scenario: "web-console", SourceFile: "ui/src/components/DrawerShell.tsx", Slug: "drawer-shell"})
 	require.NoError(t, err)
+	writeValidDraftContract(t, root, "drawer-shell", created.Component.LibraryID, created.DraftVersion)
 	report := components.IngestParityReport{Findings: []components.IngestFinding{{Code: "behavior-lost", Message: "fixture loss"}}}
 	raw, err := json.Marshal(report)
 	require.NoError(t, err)
@@ -1294,6 +1303,7 @@ func TestService_CreateComponentVersionPreservesOperatorParityReport(t *testing.
 	}))
 	created, err := svc.IngestComponent(context.Background(), components.IngestComponentInput{Scenario: "react-component-library", SourceFile: "ui/src/MarkdownRenderer.tsx", Slug: "markdown-renderer"})
 	require.NoError(t, err)
+	writeValidDraftContract(t, root, "markdown-renderer", created.Component.LibraryID, created.DraftVersion)
 	want := &components.IngestParityReport{
 		OriginFiles:    []string{"scenarios/web-console/ui/src/components/markdown/MarkdownRenderer.tsx"},
 		HarvestedFiles: []string{"MarkdownRenderer.tsx"},
@@ -1363,6 +1373,7 @@ func TestAuthoringSuccessorPreservesAlteredHistoricalRelease(t *testing.T) {
 	draft, err := authoring.BeginComponentVersion(ctx, components.BeginComponentVersionInput{Component: created.Component.ID, Bump: "patch"})
 	require.NoError(t, err)
 	require.Contains(t, draft.Version.Content, "Existing working-tree migration")
+	writeValidDraftContract(t, root, "Button", "react-component-library:Button", draft.Version.Version)
 	published, err := authoring.PublishComponentVersion(ctx, components.PublishComponentVersionInput{Component: created.Component.ID})
 	require.NoError(t, err)
 	require.Equal(t, "1.0.1", published.Version.Version)

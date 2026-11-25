@@ -1,6 +1,6 @@
 import { useTranslation } from "../../i18n";
 import { VERDICT_ICON } from "../verdicts";
-import type { ContextCheckRow, ContextVerdict } from "./contextChecks";
+import type { ContextCheckGroup, ContextCheckRow, ContextVerdict } from "./contextChecks";
 import "./incontext.css";
 
 /**
@@ -31,28 +31,45 @@ export function InContextChecksPanel({ rows }: { rows: ContextCheckRow[] }) {
     );
   }
 
+  const groupOrder: ContextCheckGroup[] = ["fit", "page", "evidence", "human"];
+  const groupLabel: Record<ContextCheckGroup, string> = {
+    fit: t("workbench.component.ctxGroupFit", { defaultValue: "Component fit" }),
+    page: t("workbench.component.ctxGroupPage", { defaultValue: "Page health" }),
+    evidence: t("workbench.component.ctxGroupEvidence", { defaultValue: "State evidence" }),
+    human: t("workbench.component.ctxGroupHuman", { defaultValue: "Human check" }),
+  };
+
   return (
     <div className="ic-checks">
-      {rows.map((row) => {
-        const Icon = VERDICT_ICON[row.verdict];
+      {groupOrder.map((group) => {
+        const groupRows = rows.filter((row) => (row.group ?? "fit") === group);
+        if (groupRows.length === 0) return null;
         return (
-          <div key={row.id} className={`ic-check is-${row.verdict}`}>
-            <span className="ic-check-icon" aria-hidden>
-              <Icon size={12} />
-            </span>
-            <div className="ic-check-text">
-              <b>{row.label}</b>
-              <span>{row.detail}</span>
-            </div>
-            <span className="ic-check-verdict">
-              {VERDICT_LABEL[row.verdict]}
-              {row.evidence === "measured" ? (
-                <em>{t("workbench.component.ctxMeasured", { defaultValue: "measured" })}</em>
-              ) : row.evidence === "declared" ? (
-                <em>{t("workbench.component.ctxDeclared", { defaultValue: "declared" })}</em>
-              ) : null}
-            </span>
-          </div>
+          <section key={group} className="ic-check-group" aria-label={groupLabel[group]}>
+            <h3>{groupLabel[group]}</h3>
+            {groupRows.map((row) => {
+              const Icon = VERDICT_ICON[row.verdict];
+              return (
+                <div key={row.id} className={`ic-check is-${row.verdict}`}>
+                  <span className="ic-check-icon" aria-hidden>
+                    <Icon size={12} />
+                  </span>
+                  <div className="ic-check-text">
+                    <b>{row.label}</b>
+                    <span>{row.detail}</span>
+                  </div>
+                  <span className="ic-check-verdict">
+                    {VERDICT_LABEL[row.verdict]}
+                    {row.evidence === "measured" ? (
+                      <em>{t("workbench.component.ctxMeasured", { defaultValue: "measured" })}</em>
+                    ) : row.evidence === "declared" ? (
+                      <em>{t("workbench.component.ctxDeclared", { defaultValue: "declared" })}</em>
+                    ) : null}
+                  </span>
+                </div>
+              );
+            })}
+          </section>
         );
       })}
       <p className="ic-checks-note">

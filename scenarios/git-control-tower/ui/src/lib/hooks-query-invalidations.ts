@@ -19,13 +19,15 @@ export function invalidateCommitEffects(queryClient: QueryClient, repoId?: strin
 
 /** Diffs have separate cache entries for each stage/untracked representation. */
 export function invalidateFileDiffVariants(queryClient: QueryClient, repoId: string | null | undefined, paths: string[]) {
-  for (const path of paths) {
-    for (const [staged, untracked] of [[false, false], [false, true], [true, false]] as const) {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.diff(path, staged, untracked, undefined, "diff", false, repoId),
-      });
-    }
-  }
+  const changedPaths = new Set(paths);
+  if (changedPaths.size === 0) return;
+
+  // Match all cached diff variants in one cache pass. Staging a large batch
+  // should not perform three separate cache scans per file.
+  void queryClient.invalidateQueries({
+    queryKey: queryKeys.diffFamily(repoId),
+    predicate: query => typeof query.queryKey[3] === "string" && changedPaths.has(query.queryKey[3]),
+  });
 }
 
 /** Refresh the user-visible repository workspace without changing its filters. */
@@ -37,7 +39,7 @@ export function invalidateManualRefresh(queryClient: QueryClient, repoId?: strin
   void queryClient.invalidateQueries({ queryKey: queryKeys.approvedChanges(repoId) });
   void queryClient.invalidateQueries({ queryKey: queryKeys.branches(repoId) });
   if (selectedFile) {
-    void queryClient.invalidateQueries({ queryKey: ["repo", "diff", repoId ?? "default"] });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.diffFamily(repoId) });
   }
 }
 

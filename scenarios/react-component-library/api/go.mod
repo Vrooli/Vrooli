@@ -39,6 +39,7 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/envkit-go v0.0.0
+	github.com/vrooli/maturity-go v0.0.0
 	github.com/vrooli/vrooli v0.0.0
 	golang.org/x/sys v0.48.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
@@ -66,3 +67,5 @@ replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 replace github.com/vrooli/ai-go => ../../../packages/ai-go
 
 replace github.com/vrooli/searchregister-go => ../../../packages/searchregister-go
+
+replace github.com/vrooli/maturity-go => ../../../packages/maturity-go

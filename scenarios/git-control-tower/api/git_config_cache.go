@@ -18,6 +18,7 @@ type GitConfigCache struct {
 	entries map[string]configCacheEntry
 	ttl     time.Duration
 	now     func() time.Time // injectable clock for testing
+	flight  singleflight.Group
 }
 
 // RepoStatusCache coalesces concurrent status polls and keeps the result for a
@@ -211,11 +212,27 @@ func (c *GitConfigCache) ConfigGet(ctx context.Context, git GitRunner, repoDir, 
 	if val, ok := c.Get(repoDir, key); ok {
 		return val, nil
 	}
-
-	val, err := git.ConfigGet(ctx, repoDir, key)
-	if err != nil {
-		return "", err
+	flightKey := cacheKey(repoDir, key)
+	result := c.flight.DoChan(flightKey, func() (any, error) {
+		// Another request may have filled the cache between the fast-path read
+		// above and this call becoming the singleflight leader.
+		if val, ok := c.Get(repoDir, key); ok {
+			return val, nil
+		}
+		val, err := git.ConfigGet(ctx, repoDir, key)
+		if err != nil {
+			return "", err
+		}
+		c.Set(repoDir, key, val)
+		return val, nil
+	})
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	case shared := <-result:
+		if shared.Err != nil {
+			return "", shared.Err
+		}
+		return shared.Val.(string), nil
 	}
-	c.Set(repoDir, key, val)
-	return val, nil
 }

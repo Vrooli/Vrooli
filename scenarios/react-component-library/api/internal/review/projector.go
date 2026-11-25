@@ -11,9 +11,20 @@ import (
 	"time"
 )
 
-// EvidenceProjector turns failing rows in catalog_gate_evidence into review
-// findings. It reads another domain's table but writes nothing: catalog
-// coverage remains the owner of evidence, and Review owns the projected queue.
+// EvidenceProjector turns current, failing evidence in catalog_gate_evidence
+// into review findings. It reads another domain's table but writes nothing:
+// catalog coverage remains the owner of evidence, and Review owns the projected
+// queue.
+//
+// Two rules keep Review about the present:
+//
+//  1. Only the newest observation for an (asset, gate, version) identity is
+//     considered. A later pass therefore clears an older failure instead of
+//     leaving a stale finding behind forever.
+//  2. Only an actual failure is a finding. Passing, unmeasured, skipped and
+//     other non-failure observations are evidence gaps or successes; Coverage
+//     owns them. Treating "unmeasured" as a medium finding is what previously
+//     filled the queue with items that were never failures.
 type EvidenceProjector struct {
 	db    queryPort
 	clock func() time.Time
@@ -26,9 +37,12 @@ func NewEvidenceProjector(db queryPort) *EvidenceProjector {
 	return &EvidenceProjector{db: db, clock: time.Now}
 }
 
-// Project returns one finding per failing (asset, gate, version). Repeated
-// evidence rows for the same identity are collapsed to the newest recorded
-// observation so retention history cannot duplicate a queue item.
+// Project returns one finding per current, failing (asset, gate, version).
+// Evidence for a superseded version is retained by Coverage but is not a review
+// item; otherwise the queue grows without bound every time an asset is
+// released. Non-catalog observations (the corpus and supplemental probes) and
+// catalog definitions with no published component are not asset findings
+// either: nobody can act on them from the library.
 func (p *EvidenceProjector) Project(ctx context.Context) ([]Finding, error) {
 	if p == nil || p.db == nil {
 		return nil, fmt.Errorf("evidence projector is not configured")
@@ -38,6 +52,9 @@ func (p *EvidenceProjector) Project(ctx context.Context) ([]Finding, error) {
 		return nil, fmt.Errorf("inspect catalog_gate_evidence: %w", err)
 	}
 	if len(columns) == 0 {
+		// Nil means "this database has no evidence owner", not "the evidence
+		// owner says there are zero findings". The service must not prune a
+		// durable queue because a focused database never created the table.
 		return nil, nil
 	}
 	required := []string{"asset_id", "target", "gate", "version", "result", "recorded_at"}
@@ -50,10 +67,25 @@ func (p *EvidenceProjector) Project(ctx context.Context) ([]Finding, error) {
 	if columns["measurement_json"] {
 		measurement = "measurement_json"
 	}
-	query := `SELECT asset_id, target, gate, version, result, ` + measurement + `, recorded_at
-FROM catalog_gate_evidence
-WHERE LOWER(TRIM(result)) <> 'pass'
-ORDER BY asset_id, gate, version, recorded_at DESC`
+	// Collapse history in SQL rather than reading every retained observation.
+	// A pass on the newest row suppresses the identity even if it failed before.
+	query := `WITH ranked AS (
+  SELECT asset_id, target, gate, version, result, ` + measurement + ` AS measurement, recorded_at,
+         ROW_NUMBER() OVER (
+           PARTITION BY asset_id, gate, version
+           ORDER BY recorded_at DESC, id DESC
+         ) AS rn
+  FROM catalog_gate_evidence
+)
+SELECT asset_id, target, gate, version, result, measurement, recorded_at
+FROM ranked
+WHERE rn = 1
+ORDER BY asset_id, gate, version`
+
+	live, err := p.liveVersions(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	rows, err := p.db.QueryContext(ctx, query)
 	if err != nil {
@@ -75,9 +107,15 @@ ORDER BY asset_id, gate, version, recorded_at DESC`
 		if err := rows.Scan(&assetID, &target, &gate, &version, &result, &measurement, &recordedAt); err != nil {
 			return nil, fmt.Errorf("scan gate evidence: %w", err)
 		}
+		if !isFailureResult(result) {
+			continue
+		}
+		if isNonCatalogObservation(assetID) || !live.isLive(assetID, version) {
+			continue
+		}
 		subjectKind := "asset"
 		id := findingID(subjectKind, assetID, gate, version)
-		candidate := Finding{
+		byID[id] = Finding{
 			ID:           id,
 			SubjectKind:  subjectKind,
 			SubjectID:    assetID,
@@ -85,15 +123,9 @@ ORDER BY asset_id, gate, version, recorded_at DESC`
 			Severity:     severityForGate(gate),
 			Status:       StatusOpen,
 			Message:      findingMessage(gate, assetID, version, result),
-			EvidenceJSON: evidenceJSON(target, version, measurement, recordedAt),
+			EvidenceJSON: evidenceJSON(target, version, result, measurement, recordedAt),
 			DocsRef:      docsRefForGate(gate),
 			CreatedAt:    normalizeRecordedAt(recordedAt, p.now()),
-		}
-		// The query is newest-first per identity, so the first row wins. The
-		// explicit comparison keeps that true if the ORDER BY is ever changed.
-		existing, seen := byID[id]
-		if !seen || candidate.CreatedAt > existing.CreatedAt {
-			byID[id] = candidate
 		}
 	}
 	if err := rows.Err(); err != nil {
@@ -106,6 +138,161 @@ ORDER BY asset_id, gate, version, recorded_at DESC`
 	}
 	sort.Slice(findings, func(i, j int) bool { return findings[i].ID < findings[j].ID })
 	return findings, nil
+}
+
+// liveVersionIndex is the set of versions a person can act on today: each
+// component's latest release and its open draft. It is keyed twice because
+// evidence uses the catalog id ("adapters.validation") while components use a
+// library id ("react-component-library:ValidationAdapter"). The catalogId
+// header is authoritative; normalized slug matching is the fallback for
+// components whose header has not been indexed yet.
+type liveVersionIndex struct {
+	enabled     bool
+	byCatalogID map[string]map[string]bool
+	byName      map[string]map[string]bool
+}
+
+func (live liveVersionIndex) isLive(assetID, version string) bool {
+	if !live.enabled {
+		return true
+	}
+	versions, known := live.versionsFor(assetID)
+	if !known {
+		// A catalog asset with no published component is not review work. It
+		// may still be a Coverage gap, but nobody can act on it in the library.
+		return false
+	}
+	return versions[strings.TrimSpace(version)]
+}
+
+func (live liveVersionIndex) versionsFor(assetID string) (map[string]bool, bool) {
+	if versions, ok := live.byCatalogID[strings.TrimSpace(assetID)]; ok {
+		return versions, true
+	}
+	versions, ok := live.byName[normalizeAssetName(assetID)]
+	return versions, ok
+}
+
+// liveVersions builds the index above. When the component table is absent
+// (focused tests and read-only consumers) scoping is disabled rather than
+// hiding evidence.
+func (p *EvidenceProjector) liveVersions(ctx context.Context) (liveVersionIndex, error) {
+	live := liveVersionIndex{
+		byCatalogID: map[string]map[string]bool{},
+		byName:      map[string]map[string]bool{},
+	}
+	columns, err := tableColumns(ctx, p.db, "components")
+	if err != nil {
+		return live, fmt.Errorf("inspect components: %w", err)
+	}
+	if len(columns) == 0 {
+		return live, nil
+	}
+	if !columns["slug"] || !columns["latest_version"] || !columns["draft_version"] {
+		return live, nil
+	}
+	live.enabled = true
+
+	rows, err := p.db.QueryContext(ctx, `SELECT slug, latest_version, draft_version FROM components`)
+	if err != nil {
+		return live, fmt.Errorf("read component versions: %w", err)
+	}
+	for rows.Next() {
+		var slug, latest, draft string
+		if err := rows.Scan(&slug, &latest, &draft); err != nil {
+			rows.Close()
+			return live, fmt.Errorf("scan component version: %w", err)
+		}
+		if versions := currentVersions(latest, draft); len(versions) > 0 {
+			live.byName[normalizeAssetName(slug)] = versions
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return live, fmt.Errorf("iterate component versions: %w", err)
+	}
+	rows.Close()
+
+	headerColumns, err := tableColumns(ctx, p.db, "component_headers")
+	if err != nil {
+		return live, fmt.Errorf("inspect component_headers: %w", err)
+	}
+	if !headerColumns["component_id"] || !headerColumns["field"] || !headerColumns["value"] {
+		return live, nil
+	}
+	headerRows, err := p.db.QueryContext(ctx, `
+SELECT h.value, c.latest_version, c.draft_version
+FROM component_headers h
+JOIN components c ON c.id = h.component_id
+WHERE h.field = 'catalogId'`)
+	if err != nil {
+		return live, fmt.Errorf("read component catalog ids: %w", err)
+	}
+	defer headerRows.Close()
+	for headerRows.Next() {
+		var catalogID, latest, draft string
+		if err := headerRows.Scan(&catalogID, &latest, &draft); err != nil {
+			return live, fmt.Errorf("scan component catalog id: %w", err)
+		}
+		if versions := currentVersions(latest, draft); len(versions) > 0 {
+			live.byCatalogID[strings.TrimSpace(catalogID)] = versions
+		}
+	}
+	if err := headerRows.Err(); err != nil {
+		return live, fmt.Errorf("iterate component catalog ids: %w", err)
+	}
+	return live, nil
+}
+
+func currentVersions(latest, draft string) map[string]bool {
+	versions := make(map[string]bool, 2)
+	for _, version := range []string{strings.TrimSpace(latest), strings.TrimSpace(draft)} {
+		if version != "" {
+			versions[version] = true
+		}
+	}
+	return versions
+}
+
+// normalizeAssetName bridges the catalog's dotted ids ("controls.button",
+// "react-component-library:Button") and the component slug ("Button") without
+// pretending they are the same namespace. Only alphanumerics survive, so
+// "use-press", "usePress" and "UsePress" compare equal.
+func normalizeAssetName(id string) string {
+	name := strings.TrimSpace(id)
+	if index := strings.LastIndex(name, ":"); index >= 0 {
+		name = name[index+1:]
+	}
+	if index := strings.LastIndex(name, "."); index >= 0 {
+		name = name[index+1:]
+	}
+	var builder strings.Builder
+	for _, r := range strings.ToLower(name) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			builder.WriteRune(r)
+		}
+	}
+	return builder.String()
+}
+
+// isFailureResult distinguishes a failed check from the absence of a result.
+// Unmeasured and skipped checks are coverage gaps, not review findings.
+func isFailureResult(result string) bool {
+	switch strings.ToLower(strings.TrimSpace(result)) {
+	case "", "pass", "passed", "skipped", "skip", "unmeasured", "not-run", "not_run", "pending":
+		return false
+	default:
+		return true
+	}
+}
+
+// isNonCatalogObservation reports observations that belong to the corpus or
+// workbench probes rather than to a catalog asset. Coverage keeps them; Review
+// does not ask a person to triage the corpus as if it were a component.
+func isNonCatalogObservation(assetID string) bool {
+	return strings.HasPrefix(assetID, "__corpus__") ||
+		strings.HasPrefix(assetID, "workbench.") ||
+		strings.HasPrefix(assetID, "supplemental.")
 }
 
 func (p *EvidenceProjector) now() time.Time {
@@ -146,13 +333,17 @@ func findingMessage(gate, assetID, version, result string) string {
 	if resultLabel == "" {
 		resultLabel = "unknown"
 	}
-	return fmt.Sprintf("%s gate failed for %s at %s (result %s)", gate, assetID, versionLabel, resultLabel)
+	// "reduced-motion" reads as a check, not an internal identifier. Keep the
+	// gate name lowercase so searches for the identifier still match.
+	gateLabel := strings.ReplaceAll(strings.TrimSpace(gate), "-", " ")
+	return fmt.Sprintf("%s check failed for %s at %s (result %s)", gateLabel, assetID, versionLabel, resultLabel)
 }
 
-func evidenceJSON(target, version, measurement, recordedAt string) string {
+func evidenceJSON(target, version, result, measurement, recordedAt string) string {
 	payload := map[string]any{
 		"target":      target,
 		"version":     version,
+		"result":      result,
 		"recorded_at": recordedAt,
 	}
 	if trimmed := strings.TrimSpace(measurement); trimmed != "" {

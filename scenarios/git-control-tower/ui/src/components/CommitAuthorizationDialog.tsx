@@ -2,30 +2,12 @@ import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDial
 import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1.0.1";
 import { AlertTriangle, CheckCircle2, Clock3, FileCode2, GitBranch, ShieldCheck, Sparkles } from "lucide-react";
 import type { MutationPreviewResponse } from "../lib/api";
+export { readSkipPrecommitPreference, writeSkipPrecommitPreference } from "../lib/commitAuthorizationPreference";
 
 export interface PendingCommitAuthorization {
   message: string;
   options: { conventional: boolean; amend: boolean; skipHooks?: boolean; authorName?: string; authorEmail?: string };
   preview: MutationPreviewResponse;
-}
-
-const SKIP_PRECOMMIT_STORAGE_KEY = "gct.commit.skipPrecommit";
-
-export function readSkipPrecommitPreference(): boolean {
-  try {
-    return window.localStorage.getItem(SKIP_PRECOMMIT_STORAGE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-export function writeSkipPrecommitPreference(value: boolean): void {
-  try {
-    window.localStorage.setItem(SKIP_PRECOMMIT_STORAGE_KEY, value ? "1" : "0");
-  } catch {
-    // Storage can be unavailable in a restricted browser; the choice just
-    // remains local to this page.
-  }
 }
 
 interface Props {

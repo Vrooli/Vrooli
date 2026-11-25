@@ -69,11 +69,12 @@ import {
   type SaveFileContentResponse,
 } from "./api-types-operations";
 
-export async function fetchHealth(): Promise<HealthResponse> {
+export async function fetchHealth(signal?: AbortSignal): Promise<HealthResponse> {
   const url = buildApiUrl("/health", { baseUrl: API_BASE });
   const res = await fetch(url, {
     headers: { "Content-Type": "application/json" },
-    cache: "no-store"
+    cache: "no-store",
+    signal,
   });
   return handleResponse<HealthResponse>(res);
 }

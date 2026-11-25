@@ -130,17 +130,17 @@ export function NotificationPreferencesPanel({
     label: labels.urgency[value],
   }));
   return (
-    <div className="grid gap-space-md" data-rcl-notification-preferences>
+    <div data-rcl-notification-preferences>
       {groups.map((group) => (
-        <section key={group.id} aria-label={group.label} data-testid={group.testId}>
-          {showGroupLabels && <h3 className="mb-space-2xs text-sm font-semibold">{group.label}</h3>}
-          <div className="grid divide-y rounded-lg border">
+        <section key={group.id} aria-label={group.label} data-testid={group.testId} data-rcl-notification-preference-group>
+          {showGroupLabels && <h3 data-rcl-notification-preference-title>{group.label}</h3>}
+          <div data-rcl-notification-categories>
             {group.rows.map((row) => {
               return (
                 <div
                   key={row.id}
-                  className="grid gap-space-xs p-space-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start"
                   data-rcl-notification-category={row.id}
+                  data-rcl-notification-category-row
                 >
                   <Switch
                     checked={row.enabled}
@@ -151,7 +151,7 @@ export function NotificationPreferencesPanel({
                     data-testid={row.testId ?? `notification-enable-${row.id}`}
                   />
                   {row.enabled && (
-                    <label className="grid gap-space-3xs text-sm">
+                    <label data-rcl-notification-urgency>
                       <span>{labels.minimumUrgency}</span>
                       <Select
                         aria-label={`${labels.minimumUrgency}: ${row.label}`}
@@ -665,6 +665,17 @@ export const browserAppNotificationClient: AppNotificationClient = {
 export const appNotificationSettingsStyles = `
 [data-rcl-app-notify] { display: grid; gap: var(--space-md); min-inline-size: 0; }
 [data-rcl-app-notify-section] { display: grid; gap: var(--space-xs); min-inline-size: 0; }
+[data-rcl-notification-preferences] { display: grid; gap: var(--space-md); min-inline-size: 0; }
+[data-rcl-notification-preference-group] { display: grid; gap: var(--space-xs); min-inline-size: 0; }
+[data-rcl-notification-preference-title] { margin: 0 0 var(--space-2xs); color: var(--color-foreground); font: var(--text-body-sm); font-weight: 600; }
+[data-rcl-notification-categories] { display: grid; overflow: hidden; border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-panel); }
+[data-rcl-notification-category-row] { display: grid; gap: var(--space-xs); padding: var(--space-sm); }
+[data-rcl-notification-category-row] + [data-rcl-notification-category-row] { border-block-start: var(--border-hairline) solid var(--color-border); }
+[data-rcl-notification-urgency] { display: grid; gap: var(--space-3xs); color: var(--color-foreground); font: var(--text-body-sm); }
+@media (min-width: 40rem) {
+  [data-rcl-notification-category-row] { grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
+}
+
 [data-rcl-app-notify-header] { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-xs); }
 [data-rcl-app-notify-title] { margin: 0; color: var(--color-foreground); font: var(--text-body); font-weight: 600; }
 [data-rcl-app-notify-text] { margin: 0; color: var(--color-muted-foreground); font: var(--text-caption); line-height: 1.5; max-inline-size: 60ch; }

@@ -26,7 +26,7 @@ func newSeedDB(t *testing.T) (*SQLiteRepository, string) {
 	require.NoError(t, err, "the reviewed seed file is part of the scenario")
 	result, err := Seed(ctx, sqlDB, raw)
 	require.NoError(t, err, "the reviewed seed file must satisfy the aggregate schema")
-	require.Equal(t, 16, result.Inserted)
+	require.Equal(t, 19, result.Inserted)
 	require.Zero(t, result.Skipped)
 	return NewSQLiteRepository(sqlDB), string(raw)
 }
@@ -38,11 +38,11 @@ func TestSeedIsIdempotentAndStocksTheTemplateShelf(t *testing.T) {
 	second, err := Seed(ctx, repo.db.(*sql.DB), []byte(raw))
 	require.NoError(t, err)
 	require.Zero(t, second.Inserted, "a second boot must not duplicate the shelf")
-	require.Equal(t, 16, second.Skipped)
+	require.Equal(t, 19, second.Skipped)
 
 	list, err := repo.List(ctx, workspacev1.WorkspaceProvenance_WORKSPACE_PROVENANCE_CURATED, "", 0)
 	require.NoError(t, err)
-	require.Len(t, list, 16)
+	require.Len(t, list, 19)
 	for _, summary := range list {
 		require.Greater(t, summary.GetPageCount(), int32(0), summary.GetId())
 		require.Greater(t, summary.GetDisplayCount(), int32(0), summary.GetId())

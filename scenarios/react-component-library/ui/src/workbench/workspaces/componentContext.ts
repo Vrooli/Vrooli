@@ -23,6 +23,7 @@ import {
 import {
   node,
   slotNode,
+  slotsOf,
   type Template,
   type TemplateNode,
   type TemplateCategory,
@@ -39,29 +40,122 @@ export function curatedWorkspaceIdForTemplate(templateRef: string | null | undef
   return templateRef.startsWith("ws_curated_") ? templateRef : `ws_curated_${templateRef}`;
 }
 
-/** Add one explicit component slot to a workspace composition when it has none. */
-export function withComponentSlot(spec: TemplateNode): TemplateNode {
-  if (findSlot(spec)) return spec;
-  const slot = slotNode("workspace-component.slot", {
-    hint: "Live component",
-    minH: 112,
-    role: "hero",
-    accepts: ["action", "button", "input", "search", "metric", "stat", "number", "card", "text"],
-  });
-  if (spec.type === "page") return { ...spec, children: [...(spec.children ?? []), slot] };
-  return node("workspace-component.page", "page", { pad: 24 }, [spec, slot]);
+function idsIn(spec: TemplateNode): Set<string> {
+  const ids = new Set<string>();
+  const visit = (nodeToVisit: TemplateNode) => {
+    ids.add(nodeToVisit.id);
+    for (const child of nodeToVisit.children ?? []) visit(child);
+  };
+  visit(spec);
+  return ids;
 }
 
-/** Attach a selected component/story identity to the first slot, adding a slot
- * when the curated workspace did not declare one. */
+function uniqueId(ids: Set<string>, base: string): string {
+  if (!ids.has(base)) {
+    ids.add(base);
+    return base;
+  }
+  let index = 2;
+  while (ids.has(`${base}.${index}`)) index += 1;
+  const next = `${base}.${index}`;
+  ids.add(next);
+  return next;
+}
+
+/**
+ * Add a typed context section when a workspace has no slot at all.
+ *
+ * The old fallback appended one `role: hero` slot that accepted every kind.
+ * That guaranteed a match for every component and therefore proved nothing.
+ * The typed section keeps the same drop-in shape while giving the scorer real
+ * choices: an action slot, a metric slot, and a list/card slot.
+ */
+export function withComponentSlot(spec: TemplateNode): TemplateNode {
+  if (findSlot(spec)) return spec;
+  const ids = idsIn(spec);
+  const base = uniqueId(ids, "workspace-component.context");
+  const section = node(base, "stack", { gap: 10 }, [
+    node(uniqueId(ids, `${base}.head`), "row", { gap: 10, align: "center", justify: "space-between" }, [
+      node(uniqueId(ids, `${base}.label`), "text", {
+        text: "LIVE COMPONENT",
+        variant: "eyebrow",
+        tone: "accent",
+      }),
+      slotNode(uniqueId(ids, `${base}.action`), {
+        hint: "Section action",
+        minH: 40,
+        role: "action",
+        accepts: ["button", "action"],
+        children: [
+          node(uniqueId(ids, `${base}.action.fallback`), "icon", {
+            name: "sliders",
+            size: 16,
+            tone: "muted",
+          }),
+        ],
+      }),
+    ]),
+    node(uniqueId(ids, `${base}.grid`), "grid", { cols: 2, gap: 12 }, [
+      slotNode(uniqueId(ids, `${base}.metric`), {
+        hint: "Metric or card",
+        minH: 120,
+        role: "metric",
+        accepts: ["metric", "stat", "number", "chart", "card"],
+        children: [
+          node(uniqueId(ids, `${base}.metric.fallback`), "card", {}, [
+            node(uniqueId(ids, `${base}.metric.fallback.title`), "text", {
+              text: "Metric or card",
+              variant: "label",
+            }),
+            node(uniqueId(ids, `${base}.metric.fallback.body`), "text", {
+              text: "A live component fills this region.",
+              variant: "caption",
+              tone: "muted",
+            }),
+          ]),
+        ],
+      }),
+      slotNode(uniqueId(ids, `${base}.list`), {
+        hint: "List, table, or card",
+        minH: 120,
+        role: "list",
+        accepts: ["list", "table", "card", "text", "button", "action"],
+        children: [
+          node(uniqueId(ids, `${base}.list.fallback`), "card", {}, [
+            node(uniqueId(ids, `${base}.list.fallback.title`), "text", {
+              text: "List, table, or card",
+              variant: "label",
+            }),
+            node(uniqueId(ids, `${base}.list.fallback.body`), "text", {
+              text: "A live component fills this region.",
+              variant: "caption",
+              tone: "muted",
+            }),
+          ]),
+        ],
+      }),
+    ]),
+  ]);
+  if (spec.type === "page") return { ...spec, children: [...(spec.children ?? []), section] };
+  return node(uniqueId(ids, "workspace-component.page"), "page", { pad: 24 }, [spec, section]);
+}
+
+/** Attach a selected component/story identity to the best declared slot, adding
+ * a typed section when the workspace did not declare one. */
 export function bindComponentToSlot(
   spec: TemplateNode,
   componentId: string,
   storyId: string,
   componentVersion?: string,
+  preferredSlotId?: string,
+  preferredSlotRole?: string,
 ): TemplateNode {
   const withSlot = withComponentSlot(spec);
-  const target = findSlot(withSlot);
+  const slots = slotsOf(withSlot);
+  const target =
+    (preferredSlotId ? slots.find((slot) => slot.id === preferredSlotId) : undefined) ??
+    (preferredSlotRole ? slots.find((slot) => slot.role === preferredSlotRole) : undefined) ??
+    slots[0];
   if (!target) return withSlot;
   const visit = (current: TemplateNode): TemplateNode => {
     if (current.id === target.id) {
@@ -116,6 +210,8 @@ export async function createComponentWorkspace(input: {
   componentId: string;
   storyId: string;
   componentVersion?: string;
+  preferredSlotId?: string;
+  preferredSlotRole?: string;
 }): Promise<Workspace> {
   if (input.templateWorkspace.provenance !== WorkspaceProvenance.CURATED) {
     throw new Error("Component context can only start from a curated workspace template.");
@@ -132,7 +228,14 @@ export async function createComponentWorkspace(input: {
           const spec = editableSpec(page, display, state.id);
           writeStateSpec(
             nextState,
-            bindComponentToSlot(spec, input.componentId, input.storyId, input.componentVersion),
+            bindComponentToSlot(
+              spec,
+              input.componentId,
+              input.storyId,
+              input.componentVersion,
+              input.preferredSlotId,
+              input.preferredSlotRole,
+            ),
           );
           return nextState;
         }),
@@ -149,6 +252,8 @@ export async function createComponentWorkspaceFromTemplate(input: {
   componentId: string;
   storyId: string;
   componentVersion?: string;
+  preferredSlotId?: string;
+  preferredSlotRole?: string;
 }): Promise<Workspace> {
   const suffix = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
   const pageId = `pg_${suffix}`;
@@ -170,6 +275,8 @@ export async function createComponentWorkspaceFromTemplate(input: {
       input.componentId,
       input.storyId,
       input.componentVersion,
+      input.preferredSlotId,
+      input.preferredSlotRole,
     ),
   );
   return createWorkspace({

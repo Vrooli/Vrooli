@@ -21,6 +21,7 @@ import { useTemplateCanvasLayerDrag } from "./useTemplateCanvasLayerDrag";
 import type { LayerDropPosition } from "../studio/layerMovement";
 import {
   DEFAULT_SLOT_HEIGHT,
+  findNode,
   findSlot,
   slotPlacement,
   templateStyle,
@@ -48,6 +49,8 @@ interface RenderProps {
   /** Controlled placement. Omit to let the renderer place the slot from its authored anchor. */
   slotPlacement?: SlotPlacement;
   onSlotPlacementChange?: (nodeId: string, placement: SlotPlacement) => void;
+  /** Choose the slot that receives the live component. Defaults to the first. */
+  activeSlotId?: string;
 }
 
 type SlotContext = NodeSlotContext;
@@ -65,6 +68,7 @@ export function TemplateRenderer({
   slotEditable = false,
   slotPlacement: controlledPlacement,
   onSlotPlacementChange,
+  activeSlotId,
 }: RenderProps) {
   const { t } = useTranslation();
   const interactive = mode === "canvas" && Boolean(onSelect);
@@ -74,7 +78,10 @@ export function TemplateRenderer({
   const [measured, setMeasured] = useState<SlotPlacement | undefined>(undefined);
   const [active, setActive] = useState<SlotPlacement | undefined>(undefined);
   const [sourceView, setSourceView] = useState(false);
-  const slotNode = useMemo(() => findSlot(spec), [spec]);
+  const slotNode = useMemo(() => {
+    const selected = activeSlotId ? findNode(spec, activeSlotId) : undefined;
+    return selected?.type === "slot" ? selected : findSlot(spec);
+  }, [activeSlotId, spec]);
   const authored = slotPlacement(slotNode);
   const placement = controlledPlacement ?? active ?? authored;
   const placed = Boolean(placement);

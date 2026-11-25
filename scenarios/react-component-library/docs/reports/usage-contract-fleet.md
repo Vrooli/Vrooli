@@ -1,6 +1,33 @@
 # React UI usage-contract fleet
 
-Last measured: 2026-11-15. Scope: **114 React UI trees, 8,802 production source files, 25 findings**. The scan inspects published RCL contracts at call sites. The per-contract downward ratchet is stored in `ui/usage-contract-ratchet.json` and enforced by `pnpm usage-contracts:fleet`.
+Latest measurement: 2026-11-24. Scope: **114 React UI trees, 8,850 source files, 0 findings**. The scan inspects published RCL contracts at call sites. The per-contract downward ratchet is stored in `ui/usage-contract-ratchet.json` and enforced by `pnpm usage-contracts:fleet`.
+
+| Contract | Latest findings |
+|---|---:|
+| AppShell | 0 |
+| Card | 0 |
+| ContextMenu | 0 |
+| ContextMenu.items | 0 |
+| DataTable.columns | 0 |
+| DataTable.rows | 0 |
+| ExperienceSurface | 0 |
+| FullPageDrawer | 0 |
+| Overlay | 0 |
+| PlanSummary.facts | 0 |
+| RadioGroup.options | 0 |
+| Select | 0 |
+| Select.options | 0 |
+| SettingsList | 0 |
+| Tabs | 0 |
+| Tabs.items | 0 |
+| Timeline.events | 0 |
+| **Total** | **0** |
+
+The current fleet lint ran through the provider-owned command and its downward-only ratchet passed: all 17 categories are at zero and below their baselines. The command still exits 1 because the catalog coverage subgate is red: 98/105 eligible contracts. Missing latest declarations are AppNotificationSettings 1.0.6 and page-section 0.1.0; stale contracts are AppShell 2.1.8, AsyncBoundary 1.0.12, BottomNav 1.5.8, List 1.2.0, and markdown-renderer 0.5.4. This is a source command result; the live Test Genie provider still needs an allowed lifecycle refresh before a post-fix server receipt can be claimed.
+
+## Historical scan · 2026-11-15
+
+At that measurement the fleet contained 114 React UI trees, 8,802 production source files and 25 findings. The table below compares the initial scan and final 11-15 census.
 
 | Contract | Initial findings | Current findings | Change |
 |---|---:|---:|---:|

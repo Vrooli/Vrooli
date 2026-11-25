@@ -14,9 +14,9 @@ import { assetVersion, useComponentBundle, wbKeys, type WorkbenchStory } from ".
 import { cx } from "../cx";
 import { AssetDataDrawer, type DrawerTab } from "../component/AssetDataDrawer";
 import { ComponentPageLoadState } from "../component/ComponentPageLoadState";
-import { FixtureCanvas } from "../component/FixtureCanvas";
-import { useFixturePositions } from "../component/useFixturePositions";
+import { FixtureBench } from "../component/FixtureBench";
 import { InContextStage, type Device, type InContextReport } from "../component/InContextStage";
+import { placeComponent } from "../component/placement";
 import { readWorkbenchPreferences } from "../preferences";
 import {
   createComponentWorkspace,
@@ -79,7 +79,6 @@ export function ComponentPage() {
     }
     return readWorkbenchPreferences().defaultDevice;
   });
-  const { positions, persistPositions } = useFixturePositions(id);
   const [overrides, setOverrides] = useState<Record<string, Record<string, unknown> | null>>({});
   const [reloads, setReloads] = useState<Record<string, number>>({});
   const [savedSourceRevision, setSavedSourceRevision] = useState<{
@@ -201,15 +200,25 @@ export function ComponentPage() {
   };
 
   const openComponentWorkspace = async () => {
-    if (!selectedStory || !templateWorkspaceQuery.data || openingWorkspace) return;
+    if (!asset || !selectedStory || !templateWorkspaceQuery.data || openingWorkspace) return;
     setOpeningWorkspace(true);
     setWorkspaceError(null);
     try {
+      const placement = template
+        ? placeComponent({
+            spec: template.spec,
+            asset,
+            viewportWidth: device === "phone" ? 390 : device === "tablet" ? 834 : 1180,
+            preferredSlotId: contextSlot,
+          })
+        : null;
       const workspace = await createComponentWorkspace({
         templateWorkspace: templateWorkspaceQuery.data,
         componentId: id,
         storyId: selectedStory.id,
         componentVersion: selectedStory.version,
+        preferredSlotId: placement?.chosen?.slotId,
+        preferredSlotRole: placement?.chosen?.role,
       });
       void navigate(workspacePath(workspace.id));
     } catch (cause) {
@@ -288,20 +297,24 @@ export function ComponentPage() {
 
       <div className={cx("wb-comp-layout", mode === "context" && "is-context")}>
         {mode === "fixtures" ? (
-          <FixtureCanvas
+          <FixtureBench
             asset={asset}
             stories={stories}
             version={activeVersion}
             sourceRevision={sourceRevision}
             selectedId={selectedStory?.id ?? null}
             onSelect={chooseStory}
-            positions={positions}
-            onMove={(storyId, position) => persistPositions({ ...positions, [storyId]: position })}
             overrides={overrides}
             reloads={reloads}
             statuses={statuses}
             onStatus={(storyId, status) =>
               setStatuses((current) => ({ ...current, [storyId]: status }))
+            }
+            onRetry={(storyId) =>
+              setReloads((current) => ({
+                ...current,
+                [storyId]: (current[storyId] ?? 0) + 1,
+              }))
             }
           />
         ) : template ? (
@@ -313,12 +326,14 @@ export function ComponentPage() {
             templates={curatedTemplates}
             onTemplateChange={(next) => {
               setTemplateId(next);
+              setContextSlot(null);
               setContextReport(null);
               updateURL({ template: next });
             }}
             device={device}
             onDeviceChange={(next) => {
               setDevice(next);
+              setContextSlot(null);
               updateURL({ device: next });
             }}
             slotChoice={contextSlot}

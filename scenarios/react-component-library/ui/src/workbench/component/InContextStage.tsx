@@ -15,7 +15,8 @@ import { InContextCanvas } from "./InContextCanvas";
 import { InContextPlacementPanel } from "./InContextPlacementPanel";
 import { InContextToolbar } from "./InContextToolbar";
 import type { FixtureStatus } from "./FixtureFrame";
-import { neutralizeSlots, placeComponent, type PlacementDecision } from "./placement";
+import type { FixturePaint } from "./fixtureBench";
+import { placeComponent, type PlacementDecision } from "./placement";
 import { useInContextMeasurements } from "./useInContextMeasurements";
 import {
   SAFE_BOTTOM,
@@ -119,6 +120,7 @@ export function InContextStage({
   const [status, setStatus] = useState<FixtureStatus>("loading");
   const [reloadKey, setReloadKey] = useState(0);
   const [scale, setScale] = useState(1);
+  const [paint, setPaint] = useState<FixturePaint | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
@@ -126,6 +128,10 @@ export function InContextStage({
   const probeRef = useRef<HTMLDivElement>(null);
   const lastDevice = useRef(device);
   const storyId = story?.id ?? null;
+
+  useEffect(() => {
+    setPaint(null);
+  }, [storyId, template.id]);
 
   // The frame is a physical choice; the viewport is what is tested. Switching
   // frames follows the device's natural viewport, but a person can then test
@@ -147,10 +153,7 @@ export function InContextStage({
     [template.spec, asset, viewport.width, slotChoice],
   );
 
-  const renderSpec = useMemo(
-    () => neutralizeSlots(template.spec, chosen.chosen?.slotId),
-    [template.spec, chosen.chosen?.slotId],
-  );
+  const renderSpec = template.spec;
 
   const theme = useMemo(() => themeFor(template), [template]);
   // A palette edit changes the tokens but not the spec. The contrast probe has
@@ -176,9 +179,40 @@ export function InContextStage({
   });
   const { overflow, marks, targets, typeInfo, pageType, safeArea, contrast } = measurements;
 
+  // A real page can be taller than the device viewport. Bring the chosen slot
+  // into view instead of leaving the operator looking at the page header while
+  // the component sits below the fold.
+  useEffect(() => {
+    const page = pageRef.current;
+    const slot = slotWrapRef.current;
+    if (
+      !page ||
+      !slot ||
+      typeof window.requestAnimationFrame !== "function" ||
+      typeof page.scrollTo !== "function"
+    )
+      return;
+    const frame = window.requestAnimationFrame(() => {
+      const pageRect = page.getBoundingClientRect();
+      const slotRect = slot.getBoundingClientRect();
+      const pageScale = page.offsetWidth > 0 ? pageRect.width / page.offsetWidth : 1;
+      const target =
+        page.scrollTop +
+        (slotRect.top - pageRect.top) / pageScale -
+        page.clientHeight / 2 +
+        slotRect.height / pageScale / 2;
+      page.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [chosen.chosen?.slotId, storyId, paint?.height]);
+
   const safeTop = SAFE_TOP[device];
   const safeBottom = SAFE_BOTTOM[device];
-  const slotHeight = Math.max(chosen.chosen?.box.h ?? 40, chosen.profile.size.h);
+  const slotHeight = Math.max(
+    chosen.chosen?.box.h ?? 40,
+    chosen.profile.size.h,
+    paint?.height ?? 0,
+  );
 
   const toggle = (id: InstrumentId) =>
     setInstruments((current) => ({ ...current, [id]: !current[id] }));
@@ -214,6 +248,7 @@ export function InContextStage({
               role: chosen.chosen.role,
               accepts: chosen.chosen.accepts,
               compatible: chosen.chosen.compatible,
+              roleMatch: chosen.chosen.roleMatch,
               box: chosen.chosen.box,
             }
           : undefined,
@@ -339,6 +374,7 @@ export function InContextStage({
           version={version}
           template={template}
           renderSpec={renderSpec}
+          activeSlotId={chosen.chosen?.slotId}
           decision={chosen}
           device={device}
           viewport={viewport}
@@ -358,6 +394,7 @@ export function InContextStage({
           slotWrapRef={slotWrapRef}
           probeRef={probeRef}
           onStatus={setStatus}
+          onMeasure={setPaint}
           onReload={() => setReloadKey((value) => value + 1)}
         />
       </div>

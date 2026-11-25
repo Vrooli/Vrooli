@@ -909,28 +909,16 @@ func (s *service) CheckComponentVersion(ctx context.Context, componentID, versio
 	return result, nil
 }
 
-// validateDraftUsageContract makes the usage-contract identity part of the
-// publish check whenever the current release has adopted the contract. Older
-// assets without one remain editable; once introduced, the contract cannot be
-// dropped or carried forward with a stale identity.
+// validateDraftUsageContract makes one version-owned usage contract mandatory
+// at the draft boundary. The latest release remains immutable; a legacy asset
+// adopts its first contract in the draft, and every subsequent draft inherits
+// and re-stamps that contract. Publishing never silently extends contractless
+// component assets.
 func validateDraftUsageContract(root string, component Component, version string) error {
-	base := filepath.Join(root, componentAssetRoot(component), component.Slug, "versions")
-	latestPath := filepath.Join(base, component.LatestVersion, "usage-contract.json")
-	latestHasContract := true
-	if _, err := os.Stat(latestPath); os.IsNotExist(err) {
-		latestHasContract = false
-	} else if err != nil {
-		return fmt.Errorf("cannot inspect latest usage contract: %w", err)
-	}
-	draftPath := filepath.Join(base, version, "usage-contract.json")
+	draftPath := filepath.Join(root, componentAssetRoot(component), component.Slug, "versions", version, "usage-contract.json")
 	body, err := os.ReadFile(draftPath)
-	if os.IsNotExist(err) && !latestHasContract {
-		// Preserve legacy assets that have not adopted a contract yet. If a
-		// draft introduces one, however, validate its identity before publish.
-		return nil
-	}
 	if err != nil {
-		return fmt.Errorf("usage-contract.json is missing or unreadable: %w", err)
+		return fmt.Errorf("usage-contract.json is required for component drafts and must be readable: %w", err)
 	}
 	var contract struct {
 		ComponentID string `json:"componentId"`

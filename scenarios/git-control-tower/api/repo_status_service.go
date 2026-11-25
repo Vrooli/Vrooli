@@ -208,6 +208,12 @@ func resolveAuthor(ctx context.Context, deps RepoStatusDeps, repoDir string) Rep
 }
 
 func collectDiffStats(ctx context.Context, deps RepoStatusDeps, repoDir string, staged bool, paths []string) (map[string]DiffStats, []string) {
+	if len(paths) == 0 {
+		// An empty pathspec means "diff the whole repository" to Git. The
+		// status snapshot already tells us there are no files in this category,
+		// so skip spawning a process that would scan an unrelated full diff.
+		return map[string]DiffStats{}, nil
+	}
 	numstat, err := deps.Git.DiffNumstat(ctx, repoDir, staged, paths...)
 	if err != nil {
 		return map[string]DiffStats{}, nil

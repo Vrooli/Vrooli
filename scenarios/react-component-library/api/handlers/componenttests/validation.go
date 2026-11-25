@@ -14,11 +14,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/maturity-go/assessment"
 	"react-component-library/internal/catalogcoverage"
 	"react-component-library/internal/catalogvalidate"
 	"react-component-library/internal/components"
 	domain "react-component-library/internal/componenttests"
-	"react-component-library/internal/textutil"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/metrics"
@@ -460,7 +460,7 @@ func consumerContractAssessment(scenario string, clean bool, findings []string) 
 		capability.NextUnlock = "Latest-asset coverage is complete and no per-contract count exceeded its ratchet baseline."
 	}
 	assessment := &commonv1.MaturityAssessment{
-		Scenario: scenario, Provider: provider, Phase: phase, Version: "1.0.0",
+		Scenario: scenario, Provider: provider, Phase: phase, Version: "2.0.0",
 		Local:                     &commonv1.LocalMaturityAssessment{CurrentLevel: current, NextLevel: next, Levels: levels, Clean: clean, BlockingFindingCodes: blocking},
 		Capabilities:              []*commonv1.CapabilityMaturityAssessment{capability},
 		HighestPriorityCapability: &commonv1.PriorityFocus{CapabilityId: capability.Id, CapabilityLabel: capability.Label, CurrentLevel: current, NextLevel: next, Reason: "latest-asset contracts must be complete and fleet counts must not rise"},
@@ -764,142 +764,11 @@ func componentTestsAssessment(scenario string, clean bool, failedAssets []string
 	return assessment
 }
 
-// canonicalComponentTestsPresentation mirrors the shared v1 projection for
-// this provider's deliberately small, fixed maturity contract. Keeping the
-// projection beside the assessment construction makes the response contract
-// auditable without adding a second module dependency to the RCL API.
+// canonicalComponentTestsPresentation prepares severity-count fields and
+// delegates rendering to the shared maturity projection contract.
 func canonicalComponentTestsPresentation(a *commonv1.MaturityAssessment) *commonv1.PhasePresentation {
-	local := a.GetLocal()
-	if local == nil {
-		return nil
-	}
 	populateComponentTestSeverityCounts(a)
-	current := local.GetCurrentLevel()
-	currentLabel := ""
-	for _, level := range local.GetLevels() {
-		if level.GetId() == current {
-			currentLabel = textutil.FirstNonBlank(level.GetStatusLabel(), level.GetName())
-			break
-		}
-	}
-	presentation := &commonv1.PhasePresentation{
-		ContractVersion:      "v1",
-		Provider:             a.GetProvider(),
-		Phase:                a.GetPhase(),
-		CurrentLevel:         current,
-		CurrentLevelLabel:    currentLabel,
-		NextLevel:            local.GetNextLevel(),
-		Clean:                local.GetClean(),
-		UnknownCount:         local.GetUnknownCount(),
-		BlockingFindingCodes: sortedStrings(local.GetBlockingFindingCodes()),
-		AtMaximum:            local.GetClean() && strings.TrimSpace(local.GetNextLevel()) == "",
-	}
-	if levels := local.GetLevels(); len(levels) > 0 {
-		top := levels[len(levels)-1]
-		presentation.CeilingLevel = top.GetId()
-		presentation.NorthStar = textutil.FirstNonBlank(top.GetCapabilitySummary(), top.GetName())
-	}
-	for _, capability := range a.GetCapabilities() {
-		if capability == nil {
-			continue
-		}
-		capabilityLabel := ""
-		for _, level := range capability.GetLevels() {
-			if level.GetId() == capability.GetCurrentLevel() {
-				capabilityLabel = textutil.FirstNonBlank(level.GetStatusLabel(), level.GetName())
-				break
-			}
-		}
-		capabilityPresentation := &commonv1.PhaseCapabilityPresentation{
-			Id:                   capability.GetId(),
-			Label:                capability.GetLabel(),
-			CurrentLevel:         capability.GetCurrentLevel(),
-			CurrentLevelLabel:    capabilityLabel,
-			NextLevel:            capability.GetNextLevel(),
-			CurrentSummary:       capability.GetCurrentSummary(),
-			NextUnlock:           capability.GetNextUnlock(),
-			Clean:                capability.GetClean(),
-			UnknownCount:         capability.GetUnknownCount(),
-			BlockingFindingCodes: sortedStrings(capability.GetBlockingFindingCodes()),
-			PriorityRank:         capability.GetPriorityRank(),
-			PriorityReason:       capability.GetPriorityReason(),
-		}
-		findingsByCode := make(map[string]*commonv1.PhasePresentationFinding)
-		for _, finding := range a.GetFindings() {
-			if finding == nil || finding.GetMaturity().GetCapabilityId() != capability.GetId() || strings.TrimSpace(finding.GetCode()) == "" {
-				continue
-			}
-			code := strings.TrimSpace(finding.GetCode())
-			if existing := findingsByCode[code]; existing != nil {
-				existing.Count++
-				if location := strings.TrimSpace(finding.GetLocation()); location != "" {
-					existing.Locations = append(existing.Locations, location)
-				}
-				continue
-			}
-			fixAffordance := commonv1.FixAffordance_FIX_AFFORDANCE_DETECTION_ONLY
-			if finding.GetAutofixAvailable() {
-				fixAffordance = commonv1.FixAffordance_FIX_AFFORDANCE_PREVIEW_AVAILABLE
-			} else if finding.GetFixClass() == "manual" {
-				fixAffordance = commonv1.FixAffordance_FIX_AFFORDANCE_MANUAL
-			}
-			entry := &commonv1.PhasePresentationFinding{
-				Code:          code,
-				Severity:      finding.GetSeverity(),
-				Title:         finding.GetTitle(),
-				Message:       finding.GetMessage(),
-				Remediation:   finding.GetRemediation(),
-				FixAffordance: fixAffordance,
-				Count:         1,
-			}
-			if finding.GetLocation() != "" {
-				entry.Locations = []string{finding.GetLocation()}
-			}
-			findingsByCode[code] = entry
-		}
-		findingCodes := make([]string, 0, len(findingsByCode))
-		for code := range findingsByCode {
-			findingCodes = append(findingCodes, code)
-		}
-		sort.Strings(findingCodes)
-		for _, code := range findingCodes {
-			entry := findingsByCode[code]
-			entry.Locations = sortedStrings(entry.GetLocations())
-			capabilityPresentation.Findings = append(capabilityPresentation.Findings, entry)
-		}
-		presentation.Capabilities = append(presentation.Capabilities, capabilityPresentation)
-	}
-	if focus := a.GetHighestPriorityCapability(); focus != nil && strings.TrimSpace(focus.GetCapabilityId()) != "" {
-		presentation.FocusCapabilityId = focus.GetCapabilityId()
-		presentation.FocusCapabilityLabel = focus.GetCapabilityLabel()
-		presentation.NextActionReason = focus.GetReason()
-		for _, capability := range presentation.GetCapabilities() {
-			if capability.GetId() == focus.GetCapabilityId() {
-				presentation.NextAction = capability.GetNextUnlock()
-				break
-			}
-		}
-	}
-	if strings.TrimSpace(presentation.GetNextAction()) == "" {
-		for _, level := range local.GetLevels() {
-			if level.GetId() == local.GetCurrentLevel() {
-				presentation.NextAction = level.GetNextUnlock()
-				break
-			}
-		}
-	}
-	if !presentation.GetAtMaximum() && presentation.GetPhase() != "" {
-		presentation.DocumentationTopics = []string{presentation.GetPhase() + " maturity next move"}
-		for _, code := range presentation.GetBlockingFindingCodes() {
-			if code != "" {
-				presentation.DocumentationTopics = append(presentation.DocumentationTopics, presentation.GetPhase()+" "+code+" canonical fix")
-			}
-			if len(presentation.DocumentationTopics) == 3 {
-				break
-			}
-		}
-	}
-	return presentation
+	return assessment.BuildPhasePresentation(a)
 }
 
 // populateComponentTestSeverityCounts keeps the shared maturity contract's
@@ -943,19 +812,4 @@ func componentTestSeverityKey(raw string) string {
 		return severity
 	}
 	return "FINDING_SEVERITY_" + strings.ToUpper(severity)
-}
-
-func sortedStrings(values []string) []string {
-	seen := make(map[string]struct{}, len(values))
-	for _, value := range values {
-		if value = strings.TrimSpace(value); value != "" {
-			seen[value] = struct{}{}
-		}
-	}
-	result := make([]string, 0, len(seen))
-	for value := range seen {
-		result = append(result, value)
-	}
-	sort.Strings(result)
-	return result
 }

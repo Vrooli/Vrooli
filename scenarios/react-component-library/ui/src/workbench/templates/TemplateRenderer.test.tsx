@@ -218,6 +218,36 @@ describe("TemplateRenderer", () => {
     expect(screen.getByText(liveCopy)).toBeInTheDocument();
   });
 
+  it("fills the chosen slot and leaves the other slots on their fallbacks", () => {
+    const spec = node("page", "page", {}, [
+      slotNode("action", {
+        role: "action",
+        accepts: ["button"],
+        children: [node("action.fallback", "text", { text: "Action fallback" })],
+      }),
+      slotNode("metric", {
+        role: "metric",
+        accepts: ["metric"],
+        children: [node("metric.fallback", "text", { text: "Metric fallback" })],
+      }),
+    ]);
+    const { container } = renderWithProviders(
+      <TemplateRenderer
+        template={DEFAULT_TEMPLATE}
+        spec={spec}
+        mode="preview"
+        activeSlotId="metric"
+        slot={<span>Live metric</span>}
+      />,
+    );
+    const action = container.querySelector<HTMLElement>('[data-node-id="action"]');
+    const metric = container.querySelector<HTMLElement>('[data-node-id="metric"]');
+    expect(action?.textContent).toContain("Action fallback");
+    expect(action).not.toHaveClass("is-filled");
+    expect(metric?.textContent).toContain("Live metric");
+    expect(metric).toHaveClass("is-filled");
+  });
+
   it("floats a placed component above the authored page and keeps the anchor", () => {
     const template = DEFAULT_TEMPLATE;
     const { container } = renderWithProviders(

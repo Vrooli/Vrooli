@@ -17,7 +17,8 @@ import { HistoryModeHeader } from "./HistoryModeHeader";
 import { BlameModeHeader } from "./BlameModeHeader";
 import { SyncButton } from "./SyncButton";
 import { useHeaderState } from "../hooks/useHeaderState";
-import { useHealthIssueCount } from "../lib/hooks";
+import { useBranches, useHealth, useHealthIssueCount } from "../lib/hooks";
+import { useMemo } from "react";
 
 interface StatusHeaderProps {
   status?: RepoStatus;
@@ -79,10 +80,19 @@ export function StatusHeader({
   isPulling,
   syncProgressLabel
 }: StatusHeaderProps) {
+  const healthQuery = useHealth();
+  const currentHealth = health ?? healthQuery.data;
+  const branchesQuery = useBranches(repoId, Boolean(repoId));
+  const currentBranchActions = useMemo(() => ({
+    ...branchActions,
+    branches: branchesQuery.data,
+    isLoading: branchesQuery.isLoading,
+  }), [branchActions, branchesQuery.data, branchesQuery.isLoading]);
   const { isHealthy, cleanDetails } =
-    useHeaderState(status, health, syncStatus);
+    useHeaderState(status, currentHealth, syncStatus);
   const liveHealthIssueCount = useHealthIssueCount(repoId);
   const displayedHealthIssueCount = healthIssueCount ?? liveHealthIssueCount;
+  const headerLoading = isLoading || healthQuery.isLoading;
 
   if (viewingFileBlame && onExitBlameMode) {
     return <BlameModeHeader file={viewingFileBlame} onExit={onExitBlameMode} />;
@@ -103,7 +113,7 @@ export function StatusHeader({
           <BranchSelector
             status={status}
             syncStatus={syncStatus}
-            actions={branchActions}
+            actions={currentBranchActions}
             repoActions={repoActions}
             onRepoChange={onRepoChange}
             onOpenUpstreamInfo={onOpenUpstreamInfo}
@@ -138,7 +148,7 @@ export function StatusHeader({
           variant="compact"
         />
 
-        <HealthIndicator health={health} isHealthy={isHealthy} />
+        <HealthIndicator health={currentHealth} isHealthy={isHealthy} />
 
         <IconButton
           onClick={onOpenReview}
@@ -200,13 +210,13 @@ export function StatusHeader({
 
         <IconButton
           onClick={onRefresh}
-          disabled={isLoading}
+          disabled={headerLoading}
           aria-label="Refresh status"
           size="xs"
           surface="ghost"
           data-testid="refresh-button"
         >
-          <RefreshCw className={`h-4 w-4 text-slate-400 ${isLoading ? "animate-spin" : ""}`} />
+          <RefreshCw className={`h-4 w-4 text-slate-400 ${headerLoading ? "animate-spin" : ""}`} />
         </IconButton>
       </div>
     </header>

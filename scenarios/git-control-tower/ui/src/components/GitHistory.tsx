@@ -380,20 +380,39 @@ function GitHistoryImpl({
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const hasActiveFilters = Boolean(normalizedSearch || scopeFilter || workingSetOnly);
   const filterNeedsDetails = Boolean(scopeFilter || workingSetOnly);
+  const historyDetailsIndex = useMemo(() => {
+    const byHash = new Map<string, RepoHistoryEntry>();
+    for (const entry of entries) {
+      if (!byHash.has(entry.hash)) byHash.set(entry.hash, entry);
+    }
+    return {
+      byHash,
+      byHashSorted: [...entries].sort((a, b) => a.hash < b.hash ? -1 : a.hash > b.hash ? 1 : 0),
+    };
+  }, [entries]);
   const resolveDetails = useCallback(
     (hash?: string) => {
       if (!hash) return undefined;
-      const exact = entries.find((entry) => entry.hash === hash);
+      const exact = historyDetailsIndex.byHash.get(hash);
       if (exact) return exact;
-      let match: RepoHistoryEntry | undefined;
-      for (const entry of entries) {
-        if (!entry.hash.startsWith(hash)) continue;
-        if (match) return undefined;
-        match = entry;
+
+      // Abbreviated hashes match the sorted range starting with that prefix.
+      // Binary search keeps filtering and row rendering from scanning all
+      // commit details once for every history line.
+      let low = 0;
+      let high = historyDetailsIndex.byHashSorted.length;
+      while (low < high) {
+        const middle = low + Math.floor((high - low) / 2);
+        const candidate = historyDetailsIndex.byHashSorted[middle];
+        if (candidate && candidate.hash < hash) low = middle + 1;
+        else high = middle;
       }
-      return match;
+      const match = historyDetailsIndex.byHashSorted[low];
+      if (!match?.hash.startsWith(hash)) return undefined;
+      const next = historyDetailsIndex.byHashSorted[low + 1];
+      return next?.hash.startsWith(hash) ? undefined : match;
     },
-    [entries]
+    [historyDetailsIndex]
   );
   const continuationFor = (entry: HistoryEntry) => resolveDetails(entry.hash)?.continuation_message || (buildContinueMessage(entry.message) ? `${buildContinueMessage(entry.message)}\n\nVrooli-Continues: ${entry.hash}` : null);
   const groupFor = (entry: HistoryEntry) => {

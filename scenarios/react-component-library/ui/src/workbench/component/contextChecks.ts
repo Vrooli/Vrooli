@@ -1,5 +1,5 @@
 import { overflowAt } from "./instruments";
-import type { SlotBox } from "./placement";
+import type { SlotBox, SlotRoleMatch } from "./placement";
 import { REFERENCE_WIDTHS } from "./viewports";
 
 /**
@@ -13,6 +13,9 @@ export type ContextVerdict = "pass" | "fail" | "warn" | "unmeasured";
 
 export type CheckEvidence = "measured" | "declared" | "none";
 
+/** Component fit is separate from the page's own health. */
+export type ContextCheckGroup = "fit" | "page" | "evidence" | "human";
+
 export interface ContextCheckRow {
   id: string;
   label: string;
@@ -21,7 +24,19 @@ export interface ContextCheckRow {
   evidence: CheckEvidence;
   /** Squint is a human instrument and is excluded from the pass ratio. */
   scored: boolean;
+  group?: ContextCheckGroup;
 }
+
+const GROUP_BY_ID: Record<string, ContextCheckGroup> = {
+  slot: "fit",
+  touch: "fit",
+  contrast: "fit",
+  overflow: "page",
+  type: "page",
+  safeArea: "page",
+  states: "evidence",
+  squint: "human",
+};
 
 export interface ContextFacts {
   slot:
@@ -32,6 +47,7 @@ export interface ContextFacts {
         /** Empty when the template declares no accepted kinds. */
         accepts: string[];
         compatible: boolean;
+        roleMatch: SlotRoleMatch;
         box: SlotBox;
       }
     | undefined;
@@ -113,33 +129,67 @@ export function buildContextChecks(facts: ContextFacts, t: Translate): ContextCh
     });
   } else {
     const declared = Boolean(facts.slot.role) && facts.slot.accepts.length > 0;
+    const size = `${facts.component.size.w} × ${facts.component.size.h}`;
+    const detail = !declared
+      ? t("workbench.component.ctxCheckSlotUndeclared", {
+          defaultValue:
+            "{{role}} slot declares {{accepts}}; add a role and accepted kinds to prove the match.",
+          role: facts.slot.role ?? openRole,
+          accepts: facts.slot.accepts.join(", ") || anyKind,
+        })
+      : facts.slot.roleMatch === "exact"
+        ? t("workbench.component.ctxCheckSlotOk", {
+            defaultValue:
+              "{{role}} slot names {{kind}} · {{size}} fits {{slotWidth}} px",
+            role: facts.slot.role ?? openRole,
+            kind: facts.component.kind,
+            size,
+            slotWidth: facts.slot.box.w,
+          })
+        : facts.slot.roleMatch === "accepted"
+          ? t("workbench.component.ctxCheckSlotAccepted", {
+              defaultValue:
+                "{{role}} slot accepts {{kind}} by kind · {{size}} fits {{slotWidth}} px, but the role is not exact.",
+              role: facts.slot.role ?? openRole,
+              kind: facts.component.kind,
+              size,
+              slotWidth: facts.slot.box.w,
+            })
+          : facts.slot.roleMatch === "family"
+            ? t("workbench.component.ctxCheckSlotFamily", {
+                defaultValue:
+                  "{{role}} is a related region for {{kind}} · {{size}} fits {{slotWidth}} px.",
+                role: facts.slot.role ?? openRole,
+                kind: facts.component.kind,
+                size,
+                slotWidth: facts.slot.box.w,
+              })
+            : facts.slot.roleMatch === "role-only"
+              ? t("workbench.component.ctxCheckSlotRoleOnly", {
+                  defaultValue:
+                    "{{role}} slot declares no accepted kinds · {{size}} fits {{slotWidth}} px, so the match is unproven.",
+                  role: facts.slot.role ?? openRole,
+                  size,
+                  slotWidth: facts.slot.box.w,
+                })
+              : t("workbench.component.ctxCheckSlotMismatch", {
+                  defaultValue:
+                    "{{role}} slot accepts {{accepts}}; {{kind}} is not declared compatible",
+                  role: facts.slot.role ?? openRole,
+                  accepts: facts.slot.accepts.join(", ") || anyKind,
+                  kind: facts.component.kind,
+                });
     rows.push({
       id: "slot",
       label: t("workbench.component.ctxCheckSlot", { defaultValue: "Slot accepts this component" }),
-      detail: !declared
-        ? t("workbench.component.ctxCheckSlotUndeclared", {
-            defaultValue:
-              "{{role}} slot declares {{accepts}}; add a role and accepted kinds to prove the match.",
-            role: facts.slot.role ?? openRole,
-            accepts: facts.slot.accepts.join(", ") || anyKind,
-          })
-        : facts.slot.compatible
-          ? t("workbench.component.ctxCheckSlotOk", {
-              defaultValue:
-                "{{role}} slot accepts {{kind}} · {{width}} × {{height}} fits {{slotWidth}} px",
-              role: facts.slot.role ?? openRole,
-              kind: facts.component.kind,
-              width: facts.component.size.w,
-              height: facts.component.size.h,
-              slotWidth: facts.slot.box.w,
-            })
-          : t("workbench.component.ctxCheckSlotMismatch", {
-              defaultValue: "{{role}} slot accepts {{accepts}}; {{kind}} is not declared compatible",
-              role: facts.slot.role ?? openRole,
-              accepts: facts.slot.accepts.join(", ") || anyKind,
-              kind: facts.component.kind,
-            }),
-      verdict: !declared ? "warn" : facts.slot.compatible ? "pass" : "warn",
+      detail,
+      verdict:
+        !declared
+          ? "warn"
+          : facts.slot.compatible &&
+              (facts.slot.roleMatch === "exact" || facts.slot.roleMatch === "family")
+            ? "pass"
+            : "warn",
       evidence: "declared",
       scored: true,
     });
@@ -381,6 +431,7 @@ export function buildContextChecks(facts: ContextFacts, t: Translate): ContextCh
     scored: false,
   });
 
+  for (const row of rows) row.group = GROUP_BY_ID[row.id] ?? "fit";
   return rows;
 }
 

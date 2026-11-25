@@ -312,3 +312,62 @@ describe("FixtureFrame failure path", () => {
     expect(screen.queryByTestId("fixture-active-iframe")).not.toBeInTheDocument();
   });
 });
+
+describe("FixtureFrame measurement", () => {
+  it("reports painted bounds from the story result", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse("<html></html>", 200)));
+    const onMeasure = vi.fn();
+    renderWithProviders(
+      <FixtureFrame
+        assetId="asset-1"
+        storyId="default"
+        version="1.0.0"
+        title="Specimen"
+        onStatus={vi.fn()}
+        onMeasure={onMeasure}
+      />,
+    );
+
+    const frame = await screen.findByTestId<HTMLIFrameElement>("fixture-iframe");
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: {
+            type: "rcl-story-result",
+            id: "asset-1",
+            story: "default",
+            version: "1.0.0",
+            paintedNodes: 4,
+            renderedX: 12,
+            renderedY: 8,
+            renderedWidth: 40,
+            renderedHeight: 40,
+          },
+          source: frame.contentWindow,
+        }),
+      );
+    });
+
+    expect(onMeasure).toHaveBeenCalledWith({ x: 12, y: 8, width: 40, height: 40 });
+  });
+
+  it("uses an explicit harness viewport for both the shell and iframe", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse("<html></html>", 200)));
+    renderWithProviders(
+      <FixtureFrame
+        assetId="asset-1"
+        storyId="default"
+        version="1.0.0"
+        title="Specimen"
+        onStatus={vi.fn()}
+        frameWidth={360}
+        frameHeight={1200}
+      />,
+    );
+
+    const frame = await screen.findByTestId<HTMLIFrameElement>("fixture-iframe");
+    expect(frame.style.width).toBe("360px");
+    expect(frame.style.height).toBe("1200px");
+    expect(frame.closest("[data-fixture-frame]")).toHaveStyle({ width: "360px", height: "1200px" });
+  });
+});

@@ -199,6 +199,22 @@ export interface WorkbenchStory {
   version: string;
   sourcePath: string;
   contractId: string;
+  /** `pinned` or `live`; omitted in older contracts. */
+  mode?: string;
+  description?: string;
+  axis?: string;
+  covers?: Record<string, unknown[]>;
+  specimen?: { module: string; export: string };
+  /** Raw composition roles, used to distinguish harness/frame stories. */
+  composition?: Record<string, unknown>;
+  geometry?: {
+    archetype?: string;
+    width?: string;
+    height?: string;
+    minHeight?: string;
+  };
+  environment?: Record<string, string>;
+  states?: string[];
 }
 
 export interface ComponentBundle {
@@ -251,6 +267,56 @@ export async function loadComponentBundle(
   };
 }
 
+function storyRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function storyString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function storyGeometry(value: unknown): WorkbenchStory["geometry"] {
+  const record = storyRecord(value);
+  if (!record) return undefined;
+  const geometry = {
+    archetype: storyString(record.archetype),
+    width: storyString(record.width),
+    height: storyString(record.height),
+    minHeight: storyString(record.minHeight),
+  };
+  return Object.values(geometry).some(Boolean) ? geometry : undefined;
+}
+
+function storySpecimen(value: unknown): WorkbenchStory["specimen"] {
+  const record = storyRecord(value);
+  if (!record) return undefined;
+  const module = storyString(record.module);
+  const exportName = storyString(record.export);
+  return module && exportName ? { module, export: exportName } : undefined;
+}
+
+function storyCovers(value: unknown): Record<string, unknown[]> | undefined {
+  const record = storyRecord(value);
+  if (!record) return undefined;
+  const covers: Record<string, unknown[]> = {};
+  for (const [key, entry] of Object.entries(record)) {
+    if (Array.isArray(entry)) covers[key] = entry;
+  }
+  return Object.keys(covers).length > 0 ? covers : undefined;
+}
+
+function storyEnvironment(value: unknown): Record<string, string> | undefined {
+  const record = storyRecord(value);
+  if (!record) return undefined;
+  const environment: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(record)) {
+    if (typeof entry === "string") environment[key] = entry;
+  }
+  return Object.keys(environment).length > 0 ? environment : undefined;
+}
+
 function parseStories(
   rows: ComponentStory[],
   latestVersion: string,
@@ -279,6 +345,7 @@ function parseStories(
       const id = typeof record.id === "string" ? record.id : "";
       if (!id || seen.has(id)) continue;
       seen.add(id);
+      const composition = storyRecord(record.composition);
       stories.push({
         key: `${row.version}:${id}`,
         id,
@@ -292,6 +359,17 @@ function parseStories(
         version: row.version,
         sourcePath: row.sourcePath,
         contractId: row.id,
+        mode: storyString(record.mode),
+        description: storyString(record.description),
+        axis: storyString(record.axis),
+        covers: storyCovers(record.covers),
+        specimen: storySpecimen(composition?.specimen),
+        composition,
+        geometry: storyGeometry(record.geometry),
+        environment: storyEnvironment(record.environment),
+        states: Array.isArray(record.states)
+          ? record.states.filter((state): state is string => typeof state === "string")
+          : undefined,
       });
     }
   }

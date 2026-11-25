@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   AlertCircle,
   CheckCircle,
@@ -19,6 +19,7 @@ import { SyncButton } from "./SyncButton";
 import { HistoryModeHeader } from "./HistoryModeHeader";
 import { BlameModeHeader } from "./BlameModeHeader";
 import { useHeaderState } from "../hooks/useHeaderState";
+import { useBranches, useHealth } from "../lib/hooks";
 import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 
 interface MobileHeaderProps {
@@ -26,6 +27,7 @@ interface MobileHeaderProps {
   health?: HealthResponse;
   syncStatus?: SyncStatusResponse;
   branchActions: BranchActions;
+  repoId?: string | null;
   repoActions?: RepoActions;
   onRepoChange?: (repoId: string | null) => void;
   isLoading: boolean;
@@ -51,6 +53,7 @@ export function MobileHeader({
   health,
   syncStatus,
   branchActions,
+  repoId,
   repoActions,
   onRepoChange,
   isLoading,
@@ -70,7 +73,16 @@ export function MobileHeader({
   syncProgressLabel
 }: MobileHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const { isHealthy } = useHeaderState(status, health, syncStatus);
+  const healthQuery = useHealth();
+  const currentHealth = health ?? healthQuery.data;
+  const branchesQuery = useBranches(repoId, Boolean(repoId));
+  const currentBranchActions = useMemo(() => ({
+    ...branchActions,
+    branches: branchesQuery.data,
+    isLoading: branchesQuery.isLoading,
+  }), [branchActions, branchesQuery.data, branchesQuery.isLoading]);
+  const headerLoading = isLoading || healthQuery.isLoading;
+  const { isHealthy } = useHeaderState(status, currentHealth, syncStatus);
 
   if (viewingFileBlame && onExitBlameMode) {
     return <BlameModeHeader file={viewingFileBlame} onExit={onExitBlameMode} compact />;
@@ -98,7 +110,7 @@ export function MobileHeader({
           <BranchSelector
             status={status}
             syncStatus={syncStatus}
-            actions={branchActions}
+            actions={currentBranchActions}
             repoActions={repoActions}
             onRepoChange={onRepoChange}
             onOpenUpstreamInfo={onOpenUpstreamInfo}
@@ -199,13 +211,13 @@ export function MobileHeader({
             <div className="flex items-center gap-2">
               {isHealthy ? (
                 <CheckCircle className="h-4 w-4 text-emerald-500" />
-              ) : health ? (
+              ) : currentHealth ? (
                 <AlertCircle className="h-4 w-4 text-amber-500" />
               ) : (
                 <Circle className="h-4 w-4 text-slate-600" />
               )}
               <span className="text-sm text-slate-300">
-                {isHealthy ? "All systems healthy" : health ? "Issues detected" : "Unknown"}
+                {isHealthy ? "All systems healthy" : currentHealth ? "Issues detected" : "Unknown"}
               </span>
             </div>
           </div>
@@ -239,10 +251,10 @@ export function MobileHeader({
 
           {/* Action buttons */}
           <BottomSheetAction
-            icon={<RefreshCw className={`h-5 w-5 text-slate-300 ${isLoading ? "animate-spin" : ""}`} />}
+            icon={<RefreshCw className={`h-5 w-5 text-slate-300 ${headerLoading ? "animate-spin" : ""}`} />}
             label="Refresh status"
             description="Re-scan git status"
-            disabled={isLoading}
+            disabled={headerLoading}
             onClick={() => {
               setMenuOpen(false);
               onRefresh();

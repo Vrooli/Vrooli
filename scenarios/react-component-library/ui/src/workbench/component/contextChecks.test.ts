@@ -26,6 +26,7 @@ function facts(overrides: Partial<ContextFacts> = {}): ContextFacts {
       role: "metric",
       accepts: ["metric", "chart"],
       compatible: true,
+      roleMatch: "exact",
       box: { w: 555, h: 40 },
     },
     component: { kind: "metric", size: { w: 248, h: 124 } },
@@ -161,7 +162,7 @@ describe("context checks", () => {
       {
         id: "slot",
         overrides: {
-          slot: { label: "Open region", role: undefined, accepts: [], compatible: true, box: { w: 400, h: 40 } },
+          slot: { label: "Open region", role: undefined, accepts: [], compatible: true, roleMatch: "undeclared", box: { w: 400, h: 40 } },
         },
       },
     ];
@@ -199,6 +200,7 @@ describe("context checks", () => {
         role: "metric",
         accepts: [],
         compatible: true,
+        roleMatch: "role-only",
         box: { w: 400, h: 40 },
       },
     });
@@ -211,6 +213,7 @@ describe("context checks", () => {
         role: undefined,
         accepts: ["metric"],
         compatible: true,
+        roleMatch: "undeclared",
         box: { w: 400, h: 40 },
       },
     });
@@ -230,11 +233,35 @@ describe("context checks", () => {
         role: "action",
         accepts: ["button"],
         compatible: false,
+        roleMatch: "mismatch",
         box: { w: 140, h: 44 },
       },
     });
     expect(row(rows, "slot").verdict).toBe("warn");
     expect(row(rows, "slot").detail).toContain("button");
+  });
+
+  it("warns when a slot accepts the kind but does not name it as its role", () => {
+    const rows = rowsFor({
+      slot: {
+        label: "Live component",
+        role: "chart",
+        accepts: ["card"],
+        compatible: true,
+        roleMatch: "accepted",
+        box: { w: 1128, h: 112 },
+      },
+    });
+    expect(row(rows, "slot")).toMatchObject({ verdict: "warn", evidence: "declared" });
+    expect(row(rows, "slot").detail).toContain("not exact");
+  });
+
+  it("groups component fit separately from page health", () => {
+    const rows = rowsFor();
+    expect(row(rows, "slot").group).toBe("fit");
+    expect(row(rows, "overflow").group).toBe("page");
+    expect(row(rows, "states").group).toBe("evidence");
+    expect(row(rows, "squint").group).toBe("human");
   });
 
   it("fails overflow when any reference width overflows", () => {

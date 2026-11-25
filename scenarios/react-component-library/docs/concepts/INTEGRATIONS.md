@@ -2,18 +2,6 @@
 
 Behavioral claims are current only within the specific checks in the register. Other guidance and unverified descriptions below are **design intent**, not claims of current implementation. See the [behavior claim register](../internal/TESTING.md#behavior-claim-register).
 
-This document is the canonical dependency contract for resources,
-other scenarios, and third-party services used by the scenario.
-
-
-Use this document to answer:
-
-- What does the scenario depend on?
-- Which dependencies are required versus optional?
-- Which domain uses each dependency?
-- What is the failure or degradation behavior?
-- Where is the dependency declared or configured?
-
 ## Dependency Inventory
 
 | Dependency | Type | Required? | Used By | Contract | Failure Behavior |

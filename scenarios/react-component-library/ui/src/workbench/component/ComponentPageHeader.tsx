@@ -196,7 +196,7 @@ export function ComponentPageHeader({
             {checksCount === 0
               ? t("workbench.component.noChecks", { defaultValue: "No checks" })
               : t("workbench.component.checksSummary", {
-                  defaultValue: "{{passed}} pass · {{total}} checks",
+                  defaultValue: "{{passed}}/{{total}} claims pass",
                   passed,
                   total: checksCount,
                 })}

@@ -373,7 +373,7 @@ const measurePaintedContent = () => {
   const stage = document.querySelector("[data-preview-stage]") ||
     activeBoundary ||
     document.querySelector("[data-preview-sheet]") || harnessRoot;
-  if (!stage) return { paintedNodes: 0, renderedWidth: 0, renderedHeight: 0 };
+  if (!stage) return { paintedNodes: 0, renderedWidth: 0, renderedHeight: 0, renderedX: 0, renderedY: 0 };
   const isChrome = (element) => [...(element.classList || [])].some((name) => name.startsWith("rcl-preview-"));
   let paintedNodes = 0;
   let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
@@ -392,7 +392,13 @@ const measurePaintedContent = () => {
     left = Math.min(left, rect.left); top = Math.min(top, rect.top);
     right = Math.max(right, rect.right); bottom = Math.max(bottom, rect.bottom);
   }
-  return { paintedNodes, renderedWidth: paintedNodes ? Math.round(right - left) : 0, renderedHeight: paintedNodes ? Math.round(bottom - top) : 0 };
+  return {
+    paintedNodes,
+    renderedWidth: paintedNodes ? Math.round(right - left) : 0,
+    renderedHeight: paintedNodes ? Math.round(bottom - top) : 0,
+    renderedX: paintedNodes ? Math.max(0, Math.round(left)) : 0,
+    renderedY: paintedNodes ? Math.max(0, Math.round(top)) : 0,
+  };
 };
 const reportStoryResult = (passed, failures, skipped = [], painted = measurePaintedContent(), axeEvidence = null) => {
   performanceEntries.push(...performance.getEntriesByType("measure").map((entry) => ({ name: entry.name, duration: entry.duration })));
@@ -403,6 +409,8 @@ const reportStoryResult = (passed, failures, skipped = [], painted = measurePain
     paintedNodes: painted.paintedNodes || 0,
     renderedWidth: painted.renderedWidth || 0,
     renderedHeight: painted.renderedHeight || 0,
+    renderedX: painted.renderedX || 0,
+    renderedY: painted.renderedY || 0,
     performance: {
       mountMs: mountMs || Math.max(0, performance.now() - mountStartedAt),
       commitCount,
@@ -421,12 +429,15 @@ const reportStoryResult = (passed, failures, skipped = [], painted = measurePain
     harnessRoot.dataset.rclPaintedNodes = String(result.paintedNodes);
     harnessRoot.dataset.rclRenderedWidth = String(result.renderedWidth);
     harnessRoot.dataset.rclRenderedHeight = String(result.renderedHeight);
+    harnessRoot.dataset.rclRenderedX = String(result.renderedX);
+    harnessRoot.dataset.rclRenderedY = String(result.renderedY);
   }
   // The DOM mirror is consumed only by the server-owned headless runner; the
   // normal iframe path continues to receive the typed postMessage below.
   storyResultEl.textContent = JSON.stringify(result);
   storyResultEl.hidden = true;
   parent.postMessage({ type: "rcl-story-result", id: __PREVIEW_ID__, story: previewStory.name || "", version: previewStory.version || "", ...result }, "*");
+  return result;
 };
 const createNodeFactory = (React, Icons, log) => {
   const resolve = (value) => {
@@ -776,9 +787,19 @@ try {
           axeEvidence = { schema: "rcl-axe-results/v1", status: "unavailable", reason: "axe-runner-not-installed" };
         }
       }
-      reportStoryResult(storyResult.passed, storyResult.failures, storyResult.skipped, storyResult, axeEvidence);
+      const reported = reportStoryResult(storyResult.passed, storyResult.failures, storyResult.skipped, storyResult, axeEvidence);
       setHarnessState("ready");
-      parent.postMessage({ type: "preview-ready", id: __PREVIEW_ID__, sha256: __BUNDLE_SHA256__, story: previewStory.name || "", version: previewStory.version || "" }, "*");
+      parent.postMessage({
+        type: "preview-ready",
+        id: __PREVIEW_ID__,
+        sha256: __BUNDLE_SHA256__,
+        story: previewStory.name || "",
+        version: previewStory.version || "",
+        renderedWidth: reported.renderedWidth || 0,
+        renderedHeight: reported.renderedHeight || 0,
+        renderedX: reported.renderedX || 0,
+        renderedY: reported.renderedY || 0,
+      }, "*");
     }).catch((error) => {
       showPreviewError("preview: story execution failed - " + (error && error.stack || error));
     });

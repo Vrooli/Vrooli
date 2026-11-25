@@ -3,7 +3,7 @@ import type { ContractItems, UsageContractId } from "./generated-contract-limits
 
 type PropsOf<Component extends ElementType> = ComponentPropsWithRef<Component>;
 type CollectionItem<Component extends ElementType, Props, Property extends PropertyKey> = Property extends keyof Props
-  ? Props[Property] extends readonly (infer Item)[]
+  ? NonNullable<Props[Property]> extends readonly (infer Item)[]
     ? Extract<Item, object>
     : never
   : never;

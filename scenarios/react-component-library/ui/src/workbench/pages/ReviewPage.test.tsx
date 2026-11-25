@@ -1,14 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 
 import { renderWithProviders } from "../../test-utils";
 import { setLocale } from "../../i18n";
-import {
-  FindingSeverity,
-  FindingStatus,
-  type Finding,
-  type ReviewSummary,
-} from "../../api/review";
+import { FindingSeverity, FindingStatus, type Finding, type ReviewSummary } from "../../api/review";
 
 vi.mock("../../api/review", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/review")>();
@@ -133,6 +128,39 @@ describe("ReviewPage", () => {
 
     expect(await screen.findByText(/did not answer/)).toBeInTheDocument();
     expect(screen.queryByText(/Nothing needs a decision/)).not.toBeInTheDocument();
+  });
+
+  it("keeps the Review contract in a help dialog opened from the title", async () => {
+    vi.mocked(reviewApi.listFindingsPage).mockResolvedValue({
+      findings: [finding("a")],
+      total: 1,
+    });
+
+    renderWithProviders(<ReviewPage />);
+    await screen.findByRole("button", { name: /asset-a/ });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "About Review" }));
+    const dialog = screen.getByRole("dialog", { name: "How Review works" });
+    expect(dialog).toHaveTextContent("Why the number is larger than the asset count");
+    expect(dialog).toHaveTextContent("How an item actually clears");
+
+    fireEvent.click(screen.getByRole("button", { name: "Close Review help" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("does not render the default open status as an action-like chip", async () => {
+    vi.mocked(reviewApi.listFindingsPage).mockResolvedValue({
+      findings: [finding("a"), finding("b", { status: FindingStatus.ACKNOWLEDGED })],
+      total: 2,
+    });
+
+    renderWithProviders(<ReviewPage />);
+    const openRow = await screen.findByRole("button", { name: /asset-a/ });
+    const acknowledgedRow = screen.getByRole("button", { name: /asset-b/ });
+
+    expect(within(openRow).queryByText(/^Open$/)).not.toBeInTheDocument();
+    expect(within(acknowledgedRow).getByText(/Acknowledged/)).toBeInTheDocument();
   });
 
   it("clears the decision draft when the selected finding changes", async () => {

@@ -97,11 +97,11 @@ func (s *Server) getRepoChangeMetricsConnect(ctx context.Context, req *repov1.Ge
 	if pageCache == nil {
 		pageCache = defaultRepoStatusPageCache
 	}
-	snapshot, err := pageCache.Snapshot(resolved.Path, expected)
+	filesSnapshot, err := pageCache.FilesSnapshot(resolved.Path, expected)
 	if err != nil {
 		return nil, err
 	}
-	files := repoFilesStatusFromProto(snapshot.GetFiles())
+	files := repoFilesStatusFromProto(filesSnapshot)
 	stats, _, err := collectRepoFileStats(ctx, RepoStatusDeps{Git: s.git, RepoDir: resolved.Path}, resolved.Path, files)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)

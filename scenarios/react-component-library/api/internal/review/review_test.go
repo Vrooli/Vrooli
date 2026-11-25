@@ -57,15 +57,18 @@ func TestEvidenceProjectorBuildsFindings(t *testing.T) {
 	seedEvidence(t, sqlDB, "button", "react-vite", "accessibility", "1.0.0", "fail", `{"score":0.42}`, "2026-11-18T09:00:00Z")
 	// An older observation for the same identity must collapse into one item.
 	seedEvidence(t, sqlDB, "button", "react-vite", "accessibility", "1.0.0", "fail", `{"score":0.30}`, "2026-11-17T09:00:00Z")
+	// Unmeasured is a coverage gap, not a review finding.
 	seedEvidence(t, sqlDB, "card", "react-vite", "composition", "2.0.0", "unmeasured", "", "2026-11-18T10:00:00Z")
 	seedEvidence(t, sqlDB, "nav", "react-vite", "utility-class", "1.0.0", "error", "not-json", "2026-11-18T11:00:00Z")
 	seedEvidence(t, sqlDB, "types", "react-vite", "types", "1.0.0", "PASS", "", "2026-11-18T12:00:00Z")
+	seedEvidence(t, sqlDB, "skipped", "react-vite", "responsive", "1.0.0", "skipped", "", "2026-11-18T12:30:00Z")
+	seedEvidence(t, sqlDB, "__corpus__", "react-vite", "conformance", "legacy", "fail", "", "2026-11-18T12:45:00Z")
 
 	projector := NewEvidenceProjector(sqlDB)
 	projector.clock = func() time.Time { return time.Date(2026, 11, 19, 12, 0, 0, 0, time.UTC) }
 	findings, err := projector.Project(ctx)
 	require.NoError(t, err)
-	require.Len(t, findings, 3, "passing evidence is excluded and repeated failures collapse")
+	require.Len(t, findings, 2, "only actual failures outside the corpus are findings")
 
 	bySubject := map[string]Finding{}
 	for _, finding := range findings {
@@ -92,7 +95,8 @@ func TestEvidenceProjectorBuildsFindings(t *testing.T) {
 	require.Equal(t, "2026-11-18T09:00:00Z", evidence["recorded_at"])
 	require.Equal(t, 0.42, evidence["measurement"].(map[string]any)["score"])
 
-	require.Equal(t, SeverityHigh, bySubject["card"].Severity)
+	require.NotContains(t, bySubject, "card", "unmeasured evidence is not a finding")
+	require.NotContains(t, bySubject, "__corpus__", "corpus probes are not asset findings")
 	require.Equal(t, SeverityMedium, bySubject["nav"].Severity)
 	// A non-JSON measurement remains visible rather than vanishing.
 	var navEvidence map[string]any
@@ -102,6 +106,83 @@ func TestEvidenceProjectorBuildsFindings(t *testing.T) {
 	again, err := projector.Project(ctx)
 	require.NoError(t, err)
 	require.Equal(t, findings, again, "projection ids are deterministic")
+}
+
+func TestEvidenceProjectorUsesNewestResultAndCurrentVersions(t *testing.T) {
+	sqlDB := newProjectorDB(t)
+	ctx := context.Background()
+	_, err := sqlDB.ExecContext(ctx, `
+CREATE TABLE components (
+  slug            TEXT NOT NULL,
+  latest_version  TEXT NOT NULL DEFAULT '',
+  draft_version   TEXT NOT NULL DEFAULT ''
+)`)
+	require.NoError(t, err)
+	_, err = sqlDB.ExecContext(ctx, `INSERT INTO components(slug, latest_version, draft_version) VALUES
+  ('Button', '2.0.0', ''),
+  ('Card', '1.0.0', '1.1.0-draft.1')`)
+	require.NoError(t, err)
+
+	// A new pass clears the older failure.
+	seedEvidence(t, sqlDB, "controls.button", "react-vite", "accessibility", "2.0.0", "fail", "", "2026-11-17T09:00:00Z")
+	seedEvidence(t, sqlDB, "controls.button", "react-vite", "accessibility", "2.0.0", "pass", "", "2026-11-18T09:00:00Z")
+	// An old release that still fails is superseded, so it is not review work.
+	seedEvidence(t, sqlDB, "controls.button", "react-vite", "unit", "1.0.0", "fail", "", "2026-11-18T09:00:00Z")
+	// The latest release and the current draft both count.
+	seedEvidence(t, sqlDB, "controls.button", "react-vite", "unit", "2.0.0", "fail", "", "2026-11-18T09:00:00Z")
+	seedEvidence(t, sqlDB, "controls.card", "react-vite", "composition", "1.1.0-draft.1", "fail", "", "2026-11-18T09:00:00Z")
+	// A catalog definition with no published component is not review work.
+	seedEvidence(t, sqlDB, "templates.dashboard-page", "react-vite", "documentation", "1.0.0", "fail", "", "2026-11-18T09:00:00Z")
+
+	findings, err := NewEvidenceProjector(sqlDB).Project(ctx)
+	require.NoError(t, err)
+	require.Len(t, findings, 2)
+	for _, finding := range findings {
+		require.NotEqual(t, "accessibility", finding.Gate, "the newest pass must suppress the old failure")
+		require.NotEqual(t, "1.0.0", versionOf(t, finding), "superseded versions are not review findings")
+		require.NotEqual(t, "templates.dashboard-page", finding.SubjectID, "unpublished catalog assets are not findings")
+	}
+	require.ElementsMatch(t, []string{"unit", "composition"}, []string{findings[0].Gate, findings[1].Gate})
+}
+
+func TestEvidenceProjectorUsesCatalogIDHeader(t *testing.T) {
+	sqlDB := newProjectorDB(t)
+	ctx := context.Background()
+	_, err := sqlDB.ExecContext(ctx, `
+CREATE TABLE components (
+  id              TEXT PRIMARY KEY,
+  slug            TEXT NOT NULL,
+  latest_version  TEXT NOT NULL DEFAULT '',
+  draft_version   TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE component_headers (
+  component_id TEXT NOT NULL,
+  field        TEXT NOT NULL,
+  value        TEXT NOT NULL,
+  PRIMARY KEY (component_id, field)
+);
+INSERT INTO components(id, slug, latest_version) VALUES ('c1', 'ValidationAdapter', '1.0.5');
+INSERT INTO component_headers(component_id, field, value) VALUES ('c1', 'catalogId', 'adapters.validation');`)
+	require.NoError(t, err)
+
+	// The catalog id does not share a suffix with the component slug, so only
+	// the catalogId header can connect these two namespaces.
+	seedEvidence(t, sqlDB, "adapters.validation", "react-vite", "unit", "1.0.5", "fail", "", "2026-11-18T09:00:00Z")
+	seedEvidence(t, sqlDB, "adapters.validation", "react-vite", "unit", "0.9.0", "fail", "", "2026-11-18T09:00:00Z")
+
+	findings, err := NewEvidenceProjector(sqlDB).Project(ctx)
+	require.NoError(t, err)
+	require.Len(t, findings, 1)
+	require.Equal(t, "adapters.validation", findings[0].SubjectID)
+	require.Equal(t, "1.0.5", versionOf(t, findings[0]))
+}
+
+func versionOf(t *testing.T, finding Finding) string {
+	t.Helper()
+	var evidence map[string]any
+	require.NoError(t, json.Unmarshal([]byte(finding.EvidenceJSON), &evidence))
+	version, _ := evidence["version"].(string)
+	return version
 }
 
 func TestEvidenceProjectorMissingTableIsEmpty(t *testing.T) {
@@ -130,7 +211,7 @@ func (f *fakeProjector) Project(context.Context) ([]Finding, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
-	return append([]Finding(nil), f.findings...), nil
+	return append([]Finding{}, f.findings...), nil
 }
 
 func newTestService(t *testing.T, projector Projector) (*Service, *fakeProjector) {
@@ -198,6 +279,75 @@ func TestRefreshPreservesStatusOwnerAndDispositions(t *testing.T) {
 	require.Equal(t, "lin", page.Findings[0].Owner)
 	require.Len(t, page.Findings[0].Dispositions, 1)
 	require.Equal(t, DecisionAcknowledge, page.Findings[0].Dispositions[0].Decision)
+}
+
+func TestRefreshPrunesOpenFindingsThatAreNoLongerProjected(t *testing.T) {
+	base := time.Date(2026, 11, 18, 9, 0, 0, 0, time.UTC)
+	projector := &fakeProjector{findings: []Finding{
+		projectedFinding("stale", SeverityMedium, base),
+		projectedFinding("kept", SeverityMedium, base.Add(time.Minute)),
+	}}
+	service, fake := newTestService(t, projector)
+	ctx := context.Background()
+
+	page, err := service.List(ctx, Filter{}, 10, 0)
+	require.NoError(t, err)
+	require.Equal(t, 2, page.Total)
+
+	// The next projection no longer implies "stale": the gate passed or the
+	// version was superseded. It must leave the queue instead of lingering
+	// until a person triages evidence that no longer exists.
+	fake.findings = []Finding{projectedFinding("kept", SeverityMedium, base.Add(time.Minute))}
+	page, err = service.List(ctx, Filter{}, 10, 0)
+	require.NoError(t, err)
+	require.Equal(t, 1, page.Total)
+	require.Equal(t, "kept", page.Findings[0].ID)
+}
+
+func TestRefreshKeepsTriagedHistoryWhenEvidenceClears(t *testing.T) {
+	base := time.Date(2026, 11, 18, 9, 0, 0, 0, time.UTC)
+	projector := &fakeProjector{findings: []Finding{projectedFinding("finding-1", SeverityMedium, base)}}
+	service, fake := newTestService(t, projector)
+	ctx := context.Background()
+
+	_, err := service.List(ctx, Filter{}, 10, 0)
+	require.NoError(t, err)
+	_, err = service.RecordDisposition(ctx, "finding-1", DecisionAcknowledge, "known issue", "ada")
+	require.NoError(t, err)
+
+	fake.findings = nil
+	page, err := service.List(ctx, Filter{Status: StatusOpen}, 10, 0)
+	require.NoError(t, err)
+	require.Zero(t, page.Total, "a cleared finding is not open")
+
+	all, err := service.List(ctx, Filter{}, 10, 0)
+	require.NoError(t, err)
+	require.Equal(t, 1, all.Total, "the acknowledged history survives the prune")
+	require.Equal(t, StatusAcknowledged, all.Findings[0].Status)
+}
+
+func TestRefreshMarksFixDecisionAsFixedWhenEvidenceClears(t *testing.T) {
+	base := time.Date(2026, 11, 18, 9, 0, 0, 0, time.UTC)
+	projector := &fakeProjector{findings: []Finding{projectedFinding("finding-1", SeverityMedium, base)}}
+	service, fake := newTestService(t, projector)
+	ctx := context.Background()
+
+	_, err := service.List(ctx, Filter{}, 10, 0)
+	require.NoError(t, err)
+	// "fix" intentionally leaves the item open while the repair is pending.
+	fixedIntent, err := service.RecordDisposition(ctx, "finding-1", DecisionFix, "repairing", "ada")
+	require.NoError(t, err)
+	require.Equal(t, StatusOpen, fixedIntent.Status)
+
+	fake.findings = []Finding{}
+	page, err := service.List(ctx, Filter{Status: StatusOpen}, 10, 0)
+	require.NoError(t, err)
+	require.Zero(t, page.Total, "a cleared repair leaves the open queue")
+
+	closed, err := service.Get(ctx, "finding-1")
+	require.NoError(t, err)
+	require.Equal(t, StatusFixed, closed.Status)
+	require.Len(t, closed.Dispositions, 1, "the repair decision stays readable")
 }
 
 func TestDispositionTransitions(t *testing.T) {
@@ -317,12 +467,12 @@ func TestListPagesAndCountsTheFilter(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 7, first.Total)
 	require.Len(t, first.Findings, 3)
-	require.Equal(t, []string{"f6", "f5", "f4"}, findingIDs(first.Findings), "newest-first page")
+	require.Equal(t, []string{"f0", "f6", "f5"}, findingIDs(first.Findings), "blocker first, then newest")
 
 	second, err := service.List(ctx, Filter{}, 3, 3)
 	require.NoError(t, err)
 	require.Equal(t, 7, second.Total)
-	require.Equal(t, []string{"f3", "f2", "f1"}, findingIDs(second.Findings))
+	require.Equal(t, []string{"f4", "f3", "f2"}, findingIDs(second.Findings))
 
 	seen := map[string]bool{}
 	for _, finding := range append(append([]Finding{}, first.Findings...), second.Findings...) {

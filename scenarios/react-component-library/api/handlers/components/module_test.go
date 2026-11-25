@@ -182,6 +182,7 @@ func TestModule_AuthoringWorkflowUsesLibraryIDAndPublishesOnlyAfterCheck(t *test
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
 	require.Contains(t, rw.Body.String(), `"version":"1.1.0-draft.1"`)
 	require.Contains(t, rw.Body.String(), `"previewPath":"/preview/react-component-library:Button/harness.html?version=1.1.0-draft.1"`)
+	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Button", "versions", "1.1.0-draft.1", "usage-contract.json"), []byte(`{"componentId":"react-component-library:Button","version":"1.1.0-draft.1"}`), 0o600))
 
 	rw = callConnect(r, authoringconnect.ComponentAuthoringServiceCheckComponentVersionProcedure,
 		`{"component":"react-component-library:Button"}`)

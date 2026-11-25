@@ -5,7 +5,6 @@ import { node, slotAccepts, slotNode, slotRole, slotsOf, type TemplateNode } fro
 import {
   assetPlacementProfile,
   estimateSlotBox,
-  neutralizeSlots,
   placeComponent,
   slotLabel,
 } from "./placement";
@@ -89,6 +88,7 @@ describe("placeComponent", () => {
     const decision = placeComponent({ spec, asset: { displayName: "MetricCard" }, viewportWidth: 1180 });
     expect(decision.chosen?.slotId).toBe("metricSlot");
     expect(decision.chosen?.compatible).toBe(true);
+    expect(decision.chosen?.roleMatch).toBe("exact");
     expect(decision.authoredId).toBe("metricSlot");
     expect(decision.manual).toBe(false);
     expect(decision.candidates.find((row) => row.slotId === "actionSlot")?.compatible).toBe(false);
@@ -106,7 +106,9 @@ describe("placeComponent", () => {
     const action = decision.candidates.find((row) => row.slotId === "actionSlot");
     const metric = decision.candidates.find((row) => row.slotId === "metricSlot");
     expect(action?.compatible).toBe(true);
+    expect(action?.roleMatch).toBe("family");
     expect(metric?.compatible).toBe(false);
+    expect(metric?.roleMatch).toBe("mismatch");
     expect(action!.score).toBeGreaterThan(metric!.score);
   });
 
@@ -169,20 +171,5 @@ describe("placeComponent", () => {
       expect(decision.chosen?.slotId, `width ${viewportWidth}`).toBe("metricSlot");
       expect(decision.chosen?.role).toBe("metric");
     }
-  });
-});
-
-describe("neutralizeSlots", () => {
-  it("leaves exactly one live slot for the shared renderer to fill", () => {
-    const spec = page(
-      slotNode("first", { hint: "A", role: "metric", accepts: ["metric"] }),
-      slotNode("second", { hint: "B", role: "action", accepts: ["button"] }),
-    );
-    const rendered = neutralizeSlots(spec, "second");
-    expect(slotsOf(rendered).map((slot) => slot.id)).toEqual(["second"]);
-    const spacer = rendered.children?.[0];
-    expect(spacer?.id).toBe("first");
-    expect(spacer?.type).toBe("spacer");
-    expect(spacer?.props.h).toBe(40);
   });
 });

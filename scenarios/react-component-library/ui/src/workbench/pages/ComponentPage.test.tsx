@@ -56,7 +56,17 @@ vi.mock("../workspaces/useWorkspaces", () => ({
 vi.mock("../workspaces/componentContext", () => ({
   DEFAULT_COMPONENT_WORKSPACE_ID: "template-1",
   curatedWorkspaceIdForTemplate: (id: string) => id,
-  workspaceTemplate: () => ({ id: "template-spec" }),
+  workspaceTemplate: () => ({
+    id: "template-spec",
+    spec: {
+      id: "page",
+      type: "page",
+      props: {},
+      children: [
+        { id: "action-slot", type: "slot", role: "action", accepts: ["button"], props: { minH: 40 } },
+      ],
+    },
+  }),
   createComponentWorkspace: vi.fn(),
 }));
 vi.mock("../component/ComponentPageHeader", () => ({
@@ -87,22 +97,20 @@ vi.mock("../component/ComponentPageHeader", () => ({
     </div>
   ),
 }));
-vi.mock("../component/FixtureCanvas", () => ({
-  FixtureCanvas: (props: {
+vi.mock("../component/FixtureBench", () => ({
+  FixtureBench: (props: {
     selectedId: string | null;
     stories: WorkbenchStory[];
     reloads: Record<string, number>;
     onSelect: (story: WorkbenchStory) => void;
-    onMove: (id: string, pos: { x: number; y: number }) => void;
     onStatus: (id: string, status: "ready" | "loading" | "error" | "applied") => void;
   }) => (
     <div
-      data-testid="fixture-canvas"
+      data-testid="fixture-bench"
       data-selected={props.selectedId}
       data-reloads={JSON.stringify(props.reloads)}
     >
-      <button onClick={() => props.onSelect(props.stories[1]!)}>Canvas selects story</button>
-      <button onClick={() => props.onMove("secondary", { x: 22, y: 35 })}>Move fixture</button>
+      <button onClick={() => props.onSelect(props.stories[1]!)}>Bench selects story</button>
       <button onClick={() => props.onStatus("secondary", "ready")}>Ready fixture</button>
     </div>
   ),
@@ -338,7 +346,7 @@ describe("ComponentPage", () => {
       expect(screen.getByTestId("page-header")).toHaveAttribute("data-can-open", "true"),
     );
     expect(screen.getByTestId("page-header")).toHaveAttribute("data-story", "primary");
-    expect(screen.getByTestId("fixture-canvas")).toHaveAttribute("data-selected", "primary");
+    expect(screen.getByTestId("fixture-bench")).toHaveAttribute("data-selected", "primary");
     fireEvent.click(screen.getByRole("button", { name: "Ready fixture" }));
     expect(screen.getByTestId("page-inspector")).toHaveAttribute("data-status-secondary", "ready");
 
@@ -380,13 +388,12 @@ describe("ComponentPage", () => {
     expect(screen.getByTestId("location")).toHaveTextContent("testReport=report-42");
   });
 
-  it("updates fixture placement and drawer URL state through page callbacks", async () => {
+  it("updates drawer URL state through page callbacks", async () => {
     renderComponentPage();
     await waitFor(() =>
       expect(screen.getByTestId("page-header")).toHaveAttribute("data-can-open", "true"),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Move fixture" }));
     fireEvent.click(screen.getByRole("button", { name: "Open versions" }));
     expect(screen.getByTestId("asset-drawer")).toHaveAttribute("data-tab", "versions");
     expect(screen.getByTestId("location")).toHaveTextContent("tab=versions");
@@ -407,6 +414,8 @@ describe("ComponentPage", () => {
         componentId: "asset-7",
         storyId: "secondary",
         componentVersion: "1.0.0",
+        preferredSlotId: "action-slot",
+        preferredSlotRole: "action",
       }),
     );
     expect(await screen.findByTestId("design-route")).toBeInTheDocument();
@@ -463,7 +472,7 @@ describe("ComponentPage", () => {
     expect(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Rerun story" }));
-    expect(screen.getByTestId("fixture-canvas")).toHaveAttribute("data-reloads", '{"secondary":1}');
+    expect(screen.getByTestId("fixture-bench")).toHaveAttribute("data-reloads", '{"secondary":1}');
   });
 
   it("reports bundle errors with a retry action", () => {

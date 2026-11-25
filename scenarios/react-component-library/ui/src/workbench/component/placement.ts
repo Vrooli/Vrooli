@@ -69,6 +69,14 @@ export interface AssetPlacementProfile {
   size: SlotBox;
 }
 
+export type SlotRoleMatch =
+  | "exact"
+  | "accepted"
+  | "family"
+  | "role-only"
+  | "mismatch"
+  | "undeclared";
+
 export interface SlotScore {
   slotId: string;
   label: string;
@@ -80,6 +88,8 @@ export interface SlotScore {
   rolePoints: number;
   sizePoints: number;
   positionPoints: number;
+  /** How the page's role relates to the component kind, beyond raw acceptance. */
+  roleMatch: SlotRoleMatch;
   index: number;
   box: SlotBox;
 }
@@ -282,13 +292,19 @@ function scoreRole(
   role: SlotRole | undefined,
   accepts: string[],
   profile: AssetPlacementProfile,
-): number {
-  const declared = accepts.length === 0 || accepts.some((kind) => profile.kinds.includes(kind as AssetSlotKind));
-  if (!declared) return 6;
-  if (role && role === profile.kind) return 45;
-  if (accepts.some((kind) => profile.kinds.includes(kind as AssetSlotKind))) return 34;
-  if (role && ROLE_FAMILY[role].includes(profile.kind)) return 22;
-  return 10;
+): { points: number; match: SlotRoleMatch } {
+  const acceptedByKind =
+    accepts.length === 0 || accepts.some((kind) => profile.kinds.includes(kind as AssetSlotKind));
+  if (!acceptedByKind) return { points: 6, match: "mismatch" };
+  const family = Boolean(role && ROLE_FAMILY[role].includes(profile.kind));
+  if (role && role === profile.kind) return { points: 45, match: "exact" };
+  if (accepts.some((kind) => profile.kinds.includes(kind as AssetSlotKind))) {
+    // Explicit acceptance is stronger than an inferred family, but a role that
+    // naturally hosts the kind (action/button, list/card) is still a fit.
+    return { points: 34, match: family ? "family" : "accepted" };
+  }
+  if (family) return { points: 22, match: "family" };
+  return { points: 10, match: "role-only" };
 }
 
 export function scoreSlot(input: {
@@ -303,7 +319,8 @@ export function scoreSlot(input: {
   const compatible =
     accepts.length === 0 || accepts.some((kind) => profile.kinds.includes(kind as AssetSlotKind));
 
-  const rolePoints = scoreRole(role, accepts, profile);
+  const roleScore = scoreRole(role, accepts, profile);
+  const rolePoints = roleScore.points;
   const widthFit = Math.min(1, profile.size.w === 0 ? 0 : box.w / profile.size.w);
   const sizePoints = Math.round(25 * widthFit);
   const positionPoints = Math.max(0, 15 - index * 3);
@@ -319,6 +336,7 @@ export function scoreSlot(input: {
     rolePoints,
     sizePoints,
     positionPoints,
+    roleMatch: roleScore.match,
     index,
     box,
   };
@@ -372,29 +390,4 @@ export function placeComponent(input: {
     manual: Boolean(manualMatch),
     candidates,
   };
-}
-
-/**
- * Renders exactly one live slot. `TemplateRenderer` fills its first slot node,
- * so every other slot on the page becomes an inert spacer for this render.
- * Ids are preserved so the layer tree and any later selection still line up.
- */
-export function neutralizeSlots(spec: TemplateNode, keepId: string | undefined): TemplateNode {
-  if (!keepId) return spec;
-  const visit = (current: TemplateNode): TemplateNode => {
-    const children = current.children?.map(visit);
-    if (current.type === "slot" && current.id !== keepId) {
-      const props = { ...current.props };
-      delete props.hint;
-      delete props.minH;
-      return {
-        ...current,
-        type: "spacer",
-        props: { ...props, h: numberProp(current.props.minH, 40) },
-        children,
-      };
-    }
-    return children ? { ...current, children } : current;
-  };
-  return visit(spec);
 }

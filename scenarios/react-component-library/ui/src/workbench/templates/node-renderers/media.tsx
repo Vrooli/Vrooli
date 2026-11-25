@@ -70,6 +70,7 @@ export function renderMediaNode(state: NodeRenderState): ReactNode {
           key={node.id}
           ref={activeSlot ? anchorRef : undefined}
           {...attrs}
+          data-slot-role={typeof node.role === "string" ? node.role : undefined}
           className={cx(
             "tpl-slot",
             boundComponent || (activeSlot && ctx.slot)

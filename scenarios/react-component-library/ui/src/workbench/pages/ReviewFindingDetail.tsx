@@ -12,6 +12,7 @@ import { Select } from "../../../../library/components/Select/versions/1.3.24/Se
 import { Textarea } from "../../../../library/components/Textarea/versions/1.1.1/Textarea";
 import { useTranslation } from "../../i18n";
 import { Chip, Panel, PanelBody, PanelHead, WbButton } from "../primitives";
+import { gateHelp, gateLabel, severityHelp } from "./reviewGateHelp";
 
 const SEVERITY_LABEL: Record<FindingSeverity, string> = {
   [FindingSeverity.UNSPECIFIED]: "Unspecified",
@@ -68,10 +69,22 @@ export function ReviewFindingDetail(props: Props) {
     >
       <PanelHead
         title={selected.subjectId}
-        meta={`${selected.gate} · ${SEVERITY_LABEL[selected.severity]}`}
+        meta={`${gateLabel(selected.gate)} check · ${SEVERITY_LABEL[selected.severity]}`}
       />
       <PanelBody>
         <p>{selected.message}</p>
+        <div className="wb-review-help">
+          <p>
+            <b>{t("workbench.review.gateHelp", { defaultValue: "What this check does" })}</b>{" "}
+            {gateHelp(selected.gate)}
+          </p>
+          <p>
+            <b>
+              {t("workbench.review.severityHelp", { defaultValue: "What this severity means" })}
+            </b>{" "}
+            {severityHelp(severityKey(selected.severity))}
+          </p>
+        </div>
         {selected.remediation ? (
           <p className="wb-muted">
             <b>{t("workbench.review.remediation", { defaultValue: "Remediation" })}:</b>{" "}
@@ -82,10 +95,15 @@ export function ReviewFindingDetail(props: Props) {
           <Chip tone={selected.severity === FindingSeverity.BLOCKER ? "red" : "amber"}>
             {SEVERITY_LABEL[selected.severity]}
           </Chip>
-          <span className="wb-tag">
+          <span className="wb-muted wb-small">
+            {t("workbench.review.statusFilter", { defaultValue: "Status" })}:{" "}
             <StatusLabel status={selected.status} />
           </span>
-          {selected.owner ? <span className="wb-tag">{selected.owner}</span> : null}
+          {selected.owner ? (
+            <span className="wb-muted wb-small">
+              {t("workbench.review.owner", { defaultValue: "Owner" })}: {selected.owner}
+            </span>
+          ) : null}
           <Button
             type="button"
             variant="ghost"
@@ -112,7 +130,9 @@ export function ReviewFindingDetail(props: Props) {
 
         <details className="wb-muted" style={{ marginTop: 10 }}>
           <summary>{t("workbench.review.evidence", { defaultValue: "Evidence" })}</summary>
-          <pre style={{ whiteSpace: "pre-wrap", marginTop: 6 }}>{selected.evidenceJson}</pre>
+          <pre style={{ whiteSpace: "pre-wrap", marginTop: 6 }}>
+            {prettyJson(selected.evidenceJson)}
+          </pre>
         </details>
 
         <div style={{ marginTop: 14 }}>
@@ -145,11 +165,18 @@ export function ReviewFindingDetail(props: Props) {
           <label className="wb-field">
             <span>{t("workbench.review.owner", { defaultValue: "Owner" })}</span>
             <Input
-              value={owner || selected.owner}
+              value={owner}
               onChange={(event) => setOwner(event.target.value)}
-              placeholder={t("workbench.review.ownerPlaceholder", {
-                defaultValue: "name@example",
-              })}
+              placeholder={
+                selected.owner
+                  ? t("workbench.review.ownerCurrent", {
+                      defaultValue: "Current owner: {{owner}}",
+                      owner: selected.owner,
+                    })
+                  : t("workbench.review.ownerPlaceholder", {
+                      defaultValue: "name@example",
+                    })
+              }
             />
           </label>
           <WbButton
@@ -166,27 +193,33 @@ export function ReviewFindingDetail(props: Props) {
               value={decision}
               onChange={(event) => setDecision(Number(event.target.value))}
               options={[
-                { value: String(DispositionDecision.FIX), label: t("workbench.review.fix", { defaultValue: "Fix" }) },
-                { value: String(DispositionDecision.ACKNOWLEDGE), label: t("workbench.review.acknowledge", { defaultValue: "Acknowledge" }) },
-                { value: String(DispositionDecision.ACCEPT_RISK), label: t("workbench.review.acceptRisk", { defaultValue: "Accept risk" }) },
-                { value: String(DispositionDecision.RETIRE), label: t("workbench.review.retire", { defaultValue: "Retire" }) },
+                {
+                  value: String(DispositionDecision.FIX),
+                  label: t("workbench.review.fix", { defaultValue: "Fix" }),
+                },
+                {
+                  value: String(DispositionDecision.ACKNOWLEDGE),
+                  label: t("workbench.review.acknowledge", { defaultValue: "Acknowledge" }),
+                },
+                {
+                  value: String(DispositionDecision.ACCEPT_RISK),
+                  label: t("workbench.review.acceptRisk", { defaultValue: "Accept risk" }),
+                },
+                {
+                  value: String(DispositionDecision.RETIRE),
+                  label: t("workbench.review.retire", { defaultValue: "Retire" }),
+                },
               ]}
             />
           </label>
+          <span className="wb-muted-2 wb-small">{decisionHelp(decision)}</span>
           <label className="wb-field">
             <span>{t("workbench.review.reason", { defaultValue: "Reason" })}</span>
-            <Textarea
-              rows={3}
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-            />
+            <Textarea rows={3} value={reason} onChange={(event) => setReason(event.target.value)} />
           </label>
           <label className="wb-field">
             <span>{t("workbench.review.actor", { defaultValue: "Actor" })}</span>
-            <Input
-              value={actor}
-              onChange={(event) => setActor(event.target.value)}
-            />
+            <Input value={actor} onChange={(event) => setActor(event.target.value)} />
           </label>
           <WbButton
             variant="primary"
@@ -212,15 +245,55 @@ function StatusLabel({ status }: { status: FindingStatus }) {
   const { t } = useTranslation();
   switch (status) {
     case FindingStatus.ACKNOWLEDGED:
-      return <>{t("workbench.review.statusAcknowledged", { defaultValue: "Acknowledged" })}</>;
+      return (
+        <span>{t("workbench.review.statusAcknowledged", { defaultValue: "Acknowledged" })}</span>
+      );
     case FindingStatus.ACCEPTED:
-      return <>{t("workbench.review.statusAccepted", { defaultValue: "Accepted" })}</>;
+      return <span>{t("workbench.review.statusAccepted", { defaultValue: "Accepted" })}</span>;
     case FindingStatus.FIXED:
-      return <>{t("workbench.review.statusFixed", { defaultValue: "Fixed" })}</>;
+      return <span>{t("workbench.review.statusFixed", { defaultValue: "Fixed" })}</span>;
     case FindingStatus.RETIRED:
-      return <>{t("workbench.review.statusRetired", { defaultValue: "Retired" })}</>;
+      return <span>{t("workbench.review.statusRetired", { defaultValue: "Retired" })}</span>;
     default:
-      return <>{t("workbench.review.statusOpen", { defaultValue: "Open" })}</>;
+      return <span>{t("workbench.review.statusOpen", { defaultValue: "Open" })}</span>;
+  }
+}
+
+function severityKey(severity: FindingSeverity): string {
+  switch (severity) {
+    case FindingSeverity.BLOCKER:
+      return "blocker";
+    case FindingSeverity.HIGH:
+      return "high";
+    case FindingSeverity.MEDIUM:
+      return "medium";
+    case FindingSeverity.LOW:
+      return "low";
+    case FindingSeverity.INFO:
+      return "info";
+    default:
+      return "medium";
+  }
+}
+
+function prettyJson(value: string): string {
+  try {
+    return JSON.stringify(JSON.parse(value), null, 2);
+  } catch {
+    return value;
+  }
+}
+
+function decisionHelp(decision: DispositionDecision): string {
+  switch (decision) {
+    case DispositionDecision.ACKNOWLEDGE:
+      return "Records that the team knows about it and owns it. It leaves the open queue and is counted as acknowledged.";
+    case DispositionDecision.ACCEPT_RISK:
+      return "Records that the team will live with the failure. It leaves the open queue, but the reason is kept as the acceptance record.";
+    case DispositionDecision.RETIRE:
+      return "Archives the item as no longer relevant. Use this when the asset or version is gone, not to silence a live failure.";
+    default:
+      return "Records an intent to repair. The item stays open until a later check passes.";
   }
 }
 

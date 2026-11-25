@@ -1,6 +1,7 @@
-import { CircleAlert } from "lucide-react";
+import { ChevronRight, CircleAlert } from "lucide-react";
 import { FindingSeverity, FindingStatus, type Finding } from "../../api/review";
 import { useTranslation } from "../../i18n";
+import { gateLabel } from "./reviewGateHelp";
 import {
   Banner,
   Chip,
@@ -31,6 +32,8 @@ type Props = {
   total: number;
   rangeStart: number;
   rangeEnd: number;
+  pageNumber: number;
+  pageCount: number;
   canGoBack: boolean;
   canGoForward: boolean;
   severity: FindingSeverity;
@@ -52,6 +55,8 @@ export function ReviewQueuePanel(props: Props) {
     total,
     rangeStart,
     rangeEnd,
+    pageNumber,
+    pageCount,
     canGoBack,
     canGoForward,
     severity,
@@ -68,7 +73,9 @@ export function ReviewQueuePanel(props: Props) {
     <Panel>
       <PanelHead
         title={t("workbench.review.queue", { defaultValue: "Review queue" })}
-        meta={t("workbench.review.queueMeta", { defaultValue: "Server-owned, newest first" })}
+        meta={t("workbench.review.queueMeta", {
+          defaultValue: "Blocking first · newest within a severity",
+        })}
       />
       <PanelBody>
         <div className="wb-stack">
@@ -213,7 +220,7 @@ export function ReviewQueuePanel(props: Props) {
                 >
                   <b>{finding.subjectId}</b>
                   <small>
-                    {finding.gate} · {SEVERITY_LABEL[finding.severity]}
+                    {gateLabel(finding.gate)} · {SEVERITY_LABEL[finding.severity]}
                   </small>
                   <p>{finding.message}</p>
                   <span className="wb-finding-meta">
@@ -228,10 +235,18 @@ export function ReviewQueuePanel(props: Props) {
                     >
                       {SEVERITY_LABEL[finding.severity]}
                     </Chip>
-                    <span className="wb-tag">
-                      <StatusLabel status={finding.status} />
-                    </span>
+                    {/* The default queue is already filtered to open items, so
+                     * repeating "Open" on every row only looked like a button
+                     * that did something. Show status only when it is not the
+                     * default, where it carries information. */}
+                    {finding.status !== FindingStatus.OPEN ? (
+                      <span className="wb-tag">
+                        <StatusLabel status={finding.status} />
+                      </span>
+                    ) : null}
                     {finding.owner ? <span className="wb-tag">{finding.owner}</span> : null}
+                    <span className="wb-finding-age">{formatAge(finding.createdAt)}</span>
+                    <ChevronRight className="wb-finding-cue" aria-hidden size={15} />
                   </span>
                 </button>
               ))}
@@ -246,6 +261,12 @@ export function ReviewQueuePanel(props: Props) {
                   start: rangeStart,
                   end: rangeEnd,
                   total: total.toLocaleString(),
+                })}
+                {" · "}
+                {t("workbench.review.pageOf", {
+                  defaultValue: "Page {{page}} of {{pages}}",
+                  page: pageNumber,
+                  pages: pageCount,
                 })}
               </span>
               <div className="wb-row" style={{ gap: 8 }}>
@@ -273,6 +294,21 @@ export function ReviewQueuePanel(props: Props) {
     </Panel>
   );
 }
+/**
+ * Age is the quickest signal for "is this new or has it been rotting?". The
+ * queue previously showed only a full timestamp in the detail panel, so a
+ * backlog looked like one undifferentiated wall of items.
+ */
+function formatAge(createdAt: string): string {
+  const then = new Date(createdAt).getTime();
+  if (!Number.isFinite(then)) return "";
+  const days = Math.max(0, Math.floor((Date.now() - then) / 86_400_000));
+  const relative = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+  if (days < 30) return relative.format(-days, "day");
+  const months = Math.floor(days / 30);
+  return relative.format(-months, "month");
+}
+
 function StatusLabel({ status }: { status: FindingStatus }) {
   const { t } = useTranslation();
   switch (status) {

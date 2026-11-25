@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { API_BASE } from "../../api/client";
 import { useTranslation } from "../../i18n";
+import type { FixturePaint } from "./fixtureBench";
 
 export type FixtureStatus = "loading" | "ready" | "error" | "applied";
 
@@ -35,12 +36,19 @@ interface FixtureFrameProps {
   /** The last successfully saved source path and digest, used as a cache-buster. */
   sourceRevision?: string;
   height?: number;
+  /** Explicit harness viewport. Omit to fill the host element. */
+  frameWidth?: number;
+  frameHeight?: number;
   /** Page tokens applied through the harness theme bridge, so the specimen
    * inherits the page's surface, ink and accents instead of a white box. */
   theme?: { id: string; tokens: Record<string, string>; resolved: "light" | "dark" };
   onStatus?: (status: FixtureStatus, message?: string) => void;
+  /** Reported once the harness has painted, in viewport coordinates. */
+  onMeasure?: (paint: FixturePaint) => void;
   /** Offered next to a failure message so the failure has a next action. */
   onRetry?: () => void;
+  /** The host owns loading/error chrome, for example the specimen bench. */
+  hideState?: boolean;
   title: string;
 }
 
@@ -62,9 +70,13 @@ export function FixtureFrame({
   reloadKey = 0,
   sourceRevision = "",
   height = 150,
+  frameWidth,
+  frameHeight,
   theme,
   onStatus,
+  onMeasure,
   onRetry,
+  hideState = false,
   title,
 }: FixtureFrameProps) {
   const { t } = useTranslation();
@@ -72,6 +84,8 @@ export function FixtureFrame({
   const candidateFrameRef = useRef<HTMLIFrameElement | null>(null);
   const onStatusRef = useRef(onStatus);
   onStatusRef.current = onStatus;
+  const onMeasureRef = useRef(onMeasure);
+  onMeasureRef.current = onMeasure;
   const statusRef = useRef<FixtureStatus>("loading");
   const mounted = useRef(true);
   const readyTimer = useRef<number | undefined>(undefined);
@@ -187,9 +201,25 @@ export function FixtureFrame({
         story?: string;
         version?: string;
         message?: string;
+        paintedNodes?: number;
+        renderedWidth?: number;
+        renderedHeight?: number;
+        renderedX?: number;
+        renderedY?: number;
       } | null;
       if (!data || data.id !== assetId) return;
-      if (data.type === "preview-ready") {
+      if (data.type === "rcl-story-result") {
+        const width = Number(data.renderedWidth) || 0;
+        const height = Number(data.renderedHeight) || 0;
+        if (width > 0 && height > 0) {
+          onMeasureRef.current?.({
+            x: Math.max(0, Number(data.renderedX) || 0),
+            y: Math.max(0, Number(data.renderedY) || 0),
+            width,
+            height,
+          });
+        }
+      } else if (data.type === "preview-ready") {
         setHarnessStory(data.story ?? "");
         setHarnessVersion(data.version ?? "");
         transition("ready");
@@ -316,6 +346,8 @@ export function FixtureFrame({
   }, [activeUrl, applyTheme, failCandidate, probe, t, transition, url]);
 
   const activeExists = Boolean(activeUrl);
+  const resolvedFrameWidth = frameWidth ?? "100%";
+  const resolvedFrameHeight = frameHeight ?? height;
   const frameURLs = activeExists
     ? [activeUrl, ...(probe === "ok" && failedUrl !== url && url !== activeUrl ? [url] : [])]
     : probe === "ok" && failedUrl !== url
@@ -323,11 +355,16 @@ export function FixtureFrame({
       : [];
   return (
     <span
-      style={{ display: "block", height, position: activeExists ? "relative" : undefined }}
+      style={{
+        display: "block",
+        width: resolvedFrameWidth,
+        height: resolvedFrameHeight,
+        position: activeExists ? "relative" : undefined,
+      }}
       data-fixture-frame=""
       data-fixture-status={status}
     >
-      {status === "error" ? (
+      {!hideState && status === "error" ? (
         <span
           className="wb-fixture-state is-error"
           role="alert"
@@ -360,7 +397,7 @@ export function FixtureFrame({
             </button>
           ) : null}
         </span>
-      ) : !activeExists && status === "loading" ? (
+      ) : !hideState && !activeExists && status === "loading" ? (
         <span className="wb-fixture-state" role="status">
           <span>
             {t("workbench.component.fixtureLoading", { defaultValue: "Loading specimen…" })}
@@ -381,8 +418,8 @@ export function FixtureFrame({
             src={frameURL}
             data-testid={isCandidate ? "fixture-iframe" : "fixture-active-iframe"}
             style={{
-              width: "100%",
-              height: "100%",
+              width: resolvedFrameWidth,
+              height: resolvedFrameHeight,
               border: 0,
               background: "transparent",
               visibility: isActive ? "visible" : "hidden",

@@ -113,10 +113,11 @@ func (c *RepoStatusPageCache) Continue(ctx context.Context, repoPath, token stri
 	return c.page(entry.response, repoPath, cursor.Snapshot, cursor.Offset, pageSize)
 }
 
-// Snapshot returns the immutable full path snapshot referenced by a status
-// snapshot id. It lets deferred metrics reuse the already-captured path list
-// instead of running `git status` again.
-func (c *RepoStatusPageCache) Snapshot(repoPath, snapshotID string) (*repov1.GetRepoStatusResponse, error) {
+// FilesSnapshot returns the immutable file lists referenced by a status
+// snapshot id. Deferred metrics and group projection need only this portion of
+// the status response, so cloning it avoids copying branch, scope, hotspot, and
+// summary data for every follow-up request.
+func (c *RepoStatusPageCache) FilesSnapshot(repoPath, snapshotID string) (*repov1.FilesStatus, error) {
 	if c == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("repository status snapshot cache is unavailable; refresh status and retry"))
 	}
@@ -128,9 +129,12 @@ func (c *RepoStatusPageCache) Snapshot(repoPath, snapshotID string) (*repov1.Get
 	}
 	c.sequence++
 	entry.lastUsed = c.sequence
-	response := proto.Clone(entry.response).(*repov1.GetRepoStatusResponse)
+	files := entry.response.GetFiles()
+	if files != nil {
+		files = proto.Clone(files).(*repov1.FilesStatus)
+	}
 	c.mu.Unlock()
-	return response, nil
+	return files, nil
 }
 
 func (c *RepoStatusPageCache) page(full *repov1.GetRepoStatusResponse, repoPath, id string, offset int, requested uint32) (*repov1.GetRepoStatusResponse, error) {

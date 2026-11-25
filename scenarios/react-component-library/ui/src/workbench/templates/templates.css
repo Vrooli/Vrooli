@@ -96,6 +96,21 @@
   border-bottom: 1px solid var(--t-line);
 }
 
+.tpl-slot[data-slot-role="action"] {
+  flex: 0 0 56px;
+  width: 56px;
+  min-width: 56px;
+}
+
+.tpl-slot[data-slot-role="metric"],
+.tpl-slot[data-slot-role="chart"] {
+  min-width: 140px;
+}
+
+.tpl-slot[data-slot-role="list"] {
+  min-width: 180px;
+}
+
 .tpl-grid {
   display: grid;
   grid-template-columns: repeat(var(--tpl-cols, 2), minmax(0, 1fr));

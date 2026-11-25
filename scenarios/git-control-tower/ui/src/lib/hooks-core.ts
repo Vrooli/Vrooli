@@ -68,11 +68,19 @@ import type {
 } from "./api";
 
 export function useHealth() {
-  return useQuery({
+  const query = useQuery({
     queryKey: queryKeys.health,
-    queryFn: fetchHealth,
-    refetchInterval: 30000
+    queryFn: ({ signal }) => fetchHealth(signal),
+    staleTime: 15_000,
+    gcTime: 60_000,
+    refetchInterval: 30_000,
   });
+  useEffect(() => {
+    if (query.isSuccess && typeof performance !== "undefined" && !performance.getEntriesByName("app-interactive").length) {
+      performance.mark("app-interactive");
+    }
+  }, [query.isSuccess]);
+  return query;
 }
 
 export function useRepoStatus(repoId?: string | null) {
@@ -105,6 +113,10 @@ export function useRepoStatus(repoId?: string | null) {
     },
     enabled: Boolean(statusQuery.data && snapshotId && dirtyPathCount > 0),
     staleTime: Number.POSITIVE_INFINITY,
+    // Snapshot IDs change on status refresh. Keep prior metrics briefly so the
+    // UI can reuse them as a visual preview while the next snapshot loads, but
+    // do not retain one potentially large per-file result for every poll.
+    gcTime: 60_000,
     retry: 1,
   });
   const repoMetricsPrefix = ["repo", "change-metrics", repoId ?? "default"] as const;
@@ -625,11 +637,14 @@ export function useBlame(path?: string | null, repoId?: string | null) {
   });
 }
 
-export function useBranches(repoId?: string | null) {
+export function useBranches(repoId?: string | null, enabled = true) {
   return useQuery({
     queryKey: queryKeys.branches(repoId),
     queryFn: ({ signal }) => fetchBranches(repoId ?? undefined, signal),
-    refetchInterval: 30000
+    enabled,
+    staleTime: 15_000,
+    gcTime: 60_000,
+    refetchInterval: 30_000,
   });
 }
 

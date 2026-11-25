@@ -1485,6 +1485,31 @@ export const usageContractLimits = {
       },
     ],
   },
+  "react-component-library:IntegrationsOverview@1.1.4-draft.1": {
+    maximumChildren: null,
+    maximumItems: null,
+    maximumLabelCharacters: null,
+    primaryCount: null,
+    itemsProperty: null,
+    requiredFields: [],
+    requiredFieldTypes: {},
+    optionalFieldEnums: {},
+    stableIdField: null,
+    collectionLimits: [
+      {
+        property: "groups",
+        maximumCount: 8,
+        maximumLabelCharacters: 32,
+        requiredFields: ["id", "label"],
+      },
+      {
+        property: "dependencies",
+        maximumCount: 24,
+        maximumLabelCharacters: 48,
+        requiredFields: ["id", "name"],
+      },
+    ],
+  },
   "react-component-library:List@1.0.7": {
     maximumChildren: null,
     maximumItems: 40,
@@ -2958,7 +2983,19 @@ export const usageContractLimits = {
     stableIdField: null,
     collectionLimits: [],
   },
-  "react-component-library:markdown-renderer@0.5.4-draft.1": {
+  "react-component-library:markdown-renderer@0.5.4": {
+    maximumChildren: 1,
+    maximumItems: null,
+    maximumLabelCharacters: null,
+    primaryCount: null,
+    itemsProperty: null,
+    requiredFields: [],
+    requiredFieldTypes: {},
+    optionalFieldEnums: {},
+    stableIdField: null,
+    collectionLimits: [],
+  },
+  "react-component-library:markdown-renderer@0.5.5-draft.1": {
     maximumChildren: 1,
     maximumItems: null,
     maximumLabelCharacters: null,

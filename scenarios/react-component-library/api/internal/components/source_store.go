@@ -638,6 +638,9 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 			if err := json.Unmarshal([]byte(body), &contract); err != nil {
 				return "", fmt.Errorf("decode draft usage contract: %w", err)
 			}
+			if contract == nil {
+				return "", fmt.Errorf("decode draft usage contract: expected a JSON object")
+			}
 			contract["componentId"] = c.LibraryID
 			contract["version"] = version
 			formatted, formatErr := json.MarshalIndent(contract, "", "  ")

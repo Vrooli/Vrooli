@@ -16,6 +16,17 @@ import (
 
 const findingColumns = `id, subject_kind, subject_id, gate, severity, status, message, remediation, evidence_json, docs_ref, owner, created_at`
 
+// severityRank puts consequence before recency. Review exists to answer
+// "what needs a person first?", so an older blocker must not sit below a fresh
+// medium note that happened to be recorded a second later.
+const severityRank = `CASE severity
+  WHEN 'blocker' THEN 0
+  WHEN 'high' THEN 1
+  WHEN 'medium' THEN 2
+  WHEN 'low' THEN 3
+  ELSE 4
+END`
+
 // Service is the review queue owner. It refreshes findings from a Projector,
 // but status and owner are human state: the upsert never overwrites them.
 type Service struct {
@@ -112,7 +123,7 @@ func (s *Service) List(ctx context.Context, filter Filter, limit, offset int) (P
 
 	pageArgs := append(append([]any{}, args...), limit, offset)
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT `+findingColumns+` FROM findings`+where+` ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
+		`SELECT `+findingColumns+` FROM findings`+where+` ORDER BY `+severityRank+`, created_at DESC, id DESC LIMIT ? OFFSET ?`,
 		pageArgs...)
 	if err != nil {
 		return Page{}, fmt.Errorf("list findings: %w", err)
@@ -349,8 +360,17 @@ func (s *Service) refreshInBackground() {
 // upsert applies only projection-owned columns on conflict. status and owner
 // are deliberately absent from the DO UPDATE clause: a gate rerun must not
 // erase an acknowledgement or an assignment.
+//
+// It also removes open findings the projector no longer implies. Without that
+// step a fixed finding would stay in the queue forever, which is how the
+// original queue accumulated more than 10,000 stale items. Triaged findings
+// (acknowledged, accepted, retired) keep their history and are left alone;
+// they no longer count as open.
 func (s *Service) upsert(ctx context.Context, projected []Finding, now time.Time) error {
-	if len(projected) == 0 {
+	if projected == nil {
+		// The projector could not see an evidence owner (for example, a
+		// focused database that only created the review schema). Do not treat
+		// that absence as authority to delete the durable queue.
 		return nil
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -358,6 +378,13 @@ func (s *Service) upsert(ctx context.Context, projected []Finding, now time.Time
 		return fmt.Errorf("begin finding projection: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.ExecContext(ctx, `DROP TABLE IF EXISTS review_projected_ids`); err != nil {
+		return fmt.Errorf("reset projected ids: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `CREATE TEMP TABLE review_projected_ids (id TEXT PRIMARY KEY)`); err != nil {
+		return fmt.Errorf("create projected ids: %w", err)
+	}
 
 	for _, candidate := range projected {
 		finding, err := normalizeProjected(candidate, now)
@@ -381,6 +408,26 @@ ON CONFLICT(id) DO UPDATE SET
 			finding.EvidenceJSON, finding.DocsRef, finding.Owner, finding.CreatedAt); err != nil {
 			return fmt.Errorf("upsert finding %q: %w", finding.ID, err)
 		}
+		if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO review_projected_ids (id) VALUES (?)`, finding.ID); err != nil {
+			return fmt.Errorf("record projected finding %q: %w", finding.ID, err)
+		}
+	}
+	// An open item that carries a human "fix" decision is evidence that
+	// disappeared after the decision, not an untriaged row. Mark it fixed so
+	// the decision and its reason survive. Untouched open rows are pruned.
+	if _, err := tx.ExecContext(ctx, `
+UPDATE findings
+SET status = 'fixed'
+WHERE status = 'open'
+  AND id NOT IN (SELECT id FROM review_projected_ids)
+  AND id IN (SELECT finding_id FROM finding_dispositions)`); err != nil {
+		return fmt.Errorf("close resolved findings: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `
+DELETE FROM findings
+WHERE status = 'open'
+  AND id NOT IN (SELECT id FROM review_projected_ids)`); err != nil {
+		return fmt.Errorf("prune stale findings: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit finding projection: %w", err)

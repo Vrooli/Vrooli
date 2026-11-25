@@ -627,4 +627,38 @@ describe("ChangeMetricsModal", () => {
     );
     expect(screen.getByTestId("metric-deleted-file-count")).toHaveTextContent("1");
   });
+
+  it("renders the Flight Deck hierarchy in aggregate mode", () => {
+    renderWithProviders(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="aggregate"
+        fileStats={aggregateFileStats}
+      />,
+    );
+    expect(screen.getByText("By state")).toBeInTheDocument();
+    expect(screen.getByText("By file type")).toBeInTheDocument();
+    expect(screen.getByText("Review signal")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy summary" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /copy top/i })).toBeInTheDocument();
+    // The full metric list stays available in the disclosure.
+    expect(screen.getByText("All metrics")).toBeInTheDocument();
+  });
+
+  it("renders the Flight Deck hierarchy in file mode", () => {
+    renderWithProviders(
+      <ChangeMetricsModal
+        isOpen={true}
+        onClose={() => {}}
+        mode="file"
+        stats={fileStats}
+        filePath="src/api.ts"
+      />,
+    );
+    expect(screen.getByText("Risk weight")).toBeInTheDocument();
+    expect(screen.getByText("Change shape")).toBeInTheDocument();
+    expect(screen.getByText("Review signal")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy path" })).toBeInTheDocument();
+  });
 });

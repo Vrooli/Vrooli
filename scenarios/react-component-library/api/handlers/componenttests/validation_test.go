@@ -6,13 +6,24 @@ import (
 	"react-component-library/internal/catalogvalidate"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/maturity-go/assessment"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestComponentTestsAssessmentWithFailuresIsJSONSerializable(t *testing.T) {
 	_, err := protojson.Marshal(componentTestsAssessment("react-component-library", false, []string{"react-component-library:Textarea"}))
 	require.NoError(t, err)
+}
+
+func TestConsumerContractAssessmentUsesSharedCanonicalPresentation(t *testing.T) {
+	for _, clean := range []bool{true, false} {
+		got := consumerContractAssessment("react-component-library", clean, []string{"sample failure"})
+		require.Equal(t, "2.0.0", got.GetVersion())
+		require.True(t, proto.Equal(assessment.BuildPhasePresentation(got), got.GetPresentation()))
+		require.NoError(t, assessment.RequireProviderContract("react-component-library", consumerContractPhase, got))
+	}
 }
 
 func TestComponentTestsAssessmentUsesCanonicalPresentationProjection(t *testing.T) {

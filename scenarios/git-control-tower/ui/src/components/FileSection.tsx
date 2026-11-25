@@ -62,6 +62,12 @@ type VirtualItem =
   | { type: "header"; section: ChangeListSection; key: string }
   | { type: "file"; section: ChangeListSection; file: string; key: string };
 
+type VirtualSegment = {
+  start: number;
+  count: number;
+  block: ChangeListBlock;
+};
+
 export function VirtualizedFileSections({
   blocks,
   scrollRef,
@@ -96,31 +102,55 @@ export function VirtualizedFileSections({
   // Child layout effects run before the ancestor attaches its ref. Resolve
   // the already-mounted local list's scroller on that first commit too.
   const getScrollElement = useCallback(() => scrollRef.current ?? listRef.current?.closest<HTMLDivElement>("[data-testid=changes-scroll-region]") ?? null, [scrollRef]);
-  const virtualItems = useMemo<VirtualItem[]>(
-    () => blocks.flatMap((block): VirtualItem[] => {
-      if (block.type === "header") return [{ type: "custom", block, key: block.key }];
-      const { section } = block;
-      if (section.files.length === 0) return [];
-      return [
-        { type: "header", section, key: `${section.key}:header` },
-        ...(section.expanded
-          ? section.files.map((file): VirtualItem => ({ type: "file", section, file, key: `${section.key}:file:${file}` }))
-          : []),
-      ];
-    }),
-    [blocks],
-  );
+  // Keep only one descriptor per section/header. The old flattened array also
+  // allocated a VirtualItem object for every file before the virtualizer could
+  // discard offscreen rows, which was costly for large repositories.
+  const { segments, virtualCount } = useMemo(() => {
+    const segments: VirtualSegment[] = [];
+    let virtualCount = 0;
+    for (const block of blocks) {
+      if (block.type === "section" && block.section.files.length === 0) continue;
+      const count = block.type === "header"
+        ? 1
+        : 1 + (block.section.expanded ? block.section.files.length : 0);
+      segments.push({ start: virtualCount, count, block });
+      virtualCount += count;
+    }
+    return { segments, virtualCount };
+  }, [blocks]);
+  const getVirtualItem = useCallback((index: number): VirtualItem | undefined => {
+    let low = 0;
+    let high = segments.length;
+    while (low < high) {
+      const middle = low + Math.floor((high - low) / 2);
+      const segment = segments[middle];
+      if (segment && segment.start + segment.count <= index) low = middle + 1;
+      else high = middle;
+    }
+    const segment = segments[low];
+    if (!segment) return undefined;
+    const offset = index - segment.start;
+    if (segment.block.type === "header") {
+      return { type: "custom", block: segment.block, key: segment.block.key };
+    }
+    const { section } = segment.block;
+    if (offset === 0) return { type: "header", section, key: `${section.key}:header` };
+    const file = section.files[offset - 1];
+    return file === undefined
+      ? undefined
+      : { type: "file", section, file, key: `${section.key}:file:${file}` };
+  }, [segments]);
   // The virtualizer keys its measurement cache by getItemKey identity. Keep
   // it stable during scrolling so a viewport update does not remeasure N rows.
-  const getItemKey = useCallback((index: number) => virtualItems[index]?.key ?? index, [virtualItems]);
+  const getItemKey = useCallback((index: number) => getVirtualItem(index)?.key ?? index, [getVirtualItem]);
   const estimateSize = useCallback((index: number) => {
-    const item = virtualItems[index];
+    const item = getVirtualItem(index);
     return item?.type === "custom" ? item.block.estimateSize
       : item?.type === "header" ? (isMobile ? 56 : 36)
       : (isMobile ? 48 : 32);
-  }, [virtualItems, isMobile]);
+  }, [getVirtualItem, isMobile]);
   const rowVirtualizer = useVirtualizer({
-    count: virtualItems.length,
+    count: virtualCount,
     getScrollElement,
     getItemKey,
     estimateSize,
@@ -131,20 +161,26 @@ export function VirtualizedFileSections({
 
   useEffect(() => {
     if (!scrollToFile) return;
-    const itemIndex = virtualItems.findIndex((item) =>
-      item.type === "file" && item.file === scrollToFile,
-    );
+    let itemIndex = -1;
+    for (const segment of segments) {
+      if (segment.block.type !== "section" || !segment.block.section.expanded) continue;
+      const fileOffset = segment.block.section.files.indexOf(scrollToFile);
+      if (fileOffset >= 0) {
+        itemIndex = segment.start + 1 + fileOffset;
+        break;
+      }
+    }
     // The parent may still be opening the destination's collapsed section.
     if (itemIndex < 0) return;
     rowVirtualizer.scrollToIndex(itemIndex, { align: "center" });
     const frame = requestAnimationFrame(() => onScrollComplete?.());
     return () => cancelAnimationFrame(frame);
-  }, [onScrollComplete, rowVirtualizer, scrollToFile, virtualItems]);
+  }, [onScrollComplete, rowVirtualizer, scrollToFile, segments]);
 
   return (
     <div ref={listRef} data-change-rows className="relative min-w-0" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
       {rowVirtualizer.getVirtualItems().map((virtualItem) => {
-        const item = virtualItems[virtualItem.index];
+        const item = getVirtualItem(virtualItem.index);
         if (!item) return null;
         if (item.type === "custom") return (
           <div key={item.key} ref={rowVirtualizer.measureElement} data-index={virtualItem.index}

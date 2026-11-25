@@ -19,7 +19,7 @@ The implementation now lives in `ui/src/workbench/`: the shell, eleven page surf
 | Shell | Nocturne rail, top bar, command palette, mobile bottom navigation | served at 1440, 390 and 320; no horizontal overflow on any of the eleven routes |
 | Home | launchpad with real continuation, health, findings, recent/new assets and template entry | served against the live catalog and coverage projections |
 | Components | kind tabs, search, domain/status filters, list/gallery/tree, preview-failure fallback | real 275-asset catalog; preview 404s now resolve through the manifest category |
-| Component | Fixtures canvas and In context; drag/resize the live slot; props overrides; evidence | fixture drag persisted; prop override applied to the real harness; in-context drag and resize persisted; reset restored the authored slot |
+| Component | Fixtures specimen bench grouped by story role with size-to-fit frames; In context with typed slots, ranked candidates and a visible fallback; props overrides; evidence | bench rendered IconButton and Card at measured size and collapsed redundant pins; typed slots scored action/metric/list and kept page health separate from component fit; prop override applied to the real harness |
 | Asset data drawer | Overview, Source, Versions, Experience, Tests, Relationships with deep links | opened from the component metadata row and by `?tab=` |
 | Design studio | scenario/page/layers, artboard, inspector, contract, compare, present, local templates, theme palette, add/move/duplicate/remove layers | edited text, added a chip, duplicated a layer, duplicated a template, changed palette, presented, accepted a revision |
 | Review | severity board projected from real failed gates | 251 findings from the live coverage report |
@@ -196,6 +196,8 @@ The current `/design`, `/design/:scenario` and `/design/:scenario/:page` routes 
 **Job:** show what needs a person, ordered by blast radius.
 
 **Required content:** open findings, failing assets, stale evidence, resolved-this-week; queue or severity board; finding title, asset, type, severity, age; selected finding with why-it-matters, evidence links, affected asset and triage/assign actions.
+
+**Queue scope:** Review projects one finding per check that is failing on a published component's current release or open draft. The newest observation wins, so a later pass clears the finding. Passing, unmeasured, skipped, corpus and superseded-version evidence remain in Coverage; they are not review work. A refresh prunes open findings the projector no longer implies, while human decisions and their reasons survive.
 
 **States:** default, empty, loading, request error, stale queue, permission-denied for writes.
 

@@ -448,7 +448,17 @@
   overflow-y: auto;
 }
 
-.wb-view.is-workspace-studio {
+/* AppShell's fill mode sets `overflow: hidden` on the main pane with three
+ * attribute selectors. That is correct for the workspace studio (which owns
+ * its own panes) but it silently disabled page scrolling everywhere else:
+ * `.wb-view`'s single class could not win the specificity contest. Match the
+ * host selector so ordinary pages scroll again, and keep the studio clip. */
+.wb-root [data-rcl-app-shell][data-main-mode="fill"] .wb-view {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.wb-root [data-rcl-app-shell][data-main-mode="fill"] .wb-view.is-workspace-studio {
   overflow: hidden;
 }
 

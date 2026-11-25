@@ -19,7 +19,8 @@ export const queryKeys = {
     mode?: ViewMode,
     any?: boolean,
     repoId?: string | null
-  ) => ["repo", "diff", repoId ?? "default", path, staged, untracked, commit, mode, any] as const,
+  ) => [...queryKeys.diffFamily(repoId), path, staged, untracked, commit, mode, any] as const,
+  diffFamily: (repoId?: string | null) => ["repo", "diff", repoId ?? "default"] as const,
   approvedChanges: (repoId?: string | null) =>
     ["repo", "approved-changes", repoId ?? "default"] as const,
   provenance: (repoId?: string | null) =>

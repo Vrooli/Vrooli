@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Info } from "lucide-react";
 import { ReviewFindingDetail } from "./ReviewFindingDetail";
+import { ReviewHelpDialog } from "./ReviewHelpDialog";
 import { ReviewQueuePanel } from "./ReviewQueuePanel";
 
 import {
@@ -46,10 +48,14 @@ export function ReviewPage() {
   const [message, setMessage] = useState<string | null>(null);
 
   const [severity, setSeverity] = useState<FindingSeverity>(FindingSeverity.UNSPECIFIED);
-  const [status, setStatus] = useState<FindingStatus>(FindingStatus.UNSPECIFIED);
+  // The open queue is the job of this page. Triaged history stays available
+  // through the status filter, but it no longer competes with current work.
+  const [status, setStatus] = useState<FindingStatus>(FindingStatus.OPEN);
   const [searchText, setSearchText] = useState("");
   const [query, setQuery] = useState("");
   const [offset, setOffset] = useState(0);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const detailRef = useRef<HTMLDivElement>(null);
 
   // Debounce the free-text filter without delaying the page reset: changing a
   // filter returns to page 1 immediately, then the request follows the typing.
@@ -83,6 +89,16 @@ export function ReviewPage() {
     setReason("");
     setMessage(null);
   }, [selectedKey]);
+
+  // At the single-column breakpoint the detail panel sits below the queue, so
+  // a click otherwise looks like nothing happened. Only react to an explicit
+  // selection; loading the first page must not jump the viewport.
+  useEffect(() => {
+    if (!selectedId) return;
+    if (typeof window === "undefined") return;
+    if (!window.matchMedia("(max-width: 980px)").matches) return;
+    detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [selectedId]);
 
   const refresh = async () => {
     await Promise.all([
@@ -145,6 +161,8 @@ export function ReviewPage() {
   const rangeEnd = offset + rows.length;
   const canGoBack = offset > 0;
   const canGoForward = offset + rows.length < total;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageNumber = Math.min(pageCount, Math.floor(offset / PAGE_SIZE) + 1);
 
   return (
     <div className="wb-page" data-testid="review-page">
@@ -153,13 +171,24 @@ export function ReviewPage() {
           <p className="wb-kicker">
             {t("workbench.review.kicker", { defaultValue: "Library · Review" })}
           </p>
-          <h1 className="wb-h1">
-            {t("workbench.review.title", { defaultValue: "What needs a person" })}
-          </h1>
+          <div className="wb-review-title-row">
+            <h1 className="wb-h1">
+              {t("workbench.review.title", { defaultValue: "What needs a person" })}
+            </h1>
+            <button
+              type="button"
+              className="wb-iconbtn wb-review-help-trigger"
+              onClick={() => setHelpOpen(true)}
+              aria-label={t("workbench.review.helpOpen", { defaultValue: "About Review" })}
+              title={t("workbench.review.helpOpen", { defaultValue: "About Review" })}
+            >
+              <Info aria-hidden size={16} />
+            </button>
+          </div>
           <p className="wb-lede">
             {t("workbench.review.lede", {
               defaultValue:
-                "Server-owned findings with durable decisions. A finding is real evidence, not a browser reconstruction.",
+                "Checks that are failing right now on a current component version, with the decision each one needs.",
             })}
           </p>
         </div>
@@ -168,7 +197,7 @@ export function ReviewPage() {
             {counts?.open ?? "—"}
           </span>
           <span className="wb-muted wb-small">
-            {t("workbench.review.open", { defaultValue: "open findings" })}
+            {t("workbench.review.currentFailures", { defaultValue: "current failures" })}
           </span>
         </div>
       </div>
@@ -211,6 +240,8 @@ export function ReviewPage() {
           total={total}
           rangeStart={rangeStart}
           rangeEnd={rangeEnd}
+          pageNumber={pageNumber}
+          pageCount={pageCount}
           canGoBack={canGoBack}
           canGoForward={canGoForward}
           severity={severity}
@@ -224,26 +255,30 @@ export function ReviewPage() {
           setOffset={setOffset}
         />
         {selected ? (
-          <ReviewFindingDetail
-            selected={selected}
-            copied={copied}
-            copyEvidence={copyEvidence}
-            decision={decision}
-            setDecision={setDecision}
-            owner={owner}
-            setOwner={setOwner}
-            assignmentPending={assignment.isPending}
-            onAssign={() => assignment.mutate()}
-            reason={reason}
-            setReason={setReason}
-            actor={actor}
-            setActor={setActor}
-            dispositionPending={disposition.isPending}
-            onRecord={() => disposition.mutate()}
-            message={message}
-          />
+          <div ref={detailRef} className="wb-review-detail">
+            <ReviewFindingDetail
+              selected={selected}
+              copied={copied}
+              copyEvidence={copyEvidence}
+              decision={decision}
+              setDecision={setDecision}
+              owner={owner}
+              setOwner={setOwner}
+              assignmentPending={assignment.isPending}
+              onAssign={() => assignment.mutate()}
+              reason={reason}
+              setReason={setReason}
+              actor={actor}
+              setActor={setActor}
+              dispositionPending={disposition.isPending}
+              onRecord={() => disposition.mutate()}
+              message={message}
+            />
+          </div>
         ) : null}
       </div>
+
+      <ReviewHelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }

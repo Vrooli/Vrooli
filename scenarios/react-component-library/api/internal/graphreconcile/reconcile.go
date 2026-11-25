@@ -6,6 +6,7 @@ package graphreconcile
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -15,11 +16,9 @@ import (
 	"strings"
 	"time"
 
-	"connectrpc.com/connect"
-	"github.com/vrooli/api-core/discovery"
+	apicodefacts "github.com/vrooli/api-core/codefacts"
 	"github.com/vrooli/api-core/factgraph"
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
-	factsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts/facts_v1connect"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"github.com/vrooli/vrooli/packages/react-component-library/libspec"
 )
@@ -408,21 +407,19 @@ func extractImports(parent context.Context, repoRoot string, sourceImpls, allImp
 		return nil, false, "", err
 	}
 	defer func() { _ = rootedRemoveAll(uiDir, project) }()
-	resolver := discovery.NewResolver(discovery.ResolverConfig{})
-	baseURL, err := resolver.ResolveScenarioURLDefault(ctx, "code-facts")
-	if err != nil {
-		return map[string][]string{}, false, "code-facts could not provide an import graph: scenario discovery failed: " + err.Error(), nil
-	}
-	client := factsconnect.NewCodeFactsServiceClient(&http.Client{Timeout: 90 * time.Second}, baseURL)
-	response, err := client.DescribeCodeFacts(ctx, connect.NewRequest(&factsv1.DescribeCodeFactsRequest{
+	report, err := (apicodefacts.Client{HTTPClient: &http.Client{Timeout: 90 * time.Second}}).Describe(ctx, &factsv1.DescribeCodeFactsRequest{
 		Target:        &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PATH, Path: project},
 		Include:       []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS},
 		IncludeGraphs: true,
-	}))
+	})
 	if err != nil {
+		var resolutionError *apicodefacts.ResolutionError
+		if errors.As(err, &resolutionError) {
+			return map[string][]string{}, false, "code-facts could not provide an import graph: scenario discovery failed: " + err.Error(), nil
+		}
 		return map[string][]string{}, false, extractionCause(err, ""), nil
 	}
-	if len(response.Msg.GetGraphs()) == 0 {
+	if len(report.GetGraphs()) == 0 {
 		return map[string][]string{}, false, "code-facts returned no language graphs", nil
 	}
 	// Extractor paths are relative to the generated project directory, so they
@@ -443,7 +440,7 @@ func extractImports(parent context.Context, repoRoot string, sourceImpls, allImp
 		}
 		return ""
 	}
-	imports := importEdgesByAsset(response.Msg, assetForPath)
+	imports := importEdgesByAsset(report, assetForPath)
 	// The graph service may represent package-resolved imports as external
 	// nodes because the generated project contains library sources while the
 	// package export target lives outside that project. Preserve the graph

@@ -42,7 +42,8 @@ import { ContextMenu, type ContextMenuItem } from "@vrooli/react-component-libra
 import { SwipeActions, type SwipeAction } from "@vrooli/react-component-library/SwipeActions";
 import { ChangeMetricsModal } from "./ChangeMetricsModal";
 import { getFileStats, filterFileStats, filterCategoryStats } from "../lib/metrics";
-import { useDiffStats } from "../lib/hooks";
+import { useApprovedChanges, useDiffStats, useProvenance } from "../lib/hooks";
+import { buildRunIndex } from "../lib/runAttribution";
 import { MobileContext, type FileCategory, type FileListProps, summarizeFileStats, summarizeGroupFileStats, LineStats, ChangeStatsRibbon } from "./FileListTypes";
 import { VirtualizedFileSections, type ChangeListSection, type ChangeListBlock } from "./FileSection";
 import { groupKindLabel } from "../lib/groupKinds";
@@ -104,12 +105,22 @@ function FileListImpl({
   onExitSelectionMode,
   onMobileSelectFile,
   fileHotspots,
-  runIndex,
+  runIndex: providedRunIndex,
   loading = false,
   loadError,
   onRetryLoad,
 }: FileListProps) {
   const isMobile = useIsMobile();
+  // Attribution data belongs to the Changes surface that consumes it. Keeping
+  // these polling queries here prevents their refreshes from rerendering App
+  // and every unrelated pane.
+  const approvedChangesQuery = useApprovedChanges(repoId, !collapsed && !providedRunIndex);
+  const provenanceQuery = useProvenance(repoId, !collapsed && !providedRunIndex);
+  const derivedRunIndex = useMemo(
+    () => buildRunIndex(approvedChangesQuery.data?.files ?? [], provenanceQuery.data?.runGroups ?? []),
+    [approvedChangesQuery.data?.files, provenanceQuery.data?.runGroups],
+  );
+  const runIndex = providedRunIndex ?? derivedRunIndex;
   const hasStaged = (files?.staged?.length ?? 0) > 0;
   const hasUnstaged =
     (files?.unstaged?.length ?? 0) > 0 || (files?.untracked?.length ?? 0) > 0;
@@ -219,6 +230,22 @@ function FileListImpl({
   const [listFilter, setListFilter] = useState<"all" | "agents" | "staged" | "conflicts">("all");
   const openRun = onOpenRun ?? setOpenRunId;
   const attributionEntries = useMemo(() => runIndex ? Array.from(runIndex.entries()) : [], [runIndex]);
+  const runFilesById = useMemo(() => {
+    const byRun = new Map<string, {
+      paths: string[];
+      attribution: (typeof attributionEntries)[number][1];
+    }>();
+    for (const [path, attribution] of attributionEntries) {
+      const run = byRun.get(attribution.runId);
+      if (run) {
+        run.paths.push(path);
+      } else {
+        byRun.set(attribution.runId, { paths: [path], attribution });
+      }
+    }
+    return byRun;
+  }, [attributionEntries]);
+  const stagedPathSet = useMemo(() => new Set(files?.staged ?? []), [files?.staged]);
   const runStats = useMemo(() => ({
     ...(fileStats?.untracked ?? {}),
     ...(fileStats?.unstaged ?? {}),
@@ -238,6 +265,7 @@ function FileListImpl({
       isConflict,
     };
   }, [mobileActionFile, files]);
+  const openRunFiles = openRunId ? runFilesById.get(openRunId) : undefined;
 
   // Context menu state for right-click file actions.
   const [contextMenu, setContextMenu] = useState<{
@@ -545,14 +573,24 @@ function FileListImpl({
       ["unstaged", filterPaths("unstaged", files?.unstaged)],
       ["untracked", filterPaths("untracked", files?.untracked)],
     ];
-    const categoryPaths = categories.map(([category, paths]) => [category, new Set(paths)] as const);
+    // A single membership lookup per group path avoids probing every category
+    // set for every file. A bit mask preserves overlapping categories without
+    // allocating a small membership array for each path.
+    const categoryMaskByPath = new Map<string, number>();
+    for (const [categoryIndex, [category, paths]] of categories.entries()) {
+      const bit = 1 << categoryIndex;
+      for (const path of paths) {
+        categoryMaskByPath.set(path, (categoryMaskByPath.get(path) ?? 0) | bit);
+      }
+    }
     const visibleGroups = (resolvedGroups ?? []).map((group) => {
       const groupedFiles: Record<FileCategory, string[]> = {
         conflicts: [], staged: [], unstaged: [], untracked: [],
       };
       for (const path of group.files) {
-        for (const [category, paths] of categoryPaths) {
-          if (paths.has(path)) groupedFiles[category].push(path);
+        const mask = categoryMaskByPath.get(path) ?? 0;
+        for (const [categoryIndex, [category]] of categories.entries()) {
+          if (mask & (1 << categoryIndex)) groupedFiles[category].push(path);
         }
       }
       return {
@@ -921,11 +959,12 @@ function FileListImpl({
           ...(directFiles[category] ?? []),
           ...[...folders.values()].flatMap((folderFiles) => folderFiles[category]),
         ]);
-        const stageable = allScopedPaths.filter((path) =>
-          (files?.unstaged ?? []).includes(path) ||
-          (files?.untracked ?? []).includes(path) ||
-          (files?.conflicts ?? []).includes(path),
-        );
+        const stageablePathSet = new Set([
+          ...group.files.unstaged,
+          ...group.files.untracked,
+          ...group.files.conflicts,
+        ]);
+        const stageable = allScopedPaths.filter((path) => stageablePathSet.has(path));
         const segments = groupDrillIn.directory.split("/").filter(Boolean);
         const breadcrumbRows: ChangeListBlock[] = [{
           type: "header",
@@ -1516,14 +1555,13 @@ function FileListImpl({
        {openRunId && (
          <RunSheet
            runId={openRunId}
-           files={attributionEntries.filter(([, value]) => value.runId === openRunId).map(([path]) => path)}
-           attribution={attributionEntries.map(([, value]) => value).find((value) => value.runId === openRunId)}
+           files={openRunFiles?.paths ?? []}
+           attribution={openRunFiles?.attribution}
            stats={runStats}
            onClose={() => setOpenRunId(null)}
            onSelectAll={() => {
-             for (const [path, attribution] of attributionEntries) {
-               if (attribution.runId !== openRunId) continue;
-               const staged = files?.staged?.includes(path) ?? false;
+             for (const path of openRunFiles?.paths ?? []) {
+               const staged = stagedPathSet.has(path);
                onSelectFile(path, staged, { metaKey: false, ctrlKey: false, shiftKey: false } as React.MouseEvent<HTMLLIElement>);
              }
              setOpenRunId(null);
