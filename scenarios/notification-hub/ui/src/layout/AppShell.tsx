@@ -7,8 +7,11 @@ import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { useDeskLayout } from "../hooks/useDeskLayout";
 import { useNeedsYou } from "../features/asks/useNeedsYou";
 import { NAV_ITEMS, iconForItem, isCurrent } from "./navItems";
+import { MoonMark } from "./MoonMark";
+import { RailSources } from "./RailSources";
 import { NavSectionContext, type NavKey } from "./navSection";
 import { SidebarAccount } from "./SidebarAccount";
 import { useSessionExpiryBoundary } from "../features/session/useSession";
@@ -53,14 +56,24 @@ export function AppShell() {
     return () => window.removeEventListener(ROUTED_TEST_LEASE_EXPIRED_EVENT, expired);
   }, []);
   const wide = useMediaQuery("(min-width: 48rem)");
+  const desk = useDeskLayout();
   const needsYou = useNeedsYou();
-  const brandMark = <img src="/public/icon-192.png" alt="" aria-hidden="true" width={32} height={32} className="h-8 w-8 shrink-0 rounded-lg" />;
+  const brandMark = (
+    <span data-testid={selectors.app.title} className="flex min-w-0 items-center gap-2.5">
+      <MoonMark />
+      <span className="min-w-0">
+        <span className="block truncate text-[13px] font-semibold leading-tight tracking-[-0.01em]">{t(strings.app.title)}</span>
+        <span className="mt-0.5 hidden font-mono text-[9px] font-semibold uppercase tracking-[0.17em] text-app-muted-foreground md:block">{t(strings.layout.brandSub)}</span>
+      </span>
+    </span>
+  );
   return (
     <LibraryAppShell
-      className={matchPath("/asks/:askId", pathname) ? "conversation-shell" : undefined}
+      className={matchPath("/asks/:askId", pathname) || matchPath("/focus", pathname) ? "conversation-shell" : undefined}
       density="sidebar"
       mobileNav="tabs"
-      brand={<span data-testid={selectors.app.title} className="flex items-center gap-2">{brandMark}{t(strings.app.title)}</span>}
+      mainMode={desk && matchPath("/asks", pathname) ? "fill" : "scroll"}
+      brand={<span>{brandMark}</span>}
       brandHref={preserveRoutedTestMode("/", search)}
       items={NAV_ITEMS.map(item => ({
         id: item.key,
@@ -77,7 +90,14 @@ export function AppShell() {
           }
           : undefined,
       }))}
-      utility={wide ? <SidebarAccount /> : undefined}
+      utility={wide ? (
+        <>
+          <RailSources senders={needsYou.senders} total={needsYou.total} />
+          <div className="mt-auto border-t border-app-border pt-2">
+            <SidebarAccount />
+          </div>
+        </>
+      ) : undefined}
       onNavigate={item => {
         navigate(preserveRoutedTestMode(item.href, search));
         const focusMain = () => {

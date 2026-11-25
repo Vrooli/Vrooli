@@ -73,6 +73,10 @@
       "testId": "page-ask",
       "selector": "[data-testid=\"page-ask\"]"
     },
+    "pages.focus": {
+      "testId": "page-focus",
+      "selector": "[data-testid=\"page-focus\"]"
+    },
     "pages.history": {
       "testId": "page-history",
       "selector": "[data-testid=\"page-history\"]"
@@ -172,6 +176,26 @@
     "asks.group": {
       "testId": "asks-group",
       "selector": "[data-testid=\"asks-group\"]"
+    },
+    "asks.desk.page": {
+      "testId": "asks-desk",
+      "selector": "[data-testid=\"asks-desk\"]"
+    },
+    "asks.desk.list": {
+      "testId": "asks-desk-list",
+      "selector": "[data-testid=\"asks-desk-list\"]"
+    },
+    "asks.desk.row": {
+      "testId": "asks-desk-row",
+      "selector": "[data-testid=\"asks-desk-row\"]"
+    },
+    "asks.desk.detail": {
+      "testId": "asks-desk-detail",
+      "selector": "[data-testid=\"asks-desk-detail\"]"
+    },
+    "asks.desk.title": {
+      "testId": "asks-desk-title",
+      "selector": "[data-testid=\"asks-desk-title\"]"
     },
     "packet.explainer": {
       "testId": "packet-explainer",
@@ -886,7 +910,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "3ec3c9838278fa31a4c7b468f3121b5d00a1d188e8aa63447c8569d44a97a293",
-    "ui/src/consts/selectors.ts": "b811984d6413a9f530db0621055679f10d480acd44ca2238e7178f291061fe4b",
+    "ui/src/consts/selectors.ts": "a6cf72118472678b94acb9288af6fdfbaac150420e0ecf5c83d9056229c90b21",
     "ui/src/i18n/locales.ts": "430c8b1ad7ee0af32e8cd71ffbf6c6d4d83e6bc67242377a4755d6e6a8254cdb"
   }
 }

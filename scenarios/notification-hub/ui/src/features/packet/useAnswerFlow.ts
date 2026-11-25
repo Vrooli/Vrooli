@@ -96,6 +96,16 @@ export function useAnswerFlow({ ask, subject, attemptSubject, draft }: { ask: As
   });
   const busy = answer.isPending || dismissMutation.isPending;
 
+  const submitWith = (next: PacketDraft) => {
+    if (!subject || attempt || busy || blockerFor(ask, next)) return;
+    setOutcome(null);
+    const payload = buildAnswer(ask, next);
+    const saved = { ...payload, subject };
+    setAttempt(saved);
+    writeAskAttempt(subject, ask.id, saved);
+    answer.mutate(payload);
+  };
+
   return {
     attempt,
     outcome,
@@ -108,15 +118,9 @@ export function useAnswerFlow({ ask, subject, attemptSubject, draft }: { ask: As
     dismissing: dismissMutation.isPending,
     checking: readback.isPending,
     busy,
-    submit: () => {
-      if (!subject || attempt || busy || blockerFor(ask, draft)) return;
-      setOutcome(null);
-      const payload = buildAnswer(ask, draft);
-      const saved = { ...payload, subject };
-      setAttempt(saved);
-      writeAskAttempt(subject, ask.id, saved);
-      answer.mutate(payload);
-    },
+    submit: () => submitWith(draft),
+    /** Send a draft another screen has already formed (focus review's "accept"). */
+    submitDraft: (next: PacketDraft) => submitWith(next),
     dismiss: () => {
       if (busy) return;
       setDismissAttempt(true);

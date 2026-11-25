@@ -9,17 +9,14 @@ export function ListGroup({ className, ...props }: ComponentProps<"ul">) {
   return <ul className={cn("divide-y divide-app-border overflow-hidden rounded-panel border border-app-border bg-app-surface", className)} {...props} />;
 }
 
-/** The urgency of a row, drawn as a bar on its leading edge. Normal rows carry none. */
+/**
+ * The urgency of a row. Night Signal carries it as text and tone on the row,
+ * never as a coloured bar on the leading edge.
+ */
 export type RowTone = "normal" | "attention" | "critical";
 
-const TONE_BAR: Record<RowTone, string> = {
-  normal: "",
-  attention: "before:absolute before:inset-y-0 before:start-0 before:w-1 before:bg-app-warning",
-  critical: "before:absolute before:inset-y-0 before:start-0 before:w-1 before:bg-app-danger",
-};
-
 export function ListItem({ tone = "normal", className, ...props }: ComponentProps<"li"> & { tone?: RowTone }) {
-  return <li data-tone={tone} className={cn("relative", TONE_BAR[tone], className)} {...props} />;
+  return <li data-tone={tone} className={cn("relative", className)} {...props} />;
 }
 
 export interface ListRowProps extends Omit<ComponentProps<typeof Link>, "children"> {

@@ -311,5 +311,52 @@
     "dataInvalid": "The template data is invalid.",
     "slotCount": "The template has an invalid data slot.",
     "tooLarge": "The rendered template exceeds the Hub page size limit."
+  },
+  "readiness": {
+    "title": "الجاهزية",
+    "findings": "الملاحظات",
+    "none": "لا ملاحظات على الجاهزية.",
+    "owner": "المسؤول: {{owner}}",
+    "field": "الحقل: {{field}}",
+    "severity": {
+      "blocker": "مانع",
+      "warning": "تحذير",
+      "advisory": "إرشادي"
+    },
+    "unavailable": "التقرير غير مضمّن في هذا العرض."
+  },
+  "related": {
+    "title": "ذات صلة",
+    "note": "اقتراحات؛ لا تدمج القرارات أبدًا.",
+    "basis": {
+      "family": "السبب نفسه",
+      "subject": "الموضوع نفسه",
+      "lexical": "صياغة مشابهة {{score}}",
+      "semantic": "قريب دلاليًا {{score}}",
+      "other": "قرار ذو صلة"
+    }
+  },
+  "followthrough": {
+    "title": "بعد إجابتك",
+    "state": {
+      "queued": "في الانتظار",
+      "running": "قيد التنفيذ",
+      "done": "تم",
+      "stalled": "متوقف",
+      "failed": "فشل"
+    },
+    "owner": "المسؤول: {{owner}}",
+    "boundSeconds": "الحد {{count}} ث",
+    "boundMinutes": "الحد {{count}} د",
+    "boundMinutesSeconds": "الحد {{minutes}} د {{seconds}} ث",
+    "finished": "انتهى",
+    "result": "فتح النتيجة",
+    "absent": "لم يبلّغ أي مسؤول عن نتيجة.",
+    "since": "منذ"
+  },
+  "impact": {
+    "unblocks": "يفتح: {{value}}",
+    "cost": "تكلفة الانتظار: {{value}}",
+    "title": "ما ينتظر هذا القرار"
   }
 }

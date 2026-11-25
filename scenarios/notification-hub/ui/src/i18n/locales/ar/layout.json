@@ -9,7 +9,13 @@
   },
   "needsYouBadge": "{{count}} في الانتظار",
   "needsYouBadge_one": "واحد في الانتظار",
+  "brandSub": "مكتب الليل",
   "account": {
     "signedOut": "غير مسجّل الدخول"
+  },
+  "sources": {
+    "title": "حسب المصدر",
+    "label": "تصفية حسب المصدر",
+    "all": "الكل {{count}}"
   }
 }

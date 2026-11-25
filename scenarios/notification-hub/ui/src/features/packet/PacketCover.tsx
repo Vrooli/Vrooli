@@ -11,6 +11,7 @@ import { formatDueIn, formatExact } from "../../lib/ago";
 import { Chip } from "./Chip";
 import { DecisionText } from "./DecisionText";
 import { isLocalFileReference, type TextLinks } from "./decisionLinks";
+import { FollowthroughBanner, PacketEvidence } from "./PacketEvidence";
 import { Recommendation } from "./Recommendation";
 import { findAttachmentByPath, type AttachmentTarget } from "./viewer/attachments";
 
@@ -75,6 +76,7 @@ export function PacketCover({ ask, links, onOpenAttachment, outcome, afterQuesti
         </div>
         {ask.title && ask.title !== ask.question && <p dir="auto" data-testid={selectors.asks.question} className="line-clamp-2 break-words text-sm leading-relaxed text-app-muted-foreground md:text-base"><DecisionText value={ask.question} inheritText dense links={links} /></p>}
         {outcome}
+        <FollowthroughBanner ask={ask} />
         {attachedContext && (
           <button type="button" onClick={() => onOpenAttachment(attachedContext)} className="inline-flex min-h-11 items-center self-start text-sm underline">
             {t(strings.packet.cover.more)}
@@ -99,6 +101,7 @@ export function PacketCover({ ask, links, onOpenAttachment, outcome, afterQuesti
         </details>
       )}
       <Recommendation ask={ask} links={links} />
+      <PacketEvidence ask={ask} />
       {ask.technicalDetails && (
         <details className="rounded-panel border border-app-border bg-app-surface px-3 open:pb-3">
           <summary className="min-h-11 cursor-pointer py-2.5 font-medium">{t(strings.packet.cover.technicalDetails)}</summary>

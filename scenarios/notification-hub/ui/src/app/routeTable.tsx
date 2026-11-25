@@ -5,6 +5,7 @@ import { RouteError } from "./RouteError";
 import { DashboardPage } from "../pages/DashboardPage";
 import { PacketPage } from "../features/packet/PacketPage";
 import { AsksPage } from "../features/asks/AsksPage";
+import { FocusPage } from "../features/asks/FocusPage";
 import { HistoryPage } from "../features/asks/HistoryPage";
 import { DeliveryPage } from "../pages/DeliveryPage";
 import { DeliveryDetailPage } from "../pages/DeliveryDetailPage";
@@ -29,6 +30,7 @@ export const routes: RouteObject[] = [
       { path: "updates", element: <DashboardPage /> },
       { path: "asks", element: <AsksPage /> },
       { path: "asks/:askId", element: <PacketPage /> },
+      { path: "focus", element: <FocusPage /> },
       { path: "history", element: <HistoryPage /> },
       { path: "delivery", element: <DeliveryPage /> },
       { path: "delivery/:notificationId", element: <DeliveryDetailPage /> },

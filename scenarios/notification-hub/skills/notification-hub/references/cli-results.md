@@ -538,7 +538,10 @@ $ notification-hub conversations get --subject-key old-volume --json
       "dates": [
         "<time>"
       ]
-    }
+    },
+    "quality_grade": "needs_work",
+    "quality_report": "{\"grade\":\"needs_work\",\"score\":82,\"findings\":[{\"code\":\"explainer_missing\",\"severity\":\"advice\",\"field\":\"attachments\",\"owner\":\"page\",\"message\":\"no page of its own: the operator gets the Hub's plain page, which only repeats your question and options. Make a real one from a starter (ls \\\"$VROOLI_ROOT/scenarios/notification-hub/skills/notification-hub/examples/\\\") that shows the situation and what happens on approval, and send it with --explainer page.html; it replaces the Hub's page (skill section \\\"Make the page\\\")\"},{\"code\":\"no_recommendation\",\"severity\":\"advice\",\"field\":\"recommended\",\"owner\":\"producer\",\"message\":\"Say what you would do. A recommendation is the producer's judgment, not a decision for the operator.\"},{\"code\":\"packet_missing\",\"severity\":\"advice\",\"field\":\"packet\",\"owner\":\"producer\",\"message\":\"no packet: write the brief a worker needs to carry out each answer (work/\\u003cID\\u003e/BRIEF.md, see docs/agent-system/LEVELS.md) and send it with --packet \\u003cpath\\u003e, so whoever gets the answer starts the work without re-deriving it\"}],\"basis\":[\"caller\",\"cover\"]}",
+    "quality_summary": "no page of its own: the operator gets the Hub's plain page, which only repeats your question and options. Make a real one from a starter (ls \"$VROOLI_ROOT/scenarios/notification…"
   }
 }
 ```
@@ -772,7 +775,10 @@ $ notification-hub conversations get --subject-key release-check --json
       "dates": [
         "<time>"
       ]
-    }
+    },
+    "quality_grade": "needs_work",
+    "quality_report": "{\"grade\":\"needs_work\",\"score\":88,\"findings\":[{\"code\":\"explainer_missing\",\"severity\":\"advice\",\"field\":\"attachments\",\"owner\":\"page\",\"message\":\"no page of its own: the operator gets the Hub's plain page, which only repeats your question and options. Make a real one from a starter (ls \\\"$VROOLI_ROOT/scenarios/notification-hub/skills/notification-hub/examples/\\\") that shows the situation and what happens on approval, and send it with --explainer page.html; it replaces the Hub's page (skill section \\\"Make the page\\\")\"},{\"code\":\"no_recommendation\",\"severity\":\"advice\",\"field\":\"recommended\",\"owner\":\"producer\",\"message\":\"Say what you would do. A recommendation is the producer's judgment, not a decision for the operator.\"}],\"basis\":[\"caller\",\"cover\"]}",
+    "quality_summary": "no page of its own: the operator gets the Hub's plain page, which only repeats your question and options. Make a real one from a starter (ls \"$VROOLI_ROOT/scenarios/notification…"
   }
 }
 ```

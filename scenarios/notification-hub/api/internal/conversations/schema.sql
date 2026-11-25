@@ -70,7 +70,41 @@ CREATE TABLE IF NOT EXISTS asks (
   template_data_json TEXT NOT NULL DEFAULT '',
   decision_family TEXT NOT NULL DEFAULT '',
   decision_cause TEXT NOT NULL DEFAULT '',
-  decision_kind TEXT NOT NULL DEFAULT ''
+  decision_kind TEXT NOT NULL DEFAULT '',
+  -- Readiness as the operator would receive it: ready, needs_work, refused,
+  -- or '' when never assessed. Never used to hide an ask, only to grade it.
+  quality_grade TEXT NOT NULL DEFAULT '',
+  quality_report TEXT NOT NULL DEFAULT '',
+  -- Producer-supplied impact: what starts once answered, and what degrades
+  -- while it waits. Both are plain phrases, '' when not supplied.
+  unblocks TEXT NOT NULL DEFAULT '',
+  cost_of_waiting TEXT NOT NULL DEFAULT ''
+);
+-- Optional semantic index over decisions. A row is a rebuildable cache: the
+-- ask and its text stay authoritative. model/dimensions guard a changed
+-- embedder, text_hash guards a changed question.
+CREATE TABLE IF NOT EXISTS ask_embeddings (
+  ask_id TEXT PRIMARY KEY REFERENCES asks(id) ON DELETE CASCADE,
+  model TEXT NOT NULL,
+  dimensions INTEGER NOT NULL,
+  text_hash TEXT NOT NULL,
+  vector BLOB NOT NULL,
+  created_at TEXT NOT NULL
+);
+-- What the owner reports about the run an answer started. A row exists only
+-- when an owner reported; its absence is the "no owner reported" state.
+CREATE TABLE IF NOT EXISTS ask_followthrough (
+  ask_id TEXT PRIMARY KEY REFERENCES asks(id) ON DELETE CASCADE,
+  state TEXT NOT NULL DEFAULT '',
+  owner TEXT NOT NULL DEFAULT '',
+  run_ref TEXT NOT NULL DEFAULT '',
+  started_at TEXT NOT NULL DEFAULT '',
+  finished_at TEXT NOT NULL DEFAULT '',
+  bound_seconds INTEGER NOT NULL DEFAULT 0,
+  result_url TEXT NOT NULL DEFAULT '',
+  summary TEXT NOT NULL DEFAULT '',
+  reported_at TEXT NOT NULL DEFAULT '',
+  updated_at TEXT NOT NULL DEFAULT ''
 );
 -- A recipient's explicit approval for one verified service to continue one
 -- existing direct ask. This is an audit fact, never inferred from its key.

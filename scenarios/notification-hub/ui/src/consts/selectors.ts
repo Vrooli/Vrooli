@@ -47,6 +47,7 @@ const literalSelectors = {
     settings: "page-settings",
     asks: "page-asks",
     ask: "page-ask",
+    focus: "page-focus",
     history: "page-history",
     delivery: "page-delivery",
     deliveryDetail: "page-delivery-detail",
@@ -78,6 +79,13 @@ const literalSelectors = {
     activeFilters: "asks-active-filters",
     senderChip: "asks-filter-sender",
     group: "asks-group",
+    desk: {
+      page: "asks-desk",
+      list: "asks-desk-list",
+      row: "asks-desk-row",
+      detail: "asks-desk-detail",
+      title: "asks-desk-title",
+    },
   },
   packet: {
     explainer: "packet-explainer",

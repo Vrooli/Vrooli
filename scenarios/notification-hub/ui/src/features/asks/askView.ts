@@ -6,6 +6,14 @@ import type {
 import { strings } from "../../consts/strings";
 
 /** The words for each urgency the Hub knows. The server sends the token; a screen shows this, never the raw value. */
+/** The operator work type the Hub names on an ask. Static references keep the copy in the catalog reachable. */
+export const DECISION_KIND_LABEL = {
+  judge: strings.asks.kind.judge,
+  approve: strings.asks.kind.approve,
+  review: strings.asks.kind.review,
+  do: strings.asks.kind.do,
+} as const;
+
 export const URGENCY_LABEL = {
   low: strings.asks.urgency.low,
   normal: strings.asks.urgency.normal,

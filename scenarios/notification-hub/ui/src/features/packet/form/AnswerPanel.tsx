@@ -28,6 +28,8 @@ export interface AnswerPanelProps {
   frozen: boolean;
   /** Show one step at a time (several questions on a phone). */
   paged: boolean;
+  /** Leave the actions to the caller (the focus review owns one bar). */
+  hideActions?: boolean;
   /** The decision is open: it can be dismissed or sent back for more context. */
   open: boolean;
   dismissing: boolean;
@@ -48,7 +50,7 @@ type Step = "answer" | { question: string } | "review";
  * sent. Only this panel's Send button answers.
  */
 export function AnswerPanel(props: AnswerPanelProps) {
-  const { ask, draft, onDraftChange, locked, frozen, paged, open, dismissing, onSubmit, onDismiss, onRequestContext, onOpenAttachment, onBackToCover } = props;
+  const { ask, draft, onDraftChange, locked, frozen, paged, hideActions = false, open, dismissing, onSubmit, onDismiss, onRequestContext, onOpenAttachment, onBackToCover } = props;
   const { t } = useTranslation();
   const [stepIndex, setStepIndex] = useState(0);
   const [imageUploading, setImageUploading] = useState(false);
@@ -115,7 +117,7 @@ export function AnswerPanel(props: AnswerPanelProps) {
           {answerImages}
           {secondary}
         </div>
-        {!frozen && <ActionBar primary={send} hint={blockedHint} disabled={locked || imageUploading} />}
+        {!frozen && !hideActions && <ActionBar primary={send} hint={blockedHint} disabled={locked || imageUploading} />}
       </>
     );
   }

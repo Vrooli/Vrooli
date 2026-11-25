@@ -111,6 +111,7 @@ func (h *handler) module() module.Module {
 		r.HandleFunc(linkedArtifactMetadataPath, h.linkedArtifactMetadata).Methods(http.MethodGet)
 		r.HandleFunc(linkedArtifactContentPath, h.serveLinkedArtifact).Methods(http.MethodGet, http.MethodHead)
 		r.HandleFunc("/api/v1/conversations/asks/{ask_id}/portfolio-continuity", h.attestPortfolioContinuity).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/conversations/asks/{ask_id}/followthrough", h.reportFollowthrough).Methods(http.MethodPost)
 	}, Endpoints: Endpoints}
 }
 
@@ -415,6 +416,65 @@ func (h *handler) attestPortfolioContinuity(w http.ResponseWriter, r *http.Reque
 	writePortfolioContinuity(w, ask)
 }
 
+// reportFollowthrough records what the owner's run did after the answer. It is
+// the only write in the aftermath path: the projection on the ask is read-only
+// and says "no owner reported" until this is called. The reporter must be the
+// owner the ask was addressed to; a scenario service reports through the same
+// owner on this host rather than gaining a second way to read asks.
+func (h *handler) reportFollowthrough(w http.ResponseWriter, r *http.Request) {
+	askID := mux.Vars(r)["ask_id"]
+	owner, err := identity.Subject(r.Context(), r.Header, h.verifier)
+	if err != nil {
+		http.Error(w, "verified owner identity required", http.StatusUnauthorized)
+		return
+	}
+	if _, err := h.service.GetAskForRecipient(r.Context(), askID, owner); err != nil {
+		http.Error(w, "decision not found", http.StatusNotFound)
+		return
+	}
+	var body struct {
+		State        string `json:"state"`
+		Owner        string `json:"owner"`
+		RunRef       string `json:"run_ref"`
+		StartedAt    string `json:"started_at"`
+		FinishedAt   string `json:"finished_at"`
+		BoundSeconds int    `json:"bound_seconds"`
+		ResultURL    string `json:"result_url"`
+		Summary      string `json:"summary"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&body); err != nil {
+		http.Error(w, "follow-through body must be JSON", http.StatusBadRequest)
+		return
+	}
+	reporter := strings.TrimSpace(body.Owner)
+	if reporter == "" {
+		reporter = owner
+	}
+	report, err := h.service.RecordFollowthrough(r.Context(), askID, hub.Followthrough{
+		State: body.State, Owner: reporter, RunRef: body.RunRef,
+		StartedAt: body.StartedAt, FinishedAt: body.FinishedAt, BoundSeconds: body.BoundSeconds,
+		ResultURL: body.ResultURL, Summary: body.Summary,
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, hub.ErrNotFound):
+			http.Error(w, "decision not found", http.StatusNotFound)
+		case errors.Is(err, hub.ErrInvalidArgument):
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		default:
+			http.Error(w, "follow-through could not be recorded", http.StatusInternalServerError)
+		}
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"ask_id": askID, "state": report.State, "owner": report.Owner, "run_ref": report.RunRef,
+		"started_at": report.StartedAt, "finished_at": report.FinishedAt, "bound_seconds": report.BoundSeconds,
+		"result_url": report.ResultURL, "summary": report.Summary, "reported_at": report.ReportedAt,
+	})
+}
+
 func writePortfolioContinuity(w http.ResponseWriter, ask hub.AskRecord) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -569,7 +629,11 @@ func (h *handler) ListAsks(ctx context.Context, req *connect.Request[v1.ListAsks
 	}
 	out := make([]*v1.Ask, 0, len(page.Asks))
 	for _, ask := range page.Asks {
-		out = append(out, h.toProto(ask))
+		item := h.toProto(ask)
+		// A list row carries the grade, never the whole report: the detail
+		// read is where the findings belong, and a page of 50 stays small.
+		item.QualityReport = ""
+		out = append(out, item)
 	}
 	return connect.NewResponse(&v1.ListAsksResponse{Asks: out, NextCursor: page.NextCursor, TotalAwaiting: int32(page.TotalAwaiting), Facets: askFacetsToProto(page.Facets), ClosingWindowSeconds: int32(page.ClosingWindow / time.Second)}), nil
 }
@@ -692,6 +756,9 @@ func (h *handler) toProto(ask hub.AskRecord) *v1.Ask {
 		Kind: ask.Kind, AnswerChanges: structValue(ask.AnswerChanges), AnswerImages: answerImagesToProto(ask.AnswerImages), AnswerAttachments: answerAttachmentsToProto(ask.AnswerAttachments),
 		TemplateName: ask.TemplateName, TemplateData: structValue(ask.TemplateData),
 		DecisionFamily: ask.DecisionFamily, DecisionCause: ask.DecisionCause, DecisionKind: ask.DecisionKind,
+		QualityGrade: ask.QualityGrade, QualityReport: ask.QualityReport, QualitySummary: ask.QualitySummary,
+		Related: relatedToProto(ask.Related), Followthrough: followthroughToProto(ask.Followthrough),
+		Unblocks: ask.Unblocks, CostOfWaiting: ask.CostOfWaiting,
 	}
 }
 

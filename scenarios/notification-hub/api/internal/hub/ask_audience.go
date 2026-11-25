@@ -100,6 +100,7 @@ func (s *Service) GetAskFor(ctx context.Context, id, recipient string, audience 
 	if !audience.Sees(ask) && !s.hasSourceAttestation(ctx, ask, audience) {
 		return AskRecord{}, ErrNotFound
 	}
+	s.decorateRead(ctx, &ask, audience)
 	return ask, nil
 }
 
@@ -129,6 +130,7 @@ func (s *Service) GetAskBySubjectKeyFor(ctx context.Context, subjectKey, recipie
 	if !audience.SeesByKey(ask) && !s.hasSourceAttestation(ctx, ask, audience) {
 		return AskRecord{}, ErrNotFound
 	}
+	s.decorateRead(ctx, &ask, audience)
 	return ask, nil
 }
 

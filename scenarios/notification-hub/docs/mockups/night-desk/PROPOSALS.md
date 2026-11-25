@@ -1,5 +1,13 @@
 # Proposals — what the desk needs, and how it lands
 
+> **Implementation status (24 Nov 2026).** Readiness (§3), relatedness (§2,
+> lexical + opt-in semantic), follow-through (§4) and the UI layer are built and
+> tested. Impact facts (§5) are on the contract and rendered but no producer
+> flag writes them. Readiness-aware counting (§3.4) is deliberately off until a
+> returned-decision surface exists. The page backfill (§8) needs the operator's
+> Agent Manager grant. The full record is
+> `docs/night-desk-implementation.md`.
+
 A field-by-field plan for the four “to add” rows in the case study, plus the
 contract work that makes the mockups honest. Written 24 November 2026 after
 reading the Hub's packet checker, the steward's page gate, the proto, and the

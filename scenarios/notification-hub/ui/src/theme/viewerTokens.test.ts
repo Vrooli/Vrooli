@@ -20,11 +20,13 @@ const channels = (hex: string): string => {
   return [r, g, b].map((part) => parseInt(part, 16)).join(" ");
 };
 
-const DARK_HEADERS = [':root[data-resolved-theme="dark"],\n:root[data-theme="dark"]', ':root:not([data-resolved-theme="light"]):not([data-theme="light"])'];
+const LIGHT_HEADERS = [':root[data-resolved-theme="light"],\n:root[data-theme="light"]', ':root:not([data-resolved-theme="dark"]):not([data-theme="dark"])'];
+const DARK_HEADER = ':root[data-resolved-theme="dark"],\n.dark';
 
 const THEMES = [
-  { name: "light", viewer: [":root"], palette: ":root", design: ":root", onAccent: "--color-primary-foreground" },
-  { name: "dark", viewer: DARK_HEADERS, palette: DARK_HEADERS[0] ?? "", design: ':root[data-resolved-theme="dark"],\n.dark', onAccent: "--color-background" },
+  { name: "light", viewer: LIGHT_HEADERS, palette: LIGHT_HEADERS[0] ?? "", design: ":root", onAccent: "--color-primary-foreground" },
+  // Dark is the default field: the base :root in tokens.css and viewerTokens.css.
+  { name: "dark", viewer: [":root"], palette: ":root", design: DARK_HEADER, onAccent: "--color-background" },
 ] as const;
 
 describe("viewer theme tokens", () => {

@@ -1,3 +1,4 @@
+@import "./theme/fonts.css";
 @import "./design-tokens.css";
 @import "./theme/tokens.css";
 @import "./theme/viewerTokens.css";
@@ -23,8 +24,58 @@ body {
   background: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-sans);
+  font-feature-settings: "cv05" 1, "cv08" 1, "ss03" 1, "tnum" 1, "kern" 1;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   margin: 0;
   padding: 0;
+}
+
+/* Night Signal: the rail is a deeper hull than the field, its labels are
+   subdued, and only the current destination is lifted. The shared shell's
+   inset accent bar is replaced by one calm raised surface. */
+[data-rcl-app-shell] [data-rcl-sidebar-shell] {
+  background: var(--color-hull);
+}
+
+[data-rcl-app-shell] [data-rcl-app-shell-link] {
+  font-size: 13px;
+  font-weight: 520;
+}
+
+[data-rcl-app-shell] [data-rcl-app-shell-link]:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-foreground);
+}
+
+[data-rcl-app-shell] [data-rcl-app-shell-link][aria-current="page"] {
+  background: var(--color-surface-muted);
+  color: var(--color-foreground);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--color-line-strong);
+}
+
+[data-rcl-app-shell] [data-rcl-app-shell-link][aria-current="page"] [data-rcl-app-shell-link-badge] {
+  background: var(--color-signal);
+  color: var(--color-signal-ink);
+}
+
+/* Put "By source" under the destinations, as the desk does, and keep the
+   signed-in line at the foot. The shared utility slot starts pinned to the
+   bottom; this scenario gives it the column so the two groups separate. */
+[data-rcl-app-shell] [data-rcl-app-shell-utility] {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  margin-block-start: 0;
+  border-block-start: 0;
+  padding-block-start: 0;
+}
+
+[data-rcl-app-shell] [data-rcl-app-shell-main] {
+  background:
+    radial-gradient(680px 320px at 82% -12%, color-mix(in srgb, var(--color-signal) 7%, transparent), transparent 68%),
+    var(--color-background);
 }
 
 /* The main pane's gutter, named once. A full-bleed block or a pinned bar cancels

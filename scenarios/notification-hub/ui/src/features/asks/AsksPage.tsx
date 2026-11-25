@@ -1,6 +1,12 @@
+import { useDeskLayout } from "../../hooks/useDeskLayout";
+import { DeskPage } from "./DeskPage";
 import { RequestList } from "./HistoryPage";
 
-/** The focused actionable queue shares complete search and pagination with History. */
+/**
+ * The queue: a decision room on a wide screen, the single-column queue below
+ * the desk width. History always keeps the list composition.
+ */
 export function AsksPage() {
-  return <RequestList queue />;
+  const desk = useDeskLayout();
+  return desk ? <DeskPage /> : <RequestList queue />;
 }

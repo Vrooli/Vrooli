@@ -320,7 +320,7 @@ function PacketBody({ ask, subject, attemptSubject, signedIn, rootRead = false, 
             <button type="button" className="min-h-11 min-w-0 flex-1 text-start text-sm" onClick={() => setDrawerOpen(true)}>
               {ask.options.find((option) => option.key === draft.answer)?.label || (draft.answer === "other" ? t(strings.packet.form.otherOption) : t(strings.packet.form.choose))}
             </button>
-            <Button type="button" variant="primary" disabled={flow.busy || blockerFor(ask, draft) !== null} onClick={flow.submit}>{t(strings.packet.statusBar.send)}</Button>
+            <Button type="button" variant="primary" disabled={flow.busy || blockerFor(ask, draft) !== null} onClick={() => flow.submit()}>{t(strings.packet.statusBar.send)}</Button>
             <PacketNavigationButton navigation={navigation} direction="next" />
           </div>
           <FullPageDrawer open={drawerOpen} onOpenChange={setDrawerOpen} title={t(strings.packet.form.stepDecision)} closeLabel={t(strings.packet.form.closeChoices)} contentPadding="comfortable">

@@ -16,7 +16,12 @@
   "row": {
     "dueIn": "الموعد النهائي {{when}}",
     "escalated": "تم التصعيد",
-    "closesIn": "ينتهي {{when}}"
+    "closesIn": "ينتهي {{when}}",
+    "readiness": {
+      "ready": "جاهز",
+      "needsWork": "يحتاج مراجعة",
+      "returned": "مُعاد"
+    }
   },
   "urgency": {
     "low": "منخفضة",
@@ -55,5 +60,58 @@
     "closing": "ينتهي خلال {{count}} ساعات",
     "closing_one": "ينتهي خلال ساعة واحدة",
     "closing_two": "ينتهي خلال ساعتين"
+  },
+  "focus": {
+    "progress": "{{current}} من {{total}}",
+    "accept": "قبول التوصية",
+    "send": "إرسال الإجابة",
+    "later": "الإجابة لاحقًا",
+    "openPacket": "فتح القرار كاملًا",
+    "next": "القرار التالي",
+    "doneTitle": "لا شيء في الانتظار.",
+    "doneDetail": "لكل قرار إجابة أو إجراء افتراضي.",
+    "start": "بدء المراجعة",
+    "title": "مراجعة مركّزة",
+    "pageAttached": "صفحة القرار مرفقة",
+    "context": "هذا القرار",
+    "source": "المصدر",
+    "age": "العمر",
+    "closes": "يُغلق",
+    "ifIgnored": "إذا تُرك",
+    "unknown": "غير مذكور",
+    "contextFailed": "تعذّر قراءة السياق الكامل."
+  },
+  "desk": {
+    "listLabel": "قائمة القرارات",
+    "detailLabel": "القرار المحدد",
+    "choose": "اختر قرارًا",
+    "chooseDetail": "اختر واحدًا من القائمة لعرضه هنا.",
+    "dueToday": "{{count}} مستحقة اليوم",
+    "dueToday_one": "واحدة مستحقة اليوم",
+    "permissions": "{{count}} أذونات",
+    "permissions_one": "إذن واحد",
+    "family": "سبب واحد، {{count}} قرارات",
+    "family_one": "سبب واحد، قرار واحد",
+    "familyHint": "أجب عن الكل",
+    "questions": "هذا القرار يطرح {{count}} أسئلة.",
+    "questions_one": "هذا القرار يطرح سؤالًا واحدًا.",
+    "answerQuestions": "أجب عن {{count}} أسئلة",
+    "answerQuestions_one": "أجب عن سؤال واحد",
+    "openFull": "فتح القرار كاملًا",
+    "files": "صفحة القرار · {{count}} ملفات",
+    "files_one": "صفحة القرار · ملف واحد",
+    "more": "تحميل قرارات أخرى",
+    "loadingMore": "جارٍ تحميل المزيد من القرارات…",
+    "detailError": "تعذّر قراءة هذا القرار.",
+    "detailGone": "هذا القرار لم يعد متاحًا.",
+    "needYou": "{{count}} بانتظارك",
+    "needYou_one": "واحد بانتظارك",
+    "ifIgnored": "إذا لم تفعل شيئًا:"
+  },
+  "kind": {
+    "judge": "حكم",
+    "approve": "موافقة",
+    "review": "مراجعة",
+    "do": "تنفيذ"
   }
 }

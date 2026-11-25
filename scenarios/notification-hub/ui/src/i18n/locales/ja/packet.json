@@ -305,5 +305,52 @@
     "dataInvalid": "The template data is invalid.",
     "slotCount": "The template has an invalid data slot.",
     "tooLarge": "The rendered template exceeds the Hub page size limit."
+  },
+  "readiness": {
+    "title": "準備状態",
+    "findings": "指摘",
+    "none": "準備状態の指摘はありません。",
+    "owner": "担当: {{owner}}",
+    "field": "項目: {{field}}",
+    "severity": {
+      "blocker": "ブロック",
+      "warning": "警告",
+      "advisory": "助言"
+    },
+    "unavailable": "この表示にはレポートが含まれていません。"
+  },
+  "related": {
+    "title": "関連",
+    "note": "提案であり、判断が統合されることはありません。",
+    "basis": {
+      "family": "同じ原因",
+      "subject": "同じ主題",
+      "lexical": "類似表現 {{score}}",
+      "semantic": "意味が近い {{score}}",
+      "other": "関連する判断"
+    }
+  },
+  "followthrough": {
+    "title": "回答後",
+    "state": {
+      "queued": "待機中",
+      "running": "実行中",
+      "done": "完了",
+      "stalled": "停止",
+      "failed": "失敗"
+    },
+    "owner": "担当: {{owner}}",
+    "boundSeconds": "上限 {{count}} 秒",
+    "boundMinutes": "上限 {{count}} 分",
+    "boundMinutesSeconds": "上限 {{minutes}} 分 {{seconds}} 秒",
+    "finished": "終了",
+    "result": "結果を開く",
+    "absent": "担当者からの結果報告はまだありません。",
+    "since": "開始"
+  },
+  "impact": {
+    "unblocks": "解除されるもの: {{value}}",
+    "cost": "待つコスト: {{value}}",
+    "title": "これが待っているもの"
   }
 }

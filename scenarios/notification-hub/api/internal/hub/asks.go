@@ -247,6 +247,13 @@ type AskRecord struct {
 	DecisionFamily           string
 	DecisionCause            string
 	DecisionKind             string
+	QualityGrade             string
+	QualityReport            string
+	QualitySummary           string
+	Unblocks                 string
+	CostOfWaiting            string
+	Related                  []RelatedAsk
+	Followthrough            *Followthrough
 	Kind                     string
 	TemplateName             string
 	TemplateData             map[string]any
@@ -726,6 +733,26 @@ func (s *Service) AskDecision(ctx context.Context, spec AskSpec, pushSource stri
 		result.Warnings = append(result.Warnings, findings...)
 	}
 	result.Warnings = append(warnings, result.Warnings...)
+	if err == nil && result.Ask.ID != "" && result.packet != nil {
+		// Readiness is stored with the ask so a list row can show a grade
+		// without re-running the packet check. A failure never fails a send.
+		grade, report, qerr := s.recordQuality(ctx, result.Ask.ID, *result.packet, result.Warnings)
+		if qerr == nil {
+			result.Ask.QualityGrade, result.Ask.QualityReport = grade, report
+		} else {
+			s.log.Printf("readiness: record ask %s: %v", result.Ask.ID, qerr)
+		}
+		if s.currentEmbedder() != nil {
+			// The vector is for the next reader. It is bounded tightly: a slow
+			// gateway must not add seconds to a send, and a miss only leaves
+			// this ask on the lexical leg.
+			embedCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			if eerr := s.embedAsk(embedCtx, result.Ask.ID); eerr != nil {
+				s.logSemantic(eerr)
+			}
+			cancel()
+		}
+	}
 	return result, err
 }
 
@@ -1033,7 +1060,7 @@ func sameCorrelation(a, b map[string]string) bool {
 
 const askSelect = `SELECT a.id, a.notification_id, a.question, a.allowed_answers, a.options_json, a.recommended, a.recommendation_reason, a.default_answer, a.reversible, a.urgency, a.context_url, a.big_picture, a.technical_details, a.source, a.source_event_type, a.requester_ref, a.correlation_json, a.deadline, a.state, a.reason, a.default_applied_at, a.resolved_at, a.created_at, a.updated_at,
   a.subject_key, a.last_asserted_at, a.reassert_within_seconds, a.revision_count, a.superseded_by_ask_id, a.current_event_id,
-  a.decision_family, a.decision_cause, a.decision_kind,
+  a.decision_family, a.decision_cause, a.decision_kind, a.quality_grade, a.quality_report, a.unblocks, a.cost_of_waiting,
   a.questions_json, a.accepts_context_requests, COALESCE(ans.responses_json, ''), COALESCE(ans.attachment_notes_json, ''),
   (SELECT COUNT(*) FROM ask_context_requests c WHERE c.ask_id = a.id AND c.addressed_at = ''),
   a.attachment_count, a.attachments_digest, a.created_by, a.created_conversation, a.created_subject, a.sender, a.packet,
@@ -1052,7 +1079,7 @@ func scanAsk(row rowScanner) (AskRecord, error) {
 	var reversible, late, acceptsContext int
 	err := row.Scan(&record.ID, &record.NotificationID, &record.Question, &allowedJSON, &optionsJSON, &record.Recommended, &record.RecommendationReason, &record.DefaultAnswer, &reversible, &record.Urgency, &record.ContextURL, &record.BigPicture, &record.TechnicalDetails, &record.Source, &record.SourceEventType, &record.RequesterRef, &correlationJSON, &record.Deadline, &record.State, &record.Reason, &record.DefaultAppliedAt, &record.ResolvedAt, &record.CreatedAt, &record.UpdatedAt,
 		&record.SubjectKey, &record.LastAssertedAt, &record.ReassertWithinSeconds, &record.RevisionCount, &record.SupersededByAskID, &record.CurrentEventID,
-		&record.DecisionFamily, &record.DecisionCause, &record.DecisionKind,
+		&record.DecisionFamily, &record.DecisionCause, &record.DecisionKind, &record.QualityGrade, &record.QualityReport, &record.Unblocks, &record.CostOfWaiting,
 		&questionsJSON, &acceptsContext, &responsesJSON, &notesJSON, &record.OpenContextRequestCount,
 		&record.AttachmentCount, &record.AttachmentsDigest, &record.CreatedBy, &record.CreatedConversation, &record.CreatedSubject, &record.Sender, &record.Packet,
 		&record.Answer, &record.AnsweredBy, &record.AnsweredAt, &record.Note, &late, &record.AnsweredByIdentityKind, &record.AnsweredByIdentitySource, &record.FirstDeliveredAt, &record.Recipient, &record.Title,
@@ -1079,6 +1106,7 @@ func scanAsk(row rowScanner) (AskRecord, error) {
 	if attachmentsJSON != "" {
 		_ = json.Unmarshal([]byte(attachmentsJSON), &record.AnswerAttachments)
 	}
+	record.QualitySummary = qualitySummary(record.QualityReport)
 	record.Late = late != 0
 	if record.Sender == "" {
 		record.Sender = DeriveSender("", record.Source, record.SourceEventType, record.CreatedBy, record.Recipient, nil)
@@ -1128,7 +1156,12 @@ func scanAsk(row rowScanner) (AskRecord, error) {
 // GetAsk reads one ask. It has no side effects: an ask past its deadline is
 // reported as it is stored, and only the background sweep changes state.
 func (s *Service) GetAsk(ctx context.Context, id string) (AskRecord, error) {
-	return scanAsk(s.db.QueryRowContext(ctx, askSelect+` WHERE a.id = ?`, strings.TrimSpace(id)))
+	record, err := scanAsk(s.db.QueryRowContext(ctx, askSelect+` WHERE a.id = ?`, strings.TrimSpace(id)))
+	if err != nil {
+		return AskRecord{}, err
+	}
+	s.decorateRead(ctx, &record, OwnerAudience())
+	return record, nil
 }
 
 // GetAskByRequester reads one ask by the immutable requester identity. The

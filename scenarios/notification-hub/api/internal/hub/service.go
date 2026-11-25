@@ -161,6 +161,26 @@ type Service struct {
 	pushBudget   *pushBudget
 	pushMu       sync.Mutex
 	noDevicePush map[string]struct{}
+	// semantic is an optional embedding leg for relatedness. Nil keeps the
+	// deterministic lexical read; every caller degrades to it on failure.
+	semanticMu     sync.RWMutex
+	embedder       Embedder
+	semanticLogMu  sync.Mutex
+	lastSemanticAt time.Time
+}
+
+// SetEmbedder installs the optional semantic leg. It is safe to call before or
+// after the service starts serving; a nil embedder restores lexical only.
+func (s *Service) SetEmbedder(embedder Embedder) {
+	s.semanticMu.Lock()
+	s.embedder = embedder
+	s.semanticMu.Unlock()
+}
+
+func (s *Service) currentEmbedder() Embedder {
+	s.semanticMu.RLock()
+	defer s.semanticMu.RUnlock()
+	return s.embedder
 }
 
 // dispatchItem carries the request's routed database lease only for test-mode
@@ -387,6 +407,20 @@ func (s *Service) ensureAdditiveColumns(ctx context.Context) {
 		`ALTER TABLE asks ADD COLUMN decision_family TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE asks ADD COLUMN decision_cause TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE asks ADD COLUMN decision_kind TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE asks ADD COLUMN quality_grade TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE asks ADD COLUMN quality_report TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE asks ADD COLUMN unblocks TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE asks ADD COLUMN cost_of_waiting TEXT NOT NULL DEFAULT ''`,
+		`CREATE TABLE IF NOT EXISTS ask_embeddings (
+			ask_id TEXT PRIMARY KEY REFERENCES asks(id) ON DELETE CASCADE,
+			model TEXT NOT NULL, dimensions INTEGER NOT NULL, text_hash TEXT NOT NULL,
+			vector BLOB NOT NULL, created_at TEXT NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS ask_followthrough (
+			ask_id TEXT PRIMARY KEY REFERENCES asks(id) ON DELETE CASCADE,
+			state TEXT NOT NULL DEFAULT '', owner TEXT NOT NULL DEFAULT '', run_ref TEXT NOT NULL DEFAULT '',
+			started_at TEXT NOT NULL DEFAULT '', finished_at TEXT NOT NULL DEFAULT '', bound_seconds INTEGER NOT NULL DEFAULT 0,
+			result_url TEXT NOT NULL DEFAULT '', summary TEXT NOT NULL DEFAULT '', reported_at TEXT NOT NULL DEFAULT '',
+			updated_at TEXT NOT NULL DEFAULT '')`,
 		`ALTER TABLE answers ADD COLUMN changes_json TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE answers ADD COLUMN images_json TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE answers ADD COLUMN attachments_json TEXT NOT NULL DEFAULT ''`,

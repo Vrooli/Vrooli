@@ -340,10 +340,12 @@ decision with a bottom answer bar. Neither is a reflow of the other.
 390×844 and 320 px. The proposal is `rendered`, not a captured before/after.
 `docs/mockups/hub-ux/` is the earlier direction and is superseded by this one.
 
-**Maturity.** L1 (mockups + concept + field map). No product code has changed for
-the redesign. The decision count, decisions-only semantics, and per-guard titles
-are live; the family key, readiness projection, semantic relatedness, aftermath
-and impact facts are specified in `PROPOSALS.md` and not yet built.
+**Maturity.** Implemented (24 November 2026). The readiness model, persisted
+grade/summary/report, lexical relatedness with an opt-in semantic leg,
+follow-through projection, and the Night Signal UI layer are live and tested.
+The field-by-field record, evidence and the deliberate gaps (producer impact
+flags, readiness-aware count, page backfill grant) are in
+`docs/night-desk-implementation.md`. `PROPOSALS.md` remains the design rationale.
 
 ## Chimesail install and browser identity
 

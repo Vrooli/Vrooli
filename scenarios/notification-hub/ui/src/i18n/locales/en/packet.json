@@ -308,5 +308,52 @@
     "dataInvalid": "The template data is invalid.",
     "slotCount": "The template has an invalid data slot.",
     "tooLarge": "The rendered template exceeds the Hub page size limit."
+  },
+  "readiness": {
+    "title": "Readiness",
+    "findings": "Findings",
+    "none": "No readiness findings.",
+    "owner": "Owner: {{owner}}",
+    "field": "Field: {{field}}",
+    "severity": {
+      "blocker": "Blocking",
+      "warning": "Warning",
+      "advisory": "Advisory"
+    },
+    "unavailable": "The report is not included in this view."
+  },
+  "related": {
+    "title": "Related",
+    "note": "Suggestions; they never merge decisions.",
+    "basis": {
+      "family": "Same cause",
+      "subject": "Same subject",
+      "lexical": "Similar wording {{score}}",
+      "semantic": "Semantically close {{score}}",
+      "other": "Related decision"
+    }
+  },
+  "followthrough": {
+    "title": "After you answered",
+    "state": {
+      "queued": "Queued",
+      "running": "Running",
+      "done": "Done",
+      "stalled": "Stalled",
+      "failed": "Failed"
+    },
+    "owner": "Owner: {{owner}}",
+    "boundSeconds": "Bound {{count}} s",
+    "boundMinutes": "Bound {{count}} min",
+    "boundMinutesSeconds": "Bound {{minutes}} min {{seconds}} s",
+    "finished": "Finished",
+    "result": "Open the result",
+    "absent": "No owner has reported a result.",
+    "since": "Since"
+  },
+  "impact": {
+    "unblocks": "Unblocks: {{value}}",
+    "cost": "Cost of waiting: {{value}}",
+    "title": "What waits on this"
   }
 }

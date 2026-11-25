@@ -11,6 +11,10 @@ export interface NeedsYou {
   count: number;
   /** False until at least one of the two reads has answered. */
   known: boolean;
+  /** The Hub's exact number of waiting decisions, before permission requests. */
+  total: number;
+  /** The senders the Hub counted for the waiting queue, for the rail's source list. */
+  senders: readonly { value: string; count: number }[];
 }
 
 /**
@@ -28,8 +32,14 @@ export function useNeedsYou(): NeedsYou {
   const asks = useQuery({
     queryKey: ["asks", subject, "needs-you-count"],
     queryFn: async ({ signal }) => {
+      // The one-row read is also the cheapest place to learn the facet counts:
+      // the server computes them over the whole filtered queue, not the row.
+      // A missing envelope is treated as "not read yet", never cached as a value.
       const page = await conversationsClient.listAsks({ limit: 1, stateFilter: "awaiting" }, { signal });
-      return page.totalAwaiting;
+      // The generated client is typed non-null, but a failed or stubbed read can
+      // hand back nothing; React Query must not cache undefined.
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      return page ?? null;
     },
     retry: false,
     staleTime: 30_000,
@@ -47,9 +57,15 @@ export function useNeedsYou(): NeedsYou {
     refetchInterval: REFRESH_MS,
     enabled: owner,
   });
-  const count = owner ? (asks.data ?? 0) + (consents.data ?? 0) : 0;
+  const total = owner ? asks.data?.totalAwaiting ?? 0 : 0;
+  const count = total + (owner ? consents.data ?? 0 : 0);
   useAppBadge(count);
-  return { count, known: owner && (asks.data !== undefined || consents.data !== undefined) };
+  return {
+    count,
+    known: owner && (asks.data != null || consents.data !== undefined),
+    total,
+    senders: owner ? asks.data?.facets?.senders ?? [] : [],
+  };
 }
 
 /** Mirror the count on the installed app's icon where the platform allows it. */

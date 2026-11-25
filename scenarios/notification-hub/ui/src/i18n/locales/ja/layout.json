@@ -8,7 +8,13 @@
     "history": "履歴"
   },
   "needsYouBadge": "{{count}} 件が回答待ち",
+  "brandSub": "夜のデスク",
   "account": {
     "signedOut": "サインインしていません"
+  },
+  "sources": {
+    "title": "送信元別",
+    "label": "送信元で絞り込む",
+    "all": "すべて {{count}}"
   }
 }

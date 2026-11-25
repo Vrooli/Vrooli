@@ -258,6 +258,9 @@ func askVisibility(audience AskAudience) (condition string, args []any, ok bool)
 		visible = append(visible, `(a.source_event_type <> '' AND a.source = ?)`)
 		args = append(args, audience.Source)
 	}
+	if len(visible) == 0 {
+		return "", nil, false
+	}
 	return ` AND (` + strings.Join(visible, ` OR `) + `)`, args, true
 }
 

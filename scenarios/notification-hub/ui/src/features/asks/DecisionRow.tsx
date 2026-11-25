@@ -11,7 +11,8 @@ import { useTranslation } from "../../i18n";
 import { formatDueIn } from "../../lib/ago";
 import { preserveRoutedTestMode } from "../routedTestMode";
 import { askStateKey, STATE_LABEL, STATE_TONE, type BadgeTone } from "./askState";
-import { askHeadline, askPreview, askTone, isAwaiting, optionLabel, senderLabel, urgencyLabel } from "./askView";
+import { askHeadline, askPreview, askTone, DECISION_KIND_LABEL, isAwaiting, optionLabel, senderLabel, urgencyLabel } from "./askView";
+import { READINESS_LABEL, READINESS_TONE, readinessGrade } from "../packet/readiness";
 import { RequestPacketMeta } from "./RequestPacketMeta";
 
 /**
@@ -41,6 +42,8 @@ export function DecisionRow({ ask, queue, search, from, onOpen }: {
   const urgency = awaiting && ask.state !== "escalated" ? urgencyLabel(ask.urgency) : null;
   const urgencyTone: BadgeTone = ask.urgency === "critical" ? "danger" : ask.urgency === "high" ? "warning" : "neutral";
   const dueTone: BadgeTone = tone === "critical" ? "danger" : tone === "attention" ? "warning" : "neutral";
+  const readiness = readinessGrade(ask.qualityGrade);
+  const kindLabel = ask.decisionKind ? DECISION_KIND_LABEL[ask.decisionKind as keyof typeof DECISION_KIND_LABEL] : undefined;
   return (
     <ListItem tone={tone} data-testid={queue ? selectors.asks.item : undefined}>
       <ListRow data-request-id={ask.id} to={preserveRoutedTestMode(`/asks/${encodeURIComponent(ask.id)}`, search)} state={{ from }} onClick={onOpen}>
@@ -50,20 +53,22 @@ export function DecisionRow({ ask, queue, search, from, onOpen }: {
         <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-sm text-app-muted-foreground">
           <span className="[overflow-wrap:anywhere]">{senderLabel(ask) || t(strings.pages.history.unknownSource)}</span>
           <span aria-hidden="true">·</span>
-          <Time value={outcomeAt} />
+          {due ? (
+            <span className={`inline-flex items-center gap-1 ${dueTone === "danger" ? "text-app-danger" : dueTone === "warning" ? "text-app-warning" : ""}`}>
+              <Clock size={13} aria-hidden="true" />
+              {t(ask.closingSoon ? strings.asks.row.closesIn : strings.asks.row.dueIn, { when: due })}
+            </span>
+          ) : (
+            <Time value={outcomeAt} />
+          )}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 empty:hidden">
           {!queue && <StatusBadge tone={STATE_TONE[stateKey]}>{t(STATE_LABEL[stateKey])}</StatusBadge>}
           {queue && ask.state === "escalated" && <StatusBadge tone="danger">{t(strings.asks.row.escalated)}</StatusBadge>}
           {!queue && ask.state === "escalated" && <StatusBadge tone="danger">{t(strings.pages.history.escalated)}</StatusBadge>}
           {urgency && <StatusBadge tone={urgencyTone}>{t(urgency)}</StatusBadge>}
-          {ask.decisionKind && <StatusBadge tone="neutral">{t(strings.asks.kind[ask.decisionKind as keyof typeof strings.asks.kind] ?? strings.asks.kind.review)}</StatusBadge>}
-          {due && ask.closingSoon && (
-            <StatusBadge tone={dueTone === "danger" ? "danger" : "warning"}>
-              <span className="inline-flex items-center gap-1"><Clock size={14} aria-hidden="true" />{t(strings.asks.row.closesIn, { when: due })}</span>
-            </StatusBadge>
-          )}
-          {due && !ask.closingSoon && <StatusBadge tone={dueTone}>{t(strings.asks.row.dueIn, { when: due })}</StatusBadge>}
+          {kindLabel && <StatusBadge tone="neutral">{t(kindLabel)}</StatusBadge>}
+          {readiness && readiness !== "ready" && <StatusBadge tone={READINESS_TONE[readiness]}>{t(READINESS_LABEL[readiness])}</StatusBadge>}
           {answer && (
             <span className="inline-flex min-w-0 items-center gap-1 text-sm text-app-muted-foreground">
               <Check size={14} aria-hidden="true" className="shrink-0" />

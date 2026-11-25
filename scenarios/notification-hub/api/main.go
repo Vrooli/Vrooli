@@ -213,6 +213,32 @@ func main() {
 	artifactRoots := linkedArtifactRoots(repoRoot, home, researchDir, os.Getenv("NOTIFICATION_HUB_LINKED_ARTIFACT_ROOTS"))
 	artifactResolver := linkedartifact.New(artifactRoots...)
 	service.BackfillAskSenders(context.Background()) // now that source names resolve
+	// The semantic leg is opt-in: it needs ai-gateway and a local embedding
+	// model. Off, relatedness stays deterministic and lexical, which is the
+	// scenario's no-required-resource posture.
+	if os.Getenv("NOTIFICATION_HUB_SEMANTIC") == "1" {
+		service.SetEmbedder(hub.NewGatewayEmbedder())
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+			defer cancel()
+			if embedded, err := service.BackfillEmbeddings(ctx, 300); err != nil {
+				slog.Warn("semantic backfill incomplete", "embedded", embedded, "error", err)
+			} else if embedded > 0 {
+				slog.Info("semantic backfill stored", "asks", embedded)
+			}
+		}()
+	}
+	// Grade the open asks written before readiness existed. Bounded and
+	// off the request path: a slow or failed backfill never delays boot.
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+		defer cancel()
+		if graded, err := service.BackfillQuality(ctx, 300); err != nil {
+			slog.Warn("readiness backfill incomplete", "graded", graded, "error", err)
+		} else if graded > 0 {
+			slog.Info("readiness backfill stored", "asks", graded)
+		}
+	}()
 	service.SetDefaultRecipient(strings.TrimSpace(os.Getenv("VROOLI_NOTIFICATION_RECIPIENT")))
 	service.SetRecipientResolver(integrations.OperatorStateRecipient())
 	service.SetOwnerFallback(hub.OperatorSubject)

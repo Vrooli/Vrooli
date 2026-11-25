@@ -3,7 +3,7 @@ import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { IconButton } from "@vrooli/react-component-library/IconButton/3";
-import { CheckCircle2, Inbox, Search, SearchX, X } from "lucide-react";
+import { CheckCircle2, Inbox, Play, Search, SearchX, X } from "lucide-react";
 
 import { conversationsClient } from "../../api/notifications";
 import { FilterChips } from "../../components/FilterChips";
@@ -211,7 +211,17 @@ export function RequestList({ queue = false }: { queue?: boolean }) {
       title={queue ? t(strings.asks.list.title) : t(strings.pages.history.title)}
       description={description}
       actions={queue && (
-        <IconButton
+        <div className="flex items-center gap-1">
+          {rows.length > 0 && (
+            <Link
+              to={preserveRoutedTestMode("/focus", location.search)}
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-control bg-app-primary px-3 text-sm font-semibold text-app-primary-foreground"
+            >
+              <Play size={14} aria-hidden="true" />
+              {t(strings.asks.focus.start)}
+            </Link>
+          )}
+          <IconButton
           aria-label={t(searchOpen || search ? strings.asks.list.searchClose : strings.asks.list.searchOpen)}
           aria-pressed={searchOpen || search !== ""}
           surface="ghost"
@@ -222,7 +232,8 @@ export function RequestList({ queue = false }: { queue?: boolean }) {
           }}
         >
           <Search size={20} aria-hidden="true" />
-        </IconButton>
+          </IconButton>
+        </div>
       )}
     >
       {searchField}

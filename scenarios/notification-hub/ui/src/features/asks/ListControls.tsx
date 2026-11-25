@@ -25,7 +25,7 @@ function toggled<T>(values: readonly T[], value: T): T[] {
  * a Filters button that opens the choices (with how many decisions each would
  * show), and the filters in force as chips that can each be removed in one tap.
  */
-export function ListControls({ view, facets, matching, closingHours, onChange, onClear }: {
+export function ListControls({ view, facets, matching, closingHours, onChange, onClear, compact = false }: {
   view: ListView;
   /** What the server says each filter would show; absent until the first page is read. */
   facets: AskFacets | undefined;
@@ -35,6 +35,8 @@ export function ListControls({ view, facets, matching, closingHours, onChange, o
   closingHours: number;
   onChange: (view: ListView) => void;
   onClear: () => void;
+  /** The queue pane has less width: the same controls, with labels moved to accessible names. */
+  compact?: boolean;
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -46,7 +48,7 @@ export function ListControls({ view, facets, matching, closingHours, onChange, o
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
-        <span aria-hidden="true" className="shrink-0 text-sm text-app-muted-foreground">{t(strings.asks.sort.label)}</span>
+        <span aria-hidden="true" className={compact ? "sr-only" : "shrink-0 text-sm text-app-muted-foreground"}>{t(strings.asks.sort.label)}</span>
         <div className="min-w-0 flex-1" data-testid={selectors.asks.sort}>
           <Select
             aria-label={`${t(strings.asks.sort.label)}: ${t(SORT_LABEL[view.sort])}`}
@@ -59,16 +61,18 @@ export function ListControls({ view, facets, matching, closingHours, onChange, o
           ref={opener}
           type="button"
           variant="outline"
-          className="gap-2"
+          aria-label={active > 0 ? t(strings.asks.filters.openActive, { count: active }) : t(strings.asks.filters.open)}
+          className={compact ? "gap-1.5 px-2.5" : "gap-2"}
           disabled={!facets}
           onClick={() => setOpen(true)}
           data-testid={selectors.asks.filtersOpen}
         >
           <ListFilter size={16} aria-hidden="true" />
-          {active > 0 ? t(strings.asks.filters.openActive, { count: active }) : t(strings.asks.filters.open)}
+          {!compact && (active > 0 ? t(strings.asks.filters.openActive, { count: active }) : t(strings.asks.filters.open))}
+          {compact && active > 0 && <span className="text-xs">{active}</span>}
         </Button>
       </div>
-      <p data-testid={selectors.asks.sortHow} className="text-sm text-app-muted-foreground">{t(SORT_HOW[view.sort], { count: closingHours })}</p>
+      <p data-testid={selectors.asks.sortHow} className={compact ? "sr-only" : "text-sm text-app-muted-foreground"}>{t(SORT_HOW[view.sort], { count: closingHours })}</p>
       {active > 0 && (
         <ul aria-label={t(strings.asks.filters.active)} data-testid={selectors.asks.activeFilters} className="flex flex-wrap gap-2">
           {view.urgencies.map((urgency) => (
