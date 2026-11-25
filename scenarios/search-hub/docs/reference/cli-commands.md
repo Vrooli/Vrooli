@@ -93,12 +93,27 @@ Describe the task in one quoted natural-language request. Include constraints th
 
 `search-hub query "<text>"` searches the selected provider set. The CLI defaults
 to five results per provider to keep ordinary reads bounded; pass `--limit 10`
-or another positive limit when a deeper search is needed. Human output displays
-at most ten hits across providers; use `--show-all-results` to display every
-returned hit. Titles and provenance fields are bounded in human output, while
-`--json` retains the complete response for scripts. `--type`, `--group`, and
-`--scope` narrow the provider set, while `--all` explicitly fans out across
-active providers.
+or another positive limit when a deeper search is needed. Human output has one
+global budget of four unique hits across provider, ranked, direct-entity,
+correction, and task views. `--show-all-results` removes that human hit cap;
+task-part coverage/status rows remain visible under either setting. Titles and
+provenance fields are bounded in human output.
+
+`--json` emits the complete typed `QueryResponse`, unaffected by the human hit
+budget. It keeps the established snake_case protobuf field names for existing
+scripts. Additive fields include `degradations`, `query_parts`, and
+`correction_candidates`; existing fields such as `groups`, `ranked`,
+`corpora_searched`, and `degraded` retain their names and meanings (ProtoJSON
+may omit default-valued fields). `query_parts[].evidence[]`
+contains identity-checked pointers into `ranked` or `groups`; a returned
+candidate is not an independent relevance judgment. Consumers should retain
+unknown part statuses and unresolved references rather than treating them as
+verified evidence. `--json-connect` is an explicit opt-in spelling of the same
+typed response with lowerCamelCase ProtoJSON field names, matching Connect
+HTTP JSON; it does not replace or change `--json`.
+
+`--type`, `--group`, and `--scope` narrow the provider set, while `--all`
+explicitly fans out across active providers.
 
 ```bash
 search-hub query "how do I inspect a completed run" --type command,doc --limit 5

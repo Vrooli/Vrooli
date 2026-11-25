@@ -54,15 +54,16 @@ class FakeProgram:
 
 
 class Query:
-    def __init__(self, events):
+    def __init__(self, events, rows=None):
         self.events = events
         self.calls = []
+        self.rows = rows or [{"id": "doc-1", "title": "safe title", "providerId": "fixture", "type": "doc",
+                             "path": "fixture/path", "score": 0.8, "snippet": "fixture snippet"}]
 
     def query(self, **kwargs):
         self.events.append("query")
         self.calls.append(kwargs)
-        return Handle([{"id": "doc-1", "title": "safe title", "providerId": "fixture", "type": "doc",
-                        "path": "fixture/path", "score": 0.8, "snippet": "fixture snippet"}],
+        return Handle(self.rows,
                       {"corporaSearched": ["fixture"], "groups": [], "degraded": False,
                        "partial": False, "rerankerLeg": "fixture", "latencyMs": "3"})
 
@@ -103,10 +104,10 @@ class Memory:
         return Handle(meta={"entry": {"id": "entry-opaque"}})
 
 
-def execute(inputs, status="running"):
+def execute(inputs, status="running", rows=None):
     events = []
     program = FakeProgram(inputs, events)
-    query = Query(events)
+    query = Query(events, rows)
     stdout = io.StringIO()
     bindings = {
         "program": program,
@@ -121,6 +122,37 @@ def execute(inputs, status="running"):
     with contextlib.redirect_stdout(stdout):
         runpy.run_path(str(SOURCE), init_globals=bindings)
     return program.output, events, query.calls
+
+
+def test_task_skill_lookup_reads_the_selected_prompt_manager_skill():
+    output, events, calls = execute(
+        {"query": "task skill lookup", "types": ["skill"], "include_skill": True},
+        rows=[{"id": "skill-1", "title": "Fixture skill", "providerId": "prompt-manager.skill", "type": "skill",
+               "path": "fixture/skill.md", "score": 0.8, "snippet": "safe preview"}],
+    )
+    assert output["status"] == "ok"
+    assert calls == [{"text": "task skill lookup", "limit": 10, "explain": True,
+                      "rows": "ranked", "type": ["skill"]}]
+    assert events == ["query", ("skill_read", {"identifiers": ["skill-1"], "allow_missing": True, "rows": "skills"})]
+    assert output["signals"]["skill_lookup"] == {
+        "status": "ok", "source": "search-hub", "id": "skill-1", "content": "private skill body", "truncated": False,
+    }
+
+
+def test_task_skill_lookup_can_include_prompt_manager_discovery():
+    output, events, calls = execute(
+        {"query": "task skill lookup", "types": ["skill"], "include_skill": True, "include_discover": True},
+        rows=[{"id": "search-hit", "title": "Fixture skill", "providerId": "prompt-manager.skill", "type": "skill",
+               "path": "fixture/skill.md", "score": 0.8, "snippet": "safe preview"}],
+    )
+    assert output["status"] == "ok"
+    assert calls == [{"text": "task skill lookup", "limit": 10, "explain": True,
+                      "rows": "ranked", "type": ["skill"]}]
+    assert events == ["query", ("discover", {"queries": ["task skill lookup"], "complexity": "moderate",
+                                                  "limit": 5, "type": "skill", "rows": "results"}),
+                      ("skill_read", {"identifiers": ["skill-1"], "allow_missing": True, "rows": "skills"})]
+    assert output["signals"]["skill_lookup"]["source"] == "prompt-manager.discover"
+    assert output["signals"]["skill_lookup"]["content"] == "private skill body"
 
 
 def test_query_discover_note_route_keeps_query_and_result_content_out_of_memory():

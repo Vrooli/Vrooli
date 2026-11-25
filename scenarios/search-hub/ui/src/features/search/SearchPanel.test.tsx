@@ -11,6 +11,7 @@ import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { create } from "@bufbuild/protobuf";
 import {
+  QueryPartEvidence_Status,
   QueryResponseSchema,
   StatusResponseSchema,
 } from "@vrooli/proto-types/search-hub/v1/routing/routing_pb";
@@ -136,6 +137,41 @@ describe("SearchPanel", () => {
     });
     const results = await screen.findByTestId(selectors.search.results);
     expect(within(results).getByText(HIT_TITLE)).toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.search.noResults)).not.toBeInTheDocument();
+  });
+
+  it("retains ranked results when provider summaries are absent", async () => {
+    wireDefaults();
+    vi.mocked(searchApi.runQuery).mockResolvedValue(create(QueryResponseSchema, {
+      reranked: true,
+      ranked: [{ providerId: "docs", id: "ranked-only", title: "Ranked-only result", snippet: "Returned hit" }],
+    }));
+    const user = userEvent.setup();
+    renderWithProviders(<SearchPanel />);
+    await user.type(screen.getByTestId(selectors.search.input), "find the ranked result");
+    await user.click(screen.getByTestId(selectors.search.submit));
+
+    expect(await screen.findByText("Ranked-only result")).toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.search.noResults)).not.toBeInTheDocument();
+  });
+
+  it("shows typed missing-part coverage even when the response has no hits", async () => {
+    wireDefaults();
+    vi.mocked(searchApi.runQuery).mockResolvedValue(create(QueryResponseSchema, {
+      groups: [],
+      queryParts: [{
+        partId: "owner", label: "Find the owning capability",
+        status: QueryPartEvidence_Status.NOT_ROUTED,
+        reason: "ambiguous_provider_evidence",
+        evidence: [],
+      }],
+    }));
+    const user = userEvent.setup();
+    renderWithProviders(<SearchPanel />);
+    await user.type(screen.getByTestId(selectors.search.input), "find the owning capability and its docs");
+    await user.click(screen.getByTestId(selectors.search.submit));
+
+    expect(await screen.findByText("Find the owning capability")).toBeInTheDocument();
     expect(screen.queryByTestId(selectors.search.noResults)).not.toBeInTheDocument();
   });
 

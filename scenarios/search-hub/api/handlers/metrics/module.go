@@ -28,7 +28,7 @@ import (
 // Module returns the metrics domain's contribution to the API: the generated
 // MetricsService Connect handler backed by the SQLite telemetry store and the
 // provider registry store.
-func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, embeddingTelemetry EmbeddingTelemetryReader) module.Module {
 	store := internalmetrics.NewSQLiteStore(db, clk)
 	serveHandler, err := MeasuresHandler(store, clk.Now)
 	if err != nil {
@@ -38,10 +38,11 @@ func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger) modul
 		logger.Printf("metrics measures registry disabled: %v", err)
 	}
 	connectPath, connectHandler := metricsconnect.NewMetricsServiceHandler(NewConnectHandler(Deps{
-		Insights:      store,
-		RangeInsights: store,
-		Lister:        internalregistry.NewSQLiteStore(db, clk),
-		Logger:        logger,
+		Insights:           store,
+		RangeInsights:      store,
+		Lister:             internalregistry.NewSQLiteStore(db, clk),
+		EmbeddingTelemetry: embeddingTelemetry,
+		Logger:             logger,
 	}))
 	measuresPath, measuresConnectHandler := measuresconnect.NewMeasuresServiceHandler(NewMeasuresConnectHandler(store, clk.Now))
 	return module.Module{

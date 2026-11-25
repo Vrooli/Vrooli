@@ -14,7 +14,7 @@ metadata:
   updatedAt: "2026-11-24T00:00:00Z"
   requires:
     scenarios: ["search-hub", "program-runtime", "vrooli-memory"]
-    commands: ["search-hub query query", "search-hub providers list", "search-hub federation status", "search-hub federation provider-status", "search-hub insights insights", "search-hub status", "search-hub configure", "vrooli-memory recall wake", "vrooli-memory recall recall", "vrooli-memory journal note", "vrooli-memory facets pin", "vrooli-memory facets supersede", "vrooli scenario status"]
+    commands: ["search-hub query query", "program-runtime library run", "search-hub providers list", "search-hub federation status", "search-hub federation provider-status", "search-hub insights insights", "search-hub status", "search-hub configure", "vrooli-memory recall wake", "vrooli-memory recall recall", "vrooli-memory journal note", "vrooli-memory facets pin", "vrooli-memory facets supersede", "vrooli scenario status"]
   learning:
     scope: "search-hub-usage"
     capture: "on novel outcome"
@@ -54,7 +54,7 @@ rows silently, so copy them from this table.
 
 | The question sounds like | Bucket | `--type` tokens (provider) | Rung |
 |---|---|---|---|
-| "How do I …", "which command / skill / action / binding / workflow" | DO | `command` (cli-health), `skill`, `action` (prompt-manager), `binding` (program-runtime), `workflow.flow` (workflow-health) | `search-hub query query "<q>" --type command,skill,action` [S1] |
+| "How do I …", "which command / skill / action / binding / workflow" | DO | `command` (cli-health), `skill`, `action` (prompt-manager), `binding` (program-runtime), `workflow.flow` (workflow-health) | Skill lookups: `program-runtime library run search-hub.research --input query="<q>" --input 'types=["skill"]' --input include_skill=true`; add `--input include_discover=true` for Prompt Manager discover. [S3] Commands/actions: `search-hub query query "<q>" --type command,action` [S1] |
 | "Is there already something that does …", "what program / fragment / surface exists" | REUSE | `library` (program-runtime programs), `scenarios`, `dependency`, `resources` (scenario-dependency-analyzer), `surface` (ui-health), `workflow.fragment`, `workflow.test` | `--type library,scenarios,surface` [S1] |
 | "How does X work", "what did we decide / learn", "where is the contract" | KNOW | `doc` (knowledge-observatory, search-hub, template-manager), `code`, `contract` (code-facts), `domain` (architecture-cartographer), `record` (source-ledger, swarm-manager), `signal`, `editorial-history` | `--type doc,code,contract,domain` [S1] |
 | "What is the state of X", "which measure / requirement / debt / initiative" | STATE | `measure` (measures-health), `requirements` (business-health), `record` (template-manager debt), `initiative` (swarm-manager) | `--type measure,requirements,initiative` [S1] |
@@ -97,7 +97,7 @@ Effort, then one step:
 | standard | automatic selection with `--explain`, or `--type` | 10 | the default for design and debugging questions |
 | deep | `--all` only when cross-bucket fanout is authorized and useful | 20 | the shape spans three buckets; `--all` alone never proves absence |
 
-`run search-hub.research` with `query`, `effort` in `fast|standard|deep`, optional `types` (a list), `group`, `scope` **[S3]**. For the repeated task-skill lookup, set `types=["skill"]` and `include_skill=true`; add `include_discover=true` when Prompt Manager discovery is part of the sequence. Branch on `signals.skill_lookup.status` and `truncated` before using returned content. For the repeated lookup-and-record sequence, add `include_discover=true capture_note=true`; this explicitly writes one note containing only the verdict and result/discovery counts, never the query or returned content. Check `signals.memory_capture.status` before treating the note as recorded. To safely repeat a query after a lifecycle check, set `repeat_after_status=true`; the program performs one query, reads only Search Hub's lifecycle status, and repeats the identical query once only when status is `running`. Check `signals.status_check` and `first_query`; a non-running/unavailable status skips the repeat. Branch on the envelope:
+`run search-hub.research` supports `query`, `effort` in `fast|standard|deep`, optional `types` (a list), `group`, and `scope` **[S3]**. For query-and-record, add `include_discover=true capture_note=true`; the single note contains only verdict and result/discovery counts, never the query or returned content. Check `signals.memory_capture.status` before treating it as recorded. To repeat a query after a lifecycle check, set `repeat_after_status=true`; the program reads Search Hub's lifecycle status and repeats the identical query once only when status is `running`. Check `signals.status_check` and `first_query`; a non-running/unavailable status skips the repeat. In agent sessions, do not provide provenance or caller fields; the verified session harness supplies attribution. Branch on the envelope:
 
 | `status` | `signals.verdict` / `errors[0].class` | Do |
 |---|---|---|

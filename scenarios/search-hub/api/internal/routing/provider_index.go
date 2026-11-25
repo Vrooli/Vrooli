@@ -557,6 +557,11 @@ func boundedTypoProviderShortlist(query string, profiles []ProviderProfile, limi
 					exactToken = true
 					break
 				}
+				if _, common := routeQueryStopwords[profileToken]; common {
+					// Typo evidence must not make generic query language such as
+					// "search" or "find" select an owner by itself.
+					continue
+				}
 				if len([]rune(profileToken)) >= 5 && oneEditApart(queryToken, profileToken) {
 					fuzzyToken = true
 					break

@@ -1244,7 +1244,7 @@
       "commands": [
         {
           "name": "inventory",
-          "description": "Read every Qdrant collection's embedding sentinel and point count",
+          "description": "Read each Qdrant collection's recipe sentinel, generation, point count, and reported disk bytes",
           "binding": {
             "kind": "local"
           },

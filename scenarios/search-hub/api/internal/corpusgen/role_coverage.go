@@ -9,37 +9,22 @@ import (
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 )
 
-// ModelPolicyRoles is the current Ollama policy role inventory. Corpus
-// adequacy is evaluated only on independently reviewed, real caller cases.
-var modelPolicyRoles = []string{
-	"chat.default", "chat.small", "chat.uncensored", "classify.routing",
-	"code.local", "embedding.default", "image.quality.judge",
-	"rerank.llm_fallback", "summarize.default", "vision.default", "write.default",
-}
-
-func ModelPolicyRoles() []string {
-	return append([]string(nil), modelPolicyRoles...)
-}
-
-func isModelPolicyRole(role string) bool {
-	for _, allowed := range modelPolicyRoles {
-		if role == allowed {
-			return true
-		}
-	}
-	return false
-}
-
 // ValidateModelRoleCoverage counts only reviewed Agent Manager caller cases
 // carrying a role assignment and independent label review. Generated fixtures
-// and pending candidates never satisfy the per-role floor.
-func ValidateModelRoleCoverage(cases []*evalv1.EvalCase, minimumPerRole int) (map[string]int, error) {
+// and pending candidates never satisfy the per-role floor. policyRoles must
+// come from the authoritative model-policy owner; Search Hub does not maintain
+// a second role inventory.
+func ValidateModelRoleCoverage(cases []*evalv1.EvalCase, policyRoles []string, minimumPerRole int) (map[string]int, error) {
 	if minimumPerRole <= 0 {
 		return nil, fmt.Errorf("minimum cases per role must be positive")
 	}
-	known := make(map[string]bool, len(modelPolicyRoles))
-	counts := make(map[string]int, len(modelPolicyRoles))
-	for _, role := range modelPolicyRoles {
+	roles, err := normalizeRoleInventory(policyRoles)
+	if err != nil {
+		return nil, err
+	}
+	known := make(map[string]bool, len(roles))
+	counts := make(map[string]int, len(roles))
+	for _, role := range roles {
 		known[role] = true
 		counts[role] = 0
 	}
@@ -56,7 +41,7 @@ func ValidateModelRoleCoverage(cases []*evalv1.EvalCase, minimumPerRole int) (ma
 		counts[role]++
 	}
 	var deficient []string
-	for _, role := range modelPolicyRoles {
+	for _, role := range roles {
 		if counts[role] < minimumPerRole {
 			deficient = append(deficient, fmt.Sprintf("%s=%d", role, counts[role]))
 		}
@@ -66,6 +51,24 @@ func ValidateModelRoleCoverage(cases []*evalv1.EvalCase, minimumPerRole int) (ma
 		return counts, fmt.Errorf("reviewed caller corpus below %d cases per policy role: %s", minimumPerRole, strings.Join(deficient, ", "))
 	}
 	return counts, nil
+}
+
+func normalizeRoleInventory(input []string) ([]string, error) {
+	roles := make([]string, 0, len(input))
+	seen := make(map[string]bool, len(input))
+	for _, raw := range input {
+		role := strings.TrimSpace(raw)
+		if role == "" || seen[role] {
+			return nil, fmt.Errorf("authoritative model-policy role inventory contains an empty or duplicate role")
+		}
+		seen[role] = true
+		roles = append(roles, role)
+	}
+	if len(roles) == 0 {
+		return nil, fmt.Errorf("authoritative model-policy role inventory is empty")
+	}
+	sort.Strings(roles)
+	return roles, nil
 }
 
 // ValidateGatewayTaskRoleCoverage independently measures the task-role

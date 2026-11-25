@@ -351,3 +351,17 @@ func TestProviderSelfReportedDegradationIsAnAnswerNotAFailure(t *testing.T) {
 	allowed, _ = p.allow("leaf", now.Add(2*time.Second))
 	require.True(t, allowed, "a half-open probe answered with a partial degradation closes the circuit")
 }
+
+func TestSupplementalBudgetCancellationIsNotProviderCircuitEvidence(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	sharedBudgetFailure := &routingv1.ProviderResultGroup{
+		Degraded: true, Note: "request cancelled: context deadline exceeded",
+	}
+	require.False(t, supplementalOutcomeHasCircuitEvidence(ctx, sharedBudgetFailure), "shared query budget is not provider-local failure evidence")
+	providerFailure := &routingv1.ProviderResultGroup{Degraded: true, Note: "provider returned HTTP 500"}
+	require.True(t, supplementalOutcomeHasCircuitEvidence(ctx, providerFailure), "provider-local failures remain visible even if the shared context later expires")
+	answered := &routingv1.ProviderResultGroup{Degraded: true, Note: "lexical results remain available", Degradations: []*routingv1.ProviderDegradation{{Detail: "dense leg unavailable"}}}
+	require.True(t, supplementalOutcomeHasCircuitEvidence(ctx, answered), "provider self-reported partial answers are not transport failures")
+}

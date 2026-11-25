@@ -36,9 +36,9 @@ func TestAuditedCallerCaseBindsValidatedLabelAndRoleEvidence(t *testing.T) {
 func TestAuditedCallerCaseRequiresAuthenticatedTypedEventAndRoleSource(t *testing.T) {
 	valid := callerEventFixture()
 	route := gatewayRouteFixture()
-	route.SelectedResourceRole = "unknown.role"
+	route.SelectedResourceRole = ""
 	if _, err := AuditedCallerCase(valid, route, CallerLabelReview{}); err == nil {
-		t.Fatal("expected unsupported model role to fail")
+		t.Fatal("expected missing model role to fail")
 	}
 	invalid := valid
 	invalid.ContentClass = "tool-call"

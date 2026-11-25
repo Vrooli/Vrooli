@@ -97,16 +97,19 @@ func (h *handlers) queryReport(ctx cliapp.OperationContext, msg *routingv1.Query
 		results = renderCorrections(msg, visibleLimit)
 	} else if exact := directEntityMatch(ctx, msg); exact != nil {
 		resultsHeading = "Direct entity match"
-		results = renderDirectMatch(exact, visibleLimit)
+		results = renderDirectEntityView(ctx, msg, exact, visibleLimit)
 	} else if msg.GetReranked() && len(msg.GetRanked()) > 0 {
 		resultsHeading = fmt.Sprintf("Unified ranking (reranked across providers; ordered by %s)", orderedBy(msg))
-		results = renderRankedLimit(msg.GetRanked(), visibleLimit)
+		results = renderRankedLimit(msg.GetRanked(), visibleLimit, msg.GetGroups())
 		if showDiagnostics {
 			results = append(results, "", "Provenance by provider:")
 			results = append(results, renderGroupSummaries(msg.GetGroups())...)
 		}
 	}
 	hints := nextActionHints(ctx, msg)
+	if hint := taskContinuationHint(msg); hint != "" {
+		hints = append([]string{hint}, hints...)
+	}
 	switch {
 	case totalHits == 0 && msg.GetDegraded():
 		hints = append(hints, "Coverage was incomplete. Check the owner directly or use --explain to see which routes failed.")
@@ -124,37 +127,66 @@ func (h *handlers) queryReport(ctx cliapp.OperationContext, msg *routingv1.Query
 	}
 }
 
+// taskContinuationHint identifies one explicit task-part coverage gap. It does
+// not guess an owner or reuse evidence from another part; the full per-part
+// report remains the source for the other gaps.
+func taskContinuationHint(msg *routingv1.QueryResponse) string {
+	if msg == nil {
+		return ""
+	}
+	for _, part := range msg.GetQueryParts() {
+		if part == nil {
+			continue
+		}
+		label := strings.TrimSpace(part.GetLabel())
+		if label == "" {
+			label = strings.TrimSpace(part.GetPartId())
+		}
+		if label == "" {
+			label = "unlabeled request part"
+		}
+		state := ""
+		switch part.GetStatus() {
+		case routingv1.QueryPartEvidence_STATUS_NOT_ROUTED:
+			state = "not routed"
+		case routingv1.QueryPartEvidence_STATUS_SEARCHED_EMPTY:
+			state = "searched with no candidates returned"
+		case routingv1.QueryPartEvidence_STATUS_PROVIDER_DEGRADED:
+			state = "provider coverage is degraded"
+		case routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED:
+			resolved := false
+			for _, reference := range part.GetEvidence() {
+				if resolveHitReference(msg, reference) != nil {
+					resolved = true
+					break
+				}
+			}
+			if !resolved {
+				state = "candidate status has no verifiable supporting hit"
+			} else if part.GetDegraded() || part.GetPartial() {
+				state = "candidate evidence has incomplete coverage"
+			}
+		}
+		if state == "" && (part.GetDegraded() || part.GetPartial()) {
+			state = "coverage is incomplete"
+		}
+		if state == "" {
+			continue
+		}
+		if reason := partReasonText(part.GetReason()); reason != "" {
+			state += "; " + truncate(reason, 100)
+		}
+		return fmt.Sprintf("Continue with request part %q separately: %s. Evidence for other parts does not cover it.", truncate(label, 100), state)
+	}
+	return ""
+}
+
 var programName = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*\.[a-z0-9][a-z0-9-]*$`)
 
 // A preparation read is a concrete next step, never an inferred authorization
 // to execute a retrieved program. Validate identifiers before printing shell text.
-func operationHints(msg *routingv1.QueryResponse) []string {
-	if msg == nil {
-		return nil
-	}
-	var candidates []*routingv1.SearchHit
-	if msg.GetReranked() && len(msg.GetRanked()) > 0 {
-		candidates = msg.GetRanked()[:1]
-	} else {
-		for _, group := range msg.GetGroups() {
-			if group != nil && group.GetProviderId() == "program-runtime.library" && len(group.GetHits()) > 0 {
-				candidates = group.GetHits()[:1]
-				break
-			}
-		}
-	}
-	if len(candidates) == 0 {
-		return nil
-	}
-	var hit *routingv1.SearchHit
-	for _, candidate := range candidates {
-		if candidate == nil || candidate.GetConfidence().GetWeak() || candidate.GetProviderId() != "program-runtime.library" || !programName.MatchString(candidate.GetId()) {
-			continue
-		}
-		hit = candidate
-		break
-	}
-	if hit == nil {
+func operationHintForHit(hit *routingv1.SearchHit) []string {
+	if hit == nil || hit.GetConfidence().GetWeak() || hit.GetProviderId() != "program-runtime.library" || !programName.MatchString(hit.GetId()) {
 		return nil
 	}
 	lines := []string{"", "Inspect the program contract and required skill:"}
@@ -307,7 +339,7 @@ func renderRanked(hits []*routingv1.SearchHit) []string {
 	return renderRankedLimit(hits, 0)
 }
 
-func renderRankedLimit(hits []*routingv1.SearchHit, maxHits int) []string {
+func renderRankedLimit(hits []*routingv1.SearchHit, maxHits int, groupSets ...[]*routingv1.ProviderResultGroup) []string {
 	hits = deduplicateHits(hits)
 	if len(hits) == 0 {
 		return []string{"(no results)"}
@@ -327,8 +359,10 @@ func renderRankedLimit(hits []*routingv1.SearchHit, maxHits int) []string {
 			line += " — " + snippet
 		}
 		line += fmt.Sprintf(" [%s %s/%s]", confidenceBand(hit), truncate(hit.GetProviderId(), 48), truncate(provenance(hit), 92))
-		if intent := hit.GetMetadata().GetFields()["search_hub_intent_match"].GetStringValue(); intent != "" {
-			line += " · found via: " + truncate(intent, 65)
+		if len(groupSets) > 0 {
+			if detail := hitDegradationDetail(hit, groupSets[0]); detail != "" {
+				line += " · provider coverage degraded: " + detail
+			}
 		}
 		out = append(out, line)
 	}
@@ -356,9 +390,6 @@ func formatHit(n int, hit *routingv1.SearchHit) string {
 	line += fmt.Sprintf(" [%s %s/%s]", confidenceBand(hit), truncate(provider, 48), truncate(provenance(hit), 92))
 	if locs := locationSummary(hit.GetLocations()); locs != "" {
 		line += " locations: " + truncate(locs, 112)
-	}
-	if intent := hit.GetMetadata().GetFields()["search_hub_intent_match"].GetStringValue(); intent != "" {
-		line += " · found via: " + truncate(intent, 65)
 	}
 	return line
 }

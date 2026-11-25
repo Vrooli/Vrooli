@@ -10,12 +10,17 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/connectx"
 	connectxtest "github.com/vrooli/api-core/connectxtest"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/databasetest"
+	"github.com/vrooli/api-core/scheduletest"
 
 	metricsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/metrics"
 	metricsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/metrics/metrics_v1connect"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 
 	handler "search-hub/handlers/metrics"
+	"search-hub/internal/aigateway"
+	localdb "search-hub/internal/database"
 	internalmetrics "search-hub/internal/metrics"
 	internalregistry "search-hub/internal/registry"
 )
@@ -41,6 +46,18 @@ func (f *fakeInsights) InsightsRange(_ context.Context, from, to time.Time) (*in
 type fakeLister struct {
 	providers []*registryv1.ProviderDescriptor
 	err       error
+}
+
+type fakeEmbeddingTelemetry struct {
+	page     internalmetrics.EmbeddingTelemetryPage
+	err      error
+	from, to time.Time
+	limit    int
+}
+
+func (f *fakeEmbeddingTelemetry) ReadWindow(_ context.Context, from, to time.Time, limit int) (internalmetrics.EmbeddingTelemetryPage, error) {
+	f.from, f.to, f.limit = from, to, limit
+	return f.page, f.err
 }
 
 func (f *fakeLister) List(context.Context, internalregistry.ListFilter) ([]*registryv1.ProviderDescriptor, error) {
@@ -162,6 +179,75 @@ func TestInsightsStoreErrorIsOpaque(t *testing.T) {
 	})
 	_, err := client.Insights(context.Background(), connect.NewRequest(&metricsv1.InsightsRequest{}))
 	require.Error(t, err)
+	require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
+	require.NotContains(t, err.Error(), "secret")
+}
+
+func TestEmbeddingTelemetryMapsBoundedMetadataWindow(t *testing.T) {
+	reader := &fakeEmbeddingTelemetry{page: internalmetrics.EmbeddingTelemetryPage{
+		Truncated:            true,
+		HasRetainedWindow:    true,
+		RetainedFrom:         time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC),
+		RetainedTo:           time.Date(2026, 11, 20, 1, 0, 0, 0, time.UTC),
+		ObserverDroppedTotal: 2, ObserverWriteFailures: 1,
+		Rows: []internalmetrics.EmbeddingTelemetryRow{{Kind: "query", Role: "embedding.default", Model: "embedder", DurationUS: 1200, VectorCount: 1, CreatedAt: time.Date(2026, 11, 20, 0, 30, 0, 0, time.UTC)}},
+	}}
+	client := newClient(t, handler.Deps{EmbeddingTelemetry: reader})
+	resp, err := client.EmbeddingTelemetry(context.Background(), connect.NewRequest(&metricsv1.EmbeddingTelemetryRequest{
+		From: "2026-11-20T00:00:00Z", To: "2026-11-21T00:00:00Z", Limit: 50,
+	}))
+	require.NoError(t, err)
+	require.Equal(t, 50, reader.limit)
+	require.Equal(t, time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC), reader.from)
+	require.Equal(t, time.Date(2026, 11, 21, 0, 0, 0, 0, time.UTC), reader.to)
+	require.True(t, resp.Msg.GetTruncated())
+	require.Equal(t, uint64(2), resp.Msg.GetObserverDroppedTotal())
+	require.Equal(t, uint64(1), resp.Msg.GetObserverWriteFailures())
+	require.Equal(t, "2026-11-20T00:00:00Z", resp.Msg.GetRetainedFrom())
+	require.Len(t, resp.Msg.GetObservations(), 1)
+	require.Equal(t, int64(1200), resp.Msg.GetObservations()[0].GetDurationUs())
+	require.Len(t, resp.Msg.GetProfiles(), 1)
+	require.Equal(t, int64(1), resp.Msg.GetProfiles()[0].GetSampleCount())
+	require.Equal(t, int64(1200), resp.Msg.GetProfiles()[0].GetDurationP95Us())
+	require.False(t, resp.Msg.GetProfiles()[0].GetComplete(), "truncated pages cannot claim complete summaries")
+}
+
+func TestEmbeddingTelemetryReadsThroughOwnedSQLiteStore(t *testing.T) {
+	ctx := context.Background()
+	db := databasetest.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(ctx, db,
+		database.SchemaProviderFunc(localdb.SystemSchema),
+		database.SchemaProviderFunc(internalmetrics.Schema),
+	))
+	stamp := time.Date(2026, 11, 20, 0, 30, 0, 0, time.UTC)
+	store := internalmetrics.NewEmbeddingTelemetryStore(db, scheduletest.New(stamp), nil)
+	defer store.Close(context.Background())
+	store.Observe(aigateway.EmbeddingObservation{Kind: "query", Role: "embedding.default", Model: "test-embedder", Duration: 2 * time.Millisecond, VectorCount: 1})
+	require.NoError(t, store.Flush(ctx))
+	client := newClient(t, handler.Deps{EmbeddingTelemetry: store})
+	resp, err := client.EmbeddingTelemetry(ctx, connect.NewRequest(&metricsv1.EmbeddingTelemetryRequest{
+		From: stamp.Add(-time.Minute).Format(time.RFC3339Nano), To: stamp.Add(time.Minute).Format(time.RFC3339Nano), Limit: 10,
+	}))
+	require.NoError(t, err)
+	require.Len(t, resp.Msg.GetObservations(), 1)
+	row := resp.Msg.GetObservations()[0]
+	require.Equal(t, "query", row.GetKind())
+	require.Equal(t, "embedding.default", row.GetRole())
+	require.Equal(t, "test-embedder", row.GetModel())
+	require.Equal(t, int64(2000), row.GetDurationUs())
+	require.Equal(t, "2026-11-20T00:30:00Z", row.GetCreatedAt())
+	require.Len(t, resp.Msg.GetProfiles(), 1)
+	require.Equal(t, int64(1), resp.Msg.GetProfiles()[0].GetSampleCount())
+	require.True(t, resp.Msg.GetProfiles()[0].GetComplete())
+}
+
+func TestEmbeddingTelemetryRejectsBadWindowAndKeepsReadErrorsOpaque(t *testing.T) {
+	client := newClient(t, handler.Deps{EmbeddingTelemetry: &fakeEmbeddingTelemetry{err: errors.New("secret db path")}})
+	_, err := client.EmbeddingTelemetry(context.Background(), connect.NewRequest(&metricsv1.EmbeddingTelemetryRequest{From: "bad", To: "2026-11-21T00:00:00Z"}))
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	_, err = client.EmbeddingTelemetry(context.Background(), connect.NewRequest(&metricsv1.EmbeddingTelemetryRequest{From: "2026-11-21T00:00:00Z", To: "2026-11-20T00:00:00Z"}))
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	_, err = client.EmbeddingTelemetry(context.Background(), connect.NewRequest(&metricsv1.EmbeddingTelemetryRequest{From: "2026-11-20T00:00:00Z", To: "2026-11-21T00:00:00Z"}))
 	require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
 	require.NotContains(t, err.Error(), "secret")
 }

@@ -1,0 +1,67 @@
+{
+  "groups": [
+    {
+      "providerId": "docs",
+      "hits": [
+        {
+          "providerId": "docs",
+          "id": "health-card",
+          "title": "HealthCard component",
+          "path": "ui/HealthCard.tsx"
+        }
+      ],
+      "count": 1
+    }
+  ],
+  "queryParts": [
+    {
+      "partId": "surface",
+      "label": "Find the relevant interface",
+      "source": "SOURCE_USER_QUERY",
+      "evidence": [
+        {
+          "providerId": "docs",
+          "groupIndex": 0,
+          "hitIndex": 0,
+          "hitId": "health-card",
+          "path": "ui/HealthCard.tsx",
+          "retrievalSources": ["RETRIEVAL_SOURCE_USER_QUERY", 93]
+        }
+      ],
+      "status": "STATUS_CANDIDATES_RETURNED"
+    },
+    {
+      "partId": "route",
+      "label": "Find routing guidance",
+      "source": "SOURCE_USER_QUERY",
+      "evidence": [
+        {
+          "providerId": "docs",
+          "groupIndex": 0,
+          "hitIndex": 0,
+          "hitId": "stale-hit"
+        }
+      ],
+      "status": "STATUS_CANDIDATES_RETURNED"
+    },
+    {
+      "partId": "owner",
+      "label": "Identify the owning capability",
+      "source": "SOURCE_USER_QUERY",
+      "status": "STATUS_NOT_ROUTED",
+      "reason": "ambiguous_provider_evidence"
+    },
+    {
+      "partId": "future-state",
+      "label": "Preserve a future coverage state",
+      "source": "SOURCE_USER_QUERY",
+      "status": 93
+    },
+    {
+      "partId": "future-source",
+      "label": "Preserve a future request-part source",
+      "source": 93,
+      "status": "STATUS_SEARCHED_EMPTY"
+    }
+  ]
+}

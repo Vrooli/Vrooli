@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"sort"
 	"strings"
@@ -107,6 +108,83 @@ func (s staticResolver) ResolveScenarioURL(_ context.Context, scenarioID string)
 // status+body or a transport error.
 type routeDoer struct {
 	byURL map[string]cannedResponse
+}
+
+type supplementalBudgetDoer struct{}
+
+func (supplementalBudgetDoer) Do(req *http.Request) (*http.Response, error) {
+	defer req.Body.Close()
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		return nil, err
+	}
+	if !strings.Contains(string(body), " and then ") {
+		<-req.Context().Done()
+		return nil, req.Context().Err()
+	}
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader(`{"results":[{"name":"candidate","description":"candidate result","score":0.9}]}`)),
+		Header:     make(http.Header),
+	}, nil
+}
+
+type singleReserveBudgetDoer struct{}
+
+func (singleReserveBudgetDoer) Do(req *http.Request) (*http.Response, error) {
+	defer req.Body.Close()
+	if req.URL.Host == "ui-backup.test" {
+		<-req.Context().Done()
+		return nil, req.Context().Err()
+	}
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader(`{"results":[]}`)),
+		Header:     make(http.Header),
+	}, nil
+}
+
+type fairSupplementalBudgetDoer struct{}
+
+func (fairSupplementalBudgetDoer) Do(req *http.Request) (*http.Response, error) {
+	defer req.Body.Close()
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		return nil, err
+	}
+	if strings.Contains(string(body), "design a surface") && !strings.Contains(string(body), " and then ") {
+		<-req.Context().Done()
+		return nil, req.Context().Err()
+	}
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader(`{"results":[{"name":"Command guide","description":"run the command","score":0.9,"displayName":"Surface","filePath":"surface.tsx","kind":"surface"}]}`)),
+		Header:     make(http.Header),
+	}, nil
+}
+
+type recordingRouteDoer struct {
+	mu       sync.Mutex
+	delegate routeDoer
+	bodies   map[string][]string
+}
+
+func (d *recordingRouteDoer) Do(req *http.Request) (*http.Response, error) {
+	defer req.Body.Close()
+	raw, err := io.ReadAll(req.Body)
+	if err != nil {
+		return nil, err
+	}
+	d.mu.Lock()
+	d.bodies[req.URL.String()] = append(d.bodies[req.URL.String()], string(raw))
+	d.mu.Unlock()
+	return d.delegate.Do(req)
+}
+
+func (d *recordingRouteDoer) requestBodies(url string) []string {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return append([]string(nil), d.bodies[url]...)
 }
 
 type coalescingDoer struct {
@@ -374,6 +452,57 @@ func TestPublicQueryPreservesOriginalAndSearchesBothCompoundIntents(t *testing.T
 	}
 }
 
+func TestExplicitTypeScopeDoesNotWidenAcrossCompoundParts(t *testing.T) {
+	r := routing.NewRouter(routing.Deps{
+		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(),
+	})
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{
+		Query: "design a surface and then run the command",
+		Types: []string{"command"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"cli-health.commands"}, resp.GetCorporaSearched())
+	require.Len(t, resp.GetQueryParts(), 2)
+	for _, part := range resp.GetQueryParts() {
+		require.Equal(t, []string{"cli-health.commands"}, part.GetSearchedProviderIds())
+	}
+}
+
+func TestExplicitCompoundPartsRetainDegradationWhenAnotherSelectedOwnerFails(t *testing.T) {
+	ui := uiSurfacesFiltered()
+	ui.Type = "surface"
+	ui.Description = "design surfaces"
+	command := cliHealthCommands()
+	command.Description = "run commands"
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{ui, command}},
+		Resolver: staticResolver{urls: map[string]string{"ui-health": "http://ui-health.test", "cli-health": "http://cli-health.test"}},
+		Doer: routeDoer{byURL: map[string]cannedResponse{
+			"http://ui-health.test/vrooli.ui_health.v1.search.SearchService/Search":   {err: errors.New("connection refused")},
+			"http://cli-health.test/vrooli.cli_health.v1.search.SearchService/Search": {status: 200, body: `{"results":[{"name":"Command result","description":"selected command result","score":0.9}]}`},
+		}},
+	})
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{
+		Query: "design a surface and then run the command",
+		Types: []string{"surface", "command"},
+	})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"cli-health.commands", "ui-health.surfaces"}, resp.GetCorporaSearched())
+	require.Len(t, resp.GetQueryParts(), 2)
+	for _, part := range resp.GetQueryParts() {
+		require.Equal(t, routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED, part.GetStatus())
+		require.ElementsMatch(t, []string{"cli-health.commands", "ui-health.surfaces"}, part.GetSearchedProviderIds())
+		require.True(t, part.GetDegraded(), "a failed selected owner is incomplete coverage for each explicitly selected part")
+		require.True(t, part.GetPartial(), "the healthy selected owner returned evidence for this part")
+		require.Equal(t, "selected_provider_degraded_on_primary_query", part.GetReason())
+		require.NotEmpty(t, part.GetEvidence())
+		for _, evidence := range part.GetEvidence() {
+			require.Equal(t, "cli-health.commands", evidence.GetProviderId())
+		}
+	}
+	require.False(t, resp.GetPartial(), "response partial remains reserved for caller deadline expiration")
+}
+
 func TestAutomaticCompoundQuerySearchesEachNeedAtItsOwnOwner(t *testing.T) {
 	ui := uiSurfacesFiltered()
 	ui.Type = "surface"
@@ -401,12 +530,57 @@ func TestAutomaticCompoundQuerySearchesEachNeedAtItsOwnOwner(t *testing.T) {
 	require.Equal(t, "scenario restart", resp.GetQueryParts()[1].GetEvidence()[0].GetHitId())
 }
 
+func TestAutomaticThreePartCompoundKeepsEachNeedAtItsOwnOwner(t *testing.T) {
+	ui := uiSurfacesFiltered()
+	ui.Description = "design user interfaces and surfaces"
+	command := cliHealthCommands()
+	command.Description = "run command tests"
+	records := swarmRecords()
+	records.Description = "find project records"
+	strategy := routing.RetrievalStrategy{
+		Name:   "lexical-three-part",
+		Stages: []routing.RetrievalStage{{Kind: routing.StageLexical, Params: map[string]interface{}{"shortlist_width": float64(1)}}},
+	}
+	doer := &recordingRouteDoer{
+		delegate: threeProviderDoer(),
+		bodies:   make(map[string][]string),
+	}
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{command, ui, records}},
+		Resolver: threeProviderResolver(),
+		Doer:     doer,
+		Strategy: &strategy,
+	})
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{
+		Query: "design a surface and then run the command and then find project records",
+	})
+	require.NoError(t, err)
+	require.Len(t, resp.GetQueryParts(), 3)
+	require.Equal(t, []string{"ui-health.surfaces"}, resp.GetQueryParts()[0].GetSearchedProviderIds())
+	require.Equal(t, []string{"cli-health.commands"}, resp.GetQueryParts()[1].GetSearchedProviderIds())
+	require.Equal(t, []string{"swarm-manager.records"}, resp.GetQueryParts()[2].GetSearchedProviderIds())
+	for _, part := range resp.GetQueryParts() {
+		require.Equal(t, routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED, part.GetStatus())
+		require.NotEmpty(t, part.GetEvidence())
+	}
+	for providerURL, expectedQuery := range map[string]string{
+		"http://ui-health.test/vrooli.ui_health.v1.search.SearchService/Search":   "design a surface",
+		"http://cli-health.test/vrooli.cli_health.v1.search.SearchService/Search": "run the command",
+		"http://swarm-manager.test/api/v1/search/ai":                              "find project records",
+	} {
+		bodies := doer.requestBodies(providerURL)
+		require.Len(t, bodies, 1, "supplemental-only owners should receive only their derived need")
+		require.Contains(t, bodies[0], expectedQuery)
+		require.NotContains(t, bodies[0], "design a surface and then run the command")
+	}
+}
+
 func TestAutomaticCompoundQueryKeepsHealthyOwnerWhenPeerTimesOut(t *testing.T) {
 	ui := uiSurfacesFiltered()
 	ui.Type = "surface"
-	ui.Description = "design user interfaces"
+	ui.Description = "design a surface"
 	command := cliHealthCommands()
-	command.Description = "run command tests"
+	command.Description = "run the command"
 	strategy := routing.RetrievalStrategy{
 		Name:   "lexical-single-owner",
 		Stages: []routing.RetrievalStage{{Kind: routing.StageLexical, Params: map[string]interface{}{"shortlist_width": float64(1)}}},
@@ -433,6 +607,344 @@ func TestAutomaticCompoundQueryKeepsHealthyOwnerWhenPeerTimesOut(t *testing.T) {
 	require.Equal(t, routingv1.QueryPartEvidence_STATUS_PROVIDER_DEGRADED, commandPart.GetStatus())
 	require.True(t, commandPart.GetDegraded())
 	require.Empty(t, commandPart.GetEvidence())
+}
+
+func TestAutomaticCompoundUsesOneEligibleReserveAfterPrimaryOwnerFailure(t *testing.T) {
+	ui := uiSurfacesFiltered()
+	ui.Type = "surface"
+	ui.Description = "design a mobile interface for a fitness tracker"
+	reserve := cliHealthCommands()
+	reserve.ProviderId = "ui-backup.pages"
+	reserve.ProviderGroup = "ui-backup"
+	reserve.Type = "page"
+	reserve.Description = "design mobile interface"
+	reserve.Endpoint = httpJSON("ui-backup", "/search", `{"query":"{{query}}","limit":{{limit}}}`)
+	records := swarmRecords()
+	records.Description = "find project records"
+	strategy := routing.RetrievalStrategy{
+		Name:   "lexical-primary-with-reserve",
+		Stages: []routing.RetrievalStage{{Kind: routing.StageLexical, Params: map[string]interface{}{"shortlist_width": float64(1)}}},
+	}
+	recorder := &telemetryCapture{}
+	r := routing.NewRouter(routing.Deps{
+		Lister: &fakeLister{providers: []*registryv1.ProviderDescriptor{ui, reserve, records}},
+		Resolver: staticResolver{urls: map[string]string{
+			"ui-health": "http://ui-health.test", "ui-backup": "http://ui-backup.test", "swarm-manager": "http://swarm-manager.test",
+		}},
+		Doer: routeDoer{byURL: map[string]cannedResponse{
+			"http://ui-health.test/vrooli.ui_health.v1.search.SearchService/Search": {err: errors.New("connection refused")},
+			"http://ui-backup.test/search":                                          {status: 200, body: `{"results":[{"name":"Fitness interface guide","description":"Mobile tracker surface","score":0.9}]}`},
+			"http://swarm-manager.test/api/v1/search/ai":                            {status: 200, body: `{"results":[{"id":"record-1","payload":{"record_id":"fitness-record","scenario":"project record"},"score":0.8}]}`},
+		}},
+		Strategy: &strategy,
+		Recorder: recorder,
+	})
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "design a mobile interface for a fitness tracker and then find project records"})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"swarm-manager.records", "ui-backup.pages", "ui-health.surfaces"}, resp.GetCorporaSearched())
+	require.Len(t, resp.GetQueryParts(), 2)
+	designPart, recordsPart := resp.GetQueryParts()[0], resp.GetQueryParts()[1]
+	require.ElementsMatch(t, []string{"ui-health.surfaces", "ui-backup.pages"}, designPart.GetSearchedProviderIds())
+	require.Equal(t, routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED, designPart.GetStatus())
+	require.True(t, designPart.GetDegraded())
+	require.True(t, designPart.GetPartial())
+	require.Equal(t, "supplemental_provider_fallback", designPart.GetReason())
+	require.Len(t, designPart.GetEvidence(), 1)
+	require.Equal(t, "ui-backup.pages", designPart.GetEvidence()[0].GetProviderId())
+	require.Equal(t, routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED, recordsPart.GetStatus())
+	require.False(t, recordsPart.GetDegraded())
+	require.False(t, recordsPart.GetPartial())
+	require.Len(t, recordsPart.GetEvidence(), 1)
+	require.Equal(t, 3, recorder.sample.SelectedProviderCount)
+	require.Equal(t, 1, recorder.sample.SelectedLeafCount)
+	require.Equal(t, 2, recorder.sample.WidenedLeafCount, "derived owner and used reserve both count as bounded widening")
+}
+
+func TestAutomaticCompoundPrimaryFailureWithHealthyEmptyReserveStaysDegradedWithoutPartialEvidence(t *testing.T) {
+	ui := uiSurfacesFiltered()
+	ui.Type = "surface"
+	ui.Description = "design a mobile interface for a fitness tracker"
+	reserve := cliHealthCommands()
+	reserve.ProviderId = "ui-backup.pages"
+	reserve.ProviderGroup = "ui-backup"
+	reserve.Type = "page"
+	reserve.Description = "design mobile interface"
+	reserve.Endpoint = httpJSON("ui-backup", "/search", `{"query":"{{query}}","limit":{{limit}}}`)
+	command := cliHealthCommands()
+	command.Description = "run command tests"
+	strategy := routing.RetrievalStrategy{
+		Name:   "lexical-primary-with-empty-reserve",
+		Stages: []routing.RetrievalStage{{Kind: routing.StageLexical, Params: map[string]interface{}{"shortlist_width": float64(1)}}},
+	}
+	r := routing.NewRouter(routing.Deps{
+		Lister: &fakeLister{providers: []*registryv1.ProviderDescriptor{ui, reserve, command}},
+		Resolver: staticResolver{urls: map[string]string{
+			"ui-health": "http://ui-health.test", "ui-backup": "http://ui-backup.test", "cli-health": "http://cli-health.test",
+		}},
+		Doer: routeDoer{byURL: map[string]cannedResponse{
+			"http://ui-health.test/vrooli.ui_health.v1.search.SearchService/Search":   {err: errors.New("connection refused")},
+			"http://ui-backup.test/search":                                            {status: 200, body: `{"results":[]}`},
+			"http://cli-health.test/vrooli.cli_health.v1.search.SearchService/Search": {status: 200, body: `{"results":[{"name":"Command guide","description":"run command tests","score":0.9}]}`},
+		}},
+		Strategy: &strategy,
+	})
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "design a mobile interface for a fitness tracker and then run command tests"})
+	require.NoError(t, err)
+	require.Len(t, resp.GetQueryParts(), 2)
+	designPart := resp.GetQueryParts()[0]
+	require.Equal(t, routingv1.QueryPartEvidence_STATUS_PROVIDER_DEGRADED, designPart.GetStatus())
+	require.ElementsMatch(t, []string{"ui-health.surfaces", "ui-backup.pages"}, designPart.GetSearchedProviderIds())
+	require.True(t, designPart.GetDegraded())
+	require.False(t, designPart.GetPartial())
+	require.Equal(t, "supplemental_provider_fallback_no_evidence", designPart.GetReason())
+	require.Empty(t, designPart.GetEvidence())
+	commandPart := resp.GetQueryParts()[1]
+	require.Equal(t, routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED, commandPart.GetStatus())
+	require.False(t, commandPart.GetDegraded(), "the failed design owner must not taint its healthy peer")
+}
+
+func TestAutomaticCompoundHealthyEmptyOwnersStaySearchedEmpty(t *testing.T) {
+	ui := uiSurfacesFiltered()
+	ui.Type = "surface"
+	ui.Description = "design a surface"
+	command := cliHealthCommands()
+	command.Description = "run a command"
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{ui, command}},
+		Resolver: staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test", "ui-health": "http://ui-health.test"}},
+		Doer: routeDoer{byURL: map[string]cannedResponse{
+			"http://ui-health.test/vrooli.ui_health.v1.search.SearchService/Search":   {status: 200, body: `{"results":[]}`},
+			"http://cli-health.test/vrooli.cli_health.v1.search.SearchService/Search": {status: 200, body: `{"results":[]}`},
+		}},
+	})
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "design a surface and then run a command"})
+	require.NoError(t, err)
+	require.Len(t, resp.GetQueryParts(), 2)
+	for _, part := range resp.GetQueryParts() {
+		require.Equal(t, routingv1.QueryPartEvidence_STATUS_SEARCHED_EMPTY, part.GetStatus())
+		require.False(t, part.GetDegraded())
+		require.False(t, part.GetPartial())
+	}
+}
+
+func TestAutomaticCompoundSupplementalBudgetExhaustionIsTopLevelDegradedWithoutQueryDeadlinePartial(t *testing.T) {
+	ui := uiSurfacesFiltered()
+	ui.Type = "surface"
+	ui.Description = "design a surface"
+	command := cliHealthCommands()
+	command.Description = "run the command"
+	strategy := routing.RetrievalStrategy{
+		Name:   "lexical-supplemental-budget",
+		Stages: []routing.RetrievalStage{{Kind: routing.StageLexical, Params: map[string]interface{}{"shortlist_width": float64(1)}}},
+	}
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{ui, command}},
+		Resolver: staticResolver{urls: map[string]string{"ui-health": "http://ui-health.test", "cli-health": "http://cli-health.test"}},
+		Doer:     supplementalBudgetDoer{}, Strategy: &strategy,
+	})
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "design a surface and then run the command"})
+	require.NoError(t, err)
+	require.Len(t, resp.GetQueryParts(), 2)
+	require.True(t, resp.GetDegraded())
+	require.False(t, resp.GetPartial(), "the top-level partial flag is reserved for expiration of the caller query deadline")
+	var reasons []string
+	for _, degradation := range resp.GetDegradations() {
+		reasons = append(reasons, degradation.GetReason())
+	}
+	require.Contains(t, reasons, "supplemental_query_budget_exhausted")
+	require.NotContains(t, reasons, "query_deadline_partial", "the caller query deadline did not expire")
+	var exhaustedPart bool
+	for _, part := range resp.GetQueryParts() {
+		if part.GetReason() == "supplemental_query_budget_exhausted" {
+			exhaustedPart = true
+		}
+	}
+	require.True(t, exhaustedPart, "the unqueried derived part must identify its local budget outcome")
+}
+
+func TestAutomaticCompoundFairPartBudgetsKeepLaterOwnerEvidence(t *testing.T) {
+	ui := uiSurfacesFiltered()
+	ui.Type = "surface"
+	ui.Description = "design a surface"
+	command := cliHealthCommands()
+	command.Description = "run the command"
+	strategy := routing.RetrievalStrategy{
+		Name:   "lexical-fair-part-budget",
+		Stages: []routing.RetrievalStage{{Kind: routing.StageLexical, Params: map[string]interface{}{"shortlist_width": float64(1)}}},
+	}
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{ui, command}},
+		Resolver: staticResolver{urls: map[string]string{"ui-health": "http://ui-health.test", "cli-health": "http://cli-health.test"}},
+		Doer:     fairSupplementalBudgetDoer{}, Strategy: &strategy,
+	})
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "design a surface and then run the command"})
+	require.NoError(t, err)
+	require.Len(t, resp.GetQueryParts(), 2)
+	require.True(t, resp.GetDegraded())
+	require.False(t, resp.GetPartial(), "part-local budget exhaustion is not caller query-deadline expiration")
+	require.Equal(t, "supplemental_part_budget_exhausted", resp.GetQueryParts()[0].GetReason())
+	require.Equal(t, routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED, resp.GetQueryParts()[1].GetStatus(), "the later part should retain its budget share")
+	require.False(t, resp.GetQueryParts()[1].GetDegraded())
+	require.NotEmpty(t, resp.GetQueryParts()[1].GetEvidence())
+	var reasons []string
+	for _, degradation := range resp.GetDegradations() {
+		reasons = append(reasons, degradation.GetReason())
+	}
+	require.Contains(t, reasons, "supplemental_part_budget_exhausted")
+	require.NotContains(t, reasons, "supplemental_query_budget_exhausted")
+}
+
+func TestAutomaticSingleQueryUsesOneEligibleReserveAfterPrimaryFailure(t *testing.T) {
+	primary := uiSurfacesFiltered()
+	primary.Type = "surface"
+	primary.Description = "design mobile surface for a fitness tracker"
+	reserve := cliHealthCommands()
+	reserve.ProviderId = "ui-backup.pages"
+	reserve.ProviderGroup = "ui-backup"
+	reserve.Type = "page"
+	reserve.Description = "design mobile surface"
+	reserve.Endpoint = httpJSON("ui-backup", "/search", `{"query":"{{query}}","limit":{{limit}}}`)
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{primary, reserve}},
+		Resolver: staticResolver{urls: map[string]string{"ui-health": "http://ui-health.test", "ui-backup": "http://ui-backup.test"}},
+		Doer: routeDoer{byURL: map[string]cannedResponse{
+			"http://ui-health.test/vrooli.ui_health.v1.search.SearchService/Search": {err: errors.New("connection refused")},
+			"http://ui-backup.test/search":                                          {status: 200, body: `{"results":[{"name":"Fitness interface guide","description":"Mobile tracker surface","score":0.9}]}`},
+		}},
+		Strategy: &routing.RetrievalStrategy{
+			Name:   "single-query-reserve",
+			Stages: []routing.RetrievalStage{{Kind: routing.StageLexical, Params: map[string]interface{}{"shortlist_width": float64(1)}}},
+		},
+	})
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "design a mobile surface for a fitness tracker"})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"ui-health.surfaces", "ui-backup.pages"}, resp.GetCorporaSearched())
+	require.Len(t, resp.GetQueryParts(), 1)
+	part := resp.GetQueryParts()[0]
+	require.Equal(t, routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED, part.GetStatus())
+	require.ElementsMatch(t, []string{"ui-health.surfaces", "ui-backup.pages"}, part.GetSearchedProviderIds())
+	require.True(t, part.GetDegraded())
+	require.True(t, part.GetPartial())
+	require.Equal(t, "automatic_provider_fallback", part.GetReason())
+	require.Len(t, part.GetEvidence(), 1)
+	require.Equal(t, "ui-backup.pages", part.GetEvidence()[0].GetProviderId())
+}
+
+func TestAutomaticSingleQueryPrimaryFailureWithEmptyReserveRemainsDegraded(t *testing.T) {
+	primary := uiSurfacesFiltered()
+	primary.Type = "surface"
+	primary.Description = "design mobile surface for a fitness tracker"
+	reserve := cliHealthCommands()
+	reserve.ProviderId = "ui-backup.pages"
+	reserve.ProviderGroup = "ui-backup"
+	reserve.Type = "page"
+	reserve.Description = "design mobile surface"
+	reserve.Endpoint = httpJSON("ui-backup", "/search", `{"query":"{{query}}","limit":{{limit}}}`)
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{primary, reserve}},
+		Resolver: staticResolver{urls: map[string]string{"ui-health": "http://ui-health.test", "ui-backup": "http://ui-backup.test"}},
+		Doer: routeDoer{byURL: map[string]cannedResponse{
+			"http://ui-health.test/vrooli.ui_health.v1.search.SearchService/Search": {err: errors.New("connection refused")},
+			"http://ui-backup.test/search":                                          {status: 200, body: `{"results":[]}`},
+		}},
+	})
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "design a mobile surface for a fitness tracker"})
+	require.NoError(t, err)
+	require.Len(t, resp.GetQueryParts(), 1)
+	part := resp.GetQueryParts()[0]
+	require.Equal(t, routingv1.QueryPartEvidence_STATUS_PROVIDER_DEGRADED, part.GetStatus())
+	require.True(t, part.GetDegraded())
+	require.False(t, part.GetPartial())
+	require.Equal(t, "automatic_provider_fallback_no_evidence", part.GetReason())
+	require.Empty(t, part.GetEvidence())
+}
+
+func TestAutomaticSingleQueryReserveBudgetIsDistinctFromCallerDeadline(t *testing.T) {
+	primary := uiSurfacesFiltered()
+	primary.Type = "surface"
+	primary.Description = "design mobile surface for a fitness tracker"
+	reserve := cliHealthCommands()
+	reserve.ProviderId = "ui-backup.pages"
+	reserve.ProviderGroup = "ui-backup"
+	reserve.Type = "page"
+	reserve.Description = "design mobile surface"
+	reserve.Endpoint = httpJSON("ui-backup", "/search", `{"query":"{{query}}","limit":{{limit}}}`)
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{primary, reserve}},
+		Resolver: staticResolver{urls: map[string]string{"ui-health": "http://ui-health.test", "ui-backup": "http://ui-backup.test"}},
+		Doer:     singleReserveBudgetDoer{},
+		Strategy: &routing.RetrievalStrategy{
+			Name:   "single-query-reserve-budget",
+			Stages: []routing.RetrievalStage{{Kind: routing.StageLexical, Params: map[string]interface{}{"shortlist_width": float64(1)}}},
+		},
+	})
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "design a mobile surface for a fitness tracker"})
+	require.NoError(t, err)
+	require.True(t, resp.GetDegraded())
+	require.False(t, resp.GetPartial(), "the internal recovery budget is not expiration of the caller query deadline")
+	require.Len(t, resp.GetQueryParts(), 1)
+	require.Equal(t, "supplemental_query_budget_exhausted", resp.GetQueryParts()[0].GetReason())
+	var reasons []string
+	for _, degradation := range resp.GetDegradations() {
+		reasons = append(reasons, degradation.GetReason())
+	}
+	require.Contains(t, reasons, "supplemental_query_budget_exhausted")
+	require.NotContains(t, reasons, "query_deadline_partial")
+}
+
+func TestAutomaticSupplementalProviderFailureOpensCircuitAndKeepsPeerEvidence(t *testing.T) {
+	ui := uiSurfacesFiltered()
+	ui.Type = "surface"
+	ui.Description = "design a surface"
+	command := cliHealthCommands()
+	command.Description = "run the command"
+	strategy := routing.RetrievalStrategy{
+		Name:   "lexical-supplemental-breaker",
+		Stages: []routing.RetrievalStage{{Kind: routing.StageLexical, Params: map[string]interface{}{"shortlist_width": float64(1)}}},
+	}
+	uiURL := "http://ui-health.test/vrooli.ui_health.v1.search.SearchService/Search"
+	commandURL := "http://cli-health.test/vrooli.cli_health.v1.search.SearchService/Search"
+	doer := &recordingRouteDoer{
+		delegate: routeDoer{byURL: map[string]cannedResponse{
+			uiURL:      {status: 200, body: `{"results":[{"displayName":"Button surface","filePath":"s.tsx","kind":"surface","score":0.9}]}`},
+			commandURL: {err: errors.New("connection refused")},
+		}},
+		bodies: make(map[string][]string),
+	}
+	now := time.Now()
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{command, ui}},
+		Resolver: staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test", "ui-health": "http://ui-health.test"}},
+		Doer:     doer,
+		Strategy: &strategy,
+		ProviderBreaker: routing.RerankBreakerConfig{
+			FailureThreshold: 1, Cooldown: time.Minute,
+		},
+		Now: func() time.Time { return now },
+	})
+	query := &routingv1.QueryRequest{Query: "design a surface and then run the command"}
+	first, err := r.Query(context.Background(), query)
+	require.NoError(t, err)
+	require.Equal(t, routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED, first.GetQueryParts()[0].GetStatus())
+	require.Equal(t, routingv1.QueryPartEvidence_STATUS_PROVIDER_DEGRADED, first.GetQueryParts()[1].GetStatus())
+	require.True(t, first.GetDegraded())
+	require.Len(t, doer.requestBodies(commandURL), 1)
+
+	second, err := r.Query(context.Background(), query)
+	require.NoError(t, err)
+	require.Equal(t, routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED, second.GetQueryParts()[0].GetStatus())
+	require.Equal(t, routingv1.QueryPartEvidence_STATUS_PROVIDER_DEGRADED, second.GetQueryParts()[1].GetStatus())
+	require.Len(t, doer.requestBodies(commandURL), 1, "the second automatic request should honor the provider circuit")
+	var commandGroup *routingv1.ProviderResultGroup
+	for _, group := range second.GetGroups() {
+		if group.GetProviderId() == "cli-health.commands" {
+			commandGroup = group
+		}
+	}
+	require.NotNil(t, commandGroup)
+	require.True(t, commandGroup.GetDegraded())
+	require.Contains(t, commandGroup.GetNote(), "circuit unavailable")
+	require.Equal(t, []string{"ui-health.surfaces"}, second.GetQueryParts()[0].GetSearchedProviderIds(), "the healthy part should remain scoped to its selected owner only")
 }
 
 func TestAutomaticCompoundQueryReportsMissingOwnerWithoutWidening(t *testing.T) {
@@ -828,8 +1340,14 @@ func TestProviderCircuitFailsFastAndRecoversWithProbe(t *testing.T) {
 }
 
 func TestTransportErrorDegrades(t *testing.T) {
-	lister := &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands()}}
-	resolver := staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test"}}
+	primary := cliHealthCommands()
+	reserve := cliHealthCommands()
+	reserve.ProviderId = "backup.commands"
+	reserve.ProviderGroup = "backup"
+	reserve.Description = "find CLI Health Commands"
+	reserve.Endpoint = httpJSON("backup", "/search", `{"query":"{{query}}","limit":{{limit}}}`)
+	lister := &fakeLister{providers: []*registryv1.ProviderDescriptor{primary, reserve}}
+	resolver := staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test", "backup": "http://backup.test"}}
 	doer := routeDoer{byURL: map[string]cannedResponse{
 		"http://cli-health.test/vrooli.cli_health.v1.search.SearchService/Search": {err: context.DeadlineExceeded},
 	}}
@@ -845,6 +1363,7 @@ func TestTransportErrorDegrades(t *testing.T) {
 	require.Len(t, resp.GetQueryParts(), 1)
 	require.Equal(t, routingv1.QueryPartEvidence_STATUS_PROVIDER_DEGRADED, resp.GetQueryParts()[0].GetStatus())
 	require.Equal(t, []string{"cli-health.commands"}, resp.GetQueryParts()[0].GetSearchedProviderIds())
+	require.Equal(t, []string{"cli-health.commands"}, resp.GetCorporaSearched(), "the exact named owner must not widen to a lexical reserve")
 	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "exact eligible provider identity matched")
 }
 
@@ -1115,6 +1634,16 @@ type fakeReranker struct {
 	gotQuery         string
 	gotCount         int
 }
+
+type rewritingReranker struct {
+	rewrite func([]*routingv1.SearchHit) []*routingv1.SearchHit
+}
+
+func (r *rewritingReranker) Rerank(_ context.Context, _ string, candidates []*routingv1.SearchHit) ([]*routingv1.SearchHit, error) {
+	return r.rewrite(candidates), nil
+}
+
+func (*rewritingReranker) Available(context.Context) bool { return true }
 
 type telemetryCapture struct{ sample routing.TelemetrySample }
 
@@ -1419,6 +1948,53 @@ func TestRerankDegradesToGroupingOnError(t *testing.T) {
 		require.NotEmpty(t, group.GetHits(), "rerank failure must preserve provider hit evidence")
 	}
 	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "reranker unavailable")
+}
+
+func TestMalformedRerankerOutputPreservesMultiOwnerEvidence(t *testing.T) {
+	for name, rewrite := range map[string]func([]*routingv1.SearchHit) []*routingv1.SearchHit{
+		"incomplete": func(candidates []*routingv1.SearchHit) []*routingv1.SearchHit {
+			return candidates[:len(candidates)-1]
+		},
+		"foreign candidate": func(candidates []*routingv1.SearchHit) []*routingv1.SearchHit {
+			ranked := append([]*routingv1.SearchHit(nil), candidates...)
+			ranked[0] = &routingv1.SearchHit{ProviderId: "unselected.owner", Id: "invented", Type: "skill", Path: "invented"}
+			return ranked
+		},
+		"invalid score after valid candidate": func(candidates []*routingv1.SearchHit) []*routingv1.SearchHit {
+			ranked := make([]*routingv1.SearchHit, len(candidates))
+			for i, candidate := range candidates {
+				ranked[i] = &routingv1.SearchHit{ProviderId: candidate.GetProviderId(), Id: candidate.GetId(), Type: candidate.GetType(), Path: candidate.GetPath(), RerankScore: 0.5}
+			}
+			ranked[0].RerankScore = 0.75
+			ranked[len(ranked)-1].RerankScore = math.NaN()
+			return ranked
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := routing.NewRouter(routing.Deps{
+				Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands(), swarmRecords()}},
+				Resolver: threeProviderResolver(),
+				Doer:     threeProviderDoer(),
+				Reranker: &rewritingReranker{rewrite: rewrite},
+			})
+			resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "x", Types: []string{"command", "record"}})
+			require.NoError(t, err)
+			require.True(t, resp.GetDegraded())
+			require.False(t, resp.GetReranked())
+			require.Empty(t, resp.GetRanked())
+			require.Contains(t, resp.GetDegradations()[0].GetReason(), "reranker_invalid_output")
+			require.ElementsMatch(t, []string{"cli-health.commands", "swarm-manager.records"}, resp.GetCorporaSearched())
+			require.Len(t, resp.GetQueryParts(), 1)
+			require.Equal(t, routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED, resp.GetQueryParts()[0].GetStatus())
+			require.NotEmpty(t, resp.GetQueryParts()[0].GetEvidence())
+			for _, group := range resp.GetGroups() {
+				require.NotEmpty(t, group.GetHits(), "invalid reranker output must preserve provider hits")
+				for _, hit := range group.GetHits() {
+					require.Zero(t, hit.GetRerankScore(), "invalid reranker scores must not partially mutate fallback groups")
+				}
+			}
+		})
+	}
 }
 
 func TestRerankSkippedForSingleCandidate(t *testing.T) {

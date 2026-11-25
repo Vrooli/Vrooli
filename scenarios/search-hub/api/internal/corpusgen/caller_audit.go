@@ -79,8 +79,8 @@ func AuditedCallerCase(event CallerEvent, route GatewayRouteProof, review Caller
 	if route.CapacityVerdict != "fit" || route.CapacityClaimID == "" || route.CapacityRequestedBytes <= 0 || route.CapacityRequiredBytes != route.CapacityRequestedBytes || route.CapacityGrantedBytes < route.CapacityRequiredBytes || !strings.HasPrefix(route.CapacityEstimateEvidenceURI, "capacity-footprint://") {
 		return nil, fmt.Errorf("caller case route lacks an admitted local capacity claim")
 	}
-	if !isModelPolicyRole(route.SelectedResourceRole) {
-		return nil, fmt.Errorf("caller case uses unknown selected resource policy role %q", route.SelectedResourceRole)
+	if strings.TrimSpace(route.SelectedResourceRole) == "" {
+		return nil, fmt.Errorf("caller case requires the selected resource policy role from its source-linked route")
 	}
 	if strings.TrimSpace(route.TaskRole) == "" {
 		return nil, fmt.Errorf("caller case requires the distinct AI Gateway task role from its source-linked route")

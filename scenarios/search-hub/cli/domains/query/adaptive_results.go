@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path"
 	"regexp"
+	"sort"
 	"strings"
 
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
@@ -225,14 +226,87 @@ func directEntityMatch(ctx interface{ Positional(string) string }, msg *routingv
 	return nil
 }
 
-func renderDirectMatch(hit *routingv1.SearchHit, maxHits int) []string {
+// directEntityViewHits keeps the exact match first while applying the same
+// global human hit budget to the rest of the response. The exact row is a
+// priority ordering choice, not a reason to hide every other returned hit.
+func directEntityViewHits(ctx interface {
+	Positional(string) string
+	BoolFlag(string) bool
+}, msg *routingv1.QueryResponse) []*routingv1.SearchHit {
+	if msg == nil {
+		return nil
+	}
+	exact := directEntityMatch(ctx, msg)
+	if exact == nil {
+		return nil
+	}
+	limit := defaultVisibleHits
+	if ctx != nil && ctx.BoolFlag("show-all-results") {
+		limit = 0
+	}
+	hits := make([]*routingv1.SearchHit, 0, len(allResponseHits(msg)))
+	seen := make(map[string]struct{})
+	add := func(hit *routingv1.SearchHit) bool {
+		key := hitDedupeKey(hit)
+		if _, ok := seen[key]; ok {
+			return true
+		}
+		if limit > 0 && len(hits) >= limit {
+			return false
+		}
+		seen[key] = struct{}{}
+		hits = append(hits, hit)
+		return true
+	}
+	add(exact)
+	for _, hit := range allResponseHits(msg) {
+		if !add(hit) {
+			break
+		}
+	}
+	return hits
+}
+
+func renderDirectEntityView(ctx interface {
+	Positional(string) string
+	BoolFlag(string) bool
+}, msg *routingv1.QueryResponse, exact *routingv1.SearchHit, maxHits int) []string {
+	hits := directEntityViewHits(ctx, msg)
+	if exact == nil || len(hits) == 0 {
+		return renderDirectMatch(exact, maxHits, msg.GetGroups())
+	}
+	out := []string{formatHit(1, hits[0])}
+	if detail := hitDegradationDetail(hits[0], msg.GetGroups()); detail != "" {
+		out[0] += " — provider coverage degraded: " + detail
+	}
+	for i, hit := range hits[1:] {
+		line := formatHit(i+2, hit)
+		if detail := hitDegradationDetail(hit, msg.GetGroups()); detail != "" {
+			line += " — provider coverage degraded: " + detail
+		}
+		out = append(out, line)
+	}
+	allCount := len(allResponseHits(msg))
+	if allCount > len(hits) {
+		out = append(out, fmt.Sprintf("… %d additional unique returned hit(s) omitted; use --show-all-results to display them", allCount-len(hits)))
+	}
+	return out
+}
+
+func renderDirectMatch(hit *routingv1.SearchHit, maxHits int, groupSets ...[]*routingv1.ProviderResultGroup) []string {
 	if hit == nil {
 		return []string{"(no exact entity match)"}
 	}
 	if maxHits == 0 {
-		return renderRankedLimit([]*routingv1.SearchHit{hit}, maxHits)
+		return renderRankedLimit([]*routingv1.SearchHit{hit}, maxHits, groupSets...)
 	}
-	return []string{formatHit(1, hit)}
+	line := formatHit(1, hit)
+	if len(groupSets) > 0 {
+		if detail := hitDegradationDetail(hit, groupSets[0]); detail != "" {
+			line += " — provider coverage degraded: " + detail
+		}
+	}
+	return []string{line}
 }
 
 func renderTaskParts(msg *routingv1.QueryResponse, maxHits int) []string {
@@ -240,6 +314,119 @@ func renderTaskParts(msg *routingv1.QueryResponse, maxHits int) []string {
 	seen := make(map[string]string)
 	shownHits := 0
 
+	if len(msg.GetQueryParts()) > 0 {
+		out = append(out, "Request parts:")
+	}
+	parts := msg.GetQueryParts()
+	for _, part := range parts {
+		if part == nil {
+			continue
+		}
+		label := strings.TrimSpace(part.GetLabel())
+		if label == "" {
+			label = part.GetPartId()
+		}
+		status := "status unavailable"
+		switch part.GetStatus() {
+		case routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED:
+			status = "candidate hits returned (relevance not judged)"
+		case routingv1.QueryPartEvidence_STATUS_SEARCHED_EMPTY:
+			status = "searched; no candidates returned"
+		case routingv1.QueryPartEvidence_STATUS_PROVIDER_DEGRADED:
+			status = "provider degraded; coverage incomplete"
+		case routingv1.QueryPartEvidence_STATUS_NOT_ROUTED:
+			status = "not routed"
+		default:
+			if part.GetStatus() != routingv1.QueryPartEvidence_STATUS_UNSPECIFIED {
+				status = fmt.Sprintf("unrecognized status (%d)", int32(part.GetStatus()))
+			}
+		}
+		switch part.GetSource() {
+		case routingv1.QueryPartEvidence_SOURCE_DERIVED_SEGMENT:
+			status += " (derived segment)"
+		case routingv1.QueryPartEvidence_SOURCE_UNSPECIFIED, routingv1.QueryPartEvidence_SOURCE_USER_QUERY:
+		default:
+			status += fmt.Sprintf("; unrecognized source (%d)", int32(part.GetSource()))
+		}
+		if part.GetDegraded() && part.GetStatus() != routingv1.QueryPartEvidence_STATUS_PROVIDER_DEGRADED {
+			status += "; degraded part coverage"
+		}
+		if part.GetPartial() {
+			status += "; partial part coverage"
+		}
+		providers := shortProviderList(part.GetSearchedProviderIds())
+		if providers != "" {
+			status += "; searched " + providers
+		}
+		if degradation := partProviderDegradation(part, msg); degradation != "" {
+			status += "; " + degradation
+		}
+		if reason := partReasonText(part.GetReason()); reason != "" {
+			status += "; " + truncate(reason, 100)
+		}
+
+		type referencedHit struct {
+			hit *routingv1.SearchHit
+			ref *routingv1.SearchHitReference
+		}
+		var validHits []referencedHit
+		for _, ref := range part.GetEvidence() {
+			if hit := resolveHitReference(msg, ref); hit != nil {
+				validHits = append(validHits, referencedHit{hit: hit, ref: ref})
+			}
+		}
+		if part.GetStatus() == routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED && len(validHits) > 0 {
+			weakCount := 0
+			for _, evidence := range validHits {
+				if evidence.hit.GetConfidence().GetWeak() {
+					weakCount++
+				}
+			}
+			if weakCount == len(validHits) {
+				status += "; all referenced candidates are weak"
+			} else if weakCount > 0 {
+				status += "; some hits are weak"
+			}
+		} else if part.GetStatus() == routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED && len(validHits) == 0 {
+			status += "; supporting hit references unavailable"
+		}
+		out = append(out, fmt.Sprintf("• %s — %s", truncate(label, 100), status))
+
+		omittedEvidence := 0
+		omittedKeys := make(map[string]struct{})
+		for _, evidence := range validHits {
+			hit := evidence.hit
+			key := hitDedupeKey(hit)
+			if previous, ok := seen[key]; ok {
+				line := "  same candidate shown above: " + truncate(previous, 120)
+				if unknown := unrecognizedRetrievalSources(evidence.ref); unknown != "" {
+					line += " — " + unknown
+				}
+				out = append(out, line)
+				continue
+			}
+			if maxHits > 0 && shownHits >= maxHits {
+				if _, counted := omittedKeys[key]; !counted {
+					omittedKeys[key] = struct{}{}
+					omittedEvidence++
+				}
+				continue
+			}
+			seen[key] = displayTitle(hit) + " (" + hit.GetProviderId() + ")"
+			shownHits++
+			line := "  " + truncate(displayTitle(hit), 100) + " [" + confidenceBand(hit) + " " + truncate(hit.GetProviderId(), 48) + "/" + truncate(provenance(hit), 92) + "]"
+			if part.GetSource() == routingv1.QueryPartEvidence_SOURCE_DERIVED_SEGMENT && hasRetrievalSource(evidence.ref, routingv1.SearchHitReference_RETRIEVAL_SOURCE_USER_QUERY) {
+				line += " (also found for full query)"
+			}
+			if unknown := unrecognizedRetrievalSources(evidence.ref); unknown != "" {
+				line += " (" + unknown + ")"
+			}
+			out = append(out, line)
+		}
+		if omittedEvidence > 0 {
+			out = append(out, fmt.Sprintf("  %d unique evidence hit(s) omitted by shared display budget", omittedEvidence))
+		}
+	}
 	if len(msg.GetCorrectionCandidates()) > 0 {
 		out = append(out, "Possible entity corrections (not verified):")
 		candidates := msg.GetCorrectionCandidates()
@@ -295,100 +482,64 @@ func renderTaskParts(msg *routingv1.QueryResponse, maxHits int) []string {
 			out = append(out, fmt.Sprintf("  … %d correction candidate(s) omitted (unusable evidence or over display budget)", omittedCandidates))
 		}
 	}
+	return out
+}
 
-	if len(msg.GetQueryParts()) > 0 {
-		out = append(out, "Request parts:")
+func hitDegradationDetail(hit *routingv1.SearchHit, groups []*routingv1.ProviderResultGroup) string {
+	if hit == nil {
+		return ""
 	}
-	parts := msg.GetQueryParts()
-	for index, part := range parts {
-		if maxHits > 0 && index >= maxHits && shownHits >= maxHits {
-			out = append(out, fmt.Sprintf("… %d additional request part(s) omitted by display budget", len(parts)-index))
-			break
-		}
-		if part == nil {
+	provider := strings.TrimSpace(hit.GetProviderId())
+	if provider == "" {
+		provider = strings.TrimSpace(hit.GetProviderGroup())
+	}
+	for _, group := range groups {
+		if group == nil || group.GetProviderId() != provider || (!group.GetDegraded() && len(group.GetDegradations()) == 0) {
 			continue
 		}
-		label := strings.TrimSpace(part.GetLabel())
-		if label == "" {
-			label = part.GetPartId()
-		}
-		status := "status unavailable"
-		switch part.GetStatus() {
-		case routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED:
-			status = "candidate hits returned (relevance not judged)"
-		case routingv1.QueryPartEvidence_STATUS_SEARCHED_EMPTY:
-			status = "searched; no candidates returned"
-		case routingv1.QueryPartEvidence_STATUS_PROVIDER_DEGRADED:
-			status = "provider degraded; coverage incomplete"
-		case routingv1.QueryPartEvidence_STATUS_NOT_ROUTED:
-			status = "not routed"
-		}
-		if part.GetSource() == routingv1.QueryPartEvidence_SOURCE_DERIVED_SEGMENT {
-			status += " (derived segment)"
-		}
-		if part.GetDegraded() && part.GetStatus() != routingv1.QueryPartEvidence_STATUS_PROVIDER_DEGRADED {
-			status += "; degraded part coverage"
-		}
-		if part.GetPartial() {
-			status += "; partial part coverage"
-		}
-		providers := shortProviderList(part.GetSearchedProviderIds())
-		if providers != "" {
-			status += "; searched " + providers
-		}
-		if reason := partReasonText(part.GetReason()); reason != "" {
-			status += "; " + truncate(reason, 100)
-		}
+		return truncate(providerGroupDegradation(group), 120)
+	}
+	return ""
+}
 
-		type referencedHit struct {
-			hit *routingv1.SearchHit
-			ref *routingv1.SearchHitReference
-		}
-		var validHits []referencedHit
-		for _, ref := range part.GetEvidence() {
-			if hit := resolveHitReference(msg, ref); hit != nil {
-				validHits = append(validHits, referencedHit{hit: hit, ref: ref})
-			}
-		}
-		if part.GetStatus() == routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED && len(validHits) > 0 {
-			weakCount := 0
-			for _, evidence := range validHits {
-				if evidence.hit.GetConfidence().GetWeak() {
-					weakCount++
-				}
-			}
-			if weakCount == len(validHits) {
-				status += "; all referenced candidates are weak"
-			} else if weakCount > 0 {
-				status += "; some hits are weak"
-			}
-		} else if part.GetStatus() == routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED && len(validHits) == 0 {
-			status += "; supporting hit references unavailable"
-		}
-		out = append(out, fmt.Sprintf("• %s — %s", truncate(label, 100), status))
-
-		for _, evidence := range validHits {
-			hit := evidence.hit
-			key := hitDedupeKey(hit)
-			if previous, ok := seen[key]; ok {
-				out = append(out, "  same candidate shown above: "+truncate(previous, 120))
-				continue
-			}
-			if maxHits > 0 && shownHits >= maxHits {
-				out = append(out, "  evidence omitted by display budget")
-				break
-			}
-			seen[key] = displayTitle(hit) + " (" + hit.GetProviderId() + ")"
-			shownHits++
-			line := "  " + truncate(displayTitle(hit), 100) + " [" + confidenceBand(hit) + " " + truncate(hit.GetProviderId(), 48) + "/" + truncate(provenance(hit), 92) + "]"
-			if part.GetSource() == routingv1.QueryPartEvidence_SOURCE_DERIVED_SEGMENT && hasRetrievalSource(evidence.ref, routingv1.SearchHitReference_RETRIEVAL_SOURCE_USER_QUERY) {
-				line += " (also found for full query)"
-			}
-			out = append(out, line)
-			break // one representative per part; the overall budget is shared.
+func partProviderDegradation(part *routingv1.QueryPartEvidence, msg *routingv1.QueryResponse) string {
+	if part == nil || msg == nil {
+		return ""
+	}
+	groups := msg.GetGroups()
+	searched := make(map[string]struct{}, len(part.GetSearchedProviderIds()))
+	for _, provider := range part.GetSearchedProviderIds() {
+		if provider = strings.TrimSpace(provider); provider != "" {
+			searched[provider] = struct{}{}
 		}
 	}
-	return out
+	for _, ref := range part.GetEvidence() {
+		if hit := resolveHitReference(msg, ref); hit != nil {
+			for _, provider := range []string{hit.GetProviderId(), ref.GetProviderId()} {
+				if provider = strings.TrimSpace(provider); provider != "" {
+					searched[provider] = struct{}{}
+				}
+			}
+		}
+	}
+	var details []string
+	for _, group := range groups {
+		if group == nil || (!group.GetDegraded() && len(group.GetDegradations()) == 0) {
+			continue
+		}
+		provider := strings.TrimSpace(group.GetProviderId())
+		if _, ok := searched[provider]; !ok {
+			continue
+		}
+		details = append(details, truncate(provider, 40)+": "+truncate(providerGroupDegradation(group), 72))
+		if len(details) == 2 {
+			break
+		}
+	}
+	if len(details) == 0 {
+		return ""
+	}
+	return "degraded provider coverage " + strings.Join(details, "; ")
 }
 
 func partReasonText(raw string) string {
@@ -412,6 +563,37 @@ func hasRetrievalSource(ref *routingv1.SearchHitReference, source routingv1.Sear
 		}
 	}
 	return false
+}
+
+func unrecognizedRetrievalSources(ref *routingv1.SearchHitReference) string {
+	if ref == nil {
+		return ""
+	}
+	seen := make(map[int32]struct{})
+	var values []int32
+	for _, source := range ref.GetRetrievalSources() {
+		switch source {
+		case routingv1.SearchHitReference_RETRIEVAL_SOURCE_UNSPECIFIED,
+			routingv1.SearchHitReference_RETRIEVAL_SOURCE_USER_QUERY,
+			routingv1.SearchHitReference_RETRIEVAL_SOURCE_DERIVED_SEGMENT:
+			continue
+		}
+		value := int32(source)
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		values = append(values, value)
+	}
+	if len(values) == 0 {
+		return ""
+	}
+	sort.Slice(values, func(i, j int) bool { return values[i] < values[j] })
+	labels := make([]string, len(values))
+	for i, value := range values {
+		labels[i] = fmt.Sprint(value)
+	}
+	return "unrecognized retrieval source (" + strings.Join(labels, ", ") + ")"
 }
 
 func renderCorrections(msg *routingv1.QueryResponse, maxHits int) []string {
@@ -515,8 +697,8 @@ func nextActionHints(ctx interface {
 			}
 		}
 	}
-	if hit := operationCandidate(msg); containsVisibleHit(visibleResponseHits(ctx, msg), hit) && actionCandidateRelevant(ctx, msg, hit) {
-		if operation := operationHints(msg); len(operation) > 0 {
+	if hit := bestOperationCandidate(ctx, msg); hit != nil {
+		if operation := operationHintForHit(hit); len(operation) > 0 {
 			for _, line := range operation {
 				if strings.Contains(line, "program-runtime library run ") {
 					return []string{"Inspect the candidate program contract and required skill: `" + strings.TrimSpace(line) + "`"}
@@ -525,18 +707,6 @@ func nextActionHints(ctx interface {
 		}
 	}
 	return nil
-}
-
-func containsVisibleHit(visible []*routingv1.SearchHit, candidate *routingv1.SearchHit) bool {
-	if candidate == nil {
-		return false
-	}
-	for _, hit := range visible {
-		if hit == candidate {
-			return true
-		}
-	}
-	return false
 }
 
 // visibleResponseHits mirrors the active human view so handoff hints never
@@ -570,6 +740,18 @@ func visibleResponseHits(ctx interface {
 			visible = append(visible, hit)
 			return true
 		}
+		for _, part := range msg.GetQueryParts() {
+			if part == nil {
+				continue
+			}
+			for _, ref := range part.GetEvidence() {
+				if hit := resolveHitReference(msg, ref); hit != nil {
+					if !add(hit) {
+						return visible
+					}
+				}
+			}
+		}
 		shownCandidates := 0
 		for _, candidate := range msg.GetCorrectionCandidates() {
 			if candidate == nil || strings.TrimSpace(candidate.GetSubmittedValue()) == "" || strings.TrimSpace(candidate.GetCandidateValue()) == "" {
@@ -584,30 +766,17 @@ func visibleResponseHits(ctx interface {
 			}
 			_, alreadyVisible := seen[hitDedupeKey(hit)]
 			if !alreadyVisible && limit > 0 && len(visible) >= limit {
-				continue // The human view omits candidates whose unique evidence exceeds budget.
+				continue // Task-part hits own the shared budget before optional correction evidence.
 			}
 			shownCandidates++
 			if !add(hit) {
 				return visible
 			}
 		}
-		for _, part := range msg.GetQueryParts() {
-			if part == nil {
-				continue
-			}
-			for _, ref := range part.GetEvidence() {
-				if hit := resolveHitReference(msg, ref); hit != nil {
-					if !add(hit) {
-						return visible
-					}
-					break // The task view shows one representative for each part.
-				}
-			}
-		}
 		return visible
 	}
 	if exact := directEntityMatch(ctx, msg); exact != nil {
-		return []*routingv1.SearchHit{exact}
+		return directEntityViewHits(ctx, msg)
 	}
 	hits := allResponseHits(msg)
 	if limit > 0 && len(hits) > limit {
@@ -694,6 +863,24 @@ func bestCommandCandidate(ctx interface {
 	return selected
 }
 
+func bestOperationCandidate(ctx interface {
+	Positional(string) string
+	BoolFlag(string) bool
+}, msg *routingv1.QueryResponse) *routingv1.SearchHit {
+	var selected *routingv1.SearchHit
+	bestScore := 0
+	for _, hit := range visibleResponseHits(ctx, msg) {
+		if len(operationHintForHit(hit)) == 0 || !actionCandidateRelevant(ctx, msg, hit) {
+			continue
+		}
+		score := actionCandidateScore(ctx, msg, hit)
+		if score > bestScore {
+			selected, bestScore = hit, score
+		}
+	}
+	return selected
+}
+
 func queryPartReferencesHit(msg *routingv1.QueryResponse, part *routingv1.QueryPartEvidence, expected *routingv1.SearchHit) bool {
 	for _, ref := range part.GetEvidence() {
 		if resolveHitReference(msg, ref) == expected {
@@ -718,21 +905,6 @@ func significantWords(value string) map[string]struct{} {
 		words["ios"] = struct{}{}
 	}
 	return words
-}
-
-func operationCandidate(msg *routingv1.QueryResponse) *routingv1.SearchHit {
-	if msg == nil {
-		return nil
-	}
-	if msg.GetReranked() && len(msg.GetRanked()) > 0 {
-		return msg.GetRanked()[0]
-	}
-	for _, group := range msg.GetGroups() {
-		if group != nil && group.GetProviderId() == "program-runtime.library" && len(group.GetHits()) > 0 {
-			return group.GetHits()[0]
-		}
-	}
-	return nil
 }
 
 func commandHelpSuggestion(hit *routingv1.SearchHit) string {

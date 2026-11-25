@@ -4,16 +4,8 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "search-hub",
   "generator": "v1.0.0",
-  "manifest_hash": "fe8640803bf09d41ec09140f987fcd483cb5b29a8dc67ddb3137a21f41248fc1",
+  "manifest_hash": "84ae5de00a4b9f3411182332d938fe2350cfd951171982a6c3de98f63ff328bd",
   "commands": [
-    {
-      "path": "embedding abort",
-      "group": "embedding",
-      "command": "abort",
-      "binding": ".",
-      "declared_primitive": "action",
-      "observed_primitive": "action"
-    },
     {
       "path": "embedding apply-shadow",
       "group": "embedding",

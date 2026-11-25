@@ -5,6 +5,8 @@ import (
 	"errors"
 	"io"
 	"log"
+	"math"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -31,6 +33,32 @@ type EmbeddingTelemetryRow struct {
 	VectorCount int
 	Failed      bool
 	CreatedAt   time.Time
+}
+
+// EmbeddingTelemetryPage is one bounded metadata-only slice of the rolling
+// telemetry table. RetainedFrom/To describe the whole currently retained
+// window; they do not assert that older operations never existed.
+type EmbeddingTelemetryPage struct {
+	Rows                  []EmbeddingTelemetryRow
+	Truncated             bool
+	RetainedFrom          time.Time
+	RetainedTo            time.Time
+	HasRetainedWindow     bool
+	ObserverDroppedTotal  uint64
+	ObserverWriteFailures uint64
+}
+
+// EmbeddingTelemetryProfile groups a returned window by operation, role and
+// model. Complete is false when the enclosing bounded read was truncated.
+type EmbeddingTelemetryProfile struct {
+	Kind          string
+	Role          string
+	Model         string
+	SampleCount   int64
+	FailedCount   int64
+	DurationP50US int64
+	DurationP95US int64
+	Complete      bool
 }
 
 // EmbeddingTelemetryStore persists client-visible embedding observations at
@@ -235,6 +263,122 @@ func (s *EmbeddingTelemetryStore) RecentEmbeddings(ctx context.Context, limit in
 		result = append(result, row)
 	}
 	return result, rows.Err()
+}
+
+// ReadWindow returns observations in [from,to), in timestamp order, with an
+// explicit row-cap signal and the current rolling-retention bounds. It keeps
+// only allowlisted metadata; request content is never present in this store.
+func (s *EmbeddingTelemetryStore) ReadWindow(ctx context.Context, from, to time.Time, limit int) (EmbeddingTelemetryPage, error) {
+	if s == nil || s.db == nil {
+		return EmbeddingTelemetryPage{}, errors.New("embedding telemetry store is unavailable")
+	}
+	if from.IsZero() || to.IsZero() || !from.Before(to) {
+		return EmbeddingTelemetryPage{}, errors.New("embedding telemetry window must have a non-zero start before its end")
+	}
+	if limit < 1 {
+		limit = 1000
+	}
+	if limit > EmbeddingTelemetryLimit {
+		limit = EmbeddingTelemetryLimit
+	}
+
+	page := EmbeddingTelemetryPage{Rows: make([]EmbeddingTelemetryRow, 0, min(limit, 256))}
+	page.ObserverDroppedTotal, page.ObserverWriteFailures = s.Counters()
+
+	// RFC3339Nano emits variable fractional precision. Its strings do not sort
+	// chronologically at subsecond boundaries (for example, `.5Z` sorts before
+	// `Z`), so read the bounded retained table and compare parsed instants.
+	rows, err := s.db.QueryContext(ctx, `SELECT operation_kind, role, model, duration_us, vector_count, failed, created_at FROM embedding_telemetry ORDER BY id ASC`)
+	if err != nil {
+		return EmbeddingTelemetryPage{}, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var row EmbeddingTelemetryRow
+		var failed int
+		var created string
+		if err := rows.Scan(&row.Kind, &row.Role, &row.Model, &row.DurationUS, &row.VectorCount, &failed, &created); err != nil {
+			return EmbeddingTelemetryPage{}, err
+		}
+		row.Failed = failed != 0
+		row.CreatedAt, err = time.Parse(time.RFC3339Nano, created)
+		if err != nil {
+			return EmbeddingTelemetryPage{}, err
+		}
+		if !page.HasRetainedWindow || row.CreatedAt.Before(page.RetainedFrom) {
+			page.RetainedFrom = row.CreatedAt
+		}
+		if !page.HasRetainedWindow || row.CreatedAt.After(page.RetainedTo) {
+			page.RetainedTo = row.CreatedAt
+		}
+		page.HasRetainedWindow = true
+		if !row.CreatedAt.Before(from) && row.CreatedAt.Before(to) && len(page.Rows) < limit+1 {
+			page.Rows = append(page.Rows, row)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return EmbeddingTelemetryPage{}, err
+	}
+	sort.SliceStable(page.Rows, func(i, j int) bool { return page.Rows[i].CreatedAt.Before(page.Rows[j].CreatedAt) })
+	if len(page.Rows) > limit {
+		page.Truncated = true
+		page.Rows = page.Rows[:limit]
+	}
+	return page, nil
+}
+
+// ProfileEmbeddingTelemetry derives descriptive nearest-rank latency summaries
+// from exactly the rows returned by ReadWindow. A truncated page marks every
+// group incomplete because the omitted rows may belong to any group.
+func ProfileEmbeddingTelemetry(rows []EmbeddingTelemetryRow, complete bool) []EmbeddingTelemetryProfile {
+	type profileKey struct{ kind, role, model string }
+	groups := make(map[profileKey]*EmbeddingTelemetryProfile)
+	durations := make(map[profileKey][]int64)
+	for _, row := range rows {
+		key := profileKey{row.Kind, row.Role, row.Model}
+		profile := groups[key]
+		if profile == nil {
+			profile = &EmbeddingTelemetryProfile{Kind: row.Kind, Role: row.Role, Model: row.Model, Complete: complete}
+			groups[key] = profile
+		}
+		profile.SampleCount++
+		if row.Failed {
+			profile.FailedCount++
+		}
+		durations[key] = append(durations[key], row.DurationUS)
+	}
+	out := make([]EmbeddingTelemetryProfile, 0, len(groups))
+	for key, profile := range groups {
+		values := durations[key]
+		sort.Slice(values, func(i, j int) bool { return values[i] < values[j] })
+		profile.DurationP50US = nearestRank(values, 0.50)
+		profile.DurationP95US = nearestRank(values, 0.95)
+		out = append(out, *profile)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Kind != out[j].Kind {
+			return out[i].Kind < out[j].Kind
+		}
+		if out[i].Role != out[j].Role {
+			return out[i].Role < out[j].Role
+		}
+		return out[i].Model < out[j].Model
+	})
+	return out
+}
+
+func nearestRank(sorted []int64, p float64) int64 {
+	if len(sorted) == 0 {
+		return 0
+	}
+	rank := int(math.Ceil(p*float64(len(sorted)))) - 1
+	if rank < 0 {
+		rank = 0
+	}
+	if rank >= len(sorted) {
+		rank = len(sorted) - 1
+	}
+	return sorted[rank]
 }
 
 func boundedLabel(value string, max int) string {

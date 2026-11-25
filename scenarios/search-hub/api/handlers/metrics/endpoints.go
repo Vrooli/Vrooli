@@ -63,6 +63,30 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "metrics_embedding_telemetry",
+		Path:        metricsconnect.MetricsServiceEmbeddingTelemetryProcedure,
+		Method:      "POST",
+		Summary:     "Read bounded embedding telemetry",
+		Description: "Returns metadata-only query/document embedding observations in [from,to), plus grouped nearest-rank p50/p95 summaries, retained-window bounds and process-local observer loss counters. This rolling window is not a complete evidence archive.",
+		Category:    "metrics",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{
+			"from": "string — inclusive RFC3339Nano bound", "to": "string — exclusive RFC3339Nano bound", "limit": "int32 — optional row cap; default 1000, maximum 10000",
+		}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{
+			"observations": "array<EmbeddingTelemetryObservation> — redacted role/model/duration/count/failure rows",
+			"truncated":    "bool — more than limit rows matched", "retained_from": "string — oldest currently retained timestamp, empty if none",
+			"retained_to":             "string — newest currently retained timestamp, empty if none",
+			"observer_dropped_total":  "uint64 — process-local dropped observer events since API start",
+			"observer_write_failures": "uint64 — process-local failed writes since API start",
+			"profiles":                "array<EmbeddingTelemetryProfile> — nearest-rank p50/p95 and sample/failure counts grouped by kind, role and model; complete=false when response is truncated",
+		}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Invalid timestamp bounds"},
+			{Status: 412, Code: "failed_precondition", Description: "Embedding telemetry is unavailable"},
+			{Status: 500, Code: "internal", Description: "Telemetry read failure"},
+		},
+	},
+	{
 		ID:          "metrics_measures_declarations",
 		Path:        "/measures/declarations",
 		Method:      "GET",

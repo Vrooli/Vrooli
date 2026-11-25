@@ -1,6 +1,7 @@
 package query
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"testing"
@@ -77,6 +78,30 @@ func TestWeakEvidenceHintUsesTheVisibleSelectedView(t *testing.T) {
 	}
 }
 
+func TestInferredIntentMetadataIsNotPresentedAsRetrievalEvidence(t *testing.T) {
+	metadata, err := structpb.NewStruct(map[string]any{
+		"search_hub_intent_match": "Diagnose and recover an Agent Manager runner transcript after a crash",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hit := &routingv1.SearchHit{
+		ProviderId: "content-desk.editorial-history",
+		Id:         "essay-draft",
+		Title:      "Marketing evaluation essay draft",
+		Metadata:   metadata,
+	}
+	msg := &routingv1.QueryResponse{Reranked: true, Ranked: []*routingv1.SearchHit{hit}}
+	ranked := (&handlers{}).queryReport(nil, msg)
+	direct := (&handlers{}).queryReport(queryTextContext{text: hit.GetTitle()}, msg)
+	for view, report := range map[string]cliapp.ListReport{"ranked": ranked, "direct": direct} {
+		output := strings.Join(report.Results, "\n")
+		if strings.Contains(output, "found via:") || strings.Contains(output, "Agent Manager runner transcript recovery") {
+			t.Errorf("%s view presented inferred intent metadata as retrieval evidence:\n%s", view, output)
+		}
+	}
+}
+
 func TestInferredIntentDoesNotMasqueradeAsTaskCoverage(t *testing.T) {
 	metadata, err := structpb.NewStruct(map[string]any{
 		"search_hub_intent_match": "Diagnose and recover an Agent Manager runner transcript after a crash",
@@ -126,26 +151,81 @@ func TestMachineJSONConnectFieldNamesAreOptInAndConsumerSpecific(t *testing.T) {
 	}
 }
 
+func TestTaskContinuationHintUsesScopedHumanOutputAndKeepsMachineJSON(t *testing.T) {
+	hit := &routingv1.SearchHit{ProviderId: "ui-health.surfaces", Id: "card", Title: "Health card"}
+	msg := &routingv1.QueryResponse{
+		Groups: []*routingv1.ProviderResultGroup{{ProviderId: hit.GetProviderId(), Hits: []*routingv1.SearchHit{hit}}},
+		QueryParts: []*routingv1.QueryPartEvidence{
+			{
+				PartId: "covered", Label: "Find the card", Status: routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED,
+				Evidence: []*routingv1.SearchHitReference{{ProviderId: hit.GetProviderId(), GroupIndex: int32Ref(0), HitIndex: int32Ref(0), HitId: hit.GetId()}},
+			},
+			{PartId: "unserved", Label: "Find SwiftUI guidance", Status: routingv1.QueryPartEvidence_STATUS_NOT_ROUTED, Reason: "ambiguous_provider_evidence"},
+		},
+	}
+	call := func(cliapp.OperationContext) (*routingv1.QueryResponse, error) { return msg, nil }
+	renderHuman := func(ctx cliapp.OperationContext, response *routingv1.QueryResponse) cliapp.ListReport {
+		return (&handlers{}).queryReport(ctx, response)
+	}
+	report := renderHuman(nil, msg)
+	if len(report.RetrievalHints) == 0 || !strings.Contains(report.RetrievalHints[0], `request part "Find SwiftUI guidance"`) || !strings.Contains(report.RetrievalHints[0], "not routed") || !strings.Contains(report.RetrievalHints[0], "other parts does not cover it") {
+		t.Fatalf("missing scoped continuation for explicit part gap: %#v", report.RetrievalHints)
+	}
+	if strings.Contains(report.RetrievalHints[0], hit.GetTitle()) || strings.Contains(report.RetrievalHints[0], hit.GetProviderId()) {
+		t.Fatalf("continuation reused another part's evidence: %q", report.RetrievalHints[0])
+	}
+
+	var rendered bytes.Buffer
+	if err := cliapp.RenderListReport(&rendered, report); err != nil {
+		t.Fatalf("render human report: %v", err)
+	}
+	var baseline bytes.Buffer
+	baselineReport := report
+	baselineReport.RetrievalHints = nil
+	if err := cliapp.RenderListReport(&baseline, baselineReport); err != nil {
+		t.Fatalf("render fixed-hit baseline: %v", err)
+	}
+	t.Logf("canonical fixed-hit human report bytes: baseline=%d with-scoped-continuation=%d", baseline.Len(), rendered.Len())
+
+	handler := cliapp.ProtoListWithConnectJSONFlag(call, renderHuman, "json-connect")
+	for _, connectNames := range []bool{false, true} {
+		var machine bytes.Buffer
+		ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
+			Schema: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "text"}}, Flags: []cliapp.Flag{
+				{Name: "json-connect", Bool: true},
+				{Name: "show-all-results", Bool: true},
+				{Name: "explain", Bool: true},
+			}},
+			JSON:      true,
+			BoolFlags: map[string]bool{"json-connect": connectNames},
+			Stdout:    &machine,
+		})
+		if err := handler.Run(ctx); err != nil {
+			t.Fatalf("render machine connectNames=%t: %v", connectNames, err)
+		}
+		if strings.Contains(machine.String(), "retrieval_hints") || strings.Contains(machine.String(), "Continue with request part") {
+			t.Fatalf("human hint leaked into machine JSON (connect=%t): %s", connectNames, machine.String())
+		}
+		if connectNames && !strings.Contains(machine.String(), `"queryParts"`) {
+			t.Fatalf("Connect ProtoJSON omitted typed query parts: %s", machine.String())
+		}
+		if !connectNames && !strings.Contains(machine.String(), `"query_parts"`) {
+			t.Fatalf("legacy JSON omitted typed query parts: %s", machine.String())
+		}
+	}
+}
+
 func TestOperationHintReadsBundleWithoutExecutingRetrievedCode(t *testing.T) {
-	msg := &routingv1.QueryResponse{Reranked: true, Ranked: []*routingv1.SearchHit{
-		{ProviderId: "program-runtime.library", Id: "device-control.do-task"},
-	}}
-	hint := strings.Join(operationHints(msg), "\n")
+	hit := &routingv1.SearchHit{ProviderId: "program-runtime.library", Id: "device-control.do-task"}
+	hint := strings.Join(operationHintForHit(hit), "\n")
 	if !strings.Contains(hint, "library run program-runtime.prepare-operation --input name=device-control.do-task") {
 		t.Fatal(hint)
 	}
 	for _, unsafe := range []string{"thing;echo secret", "thing.$(whoami)", "thing.name\nnext"} {
-		msg.Ranked[0].Id = unsafe
-		if len(operationHints(msg)) != 0 {
+		hit.Id = unsafe
+		if len(operationHintForHit(hit)) != 0 {
 			t.Fatal("unsafe command suggestion", unsafe)
 		}
-	}
-	msg.Ranked = []*routingv1.SearchHit{
-		{ProviderId: "cli-health.commands", Id: "device-control device screenshot"},
-		{ProviderId: "program-runtime.library", Id: "device-control.do-task"},
-	}
-	if hint := operationHints(msg); len(hint) != 0 {
-		t.Fatalf("lower-ranked program received a default suggestion: %v", hint)
 	}
 }
 
@@ -154,12 +234,12 @@ func TestOperationHintPrintsLibraryUsage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	msg := &routingv1.QueryResponse{Reranked: true, Ranked: []*routingv1.SearchHit{{
+	hit := &routingv1.SearchHit{
 		ProviderId: "program-runtime.library",
 		Id:         "program-runtime.setpoint-read",
 		Metadata:   metadata,
-	}}}
-	hint := strings.Join(operationHints(msg), "\n")
+	}
+	hint := strings.Join(operationHintForHit(hit), "\n")
 	if !strings.Contains(hint, "recorded usage: 4") {
 		t.Fatalf("operation hint = %q", hint)
 	}
@@ -316,6 +396,113 @@ func TestQueryReportCapsHumanOutputButPreservesOptInAndProvenance(t *testing.T) 
 	fullReport := (&handlers{}).queryReport(showAllResultsContext{enabled: true}, msg)
 	if got := strings.Count(strings.Join(fullReport.Results, "\n"), "unique snippet"); got != len(hits) {
 		t.Fatalf("--show-all-results rendered %d hits, want %d", got, len(hits))
+	}
+}
+
+func TestDirectEntityViewUsesGlobalBudgetAndKeepsFullMachineResponse(t *testing.T) {
+	hits := []*routingv1.SearchHit{
+		{ProviderId: "docs.alpha", Id: "a", Title: "Alpha", Snippet: "fixed alpha", Path: "scenarios/docs/a.md#L1"},
+		{ProviderId: "docs.alpha", Id: "b", Title: "Beta", Snippet: "fixed beta", Path: "scenarios/docs/b.md"},
+		{ProviderId: "docs.beta", Id: "target", Title: "Direct target", Snippet: "fixed target", Path: "scenarios/docs/target.md#L2"},
+		{ProviderId: "docs.beta", Id: "c", Title: "Gamma", Snippet: "fixed gamma", Path: "scenarios/docs/c.md"},
+		{ProviderId: "docs.gamma", Id: "d", Title: "Delta", Snippet: "fixed delta", Path: "scenarios/docs/d.md"},
+		{ProviderId: "docs.gamma", Id: "e", Title: "Epsilon", Snippet: "fixed epsilon", Path: "scenarios/docs/e.md"},
+	}
+	msg := &routingv1.QueryResponse{Groups: []*routingv1.ProviderResultGroup{
+		{ProviderId: "docs.alpha", Count: 3, Hits: []*routingv1.SearchHit{hits[0], hits[1], {ProviderId: "docs.alpha", Id: "a-copy", Title: "Alpha duplicate", Path: "scenarios/docs/a.md#L90"}}},
+		{ProviderId: "docs.beta", Count: 2, Hits: hits[2:4]},
+		{ProviderId: "docs.gamma", Count: 2, Hits: hits[4:]},
+	}}
+	ctx := func(showAll bool) queryTextContext {
+		return queryTextContext{showAllResultsContext: showAllResultsContext{enabled: showAll}, text: "Direct target"}
+	}
+	h := &handlers{}
+	limited := h.queryReport(ctx(false), msg)
+	limitedOutput := strings.Join(limited.Results, "\n")
+	if !strings.HasPrefix(limitedOutput, "    1. Direct target") {
+		t.Fatalf("direct entity was not prioritized in its view:\n%s", limitedOutput)
+	}
+	if got := strings.Count(limitedOutput, "fixed "); got != defaultVisibleHits {
+		t.Fatalf("direct view emitted %d unique hit snippets, want global budget %d:\n%s", got, defaultVisibleHits, limitedOutput)
+	}
+	if !strings.Contains(limitedOutput, "2 additional unique returned hit(s) omitted") {
+		t.Fatalf("direct view did not report unique omitted hits:\n%s", limitedOutput)
+	}
+	if strings.Count(limitedOutput, "scenarios/docs/a.md") != 1 {
+		t.Fatalf("direct view did not deduplicate anchored paths:\n%s", limitedOutput)
+	}
+
+	full := h.queryReport(ctx(true), msg)
+	fullOutput := strings.Join(full.Results, "\n")
+	if got := strings.Count(fullOutput, "fixed "); got != 6 {
+		t.Fatalf("--show-all-results emitted %d unique snippets, want 6:\n%s", got, fullOutput)
+	}
+	if strings.Contains(fullOutput, "additional unique returned hit(s) omitted") || strings.Count(fullOutput, "scenarios/docs/a.md") != 1 {
+		t.Fatalf("full direct view retained an omission or duplicate:\n%s", fullOutput)
+	}
+
+	call := func(cliapp.OperationContext) (*routingv1.QueryResponse, error) { return msg, nil }
+	handler := cliapp.ProtoListWithConnectJSONFlag(call, h.queryReport, "json-connect")
+	for _, connectNames := range []bool{false, true} {
+		var machine bytes.Buffer
+		ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
+			Schema: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "text"}}, Flags: []cliapp.Flag{
+				{Name: "json-connect", Bool: true}, {Name: "show-all-results", Bool: true}, {Name: "explain", Bool: true},
+			}},
+			Positionals: map[string]string{"text": "Direct target"},
+			JSON:        true, BoolFlags: map[string]bool{"json-connect": connectNames}, Stdout: &machine,
+		})
+		if err := handler.Run(ctx); err != nil {
+			t.Fatalf("render machine connectNames=%t: %v", connectNames, err)
+		}
+		for _, hit := range hits {
+			if !strings.Contains(machine.String(), hit.GetId()) {
+				t.Errorf("machine response (connect=%t) omitted typed hit %q: %s", connectNames, hit.GetId(), machine.String())
+			}
+		}
+		if strings.Contains(machine.String(), "Direct entity match") || strings.Contains(machine.String(), "additional unique returned hit(s) omitted") {
+			t.Errorf("human direct-view wrapper leaked into machine JSON (connect=%t): %s", connectNames, machine.String())
+		}
+	}
+}
+
+func TestTaskEvidenceDisplayBudgetDoesNotCapMachineEvidence(t *testing.T) {
+	hits := make([]*routingv1.SearchHit, 6)
+	refs := make([]*routingv1.SearchHitReference, 6)
+	for index := range hits {
+		hits[index] = &routingv1.SearchHit{ProviderId: "catalog.docs", Id: fmt.Sprintf("task-hit-%d", index+1), Title: fmt.Sprintf("Task evidence %d", index+1)}
+		refs[index] = &routingv1.SearchHitReference{ProviderId: "catalog.docs", GroupIndex: int32Ref(0), HitIndex: int32Ref(int32(index)), HitId: hits[index].GetId()}
+	}
+	msg := &routingv1.QueryResponse{
+		Groups:     []*routingv1.ProviderResultGroup{{ProviderId: "catalog.docs", Hits: hits}},
+		QueryParts: []*routingv1.QueryPartEvidence{{PartId: "task", Label: "Inspect all task evidence", Status: routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED, Evidence: refs}},
+	}
+	call := func(cliapp.OperationContext) (*routingv1.QueryResponse, error) { return msg, nil }
+	handler := cliapp.ProtoListWithConnectJSONFlag(call, (&handlers{}).queryReport, "json-connect")
+	for _, connectNames := range []bool{false, true} {
+		var machine bytes.Buffer
+		ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
+			Schema: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "text"}}, Flags: []cliapp.Flag{
+				{Name: "json-connect", Bool: true}, {Name: "show-all-results", Bool: true}, {Name: "explain", Bool: true},
+			}},
+			Positionals: map[string]string{"text": "Inspect all task evidence"}, JSON: true,
+			BoolFlags: map[string]bool{"json-connect": connectNames}, Stdout: &machine,
+		})
+		if err := handler.Run(ctx); err != nil {
+			t.Fatalf("render machine connectNames=%t: %v", connectNames, err)
+		}
+		for _, hit := range hits {
+			if !strings.Contains(machine.String(), hit.GetId()) {
+				t.Errorf("machine response (connect=%t) omitted typed evidence %q: %s", connectNames, hit.GetId(), machine.String())
+			}
+		}
+		partsField := `"query_parts"`
+		if connectNames {
+			partsField = `"queryParts"`
+		}
+		if !strings.Contains(machine.String(), partsField) || strings.Contains(machine.String(), "unique evidence hit(s) omitted") {
+			t.Errorf("machine response (connect=%t) lost typed evidence or gained a human budget wrapper: %s", connectNames, machine.String())
+		}
 	}
 }
 

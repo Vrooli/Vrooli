@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.local/search-hub/stage-trace-export-v1.schema.json",
+  "title": "Search Hub run-correlated stage trace export v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "arm", "phase", "complete", "truncated", "case_coverage"],
+  "properties": {
+    "schema_version": {"const": 1}, "run_id": {"type": "string", "minLength": 1},
+    "arm": {"type": "string", "minLength": 1}, "phase": {"enum": ["cold", "warm", "concurrent", "degraded", "model-free"]},
+    "complete": {"const": true}, "truncated": {"const": false},
+    "case_coverage": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/case"}}
+  },
+  "$defs": {
+    "stage": {"type": "object", "additionalProperties": false, "required": ["executed", "duration_ms"],
+      "properties": {"executed": {"type": "boolean"}, "duration_ms": {"type": ["integer", "null"], "minimum": 1},
+        "cpu_ms": {"type": ["integer", "null"], "minimum": 0},
+        "peak_memory_bytes": {"type": ["integer", "null"], "minimum": 1},
+        "resource_method_id": {"type": "string", "minLength": 1},
+        "resource_scope_receipt_id": {"type": "string", "minLength": 1},
+        "resource_scope_uri": {"type": "string", "minLength": 1},
+        "resource_scope_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+      "allOf": [{"if": {"anyOf": [{"required": ["cpu_ms"]}, {"required": ["peak_memory_bytes"]},
+          {"required": ["resource_method_id"]}, {"required": ["resource_scope_receipt_id"]},
+          {"required": ["resource_scope_uri"]}, {"required": ["resource_scope_sha256"]}]},
+        "then": {"required": ["cpu_ms", "peak_memory_bytes", "resource_method_id", "resource_scope_receipt_id", "resource_scope_uri", "resource_scope_sha256"]}}]},
+    "case": {"type": "object", "additionalProperties": false, "required": ["case_id", "query_sha256", "stages"],
+      "properties": {"case_id": {"type": "string", "minLength": 1},
+        "query_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "stages": {"type": "object", "additionalProperties": false,
+          "required": ["classifier", "resolver", "fanout", "rerank", "provider"],
+          "properties": {"classifier": {"$ref": "#/$defs/stage"}, "resolver": {"$ref": "#/$defs/stage"},
+            "fanout": {"$ref": "#/$defs/stage"}, "rerank": {"$ref": "#/$defs/stage"}, "provider": {"$ref": "#/$defs/stage"}}}}}
+  }
+}

@@ -28,14 +28,19 @@ type handlers struct {
 }
 
 type result struct {
-	Operation string                             `json:"operation"`
-	Status    string                             `json:"status"`
-	Message   string                             `json:"message,omitempty"`
-	Inventory []aisearch.EmbeddingInventoryEntry `json:"inventory,omitempty"`
-	Plan      *aisearch.RetargetPlan             `json:"plan,omitempty"`
-	Migration *migrationState                    `json:"migration,omitempty"`
-	NextSteps []string                           `json:"next_steps,omitempty"`
+	Operation string                              `json:"operation"`
+	Status    string                              `json:"status"`
+	Message   string                              `json:"message,omitempty"`
+	Inventory []aisearch.EmbeddingInventoryEntry  `json:"inventory,omitempty"`
+	Summary   *aisearch.EmbeddingInventorySummary `json:"inventory_summary,omitempty"`
+	StartedAt *time.Time                          `json:"inventory_started_at,omitempty"`
+	EndedAt   *time.Time                          `json:"inventory_completed_at,omitempty"`
+	Plan      *aisearch.RetargetPlan              `json:"plan,omitempty"`
+	Migration *migrationState                     `json:"migration,omitempty"`
+	NextSteps []string                            `json:"next_steps,omitempty"`
 }
+
+const qdrantInventoryTimeout = 2 * time.Minute
 
 type migrationState struct {
 	ProviderID       string                `json:"provider_id"`
@@ -58,11 +63,20 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 }
 
 func (h *handlers) inventoryCall(ctx cliapp.OperationContext) (result, error) {
-	entries, err := h.inventoryCollections(context.Background(), qdrantURL(), os.Getenv("QDRANT_API_KEY"))
+	startedAt := time.Now().UTC()
+	inventoryCtx, cancel := context.WithTimeout(context.Background(), qdrantInventoryTimeout)
+	defer cancel()
+	entries, err := h.inventoryCollections(inventoryCtx, qdrantURL(), os.Getenv("QDRANT_API_KEY"))
 	if err != nil {
 		return result{}, err
 	}
-	return result{Operation: "embedding inventory", Status: "ok", Inventory: entries, Message: fmt.Sprintf("inventoried %d Qdrant collection(s)", len(entries))}, nil
+	endedAt := time.Now().UTC()
+	summary := aisearch.SummarizeEmbeddingInventory(entries)
+	bytesSummary := "Qdrant-reported bytes=unknown"
+	if summary.QdrantDiskBytesKnown {
+		bytesSummary = fmt.Sprintf("Qdrant-reported bytes=%d", summary.QdrantDiskBytes)
+	}
+	return result{Operation: "embedding inventory", Status: "ok", Inventory: entries, Summary: &summary, StartedAt: &startedAt, EndedAt: &endedAt, Message: fmt.Sprintf("inventoried %d Qdrant collection(s); %s", len(entries), bytesSummary), NextSteps: []string{"Use --json to inspect per-collection recipe, generation, point, and byte identity"}}, nil
 }
 
 func (h *handlers) planCall(ctx cliapp.OperationContext) (result, error) {

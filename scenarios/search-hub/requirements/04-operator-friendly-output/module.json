@@ -25,7 +25,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "core",
-      "description": "query --json emits a stable, documented JSON structure (groups, ranked, corpora_searched, degraded, latency_ms) suitable for scripting and downstream agents.",
+      "description": "query --json emits the complete typed QueryResponse with the established snake_case protobuf field names; additive routing, per-part evidence, degradation, and correction fields remain compatible with existing consumers. The human four-hit display budget never truncates machine output. --json-connect is an opt-in lowerCamelCase ProtoJSON spelling that leaves legacy --json unchanged.",
       "validation": [
         {
           "type": "test",

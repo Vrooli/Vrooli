@@ -465,6 +465,7 @@ def gateway_delta(before: dict[str, Any], after: dict[str, Any]) -> dict[str, An
         "delta_event_count": len(fresh),
         "truncated": truncated,
         "token_usage_complete": usage_present,
+        "attribution_status": "scenario_window_not_request_or_run_attributed",
         "input_tokens": sum(int(event.get("input_tokens", 0)) for event in fresh) if usage_present else None,
         "output_tokens": sum(int(event.get("output_tokens", 0)) for event in fresh) if usage_present else None,
         "events": [
@@ -574,6 +575,8 @@ def main() -> int:
     parser.add_argument("--corpus-snapshot-id", default="", help="approved fixed corpus snapshot identity")
     parser.add_argument("--fault-schedule-id", default="", help="fault schedule receipt ID; use 'none' for normal path")
     parser.add_argument("--state-receipt-id", default="", help="owner-issued receipt ID for prepared phase state")
+    parser.add_argument("--admission-receipt-id", default="", help="manager-issued host-capacity/admission receipt ID")
+    parser.add_argument("--serving-scope-receipt-id", default="", help="owner-issued receipt declaring Search Hub plus attributable provider/model serving scope")
     parser.add_argument("--concurrency", type=int, default=1)
     parser.add_argument("--timeout-s", type=float, default=40)
     parser.add_argument("--evidence-timeout-s", type=float, default=10, help="timeout for optional cache and token snapshots")
@@ -590,8 +593,8 @@ def main() -> int:
         parser.error("--transport connect requires --api-base")
     if args.phase == "concurrent" and args.concurrency < 2:
         parser.error("--phase concurrent requires --concurrency of at least 2")
-    if args.phase != "idle" and not all((args.build_id, args.corpus_snapshot_id, args.fault_schedule_id, args.state_receipt_id)):
-        parser.error("non-idle runs require --build-id, --corpus-snapshot-id, --fault-schedule-id, and --state-receipt-id")
+    if not all((args.build_id, args.corpus_snapshot_id, args.fault_schedule_id, args.state_receipt_id, args.admission_receipt_id)):
+        parser.error("all measurement runs require --build-id, --corpus-snapshot-id, --fault-schedule-id, --state-receipt-id, and --admission-receipt-id")
     if args.timeout_s <= 0 or args.evidence_timeout_s <= 0 or args.sample_ms < 20 or args.idle_seconds <= 0:
         parser.error("--timeout-s, --evidence-timeout-s and --idle-seconds must be positive; --sample-ms must be at least 20")
     if args.gateway_evidence_limit < 1 or args.gateway_evidence_limit > 100:
@@ -612,6 +615,7 @@ def main() -> int:
         parser.error(str(exc))
 
     evidence_timeout_s = min(args.timeout_s, args.evidence_timeout_s)
+    run_started_at = time.time()
     cache_before = cache_snapshot(args.metrics_api_base or args.api_base, evidence_timeout_s)
     gateway_before = gateway_snapshot(args.gateway_cli, args.gateway_evidence_limit, evidence_timeout_s)
     harness_cpu_started = time.process_time()
@@ -634,6 +638,7 @@ def main() -> int:
     pss_stats = sampler.pss_result()
     cache_after = cache_snapshot(args.metrics_api_base or args.api_base, evidence_timeout_s)
     gateway_after = gateway_snapshot(args.gateway_cli, args.gateway_evidence_limit, evidence_timeout_s)
+    run_ended_at = time.time()
     cache_delta: dict[str, Any] = {"available": False, "before": cache_before, "after": cache_after}
     if cache_before.get("available") and cache_after.get("available"):
         try:
@@ -648,6 +653,7 @@ def main() -> int:
                 "resolver_cache_hit_delta": hit_delta,
                 "resolver_cache_miss_delta": miss_delta,
                 "resolver_cache_hit_rate": hit_delta / (hit_delta + miss_delta) if hit_delta + miss_delta > 0 else None,
+                "attribution_status": "window_aggregate_not_run_attributed",
                 "scope": "difference of rolling 15-minute Insights snapshots; unrelated Search Hub queries can contaminate it, and runs longer than 15 minutes are not comparable",
             }
         except (TypeError, ValueError) as exc:
@@ -689,12 +695,16 @@ def main() -> int:
         "phase": args.phase,
         "started_at_unix_ms": round(started_at * 1000),
         "ended_at_unix_ms": round(ended_at * 1000),
+        "run_started_at_unix_ms": round(run_started_at * 1000),
+        "run_ended_at_unix_ms": round(run_ended_at * 1000),
         "target": {"api_base": args.api_base or "cli-default", "instance": args.instance or "live"},
         "execution_context": {
             "build_id": args.build_id or None,
             "corpus_snapshot_id": args.corpus_snapshot_id or None,
             "fault_schedule_id": args.fault_schedule_id or None,
             "state_receipt_id": args.state_receipt_id or None,
+            "admission_receipt_id": args.admission_receipt_id or None,
+            "serving_scope_receipt_id": args.serving_scope_receipt_id or None,
         },
         "transport": args.transport,
         "workload": {"sha256": workload_hash, "cases": len(cases)},
@@ -718,6 +728,13 @@ def main() -> int:
             "ai_gateway_tokens": gateway_usage,
             "grading": "attach SH1 independent part grades and task acceptance before comparing cost per accepted result",
             "query_hashes": [row["query_sha256"] for row in rows],
+        },
+        "telemetry_scope": {
+            "cache": "rolling_15m_search_hub_insights_delta; aggregate window can include unrelated queries and is not attributable to this run",
+            "tokens": "fresh_search_hub_gateway_events_between_snapshots; scenario/window scoped, not request or run correlated; truncated windows are incomplete",
+            "idle_cost": "selected resource-group CPU delta normalized by idle_seconds; selected resource-group peak memory during idle interval",
+            "provider_model_scope_receipt_id": args.serving_scope_receipt_id or None,
+            "provider_model_scope_status": "owner_receipt_reference_supplied; content, owner authority, component coverage, and selected-group inclusion require independent review" if args.serving_scope_receipt_id else "missing_owner_receipt_reference",
         },
         "notes": args.note,
         "cases": rows,

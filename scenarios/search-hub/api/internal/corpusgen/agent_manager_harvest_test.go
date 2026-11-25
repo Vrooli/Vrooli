@@ -2,6 +2,8 @@ package corpusgen
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -16,8 +18,13 @@ import (
 )
 
 type fakeRunEventsReader struct {
-	pages map[string][]AgentManagerEventPage
-	calls map[string]int
+	pages  map[string][]AgentManagerEventPage
+	calls  map[string]int
+	status domain.RunStatus
+}
+
+func (f *fakeRunEventsReader) GetRun(_ context.Context, runID string) (*domain.Run, error) {
+	return &domain.Run{Id: runID, Status: f.status}, nil
 }
 
 func (f *fakeRunEventsReader) GetRunEvents(_ context.Context, runID string, _ int64, _ int) (AgentManagerEventPage, error) {
@@ -34,7 +41,7 @@ func (f *fakeRunEventsReader) GetRunEvents(_ context.Context, runID string, _ in
 
 func TestHarvestAgentManagerCallersRetainsOnlyRealOperatorUserRecords(t *testing.T) {
 	run := "run-real"
-	reader := &fakeRunEventsReader{pages: map[string][]AgentManagerEventPage{run: {
+	reader := &fakeRunEventsReader{status: domain.RunStatus_RUN_STATUS_COMPLETE, pages: map[string][]AgentManagerEventPage{run: {
 		{Events: []AgentManagerEvent{
 			{ID: "e1", RunID: run, Sequence: 1, EventType: "RUN_EVENT_TYPE_MESSAGE", Message: &AgentManagerMessage{Role: "user", Source: "operator", ConversationID: "conv-1", Content: "Where is retry handled?"}},
 			{ID: "e2", RunID: run, Sequence: 2, EventType: "RUN_EVENT_TYPE_MESSAGE", Message: &AgentManagerMessage{Role: "user", Source: "injected_context", ConversationID: "conv-1", Content: "synthetic injected prompt"}},
@@ -56,24 +63,58 @@ func TestHarvestAgentManagerCallersRetainsOnlyRealOperatorUserRecords(t *testing
 }
 
 func TestHarvestAgentManagerCallersValidatesPaginationIdentity(t *testing.T) {
-	reader := &fakeRunEventsReader{pages: map[string][]AgentManagerEventPage{"run-1": {{Events: []AgentManagerEvent{{ID: "wrong-run-event", RunID: "run-other", Sequence: 1}}}}}}
+	reader := &fakeRunEventsReader{status: domain.RunStatus_RUN_STATUS_COMPLETE, pages: map[string][]AgentManagerEventPage{"run-1": {{Events: []AgentManagerEvent{{ID: "wrong-run-event", RunID: "run-other", Sequence: 1}}}}}}
 	if _, err := HarvestAgentManagerCallers(context.Background(), reader, []string{"run-1"}); err == nil {
 		t.Fatal("expected mismatched event run identity to be rejected")
 	}
 }
 
+func TestHarvestAgentManagerCallersRefusesActiveRunBeforeReadingEvents(t *testing.T) {
+	reader := &fakeRunEventsReader{status: domain.RunStatus_RUN_STATUS_RUNNING, pages: map[string][]AgentManagerEventPage{
+		"run-1": {{Events: []AgentManagerEvent{{ID: "private-active-message", RunID: "run-1", Sequence: 1, EventType: "RUN_EVENT_TYPE_MESSAGE", Message: &AgentManagerMessage{Role: "user", Source: "operator", Content: "active transcript"}}}}},
+	}}
+	if _, err := HarvestAgentManagerCallers(context.Background(), reader, []string{"run-1"}); err == nil || !strings.Contains(err.Error(), "unless the exact run is complete") {
+		t.Fatalf("active run transcript was not refused: %v", err)
+	}
+	if reader.calls["run-1"] != 0 {
+		t.Fatalf("active run events were read before completion proof: calls=%d", reader.calls["run-1"])
+	}
+}
+
 type agentManagerEventsFixture struct {
 	apiconnect.UnimplementedAgentManagerServiceHandler
-	pages map[int64]*api.GetRunEventsResponse
-	calls int
+	pages          map[int64]*api.GetRunEventsResponse
+	sourceMessages map[int64]*api.GetRunEventsResponse
+	deletionPages  map[int64]*api.GetRunEventsResponse
+	calls          int
+	runID          string
+	status         domain.RunStatus
+}
+
+func (f *agentManagerEventsFixture) GetRun(_ context.Context, req *connect.Request[api.GetRunRequest]) (*connect.Response[api.GetRunResponse], error) {
+	if req.Msg.GetRunId() != f.runID {
+		return nil, connect.NewError(connect.CodeNotFound, nil)
+	}
+	return connect.NewResponse(&api.GetRunResponse{Run: &domain.Run{Id: f.runID, Status: f.status}}), nil
 }
 
 func (f *agentManagerEventsFixture) GetRunEvents(_ context.Context, req *connect.Request[api.GetRunEventsRequest]) (*connect.Response[api.GetRunEventsResponse], error) {
 	f.calls++
-	if req.Msg.GetRunId() == "" || req.Msg.GetLimit() != 1000 || len(req.Msg.GetEventTypes()) != 2 || req.Msg.GetSummaryOnly() {
+	if req.Msg.GetRunId() == "" || req.Msg.GetSummaryOnly() {
 		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
 	}
-	response, ok := f.pages[req.Msg.GetAfterSequence()]
+	var source map[int64]*api.GetRunEventsResponse
+	switch {
+	case len(req.Msg.GetEventTypes()) == 2 && req.Msg.GetLimit() == 1000:
+		source = f.pages
+	case len(req.Msg.GetEventTypes()) == 1 && req.Msg.GetEventTypes()[0] == domain.RunEventType_RUN_EVENT_TYPE_MESSAGE && req.Msg.GetLimit() == 1:
+		source = f.sourceMessages
+	case len(req.Msg.GetEventTypes()) == 1 && req.Msg.GetEventTypes()[0] == domain.RunEventType_RUN_EVENT_TYPE_MESSAGE_DELETED && req.Msg.GetLimit() == 1000:
+		source = f.deletionPages
+	default:
+		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
+	}
+	response, ok := source[req.Msg.GetAfterSequence()]
 	if !ok {
 		return connect.NewResponse(&api.GetRunEventsResponse{}), nil
 	}
@@ -111,7 +152,7 @@ func TestAgentManagerConnectReaderHarvestsDeletionFilteredCaller(t *testing.T) {
 			runEvent("event-deleted", runID, 2, &domain.RunEvent_Message{Message: &domain.MessageEventData{Role: "user", Source: "operator", Content: "Remove this query", ConversationId: "conversation-1"}}),
 			runEvent("delete-marker", runID, 3, &domain.RunEvent_MessageDeleted{MessageDeleted: &domain.MessageDeletedEventData{TargetEventId: "event-deleted"}}),
 		}},
-	}}
+	}, runID: runID, status: domain.RunStatus_RUN_STATUS_COMPLETE}
 	reader := serveAgentManagerEventFixture(t, fixture)
 	got, err := HarvestAgentManagerCallers(context.Background(), reader, []string{runID})
 	if err != nil {
@@ -122,12 +163,48 @@ func TestAgentManagerConnectReaderHarvestsDeletionFilteredCaller(t *testing.T) {
 	}
 }
 
+func TestAgentManagerCodeTaskSourceVerifierRequiresCompletedExactOperatorEvent(t *testing.T) {
+	const (
+		runID          = "123e4567-e89b-12d3-a456-426614174030"
+		eventID        = "123e4567-e89b-12d3-a456-426614174031"
+		conversationID = "123e4567-e89b-12d3-a456-426614174032"
+		content        = "Fix the parser's empty input handling and add regression tests."
+	)
+	digest := sha256.Sum256([]byte(content))
+	fixture := &agentManagerEventsFixture{
+		sourceMessages: map[int64]*api.GetRunEventsResponse{
+			6: {Events: []*domain.RunEvent{runEvent(eventID, runID, 7, &domain.RunEvent_Message{Message: &domain.MessageEventData{Role: "user", Source: "operator", Content: content, ConversationId: conversationID}})}},
+		},
+		deletionPages: map[int64]*api.GetRunEventsResponse{-1: {}},
+		runID:         runID, status: domain.RunStatus_RUN_STATUS_COMPLETE,
+	}
+	reader := serveAgentManagerEventFixture(t, fixture)
+	verifier := AgentManagerCodeTaskSourceVerifier{Runs: reader, Events: reader}
+	source := CodeTaskSourceRef{
+		RunID: runID, EventID: eventID, Sequence: 7, ConversationID: conversationID,
+		RunStatus: "complete", MessageRole: "user", MessageSource: "operator", ActorID: "operator",
+		MessageSHA256: hex.EncodeToString(digest[:]),
+	}
+	if err := verifier.VerifyCodeTaskSource(context.Background(), source); err != nil {
+		t.Fatalf("completed operator task source rejected: %v", err)
+	}
+	wrongDigest := source
+	wrongDigest.MessageSHA256 = strings.Repeat("0", 64)
+	if err := verifier.VerifyCodeTaskSource(context.Background(), wrongDigest); err == nil || !strings.Contains(err.Error(), "SHA-256") {
+		t.Fatalf("mismatched source digest accepted: %v", err)
+	}
+	fixture.status = domain.RunStatus_RUN_STATUS_RUNNING
+	if err := verifier.VerifyCodeTaskSource(context.Background(), source); err == nil || !strings.Contains(err.Error(), "completed") {
+		t.Fatalf("active run source accepted: %v", err)
+	}
+}
+
 func TestAgentManagerConnectReaderFollowsHasMoreCursorIncludingSequenceZero(t *testing.T) {
 	const runID = "123e4567-e89b-12d3-a456-426614174001"
 	fixture := &agentManagerEventsFixture{pages: map[int64]*api.GetRunEventsResponse{
 		-1: {Events: []*domain.RunEvent{runEvent("event-1", runID, 0, &domain.RunEvent_Message{Message: &domain.MessageEventData{Role: "user", Source: "operator", Content: "first query", ConversationId: "conversation-1"}})}, HasMore: true},
 		0:  {Events: []*domain.RunEvent{runEvent("event-2", runID, 1, &domain.RunEvent_Message{Message: &domain.MessageEventData{Role: "user", Source: "operator", Content: "second query", ConversationId: "conversation-1"}})}, HasMore: false},
-	}}
+	}, runID: runID, status: domain.RunStatus_RUN_STATUS_COMPLETE}
 	reader := serveAgentManagerEventFixture(t, fixture)
 	got, err := HarvestAgentManagerCallers(context.Background(), reader, []string{runID})
 	if err != nil {
@@ -154,7 +231,7 @@ func TestAuditedAgentManagerCallerCaseRetainsConversationRoleAndReviewGate(t *te
 	if err != nil {
 		t.Fatal(err)
 	}
-	counts, err := ValidateModelRoleCoverage([]*evalv1.EvalCase{candidate, reviewed}, 1)
+	counts, err := ValidateModelRoleCoverage([]*evalv1.EvalCase{candidate, reviewed}, []string{"chat.default", "code.local"}, 1)
 	if err == nil || counts["chat.default"] != 1 {
 		t.Fatalf("reviewed role coverage = %v, %v; want chat.default counted and other roles reported deficient", counts, err)
 	}

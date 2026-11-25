@@ -94,6 +94,131 @@ func TestTaskViewShowsPerPartEvidenceAndCoverage(t *testing.T) {
 	}
 }
 
+func TestTaskPartLocalizesMatchingProviderDegradation(t *testing.T) {
+	hit := &routingv1.SearchHit{ProviderId: "ui-health.surfaces", Id: "health-card", Title: "HealthCard surface"}
+	msg := &routingv1.QueryResponse{
+		Groups: []*routingv1.ProviderResultGroup{{
+			ProviderId: hit.GetProviderId(), Degraded: true, Note: "semantic leg timed out", Hits: []*routingv1.SearchHit{hit},
+		}},
+		QueryParts: []*routingv1.QueryPartEvidence{{
+			PartId: "surface", Label: "Find the health tracking surface",
+			SearchedProviderIds: []string{hit.GetProviderId()},
+			Status:              routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED,
+			Evidence: []*routingv1.SearchHitReference{{
+				ProviderId: hit.GetProviderId(), GroupIndex: int32Ref(0), HitIndex: int32Ref(0), HitId: hit.GetId(),
+			}},
+		}},
+	}
+	got := strings.Join((&handlers{}).queryReport(nil, msg).Results, "\n")
+	if !strings.Contains(got, "degraded provider coverage ui-health.surfaces: semantic leg timed out") {
+		t.Fatalf("task part did not localize degradation from its searched provider:\n%s", got)
+	}
+}
+
+func TestTaskHitBudgetPreservesStatusForEveryPart(t *testing.T) {
+	hits := make([]*routingv1.SearchHit, 5)
+	for index := range hits {
+		hits[index] = &routingv1.SearchHit{
+			ProviderId: "ui-health.surfaces",
+			Id:         fmt.Sprintf("surface-%d", index+1),
+			Title:      fmt.Sprintf("Health surface %d", index+1),
+		}
+	}
+	group := &routingv1.ProviderResultGroup{ProviderId: "ui-health.surfaces", Hits: hits}
+	parts := make([]*routingv1.QueryPartEvidence, 0, 6)
+	for index := 0; index < 4; index++ {
+		parts = append(parts, &routingv1.QueryPartEvidence{
+			PartId: fmt.Sprintf("covered-%d", index+1), Label: fmt.Sprintf("Covered request part %d", index+1),
+			Status: routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED,
+			Evidence: []*routingv1.SearchHitReference{{
+				ProviderId: group.GetProviderId(), GroupIndex: int32Ref(0), HitIndex: int32Ref(int32(index)), HitId: hits[index].GetId(),
+			}},
+		})
+	}
+	parts = append(parts,
+		&routingv1.QueryPartEvidence{PartId: "missing", Label: "Later missing requirement", Status: routingv1.QueryPartEvidence_STATUS_NOT_ROUTED, Reason: "ambiguous_provider_evidence"},
+		&routingv1.QueryPartEvidence{
+			PartId: "over-budget", Label: "Later returned requirement", Status: routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED,
+			Evidence: []*routingv1.SearchHitReference{{
+				ProviderId: group.GetProviderId(), GroupIndex: int32Ref(0), HitIndex: int32Ref(4), HitId: hits[4].GetId(),
+			}},
+		},
+	)
+	msg := &routingv1.QueryResponse{Groups: []*routingv1.ProviderResultGroup{group}, QueryParts: parts}
+	got := strings.Join(renderTaskParts(msg, defaultVisibleHits), "\n")
+	for _, expected := range []string{
+		"Later missing requirement — not routed",
+		"multiple owners have similar evidence; owner is ambiguous",
+		"Later returned requirement — candidate hits returned (relevance not judged)",
+		"omitted by shared display budget",
+	} {
+		if !strings.Contains(got, expected) {
+			t.Fatalf("four-hit budget hid part status or omitted-evidence marker %q:\n%s", expected, got)
+		}
+	}
+	if strings.Contains(got, "additional request part(s) omitted") {
+		t.Fatalf("part coverage was incorrectly capped with result hits:\n%s", got)
+	}
+}
+
+func TestTaskPartShowsAllDistinctReferencedHitsWithinSharedBudget(t *testing.T) {
+	hits := make([]*routingv1.SearchHit, 6)
+	refs := make([]*routingv1.SearchHitReference, 6)
+	for index := range hits {
+		hits[index] = &routingv1.SearchHit{
+			ProviderId: "catalog.docs", Id: fmt.Sprintf("candidate-%d", index+1),
+			Title: fmt.Sprintf("Candidate evidence %d", index+1), Path: fmt.Sprintf("scenarios/catalog/evidence-%d.md", index+1),
+		}
+		refs[index] = &routingv1.SearchHitReference{
+			ProviderId: "catalog.docs", GroupIndex: int32Ref(0), HitIndex: int32Ref(int32(index)), HitId: hits[index].GetId(),
+		}
+	}
+	msg := &routingv1.QueryResponse{
+		Groups: []*routingv1.ProviderResultGroup{{ProviderId: "catalog.docs", Hits: hits}},
+		QueryParts: []*routingv1.QueryPartEvidence{{
+			PartId: "alternatives", Label: "Compare returned evidence candidates",
+			Status: routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED, Evidence: refs,
+		}},
+	}
+	limited := strings.Join(renderTaskParts(msg, defaultVisibleHits), "\n")
+	if got := strings.Count(limited, "Candidate evidence "); got != defaultVisibleHits {
+		t.Fatalf("default task view rendered %d distinct candidates, want %d:\n%s", got, defaultVisibleHits, limited)
+	}
+	if !strings.Contains(limited, "2 unique evidence hit(s) omitted by shared display budget") {
+		t.Fatalf("task view omitted candidates without an exact per-part count:\n%s", limited)
+	}
+	full := strings.Join(renderTaskParts(msg, 0), "\n")
+	if got := strings.Count(full, "Candidate evidence "); got != len(hits) {
+		t.Fatalf("unbounded task view rendered %d candidates, want %d:\n%s", got, len(hits), full)
+	}
+	if strings.Contains(full, "omitted by shared display budget") {
+		t.Fatalf("unbounded task view still omits supported candidates:\n%s", full)
+	}
+	if got := len(visibleResponseHits(queryTextContext{text: "task"}, msg)); got != defaultVisibleHits {
+		t.Fatalf("handoff visible-hit set has %d hits, want the displayed budget %d", got, defaultVisibleHits)
+	}
+	if got := len(visibleResponseHits(queryTextContext{showAllResultsContext: showAllResultsContext{enabled: true}, text: "task"}, msg)); got != len(hits) {
+		t.Fatalf("--show-all-results handoff visible-hit set has %d hits, want %d", got, len(hits))
+	}
+}
+
+func TestDirectAndRankedHitsLocalizeTheirProviderDegradation(t *testing.T) {
+	hit := &routingv1.SearchHit{ProviderId: "catalog.docs", Id: "health-card", Title: "Health tracker card", Path: "scenarios/catalog/health.md"}
+	group := &routingv1.ProviderResultGroup{
+		ProviderId: hit.GetProviderId(), Degraded: true, Note: "lexical fallback active", Hits: []*routingv1.SearchHit{hit},
+	}
+	ranked := &routingv1.QueryResponse{Reranked: true, Ranked: []*routingv1.SearchHit{hit}, Groups: []*routingv1.ProviderResultGroup{group}}
+	rankedResults := strings.Join((&handlers{}).queryReport(nil, ranked).Results, "\n")
+	if !strings.Contains(rankedResults, "provider coverage degraded: lexical fallback active") {
+		t.Fatalf("ranked hit did not localize its provider degradation:\n%s", rankedResults)
+	}
+	directCtx := queryTextContext{text: hit.GetTitle()}
+	direct := (&handlers{}).queryReport(directCtx, ranked)
+	if direct.ResultsHeading != "Direct entity match" || !strings.Contains(strings.Join(direct.Results, "\n"), "provider coverage degraded: lexical fallback active") {
+		t.Fatalf("direct view lost selected-owner degradation: %#v", direct)
+	}
+}
+
 func TestTaskHandoffOnlyUsesVisiblePartEvidence(t *testing.T) {
 	command := &routingv1.SearchHit{
 		ProviderId: "cli-health.commands",
@@ -223,6 +348,59 @@ func TestCorrectionBudgetDoesNotHintFromAnOmittedSuggestion(t *testing.T) {
 	}
 	if hints := strings.Join(nextActionHints(showAll, msg), "\n"); !strings.Contains(hints, "react-component-library components draft-begin --help") {
 		t.Fatalf("--show-all-results did not ground the visible fifth-candidate action: %s", hints)
+	}
+}
+
+func TestTaskPartEvidencePrecedesOptionalCorrectionHintsUnderSharedBudget(t *testing.T) {
+	hits := []*routingv1.SearchHit{
+		{ProviderId: "docs", Id: "task-1", Title: "Primary evidence one"},
+		{ProviderId: "docs", Id: "task-2", Title: "Primary evidence two"},
+		{ProviderId: "docs", Id: "task-3", Title: "Primary evidence three"},
+		{ProviderId: "docs", Id: "task-4", Title: "Primary evidence four"},
+		{ProviderId: "cli-health.commands", Id: "draft-begin", Title: "react-component-library components draft-begin", Path: "react-component-library components draft-begin"},
+	}
+	parts := make([]*routingv1.QueryPartEvidence, 0, 4)
+	for i := 0; i < 4; i++ {
+		parts = append(parts, &routingv1.QueryPartEvidence{
+			PartId: fmt.Sprintf("part-%d", i+1), Label: fmt.Sprintf("Primary request part %d", i+1),
+			Status: routingv1.QueryPartEvidence_STATUS_CANDIDATES_RETURNED,
+			Evidence: []*routingv1.SearchHitReference{{
+				ProviderId: "docs", GroupIndex: int32Ref(0), HitIndex: int32Ref(int32(i)), HitId: hits[i].GetId(),
+			}},
+		})
+	}
+	msg := &routingv1.QueryResponse{
+		Groups:     []*routingv1.ProviderResultGroup{{ProviderId: "docs", Hits: hits[:4]}, {ProviderId: "cli-health.commands", Hits: hits[4:]}},
+		QueryParts: parts,
+		CorrectionCandidates: []*routingv1.CorrectionCandidate{{
+			SubmittedValue: "React component library draft workflow typo",
+			CandidateValue: "React component library draft workflow",
+			ProviderId:     "cli-health.commands",
+			Evidence:       &routingv1.SearchHitReference{ProviderId: "cli-health.commands", GroupIndex: int32Ref(1), HitIndex: int32Ref(0), HitId: "draft-begin"},
+		}},
+	}
+	ctx := queryTextContext{text: "Find React component library draft workflow typo"}
+	report := (&handlers{}).queryReport(ctx, msg)
+	results := strings.Join(report.Results, "\n")
+	for _, title := range []string{"Primary evidence one", "Primary evidence two", "Primary evidence three", "Primary evidence four"} {
+		if !strings.Contains(results, title) {
+			t.Errorf("task evidence was displaced by optional correction: %q\n%s", title, results)
+		}
+	}
+	if strings.Contains(results, hits[4].GetTitle()) || !strings.Contains(results, "1 correction candidate(s) omitted") {
+		t.Fatalf("correction did not yield the shared budget to task evidence: %s", results)
+	}
+	visible := visibleResponseHits(ctx, msg)
+	if len(visible) != defaultVisibleHits {
+		t.Fatalf("visible evidence count = %d, want %d", len(visible), defaultVisibleHits)
+	}
+	for _, hit := range visible {
+		if hit == hits[4] {
+			t.Fatal("optional correction candidate was treated as visible after task evidence filled the budget")
+		}
+	}
+	if hints := nextActionHints(ctx, msg); len(hints) > 0 {
+		t.Fatalf("handoff depended on a correction whose evidence was omitted: %v", hints)
 	}
 }
 
@@ -418,6 +596,39 @@ func TestInferredIntentDoesNotGroundOperationHint(t *testing.T) {
 	ctx := queryTextContext{text: "Diagnose an Agent Manager runner transcript failure after a crash; find the recovery procedure and next safe command to inspect status"}
 	if got := nextActionHints(ctx, msg); len(got) != 0 {
 		t.Fatalf("inferred intent grounded an unrelated operation: %v", got)
+	}
+}
+
+func TestOperationActionSelectsBestRelevantVisibleProgramCandidate(t *testing.T) {
+	ctx := queryTextContext{text: "Inspect cleanup manager program after removal"}
+	unrelated := &routingv1.SearchHit{
+		ProviderId: "program-runtime.library", Id: "health-manager.daily-summary", Title: "Health manager daily summary",
+	}
+	relevant := &routingv1.SearchHit{
+		ProviderId: "program-runtime.library", Id: "cleanup-manager.inspect-after-removal", Title: "Inspect cleanup manager after removal",
+	}
+	msg := &routingv1.QueryResponse{Reranked: true, Ranked: []*routingv1.SearchHit{unrelated, relevant}}
+	got := strings.Join(nextActionHints(ctx, msg), "\n")
+	if !strings.Contains(got, "name=cleanup-manager.inspect-after-removal") {
+		t.Fatalf("operation handoff did not select the best relevant visible candidate: %q", got)
+	}
+	if strings.Contains(got, unrelated.GetId()) {
+		t.Fatalf("operation handoff selected the less-relevant first-ranked candidate: %q", got)
+	}
+}
+
+func TestOperationActionNeverUsesCandidateOutsideVisibleBudget(t *testing.T) {
+	ctx := queryTextContext{text: "Inspect cleanup manager program after removal"}
+	hits := []*routingv1.SearchHit{
+		{ProviderId: "catalog.docs", Id: "doc-1", Title: "Unrelated guide one"},
+		{ProviderId: "catalog.docs", Id: "doc-2", Title: "Unrelated guide two"},
+		{ProviderId: "catalog.docs", Id: "doc-3", Title: "Unrelated guide three"},
+		{ProviderId: "catalog.docs", Id: "doc-4", Title: "Unrelated guide four"},
+		{ProviderId: "program-runtime.library", Id: "cleanup-manager.inspect-after-removal", Title: "Inspect cleanup manager after removal"},
+	}
+	msg := &routingv1.QueryResponse{Reranked: true, Ranked: hits}
+	if got := nextActionHints(ctx, msg); len(got) != 0 {
+		t.Fatalf("hidden fifth hit grounded an action outside the four-hit view: %v", got)
 	}
 }
 

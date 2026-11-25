@@ -2,6 +2,8 @@ package corpusgen
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"sort"
@@ -54,6 +56,57 @@ type AgentManagerConnectReader struct {
 	Client  apiconnect.AgentManagerServiceClient
 }
 
+type AgentManagerCompletedRunReader interface {
+	GetRun(context.Context, string) (*domain.Run, error)
+}
+
+type AgentManagerCodeTaskEventReader interface {
+	GetCodeTaskSourceMessage(context.Context, CodeTaskSourceRef) (AgentManagerEvent, error)
+	IsCodeTaskSourceDeleted(context.Context, string, string) (bool, error)
+}
+
+// AgentManagerCodeTaskSourceVerifier proves that a candidate names one exact
+// operator-authored message in a completed run. Message bodies are read only
+// from the selected completed run, hashed in memory, and never returned or
+// persisted by this verifier.
+type AgentManagerCodeTaskSourceVerifier struct {
+	Runs   AgentManagerCompletedRunReader
+	Events AgentManagerCodeTaskEventReader
+}
+
+func (v AgentManagerCodeTaskSourceVerifier) VerifyCodeTaskSource(ctx context.Context, source CodeTaskSourceRef) error {
+	if v.Runs == nil || v.Events == nil {
+		return fmt.Errorf("Agent Manager completed-run and event owners are required")
+	}
+	run, err := v.Runs.GetRun(ctx, source.RunID)
+	if err != nil {
+		return fmt.Errorf("read Agent Manager run owner: %w", err)
+	}
+	if run == nil || run.GetId() != source.RunID || run.GetStatus() != domain.RunStatus_RUN_STATUS_COMPLETE || source.RunStatus != "complete" {
+		return fmt.Errorf("source is not from the exact completed Agent Manager run")
+	}
+	event, err := v.Events.GetCodeTaskSourceMessage(ctx, source)
+	if err != nil {
+		return fmt.Errorf("read exact Agent Manager source message: %w", err)
+	}
+	deleted, err := v.Events.IsCodeTaskSourceDeleted(ctx, source.RunID, source.EventID)
+	if err != nil {
+		return fmt.Errorf("verify Agent Manager source deletion state: %w", err)
+	}
+	if deleted || event.ID != source.EventID || event.RunID != source.RunID || event.Sequence < 0 || uint64(event.Sequence) != source.Sequence || event.Message == nil {
+		return fmt.Errorf("exact Agent Manager source event is missing, deleted, or mismatched")
+	}
+	message := event.Message
+	if message.Role != "user" || message.Source != "operator" || message.EvidenceOnly || message.ConversationID != source.ConversationID || source.MessageRole != "user" || source.MessageSource != "operator" || source.ActorID != "operator" {
+		return fmt.Errorf("Agent Manager source is not the exact operator-authored user message")
+	}
+	digest := sha256.Sum256([]byte(message.Content))
+	if strings.TrimSpace(message.Content) == "" || hex.EncodeToString(digest[:]) != strings.ToLower(source.MessageSHA256) {
+		return fmt.Errorf("Agent Manager source body does not match its pinned SHA-256")
+	}
+	return nil
+}
+
 func NewAgentManagerConnectReader(baseURL string, client *http.Client) AgentManagerConnectReader {
 	if client == nil {
 		client = http.DefaultClient
@@ -97,6 +150,85 @@ func (r AgentManagerConnectReader) GetRunEvents(ctx context.Context, runID strin
 	return page, nil
 }
 
+func (r AgentManagerConnectReader) GetRun(ctx context.Context, runID string) (*domain.Run, error) {
+	if r.Client == nil || strings.TrimSpace(r.BaseURL) == "" || strings.TrimSpace(runID) == "" {
+		return nil, fmt.Errorf("Agent Manager Connect client and run ID are required")
+	}
+	response, err := r.Client.GetRun(ctx, connect.NewRequest(&api.GetRunRequest{RunId: runID}))
+	if err != nil {
+		return nil, fmt.Errorf("request Agent Manager run owner: %w", err)
+	}
+	if response == nil || response.Msg == nil || response.Msg.GetRun() == nil || response.Msg.GetRun().GetId() != runID {
+		return nil, fmt.Errorf("Agent Manager returned a mismatched run identity")
+	}
+	return response.Msg.GetRun(), nil
+}
+
+func (r AgentManagerConnectReader) GetCodeTaskSourceMessage(ctx context.Context, source CodeTaskSourceRef) (AgentManagerEvent, error) {
+	if r.Client == nil || strings.TrimSpace(source.RunID) == "" || strings.TrimSpace(source.EventID) == "" || source.Sequence > uint64(1<<63-1) {
+		return AgentManagerEvent{}, fmt.Errorf("Agent Manager Connect client and exact source identity are required")
+	}
+	after := int64(source.Sequence) - 1
+	limit := int32(1)
+	response, err := r.Client.GetRunEvents(ctx, connect.NewRequest(&api.GetRunEventsRequest{
+		RunId: source.RunID, AfterSequence: &after, Limit: &limit,
+		EventTypes: []domain.RunEventType{domain.RunEventType_RUN_EVENT_TYPE_MESSAGE},
+	}))
+	if err != nil {
+		return AgentManagerEvent{}, fmt.Errorf("request exact Agent Manager source message: %w", err)
+	}
+	if response == nil || response.Msg == nil || len(response.Msg.GetEvents()) != 1 {
+		return AgentManagerEvent{}, fmt.Errorf("Agent Manager did not return one exact source message")
+	}
+	event := response.Msg.GetEvents()[0]
+	if event.GetId() != source.EventID || event.GetRunId() != source.RunID || event.GetSequence() != int64(source.Sequence) || event.GetEventType() != domain.RunEventType_RUN_EVENT_TYPE_MESSAGE || event.GetMessage() == nil {
+		return AgentManagerEvent{}, fmt.Errorf("Agent Manager source message identity mismatch")
+	}
+	message := event.GetMessage()
+	return AgentManagerEvent{ID: event.GetId(), RunID: event.GetRunId(), Sequence: event.GetSequence(), EventType: event.GetEventType().String(), Message: &AgentManagerMessage{
+		Role: message.GetRole(), Source: message.GetSource(), Content: message.GetContent(), ConversationID: message.GetConversationId(), EvidenceOnly: message.GetEvidenceOnly(),
+	}}, nil
+}
+
+func (r AgentManagerConnectReader) IsCodeTaskSourceDeleted(ctx context.Context, runID, eventID string) (bool, error) {
+	if r.Client == nil || strings.TrimSpace(runID) == "" || strings.TrimSpace(eventID) == "" {
+		return false, fmt.Errorf("Agent Manager Connect client and source identity are required")
+	}
+	const pageSize = 1000
+	const maxDeletionEvents = 20000
+	after := int64(-1)
+	count := 0
+	for {
+		limit := int32(pageSize)
+		response, err := r.Client.GetRunEvents(ctx, connect.NewRequest(&api.GetRunEventsRequest{
+			RunId: runID, AfterSequence: &after, Limit: &limit,
+			EventTypes: []domain.RunEventType{domain.RunEventType_RUN_EVENT_TYPE_MESSAGE_DELETED},
+		}))
+		if err != nil {
+			return false, fmt.Errorf("request Agent Manager source deletion metadata: %w", err)
+		}
+		if response == nil || response.Msg == nil || len(response.Msg.GetEvents()) == 0 && response.Msg.GetHasMore() {
+			return false, fmt.Errorf("Agent Manager returned an invalid source deletion page")
+		}
+		for _, event := range response.Msg.GetEvents() {
+			if event.GetRunId() != runID || event.GetId() == "" || event.GetSequence() <= after || event.GetEventType() != domain.RunEventType_RUN_EVENT_TYPE_MESSAGE_DELETED || event.GetMessageDeleted() == nil {
+				return false, fmt.Errorf("Agent Manager returned invalid source deletion identity")
+			}
+			after = event.GetSequence()
+			count++
+			if count > maxDeletionEvents {
+				return false, fmt.Errorf("Agent Manager run exceeds the %d-deletion verification bound", maxDeletionEvents)
+			}
+			if event.GetMessageDeleted().GetTargetEventId() == eventID {
+				return true, nil
+			}
+		}
+		if !response.Msg.GetHasMore() {
+			return false, nil
+		}
+	}
+}
+
 // AgentManagerCallerRecord retains the original event and conversation
 // identity. Query content is held only in memory for corpus review.
 type AgentManagerCallerRecord struct {
@@ -138,6 +270,10 @@ func HarvestAgentManagerCallers(ctx context.Context, reader RunEventsReader, run
 	if reader == nil {
 		return nil, fmt.Errorf("Agent Manager run-event reader is required")
 	}
+	runsReader, ok := reader.(AgentManagerCompletedRunReader)
+	if !ok {
+		return nil, fmt.Errorf("Agent Manager completed-run owner is required; refusing to read run transcripts without completion proof")
+	}
 	if len(runIDs) == 0 {
 		return nil, fmt.Errorf("at least one Agent Manager run ID is required")
 	}
@@ -153,6 +289,13 @@ func HarvestAgentManagerCallers(ctx context.Context, reader RunEventsReader, run
 
 	var result []AgentManagerCallerRecord
 	for _, runID := range runs {
+		run, err := runsReader.GetRun(ctx, runID)
+		if err != nil {
+			return nil, fmt.Errorf("verify Agent Manager run %s completion: %w", runID, err)
+		}
+		if run == nil || run.GetId() != runID || run.GetStatus() != domain.RunStatus_RUN_STATUS_COMPLETE {
+			return nil, fmt.Errorf("refusing to read Agent Manager transcript %s unless the exact run is complete", runID)
+		}
 		// Agent Manager's first retained event may be sequence zero. Its REST
 		// owner defaults an omitted cursor to -1 so sequence zero is included.
 		after := int64(-1)

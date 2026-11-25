@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.local/search-hub/stage-trace-receipt-v1.schema.json",
+  "title": "Search Hub signed stage trace receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "receipt_id", "issuer", "key_id", "signature_algorithm", "run_id", "arm", "phase", "case_query_set_sha256", "case_count", "stages", "case_coverage", "source_evidence", "signature_base64"],
+  "properties": {
+    "schema_version": {"const": 1}, "receipt_id": {"type": "string", "minLength": 1},
+    "issuer": {"type": "string", "minLength": 1}, "key_id": {"type": "string", "minLength": 1},
+    "signature_algorithm": {"const": "rsa-pkcs1v15-sha256"}, "run_id": {"type": "string", "minLength": 1},
+    "arm": {"type": "string", "minLength": 1}, "phase": {"enum": ["cold", "warm", "concurrent", "degraded", "model-free"]},
+    "case_query_set_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "case_count": {"type": "integer", "minimum": 1},
+    "stages": {"type": "object", "additionalProperties": false, "required": ["classifier", "resolver", "fanout", "rerank", "provider"],
+      "properties": {"classifier": {"$ref": "#/$defs/stage_summary"}, "resolver": {"$ref": "#/$defs/stage_summary"},
+        "fanout": {"$ref": "#/$defs/stage_summary"}, "rerank": {"$ref": "#/$defs/stage_summary"}, "provider": {"$ref": "#/$defs/stage_summary"}}},
+    "case_coverage": {"type": "array", "minItems": 1, "items": {"$ref": "stage-trace-export-v1.schema.json#/$defs/case"}},
+    "source_evidence": {"$ref": "#/$defs/source"}, "signature_base64": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "stage_summary": {"type": "object", "additionalProperties": false, "required": ["executed_case_count", "not_applicable_case_count", "complete_case_count", "durations_ms"],
+      "properties": {"executed_case_count": {"type": "integer", "minimum": 0}, "not_applicable_case_count": {"type": "integer", "minimum": 0},
+        "complete_case_count": {"type": "integer", "minimum": 1}, "durations_ms": {"type": "array", "items": {"type": "integer", "minimum": 1}},
+        "resource_status": {"enum": ["owner_attributed_diagnostic", "unavailable_stage_cpu_memory_not_measured"]},
+        "resource_method_id": {"type": ["string", "null"]},
+        "resource_scope_receipt_id": {"type": ["string", "null"]},
+        "resource_scope_uri": {"type": ["string", "null"]},
+        "resource_scope_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "cpu_ms_total": {"type": ["integer", "null"], "minimum": 0},
+        "peak_memory_bytes": {"type": ["integer", "null"], "minimum": 1}},
+      "allOf": [{"if": {"required": ["resource_status"]},
+        "then": {"required": ["resource_status", "resource_method_id", "resource_scope_receipt_id", "resource_scope_uri", "resource_scope_sha256", "cpu_ms_total", "peak_memory_bytes"]}}]},
+    "source": {"type": "object", "additionalProperties": false, "required": ["receipt_id", "evidence_uri", "evidence_sha256"],
+      "properties": {"receipt_id": {"type": "string", "minLength": 1}, "evidence_uri": {"type": "string", "minLength": 1},
+        "evidence_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}
+  }
+}

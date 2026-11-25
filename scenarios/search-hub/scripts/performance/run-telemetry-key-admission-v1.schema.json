@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vrooli.local/schemas/search-hub/run-telemetry-key-admission-v1.schema.json",
+  "title": "Manager-reviewed run telemetry key admission receipt v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "receipt_id", "purpose", "issuer", "key_id", "key_fingerprint_sha256", "approval_status", "owner_acknowledgement_ref", "manager_review_ref", "reviewer_ids"],
+  "properties": {
+    "schema_version": {"const": 1}, "receipt_id": {"type": "string", "minLength": 1},
+    "purpose": {"const": "search_hub_run_telemetry"}, "issuer": {"type": "string", "minLength": 1},
+    "key_id": {"type": "string", "minLength": 1},
+    "key_fingerprint_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "approval_status": {"const": "approved"},
+    "owner_acknowledgement_ref": {"type": "string", "minLength": 1},
+    "manager_review_ref": {"type": "string", "minLength": 1},
+    "reviewer_ids": {"type": "array", "minItems": 2, "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+  }
+}

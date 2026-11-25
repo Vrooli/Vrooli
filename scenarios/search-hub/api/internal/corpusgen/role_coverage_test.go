@@ -11,32 +11,10 @@ import (
 )
 
 func TestModelPolicyRoleCoverageMatchesAuthoritativeInventory(t *testing.T) {
-	repoRoot := testRepoRoot(t)
-	policyPath := filepath.Join(repoRoot, "resources", "ollama", "model-policy.json")
-	raw, err := os.ReadFile(policyPath)
-	if err != nil {
-		t.Fatalf("read authoritative Ollama model policy: %v", err)
-	}
-	var policy struct {
-		Roles map[string]json.RawMessage `json:"roles"`
-	}
-	if err := json.Unmarshal(raw, &policy); err != nil {
-		t.Fatalf("decode authoritative Ollama model policy: %v", err)
-	}
-	want := make([]string, 0, len(policy.Roles))
-	for role := range policy.Roles {
-		want = append(want, role)
-	}
-	sort.Strings(want)
-	got := ModelPolicyRoles()
-	sort.Strings(got)
-	if len(policy.Roles) == 0 || len(got) != len(want) {
-		t.Fatalf("policy role denominator size mismatch: corpus=%v policy=%v", got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("policy role denominator differs from model-policy.json: corpus=%v policy=%v", got, want)
-		}
+	roles := authoritativeModelPolicyRoles(t)
+	counts, err := ValidateModelRoleCoverage(nil, roles, 20)
+	if err == nil || len(counts) != len(roles) {
+		t.Fatalf("authoritative role inventory was not used as denominator: roles=%v counts=%v err=%v", roles, counts, err)
 	}
 }
 
@@ -70,7 +48,7 @@ func TestGatewayTaskRoleCoverageMatchesAuthoritativeCatalog(t *testing.T) {
 }
 
 func TestModelRoleCoverageRequiresReviewedRealCasesForEveryRole(t *testing.T) {
-	roles := ModelPolicyRoles()
+	roles := authoritativeModelPolicyRoles(t)
 	cases := make([]*evalv1.EvalCase, 0, len(roles)*2+1)
 	for i, role := range roles {
 		for n := 0; n < 2; n++ {
@@ -93,7 +71,7 @@ func TestModelRoleCoverageRequiresReviewedRealCasesForEveryRole(t *testing.T) {
 		}
 	}
 	cases = append(cases, &evalv1.EvalCase{CaseId: "synthetic", Status: "reviewed", ExpectIds: []string{"doc/x"}, Tags: []string{"independently-reviewed", "resource-role:chat.default"}})
-	counts, err := ValidateModelRoleCoverage(cases, 2)
+	counts, err := ValidateModelRoleCoverage(cases, roles, 2)
 	if err != nil {
 		t.Fatalf("adequate real caller corpus rejected: %v", err)
 	}
@@ -107,7 +85,7 @@ func TestModelRoleCoverageRejectsCallerTagsWithoutLinkedEvidence(t *testing.T) {
 		CaseId: "pretend", Query: "caller query", Status: "reviewed", ExpectIds: []string{"doc/expected"},
 		Tags: []string{"caller-audit", "independently-reviewed", "resource-role:chat.default"},
 	}
-	counts, err := ValidateModelRoleCoverage([]*evalv1.EvalCase{caseWithTagsOnly}, 1)
+	counts, err := ValidateModelRoleCoverage([]*evalv1.EvalCase{caseWithTagsOnly}, []string{"chat.default"}, 1)
 	if err == nil || counts["chat.default"] != 0 {
 		t.Fatalf("tag-only case counted as real caller evidence: counts=%v err=%v", counts, err)
 	}
@@ -122,17 +100,56 @@ func TestModelRoleCoverageRejectsCaseIDThatDoesNotMatchLinkedRoute(t *testing.T)
 		t.Fatal(err)
 	}
 	caller.CaseId = "caller-unrelated"
-	counts, err := ValidateModelRoleCoverage([]*evalv1.EvalCase{caller}, 1)
+	counts, err := ValidateModelRoleCoverage([]*evalv1.EvalCase{caller}, []string{"chat.default"}, 1)
 	if err == nil || counts["chat.default"] != 0 {
 		t.Fatalf("case without deterministic source/route identity was counted: counts=%v err=%v", counts, err)
 	}
 }
 
 func TestModelRoleCoverageReportsAllUnderfilledRoles(t *testing.T) {
-	_, err := ValidateModelRoleCoverage(nil, 20)
-	if err == nil || len(err.Error()) < len(ModelPolicyRoles()) {
+	roles := authoritativeModelPolicyRoles(t)
+	_, err := ValidateModelRoleCoverage(nil, roles, 20)
+	if err == nil || len(err.Error()) < len(roles) {
 		t.Fatalf("expected all role gaps to be reported, got %v", err)
 	}
+}
+
+func TestUnknownResourceRoleIsExcludedByAuthoritativeCoverageBoundary(t *testing.T) {
+	route := gatewayRouteFixture()
+	route.SelectedResourceRole = "code.future"
+	item, err := AuditedCallerCase(callerEventFixture(), route, CallerLabelReview{
+		Reviewer: "independent reviewer", EvidenceURI: "audit://expected",
+		ExpectedIDs: []string{"src/example.go"}, IndependentlyValidated: true,
+	})
+	if err != nil {
+		t.Fatalf("source-linked candidate should retain an unrecognized role for reasoned denominator rejection: %v", err)
+	}
+	roles := authoritativeModelPolicyRoles(t)
+	counts, err := ValidateModelRoleCoverage([]*evalv1.EvalCase{item}, roles, 1)
+	if err == nil || counts["code.future"] != 0 {
+		t.Fatalf("role outside current owner inventory counted toward coverage: counts=%v err=%v", counts, err)
+	}
+}
+
+func authoritativeModelPolicyRoles(t *testing.T) []string {
+	t.Helper()
+	policyPath := filepath.Join(testRepoRoot(t), "resources", "ollama", "model-policy.json")
+	raw, err := os.ReadFile(policyPath)
+	if err != nil {
+		t.Fatalf("read authoritative Ollama model policy: %v", err)
+	}
+	var policy struct {
+		Roles map[string]json.RawMessage `json:"roles"`
+	}
+	if err := json.Unmarshal(raw, &policy); err != nil {
+		t.Fatalf("decode authoritative Ollama model policy: %v", err)
+	}
+	roles := make([]string, 0, len(policy.Roles))
+	for role := range policy.Roles {
+		roles = append(roles, role)
+	}
+	sort.Strings(roles)
+	return roles
 }
 
 // testRepoRoot resolves the repository from the package directory `go test`

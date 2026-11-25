@@ -40,12 +40,20 @@ type ProviderLister interface {
 	List(ctx context.Context, filter internalregistry.ListFilter) ([]*registryv1.ProviderDescriptor, error)
 }
 
+// EmbeddingTelemetryReader is the bounded metadata-only read seam. It is
+// separate from federation Insights so consumers can inspect query/document
+// embedding latency without mixing the two populations.
+type EmbeddingTelemetryReader interface {
+	ReadWindow(ctx context.Context, from, to time.Time, limit int) (internalmetrics.EmbeddingTelemetryPage, error)
+}
+
 // Deps wires the seams the metrics Connect handler needs.
 type Deps struct {
-	Insights      InsightsReader
-	RangeInsights RangeInsightsReader
-	Lister        ProviderLister
-	Logger        *log.Logger
+	Insights           InsightsReader
+	RangeInsights      RangeInsightsReader
+	Lister             ProviderLister
+	EmbeddingTelemetry EmbeddingTelemetryReader
+	Logger             *log.Logger
 }
 
 type connectHandler struct {
@@ -66,10 +74,67 @@ func NewConnectHandler(d Deps) *connectHandler {
 var _ = func() any {
 	type metricsServiceHandler interface {
 		Insights(context.Context, *connect.Request[metricsv1.InsightsRequest]) (*connect.Response[metricsv1.InsightsResponse], error)
+		EmbeddingTelemetry(context.Context, *connect.Request[metricsv1.EmbeddingTelemetryRequest]) (*connect.Response[metricsv1.EmbeddingTelemetryResponse], error)
 	}
 	var _ metricsServiceHandler = (*connectHandler)(nil)
 	return nil
 }()
+
+// EmbeddingTelemetry returns a bounded redacted observer window. The observer
+// is process-local and its counters are not a complete historical ledger.
+func (h *connectHandler) EmbeddingTelemetry(ctx context.Context, req *connect.Request[metricsv1.EmbeddingTelemetryRequest]) (*connect.Response[metricsv1.EmbeddingTelemetryResponse], error) {
+	if h.deps.EmbeddingTelemetry == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("embedding telemetry is unavailable"))
+	}
+	from, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(req.Msg.GetFrom()))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("from must be an RFC3339Nano timestamp"))
+	}
+	to, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(req.Msg.GetTo()))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("to must be an RFC3339Nano timestamp"))
+	}
+	if !from.Before(to) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("from must be before to"))
+	}
+	limit := int(req.Msg.GetLimit())
+	if limit < 1 {
+		limit = 1000
+	}
+	if limit > internalmetrics.EmbeddingTelemetryLimit {
+		limit = internalmetrics.EmbeddingTelemetryLimit
+	}
+	page, err := h.deps.EmbeddingTelemetry.ReadWindow(ctx, from, to, limit)
+	if err != nil {
+		h.deps.Logger.Printf("metrics.EmbeddingTelemetry: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, errors.New("internal error"))
+	}
+	resp := &metricsv1.EmbeddingTelemetryResponse{
+		Truncated: page.Truncated, ObserverDroppedTotal: page.ObserverDroppedTotal,
+		ObserverWriteFailures: page.ObserverWriteFailures,
+		Observations:          make([]*metricsv1.EmbeddingTelemetryObservation, 0, len(page.Rows)),
+		Profiles:              make([]*metricsv1.EmbeddingTelemetryProfile, 0),
+	}
+	if page.HasRetainedWindow {
+		resp.RetainedFrom = formatWindowTime(page.RetainedFrom)
+		resp.RetainedTo = formatWindowTime(page.RetainedTo)
+	}
+	for _, row := range page.Rows {
+		resp.Observations = append(resp.Observations, &metricsv1.EmbeddingTelemetryObservation{
+			Kind: row.Kind, Role: row.Role, Model: row.Model, DurationUs: row.DurationUS,
+			VectorCount: int32(row.VectorCount), Failed: row.Failed, CreatedAt: formatWindowTime(row.CreatedAt),
+		})
+	}
+	for _, profile := range internalmetrics.ProfileEmbeddingTelemetry(page.Rows, !page.Truncated) {
+		resp.Profiles = append(resp.Profiles, &metricsv1.EmbeddingTelemetryProfile{
+			Kind: profile.Kind, Role: profile.Role, Model: profile.Model,
+			SampleCount: profile.SampleCount, FailedCount: profile.FailedCount,
+			DurationP50Us: profile.DurationP50US, DurationP95Us: profile.DurationP95US,
+			Complete: profile.Complete,
+		})
+	}
+	return connect.NewResponse(resp), nil
+}
 
 // Insights aggregates per-query telemetry into federation-health signals and
 // reconciles per-provider utilization against the registered ACTIVE leaves so

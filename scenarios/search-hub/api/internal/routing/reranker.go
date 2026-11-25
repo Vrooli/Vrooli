@@ -2,6 +2,7 @@ package routing
 
 import (
 	"context"
+	"math"
 	"sort"
 
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
@@ -41,6 +42,63 @@ func fuseGroups(groups []*routingv1.ProviderResultGroup) []*routingv1.SearchHit 
 		out = append(out, g.GetHits()...)
 	}
 	return out
+}
+
+type rerankHitIdentity struct {
+	providerID string
+	typeID     string
+	id         string
+	path       string
+	anonymous  *routingv1.SearchHit
+}
+
+func rerankIdentity(hit *routingv1.SearchHit) (rerankHitIdentity, bool) {
+	if hit == nil {
+		return rerankHitIdentity{}, false
+	}
+	key := rerankHitIdentity{providerID: hit.GetProviderId(), typeID: hit.GetType(), id: hit.GetId(), path: hit.GetPath()}
+	if key.typeID == "" && key.id == "" && key.path == "" {
+		key.anonymous = hit
+	}
+	return key, true
+}
+
+// reconcileRerankedCandidates accepts only a complete permutation of the
+// supplied candidate identities. It returns the router's original hit objects
+// in reranker order, copying back only the rerank score, so a successful but
+// malformed reranker cannot invent hits or silently hide one owner's evidence.
+func reconcileRerankedCandidates(candidates, ranked []*routingv1.SearchHit) ([]*routingv1.SearchHit, bool) {
+	if len(ranked) != len(candidates) {
+		return nil, false
+	}
+	available := make(map[rerankHitIdentity][]*routingv1.SearchHit, len(candidates))
+	for _, candidate := range candidates {
+		key, ok := rerankIdentity(candidate)
+		if !ok {
+			return nil, false
+		}
+		available[key] = append(available[key], candidate)
+	}
+	ordered := make([]*routingv1.SearchHit, 0, len(candidates))
+	scores := make([]float64, 0, len(candidates))
+	for _, result := range ranked {
+		key, ok := rerankIdentity(result)
+		score := result.GetRerankScore()
+		if !ok || len(available[key]) == 0 || math.IsNaN(score) || math.IsInf(score, 0) || score < 0 || score > 1 {
+			return nil, false
+		}
+		candidate := available[key][0]
+		available[key] = available[key][1:]
+		ordered = append(ordered, candidate)
+		scores = append(scores, score)
+	}
+	// Commit scores only after the entire result has passed validation. An
+	// invalid late candidate must not leave earlier candidates half-reranked in
+	// the by-provider fallback groups.
+	for i, candidate := range ordered {
+		candidate.RerankScore = scores[i]
+	}
+	return ordered, true
 }
 
 // applyRerank assigns the model's per-candidate scores (indexed positionally,

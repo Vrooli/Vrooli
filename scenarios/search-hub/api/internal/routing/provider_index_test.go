@@ -357,6 +357,18 @@ func TestLexicalDescriptionScoreUsesDistinctExactContentTokens(t *testing.T) {
 	require.Greater(t, lexicalDescriptionScore("implementation", excluded), float64(0), "partial exclusion overlap does not over-veto unrelated requests")
 	typoRanked, typoScores, _ := routeProviderShortlist("ordinary implementatio", []ProviderProfile{excluded}, 1, routeTypoPolicyOneEditUnique)
 	require.Empty(t, positiveScoredProfiles(typoRanked, typoScores, 1), "one-edit query matches to a declared exclusion remain ineligible")
+
+	genericAction := []ProviderProfile{{ProviderID: "search-owner", Type: "search", Description: "Search and find documents"}}
+	for _, query := range []string{"searhc", "pleaes"} {
+		ranked, scores, usedTypo := routeProviderShortlist(query, genericAction, 1, routeTypoPolicyOneEditUnique)
+		require.False(t, usedTypo, "%q should not fuzzy-match generic query language into an owner", query)
+		require.Empty(t, positiveScoredProfiles(ranked, scores, 1))
+	}
+	elaborated, elaboratedScores, elaboratedTypo := routeProviderShortlist("pleaes find command", append(genericAction,
+		ProviderProfile{ProviderID: "command-owner", Type: "command", Description: "CLI commands execute"}), 2, routeTypoPolicyOneEditUnique)
+	require.False(t, elaboratedTypo, "the generic misspelling must not add fuzzy owner evidence")
+	require.Equal(t, "command-owner", elaborated[0].ProviderID)
+	require.Zero(t, elaboratedScores["search-owner"])
 }
 
 // TestDescriptionIndexReembedsOnlyChangedDescriptorAndSurvivesRestart [REQ:REQ-P0-014]

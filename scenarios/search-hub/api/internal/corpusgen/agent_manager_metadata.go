@@ -196,7 +196,7 @@ func MatchAgentManagerCallerSource(source AgentManagerCallerSource, route Gatewa
 		return "unmatched_metadata_identity", nil
 	}
 	if route.GatewayEventID == "" || route.GatewayRoleEvidenceURI != "gateway-ledger://events/"+route.GatewayEventID ||
-		route.Status != "succeeded" || route.Locality != "local" || route.SelectedProvider == "" || route.SelectedModel == "" || !isModelPolicyRole(route.SelectedResourceRole) ||
+		route.Status != "succeeded" || route.Locality != "local" || route.SelectedProvider == "" || route.SelectedModel == "" || strings.TrimSpace(route.SelectedResourceRole) == "" ||
 		route.CapacityVerdict != "fit" || route.CapacityClaimID == "" || route.CapacityRequiredBytes <= 0 || route.CapacityGrantedBytes < route.CapacityRequiredBytes || !strings.HasPrefix(route.CapacityEstimateEvidenceURI, "capacity-footprint://") {
 		return "unmatched_route_evidence", nil
 	}

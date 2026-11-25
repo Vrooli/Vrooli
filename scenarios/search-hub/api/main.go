@@ -259,7 +259,7 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "search-hub-api", "1.0.0", resourceChecks...),
-		metricsH.Module(db, schedule.System(), log.Default()),
+		metricsH.Module(db, schedule.System(), log.Default(), embeddingTelemetry),
 		registryH.ModuleAfterLegacyTokenMigration(db, schedule.System(), log.Default(), repoRoot),
 		experimentH.Module(armRegistry, fleetStage),
 		routingH.ModuleWithRouter(router, log.Default()),

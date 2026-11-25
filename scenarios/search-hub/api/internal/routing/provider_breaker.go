@@ -214,6 +214,21 @@ func providerFailed(group *routingv1.ProviderResultGroup) bool {
 	return group == nil || (group.GetDegraded() && len(group.GetDegradations()) == 0)
 }
 
+// supplementalOutcomeHasCircuitEvidence separates a provider's own failed
+// request from cancellation by the shared supplemental-query budget. Derived
+// queries may update transport availability, but they do not contribute
+// successful zero-yield demotion evidence.
+func supplementalOutcomeHasCircuitEvidence(ctx context.Context, group *routingv1.ProviderResultGroup) bool {
+	if !providerFailed(group) || ctx == nil || ctx.Err() == nil {
+		return true
+	}
+	note := strings.ToLower(group.GetNote())
+	if note == "" {
+		return false
+	}
+	return !strings.Contains(note, context.Canceled.Error()) && !strings.Contains(note, context.DeadlineExceeded.Error())
+}
+
 // 401/403 describe this caller's authority, not shared provider health.
 func (p *providerBreakers) recordGroup(id string, group *routingv1.ProviderResultGroup, now time.Time, probeClaimed uint64) {
 	if group != nil && group.GetDegraded() && (group.GetNote() == "provider returned HTTP 401" || group.GetNote() == "provider returned HTTP 403") {

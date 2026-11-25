@@ -71,7 +71,7 @@ export function SearchPanel() {
   };
 
   const data = searchQuery.data;
-  const totalHits = data ? data.groups.reduce((sum, g) => sum + g.count, 0) : 0;
+  const totalHits = data ? responseHitCount(data) : 0;
 
   return (
     <div data-testid={selectors.search.panel} className="flex flex-col gap-4">
@@ -141,6 +141,7 @@ export function SearchPanel() {
         isError={searchQuery.isError}
         data={data}
         totalHits={totalHits}
+        query={submitted?.query ?? ""}
       />
     </div>
   );
@@ -152,12 +153,14 @@ function ResultsArea({
   isError,
   data,
   totalHits,
+  query,
 }: {
   hasSubmitted: boolean;
   isLoading: boolean;
   isError: boolean;
   data: QueryResponse | undefined;
   totalHits: number;
+  query: string;
 }) {
   const { t } = useTranslation();
 
@@ -214,13 +217,28 @@ function ResultsArea({
         </details>
       ) : null}
 
-      {totalHits === 0 ? (
+      {totalHits === 0 && !hasCoverageEvidence(data) ? (
         <p data-testid={selectors.search.noResults} className="text-sm text-app-muted-foreground">
           {t(strings.search.noResults)}
         </p>
       ) : (
-        <SearchResults data={data} />
+        <SearchResults data={data} query={query} />
       )}
     </div>
   );
+}
+
+function responseHitCount(data: QueryResponse) {
+  const reported = data.groups.reduce((sum, group) => sum + group.count, 0);
+  if (reported > 0) return reported;
+  if (data.ranked.length > 0) return data.ranked.length;
+  return data.groups.reduce((sum, group) => sum + group.hits.length, 0);
+}
+
+function hasCoverageEvidence(data: QueryResponse) {
+  return (data.queryParts ?? []).length > 0
+    || (data.correctionCandidates ?? []).length > 0
+    || (data.degradations ?? []).length > 0
+    || data.degraded
+    || data.partial;
 }

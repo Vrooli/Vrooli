@@ -81,6 +81,9 @@ const (
 	// defaultResponseCushion reserves a small tail of the query budget for
 	// response construction, telemetry stamping, and Connect header write-out.
 	defaultResponseCushion = 500 * time.Millisecond
+	// defaultSupplementalQueryBudget bounds automatic recovery and derived-part
+	// retrieval so secondary work cannot consume the caller's full query budget.
+	defaultSupplementalQueryBudget = 900 * time.Millisecond
 	// defaultCircuitOpenQuorum is the share of active leaves whose transport
 	// circuit may be open before Search Hub itself reports federation degraded.
 	// A majority threshold avoids declaring a fleet outage for one isolated leaf
@@ -410,6 +413,8 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 	var variants []string
 	var supplementalTargetsByVariant [][]*registryv1.ProviderDescriptor
 	var supplementalVariantReasons []string
+	var automaticEligible []*registryv1.ProviderDescriptor
+	var automaticTypoPolicy string
 	if !backgroundEvaluation && !routingEvaluation && !isRecoveryProbe(ctx) {
 		variants = intentQueries(query)
 	}
@@ -436,24 +441,29 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 	}
 
 	var (
-		targets            []*registryv1.ProviderDescriptor
-		autoExplain        []string
-		selectionFallback  bool
-		selectorLeg        = "none"
-		selectionReason    string
-		pendingExternal    []*registryv1.ProviderDescriptor
-		autoRoutedExternal bool
-		escalated          bool
-		routingMode        string
-		classifierLatency  int64
-		selectedLeafCount  int
-		widenedLeafCount   int
-		fanoutBoundReached bool
-		routingIndexReason string
-		routingTrace       *sharedv1.RoutingTrace
-		rerankLatency      int64
-		partial            bool
-		pendingProviders   int
+		targets                         []*registryv1.ProviderDescriptor
+		primaryTargets                  []*registryv1.ProviderDescriptor
+		autoExplain                     []string
+		selectionFallback               bool
+		selectorLeg                     = "none"
+		selectionReason                 string
+		pendingExternal                 []*registryv1.ProviderDescriptor
+		autoRoutedExternal              bool
+		escalated                       bool
+		routingMode                     string
+		classifierLatency               int64
+		selectedLeafCount               int
+		widenedLeafCount                int
+		fanoutBoundReached              bool
+		routingIndexReason              string
+		routingTrace                    *sharedv1.RoutingTrace
+		rerankLatency                   int64
+		partial                         bool
+		queryDeadlinePartial            bool
+		supplementalBudgetExhausted     bool
+		supplementalPartBudgetExhausted bool
+		pendingProviders                int
+		pendingParts                    int
 	)
 	if backgroundEvaluation {
 		routingMode = "background_evaluation"
@@ -463,6 +473,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 				targets = append(targets, provider)
 			}
 		}
+		primaryTargets = targets
 		selectedLeafCount = len(targets)
 	} else if hasExplicit {
 		if req.GetAll() {
@@ -477,6 +488,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		} else {
 			targets = selectTargets(active, req)
 		}
+		primaryTargets = targets
 		selectedLeafCount = len(targets)
 	} else {
 		routingMode = "automatic"
@@ -488,13 +500,16 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		var qualityExplain []string
 		autoCandidates, qualityExplain = r.filterAutomatic(qctx, autoCandidates)
 		autoCandidates, demotionExplain := r.filterDemoted(autoCandidates)
+		automaticEligible = append([]*registryv1.ProviderDescriptor(nil), autoCandidates...)
 		var webShaped bool
 		var selectionExplain []string
 		targets, selectionExplain, selectionFallback, selectorLeg, webShaped, selectedLeafCount, widenedLeafCount, fanoutBoundReached, routingIndexReason, selectionReason, routingTrace = r.autoSelect(qctx, autoCandidates, query, selectedStrategy)
+		primaryTargets = append([]*registryv1.ProviderDescriptor(nil), targets...)
 		autoExplain = append(qualityExplain, demotionExplain...)
 		autoExplain = append(autoExplain, selectionExplain...)
 		var added []string
 		typoPolicy := strategyStringParam(selectedStrategy, StageLexical, "typo_policy", "")
+		automaticTypoPolicy = typoPolicy
 		targets, added, supplementalTargetsByVariant, supplementalVariantReasons = addIntentProviders(targets, autoCandidates, variants, typoPolicy)
 		if len(added) > 0 {
 			widenedLeafCount += len(added)
@@ -515,6 +530,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 			// descriptor scope + the generic web-shaped label (no per-provider
 			// code). Rate-safety is the provider's own governor's job.
 			targets = append(targets, withheldExternal...)
+			primaryTargets = append(primaryTargets, withheldExternal...)
 			autoRoutedExternal = true
 			autoExplain = append(autoExplain, autoRoutedExternalLine(withheldExternal))
 		case len(withheldExternal) > 0:
@@ -527,7 +543,12 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 	if scenarioScope.Scenario != "" {
 		fetchLimit = scenarioScopeFetchLimit(limit)
 	}
-	groups := r.fanOut(qctx, targets, query, fetchLimit, hasExplicit, scope)
+	queuedProviderCount := max(0, len(primaryTargets)-r.deps.Concurrency)
+	// Automatic supplemental-only owners should receive the part they were
+	// selected for, not an additional full-query call. Keep `targets` as the
+	// union for reporting and final ranking; the primary call uses only the
+	// original selector result plus external owners admitted by the auto-route gate.
+	groups := r.fanOut(qctx, primaryTargets, query, fetchLimit, hasExplicit, scope)
 	partStates := newQueryPartStates(query, variants, targets)
 	if len(targets) == 0 && len(variants) <= 1 && len(partStates) > 0 {
 		reason := selectionReason
@@ -541,13 +562,53 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 	}
 	if len(variants) <= 1 && len(partStates) > 0 {
 		state := partStates[0]
-		state.attempted = len(targets) > 0
-		for _, group := range groups {
-			if group.GetDegraded() {
+		recordQueryPartPrimaryResults(state, primaryTargets, groups)
+	}
+	if !hasExplicit && !backgroundEvaluation && !routingEvaluation && !isRecoveryProbe(ctx) && len(variants) == 0 && len(primaryTargets) > 0 && selectionReason != "exact_provider_identity" && qctx.Err() == nil && !hasHealthyPartEvidence(groups) {
+		// Single-query automatic routes receive the same bounded failure
+		// recovery as compound parts. Preserve the exact-name fast path; otherwise
+		// use only one uniquely supported reserve from the prefiltered local pool.
+		if reserve := uniqueAutomaticReserve(query, automaticEligible, primaryTargets, automaticTypoPolicy); reserve != nil {
+			state := queryPartForVariant(partStates, 0, 1)
+			reserveID := reserve.GetProviderId()
+			primaryHadFailure := hasDegradedGroups(groups)
+			addQueryPartTargets(state, []*registryv1.ProviderDescriptor{reserve})
+			state.attempted = true
+			targets = append(targets, reserve)
+			widenedLeafCount++
+			queuedProviderCount += max(0, 1-r.deps.Concurrency)
+			supplementalCtx, cancelSupplemental := context.WithTimeout(qctx, defaultSupplementalQueryBudget)
+			extra := r.fanOutWithEvidence(supplementalCtx, []*registryv1.ProviderDescriptor{reserve}, query, min(fetchLimit, maxSupplementalHitsPerPart), false, scope, false)
+			supplementalBudgetExpired := supplementalCtx.Err() != nil && qctx.Err() == nil
+			cancelSupplemental()
+			recordQueryPartHits(state, extra, routingv1.SearchHitReference_RETRIEVAL_SOURCE_USER_QUERY)
+			groups = mergeIntentHits(groups, extra, int(fetchLimit)+maxSupplementalHitsPerPart)
+			switch classifyAutomaticReserveOutcome(primaryHadFailure, extra) {
+			case automaticReserveRecoveredAfterFailure:
 				state.degraded = true
+				state.partial = true
+				state.reason = "automatic_provider_fallback"
+				autoExplain = append(autoExplain, "automatic reserve owner used after selected provider failure: "+reserveID)
+			case automaticReserveRecoveredAfterEmpty:
+				state.reason = "automatic_reserve_after_empty_primary"
+			case automaticReserveFailedAfterFailure:
+				state.degraded = true
+				state.partial = true
+				state.reason = "automatic_provider_fallback_failed"
+			case automaticReserveFailedAfterEmpty:
+				state.degraded = true
+				state.reason = "automatic_reserve_provider_degraded"
+			case automaticReserveEmptyAfterFailure:
+				state.degraded = true
+				state.reason = "automatic_provider_fallback_no_evidence"
 			}
+			if supplementalBudgetExpired {
+				supplementalBudgetExhausted = true
+				state.degraded = true
+				state.reason = "supplemental_query_budget_exhausted"
+			}
+			autoExplain = append(autoExplain, "automatic reserve retrieval: "+query)
 		}
-		recordQueryPartHits(state, groups, routingv1.SearchHitReference_RETRIEVAL_SOURCE_USER_QUERY)
 	}
 	if len(variants) > 0 {
 		if hasExplicit {
@@ -563,7 +624,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 			healthy[group.GetProviderId()] = !group.GetDegraded()
 			primaryAttempted[group.GetProviderId()] = true
 		}
-		intentCtx, cancelIntent := context.WithTimeout(qctx, 900*time.Millisecond)
+		intentCtx, cancelIntent := context.WithTimeout(qctx, defaultSupplementalQueryBudget)
 		for variantIndex, variant := range variants {
 			state := queryPartForVariant(partStates, variantIndex, len(variants))
 			var selectedForPart []*registryv1.ProviderDescriptor
@@ -577,45 +638,195 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 				}
 				continue
 			}
+			recordQueryPartPrimaryResults(state, selectedForPart, groups)
 			if intentCtx.Err() != nil {
 				state.degraded = true
 				state.partial = true
-				state.reason = "supplemental_query_budget_exhausted"
+				if qctx.Err() != nil {
+					state.reason = "query_deadline_exhausted"
+				} else {
+					state.reason = "supplemental_query_budget_exhausted"
+					supplementalBudgetExhausted = true
+				}
 				continue
 			}
-			supplementalTargets := make([]*registryv1.ProviderDescriptor, 0, len(selectedForPart))
-			for _, target := range selectedForPart {
-				if healthy[target.GetProviderId()] {
-					supplementalTargets = append(supplementalTargets, target)
-				}
+			remainingBudget, hasDeadline := intentCtx.Deadline()
+			partBudget := defaultSupplementalQueryBudget / time.Duration(len(variants)-variantIndex)
+			if hasDeadline {
+				partBudget = time.Until(remainingBudget) / time.Duration(len(variants)-variantIndex)
 			}
-			if len(supplementalTargets) == 0 {
+			if partBudget <= 0 {
+				partBudget = time.Nanosecond
+			}
+			partCtx, cancelPart := context.WithTimeout(intentCtx, partBudget)
+			if hasExplicit {
+				// Explicit selectors already define the allowed local set. Preserve
+				// that requested fan-out and never add an inferred reserve owner.
+				supplementalTargets := make([]*registryv1.ProviderDescriptor, 0, len(selectedForPart))
 				for _, target := range selectedForPart {
-					if primaryAttempted[target.GetProviderId()] {
-						addQueryPartTargets(state, []*registryv1.ProviderDescriptor{target})
-						state.attempted = true
+					providerID := target.GetProviderId()
+					if !primaryAttempted[providerID] || healthy[providerID] {
+						supplementalTargets = append(supplementalTargets, target)
 					}
 				}
-				state.degraded = true
-				state.reason = "selected_provider_degraded_on_primary_query"
-				continue
-			}
-			addQueryPartTargets(state, supplementalTargets)
-			state.attempted = true
-			extra := r.fanOutWithEvidence(intentCtx, supplementalTargets, variant, min(fetchLimit, 3), hasExplicit, scope, false)
-			for _, group := range extra {
-				if group.GetDegraded() {
+				if len(supplementalTargets) == 0 {
+					for _, target := range selectedForPart {
+						if primaryAttempted[target.GetProviderId()] {
+							addQueryPartTargets(state, []*registryv1.ProviderDescriptor{target})
+							state.attempted = true
+						}
+					}
 					state.degraded = true
+					state.reason = "selected_provider_degraded_on_primary_query"
+					cancelPart()
+					continue
 				}
+				primaryFailedForPart := false
+				for _, target := range selectedForPart {
+					providerID := target.GetProviderId()
+					if primaryAttempted[providerID] && !healthy[providerID] {
+						addQueryPartTargets(state, []*registryv1.ProviderDescriptor{target})
+						state.attempted = true
+						primaryFailedForPart = true
+					}
+				}
+				if primaryFailedForPart {
+					state.degraded = true
+					state.reason = "selected_provider_degraded_on_primary_query"
+				}
+				addQueryPartTargets(state, supplementalTargets)
+				state.attempted = true
+				queuedProviderCount += max(0, len(supplementalTargets)-r.deps.Concurrency)
+				extra := r.fanOutWithEvidence(partCtx, supplementalTargets, variant, min(fetchLimit, maxSupplementalHitsPerPart), true, scope, false)
+				for _, group := range extra {
+					if group.GetDegraded() {
+						state.degraded = true
+					}
+				}
+				recordQueryPartHits(state, extra, routingv1.SearchHitReference_RETRIEVAL_SOURCE_DERIVED_SEGMENT)
+				if state.degraded {
+					if state.reason == "" {
+						state.reason = "selected_provider_degraded_on_supplemental_query"
+					}
+					if queryPartHasRecordedHits(state) {
+						state.partial = true
+					}
+				}
+				groups = mergeIntentHits(groups, extra, int(fetchLimit)+3*len(variants))
+				autoExplain = append(autoExplain, "supplemental local retrieval: "+variant)
+			} else {
+				// Automatic compound routing carries one uniquely supported reserve
+				// owner. It is called only if the primary owner failed to provide
+				// healthy part evidence, keeping outage recovery bounded to one extra
+				// provider and the already eligible local candidate set.
+				primary := selectedForPart[0]
+				primaryID := primary.GetProviderId()
+				primaryFailedOnFullQuery := primaryAttempted[primaryID] && !healthy[primaryID]
+				callSupplemental := func(target *registryv1.ProviderDescriptor) []*routingv1.ProviderResultGroup {
+					providerID := target.GetProviderId()
+					addQueryPartTargets(state, []*registryv1.ProviderDescriptor{target})
+					state.attempted = true
+					found := false
+					for _, existing := range targets {
+						if existing.GetProviderId() == providerID {
+							found = true
+							break
+						}
+					}
+					if !found {
+						targets = append(targets, target)
+						widenedLeafCount++
+					}
+					queuedProviderCount += max(0, 1-r.deps.Concurrency)
+					extra := r.fanOutWithEvidence(partCtx, []*registryv1.ProviderDescriptor{target}, variant, min(fetchLimit, maxSupplementalHitsPerPart), false, scope, false)
+					for _, group := range extra {
+						if group.GetDegraded() {
+							state.degraded = true
+						}
+					}
+					recordQueryPartHits(state, extra, routingv1.SearchHitReference_RETRIEVAL_SOURCE_DERIVED_SEGMENT)
+					groups = mergeIntentHits(groups, extra, automaticSupplementalHitLimit(fetchLimit, len(variants)))
+					return extra
+				}
+				primaryHadFailure := primaryFailedOnFullQuery
+				fallbackHealthyEmpty := false
+				primaryHasEvidence := false
+				if !primaryHadFailure {
+					primaryGroups := callSupplemental(primary)
+					primaryHadFailure = hasDegradedGroups(primaryGroups)
+					primaryHasEvidence = hasHealthyPartEvidence(primaryGroups)
+				} else {
+					addQueryPartTargets(state, []*registryv1.ProviderDescriptor{primary})
+					state.attempted = true
+					state.degraded = true
+					state.partial = true
+					state.reason = "selected_provider_degraded_on_primary_query"
+				}
+				if !primaryHasEvidence && len(selectedForPart) > 1 {
+					reserve := selectedForPart[1]
+					reserveID := reserve.GetProviderId()
+					if primaryAttempted[reserveID] && !healthy[reserveID] {
+						addQueryPartTargets(state, []*registryv1.ProviderDescriptor{reserve})
+						state.attempted = true
+						state.degraded = true
+						if primaryHadFailure {
+							state.partial = true
+						}
+						state.reason = "supplemental_reserve_degraded_on_primary_query"
+					} else if partCtx.Err() == nil {
+						reserveGroups := callSupplemental(reserve)
+						switch classifyAutomaticReserveOutcome(primaryHadFailure, reserveGroups) {
+						case automaticReserveRecoveredAfterFailure:
+							state.degraded = true
+							state.partial = true
+							state.reason = "supplemental_provider_fallback"
+							autoExplain = append(autoExplain, "supplemental reserve owner used after primary failure: "+reserveID)
+						case automaticReserveRecoveredAfterEmpty:
+							state.reason = "supplemental_reserve_after_empty_primary"
+						case automaticReserveFailedAfterFailure:
+							state.reason = "supplemental_provider_fallback_failed"
+						case automaticReserveFailedAfterEmpty:
+							state.reason = "supplemental_reserve_provider_degraded"
+						case automaticReserveEmptyAfterFailure:
+							// A healthy-empty reserve does not restore evidence after the
+							// selected owner failed. Keep the part degraded without
+							// reporting partial evidence that does not exist.
+							fallbackHealthyEmpty = true
+							state.degraded = true
+							state.reason = "supplemental_provider_fallback_no_evidence"
+						}
+					}
+				}
+				if primaryHadFailure {
+					state.degraded = true
+					if !fallbackHealthyEmpty {
+						state.partial = true
+					}
+					if state.reason == "" {
+						if primaryFailedOnFullQuery {
+							state.reason = "selected_provider_degraded_on_primary_query"
+						} else {
+							state.reason = "supplemental_primary_provider_degraded"
+						}
+					}
+				}
+				autoExplain = append(autoExplain, "supplemental local retrieval: "+variant)
 			}
-			recordQueryPartHits(state, extra, routingv1.SearchHitReference_RETRIEVAL_SOURCE_DERIVED_SEGMENT)
-			mergeIntentHits(groups, extra, int(fetchLimit)+3*len(variants))
-			autoExplain = append(autoExplain, "supplemental local retrieval: "+variant)
-			if intentCtx.Err() != nil {
+			if partCtx.Err() != nil {
 				state.degraded = true
 				state.partial = true
-				state.reason = "supplemental_query_budget_exhausted"
+				switch {
+				case qctx.Err() != nil:
+					state.reason = "query_deadline_exhausted"
+				case intentCtx.Err() != nil:
+					state.reason = "supplemental_query_budget_exhausted"
+					supplementalBudgetExhausted = true
+				default:
+					state.reason = "supplemental_part_budget_exhausted"
+					supplementalPartBudgetExhausted = true
+				}
 			}
+			cancelPart()
 		}
 		cancelIntent()
 	}
@@ -625,19 +836,9 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		scenarioExamined = filterGroupsToScenario(groups, scenarioScope.Scenario, limit)
 	}
 	if qctx.Err() != nil {
-		usable := 0
-		for _, group := range groups {
-			if group.GetDegraded() {
-				pendingProviders++
-				continue
-			}
-			if len(group.GetHits()) > 0 {
-				usable++
-			}
-		}
-		partial = usable > 0 && pendingProviders > 0
+		_, pendingProviders, pendingParts, partial = queryDeadlineCoverage(groups, partStates)
+		queryDeadlinePartial = partial
 	}
-
 	// OT-P2-002 fallback escalation: if the project corpus returned nothing —
 	// or only hits below the weakness threshold — and the operator opted in,
 	// escalate to the withheld external provider(s) via the same
@@ -645,6 +846,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 	// did not already auto-route external above).
 	if !hasExplicit && r.deps.AutoRouteExternal && !autoRoutedExternal && len(pendingExternal) > 0 {
 		if weakReason := resultsWeakness(groups, autoExternalThreshold()); weakReason != "" {
+			queuedProviderCount += max(0, len(pendingExternal)-r.deps.Concurrency)
 			escalationGroups := r.fanOut(qctx, pendingExternal, query, limit, false, scope)
 			groups = append(groups, escalationGroups...)
 			groups = collapseDocumentHits(groups)
@@ -674,7 +876,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		Ranked:           ranked,
 		Groups:           groups,
 		Reranked:         reranked,
-		Degraded:         selectionFallback || rerankDegraded || routingIndexReason != "",
+		Degraded:         selectionFallback || rerankDegraded || routingIndexReason != "" || supplementalBudgetExhausted || supplementalPartBudgetExhausted,
 		Partial:          partial,
 		PendingProviders: int32(pendingProviders),
 		RerankerLeg:      rerankLeg,
@@ -683,7 +885,8 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 	}
 	resp.QueryParts = queryPartEvidence(resp, partStates)
 	resp.CorrectionCandidates = buildCorrectionCandidates(query, resp)
-	resp.Degradations = searchDegradations(groups, selectionFallback, selectionReason, routingIndexReason, rerankDegraded, rerankReason, partial, pendingProviders)
+	resp.Degradations = searchDegradations(groups, selectionFallback, selectionReason, routingIndexReason, rerankDegraded, rerankReason, queryDeadlinePartial, pendingProviders, pendingParts, supplementalBudgetExhausted, supplementalPartBudgetExhausted)
+	applyQueryPartDegradations(resp, partStates)
 	if reranked && len(ranked) > 0 {
 		resp.OrderedBy = "rerank_score"
 	}
@@ -708,7 +911,13 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		} else {
 			resp.RoutingExplanation = append(autoExplain, matchedProvidersLine(targets))
 		}
-		if partial {
+		if supplementalBudgetExhausted {
+			resp.RoutingExplanation = append(resp.RoutingExplanation, "partial results: supplemental retrieval budget expired before automatic recovery or all derived parts completed")
+		}
+		if supplementalPartBudgetExhausted {
+			resp.RoutingExplanation = append(resp.RoutingExplanation, "partial part coverage: a derived part exhausted its fair share of the supplemental query budget")
+		}
+		if partial && qctx.Err() != nil {
 			resp.RoutingExplanation = append(resp.RoutingExplanation,
 				fmt.Sprintf("partial results: query deadline expired with %d provider(s) pending", pendingProviders))
 		}
@@ -734,7 +943,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		sample.WidenedLeafCount = widenedLeafCount
 		sample.FanoutWidthBoundReached = fanoutBoundReached
 		sample.WithheldExternalCount = len(pendingExternal)
-		sample.QueuedProviderCount = max(0, len(targets)-r.deps.Concurrency)
+		sample.QueuedProviderCount = queuedProviderCount
 		sample.ClassifierLatencyMs = classifierLatency
 		sample.ResolverLatencyMs = resolverLatency
 		sample.ResolverCacheHits, sample.ResolverCacheMisses = resolverCacheObservation.Snapshot()
@@ -742,6 +951,27 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		sample.RerankLatencyMs = rerankLatency
 		sample.RerankCandidateCount = len(fuseGroups(groups))
 		sample.ResponseDegradeReason = ResponseDegradeReasonWithSelection(selectionFallback, rerankDegraded, rerankReason, groups, sample.ResultCount)
+		if supplementalBudgetExhausted {
+			if sample.ResponseDegradeReason != "" {
+				sample.ResponseDegradeReason += ","
+			}
+			sample.ResponseDegradeReason += "supplemental_query_budget_exhausted"
+		}
+		if supplementalPartBudgetExhausted {
+			if sample.ResponseDegradeReason != "" {
+				sample.ResponseDegradeReason += ","
+			}
+			sample.ResponseDegradeReason += "supplemental_part_budget_exhausted"
+		}
+		for _, degradation := range resp.GetDegradations() {
+			if degradation.GetReason() == "" || (degradation.GetComponent() != "query_part" && degradation.GetReason() != "query_deadline_partial") {
+				continue
+			}
+			if sample.ResponseDegradeReason != "" {
+				sample.ResponseDegradeReason += ","
+			}
+			sample.ResponseDegradeReason += degradation.GetReason()
+		}
 		if selectionReason != "" {
 			if sample.ResponseDegradeReason != "" {
 				sample.ResponseDegradeReason += ","
@@ -1054,11 +1284,12 @@ func collapseDocumentHits(groups []*routingv1.ProviderResultGroup) []*routingv1.
 }
 
 func documentKey(hit *routingv1.SearchHit, fallback int) string {
-	if path := strings.TrimSpace(hit.GetPath()); path != "" {
-		return "path:" + path
-	}
-	if id := strings.TrimSpace(hit.GetId()); id != "" {
-		return "id:" + id
+	if hit.GetType() != "" || hit.GetId() != "" || hit.GetPath() != "" {
+		// Keep the same identity dimensions used when supplemental hits are
+		// merged. A provider can legitimately return distinct typed resources
+		// at one path; path-only evidence keys would attribute one part's
+		// retrieval to both resources after fusion.
+		return fmt.Sprintf("%d:%s%d:%s%d:%s", len(hit.GetType()), hit.GetType(), len(hit.GetId()), hit.GetId(), len(hit.GetPath()), hit.GetPath())
 	}
 	return fmt.Sprintf("anonymous:%d", fallback)
 }
@@ -1124,6 +1355,15 @@ func (r *Router) maybeRerank(ctx context.Context, query string, groups []*routin
 		r.deps.Logger.Printf("routing.maybeRerank: reranker failed, keeping by-provider grouping: %v", err)
 		return nil, false, true, "reranker_down", "none", []string{
 			fmt.Sprintf("reranker unavailable (%s; reranker_down) — showing honest by-provider grouping", oneLine(err.Error())),
+		}
+	}
+	var valid bool
+	ranked, valid = reconcileRerankedCandidates(candidates, ranked)
+	if !valid {
+		r.rerankBreaker.recordFailure(r.deps.Now())
+		r.deps.Logger.Printf("routing.maybeRerank: reranker returned incomplete or foreign candidates; keeping by-provider grouping")
+		return nil, false, true, "reranker_invalid_output", "none", []string{
+			"reranker returned incomplete or foreign candidates (reranker_invalid_output) — showing honest by-provider grouping",
 		}
 	}
 	r.rerankBreaker.recordSuccess()
@@ -1714,9 +1954,27 @@ func (r *Router) fanOutWithEvidence(ctx context.Context, targets []*registryv1.P
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			if !recordEvidence {
-				// Only providers that answered the original query are passed
-				// here. The supplemental deadline is not health evidence.
-				groups[i] = r.callProvider(ctx, t, query, limit, scope)
+				// A derived request can report provider-local transport health, but
+				// it is not zero-yield corpus evidence. Do not let the shared
+				// supplemental deadline poison the provider circuit.
+				var probeClaimed uint64
+				if !isFailureRecoveryProbe(ctx) && r.providerBreakers != nil {
+					ok, note, claimed := r.providerBreakers.allowClaim(t.GetProviderId(), r.deps.Now())
+					probeClaimed = claimed
+					if !ok {
+						groups[i] = degrade(&routingv1.ProviderResultGroup{ProviderId: t.GetProviderId()}, note)
+						return
+					}
+				}
+				group := r.callProvider(ctx, t, query, limit, scope)
+				groups[i] = group
+				if r.providerBreakers != nil {
+					if supplementalOutcomeHasCircuitEvidence(ctx, group) {
+						r.providerBreakers.recordGroup(t.GetProviderId(), group, r.deps.Now(), probeClaimed)
+					} else if probeClaimed != 0 {
+						r.providerBreakers.breaker(t.GetProviderId()).releaseProbe(probeClaimed)
+					}
+				}
 				return
 			}
 			var probeClaimed uint64
