@@ -9,6 +9,25 @@ export interface PendingCommitAuthorization {
   preview: MutationPreviewResponse;
 }
 
+const SKIP_PRECOMMIT_STORAGE_KEY = "gct.commit.skipPrecommit";
+
+export function readSkipPrecommitPreference(): boolean {
+  try {
+    return window.localStorage.getItem(SKIP_PRECOMMIT_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function writeSkipPrecommitPreference(value: boolean): void {
+  try {
+    window.localStorage.setItem(SKIP_PRECOMMIT_STORAGE_KEY, value ? "1" : "0");
+  } catch {
+    // Storage can be unavailable in a restricted browser; the choice just
+    // remains local to this page.
+  }
+}
+
 interface Props {
   pending: PendingCommitAuthorization;
   activeRepositoryId: string;
@@ -134,7 +153,7 @@ export function CommitAuthorizationDialog({
               />
               <span>
                 <span className="block text-xs font-medium text-amber-100">Skip pre-commit checks for this commit</span>
-                <span className="mt-0.5 block text-[11px] leading-relaxed text-amber-200/65">Use only when you understand why the configured checks should be bypassed.</span>
+                <span className="mt-0.5 block text-[11px] leading-relaxed text-amber-200/65">Remembered on this device. Use only when you understand why the configured checks should be bypassed.</span>
               </span>
             </label>
           )}

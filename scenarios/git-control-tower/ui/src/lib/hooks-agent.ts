@@ -117,9 +117,22 @@ export function useAgentRunEvents(
   repoId?: string | null,
   status?: string,
 ) {
+	const queryClient = useQueryClient();
+	const queryKey = queryKeys.agentRunEvents(runId ?? "", scenarioSlug, repoId);
   return useQuery<AgentRunEventsResponse, Error>({
-    queryKey: [...queryKeys.agentRunEvents(runId ?? "", scenarioSlug, repoId), afterSequence],
-    queryFn: ({ signal }) => fetchAgentRunEvents(runId as string, scenarioSlug, afterSequence, repoId ?? undefined, signal),
+		queryKey,
+		queryFn: async ({ signal }) => {
+			const page = await fetchAgentRunEvents(runId as string, scenarioSlug, afterSequence, repoId ?? undefined, signal);
+			const events = new Map(
+				(queryClient.getQueryData<AgentRunEventsResponse>(queryKey)?.events ?? [])
+					.filter((event) => !event.runId || event.runId === runId)
+					.map((event) => [event.id, event]),
+			);
+			for (const event of page.events) {
+				if (!event.runId || event.runId === runId) events.set(event.id, event);
+			}
+			return { events: Array.from(events.values()).sort((a, b) => a.sequence - b.sequence) };
+		},
     enabled: enabled && Boolean(runId) && Boolean(scenarioSlug),
     refetchInterval: agentPollingInterval(status),
   });

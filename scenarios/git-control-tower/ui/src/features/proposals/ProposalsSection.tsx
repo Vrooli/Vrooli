@@ -31,10 +31,18 @@ export function ProposalsSection({
         <ArrowUpRight className="h-3.5 w-3.5" />
       </button>
       {list.error && (
-        <p role="alert" className="px-1 text-xs text-amber-300">
-          Proposal inbox is unavailable. Your working changes are still
-          accessible.
-        </p>
+        <div role="alert" data-testid="proposal-inbox-error" className="flex flex-wrap items-center gap-2 px-1 text-xs text-amber-300">
+          <span>Proposal inbox is unavailable. Your working changes are still accessible.</span>
+          <button
+            type="button"
+            className="min-h-8 rounded px-1.5 font-medium text-amber-100 underline decoration-amber-300/70 underline-offset-2 hover:bg-amber-900/30 disabled:cursor-wait disabled:opacity-60"
+            onClick={() => void list.refetch()}
+            disabled={list.isFetching}
+            data-testid="proposal-inbox-retry"
+          >
+            {list.isFetching ? "Retrying…" : "Retry"}
+          </button>
+        </div>
       )}
       {first && (
         <button

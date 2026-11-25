@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
-import { ArrowLeft, Check, ChevronDown, GitCommitHorizontal, Eye, FileSearch, Info, Loader2, MessageSquarePlus, RefreshCw, Search, Sparkles, Trash2, Undo2, X, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, ChevronRight, GitCommitHorizontal, Eye, FileSearch, Info, Loader2, MessageSquarePlus, RefreshCw, Search, Sparkles, Trash2, Undo2, X, type LucideIcon } from "lucide-react";
 import { Button } from "@vrooli/react-component-library/Button/2.2.14";
 import { isMessageJobActive, type useMessageSuggestions } from "./useMessageSuggestions";
 import { getDraftScope, isLimitedDraft, mergeSuggestionTrailers, parseMessage, serializeMessage } from "./message";
@@ -8,6 +8,7 @@ import type { StagedMessageContinuation, StagedMessageSuggestion } from "./api";
 import { StagedMessageMode } from "@vrooli/proto-types/git-control-tower/v1/advisory/advisory_pb";
 import { workflowExecutionLink } from "./workflowExecutionLink";
 import { formatMicroUSD } from "./charge";
+import type { QueuedStageSelection } from "./stageQueue";
 
 type Suggestions = ReturnType<typeof useMessageSuggestions>;
 const actionClass = "inline-flex items-center justify-center gap-2 min-h-11 rounded-lg border border-slate-600 px-4 py-2 text-xs font-medium text-slate-200 hover:bg-slate-800 disabled:opacity-50";
@@ -119,10 +120,14 @@ function OptionalContext({ s, defaultOpen }: { s: Suggestions; defaultOpen: bool
   return <details open={open} className="text-xs text-slate-400"><summary className="flex min-h-11 cursor-pointer items-center gap-2 py-3 text-slate-300" onClick={event => { event.preventDefault(); setOpen(current => !current); }}><MessageSquarePlus className="h-4 w-4" aria-hidden="true" />Add context <span className="text-slate-400">· optional</span></summary>{open && <label className="block">Why were these changes needed?<textarea value={s.session.note} onChange={event => s.update({ note: event.target.value })} rows={2} maxLength={4000} disabled={Boolean(s.session.requestKey)} className="mt-2 w-full rounded-lg border border-slate-600 bg-slate-800 p-3 gct-commit-input text-slate-100 outline-none focus:border-cyan-400" placeholder="Add a sentence of context for the drafting agent" /></label>}</details>;
 }
 
-export function MessageSuggestionDialog({ suggestions: s, message, disabled, onApply, stagedPaths = [], onUnstage, onQueueStagedExtras }: {
+export function MessageSuggestionDialog({ suggestions: s, message, disabled, onApply, stagedPaths = [], onUnstage, onQueueStagedExtras, queuedGroups = [], startingQueuedSuggestionIds = [], onStartQueuedSuggestion, onShowQueue }: {
   suggestions: Suggestions; message: string; disabled: boolean; onApply: (message: string) => void;
   stagedPaths?: readonly string[]; onUnstage?: (paths: string[]) => Promise<void>;
   onQueueStagedExtras?: (paths: string[]) => Promise<boolean>;
+  queuedGroups?: QueuedStageSelection[];
+  startingQueuedSuggestionIds?: string[];
+  onStartQueuedSuggestion?: (selection: QueuedStageSelection, mode: StagedMessageMode) => void;
+  onShowQueue?: () => void;
 }) {
   const currentMessage = useRef(message);
   currentMessage.current = message;
@@ -136,6 +141,19 @@ export function MessageSuggestionDialog({ suggestions: s, message, disabled, onA
   }, []);
   const [selectedID, setSelectedID] = useState("");
   const [comparison, setComparison] = useState<StagedMessageSuggestion>();
+  const [reconnectWait, setReconnectWait] = useState(0);
+  useEffect(() => {
+    if (reconnectWait <= 0) return;
+    const timer = window.setTimeout(() => setReconnectWait(value => Math.max(0, value - 1)), 1000);
+    return () => window.clearTimeout(timer);
+  }, [reconnectWait]);
+  const manualReconnect = () => {
+    if (reconnectWait > 0) return;
+    // Give the status request time to finish and show a real change instead of
+    // letting the same button be clicked into a rage burst.
+    setReconnectWait(6);
+    void s.reconnect();
+  };
   // undefined follows the best candidate; null is an explicit "don't link".
   const [continuationChoice, setContinuationChoice] = useState<string | null>();
   const elapsed = useElapsed(s.job?.createdAt);
@@ -196,6 +214,7 @@ export function MessageSuggestionDialog({ suggestions: s, message, disabled, onA
     } finally { applying.current = false; }
   };
   const close = () => { setComparison(undefined); s.setOpen(false); };
+  const showQueue = () => { setComparison(undefined); s.setOpen(false); onShowQueue?.(); };
   const refresh = () => { setComparison(undefined); void s.collect(currentMessage.current); };
   // A suggestion for a subset of the index can be restored by unstaging what
   // was added after it. Files it describes that left the index cannot.
@@ -260,8 +279,8 @@ export function MessageSuggestionDialog({ suggestions: s, message, disabled, onA
   if (collecting) primary = { label: "Cancel", run: s.cancelCollection, disabled: false, icon: X };
   else if (starting) primary = { label: "Starting agent…", run: close, disabled: true, icon: Loader2 };
   else if (recovering) primary = { label: "Checking launch status…", run: close, disabled: true, icon: Loader2 };
-  else if (unknownAdmission || activeError) primary = { label: "Reconnect to job", run: () => void s.reconnect(), disabled: busy, icon: RefreshCw };
-  else if (missingAdmission) primary = s.canRetryAdmission ? { label: "Retry same request", run: () => void s.start(), disabled: busy, icon: RefreshCw } : { label: "Reconnect to job", run: () => void s.reconnect(), disabled: busy, icon: RefreshCw };
+  else if (unknownAdmission || activeError) primary = { label: reconnectWait > 0 ? `Retry in ${reconnectWait}s` : "Reconnect to job", run: manualReconnect, disabled: busy || reconnectWait > 0, icon: RefreshCw };
+  else if (missingAdmission) primary = s.canRetryAdmission ? { label: "Retry same request", run: () => void s.start(), disabled: busy, icon: RefreshCw } : { label: reconnectWait > 0 ? `Retry in ${reconnectWait}s` : "Reconnect to job", run: manualReconnect, disabled: busy || reconnectWait > 0, icon: RefreshCw };
   else if (active) primary = { label: "Hide progress", run: close, disabled: false, icon: Eye };
   else if (canQueueAndUse) primary = { label: "Queue extras and use suggestion", run: () => void queueExtras(), disabled: busy || unstaging, icon: Check };
   else if (canNarrow) primary = { label: `Unstage ${count(narrowing.extra.length)} extra ${narrowing.extra.length === 1 ? "file" : "files"}`, run: () => void unstageExtra(), disabled: busy || unstaging, icon: unstaging ? Loader2 : Undo2 };
@@ -284,6 +303,23 @@ export function MessageSuggestionDialog({ suggestions: s, message, disabled, onA
     footer={<div className="flex w-full flex-col gap-2"><span className="text-[11px] text-slate-400">Fills the editor. You commit separately.</span><div data-testid="commit-message-actions" className="flex flex-col gap-2 sm:flex-row sm:justify-end"><Button type="button" data-testid="commit-message-primary" className={`${primaryClass} sm:order-last`} disabled={primary.disabled} onClick={primary.run}><PrimaryIcon className={`h-4 w-4 ${queueingExtras || primary.icon === Loader2 ? "animate-spin" : ""}`} aria-hidden="true" />{queueingExtras ? "Queueing extras…" : primary.label}</Button>{canStartDeep && <button type="button" data-testid="commit-message-start-deep" className={actionClass} disabled={busy} onClick={() => void s.start(StagedMessageMode.DEEP)}><Search className="h-4 w-4" aria-hidden="true" />Start deep investigation</button>}{showInvestigation && <button type="button" data-testid="commit-message-investigate" className={actionClass} disabled={busy} onClick={() => void s.investigateRemaining()}><Search className="h-4 w-4" aria-hidden="true" />{candidate && getDraftScope(candidate) === "limited" ? "Investigate unresolved themes" : "Investigate remaining changes"}</button>}</div></div>}
   >
     <div className="space-y-4 text-sm leading-relaxed">
+      {queuedGroups.length > 0 && (() => {
+        const next = queuedGroups.find(group => group.state === "queued" && !group.jobId && !group.suggestionMode);
+        const files = new Set(queuedGroups.flatMap(group => group.paths)).size;
+        const starting = Boolean(next && startingQueuedSuggestionIds.includes(next.id));
+        const running = queuedGroups.filter(group => group.jobId).length;
+        const summary = <span className="text-slate-300"><strong className="font-medium text-slate-100">{queuedGroups.length} queued group{queuedGroups.length === 1 ? "" : "s"}</strong> · {files} file{files === 1 ? "" : "s"} · {running > 0 ? `${running} with an agent` : "none started"}{next ? ` · next has ${next.paths.length}` : ""}</span>;
+        const chip = next ? <span className={`inline-flex min-h-8 items-center gap-1.5 rounded-md border border-cyan-700/70 bg-cyan-950/30 px-2.5 text-xs font-medium text-cyan-100 ${starting ? "opacity-70" : "group-hover:bg-cyan-950/60"}`}>{starting ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />}{starting ? "Starting…" : "Start next group"}</span> : null;
+        // The whole banner starts the next group. When no group is startable,
+        // it opens the queue instead of looking like a dead button.
+        if (next && onStartQueuedSuggestion) {
+          return <button type="button" onClick={() => onStartQueuedSuggestion(next, StagedMessageMode.QUICK)} disabled={starting} aria-live="polite" className="group flex w-full flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-left text-xs hover:border-cyan-800/70 hover:bg-slate-900/70 disabled:cursor-wait" data-testid="dialog-queued-next">{summary}{chip}</button>;
+        }
+        if (onShowQueue) {
+          return <button type="button" onClick={showQueue} className="group flex w-full flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-700 bg-slate-950/50 px-3 py-2 text-left text-xs hover:border-cyan-800/70 hover:bg-slate-900/70" data-testid="dialog-queued-next">{summary}<span className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-slate-600 px-2.5 text-xs font-medium text-slate-300 group-hover:bg-slate-800"><ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />View queue</span></button>;
+        }
+        return <div className="px-1 text-xs text-slate-400" data-testid="dialog-queued-next">{summary}</div>;
+      })()}
       <p className="text-xs text-slate-400">{s.snapshot ? `Staged selection: ${count(s.snapshot.files.length)} ${s.snapshot.files.length === 1 ? "file" : "files"}` : "Staged selection"}</p>
       <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_16rem]">
         <main className="min-w-0 space-y-4" data-testid="commit-message-stage">
@@ -300,7 +336,33 @@ export function MessageSuggestionDialog({ suggestions: s, message, disabled, onA
           {previous && !comparison && (active || unavailable || unknownAdmission || missingAdmission || starting || recovering || agent && candidate && (isLimitedDraft(candidate) || getDraftScope(candidate) === "unknown")) && <section className="space-y-3 border-t border-slate-700 pt-4" data-testid="commit-message-previous-draft"><h3 className="flex items-center gap-2 text-sm font-semibold text-slate-200"><FileSearch className="h-4 w-4" aria-hidden="true" />Previous draft kept</h3><p className="text-xs text-slate-400">{previousContext}</p><SuggestionPreview suggestion={previous} agent />{(agent || terminalFailure) && <button type="button" className={actionClass} disabled={busy} onClick={() => void acceptSuggestion(previous)}><Check className="h-4 w-4" aria-hidden="true" />Use previous draft</button>}</section>}
           {terminalFailure && s.canRetryDraft && <p className="text-xs text-slate-400">Retry starts a new drafting job from this saved selection. The staged files must still match; your message stays unchanged until you choose a result.</p>}
           {s.error && candidate && !unavailable && !active && !unknownAdmission && !missingAdmission && !starting && !recovering && <p role="alert" className="text-xs text-amber-200">Could not verify this request. Your message is unchanged; try again when the service is available.</p>}
-          {s.staleReason && <div role="status" className="border-l-2 border-amber-500 pl-3 text-xs text-amber-200" data-testid="commit-message-stale"><strong>Review staged selection.</strong> {s.staleReason}{/[.!?]$/.test(s.staleReason) ? "" : "."} Your message and this result are preserved.{canNarrow ? <> {count(narrowing.extra.length)} staged {narrowing.extra.length === 1 ? "file is" : "files are"} not part of this suggestion. Queueing extras will keep this suggestion's original selection; no suggestion starts for the extras until you choose one from the queue.<PreviewList items={narrowing.extra} label="Files staged after this suggestion" pageSize={5}>{path => <span className="break-all font-mono text-[11px] text-amber-100">{path}</span>}</PreviewList><div className="mt-2 flex flex-wrap gap-x-4"><button type="button" disabled={busy || unstaging} className="inline-flex min-h-11 items-center gap-2 font-medium text-cyan-200 hover:underline disabled:opacity-50" onClick={() => void unstageExtra()}><Undo2 className="h-4 w-4" aria-hidden="true" />Unstage extras only</button><button type="button" disabled={busy || unstaging} className="inline-flex min-h-11 items-center gap-2 font-medium text-cyan-200 hover:underline disabled:opacity-50" onClick={refresh}><RefreshCw className="h-4 w-4" aria-hidden="true" />Refresh evidence for all staged files</button></div></> : null}</div>}
+          {s.staleReason && (
+            <div role="status" className="border-l-2 border-amber-500 pl-3 text-xs text-amber-200" data-testid="commit-message-stale">
+              {active || starting || recovering || collecting ? (
+                // While the job is still running there is no result to preserve
+                // and no useful recovery yet. A compact line explains why the
+                // new staging is not in this draft without burying the progress.
+                <p><strong>This draft covers the original selection.</strong> {s.staleReason}{/[.!?]$/.test(s.staleReason) ? "" : "."} Files staged after it started are not included. Your message is preserved.</p>
+              ) : (
+                <>
+                  <p><strong>This suggestion covers an earlier selection.</strong> {s.staleReason}{/[.!?]$/.test(s.staleReason) ? "" : "."} {candidate ? "Your message and this result are preserved." : "Your message is preserved."}</p>
+                  {canNarrow ? (
+                    <>
+                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+                        <button type="button" disabled={busy || unstaging} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-cyan-700/70 px-3 font-medium text-cyan-100 hover:bg-cyan-950/40 disabled:opacity-50" onClick={refresh}><RefreshCw className="h-4 w-4" aria-hidden="true" />Refresh evidence for all staged files</button>
+                        <button type="button" disabled={busy || unstaging} className="inline-flex min-h-10 items-center gap-2 font-medium text-slate-300 hover:text-slate-100 disabled:opacity-50" onClick={() => void unstageExtra()}><Undo2 className="h-4 w-4" aria-hidden="true" />Unstage extras only</button>
+                      </div>
+                      <details className="mt-2" open={narrowing.extra.length <= 3}>
+                        <summary className="cursor-pointer text-[11px] text-slate-400">{count(narrowing.extra.length)} staged {narrowing.extra.length === 1 ? "file is" : "files are"} not part of this suggestion</summary>
+                        <PreviewList items={narrowing.extra} label="Files staged after this suggestion" pageSize={5}>{path => <span className="break-all font-mono text-[11px] text-amber-100">{path}</span>}</PreviewList>
+                        <p className="mt-2 text-[11px] text-slate-400">Queueing extras will keep this suggestion's original selection; no suggestion starts for the extras until you choose one from the queue.</p>
+                      </details>
+                    </>
+                  ) : null}
+                </>
+              )}
+            </div>
+          )}
           {canRecoverExtras && onQueueStagedExtras && !candidate && <div className="flex flex-wrap gap-2" data-testid="commit-message-queue-extras"><button type="button" disabled={busy || unstaging} className={actionClass} onClick={() => void queueExtras()}>{queueingExtras ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Check className="h-4 w-4" aria-hidden="true" />}Queue extras</button></div>}
           {canPrepare && collection?.snapshot?.files.length ? <OptionalContext key={collection.id} s={s} defaultOpen={!candidate} /> : null}
           {canPrepare && candidate && !s.staleReason && <button type="button" disabled={busy} className="inline-flex min-h-11 items-center gap-2 text-xs font-medium text-cyan-200 hover:underline disabled:opacity-50" onClick={() => void s.start(StagedMessageMode.QUICK)}><Search className="h-4 w-4" aria-hidden="true" />Ask agent to complete</button>}

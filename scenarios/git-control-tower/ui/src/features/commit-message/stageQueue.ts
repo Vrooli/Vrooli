@@ -1,9 +1,10 @@
-import { StagedMessageMode, WorktreeSuggestionQueueState, type WorktreeSuggestionQueueEntry } from "@vrooli/proto-types/git-control-tower/v1/advisory/advisory_pb";
+import { StagedMessageMode, WorktreeSelectionSource, WorktreeSuggestionQueueState, type WorktreeSuggestionQueueEntry } from "@vrooli/proto-types/git-control-tower/v1/advisory/advisory_pb";
 
 export interface QueuedStageSelection {
   id: string;
   snapshotDigest?: string;
   selectionId?: string;
+  source?: WorktreeSelectionSource;
   paths: string[];
   queuedAt: string;
   state: "queued" | "awaiting_unstage" | "staged" | "stage_failed" | "stale" | "commit_pending";
@@ -47,6 +48,7 @@ export function toQueuedStageSelection(entry: WorktreeSuggestionQueueEntry): Que
     queuedAt: entry.createdAt,
     state: queueViewState(entry.state),
     selectionId: entry.selectionId || undefined,
+    source: entry.selectionSource,
     ...(entry.mode === StagedMessageMode.DEEP ? { suggestionMode: "deep" as const } : entry.mode === StagedMessageMode.QUICK ? { suggestionMode: "quick" as const } : {}),
     ...(entry.requestKey ? { requestKey: entry.requestKey } : {}),
     ...(entry.jobId ? { jobId: entry.jobId } : {}),
@@ -120,6 +122,18 @@ export function staleSelectionRecovery(selection: QueuedStageSelection, stagedPa
   return { kind: "remove-or-review" };
 }
 
+/** A saved selection that is stale, has no agent work to preserve, and whose
+ * files are all staged with no newer edits has one honest outcome: keep the
+ * staged files and clear the entry. Returns false when a job still exists. */
+export function shouldAutoClearStaleSelection(
+  selection: QueuedStageSelection,
+  stagedPaths: readonly string[],
+  worktreeChangedPaths: readonly string[],
+): boolean {
+  if (selection.state !== "stale" || selection.jobId || selection.suggestionMode || selection.requestKey) return false;
+  return staleSelectionRecovery(selection, stagedPaths, worktreeChangedPaths).kind === "keep-staged";
+}
+
 export function reconcileStageQueueWithIndex(queue: readonly QueuedStageSelection[], stagedPaths: readonly string[]) {
   const staged = new Set(stagedPaths);
   return queue.map(selection => {
@@ -159,11 +173,11 @@ export function inspectQueueCommitReadiness(queue: readonly QueuedStageSelection
 
 export function queueCommitBlockMessage(reason: QueueCommitBlockReason) {
   switch (reason) {
-    case "awaiting_unstage": return "Finish queueing the saved selection before committing; some of its files are still staged."
-    case "stale": return "Staged files overlap a stale queue entry. Use its recovery action to keep the staged files and clear that entry before committing."
-    case "stage_failed": return "A queued selection with a staging error overlaps staged files. Retry staging or remove it before committing."
-    case "partial_selection": return "Only part of a queued selection is staged. Stage or unstage the whole selection, or remove it before committing."
-    case "not_head": return "A later queued selection overlaps staged files. Resolve it before committing the queue head."
+    case "awaiting_unstage": return "Finish saving this queued selection before committing; some files are still staged."
+    case "stale": return "A stale queued group overlaps the staged files. Keep the staged files and clear it, or remove the group."
+    case "stage_failed": return "A queued group failed to stage. Retry staging or remove the group before committing."
+    case "partial_selection": return "Only part of a queued group is staged. Stage the rest or remove the group before committing."
+    case "not_head": return "A later queued group overlaps the staged files. Stage it into this commit or review the group."
   }
 }
 

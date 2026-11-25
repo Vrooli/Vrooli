@@ -2,7 +2,7 @@ import { usePendingWorkspaceChanges } from "./lib/hooks-core";
 import { useAppViewport } from "./hooks/useAppViewport";
 import { PushSafetyProvider } from "./components/PushSafetyIndicators";
 import { PushSafetyDialog } from "./components/PushSafetyDialog";
-import { CommitAuthorizationDialog, type PendingCommitAuthorization } from "./components/CommitAuthorizationDialog";
+import { CommitAuthorizationDialog, readSkipPrecommitPreference, writeSkipPrecommitPreference, type PendingCommitAuthorization } from "./components/CommitAuthorizationDialog";
 // DOC: docs/concepts/ARCHITECTURE.md
 // App orchestrates the 3-pane git-control-tower UI. See the Architecture
 // doc for component boundaries and the operational targets (OT-P1-002 etc.)
@@ -232,6 +232,15 @@ export default function App() {
   const [layoutLoadedKey, setLayoutLoadedKey] = useState<string | null>(null);
   const [stackHeight, setStackHeight] = useState(320);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [paneDragEnabled, setPaneDragEnabled] = useState(false);
+  useEffect(() => {
+    if (!paneDragEnabled) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPaneDragEnabled(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [paneDragEnabled]);
   const [isSourceDistributionOpen, setIsSourceDistributionOpen] = useState(false);
   const [sourceDistributionId, setSourceDistributionId] = useState<string | null>(null);
   const [reviewScenarioSlug, setReviewScenarioSlug] = useState("");
@@ -320,7 +329,11 @@ export default function App() {
   const [isAuthorizingCommit, setIsAuthorizingCommit] = useState(false);
   const commitPreviewPending = useRef(false);
   const [dontAskAgain, setDontAskAgain] = useState(false);
-  const [skipPrecommitInDialog, setSkipPrecommitInDialog] = useState(false);
+  const [skipPrecommitInDialog, setSkipPrecommitInDialogState] = useState(readSkipPrecommitPreference);
+  const setSkipPrecommitInDialog = useCallback((value: boolean) => {
+    setSkipPrecommitInDialogState(value);
+    writeSkipPrecommitPreference(value);
+  }, []);
   const [skipCommitConfirmation, setSkipCommitConfirmation] = useState(readCommitConfirmationPreference);
   // Survives the mobile Changes-panel unmount so its scroll position is restored
   // when the operator switches away and back (desktop keeps panels mounted).
@@ -599,7 +612,7 @@ export default function App() {
   useEffect(() => () => stageBatcher.dispose(), [stageBatcher]);
   const [pendingSuggestionStage, setPendingSuggestionStage] = useState<PendingSuggestionStage>(null);
   const queueController = useWorktreeSuggestionQueue({ repoId: repoId ?? undefined, notify, stageBatcher, pendingSuggestionStage, setPendingSuggestionStage, statusQuery, refreshRepoStatus });
-  const { stageQueueRepo, stageQueueReady, suggestionStageQueue, queueRecoveryPendingId, pendingCommitQueueSelectionId, completeQueuedStageSelection, resolveQueuedCommit, stageNextQueuedSelection, retryQueuedSuggestion, refreshQueuedSuggestion, queueSelection, finalizeQueuedSelection, markQueuedSelectionStale, startQueuedSuggestion, requestStage, stageQueuedSelectionNow, handleConfirmSuggestionStage, handleQueueSuggestionStage, markQueuedCommitPending, restoreQueuedCommitAfterFailure, stageQueueAfterCommit } = queueController;
+  const { stageQueueRepo, stageQueueReady, suggestionStageQueue, queueRecoveryPendingId, startingSuggestionIds, pendingCommitQueueSelectionId, completeQueuedStageSelection, resolveQueuedCommit, stageNextQueuedSelection, retryQueuedSuggestion, refreshQueuedSuggestion, queueSelection, finalizeQueuedSelection, markQueuedSelectionStale, startQueuedSuggestion, requestStage, stageQueuedSelectionNow, handleConfirmSuggestionStage, handleQueueSuggestionStage, markQueuedCommitPending, restoreQueuedCommitAfterFailure, stageQueueAfterCommit } = queueController;
   const stagedPaths = statusQuery.data?.files.staged;
   const worktreeChangedPaths = useMemo(() => [...new Set([...(statusQuery.data?.files.unstaged ?? []), ...(statusQuery.data?.files.untracked ?? [])])], [statusQuery.data?.files.unstaged, statusQuery.data?.files.untracked]);
   const queueCommitReadiness = useMemo(() => inspectQueueCommitReadiness(suggestionStageQueue, stagedPaths), [stagedPaths, suggestionStageQueue]);
@@ -2679,12 +2692,16 @@ export default function App() {
               onCommit={handleCommit}
               isCommitting={isAuthorizingCommit || commitMutation.isPending}
               isUpdatingIndex={isStaging}
+              skipPrecommit={skipPrecommitInDialog}
+              onSkipPrecommitChange={setSkipPrecommitInDialog}
               stagedPaths={stagedPaths}
               worktreeChangedPaths={worktreeChangedPaths}
               onUnstagePaths={handleUnstagePathsAsync}
               onQueueStagedExtras={handleQueueStagedExtras}
               commitProgressLabel={isAuthorizingCommit ? "Preparing commit…" : undefined}
+              candidateVersion={statusQuery.data?.status_snapshot_id}
               queueCommitBlockReason={queueCommitBlockReason}
+              queueCommitBlocker={queueCommitReadiness.ready ? undefined : queueCommitReadiness}
               queueRecoveryPendingId={queueRecoveryPendingId}
               precommitNotice={precommitNoticeProps}
               commitError={commitError}
@@ -2709,6 +2726,7 @@ export default function App() {
               authorityStatus={authorityStatus}
               onAuthoritySignedIn={() => void authorityQuery.refetch()}
               queuedStageSelections={suggestionStageQueue}
+              startingQueuedSuggestionIds={startingSuggestionIds}
               onRemoveQueuedStageSelection={completeQueuedStageSelection}
               onResolveQueuedCommit={resolveQueuedCommit}
               onStageQueuedSelection={stageNextQueuedSelection}
@@ -2778,7 +2796,10 @@ export default function App() {
         onDrop={canReorder && corePanel ? (event) => { event.preventDefault(); if (draggingPane) handleDesktopPaneDrop(draggingPane, corePanel); setDraggingPane(null); setDropTargetPane(null); } : undefined}
       >
         {renderPanel(panel, slot)}
-        {canReorder && (
+        {canReorder && paneDragEnabled && (
+          // The grip only exists in the explicit rearrange mode. Its position
+          // and size match the original affordance, but it is always visible in
+          // mode and never present during normal use.
           <button
             type="button"
             draggable
@@ -2792,7 +2813,7 @@ export default function App() {
               setDraggingPane(corePanel);
             }}
             onDragEnd={() => { setDraggingPane(null); setDropTargetPane(null); }}
-            className={`absolute right-2 top-2 z-40 flex h-8 w-8 items-center justify-center rounded-md border border-slate-700/80 bg-slate-950/90 text-slate-400 shadow-sm transition-opacity hover:border-sky-500 hover:text-sky-300 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-sky-500 ${draggingPane === corePanel ? "cursor-grabbing opacity-100" : "cursor-grab opacity-0 group-hover/pane:opacity-100"}`}
+            className={`absolute right-2 top-2 z-40 flex h-8 w-8 items-center justify-center rounded-md border border-slate-700/80 bg-slate-950/90 text-slate-400 shadow-sm transition-colors hover:border-sky-500 hover:text-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-500 ${draggingPane === corePanel ? "cursor-grabbing" : "cursor-grab"}`}
           >
             <GripVertical size={16} aria-hidden="true" />
           </button>
@@ -3001,12 +3022,16 @@ export default function App() {
               onCommit={handleCommit}
               isCommitting={isAuthorizingCommit || commitMutation.isPending}
               isUpdatingIndex={isStaging}
+              skipPrecommit={skipPrecommitInDialog}
+              onSkipPrecommitChange={setSkipPrecommitInDialog}
               stagedPaths={stagedPaths}
               worktreeChangedPaths={worktreeChangedPaths}
               onUnstagePaths={handleUnstagePathsAsync}
               onQueueStagedExtras={handleQueueStagedExtras}
               commitProgressLabel={isAuthorizingCommit ? "Preparing commit…" : undefined}
+              candidateVersion={statusQuery.data?.status_snapshot_id}
               queueCommitBlockReason={queueCommitBlockReason}
+              queueCommitBlocker={queueCommitReadiness.ready ? undefined : queueCommitReadiness}
               queueRecoveryPendingId={queueRecoveryPendingId}
               precommitNotice={precommitNoticeProps}
               commitError={commitError}
@@ -3033,6 +3058,7 @@ export default function App() {
               authorityStatus={authorityStatus}
               onAuthoritySignedIn={() => void authorityQuery.refetch()}
               queuedStageSelections={suggestionStageQueue}
+              startingQueuedSuggestionIds={startingSuggestionIds}
               onRemoveQueuedStageSelection={completeQueuedStageSelection}
               onResolveQueuedCommit={resolveQueuedCommit}
               onStageQueuedSelection={stageNextQueuedSelection}
@@ -3283,6 +3309,8 @@ export default function App() {
         isLoading={statusQuery.isLoading || healthQuery.isLoading}
         onRefresh={handleRefresh}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        paneDragEnabled={paneDragEnabled}
+        onTogglePaneDrag={() => setPaneDragEnabled(value => !value)}
         onOpenSourceDistributions={() => { setSourceDistributionId(null); setIsSourceDistributionOpen(true); }}
         onOpenUpstreamInfo={() => setIsUpstreamInfoOpen(true)}
         onOpenFileSearch={() => setIsFileSearchOpen(true)}
@@ -3297,6 +3325,11 @@ export default function App() {
         isPulling={isPulling}
         syncProgressLabel={syncProgressLabel}
       />
+      {paneDragEnabled && (
+        <div className="pointer-events-none fixed left-1/2 top-16 z-50 -translate-x-1/2 rounded-md border border-cyan-700/70 bg-slate-900/95 px-3 py-1.5 text-xs text-cyan-100 shadow-lg" role="status">
+          Drag a pane grip to move it · Esc to finish
+        </div>
+      )}
 
       {/* Main Content - Layout */}
       <div

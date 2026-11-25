@@ -202,7 +202,7 @@ export function AgentTab({
 
   // Accumulate events
   useEffect(() => {
-    if (runEvents.data?.events?.length) {
+    if (activeRunId && runEvents.data?.events?.length) {
       const incoming = runEvents.data.events;
       // Guard: ignore events from a different run
       if (incoming.some((event) => event.runId && event.runId !== activeRunId)) return;

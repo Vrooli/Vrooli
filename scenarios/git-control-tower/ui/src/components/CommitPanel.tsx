@@ -1,5 +1,6 @@
 import { StagedSafetyNotice } from "./PushSafetyIndicators";
-import { useState, useEffect, useId } from "react";
+import { QueuedGroupList } from "./QueuedGroupList";
+import { useState, useEffect, useId, useRef } from "react";
 import {
   GitCommit,
   Loader2,
@@ -18,10 +19,9 @@ import { XCircle } from "lucide-react";
 import { AuthenticatorSignIn } from "./AuthenticatorSignIn";
 import { CommitMessageComposer } from "../features/commit-message/CommitMessageComposer";
 import { mergeSuggestionTrailers, parseMessage, serializeMessage } from "../features/commit-message/message";
-import type { QueuedStageSelection } from "../features/commit-message/stageQueue";
+import { staleSelectionRecovery, type QueueCommitBlockReason, type QueuedStageSelection } from "../features/commit-message/stageQueue";
 import { StagedMessageMode, type StagedMessageSuggestion } from "../features/commit-message/api";
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
-import { QueuedStageSuggestionStatus } from "./QueuedStageSuggestionStatus";
 
 export interface CommitPanelPrecommitNotice {
   // Persistent failure state from identity-bound final admission.
@@ -52,7 +52,11 @@ interface CommitPanelProps {
   onQueueStagedExtras?: (paths: string[]) => Promise<boolean>;
   commitProgressLabel?: string;
   commitError?: string;
+  /** Identity of the staged candidate; changes only when staging changes. */
+  candidateVersion?: string;
   queueCommitBlockReason?: string;
+  /** The selection that blocks the commit, when the queue can name it. */
+  queueCommitBlocker?: { reason: QueueCommitBlockReason; selection: QueuedStageSelection };
   queueRecoveryPendingId?: string | null;
   // Reuse a passed pre-commit after a post-pass failure (e.g. index lock) — commit
   // again with --no-verify instead of re-streaming the ~1-minute pre-commit.
@@ -82,12 +86,17 @@ interface CommitPanelProps {
   authorityStatus?: AuthorityStatus;
   onAuthoritySignedIn?: () => void;
   queuedStageSelections?: QueuedStageSelection[];
+  /** Shared with the authorization dialog so the remembered skip choice stays one value. */
+  skipPrecommit?: boolean;
+  onSkipPrecommitChange?: (skip: boolean) => void;
   onRemoveQueuedStageSelection?: (id: string) => void;
   onResolveQueuedCommit?: (id: string, committed: boolean) => void;
   onStageQueuedSelection?: () => void;
   onRetryQueuedSuggestion?: (selection: QueuedStageSelection) => void;
   onRefreshQueuedSuggestion?: (selection: QueuedStageSelection) => void;
   onStartQueuedSuggestion?: (selection: QueuedStageSelection, mode: StagedMessageMode) => void;
+  /** Queue entries whose agent start is in flight. */
+  startingQueuedSuggestionIds?: string[];
   onStageQueuedSelectionNow?: (selection: QueuedStageSelection) => void;
   onFinishQueuedUnstage?: (selection: QueuedStageSelection) => void;
 }
@@ -110,6 +119,7 @@ function CommitErrorDisplay({ error }: { error: string }) {
   };
   return (
     <div
+      role="alert"
       className="flex items-start gap-2 px-3 py-2 bg-red-950/30 border border-red-800/50 rounded-md text-xs text-red-400"
       data-testid="commit-error"
     >
@@ -223,8 +233,11 @@ export function CommitPanel({
   onQueueStagedExtras,
   commitProgressLabel,
   commitError,
+  candidateVersion,
   queueCommitBlockReason,
+  queueCommitBlocker,
   queueRecoveryPendingId,
+  startingQueuedSuggestionIds = [],
   defaultAuthorName,
   defaultAuthorEmail,
   canAmend = false,
@@ -247,6 +260,8 @@ export function CommitPanel({
   authorityStatus,
   onAuthoritySignedIn,
   queuedStageSelections = [],
+  skipPrecommit,
+  onSkipPrecommitChange,
   onRemoveQueuedStageSelection,
   onResolveQueuedCommit,
   onStageQueuedSelection,
@@ -257,9 +272,47 @@ export function CommitPanel({
   onFinishQueuedUnstage,
 }: CommitPanelProps) {
   const queueBlockerId = useId();
+  const queueSectionRef = useRef<HTMLDivElement>(null);
+  const [expandedQueueGroupId, setExpandedQueueGroupId] = useState<string | null>(null);
+  const [revealedQueueGroupId, setRevealedQueueGroupId] = useState<string | null>(null);
+  const revealTimer = useRef<number | undefined>(undefined);
+  const queueAutoOpened = useRef(false);
+  // A staged group is the one the operator can commit; show it once. A manual
+  // collapse is respected afterwards.
+  useEffect(() => {
+    if (queueAutoOpened.current) return;
+    const staged = queuedStageSelections.find(selection => selection.state === "staged");
+    if (staged) {
+      queueAutoOpened.current = true;
+      setExpandedQueueGroupId(staged.id);
+    }
+  }, [queuedStageSelections]);
+  useEffect(() => () => {
+    if (revealTimer.current) window.clearTimeout(revealTimer.current);
+  }, []);
+  const revealQueueGroup = (id: string) => {
+    setExpandedQueueGroupId(id);
+    // Pulse the row even when it is already expanded, so the action always has
+    // a visible result instead of reading as an inert button.
+    setRevealedQueueGroupId(id);
+    if (revealTimer.current) window.clearTimeout(revealTimer.current);
+    revealTimer.current = window.setTimeout(() => setRevealedQueueGroupId(null), 2200);
+    // Let the expansion render before scrolling to it.
+    requestAnimationFrame(() => queueSectionRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+  };
+  const showQueue = () => {
+    const first = queuedStageSelections[0];
+    if (first) revealQueueGroup(first.id);
+    else requestAnimationFrame(() => queueSectionRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+  };
   const [signInOpen, setSignInOpen] = useState(false);
   const [useConventional, setUseConventional] = useState(false);
-  const [skipHooks, setSkipHooks] = useState(false);
+  const [localSkipHooks, setLocalSkipHooks] = useState(false);
+  const skipHooks = skipPrecommit ?? localSkipHooks;
+  const updateSkipHooks = (value: boolean) => {
+    if (onSkipPrecommitChange) onSkipPrecommitChange(value);
+    else setLocalSkipHooks(value);
+  };
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [authorName, setAuthorName] = useState("");
   const [authorEmail, setAuthorEmail] = useState("");
@@ -280,6 +333,29 @@ export function CommitPanel({
   const showPushAction = Boolean(onPush && aheadCount > 0);
   const pushDisabled = isPushing || !canPush;
   const handlePushClick = onPush ?? (() => {});
+  const blockerSelection = queueCommitBlocker?.selection;
+  const blockerRecovery = blockerSelection && stagedPaths
+    ? staleSelectionRecovery(blockerSelection, stagedPaths, worktreeChangedPaths ?? [])
+    : null;
+  const blockerBusy = Boolean(blockerSelection && queueRecoveryPendingId === blockerSelection.id);
+  let queueBlockerAction: { label: string; run: () => void } | undefined;
+  if (blockerSelection) {
+    if (queueCommitBlocker?.reason === "awaiting_unstage" && onFinishQueuedUnstage) {
+      queueBlockerAction = { label: "Finish queueing", run: () => onFinishQueuedUnstage(blockerSelection) };
+    } else if (blockerRecovery?.kind === "keep-staged" && onStageQueuedSelectionNow) {
+      queueBlockerAction = { label: "Keep staged files", run: () => onStageQueuedSelectionNow(blockerSelection) };
+    } else if (blockerRecovery?.kind === "stage-current" && onStageQueuedSelectionNow) {
+      queueBlockerAction = { label: `Stage current files (${blockerRecovery.paths.length})`, run: () => onStageQueuedSelectionNow(blockerSelection) };
+    } else if (blockerRecovery?.kind === "remove-or-review" && onRemoveQueuedStageSelection) {
+      queueBlockerAction = { label: "Remove group", run: () => onRemoveQueuedStageSelection(blockerSelection.id) };
+    } else if (queueCommitBlocker?.reason === "stage_failed" && onStageQueuedSelectionNow) {
+      queueBlockerAction = { label: "Retry staging", run: () => onStageQueuedSelectionNow(blockerSelection) };
+    } else if (queueCommitBlocker?.reason === "partial_selection" && onStageQueuedSelectionNow) {
+      queueBlockerAction = { label: "Stage remaining files", run: () => onStageQueuedSelectionNow(blockerSelection) };
+    } else if (queueCommitBlocker?.reason === "not_head" && onStageQueuedSelectionNow) {
+      queueBlockerAction = { label: "Stage into this commit", run: () => onStageQueuedSelectionNow(blockerSelection) };
+    }
+  }
   const _pushTargetLabel = pushTarget ? `Target: ${pushTarget}` : undefined;
   const _sourceLabel =
     sourceBranch && pushTarget && !pushTarget.endsWith(`/${sourceBranch}`)
@@ -351,6 +427,7 @@ export function CommitPanel({
             key={repoId ?? "default"}
             repoId={repoId ?? ""}
             statusVersion={statusVersion}
+            candidateVersion={candidateVersion}
             value={commitMessage}
             onChange={onCommitMessageChange}
             stagedCount={stagedCount}
@@ -360,26 +437,13 @@ export function CommitPanel({
             stagedPaths={stagedPaths}
             onUnstage={onUnstagePaths}
             onQueueStagedExtras={onQueueStagedExtras}
+            queuedGroups={queuedStageSelections}
+            startingQueuedSuggestionIds={startingQueuedSuggestionIds}
+            onStartQueuedSuggestion={onStartQueuedSuggestion}
+            onShowQueue={showQueue}
           />
 
-          {queuedStageSelections.length > 0 && <section className="space-y-3" aria-label="Queued commit selections" data-testid="queued-stage-selections">
-            <header className="flex items-center justify-between gap-3 border-b border-slate-800 pb-2">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-100">Follow-up queue</h3>
-                <p className="mt-0.5 text-xs text-slate-400">{queuedStageSelections.length} saved {queuedStageSelections.length === 1 ? "selection" : "selections"} · staged after this commit</p>
-              </div>
-              {onStageQueuedSelection && queuedStageSelections[0]?.state === "stage_failed" && <button type="button" disabled={isUpdatingIndex} className="min-h-9 rounded-md border border-slate-700 px-3 text-xs text-slate-200 transition-colors hover:bg-slate-800 disabled:opacity-50" onClick={onStageQueuedSelection}>Retry staging</button>}
-            </header>
-            <ol className="space-y-2">{queuedStageSelections.map((selection, index) => <li key={selection.id} className="flex items-start gap-2">
-              <span className="mt-3 w-5 shrink-0 text-center font-mono text-xs text-slate-500">{index + 1}</span>
-              <div className="min-w-0 flex-1 space-y-2">
-                {selection.stageError && <p role="alert" className="text-xs text-amber-200">{selection.stageError}</p>}
-                {selection.state === "commit_pending" && onResolveQueuedCommit && <div className="flex flex-wrap gap-3 rounded-md border border-amber-800/50 bg-amber-950/20 px-3 py-2 text-xs"><span className="w-full text-amber-100">Did the commit finish?</span><button type="button" disabled={isCommitting} className="text-cyan-200 underline disabled:opacity-50" onClick={() => onResolveQueuedCommit(selection.id, true)}>Yes, it committed</button><button type="button" disabled={isCommitting} className="text-slate-300 underline disabled:opacity-50" onClick={() => onResolveQueuedCommit(selection.id, false)}>No, it did not</button></div>}
-                <QueuedStageSuggestionStatus repositoryId={repoId ?? ""} selection={selection} isStaged={selection.state === "staged"} stagedPaths={stagedPaths} worktreeChangedPaths={worktreeChangedPaths} isQueueRecoveryBusy={queueRecoveryPendingId === selection.id} onRemove={onRemoveQueuedStageSelection} onUse={useQueuedSuggestion} onRetry={onRetryQueuedSuggestion} onRefresh={onRefreshQueuedSuggestion} onStartSuggestion={onStartQueuedSuggestion} onStageNow={onStageQueuedSelectionNow} onFinishUnstage={onFinishQueuedUnstage} />
-              </div>
-              {onRemoveQueuedStageSelection && selection.state !== "commit_pending" && selection.state !== "stale" && <button type="button" disabled={isUpdatingIndex} title="Removes this saved queue entry; staged and worktree files are unchanged." className="mt-2 min-h-9 shrink-0 rounded-md px-2 text-xs text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-100 disabled:opacity-50" onClick={() => onRemoveQueuedStageSelection(selection.id)} aria-label={`Remove selection ${index + 1} from queue`}>Remove from queue</button>}
-            </li>)}</ol>
-          </section>}
+
 
           {authorityStatus && !authorityStatus.canMutate && (
             <div
@@ -436,7 +500,35 @@ export function CommitPanel({
             </div>
           )}
 
-          {queueCommitBlockReason && <p id={queueBlockerId} role="status" className="rounded-md border border-amber-800/50 bg-amber-950/20 px-3 py-2 text-xs leading-relaxed text-amber-100">{queueCommitBlockReason}</p>}
+          {queueCommitBlockReason && (
+            <div id={queueBlockerId} role="status" data-experience-alert="warning" data-testid="queue-commit-blocker" className="rounded-md border border-amber-800/50 bg-amber-950/20 px-3 py-2 text-xs leading-relaxed text-amber-100">
+              <p className="min-w-0 break-words">{queueCommitBlockReason}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {queueBlockerAction && (
+                  <button
+                    type="button"
+                    className="inline-flex min-h-8 items-center rounded-md border border-amber-400/70 bg-amber-900/40 px-2 font-medium text-amber-50 hover:bg-amber-900/70 disabled:cursor-wait disabled:opacity-60"
+                    onClick={queueBlockerAction.run}
+                    disabled={blockerBusy}
+                    data-testid="queue-blocker-resolve"
+                  >
+                    {blockerBusy && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
+                    {blockerBusy ? "Working…" : queueBlockerAction.label}
+                  </button>
+                )}
+                {queueCommitBlocker && (
+                  <button
+                    type="button"
+                    className="inline-flex min-h-8 items-center rounded px-1.5 font-medium text-amber-50 underline decoration-amber-300/70 underline-offset-2 hover:bg-amber-900/40"
+                    onClick={() => revealQueueGroup(queueCommitBlocker.selection.id)}
+                    data-testid="queue-blocker-review"
+                  >
+                    Review group · {queueCommitBlocker.selection.paths.length} file{queueCommitBlocker.selection.paths.length === 1 ? "" : "s"}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center justify-between gap-2 min-w-0">
             <button
@@ -507,6 +599,31 @@ export function CommitPanel({
             </div>
           </div>
 
+          {queuedStageSelections.length > 0 && (
+            <div ref={queueSectionRef}>
+            <QueuedGroupList
+              repositoryId={repoId ?? ""}
+              selections={queuedStageSelections}
+              expandedId={expandedQueueGroupId}
+              onExpandedChange={setExpandedQueueGroupId}
+              revealedId={revealedQueueGroupId}
+              startingIds={startingQueuedSuggestionIds}
+              stagedPaths={stagedPaths}
+              worktreeChangedPaths={worktreeChangedPaths}
+              recoveryPendingId={queueRecoveryPendingId}
+              onRemove={onRemoveQueuedStageSelection}
+              onUse={useQueuedSuggestion}
+              onRetry={onRetryQueuedSuggestion}
+              onRefresh={onRefreshQueuedSuggestion}
+              onStartSuggestion={onStartQueuedSuggestion}
+              onStageNow={onStageQueuedSelectionNow}
+              onFinishUnstage={onFinishQueuedUnstage}
+              onResolveCommit={onResolveQueuedCommit}
+              onRetryStage={onStageQueuedSelection}
+            />
+            </div>
+          )}
+
           {advancedOpen && (
             <div className="rounded-md border border-slate-800 bg-slate-900/40 p-3 space-y-3">
               <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
@@ -525,7 +642,7 @@ export function CommitPanel({
                 <input
                   type="checkbox"
                   checked={skipHooks}
-                  onChange={(e) => setSkipHooks(e.target.checked)}
+                  onChange={(e) => updateSkipHooks(e.target.checked)}
                   disabled={isCommitting}
                   className="w-3.5 h-3.5 rounded border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500 focus:ring-offset-0"
                   data-testid="skip-hooks-checkbox"

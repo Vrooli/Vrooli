@@ -216,6 +216,18 @@ func (h advisoryConnectServer) QueueWorktreeSelection(ctx context.Context, req *
 	return connect.NewResponse(out), nil
 }
 
+func (h advisoryConnectServer) ExtendQueuedSelection(ctx context.Context, req *connect.Request[v1.ExtendQueuedSelectionRequest]) (*connect.Response[v1.QueuedWorktreeSelection], error) {
+	record, e := h.stagedRepo(ctx, req.Msg.GetRepositoryId())
+	if e != nil {
+		return nil, e
+	}
+	out, e := h.server.stagedMessages.ExtendQueuedSelection(ctx, repositoryIDFor(record), record.Path, req.Msg)
+	if e != nil {
+		return nil, stagedMessageError(e)
+	}
+	return connect.NewResponse(out), nil
+}
+
 func (h advisoryConnectServer) FinalizeQueuedSelection(ctx context.Context, req *connect.Request[v1.FinalizeQueuedSelectionRequest]) (*connect.Response[v1.QueuedWorktreeSelection], error) {
 	record, e := h.stagedRepo(ctx, req.Msg.GetRepositoryId())
 	if e != nil {

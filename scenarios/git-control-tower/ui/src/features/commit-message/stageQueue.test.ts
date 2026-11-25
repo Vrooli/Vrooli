@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { create } from "@bufbuild/protobuf";
 import { StagedMessageMode, WorktreeSuggestionQueueEntrySchema, WorktreeSuggestionQueueState } from "@vrooli/proto-types/git-control-tower/v1/advisory/advisory_pb";
-import { appendStageSelection, isStageSelectionComplete, queuedHeadIncludedInIndex, queuedSelectionAwaitingUnstage, reconcileStageQueueWithIndex, removeStageSelection, retireCommittedQueueHead, SuccessfulCommitQueueGate, toQueuedStageSelection, updateStageSelection } from "./stageQueue";
+import { appendStageSelection, isStageSelectionComplete, queuedHeadIncludedInIndex, queuedSelectionAwaitingUnstage, reconcileStageQueueWithIndex, removeStageSelection, retireCommittedQueueHead, shouldAutoClearStaleSelection, SuccessfulCommitQueueGate, toQueuedStageSelection, updateStageSelection } from "./stageQueue";
 
 describe("queued stage selections", () => {
   it("keeps each path in one future commit group and removes only the selected group", () => {
@@ -73,6 +73,18 @@ describe("queued stage selections", () => {
     const queue = [{ ...appendStageSelection([], ["extra.go", "extra_test.go"], "selection")[0]!, state: "awaiting_unstage" as const }];
     expect(queuedSelectionAwaitingUnstage(queue, ["current.go", "extra.go"])?.id).toBe("selection");
     expect(queuedSelectionAwaitingUnstage(queue, ["current.go"])).toBeUndefined();
+  });
+
+  it("auto-clears only stale saved selections whose files are already staged", () => {
+    const [selection] = appendStageSelection([], ["a.go", "b.go"], "stale");
+    if (!selection) throw new Error("fixture requires a queue item");
+    const stale = { ...selection, state: "stale" as const, snapshotDigest: "digest" };
+    expect(shouldAutoClearStaleSelection(stale, ["a.go", "b.go"], [])).toBe(true);
+    expect(shouldAutoClearStaleSelection(stale, ["a.go"], [])).toBe(false);
+    expect(shouldAutoClearStaleSelection(stale, ["a.go", "b.go"], ["b.go"])).toBe(false);
+    expect(shouldAutoClearStaleSelection({ ...stale, suggestionMode: "quick" }, ["a.go", "b.go"], [])).toBe(false);
+    expect(shouldAutoClearStaleSelection({ ...stale, jobId: "job" }, ["a.go", "b.go"], [])).toBe(false);
+    expect(shouldAutoClearStaleSelection({ ...stale, state: "queued" }, ["a.go", "b.go"], [])).toBe(false);
   });
 
   it("preserves an incomplete unstage handoff during index reconciliation", () => {

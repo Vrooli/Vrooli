@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Check, Clock3, LoaderCircle, RotateCw, Sparkles, RefreshCw, Search } from "lucide-react";
+import { AlertCircle, Check, ChevronUp, Clock3, LoaderCircle, RotateCw, Sparkles, RefreshCw, Search } from "lucide-react";
 import { StagedMessageMode } from "@vrooli/proto-types/git-control-tower/v1/advisory/advisory_pb";
 import type { StagedMessageJob, StagedMessageSuggestion } from "../features/commit-message/api";
 import { workflowExecutionLink } from "../features/commit-message/workflowExecutionLink";
@@ -32,6 +32,8 @@ interface Props {
   /** Stage this saved selection into the current index through normal conflict confirmation. */
   onStageNow?: (selection: QueuedStageSelection) => void;
   onFinishUnstage?: (selection: QueuedStageSelection) => void;
+  /** Collapse the verbose card back to its compact queue row. */
+  onCollapse?: () => void;
 }
 
 const activeStatuses = new Set(["queued", "dispatching", "running", "awaiting_input", "cancelling"]);
@@ -64,7 +66,7 @@ function StateMark({ state }: { state: DisplayState }) {
 }
 
 /** Reattaches to one durable worktree suggestion and observes its owner with Wait. */
-export function QueuedStageSuggestionStatus({ repositoryId, selection, isStaged, stagedPaths, worktreeChangedPaths, isQueueRecoveryBusy = false, onRemove, onStageNow, onUse, onRetry, onRefresh, onStartSuggestion, onFinishUnstage }: Props) {
+export function QueuedStageSuggestionStatus({ repositoryId, selection, isStaged, stagedPaths, worktreeChangedPaths, isQueueRecoveryBusy = false, onRemove, onStageNow, onUse, onRetry, onRefresh, onStartSuggestion, onFinishUnstage, onCollapse }: Props) {
   const queryClient = useQueryClient();
   // Captured selections use a queue request key before a suggestion job exists
   // (for example, while they are awaiting unstage). That key is not a job
@@ -141,8 +143,11 @@ export function QueuedStageSuggestionStatus({ repositoryId, selection, isStaged,
   const elapsedSeconds = job && elapsedEnd !== undefined ? Math.max(0, Math.floor((elapsedEnd - Date.parse(job.createdAt)) / 1000)) : undefined;
   return <article className="min-w-0 space-y-3 rounded-lg border border-slate-700/80 bg-slate-900/60 p-3" data-testid="queued-suggestion-card">
     <header className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-cyan-300" aria-hidden="true" /><h3 className="text-sm font-semibold text-slate-100">{selection.suggestionMode ? `Queued ${selection.suggestionMode === "deep" ? "deep" : "quick"} suggestion` : "Queued selection"}</h3></div>
-      <StateMark state={state} />
+      <div className="flex min-w-0 items-center gap-2"><Sparkles className="h-4 w-4 text-cyan-300" aria-hidden="true" /><h3 className="truncate text-sm font-semibold text-slate-100">{selection.suggestionMode ? `Queued ${selection.suggestionMode === "deep" ? "deep" : "quick"} suggestion` : "Queued selection"}</h3></div>
+      <div className="flex items-center gap-2">
+        <StateMark state={state} />
+        {onCollapse && <button type="button" onClick={onCollapse} aria-label="Hide queue details" title="Hide queue details" data-testid="queued-suggestion-collapse" className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-slate-800 hover:text-slate-100"><ChevronUp className="h-4 w-4" aria-hidden="true" /></button>}
+      </div>
     </header>
     <p className="text-xs text-slate-400">{selection.paths.length} {selection.paths.length === 1 ? "file" : "files"} · queued {new Date(selection.queuedAt).toLocaleString()}</p>
     <details className="text-xs text-slate-400">

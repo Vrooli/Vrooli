@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { RepoStatus, SyncStatusResponse } from "../lib/api";
 import type { BranchActions } from "./BranchSelector";
@@ -54,5 +54,23 @@ describe("StatusHeader", () => {
     );
 
     expect(screen.getByText("Working tree clean (3 ahead)")).toBeInTheDocument();
+  });
+
+  it("exposes an explicit pane rearrange mode", () => {
+    const toggle = vi.fn();
+    renderWithProviders(
+      <StatusHeader
+        branchActions={stubBranchActions}
+        isLoading={false}
+        onRefresh={() => {}}
+        onOpenSettings={() => {}}
+        paneDragEnabled
+        onTogglePaneDrag={toggle}
+      />
+    );
+    const button = screen.getByTestId("pane-rearrange-button");
+    expect(button).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(button);
+    expect(toggle).toHaveBeenCalled();
   });
 });

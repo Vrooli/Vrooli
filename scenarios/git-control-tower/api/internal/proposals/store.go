@@ -168,18 +168,6 @@ func (s *Store) Revision(ctx context.Context, id string, revision int) (Proposal
 	return p, json.Unmarshal([]byte(raw), &p)
 }
 
-func (s *Store) SaveBlobs(ctx context.Context, blobs map[string][]byte) error {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	if err = saveBlobsTx(ctx, tx, blobs); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
-
 func saveBlobsTx(ctx context.Context, tx *sql.Tx, blobs map[string][]byte) error {
 	for id, data := range blobs {
 		if data == nil {

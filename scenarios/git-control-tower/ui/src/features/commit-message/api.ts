@@ -76,8 +76,21 @@ export function queueWorktreeSelection(input: {
   });
 }
 
-export function finalizeQueuedSelection(input: { repositoryId: string; selectionId: string; expectedSnapshotDigest: string }) {
-  return advisoryClient.finalizeQueuedSelection({
+export function extendQueuedSelection(input: {
+  repositoryId: string;
+  selectionId: string;
+  expectedSnapshotDigest: string;
+  paths: string[];
+}) {
+  return advisoryClient.extendQueuedSelection({
+    repositoryId: input.repositoryId,
+    selectionId: input.selectionId,
+    expectedSnapshotDigest: input.expectedSnapshotDigest,
+    paths: input.paths,
+  });
+}
+
+export function finalizeQueuedSelection(input: { repositoryId: string; selectionId: string; expectedSnapshotDigest: string }) {  return advisoryClient.finalizeQueuedSelection({
     repositoryId: input.repositoryId,
     selectionId: input.selectionId,
     expectedSnapshotDigest: input.expectedSnapshotDigest,

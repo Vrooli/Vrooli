@@ -6,6 +6,8 @@ import { workflowExecutionLink } from "./workflowExecutionLink";
 import { formatMicroUSD } from "./charge";
 import { MessageSuggestionDialog } from "./MessageSuggestionDialog";
 import { usePrecommitCandidateCheck } from "./usePrecommitCandidateCheck";
+import type { QueuedStageSelection } from "./stageQueue";
+import type { StagedMessageMode } from "@vrooli/proto-types/git-control-tower/v1/advisory/advisory_pb";
 
 interface Props {
   value: string;
@@ -19,15 +21,22 @@ interface Props {
   stagedPaths?: readonly string[];
   onUnstage?: (paths: string[]) => Promise<void>;
   onQueueStagedExtras?: (paths: string[]) => Promise<boolean>;
+  /** Changes only when the staged candidate changes, not on every poll. */
+  candidateVersion?: string;
+  queuedGroups?: QueuedStageSelection[];
+  startingQueuedSuggestionIds?: string[];
+  onStartQueuedSuggestion?: (selection: QueuedStageSelection, mode: StagedMessageMode) => void;
+  /** Close the dialog and reveal the follow-up queue behind it. */
+  onShowQueue?: () => void;
 }
 
-export function CommitMessageComposer({ value, onChange, repoId, stagedCount, statusVersion, updatingIndex, disabled, amend, stagedPaths, onUnstage, onQueueStagedExtras }: Props) {
+export function CommitMessageComposer({ value, onChange, repoId, stagedCount, statusVersion, candidateVersion, updatingIndex, disabled, amend, stagedPaths, onUnstage, onQueueStagedExtras, queuedGroups, startingQueuedSuggestionIds, onStartQueuedSuggestion, onShowQueue }: Props) {
   const id = useId();
   const [fields, setFields] = useState(() => parseMessage(value));
   const emitted = useRef(value);
   const prefetchTimer = useRef<ReturnType<typeof setTimeout>>();
   const suggestions = useMessageSuggestions(repoId, statusVersion, updatingIndex, stagedCount);
-  const precommit = usePrecommitCandidateCheck(repoId, true, statusVersion, updatingIndex, stagedCount > 0);
+  const precommit = usePrecommitCandidateCheck(repoId, true, candidateVersion ?? String(statusVersion), updatingIndex, stagedCount > 0);
   useEffect(() => {
     if (value !== emitted.current) {
       emitted.current = value;
@@ -59,6 +68,9 @@ export function CommitMessageComposer({ value, onChange, repoId, stagedCount, st
   };
   const active = isMessageJobActive(suggestions.job?.status);
   const hasWork = suggestions.session.phase !== "idle" || Boolean(suggestions.job) || suggestions.reconnecting || Boolean(suggestions.error);
+  const precommitResult = precommit.check?.result;
+  const precommitFailed = ["failed", "timeout", "incomplete", "error"].includes(precommit.state);
+  const precommitOutput = [precommitResult?.stderr, precommitResult?.stdout].filter(Boolean).join("\n").trim();
   const unknownJob = suggestions.job && !["queued", "dispatching", "running", "awaiting_input", "awaiting_provider", "cancelling", "succeeded", "failed", "cancelled", "stale"].includes(suggestions.job.status);
   const resultScope = suggestions.job?.result ? getDraftScope(suggestions.job.result) : undefined;
   const readyLabel = resultScope === "whole" ? "Whole-selection draft ready" : resultScope === "limited" ? "Limited draft ready" : resultScope === "unknown" ? "Draft ready · scope unavailable" : "Agent suggestion ready";
@@ -120,7 +132,19 @@ export function CommitMessageComposer({ value, onChange, repoId, stagedCount, st
               : "Staged checks unavailable"}
           </div>
           {precommit.check?.candidateDigest && <div className="mt-1 text-[11px] opacity-80">Candidate {precommit.check.candidateDigest.slice(0, 12)} · final commit checks this identity again</div>}
-          {(precommit.error || precommit.check?.result?.summary) && <div className="mt-1 break-words opacity-90">{precommit.error || precommit.check?.result?.summary}</div>}
+          {(precommit.error || precommitResult?.summary) && <div className="mt-1 break-words opacity-90">{precommit.error || precommitResult?.summary}</div>}
+          {precommitFailed && !precommit.error && !precommitResult?.summary && (
+            <div className="mt-1 opacity-90">The runner returned no failure summary. Retry checks; if it repeats, the pre-commit job did not report a result.</div>
+          )}
+          {precommitResult?.command && (
+            <div className="mt-1 break-all text-[11px] opacity-80">Command: <code>{precommitResult.command}</code>{typeof precommitResult.exitCode === "number" ? ` · exit ${precommitResult.exitCode}` : ""}</div>
+          )}
+          {precommitOutput && (
+            <details className="mt-1">
+              <summary className="cursor-pointer text-[11px] opacity-80">Check output</summary>
+              <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded bg-slate-950/50 p-2 font-mono text-[11px]">{precommitOutput.slice(-2000)}</pre>
+            </details>
+          )}
           {precommit.stale && <div className="mt-1">Staged files changed; checking the new candidate.</div>}
           {["queued", "running", "cancelling"].includes(precommit.state) && (
             <button type="button" onClick={() => void precommit.cancel()} disabled={precommit.state === "cancelling"}
@@ -142,7 +166,7 @@ export function CommitMessageComposer({ value, onChange, repoId, stagedCount, st
         <div role="status" className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-xs ${suggestions.staleReason ? "border-amber-800 bg-amber-950/30 text-amber-200" : "border-slate-700 bg-slate-900 text-slate-300"}`} data-testid="commit-suggestion-standing">
           <span className="min-w-0 flex-1">{label}</span>
           {active && suggestions.job?.error && <span className="w-full text-amber-200" role="alert">{suggestions.job.error}</span>}
-          {active && suggestions.job?.error && <button type="button" onClick={() => void suggestions.reconnect()} className="inline-flex min-h-9 items-center gap-1.5 px-2 text-cyan-200"><RotateCw className="h-3.5 w-3.5" aria-hidden="true" />Reconnect to job</button>}
+          {active && suggestions.job?.error && <button type="button" disabled={suggestions.reconnecting} onClick={() => void suggestions.reconnect()} className="inline-flex min-h-9 items-center gap-1.5 px-2 text-cyan-200 disabled:cursor-wait disabled:opacity-60"><RotateCw className={`h-3.5 w-3.5 ${suggestions.reconnecting ? "animate-spin" : ""}`} aria-hidden="true" />{suggestions.reconnecting ? "Reconnecting…" : "Reconnect to job"}</button>}
           {terminalJob && <span className="w-full truncate text-amber-200" title={failureSummary || undefined}>{failureSummary || "Failure details are unavailable."}</span>}
           {terminalJob?.errorCode && <span className="w-full text-slate-400">Failure category: {terminalJob.errorCode}</span>}
           {terminalJob?.tokensKnown && <span className="w-full text-slate-400">Agent tokens used: {String(terminalJob.tokensUsed)}</span>}
@@ -193,7 +217,7 @@ export function CommitMessageComposer({ value, onChange, repoId, stagedCount, st
           data-testid="commit-message-trailers" />
       </details>
       <p className="text-[11px] leading-relaxed text-slate-500">{stagedCount === 0 ? "Stage files to enable suggestions." : updatingIndex ? "Finishing staging before checking suggestions…" : "Suggest checks existing evidence first. An agent starts only when you choose."}</p>
-      <MessageSuggestionDialog suggestions={suggestions} message={value} disabled={disabled || updatingIndex} onApply={next => change(parseMessage(next))} stagedPaths={stagedPaths} onUnstage={onUnstage} onQueueStagedExtras={onQueueStagedExtras} />
+      <MessageSuggestionDialog suggestions={suggestions} message={value} disabled={disabled || updatingIndex} onApply={next => change(parseMessage(next))} stagedPaths={stagedPaths} onUnstage={onUnstage} onQueueStagedExtras={onQueueStagedExtras} queuedGroups={queuedGroups} startingQueuedSuggestionIds={startingQueuedSuggestionIds} onStartQueuedSuggestion={onStartQueuedSuggestion} onShowQueue={onShowQueue} />
     </div>
   );
 }

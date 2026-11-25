@@ -229,6 +229,64 @@ func (s *Store) FinalizeCapturedSelection(ctx context.Context, repo, id, digest,
 	return q, nil
 }
 
+// ExtendCapturedSelection replaces a captured queue entry with a wider capture.
+// It is only valid before an agent starts (state queued, no job), and it
+// re-checks path ownership in the same transaction so two queued groups can
+// never own the same file.
+func (s *Store) ExtendCapturedSelection(ctx context.Context, repo, id, expectedDigest string, paths []string, digest, payload string) (WorktreeQueue, error) {
+	if expectedDigest == "" || digest == "" || payload == "" {
+		return WorktreeQueue{}, fmt.Errorf("captured selection digest and payload are required")
+	}
+	if err := validateWorktreeQueuePaths(paths); err != nil {
+		return WorktreeQueue{}, err
+	}
+	if err := s.ensureWorktreeQueue(ctx); err != nil {
+		return WorktreeQueue{}, err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return WorktreeQueue{}, err
+	}
+	defer tx.Rollback()
+	var gotDigest, jobID string
+	var state WorktreeQueueState
+	if err = tx.QueryRowContext(ctx, `SELECT snapshot_digest,state,COALESCE(job_id,'') FROM gct_worktree_suggestion_queue_entries WHERE repository_id=? AND id=?`, repo, id).Scan(&gotDigest, &state, &jobID); err != nil {
+		return WorktreeQueue{}, err
+	}
+	if gotDigest != expectedDigest || state != WorktreeQueueQueued || jobID != "" {
+		return WorktreeQueue{}, ErrQueueConflict
+	}
+	if err = ensureWorktreePathsAvailable(ctx, tx, repo, id, paths); err != nil {
+		return WorktreeQueue{}, err
+	}
+	rawPaths, err := json.Marshal(paths)
+	if err != nil {
+		return WorktreeQueue{}, err
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	if _, err = tx.ExecContext(ctx, `UPDATE gct_worktree_suggestion_queue_entries SET paths_json=?,snapshot_digest=?,failure_reason='',updated_at=? WHERE repository_id=? AND id=?`, string(rawPaths), digest, now, repo, id); err != nil {
+		return WorktreeQueue{}, err
+	}
+	result, err := tx.ExecContext(ctx, `UPDATE gct_worktree_selection_payloads SET payload_json=? WHERE entry_id=?`, payload, id)
+	if err != nil {
+		return WorktreeQueue{}, err
+	}
+	if changed, rowsErr := result.RowsAffected(); rowsErr == nil && changed != 1 {
+		return WorktreeQueue{}, ErrQueueConflict
+	}
+	if err = incrementQueueRevision(ctx, tx, repo); err != nil {
+		return WorktreeQueue{}, err
+	}
+	q, err := queueFromTx(ctx, tx, repo)
+	if err != nil {
+		return WorktreeQueue{}, err
+	}
+	if err = tx.Commit(); err != nil {
+		return WorktreeQueue{}, err
+	}
+	return q, nil
+}
+
 func incrementQueueRevision(ctx context.Context, tx *sql.Tx, repo string) error {
 	_, err := tx.ExecContext(ctx, `UPDATE gct_worktree_suggestion_queues SET revision=revision+1 WHERE repository_id=?`, repo)
 	return err

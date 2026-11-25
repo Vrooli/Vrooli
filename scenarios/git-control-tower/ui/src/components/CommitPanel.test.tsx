@@ -435,3 +435,68 @@ it("offers explicit recovery choices when a commit outcome is unresolved", () =>
  expect(resolve).toHaveBeenNthCalledWith(1, "entry", true);
  expect(resolve).toHaveBeenNthCalledWith(2, "entry", false);
 });
+
+it("turns the queue commit blocker into a way to inspect the group", () => {
+ renderWithProviders(<CommitPanel
+   stagedCount={1}
+   commitMessage="source change"
+   onCommitMessageChange={() => {}}
+   onCommit={vi.fn()}
+   isCommitting={false}
+   queueCommitBlockReason="Only part of a queued selection is staged."
+   queueCommitBlocker={{ reason: "partial_selection", selection: { id: "entry", paths: ["src/a.ts"], queuedAt: "now", state: "queued" } }}
+   queuedStageSelections={[{ id: "entry", paths: ["src/a.ts"], queuedAt: "now", state: "queued" }]}
+ />);
+ const row = screen.getByTestId("queued-group-details");
+ expect(row).toHaveAttribute("aria-expanded", "false");
+ fireEvent.click(screen.getByTestId("queue-blocker-review"));
+ expect(row).toHaveAttribute("aria-expanded", "true");
+});
+
+it("resolves a stale blocker in place without opening the group", () => {
+ const resolve = vi.fn();
+ const selection = { id: "entry", paths: ["src/a.ts"], queuedAt: "now", state: "stale" as const };
+ renderWithProviders(<CommitPanel
+   stagedCount={1}
+   commitMessage="source change"
+   onCommitMessageChange={() => {}}
+   onCommit={vi.fn()}
+   isCommitting={false}
+   stagedPaths={["src/a.ts"]}
+   queueCommitBlockReason="A stale queued group overlaps the staged files."
+   queueCommitBlocker={{ reason: "stale", selection }}
+   onStageQueuedSelectionNow={resolve}
+ />);
+ fireEvent.click(screen.getByTestId("queue-blocker-resolve"));
+ expect(resolve).toHaveBeenCalledWith(selection);
+ expect(screen.getByTestId("queue-blocker-resolve")).toHaveTextContent("Keep staged files");
+});
+
+it("removes a stale blocker the current files cannot recover", () => {
+ const remove = vi.fn();
+ const selection = { id: "entry", paths: ["src/a.ts"], queuedAt: "now", state: "stale" as const };
+ renderWithProviders(<CommitPanel
+   stagedCount={1}
+   commitMessage="source change"
+   onCommitMessageChange={() => {}}
+   onCommit={vi.fn()}
+   isCommitting={false}
+   stagedPaths={[]}
+   queueCommitBlockReason="A stale queued group overlaps the staged files."
+   queueCommitBlocker={{ reason: "stale", selection }}
+   onRemoveQueuedStageSelection={remove}
+ />);
+ fireEvent.click(screen.getByTestId("queue-blocker-resolve"));
+ expect(remove).toHaveBeenCalledWith("entry");
+ expect(screen.getByTestId("queue-blocker-resolve")).toHaveTextContent("Remove group");
+});
+
+it("uses the shared remembered skip preference", () => {
+ const change = vi.fn();
+ renderWithProviders(<CommitPanel stagedCount={1} commitMessage="change" onCommitMessageChange={()=>{}} onCommit={vi.fn()} isCommitting={false} skipPrecommit onSkipPrecommitChange={change} />);
+ fireEvent.click(screen.getByText("Advanced"));
+ const skip = screen.getByTestId("skip-hooks-checkbox");
+ expect(skip).toBeChecked();
+ fireEvent.click(skip);
+ expect(change).toHaveBeenCalledWith(false);
+});

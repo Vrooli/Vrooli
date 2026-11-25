@@ -142,6 +142,92 @@ func TestQueueSelectionCapturesWithoutStartingAndFinalizesExactStagedContent(t *
 	}
 }
 
+func TestExtendQueuedSelectionUnionsPathsUntilAgentStarts(t *testing.T) {
+	s, _, _, provider := serviceFixture(t)
+	dir, _ := fixtureGit(t)
+	s.snapshots = GitSnapshotter{}
+	writeFixture(t, dir, "file.txt", "changed worktree\n")
+	writeFixture(t, dir, "second.txt", "untracked second\n")
+	queued, err := s.QueueWorktreeSelection(context.Background(), "repo", dir, &v1.QueueWorktreeSelectionRequest{
+		SelectionId: "selection-1",
+		Source:      v1.WorktreeSelectionSource_WORKTREE_SELECTION_SOURCE_INDEX_TO_WORKTREE,
+		Paths:       []string{"file.txt"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(queued.Paths) != 1 || provider.starts != 0 {
+		t.Fatalf("initial capture = %+v starts=%d", queued, provider.starts)
+	}
+
+	extended, err := s.ExtendQueuedSelection(context.Background(), "repo", dir, &v1.ExtendQueuedSelectionRequest{
+		SelectionId:           "selection-1",
+		ExpectedSnapshotDigest: queued.SnapshotDigest,
+		Paths:                 []string{"second.txt"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(extended.Paths) != 2 || extended.Paths[0] != "file.txt" || extended.Paths[1] != "second.txt" {
+		t.Fatalf("extend did not union paths: %+v", extended.Paths)
+	}
+	if extended.SnapshotDigest == queued.SnapshotDigest {
+		t.Fatal("extend did not recapture the selection digest")
+	}
+	if provider.starts != 0 {
+		t.Fatal("extending a queued capture started an agent")
+	}
+
+	job, err := s.StartQueuedSelection(context.Background(), "repo", dir, &v1.StartQueuedSelectionRequest{
+		SelectionId:   "selection-1",
+		SnapshotDigest: extended.SnapshotDigest,
+		RequestKey:    "start-extended",
+		Mode:          v1.StagedMessageMode_STAGED_MESSAGE_MODE_QUICK,
+	})
+	if err != nil || job.GetId() == "" || provider.starts != 1 {
+		t.Fatalf("start after extend failed: job=%+v starts=%d err=%v", job, provider.starts, err)
+	}
+	if _, err = s.ExtendQueuedSelection(context.Background(), "repo", dir, &v1.ExtendQueuedSelectionRequest{
+		SelectionId:           "selection-1",
+		ExpectedSnapshotDigest: extended.SnapshotDigest,
+		Paths:                 []string{"third.txt"},
+	}); !errors.Is(err, ErrConflict) {
+		t.Fatalf("extend accepted files after an agent started: %v", err)
+	}
+}
+
+func TestExtendQueuedSelectionRejectsPathOwnedByAnotherGroup(t *testing.T) {
+	s, _, _, _ := serviceFixture(t)
+	dir, _ := fixtureGit(t)
+	s.snapshots = GitSnapshotter{}
+	writeFixture(t, dir, "a.txt", "a\n")
+	writeFixture(t, dir, "b.txt", "b\n")
+	first, err := s.QueueWorktreeSelection(context.Background(), "repo", dir, &v1.QueueWorktreeSelectionRequest{
+		SelectionId: "selection-a",
+		Source:      v1.WorktreeSelectionSource_WORKTREE_SELECTION_SOURCE_INDEX_TO_WORKTREE,
+		Paths:       []string{"a.txt"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := s.QueueWorktreeSelection(context.Background(), "repo", dir, &v1.QueueWorktreeSelectionRequest{
+		SelectionId: "selection-b",
+		Source:      v1.WorktreeSelectionSource_WORKTREE_SELECTION_SOURCE_INDEX_TO_WORKTREE,
+		Paths:       []string{"b.txt"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.ExtendQueuedSelection(context.Background(), "repo", dir, &v1.ExtendQueuedSelectionRequest{
+		SelectionId:           "selection-a",
+		ExpectedSnapshotDigest: first.SnapshotDigest,
+		Paths:                 []string{"b.txt"},
+	}); !errors.Is(err, reviewjobs.ErrQueuePathConflict) {
+		t.Fatalf("extend accepted a path owned by another group: %v", err)
+	}
+	_ = second
+}
+
 func TestQueueSelectionAcceptsLargeExactStagedSelection(t *testing.T) {
 	s, _, _, provider := serviceFixture(t)
 	dir, git := fixtureGit(t)

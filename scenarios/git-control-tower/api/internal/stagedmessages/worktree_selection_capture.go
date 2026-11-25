@@ -44,42 +44,9 @@ func (s *Service) QueueWorktreeSelection(ctx context.Context, repo, dir string, 
 	if err != nil {
 		return nil, err
 	}
-	var captured Captured
-	switch req.Source {
-	case v1.WorktreeSelectionSource_WORKTREE_SELECTION_SOURCE_INDEX_TO_WORKTREE:
-		captured, err = captureWorktreeSnapshot(ctx, repo, dir, paths, s.now)
-	case v1.WorktreeSelectionSource_WORKTREE_SELECTION_SOURCE_HEAD_TO_INDEX:
-		captured, err = s.captureSelectedStaged(ctx, repo, dir, paths, true)
-	default:
-		return nil, fmt.Errorf("selection source is required")
-	}
+	captured, _, err := s.captureQueuedSelection(ctx, repo, dir, paths, req.Source)
 	if err != nil {
 		return nil, err
-	}
-	if len(captured.Snapshot.Files) == 0 {
-		return nil, fmt.Errorf("selected snapshot is empty")
-	}
-	captured.Snapshot.Digest, err = queuedSnapshotDigest(captured.Snapshot)
-	if err != nil {
-		return nil, err
-	}
-	var current Captured
-	if req.Source == v1.WorktreeSelectionSource_WORKTREE_SELECTION_SOURCE_HEAD_TO_INDEX {
-		// The second pass only confirms the exact index identities. The first
-		// capture already has the immutable bytes, so do not reread every blob.
-		current, err = s.captureSelectedStaged(ctx, repo, dir, paths, false)
-	} else {
-		current, err = captureWorktreeSnapshot(ctx, repo, dir, paths, s.now)
-	}
-	if err != nil {
-		return nil, err
-	}
-	currentDigest, err := queuedSnapshotDigest(current.Snapshot)
-	if err != nil {
-		return nil, err
-	}
-	if currentDigest != captured.Snapshot.Digest {
-		return nil, fmt.Errorf("%w: selected content changed during queue capture", ErrConflict)
 	}
 	input := DraftInput{FormatVersion: 2, Snapshot: captured.Snapshot, WorktreeCapture: true, CapturedWorktree: captured.Bytes, QueuedSelection: true, QueuedSource: req.Source}
 	raw, err := json.Marshal(input)
@@ -99,6 +66,115 @@ func (s *Service) QueueWorktreeSelection(ctx context.Context, repo, dir string, 
 		return nil, err
 	}
 	return queuedSelection(queued), nil
+}
+
+func (s *Service) ExtendQueuedSelection(ctx context.Context, repo, dir string, req *v1.ExtendQueuedSelectionRequest) (*v1.QueuedWorktreeSelection, error) {
+	if req == nil || strings.TrimSpace(req.SelectionId) == "" || req.ExpectedSnapshotDigest == "" {
+		return nil, fmt.Errorf("selection id and expected snapshot digest are required")
+	}
+	q, err := s.store.ListWorktreeQueue(ctx, repo)
+	if err != nil {
+		return nil, err
+	}
+	entry := findWorktreeQueueEntry(q.Entries, func(entry reviewjobs.WorktreeQueueEntry) bool {
+		return entry.SelectionID == req.SelectionId
+	})
+	if entry == nil {
+		return nil, ErrNotFound
+	}
+	if entry.SnapshotDigest != req.ExpectedSnapshotDigest {
+		return nil, ErrConflict
+	}
+	// Only a queue entry with no agent can absorb more files. Once a job
+	// starts, the capture is immutable and the next files belong to the next
+	// group.
+	if entry.State != reviewjobs.WorktreeQueueQueued || entry.JobID != "" {
+		return nil, ErrConflict
+	}
+	seen := make(map[string]struct{}, len(entry.Paths)+len(req.Paths))
+	union := make([]string, 0, len(entry.Paths)+len(req.Paths))
+	for _, path := range append(append([]string{}, entry.Paths...), req.Paths...) {
+		if _, ok := seen[path]; ok {
+			continue
+		}
+		seen[path] = struct{}{}
+		union = append(union, path)
+	}
+	union, err = normalizeWorktreePaths(union)
+	if err != nil {
+		return nil, err
+	}
+	if len(union) == len(entry.Paths) {
+		return queuedSelection(*entry), nil
+	}
+	source := v1.WorktreeSelectionSource(entry.SelectionSource)
+	captured, digest, err := s.captureQueuedSelection(ctx, repo, dir, union, source)
+	if err != nil {
+		return nil, err
+	}
+	input := DraftInput{FormatVersion: 2, Snapshot: captured.Snapshot, WorktreeCapture: true, CapturedWorktree: captured.Bytes, QueuedSelection: true, QueuedSource: source}
+	raw, err := json.Marshal(input)
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) > MaxDraftInputBytes {
+		return nil, fmt.Errorf("immutable selection exceeds %d bytes", MaxDraftInputBytes)
+	}
+	updated, err := s.store.ExtendCapturedSelection(ctx, repo, entry.ID, entry.SnapshotDigest, union, digest, string(raw))
+	if err != nil {
+		return nil, err
+	}
+	for _, candidate := range updated.Entries {
+		if candidate.ID == entry.ID {
+			return queuedSelection(candidate), nil
+		}
+	}
+	return nil, ErrNotFound
+}
+
+// captureQueuedSelection captures a selection twice and rejects a change
+// between the two reads, so the queued bytes are immutable.
+func (s *Service) captureQueuedSelection(ctx context.Context, repo, dir string, paths []string, source v1.WorktreeSelectionSource) (Captured, string, error) {
+	var captured Captured
+	var err error
+	switch source {
+	case v1.WorktreeSelectionSource_WORKTREE_SELECTION_SOURCE_INDEX_TO_WORKTREE:
+		captured, err = captureWorktreeSnapshot(ctx, repo, dir, paths, s.now)
+	case v1.WorktreeSelectionSource_WORKTREE_SELECTION_SOURCE_HEAD_TO_INDEX:
+		captured, err = s.captureSelectedStaged(ctx, repo, dir, paths, true)
+	default:
+		return Captured{}, "", fmt.Errorf("selection source is required")
+	}
+	if err != nil {
+		return Captured{}, "", err
+	}
+	if len(captured.Snapshot.Files) == 0 {
+		return Captured{}, "", fmt.Errorf("selected snapshot is empty")
+	}
+	digest, err := queuedSnapshotDigest(captured.Snapshot)
+	if err != nil {
+		return Captured{}, "", err
+	}
+	captured.Snapshot.Digest = digest
+	var current Captured
+	if source == v1.WorktreeSelectionSource_WORKTREE_SELECTION_SOURCE_HEAD_TO_INDEX {
+		// The second pass only confirms the exact index identities. The first
+		// capture already has the immutable bytes, so do not reread every blob.
+		current, err = s.captureSelectedStaged(ctx, repo, dir, paths, false)
+	} else {
+		current, err = captureWorktreeSnapshot(ctx, repo, dir, paths, s.now)
+	}
+	if err != nil {
+		return Captured{}, "", err
+	}
+	currentDigest, err := queuedSnapshotDigest(current.Snapshot)
+	if err != nil {
+		return Captured{}, "", err
+	}
+	if currentDigest != digest {
+		return Captured{}, "", fmt.Errorf("%w: selected content changed during queue capture", ErrConflict)
+	}
+	return captured, digest, nil
 }
 
 func (s *Service) captureSelectedStaged(ctx context.Context, repo, dir string, paths []string, captureContent bool) (Captured, error) {

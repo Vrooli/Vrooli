@@ -78,6 +78,10 @@ export function useMessageSuggestions(repo: string, statusVersion: number, updat
     },
     enabled: Boolean(session.jobID || session.requestKey) && action !== "start",
     retry: false,
+    // A transient owner error on an active job used to freeze the status
+    // panel until the operator clicked Reconnect. Keep re-reading so a clear
+    // arrives on its own; the manual control remains for a real outage.
+    refetchInterval: (query) => query.state.data?.error && isMessageJobActive(query.state.data?.status) ? 4000 : false,
     staleTime: Infinity,
     refetchOnWindowFocus: false,
   });

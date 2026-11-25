@@ -28,6 +28,7 @@ import { createCommit } from "../../lib/api";
 import { CreateCommitResponseSchema } from "@vrooli/proto-types/git-control-tower/v1/repo/repo_pb";
 import { cancelMessageJob, checkMessage, collectMessage, getMessageJob, getMessageProviderReadiness, retryMessage, startMessage, waitMessageJob } from "./api";
 import { cancelPrecommitCandidateCheck, getPrecommitCandidateCheck, precommitChecksEnabled, startPrecommitCandidateCheck } from "./precommitCandidateApi";
+import type { QueuedStageSelection } from "./stageQueue";
 
 vi.mock("../../lib/api", async importOriginal => ({ ...await importOriginal<typeof import("../../lib/api")>(), createCommit: vi.fn() }));
 
@@ -39,9 +40,9 @@ const suggestion = () => create(StagedMessageSuggestionSchema, { id: "suggestion
 const collection = (withMessage = true) => create(StagedMessageCollectionSchema, { id: "collection-1", snapshot, status: withMessage ? "partial" : "no_suggestions", suggestions: withMessage ? [suggestion()] : [], contexts: [{ id: "context-1", title: "Matching saved work", kind: "proposal", detail: "Retained content matches api/source.go", matchedPaths: ["api/source.go"], status: "available" }] });
 const job = (status = "running") => create(StagedMessageJobSchema, { id: "job-1", executionId: "owner-1", repositoryId: "repo-1", snapshotDigest: snapshot.digest, snapshot, status, applicable: true, createdAt: new Date().toISOString(), phase: "Reading staged changes", ...(status === "succeeded" ? { result: suggestion() } : {}) });
 
-function Harness({ initial = "", version = 1, count = 2, pending = false, repo = "repo-1", continuation, staged, onUnstage, onQueueStagedExtras }: { initial?: string; version?: number; count?: number; pending?: boolean; repo?: string; continuation?: string; staged?: string[]; onUnstage?: (paths: string[]) => Promise<void>; onQueueStagedExtras?: (paths: string[]) => Promise<boolean> }) {
+function Harness({ initial = "", version = 1, count = 2, pending = false, repo = "repo-1", continuation, staged, onUnstage, onQueueStagedExtras, queuedGroups, onShowQueue, onStartQueuedSuggestion }: { initial?: string; version?: number; count?: number; pending?: boolean; repo?: string; continuation?: string; staged?: string[]; onUnstage?: (paths: string[]) => Promise<void>; onQueueStagedExtras?: (paths: string[]) => Promise<boolean>; queuedGroups?: QueuedStageSelection[]; onShowQueue?: () => void; onStartQueuedSuggestion?: (selection: QueuedStageSelection, mode: StagedMessageMode) => void }) {
   const [message, setMessage] = useState(initial);
-  return <><CommitMessageComposer key={repo} value={message} onChange={setMessage} repoId={repo} stagedCount={count} statusVersion={version} updatingIndex={pending} disabled={false} amend={false} stagedPaths={staged} onUnstage={onUnstage} onQueueStagedExtras={onQueueStagedExtras} />{continuation && <button onClick={() => setMessage(current => mergeContinuationMessage(current, continuation))}>Continue from history</button>}<output data-testid="serialized-message">{message}</output></>;
+  return <><CommitMessageComposer key={repo} value={message} onChange={setMessage} repoId={repo} stagedCount={count} statusVersion={version} updatingIndex={pending} disabled={false} amend={false} stagedPaths={staged} onUnstage={onUnstage} onQueueStagedExtras={onQueueStagedExtras} queuedGroups={queuedGroups} onShowQueue={onShowQueue} onStartQueuedSuggestion={onStartQueuedSuggestion} />{continuation && <button onClick={() => setMessage(current => mergeContinuationMessage(current, continuation))}>Continue from history</button>}<output data-testid="serialized-message">{message}</output></>;
 }
 function reviewEvidence() {
   const summary = screen.getByText("Review evidence");
@@ -115,6 +116,18 @@ describe("staged commit message composer", () => {
     expect(startPrecommitCandidateCheck).toHaveBeenCalledTimes(2);
     expect(startPrecommitCandidateCheck).toHaveBeenNthCalledWith(1, "repo-1", false);
     expect(startPrecommitCandidateCheck).toHaveBeenNthCalledWith(2, "repo-1", true);
+  });
+
+  it("names the failing command and shows its output instead of a bare failure", async () => {
+    vi.mocked(precommitChecksEnabled).mockResolvedValue(true);
+    vi.mocked(startPrecommitCandidateCheck).mockResolvedValue({ jobId: "check-fail", state: "failed", candidateDigest: "candidate-1", configDigest: "config-1", result: { status: "failed", command: "pnpm test", exitCode: 1, summary: "2 tests failed", stderr: "FAIL src/a.test.ts\nAssertionError: expected 1" } } as never);
+    renderWithProviders(<Harness />);
+    const status = await screen.findByTestId("precommit-candidate-status");
+    expect(status).toHaveTextContent("2 tests failed");
+    expect(status).toHaveTextContent("pnpm test");
+    expect(status).toHaveTextContent("exit 1");
+    expect(status).toHaveTextContent("AssertionError: expected 1");
+    expect(screen.getByText("Check output")).toBeInTheDocument();
   });
 
   it("requests a fresh candidate check after the staged selection changes", async () => {
@@ -1133,6 +1146,30 @@ describe("staged commit message composer", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(recovery);
     expect(screen.getByRole("alert")).toHaveTextContent("no replacement was started");
     expect(startMessage).not.toHaveBeenCalled();
+  });
+
+  it("turns an unstartable queue banner into a way to view the queue", async () => {
+    const onShowQueue = vi.fn();
+    const group: QueuedStageSelection = { id: "g1", paths: ["api/source.go"], queuedAt: "now", state: "queued", jobId: "job-1" };
+    renderWithProviders(<Harness queuedGroups={[group]} onShowQueue={onShowQueue} />);
+    await gathered();
+    const banner = screen.getByTestId("dialog-queued-next");
+    expect(banner).toHaveTextContent("View queue");
+    fireEvent.click(banner);
+    expect(onShowQueue).toHaveBeenCalled();
+  });
+
+  it("starts the next startable queued group from the dialog banner", async () => {
+    const onShowQueue = vi.fn();
+    const startQueued = vi.fn();
+    const group: QueuedStageSelection = { id: "g2", paths: ["api/source.go", "ui/view.tsx"], queuedAt: "now", state: "queued" };
+    renderWithProviders(<Harness queuedGroups={[group]} onShowQueue={onShowQueue} onStartQueuedSuggestion={startQueued} />);
+    await gathered();
+    const banner = screen.getByTestId("dialog-queued-next");
+    expect(banner).toHaveTextContent("Start next group");
+    fireEvent.click(banner);
+    expect(startQueued).toHaveBeenCalledWith(group, StagedMessageMode.QUICK);
+    expect(onShowQueue).not.toHaveBeenCalled();
   });
 
   it("offers to queue already staged extras as a separate suggestion", async () => {

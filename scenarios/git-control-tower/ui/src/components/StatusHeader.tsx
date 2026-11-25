@@ -1,5 +1,6 @@
 import {
   ClipboardCheck,
+  Move,
   Share2,
   RefreshCw,
   Search,
@@ -29,6 +30,9 @@ interface StatusHeaderProps {
   isLoading: boolean;
   onRefresh: () => void;
   onOpenSettings: () => void;
+  /** Desktop only: enter the temporary mode that shows pane drag grips. */
+  paneDragEnabled?: boolean;
+  onTogglePaneDrag?: () => void;
   /** Actionable repository-health findings; drives the settings badge. */
   healthIssueCount?: number;
   onOpenUpstreamInfo?: () => void;
@@ -58,6 +62,8 @@ export function StatusHeader({
   isLoading,
   onRefresh,
   onOpenSettings,
+  paneDragEnabled,
+  onTogglePaneDrag,
   healthIssueCount,
   onOpenUpstreamInfo,
   onOpenFileSearch,
@@ -157,6 +163,18 @@ export function StatusHeader({
         >
           <Search className="h-4 w-4 text-slate-400" />
         </IconButton>
+
+        {onTogglePaneDrag && (
+          <IconButton
+            onClick={onTogglePaneDrag}
+            aria-label={paneDragEnabled ? "Finish rearranging panes" : "Rearrange panes"}
+            aria-pressed={paneDragEnabled}
+            title={paneDragEnabled ? "Finish rearranging panes (Esc)" : "Rearrange panes"}
+            data-testid="pane-rearrange-button"
+          >
+            <Move className={`h-4 w-4 ${paneDragEnabled ? "text-cyan-300" : "text-slate-400"}`} />
+          </IconButton>
+        )}
 
         <IconButton
           onClick={onOpenSettings}

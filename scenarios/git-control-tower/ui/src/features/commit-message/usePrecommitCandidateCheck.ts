@@ -28,7 +28,13 @@ function saveJob(repositoryId: string, jobId: string): void {
   }
 }
 
-export function usePrecommitCandidateCheck(repositoryId: string, enabled: boolean, statusVersion: number, updatingIndex: boolean, hasCandidate: boolean) {
+/**
+ * `statusVersion` must identify the staged candidate, not the repository's
+ * poll counter. A status poll every few seconds used to abort and restart the
+ * check, making the result flap between states and re-emitting an error banner
+ * that had not changed.
+ */
+export function usePrecommitCandidateCheck(repositoryId: string, enabled: boolean, statusVersion: number | string, updatingIndex: boolean, hasCandidate: boolean) {
   const [view, setView] = useState<ViewState>({ state: "idle" });
   const sequence = useRef(0);
   const retrying = useRef(false);
