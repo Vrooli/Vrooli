@@ -64,7 +64,7 @@
         },
         {
           "name": "composition",
-          "description": "Describe source-backed production and test dependency bindings; unique top-level locals initialized directly by T{} or &T{} and zero-argument same-package functions with one direct literal return retain provenance, while parameterized, conditional, and dynamic forms remain unknown",
+          "description": "Describe source-backed production and test dependency bindings; unique top-level locals initialized directly by T{} or &T{} and zero-argument same-package functions with one direct literal return retain provenance. Control-plane CLI composition also reports literal aliases, summaries, visibility/suggestability flags and root-policy fields; callbacks are not evaluated. CLI schemas resolve unique local direct-return helpers and bounded straight-line local schema builders with literal string arguments; conditional, dynamic, and unsupported builders remain UNKNOWN",
           "architecture": {"primitive": "proto_list"},
           "positionals": [{"name": "target", "required": true, "description": "Target path, scenario:<name>, project:<repo-root>, repo:<repo-root>, package:<name>, or control-plane:<repo-root>", "bind_waiver": "The CLI target syntax is intentionally parsed into CodeTarget by the handler."}],
           "binding": {"kind": "connect-rpc", "service": "CodeFactsService", "method": "DescribeComposition"},

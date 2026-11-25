@@ -224,7 +224,7 @@
       "type": "code",
       "class": "local_live",
       "scope": "SCOPE_PROJECT",
-      "description": "Source-backed control-plane CLI composition: top-level command specs joined to explicit root handler registrations, supported nested command-spec tables joined to direct keyed registrations, and main-level conditional early-dispatch call sites. Unsupported table forms degrade to UNKNOWN; predicates and runtime dispatch remain unknown.",
+      "description": "Source-backed control-plane CLI composition: top-level command specs joined to explicit root handler registrations, supported nested command-spec tables joined to direct keyed registrations, and main-level conditional early-dispatch call sites. Command summaries, aliases, hidden/suggestable flags, and literal root-policy fields are reported from source; computed fields and root-policy callbacks remain UNKNOWN or unevaluated. Literal argument schemas are summarized from direct ArgSchema values, unique same-package helpers with one direct literal return, and bounded straight-line builders that initialize one local schema then append literal options or positionals; helper source path/hash provenance is retained. Conditional, dynamic, ambiguous and unsupported builders remain UNKNOWN/PARTIAL; parser execution and runtime dispatch remain unverified.",
       "routing_profile": {
         "answer_spaces": ["cli_composition", "command_handler_wiring", "project_cli_anatomy"],
         "intents": ["explain", "locate", "identify_ownership", "verify_conformance"],
@@ -233,6 +233,7 @@
           "show the top-level control-plane command and handler composition",
           "which handler implements the vrooli scenario command",
           "show vrooli resource archive gc handler registration",
+          "what positional arguments does vrooli resource info accept",
           "which capacity disk reserve handler is registered",
           "how is the capacity residency handler assigned",
           "how does package build map to its handler",
@@ -306,7 +307,7 @@
       "type": "code",
       "class": "local_live",
       "scope": "SCOPE_PROJECT",
-      "description": "Bounded Go source call-site paths from one Code Facts subdirectory, capped at five results and three edges. Each step carries caller source path/line/graph hash and, when the callee symbol resolves, target source path/graph hash; unresolved symbols and per-step resolution are explicit. DERIVED/PARTIAL source evidence does not prove execution, complete flow, or runtime reachability.",
+      "description": "Query-ranked bounded Go source call-site paths from one Code Facts subdirectory, capped at 20 start functions, eight call sites per function, eight paths per start, five results, and three edges. Distinct branches from one start use stable call-site IDs; branch expansion and response omissions are explicit. Each step carries call-site ID, caller source path/line/graph hash and, when the callee symbol resolves, target source path/graph hash; unresolved symbols and per-step resolution are explicit. DERIVED/PARTIAL source evidence does not prove execution, complete flow, or runtime reachability.",
       "routing_profile": {
         "answer_spaces": ["feature_flow", "source_call_path", "control_data_flow"],
         "intents": ["explain", "locate", "identify_ownership", "verify_conformance"],
@@ -341,7 +342,7 @@
         "locations_field": "paths",
         "attestation_field": "attestation",
         "score_scale": "SCORE_SCALE_RAW",
-        "metadata_fields": {"graph_hash": "graph_hash"}
+        "metadata_fields": {"graph_hash": "graph_hash", "branch_truncated": "branch_truncated", "depth_limited": "depth_limited"}
       },
       "tuning": {"engine": "lexical", "floor": {"hard_floor": 0, "max_gap": 0}},
       "performance": {"p95_ms": 3000, "minimum_samples": 1, "telemetry_required": false},

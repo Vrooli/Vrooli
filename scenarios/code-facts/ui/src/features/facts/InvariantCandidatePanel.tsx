@@ -1,7 +1,8 @@
 import { FormEvent, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import type { SearchInvariantCandidatesResponse } from "@vrooli/proto-types/code-facts/v1/facts/facts_pb";
 
-import { searchInvariantCandidates } from "../../api/invariantCandidates";
+import { matchInvariantCandidateReceipt, searchInvariantCandidates } from "../../api/invariantCandidates";
 
 const UNKNOWN_LAYERS = ["Type", "Database", "Test", "Runtime"] as const;
 
@@ -45,7 +46,7 @@ export function InvariantCandidatePanel() {
       {response && <div className="mt-4 space-y-3">
         <p className="text-xs text-app-muted-foreground">Scope: scenario {response.scenario}; {response.scope}; result limit 10.</p>
         <p className="rounded-md border border-app-border p-2 text-xs text-app-muted-foreground">
-          Test Genie verification identity: UNKNOWN. This candidate API has no durable requirement ID, run ID, or observed source identity joined to a candidate. Requirement status and test-shaped source are not a run receipt.
+          Test Genie can check one receipt you provide against the candidate's exact source identity. UNKNOWN or unavailable stays explicit; a source identity match does not prove invariant enforcement or requirement/test-tag identity.
         </p>
         {response.results.length === 0 && <p>No candidate pattern matched in this bounded source scan. This does not establish that an invariant is absent.</p>}
         {response.results.map((candidate) => <article key={candidate.id} className="rounded-md border border-app-border p-3">
@@ -53,7 +54,7 @@ export function InvariantCandidatePanel() {
           <p className="mt-1 text-sm">{candidate.text}</p>
           <p className="mt-1 text-xs text-app-muted-foreground">Candidate mechanism: {candidate.evidenceKind} · {candidate.attestation}</p>
           <p className="mt-1 break-all font-mono text-xs text-app-muted-foreground">Candidate identity: record {candidate.id} · source observation {candidate.scenario}/{candidate.path}:{candidate.line} · file SHA-256 {candidate.sha256}</p>
-          <p className="mt-1 text-xs text-app-muted-foreground">Verification identity: UNKNOWN · no exact Test Genie requirement/run receipt or matching observed source identity is attached to this candidate.</p>
+          <CandidateReceiptMatch candidate={candidate} />
           <dl className="mt-3 grid gap-1 text-xs sm:grid-cols-2">
             {UNKNOWN_LAYERS.map((layer) => <div key={layer} className="flex gap-2"><dt>{layer} enforcement:</dt><dd className="font-semibold">UNKNOWN</dd></div>)}
           </dl>
@@ -62,5 +63,43 @@ export function InvariantCandidatePanel() {
         {response.degradations.map((item, index) => <p key={`${item.code}:${index}`} role="status" className="text-sm text-app-muted-foreground">Partial source evidence · {item.code}: {item.message}</p>)}
       </div>}
     </section>
+  );
+}
+
+function CandidateReceiptMatch({ candidate }: { candidate: SearchInvariantCandidatesResponse["results"][number] }) {
+  const [receiptId, setReceiptId] = useState("");
+  const match = useMutation({
+    mutationFn: () => matchInvariantCandidateReceipt(receiptId.trim(), {
+      candidateId: candidate.id,
+      scenario: candidate.scenario,
+      relativePath: candidate.path,
+      sourceLine: candidate.line,
+      sourceFileSha256: candidate.sha256,
+    }),
+  });
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (receiptId.trim()) match.mutate();
+  }
+
+  return (
+    <div className="mt-3 space-y-2">
+      <form className="flex flex-wrap items-end gap-2" onSubmit={submit}>
+        <label className="flex min-w-64 flex-1 flex-col gap-1 text-xs text-app-muted-foreground">
+          Test Genie receipt ID
+          <input aria-label={`Test Genie receipt ID for ${candidate.id}`} value={receiptId} onChange={(event) => setReceiptId(event.target.value)} maxLength={256} className="rounded-md border border-app-border bg-app-background px-3 py-2 font-mono text-xs" />
+        </label>
+        <button type="submit" disabled={match.isPending || !receiptId.trim()} className="rounded-md border border-app-border px-3 py-2 text-xs font-semibold">
+          {match.isPending ? "Checking receipt…" : "Check exact receipt"}
+        </button>
+      </form>
+      {match.error && <p role="alert" className="text-xs text-app-danger">Receipt verification unavailable: {match.error.message}</p>}
+      {match.data && <p role="status" className="text-xs text-app-muted-foreground">
+        {match.data.status === "EXACT_MATCH"
+          ? "EXACT_MATCH: this candidate's source identity is bound to a successful receipt. This does not prove invariant enforcement or a requirement/test-tag match."
+          : `UNKNOWN: ${match.data.reason || "the owner could not verify an exact successful receipt match"}.`}
+      </p>}
+    </div>
   );
 }

@@ -491,6 +491,7 @@ func TestProductionIndexSearchReturnsScenarioScopedGoImportEdges(t *testing.T) {
 	const sourcePath = "scenarios/demo/api/server.go"
 	writeProductionFixture(t, repoRoot, sourcePath, "package api\nimport (\n\t\"errors\"\n\t\"context\"\n)\nfunc Serve(context.Context) error { return errors.New(\"x\") }\n")
 	writeProductionFixture(t, repoRoot, "scenarios/other/api/server.go", "package api\nimport \"context\"\n")
+	writeProductionFixture(t, repoRoot, "scenarios/demo/ui/src/App.tsx", "import React from 'react';\nexport { Button } from '../Button';\n")
 	writeProductionFixture(t, repoRoot, "packages/proto/gen/descriptor/image.binpb", "descriptor-image")
 	runGit(t, repoRoot, "init", "--quiet")
 	runGit(t, repoRoot, "add", ".")
@@ -541,6 +542,19 @@ func TestProductionIndexSearchReturnsScenarioScopedGoImportEdges(t *testing.T) {
 	hit := response.GetResults()[0]
 	if hit.GetPath() != sourcePath || hit.GetFactKind() != "imports" || hit.GetStartLine() != 4 || hit.GetEndLine() != 4 || hit.GetSourceHash() == "" || hit.GetGeneration() != job.Generation || hit.GetScope() != "scenario:demo" {
 		t.Fatalf("import edge provenance = %+v", hit)
+	}
+
+	tsResponse, err := index.Search(context.Background(), &factsv1.SearchRequest{
+		Query: "react", Limit: 5, Families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS},
+		Languages: []string{"typescript"}, Scope: "scenario:demo",
+		Target: &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_SCENARIO, Scenario: "demo"},
+	})
+	if err != nil || len(tsResponse.GetResults()) != 1 {
+		t.Fatalf("scoped TypeScript import response=%+v err=%v", tsResponse, err)
+	}
+	tsHit := tsResponse.GetResults()[0]
+	if tsHit.GetPath() != "scenarios/demo/ui/src/App.tsx" || tsHit.GetFactKind() != "imports" || tsHit.GetStartLine() != 1 || tsHit.GetSourceHash() == "" || tsHit.GetGeneration() != job.Generation || tsHit.GetScope() != "scenario:demo" {
+		t.Fatalf("TypeScript import edge provenance = %+v", tsHit)
 	}
 
 	for _, request := range []*factsv1.SearchRequest{

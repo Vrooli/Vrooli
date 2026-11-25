@@ -102,6 +102,23 @@
       ]
     },
     {
+      "id": "facts_candidate_receipt_match",
+      "path": "/api/v1/invariants/candidate-receipt-match",
+      "method": "POST",
+      "summary": "Check one invariant candidate against one durable Test Genie receipt",
+      "description": "Calls Test Genie's owner check for one caller-selected receipt and exact Code Facts candidate identity. EXACT_MATCH confirms the source observation is bound to a successful receipt; UNKNOWN preserves missing, legacy, mismatched, changed, or unavailable evidence. It does not establish invariant enforcement or requirement/test-tag identity. Service errors remain unavailable rather than zero-result.",
+      "category": "facts",
+      "request": {"type":"object","properties":{"receiptId":"one durable Test Genie receipt ID","candidate":"exact Code Facts candidate ID, scenario, relativePath, sourceLine, and sourceFileSha256"}},
+      "response": {"type":"object","properties":{"status":"EXACT_MATCH | UNKNOWN","receiptId":"owner receipt ID","candidate":"candidate source identity","reason":"owner explanation"}},
+      "errors": [
+        {"status":400,"code":"invalid_argument","description":"Receipt or candidate reference is incomplete or rejected by Test Genie"},
+        {"status":503,"code":"unavailable","description":"Test Genie could not be resolved or returned no usable response"}
+      ],
+      "examples": [
+        {"name":"Verify one source candidate against a receipt","curl":"curl http://localhost:${API_PORT}/api/v1/invariants/candidate-receipt-match -H 'Content-Type: application/json' -d '{\"receiptId\":\"receipt-id\",\"candidate\":{\"candidateId\":\"code-facts:invariant-candidate:demo:runtime_guard:api/server.go\",\"scenario\":\"demo\",\"relativePath\":\"api/server.go\",\"sourceLine\":42,\"sourceFileSha256\":\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"}}'"}
+      ]
+    },
+    {
       "id": "facts_surfaces",
       "path": "/vrooli.code_facts.v1.facts.CodeFactsService/ListSurfaces",
       "method": "POST",

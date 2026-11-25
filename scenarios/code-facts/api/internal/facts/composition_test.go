@@ -296,8 +296,10 @@ func TestDescribeControlPlaneCLICompositionReportsRegisteredCommandHandlers(t *t
 	}
 	var resource *CompositionBinding
 	var argsBinding *CompositionBinding
+	var resourceInfoArgs, resourceStartArgs, conditionalResourceArgs *CompositionBinding
 	registryFound, dispatchFound, earlyDispatchFound := false, false, false
 	nestedBoundaryFound := false
+	nestedResourceMetadata := ""
 	nestedFound := map[string]bool{}
 	for i := range report.Bindings {
 		if report.Bindings[i].Dependency == "resource" {
@@ -305,6 +307,14 @@ func TestDescribeControlPlaneCLICompositionReportsRegisteredCommandHandlers(t *t
 		}
 		if report.Bindings[i].Dependency == "supervision-set" {
 			argsBinding = &report.Bindings[i]
+		}
+		switch report.Bindings[i].Dependency {
+		case "resource:info":
+			resourceInfoArgs = &report.Bindings[i]
+		case "resource:start":
+			resourceStartArgs = &report.Bindings[i]
+		case "resource:n8n:runtime:execute-workflow":
+			conditionalResourceArgs = &report.Bindings[i]
 		}
 		registryFound = registryFound || report.Bindings[i].Dependency == "command registry"
 		dispatchFound = dispatchFound || report.Bindings[i].Dependency == "normal CLI dispatch"
@@ -318,6 +328,9 @@ func TestDescribeControlPlaneCLICompositionReportsRegisteredCommandHandlers(t *t
 		switch report.Bindings[i].Dependency {
 		case "resource:archive", "resource:archive:gc", "resource:n8n:runtime", "resource:n8n:runtime:import-workflow", "package:build", "capacity:disk-reserve", "capacity:residency", "auth:status":
 			nestedFound[report.Bindings[i].Dependency] = report.Bindings[i].Status == "concrete" && report.Bindings[i].SourcePath != "" && report.Bindings[i].Line > 0 && len(report.Bindings[i].SourceHash) == 64
+			if report.Bindings[i].Dependency == "resource:archive" {
+				nestedResourceMetadata = report.Bindings[i].ProviderExpression
+			}
 		}
 	}
 	if resource == nil {
@@ -329,8 +342,23 @@ func TestDescribeControlPlaneCLICompositionReportsRegisteredCommandHandlers(t *t
 	if resource.SourcePath != "internal/cli/vroolicli/app.go" || resource.Line < 1 || len(resource.SourceHash) != 64 {
 		t.Fatalf("command binding lacks source provenance: %#v", resource)
 	}
-	if argsBinding == nil || !strings.Contains(argsBinding.ProviderExpression, "Args declaration DECLARED_UNEVALUATED") || !strings.Contains(argsBinding.ProviderExpression, "commandtree.ArgSchema") || !strings.Contains(argsBinding.Provenance, "topcli/topcli.go:") {
+	if !strings.Contains(resource.ProviderExpression, `Summary=STATIC_LITERAL("Manage local resources and dependency services")`) || !strings.Contains(resource.ProviderExpression, "Suggestable=STATIC_LITERAL(true)") || !strings.Contains(resource.ProviderExpression, "RequiresRoot=STATIC_LITERAL(true)") || !strings.Contains(resource.ProviderExpression, "CanRunWithoutRoot=DECLARED_UNEVALUATED(ListOrHelpWithoutRoot)") {
+		t.Fatalf("top-level command declaration metadata missing or over-evaluated: %#v", resource)
+	}
+	if !strings.Contains(nestedResourceMetadata, `Summary=STATIC_LITERAL("Manage resource archive maintenance")`) || !strings.Contains(nestedResourceMetadata, "Suggestable=NOT_DECLARED") {
+		t.Fatalf("nested resource command metadata missing: %q", nestedResourceMetadata)
+	}
+	if argsBinding == nil || !strings.Contains(argsBinding.ProviderExpression, "Args declaration DECLARED_UNEVALUATED") || !strings.Contains(argsBinding.ProviderExpression, "schema declaration PARTIAL") || !strings.Contains(argsBinding.ProviderExpression, "commandtree.ArgSchema") || !strings.Contains(argsBinding.Provenance, "topcli/topcli.go:") {
 		t.Fatalf("top-level Args declaration lacks expression/provenance: %#v", argsBinding)
+	}
+	if resourceInfoArgs == nil || !strings.Contains(resourceInfoArgs.ProviderExpression, `schema declaration STATIC_SCHEMA_EXACT at internal/cli/resourcecli/commands.go:`) || !strings.Contains(resourceInfoArgs.ProviderExpression, `name(required=true`) {
+		t.Fatalf("helper-derived resource info schema lacks exact source provenance: %#v", resourceInfoArgs)
+	}
+	if resourceStartArgs == nil || !strings.Contains(resourceStartArgs.ProviderExpression, `schema declaration STATIC_SCHEMA_EXACT at internal/cli/resourcecli/commands.go:`) || !strings.Contains(resourceStartArgs.ProviderExpression, `--no-reclaim`) || !strings.Contains(resourceStartArgs.ProviderExpression, `--capacity-claim-id`) || !strings.Contains(resourceStartArgs.ProviderExpression, `--capacity-claim-min-bytes`) || !strings.Contains(resourceStartArgs.ProviderExpression, "helper sources: internal/cli/resourcecli/commands.go:") {
+		t.Fatalf("straight-line resource start builder schema lacks exact fields/provenance: %#v", resourceStartArgs)
+	}
+	if conditionalResourceArgs == nil || !strings.Contains(conditionalResourceArgs.ProviderExpression, "schema declaration UNKNOWN") || !strings.Contains(conditionalResourceArgs.ProviderExpression, "local Args helper arguments must be string literals") {
+		t.Fatalf("boolean/conditional resource helper should remain UNKNOWN: %#v", conditionalResourceArgs)
 	}
 	if !strings.Contains(report.AnalysisScope, "unsupported forms degrade to UNKNOWN") || !strings.Contains(report.AnalysisScope, "nested/runtime argument dispatch and execution are not analyzed") {
 		t.Fatalf("missing analysis boundary: %q", report.AnalysisScope)
@@ -345,6 +373,27 @@ func TestDescribeControlPlaneCLICompositionReportsRegisteredCommandHandlers(t *t
 		if !nestedFound[dependency] {
 			t.Fatalf("missing nested/direct group evidence with provenance for %q: %#v", dependency, report.Bindings)
 		}
+	}
+}
+
+func TestCLICommandMetadataKeepsDynamicAndUndeclaredFieldsExplicit(t *testing.T) {
+	const source = `package sample
+var specs = []Spec{{Name: "probe", Summary: "static summary", Aliases: []string{"p"}, Hidden: hidden, Suggestable: true, RootPolicy: RootPolicy{RequiresRoot: rootRequired, CanRunWithoutRoot: allowed}}}
+`
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "commands.go", source, parser.AllErrors)
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := file.Decls[0].(*ast.GenDecl).Specs[0].(*ast.ValueSpec).Values[0].(*ast.CompositeLit).Elts[0].(*ast.CompositeLit)
+	evidence := cliReadCommandMetadata(row.Elts, fset)
+	for _, want := range []string{`Summary=STATIC_LITERAL("static summary")`, `Aliases=STATIC_LITERAL(["p"])`, `Hidden=UNKNOWN_DYNAMIC`, `Suggestable=STATIC_LITERAL(true)`, `RequiresRoot=UNKNOWN_DYNAMIC`, `CanRunWithoutRoot=DECLARED_UNEVALUATED(allowed)`} {
+		if !strings.Contains(evidence, want) {
+			t.Errorf("metadata evidence %q missing %q", evidence, want)
+		}
+	}
+	if !strings.Contains(evidence, "RootPolicy{") {
+		t.Fatalf("root policy metadata missing: %s", evidence)
 	}
 }
 
@@ -379,6 +428,7 @@ func TestNestedCommandSpecsPreserveArgsExpressionWithoutEvaluation(t *testing.T)
 func CommandSpecs() []Spec {
 	return []Spec{{Name: "probe", Handler: Probe, Args: probeArgs()}}
 }
+
 `
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, "commands.go", source, parser.AllErrors)
@@ -392,13 +442,89 @@ func CommandSpecs() []Spec {
 	}
 	specs[0].argsPath, specs[0].argsHash = "internal/cli/sample/commands.go", strings.Repeat("a", 64)
 	row := cliArgsEvidence(specs[0])
-	if !strings.Contains(row, "probeArgs()") || !strings.Contains(row, "commands.go:") || !strings.Contains(row, "runtime parsing and acceptance behavior unknown") {
+	if !strings.Contains(row, "probeArgs()") || !strings.Contains(row, "commands.go:") || !strings.Contains(row, "schema fields UNKNOWN") || !strings.Contains(row, "parser execution and runtime acceptance were not observed") {
 		t.Fatalf("nested Args evidence lost source identity or runtime boundary: %q", row)
 	}
 	table := &cliNestedTable{function: "CommandSpecs", specName: "CommandSpecs", specs: specs, specPath: specs[0].argsPath, specHash: specs[0].argsHash, registries: map[string][]cliNestedRegistration{"Probe": {{key: "Probe", expr: ast.NewIdent("runProbe")}}}}
 	rows := cliRenderNestedTables("sample", []*cliNestedTable{table}, nil, cliPackageFunction{})
 	if len(rows) != 1 || !strings.Contains(rows[0].ProviderExpression, "probeArgs()") || !strings.Contains(rows[0].Provenance, "commands.go:") {
 		t.Fatalf("nested rendered binding lost Args declaration provenance: %#v", rows)
+	}
+}
+
+func TestCLIArgsSchemaReportsOnlyExactLiteralSemantics(t *testing.T) {
+	const source = `package sample
+import "github.com/vrooli/vrooli/internal/cli/commandtree"
+type ArgSchema struct { Positionals []PositionalArg; Options []OptionArg }
+type PositionalArg struct { Name string; Required, Repeatable bool }
+type OptionArg struct { Name string; Aliases []string; ValueName string; Repeatable bool }
+`
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "args.go", source, parser.AllErrors)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state, summary, line := cliResolveArgsSchema("commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: \"path\", Required: true}}, Options: []commandtree.OptionArg{{Name: \"--format\", Aliases: []string{\"-f\"}, ValueName: \"kind\"}}}", file, fset)
+	if state != "STATIC_SCHEMA_EXACT" || line < 1 || !strings.Contains(summary, "positionals=1..1") || !strings.Contains(summary, "path(required=true,repeatable=false; description=\"\")") || !strings.Contains(summary, "option[--format|-f](value=\"kind\",repeatable=false; description=\"\")") {
+		t.Fatalf("exact literal schema not summarized: state=%s summary=%q line=%d", state, summary, line)
+	}
+	state, _, _ = cliResolveArgsSchema("probeArgs()", file, fset)
+	if state != "UNKNOWN" {
+		t.Fatalf("helper call must stay UNKNOWN, got %q", state)
+	}
+	state, summary, _ = cliResolveArgsSchema("commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: \"--same\"}, {Name: \"--same\"}}}", file, fset)
+	if state != "AMBIGUOUS" || !strings.Contains(summary, "duplicate option spelling") {
+		t.Fatalf("duplicate option did not fail closed: %s %q", state, summary)
+	}
+	state, _, _ = cliResolveArgsSchema("commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: \"tail\", Repeatable:true}, {Name: \"next\"}}}", file, fset)
+	if state != "INVALID" {
+		t.Fatalf("non-final repeatable positional not rejected: %q", state)
+	}
+}
+
+func TestCLIArgsSchemaResolvesOnlyUniqueDirectLocalHelpers(t *testing.T) {
+	const source = `package resourcecli
+import "github.com/vrooli/vrooli/internal/cli/commandtree"
+func nameArgSchema(name string) commandtree.ArgSchema {
+	return commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: name, Required: true}}}
+}
+func runtimeArgs() commandtree.ArgSchema {
+	return commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--sandbox-id", ValueName: "uuid"}}}
+}
+func conditionalArgs(include bool) commandtree.ArgSchema {
+	if include { return commandtree.ArgSchema{} }
+	return commandtree.ArgSchema{}
+}
+func assignedArgs() commandtree.ArgSchema {
+	args := commandtree.ArgSchema{}
+	return args
+}
+`
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "commands.go", source, parser.AllErrors)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unit := cliSourceUnit{path: "internal/cli/resourcecli/commands.go", fset: fset, file: file, hash: "helper-sha"}
+
+	resolved := cliResolveArgsSchemaInPackage(`nameArgSchema("scenario")`, unit, []cliSourceUnit{unit})
+	if resolved.state != "STATIC_SCHEMA_EXACT" || resolved.path != unit.path || resolved.hash != unit.hash || resolved.line < 1 || !strings.Contains(resolved.summary, "scenario(required=true") {
+		t.Fatalf("literal direct-return helper lost substituted schema provenance: %+v", resolved)
+	}
+	noArgs := cliResolveArgsSchemaInPackage("runtimeArgs()", unit, []cliSourceUnit{unit})
+	if noArgs.state != "STATIC_SCHEMA_EXACT" || !strings.Contains(noArgs.summary, "--sandbox-id") {
+		t.Fatalf("zero-arg direct-return helper not summarized: %+v", noArgs)
+	}
+	for _, expression := range []string{"conditionalArgs(true)", "assignedArgs()", "nameArgSchema(name)"} {
+		got := cliResolveArgsSchemaInPackage(expression, unit, []cliSourceUnit{unit})
+		if got.state != "UNKNOWN" {
+			t.Errorf("unsupported helper %s state = %s, want UNKNOWN (%s)", expression, got.state, got.summary)
+		}
+	}
+	duplicate := cliSourceUnit{path: "other.go", fset: fset, file: file, hash: "other-sha"}
+	got := cliResolveArgsSchemaInPackage(`runtimeArgs()`, unit, []cliSourceUnit{unit, duplicate})
+	if got.state != "AMBIGUOUS" {
+		t.Fatalf("duplicate helper declaration state = %s, want AMBIGUOUS", got.state)
 	}
 }
 

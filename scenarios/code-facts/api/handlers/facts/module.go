@@ -70,6 +70,7 @@ func Module(db *sql.DB, logger *log.Logger, cacheMaxBytes int64, admission *Admi
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: controlPath, Handler: controlHandler})
+			r.Handle("/api/v1/invariants/candidate-receipt-match", CandidateReceiptMatchHTTPHandler(resolver, http.DefaultClient)).Methods(http.MethodPost)
 			r.Handle("/api/v1/flows/search", SearchFlowHTTPHandler(svc)).Methods(http.MethodPost)
 			r.Handle("/api/v1/ambient-seams/search", SearchAmbientSeamsHTTPHandler(svc)).Methods(http.MethodPost)
 			r.Handle("/api/v1/persistence-patterns/search", SearchPersistencePatternsHTTPHandler(svc)).Methods(http.MethodPost)
@@ -81,6 +82,15 @@ func Module(db *sql.DB, logger *log.Logger, cacheMaxBytes int64, admission *Admi
 }
 
 var Endpoints = []module.EndpointDescriptor{
+	{
+		ID: "facts_candidate_receipt_match", Path: "/api/v1/invariants/candidate-receipt-match", Method: "POST",
+		Summary:     "Check one invariant candidate against one durable Test Genie receipt",
+		Description: "Calls Test Genie's candidate-to-receipt owner check for one caller-selected receipt and exact Code Facts candidate identity. EXACT_MATCH confirms the source observation is bound to a successful receipt; UNKNOWN preserves missing, legacy, mismatched, changed, or unavailable evidence. This does not establish invariant enforcement or requirement/test-tag identity, and service errors remain unavailable rather than zero-result.",
+		Category:    "facts",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"receiptId": "one durable Test Genie receipt ID", "candidate": "exact Code Facts candidate ID, scenario, relativePath, sourceLine, and sourceFileSha256"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"status": "EXACT_MATCH | UNKNOWN", "receiptId": "owner receipt ID", "candidate": "candidate source identity", "reason": "owner explanation"}},
+		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Receipt or candidate reference is incomplete or rejected by Test Genie"}, {Status: 503, Code: "unavailable", Description: "Test Genie could not be resolved or returned no usable response"}},
+	},
 	{
 		ID:          "facts_proto_handler_conformance",
 		Path:        "/api/v1/proto-handler-conformance",
@@ -97,12 +107,12 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        "/api/v1/flows/search",
 		Method:      "POST",
 		Summary:     "Search bounded feature source flows",
-		Description: "Returns short candidate paths from the selected scenario's Go call graph, capped by package source size, five results, and three call-site edges. Each step carries caller path/line/source-graph hash plus resolved target path/hash or explicit unresolved-symbol status; each hit sets depth_limited when further source calls exist beyond the three-edge cap. Source edges do not prove complete flow or runtime reachability.",
+		Description: "Returns query-ranked candidate paths from the selected scenario's Go call graph, capped by package source size, 20 matching start functions, eight call sites per function, eight paths per start, five results, and three call-site edges. Distinct branches from one start are preserved with stable call-site IDs; branch_truncated and flow_branch_result_limit mark bounded omissions. Each step carries call-site ID, caller path/line/source-graph hash, plus resolved target path/hash or explicit unresolved-symbol status. Source edges do not prove complete flow or runtime reachability.",
 		Category:    "facts",
 		Request: &module.Schema{Type: "object", Properties: map[string]string{
 			"query": "string (required)", "scenario": "one scenario slug", "path": "relative source subdirectory inside the scenario", "limit": "integer (optional, max 5)",
 		}},
-		Response: &module.Schema{Type: "object", Properties: map[string]string{"results": "array<FlowSearchHit {depth_limited: bool}>", "degradations": "array<FlowDegradation>"}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{"results": "array<FlowSearchHit {depth_limited: bool, branch_truncated: bool}>", "degradations": "array<FlowDegradation>"}},
 		Errors:   []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Query, scenario, relative source path, or result limit is invalid"}, {Status: 503, Code: "unavailable", Description: "Source graph is unavailable or exceeds the bounded analysis scope"}},
 	},
 	{
@@ -142,15 +152,15 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        factsconnect.CodeFactsServiceSearchProcedure,
 		Method:      "POST",
 		Summary:     "Search code evidence",
-		Description: "Queries the active persistent catalog generation with exact and hybrid lexical retrieval while preserving source hash, generation, ranking explanation, and proof provenance. IMPORTS is scenario-scoped and Go-only; import hits preserve source path/hash/generation/line, and incomplete import indexing is UNKNOWN with degradation.",
+		Description: "Queries the active persistent catalog generation with exact and hybrid lexical retrieval while preserving source hash, generation, ranking explanation, and proof provenance. IMPORTS is scenario-scoped; Go imports and bounded literal JavaScript/TypeScript import, re-export, dynamic-import and require edges preserve source path/hash/generation/line. These are source dependency declarations, not runtime reachability or resolved package dependencies; unsupported forms are UNKNOWN with degradation.",
 		Category:    "facts",
 		Request: &module.Schema{Type: "object", Properties: map[string]string{
 			"query": "string (required)", "limit": "int32 (default 10)", "target": "CodeTarget (optional; defaults to project)",
 			"families": "array<FactFamily> (ranked search supports SYMBOLS, REFERENCES, CALLS, IMPORTS, PROTO_ADOPTION, ENDPOINT_PROOFS, or ALL)",
-			"scope":    "string (IMPORTS requires empty or exact scenario:<target.scenario>)", "languages": "array<string> (IMPORTS is currently Go-only)",
+			"scope":    "string (IMPORTS requires empty or exact scenario:<target.scenario>)", "languages": "array<string> (IMPORTS supports go, typescript, javascript)",
 		}},
 		Response: &module.Schema{Type: "object", Properties: map[string]string{"results": "array<SearchHit>"}},
-		Errors:   []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Query/target is invalid, a requested family is not indexed, or IMPORTS scope/language is unsupported"}, {Status: 503, Code: "unavailable", Description: "The active generation predates Go import-edge indexing; reconcile Code Facts"}},
+		Errors:   []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Query/target is invalid, a requested family is not indexed, or IMPORTS scope/language is unsupported"}, {Status: 503, Code: "unavailable", Description: "The active generation cannot satisfy the requested import-language scope; reconcile Code Facts"}},
 	},
 	{
 		ID:          "facts_describe",

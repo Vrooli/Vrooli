@@ -24,8 +24,11 @@ describe("FeatureFlowPanel", () => {
         paths: ["api/handlers/query/handlers.go", "api/internal/registry/registry.go"],
         graph_hash: "graph-sha-256",
         attestation: "DERIVED/PARTIAL",
+        depth_limited: false,
+        branch_truncated: true,
         steps: [
           {
+            call_site_id: "call:42",
             from: "Search",
             to: "loadProvider",
             call: "loadProvider",
@@ -37,6 +40,7 @@ describe("FeatureFlowPanel", () => {
             resolution: "source_symbol_resolved",
           },
           {
+            call_site_id: "call:81",
             from: "loadProvider",
             call: "lookupDynamicOwner",
             path: "api/internal/registry/registry.go",
@@ -63,7 +67,8 @@ describe("FeatureFlowPanel", () => {
     expect(screen.getByText(/registry\/registry\.go:81/)).toBeInTheDocument();
     expect(screen.getByText(/unresolved callee; no target path \(callee_symbol_unmatched\)/)).toBeInTheDocument();
     expect(screen.getByText(/Source graph: graph-sha-256 · attestation: DERIVED\/PARTIAL/)).toBeInTheDocument();
-    expect(screen.getByText(/Up to 5 results and 3 source call-site edges in one selected scenario subtree/)).toBeInTheDocument();
+    expect(screen.getByText(/Up to 5 ranked branch paths and 3 source call-site edges per path/)).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Further source branches were omitted at a configured bound.");
     expect(screen.getByText(/Each edge shows its caller location and graph identity, plus a resolved target location when available/)).toBeInTheDocument();
     expect(screen.getByText(/Static edges are partial evidence: they do not prove runtime entry, dynamic dispatch, execution conditions, complete flow, or reachability/)).toBeInTheDocument();
     await waitFor(() => expect(searchFeatureFlows).toHaveBeenCalledWith("read provider configuration", "search-hub", "api/handlers", 5));
@@ -85,7 +90,7 @@ describe("FeatureFlowPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Search source flows" }));
 
     expect(await screen.findByText(/No matching source flow was found in this bounded graph/)).toBeInTheDocument();
-    expect(screen.getByText(`${code}: ${message}`)).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(`${code}: ${message}`);
     expect(screen.getByText(/This is not proof that no runtime path exists/)).toBeInTheDocument();
     expect(screen.getByTestId("feature-flow-scope")).toHaveTextContent("scenario search-hub · subtree api · query unrelated feature");
   });

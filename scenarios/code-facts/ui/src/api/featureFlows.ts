@@ -3,6 +3,7 @@ import { buildApiUrl } from "@vrooli/api-base";
 import { API_BASE, decodeApiError } from "./client";
 
 export interface FeatureFlowStep {
+  call_site_id: string;
   from: string;
   to?: string;
   call: string;
@@ -23,6 +24,8 @@ export interface FeatureFlowHit {
   paths: string[];
   graph_hash: string;
   attestation: string;
+  depth_limited: boolean;
+  branch_truncated: boolean;
   steps: FeatureFlowStep[];
 }
 

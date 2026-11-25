@@ -11,6 +11,17 @@ func TestPersistencePatternJoinsSchemaMigrationRepositoryAndAbstains(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
+	repository, err := os.ReadFile(filepath.Join(root, "api", "internal", "catalog", "sqlite.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	refs, err := exactSQLRepositoryReferences(repository)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if refs["code_facts_generations"] == 0 {
+		t.Fatalf("contextual SQL query argument was not parsed into repository references: refs=%+v", refs)
+	}
 	positive, err := scanPersistencePatterns(root, "code-facts", "catalog generations sqlite migration repository", 5)
 	if err != nil {
 		t.Fatal(err)
@@ -76,21 +87,48 @@ func Insert() {
 	}
 }
 
-func TestPersistencePatternReportsUnsupportedQuotedSchemaIdentifierAsUnknown(t *testing.T) {
-	root := writePersistencePatternFixture(t, `CREATE TABLE IF NOT EXISTS "quoted_orders" (
-id TEXT PRIMARY KEY
-);`, `//go:embed schema.sql
-var schemaSQL string
-func Schema() string { return schemaSQL }`, `package catalog
-type Migration struct { Version int; SQL string }
-func Migrate() { ApplyMigrations([]Migration{{Version: 1, SQL: Schema()}}) }
-func Insert() { _, _ = db.ExecContext(ctx, "INSERT INTO quoted_orders(id) VALUES(?)") }`)
-	got, err := scanPersistencePatterns(root, "code-facts", "quoted_orders schema", 5)
+func TestPersistencePatternJoinsSQLiteQuotedIdentifiersCaseInsensitively(t *testing.T) {
+	root := writePersistencePatternFixture(t, "CREATE TABLE IF NOT EXISTS \"Orders\" (\nid TEXT PRIMARY KEY\n);", "//go:embed schema.sql\nvar schemaSQL string\nfunc Schema() string { return schemaSQL }", "package catalog\ntype Migration struct { Version int; SQL string }\nfunc Migrate() { ApplyMigrations([]Migration{{Version: 1, SQL: Schema()}}) }\nfunc Insert() { _, _ = db.ExecContext(ctx, \"INSERT INTO [orders](id) VALUES(?)\") }")
+	got, err := scanPersistencePatterns(root, "code-facts", "orders schema", 5)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Results) != 0 || len(got.Unknowns) != 1 || got.Unknowns[0].Reason != "unsupported_schema_identifier_form" {
-		t.Fatalf("quoted identifier should be explicitly UNKNOWN, got %+v", got)
+	if len(got.Results) != 1 || got.Results[0].Entity != "orders" || got.Results[0].Repository.Line == 0 {
+		t.Fatalf("equivalent SQLite quoted identifiers should join, got %+v", got)
+	}
+}
+
+func TestSQLiteRepositoryIdentifierScannerAbstainsOnCTEAndQualifiedNames(t *testing.T) {
+	if refs := sqliteTableReferences("WITH orders AS (SELECT 1) SELECT * FROM orders"); len(refs) != 0 {
+		t.Fatalf("CTE alias must not be reported as a base table: %+v", refs)
+	}
+	refs := sqliteTableReferences("SELECT 'FROM orders' /* JOIN orders */ FROM main.orders JOIN [Actual] a JOIN json_each(?) AS fixture")
+	if len(refs) != 1 || refs[0].name != "actual" {
+		t.Fatalf("qualified names/comments/string literals should not become joins: %+v", refs)
+	}
+	if refs := sqliteTableReferences("SELECT * FROM harmless; INSERT INTO orders(id) VALUES(?)"); len(refs) != 0 {
+		t.Fatalf("multi-statement query must remain unjoined: %+v", refs)
+	}
+	if refs := sqliteTableReferences("INSERT INTO \"orders\"\"archive\"(id) VALUES(?)"); len(refs) != 0 {
+		t.Fatalf("escaped delimited identifier must remain unsupported: %+v", refs)
+	}
+	refs = sqliteTableReferences("INSERT INTO source(id) VALUES(?) ON CONFLICT(id) DO UPDATE SET value = ?")
+	if len(refs) != 1 || refs[0].name != "source" {
+		t.Fatalf("upsert update clause must not treat SET as a table: %+v", refs)
+	}
+}
+
+func TestSQLiteRepositoryScannerHandlesConflictClause(t *testing.T) {
+	refs := sqliteTableReferences("UPDATE OR IGNORE \"Orders\" SET id = ?\nWHERE id = ?")
+	if len(refs) != 1 || refs[0].name != "orders" || refs[0].offset == 0 {
+		t.Fatalf("supported conflict update was not normalized: %+v", refs)
+	}
+}
+
+func TestSQLiteRepositoryScannerRecognizesInsertTarget(t *testing.T) {
+	refs := sqliteTableReferences("INSERT INTO orders(id) VALUES(?)")
+	if len(refs) != 1 || refs[0].name != "orders" {
+		t.Fatalf("insert target was not recognized: tokens=%+v refs=%+v", lexSQLiteSQL("INSERT INTO orders(id) VALUES(?)"), refs)
 	}
 }
 

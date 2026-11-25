@@ -326,6 +326,11 @@ func cliFindNestedTables(root string, reachable map[string]cliPackageFunction) [
 			}
 			for i := range specs {
 				specs[i].argsPath, specs[i].argsHash = specUnit.path, specUnit.hash
+				if specs[i].argsStatus == "DECLARED_UNEVALUATED" {
+					resolution := cliResolveArgsSchemaInPackage(specs[i].argsExpression, specUnit, specUnits, specs[i].argsLine)
+					specs[i].argsSchemaState, specs[i].argsSchema, specs[i].argsSchemaLine = resolution.state, resolution.summary, resolution.line
+					specs[i].argsSchemaPath, specs[i].argsSchemaHash = resolution.path, resolution.hash
+				}
 			}
 			tables = append(tables, &cliNestedTable{function: name, specName: specName, specs: specs, specPath: specUnit.path, specHash: specUnit.hash, tablePath: function.unit.path, tableHash: function.unit.hash, tableLine: function.unit.fset.Position(call.Pos()).Line, registries: cliNestedHandlerRegistrations(function, call.Args[1], specCall, specs)})
 			return true
@@ -393,6 +398,7 @@ func cliCommandSpecsFromFunction(fn *ast.FuncDecl, constants map[string]string, 
 				continue
 			}
 			spec := cliCommandSpec{line: fset.Position(row.Pos()).Line}
+			spec.metadataEvidence = cliReadCommandMetadata(row.Elts, fset)
 			for _, field := range row.Elts {
 				kv, ok := field.(*ast.KeyValueExpr)
 				if !ok {

@@ -83,6 +83,10 @@ func TestImportSearchScopeRejectsBroadMismatchedAndUnsupportedRequests(t *testin
 	if err := validateImportSearchScope(valid); err != nil {
 		t.Fatalf("matching scoped Go import request rejected: %v", err)
 	}
+	valid.Languages = []string{"typescript", "javascript"}
+	if err := validateImportSearchScope(valid); err != nil {
+		t.Fatalf("supported polyglot import request rejected: %v", err)
+	}
 
 	cases := []struct {
 		name string
@@ -131,6 +135,11 @@ func TestImportSearchRejectsEmbeddedScopeAndFamilyOverrides(t *testing.T) {
 			t.Fatalf("unsafe embedded query filter accepted: %+v", query)
 		}
 	}
+	languageRequest := &factsv1.SearchRequest{Families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS}, Languages: []string{"go"}, Target: &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_SCENARIO, Scenario: "demo"}}
+	languageOverride := retrieval.Query{Text: "which packages language:typescript", Target: "scenarios/demo", Scope: "scenario:demo", Families: []string{"imports", "imports_partial"}, Languages: []string{"typescript"}}
+	if err := validateImportSearchQuery(languageRequest, &languageOverride); err == nil {
+		t.Fatal("query language filter overrode explicit request language")
+	}
 	mixedRequest := &factsv1.SearchRequest{
 		Families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS, factsv1.FactFamily_FACT_FAMILY_SYMBOLS},
 		Target:   &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_SCENARIO, Scenario: "demo"},
@@ -151,11 +160,26 @@ func TestIndexedFamiliesIncludesImportsAndRejectsUnindexedFamilies(t *testing.T)
 	}
 }
 
+func TestImportGenerationCompatibilityPreservesGoOnlyQueries(t *testing.T) {
+	legacy := "code-facts-corpus-v2-go-import-edges-v1"
+	if !generationSupportsImportLanguages(legacy, []string{"go"}) {
+		t.Fatal("legacy Go-only generation should serve an explicitly Go-scoped query")
+	}
+	for _, languages := range [][]string{nil, {"typescript"}, {"javascript"}, {"go", "typescript"}} {
+		if generationSupportsImportLanguages(legacy, languages) {
+			t.Fatalf("legacy generation incorrectly supports languages %v", languages)
+		}
+	}
+	if !generationSupportsImportLanguages("code-facts-corpus-v3-polyglot-import-edges-v1", nil) {
+		t.Fatal("polyglot generation should serve unfiltered imports")
+	}
+}
+
 func TestImportSearchRequiresAnIndexGenerationWithImportEdges(t *testing.T) {
 	if generationHasGoImportEdges("code-facts-corpus-v1") {
 		t.Fatal("pre-import generation was treated as complete for Go imports")
 	}
 	if !generationHasGoImportEdges("code-facts-corpus-v2-go-import-edges-v1|embedding_role=default") {
-		t.Fatal("import-capable generation was not recognized")
+		t.Fatal("legacy Go import generation was not recognized")
 	}
 }

@@ -23,7 +23,7 @@ export function FeatureFlowPanel() {
     <section className="rounded-panel border border-app-border bg-app-surface p-4" aria-labelledby="feature-flow-title">
       <h2 id="feature-flow-title" className="text-xl font-semibold">Feature flow source evidence</h2>
       <p className="mt-1 text-sm text-app-muted-foreground">
-        Up to 5 results and 3 source call-site edges in one selected scenario subtree. Each edge shows its caller location and graph identity, plus a resolved target location when available. Static edges are partial evidence: they do not prove runtime entry, dynamic dispatch, execution conditions, complete flow, or reachability.
+        Up to 5 ranked branch paths and 3 source call-site edges per path in one selected scenario subtree. Each edge shows its caller location and graph identity, plus a resolved target location when available. Static edges are partial evidence: they do not prove runtime entry, dynamic dispatch, execution conditions, complete flow, or reachability.
       </p>
       <form className="mt-4 grid gap-3 lg:grid-cols-[180px_220px_1fr_auto]" onSubmit={submit}>
         <label className="flex flex-col gap-1 text-sm">
@@ -49,11 +49,12 @@ export function FeatureFlowPanel() {
         {response.results.length === 0 && <p>No matching source flow was found in this bounded graph. This is not proof that no runtime path exists.</p>}
         {response.results.map((hit) => <article key={hit.id} className="rounded-md border border-app-border p-3">
           <h3 className="font-semibold">{hit.title}</h3>
+          {(hit.depth_limited || hit.branch_truncated) && <p role="status" className="mt-1 text-xs text-app-muted-foreground">{hit.depth_limited && "Further source calls were omitted at the depth cap. "}{hit.branch_truncated && "Further source branches were omitted at a configured bound."}</p>}
           <p className="mt-1 text-sm">{hit.text}</p>
           <p className="mt-1 text-xs text-app-muted-foreground">Source graph: {hit.graph_hash} · attestation: {hit.attestation}</p>
           <ul className="mt-2 space-y-1 text-xs font-mono text-app-muted-foreground">
             {hit.steps.map((step, index) => <li key={`${step.path}:${step.line}:${index}`}>
-              Caller source {step.path}:{step.line} · graph {step.graph_hash || hit.graph_hash} · {step.from} calls {step.call}{step.to ? ` → ${step.to} · target source ${step.to_path || "path unavailable"} · target graph ${step.to_graph_hash || "identity unavailable"} (${step.resolution})` : ` → unresolved callee; no target path (${step.resolution})`}
+              Caller source {step.path}:{step.line} · call site {step.call_site_id || "UNKNOWN"} · graph {step.graph_hash || hit.graph_hash} · {step.from} calls {step.call}{step.to ? ` → ${step.to} · target source ${step.to_path || "path unavailable"} · target graph ${step.to_graph_hash || "identity unavailable"} (${step.resolution})` : ` → unresolved callee; no target path (${step.resolution})`}
             </li>)}
           </ul>
         </article>)}

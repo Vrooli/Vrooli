@@ -119,6 +119,12 @@ func TestLanguageRegistrySeparatesGraphFromProofSupport(t *testing.T) {
 	if !ok || !javascript.Capabilities.Graph || javascript.Capabilities.Proof {
 		t.Fatalf("JavaScript AST graph capability = %+v, want graph without endpoint proof", javascript.Capabilities)
 	}
+	for _, path := range []string{"app.mts", "app.cts"} {
+		language, recognized := LanguageForPath(path)
+		if !recognized || language.Name != "typescript" {
+			t.Fatalf("TypeScript module %s classified as %+v, recognized=%t", path, language, recognized)
+		}
+	}
 	python, ok := LanguageForPath("tool.py")
 	if !ok || python.Capabilities.Graph || python.Capabilities.Proof {
 		t.Fatalf("python capabilities overclaim graph/proof: %+v", python.Capabilities)

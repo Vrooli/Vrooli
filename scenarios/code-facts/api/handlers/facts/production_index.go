@@ -36,14 +36,14 @@ import (
 )
 
 const (
-	indexPolicy           = "code-facts-corpus-v2-go-import-edges-v1"
+	indexPolicy           = "code-facts-corpus-v3-polyglot-import-edges-v1"
 	indexBatchSize        = 16
 	maxIndexedFile        = 256 * 1024
 	indexedChunkBytes     = 8 * 1024
 	maxImportEdgesPerFile = 256
 )
 
-var errImportIndexUnavailable = errors.New("Go import evidence is unavailable in the active index")
+var errImportIndexUnavailable = errors.New("language import evidence is unavailable in the active index")
 
 type wallClock struct{}
 
@@ -261,8 +261,8 @@ func (index *ProductionIndex) Search(ctx context.Context, req *factsv1.SearchReq
 	if err != nil {
 		return nil, fmt.Errorf("indexed search unavailable: %w", err)
 	}
-	if hasRequestedFamily(req, factsv1.FactFamily_FACT_FAMILY_IMPORTS) && !generationHasGoImportEdges(generation.Policy) {
-		return nil, fmt.Errorf("%w; reconcile Code Facts before searching imports", errImportIndexUnavailable)
+	if hasRequestedFamily(req, factsv1.FactFamily_FACT_FAMILY_IMPORTS) && !generationSupportsImportLanguages(generation.Policy, req.GetLanguages()) {
+		return nil, fmt.Errorf("%w; reconcile Code Facts before searching the requested import languages", errImportIndexUnavailable)
 	}
 	limit := int(req.GetLimit())
 	if limit <= 0 || limit > 100 {
@@ -423,8 +423,8 @@ func validateImportSearchScope(req *factsv1.SearchRequest) error {
 		return fmt.Errorf("FACT_FAMILY_IMPORTS scope must match target scenario %q", target.GetScenario())
 	}
 	for _, language := range req.GetLanguages() {
-		if !strings.EqualFold(strings.TrimSpace(language), "go") {
-			return fmt.Errorf("FACT_FAMILY_IMPORTS ranked search currently supports only Go source")
+		if !supportedImportLanguage(language) {
+			return fmt.Errorf("FACT_FAMILY_IMPORTS ranked search supports Go, TypeScript, or JavaScript source")
 		}
 	}
 	return nil
@@ -475,13 +475,20 @@ func validateImportSearchQuery(req *factsv1.SearchRequest, query *retrieval.Quer
 			return fmt.Errorf("FACT_FAMILY_IMPORTS query cannot add family filter %q", family)
 		}
 	}
-	for _, language := range normalized.Languages {
-		if !strings.EqualFold(strings.TrimSpace(language), "go") {
-			return fmt.Errorf("FACT_FAMILY_IMPORTS ranked search currently supports only Go source")
-		}
+	requestedLanguages := make(map[string]struct{}, len(req.GetLanguages()))
+	for _, language := range req.GetLanguages() {
+		requestedLanguages[strings.ToLower(strings.TrimSpace(language))] = struct{}{}
 	}
-	for index := range normalized.Languages {
-		normalized.Languages[index] = "go"
+	for _, language := range normalized.Languages {
+		normalizedLanguage := strings.ToLower(strings.TrimSpace(language))
+		if !supportedImportLanguage(normalizedLanguage) {
+			return fmt.Errorf("FACT_FAMILY_IMPORTS ranked search supports Go, TypeScript, or JavaScript source")
+		}
+		if len(requestedLanguages) > 0 {
+			if _, ok := requestedLanguages[normalizedLanguage]; !ok {
+				return fmt.Errorf("FACT_FAMILY_IMPORTS query cannot override the requested language scope")
+			}
+		}
 	}
 	*query = normalized
 	return nil
@@ -497,6 +504,34 @@ func hasRequestedFamily(req *factsv1.SearchRequest, expected factsv1.FactFamily)
 		}
 	}
 	return false
+}
+
+func generationHasImportEdges(policy string) bool {
+	return strings.Contains(policy, "polyglot-import-edges-v1")
+}
+
+func generationSupportsImportLanguages(policy string, languages []string) bool {
+	if generationHasImportEdges(policy) {
+		return true
+	}
+	if !generationHasGoImportEdges(policy) || len(languages) == 0 {
+		return false
+	}
+	for _, language := range languages {
+		if !strings.EqualFold(strings.TrimSpace(language), "go") {
+			return false
+		}
+	}
+	return true
+}
+
+func supportedImportLanguage(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "go", "typescript", "javascript":
+		return true
+	default:
+		return false
+	}
 }
 
 func generationHasGoImportEdges(policy string) bool {
@@ -1272,7 +1307,7 @@ func (index *ProductionIndex) documents(ctx context.Context, source catalog.Sour
 			return nil, err
 		}
 	}
-	imports, _, err := goImportDocuments(source, payload)
+	imports, _, err := importDocuments(source, payload)
 	if err != nil {
 		return nil, fmt.Errorf("index import edges from %q: %w", source.Path, err)
 	}
@@ -1315,6 +1350,13 @@ func chunkDocuments(source catalog.SourceFile, kind string, payload []byte) ([]r
 	}
 	flush(line)
 	return documents, nil
+}
+
+func importDocuments(source catalog.SourceFile, payload []byte) ([]retrieval.Document, bool, error) {
+	if source.Language == "typescript" || source.Language == "javascript" {
+		return javascriptImportDocuments(source, payload)
+	}
+	return goImportDocuments(source, payload)
 }
 
 func goImportDocuments(source catalog.SourceFile, payload []byte) ([]retrieval.Document, bool, error) {
@@ -1364,15 +1406,15 @@ func importIndexPartialDocument(source catalog.SourceFile, line int, reason stri
 	return retrieval.Document{
 		ID: fmt.Sprintf("code-facts:imports-partial:%s:%d", source.Path, line), SourceFileID: source.ID,
 		SourceHash: source.Hash, Path: source.Path, Language: source.Language, Role: string(source.Role), Scope: source.Scope,
-		Authority: source.Authority, Kind: "imports_partial", Title: "Go import evidence incomplete",
-		ExactText: "Go import evidence incomplete", Body: fmt.Sprintf("%s: %s; import results may be incomplete.", source.Path, reason),
+		Authority: source.Authority, Kind: "imports_partial", Title: "Import evidence incomplete",
+		ExactText: "Import evidence incomplete", Body: fmt.Sprintf("%s: %s; import results may be incomplete.", source.Path, reason),
 		Aliases: []string{source.Path, filepath.Base(source.Path)}, StartLine: line, EndLine: line,
 	}
 }
 
 func isLineIndexedSource(path string) bool {
 	switch strings.ToLower(filepath.Ext(path)) {
-	case ".go", ".ts", ".tsx", ".js", ".jsx", ".proto":
+	case ".go", ".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".proto":
 		return true
 	default:
 		return false

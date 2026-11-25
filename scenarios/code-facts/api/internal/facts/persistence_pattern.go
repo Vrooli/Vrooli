@@ -69,8 +69,8 @@ type PersistencePatternResponse struct {
 }
 
 // SearchPersistencePatterns joins static schema, migration registration, and
-// SQLite repository references by the exact declared table identifier. It
-// does not inspect or claim the state of a running database.
+// SQLite repository references by a bounded, normalized SQLite table token.
+// It does not inspect or claim the state of a running database.
 func (s *Service) SearchPersistencePatterns(_ context.Context, query, scenario string, limit int) (*PersistencePatternResponse, error) {
 	query, scenario = strings.TrimSpace(query), strings.TrimSpace(scenario)
 	if query == "" || !invariantScenarioPattern.MatchString(scenario) {
@@ -169,7 +169,7 @@ func scanPersistencePatterns(root, scenario, query string, limit int) (*Persiste
 			continue
 		}
 		repoLine := repositoryRefs[entity]
-		response.Results = append(response.Results, PersistencePattern{ID: "code-facts:persistence:" + entity, Title: "SQLite catalog persistence: " + entity, Summary: "The schema declaration, exact embed/Schema binding, version-1 migration registration, and SQL-literal repository reference join on this exact table name.", Scenario: scenario, Entity: entity, SourcePath: "api/internal/catalog/sqlite.go", Line: repoLine, SourceSHA256: repoHash, Classification: "JOINED_STATIC_SOURCE_EVIDENCE", Score: score, Schema: schemaEvidence, SchemaBinding: PersistenceEvidence{Layer: "schema_embedding", Path: "api/internal/catalog/schema.go", Line: embedLine, SHA256: migrationHash, Basis: "exact //go:embed schema.sql variable returned by Schema()", Status: "source_binding"}, Migration: PersistenceEvidence{Layer: "migration_registration", Path: "api/internal/catalog/sqlite.go", Line: migrationLine, SHA256: repoHash, Basis: "Migrate passes Version 1 with SQL: Schema() to ApplyMigrations", Status: "registered_in_source"}, Repository: PersistenceEvidence{Layer: "repository", Path: "api/internal/catalog/sqlite.go", Line: repoLine, SHA256: repoHash, Basis: "SQL string literal contains an exact table identifier in a supported repository clause", Status: "observed"}, Limits: []string{"Migration source registration does not prove it ran against a particular database.", "Static table-name joining does not establish active deployment, data contents, or runtime transaction outcome."}})
+		response.Results = append(response.Results, PersistencePattern{ID: "code-facts:persistence:" + entity, Title: "SQLite catalog persistence: " + entity, Summary: "The schema declaration, exact embed/Schema binding, version-1 migration registration, and supported SQL-literal repository table reference join on one normalized SQLite identifier.", Scenario: scenario, Entity: entity, SourcePath: "api/internal/catalog/sqlite.go", Line: repoLine, SourceSHA256: repoHash, Classification: "JOINED_STATIC_SOURCE_EVIDENCE", Score: score, Schema: schemaEvidence, SchemaBinding: PersistenceEvidence{Layer: "schema_embedding", Path: "api/internal/catalog/schema.go", Line: embedLine, SHA256: migrationHash, Basis: "exact //go:embed schema.sql variable returned by Schema()", Status: "source_binding"}, Migration: PersistenceEvidence{Layer: "migration_registration", Path: "api/internal/catalog/sqlite.go", Line: migrationLine, SHA256: repoHash, Basis: "Migrate passes Version 1 with SQL: Schema() to ApplyMigrations", Status: "registered_in_source"}, Repository: PersistenceEvidence{Layer: "repository", Path: "api/internal/catalog/sqlite.go", Line: repoLine, SHA256: repoHash, Basis: "SQL string literal contains an exact unqualified SQLite table identifier in a supported repository clause", Status: "observed"}, Limits: []string{"Migration source registration does not prove it ran against a particular database.", "Static table-name joining does not establish active deployment, data contents, or runtime transaction outcome.", "CTE relation names and schema-qualified table names are not joined."}})
 	}
 	sort.Slice(response.Results, func(i, j int) bool {
 		if response.Results[i].Score != response.Results[j].Score {
@@ -343,10 +343,14 @@ func exactSQLRepositoryReferences(source []byte) (map[string]int, error) {
 	refs := map[string]int{}
 	ast.Inspect(file, func(node ast.Node) bool {
 		call, ok := node.(*ast.CallExpr)
-		if !ok || len(call.Args) == 0 || !isSQLRepositoryCall(call.Fun) {
+		if !ok {
 			return true
 		}
-		literal, ok := call.Args[0].(*ast.BasicLit)
+		queryIndex, ok := sqlRepositoryQueryArgument(call.Fun)
+		if !ok || len(call.Args) <= queryIndex {
+			return true
+		}
+		literal, ok := call.Args[queryIndex].(*ast.BasicLit)
 		if !ok || literal.Kind != token.STRING {
 			return true
 		}
@@ -356,7 +360,10 @@ func exactSQLRepositoryReferences(source []byte) (map[string]int, error) {
 		}
 		for _, reference := range sqliteTableReferences(text) {
 			if refs[reference.name] == 0 {
-				line := fset.Position(literal.Pos()).Line + strings.Count(text[:reference.offset], "\n")
+				line := fset.Position(literal.Pos()).Line
+				if strings.HasPrefix(literal.Value, "`") {
+					line += strings.Count(text[:reference.offset], "\n")
+				}
 				refs[reference.name] = line
 			}
 		}
@@ -412,6 +419,11 @@ func sqliteTableReferences(source string) []sqliteTableReference {
 	if len(tokens) == 0 || tokens[0].quoted || tokens[0].kind != 'w' {
 		return nil
 	}
+	for i, token := range tokens {
+		if token.text == ";" && i != len(tokens)-1 {
+			return nil // multiple statements cannot be attributed to one query safely
+		}
+	}
 	statement := strings.ToUpper(tokens[0].text)
 	switch statement {
 	case "SELECT", "INSERT", "UPDATE", "DELETE", "REPLACE":
@@ -424,20 +436,32 @@ func sqliteTableReferences(source string) []sqliteTableReference {
 	}
 	var refs []sqliteTableReference
 	for i := range tokens {
+		if tokens[i].quoted || tokens[i].kind != 'w' {
+			continue
+		}
 		keyword := strings.ToUpper(tokens[i].text)
 		candidate := -1
 		switch keyword {
 		case "INSERT", "REPLACE":
 			j := i + 1
 			if keyword == "INSERT" && tokenWord(tokens, j, "OR") {
+				if !isConflictAlgorithm(tokens, j+1) {
+					continue
+				}
 				j += 2 // INSERT OR <conflict-algorithm>
 			}
 			if tokenWord(tokens, j, "INTO") {
 				candidate = j + 1
 			}
 		case "UPDATE":
+			if i != 0 {
+				continue // UPDATE inside INSERT ... ON CONFLICT is not a target clause
+			}
 			j := i + 1
 			if tokenWord(tokens, j, "OR") {
+				if !isConflictAlgorithm(tokens, j+1) {
+					continue
+				}
 				j += 2 // UPDATE OR <conflict-algorithm>
 			}
 			candidate = j
@@ -447,9 +471,15 @@ func sqliteTableReferences(source string) []sqliteTableReference {
 		if candidate < 0 || candidate >= len(tokens) || !isSQLiteIdentifierToken(tokens[candidate]) {
 			continue
 		}
+		if (keyword == "FROM" || keyword == "JOIN") && candidate+1 < len(tokens) && tokens[candidate+1].text == "(" {
+			continue // table-valued functions are not proven table-name references
+		}
 		// Do not collapse schema-qualified names into a same-named local table.
 		if candidate+1 < len(tokens) && tokens[candidate+1].text == "." {
 			continue
+		}
+		if candidate+1 < len(tokens) && tokens[candidate+1].text == "]" {
+			continue // malformed/escaped bracket quoting is outside the supported subset
 		}
 		name, ok := sqliteIdentifier(tokens[candidate].text)
 		if ok {
@@ -461,6 +491,18 @@ func sqliteTableReferences(source string) []sqliteTableReference {
 
 func tokenWord(tokens []sqliteSQLToken, index int, want string) bool {
 	return index >= 0 && index < len(tokens) && tokens[index].kind == 'w' && !tokens[index].quoted && strings.EqualFold(tokens[index].text, want)
+}
+
+func isConflictAlgorithm(tokens []sqliteSQLToken, index int) bool {
+	if index < 0 || index >= len(tokens) || tokens[index].kind != 'w' || tokens[index].quoted {
+		return false
+	}
+	switch strings.ToUpper(tokens[index].text) {
+	case "ROLLBACK", "ABORT", "REPLACE", "FAIL", "IGNORE":
+		return true
+	default:
+		return false
+	}
 }
 
 func isSQLiteIdentifierToken(token sqliteSQLToken) bool {
@@ -519,8 +561,16 @@ func lexSQLiteSQL(source string) []sqliteSQLToken {
 				close = ']'
 			}
 			contentStart := i
+			escaped := false
 			for i < len(source) && source[i] != close {
 				i++
+			}
+			for i < len(source) && close != ']' && i+1 < len(source) && source[i] == close && source[i+1] == close {
+				escaped = true
+				i += 2
+				for i < len(source) && source[i] != close {
+					i++
+				}
 			}
 			if i >= len(source) {
 				tokens = append(tokens, sqliteSQLToken{text: source[start:], kind: '?', offset: start, quoted: true})
@@ -528,7 +578,11 @@ func lexSQLiteSQL(source string) []sqliteSQLToken {
 			}
 			content := source[contentStart:i]
 			i++
-			tokens = append(tokens, sqliteSQLToken{text: string(c) + content + string(close), kind: 'q', offset: start, quoted: true})
+			kind := byte('q')
+			if escaped {
+				kind = '?'
+			}
+			tokens = append(tokens, sqliteSQLToken{text: string(c) + content + string(close), kind: kind, offset: start, quoted: true})
 			continue
 		}
 		if isSQLWordStart(c) {
@@ -554,16 +608,18 @@ func isSQLWordPart(c byte) bool {
 	return isSQLWordStart(c) || (c >= '0' && c <= '9')
 }
 
-func isSQLRepositoryCall(expression ast.Expr) bool {
+func sqlRepositoryQueryArgument(expression ast.Expr) (int, bool) {
 	selector, ok := expression.(*ast.SelectorExpr)
 	if !ok {
-		return false
+		return 0, false
 	}
 	switch selector.Sel.Name {
-	case "Exec", "ExecContext", "Query", "QueryContext", "QueryRow", "QueryRowContext":
-		return true
+	case "Exec", "Query", "QueryRow":
+		return 0, true
+	case "ExecContext", "QueryContext", "QueryRowContext":
+		return 1, true
 	default:
-		return false
+		return 0, false
 	}
 }
 

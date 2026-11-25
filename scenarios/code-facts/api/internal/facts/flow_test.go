@@ -108,3 +108,59 @@ func TestDeriveFeatureFlowsReportsDepthTruncationOnlyWhenCallsRemain(t *testing.
 		}
 	})
 }
+
+func TestDeriveFeatureFlowsPreservesAndRanksDistinctBranches(t *testing.T) {
+	graph := &factsv1.LanguageGraph{GraphHash: "branch-graph", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+		{Id: "func:entry", Name: "HandleRequest", Path: "api/handler.go", Attributes: map[string]string{"kind": "go_func"}},
+		{Id: "func:users", Name: "loadUsers", Path: "api/users.go", Attributes: map[string]string{"kind": "go_func"}},
+		{Id: "func:invoice", Name: "saveInvoices", Path: "api/invoices.go", Attributes: map[string]string{"kind": "go_func"}},
+		{Id: "call:users", Path: "api/handler.go", Attributes: map[string]string{"kind": "go_call", "enclosing_symbol": "HandleRequest", "callee": "loadUsers", "callee_symbol": "func:users", "start_line": "20"}},
+		{Id: "call:invoice", Path: "api/handler.go", Attributes: map[string]string{"kind": "go_call", "enclosing_symbol": "HandleRequest", "callee": "saveInvoices", "callee_symbol": "func:invoice", "start_line": "30"}},
+	}}}
+
+	got := DeriveFeatureFlows([]*factsv1.LanguageGraph{graph}, "HandleRequest save invoices", "sample", 5)
+	if len(got.Results) != 2 {
+		t.Fatalf("results=%#v degradations=%#v; want both call branches", got.Results, got.Degradations)
+	}
+	if got.Results[0].Steps[0].To != "saveInvoices" || got.Results[1].Steps[0].To != "loadUsers" {
+		t.Fatalf("query-matching branch should rank first: %#v", got.Results)
+	}
+	ids := map[string]bool{}
+	for _, hit := range got.Results {
+		if ids[hit.ID] || hit.GraphHash != "branch-graph" {
+			t.Fatalf("branch identity/provenance is not unique and stable: %#v", got.Results)
+		}
+		ids[hit.ID] = true
+	}
+	if !strings.Contains(got.Results[0].ID, ":branch:api/handler.go:30:call:invoice:api/invoices.go:saveInvoices") || !ids["code-facts:flow:HandleRequest:handler.go"] {
+		t.Fatalf("branch IDs should retain stable primary identity and use stable call-site IDs for alternatives: %#v", got.Results)
+	}
+	withoutSpecificBranchTerm := DeriveFeatureFlows([]*factsv1.LanguageGraph{graph}, "HandleRequest users invoices", "sample", 5)
+	if len(withoutSpecificBranchTerm.Results) != 2 || !ids[withoutSpecificBranchTerm.Results[0].ID] || !ids[withoutSpecificBranchTerm.Results[1].ID] {
+		t.Fatalf("changing query ranking must not change branch identities: %#v", withoutSpecificBranchTerm.Results)
+	}
+}
+
+func TestDeriveFeatureFlowsMarksBoundedBranchExpansion(t *testing.T) {
+	nodes := []*commonv1.CodeGraphNode{{Id: "func:entry", Name: "HandleRequest", Path: "api/handler.go", Attributes: map[string]string{"kind": "go_func"}}}
+	for i := 0; i < maxFlowCallsPerNode+1; i++ {
+		callee := "target" + strconv.Itoa(i)
+		nodes = append(nodes,
+			&commonv1.CodeGraphNode{Id: "func:" + callee, Name: callee, Path: "api/target.go", Attributes: map[string]string{"kind": "go_func"}},
+			&commonv1.CodeGraphNode{Id: "call:" + callee, Path: "api/handler.go", Attributes: map[string]string{"kind": "go_call", "enclosing_symbol": "HandleRequest", "callee": callee, "callee_symbol": "func:" + callee, "start_line": strconv.Itoa(i + 1)}},
+		)
+	}
+	graph := &factsv1.LanguageGraph{GraphHash: "branch-cap", Graph: &commonv1.CodeGraph{Nodes: nodes}}
+	got := DeriveFeatureFlows([]*factsv1.LanguageGraph{graph}, "HandleRequest", "sample", 5)
+	if len(got.Results) != 5 {
+		t.Fatalf("results=%#v; want configured response cap", got.Results)
+	}
+	for _, hit := range got.Results {
+		if !hit.BranchTruncated || !strings.Contains(hit.Text, "branch expansion reached a configured bound") {
+			t.Fatalf("branch truncation was not explicit: %#v", hit)
+		}
+	}
+	if len(got.Degradations) == 0 || got.Degradations[len(got.Degradations)-1].Code != "flow_branch_result_limit" {
+		t.Fatalf("response result omission was not explicit: %#v", got.Degradations)
+	}
+}

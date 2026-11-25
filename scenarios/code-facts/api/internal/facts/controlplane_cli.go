@@ -16,10 +16,16 @@ import (
 
 type cliCommandSpec struct {
 	name, handler, group string
+	metadataEvidence     string
 	argsExpression       string
 	argsStatus           string
 	argsPath             string
 	argsHash             string
+	argsSchema           string
+	argsSchemaState      string
+	argsSchemaLine       int
+	argsSchemaPath       string
+	argsSchemaHash       string
 	hidden               bool
 	line                 int
 	argsLine             int
@@ -53,13 +59,134 @@ func cliArgsDeclaration(fields []ast.Expr, fset *token.FileSet) (string, string,
 }
 
 func cliArgsEvidence(spec cliCommandSpec) string {
+	metadata := cliCommandMetadataEvidence(spec)
 	if spec.argsStatus == "NOT_DECLARED" {
-		return fmt.Sprintf("Args field NOT_DECLARED in command literal at %s:%d#sha256:%s; defaults and acceptance behavior unknown", spec.argsPath, spec.line, spec.argsHash)
+		return fmt.Sprintf("%s; Args field NOT_DECLARED in command literal at %s:%d#sha256:%s; defaults and acceptance behavior unknown", metadata, spec.argsPath, spec.line, spec.argsHash)
 	}
 	if spec.argsStatus != "DECLARED_UNEVALUATED" {
-		return fmt.Sprintf("Args declaration %s at %s:%d#sha256:%s; declaration could not be resolved", spec.argsStatus, spec.argsPath, spec.argsLine, spec.argsHash)
+		return fmt.Sprintf("%s; Args declaration %s at %s:%d#sha256:%s; declaration could not be resolved", metadata, spec.argsStatus, spec.argsPath, spec.argsLine, spec.argsHash)
 	}
-	return fmt.Sprintf("Args declaration DECLARED_UNEVALUATED (%s) at %s:%d#sha256:%s; runtime parsing and acceptance behavior unknown", spec.argsExpression, spec.argsPath, spec.argsLine, spec.argsHash)
+	return fmt.Sprintf("%s; Args declaration DECLARED_UNEVALUATED (%s) at %s:%d#sha256:%s; %s; parser execution and runtime acceptance were not observed", metadata, spec.argsExpression, spec.argsPath, spec.argsLine, spec.argsHash, cliArgsSchemaEvidence(spec))
+}
+
+func cliCommandMetadataEvidence(spec cliCommandSpec) string {
+	if spec.metadataEvidence == "" {
+		return fmt.Sprintf("command metadata UNKNOWN at %s:%d#sha256:%s", spec.argsPath, spec.line, spec.argsHash)
+	}
+	return fmt.Sprintf("command metadata at %s:%d#sha256:%s: %s", spec.argsPath, spec.line, spec.argsHash, spec.metadataEvidence)
+}
+
+func cliReadCommandMetadata(fields []ast.Expr, fset *token.FileSet) string {
+	values := map[string][]ast.Expr{}
+	for _, raw := range fields {
+		field, ok := raw.(*ast.KeyValueExpr)
+		if !ok {
+			continue
+		}
+		key, ok := field.Key.(*ast.Ident)
+		if !ok {
+			continue
+		}
+		values[key.Name] = append(values[key.Name], field.Value)
+	}
+	read := func(name string, parse func(ast.Expr) (string, bool)) string {
+		fields := values[name]
+		if len(fields) == 0 {
+			return name + "=NOT_DECLARED"
+		}
+		if len(fields) != 1 {
+			return name + "=AMBIGUOUS_DUPLICATE"
+		}
+		value, ok := parse(fields[0])
+		if !ok {
+			return name + "=UNKNOWN_DYNAMIC"
+		}
+		return name + "=STATIC_LITERAL(" + value + ")"
+	}
+	stringValue := func(expr ast.Expr) (string, bool) {
+		value, ok := cliString(expr)
+		return fmt.Sprintf("%q", value), ok
+	}
+	boolValue := func(expr ast.Expr) (string, bool) {
+		value, ok := cliBool(expr)
+		return fmt.Sprintf("%t", value), ok
+	}
+	aliasesValue := func(expr ast.Expr) (string, bool) {
+		literal, ok := expr.(*ast.CompositeLit)
+		if !ok {
+			return "", false
+		}
+		values := make([]string, 0, len(literal.Elts))
+		for _, item := range literal.Elts {
+			value, ok := cliString(item)
+			if !ok {
+				return "", false
+			}
+			values = append(values, fmt.Sprintf("%q", value))
+		}
+		return "[" + strings.Join(values, ",") + "]", true
+	}
+	rootPolicy := "RootPolicy=NOT_DECLARED"
+	if policies := values["RootPolicy"]; len(policies) > 1 {
+		rootPolicy = "RootPolicy=AMBIGUOUS_DUPLICATE"
+	} else if len(policies) == 1 {
+		policy, ok := policies[0].(*ast.CompositeLit)
+		if !ok {
+			rootPolicy = "RootPolicy=UNKNOWN_DYNAMIC"
+		} else {
+			fields := map[string][]ast.Expr{}
+			for _, raw := range policy.Elts {
+				field, ok := raw.(*ast.KeyValueExpr)
+				if !ok {
+					continue
+				}
+				key, ok := field.Key.(*ast.Ident)
+				if ok {
+					fields[key.Name] = append(fields[key.Name], field.Value)
+				}
+			}
+			requires := "RequiresRoot=NOT_DECLARED"
+			if len(fields["RequiresRoot"]) > 1 {
+				requires = "RequiresRoot=AMBIGUOUS_DUPLICATE"
+			} else if len(fields["RequiresRoot"]) == 1 {
+				if value, ok := boolValue(fields["RequiresRoot"][0]); ok {
+					requires = "RequiresRoot=STATIC_LITERAL(" + value + ")"
+				} else {
+					requires = "RequiresRoot=UNKNOWN_DYNAMIC"
+				}
+			}
+			withoutRoot := "CanRunWithoutRoot=NOT_DECLARED"
+			if len(fields["CanRunWithoutRoot"]) > 1 {
+				withoutRoot = "CanRunWithoutRoot=AMBIGUOUS_DUPLICATE"
+			} else if len(fields["CanRunWithoutRoot"]) == 1 {
+				var expression strings.Builder
+				if err := format.Node(&expression, fset, fields["CanRunWithoutRoot"][0]); err == nil {
+					withoutRoot = "CanRunWithoutRoot=DECLARED_UNEVALUATED(" + expression.String() + ")"
+				} else {
+					withoutRoot = "CanRunWithoutRoot=UNKNOWN_UNRENDERABLE"
+				}
+			}
+			rootPolicy = "RootPolicy{" + requires + "," + withoutRoot + "}"
+		}
+	}
+	return strings.Join([]string{
+		read("Summary", stringValue), read("Aliases", aliasesValue),
+		read("Hidden", boolValue), read("Suggestable", boolValue), rootPolicy,
+	}, "; ")
+}
+
+func cliArgsSchemaEvidence(spec cliCommandSpec) string {
+	if spec.argsSchemaState == "" {
+		return "schema fields UNKNOWN"
+	}
+	path, hash := spec.argsSchemaPath, spec.argsSchemaHash
+	if path == "" {
+		path, hash = spec.argsPath, spec.argsHash
+	}
+	if spec.argsSchemaLine > 0 {
+		return fmt.Sprintf("schema declaration %s at %s:%d#sha256:%s: %s", spec.argsSchemaState, path, spec.argsSchemaLine, hash, spec.argsSchema)
+	}
+	return fmt.Sprintf("schema declaration %s: %s", spec.argsSchemaState, spec.argsSchema)
 }
 
 // DescribeControlPlaneCLIComposition binds the root CLI's declared command
@@ -88,9 +215,14 @@ func DescribeControlPlaneCLIComposition(root string) (*CompositionReport, error)
 	specs := cliCommandSpecs(top.file, constants, top.fset)
 	for i := range specs {
 		specs[i].argsPath, specs[i].argsHash = top.path, topHash
+		if specs[i].argsStatus == "DECLARED_UNEVALUATED" {
+			resolution := cliResolveArgsSchemaInPackage(specs[i].argsExpression, top, []cliSourceUnit{top}, specs[i].argsLine)
+			specs[i].argsSchemaState, specs[i].argsSchema, specs[i].argsSchemaLine = resolution.state, resolution.summary, resolution.line
+			specs[i].argsSchemaPath, specs[i].argsSchemaHash = resolution.path, resolution.hash
+		}
 	}
 	handlers := cliHandlerBindings(app.file, app.fset)
-	report := &CompositionReport{RootPath: root, AnalysisScope: "go-syntax-v1; top-level and supported nested command specs are joined to explicit source registrations (nested expansion follows only registered package RootHandler source calls); Args field expressions are reported with declaration status, source path/line/hash and are never evaluated; main conditional early-dispatch call sites are listed without resolving predicates; unsupported forms degrade to UNKNOWN; nested/runtime argument dispatch and execution are not analyzed"}
+	report := &CompositionReport{RootPath: root, AnalysisScope: "go-syntax-v1; top-level and supported nested command specs are joined to explicit source registrations (nested expansion follows only registered package RootHandler source calls); literal summary/alias/visibility/suggestability and root RequiresRoot fields are reported with spec provenance, while CanRunWithoutRoot callbacks remain unevaluated; Args field expressions are reported with declaration status, source path/line/hash and are never evaluated; main conditional early-dispatch call sites are listed without resolving predicates; unsupported forms degrade to UNKNOWN; nested/runtime argument dispatch and execution are not analyzed"}
 	for _, spec := range specs {
 		handler := handlers[spec.handler]
 		status, provider, registrationPath, sourceHash, line := "unknown", "", top.path, topHash, spec.line
@@ -283,6 +415,7 @@ func cliCommandSpecs(file *ast.File, constants map[string]string, fset *token.Fi
 					continue
 				}
 				spec := cliCommandSpec{line: fset.Position(row.Pos()).Line}
+				spec.metadataEvidence = cliReadCommandMetadata(row.Elts, fset)
 				for _, field := range row.Elts {
 					kv, ok := field.(*ast.KeyValueExpr)
 					if !ok {
