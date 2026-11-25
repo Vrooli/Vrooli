@@ -104,6 +104,9 @@ func TestOpenRouterClient_Chat_Non200Status_ReturnsProviderError(t *testing.T) {
 	if !errors.Is(err, ErrProvider) {
 		t.Errorf("expected provider domain error, got %v", err)
 	}
+	if got, want := err.Error(), "AI provider error: status 500"; got != want {
+		t.Errorf("error = %q, want %q", got, want)
+	}
 }
 
 func TestOpenRouterClient_Chat_401Unauthorized_ReturnsError(t *testing.T) {
@@ -200,6 +203,18 @@ func TestOpenRouterClient_Chat_EmptyChoices_ReturnsEmptyContent(t *testing.T) {
 
 func TestOpenRouterClient_ChatStream_Success(t *testing.T) {
 	_, client := newMockOpenRouterServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/chat/completions" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer test-api-key" {
+			t.Errorf("Authorization = %q", got)
+		}
+		if got := r.Header.Get("HTTP-Referer"); got != "https://vrooli.com" {
+			t.Errorf("HTTP-Referer = %q", got)
+		}
+		if got := r.Header.Get("X-Title"); got != "Vrooli AI Metered Inference" {
+			t.Errorf("X-Title = %q", got)
+		}
 		var request struct {
 			Usage *OpenRouterUsageRequest `json:"usage"`
 		}
@@ -270,6 +285,8 @@ func TestOpenRouterClient_ChatStream_Non200Status_ReturnsError(t *testing.T) {
 
 	if err == nil {
 		t.Error("expected error for 502 status, got nil")
+	} else if got, want := err.Error(), "AI provider error: status 502: Upstream error"; got != want {
+		t.Errorf("error = %q, want %q", got, want)
 	}
 }
 
@@ -520,6 +537,79 @@ func TestOpenRouterClient_ChatStreamEventsRoundTripsToolCallsAndUsage(t *testing
 	}
 }
 
+func TestOpenRouterClient_ChatAndStreamPropagateNetworkAndCancellationWithoutKeyLeak(t *testing.T) {
+	const key = "test-api-key-synthetic-secret"
+	type call func(context.Context, OpenRouterClient) error
+	calls := map[string]call{
+		"chat": func(ctx context.Context, client OpenRouterClient) error {
+			_, err := client.Chat(ctx, OpenRouterChatRequest{Model: "fixture/model"})
+			return err
+		},
+		"stream": func(ctx context.Context, client OpenRouterClient) error {
+			streamClient, ok := client.(OpenRouterStreamEventClient)
+			if !ok {
+				return errors.New("stream event interface unavailable")
+			}
+			_, err := streamClient.ChatStreamEvents(ctx, OpenRouterChatRequest{Model: "fixture/model"}, nil)
+			return err
+		},
+	}
+	for name, doCall := range calls {
+		t.Run(name+"/network", func(t *testing.T) {
+			client := NewOpenRouterClient(OpenRouterClientOptions{
+				APIKey: key, BaseURL: "http://openrouter.test",
+				HTTPClient: &http.Client{Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+					return nil, errors.New("synthetic network down")
+				})},
+			})
+			err := doCall(context.Background(), client)
+			if err == nil || !strings.Contains(err.Error(), "request failed:") {
+				t.Fatalf("call error = %v, want request failure", err)
+			}
+			if strings.Contains(err.Error(), key) {
+				t.Fatalf("call leaked API key in error: %v", err)
+			}
+		})
+		t.Run(name+"/cancellation", func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			client := NewOpenRouterClient(OpenRouterClientOptions{APIKey: key, BaseURL: "http://openrouter.test"})
+			err := doCall(ctx, client)
+			if err == nil || !errors.Is(err, context.Canceled) {
+				t.Fatalf("call error = %v, want canceled context", err)
+			}
+			if strings.Contains(err.Error(), key) {
+				t.Fatalf("call leaked API key in error: %v", err)
+			}
+		})
+	}
+}
+
+func TestOpenRouterClient_CurrentEndpointsUsesSharedAuthenticatedTransport(t *testing.T) {
+	server, client := newMockOpenRouterServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/models/openai/gpt-4o/endpoints" {
+			t.Errorf("request = %s %s", r.Method, r.URL.Path)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer test-api-key" {
+			t.Errorf("Authorization = %q", got)
+		}
+		_, _ = w.Write([]byte(`{"data":{"endpoints":[{"provider_name":"fixture","context_length":128000,"pricing":{"prompt":"0.000001","completion":"0.000002"}}]}}`))
+	})
+	defer server.Close()
+
+	metadataClient, ok := client.(OpenRouterEndpointMetadataClient)
+	if !ok {
+		t.Fatal("provider client does not expose endpoint metadata")
+	}
+	endpoints, err := metadataClient.CurrentEndpoints(context.Background(), "openai/gpt-4o")
+	if err != nil {
+		t.Fatalf("CurrentEndpoints() error: %v", err)
+	}
+	if len(endpoints) != 1 || endpoints[0].Provider != "fixture" || endpoints[0].ContextTokens != 128000 {
+		t.Fatalf("endpoints = %#v", endpoints)
+	}
+}
+
 // ============================================================================
 // VerifyAPIKey Tests
 // ============================================================================
@@ -557,23 +647,46 @@ func TestOpenRouterClient_VerifyAPIKey_InvalidKey_ReturnsError(t *testing.T) {
 	err := client.VerifyAPIKey(ctx)
 	if err == nil {
 		t.Error("expected error for invalid key, got nil")
+	} else if got, want := err.Error(), "key verification failed: status 401"; got != want {
+		t.Errorf("VerifyAPIKey() error = %q, want %q", got, want)
+	}
+	if err != nil && strings.Contains(err.Error(), "test-api-key") {
+		t.Errorf("VerifyAPIKey() leaked key in error: %v", err)
 	}
 }
 
 func TestOpenRouterClient_VerifyAPIKey_NetworkError_ReturnsError(t *testing.T) {
-	// Create a client pointing to a non-existent server
 	client := NewOpenRouterClient(OpenRouterClientOptions{
-		APIKey:  "test-api-key",
-		BaseURL: "http://localhost:59999", // Non-existent port
-		Timeout: 100 * time.Millisecond,
+		APIKey: "test-api-key", BaseURL: "http://openrouter.test",
+		HTTPClient: &http.Client{Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+			return nil, errors.New("synthetic network down")
+		})},
 	})
-
-	ctx := context.Background()
-	err := client.VerifyAPIKey(ctx)
-	if err == nil {
-		t.Error("expected network error, got nil")
+	err := client.VerifyAPIKey(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "connectivity check failed: Get \"http://openrouter.test/api/v1/auth/key\"") {
+		t.Fatalf("VerifyAPIKey() error = %v, want connectivity failure", err)
+	}
+	if strings.Contains(err.Error(), "test-api-key") {
+		t.Errorf("VerifyAPIKey() leaked key in error: %v", err)
 	}
 }
+
+func TestOpenRouterClient_VerifyAPIKey_Cancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	client := NewOpenRouterClient(OpenRouterClientOptions{APIKey: "test-api-key", BaseURL: "http://openrouter.test"})
+	err := client.VerifyAPIKey(ctx)
+	if err == nil || !errors.Is(err, context.Canceled) {
+		t.Fatalf("VerifyAPIKey() error = %v, want canceled-context error", err)
+	}
+	if strings.Contains(err.Error(), "test-api-key") {
+		t.Errorf("VerifyAPIKey() leaked key in error: %v", err)
+	}
+}
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) { return fn(req) }
 
 // ============================================================================
 // NewOpenRouterClient Tests
@@ -587,8 +700,8 @@ func TestNewOpenRouterClient_DefaultBaseURLAndTimeout(t *testing.T) {
 	// Type assert to access internal fields
 	httpClient := client.(*httpOpenRouterClient)
 
-	if httpClient.baseURL != "https://openrouter.ai" {
-		t.Errorf("expected default base URL 'https://openrouter.ai', got %s", httpClient.baseURL)
+	if httpClient.shared.BaseURL() != "https://openrouter.ai" {
+		t.Errorf("expected default base URL 'https://openrouter.ai', got %s", httpClient.shared.BaseURL())
 	}
 
 	if httpClient.httpClient.Timeout != 120*time.Second {
@@ -613,16 +726,16 @@ func TestNewOpenRouterClient_CustomHTTPClient(t *testing.T) {
 
 func TestNewOpenRouterClient_CustomAttribution(t *testing.T) {
 	client := NewOpenRouterClient(OpenRouterClientOptions{APIKey: "test-key", BaseURL: "https://proxy.example.test/", Referer: "https://app.example.test", Title: "Example Metered Inference"}).(*httpOpenRouterClient)
-	if client.baseURL != "https://proxy.example.test" || client.referer != "https://app.example.test" || client.title != "Example Metered Inference" {
+	if client.shared.BaseURL() != "https://proxy.example.test" || client.referer != "https://app.example.test" || client.title != "Example Metered Inference" {
 		t.Fatalf("client = %#v", client)
 	}
 }
 
 // ============================================================================
-// setHeaders Tests
+// Shared transport header tests
 // ============================================================================
 
-func TestOpenRouterClient_SetHeaders_AllHeadersSet(t *testing.T) {
+func TestOpenRouterClient_ChatUsesSharedTransportHeaders(t *testing.T) {
 	var capturedReq *http.Request
 
 	_, client := newMockOpenRouterServer(t, func(w http.ResponseWriter, r *http.Request) {

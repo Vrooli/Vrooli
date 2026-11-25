@@ -39,7 +39,7 @@ func (s *MeteredInferenceService) ExecuteChatStream(ctx context.Context, userIde
 
 	estimate := s.estimateInferenceTokens(req)
 	estimatedCost := s.calculateCost(req.Model, estimate.prompt, estimate.completion)
-	reservationID, err := s.reserveCredits(ctx, userIdentity, billingIdentity, req.BusinessAccountID, tier, req.Metadata.AppBundleKey, estimatedCost, req.Metadata.BrowserEvidence, req.Metadata.GatewayRootOperationID)
+	reservationID, err := s.reserveCredits(ctx, userIdentity, req.BusinessAccountID, tier, req.Metadata.AppBundleKey, estimatedCost, req.Metadata.BrowserEvidence, req.Metadata.GatewayRootOperationID)
 	if err != nil {
 		if errors.Is(err, ErrInsufficientCredits) || strings.Contains(err.Error(), "insufficient") {
 			return ErrInsufficientCredits

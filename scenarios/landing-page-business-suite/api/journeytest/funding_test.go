@@ -76,7 +76,7 @@ func newCheckout(t *testing.T) *checkoutFixture {
 			return int64(amount)
 		}
 		return session.AmountCents.Int64
-	}, HandleCreditTopup: topup.Apply})
+	}, HandleCreditTopupContext: topup.ApplyContext})
 	return &checkoutFixture{s: s, webhook: webhook, plan: price, plans: plans}
 }
 func (c *checkoutFixture) event(t *testing.T, id, kind, payment string) {

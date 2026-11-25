@@ -89,12 +89,32 @@ func (h *ConnectHandler) TrackEvent(_ context.Context, request *connect.Request[
 }
 
 func (h *ConnectHandler) GetAnalyticsSummary(_ context.Context, request *connect.Request[lpbsv1.GetAnalyticsSummaryRequest]) (*connect.Response[lpbsv1.AnalyticsSummary], error) {
-	start, end := dates(request.Msg.GetStartDate(), request.Msg.GetEndDate())
+	start, end, err := analyticsDates(request.Msg.GetStartDate(), request.Msg.GetEndDate(), request.Msg.GetWindowDays())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	summary, err := h.deps.Reader.GetAnalyticsSummary(start, end)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get analytics summary: %w", err))
 	}
 	return connect.NewResponse(summaryProto(summary)), nil
+}
+
+// analyticsDates preserves explicit date ranges and the historical seven-day
+// default, while honoring the window_days field used by dashboard clients.
+func analyticsDates(start, end string, windowDays int32) (time.Time, time.Time, error) {
+	if start != "" || end != "" {
+		from, to := dates(start, end)
+		return from, to, nil
+	}
+	if windowDays == 0 {
+		windowDays = 7
+	}
+	if windowDays != 7 && windowDays != 30 && windowDays != 90 {
+		return time.Time{}, time.Time{}, fmt.Errorf("window_days must be 7, 30, or 90")
+	}
+	to := time.Now()
+	return to.AddDate(0, 0, -int(windowDays)), to, nil
 }
 
 func (h *ConnectHandler) GetVariantStats(_ context.Context, request *connect.Request[lpbsv1.GetVariantStatsRequest]) (*connect.Response[lpbsv1.GetVariantStatsResponse], error) {

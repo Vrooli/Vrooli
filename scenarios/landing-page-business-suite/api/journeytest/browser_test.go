@@ -234,7 +234,7 @@ func TestJ15_BalanceShownAvailableAndOnHold(t *testing.T) {
 	}
 	funding := commerce.NewCreditWalletService(p.db)
 	for _, live := range []bool{false, true} {
-		if err := funding.AddCreditsForBusinessAccount(p.Account, "buyer@example.invalid", 1000, "j15_test_hold", "stripe", fmt.Sprintf("evt_j15_hold_%t", live), map[string]any{"livemode": live, "payment_intent_id": fmt.Sprintf("pi_j15_hold_%t", live)}); err != nil {
+		if err := funding.AddCreditsForBusinessAccountContext(context.Background(), p.Account, "buyer@example.invalid", 1000, "j15_test_hold", "stripe", fmt.Sprintf("evt_j15_hold_%t", live), map[string]any{"livemode": live, "payment_intent_id": fmt.Sprintf("pi_j15_hold_%t", live)}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -244,7 +244,7 @@ func TestJ15_BalanceShownAvailableAndOnHold(t *testing.T) {
 	}
 	// These are isolated mode-labelled funding facts, never a real payment or
 	// live Stripe request. The live view must not subtract the test hold.
-	if err := funding.AddCreditsForBusinessAccount(p.Account, "buyer@example.invalid", 7000, "j15_live_fixture", "stripe", "evt_j15_live_fixture", map[string]any{"livemode": true, "payment_intent_id": "pi_j15_live_fixture"}); err != nil {
+	if err := funding.AddCreditsForBusinessAccountContext(context.Background(), p.Account, "buyer@example.invalid", 7000, "j15_live_fixture", "stripe", "evt_j15_live_fixture", map[string]any{"livemode": true, "payment_intent_id": "pi_j15_live_fixture"}); err != nil {
 		t.Fatal(err)
 	}
 	liveMode := true

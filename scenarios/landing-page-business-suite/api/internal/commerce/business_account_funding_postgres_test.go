@@ -78,18 +78,18 @@ func TestFundingLotsPostgresSpendOrderAndIsolation(t *testing.T) {
 			}
 		}
 		wallet := NewCreditWalletService(db)
-		if balance, err := wallet.BalanceForBusinessAccount("acct-legacy", "legacy@example.com"); err != nil || balance != 0 {
+		if balance, err := wallet.BalanceForBusinessAccountContext(ctx, "acct-legacy", "legacy@example.com"); err != nil || balance != 0 {
 			t.Fatalf("historical cached balance displayed=%d error=%v; want 0", balance, err)
 		}
 		for attempt := 0; attempt < 2; attempt++ {
-			if err := wallet.AddCreditsForBusinessAccount("acct-legacy", "legacy@example.com", 5, "credit_topup", "stripe", "evt-new-attributed-grant", map[string]interface{}{"livemode": false}); err != nil {
+			if err := wallet.AddCreditsForBusinessAccountContext(context.Background(), "acct-legacy", "legacy@example.com", 5, "credit_topup", "stripe", "evt-new-attributed-grant", map[string]interface{}{"livemode": false}); err != nil {
 				t.Fatal(err)
 			}
 		}
-		if balance, err := wallet.BalanceForBusinessAccount("acct-legacy", "legacy@example.com"); err != nil || balance != 5 {
+		if balance, err := wallet.BalanceForBusinessAccountContext(ctx, "acct-legacy", "legacy@example.com"); err != nil || balance != 5 {
 			t.Fatalf("new attributed balance after replay=%d error=%v; want 5", balance, err)
 		}
-		if balance, err := wallet.BalanceForBusinessAccount("acct-legacy", "other@example.com"); err != nil || balance != 0 {
+		if balance, err := wallet.BalanceForBusinessAccountContext(ctx, "acct-legacy", "other@example.com"); err != nil || balance != 0 {
 			t.Fatalf("another identity saw balance=%d error=%v; want 0", balance, err)
 		}
 	})
@@ -134,13 +134,13 @@ func TestFundingLotsPostgresSpendOrderAndIsolation(t *testing.T) {
 	}
 	assertPostgresReservationOverrunCapped(t, ctx, db, service)
 	grantWallet := NewCreditWalletService(db)
-	if err := grantWallet.AddCreditsForBusinessAccount("acct-grants", "buyer@example.com", 40, "credit_topup", "stripe", "evt-test-grant", map[string]interface{}{"livemode": false}); err != nil {
+	if err := grantWallet.AddCreditsForBusinessAccountContext(context.Background(), "acct-grants", "buyer@example.com", 40, "credit_topup", "stripe", "evt-test-grant", map[string]interface{}{"livemode": false}); err != nil {
 		t.Fatalf("write test-mode account grant: %v", err)
 	}
-	if err := grantWallet.AddCreditsForBusinessAccount("acct-grants", "buyer@example.com", 40, "credit_topup", "stripe", "evt-test-grant", map[string]interface{}{"livemode": false}); err != nil {
+	if err := grantWallet.AddCreditsForBusinessAccountContext(context.Background(), "acct-grants", "buyer@example.com", 40, "credit_topup", "stripe", "evt-test-grant", map[string]interface{}{"livemode": false}); err != nil {
 		t.Fatalf("replay test-mode account grant: %v", err)
 	}
-	if err := grantWallet.AddCreditsForBusinessAccount("acct-grants", "buyer@example.com", 60, "credit_topup", "stripe", "evt-live-grant", map[string]interface{}{"livemode": true}); err != nil {
+	if err := grantWallet.AddCreditsForBusinessAccountContext(context.Background(), "acct-grants", "buyer@example.com", 60, "credit_topup", "stripe", "evt-live-grant", map[string]interface{}{"livemode": true}); err != nil {
 		t.Fatalf("write live-mode account grant: %v", err)
 	}
 	var testLots, liveLots int64
@@ -153,7 +153,7 @@ func TestFundingLotsPostgresSpendOrderAndIsolation(t *testing.T) {
 	if testLots != 1 || liveLots != 1 {
 		t.Fatalf("grant lots by mode test=%d live=%d; want 1 each", testLots, liveLots)
 	}
-	if balance, err := grantWallet.BalanceForBusinessAccount("acct-grants", "buyer@example.com"); err != nil || balance != 100 {
+	if balance, err := grantWallet.BalanceForBusinessAccountContext(context.Background(), "acct-grants", "buyer@example.com"); err != nil || balance != 100 {
 		t.Fatalf("attributed grant balance=%d error=%v; want 100", balance, err)
 	}
 	var grantIdentity string

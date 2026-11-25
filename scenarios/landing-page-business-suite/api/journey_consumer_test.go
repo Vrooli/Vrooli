@@ -41,7 +41,7 @@ func TestJourneyConsumerServer(t *testing.T) {
 		t.Fatal(err)
 	}
 	plansPath := filepath.Join(t.TempDir(), "plans.json")
-	fixturePlans := `{"bundle":{"bundle_key":"business_suite","name":"Journey","stripe_product_id":"prod_journey_fixture","credits_per_usd":1000000,"display_credits_multiplier":0.001,"display_credits_label":"credits","environment":"test"},"plans":[{"stripe_price_id":"price_journey_app","plan_name":"Journey App","plan_tier":"free","billing_interval":"month","amount_cents":0,"currency":"usd","plan_rank":1,"kind":"subscription","metadata":{"app_entitlements":{"audio-tools":{"features":["audio:summarize"],"limits":{"ai_credits":10000}}}}}]}`
+	fixturePlans := `{"bundle":{"bundle_key":"business_suite","name":"Journey","stripe_product_id":"prod_journey_fixture","credits_per_usd":1000000,"display_credits_multiplier":0.001,"display_credits_label":"credits","environment":"test"},"plans":[{"stripe_price_id":"price_journey_app","plan_name":"Journey App","plan_tier":"free","billing_interval":"month","amount_cents":0,"currency":"usd","plan_rank":1,"kind":"subscription","metadata":{"app_entitlements":{"audio-tools":{"features":["audio:summarize"],"limits":{"ai_credits":10000}},"web-console":{"features":["coding-backup:paid-inference"],"limits":{"ai_credits":10000}}}}}]}`
 	if err := os.WriteFile(plansPath, []byte(fixturePlans), 0o600); err != nil {
 		t.Fatal(err)
 	}

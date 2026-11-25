@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"testing"
@@ -20,14 +21,14 @@ func TestStripeService_AccountFundingGrants(t *testing.T) {
 	const email = "grants@example.com"
 	metadata := map[string]interface{}{"livemode": false, "charge_id": "ch_grant", "plan_tier": "pro"}
 	grant := func(event string, amount int64) error {
-		return wallet.AddCreditsForBusinessAccount(account, email, amount, "credit_topup", "stripe", event, metadata)
+		return wallet.AddCreditsForBusinessAccountContext(context.Background(), account, email, amount, "credit_topup", "stripe", event, metadata)
 	}
 	require.NoError(t, grant("evt_grant_1", 1000))
 	require.NoError(t, grant("evt_grant_2", 500))
 	require.NoError(t, grant("evt_grant_1", 1000))
 	require.Error(t, grant("evt_grant_1", 1001), "an event replay must not silently change amount")
-	require.Error(t, wallet.AddCreditsForBusinessAccount("other-account", email, 1000, "credit_topup", "stripe", "evt_grant_1", metadata))
-	balance, err := wallet.BalanceForBusinessAccount(account, "GRANTS@EXAMPLE.COM")
+	require.Error(t, wallet.AddCreditsForBusinessAccountContext(context.Background(), "other-account", email, 1000, "credit_topup", "stripe", "evt_grant_1", metadata))
+	balance, err := wallet.BalanceForBusinessAccountContext(context.Background(), account, "GRANTS@EXAMPLE.COM")
 	require.NoError(t, err)
 	require.Equal(t, int64(1500), balance)
 	var lots, transactions, legacy int
@@ -37,16 +38,22 @@ func TestStripeService_AccountFundingGrants(t *testing.T) {
 	require.Equal(t, 2, transactions)
 	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM credit_wallets WHERE customer_email=$1`, email).Scan(&legacy))
 	require.Zero(t, legacy, "account grants must never recreate an email wallet")
-	absent, err := wallet.BalanceForBusinessAccount("absent", email)
+	absent, err := wallet.BalanceForBusinessAccountContext(context.Background(), "absent", email)
 	require.NoError(t, err)
 	require.Zero(t, absent)
-	_, err = wallet.BalanceForBusinessAccount("", email)
+	_, err = wallet.BalanceForBusinessAccountContext(context.Background(), "", email)
 	require.Error(t, err)
+	_, err = wallet.BalanceForBusinessAccountContext(nil, account, email)
+	require.Error(t, err, "missing read context must be rejected")
+	canceledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = wallet.BalanceForBusinessAccountContext(canceledCtx, account, email)
+	require.ErrorIs(t, err, context.Canceled, "balance query must honor the caller context")
 	for _, amount := range []int64{0, -1} {
 		require.Error(t, grant(fmt.Sprintf("invalid-%d", amount), amount))
 	}
-	require.Error(t, wallet.AddCreditsForBusinessAccount(account, "", 1, "credit_topup", "stripe", "empty-customer", metadata))
-	require.Error(t, wallet.AddCreditsForBusinessAccount(account, email, 1, "credit_topup", "stripe", "unknown-mode", nil))
+	require.Error(t, wallet.AddCreditsForBusinessAccountContext(context.Background(), account, "", 1, "credit_topup", "stripe", "empty-customer", metadata))
+	require.Error(t, wallet.AddCreditsForBusinessAccountContext(context.Background(), account, email, 1, "credit_topup", "stripe", "unknown-mode", nil))
 }
 
 func TestStripeService_ConcurrentAccountFundingGrants(t *testing.T) {
@@ -56,7 +63,7 @@ func TestStripeService_ConcurrentAccountFundingGrants(t *testing.T) {
 	const account = "acct-concurrent-grants"
 	const email = "concurrent-grants@example.com"
 	grant := func(event string) error {
-		return service.creditWallet.AddCreditsForBusinessAccount(account, email, 100, "credit_topup", "stripe", event, map[string]interface{}{"livemode": false})
+		return service.creditWallet.AddCreditsForBusinessAccountContext(context.Background(), account, email, 100, "credit_topup", "stripe", event, map[string]interface{}{"livemode": false})
 	}
 	for _, sameEvent := range []bool{true, false} {
 		var wg sync.WaitGroup
@@ -81,7 +88,7 @@ func TestStripeService_ConcurrentAccountFundingGrants(t *testing.T) {
 			require.NoError(t, err)
 		}
 	}
-	balance, err := service.creditWallet.BalanceForBusinessAccount(account, email)
+	balance, err := service.creditWallet.BalanceForBusinessAccountContext(context.Background(), account, email)
 	require.NoError(t, err)
 	require.Equal(t, int64((attempts+1)*100), balance, "same-event races grant once; independent events accumulate")
 	var transactions, lots int

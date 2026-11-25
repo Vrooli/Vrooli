@@ -28,7 +28,6 @@ type StripeWebhookService struct {
 	loadCheckoutSession        func(string) (*CheckoutSessionRecord, error)
 	loadCheckoutSessionContext func(context.Context, string) (*CheckoutSessionRecord, error)
 	extractAmount              func(map[string]interface{}, *CheckoutSessionRecord) int64
-	handleCreditTopup          func(string, int64, *PlanOption, string, map[string]interface{}) error
 	handleCreditTopupContext   func(context.Context, string, int64, *PlanOption, string, map[string]interface{}) error
 	refreshSubscription        func(string, string) (*shared.SubscriptionStatus, error)
 	refreshSubscriptionContext func(context.Context, string, string) (*shared.SubscriptionStatus, error)
@@ -76,7 +75,6 @@ type StripeWebhookOptions struct {
 	LoadCheckoutSession        func(string) (*CheckoutSessionRecord, error)
 	LoadCheckoutSessionContext func(context.Context, string) (*CheckoutSessionRecord, error)
 	ExtractAmount              func(map[string]interface{}, *CheckoutSessionRecord) int64
-	HandleCreditTopup          func(string, int64, *PlanOption, string, map[string]interface{}) error
 	HandleCreditTopupContext   func(context.Context, string, int64, *PlanOption, string, map[string]interface{}) error
 	RefreshSubscription        func(string, string) (*shared.SubscriptionStatus, error)
 	RefreshSubscriptionContext func(context.Context, string, string) (*shared.SubscriptionStatus, error)
@@ -94,9 +92,8 @@ func NewStripeWebhookService(options StripeWebhookOptions) *StripeWebhookService
 	return &StripeWebhookService{
 		db: options.DB, provider: options.Provider, planService: options.PlanService, getConfig: options.Config,
 		normalizeEmailFn: options.NormalizeEmail, loadCheckoutSession: options.LoadCheckoutSession, loadCheckoutSessionContext: options.LoadCheckoutSessionContext,
-		extractAmount: options.ExtractAmount, handleCreditTopup: options.HandleCreditTopup,
-		handleCreditTopupContext: options.HandleCreditTopupContext,
-		refreshSubscription:      options.RefreshSubscription, refreshSubscriptionContext: options.RefreshSubscriptionContext,
+		extractAmount: options.ExtractAmount, handleCreditTopupContext: options.HandleCreditTopupContext,
+		refreshSubscription: options.RefreshSubscription, refreshSubscriptionContext: options.RefreshSubscriptionContext,
 		persistSubscription: options.PersistSubscription, persistSubscriptionContext: options.PersistSubscriptionContext,
 		checkIntroEligibility: options.CheckIntroEligibility, markIntroUsed: options.MarkIntroUsed,
 		extractIntroCoupon: options.ExtractIntroCoupon, logIntroAnomaly: options.LogIntroAnomaly,
@@ -300,11 +297,20 @@ func (s *StripeWebhookService) VerifyWebhookSignature(payload []byte, signature 
 // HandleWebhook processes Stripe webhook events
 // [REQ:STRIPE-ROUTES] POST /api/webhooks/stripe endpoint
 func (s *StripeWebhookService) HandleWebhook(body []byte, signature string) error {
+	return s.HandleWebhookContext(context.Background(), body, signature)
+}
+
+// HandleWebhookContext keeps request-selected storage and cancellation context
+// attached to every event effect, including account credit top-ups.
+func (s *StripeWebhookService) HandleWebhookContext(ctx context.Context, body []byte, signature string) error {
+	if ctx == nil {
+		return errors.New("webhook context is required")
+	}
 	// [REQ:STRIPE-SIG] Verify signature before processing
 	if !s.VerifyWebhookSignature(body, signature) {
 		return errors.New("invalid webhook signature")
 	}
-	_, err := s.processEventPayload(context.Background(), body)
+	_, err := s.processEventPayload(ctx, body)
 	return err
 }
 
@@ -520,12 +526,10 @@ func (s *StripeWebhookService) handleCheckoutCompleted(ctx context.Context, obj 
 			metadata["business_account_id"] = strings.TrimSpace(sessionRec.BusinessAccountID.String)
 		}
 		var err error
-		if s.handleCreditTopupContext != nil {
-			err = s.handleCreditTopupContext(ctx, customerEmail, amountCents, plan, stripeEventID, metadata)
-		} else if s.handleCreditTopup != nil {
-			err = s.handleCreditTopup(customerEmail, amountCents, plan, stripeEventID, metadata)
-		} else {
+		if s.handleCreditTopupContext == nil {
 			err = errors.New("credit top-up handler unavailable")
+		} else {
+			err = s.handleCreditTopupContext(ctx, customerEmail, amountCents, plan, stripeEventID, metadata)
 		}
 		if err != nil {
 			return err

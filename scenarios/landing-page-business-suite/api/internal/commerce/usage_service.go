@@ -246,9 +246,13 @@ func (s *UsageService) QuotaReservationKey(ctx context.Context, id string) (stri
 	return key, err
 }
 
-func (s *UsageService) ReserveBusinessAccountUSDSpendCap(ctx context.Context, account, actor, tier string, costMicros int64, operation string) (string, int64, int64, error) {
+func (s *UsageService) ReserveBusinessAccountUSDSpendCap(ctx context.Context, account, actor, tier, app string, costMicros int64, operation string) (string, int64, int64, error) {
 	if strings.TrimSpace(account) == "" {
 		return "", 0, 0, ErrBusinessAccountRequired
+	}
+	app = strings.TrimSpace(app)
+	if app == "" {
+		return "", 0, 0, errors.New("verified app billing scope unavailable")
 	}
 	limit, err := requireMeterKind(ctx, s.limitsSvc, tier, "ai_credits", "cost_based")
 	if err != nil || costMicros <= 0 {
@@ -264,7 +268,11 @@ func (s *UsageService) ReserveBusinessAccountUSDSpendCap(ctx context.Context, ac
 	if units <= 0 {
 		return "", 0, 0, errors.New("spend ceiling conversion is invalid")
 	}
-	id, created, err := s.ReserveBusinessAccountCreditsWithID(ctx, account, actor, tier, "ai_credits", units, operation)
+	scope, err := s.businessAccountUsageService().creditScope(ctx, tier, "ai_credits", app)
+	if err != nil || scope.App == nil {
+		return "", 0, 0, errors.New("exact app credit meter is unavailable")
+	}
+	id, created, err := s.ReserveBusinessAccountInferenceCreditsWithID(ctx, account, actor, tier, app, units, operation)
 	if err == nil && !created {
 		return "", 0, 0, errors.New("spend operation is already reserved; reconcile its existing receipt")
 	}

@@ -16,6 +16,20 @@ import (
 
 type fixedAccountLimits struct{ value int64 }
 
+type fixedSpendCapLimits struct{}
+
+func (fixedSpendCapLimits) GetLimit(context.Context, string, string, *string) (*TierLimit, error) {
+	return &TierLimit{TierID: "pro", LimitKey: "ai_credits", LimitType: "cost_based", LimitValue: 100, CostMultiplier: 10000}, nil
+}
+
+func (fixedSpendCapLimits) GetTierLimits(context.Context, string) ([]TierLimit, error) {
+	app := "image-tools"
+	return []TierLimit{
+		{TierID: "pro", LimitKey: "ai_credits", LimitType: "cost_based", LimitValue: 100, CostMultiplier: 10000},
+		{TierID: "pro", LimitKey: "ai_credits", LimitType: "app_specific", LimitValue: 50, CostMultiplier: 10000, AppBundleKey: &app},
+	}, nil
+}
+
 func (l fixedAccountLimits) GetLimit(_ context.Context, tier, key string, _ *string) (*TierLimit, error) {
 	return &TierLimit{TierID: tier, LimitKey: key, LimitType: "cost_based", LimitValue: l.value}, nil
 }
@@ -87,6 +101,31 @@ func TestBusinessAccountUsageReservationIsAccountScopedAndIdempotent(t *testing.
 		t.Fatalf("reserve first account credits: %v", err)
 	}
 	usageAdapter := NewUsageServiceWithOptions(UsageServiceOptions{DB: db, LimitsService: fixedAccountLimits{value: 100}, Dialect: "sqlite", LiveMode: boolRef(false)})
+	spendCapUsage := NewUsageServiceWithOptions(UsageServiceOptions{DB: db, LimitsService: fixedSpendCapLimits{}, Dialect: "sqlite", LiveMode: boolRef(false)})
+	var beforeUnscoped int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM business_account_credit_reservations WHERE business_account_id='acct-beta'`).Scan(&beforeUnscoped); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, err := spendCapUsage.ReserveBusinessAccountUSDSpendCap(ctx, "acct-beta", "buyer@example.com", "pro", "", 1, "00000000-0000-4000-8000-000000000300"); err == nil {
+		t.Fatal("missing app scope must not fall back to global credit limits")
+	}
+	if _, _, _, err := spendCapUsage.ReserveBusinessAccountUSDSpendCap(ctx, "acct-beta", "buyer@example.com", "pro", "web-console", 1, "00000000-0000-4000-8000-000000000300"); err == nil {
+		t.Fatal("mismatched app scope must not fall back to global credit limits")
+	}
+	var afterUnscoped int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM business_account_credit_reservations WHERE business_account_id='acct-beta'`).Scan(&afterUnscoped); err != nil || afterUnscoped != beforeUnscoped {
+		t.Fatalf("rejected scope changed reservation count: before=%d after=%d err=%v", beforeUnscoped, afterUnscoped, err)
+	}
+	spendCapID, spendCapUnits, spendMultiplier, err := spendCapUsage.ReserveBusinessAccountUSDSpendCap(ctx, "acct-beta", "buyer@example.com", "pro", "image-tools", 1, "00000000-0000-4000-8000-000000000301")
+	if err != nil || spendCapID == "" || spendCapUnits != 1 || spendMultiplier != 10000 {
+		t.Fatalf("account spend-cap reservation id=%q units=%d multiplier=%d err=%v", spendCapID, spendCapUnits, spendMultiplier, err)
+	}
+	if _, _, _, err := spendCapUsage.ReserveBusinessAccountUSDSpendCap(ctx, "acct-beta", "buyer@example.com", "pro", "image-tools", 1, "00000000-0000-4000-8000-000000000301"); err == nil {
+		t.Fatal("identical spend-cap operation must not authorize a second dispatch")
+	}
+	if err := spendCapUsage.ReleaseBusinessAccountReservation(ctx, "acct-beta", "buyer@example.com", spendCapID); err != nil {
+		t.Fatalf("release fixture spend-cap hold: %v", err)
+	}
 	featureReservation, created, err := usageAdapter.ReserveBusinessAccountInferenceCreditsWithID(ctx, "acct-beta", "buyer@example.com", "pro", "web-console", 10, "00000000-0000-4000-8000-000000000201")
 	if err != nil || !created || featureReservation == "" {
 		t.Fatalf("reserve feature-scoped inference hold id=%q created=%t err=%v", featureReservation, created, err)

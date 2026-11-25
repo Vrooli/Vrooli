@@ -32,13 +32,10 @@ func NewCreditTopupService(plans BundleProductReader, wallet CreditWallet, logf 
 	return &CreditTopupService{plans: plans, wallet: wallet, logf: logf}
 }
 
-// Apply records credits for a successfully completed provider checkout. The
-// provider event ID is retained as the wallet's replay key.
-func (s *CreditTopupService) Apply(customerEmail string, amountCents int64, plan *PlanOption, providerEventID string, metadata map[string]interface{}) error {
-	return s.ApplyContext(context.Background(), customerEmail, amountCents, plan, providerEventID, metadata)
-}
-
 func (s *CreditTopupService) ApplyContext(ctx context.Context, customerEmail string, amountCents int64, plan *PlanOption, providerEventID string, metadata map[string]interface{}) error {
+	if ctx == nil {
+		return errors.New("credit top-up context is required")
+	}
 	if customerEmail == "" {
 		return errors.New("customer email required for credit top-up")
 	}
@@ -103,10 +100,5 @@ func (s *CreditTopupService) ApplyContext(ctx context.Context, customerEmail str
 	if _, err := knownGrantMode(metadata); err != nil {
 		return err
 	}
-	if wallet, ok := s.wallet.(interface {
-		AddCreditsForBusinessAccountContext(context.Context, string, string, int64, string, string, string, map[string]interface{}) error
-	}); ok {
-		return wallet.AddCreditsForBusinessAccountContext(ctx, accountID, customerEmail, credits, "credit_topup", "stripe", providerEventID, metadata)
-	}
-	return s.wallet.AddCreditsForBusinessAccount(accountID, customerEmail, credits, "credit_topup", "stripe", providerEventID, metadata)
+	return s.wallet.AddCreditsForBusinessAccountContext(ctx, accountID, customerEmail, credits, "credit_topup", "stripe", providerEventID, metadata)
 }

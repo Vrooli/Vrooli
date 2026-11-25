@@ -97,9 +97,9 @@ func requireBillingScope(accountID string, ownerVerified bool) error {
 // The reservation system prevents the more serious issue: concurrent requests
 // from multiple sessions exceeding the credit limit.
 type MeteredInferenceService struct {
-	apiKeyService  APIKeyServicer  // Interface for testing
-	usageService   UsageServicer   // Interface for testing
-	accountService AccountServicer // Interface for testing
+	apiKeyService  APIKeyServicer               // Interface for testing
+	usageService   BusinessAccountUsageServicer // Interface for testing
+	accountService AccountServicer              // Interface for testing
 	log            func(event string, fields map[string]interface{})
 
 	// OpenRouter client - injectable for testing
@@ -120,7 +120,7 @@ type MeteredInferenceServiceOptions struct {
 	// root concrete services. The gateway orchestrates provider calls and credit
 	// policy; it does not own their persistence implementations.
 	APIKeyService  APIKeyServicer
-	UsageService   UsageServicer
+	UsageService   BusinessAccountUsageServicer
 	AccountService AccountServicer
 	Logger         func(event string, fields map[string]interface{})
 	// ClientFactory is composition-owned because provider endpoint and metadata
@@ -294,9 +294,6 @@ func (s *MeteredInferenceService) ExecuteChat(ctx context.Context, userIdentity 
 		return nil, err
 	}
 	if req.SpendLimit != nil {
-		if strings.TrimSpace(req.BusinessAccountID) != "" {
-			return nil, errors.New("spend-limited inference does not support business-account billing")
-		}
 		if !req.spendLimitTrusted {
 			return nil, errors.New("spend-limited inference is available only through an approved capability role")
 		}
@@ -309,7 +306,7 @@ func (s *MeteredInferenceService) ExecuteChat(ctx context.Context, userIdentity 
 
 	// Resolve the selected account's tier for policy. The account and actor remain
 	// distinct in the commerce-owned usage ledger.
-	billingIdentity, tier, err := s.billingIdentityAndTier(ctx, userIdentity, req.BusinessAccountID)
+	_, tier, err := s.billingIdentityAndTier(ctx, userIdentity, req.BusinessAccountID)
 	if err != nil {
 		s.log("metered_inference_get_tier_failed", map[string]interface{}{
 			"level":         "error",
@@ -328,7 +325,7 @@ func (s *MeteredInferenceService) ExecuteChat(ctx context.Context, userIdentity 
 
 	// Reserve credits before the provider call; the reservation has an explicit
 	// release path so provider failure cannot commit the estimate.
-	reservationID, err := s.reserveCredits(ctx, userIdentity, billingIdentity, req.BusinessAccountID, tier, req.Metadata.AppBundleKey, estimatedCost, req.Metadata.BrowserEvidence, req.Metadata.GatewayRootOperationID)
+	reservationID, err := s.reserveCredits(ctx, userIdentity, req.BusinessAccountID, tier, req.Metadata.AppBundleKey, estimatedCost, req.Metadata.BrowserEvidence, req.Metadata.GatewayRootOperationID)
 	if err != nil {
 		if errors.Is(err, ErrInsufficientCredits) || strings.Contains(err.Error(), "insufficient") {
 			return nil, ErrInsufficientCredits
@@ -425,8 +422,7 @@ func (s *MeteredInferenceService) executeBrowserSessionChat(ctx context.Context,
 	if accountID == "" || strings.TrimSpace(actor) == "" {
 		return nil, ErrBillingAccountRequired
 	}
-	_, ok := s.usageService.(BusinessAccountUsageServicer)
-	if !ok {
+	if s.usageService == nil {
 		return nil, errors.New("business-account browser session reservation owner is unavailable")
 	}
 	sessionUsage, ok := s.usageService.(BrowserSessionMeteringServicer)
@@ -647,11 +643,10 @@ func (s *MeteredInferenceService) bindBrowserEvidence(ctx context.Context, actor
 	if strings.TrimSpace(businessAccountID) == "" {
 		return errors.New("BAS browser evidence requires an LPBS business-account reservation")
 	}
-	accountUsage, ok := s.usageService.(BusinessAccountUsageServicer)
-	if !ok {
+	if s.usageService == nil {
 		return errors.New("business-account browser evidence authority is unavailable")
 	}
-	return accountUsage.BindBusinessAccountBrowserEvidence(ctx, businessAccountID, actorIdentity, reservationID, proof.RunID, browserEvidenceFingerprint(proof.Reference))
+	return s.usageService.BindBusinessAccountBrowserEvidence(ctx, businessAccountID, actorIdentity, reservationID, proof.RunID, browserEvidenceFingerprint(proof.Reference))
 }
 
 func browserEvidenceFingerprint(reference string) string {
@@ -686,12 +681,11 @@ func (s *MeteredInferenceService) billingIdentityAndTier(ctx context.Context, us
 	return userIdentity, tier, nil
 }
 
-func (s *MeteredInferenceService) reserveCredits(ctx context.Context, actorIdentity, billingIdentity, businessAccountID, tier, appBundleKey string, amount int64, proof *BrowserEvidenceProof, rootOperationID string) (string, error) {
+func (s *MeteredInferenceService) reserveCredits(ctx context.Context, actorIdentity, businessAccountID, tier, appBundleKey string, amount int64, proof *BrowserEvidenceProof, rootOperationID string) (string, error) {
 	if strings.TrimSpace(businessAccountID) == "" {
-		return s.usageService.ReserveCredits(ctx, billingIdentity, tier, "ai_credits", amount)
+		return "", ErrBillingAccountRequired
 	}
-	accountUsage, ok := s.usageService.(BusinessAccountUsageServicer)
-	if !ok {
+	if s.usageService == nil {
 		return "", errors.New("business-account usage authority is unavailable")
 	}
 	if strings.TrimSpace(appBundleKey) == "" {
@@ -703,7 +697,7 @@ func (s *MeteredInferenceService) reserveCredits(ctx context.Context, actorIdent
 			operationSource = proof.Reference
 		}
 		operationID := browserEvidenceOperationID(operationSource)
-		reservationID, created, err := accountUsage.ReserveBusinessAccountInferenceCreditsWithID(ctx, businessAccountID, actorIdentity, tier, appBundleKey, amount, operationID)
+		reservationID, created, err := s.usageService.ReserveBusinessAccountInferenceCreditsWithID(ctx, businessAccountID, actorIdentity, tier, appBundleKey, amount, operationID)
 		if err != nil {
 			return "", err
 		}
@@ -715,19 +709,17 @@ func (s *MeteredInferenceService) reserveCredits(ctx context.Context, actorIdent
 		}
 		return reservationID, nil
 	}
-	return accountUsage.ReserveBusinessAccountCredits(ctx, businessAccountID, actorIdentity, tier, "ai_credits", amount)
+	return s.usageService.ReserveBusinessAccountCredits(ctx, businessAccountID, actorIdentity, tier, "ai_credits", amount)
 }
 
 func (s *MeteredInferenceService) releaseReservation(ctx context.Context, actorIdentity, businessAccountID, reservationID string) error {
 	cleanupCtx, cancel := context.WithTimeout(context.Background(), reservationCleanupTimeout)
 	defer cancel()
 	var err error
-	if strings.TrimSpace(businessAccountID) == "" {
-		err = s.usageService.ReleaseReservation(cleanupCtx, reservationID)
-	} else if accountUsage, ok := s.usageService.(BusinessAccountUsageServicer); !ok {
-		err = errors.New("business-account usage authority is unavailable")
+	if strings.TrimSpace(businessAccountID) == "" || s.usageService == nil {
+		err = ErrBillingAccountRequired
 	} else {
-		err = accountUsage.ReleaseBusinessAccountReservation(cleanupCtx, businessAccountID, actorIdentity, reservationID)
+		err = s.usageService.ReleaseBusinessAccountReservation(cleanupCtx, businessAccountID, actorIdentity, reservationID)
 	}
 	if err != nil {
 		s.log("metered_inference_reservation_release_failed", map[string]interface{}{
@@ -741,17 +733,10 @@ func (s *MeteredInferenceService) markInferenceOutcomeUncertain(actorIdentity, b
 	cleanupCtx, cancel := context.WithTimeout(context.Background(), reservationCleanupTimeout)
 	defer cancel()
 	var retainErr error
-	if strings.TrimSpace(businessAccountID) != "" {
-		accountUsage, ok := s.usageService.(BusinessAccountUsageServicer)
-		if !ok {
-			retainErr = errors.New("business-account reservation retainer is unavailable")
-		} else {
-			retainErr = accountUsage.RetainUncertainBusinessAccountReservation(cleanupCtx, businessAccountID, actorIdentity, reservationID)
-		}
-	} else if retainer, ok := s.usageService.(UncertainReservationRetainer); ok {
-		retainErr = retainer.RetainUncertainReservation(cleanupCtx, reservationID)
+	if strings.TrimSpace(businessAccountID) == "" || s.usageService == nil {
+		retainErr = ErrBillingAccountRequired
 	} else {
-		retainErr = errors.New("reservation retainer is unavailable")
+		retainErr = s.usageService.RetainUncertainBusinessAccountReservation(cleanupCtx, businessAccountID, actorIdentity, reservationID)
 	}
 	if retainErr != nil {
 		s.log("metered_inference_uncertain_reservation_retain_failed", map[string]interface{}{
@@ -768,39 +753,36 @@ func (s *MeteredInferenceService) markInferenceOutcomeUncertain(actorIdentity, b
 
 func (s *MeteredInferenceService) finalizeReservationWithCost(ctx context.Context, actorIdentity, businessAccountID, reservationID string, actualAmount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider string, browser BrowserUsage) error {
 	if strings.TrimSpace(businessAccountID) == "" {
-		return finalizeUsageWithBrowserUsage(s.usageService, ctx, reservationID, actualAmount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider, browser)
+		return ErrBillingAccountRequired
 	}
-	accountUsage, ok := s.usageService.(BusinessAccountUsageServicer)
-	if !ok {
+	if s.usageService == nil {
 		return errors.New("business-account usage authority is unavailable")
 	}
-	return accountUsage.FinalizeBusinessAccountReservationWithBrowserUsage(ctx, businessAccountID, actorIdentity, reservationID, actualAmount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider, browser.SessionMinutes, browser.Actions, browser.Bytes, browser.RunID, browser.SessionID, browser.EvidenceFingerprint)
+	return s.usageService.FinalizeBusinessAccountReservationWithBrowserUsage(ctx, businessAccountID, actorIdentity, reservationID, actualAmount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider, browser.SessionMinutes, browser.Actions, browser.Bytes, browser.RunID, browser.SessionID, browser.EvidenceFingerprint)
 }
 
 func (s *MeteredInferenceService) recordUsage(ctx context.Context, actorIdentity, businessAccountID, tier string, report UsageReport) error {
 	if strings.TrimSpace(businessAccountID) == "" {
-		return s.usageService.RecordUsage(ctx, report)
+		return ErrBillingAccountRequired
 	}
-	accountUsage, ok := s.usageService.(BusinessAccountUsageServicer)
-	if !ok {
+	if s.usageService == nil {
 		return errors.New("business-account usage authority is unavailable")
 	}
 	operationID := ""
 	if report.OperationID != nil {
 		operationID = *report.OperationID
 	}
-	return accountUsage.RecordBusinessAccountUsage(ctx, businessAccountID, actorIdentity, tier, report.LimitKey, report.Amount, operationID, report.AppBundleKey, report.Metadata["model"], parseNonnegativeInt64(report.Metadata["cost_micros"]), parseNonnegativeInt(report.Metadata["prompt_tokens"]), parseNonnegativeInt(report.Metadata["completion_tokens"]), report.Metadata["provider"])
+	return s.usageService.RecordBusinessAccountUsage(ctx, businessAccountID, actorIdentity, tier, report.LimitKey, report.Amount, operationID, report.AppBundleKey, report.Metadata["model"], parseNonnegativeInt64(report.Metadata["cost_micros"]), parseNonnegativeInt(report.Metadata["prompt_tokens"]), parseNonnegativeInt(report.Metadata["completion_tokens"]), report.Metadata["provider"])
 }
 
 func (s *MeteredInferenceService) adjustUsage(ctx context.Context, actorIdentity, businessAccountID, limitKey string, amount int64, reason string) error {
 	if strings.TrimSpace(businessAccountID) == "" {
-		return s.usageService.AdjustUsage(ctx, actorIdentity, limitKey, amount, reason)
+		return ErrBillingAccountRequired
 	}
-	accountUsage, ok := s.usageService.(BusinessAccountUsageServicer)
-	if !ok {
+	if s.usageService == nil {
 		return errors.New("business-account usage authority is unavailable")
 	}
-	return accountUsage.AdjustBusinessAccountUsage(ctx, businessAccountID, limitKey, amount)
+	return s.usageService.AdjustBusinessAccountUsage(ctx, businessAccountID, limitKey, amount)
 }
 
 func parseNonnegativeInt64(value string) int64 {

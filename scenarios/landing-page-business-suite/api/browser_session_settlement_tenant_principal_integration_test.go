@@ -22,29 +22,9 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// meteredUsageAdapter embeds the real LPBS owner and supplies only the
-// unrelated legacy operations required by MeteredInferenceService's narrow
-// interface. Browser settlement methods stay promoted from UsageService.
+// meteredUsageAdapter embeds the LPBS account-scoped owner. Browser settlement
+// methods stay promoted from UsageService.
 type meteredUsageAdapter struct{ *commerce.UsageService }
-
-func (meteredUsageAdapter) ReserveAndCharge(context.Context, string, string, string, int64, intelligence.UsageReport) error {
-	return errors.New("unexpected generic reserve in browser close fixture")
-}
-func (meteredUsageAdapter) ReserveCredits(context.Context, string, string, string, int64) (string, error) {
-	return "", errors.New("unexpected generic reservation in browser close fixture")
-}
-func (meteredUsageAdapter) FinalizeReservation(context.Context, string, int64) error {
-	return errors.New("unexpected generic finalize in browser close fixture")
-}
-func (meteredUsageAdapter) ReleaseReservation(context.Context, string) error {
-	return errors.New("unexpected generic release in browser close fixture")
-}
-func (meteredUsageAdapter) AdjustUsage(context.Context, string, string, int64, string) error {
-	return errors.New("unexpected generic adjustment in browser close fixture")
-}
-func (meteredUsageAdapter) RecordUsage(context.Context, intelligence.UsageReport) error {
-	return errors.New("unexpected generic usage record in browser close fixture")
-}
 
 // fixtureAMCloseAttester is an owner-bound test double: it accepts only the
 // exact run/session/grant/proof/reservation tuple seeded for account A.

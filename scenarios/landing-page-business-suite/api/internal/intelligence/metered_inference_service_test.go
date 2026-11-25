@@ -532,6 +532,11 @@ func (m *MockUsageService) ReserveBusinessAccountCreditsWithID(ctx context.Conte
 	return "account-test-reservation-id", true, nil
 }
 
+func (m *MockUsageService) ReserveBusinessAccountUSDSpendCap(_ context.Context, accountID, actor, tier, app string, capMicros int64, operationID string) (string, int64, int64, error) {
+	m.Calls["ReserveBusinessAccountUSDSpendCap"] = append(m.Calls["ReserveBusinessAccountUSDSpendCap"], []interface{}{accountID, actor, tier, app, capMicros, operationID})
+	return "account-spend-cap-reservation", 1, 10000, nil
+}
+
 func (m *MockUsageService) ReserveBusinessAccountInferenceCreditsWithID(ctx context.Context, accountID, actor, tier, appBundleKey string, amount int64, operationID string) (string, bool, error) {
 	m.Calls["ReserveBusinessAccountInferenceCreditsWithID"] = append(m.Calls["ReserveBusinessAccountInferenceCreditsWithID"], []interface{}{accountID, actor, tier, appBundleKey, amount, operationID})
 	if m.ReserveBusinessAccountWithIDFn != nil {
@@ -627,8 +632,8 @@ func (m *MockUsageService) RecordUsage(ctx context.Context, req UsageReport) err
 	return nil
 }
 
-// Compile-time check
-var _ UsageServicer = (*MockUsageService)(nil)
+// Compile-time checks for the billing authority required by metered inference.
+var _ BusinessAccountUsageServicer = (*MockUsageService)(nil)
 
 // MockAccountService implements AccountServicer for testing tier lookup.
 type MockAccountService struct {
@@ -921,7 +926,7 @@ func TestBASProofUsesExistingIdempotentLPBSReserveAndRejectsReplayBeforeDispatch
 	if len(operationID) != 36 || operationID[14] != '5' || !strings.ContainsRune("89ab", rune(operationID[19])) {
 		t.Fatalf("proof-derived operation id is not a PostgreSQL UUID: %q", operationID)
 	}
-	first, err := service.reserveCredits(context.Background(), "buyer@example.com", "buyer@example.com", "acct-fixture", "pro", "fixture-app", 50, proof, rootOperationID)
+	first, err := service.reserveCredits(context.Background(), "buyer@example.com", "acct-fixture", "pro", "fixture-app", 50, proof, rootOperationID)
 	if err != nil || first != "account-test-reservation-id" {
 		t.Fatalf("first browser reservation id=%q err=%v", first, err)
 	}
@@ -932,7 +937,7 @@ func TestBASProofUsesExistingIdempotentLPBSReserveAndRejectsReplayBeforeDispatch
 	usage.ReserveBusinessAccountWithIDFn = func(context.Context, string, string, string, string, int64, string) (string, bool, error) {
 		return "existing-reservation", false, nil
 	}
-	if _, err := service.reserveCredits(context.Background(), "buyer@example.com", "buyer@example.com", "acct-fixture", "pro", "fixture-app", 50, proof, rootOperationID); !errors.Is(err, ErrBrowserEvidenceReplay) {
+	if _, err := service.reserveCredits(context.Background(), "buyer@example.com", "acct-fixture", "pro", "fixture-app", 50, proof, rootOperationID); !errors.Is(err, ErrBrowserEvidenceReplay) {
 		t.Fatalf("replayed browser proof reserve error=%v, want replay denial", err)
 	}
 }
@@ -941,7 +946,7 @@ func TestGatewayRootOperationReplayRefusedBeforeSecondInferenceDispatch(t *testi
 	usage := NewMockUsageService()
 	service := &MeteredInferenceService{usageService: usage}
 	rootOperationID := strings.Repeat("b", 64)
-	first, err := service.reserveCredits(context.Background(), "buyer@example.com", "buyer@example.com", "acct-fixture", "pro", "fixture-app", 50, nil, rootOperationID)
+	first, err := service.reserveCredits(context.Background(), "buyer@example.com", "acct-fixture", "pro", "fixture-app", 50, nil, rootOperationID)
 	if err != nil || first != "account-test-reservation-id" {
 		t.Fatalf("first root-bound reservation id=%q err=%v", first, err)
 	}
@@ -953,8 +958,24 @@ func TestGatewayRootOperationReplayRefusedBeforeSecondInferenceDispatch(t *testi
 	usage.ReserveBusinessAccountWithIDFn = func(context.Context, string, string, string, string, int64, string) (string, bool, error) {
 		return "existing-reservation", false, nil
 	}
-	if _, err := service.reserveCredits(context.Background(), "buyer@example.com", "buyer@example.com", "acct-fixture", "pro", "fixture-app", 50, nil, rootOperationID); !errors.Is(err, ErrInferenceOperationReplay) {
+	if _, err := service.reserveCredits(context.Background(), "buyer@example.com", "acct-fixture", "pro", "fixture-app", 50, nil, rootOperationID); !errors.Is(err, ErrInferenceOperationReplay) {
 		t.Fatalf("replayed Gateway root operation error=%v, want dispatch refusal", err)
+	}
+}
+
+func TestInferenceReservationRejectsMissingAccountWithoutPersonalFallback(t *testing.T) {
+	usage := NewMockUsageService()
+	usage.ReserveCreditsFn = func(context.Context, string, string, string, int64) (string, error) {
+		t.Fatal("metered inference must never reserve against a personal wallet")
+		return "", nil
+	}
+	service := &MeteredInferenceService{usageService: usage}
+
+	if _, err := service.reserveCredits(context.Background(), "actor@example.test", "", "pro", "web-console", 1, nil, ""); !errors.Is(err, ErrBillingAccountRequired) {
+		t.Fatalf("reservation without selected account error=%v, want ErrBillingAccountRequired", err)
+	}
+	if len(usage.Calls["ReserveCredits"]) != 0 || len(usage.Calls["ReserveBusinessAccountCredits"]) != 0 {
+		t.Fatalf("missing-account rejection mutated a billing path: %#v", usage.Calls)
 	}
 }
 
@@ -1271,9 +1292,11 @@ func TestExecuteChatStream_Success(t *testing.T) {
 	w := NewMockFlusherResponseWriter()
 
 	err := svc.ExecuteChatStream(context.Background(), "user@test.com", AIRequest{
-		Model:             "openai/gpt-4o-mini",
-		BusinessAccountID: "acct-123",
-		Messages:          []AIMessage{{Role: "user", Content: "Hello"}},
+		Model:               "openai/gpt-4o-mini",
+		BusinessAccountID:   "acct-123",
+		Messages:            []AIMessage{{Role: "user", Content: "Hello"}},
+		creditOwnerVerified: true,
+		Metadata:            AIMetadata{AppBundleKey: "web-console"},
 	}, w)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -1406,14 +1429,15 @@ func TestExecuteChatStream_BusinessAccountChargesMeasuredPartialUsage(t *testing
 	}
 
 	err := svc.ExecuteChatStream(context.Background(), "buyer@example.com", AIRequest{
-		Model: "openai/gpt-4o-mini", BusinessAccountID: "acct-fixture",
+		Model: "openai/gpt-4o-mini", BusinessAccountID: "acct-fixture", creditOwnerVerified: true,
 		Messages: []AIMessage{{Role: "user", Content: "Hello"}},
+		Metadata: AIMetadata{AppBundleKey: "web-console", GatewayRootOperationID: strings.Repeat("c", 32)},
 	}, NewMockFlusherResponseWriter())
 	if err == nil {
 		t.Fatal("expected the interrupted stream error")
 	}
-	reserve := mockUsage.Calls["ReserveBusinessAccountCreditsWithID"]
-	if len(reserve) != 1 || reserve[0].([]interface{})[0] != "acct-fixture" || reserve[0].([]interface{})[1] != "buyer@example.com" {
+	reserve := mockUsage.Calls["ReserveBusinessAccountInferenceCreditsWithID"]
+	if len(reserve) != 1 || reserve[0].([]interface{})[0] != "acct-fixture" || reserve[0].([]interface{})[1] != "buyer@example.com" || reserve[0].([]interface{})[3] != "web-console" {
 		t.Fatalf("business-account reservation attribution = %#v", reserve)
 	}
 	settlements := mockUsage.Calls["FinalizeBusinessAccountReservationWithCost"]
@@ -1708,7 +1732,9 @@ func TestExecuteInferenceStreamSurfacesPartialSettlementAndRetentionFailure(t *t
 
 func TestExecuteChatStream_PartialSettlementFailureRetainsReservation(t *testing.T) {
 	mockUsage := NewMockUsageService()
-	mockUsage.FinalizeReservationFn = func(context.Context, string, int64) error { return errors.New("settlement unavailable") }
+	mockUsage.FinalizeBusinessAccountFn = func(context.Context, string, string, string, int64) error {
+		return errors.New("settlement unavailable")
+	}
 	mockOpenRouter := &MockOpenRouterClient{
 		ChatStreamFn: func(context.Context, OpenRouterChatRequest, func(string)) (*OpenRouterUsage, error) {
 			return &OpenRouterUsage{PromptTokens: 10, CompletionTokens: 2, TotalTokens: 12, UsageReported: true}, errors.New("stream interrupted")
@@ -1720,28 +1746,32 @@ func TestExecuteChatStream_PartialSettlementFailureRetainsReservation(t *testing
 	}
 
 	if err := svc.ExecuteChatStream(context.Background(), "user@test.com", AIRequest{
-		Model: "openai/gpt-4o-mini", Messages: []AIMessage{{Role: "user", Content: "Hello"}},
+		Model: "openai/gpt-4o-mini", BusinessAccountID: "acct-stream", creditOwnerVerified: true,
+		Messages: []AIMessage{{Role: "user", Content: "Hello"}}, Metadata: AIMetadata{AppBundleKey: "web-console", GatewayRootOperationID: strings.Repeat("d", 32)},
 	}, NewMockFlusherResponseWriter()); err == nil {
 		t.Fatal("expected the interrupted stream error")
 	}
-	if got := len(mockUsage.Calls["RetainUncertainReservation"]); got != 1 {
-		t.Fatalf("RetainUncertainReservation calls = %d, want 1", got)
+	if got := len(mockUsage.Calls["RetainUncertainBusinessAccountReservation"]); got != 1 {
+		t.Fatalf("RetainUncertainBusinessAccountReservation calls = %d, want 1", got)
 	}
 	if got := len(mockUsage.Calls["RecordUsage"]); got != 0 {
 		t.Fatalf("RecordUsage calls = %d, want 0 to preserve reservation idempotency", got)
 	}
-	if got := len(mockUsage.Calls["ReleaseReservation"]); got != 0 {
-		t.Fatalf("ReleaseReservation calls = %d, want 0 while settlement is unresolved", got)
+	if got := len(mockUsage.Calls["ReleaseBusinessAccountReservation"]); got != 0 {
+		t.Fatalf("ReleaseBusinessAccountReservation calls = %d, want 0 while settlement is unresolved", got)
 	}
 }
 
-// TestExecuteChatStream_FinalizeFails_FallbackRecords tests fallback to RecordUsage.
-func TestExecuteChatStream_FinalizeFails_FallbackRecords(t *testing.T) {
+// TestExecuteChatStream_FinalizeFails_RetainsAccountReservation refuses to
+// bypass failed account settlement through a personal usage record.
+func TestExecuteChatStream_FinalizeFails_RetainsAccountReservation(t *testing.T) {
 	mockUsage := NewMockUsageService()
-	mockUsage.FinalizeReservationFn = func(ctx context.Context, reservationID string, actualAmount int64) error {
+	mockUsage.FinalizeBusinessAccountFn = func(ctx context.Context, accountID, actor, reservationID string, actualAmount int64) error {
 		return errors.New("finalize failed")
 	}
-	mockOpenRouter := &MockOpenRouterClient{}
+	mockOpenRouter := &MockOpenRouterClient{ChatStreamFn: func(context.Context, OpenRouterChatRequest, func(string)) (*OpenRouterUsage, error) {
+		return &OpenRouterUsage{PromptTokens: 10, CompletionTokens: 2, TotalTokens: 12, UsageReported: true}, nil
+	}}
 
 	svc := &MeteredInferenceService{
 		usageService:     mockUsage,
@@ -1754,16 +1784,15 @@ func TestExecuteChatStream_FinalizeFails_FallbackRecords(t *testing.T) {
 	w := NewMockFlusherResponseWriter()
 
 	err := svc.ExecuteChatStream(context.Background(), "user@test.com", AIRequest{
-		Model:    "openai/gpt-4o-mini",
+		Model: "openai/gpt-4o-mini", BusinessAccountID: "acct-stream", creditOwnerVerified: true,
 		Messages: []AIMessage{{Role: "user", Content: "Hello"}},
+		Metadata: AIMetadata{AppBundleKey: "web-console", GatewayRootOperationID: strings.Repeat("e", 32)},
 	}, w)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	if err == nil {
+		t.Fatal("expected account-scoped settlement failure")
 	}
-
-	// Should have fallen back to RecordUsage
-	if len(mockUsage.Calls["RecordUsage"]) == 0 {
-		t.Error("expected RecordUsage to be called as fallback")
+	if len(mockUsage.Calls["RetainUncertainBusinessAccountReservation"]) != 1 || len(mockUsage.Calls["RecordUsage"]) != 0 {
+		t.Fatalf("settlement failure must retain the account hold without personal fallback: %#v", mockUsage.Calls)
 	}
 }
 
@@ -1808,8 +1837,11 @@ func TestExecuteChatStream_NotFlusher_ReturnsError(t *testing.T) {
 	w := newNonFlusherWriter()
 
 	err := svc.ExecuteChatStream(context.Background(), "user@test.com", AIRequest{
-		Model:    "openai/gpt-4o-mini",
-		Messages: []AIMessage{{Role: "user", Content: "Hello"}},
+		Model:               "openai/gpt-4o-mini",
+		Messages:            []AIMessage{{Role: "user", Content: "Hello"}},
+		BusinessAccountID:   "acct-stream-fixture",
+		creditOwnerVerified: true,
+		Metadata:            AIMetadata{AppBundleKey: "web-console"},
 	}, w)
 
 	if !errors.Is(err, ErrStreamingNotSupported) {
@@ -1817,8 +1849,11 @@ func TestExecuteChatStream_NotFlusher_ReturnsError(t *testing.T) {
 	}
 
 	// Should have released the reservation
-	if len(mockUsage.Calls["ReleaseReservation"]) == 0 {
-		t.Error("expected ReleaseReservation to be called")
+	if len(mockUsage.Calls["ReleaseBusinessAccountReservation"]) == 0 {
+		t.Error("expected account-scoped reservation release")
+	}
+	if len(mockUsage.Calls["ReleaseReservation"]) != 0 {
+		t.Error("must not release through the retired personal reservation contract")
 	}
 }
 

@@ -58,16 +58,16 @@ func (s *MeteredInferenceService) executeSpendCapped(ctx context.Context, userId
 	if err := validateSpendRequest(req.SpendLimit, req.Images, req.MaxTokens); err != nil {
 		return nil, err
 	}
-	usage, ok := s.usageService.(CostCapUsageServicer)
-	if !ok {
-		return nil, errors.New("LPBS current credit authorization is unavailable")
+	businessAccountID := strings.TrimSpace(req.BusinessAccountID)
+	if businessAccountID == "" {
+		return nil, ErrBillingAccountRequired
 	}
-	if s.accountService == nil {
-		return nil, errors.New("LPBS account authority is unavailable")
+	billingIdentity, tier, err := s.billingIdentityAndTier(ctx, userIdentity, businessAccountID)
+	if err != nil {
+		return nil, err
 	}
-	sub, err := s.accountService.GetSubscriptionContext(ctx, userIdentity)
-	if err != nil || sub == nil || sub.PlanTier == nil || strings.TrimSpace(*sub.PlanTier) == "" {
-		return nil, errors.New("LPBS current account tier is unavailable")
+	if s.usageService == nil {
+		return nil, errors.New("LPBS business-account credit authorization is unavailable")
 	}
 	client, err := s.getOpenRouterClient(ctx)
 	if err != nil {
@@ -87,14 +87,14 @@ func (s *MeteredInferenceService) executeSpendCapped(ctx context.Context, userId
 	}
 	controlsJSON, _ := json.Marshal(providerPolicy)
 	controlsDigest := sha256.Sum256(controlsJSON)
-	reservationID, reserved, multiplier, err := usage.ReserveUSDSpendCap(ctx, userIdentity, *sub.PlanTier, req.SpendLimit.MaxCostMicros, req.SpendLimit.OperationID)
+	reservationID, reserved, multiplier, err := s.usageService.ReserveBusinessAccountUSDSpendCap(ctx, businessAccountID, userIdentity, tier, req.Metadata.AppBundleKey, req.SpendLimit.MaxCostMicros, req.SpendLimit.OperationID)
 	if err != nil {
 		return nil, err
 	}
 	// Mark the hold indeterminate before dispatch so a process crash cannot let
 	// automatic cleanup release a possibly consumed provider budget.
-	if err := usage.RetainUncertainReservation(ctx, reservationID); err != nil {
-		_ = s.usageService.ReleaseReservation(ctx, reservationID)
+	if err := s.usageService.RetainUncertainBusinessAccountReservation(ctx, businessAccountID, userIdentity, reservationID); err != nil {
+		_ = s.releaseReservation(ctx, userIdentity, businessAccountID, reservationID)
 		return nil, fmt.Errorf("retain spend-cap reservation before dispatch: %w", err)
 	}
 	orMessages := make([]OpenRouterMessage, len(req.Messages))
@@ -113,7 +113,9 @@ func (s *MeteredInferenceService) executeSpendCapped(ctx context.Context, userId
 	}
 	response, err := client.Chat(ctx, OpenRouterChatRequest{Model: req.Model, Messages: orMessages, MaxTokens: req.MaxTokens, Provider: &providerPolicy})
 	if err != nil {
-		_ = usage.RetainUncertainReservation(ctx, reservationID)
+		if retainErr := s.usageService.RetainUncertainBusinessAccountReservation(ctx, businessAccountID, userIdentity, reservationID); retainErr != nil {
+			return nil, errors.Join(fmt.Errorf("provider outcome could not be retained for spend-cap reconciliation: %w", err), retainErr, ErrInferenceReservationRetentionFailed)
+		}
 		return nil, fmt.Errorf("provider outcome retained pending spend-cap reconciliation: %w", err)
 	}
 	refs := append([]string(nil), req.SpendLimit.ReferenceSHA256...)
@@ -121,7 +123,7 @@ func (s *MeteredInferenceService) executeSpendCapped(ctx context.Context, userId
 		AuthorizationId: req.SpendLimit.OperationID, Status: "authorized", MaxCostMicros: req.SpendLimit.MaxCostMicros,
 		InputTokensBound: int32(contextBound - req.MaxTokens), OutputTokensBound: int32(req.MaxTokens), ImageCount: req.SpendLimit.ImageCount,
 		ContextSource: "openrouter-current-endpoint-metadata", OperationId: req.SpendLimit.OperationID, InputFingerprint: req.SpendLimit.InputFingerprint,
-		ReferenceSha256: refs, FundingRoute: req.SpendLimit.FundingRoute, AccountIdentity: userIdentity, Model: req.Model,
+		ReferenceSha256: refs, FundingRoute: req.SpendLimit.FundingRoute, AccountIdentity: billingIdentity, Model: req.Model,
 		ProviderControlsSha256: hex.EncodeToString(controlsDigest[:]), ContextWindowTokens: int32(contextBound),
 	}
 	if !response.Usage.CostReported {
@@ -134,7 +136,7 @@ func (s *MeteredInferenceService) executeSpendCapped(ctx context.Context, userId
 	if err != nil || actualCredits > reserved {
 		return nil, errors.New("provider outcome retained pending: actual cost exceeds the reserved ceiling")
 	}
-	if err := finalizeUsageWithCost(s.usageService, ctx, reservationID, actualCredits, req.Metadata.AppBundleKey, req.Model, response.Usage.CostMicros, response.Usage.PromptTokens, response.Usage.CompletionTokens, "openrouter"); err != nil {
+	if err := s.finalizeReservationWithCost(ctx, userIdentity, businessAccountID, reservationID, actualCredits, req.Metadata.AppBundleKey, req.Model, response.Usage.CostMicros, response.Usage.PromptTokens, response.Usage.CompletionTokens, "openrouter", BrowserUsage{}); err != nil {
 		return nil, fmt.Errorf("provider usage retained pending for reconciliation: settle reservation: %w", err)
 	}
 	actualCost := response.Usage.CostMicros

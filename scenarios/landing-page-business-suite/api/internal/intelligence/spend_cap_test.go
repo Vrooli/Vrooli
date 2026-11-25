@@ -10,8 +10,11 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
+
+	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 )
 
 type capMetadataClient struct {
@@ -31,17 +34,21 @@ type capUsageFake struct {
 	multiplier   int64
 	reserveCalls int
 	retainCalls  int
+	reserveArgs  []any
+	retainArgs   []any
 }
 
-func (u *capUsageFake) ReserveUSDSpendCap(_ context.Context, _, _ string, _ int64, _ string) (string, int64, int64, error) {
+func (u *capUsageFake) ReserveBusinessAccountUSDSpendCap(_ context.Context, account, actor, tier, app string, capMicros int64, operation string) (string, int64, int64, error) {
 	u.reserveCalls++
+	u.reserveArgs = []any{account, actor, tier, app, capMicros, operation}
 	if u.reserveErr != nil {
 		return "", 0, 0, u.reserveErr
 	}
 	return "reservation", u.reserved, u.multiplier, nil
 }
-func (u *capUsageFake) RetainUncertainReservation(context.Context, string) error {
+func (u *capUsageFake) RetainUncertainBusinessAccountReservation(_ context.Context, account, actor, reservation string) error {
 	u.retainCalls++
+	u.retainArgs = []any{account, actor, reservation}
 	return nil
 }
 
@@ -49,11 +56,17 @@ func spendRequest(cost int64, maxTokens int) AIRequest {
 	data := []byte("reference-image")
 	sum := sha256.Sum256(data)
 	digest := hex.EncodeToString(sum[:])
-	return AIRequest{Model: "openai/gpt-4o-mini", Messages: []AIMessage{{Role: "user", Content: "create"}}, Images: []AIImage{{Data: base64.StdEncoding.EncodeToString(data), MediaType: "image/png", SHA256: digest}}, MaxTokens: maxTokens, SpendLimit: &SpendLimit{MaxCostMicros: cost, OperationID: "123e4567-e89b-42d3-a456-426614174000", InputFingerprint: strings.Repeat("a", 64), ReferenceSHA256: []string{digest}, ImageCount: 1, FundingRoute: "vrooli_credits"}, spendLimitTrusted: true}
+	return AIRequest{BusinessAccountID: "acct-spend-cap", Model: "openai/gpt-4o-mini", Messages: []AIMessage{{Role: "user", Content: "create"}}, Images: []AIImage{{Data: base64.StdEncoding.EncodeToString(data), MediaType: "image/png", SHA256: digest}}, MaxTokens: maxTokens, Metadata: AIMetadata{AppBundleKey: "image-tools"}, SpendLimit: &SpendLimit{MaxCostMicros: cost, OperationID: "123e4567-e89b-42d3-a456-426614174000", InputFingerprint: strings.Repeat("a", 64), ReferenceSHA256: []string{digest}, ImageCount: 1, FundingRoute: "vrooli_credits"}, spendLimitTrusted: true, creditOwnerVerified: true}
 }
 
 func TestSpendCappedInferenceReservesBeforeDispatchAndForwardsHardCaps(t *testing.T) {
 	usage := &capUsageFake{MockUsageService: NewMockUsageService(), reserved: 100, multiplier: 10000}
+	accountCalls := []string{}
+	accounts := &MockAccountService{GetBusinessSubscriptionFn: func(actor, account string) (*landing_page_business_suite_v1.SubscriptionStatus, error) {
+		accountCalls = append(accountCalls, actor+"/"+account)
+		tier := "pro"
+		return &landing_page_business_suite_v1.SubscriptionStatus{PlanTier: &tier}, nil
+	}}
 	client := &capMetadataClient{MockOpenRouterClient: &MockOpenRouterClient{}, endpoints: []OpenRouterEndpointMetadata{{Provider: "owner", ContextTokens: 2048, PromptPrice: .000000001, CompletionPrice: .000000002, RequestPrice: .000000003, ImagePrice: .000000004, RequestPriceKnown: true, ImagePriceKnown: true}}}
 	client.ChatFn = func(_ context.Context, req OpenRouterChatRequest) (*OpenRouterChatResponse, error) {
 		if usage.retainCalls != 1 {
@@ -71,7 +84,7 @@ func TestSpendCappedInferenceReservesBeforeDispatchAndForwardsHardCaps(t *testin
 		}
 		return &OpenRouterChatResponse{ID: "provider-call", Model: req.Model, Content: "{}", Usage: OpenRouterUsage{PromptTokens: 10, CompletionTokens: 2, TotalTokens: 12, CostMicros: 5, CostReported: true}}, nil
 	}
-	service := &MeteredInferenceService{usageService: usage, accountService: &MockAccountService{}, openRouterClient: client}
+	service := &MeteredInferenceService{usageService: usage, accountService: accounts, openRouterClient: client}
 	response, err := service.ExecuteChat(context.Background(), "member@example.test", spendRequest(1000, 32))
 	if err != nil {
 		t.Fatal(err)
@@ -79,8 +92,27 @@ func TestSpendCappedInferenceReservesBeforeDispatchAndForwardsHardCaps(t *testin
 	if response.AccountingStatus != "settled" || response.CreditsCharged != 5 || response.SpendAuthorization == nil {
 		t.Fatalf("unexpected capped response: %+v", response)
 	}
-	if usage.reserveCalls != 1 || len(usage.Calls["FinalizeReservation"]) != 1 {
-		t.Fatalf("reserve/settle calls = %d/%d", usage.reserveCalls, len(usage.Calls["FinalizeReservation"]))
+	if usage.reserveCalls != 1 || len(usage.Calls["FinalizeBusinessAccountReservationWithCost"]) != 1 {
+		t.Fatalf("reserve/settle calls = %d/%d", usage.reserveCalls, len(usage.Calls["FinalizeBusinessAccountReservationWithCost"]))
+	}
+	want := []any{"acct-spend-cap", "member@example.test", "pro", "image-tools", int64(1000), "123e4567-e89b-42d3-a456-426614174000"}
+	if !reflect.DeepEqual(usage.reserveArgs, want) {
+		t.Fatalf("account reservation args = %#v, want %#v", usage.reserveArgs, want)
+	}
+	if !reflect.DeepEqual(accountCalls, []string{"member@example.test/acct-spend-cap"}) {
+		t.Fatalf("subscription lookup identity/account = %#v", accountCalls)
+	}
+	if !reflect.DeepEqual(usage.retainArgs, []any{"acct-spend-cap", "member@example.test", "reservation"}) {
+		t.Fatalf("uncertain hold binding = %#v", usage.retainArgs)
+	}
+	settlement := usage.Calls["FinalizeBusinessAccountReservationWithCost"][0].([]interface{})
+	if settlement[0] != "acct-spend-cap" || settlement[1] != "member@example.test" || settlement[2] != "reservation" || settlement[3] != int64(5) || settlement[4] != "image-tools" || settlement[5] != "openai/gpt-4o-mini" || settlement[9] != "openrouter" {
+		t.Fatalf("account-scoped, source-attributed settlement = %#v", settlement)
+	}
+	for _, legacy := range []string{"ReserveCredits", "RetainUncertainReservation", "FinalizeReservation"} {
+		if len(usage.Calls[legacy]) != 0 {
+			t.Fatalf("spend cap used legacy personal billing path %s: %#v", legacy, usage.Calls[legacy])
+		}
 	}
 }
 
@@ -124,6 +156,24 @@ func TestSpendCappedInferenceRetainsUnknownProviderCost(t *testing.T) {
 	}
 	if response.AccountingStatus != "pending_reconciliation" || usage.retainCalls != 1 || len(usage.Calls["FinalizeReservation"]) != 0 {
 		t.Fatalf("unknown cost was not held: response=%+v usage=%+v", response, usage)
+	}
+}
+
+func TestSpendCappedInferenceRetainsAccountReservationAfterProviderFailure(t *testing.T) {
+	usage := &capUsageFake{MockUsageService: NewMockUsageService(), reserved: 100, multiplier: 10000}
+	client := &capMetadataClient{MockOpenRouterClient: &MockOpenRouterClient{}, endpoints: []OpenRouterEndpointMetadata{{Provider: "owner", ContextTokens: 2048, PromptPrice: .000000001, CompletionPrice: .000000002, RequestPrice: .000000003, ImagePrice: .000000004, RequestPriceKnown: true, ImagePriceKnown: true}}}
+	client.ChatFn = func(context.Context, OpenRouterChatRequest) (*OpenRouterChatResponse, error) {
+		return nil, errors.New("synthetic ambiguous transport failure")
+	}
+	service := &MeteredInferenceService{usageService: usage, accountService: &MockAccountService{}, openRouterClient: client}
+	if _, err := service.ExecuteChat(context.Background(), "member@example.test", spendRequest(1000, 32)); err == nil || !strings.Contains(err.Error(), "provider outcome retained pending") {
+		t.Fatalf("ambiguous provider outcome error = %v", err)
+	}
+	if usage.retainCalls != 2 || len(usage.Calls["FinalizeBusinessAccountReservationWithCost"]) != 0 || len(usage.Calls["ReleaseBusinessAccountReservation"]) != 0 {
+		t.Fatalf("uncertain hold was not retained without settlement/release: retain=%d finalize=%#v release=%#v", usage.retainCalls, usage.Calls["FinalizeBusinessAccountReservationWithCost"], usage.Calls["ReleaseBusinessAccountReservation"])
+	}
+	if !reflect.DeepEqual(usage.retainArgs, []any{"acct-spend-cap", "member@example.test", "reservation"}) {
+		t.Fatalf("uncertain account hold binding = %#v", usage.retainArgs)
 	}
 }
 

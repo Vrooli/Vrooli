@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"database/sql"
@@ -370,7 +371,7 @@ func TestConcurrent_CreditsAndSubscription(t *testing.T) {
 			defer wg.Done()
 
 			eventID := fmt.Sprintf("evt_credit_%d", i)
-			err := service.creditWallet.AddCreditsForBusinessAccount("acct-mixed", email, 100, "credit_topup", "stripe", eventID, map[string]interface{}{
+			err := service.creditWallet.AddCreditsForBusinessAccountContext(context.Background(), "acct-mixed", email, 100, "credit_topup", "stripe", eventID, map[string]interface{}{
 				"livemode": false,
 			})
 			if err != nil {

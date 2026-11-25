@@ -20,6 +20,20 @@ import (
 	"landing-page-business-suite-api/internal/commerce"
 )
 
+type legacyStripeWebhookServiceFixture struct{}
+
+func (legacyStripeWebhookServiceFixture) HandleWebhook([]byte, string) error { return nil }
+func (legacyStripeWebhookServiceFixture) VerifyWebhookSignature([]byte, string) bool {
+	return true
+}
+
+func TestStripeWebhookServiceContextCapabilityRemainsOptional(t *testing.T) {
+	var legacy StripeWebhookService = legacyStripeWebhookServiceFixture{}
+	if _, ok := legacy.(ContextualStripeWebhookService); ok {
+		t.Fatal("legacy StripeWebhookService unexpectedly implements contextual capability")
+	}
+}
+
 // [REQ:STRIPE-CONFIG] Test Stripe credential-authority configuration
 func TestNewStripeService(t *testing.T) {
 	t.Setenv("STRIPE_MODE", "test")
@@ -1413,7 +1427,7 @@ func TestCreditTopup_NilBundle_ReturnsError(t *testing.T) {
 		Kind:          shared.PlanKind_PLAN_KIND_CREDITS_TOPUP,
 	}
 
-	err := service.handleCreditTopup("test@example.com", 1000, plan, "evt_test", nil)
+	err := service.handleCreditTopupContext(context.Background(), "test@example.com", 1000, plan, "evt_test", nil)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "bundle product not configured")
@@ -1524,7 +1538,7 @@ func TestCreditTopup_TransactionRecorded(t *testing.T) {
 		"session_id": "cs_test_123",
 	}
 
-	err = service.creditWallet.AddCreditsForBusinessAccount("acct-audit", "audit@example.com", 250, "credit_topup", "stripe", "evt_audit_123", metadata)
+	err = service.creditWallet.AddCreditsForBusinessAccountContext(context.Background(), "acct-audit", "audit@example.com", 250, "credit_topup", "stripe", "evt_audit_123", metadata)
 	require.NoError(t, err)
 
 	// Verify transaction was recorded with all details

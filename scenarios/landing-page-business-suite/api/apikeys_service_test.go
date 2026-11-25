@@ -507,6 +507,9 @@ func TestAPIKeyService_Test_OpenRouter_Success(t *testing.T) {
 		t.Fatalf("Expected 1 request, got %d", len(mockHTTP.requests))
 	}
 	req := mockHTTP.requests[0]
+	if req.Method != http.MethodGet {
+		t.Errorf("Expected GET probe, got '%s'", req.Method)
+	}
 	if req.URL.String() != "https://openrouter.ai/api/v1/auth/key" {
 		t.Errorf("Expected OpenRouter auth URL, got '%s'", req.URL.String())
 	}
@@ -539,6 +542,38 @@ func TestAPIKeyService_Test_OpenRouter_InvalidKey(t *testing.T) {
 	}
 	if !strings.Contains(message, "Invalid") {
 		t.Errorf("Expected message to contain 'Invalid', got: %s", message)
+	}
+}
+
+func TestAPIKeyService_Test_OpenRouter_UnexpectedStatus(t *testing.T) {
+	mockHTTP := &mockHTTPDoer{statusCode: http.StatusServiceUnavailable}
+	svc, db := createTestAPIKeyService(t, mockHTTP)
+	defer db.Close()
+	if _, err := svc.Store(context.Background(), "openrouter", "sk-or-synthetic"); err != nil {
+		t.Fatalf("Store() returned error: %v", err)
+	}
+
+	success, message, err := svc.Test(context.Background(), "openrouter")
+	if err != nil || success || message != "Unexpected status: 503" {
+		t.Fatalf("Test() = (%v, %q, %v), want (false, unexpected status, nil)", success, message, err)
+	}
+}
+
+func TestAPIKeyService_Test_OpenRouter_NetworkErrorDoesNotExposeKey(t *testing.T) {
+	mockHTTP := &mockHTTPDoer{err: fmt.Errorf("synthetic network down")}
+	svc, db := createTestAPIKeyService(t, mockHTTP)
+	defer db.Close()
+	const syntheticKey = "sk-or-synthetic-secret"
+	if _, err := svc.Store(context.Background(), "openrouter", syntheticKey); err != nil {
+		t.Fatalf("Store() returned error: %v", err)
+	}
+
+	success, message, err := svc.Test(context.Background(), "openrouter")
+	if err != nil || success || !strings.Contains(message, "Connection error: synthetic network down") {
+		t.Fatalf("Test() = (%v, %q, %v), want connection error, nil", success, message, err)
+	}
+	if strings.Contains(message, syntheticKey) {
+		t.Fatalf("Test() exposed the synthetic API key: %q", message)
 	}
 }
 

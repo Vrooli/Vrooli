@@ -277,6 +277,10 @@ scoped `metrics:read` reader token. They return aggregate data only: no email,
 visitor id, IP address, or other identity is exposed. Supported digest windows
 are 7, 30, and 90 days, defaulting to 30.
 
+`GetAnalyticsSummary` accepts `window_days` values 7, 30, or 90. When omitted,
+it preserves the historical seven-day default. Explicit `start_date` and
+`end_date` take precedence over `window_days`.
+
 Analytics reads count `traffic_class=human` events only. Bot and internal
 exclusions remain observable in the digest. Traffic breakdown shares are based
 on distinct visitor keys and carry an `exhaustive` flag when a limit truncates

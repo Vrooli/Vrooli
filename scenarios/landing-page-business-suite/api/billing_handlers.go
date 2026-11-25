@@ -13,7 +13,7 @@ func billingLimitsDependencies() billinghttp.LimitsDependencies {
 }
 
 func billingWebhookDependencies(service *StripeService) billinghttp.WebhookDependencies {
-	return billinghttp.WebhookDependencies{Handle: service.HandleWebhook, WriteError: writeJSONError, WriteJSON: writeJSONSuccessData, Log: logx.Error}
+	return billinghttp.WebhookDependencies{Handle: service.HandleWebhookContext, WriteError: writeJSONError, WriteJSON: writeJSONSuccessData, Log: logx.Error}
 }
 
 func billingConnectDependencies(service *StripeService, repositories ...businessaccount.Repository) billinghttp.ConnectDependencies {

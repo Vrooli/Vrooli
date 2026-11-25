@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"database/sql"
@@ -17,6 +18,25 @@ import (
 	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
 	"landing-page-business-suite-api/internal/commerce"
 )
+
+type webhookTopupWalletProbe struct {
+	ctx             context.Context
+	account, email  string
+	amount          int64
+	txnType, source string
+	event           string
+	metadata        map[string]interface{}
+}
+
+func (w *webhookTopupWalletProbe) AddCreditsForBusinessAccountContext(ctx context.Context, account, email string, amount int64, txnType, source, event string, metadata map[string]interface{}) error {
+	w.ctx, w.account, w.email, w.amount = ctx, account, email, amount
+	w.txnType, w.source, w.event, w.metadata = txnType, source, event, metadata
+	return nil
+}
+
+func (*webhookTopupWalletProbe) BalanceForBusinessAccountContext(context.Context, string, string) (int64, error) {
+	return 0, nil
+}
 
 // setupCheckoutAtomicitySchema restores the production schema before a test
 // adds its temporary failure constraint. The fixture must not recreate a
@@ -146,6 +166,100 @@ func TestHandleCheckoutCompleted_ScheduleInsertFailure_RollsBackAll(t *testing.T
 	var schedCount int
 	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM subscription_schedules WHERE subscription_id = $1`, "sub_atomicity_sched").Scan(&schedCount))
 	assert.Equal(t, 0, schedCount, "no schedule row should exist after rollback")
+}
+
+func TestHandleWebhook_CheckoutCompletedTopupPassesRequestContextAndAttribution(t *testing.T) {
+	db := setupTestDB(t)
+	resetStripeTestData(t, db)
+	setupCheckoutAtomicitySchema(t, db)
+
+	productID := upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_context_topup", "test", 100, 1, "credits")
+	insertBundlePrice(t, db, productID, "price_context_topup", "Credits", "credits", "one_time", "usd", 1000, false, "", 0, 0, "", 0, 0, 1, 1, "none", "credits_topup", map[string]interface{}{})
+	_, err := db.Exec(`INSERT INTO checkout_sessions(session_id,customer_email,price_id,status,session_type,amount_cents,business_account_id) VALUES('cs_context_topup','buyer@example.test','price_context_topup','pending','credits_topup',1000,'acct_context_topup')`)
+	require.NoError(t, err)
+
+	plans := commerce.NewPlanServiceWithPlanStore(globalTestPlanStore)
+	repository := commerce.NewStripeRepository(db)
+	secret := "whsec_context_topup"
+	type contextKey struct{}
+	wantContextValue := "selected-request-pool"
+	wallet := &webhookTopupWalletProbe{}
+	topup := commerce.NewCreditTopupService(plans, wallet, nil)
+	service := commerce.NewStripeWebhookService(commerce.StripeWebhookOptions{
+		DB:          db,
+		PlanService: plans,
+		Config: func() commerce.StripeWebhookConfig {
+			return commerce.StripeWebhookConfig{WebhookSecret: secret, HasWebhook: true}
+		},
+		LoadCheckoutSessionContext: func(ctx context.Context, id string) (*commerce.CheckoutSessionRecord, error) {
+			if ctx.Value(contextKey{}) != wantContextValue {
+				t.Errorf("checkout loader context value = %v", ctx.Value(contextKey{}))
+			}
+			return repository.LoadCheckoutSession(id)
+		},
+		ExtractAmount: func(obj map[string]interface{}, _ *commerce.CheckoutSessionRecord) int64 {
+			amount, _ := obj["amount_total"].(float64)
+			return int64(amount)
+		},
+		HandleCreditTopupContext: topup.ApplyContext,
+	})
+	body, signature := buildContextTopupEvent(t, secret, "evt_context_topup", "cs_context_topup")
+	ctx := context.WithValue(context.Background(), contextKey{}, wantContextValue)
+	require.NoError(t, service.HandleWebhookContext(ctx, body, signature))
+	if wallet.ctx == nil || wallet.ctx.Value(contextKey{}) != wantContextValue {
+		t.Fatalf("CreditTopupService.ApplyContext did not preserve request context: %v", wallet.ctx)
+	}
+	if wallet.account != "acct_context_topup" || wallet.email != "buyer@example.test" || wallet.amount != 1000 || wallet.txnType != "credit_topup" || wallet.source != "stripe" || wallet.event != "evt_context_topup" || wallet.metadata["business_account_id"] != "acct_context_topup" || wallet.metadata["session_id"] != "cs_context_topup" || wallet.metadata["livemode"] != false || wallet.metadata["payment_intent_id"] != "pi_context_topup" {
+		t.Fatalf("contextual wallet attribution = %#v", wallet)
+	}
+}
+
+func TestHandleWebhook_CheckoutCompletedTopupRequiresContextualHandler(t *testing.T) {
+	db := setupTestDB(t)
+	resetStripeTestData(t, db)
+	setupCheckoutAtomicitySchema(t, db)
+
+	productID := upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_context_topup_missing", "test", 100, 1, "credits")
+	insertBundlePrice(t, db, productID, "price_context_topup_missing", "Credits", "credits", "one_time", "usd", 1000, false, "", 0, 0, "", 0, 0, 1, 1, "none", "credits_topup", map[string]interface{}{})
+	_, err := db.Exec(`INSERT INTO checkout_sessions(session_id,customer_email,price_id,status,session_type,amount_cents,business_account_id) VALUES('cs_context_topup_missing','buyer@example.test','price_context_topup_missing','pending','credits_topup',1000,'acct_context_topup')`)
+	require.NoError(t, err)
+	plans := commerce.NewPlanServiceWithPlanStore(globalTestPlanStore)
+	repository := commerce.NewStripeRepository(db)
+	secret := "whsec_context_topup_missing"
+	service := commerce.NewStripeWebhookService(commerce.StripeWebhookOptions{
+		DB:          db,
+		PlanService: plans,
+		Config: func() commerce.StripeWebhookConfig {
+			return commerce.StripeWebhookConfig{WebhookSecret: secret, HasWebhook: true}
+		},
+		LoadCheckoutSession: repository.LoadCheckoutSession,
+		ExtractAmount: func(obj map[string]interface{}, _ *commerce.CheckoutSessionRecord) int64 {
+			amount, _ := obj["amount_total"].(float64)
+			return int64(amount)
+		},
+	})
+	body, signature := buildContextTopupEvent(t, secret, "evt_context_topup_missing", "cs_context_topup_missing")
+	err = service.HandleWebhookContext(context.Background(), body, signature)
+	require.ErrorContains(t, err, "credit top-up handler unavailable")
+	var status string
+	require.NoError(t, db.QueryRow(`SELECT status FROM checkout_sessions WHERE session_id='cs_context_topup_missing'`).Scan(&status))
+	assert.Equal(t, "pending", status, "a missing contextual credit handler must fail before checkout completion")
+}
+
+func buildContextTopupEvent(t *testing.T, secret, eventID, sessionID string) ([]byte, string) {
+	t.Helper()
+	body, err := json.Marshal(map[string]interface{}{
+		"id": eventID, "type": "checkout.session.completed", "livemode": false,
+		"data": map[string]interface{}{"object": map[string]interface{}{
+			"id": sessionID, "customer_email": "buyer@example.test", "payment_status": "paid",
+			"amount_total": float64(1000), "currency": "usd", "payment_intent": "pi_context_topup",
+		}},
+	})
+	require.NoError(t, err)
+	timestamp := fmt.Sprintf("%d", time.Now().Unix())
+	mac := hmac.New(sha256.New, []byte(secret))
+	_, _ = mac.Write([]byte(timestamp + "." + string(body)))
+	return body, fmt.Sprintf("t=%s,v1=%s", timestamp, hex.EncodeToString(mac.Sum(nil)))
 }
 
 // TestHandleCheckoutCompleted_SubscriptionBranch_HappyPath_UsesSingleTx

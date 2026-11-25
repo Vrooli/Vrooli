@@ -128,6 +128,10 @@ func (s *StripeService) HandleWebhook(body []byte, signature string) error {
 	return s.webhookService().HandleWebhook(body, signature)
 }
 
+func (s *StripeService) HandleWebhookContext(ctx context.Context, body []byte, signature string) error {
+	return s.webhookService().HandleWebhookContext(ctx, body, signature)
+}
+
 func (s *StripeService) VerifyWebhookSignature(payload []byte, signature string) bool {
 	return s.webhookService().VerifyWebhookSignature(payload, signature)
 }
@@ -177,6 +181,13 @@ type StripeWebhookService interface {
 	VerifyWebhookSignature(payload []byte, signature string) bool
 }
 
+// ContextualStripeWebhookService is an optional capability for transports that
+// must preserve request-selected storage and cancellation context.
+type ContextualStripeWebhookService interface {
+	StripeWebhookService
+	HandleWebhookContext(ctx context.Context, body []byte, signature string) error
+}
+
 // StripeAdminService handles administrative Stripe operations.
 type StripeAdminService interface {
 	// ListStripeProductsWithPrices lists all products and their prices from Stripe.
@@ -207,10 +218,11 @@ type StripeServiceInterface interface {
 
 // Compile-time verification that StripeService implements all interfaces.
 var (
-	_ StripeCheckoutService     = (*StripeService)(nil)
-	_ StripeSubscriptionService = (*StripeService)(nil)
-	_ StripeWebhookService      = (*StripeService)(nil)
-	_ commerce.CouponService    = (*StripeService)(nil)
-	_ StripeAdminService        = (*StripeService)(nil)
-	_ StripeServiceInterface    = (*StripeService)(nil)
+	_ StripeCheckoutService          = (*StripeService)(nil)
+	_ StripeSubscriptionService      = (*StripeService)(nil)
+	_ StripeWebhookService           = (*StripeService)(nil)
+	_ ContextualStripeWebhookService = (*StripeService)(nil)
+	_ commerce.CouponService         = (*StripeService)(nil)
+	_ StripeAdminService             = (*StripeService)(nil)
+	_ StripeServiceInterface         = (*StripeService)(nil)
 )

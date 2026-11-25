@@ -21,34 +21,6 @@ var ErrInferenceReservationRetentionFailed = errors.New("uncertain inference res
 var ErrInferenceReservationCleanupFailed = errors.New("inference reservation cleanup failed")
 var ErrProviderRequestRejected = errors.New("provider definitively rejected the request")
 
-// UsageServicer is the narrow credit-policy contract the metered inference provider needs.
-//
-// seam: UsageServicer keeps AI-provider orchestration independent of commerce
-// persistence. API composition supplies commerce.UsageService; gateway tests
-// use a domain-local fake.
-type UsageServicer interface {
-	ReserveAndCharge(context.Context, string, string, string, int64, UsageReport) error
-	ReserveCredits(context.Context, string, string, string, int64) (string, error)
-	FinalizeReservation(context.Context, string, int64) error
-	ReleaseReservation(context.Context, string) error
-	AdjustUsage(context.Context, string, string, int64, string) error
-	RecordUsage(context.Context, UsageReport) error
-}
-
-type UsageMetadataFinalizer interface {
-	FinalizeReservationWithMetadata(context.Context, string, int64, string, string) error
-}
-
-type UsageCostFinalizer interface {
-	FinalizeReservationWithCost(context.Context, string, int64, string, string, int64, int, int, string) error
-}
-
-// BrowserUsageFinalizer adds measured browser workload to the same immutable
-// LPBS settlement as model usage. It does not create a separate wallet entry.
-type BrowserUsageFinalizer interface {
-	FinalizeReservationWithBrowserUsage(context.Context, string, int64, string, string, int64, int, int, string, BrowserUsage) error
-}
-
 // BrowserEvidenceAttester resolves and consumes an opaque BAS broker proof
 // through Agent Manager's dedicated LPBS attestation operation. Implementations
 // return only a closed, broker-measured session bound to the active LPBS
@@ -159,36 +131,6 @@ func (u AttestedBrowserUsage) validateFor(proof BrowserEvidenceProof) error {
 	return (BrowserUsage{SessionMinutes: u.SessionMinutes, Actions: u.Actions, Bytes: u.Bytes}).validate()
 }
 
-type UncertainReservationRetainer interface {
-	RetainUncertainReservation(context.Context, string) error
-}
-
-type CostCapUsageServicer interface {
-	ReserveUSDSpendCap(context.Context, string, string, int64, string) (string, int64, int64, error)
-	RetainUncertainReservation(context.Context, string) error
-}
-
-func finalizeUsage(s UsageServicer, ctx context.Context, reservationID string, amount int64, appBundleKey, model string) error {
-	if detailed, ok := s.(UsageMetadataFinalizer); ok {
-		return detailed.FinalizeReservationWithMetadata(ctx, reservationID, amount, appBundleKey, model)
-	}
-	return s.FinalizeReservation(ctx, reservationID, amount)
-}
-
-func finalizeUsageWithCost(s UsageServicer, ctx context.Context, reservationID string, amount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider string) error {
-	return finalizeUsageWithBrowserUsage(s, ctx, reservationID, amount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider, BrowserUsage{})
-}
-
-func finalizeUsageWithBrowserUsage(s UsageServicer, ctx context.Context, reservationID string, amount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider string, browser BrowserUsage) error {
-	if detailed, ok := s.(BrowserUsageFinalizer); ok {
-		return detailed.FinalizeReservationWithBrowserUsage(ctx, reservationID, amount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider, browser)
-	}
-	if detailed, ok := s.(UsageCostFinalizer); ok {
-		return detailed.FinalizeReservationWithCost(ctx, reservationID, amount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider)
-	}
-	return finalizeUsage(s, ctx, reservationID, amount, appBundleKey, model)
-}
-
 // UsageReport is the minimum credit-accounting data emitted by the gateway.
 // It is intentionally domain-owned: the API composition adapter converts it
 // to commerce persistence types, avoiding a sibling-domain import.
@@ -217,6 +159,7 @@ type AccountServicer interface {
 type BusinessAccountUsageServicer interface {
 	ReserveBusinessAccountCredits(context.Context, string, string, string, string, int64) (string, error)
 	ReserveBusinessAccountCreditsWithID(context.Context, string, string, string, string, int64, string) (string, bool, error)
+	ReserveBusinessAccountUSDSpendCap(context.Context, string, string, string, string, int64, string) (string, int64, int64, error)
 	ReserveBusinessAccountInferenceCreditsWithID(context.Context, string, string, string, string, int64, string) (string, bool, error)
 	BindBusinessAccountBrowserEvidence(context.Context, string, string, string, string, string) error
 	FinalizeBusinessAccountReservationWithCost(context.Context, string, string, string, int64, string, string, int64, int, int, string) error

@@ -2,7 +2,6 @@ package intelligence
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -13,16 +12,17 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/ai-provider-go/openai"
 )
 
 // httpOpenRouterClient implements OpenRouterClient using HTTP.
 type httpOpenRouterClient struct {
-	apiKey     string
-	baseURL    string
 	referer    string
 	title      string
 	httpClient *http.Client
 	log        func(event string, fields map[string]interface{})
+	shared     *openai.Client
 }
 
 // NewOpenRouterClient creates a new HTTP-based OpenRouter client.
@@ -48,9 +48,8 @@ func NewOpenRouterClient(opts OpenRouterClientOptions) OpenRouterClient {
 	}
 
 	return &httpOpenRouterClient{
-		apiKey:     opts.APIKey,
-		baseURL:    baseURL,
 		httpClient: httpClient,
+		shared:     openai.New(openai.Config{ProviderName: "openrouter", BaseURL: baseURL, APIKey: opts.APIKey, HTTPClient: httpClient}),
 		log:        logger,
 		referer:    defaultString(opts.Referer, "https://vrooli.com"),
 		title:      defaultString(opts.Title, "Vrooli AI Metered Inference"),
@@ -67,14 +66,7 @@ func (c *httpOpenRouterClient) Chat(ctx context.Context, req OpenRouterChatReque
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/api/v1/chat/completions", bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-
-	c.setHeaders(httpReq)
-
-	resp, err := c.httpClient.Do(httpReq)
+	resp, err := c.shared.OpenRawRequest(ctx, http.MethodPost, "/api/v1/chat/completions", body, c.chatHeaders())
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
@@ -166,14 +158,7 @@ func (c *httpOpenRouterClient) ChatStreamEvents(ctx context.Context, req OpenRou
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/api/v1/chat/completions", bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
-	}
-
-	c.setHeaders(httpReq)
-
-	resp, err := c.httpClient.Do(httpReq)
+	resp, err := c.shared.OpenRawRequest(ctx, http.MethodPost, "/api/v1/chat/completions", body, c.chatHeaders())
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
@@ -322,21 +307,12 @@ func reportedCostMicros(cost, upstream *float64) int64 {
 
 // VerifyAPIKey implements OpenRouterClient.
 func (c *httpOpenRouterClient) VerifyAPIKey(ctx context.Context) error {
-	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/api/v1/auth/key", nil)
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+c.apiKey)
-
-	resp, err := c.httpClient.Do(req)
+	status, err := c.shared.ProbeAPIKey(ctx, "/api/v1/auth/key")
 	if err != nil {
 		return fmt.Errorf("connectivity check failed: %w", err)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("key verification failed: status %d", resp.StatusCode)
+	if status != http.StatusOK {
+		return fmt.Errorf("key verification failed: status %d", status)
 	}
 
 	return nil
@@ -346,13 +322,8 @@ func (c *httpOpenRouterClient) CurrentEndpoints(ctx context.Context, model strin
 	if !strings.Contains(model, "/") || strings.Contains(model, "..") {
 		return nil, fmt.Errorf("invalid model for endpoint metadata")
 	}
-	url := c.baseURL + "/api/v1/models/" + strings.Trim(model, "/") + "/endpoints"
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("create endpoint metadata request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+c.apiKey)
-	resp, err := c.httpClient.Do(req)
+	path := "/api/v1/models/" + strings.Trim(model, "/") + "/endpoints"
+	resp, err := c.shared.OpenRawRequest(ctx, http.MethodGet, path, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("fetch current endpoint metadata: %w", err)
 	}
@@ -428,11 +399,11 @@ func parseEndpointPrice(raw json.RawMessage) (float64, bool) {
 	return n, err == nil && n >= 0 && !math.IsNaN(n) && !math.IsInf(n, 0)
 }
 
-func (c *httpOpenRouterClient) setHeaders(req *http.Request) {
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+c.apiKey)
-	req.Header.Set("HTTP-Referer", c.referer)
-	req.Header.Set("X-Title", c.title)
+func (c *httpOpenRouterClient) chatHeaders() http.Header {
+	headers := make(http.Header)
+	headers.Set("HTTP-Referer", c.referer)
+	headers.Set("X-Title", c.title)
+	return headers
 }
 
 func defaultString(value, fallback string) string {

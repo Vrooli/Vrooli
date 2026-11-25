@@ -1,6 +1,7 @@
 package billing
 
 import (
+	"context"
 	"io"
 	"net/http"
 )
@@ -10,7 +11,7 @@ const maxWebhookBodyBytes = 1 << 20
 // WebhookDependencies keeps the Stripe-defined HTTP shape at the transport
 // edge while the Stripe service owns signature verification and event effects.
 type WebhookDependencies struct {
-	Handle     func([]byte, string) error
+	Handle     func(context.Context, []byte, string) error
 	WriteError func(http.ResponseWriter, int, string, string)
 	WriteJSON  func(http.ResponseWriter, any)
 	Log        func(string, map[string]any)
@@ -37,7 +38,7 @@ func Webhook(deps WebhookDependencies) http.HandlerFunc {
 			deps.WriteError(w, http.StatusBadRequest, "Missing Stripe-Signature header", "validation")
 			return
 		}
-		if err := deps.Handle(body, signature); err != nil {
+		if err := deps.Handle(r.Context(), body, signature); err != nil {
 			deps.Log("webhook_processing_failed", map[string]any{"error": err.Error()})
 			deps.WriteError(w, http.StatusBadRequest, "Webhook processing failed", "server_error")
 			return

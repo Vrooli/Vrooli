@@ -94,6 +94,26 @@ func TestConnectAnalyticsSummaryPreservesRequestedWindowAndProjection(t *testing
 	}
 }
 
+func TestConnectAnalyticsSummaryHonorsWindowDays(t *testing.T) {
+	reader := &connectReader{summary: &metrics.AnalyticsSummary{}}
+	handler := NewConnectHandler(ConnectDependencies{Reader: reader})
+	_, err := handler.GetAnalyticsSummary(context.Background(), connect.NewRequest(&lpbsv1.GetAnalyticsSummaryRequest{WindowDays: 30}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := reader.start.AddDate(0, 0, 30); !got.Equal(reader.end) {
+		t.Fatalf("reader window = %s..%s; want 30 calendar days", reader.start, reader.end)
+	}
+}
+
+func TestConnectAnalyticsSummaryRejectsUnsupportedWindowDays(t *testing.T) {
+	handler := NewConnectHandler(ConnectDependencies{Reader: &connectReader{summary: &metrics.AnalyticsSummary{}}})
+	_, err := handler.GetAnalyticsSummary(context.Background(), connect.NewRequest(&lpbsv1.GetAnalyticsSummaryRequest{WindowDays: 14}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("code = %v; want invalid_argument", connect.CodeOf(err))
+	}
+}
+
 func TestConnectRevenueSummaryMapsTypedRollup(t *testing.T) {
 	observedAt := time.Date(2026, 9, 3, 12, 0, 0, 0, time.UTC)
 	reader := &connectRevenue{summary: &metrics.RevenueSummary{

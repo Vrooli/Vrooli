@@ -17,8 +17,8 @@ import (
 // seam: commerce funding authority, backed by the account lot ledger.
 // Credit spending is owned by BusinessAccountUsageService, never an email wallet.
 type CreditWallet interface {
-	AddCreditsForBusinessAccount(businessAccountID, customerEmail string, amount int64, txnType, source, externalEventID string, metadata map[string]interface{}) error
-	BalanceForBusinessAccount(businessAccountID, customerEmail string) (int64, error)
+	AddCreditsForBusinessAccountContext(context.Context, string, string, int64, string, string, string, map[string]interface{}) error
+	BalanceForBusinessAccountContext(context.Context, string, string) (int64, error)
 }
 
 type creditWalletStore interface {
@@ -58,16 +58,12 @@ func sameGrantMetadata(stored []byte, expected []byte) bool {
 	return err == nil && bytes.Equal(canonical, expected)
 }
 
-func (s *CreditWalletService) AddCreditsForBusinessAccount(businessAccountID, customerEmail string, amount int64, txnType, source, externalEventID string, metadata map[string]interface{}) error {
-	return s.AddCreditsForBusinessAccountContext(context.Background(), businessAccountID, customerEmail, amount, txnType, source, externalEventID, metadata)
-}
-
 // AddCreditsForBusinessAccountContext binds the entire funding transaction to
 // the request-selected database pool. In particular, test-mode requests must
 // never fall through to the primary customer ledger.
 func (s *CreditWalletService) AddCreditsForBusinessAccountContext(ctx context.Context, businessAccountID, customerEmail string, amount int64, txnType, source, externalEventID string, metadata map[string]interface{}) error {
 	if ctx == nil {
-		ctx = context.Background()
+		return errors.New("account credit grant context is required")
 	}
 	businessAccountID, customerEmail = strings.TrimSpace(businessAccountID), normalizeEmail(customerEmail)
 	txnType, source, externalEventID = strings.TrimSpace(txnType), strings.TrimSpace(source), strings.TrimSpace(externalEventID)
@@ -165,14 +161,20 @@ func (s *CreditWalletService) AddCreditsForBusinessAccountContext(ctx context.Co
 	return tx.Commit()
 }
 
-func (s *CreditWalletService) BalanceForBusinessAccount(businessAccountID, customerEmail string) (int64, error) {
+func (s *CreditWalletService) BalanceForBusinessAccountContext(ctx context.Context, businessAccountID, customerEmail string) (int64, error) {
+	if ctx == nil {
+		return 0, errors.New("account credit balance context is required")
+	}
 	if strings.TrimSpace(businessAccountID) == "" || strings.TrimSpace(customerEmail) == "" {
 		return 0, ErrBusinessAccountRequired
+	}
+	if s.db == nil {
+		return 0, errors.New("account funding authority is unavailable")
 	}
 	var balance int64
 	// The wallet is an identity row. Only attributed, usable funding lots
 	// establish the displayed balance; an old cache amount has no provenance.
-	err := s.db.QueryRowContext(context.Background(), `SELECT COALESCE(SUM(l.remaining),0) FROM credit_funding_lots l JOIN business_account_credit_wallets w ON w.business_account_id=l.business_account_id WHERE w.business_account_id=$1 AND w.customer_email=$2 AND l.status=$3 AND l.settlement_state='settled' AND l.livemode IS NOT NULL AND (l.spendable_after IS NULL OR l.spendable_after<=CURRENT_TIMESTAMP) AND (l.expires_at IS NULL OR l.expires_at>CURRENT_TIMESTAMP)`, strings.TrimSpace(businessAccountID), normalizeEmail(customerEmail), string(fundingstate.FundingLotOpen)).Scan(&balance)
+	err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(l.remaining),0) FROM credit_funding_lots l JOIN business_account_credit_wallets w ON w.business_account_id=l.business_account_id WHERE w.business_account_id=$1 AND w.customer_email=$2 AND l.status=$3 AND l.settlement_state='settled' AND l.livemode IS NOT NULL AND (l.spendable_after IS NULL OR l.spendable_after<=CURRENT_TIMESTAMP) AND (l.expires_at IS NULL OR l.expires_at>CURRENT_TIMESTAMP)`, strings.TrimSpace(businessAccountID), normalizeEmail(customerEmail), string(fundingstate.FundingLotOpen)).Scan(&balance)
 	if err == sql.ErrNoRows {
 		return 0, nil
 	}

@@ -139,33 +139,11 @@ type Server struct {
 	sessionManager SessionManager
 }
 
-// meteredInferenceUsageAdapter exposes LPBS's account-aware commerce usage
-// implementation to the legacy inference interface. The remaining user-only
-// adjustment method is intentionally unavailable; standard paid inference
-// always uses the embedded BusinessAccountUsageServicer methods.
+// meteredInferenceUsageAdapter exposes only LPBS's account-scoped billing
+// authority to paid inference.
 type meteredInferenceUsageAdapter struct{ *commerce.UsageService }
 
-func (meteredInferenceUsageAdapter) ReserveAndCharge(context.Context, string, string, string, int64, intelligence.UsageReport) error {
-	return errors.New("user-scoped usage reservation is unavailable")
-}
-func (meteredInferenceUsageAdapter) ReserveCredits(context.Context, string, string, string, int64) (string, error) {
-	return "", errors.New("user-scoped usage reservation is unavailable")
-}
-func (meteredInferenceUsageAdapter) FinalizeReservation(context.Context, string, int64) error {
-	return errors.New("user-scoped usage settlement is unavailable")
-}
-func (meteredInferenceUsageAdapter) ReleaseReservation(context.Context, string) error {
-	return errors.New("user-scoped usage release is unavailable")
-}
-func (meteredInferenceUsageAdapter) AdjustUsage(context.Context, string, string, int64, string) error {
-	return errors.New("user-scoped usage adjustment is unavailable")
-}
-func (meteredInferenceUsageAdapter) RecordUsage(context.Context, intelligence.UsageReport) error {
-	return errors.New("user-scoped usage recording is unavailable")
-}
-
 var (
-	_ intelligence.UsageServicer                = meteredInferenceUsageAdapter{}
 	_ intelligence.BusinessAccountUsageServicer = meteredInferenceUsageAdapter{}
 )
 

@@ -76,7 +76,7 @@ func TestAccountServiceCreditsReflectBundleMetadata(t *testing.T) {
 
 	accountService := newAccountServiceWithTestPlanStore(t, db)
 	email := "credits-test@example.com"
-	if err := commerce.NewCreditWalletService(db).AddCreditsForBusinessAccount("acct:metadata", email, 1_000_000, "test_grant", "fixture", "metadata-grant", map[string]interface{}{"livemode": false}); err != nil {
+	if err := commerce.NewCreditWalletService(db).AddCreditsForBusinessAccountContext(context.Background(), "acct:metadata", email, 1_000_000, "test_grant", "fixture", "metadata-grant", map[string]interface{}{"livemode": false}); err != nil {
 		t.Fatalf("seed attributed account grant: %v", err)
 	}
 

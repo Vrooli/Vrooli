@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/ai-provider-go/openai"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	"landing-page-business-suite-api/internal/securevalue"
 )
@@ -493,22 +494,24 @@ func (s *APIKeyService) Test(ctx context.Context, provider string) (bool, string
 
 // testOpenRouter tests an OpenRouter API key.
 func (s *APIKeyService) testOpenRouter(ctx context.Context, key string) (bool, string) {
-	req, _ := http.NewRequestWithContext(ctx, "GET", "https://openrouter.ai/api/v1/auth/key", nil)
-	req.Header.Set("Authorization", "Bearer "+key)
-
-	resp, err := s.httpClient.Do(req)
+	client := openai.New(openai.Config{
+		ProviderName: "openrouter",
+		BaseURL:      "https://openrouter.ai",
+		APIKey:       key,
+		HTTPClient:   s.httpClient,
+	})
+	status, err := client.ProbeAPIKey(ctx, "/api/v1/auth/key")
 	if err != nil {
 		return false, fmt.Sprintf("Connection error: %v", err)
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode == 200 {
+	if status == http.StatusOK {
 		return true, "API key is valid"
 	}
-	if resp.StatusCode == 401 {
+	if status == http.StatusUnauthorized {
 		return false, "Invalid API key"
 	}
-	return false, fmt.Sprintf("Unexpected status: %d", resp.StatusCode)
+	return false, fmt.Sprintf("Unexpected status: %d", status)
 }
 
 // testOpenAI tests an OpenAI API key.
