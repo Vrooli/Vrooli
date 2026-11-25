@@ -84,7 +84,7 @@ func fixtureDNS() *dns.Evaluation {
 
 func fixtureTLS() *tlsinfo.Snapshot {
 	return &tlsinfo.Snapshot{
-		Probe: tlsinfo.ProbeResult{Valid: true, Issuer: "Let's Encrypt", DaysRemaining: 60},
+		Probe: tlsinfo.ProbeResult{Valid: true, Issuer: "Let's Encrypt", DaysRemaining: 60, NotAfter: "Jan 8 00:00:00 2027 UTC"},
 		ALPN:  tlsinfo.ALPNCheck{Status: tlsinfo.ALPNPass, Message: "ok"},
 	}
 }
@@ -93,7 +93,19 @@ func build(t *testing.T, dep *domain.Deployment, live *domain.LiveStateResult, d
 	t.Helper()
 	report := vps.ComputeHealth(dep, fixtureManifest(), fixtureIdentity(), live, dnsEval, tlsSnap, nil, nil)
 	report.Freshness = &domain.FreshnessStatus{Status: domain.FreshnessCurrent, Summary: "bundle matches"}
-	return Build(Input{Deployment: dep, Report: report, LiveState: live, Now: now}, DefaultPolicy())
+	return Build(Input{Deployment: dep, Report: report, LiveState: live, TLS: tlsSnap, TLSObservedAt: now, Now: now}, DefaultPolicy())
+}
+
+func TestBuildBindsCertificateFactsToExactObservation(t *testing.T) {
+	now := time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
+	obs := build(t, fixtureDeployment(domain.StatusDeployed), fixtureLiveState(now, "running"), fixtureDNS(), fixtureTLS(), now)
+	cert := obs.GetCertificateLifecycle()
+	if cert == nil || cert.GetObservedAt() == nil || !cert.GetObservedAt().AsTime().Equal(now) || cert.GetNotAfter() == nil || cert.GetNotAfter().AsTime().Format(time.RFC3339) != "2027-01-08T00:00:00Z" {
+		t.Fatalf("certificate sample = %+v", cert)
+	}
+	if cert.GetCertificateState() != "valid" || cert.GetRenewalState() != "blocked" || cert.GetReasonCode() != "renewal_state_not_reported_by_tls_snapshot" {
+		t.Fatalf("certificate lifecycle = %+v", cert)
+	}
 }
 
 func checkByID(obs *healthv1.HealthObservation, id string) *healthv1.HealthCheck {

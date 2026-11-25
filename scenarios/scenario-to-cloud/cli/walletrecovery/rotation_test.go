@@ -17,6 +17,19 @@ import (
 
 const testRotationTombstone = `{"version":1,"epoch":2,"wallet_id":"old-wallet","network":"eip155:84532","address":"0xold","public_key":"public","successor_id":"new-wallet","revoked_at":"2026-11-15T12:00:00Z","signature":"0xsignature"}`
 
+func testCommitAcknowledgementJSON(t *testing.T, reservationID, targetID, destinationID, snapshotID, tombstoneSHA256, successorID, successorAddress string) string {
+	t.Helper()
+	value := map[string]any{
+		"acknowledgement": receiptsigning.WalletRecoveryCommitAcknowledgement{Version: 1, OperationID: reservationID, ReservationID: reservationID, TargetID: targetID, DestinationID: destinationID, SnapshotID: snapshotID, TombstoneSHA256: tombstoneSHA256, SuccessorID: successorID, SuccessorAddress: successorAddress, SuccessorPublicKey: "fixture-successor-public-key"},
+		"signature":       receiptsigning.SignatureEnvelope{Version: receiptsigning.EnvelopeVersionV1, Purpose: receiptsigning.PurposeWalletRecoveryCommitAcknowledgement, Algorithm: receiptsigning.AlgorithmCredentialAuthorityEd25519, KeyID: "treasury-fixture-key", Digest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", Signature: "fixture-signature"},
+	}
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(encoded)
+}
+
 func TestRotatePublishesExactTombstoneAndCommitsOnlyAfterNewestRestoreProof(t *testing.T) {
 	root := t.TempDir()
 	if err := os.Chmod(root, 0o700); err != nil {
@@ -87,7 +100,9 @@ func TestRotatePublishesExactTombstoneAndCommitsOnlyAfterNewestRestoreProof(t *t
 		}
 		if tool == "treasury" && strings.Contains(strings.Join(args, " "), "commit-rotation") {
 			commitSeen = true
-			return []byte(`{"wallet":{"id":"new-wallet","network":"eip155:84532","address":"0xnew"}}`), nil
+			ack := testCommitAcknowledgementJSON(t, rotationReservationID("old-wallet", "new-wallet", "remote-repo"), "treasury-target", "remote-repo", "snap-9", hash, "new-wallet", "0xnew")
+			response, _ := json.Marshal(map[string]any{"wallet": map[string]string{"id": "new-wallet", "network": "eip155:84532", "address": "0xnew"}, "commit_ack_json": ack})
+			return response, nil
 		}
 		return []byte(`{}`), nil
 	}
@@ -111,8 +126,8 @@ func TestRotatePublishesExactTombstoneAndCommitsOnlyAfterNewestRestoreProof(t *t
 			release = i
 		}
 	}
-	if commitPin < 0 || treasuryCommit <= commitPin || release >= 0 || !strings.Contains(output.String(), "remains pinned pending a verifiable Treasury commit acknowledgement") {
-		t.Fatalf("reservation must pin before Treasury and remain pinned without a verifiable Treasury ack: calls=%v output=%q", calls, output.String())
+	if commitPin < 0 || treasuryCommit <= commitPin || release <= treasuryCommit || !strings.Contains(output.String(), "released the reservation") {
+		t.Fatalf("reservation must pin before Treasury and release only after its exact signed acknowledgement: calls=%v output=%q", calls, output.String())
 	}
 	receiptBytes, err := os.ReadFile(receiptPath)
 	if err != nil {
@@ -201,7 +216,9 @@ func TestRotateResumesPinnedReceiptAfterRestartWithoutPublishingAnotherSnapshot(
 			return response, nil
 		}
 		if tool == "treasury" && strings.Contains(call, "commit-rotation") {
-			return []byte(`{"wallet":{"id":"new-wallet","network":"eip155:84532","address":"0xnew"}}`), nil
+			ack := testCommitAcknowledgementJSON(t, saved.ReservationID, "treasury-target", "remote", saved.SnapshotID, saved.TombstoneSHA256, "new-wallet", "0xnew")
+			response, _ := json.Marshal(map[string]any{"wallet": map[string]string{"id": "new-wallet", "network": "eip155:84532", "address": "0xnew"}, "commit_ack_json": ack})
+			return response, nil
 		}
 		return nil, fmt.Errorf("unexpected call: %s", call)
 	}
@@ -209,8 +226,8 @@ func TestRotateResumesPinnedReceiptAfterRestartWithoutPublishingAnotherSnapshot(
 	if err := (Commands{Runner: runner}).Rotate(args); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(strings.Join(calls, "\n"), "runs trigger") || !strings.Contains(strings.Join(calls, "\n"), "--state commit") || strings.Contains(strings.Join(calls, "\n"), "--state release") {
-		t.Fatalf("restart should refresh and consume the same pinned receipt without publishing or releasing without Treasury ack: %v", calls)
+	if strings.Contains(strings.Join(calls, "\n"), "runs trigger") || !strings.Contains(strings.Join(calls, "\n"), "--state commit") || !strings.Contains(strings.Join(calls, "\n"), "--state release") {
+		t.Fatalf("restart should refresh the same pinned receipt and release only after Treasury acknowledgement: %v", calls)
 	}
 }
 

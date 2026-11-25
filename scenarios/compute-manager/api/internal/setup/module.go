@@ -109,6 +109,9 @@ func (s *service) VerifyProvider(ctx context.Context, req *connect.Request[setup
 	if item.ID == "akash" {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("Akash signer verification and chain probes are not available; credential entry alone cannot enable them"))
 	}
+	if err := s.requireConsoleStepsComplete(ctx, *item); err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
 	if s.resolve == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("credential authority is unavailable"))
 	}
@@ -219,10 +222,10 @@ func (s *service) readiness(ctx context.Context, item Provider) (*setupv1.Provid
 	} else if consoleComplete {
 		current = CredentialNeeded
 		if credentialPresent {
-			current = Authenticated
 			verified := map[State]bool{}
 			for _, e := range evidence {
-				if e.Verified && (e.State != AccountUsable || (!e.CheckedAt.After(s.now()) && s.now().Sub(e.CheckedAt) <= 5*time.Minute)) {
+				freshProbe := !strings.HasPrefix(e.ID, "probe:") || (!e.CheckedAt.After(s.now()) && s.now().Sub(e.CheckedAt) <= 5*time.Minute)
+				if e.Verified && freshProbe {
 					verified[e.State] = true
 				}
 			}
@@ -233,16 +236,23 @@ func (s *service) readiness(ctx context.Context, item Provider) (*setupv1.Provid
 					break
 				}
 			}
+			if verified[Authenticated] {
+				current = Authenticated
+			}
 			if verified[AccountUsable] {
 				current = AccountUsable
 			}
-			if freshOffer {
+			if freshOffer && current == AccountUsable {
 				current = OfferAvailable
 			}
 			if verified[PaymentValid] && current == OfferAvailable {
 				current = PaymentValid
 			}
 		}
+	}
+	purchaseEnabled := current == PaymentValid
+	if purchaseEnabled {
+		current = PurchaseEnabled
 	}
 	if !strings.HasPrefix(item.ID, "akash") {
 		if credentialPresent {
@@ -251,7 +261,7 @@ func (s *service) readiness(ctx context.Context, item Provider) (*setupv1.Provid
 			credentialStatus = "missing"
 		}
 	}
-	out := &setupv1.ProviderReadiness{ProviderId: item.ID, Current: string(current), CredentialStatus: credentialStatus, PurchaseEnabled: false}
+	out := &setupv1.ProviderReadiness{ProviderId: item.ID, Current: string(current), CredentialStatus: credentialStatus, PurchaseEnabled: purchaseEnabled}
 	if item.ID == "akash" {
 		marketStatus := "status_unavailable"
 		if s.configured != nil {
@@ -279,6 +289,13 @@ func (s *service) readiness(ctx context.Context, item Provider) (*setupv1.Provid
 	for _, e := range evidence {
 		out.Evidence = append(out.Evidence, &setupv1.ReadinessEvidence{Id: e.ID, State: string(e.State), Verified: e.Verified, Detail: e.Detail, CheckedAt: timestamppb.New(e.CheckedAt), SourceUrl: e.SourceURL, SourceVersion: e.SourceVersion})
 	}
+	if purchaseEnabled {
+		out.Evidence = append(out.Evidence, &setupv1.ReadinessEvidence{
+			Id: "readiness:purchase-enabled", State: string(PurchaseEnabled), Verified: true,
+			Detail:    "Provider setup prerequisites are verified. Each request still requires a fresh stored quote and spend-cap approval before any provider call.",
+			CheckedAt: timestamppb.New(s.now().UTC()),
+		})
+	}
 	for _, fact := range prices {
 		if fact.SourceURL == "" || fact.SourceVersion == "" {
 			continue
@@ -302,6 +319,23 @@ func (s *service) requirePreviousSteps(ctx context.Context, item Provider, stepI
 		}
 	}
 	return errors.New("provider setup step is invalid")
+}
+
+func (s *service) requireConsoleStepsComplete(ctx context.Context, item Provider) error {
+	steps, err := s.repo.Steps(ctx, item.ID)
+	if err != nil {
+		return err
+	}
+	completed := make(map[string]bool, len(steps))
+	for _, step := range steps {
+		completed[step.StepID] = step.State == "complete"
+	}
+	for _, step := range item.ConsoleSteps {
+		if !completed[step.ID] {
+			return fmt.Errorf("complete the %s phone decision before provider verification", step.Title)
+		}
+	}
+	return nil
 }
 
 func stepFacts(item Provider, step ConsoleStep) operatordecision.Facts {
@@ -332,7 +366,7 @@ func findStep(providerID, stepID string) (*Provider, *ConsoleStep) {
 func providerProto(item Provider) *setupv1.Provider {
 	out := &setupv1.Provider{Id: item.ID, Name: item.Name, ConsoleUrl: item.ConsoleURL, CredentialLogicalId: item.CredentialLogicalID, CredentialField: item.CredentialField, CredentialLabel: item.CredentialLabel, CredentialScopes: item.CredentialScopes, BillingFacts: item.BillingFacts}
 	for _, s := range item.ConsoleSteps {
-		out.ConsoleSteps = append(out.ConsoleSteps, &setupv1.ConsoleStep{Id: s.ID, Title: s.Title, Instructions: s.Instructions, Url: s.URL})
+		out.ConsoleSteps = append(out.ConsoleSteps, &setupv1.ConsoleStep{Id: s.ID, Title: s.Title, Instructions: s.Instructions, Url: s.URL, Decision: s.Decision})
 	}
 	for _, p := range item.Probes {
 		out.Probes = append(out.Probes, &setupv1.Probe{Id: p.ID, Method: p.Method, Path: p.Path, Permission: p.Permission, ReadOnly: p.ReadOnly})

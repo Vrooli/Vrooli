@@ -59,6 +59,16 @@ func (c *Commands) statusPrimitive() cliapp.PrimitiveHandler {
 	return c.statusCall("get pipeline status", c.rpc.Get)
 }
 
+func (c *Commands) logsPrimitive() cliapp.PrimitiveHandler {
+	return cliapp.ProtoList(func(ctx cliapp.OperationContext) (*pipelinev1.PipelineStatus, error) {
+		response, err := c.rpc.Get(context.Background(), connect.NewRequest(&pipelinev1.PipelineGetRequest{PipelineId: strings.TrimSpace(ctx.Positional("pipeline-id"))}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("get pipeline diagnostics", err, nil)
+		}
+		return response.Msg, nil
+	}, pipelineDiagnosticsReport)
+}
+
 func (c *Commands) waitPrimitive() cliapp.PrimitiveHandler {
 	return cliapp.ProtoList(func(ctx cliapp.OperationContext) (*pipelinev1.PipelineStatus, error) {
 		seconds, err := positiveInt32(ctx.Flag("timeout"), "timeout")
@@ -185,6 +195,87 @@ func pipelineStatusReport(_ cliapp.OperationContext, response *pipelinev1.Pipeli
 		slices.Sort(results[2:])
 	}
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Pipeline %s is %s (%d%%)", response.GetPipelineId(), response.GetStatus().String(), response.GetProgressPercent())}, Results: results, ListShaped: true, ResultCount: len(results)}
+}
+
+const maxPipelineDiagnosticRunes = 3000
+
+// pipelineDiagnosticsReport exposes only the owner's retained StageResult.Error
+// values. It deliberately omits raw build logs/details, which may contain local
+// paths or untrusted tool output; StageResult.Error is redacted at the owner.
+func pipelineDiagnosticsReport(ctx cliapp.OperationContext, response *pipelinev1.PipelineStatus) cliapp.ListReport {
+	selectedStage := ""
+	if ctx != nil {
+		selectedStage = strings.ToLower(strings.TrimSpace(ctx.Flag("stage")))
+	}
+	if selectedStage == "smoketest" {
+		selectedStage = "smoke-test"
+	}
+	results := make([]string, 0, len(response.GetStages()))
+	stageNames := append([]sharedv1.StageName(nil), response.GetStageOrder()...)
+	if len(stageNames) == 0 {
+		for key := range response.GetStages() {
+			stageNames = append(stageNames, stageNameFromMapKey(key))
+		}
+		slices.SortFunc(stageNames, func(a, b sharedv1.StageName) int { return strings.Compare(a.String(), b.String()) })
+	}
+	seen := make(map[string]bool, len(stageNames))
+	for _, stageName := range stageNames {
+		key := stageMapKey(stageName)
+		seen[key] = true
+		if selectedStage != "" && selectedStage != key {
+			continue
+		}
+		stage := response.GetStages()[key]
+		if stage == nil || strings.TrimSpace(stage.GetError()) == "" {
+			continue
+		}
+		results = append(results, fmt.Sprintf("%s (%s):\n%s", key, stage.GetStatus(), truncatePipelineDiagnostic(stage.GetError())))
+	}
+	for key, stage := range response.GetStages() {
+		if seen[key] || selectedStage != "" && selectedStage != key || stage == nil || strings.TrimSpace(stage.GetError()) == "" {
+			continue
+		}
+		results = append(results, fmt.Sprintf("%s (%s):\n%s", key, stage.GetStatus(), truncatePipelineDiagnostic(stage.GetError())))
+	}
+	slices.Sort(results)
+	if len(results) == 0 {
+		results = []string{"No retained stage error diagnostics for this pipeline selection"}
+	}
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Retained errors for pipeline %s (%s)", response.GetPipelineId(), response.GetScenarioName())},
+		ResultsHeading: "Stage errors",
+		Results:        results,
+		ListShaped:     true,
+		ResultCount:    len(results),
+	}
+}
+
+func truncatePipelineDiagnostic(value string) string {
+	value = strings.TrimSpace(value)
+	runes := []rune(value)
+	if len(runes) <= maxPipelineDiagnosticRunes {
+		return value
+	}
+	return string(runes[:maxPipelineDiagnosticRunes]) + "\n[diagnostic truncated]"
+}
+
+func stageNameFromMapKey(key string) sharedv1.StageName {
+	switch strings.ToLower(strings.TrimSpace(key)) {
+	case "bundle":
+		return sharedv1.StageName_STAGE_NAME_BUNDLE
+	case "preflight":
+		return sharedv1.StageName_STAGE_NAME_PREFLIGHT
+	case "generate":
+		return sharedv1.StageName_STAGE_NAME_GENERATE
+	case "build":
+		return sharedv1.StageName_STAGE_NAME_BUILD
+	case "smoketest", "smoke-test":
+		return sharedv1.StageName_STAGE_NAME_SMOKE_TEST
+	case "deploy":
+		return sharedv1.StageName_STAGE_NAME_DEPLOY
+	default:
+		return sharedv1.StageName_STAGE_NAME_UNSPECIFIED
+	}
 }
 
 func stageMapKey(name sharedv1.StageName) string {

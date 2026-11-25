@@ -217,6 +217,8 @@ CREATE TABLE IF NOT EXISTS invoice_reconciliation_receipts (
   amount_minor BIGINT NOT NULL,
   currency TEXT NOT NULL,
   occurred_at TEXT NOT NULL,
+  range_from TEXT NOT NULL DEFAULT '',
+  range_to TEXT NOT NULL DEFAULT '',
   provenance TEXT NOT NULL,
   state TEXT NOT NULL,
   invoice_digest TEXT NOT NULL,

@@ -51,7 +51,7 @@ func (l *contractLedger) IngestEvent(_ context.Context, req *connect.Request[ing
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("fixture Connect contract rejected identity or invoice target"))
 	}
 	if posting := l.postsByExternal[event.GetExternalId()]; posting != nil {
-		if !proto.Equal(l.eventsByExternal[event.GetExternalId()], event) {
+		if !sameMoneyLedgerReplayFacts(l.eventsByExternal[event.GetExternalId()], event) {
 			return nil, connect.NewError(connect.CodeAlreadyExists, errors.New("external invoice identity was reused with different facts"))
 		}
 		return connect.NewResponse(&ingestpb.IngestEventResponse{Posting: posting}), nil
@@ -61,6 +61,17 @@ func (l *contractLedger) IngestEvent(_ context.Context, req *connect.Request[ing
 	l.postsByExternal[event.GetExternalId()] = posting
 	l.eventsByExternal[event.GetExternalId()] = proto.Clone(event).(*sharedpb.MoneyEvent)
 	return connect.NewResponse(&ingestpb.IngestEventResponse{Posting: posting}), nil
+}
+
+// Money Ledger's supported idempotency contract excludes fetched_at: a
+// retry can be observed at a later time while all source/accounting facts
+// remain identical. Keep every other field in the replay comparison.
+func sameMoneyLedgerReplayFacts(original, retry *sharedpb.MoneyEvent) bool {
+	left := proto.Clone(original).(*sharedpb.MoneyEvent)
+	right := proto.Clone(retry).(*sharedpb.MoneyEvent)
+	left.FetchedAt = nil
+	right.FetchedAt = nil
+	return proto.Equal(left, right)
 }
 
 func (l *contractLedger) ReversePosting(_ context.Context, req *connect.Request[ledgerpb.ReversePostingRequest]) (*connect.Response[ledgerpb.ReversePostingResponse], error) {
@@ -153,7 +164,7 @@ func TestFixtureProducerPostsIntoMoneyLedgerExactlyOnceAcrossLostResponsesAndCor
 	now := time.Date(2026, 11, 24, 1, 0, 0, 0, time.UTC)
 	client.Now = func() time.Time { return now }
 	reconciler := InvoiceReconciler{DB: db, Ledger: client, Destination: destination, Now: func() time.Time { return now }}
-	original := InvoiceLine{Provider: "digitalocean", InvoiceID: "fixture-e2e-invoice-01", LineID: "fixture-e2e-line-01", ProviderInstanceID: "provider-vm-fixture", AmountMinor: -1250, Currency: "USD", Provenance: "FIXTURE ONLY: synthetic provider invoice; no live source call", OccurredAt: now.Add(-time.Hour)}
+	original := InvoiceLine{Provider: "digitalocean", InvoiceID: "fixture-e2e-invoice-01", LineID: "fixture-e2e-line-01", ProviderInstanceID: "provider-vm-fixture", AmountMinor: -1250, Currency: "USD", Provenance: "FIXTURE ONLY: synthetic provider invoice; no live source call", OccurredAt: now.Add(-time.Hour), RangeFrom: fixtureInvoiceRangeFrom, RangeTo: fixtureInvoiceRangeTo}
 	originalID, err := reconciler.RecordFixtureOrSource(ctx, original)
 	require.NoError(t, err)
 	if _, err := reconciler.ConfirmAndPost(ctx, originalID); !errors.Is(err, ErrInvoiceConfirmation) {
@@ -165,12 +176,13 @@ func TestFixtureProducerPostsIntoMoneyLedgerExactlyOnceAcrossLostResponsesAndCor
 		t.Fatal("expected simulated lost IngestEvent response")
 	}
 	require.Equal(t, 1, ledger.PostingCount(), "first ingest committed before its response was dropped")
+	now = now.Add(time.Minute) // a retry's fetched_at is allowed to differ by contract.
 	originalPosting, err := reconciler.ConfirmAndPost(ctx, originalID)
 	require.NoError(t, err)
 	require.NotEmpty(t, originalPosting)
 	require.Equal(t, 1, ledger.PostingCount(), "lost-response retry must resolve the original posting")
 
-	corrected := InvoiceLine{Provider: "digitalocean", InvoiceID: "fixture-e2e-invoice-02", LineID: "fixture-e2e-adjustment-01", ProviderInstanceID: "provider-vm-fixture", AmountMinor: -1100, Currency: "USD", Provenance: "FIXTURE ONLY: synthetic corrected invoice line", OccurredAt: now}
+	corrected := InvoiceLine{Provider: "digitalocean", InvoiceID: "fixture-e2e-invoice-02", LineID: "fixture-e2e-adjustment-01", ProviderInstanceID: "provider-vm-fixture", AmountMinor: -1100, Currency: "USD", Provenance: "FIXTURE ONLY: synthetic corrected invoice line", OccurredAt: now, RangeFrom: fixtureInvoiceRangeFrom, RangeTo: fixtureInvoiceRangeTo}
 	correctionID, err := reconciler.RecordCorrection(ctx, originalID, corrected)
 	require.NoError(t, err)
 	approveIntegrationFixture(t, ctx, reconciler, correctionID, "fixture-e2e-ask-correction")

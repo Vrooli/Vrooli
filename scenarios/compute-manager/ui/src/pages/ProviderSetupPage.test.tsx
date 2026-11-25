@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProviderSetupPage } from "./ProviderSetupPage";
@@ -79,5 +79,22 @@ describe("ProviderSetupPage Akash status", () => {
     expect(setupMock.verifyProvider).not.toHaveBeenCalled();
     await userEvent.click(screen.getAllByRole("button", { name: /ask me on my phone/i })[0]!);
     expect(setupMock.beginSetupStep).toHaveBeenCalledWith(expect.objectContaining({ providerId: "akash", stepId: "console-api-key" }));
+  });
+
+  it("refreshes readiness while a phone decision is pending", async () => {
+    vi.useFakeTimers();
+    setupMock.listProviders.mockResolvedValue({ providers: [{ ...akashDescriptor, id: "hetzner", name: "Hetzner" }] });
+    setupMock.getReadiness.mockResolvedValue({ readiness: {
+      providerId: "hetzner", current: "needs_console_steps", credentialStatus: "missing", activeStep: "account", evidence: [], prices: [],
+    } });
+    try {
+      render(<ProviderSetupPage />);
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+      expect(setupMock.getReadiness).toHaveBeenCalledTimes(1);
+      await act(async () => { vi.advanceTimersByTime(3000); await Promise.resolve(); await Promise.resolve(); });
+      expect(setupMock.getReadiness).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

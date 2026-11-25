@@ -56,6 +56,7 @@
       "dashboard": "Home",
       "findings": "Findings",
       "request": "Request",
+      "setup": "Providers",
       "settings": "Settings"
     },
     "navigationLabel": "Primary navigation",
@@ -71,6 +72,13 @@
     "summary_zero": "No notifications"
   },
   "providerSetup": {
+    "evidenceHeading": "Verification evidence",
+    "verified": "Verified",
+    "unverified": "Unverified",
+    "waitingDecision": "Waiting for your phone decision",
+    "checkedAt": "Checked",
+    "evidenceSource": "Source",
+    "spendGate": "Provider setup does not authorize spending. Every capacity request still needs a fresh stored quote and spend-cap approval before any provider API call.",
     "akash": {
       "title": "Akash",
       "network": "Network:",

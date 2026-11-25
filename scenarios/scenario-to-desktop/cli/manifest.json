@@ -138,6 +138,15 @@
           ]
         },
         {
+          "name": "logs",
+          "description": "Show bounded redacted retained stage failure diagnostics without rerunning",
+          "binding": {"kind": "connect-rpc", "service": "PipelineService", "method": "Get"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"},
+          "positionals": [{"name": "pipeline-id", "required": true, "description": "Pipeline ID", "bind": {"field": "pipeline_id"}}],
+          "flags": [{"name": "stage", "values": ["bundle", "preflight", "generate", "build", "smoketest", "deploy"], "description": "Restrict diagnostics to one stage", "bind_waiver": "The CLI filters the retained PipelineStatus response locally by stage.", "local_only": true}]
+        },
+        {
           "name": "resume",
           "description": "Resume a pipeline",
           "binding": {
@@ -1428,6 +1437,25 @@
       "flat": true,
       "description": "Root-level local desktop validation actions",
       "commands": [
+        {
+          "name": "prerequisites",
+          "description": "Check common desktop host prerequisites for generated defaults or an app package.json target",
+          "flags": [
+            {
+              "name": "platform",
+              "required": true,
+              "values": ["linux", "win", "mac"],
+              "description": "Target platform"
+            },
+            {
+              "name": "package-json",
+              "description": "Optional app package.json whose explicit build target is checked (maximum 1 MiB)"
+            }
+          ],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read"]},
+          "architecture": {"primitive": "action"}
+        },
         {
           "name": "validate-artifact",
           "binding": {"kind": "local"},

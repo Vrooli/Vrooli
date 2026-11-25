@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProviderSetupPage } from "../../pages/ProviderSetupPage";
+import { strings } from "../../consts/strings";
 
 const setupMock = vi.hoisted(() => ({
   listProviders: vi.fn(),
@@ -51,14 +52,17 @@ describe("DigitalOcean catalogue setup UI", () => {
   it("renders the server catalogue entry, exact phone steps and secure credential handoff", async () => {
     render(<ProviderSetupPage />);
     expect(await screen.findByRole("heading", { name: "DigitalOcean" })).toBeInTheDocument();
-    digitalOceanDescriptor.consoleSteps.forEach((step) => expect(screen.getByText(step.title)).toBeInTheDocument());
+    digitalOceanDescriptor.consoleSteps.forEach((step) => {
+      expect(screen.getByText(step.title)).toBeInTheDocument();
+      expect(screen.getByText(step.decision)).toBeInTheDocument();
+    });
     expect(screen.getByText((_, element) => element?.tagName === "STRONG" && element.textContent === "Required scopes:")).toBeInTheDocument();
     expect(screen.getByText(digitalOceanDescriptor.credentialScopes.join(", "))).toBeInTheDocument();
     const handoff = document.querySelector<HTMLAnchorElement>('a[href="/embedded/vrooli-onboarding/?target=local&step=credentials"]');
     expect(handoff).not.toBeNull();
     expect(handoff?.getAttribute("href")).toBe("/embedded/vrooli-onboarding/?target=local&step=credentials");
     expect(screen.queryByRole("textbox", { name: /token/i })).not.toBeInTheDocument();
-    expect(paragraphsContaining(document.body, "Purchase remains disabled")).toHaveLength(1);
+    expect(paragraphsContaining(document.body, strings.providerSetup.spendGate)).toHaveLength(1);
   });
 
   it("routes a DigitalOcean phone decision by provider and step, then shows authenticated/account-ready read-back", async () => {
@@ -79,7 +83,7 @@ describe("DigitalOcean catalogue setup UI", () => {
     const accountReadyLabel = "account usable";
     expect(await screen.findByText(accountReadyLabel)).toBeInTheDocument();
     await waitFor(() => expect(paragraphsContaining(document.body, "Credential status: configured")).toHaveLength(1));
-    expect(Array.from(accountItem.querySelectorAll("p")).some((paragraph) => paragraph.textContent === "Confirmed")).toBe(true);
+    expect(Array.from(accountItem.querySelectorAll("p")).some((paragraph) => paragraph.textContent === strings.providerSetup.verified)).toBe(true);
     expect(setupMock.verifyProvider).not.toHaveBeenCalled();
   });
 
@@ -93,14 +97,14 @@ describe("DigitalOcean catalogue setup UI", () => {
     render(<ProviderSetupPage />);
     expect(await screen.findByText(/Expired observation:/)).toBeInTheDocument();
     expect(screen.getByText(/fixture-stale/)).toBeInTheDocument();
-    expect(paragraphsContaining(document.body, "Purchase remains disabled")).toHaveLength(1);
+    expect(paragraphsContaining(document.body, strings.providerSetup.spendGate)).toHaveLength(1);
     expect(screen.queryByRole("button", { name: /purchase|create droplet|buy/i })).not.toBeInTheDocument();
   });
 
   it("keeps unknown pricing non-actionable and does not run a verification probe by rendering", async () => {
     render(<ProviderSetupPage />);
     await waitFor(() => expect(paragraphsContaining(document.body, "Credential status: missing")).toHaveLength(1));
-    expect(paragraphsContaining(document.body, "Purchase remains disabled")).toHaveLength(1);
+    expect(paragraphsContaining(document.body, strings.providerSetup.spendGate)).toHaveLength(1);
     expect(setupMock.verifyProvider).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: /Verify .* in selected region/i })).toBeDisabled();
   });
@@ -112,12 +116,34 @@ describe("DigitalOcean catalogue setup UI", () => {
     fireEvent.change(region, { target: { value: "nyc3" } });
     const verify = screen.getByRole("button", { name: /Verify .* in selected region/i });
     fireEvent.click(verify);
-    await waitFor(() => expect(setupMock.verifyProvider).toHaveBeenCalledWith(expect.objectContaining({
-      providerId: "digitalocean", region: "nyc3", size: "s-1vcpu-1gb",
-    })));
+    expect(verify).toBeDisabled();
+    expect(setupMock.verifyProvider).not.toHaveBeenCalled();
     await waitFor(() => expect(paragraphsContaining(document.body, "Credential status: missing")).toHaveLength(1));
     const missingCredentialState = "credential needed";
     expect(screen.getByText(missingCredentialState)).toBeInTheDocument();
-    expect(paragraphsContaining(document.body, "Purchase remains disabled")).toHaveLength(1);
+    expect(paragraphsContaining(document.body, strings.providerSetup.spendGate)).toHaveLength(1);
+  });
+
+  it("enables verification only after every phone step and the credential are present", async () => {
+    setupMock.getReadiness.mockResolvedValue(readiness("credential_needed", "configured", [], digitalOceanDescriptor.consoleSteps.map((step) => ({
+      id: `console:${step.id}`, state: "needs_console_steps", verified: true, detail: "operator phone confirmation",
+    }))));
+    render(<ProviderSetupPage />);
+    const region = await screen.findByRole("textbox", { name: /Region/i });
+    fireEvent.change(region, { target: { value: "nyc3" } });
+    expect(screen.getByRole("button", { name: /Verify .* in selected region/i })).toBeEnabled();
+  });
+
+  it("shows a failed verification as unverified with its detail and source", async () => {
+    setupMock.getReadiness.mockResolvedValue(readiness("credential_needed", "configured", [], [{
+      id: "probe:droplets", state: "account_usable", verified: false,
+      detail: "Probe unknown; the provider API did not verify this permission.",
+      sourceUrl: "https://api.digitalocean.com/v2/droplets",
+    }]));
+    render(<ProviderSetupPage />);
+    expect(await screen.findByRole("region", { name: strings.providerSetup.evidenceHeading })).toBeInTheDocument();
+    expect(screen.getByText((_, element) => element?.tagName === "STRONG" && element.textContent === `${strings.providerSetup.unverified} · account usable`)).toBeInTheDocument();
+    expect(screen.getByText("Probe unknown; the provider API did not verify this permission.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "https://api.digitalocean.com/v2/droplets" })).toHaveAttribute("href", "https://api.digitalocean.com/v2/droplets");
   });
 });

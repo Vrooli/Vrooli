@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "scenario-to-desktop",
   "generator": "v1.0.0",
-  "manifest_hash": "5887ce2f3d06f1d009f10a78d13125245e1920912352c15752c619656cf3962c",
+  "manifest_hash": "6d5b03653c4bd0d33d60f266312565bac285ddd3d1f5470fecf768597aaa5548",
   "commands": [
     {
       "path": "build get",
@@ -74,6 +74,12 @@
       "group": "desktop",
       "command": "download",
       "binding": ".",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "desktop prerequisites",
+      "group": "desktop",
+      "command": "prerequisites",
       "observed_primitive": "action"
     },
     {
@@ -256,6 +262,13 @@
       "group": "pipeline",
       "command": "list",
       "binding": "PipelineService.List",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "pipeline logs",
+      "group": "pipeline",
+      "command": "logs",
+      "binding": "PipelineService.Get",
       "observed_primitive": "proto_list"
     },
     {

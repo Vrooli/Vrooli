@@ -68,6 +68,7 @@ export const strings = {
       dashboard: "layout.nav.dashboard",
       findings: "layout.nav.findings",
       request: "layout.nav.request",
+      setup: "layout.nav.setup",
       settings: "layout.nav.settings",
     },
     navigationLabel: "layout.navigationLabel",
@@ -83,6 +84,13 @@ export const strings = {
     summary_zero: "notifications.summary_zero",
   },
   providerSetup: {
+    evidenceHeading: "providerSetup.evidenceHeading",
+    verified: "providerSetup.verified",
+    unverified: "providerSetup.unverified",
+    waitingDecision: "providerSetup.waitingDecision",
+    checkedAt: "providerSetup.checkedAt",
+    evidenceSource: "providerSetup.evidenceSource",
+    spendGate: "providerSetup.spendGate",
     akash: {
       title: "providerSetup.akash.title",
       network: "providerSetup.akash.network",

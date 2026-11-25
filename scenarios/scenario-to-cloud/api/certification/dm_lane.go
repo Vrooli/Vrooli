@@ -108,8 +108,9 @@ func ReadDMLaneVerdicts(ctx context.Context, profileReader DMLaneProfileReader, 
 	return ProjectDMLaneVerdicts(profiles, operations)
 }
 
-// ReadAndPersistDMLaneVerdicts completes the read-only lane pass and appends
-// its exact generated-readback projection as an immutable snapshot.
+// ReadAndPersistDMLaneVerdicts completes the read-only lane pass, appends its
+// exact generated-readback projection, and persists idempotent owner-routed
+// records for every stage that is not passed.
 func ReadAndPersistDMLaneVerdicts(ctx context.Context, profileReader DMLaneProfileReader, operationReader DMLaneOperationReader, evidenceDir string) ([]DMLaneVerdict, []string, error) {
 	verdicts, err := ReadDMLaneVerdicts(ctx, profileReader, operationReader)
 	if err != nil {
@@ -119,6 +120,11 @@ func ReadAndPersistDMLaneVerdicts(ctx context.Context, profileReader DMLaneProfi
 	if err != nil {
 		return nil, nil, err
 	}
+	gapPaths, err := WriteDMLaneGaps(filepath.Join(evidenceDir, "gaps"), verdicts)
+	if err != nil {
+		return nil, nil, err
+	}
+	paths = append(paths, gapPaths...)
 	return verdicts, paths, nil
 }
 
@@ -187,6 +193,7 @@ func ProjectDMLaneVerdicts(profiles []*profilesv1.Profile, operations []*release
 					{Stage: "deploy", Status: DMLaneNotRun, Reason: "no DM operation readback supplied"},
 					{Stage: "verify", Status: DMLaneNotRun, Reason: "no DM operation readback supplied"},
 					{Stage: "teardown", Status: DMLaneBlocked, Reason: "no DM teardown receipt is present"},
+					{Stage: "lease-renewal", Status: DMLaneBlocked, Reason: "no DM renewal receipt is present"},
 				},
 				Verdict: DMLaneBlocked, Reason: "no DM operation readback; teardown receipt is unavailable",
 			})
@@ -236,6 +243,7 @@ func projectOperation(profile *profilesv1.Profile, operation *releasesv1.Release
 		{Stage: "deploy", Status: DMLaneNotRun, EvidenceRef: ref, Reason: "DM readback has no durable deployment receipt"},
 		{Stage: "verify", Status: DMLaneNotRun, EvidenceRef: ref, Reason: "DM readback has no passed verification receipt"},
 		projectDMLaneTeardown(profile, operation, ref),
+		projectDMLaneRenewal(profile, operation, ref),
 	}
 	cloud := operation.GetCloudStep()
 	if cloud != nil {
@@ -281,6 +289,45 @@ func projectOperation(profile *profilesv1.Profile, operation *releasesv1.Release
 		updated = operation.GetUpdatedAt().AsTime().UTC().Format("2006-01-02T15:04:05.999999999Z07:00")
 	}
 	return DMLaneVerdict{SchemaVersion: 1, ProfileID: profile.GetId(), Scenario: profile.GetScenario(), OperationID: operation.GetOperationId(), OperationStatus: operation.GetStatus().String(), ActiveStage: operation.GetActiveStage(), UpdatedAt: updated, Stages: stages, Verdict: aggregate, Reason: reason}
+}
+
+func projectDMLaneRenewal(profile *profilesv1.Profile, operation *releasesv1.ReleaseOperation, ref string) DMLaneStageVerdict {
+	blocked := DMLaneStageVerdict{Stage: "lease-renewal", Status: DMLaneBlocked, EvidenceRef: ref, Reason: "no exact CM lease-renewal receipt is present"}
+	dm := operation.GetCloudLeaseRenewalReceipt()
+	acquire := operation.GetCloudAcquireReceipt()
+	if dm == nil {
+		return blocked
+	}
+	if dm.GetSchemaVersion() != 1 || dm.GetOperationId() != operation.GetOperationId() || dm.GetReleaseId() != operation.GetReleaseId() || dm.GetProfileId() != profile.GetId() || dm.GetRenewalIdempotencyKey() != "dm-lease-renew:"+operation.GetOperationId() || acquire == nil || dm.GetAcquisitionReceiptSha256() != acquire.GetSourceReceiptSha256() || dm.GetComputeManagerInstanceId() != acquire.GetComputeManagerInstanceId() {
+		blocked.Reason = "DM renewal receipt does not bind the exact operation and acquisition receipt"
+		return blocked
+	}
+	source := acquire.GetSourceReceipt()
+	cmInstance := source.GetInstance()
+	spend := source.GetSpendReceipt()
+	owner := dm.GetComputeManagerReceipt()
+	if cmInstance == nil || spend == nil || cmInstance.GetExpiresAt() == nil || owner == nil || dm.GetComputeManagerProvider() != cmInstance.GetProvider() || dm.GetComputeManagerProviderInstanceId() != cmInstance.GetProviderInstanceId() || dm.GetOldExpiresAt() == nil || !dm.GetOldExpiresAt().AsTime().Equal(cmInstance.GetExpiresAt().AsTime()) || dm.GetRequestedUntil() == nil || !dm.GetRequestedUntil().AsTime().After(dm.GetOldExpiresAt().AsTime()) || dm.GetQuoteIdempotencyKey() != spend.GetIdempotencyKey() || owner.GetIdempotencyKey() != dm.GetRenewalIdempotencyKey() || owner.GetOwner() != cmInstance.GetTenant() || owner.GetInstanceId() != cmInstance.GetId() || owner.GetProvider() != cmInstance.GetProvider() || owner.GetProviderInstanceId() != cmInstance.GetProviderInstanceId() || owner.GetPriorExpiresAt() == nil || !owner.GetPriorExpiresAt().AsTime().Equal(dm.GetOldExpiresAt().AsTime()) || owner.GetRequestedUntil() == nil || !owner.GetRequestedUntil().AsTime().Equal(dm.GetRequestedUntil().AsTime()) || owner.GetSpendIdempotencyKey() != dm.GetQuoteIdempotencyKey() || owner.GetQuoteFingerprint() == "" || owner.GetQuoteFingerprint() != dm.GetQuoteFingerprint() {
+		blocked.Reason = "CM renewal receipt does not match the exact acquired owner, target, expiry, spend key, and quote binding"
+		return blocked
+	}
+	refKey := ref + ":lease-renewal:" + dm.GetRenewalIdempotencyKey()
+	switch owner.GetState() {
+	case instancev1.RenewalState_RENEWAL_STATE_REFUSED:
+		return DMLaneStageVerdict{Stage: "lease-renewal", Status: DMLaneBlocked, EvidenceRef: refKey, Reason: owner.GetReason()}
+	case instancev1.RenewalState_RENEWAL_STATE_FAILED:
+		return DMLaneStageVerdict{Stage: "lease-renewal", Status: DMLaneFailed, EvidenceRef: refKey, Reason: owner.GetReason()}
+	case instancev1.RenewalState_RENEWAL_STATE_RENEWED:
+		if dm.GetState() == releasesv1.CloudLeaseRenewalState_CLOUD_LEASE_RENEWAL_STATE_RENEWED && dm.GetNewExpiresAt() != nil && dm.GetNewExpiresAt().AsTime().Equal(dm.GetRequestedUntil().AsTime()) && dm.GetAuthorizationFact() != "" && !strings.Contains(dm.GetAuthorizationFact(), "no renewal quote or authorization") {
+			return DMLaneStageVerdict{Stage: "lease-renewal", Status: DMLanePassed, EvidenceRef: refKey}
+		}
+		blocked.EvidenceRef, blocked.Reason = refKey, "CM reports renewed but DM has no accepted renewal authorization and exact new-expiry standing"
+		return blocked
+	case instancev1.RenewalState_RENEWAL_STATE_PENDING, instancev1.RenewalState_RENEWAL_STATE_AMBIGUOUS:
+		blocked.EvidenceRef, blocked.Reason = refKey, "CM renewal is pending or ambiguous; lease expiry is not extended"
+	default:
+		blocked.EvidenceRef, blocked.Reason = refKey, "CM renewal receipt has an unsupported state"
+	}
+	return blocked
 }
 
 func projectDMLaneTeardown(profile *profilesv1.Profile, operation *releasesv1.ReleaseOperation, ref string) DMLaneStageVerdict {
@@ -380,6 +427,13 @@ func WriteDMLaneVerdicts(dir string, verdicts []DMLaneVerdict) ([]string, error)
 	path := filepath.Join(dir, "dm-lane-"+hex.EncodeToString(sum[:])+".json")
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	if err != nil {
+		if os.IsExist(err) {
+			existing, readErr := os.ReadFile(path)
+			if readErr == nil && string(existing) == string(append(raw, '\n')) {
+				return []string{path}, nil
+			}
+			return nil, fmt.Errorf("immutable DM lane snapshot %s exists with different or unreadable bytes", path)
+		}
 		return nil, fmt.Errorf("append DM lane verdict snapshot: %w", err)
 	}
 	if _, err = f.Write(append(raw, '\n')); err == nil {

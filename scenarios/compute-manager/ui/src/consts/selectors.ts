@@ -80,6 +80,7 @@ const dynamicSelectorDefinitions = {
           "dashboard",
           "findings",
           "request",
+          "setup",
           "settings",
           ] as const,
         },
@@ -94,6 +95,7 @@ const dynamicSelectorDefinitions = {
           values: [
             "dashboard",
             "findings",
+            "setup",
             "settings",
           ] as const,
         },

@@ -25,6 +25,19 @@ func MigrateCompatibility(ctx context.Context, db *sql.DB) error {
 	} else if err := rows.Close(); err != nil {
 		return err
 	}
+	// Invoice range is part of the normalized source facts and confirmation
+	// digest. Existing receipts have no recoverable range, so preserve them as
+	// explicitly unknown instead of inferring one from mutable provider data.
+	if rows, probeErr := tx.QueryContext(ctx, `SELECT range_from,range_to FROM invoice_reconciliation_receipts LIMIT 0`); probeErr != nil {
+		if _, err := tx.ExecContext(ctx, `ALTER TABLE invoice_reconciliation_receipts ADD COLUMN range_from TEXT NOT NULL DEFAULT ''`); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `ALTER TABLE invoice_reconciliation_receipts ADD COLUMN range_to TEXT NOT NULL DEFAULT ''`); err != nil {
+			return err
+		}
+	} else if err := rows.Close(); err != nil {
+		return err
+	}
 
 	rows, err := tx.QueryContext(ctx, `SELECT id,quote_json FROM spend_quotes WHERE source_url=''`)
 	if err != nil {

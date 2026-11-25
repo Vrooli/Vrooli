@@ -77,8 +77,8 @@ func TestNewApp_AllCommandGroupsRegistered(t *testing.T) {
 	groups := domains.CommandGroups(app.dependencies())
 	// Domain groups exclude the standard status and configure commands, which are
 	// handled by cli-core directly (status is disabled via IncludeStatusCommand).
-	if len(groups) != 5 {
-		t.Errorf("NewApp command callback returned %d groups, want 5", len(groups))
+	if len(groups) != 6 {
+		t.Errorf("NewApp command callback returned %d groups, want 6", len(groups))
 	}
 
 	expectedTitles := map[string]bool{
@@ -87,6 +87,7 @@ func TestNewApp_AllCommandGroupsRegistered(t *testing.T) {
 		"Download":   false,
 		"Scenarios":  false,
 		"Validation": false,
+		"Build readiness": false,
 	}
 	for _, g := range groups {
 		if _, ok := expectedTitles[g.Title]; ok {
@@ -114,7 +115,7 @@ func TestNewApp_AllSubcommandGroupsRegistered(t *testing.T) {
 	}
 
 	expectedNames := map[string]int{
-		"pipeline":      12,
+		"pipeline":      13,
 		"matrix":        6,
 		"preflight":     1,
 		"build":         1,

@@ -81,12 +81,9 @@ scenario-to-cloud deployment rollback "$DEPLOYMENT_ID" --confirm --preview-ref "
 
 **c. Certificate renewal failing**
 
-```bash
-scenario-to-cloud edge tls "$DEPLOYMENT_ID" --json
-scenario-to-cloud edge tls-renew "$DEPLOYMENT_ID"
-```
-
-Never disable verification.
+Use the deployment's phone-visible operation status and recovery flow to read
+the renewal state and owner result. Manual renewal is not an operator path;
+never disable verification.
 
 **d. Host lost or data damaged** → `restore.md` (replacement host path).
 

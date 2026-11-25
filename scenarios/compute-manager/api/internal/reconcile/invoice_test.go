@@ -123,13 +123,15 @@ func (r fixedInvoiceAskReader) ReadAsk(_ context.Context, id string) (askreader.
 }
 
 var fixtureInvoiceDestination = InvoiceDestination{BookID: "fixture-book", AccountID: "fixture-compute-expense"}
+var fixtureInvoiceRangeFrom = time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+var fixtureInvoiceRangeTo = time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)
 
 func TestFixtureInvoiceRequiresExplicitConfirmationAndRetriesExactlyOnce(t *testing.T) {
 	ctx := context.Background()
 	db := invoiceFixtureDB(t)
 	ledger := &fixtureInvoiceLedger{failAfterCreate: true}
 	r := InvoiceReconciler{DB: db, Ledger: ledger, Destination: fixtureInvoiceDestination, Now: func() time.Time { return time.Date(2026, 11, 23, 13, 0, 0, 0, time.UTC) }}
-	line := InvoiceLine{Provider: "digitalocean", InvoiceID: "fixture-invoice-01", LineID: "fixture-line-01", ProviderInstanceID: "provider-vm-fixture", AmountMinor: -1250, Currency: "USD", Provenance: "FIXTURE ONLY: synthetic invoice line; no live provider call", OccurredAt: time.Date(2026, 11, 23, 12, 0, 0, 0, time.UTC)}
+	line := InvoiceLine{Provider: "digitalocean", InvoiceID: "fixture-invoice-01", LineID: "fixture-line-01", ProviderInstanceID: "provider-vm-fixture", AmountMinor: -1250, Currency: "USD", Provenance: "FIXTURE ONLY: synthetic invoice line; no live provider call", OccurredAt: time.Date(2026, 11, 23, 12, 0, 0, 0, time.UTC), RangeFrom: time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC), RangeTo: time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)}
 	id, err := r.RecordFixtureOrSource(ctx, line)
 	if err != nil {
 		t.Fatal(err)
@@ -161,12 +163,24 @@ func TestFixtureInvoiceRequiresExplicitConfirmationAndRetriesExactlyOnce(t *test
 	if count != 1 {
 		t.Fatalf("persisted fixture receipt count=%d", count)
 	}
+	var storedFrom, storedTo string
+	if err := db.QueryRow(`SELECT range_from,range_to FROM invoice_reconciliation_receipts WHERE external_id=?`, id).Scan(&storedFrom, &storedTo); err != nil {
+		t.Fatal(err)
+	}
+	if storedFrom != line.RangeFrom.Format(time.RFC3339Nano) || storedTo != line.RangeTo.Format(time.RFC3339Nano) {
+		t.Fatalf("persisted range=(%q,%q), want (%q,%q)", storedFrom, storedTo, line.RangeFrom.Format(time.RFC3339Nano), line.RangeTo.Format(time.RFC3339Nano))
+	}
 }
 
 func TestInvoiceLineRequiresApprovedReservationMatchAndRejectsIdentityMutation(t *testing.T) {
 	ctx := context.Background()
 	r := InvoiceReconciler{DB: invoiceFixtureDB(t), Destination: fixtureInvoiceDestination}
-	line := InvoiceLine{Provider: "digitalocean", InvoiceID: "fixture-invoice-01", LineID: "fixture-line-01", ProviderInstanceID: "not-a-managed-instance", AmountMinor: -100, Currency: "USD", Provenance: "FIXTURE ONLY", OccurredAt: time.Now()}
+	line := InvoiceLine{Provider: "digitalocean", InvoiceID: "fixture-invoice-01", LineID: "fixture-line-01", ProviderInstanceID: "not-a-managed-instance", AmountMinor: -100, Currency: "USD", Provenance: "FIXTURE ONLY", OccurredAt: time.Now(), RangeFrom: fixtureInvoiceRangeFrom, RangeTo: fixtureInvoiceRangeTo}
+	line.RangeTo = time.Time{}
+	if _, err := r.RecordFixtureOrSource(ctx, line); err == nil {
+		t.Fatal("new receipt accepted without a source range")
+	}
+	line.RangeTo = fixtureInvoiceRangeTo
 	if _, err := r.RecordFixtureOrSource(ctx, line); !errors.Is(err, ErrInvoiceUnmatched) {
 		t.Fatalf("unmatched err=%v", err)
 	}
@@ -183,6 +197,11 @@ func TestInvoiceLineRequiresApprovedReservationMatchAndRejectsIdentityMutation(t
 	if _, err := r.RecordFixtureOrSource(ctx, line); !errors.Is(err, ErrInvoiceIdentityReuse) {
 		t.Fatalf("mutated identity err=%v", err)
 	}
+	line.AmountMinor = -100
+	line.RangeTo = line.RangeTo.Add(time.Hour)
+	if _, err := r.RecordFixtureOrSource(ctx, line); !errors.Is(err, ErrInvoiceIdentityReuse) {
+		t.Fatalf("mutated source range err=%v", err)
+	}
 }
 
 func TestFixtureCorrectionAppendsLinkedReversalAndReplacement(t *testing.T) {
@@ -190,7 +209,7 @@ func TestFixtureCorrectionAppendsLinkedReversalAndReplacement(t *testing.T) {
 	db := invoiceFixtureDB(t)
 	ledger := &fixtureInvoiceLedger{}
 	r := InvoiceReconciler{DB: db, Ledger: ledger, Destination: fixtureInvoiceDestination}
-	original := InvoiceLine{Provider: "digitalocean", InvoiceID: "fixture-invoice-01", LineID: "fixture-line-01", ProviderInstanceID: "provider-vm-fixture", AmountMinor: -1250, Currency: "USD", Provenance: "FIXTURE ONLY: original synthetic line", OccurredAt: time.Date(2026, 11, 23, 12, 0, 0, 0, time.UTC)}
+	original := InvoiceLine{Provider: "digitalocean", InvoiceID: "fixture-invoice-01", LineID: "fixture-line-01", ProviderInstanceID: "provider-vm-fixture", AmountMinor: -1250, Currency: "USD", Provenance: "FIXTURE ONLY: original synthetic line", OccurredAt: time.Date(2026, 11, 23, 12, 0, 0, 0, time.UTC), RangeFrom: fixtureInvoiceRangeFrom, RangeTo: fixtureInvoiceRangeTo}
 	originalID, err := r.RecordFixtureOrSource(ctx, original)
 	if err != nil {
 		t.Fatal(err)
@@ -200,7 +219,7 @@ func TestFixtureCorrectionAppendsLinkedReversalAndReplacement(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	corrected := InvoiceLine{Provider: "digitalocean", InvoiceID: "fixture-invoice-02", LineID: "fixture-adjustment-01", ProviderInstanceID: "provider-vm-fixture", AmountMinor: -1100, Currency: "USD", Provenance: "FIXTURE ONLY: synthetic corrected provider line", OccurredAt: time.Date(2026, 11, 24, 12, 0, 0, 0, time.UTC)}
+	corrected := InvoiceLine{Provider: "digitalocean", InvoiceID: "fixture-invoice-02", LineID: "fixture-adjustment-01", ProviderInstanceID: "provider-vm-fixture", AmountMinor: -1100, Currency: "USD", Provenance: "FIXTURE ONLY: synthetic corrected provider line", OccurredAt: time.Date(2026, 11, 24, 12, 0, 0, 0, time.UTC), RangeFrom: fixtureInvoiceRangeFrom, RangeTo: fixtureInvoiceRangeTo}
 	correctionID, err := r.RecordCorrection(ctx, originalID, corrected)
 	if err != nil {
 		t.Fatal(err)

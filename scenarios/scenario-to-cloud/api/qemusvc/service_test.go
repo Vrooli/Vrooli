@@ -52,12 +52,16 @@ func TestAcquirePropagatesComputeManagerCapacityRefusalThroughGeneratedClient(t 
 
 type managerFixture struct {
 	request computemanager.QEMURequest
+	receipt computemanager.InstanceReference
 	calls   int
 }
 
 func (m *managerFixture) RequestQEMU(_ context.Context, request computemanager.QEMURequest) (computemanager.InstanceReference, error) {
 	m.request = request
 	m.calls++
+	if m.receipt.ManagerInstanceID != "" {
+		return m.receipt, nil
+	}
 	return computemanager.InstanceReference{ManagerInstanceID: "cm-qemu-1", Provider: "local-qemu", Region: "local", Size: request.Size, Image: request.Image, Address: "127.0.0.1", SSHPort: 2222, SSHUser: "runner"}, nil
 }
 
@@ -84,6 +88,21 @@ func TestAcquireRequestsManagerOwnedTarget(t *testing.T) {
 	}
 	if response.Msg.GetManagerInstanceId() != "cm-qemu-1" || response.Msg.GetTarget().GetLocator().GetPort() != 2222 {
 		t.Fatalf("reference=%+v", response.Msg)
+	}
+}
+
+func TestAcquireRefusesMismatchedComputeManagerReceipt(t *testing.T) {
+	manager := &managerFixture{receipt: computemanager.InstanceReference{
+		ManagerInstanceID: "cm-qemu-1", Provider: "hetzner", Region: "fsn1",
+		Address: "203.0.113.20", SSHPort: 22, SSHUser: "runner",
+	}}
+	service := New(manager, func(context.Context) (string, error) { return "ssh-ed25519 AAAAfixture", nil })
+	_, err := service.Acquire(context.Background(), connect.NewRequest(&qemuv1.AcquireRequest{
+		IdempotencyKey: "qemu-lane:RUN-01", Region: "local", Size: "headless-linux", Image: "ubuntu-24.04",
+		LifetimeSeconds: 3600, Profile: "headless-linux",
+	}))
+	if connect.CodeOf(err) != connect.CodeUnavailable {
+		t.Fatalf("code=%s err=%v, want refusal of mismatched provider receipt", connect.CodeOf(err), err)
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -170,5 +171,53 @@ func TestConnectHealthServiceMatchesREST(t *testing.T) {
 	_, err = client.GetHealthObservation(context.Background(), connect.NewRequest(&healthv1.GetHealthObservationRequest{}))
 	if !errors.As(err, &cerr) || cerr.Code() != connect.CodeInvalidArgument {
 		t.Fatalf("empty id error = %v", err)
+	}
+}
+
+func TestHealthTLSAlertRecoveryLandingIsReadOnlyAndFailClosed(t *testing.T) {
+	srv, _ := newHealthTestServer(t, "health-tls-alert-recovery-status")
+	srv.healthSvc = health.NewAlerter(nil, health.DefaultDetection(), nil)
+	obs := &healthv1.HealthObservation{DeploymentId: "dep-health-tls", TargetId: "machine:target-1", ObservedReleaseDigest: "sha256:current-release"}
+	report := domain.HealthResponse{Sections: []domain.HealthSection{{Category: "tls", Checks: []domain.HealthCheck{{ID: "tls_cert", Status: domain.HealthCheckFail, Message: "certificate probe failed"}}}}}
+	srv.healthSvc.Observe(context.Background(), obs, report)
+
+	incident := obs.GetDeploymentId() + ":certificate_expiring"
+	rec := httptest.NewRecorder()
+	srv.Router().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/deployments/"+obs.GetDeploymentId()+"/health/alerts/"+incident, nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body.String())
+	}
+	var got struct {
+		Status string `json:"status"`
+		Alert  struct {
+			IncidentID    string `json:"incident_id"`
+			TargetID      string `json:"target_id"`
+			ReleaseDigest string `json:"release_digest"`
+			NextAction    struct {
+				Kind      string `json:"kind"`
+				Reference string `json:"reference"`
+			} `json:"next_action"`
+		} `json:"alert"`
+		Preview struct {
+			SubmissionOpen  bool   `json:"submission_open"`
+			State           string `json:"state"`
+			OperationID     string `json:"operation_id"`
+			TargetID        string `json:"target_id"`
+			IncidentID      string `json:"incident_id"`
+			CurrentRelease  string `json:"current_release_digest"`
+			LastGoodRelease string `json:"last_good_release_digest"`
+		} `json:"recovery_preview"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != "blocked" || got.Preview.State != "blocked" || got.Preview.SubmissionOpen || got.Preview.OperationID != "" || got.Preview.LastGoodRelease != "" {
+		t.Fatalf("recovery preview must remain closed without exact DM binding: %+v", got.Preview)
+	}
+	if got.Alert.IncidentID != incident || got.Alert.TargetID != "machine:target-1" || got.Alert.ReleaseDigest != "sha256:current-release" || got.Preview.TargetID != got.Alert.TargetID || got.Preview.IncidentID != incident || got.Preview.CurrentRelease != got.Alert.ReleaseDigest {
+		t.Fatalf("alert identity was not preserved: %+v", got)
+	}
+	if got.Alert.NextAction.Kind != "endpoint" || strings.Contains(got.Alert.NextAction.Reference, "tls-renew") {
+		t.Fatalf("TLS alert retained a terminal instruction: %+v", got.Alert.NextAction)
 	}
 }

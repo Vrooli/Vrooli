@@ -185,6 +185,52 @@ func TestPipelineParsingAndReports(t *testing.T) {
 	}
 }
 
+func TestPipelineLogsShowsRetainedStageFailureAndFiltersStage(t *testing.T) {
+	build := sharedv1.StageName_STAGE_NAME_BUILD
+	smoke := sharedv1.StageName_STAGE_NAME_SMOKE_TEST
+	buildError := "build failed: electron-builder exited\n⨯ spawn fpm ENOENT"
+	smokeError := "smoke test could not launch"
+	status := &pipelinev1.PipelineStatus{
+		PipelineId:   "pipe-42",
+		ScenarioName: "calculator",
+		StageOrder:   []sharedv1.StageName{build, smoke},
+		Stages: map[string]*pipelinev1.StageResult{
+			"build":      {Stage: build, Status: sharedv1.StageStatus_STAGE_STATUS_FAILED, Error: &buildError},
+			"smoke-test": {Stage: smoke, Status: sharedv1.StageStatus_STAGE_STATUS_FAILED, Error: &smokeError},
+		},
+	}
+	commands := &Commands{rpc: &fakePipelineRPC{getStatus: status}}
+	schema := pipelineIDArgs(cliapp.Flag{Name: "stage", Values: []string{"build", "smoketest"}})
+	modes := cliapptest.RunPrimitiveHandlerModes(t, commands.logsPrimitive(), schema, []string{"pipe-42", "--stage", "build"}, nil)
+	if modes.HumanErr != nil || modes.JSONErr != nil {
+		t.Fatalf("pipeline logs errors: human=%v json=%v", modes.HumanErr, modes.JSONErr)
+	}
+	if !strings.Contains(modes.Human, "electron-builder exited") || !strings.Contains(modes.Human, "⨯ spawn fpm ENOENT") {
+		t.Fatalf("human diagnostics omit retained root cause: %q", modes.Human)
+	}
+	if strings.Contains(modes.Human, smokeError) {
+		t.Fatalf("stage filter leaked smoke diagnostics: %q", modes.Human)
+	}
+	if !strings.Contains(modes.JSON, "pipe-42") || !strings.Contains(modes.JSON, "fpm ENOENT") {
+		t.Fatalf("JSON diagnostics omit pipeline or cause: %q", modes.JSON)
+	}
+}
+
+func TestPipelineDiagnosticsBoundLongStageError(t *testing.T) {
+	build := sharedv1.StageName_STAGE_NAME_BUILD
+	message := strings.Repeat("x", maxPipelineDiagnosticRunes+50)
+	status := &pipelinev1.PipelineStatus{
+		PipelineId: "pipe-43",
+		Stages: map[string]*pipelinev1.StageResult{
+			"build": {Stage: build, Status: sharedv1.StageStatus_STAGE_STATUS_FAILED, Error: &message},
+		},
+	}
+	report := pipelineDiagnosticsReport(nil, status)
+	if len(report.Results) != 1 || !strings.Contains(report.Results[0], "[diagnostic truncated]") || len([]rune(report.Results[0])) > maxPipelineDiagnosticRunes+100 {
+		t.Fatalf("diagnostic report is not bounded: resultCount=%d chars=%d", len(report.Results), len([]rune(report.Results[0])))
+	}
+}
+
 func equalPlatforms(got, want []sharedv1.Platform) bool {
 	if len(got) != len(want) {
 		return false

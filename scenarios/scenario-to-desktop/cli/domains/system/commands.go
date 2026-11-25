@@ -97,6 +97,9 @@ func CommandGroups(deps support.Dependencies) []cliapp.CommandGroup {
 				return cliapp.MutationReport{Result: []string{"Validation evidence bundle written"}}
 			})),
 		}},
+		{Title: "Build readiness", Commands: []cliapp.Command{
+			(cliapp.Command{Name: "prerequisites", Description: "Check common host prerequisites for generated defaults or an app package.json target", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "platform", Required: true, Values: []string{"linux", "win", "mac"}, Description: "Target platform (linux, win, or mac)"}, {Name: "package-json", Description: "Read this app's package.json build.<platform>.target override (maximum 1 MiB)"}}}}).WithPrimitive(buildPrerequisitesPrimitive()),
+		}},
 	}
 }
 

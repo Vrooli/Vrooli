@@ -25,6 +25,7 @@
       "dashboard": "الرئيسية",
       "findings": "الملاحظات",
       "request": "طلب",
+      "setup": "المزوّدون",
       "settings": "الإعدادات"
     }
   },
@@ -37,6 +38,13 @@
     }
   },
   "providerSetup": {
+    "evidenceHeading": "أدلة التحقق",
+    "verified": "تم التحقق",
+    "unverified": "لم يتم التحقق",
+    "waitingDecision": "بانتظار قرارك عبر الهاتف",
+    "checkedAt": "وقت الفحص",
+    "evidenceSource": "المصدر",
+    "spendGate": "إعداد الموفر لا يجيز الإنفاق. يتطلب كل طلب سعة عرض سعر محفوظاً وحديثاً وموافقة على حد الإنفاق قبل أي طلب إلى واجهة الموفر.",
     "akash": {
       "title": "Akash",
       "network": "الشبكة:",

@@ -43,7 +43,7 @@ func TestInvoiceApprovalRequestAndVerifiedHubResolutionBindExactDigest(t *testin
 	dbPath := filepath.Join(t.TempDir(), "invoice-receipt.sqlite")
 	db := invoiceFixtureDBAt(t, dbPath)
 	r := InvoiceReconciler{DB: db, Destination: fixtureInvoiceDestination, Now: func() time.Time { return time.Date(2026, 11, 23, 13, 0, 0, 0, time.UTC) }}
-	line := InvoiceLine{Provider: "digitalocean", InvoiceID: "fixture-invoice-01", LineID: "fixture-line-01", ProviderInstanceID: "provider-vm-fixture", AmountMinor: -1250, Currency: "USD", Provenance: "FIXTURE ONLY: synthetic invoice; no live provider call", OccurredAt: time.Date(2026, 11, 23, 12, 0, 0, 0, time.UTC)}
+	line := InvoiceLine{Provider: "digitalocean", InvoiceID: "fixture-invoice-01", LineID: "fixture-line-01", ProviderInstanceID: "provider-vm-fixture", AmountMinor: -1250, Currency: "USD", Provenance: "FIXTURE ONLY: synthetic invoice; no live provider call", OccurredAt: time.Date(2026, 11, 23, 12, 0, 0, 0, time.UTC), RangeFrom: time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC), RangeTo: time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)}
 	id, err := r.RecordFixtureOrSource(ctx, line)
 	require.NoError(t, err)
 	publisher := &invoiceDecisionPublisher{}
@@ -66,6 +66,7 @@ func TestInvoiceApprovalRequestAndVerifiedHubResolutionBindExactDigest(t *testin
 	require.Equal(t, id, correlation["invoice_external_id"])
 	require.NotEmpty(t, correlation["invoice_digest"])
 	require.Contains(t, payload["technical_details"], "FIXTURE ONLY")
+	require.Contains(t, payload["technical_details"], "Invoice period: 2026-11-01T00:00:00Z to 2026-12-01T00:00:00Z")
 	requesterRef := operatordecision.EventID(event)
 	task := askreader.Ask{ID: "fixture-ask", State: "answered", Answer: "approve", AnsweredBy: "fixture-human", AnsweredByIdentityKind: "verified_human", AnsweredByIdentitySource: "fixture-cloudflare-access", AnsweredAt: "2026-11-23T13:00:00Z", ResolvedAt: "2026-11-23T13:00:00Z", Source: "compute-manager", SourceEventType: InvoiceApprovalEventType, RequesterRef: requesterRef, Correlation: correlation}
 	reader := fixedInvoiceAskReader{ask: task}
@@ -111,12 +112,16 @@ func TestInvoiceApprovalRequestAndVerifiedHubResolutionBindExactDigest(t *testin
 	require.Equal(t, http.StatusOK, restartedResponse.Code, restartedResponse.Body.String())
 	require.NoError(t, reopened.QueryRow(`SELECT count(*) FROM invoice_confirmation_receipts WHERE external_id=?`, id).Scan(&receiptCount))
 	require.Equal(t, 1, receiptCount)
+	var persistedFrom, persistedTo string
+	require.NoError(t, reopened.QueryRow(`SELECT range_from,range_to FROM invoice_reconciliation_receipts WHERE external_id=?`, id).Scan(&persistedFrom, &persistedTo))
+	require.Equal(t, fixtureInvoiceRangeFrom.Format(time.RFC3339Nano), persistedFrom)
+	require.Equal(t, fixtureInvoiceRangeTo.Format(time.RFC3339Nano), persistedTo)
 }
 
 func TestInvoiceApprovalEffectRefusesHubMismatchAndCannotBeUsedWithoutReader(t *testing.T) {
 	db := invoiceFixtureDB(t)
 	r := InvoiceReconciler{DB: db, Destination: fixtureInvoiceDestination}
-	line := InvoiceLine{Provider: "digitalocean", InvoiceID: "fixture-invoice-01", LineID: "fixture-line-01", ProviderInstanceID: "provider-vm-fixture", AmountMinor: -1250, Currency: "USD", Provenance: "FIXTURE ONLY", OccurredAt: time.Now()}
+	line := InvoiceLine{Provider: "digitalocean", InvoiceID: "fixture-invoice-01", LineID: "fixture-line-01", ProviderInstanceID: "provider-vm-fixture", AmountMinor: -1250, Currency: "USD", Provenance: "FIXTURE ONLY", OccurredAt: time.Now(), RangeFrom: fixtureInvoiceRangeFrom, RangeTo: fixtureInvoiceRangeTo}
 	id, err := r.RecordFixtureOrSource(context.Background(), line)
 	require.NoError(t, err)
 	var digest, reservation, quote string
@@ -136,7 +141,7 @@ func TestInvoiceApprovalEffectRefusesHubMismatchAndCannotBeUsedWithoutReader(t *
 func TestInvoiceReceiptRequiresVerifiedHumanAndRetriesUnavailableHubRead(t *testing.T) {
 	db := invoiceFixtureDB(t)
 	r := InvoiceReconciler{DB: db, Destination: fixtureInvoiceDestination}
-	line := InvoiceLine{Provider: "digitalocean", InvoiceID: "fixture-invoice-02", LineID: "fixture-line-02", ProviderInstanceID: "provider-vm-fixture", AmountMinor: -1250, Currency: "USD", Provenance: "FIXTURE ONLY", OccurredAt: time.Date(2026, 11, 23, 12, 0, 0, 0, time.UTC)}
+	line := InvoiceLine{Provider: "digitalocean", InvoiceID: "fixture-invoice-02", LineID: "fixture-line-02", ProviderInstanceID: "provider-vm-fixture", AmountMinor: -1250, Currency: "USD", Provenance: "FIXTURE ONLY", OccurredAt: time.Date(2026, 11, 23, 12, 0, 0, 0, time.UTC), RangeFrom: fixtureInvoiceRangeFrom, RangeTo: fixtureInvoiceRangeTo}
 	id, err := r.RecordFixtureOrSource(context.Background(), line)
 	require.NoError(t, err)
 	var digest, reservation, quote, book, account string
@@ -177,7 +182,7 @@ func (r failingInvoiceAskReader) ReadAsk(context.Context, string) (askreader.Ask
 func TestInvoiceApprovalPublisherFailureLeavesReceiptPendingAndStableEventForRetry(t *testing.T) {
 	db := invoiceFixtureDB(t)
 	r := InvoiceReconciler{DB: db, Destination: fixtureInvoiceDestination, Now: func() time.Time { return time.Date(2026, 11, 23, 13, 0, 0, 0, time.UTC) }}
-	line := InvoiceLine{Provider: "digitalocean", InvoiceID: "fixture-invoice-01", LineID: "fixture-line-01", ProviderInstanceID: "provider-vm-fixture", AmountMinor: -1250, Currency: "USD", Provenance: "FIXTURE ONLY", OccurredAt: time.Date(2026, 11, 23, 12, 0, 0, 0, time.UTC)}
+	line := InvoiceLine{Provider: "digitalocean", InvoiceID: "fixture-invoice-01", LineID: "fixture-line-01", ProviderInstanceID: "provider-vm-fixture", AmountMinor: -1250, Currency: "USD", Provenance: "FIXTURE ONLY", OccurredAt: time.Date(2026, 11, 23, 12, 0, 0, 0, time.UTC), RangeFrom: fixtureInvoiceRangeFrom, RangeTo: fixtureInvoiceRangeTo}
 	id, err := r.RecordFixtureOrSource(context.Background(), line)
 	require.NoError(t, err)
 	failing := &invoiceDecisionPublisher{err: fmt.Errorf("fixture event transport unavailable")}

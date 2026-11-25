@@ -60,12 +60,19 @@ func (l InvoiceLine) ExternalID() string {
 	return strings.Join([]string{"compute-manager", l.Provider, "invoice", l.InvoiceID, "line", l.LineID}, ":")
 }
 
+func invoiceTimeFact(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+	return value.UTC().Format(time.RFC3339Nano)
+}
+
 func invoiceFactsDigest(line InvoiceLine, instanceID, reservationID, quoteID string, destination InvoiceDestination) string {
 	facts := struct {
-		Provider, InvoiceID, LineID, ProviderInstanceID                                                     string
-		AmountMinor                                                                                         int64
-		Currency, Provenance, OccurredAt, InstanceID, ReservationID, QuoteID, LedgerBookID, LedgerAccountID string
-	}{line.Provider, line.InvoiceID, line.LineID, line.ProviderInstanceID, line.AmountMinor, strings.ToUpper(strings.TrimSpace(line.Currency)), line.Provenance, line.OccurredAt.UTC().Format(time.RFC3339Nano), instanceID, reservationID, quoteID, destination.BookID, destination.AccountID}
+		Provider, InvoiceID, LineID, ProviderInstanceID                                                                         string
+		AmountMinor                                                                                                             int64
+		Currency, Provenance, OccurredAt, RangeFrom, RangeTo, InstanceID, ReservationID, QuoteID, LedgerBookID, LedgerAccountID string
+	}{line.Provider, line.InvoiceID, line.LineID, line.ProviderInstanceID, line.AmountMinor, strings.ToUpper(strings.TrimSpace(line.Currency)), line.Provenance, line.OccurredAt.UTC().Format(time.RFC3339Nano), invoiceTimeFact(line.RangeFrom), invoiceTimeFact(line.RangeTo), instanceID, reservationID, quoteID, destination.BookID, destination.AccountID}
 	encoded, _ := json.Marshal(facts)
 	sum := sha256.Sum256(encoded)
 	return hex.EncodeToString(sum[:])
@@ -115,9 +122,9 @@ func (r InvoiceReconciler) RequestInvoiceApproval(ctx context.Context, externalI
 	}
 	var line InvoiceLine
 	var instanceID, reservationID, quoteID, state, digest, createdAt, reverses, bookID, accountID string
-	var occurred, storedEventID string
-	err := r.DB.QueryRowContext(ctx, `SELECT provider,invoice_id,line_id,provider_instance_id,amount_minor,currency,provenance,occurred_at,instance_id,reservation_id,quote_id,state,invoice_digest,created_at,reverses_external_id,ledger_book_id,ledger_account_id FROM invoice_reconciliation_receipts WHERE external_id=?`, externalID).
-		Scan(&line.Provider, &line.InvoiceID, &line.LineID, &line.ProviderInstanceID, &line.AmountMinor, &line.Currency, &line.Provenance, &occurred, &instanceID, &reservationID, &quoteID, &state, &digest, &createdAt, &reverses, &bookID, &accountID)
+	var occurred, rangeFrom, rangeTo, storedEventID string
+	err := r.DB.QueryRowContext(ctx, `SELECT provider,invoice_id,line_id,provider_instance_id,amount_minor,currency,provenance,occurred_at,range_from,range_to,instance_id,reservation_id,quote_id,state,invoice_digest,created_at,reverses_external_id,ledger_book_id,ledger_account_id FROM invoice_reconciliation_receipts WHERE external_id=?`, externalID).
+		Scan(&line.Provider, &line.InvoiceID, &line.LineID, &line.ProviderInstanceID, &line.AmountMinor, &line.Currency, &line.Provenance, &occurred, &rangeFrom, &rangeTo, &instanceID, &reservationID, &quoteID, &state, &digest, &createdAt, &reverses, &bookID, &accountID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", ErrInvoiceUnmatched
 	}
@@ -131,6 +138,18 @@ func (r InvoiceReconciler) RequestInvoiceApproval(ctx context.Context, externalI
 	if err != nil {
 		return "", err
 	}
+	if rangeFrom != "" {
+		line.RangeFrom, err = time.Parse(time.RFC3339Nano, rangeFrom)
+		if err != nil {
+			return "", err
+		}
+	}
+	if rangeTo != "" {
+		line.RangeTo, err = time.Parse(time.RFC3339Nano, rangeTo)
+		if err != nil {
+			return "", err
+		}
+	}
 	created, err := time.Parse(time.RFC3339Nano, createdAt)
 	if err != nil {
 		return "", err
@@ -141,7 +160,7 @@ func (r InvoiceReconciler) RequestInvoiceApproval(ctx context.Context, externalI
 		Options:    []operatordecision.Option{{Key: "approve", Label: "Approve this invoice post"}, {Key: "decline", Label: "Do not post"}},
 		Reversible: false, Urgency: "high",
 		BigPicture:       "This records one provider invoice line against the approved Compute Manager reservation. No provider is contacted and no infrastructure is changed.",
-		TechnicalDetails: fmt.Sprintf("Source: %s\nInvoice: %s\nLine: %s\nProvider instance: %s\nCompute Manager instance: %s\nReservation: %s\nSpend quote: %s\nAmount: %d %s minor units\nLedger book: %s\nLedger account: %s\nInvoice digest: %s\nProvenance: %s\nCorrection of: %s", line.Provider, line.InvoiceID, line.LineID, line.ProviderInstanceID, instanceID, reservationID, quoteID, line.AmountMinor, strings.ToUpper(line.Currency), bookID, accountID, digest, line.Provenance, reverses),
+		TechnicalDetails: fmt.Sprintf("Source: %s\nInvoice: %s\nLine: %s\nProvider instance: %s\nCompute Manager instance: %s\nReservation: %s\nSpend quote: %s\nAmount: %d %s minor units\nInvoice period: %s to %s\nLedger book: %s\nLedger account: %s\nInvoice digest: %s\nProvenance: %s\nCorrection of: %s", line.Provider, line.InvoiceID, line.LineID, line.ProviderInstanceID, instanceID, reservationID, quoteID, line.AmountMinor, strings.ToUpper(line.Currency), rangeDisplay(line.RangeFrom), rangeDisplay(line.RangeTo), bookID, accountID, digest, line.Provenance, reverses),
 		Correlation:      map[string]string{"invoice_external_id": externalID, "invoice_digest": digest, "reservation_id": reservationID, "quote_id": quoteID, "ledger_book_id": bookID, "ledger_account_id": accountID},
 	}
 	if err := facts.Validate(); err != nil {
@@ -170,6 +189,13 @@ func (r InvoiceReconciler) RequestInvoiceApproval(ctx context.Context, externalI
 		return eventID, fmt.Errorf("publish invoice phone confirmation: %w", err)
 	}
 	return eventID, nil
+}
+
+func rangeDisplay(value time.Time) string {
+	if value.IsZero() {
+		return "unknown"
+	}
+	return value.UTC().Format(time.RFC3339)
 }
 
 // InvoiceApprovalEffect is attached only to Compute Manager's verified
@@ -305,6 +331,9 @@ func (r InvoiceReconciler) RecordFixtureOrSource(ctx context.Context, line Invoi
 	if line.Provider == "" || line.InvoiceID == "" || line.LineID == "" || line.ProviderInstanceID == "" || line.Currency == "" || line.Provenance == "" || line.AmountMinor == 0 || line.OccurredAt.IsZero() {
 		return "", fmt.Errorf("invoice line requires provider, stable invoice and line IDs, instance, amount, currency, provenance and occurrence time")
 	}
+	if line.RangeFrom.IsZero() || line.RangeTo.IsZero() || !line.RangeFrom.Before(line.RangeTo) {
+		return "", fmt.Errorf("invoice line requires a complete, ordered source date range")
+	}
 	externalID := line.ExternalID()
 	now := r.now()
 	tx, err := r.DB.BeginTx(ctx, nil)
@@ -332,20 +361,20 @@ func (r InvoiceReconciler) RecordFixtureOrSource(ctx context.Context, line Invoi
 	}
 	digest := invoiceFactsDigest(line, instanceID, reservationID, quoteID, r.Destination)
 	_, err = tx.ExecContext(ctx, `INSERT INTO invoice_reconciliation_receipts
-		(external_id,provider,invoice_id,line_id,provider_instance_id,instance_id,reservation_id,quote_id,ledger_book_id,ledger_account_id,amount_minor,currency,occurred_at,provenance,state,invoice_digest,created_at,updated_at)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(external_id) DO NOTHING`,
-		externalID, line.Provider, line.InvoiceID, line.LineID, line.ProviderInstanceID, instanceID, reservationID, quoteID, r.Destination.BookID, r.Destination.AccountID, line.AmountMinor, strings.ToUpper(line.Currency), line.OccurredAt.UTC().Format(time.RFC3339Nano), line.Provenance, "awaiting_confirmation", digest, now, now)
+		(external_id,provider,invoice_id,line_id,provider_instance_id,instance_id,reservation_id,quote_id,ledger_book_id,ledger_account_id,amount_minor,currency,occurred_at,range_from,range_to,provenance,state,invoice_digest,created_at,updated_at)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(external_id) DO NOTHING`,
+		externalID, line.Provider, line.InvoiceID, line.LineID, line.ProviderInstanceID, instanceID, reservationID, quoteID, r.Destination.BookID, r.Destination.AccountID, line.AmountMinor, strings.ToUpper(line.Currency), line.OccurredAt.UTC().Format(time.RFC3339Nano), invoiceTimeFact(line.RangeFrom), invoiceTimeFact(line.RangeTo), line.Provenance, "awaiting_confirmation", digest, now, now)
 	if err != nil {
 		return "", err
 	}
-	var provider, invoiceID, lineID, instance, reservation, quote, currency, provenance, storedDigest string
+	var provider, invoiceID, lineID, instance, reservation, quote, currency, provenance, storedDigest, rangeFrom, rangeTo string
 	var amount int64
-	err = tx.QueryRowContext(ctx, `SELECT provider,invoice_id,line_id,instance_id,reservation_id,quote_id,amount_minor,currency,provenance,invoice_digest FROM invoice_reconciliation_receipts WHERE external_id=?`, externalID).
-		Scan(&provider, &invoiceID, &lineID, &instance, &reservation, &quote, &amount, &currency, &provenance, &storedDigest)
+	err = tx.QueryRowContext(ctx, `SELECT provider,invoice_id,line_id,instance_id,reservation_id,quote_id,amount_minor,currency,provenance,range_from,range_to,invoice_digest FROM invoice_reconciliation_receipts WHERE external_id=?`, externalID).
+		Scan(&provider, &invoiceID, &lineID, &instance, &reservation, &quote, &amount, &currency, &provenance, &rangeFrom, &rangeTo, &storedDigest)
 	if err != nil {
 		return "", err
 	}
-	if provider != line.Provider || invoiceID != line.InvoiceID || lineID != line.LineID || instance != instanceID || reservation != reservationID || quote != quoteID || amount != line.AmountMinor || !strings.EqualFold(currency, line.Currency) || provenance != line.Provenance || storedDigest != digest {
+	if provider != line.Provider || invoiceID != line.InvoiceID || lineID != line.LineID || instance != instanceID || reservation != reservationID || quote != quoteID || amount != line.AmountMinor || !strings.EqualFold(currency, line.Currency) || provenance != line.Provenance || rangeFrom != invoiceTimeFact(line.RangeFrom) || rangeTo != invoiceTimeFact(line.RangeTo) || storedDigest != digest {
 		return "", ErrInvoiceIdentityReuse
 	}
 	if err := tx.Commit(); err != nil {

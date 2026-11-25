@@ -1,0 +1,40 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P1",
+      "description": "A free-sandbox storage path accepts synthetic content through an ephemeral signing key; exact retrieval is verified and the private key is removed from its task-owned path.",
+      "id": "DPL-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "title": "Free sandbox upload and ephemeral key closure",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DPL-P1-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Kubo/IPFS, Arweave/arlocal/Turbo, ENS/anvil and ArNS are expressed behind replaceable storage and naming contracts with local devnets and a fixture-backed provider/path catalogue.",
+      "id": "DPL-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "planned",
+      "title": "Replaceable decentralized adapters",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DPL-P1-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

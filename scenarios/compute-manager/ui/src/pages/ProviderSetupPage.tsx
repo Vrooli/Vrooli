@@ -23,6 +23,7 @@ export function ProviderSetupPage() {
   const refresh = useCallback(async (id: string) => {
     const result = await setup.getReadiness(create(GetReadinessRequestSchema, { providerId: id }));
     setReadiness((old) => ({ ...old, [id]: result.readiness }));
+    setErrors((old) => ({ ...old, [id]: "" }));
   }, []);
 
   useEffect(() => {
@@ -34,6 +35,22 @@ export function ProviderSetupPage() {
     }).catch(() => { if (mounted) setErrors({ catalogue: "Provider setup is unavailable." }); });
     return () => { mounted = false; };
   }, [refresh]);
+
+  const pendingProviders = useMemo(
+    () => Object.keys(readiness).filter((id) => readiness[id]?.activeStep).join(","),
+    [readiness],
+  );
+
+  useEffect(() => {
+    if (!pendingProviders) return;
+    const ids = pendingProviders.split(",");
+    const timer = window.setInterval(() => {
+      void Promise.all(ids.map((id) => refresh(id).catch(() => {
+        setErrors((old) => ({ ...old, [id]: "Phone decision status is temporarily unavailable; this setup step remains pending." }));
+      })));
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [pendingProviders, refresh]);
 
   async function beginStep(providerId: string, stepId: string) {
     const key = `${providerId}:${stepId}`;
@@ -67,9 +84,22 @@ export function ProviderSetupPage() {
       const result = readiness[provider.id];
       const isAkash = provider.id === "akash";
       const akash = isAkash ? akashSetupView(provider, result) : undefined;
+      const consoleStepsComplete = provider.consoleSteps.every((step) => result?.evidence.some((evidence) => evidence.id === `console:${step.id}` && evidence.verified));
+      const canVerify = isAkash ? akash?.readOnlyProbeEnabled === true : result?.credentialStatus === "configured" && consoleStepsComplete;
       return <section key={provider.id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <h2 className="text-lg font-semibold">{provider.name}</h2>
         <p className="mt-1 text-sm">Readiness: <strong>{(result?.current ?? "needs_console_steps").replace(/_/g, " ")}</strong></p>
+        {!!result?.evidence.length && <section aria-label={t(strings.providerSetup.evidenceHeading)} className="mt-3 rounded-md border border-slate-200 p-3 text-sm dark:border-slate-700">
+          <h3 className="font-medium">{t(strings.providerSetup.evidenceHeading)}</h3>
+          <ul className="mt-2 space-y-2">
+            {result.evidence.map((evidence) => <li key={evidence.id}>
+              <p><strong>{evidence.verified ? t(strings.providerSetup.verified) : t(strings.providerSetup.unverified)} · {evidence.state.replace(/_/g, " ")}</strong> ({evidence.id})</p>
+              <p>{evidence.detail || t(strings.providerSetup.unverified)}</p>
+              {evidence.checkedAt && <p className="text-slate-600">{t(strings.providerSetup.checkedAt)}: {timestamp(evidence.checkedAt)}</p>}
+              {evidence.sourceUrl && <p>{t(strings.providerSetup.evidenceSource)}: <a className="underline" href={evidence.sourceUrl} target="_blank" rel="noreferrer">{evidence.sourceUrl}</a></p>}
+            </li>)}
+          </ul>
+        </section>}
         {akash && <dl className="mt-3 grid gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm dark:border-amber-900 dark:bg-amber-950/30" data-testid="akash-readiness">
           <div><dt className="inline font-medium">{t(strings.providerSetup.akash.network)} </dt><dd className="inline">{akash.network || t(strings.providerSetup.akash.notReported)}</dd></div>
           <div><dt className="inline font-medium">{t(strings.providerSetup.akash.effectMode)} </dt><dd className="inline">{akash.effectMode || t(strings.providerSetup.akash.notReported)}</dd></div>
@@ -88,7 +118,7 @@ export function ProviderSetupPage() {
               <h3 className="font-medium">{step.title}</h3>
               <p className="text-sm text-slate-600">{step.instructions}</p>
               <a className="text-sm underline" href={step.url} target={isAkash ? undefined : "_blank"} rel={isAkash ? undefined : "noreferrer"}>{isAkash ? t(strings.providerSetup.akash.secureEntryAction) : "Open provider website"}</a>
-              <p className="mt-1 text-sm">{state?.verified ? "Confirmed" : active ? "Waiting for your phone decision" : "Not confirmed"}</p>
+              <p className="mt-1 text-sm">{state?.verified ? t(strings.providerSetup.verified) : active ? t(strings.providerSetup.waitingDecision) : t(strings.providerSetup.unverified)}</p>
               {step.id === "token" && onboardingURL && <p className="mt-1"><a className="text-sm underline" href={onboardingURL}>Enter the token in Vrooli Onboarding</a></p>}
               {!state?.verified && <button disabled={working[`${provider.id}:${step.id}`]} className="mt-2 rounded-md border px-3 py-1.5 text-sm disabled:opacity-60" onClick={() => void beginStep(provider.id, step.id)}>{working[`${provider.id}:${step.id}`] ? "Sending…" : active ? "Resend phone decision" : "Ask me on my phone"}</button>}
               <p className="mt-1 text-sm text-slate-600">{step.decision}</p>
@@ -111,9 +141,9 @@ export function ProviderSetupPage() {
           <p className="text-sm">Credential status: {result?.credentialStatus ?? "checking"} · <a className="underline" href={onboardingURL}>Open secure Vrooli Onboarding step</a></p>
         </>}
         <div className="mt-4 flex flex-wrap gap-2">
-          {provider.offers[0]?.regions.length ? provider.offers[0].regions.map((region) => <button key={region} disabled={working[`verify:${provider.id}`] || (isAkash && !akash?.readOnlyProbeEnabled)} className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-60" onClick={() => void verify(provider.id, region, provider.offers[0]?.id ?? "")}>Verify {provider.offers[0]?.id} in {region}</button>) : isAkash ? <p className="text-sm text-slate-600">{t(strings.providerSetup.akash.noOffer)}</p> : <>
+          {provider.offers[0]?.regions.length ? provider.offers[0].regions.map((region) => <button key={region} disabled={working[`verify:${provider.id}`] || !canVerify} className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-60" onClick={() => void verify(provider.id, region, provider.offers[0]?.id ?? "")}>Verify {provider.offers[0]?.id} in {region}</button>) : isAkash ? <p className="text-sm text-slate-600">{t(strings.providerSetup.akash.noOffer)}</p> : <>
             <label className="flex items-center gap-2 text-sm">Region <input className="rounded border px-2 py-1 text-slate-900" value={regions[provider.id] ?? ""} onChange={(event) => setRegions((old) => ({ ...old, [provider.id]: event.target.value.trim() }))} placeholder="Enter provider region" /></label>
-            <button disabled={working[`verify:${provider.id}`] || !regions[provider.id]} className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-60" onClick={() => void verify(provider.id, regions[provider.id] ?? "", provider.offers[0]?.id ?? "")}>Verify {provider.offers[0]?.id} in selected region</button>
+            <button disabled={working[`verify:${provider.id}`] || !regions[provider.id] || !canVerify} className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-60" onClick={() => void verify(provider.id, regions[provider.id] ?? "", provider.offers[0]?.id ?? "")}>Verify {provider.offers[0]?.id} in selected region</button>
           </>}
         </div>
         {errors[provider.id] && <p role="alert" className="mt-2 text-sm text-red-700">{errors[provider.id]}</p>}
@@ -123,7 +153,7 @@ export function ProviderSetupPage() {
           <p>{price.size} in {price.region} · IPv4 {minor(price.ipv4MinorPerMonth)} {price.currency} · observed {timestamp(price.observedAt)}</p>
           <p>Source: <a className="underline" href={price.sourceUrl} target="_blank" rel="noreferrer">{price.sourceUrl}</a> · {price.sourceVersion}</p>
         </div>)}
-        <p className="mt-3 text-sm">Purchase remains disabled. A phone confirmation records setup only; it never approves spending.</p>
+        <p className="mt-3 text-sm">{t(strings.providerSetup.spendGate)}</p>
       </section>;
     })}
     {!errors.catalogue && !providers.some((provider) => provider.id === "akash") && <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900" data-testid="akash-not-listed">

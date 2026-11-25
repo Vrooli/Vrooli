@@ -150,8 +150,8 @@ func TestAlerterOutageOpensThenResolves(t *testing.T) {
 		t.Fatalf("times = %v / %v", f["observed_at"], f["detected_at"])
 	}
 	next, _ := f["next_action"].(map[string]any)
-	if next["owner"] != "scenario-to-cloud" || next["kind"] != "command" || next["reference"] != "scenario-to-cloud deployment start "+down.GetDeploymentId() {
-		t.Fatalf("next_action was not carried over from the observation: %v", next)
+	if next["owner"] != "scenario-to-cloud" || next["kind"] != "endpoint" || next["reference"] != "/api/v1/deployments/"+down.GetDeploymentId()+"/health/alerts/"+down.GetDeploymentId()+":"+perfbudget.CheckServiceUnavailable {
+		t.Fatalf("next_action was not replaced with the read-only incident route: %v", next)
 	}
 	if schema, ok := f["schema_version"].(float64); !ok || schema != 1 {
 		t.Fatalf("schema_version = %v", f["schema_version"])
@@ -258,7 +258,7 @@ func TestAlerterCertificateExpiringAndRenewalFailed(t *testing.T) {
 	published = c.Observe(context.Background(), obs, report)
 	found := false
 	for _, p := range published {
-		if p.CheckID == perfbudget.CheckCertificateExpiring && p.Reason == "renewal_failed" && p.NextAction.Reference == "scenario-to-cloud edge tls-renew "+obs.GetDeploymentId() {
+		if p.CheckID == perfbudget.CheckCertificateExpiring && p.Reason == "renewal_failed" && p.NextAction.Kind == "endpoint" && p.NextAction.Reference == "/api/v1/deployments/"+obs.GetDeploymentId()+"/health/alerts/"+p.IncidentID {
 			found = true
 		}
 	}
@@ -329,6 +329,10 @@ func TestAlerterRestartPublishesRecoveryFromPersistedOpenState(t *testing.T) {
 	// load the previous open incident and emit its recovery when health returns.
 	up, upReport := observationFor(t, fixtureLiveState(now.Add(time.Minute), "running"), fixtureTLS(), now.Add(time.Minute))
 	second := fixedAlerter(client, now.Add(time.Minute)).WithStateStore(state)
+	read, err := second.ReadOpen(context.Background(), down.GetDeploymentId())
+	if err != nil || len(read) == 0 || read[0].Status != perfbudget.AlertOpen {
+		t.Fatalf("read-only incident landing did not restore open state after restart: alerts=%+v err=%v", read, err)
+	}
 	got := second.Observe(context.Background(), up, upReport)
 	resolvedTLS := false
 	for _, alert := range got {

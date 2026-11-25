@@ -1,0 +1,40 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P0",
+      "description": "One CLI operation deploys a reference site and small API through storage and naming adapters on local devnets; resolve, renew and teardown complete and leave no scenario-owned artifacts.",
+      "id": "DPL-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "planned",
+      "title": "Devnet deployment lifecycle",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DPL-P0-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Every funded, public or identity-bound adapter effect is denied in stub mode; live mode remains unavailable until an operator runbook grants it, and injected provider refusal/timeouts are surfaced with recoverable receipts.",
+      "id": "DPL-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "planned",
+      "title": "Effect gate and refusal behavior",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:DPL-P0-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

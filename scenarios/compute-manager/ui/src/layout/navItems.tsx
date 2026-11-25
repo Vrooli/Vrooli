@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  Cloud,
   Home,
   Rocket,
   Settings,
@@ -22,6 +23,7 @@ export interface NavItem {
     | "dashboard"
     | "findings"
     | "request"
+    | "setup"
     | "settings";
   /** Router path. */
   path: string;
@@ -37,6 +39,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard, icon: <Home aria-hidden="true" /> },
   { key: "findings", path: "/findings", labelKey: strings.layout.nav.findings, icon: <AlertTriangle aria-hidden="true" /> },
   { key: "request", path: "/request", labelKey: strings.layout.nav.request, icon: <Rocket aria-hidden="true" /> },
+  { key: "setup", path: "/setup", labelKey: strings.layout.nav.setup, icon: <Cloud aria-hidden="true" /> },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings, icon: <Settings aria-hidden="true" /> },
 ];
 

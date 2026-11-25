@@ -41,6 +41,7 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 		Subcommands: []cliapp.Command{
 			(cliapp.Command{Name: "run", Description: "Start a new pipeline: run <scenario> [--stages ...] [--platforms ...]", Args: pipelineRunArgs()}).WithPrimitive(cmds.runPrimitive()),
 			(cliapp.Command{Name: "status", Description: "Get pipeline status: status <id>", Args: pipelineIDArgs()}).WithPrimitive(cmds.statusPrimitive()),
+			(cliapp.Command{Name: "logs", Description: "Show retained, bounded pipeline and stage error diagnostics: logs <id> [--stage <name>]", Args: pipelineIDArgs(cliapp.Flag{Name: "stage", Values: []string{"bundle", "preflight", "generate", "build", "smoketest", "deploy"}, Description: "Restrict diagnostics to one pipeline stage"})}).WithPrimitive(cmds.logsPrimitive()),
 			(cliapp.Command{Name: "wait", Description: "Wait for pipeline completion: wait <id>", Args: pipelineIDArgs(cliapp.Flag{Name: "timeout", Default: "3600", Description: "Maximum wait in seconds"})}).WithPrimitive(cmds.waitPrimitive()),
 			(cliapp.Command{Name: "resume", Description: "Resume a stopped pipeline: resume <id>", Args: pipelineIDArgs()}).WithPrimitive(cmds.resumePrimitive()),
 			(cliapp.Command{Name: "cancel", Description: "Cancel a running pipeline: cancel <id>", Args: pipelineIDArgs()}).WithPrimitive(cmds.cancelPrimitive()),

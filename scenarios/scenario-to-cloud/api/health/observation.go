@@ -23,6 +23,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/tlsinfo"
 	"scenario-to-cloud/vps"
 
 	errorsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/errors"
@@ -86,9 +87,11 @@ func (p Policy) maxAge() time.Duration {
 // report from vps.ComputeHealth; LiveState is the raw inspection result the
 // report was built from (nil when the inspection was not attempted).
 type Input struct {
-	Deployment *domain.Deployment
-	Report     domain.HealthResponse
-	LiveState  *domain.LiveStateResult
+	Deployment    *domain.Deployment
+	Report        domain.HealthResponse
+	LiveState     *domain.LiveStateResult
+	TLS           *tlsinfo.Snapshot
+	TLSObservedAt time.Time
 	// Now is the producer clock used to compute freshness. Zero means
 	// time.Now().
 	Now time.Time
@@ -116,6 +119,7 @@ func Build(in Input, policy Policy) *healthv1.HealthObservation {
 	inspected := vps.LiveStateReachable(in.LiveState)
 	observedAt := observationTime(in.LiveState, now)
 	obs.ObservedAt = timestamppb.New(observedAt)
+	obs.CertificateLifecycle = certificateLifecycle(in.TLS, in.TLSObservedAt)
 
 	sections := sectionsByCategory(in.Report)
 	var missing []string
@@ -166,6 +170,32 @@ func Build(in Input, policy Policy) *healthv1.HealthObservation {
 	obs.MissingDependencies = missing
 	obs.NextActions = nextActions(in.Report.Recommendations)
 	return obs
+}
+
+func certificateLifecycle(snapshot *tlsinfo.Snapshot, sampledAt time.Time) *healthv1.CertificateLifecycle {
+	out := &healthv1.CertificateLifecycle{CertificateState: "unavailable", RenewalState: "blocked", ReasonCode: "tls_snapshot_unavailable"}
+	if snapshot == nil || sampledAt.IsZero() {
+		return out
+	}
+	out.ObservedAt = timestamppb.New(sampledAt.UTC())
+	out.ReasonCode = "renewal_state_not_reported_by_tls_snapshot"
+	expiryText := strings.TrimSpace(snapshot.Probe.NotAfter)
+	expiry, err := time.Parse(time.RFC3339, expiryText)
+	if err != nil {
+		expiry, err = time.Parse("Jan 2 15:04:05 2006 MST", expiryText)
+	}
+	if err == nil {
+		out.NotAfter = timestamppb.New(expiry.UTC())
+		if expiry.After(sampledAt) {
+			out.CertificateState = "valid"
+		} else {
+			out.CertificateState = "expired"
+		}
+	} else {
+		out.CertificateState = "unavailable"
+		out.ReasonCode = "certificate_expiry_unavailable"
+	}
+	return out
 }
 
 var jsonOptions = protojson.MarshalOptions{UseProtoNames: true, EmitDefaultValues: true}

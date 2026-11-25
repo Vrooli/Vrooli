@@ -1,16 +1,9 @@
 # Integrations — Scenario to Android
 
-This document is the canonical dependency contract for resources,
-other scenarios, and third-party services used by the scenario.
+## Purpose Of This Document
 
-
-Use this document to answer:
-
-- What does the scenario depend on?
-- Which dependencies are required versus optional?
-- Which domain uses each dependency?
-- What is the failure or degradation behavior?
-- Where is the dependency declared or configured?
+This guide records the Android ramp's declared dependencies, guarded device
+contracts, and other integration relationships.
 
 ## Dependency Inventory
 
@@ -19,14 +12,9 @@ Use this document to answer:
 | SQLite | embedded storage | yes | API, persistence-backed domains | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario should be started through lifecycle commands. |
 | `packages/delivery-ramp-go` | shared Go module | yes | targets, builds, journeys, releases, distribution | Exported `Prober`, `Builder`, `Driver`, `Distributor` interfaces | Compile-time. A ramp that reaches into spine internals is a design error, not a runtime failure. |
-| `device-control` | scenario | yes | journeys, targets | Connect-RPC: device inventory, lease acquire/release, device verbs | Journey cell reports `unavailable` naming device-control as the missing capability. Never falls back to driving the device directly. |
-| `vrooli-bridge` | scenario | yes | targets, journeys | Node registry, allowlisted dispatch, durable runs | Remote targets report `unavailable` with the reach reason. Local emulator targets remain usable. |
-| `deployment-manager` | scenario | yes | releases | `common.v1.TargetVerdict` with `EvidenceRef` entries | Gate computes locally; verdict emission retries. Evidence is never discarded because the consumer is down. |
-| `browser-automation-studio` | scenario | yes | journeys | Named BAS flow executed against the app WebView via CDP over `adb forward` | Web-content chapters report `unavailable`; native shell chapters still run and report honestly. |
-| `secrets-manager` | scenario | yes | builds | Signing identity by reference; key material never returned into this scenario | Build reports `unavailable` naming the signing rung. Never generates an ad-hoc local key as a fallback. |
-| `android-sdk` | Vrooli resource | yes | targets, builds | SDK, platform-tools, emulator binary, API 36+ system image, and AVD lifecycle | Targets report `unavailable` with the exact missing component and acquisition next action. |
-| `hello-mobile` | scenario (fixture) | yes for conformance | journeys | Generated, built, and driven as the ramp's own proof | Conformance proof cannot run; product scenarios are unaffected. |
-| Google Play | third-party service | no | distribution, readiness | Play Developer API; AAB upload, track management | Channel reports `unavailable` with the blocking rung. Other channels are unaffected. |
+
+Shared resources, scenario peers, and third-party services are listed in their
+respective sections below.
 
 ## Vrooli Resources
 
@@ -39,14 +27,21 @@ Use this document to answer:
 
 ## Scenario Dependencies
 
-| Scenario | Status | Reason | Contract |
-|---|---|---|---|
-| `device-control` | required | Every device verb — install, launch, input, permission, screenshot, recording — belongs to that scenario. This ramp implements no device driving of its own. | Lease held for the full run duration; verbs refused without one. |
-| `vrooli-bridge` | required | Owns device and node identity, pairing, trust, scopes, and durable dispatch. Remote targets are reached only through it. | Allowlisted verbs, per-node scopes, durable run identity preserved. |
-| `deployment-manager` | required | The evidence consumer and release-gate authority. | Reference-only `common.v1.TargetVerdict`. |
-| `browser-automation-studio` | required | Owns web-content automation. A scenario's own flows replay inside the generated app through BAS, not through a mobile-specific rewrite. | Named flow, WebView attach, chapters merged onto the journey timeline. |
-| `secrets-manager` | required | Holds signing identity so no key material exists in the repository. | Reference-only; material never returned into this scenario. |
-| `hello-mobile` | required (fixture) | The ramp must be provable without depending on any product scenario's correctness. | Generated and driven like any other scenario. |
+The service manifest declares nine scenario entries. Only
+`scenario-authenticator` explicitly sets `enabled: true`; the other entries
+omit the `enabled` field, and none sets it to false.
+
+| Scenario | Explicit enabled field | Required | Startup policy | Declared purpose | Degraded behavior |
+|---|---|---:|---|---|---|
+| `scenario-authenticator` | yes | yes | `must_start` | Authenticates protected scenario-to-android APIs and validates Deployment Manager service tokens. | Protected artifact, target-catalog, and matrix operations fail closed when the authenticator is unavailable. |
+| `device-control` | omitted | yes | `must_start` | Every device verb — install, launch, input, permission control, screenshot, screen recording — under a held lease. This ramp implements no device driving of its own. | Journey cells report unavailable naming device-control as the missing capability. The ramp never falls back to driving adb directly, because that would bypass leases and audit. |
+| `vrooli-bridge` | omitted | yes | `must_start` | Device and node reach plane: fleet registry, per-node scopes, allowlisted dispatch, and durable runs for remote Android targets. | Remote targets report unavailable carrying the reach reason and are never silently omitted from inventory. The local emulator target remains usable. |
+| `deployment-manager` | omitted | yes | `must_start` | Consumes this ramp's reference-only common.v1.TargetVerdict and owns the cross-ramp release gate. | The local gate still computes and evidence is retained; verdict emission retries. Evidence is never discarded because the consumer is down. |
+| `browser-automation-studio` | omitted | yes | `must_start` | Executes a scenario's own named web-content flows against the generated app's WebView, so an author writes a flow once and it replays on Android unchanged. | Web-content chapters report unavailable; native shell chapters still execute and the run reports partial honestly rather than passing. |
+| `backdrop-studio` | omitted | yes | `must_start` | Provides the typed backdrop composition contract used by the Android journey adapter for scenario-owned web-content flows. | Journey web-content chapters report unavailable with the missing backdrop capability; the ramp never silently replaces the typed client. |
+| `secrets-manager` | omitted | yes | `must_start` | Holds the upload signing key by reference so no key material exists in this repository, in a generated project, or in evidence. | Builds requiring a signed artifact report unavailable naming the signing rung. The ramp never generates an ad-hoc local key as a fallback. |
+| `hello-mobile` | omitted | no | `try_start` | Conformance fixture. The ramp must be provable end to end without depending on any product scenario's correctness. | The ramp's own conformance proof cannot run. Product scenario deliveries are unaffected. |
+| `scenario-to-desktop` | omitted | no | `try_start` | Compile-time shared target-verdict domain contract used by the release matrix; the Android ramp does not call the desktop scenario at runtime. | The local release matrix cannot compile until the shared desktop-domain package is available; no desktop process is required at runtime. |
 
 ## Backdrop listing assets
 

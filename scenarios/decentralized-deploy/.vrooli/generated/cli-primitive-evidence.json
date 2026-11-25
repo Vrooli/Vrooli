@@ -1,0 +1,89 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "decentralized-deploy",
+  "generator": "v1.0.0",
+  "manifest_hash": "e795e3ca9fa24f272b1afef1e3501dff55cf2883cf680f73c7714e188bd15b1f",
+  "commands": [
+    {
+      "path": "deployment deploy",
+      "group": "deployment",
+      "command": "deploy",
+      "binding": "vrooli.decentralized_deploy.v1.deployment.DeploymentService.Deploy",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "deployment get",
+      "group": "deployment",
+      "command": "get",
+      "binding": "vrooli.decentralized_deploy.v1.deployment.DeploymentService.Get",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "deployment renew",
+      "group": "deployment",
+      "command": "renew",
+      "binding": "vrooli.decentralized_deploy.v1.deployment.DeploymentService.Renew",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "deployment resolve",
+      "group": "deployment",
+      "command": "resolve",
+      "binding": "vrooli.decentralized_deploy.v1.deployment.DeploymentService.Resolve",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "deployment teardown",
+      "group": "deployment",
+      "command": "teardown",
+      "binding": "vrooli.decentralized_deploy.v1.deployment.DeploymentService.Teardown",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "notes attach",
+      "group": "notes",
+      "command": "attach",
+      "declared_exception": "upload",
+      "observed_primitive": "upload"
+    },
+    {
+      "path": "notes count",
+      "group": "notes",
+      "command": "count",
+      "binding": "vrooli.decentralized_deploy.v1.notes.NotesService.CountNotes",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "notes create",
+      "group": "notes",
+      "command": "create",
+      "binding": "vrooli.decentralized_deploy.v1.notes.NotesService.CreateNote",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "notes get",
+      "group": "notes",
+      "command": "get",
+      "binding": "vrooli.decentralized_deploy.v1.notes.NotesService.GetNote",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "notes list",
+      "group": "notes",
+      "command": "list",
+      "binding": "vrooli.decentralized_deploy.v1.notes.NotesService.ListNotes",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    }
+  ]
+}

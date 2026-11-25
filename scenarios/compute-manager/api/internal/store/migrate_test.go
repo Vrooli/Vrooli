@@ -44,6 +44,13 @@ func TestMigrateCompatibilityBackfillsOnlyRecordedSourceAndPreservesRows(t *test
 	if err := apidb.EnsureSchemas(ctx, db, apidb.SchemaProviderFunc(Schema)); err != nil {
 		t.Fatalf("domain schema should add source_url with its safe empty default: %v", err)
 	}
+	// Model a database whose invoice receipt predates persisted service ranges.
+	// The migration must add unknown defaults and keep the original receipt.
+	if _, err := db.Exec(`DROP TABLE invoice_reconciliation_receipts;
+		CREATE TABLE invoice_reconciliation_receipts (external_id TEXT PRIMARY KEY, provider TEXT NOT NULL);
+		INSERT INTO invoice_reconciliation_receipts(external_id,provider) VALUES('legacy-receipt','digitalocean')`); err != nil {
+		t.Fatalf("prepare legacy invoice receipt table: %v", err)
+	}
 	if _, err := db.Exec(`UPDATE spend_quotes SET source_url='https://existing.example/price' WHERE id='existing'`); err != nil {
 		t.Fatal(err)
 	}
@@ -59,6 +66,13 @@ func TestMigrateCompatibilityBackfillsOnlyRecordedSourceAndPreservesRows(t *test
 	}
 	if err := MigrateCompatibility(ctx, db); err != nil {
 		t.Fatalf("migration should be idempotent: %v", err)
+	}
+	var legacyFrom, legacyTo, legacyProvider string
+	if err := db.QueryRow(`SELECT provider,range_from,range_to FROM invoice_reconciliation_receipts WHERE external_id='legacy-receipt'`).Scan(&legacyProvider, &legacyFrom, &legacyTo); err != nil {
+		t.Fatalf("migrated invoice range columns are missing: %v", err)
+	}
+	if legacyProvider != "digitalocean" || legacyFrom != "" || legacyTo != "" {
+		t.Fatalf("legacy receipt was inferred or changed: provider=%q range=(%q,%q)", legacyProvider, legacyFrom, legacyTo)
 	}
 	rows, err := db.Query(`SELECT id,source_url,quote_json FROM spend_quotes ORDER BY id`)
 	if err != nil {

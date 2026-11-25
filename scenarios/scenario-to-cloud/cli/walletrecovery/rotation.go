@@ -257,7 +257,7 @@ func (c Commands) rotate(args []string) error {
 	if err != nil {
 		return err
 	}
-	return c.write(fmt.Sprintf("Treasury confirmed rotation of root wallet %s to %s using DBM snapshot %s. DBM remains pinned pending a verifiable Treasury commit acknowledgement; private receipt: %s", *id, committed.Address, newestID, receiptPath))
+	return c.write(fmt.Sprintf("Treasury confirmed rotation of root wallet %s to %s using DBM snapshot %s. DBM verified Treasury's exact commit acknowledgement and released the reservation; private receipt: %s", *id, committed.Address, newestID, receiptPath))
 }
 
 func (c Commands) resumePinnedRotation(ctx context.Context, runner Runner, receiptPath, targetID, walletID, network, successorID, destinationID, backend, targetName, planID string, saved rotationReceipt) error {
@@ -303,7 +303,7 @@ func (c Commands) resumePinnedRotation(ctx context.Context, runner Runner, recei
 	if err != nil {
 		return err
 	}
-	return c.write(fmt.Sprintf("Treasury confirmed rotation of root wallet %s to %s using the same DBM snapshot %s. DBM remains pinned pending a verifiable Treasury commit acknowledgement; private receipt: %s", walletID, committed.Address, receipt.SnapshotID, receiptPath))
+	return c.write(fmt.Sprintf("Treasury confirmed rotation of root wallet %s to %s using DBM snapshot %s. DBM verified Treasury's exact commit acknowledgement and released the reservation; private receipt: %s", walletID, committed.Address, receipt.SnapshotID, receiptPath))
 }
 
 func finishAttestedRotation(ctx context.Context, runner Runner, receipt rotationReceipt, targetID string) (recoveredWallet, error) {
@@ -316,6 +316,7 @@ func finishAttestedRotation(ctx context.Context, runner Runner, receipt rotation
 		return recoveredWallet{}, err
 	}
 	commitArgs := []string{"wallet", "commit-rotation", "--id", receipt.WalletID, "--network", receipt.Network, "--successor-id", receipt.SuccessorID,
+		"--target-id", targetID,
 		"--address", receipt.Address, "--destination-id", receipt.DestinationID, "--destination-backend", receipt.DestinationBackend, "--plan-id", receipt.PlanID,
 		"--run-id", receipt.RunID, "--target-name", receipt.TargetName, "--snapshot-id", receipt.SnapshotID,
 		"--latest-snapshot-id", receipt.LatestSnapshotID, "--tombstone-sha256", receipt.TombstoneSHA256,
@@ -327,14 +328,30 @@ func finishAttestedRotation(ctx context.Context, runner Runner, receipt rotation
 	if err != nil {
 		return recoveredWallet{}, fmt.Errorf("Treasury did not commit the rotation; retain the DBM pin and retry the same receipt: %w", err)
 	}
-	committed, err := restoredWallet(committedOut)
+	var response struct {
+		Wallet        recoveredWallet `json:"wallet"`
+		CommitAckJSON string          `json:"commit_ack_json"`
+	}
+	if err := json.Unmarshal(committedOut, &response); err != nil {
+		return recoveredWallet{}, fmt.Errorf("parse Treasury rotation commit acknowledgement: %w", err)
+	}
+	committed := response.Wallet
 	if err != nil || committed.ID != receipt.SuccessorID || committed.Network != receipt.Network || committed.Address == "" {
 		return recoveredWallet{}, errors.New("Treasury commit did not confirm the expected successor wallet; retain the DBM pin for reconciliation")
 	}
-	// Do not release commit_pending here. The current owner contract has no
-	// authenticated Treasury-success acknowledgement that DBM can verify; an
-	// operator CLI response is not proof. DBM remains pinned until that contract
-	// is implemented and authorized.
+	if strings.TrimSpace(response.CommitAckJSON) == "" {
+		return recoveredWallet{}, errors.New("Treasury committed the rotation without a signed DBM acknowledgement; retain the pin and retry the same receipt")
+	}
+	var ack struct {
+		Acknowledgement receiptsigning.WalletRecoveryCommitAcknowledgement `json:"acknowledgement"`
+		Signature       receiptsigning.SignatureEnvelope                   `json:"signature"`
+	}
+	if err := json.Unmarshal([]byte(response.CommitAckJSON), &ack); err != nil || ack.Acknowledgement.ReservationID != receipt.ReservationID || ack.Acknowledgement.OperationID != receipt.ReservationID || ack.Acknowledgement.TargetID != targetID || ack.Acknowledgement.DestinationID != receipt.DestinationID || ack.Acknowledgement.SnapshotID != receipt.SnapshotID || ack.Acknowledgement.TombstoneSHA256 != receipt.TombstoneSHA256 || ack.Acknowledgement.SuccessorID != committed.ID || ack.Acknowledgement.SuccessorAddress != committed.Address || ack.Signature.Purpose != receiptsigning.PurposeWalletRecoveryCommitAcknowledgement {
+		return recoveredWallet{}, errors.New("Treasury acknowledgement does not bind the exact committed rotation; retain the DBM pin")
+	}
+	if _, err := runner(ctx, "data-backup-manager", []string{"wallet-recovery", "finish", "--reservation-id", reservationID, "--target-id", targetID, "--state", "release", "--commit-ack-json", response.CommitAckJSON, "--json"}, nil); err != nil {
+		return recoveredWallet{}, fmt.Errorf("Treasury committed but DBM did not verify and release the exact reservation; retry the same receipt: %w", err)
+	}
 	return committed, nil
 }
 

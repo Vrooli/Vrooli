@@ -107,9 +107,18 @@ func (s *Service) Release(ctx context.Context, request *connect.Request[qemuv1.R
 }
 
 func reference(ref computemanager.InstanceReference) (*qemuv1.InstanceReference, error) {
+	if strings.TrimSpace(ref.ManagerInstanceID) == "" {
+		return nil, fmt.Errorf("compute-manager returned an instance without a stable manager identity")
+	}
+	if ref.Provider != computemanager.QEMUProvider || ref.Region != "local" {
+		return nil, fmt.Errorf("compute-manager returned unexpected QEMU instance provider=%q region=%q", ref.Provider, ref.Region)
+	}
 	target, err := ref.TargetRef()
 	if err != nil {
 		return nil, err
+	}
+	if target.ComputeManagerID != ref.ManagerInstanceID {
+		return nil, fmt.Errorf("compute-manager target identity does not match its instance receipt")
 	}
 	result := &qemuv1.InstanceReference{
 		ManagerInstanceId: ref.ManagerInstanceID, Provider: ref.Provider, Region: ref.Region,

@@ -124,13 +124,9 @@ what you apply.
   The restore receipt records the measured RTO and the recovery-point age
   against the RPO (`docs/guides/recovery-runbook.md` §3).
 
-- **Certificate renewal failing:** inspect the renewal state, then renew
-  through the edge owner; never disable verification.
-
-  ```bash
-  scenario-to-cloud edge tls "$DEPLOYMENT_ID" --json
-  scenario-to-cloud edge tls-renew "$DEPLOYMENT_ID"
-  ```
+- **Certificate renewal failing:** use the deployment's phone-visible
+  operation status and recovery flow. It must show the renewal state and owner
+  result; never disable verification. Manual renewal is not an operator path.
 
 - **Credential rotation pending or a credential compromised:** follow
   `docs/reference/credential-lifecycle.md` (rotate → activate → revoke); the

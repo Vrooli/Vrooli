@@ -215,6 +215,7 @@
             "dashboard",
             "findings",
             "request",
+            "setup",
             "settings"
           ]
         }
@@ -231,6 +232,7 @@
           "values": [
             "dashboard",
             "findings",
+            "setup",
             "settings"
           ]
         }
@@ -239,6 +241,6 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "7a2bdf752d9d1c1f14d1437f979d7134654bb2aed3261ba4bb4a0735628ba339",
-    "ui/src/consts/selectors.ts": "a4759bec4dab503187b36ae7c33b4ee49f7aabf91c7d2bab5fe16b1fdab8b9a7"
+    "ui/src/consts/selectors.ts": "b3f3cf62aba887fe413a84dfc60c9b95b4e8dff3bc5fa2dbd5a3d85be8fd1ba7"
   }
 }

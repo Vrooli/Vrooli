@@ -25,6 +25,7 @@
       "dashboard": "ホーム",
       "findings": "問題",
       "request": "リクエスト",
+      "setup": "プロバイダー",
       "settings": "設定"
     }
   },
@@ -37,6 +38,13 @@
     }
   },
   "providerSetup": {
+    "evidenceHeading": "検証エビデンス",
+    "verified": "検証済み",
+    "unverified": "未検証",
+    "waitingDecision": "電話での決定を待っています",
+    "checkedAt": "確認日時",
+    "evidenceSource": "出典",
+    "spendGate": "プロバイダーの設定は支出を承認しません。容量リクエストごとに、最新の保存済み見積もりと支出上限の承認が必要です。",
     "akash": {
       "title": "Akash",
       "network": "ネットワーク:",

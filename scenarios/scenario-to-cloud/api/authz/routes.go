@@ -237,6 +237,7 @@ var Table = []Route{
 	{Method: "GET", Path: api + "/deployments/{id}/drift", Effect: EffectRead, Scope: ScopeRead, TargetBound: true, RemoteReach: true, ServiceAllowed: true, Description: "Compare desired and observed state."},
 	{Method: "GET", Path: api + "/deployments/{id}/health", Effect: EffectRead, Scope: ScopeRead, TargetBound: true, RemoteReach: true, ServiceAllowed: true, Description: "Legacy health report (embeds the typed observation)."},
 	{Method: "GET", Path: api + "/deployments/{id}/health/observation", Effect: EffectRead, Scope: ScopeRead, TargetBound: true, RemoteReach: true, ServiceAllowed: true, Description: "Typed health observation."},
+	{Method: "GET", Path: api + "/deployments/{id}/health/alerts/{incident}", Effect: EffectRead, Scope: ScopeRead, TargetBound: true, RemoteReach: true, ServiceAllowed: true, Description: "Read-only, target-bound health incident status and blocked recovery preview."},
 	{Method: "POST", Path: api + "/deployments/{id}/actions/kill", Effect: EffectHost, Scope: ScopeDestructive, TargetBound: true, RemoteReach: true, Description: "Kill a process on the target."},
 	{Method: "POST", Path: api + "/deployments/{id}/actions/restart", Effect: EffectHost, Scope: ScopeDestructive, TargetBound: true, RemoteReach: true, Description: "Restart a process on the target."},
 	{Method: "POST", Path: api + "/deployments/{id}/actions/process", Effect: EffectHost, Scope: ScopeDestructive, TargetBound: true, RemoteReach: true, Description: "Control a process on the target."},

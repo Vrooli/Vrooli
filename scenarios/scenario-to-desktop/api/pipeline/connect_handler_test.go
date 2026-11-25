@@ -39,6 +39,12 @@ func TestConnectServiceGetPreservesPipelineInformation(t *testing.T) {
 				Logs:        []string{"bundle complete"},
 				Details:     &bundle.PackageResult{BundleDir: "/tmp/bundle"},
 			},
+			"build": {
+				Stage:  StageBuild,
+				Status: StatusFailed,
+				Error:  "build failed: electron-builder exited\n⨯ spawn fpm ENOENT",
+				Logs:   []string{"Build stage failed"},
+			},
 		},
 	}
 	service := NewConnectService(NewHandler(WithOrchestrator(&mockOrchestrator{getResult: status, getFound: true})))
@@ -62,6 +68,10 @@ func TestConnectServiceGetPreservesPipelineInformation(t *testing.T) {
 	stage := response.Msg.GetStages()["bundle"]
 	if stage == nil || stage.GetStatus() != sharedv1.StageStatus_STAGE_STATUS_COMPLETED || stage.GetDetails().GetBundle().GetBundleDir() != "/tmp/bundle" {
 		t.Fatalf("bundle stage was not preserved: %#v", stage)
+	}
+	build := response.Msg.GetStages()["build"]
+	if build == nil || build.GetError() != "build failed: electron-builder exited\n⨯ spawn fpm ENOENT" || len(build.GetLogs()) != 1 || build.GetLogs()[0] != "Build stage failed" {
+		t.Fatalf("stage diagnostics were not preserved through Get: build=%#v", build)
 	}
 }
 

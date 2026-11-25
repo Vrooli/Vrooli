@@ -44,8 +44,50 @@ var appHealthFetch = func(ctx context.Context, url string, timeout time.Duration
 // HealthService.
 func (s *Server) registerHealthRoutes(api *mux.Router) {
 	api.HandleFunc("/deployments/{id}/health/observation", s.handleGetDeploymentHealthObservation).Methods("GET")
+	api.HandleFunc("/deployments/{id}/health/alerts/{incident}", s.handleGetHealthAlertRecoveryStatus).Methods("GET")
 	path, handler := health.NewService(s).Handler()
 	s.router.PathPrefix(path).Handler(handler)
+}
+
+// handleGetHealthAlertRecoveryStatus is the phone-facing, read-only landing
+// for an alert next action. It deliberately does not start recovery: the
+// alert owner currently has no exact Deployment Manager operation/last-good
+// release binding, and Notification Hub recovery authority is still pending.
+func (s *Server) handleGetHealthAlertRecoveryStatus(w http.ResponseWriter, r *http.Request) {
+	deploymentID := mux.Vars(r)["id"]
+	incidentID := mux.Vars(r)["incident"]
+	alerter := s.alerter()
+	if alerter == nil {
+		apierrors.Write(w, apierrors.New(apierrors.CodeHealthUnknown, "health alert state is unavailable"))
+		return
+	}
+	alerts, err := alerter.ReadOpen(r.Context(), deploymentID)
+	if err != nil {
+		apierrors.Write(w, apierrors.New(apierrors.CodeHealthUnknown, "persisted health alert state could not be read"))
+		return
+	}
+	for _, alert := range alerts {
+		if alert.IncidentID != incidentID {
+			continue
+		}
+		httputil.WriteJSON(w, http.StatusOK, map[string]any{
+			"schema_version": 1,
+			"status":         "blocked",
+			"alert":          alert,
+			"recovery_preview": map[string]any{
+				"submission_open":          false,
+				"state":                    "blocked",
+				"reason":                   "exact Deployment Manager operation and last-good release binding are unavailable; Notification Hub recovery authority is pending",
+				"operation_id":             "",
+				"target_id":                alert.TargetID,
+				"incident_id":              alert.IncidentID,
+				"current_release_digest":   alert.ReleaseDigest,
+				"last_good_release_digest": "",
+			},
+		})
+		return
+	}
+	apierrors.Write(w, apierrors.New(apierrors.CodeDeploymentNotFound, "the requested health incident is not currently open"))
 }
 
 // evaluateFreshnessForHealth is the release-parity seam. It hashes the local
@@ -78,12 +120,13 @@ func (s *Server) inspectDeploymentHealth(parent context.Context, dc *DeploymentC
 	identity := s.resolveCanonicalIdentity(ctx, dc.Deployment)
 
 	var (
-		liveState *domain.LiveStateResult
-		dnsEval   *dns.Evaluation
-		tlsSnap   *tlsinfo.Snapshot
-		tlsErr    error
-		appReport *apphealth.Report
-		wg        sync.WaitGroup
+		liveState     *domain.LiveStateResult
+		dnsEval       *dns.Evaluation
+		tlsSnap       *tlsinfo.Snapshot
+		tlsErr        error
+		tlsObservedAt time.Time
+		appReport     *apphealth.Report
+		wg            sync.WaitGroup
 	)
 
 	// 1. Live state inspection (includes Caddy TLS enrichment)
@@ -119,6 +162,7 @@ func (s *Server) inspectDeploymentHealth(parent context.Context, dc *DeploymentC
 			snap, err := tlsinfo.RunSnapshot(ctx, edgeDomain, s.tlsService, s.tlsALPNRunner)
 			tlsSnap = &snap
 			tlsErr = err
+			tlsObservedAt = time.Now().UTC()
 		}
 	}()
 
@@ -159,10 +203,12 @@ func (s *Server) inspectDeploymentHealth(parent context.Context, dc *DeploymentC
 	}
 
 	observation := health.Build(health.Input{
-		Deployment: dc.Deployment,
-		Report:     report,
-		LiveState:  liveState,
-		Now:        time.Now().UTC(),
+		Deployment:    dc.Deployment,
+		Report:        report,
+		LiveState:     liveState,
+		TLS:           tlsSnap,
+		TLSObservedAt: tlsObservedAt,
+		Now:           time.Now().UTC(),
 	}, health.DefaultPolicy())
 	if raw, err := health.MarshalJSON(observation); err == nil {
 		report.Observation = raw

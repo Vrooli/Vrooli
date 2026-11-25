@@ -65,6 +65,7 @@ Columns: **target** = `id` (deployment resolved and policy-checked before the ha
 | GET | `/api/v1/deployments/{id}/files` | read | `scenario-to-cloud:read` | id | yes | no | no | List files on the target. |
 | GET | `/api/v1/deployments/{id}/files/content` | read | `scenario-to-cloud:read` | id | yes | no | yes | Read a file on the target. |
 | GET | `/api/v1/deployments/{id}/health` | read | `scenario-to-cloud:read` | id | yes | yes | no | Legacy health report (embeds the typed observation). |
+| GET | `/api/v1/deployments/{id}/health/alerts/{incident}` | read | `scenario-to-cloud:read` | id | yes | yes | no | Read-only, target-bound health incident status and blocked recovery preview. |
 | GET | `/api/v1/deployments/{id}/health/observation` | read | `scenario-to-cloud:read` | id | yes | yes | no | Typed health observation. |
 | GET | `/api/v1/deployments/{id}/history` | read | `scenario-to-cloud:read` | id | no | yes | no | Read deployment history. |
 | POST | `/api/v1/deployments/{id}/history` | workload_mutation | `scenario-to-cloud:write` | id | no | no | no | Append a history event. |

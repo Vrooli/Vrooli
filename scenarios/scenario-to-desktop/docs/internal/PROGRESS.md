@@ -1,5 +1,20 @@
 # Progress Log
 
+## 2026-11-24 — Per-app package targets and retained pipeline errors
+
+Extended the read-only `prerequisites` command to inspect explicit
+`build.<platform>.target` values from an app `package.json`, including multiple
+targets and unsupported or incomplete configuration. Defaults now match the
+vanilla generated package template (Linux AppImage, Windows NSIS, macOS ZIP).
+Added `pipeline logs <id> [--stage <name>]`, which reads retained stage error
+text without rerunning a pipeline and bounds output while omitting raw logs and
+details. Full CLI Go tests pass. API persistence and Connect readback regressions
+are present but cannot currently run because the API package hits the existing
+unused `provided` compile error at `runtime/components.go:418:3`. The broader
+owner finding remains open pending those regressions and a useful readback from
+an already retained failed pipeline. See the PT2 owner evidence linked from
+`PROBLEMS.md`.
+
 ## 2026-09-16 — Evidence requirements and bounded certification claim
 
 Added traceable EARS requirements for provider-owned desktop journeys,

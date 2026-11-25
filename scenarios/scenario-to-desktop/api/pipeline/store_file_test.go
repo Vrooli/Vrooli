@@ -257,8 +257,9 @@ func TestFileStoreUpdateStage(t *testing.T) {
 	// Update a stage
 	result := &StageResult{
 		Stage:       "bundle",
-		Status:      StatusCompleted,
+		Status:      StatusFailed,
 		CompletedAt: time.Now().Unix(),
+		Error:       "retained stage diagnostic excerpt",
 	}
 	updated := store.UpdateStage("stage-update-test", "bundle", result)
 	if !updated {
@@ -267,8 +268,11 @@ func TestFileStoreUpdateStage(t *testing.T) {
 
 	// Verify in-memory update
 	retrieved, _ := store.Get("stage-update-test")
-	if retrieved.Stages["bundle"].Status != StatusCompleted {
-		t.Errorf("expected bundle stage status 'completed'")
+	if retrieved.Stages["bundle"].Status != StatusFailed {
+		t.Errorf("expected bundle stage status 'failed'")
+	}
+	if retrieved.Stages["bundle"].Error != "retained stage diagnostic excerpt" {
+		t.Errorf("expected in-memory stage error, got %q", retrieved.Stages["bundle"].Error)
 	}
 
 	// Verify persisted to disk
@@ -277,8 +281,11 @@ func TestFileStoreUpdateStage(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected to retrieve pipeline from disk")
 	}
-	if retrieved2.Stages["bundle"].Status != StatusCompleted {
-		t.Errorf("expected persisted bundle stage status 'completed'")
+	if retrieved2.Stages["bundle"].Status != StatusFailed {
+		t.Errorf("expected persisted bundle stage status 'failed'")
+	}
+	if retrieved2.Stages["bundle"].Error != "retained stage diagnostic excerpt" {
+		t.Errorf("expected persisted stage error, got %q", retrieved2.Stages["bundle"].Error)
 	}
 }
 

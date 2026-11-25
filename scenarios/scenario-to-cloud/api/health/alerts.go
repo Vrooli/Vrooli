@@ -246,6 +246,43 @@ func (a *Alerter) Open(deploymentID string) []perfbudget.Alert {
 	return append([]perfbudget.Alert(nil), a.open[deploymentID]...)
 }
 
+// ReadOpen returns the current open set, loading persisted state on first read
+// so an incident link remains useful after an S2C restart. It only reads and
+// caches state; it never evaluates health or publishes an event.
+func (a *Alerter) ReadOpen(ctx context.Context, deploymentID string) ([]perfbudget.Alert, error) {
+	if a == nil {
+		return nil, fmt.Errorf("health alerter is unavailable")
+	}
+	a.mu.Lock()
+	if a.loaded[deploymentID] || a.state == nil {
+		alerts := append([]perfbudget.Alert(nil), a.open[deploymentID]...)
+		a.loaded[deploymentID] = true
+		a.mu.Unlock()
+		return alerts, nil
+	}
+	store := a.state
+	a.mu.Unlock()
+
+	raw, err := store.Load(ctx, deploymentID)
+	if err != nil {
+		return nil, fmt.Errorf("load persisted health alerts: %w", err)
+	}
+	var alerts []perfbudget.Alert
+	if len(raw) > 0 {
+		if err := json.Unmarshal(raw, &alerts); err != nil {
+			return nil, fmt.Errorf("decode persisted health alerts: %w", err)
+		}
+	}
+	a.mu.Lock()
+	if !a.loaded[deploymentID] {
+		a.open[deploymentID] = alerts
+		a.loaded[deploymentID] = true
+	}
+	current := append([]perfbudget.Alert(nil), a.open[deploymentID]...)
+	a.mu.Unlock()
+	return current, nil
+}
+
 // alertEvent is the wire event for one alert. Occurred is detected_at so
 // the envelope time is the producer's detection time.
 func alertEvent(alert perfbudget.Alert) eventbus.DomainEvent {
@@ -257,20 +294,23 @@ func alertEvent(alert perfbudget.Alert) eventbus.DomainEvent {
 	}
 }
 
-// carryObservationNextAction replaces the generic runbook/CLI next action
-// of service and status alerts with the producer's own typed remedy when
-// the observation carries one, so the operator sees the exact command.
+// carryObservationNextAction replaces terminal hints with a phone-facing,
+// read-only incident status route. A typed owner may add a product action
+// later, but an operator must never receive a shell instruction here.
 func carryObservationNextAction(alerts []perfbudget.Alert, obs *healthv1.HealthObservation) []perfbudget.Alert {
 	actions := obs.GetNextActions()
-	if len(actions) == 0 {
-		return alerts
-	}
-	first := actions[0]
 	for i := range alerts {
-		if alerts[i].CheckID != perfbudget.CheckServiceUnavailable && alerts[i].Reason != "status_unknown" {
-			continue
+		if len(actions) > 0 && alerts[i].CheckID == perfbudget.CheckServiceUnavailable {
+			first := actions[0]
+			alerts[i].NextAction = perfbudget.NextAction{Owner: first.GetOwner(), Kind: first.GetKind(), Reference: first.GetReference(), Label: first.GetLabel()}
 		}
-		alerts[i].NextAction = perfbudget.NextAction{Owner: first.GetOwner(), Kind: first.GetKind(), Reference: first.GetReference(), Label: first.GetLabel()}
+		if alerts[i].NextAction.Kind == "command" || alerts[i].NextAction.Kind == "cli" {
+			alerts[i].NextAction = perfbudget.NextAction{
+				Owner: "scenario-to-cloud", Kind: "endpoint",
+				Reference: "/api/v1/deployments/" + alerts[i].DeploymentID + "/health/alerts/" + alerts[i].IncidentID,
+				Label:     "Review health status and recovery options",
+			}
+		}
 	}
 	return alerts
 }
@@ -319,7 +359,7 @@ func certificateRenewalFailed(obs *healthv1.HealthObservation, report domain.Hea
 		DeploymentID: deploymentID, TargetID: obs.GetTargetId(), ReleaseDigest: obs.GetObservedReleaseDigest(),
 		ObservedAt: observedAt, DetectedAt: now, Reason: "renewal_failed",
 		Message:    "The edge certificate is invalid, expired or could not be probed: " + strings.TrimSpace(c.Message),
-		NextAction: perfbudget.NextAction{Owner: "scenario-to-cloud", Kind: "command", Reference: "scenario-to-cloud edge tls-renew " + deploymentID, Label: "Renew the certificate"},
+		NextAction: perfbudget.NextAction{Owner: "scenario-to-cloud", Kind: "endpoint", Reference: "/api/v1/deployments/" + deploymentID + "/health/alerts/" + fmt.Sprintf("%s:%s", deploymentID, perfbudget.CheckCertificateExpiring), Label: "Review TLS status and recovery options"},
 	}
 }
 
