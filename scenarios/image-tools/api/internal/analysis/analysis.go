@@ -48,7 +48,7 @@ type OpInfo struct {
 // catalog is the canonical analysis-op table.
 var catalog = []OpInfo{
 	{Name: OpOCR, Summary: "Extract text from an image (OCR)", ModelBacked: true, DefaultModelID: "tesseract"},
-	{Name: OpNSFW, Summary: "Classify an image for NSFW / unsafe content", ModelBacked: true, DefaultModelID: "adamcodd-vit-nsfw"},
+	{Name: OpNSFW, Summary: "Classify an image for NSFW / unsafe content", ModelBacked: true, DefaultModelID: "falconsai-nsfw"},
 	{Name: OpProbe, Summary: "Report structured image info (dimensions, format, metadata, palette)", ModelBacked: false},
 	{Name: OpDuplicate, Summary: "Compute perceptual fingerprints (pHash/aHash) to find near-duplicate images", ModelBacked: false},
 	{Name: OpQuality, Summary: "Report image dimensions and no-reference quality heuristics (sharpness, exposure, contrast)", ModelBacked: false},
@@ -100,11 +100,13 @@ type NSFWCategory struct {
 
 // NSFWResult is the structured output of the NSFW op (and the auto-scan hook).
 type NSFWResult struct {
-	NSFW       bool
-	Score      float64
-	Label      string
-	Threshold  float64
-	Categories []NSFWCategory
+	NSFW        bool
+	Score       float64
+	RecallScore float64
+	Label       string
+	Threshold   float64
+	ReasonCode  string
+	Categories  []NSFWCategory
 }
 
 // DominantColor is one extracted palette swatch.

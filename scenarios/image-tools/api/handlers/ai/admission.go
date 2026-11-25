@@ -17,6 +17,7 @@ import (
 	"image-tools/internal/httpx"
 	internaljobs "image-tools/internal/jobs"
 	"image-tools/internal/models"
+	internalquarantine "image-tools/internal/quarantine"
 	"image-tools/internal/safety"
 )
 
@@ -59,9 +60,20 @@ func (h *Deps) preflightAdmission(ctx context.Context, op string, params *aiv1.A
 	// refusals (minor-safety, a public deployment's tier rule) that need no plan.
 	decision := h.Gate.Evaluate(op, params.GetConsentAffirmed())
 	if !decision.Allowed {
-		return safety.Decision{}, rejectAdmission(http.StatusForbidden, httpx.CodeForbidden, decision.Reason+" — "+decision.RecoveryHint)
+		return safety.Decision{}, decisionAdmissionError(decision)
 	}
 	return decision, nil
+}
+
+// decisionAdmissionError maps a gate decision to the wire status. A technical
+// reviewer failure (or a required reviewer that is not configured) is 503; a
+// genuine policy refusal is 403. The two must not look identical to a caller.
+func decisionAdmissionError(decision safety.Decision) error {
+	status, code := http.StatusForbidden, httpx.CodeForbidden
+	if decision.Unavailable {
+		status, code = http.StatusServiceUnavailable, httpx.CodeUnavailable
+	}
+	return rejectAdmission(status, code, decision.Reason+" — "+decision.RecoveryHint)
 }
 
 // admitStored receives only owned blob references, never filesystem paths or
@@ -77,6 +89,9 @@ func (h *Deps) admitStored(ctx context.Context, op string, params *aiv1.AIParams
 	for _, ref := range []string{inputKey, maskKey, referenceKey} {
 		if ref == "" {
 			continue
+		}
+		if internalquarantine.IsKey(ref) {
+			return nil, rejectAdmission(http.StatusBadRequest, httpx.CodeInvalidRequest, "a quarantined refusal cannot be used as AI input")
 		}
 		reader, _, err := h.Store.Get(ctx, ref)
 		if err != nil {
@@ -136,7 +151,7 @@ func (h *Deps) admitStored(ctx context.Context, op string, params *aiv1.AIParams
 		weight := safety.MaxWeight(safety.OpWeight(op), safety.Weight(plan.Weight))
 		decision := h.Gate.EvaluateRouteInput(ctx, weight, op, plan.Tier, params.GetConsentAffirmed(), faces.Func())
 		if !decision.Allowed {
-			return nil, rejectAdmission(http.StatusForbidden, httpx.CodeForbidden, decision.Reason+" — "+decision.RecoveryHint)
+			return nil, decisionAdmissionError(decision)
 		}
 		consentBasis = decision.ConsentBasis
 		if decision.RecordConsent {
@@ -243,7 +258,10 @@ func (h *Deps) reviewMinorInput(ctx context.Context, op string, gate safety.Deci
 	}
 	decision := h.Gate.ReviewMinor(ctx, op, images)
 	if !decision.Allowed {
-		return rejectAdmission(http.StatusForbidden, httpx.CodeForbidden, decision.Reason+" — "+decision.RecoveryHint)
+		return decisionAdmissionError(decision)
+	}
+	if decision.Shadow {
+		h.logf("ai.submit shadow safety refusal recorded: %s", decision.Reason)
 	}
 	return nil
 }

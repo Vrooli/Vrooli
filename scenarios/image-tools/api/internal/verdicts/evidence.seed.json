@@ -443,7 +443,7 @@
       "model_id": "flux-2-klein-4b",
       "operation": "garment_replace",
       "grade": "recommended",
-      "reason": "Hair (platinum, chin-length bob, curly auburn) and outfits (leather jacket, red dress, navy suit) on a real photo look natural and the rest of the picture is untouched: outside SSIM 0.99 to 1.00, face LPIPS 0.00 on outfits and 0.03 to 0.08 on hair. 39 to 119 s, 2.0 to 2.2 GiB peak VRAM. Needs a hair or outfit mask first (segment).",
+      "reason": "Hair (platinum, chin-length bob, curly auburn) and outfits (leather jacket, red dress, navy suit) on a real photo look natural and the rest of the picture is untouched: outside SSIM 0.99 to 1.00, face LPIPS 0.00 on outfits and 0.03 to 0.08 on hair. 39 to 119 s, 2.0 to 2.2 GiB peak VRAM. Needs a hair or outfit mask first (segment). Operator rated the masked bralette edit (T7) issue-free at 5/5.",
       "kind": "judged_comparison",
       "ref": "research:runs/capabilities-20261122/outputs/mask-edit/README.md",
       "date": "2026-11-23"
@@ -578,7 +578,7 @@
       "model_id": "flux-2-klein-4b",
       "operation": "edit_instruct",
       "grade": "recommended",
-      "reason": "Text-only route for whole-outfit and nudity changes: identity 0.93-0.97, pose within 3-12 px, background SSIM 0.96-0.99; lingerie, topless, bottomless and full nudity (with the target-state wording and 8 steps) all coherent. Prefer this over a masked regenerate on an NSFW base checkpoint for a large region.",
+      "reason": "Text-only route for whole-outfit and nudity changes: identity 0.93-0.97, pose within 3-12 px, background SSIM 0.96-0.99; lingerie, topless, bottomless and full nudity (with the target-state wording and 8 steps) all coherent. Operator review 2026-11-24: rated far superior to the masked regenerate, with four edits (lingerie, scene, full nudity, bottomless) issue-free at 5/5. Sleeve cuffs survive a bare 'topless' instruction, so say 'top entirely, including the sleeves' (wrist skin 0.00 to 1.00 at the same seed).",
       "kind": "live_run",
       "ref": "research:runs/capabilities-20261122/nsfw-run/textedit-metrics.md",
       "date": "2026-11-24"

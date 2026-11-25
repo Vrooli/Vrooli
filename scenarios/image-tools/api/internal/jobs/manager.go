@@ -870,6 +870,17 @@ func failedExecutionEvidence(meta map[string]string) map[string]string {
 			out[key] = value
 		}
 	}
+	// safety_* keys are the reviewer's evidence for a refused or unavailable
+	// output. They never contain the image, and without them a refusal cannot be
+	// triaged or fed back into calibration.
+	for key, value := range meta {
+		if strings.HasPrefix(key, "safety_") || key == "nsfw_score" {
+			if out == nil {
+				out = map[string]string{}
+			}
+			out[key] = value
+		}
+	}
 	for key, value := range capacityRetryMetaOf(meta) {
 		if out == nil {
 			out = map[string]string{}

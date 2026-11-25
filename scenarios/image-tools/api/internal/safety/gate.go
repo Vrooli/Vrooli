@@ -2,6 +2,7 @@ package safety
 
 import (
 	"context"
+	"errors"
 	"strings"
 )
 
@@ -15,6 +16,18 @@ type Gate struct {
 	limiter *RateLimiter
 	minor   MinorReviewer
 	faces   FaceCounter
+}
+
+// reviewerHealthReporter is implemented by a reviewer that can describe its own
+// state (the bundled command reviewer and the unavailable fallback).
+type reviewerHealthReporter interface {
+	Health() ReviewHealth
+}
+
+// reviewerAvailability is implemented by a reviewer that can say whether it was
+// constructible at all (the unavailable fallback returns false).
+type reviewerAvailability interface {
+	Available() bool
 }
 
 // NewGateFromPolicy builds the gate from an already-resolved policy (which may
@@ -33,18 +46,51 @@ func NewGate(tier Tier, log *ConsentLog) *Gate {
 // Policy returns the resolved policy (for discovery / telemetry).
 func (g *Gate) Policy() Policy { return g.policy }
 
+// Summary is the resolved policy plus the reviewer's live health. Discovery uses
+// this so it reports what is actually running rather than what the environment
+// implied.
+func (g *Gate) Summary() string {
+	if g == nil {
+		return ""
+	}
+	out := g.policy.Summary()
+	if health := g.ReviewerHealth(); health.Configured {
+		out += " " + health.Summary() + "."
+	}
+	return out
+}
+
 // SetMinorReviewer attaches the deployment's minor-safety reviewer. The resolved
 // policy is updated in the same call so discovery and enforcement cannot
 // disagree about whether the required control is actually present.
 func (g *Gate) SetMinorReviewer(r MinorReviewer) {
 	g.minor = r
-	g.policy.MinorSafetyDetector = r != nil
+	available := r != nil
+	if a, ok := r.(reviewerAvailability); ok {
+		available = a.Available()
+	}
+	g.policy.MinorSafetyDetector = available
+}
+
+// ReviewerHealth reports the configured reviewer's state and counters.
+func (g *Gate) ReviewerHealth() ReviewHealth {
+	if g == nil || g.minor == nil {
+		return ReviewHealth{}
+	}
+	if h, ok := g.minor.(reviewerHealthReporter); ok {
+		return h.Health()
+	}
+	return ReviewHealth{Configured: true, Available: true, Detail: "configured"}
 }
 
 // ReviewMinor enforces the non-configurable refusal on the images a request
 // carries. It runs only when the policy requires it; a required control with no
 // reviewer, a reviewer error, or a positive minor+sexual verdict all refuse. An
 // unconfigured reviewer on a local deployment is not consulted at all.
+//
+// A technical reviewer failure is reported as Unavailable (and by ReasonCode) so
+// the submit edge can answer 503 rather than pretending a policy refusal. In
+// shadow mode the verdict is recorded but Allowed stays true.
 func (g *Gate) ReviewMinor(ctx context.Context, op string, images [][]byte) Decision {
 	if !g.policy.RequiresMinorReview(op) {
 		return Decision{Allowed: true}
@@ -52,32 +98,52 @@ func (g *Gate) ReviewMinor(ctx context.Context, op string, images [][]byte) Deci
 	if g.minor == nil {
 		return Decision{
 			Allowed:            false,
+			Unavailable:        true,
 			RequireMinorReview: true,
+			ReasonCode:         ReasonReviewerUnconfigured,
 			Reason:             "this deployment requires a minor-safety reviewer for image operations, but none is configured",
 			RecoveryHint:       "set " + MinorSafetyEnv + " to a program implementing the documented JSON review contract",
 		}
 	}
 	verdict, err := g.minor.Review(ctx, images)
 	if err != nil {
+		var missing *MissingWeightsError
+		reason := ReasonReviewerUnavailable
+		if errors.As(err, &missing) {
+			reason = ReasonWeightsMissing
+		}
 		return Decision{
 			Allowed:            false,
+			Unavailable:        true,
 			RequireMinorReview: true,
+			ReasonCode:         reason,
 			Reason:             "the minor-safety review could not be completed: " + err.Error(),
 			RecoveryHint:       "fix the configured reviewer; a deployment that serves other people fails closed when its required review is unavailable",
 		}
 	}
-	if verdict.Minor && verdict.Sexual {
+	verdict.Normalize()
+	if verdict.Refuses() {
 		detail := strings.TrimSpace(verdict.Detail)
 		if detail == "" {
 			detail = "sexual content involving a minor"
 		}
+		if g.policy.ReviewProfile.Mode == ReviewModeShadow {
+			return Decision{
+				Allowed:            true,
+				Shadow:             true,
+				RequireMinorReview: true,
+				ReasonCode:         verdict.ReasonCode,
+				Reason:             "shadow reviewer would refuse: " + detail,
+			}
+		}
 		return Decision{
 			Allowed:            false,
 			RequireMinorReview: true,
+			ReasonCode:         verdict.ReasonCode,
 			Reason:             "refused: " + detail,
 		}
 	}
-	return Decision{Allowed: true, RequireMinorReview: true}
+	return Decision{Allowed: true, RequireMinorReview: true, ReasonCode: verdict.ReasonCode, Shadow: g.policy.ReviewProfile.Mode == ReviewModeShadow}
 }
 
 // Evaluate decides whether a submit for op may proceed (see Policy.Evaluate).

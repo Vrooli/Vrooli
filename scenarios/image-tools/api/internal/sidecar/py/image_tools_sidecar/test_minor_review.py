@@ -187,6 +187,55 @@ class ReviewImageStubTests(unittest.TestCase):
         self.assertTrue(out["refuse"])
 
 
+class ProfileTests(unittest.TestCase):
+    def test_a_custom_profile_changes_the_bars_without_code_changes(self):
+        profile = mr.ReviewProfile({
+            "name": "experiment",
+            "reviewer_version": "test",
+            "classifiers": [{"id": "falconsai-nsfw", "threshold": 0.95, "strict_threshold": 0.90}],
+            "face": {"id": "yunet", "score_threshold": 0.5, "min_px": 40, "crop_margin": 1.35, "max_faces": 16},
+            "age": {"id": "fairface-vit-age", "threshold": 0.9},
+            "on_minor_face": "refuse",
+            "on_unassessable": "second_opinion",
+        })
+        scores = {"falconsai-nsfw": 0.5}
+        self.assertFalse(profile.decide(scores, strict=False))
+        self.assertFalse(profile.decide(scores, strict=True))
+        self.assertEqual(profile.thresholds(False)["falconsai-nsfw"], 0.95)
+        self.assertEqual(profile.thresholds(True)["falconsai-nsfw"], 0.90)
+        self.assertEqual(profile.model_ids, ["falconsai-nsfw", "yunet", "fairface-vit-age"])
+
+    def test_a_profile_may_not_weaken_the_minor_face_refusal(self):
+        with self.assertRaises(ValueError):
+            mr.ReviewProfile({"on_minor_face": "flag"})
+
+    def test_reason_codes_name_the_stage(self):
+        self.assertEqual(mr.judge_image(0.01, [])["reason_code"], mr.REASON_CLEAN)
+        self.assertEqual(mr.judge_image(0.95, [face(p_under_20=0.8)])["reason_code"], mr.REASON_SEXUAL_MINOR_FACE)
+        self.assertEqual(mr.judge_image(0.95, [])["reason_code"], mr.REASON_SEXUAL_UNASSESSABLE)
+        self.assertEqual(mr.judge_image(0.95, [face(p_under_20=0.01)])["reason_code"], mr.REASON_SEXUAL_ADULT)
+
+    def test_run_reports_the_resolved_profile_evidence(self):
+        request = {
+            "images": [{"media_type": "image/png", "base64": png_b64()}],
+            "profile": {
+                "name": "evidence", "reviewer_version": "rev-1",
+                "classifiers": [{"id": "falconsai-nsfw", "threshold": 0.3}],
+                "face": {"id": "yunet", "score_threshold": 0.5, "min_px": 40, "crop_margin": 1.35, "max_faces": 16},
+                "age": {"id": "fairface-vit-age", "threshold": 0.2},
+                "on_minor_face": "refuse", "on_unassessable": "second_opinion",
+                "second_opinion": {"enabled": True, "min_age": 25, "min_confidence": "medium"},
+            },
+        }
+        with mock.patch.object(mr, "_nsfw_scores", return_value=(0.01, 0.0)):
+            verdict = mr.run(request, "/nowhere")
+        self.assertEqual(verdict["action"], mr.ACTION_ALLOW)
+        self.assertEqual(verdict["reason_code"], mr.REASON_CLEAN)
+        self.assertEqual(verdict["thresholds"]["falconsai-nsfw"], 0.3)
+        self.assertEqual(verdict["models"], ["falconsai-nsfw", "yunet", "fairface-vit-age"])
+        self.assertEqual(verdict["reviewer_version"], "rev-1")
+
+
 class RunContractTests(unittest.TestCase):
     def test_undecodable_image_is_an_error_not_a_pass(self):
         request = {"images": [{"media_type": "image/png", "base64": base64.b64encode(b"not an image").decode()}]}
@@ -202,9 +251,12 @@ class RunContractTests(unittest.TestCase):
         request = {"images": [{"media_type": "image/png", "base64": png_b64()}], "strict": True}
         with mock.patch.object(mr, "_nsfw_scores", return_value=(0.02, 0.0)):
             verdict = mr.run(request, "/nowhere")
-        self.assertEqual({"minor", "sexual", "detail", "images", "thresholds"}, set(verdict))
+        self.assertTrue({"minor", "sexual", "detail", "images", "thresholds", "action", "reason_code", "reason_codes", "models", "reviewer_version"} <= set(verdict))
+        self.assertEqual(verdict["action"], mr.ACTION_ALLOW)
+        self.assertEqual(verdict["reason_code"], mr.REASON_CLEAN)
         self.assertFalse(verdict["minor"] or verdict["sexual"])
-        self.assertEqual(verdict["thresholds"]["sexual"], mr.STRICT_SEXUAL_THRESHOLD)
+        self.assertEqual(verdict["thresholds"][mr.MODEL_NSFW], mr.STRICT_SEXUAL_THRESHOLD)
+        self.assertEqual(verdict["models"], list(mr.default_profile().model_ids))
         json.dumps(verdict)  # the host parses stdout as JSON
 
     def test_missing_classifier_exits_with_the_missing_weights_code_naming_it(self):

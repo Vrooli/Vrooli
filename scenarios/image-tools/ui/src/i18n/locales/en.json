@@ -87,6 +87,27 @@
       "description": "Images flagged as sensitive are blurred until you tap to reveal them.",
       "blur": "Blur",
       "show": "Show"
+    },
+    "safetyFeedback": {
+      "heading": "Reviewer calibration",
+      "description": "Operator judgements of refused or flagged outputs. The false-positive rate measures how often the reviewer was wrong.",
+      "loading": "Loading reviewer feedback…",
+      "error": "Couldn't load reviewer feedback.",
+      "empty": "No outputs have been labelled yet. Mark a refused or flagged result in Activity.",
+      "totalLabel": "Labelled cases",
+      "falsePositives": "False positives",
+      "confirmed": "Confirmed",
+      "uncertain": "Uncertain",
+      "rate": "False-positive rate: {{rate}}",
+      "rateUnavailable": "False-positive rate: not enough decisive labels",
+      "byReason": "By reason code",
+      "byProfile": "By reviewer profile",
+      "reason": "Reason",
+      "profile": "Profile",
+      "cases": "Cases",
+      "falsePositiveShort": "False positives",
+      "rateColumn": "FP rate",
+      "hint": "Export the corpus with `image-tools safety corpus --out corpus.jsonl` and replay thresholds with `scripts/safety-corpus-replay.py`."
     }
   },
   "pages": {
@@ -455,6 +476,49 @@
       "overrideSuperseded": "Superseded by the catalog"
     }
   },
+  "quarantine": {
+    "heading": "Quarantined refusals",
+    "description": "Refused outputs are retained briefly for admin review. They are never published or listed as results; an image loads only after you choose to reveal it, and the entry purges automatically.",
+    "loading": "Loading quarantined refusals…",
+    "error": "Couldn't load quarantined refusals.",
+    "empty": "No refused outputs are quarantined.",
+    "cardLabel": "Job {{job}} · {{reason}} · score {{score}}",
+    "expires": "Purges {{when}}",
+    "warning": "This image was withheld by the reviewer. Reveal it only for review.",
+    "reveal": "Reveal image",
+    "imageAlt": "Quarantined refusal for job {{job}}",
+    "download": "Download",
+    "legitimate": "Legitimate",
+    "confirmed": "Correct",
+    "uncertain": "Unsure",
+    "savedLegitimate": "Marked legitimate",
+    "savedConfirmed": "Marked correct",
+    "savedUncertain": "Marked uncertain",
+    "labelError": "Could not save the judgement",
+    "hint": "Labelling tunes the reviewer and does not publish the image."
+  },
+  "reviewerFeedback": {
+    "title": "Reviewer feedback",
+    "refused": "Refused",
+    "flagged": "Flagged",
+    "partial": "Partly refused",
+    "shadow": "Shadow refusal",
+    "reason": "Reason: {{reason}}",
+    "prompt": "Was the reviewer right?",
+    "legitimate": "Legitimate",
+    "confirmed": "Correct",
+    "uncertain": "Unsure",
+    "savedLegitimate": "Marked legitimate",
+    "savedConfirmed": "Marked correct",
+    "savedUncertain": "Marked uncertain",
+    "noteLabel": "Note (optional)",
+    "notePlaceholder": "Why was it a false positive or correct?",
+    "saveNote": "Save note",
+    "saving": "Saving",
+    "remove": "Remove judgement",
+    "error": "Could not save the judgement",
+    "hint": "Feedback tunes the reviewer. It does not restore a refused output or unblur a sensitive result."
+  },
   "workspace": {
     "loading": "Loading operations…",
     "error": "Unable to load operations.",
@@ -620,6 +684,26 @@
       "pose_extract": {
         "label": "Read a pose",
         "desc": "Read body and hand keypoints from an image, photo or line drawing."
+      },
+      "book_art_line_art": {
+        "label": "Book art · Line art",
+        "desc": "Editorial pen-and-ink illustration with clear silhouettes and open paper."
+      },
+      "book_art_picture_book": {
+        "label": "Book art · Picture book",
+        "desc": "Tactile, story-rich gouache and pencil illustration."
+      },
+      "book_art_comic_ink": {
+        "label": "Book art · Comic ink",
+        "desc": "Cinematic graphic-novel inks with controlled blacks and no lettering."
+      },
+      "book_art_cookbook": {
+        "label": "Book art · Cookbook",
+        "desc": "Art-directed food illustration with natural light and uncluttered composition."
+      },
+      "book_art_cover_art": {
+        "label": "Book art · Cover art",
+        "desc": "Memorable title-safe cover artwork with no typography."
       }
     },
     "enhance": {
@@ -916,6 +1000,10 @@
       "screenshot_cleanup": {
         "label": "Screenshot cleanup",
         "desc": "Trim the window chrome, frame, and letterbox bands around a screenshot's subject."
+      },
+      "print_prep": {
+        "label": "Print prep",
+        "desc": "Resize to a physical print box, tag DPI and prepare colour or black ink on transparent alpha."
       }
     },
     "fitOption": {
@@ -1008,7 +1096,12 @@
       "autoOrient": "Auto-orient",
       "tolerance": "Colour tolerance",
       "maxTrimPercent": "Max trim per side",
-      "padding": "Keep padding"
+      "padding": "Keep padding",
+      "widthIn": "Width (in)",
+      "heightIn": "Height (in)",
+      "dpi": "DPI",
+      "inkMode": "Ink mode",
+      "threshold": "Ink threshold"
     },
     "rating": {
       "title": "Rate this result",

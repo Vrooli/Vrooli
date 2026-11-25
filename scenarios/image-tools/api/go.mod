@@ -54,6 +54,7 @@ require (
 	github.com/vrooli/cli-core v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
+	github.com/vrooli/vrooli/packages/ai-gateway-client-go v0.0.0
 	golang.org/x/net v0.0.0-20221002022538-bcab6841153b // indirect
 	golang.org/x/text v0.38.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
@@ -83,3 +84,5 @@ replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 replace github.com/vrooli/ai-provider-go => ../../../packages/ai-provider-go
+
+replace github.com/vrooli/vrooli/packages/ai-gateway-client-go => ../../../packages/ai-gateway-client-go

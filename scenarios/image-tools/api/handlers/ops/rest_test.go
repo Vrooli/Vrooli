@@ -191,6 +191,19 @@ func TestBlobNotFound(t *testing.T) {
 	}
 }
 
+func TestBlobRouteRefusesQuarantineNamespace(t *testing.T) {
+	r, store, _ := newTestServer(t)
+	if err := store.Put(context.Background(), "quarantine/job/a.png", bytes.NewReader([]byte("refused")), "image/png"); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/blobs/quarantine/job/a.png", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404 (the ordinary blob route must never serve quarantine)", w.Code)
+	}
+}
+
 func TestListOperations(t *testing.T) {
 	h := NewConnectHandler()
 	resp, err := h.ListOperations(context.Background(), nil)

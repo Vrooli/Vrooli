@@ -87,6 +87,27 @@
       "description": "センシティブと判定された画像は、タップするまでぼかして表示されます。",
       "blur": "ぼかす",
       "show": "表示する"
+    },
+    "safetyFeedback": {
+      "heading": "レビュアーの調整",
+      "description": "拒否またはフラグされた出力に対するオペレーターの判断です。誤検知率はレビュアーが誤った頻度を示します。",
+      "loading": "レビュアーのフィードバックを読み込み中…",
+      "error": "レビュアーのフィードバックを読み込めませんでした。",
+      "empty": "まだ出力がラベル付けされていません。アクティビティで拒否またはフラグされた結果をマークしてください。",
+      "totalLabel": "ラベル付きケース",
+      "falsePositives": "誤検知",
+      "confirmed": "確認済み",
+      "uncertain": "不明",
+      "rate": "誤検知率: {{rate}}",
+      "rateUnavailable": "誤検知率: 決定的なラベルが不足しています",
+      "byReason": "理由コード別",
+      "byProfile": "レビュアープロファイル別",
+      "reason": "理由",
+      "profile": "プロファイル",
+      "cases": "ケース",
+      "falsePositiveShort": "誤検知",
+      "rateColumn": "誤検知率",
+      "hint": "`image-tools safety corpus --out corpus.jsonl` でコーパスをエクスポートし、`scripts/safety-corpus-replay.py` でしきい値を再検証できます。"
     }
   },
   "pages": {
@@ -451,6 +472,49 @@
       "overrideSuperseded": "カタログにより置き換えられました"
     }
   },
+  "quarantine": {
+    "heading": "隔離された拒否",
+    "description": "拒否された出力は管理者の確認用に短期間保持されます。公開されたり結果として一覧表示されたりすることはありません。画像は表示を選んだときだけ読み込まれ、期限後に自動削除されます。",
+    "loading": "隔離された拒否を読み込み中…",
+    "error": "隔離された拒否を読み込めませんでした。",
+    "empty": "隔離された拒否はありません。",
+    "cardLabel": "ジョブ {{job}} · {{reason}} · スコア {{score}}",
+    "expires": "{{when}} に削除",
+    "warning": "この画像はレビュアーによって保留されました。確認の目的に限り表示してください。",
+    "reveal": "画像を表示",
+    "imageAlt": "ジョブ {{job}} の隔離された拒否",
+    "download": "ダウンロード",
+    "legitimate": "適切",
+    "confirmed": "正しい",
+    "uncertain": "不明",
+    "savedLegitimate": "適切として記録しました",
+    "savedConfirmed": "正しいとして記録しました",
+    "savedUncertain": "不明として記録しました",
+    "labelError": "判断を保存できませんでした",
+    "hint": "ラベル付けはレビュアーを調整するもので、画像を公開するものではありません。"
+  },
+  "reviewerFeedback": {
+    "title": "レビュアーへのフィードバック",
+    "refused": "拒否",
+    "flagged": "フラグ",
+    "partial": "一部拒否",
+    "shadow": "シャドウ拒否",
+    "reason": "理由: {{reason}}",
+    "prompt": "レビュアーの判断は正しかったですか？",
+    "legitimate": "適切",
+    "confirmed": "正しい",
+    "uncertain": "不明",
+    "savedLegitimate": "適切として記録しました",
+    "savedConfirmed": "正しいとして記録しました",
+    "savedUncertain": "不明として記録しました",
+    "noteLabel": "メモ（任意）",
+    "notePlaceholder": "なぜ誤検知、または正しい判断だったのですか？",
+    "saveNote": "メモを保存",
+    "saving": "保存中",
+    "remove": "判断を削除",
+    "error": "判断を保存できませんでした",
+    "hint": "フィードバックはレビュアーを調整するためのものです。拒否された出力を復元したり、機密結果のぼかしを解除したりはしません。"
+  },
   "workspace": {
     "loading": "操作を読み込み中…",
     "error": "操作を読み込めません。",
@@ -616,6 +680,26 @@
       "pose_extract": {
         "label": "ポーズを読み取る",
         "desc": "写真や線画から体と手のキーポイントを読み取ります。"
+      },
+      "book_art_line_art": {
+        "label": "書籍アート · 線画",
+        "desc": "余白を生かした、編集的なペンとインクの挿絵。"
+      },
+      "book_art_picture_book": {
+        "label": "書籍アート · 絵本",
+        "desc": "手触りのあるガッシュと色鉛筆で描く物語性のある挿絵。"
+      },
+      "book_art_comic_ink": {
+        "label": "書籍アート · コミックインク",
+        "desc": "文字を含まない、映画的なグラフィックノベルのインク画。"
+      },
+      "book_art_cookbook": {
+        "label": "書籍アート · 料理本",
+        "desc": "自然光と整理された構図で描く料理の挿絵。"
+      },
+      "book_art_cover_art": {
+        "label": "書籍アート · 表紙",
+        "desc": "文字のための余白を備えた、印象的な表紙アート。"
       }
     },
     "enhance": {
@@ -912,6 +996,10 @@
       "screenshot_cleanup": {
         "label": "スクリーンショット整理",
         "desc": "スクリーンショットの被写体の周囲にあるウィンドウ枠やレターボックスの帯を切り取ります。"
+      },
+      "print_prep": {
+        "label": "印刷準備",
+        "desc": "物理寸法に合わせてリサイズし、DPIを記録してカラーまたは透明背景の黒インクに整えます。"
       }
     },
     "fitOption": {
@@ -1004,7 +1092,12 @@
       "autoOrient": "自動回転",
       "tolerance": "色の許容差",
       "maxTrimPercent": "片側の最大トリム",
-      "padding": "残す余白"
+      "padding": "残す余白",
+      "widthIn": "幅（インチ）",
+      "heightIn": "高さ（インチ）",
+      "dpi": "DPI",
+      "inkMode": "インクモード",
+      "threshold": "インクしきい値"
     },
     "rating": {
       "title": "この結果を評価",

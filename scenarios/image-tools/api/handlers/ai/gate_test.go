@@ -38,6 +38,12 @@ func (flaggingMinorReviewer) Review(context.Context, [][]byte) (safety.MinorVerd
 	return safety.MinorVerdict{Minor: true, Sexual: true, Detail: "classifier: minor + sexual"}, nil
 }
 
+type failingMinorReviewer struct{}
+
+func (failingMinorReviewer) Review(context.Context, [][]byte) (safety.MinorVerdict, error) {
+	return safety.MinorVerdict{}, context.DeadlineExceeded
+}
+
 func newGatedServerWithReviewer(t *testing.T, tier safety.Tier, reviewer safety.MinorReviewer) (*mux.Router, *fakeSubmitter) {
 	t.Helper()
 	registry, err := models.Load()
@@ -106,11 +112,11 @@ func TestGate_PublicRequiresMinorReviewerForImageOutput(t *testing.T) {
 	req := newMultipartSubmit(t, "text_to_image", `{"prompt":"a landscape"}`)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("status = %d, want 403 when the required reviewer is absent; body=%s", w.Code, w.Body.String())
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want 503 when the required reviewer is absent; body=%s", w.Code, w.Body.String())
 	}
 	if !contains(w.Body.String(), "minor-safety") {
-		t.Errorf("403 body should name the missing control; got %s", w.Body.String())
+		t.Errorf("503 body should name the missing control; got %s", w.Body.String())
 	}
 }
 
@@ -124,6 +130,19 @@ func TestGate_PublicRefusesFlaggedMinorSexualContent(t *testing.T) {
 	}
 	if !contains(w.Body.String(), "refused") {
 		t.Errorf("403 body should state the refusal; got %s", w.Body.String())
+	}
+}
+
+func TestGate_PublicReportsAReviewerFailureAsUnavailable(t *testing.T) {
+	r, _ := newGatedServerWithReviewer(t, safety.TierPublic, failingMinorReviewer{})
+	req := newMultipartSubmit(t, "text_to_image", `{"prompt":"x"}`)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want 503 for a technical reviewer failure; body=%s", w.Code, w.Body.String())
+	}
+	if !contains(w.Body.String(), `"code":"unavailable"`) {
+		t.Errorf("body should carry the unavailable code; got %s", w.Body.String())
 	}
 }
 

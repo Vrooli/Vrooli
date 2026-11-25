@@ -113,4 +113,14 @@ export const OP_SPECS: Readonly<Record<string, OpSpec>> = {
       { name: "height", control: "number", labelKey: strings.workspace.field.height, default: 128, min: 1, unit: "px" },
     ],
   },
+  "print_prep": {
+    fields: [
+      { name: "width_in", control: "number", labelKey: strings.workspace.field.widthIn, default: 6.0, min: 0.01, max: 30, step: 0.01, unit: "in" },
+      { name: "height_in", control: "number", labelKey: strings.workspace.field.heightIn, default: 9.0, min: 0.01, max: 30, step: 0.01, unit: "in" },
+      { name: "dpi", control: "number", labelKey: strings.workspace.field.dpi, default: 300, min: 72, max: 1200, step: 1 },
+      { name: "ink_mode", control: "segmented", labelKey: strings.workspace.field.inkMode, default: "1bit", options: ["1bit", "colour"] },
+      { name: "threshold", control: "slider", labelKey: strings.workspace.field.threshold, default: 0.5, min: 0, max: 1, step: 0.01 },
+      { name: "gravity", control: "position", labelKey: strings.workspace.field.gravity, default: "center" },
+    ],
+  },
 };

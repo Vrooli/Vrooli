@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"image-tools/internal/modelenv"
 	"log"
 	"os"
 	"os/exec"
@@ -13,10 +12,13 @@ import (
 	"strconv"
 	"strings"
 
+	"image-tools/internal/modelenv"
+
 	"github.com/google/uuid"
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 	"image-tools/internal/models"
 	"image-tools/internal/posemap"
+	"image-tools/internal/safety"
 	"image-tools/internal/sidecar"
 )
 
@@ -47,10 +49,15 @@ type Config struct {
 	// lock-pinned venv. An empty value leaves model-backed analysis unavailable;
 	// NSFW must never fall back to the host's shared Python installation.
 	PythonProgram string
-	// NSFWThreshold is the decision threshold for the boolean NSFW verdict.
-	// AdamCodd's classifier over-flags skin tones, so this is operator-tunable;
-	// defaults to 0.5 when <= 0.
+	// NSFWThreshold is an optional override of the primary classifier's decision
+	// threshold. It exists for tests and one-off operators; production uses the
+	// resolved safety.ReviewProfile so the analysis op and the generation reviewer
+	// agree. A value <= 0 keeps the profile's threshold.
 	NSFWThreshold float64
+	// ReviewProfile is the same declarative reviewer profile the generation
+	// reviewer uses. Its classifiers and thresholds drive nsfw_classify and the
+	// advisory auto-scan. Zero resolves to the local default.
+	ReviewProfile safety.ReviewProfile
 	// LookPath / Run are injected for testing; nil ⇒ real os/exec.
 	LookPath lookPathFunc
 	Run      cmdOutput
@@ -70,6 +77,7 @@ type Service struct {
 	selectModel     func(context.Context, string) (models.Model, error)
 	pythonProgram   string
 	threshold       float64
+	profile         safety.ReviewProfile
 	lookPath        lookPathFunc
 	run             cmdOutput
 	logger          *log.Logger
@@ -81,8 +89,18 @@ func NewService(cfg Config) (*Service, error) {
 		return nil, fmt.Errorf("analysis: ModelInstalled is required")
 	}
 	thr := cfg.NSFWThreshold
+	if thr <= 0 && len(cfg.ReviewProfile.Classifiers) > 0 {
+		thr = cfg.ReviewProfile.Classifiers[0].Threshold
+	}
 	if thr <= 0 {
 		thr = 0.5
+	}
+	profile := cfg.ReviewProfile.Clone()
+	if len(profile.Classifiers) == 0 {
+		profile = safety.DefaultReviewProfile(safety.TierLocal)
+	}
+	if cfg.NSFWThreshold > 0 && len(profile.Classifiers) > 0 {
+		profile.Classifiers[0].Threshold = cfg.NSFWThreshold
 	}
 	logger := cfg.Logger
 	if logger == nil {
@@ -99,6 +117,7 @@ func NewService(cfg Config) (*Service, error) {
 		selectModel:     cfg.SelectModel,
 		pythonProgram:   strings.TrimSpace(cfg.PythonProgram),
 		threshold:       thr,
+		profile:         profile,
 		lookPath:        cfg.LookPath,
 		run:             cfg.Run,
 		logger:          logger,
@@ -403,13 +422,18 @@ func ocrArgs(path string) []string {
 // NSFW classifies src for unsafe content via the onnxruntime Python sidecar.
 // It uses the isolated lock-pinned interpreter supplied by the app; a host
 // Python fallback would bypass the runtime's dependency and provenance contract.
+// The classifier ensemble and thresholds come from the resolved review profile,
+// so this op and the generation reviewer answer the same question the same way.
 func (s *Service) NSFW(ctx context.Context, src []byte) (result NSFWResult, runErr error) {
 	ctx, finish, admissionErr := s.execution(ctx, OpNSFW)
 	if admissionErr != nil {
 		return result, admissionErr
 	}
 	defer func() { runErr = errors.Join(runErr, finish()) }()
-	const modelID = "adamcodd-vit-nsfw"
+	modelIDs := s.profile.ClassifierIDs()
+	if len(modelIDs) == 0 {
+		modelIDs = []string{"falconsai-nsfw"}
+	}
 	if s.pythonProgram == "" {
 		return NSFWResult{}, fmt.Errorf("%w: isolated Python environment is not provisioned; install uv and restart image-tools", ErrBackendUnavailable)
 	}
@@ -417,12 +441,18 @@ func (s *Service) NSFW(ctx context.Context, src []byte) (result NSFWResult, runE
 	if err != nil {
 		return NSFWResult{}, fmt.Errorf("%w: isolated Python interpreter is unavailable at %q", ErrBackendUnavailable, s.pythonProgram)
 	}
-	if !s.modelInstalled(modelID) {
-		return NSFWResult{}, fmt.Errorf("%w: model %q not installed — run `image-tools models install %s`", ErrBackendUnavailable, modelID, modelID)
+	for _, modelID := range modelIDs {
+		if !s.modelInstalled(modelID) {
+			return NSFWResult{}, fmt.Errorf("%w: model %q not installed — run `image-tools models install %s`", ErrBackendUnavailable, modelID, modelID)
+		}
+	}
+	profileJSON, err := json.Marshal(s.profile)
+	if err != nil {
+		return NSFWResult{}, fmt.Errorf("analysis: encode review profile: %w", err)
 	}
 	var raw []byte
 	err = withTempInput(src, func(path string) error {
-		b, err := s.resolveRun()(ctx, python, nsfwArgs(s.modelDir(modelID), path))
+		b, err := s.resolveRun()(ctx, python, nsfwArgs(s.modelsRoot, string(profileJSON), path))
 		if err != nil {
 			return commandError("analysis: nsfw classifier", err)
 		}
@@ -436,15 +466,20 @@ func (s *Service) NSFW(ctx context.Context, src []byte) (result NSFWResult, runE
 }
 
 // nsfwArgs is the documented onnx sidecar invocation. Pure for unit-testing.
-func nsfwArgs(modelDir, path string) []string {
-	return []string{"-m", "image_tools_sidecar.nsfw", "--model", modelDir, "--image", path}
+func nsfwArgs(modelsRoot, profileJSON, path string) []string {
+	return []string{"-m", "image_tools_sidecar.nsfw", "--models-root", modelsRoot, "--profile", profileJSON, "--image", path}
 }
 
-// parseNSFW interprets the sidecar's JSON output: {"score":0.9,"categories":[...]}.
+// parseNSFW interprets the sidecar's JSON output:
+// {"score":0.9,"recall_score":0.4,"sexual":true,"threshold":0.3,...}.
 func (s *Service) parseNSFW(raw []byte) (NSFWResult, error) {
 	var payload struct {
-		Score      float64 `json:"score"`
-		Categories []struct {
+		Score       float64 `json:"score"`
+		RecallScore float64 `json:"recall_score"`
+		Sexual      *bool   `json:"sexual"`
+		Threshold   float64 `json:"threshold"`
+		ReasonCode  string  `json:"reason_code"`
+		Categories  []struct {
 			Label string  `json:"label"`
 			Score float64 `json:"score"`
 		} `json:"categories"`
@@ -453,10 +488,19 @@ func (s *Service) parseNSFW(raw []byte) (NSFWResult, error) {
 		return NSFWResult{}, fmt.Errorf("analysis: parse nsfw output: %w", err)
 	}
 	res := NSFWResult{
-		Score:     payload.Score,
-		NSFW:      payload.Score >= s.threshold,
-		Threshold: s.threshold,
-		Label:     "sfw",
+		Score:       payload.Score,
+		RecallScore: payload.RecallScore,
+		Threshold:   s.threshold,
+		ReasonCode:  payload.ReasonCode,
+		Label:       "sfw",
+	}
+	if payload.Threshold > 0 {
+		res.Threshold = payload.Threshold
+	}
+	if payload.Sexual != nil {
+		res.NSFW = *payload.Sexual
+	} else {
+		res.NSFW = payload.Score >= res.Threshold
 	}
 	if res.NSFW {
 		res.Label = "nsfw"

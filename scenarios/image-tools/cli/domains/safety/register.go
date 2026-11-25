@@ -11,7 +11,13 @@ import (
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"SafetyService.GetPolicy": h.policy,
+		"SafetyService.GetPolicy":              h.policy,
+		"SafetyService.RecordSafetyFeedback":   h.feedback,
+		"SafetyService.ClearSafetyFeedback":    h.unmark,
+		"SafetyService.ListSafetyFeedback":     h.feedbackList,
+		"SafetyService.GetSafetyFeedbackStats": h.feedbackStats,
+		"SafetyService.ExportSafetyCorpus":     h.corpus,
+		"SafetyService.ListQuarantinedOutputs": h.quarantine,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

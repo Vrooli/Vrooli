@@ -186,8 +186,14 @@ configurable control set. It is enforced in code, not asserted in prose:
   read from an override. `ApplyOverrides` cannot turn it off.
 - The AI submit edge reviews the source image before a model is admitted, and the
   AI engine reviews **every produced image** regardless of whether the request
-  asked for a scan. A positive minor + sexual verdict fails the job and deletes the
-  output, so the refused bytes never become addressable.
+  asked for a scan. A positive minor + sexual verdict refuses that output; the
+  profile's `on_refusal` decides whether the job fails (`fail_job`, public
+  default) or returns the other variations (`drop_variation`, local default).
+  Refused bytes never appear in `result_refs`, the Library, or the ordinary blob
+  route. When the profile sets `quarantine_hours > 0` they are moved to a
+  private, TTL-bounded quarantine for admin review (see
+  [Quarantined refusals](#quarantined-refusals-admin-review)); when it is 0 they
+  are deleted immediately.
 - The reviewer is **bundled** (`minor_review`, a CPU-only Python sidecar module) and
   is used unless `IMAGE_TOOLS_MINOR_SAFETY_CMD` names a replacement. Its four
   weights are acquired through managed acquisition and scoped by need: the two
@@ -211,41 +217,267 @@ configurable control set. It is enforced in code, not asserted in prose:
 
 #### Reviewer contract
 
+The reviewer is **profile-driven**. `api/internal/safety/profiles.json` is the
+shipped, validated set; `IMAGE_TOOLS_SAFETY_PROFILE` can point at another file
+and `IMAGE_TOOLS_SAFETY_PROFILE_NAME` selects a named profile. The profile is
+resolved once at boot, carried on `Policy`, and sent to the reviewer on every
+request, so the host and the process cannot disagree about a model id or a
+threshold. A malformed or unsafe profile stops the service at boot.
+
 The configured command is parsed without a shell (whitespace splits argv). It
 receives one JSON object on stdin:
 
 ```json
-{"images":[{"media_type":"image/png","base64":"..."}],"strict":false,"assume_sexual":false}
+{
+  "images": [{"media_type": "image/png", "base64": "..."}],
+  "profile": {
+    "schema_version": 1,
+    "name": "local-balanced",
+    "mode": "enforce",
+    "on_refusal": "drop_variation",
+    "classifiers": [
+      {"id": "falconsai-nsfw", "threshold": 0.30, "strict_threshold": 0.10, "input_hw": [224, 224]},
+      {"id": "adamcodd-vit-nsfw", "threshold": 0.80, "strict_threshold": 0.70, "input_hw": [384, 384]}
+    ],
+    "aggregate": "any",
+    "face": {"id": "yunet", "score_threshold": 0.5, "min_px": 40, "crop_margin": 1.35, "max_faces": 16},
+    "age": {"id": "fairface-vit-age", "threshold": 0.20},
+    "second_opinion": {
+      "enabled": true, "min_age": 25, "min_confidence": "medium",
+      "judge_role": "vision.default", "models": ["qwen3-vl:2b", "llava:7b"]
+    },
+    "on_minor_face": "refuse",
+    "on_unassessable": "second_opinion",
+    "max_image_pixels": 128000000,
+    "quarantine_hours": 168,
+    "reviewer_version": "2026-11-23"
+  },
+  "strict": false,
+  "assume_sexual": false
+}
 ```
 
-`strict` and `assume_sexual` are optional hints from the host that can only make the
-review stricter (a lower sexual bar; judge the age finding as if every image were
-sexual, used by calibration probes). A custom reviewer may ignore them.
+`strict` and `assume_sexual` are optional hints from the host that can only make
+the review stricter (a lower sexual bar; judge the age finding as if every image
+were sexual, used by calibration probes). A custom reviewer may ignore them.
 
-and must write one JSON object to stdout:
+It must write one JSON object to stdout. The structured contract is:
 
 ```json
-{"minor":true,"sexual":true,"detail":"classifier: minor + sexual"}
+{
+  "action": "allow|flag|refuse",
+  "reason_code": "clean|sexual_adult|sexual_minor_face|sexual_unassessable",
+  "reason_codes": ["sexual_unassessable"],
+  "minor": true,
+  "sexual": true,
+  "detail": "image 0: sexual (nsfw 0.97) and the subject's age could not be established (0 face(s) found, 0 readable)",
+  "images": [{
+    "nsfw_score": 0.97, "recall_score": 0.88, "sexual": true,
+    "action": "refuse", "reason_code": "sexual_unassessable",
+    "faces_found": 0, "assessed_faces": 0, "max_p_under_20": 0.0,
+    "minor_face": false, "unassessable": true, "refuse": true
+  }],
+  "thresholds": {"falconsai-nsfw": 0.30, "adamcodd-vit-nsfw": 0.80, "age": 0.20},
+  "models": ["falconsai-nsfw", "adamcodd-vit-nsfw", "yunet", "fairface-vit-age"],
+  "reviewer_version": "2026-11-23"
+}
 ```
 
-The bundled reviewer also returns `images[]` (per image: `nsfw_score`, `faces_found`,
-`assessed_faces`, `max_p_under_20`, `sexual`, `minor_face`, `unassessable`, `refuse`,
-and per-face age probabilities) and the `thresholds` it applied. The host records the
-top score and the sexual finding on the job (`result_meta`: `nsfw_score`,
-`safety_review`, `sensitive`, `sensitive_refs`, `sensitive_reason`) and ignores the rest.
+The older aggregate-only shape `{"minor":bool,"sexual":bool,"detail":string}`
+is still accepted and normalized to the structured contract. A reviewer that
+reports per-image findings must report one per image.
 
-A non-zero exit, a timeout (60 s for a custom command, 90 s for the bundled one), or malformed output is an error. The gate
-treats that as "review unavailable" and refuses on a deployment that requires it.
-`SafetyService.GetPolicy` / `image-tools safety policy` reports the resolved
-state — including `NO DETECTOR` when the control is required but unconfigured —
-so discovery never claims a protection that is absent.
+The host records the action, reason codes, max score, evidence JSON, model ids,
+thresholds and reviewer version on the job for **passes and refusals alike**
+(`safety_action`, `safety_reason`, `safety_evidence`, `nsfw_score`,
+`safety_review`). A refused job keeps those `safety_*` keys; success-only output
+references and cost totals are still dropped.
+
+The engine reviews **all variations in one call** (one process and one model
+load per job), then decides:
+
+- `action=allow` — publish.
+- `action=flag` — publish and mark sensitive.
+- `action=refuse` — never publish the refused bytes. With
+  `on_refusal=drop_variation` (local default), only the refused variation is
+  withheld and the others are returned; with `on_refusal=fail_job` (public
+  default), every variation is withheld and the job fails. If every variation is
+  refused, the job fails in either mode. A refused variation is moved to the
+  private quarantine when `quarantine_hours > 0`, otherwise deleted. The ordinary
+  result and blob surfaces never expose it either way.
+- `mode=shadow` — record the would-refuse verdict and mark the output
+  sensitive, but do not delete or fail. It is for local experimentation.
+
+A non-zero exit, a timeout (60 s for a custom command, 90 s for the bundled one),
+or malformed output is a **technical** review failure. It fails closed, is
+`failure_kind=safety_unavailable` (it does not count against the model), and the
+submit edge answers **503 `unavailable`**, not 403. A genuine refusal is
+`failure_kind=refused` and answers 403. `SafetyService.GetPolicy` includes the
+reviewer's live health (configured/available, review/refusal/error counters) in
+its summary, so discovery cannot report a detector that is not running.
+
+#### Changing the reviewer
+
+- **A threshold or model change** is a profile edit (`profiles.json`, or a file
+  named by `IMAGE_TOOLS_SAFETY_PROFILE`). `image-tools safety policy` reports the
+  resolved profile and reviewer health; a malformed profile stops the service.
+- **Adding a classifier** is a classifier entry plus its model in the registry;
+  the host acquires every profile classifier automatically.
+- **Trying a change without enforcing it** is `IMAGE_TOOLS_SAFETY_MODE=shadow`.
+  The job records the would-be refusal (`safety_review=shadow_refused`,
+  `safety_shadow_refs`) and marks the image sensitive, but nothing is deleted.
+- **Recalibrating** runs `scripts/minor-review-eval.py` on labelled faces, and a
+  candidate threshold change should be replayed against the operator-labelled
+  corpus first (`scripts/safety-corpus-replay.py`, see
+  [False-positive corpus and feedback loop](#false-positive-corpus-and-feedback-loop)).
+  The decision logic is pure (`judge_image`), so a threshold experiment needs no
+  model load; the end-to-end probe in [Reviewer calibration](#reviewer-calibration)
+  remains the acceptance test.
+- **Triage** reads the job's `safety_reason` (a reason code, not prose),
+  `safety_evidence` (thresholds/models/per-image scores) and
+  `safety_refused_refs`; the same evidence is retained on failed jobs.
+
+#### Quarantined refusals (admin review)
+
+Refusing an output used to delete it immediately, which made a false-positive
+refusal impossible to inspect. With `quarantine_hours > 0` the engine copies the
+refused bytes to a private `quarantine/<job>/<uuid>.<ext>` key and records the
+reviewer evidence beside them:
+
+- The normal result blob route (`GET /api/v1/blobs/...`) **refuses the entire
+  quarantine namespace**, so a quarantined output is never a result, a Library
+  item, or an Activity thumbnail.
+- The only reader is `GET /api/v1/safety/quarantine/{id}` (add `?download=1` for
+  an attachment). It serves pending, unexpired entries with `Cache-Control:
+  no-store`, `nosniff`, and `noindex`.
+- `SafetyService.ListQuarantinedOutputs` lists the pending entries; the UI shows
+  them in **Activity → Quarantined refusals** with a withhold placeholder. The
+  image is not fetched at all until the operator presses **Reveal image**.
+- A per-entry **Legitimate / Correct / Unsure** action records the feedback case
+  with the original output ref. **Download** saves the bytes. Neither action
+  publishes the image or changes the job result.
+- A janitor purges expired blobs and rows hourly. A purge always deletes the blob
+  before its row; a failed blob delete is retried on the next pass rather than
+  orphaning bytes.
+- Local deployments are **ungated**: the local operator is already the admin.
+  A public/cloud deployment requires `IMAGE_TOOLS_SAFETY_QUARANTINE_TOKEN`; the
+  list RPC and image route reject requests without it, and the shipped public
+  profile sets `quarantine_hours: 0` so refused bytes are not retained at all
+  unless an operator deliberately changes that. If a public deployment sets a
+  positive retention without a token, the service logs the misconfiguration and
+  falls back to immediate deletion.
+
+The profile knobs are `quarantine_hours` (local `168` h, public `0`) and
+`IMAGE_TOOLS_SAFETY_QUARANTINE_HOURS` (override); the admin token is
+`IMAGE_TOOLS_SAFETY_QUARANTINE_TOKEN`. A quarantine write failure never turns a
+refusal into a pass: the engine deletes the original as the fail-closed fallback
+and records `safety_quarantine_error` on the job.
+
+#### False-positive corpus and feedback loop
+
+A refusal is a decision, not a fact. The operator can label any refusal or flag:
+
+- `false_positive` / **legitimate** — the reviewer was wrong (for a refusal,
+  "should not have been refused"; for a flag, "not actually sensitive").
+- `confirmed` — the reviewer was right.
+- `uncertain` — kept out of the false-positive rate.
+
+The judgement is stored with a **snapshot of the reviewer evidence** (thresholds,
+model ids, per-image classifier scores, face sizes and `P(age < 20)`) in
+`safety_feedback`. The feedback record does not copy the image: a refused output
+remains in the separate quarantine (or is gone when quarantine is disabled), a
+sensitive output stays blurred, and no judgement changes a job's stored verdict
+or the sensitive flag. This is calibration data, not an enforcement override.
+
+Surfaces:
+
+```bash
+# Job-level (default) or one variation with --ref:
+image-tools safety feedback <job-id> --label legitimate --note "adult subject"
+image-tools safety mark-legitimate <job-id>          # the common case
+image-tools safety feedback <job-id> --label confirmed
+image-tools safety feedback <job-id> --ref out/a.png --label legitimate
+image-tools safety unmark <job-id>
+
+image-tools safety feedback-list --reason sexual_unassessable
+image-tools safety feedback-stats
+image-tools safety corpus --out corpus.jsonl
+```
+
+The UI exposes the same capture beside a refused/flagged job in **Activity**, and
+**Settings → Reviewer calibration** shows the labelled counts and the
+false-positive rate by reason code and reviewer profile. The Connect surface is
+`SafetyService.RecordSafetyFeedback` / `ClearSafetyFeedback` / `ListSafetyFeedback`
+/ `GetSafetyFeedbackStats` / `ExportSafetyCorpus`.
+
+**Reading the stats.** `false_positive_rate = false_positives / (false_positives +
+confirmed)`; uncertain cases are excluded. The corpus contains only outputs the
+reviewer refused or flagged, so it measures the false-positive rate of reviewed
+content. It is not a random sample of all images and does not estimate precision
+or recall over everything. A reason code or profile with no decisive labels shows
+`—`, not 0%.
+
+**Corpus export.** `image-tools safety corpus` writes JSON Lines. Each line is
+stable and self-contained:
+
+```json
+{
+  "schema_version": 1,
+  "id": 12,
+  "job_id": "…",
+  "output_ref": "out/a.png",
+  "label": "false_positive",
+  "recorded_at": "2026-11-24T01:02:03Z",
+  "note": "adult subject",
+  "actor": "operator",
+  "safety": {
+    "action": "refuse",
+    "reason_code": "sexual_unassessable",
+    "safety_review": "refused",
+    "score": 0.97,
+    "operation": "text_to_image",
+    "model_id": "flux-2-klein-4b",
+    "profile_name": "local-balanced",
+    "reviewer_version": "2026-11-23"
+  },
+  "evidence": { "thresholds": {"…": 0.3}, "images": ["…"] },
+  "finding": { "nsfw_scores": {"falconsai-nsfw": 0.97}, "faces": [{"size_px": 120, "p_under_20": 0.05}] }
+}
+```
+
+`evidence` is the reviewer's whole verdict. `finding` is the one image finding
+when the case names a variation; a job-level case snapshots the finding that
+best explains the verdict (the refused image, the flagged image, or the strongest
+score). Both are objects, not quoted strings.
+
+**Replaying a candidate calibration.** `scripts/safety-corpus-replay.py` re-applies
+the sexual/age decision from the snapshotted scores and face measurements, with no
+models or pixels:
+
+```bash
+python3 scripts/safety-corpus-replay.py --corpus corpus.jsonl
+python3 scripts/safety-corpus-replay.py --corpus corpus.jsonl \
+    --threshold falconsai-nsfw=0.35 --sweep-age 0.15,0.20,0.25,0.30
+```
+
+It reports true/false positives, missed confirmed refusals, the combined error
+rate and the per-reason breakdown at the current or candidate thresholds. A case the reviewer refused is
+compared on the refusal decision; a flagged case is compared on the sexual
+decision, so downgrading `refuse` to `flag` is not counted as a pass. Cases whose
+reason is `sexual_unassessable` are reported separately because the vision second
+opinion is not modelled by the replay, and a flag recorded as `model` (an
+NSFW-capable model produced the output) is excluded from the replay because the
+classifier scores cannot reproduce it.
 
 ### Reviewer calibration
 
 The bundled reviewer (`api/internal/sidecar/py/image_tools_sidecar/minor_review.py`)
 refuses an image when **both** hold: the image is *sexual* and a face in it *appears
 under 20*. It is not proof of age. It is a conservative, measurable screen, and the
-measurements are below so nobody has to trust prose.
+measurements are below so nobody has to trust prose. The thresholds and model ids
+live in `api/internal/safety/profiles.json`; changing a calibration is a profile
+change (plus re-running the eval), not a code change. The numbers here describe the
+shipped `local-balanced` / `public-strict` profiles.
 
 **Pipeline** (CPU only, so a review never takes VRAM from a generation; the face and
 age models load only when the classifier first says "sexual"):
@@ -279,7 +511,9 @@ refuses a sexual image because it found no readable face, the host asks a local 
 model (`vision.default`) the age question with the whole body visible, and clears the
 refusal only when the answer is not flagged under 18, is at apparent age **≥ 25**
 (deliberately above 18, so "about 20" is not treated as evidence) and is not low
-confidence. The call is always local-only (never hosted); if the gateway route cannot
+confidence. The floor and minimum confidence are profile fields
+(`second_opinion.min_age` / `min_confidence`), and `on_unassessable=refuse` skips the
+judge entirely. The call is always local-only (never hosted); if the gateway route cannot
 execute, the same Ollama model is asked directly on loopback
 (`IMAGE_TOOLS_OLLAMA_URL`, `IMAGE_TOOLS_AGE_JUDGE_MODEL`, default `qwen3-vl:2b`,
 falling back to `llava:7b`; the 4B primary needs about 7.4 GB and was not reliable as a

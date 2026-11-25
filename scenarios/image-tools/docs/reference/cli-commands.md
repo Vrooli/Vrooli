@@ -721,7 +721,45 @@ image-tools ops icon_container logo.svg --format icns --sizes 32 --sizes 64 --si
 `image-tools ops list` reports the three operations and lists `ico` and `icns` as
 encodable formats.
 
-## Output contracts
+## Scenario commands — `safety` (policy + reviewer feedback)
+
+`safety policy` reports the resolved Responsible-Use policy. The feedback
+commands label a reviewer refusal or flag for calibration; they never restore a
+deleted output, unblur a sensitive result, or change a stored verdict.
+
+```bash
+image-tools safety policy
+
+# The common correction: the reviewer refused something legitimate.
+image-tools safety mark-legitimate <job-id> --note "adult subject"
+# The alias and the explicit form are equivalent:
+image-tools safety feedback <job-id> --label legitimate
+image-tools safety feedback <job-id> --label confirmed
+image-tools safety feedback <job-id> --label uncertain
+# Label one variation of a multi-image job.
+image-tools safety feedback <job-id> --ref out/a.png --label legitimate
+image-tools safety unmark <job-id>
+
+image-tools safety feedback-list [--label legitimate|confirmed|uncertain] \
+    [--reason sexual_unassessable] [--model <id>] [--operation <op>] [--job <id>]
+image-tools safety feedback-stats [--since 2026-11-01T00:00:00Z]
+image-tools safety corpus [--out corpus.jsonl] [--since <rfc3339>] [--label <label>]
+image-tools safety quarantine [--limit N] [--offset N]
+```
+
+`safety quarantine` lists refused outputs retained for bounded admin review. The
+bytes are never served by the ordinary blob route; use
+`GET /api/v1/safety/quarantine/<id>?download=1` (append
+`X-Image-Tools-Admin-Token` on a public deployment). The Activity page shows the
+same queue with an explicit reveal. Label an entry with
+`safety feedback <job> --ref <original_ref> --label legitimate`.
+
+`feedback-stats` reports `false_positives / (false_positives + confirmed)` overall,
+by reason code and by reviewer profile. The corpus export is JSON Lines; replay a
+candidate calibration with `scripts/safety-corpus-replay.py` (see
+[`SECURITY.md`](../internal/SECURITY.md#false-positive-corpus-and-feedback-loop)).
+
+
 
 Every scenario command should render through one of three human
 contracts. Proto-backed commands should use `cliapp.RenderProtoList`

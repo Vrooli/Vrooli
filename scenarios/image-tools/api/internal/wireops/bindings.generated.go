@@ -232,6 +232,16 @@ func bindParams(operation string, pb *opsv1.OpParams, p *ops.Params) bool {
 			p.Normalize = v.GetNormalize()
 		}
 		return true
+	case "print_prep":
+		if v := pb.GetPrintPrep(); v != nil {
+			p.WidthIn = v.GetWidthIn()
+			p.HeightIn = v.GetHeightIn()
+			p.DPI = int(v.GetDpi())
+			p.InkMode = v.GetInkMode()
+			p.InkThreshold = v.GetThreshold()
+			p.Gravity = v.GetGravity()
+		}
+		return true
 	case "rasterize":
 		if v := pb.GetRasterize(); v != nil {
 			p.Width = int(v.GetWidth())

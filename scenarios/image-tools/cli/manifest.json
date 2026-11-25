@@ -1505,7 +1505,7 @@
     },
     {
       "name": "safety",
-      "description": "Inspect the Responsible-Use deployment policy",
+      "description": "Inspect the Responsible-Use deployment policy and label reviewer verdicts",
       "commands": [
         {
           "name": "policy",
@@ -1520,6 +1520,258 @@
             "run_eligible": true,
             "permissions": [
               "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "feedback",
+          "aliases": [
+            "mark-legitimate"
+          ],
+          "description": "Label a reviewer refusal or flag as legitimate (default), confirmed or uncertain; --ref names one variation",
+          "positionals": [
+            {
+              "name": "job_id",
+              "required": true,
+              "description": "Reviewed job id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "label",
+              "description": "Judgement of the reviewer's verdict",
+              "values": [
+                "legitimate",
+                "confirmed",
+                "uncertain"
+              ],
+              "default": "legitimate",
+              "bind": {
+                "field": "label"
+              }
+            },
+            {
+              "name": "ref",
+              "description": "Output reference when the judgement applies to one variation",
+              "bind": {
+                "field": "output_ref",
+                "kind": "raw_string"
+              }
+            },
+            {
+              "name": "note",
+              "description": "Short reason for the judgement (at most 1000 characters)",
+              "bind": {
+                "field": "note"
+              }
+            },
+            {
+              "name": "actor",
+              "description": "Who recorded the judgement",
+              "default": "operator",
+              "bind": {
+                "field": "actor"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SafetyService",
+            "method": "RecordSafetyFeedback"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "unmark",
+          "description": "Remove a reviewer-feedback judgement for a job output",
+          "positionals": [
+            {
+              "name": "job_id",
+              "required": true,
+              "description": "Reviewed job id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "ref",
+              "description": "Output reference when the judgement applies to one variation",
+              "bind": {
+                "field": "output_ref",
+                "kind": "raw_string"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SafetyService",
+            "method": "ClearSafetyFeedback"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "feedback-list",
+          "description": "List labelled reviewer verdicts newest first",
+          "flags": [
+            {
+              "name": "label",
+              "description": "Filter by label",
+              "values": [
+                "legitimate",
+                "confirmed",
+                "uncertain"
+              ],
+              "bind": {
+                "field": "label"
+              }
+            },
+            {
+              "name": "reason",
+              "description": "Filter by reviewer reason code",
+              "bind": {
+                "field": "reason_code"
+              }
+            },
+            {
+              "name": "model",
+              "description": "Filter by model id",
+              "bind": {
+                "field": "model_id"
+              }
+            },
+            {
+              "name": "operation",
+              "description": "Filter by operation"
+            },
+            {
+              "name": "job",
+              "description": "Filter to one reviewed job id",
+              "bind": {
+                "field": "job_id"
+              }
+            },
+            {
+              "name": "limit",
+              "description": "Maximum cases to return (default 100, max 1000)"
+            },
+            {
+              "name": "offset",
+              "description": "Skip this many cases"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SafetyService",
+            "method": "ListSafetyFeedback"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "feedback-stats",
+          "description": "Summarise the labelled reviewer corpus: false-positive rate by reason and profile",
+          "flags": [
+            {
+              "name": "since",
+              "description": "Only cases recorded at or after this RFC3339 time"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SafetyService",
+            "method": "GetSafetyFeedbackStats"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "quarantine",
+          "description": "List refused outputs retained for bounded admin review (local is ungated)",
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum entries to return (default 100, max 500)"
+            },
+            {
+              "name": "offset",
+              "description": "Skip this many entries"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SafetyService",
+            "method": "ListQuarantinedOutputs"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "corpus",
+          "description": "Export the labelled reviewer corpus as JSON Lines for calibration",
+          "flags": [
+            {
+              "name": "since",
+              "description": "Only cases recorded at or after this RFC3339 time"
+            },
+            {
+              "name": "label",
+              "description": "Filter by label",
+              "values": [
+                "legitimate",
+                "confirmed",
+                "uncertain"
+              ],
+              "bind": {
+                "field": "label"
+              }
+            },
+            {
+              "name": "limit",
+              "description": "Maximum cases to export (default 5000, max 20000)"
+            },
+            {
+              "name": "out",
+              "description": "Write the JSON Lines to this path instead of stdout",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SafetyService",
+            "method": "ExportSafetyCorpus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
             ]
           }
         }

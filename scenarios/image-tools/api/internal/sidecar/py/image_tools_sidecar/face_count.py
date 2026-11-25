@@ -29,17 +29,23 @@ import sys
 from typing import Any, Dict, List, Optional, Sequence
 
 from . import _common
-from .minor_review import EXIT_MISSING_WEIGHTS, FACE_SCORE_THRESHOLD, MAX_IMAGE_PIXELS, MODEL_FACES
+from .minor_review import (
+    EXIT_MISSING_WEIGHTS,
+    FACE_SCORE_THRESHOLD,
+    MAX_IMAGE_PIXELS,
+    MODEL_FACES,
+    ReviewProfile,
+)
 
 
-def _decode(np, Image, item: Dict[str, Any], index: int):
+def _decode(np, Image, item: Dict[str, Any], index: int, max_pixels: int = MAX_IMAGE_PIXELS):
     from PIL import ImageOps
 
     try:
         raw = base64.b64decode(item["base64"], validate=True)
         image = Image.open(io.BytesIO(raw))
-        if image.width * image.height > MAX_IMAGE_PIXELS:
-            raise ValueError(f"image exceeds {MAX_IMAGE_PIXELS} pixels")
+        if image.width * image.height > max_pixels:
+            raise ValueError(f"image exceeds {max_pixels} pixels")
         return ImageOps.exif_transpose(image).convert("RGB")
     except Exception as exc:  # noqa: BLE001
         _common.fail(f"face_count: image {index} is not a decodable raster: {exc}", code=6)
@@ -49,14 +55,16 @@ def _decode(np, Image, item: Dict[str, Any], index: int):
 def count_faces(request: Dict[str, Any], models_root: str, detector=None) -> Dict[str, List[int]]:
     """Count the faces of every image in the request; ``detector`` is injectable for tests."""
     np, _ort, Image = _common.require_deps()
+    profile = ReviewProfile(request.get("profile"))
     images = request.get("images")
     if not isinstance(images, list) or not images:
         _common.fail("face_count: request carries no images", code=2)
-    model_dir = os.path.join(models_root, "models", MODEL_FACES)
+    model_id = profile.face_id or MODEL_FACES
+    model_dir = os.path.join(models_root, "models", model_id)
     if detector is None:
         if not os.path.isdir(model_dir):
             _common.fail(
-                f"face_count: model weights are not installed: missing-weights={MODEL_FACES}",
+                f"face_count: model weights are not installed: missing-weights={model_id}",
                 code=EXIT_MISSING_WEIGHTS,
             )
         detector = _common.make_session(_common.resolve_onnx_path(model_dir))
@@ -64,8 +72,8 @@ def count_faces(request: Dict[str, Any], models_root: str, detector=None) -> Dic
 
     counts = []
     for index, item in enumerate(images):
-        image = _decode(np, Image, item, index)
-        counts.append(len(face_restore.detect_faces(np, Image, detector, image, FACE_SCORE_THRESHOLD)))
+        image = _decode(np, Image, item, index, profile.max_image_pixels)
+        counts.append(len(face_restore.detect_faces(np, Image, detector, image, profile.face_score_threshold or FACE_SCORE_THRESHOLD)))
     return {"counts": counts}
 
 

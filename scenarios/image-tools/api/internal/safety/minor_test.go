@@ -141,13 +141,13 @@ func TestNewBundledReviewerRequiresEveryLocation(t *testing.T) {
 }
 
 func TestBundledReviewerModelsAreTheRegistryIDsTheSidecarReads(t *testing.T) {
-	// minor_review.CLASSIFIER_MODELS / ESCALATION_MODELS: the classifier runs on every
-	// output, the face and age models only when it calls one sexual.
-	if want := []string{"falconsai-nsfw", "adamcodd-vit-nsfw"}; !slices.Equal(BundledReviewerModels, want) {
-		t.Fatalf("BundledReviewerModels = %v, want %v", BundledReviewerModels, want)
+	// The profile is the single source for the classifier and escalation ids.
+	profile := DefaultReviewProfile(TierLocal)
+	if want := []string{"falconsai-nsfw", "adamcodd-vit-nsfw"}; !slices.Equal(profile.ClassifierIDs(), want) {
+		t.Fatalf("classifier ids = %v, want %v", profile.ClassifierIDs(), want)
 	}
-	if want := []string{"yunet", "fairface-vit-age"}; !slices.Equal(BundledReviewerEscalationModels, want) {
-		t.Fatalf("BundledReviewerEscalationModels = %v, want %v", BundledReviewerEscalationModels, want)
+	if want := []string{"yunet", "fairface-vit-age"}; !slices.Equal(profile.EscalationIDs(), want) {
+		t.Fatalf("escalation ids = %v, want %v", profile.EscalationIDs(), want)
 	}
 }
 

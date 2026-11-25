@@ -902,6 +902,11 @@
             "validated"
           ],
           "completion": "required"
+        },
+        {
+          "path": "guides/book-art.md",
+          "docType": "guide",
+          "maturity": "active"
         }
       ]
     },

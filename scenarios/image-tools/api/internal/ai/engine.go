@@ -45,7 +45,7 @@ type BlobStore interface {
 
 // ScanVerdict is what an injected output scanner answers. NSFW is advisory and
 // only surfaces when a caller asked for it; HardRefusal is the one
-// non-configurable outcome and always fails the job.
+// non-configurable outcome and always fails the job (unless Shadow is set).
 type ScanVerdict struct {
 	NSFW        bool
 	Score       float64
@@ -53,6 +53,58 @@ type ScanVerdict struct {
 	// Detail is the reviewer's one-line account of what it measured (never the
 	// image). It is recorded on the job so a pass is auditable, not just a refusal.
 	Detail string
+	// Action is the reviewer's structured verdict: allow, flag or refuse. Empty
+	// derives from HardRefusal/NSFW so a simple scanner keeps working.
+	Action string
+	// ReasonCode is the machine-readable why (e.g. sexual_minor_face).
+	ReasonCode string
+	// Evidence is the reviewer's JSON evidence (thresholds, model ids, per-image
+	// scores). It is recorded on the job for passes and refusals alike.
+	Evidence string
+	// Finding is this output's per-image finding JSON, when the reviewer reports
+	// one. A quarantined output keeps it beside the bytes for review.
+	Finding string
+	// Shadow records a would-refuse verdict without deleting or failing.
+	Shadow bool
+	// DropVariation deletes only this refused output and returns the others.
+	DropVariation bool
+}
+
+// ActionOrDerived fills Action for a scanner that did not set it.
+func (v ScanVerdict) ActionOrDerived() string {
+	if v.Action != "" {
+		return v.Action
+	}
+	switch {
+	case v.HardRefusal != "":
+		return "refuse"
+	case v.NSFW:
+		return "flag"
+	default:
+		return "allow"
+	}
+}
+
+// ReasonCodeOrDerived fills ReasonCode for a simple scanner.
+func (v ScanVerdict) ReasonCodeOrDerived() string {
+	if v.ReasonCode != "" {
+		return v.ReasonCode
+	}
+	switch v.ActionOrDerived() {
+	case "refuse":
+		return "sexual_minor_face"
+	case "flag":
+		return "sexual_adult"
+	default:
+		return "clean"
+	}
+}
+
+// ReviewBatch is one review call over every variation. Batch-level Evidence is
+// the reviewer's structured record (thresholds/models/version), stored once.
+type ReviewBatch struct {
+	Verdicts []ScanVerdict
+	Evidence string
 }
 
 // ReviewSource describes what produced the bytes under review, so the reviewer can
@@ -77,7 +129,30 @@ func ReviewSourceFromContext(ctx context.Context) ReviewSource {
 
 // OutputScanner classifies generated image bytes. Both hooks are injected so
 // the ai package does not depend on analysis or safety and stays unit-testable.
-type OutputScanner func(ctx context.Context, img []byte) (ScanVerdict, error)
+// AutoScan is one image; ReviewOutput is the whole variation batch so a reviewer
+// loads its models and starts one process per job, not one per variation.
+type ImageScanner func(ctx context.Context, img []byte) (ScanVerdict, error)
+
+// OutputScanner reviews every produced variation in one call.
+type OutputScanner func(ctx context.Context, images [][]byte) (ReviewBatch, error)
+
+// QuarantineItem is one refused output handed to the quarantine sink. It carries
+// the reviewer evidence so an admin can judge the refusal without the job row.
+type QuarantineItem struct {
+	JobID        string
+	OriginalRef  string
+	ReasonCode   string
+	SafetyReview string
+	Score        float64
+	Evidence     string
+	Finding      string
+	MIME         string
+}
+
+// QuarantineFunc copies a refused output into a private, time-bounded store and
+// returns its quarantine key. Nil means "delete the refused bytes" (the
+// deployment chose no retention).
+type QuarantineFunc func(ctx context.Context, item QuarantineItem, data []byte) (string, error)
 
 // PosePreprocessor derives an OpenPose bone image from a pose source: a photo, a
 // line-art figure or one cell of a chart. It runs inside the already-admitted AI
@@ -156,11 +231,14 @@ type Deps struct {
 	AdaptersRoot string
 	// AutoScan reports the advisory NSFW classification when a job requests it.
 	// Optional; nil disables the advisory hook.
-	AutoScan OutputScanner
+	AutoScan ImageScanner
 	// ReviewOutput runs on every generated image regardless of what the caller
 	// asked for, and fails the job when it returns a HardRefusal. A deployment
 	// that serves other people wires this; a local install may leave it nil.
 	ReviewOutput OutputScanner
+	// Quarantine retains a refused output for bounded admin review. Nil deletes
+	// the refused bytes immediately.
+	Quarantine QuarantineFunc
 	// ReviewModels are the registry ids ReviewOutput reads from disk. The engine
 	// makes them present (governed acquisition, like any model) and holds their use
 	// lease around the review, so adaptive offload cannot remove a weight between the
@@ -673,9 +751,18 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 		if runErr != nil && (gatewayEvidenceObserved || len(routeEvidence) > 0) {
 			// A failed job keeps exactly its routing record and the gateway's
 			// partial execution evidence; never output, cost or admission facts.
-			failed := make(map[string]string, len(routeEvidence)+1)
+			failed := make(map[string]string, len(routeEvidence)+len(result.Meta)+1)
 			for k, v := range routeEvidence {
 				failed[k] = v
+			}
+			// The reviewer's evidence is what triage and calibration read after a
+			// refusal, so it must survive this narrowing too. Replace the result
+			// wholesale only for the approved keys; a refused job otherwise loses
+			// the very evidence that explains it.
+			for k, v := range result.Meta {
+				if strings.HasPrefix(k, "safety_") || k == MetaNSFWScore {
+					failed[k] = v
+				}
 			}
 			if gatewayEvidenceObserved {
 				for index := nextVariation; index < requestedVariations; index++ {
@@ -905,7 +992,6 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 			meta["route_cost_over_cap"] = "true"
 		}
 	}
-	primary := outKeys[0]
 	// The hard-refusal review is unconditional when it is configured: it must not
 	// depend on a request flag, because the caller cannot opt out of the one
 	// non-configurable boundary. The advisory NSFW scan stays opt-in.
@@ -931,15 +1017,26 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	}
 	if reviewRequired {
 		emit(92, "reviewing output for the non-configurable safety boundary")
-		report, err := e.reviewOutputs(ctx, job.ID, outKeys, ReviewSource{NSFWCapable: model.CapabilityLabels.NSFWCapable}, emit)
-		if err != nil {
-			return internaljobs.Result{}, err
-		}
+		report, allowed, err := e.reviewOutputs(ctx, job.ID, outKeys, ReviewSource{NSFWCapable: model.CapabilityLabels.NSFWCapable}, emit)
 		if meta == nil {
 			meta = map[string]string{}
 		}
 		report.addTo(meta)
+		if err != nil {
+			if report.action == "unavailable" {
+				meta["safety_warning"] = "the safety reviewer was unavailable; the output was removed and the job failed closed"
+			}
+			return internaljobs.Result{Meta: meta}, err
+		}
+		outKeys = allowed
+		if len(outKeys) == 0 {
+			return internaljobs.Result{Meta: meta}, fmt.Errorf("%w: no variation passed the safety review", ErrSafetyUnavailable)
+		}
+		if report.action == "partial_refused" {
+			meta["safety_warning"] = "one or more variations were refused and removed; the remaining variations are below"
+		}
 	}
+	primary := outKeys[0]
 	if advisoryScan {
 		emit(96, "auto-scanning output for NSFW content")
 		if msg := e.autoScan(ctx, primary); msg != "" {
@@ -1363,47 +1460,148 @@ func (e *Engine) reviewModelIDs(nsfwCapable bool) []string {
 // HardRefusalError is returned when an output review identifies the one class
 // this project refuses to produce. It is a terminal job failure, not a warning:
 // the artifact is deleted before the error is returned.
-type HardRefusalError struct{ Reason string }
+type HardRefusalError struct {
+	Reason     string
+	ReasonCode string
+}
 
-func (e *HardRefusalError) Error() string { return "ai: output refused: " + e.Reason }
+func (e *HardRefusalError) Error() string {
+	if e.ReasonCode != "" {
+		return "ai: output refused (" + e.ReasonCode + "): " + e.Reason
+	}
+	return "ai: output refused: " + e.Reason
+}
 
 // FailureKind marks the refusal as a policy decision, not a fault of the model.
 func (e *HardRefusalError) FailureKind() internaljobs.FailureKind { return internaljobs.FailureRefused }
 
+// ErrSafetyUnavailable is the technical-review failure: the boundary failed
+// closed, but the model did nothing wrong. It is retryable in principle and is
+// deliberately a distinct job failure kind.
+var ErrSafetyUnavailable = internaljobs.Kinded(internaljobs.FailureSafetyUnavailable, errors.New("ai: safety review unavailable"))
+
 // Job result_meta keys the output review records. `sensitive` is the flag the API
-// and UI act on (blur, tap to reveal); the rest make a pass auditable.
+// and UI act on (blur, tap to reveal); the rest make a pass or refusal auditable.
+// The vocabulary lives in internal/jobs so the feedback surface reads the same
+// constants the engine writes.
 const (
-	MetaSensitive         = "sensitive"
-	MetaSensitiveRefs     = "sensitive_refs"
-	MetaSensitiveReason   = "sensitive_reason"
-	MetaNSFWScore         = "nsfw_score"
-	MetaSafetyReview      = "safety_review"
-	MetaSafetyReviewNotes = "safety_review_detail"
+	MetaSensitive             = internaljobs.MetaSensitive
+	MetaSensitiveRefs         = internaljobs.MetaSensitiveRefs
+	MetaSensitiveReason       = internaljobs.MetaSensitiveReason
+	MetaNSFWScore             = internaljobs.MetaNSFWScore
+	MetaSafetyReview          = internaljobs.MetaSafetyReview
+	MetaSafetyReviewNotes     = internaljobs.MetaSafetyReviewNotes
+	MetaSafetyAction          = internaljobs.MetaSafetyAction
+	MetaSafetyReason          = internaljobs.MetaSafetyReason
+	MetaSafetyEvidence        = internaljobs.MetaSafetyEvidence
+	MetaSafetyReviewedRefs    = internaljobs.MetaSafetyReviewedRefs
+	MetaSafetyAllowedRefs     = internaljobs.MetaSafetyAllowedRefs
+	MetaSafetyRefusedRefs     = internaljobs.MetaSafetyRefusedRefs
+	MetaSafetyShadowRefs      = internaljobs.MetaSafetyShadowRefs
+	MetaSafetyQuarantineRefs  = internaljobs.MetaSafetyQuarantineRefs
+	MetaSafetyQuarantineError = internaljobs.MetaSafetyQuarantineError
 )
 
 // reviewReport is what the mandatory review learned about the produced outputs.
 type reviewReport struct {
+	// action is the aggregate outcome: allow, flag, refuse, partial_refused,
+	// shadow_refused, or unavailable.
+	action    string
 	sensitive []string
 	// reasons records why outputs were flagged: "classifier" (the output scored as
 	// sexual) and/or "model" (an NSFW-capable model produced it, so every output of
 	// that model is treated as sensitive whatever the classifier said).
-	reasons  []string
+	reasons []string
+	// codes are the machine-readable reason codes (safety_reason).
+	codes    []string
 	maxScore float64
 	details  []string
+	evidence string
+	// reviewed is every ref in the order the reviewer saw it, so a per-output
+	// finding can be mapped back to the blob that produced it.
+	reviewed []string
+	refused  []string
+	shadow   []string
+	allowed  []string
+	// quarantined holds the private keys that retain refused outputs for
+	// bounded admin review; quarantineErrors records a failed retention.
+	quarantined      []string
+	quarantineErrors []string
 }
 
-// addTo records the review on the job's result meta. A refusal never reaches here
-// (the job fails and the bytes are deleted), so the record always reads "passed".
+// addTo records the review on the job's result meta. It is called for passes,
+// queued shadow refusals, and refusals that fail the job.
 func (r reviewReport) addTo(meta map[string]string) {
-	meta[MetaSafetyReview] = "passed"
+	action := r.action
+	if action == "" {
+		switch {
+		case len(r.refused) > 0 && len(r.allowed) == 0:
+			action = "refuse"
+		case len(r.refused) > 0:
+			action = "partial_refused"
+		case len(r.shadow) > 0:
+			action = "shadow_refused"
+		case len(r.sensitive) > 0:
+			action = "flag"
+		default:
+			action = "allow"
+		}
+	}
+	meta[MetaSafetyAction] = action
+	meta[MetaSafetyReview] = reviewStatus(action)
 	meta[MetaNSFWScore] = strconv.FormatFloat(r.maxScore, 'f', 4, 64)
 	if len(r.details) > 0 {
 		meta[MetaSafetyReviewNotes] = strings.Join(r.details, " | ")
+	}
+	if len(r.codes) > 0 {
+		meta[MetaSafetyReason] = strings.Join(r.codes, ",")
+	} else if action == "flag" && slices.Contains(r.reasons, "model") {
+		meta[MetaSafetyReason] = "model"
+	} else if action == "allow" || action == "flag" {
+		meta[MetaSafetyReason] = "clean"
+	}
+	if r.evidence != "" {
+		meta[MetaSafetyEvidence] = r.evidence
+	}
+	if len(r.reviewed) > 0 {
+		meta[MetaSafetyReviewedRefs] = strings.Join(r.reviewed, ",")
+	}
+	if len(r.allowed) > 0 {
+		meta[MetaSafetyAllowedRefs] = strings.Join(r.allowed, ",")
+	}
+	if len(r.refused) > 0 {
+		meta[MetaSafetyRefusedRefs] = strings.Join(r.refused, ",")
+	}
+	if len(r.shadow) > 0 {
+		meta[MetaSafetyShadowRefs] = strings.Join(r.shadow, ",")
+	}
+	if len(r.quarantined) > 0 {
+		meta[MetaSafetyQuarantineRefs] = strings.Join(r.quarantined, ",")
+	}
+	if len(r.quarantineErrors) > 0 {
+		meta[MetaSafetyQuarantineError] = strings.Join(r.quarantineErrors, " | ")
 	}
 	if len(r.sensitive) > 0 {
 		meta[MetaSensitive] = "true"
 		meta[MetaSensitiveRefs] = strings.Join(r.sensitive, ",")
 		meta[MetaSensitiveReason] = strings.Join(r.reasons, ",")
+	}
+}
+
+func reviewStatus(action string) string {
+	switch action {
+	case "refuse":
+		return "refused"
+	case "partial_refused":
+		return "partial_refused"
+	case "shadow_refused":
+		return "shadow_refused"
+	case "flag":
+		return "flagged"
+	case "unavailable":
+		return "unavailable"
+	default:
+		return "passed"
 	}
 }
 
@@ -1414,6 +1612,24 @@ func (r *reviewReport) flag(key, reason string) {
 	}
 	if !slices.Contains(r.reasons, reason) {
 		r.reasons = append(r.reasons, reason)
+	}
+}
+
+// code records a machine-readable reason once. "clean" is implied by an empty
+// reason list, so it is not carried alongside a real refusal/flag.
+func (r *reviewReport) code(code string) {
+	if code == "" || code == "clean" {
+		return
+	}
+	if !slices.Contains(r.codes, code) {
+		r.codes = append(r.codes, code)
+	}
+}
+
+func (r *reviewReport) detail(detail string) {
+	detail = strings.TrimSpace(detail)
+	if detail != "" && !slices.Contains(r.details, detail) {
+		r.details = append(r.details, detail)
 	}
 }
 
@@ -1457,11 +1673,14 @@ func (e *Engine) holdModels(ctx context.Context, jobID string, ids []string, pur
 	return release, nil
 }
 
-// reviewOutputs runs the configured review on every produced variation. Any
-// review failure deletes the artifacts: a deployment that promised the boundary
-// cannot leave unreviewed bytes addressable because its classifier crashed.
-func (e *Engine) reviewOutputs(ctx context.Context, jobID string, keys []string, source ReviewSource, emit func(int, string)) (reviewReport, error) {
+// reviewOutputs runs the configured review on every produced variation in one
+// reviewer call. It returns the keys that remain allowed. A technical failure
+// deletes the unreviewed artifacts (fail closed) and is classified as
+// ErrSafetyUnavailable so it does not count against the model. A genuine refusal
+// is classified as a policy refusal.
+func (e *Engine) reviewOutputs(ctx context.Context, jobID string, keys []string, source ReviewSource, emit func(int, string)) (reviewReport, []string, error) {
 	var report reviewReport
+	report.reviewed = slices.Clone(keys)
 	// The model work is finished; the review is CPU work plus a local vision
 	// question. Drop the job's compute claims first so a local vision model can be
 	// admitted while the review runs (the manager still owns and releases the
@@ -1473,7 +1692,10 @@ func (e *Engine) reviewOutputs(ctx context.Context, jobID string, keys []string,
 	}
 	release, err := e.holdReviewModels(ctx, jobID, e.reviewModelIDs(source.NSFWCapable), emit)
 	if err != nil {
-		return report, errors.Join(err, e.deleteOutputs(ctx, keys))
+		report.action = "unavailable"
+		report.code("weights_missing")
+		report.detail(err.Error())
+		return report, nil, errors.Join(fmt.Errorf("%w: %w", ErrSafetyUnavailable, err), e.deleteOutputs(ctx, keys))
 	}
 	releases := []func(){release}
 	defer func() {
@@ -1482,51 +1704,156 @@ func (e *Engine) reviewOutputs(ctx context.Context, jobID string, keys []string,
 		}
 	}()
 	ctx = WithReviewSource(ctx, source)
+
+	// Read every variation before the single review call, so one process/model
+	// load covers the whole job and the reviewer can measure the batch together.
+	images := make([][]byte, 0, len(keys))
+	mimes := make([]string, 0, len(keys))
 	for _, key := range keys {
-		rc, _, err := e.deps.Store.Get(ctx, key)
+		rc, mime, err := e.deps.Store.Get(ctx, key)
 		if err != nil {
-			return report, errors.Join(fmt.Errorf("ai: read output for safety review: %w", err), e.deleteOutputs(ctx, keys))
+			report.action = "unavailable"
+			report.code("reviewer_unavailable")
+			report.detail(err.Error())
+			return report, nil, errors.Join(fmt.Errorf("%w: ai: read output for safety review: %w", ErrSafetyUnavailable, err), e.deleteOutputs(ctx, keys))
 		}
 		// Bound the read: a provider that produced an oversized file must not turn
 		// the mandatory review into an unbounded allocation.
 		data, readErr := io.ReadAll(io.LimitReader(rc, maxReviewBytes+1))
 		closeErr := rc.Close()
 		if readErr != nil || closeErr != nil {
-			return report, errors.Join(fmt.Errorf("ai: read output for safety review: %w", errors.Join(readErr, closeErr)), e.deleteOutputs(ctx, keys))
+			report.action = "unavailable"
+			report.code("reviewer_unavailable")
+			report.detail(errors.Join(readErr, closeErr).Error())
+			return report, nil, errors.Join(fmt.Errorf("%w: ai: read output for safety review: %w", ErrSafetyUnavailable, errors.Join(readErr, closeErr)), e.deleteOutputs(ctx, keys))
 		}
 		if len(data) > maxReviewBytes {
-			return report, errors.Join(fmt.Errorf("ai: output exceeds the %d-byte review limit", maxReviewBytes), e.deleteOutputs(ctx, keys))
+			err := fmt.Errorf("output exceeds the %d-byte review limit", maxReviewBytes)
+			report.action = "unavailable"
+			report.code("reviewer_unavailable")
+			report.detail(err.Error())
+			return report, nil, errors.Join(fmt.Errorf("%w: ai: %w", ErrSafetyUnavailable, err), e.deleteOutputs(ctx, keys))
 		}
-		verdict, err := e.deps.ReviewOutput(ctx, data)
-		var missing *ReviewWeightsMissing
+		images = append(images, data)
+		mimes = append(mimes, mime)
+	}
+
+	batch, err := e.deps.ReviewOutput(ctx, images)
+	var missing *ReviewWeightsMissing
+	if errors.As(err, &missing) {
+		// The classifier called an output sexual and the face/age weights are not
+		// installed (or were offloaded): acquire exactly those, once.
+		extra, holdErr := e.holdReviewModels(ctx, jobID, missing.IDs, emit)
+		if holdErr != nil {
+			report.action = "unavailable"
+			report.code("weights_missing")
+			report.detail(holdErr.Error())
+			return report, nil, errors.Join(fmt.Errorf("%w: %w", ErrSafetyUnavailable, holdErr), e.deleteOutputs(ctx, keys))
+		}
+		releases = append(releases, extra)
+		batch, err = e.deps.ReviewOutput(ctx, images)
+	}
+	if err != nil {
+		report.action = "unavailable"
 		if errors.As(err, &missing) {
-			// The classifier called this output sexual and the face/age weights are
-			// not installed (or were offloaded): acquire exactly those, once.
-			extra, holdErr := e.holdReviewModels(ctx, jobID, missing.IDs, emit)
-			if holdErr != nil {
-				return report, errors.Join(holdErr, e.deleteOutputs(ctx, keys))
-			}
-			releases = append(releases, extra)
-			verdict, err = e.deps.ReviewOutput(ctx, data)
+			report.code("weights_missing")
+		} else {
+			report.code("reviewer_unavailable")
 		}
-		if err != nil {
-			return report, errors.Join(fmt.Errorf("ai: required output review failed: %w", err), e.deleteOutputs(ctx, keys))
-		}
-		if verdict.HardRefusal != "" {
-			return report, errors.Join(&HardRefusalError{Reason: verdict.HardRefusal}, e.deleteOutputs(ctx, keys))
-		}
+		report.detail(err.Error())
+		return report, nil, errors.Join(fmt.Errorf("%w: ai: required output review failed: %w", ErrSafetyUnavailable, err), e.deleteOutputs(ctx, keys))
+	}
+	if len(batch.Verdicts) != len(keys) {
+		err := fmt.Errorf("reviewer answered for %d of %d outputs", len(batch.Verdicts), len(keys))
+		report.action = "unavailable"
+		report.code("reviewer_invalid_output")
+		report.detail(err.Error())
+		return report, nil, errors.Join(fmt.Errorf("%w: ai: %w", ErrSafetyUnavailable, err), e.deleteOutputs(ctx, keys))
+	}
+	report.evidence = batch.Evidence
+
+	refusalReason := ""
+	refusalCode := ""
+	failJob := false
+	for i, verdict := range batch.Verdicts {
+		key := keys[i]
+		action := verdict.ActionOrDerived()
+		reasonCode := verdict.ReasonCodeOrDerived()
+		report.code(reasonCode)
 		report.maxScore = max(report.maxScore, verdict.Score)
-		if verdict.NSFW {
+		report.detail(verdict.Detail)
+		switch action {
+		case "refuse":
+			if verdict.Shadow {
+				// Shadow mode records the verdict and protects the UI with the
+				// sensitive flag, but does not delete or fail. It is local-only.
+				report.shadow = append(report.shadow, key)
+				report.allowed = append(report.allowed, key)
+				report.flag(key, "shadow")
+				report.code("shadow_" + reasonCode)
+				// Leave the case so the model-produced reason is also recorded; the
+				// shadow verdict already protects the UI with the sensitive flag.
+				break
+			}
+			if refusalReason == "" {
+				refusalReason = verdict.HardRefusal
+				if strings.TrimSpace(refusalReason) == "" {
+					refusalReason = verdict.Detail
+				}
+				if strings.TrimSpace(refusalReason) == "" {
+					refusalReason = "the reviewer refused this output"
+				}
+				refusalCode = reasonCode
+			}
+			report.refused = append(report.refused, key)
+			if qRef, qErr := e.quarantineRefused(ctx, jobID, key, verdict, mimes[i], images[i]); qErr != nil {
+				report.quarantineErrors = append(report.quarantineErrors, key+": "+qErr.Error())
+				report.detail("quarantine failed for " + key + ": " + qErr.Error())
+			} else if qRef != "" {
+				report.quarantined = append(report.quarantined, qRef)
+			}
+			if verdict.DropVariation {
+				if err := e.deleteOutputs(ctx, []string{key}); err != nil {
+					report.action = "partial_refused"
+					return report, report.allowed, errors.Join(err, e.deleteOutputs(ctx, keys))
+				}
+				continue
+			}
+			failJob = true
+		case "flag":
 			report.flag(key, "classifier")
+			report.allowed = append(report.allowed, key)
+		default:
+			report.allowed = append(report.allowed, key)
 		}
 		if source.NSFWCapable {
 			report.flag(key, "model")
 		}
-		if verdict.Detail != "" {
-			report.details = append(report.details, verdict.Detail)
-		}
 	}
-	return report, nil
+
+	if failJob {
+		report.action = "refuse"
+		report.allowed = nil
+		return report, nil, errors.Join(&HardRefusalError{Reason: refusalReason, ReasonCode: refusalCode}, e.deleteOutputs(ctx, keys))
+	}
+	if len(report.refused) > 0 && len(report.allowed) == 0 {
+		report.action = "refuse"
+		return report, nil, errors.Join(&HardRefusalError{Reason: refusalReason, ReasonCode: refusalCode}, e.deleteOutputs(ctx, keys))
+	}
+	if len(report.refused) > 0 {
+		report.action = "partial_refused"
+		return report, report.allowed, nil
+	}
+	if len(report.shadow) > 0 {
+		report.action = "shadow_refused"
+		return report, report.allowed, nil
+	}
+	if len(report.sensitive) > 0 {
+		report.action = "flag"
+		return report, report.allowed, nil
+	}
+	report.action = "allow"
+	return report, report.allowed, nil
 }
 
 func (e *Engine) deleteOutputs(ctx context.Context, keys []string) error {
@@ -1537,6 +1864,26 @@ func (e *Engine) deleteOutputs(ctx context.Context, keys []string) error {
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// quarantineRefused copies one refused output into the deployment's bounded
+// quarantine. A nil sink means the deployment chose immediate deletion. A
+// quarantine failure does not turn a refusal into a pass: the caller still
+// deletes the original, and the error is recorded on the job.
+func (e *Engine) quarantineRefused(ctx context.Context, jobID, key string, verdict ScanVerdict, mime string, data []byte) (string, error) {
+	if e.deps.Quarantine == nil {
+		return "", nil
+	}
+	return e.deps.Quarantine(ctx, QuarantineItem{
+		JobID:        jobID,
+		OriginalRef:  key,
+		ReasonCode:   verdict.ReasonCodeOrDerived(),
+		SafetyReview: "refused",
+		Score:        verdict.Score,
+		Evidence:     verdict.Evidence,
+		Finding:      verdict.Finding,
+		MIME:         mime,
+	}, data)
 }
 
 func (e *Engine) autoScan(ctx context.Context, key string) string {

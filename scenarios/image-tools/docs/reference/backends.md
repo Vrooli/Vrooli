@@ -154,7 +154,7 @@ or backend reassignment.
 | `color_transfer` | `color-transfer-lab-v1` | `builtin` | `default` | In-process Go; CIELAB mean/spread transfer inside a mask onto the colour of a reference region (the reference's alpha selects its region), keeping the region's own shading. The skin-tone and hair-colour stages of a face swap run on it. |
 | `mask_composite` | `mask-composite-lab-v1` | `builtin` | `default` | In-process Go; lays a second image (resampled to the first's size) into the first through a mask, with a grown, feathered seam. The hair-style stage of a face swap runs on it. |
 | `normal_map` | `normals-from-depth` | `computed` | `default` | In-process Go math; no weights or host provisioning. |
-| `nsfw_classify` | `adamcodd-vit-nsfw` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable. |
+| `nsfw_classify` | `falconsai-nsfw` + `adamcodd-vit-nsfw` | `onnxruntime` | `default` | Embedded ONNX sidecar; the shared review profile supplies both classifiers and their bars. CPU-capable. |
 | `object_detection` | `florence-2` | `florence-transformers` | `quality` | Same worker and checkpoint as `caption`. `yolox-tiny` is a fast fixed-vocabulary alternative (verdict `works`, 80 COCO labels, 0.2-0.3 s on the CPU; fixed 2026-11-23 by decoding the raw head in the sidecar). |
 | `object_removal` | `big-lama` | `onnxruntime` | `quality` | Embedded ONNX sidecar; CPU-capable. `mi-gan` (`iopaint` CLI) is disabled: the IOPaint backend needs a manual pip/pipx install. |
 | `ocr` | `paddleocr` | `onnxruntime` | `quality` | Embedded ONNX sidecar (`ocr.py`, PP-OCRv5 detector + recogniser, no OpenCV); CPU-capable (about 15-40 s on a large photo). Tesseract (`library-cgo`) stays selectable. |
@@ -316,9 +316,12 @@ How it works (`packages/pyenv-go`, wired in `main.go`):
    (a sentinel file records the synced hash), so steady-state starts are instant.
 
 The synchronous `analysis/nsfw` route and generated-output auto-scan use this
-same absolute interpreter. If provisioning is absent or incomplete, analysis
-reports the backend unavailable and auto-scan keeps its documented
-best-effort behavior; neither path probes or falls back to host `python3`.
+same absolute interpreter. Both now run the same classifier ensemble and
+thresholds as the bundled reviewer (the resolved safety profile), so the
+standalone op and the generation gate cannot answer the same image differently.
+If provisioning is absent or incomplete, analysis reports the backend
+unavailable and auto-scan keeps its documented best-effort behavior; neither
+path probes or falls back to host `python3`.
 
 Consequence: poisoning the host's `transformers` (or any other package) cannot
 affect image-tools, and the proven dependency set is reproducible from the lock.

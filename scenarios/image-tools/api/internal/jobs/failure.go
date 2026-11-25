@@ -21,6 +21,10 @@ const (
 	// FailureCapacity is the host not delivering what the lease promised: GPU memory
 	// another service took mid-run. The model was not at fault and can run again.
 	FailureCapacity FailureKind = "capacity"
+	// FailureSafetyUnavailable is the safety reviewer failing technically (missing
+	// weights, timeout, crash, invalid output). The boundary fails closed, but the
+	// model did nothing wrong, so this must not count against it.
+	FailureSafetyUnavailable FailureKind = "safety_unavailable"
 )
 
 // MetaFailureKind is the job meta key that records the FailureKind of a failed job.
@@ -49,7 +53,7 @@ func (k FailureKind) CountsAgainstModel() bool { return k == FailureFault || k =
 // job that predates the record still counts as it always did.
 func ParseFailureKind(value string) FailureKind {
 	switch kind := FailureKind(value); kind {
-	case FailureRefused, FailureInvalidInput, FailureInterrupted, FailureCapacity:
+	case FailureRefused, FailureInvalidInput, FailureInterrupted, FailureCapacity, FailureSafetyUnavailable:
 		return kind
 	default:
 		return FailureFault

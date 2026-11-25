@@ -256,7 +256,7 @@ func TestAdmitAcquiresTheSafetyReviewWeightsAndReportsTheWaitAsAdmission(t *test
 		}
 		return reviewInstalled
 	}
-	a.deps.ReviewOutput = func(context.Context, []byte) (ScanVerdict, error) { return ScanVerdict{}, nil }
+	a.deps.ReviewOutput = batchReview(func(context.Context, []byte) (ScanVerdict, error) { return ScanVerdict{}, nil })
 	a.deps.ReviewModels = []string{"review-a"}
 	a.deps.AcquireModel = func(_ context.Context, id, jobID string, emit func(int, string)) error {
 		order = append(order, "acquire:"+id+"@"+jobID)
@@ -287,7 +287,7 @@ func TestAdmitWaitsInsteadOfFailingWhenTheReviewWeightsHitBusyCapacity(t *testin
 	a, modelID := newAutoAcquireEngine(t)
 	a.installed = true
 	a.deps.ModelInstalled = func(id string) bool { return id == modelID }
-	a.deps.ReviewOutput = func(context.Context, []byte) (ScanVerdict, error) { return ScanVerdict{}, nil }
+	a.deps.ReviewOutput = batchReview(func(context.Context, []byte) (ScanVerdict, error) { return ScanVerdict{}, nil })
 	a.deps.ReviewModels = []string{"review-a"}
 	a.deps.AcquireModel = func(context.Context, string, string, func(int, string)) error {
 		return fmt.Errorf("%w: model smoke capacity", internaljobs.ErrCapacityBusy)

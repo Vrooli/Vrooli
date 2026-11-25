@@ -48,12 +48,16 @@ Measured 2026-11-23 on a clothed 832x1216 fictional adult (an AI-generated subje
 | `ai inpaint` on an NSFW base checkpoint (`lustify`, `big-lust`) at strength 1.0 | 1.00 (face is outside the mask) | 8 px | The face is safe, but the generated torso read as a fever dream on 7 of 8 operator ratings. Not recommended for a large region. |
 | `ai img2img` on the same checkpoints at 0.45 to 0.60 | **0.06 to 0.09** | 4 to 13 px | A different person. Never use plain img2img when identity matters; it is a re-render, not an edit. |
 
+Operator review (2026-11-24): the whole-image instruction route is the accepted one for a whole outfit or nudity. Lingerie, scene-only, full nudity, bottomless and the tight-selection masked bralette all had no visible issues and were rated 5/5 on the job; the masked regenerate on an NSFW base is the rejected route, not masking itself.
+
+**Sleeve ends: say the top goes entirely.** Measured 2026-11-24 with a wrist check (bare skin in a 12 px disc at each pose wrist; covered clothing reads 0.00, bare skin 1.00). "Remove her top so she is topless" kept the cuffs on the same seed and steps (0.00 at both wrists) while the chest was bare; dropping "arms" from the keep sentence did not help; naming the sleeves cleared them (0.998/1.00) at the same seed. "Topless" describes the chest, so the model may keep the sleeves; say "top entirely, including the sleeves" instead. The full-nude wording already has no cuffs. If a dress or one-piece keeps a hem or a strap, the same trick applies: name the part that must go. The masked route (T7) remains the backup for a cuff that survives, since nothing outside the selection changes. Evidence: `runs/capabilities-20261122/nsfw-run/sleeve-cuff.md`.
+
 Wording matters more than the checkpoint. These instructions worked on the measured case; keep the "keep her pose, face, hair and the room exactly the same" sentence, and use 8 steps for a large change:
 
 | Goal | Instruction |
 |---|---|
 | Lingerie | `Dress her in a black lace lingerie set. Keep her pose, arms, face, hair and the room exactly the same.` |
-| Topless | `Remove her top so she is topless. Keep her pose, arms, face, hair and the room exactly the same.` |
+| Topless | `Remove the adult woman's top entirely, including the sleeves, so her shoulders, arms and wrists are bare. Keep her pose, face, hair and the room exactly the same.` |
 | Fully nude (one step) | `Change her outfit to nothing at all: a fully nude adult woman. Keep her pose, face, hair and the room exactly the same.` |
 | Fully nude (two steps) | First the topless instruction, then `Remove her skirt so she is fully nude.` on that result. |
 | Scene only | `Change the room to a candle-lit bedroom with a large bed and warm evening light. Keep her pose, clothing, face and hair exactly the same.` |

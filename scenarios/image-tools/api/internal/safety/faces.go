@@ -108,6 +108,7 @@ type CommandFaceCounter struct {
 	env      []string
 	timeout  time.Duration
 	maxBytes int64
+	profile  ReviewProfile
 }
 
 const faceCountTimeout = 30 * time.Second
@@ -115,6 +116,13 @@ const faceCountTimeout = 30 * time.Second
 // NewBundledFaceCounter builds the counter the scenario ships: the sidecar's
 // face_count module (YuNet on the CPU, a fraction of a second per image).
 func NewBundledFaceCounter(cfg BundledReviewerConfig) (*CommandFaceCounter, error) {
+	return NewBundledFaceCounterWithProfile(cfg, DefaultReviewProfile(TierLocal))
+}
+
+// NewBundledFaceCounterWithProfile builds the face counter with the deployment's
+// resolved profile, so the consent people-check uses the same detector as the
+// reviewer.
+func NewBundledFaceCounterWithProfile(cfg BundledReviewerConfig, profile ReviewProfile) (*CommandFaceCounter, error) {
 	env, err := bundledSidecarEnv("bundled face counter", cfg)
 	if err != nil {
 		return nil, err
@@ -125,6 +133,7 @@ func NewBundledFaceCounter(cfg BundledReviewerConfig) (*CommandFaceCounter, erro
 		env:      env,
 		timeout:  faceCountTimeout,
 		maxBytes: minorReviewMaxBytes,
+		profile:  profile,
 	}, nil
 }
 
@@ -137,7 +146,7 @@ func (c *CommandFaceCounter) CountFaces(ctx context.Context, images [][]byte) (i
 	if len(images) == 0 {
 		return 0, nil
 	}
-	request := minorReviewRequest{Images: make([]minorReviewImage, 0, len(images))}
+	request := minorReviewRequest{Images: make([]minorReviewImage, 0, len(images)), Profile: c.profile}
 	var total int64
 	for _, image := range images {
 		total += int64(len(image))

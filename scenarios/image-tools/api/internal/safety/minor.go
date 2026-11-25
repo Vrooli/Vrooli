@@ -21,10 +21,21 @@ import (
 // deployment that has its own, stronger detector (see docs/internal/SECURITY.md).
 const MinorSafetyEnv = "IMAGE_TOOLS_MINOR_SAFETY_CMD"
 
-// MinorVerdict is the reviewer's answer about the supplied images.
+// MinorVerdict is the reviewer's answer about the supplied images. The legacy
+// Minor/Sexual pair remains for operator-supplied reviewers that report only the
+// aggregate flags; the bundled reviewer also reports a structured action, a
+// reason code, per-image findings, thresholds and the model ids it read.
 type MinorVerdict struct {
+	// Action is allow, flag or refuse. Normalize derives it from Minor/Sexual for
+	// a reviewer that reports only the aggregate pair.
+	Action Action `json:"action,omitempty"`
+	// ReasonCode is the machine-readable why (first refused image, or the
+	// aggregate flag reason).
+	ReasonCode ReasonCode `json:"reason_code,omitempty"`
+	// ReasonCodes lists every distinct reason across the reviewed images.
+	ReasonCodes []ReasonCode `json:"reason_codes,omitempty"`
 	// Minor reports that at least one image depicts a person who is, or appears
-	// to be, a minor.
+	// to be, a minor in sexual content (the co-occurrence verdict).
 	Minor bool `json:"minor"`
 	// Sexual reports that at least one image is sexual content.
 	Sexual bool `json:"sexual"`
@@ -33,21 +44,96 @@ type MinorVerdict struct {
 	// Images carries the reviewer's per-image measurements when it reports them
 	// (the bundled reviewer does; an operator-supplied one need not).
 	Images []MinorImageFinding `json:"images,omitempty"`
+	// Thresholds are the values the reviewer applied (0..1), keyed by the
+	// classifier id or "age"/"face.min_px". Recorded on the job as evidence.
+	Thresholds map[string]float64 `json:"thresholds,omitempty"`
+	// Models are the model ids the reviewer read for this request.
+	Models []string `json:"models,omitempty"`
+	// Strict reports that the strict classifier thresholds were applied (an
+	// NSFW-capable model produced the output). Replay/calibration uses it to
+	// know which bar produced the verdict.
+	Strict bool `json:"strict,omitempty"`
+	// ProfileName names the resolved declarative profile that produced the
+	// verdict (the bundled reviewer reports it).
+	ProfileName string `json:"profile_name,omitempty"`
+	// ReviewerVersion identifies the profile/weight revision that produced the
+	// verdict, so a job record is reproducible after a calibration change.
+	ReviewerVersion string `json:"reviewer_version,omitempty"`
+}
+
+// Normalize fills Action and ReasonCode for a reviewer that reports only the
+// aggregate Minor/Sexual pair. It never weakens a refusal.
+func (v *MinorVerdict) Normalize() {
+	if v.Action == "" {
+		switch {
+		case v.Minor && v.Sexual:
+			v.Action = ActionRefuse
+		case v.Sexual:
+			v.Action = ActionFlag
+		default:
+			v.Action = ActionAllow
+		}
+	}
+	if v.ReasonCode == "" {
+		switch v.Action {
+		case ActionRefuse:
+			v.ReasonCode = ReasonSexualMinorFace
+		case ActionFlag:
+			v.ReasonCode = ReasonSexualAdult
+		default:
+			v.ReasonCode = ReasonClean
+		}
+	}
+	if len(v.ReasonCodes) == 0 {
+		v.ReasonCodes = []ReasonCode{v.ReasonCode}
+	}
+}
+
+// Refuses reports whether the verdict blocks the request.
+func (v MinorVerdict) Refuses() bool {
+	if v.Action != "" {
+		return v.Action == ActionRefuse
+	}
+	return v.Minor && v.Sexual
 }
 
 // MinorImageFinding is one image's measurements. The scenario records the NSFW score
 // and sensitivity on the job so the UI can blur, and the numbers make a pass auditable.
 type MinorImageFinding struct {
-	NSFWScore   float64 `json:"nsfw_score"`
-	Sexual      bool    `json:"sexual"`
-	FacesFound  int     `json:"faces_found"`
-	MaxPUnder20 float64 `json:"max_p_under_20"`
-	MinorFace   bool    `json:"minor_face"`
+	NSFWScore float64 `json:"nsfw_score"`
+	// RecallScore is the high-recall classifier's score (the bundled reviewer's
+	// second classifier), when one ran.
+	RecallScore float64 `json:"recall_score,omitempty"`
+	// Scores is every classifier's score keyed by model id. It lets an exported
+	// corpus replay a candidate threshold without re-running the models.
+	Scores     map[string]float64 `json:"nsfw_scores,omitempty"`
+	Sexual     bool               `json:"sexual"`
+	Action     Action             `json:"action,omitempty"`
+	ReasonCode ReasonCode         `json:"reason_code,omitempty"`
+	FacesFound int                `json:"faces_found"`
+	// AssessedFaces is how many found faces were large enough for the age model.
+	AssessedFaces int     `json:"assessed_faces,omitempty"`
+	MaxPUnder20   float64 `json:"max_p_under_20"`
+	MinorFace     bool    `json:"minor_face"`
+	// Faces carries the per-face measurements (size and P(age < 20)). A corpus
+	// can sweep the age threshold from these without retaining the image.
+	Faces []MinorFaceFinding `json:"faces,omitempty"`
 	// Unassessable marks a sexual image whose subject's age the face stage could not
 	// establish (no face found, or none large enough to read). It is the only refusal
 	// a second, face-independent signal may clear (see SecondOpinionReviewer).
-	Unassessable bool `json:"unassessable"`
-	Refuse       bool `json:"refuse"`
+	Unassessable bool   `json:"unassessable"`
+	Refuse       bool   `json:"refuse"`
+	Detail       string `json:"detail,omitempty"`
+}
+
+// MinorFaceFinding is one detected face's measurements. It intentionally omits
+// the age-bin probabilities: the corpus only needs the number that decides the
+// minor-face verdict.
+type MinorFaceFinding struct {
+	Box           [4]float64 `json:"box,omitempty"`
+	DetectorScore float64    `json:"detector_score,omitempty"`
+	SizePx        float64    `json:"size_px"`
+	PUnder20      float64    `json:"p_under_20,omitempty"`
 }
 
 // Sensitive reports whether any reviewed image was classified sexual, and the highest
@@ -112,28 +198,58 @@ type CommandReviewer struct {
 	env      []string
 	timeout  time.Duration
 	maxBytes int64
+	profile  ReviewProfile
+	health   healthTracker
 }
 
 const minorReviewMaxBytes = 64 << 20
 
-// NewCommandReviewer parses a command line into a reviewer.
+// NewCommandReviewer parses a command line into a reviewer. It uses the shipped
+// local review profile unless the caller supplies one; a custom reviewer may
+// ignore the profile fields it does not understand.
 func NewCommandReviewer(command string) (*CommandReviewer, error) {
+	return NewCommandReviewerWithProfile(command, DefaultReviewProfile(TierLocal))
+}
+
+// NewCommandReviewerWithProfile parses a command line and attaches the profile
+// sent in the review request.
+func NewCommandReviewerWithProfile(command string, profile ReviewProfile) (*CommandReviewer, error) {
 	fields := strings.Fields(strings.TrimSpace(command))
 	if len(fields) == 0 {
 		return nil, fmt.Errorf("%s is empty", MinorSafetyEnv)
 	}
-	return &CommandReviewer{program: fields[0], args: fields[1:], timeout: 60 * time.Second, maxBytes: minorReviewMaxBytes}, nil
+	r := &CommandReviewer{program: fields[0], args: fields[1:], timeout: 60 * time.Second, maxBytes: minorReviewMaxBytes, profile: profile}
+	r.health.setConfigured("command reviewer")
+	return r, nil
 }
+
+// Health reports the reviewer's last observed state and counters.
+func (r *CommandReviewer) Health() ReviewHealth {
+	if r == nil {
+		return ReviewHealth{}
+	}
+	return r.health.snapshot()
+}
+
+// Available reports whether the reviewer was configured successfully. A
+// runtime failure updates Health but does not permanently mark it unavailable.
+func (r *CommandReviewer) Available() bool { return r != nil }
 
 // FromEnv builds the configured reviewer, or returns (nil, nil) when the
 // deployment has not configured one. A malformed value is an error rather than
 // a silent disable.
 func MinorReviewerFromEnv() (MinorReviewer, error) {
+	return MinorReviewerFromEnvWithProfile(DefaultReviewProfile(TierLocal))
+}
+
+// MinorReviewerFromEnvWithProfile is MinorReviewerFromEnv with the profile the
+// deployment resolved.
+func MinorReviewerFromEnvWithProfile(profile ReviewProfile) (MinorReviewer, error) {
 	raw := strings.TrimSpace(os.Getenv(MinorSafetyEnv))
 	if raw == "" {
 		return nil, nil
 	}
-	reviewer, err := NewCommandReviewer(raw)
+	reviewer, err := NewCommandReviewerWithProfile(raw, profile)
 	if err != nil {
 		return nil, err
 	}
@@ -142,6 +258,9 @@ func MinorReviewerFromEnv() (MinorReviewer, error) {
 
 type minorReviewRequest struct {
 	Images []minorReviewImage `json:"images"`
+	// Profile is the declarative reviewer configuration. The bundled reviewer
+	// reads it; an operator-supplied one may ignore it.
+	Profile ReviewProfile `json:"profile,omitempty"`
 	// Strict and AssumeSexual are optional hints a reviewer may ignore; both can
 	// only make the review stricter (see WithStrictReview / WithAssumeSexual).
 	Strict       bool `json:"strict,omitempty"`
@@ -193,12 +312,17 @@ func (r *CommandReviewer) Review(ctx context.Context, images [][]byte) (MinorVer
 		return MinorVerdict{}, nil
 	}
 	opts, _ := ctx.Value(reviewOptionKey{}).(reviewOption)
-	request := minorReviewRequest{Images: make([]minorReviewImage, 0, len(images)), Strict: opts.strict, AssumeSexual: opts.assumeSexual}
+	request := minorReviewRequest{
+		Images: make([]minorReviewImage, 0, len(images)), Profile: r.profile,
+		Strict: opts.strict, AssumeSexual: opts.assumeSexual,
+	}
 	var total int64
 	for _, image := range images {
 		total += int64(len(image))
 		if total > r.maxBytes {
-			return MinorVerdict{}, fmt.Errorf("minor-safety review input exceeds %d bytes", r.maxBytes)
+			err := fmt.Errorf("minor-safety review input exceeds %d bytes", r.maxBytes)
+			r.health.record(err, false, time.Now())
+			return MinorVerdict{}, &ReviewError{Kind: ReasonReviewerInvalid, Cause: err}
 		}
 		request.Images = append(request.Images, minorReviewImage{
 			MediaType: detectMediaType(image),
@@ -207,24 +331,37 @@ func (r *CommandReviewer) Review(ctx context.Context, images [][]byte) (MinorVer
 	}
 	raw, err := json.Marshal(request)
 	if err != nil {
-		return MinorVerdict{}, fmt.Errorf("encode minor-safety review: %w", err)
+		err = fmt.Errorf("encode minor-safety review: %w", err)
+		r.health.record(err, false, time.Now())
+		return MinorVerdict{}, &ReviewError{Kind: ReasonReviewerInvalid, Cause: err}
 	}
 
 	out, stderr, err := runJSONProgram(ctx, r.program, r.args, r.env, r.timeout, raw)
 	if err != nil {
 		var timeout *programTimeout
-		if errors.As(err, &timeout) {
-			return MinorVerdict{}, fmt.Errorf("minor-safety reviewer timed out after %s", r.timeout)
+		var reviewErr error
+		switch {
+		case errors.As(err, &timeout):
+			reviewErr = fmt.Errorf("minor-safety reviewer timed out after %s", r.timeout)
+		case len(missingWeightsFromExit(err, stderr)) > 0:
+			ids := missingWeightsFromExit(err, stderr)
+			missing := &MissingWeightsError{IDs: ids}
+			r.health.record(missing, false, time.Now())
+			return MinorVerdict{}, missing
+		default:
+			reviewErr = fmt.Errorf("minor-safety reviewer failed: %w (%s)", err, strings.TrimSpace(stderr))
 		}
-		if ids := missingWeightsFromExit(err, stderr); len(ids) > 0 {
-			return MinorVerdict{}, &MissingWeightsError{IDs: ids}
-		}
-		return MinorVerdict{}, fmt.Errorf("minor-safety reviewer failed: %w (%s)", err, strings.TrimSpace(stderr))
+		r.health.record(reviewErr, false, time.Now())
+		return MinorVerdict{}, &ReviewError{Kind: ReasonReviewerUnavailable, Cause: reviewErr}
 	}
 	var verdict MinorVerdict
 	if err := json.Unmarshal(out, &verdict); err != nil {
-		return MinorVerdict{}, fmt.Errorf("minor-safety reviewer returned invalid JSON: %w", err)
+		parseErr := fmt.Errorf("minor-safety reviewer returned invalid JSON: %w", err)
+		r.health.record(parseErr, false, time.Now())
+		return MinorVerdict{}, &ReviewError{Kind: ReasonReviewerInvalid, Cause: parseErr}
 	}
+	verdict.Normalize()
+	r.health.record(nil, verdict.Refuses(), time.Now())
 	return verdict, nil
 }
 
@@ -261,18 +398,6 @@ type BundledReviewerConfig struct {
 	Libraries []string
 }
 
-// BundledReviewerModels are the registry ids the bundled reviewer reads for EVERY
-// output: the precise sexual classifier and the high-recall one that catches
-// small-figure or ambiguous nudity the precise one misses. The engine acquires and
-// holds them (Deps.ReviewModels) so the reviewer can always run.
-var BundledReviewerModels = []string{"falconsai-nsfw", "adamcodd-vit-nsfw"}
-
-// BundledReviewerEscalationModels are read only for an output the classifier calls
-// sexual (face finder and age model). The engine acquires them up front when the
-// producing model is NSFW-capable and on demand otherwise, so ordinary work never
-// depends on them (Deps.ReviewEscalationModels).
-var BundledReviewerEscalationModels = []string{"yunet", "fairface-vit-age"}
-
 // reviewerExitMissingWeights is minor_review.EXIT_MISSING_WEIGHTS.
 const reviewerExitMissingWeights = 4
 
@@ -304,17 +429,27 @@ const bundledReviewerTimeout = 90 * time.Second
 // speaks the same stdin/stdout contract as an operator-supplied reviewer, and the
 // same fail-closed rules apply: a non-zero exit or a timeout is "review unavailable".
 func NewBundledReviewer(cfg BundledReviewerConfig) (*CommandReviewer, error) {
+	return NewBundledReviewerWithProfile(cfg, DefaultReviewProfile(TierLocal))
+}
+
+// NewBundledReviewerWithProfile builds the bundled reviewer with the deployment's
+// declarative profile. The profile is sent in every request, so thresholds and
+// model ids are data rather than code.
+func NewBundledReviewerWithProfile(cfg BundledReviewerConfig, profile ReviewProfile) (*CommandReviewer, error) {
 	env, err := bundledSidecarEnv("bundled minor-safety reviewer", cfg)
 	if err != nil {
 		return nil, err
 	}
-	return &CommandReviewer{
+	r := &CommandReviewer{
 		program:  cfg.Python,
 		args:     []string{"-m", "image_tools_sidecar.minor_review", "--models-root", cfg.ModelsRoot},
 		env:      env,
 		timeout:  bundledReviewerTimeout,
 		maxBytes: minorReviewMaxBytes,
-	}, nil
+		profile:  profile,
+	}
+	r.health.setConfigured("bundled reviewer")
+	return r, nil
 }
 
 // bundledSidecarEnv validates the sidecar locations and builds the CPU-only
@@ -352,5 +487,13 @@ func UnavailableReviewer(cause error) MinorReviewer { return unavailableReviewer
 type unavailableReviewer struct{ cause error }
 
 func (r unavailableReviewer) Review(context.Context, [][]byte) (MinorVerdict, error) {
-	return MinorVerdict{}, fmt.Errorf("minor-safety reviewer unavailable: %w", r.cause)
+	return MinorVerdict{}, &ReviewError{Kind: ReasonReviewerUnavailable, Cause: fmt.Errorf("minor-safety reviewer unavailable: %w", r.cause)}
+}
+
+// Available reports that this reviewer cannot run; discovery must not claim it.
+func (r unavailableReviewer) Available() bool { return false }
+
+// Health reports the construction failure.
+func (r unavailableReviewer) Health() ReviewHealth {
+	return ReviewHealth{Configured: true, Available: false, Detail: firstLine(r.cause.Error())}
 }

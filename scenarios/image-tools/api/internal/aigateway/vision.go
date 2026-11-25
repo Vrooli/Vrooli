@@ -18,6 +18,7 @@ import (
 	"github.com/disintegration/imaging"
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/discovery"
+	aigatewayclient "github.com/vrooli/vrooli/packages/ai-gateway-client-go"
 
 	"image-tools/internal/backends"
 	"image-tools/internal/models"
@@ -115,11 +116,11 @@ func (c *visionClient) baseURL(ctx context.Context) (string, error) {
 	if c == nil || c.resolve == nil || c.httpClient == nil {
 		return "", fmt.Errorf("ai: AI Gateway vision client is not configured")
 	}
-	base, err := c.resolve(ctx)
+	base, err := aigatewayclient.ResolveBaseURL(ctx, c.resolve)
 	if err != nil {
 		return "", fmt.Errorf("ai: resolve AI Gateway: %w", err)
 	}
-	if base = strings.TrimRight(strings.TrimSpace(base), "/"); base == "" {
+	if base == "" {
 		return "", fmt.Errorf("ai: AI Gateway discovery returned an empty URL")
 	}
 	return base, nil
@@ -163,7 +164,9 @@ func (c *visionClient) Ask(ctx context.Context, req VisionRequest) (VisionAnswer
 			Payload:   &sharedv1.Attachment_InlineBytes{InlineBytes: req.Image},
 		}},
 	}
-	client := routingconnect.NewRoutingServiceClient(c.httpClient, base)
+	client := aigatewayclient.NewClient(c.httpClient, base, func(h *http.Client, url string) routingconnect.RoutingServiceClient {
+		return routingconnect.NewRoutingServiceClient(h, url)
+	})
 	resp, err := client.ExecuteRoute(ctx, connect.NewRequest(&routingv1.ExecuteRouteRequest{Request: gateway, InputText: req.Prompt}))
 	if err != nil {
 		return answer, fmt.Errorf("ai: AI Gateway vision call: %w", err)

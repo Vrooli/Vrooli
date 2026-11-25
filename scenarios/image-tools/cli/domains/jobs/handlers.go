@@ -253,6 +253,11 @@ func formatJob(j *jobsv1.Job) string {
 	if j.Rating != nil {
 		detail += fmt.Sprintf(" rating=%d/5", j.Rating.Score)
 	}
+	for _, key := range []string{"failure_kind", "safety_review", "safety_action", "safety_reason", "safety_review_detail", "safety_refused_refs", "safety_shadow_refs"} {
+		if value := strings.TrimSpace(j.ResultMeta[key]); value != "" {
+			detail += " " + key + "=" + value
+		}
+	}
 	return detail
 }
 

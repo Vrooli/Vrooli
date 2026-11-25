@@ -145,6 +145,7 @@ func (p Policy) decideRoute(need ConsentRequirement, w Weight, op string, consen
 	}
 	if !consentAffirmed {
 		d.Allowed = false
+		d.ReasonCode = ReasonConsentRequired
 		d.Reason = need.Reason
 		right := "edit"
 		if w == WeightLow {

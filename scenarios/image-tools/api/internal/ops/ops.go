@@ -89,6 +89,7 @@ var registry = func() map[string]Op {
 		{Name: "parallax", run: parallaxSequence},
 		{Name: "composite", run: pixel(Composite)},
 		{Name: "metadata", run: metadataRun},
+		{Name: "print_prep", run: printPrepRun},
 	}
 	m := make(map[string]Op, len(ops))
 	for _, o := range ops {
@@ -192,7 +193,14 @@ func ExecuteContext(ctx context.Context, name string, src []byte, p *Params) (Ru
 	if err != nil {
 		return RunResult{}, err
 	}
-	res.ResolvedParams = resolved
+	if len(resolved) != 0 {
+		if res.ResolvedParams == nil {
+			res.ResolvedParams = make(map[string]float64, len(resolved))
+		}
+		for key, value := range resolved {
+			res.ResolvedParams[key] = value
+		}
+	}
 	return res, nil
 }
 

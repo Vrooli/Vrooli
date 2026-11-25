@@ -51,21 +51,44 @@ const (
 // the gateway's local vision role, falling back to the same Ollama model on
 // loopback when the gateway route cannot execute.
 type visionAgeJudge struct {
-	gateway       VisionGateway
-	ollamaURL     string
-	model         string
-	fallbackModel string
-	client        *http.Client
+	gateway   VisionGateway
+	ollamaURL string
+	role      string
+	models    []string
+	client    *http.Client
 }
 
-// NewAgeJudge builds the second-opinion age judge on a vision gateway.
+// NewAgeJudge builds the second-opinion age judge with the default profile.
 func NewAgeJudge(gateway VisionGateway) safety.AgeJudge {
+	return NewAgeJudgeWithProfile(gateway, safety.DefaultReviewProfile(safety.TierLocal).SecondOpinion)
+}
+
+// NewAgeJudgeWithProfile builds the judge from the resolved profile. The role and
+// the model list are data; an empty list keeps the historical env/default pair.
+func NewAgeJudgeWithProfile(gateway VisionGateway, profile safety.SecondOpinionProfile) safety.AgeJudge {
+	url := envOr(ageJudgeOllamaURLEnv, strings.TrimSpace(profile.OllamaURL))
+	if url == "" {
+		url = ageJudgeDefaultURL
+	}
+	role := strings.TrimSpace(profile.JudgeRole)
+	if role == "" {
+		role = ageJudgeRole
+	}
+	models := profile.Models
+	if primary := strings.TrimSpace(os.Getenv(ageJudgeModelEnv)); primary != "" {
+		// An explicit environment still wins, for a one-off experiment on a host
+		// whose profile is shared with other deployments.
+		models = []string{primary, envOr(ageJudgeFallbackModelEnv, ageJudgeFallbackModel)}
+	}
+	if len(models) == 0 {
+		models = []string{envOr(ageJudgeModelEnv, ageJudgeDefaultModel), envOr(ageJudgeFallbackModelEnv, ageJudgeFallbackModel)}
+	}
 	return &visionAgeJudge{
-		gateway:       gateway,
-		ollamaURL:     envOr(ageJudgeOllamaURLEnv, ageJudgeDefaultURL),
-		model:         envOr(ageJudgeModelEnv, ageJudgeDefaultModel),
-		fallbackModel: envOr(ageJudgeFallbackModelEnv, ageJudgeFallbackModel),
-		client:        &http.Client{Timeout: 10 * time.Minute},
+		gateway:   gateway,
+		ollamaURL: url,
+		role:      role,
+		models:    models,
+		client:    &http.Client{Timeout: 10 * time.Minute},
 	}
 }
 
@@ -87,7 +110,7 @@ func (j *visionAgeJudge) Judge(ctx context.Context, image []byte) (safety.AgeJud
 	var gatewayErr error
 	if j.gateway != nil {
 		answer, askErr := j.gateway.Ask(ctx, VisionRequest{
-			Operation: "age_judge", Role: ageJudgeRole, Local: true, Prompt: ageJudgePrompt,
+			Operation: "age_judge", Role: j.role, Local: true, Prompt: ageJudgePrompt,
 			Image: prepared, MediaType: mediaType, MaxOutputTokens: ageJudgeTokens,
 		})
 		if askErr == nil {
@@ -97,7 +120,7 @@ func (j *visionAgeJudge) Judge(ctx context.Context, image []byte) (safety.AgeJud
 	}
 	var localErr error
 	seen := map[string]bool{}
-	for _, model := range []string{j.model, j.fallbackModel} {
+	for _, model := range j.models {
 		if model == "" || seen[model] {
 			continue
 		}
@@ -114,34 +137,24 @@ func (j *visionAgeJudge) Judge(ctx context.Context, image []byte) (safety.AgeJud
 	return safety.AgeJudgement{}, fmt.Errorf("age judge local Ollama: %w", localErr)
 }
 
-// askModel asks one model, first as a plain chat and again with Ollama's JSON
-// format when the reply carries no parseable object. A thinking model sometimes
-// spends a plain answer on prose; the formatted retry is what made the measured
+// askModel asks one model with Ollama's JSON format. A thinking model sometimes
+// spends a plain answer on prose; the formatted call is what made the measured
 // no-face case answer with the object.
 func (j *visionAgeJudge) askModel(ctx context.Context, image []byte, model string) (safety.AgeJudgement, error) {
-	var last error
-	// The gateway comment for this same role records that Ollama returns no visible
-	// response when its image template receives a native format; the direct call is
-	// the opposite: a plain chat often spends the whole budget on thinking prose,
-	// while the JSON format returns the object. Try the formatted call only.
-	for _, formatJSON := range []bool{true} {
-		text, err := j.askOllama(ctx, image, model, formatJSON)
-		if err != nil {
-			last = err
-			continue
-		}
-		judgement, parseErr := ParseAgeJudgement(text)
-		if parseErr == nil {
-			return judgement, nil
-		}
-		last = parseErr
+	text, err := j.askOllama(ctx, image, model)
+	if err != nil {
+		return safety.AgeJudgement{}, fmt.Errorf("model %s: %w", model, err)
 	}
-	return safety.AgeJudgement{}, fmt.Errorf("model %s: %w", model, last)
+	judgement, parseErr := ParseAgeJudgement(text)
+	if parseErr != nil {
+		return safety.AgeJudgement{}, fmt.Errorf("model %s: %w", model, parseErr)
+	}
+	return judgement, nil
 }
 
 // askOllama asks the local Ollama server directly. It is a loopback call with one
 // prepared image: no hosted provider, no outbound network, no API key.
-func (j *visionAgeJudge) askOllama(ctx context.Context, image []byte, model string, formatJSON bool) (string, error) {
+func (j *visionAgeJudge) askOllama(ctx context.Context, image []byte, model string) (string, error) {
 	request := map[string]any{
 		"model":  model,
 		"stream": false,
@@ -153,9 +166,7 @@ func (j *visionAgeJudge) askOllama(ctx context.Context, image []byte, model stri
 		// The answer is a few dozen tokens. A larger budget lets a thinking model
 		// spend it all on reasoning and return an empty content field.
 		"options": map[string]any{"num_predict": 700},
-	}
-	if formatJSON {
-		request["format"] = "json"
+		"format":  "json",
 	}
 	body, err := json.Marshal(request)
 	if err != nil {
@@ -221,16 +232,4 @@ func ParseAgeJudgement(text string) (safety.AgeJudgement, error) {
 	}
 	judgement.Detail = fmt.Sprintf("apparent age %d, under-18 flag %t, %s confidence", judgement.ApparentAge, judgement.CouldBeUnder18, judgement.Confidence)
 	return judgement, nil
-}
-
-// mediaTypeOf labels a payload for the gateway (the reviewer already sniffed it once).
-func mediaTypeOf(image []byte) string {
-	switch {
-	case len(image) >= 3 && image[0] == 0xFF && image[1] == 0xD8:
-		return "image/jpeg"
-	case len(image) >= 4 && string(image[:4]) == "RIFF":
-		return "image/webp"
-	default:
-		return "image/png"
-	}
 }

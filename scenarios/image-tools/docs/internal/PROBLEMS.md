@@ -49,6 +49,31 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### 2026-11-24 — Book-art presets do not auto-chain their declared post-steps
+
+**Symptom:** A `book_art_*` submit creates only a text-to-image job. It does not
+automatically upscale and print-prepare the retained result.
+
+**Root cause:** Preset metadata can declare ordered `post_steps`, and the
+deterministic op runner executes `print_prep`, but the durable job contract owns
+one operation per job. The saved-look compiler does not execute cross-lane AI
+and compute graphs as one retained recipe.
+
+**Workaround:** A consumer runs the preset, retrieves the output blob, submits
+`upscale` if needed, then submits `print_prep` with the book trim dimensions and
+carries each returned blob reference forward. See
+[`../guides/book-art.md`](../guides/book-art.md).
+
+**Real fix:** Implement one replayable image-tools recipe/job orchestration
+contract that runs the declared steps in order, pins inputs and outputs, and
+surfaces final print-prep metrics without bypassing normal admission.
+
+**Owner:** Image Tools.
+
+**Refs:** `api/internal/capability/manifests.seed.json`,
+`api/handlers/ai/preset.go`, `api/internal/ops/print_prep.go`,
+`docs/guides/book-art.md`.
+
 ### 2026-11-19 — CLI manifest is not the whole runtime command surface
 
 **Symptom:** Test Genie's `contracts` phase reports num[sot]:78 commands the

@@ -1,6 +1,9 @@
 package looks
 
 import (
+	"bytes"
+	"image/color"
+	"image/png"
 	"testing"
 
 	"image-tools/internal/ops"
@@ -70,5 +73,42 @@ func TestScreenshotCleanupLookRunsHeadless(t *testing.T) {
 	}
 	if len(deferred) != 1 || deferred[0] != "upscale" {
 		t.Fatalf("deferred = %v, want only [upscale]", deferred)
+	}
+}
+
+// TestBookInkLookRendersTwoLevels is the print proof for the workbook Look: a
+// deterministic chain must collapse the reference swatch to at most two ink
+// values, with no model step deferred.
+func TestBookInkLookRendersTwoLevels(t *testing.T) {
+	var look *looksv1.Look
+	for _, candidate := range BuiltinLooks() {
+		if candidate.GetId() == "book-ink" {
+			look = candidate
+		}
+	}
+	if look == nil {
+		t.Fatal("book-ink Look is missing")
+	}
+	pngBytes, deferred, err := RenderPreview(look)
+	if err != nil {
+		t.Fatalf("render book-ink: %v", err)
+	}
+	if len(deferred) != 0 {
+		t.Fatalf("book-ink must be fully deterministic, deferred %v", deferred)
+	}
+	img, err := png.Decode(bytes.NewReader(pngBytes))
+	if err != nil {
+		t.Fatalf("decode preview: %v", err)
+	}
+	seen := map[color.RGBA]bool{}
+	b := img.Bounds()
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			r, g, bl, a := img.At(x, y).RGBA()
+			seen[color.RGBA{uint8(r >> 8), uint8(g >> 8), uint8(bl >> 8), uint8(a >> 8)}] = true
+		}
+	}
+	if len(seen) > 2 {
+		t.Fatalf("book-ink preview has %d ink values, want at most 2", len(seen))
 	}
 }

@@ -42,6 +42,7 @@ import (
 	localdb "image-tools/internal/database"
 	internalmeasures "image-tools/internal/measures"
 	internalmodelstorage "image-tools/internal/modelstorage"
+	internalquarantine "image-tools/internal/quarantine"
 	internalverdicts "image-tools/internal/verdicts"
 
 	adaptersv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/adapters"
@@ -144,6 +145,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(modelsH.Schema),
 		apidb.SchemaProviderFunc(internalmodelstorage.Schema),
 		apidb.SchemaProviderFunc(internalverdicts.Schema),
+		apidb.SchemaProviderFunc(internalquarantine.Schema),
 		apidb.SchemaProviderFunc(opsH.Schema),
 		apidb.SchemaProviderFunc(preparationH.Schema),
 		apidb.SchemaProviderFunc(safetyH.Schema),

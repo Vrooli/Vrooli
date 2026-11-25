@@ -12,7 +12,9 @@ import (
 func main() {
 	path := os.Args[1]
 	img, err := os.ReadFile(path)
-	if err != nil { panic(err) }
+	if err != nil {
+		panic(err)
+	}
 	judge := aigateway.NewAgeJudge(aigateway.NewVisionClient())
 	start := time.Now()
 	got, err := judge.Judge(context.Background(), img)

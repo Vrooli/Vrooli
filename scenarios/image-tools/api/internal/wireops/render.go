@@ -25,6 +25,7 @@ var fieldOverrides = map[string]map[string]string{
 	"halftone":       {"lpi": "LPI"},
 	"icon_container": {"format": "ContainerFormat"},
 	"metadata":       {"strip_gps": "StripGPS"},
+	"print_prep":     {"dpi": "DPI", "threshold": "InkThreshold"},
 	"scrim":          {"color": "ScrimColor"},
 }
 

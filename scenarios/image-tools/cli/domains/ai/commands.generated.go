@@ -40,4 +40,9 @@ var generatedSubmitSpecs = []submitSpec{
 	{Verb: "detect", Op: "object_detection", Desc: "Detect and locate objects with bounding boxes", NeedsInput: true, NeedsMask: false, NeedsReference: false, Flags: []string{}},
 	{Verb: "tag", Op: "tagging", Desc: "Predict descriptive tags/labels for an image", NeedsInput: true, NeedsMask: false, NeedsReference: false, Flags: []string{}},
 	{Verb: "embed", Op: "embedding", Desc: "Compute a vector embedding of an image", NeedsInput: true, NeedsMask: false, NeedsReference: false, Flags: []string{}},
+	{Verb: "book-art-line-art", Op: "book_art_line_art", Desc: "Book-art preset: line art", NeedsInput: false, NeedsMask: false, NeedsReference: false, Flags: []string{"prompt", "negative", "seed", "width", "height", "steps"}},
+	{Verb: "book-art-picture-book", Op: "book_art_picture_book", Desc: "Book-art preset: picture book", NeedsInput: false, NeedsMask: false, NeedsReference: false, Flags: []string{"prompt", "negative", "seed", "width", "height", "steps"}},
+	{Verb: "book-art-comic-ink", Op: "book_art_comic_ink", Desc: "Book-art preset: comic ink", NeedsInput: false, NeedsMask: false, NeedsReference: false, Flags: []string{"prompt", "negative", "seed", "width", "height", "steps"}},
+	{Verb: "book-art-cookbook", Op: "book_art_cookbook", Desc: "Book-art preset: cookbook", NeedsInput: false, NeedsMask: false, NeedsReference: false, Flags: []string{"prompt", "negative", "seed", "width", "height", "steps"}},
+	{Verb: "book-art-cover-art", Op: "book_art_cover_art", Desc: "Book-art preset: cover art", NeedsInput: false, NeedsMask: false, NeedsReference: false, Flags: []string{"prompt", "negative", "seed", "width", "height", "steps"}},
 }

@@ -219,4 +219,12 @@ var generatedRunSpecs = []runSpec{
 		{Name: "smoothing", Field: "smoothing", Kind: flagBool},
 		{Name: "min-area-px", Field: "min_area_px", Kind: flagDouble},
 	}},
+	{Op: "print_prep", Desc: "Resize an illustration to a physical print box, tag DPI and produce colour or binary ink on alpha", Flags: []flagSpec{
+		{Name: "width-in", Field: "width_in", Kind: flagDouble},
+		{Name: "height-in", Field: "height_in", Kind: flagDouble},
+		{Name: "dpi", Field: "dpi", Kind: flagInt32},
+		{Name: "ink-mode", Field: "ink_mode", Kind: flagString},
+		{Name: "threshold", Field: "threshold", Kind: flagDouble},
+		{Name: "gravity", Field: "gravity", Kind: flagString},
+	}},
 }

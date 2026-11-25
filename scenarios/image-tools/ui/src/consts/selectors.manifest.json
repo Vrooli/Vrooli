@@ -401,6 +401,62 @@
       "testId": "activity-error",
       "selector": "[data-testid=\"activity-error\"]"
     },
+    "activity.safetyFeedback.root": {
+      "testId": "activity-safety-feedback",
+      "selector": "[data-testid=\"activity-safety-feedback\"]"
+    },
+    "activity.safetyFeedback.legitimate": {
+      "testId": "activity-safety-feedback-legitimate",
+      "selector": "[data-testid=\"activity-safety-feedback-legitimate\"]"
+    },
+    "activity.safetyFeedback.confirmed": {
+      "testId": "activity-safety-feedback-confirmed",
+      "selector": "[data-testid=\"activity-safety-feedback-confirmed\"]"
+    },
+    "activity.safetyFeedback.uncertain": {
+      "testId": "activity-safety-feedback-uncertain",
+      "selector": "[data-testid=\"activity-safety-feedback-uncertain\"]"
+    },
+    "activity.safetyFeedback.note": {
+      "testId": "activity-safety-feedback-note",
+      "selector": "[data-testid=\"activity-safety-feedback-note\"]"
+    },
+    "activity.safetyFeedback.save": {
+      "testId": "activity-safety-feedback-save",
+      "selector": "[data-testid=\"activity-safety-feedback-save\"]"
+    },
+    "activity.safetyFeedback.remove": {
+      "testId": "activity-safety-feedback-remove",
+      "selector": "[data-testid=\"activity-safety-feedback-remove\"]"
+    },
+    "activity.safetyFeedback.saved": {
+      "testId": "activity-safety-feedback-saved",
+      "selector": "[data-testid=\"activity-safety-feedback-saved\"]"
+    },
+    "activity.safetyFeedback.error": {
+      "testId": "activity-safety-feedback-error",
+      "selector": "[data-testid=\"activity-safety-feedback-error\"]"
+    },
+    "activity.quarantine.root": {
+      "testId": "activity-quarantine",
+      "selector": "[data-testid=\"activity-quarantine\"]"
+    },
+    "activity.quarantine.list": {
+      "testId": "activity-quarantine-list",
+      "selector": "[data-testid=\"activity-quarantine-list\"]"
+    },
+    "activity.quarantine.loading": {
+      "testId": "activity-quarantine-loading",
+      "selector": "[data-testid=\"activity-quarantine-loading\"]"
+    },
+    "activity.quarantine.empty": {
+      "testId": "activity-quarantine-empty",
+      "selector": "[data-testid=\"activity-quarantine-empty\"]"
+    },
+    "activity.quarantine.error": {
+      "testId": "activity-quarantine-error",
+      "selector": "[data-testid=\"activity-quarantine-error\"]"
+    },
     "backends.card": {
       "testId": "backends-card",
       "selector": "[data-testid=\"backends-card\"]"
@@ -1421,6 +1477,30 @@
       "testId": "settings-responsible-use-summary",
       "selector": "[data-testid=\"settings-responsible-use-summary\"]"
     },
+    "responsibleUse.feedbackPanel": {
+      "testId": "settings-safety-feedback-panel",
+      "selector": "[data-testid=\"settings-safety-feedback-panel\"]"
+    },
+    "responsibleUse.feedbackLoading": {
+      "testId": "settings-safety-feedback-loading",
+      "selector": "[data-testid=\"settings-safety-feedback-loading\"]"
+    },
+    "responsibleUse.feedbackError": {
+      "testId": "settings-safety-feedback-error",
+      "selector": "[data-testid=\"settings-safety-feedback-error\"]"
+    },
+    "responsibleUse.feedbackEmpty": {
+      "testId": "settings-safety-feedback-empty",
+      "selector": "[data-testid=\"settings-safety-feedback-empty\"]"
+    },
+    "responsibleUse.feedbackTotals": {
+      "testId": "settings-safety-feedback-totals",
+      "selector": "[data-testid=\"settings-safety-feedback-totals\"]"
+    },
+    "responsibleUse.feedbackRate": {
+      "testId": "settings-safety-feedback-rate",
+      "selector": "[data-testid=\"settings-safety-feedback-rate\"]"
+    },
     "errorBoundary.root": {
       "testId": "error-boundary-root",
       "selector": "[data-testid=\"error-boundary-root\"]"
@@ -1431,6 +1511,105 @@
     }
   },
   "dynamicSelectors": {
+    "quarantine.card": {
+      "description": "Quarantined refusal card by entry id",
+      "selectorPattern": "[data-testid=\"activity-quarantine-card-${id}\"]",
+      "testIdPattern": "activity-quarantine-card-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "quarantine.reveal": {
+      "description": "Reveal a quarantined image by entry id",
+      "selectorPattern": "[data-testid=\"activity-quarantine-reveal-${id}\"]",
+      "testIdPattern": "activity-quarantine-reveal-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "quarantine.image": {
+      "description": "Quarantined image by entry id",
+      "selectorPattern": "[data-testid=\"activity-quarantine-image-${id}\"]",
+      "testIdPattern": "activity-quarantine-image-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "quarantine.download": {
+      "description": "Download a quarantined image by entry id",
+      "selectorPattern": "[data-testid=\"activity-quarantine-download-${id}\"]",
+      "testIdPattern": "activity-quarantine-download-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "quarantine.legitimate": {
+      "description": "Mark a quarantined refusal legitimate by entry id",
+      "selectorPattern": "[data-testid=\"activity-quarantine-legitimate-${id}\"]",
+      "testIdPattern": "activity-quarantine-legitimate-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "quarantine.confirmed": {
+      "description": "Confirm a quarantined refusal by entry id",
+      "selectorPattern": "[data-testid=\"activity-quarantine-confirmed-${id}\"]",
+      "testIdPattern": "activity-quarantine-confirmed-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "quarantine.uncertain": {
+      "description": "Mark a quarantined refusal uncertain by entry id",
+      "selectorPattern": "[data-testid=\"activity-quarantine-uncertain-${id}\"]",
+      "testIdPattern": "activity-quarantine-uncertain-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "quarantine.saved": {
+      "description": "Saved quarantine judgement by entry id",
+      "selectorPattern": "[data-testid=\"activity-quarantine-saved-${id}\"]",
+      "testIdPattern": "activity-quarantine-saved-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
+    "quarantine.labelError": {
+      "description": "Quarantine judgement error by entry id",
+      "selectorPattern": "[data-testid=\"activity-quarantine-label-error-${id}\"]",
+      "testIdPattern": "activity-quarantine-label-error-${id}",
+      "params": [
+        {
+          "name": "id",
+          "type": "string"
+        }
+      ]
+    },
     "locale.toggle": {
       "description": "Locale toggle button by language code",
       "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
@@ -1989,7 +2168,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "f32319b4f20977779fe5bca6416d524a062d3247d963df70661fc945c716c2ad",
-    "ui/src/consts/selectors.ts": "2194f08fadd99c79682cd34b75c9c70ba1cd3e57afb7eacf68d24825875f7a44",
+    "ui/src/consts/selectors.ts": "f2305c6486d2681a0ea6adc0d8b7c2ea426f48c746c4bec5b3f13234536a6a5b",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

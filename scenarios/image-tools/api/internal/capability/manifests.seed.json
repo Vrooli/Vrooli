@@ -2367,7 +2367,7 @@
             "min": -180,
             "max": 180,
             "step": 1,
-            "unit": "\u00b0"
+            "unit": "°"
           }
         ]
       },
@@ -2890,7 +2890,7 @@
     },
     {
       "id": "rotate",
-      "summary": "Rotate by 90\u00b0 steps or an arbitrary angle",
+      "summary": "Rotate by 90° steps or an arbitrary angle",
       "family": "edit",
       "presentation": {
         "icon": "RotateCw",
@@ -2905,7 +2905,7 @@
             "min": -180,
             "max": 180,
             "step": 1,
-            "unit": "\u00b0"
+            "unit": "°"
           },
           {
             "name": "background",
@@ -3027,6 +3027,443 @@
         "output": {
           "kind": "vector"
         }
+      },
+      "engine": "compute"
+    },
+    {
+      "id": "book_art_line_art",
+      "summary": "Book-art preset: line art",
+      "family": "generate",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "prompt",
+            "kind": "text",
+            "required": false
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "diffusers"
+      ],
+      "consent_weight": "none",
+      "cli": {
+        "group": "ai",
+        "verb": "book-art-line-art",
+        "flags": [
+          "prompt",
+          "negative",
+          "seed",
+          "width",
+          "height",
+          "steps"
+        ]
+      },
+      "panel": "create",
+      "preset": {
+        "runs": "text_to_image",
+        "model": "juggernaut-xl-v9",
+        "prompt": "Design a refined monochrome line illustration for a printed book: {prompt}. elegant editorial pen-and-ink linework, confident contour hierarchy, open paper, fine crosshatching only in shadow, isolated readable silhouette, no decorative frame, deliberate negative space, sophisticated hand-drawn mark-making. Preserve the requested subject and avoid invented text.",
+        "negative": "photograph, grayscale wash, muddy shading, dense black fill, tiny scratchy lines, clutter, border, lettering, text, watermark, signature, cropped subject, extra objects",
+        "steps": 34,
+        "cfg_scale": 5.0,
+        "width": 1024,
+        "height": 1024,
+        "seed": 81091,
+        "post_steps": [
+          {
+            "operation": "upscale",
+            "params": {
+              "scale": 2
+            }
+          },
+          {
+            "operation": "print_prep",
+            "params": {
+              "dpi": 300,
+              "ink_mode": "1bit",
+              "threshold": 0.5,
+              "gravity": "center"
+            }
+          }
+        ]
+      },
+      "presentation": {
+        "icon": "ImagePlus",
+        "label_key": "workspace.aiOp.book_art_line_art.label",
+        "desc_key": "workspace.aiOp.book_art_line_art.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "book_art_picture_book",
+      "summary": "Book-art preset: picture book",
+      "family": "generate",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "prompt",
+            "kind": "text",
+            "required": false
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "diffusers"
+      ],
+      "consent_weight": "none",
+      "cli": {
+        "group": "ai",
+        "verb": "book-art-picture-book",
+        "flags": [
+          "prompt",
+          "negative",
+          "seed",
+          "width",
+          "height",
+          "steps"
+        ]
+      },
+      "panel": "create",
+      "preset": {
+        "runs": "text_to_image",
+        "model": "juggernaut-xl-v9",
+        "prompt": "Create a distinctive picture-book illustration for a printed page: {prompt}. luminous hand-painted gouache and colored-pencil illustration, warm but restrained palette, tactile pigment edges, expressive gesture, clear focal hierarchy, story-rich environment, nuanced light, sophisticated contemporary picture-book art, no lettering. Preserve the requested subject and avoid invented text.",
+        "negative": "generic clipart, plastic 3d, stock-vector look, oversaturated primary colors, muddy details, collage, border, lettering, text, watermark, signature, cropped subject",
+        "steps": 36,
+        "cfg_scale": 5.0,
+        "width": 1024,
+        "height": 1024,
+        "seed": 81092,
+        "post_steps": [
+          {
+            "operation": "upscale",
+            "params": {
+              "scale": 2
+            }
+          },
+          {
+            "operation": "print_prep",
+            "params": {
+              "dpi": 300,
+              "ink_mode": "colour",
+              "threshold": 0.5,
+              "gravity": "center"
+            }
+          }
+        ]
+      },
+      "presentation": {
+        "icon": "ImagePlus",
+        "label_key": "workspace.aiOp.book_art_picture_book.label",
+        "desc_key": "workspace.aiOp.book_art_picture_book.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "book_art_comic_ink",
+      "summary": "Book-art preset: comic ink",
+      "family": "generate",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "prompt",
+            "kind": "text",
+            "required": false
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "diffusers"
+      ],
+      "consent_weight": "none",
+      "cli": {
+        "group": "ai",
+        "verb": "book-art-comic-ink",
+        "flags": [
+          "prompt",
+          "negative",
+          "seed",
+          "width",
+          "height",
+          "steps"
+        ]
+      },
+      "panel": "create",
+      "preset": {
+        "runs": "text_to_image",
+        "model": "juggernaut-xl-v9",
+        "prompt": "Create a compelling comic-book panel image with no lettering: {prompt}. cinematic graphic-novel ink, expressive brush contours, controlled spot blacks, purposeful hatching, dramatic but legible staging, textured hand-inked marks, selective limited-color accents, strong silhouette, no speech balloons or lettering. Preserve the requested subject and avoid invented text.",
+        "negative": "photorealism, flat clipart, uniform digital outline, muddy blacks, unreadable tiny detail, panel border, speech bubbles, lettering, text, watermark, signature, cropped faces, extra limbs",
+        "steps": 38,
+        "cfg_scale": 5.0,
+        "width": 1024,
+        "height": 1536,
+        "seed": 81093,
+        "post_steps": [
+          {
+            "operation": "upscale",
+            "params": {
+              "scale": 2
+            }
+          },
+          {
+            "operation": "print_prep",
+            "params": {
+              "dpi": 300,
+              "ink_mode": "1bit",
+              "threshold": 0.5,
+              "gravity": "center"
+            }
+          }
+        ]
+      },
+      "presentation": {
+        "icon": "ImagePlus",
+        "label_key": "workspace.aiOp.book_art_comic_ink.label",
+        "desc_key": "workspace.aiOp.book_art_comic_ink.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "book_art_cookbook",
+      "summary": "Book-art preset: cookbook",
+      "family": "generate",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "prompt",
+            "kind": "text",
+            "required": false
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "diffusers"
+      ],
+      "consent_weight": "none",
+      "cli": {
+        "group": "ai",
+        "verb": "book-art-cookbook",
+        "flags": [
+          "prompt",
+          "negative",
+          "seed",
+          "width",
+          "height",
+          "steps"
+        ]
+      },
+      "panel": "create",
+      "preset": {
+        "runs": "text_to_image",
+        "model": "juggernaut-xl-v9",
+        "prompt": "Create an editorial cookbook illustration of the dish or ingredient: {prompt}. appetizing natural-light food illustration, art-directed overhead or three-quarter composition, nuanced ingredient texture, quiet warm paper palette, restrained botanical accents, truthful edible proportions, crisp focal dish with generous breathing room, no labels. Preserve the requested subject and avoid invented text.",
+        "negative": "catalog product photo, greasy glare, artificial plastic food, garnish overload, cluttered tabletop, plate cut off, perspective distortion, lettering, recipe text, watermark, signature",
+        "steps": 34,
+        "cfg_scale": 5.0,
+        "width": 1024,
+        "height": 1024,
+        "seed": 81094,
+        "post_steps": [
+          {
+            "operation": "upscale",
+            "params": {
+              "scale": 2
+            }
+          },
+          {
+            "operation": "print_prep",
+            "params": {
+              "dpi": 300,
+              "ink_mode": "colour",
+              "threshold": 0.5,
+              "gravity": "center"
+            }
+          }
+        ]
+      },
+      "presentation": {
+        "icon": "ImagePlus",
+        "label_key": "workspace.aiOp.book_art_cookbook.label",
+        "desc_key": "workspace.aiOp.book_art_cookbook.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "book_art_cover_art",
+      "summary": "Book-art preset: cover art",
+      "family": "generate",
+      "mechanism": "infer",
+      "io": {
+        "inputs": [
+          {
+            "name": "prompt",
+            "kind": "text",
+            "required": false
+          }
+        ],
+        "output": {
+          "kind": "image"
+        }
+      },
+      "requires": {
+        "process": true,
+        "weights": true,
+        "network": false
+      },
+      "backends": [
+        "diffusers"
+      ],
+      "consent_weight": "none",
+      "cli": {
+        "group": "ai",
+        "verb": "book-art-cover-art",
+        "flags": [
+          "prompt",
+          "negative",
+          "seed",
+          "width",
+          "height",
+          "steps"
+        ]
+      },
+      "panel": "create",
+      "preset": {
+        "runs": "text_to_image",
+        "model": "juggernaut-xl-v9",
+        "prompt": "Create original title-safe book-cover artwork, without typography: {prompt}. award-calibre literary cover artwork, singular memorable visual metaphor, restrained gallery-grade palette, sophisticated composition with a clearly quiet title-safe upper third, tactile printmaking or painterly surface, confident scale and negative space, no typography or symbols pretending to be letters. Preserve the requested subject and avoid invented text.",
+        "negative": "template cover, stock-photo collage, generic fantasy glow, excessive ornament, busy center, text, letters, numbers, logos, watermark, signature, border, cropped focal subject",
+        "steps": 40,
+        "cfg_scale": 5.0,
+        "width": 1024,
+        "height": 1536,
+        "seed": 81095,
+        "post_steps": [
+          {
+            "operation": "upscale",
+            "params": {
+              "scale": 2
+            }
+          },
+          {
+            "operation": "print_prep",
+            "params": {
+              "dpi": 300,
+              "ink_mode": "colour",
+              "threshold": 0.5,
+              "gravity": "center"
+            }
+          }
+        ]
+      },
+      "presentation": {
+        "icon": "ImagePlus",
+        "label_key": "workspace.aiOp.book_art_cover_art.label",
+        "desc_key": "workspace.aiOp.book_art_cover_art.desc"
+      },
+      "engine": "ai"
+    },
+    {
+      "id": "print_prep",
+      "summary": "Resize an illustration to a physical print box, tag DPI and produce colour or binary ink on alpha",
+      "family": "edit",
+      "presentation": {
+        "icon": "Printer",
+        "label_key": "workspace.op.print_prep.label",
+        "desc_key": "workspace.op.print_prep.desc",
+        "fields": [
+          {
+            "name": "width_in",
+            "control": "number",
+            "label_key": "workspace.field.widthIn",
+            "default": 6.0,
+            "min": 0.01,
+            "max": 30,
+            "step": 0.01,
+            "unit": "in"
+          },
+          {
+            "name": "height_in",
+            "control": "number",
+            "label_key": "workspace.field.heightIn",
+            "default": 9.0,
+            "min": 0.01,
+            "max": 30,
+            "step": 0.01,
+            "unit": "in"
+          },
+          {
+            "name": "dpi",
+            "control": "number",
+            "label_key": "workspace.field.dpi",
+            "default": 300,
+            "min": 72,
+            "max": 1200,
+            "step": 1
+          },
+          {
+            "name": "ink_mode",
+            "control": "segmented",
+            "label_key": "workspace.field.inkMode",
+            "default": "1bit",
+            "options": [
+              "1bit",
+              "colour"
+            ]
+          },
+          {
+            "name": "threshold",
+            "control": "slider",
+            "label_key": "workspace.field.threshold",
+            "default": 0.5,
+            "min": 0.0,
+            "max": 1.0,
+            "step": 0.01
+          },
+          {
+            "name": "gravity",
+            "control": "position",
+            "label_key": "workspace.field.gravity",
+            "default": "center"
+          }
+        ]
       },
       "engine": "compute"
     }

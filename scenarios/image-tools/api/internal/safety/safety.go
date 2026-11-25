@@ -24,11 +24,13 @@
 //     defeat the gate);
 //   - the per-operation consent-weight table (which ops can alter a real person);
 //   - the policy derived from the tier;
+//   - the declarative reviewer profile (models, thresholds, escalation, second
+//     opinion, refusal action) and the reviewer process contract;
 //   - the Evaluate decision the AI submit edge enforces (consent required? force
 //     the NSFW scan? rate-limited?);
 //   - the consent log (an audit row per affirmed high-weight op).
 //
-// It is pure policy + a thin store; it touches no pixels and no models.
+// It is policy + the reviewer seam; it owns no pixels and no model weights.
 package safety
 
 import (
@@ -201,6 +203,11 @@ type Policy struct {
 	// reviewer. Required-but-absent is a refusal, never a silent pass: the policy
 	// cannot claim the boundary while nothing enforces it.
 	MinorSafetyDetector bool
+	// ReviewProfile is the declarative reviewer configuration resolved for this
+	// deployment (models, thresholds, escalation, second opinion, refusal action,
+	// mode). The same object is sent to the bundled reviewer, so discovery,
+	// enforcement and the process cannot disagree.
+	ReviewProfile ReviewProfile
 }
 
 // PolicyFor derives the DEFAULT control set for a tier. Local is fully
@@ -208,6 +215,7 @@ type Policy struct {
 // marking, and rate limiting. These are defaults, not mandates — ResolvePolicy
 // applies the per-control environment overrides on top.
 func PolicyFor(t Tier) Policy {
+	profile := DefaultReviewProfile(t)
 	if t == TierPublic {
 		return Policy{
 			Tier:                TierPublic,
@@ -217,16 +225,36 @@ func PolicyFor(t Tier) Policy {
 			RequireProvenance:   true,
 			RateLimitPerMin:     publicRateLimitPerMin,
 			MinorSafetyRequired: true,
+			ReviewProfile:       profile,
 		}
 	}
-	return Policy{Tier: TierLocal, ConsentNonLocal: true, MinorSafetyRequired: true}
+	return Policy{Tier: TierLocal, ConsentNonLocal: true, MinorSafetyRequired: true, ReviewProfile: profile}
 }
 
-// ResolvePolicy returns the effective policy for this process: the tier preset
-// with any per-control environment overrides applied. This is what the submit
-// edge and the discovery surface should use.
+// ResolvePolicy returns the effective policy for this process. A malformed
+// profile override cannot silently fall back to a different reviewer: the
+// process fails to start instead. ResolvePolicy keeps the old signature for
+// callers (and tests) that only need the default; production uses
+// ResolvePolicyChecked so an operator override error is reported.
 func ResolvePolicy() Policy {
-	return ApplyOverrides(PolicyFor(ResolveTier()), lookupEnv)
+	policy, err := ResolvePolicyChecked()
+	if err != nil {
+		panic("safety: resolve policy: " + err.Error())
+	}
+	return policy
+}
+
+// ResolvePolicyChecked resolves the tier preset, the declarative review profile
+// (with its environment overrides), and the per-control environment overrides.
+func ResolvePolicyChecked() (Policy, error) {
+	tier := ResolveTier()
+	profile, err := ResolveReviewProfile(tier, lookupEnv)
+	if err != nil {
+		return Policy{}, err
+	}
+	base := PolicyFor(tier)
+	base.ReviewProfile = profile
+	return ApplyOverrides(base, lookupEnv), nil
 }
 
 // ApplyOverrides layers environment overrides onto a base policy. Exported with
@@ -287,10 +315,15 @@ func parseIntEnv(lookup func(string) (string, bool), key string) (int, bool) {
 // claim a protection the deployment has turned off (or deny a capability that
 // exists).
 func (p Policy) Summary() string {
+	prefix := "Local/personal deployment policy: "
 	if p.Tier == TierPublic {
-		return "Public deployment policy: " + p.controlsSummary() + ". All image capabilities remain available."
+		prefix = "Public deployment policy: "
 	}
-	return "Local/personal deployment policy: " + p.controlsSummary() + ". All image capabilities remain available."
+	out := prefix + p.controlsSummary() + ". All image capabilities remain available."
+	if p.ReviewProfile.Name != "" {
+		out += " " + p.ReviewProfile.Summary() + "."
+	}
+	return out
 }
 
 func (p Policy) controlsSummary() string {
@@ -375,6 +408,17 @@ type Decision struct {
 	// ConsentBasis is why consent was or was not needed (ConsentRequirement.Detail),
 	// recorded on the job as consent_basis. Empty when the weight never asks.
 	ConsentBasis string
+	// Unavailable means the decision could not be enforced for a technical
+	// reason (no reviewer, timeout, crash). It is distinct from a policy refusal:
+	// the request fails closed either way, but the caller gets a 503 and the
+	// failure is not counted against the model.
+	Unavailable bool
+	// ReasonCode is the machine-readable reason for a block (or the reviewer's
+	// reason for an allowed flag).
+	ReasonCode ReasonCode
+	// Shadow means the reviewer's verdict was recorded but not enforced. It is
+	// used by a local shadow profile and is never true on a public deployment.
+	Shadow bool
 }
 
 // Evaluate decides whether an AI submit for op may proceed under the policy,
@@ -403,6 +447,8 @@ func (p Policy) EvaluateWeight(w Weight, op string, consentAffirmed bool) Decisi
 		d.RequireMinorReview = true
 		if !p.MinorSafetyDetector {
 			d.Allowed = false
+			d.Unavailable = true
+			d.ReasonCode = ReasonReviewerUnconfigured
 			d.Reason = "this deployment serves other people and requires a minor-safety reviewer for image output, but none is configured"
 			d.RecoveryHint = "set " + MinorSafetyEnv + " to a program implementing the documented JSON review contract; the local/personal deployment tier (the default) does not require one"
 			return d
@@ -410,6 +456,7 @@ func (p Policy) EvaluateWeight(w Weight, op string, consentAffirmed bool) Decisi
 	}
 	if w == WeightHigh && p.RequireConsent && !consentAffirmed {
 		d.Allowed = false
+		d.ReasonCode = "consent_required"
 		d.Reason = "this deployment requires a consent affirmation for identity-altering edits (" + op + ")"
 		d.RecoveryHint = "resubmit with consent_affirmed=true to record that you have the right to edit the people in this image; this deployment's Acceptable-Use Policy requires the affirmation. Set " + ConsentEnv + "=0 to disable this control if you own the deployment"
 		return d

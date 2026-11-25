@@ -2600,6 +2600,142 @@
       ]
     },
     {
+      "id": "safety_record_feedback",
+      "path": "/vrooli.image_tools.v1.safety.SafetyService/RecordSafetyFeedback",
+      "method": "POST",
+      "summary": "Label one reviewer verdict as legitimate, correct or uncertain",
+      "description": "Records the operator's judgement of an output the safety reviewer refused or flagged, snapshotting the reviewer evidence so the case survives job retention. Re-recording the same job/output replaces the label. Feedback is calibration data: it never restores a deleted output, unblurs a result, or changes a stored verdict.",
+      "category": "safety",
+      "response": {
+        "type": "object",
+        "properties": {
+          "action": "string",
+          "id": "int64",
+          "job_id": "string",
+          "label": "SafetyFeedbackLabel",
+          "output_ref": "string",
+          "profile_name": "string",
+          "reason_code": "string",
+          "recorded_at": "Timestamp",
+          "reviewer_version": "string",
+          "safety_review": "string",
+          "score": "double"
+        }
+      }
+    },
+    {
+      "id": "safety_clear_feedback",
+      "path": "/vrooli.image_tools.v1.safety.SafetyService/ClearSafetyFeedback",
+      "method": "POST",
+      "summary": "Remove one reviewer-feedback judgement",
+      "description": "Deletes the recorded judgement for one job output. Returns cleared=false when no judgement existed.",
+      "category": "safety",
+      "response": {
+        "type": "object",
+        "properties": {
+          "cleared": "bool"
+        }
+      }
+    },
+    {
+      "id": "safety_list_feedback",
+      "path": "/vrooli.image_tools.v1.safety.SafetyService/ListSafetyFeedback",
+      "method": "POST",
+      "summary": "List labelled reviewer verdicts newest first",
+      "description": "Returns the refusal/flag corpus, optionally narrowed by label, reason code, model or operation, with the total matching count.",
+      "category": "safety",
+      "response": {
+        "type": "object",
+        "properties": {
+          "cases": "array<SafetyFeedbackCase>",
+          "total": "int32"
+        }
+      }
+    },
+    {
+      "id": "safety_feedback_stats",
+      "path": "/vrooli.image_tools.v1.safety.SafetyService/GetSafetyFeedbackStats",
+      "method": "POST",
+      "summary": "Summarise the labelled reviewer corpus",
+      "description": "Aggregates false-positive and confirmed counts with the false-positive rate overall, per reason code and per reviewer profile, optionally since a timestamp.",
+      "category": "safety",
+      "response": {
+        "type": "object",
+        "properties": {
+          "by_label": "array<SafetyFeedbackLabelCount>",
+          "by_profile": "array<SafetyFeedbackProfileStat>",
+          "by_reason": "array<SafetyFeedbackReasonStat>",
+          "confirmed": "int64",
+          "false_positive_rate": "double",
+          "false_positives": "int64",
+          "total": "int64",
+          "uncertain": "int64"
+        }
+      }
+    },
+    {
+      "id": "safety_export_corpus",
+      "path": "/vrooli.image_tools.v1.safety.SafetyService/ExportSafetyCorpus",
+      "method": "POST",
+      "summary": "Export the labelled reviewer corpus as JSON Lines",
+      "description": "Renders one JSON object per line for offline calibration: the label, the reviewer's evidence, and the per-image finding when the case names one variation. The line schema is documented in SECURITY.md and read by scripts/safety-corpus-replay.py.",
+      "category": "safety",
+      "response": {
+        "type": "object",
+        "properties": {
+          "cases": "int32",
+          "jsonl": "string"
+        }
+      }
+    },
+    {
+      "id": "safety_list_quarantined_outputs",
+      "path": "/vrooli.image_tools.v1.safety.SafetyService/ListQuarantinedOutputs",
+      "method": "POST",
+      "summary": "List refused outputs retained for admin review",
+      "description": "Returns the pending quarantine entries: job, original ref, reason, score, evidence and expiry. The bytes are not part of the response; they are served only by the dedicated quarantine route. Local deployments are ungated; a public deployment requires the configured admin token.",
+      "category": "safety",
+      "response": {
+        "type": "object",
+        "properties": {
+          "outputs": "array<QuarantinedOutput>",
+          "total": "int32"
+        }
+      }
+    },
+    {
+      "id": "safety_quarantine_image",
+      "path": "/api/v1/safety/quarantine/{id}",
+      "method": "GET",
+      "summary": "Fetch one quarantined refusal for admin review",
+      "description": "Streams the retained bytes of a pending quarantine entry. The ordinary /api/v1/blobs/ route refuses the quarantine namespace. Local deployments are ungated; a public deployment requires the admin token. Add ?download=1 for an attachment.",
+      "category": "safety",
+      "response": {
+        "type": "binary"
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No pending quarantine entry with that id"
+        },
+        {
+          "status": 410,
+          "code": "gone",
+          "description": "The quarantine entry expired"
+        },
+        {
+          "status": 403,
+          "code": "forbidden",
+          "description": "A public deployment requires the admin token"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The review UI must load the retained image directly after an explicit reveal; a Connect unary RPC would base64-encode the bytes and cannot stream them."
+      }
+    },
+    {
       "id": "selection_list_region_classes",
       "path": "/vrooli.image_tools.v1.selection.SelectionService/ListRegionClasses",
       "method": "POST",

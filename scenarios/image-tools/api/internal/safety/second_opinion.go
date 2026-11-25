@@ -6,9 +6,10 @@ import (
 	"strings"
 )
 
-// AdultAgeFloor is the youngest apparent age at which a second opinion may clear an
-// image whose face could not be read. It sits well above 18 on purpose: an estimate of
-// "about 20" is not evidence of an adult.
+// AdultAgeFloor is the default youngest apparent age at which a second opinion
+// may clear an image whose face could not be read. It sits well above 18 on
+// purpose: an estimate of "about 20" is not evidence of an adult. A profile may
+// raise it (the shipped profiles use 25).
 const AdultAgeFloor = 25
 
 // AgeJudgement is one face-independent age reading of an image.
@@ -24,10 +25,36 @@ type AgeJudgement struct {
 }
 
 // ClearsAdult reports whether the reading is confident enough to call the subject an
-// adult: not flagged as possibly under 18, estimated at AdultAgeFloor or older, and
-// not low confidence. Anything else stays refused.
+// adult under the default profile: not flagged as possibly under 18, estimated at
+// AdultAgeFloor or older, and not low confidence.
 func (j AgeJudgement) ClearsAdult() bool {
-	return !j.CouldBeUnder18 && j.ApparentAge >= AdultAgeFloor && !strings.EqualFold(j.Confidence, "low")
+	return j.ClearsAdultWith(AdultAgeFloor, "medium")
+}
+
+// ClearsAdultWith applies a profile's floor and minimum confidence. Anything
+// below the floor, flagged under 18, or less confident than the profile allows
+// stays refused. An empty confidence is treated as low.
+func (j AgeJudgement) ClearsAdultWith(minAge int, minConfidence string) bool {
+	if minAge <= 0 {
+		minAge = AdultAgeFloor
+	}
+	if j.CouldBeUnder18 || j.ApparentAge < minAge {
+		return false
+	}
+	rank := map[string]int{"low": 1, "medium": 2, "high": 3}
+	want := rank[strings.ToLower(strings.TrimSpace(minConfidence))]
+	if want == 0 {
+		want = 2
+	}
+	got := rank[strings.ToLower(strings.TrimSpace(j.Confidence))]
+	// Low (or unknown) confidence is never evidence of an adult, whatever the
+	// profile's minimum says. The minimum can raise the bar, never lower it below
+	// medium.
+	need := want
+	if need < 2 {
+		need = 2
+	}
+	return got >= need
 }
 
 // AgeJudge reads an image's subject age without relying on a face (the whole body
@@ -44,19 +71,42 @@ type AgeJudge interface {
 type SecondOpinionReviewer struct {
 	primary MinorReviewer
 	judge   AgeJudge
+	profile SecondOpinionProfile
 }
 
-// NewSecondOpinionReviewer builds the wrapper. A nil judge returns the primary unchanged.
+// NewSecondOpinionReviewer builds the wrapper with the default profile. A nil
+// judge returns the primary unchanged.
 func NewSecondOpinionReviewer(primary MinorReviewer, judge AgeJudge) MinorReviewer {
-	if primary == nil || judge == nil {
+	return NewSecondOpinionReviewerWithProfile(primary, judge, DefaultReviewProfile(TierLocal).SecondOpinion)
+}
+
+// NewSecondOpinionReviewerWithProfile builds the wrapper from a resolved profile.
+// A disabled profile, a nil judge, or a nil primary returns the primary unchanged.
+func NewSecondOpinionReviewerWithProfile(primary MinorReviewer, judge AgeJudge, profile SecondOpinionProfile) MinorReviewer {
+	if primary == nil || judge == nil || !profile.Enabled {
 		return primary
 	}
-	return &SecondOpinionReviewer{primary: primary, judge: judge}
+	return &SecondOpinionReviewer{primary: primary, judge: judge, profile: profile}
+}
+
+// Health delegates to the primary reviewer so discovery sees the real state.
+func (r *SecondOpinionReviewer) Health() ReviewHealth {
+	if h, ok := r.primary.(reviewerHealthReporter); ok {
+		return h.Health()
+	}
+	return ReviewHealth{Configured: true, Available: true, Detail: "configured"}
+}
+
+func (r *SecondOpinionReviewer) Available() bool {
+	if a, ok := r.primary.(reviewerAvailability); ok {
+		return a.Available()
+	}
+	return r.primary != nil
 }
 
 func (r *SecondOpinionReviewer) Review(ctx context.Context, images [][]byte) (MinorVerdict, error) {
 	verdict, err := r.primary.Review(ctx, images)
-	if err != nil || !verdict.Minor {
+	if err != nil || !verdict.Refuses() {
 		return verdict, err
 	}
 	// Clear a refusal only when the per-image findings explain every refused image
@@ -73,7 +123,7 @@ func (r *SecondOpinionReviewer) Review(ctx context.Context, images [][]byte) (Mi
 			return verdict, nil
 		}
 		judgement, judgeErr := r.judge.Judge(ctx, images[i])
-		if judgeErr != nil || !judgement.ClearsAdult() {
+		if judgeErr != nil || !judgement.ClearsAdultWith(r.profile.MinAge, r.profile.MinConfidence) {
 			note := "second opinion could not clear it"
 			if judgeErr != nil {
 				note += ": " + judgeErr.Error()
@@ -88,9 +138,15 @@ func (r *SecondOpinionReviewer) Review(ctx context.Context, images [][]byte) (Mi
 	for i := range verdict.Images {
 		if verdict.Images[i].Refuse {
 			verdict.Images[i].Refuse = false
+			verdict.Images[i].Action = ActionFlag
+			verdict.Images[i].ReasonCode = ReasonSexualAdult
+			verdict.Images[i].Detail = "cleared by second opinion"
 		}
 	}
 	verdict.Minor = false
+	verdict.Action = ActionFlag
+	verdict.ReasonCode = ReasonSexualAdult
+	verdict.ReasonCodes = []ReasonCode{ReasonSexualAdult}
 	verdict.Detail = "passed after second opinion: " + strings.Join(cleared, "; ")
 	return verdict, nil
 }

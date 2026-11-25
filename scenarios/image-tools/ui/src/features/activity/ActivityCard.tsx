@@ -16,6 +16,7 @@ import { useReopenOutput } from "../library/useReopenOutput";
 import { cn } from "../../lib/utils";
 import { SensitiveImage } from "../sensitive/SensitiveImage";
 import { isSensitiveRef } from "../../lib/sensitiveMedia";
+import { SafetyFeedbackControl } from "./SafetyFeedbackControl";
 
 const JOBS_QUERY_KEY = ["jobs"] as const;
 
@@ -168,6 +169,9 @@ function JobRow({ job, index, onCancel, onOpen, cancelPending }: JobRowProps) {
             </Button>
           ) : null}
         </div>
+        {state === JobState.FAILED || state === JobState.SUCCEEDED ? (
+          <SafetyFeedbackControl job={job} />
+        ) : null}
       </div>
     </li>
   );

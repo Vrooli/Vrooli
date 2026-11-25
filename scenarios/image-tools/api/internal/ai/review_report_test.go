@@ -12,6 +12,22 @@ import (
 	"image-tools/internal/models"
 )
 
+// batchReview adapts a one-image fake to the batch reviewer seam. It keeps the
+// existing tests focused on one verdict while exercising the production shape.
+func batchReview(one func(context.Context, []byte) (ScanVerdict, error)) OutputScanner {
+	return func(ctx context.Context, images [][]byte) (ReviewBatch, error) {
+		verdicts := make([]ScanVerdict, 0, len(images))
+		for _, image := range images {
+			verdict, err := one(ctx, image)
+			if err != nil {
+				return ReviewBatch{}, err
+			}
+			verdicts = append(verdicts, verdict)
+		}
+		return ReviewBatch{Verdicts: verdicts}, nil
+	}
+}
+
 // runJobResult is runJob that keeps the whole result (the review records on its Meta).
 func runJobResult(t *testing.T, eng *Engine, op string, pl Payload) (internaljobs.Result, error) {
 	t.Helper()
@@ -32,9 +48,9 @@ func t2iPayload(modelID string) Payload {
 
 func TestReviewRecordsTheSensitiveFlagAndScoreOnTheJob(t *testing.T) {
 	eng, _, modelID := newTestEngine(t, "text_to_image", &fakeProvider{})
-	eng.deps.ReviewOutput = func(context.Context, []byte) (ScanVerdict, error) {
+	eng.deps.ReviewOutput = batchReview(func(context.Context, []byte) (ScanVerdict, error) {
 		return ScanVerdict{NSFW: true, Score: 0.93, Detail: "passed: 1 image(s), max nsfw 0.93"}, nil
-	}
+	})
 	result, err := runJobResult(t, eng, "text_to_image", t2iPayload(modelID))
 	if err != nil {
 		t.Fatal(err)
@@ -45,8 +61,11 @@ func TestReviewRecordsTheSensitiveFlagAndScoreOnTheJob(t *testing.T) {
 	if result.Meta[MetaSensitiveRefs] != result.Ref {
 		t.Errorf("sensitive_refs = %q, want the output ref %q", result.Meta[MetaSensitiveRefs], result.Ref)
 	}
-	if result.Meta[MetaNSFWScore] != "0.9300" || result.Meta[MetaSafetyReview] != "passed" {
+	if result.Meta[MetaNSFWScore] != "0.9300" || result.Meta[MetaSafetyReview] != "flagged" {
 		t.Errorf("score/review meta = %q/%q", result.Meta[MetaNSFWScore], result.Meta[MetaSafetyReview])
+	}
+	if result.Meta[MetaSafetyAction] != "flag" || result.Meta[MetaSafetyReason] != "sexual_adult" {
+		t.Errorf("action/reason = %q/%q", result.Meta[MetaSafetyAction], result.Meta[MetaSafetyReason])
 	}
 	if !strings.Contains(result.Meta[MetaSafetyReviewNotes], "max nsfw 0.93") {
 		t.Errorf("review detail not recorded: %q", result.Meta[MetaSafetyReviewNotes])
@@ -82,7 +101,7 @@ func forceNSFWCapable(t *testing.T, eng *Engine, modelID string, capable bool) {
 func TestReviewFlagsEveryOutputOfAnNSFWCapableModelEvenWhenTheClassifierIsClear(t *testing.T) {
 	eng, _, modelID := newTestEngine(t, "text_to_image", &fakeProvider{})
 	forceNSFWCapable(t, eng, modelID, true)
-	eng.deps.ReviewOutput = func(context.Context, []byte) (ScanVerdict, error) { return ScanVerdict{Score: 0.01}, nil }
+	eng.deps.ReviewOutput = batchReview(func(context.Context, []byte) (ScanVerdict, error) { return ScanVerdict{Score: 0.01}, nil })
 	result, err := runJobResult(t, eng, "text_to_image", t2iPayload(modelID))
 	if err != nil {
 		t.Fatal(err)
@@ -95,7 +114,7 @@ func TestReviewFlagsEveryOutputOfAnNSFWCapableModelEvenWhenTheClassifierIsClear(
 func TestReviewNamesBothReasonsWhenModelAndClassifierAgree(t *testing.T) {
 	eng, _, modelID := newTestEngine(t, "text_to_image", &fakeProvider{})
 	forceNSFWCapable(t, eng, modelID, true)
-	eng.deps.ReviewOutput = func(context.Context, []byte) (ScanVerdict, error) { return ScanVerdict{NSFW: true, Score: 0.9}, nil }
+	eng.deps.ReviewOutput = batchReview(func(context.Context, []byte) (ScanVerdict, error) { return ScanVerdict{NSFW: true, Score: 0.9}, nil })
 	result, err := runJobResult(t, eng, "text_to_image", t2iPayload(modelID))
 	if err != nil {
 		t.Fatal(err)
@@ -108,7 +127,7 @@ func TestReviewNamesBothReasonsWhenModelAndClassifierAgree(t *testing.T) {
 func TestReviewLeavesAClearOutputOfAnOrdinaryModelUnflagged(t *testing.T) {
 	eng, _, modelID := newTestEngine(t, "text_to_image", &fakeProvider{})
 	forceNSFWCapable(t, eng, modelID, false)
-	eng.deps.ReviewOutput = func(context.Context, []byte) (ScanVerdict, error) { return ScanVerdict{Score: 0.01}, nil }
+	eng.deps.ReviewOutput = batchReview(func(context.Context, []byte) (ScanVerdict, error) { return ScanVerdict{Score: 0.01}, nil })
 	result, err := runJobResult(t, eng, "text_to_image", t2iPayload(modelID))
 	if err != nil {
 		t.Fatal(err)
@@ -128,10 +147,10 @@ func TestReviewKnowsWhetherTheProducingModelCanMakeExplicitImages(t *testing.T) 
 		t.Fatalf("model %q missing", modelID)
 	}
 	var seen []bool
-	eng.deps.ReviewOutput = func(ctx context.Context, _ []byte) (ScanVerdict, error) {
+	eng.deps.ReviewOutput = batchReview(func(ctx context.Context, _ []byte) (ScanVerdict, error) {
 		seen = append(seen, ReviewSourceFromContext(ctx).NSFWCapable)
 		return ScanVerdict{}, nil
-	}
+	})
 	if _, err := runJobResult(t, eng, "text_to_image", t2iPayload(modelID)); err != nil {
 		t.Fatal(err)
 	}
@@ -166,10 +185,10 @@ func TestReviewAcquiresMissingWeightsAndHoldsEveryUseLeaseAroundTheReview(t *tes
 		ledger.add("hold:" + id)
 		return func() { ledger.add("release:" + id) }, nil
 	}
-	eng.deps.ReviewOutput = func(context.Context, []byte) (ScanVerdict, error) {
+	eng.deps.ReviewOutput = batchReview(func(context.Context, []byte) (ScanVerdict, error) {
 		ledger.add("review")
 		return ScanVerdict{}, nil
-	}
+	})
 	if _, err := runJobResult(t, eng, "text_to_image", t2iPayload(modelID)); err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +218,7 @@ func TestReviewFailsClosedAndDeletesOutputsWhenItsWeightsCannotBeAcquired(t *tes
 	eng.deps.ReviewModels = []string{"review-a"}
 	eng.deps.AcquireModel = func(context.Context, string, string, func(int, string)) error { return errors.New("network down") }
 	reviewed := false
-	eng.deps.ReviewOutput = func(context.Context, []byte) (ScanVerdict, error) { reviewed = true; return ScanVerdict{}, nil }
+	eng.deps.ReviewOutput = batchReview(func(context.Context, []byte) (ScanVerdict, error) { reviewed = true; return ScanVerdict{}, nil })
 
 	_, err := runJobResult(t, eng, "text_to_image", t2iPayload(modelID))
 	if !errors.Is(err, ErrModelNotInstalled) || !strings.Contains(err.Error(), "safety review") {
@@ -217,7 +236,7 @@ func TestReviewWithoutAnyAcquirerRefusesMissingWeightsInsteadOfSkippingTheReview
 	eng, _, modelID := newTestEngine(t, "text_to_image", &fakeProvider{})
 	eng.deps.ModelInstalled = func(id string) bool { return id == modelID }
 	eng.deps.ReviewModels = []string{"review-a"}
-	eng.deps.ReviewOutput = func(context.Context, []byte) (ScanVerdict, error) { return ScanVerdict{}, nil }
+	eng.deps.ReviewOutput = batchReview(func(context.Context, []byte) (ScanVerdict, error) { return ScanVerdict{}, nil })
 	if _, err := runJobResult(t, eng, "text_to_image", t2iPayload(modelID)); !errors.Is(err, ErrModelNotInstalled) {
 		t.Fatalf("err = %v, want ErrModelNotInstalled", err)
 	}
@@ -233,7 +252,7 @@ func TestMissingReviewWeightsFailAdmissionBeforeAnyOutputExists(t *testing.T) {
 	eng.deps.ModelInstalled = func(id string) bool { return id == modelID }
 	eng.deps.ReviewModels = []string{"review-a"}
 	eng.deps.AcquireModel = func(context.Context, string, string, func(int, string)) error { return errors.New("network down") }
-	eng.deps.ReviewOutput = func(context.Context, []byte) (ScanVerdict, error) { return ScanVerdict{}, nil }
+	eng.deps.ReviewOutput = batchReview(func(context.Context, []byte) (ScanVerdict, error) { return ScanVerdict{}, nil })
 	_, err := runJobResult(t, eng, "text_to_image", t2iPayload(modelID))
 	if !errors.Is(err, ErrModelNotInstalled) || !strings.Contains(err.Error(), "safety review") {
 		t.Fatalf("err = %v, want ErrModelNotInstalled naming the safety review", err)
@@ -257,7 +276,7 @@ func TestReviewAcquiresTheAgeWeightsUpFrontOnlyForAnNSFWCapableProducer(t *testi
 			installed[id] = true
 			return nil
 		}
-		eng.deps.ReviewOutput = func(context.Context, []byte) (ScanVerdict, error) { return ScanVerdict{}, nil }
+		eng.deps.ReviewOutput = batchReview(func(context.Context, []byte) (ScanVerdict, error) { return ScanVerdict{}, nil })
 		if _, err := runJobResult(t, eng, "text_to_image", t2iPayload(modelID)); err != nil {
 			t.Fatal(err)
 		}
@@ -285,13 +304,13 @@ func TestReviewAcquiresMissingEscalationWeightsOnDemandAndRetriesOnce(t *testing
 		return nil
 	}
 	calls := 0
-	eng.deps.ReviewOutput = func(context.Context, []byte) (ScanVerdict, error) {
+	eng.deps.ReviewOutput = batchReview(func(context.Context, []byte) (ScanVerdict, error) {
 		calls++
 		if !installed["faces"] || !installed["age"] {
 			return ScanVerdict{}, &ReviewWeightsMissing{IDs: []string{"faces", "age"}}
 		}
 		return ScanVerdict{NSFW: true, Score: 0.8}, nil
-	}
+	})
 	result, err := runJobResult(t, eng, "text_to_image", t2iPayload(modelID))
 	if err != nil {
 		t.Fatal(err)
@@ -312,9 +331,9 @@ func TestReviewFailsClosedWhenTheOnDemandWeightsCannotBeAcquired(t *testing.T) {
 	eng.deps.ModelInstalled = func(id string) bool { return id == modelID || id == "classifier" }
 	eng.deps.ReviewModels = []string{"classifier"}
 	eng.deps.AcquireModel = func(context.Context, string, string, func(int, string)) error { return errors.New("offline") }
-	eng.deps.ReviewOutput = func(context.Context, []byte) (ScanVerdict, error) {
+	eng.deps.ReviewOutput = batchReview(func(context.Context, []byte) (ScanVerdict, error) {
 		return ScanVerdict{}, &ReviewWeightsMissing{IDs: []string{"age"}}
-	}
+	})
 	_, err := runJobResult(t, eng, "text_to_image", t2iPayload(modelID))
 	if !errors.Is(err, ErrModelNotInstalled) {
 		t.Fatalf("err = %v, want ErrModelNotInstalled", err)
@@ -331,11 +350,11 @@ func TestReviewRunsOnTheJobContextAfterTheAdmittedContextIsReleased(t *testing.T
 	eng, _, modelID := newTestEngine(t, "text_to_image", &fakeProvider{})
 	var reviewCtxErr error
 	reviewed := 0
-	eng.deps.ReviewOutput = func(ctx context.Context, _ []byte) (ScanVerdict, error) {
+	eng.deps.ReviewOutput = batchReview(func(ctx context.Context, _ []byte) (ScanVerdict, error) {
 		reviewed++
 		reviewCtxErr = ctx.Err()
 		return ScanVerdict{}, nil
-	}
+	})
 	job := internaljobs.Job{ID: "job-under-test", Operation: "text_to_image"}
 	raw, err := marshalPinnedPayload(t, eng, "text_to_image", t2iPayload(modelID))
 	if err != nil {

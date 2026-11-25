@@ -47,6 +47,13 @@ const (
 	// CodeRateLimited is the canonical 429 code. Use when a tier's abuse throttle
 	// rejects a request that would otherwise be allowed.
 	CodeRateLimited = "rate_limited"
+
+	// CodeUnavailable is the 503 code for a technical dependency the request needs
+	// (e.g. the required safety reviewer timed out or has no weights). It is
+	// deliberately distinct from CodeForbidden: a policy refusal and an
+	// unavailable reviewer are different outcomes for the caller and for model
+	// quality accounting.
+	CodeUnavailable = "unavailable"
 )
 
 // WriteError serialises a proto-typed ErrorEnvelope as the response

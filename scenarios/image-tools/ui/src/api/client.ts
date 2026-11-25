@@ -87,5 +87,10 @@ export function blobUrl(key: string): string {
   return buildApiUrl(`/blobs/${key}`, { baseUrl: REST_API_BASE });
 }
 
+/** URL for a scenario REST route under the resolved API suffix. */
+export function restApiUrl(path: string): string {
+  return buildApiUrl(path, { baseUrl: REST_API_BASE });
+}
+
 export { fromJson, PROTO_READ_OPTIONS };
 export type { ErrorEnvelope, JsonValue };

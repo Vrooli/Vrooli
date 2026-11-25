@@ -26,6 +26,20 @@ type PresetSpec struct {
 	Negative string  `json:"negative,omitempty"`
 	Steps    int     `json:"steps,omitempty"`
 	CfgScale float64 `json:"cfg_scale,omitempty"`
+	// Default canvas and seed make named book-art recipes reproducible. A caller
+	// may override every default; a seed override is required for distinct figures.
+	Width  int   `json:"width,omitempty"`
+	Height int   `json:"height,omitempty"`
+	Seed   int64 `json:"seed,omitempty"`
+	// PostSteps is the declared deterministic hand-off after generation. It is
+	// consumed by multi-step clients; generation jobs remain one operation each.
+	PostSteps []PresetPostStep `json:"post_steps,omitempty"`
+}
+
+// PresetPostStep is one ordered operation in a preset's follow-up recipe.
+type PresetPostStep struct {
+	Operation string          `json:"operation"`
+	Params    json.RawMessage `json:"params,omitempty"`
 }
 
 // PromptPlaceholder marks where the caller's prompt goes in a preset's Prompt.
@@ -68,8 +82,18 @@ func validatePreset(r *Registry, m Manifest) error {
 		return fmt.Errorf("capability: preset %q prompt must contain %s", m.ID, PromptPlaceholder)
 	case p.Steps < 0 || p.CfgScale < 0:
 		return fmt.Errorf("capability: preset %q has a negative steps or cfg_scale", m.ID)
-	case len(p.Adapters) == 0:
-		return fmt.Errorf("capability: preset %q declares no adapters; use the operation directly", m.ID)
+	}
+	if p.Width < 0 || p.Height < 0 || p.Seed < 0 {
+		return fmt.Errorf("capability: preset %q has a negative width, height or seed", m.ID)
+	}
+	for i, step := range p.PostSteps {
+		target, ok := r.byID[step.Operation]
+		if !ok || step.Operation == "" || (target.Engine != EngineCompute && target.Engine != EngineAI) {
+			return fmt.Errorf("capability: preset %q post_step %d names unknown or non-executable operation %q", m.ID, i, step.Operation)
+		}
+		if len(step.Params) != 0 && !json.Valid(step.Params) {
+			return fmt.Errorf("capability: preset %q post_step %d params are invalid JSON", m.ID, i)
+		}
 	}
 	ports := map[string]bool{}
 	for _, in := range m.IO.Inputs {

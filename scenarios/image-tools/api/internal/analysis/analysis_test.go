@@ -165,6 +165,36 @@ func TestNSFW_HoldsModelUseLeaseThroughSidecar(t *testing.T) {
 	release()
 }
 
+// TestNSFW_EnsembleReportsTheDecidingClassifier keeps the analysis surface
+// consistent: when the high-recall classifier is the one that crossed, the
+// displayed score/threshold are that classifier's, not a precise score that
+// looks below its own bar.
+func TestNSFW_EnsembleReportsTheDecidingClassifier(t *testing.T) {
+	svc := mustService(t, Config{
+		ModelInstalled: func(string) bool { return true },
+		PythonProgram:  "/runtime/pyenv/bin/python",
+		LookPath:       func(program string) (string, error) { return program, nil },
+		Run: func(context.Context, string, []string) ([]byte, error) {
+			return []byte(`{
+				"score":0.9,"recall_score":0.9,"scores":{"falconsai-nsfw":0.2,"adamcodd-vit-nsfw":0.9},
+				"sexual":true,"threshold":0.8,
+				"thresholds":{"falconsai-nsfw":0.3,"adamcodd-vit-nsfw":0.8,"age":0.2},
+				"reason_code":"sexual_adult","categories":[]
+			}`), nil
+		},
+	})
+	res, err := svc.NSFW(context.Background(), []byte("img"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.NSFW || res.Score != 0.9 || res.Threshold != 0.8 {
+		t.Fatalf("verdict = %+v, want the recall classifier's 0.9/0.8", res)
+	}
+	if res.ReasonCode != "sexual_adult" || res.RecallScore != 0.9 {
+		t.Fatalf("reason/recall = %q/%v", res.ReasonCode, res.RecallScore)
+	}
+}
+
 // TestNSFW_ThresholdGovernsVerdict proves the operator-tunable threshold.
 func TestNSFW_ThresholdGovernsVerdict(t *testing.T) {
 	svc := mustService(t, Config{
@@ -425,7 +455,7 @@ func TestOperationsReportTheLiveOCRDefault(t *testing.T) {
 	for _, op := range svc.Operations(context.Background()) {
 		defaults[op.Name] = op.DefaultModelID
 	}
-	if defaults[OpOCR] != "paddleocr" || defaults[OpNSFW] != "adamcodd-vit-nsfw" {
+	if defaults[OpOCR] != "paddleocr" || defaults[OpNSFW] != "falconsai-nsfw" {
 		t.Fatalf("defaults = %v", defaults)
 	}
 	failing := mustService(t, Config{

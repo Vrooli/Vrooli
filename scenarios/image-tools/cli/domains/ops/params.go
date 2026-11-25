@@ -114,6 +114,10 @@ var flagDescriptions = map[string]string{
 	// Shared geometry.
 	"width":      "Width in px (0 = derive from aspect)",
 	"height":     "Height in px (0 = derive from aspect)",
+	"width-in":   "Print-box width in inches",
+	"height-in":  "Print-box height in inches",
+	"dpi":        "Output resolution in dots per inch (default 300)",
+	"ink-mode":   "1bit|colour (default 1bit)",
 	"fit":        "fit|fill|stretch",
 	"gravity":    "Anchor for a fill crop or placement (center, top-left, …)",
 	"x":          "Left offset in px",

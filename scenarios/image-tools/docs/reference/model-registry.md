@@ -201,9 +201,12 @@ the rule and `derive_test.go` the table):
    the kind existed reads as), `refused` (consent, spend cap or the output safety
    review), `invalid_input` (a request the model cannot serve as given, such as a
    phrase a SegFormer parser has no label for; the sidecar signals it with
-   `_common.InputError` and exit status 65), `interrupted` (a restart) or `capacity` (GPU
-   memory another service took mid-run). The last four say nothing about the model and
-   are left out of the history. A run that ends in `capacity` (a model with no CPU path
+   `_common.InputError` and exit status 65), `interrupted` (a restart),
+   `capacity` (GPU memory another service took mid-run) or `safety_unavailable`
+   (the safety reviewer timed out, crashed, lacked weights or returned invalid
+   output; the boundary fails closed but the model did nothing wrong). The last
+   five say nothing about the model and are left out of the history. A run that
+   ends in `capacity` (a model with no CPU path
    whose GPU memory was taken) goes back to the queue once, after 16 s, and keeps
    `capacity_retries` and `capacity_retry_reason` in its meta; a second loss fails the
    job as `capacity`, and its error names the processes that held the GPU

@@ -80,14 +80,14 @@ func TestAnalysisAdmissionDenialRollsBackModelReader(t *testing.T) {
 	if !errors.Is(err, jobs.ErrCapacityBusy) {
 		t.Fatalf("denial lost retryability: %v", err)
 	}
-	if readers.Load() != 1 {
-		t.Fatal("test did not hold artifact reader")
+	if readers.Load() != 2 {
+		t.Fatal("test did not hold both classifier readers")
 	}
 	if err := admission.Release(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	if readers.Load() != 0 {
-		t.Fatal("failed admission leaked artifact reader")
+		t.Fatal("failed admission leaked artifact readers")
 	}
 }
 
@@ -117,8 +117,14 @@ func TestAnalysisAdmissionAcquiresMissingModelBeforeReaderLease(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(events) != 2 || events[0] != "acquire:adamcodd-vit-nsfw@scan-1" || events[1] != "use:adamcodd-vit-nsfw" {
-		t.Fatalf("events=%v, want acquisition before the reader lease", events)
+	wantEvents := []string{"acquire:falconsai-nsfw@scan-1", "use:falconsai-nsfw", "use:adamcodd-vit-nsfw"}
+	if len(events) != len(wantEvents) {
+		t.Fatalf("events=%v, want %v", events, wantEvents)
+	}
+	for i := range wantEvents {
+		if events[i] != wantEvents[i] {
+			t.Fatalf("events=%v, want %v", events, wantEvents)
+		}
 	}
 	if len(progress) != 1 {
 		t.Fatalf("progress=%v", progress)
@@ -159,7 +165,10 @@ func TestAnalysisAdmissionRevalidatesInstalledModelBeforeReaderLease(t *testing.
 	if err != nil {
 		t.Fatalf("a smoke_pending model must be revalidated and admitted: %v", err)
 	}
-	want := []string{"ready?smoke_pending", "revalidate:adamcodd-vit-nsfw@scan-1", "use:adamcodd-vit-nsfw", "ready?ready"}
+	want := []string{
+		"ready?smoke_pending", "revalidate:falconsai-nsfw@scan-1", "use:falconsai-nsfw", "ready?ready",
+		"ready?ready", "use:adamcodd-vit-nsfw", "ready?ready",
+	}
 	if len(events) != len(want) {
 		t.Fatalf("events=%v, want %v", events, want)
 	}

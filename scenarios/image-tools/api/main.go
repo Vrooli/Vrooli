@@ -39,6 +39,7 @@ import (
 	"image-tools/internal/provision"
 	"image-tools/internal/pydeps"
 	internalquality "image-tools/internal/quality"
+	internalquarantine "image-tools/internal/quarantine"
 	"image-tools/internal/safety"
 	"image-tools/internal/server"
 	"image-tools/internal/sidecar"
@@ -648,6 +649,33 @@ func main() {
 	}
 	modelStorage.Start(jobCtx)
 
+	// Responsible-Use policy and the declarative reviewer profile are resolved
+	// before any reviewer or classifier is constructed, so enforcement, discovery
+	// and the sidecar request all use the same object.
+	safetyPolicy, err := safety.ResolvePolicyChecked()
+	if err != nil {
+		log.Fatalf("safety policy: %v", err)
+	}
+	reviewProfile := safetyPolicy.ReviewProfile
+	quarantineToken := strings.TrimSpace(os.Getenv(safety.ReviewQuarantineTokenEnv))
+	quarantineRetention := time.Duration(reviewProfile.QuarantineHours) * time.Hour
+	if safetyPolicy.Tier == safety.TierPublic && quarantineToken == "" {
+		quarantineRetention = 0
+		log.Printf("safety: public deployment has no %s; refused outputs will be deleted instead of quarantined for review", safety.ReviewQuarantineTokenEnv)
+	}
+	quarantineStore := internalquarantine.New(db.Primary(), blobStore, quarantineRetention)
+	go internalquarantine.RunJanitor(jobCtx, quarantineStore, time.Hour, log.Default())
+	var quarantineSink internalai.QuarantineFunc
+	if quarantineStore.Enabled() {
+		quarantineSink = func(ctx context.Context, item internalai.QuarantineItem, data []byte) (string, error) {
+			return quarantineStore.Quarantine(ctx, internalquarantine.Item{
+				JobID: item.JobID, OriginalRef: item.OriginalRef, ReasonCode: item.ReasonCode,
+				SafetyReview: item.SafetyReview, Score: item.Score, Evidence: item.Evidence,
+				Finding: item.Finding, MIME: item.MIME,
+			}, data)
+		}
+	}
+
 	// Analysis service (OCR / NSFW / probe). Its NSFW path also backs the AI
 	// generation auto-scan hook.
 	// The catalog selector is built further down (it needs the AI engine's GPU
@@ -675,6 +703,7 @@ func main() {
 		AcquireModelUse: modelUseGate.Acquire,
 		ModelsRoot:      modelsRoot,
 		PythonProgram:   pythonInterpreter,
+		ReviewProfile:   reviewProfile,
 		Logger:          log.Default(),
 	})
 	if err != nil {
@@ -694,23 +723,25 @@ func main() {
 	// AI engine: probe → hardware-fit model select → backend select → execute →
 	// persist, with the optional NSFW auto-scan on generated output.
 	// The minor-safety boundary is enforced on every tier by the reviewer the scenario
-	// bundles (NSFW classifier + face detector + age model, all local and CPU-only).
+	// bundles (the configured classifier ensemble + face detector + age model, all
+	// local and CPU-only).
 	// IMAGE_TOOLS_MINOR_SAFETY_CMD replaces it with an operator-supplied program that
-	// speaks the same contract. Either way every generated image is reviewed and the
-	// one non-configurable refusal fails the job and deletes the bytes; a reviewer
+	// speaks the same contract. Either way every generated image is reviewed, the
+	// refused bytes are deleted, and the profile decides whether the job fails
+	// (fail_job) or returns the remaining variations (drop_variation); a reviewer
 	// that cannot run fails closed.
-	minorReviewer, err := safety.MinorReviewerFromEnv()
+	minorReviewer, err := safety.MinorReviewerFromEnvWithProfile(reviewProfile)
 	if err != nil {
 		log.Fatalf("%s: %v", safety.MinorSafetyEnv, err)
 	}
 	var reviewModels, reviewEscalationModels []string
 	if minorReviewer == nil {
-		bundled, bundledErr := safety.NewBundledReviewer(safety.BundledReviewerConfig{
+		bundled, bundledErr := safety.NewBundledReviewerWithProfile(safety.BundledReviewerConfig{
 			Python:      pythonInterpreter,
 			SidecarPath: sidecarPath,
 			ModelsRoot:  modelsRoot,
 			Libraries:   sidecar.RuntimeLibraries(pythonInterpreter),
-		})
+		}, reviewProfile)
 		if bundledErr != nil {
 			// Never run without the boundary: an unbuildable reviewer refuses every
 			// image instead of silently disabling the review.
@@ -720,9 +751,13 @@ func main() {
 			// A sexual image with no readable face cannot be age-checked by the face
 			// stages. A local vision model reads the whole body as a second opinion and
 			// may clear it only as a confident adult; anything else stays refused.
-			minorReviewer = safety.NewSecondOpinionReviewer(bundled, aigateway.NewAgeJudge(aigateway.NewVisionClient()))
-			reviewModels = safety.BundledReviewerModels
-			reviewEscalationModels = safety.BundledReviewerEscalationModels
+			if reviewProfile.OnUnassessable == safety.UnassessableSecondOpinion {
+				minorReviewer = safety.NewSecondOpinionReviewerWithProfile(bundled, aigateway.NewAgeJudgeWithProfile(aigateway.NewVisionClient(), reviewProfile.SecondOpinion), reviewProfile.SecondOpinion)
+			} else {
+				minorReviewer = bundled
+			}
+			reviewModels = reviewProfile.ClassifierIDs()
+			reviewEscalationModels = reviewProfile.EscalationIDs()
 		}
 	}
 	// Responsible-Use deployment gate (IMG-P1-015): the tier is chosen at deploy
@@ -732,18 +767,17 @@ func main() {
 	// _RATE_LIMIT_PER_MIN). The same resolved policy drives enforcement (the gate
 	// on the AI submit edge) and discovery (SafetyService.GetPolicy), so the two
 	// cannot disagree.
-	safetyPolicy := safety.ResolvePolicy()
 	safetyGate := safety.NewGateFromPolicy(safetyPolicy, safety.NewConsentLog(db.Primary()))
 	safetyGate.SetMinorReviewer(minorReviewer)
 	// The people check behind low-weight consent: a caption, tags, boxes or a
 	// colourisation sent to a provider asks for consent only when the image shows
 	// someone. Without a counter the requirement stands (fail closed).
-	if faceCounter, faceErr := safety.NewBundledFaceCounter(safety.BundledReviewerConfig{
+	if faceCounter, faceErr := safety.NewBundledFaceCounterWithProfile(safety.BundledReviewerConfig{
 		Python:      pythonInterpreter,
 		SidecarPath: sidecarPath,
 		ModelsRoot:  modelsRoot,
 		Libraries:   sidecar.RuntimeLibraries(pythonInterpreter),
-	}); faceErr != nil {
+	}, reviewProfile); faceErr != nil {
 		log.Printf("WARNING: face counter unavailable (%v); cloud routes will ask for consent on every image", faceErr)
 	} else {
 		safetyGate.SetFaceCounter(faceCounter)
@@ -780,7 +814,8 @@ func main() {
 			nsfw, score, err := analysisService.ScanNSFW(ctx, img)
 			return internalai.ScanVerdict{NSFW: nsfw, Score: score}, err
 		},
-		ReviewOutput:           minorOutputReviewer(minorReviewer),
+		ReviewOutput:           minorOutputReviewer(minorReviewer, reviewProfile),
+		Quarantine:             quarantineSink,
 		ReviewModels:           reviewModels,
 		ReviewEscalationModels: reviewEscalationModels,
 		Capacity:               imageCapacity,
@@ -879,7 +914,16 @@ func main() {
 			Installed: adapterInstalled,
 		}, rightsEvaluator, modelStorage, aiEngine.CapacityManagedGPU(), explainConsent(safetyGate), log.Default()),
 		opsH.Module(blobStore, jobManager, imageCapacity, log.Default()),
-		safetyH.Module(safetyPolicy),
+		safetyH.ModuleWithDeps(safetyH.Deps{
+			Policy:       safetyPolicy,
+			Feedback:     safety.NewFeedbackStore(db.Primary()),
+			Quarantine:   quarantineStore,
+			Jobs:         jobManager,
+			RequireAdmin: safetyPolicy.Tier == safety.TierPublic,
+			AdminToken:   quarantineToken,
+			Health:       safetyGate.ReviewerHealth,
+			Logger:       log.Default(),
+		}),
 		selectionH.Module(blobStore, jobManager, log.Default()),
 		straysH.Module(strayScanner, log.Default()),
 	)
@@ -1060,35 +1104,96 @@ func routeConsent(gate *safety.Gate) internalai.RouteConsentFunc {
 	}
 }
 
-// minorOutputReviewer adapts the deployment's reviewer to the engine's output
-// hook. Output from a model able to make explicit images is reviewed strictly. The
-// verdict also reports whether the image is sexual, which the engine records as the
-// job's sensitive flag.
-func minorOutputReviewer(reviewer safety.MinorReviewer) internalai.OutputScanner {
+// minorOutputReviewer adapts the deployment's batch reviewer to the engine's
+// output hook. The profile is the same object the bundled reviewer receives, so
+// strictness, shadow mode and the refusal blast radius are data, not code.
+func minorOutputReviewer(reviewer safety.MinorReviewer, profile safety.ReviewProfile) internalai.OutputScanner {
 	if reviewer == nil {
 		return nil
 	}
-	return func(ctx context.Context, img []byte) (internalai.ScanVerdict, error) {
-		if internalai.ReviewSourceFromContext(ctx).NSFWCapable {
+	return func(ctx context.Context, images [][]byte) (internalai.ReviewBatch, error) {
+		strict := internalai.ReviewSourceFromContext(ctx).NSFWCapable
+		if strict {
 			ctx = safety.WithStrictReview(ctx)
 		}
-		verdict, err := reviewer.Review(ctx, [][]byte{img})
+		verdict, err := reviewer.Review(ctx, images)
 		var missing *safety.MissingWeightsError
 		if errors.As(err, &missing) {
-			return internalai.ScanVerdict{}, &internalai.ReviewWeightsMissing{IDs: missing.IDs}
+			return internalai.ReviewBatch{}, &internalai.ReviewWeightsMissing{IDs: missing.IDs}
 		}
 		if err != nil {
-			return internalai.ScanVerdict{}, err
+			return internalai.ReviewBatch{}, err
 		}
-		if verdict.Minor && verdict.Sexual {
-			detail := strings.TrimSpace(verdict.Detail)
-			if detail == "" {
-				detail = "sexual content involving a minor"
+		verdict.Normalize()
+		evidence, _ := json.Marshal(verdict)
+
+		// A reviewer that reports only aggregate flags applies to every image.
+		aggregateOnly := len(verdict.Images) != len(images)
+		out := make([]internalai.ScanVerdict, 0, len(images))
+		for i := range images {
+			finding := safety.MinorImageFinding{}
+			if !aggregateOnly {
+				finding = verdict.Images[i]
 			}
-			return internalai.ScanVerdict{HardRefusal: detail}, nil
+			action := string(finding.Action)
+			reason := string(finding.ReasonCode)
+			if action == "" {
+				switch {
+				case aggregateOnly:
+					action = string(verdict.Action)
+					if reason == "" {
+						reason = string(verdict.ReasonCode)
+					}
+				case finding.Refuse || (finding.MinorFace && finding.Sexual):
+					action = string(safety.ActionRefuse)
+				case finding.Sexual:
+					action = string(safety.ActionFlag)
+				default:
+					action = string(safety.ActionAllow)
+				}
+			}
+			detail := strings.TrimSpace(finding.Detail)
+			if detail == "" {
+				detail = strings.TrimSpace(verdict.Detail)
+			}
+			findingJSON := ""
+			if !aggregateOnly {
+				if encoded, marshalErr := json.Marshal(finding); marshalErr == nil {
+					findingJSON = string(encoded)
+				}
+			}
+			scan := internalai.ScanVerdict{
+				Action:        action,
+				ReasonCode:    reason,
+				NSFW:          finding.Sexual,
+				Score:         finding.NSFWScore,
+				Detail:        detail,
+				Evidence:      string(evidence),
+				Finding:       findingJSON,
+				Shadow:        profile.Mode == safety.ReviewModeShadow,
+				DropVariation: profile.OnRefusal == safety.RefusalDropVariation,
+			}
+			if aggregateOnly {
+				scan.NSFW = verdict.Sexual
+				_, score := verdict.Sensitive()
+				scan.Score = score
+			}
+			if action == string(safety.ActionRefuse) {
+				if reason == "" {
+					if finding.Unassessable {
+						reason = string(safety.ReasonSexualUnassessable)
+					} else {
+						reason = string(safety.ReasonSexualMinorFace)
+					}
+				}
+				scan.HardRefusal = detail
+				if scan.HardRefusal == "" {
+					scan.HardRefusal = "sexual content involving a minor"
+				}
+			}
+			out = append(out, scan)
 		}
-		sexual, score := verdict.Sensitive()
-		return internalai.ScanVerdict{NSFW: sexual, Score: score, Detail: strings.TrimSpace(verdict.Detail)}, nil
+		return internalai.ReviewBatch{Verdicts: out, Evidence: string(evidence)}, nil
 	}
 }
 

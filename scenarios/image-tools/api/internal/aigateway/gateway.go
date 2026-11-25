@@ -26,6 +26,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/discovery"
+	aigatewayclient "github.com/vrooli/vrooli/packages/ai-gateway-client-go"
 
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
 	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing/routing_v1connect"
@@ -182,11 +183,10 @@ func (c *aiGatewayMediaClient) Generate(ctx context.Context, req mediaGeneration
 	if c == nil || c.resolve == nil || c.httpClient == nil {
 		return result, fmt.Errorf("ai: AI Gateway media client is not configured")
 	}
-	baseURL, err := c.resolve(ctx)
+	baseURL, err := aigatewayclient.ResolveBaseURL(ctx, c.resolve)
 	if err != nil {
 		return result, fmt.Errorf("ai: resolve AI Gateway: %w", err)
 	}
-	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	if baseURL == "" {
 		return result, fmt.Errorf("ai: AI Gateway discovery returned an empty URL")
 	}
@@ -219,7 +219,9 @@ func (c *aiGatewayMediaClient) Generate(ctx context.Context, req mediaGeneration
 		}
 	}
 
-	client := routingconnect.NewRoutingServiceClient(c.httpClient, baseURL)
+	client := aigatewayclient.NewClient(c.httpClient, baseURL, func(h *http.Client, url string) routingconnect.RoutingServiceClient {
+		return routingconnect.NewRoutingServiceClient(h, url)
+	})
 	submitted, err := client.SubmitMedia(ctx, connect.NewRequest(submit))
 	if err != nil {
 		result.Outcome = "outcome_unknown"

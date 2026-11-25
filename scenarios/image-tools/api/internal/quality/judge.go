@@ -20,6 +20,7 @@ import (
 	"github.com/disintegration/imaging"
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/discovery"
+	aigatewayclient "github.com/vrooli/vrooli/packages/ai-gateway-client-go"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/basicfont"
 	"golang.org/x/image/math/fixed"
@@ -192,7 +193,7 @@ func (g *GatewayJudge) Score(ctx context.Context, req JudgeRequest) (*qualityv1.
 
 func (g *GatewayJudge) scoreWith(ctx context.Context, req JudgeRequest, spec JudgeSpec) (*qualityv1.JudgeResult, error) {
 	start := time.Now()
-	base, err := g.Resolve(ctx)
+	base, err := aigatewayclient.ResolveBaseURL(ctx, g.Resolve)
 	if err != nil {
 		return nil, unavailableError{err}
 	}
@@ -221,7 +222,10 @@ func (g *GatewayJudge) scoreWith(ctx context.Context, req JudgeRequest, spec Jud
 	if len(sheet) > 0 {
 		request.Attachments = []*sharedv1.Attachment{{Modality: sharedv1.Modality_MODALITY_IMAGE, MediaType: "image/png", Bytes: uint64(len(sheet)), Payload: &sharedv1.Attachment_InlineBytes{InlineBytes: sheet}}}
 	}
-	resp, err := routingconnect.NewRoutingServiceClient(g.Client, base).ExecuteRoute(ctx, connect.NewRequest(&routingv1.ExecuteRouteRequest{Request: request, InputText: prompt}))
+	client := aigatewayclient.NewClient(g.Client, base, func(h connect.HTTPClient, url string) routingconnect.RoutingServiceClient {
+		return routingconnect.NewRoutingServiceClient(h, url)
+	})
+	resp, err := client.ExecuteRoute(ctx, connect.NewRequest(&routingv1.ExecuteRouteRequest{Request: request, InputText: prompt}))
 	if err != nil {
 		return nil, unavailableError{err}
 	}

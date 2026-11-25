@@ -35,6 +35,15 @@ func presetRequest(op string, params *aiv1.AIParams, inputKey, referenceKey stri
 	if out.GetSteps() == 0 {
 		out.Steps = int32(preset.Steps)
 	}
+	if out.GetWidth() == 0 {
+		out.Width = int32(preset.Width)
+	}
+	if out.GetHeight() == 0 {
+		out.Height = int32(preset.Height)
+	}
+	if out.GetSeed() == 0 {
+		out.Seed = preset.Seed
+	}
 	if out.GetCfgScale() == 0 {
 		out.CfgScale = preset.CfgScale
 	}

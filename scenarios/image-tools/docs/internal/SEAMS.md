@@ -288,7 +288,7 @@ weights, installed adapters, and sidecar files remain on the primary data root.
 | | |
 |---|---|
 | **Seam** | The async AI-op engine: probe host → hardware-fit model select → backend select → materialize inputs → execute → persist, with an optional NSFW auto-scan. |
-| **Interface** | `internal/ai/engine.go::Engine` with `Plan(ctx, PlanRequest) (Plan, error)` (pre-submit selection the handler uses to refuse early + surface model/tier/ETA) and `BuildRunners() map[op]OpRunner` (registered on the jobs dispatcher). `Deps` carries the registry, backend registry, `capabilities.Probe`, `BlobStore`, `Enabled` overlay loader, `ModelInstalled` gate, `ModelsRoot`, and the `AutoScan` / `ReviewOutput` scanners (advisory vs the non-configurable output review). |
+| **Interface** | `internal/ai/engine.go::Engine` with `Plan(ctx, PlanRequest) (Plan, error)` (pre-submit selection the handler uses to refuse early + surface model/tier/ETA) and `BuildRunners() map[op]OpRunner` (registered on the jobs dispatcher). `Deps` carries the registry, backend registry, `capabilities.Probe`, `BlobStore`, `Enabled` overlay loader, `ModelInstalled` gate, `ModelsRoot`, and the `AutoScan` (one image, advisory) / `ReviewOutput` (whole variation batch, non-configurable) scanners. |
 | **Production wiring** | `main.go` builds the engine and registers its runners on the dispatcher; `handlers/ai/module.go` passes the engine to the submit edge. |
 | **Test fake** | `internal/ai/engine_test.go::fakeProvider` (writes a fixed output, records the request) + memory blob store + `capabilities.FakeProbe` drive the full vertical; `generation_test.go`/`enhancement_test.go` assert select→execute→persist, variations, and the auto-scan hook. |
 | **Why it exists** | Heavy AI work can't run in CI (backend binaries/models absent). Injecting the probe, providers, store, and scanner lets the entire orchestration be proven with fakes, while the real path activates when a model is installed. |
@@ -308,10 +308,30 @@ weights, installed adapters, and sidecar files remain on the primary data root.
 | | |
 |---|---|
 | **Seam** | The synchronous analysis ops: pure-Go `Probe` (no deps) + model-backed `OCR`/`NSFW` (gated on program + model), plus `ScanNSFW` adapting NSFW to the ai auto-scan hook. |
-| **Interface** | `internal/analysis/probe.go::Probe(src) (ProbeResult, error)` and `internal/analysis/service.go::Service` (`OCR`/`NSFW`/`ScanNSFW`) with injectable `LookPath`/`Run` + `ModelInstalled` + operator-tunable `NSFWThreshold`. |
-| **Production wiring** | `main.go` builds the Service; `handlers/analysis/module.go` passes it to the analyze edge; the Service's `ScanNSFW` is wired as the ai engine's `AutoScan`. |
+| **Interface** | `internal/analysis/probe.go::Probe(src) (ProbeResult, error)` and `internal/analysis/service.go::Service` (`OCR`/`NSFW`/`ScanNSFW`) with injectable `LookPath`/`Run` + `ModelInstalled` + the resolved `safety.ReviewProfile` (classifiers and thresholds). |
+| **Production wiring** | `main.go` builds the Service with the same profile as the generation reviewer; `handlers/analysis/module.go` passes it to the analyze edge; the Service's `ScanNSFW` is wired as the ai engine's `AutoScan`. |
 | **Test fake** | `analysis_test.go` drives OCR/NSFW with fake `Run` returning canned output, and `Probe` against a real generated PNG; `autoscan_test.go` proves the hook flags/clears and degrades when unavailable. |
 | **Why it exists** | Decouples the always-headless probe from the model-backed ops, lets the AI package use NSFW without importing analysis, and keeps the safety classifier optional (degrades, never fails generation). |
+
+### safety.FeedbackStore (labelled reviewer corpus)
+
+| | |
+|---|---|
+| **Seam** | The false-positive feedback loop over reviewer verdicts: one labelled case per job output, with the reviewer evidence snapshotted at record time. |
+| **Interface** | `internal/safety/feedback.go::FeedbackStore` (`Record`, `Clear`, `Get`, `ForJobs`, `List`, `Stats`, `Export`) and the pure `BuildFeedbackCase(FeedbackObservation, label, note, actor)`. The handler fills `FeedbackObservation` from the job's `safety_*` result meta (keys owned by `internal/jobs`) so the store never imports the jobs or ai packages. |
+| **Production wiring** | `main.go` builds `safety.NewFeedbackStore(db.Primary())` and passes it, the jobs Manager and the reviewer health to `handlers/safety.ModuleWithDeps`; the Connect surface is `SafetyService.{Record,Clear,List}SafetyFeedback` / `GetSafetyFeedbackStats` / `ExportSafetyCorpus`. |
+| **Test fake** | `feedback_test.go` proves per-variation evidence mapping, ref validation, upsert, stats and JSONL export; `handlers/safety/feedback_test.go` drives the RPCs with a fake `JobSource` and SQLite; `scripts/test_safety_corpus_replay.py` proves the offline replay. |
+| **Why it exists** | A refusal is a judgement that can be wrong. Persisting the operator's label beside a self-contained evidence snapshot (scores, thresholds, face measurements, profile/version) makes false positives measurable after the job is pruned, without copying images or letting a label change enforcement. |
+
+### quarantine.Store (bounded refused-output review)
+
+| | |
+|---|---|
+| **Seam** | The private, TTL-bounded copy of a refused output and the admin review surface over it. |
+| **Interface** | `internal/quarantine/quarantine.go::Store` (`Quarantine`, `List`, `Get`, `Open`, `PurgeExpired`) + `RunJanitor`; the engine receives a narrow `ai.QuarantineFunc` and the safety handler receives `*quarantine.Store` for `ListQuarantinedOutputs` and `GET /api/v1/safety/quarantine/{id}`. |
+| **Production wiring** | `main.go` builds the store over `db.Primary()` and the blob store, derives retention from `ReviewProfile.QuarantineHours`, starts the hourly janitor, and passes the engine sink and safety-module deps. The shipped local profile retains 168 h; the public profile retains 0 h and requires `IMAGE_TOOLS_SAFETY_QUARANTINE_TOKEN` before the review route is usable. |
+| **Test fake** | `quarantine_test.go` proves retention, expiry, purge and blob removal; `handlers/safety/quarantine_test.go` proves local-open, public-token, 410 and empty-list behavior; `handlers/ops/rest_test.go` proves the ordinary blob route refuses `quarantine/`; `internal/ai/review_batch_test.go` proves the engine quarantines before deleting and fails closed on a quarantine write error. |
+| **Why it exists** | A refused output used to be unreviewable. Keeping the bytes in a separate namespace, never a result ref or published blob, gives the admin a bounded window to judge a false positive without weakening the result-surface boundary. Public defaults to no retention because storing the highest-risk class for optional review is a separate policy decision. |
 
 ### module.Module (domain composition)
 

@@ -49,6 +49,18 @@ func BuiltinLooks() []*looksv1.Look {
 			},
 		},
 		{
+			Id:          "book-ink",
+			Name:        "Book Ink (1-bit)",
+			Description: "One-colour ink for workbook and low-ink interiors: grayscale, firm contrast, then a two-level threshold. Pairs with a line-art prompt; check the wrists and fine detail before print. (in-process)",
+			Kind:        looksv1.LookKind_LOOK_KIND_FILM,
+			Builtin:     true,
+			Steps: []*looksv1.LookStep{
+				det("filter", map[string]string{"filter": "grayscale"}),
+				det("adjust", map[string]string{"contrast": "40"}),
+				det("posterize", map[string]string{"levels": "2"}),
+			},
+		},
+		{
 			Id:          "old-ipod",
 			Name:        "Early Camera Phone",
 			Description: "Washed, soft, low-saturation look of a 2000s phone camera.",

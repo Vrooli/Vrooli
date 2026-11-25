@@ -40,15 +40,15 @@ type admittedModel struct{}
 // auto-scans use the same boundary after their parent inference releases CPU.
 func (s *Service) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error) {
 	var scope *sharedcapacity.Scope
-	var releaseUse func()
+	var releaseUses []func()
 	var once sync.Once
 	// The use gate releases once and Scope.Release is retry-safe, so a contended
 	// ledger call is retried by the scheduler rather than failing finished work.
 	admission := jobs.Admission{Context: ctx, ReleaseRetryable: true}
 	admission.Release = func(cleanup context.Context) error {
 		once.Do(func() {
-			if releaseUse != nil {
-				releaseUse()
+			for i := len(releaseUses) - 1; i >= 0; i-- {
+				releaseUses[i]()
 			}
 		})
 		if scope != nil {
@@ -63,69 +63,79 @@ func (s *Service) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, erro
 	threads := cpuThreadsFor(job.Operation)
 	var chosen *models.Model
 	if job.Operation == OpNSFW || job.Operation == OpOCR {
-		modelID := "adamcodd-vit-nsfw"
-		if job.Operation == OpOCR {
+		var modelIDs []string
+		if job.Operation == OpNSFW {
+			modelIDs = s.profile.ClassifierIDs()
+			if len(modelIDs) == 0 {
+				modelIDs = []string{"falconsai-nsfw"}
+			}
+		} else {
 			selected, err := s.selectOperationModel(ctx, OpOCR)
 			if err != nil {
 				return admission, err
 			}
-			modelID, chosen = selected.ID, &selected
+			modelID := selected.ID
+			chosen = &selected
+			modelIDs = []string{modelID}
 		}
-		if s.acquireModel != nil {
-			// Acquire (or revalidate weights already on disk) before the shared
-			// use lease: the installer needs the model's exclusive lease and a
-			// download or smoke must not hold capacity. An installed model that is
-			// not runtime-ready takes the same path the AI engine uses: the
-			// installer revalidates the reasons it can resolve (a pending or stale
-			// smoke, a missing build, a backend provisioned since) and leaves the
-			// rest to the readiness refusal below.
-			installed := s.modelInstalled(modelID)
-			needsAcquire := !installed
-			if installed && s.modelReady != nil {
-				ready, _ := s.modelReady(ctx, modelID)
-				needsAcquire = !ready
-			}
-			if needsAcquire {
-				if err := s.acquireModel(ctx, modelID, job.ID, jobs.AdmissionProgress(ctx)); err != nil {
-					if errors.Is(err, jobs.ErrCapacityBusy) {
-						return admission, err
+		for _, modelID := range modelIDs {
+			if s.acquireModel != nil {
+				// Acquire (or revalidate weights already on disk) before the shared
+				// use lease: the installer needs the model's exclusive lease and a
+				// download or smoke must not hold capacity. An installed model that is
+				// not runtime-ready takes the same path the AI engine uses.
+				installed := s.modelInstalled(modelID)
+				needsAcquire := !installed
+				if installed && s.modelReady != nil {
+					ready, _ := s.modelReady(ctx, modelID)
+					needsAcquire = !ready
+				}
+				if needsAcquire {
+					if err := s.acquireModel(ctx, modelID, job.ID, jobs.AdmissionProgress(ctx)); err != nil {
+						if errors.Is(err, jobs.ErrCapacityBusy) {
+							return admission, err
+						}
+						if errors.Is(err, sharedcapacity.ErrAssetInUse) {
+							return admission, fmt.Errorf("%w: %v", jobs.ErrCapacityBusy, err)
+						}
+						if installed {
+							return admission, fmt.Errorf("%w: model %q is not runtime-ready and could not be revalidated: %v", ErrBackendUnavailable, modelID, err)
+						}
+						return admission, fmt.Errorf("%w: model %q is not installed and could not be acquired: %v", ErrBackendUnavailable, modelID, err)
 					}
-					if errors.Is(err, sharedcapacity.ErrAssetInUse) {
-						return admission, fmt.Errorf("%w: %v", jobs.ErrCapacityBusy, err)
-					}
-					if installed {
-						return admission, fmt.Errorf("%w: model %q is not runtime-ready and could not be revalidated: %v", ErrBackendUnavailable, modelID, err)
-					}
-					return admission, fmt.Errorf("%w: model %q is not installed and could not be acquired: %v", ErrBackendUnavailable, modelID, err)
 				}
 			}
-		}
-		if s.acquireModelUse != nil {
-			var err error
-			releaseUse, err = s.acquireModelUse(modelID)
-			if errors.Is(err, sharedcapacity.ErrAssetInUse) {
-				err = fmt.Errorf("%w: %v", jobs.ErrCapacityBusy, err)
+			if s.acquireModelUse != nil {
+				releaseUse, err := s.acquireModelUse(modelID)
+				if errors.Is(err, sharedcapacity.ErrAssetInUse) {
+					err = fmt.Errorf("%w: %v", jobs.ErrCapacityBusy, err)
+				}
+				if err != nil {
+					return admission, err
+				}
+				if releaseUse == nil {
+					return admission, errors.New("analysis: model admission returned no release function")
+				}
+				releaseUses = append(releaseUses, releaseUse)
 			}
-			if err != nil {
-				return admission, err
+			if !s.modelInstalled(modelID) {
+				return admission, fmt.Errorf("%w: model %q not installed — run `image-tools models install %s`", ErrBackendUnavailable, modelID, modelID)
 			}
-			if releaseUse == nil {
-				return admission, errors.New("analysis: model admission returned no release function")
+			if s.modelReady != nil {
+				if ready, reason := s.modelReady(ctx, modelID); !ready {
+					return admission, fmt.Errorf("%w: model %s: %s", ErrBackendUnavailable, modelID, reason)
+				}
 			}
-		}
-		if !s.modelInstalled(modelID) {
-			return admission, fmt.Errorf("%w: model %q not installed — run `image-tools models install %s`", ErrBackendUnavailable, modelID, modelID)
-		}
-		if s.modelReady != nil {
-			if ready, reason := s.modelReady(ctx, modelID); !ready {
-				return admission, fmt.Errorf("%w: model %s: %s", ErrBackendUnavailable, modelID, reason)
-			}
-		}
-		if s.modelRAMBytes != nil {
-			var err error
-			ram, err = s.modelRAMBytes(modelID)
-			if err != nil {
-				return admission, err
+			if s.modelRAMBytes != nil {
+				modelRAM, err := s.modelRAMBytes(modelID)
+				if err != nil {
+					return admission, err
+				}
+				if job.Operation == OpOCR {
+					ram = modelRAM
+				} else {
+					ram += modelRAM
+				}
 			}
 		}
 	}

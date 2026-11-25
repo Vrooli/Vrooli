@@ -194,10 +194,10 @@ func TestReviewOutputHardRefusalFailsJobAndDeletesArtifacts(t *testing.T) {
 	rec := &recordingStore{Store: store}
 	eng.deps.Store = rec
 	reviewed := 0
-	eng.deps.ReviewOutput = func(context.Context, []byte) (ScanVerdict, error) {
+	eng.deps.ReviewOutput = batchReview(func(context.Context, []byte) (ScanVerdict, error) {
 		reviewed++
 		return ScanVerdict{HardRefusal: "classifier: minor + sexual"}, nil
-	}
+	})
 
 	_, err := runJob(t, eng, "text_to_image", Payload{Operation: "text_to_image", ModelID: modelID, Params: map[string]string{"prompt": "x"}})
 	if err == nil || !strings.Contains(err.Error(), "refused") {
@@ -216,9 +216,9 @@ func TestReviewOutputUnavailableFailsClosed(t *testing.T) {
 	eng, store, modelID := newTestEngine(t, "text_to_image", fp)
 	rec := &recordingStore{Store: store}
 	eng.deps.Store = rec
-	eng.deps.ReviewOutput = func(context.Context, []byte) (ScanVerdict, error) {
+	eng.deps.ReviewOutput = batchReview(func(context.Context, []byte) (ScanVerdict, error) {
 		return ScanVerdict{}, errors.New("classifier crashed")
-	}
+	})
 
 	_, err := runJob(t, eng, "text_to_image", Payload{Operation: "text_to_image", ModelID: modelID, Params: map[string]string{"prompt": "x"}})
 	if err == nil || !strings.Contains(err.Error(), "review failed") {

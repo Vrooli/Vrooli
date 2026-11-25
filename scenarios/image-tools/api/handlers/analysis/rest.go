@@ -13,6 +13,7 @@ import (
 	internalanalysis "image-tools/internal/analysis"
 	"image-tools/internal/httpx"
 	internaljobs "image-tools/internal/jobs"
+	internalquarantine "image-tools/internal/quarantine"
 	"image-tools/internal/storage"
 
 	"github.com/google/uuid"
@@ -187,6 +188,10 @@ func (h *Deps) readImage(w http.ResponseWriter, r *http.Request) ([]byte, bool) 
 		return nil, false
 	}
 	if inputRef != "" {
+		if internalquarantine.IsKey(inputRef) {
+			httpx.WriteError(w, http.StatusBadRequest, httpx.CodeInvalidRequest, "a quarantined refusal cannot be used as analysis input")
+			return nil, false
+		}
 		if h.Store == nil {
 			httpx.WriteError(w, http.StatusServiceUnavailable, httpx.CodeInternal, "stored input references are unavailable")
 			return nil, false

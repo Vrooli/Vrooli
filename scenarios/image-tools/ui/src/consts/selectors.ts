@@ -128,6 +128,24 @@ const literalSelectors = {
     loading: "activity-loading",
     empty: "activity-empty",
     error: "activity-error",
+    safetyFeedback: {
+      root: "activity-safety-feedback",
+      legitimate: "activity-safety-feedback-legitimate",
+      confirmed: "activity-safety-feedback-confirmed",
+      uncertain: "activity-safety-feedback-uncertain",
+      note: "activity-safety-feedback-note",
+      save: "activity-safety-feedback-save",
+      remove: "activity-safety-feedback-remove",
+      saved: "activity-safety-feedback-saved",
+      error: "activity-safety-feedback-error",
+    },
+    quarantine: {
+      root: "activity-quarantine",
+      list: "activity-quarantine-list",
+      loading: "activity-quarantine-loading",
+      empty: "activity-quarantine-empty",
+      error: "activity-quarantine-error",
+    },
   },
   backends: {
     card: "backends-card",
@@ -437,6 +455,12 @@ const literalSelectors = {
     tier: "settings-responsible-use-tier",
     weights: "settings-responsible-use-weights",
     summary: "settings-responsible-use-summary",
+    feedbackPanel: "settings-safety-feedback-panel",
+    feedbackLoading: "settings-safety-feedback-loading",
+    feedbackError: "settings-safety-feedback-error",
+    feedbackEmpty: "settings-safety-feedback-empty",
+    feedbackTotals: "settings-safety-feedback-totals",
+    feedbackRate: "settings-safety-feedback-rate",
   },
   errorBoundary: {
     root: "error-boundary-root",
@@ -453,6 +477,53 @@ const literalSelectors = {
 // is a TypeScript error when "fr" isn't a supported locale. The runtime enum
 // validation in `normalizeParams` provides the same guarantee at call time.
 const dynamicSelectorDefinitions = {
+  quarantine: {
+    card: defineDynamicSelector({
+      description: "Quarantined refusal card by entry id",
+      testIdPattern: "activity-quarantine-card-${id}",
+      params: { id: { type: "string" } },
+    }),
+    reveal: defineDynamicSelector({
+      description: "Reveal a quarantined image by entry id",
+      testIdPattern: "activity-quarantine-reveal-${id}",
+      params: { id: { type: "string" } },
+    }),
+    image: defineDynamicSelector({
+      description: "Quarantined image by entry id",
+      testIdPattern: "activity-quarantine-image-${id}",
+      params: { id: { type: "string" } },
+    }),
+    download: defineDynamicSelector({
+      description: "Download a quarantined image by entry id",
+      testIdPattern: "activity-quarantine-download-${id}",
+      params: { id: { type: "string" } },
+    }),
+    legitimate: defineDynamicSelector({
+      description: "Mark a quarantined refusal legitimate by entry id",
+      testIdPattern: "activity-quarantine-legitimate-${id}",
+      params: { id: { type: "string" } },
+    }),
+    confirmed: defineDynamicSelector({
+      description: "Confirm a quarantined refusal by entry id",
+      testIdPattern: "activity-quarantine-confirmed-${id}",
+      params: { id: { type: "string" } },
+    }),
+    uncertain: defineDynamicSelector({
+      description: "Mark a quarantined refusal uncertain by entry id",
+      testIdPattern: "activity-quarantine-uncertain-${id}",
+      params: { id: { type: "string" } },
+    }),
+    saved: defineDynamicSelector({
+      description: "Saved quarantine judgement by entry id",
+      testIdPattern: "activity-quarantine-saved-${id}",
+      params: { id: { type: "string" } },
+    }),
+    labelError: defineDynamicSelector({
+      description: "Quarantine judgement error by entry id",
+      testIdPattern: "activity-quarantine-label-error-${id}",
+      params: { id: { type: "string" } },
+    }),
+  },
   locale: {
     toggle: defineDynamicSelector({
       description: "Locale toggle button by language code",

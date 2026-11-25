@@ -35,7 +35,7 @@ func TestKindOfReadsTheKindThroughWrappingAndJoins(t *testing.T) {
 
 func TestOnlyAFaultCountsAgainstAModelAndARecordFromBeforeTheKindIsAFault(t *testing.T) {
 	for kind, counts := range map[FailureKind]bool{
-		FailureFault: true, "": true, FailureRefused: false, FailureInvalidInput: false, FailureInterrupted: false, FailureCapacity: false,
+		FailureFault: true, "": true, FailureRefused: false, FailureInvalidInput: false, FailureInterrupted: false, FailureCapacity: false, FailureSafetyUnavailable: false,
 	} {
 		if kind.CountsAgainstModel() != counts {
 			t.Errorf("%q counts against a model = %t, want %t", kind, !counts, counts)

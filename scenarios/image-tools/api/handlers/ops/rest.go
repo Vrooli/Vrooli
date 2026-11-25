@@ -15,6 +15,7 @@ import (
 	"image-tools/internal/httpx"
 	internaljobs "image-tools/internal/jobs"
 	internalops "image-tools/internal/ops"
+	internalquarantine "image-tools/internal/quarantine"
 	"image-tools/internal/storage"
 	"image-tools/internal/wireops"
 
@@ -157,6 +158,12 @@ func (h *Deps) runHandler(w http.ResponseWriter, r *http.Request) {
 // Browser-facing binary fetch with no generated client (RESTReasonOpsProbe).
 func (h *Deps) blobHandler(w http.ResponseWriter, r *http.Request) {
 	key := mux.Vars(r)["key"]
+	// Quarantined refusals have their own bounded, admin-only route. The
+	// ordinary result-blob route must never serve them.
+	if internalquarantine.IsKey(key) {
+		httpx.WriteError(w, http.StatusNotFound, httpx.CodeNotFound, "blob not found")
+		return
+	}
 	rc, mime, err := h.Store.Get(r.Context(), key)
 	if err != nil {
 		httpx.WriteError(w, http.StatusNotFound, httpx.CodeNotFound, "blob not found")

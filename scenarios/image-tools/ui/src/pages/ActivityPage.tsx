@@ -1,6 +1,7 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { ActivityCard } from "../features/activity/ActivityCard";
+import { QuarantineReview } from "../features/activity/QuarantineReview";
 import { useTranslation } from "../i18n";
 
 /** Activity route — the Console-zone monitor for live and recent operations. */
@@ -17,6 +18,7 @@ export function ActivityPage() {
         {t(strings.pages.activity.title)}
       </h2>
       <ActivityCard />
+      <QuarantineReview />
     </section>
   );
 }

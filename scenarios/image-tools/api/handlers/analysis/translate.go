@@ -40,10 +40,12 @@ func ocrToProto(r internalanalysis.OCRResult) *analysisv1.OCRResult {
 
 func nsfwToProto(r internalanalysis.NSFWResult) *analysisv1.NSFWResult {
 	out := &analysisv1.NSFWResult{
-		Nsfw:      r.NSFW,
-		Score:     r.Score,
-		Label:     r.Label,
-		Threshold: r.Threshold,
+		Nsfw:        r.NSFW,
+		Score:       r.Score,
+		Label:       r.Label,
+		Threshold:   r.Threshold,
+		RecallScore: r.RecallScore,
+		ReasonCode:  r.ReasonCode,
 	}
 	for _, c := range r.Categories {
 		out.Categories = append(out.Categories, &analysisv1.NSFWCategory{Label: c.Label, Score: c.Score})

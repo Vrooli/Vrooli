@@ -17,8 +17,13 @@ import (
 // edge, so the wire contract stays per-op-typed while execution stays uniform.
 type Params struct {
 	// Geometry (resize / thumbnail / canvas / crop targets).
-	Width  int `json:"width,omitempty"`
-	Height int `json:"height,omitempty"`
+	Width        int     `json:"width,omitempty"`
+	Height       int     `json:"height,omitempty"`
+	WidthIn      float64 `json:"width_in,omitempty"`
+	HeightIn     float64 `json:"height_in,omitempty"`
+	DPI          int     `json:"dpi,omitempty"`
+	InkMode      string  `json:"ink_mode,omitempty"`
+	InkThreshold float64 `json:"threshold,omitempty"`
 	// Fit mode for resize: "fit" (contain, preserve aspect), "fill" (cover +
 	// center-crop), "stretch" (exact, ignore aspect). Empty defaults to "fit"
 	// when only one of width/height is 0, else "stretch".
