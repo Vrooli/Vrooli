@@ -14,6 +14,7 @@ import type { GateResult, InputIntent } from "./terminal/inputGate";
 import type { InputSettlementCallback } from "../hooks/terminal/useStdinStream";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useConversationStore } from "../stores/useConversationStore";
+import type { PaneViewMode } from "../stores/useMessagesViewStore";
 import { useSessionActivityStore } from "../stores/useSessionActivityStore";
 import { ComposerStateChip } from "./toolbar/ComposerStateChip";
 import { SentHistorySheet } from "./composer/SentHistorySheet";
@@ -193,7 +194,7 @@ interface MobileToolbarProps {
   /** Stop TTS playback. */
   onTtsStop?: () => void;
   /** Current view mode of the active pane. Terminal-specific keys are hidden in messages mode. */
-  viewMode?: "terminal" | "messages";
+  viewMode?: PaneViewMode;
 }
 
 export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function MobileToolbar({
@@ -597,7 +598,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
 
   const layout = useMemo(
     () => layoutToolbar(toolbarPrefs, measuredWidth ?? INITIAL_TOOLBAR_WIDTH_PX, {
-      view: viewMode,
+      view: viewMode === "browser" ? "terminal" : viewMode,
       compactSpacing: keyboardOpen,
       unavailable,
     }),

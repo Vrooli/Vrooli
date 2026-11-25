@@ -2,7 +2,6 @@ package continuity
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
 	"testing"
@@ -11,13 +10,9 @@ import (
 // Compare the full audit previously used by every health probe with the
 // catalog-link observation health actually needs. The full audit is unchanged.
 func BenchmarkContinuityProbeWithRetainedContent(b *testing.B) {
-	db, err := sql.Open("sqlite", ":memory:")
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer db.Close()
+	db := newContinuityTestDB(b, ":memory:")
 	db.SetMaxOpenConns(1)
-	for _, statement := range []string{
+	execContinuitySQL(b, db, []string{
 		`CREATE TABLE sessions(id TEXT PRIMARY KEY)`,
 		`CREATE TABLE conversation_sessions(session_id TEXT PRIMARY KEY)`,
 		`CREATE TABLE conversation_catalog(session_id TEXT PRIMARY KEY)`,
@@ -26,11 +21,7 @@ func BenchmarkContinuityProbeWithRetainedContent(b *testing.B) {
 		`CREATE TABLE workspace_panes(session_id TEXT PRIMARY KEY)`,
 		`INSERT INTO sessions VALUES ('known')`,
 		`INSERT INTO conversation_sessions VALUES ('known')`,
-	} {
-		if _, err := db.Exec(statement); err != nil {
-			b.Fatal(err)
-		}
-	}
+	})
 	tx, err := db.Begin()
 	if err != nil {
 		b.Fatal(err)

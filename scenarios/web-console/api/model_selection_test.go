@@ -16,19 +16,7 @@ import (
 )
 
 func TestRoleModelChoicesArePolicyDeclaredButAvailabilityUnknown(t *testing.T) {
-	root := t.TempDir()
-	policyDir := filepath.Join(root, "resources", "opencode")
-	if err := os.MkdirAll(policyDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	policy, err := os.ReadFile(filepath.Join("..", "..", "..", "resources", "opencode", "model-policy.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(policyDir, "model-policy.json"), policy, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("VROOLI_RESOURCE_ROOT", root)
+	useRepoPolicy(t, "opencode", nil)
 
 	got := (&Server{}).GetRoleModelChoices(t.Context(), "opencode", "local", "")
 	if got.PolicyStatus != "ready" || got.Availability != "unknown" {
@@ -75,6 +63,9 @@ func TestQualifiedPaidCodingChoiceIsApplicationOwnedAndFixed(t *testing.T) {
 		if choice.Source == "vrooli-credits" {
 			if choice.Model != "coding" || choice.LaunchModel != "coding" || choice.SourceLabel != "Vrooli credits" {
 				t.Fatalf("paid model must remain fixed to the qualified account-bound route: %+v", choice)
+			}
+			if choice.ContextWindowTokens != 0 || choice.ContextWindowSource != "" || len(choice.ContextLimitTokens) != 0 {
+				t.Fatalf("an authority window without a reader provenance must remain unknown: %+v", choice)
 			}
 			return
 		}
@@ -270,7 +261,7 @@ func TestClaudeChoicesOfferOnlyLimitsTheReportedWindowAllows(t *testing.T) {
 	t.Setenv(harness.ModelWindowsEnv, windows)
 
 	unknown := choiceNamed(t, (&Server{}).GetRoleModelChoices(t.Context(), "claude", "local", ""), "sonnet")
-	if unknown.ContextWindowTokens != 0 || !slices.Equal(unknown.ContextLimitTokens, []int64{1000000, 300000, 150000}) {
+	if unknown.ContextWindowTokens != 0 || unknown.ContextWindowSource != "" || !slices.Equal(unknown.ContextLimitTokens, []int64{1000000, 300000, 150000}) {
 		t.Fatalf("an unknown window is stated as zero and offers what Claude accepts: %+v", unknown)
 	}
 	for _, tc := range []struct {
@@ -285,7 +276,7 @@ func TestClaudeChoicesOfferOnlyLimitsTheReportedWindowAllows(t *testing.T) {
 			t.Fatal(err)
 		}
 		got := choiceNamed(t, (&Server{}).GetRoleModelChoices(t.Context(), "claude", "local", ""), "sonnet")
-		if got.ContextWindowTokens != tc.tokens || !slices.Equal(got.ContextLimitTokens, tc.want) {
+		if got.ContextWindowTokens != tc.tokens || got.ContextWindowSource != harness.WindowSourceClaudeStatusline || !slices.Equal(got.ContextLimitTokens, tc.want) {
 			t.Fatalf("window %d: got %+v, want limits %v", tc.tokens, got, tc.want)
 		}
 	}
@@ -307,7 +298,7 @@ func TestCodexChoicesReadWindowsThroughTheSharedPackage(t *testing.T) {
 			t.Fatal(err)
 		}
 		got := choiceNamed(t, (&Server{}).GetRoleModelChoices(t.Context(), "codex", "local", ""), "gpt-6.1-terra")
-		if got.ContextWindowTokens != tc.window || !slices.Equal(got.ContextLimitTokens, tc.limits) {
+		if got.ContextWindowTokens != tc.window || got.ContextWindowSource != harness.WindowSourceCodexModelsCache || !slices.Equal(got.ContextLimitTokens, tc.limits) {
 			t.Errorf("window %d: got %+v", tc.window, got)
 		}
 		if got.Metered {
@@ -324,13 +315,92 @@ func TestHarnessWithoutContextLimitGetsNoLimitsAndMeteredChoicesAreMarked(t *tes
 	}
 	metered := map[string]bool{}
 	for _, choice := range result.Choices {
-		if choice.ContextWindowTokens != 0 || len(choice.ContextLimitTokens) != 0 {
+		if choice.ContextWindowTokens != 0 || choice.ContextWindowSource != "" || len(choice.ContextLimitTokens) != 0 {
 			t.Errorf("%s offered a limit OpenCode cannot honour: %+v", choice.Model, choice)
 		}
 		metered[choice.Source] = choice.Metered
 	}
 	if !metered["vrooli-credits"] || !metered["openrouter"] || metered["ollama"] {
 		t.Fatalf("metered by source: %v", metered)
+	}
+}
+
+func TestFourHarnessModelChoiceSurfacesNeverClaimAnUnverifiedWindowSource(t *testing.T) {
+	for _, tc := range []struct{ agentID, resource string }{
+		{"claude", "claude-code"},
+		{"codex", "codex"},
+		{"grok", "grok"},
+		{"opencode", "opencode"},
+	} {
+		t.Run(tc.agentID, func(t *testing.T) {
+			useRepoPolicy(t, tc.resource, nil)
+			t.Setenv(harness.ModelWindowsEnv, filepath.Join(t.TempDir(), "windows.json"))
+			t.Setenv("CODEX_HOME", t.TempDir())
+			result := (&Server{}).GetRoleModelChoices(t.Context(), tc.agentID, "local", "")
+			descriptor, ok := harness.Active().ByID(tc.agentID)
+			if !ok {
+				t.Fatalf("missing descriptor for %s", tc.agentID)
+			}
+			wantStatus := "ready"
+			if tc.agentID == "grok" {
+				wantStatus = "unsupported"
+			}
+			if result.PolicyStatus != wantStatus {
+				t.Fatalf("policy status = %q, want %q: %+v", result.PolicyStatus, wantStatus, result)
+			}
+			if tc.agentID != "grok" && len(result.Choices) == 0 {
+				t.Fatal("supported model-choice API returned no choices")
+			}
+			for _, choice := range result.Choices {
+				if descriptor.Features.ContextLimit == nil && len(choice.ContextLimitTokens) != 0 {
+					t.Errorf("%s claims compactability without a harness-declared launch mechanism: %+v", choice.Model, choice.ContextLimitTokens)
+				}
+				if choice.ContextWindowTokens > 0 && choice.ContextWindowSource == "" {
+					t.Errorf("%s claims %d tokens without a reader source: %+v", choice.Model, choice.ContextWindowTokens, choice)
+				}
+				if choice.ContextWindowTokens <= 0 && choice.ContextWindowSource != "" {
+					t.Errorf("%s names source %q without a known window", choice.Model, choice.ContextWindowSource)
+				}
+			}
+		})
+	}
+}
+
+func TestBuiltinHarnessContextLimitAndWindowReaderDeclarationMatrix(t *testing.T) {
+	cases := []struct {
+		id, windowSource, limitKind, limitKey string
+		modelSources                          []string
+	}{
+		{"agy", "", "", "", nil},
+		{"claude", harness.WindowSourceClaudeStatusline, harness.ContextLimitEnv, "CLAUDE_CODE_AUTO_COMPACT_WINDOW", []string{"claude-subscription"}},
+		{"codex", harness.WindowSourceCodexModelsCache, harness.ContextLimitArg, "model_auto_compact_token_limit", []string{"codex-subscription"}},
+		{"opencode", "", "", "", []string{"opencode-go", "openrouter", "ollama", "orcarouter", "abliteration"}},
+		{"grok", "", "", "", nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.id, func(t *testing.T) {
+			d, ok := harness.Active().ByID(tc.id)
+			if !ok {
+				t.Fatal("missing harness descriptor")
+			}
+			if d.Features.ContextWindowSource != tc.windowSource {
+				t.Fatalf("window reader = %q, want %q", d.Features.ContextWindowSource, tc.windowSource)
+			}
+			if tc.limitKind == "" {
+				if d.Features.ContextLimit != nil {
+					t.Fatalf("unexpected compactability declaration: %+v", d.Features.ContextLimit)
+				}
+			} else if d.Features.ContextLimit == nil || d.Features.ContextLimit.Kind != tc.limitKind || d.Features.ContextLimit.Key != tc.limitKey {
+				t.Fatalf("compactability = %+v, want %s %s", d.Features.ContextLimit, tc.limitKind, tc.limitKey)
+			}
+			var sources []string
+			if d.Features.ModelSelection != nil {
+				sources = d.Features.ModelSelection.Sources
+			}
+			if !slices.Equal(sources, tc.modelSources) {
+				t.Fatalf("model authority sources = %v, want %v", sources, tc.modelSources)
+			}
+		})
 	}
 }
 
@@ -348,7 +418,7 @@ func TestShippedClaudeCatalogNamesTheCurrentModels(t *testing.T) {
 	if err := json.Unmarshal(policy, &doc); err != nil {
 		t.Fatal(err)
 	}
-	for _, model := range []string{"claude-opus-5-5", "claude-sonnet-5-5"} {
+	for _, model := range []string{"claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-2"} {
 		if doc.ModelAliases[model].CanonicalModel != "anthropic/"+model {
 			t.Errorf("%s is missing from the policy", model)
 		}
@@ -378,7 +448,13 @@ func TestClaudeChoicesOfferEveryCatalogModelOnceWithTheDefaultMarkedOnce(t *test
 	if defaults != 1 || !result.Choices[0].IsDefault {
 		t.Fatalf("the default comes first and exactly once: %+v", result.Choices)
 	}
-	for name, model := range map[string]string{"Sonnet 5.5": "sonnet", "Opus 5.5": "opus", "Fable 5.1": "fable", "Haiku 5.5": "haiku"} {
+	for name, model := range map[string]string{
+		"Sonnet 5.5": "sonnet",
+		"Opus 5.5":   "opus",
+		"Fable 5.2":  "fable",
+		"Fable 5.1":  "claude-fable-5-1",
+		"Haiku 5.5":  "haiku",
+	} {
 		if names[name] != model {
 			t.Errorf("%s is %q, want %q; got %v", name, names[name], model, names)
 		}
@@ -428,7 +504,7 @@ func TestClaudeChoicesOrderByTierThenNewest(t *testing.T) {
 	for _, choice := range (&Server{}).GetRoleModelChoices(t.Context(), "claude", "local", "").Choices {
 		got = append(got, choice.DisplayName)
 	}
-	want := []string{"Sonnet 5.5", "Fable 5.1", "Fable 5", "Opus 5.5", "Opus 5", "Sonnet 5", "Haiku 5.5", "Haiku 4.5"}
+	want := []string{"Fable 5.2", "Fable 5.1", "Fable 5", "Opus 5.5", "Opus 5", "Sonnet 5.5", "Sonnet 5", "Haiku 5.5", "Haiku 4.5"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("order = %v, want %v", got, want)
 	}

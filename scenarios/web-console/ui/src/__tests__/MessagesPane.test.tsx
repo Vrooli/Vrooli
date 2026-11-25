@@ -21,9 +21,10 @@ vi.mock("../hooks/useConversationSession", () => ({
   loadConversationPageContaining: mockLoadConversationPageContaining,
 }));
 
-const { mockGetAllConversationEvents, mockResolveConversationEvents } = vi.hoisted(() => ({
+const { mockGetAllConversationEvents, mockResolveConversationEvents, mockGetConversationRange } = vi.hoisted(() => ({
   mockGetAllConversationEvents: vi.fn().mockResolvedValue([]),
   mockResolveConversationEvents: vi.fn().mockResolvedValue({ events: [], missingEventIds: [] }),
+  mockGetConversationRange: vi.fn().mockResolvedValue({ sessionId: "sess-1", events: [], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, capture: {} }),
 }));
 
 // Mock the markdown renderer to avoid shiki/mermaid in jsdom
@@ -35,6 +36,7 @@ vi.mock("../api/conversation", async (importOriginal) => {
     ...actual,
     getAllConversationEvents: mockGetAllConversationEvents,
     resolveConversationEvents: mockResolveConversationEvents,
+    getConversationRange: mockGetConversationRange,
     searchConversation: vi.fn((_sessionId: string, query: string) => Promise.resolve(
       query === "Hello"
         ? { matches: [{ eventId: "e1", sequence: 1, excerpt: "Hello world", ranges: [{ start: 0, end: 5 }], role: "assistant" as const, createdAt: "2026-09-11T08:00:00Z" }], truncated: false, totalMatches: 1 }
@@ -130,8 +132,15 @@ function overflowAction(eventId: string, testId: string): HTMLElement {
 describe("MessagesPane", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(searchConversation).mockReset();
+    vi.mocked(searchConversation).mockImplementation((_sessionId: string, query: string) => Promise.resolve(
+      query === "Hello"
+        ? { matches: [{ eventId: "e1", sequence: 1, excerpt: "Hello world", ranges: [{ start: 0, end: 5 }], role: "assistant" as const, createdAt: "2026-09-11T08:00:00Z" }], truncated: false, totalMatches: 1, hasMore: false, nextAfterSequence: 0 }
+        : { matches: [], truncated: false, totalMatches: 0, hasMore: false, nextAfterSequence: 0 },
+    ));
     mockGetAllConversationEvents.mockResolvedValue([]);
     mockResolveConversationEvents.mockResolvedValue({ events: [], missingEventIds: [] });
+    mockGetConversationRange.mockResolvedValue({ sessionId: "sess-1", events: [], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, capture: {} });
     mockLoadOlderConversationPage.mockResolvedValue(false);
     mockLoadConversationPageContaining.mockResolvedValue(false);
     useConversationStore.setState({ sessions: {} });
@@ -374,8 +383,7 @@ describe("MessagesPane", () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Hello world" })]);
     render(<MessagesPane {...defaultProps} />);
 
-    fireEvent.click(screen.getByTestId("messages-search-field"));
-    fireEvent.change(screen.getByTestId("msg-nav-search"), {
+    fireEvent.change(screen.getByTestId("messages-search-field"), {
       target: { value: "world" },
     });
 
@@ -391,11 +399,11 @@ describe("MessagesPane", () => {
       .mockResolvedValueOnce({ matches: [{ eventId: first.id, sequence: first.sequence, excerpt: first.text, ranges: [{ start: 0, end: 6 }], role: "assistant", createdAt: first.createdAt }], truncated: true, totalMatches: 2, hasMore: true, nextAfterSequence: 1 })
       .mockResolvedValueOnce({ matches: [{ eventId: second.id, sequence: second.sequence, excerpt: second.text, ranges: [{ start: 0, end: 6 }], role: "assistant", createdAt: second.createdAt }], truncated: false, totalMatches: 1, hasMore: false, nextAfterSequence: 0 });
     render(<MessagesPane {...defaultProps} />);
-    fireEvent.click(screen.getByTestId("messages-search-field"));
-    fireEvent.change(screen.getByTestId("msg-nav-search"), { target: { value: "needle" } });
-    expect(await screen.findByTestId("msg-jump-item-first-hit")).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId("msg-jump-load-more"));
-    expect(await screen.findByTestId("msg-jump-item-second-hit")).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId("messages-search-field"), { target: { value: "needle" } });
+    expect(await screen.findByTestId("messages-search-result-first-hit")).toBeInTheDocument();
+    await waitFor(() => { expect(screen.getByTestId("messages-search-load-more")).toBeInTheDocument(); });
+    fireEvent.click(screen.getByTestId("messages-search-load-more"));
+    expect(await screen.findByTestId("messages-search-result-second-hit")).toBeInTheDocument();
     expect(searchConversation).toHaveBeenLastCalledWith("sess-1", "needle", expect.objectContaining({ afterSequence: 1 }));
   });
 
@@ -477,14 +485,15 @@ describe("MessagesPane", () => {
     );
   });
 
-  it("the search field opens the navigator focused on search", () => {
+  it("the search field opens a results dropdown", () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1 })]);
     render(<MessagesPane {...defaultProps} />);
 
-    expect(screen.queryByTestId("msg-jump-list")).toBeNull();
-    fireEvent.click(screen.getByTestId("messages-search-field"));
-    expect(screen.getByTestId("msg-jump-list")).toBeInTheDocument();
-    expect(screen.getByTestId("msg-nav-search")).toBeInTheDocument();
+    expect(screen.queryByTestId("messages-search-results")).toBeNull();
+    const field = screen.getByTestId("messages-search-field");
+    field.focus();
+    fireEvent.focus(field);
+    expect(screen.getByTestId("messages-search-results")).toBeInTheDocument();
   });
 
   // --- Search ---
@@ -496,8 +505,7 @@ describe("MessagesPane", () => {
     ]);
     render(<MessagesPane {...defaultProps} />);
 
-    fireEvent.click(screen.getByTestId("messages-search-field"));
-    fireEvent.change(screen.getByTestId("msg-nav-search"), {
+    fireEvent.change(screen.getByTestId("messages-search-field"), {
       target: { value: "Hello" },
     });
     // Nothing is dimmed while the search is in flight: no row is judged
@@ -506,50 +514,52 @@ describe("MessagesPane", () => {
     expect(screen.getByTestId("msg-card-e2").className).not.toContain("opacity-40");
 
     // e1 is a server hit, e2 is not — dimming applies to the message cards
-    // behind the navigator overlay.
+    // behind the results dropdown.
     await waitFor(() => { expect(screen.getByTestId("msg-card-e2").className).toContain("opacity-40"); });
     expect(screen.getByTestId("msg-card-e1").className).not.toContain("opacity-40");
   });
 
-  it("clearing the navigator search removes message dimming", async () => {
+  it("clearing the search removes message dimming", async () => {
     seedEvents([
       makeEvent({ id: "e1", sequence: 1, text: "Hello world" }),
       makeEvent({ id: "e2", sequence: 2, text: "Goodbye" }),
     ]);
     render(<MessagesPane {...defaultProps} />);
 
-    fireEvent.click(screen.getByTestId("messages-search-field"));
-    fireEvent.change(screen.getByTestId("msg-nav-search"), {
+    fireEvent.change(screen.getByTestId("messages-search-field"), {
       target: { value: "Hello" },
     });
     await waitFor(() => { expect(screen.getByTestId("msg-card-e2").className).toContain("opacity-40"); });
 
-    // The navigator's clear button resets the lifted query.
-    fireEvent.click(screen.getByTestId("msg-nav-clear"));
+    fireEvent.click(screen.getByTestId("messages-search-field-clear"));
     expect(screen.getByTestId("msg-card-e2").className).not.toContain("opacity-40");
   });
 
-  // --- Jump list ---
+  // --- Search results ---
 
-  it("the search field opens the navigator list", () => {
+  it("the search field lists recent messages", () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1 })]);
     render(<MessagesPane {...defaultProps} />);
 
-    expect(screen.queryByTestId("msg-jump-list")).toBeNull();
-    fireEvent.click(screen.getByTestId("messages-search-field"));
-    expect(screen.getByTestId("msg-jump-list")).toBeInTheDocument();
+    expect(screen.queryByTestId("messages-search-results")).toBeNull();
+    const field = screen.getByTestId("messages-search-field");
+    field.focus();
+    fireEvent.focus(field);
+    expect(screen.getByTestId("messages-search-results")).toBeInTheDocument();
   });
 
-  it("jump list shows all messages with truncated text", () => {
+  it("search results show every matching message with truncated text", () => {
     seedEvents([
       makeEvent({ id: "e1", sequence: 1, role: "user", text: "Short user message" }),
-      makeEvent({ id: "e2", sequence: 2, role: "assistant", text: "A very long assistant response that should be truncated in the jump list to save space" }),
+      makeEvent({ id: "e2", sequence: 2, role: "assistant", text: "A very long assistant response that should be truncated in the results list to save space" }),
     ]);
     render(<MessagesPane {...defaultProps} />);
 
-    fireEvent.click(screen.getByTestId("messages-search-field"));
-    expect(screen.getByTestId("msg-jump-item-e1")).toBeInTheDocument();
-    expect(screen.getByTestId("msg-jump-item-e2")).toBeInTheDocument();
+    const field = screen.getByTestId("messages-search-field");
+    field.focus();
+    fireEvent.focus(field);
+    expect(screen.getByTestId("messages-search-result-e1")).toBeInTheDocument();
+    expect(screen.getByTestId("messages-search-result-e2")).toBeInTheDocument();
   });
 
   // --- Summarization ---
@@ -851,8 +861,7 @@ describe("MessagesPane", () => {
 
   describe("export selection flow", () => {
     function openExportSelection() {
-      fireEvent.click(screen.getByTestId("messages-search-field"));
-      fireEvent.click(screen.getByTestId("msg-export-enter"));
+      fireEvent.click(screen.getByTestId("messages-select-toggle"));
     }
 
     beforeEach(() => {
@@ -872,9 +881,9 @@ describe("MessagesPane", () => {
       openExportSelection();
 
       // Select out of order — the export must still be chronological.
-      fireEvent.click(screen.getByTestId("msg-jump-item-e2"));
-      fireEvent.click(screen.getByTestId("msg-jump-item-e1"));
-      fireEvent.click(screen.getByTestId("msg-export-continue"));
+      fireEvent.click(screen.getByTestId("msg-select-e2"));
+      fireEvent.click(screen.getByTestId("msg-select-e1"));
+      fireEvent.click(screen.getByTestId("messages-select-export"));
 
       const preview = screen.getByTestId("msg-export-preview").textContent ?? "";
       expect(preview.indexOf("first question")).toBeGreaterThanOrEqual(0);
@@ -882,22 +891,115 @@ describe("MessagesPane", () => {
       expect(preview).not.toContain("unselected reply");
     });
 
-    it("closing the drawer keeps the navigator selection for another pass", async () => {
+    it("reviews the exact selected export in the existing handoff callback", async () => {
+      const onHandoff = vi.fn();
+      seedEvents([
+        makeEvent({ id: "e1", sequence: 1, role: "user", text: "selected question" }),
+        makeEvent({ id: "e2", sequence: 2, text: "selected answer" }),
+        makeEvent({ id: "e3", sequence: 3, text: "outside the selection" }),
+      ]);
+      render(<MessagesPane {...defaultProps} onHandoff={onHandoff} />);
+      openExportSelection();
+      fireEvent.click(screen.getByTestId("msg-select-e2"));
+      fireEvent.click(screen.getByTestId("msg-select-e1"));
+      fireEvent.click(screen.getByTestId("messages-select-export"));
+      const exactPreview = screen.getByTestId("msg-export-preview").textContent ?? "";
+
+      fireEvent.click(screen.getByTestId("msg-export-handoff"));
+
+      expect(onHandoff).toHaveBeenCalledTimes(1);
+      expect(onHandoff).toHaveBeenCalledWith("sess-1", exactPreview);
+      expect(exactPreview).toContain("selected question");
+      expect(exactPreview).toContain("selected answer");
+      expect(exactPreview).not.toContain("outside the selection");
+      await waitFor(() => expect(screen.queryByTestId("msg-export-drawer")).toBeNull());
+    });
+
+    it("loads the stored conversation range on Shift+click before handoff", async () => {
+      const rangeEvents = [
+        makeEvent({ id: "e1", sequence: 1, role: "user", text: "range start" }),
+        makeEvent({ id: "e2", sequence: 2, text: "[Tool call: exec]\n{\"cmd\":\"pwd\"}" }),
+        makeEvent({ id: "e3", sequence: 3, text: "range end" }),
+      ];
+      seedEvents([rangeEvents[0]!, rangeEvents[2]!]);
+      mockGetConversationRange.mockResolvedValueOnce({
+        sessionId: "sess-1",
+        events: rangeEvents,
+        cursor: { lastSeenSequence: 0, lastListenedSequence: 0 },
+        capture: {},
+      });
+      const onHandoff = vi.fn();
+      render(<MessagesPane {...defaultProps} onHandoff={onHandoff} />);
+      openExportSelection();
+      fireEvent.click(screen.getByTestId("msg-select-e1"));
+      fireEvent.click(screen.getByTestId("msg-select-e3"), { shiftKey: true });
+      await waitFor(() => expect(mockGetConversationRange).toHaveBeenCalledWith("sess-1", 1, 3));
+      await waitFor(() => expect(screen.getByTestId("messages-select-export")).not.toBeDisabled());
+      fireEvent.click(screen.getByTestId("messages-select-export"));
+      const preview = screen.getByTestId("msg-export-preview").textContent ?? "";
+      expect(preview.indexOf("range start")).toBeLessThan(preview.indexOf("Tool call: exec"));
+      expect(preview).toContain("Tool call: exec");
+      expect(preview).toContain("pwd");
+      expect(preview.indexOf("Tool call: exec")).toBeLessThan(preview.indexOf("range end"));
+      fireEvent.click(screen.getByTestId("msg-export-handoff"));
+      expect(onHandoff).toHaveBeenCalledWith("sess-1", preview);
+    });
+
+    it("keeps an oversized range explicit and blocks an incomplete handoff", async () => {
+      seedEvents([
+        makeEvent({ id: "first", sequence: 1, text: "start" }),
+        makeEvent({ id: "last", sequence: 5_002, text: "end" }),
+      ]);
+      mockGetConversationRange.mockRejectedValueOnce(new Error("conversation range exceeds 5000 events"));
+      render(<MessagesPane {...defaultProps} onHandoff={vi.fn()} />);
+      openExportSelection();
+      fireEvent.click(screen.getByTestId("msg-select-first"));
+      fireEvent.click(screen.getByTestId("msg-select-last"), { shiftKey: true });
+
+      expect(await screen.findByTestId("messages-selection-error")).toHaveTextContent("messageExport.rangeLoadFailed");
+      expect(screen.getByTestId("messages-select-export")).toBeDisabled();
+    });
+
+    it("hands off the last event from an explicitly selected 5,005-event history", async () => {
+      const onHandoff = vi.fn();
+      const history = Array.from({ length: 5_005 }, (_, index) => makeEvent({
+        id: `long-${index + 1}`,
+        sequence: index + 1,
+        text: index === 2_502 ? "[Tool call: exec]\n{\"cmd\":\"unique-local-marker\"}" : index === 5_004 ? "long-history tail marker" : `history message ${index + 1}`,
+      }));
+      seedEvents(history);
+      mockGetAllConversationEvents.mockResolvedValueOnce(history);
+      render(<MessagesPane {...defaultProps} onHandoff={onHandoff} />);
+      openExportSelection();
+      fireEvent.click(screen.getByTestId("messages-select-all"));
+      await waitFor(() => expect(screen.getByTestId("messages-select-export")).not.toBeDisabled());
+      fireEvent.click(screen.getByTestId("messages-select-export"));
+      fireEvent.click(screen.getByTestId("msg-export-handoff"));
+
+      expect(onHandoff).toHaveBeenCalledTimes(1);
+      expect(onHandoff.mock.calls[0]?.[0]).toBe("sess-1");
+      expect(onHandoff.mock.calls[0]?.[1]).toContain("long-history tail marker");
+      expect(onHandoff.mock.calls[0]?.[1]).toContain("history message 1");
+      expect(onHandoff.mock.calls[0]?.[1]).toContain("Tool call: exec");
+      expect(onHandoff.mock.calls[0]?.[1]).toContain("unique-local-marker");
+    });
+
+    it("closing the drawer keeps the list selection for another pass", async () => {
       seedEvents([
         makeEvent({ id: "e1", sequence: 1, text: "keep me" }),
         makeEvent({ id: "e2", sequence: 2, text: "other" }),
       ]);
       render(<MessagesPane {...defaultProps} />);
       openExportSelection();
-      fireEvent.click(screen.getByTestId("msg-jump-item-e1"));
-      fireEvent.click(screen.getByTestId("msg-export-continue"));
+      fireEvent.click(screen.getByTestId("msg-select-e1"));
+      fireEvent.click(screen.getByTestId("messages-select-export"));
       expect(screen.getByTestId("msg-export-drawer")).toBeInTheDocument();
 
       fireEvent.pointerDown(screen.getByTestId("msg-export-drawer.backdrop"));
       await waitFor(() => expect(screen.queryByTestId("msg-export-drawer")).toBeNull());
       // Navigator is still open in selection mode with the selection intact.
-      expect(screen.getByTestId("msg-jump-item-e1").getAttribute("aria-checked")).toBe("true");
-      fireEvent.click(screen.getByTestId("msg-export-continue"));
+      expect(screen.getByTestId("msg-select-e1").getAttribute("aria-checked")).toBe("true");
+      fireEvent.click(screen.getByTestId("messages-select-export"));
       expect(screen.getByTestId("msg-export-preview").textContent).toContain("keep me");
     });
 
@@ -910,48 +1012,30 @@ describe("MessagesPane", () => {
       mockGetAllConversationEvents.mockResolvedValue(selected);
       render(<MessagesPane {...defaultProps} />);
       openExportSelection();
-      fireEvent.click(screen.getByTestId("msg-export-select-all"));
-      await waitFor(() => expect(screen.getByTestId("msg-jump-item-e2").getAttribute("aria-checked")).toBe("true"));
+      fireEvent.click(screen.getByTestId("messages-select-all"));
+      await waitFor(() => expect(screen.getByTestId("msg-select-e2").getAttribute("aria-checked")).toBe("true"));
 
       act(() => {
         seedEvents([makeEvent({ id: "e1", sequence: 1, text: "stays" })]);
       });
-      fireEvent.click(screen.getByTestId("msg-export-continue"));
+      fireEvent.click(screen.getByTestId("messages-select-export"));
       const preview = screen.getByTestId("msg-export-preview").textContent ?? "";
       expect(preview).toContain("stays");
       expect(preview).toContain("goes away");
     });
 
-    it("keeps unresolved search selections explicit and blocks an incomplete export", async () => {
-      seedEvents([makeEvent({ id: "loaded", sequence: 1, text: "loaded message" })]);
-      vi.mocked(searchConversation).mockResolvedValueOnce({
-        matches: [{ eventId: "outside", sequence: 99, excerpt: "needle outside", ranges: [{ start: 0, end: 6 }], role: "assistant", createdAt: "now" }],
-        truncated: false, totalMatches: 1, hasMore: false, nextAfterSequence: 0,
-      });
-      mockResolveConversationEvents.mockResolvedValueOnce({ events: [], missingEventIds: ["outside"] });
-      render(<MessagesPane {...defaultProps} />);
-      fireEvent.click(screen.getByTestId("messages-search-field"));
-      fireEvent.change(screen.getByTestId("msg-nav-search"), { target: { value: "needle" } });
-      expect(await screen.findByTestId("msg-jump-item-outside")).toBeInTheDocument();
-      fireEvent.click(screen.getByTestId("msg-export-enter"));
-      fireEvent.click(screen.getByTestId("msg-jump-item-outside"));
-      expect(await screen.findByTestId("msg-export-selection-error")).toHaveTextContent("no longer exist");
-      expect(screen.getByTestId("msg-export-continue")).toBeDisabled();
-      expect(screen.queryByTestId("msg-export-drawer")).toBeNull();
-    });
-
-    it("existing jump behavior is preserved alongside the export entry point", () => {
+    it("choosing a search result jumps to it and closes the results", () => {
       seedEvents([
         makeEvent({ id: "e1", sequence: 1, text: "target" }),
         makeEvent({ id: "e2", sequence: 2, text: "other" }),
       ]);
       render(<MessagesPane {...defaultProps} />);
-      fireEvent.click(screen.getByTestId("messages-search-field"));
-      expect(screen.getByTestId("msg-export-enter")).toBeInTheDocument();
-      fireEvent.click(screen.getByTestId("msg-jump-item-e1"));
-      // Jump closes the navigator without entering selection mode.
-      expect(screen.queryByTestId("msg-jump-list")).toBeNull();
-      expect(screen.queryByTestId("msg-export-footer")).toBeNull();
+      const field = screen.getByTestId("messages-search-field");
+      field.focus();
+      fireEvent.focus(field);
+      fireEvent.click(screen.getByTestId("messages-search-result-e1"));
+      expect(screen.queryByTestId("messages-search-results")).toBeNull();
+      expect(screen.queryByTestId("messages-selection-bar")).toBeNull();
     });
   });
 });

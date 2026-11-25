@@ -124,7 +124,8 @@ describe("TerminalLauncher", () => {
     );
     fireEvent.click(screen.getByTestId("launcher-mode-shell"));
     expect(screen.getByTestId("launcher-shell-hint")).toHaveTextContent(strings.terminalLauncher.shellHint);
-    expect(screen.getByTestId("launcher-submit-selection")).toHaveTextContent(strings.terminalLauncher.launchSelectedShell);
+    expect(screen.getByTestId("launcher-submit-selection")).toHaveTextContent(strings.terminalLauncher.launch);
+    expect(screen.getByRole("group", { name: strings.terminalLauncher.launchSelectedShell })).toBeInTheDocument();
   });
 
   it("opens with the requested machine selected", () => {
@@ -218,7 +219,7 @@ describe("TerminalLauncher", () => {
 
     await waitFor(() => {
       expect(capabilitiesClient.runAgentUpdateAction).toHaveBeenCalledWith(
-        { targetId: "local", agentId: "codex", action: "refresh_catalog" },
+        expect.objectContaining({ targetId: "local", agentId: "codex", action: "refresh_catalog" }),
         expect.anything(),
       );
     });
@@ -391,7 +392,7 @@ describe("TerminalLauncher", () => {
     renderAgentMode(
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} isCreating />,
     );
-    expect(screen.getByText(strings.terminalLauncher.creating)).toBeTruthy();
+    expect(screen.getByTestId("launcher-submit-selection")).toHaveTextContent(strings.terminalLauncher.creating);
   });
 
   it("disables launching and agent choice when isCreating is true", () => {

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -356,12 +357,15 @@ func (s *Server) getAgentUpdate(ctx context.Context, targetID, agentID string) (
 		} else {
 			data, err = s.remoteAgentUpdate(ctx, target, resource)
 		}
-		rep, valid := decodeAgentUpdateCheck(data, resource, err, ctx.Err())
+		result, valid, decodeErr := decodeAndProjectAgentUpdate(ctx, data, resource, targetID, agentID, err, target, observation, time.Now().UTC())
+		if decodeErr != nil {
+			return agentUpdate{}, decodeErr
+		}
 		if !valid {
+			log.Printf("agent update check unavailable: resource=%s target=%s desktop=%t output_bytes=%d command_error=%v", resource, targetID, os.Getenv("VROOLI_DESKTOP_MODE") == "true", len(data), err)
 			return failedAgentUpdate(targetID, agentID, resource, "Update check unavailable"), nil
 		}
-		base := failedAgentUpdate(targetID, agentID, resource, "")
-		return projectAgentUpdate(base, rep, observation, target.OS, target.Architecture, time.Now().UTC()), nil
+		return result, nil
 	})
 	if err == nil && result.ProbeVerified && (result.CheckedAt.IsZero() || result.CheckedAt.After(time.Now()) || time.Since(result.CheckedAt) > agentUpdateTTL) {
 		reason := "The update observation is out of date"
@@ -462,12 +466,29 @@ func (s *Server) localAgentUpdate(ctx context.Context, resource string) ([]byte,
 	}
 	report, err := inspect(ctx, localHarnessRoot(), resource)
 	if err != nil {
+		log.Printf("agent update desktop inspection failed: resource=%s error=%v", resource, err)
 		return nil, err
 	}
 	return json.Marshal(struct {
 		Success bool                                 `json:"success"`
 		Update  harnesslifecycle.HarnessActionResult `json:"harness_update"`
 	}{Success: true, Update: harnesslifecycle.HarnessActionResult{Action: "check", Success: true, Report: report}})
+}
+
+// decodeAndProjectAgentUpdate keeps a canceled caller from turning an
+// incomplete observation into a cacheable check_failed result. The browser
+// commonly cancels agent checks while switching between launcher views; the
+// next view must be allowed to retry against the same local harness.
+func decodeAndProjectAgentUpdate(ctx context.Context, data []byte, resource, targetID, agentID string, commandErr error, target targetConnection, observation capabilityprobe.Observation, now time.Time) (agentUpdate, bool, error) {
+	if err := ctx.Err(); err != nil {
+		return agentUpdate{}, false, err
+	}
+	report, valid := decodeAgentUpdateCheck(data, resource, commandErr, nil)
+	if !valid {
+		return failedAgentUpdate(targetID, agentID, resource, "Update check unavailable"), false, nil
+	}
+	base := failedAgentUpdate(targetID, agentID, resource, "")
+	return projectAgentUpdate(base, report, observation, target.OS, target.Architecture, now), true, nil
 }
 
 func localHarnessRoot() string {
@@ -587,7 +608,7 @@ func projectAgentUpdate(out agentUpdate, rep harnessUpdateReport, observation ca
 }
 
 func (s *Server) remoteAgentUpdate(ctx context.Context, target targetConnection, resource string) ([]byte, error) {
-	response, err := s.relayAgentUpdate(ctx, target, "resource update-check", []string{resource, "--json"}, agentUpdateTimeout)
+	response, err := s.relayAgentUpdate(ctx, target, "resource update-check", []string{resource, "--json"}, agentUpdateTimeout, "")
 	if err != nil {
 		return nil, err
 	}
@@ -605,7 +626,7 @@ func (s *Server) remoteAgentUpdate(ctx context.Context, target targetConnection,
 
 // relayAgentUpdate runs one typed command on a Bridge node. The relay performs
 // owner authentication, node-scope admission by the verb's effect, and audit.
-func (s *Server) relayAgentUpdate(ctx context.Context, target targetConnection, command string, args []string, window time.Duration) (*relayv1.RelayCallResponse, error) {
+func (s *Server) relayAgentUpdate(ctx context.Context, target targetConnection, command string, args []string, window time.Duration, idempotencyKey string) (*relayv1.RelayCallResponse, error) {
 	if target.NodeID == "" {
 		return nil, errors.New("target has no Bridge node")
 	}
@@ -619,7 +640,7 @@ func (s *Server) relayAgentUpdate(ctx context.Context, target targetConnection, 
 	}
 	client := relayconnect.NewRelayServiceClient(authenticatedHTTPClientWithTimeout(freshOwnerAuthorization(ctx, target.OwnerToken), target.ReauthToken, window+10*time.Second), base)
 	response, err := client.Call(ctx, connect.NewRequest(&relayv1.RelayCallRequest{
-		NodeId: target.NodeID, Scenario: "vrooli", Command: command, Args: args, TimeoutSeconds: int64(window.Seconds()), MaxResponseBytes: agentUpdateMaxOutput,
+		NodeId: target.NodeID, Scenario: "vrooli", Command: command, Args: args, TimeoutSeconds: int64(window.Seconds()), MaxResponseBytes: agentUpdateMaxOutput, CommandId: idempotencyKey,
 	}))
 	if err != nil {
 		return nil, err

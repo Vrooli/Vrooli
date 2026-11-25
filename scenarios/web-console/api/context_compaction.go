@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/cli-core/agentcatalog/harness"
 	"github.com/vrooli/cli-core/agenttranscript"
 	"web-console/internal/sessionstore"
 	"web-console/session"
@@ -43,6 +44,8 @@ const (
 	// compactActivityFloor is the activity confidence below which a state is not trusted.
 	compactActivityFloor = 0.6
 	compactHistoryLen    = 12
+	maxPinnedStanceBytes = 4096
+	compactStanceWait    = 30 * time.Second
 )
 
 // Skip reasons. Transient reasons can clear by themselves, so a pending
@@ -74,6 +77,15 @@ func transientSkip(reason string) bool {
 
 type compactSession struct {
 	ID, Label, Harness, Transcript string
+	Model                          string
+	ModelSource                    string
+	UsedTokens                     int64
+	UsedTokensFound                bool
+	UsedSource                     string
+	ModelWindowTokens              int64
+	ModelWindowSource              string
+	CompactionPointTokens          int64
+	CompactionPointSource          string
 }
 
 // compactDriver is the part of Web Console the manager acts through.
@@ -99,7 +111,8 @@ type compactEvent struct {
 	TokensBefore int64     `json:"tokensBefore,omitempty"`
 	// TokensAfter is the request size of the first response after the
 	// compaction; it stays zero until the session has answered again.
-	TokensAfter int64 `json:"tokensAfter,omitempty"`
+	TokensAfter      int64 `json:"tokensAfter,omitempty"`
+	PinnedStanceSent bool  `json:"pinnedStanceSent,omitempty"`
 }
 
 type compactWatch struct {
@@ -109,17 +122,132 @@ type compactWatch struct {
 }
 
 type compactCandidate struct {
-	SessionID       string        `json:"sessionId"`
-	Label           string        `json:"label"`
-	Harness         string        `json:"harness"`
-	State           string        `json:"state"`
-	ContextTokens   int64         `json:"contextTokens"`
-	GoalActive      bool          `json:"goalActive"`
-	Eligible        bool          `json:"eligible"`
-	SkipReason      string        `json:"skipReason,omitempty"`
-	Armed           bool          `json:"armed"`
-	ThresholdTokens int64         `json:"thresholdTokens"`
-	Last            *compactEvent `json:"last,omitempty"`
+	SessionID       string               `json:"sessionId"`
+	Label           string               `json:"label"`
+	Harness         string               `json:"harness"`
+	State           string               `json:"state"`
+	ContextTokens   int64                `json:"contextTokens"`
+	ContextBudget   sessionContextBudget `json:"contextBudget"`
+	GoalActive      bool                 `json:"goalActive"`
+	Eligible        bool                 `json:"eligible"`
+	SkipReason      string               `json:"skipReason,omitempty"`
+	Armed           bool                 `json:"armed"`
+	ThresholdTokens int64                `json:"thresholdTokens"`
+	Last            *compactEvent        `json:"last,omitempty"`
+}
+
+// sessionContextBudget is the single provenance-carrying record behind the
+// live meter. Missing values stay nil and carry an explicit unknown state; a
+// zero is never treated as an unlimited model window.
+type sessionContextBudget struct {
+	Model                  string   `json:"model,omitempty"`
+	ModelState             string   `json:"modelState"`
+	ModelSource            string   `json:"modelSource"`
+	UsedTokens             *int64   `json:"usedTokens"`
+	UsedSource             string   `json:"usedSource"`
+	ModelWindowTokens      *int64   `json:"modelWindowTokens"`
+	ModelWindowSource      string   `json:"modelWindowSource"`
+	CompactionPointTokens  *int64   `json:"compactionPointTokens"`
+	CompactionPointSource  string   `json:"compactionPointSource"`
+	TokensUntilCompaction  *int64   `json:"tokensUntilCompaction"`
+	ForecastState          string   `json:"forecastState"`
+	TokensPerSecond        *float64 `json:"tokensPerSecond"`
+	SecondsUntilCompaction *float64 `json:"secondsUntilCompaction"`
+	ProgressPercent        *float64 `json:"progressPercent"`
+}
+
+type contextUsageSample struct {
+	at     time.Time
+	used   int64
+	model  string
+	window int64
+	point  int64
+}
+
+func contextBudgetFor(cs compactSession, used int64, hasUsage bool) sessionContextBudget {
+	out := sessionContextBudget{
+		Model: cs.Model, ModelState: "unknown", ModelSource: "unknown", UsedSource: "unknown",
+		ModelWindowSource: "unknown", CompactionPointSource: "unknown", ForecastState: "unknown",
+	}
+	if strings.TrimSpace(cs.Model) != "" {
+		out.ModelState = "reported"
+		if strings.TrimSpace(cs.ModelSource) != "" {
+			out.ModelSource = cs.ModelSource
+		}
+	}
+	if hasUsage && used > 0 {
+		out.UsedTokens = &used
+		out.UsedSource = strings.TrimSpace(cs.UsedSource)
+		if out.UsedSource == "" {
+			out.UsedSource = "native transcript"
+		}
+	}
+	if cs.ModelWindowTokens > 0 && supportedWindowSource(cs.ModelWindowSource) {
+		window := cs.ModelWindowTokens
+		out.ModelWindowTokens = &window
+		out.ModelWindowSource = strings.TrimSpace(cs.ModelWindowSource)
+	}
+	if cs.CompactionPointTokens > 0 && strings.TrimSpace(cs.CompactionPointSource) != "" {
+		point := cs.CompactionPointTokens
+		out.CompactionPointTokens = &point
+		out.CompactionPointSource = cs.CompactionPointSource
+	}
+	if out.UsedTokens != nil && out.ModelWindowTokens != nil {
+		percent := float64(*out.UsedTokens) * 100 / float64(*out.ModelWindowTokens)
+		out.ProgressPercent = &percent
+	}
+	if out.UsedTokens != nil && out.CompactionPointTokens != nil {
+		remaining := max(*out.CompactionPointTokens-*out.UsedTokens, 0)
+		out.TokensUntilCompaction = &remaining
+		out.ForecastState = "insufficient_history"
+	}
+	return out
+}
+
+func supportedWindowSource(source string) bool {
+	switch strings.TrimSpace(source) {
+	case harness.WindowSourceClaudeStatusline, harness.WindowSourceCodexModelsCache:
+		return true
+	default:
+		return false
+	}
+}
+
+func (m *compactionManager) withContextForecast(sessionID string, budget sessionContextBudget, used int64, hasUsage bool, now time.Time) sessionContextBudget {
+	if !hasUsage || used <= 0 || budget.CompactionPointTokens == nil || budget.TokensUntilCompaction == nil {
+		m.mu.Lock()
+		delete(m.usageSamples, sessionID)
+		m.mu.Unlock()
+		return budget
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	previous, found := m.usageSamples[sessionID]
+	window, point := int64(0), int64(0)
+	if budget.ModelWindowTokens != nil {
+		window = *budget.ModelWindowTokens
+	}
+	if budget.CompactionPointTokens != nil {
+		point = *budget.CompactionPointTokens
+	}
+	m.usageSamples[sessionID] = contextUsageSample{at: now, used: used, model: budget.Model, window: window, point: point}
+	if !found {
+		return budget
+	}
+	if previous.model != budget.Model || previous.window != window || previous.point != point {
+		return budget
+	}
+	elapsed := now.Sub(previous.at).Seconds()
+	delta := used - previous.used
+	if elapsed < 5 || elapsed > 5*60 || delta <= 0 {
+		return budget
+	}
+	rate := float64(delta) / elapsed
+	seconds := float64(*budget.TokensUntilCompaction) / rate
+	budget.TokensPerSecond = &rate
+	budget.SecondsUntilCompaction = &seconds
+	budget.ForecastState = "projected"
+	return budget
 }
 
 type compactionManager struct {
@@ -127,18 +255,20 @@ type compactionManager struct {
 	now   func() time.Time
 	sleep func(time.Duration)
 
-	mu       sync.Mutex
-	watches  map[string]*compactWatch
-	history  map[string][]compactEvent
-	inflight map[string]bool
-	goals    map[string]goalScan
-	running  bool
+	mu            sync.Mutex
+	watches       map[string]*compactWatch
+	history       map[string][]compactEvent
+	inflight      map[string]bool
+	goals         map[string]goalScan
+	pinnedStances map[string]string
+	usageSamples  map[string]contextUsageSample
+	running       bool
 }
 
 func newCompactionManager(drv compactDriver) *compactionManager {
 	return &compactionManager{
 		drv: drv, now: time.Now, sleep: time.Sleep,
-		watches: map[string]*compactWatch{}, history: map[string][]compactEvent{}, inflight: map[string]bool{}, goals: map[string]goalScan{},
+		watches: map[string]*compactWatch{}, history: map[string][]compactEvent{}, inflight: map[string]bool{}, goals: map[string]goalScan{}, pinnedStances: map[string]string{}, usageSamples: map[string]contextUsageSample{},
 	}
 }
 
@@ -151,6 +281,7 @@ type goalScan struct {
 
 type contextReading struct {
 	Tokens     int64
+	Model      string
 	GoalActive bool
 	Found      bool
 }
@@ -163,6 +294,9 @@ type contextReading struct {
 func (m *compactionManager) readTranscriptContext(cs compactSession) (contextReading, error) {
 	var out contextReading
 	if cs.Transcript == "" {
+		if cs.UsedTokensFound && cs.UsedTokens > 0 {
+			out.Tokens, out.Found = cs.UsedTokens, true
+		}
 		return out, nil
 	}
 	file, err := os.Open(cs.Transcript)
@@ -174,7 +308,7 @@ func (m *compactionManager) readTranscriptContext(cs compactSession) (contextRea
 	if err != nil {
 		return out, err
 	}
-	out.Tokens, out.Found = lastContextTokens(file, info.Size(), cs.Harness)
+	out.Tokens, out.Model, out.Found = lastContextUsage(file, info.Size(), cs.Harness)
 	m.mu.Lock()
 	scan := m.goals[cs.Transcript]
 	m.mu.Unlock()
@@ -193,17 +327,16 @@ func (m *compactionManager) readTranscriptContext(cs compactSession) (contextRea
 	return out, err
 }
 
-// lastContextTokens finds the request size of the newest response in the last
-// 2 MB of a transcript: Claude's assistant usage (input plus cache reads and
-// writes) or Codex's last_token_usage input.
-func lastContextTokens(file *os.File, size int64, harness string) (int64, bool) {
+// lastContextUsage finds the newest native context count and model in the last
+// 2 MB of a transcript.
+func lastContextUsage(file *os.File, size int64, harness string) (int64, string, bool) {
 	const window = 2 << 20
 	start := max(size-window, 0)
 	buf := make([]byte, size-start)
 	if _, err := file.ReadAt(buf, start); err != nil && err != io.EOF {
-		return 0, false
+		return 0, "", false
 	}
-	return agenttranscript.LastContextTokens(buf, harness)
+	return agenttranscript.LastContextUsage(buf, harness)
 }
 
 // compactionRecorded reports whether the transcript gained a compaction record
@@ -303,6 +436,7 @@ type sessionReading struct {
 	goal     bool
 	readErr  error
 	harness  string
+	model    string
 	hasState bool
 }
 
@@ -314,7 +448,7 @@ func (m *compactionManager) inspect(cs compactSession) sessionReading {
 		r.quiet = act.LastOutputAt.IsZero() || m.now().Sub(act.LastOutputAt) >= compactQuiet
 	}
 	reading, err := m.readTranscriptContext(cs)
-	r.readErr, r.tokens, r.found, r.goal = err, reading.Tokens, reading.Found, reading.GoalActive
+	r.readErr, r.tokens, r.found, r.goal, r.model = err, reading.Tokens, reading.Found, reading.GoalActive, reading.Model
 	r.composer = m.drv.Composer(cs.ID)
 	r.command, r.cmdErr = m.drv.CurrentCommand(cs.ID)
 	return r
@@ -363,12 +497,14 @@ func (m *compactionManager) find(ctx context.Context, id string) (compactSession
 	return compactSession{}, false
 }
 
-// Candidates lists every live Claude and Codex session with its size, state and
-// whether, and if not why not, it could be compacted now.
+// Candidates lists every live supported session with its context record, state,
+// and whether, and if not why not, Web Console can compact it now.
 func (m *compactionManager) Candidates(ctx context.Context) []compactCandidate {
 	sessions := m.drv.Sessions(ctx)
 	out := make([]compactCandidate, 0, len(sessions))
+	active := make(map[string]struct{}, len(sessions))
 	for _, cs := range sessions {
+		active[cs.ID] = struct{}{}
 		r := m.inspect(cs)
 		reason := skipReason(r)
 		m.mu.Lock()
@@ -382,15 +518,39 @@ func (m *compactionManager) Candidates(ctx context.Context) []compactCandidate {
 			last = &event
 		}
 		m.mu.Unlock()
+		budgetSession := cs
+		if r.model != "" && r.model != cs.Model {
+			budgetSession.Model = r.model
+			budgetSession.ModelSource = "native transcript usage"
+			if resolver, ok := m.drv.(interface {
+				modelWindow(context.Context, string, string) (int64, string)
+			}); ok {
+				budgetSession.ModelWindowTokens, budgetSession.ModelWindowSource = resolver.modelWindow(ctx, cs.Harness, r.model)
+			}
+		}
+		budget := contextBudgetFor(budgetSession, r.tokens, r.found)
+		forecastNow := time.Now()
+		if m.now != nil {
+			forecastNow = m.now()
+		}
+		budget = m.withContextForecast(cs.ID, budget, r.tokens, r.found, forecastNow)
 		c := compactCandidate{
 			SessionID: cs.ID, Label: cs.Label, Harness: cs.Harness, State: r.state, ContextTokens: r.tokens,
-			GoalActive: r.goal, Eligible: reason == "", SkipReason: reason, Last: last,
+			ContextBudget: budget,
+			GoalActive:    r.goal, Eligible: reason == "", SkipReason: reason, Last: last,
 		}
 		if watch != nil {
 			c.Armed, c.ThresholdTokens = watch.Armed, watch.ThresholdTokens
 		}
 		out = append(out, c)
 	}
+	m.mu.Lock()
+	for id := range m.usageSamples {
+		if _, ok := active[id]; !ok {
+			delete(m.usageSamples, id)
+		}
+	}
+	m.mu.Unlock()
 	sort.Slice(out, func(i, j int) bool { return out[i].ContextTokens > out[j].ContextTokens })
 	return out
 }
@@ -455,6 +615,14 @@ func (m *compactionManager) Compact(ctx context.Context, id, trigger string) com
 		if compactionRecorded(cs.Transcript, offset, cs.Harness) {
 			event.Outcome = "compacted"
 			event.TokensAfter, _ = tokensAfter(cs, offset)
+			if stance, pinned := m.PinnedStance(id); pinned {
+				if err := m.sendPinnedStance(ctx, cs, stance); err != nil {
+					event.Reason = "compaction was recorded; pinned stance remains queued: " + err.Error()
+				} else {
+					event.PinnedStanceSent = true
+					m.clearPinnedStance(id, stance)
+				}
+			}
 			return m.record(id, event)
 		}
 		// Some narrow panes keep the command in the composer after one Enter.
@@ -590,6 +758,69 @@ func (m *compactionManager) Status(id string) (compactWatch, []compactEvent) {
 	return w, append([]compactEvent(nil), m.history[id]...)
 }
 
+func (m *compactionManager) SetPinnedStance(id, stance string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if stance == "" {
+		delete(m.pinnedStances, id)
+		return
+	}
+	m.pinnedStances[id] = stance
+}
+
+func (m *compactionManager) PinnedStance(id string) (string, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	stance, ok := m.pinnedStances[id]
+	return stance, ok
+}
+
+func (m *compactionManager) clearPinnedStance(id, expected string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.pinnedStances[id] == expected {
+		delete(m.pinnedStances, id)
+	}
+}
+
+// sendPinnedStance waits for a clear, quiet prompt owned by the same harness
+// after compaction. It sends the operator's exact one-line text only then.
+func (m *compactionManager) sendPinnedStance(ctx context.Context, cs compactSession, stance string) error {
+	deadline := m.now().Add(compactStanceWait)
+	expectedCommand := map[string]string{"claude": "claude", "codex": "codex"}[cs.Harness]
+	if expectedCommand == "" {
+		return fmt.Errorf("the harness has no verified compaction input path")
+	}
+	for m.now().Before(deadline) {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		activity, ok := m.drv.Activity(cs.ID)
+		command, commandErr := m.drv.CurrentCommand(cs.ID)
+		fields := strings.Fields(strings.TrimSpace(command))
+		baseCommand := ""
+		if len(fields) > 0 {
+			baseCommand = filepath.Base(fields[0])
+		}
+		if commandErr == nil && shellCommands[baseCommand] {
+			return fmt.Errorf("session exited to a shell before the stance could be sent")
+		}
+		composer := m.drv.Composer(cs.ID)
+		if ok && commandErr == nil && baseCommand == expectedCommand && activity.State == session.ActivityIdle && activity.Confidence >= compactActivityFloor && activity.Prompt == nil && (activity.LastOutputAt.IsZero() || m.now().Sub(activity.LastOutputAt) >= compactQuiet) && composer.Found && composer.Text == "" {
+			if err := m.drv.TypeText(cs.ID, stance); err != nil {
+				return fmt.Errorf("could not type the pinned stance: %w", err)
+			}
+			m.sleep(400 * time.Millisecond)
+			if err := m.drv.PressEnter(cs.ID); err != nil {
+				return fmt.Errorf("could not submit the pinned stance: %w", err)
+			}
+			return nil
+		}
+		m.sleep(1500 * time.Millisecond)
+	}
+	return fmt.Errorf("no verified idle prompt appeared before the stance delivery wait expired")
+}
+
 func (m *compactionManager) ensureRunning() {
 	m.mu.Lock()
 	if m.running {
@@ -700,12 +931,59 @@ func (d serverCompactDriver) Sessions(ctx context.Context) []compactSession {
 		case sessionstore.AgentCodex:
 			cs.Harness = "codex"
 			cs.Transcript = codexRollout(row, sessionCodexSessionsDir(row.ID))
+		case sessionstore.AgentGrok:
+			cs.Harness = agenttranscript.HarnessGrok
+			if row.AgentSessionID != "" {
+				matches, _ := filepath.Glob(filepath.Join(sessionGrokSessionsDir(row.ID), "*", row.AgentSessionID, "updates.jsonl"))
+				if len(matches) > 0 {
+					cs.Transcript = matches[len(matches)-1]
+				}
+			}
+		case sessionstore.AgentOpenCode:
+			cs.Harness = agenttranscript.HarnessOpenCode
 		default:
 			continue
+		}
+		if descriptor, err := sessionstore.ParseLaunchDescriptor(row.LaunchDescriptorJSON); err == nil {
+			cs.Model = strings.TrimSpace(descriptor.Model)
+			if cs.Model != "" {
+				cs.ModelSource = "session launch descriptor"
+			}
+			if descriptor.ContextLimitTokens > 0 {
+				cs.CompactionPointTokens = int64(descriptor.ContextLimitTokens)
+				cs.CompactionPointSource = "session launch descriptor"
+			}
+		}
+		if row.AgentType == sessionstore.AgentOpenCode && row.AgentSessionID != "" && d.s.opencodeWatcher != nil {
+			if usage, ok := d.s.opencodeWatcher.ContextUsage(row.AgentSessionID); ok && usage.Found {
+				cs.UsedTokens, cs.UsedTokensFound = usage.Tokens, true
+				cs.UsedSource = "OpenCode native message usage"
+				if usage.Model != "" {
+					cs.Model, cs.ModelSource = usage.Model, "OpenCode native message"
+				}
+			}
+		}
+		if cs.Model != "" {
+			cs.ModelWindowTokens, cs.ModelWindowSource = d.modelWindow(ctx, cs.Harness, cs.Model)
 		}
 		out = append(out, cs)
 	}
 	return out
+}
+
+func (d serverCompactDriver) modelWindow(ctx context.Context, agentID, model string) (int64, string) {
+	choices := d.s.GetRoleModelChoices(ctx, agentID, "local", "")
+	for _, choice := range choices.Choices {
+		providerModel := strings.Trim(strings.TrimSpace(choice.Provider)+"/"+strings.TrimSpace(choice.Model), "/")
+		if choice.Model != model && choice.LaunchModel != model && providerModel != model {
+			continue
+		}
+		if choice.ContextWindowTokens <= 0 || strings.TrimSpace(choice.ContextWindowSource) == "" {
+			return 0, "unknown"
+		}
+		return choice.ContextWindowTokens, choice.ContextWindowSource
+	}
+	return 0, "unknown"
 }
 
 // codexRollout is the session's newest rollout file.
@@ -823,8 +1101,11 @@ func (s *Server) handleCompactIdle(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSessionCompactionGet(w http.ResponseWriter, r *http.Request) {
-	watch, history := s.compactionMgr().Status(mux.Vars(r)["id"])
-	writeUsageModeJSON(w, http.StatusOK, map[string]any{"watch": watch, "history": history})
+	id := mux.Vars(r)["id"]
+	mgr := s.compactionMgr()
+	watch, history := mgr.Status(id)
+	stance, pinned := mgr.PinnedStance(id)
+	writeUsageModeJSON(w, http.StatusOK, map[string]any{"watch": watch, "history": history, "pinnedStance": pinned, "pinnedStanceText": stance, "pinnedStanceMaxBytes": maxPinnedStanceBytes})
 }
 
 func (s *Server) handleSessionCompactionPost(w http.ResponseWriter, r *http.Request) {
@@ -835,8 +1116,11 @@ func (s *Server) handleSessionCompactionPost(w http.ResponseWriter, r *http.Requ
 	var req struct {
 		Action          string `json:"action"`
 		ThresholdTokens int64  `json:"thresholdTokens"`
+		Stance          string `json:"stance"`
 	}
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&req); err != nil {
+	// JSON escaping can expand quotes and backslashes in a valid max-size
+	// stance, so bound the envelope above the decoded UTF-8 payload limit.
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 2*maxPinnedStanceBytes+1024)).Decode(&req); err != nil {
 		writeUsageModeError(w, http.StatusBadRequest, "invalid request")
 		return
 	}
@@ -854,11 +1138,26 @@ func (s *Server) handleSessionCompactionPost(w http.ResponseWriter, r *http.Requ
 		mgr.SetThreshold(id, req.ThresholdTokens)
 	case "cancel":
 		mgr.Cancel(id)
+	case "pin_stance":
+		if _, ok := mgr.find(r.Context(), id); !ok {
+			writeUsageModeError(w, http.StatusNotFound, "session not found or not live")
+			return
+		}
+		if strings.TrimSpace(req.Stance) == "" || len(req.Stance) > maxPinnedStanceBytes || strings.ContainsAny(req.Stance, "\r\n") {
+			writeUsageModeError(w, http.StatusBadRequest, "pin one non-empty line of stance text up to 4096 bytes")
+			return
+		}
+		mgr.SetPinnedStance(id, req.Stance)
+	case "unpin_stance":
+		mgr.SetPinnedStance(id, "")
 	default:
 		writeUsageModeError(w, http.StatusBadRequest, "unknown action")
 		return
 	}
 	watch, history := mgr.Status(id)
 	response["watch"], response["history"] = watch, history
+	stance, pinned := mgr.PinnedStance(id)
+	response["pinnedStance"], response["pinnedStanceText"] = pinned, stance
+	response["pinnedStanceMaxBytes"] = maxPinnedStanceBytes
 	writeUsageModeJSON(w, http.StatusOK, response)
 }

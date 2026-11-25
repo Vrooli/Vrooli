@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/cli-core/agentcatalog/harness"
 	"github.com/vrooli/vrooli/packages/capabilityprobe"
 	capsH "web-console/handlers/capabilities"
+	sessionsH "web-console/handlers/sessions"
 	"web-console/internal/capabilities"
 )
 
@@ -140,8 +141,12 @@ func TestSixthHarnessReachesTheLauncherFromItsResourceDirectory(t *testing.T) {
 	if choices.PolicyStatus != "ready" || choices.ModelFlag != "--model" || len(choices.Choices) != 1 {
 		t.Fatalf("no model choices: %+v", choices)
 	}
-	if got := choices.Choices[0]; got.ContextWindowTokens != 0 || !slices.Equal(got.ContextLimitTokens, []int64{1000000, 300000}) {
+	if got := choices.Choices[0]; got.ContextWindowTokens != 0 || got.ContextWindowSource != "" || !slices.Equal(got.ContextLimitTokens, []int64{1000000, 300000}) {
 		t.Fatalf("limits: %+v", got)
+	}
+	launch, err := (&Server{}).composeAgentLaunch(t.Context(), sessionsH.AgentLaunch{AgentID: "six", Model: "six-1", ContextLimitTokens: 300000}, "six", "local")
+	if err != nil || launch != "SIX_LIMIT=300000 six --model six-1" {
+		t.Fatalf("unknown-window harness must preserve unknown provenance while applying its declared launch limit: %q %v", launch, err)
 	}
 	if _, ok := capabilityDefs()["claude"]; !ok {
 		t.Fatal("an overlay for an undeclared dependency must not break the catalogue")

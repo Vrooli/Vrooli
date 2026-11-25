@@ -16,6 +16,9 @@ import (
 
 	coreRetention "github.com/vrooli/api-core/retention"
 	"github.com/vrooli/api-core/storage"
+	"web-console/backends/codex"
+	"web-console/backends/grok"
+	sessionsH "web-console/handlers/sessions"
 	"web-console/internal/sessionstore"
 )
 
@@ -69,6 +72,9 @@ type sessionHomeRetention struct {
 	isLive     func(id string) bool
 	rows       func(ctx context.Context) ([]sessionstore.Metadata, error)
 	now        func() time.Time
+	// daemons stops the agent daemons that archived or dismissed sessions (and
+	// homes about to be stripped) leave running. Nil disables that phase.
+	daemons sessionsH.AgentDaemonControl
 }
 
 type sessionHomeRetentionResult struct {
@@ -79,6 +85,8 @@ type sessionHomeRetentionResult struct {
 	ScannedHomes      int            `json:"scanned_homes"`
 	RemovedScaffolds  int            `json:"removed_scaffolds"`
 	StrippedHomes     int            `json:"stripped_homes"`
+	StoppedDaemons    int            `json:"stopped_daemons"`
+	DaemonBytesFreed  int64          `json:"daemon_memory_bytes_freed"`
 	RemovedEntries    int            `json:"removed_entries"`
 	FreedBytes        int64          `json:"freed_bytes"`
 	UsedBytesBefore   int64          `json:"used_bytes_before"`
@@ -109,16 +117,12 @@ func (r sessionHomeRetentionResult) protectedSummary() string {
 // homeUsage is one lstat walk of a session home. Symlinks are counted but
 // never followed, so the shared agent home is never measured or traversed.
 type homeUsage struct {
-	bytes  int64
-	files  int
-	newest time.Time
+	bytes int64
+	files int
 }
 
 func measureSessionHome(path string) homeUsage {
 	var usage homeUsage
-	if info, err := os.Lstat(path); err == nil {
-		usage.newest = info.ModTime()
-	}
 	_ = filepath.WalkDir(path, func(_ string, entry fs.DirEntry, err error) error {
 		if err != nil || entry.Type()&fs.ModeSymlink != 0 {
 			return nil
@@ -126,9 +130,6 @@ func measureSessionHome(path string) homeUsage {
 		info, infoErr := entry.Info()
 		if infoErr != nil {
 			return nil
-		}
-		if info.ModTime().After(usage.newest) {
-			usage.newest = info.ModTime()
 		}
 		if !entry.IsDir() {
 			usage.files++
@@ -187,6 +188,7 @@ func (r *sessionHomeRetention) Run(ctx context.Context) (sessionHomeRetentionRes
 			result.FirstFailure = fmt.Sprintf("%s: %v", path, err)
 		}
 	}
+	r.stopRetiredDaemons(ctx, rows, &result, fail)
 	for _, agent := range []string{"codex", "grok"} {
 		agentRoot := filepath.Join(r.root, agent)
 		entries, readErr := os.ReadDir(agentRoot)
@@ -214,6 +216,73 @@ func (r *sessionHomeRetention) Run(ctx context.Context) (sessionHomeRetentionRes
 	return result, nil
 }
 
+// stopRetiredDaemons stops the agent daemon of every archived or dismissed
+// session that still has one. Archive and dismiss stop it as they happen; this
+// reconciles daemons left by earlier versions, a failed stop, or a restart in
+// the middle of an archive. Live and non-retired sessions are never touched.
+func (r *sessionHomeRetention) stopRetiredDaemons(ctx context.Context, rows []sessionstore.Metadata, result *sessionHomeRetentionResult, fail func(string, error)) {
+	if r.daemons == nil {
+		return
+	}
+	running, err := r.daemons.Running(ctx)
+	if err != nil {
+		fail("agent daemons", err)
+		return
+	}
+	for _, row := range rows {
+		if _, ok := running[row.ID]; !ok || !row.Retired() || (r.isLive != nil && r.isLive(row.ID)) {
+			continue
+		}
+		r.stopDaemon(ctx, row.ID, result, fail)
+	}
+}
+
+// homeWorkedAfter reports whether a home's conversation record was written
+// after cutoff. The agent CLIs rewrite trace logs, sqlite WALs and daemon logs
+// continuously, so "newest file in the tree" reads as fresh for every home
+// whose daemon is still running — the very set this retention exists to
+// reclaim. Only the transcript proves the work is alive.
+func homeWorkedAfter(agent, home string, cutoff time.Time) (bool, error) {
+	newest, ok, err := newestTranscriptWrite(agent, home)
+	if err != nil {
+		return false, err
+	}
+	// No transcript at all: nothing was ever worked on here, so the home is
+	// not recently active. Empty scaffolds are handled by their own branch.
+	return ok && newest.After(cutoff), nil
+}
+
+// newestTranscriptWrite returns the newest write to the durable conversation
+// record of one home, and whether the home has one at all. Each backend owns
+// the layout of its own transcript, so this only dispatches.
+func newestTranscriptWrite(agent, home string) (time.Time, bool, error) {
+	switch agent {
+	case "codex":
+		return codex.NewestRolloutWrite(home)
+	case "grok":
+		return grok.NewestTranscriptWrite(home)
+	default:
+		// Nothing in this retention knows how to read this agent's record, so
+		// it has no regenerable entries either.
+		return time.Time{}, false, nil
+	}
+}
+
+func (r *sessionHomeRetention) stopDaemon(ctx context.Context, id string, result *sessionHomeRetentionResult, fail func(string, error)) {
+	if r.daemons == nil {
+		return
+	}
+	usage, err := r.daemons.Stop(ctx, id)
+	if err != nil {
+		fail("agent daemon "+id, err)
+		return
+	}
+	if usage.Processes > 0 {
+		result.StoppedDaemons++
+		result.DaemonBytesFreed += usage.MemoryBytes
+	}
+}
+
 func (r *sessionHomeRetention) enforceHome(
 	ctx context.Context,
 	agent, agentRoot, home, id string,
@@ -225,14 +294,24 @@ func (r *sessionHomeRetention) enforceHome(
 	fail func(string, error),
 ) int64 {
 	row, hasRow := rows[id]
-	switch {
-	case r.isLive != nil && r.isLive(id):
+	if r.isLive != nil && r.isLive(id) {
 		result.Protected[homeProtectedLiveSession]++
 		return 0
-	case hasRow && row.ArchivedAt.IsZero() && row.Status == sessionstore.StatusLive:
+	}
+	if hasRow && row.ArchivedAt.IsZero() && row.Status == sessionstore.StatusLive {
 		result.Protected[homeProtectedOpenSessionRow]++
 		return 0
-	case usage.newest.After(cutoff):
+	}
+	worked, workErr := homeWorkedAfter(agent, home, cutoff)
+	if workErr != nil {
+		// An unreadable work record keeps the home. Deleting runtime state
+		// from a session whose transcript cannot be read would trade disk for
+		// evidence.
+		fail("transcript age "+id, workErr)
+		result.Protected[homeProtectedTranscript]++
+		return 0
+	}
+	if worked {
 		result.Protected[homeProtectedRecentActivity]++
 		return 0
 	}
@@ -256,6 +335,11 @@ func (r *sessionHomeRetention) enforceHome(
 		}
 		result.RemovedScaffolds++
 		return usage.bytes
+	}
+	if agent == "codex" {
+		// The install under packages/ is about to be removed; its daemon must
+		// not keep running from a deleted tree.
+		r.stopDaemon(ctx, id, result, fail)
 	}
 	targets := regenerableEntries(agent, home)
 	var freed int64
@@ -366,6 +450,7 @@ func (h *webConsoleCleanup) startSessionHomeRetention(ctx context.Context) {
 		maxBytes:   maxBytes,
 		isLive:     h.isProtected,
 		rows:       h.server.sessionStore.List,
+		daemons:    newSessionDaemons(resolveSessionStateRoot),
 	}
 	go func() {
 		timer := time.NewTimer(defaultSessionHomeInitialDelay)
@@ -392,8 +477,8 @@ func (h *webConsoleCleanup) sessionHomeCycle(ctx context.Context, owner *session
 	workCtx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 	defer cancel()
 	result, cycleErr := owner.Run(workCtx)
-	log.Printf("web-console session-home retention cycle: scanned=%d removed_scaffolds=%d stripped_homes=%d freed_bytes=%d used_bytes=%d max_bytes=%d transcript_bytes=%d protected=%s failures=%d err=%v",
-		result.ScannedHomes, result.RemovedScaffolds, result.StrippedHomes, result.FreedBytes, result.UsedBytesAfter,
+	log.Printf("web-console session-home retention cycle: scanned=%d removed_scaffolds=%d stripped_homes=%d stopped_daemons=%d daemon_memory_freed=%d freed_bytes=%d used_bytes=%d max_bytes=%d transcript_bytes=%d protected=%s failures=%d err=%v",
+		result.ScannedHomes, result.RemovedScaffolds, result.StrippedHomes, result.StoppedDaemons, result.DaemonBytesFreed, result.FreedBytes, result.UsedBytesAfter,
 		result.MaxBytes, result.TranscriptBytes, result.protectedSummary(), result.Failures, cycleErr)
 	if err := writeSessionHomeCycleReceipt(result); err != nil {
 		log.Printf("web-console session-home retention: write cycle receipt: %v", err)

@@ -89,6 +89,9 @@ func PrepareSessionHome(sessionHome, sharedHome string) string {
 	for _, dir := range []string{"log", "logs", "outputs", "tmp", ".tmp", "cache", "plugins", "shell_snapshots", "packages"} {
 		sharedDir := filepath.Join(sharedHome, dir)
 		ensureDir(sharedDir)
+		if dir == "packages" {
+			replaceLegacyPrivateDir(filepath.Join(sessionHome, dir))
+		}
 		ensureSymlink(filepath.Join(sessionHome, dir), sharedDir)
 	}
 
@@ -138,4 +141,33 @@ func SessionsDir(sessionStateRoot, sessionID string) string {
 // SessionsDirPath returns the rollout directory path without creating it.
 func SessionsDirPath(sessionStateRoot, sessionID string) string {
 	return filepath.Join(SessionHomePath(sessionStateRoot, sessionID), "sessions")
+}
+
+// replaceLegacyPrivateDir removes a real directory left where a shared-home
+// symlink now belongs. Homes created before packages was shared (2026-10-28)
+// kept a private daemon install that Codex auto-updated in every home: 127
+// homes held 109 GB of regenerable binaries on 2026-11-21. Only the
+// regenerable install is migrated; a symlink or regular file is left alone.
+// The directory is renamed aside first so a concurrent reader never sees a
+// half-deleted tree under the canonical name; running binaries keep their
+// open inodes.
+func replaceLegacyPrivateDir(path string) {
+	info, err := os.Lstat(path)
+	if err != nil || !info.IsDir() {
+		return
+	}
+	aside, err := os.MkdirTemp(filepath.Dir(path), "."+filepath.Base(path)+"-legacy-")
+	if err != nil {
+		log.Printf("session-state: cannot stage legacy %s: %v", path, err)
+		return
+	}
+	staged := filepath.Join(aside, filepath.Base(path))
+	if err := os.Rename(path, staged); err != nil {
+		_ = os.Remove(aside)
+		log.Printf("session-state: cannot move legacy %s aside: %v", path, err)
+		return
+	}
+	if err := os.RemoveAll(aside); err != nil {
+		log.Printf("session-state: legacy %s moved to %s but not removed: %v", path, aside, err)
+	}
 }

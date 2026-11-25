@@ -6,6 +6,10 @@
   "product_shape": "meter_only",
   "requires_entitlement": false,
   "features": [],
+  "credit_features": [
+    {"id": "agent.session", "gateway_roles": ["agent.session"]},
+    {"id": "web-console.command-generation", "gateway_roles": ["author.generator"]}
+  ],
   "meters": [
     {
       "limit_key": "ai_credits",

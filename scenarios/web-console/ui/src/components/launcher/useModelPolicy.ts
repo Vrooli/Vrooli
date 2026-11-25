@@ -2,6 +2,7 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GetRoleModelChoicesResponse, RoleModelChoice } from "@vrooli/proto-types/web-console/v1/modelselection/model_selection_pb";
 import { modelSelectionClient } from "../../api/modelSelection";
+import { contextLimitRecord } from "../../api/usageMode";
 
 export const VROOLI_CREDITS_SOURCE = "vrooli-credits";
 
@@ -17,9 +18,10 @@ export function choiceBlocked(choice: RoleModelChoice, stale: boolean): boolean 
 /** The options a model offers, largest first. None may exceed its window. */
 export function limitOptions(choice: RoleModelChoice | undefined): number[] {
   if (!choice) return [];
-  const window = Number(choice.contextWindowTokens);
-  const limits = choice.contextLimitTokens.map(Number).filter((tokens) => tokens > 0 && (window === 0 || tokens <= window));
-  return [...new Set(limits)].sort((a, b) => b - a);
+  return contextLimitRecord({
+    contextWindowTokens: choice.contextWindowTokens,
+    contextLimitOptions: choice.contextLimitTokens,
+  }).offeredCompactionPoints ?? [];
 }
 
 /** The last explicit model choice is a device preference, not catalog state. */

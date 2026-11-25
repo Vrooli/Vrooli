@@ -157,7 +157,7 @@ export default function TerminalLauncher({
 }: TerminalLauncherProps) {
   const { t, i18n } = useTranslation();
   const isDesktop = useMediaQuery("(min-width: 48rem)");
-  const [sessionType, setSessionType] = useState<SessionType | null>(null);
+  const [sessionType, setSessionType] = useState<SessionType | null>("agent");
   const [customCommand, setCustomCommand] = useState("");
   const [workingDir, setWorkingDir] = useState("");
   const [selectedBackend, setSelectedBackend] = useState<BackendID>(defaultBackend);
@@ -176,13 +176,15 @@ export default function TerminalLauncher({
   const manageButton = useRef<HTMLButtonElement>(null);
   const drawerRoot = useRef<HTMLDivElement>(null);
 
-  // Every visit waits for an explicit type choice. The destination follows
-  // this open's caller without inheriting an agent or shell launch mode.
+  // Every visit opens on the common choice — a new agent session — so the
+  // drawer has content immediately. The operator can still switch to Shell or
+  // a group from the radio row; the destination follows this open's caller
+  // without inheriting an agent or shell launch mode.
   useEffect(() => {
     if (!open) {
       setPickedAgentId(null);
       setModelSettings(null);
-      setSessionType(null);
+      setSessionType("agent");
       setManagePage(null);
       return;
     }
@@ -407,7 +409,7 @@ export default function TerminalLauncher({
     <div className="flex items-center gap-1.5">
       {targetsLoading && targets.length <= 1 ? (
         <div data-testid="launcher-target-loading" className="flex min-h-11 items-center gap-2 rounded-[var(--radius-control)] border border-wc-default bg-wc-surface-input px-3 text-[13px] text-wc-text-muted">
-          <Loader2 className="h-3.5 w-3.5 animate-spin text-wc-accent" aria-hidden />
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-wc-accent motion-reduce:animate-none" aria-hidden />
           {t(strings.terminalLauncher.loadingTargets)}
         </div>
       ) : (
@@ -476,7 +478,7 @@ export default function TerminalLauncher({
     <section aria-labelledby="launcher-agents-heading">
       <AgentRailHeader actionCount={actionCount} onManage={() => { setManagePage("list"); }} manageRef={manageButton} />
       {railCards.length > 0
-        ? <AgentRail cards={railCards} targetKind={selected.kind} selectedAgentId={selectedAgentId} onSelect={setPickedAgentId} disabled={launchBlocked} usages={usageState.usages} usageLoading={usageState.loading} slots={slots} declaredWindows={declaredWindows} needsAction={needsAction} wrap={isDesktop} />
+        ? <AgentRail cards={railCards} targetKind={selected.kind} selectedAgentId={selectedAgentId} onSelect={setPickedAgentId} disabled={launchBlocked} usages={usageState.usages} usageLoading={usageState.loading} slots={slots} declaredWindows={declaredWindows} needsAction={needsAction} />
         : <p data-testid="launcher-no-agents" className="mx-4 rounded-xl border border-dashed border-wc-default px-3 py-6 text-center text-sm text-wc-text-muted">{t(strings.launcher.noAgentsShown)}</p>}
     </section>
   );
@@ -505,6 +507,7 @@ export default function TerminalLauncher({
     : (
       <LaunchFooter testId="launcher-submit-selection" summary={summaryParts.join(" · ")}
         label={sessionType === "shell" ? t(strings.terminalLauncher.launchSelectedShell) : selectedCard ? t(strings.terminalLauncher.launchSelectedAgent, { name: selectedCard.label }) : t(strings.terminalLauncher.launch)}
+        buttonLabel={t(strings.terminalLauncher.launch)}
         disabled={launchBlocked || (sessionType === "agent" && (!selectedCard || (model.usesVrooliCredits && billing.blocked) || modelBlocked || model.loading))}
         reason={launchReason}
         busy={isCreating} busyLabel={t(strings.terminalLauncher.creating)}

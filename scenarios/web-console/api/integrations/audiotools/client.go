@@ -41,10 +41,17 @@ type Client struct {
 	policy   Policy
 	http     *http.Client
 
-	mu       sync.RWMutex
-	baseURL  string
-	resolved atomic.Bool
+	refreshMu sync.Mutex
+	mu        sync.RWMutex
+	baseURL   string
+	resolved  atomic.Bool
+	clients   atomic.Pointer[ClientSet]
+}
 
+// ClientSet is an immutable snapshot of the generated clients for one
+// resolved Audio Tools URL. Callers receive it by value so a refresh can
+// publish a new set without racing with an in-flight request.
+type ClientSet struct {
 	STT          sttconnect.STTServiceClient
 	STTAdmin     sttconnect.STTAdminServiceClient
 	TTS          ttsconnect.TTSServiceClient
@@ -97,21 +104,51 @@ func New(resolver URLResolver, policy Policy) (*Client, error) {
 
 // refresh resolves the current URL and rebuilds the typed clients.
 func (c *Client) refresh() error {
+	c.refreshMu.Lock()
+	defer c.refreshMu.Unlock()
+	if c.resolved.Load() {
+		return nil
+	}
 	base, err := c.resolver.Resolve()
 	if err != nil {
 		return err
 	}
+	clients := &ClientSet{
+		STT:          sttconnect.NewSTTServiceClient(c.http, base),
+		STTAdmin:     sttconnect.NewSTTAdminServiceClient(c.http, base),
+		TTS:          ttsconnect.NewTTSServiceClient(c.http, base),
+		Summarize:    summconnect.NewSummarizeServiceClient(c.http, base),
+		Audio:        audioconnect.NewAudioProcessingServiceClient(c.http, base),
+		HealthStatus: healthstatusconnect.NewHealthStatusServiceClient(c.http, base),
+	}
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	c.baseURL = base
-	c.STT = sttconnect.NewSTTServiceClient(c.http, base)
-	c.STTAdmin = sttconnect.NewSTTAdminServiceClient(c.http, base)
-	c.TTS = ttsconnect.NewTTSServiceClient(c.http, base)
-	c.Summarize = summconnect.NewSummarizeServiceClient(c.http, base)
-	c.Audio = audioconnect.NewAudioProcessingServiceClient(c.http, base)
-	c.HealthStatus = healthstatusconnect.NewHealthStatusServiceClient(c.http, base)
+	c.mu.Unlock()
+	c.clients.Store(clients)
 	c.resolved.Store(true)
 	return nil
+}
+
+// Clients returns the immutable clients for the most recently successful
+// resolution. Consumers should call Ensure before taking a snapshot.
+func (c *Client) Clients() ClientSet {
+	if c == nil {
+		return ClientSet{}
+	}
+	clients := c.clients.Load()
+	if clients == nil {
+		return ClientSet{}
+	}
+	return *clients
+}
+
+// ReplaceClients publishes a complete client set as one immutable snapshot.
+// It supports adapter composition and deterministic client substitution in
+// tests without exposing mutable fields to concurrent callers.
+func (c *Client) ReplaceClients(clients ClientSet) {
+	if c != nil {
+		c.clients.Store(&clients)
+	}
 }
 
 // ProviderHealth returns audio-tools' authoritative per-capability liveness
@@ -120,7 +157,8 @@ func (c *Client) ProviderHealth(ctx context.Context) (*healthstatusv1.GetProvide
 	if err := c.Ensure(); err != nil {
 		return nil, err
 	}
-	resp, err := c.HealthStatus.GetProviderHealth(ctx, connect.NewRequest(&healthstatusv1.GetProviderHealthRequest{}))
+	clients := c.Clients()
+	resp, err := clients.HealthStatus.GetProviderHealth(ctx, connect.NewRequest(&healthstatusv1.GetProviderHealthRequest{}))
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +179,9 @@ func (c *Client) Ensure() error {
 // to schedule a re-resolve. interoperability-steer §12 — captured URLs are
 // short-lived.
 func (c *Client) HandleTransportFailure() {
+	c.refreshMu.Lock()
 	c.resolved.Store(false)
+	c.refreshMu.Unlock()
 }
 
 // BaseURL returns the currently resolved base URL (for diagnostics/tests).

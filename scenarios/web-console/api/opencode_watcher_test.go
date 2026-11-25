@@ -24,6 +24,28 @@ type failingConversationRepository struct {
 	failAppend *bool
 }
 
+func TestOpenCodeWatcherCachesLatestNativeContextUsage(t *testing.T) {
+	w := &OpenCodeWatcher{}
+	var assistant opencode.MessageWithParts
+	assistant.Info.Role = "assistant"
+	assistant.Info.ModelID = "provider/model-x"
+	assistant.Info.Tokens.Input = 120_000
+	assistant.Info.Tokens.Cache.Read = 10_000
+	assistant.Info.Tokens.Cache.Write = 2_000
+	var user opencode.MessageWithParts
+	user.Info.Role = "user"
+	w.cacheContextUsage("native-session", []opencode.MessageWithParts{assistant, user})
+	usage, ok := w.ContextUsage("native-session")
+	if !ok || !usage.Found || usage.Tokens != 132_000 || usage.Model != "provider/model-x" {
+		t.Fatalf("cached usage = %+v, %v", usage, ok)
+	}
+	w.cacheContextUsage("native-session", []opencode.MessageWithParts{user})
+	usage, ok = w.ContextUsage("native-session")
+	if ok || usage.Found {
+		t.Fatalf("missing native usage must not return a stale reading: %+v, %v", usage, ok)
+	}
+}
+
 func (r *failingConversationRepository) AppendEvent(ctx context.Context, event ConversationEvent) (ConversationEvent, error) {
 	if *r.failAppend {
 		return ConversationEvent{}, errors.New("injected conversation append failure")
@@ -99,7 +121,7 @@ func TestOpenCodeWatcherPreservesArchivedClaimsWithoutFetchingHistory(t *testing
 	if !retained.Appended {
 		t.Fatal("could not seed retained conversation")
 	}
-	if err := srv.sessionStore.MarkArchived(ctx, paneID, time.Now()); err != nil {
+	if err := srv.sessionStore.MarkArchived(ctx, paneID, time.Now(), ""); err != nil {
 		t.Fatal(err)
 	}
 	w.loadExistingClaims()

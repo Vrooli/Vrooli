@@ -465,6 +465,61 @@
       }
     },
     {
+      "id": "conversation_fleet_archive_search",
+      "path": "/vrooli.web_console.v1.conversation.ConversationService/SearchNodeArchive",
+      "method": "POST",
+      "summary": "Search one selected fleet node's Web Console archive",
+      "description": "Sends the query over Bridge's authenticated target-aware Connect route; unavailable or unauthorized nodes degrade without changing local archive data.",
+      "category": "conversation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "harness": "string",
+          "limit": "int32",
+          "node_id": "string",
+          "query": "string",
+          "role": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "available": "bool",
+          "degradation": "string",
+          "node_id": "string",
+          "search": "SearchArchivedResponse"
+        }
+      }
+    },
+    {
+      "id": "conversation_optional_semantic_archive_search",
+      "path": "/vrooli.web_console.v1.conversation.ConversationService/SearchSemantic",
+      "method": "POST",
+      "summary": "Search own archives with optional Agent Manager semantic results",
+      "description": "Returns Web Console own-store lexical results even when Agent Manager is stopped; when available, adds semantic hits with coverage and degradation evidence.",
+      "category": "conversation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "harnesses": "[]string",
+          "limit": "int32",
+          "query": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "coverage": "SemanticSearchCoverage",
+          "degradations": "[]SemanticSearchDegradation",
+          "local": "SearchArchivedResponse",
+          "semantic_available": "bool",
+          "semantic_error": "string",
+          "semantic_hits": "[]SemanticSearchHit",
+          "semantic_took_ms": "uint64"
+        }
+      }
+    },
+    {
       "id": "conversation_get",
       "path": "/vrooli.web_console.v1.conversation.ConversationService/Get",
       "method": "POST",

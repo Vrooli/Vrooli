@@ -21,6 +21,7 @@ import { parseApprovalsDeepLink, useApprovalsStore } from "./stores/useApprovals
 import { parseFilePreviewDeepLink, stripFilePreviewDeepLink, useFilePreviewDeepLinkStore } from "./stores/useFilePreviewDeepLinkStore";
 
 const Workspace = lazy(() => import("./components/Workspace"));
+const PageIdentityTool = lazy(() => import("./features/page-identity/PageIdentityTool").then((module) => ({ default: module.PageIdentityTool })));
 
 export default function App() {
   // Approvals deep link: web-console has NO router, so a push/chat link that
@@ -57,6 +58,12 @@ export default function App() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [dismissed, setDismissed] = useState(false);
+  const [pageIdentityMode, setPageIdentityMode] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("ux") === "page-identity");
+  useEffect(() => {
+    const syncMode = () => setPageIdentityMode(new URLSearchParams(window.location.search).get("ux") === "page-identity");
+    window.addEventListener("popstate", syncMode);
+    return () => window.removeEventListener("popstate", syncMode);
+  }, []);
   const healthQuery = useQuery({
     queryKey: ["health"],
     queryFn: fetchHealth,
@@ -95,6 +102,12 @@ export default function App() {
 
   // Reset dismissed state when connection recovers or drops again
   const showBanner = !!error && !dismissed;
+  const leavePageIdentity = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("ux");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    setPageIdentityMode(false);
+  };
 
   /**
    * App-level notices are handed to Workspace rather than rendered here.
@@ -125,7 +138,9 @@ export default function App() {
 
       {/* Always render workspace — even during initial load or error */}
       <Suspense fallback={<LaunchScreen />}>
-        {isLoading ? (
+        {pageIdentityMode ? (
+          <PageIdentityTool onClose={leavePageIdentity} />
+        ) : isLoading ? (
           <LaunchScreen />
         ) : (
           <Profiler id="Workspace" onRender={onProfilerRender}>

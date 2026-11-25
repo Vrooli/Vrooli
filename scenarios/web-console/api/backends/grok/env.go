@@ -13,6 +13,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // ensureDir mkdirs path (recursive) and returns it. On failure, returns the
@@ -125,4 +126,27 @@ func SessionsDir(sessionStateRoot, sessionID string) string {
 // SessionsDirPath returns the transcript path without creating it.
 func SessionsDirPath(sessionStateRoot, sessionID string) string {
 	return filepath.Join(SessionHomePath(sessionStateRoot, sessionID), "sessions")
+}
+
+// NewestTranscriptWrite returns the newest write to the append-only
+// updates.jsonl transcripts beneath one session home, the record grok only
+// ever appends to. ok is false when the home holds no transcript at all.
+func NewestTranscriptWrite(home string) (newest time.Time, ok bool, err error) {
+	matches, err := filepath.Glob(filepath.Join(home, "sessions", "*", "*", "updates.jsonl"))
+	if err != nil {
+		return time.Time{}, false, err
+	}
+	for _, path := range matches {
+		info, statErr := os.Stat(path)
+		if statErr != nil {
+			if os.IsNotExist(statErr) {
+				continue
+			}
+			return time.Time{}, false, statErr
+		}
+		if info.ModTime().After(newest) {
+			newest = info.ModTime()
+		}
+	}
+	return newest, len(matches) > 0, nil
 }

@@ -119,6 +119,113 @@ describe("HandoffComposer", () => {
     expect(field).toHaveValue("Actually, review it first");
   });
 
+  it("drafts a canonical brief into the editable message and waits for explicit Send", async () => {
+    const onSend = vi.fn().mockResolvedValue([{ targetId: "s2", label: "builder", status: "sent" }]);
+    render(
+      <HandoffComposer
+        open
+        onClose={onClose}
+        sourceLabel="planner"
+        payload="selected conversation span"
+        targets={sections(session("s2", "builder"))}
+        onSend={onSend}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("goal-brief-toggle"));
+    fireEvent.change(screen.getByTestId("goal-brief-destination"), { target: { value: "Finish the verified brief workflow" } });
+    fireEvent.change(screen.getByTestId("goal-brief-stance"), { target: { value: "Keep the operator's exact words intact." } });
+    fireEvent.change(screen.getByTestId("goal-brief-charter"), { target: { value: "work/WC3/BRIEF.md" } });
+    expect(screen.getByTestId("goal-brief-kernel-count")).toHaveTextContent("/600");
+    fireEvent.click(screen.getByTestId("goal-brief-use"));
+
+    const field = screen.getByTestId("handoff-message");
+    expect((field as HTMLTextAreaElement).value).toContain("Keep the operator's exact words intact.");
+    expect((field as HTMLTextAreaElement).value).toContain("Native goal kernel to set:");
+    expect(onSend).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId("handoff-send"));
+    await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+    expect(onSend.mock.calls[0]?.[1](session("s2", "builder"))).toContain("Finish the verified brief workflow");
+  });
+
+  it("compares approximate payload cost with the target's native compaction headroom", () => {
+    render(
+      <HandoffComposer
+        open
+        onClose={onClose}
+        sourceLabel="planner"
+        payload={"x".repeat(5000)}
+        targets={sections(session("s2", "builder"))}
+        contextBudgets={{
+          s2: {
+            model: "codex-model",
+            modelState: "reported",
+            usedTokens: 149_000,
+            usedSource: "native transcript",
+            modelWindowTokens: 200_000,
+            modelWindowSource: "resource model record",
+            compactionPointTokens: 150_000,
+            compactionPointSource: "session launch descriptor",
+            tokensUntilCompaction: 1_000,
+            forecastState: "unknown",
+            progressPercent: 99,
+          },
+        }}
+        onSend={vi.fn()}
+      />,
+    );
+
+    const budget = screen.getByTestId("handoff-context-fit-s2");
+    expect(budget).toHaveAttribute("data-fit-state", "over");
+    expect(budget).toHaveAttribute("data-estimated-tokens", "1250");
+    expect(budget).toHaveAttribute("data-remaining-tokens", "1000");
+    expect(budget).toHaveTextContent("handoff.contextFitOver");
+    expect(budget).toHaveAttribute("data-limit-source", "session launch descriptor");
+  });
+
+  it("fits an over-budget draft only after an explicit action and offers full restore", () => {
+    render(
+      <HandoffComposer
+        open
+        onClose={onClose}
+        sourceLabel="planner"
+        payload={"x".repeat(5000)}
+        targets={sections(session("s2", "builder"))}
+        contextBudgets={{ s2: {
+          modelState: "reported", usedTokens: 149_000, usedSource: "native transcript",
+          modelWindowTokens: 200_000, modelWindowSource: "resource model record",
+          compactionPointTokens: 150_000, compactionPointSource: "session launch descriptor",
+          tokensUntilCompaction: 1_000, forecastState: "unknown", progressPercent: 99,
+        } }}
+        onSend={vi.fn()}
+      />,
+    );
+
+    const field = screen.getByTestId("handoff-message");
+    expect(field).toHaveValue("x".repeat(5000));
+    fireEvent.click(screen.getByTestId("handoff-fit-budget-s2"));
+    expect(field).toHaveValue("x".repeat(4000));
+    expect(screen.getByTestId("handoff-fit-budget-notice-s2")).toHaveTextContent("handoff.contextFitOmitted");
+    fireEvent.click(screen.getByText("handoff.contextFitRestore"));
+    expect(field).toHaveValue("x".repeat(5000));
+  });
+
+  it("leaves fit unknown when the target has no native context budget", () => {
+    render(
+      <HandoffComposer
+        open
+        onClose={onClose}
+        sourceLabel="planner"
+        payload="selected context"
+        targets={sections(session("s2", "builder"))}
+        onSend={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("handoff-context-fit-s2")).toHaveAttribute("data-fit-state", "unknown");
+  });
+
   it("preselects the only target so the common case costs no click", () => {
     render(
       <HandoffComposer

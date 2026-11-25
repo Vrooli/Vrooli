@@ -6,6 +6,8 @@ import { useTranslation } from "react-i18next";
 
 import {
   getConversationRange,
+  searchNodeArchive,
+  searchSemanticConversations,
   type ArchivedConversationSearchMatch,
   type ConversationEvent,
 } from "../api/conversation";
@@ -28,7 +30,7 @@ import { cn } from "../lib/classnames";
 import { formatRelativeTime } from "./MessageJumpList.helpers";
 import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
-import type { OverlayActionList } from "@vrooli/react-component-library/OverlayActionBar/1";
+import type { OverlayActionList, OverlayPrimaryAction, OverlaySecondaryAction } from "@vrooli/react-component-library/OverlayActionBar/1";
 import MessageExportDrawer from "./MessageExportDrawer";
 import MessagesPane from "./MessagesPane";
 
@@ -52,6 +54,37 @@ const RESTORE_STATE_LABEL = {
 } as const;
 
 type ArchiveMatch = ArchivedConversationSearchMatch | ContinuitySearchMatch;
+const NATIVE_ARCHIVE_HARNESSES: Record<string, string> = {
+  claude: "Claude",
+  codex: "Codex",
+  grok: "Grok",
+  opencode: "OpenCode",
+  "gemini-cli": "Gemini CLI",
+  "qwen-code": "Qwen Code",
+  cursor: "Cursor",
+};
+
+function nativeArchiveHarness(sessionId: string): string | undefined {
+  const match = /^wc-archive-([a-z0-9-]+)-/.exec(sessionId);
+  if (!match) return undefined;
+  // Match the longest known slug because Gemini CLI contains a hyphen.
+  return Object.entries(NATIVE_ARCHIVE_HARNESSES)
+    .sort(([left], [right]) => right.length - left.length)
+    .find(([slug]) => sessionId.startsWith(`wc-archive-${slug}-`))?.[1];
+}
+
+type RemoteArchiveMatch = {
+  eventId: string;
+  sessionId: string;
+  role: string;
+  createdAt: string;
+  occurredAt?: string;
+  excerpt: string;
+  source: "semantic" | "node";
+  harness?: string;
+  nodeId?: string;
+  weak?: boolean;
+};
 
 function createdAfterFor(range: string): string | undefined {
   if (range === "any") return undefined;
@@ -87,6 +120,11 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
   const [agentType, setAgentType] = useState<"all" | AgentType>("all");
   const [timeRange, setTimeRange] = useState("any");
   const [myMessages, setMyMessages] = useState(false);
+  const [searchMode, setSearchMode] = useState<"text" | "semantic" | "node">("text");
+  const [nodeId, setNodeId] = useState("");
+  const [remoteMatches, setRemoteMatches] = useState<RemoteArchiveMatch[]>([]);
+  const [selectedRemote, setSelectedRemote] = useState<RemoteArchiveMatch | null>(null);
+  const [searchNotice, setSearchNotice] = useState<string | null>(null);
   const [allStates, setAllStates] = useState(false);
   const [matches, setMatches] = useState<ArchiveMatch[]>([]);
   const [totalMatches, setTotalMatches] = useState(0);
@@ -124,6 +162,7 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
     awaiting_recovery: false,
   } : undefined);
   const selectedIsArchived = selectedSession ? archiveById.has(selectedSession.id) : false;
+  const selectedNativeHarness = selectedSession && !selectedIsArchived ? nativeArchiveHarness(selectedSession.id) : undefined;
 
   const refreshArchive = useCallback(async () => {
     const [result, recoverableRows] = await Promise.all([listArchivedSessions(), listRecoverableSessions()]);
@@ -169,8 +208,11 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
   useEffect(() => {
     if (!open) return;
     const trimmed = query.trim();
+    if (searchMode !== "text") return;
     if (!trimmed) {
       setMatches([]);
+      setRemoteMatches([]);
+      setSelectedRemote(null);
       setTotalMatches(0);
       setDistinctSessions(0);
       setSelected(null);
@@ -212,12 +254,85 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [agentType, allStates, archiveById, myMessages, open, orphansOnly, query, timeRange]);
+  }, [agentType, allStates, archiveById, myMessages, open, orphansOnly, query, searchMode, timeRange]);
+
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (!open || searchMode === "text" || !trimmed) {
+      setRemoteMatches([]);
+      setSelectedRemote(null);
+      setSearchNotice(null);
+      if (searchMode !== "text" && !trimmed) {
+        setMatches([]);
+        setSelected(null);
+        setTotalMatches(0);
+        setDistinctSessions(0);
+      }
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      setLoading(true);
+      setError(null);
+      setSearchNotice(null);
+      const role = myMessages ? "user" : undefined;
+      const filters = { agentType: agentType === "all" ? undefined : agentType, role };
+      const search = searchMode === "semantic"
+        ? searchSemanticConversations(trimmed, filters, 100).then((result) => {
+          if (cancelled) return;
+          setMatches(result.local.matches.filter((match) => !myMessages || match.role === "user"));
+          setTotalMatches(result.local.totalMatches);
+          setDistinctSessions(result.local.distinctSessions);
+          const semantic = result.semanticHits.filter((hit) => !myMessages || hit.role === "user").map((hit) => ({
+            eventId: hit.stableHitId || hit.eventId,
+            sessionId: hit.sourceSessionId,
+            role: hit.role,
+            createdAt: hit.occurredAt,
+            excerpt: hit.snippet,
+            source: "semantic" as const,
+            harness: hit.harness,
+            weak: hit.weak,
+          }));
+          setRemoteMatches(semantic);
+          setSelected((current) => result.local.matches.find((match) => match.eventId === current?.eventId) ?? result.local.matches[0] ?? null);
+          setSearchNotice(result.semanticAvailable
+            ? t(strings.archiveDrawer.semanticCoverage, { ratio: result.coverage?.semanticRatio ?? 0, count: semantic.length, took: result.semanticTookMs })
+            : result.semanticError || t(strings.archiveDrawer.semanticUnavailable));
+        })
+        : (!nodeId.trim()
+          ? Promise.resolve().then(() => {
+            if (!cancelled) {
+              setMatches([]);
+              setSelected(null);
+              setSelectedArchiveId(null);
+              setTotalMatches(0);
+              setDistinctSessions(0);
+              setSearchNotice(t(strings.archiveDrawer.nodeIdRequired));
+            }
+          })
+          : searchNodeArchive(nodeId.trim(), trimmed, filters, 100).then((result) => {
+            if (cancelled) return;
+            setMatches([]);
+            setSelected(null);
+            setTotalMatches(result.search.totalMatches);
+            setDistinctSessions(result.search.distinctSessions);
+            setRemoteMatches(result.search.matches.map((match) => ({ ...match, source: "node" as const, nodeId: result.nodeId })));
+            setSearchNotice(result.available ? t(strings.archiveDrawer.nodeResults, { node: result.nodeId, count: result.search.totalMatches }) : result.degradation || t(strings.archiveDrawer.nodeUnavailable));
+          }));
+      void search.catch((cause) => {
+        if (!cancelled) {
+          setRemoteMatches([]);
+          setSearchNotice(cause instanceof Error ? cause.message : String(cause));
+        }
+      }).finally(() => { if (!cancelled) setLoading(false); });
+    }, 250);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [agentType, myMessages, nodeId, open, query, searchMode, t]);
 
   const displayedMessageCount = query.trim()
-    ? totalMatches
+    ? totalMatches + (searchMode === "semantic" ? remoteMatches.length : 0)
     : browseRows.reduce((total, row) => total + row.message_count, 0);
-  const displayedSessionCount = query.trim() ? distinctSessions : browseRows.length;
+  const displayedSessionCount = query.trim() ? distinctSessions + (searchMode === "node" ? remoteMatches.length : 0) : browseRows.length;
 
   const openExport = useCallback(async () => {
     if (!selectedSession) return;
@@ -328,8 +443,8 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
   }, [selectedSession, t]);
 
   const GermanContractShowcase = import.meta.env.DEV && new URLSearchParams(window.location.search).get("rcl-contract-showcase") === "1";
-  const archiveActions: OverlayActionList | undefined = selectedSession ? [
-    {
+  const archiveActions: OverlayActionList | undefined = selectedSession ? (() : OverlayActionList => {
+    const reopenAction: OverlayPrimaryAction = {
       id: "reopen",
       testId: selectedSession.awaiting_recovery ? "archive-reattach" : "archive-reopen",
       label: GermanContractShowcase ? "Sitzung wiederherstellen" : (selectedSession.awaiting_recovery ? t(strings.recoverableSessions.reattach) : t(strings.archiveDrawer.reopen)),
@@ -338,28 +453,31 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
         ? !recoverableById.get(selectedSession.id)?.recoverable || reopeningId !== null
         : selectedSession.restore_state !== "reopenable" || reopeningId !== null,
       onSelect: () => selectedSession.awaiting_recovery ? void recoverOne(selectedSession.id) : void reopenSelected(),
-    },
-    {
+    };
+    const exportAction: OverlaySecondaryAction = {
       id: "export",
       label: GermanContractShowcase ? "Verlauf sicher exportieren" : t(strings.archiveDrawer.export),
       disabled: !selectedIsArchived,
       onSelect: () => void openExport(),
-    },
-    {
+    };
+    const receiptAction: OverlaySecondaryAction = {
       id: "receipt",
       label: GermanContractShowcase ? "Beleg anzeigen" : t(strings.archiveDrawer.receipt),
       disabled: receiptLoading,
       onSelect: () => void inspectReceipt(),
-    },
-    {
+    };
+    const deleteAction: OverlaySecondaryAction = {
       id: "delete",
       label: GermanContractShowcase ? "Sitzung dauerhaft löschen" : t(strings.archiveDrawer.delete),
       disabled: !selectedIsArchived,
       onSelect: () => setDeleteTarget(selectedSession),
-    },
+    };
     // Closing is not a bar action: the drawer header already carries the
     // close control (`closeLabel`), and the contract caps the bar at four.
-  ] : undefined;
+    return selectedIsArchived
+      ? [reopenAction, exportAction, receiptAction, deleteAction]
+      : [reopenAction, exportAction, deleteAction];
+  })() : undefined;
 
   return (
     <>
@@ -390,19 +508,27 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="rounded-full bg-wc-accent/20 px-3 py-1 font-medium text-wc-text-primary">{t(strings.archiveDrawer.textSearch)}</span>
-              <button type="button" disabled title={t(strings.archiveDrawer.semanticUnavailable)} className="rounded-full border border-wc-default px-3 py-1 text-wc-text-faint opacity-60">{t(strings.archiveDrawer.semanticSearch)}</button>
+              {(["text", "semantic", "node"] as const).map((mode) => (
+                <button key={mode} type="button" data-testid={`archive-search-mode-${mode}`} aria-pressed={searchMode === mode}
+                  onClick={() => { setSearchMode(mode); setSelectedRemote(null); if (mode !== "text") setOrphansOnly(false); }}
+                  className={cn("rounded-full border px-3 py-1", searchMode === mode ? "border-wc-accent/50 bg-wc-accent/20 font-medium text-wc-text-primary" : "border-wc-default text-wc-text-secondary")}>
+                  {t(mode === "text" ? strings.archiveDrawer.textSearch : mode === "semantic" ? strings.archiveDrawer.semanticSearch : strings.archiveDrawer.nodeSearch)}
+                </button>
+              ))}
+              {searchMode === "node" && <input data-testid="archive-node-id" aria-label={t(strings.archiveDrawer.nodeIdLabel)} value={nodeId} onChange={(event) => setNodeId(event.target.value)} placeholder={t(strings.archiveDrawer.nodeIdPlaceholder)} className="min-w-32 max-w-48 rounded-full border border-wc-default bg-wc-surface-input px-3 py-1 text-wc-text-secondary" />}
               <select data-testid="archive-agent-filter" value={agentType} onChange={(event) => setAgentType(event.target.value as "all" | AgentType)} className="rounded-full border border-wc-default bg-wc-surface-input px-3 py-1 text-wc-text-secondary">
                 <option value="all">{t(strings.archiveDrawer.allAgents)}</option>
                 <option value="claude">Claude</option><option value="codex">Codex</option><option value="opencode">OpenCode</option><option value="grok">Grok</option><option value="none">{t(strings.archiveDrawer.shell)}</option>
               </select>
-              <select data-testid="archive-time-filter" value={timeRange} onChange={(event) => setTimeRange(event.target.value)} className="rounded-full border border-wc-default bg-wc-surface-input px-3 py-1 text-wc-text-secondary">
+              <select data-testid="archive-time-filter" value={timeRange} disabled={searchMode !== "text"} onChange={(event) => setTimeRange(event.target.value)} className="rounded-full border border-wc-default bg-wc-surface-input px-3 py-1 text-wc-text-secondary disabled:opacity-50">
                 <option value="any">{t(strings.archiveDrawer.anyTime)}</option><option value="7d">{t(strings.archiveDrawer.last7Days)}</option><option value="30d">{t(strings.archiveDrawer.last30Days)}</option><option value="365d">{t(strings.archiveDrawer.lastYear)}</option>
               </select>
               <label className="inline-flex items-center gap-1.5 rounded-full border border-wc-default px-3 py-1 text-wc-text-secondary"><input data-testid="archive-my-messages" type="checkbox" checked={myMessages} disabled={allStates} onChange={(event) => setMyMessages(event.target.checked)} />{t(strings.archiveDrawer.myMessages)}</label>
               <label className="inline-flex items-center gap-1.5 rounded-full border border-wc-default px-3 py-1 text-wc-text-secondary"><input data-testid="archive-all-states" type="checkbox" checked={allStates} onChange={(event) => { setAllStates(event.target.checked); if (event.target.checked) setMyMessages(false); }} />{t(strings.archiveDrawer.allStates)}</label>
               {orphanRows.length > 0 && <button type="button" data-testid="archive-orphans-filter" aria-pressed={orphansOnly} onClick={() => { setOrphansOnly((value) => !value); setSelected(null); setSelectedArchiveId(orphanRows[0]?.id ?? null); }} className={cn("rounded-full border px-3 py-1", orphansOnly ? "border-amber-400/60 bg-amber-500/15 text-amber-100" : "border-wc-default text-wc-text-secondary")}>{t(strings.archiveDrawer.crashOrphans, { count: orphanRows.length })}</button>}
             </div>
+            {searchNotice && <div role="status" data-testid="archive-search-notice" className="rounded bg-wc-surface-input px-2 py-1.5 text-xs text-wc-text-muted">{searchNotice}</div>}
+            {searchMode === "text" && timeRange !== "any" && <div role="note" data-testid="archive-source-time-note" className="rounded bg-wc-surface-input px-2 py-1.5 text-xs text-wc-text-muted">{t(strings.archiveDrawer.nativeTimeFilterNotice)}</div>}
             {error && <div role="alert" className="rounded bg-red-500/10 px-3 py-1.5 text-xs text-red-300">{error}</div>}
             {continuityWarning && <div role="status" data-testid="archive-continuity-warning" className="rounded bg-amber-500/10 px-3 py-1.5 text-xs text-amber-200">{continuityWarning}</div>}
           </div>
@@ -410,7 +536,7 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
       >
         <div className="flex h-full min-h-0 flex-col md:flex-row">
           <section aria-label={t(strings.archiveDrawer.resultsHeading)} className="max-h-[42%] shrink-0 overflow-y-auto border-b border-wc-default md:max-h-none md:w-[22rem] md:border-b-0 md:border-e">
-            {orphansOnly ? (
+            {orphansOnly && !query.trim() ? (
               <div data-testid="archive-orphan-results">
                 <div className="flex flex-wrap gap-2 border-b border-wc-default p-3">
                   <button type="button" onClick={() => void recoverAll()} disabled={reopeningId !== null || !recoverable.some((row) => row.recoverable)} className="rounded border border-amber-400/50 px-2 py-1 text-xs text-amber-100 disabled:opacity-50">{t(strings.recoverableSessions.reattachAll)}</button>
@@ -446,6 +572,7 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-xs font-semibold text-wc-text-primary">{row.agent_type} · {row.pane_name}</span>
                       {row.cwd && <span className="mt-1 block truncate text-[11px] text-wc-text-muted">{row.cwd}</span>}
+                      {row.archive_note && <span data-testid={`archive-note-${row.id}`} className="mt-1 block line-clamp-2 text-[11px] text-wc-text-secondary">{row.archive_note}</span>}
                       <span className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-[10px] text-wc-text-faint">
                         <span>{formatRelativeTime(row.archived_at)}</span><span aria-hidden="true">·</span>
                         <span>{t(strings.archiveDrawer.messageCount, { count: row.message_count })}</span><span aria-hidden="true">·</span>
@@ -487,24 +614,32 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
               })
             ) : loading ? (
               <div className="p-5 text-sm text-wc-text-muted">{t(strings.archiveDrawer.searching)}</div>
-            ) : matches.length === 0 ? (
+            ) : matches.length === 0 && remoteMatches.length === 0 ? (
               <div className="p-5 text-sm text-wc-text-muted">{t(strings.archiveDrawer.noResults)}</div>
-            ) : matches.map((match) => {
+            ) : <>{matches.map((match) => {
               const row = archiveById.get(match.sessionId);
               return (
                 <button
                   key={match.eventId}
                   type="button"
                   data-testid={`archive-hit-${match.eventId}`}
-                  onClick={() => { setSelected(match); setSelectedArchiveId(match.sessionId); }}
+                  onClick={() => { setSelected(match); setSelectedRemote(null); setSelectedArchiveId(match.sessionId); }}
                   className={cn("block w-full border-b border-wc-default/60 p-3 text-start transition", selected?.eventId === match.eventId ? "bg-wc-accent/10" : "hover:bg-wc-surface-raised")}
                 >
                   <div className="truncate text-xs font-semibold text-wc-text-primary">{row?.agent_type ?? "agent"} · {row?.pane_name ?? match.sessionId.slice(0, 8)}</div>
                   <div className="mt-1 line-clamp-3 text-xs leading-relaxed text-wc-text-secondary">{highlightedExcerpt(match.excerpt, query)}</div>
-                  <div className="mt-1 text-[10px] text-wc-text-faint">{formatRelativeTime(match.createdAt)} · {match.role === "user" ? t(strings.archiveDrawer.you) : row?.agent_type ?? match.role}</div>
+                  <div className="mt-1 text-[10px] text-wc-text-faint">{match.occurredAt ? `Message · ${formatRelativeTime(match.occurredAt)}` : nativeArchiveHarness(match.sessionId) ? `Indexed · ${formatRelativeTime(match.createdAt)}` : formatRelativeTime(match.createdAt)} · {match.role === "user" ? t(strings.archiveDrawer.you) : row?.agent_type ?? match.role}</div>
                 </button>
               );
-            })}
+            })}{remoteMatches.map((match) => (
+              <button key={`${match.source}:${match.eventId}`} type="button" data-testid={`archive-remote-hit-${match.source}-${match.eventId}`}
+                onClick={() => { setSelected(null); setSelectedArchiveId(null); setSelectedRemote(match); }}
+                className={cn("block w-full border-b border-wc-default/60 p-3 text-start transition", selectedRemote?.eventId === match.eventId ? "bg-wc-accent/10" : "hover:bg-wc-surface-raised")}>
+                <div className="truncate text-xs font-semibold text-wc-text-primary">{match.source === "node" ? `${match.nodeId} · ${match.harness || "agent"}` : `${match.harness || "agent"} · ${t(strings.archiveDrawer.semanticSearch)}`}</div>
+                <div className="mt-1 line-clamp-3 text-xs leading-relaxed text-wc-text-secondary">{highlightedExcerpt(match.excerpt, query)}</div>
+                <div className="mt-1 text-[10px] text-wc-text-faint">{match.occurredAt ? `Message · ${formatRelativeTime(match.occurredAt)}` : match.source === "node" ? `Indexed · ${formatRelativeTime(match.createdAt)}` : formatRelativeTime(match.createdAt)} · {match.role === "user" ? t(strings.archiveDrawer.you) : match.role} · {match.sessionId.slice(0, 8)}</div>
+              </button>
+            ))}</>}
           </section>
 
           <section aria-label={t(strings.archiveDrawer.readerHeading)} className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -514,9 +649,16 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
                   <div className="flex flex-wrap items-start gap-2">
                     <span className="mt-1 h-3 w-3 rounded-full border border-white/20" style={{ backgroundColor: selectedSession.header_color || "transparent" }} aria-hidden="true" />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-semibold text-wc-text-primary">{selectedSession.agent_type} · {selectedSession.pane_name}</div>
-                      <div className="truncate text-xs text-wc-text-muted">{t(strings.archiveDrawer.archivedAt, { time: formatRelativeTime(selectedSession.archived_at) })} · {t(strings.archiveDrawer.messageCount, { count: selectedSession.message_count })}{selectedSession.cwd ? ` · ${selectedSession.cwd}` : ""}</div>
+                      <div className="truncate text-sm font-semibold text-wc-text-primary" data-testid={selectedNativeHarness ? "native-archive-heading" : undefined}>
+                        {selectedNativeHarness ? `${selectedNativeHarness} · Native archive` : `${selectedSession.agent_type} · ${selectedSession.pane_name}`}
+                      </div>
+                      <div className="truncate text-xs text-wc-text-muted">
+                        {selectedIsArchived
+                          ? <>{t(strings.archiveDrawer.archivedAt, { time: formatRelativeTime(selectedSession.archived_at) })} · {t(strings.archiveDrawer.messageCount, { count: selectedSession.message_count })}{selectedSession.cwd ? ` · ${selectedSession.cwd}` : ""}</>
+                          : selectedNativeHarness ? `${selected?.occurredAt ? "Message" : "Indexed"} · ${formatRelativeTime(selected?.occurredAt || selected?.createdAt || selectedSession.created_at)}` : null}
+                      </div>
                       <div className="mt-1 text-xs text-wc-text-secondary">{t(RESTORE_STATE_LABEL[selectedSession.restore_state])}{selectedSession.restore_state_reason ? ` — ${selectedSession.restore_state_reason}` : ""}</div>
+                      {selectedSession.archive_note && <div data-testid="archive-note" className="mt-1 whitespace-pre-wrap text-xs text-wc-text-secondary">{selectedSession.archive_note}</div>}
                     </div>
                   </div>
                   {receipt && <div data-testid="archive-receipt" className="mt-2 rounded border border-wc-default/70 bg-wc-surface-input px-2 py-1.5 text-[11px] text-wc-text-muted">
@@ -547,6 +689,13 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
                   />
                 </div>
               </>
+            ) : selectedRemote ? (
+              <article data-testid="archive-remote-preview" data-source={selectedRemote.source} data-node-id={selectedRemote.nodeId} className="space-y-3 p-5">
+                <div className="text-xs font-semibold uppercase tracking-wide text-wc-text-muted">{selectedRemote.source === "node" ? t(strings.archiveDrawer.nodePreview, { node: selectedRemote.nodeId ?? "" }) : t(strings.archiveDrawer.semanticPreview)}</div>
+                <div className="text-xs text-wc-text-faint">{selectedRemote.harness ?? "agent"} · {selectedRemote.sessionId} · {selectedRemote.eventId}</div>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-wc-text-primary">{selectedRemote.excerpt}</p>
+                <p className="text-xs text-wc-text-muted">{t(strings.archiveDrawer.remotePreviewOnly)}</p>
+              </article>
             ) : (
               <div className="flex h-full items-center justify-center p-6 text-sm text-wc-text-muted">{t(strings.archiveDrawer.selectResult)}</div>
             )}

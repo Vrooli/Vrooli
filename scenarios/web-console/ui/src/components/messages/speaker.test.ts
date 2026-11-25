@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { strings } from "../../consts/strings";
-import { speakerKey, timeLabel, voiceReceiptKey } from "./speaker";
+import { eventTime, speakerKey, timeLabel, voiceReceiptKey } from "./speaker";
 
 describe("speakerKey", () => {
   it("[REQ:P0-017c] names the user 'You' whatever the capture source", () => {
@@ -36,6 +36,25 @@ describe("timeLabel", () => {
 
   it("returns an empty label for an unparseable timestamp", () => {
     expect(timeLabel("not a date", now, "en-US")).toBe("");
+  });
+});
+
+describe("eventTime", () => {
+  const now = new Date("2026-09-11T15:30:00Z");
+
+  it("uses native message time instead of ingestion time", () => {
+    expect(eventTime({ source: "claude_archive", createdAt: "2026-09-11T15:20:00Z", occurredAt: "2026-09-02T09:05:00Z" }, now, "en-US"))
+      .toEqual({ label: "Message", timestamp: "Sep 2" });
+  });
+
+  it("labels unknown native source time as indexing time", () => {
+    expect(eventTime({ source: "grok_archive", createdAt: "2026-09-11T15:20:00Z" }, now, "en-US"))
+      .toEqual({ label: "Indexed", timestamp: "11:20 AM" });
+  });
+
+  it("keeps ordinary live events' timestamp presentation unchanged", () => {
+    expect(eventTime({ source: "claude_hook", createdAt: "2026-09-11T15:20:00Z" }, now, "en-US"))
+      .toEqual({ label: "", timestamp: "11:20 AM" });
   });
 });
 

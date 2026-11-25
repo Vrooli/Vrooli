@@ -3,6 +3,10 @@ package audiotools
 import (
 	"context"
 	"errors"
+	"fmt"
+	"runtime"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -69,4 +73,52 @@ func TestResolversAndErrorNormalization(t *testing.T) {
 	if !errors.Is(NormalizeError(connect.NewError(connect.CodeInvalidArgument, errors.New("bad"))), ErrInvalidArgument) {
 		t.Fatal("connect invalid argument should normalize")
 	}
+}
+
+type rotatingResolver struct{ calls atomic.Uint64 }
+
+func (r *rotatingResolver) Resolve() (string, error) {
+	return fmt.Sprintf("http://audio-%d", r.calls.Add(1)), nil
+}
+
+func TestConcurrentRefreshAndClientReadsAreRaceFree(t *testing.T) {
+	client, err := New(&rotatingResolver{}, Policy{})
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	stopReader := make(chan struct{})
+	readerDone := make(chan struct{})
+	go func() {
+		defer close(readerDone)
+		for {
+			select {
+			case <-stopReader:
+				return
+			default:
+				if client.Clients().STT == nil {
+					t.Error("concurrent refresh exposed nil STT client")
+					return
+				}
+				runtime.Gosched()
+			}
+		}
+	}()
+	const workers, refreshes = 4, 50
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range refreshes {
+				client.HandleTransportFailure()
+				if err := client.Ensure(); err != nil {
+					t.Errorf("Ensure returned error: %v", err)
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	close(stopReader)
+	<-readerDone
 }

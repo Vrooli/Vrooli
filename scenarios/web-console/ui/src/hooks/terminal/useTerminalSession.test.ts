@@ -11,8 +11,9 @@ class SessionSocket {
   onopen: (() => void) | null = null;
   onmessage: ((event: MessageEvent<string>) => void) | null = null;
   onclose: ((event: CloseEvent) => void) | null = null;
+  closeCode: number | undefined;
   send(data: string): void { this.sent.push(data); }
-  close(): void { this.readyState = 0; this.onclose?.({ code: 1000 } as CloseEvent); }
+  close(code = 1000): void { this.closeCode = code; this.readyState = 0; this.onclose?.({ code } as CloseEvent); }
 }
 
 
@@ -143,6 +144,8 @@ describe("reconnect presentation", () => {
 
     act(() => socket.onclose?.({ code: 1006 } as CloseEvent));
     act(() => socket.onopen?.());
+	message({ type: "session_ready", accepted_through: 0 });
+	message({ type: "stdout", data: "server-screen" });
 	await act(async () => { await new Promise((resolve) => setTimeout(resolve, 30)); });
 
     expect(statuses).toContainEqual({ kind: "disconnected" });
@@ -200,6 +203,39 @@ describe("stdout rendering", () => {
     }
 
     expect(drained).toBe(burst);
+    unmount();
+  });
+
+  it("reconnects for an authoritative snapshot when suspended frames overflow the output queue", () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+
+    const socket = new SessionSocket();
+    const terminal = createTerminalStub();
+    const { unmount } = renderHook(() => useTerminalSession({
+      sessionId: "streaming-agent-session",
+      terminal: terminal as never,
+      createSocket: () => socket as unknown as WebSocket,
+    }));
+    const message = (payload: Record<string, unknown>) => act(() => {
+      socket.onmessage?.({ data: JSON.stringify(payload) } as MessageEvent<string>);
+    });
+    act(() => {
+      socket.readyState = SessionSocket.OPEN;
+      socket.onopen?.();
+    });
+    message({ type: "session_ready", accepted_through: 0 });
+
+    for (let index = 0; index < 17; index += 1) {
+      message({ type: "stdout", data: "agent-output".repeat(6_000) });
+    }
+
+    expect(socket.closeCode).toBe(4000);
+    expect(terminal.write).not.toHaveBeenCalled();
     unmount();
   });
 });

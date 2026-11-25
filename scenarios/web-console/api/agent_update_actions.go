@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/repo-contract-go/cliinvoke"
 	harnesslifecycle "github.com/vrooli/vrooli/packages/harness-lifecycle"
@@ -122,7 +123,7 @@ func guardAgentUpdateAction(w http.ResponseWriter, r *http.Request, action strin
 	return true
 }
 
-func (s *Server) runAgentUpdateAction(ctx context.Context, targetID, agentID, action, cleanupPlanID string) (capsH.AgentUpdateActionResult, error) {
+func (s *Server) runAgentUpdateAction(ctx context.Context, targetID, agentID, action, cleanupPlanID string, requestedKeys ...string) (capsH.AgentUpdateActionResult, error) {
 	targetID, agentID, action = strings.TrimSpace(targetID), strings.TrimSpace(agentID), strings.TrimSpace(action)
 	actor := ""
 	if action != agentActionRefreshCatalog {
@@ -155,6 +156,20 @@ func (s *Server) runAgentUpdateAction(ctx context.Context, targetID, agentID, ac
 	if action == agentActionRefreshCatalog && targetID != "local" {
 		return capsH.AgentUpdateActionResult{}, fmt.Errorf("%w: a model list refreshes on this machine only", capsH.ErrFailedPrecondition)
 	}
+	idempotencyKey := ""
+	if len(requestedKeys) > 0 {
+		idempotencyKey = strings.TrimSpace(requestedKeys[0])
+	}
+	if targetID != "local" && idempotencyKey == "" {
+		return capsH.AgentUpdateActionResult{}, fmt.Errorf("%w: remote harness actions require a stable idempotency key", capsH.ErrFailedPrecondition)
+	}
+	if idempotencyKey != "" {
+		if _, err := uuid.Parse(idempotencyKey); err != nil {
+			return capsH.AgentUpdateActionResult{}, fmt.Errorf("invalid harness action idempotency key: %w", err)
+		}
+	} else {
+		idempotencyKey = uuid.NewString()
+	}
 	target, err := s.agentUpdateTarget(targetID)
 	if err != nil {
 		return capsH.AgentUpdateActionResult{}, err
@@ -164,10 +179,10 @@ func (s *Server) runAgentUpdateAction(ctx context.Context, targetID, agentID, ac
 	}
 	// Detached: closing a tab or losing a tunnel must not kill an install midway.
 	detached := context.WithoutCancel(ctx)
-	flight, err := s.agentUpdateActions.join(agentUpdateActionKey(targetID, agentID), action+"\x00"+cleanupPlanID, func() (capsH.AgentUpdateActionResult, error) {
+	flight, err := s.agentUpdateActions.join(agentUpdateActionKey(targetID, agentID), action+"\x00"+cleanupPlanID+"\x00"+idempotencyKey, func() (capsH.AgentUpdateActionResult, error) {
 		budget, cancel := context.WithTimeout(detached, harnessActionBudget)
 		defer cancel()
-		return s.executeAgentUpdateAction(budget, target, targetID, agentID, action, actor, cleanupPlanID, command, args)
+		return s.executeAgentUpdateAction(budget, target, targetID, agentID, action, actor, cleanupPlanID, command, args, idempotencyKey)
 	})
 	if err != nil {
 		return capsH.AgentUpdateActionResult{}, err
@@ -180,14 +195,14 @@ func (s *Server) runAgentUpdateAction(ctx context.Context, targetID, agentID, ac
 	}
 }
 
-func (s *Server) executeAgentUpdateAction(ctx context.Context, target targetConnection, targetID, agentID, action, actor, cleanupPlanID, command string, args []string) (capsH.AgentUpdateActionResult, error) {
+func (s *Server) executeAgentUpdateAction(ctx context.Context, target targetConnection, targetID, agentID, action, actor, cleanupPlanID, command string, args []string, idempotencyKey string) (capsH.AgentUpdateActionResult, error) {
 	window, cancel := context.WithTimeout(ctx, harnessActionWindow)
 	defer cancel()
 	// The verb records this as the actor. Only this request's verified human reaches here.
 	if command == "resource update" && actor != "" {
 		args = append(args[:len(args):len(args)], "--on-behalf-of", actor)
 	}
-	outcome, err := s.invokeAgentUpdateCommand(window, target, targetID, command, args, agentID, action, actor, cleanupPlanID)
+	outcome, err := s.invokeAgentUpdateCommand(window, target, targetID, command, args, agentID, action, actor, cleanupPlanID, idempotencyKey)
 	// The install may have changed whatever the error says.
 	s.agentUpdates.invalidate(targetID, agentID)
 	s.auditAgentUpdateAction(actor, targetID, agentID, action, outcome, err)
@@ -214,7 +229,7 @@ type agentUpdateCommandOutcome struct {
 	OperationID string
 }
 
-func (s *Server) invokeAgentUpdateCommand(ctx context.Context, target targetConnection, targetID, command string, args []string, agentID, action, actor, cleanupPlanID string) (agentUpdateCommandOutcome, error) {
+func (s *Server) invokeAgentUpdateCommand(ctx context.Context, target targetConnection, targetID, command string, args []string, agentID, action, actor, cleanupPlanID, idempotencyKey string) (agentUpdateCommandOutcome, error) {
 	if targetID == "local" {
 		if s.agentLifecycle.manage == nil && os.Getenv("VROOLI_DESKTOP_MODE") != "true" {
 			data, runErr := runControlPlaneHarness(ctx, command, args)
@@ -231,7 +246,7 @@ func (s *Server) invokeAgentUpdateCommand(ctx context.Context, target targetConn
 		result, err := manage(ctx, localHarnessRoot(), resource, action, actor, cleanupPlanID)
 		return agentUpdateCommandOutcome{Success: result.Success, Message: result.Message, CleanupPlan: result.CleanupPlan}, err
 	}
-	response, err := s.relayAgentUpdate(ctx, target, command, args, harnessActionWindow)
+	response, err := s.relayAgentUpdate(ctx, target, command, args, harnessActionWindow, idempotencyKey)
 	if err != nil {
 		return agentUpdateCommandOutcome{}, fmt.Errorf("Bridge could not run the action on %s: %w", target.Label, err)
 	}

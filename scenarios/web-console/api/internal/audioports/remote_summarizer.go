@@ -95,7 +95,7 @@ func (r *RemoteSummarizer) Summarize(ctx context.Context, in SummarizeInput) (Su
 	if r.Credentials != nil {
 		req = audiotools.AttachCredentials(req, r.Credentials(ctx))
 	}
-	resp, err := r.Client.Summarize.Summarize(ctx, req)
+	resp, err := r.Client.Clients().Summarize.Summarize(ctx, req)
 	if err != nil {
 		if isTransportFailure(err) {
 			r.Client.HandleTransportFailure()

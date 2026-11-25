@@ -64,7 +64,7 @@ func (r *RemoteSummarizeConfigAdmin) GetSummarizeConfig(ctx context.Context) (Su
 	}
 	req := connect.NewRequest(&summv1.GetSummarizeConfigRequest{})
 	r.attach(req, ctx)
-	resp, err := r.Client.Summarize.GetSummarizeConfig(ctx, req)
+	resp, err := r.Client.Clients().Summarize.GetSummarizeConfig(ctx, req)
 	if err != nil {
 		return SummarizeConfig{}, r.handleErr(err)
 	}
@@ -86,7 +86,7 @@ func (r *RemoteSummarizeConfigAdmin) UpdateSummarizeConfig(ctx context.Context, 
 		Config:     summarizeConfigToProto(cfg),
 	})
 	r.attach(req, ctx)
-	resp, err := r.Client.Summarize.UpdateSummarizeConfig(ctx, req)
+	resp, err := r.Client.Clients().Summarize.UpdateSummarizeConfig(ctx, req)
 	if err != nil {
 		return SummarizeConfig{}, r.handleErr(err)
 	}
@@ -102,7 +102,7 @@ func (r *RemoteSummarizeConfigAdmin) ListSummarizeModels(ctx context.Context) ([
 	}
 	req := connect.NewRequest(&summv1.ListSummarizeModelsRequest{})
 	r.attach(req, ctx)
-	resp, err := r.Client.Summarize.ListSummarizeModels(ctx, req)
+	resp, err := r.Client.Clients().Summarize.ListSummarizeModels(ctx, req)
 	if err != nil {
 		return nil, r.handleErr(err)
 	}

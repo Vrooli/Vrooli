@@ -63,12 +63,16 @@ func (f *fakeSumm) Summarize(_ context.Context, in audioports.SummarizeInput) (a
 func TestTranscribe_HappyPath(t *testing.T) {
 	stt := &fakeSTT{result: audioports.STTResult{Text: "hello world"}}
 	h := NewConnectHandler(Deps{STT: stt})
-	resp, err := h.Transcribe(context.Background(), connect.NewRequest(&audioruntimev1.TranscribeRequest{
+	request := connect.NewRequest(&audioruntimev1.TranscribeRequest{
 		Audio:                   []byte{0x01},
 		Format:                  audiocommonv1.AudioFormat_AUDIO_FORMAT_WEBM,
 		SkipSpeakerVerification: true,
 		Language:                "en",
-	}))
+	})
+	request.Header().Set("X-Audio-Model-ID", "local-whisper-large-v3")
+	request.Header().Set("X-Audio-Provider-Tier", "local")
+	request.Header().Set("X-Audio-Provider-ID", "whisper-stt")
+	resp, err := h.Transcribe(context.Background(), request)
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
@@ -77,6 +81,12 @@ func TestTranscribe_HappyPath(t *testing.T) {
 	}
 	if !stt.lastOpts.SkipSpeakerVerification || stt.lastOpts.Language != "en" {
 		t.Errorf("opts forwarded incorrectly: %+v", stt.lastOpts)
+	}
+	if stt.lastOpts.ModelID != "local-whisper-large-v3" {
+		t.Errorf("model ID = %q; want exact selected model", stt.lastOpts.ModelID)
+	}
+	if stt.lastOpts.ProviderTier != "local" || stt.lastOpts.ProviderID != "whisper-stt" {
+		t.Errorf("provider route not preserved: tier=%q id=%q", stt.lastOpts.ProviderTier, stt.lastOpts.ProviderID)
 	}
 }
 

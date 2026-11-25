@@ -7,6 +7,8 @@ import (
 	"context"
 	"log"
 
+	conversationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/conversation"
+
 	"web-console/internal/module"
 
 	"github.com/gorilla/mux"
@@ -30,6 +32,13 @@ type Service interface {
 	ResolveEvents(ctx context.Context, sessionID string, eventIDs []string) (ResolveEventsResult, error)
 	UpdateCursor(ctx context.Context, sessionID string, patch CursorPatch) (Cursor, error)
 	SummarizeEvent(ctx context.Context, sessionID, eventID string) (SummarizeResult, error)
+}
+
+// OptionalSearchService adds Agent Manager and fleet-node search without
+// making either service a dependency of the base local conversation API.
+type OptionalSearchService interface {
+	SearchSemantic(context.Context, *conversationv1.SearchSemanticRequest) (*conversationv1.SearchSemanticResponse, error)
+	SearchNodeArchive(context.Context, *conversationv1.SearchNodeArchiveRequest) (*conversationv1.SearchNodeArchiveResponse, error)
 }
 
 // ResolveEventsResult reports complete events and IDs that no longer exist.
@@ -56,12 +65,13 @@ type TextRange struct {
 }
 
 type SearchMatch struct {
-	EventID   string
-	Sequence  int64
-	Role      string
-	CreatedAt string
-	Excerpt   string
-	Ranges    []TextRange
+	EventID    string
+	Sequence   int64
+	Role       string
+	CreatedAt  string
+	OccurredAt string
+	Excerpt    string
+	Ranges     []TextRange
 }
 
 // SearchResult carries Error for a query that cannot run as asked (an invalid
@@ -82,13 +92,14 @@ type ArchivedSearchFilter struct {
 }
 
 type ArchivedSearchMatch struct {
-	EventID   string
-	SessionID string
-	Sequence  int64
-	Role      string
-	CreatedAt string
-	Excerpt   string
-	Ranges    []TextRange
+	EventID    string
+	SessionID  string
+	Sequence   int64
+	Role       string
+	CreatedAt  string
+	OccurredAt string
+	Excerpt    string
+	Ranges     []TextRange
 }
 
 type ArchivedSearchResult struct {
@@ -110,6 +121,7 @@ type Event struct {
 	OriginalSpeechParagraphs []string
 	Summarized               bool
 	CreatedAt                string
+	OccurredAt               string
 	Sequence                 int64
 	DeliveryState            string
 	TTSState                 string
@@ -200,9 +212,12 @@ func Module(svc Service, logger *log.Logger) module.Module {
 	if logger == nil {
 		logger = log.Default()
 	}
+	var optional OptionalSearchService
+	if candidate, ok := svc.(OptionalSearchService); ok {
+		optional = candidate
+	}
 	connectPath, connectHandler := conversationconnect.NewConversationServiceHandler(NewConnectHandler(Deps{
-		Service: svc,
-		Logger:  logger,
+		Service: svc, OptionalSearch: optional, Logger: logger,
 	}))
 	return module.Module{
 		Name: "conversation",

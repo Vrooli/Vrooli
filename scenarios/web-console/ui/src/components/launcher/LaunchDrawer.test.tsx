@@ -16,7 +16,7 @@ vi.mock("../../api/capabilities", async () => {
 vi.mock("../../api/shortcuts", () => ({ shortcutsClient: { getEffective: vi.fn(), getAgentPreferences: vi.fn(), updateAgentPreferences: vi.fn() } }));
 vi.mock("../../api/modelSelection", () => ({ modelSelectionClient: { getRoleModelChoices: vi.fn() } }));
 vi.mock("../../api/monetization", () => ({ getBusinessAccounts: vi.fn(), getBusinessAccountUsage: vi.fn() }));
-vi.mock("../../api/usageMode", () => ({ getUsageMode: vi.fn(), startUsageMode: vi.fn(), endUsageMode: vi.fn() }));
+vi.mock("../../api/usageMode", async (importOriginal) => ({ ...(await importOriginal<typeof import("../../api/usageMode")>()), getUsageMode: vi.fn(), startUsageMode: vi.fn(), endUsageMode: vi.fn() }));
 
 import { capabilitiesClient as rawCapabilities } from "../../api/capabilities";
 import { modelSelectionClient as rawModels } from "../../api/modelSelection";
@@ -86,16 +86,15 @@ beforeEach(() => {
 });
 
 describe("type first", () => {
-  it("starts with no type and requires an explicit choice before agent controls or launch", async () => {
+  it("opens on Agent with its controls immediately visible", async () => {
     setDesktopViewport();
     drawer({}, false);
-    expect(screen.getByTestId("launcher-mode-agent")).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByTestId("launcher-mode-agent")).toHaveAttribute("aria-checked", "true");
     expect(screen.getByTestId("launcher-mode-shell")).toHaveAttribute("aria-checked", "false");
-    for (const id of ["launcher-agent-grid", "launcher-settings", "launcher-shell-command", "launcher-submit-selection"]) expect(screen.queryByTestId(id)).toBeNull();
-    fireEvent.keyDown(screen.getByTestId("launcher-desktop"), { key: "Enter" });
-    expect(onLaunch).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByTestId("launcher-mode-agent"));
-    await screen.findByTestId("launcher-settings");
+    for (const id of ["launcher-agent-grid", "launcher-settings", "launcher-submit-selection"]) {
+      expect(await screen.findByTestId(id)).toBeInTheDocument();
+    }
+    expect(screen.queryByTestId("launcher-shell-command")).toBeNull();
     const panel = screen.getByTestId("terminal-launcher");
     const sequence = ["launcher-machine-picker", "launcher-mode-agent", "launcher-agent-grid", "launcher-settings", "launcher-submit-selection"].map((id) => within(panel).getByTestId(id));
     for (let index = 1; index < sequence.length; index += 1) {
@@ -105,13 +104,10 @@ describe("type first", () => {
     expect(screen.getByText(strings.terminalLauncher.newSession)).toBeInTheDocument();
   });
 
-  it.each([false, true])("requires a type selection before launch on %s viewport", async (desktop) => {
+  it.each([false, true])("switches from Agent to Shell on %s viewport", async (desktop) => {
     if (desktop) setDesktopViewport();
     drawer({}, false);
-    const root = screen.getByTestId(desktop ? "launcher-desktop" : "launcher-phone");
-    fireEvent.keyDown(root, { key: "Enter" });
-    expect(onLaunch).not.toHaveBeenCalled();
-    expect(screen.queryByTestId("launcher-submit-selection")).toBeNull();
+    expect(screen.getByTestId("launcher-mode-agent")).toHaveAttribute("aria-checked", "true");
     fireEvent.click(screen.getByTestId("launcher-mode-shell"));
     expect(await screen.findByTestId("launcher-shell-panel")).toBeInTheDocument();
     expect(screen.queryByTestId("launcher-agent-grid")).toBeNull();
@@ -125,7 +121,7 @@ describe("type first", () => {
     const agent = screen.getByRole("radio", { name: strings.terminalLauncher.typeAgent });
     const shell = screen.getByRole("radio", { name: strings.terminalLauncher.typeShell });
     expect(within(group).getAllByRole("radio")).toHaveLength(2);
-    expect(agent).toHaveAttribute("aria-checked", "false");
+    expect(agent).toHaveAttribute("aria-checked", "true");
     expect(shell).toHaveAttribute("aria-checked", "false");
     expect(agent).toHaveAttribute("tabindex", "0");
     expect(shell).toHaveAttribute("tabindex", "-1");
@@ -164,36 +160,37 @@ describe("type first", () => {
     expect(shell).toHaveAttribute("aria-checked", "false");
   });
 
-  it.each(["{Enter}", " "])("activates an initially unchecked type radio with %s on phone and desktop", async (key) => {
+  it.each(["{Enter}", " "])("activates the shell radio with %s on phone and desktop", async (key) => {
     for (const desktop of [false, true]) {
       if (desktop) setDesktopViewport(); else setMobileViewport();
       const view = drawer({}, false);
       await waitFor(() => expect(screen.getByTestId(desktop ? "launcher-desktop" : "launcher-phone")).toHaveFocus());
       const user = userEvent.setup();
-      const agent = screen.getByRole("radio", { name: strings.terminalLauncher.typeAgent });
-      expect(agent).toHaveAttribute("aria-checked", "false");
-      agent.focus();
+      const shell = screen.getByRole("radio", { name: strings.terminalLauncher.typeShell });
+      expect(shell).toHaveAttribute("aria-checked", "false");
+      shell.focus();
       await user.keyboard(key);
-      expect(agent).toHaveFocus();
-      expect(agent).toHaveAttribute("aria-checked", "true");
-      expect(await screen.findByTestId("launcher-settings")).toBeInTheDocument();
+      expect(shell).toHaveFocus();
+      expect(shell).toHaveAttribute("aria-checked", "true");
+      expect(await screen.findByTestId("launcher-shell-panel")).toBeInTheDocument();
       view.unmount();
     }
   });
 
-  it("resets the selected type when the drawer is reopened", async () => {
+  it("resets the selected type to Agent when the drawer is reopened", async () => {
     const props = { onClose: vi.fn(), onLaunch, shortcuts: AGENTS, availableTargets: [target()] };
     const view = render(<TerminalLauncher open={false} {...props} />);
     view.rerender(<TerminalLauncher open {...props} />);
-    expect(screen.getByTestId("launcher-mode-agent")).toHaveAttribute("aria-checked", "false");
-    expect(screen.queryByTestId("launcher-submit-selection")).toBeNull();
-    fireEvent.click(screen.getByTestId("launcher-mode-agent"));
-    await screen.findByTestId("launcher-settings");
+    expect(screen.getByTestId("launcher-mode-agent")).toHaveAttribute("aria-checked", "true");
+    expect(await screen.findByTestId("launcher-submit-selection")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("launcher-mode-shell"));
+    await screen.findByTestId("launcher-shell-panel");
     view.rerender(<TerminalLauncher open={false} {...props} />);
     view.rerender(<TerminalLauncher open {...props} />);
-    expect(screen.getByTestId("launcher-mode-agent")).toHaveAttribute("aria-checked", "false");
-    expect(screen.queryByTestId("launcher-settings")).toBeNull();
-    expect(screen.queryByTestId("launcher-submit-selection")).toBeNull();
+    expect(screen.getByTestId("launcher-mode-agent")).toHaveAttribute("aria-checked", "true");
+    expect(await screen.findByTestId("launcher-settings")).toBeInTheDocument();
+    expect(screen.queryByTestId("launcher-shell-command")).toBeNull();
+    expect(screen.getByTestId("launcher-submit-selection")).toBeInTheDocument();
   });
 
   it("offers Agent, Shell and Group, and Group only when a caller can create one", () => {
@@ -254,7 +251,7 @@ describe("a harness is always selected", () => {
   it("has no way to clear the selection, and starts on the first visible harness", () => {
     drawer();
     expect(selected("claude-code")).toBe("true");
-    expect(launchButton()).toHaveTextContent(strings.terminalLauncher.launchSelectedAgent);
+    expect(launchButton()).toHaveTextContent(strings.terminalLauncher.launch);
     expect(screen.queryByTestId("launcher-clear-selection")).toBeNull();
   });
 
@@ -367,7 +364,7 @@ describe("usage space", () => {
 });
 
 describe("settings", () => {
-  const limited = choice("big", { isDefault: true, contextWindowTokens: 500_000n, contextLimitTokens: [300_000n, 150_000n] });
+  const limited = choice("big", { isDefault: true, contextWindowTokens: 500_000n, contextWindowSource: "codex-models-cache/v1", contextLimitTokens: [300_000n, 150_000n] });
   const small = choice("small", { contextWindowTokens: 200_000n, contextLimitTokens: [150_000n] });
   const unknownWindow = choice("mystery");
   const supportsLimit = () => capabilities.listHarnesses.mockResolvedValue({ targetId: "local", harnesses: [harness("claude", { supportsContextLimit: true }), harness("codex", { supportsContextLimit: true }), harness("opencode")] } as never);
@@ -380,6 +377,12 @@ describe("settings", () => {
     chooseLimit("300000");
     expect(screen.getByTestId("launcher-context-window")).toHaveTextContent(strings.launcher.contextWindow);
     expect(screen.getByTestId("launcher-context-gauge")).toHaveAttribute("data-gauge-percent", "60");
+    expect(screen.getByTestId("launcher-context-limit-record")).toHaveAttribute("data-window-tokens", "500000");
+    expect(screen.getByTestId("launcher-context-limit-record")).toHaveAttribute("data-window-source", "codex-models-cache/v1");
+    expect(screen.getByTestId("launcher-context-limit-record")).toHaveAttribute("data-compaction-tokens", "300000");
+    expect(screen.getByTestId("launcher-context-limit-record")).toHaveAttribute("data-compaction-source", "Web Console launch selection");
+    expect(screen.getByTestId("launcher-context-limit-record")).toHaveTextContent("codex-models-cache/v1");
+    expect(screen.getByTestId("launcher-context-limit-record")).not.toHaveTextContent("Subscription");
     expect(screen.getByTestId("launcher-summary")).toHaveTextContent(strings.launcher.summaryCompacts);
     fireEvent.click(launchButton());
     expect(onLaunch).toHaveBeenLastCalledWith(expect.objectContaining({ command: "claude", agentLaunch: { agent_id: "claude", model: undefined, provider: undefined, context_limit_tokens: 300_000 } }));
@@ -531,6 +534,60 @@ describe("settings", () => {
     drawer();
     expect(await screen.findByTestId("launcher-context-window")).toHaveTextContent(strings.launcher.contextWindowUnknown);
     expect(screen.queryByTestId("launcher-context-gauge")).toBeNull();
+    expect(screen.getByTestId("launcher-context-limit-record")).toHaveAttribute("data-window-tokens", "unknown");
+    expect(screen.getByTestId("launcher-context-limit-record")).toHaveAttribute("data-window-source", "unknown");
+  });
+
+  it("keeps a positive window unknown when an older proto copy omits its source", async () => {
+    supportsLimit();
+    const olderChoice = choice("legacy-window", { isDefault: true, contextWindowTokens: 500_000n, contextLimitTokens: [300_000n] });
+    models.getRoleModelChoices.mockResolvedValue(policy({ choices: [olderChoice] }) as never);
+    drawer();
+    expect(await screen.findByTestId("launcher-context-window")).toHaveTextContent(strings.launcher.contextWindowUnknown);
+    expect(screen.queryByTestId("launcher-context-gauge")).toBeNull();
+    expect(screen.getByTestId("launcher-context-limit-record")).toHaveAttribute("data-window-tokens", "unknown");
+    expect(screen.getByTestId("launcher-context-limit-record")).toHaveAttribute("data-window-source", "unknown");
+  });
+
+  it("does not accept a retired unversioned window source", async () => {
+    supportsLimit();
+    const retiredChoice = choice("legacy-window", { isDefault: true, contextWindowTokens: 500_000n, contextWindowSource: "codex-models-cache", contextLimitTokens: [300_000n] });
+    models.getRoleModelChoices.mockResolvedValue(policy({ choices: [retiredChoice] }) as never);
+    drawer();
+    expect(await screen.findByTestId("launcher-context-window")).toHaveTextContent(strings.launcher.contextWindowUnknown);
+    expect(screen.queryByTestId("launcher-context-gauge")).toBeNull();
+    expect(screen.getByTestId("launcher-context-limit-record")).toHaveAttribute("data-window-tokens", "unknown");
+    expect(screen.getByTestId("launcher-context-limit-record")).toHaveAttribute("data-window-source", "unknown");
+  });
+
+  it("keeps verified window provenance separate from a stale model catalog", async () => {
+    supportsLimit();
+    const staleChoice = choice("sonnet", { isDefault: true, sourceLabel: "Stale billing label", contextWindowTokens: 1_000_000n, contextWindowSource: "claude-statusline/v1", contextLimitTokens: [300_000n] });
+    models.getRoleModelChoices.mockResolvedValue(policy({ catalogStale: true, policyStatus: "stale", choices: [staleChoice] }) as never);
+    capabilities.runAgentUpdateAction.mockResolvedValue({ success: false, message: "catalog remains stale" } as never);
+    drawer();
+    await waitFor(() => expect(capabilities.runAgentUpdateAction).toHaveBeenCalledWith(expect.objectContaining({ agentId: "claude", action: "refresh_catalog" }), expect.anything()));
+    const record = await screen.findByTestId("launcher-context-limit-record");
+    expect(record).toHaveAttribute("data-window-tokens", "1000000");
+    expect(record).toHaveAttribute("data-window-source", "claude-statusline/v1");
+    expect(record).not.toHaveTextContent("Stale billing label");
+  });
+
+  it("replaces the stale catalogue's context record after owner refresh", async () => {
+    supportsLimit();
+    const oldChoice = choice("sonnet", { isDefault: true, contextWindowTokens: 500_000n, contextWindowSource: "claude-statusline/v1", contextLimitTokens: [300_000n] });
+    const refreshedChoice = choice("sonnet", { isDefault: true, contextWindowTokens: 700_000n, contextWindowSource: "claude-statusline/v1", contextLimitTokens: [300_000n] });
+    models.getRoleModelChoices
+      .mockResolvedValueOnce(policy({ catalogStale: true, policyStatus: "stale", choices: [oldChoice] }) as never)
+      .mockResolvedValueOnce(policy({ catalogStale: false, policyStatus: "ready", choices: [refreshedChoice] }) as never);
+    capabilities.runAgentUpdateAction.mockResolvedValue({ success: true, message: "catalog refreshed" } as never);
+    drawer();
+    await waitFor(() => expect(capabilities.runAgentUpdateAction).toHaveBeenCalledWith(expect.objectContaining({ agentId: "claude", action: "refresh_catalog" }), expect.anything()));
+    await waitFor(() => {
+      expect(screen.getByTestId("launcher-context-limit-record")).toHaveAttribute("data-window-tokens", "700000");
+      expect(screen.getByTestId("launcher-context-limit-record")).toHaveAttribute("data-window-source", "claude-statusline/v1");
+    });
+    expect(models.getRoleModelChoices).toHaveBeenCalledTimes(2);
   });
 
   it("hides Compact at for a harness that does not support it", async () => {
@@ -574,7 +631,7 @@ describe("settings", () => {
     capabilities.runAgentUpdateAction.mockResolvedValueOnce({ success: false, message: "The installed runner reported no models." } as never);
     drawer();
     await waitFor(() => { expect(capabilities.runAgentUpdateAction).toHaveBeenCalledTimes(1); });
-    expect(capabilities.runAgentUpdateAction).toHaveBeenCalledWith({ targetId: "local", agentId: "claude", action: "refresh_catalog" }, expect.anything());
+    expect(capabilities.runAgentUpdateAction).toHaveBeenCalledWith(expect.objectContaining({ targetId: "local", agentId: "claude", action: "refresh_catalog" }), expect.anything());
     expect(await screen.findByTestId("launcher-catalog-refresh-error")).toHaveTextContent("The installed runner reported no models.");
     const reads = models.getRoleModelChoices.mock.calls.length;
     capabilities.runAgentUpdateAction.mockResolvedValueOnce({ success: true, message: "Refreshed." } as never);
@@ -717,7 +774,7 @@ describe("settings", () => {
 
   it.each([true, false])("uses the full-power model's own context data (catalogued=%s)", async (catalogued) => {
     supportsLimit();
-    const usual = choice("usual", { contextWindowTokens: 500_000n, contextLimitTokens: [300_000n, 150_000n] });
+    const usual = choice("usual", { contextWindowTokens: 500_000n, contextWindowSource: "claude-statusline/v1", contextLimitTokens: [300_000n, 150_000n] });
     models.getRoleModelChoices.mockResolvedValue(policy({ choices: [{ ...small, isDefault: true }, ...(catalogued ? [choice("usual", { source: "metered", metered: true, contextWindowTokens: 100_000n, contextLimitTokens: [100_000n] }), usual] : [])] }) as never);
     getUsageMode.mockResolvedValue({ modes: [{ id: "um", label: "", runner: "claude", startedAt: "", untilKind: "off", kind: "save" }], agents: [{ agentId: "claude", label: "Claude Code", runner: "claude", lowerModel: "small", usualModel: "usual", model: "small", modeId: "um", contextLimitTokens: 100_000, fullPowerArgs: "--model usual" }], canControl: true });
     drawer();
@@ -920,7 +977,7 @@ describe("Manage", () => {
     openDetail("claude");
     expect(screen.getByTestId("launcher-agent-status-claude")).toHaveTextContent(pill);
     fireEvent.click(screen.getByTestId(button));
-    expect(capabilities.runAgentUpdateAction).toHaveBeenCalledWith({ targetId: "local", agentId: "claude", action }, expect.anything());
+    expect(capabilities.runAgentUpdateAction).toHaveBeenCalledWith(expect.objectContaining({ targetId: "local", agentId: "claude", action }), expect.anything());
     expect(await screen.findByTestId("launcher-action-done")).toHaveTextContent("Done it.");
   });
 
@@ -980,7 +1037,7 @@ describe("Manage", () => {
     openDetail("claude");
     expect(screen.getByTestId("launcher-action-claude")).toHaveTextContent("Could not reach the channel.");
     fireEvent.click(screen.getByTestId("launcher-action-primary-claude"));
-    expect(capabilities.runAgentUpdateAction).toHaveBeenCalledWith({ targetId: "local", agentId: "claude", action: "retry" }, expect.anything());
+    expect(capabilities.runAgentUpdateAction).toHaveBeenCalledWith(expect.objectContaining({ targetId: "local", agentId: "claude", action: "retry" }), expect.anything());
     await waitFor(() => { expect(screen.getByTestId("launcher-agent-status-claude")).toHaveTextContent(strings.launcher.statusUpToDate); });
     expect(screen.queryByTestId("launcher-action-done")).toBeNull();
   });
@@ -1045,7 +1102,7 @@ describe("Manage", () => {
     expect(within(checks).getByRole("img", { name: strings.launcher.checkPass })).toBeInTheDocument();
     expect(within(checks).getByRole("img", { name: strings.launcher.checkProblem })).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("launcher-rollback-claude"));
-    expect(capabilities.runAgentUpdateAction).toHaveBeenCalledWith({ targetId: "local", agentId: "claude", action: "rollback" }, expect.anything());
+    expect(capabilities.runAgentUpdateAction).toHaveBeenCalledWith(expect.objectContaining({ targetId: "local", agentId: "claude", action: "rollback" }), expect.anything());
   });
 
   it("offers no rollback or note when the server names none", async () => {
@@ -1068,7 +1125,7 @@ describe("Manage", () => {
     await waitFor(() => { expect(screen.getByTestId("launcher-agent-status-codex")).toHaveTextContent(strings.launcher.statusUpToDate); });
     expect(capabilities.runAgentUpdateAction).toHaveBeenCalledTimes(3);
     expect(capabilities.runAgentUpdateAction.mock.calls.map(([request]) => request.agentId).sort()).toEqual(["claude", "codex", "opencode"]);
-    for (const [request] of capabilities.runAgentUpdateAction.mock.calls) expect(request).toEqual({ targetId: "local", agentId: request.agentId, action: "retry" });
+    for (const [request] of capabilities.runAgentUpdateAction.mock.calls) expect(request).toMatchObject({ targetId: "local", agentId: request.agentId, action: "retry" });
   });
 
   it("runs doctor and only uninstalls the exact previewed cleanup plan", async () => {
@@ -1082,14 +1139,14 @@ describe("Manage", () => {
     expect(screen.queryByTestId("launcher-uninstall-claude")).toBeNull();
     fireEvent.click(screen.getByTestId("launcher-doctor-claude"));
     await screen.findByTestId("launcher-action-done");
-    expect(capabilities.runAgentUpdateAction).toHaveBeenLastCalledWith({ targetId: "local", agentId: "claude", action: "doctor" }, expect.anything());
+    expect(capabilities.runAgentUpdateAction).toHaveBeenLastCalledWith(expect.objectContaining({ targetId: "local", agentId: "claude", action: "doctor" }), expect.anything());
     fireEvent.click(screen.getByTestId("launcher-cleanup-preview-claude"));
     const plan = await screen.findByTestId("launcher-cleanup-plan");
     expect(plan.querySelector("[data-cleanup-remove]")).toHaveTextContent("/managed/claude");
     expect(plan.querySelector("[data-cleanup-preserve]")).toHaveTextContent("/found/claude");
     expect(capabilities.runAgentUpdateAction).toHaveBeenCalledTimes(2);
     fireEvent.click(screen.getByTestId("launcher-uninstall-claude"));
-    await waitFor(() => { expect(capabilities.runAgentUpdateAction).toHaveBeenLastCalledWith({ targetId: "local", agentId: "claude", action: "uninstall", cleanupPlanId: "plan-owned-42" }, expect.anything()); });
+    await waitFor(() => { expect(capabilities.runAgentUpdateAction).toHaveBeenLastCalledWith(expect.objectContaining({ targetId: "local", agentId: "claude", action: "uninstall", cleanupPlanId: "plan-owned-42" }), expect.anything()); });
   });
 
   it("refreshes a stale model catalog through the selected harness owner", async () => {
@@ -1099,7 +1156,7 @@ describe("Manage", () => {
     await loaded();
     openDetail("claude");
     fireEvent.click(await screen.findByTestId("launcher-catalog-refresh"));
-    await waitFor(() => { expect(capabilities.runAgentUpdateAction).toHaveBeenCalledWith({ targetId: "local", agentId: "claude", action: "refresh_catalog" }, expect.anything()); });
+    await waitFor(() => { expect(capabilities.runAgentUpdateAction).toHaveBeenCalledWith(expect.objectContaining({ targetId: "local", agentId: "claude", action: "refresh_catalog" }), expect.anything()); });
     expect(await screen.findByTestId("launcher-action-done")).toHaveTextContent("Catalog refreshed");
   });
 

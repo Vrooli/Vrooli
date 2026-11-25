@@ -283,6 +283,21 @@ func (sm *Manager) Recover(ctx context.Context, store sessionstore.Store, regist
 	// metadata row and reattach so the live session (and its agent) survive and
 	// become first-class again. We never kill a session on the configured socket.
 	for id := range tmuxSet {
+		// A row that exists but was not listed (marked awaiting recovery, for
+		// instance) still knows the session: reattach with it rather than
+		// overwriting its agent identity, label and launch command.
+		if existing, err := store.Get(ctx, id); err == nil && existing.ArchivedAt.IsZero() && existing.Status != sessionstore.StatusDismissed && existing.LaunchMode != sessionstore.LaunchModeCodexAppServer {
+			existing.Detached = true
+			if sm.reattachSession(ctx, store, id, existing) {
+				report.Recovered++
+				sm.bumpRecovery(1, 0, 0)
+				log.Printf("recovery: recovered session %s from its %s row (backend=%s)", id, existing.Status, existing.Backend)
+			} else {
+				report.OrphanedTmux++
+				log.Printf("recovery: session %s has a row but reattach failed; preserved for retry", id)
+			}
+			continue
+		}
 		shell, cols, rows := sm.applySessionDefaults("", 0, 0)
 		meta := sessionstore.Metadata{
 			ID:       id,
@@ -410,12 +425,7 @@ func (sm *Manager) reattachSession(ctx context.Context, store sessionstore.Store
 		// catalog row for both backends so conversation events, checkpoints and
 		// provider history remain attributable after a crash or disconnect.
 		// Explicit permanent deletion is owned by the API lifecycle service.
-		if sm.store != nil {
-			if err := sm.store.MarkOrphaned(sm.lifecycleCtx, sessID, time.Now().UTC()); err != nil {
-				log.Printf("session %s: failed to preserve exited metadata: %v", sessID, err)
-			}
-		}
-		sm.observeProcessExit(sessID)
+		sm.recordProcessExit(sessID, bid)
 		uploadDir := filepath.Join(sess.uploadRoot, sessID)
 		if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
 			log.Printf("session %s: failed to clean up upload dir: %v", sessID, err)
@@ -565,12 +575,7 @@ func (sm *Manager) reattachOrphanedSessions() {
 			sm.mu.Lock()
 			delete(sm.sessions, sessID)
 			sm.mu.Unlock()
-			if sm.store != nil {
-				if err := sm.store.MarkOrphaned(sm.lifecycleCtx, sessID, time.Now().UTC()); err != nil {
-					log.Printf("session %s: failed to preserve reattached metadata: %v", sessID, err)
-				}
-			}
-			sm.observeProcessExit(sessID)
+			sm.recordProcessExit(sessID, bid)
 			uploadDir := filepath.Join(sess.uploadRoot, sessID)
 			if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
 				log.Printf("session %s: failed to clean up upload dir: %v", sessID, err)

@@ -1,8 +1,9 @@
 package main
 
-// copyCodexHome lives in package main because it copies one per-session
-// Codex rollout subtree. sessionCodexSessionsDir owns its layout; the function
-// is injected into the sessions handler's Adapter via CopyCodexHome.
+// copyCodexHome lives in package main because it copies one per-session Codex
+// home, whose layout codex.SessionHomePath and sessionHomeRegenerableDirs own;
+// the function is injected into the sessions handler's Adapter via
+// CopyCodexHome.
 
 import (
 	"context"
@@ -14,6 +15,7 @@ import (
 	"strings"
 
 	coreRetention "github.com/vrooli/api-core/retention"
+	"web-console/backends/codex"
 	"web-console/internal/sessionstore"
 )
 
@@ -122,15 +124,23 @@ func deleteArchivedPath(path, root string, size int64) error {
 	return err
 }
 
-// copyCodexHome copies only the session-owned rollout tree from the orphan to
-// the fresh pane. Shared configuration and regenerable runtime state are
-// linked by the launcher, so recovery never traverses or duplicates them.
+// copyCodexHome copies one session's durable Codex record into the reopened
+// session's home: the rollout tree plus the goal, thread, state, memory and
+// queue stores, history and attachments. Without the goal store a reopened
+// lead came back as a bare transcript and its goal was gone. What is left
+// behind is runtime the launcher re-links or Codex re-creates: symlinks to the
+// shared home, sessionHomeRegenerableDirs (daemon installs, sockets, caches),
+// trace-log SQLite, SQLite shared-memory indexes and lock files. The source
+// session has no running Codex (it is archived or orphaned), so copying each
+// SQLite database with its write-ahead log is a consistent copy.
 func copyCodexHome(oldID, newID string) error {
-	src := sessionCodexSessionsDir(oldID)
-	dst := sessionCodexSessionsDir(newID)
+	root := resolveSessionStateRoot()
+	src := codex.SessionHomePath(root, oldID)
+	dst := codex.SessionHomePath(root, newID)
 	if _, err := os.Stat(src); err != nil {
 		return nil
 	}
+	regenerable := sessionHomeRegenerableDirs["codex"]
 	return filepath.WalkDir(src, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -140,14 +150,40 @@ func copyCodexHome(oldID, newID string) error {
 			return err
 		}
 		target := filepath.Join(dst, rel)
+		if rel == "." {
+			return os.MkdirAll(target, 0o755)
+		}
+		top, _, nested := strings.Cut(rel, string(filepath.Separator))
+		if entry.Type()&os.ModeSymlink != 0 {
+			if top == "sessions" {
+				return fmt.Errorf("refusing symlink in rollout tree %q", path)
+			}
+			return nil
+		}
+		if regenerable[top] {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
 		if entry.IsDir() {
 			return os.MkdirAll(target, 0o755)
 		}
-		if entry.Type()&os.ModeSymlink != 0 {
-			return fmt.Errorf("refusing symlink in rollout tree %q", path)
+		if !entry.Type().IsRegular() {
+			return nil
+		}
+		name := entry.Name()
+		if !nested && (codexTraceLogSQLite.MatchString(name) || strings.HasSuffix(name, "-shm") || strings.HasSuffix(name, ".lock")) {
+			return nil
 		}
 		return copyRolloutFile(path, target, entry)
 	})
+}
+
+// codexRootThread resolves a session's recorded Codex thread to the root
+// thread of its conversation, read from the rollouts in the session's home.
+func codexRootThread(sessionID, threadID string) string {
+	return codex.RootThreadID(codex.SessionHomePath(resolveSessionStateRoot(), sessionID), threadID)
 }
 
 func copyRolloutFile(src, dst string, entry fs.DirEntry) error {

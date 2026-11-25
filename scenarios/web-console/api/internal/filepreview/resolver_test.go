@@ -418,6 +418,38 @@ func TestReadTextHappy(t *testing.T) {
 	}
 }
 
+func TestReadTextRejectsSamePathReplacement(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "report.txt")
+	mustWrite(t, path, "original text\n")
+	r := newResolver(root)
+	target, err := r.Resolve("", nil, "report.txt")
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	original, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	replacement := filepath.Join(root, "replacement.txt")
+	mustWrite(t, replacement, "tampered text\n")
+	if err := os.Chtimes(replacement, original.ModTime(), original.ModTime()); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(replacement, path); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, err := r.ReadText(target); !isStaleError(err) {
+		t.Fatalf("ReadText after same-path replacement = %v, want stale error", err)
+	}
+}
+
+func isStaleError(err error) bool {
+	var targetErr *Error
+	return errors.As(err, &targetErr) && targetErr.Code == CodeStale
+}
+
 // --- helpers ---
 
 func mustWrite(t *testing.T, path, content string) {

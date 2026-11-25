@@ -20,10 +20,12 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -36,6 +38,8 @@ const (
 	bracketedPasteStart = "\x1b[200~"
 	bracketedPasteEnd   = "\x1b[201~"
 )
+
+var tmuxTestSessionSequence atomic.Uint64
 
 // newPaneSink launches a tmux-backed PTY whose pane copies its stdin
 // verbatim into a file, and returns the PTY, the tmux session name and
@@ -51,6 +55,10 @@ const (
 // tells tmux it wants paste markers.
 func newPaneSink(t *testing.T, sessionID string, requestBracketedPaste bool) (pty.PTY, string, string) {
 	t.Helper()
+	// Test Genie can run overlapping Web Console suites on the same host. Scope
+	// every tmux session by process and invocation so otherwise unrelated test
+	// runs cannot collide on a deterministic session name.
+	sessionID = fmt.Sprintf("%s-%d-%d", sessionID, os.Getpid(), tmuxTestSessionSequence.Add(1))
 
 	p, err := tmuxPTYFactory(pty.LaunchSpec{
 		SessionID: sessionID,

@@ -25,9 +25,11 @@ type codingKey struct {
 }
 
 type codingModel struct {
-	ID                  string `json:"id"`
-	Name                string `json:"name"`
-	ContextWindowTokens int64  `json:"context_window_tokens"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	// The authority returns this number but not a verifiable reader source, so
+	// GetAccountRoleModelChoices deliberately does not expose it as known.
+	ContextWindowTokens int64 `json:"context_window_tokens"`
 }
 
 // codingAuthority talks only to the authenticated landing-page door. HTTP
@@ -147,7 +149,9 @@ func (s *Server) GetAccountRoleModelChoices(ctx context.Context, agent, target, 
 		}
 		result.Choices = append(result.Choices, modelselection.Choice{
 			Model: model.ID, DisplayName: label, Source: "vrooli-credits", Provider: "vrooli",
-			LaunchModel: model.ID, SourceLabel: "Vrooli credits", Metered: true, ContextWindowTokens: model.ContextWindowTokens, PolicyCurrent: true,
+			// LPBS currently gives a number without identifying the reader or
+			// provenance contract. Keep it unknown until that source is verifiable.
+			LaunchModel: model.ID, SourceLabel: "Vrooli credits", Metered: true, PolicyCurrent: true,
 		})
 	}
 	return result

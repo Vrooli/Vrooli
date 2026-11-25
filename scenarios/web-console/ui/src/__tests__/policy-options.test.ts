@@ -25,6 +25,11 @@ describe("policy-options seam", () => {
     });
   });
 
+  it("parsePolicySelection parses idle mode with its window", () => {
+    expect(parsePolicySelection("idle:6h")).toEqual({ mode: "idle", duration: "6h" });
+    expect(parsePolicySelection("idle")).toBeNull();
+  });
+
   it("parsePolicySelection returns null for invalid values", () => {
     expect(parsePolicySelection("preset")).toBeNull();
     expect(parsePolicySelection("bad-value")).toBeNull();

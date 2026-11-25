@@ -1,5 +1,5 @@
-import type { ViewerActionContext } from "@vrooli/file-viewer";
-import { Send } from "lucide-react";
+import { ViewerButton, type ViewerActionContext } from "@vrooli/file-viewer";
+import { Play, Send } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { strings } from "../../consts/strings";
@@ -35,27 +35,29 @@ export function ViewerActions({ context, onHandoff, onRun }: ViewerActionsProps)
   return (
     <>
       {canHandoff && (
-        <button
+        <ViewerButton
           type="button"
+          variant="secondary"
           onClick={() => onHandoff?.(path)}
           data-testid="handoff-file-viewer"
           aria-label={t(strings.fileViewerActions.handOffTitle)}
           title={t(strings.fileViewerActions.handOffTitle)}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-wc-default bg-wc-surface-input px-2 py-1.5 text-xs font-medium text-wc-text-secondary transition hover:bg-wc-surface-raised hover:text-wc-text-primary"
         >
-          <Send className="h-3.5 w-3.5" />
-          {t(strings.fileViewerActions.handOff)}
-        </button>
+          <Send className="h-4 w-4" />
+          <span className="hidden sm:inline">{t(strings.fileViewerActions.handOff)}</span>
+        </ViewerButton>
       )}
       {canRun && (
-        <button
+        <ViewerButton
           type="button"
+          variant="primary"
           onClick={() => onRun?.(path, text?.content ?? "")}
           data-testid="run-file-viewer"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-wc-accent px-2 py-1.5 text-xs font-medium text-white"
+          aria-label={t(strings.fileViewerActions.run)}
         >
-          {t(strings.fileViewerActions.run)}
-        </button>
+          <Play className="h-4 w-4" />
+          <span className="hidden sm:inline">{t(strings.fileViewerActions.run)}</span>
+        </ViewerButton>
       )}
     </>
   );

@@ -2,12 +2,9 @@ package continuity
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"testing"
 	"time"
-
-	_ "modernc.org/sqlite"
 )
 
 func TestPlanReconciliationIsStableWithLegacyAliasCollisions(t *testing.T) {
@@ -47,12 +44,8 @@ func (s *catalogTestStore) AddAliases(_ context.Context, record CatalogRecord) e
 }
 
 func TestSQLCatalogObserveIncludesOrphanEvidence(t *testing.T) {
-	db, err := sql.Open("sqlite", ":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
-	for _, statement := range []string{
+	db := newContinuityTestDB(t, ":memory:")
+	execContinuitySQL(t, db, []string{
 		`CREATE TABLE sessions(id TEXT PRIMARY KEY, backend TEXT, agent_type TEXT, agent_session_id TEXT, cwd TEXT, display_label TEXT, last_rollout_path TEXT, created_at TEXT, last_activity_at TEXT)`,
 		`CREATE TABLE conversation_sessions(session_id TEXT PRIMARY KEY)`,
 		`CREATE TABLE conversation_events(id TEXT PRIMARY KEY, session_id TEXT)`,
@@ -63,11 +56,7 @@ func TestSQLCatalogObserveIncludesOrphanEvidence(t *testing.T) {
 		`INSERT INTO sessions VALUES ('known','tmux','codex','agent-1','/tmp','Known','','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z')`,
 		`INSERT INTO conversation_events VALUES ('event-1','orphan')`,
 		`INSERT INTO agent_transcript_checkpoints VALUES ('codex','01a06a6b-88da-7422-b391-bb59c5f5e5e0','orphan','2026-09-03T23:17:07Z')`,
-	} {
-		if _, err := db.Exec(statement); err != nil {
-			t.Fatal(err)
-		}
-	}
+	})
 	evidence, err := NewSQLCatalogStore(db).Observe(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -97,15 +86,11 @@ func TestSQLCatalogObserveIncludesOrphanEvidence(t *testing.T) {
 }
 
 func TestIncidentFixtureReconcilesWithoutLosingEvents(t *testing.T) {
-	db, err := sql.Open("sqlite", ":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
-	for _, statement := range []string{
+	db := newContinuityTestDB(t, ":memory:")
+	execContinuitySQL(t, db, []string{
 		`CREATE TABLE sessions(id TEXT PRIMARY KEY, backend TEXT, agent_type TEXT, agent_session_id TEXT, cwd TEXT, display_label TEXT, last_rollout_path TEXT, created_at TEXT, last_activity_at TEXT, archived_at TEXT, status TEXT)`,
 		`CREATE TABLE conversation_sessions(session_id TEXT PRIMARY KEY)`,
-		`CREATE TABLE conversation_events(id TEXT PRIMARY KEY, session_id TEXT, sequence INTEGER, role TEXT, created_at TEXT, text TEXT)`,
+		`CREATE TABLE conversation_events(id TEXT PRIMARY KEY, session_id TEXT, sequence INTEGER, role TEXT, created_at TEXT, occurred_at TEXT, text TEXT)`,
 		`CREATE VIRTUAL TABLE conversation_events_fts USING fts5(text, content='conversation_events', content_rowid='rowid')`,
 		`CREATE TABLE agent_transcript_checkpoints(source TEXT, source_key TEXT, web_console_session_id TEXT, updated_at TEXT)`,
 		`CREATE TABLE workspace_panes(session_id TEXT PRIMARY KEY)`,
@@ -113,11 +98,7 @@ func TestIncidentFixtureReconcilesWithoutLosingEvents(t *testing.T) {
 		`CREATE TABLE conversation_aliases(session_id TEXT, alias_kind TEXT, alias_value TEXT, observed_at TEXT, PRIMARY KEY(alias_kind, alias_value))`,
 		`CREATE TABLE continuity_publication_queue(session_id TEXT PRIMARY KEY, lifecycle_state TEXT, source_fingerprint TEXT, attempts INTEGER, last_error TEXT, published_fingerprint TEXT, updated_at TEXT)`,
 		`CREATE TABLE continuity_reconciliation_manifests(hash TEXT PRIMARY KEY, generation TEXT, items_json TEXT, previous_json TEXT, created_at TEXT)`,
-	} {
-		if _, err := db.Exec(statement); err != nil {
-			t.Fatal(err)
-		}
-	}
+	})
 	const paneID = "a7e71c3c-e422-4c89-916a-03f92906fb89"
 	const threadID = "01a06a6b-88da-7422-b391-bb59c5f5e5e0"
 	const rolloutPath = "/state/sessions/codex/s-1/sessions/2026/09/03/rollout-2026-09-03T23-17-07-" + threadID + ".jsonl"
@@ -135,7 +116,7 @@ func TestIncidentFixtureReconcilesWithoutLosingEvents(t *testing.T) {
 		if i == 88 {
 			text = "Plan Manager Agent Manager Git Control Tower continuity"
 		}
-		if _, err := db.Exec(`INSERT INTO conversation_events VALUES (?, ?, ?, 'assistant', ?, ?)`, fmt.Sprintf("incident-event-%02d", i), paneID, i, "2026-09-03T23:17:07Z", text); err != nil {
+		if _, err := db.Exec(`INSERT INTO conversation_events(id,session_id,sequence,role,created_at,text) VALUES (?, ?, ?, 'assistant', ?, ?)`, fmt.Sprintf("incident-event-%02d", i), paneID, i, "2026-09-03T23:17:07Z", text); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -223,21 +204,13 @@ func TestApplyReconciliationBatchAdvancesWithoutRepeatingItems(t *testing.T) {
 }
 
 func TestRollbackManifestRestoresCatalogPreimage(t *testing.T) {
-	db, err := sql.Open("sqlite", ":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
-	for _, statement := range []string{
+	db := newContinuityTestDB(t, ":memory:")
+	execContinuitySQL(t, db, []string{
 		`CREATE TABLE conversation_catalog(session_id TEXT PRIMARY KEY, lifecycle_state TEXT, lifecycle_version INTEGER, backend TEXT, agent_type TEXT, agent_session_id TEXT, agent_home_ref TEXT, rollout_ref TEXT, original_title TEXT, current_title TEXT, topic_summary TEXT, cwd TEXT, created_at TEXT, last_activity_at TEXT, source_fingerprint TEXT)`,
 		`CREATE TABLE conversation_aliases(session_id TEXT, alias_kind TEXT, alias_value TEXT, observed_at TEXT, PRIMARY KEY(alias_kind, alias_value))`,
 		`CREATE TABLE continuity_reconciliation_manifests(hash TEXT PRIMARY KEY, generation TEXT, items_json TEXT, previous_json TEXT, created_at TEXT)`,
 		`CREATE TABLE continuity_publication_queue(session_id TEXT PRIMARY KEY, lifecycle_state TEXT, source_fingerprint TEXT, attempts INTEGER, last_error TEXT, published_fingerprint TEXT, updated_at TEXT)`,
-	} {
-		if _, err := db.Exec(statement); err != nil {
-			t.Fatal(err)
-		}
-	}
+	})
 	store := NewSQLCatalogStore(db)
 	prior := CatalogRecord{SessionID: "s-1", LifecycleState: StateArchived, CurrentTitle: "before", SourceFingerprint: "sha256:before", Aliases: []Alias{{Kind: "agent_session", Value: "native-1"}}}
 	if err := store.Upsert(context.Background(), prior); err != nil {
@@ -266,11 +239,7 @@ func TestRollbackManifestRestoresCatalogPreimage(t *testing.T) {
 }
 
 func TestSQLCatalogLifecycleUpdateKeepsSearchStateInSync(t *testing.T) {
-	db, err := sql.Open("sqlite", ":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
+	db := newContinuityTestDB(t, ":memory:")
 	if _, err := db.Exec(`CREATE TABLE conversation_catalog (
 		session_id TEXT PRIMARY KEY, lifecycle_state TEXT NOT NULL,
 		lifecycle_version INTEGER NOT NULL, backend TEXT, agent_type TEXT,

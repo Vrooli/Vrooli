@@ -66,7 +66,7 @@ func Register() cliapp.SubcommandGroup {
 		Subcommands: []cliapp.Command{
 			{Name: "register", Description: "Register the Stop, UserPromptSubmit, and Notification hooks", Run: r.register},
 			{Name: "remove", Description: "Remove the Stop, UserPromptSubmit, and Notification hooks", Run: r.remove},
-			{Name: "dispatch", Description: "Dispatch a Claude hook payload to Web Console", Run: dispatch},
+			{Name: "dispatch", Description: "Dispatch a Claude hook payload to Web Console", LatencyBound: true, Run: dispatch},
 			{Name: "token-path", Description: "Print this storage context's hook token path without reading its secret", Run: r.tokenPath},
 		},
 	}

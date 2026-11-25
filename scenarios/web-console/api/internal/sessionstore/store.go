@@ -124,6 +124,9 @@ type Metadata struct {
 
 	RecoveredInto string
 	ArchivedAt    time.Time
+	// ArchiveNote says why a policy archived the session and what was left
+	// (goal state, a waiting prompt, memory held). Empty for a manual archive.
+	ArchiveNote string
 
 	Origin       Origin
 	Owner        string
@@ -139,6 +142,14 @@ type Metadata struct {
 	ForkedFromNativeSession string
 	LaunchDescriptorJSON    string
 	BusinessAccountID       string
+}
+
+// Retired reports that the session was archived or dismissed: nothing runs for
+// it and nothing may be started on its behalf until it is unarchived or its
+// record is reopened into a new session. Dismissal clears archived_at, so the
+// two states are distinct in storage and both count.
+func (m Metadata) Retired() bool {
+	return !m.ArchivedAt.IsZero() || m.Status == StatusDismissed
 }
 
 // AgentInfo is the partial-update payload used when a populator (codex tailer,
@@ -177,7 +188,8 @@ type Store interface {
 	MarkOrphaned(ctx context.Context, id string, at time.Time) error
 	MarkLive(ctx context.Context, id string) error
 	MarkDismissed(ctx context.Context, id string, recoveredInto string) error
-	MarkArchived(ctx context.Context, id string, at time.Time) error
+	// MarkArchived records the archive time and note in one write.
+	MarkArchived(ctx context.Context, id string, at time.Time, note string) error
 	MarkUnarchived(ctx context.Context, id string) error
 	ListArchived(ctx context.Context) ([]Metadata, error)
 	// ListRetentionCandidates is deliberately narrower than ListArchived:
@@ -233,11 +245,11 @@ func (s *SQLStore) Save(ctx context.Context, meta Metadata) error {
 			last_activity_at, orphaned_at, recovered_into, archived_at, origin, owner, display_label,
 			launch_mode, control_mode, native_owner, native_transport, provider_version, native_thread_id,
 			last_verified_turn_id, forked_from_native_session, launch_descriptor_json, create_fingerprint,
-			business_account_id
+			business_account_id, archive_note
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-			?, ?, ?)
+			?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			backend=excluded.backend, shell=excluded.shell, cols=excluded.cols, rows=excluded.rows,
 			policy_mode=excluded.policy_mode, policy_duration=excluded.policy_duration,
@@ -278,6 +290,7 @@ func (s *SQLStore) Save(ctx context.Context, meta Metadata) error {
 		string(meta.LaunchMode), string(meta.ControlMode), meta.NativeOwner,
 		meta.NativeTransport, meta.ProviderVersion, meta.NativeThreadID,
 		meta.LastVerifiedTurnID, meta.ForkedFromNativeSession, meta.LaunchDescriptorJSON, meta.CreateFingerprint, meta.BusinessAccountID,
+		meta.ArchiveNote,
 	)
 	return err
 }
@@ -288,7 +301,7 @@ const selectColumns = `
 	last_activity_at, orphaned_at, recovered_into, archived_at, origin, owner, display_label,
 	launch_mode, control_mode, native_owner, native_transport, provider_version, native_thread_id,
 	last_verified_turn_id, forked_from_native_session, launch_descriptor_json, create_fingerprint,
-	business_account_id`
+	business_account_id, archive_note`
 
 func (s *SQLStore) Get(ctx context.Context, id string) (Metadata, error) {
 	row := s.db.QueryRowContext(ctx, `SELECT `+selectColumns+` FROM sessions WHERE id = ?`, id)
@@ -504,8 +517,8 @@ func (s *SQLStore) transition(ctx context.Context, id string, target Status, at 
 	return tx.Commit()
 }
 
-func (s *SQLStore) MarkArchived(ctx context.Context, id string, at time.Time) error {
-	result, err := s.db.ExecContext(ctx, `UPDATE sessions SET archived_at = ? WHERE id = ?`, formatTimeOrEmpty(at), id)
+func (s *SQLStore) MarkArchived(ctx context.Context, id string, at time.Time, note string) error {
+	result, err := s.db.ExecContext(ctx, `UPDATE sessions SET archived_at = ?, archive_note = ? WHERE id = ?`, formatTimeOrEmpty(at), note, id)
 	if err != nil {
 		return err
 	}
@@ -516,7 +529,7 @@ func (s *SQLStore) MarkArchived(ctx context.Context, id string, at time.Time) er
 }
 
 func (s *SQLStore) MarkUnarchived(ctx context.Context, id string) error {
-	result, err := s.db.ExecContext(ctx, `UPDATE sessions SET archived_at = '' WHERE id = ?`, id)
+	result, err := s.db.ExecContext(ctx, `UPDATE sessions SET archived_at = '', archive_note = '' WHERE id = ?`, id)
 	if err != nil {
 		return err
 	}
@@ -587,6 +600,7 @@ func scanMetadata(row scannable) (Metadata, error) {
 		&launchMode, &controlMode, &meta.NativeOwner, &meta.NativeTransport,
 		&meta.ProviderVersion, &meta.NativeThreadID, &meta.LastVerifiedTurnID,
 		&meta.ForkedFromNativeSession, &meta.LaunchDescriptorJSON, &meta.CreateFingerprint, &meta.BusinessAccountID,
+		&meta.ArchiveNote,
 	)
 	if err != nil {
 		return meta, fmt.Errorf("scan session metadata: %w", err)
@@ -888,7 +902,7 @@ func (s *InMemoryStore) MarkDismissed(_ context.Context, id string, recoveredInt
 	return nil
 }
 
-func (s *InMemoryStore) MarkArchived(_ context.Context, id string, at time.Time) error {
+func (s *InMemoryStore) MarkArchived(_ context.Context, id string, at time.Time, note string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	meta, ok := s.sessions[id]
@@ -896,6 +910,7 @@ func (s *InMemoryStore) MarkArchived(_ context.Context, id string, at time.Time)
 		return fmt.Errorf("session %s not found", id)
 	}
 	meta.ArchivedAt = at
+	meta.ArchiveNote = note
 	s.sessions[id] = meta
 	return nil
 }
@@ -908,6 +923,7 @@ func (s *InMemoryStore) MarkUnarchived(_ context.Context, id string) error {
 		return fmt.Errorf("session %s not found", id)
 	}
 	meta.ArchivedAt = time.Time{}
+	meta.ArchiveNote = ""
 	s.sessions[id] = meta
 	return nil
 }

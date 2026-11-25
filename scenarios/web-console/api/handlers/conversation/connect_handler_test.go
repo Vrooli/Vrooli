@@ -3,10 +3,13 @@ package conversation
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"connectrpc.com/connect"
 	conversationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/conversation"
+	conversationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/conversation/conversation_v1connect"
 )
 
 type fakeConversationService struct{ err error }
@@ -41,6 +44,51 @@ func (f fakeConversationService) UpdateCursor(context.Context, string, CursorPat
 
 func (f fakeConversationService) SummarizeEvent(context.Context, string, string) (SummarizeResult, error) {
 	return SummarizeResult{Summarized: true, SpeechParagraphs: []string{"short"}}, f.err
+}
+
+type fakeOptionalSearchService struct{}
+
+func (fakeOptionalSearchService) SearchSemantic(_ context.Context, request *conversationv1.SearchSemanticRequest) (*conversationv1.SearchSemanticResponse, error) {
+	return &conversationv1.SearchSemanticResponse{
+		Local:             &conversationv1.SearchArchivedResponse{Matches: []*conversationv1.ArchivedSearchMatch{{EventId: "local-e1"}}},
+		SemanticHits:      []*conversationv1.SemanticSearchHit{{StableHitId: "am-hit-1", Harness: "codex", SourceSessionId: "native-1"}},
+		SemanticAvailable: true,
+	}, nil
+}
+
+func (fakeOptionalSearchService) SearchNodeArchive(_ context.Context, request *conversationv1.SearchNodeArchiveRequest) (*conversationv1.SearchNodeArchiveResponse, error) {
+	return &conversationv1.SearchNodeArchiveResponse{
+		NodeId: request.GetNodeId(), Available: true,
+		Search: &conversationv1.SearchArchivedResponse{Matches: []*conversationv1.ArchivedSearchMatch{{EventId: "remote-e1", SessionId: "remote-s1"}}},
+	}, nil
+}
+
+func TestOptionalSearchConnectRPCsAndDegradation(t *testing.T) {
+	_, handler := conversationconnect.NewConversationServiceHandler(NewConnectHandler(Deps{Service: fakeConversationService{}}))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { handler.ServeHTTP(w, r) }))
+	defer server.Close()
+	client := conversationconnect.NewConversationServiceClient(server.Client(), server.URL)
+	localOnly, err := client.SearchSemantic(context.Background(), connect.NewRequest(&conversationv1.SearchSemanticRequest{Query: "generated"}))
+	if err != nil || len(localOnly.Msg.GetLocal().GetMatches()) != 1 || localOnly.Msg.GetLocal().GetMatches()[0].GetEventId() != "e1" || localOnly.Msg.GetSemanticAvailable() {
+		t.Fatalf("local-only semantic fallback = %+v, %v", localOnly, err)
+	}
+	withoutNode, err := client.SearchNodeArchive(context.Background(), connect.NewRequest(&conversationv1.SearchNodeArchiveRequest{NodeId: "offline", Query: "generated"}))
+	if err != nil || withoutNode.Msg.GetAvailable() || withoutNode.Msg.GetDegradation() == "" {
+		t.Fatalf("node absence response = %+v, %v", withoutNode, err)
+	}
+
+	_, handler = conversationconnect.NewConversationServiceHandler(NewConnectHandler(Deps{Service: fakeConversationService{}, OptionalSearch: fakeOptionalSearchService{}}))
+	serverWithOptional := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { handler.ServeHTTP(w, r) }))
+	defer serverWithOptional.Close()
+	clientWithOptional := conversationconnect.NewConversationServiceClient(serverWithOptional.Client(), serverWithOptional.URL)
+	semantic, err := clientWithOptional.SearchSemantic(context.Background(), connect.NewRequest(&conversationv1.SearchSemanticRequest{Query: "generated"}))
+	if err != nil || len(semantic.Msg.GetSemanticHits()) != 1 || semantic.Msg.GetSemanticHits()[0].GetSourceSessionId() != "native-1" {
+		t.Fatalf("semantic Connect response = %+v, %v", semantic, err)
+	}
+	node, err := clientWithOptional.SearchNodeArchive(context.Background(), connect.NewRequest(&conversationv1.SearchNodeArchiveRequest{NodeId: "synthetic-node", Query: "generated"}))
+	if err != nil || !node.Msg.GetAvailable() || node.Msg.GetNodeId() != "synthetic-node" || node.Msg.GetSearch().GetMatches()[0].GetEventId() != "remote-e1" {
+		t.Fatalf("node Connect response = %+v, %v", node, err)
+	}
 }
 
 func TestConnectHandlerConversationOperations(t *testing.T) {
@@ -103,5 +151,12 @@ func TestConnectHandlerConversationValidationAndErrors(t *testing.T) {
 		if err := h.classify(tc.in, "test"); !errors.As(err, &ce) || ce.Code() != tc.want {
 			t.Errorf("%v: got %v want %v", tc.in, err, tc.want)
 		}
+	}
+}
+
+func TestConversationEventProtoCarriesSourceOccurrenceTime(t *testing.T) {
+	event := eventToProto(Event{ID: "e1", CreatedAt: "ingested", OccurredAt: "source-time"})
+	if event.GetCreatedAt() != "ingested" || event.GetOccurredAt() != "source-time" {
+		t.Fatalf("event timestamps created=%q occurred=%q", event.GetCreatedAt(), event.GetOccurredAt())
 	}
 }

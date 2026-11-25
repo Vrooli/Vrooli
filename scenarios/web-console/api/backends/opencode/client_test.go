@@ -2,14 +2,20 @@ package opencode
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 )
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }
 
 func TestHTTPClient_ListSessionsAndMessages(t *testing.T) {
 	mux := http.NewServeMux()
@@ -244,5 +250,55 @@ func TestHTTPClient_EventsDecodesSSEFrames(t *testing.T) {
 	}
 	if got[1].SessionID() != "ses_x" {
 		t.Fatalf("second event session = %q", got[1].SessionID())
+	}
+}
+
+func TestHTTPClient_EventsReconnectAndSessionReadShareConfiguredTransport(t *testing.T) {
+	eventAttempts := 0
+	client := NewHTTPClient("http://opencode.test")
+	client.HTTP = &http.Client{
+		Timeout: 10 * time.Millisecond,
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			switch req.URL.Path {
+			case "/global/event":
+				eventAttempts++
+				if eventAttempts == 1 {
+					return nil, errors.New("injected SSE transport loss")
+				}
+				time.Sleep(25 * time.Millisecond)
+				if err := req.Context().Err(); err != nil {
+					return nil, err
+				}
+				return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"text/event-stream"}}, Body: io.NopCloser(strings.NewReader("data: {\"type\":\"server.connected\",\"properties\":{}}\n\n")), Request: req}, nil
+			case "/session/ses_saved/message":
+				return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`[{"info":{"id":"msg_user","role":"user","time":{"created":1}},"parts":[{"type":"text","text":"saved setup notes"}]}]`)), Request: req}, nil
+			default:
+				return nil, fmt.Errorf("unexpected request %s", req.URL.Path)
+			}
+		}),
+	}
+
+	if err := client.Events(context.Background(), func(Event) {}); err == nil || !strings.Contains(err.Error(), "injected SSE transport loss") {
+		t.Fatalf("first event stream error = %v, want injected transport loss", err)
+	}
+	readSavedMessage := func() {
+		t.Helper()
+		messages, err := client.SessionMessages(context.Background(), "ses_saved")
+		if err != nil {
+			t.Fatalf("read durable OpenCode messages: %v", err)
+		}
+		if len(messages) != 1 || len(messages[0].Parts) != 1 || messages[0].Parts[0].Text != "saved setup notes" {
+			t.Fatalf("saved OpenCode message = %+v", messages)
+		}
+	}
+	readSavedMessage()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	if err := client.Events(ctx, func(Event) { cancel() }); err != nil && !errors.Is(err, context.Canceled) {
+		t.Fatalf("recovered event stream error = %v", err)
+	}
+	readSavedMessage()
+	if eventAttempts != 2 {
+		t.Fatalf("SSE attempts = %d, want loss then recovery through configured transport", eventAttempts)
 	}
 }

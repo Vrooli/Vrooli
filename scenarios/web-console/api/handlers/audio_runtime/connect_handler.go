@@ -21,11 +21,19 @@ import (
 
 // Deps is the seam the handler depends on.
 type Deps struct {
-	STT      audioports.SpeechToText
-	TTS      audioports.TextToSpeech
-	Playback audioports.PlaybackEventRecorder
-	Summ     audioports.Summarizer
-	Logger   *log.Logger
+	STT         audioports.SpeechToText
+	TTS         audioports.TextToSpeech
+	Playback    audioports.PlaybackEventRecorder
+	Summ        audioports.Summarizer
+	VoiceStream StreamingTranscriber
+	Logger      *log.Logger
+}
+
+// StreamingTranscriber is the API transport adapter for the web-console-owned
+// bidi contract. Its implementation may bridge to audio-tools at the API
+// boundary without exposing foreign proto types to this handler layer.
+type StreamingTranscriber interface {
+	TranscribeStream(context.Context, *connect.BidiStream[audioruntimev1.TranscribeStreamRequest, audioruntimev1.TranscribeStreamEvent]) error
 }
 
 type connectHandler struct {
@@ -76,11 +84,21 @@ func (h *connectHandler) Transcribe(ctx context.Context, req *connect.Request[au
 		Language:                req.Msg.Language,
 		SkipSpeakerVerification: req.Msg.SkipSpeakerVerification,
 		InitialPrompt:           req.Msg.InitialPrompt,
+		ProviderTier:            req.Header().Get("X-Audio-Provider-Tier"),
+		ProviderID:              req.Header().Get("X-Audio-Provider-ID"),
+		ModelID:                 req.Header().Get("X-Audio-Model-ID"),
 	})
 	if err != nil {
 		return nil, mapErr(err)
 	}
 	return connect.NewResponse(&audioruntimev1.TranscribeResponse{Text: out.Text}), nil
+}
+
+func (h *connectHandler) TranscribeStream(ctx context.Context, stream *connect.BidiStream[audioruntimev1.TranscribeStreamRequest, audioruntimev1.TranscribeStreamEvent]) error {
+	if h == nil || h.deps.VoiceStream == nil {
+		return connect.NewError(connect.CodeUnavailable, audiotools.ErrUnavailable)
+	}
+	return h.deps.VoiceStream.TranscribeStream(ctx, stream)
 }
 
 // -----------------------------------------------------------------------------

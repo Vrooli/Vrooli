@@ -2,7 +2,7 @@
 // DOC: docs/internal/SEAMS.md#1-entry-presentation
 import { lazy, Profiler, useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { Menu, MessageSquareText, Plus, Settings, ShieldCheck, TerminalSquare } from "lucide-react";
+import { Globe, Menu, MessageSquareText, Plus, Settings, ShieldCheck, TerminalSquare } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
@@ -20,6 +20,7 @@ import { useWakeLock } from "../hooks/useWakeLock";
 import { useWorkspaceSync } from "../hooks/useWorkspaceSync";
 import { usePressGesture } from "../hooks/usePressGesture";
 import { useWakeLockStatus } from "../stores/useWakeLockStatus";
+import { useHandoffRequestStore } from "../stores/useHandoffRequestStore";
 import { useWorkspaceStore, type PaneMetadata } from "../stores/useWorkspaceStore";
 import {
   resolveWorkspaceLayout,
@@ -39,6 +40,7 @@ import { getSession, type BackendOption, type BackendID, type ExpirationPolicy, 
 import { listTargetCatalog, type TargetCatalog, type TerminalTarget } from "../api/targets";
 import type { LaunchOptions } from "./TerminalLauncher";
 import ErrorBanner from "./ErrorBanner";
+import ActivationSetupCard from "./ActivationSetupCard";
 import GridSplitter from "./GridSplitter";
 import TerminalLauncher from "./TerminalLauncher";
 import MobileToolbar from "./MobileToolbar";
@@ -101,9 +103,10 @@ import type { SummarizeErrorState } from "../types/summarize";
 import TopSafeArea from "./TopSafeArea";
 import { useConversationStore } from "../stores/useConversationStore";
 import { useMessagesViewStore, type PaneViewMode } from "../stores/useMessagesViewStore";
-import WorkspaceFilePreview, { type WorkspaceFilePreviewRequest } from "./file-preview/WorkspaceFilePreview";
+import WorkspaceFilePreview from "./file-preview/WorkspaceFilePreview";
 import RunScriptDialog from "./file-preview/RunScriptDialog";
 import RunCommandDialog from "./file-preview/RunCommandDialog";
+import { fitFilePreviewWidth, useFilePreviewStore } from "../stores/useFilePreviewStore";
 import type { PreviewSourceContext } from "@vrooli/file-viewer";
 import { resolveSessionPath } from "../api/filePreview";
 import { shouldFocusArtifactViewer } from "@vrooli/file-viewer";
@@ -157,6 +160,8 @@ interface WorkspaceProps {
 export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const handoffRequest = useHandoffRequestStore((state) => state.request);
+  const consumeHandoffRequest = useHandoffRequestStore((state) => state.consume);
   const [targetCatalog, setTargetCatalog] = useState<TargetCatalog>({
     status: "ready",
     targets: [],
@@ -504,9 +509,40 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
 
   const isTabLikeMode = isTabLikeDisplayMode(workspace.displayMode);
 
-  const [filePreviewRequest, setFilePreviewRequest] = useState<WorkspaceFilePreviewRequest | null>(null);
-  const [filePreviewWidth, setFilePreviewWidth] = useState(440);
   const [filePreviewFocus, setFilePreviewFocus] = useState(false);
+  const filePreviewRequest = useFilePreviewStore((state) => state.request);
+  const filePreviewWidth = useFilePreviewStore((state) => state.width);
+  const setFilePreviewRequest = useFilePreviewStore((state) => state.setRequest);
+  const setFilePreviewWidth = useFilePreviewStore((state) => state.setWidth);
+  const clearFilePreview = useFilePreviewStore((state) => state.clear);
+  // Dragging the splitter fires many updates. Keep the live width in local
+  // state so the split follows the pointer, and write it through to persisted
+  // storage only when the gesture settles (or the viewer closes).
+  const [liveFilePreviewWidth, setLiveFilePreviewWidth] = useState(filePreviewWidth);
+  const widthCommit = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const liveWidthRef = useRef(liveFilePreviewWidth);
+  liveWidthRef.current = liveFilePreviewWidth;
+  useEffect(() => { setLiveFilePreviewWidth(filePreviewWidth); }, [filePreviewWidth]);
+  const commitFilePreviewWidth = useCallback(() => {
+    if (widthCommit.current) { clearTimeout(widthCommit.current); widthCommit.current = null; }
+    setFilePreviewWidth(liveWidthRef.current);
+  }, [setFilePreviewWidth]);
+  const changeFilePreviewWidth = useCallback((width: number) => {
+    setLiveFilePreviewWidth(width);
+    if (widthCommit.current) clearTimeout(widthCommit.current);
+    widthCommit.current = setTimeout(() => { widthCommit.current = null; setFilePreviewWidth(width); }, 120);
+  }, [setFilePreviewWidth]);
+  useEffect(() => {
+    const flush = () => { commitFilePreviewWidth(); };
+    window.addEventListener("pointerup", flush);
+    return () => {
+      window.removeEventListener("pointerup", flush);
+      if (widthCommit.current) {
+        clearTimeout(widthCommit.current);
+        setFilePreviewWidth(liveWidthRef.current);
+      }
+    };
+  }, [commitFilePreviewWidth, setFilePreviewWidth]);
   const [runScriptRequest, setRunScriptRequest] = useState<{ sessionId: string; path: string; text: string } | null>(null);
   const [runCommandRequest, setRunCommandRequest] = useState<{ sessionId: string; command: string; workingDir: string } | null>(null);
   const filePreviewAreaRef = useRef<HTMLDivElement | null>(null);
@@ -524,10 +560,29 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     hasActiveSession: Boolean(workspace.activePane && workspacePanes.some((pane) => pane.sessionId === workspace.activePane)),
     open: openDeepLinkedFile,
   });
+
+  // Restore the preview that was open when the tab was last closed. The
+  // request is persisted with the pane it belongs to, so a stale session
+  // (closed elsewhere, or a different account) is dropped rather than opening
+  // a viewer over a terminal that no longer exists.
+  const restoredFilePreview = useRef(false);
+  useEffect(() => {
+    if (!isHydrated || restoredFilePreview.current) return;
+    restoredFilePreview.current = true;
+    const restored = useFilePreviewStore.getState().request;
+    if (restored && workspacePanes.some((pane) => pane.sessionId === restored.sessionId)) {
+      activatePane(restored.sessionId);
+    }
+  }, [isHydrated, workspacePanes, activatePane]);
+  useEffect(() => {
+    if (!isHydrated || !filePreviewRequest) return;
+    if (!workspacePanes.some((pane) => pane.sessionId === filePreviewRequest.sessionId)) clearFilePreview();
+  }, [filePreviewRequest, isHydrated, workspacePanes, clearFilePreview]);
   const closeFilePreview = useCallback(() => {
-    setFilePreviewRequest(null);
+    commitFilePreviewWidth();
+    clearFilePreview();
     setFilePreviewFocus(false);
-  }, []);
+  }, [clearFilePreview, commitFilePreviewWidth]);
   const openRunScript = useCallback((sessionId: string, path: string, text: string) => {
     setRunScriptRequest({ sessionId, path, text });
   }, []);
@@ -591,17 +646,21 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const [isMobile, setIsMobile] = useState(
     () => typeof window !== "undefined" && window.innerWidth < 768,
   );
+  const [viewportWidth, setViewportWidth] = useState(
+    () => typeof window !== "undefined" ? window.innerWidth : 1280,
+  );
   useEffect(() => {
-    const onResize = () => { setIsMobile(window.innerWidth < 768); };
+    const onResize = () => { setIsMobile(window.innerWidth < 768); setViewportWidth(window.innerWidth); };
     window.addEventListener("resize", onResize);
     return () => { window.removeEventListener("resize", onResize); };
   }, []);
+  const effectiveFilePreviewWidth = fitFilePreviewWidth(liveFilePreviewWidth, viewportWidth);
 
   useEffect(() => {
     const element = filePreviewAreaRef.current;
     if (!element || !filePreviewRequest || isMobile) return;
     const update = () => {
-      if (!filePreviewFocus && shouldFocusArtifactViewer(element.clientWidth, filePreviewWidth)) {
+      if (!filePreviewFocus && shouldFocusArtifactViewer(element.clientWidth, effectiveFilePreviewWidth)) {
         setFilePreviewFocus(true);
       }
     };
@@ -609,7 +668,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     const observer = new ResizeObserver(update);
     observer.observe(element);
     return () => { observer.disconnect(); };
-  }, [filePreviewFocus, filePreviewRequest, filePreviewWidth, isMobile]);
+  }, [filePreviewFocus, filePreviewRequest, effectiveFilePreviewWidth, isMobile]);
 
   // --- Pane drag-and-drop reordering ---
   const [activeArrangeDrag, setActiveArrangeDrag] =
@@ -838,6 +897,12 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
       initialSelection,
     });
   }, []);
+
+  useEffect(() => {
+    if (!handoffRequest) return;
+    openHandoff(handoffRequest.sourceSessionId, handoffRequest.payload);
+    consumeHandoffRequest(handoffRequest.id);
+  }, [consumeHandoffRequest, handoffRequest, openHandoff]);
 
   /**
    * Deliver a handoff.
@@ -1571,6 +1636,9 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const handlePaneToggleView = useCallback((sessionId: string, viewMode: PaneViewMode) => {
     setConversationViewMode(sessionId, viewMode === "terminal" ? "messages" : "terminal");
   }, [setConversationViewMode]);
+  const handlePaneSetView = useCallback((sessionId: string, viewMode: PaneViewMode) => {
+    setConversationViewMode(sessionId, viewMode);
+  }, [setConversationViewMode]);
 
   // Tracks which pane (if any) is mid view-switch so the tabs-mode floating
   // toggle button can show a loading spinner. Each pane shell reports its own
@@ -1587,10 +1655,9 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     <IconButton
       data-testid="workspace-toggle-view"
       data-view-mode={activeViewMode}
-      // This one control is rendered from two different parents — floating
-      // over the terminal in one view, inline in the messages toolbar in the
-      // other — so switching views remounts it. Without a stable identity the
-      // new instance has no memory of the icon it replaced and skips the swap.
+      // This one control is rendered from different parents — floating over the
+      // terminal in one view, inline in the messages toolbar in another — so
+      // switching views remounts it. A stable identity keeps the icon swap.
       swapIdentity="workspace-view-toggle"
       surface="soft"
       size="xs"
@@ -1608,6 +1675,30 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
       {activeViewMode === "terminal" ? <MessageSquareText /> : <TerminalSquare />}
     </IconButton>
   ), [activeViewMode, handlePaneToggleView, t, viewSwitchPendingPane, workspace.activePane]);
+  const browserViewButton = useMemo(() => (
+    <IconButton
+      data-testid="workspace-browser-view"
+      data-view-mode="browser"
+      aria-label={activeViewMode === "browser" ? "Back to messages view" : "Open browser view"}
+      title={activeViewMode === "browser" ? "Back to messages" : "Browser view"}
+      surface="soft"
+      size="xs"
+      shape="circle"
+      selected={activeViewMode === "browser"}
+      disabled={viewSwitchPendingPane === workspace.activePane}
+      onClick={() => {
+        if (!workspace.activePane) return;
+        if (activeViewMode === "browser") {
+          const supportsMessages = workspace.panes.find((pane) => pane.sessionId === workspace.activePane)?.supportsMessagesView;
+          handlePaneSetView(workspace.activePane, supportsMessages ? "messages" : "terminal");
+          return;
+        }
+        handlePaneSetView(workspace.activePane, "browser");
+      }}
+    >
+      <Globe />
+    </IconButton>
+  ), [activeViewMode, handlePaneSetView, viewSwitchPendingPane, workspace.activePane, workspace.panes]);
 
   const handlePaneTransportSpeakingEvent = useCallback((sessionId: string, eventId: string | null) => {
     if (sessionId === workspace.activePane) {
@@ -1941,6 +2032,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
             <p className="text-wc-text-muted mb-6">
               {t(strings.workspace.tagline)}
             </p>
+            <ActivationSetupCard />
             {hydrationError && (
               <ErrorBanner
                 error={hydrationError}
@@ -2015,6 +2107,17 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           preferOrphans={archivePreferOrphans}
         /></DeferredSurface>
         <DeferredSurface active={approvalsOpen}><ApprovalsDrawer open={approvalsOpen} onClose={closeApprovals} /></DeferredSurface>
+        <WorkspaceHandoffComposer
+          open={handoffState !== null}
+          onClose={() => { setHandoffState(null); }}
+          sourceLabel={handoffState?.sourceLabel ?? ""}
+          payload={handoffState?.payload ?? ""}
+          panes={workspacePanes}
+          lastVisitedBySession={lastVisitedBySession}
+          sourceSessionId={handoffState?.sourceSessionId}
+          initialSelection={handoffState?.initialSelection}
+          onSend={runHandoff}
+        />
       </div>
     );
   }
@@ -2332,9 +2435,13 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
            *   • In messages mode → show terminal icon (click to switch back)
            * Circular icon button with a translucent background so it doesn't
            * obscure too much terminal content but is still easy to tap. */}
-          {activeViewMode === "terminal" && workspace.activePane && workspace.panes.find((pane) => pane.sessionId === workspace.activePane)?.supportsMessagesView && (
-            <div className="absolute end-2 top-2.5 z-wc-chrome-raised">
-              {viewToggleButton}
+          {activeViewMode === "terminal" && workspace.activePane && (
+            <div
+              data-testid="workspace-pane-actions"
+              className="absolute end-2 top-2.5 z-wc-chrome-raised flex items-center gap-1.5"
+            >
+              {browserViewButton}
+              {workspace.panes.find((pane) => pane.sessionId === workspace.activePane)?.supportsMessagesView && viewToggleButton}
             </div>
           )}
             {orderedPanes.filter((paneMeta) => mountedTabSessions.has(paneMeta.sessionId)).map((paneMeta) => {
@@ -2364,7 +2471,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
                   onSendToComposer={stageMessageInComposer}
                   onToggleView={handlePaneToggleView}
                   onViewSwitchPendingChange={handleViewSwitchPendingChange}
-                  messagesToolbarTrailingAction={activeViewMode === "messages" && paneMeta.sessionId === workspace.activePane ? viewToggleButton : undefined}
+                  messagesToolbarTrailingAction={activeViewMode === "messages" && paneMeta.sessionId === workspace.activePane ? <>{browserViewButton}{viewToggleButton}</> : undefined}
+                  browserHeaderActions={activeViewMode === "browser" && paneMeta.sessionId === workspace.activePane ? <>{browserViewButton}{viewToggleButton}</> : undefined}
                   onTerminalExit={handleExit}
                   onTerminalRef={registerTerminalRef}
                   onVoiceStart={startVoiceOnPane}
@@ -2382,13 +2490,13 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
               );
             })}
           </div>
-          {filePreviewRequest && !isMobile && (
+          {filePreviewRequest && isHydrated && !isMobile && (
             <WorkspaceFilePreview
               request={filePreviewRequest}
               mobile={false}
-              width={filePreviewWidth}
+              width={effectiveFilePreviewWidth}
               focusMode={filePreviewFocus}
-              onWidthChange={setFilePreviewWidth}
+              onWidthChange={changeFilePreviewWidth}
               onFocus={() => { setFilePreviewFocus(true); }}
               onRestore={() => { setFilePreviewFocus(false); }}
               onClose={closeFilePreview}
@@ -2429,13 +2537,13 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           {/* Minimap (only in grid mode) */}
           <WorkspaceMinimap scrollRef={scrollContainerRef} rowCount={layout.rows} />
           </div>
-          {filePreviewRequest && !isMobile && (
+          {filePreviewRequest && isHydrated && !isMobile && (
             <WorkspaceFilePreview
               request={filePreviewRequest}
               mobile={false}
-              width={filePreviewWidth}
+              width={effectiveFilePreviewWidth}
               focusMode={filePreviewFocus}
-              onWidthChange={setFilePreviewWidth}
+              onWidthChange={changeFilePreviewWidth}
               onFocus={() => { setFilePreviewFocus(true); }}
               onRestore={() => { setFilePreviewFocus(false); }}
               onClose={closeFilePreview}
@@ -2446,13 +2554,13 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         </div>
       )}
 
-      {filePreviewRequest && isMobile && (
+      {filePreviewRequest && isHydrated && isMobile && (
         <WorkspaceFilePreview
           request={filePreviewRequest}
           mobile
-          width={filePreviewWidth}
+          width={effectiveFilePreviewWidth}
           focusMode={false}
-          onWidthChange={setFilePreviewWidth}
+          onWidthChange={changeFilePreviewWidth}
           onFocus={() => undefined}
           onRestore={() => undefined}
           onClose={closeFilePreview}
@@ -2548,7 +2656,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           discardAllPendingInput={handleDiscardAllPendingInput}
           flushPendingInputNow={handleFlushPendingInputNow}
           // In Messages the terminal is off screen: a send keeps focus in the bar.
-          onFocusTerminal={activeViewMode === "messages" ? undefined : handleFocusTerminal}
+          onFocusTerminal={activeViewMode === "terminal" ? handleFocusTerminal : undefined}
           activeSessionId={workspace.activePane}
           draft={composerDraft}
           onExpandComposer={openComposer}

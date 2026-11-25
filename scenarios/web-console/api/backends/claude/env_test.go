@@ -2,9 +2,10 @@ package claude
 
 import "testing"
 
-func TestFilterEnvRemovesNestedClaudeMarkers(t *testing.T) {
-	got := FilterEnv([]string{"PATH=/bin", "CLAUDECODE=1", "CLAUDE_SESSION=x", "BASH_FUNC_claude_code::=() { :;}", "HOME=/tmp"})
-	if len(got) != 2 || got[0] != "PATH=/bin" || got[1] != "HOME=/tmp" {
+func TestFilterEnvPreservesClaudeConfigurationAndRemovesShellWrapper(t *testing.T) {
+	env := []string{"PATH=/bin", "CLAUDE_CONFIG_DIR=/profiles/work", "CLAUDE_CODE_USE_BEDROCK=1", "BASH_FUNC_claude_code::=() { :;}", "HOME=/tmp"}
+	got := FilterEnv(env)
+	if len(got) != 4 || got[0] != env[0] || got[1] != env[1] || got[2] != env[2] || got[3] != env[4] {
 		t.Fatalf("filtered env = %#v", got)
 	}
 }

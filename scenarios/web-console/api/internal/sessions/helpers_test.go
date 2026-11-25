@@ -57,6 +57,25 @@ func TestHelperMappingsAndRecoveryCommands(t *testing.T) {
 	}
 }
 
+// A reopened Codex session keeps the model and effort it was launched with;
+// `codex resume` alone would run the thread on the config default model.
+func TestBuildResumeCommandCarriesCodexModelAndEffort(t *testing.T) {
+	launcher := "if command -v vrooli-agent-launcher >/dev/null 2>&1; then exec vrooli-agent-launcher --agent codex -- --yolo -m gpt-6-luna -c model_reasoning_effort=medium; fi; exec codex --yolo -m gpt-6-luna -c model_reasoning_effort=medium"
+	cases := map[string]struct{ launch, id, want string }{
+		"research lead":      {launcher, "01a1f2dd", "codex --yolo resume -m gpt-6-luna -c model_reasoning_effort=medium 01a1f2dd\n"},
+		"long flags":         {"codex --model=gpt-6-sol --profile work", "t1", "codex --yolo resume -m gpt-6-sol -p work t1\n"},
+		"no recorded thread": {launcher, "", "codex --yolo resume -m gpt-6-luna -c model_reasoning_effort=medium --last\n"},
+		"plain launch":       {"codex", "t2", "codex --yolo resume t2\n"},
+		"unsafe value":       {"codex -m 'x;rm' -c model_reasoning_effort=$(id)", "t3", "codex --yolo resume t3\n"},
+	}
+	for name, tc := range cases {
+		got := BuildResumeCommand(sessionstore.Metadata{AgentType: sessionstore.AgentCodex, AgentSessionID: tc.id, LaunchCommand: tc.launch})
+		if got != tc.want {
+			t.Errorf("%s: BuildResumeCommand = %q, want %q", name, got, tc.want)
+		}
+	}
+}
+
 func TestFromSessionProjectsCachedResponse(t *testing.T) {
 	sess := &session.Session{
 		ID:      "sess-1",

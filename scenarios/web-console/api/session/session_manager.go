@@ -88,6 +88,12 @@ type Manager struct {
 	// automatic reattach restores a provider-backed session to live.
 	processRecoveryObserver func(context.Context, string) error
 
+	// agentDaemonStopper ends the agent runtime a session's home leaves running
+	// once the session's terminal process is gone. The manager owns terminal
+	// processes; the daemon belongs to the agent backend, so the caller that
+	// knows both supplies it.
+	agentDaemonStopper func(context.Context, string)
+
 	// reattachStopCh signals the periodic re-attach watchdog to stop.
 	reattachStopCh chan struct{}
 
@@ -283,10 +289,58 @@ func (sm *Manager) SetProcessRecoveryObserver(observer func(context.Context, str
 	sm.processRecoveryObserver = observer
 }
 
+// SetAgentDaemonStopper installs the hook that ends the agent runtime behind a
+// session whose terminal process has exited. Nothing can be typed into such a
+// session any more, so a daemon left behind is an orphan that holds memory and
+// CPU until the process table is cleaned by hand.
+func (sm *Manager) SetAgentDaemonStopper(stop func(context.Context, string)) {
+	sm.mu.Lock()
+	sm.agentDaemonStopper = stop
+	sm.mu.Unlock()
+}
+
 // observeProcessExit records the runtime fact in the continuity projection
 // after the session store has preserved the metadata. It deliberately has no
 // retention or deletion policy; callers use it for both live exits and
 // startup/watchdog recovery paths that discover an already-gone process.
+// recordProcessExit marks a session whose PTY ended as awaiting recovery. A
+// persistent session whose attach PTY was closed by Shutdown has not exited:
+// its tmux session (and agent) keeps running and the next start reattaches it
+// from its row. Marking it orphaned there made the next start miss the row
+// and adopt the pane as unknown, overwriting its agent identity, label and
+// launch command.
+func (sm *Manager) recordProcessExit(sessionID string, bid backend.ID) {
+	sm.mu.RLock()
+	shutting := sm.shuttingDown
+	sm.mu.RUnlock()
+	if shutting && bid == backend.Persistent {
+		return
+	}
+	if sm.store != nil {
+		if err := sm.store.MarkOrphaned(sm.lifecycleCtx, sessionID, time.Now().UTC()); err != nil {
+			log.Printf("session %s: failed to preserve exited metadata: %v", sessionID, err)
+		}
+	}
+	sm.observeProcessExit(sessionID)
+	// A shutdown is not an exit: a persistent session's tmux pane and agent
+	// outlive the restart on purpose, so their daemon must outlive it too.
+	if !shutting {
+		sm.stopAgentDaemon(sessionID)
+	}
+}
+
+// stopAgentDaemon ends the agent runtime behind a session whose terminal
+// exited. It runs on the manager's lifecycle context because the exit is
+// observed from a goroutine that outlives the request that created it.
+func (sm *Manager) stopAgentDaemon(sessionID string) {
+	sm.mu.RLock()
+	stop := sm.agentDaemonStopper
+	sm.mu.RUnlock()
+	if stop != nil {
+		stop(sm.lifecycleCtx, sessionID)
+	}
+}
+
 func (sm *Manager) observeProcessExit(sessionID string) {
 	if sm.processExitObserver == nil {
 		return
@@ -624,12 +678,7 @@ func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, row
 		// Process exit is not permission to destroy durable evidence. Preserve
 		// metadata for standard sessions as well; the continuity service decides
 		// when an operator has explicitly authorized permanent deletion.
-		if sm.store != nil {
-			if err := sm.store.MarkOrphaned(sm.lifecycleCtx, sess.ID, time.Now().UTC()); err != nil {
-				log.Printf("session %s: failed to preserve exited metadata: %v", sess.ID, err)
-			}
-		}
-		sm.observeProcessExit(sess.ID)
+		sm.recordProcessExit(sess.ID, bid)
 		// Clean up session upload directory
 		uploadDir := filepath.Join(sess.uploadRoot, sess.ID)
 		if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {

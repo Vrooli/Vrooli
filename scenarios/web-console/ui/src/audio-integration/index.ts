@@ -11,8 +11,9 @@ import { openVoiceStream, transcribeAudioWithRetry } from "./api/voice";
 
 export function registerVoiceTransport(): void {
   registerBrowserVoiceTransport({
+    retainedRoutePolicy: "exact-model",
     openStream: (start, handlers) => openVoiceStream(start, handlers),
-    transcribeRetained: (blob, language) => transcribeAudioWithRetry(blob, 2, language),
+    transcribeRetained: (blob, language, route) => transcribeAudioWithRetry(blob, 2, language, route),
   });
 }
 

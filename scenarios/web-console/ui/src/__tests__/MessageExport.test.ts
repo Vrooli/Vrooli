@@ -3,6 +3,7 @@ import {
   buildMessageExport,
   DEFAULT_MESSAGE_EXPORT_FORMAT,
   estimateTokens,
+  fitTextToTokenBudget,
   MESSAGE_EXPORT_FORMATS,
   normalizeExportEvents,
   type MessageExportFormat,
@@ -195,6 +196,20 @@ describe("buildMessageExport", () => {
       expect(again.text).toBe(result.text);
       expect(again.tokenEstimate).toBe(result.tokenEstimate);
     }
+  });
+});
+
+describe("fitTextToTokenBudget", () => {
+  it("shortens only on explicit request and reports the omitted suffix length", () => {
+    expect(fitTextToTokenBudget("abcdefghij", 2)).toEqual({ text: "abcdefgh", omittedCharacters: 2 });
+    expect(fitTextToTokenBudget("kept", 2)).toEqual({ text: "kept", omittedCharacters: 0 });
+    expect(fitTextToTokenBudget("content", 0)).toEqual({ text: "", omittedCharacters: 7 });
+  });
+
+  it("does not leave a broken surrogate at a budget boundary", () => {
+    const result = fitTextToTokenBudget("abc😀", 1);
+    expect(result.text).toBe("abc");
+    expect(result.omittedCharacters).toBe(2);
   });
 });
 

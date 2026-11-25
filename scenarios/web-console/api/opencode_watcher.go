@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/cli-core/agenttranscript"
 	"github.com/vrooli/cli-core/cliutil"
 	"web-console/backends/opencode"
 	"web-console/internal/config"
@@ -65,9 +66,10 @@ type OpenCodeWatcher struct {
 	stopCh chan struct{}
 	wg     sync.WaitGroup
 
-	mu      sync.Mutex
-	client  opencode.Client
-	claimed map[string]string // opencode session id -> web-console session id
+	mu           sync.Mutex
+	client       opencode.Client
+	claimed      map[string]string // opencode session id -> web-console session id
+	contextUsage map[string]openCodeContextUsage
 	// pendingPermission is the permission request each pane is waiting on:
 	// web-console session id -> OpenCode request id.
 	pendingPermission map[string]string
@@ -77,6 +79,7 @@ func NewOpenCodeWatcher(server *Server) *OpenCodeWatcher {
 	return &OpenCodeWatcher{
 		server:            server,
 		checkpoints:       server.agentCheckpointStore,
+		contextUsage:      make(map[string]openCodeContextUsage),
 		startServer:       spawnOpenCodeServe,
 		newClient:         opencode.NewClient,
 		reconcileInterval: opencodeReconcileInterval,
@@ -480,6 +483,7 @@ func (w *OpenCodeWatcher) reconcileSession(ctx context.Context, client opencode.
 		log.Printf("opencode-watcher: messages for %s: %v", ocID, err)
 		return
 	}
+	w.cacheContextUsage(ocID, messages)
 	cur := w.loadCursor(ocID)
 	emissions, next := opencode.Normalize(messages, cur)
 	allAppended := true
@@ -512,6 +516,47 @@ func (w *OpenCodeWatcher) reconcileSession(ctx context.Context, client opencode.
 		// message permanently invisible to Web Console.
 		log.Printf("opencode-watcher: cursor not advanced for %s because a message projection failed", ocID)
 	}
+}
+
+type openCodeContextUsage struct {
+	Tokens     int64
+	Model      string
+	Found      bool
+	ObservedAt time.Time
+}
+
+func (w *OpenCodeWatcher) cacheContextUsage(nativeSessionID string, messages []opencode.MessageWithParts) {
+	usage := openCodeContextUsage{}
+	for i := len(messages) - 1; i >= 0; i-- {
+		info, err := json.Marshal(messages[i].Info)
+		if err != nil {
+			continue
+		}
+		tokens, model, found := agenttranscript.OpenCodeUsage(info)
+		if found {
+			usage = openCodeContextUsage{Tokens: tokens, Model: model, Found: true, ObservedAt: time.Now()}
+			break
+		}
+	}
+	w.mu.Lock()
+	if w.contextUsage == nil {
+		w.contextUsage = make(map[string]openCodeContextUsage)
+	}
+	w.contextUsage[nativeSessionID] = usage
+	w.mu.Unlock()
+}
+
+func (w *OpenCodeWatcher) ContextUsage(nativeSessionID string) (openCodeContextUsage, bool) {
+	if w == nil {
+		return openCodeContextUsage{}, false
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	usage, ok := w.contextUsage[nativeSessionID]
+	if !ok || time.Since(usage.ObservedAt) > 2*opencodeReconcileInterval {
+		return openCodeContextUsage{}, false
+	}
+	return usage, true
 }
 
 func (w *OpenCodeWatcher) nativeClient() opencode.Client {

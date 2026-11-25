@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/vrooli/cli-core/agenttranscript"
 )
 
 // V2Client talks to the OpenCode 2 HTTP API. It projects the V2 session/message
@@ -126,56 +128,31 @@ func (c *V2Client) SessionMessages(ctx context.Context, sessionID string) ([]Mes
 			query.Del("order")
 			query.Set("cursor", cursor)
 		}
-		var page struct {
-			Data []struct {
-				ID   string `json:"id"`
-				Type string `json:"type"`
-				Text string `json:"text"`
-				Time struct {
-					Created   int64 `json:"created"`
-					Completed int64 `json:"completed"`
-				} `json:"time"`
-				Content []struct {
-					Type string `json:"type"`
-					Text string `json:"text"`
-				} `json:"content"`
-			} `json:"data"`
-			Cursor struct {
-				Next string `json:"next"`
-			} `json:"cursor"`
-		}
+		var payload json.RawMessage
 		path := "/api/session/" + url.PathEscape(sessionID) + "/message?" + query.Encode()
-		if err := c.request(ctx, http.MethodGet, path, nil, &page); err != nil {
+		if err := c.request(ctx, http.MethodGet, path, nil, &payload); err != nil {
 			return nil, err
 		}
-		for _, item := range page.Data {
+		page, err := agenttranscript.ParseOpenCodeV2MessagePage(payload)
+		if err != nil {
+			return nil, fmt.Errorf("decode OpenCode V2 messages: %w", err)
+		}
+		for _, item := range page.Messages {
 			message := MessageWithParts{}
 			message.Info.ID = item.ID
 			message.Info.SessionID = sessionID
-			message.Info.Time.Created = item.Time.Created
-			message.Info.Time.Completed = item.Time.Completed
-			switch item.Type {
-			case "user":
-				message.Info.Role = "user"
-				message.Parts = append(message.Parts, Part{ID: item.ID + "_text", MessageID: item.ID, Type: "text", Text: item.Text})
-			case "assistant":
-				message.Info.Role = "assistant"
-				for index, content := range item.Content {
-					if content.Type != "text" || strings.TrimSpace(content.Text) == "" {
-						continue
-					}
-					id := fmt.Sprintf("%s_%d", item.ID, index)
-					message.Parts = append(message.Parts, Part{ID: id, MessageID: item.ID, Type: "text", Text: content.Text})
-				}
-			default:
-				continue
+			message.Info.Time.Created = item.Created
+			message.Info.Time.Completed = item.Completed
+			message.Info.Role = item.Role
+			for _, part := range item.Parts {
+				message.Parts = append(message.Parts, Part{ID: part.ID, MessageID: part.MessageID, Type: part.Type, Text: part.Text})
 			}
 			messages = append(messages, message)
 		}
-		if page.Cursor.Next == "" {
+		if page.Next == "" {
 			return messages, nil
 		}
-		cursor = page.Cursor.Next
+		cursor = page.Next
 	}
 }
 

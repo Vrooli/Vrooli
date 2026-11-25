@@ -110,3 +110,43 @@ func TestCodexTailer_AgentInfoIgnoresNonSessionMeta(t *testing.T) {
 		t.Errorf("agent_type changed despite non-session_meta first line: %q", got.AgentType)
 	}
 }
+
+// A sub-agent's rollout names the root thread it was spawned under. It must
+// leave the session's identity on that root (the thread reopen resumes and the
+// goal lives on) and must not become the session's transcript path.
+func TestCodexTailer_SubAgentRolloutKeepsRootIdentity(t *testing.T) {
+	useIsolatedSessionState(t)
+	srv, sess := newCodexTailerTestServer(t)
+	srv.sessionStore = sessionstore.NewInMemory()
+	srv.sessions.SetStore(srv.sessionStore)
+	if err := srv.sessionStore.Save(context.Background(), sessionstore.Metadata{ID: sess.ID, Backend: backend.Persistent, Shell: "/bin/bash", Cols: 80, Rows: 24, Created: time.Now(), Detached: true}); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	dir := filepath.Join(sessionCodexSessionsDir(sess.ID), "2026", "11", "19")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	rootPath := filepath.Join(dir, "rollout-root.jsonl")
+	childPath := filepath.Join(dir, "rollout-child.jsonl")
+	if err := os.WriteFile(rootPath, []byte(`{"type":"session_meta","payload":{"id":"root-thread","session_id":"root-thread","cwd":"/repo","thread_source":"user"}}`+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(childPath, []byte(`{"type":"session_meta","payload":{"id":"child-thread","session_id":"root-thread","parent_thread_id":"root-thread","cwd":"/repo","thread_source":"subagent"}}`+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	ct := NewCodexTailer(srv)
+	ct.captureAgentInfo(rootPath, sess.ID)
+	ct.captureAgentInfo(childPath, sess.ID) // discovered later, as sub-agents are
+
+	got, err := srv.sessionStore.Get(context.Background(), sess.ID)
+	if err != nil {
+		t.Fatalf("get session: %v", err)
+	}
+	if got.AgentSessionID != "root-thread" {
+		t.Errorf("agent_session_id = %q, want the root thread", got.AgentSessionID)
+	}
+	if got.LastRolloutPath != rootPath {
+		t.Errorf("last_rollout_path = %q, want the root rollout", got.LastRolloutPath)
+	}
+}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { BottomSheet } from "@vrooli/react-component-library/BottomSheet/1";
@@ -13,12 +13,13 @@ import { useAnchoredPopoverPosition, type FloatingPlacement } from "../hooks/use
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import { buildMessageExport, DEFAULT_MESSAGE_EXPORT_FORMAT } from "../lib/messageExport";
-import { timeLabel } from "./messages/speaker";
+import { eventTime } from "./messages/speaker";
 import {
   assistantRoleLabelKey,
   availableSources,
   buildResults,
   buildSearchResults,
+  DEFAULT_MESSAGE_FILTER_STATE,
   estimateNavRowHeight,
   groupResults,
   noResultReason,
@@ -26,6 +27,7 @@ import {
   type ContentBadge,
   type ContentFilter,
   type GroupMode,
+  type MessageFilterState,
   type NavigatorResult,
   type NavigatorState,
   type RoleFilter,
@@ -42,7 +44,10 @@ import {
  */
 export interface MessageExportSelection {
   selectedIds: ReadonlySet<string>;
+  selectedEvents: readonly ConversationEvent[];
   onToggle: (eventId: string) => void;
+  /** Add every stored message between two stable event IDs to the selection. */
+  onSelectRange: (anchorEventId: string, eventId: string) => void;
   /** Select the entire conversation (every event id). */
   onSelectAll: () => void;
   /** Select exactly the currently visible (filtered) result ids. */
@@ -106,6 +111,12 @@ interface MessageJumpListProps {
    * into an explicit selection mode where rows toggle instead of jumping.
    */
   exportSelection?: MessageExportSelection;
+  /**
+   * Controlled filter state shared with the messages toolbar. When absent the
+   * navigator keeps its own local state, so the standalone picker still works.
+   */
+  filters?: MessageFilterState;
+  onFiltersChange?: (next: MessageFilterState) => void;
 }
 
 const SOURCE_LABEL_KEY = {
@@ -232,7 +243,7 @@ function NavRow({
   result: NavigatorResult;
   isFocused: boolean;
   isActive: boolean;
-  onSelect: () => void;
+  onSelect: (event: ReactMouseEvent<HTMLButtonElement>) => void;
   now: Date;
   /** Export-selection mode: the row toggles a checkbox instead of jumping. */
   selectMode?: boolean;
@@ -240,6 +251,7 @@ function NavRow({
 }) {
   const { t } = useTranslation();
   const { event } = result;
+  const eventClock = eventTime(event, now);
   const isUser = event.role === "user";
   const desc = statusGlyphFor(event);
   const roleLabel = isUser ? t(strings.messageJumpList.roleYou) : t(assistantRoleLabelKey(event.source));
@@ -282,7 +294,7 @@ function NavRow({
         )}
         {!isUser && <StatusIcon glyph={desc.glyph} />}
         <span data-testid={`msg-jump-speaker-${event.id}`} className={cn("font-medium", isUser ? "text-wc-text-primary" : "text-wc-text-secondary")}>{roleLabel}</span>
-        <span data-testid={`msg-jump-time-${event.id}`} title={`#${String(event.sequence)}`} className="text-wc-text-faint">· {timeLabel(event.createdAt, now)}</span>
+        <span data-testid={`msg-jump-time-${event.id}`} title={`#${String(event.sequence)}`} className="text-wc-text-faint">· {eventClock.label ? `${eventClock.label} · ` : ""}{eventClock.timestamp}</span>
         <Badges result={result} />
         {event.summarized && (
           <span
@@ -388,6 +400,8 @@ export default function MessageJumpList({
   search,
   desktopAnchorRef,
   exportSelection,
+  filters: controlledFilters,
+  onFiltersChange,
 }: MessageJumpListProps) {
   const { t } = useTranslation();
   const isMobile = useMediaQuery("(max-width: 767px)");
@@ -416,11 +430,22 @@ export default function MessageJumpList({
     [onQueryChange],
   );
 
-  const [role, setRole] = useState<RoleFilter>("all");
-  const [status, setStatus] = useState<StatusFilter>("all");
-  const [content, setContent] = useState<ContentFilter>("all");
-  const [sort, setSort] = useState<SortMode>("oldest");
-  const [groupMode, setGroupMode] = useState<GroupMode>("turn");
+  // Filters are controlled by MessagesPane when supplied, so the toolbar
+  // popover and this navigator read and write exactly one state. A standalone
+  // navigator still owns its filters locally.
+  const [internalFilters, setInternalFilters] = useState<MessageFilterState>(DEFAULT_MESSAGE_FILTER_STATE);
+  const filterState = controlledFilters ?? internalFilters;
+  const { role, status, content, sort, group: groupMode } = filterState;
+  const updateFilters = useCallback((patch: Partial<MessageFilterState>) => {
+    const next = { ...filterState, ...patch };
+    if (onFiltersChange) onFiltersChange(next);
+    else setInternalFilters(next);
+  }, [filterState, onFiltersChange]);
+  const setRole = useCallback((next: RoleFilter) => { updateFilters({ role: next }); }, [updateFilters]);
+  const setStatus = useCallback((next: StatusFilter) => { updateFilters({ status: next }); }, [updateFilters]);
+  const setContent = useCallback((next: ContentFilter) => { updateFilters({ content: next }); }, [updateFilters]);
+  const setSort = useCallback((next: SortMode) => { updateFilters({ sort: next }); }, [updateFilters]);
+  const setGroupMode = useCallback((next: GroupMode) => { updateFilters({ group: next }); }, [updateFilters]);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Export selection is only reachable from normal jump mode; the selected-ID
@@ -428,6 +453,7 @@ export default function MessageJumpList({
   const canExport = exportSelection !== undefined;
   const [isExportSelecting, setIsExportSelecting] = useState(false);
   const exportActive = canExport && isExportSelecting;
+  const selectionAnchor = useRef<string | null>(null);
 
   const navState = useMemo<NavigatorState>(
     () => ({ query: q, role, status, content, sort, group: groupMode }),
@@ -523,9 +549,15 @@ export default function MessageJumpList({
   }, [wantsSearchFocus, isMobile]);
 
   const handleSelect = useCallback(
-    (eventId: string) => {
+    (eventId: string, extendRange = false) => {
       if (exportActive) {
-        exportSelection.onToggle(eventId);
+        const anchorEventId = selectionAnchor.current;
+        if (extendRange && anchorEventId && anchorEventId !== eventId) {
+          exportSelection.onSelectRange(anchorEventId, eventId);
+        } else {
+          exportSelection.onToggle(eventId);
+          selectionAnchor.current = eventId;
+        }
         return;
       }
       onSelect(eventId);
@@ -537,8 +569,8 @@ export default function MessageJumpList({
   // --- Export selection derived state -------------------------------------
   const selectedIds = exportSelection?.selectedIds;
   const selectedEvents = useMemo(
-    () => (selectedIds ? events.filter((e) => selectedIds.has(e.id)) : []),
-    [events, selectedIds],
+    () => exportSelection?.selectedEvents ?? (selectedIds ? events.filter((e) => selectedIds.has(e.id)) : []),
+    [events, exportSelection?.selectedEvents, selectedIds],
   );
   // Shared formatter is the single token-estimate authority; the footer shows
   // the default-format estimate the drawer will open with.
@@ -556,7 +588,10 @@ export default function MessageJumpList({
   }, [results, selectedIds]);
   const hiddenSelectedCount = (selectedIds?.size ?? 0) - visibleSelectedCount;
 
-  const exitExportSelection = useCallback(() => { setIsExportSelecting(false); }, []);
+  const exitExportSelection = useCallback(() => {
+    selectionAnchor.current = null;
+    setIsExportSelecting(false);
+  }, []);
 
   const moveActive = useCallback(
     (delta: number) => {
@@ -595,7 +630,7 @@ export default function MessageJumpList({
       if ((e.key === "Enter" || (e.key === " " && exportActive)) && safeActive >= 0) {
         e.preventDefault();
         const result = results[safeActive];
-        if (result) handleSelect(result.event.id);
+        if (result) handleSelect(result.event.id, e.shiftKey);
       }
     },
     [moveActive, onClose, results, safeActive, handleSelect, exportActive, exitExportSelection],
@@ -620,7 +655,7 @@ export default function MessageJumpList({
         e.preventDefault();
         e.stopPropagation();
         const result = results[safeActive];
-        if (result) handleSelect(result.event.id);
+        if (result) handleSelect(result.event.id, e.shiftKey);
         return;
       }
       if (e.key === "Escape") {
@@ -645,10 +680,14 @@ export default function MessageJumpList({
   }, [role, search]);
 
   const resetPrimaryFilters = useCallback(() => {
-    applyRole("all");
-    setStatus("all");
-    setContent("all");
-  }, [applyRole]);
+    // One update, not three: partial setters would each compose against the
+    // same stale state and the last one would win.
+    updateFilters({ role: "all", status: "all", content: "all" });
+    if (search?.options.role !== undefined) {
+      const { role: _previous, ...rest } = search.options;
+      search.onOptionsChange(rest);
+    }
+  }, [search, updateFilters]);
 
   const allActive = role === "all" && status === "all" && content === "all";
   // Filters in effect behind the folded button (a runtime filter counts).
@@ -664,7 +703,7 @@ export default function MessageJumpList({
         result={result}
         isFocused={!exportActive && result.event.id === focusedEventId}
         isActive={result.event.id === activeId}
-        onSelect={() => { handleSelect(result.event.id); }}
+        onSelect={(event) => { handleSelect(result.event.id, event.shiftKey); }}
         now={now}
         selectMode={exportActive}
         isSelected={exportActive && (selectedIds?.has(result.event.id) ?? false)}
@@ -682,7 +721,7 @@ export default function MessageJumpList({
         title={t(strings.messageExport.exportAction)}
         surface="soft"
         size="sm"
-        onClick={() => { setIsExportSelecting(true); }}
+        onClick={() => { selectionAnchor.current = null; setIsExportSelecting(true); }}
       >
         <Share />
       </IconButton>
@@ -951,7 +990,7 @@ export default function MessageJumpList({
             <button
               type="button"
               data-testid="msg-export-select-all"
-              onClick={exportSelection.onSelectAll}
+              onClick={() => { selectionAnchor.current = null; exportSelection.onSelectAll(); }}
               className="min-h-[32px] rounded-md bg-wc-surface-input/40 px-2 py-1 text-[11px] font-medium text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary"
             >
               {t(strings.messageExport.selectAll)}
@@ -959,7 +998,7 @@ export default function MessageJumpList({
             <button
               type="button"
               data-testid="msg-export-select-visible"
-              onClick={() => { exportSelection.onSelectVisible(results.map((r) => r.event.id)); }}
+              onClick={() => { selectionAnchor.current = null; exportSelection.onSelectVisible(results.map((r) => r.event.id)); }}
               className="min-h-[32px] rounded-md bg-wc-surface-input/40 px-2 py-1 text-[11px] font-medium text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary"
             >
               {t(strings.messageExport.selectVisible)}
@@ -967,7 +1006,7 @@ export default function MessageJumpList({
             <button
               type="button"
               data-testid="msg-export-clear"
-              onClick={exportSelection.onClear}
+              onClick={() => { selectionAnchor.current = null; exportSelection.onClear(); }}
               disabled={(selectedIds?.size ?? 0) === 0}
               className="min-h-[32px] rounded-md bg-wc-surface-input/40 px-2 py-1 text-[11px] font-medium text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary disabled:cursor-not-allowed disabled:opacity-40"
             >

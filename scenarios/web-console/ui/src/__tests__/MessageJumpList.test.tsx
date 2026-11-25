@@ -173,7 +173,9 @@ describe("MessageJumpList navigator", () => {
 
   const exportSelection = (): MessageExportSelection => ({
     selectedIds: new Set(),
+    selectedEvents: [],
     onToggle: vi.fn(),
+    onSelectRange: vi.fn(),
     onSelectAll: vi.fn(),
     onSelectVisible: vi.fn(),
     onClear: vi.fn(),
@@ -496,6 +498,7 @@ describe("MessageJumpList export selection", () => {
     const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
     const exportSelection: MessageExportSelection = {
       selectedIds,
+      selectedEvents: events.filter((event) => selectedIds.has(event.id)),
       onToggle: (id) =>
         setSelectedIds((prev) => {
           const next = new Set(prev);
@@ -503,6 +506,15 @@ describe("MessageJumpList export selection", () => {
           else next.add(id);
           return next;
         }),
+      onSelectRange: (anchorId, endId) => {
+        const anchor = events.find((event) => event.id === anchorId)?.sequence;
+        const end = events.find((event) => event.id === endId)?.sequence;
+        if (anchor == null || end == null) return;
+        setSelectedIds((prev) => new Set([
+          ...prev,
+          ...events.filter((event) => event.sequence >= Math.min(anchor, end) && event.sequence <= Math.max(anchor, end)).map((event) => event.id),
+        ]));
+      },
       onSelectAll: () => setSelectedIds(new Set(events.map((e) => e.id))),
       onSelectVisible: (ids) => setSelectedIds(new Set(ids)),
       onClear: () => setSelectedIds(new Set()),
@@ -560,6 +572,16 @@ describe("MessageJumpList export selection", () => {
     expect(screen.getByTestId("msg-jump-item-b").getAttribute("aria-checked")).toBe("false");
     expect(onSelect).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("shift-selects the complete sequence range from the first selected row", () => {
+    render(<Harness events={threeEvents()} />);
+    fireEvent.click(screen.getByTestId("msg-export-enter"));
+    fireEvent.click(screen.getByTestId("msg-jump-item-a"));
+    fireEvent.click(screen.getByTestId("msg-jump-item-c"), { shiftKey: true });
+    for (const id of ["a", "b", "c"]) {
+      expect(screen.getByTestId(`msg-jump-item-${id}`)).toHaveAttribute("aria-checked", "true");
+    }
   });
 
   it("retains selected IDs when a filter hides them and counts them as hidden", () => {

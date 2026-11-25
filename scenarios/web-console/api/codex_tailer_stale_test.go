@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
-
-	"web-console/backends/codex"
 )
 
 // TestCodexTailer_SurvivesPastStaleTimeoutWhileFileRecentlyModified verifies
@@ -44,9 +42,9 @@ func TestCodexTailer_SurvivesPastStaleTimeoutWhileFileRecentlyModified(t *testin
 
 	// The watcher must still be alive — writing a new line should route to
 	// the owning session.
-	writeRolloutLine(t, f, "response_item", codex.ResponsePayload{
+	writeRolloutLine(t, f, "response_item", rolloutMessageFixture{
 		Role:    "assistant",
-		Content: []codex.ContentItem{{Type: "output_text", Text: "late reply"}},
+		Content: []rolloutContentFixture{{Type: "output_text", Text: "late reply"}},
 	})
 	if err := f.Sync(); err != nil {
 		t.Fatal(err)

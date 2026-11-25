@@ -112,6 +112,37 @@ func TestFilePreview_ResolveTextAndGetContent(t *testing.T) {
 	}
 }
 
+func TestFilePreview_GetTextContentRejectsSamePathReplacement(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "report.txt")
+	if err := os.WriteFile(path, []byte("original text\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	original, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := newFilePreviewTestServer(t, root)
+	sessionID := newPreviewSession(t, srv)
+	preview := resolvePreview(t, srv, sessionID, path)
+
+	replacement := filepath.Join(root, "replacement.txt")
+	if err := os.WriteFile(replacement, []byte("tampered text\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(replacement, original.ModTime(), original.ModTime()); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(replacement, path); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = newFilePreviewAdapter(srv).GetTextContent(context.Background(), sessionID, preview.PreviewID)
+	if !errors.Is(err, filePreviewH.ErrStale) {
+		t.Fatalf("GetTextContent after same-path replacement = %v, want stale-preview error", err)
+	}
+}
+
 func TestFilePreview_Runtime_ServesHTMLAndConfinedPresentationResources(t *testing.T) {
 	root := t.TempDir()
 	if err := os.Mkdir(filepath.Join(root, "assets"), 0o755); err != nil {

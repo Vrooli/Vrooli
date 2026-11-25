@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createBridgeInteractiveTransport, createDesktopPeer, createDesktopSessionTransport } from "./desktopTransport";
+import { createBridgeInteractiveTransport, createDesktopPeer, createDesktopSessionTransport, projectDesktopPeerState } from "./desktopTransport";
 import { cleanupDesktopOpenFailure } from "./DesktopMachineTab";
 
 describe("desktop transport", () => {
@@ -53,6 +53,7 @@ describe("desktop transport", () => {
     await t.open({});
     await t.attachViewer({});
     await t.takeControl({});
+    await t.releaseControl({});
     await t.input({});
     await t.clipboard({});
     await t.close({});
@@ -62,6 +63,7 @@ describe("desktop transport", () => {
       `${base}OpenSession`,
       `${base}AttachViewer`,
       `${base}TakeControl`,
+      `${base}ReleaseControl`,
       `${base}Input`,
       `${base}Clipboard`,
       `${base}CloseSession`,
@@ -122,6 +124,15 @@ describe("createDesktopPeer", () => {
     return { instances };
   }
 
+  it("keeps connecting separate from disconnected and preserves terminal peer states", () => {
+    expect(projectDesktopPeerState("new")).toBe("connecting");
+    expect(projectDesktopPeerState("connecting")).toBe("connecting");
+    expect(projectDesktopPeerState("connected")).toBe("connected");
+    expect(projectDesktopPeerState("disconnected")).toBe("disconnected");
+    expect(projectDesktopPeerState("failed")).toBe("failed");
+    expect(projectDesktopPeerState("closed")).toBe("closed");
+  });
+
   it("configures ICE servers only for routes with a url and forwards track streams", () => {
     const { instances } = installMockPeerConnection();
     const onStream = vi.fn();
@@ -137,6 +148,12 @@ describe("createDesktopPeer", () => {
     pc.connectionState = "connected";
     pc.onconnectionstatechange?.({});
     expect(onState).toHaveBeenCalledWith("connected");
+    pc.connectionState = "connecting";
+    pc.onconnectionstatechange?.({});
+    expect(onState).toHaveBeenCalledWith("connecting");
+    pc.connectionState = "disconnected";
+    pc.onconnectionstatechange?.({});
+    expect(onState).toHaveBeenCalledWith("disconnected");
   });
 
   it("omits the config entirely when no route carries a url", () => {

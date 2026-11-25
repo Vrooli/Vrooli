@@ -1,6 +1,10 @@
 package opencode
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/vrooli/cli-core/agenttranscript"
+)
 
 // Cursor is the per-session high-water mark persisted between reconciliations.
 // User and assistant are tracked separately because they advance on different
@@ -20,19 +24,22 @@ type Emission struct {
 	PartID    string
 }
 
-// messageText joins a message's text parts, dropping empty parts and the
-// non-prose part kinds (step-start, step-finish, tool-*).
+// messageText joins prose parts and renders tool-call parts as selectable
+// assistant text, dropping empty and lifecycle-only parts.
 func messageText(parts []Part) string {
-	var pieces []string
+	shared := make([]agenttranscript.TextPart, 0, len(parts))
 	for _, p := range parts {
-		if p.Type != "text" {
-			continue
-		}
-		if t := strings.TrimSpace(p.Text); t != "" {
-			pieces = append(pieces, t)
+		if p.Type == "tool" {
+			payload := p.Input
+			if len(payload) == 0 {
+				payload = p.State
+			}
+			shared = append(shared, agenttranscript.TextPart{Type: "text", Text: agenttranscript.FormatToolEvent(p.Tool, "call", p.CallID, payload)})
+		} else {
+			shared = append(shared, agenttranscript.TextPart{Type: p.Type, Text: p.Text})
 		}
 	}
-	return strings.Join(pieces, "\n")
+	return agenttranscript.JoinTextParts(shared)
 }
 
 // Normalize converts full message history into the emissions newer than cur and

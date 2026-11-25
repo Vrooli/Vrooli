@@ -8,6 +8,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/vrooli/api-core/identity"
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
 
 	sessionsH "web-console/handlers/sessions"
@@ -47,6 +48,7 @@ func newSessionsConnectHandlerForServer(srv *Server) sessionsConnectIface {
 		CodexCheckpoints:         srv.agentCheckpointStore,
 		Workspace:                srv.workspace,
 		CopyCodexHome:            copyCodexHome,
+		CodexRootThread:          codexRootThread,
 		AgentHistoryPresent:      func(sessionstore.Metadata) bool { return true },
 		RetentionPolicy: func() sessionsH.ArchiveRetentionPolicy {
 			cfg := srv.sessions.GetConfig()
@@ -81,7 +83,12 @@ func callCreate(t *testing.T, srv *Server, cols, rows int, idempotencyKey string
 
 func callDelete(t *testing.T, srv *Server, id string) error {
 	t.Helper()
-	_, err := newSessionsConnectHandlerForServer(srv).Delete(context.Background(),
+	ctx := identity.WithPrincipal(t.Context(), identity.Principal{
+		Kind: identity.ActorHuman, Subject: "fixture-human", Verified: true,
+		Source: identity.SourcePersonalLocal, Scopes: []string{"web-console:write"},
+		ExpiresAt: time.Now().Add(time.Hour),
+	})
+	_, err := newSessionsConnectHandlerForServer(srv).Delete(ctx,
 		connect.NewRequest(&sessionsv1.DeleteRequest{Id: id, Confirmation: "DELETE:" + id}))
 	return err
 }

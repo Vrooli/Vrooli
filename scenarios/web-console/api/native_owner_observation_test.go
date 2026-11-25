@@ -172,7 +172,7 @@ func TestManagedNativeUsageRetainsArchivedAuditWithoutRuntime(t *testing.T) {
 	if err != nil || retired.NativeOwner != "" || retired.ControlMode != sessionstore.ControlModeRecoveryOnly {
 		t.Fatalf("owner retirement did not fence live authority: metadata=%+v err=%v", retired, err)
 	}
-	if err := server.sessionStore.MarkArchived(t.Context(), meta.ID, time.Now()); err != nil {
+	if err := server.sessionStore.MarkArchived(t.Context(), meta.ID, time.Now(), ""); err != nil {
 		t.Fatal(err)
 	}
 	server.managedCodex = nil

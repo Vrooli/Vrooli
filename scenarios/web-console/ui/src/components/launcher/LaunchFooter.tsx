@@ -1,12 +1,10 @@
-import type { Ref } from "react";
-import { Loader2 } from "lucide-react";
-import { Button } from "@vrooli/react-component-library/Button/2";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
 
-/** One line saying what is about to happen, and the button that does it. */
-export function LaunchFooter({ summary, label, disabled, busy, busyLabel, reason, onLaunch, testId, buttonRef }: {
-  buttonRef?: Ref<HTMLButtonElement>;
+/** One line saying what is about to happen, and its shared overlay action. */
+export function LaunchFooter({ summary, label, buttonLabel, disabled, busy, busyLabel, reason, onLaunch, testId }: {
   summary: string;
   label: string;
+  buttonLabel: string;
   disabled: boolean;
   busy: boolean;
   busyLabel: string;
@@ -16,14 +14,23 @@ export function LaunchFooter({ summary, label, disabled, busy, busyLabel, reason
   testId: string;
 }) {
   const showReason = !busy && disabled && Boolean(reason);
-  const reasonId = "launcher-disabled-reason-text";
   return (
     <div className="grid w-full gap-1.5" data-testid="launcher-footer">
       <p data-testid="launcher-summary" title={summary} className="truncate text-center text-xs text-wc-text-muted">{summary}</p>
-      {showReason && <p id={reasonId} data-testid="launcher-disabled-reason" className="break-words text-center text-xs leading-[18px] text-wc-warning">{reason}</p>}
-      <Button ref={buttonRef} type="button" variant="primary" size="lg" shape="square" data-testid={testId} disabled={disabled || busy} onClick={onLaunch} aria-describedby={showReason ? reasonId : undefined} className="w-full font-semibold">
-        {busy ? <span data-testid="launcher-creating" className="flex items-center justify-center gap-2"><Loader2 className="h-4 w-4 animate-spin" aria-hidden />{busyLabel}</span> : label}
-      </Button>
+      {showReason && <p data-testid="launcher-disabled-reason" role="status" className="break-words text-center text-xs leading-[18px] text-wc-warning">{reason}</p>}
+      <OverlayActionBar
+        label={showReason ? `${label}. ${reason}` : label}
+        maxVisible={1}
+        maxLabelLength={28}
+        actions={[{
+          id: "launch",
+          label: busy ? busyLabel : buttonLabel,
+          onSelect: onLaunch,
+          disabled: disabled || busy,
+          primary: true,
+          testId,
+        }]}
+      />
     </div>
   );
 }

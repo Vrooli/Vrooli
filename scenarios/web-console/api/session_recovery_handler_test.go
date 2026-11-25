@@ -46,31 +46,71 @@ func TestPrunedCodexHomeStaysAbsentAndReadOnly(t *testing.T) {
 	}
 }
 
-func TestCopyCodexHomeCopiesOnlyRolloutTree(t *testing.T) {
+func TestCopyCodexHomeCopiesDurableRecordOnly(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("WC_SESSION_STATE_ROOT", root)
-	oldSessions := filepath.Join(root, "codex", "old", "sessions", "2026", "08", "26")
-	if err := os.MkdirAll(oldSessions, 0o755); err != nil {
-		t.Fatal(err)
+	old := filepath.Join(root, "codex", "old")
+	write := func(rel, body string) {
+		t.Helper()
+		path := filepath.Join(old, rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if err := os.WriteFile(filepath.Join(oldSessions, "rollout.jsonl"), []byte("rollout"), 0o600); err != nil {
-		t.Fatal(err)
+	// The durable record: rollouts, the goal store with its WAL, thread state,
+	// history and a long goal's objective attachment.
+	durable := map[string]string{
+		"sessions/2026/08/26/rollout.jsonl": "rollout",
+		"goals_1.sqlite":                    "goals",
+		"goals_1.sqlite-wal":                "goals-wal",
+		"state_5.sqlite":                    "state",
+		"thread_history_1.sqlite":           "history-db",
+		"history.jsonl":                     "history",
+		"attachments/g1/goal-objective.md":  "objective",
 	}
-	if err := os.MkdirAll(filepath.Join(root, "codex", "old", "cache"), 0o755); err != nil {
-		t.Fatal(err)
+	// Runtime the launcher re-links or Codex re-creates.
+	runtime := []string{"cache/runtime.db", "packages/daemon/bin", "app-server-control/app-server-startup.lock", "logs_2.sqlite", "goals_1.sqlite-shm", "session_index.jsonl.lock"}
+	for rel, body := range durable {
+		write(rel, body)
 	}
-	if err := os.WriteFile(filepath.Join(root, "codex", "old", "cache", "runtime.db"), []byte("runtime"), 0o600); err != nil {
+	for _, rel := range runtime {
+		write(rel, "runtime")
+	}
+	if err := os.Symlink(filepath.Join(root, "shared-auth.json"), filepath.Join(old, "auth.json")); err != nil {
 		t.Fatal(err)
 	}
 
 	if err := copyCodexHome("old", "new"); err != nil {
 		t.Fatalf("copyCodexHome: %v", err)
 	}
-	if got, err := os.ReadFile(filepath.Join(root, "codex", "new", "sessions", "2026", "08", "26", "rollout.jsonl")); err != nil || string(got) != "rollout" {
-		t.Fatalf("copied rollout = %q, %v", got, err)
+	newHome := filepath.Join(root, "codex", "new")
+	for rel, body := range durable {
+		if got, err := os.ReadFile(filepath.Join(newHome, rel)); err != nil || string(got) != body {
+			t.Errorf("durable %s copied as %q, %v", rel, got, err)
+		}
 	}
-	if _, err := os.Stat(filepath.Join(root, "codex", "new", "cache")); !os.IsNotExist(err) {
-		t.Fatalf("copied non-rollout runtime state: %v", err)
+	for _, rel := range append(runtime, "auth.json") {
+		if _, err := os.Lstat(filepath.Join(newHome, rel)); !os.IsNotExist(err) {
+			t.Errorf("runtime %s was copied: %v", rel, err)
+		}
+	}
+}
+
+func TestCopyCodexHomeRefusesSymlinkInRolloutTree(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("WC_SESSION_STATE_ROOT", root)
+	dir := filepath.Join(root, "codex", "old", "sessions")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("/etc/passwd", filepath.Join(dir, "rollout.jsonl")); err != nil {
+		t.Fatal(err)
+	}
+	if err := copyCodexHome("old", "new"); err == nil {
+		t.Fatal("a symlink inside the rollout tree must refuse the copy")
 	}
 }
 
@@ -233,6 +273,48 @@ func TestHandleReopen_ArchivedSessionIsIdempotentAndClearsArchiveMarker(t *testi
 	}
 	if old.RecoveredInto != first.GetNewSessionId() {
 		t.Fatalf("recovered_into=%q want %q", old.RecoveredInto, first.GetNewSessionId())
+	}
+}
+
+// A lead whose recorded thread is a sub-agent's (the tailer used to adopt the
+// last rollout it saw) reopens on the root thread, with the goal store copied
+// so the paused goal comes back with it.
+func TestHandleReopen_CodexResumesRootThreadWithGoalStore(t *testing.T) {
+	srv := newRecoveryTestServer(t)
+	saveArchived(t, srv, "lead-old", sessionstore.AgentCodex, "child-thread")
+	home := filepath.Join(resolveSessionStateRoot(), "codex", "lead-old")
+	dir := filepath.Join(home, "sessions", "2026", "11", "19")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, body := range map[string]string{
+		"rollout-2026-11-19T03-13-10-root-thread.jsonl":  `{"type":"session_meta","payload":{"id":"root-thread","session_id":"root-thread","thread_source":"user"}}`,
+		"rollout-2026-11-19T20-43-31-child-thread.jsonl": `{"type":"session_meta","payload":{"id":"child-thread","session_id":"root-thread","thread_source":"subagent"}}`,
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body+"\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(home, "goals_1.sqlite"), []byte("goal store"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := callReopen(t, srv, "lead-old", "reopen-lead")
+	if err != nil {
+		t.Fatalf("Reopen: %v", err)
+	}
+	if !strings.Contains(resp.GetCommandSent(), "codex --yolo resume root-thread") {
+		t.Fatalf("CommandSent = %q, want the root thread resumed", resp.GetCommandSent())
+	}
+	if got, err := os.ReadFile(filepath.Join(resolveSessionStateRoot(), "codex", resp.GetNewSessionId(), "goals_1.sqlite")); err != nil || string(got) != "goal store" {
+		t.Fatalf("reopened home goal store = %q, %v", got, err)
+	}
+	reopened, err := srv.sessionStore.Get(context.Background(), resp.GetNewSessionId())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reopened.AgentSessionID != "root-thread" {
+		t.Fatalf("reopened agent_session_id = %q, want root-thread", reopened.AgentSessionID)
 	}
 }
 

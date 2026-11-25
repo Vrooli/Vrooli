@@ -3,12 +3,15 @@ package capabilities
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/vrooli/ai-provider-go/openai"
+	"github.com/vrooli/ai-provider-go/providererror"
 	"github.com/vrooli/api-core/discovery"
 
 	capabilityregistry "github.com/vrooli/vrooli/packages/capability-registry-go"
@@ -461,24 +464,25 @@ func (c *OpenRouterChecker) Check(ctx context.Context) (Status, string) {
 		baseURL = "https://openrouter.ai"
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", baseURL+"/api/v1/models", nil)
+	clientURL := strings.TrimRight(baseURL, "/") + "/api/v1"
+	_, err := openai.New(openai.Config{
+		ProviderName: "openrouter",
+		BaseURL:      clientURL,
+		APIKey:       c.APIKey,
+		HTTPClient:   client,
+	}).ListModels(ctx)
 	if err != nil {
-		return StatusUnavailable, "failed to create request: " + err.Error()
-	}
-	req.Header.Set("Authorization", "Bearer "+c.APIKey)
-
-	resp, err := client.Do(req)
-	if err != nil {
+		var urlErr *url.Error
+		if errors.As(err, &urlErr) && urlErr.Op == "parse" {
+			return StatusUnavailable, "failed to create request: " + err.Error()
+		}
+		if providerErr, ok := providererror.As(err); ok && providerErr.HTTPStatus != 0 {
+			if providerErr.HTTPStatus == http.StatusUnauthorized {
+				return StatusUnavailable, "OpenRouter API key is invalid"
+			}
+			return StatusUnavailable, "OpenRouter returned unexpected status"
+		}
 		return StatusUnavailable, "OpenRouter is not reachable"
 	}
-	resp.Body.Close()
-
-	if resp.StatusCode == http.StatusOK {
-		return StatusAvailable, "OpenRouter is configured and reachable"
-	}
-	if resp.StatusCode == http.StatusUnauthorized {
-		return StatusUnavailable, "OpenRouter API key is invalid"
-	}
-
-	return StatusUnavailable, "OpenRouter returned unexpected status"
+	return StatusAvailable, "OpenRouter is configured and reachable"
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -352,6 +353,13 @@ func TestOpenRouterChecker_ValidKey(t *testing.T) {
 	}
 	if msg != "OpenRouter is configured and reachable" {
 		t.Errorf("message = %q, want %q", msg, "OpenRouter is configured and reachable")
+	}
+}
+
+func TestOpenRouterChecker_InvalidURL(t *testing.T) {
+	status, msg := (&OpenRouterChecker{APIKey: "key", BaseURL: "://bad"}).Check(context.Background())
+	if status != StatusUnavailable || !strings.HasPrefix(msg, "failed to create request:") {
+		t.Fatalf("result = (%q, %q), want invalid request URL", status, msg)
 	}
 }
 

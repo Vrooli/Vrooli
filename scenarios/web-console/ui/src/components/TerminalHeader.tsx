@@ -1,7 +1,7 @@
 import { CodingBackup } from "./CodingBackup";
 import { useState, useRef, useCallback } from "react";
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
-import { GripVertical, MessageSquareText, TerminalSquare, Palette, Send, X, Pin } from "lucide-react";
+import { GripVertical, MessageSquareText, TerminalSquare, Palette, Send, X, Pin, Globe } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { PaneViewMode } from "../stores/useMessagesViewStore";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
@@ -32,6 +32,7 @@ interface TerminalHeaderProps {
    */
   onHandoff?: (sessionId: string) => void;
   onPromote?: (sessionId: string) => void;
+  onBrowserPane?: () => void;
   onDragStart?: (sessionId: string, e: ReactPointerEvent) => void;
 }
 
@@ -49,6 +50,7 @@ export default function TerminalHeader({
   isViewSwitchPending = false,
   onHandoff,
   onPromote,
+  onBrowserPane,
   onDragStart,
 }: TerminalHeaderProps) {
   const { t } = useTranslation();
@@ -195,6 +197,7 @@ export default function TerminalHeader({
         </IconButton>
       )}
       {onPromote && <IconButton data-testid={`terminal-header-promote-${sessionId}`} aria-label="Keep in sidebar" title="Keep in sidebar" surface="soft" size="xs" className="min-h-11 min-w-11 shrink-0" onClick={(e) => { e.stopPropagation(); onPromote(sessionId); }}><Pin /></IconButton>}
+      {onBrowserPane && <IconButton data-testid={`terminal-header-browser-${sessionId}`} aria-label="Open browser pane" title="Open browser pane" surface="soft" size="xs" className="min-h-11 min-w-11 shrink-0" onClick={(e) => { e.stopPropagation(); onBrowserPane(); }}><Globe /></IconButton>}
 
       {/* The control is offered only when the pane's group holds someone to
           hand off TO — a composer with no targets is a dead end. */}

@@ -315,7 +315,8 @@ html[data-wc-adaptive-chrome="true"] .wc-ios-tint-edge {
   --color-focus: rgb(var(--wc-accent));
   --color-danger: rgb(var(--wc-error-detail));
   --color-info: rgb(var(--wc-accent));
-  --color-success: rgb(var(--wc-accent));
+  --color-success: rgb(var(--wc-success));
+  --color-warning: rgb(var(--wc-warning));
   --color-on-primary: rgb(var(--wc-accent-fg));
 }
 
@@ -323,6 +324,11 @@ html[data-wc-adaptive-chrome="true"] .wc-ios-tint-edge {
 .wc-launcher-panel {
   /* Muted surfaces are quiet tints of the raised sheet, in either palette. */
   --color-surface-muted: rgb(var(--wc-text-primary) / 0.06);
+}
+.wc-launcher-panel [data-testid="launcher-no-agents"] {
+  border-style: solid;
+  border-color: rgb(var(--wc-border-default));
+  background: linear-gradient(145deg, rgb(var(--wc-accent) / 0.045), transparent 72%), rgb(var(--wc-surface-base) / 0.35);
 }
 .wc-launcher-panel > header {
   align-items: center;

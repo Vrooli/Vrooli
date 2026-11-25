@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { useMessagesViewStore } from "../stores/useMessagesViewStore";
 import { rewriteLocalhostUrlForProxy } from "../lib/terminalFileLinks";
+import { fileViewerPreferences } from "../lib/fileViewerPreferences";
 
 // Localhost links in rendered Markdown go through Web Console's same-origin
 // loopback route, so a phone never opens "localhost" on itself.
@@ -33,7 +34,7 @@ export function FileViewerHost({ children }: { children: ReactNode }) {
   const readerFontSize = useMemo(() => ({ value: fontSize, onChange: setFontSize }), [fontSize, setFontSize]);
   const language = i18n.resolvedLanguage ?? i18n.language;
   return (
-    <FileViewerProvider locale={language === "cimode" ? KEYS_LOCALE : language} readerFontSize={readerFontSize} rewriteHref={rewriteHref} loaders={loaders}>
+    <FileViewerProvider locale={language === "cimode" ? KEYS_LOCALE : language} readerFontSize={readerFontSize} rewriteHref={rewriteHref} loaders={loaders} viewPreferences={fileViewerPreferences}>
       {children}
     </FileViewerProvider>
   );

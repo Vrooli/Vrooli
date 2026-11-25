@@ -8,7 +8,7 @@ import { Fragment, useEffect, useState } from "react";
 import { Check, CircleAlert, Loader2, TriangleAlert } from "lucide-react";
 import { Alert } from "@vrooli/react-component-library/Alert";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { Card } from "@vrooli/react-component-library/Card";
+import { Card, CardContent } from "@vrooli/react-component-library/Card/1";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge";
 import type { GetRoleModelChoicesResponse } from "@vrooli/proto-types/web-console/v1/modelselection/model_selection_pb";
 import { useTranslation } from "react-i18next";
@@ -342,15 +342,17 @@ export function ManageAgentDetail({ card, targetId, updates, usage, usageLoading
         </>
       )}
       <Card className={CARD} data-testid="launcher-maintenance">
-        <Button type="button" variant="outline" size="md" disabled={running} data-testid={`launcher-doctor-${testKey}`} onClick={() => { void updates.run(card.agentID, "doctor"); }}>{t(strings.launcher.actionDoctor)}</Button>
-        {update && <Button type="button" variant="outline" size="md" disabled={running} data-testid={`launcher-cleanup-preview-${testKey}`} onClick={() => { void updates.run(card.agentID, "preview_cleanup"); }}>{t(strings.launcher.actionCleanupPreview)}</Button>}
-        {run?.phase === "done" && run.action === "preview_cleanup" && run.cleanupPlan && <div data-testid="launcher-cleanup-plan" className={BODY}>
-          <p>{t(strings.launcher.cleanupRemove)}</p>
-          <ul className="my-2 list-inside list-disc break-all">{run.cleanupPlan.remove.map(path => <li key={path} data-cleanup-remove>{path}</li>)}</ul>
-          {run.cleanupPlan.preserved.length > 0 && <><p>{t(strings.launcher.cleanupPreserve)}</p><ul className="my-2 list-inside list-disc break-all">{run.cleanupPlan.preserved.map(path => <li key={path} data-cleanup-preserve>{path}</li>)}</ul></>}
-          <Button type="button" variant="outline" size="md" disabled={run.cleanupPlan.remove.length === 0} data-testid={`launcher-uninstall-${testKey}`} onClick={() => { void updates.run(card.agentID,"uninstall",run.cleanupPlan?.id); }}>{t(strings.launcher.actionUninstall)}</Button>
-        </div>}
-        {run?.phase === "failed" && ["doctor","preview_cleanup","uninstall"].includes(run.action) && <p role="alert">{run.message || t(strings.launcher.actionFailed)}</p>}
+        <CardContent className="contents">
+          <Button type="button" variant="outline" size="md" disabled={running} data-testid={`launcher-doctor-${testKey}`} onClick={() => { void updates.run(card.agentID, "doctor"); }}>{t(strings.launcher.actionDoctor)}</Button>
+          {update && <Button type="button" variant="outline" size="md" disabled={running} data-testid={`launcher-cleanup-preview-${testKey}`} onClick={() => { void updates.run(card.agentID, "preview_cleanup"); }}>{t(strings.launcher.actionCleanupPreview)}</Button>}
+          {run?.phase === "done" && run.action === "preview_cleanup" && run.cleanupPlan && <div data-testid="launcher-cleanup-plan" className={BODY}>
+            <p>{t(strings.launcher.cleanupRemove)}</p>
+            <ul className="my-2 list-inside list-disc break-all">{run.cleanupPlan.remove.map(path => <li key={path} data-cleanup-remove>{path}</li>)}</ul>
+            {run.cleanupPlan.preserved.length > 0 && <><p>{t(strings.launcher.cleanupPreserve)}</p><ul className="my-2 list-inside list-disc break-all">{run.cleanupPlan.preserved.map(path => <li key={path} data-cleanup-preserve>{path}</li>)}</ul></>}
+            <Button type="button" variant="outline" size="md" disabled={run.cleanupPlan.remove.length === 0} data-testid={`launcher-uninstall-${testKey}`} onClick={() => { void updates.run(card.agentID,"uninstall",run.cleanupPlan?.id); }}>{t(strings.launcher.actionUninstall)}</Button>
+          </div>}
+          {run?.phase === "failed" && ["doctor","preview_cleanup","uninstall"].includes(run.action) && <p role="alert">{run.message || t(strings.launcher.actionFailed)}</p>}
+        </CardContent>
       </Card>
       <ModelListSection agentId={card.agentID} targetId={targetId} updates={updates} />
     </div>

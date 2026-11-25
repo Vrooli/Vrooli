@@ -1,6 +1,6 @@
 import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent, within } from "@testing-library/react";
 import SettingsModal from "../components/SettingsModal";
 import { setDesktopViewport, setMobileViewport } from "../test-utils/viewport";
 
@@ -234,5 +234,41 @@ describe("SettingsModal", () => {
     expect(document.activeElement).toBe(sessions);
     fireEvent.click(sessions);
     expect(screen.getByTestId("sessions-section")).toBeTruthy();
+  });
+
+  it("filters the desktop settings navigation from the search field", () => {
+    render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
+    const search = screen.getByTestId("settings-search");
+    fireEvent.change(search, { target: { value: "voice" } });
+    expect(screen.getByTestId("settings-tab-voice-input")).toBeTruthy();
+    expect(screen.getByTestId("settings-tab-voice-output")).toBeTruthy();
+    expect(screen.queryByTestId("settings-tab-sessions")).toBeNull();
+    expect(screen.queryByTestId("settings-tab-deployments")).toBeNull();
+
+    fireEvent.change(search, { target: { value: "font" } });
+    expect(screen.getByTestId("settings-tab-workspace")).toBeTruthy();
+    expect(screen.getByTestId("settings-tab-new-pane-defaults")).toBeTruthy();
+    expect(screen.queryByTestId("settings-tab-voice-input")).toBeNull();
+
+    fireEvent.change(search, { target: { value: "no-such-setting" } });
+    expect(screen.getByTestId("settings-search-empty")).toBeTruthy();
+    fireEvent.click(within(screen.getByTestId("settings-search-empty")).getByText("Clear search"));
+    expect(screen.getByTestId("settings-tab-sessions")).toBeTruthy();
+  });
+
+  it("filters mobile settings categories and clears back to the full list", () => {
+    mediaQueryState.isMobile = true;
+    setMobileViewport();
+    render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
+    const search = screen.getByTestId("settings-search");
+    fireEvent.change(search, { target: { value: "sessions" } });
+    expect(screen.getByTestId("settings-tab-sessions")).toBeTruthy();
+    expect(screen.queryByTestId("settings-tab-voice-input")).toBeNull();
+
+    fireEvent.change(search, { target: { value: "zzz" } });
+    expect(screen.getByTestId("settings-search-empty")).toBeTruthy();
+    fireEvent.click(within(screen.getByTestId("settings-search-empty")).getByText("Clear search"));
+    expect(screen.getByTestId("settings-tab-sessions")).toBeTruthy();
+    expect(screen.getByTestId("settings-tab-voice-input")).toBeTruthy();
   });
 });

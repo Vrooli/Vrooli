@@ -252,7 +252,7 @@ Provider chain and retry behavior: [Architecture — AI Command Generation](../c
 | Method | Path | Handler |
 |---|---|---|
 | POST | `/api/v1/voice/transcribe` | `handleVoiceTranscribe` |
-| GET (Upgrade) | `/api/v1/voice/stream` | `handleVoiceStreamWS` |
+| POST (Connect bidi) | `/vrooli.web_console.v1.audio_runtime.AudioRuntimeService/TranscribeStream` | `audio_runtime.connectHandler.TranscribeStream` |
 | GET | `/api/v1/voice/config` | `handleGetVoiceConfig` |
 | PUT | `/api/v1/voice/config` | `handleUpdateVoiceConfig` |
 | GET | `/api/v1/voice/wakeword` | `handleGetWakeWordConfig` |
@@ -415,7 +415,7 @@ creation, incomplete/in-flight calls, pricing, quota and billing are not
 measured. This is separate from Agent Manager's managed-run efficiency cohort.
 Each selected rollout is limited to 256 MiB, so a larger source is unknown; 16 selected threads permit up to 4 GiB of input in a single request. Response and duplicate counters cover successfully read records; incomplete counts cover observed incomplete records, not omitted threads or requests.
 
-`SessionsService.ReadNativeThreadState` (CLI `web-console session native-thread-state`) observes up to 16 explicitly selected threads through an existing session's native owner. It returns the native thread status, active flags, and, when available, native goal status and counters. `goal_available=false` means the goal read failed; `goal_available=true` with `has_goal=false` means the owner reported no goal. An unavailable thread is not inferred to be idle or complete. The call does not control threads, enforce deadlines, verify cleanup, or establish billing, and it returns no goal text or transcript. The same verified-session or `web-console:read` authorization applies as for native usage.
+`SessionsService.ReadNativeThreadState` (CLI `web-console session native-thread-state`) observes up to 16 explicitly selected threads through an existing session's native owner. It returns the native thread status, active flags, and, when available, native goal status and counters. `goal_available=false` means the goal read failed; `goal_available=true` with `has_goal=false` means the owner reported no goal. An unavailable thread is not inferred to be idle or complete. A terminal Codex session that runs no app-server daemon (a fresh launch, or one reopened from the archive) has no live owner: each thread then reports status `unavailable`, and the goal comes from the goal store Codex keeps in the session's home (`goal_available=true`; `has_goal` and the counters as stored). Without a goal store the call fails as owner unavailable. The call does not control threads, enforce deadlines, verify cleanup, or establish billing, and it returns no goal text or transcript. The same verified-session or `web-console:read` authorization applies as for native usage.
 
 Managed sessions use the retained stdio owner with the captured session,
 generation and active/original thread binding. A missing or retiring managed

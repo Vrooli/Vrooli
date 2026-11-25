@@ -40,10 +40,18 @@ func (r *RemoteSpeechToText) Transcribe(ctx context.Context, audio []byte, opts 
 		SkipSpeakerVerification: opts.SkipSpeakerVerification,
 		InitialPrompt:           opts.InitialPrompt,
 	})
-	if r.Credentials != nil {
+	if opts.ModelID != "" {
+		req.Header().Set("X-Audio-Model-ID", opts.ModelID)
+	} else if r.Credentials != nil {
 		req = audiotools.AttachCredentials(req, r.Credentials(ctx))
 	}
-	resp, err := r.Client.STT.Transcribe(ctx, req)
+	if opts.ProviderTier != "" {
+		req.Header().Set("X-Audio-Provider-Tier", opts.ProviderTier)
+	}
+	if opts.ProviderID != "" {
+		req.Header().Set("X-Audio-Provider-ID", opts.ProviderID)
+	}
+	resp, err := r.Client.Clients().STT.Transcribe(ctx, req)
 	if err != nil {
 		if isTransportFailure(err) {
 			r.Client.HandleTransportFailure()

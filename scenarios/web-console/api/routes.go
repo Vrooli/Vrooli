@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	sttconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt/stt_v1connect"
 	"net/http"
 	"os"
 	"time"
@@ -103,6 +102,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/credentials/provision", s.credentialProvisionHandler).Methods(http.MethodPost)
 	s.router.HandleFunc("/api/v1/credentials/provision", s.credentialDeleteHandler).Methods(http.MethodDelete)
 	s.router.HandleFunc("/api/v1/credentials/test", s.credentialTestHandler).Methods(http.MethodPost)
+	s.router.HandleFunc("/api/v1/activation/status", s.activationStatusHandler).Methods(http.MethodGet)
 	s.router.HandleFunc("/api/v1/integrations/connections", s.connectionsHandler).Methods(http.MethodGet)
 	s.router.HandleFunc("/api/v1/commercial-context", s.commercialContextHandler).Methods(http.MethodGet)
 	s.router.Handle("/api/v1/internal/monetization/journey", monetization.JourneyModule{Deps: monetization.JourneyDeps{
@@ -137,7 +137,9 @@ func (s *Server) setupRoutes() {
 		AgentCheckpoints:    s.agentCheckpointStore,
 		Workspace:           s.workspace,
 		CopyCodexHome:       copyCodexHome,
+		CodexRootThread:     codexRootThread,
 		RemoveAgentHomes:    removeSessionAgentHomes,
+		AgentDaemons:        newSessionDaemons(resolveSessionStateRoot),
 		AgentHistoryPresent: archivedAgentHistoryPresent,
 		RetentionPolicy: func() sessionsH.ArchiveRetentionPolicy {
 			cfg := s.sessions.GetConfig()
@@ -159,8 +161,12 @@ func (s *Server) setupRoutes() {
 	sessionAdapter.RemovePaidCodingSession = activePaidCodingSessions.RemoveSession
 	s.lifecycleDelete = sessionAdapter.Delete
 	s.desktopCreateSession = sessionAdapter.Create
+	// A session whose terminal exits owns no agent runtime any more. The
+	// manager observes the exit; the adapter knows how to reach the daemon.
+	s.sessions.SetAgentDaemonStopper(sessionAdapter.StopAgentDaemon)
 	if s.sweeper != nil {
-		s.sweeper.SetArchiveHandler(sessionAdapter.Archive)
+		s.sweeper.SetArchiveHandler(sessionAdapter.ArchiveWithNote)
+		s.sweeper.SetIdleJudge(s.newSessionIdleJudge().judge)
 	}
 	sessionsH.Module(sessionAdapter, nil, mintSessionDelegation).Mount(s.router)
 	s.registerOwnerCleanupRoutes()
@@ -169,6 +175,15 @@ func (s *Server) setupRoutes() {
 	s.mountTargetCatalog()
 	s.mountMachines()
 	s.mountDevices()
+	// The browser WebSocket itself is same-origin. BAS issues its short-lived
+	// path-scoped Hub cookie only after validating the opaque role receipt; this
+	// proxy keeps that cookie and the discovered BAS origin on the server.
+	paneResolver := newWebConsoleBrowserPaneReceiptResolver(s.sessionStore)
+	s.router.Handle("/api/v1/browser/sessions/{sessionID}/stream", newBrowserStreamProxy(func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "browser-automation-studio")
+	}, paneResolver)).Methods(http.MethodGet)
+	s.router.HandleFunc("/api/v1/browser/pane/sessions", browserPaneSessionsHandler(paneResolver)).Methods(http.MethodPost)
+	s.router.HandleFunc("/api/v1/browser/pane/return", browserPaneReturnHandler(paneResolver)).Methods(http.MethodPost)
 	s.router.PathPrefix("/vrooli.device_control.v1.desktop.DesktopSessionService/").Handler(newDesktopProxy(func(ctx context.Context) (string, error) {
 		return discovery.ResolveScenarioURLDefault(ctx, "device-control")
 	}))
@@ -194,6 +209,23 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/approvals", approvals.handleList).Methods(http.MethodGet)
 	s.router.HandleFunc("/api/v1/approvals/answer", approvals.handleAnswer).Methods(http.MethodPost)
 	s.router.HandleFunc("/api/v1/approvals/{id}", approvals.handleGet).Methods(http.MethodGet)
+	// Staging uses the durable Deployment Manager release operation contract.
+	// Start remains a blocked decision until all server-owned release and
+	// admitted-compute facts exist; Resume delegates only an eligible persisted
+	// operation after a fresh read-back.
+	staging := newDeploymentStagingFacade(func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "deployment-manager")
+	}, func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "scenario-to-cloud")
+	})
+	s.router.HandleFunc("/api/v1/deployments/staging", staging.handleProfile).Methods(http.MethodGet)
+	s.router.HandleFunc("/api/v1/deployments/staging/start", staging.handleStart).Methods(http.MethodPost)
+	s.router.HandleFunc("/api/v1/deployments/staging/operations", staging.handleOperations).Methods(http.MethodGet)
+	s.router.HandleFunc("/api/v1/deployments/staging/operations/{operation_id}", staging.handleOperation).Methods(http.MethodGet)
+	s.router.HandleFunc("/api/v1/deployments/staging/operations/{operation_id}/resume", staging.handleResume).Methods(http.MethodPost)
+	s.router.HandleFunc("/api/v1/deployments/staging/operations/{operation_id}/recovery", staging.handleRecoveryStatus).Methods(http.MethodGet)
+	s.router.HandleFunc("/api/v1/deployments/staging/operations/{operation_id}/recovery/preview", staging.handleRecoveryPreview).Methods(http.MethodPost)
+	s.router.HandleFunc("/api/v1/deployments/staging/operations/{operation_id}/recovery/confirm", staging.handleRecoveryConfirm).Methods(http.MethodPost)
 	// Resolve a person-openable link to another scenario's interface, relative
 	// to the origin this browser used (tunnel subdomain when present, localhost
 	// otherwise). The Notifications tab uses it to link to Notification Hub.
@@ -240,12 +272,14 @@ func (s *Server) setupRoutes() {
 	metricsH.Module(&metricsH.Adapter{Metrics: s.metrics}, nil).Mount(s.router)
 	eventsH.Module(&eventsH.Adapter{Logger: s.events}, nil).Mount(s.router)
 	capabilitiesH.Module(&capabilitiesH.Adapter{
-		Registry:          s.capabilities,
-		BackendRegistry:   s.backendRegistry,
-		DefaultBackend:    func() string { return string(s.sessions.GetConfig().DefaultBackend) },
-		RemoteInstall:     s.installCapabilityRemote,
-		ReadAgentUpdate:   s.readAgentUpdate,
-		RunUpdateAction:   s.runAgentUpdateAction,
+		Registry:        s.capabilities,
+		BackendRegistry: s.backendRegistry,
+		DefaultBackend:  func() string { return string(s.sessions.GetConfig().DefaultBackend) },
+		RemoteInstall:   s.installCapabilityRemote,
+		ReadAgentUpdate: s.readAgentUpdate,
+		RunUpdateAction: func(ctx context.Context, targetID, agentID, action, cleanupPlanID, idempotencyKey string) (capabilitiesH.AgentUpdateActionResult, error) {
+			return s.runAgentUpdateAction(ctx, targetID, agentID, action, cleanupPlanID, idempotencyKey)
+		},
 		GuardUpdateAction: guardAgentUpdateAction,
 		ReadAgentUsage:    s.readAgentUsage,
 		ListHarnessesOn:   s.listHarnesses,
@@ -261,15 +295,12 @@ func (s *Server) setupRoutes() {
 		SummarizeConfig: s.summarizeConfigAdmin,
 	}).Mount(s.router)
 	audioRuntimeH.Module(audioRuntimeH.Deps{
-		STT:      s.sttPort,
-		TTS:      s.ttsPort,
-		Playback: s.playbackRecorder,
-		Summ:     s.summarizer,
+		STT:         s.sttPort,
+		TTS:         s.ttsPort,
+		Playback:    s.playbackRecorder,
+		Summ:        s.summarizer,
+		VoiceStream: newVoiceConnectProxy(s.audioToolsResolver),
 	}).Mount(s.router)
-
-	if s.audioToolsResolver != nil {
-		s.router.Handle(sttconnect.STTServiceTranscribeStreamProcedure, newVoiceConnectProxy(s.audioToolsResolver))
-	}
 	s.router.HandleFunc("/api/v1/events/stream", s.handleEventStream).Methods("GET")
 	hooksH.Module(hooksH.Deps{Stop: s.handleHookStop, PromptSubmit: s.handleHookPromptSubmit, Notification: s.handleHookNotification}).Mount(s.router)
 	s.registerTTSHookRoutes()

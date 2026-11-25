@@ -171,6 +171,18 @@ describe("messages reader", () => {
     expect(within(reader).getByTestId("messages-reader-body")).toHaveTextContent("alpha three.");
   });
 
+  it("shows the native occurrence time in the full reader", () => {
+    const archived = event("long", 2, LONG);
+    archived.source = "codex_archive";
+    archived.createdAt = "2026-10-15T12:00:00Z";
+    archived.occurredAt = "2026-09-02T09:05:00Z";
+    seed([archived]);
+    render(<MessagesPane {...props} />);
+    fireEvent.click(screen.getByTestId("msg-open-reader-long"));
+
+    expect(screen.getByTestId("reader-meta")).toHaveTextContent("Message · Sep 2");
+  });
+
   it("[REQ:P0-017d] finds in the message: highlights, counts, and steps through matches", async () => {
     render(<MessagesPane {...props} />);
     fireEvent.click(screen.getByTestId("msg-open-reader-long"));

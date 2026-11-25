@@ -304,3 +304,40 @@ func TestActivationEventsAreEmittedOnceAcrossRepeatedCalls(t *testing.T) {
 		t.Fatalf("event count = %d, want 1", got)
 	}
 }
+
+func TestActivationStatusReflectsPersistedEventsAndSameOrigin(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:activation-status-test?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := ensureActivationEvents(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	routed := database.NewFromPrimary(db)
+	server := &Server{db: routed, events: events.NewLogger(10)}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/activation/status", nil)
+	req.Header.Set("Origin", "http://example.com")
+	rec := httptest.NewRecorder()
+	server.activationStatusHandler(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"first_command_run":false`) {
+		t.Fatalf("initial status = %d %s", rec.Code, rec.Body.String())
+	}
+	server.emitActivationOnce(context.Background(), activationFirstCommandRun)
+	server.emitActivationOnce(context.Background(), activationFirstAICommand)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/activation/status", nil)
+	req.Header.Set("Origin", "http://example.com")
+	rec = httptest.NewRecorder()
+	server.activationStatusHandler(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"first_ai_command_accepted":true`) || !strings.Contains(rec.Body.String(), `"first_command_run":true`) {
+		t.Fatalf("persisted status = %d %s", rec.Code, rec.Body.String())
+	}
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/activation/status", nil)
+	req.Header.Set("Origin", "https://attacker.invalid")
+	rec = httptest.NewRecorder()
+	server.activationStatusHandler(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("cross-origin status = %d, want 403", rec.Code)
+	}
+}

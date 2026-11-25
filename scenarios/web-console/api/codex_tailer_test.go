@@ -10,15 +10,31 @@ import (
 	"testing"
 	"time"
 
-	"web-console/backends/codex"
 	"web-console/internal/ptyfake"
 	"web-console/session"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/cli-core/agenttranscript"
 
 	intevents "web-console/internal/events"
 	intmetrics "web-console/internal/metrics"
 )
+
+type rolloutFixture struct {
+	Timestamp string          `json:"timestamp"`
+	Type      string          `json:"type"`
+	Payload   json.RawMessage `json:"payload"`
+}
+
+type rolloutMessageFixture struct {
+	Role    string                  `json:"role"`
+	Content []rolloutContentFixture `json:"content"`
+}
+
+type rolloutContentFixture struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
+}
 
 func splitLines(data []byte) [][]byte {
 	raw := bytes.Split(data, []byte{'\n'})
@@ -39,7 +55,7 @@ func writeRolloutLine(t *testing.T, f *os.File, lineType string, payload interfa
 	if err != nil {
 		t.Fatal(err)
 	}
-	rl := codex.RolloutLine{
+	rl := rolloutFixture{
 		Timestamp: time.Now().Format(time.RFC3339),
 		Type:      lineType,
 		Payload:   json.RawMessage(payloadBytes),
@@ -120,7 +136,7 @@ func TestCodexTailer_ScanDetectsPerSessionRolloutFile(t *testing.T) {
 	ct.Stop()
 }
 
-func TestExtractAssistantText_Integration_NewLines(t *testing.T) {
+func TestSharedCodecReadsAssistantTextFromNewLines(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "rollout-integ.jsonl")
 	f, err := os.Create(path)
@@ -128,9 +144,9 @@ func TestExtractAssistantText_Integration_NewLines(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	writeRolloutLine(t, f, "response_item", codex.ResponsePayload{
+	writeRolloutLine(t, f, "response_item", rolloutMessageFixture{
 		Role:    "assistant",
-		Content: []codex.ContentItem{{Type: "output_text", Text: "TTS this"}},
+		Content: []rolloutContentFixture{{Type: "output_text", Text: "TTS this"}},
 	})
 	writeRolloutLine(t, f, "event_msg", map[string]string{"message": "ignore"})
 	f.Close()
@@ -142,8 +158,10 @@ func TestExtractAssistantText_Integration_NewLines(t *testing.T) {
 	lines := splitLines(data)
 	var texts []string
 	for _, line := range lines {
-		if txt := codex.ExtractAssistantText(line); txt != "" {
-			texts = append(texts, txt)
+		for _, message := range agenttranscript.ParseMessages(agenttranscript.HarnessCodex, line) {
+			if message.Role == "assistant" {
+				texts = append(texts, message.Text)
+			}
 		}
 	}
 	if len(texts) != 1 || texts[0] != "TTS this" {
@@ -174,9 +192,9 @@ func TestCodexTailer_E2E_RoutesToOwningSession(t *testing.T) {
 	ct.scanForNewFiles()
 	time.Sleep(200 * time.Millisecond)
 
-	writeRolloutLine(t, f, "response_item", codex.ResponsePayload{
+	writeRolloutLine(t, f, "response_item", rolloutMessageFixture{
 		Role:    "assistant",
-		Content: []codex.ContentItem{{Type: "output_text", Text: "Hello from the tailer"}},
+		Content: []rolloutContentFixture{{Type: "output_text", Text: "Hello from the tailer"}},
 	})
 	if err := f.Sync(); err != nil {
 		t.Fatal(err)
@@ -214,9 +232,9 @@ func TestCodexTailer_BackfillsExistingRolloutContentWithoutCheckpoint(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	writeRolloutLine(t, f, "response_item", codex.ResponsePayload{
+	writeRolloutLine(t, f, "response_item", rolloutMessageFixture{
 		Role:    "assistant",
-		Content: []codex.ContentItem{{Type: "output_text", Text: "Backfilled assistant message"}},
+		Content: []rolloutContentFixture{{Type: "output_text", Text: "Backfilled assistant message"}},
 	})
 	if err := f.Close(); err != nil {
 		t.Fatal(err)
@@ -249,9 +267,9 @@ func TestCodexTailer_ResumesFromCheckpointOffset(t *testing.T) {
 	}
 	defer f.Close()
 
-	writeRolloutLine(t, f, "response_item", codex.ResponsePayload{
+	writeRolloutLine(t, f, "response_item", rolloutMessageFixture{
 		Role:    "assistant",
-		Content: []codex.ContentItem{{Type: "output_text", Text: "Old assistant message"}},
+		Content: []rolloutContentFixture{{Type: "output_text", Text: "Old assistant message"}},
 	})
 	if err := f.Sync(); err != nil {
 		t.Fatal(err)
@@ -276,9 +294,9 @@ func TestCodexTailer_ResumesFromCheckpointOffset(t *testing.T) {
 
 	time.Sleep(200 * time.Millisecond)
 
-	writeRolloutLine(t, f, "response_item", codex.ResponsePayload{
+	writeRolloutLine(t, f, "response_item", rolloutMessageFixture{
 		Role:    "assistant",
-		Content: []codex.ContentItem{{Type: "output_text", Text: "New assistant message"}},
+		Content: []rolloutContentFixture{{Type: "output_text", Text: "New assistant message"}},
 	})
 	if err := f.Sync(); err != nil {
 		t.Fatal(err)

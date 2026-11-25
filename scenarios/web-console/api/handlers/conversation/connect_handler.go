@@ -13,8 +13,9 @@ import (
 
 // Deps wires the seams the Connect conversation handler needs.
 type Deps struct {
-	Service Service
-	Logger  *log.Logger
+	Service        Service
+	OptionalSearch OptionalSearchService
+	Logger         *log.Logger
 }
 
 type connectHandler struct {
@@ -138,7 +139,7 @@ func (h *connectHandler) Search(ctx context.Context, req *connect.Request[conver
 	for _, match := range result.Matches {
 		out = append(out, &conversationv1.SearchMatch{
 			EventId: match.EventID, Sequence: match.Sequence, Excerpt: match.Excerpt, Ranges: rangesToProto(match.Ranges),
-			Role: match.Role, CreatedAt: match.CreatedAt,
+			Role: match.Role, CreatedAt: match.CreatedAt, OccurredAt: match.OccurredAt,
 		})
 	}
 	return connect.NewResponse(&conversationv1.SearchResponse{Matches: out, Truncated: result.Truncated, TotalMatches: result.TotalMatches, Error: result.Error, HasMore: result.HasMore, NextAfterSequence: result.NextAfterSequence}), nil
@@ -167,13 +168,50 @@ func (h *connectHandler) SearchArchived(ctx context.Context, req *connect.Reques
 	for _, match := range result.Matches {
 		matches = append(matches, &conversationv1.ArchivedSearchMatch{
 			EventId: match.EventID, SessionId: match.SessionID, Sequence: match.Sequence,
-			Role: match.Role, CreatedAt: match.CreatedAt, Excerpt: match.Excerpt, Ranges: rangesToProto(match.Ranges),
+			Role: match.Role, CreatedAt: match.CreatedAt, OccurredAt: match.OccurredAt, Excerpt: match.Excerpt, Ranges: rangesToProto(match.Ranges),
 		})
 	}
 	return connect.NewResponse(&conversationv1.SearchArchivedResponse{
 		Matches: matches, Truncated: result.Truncated, TotalMatches: result.TotalMatches,
 		DistinctSessions: result.DistinctSessions, Error: result.Error,
 	}), nil
+}
+
+func (h *connectHandler) SearchSemantic(ctx context.Context, req *connect.Request[conversationv1.SearchSemanticRequest]) (*connect.Response[conversationv1.SearchSemanticResponse], error) {
+	query := strings.TrimSpace(req.Msg.GetQuery())
+	if query == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("query is required"))
+	}
+	if h.deps.OptionalSearch != nil {
+		response, err := h.deps.OptionalSearch.SearchSemantic(ctx, req.Msg)
+		if err != nil {
+			return nil, h.classify(err, "conversation.SearchSemantic")
+		}
+		return connect.NewResponse(response), nil
+	}
+	local, err := h.SearchArchived(ctx, connect.NewRequest(&conversationv1.SearchArchivedRequest{Query: query, Limit: req.Msg.GetLimit()}))
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&conversationv1.SearchSemanticResponse{
+		Local: local.Msg, SemanticError: "optional semantic search is unavailable",
+	}), nil
+}
+
+func (h *connectHandler) SearchNodeArchive(ctx context.Context, req *connect.Request[conversationv1.SearchNodeArchiveRequest]) (*connect.Response[conversationv1.SearchNodeArchiveResponse], error) {
+	if strings.TrimSpace(req.Msg.GetNodeId()) == "" || strings.TrimSpace(req.Msg.GetQuery()) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("node_id and query are required"))
+	}
+	if h.deps.OptionalSearch == nil {
+		return connect.NewResponse(&conversationv1.SearchNodeArchiveResponse{
+			NodeId: req.Msg.GetNodeId(), Degradation: "fleet archive search is unavailable",
+		}), nil
+	}
+	response, err := h.deps.OptionalSearch.SearchNodeArchive(ctx, req.Msg)
+	if err != nil {
+		return nil, h.classify(err, "conversation.SearchNodeArchive")
+	}
+	return connect.NewResponse(response), nil
 }
 
 func (h *connectHandler) GetRange(ctx context.Context, req *connect.Request[conversationv1.GetRangeRequest]) (*connect.Response[conversationv1.GetResponse], error) {
@@ -260,6 +298,7 @@ func eventToProto(e Event) *conversationv1.ConversationEvent {
 		OriginalSpeechParagraphs: append([]string(nil), e.OriginalSpeechParagraphs...),
 		Summarized:               e.Summarized,
 		CreatedAt:                e.CreatedAt,
+		OccurredAt:               e.OccurredAt,
 		Sequence:                 e.Sequence,
 		DeliveryState:            e.DeliveryState,
 		TtsState:                 e.TTSState,

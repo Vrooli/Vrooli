@@ -28,6 +28,7 @@ import type { SessionInfo } from "../api/sessions";
 import type { ConversationEvent } from "../api/conversation";
 import { useConversationStore, createConversationSessionState } from "../stores/useConversationStore";
 import { useMessagesViewStore } from "../stores/useMessagesViewStore";
+import { useHandoffRequestStore } from "../stores/useHandoffRequestStore";
 
 // [REQ:P0-001a] Responsive Pane Grid Layout — layout rendering
 // [REQ:P0-001b] Independent Pane Session Lifecycle — pane lifecycle
@@ -383,6 +384,7 @@ describe("Workspace", () => {
     mockStoreState.aiSuggestActive = false;
     mockStoreState.groups = [];
     mockStoreState.plusButtonBehavior = "launcher";
+    useHandoffRequestStore.setState({ request: null, nextId: 1 });
     mockStoreState.defaultHeaderColor = "transparent";
     mockStoreState.defaultThemeId = "default";
     mockStoreState.defaultFontSize = 14;
@@ -399,6 +401,14 @@ describe("Workspace", () => {
     mockStoreActions.setTabContextMenu = vi.fn((next: typeof mockStoreState.tabContextMenu) => {
       mockStoreState.tabContextMenu = next;
     });
+  });
+
+  it("opens the existing handoff composer for a context-controls request", async () => {
+    act(() => { useHandoffRequestStore.getState().open("pin-session", "Keep this operator stance exact"); });
+    render(<Workspace />);
+    await waitFor(() => expect(useHandoffRequestStore.getState().request).toBeNull());
+    expect(screen.getByTestId("handoff-composer")).toBeInTheDocument();
+    expect((screen.getByTestId("handoff-message") as HTMLTextAreaElement).value).toContain("Keep this operator stance exact");
   });
 
   afterEach(() => {
@@ -697,6 +707,28 @@ describe("Workspace", () => {
 
     fireEvent.click(screen.getByTestId("workspace-toggle-view"));
     expect(useMessagesViewStore.getState().viewModes[mockSession.id]).toBe("messages");
+  });
+
+  it("makes the browser a real view from the same pane action row", () => {
+    hookState.panes = [{ session: mockSession }];
+    mockStoreState.activePane = mockSession.id;
+    mockStoreState.displayMode = "tabs";
+    mockStoreState.panes = [{
+      sessionId: mockSession.id,
+      name: "/bin/bash",
+      headerColor: "transparent",
+      supportsMessagesView: true,
+    }];
+
+    render(<Workspace />);
+
+    const actions = screen.getByTestId("workspace-pane-actions");
+    expect(actions).toContainElement(screen.getByTestId("workspace-browser-view"));
+    expect(actions).toContainElement(screen.getByTestId("workspace-toggle-view"));
+    expect(screen.getByTestId("workspace-browser-view")).toHaveAttribute("data-rcl-tap-target", "comfortable");
+
+    fireEvent.click(screen.getByTestId("workspace-browser-view"));
+    expect(useMessagesViewStore.getState().viewModes[mockSession.id]).toBe("browser");
   });
 
   it("responds to a viewport resize while panes are mounted", () => {

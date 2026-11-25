@@ -22,6 +22,7 @@
     "only the read-only continuity integrity binding is called",
     "the program never applies reconciliation or reads raw transcript content",
     "output contains counts, bounded classifications, and opaque hashes only",
+    "owner error details are omitted so paths or private state cannot enter the envelope",
     "the envelope is printed exactly once"
   ],
   "bindings": [

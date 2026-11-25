@@ -80,6 +80,12 @@ func conversationAppendFailure(code, reason, source, sessionID string) Conversat
 // the conversation log is the source of truth and TTS is only one consumer.
 // Satisfies ConversationDispatcher.
 func (s *Server) AppendAssistant(ctx context.Context, responseText, targetSessionID, source string) ConversationAppendResult {
+	return s.AppendAssistantAt(ctx, responseText, targetSessionID, source, time.Time{})
+}
+
+// AppendAssistantAt preserves the provider-record time separately from local
+// event ingestion time for file-backed transcript sources.
+func (s *Server) AppendAssistantAt(ctx context.Context, responseText, targetSessionID, source string, occurredAt time.Time) ConversationAppendResult {
 	if strings.TrimSpace(targetSessionID) == "" {
 		result := conversationAppendFailure("conversation_target_missing", "No web-console terminal session was identified for this conversation event", source, "")
 		s.recordLastTTSRouting(result)
@@ -92,7 +98,7 @@ func (s *Server) AppendAssistant(ctx context.Context, responseText, targetSessio
 		return result
 	}
 
-	event, result := s.conversations.AppendAssistantEvent(ctx, targetSessionID, source, responseText)
+	event, result := s.conversations.AppendAssistantEventAt(ctx, targetSessionID, source, responseText, occurredAt)
 	if result.Appended && !result.Duplicate {
 		// Publish to the global event channel immediately so the text lands in
 		// every subscribed client with no delay — audio is handled separately
@@ -117,6 +123,12 @@ func (s *Server) AppendAssistant(ctx context.Context, responseText, targetSessio
 // session. No TTS routing is performed for user messages. Satisfies
 // ConversationDispatcher.
 func (s *Server) AppendUser(ctx context.Context, promptText, targetSessionID, source string) ConversationAppendResult {
+	return s.AppendUserAt(ctx, promptText, targetSessionID, source, time.Time{})
+}
+
+// AppendUserAt preserves the provider-record time separately from local event
+// ingestion time for file-backed transcript sources.
+func (s *Server) AppendUserAt(ctx context.Context, promptText, targetSessionID, source string, occurredAt time.Time) ConversationAppendResult {
 	if strings.TrimSpace(targetSessionID) == "" {
 		return conversationAppendFailure("conversation_target_missing", "No web-console terminal session was identified for this conversation event", source, "")
 	}
@@ -125,7 +137,7 @@ func (s *Server) AppendUser(ctx context.Context, promptText, targetSessionID, so
 		return conversationAppendFailure("conversation_target_missing", "The mapped terminal session is no longer available", source, targetSessionID)
 	}
 
-	event, result := s.conversations.AppendUserEvent(ctx, targetSessionID, source, promptText)
+	event, result := s.conversations.AppendUserEventAt(ctx, targetSessionID, source, promptText, occurredAt)
 	if result.Appended && !result.Duplicate {
 		s.publishConversationEvent(event)
 	}

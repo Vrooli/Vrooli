@@ -63,7 +63,7 @@ except Exception as exc:
     lower = text.lower()
     klass = "scenario_unreachable" if any(value in lower for value in ("unreachable", "connection refused", "not found")) else "binding_error"
     envelope["status"] = "unavailable" if klass == "scenario_unreachable" else "failed"
-    envelope["errors"].append({"class": klass, "detail": text[:240], "where": envelope["phase"]})
+    envelope["errors"].append({"class": klass, "detail": "integrity read failed; private state omitted", "where": envelope["phase"]})
 
 envelope["phase"] = "report"
 print(json.dumps(envelope, sort_keys=True, separators=(",", ":")))

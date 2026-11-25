@@ -70,6 +70,39 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 	return cliapp.RenderListReport(ctx.Stdout(), report)
 }
 
+func (h *handlers) searchArchived(ctx cliapp.RunContext) error {
+	query := ctx.Flag("query")
+	if query == "" {
+		return fmt.Errorf("--query is required")
+	}
+	limit := int64(20)
+	if raw := ctx.Flag("limit"); raw != "" {
+		parsed, err := strconv.ParseInt(raw, 10, 32)
+		if err != nil || parsed < 1 || parsed > 100 {
+			return fmt.Errorf("--limit must be between 1 and 100")
+		}
+		limit = parsed
+	}
+	response, err := h.client.SearchArchived(context.Background(), connect.NewRequest(&conversationv1.SearchArchivedRequest{
+		Query: query, AgentType: ctx.Flag("harness"), Role: ctx.Flag("role"), Limit: int32(limit),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("conversation search-archived", err, nil)
+	}
+	rows := make([]string, 0, len(response.Msg.GetMatches()))
+	for _, match := range response.Msg.GetMatches() {
+		rows = append(rows, fmt.Sprintf("%s %s [%s] %q", match.GetSessionId(), match.GetRole(), match.GetCreatedAt(), truncate(match.GetExcerpt(), 120)))
+	}
+	report := cliapp.ListReport{
+		Summary: []string{fmt.Sprintf("%d matches across %d sessions", response.Msg.GetTotalMatches(), response.Msg.GetDistinctSessions())},
+		ResultsHeading: "Archived conversations", Results: rows,
+	}
+	if ctx.JSON() {
+		return cliapp.PrintReportJSON(ctx.Stdout(), report)
+	}
+	return cliapp.RenderListReport(ctx.Stdout(), report)
+}
+
 // cursorPatchBody mirrors UpdateCursorRequest. Pointer fields toggle the
 // matching has_* flag server-side.
 type cursorPatchBody struct {

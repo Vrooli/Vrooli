@@ -1,6 +1,6 @@
 // Package tailer contains the shared lifecycle and cursor machinery for
-// append-only agent transcript adapters. Source implementations only own
-// discovery, line decoding, and agent metadata extraction.
+// append-only agent transcript adapters. Source implementations own native
+// discovery, record/document decoding, and agent metadata extraction.
 package tailer
 
 import (
@@ -30,11 +30,12 @@ type FileRef struct {
 type Event struct {
 	// Source optionally refines the capture classification; checkpoints remain
 	// owned by the engine's configured source. Dispatch validates refinements.
-	Source  string
-	Role    string
-	Text    string
-	Commit  bool
-	Ignored bool
+	Source     string
+	Role       string
+	Text       string
+	OccurredAt time.Time
+	Commit     bool
+	Ignored    bool
 }
 
 // Checkpoint is an opaque source cursor. Append-only JSONL sources normally
@@ -60,6 +61,38 @@ type Source interface {
 	DiscoverFiles(context.Context) ([]FileRef, error)
 	DecodeLine(path string, line []byte) ([]Event, error)
 	CaptureAgentInfo(path, sessionID string)
+}
+
+// PositionedLineSource receives the byte offset of a complete record in its
+// source file. Adapters use it when identical native records at different
+// positions must retain distinct stable identities.
+type PositionedLineSource interface {
+	DecodeLineAt(path string, line []byte, byteOffset int64) ([]Event, error)
+}
+
+// EOFRecordSource marks formats whose files contain one complete record with
+// no trailing newline. Sources must return false for an incomplete partial
+// write so the tailer rewinds and retries from the record boundary.
+type EOFRecordSource interface {
+	CompleteEOFLine(path string, line []byte) bool
+}
+
+// DocumentSource handles native archives stored as one complete structured
+// document rather than JSONL records. A false complete result leaves the
+// cursor unchanged so a writer's partial document can be retried.
+type DocumentSource interface {
+	HandlesDocument(path string) bool
+	DecodeDocument(path string, document []byte) (events []Event, complete bool, err error)
+}
+
+// SnapshotDocumentSource adapts a mutable, non-file transcript store such as
+// a SQLite database. Version must change when the logical snapshot changes;
+// ReadSnapshot returns one consistent serialized view. The ordinary source
+// path remains unchanged for immutable native document files.
+type SnapshotDocumentSource interface {
+	UsesSnapshot(path string) bool
+	SnapshotVersion(path string) (string, error)
+	ReadSnapshot(path string) ([]byte, string, error)
 }
 
 // Config controls one engine. Zero intervals use safe defaults.
@@ -151,6 +184,9 @@ func (e *Engine) Start() {
 	e.pollWG.Add(1)
 	go func() {
 		defer e.pollWG.Done()
+		// Start the initial backfill promptly; the interval throttles recurring
+		// discovery, not startup visibility of already-present history.
+		e.Scan(context.Background())
 		ticker := time.NewTicker(e.pollInterval)
 		defer ticker.Stop()
 		for {
@@ -276,6 +312,10 @@ func (e *Engine) capture(ref FileRef) {
 }
 
 func (e *Engine) tail(ref FileRef, key string, current *watcher, ready chan struct{}) {
+	if source, ok := e.source.(DocumentSource); ok && source.HandlesDocument(ref.Path) {
+		e.tailDocument(ref, key, current, ready, source)
+		return
+	}
 	defer e.tailWG.Done()
 	readySignaled := false
 	signalReady := func() {
@@ -319,20 +359,51 @@ func (e *Engine) tail(ref FileRef, key string, current *watcher, ready chan stru
 		for {
 			lineStart := currentOffset
 			line, readErr := reader.ReadBytes('\n')
+			completeEOFRecord := false
 			if readErr != nil {
 				if !errors.Is(readErr, io.EOF) {
 					e.printf("read %s: %v", ref.Path, readErr)
+					return processed
 				}
-				return processed
+				if len(line) == 0 {
+					return processed
+				}
+				if source, ok := e.source.(EOFRecordSource); ok && source.CompleteEOFLine(ref.Path, line) {
+					completeEOFRecord = true
+				} else {
+					// ReadBytes consumed the partial suffix from its buffer. Rewind
+					// so a later append can complete and decode the same record.
+					if _, seekErr := f.Seek(lineStart, io.SeekStart); seekErr != nil {
+						e.printf("rewind %s after incomplete record: %v", ref.Path, seekErr)
+						return processed
+					}
+					reader = bufio.NewReader(f)
+					return processed
+				}
 			}
 			processed = true
 			currentOffset += int64(len(line))
 			e.decodeMu.Lock()
-			events, decodeErr := e.source.DecodeLine(ref.Path, line)
+			var events []Event
+			var decodeErr error
+			if positioned, ok := e.source.(PositionedLineSource); ok {
+				events, decodeErr = positioned.DecodeLineAt(ref.Path, line, lineStart)
+			} else {
+				events, decodeErr = e.source.DecodeLine(ref.Path, line)
+			}
 			e.decodeMu.Unlock()
 			if decodeErr != nil {
 				e.printf("decode %s: %v", ref.Path, decodeErr)
-				continue
+				// Do not let a later valid record move the durable cursor past
+				// this undecodable record. Rewind and retry on the next poll so
+				// transient source/catalog changes can recover without data loss.
+				if _, seekErr := f.Seek(lineStart, io.SeekStart); seekErr != nil {
+					e.printf("rewind %s after decode failure: %v", ref.Path, seekErr)
+					return processed
+				}
+				reader = bufio.NewReader(f)
+				currentOffset = lineStart
+				return processed
 			}
 			commit := len(events) == 0
 			projectionOK := true
@@ -347,7 +418,15 @@ func (e *Engine) tail(ref FileRef, key string, current *watcher, ready chan stru
 				}
 			}
 			if commit && projectionOK {
-				e.save(key, ref.SessionID, currentOffset)
+				if !e.save(key, ref.SessionID, currentOffset) {
+					if _, seekErr := f.Seek(lineStart, io.SeekStart); seekErr != nil {
+						e.printf("rewind %s after checkpoint failure: %v", ref.Path, seekErr)
+						return processed
+					}
+					reader = bufio.NewReader(f)
+					currentOffset = lineStart
+					return processed
+				}
 			} else if !projectionOK {
 				// Dispatch consumed the decoded line but did not durably project
 				// it. Rewind both the file and buffered reader so a refresh can
@@ -360,11 +439,137 @@ func (e *Engine) tail(ref FileRef, key string, current *watcher, ready chan stru
 				currentOffset = lineStart
 				return processed
 			}
+			if completeEOFRecord {
+				return processed
+			}
 		}
 	}
 	process()
 	signalReady()
 
+	ticker := time.NewTicker(e.tailInterval)
+	defer ticker.Stop()
+	stale := time.NewTimer(e.staleTimeout)
+	defer stale.Stop()
+	for {
+		select {
+		case <-e.stopCh:
+			return
+		case <-current.stopCh:
+			return
+		case ack := <-current.refresh:
+			process()
+			close(ack)
+		case <-ticker.C:
+			if process() {
+				if !stale.Stop() {
+					select {
+					case <-stale.C:
+					default:
+					}
+				}
+				stale.Reset(e.staleTimeout)
+			}
+		case <-stale.C:
+			if _, statErr := os.Stat(ref.Path); statErr != nil {
+				return
+			}
+			stale.Reset(e.staleTimeout)
+		}
+	}
+}
+
+func (e *Engine) tailDocument(ref FileRef, key string, current *watcher, ready chan struct{}, source DocumentSource) {
+	defer e.tailWG.Done()
+	readySignaled := false
+	signalReady := func() {
+		if ready != nil && !readySignaled {
+			close(ready)
+			readySignaled = true
+		}
+	}
+	if ready != nil {
+		defer signalReady()
+	}
+	defer close(current.done)
+	defer func() {
+		e.mu.Lock()
+		if e.watchers[key] == current {
+			delete(e.watchers, key)
+		}
+		e.mu.Unlock()
+	}()
+	var cursor int64
+	var checkpointVersion string
+	if e.checkpoints != nil {
+		cp, ok, err := e.checkpoints.Get(context.Background(), e.name, key)
+		if err == nil && ok {
+			checkpointVersion = cp.Cursor
+			cursor, _ = strconv.ParseInt(cp.Cursor, 10, 64)
+		}
+	}
+	snapshotSource, supportsSnapshots := source.(SnapshotDocumentSource)
+	snapshots := supportsSnapshots && snapshotSource.UsesSnapshot(ref.Path)
+	process := func() bool {
+		var document []byte
+		version := ""
+		if snapshots {
+			before, err := snapshotSource.SnapshotVersion(ref.Path)
+			if err != nil || before == "" || before == checkpointVersion {
+				return false
+			}
+			document, version, err = snapshotSource.ReadSnapshot(ref.Path)
+			if err != nil || version == "" || version != before {
+				return false
+			}
+		} else {
+			before, err := os.Stat(ref.Path)
+			if err != nil || !before.Mode().IsRegular() || before.Size() <= cursor {
+				return false
+			}
+			document, err = os.ReadFile(ref.Path)
+			if err != nil {
+				e.printf("read document %s: %v", ref.Path, err)
+				return false
+			}
+			after, err := os.Stat(ref.Path)
+			if err != nil || before.Size() != after.Size() || !before.ModTime().Equal(after.ModTime()) || int64(len(document)) != after.Size() {
+				return false
+			}
+			version = strconv.FormatInt(int64(len(document)), 10)
+		}
+		e.decodeMu.Lock()
+		events, complete, decodeErr := source.DecodeDocument(ref.Path, document)
+		e.decodeMu.Unlock()
+		if decodeErr != nil {
+			e.printf("decode document %s: %v", ref.Path, decodeErr)
+			return false
+		}
+		if !complete {
+			return false
+		}
+		for _, event := range events {
+			if event.Ignored || event.Text == "" || e.dispatch == nil {
+				continue
+			}
+			if !e.dispatch(event, ref.SessionID) {
+				return false
+			}
+		}
+		if e.checkpoints != nil {
+			if err := e.checkpoints.Save(context.Background(), Checkpoint{Source: e.name, SourceKey: key, SessionID: ref.SessionID, Cursor: version, UpdatedAt: time.Now().UTC()}); err != nil {
+				e.printf("save document checkpoint %s: %v", ref.Path, err)
+				return false
+			}
+		}
+		checkpointVersion = version
+		if !snapshots {
+			cursor = int64(len(document))
+		}
+		return true
+	}
+	process()
+	signalReady()
 	ticker := time.NewTicker(e.tailInterval)
 	defer ticker.Stop()
 	stale := time.NewTimer(e.staleTimeout)
@@ -412,16 +617,18 @@ func (e *Engine) load(key string) int64 {
 	return parsed
 }
 
-func (e *Engine) save(key, sessionID string, offset int64) {
+func (e *Engine) save(key, sessionID string, offset int64) bool {
 	if e.checkpoints == nil {
-		return
+		return true
 	}
 	if err := e.checkpoints.Save(context.Background(), Checkpoint{
 		Source: e.name, SourceKey: key, SessionID: sessionID,
 		Cursor: strconv.FormatInt(offset, 10), UpdatedAt: time.Now().UTC(),
 	}); err != nil {
 		e.printf("save checkpoint %s: %v", key, err)
+		return false
 	}
+	return true
 }
 
 func (e *Engine) printf(format string, args ...any) {

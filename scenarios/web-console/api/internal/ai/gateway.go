@@ -11,6 +11,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/lpbsidentity"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
@@ -31,10 +32,11 @@ type GatewayProvider struct {
 	// Web Console task contract classifies user command input plus the session
 	// system/workspace context as confidential. Provider config supplies the
 	// user's source consent; PrivacySource names the data owner without content.
-	PrivacyClass  sharedv1.PrivacyClass
-	PrivacySource string
-	ResolveURL    func(context.Context) (string, error)
-	Client        *http.Client
+	PrivacyClass                     sharedv1.PrivacyClass
+	PrivacySource                    string
+	ResolveCreditCallerAuthorization func(context.Context) (string, error)
+	ResolveURL                       func(context.Context) (string, error)
+	Client                           *http.Client
 }
 
 func (g *GatewayProvider) Name() string { return g.ProviderName }
@@ -49,8 +51,18 @@ func (g *GatewayProvider) Generate(ctx context.Context, system, user string) (st
 	if profile == sharedv1.Profile_PROFILE_REMOTE_ONLY && !remotePrivacyClass(g.PrivacyClass) {
 		return "", errors.New("remote Web Console generation requires a sourced non-secret privacy classification")
 	}
-	if strings.EqualFold(strings.TrimSpace(g.Source), "vrooli-credits") && consumerToken(ctx) == "" {
-		return "", fmt.Errorf("%w: Vrooli credits require a signed-in subscription session", ErrCreditsRequired)
+	creditCallerToken := ""
+	if strings.EqualFold(strings.TrimSpace(g.Source), "vrooli-credits") {
+		if consumerToken(ctx) == "" {
+			return "", fmt.Errorf("%w: Vrooli credits require a signed-in subscription session", ErrCreditsRequired)
+		}
+		if g.ResolveCreditCallerAuthorization == nil {
+			return "", fmt.Errorf("%w: Vrooli credits require a configured Web Console service identity", ErrCreditsRequired)
+		}
+		creditCallerToken, err = g.ResolveCreditCallerAuthorization(ctx)
+		if err != nil || strings.TrimSpace(creditCallerToken) == "" {
+			return "", fmt.Errorf("%w: Web Console service identity is unavailable", ErrCreditsRequired)
+		}
 	}
 	resolve := g.ResolveURL
 	if resolve == nil {
@@ -77,6 +89,9 @@ func (g *GatewayProvider) Generate(ctx context.Context, system, user string) (st
 	}
 	if token := consumerToken(ctx); token != "" {
 		request.Header().Set("Authorization", "Bearer "+token)
+	}
+	if creditCallerToken != "" {
+		request.Header().Set(lpbsidentity.CreditCallerAuthorizationHeader, "Bearer "+strings.TrimSpace(creditCallerToken))
 	}
 	response, err := inferenceconnect.NewInferenceServiceClient(client, base).Run(ctx, request)
 	if err != nil {
@@ -132,12 +147,16 @@ func gatewaySourceProfile(source string) (sharedv1.Profile, error) {
 	}
 }
 
-func NewGatewayChain() *Chain {
+func NewGatewayChain(resolveCreditCallerAuthorization ...func(context.Context) (string, error)) *Chain {
+	var callerAuthorization func(context.Context) (string, error)
+	if len(resolveCreditCallerAuthorization) > 0 {
+		callerAuthorization = resolveCreditCallerAuthorization[0]
+	}
 	// Provider config owns the source consent and fallback order. Every attempt
 	// carries the same confidential classification and non-sensitive source.
 	return NewChain(
 		&GatewayProvider{Source: "local", ProviderName: "ollama", PrivacyClass: webConsolePrivacyClass, PrivacySource: webConsolePrivacySource},
 		&GatewayProvider{Source: "own-key", ProviderName: "openrouter", PrivacyClass: webConsolePrivacyClass, PrivacySource: webConsolePrivacySource},
-		&GatewayProvider{Source: "vrooli-credits", ProviderName: "vrooli", PrivacyClass: webConsolePrivacyClass, PrivacySource: webConsolePrivacySource},
+		&GatewayProvider{Source: "vrooli-credits", ProviderName: "vrooli", PrivacyClass: webConsolePrivacyClass, PrivacySource: webConsolePrivacySource, ResolveCreditCallerAuthorization: callerAuthorization},
 	)
 }

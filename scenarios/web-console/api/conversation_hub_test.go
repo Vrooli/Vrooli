@@ -1,6 +1,10 @@
 package main
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -151,6 +155,36 @@ func TestConversationHub_NoGapAtWindowBoundary(t *testing.T) {
 	}
 }
 
+func TestEventStreamRestartWithAheadCursorRequestsFullConversationResync(t *testing.T) {
+	hub := NewConversationHub()
+	hub.Publish(testEnvelope("session-published-after-restart"))
+	server := &Server{hub: hub}
+	ctx, cancel := context.WithCancel(context.Background())
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/events/stream", nil).WithContext(ctx)
+	request.Header.Set("Last-Event-ID", "5000")
+	writer := cancelOnFlush{ResponseRecorder: httptest.NewRecorder(), cancel: cancel}
+
+	server.handleEventStream(writer, request)
+
+	body := writer.Body.String()
+	if !strings.Contains(body, "event:"+HubKindConversationOutOfSync) {
+		t.Fatalf("stream body = %q, want conversation out-of-sync event", body)
+	}
+	if !strings.Contains(body, `"session_id":""`) {
+		t.Fatalf("stream body = %q, want empty session id to trigger a full conversation backfill", body)
+	}
+}
+
+type cancelOnFlush struct {
+	*httptest.ResponseRecorder
+	cancel context.CancelFunc
+}
+
+func (w cancelOnFlush) Flush() {
+	w.ResponseRecorder.Flush()
+	w.cancel()
+}
+
 func TestConversationHub_BackpressureDropsAndSignalsResync(t *testing.T) {
 	h := NewConversationHub()
 	sub, _, _ := h.Subscribe(0)
@@ -195,13 +229,15 @@ func TestPublishConversationEvent_MapsUpdateKind(t *testing.T) {
 	sub, _, _ := srv.hub.Subscribe(0)
 	defer srv.hub.Unsubscribe(sub)
 
+	occurredAt := time.Date(2026, 7, 22, 2, 36, 55, 108000000, time.UTC)
 	srv.publishConversationEvent(ConversationEvent{
-		SessionID: "s1",
-		Sequence:  3,
-		IsUpdate:  true,
-		Text:      "summarized",
-		Role:      ConversationRoleAssistant,
-		CreatedAt: time.Now().UTC(),
+		SessionID:  "s1",
+		Sequence:   3,
+		IsUpdate:   true,
+		Text:       "summarized",
+		Role:       ConversationRoleAssistant,
+		CreatedAt:  time.Now().UTC(),
+		OccurredAt: occurredAt,
 	})
 
 	select {
@@ -212,8 +248,12 @@ func TestPublishConversationEvent_MapsUpdateKind(t *testing.T) {
 		if env.SessionID != "s1" || env.Sequence != 3 {
 			t.Fatalf("unexpected envelope fields: %+v", env)
 		}
-		if _, ok := env.Payload.(conversationEventPayload); !ok {
+		payload, ok := env.Payload.(conversationEventPayload)
+		if !ok {
 			t.Fatalf("expected conversationEventPayload payload, got %T", env.Payload)
+		}
+		if payload.OccurredAt != formatOptionalOccurredAt(occurredAt) {
+			t.Fatalf("SSE occurredAt = %q, want %s", payload.OccurredAt, occurredAt.Format(time.RFC3339Nano))
 		}
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for published update event")

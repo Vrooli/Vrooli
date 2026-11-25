@@ -55,7 +55,10 @@ func (s *Server) handleEventStream(w http.ResponseWriter, r *http.Request) {
 	// sessions currently retained; if we can't determine any, send one nudge
 	// with an empty session id meaning "refetch everything".
 	if gap {
-		sessions := s.hub.RetainedSessionIDs()
+		var sessions []string
+		if !sub.resyncAll {
+			sessions = s.hub.RetainedSessionIDs()
+		}
 		if len(sessions) == 0 {
 			sessions = []string{""}
 		}

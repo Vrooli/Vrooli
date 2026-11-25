@@ -95,6 +95,42 @@ func TestSQLCopySession_PreservesHistoryStateAndSequence(t *testing.T) {
 	}
 }
 
+func TestSQLCopySessionKeepsEarlyReplacementOutputAfterCopiedHistory(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewSQLConversationRepository(db)
+	const oldID, newID = "recover-source", "replacement-pane"
+	appendCopyTestEvent(t, repo, oldID, "old-1", "prior user turn", ConversationRoleUser)
+	appendCopyTestEvent(t, repo, oldID, "old-2", "prior assistant turn", ConversationRoleAssistant)
+	appendCopyTestEvent(t, repo, newID, "new-1", "replacement pane started", ConversationRoleAssistant)
+
+	if err := repo.CopySession(context.Background(), oldID, newID); err != nil {
+		t.Fatalf("copy with early replacement output: %v", err)
+	}
+	state, err := repo.ListSession(context.Background(), newID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(state.Events) != 3 {
+		t.Fatalf("replacement history length = %d, want 3", len(state.Events))
+	}
+	want := []struct {
+		sequence int64
+		text     string
+	}{{1, "prior user turn"}, {2, "prior assistant turn"}, {3, "replacement pane started"}}
+	for i, expected := range want {
+		if state.Events[i].Sequence != expected.sequence || state.Events[i].Text != expected.text {
+			t.Errorf("event %d = seq %d text %q, want seq %d text %q", i, state.Events[i].Sequence, state.Events[i].Text, expected.sequence, expected.text)
+		}
+	}
+	next, err := repo.AppendEvent(context.Background(), ConversationEvent{ID: "new-2", SessionID: newID, Role: ConversationRoleAssistant, Text: "after recovery"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if next.Sequence != 4 {
+		t.Errorf("next replacement sequence = %d, want 4", next.Sequence)
+	}
+}
+
 func TestSQLCopySession_MissingSourceIsNoop(t *testing.T) {
 	db := setupTestDB(t)
 	repo := NewSQLConversationRepository(db)
@@ -133,6 +169,30 @@ func TestInMemoryCopySession_PreservesHistoryAndSequence(t *testing.T) {
 	}
 	if next.Sequence != 3 {
 		t.Errorf("next sequence after copy: got %d, want 3", next.Sequence)
+	}
+}
+
+func TestInMemoryCopySessionKeepsEarlyReplacementOutputAfterCopiedHistory(t *testing.T) {
+	repo := NewInMemoryConversationRepository()
+	const oldID, newID = "recover-source-memory", "replacement-memory"
+	appendCopyTestEvent(t, repo, oldID, "old-memory", "prior turn", ConversationRoleUser)
+	appendCopyTestEvent(t, repo, newID, "new-memory", "early replacement output", ConversationRoleAssistant)
+	if err := repo.CopySession(context.Background(), oldID, newID); err != nil {
+		t.Fatal(err)
+	}
+	state, err := repo.ListSession(context.Background(), newID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(state.Events) != 2 || state.Events[0].Sequence != 1 || state.Events[1].Sequence != 2 || state.Events[1].Text != "early replacement output" {
+		t.Fatalf("merged replacement history = %+v", state.Events)
+	}
+	next, err := repo.AppendEvent(context.Background(), ConversationEvent{ID: "after-memory", SessionID: newID, Role: ConversationRoleAssistant, Text: "after recovery"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if next.Sequence != 3 {
+		t.Errorf("next replacement sequence = %d, want 3", next.Sequence)
 	}
 }
 

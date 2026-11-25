@@ -5,6 +5,7 @@ export interface DesktopSessionTransport {
   open(request: unknown): Promise<DesktopSession>;
   attachViewer(request: unknown): Promise<DesktopSession>;
   takeControl(request: unknown): Promise<DesktopSession>;
+  releaseControl(request: unknown): Promise<DesktopSession>;
   signal(request: unknown): Promise<unknown>;
   input(request: unknown): Promise<unknown>;
   clipboard(request: unknown): Promise<unknown>;
@@ -36,6 +37,7 @@ export function createDesktopSessionTransport(baseUrl = ""): DesktopSessionTrans
     open: (request) => call("OpenSession", request),
     attachViewer: (request) => call("AttachViewer", request),
     takeControl: (request) => call("TakeControl", request),
+    releaseControl: (request) => call("ReleaseControl", request),
     signal: (request) => call("Signal", request),
     input: (request) => call("Input", request),
     clipboard: (request) => call("Clipboard", request),
@@ -73,6 +75,18 @@ export interface DesktopPeer {
   close(): void;
 }
 
+/** Keep transitional WebRTC states distinct from a lost transport in the pane. */
+export function projectDesktopPeerState(state: RTCPeerConnectionState): "connecting" | "connected" | "disconnected" | "failed" | "closed" {
+  switch (state) {
+    case "new":
+    case "connecting": return "connecting";
+    case "connected": return "connected";
+    case "disconnected": return "disconnected";
+    case "failed": return "failed";
+    case "closed": return "closed";
+  }
+}
+
 export interface DesktopIceRoute {
   url?: string;
   username?: string;
@@ -89,7 +103,7 @@ export function createDesktopPeer(onStream: (stream: MediaStream) => void, onIce
     const [stream] = event.streams;
     if (stream) onStream(stream);
   };
-  connection.onconnectionstatechange = () => onState?.(connection.connectionState);
+  connection.onconnectionstatechange = () => onState?.(projectDesktopPeerState(connection.connectionState));
   connection.ondatachannel = (event) => {
     if (event.channel.label !== "data") return;
     dataChannel = event.channel;

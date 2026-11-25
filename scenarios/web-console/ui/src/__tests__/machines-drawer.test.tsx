@@ -192,6 +192,7 @@ describe("machines surface", () => {
     expect(screen.getByTestId("machines-confirmation-words").textContent).toContain("amber");
     expect(screen.getByTestId("machines-key-fingerprint").textContent).toContain("ed25519");
     expect(screen.getByTestId("machines-words-match")).toBeTruthy();
+    expect(screen.getByTestId("machines-words-match").closest("[data-rcl-overlay-action-bar]")).toBeTruthy();
   });
 
   it("refuses to continue when the request carries no derived words", async () => {
@@ -309,6 +310,7 @@ describe("machines surface", () => {
     // carry the interface address, resolved against the caller's own origin.
     expect(link.getAttribute("href")).toBe("http://localhost:22054");
     expect(link.getAttribute("href")).not.toContain("18767");
+    expect(screen.getByTestId("machines-onboard-start").closest("[data-rcl-overlay-action-bar]")).toBeTruthy();
   });
 
   it("offers no handoff at all when the control plane interface cannot be located", async () => {

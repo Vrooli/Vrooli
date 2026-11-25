@@ -1,13 +1,48 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
 
 	"github.com/vrooli/api-core/targetmodel"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/shared"
 	sessionsH "web-console/handlers/sessions"
+	"web-console/internal/backend"
+	"web-console/internal/sessionstore"
+	"web-console/session"
 )
+
+func TestRemoteSessionKeepsTargetBindingWhenBridgeCatalogLosesNode(t *testing.T) {
+	store := sessionstore.NewInMemory()
+	if err := store.Save(context.Background(), sessionstore.Metadata{
+		ID: "session-1", Backend: backend.Remote, Origin: sessionstore.OriginRemote,
+		Owner: "target:bridge-node:node-a", DisplayLabel: "Build node A",
+	}); err != nil {
+		t.Fatalf("save session provenance: %v", err)
+	}
+	srv := &Server{
+		sessionStore:        store,
+		remoteTargetCatalog: func() []targetConnection { return nil },
+	}
+	current := &session.Session{ID: "session-1", Backend: backend.Remote}
+
+	projected := srv.managerRemoteSession(context.Background(), current)
+	if projected.ID != current.ID || projected.Owner != "target:bridge-node:node-a" || projected.DisplayLabel != "Build node A" {
+		t.Fatalf("session identity/provenance was lost: %+v", projected)
+	}
+	if projected.Target == nil || projected.Target.GetId() != "bridge-node:node-a" {
+		t.Fatalf("missing stable unavailable target binding: %v", projected.Target)
+	}
+	if projected.Target.GetDispatchable() || projected.Target.GetState() != sharedv1.TargetState_TARGET_STATE_UNAVAILABLE {
+		t.Fatalf("missing catalog target must be visibly unavailable: %v", projected.Target)
+	}
+	if !strings.Contains(targetText(projected.Target, "failure_rung"), "not present") ||
+		!strings.Contains(targetText(projected.Target, "recovery_action"), "Refresh the target catalog") {
+		t.Fatalf("missing target lacks clear recovery guidance: %v", projected.Target)
+	}
+}
 
 func TestLaunchCapabilityClassification(t *testing.T) {
 	for _, test := range []struct {

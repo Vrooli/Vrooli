@@ -2,6 +2,7 @@ import { useEffect, useState, type JSX } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Check, Copy, Loader2, Radio, Server, Wifi } from "lucide-react";
 import { Button } from "../ui/button";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
 import { strings } from "../../consts/strings";
 import { machineTestID } from "./testids";
 import type { IssuedCode, JoinRequest } from "../../api/machines";
@@ -427,19 +428,22 @@ export default function AddMachine({ requests, code, issuing, onIssueCode, onRev
 
       {door === "server" && (
         <footer className="shrink-0 border-t border-wc-default px-5 py-3">
-          <div className="mx-auto flex w-full max-w-2xl items-center justify-end gap-3">
+          <div className="mx-auto grid w-full max-w-2xl gap-2">
             {targetIncomplete && (
-              <span className="me-auto text-xs text-wc-text-faint">{t(strings.machines.onboardNeedsTarget)}</span>
+              <p className="text-xs text-wc-text-faint" role="status">{t(strings.machines.onboardNeedsTarget)}</p>
             )}
-            <Button
-              data-testid="machines-onboard-start"
-              disabled={targetIncomplete}
-              pending={onboardingBusy}
-              pendingLabel={t(strings.machines.onboardStarting)}
-              onClick={startOnboardingRun}
-            >
-              {t(strings.machines.onboardStart)}
-            </Button>
+            <OverlayActionBar
+              label={t(strings.machines.onboardStart)}
+              maxVisible={1}
+              actions={[{
+                id: "onboard-start",
+                label: onboardingBusy ? t(strings.machines.onboardStarting) : t(strings.machines.onboardStart),
+                onSelect: startOnboardingRun,
+                disabled: targetIncomplete || onboardingBusy,
+                primary: true,
+                testId: "machines-onboard-start",
+              }]}
+            />
           </div>
         </footer>
       )}

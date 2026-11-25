@@ -23,14 +23,17 @@ import (
 func TestAIProviderConfigStore_Defaults(t *testing.T) {
 	store := intai.NewMemConfigStore()
 	configs := store.GetConfigs(context.Background())
-	if len(configs) != 2 {
-		t.Fatalf("expected 2 providers, got %d", len(configs))
+	if len(configs) != 3 {
+		t.Fatalf("expected 3 providers, got %d", len(configs))
 	}
 	if configs[0].Name != "ollama" {
 		t.Errorf("expected first provider 'ollama', got %q", configs[0].Name)
 	}
 	if configs[1].Name != "openrouter" {
 		t.Errorf("expected second provider 'openrouter', got %q", configs[1].Name)
+	}
+	if configs[2].Name != "vrooli" || configs[2].Priority != 3 {
+		t.Errorf("expected third provider 'vrooli' at priority 3, got %+v", configs[2])
 	}
 	if !configs[0].Enabled || !configs[1].Enabled {
 		t.Error("expected both providers enabled by default")
@@ -139,11 +142,23 @@ func TestConnect_GetAIConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetConfig: %v", err)
 	}
-	if len(resp.Msg.GetProviders()) != 2 {
-		t.Errorf("expected 2 providers, got %d", len(resp.Msg.GetProviders()))
+	if len(resp.Msg.GetProviders()) != 3 {
+		t.Errorf("expected 3 providers, got %d", len(resp.Msg.GetProviders()))
 	}
-	if len(resp.Msg.GetHealth()) != 2 {
-		t.Errorf("expected 2 health entries, got %d", len(resp.Msg.GetHealth()))
+	if len(resp.Msg.GetProviders()) == 3 && (resp.Msg.GetProviders()[0].GetName() != "ollama" || resp.Msg.GetProviders()[1].GetName() != "openrouter" || resp.Msg.GetProviders()[2].GetName() != "vrooli") {
+		t.Errorf("provider order = %v, want ollama, openrouter, vrooli", resp.Msg.GetProviders())
+	}
+	if len(resp.Msg.GetHealth()) != 3 {
+		t.Errorf("expected 3 health entries, got %d", len(resp.Msg.GetHealth()))
+	}
+	if len(resp.Msg.GetHealth()) == 3 {
+		names := map[string]bool{}
+		for _, entry := range resp.Msg.GetHealth() {
+			names[entry.GetName()] = true
+		}
+		if !names["ollama"] || !names["openrouter"] || !names["vrooli"] {
+			t.Errorf("health names = %v, want ollama, openrouter, vrooli", names)
+		}
 	}
 }
 
@@ -216,8 +231,17 @@ func TestConnect_GetAIHealth(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetHealth: %v", err)
 	}
-	if len(resp.Msg.GetHealth()) != 2 {
-		t.Errorf("expected 2 health entries, got %d", len(resp.Msg.GetHealth()))
+	if len(resp.Msg.GetHealth()) != 3 {
+		t.Errorf("expected 3 health entries, got %d", len(resp.Msg.GetHealth()))
+	}
+	if len(resp.Msg.GetHealth()) == 3 {
+		names := map[string]bool{}
+		for _, entry := range resp.Msg.GetHealth() {
+			names[entry.GetName()] = true
+		}
+		if !names["ollama"] || !names["openrouter"] || !names["vrooli"] {
+			t.Errorf("health names = %v, want ollama, openrouter, vrooli", names)
+		}
 	}
 }
 

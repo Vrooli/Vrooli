@@ -17,12 +17,17 @@ export interface ParsedPolicySelection {
 }
 
 // CROSS-LANGUAGE COUPLING: Preset durations must match `presetDurations`
-// in api/session_policy.go. Adding/removing a preset requires updating both.
+// in api/internal/policy/policy.go, and idle durations must lie within its
+// idle bounds (15m to 168h). Adding/removing an option requires checking both.
 export const POLICY_OPTIONS: PolicyOption[] = [
   { mode: "never", label: "Never" },
   { mode: "preset", duration: "1h", label: "1 hour" },
   { mode: "preset", duration: "8h", label: "8 hours" },
   { mode: "preset", duration: "24h", label: "24 hours" },
+  // Archived once the agent has done no work for this long with no goal or
+  // turn running; reopen brings the conversation back.
+  { mode: "idle", duration: "6h", label: "When idle 6 hours" },
+  { mode: "idle", duration: "24h", label: "When idle 24 hours" },
 ];
 
 /** Converts a policy mode + duration into a string key for form controls. */
@@ -37,8 +42,8 @@ export function policyKey(mode: PolicyMode, duration?: string): string {
 export function parsePolicySelection(value: string): ParsedPolicySelection | null {
   if (value === "never") return { mode: "never" };
   const [mode, duration] = value.split(":", 2);
-  if (mode === "preset" && duration) {
-    return { mode: "preset", duration };
+  if ((mode === "preset" || mode === "idle") && duration) {
+    return { mode, duration };
   }
   return null;
 }

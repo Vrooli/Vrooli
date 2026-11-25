@@ -3,7 +3,11 @@ package main
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
+	"slices"
 	"testing"
+	"time"
 
 	"github.com/vrooli/cli-core/agentcatalog/harness"
 	"web-console/handlers/modelselection"
@@ -81,6 +85,101 @@ func TestContextLimitFollowsTheDescriptorsMechanism(t *testing.T) {
 			t.Errorf("got %q, want %q", got, tc.want)
 		}
 	}
+}
+
+func TestComposeAgentLaunchCarriesModelScopedLimitsForEveryVerifiedReader(t *testing.T) {
+	for _, tc := range []struct {
+		name, agent, resource, model, command, want string
+	}{
+		{"Claude statusline model", "claude", "claude-code", "sonnet", "claude", "CLAUDE_CODE_AUTO_COMPACT_WINDOW=300000 claude --model sonnet"},
+		{"Codex cache model", "codex", "codex", "gpt-6.1-terra", "codex", "codex -c model_auto_compact_token_limit=300000 -m gpt-6.1-terra"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			useRepoPolicy(t, tc.resource, nil)
+			if tc.agent == "claude" {
+				windows := filepath.Join(t.TempDir(), "claude-windows.json")
+				t.Setenv(harness.ModelWindowsEnv, windows)
+				if err := harness.RecordModelWindow(windows, "claude-sonnet-5-5", 1000000, time.Now()); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				home := t.TempDir()
+				t.Setenv("CODEX_HOME", home)
+				cache := `{"models":[{"slug":"gpt-6.1-terra","context_window":500000}]}`
+				if err := os.WriteFile(filepath.Join(home, "models_cache.json"), []byte(cache), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			choice := choiceNamed(t, (&Server{}).GetRoleModelChoices(t.Context(), tc.agent, "local", ""), tc.model)
+			if choice.ContextWindowTokens != 500000 && tc.agent == "codex" {
+				t.Fatalf("Codex context record = %+v", choice)
+			}
+			if choice.ContextWindowTokens != 1000000 && tc.agent == "claude" {
+				t.Fatalf("Claude context record = %+v", choice)
+			}
+			got, err := (&Server{}).composeAgentLaunch(t.Context(), sessionsH.AgentLaunch{AgentID: tc.agent, Model: choice.Model, ContextLimitTokens: 300000}, tc.command, "local")
+			if err != nil || got != tc.want {
+				t.Fatalf("launch = %q, %v; want %q from %s for model %s", got, err, tc.want, choice.ContextWindowSource, choice.Model)
+			}
+		})
+	}
+}
+
+func TestStaleAndUnknownWindowChoicesKeepTheirOwnLimitAndProvenance(t *testing.T) {
+	// A stale model catalogue and a missing context-window reader are separate
+	// facts. The former remains visible as stale; the latter stays unknown even
+	// when the harness can still apply one of its declared compaction limits.
+	t.Run("stale catalogue with verified reader", func(t *testing.T) {
+		useRepoPolicy(t, "claude-code", func(doc map[string]any) {
+			doc["provenance"].(map[string]any)["observed_at"] = "2020-01-01"
+		})
+		windows := filepath.Join(t.TempDir(), "windows.json")
+		t.Setenv(harness.ModelWindowsEnv, windows)
+		if err := harness.RecordModelWindow(windows, "claude-sonnet-5-5", 1_000_000, time.Now()); err != nil {
+			t.Fatal(err)
+		}
+
+		s := &Server{}
+		policy := s.GetRoleModelChoices(t.Context(), "claude", "local", "")
+		if !policy.CatalogStale {
+			t.Fatalf("fixture should produce a stale catalogue: %+v", policy)
+		}
+		choice := choiceNamed(t, policy, "sonnet")
+		if choice.ContextWindowTokens != 1_000_000 || choice.ContextWindowSource != harness.WindowSourceClaudeStatusline {
+			t.Fatalf("stale catalogue changed independent window provenance: %+v", choice)
+		}
+		got, err := s.composeAgentLaunch(t.Context(), sessionsH.AgentLaunch{AgentID: "claude", Model: choice.Model, ContextLimitTokens: 300_000}, "claude", "local")
+		want := "CLAUDE_CODE_AUTO_COMPACT_WINDOW=300000 claude --model sonnet"
+		if err != nil || got != want {
+			t.Fatalf("stale but still offered unmetered choice launch = %q, %v; want %q", got, err, want)
+		}
+		window, source := (serverCompactDriver{s: s}).modelWindow(t.Context(), "claude", choice.Model)
+		if window != choice.ContextWindowTokens || source != choice.ContextWindowSource {
+			t.Fatalf("meter disagrees with the model-choice record: %d from %q, choice %+v", window, source, choice)
+		}
+	})
+
+	t.Run("unknown reader", func(t *testing.T) {
+		useRepoPolicy(t, "claude-code", nil)
+		t.Setenv(harness.ModelWindowsEnv, filepath.Join(t.TempDir(), "absent-windows.json"))
+		s := &Server{}
+		choice := choiceNamed(t, s.GetRoleModelChoices(t.Context(), "claude", "local", ""), "sonnet")
+		if choice.ContextWindowTokens != 0 || choice.ContextWindowSource != "" {
+			t.Fatalf("absent reader must keep its window unknown: %+v", choice)
+		}
+		if !slices.Contains(choice.ContextLimitTokens, 300_000) {
+			t.Fatalf("unknown window lost harness-declared launch limits: %+v", choice)
+		}
+		got, err := s.composeAgentLaunch(t.Context(), sessionsH.AgentLaunch{AgentID: "claude", Model: choice.Model, ContextLimitTokens: 300_000}, "claude", "local")
+		want := "CLAUDE_CODE_AUTO_COMPACT_WINDOW=300000 claude --model sonnet"
+		if err != nil || got != want {
+			t.Fatalf("declared limit with unknown window = %q, %v; want %q", got, err, want)
+		}
+		window, source := (serverCompactDriver{s: s}).modelWindow(t.Context(), "claude", choice.Model)
+		if window != 0 || source != "unknown" {
+			t.Fatalf("meter guessed an unavailable reader: %d from %q", window, source)
+		}
+	})
 }
 
 func TestComposeAgentLaunchRefusesWhatTheCatalogDoesNotOffer(t *testing.T) {

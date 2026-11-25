@@ -32,7 +32,7 @@ describe("PaneSelectionLayer", () => {
       />,
     );
     const toggle = screen.getByTestId("ctx-mouse-mode");
-    expect(toggle).toHaveTextContent("Enable tmux mouse mode (this pane only)");
+    expect(toggle).toHaveTextContent("terminalContextMenu.enableMouseMode");
     toggle.click();
     expect(onToggle).toHaveBeenCalledWith(true);
   });

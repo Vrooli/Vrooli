@@ -348,13 +348,14 @@ type searchScope struct {
 }
 
 type searchHit struct {
-	id        string
-	sessionID string
-	sequence  int64
-	role      string
-	createdAt string
-	excerpt   string
-	ranges    []TextRange
+	id         string
+	sessionID  string
+	sequence   int64
+	role       string
+	createdAt  string
+	occurredAt string
+	excerpt    string
+	ranges     []TextRange
 }
 
 // searchEvents is the one search path: the FTS mirror narrows candidates when
@@ -374,15 +375,30 @@ func (r *SQLConversationRepository) searchEvents(ctx context.Context, scope sear
 		where = append(where, "e.role = ?")
 		args = append(args, q.Role)
 	}
+	// Text mode's FTS query is deliberately a prefix-token superset so exact
+	// substring and whole-word semantics can be applied in Go. Filter those
+	// candidates by the literal substring in SQL before LIMIT; otherwise a
+	// large number of newer token-level false positives can consume the scan
+	// cap and hide an older exact match. SQLite lower() is ASCII-only, so keep
+	// the Go matcher authoritative for non-ASCII case-insensitive queries.
+	if (q.Mode == "" || q.Mode == ConversationSearchText) && (q.CaseSensitive || asciiCaseFoldSafe(q.Query)) {
+		literal := strings.TrimSpace(q.Query)
+		if q.CaseSensitive {
+			where = append(where, "instr(e.text, ?) > 0")
+		} else {
+			where = append(where, "instr(lower(e.text), lower(?)) > 0")
+		}
+		args = append(args, literal)
+	}
 	var query string
 	if plan.fts != "" {
-		query = `SELECT e.id, e.session_id, e.sequence, e.role, e.created_at, e.text
+		query = `SELECT e.id, e.session_id, e.sequence, e.role, e.created_at, COALESCE(e.occurred_at, ''), e.text
 			FROM conversation_events_fts JOIN conversation_events e ON e.rowid = conversation_events_fts.rowid ` + scope.joins + `
 			WHERE conversation_events_fts MATCH ?` + andWhere(where) + `
 			ORDER BY ` + scope.ftsOrder + ` LIMIT ?`
 		args = append([]any{plan.fts}, args...)
 	} else {
-		query = `SELECT e.id, e.session_id, e.sequence, e.role, e.created_at, e.text
+		query = `SELECT e.id, e.session_id, e.sequence, e.role, e.created_at, COALESCE(e.occurred_at, ''), e.text
 			FROM conversation_events e ` + scope.joins + `
 			WHERE 1 = 1` + andWhere(where) + `
 			ORDER BY ` + scope.scanOrder + ` LIMIT ?`
@@ -402,7 +418,7 @@ func (r *SQLConversationRepository) searchEvents(ctx context.Context, scope sear
 		}
 		var hit searchHit
 		var text string
-		if err := rows.Scan(&hit.id, &hit.sessionID, &hit.sequence, &hit.role, &hit.createdAt, &text); err != nil {
+		if err := rows.Scan(&hit.id, &hit.sessionID, &hit.sequence, &hit.role, &hit.createdAt, &hit.occurredAt, &text); err != nil {
 			return nil, false, "", err
 		}
 		ranges := plan.match(text)
@@ -416,6 +432,20 @@ func (r *SQLConversationRepository) searchEvents(ctx context.Context, scope sear
 		return nil, false, "", err
 	}
 	return hits, capped, "", nil
+}
+
+func asciiCaseFoldSafe(value string) bool {
+	for _, r := range value {
+		if r > 0x7f {
+			return false
+		}
+		for folded := unicode.SimpleFold(r); folded != r; folded = unicode.SimpleFold(folded) {
+			if folded > 0x7f {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func andWhere(clauses []string) string {

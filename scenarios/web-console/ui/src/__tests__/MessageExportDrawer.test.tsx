@@ -79,6 +79,14 @@ describe("MessageExportDrawer", () => {
     expect(writeText.mock.calls[0]?.[0]).toContain("<conversation>");
   });
 
+  it("opens the handoff review with the exact formatted selection", () => {
+    const onHandoff = vi.fn();
+    render(<MessageExportDrawer open events={twoEvents()} onClose={onClose} onHandoff={onHandoff} />);
+    const preview = screen.getByTestId("msg-export-preview").textContent;
+    fireEvent.click(screen.getByTestId("msg-export-handoff"));
+    expect(onHandoff).toHaveBeenCalledWith(preview);
+  });
+
   it("shows an actionable, non-destructive error when the clipboard fails", async () => {
     writeText.mockRejectedValue(new Error("denied"));
     render(<MessageExportDrawer open events={twoEvents()} onClose={onClose} />);

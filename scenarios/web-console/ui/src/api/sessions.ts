@@ -17,7 +17,7 @@ export const sessionsClient = createClient(SessionsService, transport);
 // ---------------------------------------------------------------------------
 
 // [REQ:P1-001a] Expiration Policy types
-export type PolicyMode = "never" | "preset" | "custom";
+export type PolicyMode = "never" | "preset" | "custom" | "idle";
 
 export interface ExpirationPolicy {
   mode: PolicyMode;
@@ -135,6 +135,8 @@ export interface ArchivedSession {
   restore_state: ArchivedRestoreState;
   restore_state_reason?: string;
   awaiting_recovery?: boolean;
+  /** Why a policy archived the session (idle or expired); absent when manual. */
+  archive_note?: string;
 }
 
 export interface ArchiveRetentionSnapshot {
@@ -434,6 +436,7 @@ export async function listArchivedSessions(): Promise<{ sessions: ArchivedSessio
       restore_state: restoreStateName(session.restoreState),
       restore_state_reason: session.restoreStateReason || undefined,
       awaiting_recovery: session.awaitingRecovery,
+      archive_note: session.archiveNote || undefined,
     })),
     total: response.total,
   };

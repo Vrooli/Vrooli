@@ -2,12 +2,18 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
+	"web-console/backends/codex"
+	"web-console/internal/sessionstore"
 )
 
 type stateCaller func(context.Context, string, any, any) error
@@ -115,5 +121,58 @@ func TestNativeThreadStatesRequireExplicitGoalEnvelope(t *testing.T) {
 				t.Fatalf("unverified goal envelope became known absence: %+v", row)
 			}
 		})
+	}
+}
+
+// A Codex TUI without an app-server daemon (a fresh launch, or a lead reopened
+// from the archive) has no live owner for thread status, but the goal Codex
+// persisted is readable; thread status is never inferred.
+func TestTerminalCodexWithoutDaemonReportsStoredGoal(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("WC_SESSION_STATE_ROOT", root)
+	store := sessionstore.NewInMemory()
+	meta := sessionstore.Metadata{ID: uuid.NewString(), Status: sessionstore.StatusLive, AgentType: sessionstore.AgentCodex, LaunchMode: sessionstore.LaunchModeTerminalPTY}
+	if err := store.Save(t.Context(), meta); err != nil {
+		t.Fatal(err)
+	}
+	server := &Server{sessionStore: store}
+	lead, other := uuid.NewString(), uuid.NewString()
+	req := &sessionsv1.ReadNativeThreadStateRequest{SessionId: meta.ID, ThreadIds: []string{lead, other}}
+
+	if _, err := server.readSessionNativeThreadState(t.Context(), req); connect.CodeOf(err) != connect.CodeUnavailable {
+		t.Fatalf("no daemon and no goal store: err = %v, want unavailable", err)
+	}
+
+	home := codex.SessionHomePath(resolveSessionStateRoot(), meta.ID)
+	if err := os.MkdirAll(home, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("sqlite", "file:"+filepath.Join(home, "goals_1.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, stmt := range []string{
+		`CREATE TABLE thread_goals (thread_id TEXT PRIMARY KEY NOT NULL, goal_id TEXT NOT NULL, objective TEXT NOT NULL, status TEXT NOT NULL, token_budget INTEGER, tokens_used INTEGER NOT NULL DEFAULT 0, time_used_seconds INTEGER NOT NULL DEFAULT 0, created_at_ms INTEGER NOT NULL, updated_at_ms INTEGER NOT NULL)`,
+		`INSERT INTO thread_goals VALUES ('` + lead + `', 'g', 'objective', 'paused', NULL, 340295820, 86400, 0, 0)`,
+	} {
+		if _, err := db.Exec(stmt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	db.Close()
+
+	resp, err := server.readSessionNativeThreadState(t.Context(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := resp.GetThreads()
+	if len(rows) != 2 {
+		t.Fatalf("rows = %+v", rows)
+	}
+	if r := rows[0]; r.GetStatus() != "unavailable" || !r.GetGoalAvailable() || !r.GetHasGoal() || r.GetGoalStatus() != "paused" || r.GetTokensUsed() != 340295820 || r.GetTimeUsedSeconds() != 86400 {
+		t.Fatalf("lead row = %+v, want unavailable status with the stored paused goal", r)
+	}
+	if r := rows[1]; r.GetStatus() != "unavailable" || !r.GetGoalAvailable() || r.GetHasGoal() {
+		t.Fatalf("goal-less thread row = %+v, want no goal", r)
 	}
 }

@@ -117,6 +117,7 @@ func TestWebConsoleOfflineLeaseCannotGrantMeteredAI(t *testing.T) {
 		Source: "vrooli-credits", ProviderName: "vrooli",
 		PrivacyClass:  sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
 		PrivacySource: "web_console.user_command_and_session_context",
+		ResolveCreditCallerAuthorization: func(context.Context) (string, error) { return "web-console-service-token", nil },
 		ResolveURL: func(context.Context) (string, error) {
 			resolverCalls.Add(1)
 			return gatewayServer.URL, nil

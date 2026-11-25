@@ -13,8 +13,7 @@ metadata:
 # Web Console continuity usage
 
 Use local continuity when the goal is to recover a Web Console conversation.
-Start with `web-console continuity integrity --json` when metadata may be
-missing. Use `web-console continuity search <text> --state any --json` for
+When metadata may be missing, run `program-runtime library run web-console.continuity-integrity-audit`; it returns bounded counts and classifications without transcript text or filesystem paths. Use `web-console continuity search <text> --state any --json` for
 deterministic local retrieval; results remain available without Agent Manager,
 Search Hub, embeddings, or an LLM. Inspect the returned lifecycle state before
 choosing reopen or recovery.

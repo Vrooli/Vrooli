@@ -82,17 +82,22 @@ func (h *handlers) archiveRetention(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) archivePrune(ctx cliapp.RunContext) error {
-	apply := strings.EqualFold(ctx.Flag("apply"), "true")
+	apply := ctx.BoolFlag("apply")
 	resp, err := h.client.PruneArchive(context.Background(), connect.NewRequest(&sessionsv1.PruneArchiveRequest{Apply: apply}))
 	if err != nil {
 		return cliapp.WrapAPIError("prune archive", err, nil)
 	}
 	results := make([]string, 0, len(resp.Msg.GetActions())+1)
 	for _, action := range resp.Msg.GetActions() {
-		results = append(results, fmt.Sprintf("%s: %s (%d bytes, applied=%t)", action.GetSessionId(), action.GetKind(), action.GetBytes(), action.GetApplied()))
+		unit := "bytes"
+		if action.GetKind() == "agent_daemon" {
+			// A stopped daemon frees memory, not disk.
+			unit = "memory bytes"
+		}
+		results = append(results, fmt.Sprintf("%s: %s (%d %s, applied=%t)", action.GetSessionId(), action.GetKind(), action.GetBytes(), unit, action.GetApplied()))
 	}
 	if len(results) == 0 {
-		results = append(results, "No prune actions matched the configured policy")
+		results = append(results, "No prune actions matched: no retention rule applies and no archived or dismissed session has a running agent daemon")
 	}
 	report := cliapp.MutationReport{
 		Result: results,
@@ -319,7 +324,7 @@ func (h *handlers) archive(ctx cliapp.RunContext) error {
 	if _, err := h.client.Archive(context.Background(), req); err != nil {
 		return cliapp.WrapAPIError("session archive", err, nil)
 	}
-	r := cliapp.MutationReport{Result: []string{fmt.Sprintf("Archived session %s", id)}, NextCommand: []string{fmt.Sprintf("%s session list-archived", support.CLIName)}}
+	r := cliapp.MutationReport{Result: []string{fmt.Sprintf("Archived session %s", id)}, NextCommand: []string{fmt.Sprintf("%s session list-archived", support.CLIName), fmt.Sprintf("%s session reopen %s", support.CLIName, id)}}
 	if ctx.JSON() {
 		return cliapp.PrintReportJSON(ctx.Stdout(), r)
 	}
@@ -477,6 +482,24 @@ func (h *handlers) listRecoverable(ctx cliapp.RunContext) error {
 	return cliapp.RenderListReport(ctx.Stdout(), report)
 }
 
+func (h *handlers) listArchived(ctx cliapp.RunContext) error {
+	resp, err := h.client.ListArchived(context.Background(), connect.NewRequest(&sessionsv1.ListArchivedRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("session list-archived", err, nil)
+	}
+	rows := resp.Msg.GetSessions()
+	report := cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Archived sessions: %d", len(rows))},
+		ResultsHeading: "Archived (newest first)",
+		Results:        archivedRows(rows),
+		RetrievalHints: []string{fmt.Sprintf("%s session reopen <session-id>", support.CLIName)},
+	}
+	if ctx.JSON() {
+		return cliapp.PrintReportJSON(ctx.Stdout(), report)
+	}
+	return cliapp.RenderListReport(ctx.Stdout(), report)
+}
+
 func (h *handlers) recover(ctx cliapp.RunContext) error {
 	id := ctx.Positional("session-id")
 	if id == "" {
@@ -615,6 +638,30 @@ func recoverableRows(rows []*sessionsv1.RecoverableSession) []string {
 			support.FormatTime(r.GetOrphanedAt()),
 			flag,
 		))
+	}
+	return out
+}
+
+// archivedRows shows the full session id (reopen needs it) and, when a policy
+// archived the session, its note.
+func archivedRows(rows []*sessionsv1.ArchivedSession) []string {
+	if len(rows) == 0 {
+		return []string{"No archived sessions"}
+	}
+	out := make([]string, 0, len(rows))
+	for _, r := range rows {
+		restore := strings.ToLower(strings.TrimPrefix(r.GetRestoreState().String(), "ARCHIVE_RESTORE_STATE_"))
+		line := fmt.Sprintf("%s | %s | archived=%s | agent=%s | restore=%s",
+			r.GetId(),
+			defaultIfEmpty(r.GetPaneName(), "-"),
+			support.FormatTime(r.GetArchivedAt()),
+			defaultIfEmpty(r.GetAgentType(), "none"),
+			restore,
+		)
+		if note := strings.TrimSpace(r.GetArchiveNote()); note != "" {
+			line += " | " + note
+		}
+		out = append(out, line)
 	}
 	return out
 }

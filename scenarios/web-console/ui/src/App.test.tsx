@@ -53,6 +53,18 @@ describe("App bootstrap and top-level notices", () => {
     expect(document.documentElement.style.getPropertyValue("--wc-app-height")).not.toBe("");
   });
 
+  it("opens the reusable page identity tool from its deep link and returns to workspace", async () => {
+    fetchHealth.mockResolvedValue({ status: "ok" });
+    window.history.pushState({}, "", "/?ux=page-identity");
+    renderWithProviders(<App />);
+    expect(await screen.findByRole("heading", { name: "Page component identity" })).toBeInTheDocument();
+    expect(screen.queryByTestId("workspace-mock")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Return to workspace" }));
+    expect(await screen.findByTestId("workspace-mock")).toBeInTheDocument();
+    expect(window.location.search).toBe("");
+    window.history.replaceState({}, "", "/");
+  });
+
   it("stays quiet about unavailable audio until something asks for it", async () => {
     // The reader has not touched audio in this session. An optional
     // side-feature being down is not news on load — and because the

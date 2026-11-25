@@ -64,7 +64,7 @@ type agentUpdateReader interface {
 }
 
 type agentUpdateActionRunner interface {
-	RunAgentUpdateAction(ctx context.Context, targetID, agentID, action, cleanupPlanID string) (AgentUpdateActionResult, error)
+	RunAgentUpdateAction(ctx context.Context, targetID, agentID, action, cleanupPlanID, idempotencyKey string) (AgentUpdateActionResult, error)
 }
 
 type agentUsageReader interface {
@@ -148,7 +148,7 @@ func (h *connectHandler) RunAgentUpdateAction(ctx context.Context, req *connect.
 	if !ok {
 		return nil, connect.NewError(connect.CodeUnavailable, ErrUnavailable)
 	}
-	result, err := runner.RunAgentUpdateAction(ctx, req.Msg.GetTargetId(), req.Msg.GetAgentId(), req.Msg.GetAction(), req.Msg.GetCleanupPlanId())
+	result, err := runner.RunAgentUpdateAction(ctx, req.Msg.GetTargetId(), req.Msg.GetAgentId(), req.Msg.GetAction(), req.Msg.GetCleanupPlanId(), req.Msg.GetIdempotencyKey())
 	if err != nil {
 		return nil, connect.NewError(runActionCode(err), err)
 	}

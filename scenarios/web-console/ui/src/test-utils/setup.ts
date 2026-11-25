@@ -6,6 +6,7 @@ import { configureTestProviders } from "@vrooli/api-base/testing";
 import { I18nextProvider } from "react-i18next";
 import { createElement } from "react";
 import { FileViewerHost } from "../components/FileViewerHost";
+import { useFilePreviewStore } from "../stores/useFilePreviewStore";
 import { registerVoiceTransport as registerBrowserVoiceTransport } from "@vrooli/audio-capture-browser";
 
 configureTestProviders((children) => createElement(I18nextProvider, { i18n }, createElement(FileViewerHost, null, children)));
@@ -34,6 +35,7 @@ registerBrowserVoiceTransport({
 // process-wide one, so per-file overrides win.
 beforeEach(async () => {
   window.localStorage.clear();
+  useFilePreviewStore.setState({ request: null, width: 440 });
   await i18n.changeLanguage("cimode");
 });
 

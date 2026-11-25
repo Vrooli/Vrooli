@@ -87,7 +87,7 @@ func TestConnectRecoverMintsForMatchingVerifiedOwnerBeforeReplacementSpawn(t *te
 	}); err != nil {
 		t.Fatalf("save source agent identity: %v", err)
 	}
-	if err := store.MarkArchived(ctx, old.ID, time.Now().UTC()); err != nil {
+	if err := store.MarkArchived(ctx, old.ID, time.Now().UTC(), ""); err != nil {
 		t.Fatalf("archive source session: %v", err)
 	}
 	oldRow, err := store.Get(ctx, old.ID)
@@ -177,7 +177,7 @@ func TestRecoverDoesNotMintForMissingOrDifferentVerifiedOwner(t *testing.T) {
 			if err := store.UpdateAgentInfo(ownerCtx, old.ID, sessionstore.AgentInfo{AgentType: sessionstore.AgentCodex, AgentSessionID: "codex-session-1"}); err != nil {
 				t.Fatalf("save source agent identity: %v", err)
 			}
-			if err := store.MarkArchived(ownerCtx, old.ID, time.Now().UTC()); err != nil {
+			if err := store.MarkArchived(ownerCtx, old.ID, time.Now().UTC(), ""); err != nil {
 				t.Fatalf("archive source: %v", err)
 			}
 

@@ -70,6 +70,21 @@ export function estimateTokens(text: string): number {
 }
 
 /**
+ * Fits visible draft text under an approximate token budget without summarizing.
+ * The caller must disclose the omitted suffix and keep the original available
+ * for restore; this function only returns the explicit shortened draft.
+ */
+export function fitTextToTokenBudget(text: string, tokenBudget: number): { text: string; omittedCharacters: number } {
+  const safeBudget = Number.isFinite(tokenBudget) ? Math.max(0, Math.floor(tokenBudget)) : 0;
+  const maxCharacters = safeBudget * 4;
+  if (text.length <= maxCharacters) return { text, omittedCharacters: 0 };
+  let end = maxCharacters;
+  // Never leave a dangling UTF-16 high surrogate at the end of the draft.
+  if (end > 0 && /[\uD800-\uDBFF]/.test(text[end - 1] ?? "")) end -= 1;
+  return { text: text.slice(0, end), omittedCharacters: text.length - end };
+}
+
+/**
  * Normalizes an explicit selection: drops duplicate ids (first occurrence
  * wins), then orders strictly by ascending `sequence` regardless of the order
  * the navigator handed them over in. Never mutates the input array.

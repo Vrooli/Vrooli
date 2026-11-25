@@ -64,7 +64,7 @@ func (r *RemoteTTSConfigAdmin) GetTTSConfig(ctx context.Context) (TTSConfig, err
 	}
 	req := connect.NewRequest(&ttsv1.GetConfigRequest{})
 	r.attach(req, ctx)
-	resp, err := r.Client.TTS.GetConfig(ctx, req)
+	resp, err := r.Client.Clients().TTS.GetConfig(ctx, req)
 	if err != nil {
 		return TTSConfig{}, r.handleErr(err)
 	}
@@ -86,7 +86,7 @@ func (r *RemoteTTSConfigAdmin) UpdateTTSConfig(ctx context.Context, mask FieldMa
 		Config:     ttsConfigToProto(cfg),
 	})
 	r.attach(req, ctx)
-	resp, err := r.Client.TTS.UpdateConfig(ctx, req)
+	resp, err := r.Client.Clients().TTS.UpdateConfig(ctx, req)
 	if err != nil {
 		return TTSConfig{}, r.handleErr(err)
 	}

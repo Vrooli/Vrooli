@@ -98,14 +98,21 @@ type Adapter struct {
 	AgentCheckpoints    CodexCheckpoints
 	Workspace           intworkspace.Store
 	CopyCodexHome       func(oldID, newID string) error
+	// CodexRootThread resolves a recorded Codex thread to the root thread of
+	// its conversation in the session's home, so reopen resumes the lead's
+	// thread (and its goal) even when a sub-agent's rollout was recorded.
+	CodexRootThread     func(sessionID, threadID string) string
 	Logger              *log.Logger
 	AgentHistoryPresent func(sessionstore.Metadata) bool
 	RetentionPolicy     func() ArchiveRetentionPolicy
 	AgentHistorySize    func(sessionstore.Metadata) (int64, error)
 	PruneAgentHistory   func(sessionstore.Metadata) (int64, error)
 	RemoveAgentHomes    func(sessionID string) error
-	Now                 func() time.Time
-	Remote              RemoteService
+	// AgentDaemons stops the agent daemon a session's home leaves running when
+	// the session is archived, dismissed, pruned or deleted.
+	AgentDaemons AgentDaemonControl
+	Now          func() time.Time
+	Remote       RemoteService
 	// DelegationMinter, when set, mints and stores a short-lived, session-scoped
 	// human-owner delegation for a verified-human create or owner-matched
 	// recovery. The adapter invokes it through a pre-spawn hook after the fresh
@@ -254,6 +261,12 @@ func (a *Adapter) replayRecoverReceipt(ctx context.Context, oldID string) (Recov
 	}
 	if err != nil {
 		return RecoverResult{}, true, fmt.Errorf("read recover receipt: %v: %w", err, ErrInternal)
+	}
+	// A failed recovery is an outcome for one attempt, not a permanent
+	// refusal. Let Recover reach beginLifecycleReceipt, which reopens failed
+	// receipts for retry. Pending receipts still fence duplicate in-flight work.
+	if receipt.Status == "failed" {
+		return RecoverResult{}, false, nil
 	}
 	if receipt.Status != "succeeded" {
 		return RecoverResult{}, true, replayLifecycleResult(receipt, "recover")
@@ -526,16 +539,12 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 		return created, nil
 	}
 
-	var policyPtr *policy.Policy
-	if in.HasPolicy {
-		p := policy.Policy{
-			Mode:     policy.Mode(in.Policy.Mode),
-			Duration: in.Policy.Duration,
-		}
-		if err := policy.Validate(p); err != nil {
-			return Session{}, fmt.Errorf("%w: %s", ErrInvalidArgument, err.Error())
-		}
-		policyPtr = &p
+	// A session's policy is fixed at creation. This block only chooses the
+	// default a creator left unset: an explicit choice always wins.
+	origin := intsessions.NormalizeOrigin(in.Origin)
+	policyPtr, err := resolveCreatePolicy(in, origin)
+	if err != nil {
+		return Session{}, err
 	}
 
 	// Under a routed test lease, force a disposable shape: standard backend
@@ -563,7 +572,6 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 		defer deleteSessionRunIdentity(in.RequestedSessionID)
 	}
 	var sess *session.Session
-	var err error
 	if in.RequestedSessionID != "" {
 		manager, ok := a.Manager.(interface {
 			CreateWithIdentity(context.Context, string, uint16, uint16, backend.ID, *policy.Policy, string, bool, sessionstore.Metadata) (*session.Session, error)
@@ -600,7 +608,7 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 			CWD:               launchDir,
 			CreateFingerprint: fingerprint,
 			BusinessAccountID: in.BusinessAccountID,
-			Origin:            intsessions.NormalizeOrigin(in.Origin), Owner: in.Owner, DisplayLabel: in.DisplayLabel,
+			Origin:            origin, Owner: in.Owner, DisplayLabel: in.DisplayLabel,
 		}); err != nil {
 			return a.failCreateAfterPersistenceError(ctx, sess.ID, err)
 		}
@@ -624,7 +632,6 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 	// Provenance: an origin-less create can only be programmatic (every
 	// first-party UI client sets origin explicitly), so normalize before we
 	// persist and echo it back.
-	origin := intsessions.NormalizeOrigin(in.Origin)
 	owner, displayLabel := in.Owner, in.DisplayLabel
 	if isTestLease(ctx) {
 		// Stamp test provenance so a leaked session is identifiable and
@@ -671,6 +678,34 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 	created.CreateFingerprint = fingerprint
 	paidBindingCommitted = true
 	return created, nil
+}
+
+// resolveCreatePolicy picks the policy a new session starts under. A creator's
+// explicit choice always wins. Otherwise a machine-started agent session starts
+// under the idle policy, and everything else keeps the never-expire default.
+//
+// Idle is only assigned where it can actually fire: the sweeper decides idleness
+// from the agent's work record, so a programmatic bare shell — which has none —
+// would sit under a policy that could never archive it.
+//
+// The result is persisted with the session, so a later change to these defaults
+// never rewrites a session that already started.
+func resolveCreatePolicy(in CreateInput, origin sessionstore.Origin) (*policy.Policy, error) {
+	if in.HasPolicy {
+		p := policy.Policy{
+			Mode:     policy.Mode(in.Policy.Mode),
+			Duration: in.Policy.Duration,
+		}
+		if err := policy.Validate(p); err != nil {
+			return nil, fmt.Errorf("%w: %s", ErrInvalidArgument, err.Error())
+		}
+		return &p, nil
+	}
+	if origin == sessionstore.OriginProgrammatic && intsessions.NormalizeAgentType(in.AgentType) != sessionstore.AgentNone {
+		p := policy.ProgrammaticDefault()
+		return &p, nil
+	}
+	return nil, nil
 }
 
 // failCreateAfterPersistenceError makes a partially persisted create
@@ -834,6 +869,7 @@ func (a *Adapter) ListArchived(ctx context.Context) ([]ArchivedSession, error) {
 			CWD:              row.CWD,
 			MessageCount:     messageCount,
 			AwaitingRecovery: row.Status == sessionstore.StatusAwaitingRecovery,
+			ArchiveNote:      row.ArchiveNote,
 		}
 		entry.RestoreState, entry.RestoreStateReason = a.restoreState(row, messageCount)
 		if _, hasSessionRow := byID[row.ID]; !hasSessionRow {
@@ -863,6 +899,24 @@ func (a *Adapter) retentionPolicy() ArchiveRetentionPolicy {
 		return ArchiveRetentionPolicy{}
 	}
 	return a.RetentionPolicy()
+}
+
+// StopAgentDaemon stops the per-home agent daemon of a session that is no
+// longer in use. A failure is logged and never fails the lifecycle operation:
+// the transition already happened, and the next archive-prune or retention
+// cycle stops whatever is left.
+func (a *Adapter) StopAgentDaemon(ctx context.Context, id string) {
+	if a.AgentDaemons == nil {
+		return
+	}
+	usage, err := a.AgentDaemons.Stop(ctx, id)
+	if err != nil {
+		a.logger().Printf("agent daemon[%s]: stop failed: %v", sanitizeID(id), err)
+		return
+	}
+	if usage.Processes > 0 {
+		a.logger().Printf("agent daemon[%s]: stopped %d processes, %d bytes", sanitizeID(id), usage.Processes, usage.MemoryBytes)
+	}
 }
 
 func (a *Adapter) now() time.Time {
@@ -953,6 +1007,8 @@ func (a *Adapter) pruneAgentHistoryWithReceipt(ctx context.Context, candidate re
 	if a.PruneAgentHistory == nil {
 		return 0, fmt.Errorf("%w: agent-history prune is unavailable", ErrInternal)
 	}
+	// A home is never removed from under its running daemon.
+	a.StopAgentDaemon(ctx, candidate.meta.ID)
 	if a.LifecycleLedger == nil {
 		return a.PruneAgentHistory(candidate.meta)
 	}
@@ -997,6 +1053,11 @@ func (a *Adapter) PruneArchive(ctx context.Context, apply bool) (ArchivePruneRes
 	}
 	policy := a.retentionPolicy()
 	result := ArchivePruneResult{DryRun: !apply, Before: before, After: before}
+	daemonActions, err := a.retiredDaemonActions(ctx, apply)
+	if err != nil {
+		return ArchivePruneResult{}, err
+	}
+	result.Actions = append(result.Actions, daemonActions...)
 	now := a.now()
 	projectedBytes := before.TotalBytes
 
@@ -1049,6 +1110,56 @@ func (a *Adapter) PruneArchive(ctx context.Context, apply bool) (ArchivePruneRes
 		}
 	}
 	return result, nil
+}
+
+// retiredDaemonActions reconciles agent daemons left running by archived or
+// dismissed sessions. It is independent of the retention policy: a daemon with
+// no session using it is a leak, not retained data. Every session is re-read
+// before its daemon is stopped so a session unarchived since the scan is kept.
+func (a *Adapter) retiredDaemonActions(ctx context.Context, apply bool) ([]ArchivePruneAction, error) {
+	if a.AgentDaemons == nil || a.Store == nil {
+		return nil, nil
+	}
+	running, err := a.AgentDaemons.Running(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("%w: list agent daemons: %s", ErrInternal, err)
+	}
+	if len(running) == 0 {
+		return nil, nil
+	}
+	rows, err := a.Store.List(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("%w: list sessions for agent daemons: %s", ErrInternal, err)
+	}
+	var retired []string
+	for _, row := range rows {
+		if _, ok := running[row.ID]; ok && row.Retired() {
+			retired = append(retired, row.ID)
+		}
+	}
+	sort.Strings(retired)
+	var actions []ArchivePruneAction
+	var failures []error
+	for _, id := range retired {
+		action := ArchivePruneAction{SessionID: id, Kind: PruneAgentDaemon, Bytes: running[id].MemoryBytes}
+		if apply {
+			fresh, getErr := a.Store.Get(ctx, id)
+			if getErr != nil || !fresh.Retired() {
+				continue
+			}
+			usage, stopErr := a.AgentDaemons.Stop(ctx, id)
+			if stopErr != nil {
+				failures = append(failures, fmt.Errorf("%s: %w", sanitizeID(id), stopErr))
+				continue
+			}
+			action.Bytes, action.Applied = usage.MemoryBytes, true
+		}
+		actions = append(actions, action)
+	}
+	if len(failures) > 0 {
+		return nil, fmt.Errorf("%w: stop agent daemons: %v", ErrInternal, errors.Join(failures...))
+	}
+	return actions, nil
 }
 
 func (a *Adapter) restoreState(row sessionstore.Metadata, messageCount int64) (RestoreState, string) {
@@ -1229,6 +1340,10 @@ func (a *Adapter) Delete(ctx context.Context, id string) error {
 				return fmt.Errorf("delete agent checkpoint for %q: %v: %w", sanitizeID(id), err, ErrInternal)
 			}
 		}
+		// A deleted session's agent daemon has no session to belong to any
+		// more. Stop it before the home goes away so nothing keeps running
+		// from a directory that no longer exists.
+		a.StopAgentDaemon(ctx, id)
 		if a.RemoveAgentHomes != nil {
 			if err := a.RemoveAgentHomes(id); err != nil {
 				return fmt.Errorf("delete agent homes for %q: %v: %w", sanitizeID(id), err, ErrInternal)
@@ -1254,6 +1369,13 @@ func (a *Adapter) Delete(ctx context.Context, id string) error {
 // is intentionally separate from Delete, whose cascade remains the explicit
 // permanent-destruction path.
 func (a *Adapter) Archive(ctx context.Context, id string) error {
+	return a.ArchiveWithNote(ctx, id, "")
+}
+
+// ArchiveWithNote is Archive for a policy trigger: note records why the
+// session was archived and what it left (shown in the archive list). An empty
+// note is a manual archive.
+func (a *Adapter) ArchiveWithNote(ctx context.Context, id, note string) error {
 	receipt, replay, err := a.beginLifecycleReceipt(ctx, "archive", id, continuity.StateLive, continuity.StateArchived)
 	if err != nil {
 		return fmt.Errorf("begin archive receipt: %v: %w", err, ErrInternal)
@@ -1311,7 +1433,7 @@ func (a *Adapter) Archive(ctx context.Context, id string) error {
 		}
 	}
 	var operationErr error
-	if err := a.Store.MarkArchived(ctx, id, time.Now().UTC()); err != nil {
+	if err := a.Store.MarkArchived(ctx, id, time.Now().UTC(), note); err != nil {
 		operationErr = fmt.Errorf("mark archived: %v: %w", err, ErrInternal)
 	} else if err := a.updateCatalogLifecycle(ctx, id, continuity.StateArchived); err != nil {
 		operationErr = fmt.Errorf("mark continuity catalog archived: %v: %w", err, ErrInternal)
@@ -1334,6 +1456,11 @@ func (a *Adapter) Archive(ctx context.Context, id string) error {
 				}
 			}
 		}
+	}
+	if operationErr == nil {
+		// The terminal is stopped, so nothing uses the home's daemon any more.
+		// Reopen, unarchive and recovery start one again through Codex.
+		a.StopAgentDaemon(ctx, id)
 	}
 	return a.finishLifecycleResult(ctx, receipt, operationErr, "archive")
 }
@@ -1473,6 +1600,7 @@ func (a *Adapter) DismissRecoverable(ctx context.Context, id string) error {
 		opErr := fmt.Errorf("dismiss continuity catalog %q: %v: %w", sanitizeID(id), err, ErrInternal)
 		return a.finishLifecycleResult(ctx, receipt, opErr, "dismiss")
 	}
+	a.StopAgentDaemon(ctx, id)
 	return a.finishLifecycleResult(ctx, receipt, nil, "dismiss")
 }
 
@@ -1584,6 +1712,9 @@ func (a *Adapter) Recover(ctx context.Context, in RecoverInput) (res RecoverResu
 		"agent":     string(old.AgentType),
 	})
 
+	if old.AgentType == sessionstore.AgentCodex && a.CodexRootThread != nil {
+		old.AgentSessionID = a.CodexRootThread(oldID, old.AgentSessionID)
+	}
 	codexHomeCopied := false
 	if old.AgentType == sessionstore.AgentCodex && a.CopyCodexHome != nil {
 		if err := a.CopyCodexHome(oldID, newSess.ID); err != nil {

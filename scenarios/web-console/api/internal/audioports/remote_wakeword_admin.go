@@ -63,7 +63,7 @@ func (r *RemoteWakeWordAdmin) GetWakeWordConfig(ctx context.Context) (WakeWordCo
 	}
 	req := connect.NewRequest(&sttv1.GetWakeWordConfigRequest{})
 	r.attach(req, ctx)
-	resp, err := r.Client.STTAdmin.GetWakeWordConfig(ctx, req)
+	resp, err := r.Client.Clients().STTAdmin.GetWakeWordConfig(ctx, req)
 	if err != nil {
 		return WakeWordConfig{}, r.handleErr(err)
 	}
@@ -81,7 +81,7 @@ func (r *RemoteWakeWordAdmin) UpdateWakeWordTemplate(ctx context.Context, t Wake
 		Template: wakeWordTemplateToProto(&t),
 	})
 	r.attach(req, ctx)
-	resp, err := r.Client.STTAdmin.UpdateWakeWordTemplate(ctx, req)
+	resp, err := r.Client.Clients().STTAdmin.UpdateWakeWordTemplate(ctx, req)
 	if err != nil {
 		return WakeWordConfig{}, r.handleErr(err)
 	}
@@ -97,7 +97,7 @@ func (r *RemoteWakeWordAdmin) DeleteWakeWordTemplate(ctx context.Context) (WakeW
 	}
 	req := connect.NewRequest(&sttv1.DeleteWakeWordTemplateRequest{})
 	r.attach(req, ctx)
-	resp, err := r.Client.STTAdmin.DeleteWakeWordTemplate(ctx, req)
+	resp, err := r.Client.Clients().STTAdmin.DeleteWakeWordTemplate(ctx, req)
 	if err != nil {
 		return WakeWordConfig{}, r.handleErr(err)
 	}

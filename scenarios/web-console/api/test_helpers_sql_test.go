@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"os"
 	"os/exec"
@@ -38,6 +39,9 @@ func setupTestDB(t *testing.T) *sql.DB {
 	}
 	if _, err := db.Exec(string(schema)); err != nil {
 		t.Fatalf("exec schema.sql: %v", err)
+	}
+	if err := ensureNativeEventIdentityIndex(context.Background(), db); err != nil {
+		t.Fatalf("ensure native identity test index: %v", err)
 	}
 
 	// Load and execute seed

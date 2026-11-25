@@ -44,16 +44,50 @@ func (s *Server) readSessionNativeThreadState(ctx context.Context, req *sessions
 		}
 		return nativeThreadStatesProto(states), nil
 	}
-	path := filepath.Join(codex.SessionHomePath(resolveSessionStateRoot(), req.GetSessionId()), "app-server-control", "app-server-control.sock")
+	home := codex.SessionHomePath(resolveSessionStateRoot(), req.GetSessionId())
+	path := filepath.Join(home, "app-server-control", "app-server-control.sock")
 	if info, err := os.Stat(path); err != nil || info.Mode()&os.ModeSocket == 0 {
-		return nil, connect.NewError(connect.CodeUnavailable, errors.New("native session owner unavailable"))
+		return storedNativeThreadStates(ctx, meta, home, req.GetThreadIds())
 	}
 	client, err := codex.DialSessionDaemon(ctx, path)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnavailable, errors.New("native session owner unavailable"))
+		return storedNativeThreadStates(ctx, meta, home, req.GetThreadIds())
 	}
 	defer client.Close()
 	return readNativeThreadStates(ctx, client, req.GetThreadIds()), nil
+}
+
+// storedNativeThreadStates answers for a Codex TUI that runs no app-server
+// daemon (a fresh launch, or a session reopened from the archive): nothing
+// live can report thread status, so each thread stays "unavailable", but the
+// goal Codex persisted in the session's goal store is returned, so a reopened
+// lead's goal is readable. Without a goal store the owner is unavailable, as
+// before.
+func storedNativeThreadStates(ctx context.Context, meta sessionstore.Metadata, home string, ids []string) (*sessionsv1.ReadNativeThreadStateResponse, error) {
+	unavailable := connect.NewError(connect.CodeUnavailable, errors.New("native session owner unavailable"))
+	if meta.AgentType != sessionstore.AgentCodex {
+		return nil, unavailable
+	}
+	if _, err := os.Stat(filepath.Join(home, "goals_1.sqlite")); err != nil {
+		return nil, unavailable
+	}
+	goals, err := codex.ReadHomeGoals(ctx, home)
+	if err != nil {
+		return nil, unavailable
+	}
+	byThread := make(map[string]codex.HomeGoal, len(goals))
+	for _, goal := range goals {
+		byThread[goal.ThreadID] = goal
+	}
+	states := make([]codex.NativeThreadState, 0, len(ids))
+	for _, id := range ids {
+		state := codex.NativeThreadState{ThreadID: id, Status: "unavailable", GoalAvailable: true}
+		if goal, ok := byThread[id]; ok {
+			state.Goal = goal.NativeGoal()
+		}
+		states = append(states, state)
+	}
+	return nativeThreadStatesProto(states), nil
 }
 
 func readNativeThreadStates(ctx context.Context, client nativeThreadCaller, ids []string) *sessionsv1.ReadNativeThreadStateResponse {

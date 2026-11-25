@@ -83,27 +83,28 @@ func codexModeSettings() (usagemode.RunnerSettings, bool) {
 }
 
 // codexCreateDescriptor is the descriptor a new session launches with. An
-// active mode fills an empty model (an explicit choice always wins) and only
-// when it would lower the harness's own default. Create stores this descriptor,
-// so a later Recover replays exactly what the thread started on.
+// active mode fills missing defaults for a new session; explicit controls and
+// choices always win. Create persists this effective descriptor so a later
+// Recover replays the same settings even if the active mode changes.
 func codexCreateDescriptor(d sessionstore.LaunchDescriptor) sessionstore.LaunchDescriptor {
-	if d.ControlsVersion == 1 || strings.TrimSpace(d.Model) != "" {
+	if d.ControlsVersion == 1 {
 		return d
 	}
-	if settings, ok := codexModeSettings(); ok && usagemode.SessionModelAllowed("codex", settings) {
-		d.Model = settings.SessionModel
+	if settings, ok := codexModeSettings(); ok {
+		if strings.TrimSpace(d.Model) == "" && usagemode.SessionModelAllowed("codex", settings) {
+			d.Model = settings.SessionModel
+		}
+		if d.ContextLimitTokens == 0 && settings.ContextLimitTokens > 0 {
+			d.ContextLimitTokens = settings.ContextLimitTokens
+		}
 	}
 	return d
 }
 
-// codexCreateArgs are the arguments for a brand-new session: the descriptor
-// with the mode's model, plus the mode's context limit for this launch.
+// codexCreateArgs are the arguments for a brand-new session after filling its
+// descriptor from the active mode.
 func codexCreateArgs(d sessionstore.LaunchDescriptor) []string {
-	args := codexLaunchArgs(codexCreateDescriptor(d))
-	if settings, ok := codexModeSettings(); ok && d.ControlsVersion == 0 && d.ContextLimitTokens == 0 && settings.ContextLimitTokens > 0 {
-		args = append(args, "-c", fmt.Sprintf("model_auto_compact_token_limit=%d", settings.ContextLimitTokens))
-	}
-	return args
+	return codexLaunchArgs(codexCreateDescriptor(d))
 }
 
 func codexLaunchEnv(d sessionstore.LaunchDescriptor) []string {
@@ -222,12 +223,13 @@ func (r *managedCodexRegistry) Create(ctx context.Context, in sessionsH.CreateIn
 	if start == nil {
 		return sessionsH.Session{}, fmt.Errorf("managed Codex owner starter is not configured")
 	}
-	// Only a new session takes the current mode; the effective model is stored so
-	// recovery replays it.
-	if launch := codexCreateDescriptor(d); launch.Model != d.Model {
-		if stored, marshalErr := json.Marshal(launch); marshalErr == nil {
-			raw = string(stored)
-		}
+	// Snapshot the current mode once. The serialized descriptor and process
+	// arguments must describe the same launch even if the mode changes mid-create.
+	effectiveDescriptor := codexCreateDescriptor(d)
+	if stored, marshalErr := json.Marshal(effectiveDescriptor); marshalErr == nil {
+		raw = string(stored)
+	} else {
+		return sessionsH.Session{}, fmt.Errorf("persist effective Codex launch descriptor: %w", marshalErr)
 	}
 	launchEnv := codexLaunchEnv(d)
 	if in.AgentRunIdentityToken != "" {
@@ -237,7 +239,7 @@ func (r *managedCodexRegistry) Create(ctx context.Context, in sessionsH.CreateIn
 		}
 		launchEnv = append(launchEnv, "VROOLI_AGENT_IDENTITY_TOKEN="+token)
 	}
-	owner, err := start(ctx, executable, ownerID, "web-console", "1.0.0", cwd, launchEnv, codexCreateArgs(d))
+	owner, err := start(ctx, executable, ownerID, "web-console", "1.0.0", cwd, launchEnv, codexLaunchArgs(effectiveDescriptor))
 	if err != nil {
 		return sessionsH.Session{}, fmt.Errorf("start managed Codex: %w", err)
 	}

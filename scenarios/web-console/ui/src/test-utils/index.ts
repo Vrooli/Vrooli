@@ -13,6 +13,7 @@ export {
 } from "./mocks";
 export type { MockTerminal, TerminalStub } from "./mocks";
 export { createTestQueryClient } from "@vrooli/api-base/testing";
+export { chooseOption } from "@vrooli/api-base/testing";
 export { renderWithProviders } from "./renderWithProviders";
 export { setViewportWidth, setDesktopViewport, setMobileViewport } from "./viewport";
 export { expectNoA11yViolations } from "@vrooli/api-base/testing";

@@ -178,7 +178,7 @@ every capability working. Design record:
 - Session lifecycle endpoints for create/list/delete/inspect.
 - WebSocket streaming for terminal IO.
 - SQLite-backed transcript and session persistence.
-- Session policy controls (never/preset/custom expiration).
+- Session policy controls (never/preset/custom expiration, or archive when idle).
 - AI provider orchestration endpoint with fallback policy.
 
 ### UI Layer (Vite + xterm.js)

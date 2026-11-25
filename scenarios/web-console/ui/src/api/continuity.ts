@@ -25,6 +25,7 @@ export interface ContinuitySearchMatch {
   sequence: number;
   role: string;
   createdAt: string;
+  occurredAt?: string;
   excerpt: string;
   lifecycleState: string;
 }
@@ -99,6 +100,9 @@ export async function searchLocalContinuity(
       sequence: Number(match.sequence),
       role: match.role,
       createdAt: match.createdAt,
+      ...((match as typeof match & { occurredAt?: string }).occurredAt
+        ? { occurredAt: (match as typeof match & { occurredAt?: string }).occurredAt }
+        : {}),
       excerpt: match.excerpt,
       lifecycleState: match.lifecycleState,
     })),

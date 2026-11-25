@@ -1,6 +1,7 @@
 package capabilities
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -273,7 +274,16 @@ type waitPayload struct {
 
 func lifecycleSuccess(req LifecycleActionRequest, wait CommandResult) LifecycleActionResult {
 	payload := waitPayload{Success: wait.ExitCode == 0}
-	_ = json.Unmarshal(wait.Stdout, &payload)
+	trimmed := bytes.TrimSpace(wait.Stdout)
+	if len(trimmed) == 0 || trimmed[0] != '{' || json.Unmarshal(trimmed, &payload) != nil {
+		return LifecycleActionResult{
+			Success:      false,
+			Status:       InstallStatusUnconfirmed,
+			Message:      "lifecycle command completed, but its result could not be read; success is unconfirmed",
+			CapabilityID: req.CapabilityID,
+			ActionKind:   req.ActionKind,
+		}
+	}
 	status := strings.TrimSpace(payload.Verdict)
 	if status == "" {
 		status = "completed"

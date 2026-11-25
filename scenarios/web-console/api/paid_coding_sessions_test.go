@@ -41,7 +41,7 @@ func paidCodingAuthorityFixture(t *testing.T) *Server {
 			if r.Header.Get("Authorization") != "Bearer device-secret" {
 				t.Error("models omitted issued device credential")
 			}
-			json.NewEncoder(w).Encode(map[string]any{"data": []codingModel{{ID: "coding", Name: "Vrooli coding"}}})
+			json.NewEncoder(w).Encode(map[string]any{"data": []codingModel{{ID: "coding", Name: "Vrooli coding", ContextWindowTokens: 900000}}})
 		case "/api/v1/ai/keys/device/unused":
 			http.NotFound(w, r)
 		case "/api/v1/ai/keys/session":

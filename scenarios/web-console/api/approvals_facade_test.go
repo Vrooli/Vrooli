@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"go/parser"
 	"go/token"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -182,20 +184,46 @@ func TestApprovalsFacadeHubUnresolvedReturns503(t *testing.T) {
 // agent-manager Go package somewhere in this module and fail here. (The UI-side
 // counterpart is api/__tests__/approvals.decoupling.test.ts.)
 func TestApprovalsInboxDoesNotImportAgentManager(t *testing.T) {
-	forbidden := regexp.MustCompile(`agent-manager`)
-	files, err := walkModuleGoFiles(".")
+	files, err := agentManagerImportFiles(".")
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, file := range files {
+		t.Errorf("%s imports an agent-manager package — the approvals inbox must facade notification-hub only", file)
+	}
+}
+
+func TestApprovalsInboxImportGateRejectsSyntheticAgentManagerImport(t *testing.T) {
+	root := t.TempDir()
+	source := filepath.Join(root, "facade.go")
+	if err := os.WriteFile(source, []byte("package facade\nimport _ \"agent-manager/internal/handlers\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	files, err := agentManagerImportFiles(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 1 || filepath.Base(files[0]) != "facade.go" {
+		t.Fatalf("deliberate Agent Manager import was not rejected by the build gate: %v", files)
+	}
+}
+
+func agentManagerImportFiles(root string) ([]string, error) {
+	forbidden := regexp.MustCompile(`agent-manager`)
+	files, err := walkModuleGoFiles(root)
+	if err != nil {
+		return nil, err
+	}
+	var violations []string
+	for _, file := range files {
 		data, err := os.ReadFile(file)
 		if err != nil {
-			t.Fatal(err)
+			return nil, err
 		}
 		fset := token.NewFileSet()
 		parsed, parseErr := parser.ParseFile(fset, file, data, parser.ImportsOnly)
 		if parseErr != nil {
-			t.Fatalf("parse %s: %v", file, parseErr)
+			return nil, fmt.Errorf("parse %s: %w", file, parseErr)
 		}
 		for _, imp := range parsed.Imports {
 			path, uqErr := strconv.Unquote(imp.Path.Value)
@@ -203,8 +231,9 @@ func TestApprovalsInboxDoesNotImportAgentManager(t *testing.T) {
 				continue
 			}
 			if forbidden.MatchString(path) {
-				t.Errorf("%s imports an agent-manager package %q — the approvals inbox must facade notification-hub only", file, path)
+				violations = append(violations, file)
 			}
 		}
 	}
+	return violations, nil
 }

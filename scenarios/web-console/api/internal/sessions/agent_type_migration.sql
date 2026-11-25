@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 			shell TEXT NOT NULL DEFAULT '',
 			cols INTEGER NOT NULL DEFAULT 80,
 			rows INTEGER NOT NULL DEFAULT 24,
-			policy_mode TEXT NOT NULL DEFAULT 'never' CHECK(policy_mode IN ('never', 'preset', 'custom')),
+			policy_mode TEXT NOT NULL DEFAULT 'never' CHECK(policy_mode IN ('never', 'preset', 'custom', 'idle')),
 			policy_duration TEXT,
 			created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
 			detached INTEGER NOT NULL DEFAULT 0,

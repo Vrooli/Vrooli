@@ -23,10 +23,11 @@ const (
 
 // hubRingSize bounds the in-memory replay buffer keyed by global id. A
 // reconnecting client presenting a Last-Event-ID newer than the oldest
-// retained entry is replayed exactly; one older than the window falls back to a
-// per-session out-of-sync nudge. This is a smoothness lever, not a correctness
-// lever — the client always has GET /conversation?since_sequence=N as the
-// authoritative backfill.
+// retained entry is replayed exactly; one older than the window falls back to
+// an out-of-sync nudge. A cursor ahead of the process-local counter means the
+// server restarted and requires a full-session backfill. This is a smoothness
+// lever, not a correctness lever — the client always has
+// GET /conversation?since_sequence=N as the authoritative backfill.
 const hubRingSize = 1024
 
 // hubSubscriberBuffer sizes each subscriber's delivery channel. A briefly
@@ -59,6 +60,7 @@ type conversationEventPayload struct {
 	OriginalSpeechParagraphs []string `json:"originalSpeechParagraphs"`
 	Summarized               bool     `json:"summarized"`
 	CreatedAt                string   `json:"createdAt"`
+	OccurredAt               string   `json:"occurredAt,omitempty"`
 	Sequence                 int64    `json:"sequence"`
 	SummarizeError           string   `json:"summarizeError,omitempty"`
 }
@@ -68,9 +70,10 @@ type conversationEventPayload struct {
 // can emit a conversation_out_of_sync nudge instead of silently losing the
 // gap. The publisher never blocks on a slow subscriber.
 type hubSubscriber struct {
-	events chan HubEnvelope
-	resync chan string
-	stop   chan struct{}
+	events    chan HubEnvelope
+	resync    chan string
+	stop      chan struct{}
+	resyncAll bool
 }
 
 // ConversationHub is the process-wide conversation event channel. Every
@@ -162,19 +165,26 @@ func (h *ConversationHub) Publish(env HubEnvelope) int64 {
 // is > 0, the returned replay slice contains every retained envelope with a
 // global id greater than lastEventID, in order, captured atomically with the
 // subscription so no live event is missed or duplicated. The bool reports
-// whether a gap was detected (lastEventID predates the retained window), in
-// which case the caller must emit conversation_out_of_sync for the affected
-// sessions before streaming the (possibly empty) replay + live tail.
+// whether a gap was detected (lastEventID predates the retained window or is
+// ahead of this process's counter). For an ahead cursor, the caller must emit
+// an empty-session out-of-sync event to request a full backfill because the new
+// process cannot identify every session affected by the reset global counter.
 //
 // Caller must call Unsubscribe(sub) when the stream ends.
 func (h *ConversationHub) Subscribe(lastEventID int64) (sub *hubSubscriber, replay []HubEnvelope, gap bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	// The global id counter is process-local. After restart, a browser may
+	// present a cursor from the previous process that is ahead of every id in
+	// this hub. Session IDs retained by the new ring cannot identify all of the
+	// old sessions whose durable conversations need backfill.
+	resyncAll := lastEventID > h.nextID
 	sub = &hubSubscriber{
-		events: make(chan HubEnvelope, hubSubscriberBuffer),
-		resync: make(chan string, hubSubscriberBuffer),
-		stop:   make(chan struct{}),
+		events:    make(chan HubEnvelope, hubSubscriberBuffer),
+		resync:    make(chan string, hubSubscriberBuffer),
+		stop:      make(chan struct{}),
+		resyncAll: resyncAll,
 	}
 	h.subscribers[sub] = struct{}{}
 	if h.quiescing {
@@ -194,6 +204,7 @@ func (h *ConversationHub) Subscribe(lastEventID int64) (sub *hubSubscriber, repl
 		if len(h.ring) == 0 || lastEventID < oldest-1 {
 			gap = true
 		}
+		gap = gap || resyncAll
 		for _, env := range h.ring {
 			if env.ID > lastEventID {
 				replay = append(replay, env)
@@ -266,6 +277,7 @@ func (s *Server) publishConversationEvent(event ConversationEvent) {
 			OriginalSpeechParagraphs: event.OriginalSpeechParagraphs,
 			Summarized:               event.Summarized,
 			CreatedAt:                event.CreatedAt.UTC().Format(time.RFC3339),
+			OccurredAt:               formatOptionalOccurredAt(event.OccurredAt),
 			Sequence:                 event.Sequence,
 			SummarizeError:           event.SummarizeError,
 		},

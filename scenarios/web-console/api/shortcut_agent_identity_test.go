@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
-	"github.com/vrooli/vrooli/packages/capabilityprobe"
+	"github.com/vrooli/cli-core/agentcatalog/harness"
 )
 
 func TestDeriveAgentIDRecognizesTheCommandsWebConsoleEmits(t *testing.T) {
@@ -79,16 +81,54 @@ func TestNormalizeAgentIDRejectsUnknownIdentifiers(t *testing.T) {
 	}
 }
 
-// The alias table is generated from the probe catalogue so a sixth agent
-// cannot be added to capabilityprobe and forgotten here.
-func TestAgentAliasesCoverEveryProbedAgent(t *testing.T) {
-	for _, def := range capabilityprobe.AITools {
-		if normalizeAgentID(def.ID) != def.ID {
-			t.Errorf("probe agent %q does not normalize to itself", def.ID)
+// Identity and display resolution cover every resource-defined harness.
+func TestAgentIdentityCoversEveryCataloguedHarness(t *testing.T) {
+	for _, descriptor := range harness.Active().All() {
+		if normalizeAgentID(descriptor.ID) != descriptor.ID {
+			t.Errorf("descriptor %q does not normalize to itself", descriptor.ID)
 		}
-		if agentDisplayName(def.ID) != def.Label {
-			t.Errorf("agentDisplayName(%q) = %q, want %q", def.ID, agentDisplayName(def.ID), def.Label)
+		if agentDisplayName(descriptor.ID) != descriptor.DisplayName {
+			t.Errorf("agentDisplayName(%q) = %q, want %q", descriptor.ID, agentDisplayName(descriptor.ID), descriptor.DisplayName)
 		}
+	}
+}
+
+// Identity resolution reads the active resource descriptors directly. This
+// mirrors a desktop restart after adding a harness resource and proves that
+// aliases do not depend on a stale startup projection in capabilityprobe.
+func TestAgentIdentityUsesTheProductionResourceCatalogue(t *testing.T) {
+	root := t.TempDir()
+	resourceDir := filepath.Join(root, "resources", "nimbus")
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "repo-contract.json"), []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(resourceDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	manifest := `{"name":"nimbus","harness":{"id":"nimbus","aliases":["nimbus-code"],"binary":"nimbus","display_name":"Nimbus Agent","icon":"terminal","home_isolation":{"kind":"none"},"features":{"model_selection":{"flag":"--model","sources":["nimbus-plan"]}}}}`
+	if err := os.WriteFile(filepath.Join(resourceDir, "resource.json"), []byte(manifest), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("VROOLI_RESOURCE_ROOT", root)
+	t.Setenv("VROOLI_ROOT", "")
+
+	if got := normalizeAgentID("nimbus"); got != "nimbus" {
+		t.Fatalf("normalizeAgentID(nimbus) = %q", got)
+	}
+	if got := normalizeAgentID("nimbus-code"); got != "nimbus" {
+		t.Fatalf("normalizeAgentID(nimbus-code) = %q", got)
+	}
+	if got := deriveAgentID("exec nimbus --model nimbus-1"); got != "nimbus" {
+		t.Fatalf("deriveAgentID(nimbus) = %q", got)
+	}
+	if got := deriveAgentID("vrooli agent launch --runner nimbus-code"); got != "nimbus" {
+		t.Fatalf("deriveAgentID(nimbus-code) = %q", got)
+	}
+	if got := agentDisplayName("nimbus-code"); got != "Nimbus Agent" {
+		t.Fatalf("agentDisplayName(nimbus) = %q", got)
 	}
 }
 

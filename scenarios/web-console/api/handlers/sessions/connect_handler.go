@@ -557,6 +557,7 @@ func archivedToProto(row ArchivedSession) *sessionsv1.ArchivedSession {
 		RestoreState:       state,
 		RestoreStateReason: row.RestoreStateReason,
 		AwaitingRecovery:   row.AwaitingRecovery,
+		ArchiveNote:        row.ArchiveNote,
 	}
 }
 

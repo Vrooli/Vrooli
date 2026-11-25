@@ -1366,3 +1366,79 @@ func TestRecover_ManagedCodexIsNotATmuxOrphan(t *testing.T) {
 		t.Fatalf("managed session was classified by PTY recovery: report=%+v status=%s", report, got.Status)
 	}
 }
+
+// REGRESSION (2026-11-21): closing the attach PTYs at Shutdown ran each
+// persistent session's exit path, which marked the row awaiting_recovery. The
+// next start then missed every row, adopted all live panes as unknown and
+// overwrote their agent identity, label and launch command. A restart must
+// bring a persistent session back from its own row, unchanged.
+func TestRestartRecoversPersistentSessionWithItsIdentity(t *testing.T) {
+	useIsolatedSessionState(t)
+	ctx := context.Background()
+	store := sessionstore.NewInMemory()
+	reg := backend.New()
+	reg.Register(backend.Descriptor{ID: backend.Persistent, Available: true, SurvivesRestart: true}, func(pty.LaunchSpec) (pty.PTY, error) {
+		return ptyfake.NewFakePTYWithOutput(), nil
+	})
+	sm := NewManagerWithFactory(nil)
+	sm.SetRegistry(reg)
+	sm.SetStore(store)
+	sess, err := sm.Create(ctx, "", 80, 24, backend.Persistent, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.UpdateAgentInfo(ctx, sess.ID, sessionstore.AgentInfo{AgentType: sessionstore.AgentCodex, AgentSessionID: "root-thread", LaunchCommand: "codex -m gpt-6-luna", LaunchMode: sessionstore.LaunchModeTerminalPTY}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SetProvenance(ctx, sess.ID, "programmatic", "research-desk", "research · lead"); err != nil {
+		t.Fatal(err)
+	}
+
+	sm.Shutdown()
+	select {
+	case <-sess.cleanupDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("session exit path did not finish after Shutdown")
+	}
+	if got, _ := store.Get(ctx, sess.ID); got.Status != sessionstore.StatusLive {
+		t.Fatalf("status after shutdown = %q, want live (tmux keeps running)", got.Status)
+	}
+
+	next := NewManagerWithFactory(nil)
+	next.tmuxDiscoverFunc = func() ([]string, error) { return []string{sess.ID}, nil }
+	next.tmuxAttachFunc = func(string) (pty.PTY, error) { return ptyfake.NewFakePTYWithOutput(), nil }
+	report := next.Recover(ctx, store, reg)
+	if report.Recovered != 1 || report.Adopted != 0 {
+		t.Fatalf("restart report = %+v, want the session recovered from its row", report)
+	}
+	got, _ := store.Get(ctx, sess.ID)
+	if got.AgentType != sessionstore.AgentCodex || got.AgentSessionID != "root-thread" || got.LaunchCommand != "codex -m gpt-6-luna" || got.Owner != "research-desk" || got.DisplayLabel != "research · lead" {
+		t.Fatalf("identity after restart = %+v", got)
+	}
+}
+
+// A live pane whose row exists but was not listed as detached-live (an
+// awaiting_recovery row) is reattached with that row, never overwritten by a
+// synthesized one.
+func TestRecoverReattachesUnlistedRowInsteadOfAdopting(t *testing.T) {
+	useIsolatedSessionState(t)
+	ctx := context.Background()
+	store := sessionstore.NewInMemory()
+	if err := store.Save(ctx, sessionstore.Metadata{ID: "lead", Backend: backend.Persistent, Shell: "/bin/bash", Cols: 80, Rows: 24, Created: time.Now(), Detached: true, AgentType: sessionstore.AgentCodex, AgentSessionID: "root-thread", DisplayLabel: "research · lead"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.MarkOrphaned(ctx, "lead", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	sm := NewManagerWithFactory(nil)
+	sm.tmuxDiscoverFunc = func() ([]string, error) { return []string{"lead"}, nil }
+	sm.tmuxAttachFunc = func(string) (pty.PTY, error) { return ptyfake.NewFakePTYWithOutput(), nil }
+	report := sm.Recover(ctx, store, backend.New())
+	if report.Recovered != 1 || report.Adopted != 0 {
+		t.Fatalf("report = %+v, want recovered from the existing row", report)
+	}
+	got, _ := store.Get(ctx, "lead")
+	if got.Status != sessionstore.StatusLive || got.AgentType != sessionstore.AgentCodex || got.AgentSessionID != "root-thread" || got.DisplayLabel != "research · lead" {
+		t.Fatalf("row after recovery = %+v", got)
+	}
+}

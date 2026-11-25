@@ -267,3 +267,22 @@ func TestTargetCatalogTextHelpersIgnoreNilAndUnknownFields(t *testing.T) {
 		t.Fatalf("catalog recovery action wire = %s (err=%v)", wire, err)
 	}
 }
+
+func TestTargetByIDRefusesNodeOutsideCurrentCatalog(t *testing.T) {
+	registered := readyRemoteTarget()
+	catalogCalls := 0
+	srv := &Server{remoteTargetCatalog: func() []targetConnection {
+		catalogCalls++
+		return []targetConnection{registered}
+	}}
+
+	if got, ok := srv.targetByID(registered.ID); !ok || got.NodeID != registered.NodeID {
+		t.Fatalf("registered target selection = (%+v, %t), want catalog target", got, ok)
+	}
+	if got, ok := srv.targetByID("bridge-node:outside-catalog"); ok {
+		t.Fatalf("uncatalogued node was selectable: %+v", got)
+	}
+	if catalogCalls != 2 {
+		t.Fatalf("target selection refreshed catalog %d times, want once per selection", catalogCalls)
+	}
+}

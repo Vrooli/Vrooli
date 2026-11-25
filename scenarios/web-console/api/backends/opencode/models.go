@@ -9,6 +9,8 @@
 // cursor on top so restarts and SSE reconnects do not re-append.
 package opencode
 
+import "encoding/json"
+
 // Server identifies a running OpenCode server and which HTTP API it speaks.
 // OpenCode 2 uses /api routes, a new event envelope, and HTTP Basic auth.
 type Server struct {
@@ -44,19 +46,31 @@ type MessageInfo struct {
 	ParentID  string `json:"parentID"`
 	SessionID string `json:"sessionID"`
 	Role      string `json:"role"`
-	Time      struct {
+	ModelID   string `json:"modelID"`
+	Tokens    struct {
+		Input int64 `json:"input"`
+		Cache struct {
+			Read  int64 `json:"read"`
+			Write int64 `json:"write"`
+		} `json:"cache"`
+	} `json:"tokens"`
+	Time struct {
 		Created   int64 `json:"created"`
 		Completed int64 `json:"completed"`
 	} `json:"time"`
 }
 
-// Part is one element of a message's `parts` array. Only `text` parts carry
-// conversation prose; `step-start`/`step-finish`/tool parts are ignored.
+// Part is one element of a message's `parts` array. Text is prose; tool parts
+// retain their native input/state so selected transcript spans can carry them.
 type Part struct {
-	ID        string `json:"id"`
-	MessageID string `json:"messageID"`
-	Type      string `json:"type"`
-	Text      string `json:"text"`
+	ID        string          `json:"id"`
+	MessageID string          `json:"messageID"`
+	Type      string          `json:"type"`
+	Text      string          `json:"text"`
+	Tool      string          `json:"tool"`
+	CallID    string          `json:"callID"`
+	Input     json.RawMessage `json:"input"`
+	State     json.RawMessage `json:"state"`
 }
 
 // MessageWithParts is one element of `GET /session/{id}/message`.

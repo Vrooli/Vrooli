@@ -21,6 +21,7 @@ import (
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/binaryfetch"
+	"github.com/vrooli/cli-core/agentcatalog/harness"
 	"github.com/vrooli/cli-core/upstreamcheck"
 	harnesslifecycle "github.com/vrooli/vrooli/packages/harness-lifecycle"
 )
@@ -37,6 +38,10 @@ func launcherJourney(t *testing.T, check string) {
 	if _, err := os.Stat(filepath.Join(dist, "index.html")); err != nil {
 		t.Fatalf("build the production UI into %s first: %v", dist, err)
 	}
+	hostHome, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
 	pythonSite, err := exec.Command("python3", "-c", "import site; print(site.getusersitepackages())").Output()
 	if err != nil {
 		t.Fatal(err)
@@ -50,14 +55,23 @@ func launcherJourney(t *testing.T, check string) {
 		t.Fatal(err)
 	}
 	fullStackJourney := check == "TestJ8_FullDeploymentRouteOperated"
+	fullFoundCopyJourney := check == "TestJ8_FullDeploymentFoundCopiesOperated"
+	fullDeploymentJourney := fullStackJourney || fullFoundCopyJourney
 	allHarnessJourney := fullStackJourney || check == "TestJ8_InstallUpdateUninstallDoctorPerHarness"
-	desktopJourney := !fullStackJourney && (allHarnessJourney || check == "TestJ8_DesktopUserOwnedInstallOperated")
+	desktopJourney := !fullDeploymentJourney && (allHarnessJourney || check == "TestJ8_DesktopUserOwnedInstallOperated")
 	updateJourney := check == "TestJ7_ManageUpdateWorksOnIsolatedHome"
-	cleanupJourney := check == "TestJ8_FoundCopyStaysUntouched" || check == "TestJ8_CleanupPreviewEqualsRemoval"
+	cleanupJourney := check == "TestJ8_FoundCopyStaysUntouched" || check == "TestJ8_CleanupPreviewEqualsRemoval" || check == "TestJ8_FullDeploymentFoundCopiesOperated"
 	usageJourney := check == "TestJ7_UsageWindowsComeFromDataWithResetTimes"
-	manageJourney := fullStackJourney || desktopJourney || cleanupJourney || updateJourney || check == "TestJ7_ManageShowsBubbleWhenActionWaits" || check == "TestJ7_EligibilityReasonShownAndFixable"
+	manageJourney := fullDeploymentJourney || desktopJourney || cleanupJourney || updateJourney || check == "TestJ7_ManageShowsBubbleWhenActionWaits" || check == "TestJ7_EligibilityReasonShownAndFixable"
+	repoRoot := ""
+	if allHarnessJourney || cleanupJourney {
+		repoRoot, err = filepath.Abs("../../..")
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 	var governanceCLI string
-	if fullStackJourney {
+	if fullDeploymentJourney {
 		governanceCLI, err = exec.LookPath("scenario-dependency-analyzer")
 		if err != nil {
 			t.Fatal(err)
@@ -69,16 +83,33 @@ func launcherJourney(t *testing.T, check string) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for resource, version := range map[string]string{"claude-code": "2.1.312", "codex": "0.165.0", "opencode": "1.19.4"} {
-			oldSources[resource] = filepath.Join(realHome, ".local/share/vrooli/resources", resource, "cli", version+"-linux-amd64")
-			if _, err := os.Stat(filepath.Join(oldSources[resource], "installation.json")); err != nil {
-				t.Fatal(err)
-			}
+		for resource := range map[string]struct{}{"claude-code": {}, "codex": {}, "opencode": {}} {
+			oldSources[resource] = oldestInstalledHarnessSource(t, realHome, repoRoot, resource)
 		}
 	}
 	var sourcePrefix string
 	if (manageJourney || usageJourney) && !desktopJourney && !allHarnessJourney {
-		sourcePrefix = installedClaudePrefix(t)
+		if cleanupJourney {
+			realHome, err := os.UserHomeDir()
+			if err != nil {
+				t.Fatal(err)
+			}
+			sourcePrefix = oldestInstalledHarnessSource(t, realHome, repoRoot, "claude-code")
+		} else {
+			sourcePrefix = installedClaudePrefix(t)
+		}
+	}
+	foundSources := map[string]string{}
+	managedSources := map[string]string{}
+	if cleanupJourney {
+		realHome, err := os.UserHomeDir()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, resource := range []string{"antigravity", "claude-code", "codex", "opencode", "grok"} {
+			foundSources[resource] = oldestInstalledHarnessSource(t, realHome, repoRoot, resource)
+			managedSources[resource] = newestInstalledHarnessSource(t, realHome, repoRoot, resource)
+		}
 	}
 	home, err := os.MkdirTemp(evidence, "home-")
 	if err != nil {
@@ -126,13 +157,46 @@ func launcherJourney(t *testing.T, check string) {
 		if desktopJourney {
 			isolateDesktopTools(t, home)
 		}
-		if fullStackJourney {
+		if fullDeploymentJourney {
 			t.Setenv("VROOLI_DESKTOP_MODE", "false")
 			t.Setenv("VROOLI_BIN", filepath.Join(evidence, "vrooli"))
 			isolateDesktopTools(t, home)
 			for _, name := range []string{"node", "npm", "bwrap", "systemd-run", "systemctl", "busctl", "prlimit"} {
 				if err := os.Symlink("/usr/bin/"+name, filepath.Join(home, "tools", name)); err != nil {
 					t.Fatal(err)
+				}
+			}
+			catalog, err := harness.Load(repoRoot)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, descriptor := range catalog.All() {
+				manifestPath := filepath.Join(repoRoot, "resources", descriptor.Resource, "resource.json")
+				manifestData, err := os.ReadFile(manifestPath)
+				if err != nil {
+					t.Fatalf("read %s manifest for full-route setup: %v", descriptor.Resource, err)
+				}
+				var manifest struct {
+					CLI struct {
+						Command string `json:"command"`
+					} `json:"cli"`
+					Capabilities struct {
+						SupportsEnsure bool `json:"supports_ensure"`
+					} `json:"capabilities"`
+				}
+				if err := json.Unmarshal(manifestData, &manifest); err != nil {
+					t.Fatalf("decode %s manifest for full-route setup: %v", descriptor.Resource, err)
+				}
+				if !manifest.Capabilities.SupportsEnsure || strings.TrimSpace(manifest.CLI.Command) == "" {
+					continue
+				}
+				command := manifest.CLI.Command
+				source := filepath.Join(hostHome, ".vrooli", "bin", command)
+				if _, err := os.Stat(source); err != nil {
+					t.Fatalf("full-route resource helper %s is required for reconciliation: %v", command, err)
+				}
+				if err := os.Symlink(source, filepath.Join(home, "tools", command)); err != nil {
+					t.Fatalf("stage full-route resource helper %s: %v", command, err)
 				}
 			}
 			bin := filepath.Join(home, ".vrooli", "bin")
@@ -154,7 +218,11 @@ func launcherJourney(t *testing.T, check string) {
 			prepareOldAntigravity(t, home)
 		}
 		if cleanupJourney {
-			prepareFoundClaude(t, home, sourcePrefix)
+			prepareFoundClaude(t, home, foundSources["claude-code"])
+			prepareFoundHarness(t, home, foundSources["codex"], "codex")
+			prepareFoundHarness(t, home, foundSources["opencode"], "opencode")
+			prepareFoundHarness(t, home, foundSources["grok"], "grok")
+			prepareFoundHarness(t, home, foundSources["antigravity"], "antigravity")
 		}
 		if manageJourney {
 			localToken = fmt.Sprintf("%x", makeLocalToken(t))
@@ -266,8 +334,14 @@ func launcherJourney(t *testing.T, check string) {
 			w.WriteHeader(204)
 			return
 		}
-		if cleanupJourney && r.Method == http.MethodPost && r.URL.Path == "/__journey/reset-managed" {
-			data, err := os.ReadFile(filepath.Join(sourcePrefix, "installation.json"))
+		if cleanupJourney && r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/__journey/reset-managed/") {
+			resource := strings.TrimPrefix(r.URL.Path, "/__journey/reset-managed/")
+			source := managedSources[resource]
+			if source == "" {
+				http.NotFound(w, r)
+				return
+			}
+			data, err := os.ReadFile(filepath.Join(source, "installation.json"))
 			var receipt struct{ Version string }
 			if err == nil {
 				err = json.Unmarshal(data, &receipt)
@@ -276,18 +350,61 @@ func launcherJourney(t *testing.T, check string) {
 				http.Error(w, err.Error(), 500)
 				return
 			}
-			prefix, err := harnesslifecycle.NPMInstallPrefix(home, "claude-code", receipt.Version)
+			prefix, err := harnesslifecycle.NPMInstallPrefix(home, resource, receipt.Version)
 			if err != nil {
 				http.Error(w, err.Error(), 500)
 				return
 			}
 			if _, err = os.Stat(prefix); os.IsNotExist(err) {
-				if out, err := exec.Command("/bin/cp", "-a", "--reflink=auto", sourcePrefix, prefix).CombinedOutput(); err != nil {
+				if err := os.MkdirAll(filepath.Dir(prefix), 0o700); err != nil {
+					http.Error(w, err.Error(), 500)
+					return
+				}
+				if out, err := exec.Command("/bin/cp", "-a", "--reflink=auto", source, prefix).CombinedOutput(); err != nil {
 					http.Error(w, string(out), 500)
 					return
 				}
 			}
-			srv.agentUpdates.invalidate("local", "claude")
+			h, err := harnesslifecycle.LoadHarness(filepath.Join(home, "bundle/catalog"), resource)
+			if err != nil {
+				http.Error(w, err.Error(), 500)
+				return
+			}
+			if h.NativeArtifact != nil {
+				// The real installed source may have been modified by its upstream
+				// manager after its receipt was written. This fixture owns the copied
+				// managed prefix, so seal its current package tree before exercising
+				// cleanup. The separate PATH-found executable remains untouched and
+				// the browser journey hashes it before and after cleanup.
+				digest, err := binaryfetch.TreeDigestContext(context.Background(), filepath.Join(prefix, "node_modules"))
+				if err != nil {
+					http.Error(w, err.Error(), 500)
+					return
+				}
+				record, err := json.Marshal(struct {
+					Resource   string
+					Package    string
+					Version    string
+					TreeSHA256 string
+				}{Resource: h.Resource, Package: h.Package, Version: receipt.Version, TreeSHA256: digest})
+				if err != nil {
+					http.Error(w, err.Error(), 500)
+					return
+				}
+				if err := os.WriteFile(filepath.Join(prefix, "installation.json"), record, 0o600); err != nil {
+					http.Error(w, err.Error(), 500)
+					return
+				}
+			}
+			if err := harnesslifecycle.LinkNPMBinary(filepath.Join(prefix, filepath.FromSlash(h.Executable)), h.Binary, filepath.Join(home, ".local", "bin")); err != nil {
+				http.Error(w, err.Error(), 500)
+				return
+			}
+			id := resource
+			if id == "claude-code" {
+				id = "claude"
+			}
+			srv.agentUpdates.invalidate("local", id)
 			w.WriteHeader(204)
 			return
 		}
@@ -518,6 +635,19 @@ func launcherServiceOwner(t *testing.T, home string, caches []string, goBinary, 
 			if err := cmd.Wait(); err != nil {
 				t.Errorf("%s: %v", test, err)
 			}
+			if test == "TestLauncherGovernanceOwner" {
+				evidence := os.Getenv("LAUNCHER_JOURNEY_EVIDENCE")
+				if evidence != "" {
+					data, readErr := os.ReadFile(log.Name())
+					if readErr == nil {
+						if writeErr := os.WriteFile(filepath.Join(evidence, test+".log"), data, 0o600); writeErr != nil {
+							t.Errorf("retain %s evidence: %v", test, writeErr)
+						}
+					} else {
+						t.Errorf("read %s evidence: %v", test, readErr)
+					}
+				}
+			}
 		})
 		return address
 	case <-time.After(2 * time.Minute):
@@ -571,20 +701,137 @@ func seedOldAntigravity(ctx context.Context, home string) error {
 	return nil
 }
 
-func TestJ8_FoundCopyStaysUntouched(t *testing.T)     { launcherJourney(t, t.Name()) }
-func TestJ8_CleanupPreviewEqualsRemoval(t *testing.T) { launcherJourney(t, t.Name()) }
+func TestJ8_FoundCopyStaysUntouched(t *testing.T)           { launcherJourney(t, t.Name()) }
+func TestJ8_CleanupPreviewEqualsRemoval(t *testing.T)       { launcherJourney(t, t.Name()) }
+func TestJ8_FullDeploymentFoundCopiesOperated(t *testing.T) { launcherJourney(t, t.Name()) }
 
 func prepareFoundClaude(t *testing.T, home, source string) {
 	t.Helper()
-	sourceBinary := filepath.Join(source, "node_modules", "@anthropic-ai", "claude-code-linux-x64", "claude")
+	prepareFoundHarness(t, home, source, "claude-code")
+}
+
+func prepareFoundHarness(t *testing.T, home, source, resource string) {
+	t.Helper()
+	root, err := filepath.Abs("../../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := harnesslifecycle.LoadHarness(root, resource)
+	if err != nil {
+		t.Fatalf("load harness for found %s: %+v %v", resource, h, err)
+	}
+	sourceBinary := installedHarnessSourceExecutable(source, h)
+	if info, err := os.Stat(sourceBinary); err != nil || info.Mode().Perm()&0o111 == 0 {
+		t.Fatalf("source copy for found %s is not executable: %s (%v)", resource, sourceBinary, err)
+	}
 	foundDir := filepath.Join(home, "found")
 	if err := os.MkdirAll(foundDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if out, err := exec.Command("/bin/cp", "-a", "--reflink=auto", sourceBinary, filepath.Join(foundDir, "claude")).CombinedOutput(); err != nil {
+	if out, err := exec.Command("/bin/cp", "-a", "--reflink=auto", sourceBinary, filepath.Join(foundDir, h.Binary)).CombinedOutput(); err != nil {
 		t.Fatalf("copy independent runner: %v: %s", err, out)
 	}
 	t.Setenv("PATH", foundDir+":"+os.Getenv("PATH"))
+}
+
+// oldestInstalledHarnessSource selects a receipt-verified real local prefix so
+// J8 can stage a stale-but-working binary without pinning itself to a version
+// that has since been pruned from the operator's machine.
+func oldestInstalledHarnessSource(t *testing.T, home, root, resource string) string {
+	return installedHarnessSource(t, home, root, resource, false)
+}
+
+func newestInstalledHarnessSource(t *testing.T, home, root, resource string) string {
+	return installedHarnessSource(t, home, root, resource, true)
+}
+
+func installedHarnessSource(t *testing.T, home, root, resource string, newest bool) string {
+	t.Helper()
+	h, err := harnesslifecycle.LoadHarness(root, resource)
+	if err != nil {
+		t.Fatalf("load %s descriptor for old-source fixture: %v", resource, err)
+	}
+	cliRoot := filepath.Join(home, ".local/share/vrooli/resources", resource, "cli")
+	entries, err := os.ReadDir(cliRoot)
+	if err != nil {
+		t.Fatalf("read %s installed prefixes: %v", resource, err)
+	}
+	selectedVersion, selectedPrefix := "", ""
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		prefix := filepath.Join(cliRoot, entry.Name())
+		data, err := os.ReadFile(filepath.Join(prefix, "installation.json"))
+		if err != nil {
+			continue
+		}
+		var receipt struct {
+			Resource string
+			Package  string
+			Version  string
+		}
+		if json.Unmarshal(data, &receipt) != nil || receipt.Resource != resource || receipt.Package != h.Package || upstreamcheck.ExtractSemver(receipt.Version) != receipt.Version {
+			continue
+		}
+		executable := installedHarnessSourceExecutable(prefix, h)
+		if info, err := os.Stat(executable); err != nil || info.Mode().Perm()&0o111 == 0 {
+			continue
+		}
+		comparison := upstreamcheck.Compare(receipt.Version, selectedVersion)
+		if selectedPrefix == "" || (!newest && comparison == upstreamcheck.StatusBehind) || (newest && comparison == upstreamcheck.StatusAhead) {
+			selectedVersion, selectedPrefix = receipt.Version, prefix
+		}
+	}
+	if selectedPrefix == "" {
+		t.Fatalf("no receipt-verified installed %s binary is available for J8", resource)
+	}
+	if newest {
+		t.Logf("J8 managed-copy source for %s: %s (%s)", resource, selectedPrefix, selectedVersion)
+	} else {
+		t.Logf("J8 real stale-binary source for %s: %s (%s)", resource, selectedPrefix, selectedVersion)
+	}
+	return selectedPrefix
+}
+
+func installedHarnessSourceExecutable(prefix string, h harnesslifecycle.Harness) string {
+	if h.NativeArtifact != nil {
+		native := filepath.Join(prefix, "node_modules", filepath.FromSlash(h.NativeArtifact.Dependency), filepath.FromSlash(h.NativeArtifact.Executable))
+		if h.NativeArtifact.Compression == "brotli" {
+			decoded := strings.TrimSuffix(native, ".br")
+			if info, err := os.Stat(decoded); err == nil && info.Mode().Perm()&0o111 != 0 {
+				return decoded
+			}
+			return ""
+		} else if info, err := os.Stat(native); err == nil && info.Mode().Perm()&0o111 != 0 {
+			return native
+		}
+	}
+	return filepath.Join(prefix, filepath.FromSlash(h.Executable))
+}
+
+func TestInstalledHarnessSourceExecutableUsesMaterializedGrokBinary(t *testing.T) {
+	prefix := t.TempDir()
+	compressed := filepath.Join(prefix, "node_modules", "@xai-official", "grok-linux-x64", "bin", "grok.br")
+	decoded := strings.TrimSuffix(compressed, ".br")
+	if err := os.MkdirAll(filepath.Dir(compressed), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(compressed, []byte("fixture-brotli"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(decoded, []byte("#!/bin/sh\necho grok 1.0.70\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	h := harnesslifecycle.Harness{
+		Executable: "node_modules/.bin/grok",
+		NativeArtifact: &harness.NativeArtifact{
+			Dependency: "@xai-official/grok-linux-x64", Executable: "bin/grok.br", Compression: "brotli",
+		},
+	}
+	if got := installedHarnessSourceExecutable(prefix, h); got != decoded {
+		t.Fatalf("Grok found-copy source = %q, want materialized executable %q", got, decoded)
+	}
 }
 
 func TestJ8_SixthHarnessByData(t *testing.T) {

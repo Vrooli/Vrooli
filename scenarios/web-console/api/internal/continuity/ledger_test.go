@@ -2,23 +2,16 @@ package continuity
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"path/filepath"
 	"sync"
 	"testing"
 	"time"
-
-	_ "modernc.org/sqlite"
 )
 
 func TestSQLLedgerPutIsIdempotent(t *testing.T) {
-	db, err := sql.Open("sqlite", ":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
-	_, err = db.ExecContext(context.Background(), `CREATE TABLE session_lifecycle_receipts (
+	db := newContinuityTestDB(t, ":memory:")
+	_, err := db.ExecContext(context.Background(), `CREATE TABLE session_lifecycle_receipts (
 		operation_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, actor_kind TEXT NOT NULL,
 		actor_id TEXT NOT NULL, command TEXT NOT NULL, from_state TEXT NOT NULL,
 		to_state TEXT NOT NULL, reason_code TEXT NOT NULL, status TEXT NOT NULL,
@@ -42,12 +35,8 @@ func TestSQLLedgerPutIsIdempotent(t *testing.T) {
 }
 
 func TestSQLLedgerCompleteIsIdempotent(t *testing.T) {
-	db, err := sql.Open("sqlite", ":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	_, err = db.Exec(`CREATE TABLE session_lifecycle_receipts (
+	db := newContinuityTestDB(t, ":memory:")
+	_, err := db.Exec(`CREATE TABLE session_lifecycle_receipts (
 		operation_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, actor_kind TEXT NOT NULL,
 		actor_id TEXT NOT NULL, command TEXT NOT NULL, from_state TEXT NOT NULL,
 		to_state TEXT NOT NULL, reason_code TEXT NOT NULL, status TEXT NOT NULL,
@@ -71,12 +60,8 @@ func TestSQLLedgerCompleteIsIdempotent(t *testing.T) {
 }
 
 func TestSQLLedgerConcurrentPutConverges(t *testing.T) {
-	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "ledger.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	_, err = db.Exec(`CREATE TABLE session_lifecycle_receipts (
+	db := newContinuityTestDB(t, filepath.Join(t.TempDir(), "ledger.db"))
+	_, err := db.Exec(`CREATE TABLE session_lifecycle_receipts (
 		operation_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, actor_kind TEXT NOT NULL,
 		actor_id TEXT NOT NULL, command TEXT NOT NULL, from_state TEXT NOT NULL,
 		to_state TEXT NOT NULL, reason_code TEXT NOT NULL, status TEXT NOT NULL,

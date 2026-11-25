@@ -247,8 +247,21 @@ func (s *Server) managerRemoteSession(ctx context.Context, current *session.Sess
 	}
 	var target *sharedv1.Target
 	if strings.HasPrefix(owner, "target:") {
-		if candidate, ok := s.targetByID(strings.TrimPrefix(owner, "target:")); ok {
+		targetID := strings.TrimPrefix(owner, "target:")
+		if candidate, ok := s.targetByID(targetID); ok {
 			target = targetToProto(candidate)
+		} else {
+			// Keep the persisted session's target identity visible when the live
+			// Bridge catalog cannot currently resolve it. The manager still owns
+			// the session and its transcript; this projection makes the missing
+			// control-plane detail explicit instead of rendering an unbound
+			// remote session that looks like it lost its owner.
+			target = targetToProto(targetConnection{Target: targetmodel.Target{
+				ID: targetID, Label: label, DeviceKind: "bridge-node",
+				Available: false, Mode: "unavailable",
+				Reason:     "selected target is not present in the current Bridge catalog",
+				NextAction: "Refresh the target catalog; the existing session remains available when its owner returns",
+			}})
 		}
 	}
 	return sessionsH.Session{

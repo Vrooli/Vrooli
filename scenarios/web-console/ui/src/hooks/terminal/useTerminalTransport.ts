@@ -35,6 +35,8 @@ export interface TransportHandle {
   sendReliableJson: (msg: TerminalMessage) => boolean;
   /** Returns the current generation (monotonic per successful open). */
   currentGen: () => number;
+  /** Close an open socket as unexpected so the next connection gets a snapshot. */
+  reconnect: () => boolean;
   /** Subscribe to incoming messages. Returns an unsubscribe function. */
   subscribe: (listener: (msg: TerminalMessage) => void) => () => void;
   /** Subscribe to connect/disconnect lifecycle. */
@@ -200,6 +202,12 @@ export function useTerminalTransport({
 
   const sendJson = useCallback((msg: TerminalMessage): boolean => send(msg, true), [send]);
   const sendReliableJson = useCallback((msg: TerminalMessage): boolean => send(msg, false), [send]);
+  const reconnect = useCallback((): boolean => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+    ws.close(4000, "Client requested terminal resync");
+    return true;
+  }, []);
 
   const subscribe = useCallback((listener: (msg: TerminalMessage) => void) => {
     messageSubsRef.current.add(listener);
@@ -219,7 +227,7 @@ export function useTerminalTransport({
   const state = useCallback(() => stateRef.current, []);
 
   return useMemo(
-    () => ({ sendJson, sendReliableJson, currentGen, subscribe, onStateChange, state }),
-    [sendJson, sendReliableJson, currentGen, subscribe, onStateChange, state],
+    () => ({ sendJson, sendReliableJson, currentGen, reconnect, subscribe, onStateChange, state }),
+    [sendJson, sendReliableJson, currentGen, reconnect, subscribe, onStateChange, state],
   );
 }

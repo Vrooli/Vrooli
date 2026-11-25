@@ -56,12 +56,12 @@ Use `--json` with target commands for the lossless proto JSON projection. It con
 | `delete` / `rm` | Permanently delete a session and its retained data |
 | `archive` | Archive a session non-destructively |
 | `unarchive` | Undo an archive by clearing its archive marker |
-| `archive-list` | List collapsed archived-session lineages and restore states |
+| `list-archived` | List archived sessions (full ids for `reopen`), restore states, and the note a policy left when it archived one |
 | `reopen` | Reopen an archived session with a required replay-safe idempotency key |
 | `archive-retention` | Show archive entry counts, bytes, and configured retention limits |
 | `archive-prune` | Preview retention actions; add `--apply` to execute them |
 | `policy-get` | Show the expiration policy for a session |
-| `policy-set` | Set the expiration policy (`--mode`, optional `--duration`) |
+| `policy-set` | Set the expiration policy: `--mode never\|preset\|custom\|idle` with `--duration` (preset key, custom lifetime, or idle window such as `6h`) |
 | `conversation` | Show the conversation feed for a session |
 | `conversation-cursor` | Update the conversation cursor (`--body-file PATH`) |
 | `summarize-event` | Trigger summarization of a conversation event |

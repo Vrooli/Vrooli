@@ -1,14 +1,14 @@
 package grok
 
 import (
-	"encoding/json"
 	"strings"
+
+	"github.com/vrooli/cli-core/agenttranscript"
 )
 
-// Session-update kinds observed in grok's updates.jsonl (ACP stream). Only the
-// natural-language user/assistant chunks feed the semantic conversation; thought
-// chunks and tool lifecycle are parsed but intentionally not appended (see the
-// sensitive-content mitigation in the implementation plan).
+// Session-update kinds observed in grok's updates.jsonl (ACP stream). User and
+// assistant prose plus explicit tool calls/results are selectable transcript
+// events; thought chunks remain private and are not appended.
 const (
 	KindUserMessage    = "user_message_chunk"
 	KindAgentMessage   = "agent_message_chunk"
@@ -17,27 +17,6 @@ const (
 	KindToolCallUpdate = "tool_call_update"
 	KindTurnCompleted  = "turn_completed"
 )
-
-// rawUpdate is the on-disk JSONL shape. grok writes one ACP notification per
-// line under either the standard `session/update` method or the x.ai-specific
-// `_x.ai/session/update` method (turn lifecycle).
-type rawUpdate struct {
-	Method string `json:"method"`
-	Params struct {
-		SessionID string `json:"sessionId"`
-		Update    struct {
-			SessionUpdate string `json:"sessionUpdate"`
-			Content       struct {
-				Type string `json:"type"`
-				Text string `json:"text"`
-			} `json:"content"`
-			StopReason string `json:"stop_reason"`
-		} `json:"update"`
-		Meta struct {
-			EventID string `json:"eventId"`
-		} `json:"_meta"`
-	} `json:"params"`
-}
 
 // UpdateRecord is the normalized form of one updates.jsonl line. Ok is false
 // for blank lines, malformed JSON, or records that carry no recognized
@@ -49,46 +28,39 @@ type UpdateRecord struct {
 	Text       string // content.text for chunk kinds; empty otherwise
 	StopReason string // turn_completed only
 	EventID    string
+	ToolText   string
 }
 
 // ParseUpdateLine decodes a single updates.jsonl line into an UpdateRecord.
 // Returns ok=false when the line is not a recognized session/update record.
 func ParseUpdateLine(line []byte) (UpdateRecord, bool) {
-	line = trimSpace(line)
-	if len(line) == 0 {
+	record, ok := agenttranscript.ParseGrokUpdate(line)
+	if !ok {
 		return UpdateRecord{}, false
 	}
-	var ru rawUpdate
-	if err := json.Unmarshal(line, &ru); err != nil {
-		return UpdateRecord{}, false
+	out := UpdateRecord{
+		SessionID:  record.SessionID,
+		Kind:       record.Kind,
+		Text:       record.Text,
+		StopReason: record.StopReason,
+		EventID:    record.EventID,
 	}
-	kind := ru.Params.Update.SessionUpdate
-	if kind == "" {
-		return UpdateRecord{}, false
+	if record.Kind == KindToolCall || record.Kind == KindToolCallUpdate {
+		out.ToolText = agenttranscript.GrokToolMessage(record)
 	}
-	return UpdateRecord{
-		SessionID:  ru.Params.SessionID,
-		Kind:       kind,
-		Text:       ru.Params.Update.Content.Text,
-		StopReason: ru.Params.Update.StopReason,
-		EventID:    ru.Params.Meta.EventID,
-	}, true
+	return out, true
 }
 
-func trimSpace(b []byte) []byte {
-	return []byte(strings.TrimSpace(string(b)))
-}
-
-// CompletedTurn carries the accumulated natural-language text for one finished
-// grok turn. Either field may be empty (e.g. a tool-only turn yields no
-// assistant prose); callers drop empty halves.
+// CompletedTurn carries the user/assistant prose and tool records for one
+// finished Grok turn. Either prose field may be empty for tool-only turns.
 type CompletedTurn struct {
 	User      string
 	Assistant string
+	ToolCalls []string
 }
 
 // TurnAccumulator coalesces streamed chunk records into per-turn user and
-// assistant text. grok emits a turn as: user_message_chunk(s) → interleaved
+// assistant text plus tool records. Grok emits a turn as: user_message_chunk(s) → interleaved
 // thought/agent/tool records → turn_completed. Emitting only at the
 // turn_completed boundary (rather than per chunk) is what makes the byte-offset
 // checkpoint replay-safe: a checkpoint is only advanced past a boundary, so a
@@ -97,6 +69,7 @@ type CompletedTurn struct {
 type TurnAccumulator struct {
 	user      strings.Builder
 	assistant strings.Builder
+	toolCalls []string
 }
 
 // Add folds one record into the in-progress turn. When the record is a
@@ -108,10 +81,15 @@ func (a *TurnAccumulator) Add(rec UpdateRecord) (CompletedTurn, bool) {
 		a.user.WriteString(rec.Text)
 	case KindAgentMessage:
 		a.assistant.WriteString(rec.Text)
+	case KindToolCall, KindToolCallUpdate:
+		if rec.ToolText != "" {
+			a.toolCalls = append(a.toolCalls, rec.ToolText)
+		}
 	case KindTurnCompleted:
-		turn := CompletedTurn{User: a.user.String(), Assistant: a.assistant.String()}
+		turn := CompletedTurn{User: a.user.String(), Assistant: a.assistant.String(), ToolCalls: append([]string(nil), a.toolCalls...)}
 		a.user.Reset()
 		a.assistant.Reset()
+		a.toolCalls = nil
 		return turn, true
 	}
 	return CompletedTurn{}, false

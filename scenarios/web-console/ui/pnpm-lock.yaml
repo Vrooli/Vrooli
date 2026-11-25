@@ -38,6 +38,9 @@ importers:
       '@vrooli/flow-runtime':
         specifier: file:../../../packages/flow-runtime
         version: file:../../../packages/flow-runtime
+      '@vrooli/goal-brief':
+        specifier: file:../../../packages/goal-brief
+        version: file:../../../packages/goal-brief
       '@vrooli/iframe-bridge':
         specifier: file:../../../packages/iframe-bridge
         version: file:../../../packages/iframe-bridge(react@18.3.1)
@@ -1406,6 +1409,9 @@ packages:
 
   '@vrooli/flow-runtime@file:../../../packages/flow-runtime':
     resolution: {directory: ../../../packages/flow-runtime, type: directory}
+
+  '@vrooli/goal-brief@file:../../../packages/goal-brief':
+    resolution: {directory: ../../../packages/goal-brief, type: directory}
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
     resolution: {directory: ../../../packages/iframe-bridge, type: directory}
@@ -5305,6 +5311,8 @@ snapshots:
       - supports-color
 
   '@vrooli/flow-runtime@file:../../../packages/flow-runtime': {}
+
+  '@vrooli/goal-brief@file:../../../packages/goal-brief': {}
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge(react@18.3.1)':
     optionalDependencies:

@@ -6,3 +6,6 @@ wc-test-*
 *.sock
 cli/cli
 cli/web-console
+
+# Installed local runtime environment.
+/data/program-runtime/

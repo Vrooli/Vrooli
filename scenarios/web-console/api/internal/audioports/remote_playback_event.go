@@ -39,7 +39,7 @@ func (r *RemotePlaybackEventRecorder) RecordPlaybackEvent(ctx context.Context, e
 	if r.Credentials != nil {
 		req = audiotools.AttachCredentials(req, r.Credentials(ctx))
 	}
-	_, err := r.Client.TTS.RecordPlaybackEvent(ctx, req)
+	_, err := r.Client.Clients().TTS.RecordPlaybackEvent(ctx, req)
 	if err != nil {
 		if isTransportFailure(err) {
 			r.Client.HandleTransportFailure()

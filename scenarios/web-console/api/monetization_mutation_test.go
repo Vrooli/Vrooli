@@ -25,9 +25,9 @@ func TestWebConsoleExecutableJourneyRejectsSessionGateRemovalMutation(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	gate := "\tif strings.EqualFold(strings.TrimSpace(g.Source), \"vrooli-credits\") && consumerToken(ctx) == \"\" {\n" +
-		"\t\treturn \"\", fmt.Errorf(\"%w: Vrooli credits require a signed-in subscription session\", ErrCreditsRequired)\n" +
-		"\t}\n"
+	gate := "\t\tif consumerToken(ctx) == \"\" {\n" +
+		"\t\t\treturn \"\", fmt.Errorf(\"%w: Vrooli credits require a signed-in subscription session\", ErrCreditsRequired)\n" +
+		"\t\t}\n"
 	if count := strings.Count(string(source), gate); count != 1 {
 		t.Fatalf("found %d exact Vrooli-credits session gates; want 1 before mutation", count)
 	}

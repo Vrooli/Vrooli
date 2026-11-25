@@ -1,6 +1,6 @@
 # Web Console — Known Problems and Risks
 
-## Work ladder — HTML fragments in chat and file links (2026-11-17)
+## Resolved — HTML fragments in chat and terminal file links (2026-11-17)
 
 The live file resolver opened the November 17 portfolio report by absolute path.
 Appending a project fragment to that path produced a file-not-found error. The
@@ -24,6 +24,12 @@ Test Genie unit run `20261117-221146-b57d5468` failed in API tests, UI tests
 for notifications, audio, launch and tmux mouse settings, and the UI type check.
 The terminal correction landed after run admission and has the focused xterm
 coverage above.
+
+Disposition (2026-11-21): current focused UI regressions for HTML deep-link
+parsing/session routing and terminal path reconstruction pass 36/36. Together
+with the browser scroll proof and xterm-buffer checks above, close these scoped
+W3 defects at the owner doc. The failed broad Test Genie run and unrelated type
+check errors remain separate readiness debt.
 
 ## Work ladder — native agent voice implementation (2026-10-21)
 
@@ -250,157 +256,15 @@ Unrelated findings were captured through report-bug as
 `knw-1792601992381054126` (unit contracts) and `knw-1792601429687889392`
 (BAS continuation after failed steps despite continue_on_error=false). Browser
 flows now guard the active disposable session before the microphone action.
-Historical research below describes the pre-implementation state.
+The dated investigation below is closed by the implementation evidence above; physical iPhone Safari/PWA remains unverified.
 
-## 2026-10-21 — Native coding-agent voice is not connected to browser audio (investigation)
+## Resolved — native coding-agent voice implementation supersedes the 2026-10-21 investigation
 
-**Scope and status:** research and recommendation only. The operator supplied
-`IMG_1779.png` from session `7e609252-f455-4d24-b65e-4109fc1e2930`:
-Codex 0.161.0 reports a started voice conversation and a listening footer,
-while Web Console's microphone control remains idle. No runtime code, agent
-configuration, dependencies, or serving processes were changed. There is no
-end-to-end browser/native-voice verification or implementation receipt yet.
+The investigation below previously stated that native coding-agent voice had no implementation or end-to-end browser verification. That status is obsolete: the native voice implementation checkpoint above documents the session-scoped adapter, browser duplex route, focused regressions, served mobile and desktop executions, and lifecycle cleanup. The current contract is in [ARCHITECTURE.md](../concepts/ARCHITECTURE.md#native-agent-voice).
 
-**Prior art:** recall found related Audio Tools capability-health and Web Console
-Messages activity work, not a demonstrated native-agent audio bridge. Search Hub
-returned results with degraded reranker providers. Source inspection confirms
-the existing separation: browser STT flows through Audio Tools, whereas agent
-activity uses structured events, hooks, decoded terminal text, and output clocks.
+Disposition: close the implementation-gap finding as resolved at Web Console's owning layer. Do not infer physical iPhone Safari/PWA qualification; that remains unverified in the current checkpoint.
 
-### Findings and falsifiable hypotheses
-
-1. **Only a missing UI indicator:** rejected as a sufficient explanation. A
-   falsifying check is whether browser audio already reaches the native agent.
-   `api/voice_stream_proxy.go` forwards microphone frames to Audio Tools STT;
-   `ui/src/components/Workspace.tsx::handleVoiceTranscript` inserts resulting
-   text into the composer or terminal. Neither path supplies native-agent
-   audio. Updating a listening indicator alone cannot provide that transport.
-2. **Codex has no programmatic voice interface:** rejected. The installed
-   `codex-cli 0.161.0` exports experimental bindings through
-   `codex app-server generate-ts --experimental --out <temporary-directory>`.
-   Generated schemas include `thread/realtime/start`, `appendAudio`,
-   `appendText`, `appendSpeech`, `stop`, and `listVoices`; notifications include
-   `started`, `closed`, `error`, `sdp`, `outputAudio/delta`, transcript deltas
-   and finals, and canonical realtime item lifecycle. The actual methods use
-   the `thread/realtime/` prefix. `ThreadRealtimeStartTransport` supports
-   `websocket`, `webrtc` with an SDP offer, and `existingCall` with a call ID.
-   `ThreadRealtimeAudioChunk` carries data, sample rate, channel count,
-   samples-per-channel, and optional item identity. These types establish
-   protocol shape, not entitlement, codec behavior, or a successful voice call.
-3. **A terminal-launched Codex can only be observed through its screen:**
-   rejected for this session. `codex app-server daemon version` reports a
-   running 0.161.0 daemon with a session-local control socket. An HTTP WebSocket
-   upgrade on that Unix socket returned 101; `initialize` with
-   `capabilities.experimentalApi=true` succeeded; `thread/loaded/list` returned
-   live thread `01a15f1d-fd58-7fd2-bd1f-7a83b1a7d633`. This read-only probe did
-   not resume a thread, start a turn or voice call, capture audio, or request
-   model inference. Plain JSONL on this socket closed; it requires a WebSocket
-   handshake. Two bounded stdio-proxy probes returned no initialize response;
-   they do not establish the socket's unavailability. Direct WebSocket access
-   is verified. Subscription, realtime ownership with the TUI attached, mute
-   propagation, and switching an already-running voice transport remain open.
-
-`api/backends/codex/app_server.go::InitializeWithInfo` currently omits the
-experimental capability. `api/backends/codex/events.go::MapNotification` filters
-out realtime notifications. `api/managed_codex.go` and `managed_codex_ws.go`
-already own a native stdio integration, but have no voice control/media path.
-The current reader uses a bounded notification channel with a nonblocking send;
-a media integration must define backpressure and discontinuity reporting before
-carrying audio through that path.
-
-### Agent support as checked on 2026-10-21
-
-| Agent | Evidence | Recommended Web Console treatment |
-|---|---|---|
-| Codex | Installed 0.161.0 has native voice, experimental audio/transcript protocol, and a reachable daemon for this TUI. Public configuration documentation also identifies experimental CLI `/voice` and app-server voice sessions. | Add a version-qualified native adapter for managed owners and verified daemon-backed terminals. Retain Audio Tools for other launches or unavailable native capability. |
-| Claude Code | Installed 2.1.185. Current official docs describe `/voice` hold/tap dictation with server transcription, a Claude.ai sign-in requirement, and a local microphone requirement; SSH/cloud sessions are explicitly excluded. Reviewed hooks and SDK streaming-input docs establish no remote microphone injection interface. | Use Audio Tools for remote browser dictation. Do not advertise native audio from hooks, transcript files, or generic SDK message streaming. Revisit when an official remote audio interface exists. |
-| Grok Build | Installed 0.2.72. Upstream changelog introduces dictation in 0.2.80 and Linux support in 0.2.89; later versions improve it. This is xAI's official Grok Build, not the unrelated third-party grok-cli repository. No remote browser-to-TUI audio interface was established. | Keep Audio Tools as the supported route; evaluate a future native adapter against the installed version and official interface. An upgrade is separate work. |
-| OpenCode | Current official server docs expose session/message APIs and SSE events. Reviewed TUI/server docs do not establish a native microphone or duplex voice endpoint. | Audio Tools dictation and existing speech output; native capability remains unverified. |
-
-Cursor and Gemini CLI documentation was also surveyed. It did not establish a
-native remote live-audio interface for these CLI integrations. They are not
-currently registered Web Console agent types. Editor voice, accepted audio-file
-attachments, and a vendor's general voice API do not prove CLI voice support.
-
-### Proposed integration boundary and behavior
-
-- Web Console owns agent/thread identity, native-agent protocol adapters,
-  same-origin signaling and relay endpoints, capability routing, conversation
-  projection, and recovery UI. Audio Tools retains STT/TTS, voice processing,
-  and provider policy. Shared browser capture, microphone leases, audio levels,
-  and playback primitives belong in `packages/audio-capture-browser`. Native
-  Codex media should reach the Codex session without an STT/TTS round trip
-  through Audio Tools. Clarify this new transport seam in the architecture
-  contract before implementing it; do not make Audio Tools own agent sessions.
-- Resolve voice capability per live session: agent/version, launch and control
-  mode, verified owner/transport, input/output modality, and unavailable reason.
-  Keep user-selected Auto / Agent voice / Dictation separate from detected
-  native mode. In Auto, a verified supported native voice session takes the mic
-  route; otherwise use Audio Tools dictation with an accurate route label.
-  Native capability must not depend on Whisper/Kokoro availability.
-- Keep agent work activity and voice state independent: Codex can work while
-  listening. Maintain separate native-session, media-connection, mic-capture,
-  mute, and playback facts. Show listening only when the selected browser mic
-  is live and the media route is connected. A terminal footer alone means
-  native voice was observed, not that the phone microphone is connected.
-- Prefer authoritative native events, then a documented hook/IPC interface,
-  then a version-specific decoded-screen detector for mode discovery. Use the
-  existing emulator, not screenshot OCR. Anchor screen recognition to the
-  current footer, exclude history/quoted text, retain provenance/confidence,
-  and expire stale observations. Transcript files can recover finalized text;
-  they cannot carry audio or reliably prove current microphone state.
-- Spike Codex WebRTC signaling first, using its own app-server session and
-  credentials: browser SDP offer through Web Console, native `start`, SDP
-  notification back to the browser, bidirectional audio tracks and events.
-  Qualify a Web Console WebSocket/PCM relay using `appendAudio` and
-  `outputAudio/delta` as the alternate transport. Verify encoding, sample rate,
-  framing, queue limits, interruption, output flush, and network behavior from
-  the deployed version; do not infer them from generic Realtime API examples.
-- Reuse `VoiceMicButton` and its existing level-driven waveform. Feed it a
-  route-neutral voice controller. Extend the shared microphone ownership
-  registry/controller for native capture and preserve its cancellation,
-  page lifecycle, and track-release behavior. Bind capture to one session and
-  browser controller; pane switches or competing viewers must not retarget a
-  running stream. A browser-required activation gesture should produce a clear
-  connect action. Distinguish mute from ending a voice conversation.
-- Project native transcript items into Messages using native session/item
-  identity; update partials and commit finals once. Reconcile spoken text with
-  underlying Codex message items without duplicate turns or double speech.
-  Native transcripts are observations, not fresh text to submit again through
-  the composer, command parser, or terminal input gate. Let native audio and
-  Audio Tools automatic TTS have one selected output owner.
-- Preserve Audio Tools dictation for any agent with text input. Choose a
-  fallback before capture, or stop and offer dictation after native failure;
-  do not replay uncertain audio/text into both backends. For a standalone
-  TUI without attachable IPC, mode detection still does not provide audio
-  access. A private virtual microphone/output device would be separate,
-  session-isolated infrastructure work owned by the control plane, justified
-  only if exact native TUI audio becomes a requirement.
-
-**Next bounded experiment:** qualify native voice on one managed Codex thread
-and one existing daemon-backed TUI, including native `/voice` activation,
-browser audio both ways, synchronized mute/end, transcript reconciliation,
-and interruption of playback. Determine whether attaching browser media needs
-an explicit native voice restart. Then implement the shared route controller
-and UI projection. Validate rejected microphone permission, stale terminal
-markers, two viewers, pane switch, reconnect, unavailable native capability,
-Audio Tools outage, and real iPhone Safari/PWA background/foreground behavior.
-Implementation validation should use focused adapter/controller regressions
-and scoped Test Genie phases under `docs/TESTING.md`. No tests were added or
-suites run for this research-only change.
-
-Sources inspected:
-[Codex app-server and experimental opt-in](https://learn.chatgpt.com/docs/app-server),
-[Codex CLI transports](https://learn.chatgpt.com/docs/cli/reference),
-[Codex voice configuration](https://learn.chatgpt.com/docs/config-file/config-reference),
-[Claude dictation](https://code.claude.com/docs/en/voice-dictation),
-[Claude hooks](https://code.claude.com/docs/en/hooks),
-[Claude streaming input](https://code.claude.com/docs/en/agent-sdk/streaming-vs-single-mode),
-[Grok Build changelog](https://x.ai/changelog/build),
-[OpenCode server](https://opencode.ai/docs/server/), and the local installed
-Codex experimental schemas generated under `/tmp/web-console-voice-codex-0161`.
-
-## 2026-10-20 — New Terminal refused when owner verification failed (W3)
+## Resolved — 2026-10-20 New Terminal owner-verification outage (W3)
 
 The operator's New Terminal screenshot showed `[failed_precondition] verified
 session owner required: unavailable`. The Create adapter discarded the owner
@@ -426,6 +290,13 @@ reports no sessions handler assertion failure. The focused Go regression and
 whole sessions handler package pass; the broad unit run is not a green
 scenario-wide receipt. The terminal result and findings are retained at
 `/tmp/wc-session-owner-{testgenie,findings}.json`.
+
+
+Disposition (2026-11-21): `TestAdapterCreateUIContinuesWhenOwnerVerifierUnavailable`
+confirms ordinary UI create continues without attribution on verifier outage,
+while programmatic creates remain fail-closed. The focused regression passes
+today. Close the stale defect status; broad Test Genie debt remains a separate
+open readiness finding.
 
 ## 2026-10-19 — Local Markdown images in Messages show broken-image icons (W3)
 
@@ -4024,3 +3895,85 @@ artifact_e781165955e2fa6a4f2dced8196f7bc4; SHA-256
 - Net production Go reduction: 40 lines. Deleted identifiers have no remaining Web Console references; shared packages were not changed.
 - `go test . ./internal/capabilities`: capabilities passed; API package failed on existing docs/orphan, model-catalog, session-delete, and tmux tests. Test Genie run `20261114-172044-60e917cb`: structure passed; unit failed in the API workspace on the same unrelated suite failure class.
 - Tidiness Manager recommendation RPC returned SQLite `SQLITE_BUSY`; bug `knw-1794677159476577977` filed. Caller searches and the existing issue inventory were used for selection.
+
+### 2026-11-21 — Allow retry after a failed session recovery receipt
+
+- Bug inbox `knw-1794707833287244662` reported that `Recover` replayed a failed durable receipt forever and that replacement-pane output could collide with copied history. `replayRecoverReceipt` now lets failed attempts reach the retryable-ledger reopen path; pending receipts still fence duplicates and succeeded receipts return their recorded replacement. `CopySession` moves early replacement events after source history within its transaction, preserving output and cursor/high-water semantics without duplicate sequences.
+- Regressions cover fail-once copy followed by same-operation retry and idempotent success replay, plus SQL and in-memory copies when the replacement pane already has events.
+- Evidence: `GOWORK=off go test . -run 'Conversation|CopySession' -count=1` and `GOWORK=off go test ./handlers/sessions -count=1` pass from `scenarios/web-console/api`. These cover the reported collision sequence; live browser recovery was not run. Bug-inbox owner readback remains pending because `scenario-qa/bug-investigator` is paused.
+- Measured: 2026-11-21.
+
+### 2026-11-21 — Align AI provider tests with the seeded Vrooli credits provider
+
+- The 2026-11-21 API unit findings showed provider configuration tests still
+  expected two providers. Both supported defaults already include Ollama,
+  OpenRouter, and Vrooli credits; the SQL seed assigns Vrooli priority 3, and
+  the AI service has a regression requiring that provider to be last. This was
+  stale test cardinality, not an unexpected fourth/duplicate provider or a
+  runtime config regression.
+- Updated in-memory and SQL seed expectations plus Connect config/health tests
+  to require the three named providers and their health entries.
+- Focused owner verification passed:
+  `GOWORK=off go test . -run 'Test(AIProviderConfigStore_Defaults|AIProviderConfigStore_HealthTracking|Connect_GetAIConfig|Connect_GetAIHealth|SQLAIConfigStore_GetConfigsSeeded|SQLAIConfigStore_HealthTracking)$' -count=1`.
+  The broader Test Genie run remains failed for other API/UI findings; this
+  scoped pass does not claim a suite-wide pass or close those unrelated items.
+
+### 2026-11-21 — Register served inventory and MB4 association audit documents
+
+- Web Console API `TestDocsNoOrphans` reported two durable Markdown files absent
+  from the documentation manifest: the served-inventory browser harness and a
+  read-only managed-run/BAS-session association audit. Both contain reusable
+  owner evidence, so kept their content and registered them under Reference and
+  Internal respectively; no orphan suppression or document deletion was used.
+- Focused owner verification passes:
+  `GOWORK=off go test . -run '^TestDocs(ManifestResolves|NoOrphans)$' -count=1`.
+  The broader Test Genie unit phase still fails on unrelated Web Console API and
+  UI findings; this does not claim suite-wide documentation or unit clearance.
+
+### 2026-11-21 — Align model-selection tests with fresh fixtures and current Claude policy
+
+- The broad API findings showed a policy-only OpenCode test inheriting the checked-in policy's
+  old observation date, so it entered the intentionally stale branch instead of testing an
+  availability-unknown fresh policy. Reused the fixture helper that gives the copied policy a
+  current observation date; the dedicated stale-policy test continues to set an old date and
+  verifies the warning path.
+- The shipped Claude resource policy now declares Fable 5.2 as the `fable` default and maps
+  Fable 5.1 to `claude-fable-5-1`; model order follows default, then usage tier and recency.
+  Updated the assertions to match those declared choices. No runtime/model policy changed.
+- Focused model-selection and Claude tests pass:
+  `GOWORK=off go test . -run 'Test(RoleModel|Claude)' -count=1`. This scoped pass does not
+  resolve other API or UI Test Genie failures.
+
+### 2026-11-21 — Isolate tmux payload-test session names across runs
+
+- The broad Web Console API report showed `TestTmuxPTY_OversizedKeystroke_IsNotBracketed`
+  colliding with the fixed `wc-test-keystroke-unbracketed` tmux session name. This test
+  suite can overlap across processes on the shared host, so a fixed name made independent
+  runs interfere before the payload assertion.
+- The shared test helper now appends the current process ID and an atomic per-process
+  invocation number to every tmux session ID. This changes only test fixture identity and
+  preserves all payload/marker assertions.
+- Verified the affected test twice in one process and in two concurrent processes:
+  `GOWORK=off go test . -run '^TestTmuxPTY_OversizedKeystroke_IsNotBracketed$' -count=2`
+  passed; two simultaneous `-count=1` invocations also passed. No scenario restart or
+  production code change. Other broad Test Genie failures remain.
+
+### 2026-11-21 — Give direct deletion tests the verified operator context they require
+
+- The broad API findings showed successful permanent-delete tests failing with
+  `verified identity required`. Their shared test helper called the Connect Delete
+  method directly with `context.Background()`, bypassing the HTTP identity middleware;
+  production deletion authorization correctly remained fail-closed.
+- The `callDelete` test helper now supplies a verified local-human test principal with
+  the Web Console write scope. Negative authorization cases continue to exercise the
+  Connect handler directly with their explicit principal variants. No runtime auth rule
+  changed.
+- Focused owner selection passes:
+  `GOWORK=off go test . -run 'Test(HandleDeleteSession|PermanentDelete|DeleteSession_AlreadyAbsent)' -count=1`.
+  This repairs unit-test context only; the remaining broad API/UI failures are still open.
+
+### 2026-11-21 — Current Web Console Test Genie owner dispositions
+
+Earlier API owner fixes and evidence remain recorded above. Follow-up run `20261121-142924-d89868d4` reconciled the six UI findings from broad run `20261121-092803-e6cef8c7`: notifications request assertions, urgency selection, and pane mouse-mode copy now match current owner contracts; greenfield and provider-render tests pass. Its one audio-boundary finding is repaired at the owning boundary: `AudioRuntimeService.TranscribeStream` now has Web Console-owned request/event messages; the API adapter at `api/voice_connect_proxy.go` bridges wire-compatible messages to Audio Tools, and the UI uses generated Web Console types. The boundary guard remains unchanged. Focused API contract/bridge tests and UI boundary/voice tests pass. The single selected audio-boundary finding moved 1→0 unresolved at the owner-test layer; the 266 top-level bullets in this historical-inclusive file remain unchanged, and no canonical bug-inbox/QA pointer was closed. Broad design-authoring and paid-consent failures remain with their named owners. Full UI type-check remains blocked by the shared `DesignAuthoringTool.tsx:392` parse error; detailed verification and measured bytes are in `/home/matthalloran8/.vrooli/research/topics/problem-triage/runs/steward-free-problems-20261121/checkpoints/2026-11-21-pt2-web-console-streaming-contract.md`.
+
+The same Test Genie unit still fails on shared design-authoring files (TypeScript parse error at `DesignAuthoringTool.tsx:392`, two direct-render findings) and four paid-consent journeys. Design-authoring files are concurrent untracked work; Landing Page Business Suite owns journey entitlements. Focused API checks pass. No production authorization changed. Detailed commands, run artifact hashes, routes and sample audit: `/home/matthalloran8/.vrooli/research/topics/problem-triage/runs/steward-free-problems-20261121/checkpoints/2026-11-21-pt2-web-console-followup.md`. No canonical source/QA pointer closed; paused investigator readback remains required. No age-only closure.

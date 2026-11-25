@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/lpbsidentity"
 	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
@@ -18,11 +19,13 @@ import (
 type monetizationContextGateway struct {
 	inferenceconnect.UnimplementedInferenceServiceHandler
 	authorization string
+	creditCallerAuthorization string
 	source        string
 }
 
 func (g *monetizationContextGateway) Run(_ context.Context, request *connect.Request[inferencev1.RunRequest]) (*connect.Response[inferencev1.RunResponse], error) {
 	g.authorization = request.Header().Get("Authorization")
+	g.creditCallerAuthorization = request.Header().Get(lpbsidentity.CreditCallerAuthorizationHeader)
 	g.source = request.Header().Get("X-Vrooli-AI-Source")
 	return connect.NewResponse(&inferencev1.RunResponse{ValueJson: `"echo safe"`, Validated: true}), nil
 }
@@ -67,6 +70,7 @@ func TestSharedMiddlewareSessionReachesWebConsoleGateway(t *testing.T) {
 		PrivacyClass:  sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
 		PrivacySource: "web_console.user_command_and_session_context",
 		ResolveURL:    func(context.Context) (string, error) { return server.URL, nil },
+		ResolveCreditCallerAuthorization: func(context.Context) (string, error) { return "web-console-service-token", nil },
 		Client:        server.Client(),
 	}
 	connectHandler := NewConnectHandler(Deps{Service: gatewayForwardingService{provider: provider}})
@@ -90,7 +94,7 @@ func TestSharedMiddlewareSessionReachesWebConsoleGateway(t *testing.T) {
 	if recorder.Code != http.StatusOK || recorder.Body.String() != "echo safe" {
 		t.Fatalf("app response = %d %q", recorder.Code, recorder.Body.String())
 	}
-	if fixture.authorization != "Bearer shared-middleware-session" || fixture.source != "vrooli-credits" {
-		t.Fatalf("Gateway request auth=%q source=%q", fixture.authorization, fixture.source)
+	if fixture.authorization != "Bearer shared-middleware-session" || fixture.creditCallerAuthorization != "Bearer web-console-service-token" || fixture.source != "vrooli-credits" {
+		t.Fatalf("Gateway request auth=%q credit-caller-auth=%q source=%q", fixture.authorization, fixture.creditCallerAuthorization, fixture.source)
 	}
 }

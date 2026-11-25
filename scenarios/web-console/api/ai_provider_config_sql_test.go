@@ -13,8 +13,8 @@ func TestSQLAIConfigStore_GetConfigsSeeded(t *testing.T) {
 	store := intai.NewSQLConfigStore(context.Background(), db)
 
 	configs := store.GetConfigs(context.Background())
-	if len(configs) != 2 {
-		t.Fatalf("expected 2 seeded configs, got %d", len(configs))
+	if len(configs) != 3 {
+		t.Fatalf("expected 3 seeded configs, got %d", len(configs))
 	}
 
 	// Should be sorted by priority
@@ -23,6 +23,9 @@ func TestSQLAIConfigStore_GetConfigsSeeded(t *testing.T) {
 	}
 	if configs[1].Name != "openrouter" {
 		t.Errorf("second config should be openrouter (priority 2), got %q", configs[1].Name)
+	}
+	if configs[2].Name != "vrooli" {
+		t.Errorf("third config should be vrooli (priority 3), got %q", configs[2].Name)
 	}
 }
 
@@ -100,8 +103,8 @@ func TestSQLAIConfigStore_HealthTracking(t *testing.T) {
 	store.RecordError(context.Background(), "openrouter")
 
 	health := store.GetHealth(context.Background())
-	if len(health) != 2 {
-		t.Fatalf("expected 2 health entries, got %d", len(health))
+	if len(health) != 3 {
+		t.Fatalf("expected 3 health entries, got %d", len(health))
 	}
 
 	for _, h := range health {

@@ -66,7 +66,9 @@ describe("api/notifications", () => {
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
       expect(url).toMatch(/\/api\/v1\/notifications\/catalog\?source_scenario=web-console$/);
-      expect(init).toMatchObject({ method: "GET", cache: "no-store" });
+      // The shared typed client leaves GET implicit and contributes an abort signal.
+      expect(init.method).toBeUndefined();
+      expect(init.cache).toBe("no-store");
       const headers = new Headers(init.headers);
       expect(headers.get("X-Vrooli-Device-Id")).toBe("device-123");
       expect(headers.get("Authorization")).toBe("Bearer test-token");
@@ -156,7 +158,9 @@ describe("api/notifications", () => {
       expect(headers.get("Content-Type")).toBe("application/json");
       expect(headers.get("X-Vrooli-Device-Id")).toBe("device-123");
       expect(headers.get("Authorization")).toBe("Bearer test-token");
-      expect(init.body).toBe(JSON.stringify(preference));
+      // The shared client serializes its validated fields in contract order;
+      // JSON object order is not part of the request contract.
+      expect(JSON.parse(String(init.body))).toEqual(preference);
     });
 
     it("propagates NotificationsUnavailableError from a 503", async () => {

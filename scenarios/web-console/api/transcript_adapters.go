@@ -1,11 +1,8 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -14,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"web-console/backends/codex"
 	"web-console/internal/sessionstore"
 	"web-console/internal/tailer"
 )
@@ -179,36 +177,22 @@ func (ct *CodexTailer) captureAgentInfo(path, sessionID string) {
 	if ct.server == nil || ct.server.sessionStore == nil {
 		return
 	}
-	f, err := os.Open(path)
-	if err != nil {
+	root, ok := codex.ReadRolloutRoot(path)
+	if !ok {
 		return
 	}
-	defer f.Close()
-	r := bufio.NewReaderSize(f, 128*1024)
-	line, err := r.ReadBytes('\n')
-	if err != nil && err != io.EOF {
-		return
-	}
-	line = bytes.TrimSpace(line)
-	if len(line) == 0 {
-		return
-	}
-	var meta struct {
-		Type    string `json:"type"`
-		Payload struct {
-			ID  string `json:"id"`
-			CWD string `json:"cwd"`
-		} `json:"payload"`
-	}
-	if err := json.Unmarshal(line, &meta); err != nil || meta.Type != "session_meta" || meta.Payload.ID == "" {
-		return
-	}
+	// The session's agent identity is the root thread of its conversation:
+	// the thread `codex resume` reopens and the one a goal is set on. A
+	// sub-agent's rollout names that root but is never the session's own
+	// transcript, so it updates neither the identity nor the rollout path.
 	info := sessionstore.AgentInfo{
-		AgentType:       sessionstore.AgentCodex,
-		AgentSessionID:  meta.Payload.ID,
-		CWD:             meta.Payload.CWD,
-		LastRolloutPath: path,
-		LastActivityAt:  time.Now(),
+		AgentType:      sessionstore.AgentCodex,
+		AgentSessionID: root.RootID,
+		CWD:            root.CWD,
+		LastActivityAt: time.Now(),
+	}
+	if !root.SubAgent {
+		info.LastRolloutPath = path
 	}
 	if err := ct.server.sessionStore.UpdateAgentInfo(context.Background(), sessionID, info); err != nil {
 		log.Printf("codex-tailer: UpdateAgentInfo for %s: %v", sessionID, err)
@@ -242,26 +226,6 @@ func (gt *GrokTailer) captureAgentInfo(updatesPath, sessionID string) {
 	if err := gt.server.sessionStore.UpdateAgentInfo(context.Background(), sessionID, info); err != nil {
 		log.Printf("grok-tailer: UpdateAgentInfo for %s: %v", sessionID, err)
 	}
-}
-
-type claudeTranscriptEntry struct {
-	Type    string `json:"type"`
-	Message struct {
-		Content json.RawMessage `json:"content"`
-	} `json:"message"`
-}
-
-type claudeContentBlock struct {
-	Type string `json:"type"`
-	Text string `json:"text"`
-}
-
-func claudeTextBlocks(content json.RawMessage) ([]claudeContentBlock, bool) {
-	var blocks []claudeContentBlock
-	if err := json.Unmarshal(content, &blocks); err != nil {
-		return nil, false
-	}
-	return blocks, true
 }
 
 func logGrokAppend(role, sessionID string, result ConversationAppendResult) {

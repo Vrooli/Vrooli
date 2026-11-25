@@ -50,6 +50,7 @@ require (
 	github.com/klauspost/compress v1.18.7 // indirect
 	github.com/mikelolasagasti/xz v1.0.1 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
+	github.com/vrooli/ai-provider-go v0.0.0
 	github.com/vrooli/cliresolve v0.0.0 // indirect
 	golang.org/x/crypto v0.57.0 // indirect
 	golang.org/x/mod v0.41.0 // indirect
@@ -72,3 +73,5 @@ replace github.com/vrooli/vrooli/scenarios/audio-tools/clients/go => ../../audio
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
 
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
+
+replace github.com/vrooli/ai-provider-go => ../../../packages/ai-provider-go

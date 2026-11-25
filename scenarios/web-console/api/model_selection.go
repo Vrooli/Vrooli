@@ -87,10 +87,14 @@ func (s *Server) GetRoleModelChoices(_ context.Context, agentID, targetID, launc
 			continue
 		}
 		window := agentcatalog.ModelContextWindow(descriptor, catalog, choice.Model)
+		windowSource := ""
+		if window > 0 {
+			windowSource = descriptor.Features.ContextWindowSource
+		}
 		item := modelselection.Choice{
 			Model: choice.Model, DisplayName: modelDisplayNameForSource(catalog, choice.Source, choice.Model), Source: choice.Source, Provider: choice.Provider, LaunchModel: launchModel,
 			SourceLabel: modelSourceLabel(catalog.Billing, choice.Source), IsDefault: choice.Model == catalog.Roles[codingRoleName].Model,
-			ContextWindowTokens: window, ContextLimitTokens: descriptor.ContextLimitOptions(window, contextLimitCandidates),
+			ContextWindowTokens: window, ContextWindowSource: windowSource, ContextLimitTokens: descriptor.ContextLimitOptions(window, contextLimitCandidates),
 			Metered: modelSourceMetered(catalog.Billing, choice.Source),
 		}
 		if choice.Effort != nil {

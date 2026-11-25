@@ -51,6 +51,49 @@ export type UsageModeStart =
   | { agentId: string; kind: "off" }
   | { agentId: string; kind: "reset"; windowMinutes: number };
 
+/** Provenance-carrying context limit shared by launch settings and the live meter. */
+export interface ContextLimitRecord {
+  model?: string;
+  modelSource?: string;
+  modelWindowTokens: number | null;
+  modelWindowSource: string;
+  compactionPointTokens: number | null;
+  compactionPointSource: string;
+  /** Model-specific choices the server has already admitted for this harness. */
+  offeredCompactionPoints?: number[];
+}
+
+export function contextLimitRecord(input: {
+  model?: string;
+  modelSource?: string;
+  contextWindowTokens?: number | bigint | null;
+  contextWindowSource?: string;
+  contextLimitTokens?: number | bigint | null;
+  contextLimitSource?: string;
+  contextLimitOptions?: Array<number | bigint | null>;
+}): ContextLimitRecord {
+  const window = Number(input.contextWindowTokens ?? 0);
+  const point = Number(input.contextLimitTokens ?? 0);
+  const windowSource = input.contextWindowSource?.trim();
+  // A positive number without a reader is not provenance-bearing. This also
+  // makes an older proto consumer that drops the additive source field show an
+  // unknown window instead of presenting an unverified value.
+  const hasVersionedWindowSource = Boolean(windowSource && /^[a-z][a-z0-9-]*\/v[1-9]\d*$/.test(windowSource));
+  const hasVerifiedWindow = window > 0 && hasVersionedWindowSource;
+  const offeredCompactionPoints = [...new Set((input.contextLimitOptions ?? [])
+    .map(Number)
+    .filter((tokens) => Number.isFinite(tokens) && tokens > 0 && (!hasVerifiedWindow || tokens <= window)))].sort((a, b) => b - a);
+  return {
+    model: input.model,
+    modelSource: input.modelSource,
+    modelWindowTokens: hasVerifiedWindow ? window : null,
+    modelWindowSource: hasVerifiedWindow ? windowSource! : "unknown",
+    compactionPointTokens: point > 0 ? point : null,
+    compactionPointSource: point > 0 ? input.contextLimitSource || "unknown" : "unknown",
+    offeredCompactionPoints,
+  };
+}
+
 async function request(path: string, init?: RequestInit): Promise<UsageModeState> {
   const headers = new Headers(init?.headers);
   headers.set("X-Vrooli-Device-Id", deviceIdentity().id);
@@ -78,6 +121,16 @@ export interface CompactCandidate {
   harness: string;
   state: string;
   contextTokens: number;
+  contextBudget?: ContextLimitRecord & {
+    modelState: string;
+    usedTokens: number | null;
+    usedSource: string;
+    tokensUntilCompaction: number | null;
+    forecastState: string;
+    tokensPerSecond?: number | null;
+    secondsUntilCompaction?: number | null;
+    progressPercent: number | null;
+  };
   goalActive: boolean;
   eligible: boolean;
   skipReason?: string;
@@ -95,6 +148,7 @@ export interface CompactEvent {
   reason?: string;
   tokensBefore?: number;
   tokensAfter?: number;
+  pinnedStanceSent?: boolean;
 }
 
 export interface CompactResult extends CompactEvent {
@@ -104,8 +158,11 @@ export interface CompactResult extends CompactEvent {
 export interface SessionCompaction {
   watch: { armed: boolean; thresholdTokens: number };
   history: CompactEvent[];
+  pinnedStanceMaxBytes: number;
   result?: CompactEvent;
   armed?: boolean;
+  pinnedStance?: boolean;
+  pinnedStanceText?: string;
 }
 
 async function compactionRequest<T>(path: string, init?: RequestInit): Promise<T> {
@@ -126,5 +183,5 @@ export const compactIdleSessions = (sessionIds: string[]) =>
   compactionRequest<{ results: CompactResult[] | null }>("/api/v1/context-compaction/compact-idle", jsonPost({ sessionIds })).then((body) => body.results ?? []);
 export const getSessionCompaction = (sessionId: string, signal?: AbortSignal) =>
   compactionRequest<SessionCompaction>(`/api/v1/sessions/${encodeURIComponent(sessionId)}/context-compaction`, { method: "GET", signal });
-export const setSessionCompaction = (sessionId: string, body: { action: "compact_when_idle" | "set_threshold" | "cancel"; thresholdTokens?: number }) =>
+export const setSessionCompaction = (sessionId: string, body: { action: "compact_when_idle" | "set_threshold" | "cancel" | "pin_stance" | "unpin_stance"; thresholdTokens?: number; stance?: string }) =>
   compactionRequest<SessionCompaction>(`/api/v1/sessions/${encodeURIComponent(sessionId)}/context-compaction`, jsonPost(body));

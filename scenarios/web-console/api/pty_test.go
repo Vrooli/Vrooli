@@ -107,73 +107,34 @@ func TestEnsureTermEnv_PreservesOtherVars(t *testing.T) {
 
 // --- filterClaudeEnv tests ---
 
-func TestFilterClaudeEnv_RemovesCLAUDECODE(t *testing.T) {
-	env := []string{
-		"HOME=/home/user",
-		"CLAUDECODE=1",
-		"PATH=/usr/bin",
-	}
-	got := claude.FilterEnv(env)
-
-	for _, v := range got {
-		if v == "CLAUDECODE=1" {
-			t.Error("CLAUDECODE should be filtered out")
-		}
-	}
-	if len(got) != 2 {
-		t.Errorf("expected 2 env vars after filtering, got %d", len(got))
-	}
-}
-
-func TestFilterClaudeEnv_RemovesAllClaudeVars(t *testing.T) {
-	env := []string{
-		"HOME=/home/user",
-		"CLAUDECODE=1",
-		"CLAUDE_SESSION_ID=abc123",
-		"CLAUDE_CONFIG_DIR=/home/user/.claude",
-		"CLAUDE_NON_INTERACTIVE=true",
-		"CLAUDE_CODE_ENTRYPOINT=sdk-cli",
-		"PATH=/usr/bin",
-	}
-	got := claude.FilterEnv(env)
-
-	for _, v := range got {
-		if strings.HasPrefix(v, "CLAUDE") {
-			t.Errorf("Claude env var should be filtered out: %s", v)
-		}
-	}
-	// Only HOME and PATH should remain
-	if len(got) != 2 {
-		t.Errorf("expected 2 env vars after filtering, got %d: %v", len(got), got)
+func TestClaudeSessionConfigurationSurvivesProviderTransition(t *testing.T) {
+	base := []string{"HOME=/home/user", "PATH=/usr/bin", "CLAUDECODE=1", "CLAUDE_CODE_CHILD_SESSION=1", "CLAUDE_CONFIG_DIR=/profiles/work"}
+	providers := []string{"CLAUDE_CODE_USE_BEDROCK=1", "CLAUDE_CODE_USE_VERTEX=1", "CLAUDE_CODE_USE_FOUNDRY=1"}
+	for _, provider := range providers {
+		t.Run(provider, func(t *testing.T) {
+			env := append(append([]string{}, base...), provider)
+			got := filterServiceEnv(claude.FilterEnv(env))
+			for _, want := range []string{"CLAUDE_CONFIG_DIR=/profiles/work", provider} {
+				if !containsEnvValue(got, want) {
+					t.Errorf("configuration %q lost during nested terminal setup: %v", want, got)
+				}
+			}
+			for _, marker := range []string{"CLAUDECODE=1", "CLAUDE_CODE_CHILD_SESSION=1"} {
+				if containsEnvValue(got, marker) {
+					t.Errorf("parent session marker %q leaked to terminal: %v", marker, got)
+				}
+			}
+		})
 	}
 }
 
-func TestFilterClaudeEnv_PreservesNonClaudeVars(t *testing.T) {
-	env := []string{
-		"HOME=/home/user",
-		"CLAUDECODE=1",
-		"TERM=xterm-256color",
-		"SHELL=/bin/bash",
-		"LANGUAGE=en_US",
-	}
-	got := claude.FilterEnv(env)
-
-	expected := map[string]bool{
-		"HOME=/home/user":     true,
-		"TERM=xterm-256color": true,
-		"SHELL=/bin/bash":     true,
-		"LANGUAGE=en_US":      true,
-	}
-
-	for _, v := range got {
-		if !expected[v] {
-			t.Errorf("unexpected var in output: %s", v)
+func containsEnvValue(env []string, value string) bool {
+	for _, entry := range env {
+		if entry == value {
+			return true
 		}
-		delete(expected, v)
 	}
-	if len(expected) > 0 {
-		t.Errorf("missing expected vars: %v", expected)
-	}
+	return false
 }
 
 func TestFilterClaudeEnv_HandlesEmptyEnv(t *testing.T) {

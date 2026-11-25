@@ -1,4 +1,4 @@
-import type { ConversationEvent, ConversationSearchMatch, SearchTextRange } from "../api/conversation";
+import type { ConversationEvent, ConversationSearchMatch, ConversationSearchModeName, SearchTextRange } from "../api/conversation";
 import { looksLikeFileReference } from "@vrooli/file-viewer/file-references";
 import { strings } from "../consts/strings";
 
@@ -130,6 +130,29 @@ export const DEFAULT_NAVIGATOR_STATE: NavigatorState = {
   sort: "oldest",
   group: "turn",
 };
+
+/**
+ * The filter half of the navigator state. Kept separate from `query` so the
+ * messages toolbar can own one persistent filter surface while the search
+ * field and navigator both stay controlled by the pane.
+ */
+export type MessageFilterState = Pick<NavigatorState, "role" | "status" | "content" | "sort" | "group">;
+
+export const DEFAULT_MESSAGE_FILTER_STATE: MessageFilterState = {
+  role: "all",
+  status: "all",
+  content: "all",
+  sort: "oldest",
+  group: "turn",
+};
+
+export function activeMessageFilterCount(filters: MessageFilterState): number {
+  return (filters.role !== "all" ? 1 : 0)
+    + (filters.status !== "all" ? 1 : 0)
+    + (filters.content !== "all" ? 1 : 0)
+    + (filters.sort !== "oldest" ? 1 : 0)
+    + (filters.group !== "turn" ? 1 : 0);
+}
 
 export type ContentBadge = "code" | "fileReference" | "long";
 
@@ -295,11 +318,30 @@ export function availableSources(events: ConversationEvent[]): SourceId[] {
  * (buildSearchResults lists its hits). Grouping is a presentation concern
  * handled by groupResults so keyboard indexing always refers to this flat list.
  */
+/**
+ * The same role/status/content predicates the navigator uses, applied to the
+ * loaded conversation for the main messages list. Kept preview-free because
+ * this runs on every scroll-adjacent render of a large history.
+ */
+export function filterAndSortEvents(
+  events: readonly ConversationEvent[],
+  state: MessageFilterState,
+): ConversationEvent[] {
+  const filtered = events.filter((event) => (
+    matchesRole(event, state.role)
+    && matchesStatus(event, state.status)
+    && matchesContent(getDerived(event).badges, state.content)
+  ));
+  filtered.sort(state.sort === "newest"
+    ? (left, right) => right.sequence - left.sequence
+    : (left, right) => left.sequence - right.sequence);
+  return filtered;
+}
+
 export function buildResults(
   events: ConversationEvent[],
   state: NavigatorState,
-): NavigatorResult[] {
-  const filtered: NavigatorResult[] = [];
+): NavigatorResult[] {  const filtered: NavigatorResult[] = [];
   for (const event of events) {
     if (!matchesRole(event, state.role)) continue;
     if (!matchesStatus(event, state.status)) continue;
@@ -308,6 +350,64 @@ export function buildResults(
     filtered.push({ event, preview, excerpt: previewSegments(preview), badges });
   }
   return sortResults(filtered, state.sort);
+}
+
+const REGEX_SPECIAL = /[.*+?^${}()|[\]\\]/g;
+
+function escapeForRegExp(value: string): string {
+  return value.replace(REGEX_SPECIAL, "\\$&");
+}
+
+/**
+ * Instant matches from the loaded window while the whole-history search is in
+ * flight. The server remains the authority over the full conversation; this
+ * keeps the dropdown responsive on large sessions instead of leaving the
+ * reader with skeletons for the length of a full transcript scan.
+ */
+export function searchLoadedEvents(
+  events: readonly ConversationEvent[],
+  query: string,
+  state: MessageFilterState,
+  options: { mode: ConversationSearchModeName; caseSensitive: boolean; wholeWord: boolean },
+): NavigatorResult[] {
+  const needle = query.trim();
+  if (!needle) return [];
+  const flags = options.caseSensitive ? "g" : "gi";
+  let pattern: RegExp;
+  try {
+    if (options.mode === "regex") pattern = new RegExp(needle, flags);
+    else if (options.mode === "fuzzy") pattern = new RegExp([...needle].map(escapeForRegExp).join(".*"), flags);
+    else pattern = new RegExp(options.wholeWord ? `\\b${escapeForRegExp(needle)}\\b` : escapeForRegExp(needle), flags);
+  } catch {
+    // An invalid regular expression has no local matches; the server reports
+    // the readable error for the same query.
+    return [];
+  }
+
+  const results: NavigatorResult[] = [];
+  for (const event of events) {
+    if (!matchesRole(event, state.role)) continue;
+    if (!matchesStatus(event, state.status)) continue;
+    const { badges, preview } = getDerived(event);
+    if (!matchesContent(badges, state.content)) continue;
+    const ranges: SearchTextRange[] = [];
+    for (const match of preview.matchAll(pattern)) {
+      if (!match[0].length || match.index == null) continue;
+      ranges.push({ start: match.index, end: match.index + match[0].length });
+    }
+    if (ranges.length === 0) continue;
+    const head = preview.length > EXCERPT_MAX ? preview.slice(0, EXCERPT_MAX) + "…" : preview;
+    const visibleRanges = ranges
+      .filter((range) => range.start < EXCERPT_MAX)
+      .map((range) => ({ start: range.start, end: Math.min(range.end, EXCERPT_MAX) }));
+    results.push({
+      event,
+      preview,
+      excerpt: visibleRanges.length > 0 ? excerptSegments(head, visibleRanges) : previewSegments(preview),
+      badges,
+    });
+  }
+  return sortResults(results, state.sort);
 }
 
 /** A hit outside the loaded window, listed from what the server reported. */

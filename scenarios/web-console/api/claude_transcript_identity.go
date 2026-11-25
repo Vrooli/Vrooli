@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bufio"
 	"context"
-	"encoding/json"
 	"log"
 	"os"
 	"path/filepath"
@@ -12,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/cli-core/agenttranscript"
 	"web-console/internal/sessionstore"
 )
 
@@ -367,24 +366,5 @@ func claudeTranscriptFirstEntryTime(path string) (time.Time, bool) {
 	}
 	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 0, 64*1024), 8*1024*1024)
-	for line := 0; line < claudeIdentityHeaderLines && scanner.Scan(); line++ {
-		raw := strings.TrimSpace(scanner.Text())
-		if raw == "" {
-			continue
-		}
-		var entry struct {
-			Timestamp string `json:"timestamp"`
-		}
-		if json.Unmarshal([]byte(raw), &entry) != nil || entry.Timestamp == "" {
-			continue
-		}
-		parsed, parseErr := time.Parse(time.RFC3339, entry.Timestamp)
-		if parseErr != nil {
-			continue
-		}
-		return parsed, true
-	}
-	return time.Time{}, false
+	return agenttranscript.FirstRFC3339JSONLTimestamp(file, claudeIdentityHeaderLines, 8*1024*1024)
 }

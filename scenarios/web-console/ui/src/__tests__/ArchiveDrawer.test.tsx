@@ -14,6 +14,8 @@ function chooseMoreAction(name: string) {
 const mocks = vi.hoisted(() => ({
   listArchivedSessions: vi.fn(),
   searchArchivedConversations: vi.fn(),
+  searchSemanticConversations: vi.fn(),
+  searchNodeArchive: vi.fn(),
   getConversationRange: vi.fn(),
   deleteSession: vi.fn(),
   reopenSession: vi.fn(),
@@ -36,6 +38,8 @@ vi.mock("../api/sessions", () => ({
 
 vi.mock("../api/conversation", () => ({
   searchArchivedConversations: mocks.searchArchivedConversations,
+  searchSemanticConversations: mocks.searchSemanticConversations,
+  searchNodeArchive: mocks.searchNodeArchive,
   getConversationRange: mocks.getConversationRange,
 }));
 
@@ -86,6 +90,16 @@ describe("ArchiveDrawer", () => {
       totalMatches: 1,
       distinctSessions: 1,
     });
+    mocks.searchSemanticConversations.mockResolvedValue({
+      local: { matches: [], truncated: false, totalMatches: 0, distinctSessions: 0 },
+      semanticAvailable: true, semanticError: "", semanticTookMs: 7,
+      semanticHits: [{ stableHitId: "semantic-1", eventId: "am-event-1", role: "assistant", occurredAt: "2026-08-17T12:10:00Z", snippet: "semantic-only phrase", harness: "codex", sourceSessionId: "am-session-1", weak: false }],
+      coverage: { semanticRatio: 0.94 }, degradations: [],
+    });
+    mocks.searchNodeArchive.mockResolvedValue({
+      nodeId: "node-lab", available: true, degradation: "",
+      search: { matches: [{ eventId: "node-event-1", sessionId: "node-session-1", sequence: 8, role: "user", createdAt: "2026-08-17T12:10:00Z", occurredAt: "2026-08-10T08:30:00Z", excerpt: "node-only phrase" }], truncated: false, totalMatches: 1, distinctSessions: 1 },
+    });
     mocks.searchLocalContinuity.mockResolvedValue({
       matches: [{ eventId: "event-42", sessionId: "archive-1", sequence: 42, role: "user", createdAt: "2026-08-17T12:10:00Z", excerpt: "receipt signing key", lifecycleState: "archived" }],
       truncated: false,
@@ -112,6 +126,24 @@ describe("ArchiveDrawer", () => {
     render(<ArchiveDrawer open onClose={vi.fn()} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />);
 
     expect(await screen.findByTestId("archive-continuity-warning")).toHaveTextContent("archiveDrawer.continuityWarning");
+  });
+
+  it("shows archive search results when entered from the recovery-only drawer", async () => {
+    mocks.listRecoverableSessions.mockResolvedValue([{
+      id: "recovery-fixture", recoverable: false, not_recoverable_reason: "synthetic navigation fixture",
+    }]);
+    mocks.searchLocalContinuity.mockResolvedValue({
+      matches: [{ eventId: "antigravity-event", sessionId: "wc-archive-antigravity-fixture-01", sequence: 2, role: "assistant", createdAt: "2026-11-23T15:01:00Z", occurredAt: "2026-11-23T14:58:00Z", excerpt: "synthetic native archive marker", lifecycleState: "archived" }],
+      truncated: false,
+      totalMatches: 1,
+      distinctSessions: 1,
+    });
+    render(<ArchiveDrawer open preferOrphans onClose={vi.fn()} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />);
+
+    await screen.findByTestId("archive-orphan-results");
+    fireEvent.change(screen.getByTestId("archive-search-input"), { target: { value: "synthetic native archive marker" } });
+
+    expect(await screen.findByTestId("archive-hit-antigravity-event")).toBeInTheDocument();
   });
 
   it("searches messages, opens the selected transcript read-only, and stages into only the active composer", async () => {
@@ -162,6 +194,76 @@ describe("ArchiveDrawer", () => {
     const reader = await screen.findByTestId("archive-reader-props");
     expect(reader).toHaveAttribute("data-session", "orphan-pane");
     expect(reader).toHaveAttribute("data-read-only", "true");
+  });
+
+  it("opens native archive results with truthful source metadata and no invented receipt", async () => {
+    mocks.searchLocalContinuity.mockResolvedValue({
+      matches: [{ eventId: "cursor-event", sessionId: "wc-archive-cursor-workspace-123", sequence: 9, role: "assistant", createdAt: "2026-08-17T12:10:00Z", excerpt: "cursor native conversation", lifecycleState: "archived" }],
+      truncated: false,
+      totalMatches: 1,
+      distinctSessions: 1,
+    });
+    render(<ArchiveDrawer open onClose={vi.fn()} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />);
+    fireEvent.change(await screen.findByTestId("archive-search-input"), { target: { value: "cursor native" } });
+
+    fireEvent.click(await screen.findByTestId("archive-hit-cursor-event"));
+    const reader = await screen.findByTestId("archive-reader-props");
+    expect(reader).toHaveAttribute("data-session", "wc-archive-cursor-workspace-123");
+    expect(reader).toHaveAttribute("data-read-only", "true");
+    expect(screen.getByTestId("native-archive-heading")).toHaveTextContent("Cursor · Native archive");
+    expect(screen.getAllByText(/Indexed ·/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Message ·/)).toBeNull();
+    expect(screen.queryByText(/messageCount/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "archiveDrawer.receipt" })).toBeNull();
+    expect(mocks.getContinuityReceipt).not.toHaveBeenCalled();
+  });
+
+  it("labels Qwen Code native archive results", async () => {
+    mocks.searchLocalContinuity.mockResolvedValue({
+      matches: [{ eventId: "qwen-event", sessionId: "wc-archive-qwen-code-session-123", sequence: 2, role: "assistant", createdAt: "2026-08-17T12:10:00Z", occurredAt: "2026-08-16T09:00:00Z", excerpt: "qwen native conversation", lifecycleState: "archived" }],
+      truncated: false,
+      totalMatches: 1,
+      distinctSessions: 1,
+    });
+    render(<ArchiveDrawer open onClose={vi.fn()} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />);
+    fireEvent.change(await screen.findByTestId("archive-search-input"), { target: { value: "qwen native" } });
+    fireEvent.click(await screen.findByTestId("archive-hit-qwen-event"));
+
+    expect(await screen.findByTestId("native-archive-heading")).toHaveTextContent("Qwen Code · Native archive");
+    expect(screen.getAllByText(/Message ·/).length).toBeGreaterThan(0);
+  });
+
+  it("runs optional semantic search, keeps local results, and previews Agent Manager provenance", async () => {
+    render(<ArchiveDrawer open onClose={vi.fn()} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />);
+    fireEvent.change(await screen.findByTestId("archive-search-input"), { target: { value: "semantic-only" } });
+    fireEvent.click(screen.getByTestId("archive-search-mode-semantic"));
+
+    const hit = await screen.findByTestId("archive-remote-hit-semantic-semantic-1");
+    expect(mocks.searchSemanticConversations).toHaveBeenCalledWith("semantic-only", { agentType: undefined, role: undefined }, 100);
+    expect(await screen.findByTestId("archive-search-notice")).toHaveTextContent("archiveDrawer.semanticCoverage");
+    fireEvent.click(hit);
+    expect(await screen.findByTestId("archive-remote-preview")).toHaveTextContent("am-session-1");
+    expect(screen.getByTestId("archive-remote-preview")).toHaveTextContent("semantic-only phrase");
+    expect(screen.queryByTestId("archive-reader-props")).toBeNull();
+  });
+
+  it("requires an explicit node ID and previews only results from that selected node", async () => {
+    render(<ArchiveDrawer open onClose={vi.fn()} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />);
+    fireEvent.click(await screen.findByTestId("archive-search-mode-node"));
+    fireEvent.change(screen.getByTestId("archive-search-input"), { target: { value: "node-only" } });
+    expect(await screen.findByTestId("archive-search-notice")).toHaveTextContent("archiveDrawer.nodeIdRequired");
+    expect(mocks.searchNodeArchive).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("archive-hit-event-42")).toBeNull();
+    expect(screen.getByTestId("archive-time-filter")).toBeDisabled();
+
+    fireEvent.change(screen.getByTestId("archive-node-id"), { target: { value: "node-lab" } });
+    const hit = await screen.findByTestId("archive-remote-hit-node-node-event-1");
+    expect(mocks.searchNodeArchive).toHaveBeenCalledWith("node-lab", "node-only", { agentType: undefined, role: undefined }, 100);
+    expect(hit).toHaveTextContent("Message ·");
+    fireEvent.click(hit);
+    expect(await screen.findByTestId("archive-remote-preview")).toHaveAttribute("data-node-id", "node-lab");
+    expect(screen.getByTestId("archive-remote-preview")).toHaveTextContent("node-only phrase");
+    expect(screen.queryByTestId("archive-reader-props")).toBeNull();
   });
 
   it("lists all archived sessions before a search and opens one read-only", async () => {
@@ -272,16 +374,32 @@ describe("ArchiveDrawer", () => {
     expect(screen.getByTestId("archive-orphans-filter")).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("keeps Semantic and non-reopenable restoration disabled with explanations", async () => {
+  it("keeps optional Semantic search selectable and non-reopenable restoration disabled with explanations", async () => {
     render(<ArchiveDrawer open onClose={vi.fn()} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />);
     fireEvent.change(await screen.findByTestId("archive-search-input"), { target: { value: "receipt" } });
 
     await screen.findByTestId("archive-reader-props");
-    expect(screen.getByRole("button", { name: "archiveDrawer.semanticSearch" })).toBeDisabled();
+    expect(screen.getByTestId("archive-search-mode-semantic")).toBeEnabled();
     const reopen = screen.getByRole("button", { name: "archiveDrawer.reopen" });
     expect(reopen).toBeDisabled();
     // The action bar titles a button with its own label, so the reason is shown as text beside the state.
     expect(screen.getByText(/agent history no longer on disk/)).toBeInTheDocument();
+  });
+
+  it("shows why a policy archived a session on its row and beside Reopen", async () => {
+    const note = "Archived by the idle policy (6h0m0s): no agent work since 2026-11-20 08:43 UTC (21h0m0s idle); goal paused on thread 01a1f2dd; no turn or sub-agent running.";
+    mocks.listArchivedSessions.mockResolvedValue({
+      total: 1,
+      sessions: [{
+        id: "archive-1", archived_at: "2026-11-21T05:47:44Z", created_at: "2026-11-19T08:13:00Z",
+        agent_type: "codex", pane_name: "research lead", message_count: 3, restore_state: "reopenable", archive_note: note,
+      }],
+    });
+    render(<ArchiveDrawer open onClose={vi.fn()} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />);
+    expect(await screen.findByTestId("archive-note-archive-1")).toHaveTextContent(note);
+    fireEvent.click(screen.getByTestId("archive-session-archive-1"));
+    expect(await screen.findByTestId("archive-note")).toHaveTextContent(note);
+    expect(screen.getByTestId("archive-reopen")).toBeEnabled();
   });
 
   it("retries Reopen with one stable idempotency key and reports the replacement", async () => {

@@ -188,7 +188,7 @@ func TestExpirationSweeper_RemovesExpiredSessions(t *testing.T) {
 	sess.emuMu.Unlock()
 
 	sweeper := NewExpirationSweeper(sm, events, metrics)
-	sweeper.SetArchiveHandler(sm.Archive)
+	sweeper.SetArchiveHandler(func(ctx context.Context, id, _ string) error { return sm.Archive(ctx, id) })
 	sweeper.sweep() // Run one sweep cycle
 
 	_, ok := sm.Get(sess.ID)
@@ -210,7 +210,7 @@ func TestExpirationSweeperUsesOwnedArchiveHandler(t *testing.T) {
 
 	called := false
 	sweeper := NewExpirationSweeper(sm, events.NewLogger(10), metrics.New())
-	sweeper.SetArchiveHandler(func(ctx context.Context, id string) error {
+	sweeper.SetArchiveHandler(func(ctx context.Context, id, _ string) error {
 		called = true
 		return sm.Archive(ctx, id)
 	})
@@ -234,7 +234,7 @@ func TestExpirationSweeperDoesNotDoubleCountOwnedArchiveMetrics(t *testing.T) {
 	metrics := metrics.New()
 	metrics.ActiveSessions.Store(1)
 	sweeper := NewExpirationSweeper(sm, events.NewLogger(10), metrics)
-	sweeper.SetArchiveHandler(func(ctx context.Context, id string) error {
+	sweeper.SetArchiveHandler(func(ctx context.Context, id, _ string) error {
 		if err := sm.Archive(ctx, id); err != nil {
 			return err
 		}
@@ -264,7 +264,7 @@ func TestExpirationSweeperReportsArchiveFailure(t *testing.T) {
 
 	metrics := metrics.New()
 	sweeper := NewExpirationSweeper(sm, events.NewLogger(10), metrics)
-	sweeper.SetArchiveHandler(func(context.Context, string) error {
+	sweeper.SetArchiveHandler(func(context.Context, string, string) error {
 		return context.Canceled
 	})
 	sweeper.sweep()
@@ -371,7 +371,7 @@ func TestExpirationSweeper_LoopFiresAndArchives(t *testing.T) {
 		sessions: sm,
 		events:   events,
 		metrics:  metrics,
-		archive:  sm.Archive,
+		archive:  func(ctx context.Context, id, _ string) error { return sm.Archive(ctx, id) },
 		interval: 50 * time.Millisecond,
 		stopCh:   make(chan struct{}),
 	}
@@ -389,5 +389,124 @@ func TestExpirationSweeper_LoopFiresAndArchives(t *testing.T) {
 
 	if metrics.SessionsDeleted.Load() != 0 {
 		t.Errorf("expected no deletion metric for expiration archive, got %d", metrics.SessionsDeleted.Load())
+	}
+}
+
+// --- Idle policy ---
+
+func idleSession(t *testing.T, sm *Manager) *Session {
+	t.Helper()
+	sess, err := sm.Create(context.Background(), "", 80, 24, "", nil)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	sess.SetPolicy(policy.Policy{Mode: policy.Idle, Duration: "6h"})
+	// Even an ancient session is never archived by age under the idle mode.
+	sess.emuMu.Lock()
+	sess.CreatedAt = time.Now().Add(-30 * 24 * time.Hour)
+	sess.emuMu.Unlock()
+	return sess
+}
+
+func TestIdlePolicyArchivesThroughOwnerWithJudgeNote(t *testing.T) {
+	sm := NewManagerWithFactory(ptyfake.NewFactory())
+	sess := idleSession(t, sm)
+	log := events.NewLogger(10)
+	sweeper := NewExpirationSweeper(sm, log, metrics.New())
+	var gotWindow time.Duration
+	sweeper.SetIdleJudge(func(_ context.Context, s *Session, idleAfter time.Duration) IdleVerdict {
+		gotWindow = idleAfter
+		return IdleVerdict{Archive: true, Note: "idle note for " + s.ID}
+	})
+	var gotNote string
+	sweeper.SetArchiveHandler(func(ctx context.Context, id, note string) error {
+		gotNote = note
+		return sm.Archive(ctx, id)
+	})
+	sweeper.sweep()
+	if gotWindow != 6*time.Hour {
+		t.Fatalf("judge window = %s, want 6h", gotWindow)
+	}
+	if gotNote != "idle note for "+sess.ID {
+		t.Fatalf("archive note = %q", gotNote)
+	}
+	if _, ok := sm.Get(sess.ID); ok {
+		t.Fatal("an idle session the judge released must be archived")
+	}
+}
+
+func TestIdlePolicyKeepsSessionTheJudgeKeeps(t *testing.T) {
+	sm := NewManagerWithFactory(ptyfake.NewFactory())
+	sess := idleSession(t, sm)
+	defer func() { _ = sm.Delete(context.Background(), sess.ID) }()
+	sweeper := NewExpirationSweeper(sm, events.NewLogger(10), metrics.New())
+	sweeper.SetIdleJudge(func(context.Context, *Session, time.Duration) IdleVerdict {
+		return IdleVerdict{Note: "goal active"}
+	})
+	archived := false
+	sweeper.SetArchiveHandler(func(context.Context, string, string) error { archived = true; return nil })
+	sweeper.sweep()
+	if archived {
+		t.Fatal("a kept session must not reach the archive owner")
+	}
+}
+
+func TestIdlePolicyWithoutJudgeNeverArchives(t *testing.T) {
+	sm := NewManagerWithFactory(ptyfake.NewFactory())
+	sess := idleSession(t, sm)
+	defer func() { _ = sm.Delete(context.Background(), sess.ID) }()
+	sweeper := NewExpirationSweeper(sm, events.NewLogger(10), metrics.New())
+	archived := false
+	sweeper.SetArchiveHandler(func(context.Context, string, string) error { archived = true; return nil })
+	sweeper.sweep()
+	if archived {
+		t.Fatal("without evidence an idle session must be kept")
+	}
+}
+
+func TestIdlePolicyReadsEvidenceAtMostOncePerInterval(t *testing.T) {
+	sm := NewManagerWithFactory(ptyfake.NewFactory())
+	sess := idleSession(t, sm)
+	defer func() { _ = sm.Delete(context.Background(), sess.ID) }()
+	sweeper := NewExpirationSweeper(sm, events.NewLogger(10), metrics.New())
+	calls := 0
+	sweeper.SetIdleJudge(func(context.Context, *Session, time.Duration) IdleVerdict {
+		calls++
+		return IdleVerdict{Note: "kept"}
+	})
+	sweeper.SetArchiveHandler(func(context.Context, string, string) error { return nil })
+	sweeper.sweep()
+	sweeper.sweep()
+	if calls != 1 {
+		t.Fatalf("judge calls = %d within one interval, want 1", calls)
+	}
+	sweeper.idleInterval = 0
+	sweeper.sweep()
+	if calls != 2 {
+		t.Fatalf("judge calls = %d after the interval, want 2", calls)
+	}
+}
+
+func TestExpiryArchiveCarriesPolicyNote(t *testing.T) {
+	sm := NewManagerWithFactory(ptyfake.NewFactory())
+	sess, err := sm.Create(context.Background(), "", 80, 24, "", nil)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	sess.SetPolicy(policy.Policy{Mode: policy.Preset, Duration: "1h"})
+	sess.emuMu.Lock()
+	sess.CreatedAt = time.Now().Add(-2 * time.Hour)
+	sess.emuMu.Unlock()
+	sweeper := NewExpirationSweeper(sm, events.NewLogger(10), metrics.New())
+	judged := false
+	sweeper.SetIdleJudge(func(context.Context, *Session, time.Duration) IdleVerdict { judged = true; return IdleVerdict{} })
+	var gotNote string
+	sweeper.SetArchiveHandler(func(ctx context.Context, id, note string) error { gotNote = note; return sm.Archive(ctx, id) })
+	sweeper.sweep()
+	if judged {
+		t.Fatal("an age-based policy must not consult the idle judge")
+	}
+	if gotNote != "Archived by the preset expiry policy: the session reached its 1h lifetime." {
+		t.Fatalf("expiry note = %q", gotNote)
 	}
 }

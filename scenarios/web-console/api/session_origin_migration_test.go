@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 )
 
@@ -112,5 +113,62 @@ func TestInitSchema_DriftCheckRunsAfterMigrations(t *testing.T) {
 	}
 	if manuallyUnread != 0 {
 		t.Errorf("manually_unread backfilled to %d, want 0 — pre-existing panes must read as read", manuallyUnread)
+	}
+}
+
+func TestInitSchemaCreatesNativeIdentityIndexAfterLegacyColumnMigration(t *testing.T) {
+	db := openMigrationDB(t)
+	// This table shape predates native_provenance_json. Applying schema.sql
+	// first must not try to create an index over the missing column.
+	if _, err := db.Exec(`CREATE TABLE conversation_events (
+		id TEXT PRIMARY KEY, session_id TEXT NOT NULL, source TEXT NOT NULL,
+		role TEXT NOT NULL, text TEXT NOT NULL, speech_paragraphs TEXT NOT NULL DEFAULT '[]',
+		summarized INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL,
+		sequence INTEGER NOT NULL, delivery_state TEXT NOT NULL, tts_state TEXT NOT NULL,
+		consumption_state TEXT NOT NULL, UNIQUE(session_id, sequence)
+	)`); err != nil {
+		t.Fatal(err)
+	}
+	if err := initSchemaWithProviders(context.Background(), db, repoSchemaProviders(t)); err != nil {
+		t.Fatalf("init schema against legacy conversation table: %v", err)
+	}
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_conversation_events_native_identity'`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("native identity index count = %d, want 1", count)
+	}
+	rows, err := db.Query(`PRAGMA table_info(conversation_events)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	columnFound := false
+	for rows.Next() {
+		var cid, notNull, primaryKey int
+		var name, columnType string
+		var defaultValue sql.NullString
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			rows.Close()
+			t.Fatal(err)
+		}
+		if name == "occurred_at" {
+			columnFound = true
+			if notNull != 0 {
+				t.Fatal("occurred_at must be nullable for legacy and unknown timestamps")
+			}
+		}
+	}
+	if err := rows.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if !columnFound {
+		t.Fatal("legacy conversation table is missing the nullable occurred_at column")
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_conversation_events_source_occurred_at'`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("native occurrence index count = %d, want 1", count)
 	}
 }

@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -46,116 +45,53 @@ func newSessionForUpload(t *testing.T) (*Server, string) {
 		t.Fatalf("create session: %v", err)
 	}
 	t.Cleanup(func() { _ = srv.sessions.Delete(context.Background(), sess.ID) })
+	// Session IDs are fresh, so cleaning this subtree is safe after failure too.
+	t.Cleanup(func() { _ = os.RemoveAll(filepath.Join(resolveUploadDir(), sess.ID)) })
 	return srv, sess.ID
 }
 
-func TestHandleUpload_ValidPNG(t *testing.T) {
-	srv, sessionID := newSessionForUpload(t)
-
-	// Minimal PNG header bytes
-	pngData := []byte{0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A}
-	req := createUploadRequest(t, sessionID, "test.png", "image/png", pngData)
-	rr := httptest.NewRecorder()
-
-	srv.handleUpload(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-
-	var resp uploadResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if resp.Path == "" {
-		t.Fatal("response missing path")
-	}
-	if resp.Category != string(uploadImage) {
-		t.Fatalf("expected category image, got %q", resp.Category)
-	}
-	if resp.Name != "test.png" {
-		t.Fatalf("expected name test.png, got %q", resp.Name)
-	}
-	if resp.SizeBytes != int64(len(pngData)) {
-		t.Fatalf("expected size %d, got %d", len(pngData), resp.SizeBytes)
-	}
-
-	// Verify file exists on disk
-	if _, err := os.Stat(resp.Path); os.IsNotExist(err) {
-		t.Fatalf("uploaded file does not exist at %s", resp.Path)
-	}
-	os.RemoveAll(filepath.Join(resolveUploadDir(), sessionID))
-}
-
-func TestHandleUpload_AcceptsJPEG(t *testing.T) {
-	srv, sessionID := newSessionForUpload(t)
-	req := createUploadRequest(t, sessionID, "photo.jpg", "image/jpeg", []byte("fake jpeg"))
-	rr := httptest.NewRecorder()
-	srv.handleUpload(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-	os.RemoveAll(filepath.Join(resolveUploadDir(), sessionID))
-}
-
-func TestHandleUpload_AcceptsWebP(t *testing.T) {
-	srv, sessionID := newSessionForUpload(t)
-	req := createUploadRequest(t, sessionID, "img.webp", "image/webp", []byte("fake webp"))
-	rr := httptest.NewRecorder()
-	srv.handleUpload(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-	os.RemoveAll(filepath.Join(resolveUploadDir(), sessionID))
-}
-
-func TestHandleUpload_AcceptsGIF(t *testing.T) {
-	srv, sessionID := newSessionForUpload(t)
-	req := createUploadRequest(t, sessionID, "anim.gif", "image/gif", []byte("GIF89a"))
-	rr := httptest.NewRecorder()
-	srv.handleUpload(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
-	}
-	os.RemoveAll(filepath.Join(resolveUploadDir(), sessionID))
-}
-
-func TestHandleUpload_AcceptsGeneralFileTypes(t *testing.T) {
+func TestHandleUpload_AcceptsSupportedFileTypes(t *testing.T) {
+	// Category follows the filename extension, not the client-declared MIME.
+	// Keep exact outputs and bytes visible for every accepted family.
 	cases := []struct {
-		filename string
-		mime     string
-		body     []byte
-		category uploadCategory
+		name, filename, mime string
+		body                 []byte
+		category             uploadCategory
 	}{
-		{"report.pdf", "application/pdf", []byte("%PDF-1.7 fake"), uploadPDF},
-		{"clip.mp4", "video/mp4", []byte("fake video"), uploadVideo},
-		{"voice.mp3", "audio/mpeg", []byte("fake audio"), uploadAudio},
-		{"bundle.zip", "application/zip", []byte("PK fake"), uploadArchive},
-		{"notes.md", "text/markdown", []byte("# notes"), uploadText},
-		{"script.sh", "text/plain", []byte("#!/bin/bash\necho hi"), uploadText},
-		{"data.bin", "application/octet-stream", []byte{0x00, 0x01, 0x02}, uploadOther},
+		{name: "PNG", filename: "test.png", mime: "image/png", body: []byte{0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A}, category: uploadImage},
+		{name: "JPEG", filename: "photo.jpg", mime: "image/jpeg", body: []byte("fake jpeg"), category: uploadImage},
+		{name: "uppercase JPEG extension with unrelated MIME", filename: "PHOTO.JPEG", mime: "application/octet-stream", body: []byte("upper jpeg payload"), category: uploadImage},
+		{name: "WebP", filename: "img.webp", mime: "image/webp", body: []byte("fake webp"), category: uploadImage},
+		{name: "GIF", filename: "anim.gif", mime: "image/gif", body: []byte("GIF89a"), category: uploadImage},
+		{name: "MIME does not override extension", filename: "diagram.png", mime: "text/plain", body: []byte("PNG payload"), category: uploadImage},
+		{name: "PDF", filename: "report.pdf", mime: "application/pdf", body: []byte("%PDF-1.7 fake"), category: uploadPDF},
+		{name: "video", filename: "clip.mp4", mime: "video/mp4", body: []byte("fake video"), category: uploadVideo},
+		{name: "audio", filename: "voice.mp3", mime: "audio/mpeg", body: []byte("fake audio"), category: uploadAudio},
+		{name: "archive", filename: "bundle.zip", mime: "application/zip", body: []byte("PK fake"), category: uploadArchive},
+		{name: "markdown", filename: "notes.md", mime: "text/markdown", body: []byte("# notes"), category: uploadText},
+		{name: "script", filename: "script.sh", mime: "text/plain", body: []byte("#!/bin/bash\necho hi"), category: uploadText},
+		{name: "other", filename: "data.bin", mime: "application/octet-stream", body: []byte{0x00, 0x01, 0x02}, category: uploadOther},
 	}
 	for _, tc := range cases {
-		t.Run(tc.filename, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			srv, sessionID := newSessionForUpload(t)
 			req := createUploadRequest(t, sessionID, tc.filename, tc.mime, tc.body)
 			rr := httptest.NewRecorder()
 			srv.handleUpload(rr, req)
-
 			if rr.Code != http.StatusOK {
-				t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+				t.Fatalf("status = %d, want 200: %s", rr.Code, rr.Body.String())
 			}
 			var resp uploadResponse
 			if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-				t.Fatalf("decode: %v", err)
+				t.Fatalf("decode response: %v", err)
 			}
-			if resp.Category != string(tc.category) {
-				t.Fatalf("expected category %q, got %q", tc.category, resp.Category)
+			if resp.Path != filepath.Join(resolveUploadDir(), sessionID, tc.filename) || resp.Name != tc.filename || resp.SizeBytes != int64(len(tc.body)) || resp.Category != string(tc.category) {
+				t.Fatalf("upload response = %+v; want name=%q size=%d category=%q in session directory", resp, tc.filename, len(tc.body), tc.category)
 			}
-			os.RemoveAll(filepath.Join(resolveUploadDir(), sessionID))
+			stored, err := os.ReadFile(resp.Path)
+			if err != nil || !bytes.Equal(stored, tc.body) {
+				t.Fatalf("stored upload = %v, %v; want original %d bytes", stored, err, len(tc.body))
+			}
 		})
 	}
 }
@@ -220,7 +156,10 @@ func TestHandleUpload_RejectsOversizedFile(t *testing.T) {
 		t.Fatalf("expected code upload_too_large, got %s", resp.Code)
 	}
 	// The partial file must not be left behind.
-	os.RemoveAll(filepath.Join(resolveUploadDir(), sessionID))
+	files, err := os.ReadDir(filepath.Join(resolveUploadDir(), sessionID))
+	if err != nil || len(files) != 0 {
+		t.Fatalf("upload directory after size rejection = %v, %v; want no partial file", files, err)
+	}
 }
 
 func TestHandleUpload_MissingSession(t *testing.T) {
@@ -258,15 +197,13 @@ func TestHandleUpload_PathTraversalFilename(t *testing.T) {
 		t.Fatalf("decode: %v", err)
 	}
 
-	// The path should be within the session directory, not contain traversal
-	if !strings.HasPrefix(resp.Path, filepath.Join(resolveUploadDir(), sessionID)) {
-		t.Fatalf("path escaped session dir: %s", resp.Path)
-	}
-	if strings.Contains(resp.Path, "..") {
-		t.Fatalf("path contains traversal: %s", resp.Path)
+	// Resolve relative to the trusted session directory so a sibling directory
+	// with the same prefix cannot pass as contained.
+	relative, err := filepath.Rel(filepath.Join(resolveUploadDir(), sessionID), resp.Path)
+	if err != nil || relative != "passwd" || resp.Name != "passwd" {
+		t.Fatalf("path traversal result = relative %q, name %q, err %v", relative, resp.Name, err)
 	}
 
-	os.RemoveAll(filepath.Join(resolveUploadDir(), sessionID))
 }
 
 func TestSanitizeFilename(t *testing.T) {

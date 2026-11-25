@@ -1650,14 +1650,14 @@ the future web-console adopter will swap the local implementations for
   audio-tools proto types never cross the handler boundary;
   `contracts.go` is the single conversion point.
 
-### Voice WS reverse proxy (API)
+### Voice Connect stream proxy (API)
 
-- **Where**: [CODE: api/voice_stream_proxy.go] — registered at
-  `/api/v1/voice/stream`.
-- **What it does**: opens a same-origin WebSocket to the browser,
-  dials audio-tools' upstream WS, and bridges frames both directions.
-  The browser never sees audio-tools' host; web-console owns the
-  scenario-URL resolution + re-resolution.
+- **Where**: [CODE: api/voice_connect_proxy.go] — injected into
+  `handlers/audio_runtime` for
+  `/vrooli.web_console.v1.audio_runtime.AudioRuntimeService/TranscribeStream`.
+- **What it does**: bridges the app-owned web-console bidi contract to
+  audio-tools' matching wire contract. The browser never sees audio-tools'
+  host; web-console owns the scenario-URL resolution.
 - **Seam**: takes an `audiotoolsint.URLResolver` so tests can inject
   a fake-upstream URL.
 

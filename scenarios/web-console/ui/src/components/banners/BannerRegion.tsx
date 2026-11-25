@@ -40,7 +40,7 @@ export default function BannerRegion({ banners, damping }: BannerRegionProps) {
         expanded ? t(strings.banners.showLess) : t(strings.banners.moreNotices, { count })
       }
       testId="banner-region"
-      className="wc-stable-theme fixed inset-x-0 top-0 z-[var(--layer-banner)] pt-[env(safe-area-inset-top)]"
+      className="wc-stable-theme relative z-[var(--layer-banner)] w-full pt-[env(safe-area-inset-top)]"
     />
   );
 }

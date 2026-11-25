@@ -14,7 +14,7 @@ import type { RoleModelChoice } from "@vrooli/proto-types/web-console/v1/modelse
 import { TriangleAlert } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import type { UsageModeAgent, UsageModeView } from "../../api/usageMode";
+import { contextLimitRecord, type UsageModeAgent, type UsageModeView } from "../../api/usageMode";
 import { strings } from "../../consts/strings";
 import { cn } from "../../lib/classnames";
 import { formatClockTime, formatLongDuration, formatTokens } from "../../lib/localeFormat";
@@ -170,18 +170,30 @@ function CompactRow({ card, choice, modelName, limit, onLimit, saveAgent }: {
 }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.resolvedLanguage;
-  const window = choice ? Number(choice.contextWindowTokens) : 0;
-  const options = limitOptions(choice);
+  // Older installed UI proto copies can omit this additive field. In that case
+  // keep the provenance unknown rather than substituting the billing source.
+  const windowSource = (choice as (typeof choice & { contextWindowSource?: string }) | undefined)?.contextWindowSource;
   const fmt = (tokens: number) => formatTokens(tokens, locale);
   const modeLimit = saveAgent?.model ? saveAgent.contextLimitTokens : undefined;
+  const limitRecord = contextLimitRecord({
+    model: choice?.model,
+    contextWindowTokens: choice?.contextWindowTokens,
+    contextWindowSource: windowSource,
+    contextLimitTokens: limit ?? modeLimit,
+    contextLimitSource: limit !== null ? "Web Console launch selection" : modeLimit ? "Save usage mode" : undefined,
+    contextLimitOptions: choice?.contextLimitTokens,
+  });
+  const options = limitRecord.offeredCompactionPoints ?? [];
+  const window = limitRecord.modelWindowTokens ?? 0;
+  const selectedLimit = limitRecord.compactionPointTokens;
   const windowText = window > 0 ? t(strings.launcher.contextWindow, { window: fmt(window) }) : t(strings.launcher.contextWindowUnknown);
   let hint: string;
-  if (limit !== null) {
-    hint = window > 0 && limit >= window
+  if (limit !== null && selectedLimit !== null) {
+    hint = window > 0 && selectedLimit >= window
       ? t(strings.launcher.contextLimitFull, { window: fmt(window) })
-      : t(strings.launcher.contextLimitNear, { limit: fmt(limit) });
+      : t(strings.launcher.contextLimitNear, { limit: fmt(selectedLimit) });
     if (saveAgent?.model) hint = `${hint} ${t(strings.launcher.contextLimitBeatsMode)}`;
-  } else if (modeLimit) hint = t(strings.launcher.contextLimitFromMode, { limit: fmt(modeLimit) });
+  } else if (modeLimit && selectedLimit !== null) hint = t(strings.launcher.contextLimitFromMode, { limit: fmt(selectedLimit) });
   else if (saveAgent?.model) hint = t(strings.launcher.contextLimitMaybeMode);
   else if (modelName) hint = t(strings.launcher.contextLimitDefault, { name: card.label });
   else hint = t(strings.launcher.contextLimitDefaultNoModel, { name: card.label });
@@ -196,12 +208,18 @@ function CompactRow({ card, choice, modelName, limit, onLimit, saveAgent }: {
         ) : <Value>{t(strings.launcher.contextLimitDefaultOption)}</Value>}
       </Field>
       {/* Only a chosen limit has something to show. At Default a full bar says nothing. */}
-      {limit !== null && window > 0 && (
-        <span data-wc-rcl-theme data-testid="launcher-context-gauge" data-gauge-percent={Math.round(Math.min(100, (limit / window) * 100))} className="flex">
-          <Progress value={Math.min(limit, window)} max={window} size="sm" showValue={false} label={windowText} style={{ minInlineSize: 0, width: "100%" }} />
+      {selectedLimit !== null && window > 0 && (
+        <span data-wc-rcl-theme data-testid="launcher-context-gauge" data-gauge-percent={Math.round(Math.min(100, (selectedLimit / window) * 100))} className="flex">
+          <Progress value={Math.min(selectedLimit, window)} max={window} size="sm" showValue={false} label={windowText} style={{ minInlineSize: 0, width: "100%" }} />
         </span>
       )}
       <span className={HINT}><span data-testid="launcher-context-hint">{hint}</span> <span data-testid="launcher-context-window" className="text-wc-text-faint">{windowText}</span></span>
+      <span className="break-words text-[11px] text-wc-text-faint" data-testid="launcher-context-limit-record"
+        data-window-tokens={limitRecord.modelWindowTokens ?? "unknown"} data-window-source={limitRecord.modelWindowSource}
+        data-compaction-tokens={limitRecord.compactionPointTokens ?? "unknown"} data-compaction-source={limitRecord.compactionPointSource}>
+        {limitRecord.modelWindowTokens ? `${fmt(limitRecord.modelWindowTokens)} · ${limitRecord.modelWindowSource}` : t(strings.launcher.contextWindowUnknown)}
+        {limitRecord.compactionPointTokens ? ` · ${t(strings.launcher.contextBudgetCompactsAt, { count: limitRecord.compactionPointTokens })}` : ` · ${t(strings.launcher.contextBudgetCompactionUnknown)}`}
+      </span>
     </Row>
   );
 }

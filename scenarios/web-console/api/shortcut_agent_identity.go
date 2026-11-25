@@ -5,7 +5,7 @@ package main
 import (
 	"strings"
 
-	"github.com/vrooli/vrooli/packages/capabilityprobe"
+	"github.com/vrooli/cli-core/agentcatalog/harness"
 )
 
 // Which coding agent does a shortcut launch?
@@ -23,46 +23,19 @@ import (
 // it recognises the shapes Web Console itself emits and otherwise returns "",
 // which reads as "this is a plain operator command", the safe answer.
 
-// agentAliases maps the tokens that can appear in a launch command to the
-// capability id the catalogue uses. The ids come from capabilityprobe so a
-// sixth agent cannot be added there and forgotten here; the extra keys are the
-// alternate spellings that appear in real commands.
-var agentAliases = buildAgentAliases()
-
-func buildAgentAliases() map[string]string {
-	aliases := map[string]string{
-		// Alternate spellings. The catalogue id for Antigravity is "agy", and
-		// Claude Code is installed as "claude" but named "claude-code" by the
-		// resource installer.
-		"antigravity": "agy",
-		"claude-code": "claude",
-	}
-	for _, def := range capabilityprobe.AITools {
-		aliases[def.ID] = def.ID
-		if def.Command != "" {
-			aliases[strings.ToLower(def.Command)] = def.ID
-		}
-	}
-	return aliases
-}
-
-// agentDisplayNames is the catalogue's human name per capability id, used when
-// a stored entry has no label of its own.
-var agentDisplayNames = buildAgentDisplayNames()
-
-func buildAgentDisplayNames() map[string]string {
-	names := make(map[string]string, len(capabilityprobe.AITools))
-	for _, def := range capabilityprobe.AITools {
-		names[def.ID] = def.Label
-	}
-	return names
-}
-
 // normalizeAgentID maps a caller-supplied agent id onto the closed catalogue
 // set. An unrecognised id becomes "" rather than being stored verbatim, so a
 // typo cannot mint an agent that no probe will ever report.
 func normalizeAgentID(id string) string {
-	return agentAliases[strings.ToLower(strings.TrimSpace(id))]
+	return normalizeAgentIDIn(harness.Active(), id)
+}
+
+func normalizeAgentIDIn(catalog harness.Set, id string) string {
+	descriptor, ok := catalog.Lookup(strings.TrimSpace(id))
+	if !ok {
+		return ""
+	}
+	return descriptor.ID
 }
 
 // deriveAgentID infers the agent a command launches, or "" for a plain
@@ -72,26 +45,31 @@ func normalizeAgentID(id string) string {
 // `vrooli agent launch --runner claude …` names its agent explicitly, and the
 // surrounding words ("vrooli", "agent", "launch") must not be allowed to vote.
 func deriveAgentID(command string) string {
+	return deriveAgentIDIn(harness.Active(), command)
+}
+
+func deriveAgentIDIn(catalog harness.Set, command string) string {
+	normalize := func(id string) string { return normalizeAgentIDIn(catalog, id) }
 	fields := strings.Fields(command)
 	for i, field := range fields {
 		lower := strings.ToLower(field)
 		if value, found := strings.CutPrefix(lower, "--runner="); found {
-			if id := normalizeAgentID(value); id != "" {
+			if id := normalize(value); id != "" {
 				return id
 			}
 		}
 		if lower == "--runner" && i+1 < len(fields) {
-			if id := normalizeAgentID(fields[i+1]); id != "" {
+			if id := normalize(fields[i+1]); id != "" {
 				return id
 			}
 		}
 		if value, found := strings.CutPrefix(lower, "--agent="); found {
-			if id := normalizeAgentID(value); id != "" {
+			if id := normalize(value); id != "" {
 				return id
 			}
 		}
 		if lower == "--agent" && i+1 < len(fields) {
-			if id := normalizeAgentID(fields[i+1]); id != "" {
+			if id := normalize(fields[i+1]); id != "" {
 				return id
 			}
 		}
@@ -104,7 +82,7 @@ func deriveAgentID(command string) string {
 			token = token[index+1:]
 		}
 		token = strings.TrimSuffix(token, ".exe")
-		if id := agentAliases[token]; id != "" {
+		if id := normalize(token); id != "" {
 			return id
 		}
 	}
@@ -134,5 +112,9 @@ func normalizeShortcutEntries(entries []ShortcutEntry) []ShortcutEntry {
 // agentDisplayName returns the catalogue's name for an agent id, or "" when
 // the id names no known agent.
 func agentDisplayName(id string) string {
-	return agentDisplayNames[normalizeAgentID(id)]
+	descriptor, ok := harness.Active().Lookup(strings.TrimSpace(id))
+	if !ok {
+		return ""
+	}
+	return descriptor.DisplayName
 }

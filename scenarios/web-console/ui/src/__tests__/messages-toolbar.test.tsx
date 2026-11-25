@@ -61,16 +61,61 @@ describe("messages toolbar", () => {
     });
   });
 
-  it("[REQ:P0-017c] holds exactly one search field and the view toggle", () => {
+  it("[REQ:P0-017c] holds exactly one search field and the shared pane actions", () => {
     render(<MessagesPane {...props} />);
 
     const strip = screen.getByTestId("messages-control-strip");
     expect(within(strip).getAllByTestId("messages-search-field")).toHaveLength(1);
     expect(within(strip).getByTestId("workspace-toggle-view")).toBeInTheDocument();
-    expect(within(strip).getAllByRole("button")).toHaveLength(2);
+    expect(within(strip).getByTestId("messages-filter-toggle")).toBeInTheDocument();
+    expect(within(strip).getByTestId("messages-select-toggle")).toBeInTheDocument();
+    expect(within(strip).getAllByRole("button")).toHaveLength(3);
     for (const gone of ["messages-nav-up", "messages-nav-down", "messages-refresh-btn", "msg-jump-trigger", "messages-search-btn"]) {
       expect(screen.queryByTestId(gone)).toBeNull();
     }
+  });
+
+  it("[REQ:P0-017c] filters the messages list from the always-available filter popover", () => {
+    useConversationStore.setState({
+      sessions: {
+        "sess-1": {
+          ...createConversationSessionState({
+            events: [event(41), { ...event(42), role: "user", text: "A user question" }],
+            cursor: { lastSeenSequence: 0, lastListenedSequence: 0 },
+            hydrated: true,
+          }),
+          totalCount: 2,
+        },
+      },
+    });
+    render(<MessagesPane {...props} />);
+    expect(screen.getByTestId("msg-card-e41")).toBeInTheDocument();
+    expect(screen.getByTestId("msg-card-e42")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("messages-filter-toggle"));
+    fireEvent.click(screen.getByText("messageJumpList.filterUser"));
+    expect(screen.getByTestId("msg-card-e42")).toBeInTheDocument();
+    expect(screen.queryByTestId("msg-card-e41")).toBeNull();
+  });
+
+  it("[REQ:P0-017c] shows loaded matches immediately while the full search runs", () => {
+    render(<MessagesPane {...props} />);
+    const field = screen.getByTestId("messages-search-field");
+    fireEvent.focus(field);
+    fireEvent.change(field, { target: { value: "Message 41" } });
+
+    expect(screen.getByTestId("messages-search-result-e41")).toBeInTheDocument();
+    expect(screen.getByTestId("messages-search-searching-all")).toBeInTheDocument();
+  });
+
+  it("[REQ:P0-017c] enters selection from the toolbar and exposes the export action", () => {
+    render(<MessagesPane {...props} />);
+    fireEvent.click(screen.getByTestId("messages-select-toggle"));
+    expect(screen.getByTestId("messages-selection-bar")).toBeInTheDocument();
+    expect(screen.getByTestId("messages-select-export")).toBeDisabled();
+    fireEvent.click(screen.getByTestId("msg-select-e41"));
+    expect(screen.getByTestId("messages-select-export")).toBeEnabled();
+    fireEvent.click(screen.getByTestId("messages-select-export"));
+    expect(screen.getByTestId("msg-export-drawer")).toBeInTheDocument();
   });
 
   it("[REQ:P0-017c] names how many messages it searches", () => {
@@ -78,34 +123,48 @@ describe("messages toolbar", () => {
     expect(screen.getByTestId("messages-search-field")).toHaveAttribute("data-count", "1242");
   });
 
-  it("[REQ:P0-017c] opens the navigator with focus in its search box", async () => {
+  it("[REQ:P0-017c] opens a search results dropdown with focus in the field", async () => {
     render(<MessagesPane {...props} />);
-    fireEvent.click(screen.getByTestId("messages-search-field"));
+    const field = screen.getByTestId("messages-search-field");
+    field.focus();
+    fireEvent.focus(field);
 
-    expect(screen.getByTestId("msg-jump-list")).toBeInTheDocument();
-    await waitFor(() => { expect(document.activeElement).toBe(screen.getByTestId("msg-nav-search")); });
+    expect(screen.getByTestId("messages-search-results")).toBeInTheDocument();
+    await waitFor(() => { expect(document.activeElement).toBe(field); });
   });
 
-  it("[REQ:P0-017c] Ctrl+K opens the navigator from anywhere in the pane", async () => {
+  it("[REQ:P0-017c] Ctrl+K focuses the search field and opens results", async () => {
     render(<MessagesPane {...props} />);
     fireEvent.keyDown(screen.getByTestId("messages-scroll"), { key: "k", ctrlKey: true });
-    expect(screen.getByTestId("msg-jump-list")).toBeInTheDocument();
-    await waitFor(() => { expect(document.activeElement).toBe(screen.getByTestId("msg-nav-search")); });
+    expect(screen.getByTestId("messages-search-results")).toBeInTheDocument();
+    await waitFor(() => { expect(document.activeElement).toBe(screen.getByTestId("messages-search-field")); });
   });
 
-  it("[REQ:P0-017c] on a phone, the search field opens the navigator with focus in the search box", async () => {
+  it("[REQ:P0-017c] on a phone, the search field opens the same results dropdown", async () => {
     setMobileViewport();
     render(<MessagesPane {...props} />);
-    fireEvent.click(screen.getByTestId("messages-search-field"));
+    const field = screen.getByTestId("messages-search-field");
+    field.focus();
+    fireEvent.focus(field);
 
-    // The sheet's overlay surface applies its initial focus asynchronously
-    // (component library), so focus lands shortly after the tap.
-    await waitFor(() => { expect(document.activeElement).toBe(screen.getByTestId("msg-nav-search")); });
+    await waitFor(() => { expect(document.activeElement).toBe(field); });
+    expect(screen.getByTestId("messages-search-results")).toBeInTheDocument();
   });
 
-  it("[REQ:P0-017c] Cmd+K opens the navigator on macOS", () => {
+  it("[REQ:P0-017c] lists recent messages and opens the chosen one", () => {
+    render(<MessagesPane {...props} />);
+    const field = screen.getByTestId("messages-search-field");
+    field.focus();
+    fireEvent.focus(field);
+
+    const result = screen.getByTestId("messages-search-result-e41");
+    fireEvent.click(result);
+    expect(screen.queryByTestId("messages-search-results")).toBeNull();
+  });
+
+  it("[REQ:P0-017c] Cmd+K focuses the search field on macOS", () => {
     render(<MessagesPane {...props} />);
     fireEvent.keyDown(screen.getByTestId("messages-scroll"), { key: "k", metaKey: true });
-    expect(screen.getByTestId("msg-jump-list")).toBeInTheDocument();
+    expect(screen.getByTestId("messages-search-results")).toBeInTheDocument();
   });
 });

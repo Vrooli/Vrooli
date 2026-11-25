@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
-import { ArrowDown, Search } from "lucide-react";
+import { ArrowDown, CheckSquare, SlidersHorizontal } from "lucide-react";
 import { useConversationStore, getSessionConversationEvents, getSessionSlice, resolveConversationView } from "../stores/useConversationStore";
 import { loadConversationPageContaining, loadOlderConversationPage, refreshConversationSession } from "../hooks/useConversationSession";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
@@ -11,15 +11,31 @@ import { useTrailingThrottle } from "../hooks/useTrailingThrottle";
 import { captureTopPosition } from "./messages/scrollPosition";
 import { useLiveStreamNotice } from "../hooks/useLiveStreamNotice";
 import { writeText } from "../lib/clipboard";
-import { executeConversationControl, getAllConversationEvents, preflightConversationControl, resolveConversationEvents, searchConversation, type ConversationControlPreflight, type ConversationEvent, type ConversationSearchMatch } from "../api/conversation";
+import { executeConversationControl, getAllConversationEvents, getConversationRange, preflightConversationControl, resolveConversationEvents, searchConversation, type ConversationControlPreflight, type ConversationEvent, type ConversationSearchMatch } from "../api/conversation";
 import { cn } from "../lib/classnames";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { looksLikeFileReference } from "@vrooli/file-viewer/file-references";
 import { rewriteLocalhostUrlForProxy } from "../lib/terminalFileLinks";
 import { useVirtualList } from "../hooks/useVirtualList";
 import { useReleaseOnElementInteraction } from "../hooks/useKeyboardListeners";
-import MessageJumpList, { type MessageExportSelection, type SearchOptionsState } from "./MessageJumpList";
+import type { MessageExportSelection, SearchOptionsState } from "./MessageJumpList";
+import {
+  DEFAULT_MESSAGE_FILTER_STATE,
+  activeMessageFilterCount,
+  availableSources,
+  buildResults,
+  buildSearchResults,
+  filterAndSortEvents,
+  searchLoadedEvents,
+  type MessageFilterState,
+  type SourceId,
+} from "./MessageJumpList.helpers";
+import { SearchField } from "./SearchField";
+import { MessagesFilterPopover } from "./messages/MessagesFilterPopover";
+import { MessagesSearchResults } from "./messages/MessagesSearchResults";
 import MessageExportDrawer from "./MessageExportDrawer";
+import { buildMessageExport, DEFAULT_MESSAGE_EXPORT_FORMAT } from "../lib/messageExport";
 import type { SummarizationLevel } from "./tts/PlaybackModeControl";
 import type { PlaybackFocusRequest, PlaybackVersion } from "../domains/tts-playback/types";
 import type { PreviewSourceContext } from "@vrooli/file-viewer";
@@ -28,13 +44,13 @@ import { groupSuggestionsByRule } from "../lib/captureRules";
 import { useHandoffSuggestions } from "../hooks/useHandoffSuggestions";
 import MessagesMermaidViewer from "./MessagesMermaidViewer";
 import MessagesPaneState from "./MessagesPaneState";
+import { PaneEmptyState } from "./PaneEmptyState";
 import MessagesPaneStatusLine from "./MessagesPaneStatusLine";
 import { resolveMessagesPaneStatus } from "../lib/messagesPaneStatus";
 import { SnippetSaveSheet } from "./snippets/SnippetSaveSheet";
 import { MessageRow } from "./messages/MessageRow";
 import { MessagesReader } from "./messages/MessagesReader";
 import type { MessageActionContext } from "./messages/messageActions";
-import { holdKeyboardForNextField } from "../lib/keyboardFocus";
 import type { ActionsOrigin } from "./messages/MessageActionList";
 import { usePressGesture } from "../hooks/usePressGesture";
 import { useTouchControls } from "../hooks/useTouchControls";
@@ -165,11 +181,14 @@ export default function MessagesPane({
     setTimeout(() => { setCopiedEventId((prev) => (prev === eventId ? null : prev)); }, 2000);
   }, []);
 
-  // --- Search & navigation ---
-  // The navigator panel owns search editing, but the query is lifted here so
-  // the message list keeps dimming non-matches and the toolbar match-stepping
-  // arrows keep working while (and after) the navigator is open.
+  // --- Search results ---
+  // The toolbar field owns the query. The result list is a normal anchored
+  // dropdown, and the same query dims non-matches in the conversation below.
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchActiveIndex, setSearchActiveIndex] = useState(0);
+  const searchFieldRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [focusedEventId, setFocusedEventId] = useState<string | null>(null);
   const [serverSearchMatches, setServerSearchMatches] = useState<ConversationSearchMatch[]>([]);
   const [serverSearchReady, setServerSearchReady] = useState(false);
@@ -182,18 +201,13 @@ export default function MessagesPane({
   const [exportResolutionError, setExportResolutionError] = useState<string | undefined>(undefined);
   const exportResolutionRequest = useRef(0);
   const [searchOptions, setSearchOptions] = useState<SearchOptionsState>({ mode: "text", caseSensitive: false, wholeWord: false });
-
-  // --- Navigator panel ---
-  const [navOpen, setNavOpen] = useState(false);
-  const [navInitialFocus, setNavInitialFocus] = useState<"search" | "list">("list");
-  const openNavigator = useCallback((focus: "search" | "list") => {
-    setNavInitialFocus(focus);
-    setNavOpen(true);
-  }, []);
-  const handleNavQueryChange = useCallback((q: string) => {
-    setSearchQuery(q);
-    setFocusedEventId(null);
-  }, []);
+  const [filters, setFilters] = useState<MessageFilterState>(DEFAULT_MESSAGE_FILTER_STATE);
+  const filterActiveCount = activeMessageFilterCount(filters)
+    + (searchOptions.mode !== "text" ? 1 : 0)
+    + (searchOptions.caseSensitive ? 1 : 0)
+    + (searchOptions.wholeWord ? 1 : 0);
+  const sourceOptions = useMemo<SourceId[]>(() => availableSources(events), [events]);
+  const visibleEvents = useMemo(() => filterAndSortEvents(events, filters), [events, filters]);
 
   // --- Render mode (markdown by default; ids in this set show plain text) ---
   const [plaintextIds, setPlaintextIds] = useState<Set<string>>(new Set());
@@ -211,6 +225,8 @@ export default function MessagesPane({
   const [exportSelectedIds, setExportSelectedIds] = useState<ReadonlySet<string>>(new Set());
   const [exportEventsById, setExportEventsById] = useState<ReadonlyMap<string, ConversationEvent>>(new Map());
   const [exportDrawerOpen, setExportDrawerOpen] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const selectionAnchorRef = useRef<string | null>(null);
 
   // --- File preview ---
   // Rules only ever offer. Nothing on this path can send.
@@ -355,19 +371,19 @@ export default function MessagesPane({
   }, [sessionId]);
 
   const estimateMessageHeight = useCallback((index: number) => {
-    const event = events[index];
+    const event = visibleEvents[index];
     if (!event) return 140;
     const lineEstimate = Math.ceil(event.text.length / 90);
     return Math.max(110, Math.min(520, 72 + lineEstimate * 22));
-  }, [events]);
-  const getMessageKey = useCallback((index: number) => events[index]?.id ?? index, [events]);
+  }, [visibleEvents]);
+  const getMessageKey = useCallback((index: number) => visibleEvents[index]?.id ?? index, [visibleEvents]);
   const { itemRef, itemStart, isMeasured, totalSize, virtualItems, scrollToIndex, anchorItem, listScrollTop } = useVirtualList({
-    count: events.length,
+    count: visibleEvents.length,
     estimateSize: estimateMessageHeight,
     getItemKey: getMessageKey,
     overscan: 8,
     scrollElementRef: scrollContainerRef,
-    enabled: events.length > 40,
+    enabled: visibleEvents.length > 40,
   });
   const isMeasuredRef = useRef(isMeasured);
   isMeasuredRef.current = isMeasured;
@@ -506,10 +522,46 @@ export default function MessagesPane({
     [serverSearchMatches],
   );
   const searchMatchSet = useMemo(() => new Set(searchMatchIds), [searchMatchIds]);
-  const eventIds = useMemo(() => events.map((event) => event.id), [events]);
+
+  // The result dropdown reads exactly the filters the list reads. With a query
+  // it lists the server's whole-history hits; with an empty query it offers the
+  // most recent messages from the loaded window so clicking the field is
+  // immediately useful instead of a blank panel.
+  const localSearchResults = useMemo(
+    () => searchLoadedEvents(events, searchQuery, filters, searchOptions),
+    [events, filters, searchOptions, searchQuery],
+  );
+  const searchResults = useMemo(() => {
+    const navState = { ...filters, query: searchQuery };
+    if (!searchQuery.trim()) {
+      const loaded = buildResults(events, navState);
+      return navState.sort === "oldest" ? loaded.slice(-30) : loaded.slice(0, 30);
+    }
+    if (serverSearchReady && !searchError) {
+      const serverResults = buildSearchResults(serverSearchMatches, events, navState);
+      return (serverResults.length > 0 ? serverResults : localSearchResults).slice(0, 100);
+    }
+    return localSearchResults.slice(0, 100);
+  }, [events, filters, localSearchResults, searchError, searchQuery, serverSearchMatches, serverSearchReady]);
+
+  useEffect(() => {
+    setSearchActiveIndex(0);
+  }, [searchQuery, searchResults.length]);
+
+  const closeSearchResults = useCallback(() => { setSearchOpen(false); }, []);
+
+  const openSearchResults = useCallback(() => {
+    setSearchOpen(true);
+  }, []);
+
+  const eventIds = useMemo(() => visibleEvents.map((event) => event.id), [visibleEvents]);
   const eventIndexById = useMemo(
     () => new Map(eventIds.map((id, index) => [id, index])),
     [eventIds],
+  );
+  const allEventIndexById = useMemo(
+    () => new Map(events.map((event, index) => [event.id, index] as const)),
+    [events],
   );
   const searchMatchIndexById = useMemo(
     () => new Map(searchMatchIds.map((id, index) => [id, index])),
@@ -529,11 +581,11 @@ export default function MessagesPane({
   useLayoutEffect(() => {
     const anchor = prependScrollAnchorRef.current;
     if (!anchor) return;
-    const index = events.findIndex((event) => event.id === anchor.eventId);
+    const index = visibleEvents.findIndex((event) => event.id === anchor.eventId);
     if (index < 0) return;
     anchorItem(index, anchor.offsetFromViewportTop);
     prependScrollAnchorRef.current = null;
-  }, [anchorItem, events]);
+  }, [anchorItem, visibleEvents]);
 
   // Restore, step 1: a saved place outside the loaded window is paged in
   // before anything scrolls. A place that cannot be found is reported and the
@@ -603,8 +655,7 @@ export default function MessagesPane({
   const scrollToEvent = useCallback(async (eventId: string) => {
     const fail = (message: string) => {
       setSearchError(message);
-      setNavInitialFocus("list");
-      setNavOpen(true);
+      setSearchOpen(true);
     };
     let index = eventIndexById.get(eventId);
     if (index == null) {
@@ -617,9 +668,9 @@ export default function MessagesPane({
         fail("That message couldn't be loaded. Check the connection and try again.");
         return;
       }
-      index = useConversationStore.getState().sessions[sessionId]?.events.findIndex((event) => event.id === eventId) ?? -1;
+      index = visibleEvents.findIndex((event) => event.id === eventId);
       if (index < 0) {
-        fail("The selected message disappeared while loading. Search again to refresh the results.");
+        fail("The selected message is hidden by the active filters. Clear a filter and try again.");
         return;
       }
     }
@@ -631,18 +682,18 @@ export default function MessagesPane({
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       const row = scrollContainerRef.current?.querySelector<HTMLElement>(`[data-testid="msg-card-${eventId}"]`);
       if (!row) continue;
-      const currentIndex = useConversationStore.getState().sessions[sessionId]?.events.findIndex((event) => event.id === eventId) ?? -1;
-      if (currentIndex < 0 || (events.length > 40 && !isMeasuredRef.current(currentIndex))) continue;
+      const currentIndex = eventIndexById.get(eventId) ?? -1;
+      if (currentIndex < 0 || (visibleEvents.length > 40 && !isMeasuredRef.current(currentIndex))) continue;
       if (currentIndex >= 0) runProgrammaticScroll(() => { scrollToIndexRef.current(currentIndex, "auto", "center"); });
       return;
     }
     fail("The message loaded, but the list couldn't finish positioning it. Try selecting it again.");
-  }, [eventIndexById, events.length, runProgrammaticScroll, searchMatchById, sessionId, setFollow]);
+  }, [eventIndexById, runProgrammaticScroll, searchMatchById, sessionId, setFollow, visibleEvents]);
 
   // Resolve selected stable IDs independently of the loaded window. Each new
   // selection invalidates older requests so a slow response cannot overwrite it.
   useEffect(() => {
-    const ids = [...exportSelectedIds].filter((id) => !exportEventsById.has(id) && !eventIndexById.has(id));
+    const ids = [...exportSelectedIds].filter((id) => !exportEventsById.has(id) && !allEventIndexById.has(id));
     if (!ids.length) return;
     const requestId = ++exportResolutionRequest.current;
     void resolveConversationEvents(sessionId, ids).then((result) => {
@@ -653,7 +704,7 @@ export default function MessagesPane({
       if (requestId === exportResolutionRequest.current) setExportResolutionError("Selected messages couldn't be loaded. Check the connection and try again.");
     });
     return () => { exportResolutionRequest.current += 1; };
-  }, [eventIndexById, exportEventsById, exportSelectedIds, sessionId]);
+  }, [allEventIndexById, exportEventsById, exportSelectedIds, sessionId]);
 
   // Selected events in conversation order for the drawer/formatter.
   const exportEvents = useMemo(() => {
@@ -664,9 +715,47 @@ export default function MessagesPane({
       .sort((left, right) => left.sequence - right.sequence);
   }, [events, exportEventsById, exportSelectedIds]);
 
+  const selectConversationRange = useCallback((anchorEventId: string, eventId: string) => {
+    const sequenceFor = (id: string) => exportEventsById.get(id)?.sequence
+      ?? events.find((event) => event.id === id)?.sequence
+      ?? searchMatchById.get(id)?.sequence;
+    const anchorSequence = sequenceFor(anchorEventId);
+    const endSequence = sequenceFor(eventId);
+    if (anchorSequence == null || endSequence == null) {
+      setExportResolutionError(t(strings.messageExport.rangeLoadFailed));
+      return;
+    }
+
+    const requestId = ++exportResolutionRequest.current;
+    setExportResolutionError(undefined);
+    void getConversationRange(sessionId, Math.min(anchorSequence, endSequence), Math.max(anchorSequence, endSequence))
+      .then((range) => {
+        if (requestId !== exportResolutionRequest.current) return;
+        const returnedIds = new Set(range.events.map((event) => event.id));
+        if (!returnedIds.has(anchorEventId) || !returnedIds.has(eventId)) {
+          setExportResolutionError(t(strings.messageExport.rangeLoadFailed));
+          return;
+        }
+        setExportEventsById((previous) => new Map([
+          ...previous,
+          ...range.events.map((event) => [event.id, event] as const),
+        ]));
+        setExportSelectedIds((previous) => new Set([
+          ...previous,
+          ...range.events.map((event) => event.id),
+        ]));
+      })
+      .catch(() => {
+        if (requestId === exportResolutionRequest.current) {
+          setExportResolutionError(t(strings.messageExport.rangeLoadFailed));
+        }
+      });
+  }, [events, exportEventsById, searchMatchById, sessionId, t]);
+
   const exportSelection = useMemo<MessageExportSelection>(
     () => ({
       selectedIds: exportSelectedIds,
+      selectedEvents: exportEvents,
       onToggle: (eventId) =>
         { setExportResolutionError(undefined); setExportSelectedIds((prev) => {
           const next = new Set(prev);
@@ -674,6 +763,7 @@ export default function MessagesPane({
           else next.add(eventId);
           return next;
         }); },
+      onSelectRange: selectConversationRange,
       onSelectAll: () => {
         const requestId = ++exportResolutionRequest.current;
         setExportResolutionError(undefined);
@@ -691,13 +781,78 @@ export default function MessagesPane({
       canContinue: exportEvents.length === exportSelectedIds.size && !exportResolutionError,
       ...(exportResolutionError ? { error: exportResolutionError } : {}),
     }),
-    [exportSelectedIds, sessionId, exportEvents, exportResolutionError],
+    [exportSelectedIds, sessionId, exportEvents, exportResolutionError, selectConversationRange],
   );
+
+  const selectionTokenEstimate = useMemo(
+    () => buildMessageExport(exportEvents, DEFAULT_MESSAGE_EXPORT_FORMAT).tokenEstimate,
+    [exportEvents],
+  );
+
+  const enterSelection = useCallback(() => {
+    setSearchOpen(false);
+    selectionAnchorRef.current = null;
+    setSelectionMode(true);
+  }, []);
+
+  const exitSelection = useCallback(() => {
+    setSelectionMode(false);
+    selectionAnchorRef.current = null;
+    setExportResolutionError(undefined);
+    setExportSelectedIds(new Set());
+  }, []);
+
+  const toggleSelected = useCallback((eventId: string, shiftKey: boolean) => {
+    setExportResolutionError(undefined);
+    if (shiftKey && selectionAnchorRef.current) {
+      selectConversationRange(selectionAnchorRef.current, eventId);
+      return;
+    }
+    selectionAnchorRef.current = eventId;
+    setExportSelectedIds((previous) => {
+      const next = new Set(previous);
+      if (next.has(eventId)) next.delete(eventId);
+      else next.add(eventId);
+      return next;
+    });
+  }, [selectConversationRange]);
+
+  const resetFilters = useCallback(() => {
+    setFilters(DEFAULT_MESSAGE_FILTER_STATE);
+    setSearchOptions({ mode: "text", caseSensitive: false, wholeWord: false });
+  }, []);
 
   const focusAndScroll = useCallback((eventId: string) => {
     setFocusedEventId(eventId);
     void scrollToEvent(eventId);
   }, [scrollToEvent]);
+
+  const handleSearchKeyDown = useCallback((keyEvent: React.KeyboardEvent<HTMLInputElement>) => {
+    if (keyEvent.key === "Escape") {
+      keyEvent.preventDefault();
+      if (searchOpen) setSearchOpen(false);
+      else setSearchQuery("");
+      return;
+    }
+    if (!searchOpen) return;
+    if (keyEvent.key === "ArrowDown") {
+      keyEvent.preventDefault();
+      if (searchResults.length > 0) setSearchActiveIndex((index) => (index + 1) % searchResults.length);
+      return;
+    }
+    if (keyEvent.key === "ArrowUp") {
+      keyEvent.preventDefault();
+      if (searchResults.length > 0) setSearchActiveIndex((index) => (index - 1 + searchResults.length) % searchResults.length);
+      return;
+    }
+    if (keyEvent.key === "Enter") {
+      const result = searchResults[Math.min(Math.max(searchActiveIndex, 0), searchResults.length - 1)];
+      if (!result) return;
+      keyEvent.preventDefault();
+      setSearchOpen(false);
+      focusAndScroll(result.event.id);
+    }
+  }, [focusAndScroll, searchActiveIndex, searchOpen, searchResults]);
 
   useEffect(() => {
     if (!focusEventId || !focusSequence) return;
@@ -750,7 +905,7 @@ export default function MessagesPane({
   }, [readOnly, sessionId]);
   const readerEventId = reader?.eventId ?? null;
   const readerIndex = readerEventId == null ? undefined : eventIndexById.get(readerEventId);
-  const readerEvent = readerIndex == null ? null : events[readerIndex] ?? null;
+  const readerEvent = readerIndex == null ? null : visibleEvents[readerIndex] ?? null;
   const readerShown = readerEvent != null;
   const keyboardOpen = useWorkspaceStore((state) => state.keyboardOpen);
   // Replies past everything the reader has shown arrived while it was open.
@@ -759,8 +914,8 @@ export default function MessagesPane({
     : events.filter((candidate) => candidate.role !== "user" && candidate.sequence > reader.seenThrough).length;
   // The reader steps between replies; the operator's own messages are skipped.
   const replyNear = (from: number, direction: -1 | 1): string | null => {
-    for (let index = from + direction; index >= 0 && index < events.length; index += direction) {
-      const candidate = events[index];
+    for (let index = from + direction; index >= 0 && index < visibleEvents.length; index += direction) {
+      const candidate = visibleEvents[index];
       if (candidate && candidate.role !== "user") return candidate.id;
     }
     return null;
@@ -773,7 +928,7 @@ export default function MessagesPane({
     setReader({ eventId, seenThrough: events[events.length - 1]?.sequence ?? 0 });
   }, [eventIndexById, events, setReader]);
   const stepReader = (eventId: string) => {
-    const target = events[eventIndexById.get(eventId) ?? -1];
+    const target = visibleEvents[eventIndexById.get(eventId) ?? -1];
     if (!reader || !target) return;
     setReader({ eventId, seenThrough: Math.max(reader.seenThrough, target.sequence) });
   };
@@ -823,10 +978,17 @@ export default function MessagesPane({
     // Cmd/Ctrl+K: search this session.
     if ((keyEvent.metaKey || keyEvent.ctrlKey) && !keyEvent.altKey && keyEvent.key.toLowerCase() === "k") {
       keyEvent.preventDefault();
-      openNavigator("search");
+      setSearchOpen(true);
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
       return;
     }
     if (keyEvent.metaKey || keyEvent.ctrlKey || keyEvent.altKey) return;
+    if (keyEvent.key === "Escape" && selectionMode) {
+      keyEvent.preventDefault();
+      exitSelection();
+      return;
+    }
     if (keyEvent.key === "Escape" && actionsTarget) {
       closeActions();
       return;
@@ -844,11 +1006,11 @@ export default function MessagesPane({
     const from = fromId ? (eventIndexById.get(fromId) ?? -1) : -1;
     // With nothing focused yet, j lands on the top visible message itself.
     const step = keyEvent.key === "j" ? (focusedEventId ? 1 : 0) : -1;
-    const nextId = events[Math.min(events.length - 1, Math.max(0, from + step))]?.id;
+    const nextId = visibleEvents[Math.min(visibleEvents.length - 1, Math.max(0, from + step))]?.id;
     if (!nextId) return;
     keyEvent.preventDefault();
     focusAndScroll(nextId);
-  }, [actionsTarget, closeActions, eventIndexById, events, focusAndScroll, focusedEventId, openActions, openNavigator, readerShown]);
+  }, [actionsTarget, closeActions, eventIndexById, exitSelection, focusAndScroll, focusedEventId, openActions, readerShown, selectionMode, visibleEvents]);
 
   // MessageRow's memo comparator compares the action context entry by entry,
   // so any closure rebuilt per render defeats it and re-renders every mounted
@@ -905,66 +1067,109 @@ export default function MessagesPane({
       data-testid={`messages-pane-${sessionId}`}
       aria-readonly={readOnly}
       onKeyDown={handleListKeyDown}
-      className="relative flex h-full flex-col bg-wc-surface-base px-2 pb-4 pt-1 select-text"
+      className="relative flex h-full flex-col bg-wc-surface-base px-2 pb-4 select-text"
     >
       <div
         ref={controlStripRef}
         data-testid="messages-control-strip"
-        className="z-wc-chrome flex items-center justify-start gap-1.5 bg-wc-surface-base/80 py-1.5 backdrop-blur-sm"
+        className="z-wc-chrome flex h-[53px] shrink-0 items-center justify-start gap-1.5 border-b border-transparent bg-wc-surface-base/80 py-1.5 backdrop-blur-sm"
       >
-        <button
-          type="button"
-          data-testid="messages-search-field"
-          data-count={totalCount}
+        <div ref={searchFieldRef} className="min-w-0 flex-1">
+          <SearchField
+            ref={searchInputRef}
+            testId="messages-search-field"
+            groupTestId="messages-search-field-group"
+            data-count={totalCount}
+            value={searchQuery}
+            onValueChange={(value) => {
+              setSearchQuery(value);
+              setFocusedEventId(null);
+              setSearchOpen(true);
+            }}
+            placeholder={t(strings.messagesPane.searchField, { count: totalCount })}
+            label={t(strings.messageJumpList.searchAriaLabel)}
+            clearLabel={t(strings.messageJumpList.clearSearch)}
+            onFocus={openSearchResults}
+            onClick={openSearchResults}
+            onBlur={(blurEvent) => {
+              const next = blurEvent.relatedTarget as Node | null;
+              if (next && (searchFieldRef.current?.contains(next) || document.getElementById("messages-search-results")?.contains(next))) return;
+              setSearchOpen(false);
+            }}
+            onKeyDown={handleSearchKeyDown}
+            shortcut="⌘K"
+            role="combobox"
+            aria-expanded={searchOpen}
+            aria-controls="messages-search-results"
+            aria-autocomplete="list"
+            aria-activedescendant={searchOpen && searchResults.length > 0
+              ? `messages-search-result-${searchResults[Math.min(Math.max(searchActiveIndex, 0), searchResults.length - 1)]?.event.id ?? ""}`
+              : undefined}
+            className="w-full"
+          />
+        </div>
+        <MessagesFilterPopover
+          filters={filters}
+          onFiltersChange={setFilters}
+          searchOptions={searchOptions}
+          onSearchOptionsChange={setSearchOptions}
+          sourceOptions={sourceOptions}
+          activeCount={filterActiveCount}
+          onReset={resetFilters}
+        />
+        <IconButton
+          data-testid="messages-select-toggle"
+          aria-label={selectionMode ? "Cancel message selection" : "Select messages"}
+          title={selectionMode ? "Cancel selection" : "Select messages"}
+          surface="soft"
+          size="xs"
+          shape="circle"
+          selected={selectionMode}
           onClick={() => {
-            // The search box mounts a commit later, inside the sheet's portal.
-            if (coarsePointer) holdKeyboardForNextField();
-            openNavigator("search");
+            if (selectionMode) exitSelection();
+            else enterSelection();
           }}
-          className={cn(
-            "flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-lg border border-wc-default bg-wc-surface-input px-3 text-start text-sm text-wc-text-faint transition hover:border-wc-accent/40",
-            searchQuery && "text-wc-text-primary ring-1 ring-wc-accent/40",
-          )}
         >
-          <Search className="h-3.5 w-3.5 shrink-0" />
-          <span className="truncate">{searchQuery || t(strings.messagesPane.searchField, { count: totalCount })}</span>
-          <kbd className="ms-auto hidden font-mono text-[10px] text-wc-text-faint sm:inline">⌘K</kbd>
-        </button>
+          <CheckSquare />
+        </IconButton>
         {toolbarTrailingAction && (
-          <div data-testid="messages-control-trailing" className="ms-auto flex items-center">
+          <div data-testid="messages-control-trailing" className="ms-auto flex items-center gap-1.5">
             {toolbarTrailingAction}
           </div>
         )}
       </div>
 
-      {navOpen && (
-        <MessageJumpList
-          events={events}
-          focusedEventId={focusedEventId}
-          onSelect={focusAndScroll}
-          onClose={() => { setNavOpen(false); }}
-          initialFocus={navInitialFocus}
-          query={searchQuery}
-          onQueryChange={handleNavQueryChange}
-          search={{
-            hits: serverSearchReady ? serverSearchMatches : null,
-            truncated: searchTruncated,
-            hasMore: searchHasMore,
-            continuing: searchContinueLoading,
-            onContinue: continueSearch,
-            ...(searchError ? { error: searchError } : {}),
-            options: searchOptions,
-            onOptionsChange: setSearchOptions,
-          }}
-          exportSelection={exportSelection}
-        />
-      )}
+      <MessagesSearchResults
+        open={searchOpen}
+        anchorRef={searchFieldRef}
+        onClose={closeSearchResults}
+        query={searchQuery}
+        results={searchResults}
+        loading={Boolean(searchQuery.trim()) && !serverSearchReady && !searchError && localSearchResults.length === 0}
+        searchingAll={Boolean(searchQuery.trim()) && !serverSearchReady && !searchError && localSearchResults.length > 0}
+        {...(searchError ? { error: searchError } : {})}
+        truncated={searchTruncated}
+        hasMore={searchHasMore}
+        loadingMore={searchContinueLoading}
+        onLoadMore={continueSearch}
+        activeIndex={searchActiveIndex}
+        onActiveIndexChange={setSearchActiveIndex}
+        onSelect={(eventId) => {
+          setSearchOpen(false);
+          focusAndScroll(eventId);
+        }}
+        totalCount={totalCount}
+      />
 
       <MessageExportDrawer
         open={exportDrawerOpen}
         events={exportEvents}
         error={exportResolutionError}
         onClose={() => { setExportDrawerOpen(false); }}
+        onHandoff={onHandoff && !readOnly ? (payload) => {
+          setExportDrawerOpen(false);
+          onHandoff(sessionId, payload);
+        } : undefined}
       />
 
 
@@ -986,14 +1191,29 @@ export default function MessagesPane({
         // Browser scroll anchoring is off: the virtualizer's resize
         // compensation is the single mechanism that keeps rows still, and two
         // mechanisms would each correct the same shift.
-        className="relative min-h-0 flex-1 overflow-auto [overflow-anchor:none]"
+        className={cn(
+          "relative min-h-0 flex-1 overflow-auto [overflow-anchor:none]",
+          selectionMode && "pb-24",
+        )}
       >
         {viewState.kind !== "messages" ? (
           <MessagesPaneState view={viewState} onRetry={() => void handleRefresh()} />
+        ) : visibleEvents.length === 0 ? (
+          <PaneEmptyState
+            testId="messages-filter-empty"
+            icon={<SlidersHorizontal />}
+            title="No messages match these filters"
+            description="Clear the filters to see the full conversation again."
+            actions={(
+              <Button type="button" variant="secondary" size="sm" onClick={resetFilters}>
+                Clear filters
+              </Button>
+            )}
+          />
         ) : (
           <div className="relative" style={{ height: `${String(totalSize)}px` }}>
             {virtualItems.map(({ index, start }) => {
-              const event = events[index];
+              const event = visibleEvents[index];
               if (!event) return null;
               return (
                 // The wrapper, not the article, is measured: it also holds the
@@ -1014,6 +1234,9 @@ export default function MessagesPane({
                     isFocused={focusedEventId === event.id}
                     isSearchFocused={searchMatchSet.has(event.id) && currentMatchIndex >= 0 && searchMatchIds[currentMatchIndex] === event.id}
                     isDimmed={!!searchQuery && serverSearchReady && !searchMatchSet.has(event.id)}
+                    selectionMode={selectionMode}
+                    selected={exportSelectedIds.has(event.id)}
+                    onToggleSelected={toggleSelected}
                     coarsePointer={coarsePointer}
                     tapRevealed={coarsePointer && tapRevealedId === event.id}
                     actionsOpen={actionsTarget?.eventId === event.id}
@@ -1055,9 +1278,72 @@ export default function MessagesPane({
         <SessionStateSlot slot={stateSlot} onOpenTerminal={onOpenTerminal} onAnswer={answerSlotPrompt} />
       </div>
 
+      {selectionMode && (
+        <div
+          data-testid="messages-selection-bar"
+          className="pointer-events-none absolute inset-x-3 bottom-[max(0.75rem,var(--wc-safe-bottom,0px))] z-wc-chrome-raised flex justify-center"
+        >
+          <div className="pointer-events-auto flex max-w-full flex-wrap items-center gap-1.5 rounded-full border border-wc-default bg-wc-surface-raised/95 px-2 py-1.5 shadow-xl backdrop-blur-md">
+            <span className="px-2 text-xs text-wc-text-secondary">
+              <b className="text-wc-text-primary">{exportSelection.selectedIds.size}</b> selected
+              <span className="ms-1 text-[10px] text-wc-text-faint">· ~{selectionTokenEstimate.toLocaleString()} tokens</span>
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              data-testid="messages-select-all"
+              onClick={() => { exportSelection.onSelectAll(); }}
+            >
+              Select all
+            </Button>
+            {exportSelection.selectedIds.size > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                data-testid="messages-select-clear"
+                onClick={() => { exportSelection.onClear(); selectionAnchorRef.current = null; }}
+              >
+                Clear
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              data-testid="messages-select-cancel"
+              onClick={exitSelection}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant={exportSelection.selectedIds.size > 0 ? "primary" : "secondary"}
+              size="sm"
+              data-testid="messages-select-export"
+              disabled={exportSelection.selectedIds.size === 0 || !exportSelection.canContinue}
+              className={exportSelection.selectedIds.size === 0 ? "opacity-60" : undefined}
+              onClick={() => { exportSelection.onContinue(); }}
+            >
+              Export
+            </Button>
+          </div>
+        </div>
+      )}
+      {exportResolutionError && selectionMode && (
+        <div
+          role="alert"
+          data-testid="messages-selection-error"
+          className="pointer-events-none absolute inset-x-3 bottom-24 z-wc-chrome-raised flex justify-center"
+        >
+          <div className="pointer-events-auto rounded-lg bg-red-500/10 px-3 py-2 text-[11px] text-red-300">{exportResolutionError}</div>
+        </div>
+      )}
+
       {/* Centred by a full-width row, not a transform: the library button
           resets `transform` on hover and press, which slid it sideways. */}
-      {!readerShown && (newMessageCount > 0 || (!following && events.length > 0)) && (
+      {!readerShown && (newMessageCount > 0 || (!following && visibleEvents.length > 0)) && (
         <div
           data-testid="msg-bottom-actions"
           className="pointer-events-none absolute inset-x-0 bottom-[max(1rem,var(--wc-safe-bottom,0px))] z-wc-chrome-raised flex justify-center"

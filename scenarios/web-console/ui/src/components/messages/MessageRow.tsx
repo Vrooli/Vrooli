@@ -8,7 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Loader2, MoreHorizontal } from "lucide-react";
+import { Check, Loader2, MoreHorizontal } from "lucide-react";
 import { CopyIconButton } from "@vrooli/react-component-library/CopyIconButton/1";
 import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 import { strings } from "../../consts/strings";
@@ -24,7 +24,7 @@ import {
 } from "./messageActions";
 import { MessageActionList, useMessageActions, type ActionsOrigin } from "./MessageActionList";
 import { messageOutline, messagePreview } from "./outline";
-import { speakerKey, timeLabel, voiceReceiptKey } from "./speaker";
+import { eventTime, speakerKey, voiceReceiptKey } from "./speaker";
 
 // DOC: docs/internal/MESSAGES-VIEW-PROJECTION-UX.md#the-row-and-action-reveal
 
@@ -50,6 +50,10 @@ interface MessageRowProps {
   isFocused: boolean;
   isSearchFocused: boolean;
   isDimmed: boolean;
+  /** Export selection mode: the row toggles its checkbox instead of revealing actions. */
+  selectionMode?: boolean;
+  selected?: boolean;
+  onToggleSelected?: (eventId: string, shiftKey: boolean) => void;
   /** Touch devices reveal actions by tap and open the full list by long-press; nothing reveals on hover. */
   coarsePointer: boolean;
   /** On touch, whether this is the one row the pane has revealed by tap. */
@@ -79,6 +83,9 @@ function MessageRowImpl({
   isFocused,
   isSearchFocused,
   isDimmed,
+  selectionMode = false,
+  selected = false,
+  onToggleSelected,
   coarsePointer,
   tapRevealed,
   actionsOpen,
@@ -125,14 +132,15 @@ function MessageRowImpl({
   const isSpeaking = !isUser && isTtsSpeaking && activeSpeakingEventId === event.id;
   const outline = useMemo(() => (isTall ? messageOutline(event.text) : null), [event.text, isTall]);
   const summarizeError = getSummarizeError(event.id);
+  const eventClock = eventTime(event, new Date(), i18n.language);
 
   const { ctx: resolvedContext, actions, composites } = useMessageActions(actionContext, rowRef, isTall);
   const primary = actions.filter((action) => actionPlacement(action, resolvedContext) === "primary");
   const inline = primary.slice(0, MAX_INLINE_CONTROLS - 1);
   // Hover and focus reveal on a fine pointer; on touch, a tap does (the pane
   // keeps it to one row).
-  const showCluster = (coarsePointer ? tapRevealed : revealed) && !actionsOpen;
-  const press = coarsePointer ? getPressHandlers(event.id) : null;
+  const showCluster = !selectionMode && (coarsePointer ? tapRevealed : revealed) && !actionsOpen;
+  const press = coarsePointer && !selectionMode ? getPressHandlers(event.id) : null;
 
   const openFromMoreButton = () => {
     const rect = moreButtonRef.current?.getBoundingClientRect();
@@ -144,6 +152,7 @@ function MessageRowImpl({
       ref={rowRef}
       data-testid={`msg-card-${event.id}`}
       data-focused={isFocused || undefined}
+      data-selected={selectionMode ? selected : undefined}
       data-speaking={isSpeaking || undefined}
       // Focusable by code only: the reader returns focus here on close.
       tabIndex={-1}
@@ -151,16 +160,23 @@ function MessageRowImpl({
         "relative border-b border-wc-default px-3 py-3 transition-colors",
         isSpeaking && "border-l-2 border-l-wc-accent",
         isFocused && "bg-wc-accent/5",
+        selectionMode && selected && "bg-wc-accent/10",
+        selectionMode && "cursor-pointer",
         isSearchFocused && "rounded-r-lg ring-1 ring-wc-accent/50",
         isDimmed && "opacity-40",
       )}
+      onClick={selectionMode ? (clickEvent) => {
+        if (!isRowControl(clickEvent.target)) onToggleSelected?.(event.id, clickEvent.shiftKey);
+      } : undefined}
       onMouseEnter={coarsePointer ? undefined : () => { setRevealed(true); }}
       onMouseLeave={coarsePointer ? undefined : () => { setRevealed(false); }}
       onFocus={coarsePointer ? undefined : () => { setRevealed(true); }}
       onBlur={coarsePointer ? undefined : (focusEvent) => {
         if (!focusEvent.currentTarget.contains(focusEvent.relatedTarget as Node | null)) setRevealed(false);
       }}
-      onContextMenu={(menuEvent) => {
+      onContextMenu={selectionMode ? (menuEvent) => {
+        if (!isRowControl(menuEvent.target)) menuEvent.preventDefault();
+      } : (menuEvent) => {
         if (isRowControl(menuEvent.target)) return;
         if (press) press.onContextMenu(menuEvent);
         else {
@@ -177,16 +193,37 @@ function MessageRowImpl({
           never changes the row's height and never moves the list. The
           buttons' boxes and tap targets overhang it into the row padding. */}
       <div className="mb-1 flex h-6 min-w-0 items-center gap-2 text-xs text-wc-text-muted">
+        {selectionMode && (
+          <button
+            type="button"
+            role="checkbox"
+            aria-checked={selected}
+            aria-label={t(strings.messageExport.selectMessageAria, { sequence: event.sequence })}
+            data-testid={`msg-select-${event.id}`}
+            onClick={(clickEvent) => {
+              clickEvent.stopPropagation();
+              onToggleSelected?.(event.id, clickEvent.shiftKey);
+            }}
+            className={cn(
+              "grid h-6 w-6 shrink-0 place-items-center rounded-md border transition",
+              selected
+                ? "border-wc-accent bg-wc-accent text-wc-accent-fg"
+                : "border-wc-default bg-wc-surface-input/40 text-transparent hover:border-wc-accent/50",
+            )}
+          >
+            <Check className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        )}
         <b data-testid={`msg-speaker-${event.id}`} className="truncate text-[12.5px] font-semibold text-wc-text-secondary">
           {t(speakerKey(event) as never)}
         </b>
         <time
           data-testid={`msg-time-${event.id}`}
-          dateTime={event.createdAt}
+          dateTime={event.occurredAt || event.createdAt}
           title={`#${String(event.sequence)}`}
           className="shrink-0 font-mono text-[11px] text-wc-text-faint"
         >
-          {timeLabel(event.createdAt, new Date(), i18n.language)}
+          {eventClock.label ? `${eventClock.label} · ` : ""}{eventClock.timestamp}
         </time>
         {voiceReceipt && <span data-testid={`msg-voice-receipt-${event.id}`} className="truncate text-[11px] text-wc-accent">{t(voiceReceipt as never)}</span>}
         {showCluster && (
@@ -339,6 +376,9 @@ export const MessageRow = memo(MessageRowImpl, (prev, next) => (
   prev.isFocused === next.isFocused &&
   prev.isSearchFocused === next.isSearchFocused &&
   prev.isDimmed === next.isDimmed &&
+  prev.selectionMode === next.selectionMode &&
+  prev.selected === next.selected &&
+  prev.onToggleSelected === next.onToggleSelected &&
   prev.coarsePointer === next.coarsePointer &&
   prev.tapRevealed === next.tapRevealed &&
   prev.actionsOpen === next.actionsOpen &&

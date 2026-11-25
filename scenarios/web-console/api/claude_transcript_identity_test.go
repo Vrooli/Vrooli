@@ -265,6 +265,16 @@ func TestClaudeTranscriptFirstEntryTimeSkipsUntimestampedPreamble(t *testing.T) 
 	}
 }
 
+func TestClaudeTranscriptFirstEntryTimeRequiresNativeStringTimestamp(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "agent-1.jsonl")
+	if err := os.WriteFile(path, []byte(`{"type":"user","timestamp":1795521600}`+"\n"), 0o600); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+	if _, ok := claudeTranscriptFirstEntryTime(path); ok {
+		t.Fatal("numeric timestamp is not part of Claude's native string timestamp contract")
+	}
+}
+
 func TestClaudeTranscriptFirstEntryTimeReportsNoMessagesYet(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "agent-1.jsonl")
 	// Preamble only: a session that exists but has said nothing. There is

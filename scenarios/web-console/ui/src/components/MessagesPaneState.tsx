@@ -1,9 +1,9 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, MessageSquare, PlugZap, RefreshCw, Terminal } from "lucide-react";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { strings } from "../consts/strings";
-import { cn } from "../lib/classnames";
 import type { ConversationViewState } from "../stores/useConversationStore";
+import { PaneEmptyState } from "./PaneEmptyState";
 
 /**
  * The Messages pane's non-message states.
@@ -87,13 +87,16 @@ export default function MessagesPaneState({ view, onRetry, onOpenSettings }: Mes
   // we say so, because "no messages yet" and "not listening yet" call for
   // different amounts of patience.
   const pending = view.capture.state === "pending";
+  const emptyTitle = pending ? t(strings.messagesPane.state.pendingTitle) : t(strings.messagesPane.state.emptyTitle);
+  const summary = view.capture.summary?.trim() ?? "";
   return (
     <StateCard
       tone="empty"
       testId="messages-state-empty"
       icon={<MessageSquare className="h-6 w-6" aria-hidden="true" />}
-      title={pending ? t(strings.messagesPane.state.pendingTitle) : t(strings.messagesPane.state.emptyTitle)}
-      body={view.capture.summary || t(strings.messagesPane.state.emptyBody)}
+      title={emptyTitle}
+      // A capture summary that only restates the title is not an explanation.
+      body={summary && summary !== emptyTitle && !summary.startsWith(emptyTitle) ? summary : t(strings.messagesPane.state.emptyBody)}
       detail={view.capture.detail}
     />
   );
@@ -126,73 +129,46 @@ interface StateCardProps {
 
 function StateCard({ tone, testId, icon, title, body, detail, action, secondaryAction }: StateCardProps) {
   const { t } = useTranslation();
-  const [detailOpen, setDetailOpen] = useState(false);
+  const actions = action || secondaryAction ? (
+    <>
+      {action && (
+        <Button
+          type="button"
+          variant={tone === "alert" ? "primary" : "secondary"}
+          size="sm"
+          data-testid={`${testId}-action`}
+          onClick={action.onClick}
+        >
+          {action.icon}
+          {action.label}
+        </Button>
+      )}
+      {secondaryAction && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          data-testid={`${testId}-secondary`}
+          onClick={secondaryAction.onClick}
+        >
+          {secondaryAction.label}
+        </Button>
+      )}
+    </>
+  ) : undefined;
 
   return (
-    // Centering matters: the old state sat in the top-left corner of a tall
-    // empty pane, which reads as a rendering failure rather than a message.
-    <div className="flex h-full w-full items-center justify-center p-6" data-testid={testId}>
-      <div
-        className={cn(
-          "flex w-full max-w-sm flex-col items-center gap-2 rounded-xl px-6 py-8 text-center",
-          tone === "empty" && "border border-dashed border-wc-default bg-wc-surface",
-          tone === "quiet" && "border border-wc-default bg-wc-surface",
-          tone === "alert" && "border border-wc-error bg-wc-error-surface",
-        )}
-      >
-        <span className={cn("mb-1", tone === "alert" ? "text-wc-error-text" : "text-wc-text-muted")}>{icon}</span>
-        <h2 className={cn("text-sm font-semibold", tone === "alert" ? "text-wc-error-text" : "text-wc-text-primary")}>{title}</h2>
-        <p className="text-xs leading-relaxed text-wc-text-secondary">{body}</p>
-
-        {(action || secondaryAction) && (
-          <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
-            {action && (
-              <button
-                type="button"
-                onClick={action.onClick}
-                data-testid={`${testId}-action`}
-                className="inline-flex items-center gap-1.5 rounded-md border border-wc-default bg-wc-surface-raised px-3 py-1.5 text-xs font-medium text-wc-text-primary transition-colors hover:bg-wc-surface-input focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-              >
-                {action.icon}
-                {action.label}
-              </button>
-            )}
-            {secondaryAction && (
-              <button
-                type="button"
-                onClick={secondaryAction.onClick}
-                data-testid={`${testId}-secondary`}
-                className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-wc-text-secondary underline-offset-2 transition-colors hover:text-wc-text-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-              >
-                {secondaryAction.label}
-              </button>
-            )}
-          </div>
-        )}
-
-        {detail && (
-          <div className="mt-2 w-full">
-            <button
-              type="button"
-              onClick={() => { setDetailOpen((open) => !open); }}
-              aria-expanded={detailOpen}
-              data-testid={`${testId}-details-toggle`}
-              className="text-[11px] font-medium text-wc-text-muted underline-offset-2 hover:text-wc-text-secondary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-            >
-              {detailOpen ? t(strings.messagesPane.state.hideDetails) : t(strings.messagesPane.state.showDetails)}
-            </button>
-            {detailOpen && (
-              <pre
-                data-testid={`${testId}-details`}
-                className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-md border border-wc-default bg-wc-surface-input p-2 text-start text-[11px] leading-relaxed text-wc-text-muted"
-              >
-                {detail}
-              </pre>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
+    <PaneEmptyState
+      testId={testId}
+      tone={tone === "alert" ? "alert" : "neutral"}
+      icon={icon}
+      title={title}
+      description={body}
+      detail={detail}
+      detailShowLabel={t(strings.messagesPane.state.showDetails)}
+      detailHideLabel={t(strings.messagesPane.state.hideDetails)}
+      actions={actions}
+    />
   );
 }
 

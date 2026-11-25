@@ -1,7 +1,7 @@
 import { renderWithProviders as render } from "../../test-utils";
 import { act, screen } from "@testing-library/react";
 import { forwardRef } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../stores/useConversationStore", () => ({
   useConversationStore: (selector: (state: unknown) => unknown) => selector({
@@ -33,7 +33,7 @@ vi.mock("../ErrorBoundary", () => ({ default: ({ children }: { children: React.R
 import WorkspacePaneShell from "../WorkspacePaneShell";
 import { useMessagesViewStore } from "../../stores/useMessagesViewStore";
 
-function setMode(mode: "terminal" | "messages") {
+function setMode(mode: "terminal" | "messages" | "browser") {
   useMessagesViewStore.setState({ viewModes: { s1: mode }, positions: {} });
 }
 
@@ -42,9 +42,9 @@ const paneMeta = {
   groupId: null, supportsMessagesView: true, manuallyUnread: false,
 };
 
-function shell() {
+function shell(layoutMode: "grid" | "tabs" = "grid") {
   return <WorkspacePaneShell
-    paneMeta={paneMeta} layoutMode="grid" isActive isVisible
+    paneMeta={paneMeta} layoutMode={layoutMode} isActive isVisible
     isTtsSpeaking={false} activeSpeakingEventId={null} loadingEventId={null}
     summarizeLevel="moderate" summarizingEventId={null} getSummarizeError={() => null}
     onClearSummarizeError={vi.fn()} onToggleSummarized={vi.fn()} onChangeLevel={vi.fn()}
@@ -58,6 +58,7 @@ function shell() {
 }
 
 describe("WorkspacePaneShell stacking and view gates", () => {
+  afterEach(()=>vi.unstubAllGlobals());
   beforeEach(() => { setMode("terminal"); });
 
   it("does not paint terminal chrome over the messages view", () => {
@@ -90,5 +91,13 @@ describe("WorkspacePaneShell stacking and view gates", () => {
     render(shell());
     const pane = screen.getByTestId("mock-terminal");
     expect(pane).toContainElement(screen.getByTestId("pane-status-toast"));
+  });
+
+  it("renders the browser view when the pane's view mode is browser", async()=>{
+    setMode("browser");
+    vi.stubGlobal("fetch",vi.fn(async()=>new Response("refused",{status:403})));
+    render(shell("tabs"));
+    expect(await screen.findByTestId("browser-workspace-pane")).toBeInTheDocument();
+    expect(await screen.findByRole("status")).toHaveTextContent(/could not verify/i);
   });
 });

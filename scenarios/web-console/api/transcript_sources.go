@@ -1,15 +1,14 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/vrooli/cli-core/agenttranscript"
 	"web-console/backends/codex"
 	"web-console/backends/grok"
 	"web-console/internal/sessionstore"
@@ -95,35 +94,10 @@ func (s claudeTranscriptSource) DiscoverFiles(ctx context.Context) ([]tailer.Fil
 }
 
 func (claudeTranscriptSource) DecodeLine(_ string, line []byte) ([]tailer.Event, error) {
-	line = bytes.TrimSpace(line)
-	if len(line) == 0 {
-		return nil, nil
-	}
-	var entry claudeTranscriptEntry
-	if err := json.Unmarshal(line, &entry); err != nil {
-		return nil, nil
-	}
-	blocks, ok := claudeTextBlocks(entry.Message.Content)
-	if !ok {
-		return nil, nil
-	}
-	if entry.Type == "user" {
-		for _, block := range blocks {
-			if block.Type == "tool_result" {
-				return nil, nil
-			}
-		}
-	}
-	events := make([]tailer.Event, 0, len(blocks))
-	for _, block := range blocks {
-		if block.Type != "text" || strings.TrimSpace(block.Text) == "" {
-			continue
-		}
-		if entry.Type == "user" {
-			events = append(events, tailer.Event{Role: "user", Text: block.Text, Commit: true})
-		} else if entry.Type == "assistant" {
-			events = append(events, tailer.Event{Role: "assistant", Text: block.Text, Commit: true})
-		}
+	messages := agenttranscript.ParseMessages(agenttranscript.HarnessClaude, line)
+	events := make([]tailer.Event, 0, len(messages))
+	for _, message := range messages {
+		events = append(events, tailer.Event{Role: message.Role, Text: message.Text, OccurredAt: message.OccurredAt, Commit: true})
 	}
 	return events, nil
 }
@@ -159,21 +133,30 @@ func (s codexTranscriptSource) DiscoverFiles(context.Context) ([]tailer.FileRef,
 }
 
 func (s codexTranscriptSource) DecodeLine(_ string, line []byte) ([]tailer.Event, error) {
-	line = bytes.TrimSpace(line)
-	if len(line) == 0 {
+	messages := agenttranscript.ParseMessages(agenttranscript.HarnessCodex, line)
+	if len(messages) == 0 {
 		return nil, nil
 	}
-	if text := codex.ExtractAssistantText(line); text != "" {
-		return []tailer.Event{{Role: "assistant", Text: text, Commit: true}}, nil
-	}
-	if input := codex.ExtractUserInput(line); input.Text != "" {
-		source := codexTailerSource
-		if input.VoiceHandoff {
-			source = codexVoiceHandoffSource
+	events := make([]tailer.Event, 0, len(messages))
+	for _, message := range messages {
+		text := message.Text
+		role := message.Role
+		if role == "user" {
+			input := codex.ParseUserInput(text)
+			text = input.Text
+			if text == "" {
+				continue
+			}
+			source := codexTailerSource
+			if input.VoiceHandoff {
+				source = codexVoiceHandoffSource
+			}
+			events = append(events, tailer.Event{Role: role, Text: text, Source: source, OccurredAt: message.OccurredAt, Commit: true})
+		} else {
+			events = append(events, tailer.Event{Role: role, Text: text, OccurredAt: message.OccurredAt, Commit: true})
 		}
-		return []tailer.Event{{Role: "user", Text: input.Text, Source: source, Commit: true}}, nil
 	}
-	return nil, nil
+	return events, nil
 }
 
 func (s codexTranscriptSource) CaptureAgentInfo(path, sessionID string) {
@@ -221,9 +204,12 @@ func (s *grokTranscriptSource) DecodeLine(path string, line []byte) ([]tailer.Ev
 	if !done {
 		return nil, nil
 	}
-	events := make([]tailer.Event, 0, 2)
+	events := make([]tailer.Event, 0, 2+len(turn.ToolCalls))
 	if turn.User != "" {
 		events = append(events, tailer.Event{Role: "user", Text: turn.User, Commit: true})
+	}
+	for _, toolCall := range turn.ToolCalls {
+		events = append(events, tailer.Event{Role: "assistant", Text: toolCall, Commit: true})
 	}
 	if turn.Assistant != "" {
 		events = append(events, tailer.Event{Role: "assistant", Text: turn.Assistant, Commit: true})
@@ -250,9 +236,9 @@ func newClaudeTranscriptEngine(ct *ClaudeTailer) *tailer.Engine {
 		TailInterval:     500 * time.Millisecond,
 		Dispatch: func(event tailer.Event, sessionID string) bool {
 			if event.Role == "user" {
-				return ct.server.AppendUser(context.Background(), event.Text, sessionID, claudeTailerSource).Appended
+				return ct.server.AppendUserAt(context.Background(), event.Text, sessionID, claudeTailerSource, event.OccurredAt).Appended
 			} else {
-				return ct.server.AppendAssistant(context.Background(), event.Text, sessionID, claudeTailerSource).Appended
+				return ct.server.AppendAssistantAt(context.Background(), event.Text, sessionID, claudeTailerSource, event.OccurredAt).Appended
 			}
 		},
 	})
@@ -272,9 +258,9 @@ func newCodexTranscriptEngine(ct *CodexTailer, staleTimeout time.Duration) *tail
 				if event.Source == codexVoiceHandoffSource {
 					source = codexVoiceHandoffSource
 				}
-				return ct.server.AppendUser(context.Background(), event.Text, sessionID, source).Appended
+				return ct.server.AppendUserAt(context.Background(), event.Text, sessionID, source, event.OccurredAt).Appended
 			} else {
-				return ct.server.AppendAssistant(context.Background(), event.Text, sessionID, codexTailerSource).Appended
+				return ct.server.AppendAssistantAt(context.Background(), event.Text, sessionID, codexTailerSource, event.OccurredAt).Appended
 			}
 		},
 	})

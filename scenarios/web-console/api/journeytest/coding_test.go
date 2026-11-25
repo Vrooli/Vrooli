@@ -9,9 +9,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -319,6 +322,457 @@ func TestJ5_RealCodexRoundTripThroughDoor(t *testing.T) {
 	if ledger.Charged != int64(calls.Load())*200 || ledger.Allocated != ledger.Charged || ledger.Remaining != 10000-ledger.Charged {
 		t.Fatalf("ledger does not match real Codex calls: %+v calls=%d", ledger, calls.Load())
 	}
+}
+
+func TestJ5_RealGrokRoundTripThroughDoor(t *testing.T) {
+	home := t.TempDir()
+	var calls atomic.Int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/chat/completions" {
+			http.NotFound(w, r)
+			return
+		}
+		calls.Add(1)
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, "data: {\"id\":\"fixture-grok\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"fixture-model\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"journey-grok-verified\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":4,\"completion_tokens\":3,\"total_tokens\":7,\"cost\":0.000002}}\n\ndata: [DONE]\n\n")
+	}))
+	defer upstream.Close()
+	door := startDoor(t, upstream.URL)
+	key := issueSession(t, door, "grok")
+	modelsStatus, modelsBody := requestDoor(t, door, "GET", "/api/v1/ai/models", "xai-"+key, "")
+	if modelsStatus != http.StatusOK || !strings.Contains(string(modelsBody), "fixture-model") {
+		t.Fatalf("Grok door model list must expose the session-scoped model: status=%d body=%s", modelsStatus, modelsBody)
+	}
+	source := cliutil.ModelSource{ID: "Vrooli credits", Kind: "vrooli_credits", Model: "fixture-model", BaseURL: door.URL + "/api/v1/ai", SecretEnv: "VROOLI_CODING_SESSION_KEY"}
+	environment := []string{"HOME=" + home, "GROK_HOME=" + filepath.Join(home, ".grok"), "PATH=" + os.Getenv("PATH"), "VROOLI_CODING_SESSION_KEY=" + key,
+		"HTTP_PROXY=http://127.0.0.1:9", "HTTPS_PROXY=http://127.0.0.1:9", "ALL_PROXY=http://127.0.0.1:9", "NO_PROXY=localhost,127.0.0.1,::1", "no_proxy=localhost,127.0.0.1,::1"}
+	var output bytes.Buffer
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	debugPath := filepath.Join(home, "grok-debug.log")
+	err := cliutil.LaunchCodingAgent(ctx, cliutil.AgentLaunchRequest{Agent: "grok", WorkingDir: home, Environment: environment, ModelSource: &source, APIBase: "http://127.0.0.1:1", Args: []string{"--cwd", home, "--single", "Reply with the exact phrase source-verified.", "--model", "saved-model", "--disable-web-search", "--debug-file", debugPath}, Stdout: &output, Stderr: &output,
+		RunChild: func(ctx context.Context, path string, args, env []string, stdin io.Reader, stdout, stderr io.Writer) error {
+			if !slices.Contains(args, "fixture-model") || slices.Contains(args, "saved-model") {
+				t.Errorf("Grok launch did not select the scoped source model: args=%q", args)
+			}
+			apiKeyPresent, basePresent := false, false
+			for _, item := range env {
+				apiKeyPresent = apiKeyPresent || strings.HasPrefix(item, "XAI_API_KEY=xai-vrooli_")
+				basePresent = basePresent || strings.HasPrefix(item, "GROK_MODELS_BASE_URL=")
+			}
+			t.Logf("Grok source env present: api-key=%t model-base=%t", apiKeyPresent, basePresent)
+			cmd := exec.CommandContext(ctx, path, args...)
+			cmd.Dir = home
+			cmd.Env = env
+			cmd.Stdin = stdin
+			cmd.Stdout = stdout
+			cmd.Stderr = stderr
+			return cmd.Run()
+		},
+	})
+	if err != nil {
+		debug, _ := os.ReadFile(debugPath)
+		debugText := strings.ReplaceAll(strings.ReplaceAll(string(debug), "xai-"+key, "<session-key>"), key, "<session-key>")
+		if strings.Contains(output.String(), "Not signed in") && calls.Load() == 0 && strings.Contains(debugText, "model_id=fixture-model") && strings.Contains(debugText, "auth_type=ApiKey") {
+			t.Skipf("installed Grok requires a Grok account login in the isolated offline harness home even after loading the custom model and resolving its API-key credential; it stops at eager auth before the door inference route (upstream calls=%d)", calls.Load())
+		}
+		t.Fatalf("real Grok: %v: upstream_calls=%d output=%s debug=%s", err, calls.Load(), strings.ReplaceAll(output.String(), key, "<session-key>"), debugText)
+	}
+	if !strings.Contains(output.String(), "journey-grok-verified") || calls.Load() == 0 {
+		t.Fatalf("missing real Grok response; calls=%d output=%s", calls.Load(), output.String())
+	}
+	response, err := http.Get(door.URL + "/__journey/ledger")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	var ledger struct{ Charged, Allocated, Remaining int64 }
+	if err := json.NewDecoder(response.Body).Decode(&ledger); err != nil {
+		t.Fatal(err)
+	}
+	if ledger.Charged < 200 || ledger.Charged > int64(calls.Load())*200 || ledger.Allocated != ledger.Charged || ledger.Remaining != 10000-ledger.Charged {
+		t.Fatalf("ledger does not match settled Grok door calls: %+v upstream attempts=%d", ledger, calls.Load())
+	}
+}
+
+func TestJ5_GrokSessionKeyTransportAliasStaysScoped(t *testing.T) {
+	upstream := fixtureRouter(t)
+	door := startDoor(t, upstream.URL)
+	key := issueSession(t, door, "grok")
+	status, data := requestDoor(t, door, "GET", "/api/v1/ai/models?harness=grok", "xai-"+key, "")
+	if status != http.StatusOK {
+		t.Fatalf("Grok transport alias should authenticate only the issued session: status=%d body=%s", status, data)
+	}
+}
+
+func TestJ5_RealClaudeRoundTripThroughDoor(t *testing.T) {
+	t.Setenv("VROOLI_JOURNEY_CLAUDE_CREDITS", "1")
+	home := t.TempDir()
+	var calls atomic.Int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/chat/completions" {
+			http.NotFound(w, r)
+			return
+		}
+		calls.Add(1)
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, "data: {\"id\":\"fixture-claude\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"fixture-model\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"journey-claude-verified\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":4,\"completion_tokens\":3,\"total_tokens\":7,\"cost\":0.000002}}\n\ndata: [DONE]\n\n")
+	}))
+	defer upstream.Close()
+	door := startDoor(t, upstream.URL)
+	key := issueSession(t, door, "claude-code")
+	source := cliutil.ModelSource{ID: "Vrooli credits", Kind: "vrooli_credits", Model: "fixture-model", BaseURL: door.URL + "/api/v1/ai", SecretEnv: "VROOLI_CODING_SESSION_KEY"}
+	environment := []string{"HOME=" + home, "CLAUDE_CONFIG_DIR=" + filepath.Join(home, "claude-config"), "PATH=" + os.Getenv("PATH"), "VROOLI_CODING_SESSION_KEY=" + key,
+		"CLAUDE_CODE_DISABLE_NON_ESSENTIAL_TRAFFIC=1", "HTTP_PROXY=http://127.0.0.1:9", "HTTPS_PROXY=http://127.0.0.1:9", "ALL_PROXY=http://127.0.0.1:9", "NO_PROXY=localhost,127.0.0.1,::1", "no_proxy=localhost,127.0.0.1,::1"}
+	var output bytes.Buffer
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	debugPath := filepath.Join(home, "claude-debug.log")
+	err := cliutil.LaunchCodingAgent(ctx, cliutil.AgentLaunchRequest{Agent: "claude-code", WorkingDir: home, Environment: environment, ModelSource: &source, APIBase: "http://127.0.0.1:1", Args: []string{"--bare", "--print", "--output-format", "text", "--debug-file", debugPath, "--model", "saved-model", "Reply with the exact phrase source-verified."}, Stdout: &output, Stderr: &output,
+		RunChild: func(ctx context.Context, path string, args, env []string, stdin io.Reader, stdout, stderr io.Writer) error {
+			cmd := exec.CommandContext(ctx, path, args...)
+			cmd.Dir = home
+			cmd.Env = env
+			cmd.Stdin = stdin
+			cmd.Stdout = stdout
+			cmd.Stderr = stderr
+			return cmd.Run()
+		},
+	})
+	if err != nil {
+		debug, _ := os.ReadFile(debugPath)
+		debugText := strings.ReplaceAll(string(debug), key, "<session-key>")
+		t.Fatalf("real Claude Code: %v: %s debug=%s", err, strings.ReplaceAll(output.String(), key, "<session-key>"), debugText)
+	}
+	if !strings.Contains(output.String(), "journey-claude-verified") || calls.Load() == 0 {
+		t.Fatalf("missing real Claude response; calls=%d output=%s", calls.Load(), output.String())
+	}
+	response, err := http.Get(door.URL + "/__journey/ledger")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	var ledger struct{ Charged, Allocated, Remaining int64 }
+	if err := json.NewDecoder(response.Body).Decode(&ledger); err != nil {
+		t.Fatal(err)
+	}
+	if ledger.Charged < 200 || ledger.Charged > int64(calls.Load())*200 || ledger.Allocated != ledger.Charged || ledger.Remaining != 10000-ledger.Charged {
+		t.Fatalf("ledger does not match settled Claude door calls: %+v upstream attempts=%d", ledger, calls.Load())
+	}
+}
+
+func TestJ5_AntigravityEndpointAdapterProbe(t *testing.T) {
+	t.Setenv("VROOLI_JOURNEY_ANTIGRAVITY_CREDITS", "1")
+	if os.Getenv("AC6_ANTIGRAVITY_ADAPTER_CHILD") == "1" {
+		runAntigravityEndpointAdapterChild(t)
+		return
+	}
+	binary := installedAntigravityBinary(t)
+	var err error
+	version, err := exec.Command(binary, "--version").CombinedOutput()
+	if err != nil {
+		t.Fatalf("read direct Antigravity binary %s version: %v: %s", binary, err, version)
+	}
+	var calls atomic.Int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/chat/completions" {
+			http.NotFound(w, r)
+			return
+		}
+		calls.Add(1)
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, "data: {\"id\":\"fixture-antigravity\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"fixture-model\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"journey-antigravity-verified\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":4,\"completion_tokens\":3,\"total_tokens\":7,\"cost\":0.000002}}\n\ndata: [DONE]\n\n")
+	}))
+	defer upstream.Close()
+	door := startDoor(t, upstream.URL)
+	key := issueSession(t, door, "antigravity")
+	doorTarget, err := url.Parse(door.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var requestedPath atomic.Value
+	doorProxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestedPath.Store(r.Method + " " + r.URL.Path)
+		if r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/api/v1/ai/") {
+			r.Header.Set("Idempotency-Key", "ac6-j5-antigravity-fixture")
+		}
+		httputil.NewSingleHostReverseProxy(doorTarget).ServeHTTP(w, r)
+	}))
+	defer doorProxy.Close()
+	repoRoot, err := filepath.Abs("../../../../")
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := os.ReadFile(filepath.Join(repoRoot, "resources", "antigravity", "resource.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var resource map[string]any
+	if err := json.Unmarshal(manifest, &resource); err != nil {
+		t.Fatal(err)
+	}
+	harness, ok := resource["harness"].(map[string]any)
+	if !ok {
+		t.Fatal("Antigravity resource has no harness descriptor")
+	}
+	// This disposable root clears only the qualification gate so the probe
+	// exercises the production source resolver and HOME overlay against the
+	// installed binary. The shipped descriptor stays disabled unless this
+	// real-binary route reaches the local credits door and settles usage.
+	harness["model_source_limitation"] = ""
+	resourceRoot := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(resourceRoot, ".vrooli"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(resourceRoot, ".vrooli", "repo-contract.json"), []byte(`{}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	resourceDir := filepath.Join(resourceRoot, "resources", "antigravity")
+	if err := os.MkdirAll(resourceDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	manifest, err = json.Marshal(resource)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(resourceDir, "resource.json"), manifest, 0600); err != nil {
+		t.Fatal(err)
+	}
+	child := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestJ5_AntigravityEndpointAdapterProbe$")
+	child.Env = append(os.Environ(),
+		"AC6_ANTIGRAVITY_ADAPTER_CHILD=1",
+		"AC6_ANTIGRAVITY_BINARY="+binary,
+		"AC6_ANTIGRAVITY_DOOR="+door.URL,
+		"AC6_ANTIGRAVITY_DOOR_PROXY="+doorProxy.URL,
+		"AC6_ANTIGRAVITY_KEY="+key,
+		"AC6_ANTIGRAVITY_RESOURCE_ROOT="+resourceRoot,
+		"VROOLI_RESOURCE_ROOT="+resourceRoot,
+	)
+	var output bytes.Buffer
+	child.Stdout, child.Stderr = &output, &output
+	if err := child.Run(); err != nil {
+		t.Fatalf("direct Antigravity %s adapter child: %v door_request=%v: %s", strings.TrimSpace(string(version)), err, requestedPath.Load(), strings.ReplaceAll(output.String(), key, "<session-key>"))
+	}
+	text := strings.ReplaceAll(output.String(), key, "<session-key>")
+	t.Logf("installed binary=%s version=%s\n%s", binary, strings.TrimSpace(string(version)), text)
+	if strings.Contains(text, "AC6_ANTIGRAVITY_BOUNDARY") {
+		if calls.Load() != 0 {
+			t.Fatalf("Antigravity reported a model-selection boundary after %d upstream fixture calls", calls.Load())
+		}
+		response, err := http.Get(door.URL + "/__journey/ledger")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer response.Body.Close()
+		var ledger struct{ Charged, Allocated, Remaining int64 }
+		if err := json.NewDecoder(response.Body).Decode(&ledger); err != nil {
+			t.Fatal(err)
+		}
+		if ledger.Charged != 0 || ledger.Allocated != 0 {
+			t.Fatalf("unsupported selection unexpectedly settled credits: %+v", ledger)
+		}
+		t.Fatalf("Antigravity production adapter did not complete a settled credits round trip: %s", text)
+	}
+	if !strings.Contains(text, "AC6_ANTIGRAVITY_ROUNDTRIP") || !strings.Contains(text, "journey-antigravity-verified") || calls.Load() == 0 {
+		t.Fatalf("Antigravity adapter produced neither a verified round trip nor the exact selection boundary; calls=%d door_request=%v output=%s", calls.Load(), requestedPath.Load(), text)
+	}
+	response, err := http.Get(door.URL + "/__journey/ledger")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	var ledger struct{ Charged, Allocated, Remaining int64 }
+	if err := json.NewDecoder(response.Body).Decode(&ledger); err != nil {
+		t.Fatal(err)
+	}
+	if ledger.Charged < 200 || ledger.Charged > int64(calls.Load())*200 || ledger.Allocated != ledger.Charged || ledger.Remaining != 10000-ledger.Charged {
+		t.Fatalf("ledger does not match Antigravity door calls: %+v upstream attempts=%d", ledger, calls.Load())
+	}
+	receiptRequest, err := http.NewRequest(http.MethodGet, door.URL+"/api/v1/ai/receipt", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	receiptRequest.Header.Set("Authorization", "Bearer "+key)
+	receiptRequest.Header.Set("Idempotency-Key", "ac6-j5-antigravity-fixture")
+	receiptResponse, err := http.DefaultClient.Do(receiptRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer receiptResponse.Body.Close()
+	var receipt struct {
+		Status         string `json:"status"`
+		ChargedCredits *int64 `json:"charged_credits"`
+	}
+	if receiptResponse.StatusCode != http.StatusOK || json.NewDecoder(receiptResponse.Body).Decode(&receipt) != nil || receipt.Status != "settled" || receipt.ChargedCredits == nil || *receipt.ChargedCredits <= 0 {
+		t.Fatalf("Antigravity public accounting receipt is not settled: status=%d receipt=%+v", receiptResponse.StatusCode, receipt)
+	}
+	if *receipt.ChargedCredits != ledger.Charged {
+		t.Fatalf("Antigravity public receipt disagrees with ledger: receipt=%d ledger=%d", *receipt.ChargedCredits, ledger.Charged)
+	}
+	t.Logf("public credits receipt settled: charged_credits=%d upstream_attempts=%d", *receipt.ChargedCredits, calls.Load())
+}
+
+func installedAntigravityBinary(t *testing.T) string {
+	t.Helper()
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := filepath.Join(home, ".local", "share", "vrooli", "resources", "antigravity", "cli")
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Skipf("Antigravity CLI install prefixes are unavailable: %v", err)
+	}
+	var selectedPath, selectedVersion string
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		prefix := filepath.Join(root, entry.Name())
+		data, err := os.ReadFile(filepath.Join(prefix, "installation.json"))
+		if err != nil {
+			continue
+		}
+		var receipt struct {
+			Resource string
+			Package  string
+			Version  string
+		}
+		if json.Unmarshal(data, &receipt) != nil || receipt.Resource != "antigravity" || receipt.Package != "" || receipt.Version == "" {
+			continue
+		}
+		candidate := filepath.Join(prefix, "agy")
+		info, err := os.Lstat(candidate)
+		if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0o111 == 0 {
+			continue
+		}
+		if selectedPath == "" || semverGreater(receipt.Version, selectedVersion) {
+			selectedPath, selectedVersion = candidate, receipt.Version
+		}
+	}
+	if selectedPath == "" {
+		t.Skip("no receipt-backed Antigravity CLI binary is installed")
+	}
+	return selectedPath
+}
+
+func semverGreater(a, b string) bool {
+	left, right := strings.Split(a, "."), strings.Split(b, ".")
+	for i := 0; i < len(left) || i < len(right); i++ {
+		var x, y int
+		if i < len(left) {
+			x, _ = strconv.Atoi(left[i])
+		}
+		if i < len(right) {
+			y, _ = strconv.Atoi(right[i])
+		}
+		if x != y {
+			return x > y
+		}
+	}
+	return false
+}
+
+func runAntigravityEndpointAdapterChild(t *testing.T) {
+	binary := os.Getenv("AC6_ANTIGRAVITY_BINARY")
+	doorURL := os.Getenv("AC6_ANTIGRAVITY_DOOR")
+	key := os.Getenv("AC6_ANTIGRAVITY_KEY")
+	resourceRoot := os.Getenv("AC6_ANTIGRAVITY_RESOURCE_ROOT")
+	if binary == "" || doorURL == "" || key == "" || resourceRoot == "" {
+		t.Fatal("Antigravity adapter child context is incomplete")
+	}
+	home := t.TempDir()
+	path := filepath.Dir(binary) + string(os.PathListSeparator) + "/usr/local/bin:/usr/bin:/bin"
+	environment := []string{
+		"HOME=" + home,
+		"PATH=" + path,
+		"VROOLI_RESOURCE_ROOT=" + resourceRoot,
+		"VROOLI_CODING_SESSION_KEY=" + key,
+		"HTTP_PROXY=http://127.0.0.1:9", "HTTPS_PROXY=http://127.0.0.1:9", "ALL_PROXY=http://127.0.0.1:9",
+		"NO_PROXY=localhost,127.0.0.1,::1", "no_proxy=localhost,127.0.0.1,::1",
+	}
+	doorURL = strings.TrimRight(doorURL, "/")
+	if proxy := os.Getenv("AC6_ANTIGRAVITY_DOOR_PROXY"); proxy != "" {
+		doorURL = proxy
+	}
+	source := cliutil.ModelSource{ID: "Vrooli credits", Kind: "vrooli_credits", Model: "fixture-model", BaseURL: doorURL + "/api/v1/ai", SecretEnv: "VROOLI_CODING_SESSION_KEY"}
+	var output bytes.Buffer
+	ctx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
+	defer cancel()
+	err := cliutil.LaunchCodingAgent(ctx, cliutil.AgentLaunchRequest{
+		Agent: "agy", WorkingDir: home, Environment: environment, ModelSource: &source, APIBase: "http://127.0.0.1:1",
+		Args: []string{"--print=Reply with the exact phrase source-verified.", "--output-format", "text", "--model", "saved-model"}, Stdout: &output, Stderr: &output,
+		LookPathInEnvironment: func(agent string, _ []string) (string, error) {
+			if agent != "agy" {
+				return "", fmt.Errorf("unexpected Antigravity lookup %q", agent)
+			}
+			return binary, nil
+		},
+		RunChild: func(ctx context.Context, path string, args, env []string, stdin io.Reader, stdout, stderr io.Writer) error {
+			resolved, err := filepath.EvalSymlinks(path)
+			if err != nil {
+				return err
+			}
+			want, err := filepath.EvalSymlinks(binary)
+			if err != nil || resolved != want {
+				return fmt.Errorf("launcher resolved %s, want recorded Antigravity binary %s (error %v)", resolved, want, err)
+			}
+			values := make(map[string]string, len(env))
+			for _, entry := range env {
+				name, value, ok := strings.Cut(entry, "=")
+				if ok {
+					values[name] = value
+				}
+			}
+			if values["GOOGLE_GEMINI_BASE_URL"] != source.BaseURL || values["GEMINI_API_KEY"] != key {
+				return fmt.Errorf("production adapter did not scope Gemini endpoint and key to the local door")
+			}
+			settingsData, err := os.ReadFile(filepath.Join(values["HOME"], ".gemini", "antigravity-cli", "settings.json"))
+			if err != nil {
+				return fmt.Errorf("read generated Antigravity settings overlay: %w", err)
+			}
+			var settings struct {
+				ModelProvider      string `json:"modelProvider"`
+				CustomModelsConfig struct {
+					CustomModels []struct {
+						ModelName string `json:"modelName"`
+						Label     string `json:"label"`
+					} `json:"customModels"`
+				} `json:"customModelsConfig"`
+			}
+			if err := json.Unmarshal(settingsData, &settings); err != nil {
+				return fmt.Errorf("parse generated Antigravity settings overlay: %w", err)
+			}
+			modelEndpoint, err := url.Parse(source.BaseURL)
+			if err != nil {
+				return fmt.Errorf("parse scoped Gemini endpoint: %w", err)
+			}
+			modelURI := "gemini-api://" + modelEndpoint.Host + "/models/" + source.Model
+			matchedModel := false
+			for _, model := range settings.CustomModelsConfig.CustomModels {
+				if model.ModelName == modelURI && model.Label == "Vrooli credits ("+source.Model+")" {
+					matchedModel = true
+				}
+			}
+			if settings.ModelProvider != "gemini" || !matchedModel {
+				return fmt.Errorf("generated Antigravity settings do not select the documented local custom model")
+			}
+			fmt.Fprintf(stdout, "AC6_ANTIGRAVITY_CONFIG: base=%s model=%s key=child-only\n", values["GOOGLE_GEMINI_BASE_URL"], source.Model)
+			cmd := exec.CommandContext(ctx, resolved, args...)
+			cmd.Dir, cmd.Env = home, env
+			cmd.Stdin, cmd.Stdout, cmd.Stderr = stdin, stdout, stderr
+			return cmd.Run()
+		},
+	})
+	if err == nil && strings.Contains(output.String(), "journey-antigravity-verified") {
+		fmt.Fprintln(os.Stdout, "AC6_ANTIGRAVITY_ROUNDTRIP:", output.String())
+		return
+	}
+	if strings.Contains(output.String(), "not recognized as a known model or custom model in settings") {
+		fmt.Fprintln(os.Stdout, "AC6_ANTIGRAVITY_BOUNDARY:", output.String())
+		return
+	}
+	t.Fatalf("Antigravity adapter returned neither a round trip nor the exact selection boundary: err=%v output=%s", err, strings.ReplaceAll(output.String(), key, "<session-key>"))
 }
 
 func fixtureRouter(t *testing.T) *httptest.Server {

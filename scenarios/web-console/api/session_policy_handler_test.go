@@ -7,6 +7,7 @@ import (
 	"web-console/internal/policy"
 
 	"connectrpc.com/connect"
+	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
 )
 
 // --- HTTP handler tests ---
@@ -90,16 +91,44 @@ func TestHandleUpdatePolicy_NotFound(t *testing.T) {
 }
 
 // Verify policy is included in session response
+// TestSessionResponse_IncludesPolicy pins the create-time policy default by
+// origin. A policy is fixed when the session is created: an interactive tab
+// keeps the never-expire default the operator expects, while a machine-started
+// session gets the idle policy so a forgotten executor cannot outlive its run.
 func TestSessionResponse_IncludesPolicy(t *testing.T) {
-	srv := newFakeTestServer()
-	sess, err := callCreate(t, srv, 80, 24, "")
-	if err != nil {
-		t.Fatalf("create: %v", err)
+	cases := []struct {
+		name     string
+		origin   sessionsv1.SessionOrigin
+		agent    string
+		wantMode policy.Mode
+	}{
+		{"ui", sessionsv1.SessionOrigin_SESSION_ORIGIN_UI, "codex", policy.Never},
+		{"programmatic", sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC, "codex", policy.Idle},
+		{"origin-less", sessionsv1.SessionOrigin_SESSION_ORIGIN_UNSPECIFIED, "codex", policy.Idle},
+		// A programmatic bare shell has no work record to measure idleness
+		// from, so it stays under the never-expire default.
+		{"programmatic shell", sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC, "", policy.Never},
 	}
-	if sess.GetPolicy().GetMode() != string(policy.Never) {
-		t.Errorf("new session should have never policy, got %s", sess.GetPolicy().GetMode())
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := newFakeTestServer()
+			resp, err := newSessionsConnectHandlerForServer(srv).Create(context.Background(),
+				connect.NewRequest(&sessionsv1.CreateRequest{Cols: 80, Rows: 24, Origin: tc.origin, AgentType: tc.agent}))
+			if err != nil {
+				t.Fatalf("create: %v", err)
+			}
+			sess := resp.Msg.GetSession()
+			defer func() { _ = srv.sessions.Delete(context.Background(), sess.GetId()) }()
+
+			got := sess.GetPolicy()
+			if got.GetMode() != string(tc.wantMode) {
+				t.Errorf("policy mode = %q, want %q", got.GetMode(), tc.wantMode)
+			}
+			if tc.wantMode == policy.Idle && got.GetDuration() == "" {
+				t.Error("idle policy must carry a duration")
+			}
+		})
 	}
-	_ = srv.sessions.Delete(context.Background(), sess.GetId())
 }
 
 // Verify error catalog includes invalid_policy

@@ -42,7 +42,9 @@ func dispatch(args []string) error {
 	}
 	if *event == promptEvent {
 		prompt, _ := document["prompt"].(string)
-		if prompt == "" {
+		// The repository hook fires in every Claude session, including ones
+		// Web Console did not launch; those have no conversation to append to.
+		if prompt == "" || os.Getenv("WC_WEB_CONSOLE_SESSION_ID") == "" {
 			return nil
 		}
 		document = map[string]any{"userPrompt": prompt, "webConsoleSessionId": os.Getenv("WC_WEB_CONSOLE_SESSION_ID")}

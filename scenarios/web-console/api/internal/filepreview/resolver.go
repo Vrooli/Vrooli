@@ -348,27 +348,55 @@ func (r *Resolver) ReadText(t *Target) (content string, truncated bool, err erro
 	if !t.TextContentAvailable {
 		return "", false, newError(CodeNotPreviewable, "File type cannot be previewed as text")
 	}
-	info, statErr := os.Stat(t.ResolvedPath)
-	if statErr != nil {
-		if os.IsNotExist(statErr) {
+	f, openErr := os.Open(t.ResolvedPath)
+	if openErr != nil {
+		switch {
+		case os.IsNotExist(openErr):
 			return "", false, newError(CodeNotFound, "Referenced file not found")
+		case os.IsPermission(openErr):
+			return "", false, newError(CodeNotAllowed, "Referenced file is not readable")
+		default:
+			return "", false, newError(CodeInternal, "Failed to open referenced file")
 		}
+	}
+	defer f.Close()
+	info, statErr := f.Stat()
+	if statErr != nil {
 		return "", false, newError(CodeInternal, "Failed to stat referenced file")
 	}
-	if info.Size() > r.maxText() {
+	if !info.Mode().IsRegular() {
+		return "", false, newError(CodeNotPreviewable, "Referenced path is not a regular file")
+	}
+	if t.SourceInfo != nil && (!os.SameFile(t.SourceInfo, info) || info.Size() != t.SizeBytes || info.ModTime().UnixNano() != t.ModTimeUnixNano) {
+		return "", false, newError(CodeStale, "File changed; reopen the preview")
+	}
+	maxText := r.maxText()
+	if info.Size() > maxText {
 		return "", false, newError(CodeNotPreviewable, "File exceeds the inline text preview limit")
 	}
-	data, readErr := os.ReadFile(t.ResolvedPath)
+	data, readErr := io.ReadAll(io.LimitReader(f, maxText+1))
 	if readErr != nil {
-		if os.IsNotExist(readErr) {
-			return "", false, newError(CodeNotFound, "Referenced file not found")
-		}
 		return "", false, newError(CodeInternal, "Failed to read referenced file")
+	}
+	if int64(len(data)) > maxText {
+		return "", false, newError(CodeNotPreviewable, "File exceeds the inline text preview limit")
+	}
+	afterRead, statErr := f.Stat()
+	if statErr != nil {
+		return "", false, newError(CodeInternal, "Failed to stat referenced file")
+	}
+	currentPath, pathErr := os.Stat(t.ResolvedPath)
+	if pathErr != nil || textFileChanged(info, afterRead) || textFileChanged(info, currentPath) {
+		return "", false, newError(CodeStale, "File changed; reopen the preview")
 	}
 	if !utf8.Valid(data) || containsNUL(data) {
 		return "", false, newError(CodeNotPreviewable, "File is not valid UTF-8 text")
 	}
 	return string(data), false, nil
+}
+
+func textFileChanged(before, after os.FileInfo) bool {
+	return after == nil || !os.SameFile(before, after) || before.Size() != after.Size() || before.ModTime().UnixNano() != after.ModTime().UnixNano()
 }
 
 // sniffFile reads up to sniffBytes leading bytes for content classification.

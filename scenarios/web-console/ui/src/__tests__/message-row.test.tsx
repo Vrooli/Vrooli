@@ -112,6 +112,20 @@ describe("message row", () => {
     expect(row.textContent).not.toContain("#2");
   });
 
+  it("shows native archive occurrence time instead of its later indexing time", () => {
+    setPointer(false);
+    const archived = event("archive-event", 7);
+    archived.source = "claude_archive";
+    archived.createdAt = "2026-10-15T12:00:00Z";
+    archived.occurredAt = "2026-09-02T09:05:00Z";
+    seed([archived]);
+    render(<MessagesPane {...props} />);
+
+    const time = screen.getByTestId("msg-time-archive-event");
+    expect(time).toHaveAttribute("dateTime", archived.occurredAt);
+    expect(time).toHaveTextContent("Message · Sep 2");
+  });
+
   it("[REQ:P0-017c] reveals at most three ghost icon buttons right after the timestamp on hover or keyboard focus (fine pointer)", () => {
     setPointer(false);
     render(<MessagesPane {...props} />);

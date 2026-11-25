@@ -68,6 +68,7 @@ type ConversationEvent struct {
 	OriginalSpeechParagraphs []string                     `json:"originalSpeechParagraphs,omitempty"`
 	Summarized               bool                         `json:"summarized"`
 	CreatedAt                time.Time                    `json:"createdAt"`
+	OccurredAt               time.Time                    `json:"-"`
 	Sequence                 int64                        `json:"sequence"`
 	DeliveryState            ConversationDeliveryState    `json:"deliveryState"`
 	TTSState                 ConversationTTSState         `json:"ttsState"`
@@ -126,6 +127,15 @@ type conversationDedup struct {
 type conversationDedupEntry struct {
 	at      time.Time
 	eventID string
+}
+
+type nativeEventIdentity struct {
+	provider          string
+	sessionID         string
+	turnID            string
+	messageID         string
+	boundaryID        string
+	compactionLineage string
 }
 
 func newConversationDedup() *conversationDedup {
@@ -225,6 +235,12 @@ func conversationDedupKey(sessionID string, role ConversationRole, text string) 
 }
 
 func (s *ConversationStore) AppendAssistantEvent(ctx context.Context, sessionID, source, text string) (ConversationEvent, ConversationAppendResult) {
+	return s.AppendAssistantEventAt(ctx, sessionID, source, text, time.Time{})
+}
+
+// AppendAssistantEventAt stores a transcript source's occurrence time without
+// changing CreatedAt, which remains the local ingestion time.
+func (s *ConversationStore) AppendAssistantEventAt(ctx context.Context, sessionID, source, text string, occurredAt time.Time) (ConversationEvent, ConversationAppendResult) {
 	cleanText := normalizeConversationText(text)
 	if strings.TrimSpace(sessionID) == "" {
 		return ConversationEvent{}, ConversationAppendResult{
@@ -265,6 +281,7 @@ func (s *ConversationStore) AppendAssistantEvent(ctx context.Context, sessionID,
 		Text:             cleanText,
 		SpeechParagraphs: s.speechProcessor().SplitIntoParagraphs(cleanText),
 		CreatedAt:        time.Now().UTC(),
+		OccurredAt:       occurredAt.UTC(),
 		DeliveryState:    ConversationDeliveryPending,
 		TTSState:         ConversationTTSIdle,
 		ConsumptionState: ConversationConsumptionUnseen,
@@ -297,6 +314,13 @@ func (s *ConversationStore) AppendAssistantEvent(ctx context.Context, sessionID,
 // the provider cursor; the native locator is persisted atomically with the
 // projection event.
 func (s *ConversationStore) AppendNativeEvent(ctx context.Context, sessionID, source, role, text string, provenance *NativeProvenance) (ConversationEvent, ConversationAppendResult) {
+	return s.AppendNativeEventAt(ctx, sessionID, source, role, text, provenance, time.Time{})
+}
+
+// AppendNativeEventAt stores the provider's explicit occurrence time separately
+// from CreatedAt, which remains the local ingestion time. A zero occurrence time
+// means that the source format did not provide one.
+func (s *ConversationStore) AppendNativeEventAt(ctx context.Context, sessionID, source, role, text string, provenance *NativeProvenance, occurredAt time.Time) (ConversationEvent, ConversationAppendResult) {
 	s.nativeMu.Lock()
 	defer s.nativeMu.Unlock()
 	cleanText := normalizeConversationText(text)
@@ -307,15 +331,26 @@ func (s *ConversationStore) AppendNativeEvent(ctx context.Context, sessionID, so
 	if role == "user" {
 		conversationRole = ConversationRoleUser
 	}
-	state, err := s.repository.ListSession(ctx, sessionID)
-	if err == nil {
-		for _, existing := range state.Events {
-			if nativeProvenanceEqual(existing.NativeProvenance, provenance) {
-				return existing, ConversationAppendResult{Appended: true, Code: "conversation_duplicate", Reason: "Native provider identity was already appended", Source: source, SessionID: sessionID, EventID: existing.ID, Sequence: existing.Sequence, Duplicate: true}
+	existing, found, err := s.repository.FindNativeEvent(ctx, sessionID, provenance)
+	if err != nil {
+		return ConversationEvent{}, ConversationAppendResult{Appended: false, Code: "conversation_store_failed", Reason: "Native event identity lookup failed", Source: source, SessionID: sessionID}
+	}
+	if found {
+		if !occurredAt.IsZero() && !existing.OccurredAt.Equal(occurredAt) {
+			if updater, ok := s.repository.(nativeOccurredAtUpdater); ok {
+				updated, updateErr := updater.UpdateNativeEventOccurredAt(ctx, sessionID, provenance, occurredAt)
+				if updateErr != nil {
+					return ConversationEvent{}, ConversationAppendResult{Appended: false, Code: "conversation_store_failed", Reason: "Native occurrence timestamp update failed", Source: source, SessionID: sessionID}
+				}
+				if updated {
+					existing.OccurredAt = occurredAt
+				}
 			}
 		}
+		return existing, ConversationAppendResult{Appended: true, Code: "conversation_duplicate", Reason: "Native provider identity was already appended", Source: source, SessionID: sessionID, EventID: existing.ID, Sequence: existing.Sequence, Duplicate: true}
 	}
 	event := ConversationEvent{ID: newConversationEventID(), SessionID: sessionID, Source: source, Role: conversationRole, Text: cleanText, CreatedAt: time.Now().UTC(), NativeProvenance: provenance, DeliveryState: ConversationDeliveryPending, TTSState: ConversationTTSIdle, ConsumptionState: ConversationConsumptionUnseen}
+	event.OccurredAt = occurredAt.UTC()
 	if conversationRole == ConversationRoleAssistant {
 		event.SpeechParagraphs = s.speechProcessor().SplitIntoParagraphs(cleanText)
 	}
@@ -324,6 +359,20 @@ func (s *ConversationStore) AppendNativeEvent(ctx context.Context, sessionID, so
 		return ConversationEvent{}, ConversationAppendResult{Appended: false, Code: "conversation_store_failed", Source: source, SessionID: sessionID}
 	}
 	return persisted, ConversationAppendResult{Appended: true, Code: "conversation_event_appended", Source: source, SessionID: sessionID, EventID: persisted.ID, Sequence: persisted.Sequence}
+}
+
+type nativeOccurredAtUpdater interface {
+	UpdateNativeEventOccurredAt(context.Context, string, *NativeProvenance, time.Time) (bool, error)
+}
+
+func nativeIdentity(provenance *NativeProvenance) nativeEventIdentity {
+	if provenance == nil {
+		return nativeEventIdentity{}
+	}
+	return nativeEventIdentity{
+		provider: provenance.Provider, sessionID: provenance.SessionID, turnID: provenance.TurnID,
+		messageID: provenance.MessageID, boundaryID: provenance.BoundaryID, compactionLineage: provenance.CompactionLineage,
+	}
 }
 
 func nativeProvenanceEqual(left, right *NativeProvenance) bool {
@@ -337,10 +386,19 @@ func (s *ConversationStore) TruncateSessionAfter(ctx context.Context, sessionID 
 	if s == nil || s.repository == nil || strings.TrimSpace(sessionID) == "" || sequence < 0 {
 		return fmt.Errorf("invalid conversation truncation target")
 	}
-	return s.repository.TruncateSessionAfter(ctx, sessionID, sequence)
+	if err := s.repository.TruncateSessionAfter(ctx, sessionID, sequence); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *ConversationStore) AppendUserEvent(ctx context.Context, sessionID, source, text string) (ConversationEvent, ConversationAppendResult) {
+	return s.AppendUserEventAt(ctx, sessionID, source, text, time.Time{})
+}
+
+// AppendUserEventAt stores a transcript source's occurrence time without
+// changing CreatedAt, which remains the local ingestion time.
+func (s *ConversationStore) AppendUserEventAt(ctx context.Context, sessionID, source, text string, occurredAt time.Time) (ConversationEvent, ConversationAppendResult) {
 	cleanText := normalizeConversationText(text)
 	if strings.TrimSpace(sessionID) == "" {
 		return ConversationEvent{}, ConversationAppendResult{
@@ -386,6 +444,7 @@ func (s *ConversationStore) AppendUserEvent(ctx context.Context, sessionID, sour
 		Text:             cleanText,
 		SpeechParagraphs: nil,
 		CreatedAt:        time.Now().UTC(),
+		OccurredAt:       occurredAt.UTC(),
 		DeliveryState:    ConversationDeliveryPending,
 		TTSState:         ConversationTTSIdle,
 		ConsumptionState: ConversationConsumptionUnseen,
@@ -434,6 +493,10 @@ func (s *ConversationStore) GetEvent(ctx context.Context, sessionID, eventID str
 // IDs that no longer exist. Unlike GetEvent's legacy convenience wrapper, it
 // preserves repository errors so bulk export cannot silently become partial.
 func (s *ConversationStore) ResolveEvents(ctx context.Context, sessionID string, eventIDs []string) ([]ConversationEvent, []string, error) {
+	if resolver, ok := s.repository.(conversationEventBatchResolver); ok {
+		return resolver.ResolveEvents(ctx, sessionID, eventIDs)
+	}
+
 	events := make([]ConversationEvent, 0, len(eventIDs))
 	missing := make([]string, 0)
 	seen := make(map[string]struct{}, len(eventIDs))
@@ -526,7 +589,27 @@ func (s *ConversationStore) RecordPlaybackStage(ctx context.Context, sessionID, 
 }
 
 func (s *ConversationStore) DeleteSession(ctx context.Context, sessionID string) error {
-	return s.repository.DeleteSession(ctx, sessionID)
+	if err := s.repository.DeleteSession(ctx, sessionID); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *ConversationStore) DeleteSessionsByPrefix(ctx context.Context, prefix string) error {
+	lister, ok := s.repository.(conversationSessionPrefixLister)
+	if !ok {
+		return fmt.Errorf("conversation repository does not support session prefix listing")
+	}
+	ids, err := lister.ListSessionIDsByPrefix(ctx, prefix)
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		if err := s.DeleteSession(ctx, id); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // CopySession duplicates the conversation history from oldID onto newID so a

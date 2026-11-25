@@ -9,9 +9,7 @@
 import { create } from "@bufbuild/protobuf";
 import { createClient as createConnectClient } from "@connectrpc/connect";
 import { FieldMaskSchema } from "@bufbuild/protobuf/wkt";
-import { AudioFormat } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
-import { STTService, TranscribeStreamRequestSchema, type TranscribeStreamEvent, type TranscribeStreamRequest } from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
-import { openConnectVoiceStream, type VoiceConnectCodec, type VoiceStreamConnection, type VoiceStreamHandlers, type VoiceStreamStart } from "@vrooli/audio-capture-browser";
+import { openConnectVoiceStream, safeSampleNumber, type VoiceConnectCodec, type VoiceStreamConnection, type VoiceStreamHandlers, type VoiceStreamStart } from "@vrooli/audio-capture-browser";
 
 import { transport, API_BASE } from "../../api/client";
 import {
@@ -36,7 +34,9 @@ import {
   WakeWordSampleSchema,
   WakeWordTemplateSchema,
 } from "@vrooli/proto-types/web-console/v1/audio_admin/audio_admin_pb";
-import { AudioRuntimeService } from "@vrooli/proto-types/web-console/v1/audio_runtime/audio_runtime_pb";
+import { AudioFormat } from "@vrooli/proto-types/web-console/v1/audio_common/audio_common_pb";
+import { AudioRuntimeService, TranscribeStreamRequestSchema, type TranscribeStreamEvent, type TranscribeStreamRequest } from "@vrooli/proto-types/web-console/v1/audio_runtime/audio_runtime_pb";
+import type { RetainedTranscriptionRoute } from "@vrooli/audio-capture-browser";
 import type {
   SpeakerConfig,
   SpeakerProfile,
@@ -49,11 +49,12 @@ import type {
 // overlapCommitRuns) are the authoritative source for client-side VAD
 // timing — the mic-button ring and segment-boundary emission must derive
 // from vadSilenceMs, not from any local default.
-const sttClient = createConnectClient(STTService, transport);
+const sttClient = createConnectClient(AudioRuntimeService, transport);
 
 interface VoiceSegmentOrdinals { byID: Map<string, number>; next: number; }
 const voiceSegmentOrdinals = new Map<string, VoiceSegmentOrdinals>();
 const connectVoiceCodec: VoiceConnectCodec<TranscribeStreamRequest, TranscribeStreamEvent> = {
+  isReady: (event) => event.event.case === "sessionStatus" && event.event.value.state === "accepted",
   start: (start) => create(TranscribeStreamRequestSchema, { payload: { case: "start", value: {
     language: start.language,
     initialPrompt: start.initialPrompt ?? "",
@@ -79,7 +80,7 @@ const connectVoiceCodec: VoiceConnectCodec<TranscribeStreamRequest, TranscribeSt
         const segmentId = segment.segmentId || `${segment.startSample}:${segment.endSample}`;
         let segmentIndex = ordinal.byID.get(segmentId);
         if (segmentIndex === undefined) { segmentIndex = ordinal.next++; ordinal.byID.set(segmentId, segmentIndex); }
-        return { type: "segment-final", text: segment.text, segmentId, segmentIndex, speakerPolicy: segment.speakerPolicy };
+        return { type: "segment-final", text: segment.text, segmentId, segmentIndex, endSample: safeSampleNumber(segment.endSample), speakerPolicy: segment.speakerPolicy };
       }
       case "speakerRejection": return { type: "segment-rejected", score: event.event.value.score, threshold: event.event.value.threshold, segmentIndex: ordinal.next };
       case "error": return { type: "error", code: event.event.value.code, text: event.event.value.message };
@@ -293,14 +294,14 @@ function decodeSpeakerProfile(p: SpeakerProfile): SpeakerVerificationProfile {
   };
 }
 
-export async function transcribeAudio(audioBlob: Blob, language?: string): Promise<string> {
+export async function transcribeAudio(audioBlob: Blob, language?: string, route?: RetainedTranscriptionRoute): Promise<string> {
   const resp = await audioRuntimeClient.transcribe({
     audio: await blobToBytes(audioBlob),
     format: audioFormatFromString(blobFormat(audioBlob)),
     language: language ?? "",
     skipSpeakerVerification: false,
     initialPrompt: "",
-  });
+  }, route ? { headers: { "X-Audio-Provider-Tier": route.providerTier, ...(route.providerId ? { "X-Audio-Provider-ID": route.providerId } : {}), "X-Audio-Model-ID": route.modelId } } : undefined);
   return resp.text;
 }
 
@@ -315,11 +316,11 @@ export async function transcribeAudioBypassFilter(audioBlob: Blob, language?: st
   return resp.text;
 }
 
-export async function transcribeAudioWithRetry(audioBlob: Blob, maxAttempts = 2, language?: string): Promise<string> {
+export async function transcribeAudioWithRetry(audioBlob: Blob, maxAttempts = 2, language?: string, route?: RetainedTranscriptionRoute): Promise<string> {
   let lastError: unknown;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
-      return await transcribeAudio(audioBlob, language);
+      return await transcribeAudio(audioBlob, language, route);
     } catch (err) {
       lastError = err;
       if (attempt < maxAttempts - 1) {

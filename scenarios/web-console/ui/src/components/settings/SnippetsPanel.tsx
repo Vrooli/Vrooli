@@ -140,6 +140,7 @@ export default function SnippetsPanel() {
         </p>
       )}
 
+      <SettingsList.Group>
       <MasterDetail
         items={items}
         selectedId={selectedId}
@@ -195,6 +196,7 @@ export default function SnippetsPanel() {
         }}
         renderDetail={() => null}
       />
+      </SettingsList.Group>
 
       {draft && (
         <div data-testid="snippet-settings-detail">

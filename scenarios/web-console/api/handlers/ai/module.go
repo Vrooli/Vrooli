@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/discovery"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 
 	aiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/ai/ai_v1connect"
 
@@ -129,15 +130,11 @@ type restGenerateRequest struct {
 func restGenerateHandler(svc Service) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var request restGenerateRequest
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&request); err != nil {
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&request); err != nil || strings.TrimSpace(request.Prompt) == "" {
 			writeRESTError(w, http.StatusBadRequest, "invalid_argument", "prompt is required", "")
 			return
 		}
 		request.Prompt = strings.TrimSpace(request.Prompt)
-		if request.Prompt == "" {
-			writeRESTError(w, http.StatusBadRequest, "invalid_argument", "prompt is required", "")
-			return
-		}
 		ctx := aidomain.WithConsumerToken(r.Context(), r.Header.Get("Authorization"))
 		ctx = aidomain.WithPrivacyConsentGrant(ctx, r.Header.Get("X-Vrooli-AI-Consent-Grant"), r.Header.Get("X-Vrooli-AI-Consent-Source"))
 		ctx = aidomain.WithRootOperationID(ctx, r.Header.Get("X-Idempotency-Key"))
@@ -145,7 +142,7 @@ func restGenerateHandler(svc Service) http.Handler {
 		if err != nil {
 			if errors.Is(err, aidomain.ErrCreditsRequired) {
 				upgradePath, _ := discovery.ResolveExternalURL(r.Context(), "landing-page-business-suite", discovery.ExternalHost(r))
-				writeRESTError(w, http.StatusPaymentRequired, "credits_required", "credits are required for routed inference", upgradePath)
+				writeRESTError(w, http.StatusPaymentRequired, monetization.ErrorCreditsRequired, "credits are required for routed inference", upgradePath)
 				return
 			}
 			writeRESTError(w, http.StatusServiceUnavailable, "unavailable", "AI provider unavailable", "")

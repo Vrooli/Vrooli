@@ -26,7 +26,7 @@ func TestClaudeDiscoverySkipsExplicitArchivesAndResumesAfterUnarchive(t *testing
 			t.Fatal(err)
 		}
 	}
-	if err := metadata.MarkArchived(ctx, "archived", time.Now()); err != nil {
+	if err := metadata.MarkArchived(ctx, "archived", time.Now(), ""); err != nil {
 		t.Fatal(err)
 	}
 	source := claudeTranscriptSource{tailer: &ClaudeTailer{server: &Server{sessionStore: metadata}}, homeDir: func() (string, error) { return home, nil }}

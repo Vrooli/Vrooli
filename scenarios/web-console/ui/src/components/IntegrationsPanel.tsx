@@ -28,7 +28,7 @@ import {
   type IntegrationItem,
   type IntegrationStatus,
   type IntegrationsOverviewStrings,
-} from "@vrooli/react-component-library/IntegrationsOverview/1.1.1";
+} from "@vrooli/react-component-library/IntegrationsOverview/1.1.3";
 
 interface IntegrationsPanelProps {
   open: boolean;

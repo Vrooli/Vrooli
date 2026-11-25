@@ -66,7 +66,7 @@ func TestStoresCoverRecoveryAndMutationPaths(t *testing.T) {
 			if err := store.MarkDismissed(ctx, meta.ID, "replacement"); err != nil {
 				t.Fatal(err)
 			}
-			if err := store.MarkArchived(ctx, meta.ID, now.Add(2*time.Hour)); err != nil {
+			if err := store.MarkArchived(ctx, meta.ID, now.Add(2*time.Hour), ""); err != nil {
 				t.Fatal(err)
 			}
 			if got, err := store.ListArchived(ctx); err != nil || len(got) < 2 {
@@ -84,7 +84,7 @@ func TestStoresCoverRecoveryAndMutationPaths(t *testing.T) {
 			if _, err := store.Get(ctx, "dismissed"); err == nil {
 				t.Fatal("deleted session was still readable")
 			}
-			if err := store.MarkArchived(ctx, "missing", now); err == nil {
+			if err := store.MarkArchived(ctx, "missing", now, ""); err == nil {
 				t.Fatal("missing archive did not fail")
 			}
 			if err := store.MarkUnarchived(ctx, "missing"); err == nil {
@@ -128,7 +128,8 @@ func TestStatusTransitionOwnerPreservesRecoveryAndArchivedNoop(t *testing.T) {
 			if err := store.Save(ctx, Metadata{ID: "recoverable", Detached: true}); err != nil {
 				t.Fatal(err)
 			}
-			orphanedAt := time.Now().UTC()
+			// The SQL store keeps second precision (RFC 3339).
+			orphanedAt := time.Now().UTC().Truncate(time.Second)
 			if err := store.MarkOrphaned(ctx, "recoverable", orphanedAt); err != nil {
 				t.Fatal(err)
 			}
@@ -143,8 +144,8 @@ func TestStatusTransitionOwnerPreservesRecoveryAndArchivedNoop(t *testing.T) {
 			if err != nil || got.Status != StatusLive || !got.OrphanedAt.IsZero() {
 				t.Fatalf("recovered session = %+v, err=%v", got, err)
 			}
-			archivedAt := time.Now().UTC()
-			if err := store.MarkArchived(ctx, "recoverable", archivedAt); err != nil {
+			archivedAt := time.Now().UTC().Truncate(time.Second)
+			if err := store.MarkArchived(ctx, "recoverable", archivedAt, ""); err != nil {
 				t.Fatal(err)
 			}
 			if err := store.MarkOrphaned(ctx, "recoverable", orphanedAt); err != nil {
@@ -164,5 +165,35 @@ func storeName(store Store) string {
 		return "sql"
 	default:
 		return "memory"
+	}
+}
+
+// A policy archive records its note with the archive time; unarchiving clears
+// both, so a later manual archive never shows a stale reason.
+func TestArchiveNoteIsWrittenWithArchiveAndClearedByUnarchive(t *testing.T) {
+	ctx := context.Background()
+	for _, store := range []Store{newSQLStore(t), NewInMemory()} {
+		t.Run(storeName(store), func(t *testing.T) {
+			if err := store.Save(ctx, Metadata{ID: "lead", Detached: true}); err != nil {
+				t.Fatal(err)
+			}
+			if err := store.MarkArchived(ctx, "lead", time.Now().UTC(), "Archived by the idle policy"); err != nil {
+				t.Fatal(err)
+			}
+			got, err := store.Get(ctx, "lead")
+			if err != nil || got.ArchiveNote != "Archived by the idle policy" {
+				t.Fatalf("archived note = %q, err=%v", got.ArchiveNote, err)
+			}
+			listed, err := store.ListArchived(ctx)
+			if err != nil || len(listed) != 1 || listed[0].ArchiveNote != "Archived by the idle policy" {
+				t.Fatalf("archived listing = %+v, err=%v", listed, err)
+			}
+			if err := store.MarkUnarchived(ctx, "lead"); err != nil {
+				t.Fatal(err)
+			}
+			if got, _ = store.Get(ctx, "lead"); got.ArchiveNote != "" || !got.ArchivedAt.IsZero() {
+				t.Fatalf("unarchived session kept note %q / time %s", got.ArchiveNote, got.ArchivedAt)
+			}
+		})
 	}
 }

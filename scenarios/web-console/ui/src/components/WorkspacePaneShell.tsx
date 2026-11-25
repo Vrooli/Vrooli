@@ -1,5 +1,5 @@
 import { CodingBackup } from "./CodingBackup";
-import { memo, Profiler, useCallback, useEffect, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { memo, Profiler, useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { useConversationStore, getSessionUnreadCount } from "../stores/useConversationStore";
 import { useMessagesViewStore, type PaneViewMode } from "../stores/useMessagesViewStore";
 import type { PaneMetadata } from "../stores/useWorkspaceStore";
@@ -15,6 +15,7 @@ import TerminalHeader from "./TerminalHeader";
 import MessagesPane from "./MessagesPane";
 import type { PreviewSourceContext } from "@vrooli/file-viewer";
 import type { SummarizationLevel } from "./tts/PlaybackModeControl";
+import { BrowserWorkspacePane } from "../features/desktop/BrowserWorkspacePane";
 
 interface WorkspacePaneShellProps {
   onRestarted?: (sessionId: string) => void;
@@ -50,6 +51,8 @@ interface WorkspacePaneShellProps {
    *  (e.g. the tabs-mode floating toggle) can show a loading indicator. */
   onViewSwitchPendingChange?: (sessionId: string, pending: boolean) => void;
   messagesToolbarTrailingAction?: ReactNode;
+  /** The shared browser + view toggle controls for the Browser view header. */
+  browserHeaderActions?: ReactNode;
   onStartArrangeDrag?: (paneId: string, e: ReactPointerEvent) => void;
   onTerminalExit: (sessionId: string) => void;
   onTerminalRef: (sessionId: string, handle: TerminalPaneHandle | null) => void;
@@ -100,6 +103,7 @@ function WorkspacePaneShell({
   onToggleView,
   onViewSwitchPendingChange,
   messagesToolbarTrailingAction,
+  browserHeaderActions,
   onStartArrangeDrag,
   onTerminalExit,
   onTerminalRef,
@@ -116,12 +120,17 @@ function WorkspacePaneShell({
   onRunCommand,
 }: WorkspacePaneShellProps) {
   const { sessionId, name, headerColor, supportsMessagesView } = paneMeta;
+  const [browserPaneOpen, setBrowserPaneOpen] = useState(false);
 
   const viewMode = useMessagesViewStore(
     useCallback(
-      (state) => (
-        supportsMessagesView ? (state.viewModes[sessionId] ?? "terminal") : "terminal"
-      ),
+      (state) => {
+        const stored = state.viewModes[sessionId] ?? "terminal";
+        // Messages is only available for conversation-capable sessions; the
+        // browser view is available everywhere because its empty state is the
+        // honest result when the run has no browser.
+        return stored === "messages" && !supportsMessagesView ? "terminal" : stored;
+      },
       [sessionId, supportsMessagesView],
     ),
   );
@@ -211,10 +220,12 @@ function WorkspacePaneShell({
           isViewSwitchPending={false}
           onHandoff={(id) => { onHandoff(id, ""); }}
           onPromote={paneMeta.ephemeral ? onPromoteScratchRun : undefined}
+          onBrowserPane={() => { setBrowserPaneOpen(true); }}
           onDragStart={onStartArrangeDrag}
         />
       )}
       <div className="relative flex-1 min-h-0 overflow-hidden">
+        {browserPaneOpen && <BrowserWorkspacePane webConsoleSessionID={sessionId} variant="overlay" onClose={() => { setBrowserPaneOpen(false); }} />}
         <ErrorBoundary region="terminal">
           <Profiler id="TerminalPane" onRender={onProfilerRender}>
           <TerminalPane
@@ -229,7 +240,7 @@ function WorkspacePaneShell({
             onNeedsUnlock={onNeedsUnlock}
 			onOpenFilePreview={(path, source) => { onOpenFilePreview?.(sessionId, path, source); }}
 			onRunCommand={onRunCommand ? (command) => { onRunCommand(sessionId, command); } : undefined}
-			viewMode={viewMode}
+			viewMode={viewMode === "browser" ? "terminal" : viewMode}
 			supportsMessagesView={supportsMessagesView}
             ref={(handle) => {
               terminalHandleRef.current = handle;
@@ -266,6 +277,16 @@ function WorkspacePaneShell({
             </Profiler>
           </div>
         )}
+        {isVisible && viewMode === "browser" && (
+          <div className="absolute inset-0">
+            <BrowserWorkspacePane
+              webConsoleSessionID={sessionId}
+              variant="view"
+              headerActions={browserHeaderActions}
+              onClose={handleToggleView}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -293,5 +314,6 @@ export default memo(WorkspacePaneShell, (prev, next) => (
   // the newly-created trailing action, otherwise the toolbar intermittently
   // retains the prior undefined prop.
   && prev.messagesToolbarTrailingAction === next.messagesToolbarTrailingAction
+  && prev.browserHeaderActions === next.browserHeaderActions
   && prev.onRestarted === next.onRestarted
 ));

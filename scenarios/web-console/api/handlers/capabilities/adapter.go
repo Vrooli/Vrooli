@@ -33,7 +33,7 @@ type Adapter struct {
 	RemoteInstall   func(context.Context, string, string) (caps.LifecycleActionResult, error)
 	ReadAgentUpdate func(context.Context, string, string) (AgentUpdateResult, error)
 	ReadAgentUsage  func(context.Context, string, string) (AgentUsageResult, error)
-	RunUpdateAction func(ctx context.Context, targetID, agentID, action, cleanupPlanID string) (AgentUpdateActionResult, error)
+	RunUpdateAction func(ctx context.Context, targetID, agentID, action, cleanupPlanID, idempotencyKey string) (AgentUpdateActionResult, error)
 	// GuardUpdateAction admits one action request or writes its refusal. Nil
 	// refuses every action.
 	GuardUpdateAction func(http.ResponseWriter, *http.Request, string) bool
@@ -76,11 +76,11 @@ func (a *Adapter) GuardAgentUpdateAction(w http.ResponseWriter, r *http.Request,
 	return a.GuardUpdateAction(w, r, action)
 }
 
-func (a *Adapter) RunAgentUpdateAction(ctx context.Context, targetID, agentID, action, cleanupPlanID string) (AgentUpdateActionResult, error) {
+func (a *Adapter) RunAgentUpdateAction(ctx context.Context, targetID, agentID, action, cleanupPlanID, idempotencyKey string) (AgentUpdateActionResult, error) {
 	if a.RunUpdateAction == nil {
 		return AgentUpdateActionResult{}, ErrUnavailable
 	}
-	return a.RunUpdateAction(ctx, targetID, agentID, action, cleanupPlanID)
+	return a.RunUpdateAction(ctx, targetID, agentID, action, cleanupPlanID, idempotencyKey)
 }
 
 // stampInstallOutcome replaces an installer's own verdict with the target's.

@@ -113,12 +113,15 @@ export function useAgentUpdates(open: boolean, targetId: string, agentKey: strin
     const key = JSON.stringify([runTarget, agentId]);
     if (running.current.has(key)) return;
     running.current.add(key);
+    // One key belongs to this operator intent, not to one transport attempt.
+    // Bridge persists it and returns the same receipt if a dropped response is retried.
+    const idempotencyKey = crypto.randomUUID();
     const previous = updatesRef.current[runTarget]?.[agentId]?.installed ?? "";
     setFor<AgentActionRun>(setRunsByTarget, runTarget, (current) => ({ ...current, [agentId]: { phase: "running", action } }));
     let next: AgentActionRun | null = null;
     for (let attempt = 1; next === null; attempt += 1) {
       try {
-        const response = await capabilitiesClient.runAgentUpdateAction({ targetId: runTarget, agentId, action, ...(cleanupPlanId ? { cleanupPlanId } : {}) }, { timeoutMs: ACTION_TIMEOUT_MS });
+        const response = await capabilitiesClient.runAgentUpdateAction({ targetId: runTarget, agentId, action, idempotencyKey, ...(cleanupPlanId ? { cleanupPlanId } : {}) }, { timeoutMs: ACTION_TIMEOUT_MS });
         const observed = response.update ? decode(response.update) : null;
         if (observed) setFor(setUpdatesByTarget, runTarget, (current) => ({ ...current, [agentId]: observed }));
         // A check that came back is simply the new state; nothing to announce.

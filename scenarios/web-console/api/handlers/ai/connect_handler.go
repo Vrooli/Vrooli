@@ -56,9 +56,7 @@ func (h *connectHandler) Generate(ctx context.Context, req *connect.Request[aiv1
 	if err != nil {
 		h.deps.Logger.Printf("ai.Generate: %v", err)
 		if errors.Is(err, internalai.ErrCreditsRequired) {
-			refusal := connect.NewError(connect.CodeResourceExhausted, errors.New("credits required"))
-			refusal.Meta().Set("X-Vrooli-Error-Type", "credits_required")
-			return nil, refusal
+			return nil, creditsRequiredRefusal()
 		}
 		return nil, connect.NewError(connect.CodeUnavailable, ErrProviderUnavailable)
 	}
@@ -77,13 +75,17 @@ func (h *connectHandler) Suggest(ctx context.Context, req *connect.Request[aiv1.
 	if err != nil {
 		h.deps.Logger.Printf("ai.Suggest: %v", err)
 		if errors.Is(err, internalai.ErrCreditsRequired) {
-			refusal := connect.NewError(connect.CodeResourceExhausted, errors.New("credits required"))
-			refusal.Meta().Set("X-Vrooli-Error-Type", "credits_required")
-			return nil, refusal
+			return nil, creditsRequiredRefusal()
 		}
 		return nil, connect.NewError(connect.CodeUnavailable, ErrProviderUnavailable)
 	}
 	return connect.NewResponse(&aiv1.SuggestResponse{Commands: commands, Provider: provider}), nil
+}
+
+func creditsRequiredRefusal() *connect.Error {
+	refusal := connect.NewError(connect.CodeResourceExhausted, errors.New("credits required"))
+	refusal.Meta().Set("X-Vrooli-Error-Type", monetization.ErrorCreditsRequired)
+	return refusal
 }
 
 func consumerAuthorization(ctx context.Context, fallback string) string {

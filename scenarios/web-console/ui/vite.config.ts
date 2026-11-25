@@ -2,6 +2,8 @@ import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
 import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import launchProfiles from "./src/launch-profiles.json";
 import { fileViewer } from "@vrooli/file-viewer/vite";
 import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
@@ -56,6 +58,24 @@ export default defineConfig(({ mode }): UserConfig => {
             "react-dom$": "react-dom/profiling",
           },
         }
+      : mode === "test"
+        ? {
+            // Workspace file dependencies are snapshotted under pnpm's virtual
+            // store. Resolve the shared audio and generated proto packages to
+            // owner sources so tests use the current contracts, and dedupe the
+            // protobuf runtime from this UI's installed dependency.
+            alias: {
+              "@vrooli/audio-capture-browser": path.resolve(
+                path.dirname(fileURLToPath(import.meta.url)),
+                "../../../packages/audio-capture-browser/src/index.ts",
+              ),
+              "@vrooli/proto-types": path.resolve(
+                path.dirname(fileURLToPath(import.meta.url)),
+                "../../../packages/proto/gen/typescript",
+              ),
+            },
+            dedupe: ["@bufbuild/protobuf"],
+          }
       : undefined,
     esbuild: isProfile ? { keepNames: true } : undefined,
     test: {

@@ -251,6 +251,7 @@ export default function GroupModePanel({
       testId="launcher-create-group"
       summary={machineLabel ? `${machineLabel} · ${roleSummary}` : roleSummary}
       label={t(strings.launcher.startGroup)}
+      buttonLabel={t(strings.launcher.startGroup)}
       disabled={!canCreate}
       busy={isCreating}
       busyLabel={t(strings.launcher.creatingGroup)}

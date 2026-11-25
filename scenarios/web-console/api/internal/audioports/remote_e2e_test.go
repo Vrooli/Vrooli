@@ -10,8 +10,11 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -33,12 +36,14 @@ type fakeSTT struct {
 	mu          sync.Mutex
 	transcripts []string
 	lastReq     *sttv1.TranscribeRequest
+	lastHeader  http.Header
 }
 
 func (f *fakeSTT) Transcribe(ctx context.Context, req *connect.Request[sttv1.TranscribeRequest]) (*connect.Response[sttv1.TranscribeResponse], error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.lastReq = req.Msg
+	f.lastHeader = req.Header().Clone()
 	text := "fake-transcript"
 	if len(f.transcripts) > 0 {
 		text = f.transcripts[0]
@@ -136,6 +141,7 @@ type fakeTTS struct {
 	ttsconnect.UnimplementedTTSServiceHandler
 	mu         sync.Mutex
 	audio      []byte
+	paragraphs []string
 	lastReq    *ttsv1.SynthesizeRequest
 	normCalls  int
 	splitCalls int
@@ -170,7 +176,11 @@ func (f *fakeTTS) SplitParagraphs(ctx context.Context, req *connect.Request[ttsv
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.splitCalls++
-	return connect.NewResponse(&ttsv1.SplitParagraphsResponse{Paragraphs: []string{req.Msg.Text}}), nil
+	paragraphs := f.paragraphs
+	if paragraphs == nil {
+		paragraphs = []string{req.Msg.Text}
+	}
+	return connect.NewResponse(&ttsv1.SplitParagraphsResponse{Paragraphs: paragraphs}), nil
 }
 
 func (f *fakeTTS) ListVoices(context.Context, *connect.Request[ttsv1.ListVoicesRequest]) (*connect.Response[ttsv1.ListVoicesResponse], error) {
@@ -231,6 +241,70 @@ func TestRemoteSTT_RoundTrip(t *testing.T) {
 	}
 	if stt.lastReq == nil || stt.lastReq.Language != "en" {
 		t.Errorf("language not propagated: %+v", stt.lastReq)
+	}
+}
+
+func TestRemoteSTT_ExplicitModelPreservesRouteAndOmitsTierCredentials(t *testing.T) {
+	stt := &fakeSTT{transcripts: []string{"routed transcript"}}
+	tts := &fakeTTS{}
+	baseURL, cleanup := startFakeAudioTools(t, stt, tts)
+	defer cleanup()
+	client, err := audiotools.New(staticResolver{url: baseURL}, audiotools.Policy{Required: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	credentialCalls := 0
+	adapter := &audioports.RemoteSpeechToText{Client: client, Credentials: func(context.Context) audiotools.Credentials {
+		credentialCalls++
+		return audiotools.Credentials{BYOKProvider: "deepgram", BYOKKey: "secret", LPBSToken: "paid-token", UserIdentity: "user-1"}
+	}}
+	if _, err := adapter.Transcribe(context.Background(), []byte("audio"), audioports.STTOptions{ModelID: "local-whisper-large-v3", ProviderTier: "local", ProviderID: "whisper-stt"}); err != nil {
+		t.Fatalf("Transcribe: %v", err)
+	}
+	if credentialCalls != 0 {
+		t.Fatalf("credentials called %d times for explicit model route", credentialCalls)
+	}
+	if got := stt.lastHeader.Get("X-Audio-Model-ID"); got != "local-whisper-large-v3" {
+		t.Fatalf("model header = %q; want exact selected model", got)
+	}
+	if got := stt.lastHeader.Get("X-Audio-Provider-Tier"); got != "local" {
+		t.Errorf("provider tier = %q; want local", got)
+	}
+	if got := stt.lastHeader.Get("X-Audio-Provider-ID"); got != "whisper-stt" {
+		t.Errorf("provider ID = %q; want whisper-stt", got)
+	}
+	for _, name := range []string{"X-Audio-BYOK-Key", "X-Audio-BYOK-Provider", "X-Audio-LPBS-Token"} {
+		if got := stt.lastHeader.Get(name); got != "" {
+			t.Errorf("unexpected tier credential %s=%q with explicit model", name, got)
+		}
+	}
+}
+
+func TestRemoteSTT_WithoutModelPreservesCredentialBehavior(t *testing.T) {
+	stt := &fakeSTT{}
+	tts := &fakeTTS{}
+	baseURL, cleanup := startFakeAudioTools(t, stt, tts)
+	defer cleanup()
+	client, err := audiotools.New(staticResolver{url: baseURL}, audiotools.Policy{Required: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	adapter := &audioports.RemoteSpeechToText{Client: client, Credentials: func(context.Context) audiotools.Credentials {
+		return audiotools.Credentials{BYOKProvider: "deepgram", BYOKKey: "secret", LPBSToken: "paid-token", UserIdentity: "user-1"}
+	}}
+	if _, err := adapter.Transcribe(context.Background(), []byte("audio"), audioports.STTOptions{}); err != nil {
+		t.Fatalf("Transcribe: %v", err)
+	}
+	if got := stt.lastHeader.Get("X-Audio-Model-ID"); got != "" {
+		t.Errorf("model header = %q; want empty when unspecified", got)
+	}
+	for name, want := range map[string]string{
+		"X-Audio-BYOK-Key": "secret", "X-Audio-BYOK-Provider": "deepgram",
+		"X-Audio-LPBS-Token": "paid-token", "X-Audio-User-Identity": "user-1",
+	} {
+		if got := stt.lastHeader.Get(name); got != want {
+			t.Errorf("%s = %q; want %q", name, got, want)
+		}
 	}
 }
 
@@ -376,6 +450,88 @@ func TestRemoteSpeechTextProcessor_CachesNormalize(t *testing.T) {
 		t.Errorf("normCalls = %d; want 1 (second call should have been cached)", tts.normCalls)
 	}
 	tts.mu.Unlock()
+}
+
+func TestRemoteSpeechTextProcessor_CachesSplitWithoutSharingSlices(t *testing.T) {
+	stt := &fakeSTT{}
+	tts := &fakeTTS{paragraphs: []string{"first", "second"}}
+	baseURL, cleanup := startFakeAudioTools(t, stt, tts)
+	defer cleanup()
+
+	client, err := audiotools.New(staticResolver{url: baseURL}, audiotools.Policy{Required: true})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	proc := &audioports.RemoteSpeechTextProcessor{Client: client}
+
+	first := proc.SplitIntoParagraphs("hello")
+	first[0] = "caller mutation"
+	tts.mu.Lock()
+	tts.paragraphs[1] = "provider mutation"
+	tts.mu.Unlock()
+
+	second := proc.SplitIntoParagraphs("hello")
+	if len(second) != 2 || second[0] != "first" || second[1] != "second" {
+		t.Fatalf("cached paragraphs changed through an alias: %#v", second)
+	}
+	tts.mu.Lock()
+	defer tts.mu.Unlock()
+	if tts.splitCalls != 1 {
+		t.Fatalf("expected cached response after one RPC, got %d calls", tts.splitCalls)
+	}
+}
+
+func TestRemoteSpeechTextProcessorBoundsCaches(t *testing.T) {
+	const (
+		cacheLimit    = 256
+		maxCacheBytes = 1 << 20
+	)
+	stt := &fakeSTT{}
+	tts := &fakeTTS{paragraphs: []string{"small"}}
+	baseURL, cleanup := startFakeAudioTools(t, stt, tts)
+	defer cleanup()
+
+	client, err := audiotools.New(staticResolver{url: baseURL}, audiotools.Policy{Required: true})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	proc := &audioports.RemoteSpeechTextProcessor{Client: client}
+	proc.NormalizeForSpeech("oldest")
+	proc.SplitIntoParagraphs("oldest")
+	time.Sleep(time.Millisecond)
+	for i := range cacheLimit {
+		key := "entry-" + strconv.Itoa(i)
+		proc.NormalizeForSpeech(key)
+		proc.SplitIntoParagraphs(key)
+	}
+	proc.NormalizeForSpeech("oldest")
+	proc.SplitIntoParagraphs("oldest")
+
+	large := strings.Repeat("x", maxCacheBytes)
+	proc.NormalizeForSpeech(large)
+	proc.NormalizeForSpeech(large)
+	proc.SplitIntoParagraphs(large)
+	proc.SplitIntoParagraphs(large)
+
+	normA := strings.Repeat("a", 200<<10)
+	normB := strings.Repeat("b", 200<<10)
+	proc.NormalizeForSpeech(normA)
+	proc.NormalizeForSpeech(normB)
+	proc.NormalizeForSpeech(strings.Repeat("c", 200<<10))
+	proc.NormalizeForSpeech(normA)
+
+	splitA := strings.Repeat("a", 600<<10)
+	splitB := strings.Repeat("b", 600<<10)
+	proc.SplitIntoParagraphs(splitA)
+	proc.SplitIntoParagraphs(splitB)
+	proc.SplitIntoParagraphs(splitA)
+
+	tts.mu.Lock()
+	defer tts.mu.Unlock()
+	wantNormalizeCalls, wantSplitCalls := cacheLimit+8, cacheLimit+7
+	if tts.normCalls != wantNormalizeCalls || tts.splitCalls != wantSplitCalls {
+		t.Fatalf("normalize/split calls = %d/%d, want %d/%d (entry and byte limits should evict or bypass caching)", tts.normCalls, tts.splitCalls, wantNormalizeCalls, wantSplitCalls)
+	}
 }
 
 func TestNormalizeError_MapsConnectCodes(t *testing.T) {

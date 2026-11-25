@@ -31,6 +31,7 @@ import (
 	"web-console/internal/legacymigrate"
 	"web-console/internal/metrics"
 	"web-console/internal/sessionstore"
+	"web-console/internal/tailer"
 	"web-console/session"
 
 	"github.com/gorilla/handlers"
@@ -42,6 +43,7 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/lifecycle"
+	"github.com/vrooli/api-core/lpbsidentity"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
@@ -129,6 +131,7 @@ type Server struct {
 	claudeTailer           *ClaudeTailer
 	grokTailer             *GrokTailer
 	opencodeWatcher        *OpenCodeWatcherGroup
+	nativeArchiveEngine    *tailer.Engine
 	agentCheckpointStore   AgentTranscriptCheckpointStore
 	// usageModeQuota overrides the quota reading used to resolve a reset time (tests).
 	usageModeQuota func(context.Context, string) (capsH.AgentUsageResult, error)
@@ -405,7 +408,16 @@ func NewServer(db *database.RoutedDB) *Server {
 		}
 	}
 	if srv.credentialClient != nil {
-		srv.aiChain = intai.NewGatewayChain()
+		tokens := lpbsidentity.GatewayCreditInference.NewTokens("web-console", func(ctx context.Context) (string, error) {
+			identity, err := credentialauthority.ParseIdentity(lpbsidentity.GatewayCreditInference.CredentialIdentity("web-console"))
+			if err != nil {
+				return "", err
+			}
+			return srv.credentialClient.Resolve(ctx, string(identity), "credential")
+		})
+		// Keep the credential read/exchange lazy and refreshable. Missing or
+		// unissued service authority closes only the paid source at request time.
+		srv.aiChain = intai.NewGatewayChain(tokens.Token)
 	}
 	// Every session (including those recovered before the server existed)
 	// gets an activity detector that publishes session_activity on the hub.
@@ -576,6 +588,27 @@ func NewServer(db *database.RoutedDB) *Server {
 	log.Println("opencode-watcher: started")
 
 	return srv
+}
+
+// StartNativeArchiveIndex backfills the explicitly supported native archives
+// into Web Console's own store. It is called by the production entry point so
+// constructing isolated Server instances in tests does not scan the operator's
+// home directory.
+func (srv *Server) StartNativeArchiveIndex() {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		log.Printf("native-archive-index: home unavailable: %v", err)
+		return
+	}
+	archiveIndexer := NewNativeArchiveIndexer(srv.conversations, srv.agentCheckpointStore, log.Default())
+	engine, err := archiveIndexer.NewLazyDiscoveredEngine(NativeArchiveRootsFromHome(home))
+	if err != nil {
+		log.Printf("native-archive-index: discovery failed: %v", err)
+		return
+	}
+	srv.nativeArchiveEngine = engine
+	engine.Start()
+	log.Println("native-archive-index: started")
 }
 
 func newWebConsoleLeaseStore() (*entitlementclient.FileLeaseStore, error) {
@@ -1199,6 +1232,7 @@ func main() {
 	// inherited, before any pane is created or recovered.
 	reconcileTmuxGlobalEnvironment()
 	srv := NewServer(db)
+	srv.StartNativeArchiveIndex()
 	stopContinuityPublisher := srv.startContinuityPublisher()
 
 	authConfig, err := authn.FromEnvironment(os.Getenv)
@@ -1239,6 +1273,9 @@ func main() {
 			}
 			if srv.opencodeWatcher != nil {
 				srv.opencodeWatcher.Stop()
+			}
+			if srv.nativeArchiveEngine != nil {
+				srv.nativeArchiveEngine.Stop()
 			}
 			// Graceful session shutdown: detach from tmux sessions (preserving
 			// them for recovery) and kill standard sessions.

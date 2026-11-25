@@ -40,6 +40,19 @@ func (adapterConversationErrorStub) DeleteSession(context.Context, string) error
 	return context.DeadlineExceeded
 }
 
+type failOnceCopyConversationStub struct {
+	adapterConversationStub
+	calls int
+}
+
+func (s *failOnceCopyConversationStub) CopySession(context.Context, string, string) error {
+	s.calls++
+	if s.calls == 1 {
+		return errors.New("injected conversation copy race")
+	}
+	return nil
+}
+
 type emptyConversationStub struct{ adapterConversationStub }
 
 func (emptyConversationStub) CountSessionEvents(context.Context, string) int64  { return 0 }
@@ -554,7 +567,7 @@ func TestAdapterRecoverArchivedWritesArchivedSourceReceipt(t *testing.T) {
 	if err := store.UpdateAgentInfo(ctx, oldID, sessionstore.AgentInfo{AgentType: sessionstore.AgentCodex, AgentSessionID: "codex-session-1"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.MarkArchived(ctx, oldID, time.Now().UTC()); err != nil {
+	if err := store.MarkArchived(ctx, oldID, time.Now().UTC(), ""); err != nil {
 		t.Fatal(err)
 	}
 	result, err := a.Recover(ctx, RecoverInput{ID: oldID, IdempotencyKey: "recover-archived-1"})
@@ -584,6 +597,74 @@ func TestAdapterRecoverArchivedWritesArchivedSourceReceipt(t *testing.T) {
 	}
 	if replayed.NewSessionID != result.NewSessionID || replayed.OldSessionID != oldID {
 		t.Fatalf("durable recovery replay = %+v, want replacement %q", replayed, result.NewSessionID)
+	}
+}
+
+func TestAdapterRecoverRetriesFailedReceipt(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	_, err = db.Exec(`CREATE TABLE session_lifecycle_receipts (
+		operation_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, actor_kind TEXT NOT NULL,
+		actor_id TEXT NOT NULL, command TEXT NOT NULL, from_state TEXT NOT NULL,
+		to_state TEXT NOT NULL, reason_code TEXT NOT NULL, status TEXT NOT NULL,
+		error_code TEXT NOT NULL, created_at TEXT NOT NULL, completed_at TEXT)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := WithOperationID(context.Background(), "recover-retry-after-copy-failure")
+	store := sessionstore.NewInMemory()
+	mgr := session.NewManagerWithFactory(ptyfake.NewFactory())
+	mgr.SetStore(store)
+	conversations := &failOnceCopyConversationStub{}
+	a := &Adapter{
+		Manager: mgr, Store: store, Conversations: conversations,
+		LifecycleLedger: continuity.NewSQLLedger(db), Events: events.NewLogger(5), Metrics: metrics.New(),
+		AgentHistoryPresent: func(sessionstore.Metadata) bool { return true },
+	}
+	created, err := a.Create(ctx, CreateInput{Shell: "/bin/sh", Cols: 80, Rows: 24, Backend: "persistent", AgentType: "codex"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.UpdateAgentInfo(ctx, created.ID, sessionstore.AgentInfo{AgentType: sessionstore.AgentCodex, AgentSessionID: "codex-session-retry"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.MarkArchived(ctx, created.ID, time.Now().UTC(), ""); err != nil {
+		t.Fatal(err)
+	}
+	input := RecoverInput{ID: created.ID, IdempotencyKey: "recover-retry-after-copy-failure"}
+	if _, err := a.Recover(ctx, input); !errors.Is(err, ErrInternal) {
+		t.Fatalf("first recovery = %v, want injected copy failure", err)
+	}
+	ledger := continuity.NewSQLLedger(db)
+	receipt, err := ledger.Get(ctx, "recover-retry-after-copy-failure")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.Status != "failed" {
+		t.Fatalf("first attempt receipt = %+v, want failed", receipt)
+	}
+
+	recovered, err := a.Recover(ctx, input)
+	if err != nil {
+		t.Fatalf("retry recovery: %v", err)
+	}
+	if recovered.NewSessionID == "" || conversations.calls != 2 {
+		t.Fatalf("retry result = %+v, copy calls = %d", recovered, conversations.calls)
+	}
+	receipt, err = ledger.Get(ctx, "recover-retry-after-copy-failure")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.Status != "succeeded" || receipt.ActorID != recovered.NewSessionID {
+		t.Fatalf("retry receipt = %+v, want successful replacement %q", receipt, recovered.NewSessionID)
+	}
+	// Success remains idempotent: the same operation replays the one replacement.
+	replayed, err := a.Recover(ctx, input)
+	if err != nil || replayed.NewSessionID != recovered.NewSessionID || conversations.calls != 2 {
+		t.Fatalf("successful replay = %+v, err=%v, copy calls=%d", replayed, err, conversations.calls)
 	}
 }
 

@@ -2,8 +2,9 @@ import { create } from "zustand";
 import { READER_FONT_DEFAULT } from "@vrooli/file-viewer";
 import { persist } from "zustand/middleware";
 
-/** Which view a pane shows for its session. */
-export type PaneViewMode = "terminal" | "messages";
+/** Which view a pane shows for its session. Browser is a real view, not an
+ *  overlay, so it can own its empty state and CTA without covering the pane. */
+export type PaneViewMode = "terminal" | "messages" | "browser";
 
 /**
  * Where the reader left a session's Messages list: the top visible message,

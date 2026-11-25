@@ -16,6 +16,10 @@ import (
 // ConversationStore and TTS summarizer.
 type conversationAdapter struct {
 	srv *Server
+	// semanticClientFactory keeps the optional integration replaceable by an
+	// isolated local Connect server in acceptance tests. Production adapters
+	// leave it nil and resolve Agent Manager through scenario discovery.
+	semanticClientFactory func(context.Context) (semanticSearchClient, error)
 }
 
 func newConversationAdapter(s *Server) *conversationAdapter {
@@ -107,6 +111,13 @@ func handlerRanges(ranges []TextRange) []conversationH.TextRange {
 	return out
 }
 
+func formatOptionalOccurredAt(value time.Time) string {
+	if value.IsZero() {
+		return ""
+	}
+	return value.UTC().Format(time.RFC3339Nano)
+}
+
 func (a *conversationAdapter) Search(ctx context.Context, sessionID string, query conversationH.SearchQuery) (conversationH.SearchResult, error) {
 	if !a.canReadSession(ctx, sessionID) {
 		return conversationH.SearchResult{}, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
@@ -119,7 +130,7 @@ func (a *conversationAdapter) Search(ctx context.Context, sessionID string, quer
 	for _, match := range result.Matches {
 		out.Matches = append(out.Matches, conversationH.SearchMatch{
 			EventID: match.EventID, Sequence: match.Sequence, Role: match.Role,
-			CreatedAt: match.CreatedAt.UTC().Format(time.RFC3339Nano), Excerpt: match.Excerpt, Ranges: handlerRanges(match.Ranges),
+			CreatedAt: match.CreatedAt.UTC().Format(time.RFC3339Nano), OccurredAt: formatOptionalOccurredAt(match.OccurredAt), Excerpt: match.Excerpt, Ranges: handlerRanges(match.Ranges),
 		})
 	}
 	return out, nil
@@ -145,7 +156,7 @@ func (a *conversationAdapter) SearchArchived(ctx context.Context, filter convers
 	for _, match := range found.Matches {
 		result.Matches = append(result.Matches, conversationH.ArchivedSearchMatch{
 			EventID: match.EventID, SessionID: match.SessionID, Sequence: match.Sequence, Role: match.Role,
-			CreatedAt: match.CreatedAt.UTC().Format(time.RFC3339), Excerpt: match.Excerpt, Ranges: handlerRanges(match.Ranges),
+			CreatedAt: match.CreatedAt.UTC().Format(time.RFC3339), OccurredAt: formatOptionalOccurredAt(match.OccurredAt), Excerpt: match.Excerpt, Ranges: handlerRanges(match.Ranges),
 		})
 	}
 	return result, nil
@@ -278,6 +289,7 @@ func transportEvents(in []ConversationEvent) []conversationH.Event {
 			OriginalSpeechParagraphs: append([]string(nil), e.OriginalSpeechParagraphs...),
 			Summarized:               e.Summarized,
 			CreatedAt:                e.CreatedAt.Format(time.RFC3339Nano),
+			OccurredAt:               formatOptionalOccurredAt(e.OccurredAt),
 			Sequence:                 e.Sequence,
 			DeliveryState:            string(e.DeliveryState),
 			TTSState:                 string(e.TTSState),

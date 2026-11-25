@@ -1,11 +1,11 @@
 import { useDeferredValue, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AArrowDown, AArrowUp, ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CornerDownLeft, MoreHorizontal, Search } from "lucide-react";
+import { AArrowDown, AArrowUp, ArrowLeft, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CornerDownLeft, MoreHorizontal } from "lucide-react";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { CopyIconButton } from "@vrooli/react-component-library/CopyIconButton/1";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
-import { Input } from "@vrooli/react-component-library/Input/1";
 import { InputGroup } from "@vrooli/react-component-library/InputGroup";
+import { SearchField } from "../SearchField";
 import { strings } from "../../consts/strings";
 import { copyText } from "../../lib/clipboard";
 import { MarkdownRenderer } from "@vrooli/file-viewer";
@@ -13,7 +13,7 @@ import { sessionPreviewSource } from "../../api/filePreview";
 import { FIND_HIGHLIGHT_CSS, paintMatches, rangesInElement } from "./findInText";
 import { MessageActionList, useMessageActions } from "./MessageActionList";
 import type { MessageActionContext } from "./messageActions";
-import { speakerKey, timeLabel, voiceReceiptKey } from "./speaker";
+import { eventTime, speakerKey, voiceReceiptKey } from "./speaker";
 import { clampReaderFontSize, useTypographyPinch } from "@vrooli/file-viewer";
 import type { OutboxState, SentEcho } from "../../lib/echoMatch";
 
@@ -78,6 +78,7 @@ export function MessagesReader({
 }: MessagesReaderProps) {
   const { t, i18n } = useTranslation();
   const { event, isPlaintext } = actionContext;
+  const eventClock = eventTime(event, new Date(), i18n.language);
   const rootRef = useRef<HTMLElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
@@ -150,26 +151,22 @@ export function MessagesReader({
           <ArrowLeft />
         </IconButton>
         <div className="min-w-0 flex-1">
-          <InputGroup size="md" shape="rounded" testId="reader-find-group">
-            <InputGroup.Adornment side="leading">
-              <Search aria-hidden />
-            </InputGroup.Adornment>
-            <InputGroup.Field>
-              <Input
-                ref={findRef}
-                data-testid="reader-find-input"
-                type="search"
-                value={query}
-                onChange={(changeEvent) => { setQuery(changeEvent.target.value); }}
-                onKeyDown={(keyEvent) => {
-                  if (keyEvent.key !== "Enter") return;
-                  keyEvent.preventDefault();
-                  step(keyEvent.shiftKey ? -1 : 1);
-                }}
-                placeholder={t(strings.reader.find)}
-                aria-label={t(strings.reader.find)}
-              />
-            </InputGroup.Field>
+          <SearchField
+            ref={findRef}
+            testId="reader-find-input"
+            groupTestId="reader-find-group"
+            value={query}
+            onValueChange={setQuery}
+            onKeyDown={(keyEvent) => {
+              if (keyEvent.key !== "Enter") return;
+              keyEvent.preventDefault();
+              step(keyEvent.shiftKey ? -1 : 1);
+            }}
+            placeholder={t(strings.reader.find)}
+            label={t(strings.reader.find)}
+            clearLabel={t(strings.messageJumpList.clearSearch)}
+            className="w-full"
+          >
             {/* Stepping only exists once there is something to step through. */}
             {hasQuery && (
               <>
@@ -196,7 +193,7 @@ export function MessagesReader({
                 </InputGroup.Action>
               </>
             )}
-          </InputGroup>
+          </SearchField>
         </div>
         <CopyIconButton
           data-testid="reader-copy"
@@ -227,7 +224,7 @@ export function MessagesReader({
             <span className="font-medium text-wc-text-secondary">{speaker}</span>
             {voiceReceipt && <span data-testid="reader-voice-receipt" className="text-wc-accent">{t(voiceReceipt as never)}</span>}
             <span className="font-mono text-[11px] text-wc-text-faint">
-              {timeLabel(event.createdAt, new Date(), i18n.language)} · #{event.sequence}
+              {eventClock.label ? `${eventClock.label} · ` : ""}{eventClock.timestamp} · #{event.sequence}
             </span>
           </p>
           <div

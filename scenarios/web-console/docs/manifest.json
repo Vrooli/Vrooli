@@ -229,7 +229,7 @@
           ],
           "completion": "required",
           "ownerSkills": [
-            "screaming-architecture-audit"
+            "architecture-lenses"
           ]
         },
         {
@@ -258,7 +258,7 @@
           ],
           "completion": "required",
           "ownerSkills": [
-            "screaming-architecture-audit"
+            "architecture-lenses"
           ]
         },
         {
@@ -303,7 +303,7 @@
           "completion": "conditional",
           "condition": "Required once a real domain has lifecycle states, retries, cancellation, stale-completion risk, or formal workflow invariants. Web-console has these via PTY sessions and voice streaming; FLOWS.md should be authored in the temporal-flows batch.",
           "ownerSkills": [
-            "temporal-flow-audit"
+            "resilience-lenses"
           ]
         },
         {
@@ -748,6 +748,18 @@
           "completion": "optional"
         },
         {
+          "path": "served-inventory.md",
+          "docType": "harness-reference",
+          "title": "Web Console Served Inventory Harness",
+          "description": "Source-defined route and synthetic-state contract for served browser inventory capture",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "completion": "optional"
+        },
+        {
           "path": "reference/component-library-gaps.md",
           "docType": "reference",
           "title": "Component Library Gaps",
@@ -797,7 +809,7 @@
           ],
           "completion": "required",
           "ownerSkills": [
-            "seam-discovery-and-enforcement"
+            "architecture-lenses"
           ]
         },
         {
@@ -865,7 +877,7 @@
           ],
           "completion": "required",
           "ownerSkills": [
-            "error-semantics-recovery-path-design"
+            "resilience-lenses"
           ]
         },
         {
@@ -1051,6 +1063,18 @@
             "validated"
           ],
           "completion": "required"
+        },
+        {
+          "path": "internal/MB4-RUN-SESSION-ASSOCIATION-AUDIT.md",
+          "docType": "security-audit",
+          "title": "Managed Browser Run and Session Association Audit",
+          "description": "Read-only ownership and trust-boundary audit for associating managed runs with BAS sessions",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "completion": "optional"
         },
         {
           "path": "internal/ARCHIVED-SESSIONS-UX.md",

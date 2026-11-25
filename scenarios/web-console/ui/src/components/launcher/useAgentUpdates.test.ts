@@ -52,7 +52,8 @@ describe("useAgentUpdates", () => {
     await waitFor(() => { expect(result.current.updates.codex).toBeTruthy(); });
     act(() => { void result.current.run("codex", "update"); void result.current.run("codex", "update"); });
     expect(api.runAgentUpdateAction).toHaveBeenCalledOnce();
-    expect(api.runAgentUpdateAction.mock.calls[0]?.[0]).toEqual({ targetId: "local", agentId: "codex", action: "update" });
+    expect(api.runAgentUpdateAction.mock.calls[0]?.[0]).toMatchObject({ targetId: "local", agentId: "codex", action: "update" });
+    expect((api.runAgentUpdateAction.mock.calls[0]?.[0] as { idempotencyKey: string }).idempotencyKey).toMatch(/^[0-9a-f-]{36}$/i);
     expect(result.current.runs.codex?.phase).toBe("running");
     await act(async () => { finish({ success: true, message: "Updated.", update: { ...response, installed: "2.0", state: "up_to_date", primaryAction: "" } }); await Promise.resolve(); });
     await waitFor(() => { expect(result.current.runs.codex?.phase).toBe("done"); });
@@ -125,6 +126,7 @@ describe("useAgentUpdates", () => {
     await waitFor(() => { expect(result.current.updates.codex).toBeTruthy(); });
     await act(async () => { await result.current.run("codex", "update"); });
     expect(api.runAgentUpdateAction).toHaveBeenCalledTimes(2);
+    expect(api.runAgentUpdateAction.mock.calls[1]?.[0]).toEqual(api.runAgentUpdateAction.mock.calls[0]?.[0]);
     expect((api.runAgentUpdateAction.mock.calls[0]?.[1] as { timeoutMs: number }).timeoutMs).toBeGreaterThanOrEqual(9 * 60_000);
     expect(result.current.runs.codex?.phase).toBe("done");
   });

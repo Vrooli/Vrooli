@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 	"time"
 
@@ -65,6 +66,12 @@ func initSchemaWithProviders(ctx context.Context, db dbx.Handle, providers []dat
 	if err := applyColumnMigrations(ctx, db); err != nil {
 		return err
 	}
+	if err := ensureNativeEventIdentityIndex(ctx, db); err != nil {
+		return fmt.Errorf("migration: native event identity index: %w", err)
+	}
+	if err := ensureConversationOccurrenceIndex(ctx, db); err != nil {
+		return fmt.Errorf("migration: conversation occurrence index: %w", err)
+	}
 	if err := migrateCodexCheckpoints(ctx, db); err != nil {
 		return fmt.Errorf("migration: codex checkpoints: %w", err)
 	}
@@ -76,6 +83,9 @@ func initSchemaWithProviders(ctx context.Context, db dbx.Handle, providers []dat
 	}
 
 	if err := migrateSessionsAgentTypeConstraint(ctx, db); err != nil {
+		return fmt.Errorf("migration: %w", err)
+	}
+	if err := migrateSessionsPolicyModeConstraint(ctx, db); err != nil {
 		return fmt.Errorf("migration: %w", err)
 	}
 
@@ -95,6 +105,23 @@ func initSchemaWithProviders(ctx context.Context, db dbx.Handle, providers []dat
 	}
 
 	return nil
+}
+
+// ensureNativeEventIdentityIndex runs after additive column migrations because
+// an existing conversation_events table may predate native_provenance_json.
+// Declaring this index in schema.sql would make CREATE INDEX fail before the
+// column migration could repair that database.
+func ensureNativeEventIdentityIndex(ctx context.Context, db dbx.Handle) error {
+	_, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_conversation_events_native_identity
+		ON conversation_events(session_id, native_provenance_json)
+		WHERE native_provenance_json IS NOT NULL`)
+	return err
+}
+
+func ensureConversationOccurrenceIndex(ctx context.Context, db dbx.Handle) error {
+	_, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_conversation_events_source_occurred_at
+		ON conversation_events(source, occurred_at DESC) WHERE occurred_at IS NOT NULL`)
+	return err
 }
 
 // seedExampleContent writes the shipped example group template and capture
@@ -222,6 +249,8 @@ func applyColumnMigrations(ctx context.Context, db dbx.Handle) error {
 		`ALTER TABLE workspace_panes ADD COLUMN supports_messages_view INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE workspace_panes ADD COLUMN manually_unread INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE conversation_events ADD COLUMN native_provenance_json TEXT`,
+		`ALTER TABLE conversation_events ADD COLUMN occurred_at TEXT`,
+		`CREATE TABLE IF NOT EXISTS web_console_migrations (name TEXT PRIMARY KEY, last_rowid INTEGER NOT NULL DEFAULT 0, completed_at TEXT NOT NULL DEFAULT '')`,
 		`ALTER TABLE sessions ADD COLUMN backend TEXT NOT NULL DEFAULT 'standard'`,
 		`ALTER TABLE sessions ADD COLUMN detached INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE sessions ADD COLUMN status TEXT NOT NULL DEFAULT 'live'`,
@@ -247,6 +276,7 @@ func applyColumnMigrations(ctx context.Context, db dbx.Handle) error {
 		`ALTER TABLE sessions ADD COLUMN launch_descriptor_json TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE sessions ADD COLUMN create_fingerprint TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE sessions ADD COLUMN business_account_id TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN archive_note TEXT NOT NULL DEFAULT ''`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status)`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_type, agent_session_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_origin ON sessions(origin)`,
@@ -372,6 +402,73 @@ func migrateSessionsAgentTypeConstraint(ctx context.Context, db dbx.Handle) erro
 		}
 	}
 	log.Println("migration: relaxed sessions.agent_type CHECK to include opencode/grok")
+	return nil
+}
+
+// sessionsPolicyCheck matches the policy_mode CHECK of a sessions table that
+// predates the idle mode, whatever its whitespace.
+var sessionsPolicyCheck = regexp.MustCompile(`CHECK\s*\(\s*policy_mode\s+IN\s*\(\s*'never'\s*,\s*'preset'\s*,\s*'custom'\s*\)\s*\)`)
+
+// migrateSessionsPolicyModeConstraint admits the 'idle' policy mode. SQLite
+// cannot alter a CHECK in place, so the table is rebuilt from its own stored
+// definition with only that clause widened: every column keeps its name,
+// order, type and default, and rows are copied with SELECT * inside one
+// transaction. A table already admitting 'idle', or without the CHECK, is left
+// alone, so the migration is idempotent and a no-op on fresh databases.
+func migrateSessionsPolicyModeConstraint(ctx context.Context, db dbx.Handle) error {
+	var tableSQL string
+	if err := db.QueryRowContext(ctx,
+		`SELECT sql FROM sqlite_master WHERE type='table' AND name='sessions'`,
+	).Scan(&tableSQL); err != nil {
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		return fmt.Errorf("inspect sessions table: %w", err)
+	}
+	if strings.Contains(tableSQL, "'idle'") || !sessionsPolicyCheck.MatchString(tableSQL) {
+		return nil
+	}
+	rebuilt := sessionsPolicyCheck.ReplaceAllString(tableSQL, `CHECK(policy_mode IN ('never', 'preset', 'custom', 'idle'))`)
+	create := regexp.MustCompile(`(?is)^\s*CREATE\s+TABLE\s+(IF\s+NOT\s+EXISTS\s+)?("?sessions"?)`).ReplaceAllString(rebuilt, `CREATE TABLE sessions_policy_rebuild`)
+	if create == rebuilt {
+		return fmt.Errorf("rebuild sessions policy constraint: unrecognised table definition")
+	}
+	var indexes []string
+	rows, err := db.QueryContext(ctx, `SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name='sessions' AND sql IS NOT NULL`)
+	if err != nil {
+		return fmt.Errorf("list sessions indexes: %w", err)
+	}
+	for rows.Next() {
+		var stmt string
+		if err := rows.Scan(&stmt); err != nil {
+			rows.Close()
+			return fmt.Errorf("list sessions indexes: %w", err)
+		}
+		indexes = append(indexes, stmt)
+	}
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("list sessions indexes: %w", err)
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("rebuild sessions policy constraint: %w", err)
+	}
+	defer tx.Rollback()
+	stmts := append([]string{
+		create,
+		`INSERT INTO sessions_policy_rebuild SELECT * FROM sessions`,
+		`DROP TABLE sessions`,
+		`ALTER TABLE sessions_policy_rebuild RENAME TO sessions`,
+	}, indexes...)
+	for _, stmt := range stmts {
+		if _, err := tx.ExecContext(ctx, stmt); err != nil {
+			return fmt.Errorf("rebuild sessions policy constraint (%.40s): %w", stmt, err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("rebuild sessions policy constraint: %w", err)
+	}
+	log.Println("migration: sessions.policy_mode CHECK now admits idle")
 	return nil
 }
 

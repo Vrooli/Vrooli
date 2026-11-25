@@ -22,8 +22,8 @@
 | **Scope** | Priority level for shortcut profiles: `parent` > `workspace` > `service`. The highest available scope provides the effective shortcuts. | [CODE: api/shortcut_profiles.go] |
 | **Provider** | An AI service (Ollama or OpenRouter) used for command generation. Providers have config (priority, timeout) and runtime health tracking. | [CODE: api/ai_generate.go], [CODE: api/ai_provider_config.go] |
 | **Provider Chain** | The ordered list of enabled providers tried during AI generation. Lower priority number = tried first. | [CODE: api/ai_generate.go] |
-| **Policy** | Session expiration configuration. Options: `never`, preset TTL (1h, 8h, 24h), or custom duration. | [CODE: api/session_policy.go], [CODE: ui/src/consts/policy-options.ts] |
-| **Sweeper** | Background goroutine that periodically checks sessions against their expiration policy and closes expired ones. | [CODE: api/session_policy.go] |
+| **Policy** | Session expiration configuration. Options: `never`, preset TTL (1h, 8h, 24h), custom duration, or `idle` (archive once the agent has done no work for the duration, with no goal active and no turn or sub-agent running; the archive note records why, and Reopen brings the thread and goal back). | [CODE: api/internal/policy/policy.go], [CODE: api/session_idle.go], [CODE: ui/src/consts/policy-options.ts] |
+| **Sweeper** | Background goroutine that periodically checks sessions against their expiration policy and archives expired or idle ones through the lifecycle owner, with an archive note. | [CODE: api/session/session_policy.go] |
 | **Offline Buffer** | Per-session ring buffer that stores PTY output generated while no WebSocket clients are connected, enabling reconnect continuity. | [CODE: api/session.go] |
 | **Idempotency Key** | Client-provided header (`X-Idempotency-Key`) for replay-safe session creation. Cached results prevent duplicate sessions on retry. | [CODE: api/session_handlers.go] |
 | **iframe Bridge** | `@vrooli/iframe-bridge` library providing `postMessage`-based coordination between the embedded web-console UI and its parent scenario. | [CODE: ui/src/App.tsx] |

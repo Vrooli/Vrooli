@@ -5,7 +5,7 @@
 
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
-import { toBinary } from "@bufbuild/protobuf";
+import { create, toBinary } from "@bufbuild/protobuf";
 
 import {
   streamingModeLabel,
@@ -20,6 +20,13 @@ import {
   WakeWordTemplateSchema,
   type UpdateWakeWordTemplateRequest,
 } from "@vrooli/proto-types/web-console/v1/audio_admin/audio_admin_pb";
+import {
+  TranscribeStreamEventSchema,
+} from "@vrooli/proto-types/web-console/v1/audio_runtime/audio_runtime_pb";
+
+const connectStreamState = vi.hoisted(() => ({ event: undefined as unknown }));
+
+afterEach(() => { connectStreamState.event = undefined; });
 
 const initialLocation = globalThis.location.href;
 
@@ -74,6 +81,12 @@ vi.mock("@connectrpc/connect", async (importOriginal) => {
   return {
     ...actual,
     createClient: () => ({
+      transcribeStream: async function* () {
+        yield create(TranscribeStreamEventSchema, {
+          event: { case: "sessionStatus", value: { state: "accepted" } },
+        });
+        if (connectStreamState.event) yield connectStreamState.event;
+      },
       getStreamConfig: getMock,
       updateStreamConfig: updateMock,
       getWakeWordConfig: wwGetMock,
@@ -81,6 +94,27 @@ vi.mock("@connectrpc/connect", async (importOriginal) => {
       ...rpcMocks,
     }),
   };
+});
+
+describe("voice stream segment coverage codec", () => {
+  it("preserves the committed end-sample cursor", async () => {
+    connectStreamState.event = create(TranscribeStreamEventSchema, {
+      event: { case: "segment", value: { text: "hello", segmentId: "segment-1", startSample: 160n, endSample: 320n } },
+    });
+    const { openVoiceStream } = await import("./voice");
+    const onEvent = vi.fn();
+    const onReady = vi.fn();
+    const connection = openVoiceStream({
+      language: "en", sessionId: "codec-test", resumeToken: "", protocolVersion: 2,
+      generation: 0n, inputFormat: "pcm_s16le", sampleRateHz: 16000,
+    }, { onReady, onEvent, onClose: vi.fn() });
+    await vi.waitFor(() => expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: "segment-final", endSample: 320,
+    })));
+    expect(onReady).toHaveBeenCalledOnce();
+    connection.close();
+    connectStreamState.event = undefined;
+  });
 });
 
 describe("streamingModeLabel", () => {
@@ -316,6 +350,23 @@ describe("voice runtime and speaker API adapters", () => {
     await expect(transcribeAudioWithRetry(blob, 2)).resolves.toBe("recovered");
     expect(rpcMocks.transcribe).toHaveBeenCalledTimes(2);
 	}, 10 * 1000);
+
+  it("passes an exact selected local model route through the same-origin RPC", async () => {
+    const blob = fakeBlob(new Uint8Array([4, 5]), "audio/wav");
+    rpcMocks.transcribe.mockResolvedValue({ text: "recovered" });
+    const { transcribeAudioWithRetry } = await import("./voice");
+    const route = { providerTier: "local" as const, providerId: "whisper-stt", modelId: "whisper-large-v3-turbo" };
+
+    await expect(transcribeAudioWithRetry(blob, 1, "en", route)).resolves.toBe("recovered");
+
+    expect(rpcMocks.transcribe.mock.calls[0]?.[1]).toMatchObject({
+      headers: {
+        "X-Audio-Provider-Tier": "local",
+        "X-Audio-Provider-ID": "whisper-stt",
+        "X-Audio-Model-ID": "whisper-large-v3-turbo",
+      },
+    });
+  });
 
   it("rejects after exhausting retry attempts", async () => {
     const blob = fakeBlob(new Uint8Array([1]), "audio/ogg");

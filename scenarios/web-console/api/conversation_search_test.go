@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf16"
 )
 
@@ -204,4 +205,64 @@ func TestConversationSearch(t *testing.T) {
 			t.Fatalf("archived = %v, live = %v; want the same matches", got, want)
 		}
 	})
+}
+
+func TestTextSearchFiltersFTSCandidatesBeforeScanCap(t *testing.T) {
+	repo := searchTestRepo(t)
+	previousCap := searchScanCap
+	searchScanCap = 2
+	t.Cleanup(func() { searchScanCap = previousCap })
+
+	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	events := []ConversationEvent{
+		{ID: "old-exact", SessionID: "s", Role: ConversationRoleAssistant, Text: "red blue " + strings.Repeat("padding ", 10), CreatedAt: base},
+		{ID: "new-no-exact-1", SessionID: "s", Role: ConversationRoleAssistant, Text: "red gap blue " + strings.Repeat("padding ", 9), CreatedAt: base.Add(time.Hour)},
+		{ID: "new-no-exact-2", SessionID: "s", Role: ConversationRoleAssistant, Text: "red gap blue " + strings.Repeat("padding ", 9), CreatedAt: base.Add(2 * time.Hour)},
+		{ID: "new-no-exact-3", SessionID: "s", Role: ConversationRoleAssistant, Text: "red gap blue " + strings.Repeat("padding ", 9), CreatedAt: base.Add(3 * time.Hour)},
+	}
+	for _, event := range events {
+		if _, err := repo.AppendEvent(context.Background(), event); err != nil {
+			t.Fatal(err)
+		}
+	}
+	result, err := repo.SearchSession(context.Background(), "s", ConversationSearchQuery{Query: " red blue ", Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Error != "" || result.Truncated || result.Total != 1 || len(result.Matches) != 1 || result.Matches[0].EventID != "old-exact" {
+		t.Fatalf("search result = %+v; want the older exact match beyond token-level false positives", result)
+	}
+}
+
+func TestASCIIInsensitiveSQLFilterChecksUnicodeSimpleFoldClosure(t *testing.T) {
+	for _, query := range []string{"red blue", "red blue!?"} {
+		if !asciiCaseFoldSafe(query) {
+			t.Errorf("asciiCaseFoldSafe(%q) = false, want true", query)
+		}
+	}
+	for _, query := range []string{"k", "s"} {
+		if asciiCaseFoldSafe(query) {
+			t.Errorf("asciiCaseFoldSafe(%q) = true; Go simple-fold closure includes non-ASCII variants", query)
+		}
+	}
+}
+
+func TestSearchArchivedOrdersVariablePrecisionIngestTimesChronologically(t *testing.T) {
+	repo := searchTestRepo(t)
+	base := time.Date(2026, 11, 23, 12, 0, 0, 0, time.UTC)
+	for _, event := range []ConversationEvent{
+		{ID: "fraction-short", SessionID: "fractional", Role: ConversationRoleAssistant, Text: "same archive needle", CreatedAt: base.Add(120 * time.Millisecond)},
+		{ID: "fraction-long", SessionID: "fractional", Role: ConversationRoleAssistant, Text: "same archive needle", CreatedAt: base.Add(123 * time.Millisecond)},
+	} {
+		if _, err := repo.AppendEvent(context.Background(), event); err != nil {
+			t.Fatal(err)
+		}
+	}
+	result, err := repo.SearchArchived(context.Background(), ArchivedConversationSearchFilter{ConversationSearchQuery: ConversationSearchQuery{Query: "same archive needle", Limit: 10}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Matches) != 2 || result.Matches[0].EventID != "fraction-long" || result.Matches[1].EventID != "fraction-short" {
+		t.Fatalf("archive result order = %+v, want latest fractional timestamp first", result.Matches)
+	}
 }

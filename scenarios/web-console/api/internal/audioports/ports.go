@@ -28,6 +28,15 @@ type STTOptions struct {
 	Language                string
 	SkipSpeakerVerification bool
 	InitialPrompt           string
+	// ProviderTier and ProviderID retain a caller-selected provider route.
+	// They are routing hints, not credentials; explicit ModelID routes still
+	// suppress tier credentials in RemoteSpeechToText.
+	ProviderTier string
+	ProviderID   string
+	// ModelID pins this transcription to a model selected by the caller. When
+	// set, RemoteSpeechToText must not add tier credentials that could override
+	// the requested processing destination.
+	ModelID string
 }
 
 // STTResult is the deduplicated, hallucination-filtered transcription.

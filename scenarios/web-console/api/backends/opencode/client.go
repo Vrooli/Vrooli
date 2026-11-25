@@ -175,9 +175,16 @@ func (c *HTTPClient) streamEvents(ctx context.Context, path string, onEvent func
 	}
 	req.Header.Set("Accept", "text/event-stream")
 	setBasicAuth(req, c.Password)
-	// The stream is intentionally long-lived. An explicit zero timeout documents
-	// that cancellation is owned by ctx rather than an implicit default client.
-	streamClient := &http.Client{Timeout: 0}
+	// Preserve the configured transport, authentication jar, and redirect policy
+	// used by the JSON endpoints while keeping the stream alive until ctx ends.
+	// The configured client's per-call timeout must not silently terminate SSE.
+	configured := c.HTTP
+	if configured == nil {
+		configured = http.DefaultClient
+	}
+	streamConfig := *configured
+	streamConfig.Timeout = 0
+	streamClient := &streamConfig
 	resp, err := streamClient.Do(req)
 	if err != nil {
 		return err

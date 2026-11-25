@@ -139,8 +139,11 @@ func (a *filePreviewAdapter) GetTextContent(_ context.Context, sessionID, previe
 		return filePreviewH.TextResult{ResolvedPath: entry.ResolvedPath, Kind: string(entry.Kind), MIMEType: entry.MIMEType, Content: string(data), Truncated: truncated}, nil
 	}
 	content, truncated, readErr := a.srv.filePreviewResolver.ReadText(&filepreview.Target{
+		SourceInfo:           entry.SourceInfo,
 		ResolvedPath:         entry.ResolvedPath,
 		Kind:                 entry.Kind,
+		SizeBytes:            entry.SizeBytes,
+		ModTimeUnixNano:      entry.ModTimeUnixNano,
 		TextContentAvailable: entry.TextContentAvailable,
 	})
 	if readErr != nil {

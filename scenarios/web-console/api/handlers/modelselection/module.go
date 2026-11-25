@@ -23,6 +23,8 @@ type Choice struct {
 	IsDefault   bool
 	// ContextWindowTokens is zero when the window is unknown, never unlimited.
 	ContextWindowTokens int64
+	// ContextWindowSource identifies the verified harness reader behind the window.
+	ContextWindowSource string
 	ContextLimitTokens  []int64
 	Metered             bool
 	DisplayName         string
@@ -79,7 +81,7 @@ func (h *handler) GetRoleModelChoices(ctx context.Context, req *connect.Request[
 		SourceConfigurationSupported: result.SourceConfigurationSupported,
 	}
 	for _, choice := range result.Choices {
-		item := &modelselectionv1.RoleModelChoice{Model: choice.Model, Source: choice.Source, Provider: choice.Provider, LaunchModel: choice.LaunchModel, Effort: choice.Effort, SourceLabel: choice.SourceLabel, IsDefault: choice.IsDefault, ContextWindowTokens: choice.ContextWindowTokens, ContextLimitTokens: choice.ContextLimitTokens, Metered: choice.Metered, DisplayName: choice.DisplayName, PolicyCurrent: choice.PolicyCurrent}
+		item := &modelselectionv1.RoleModelChoice{Model: choice.Model, Source: choice.Source, Provider: choice.Provider, LaunchModel: choice.LaunchModel, Effort: choice.Effort, SourceLabel: choice.SourceLabel, IsDefault: choice.IsDefault, ContextWindowTokens: choice.ContextWindowTokens, ContextWindowSource: choice.ContextWindowSource, ContextLimitTokens: choice.ContextLimitTokens, Metered: choice.Metered, DisplayName: choice.DisplayName, PolicyCurrent: choice.PolicyCurrent}
 		response.Choices = append(response.Choices, item)
 	}
 	return connect.NewResponse(response), nil

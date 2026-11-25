@@ -10,8 +10,8 @@ import (
 )
 
 type SearchMatch struct {
-	EventID, SessionID, Role, CreatedAt, Excerpt, LifecycleState string
-	Sequence                                                     int64
+	EventID, SessionID, Role, CreatedAt, OccurredAt, Excerpt, LifecycleState string
+	Sequence                                                                 int64
 }
 
 // SearchOptions keeps local continuity search independent of provider
@@ -29,6 +29,19 @@ type SearchOptions struct {
 	AgentSessionID string
 	Title          string
 	TopicSummary   string
+}
+
+// NativeArchiveSourceForAgentType returns the stable own-store source label
+// used by WC4's admitted archive adapters. Native projections can survive
+// without a matching sessions/catalog row, so text retrieval uses this source
+// label as its harness identity fallback.
+func NativeArchiveSourceForAgentType(agentType string) string {
+	switch agentType {
+	case "claude", "codex", "grok", "opencode", "gemini-cli", "qwen-code", "antigravity", "cursor":
+		return agentType + "_archive"
+	default:
+		return ""
+	}
 }
 
 // SearchLocal is exact-text FTS over all retained Web Console events. It has
@@ -90,12 +103,17 @@ func SearchLocalWithOptions(ctx context.Context, db dbx.Handle, options SearchOp
 	}
 	args = append(args, identityArgs...)
 	if options.AgentType != "" {
-		if !catalogTitlesAvailable {
-			where = append(where, "s.agent_type = ?")
-		} else {
-			where = append(where, "COALESCE(NULLIF(s.agent_type, ''), c.agent_type) = ?")
+		agentTypeMatch := "s.agent_type = ?"
+		if catalogTitlesAvailable {
+			agentTypeMatch = "COALESCE(NULLIF(s.agent_type, ''), c.agent_type) = ?"
 		}
-		args = append(args, options.AgentType)
+		if source := NativeArchiveSourceForAgentType(options.AgentType); source != "" && tableHasColumns(ctx, db, "conversation_events", "source") {
+			where = append(where, "("+agentTypeMatch+" OR (s.id IS NULL AND e.source = ?))")
+			args = append(args, options.AgentType, source)
+		} else {
+			where = append(where, agentTypeMatch)
+			args = append(args, options.AgentType)
+		}
 	}
 	if options.CWD != "" {
 		if !catalogTitlesAvailable {
@@ -131,8 +149,13 @@ func SearchLocalWithOptions(ctx context.Context, db dbx.Handle, options SearchOp
 		args = append(args, "%"+escapeLike(options.TopicSummary)+"%")
 	}
 	if !options.CreatedAfter.IsZero() {
-		where = append(where, "e.created_at >= ?")
-		args = append(args, options.CreatedAfter.UTC().Format(time.RFC3339Nano))
+		// Native occurrence timestamps have a fixed-width UTC representation, so
+		// their range check stays indexable. Legacy created_at is variable-width
+		// RFC3339Nano and must be parsed to compare fractional seconds correctly.
+		where = append(where, `((e.source IN ('claude_archive','codex_archive','grok_archive','opencode_archive','gemini-cli_archive','qwen-code_archive','antigravity_archive','cursor_archive') AND e.occurred_at >= ?) OR (e.source NOT IN ('claude_archive','codex_archive','grok_archive','opencode_archive','gemini-cli_archive','qwen-code_archive','antigravity_archive','cursor_archive') AND julianday(e.created_at) >= julianday(?)))`)
+		afterNative := options.CreatedAfter.UTC().Format("2006-01-02T15:04:05.000000000Z")
+		afterIngested := options.CreatedAfter.UTC().Format(time.RFC3339Nano)
+		args = append(args, afterNative, afterIngested)
 	}
 	catalogStates := catalogLifecycleStates(ctx, db)
 	switch options.State {
@@ -187,7 +210,7 @@ func SearchLocalWithOptions(ctx context.Context, db dbx.Handle, options SearchOp
 	if err := db.QueryRowContext(ctx, "SELECT COUNT(DISTINCT e.session_id)"+from, args...).Scan(&distinct); err != nil {
 		return nil, false, 0, 0, err
 	}
-	rows, err := db.QueryContext(ctx, "SELECT e.id,e.session_id,e.sequence,e.role,e.created_at,e.text,COALESCE(s.archived_at,''),COALESCE(s.status,'')"+from+" ORDER BY e.created_at DESC, e.sequence DESC LIMIT ?", append(args, limit+1)...)
+	rows, err := db.QueryContext(ctx, "SELECT e.id,e.session_id,e.sequence,e.role,e.created_at,COALESCE(e.occurred_at,''),e.text,COALESCE(s.id,''),COALESCE(s.archived_at,''),COALESCE(s.status,'')"+from+" ORDER BY COALESCE(e.occurred_at,e.created_at) DESC, e.sequence DESC LIMIT ?", append(args, limit+1)...)
 	if err != nil {
 		return nil, false, 0, 0, err
 	}
@@ -195,14 +218,18 @@ func SearchLocalWithOptions(ctx context.Context, db dbx.Handle, options SearchOp
 	out := make([]SearchMatch, 0, limit)
 	for rows.Next() {
 		var m SearchMatch
-		var text, archivedAt, status string
-		if err := rows.Scan(&m.EventID, &m.SessionID, &m.Sequence, &m.Role, &m.CreatedAt, &text, &archivedAt, &status); err != nil {
+		var text, sessionMetadataID, archivedAt, status string
+		if err := rows.Scan(&m.EventID, &m.SessionID, &m.Sequence, &m.Role, &m.CreatedAt, &m.OccurredAt, &text, &sessionMetadataID, &archivedAt, &status); err != nil {
 			return nil, false, 0, 0, err
 		}
 		m.Excerpt = excerpt(text, query)
 		m.LifecycleState = catalogStates[m.SessionID]
 		if m.LifecycleState == "" {
-			m.LifecycleState = "live"
+			if sessionMetadataID == "" {
+				m.LifecycleState = "archived"
+			} else {
+				m.LifecycleState = "live"
+			}
 		}
 		if archivedAt != "" || status == "dismissed" {
 			m.LifecycleState = "archived"

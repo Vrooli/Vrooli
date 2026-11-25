@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/lpbsidentity"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
@@ -15,36 +16,39 @@ import (
 
 type gatewayInferenceFixture struct {
 	inferenceconnect.UnimplementedInferenceServiceHandler
-	request       *inferencev1.RunRequest
-	source        string
-	authorization string
-	consent       string
+	request             *inferencev1.RunRequest
+	source              string
+	authorization       string
+	callerAuthorization string
+	consent             string
 }
 
 func (f *gatewayInferenceFixture) Run(_ context.Context, request *connect.Request[inferencev1.RunRequest]) (*connect.Response[inferencev1.RunResponse], error) {
 	f.request = request.Msg
 	f.source = request.Header().Get("X-Vrooli-AI-Source")
 	f.authorization = request.Header().Get("Authorization")
+	f.callerAuthorization = request.Header().Get(lpbsidentity.CreditCallerAuthorizationHeader)
 	f.consent = request.Header().Get("X-Vrooli-AI-Consent-Grant")
 	return connect.NewResponse(&inferencev1.RunResponse{ValueJson: `"echo safe"`, Validated: true}), nil
 }
 
 func TestGatewayProviderUsesAuthorRoleAndSourceBoundProfile(t *testing.T) {
 	tests := []struct {
-		source        string
-		profile       sharedv1.Profile
-		privacy       sharedv1.PrivacyClass
-		consumerToken string
-		authorization string
-		consentReceipt string
-		consentSource  string
-		wantConsent    string
+		source              string
+		profile             sharedv1.Profile
+		privacy             sharedv1.PrivacyClass
+		consumerToken       string
+		authorization       string
+		callerAuthorization string
+		consentReceipt      string
+		consentSource       string
+		wantConsent         string
 	}{
 		{source: "local", profile: sharedv1.Profile_PROFILE_LOCAL_ONLY, privacy: webConsolePrivacyClass},
 		{source: "own-key", profile: sharedv1.Profile_PROFILE_REMOTE_ONLY, privacy: webConsolePrivacyClass, consentReceipt: "receipt-own-key", consentSource: "own-key", wantConsent: "receipt-own-key"},
 		{source: "own-key", profile: sharedv1.Profile_PROFILE_REMOTE_ONLY, privacy: webConsolePrivacyClass, consentReceipt: "receipt-credits", consentSource: "vrooli-credits"},
-		{source: "vrooli-credits", profile: sharedv1.Profile_PROFILE_REMOTE_ONLY, privacy: webConsolePrivacyClass, consumerToken: "signed-access", authorization: "Bearer signed-access"},
-		{source: "vrooli-credits", profile: sharedv1.Profile_PROFILE_REMOTE_ONLY, privacy: webConsolePrivacyClass, consumerToken: "Bearer signed-access", authorization: "Bearer signed-access"},
+		{source: "vrooli-credits", profile: sharedv1.Profile_PROFILE_REMOTE_ONLY, privacy: webConsolePrivacyClass, consumerToken: "signed-access", authorization: "Bearer signed-access", callerAuthorization: "Bearer web-console-service"},
+		{source: "vrooli-credits", profile: sharedv1.Profile_PROFILE_REMOTE_ONLY, privacy: webConsolePrivacyClass, consumerToken: "Bearer signed-access", authorization: "Bearer signed-access", callerAuthorization: "Bearer web-console-service"},
 	}
 	for _, test := range tests {
 		t.Run(test.source, func(t *testing.T) {
@@ -55,11 +59,16 @@ func TestGatewayProviderUsesAuthorRoleAndSourceBoundProfile(t *testing.T) {
 			server := httptest.NewServer(mux)
 			defer server.Close()
 
+			var resolveCaller func(context.Context) (string, error)
+			if test.source == "vrooli-credits" {
+				resolveCaller = func(context.Context) (string, error) { return "web-console-service", nil }
+			}
 			provider := &GatewayProvider{
 				Source: test.source, ProviderName: test.source,
-				PrivacyClass:  test.privacy,
-				PrivacySource: webConsolePrivacySource,
-				ResolveURL:    func(context.Context) (string, error) { return server.URL, nil },
+				PrivacyClass:                     test.privacy,
+				PrivacySource:                    webConsolePrivacySource,
+				ResolveCreditCallerAuthorization: resolveCaller,
+				ResolveURL:                       func(context.Context) (string, error) { return server.URL, nil },
 			}
 			ctx := WithRootOperationID(WithPrivacyConsentGrant(WithConsumerToken(context.Background(), test.consumerToken), test.consentReceipt, test.consentSource), "web-console-operation-123456789012")
 			got, err := provider.Generate(ctx, "Create a reversible command", "restart scenario foo")
@@ -74,6 +83,9 @@ func TestGatewayProviderUsesAuthorRoleAndSourceBoundProfile(t *testing.T) {
 			}
 			if fixture.authorization != test.authorization {
 				t.Fatalf("authorization header = %q, want %q", fixture.authorization, test.authorization)
+			}
+			if fixture.callerAuthorization != test.callerAuthorization {
+				t.Fatalf("caller authorization header = %q, want %q", fixture.callerAuthorization, test.callerAuthorization)
 			}
 			if fixture.consent != test.wantConsent {
 				t.Fatalf("consent grant header = %q, want %q", fixture.consent, test.wantConsent)
@@ -159,6 +171,21 @@ func TestGatewayProviderRequiresConsumerTokenForCreditsBeforeResolvingGateway(t 
 	}
 	if _, err := provider.Generate(context.Background(), "system", "user"); err == nil || !errors.Is(err, ErrCreditsRequired) {
 		t.Fatalf("missing subscription token error = %v, want ErrCreditsRequired", err)
+	}
+}
+
+func TestGatewayProviderRequiresScenarioPrincipalForCreditsBeforeGateway(t *testing.T) {
+	provider := &GatewayProvider{
+		Source: "vrooli-credits", ProviderName: "vrooli", PrivacyClass: webConsolePrivacyClass,
+		PrivacySource: webConsolePrivacySource,
+		ResolveURL: func(context.Context) (string, error) {
+			t.Fatal("gateway should not be resolved without a scenario principal")
+			return "", nil
+		},
+	}
+	ctx := WithConsumerToken(context.Background(), "human-session")
+	if _, err := provider.Generate(ctx, "system", "user"); err == nil || !errors.Is(err, ErrCreditsRequired) {
+		t.Fatalf("missing scenario principal error = %v, want ErrCreditsRequired", err)
 	}
 }
 

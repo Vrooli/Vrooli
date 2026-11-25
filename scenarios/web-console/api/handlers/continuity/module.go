@@ -52,7 +52,7 @@ func (h *handler) Search(ctx context.Context, req *connect.Request[continuityv1.
 	}
 	out := make([]*continuityv1.SearchMatch, 0, len(matches))
 	for _, m := range matches {
-		out = append(out, &continuityv1.SearchMatch{EventId: safeUTF8(m.EventID), SessionId: safeUTF8(m.SessionID), Sequence: m.Sequence, Role: safeUTF8(m.Role), CreatedAt: safeUTF8(m.CreatedAt), Excerpt: safeUTF8(m.Excerpt), LifecycleState: safeUTF8(m.LifecycleState)})
+		out = append(out, &continuityv1.SearchMatch{EventId: safeUTF8(m.EventID), SessionId: safeUTF8(m.SessionID), Sequence: m.Sequence, Role: safeUTF8(m.Role), CreatedAt: safeUTF8(m.CreatedAt), OccurredAt: safeUTF8(m.OccurredAt), Excerpt: safeUTF8(m.Excerpt), LifecycleState: safeUTF8(m.LifecycleState)})
 	}
 	return connect.NewResponse(&continuityv1.SearchResponse{Matches: out, Truncated: truncated, TotalMatches: total, DistinctSessions: distinct}), nil
 }

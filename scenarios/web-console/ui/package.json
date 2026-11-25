@@ -10,6 +10,7 @@
     "@vrooli/audio-capture-browser": "file:../../../packages/audio-capture-browser",
     "@vrooli/file-viewer": "file:../../../packages/file-viewer",
     "@vrooli/flow-runtime": "file:../../../packages/flow-runtime",
+    "@vrooli/goal-brief": "file:../../../packages/goal-brief",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
     "@vrooli/react-component-library": "file:../../../packages/react-component-library",

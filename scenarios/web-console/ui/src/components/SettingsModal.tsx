@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentType } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Search } from "lucide-react";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import type { SessionInfo } from "../api/sessions";
@@ -10,6 +10,9 @@ import { strings } from "../consts/strings";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { SearchField } from "./SearchField";
+import { PaneEmptyState } from "./PaneEmptyState";
 import GroupTemplatesPanel from "./settings/GroupTemplatesPanel";
 import HandoffRulesPanel from "./settings/HandoffRulesPanel";
 import IntegrationsSection from "./settings/IntegrationsSection";
@@ -23,6 +26,7 @@ import VoiceInputSection from "./settings/VoiceInputSection";
 import WorkspaceSection from "./settings/WorkspaceSection";
 import AccountSection from "./settings/AccountSection";
 import DevicesSection from "./settings/DevicesSection";
+import DeploymentsSection from "./settings/DeploymentsSection";
 import type { InstallOutcome } from "../api/capabilities";
 import type { Machine } from "../api/machines";
 import {
@@ -97,6 +101,7 @@ const SECTION_COMPONENTS: Record<SettingsTabId, SettingsSectionComponent> = {
   "handoff-rules": HandoffRulesPanel as SettingsSectionComponent,
   integrations: IntegrationsSection as SettingsSectionComponent,
   notifications: NotificationsSection as SettingsSectionComponent,
+  deployments: DeploymentsSection as SettingsSectionComponent,
 };
 
 /** The library keeps `settings-tab-<id>` reachable so existing flows still address a tab. */
@@ -127,8 +132,24 @@ export default function SettingsModal({
     return location === "categories" ? loadStoredTab() : location;
   });
   const [showCategories, setShowCategories] = useState(() => loadLocation() === "categories");
+  const [settingsQuery, setSettingsQuery] = useState("");
   const categoryNavigation = useRef(false);
   const settingsTabs = useSettingsTabs();
+
+  const filteredTabs = useMemo(() => {
+    const needle = settingsQuery.trim().toLowerCase();
+    if (!needle) return settingsTabs;
+    return settingsTabs.filter((tab) => (
+      `${tab.label} ${tab.shortLabel} ${tab.description} ${tab.keywords} ${tab.id}`.toLowerCase().includes(needle)
+    ));
+  }, [settingsQuery, settingsTabs]);
+
+  const chooseTab = (tab: SettingsTabId) => {
+    storeLocation(tab);
+    setActiveTab(tab);
+    setShowCategories(false);
+    setSettingsQuery("");
+  };
 
   useEffect(() => {
     storeTab(activeTab);
@@ -203,14 +224,48 @@ export default function SettingsModal({
       {isMobile ? (
         <div className="px-4 py-4">
           {showCategories ? (
-            <SettingsList variant="flush" data-testid="settings-categories">
-              <SettingsList.Group>
-                {settingsTabs.map((tab) => {
-                  const Icon = tab.icon;
-                  return <SettingsList.Row key={tab.id} testId={settingsTabTestId(tab.id)} label={tab.label} hint={tab.description} leading={<Icon aria-hidden="true" />} onSelect={() => { categoryNavigation.current = true; storeLocation(tab.id); setActiveTab(tab.id); setShowCategories(false); }} />;
-                })}
-              </SettingsList.Group>
-            </SettingsList>
+            <>
+              <SearchField
+                testId="settings-search"
+                value={settingsQuery}
+                onValueChange={setSettingsQuery}
+                placeholder={t("settings.searchPlaceholder", { defaultValue: "Search settings" })}
+                label={t("settings.searchPlaceholder", { defaultValue: "Search settings" })}
+                clearLabel={t("settings.clearSearch", { defaultValue: "Clear search" })}
+                className="mb-3 w-full"
+                onKeyDown={(keyEvent) => {
+                  if (keyEvent.key !== "Enter" || filteredTabs.length === 0) return;
+                  keyEvent.preventDefault();
+                  const first = filteredTabs[0];
+                  if (!first) return;
+                  categoryNavigation.current = true;
+                  chooseTab(first.id);
+                }}
+              />
+              {filteredTabs.length === 0 ? (
+                <PaneEmptyState
+                  testId="settings-search-empty"
+                  className="min-h-[18rem]"
+                  icon={<Search />}
+                  title={t("settings.searchEmptyTitle", { defaultValue: "No settings match" })}
+                  description={t("settings.searchEmptyBody", { defaultValue: "Try a shorter word or clear the search to see every category." })}
+                  actions={(
+                    <Button type="button" variant="secondary" size="sm" onClick={() => { setSettingsQuery(""); }}>
+                      Clear search
+                    </Button>
+                  )}
+                />
+              ) : (
+                <SettingsList variant="flush" data-testid="settings-categories">
+                  <SettingsList.Group>
+                    {filteredTabs.map((tab) => {
+                      const Icon = tab.icon;
+                      return <SettingsList.Row key={tab.id} testId={settingsTabTestId(tab.id)} label={tab.label} hint={tab.description} leading={<Icon aria-hidden="true" />} onSelect={() => { categoryNavigation.current = true; chooseTab(tab.id); }} />;
+                    })}
+                  </SettingsList.Group>
+                </SettingsList>
+              )}
+            </>
           ) : <Section
             sessions={sessions}
             onDeleteSession={onDeleteSession}
@@ -224,37 +279,58 @@ export default function SettingsModal({
         <div className="flex h-full min-h-0 overflow-hidden">
           <aside
             data-testid="settings-sidebar"
-            className="w-[220px] shrink-0 overflow-y-auto border-r border-wc-default bg-wc-surface-base/50 p-3"
+            className="w-[240px] shrink-0 overflow-y-auto border-r border-wc-default bg-wc-surface-base/50 p-3"
           >
-            <nav className="space-y-1" role="tablist" aria-label={t(strings.settings.sidebarAria)}>
-              {settingsTabs.map((tab) => {
-                const isActive = tab.id === activeTab;
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    data-testid={settingsTabTestId(tab.id)}
-                    type="button"
-                    role="tab"
-                    aria-selected={isActive}
-                    className={cn(
-                      "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-start transition-colors",
-                      isActive
-                        ? "bg-wc-surface-input text-wc-text-primary shadow-sm"
-                        : "text-wc-text-muted hover:bg-wc-surface-input/60 hover:text-wc-text-secondary",
-                    )}
-                    onClick={() => {
-                      storeLocation(tab.id);
-                      setActiveTab(tab.id);
-                      setShowCategories(false);
-                    }}
-                  >
-                    <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", isActive && "text-wc-accent")} />
-                    <span className="min-w-0 text-sm font-medium">{tab.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
+            <SearchField
+              testId="settings-search"
+              value={settingsQuery}
+              onValueChange={setSettingsQuery}
+              placeholder={t("settings.searchPlaceholder", { defaultValue: "Search settings" })}
+              label={t("settings.searchPlaceholder", { defaultValue: "Search settings" })}
+              clearLabel={t("settings.clearSearch", { defaultValue: "Clear search" })}
+              className="mb-3 w-full"
+              onKeyDown={(keyEvent) => {
+                if (keyEvent.key !== "Enter" || filteredTabs.length === 0) return;
+                keyEvent.preventDefault();
+                const first = filteredTabs[0];
+                if (first) chooseTab(first.id);
+              }}
+            />
+            {filteredTabs.length === 0 ? (
+              <div data-testid="settings-search-empty" className="px-2 py-6 text-center">
+                <p className="text-xs font-medium text-wc-text-secondary">{t("settings.searchEmptyTitle", { defaultValue: "No settings match" })}</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-wc-text-faint">{t("settings.searchEmptyBody", { defaultValue: "Try a shorter word or clear the search to see every category." })}</p>
+                <Button type="button" variant="ghost" size="sm" className="mt-2" onClick={() => { setSettingsQuery(""); }}>
+                  Clear search
+                </Button>
+              </div>
+            ) : (
+              <nav className="space-y-1" role="tablist" aria-label={t(strings.settings.sidebarAria)}>
+                {filteredTabs.map((tab) => {
+                  const isActive = tab.id === activeTab;
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      data-testid={settingsTabTestId(tab.id)}
+                      type="button"
+                      role="tab"
+                      aria-selected={isActive}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-start transition-colors",
+                        isActive
+                          ? "bg-wc-surface-input text-wc-text-primary shadow-sm"
+                          : "text-wc-text-muted hover:bg-wc-surface-input/60 hover:text-wc-text-secondary",
+                      )}
+                      onClick={() => { chooseTab(tab.id); }}
+                    >
+                      <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", isActive && "text-wc-accent")} />
+                      <span className="min-w-0 text-sm font-medium">{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            )}
           </aside>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">

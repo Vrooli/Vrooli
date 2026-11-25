@@ -1,0 +1,87 @@
+{
+  "schema_version": "vrooli.deployment-profile/v1",
+  "id": "web-console/staging",
+  "scenario": "web-console",
+  "environment": "staging",
+  "deployment_manager_profile_id": "web-console/staging",
+  "target": {
+    "provider": "hetzner",
+    "offer": "CX23",
+    "regions": [
+      "NBG1",
+      "FSN1"
+    ],
+    "instances": 1,
+    "ipv4": 1,
+    "monthly_cap": {
+      "currency": "USD",
+      "minor_units": 709,
+      "tax_basis": "before-tax"
+    },
+    "approval": "web-console-monetization A2 approved 2026-11-15",
+    "instance_reference": null,
+    "quote_reference": null
+  },
+  "edge": {
+    "domain": "staging.vrooli.com",
+    "dns_write_scope": [
+      "staging.vrooli.com"
+    ],
+    "tls": {
+      "caddy": true,
+      "acme_environment": "production"
+    }
+  },
+  "health": {
+    "path": "/health",
+    "source": "scenarios/web-console/.vrooli/service.json lifecycle.health.endpoints.api"
+  },
+  "cloud_manifest_template": {
+    "version": "1",
+    "environment": "staging",
+    "target": {
+      "type": "vps",
+      "vps": {}
+    },
+    "scenario": {
+      "id": "web-console"
+    },
+    "dependencies": {},
+    "bundle": {
+      "include_packages": true,
+      "include_autoheal": true,
+      "scenarios": [
+        "web-console"
+      ],
+      "ui_scenarios": [
+        "web-console"
+      ]
+    },
+    "ports": {},
+    "edge": {
+      "domain": "staging.vrooli.com",
+      "caddy": {
+        "enabled": true
+      },
+      "acme_environment": "production",
+      "health_path": "/health"
+    }
+  },
+  "operation": {
+    "owner": "deployment-manager",
+    "progress_rpc": "vrooli.deployment_manager.v1.releases.ReleasesService/GetOperation",
+    "resume_rpc": "vrooli.deployment_manager.v1.releases.ReleasesService/ResumeCloudOperation",
+    "required_before_start": [
+      "approved-candidate-and-readiness-review",
+      "current-approved-compute-manager-quote-and-admission",
+      "running-compute-manager-instance-reference"
+    ],
+    "start_rpc": "vrooli.deployment_manager.v1.releases.ReleasesService/Start",
+    "request_fields": [
+      "cloud_spend_quote_idempotency_key",
+      "cloud_compute_manager_instance_id"
+    ]
+  },
+  "secrets": [],
+  "operator_terminal_steps": false
+}

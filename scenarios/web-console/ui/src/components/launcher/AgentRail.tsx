@@ -1,6 +1,6 @@
 // DOC: docs/reference/configuration.md#launcher-shortcuts
 /**
- * The agent choice: a horizontal rail of harness cards with a peek at the next.
+ * The agent choice: a compact two-column grid at desktop and phone widths.
  *
  * Cards are one height whether loading, loaded or without usage. Their height is
  * `slots` usage rows, and `slots` is decided before any reading arrives, so
@@ -12,7 +12,6 @@ import { useTranslation } from "react-i18next";
 import { strings } from "../../consts/strings";
 import { cn } from "../../lib/classnames";
 import { slugify } from "../../lib/slugify";
-import { HorizontalRail } from "../HorizontalRail";
 import AgentMark from "./AgentMark";
 import { agentAppearance } from "./agentAppearance";
 import { cardSelectable, type AgentCard } from "./agentGrid";
@@ -21,8 +20,8 @@ import { handleRadioKeys } from "./radioKeys";
 import { FOCUS_RING } from "./controls";
 import type { AgentUsage } from "./useAgentUsage";
 
-/** Fixed so the peek and the snap land the same on every card. */
-const CARD = "flex flex-col gap-2.5 rounded-[var(--radius-panel)] border p-2.5 text-start transition-colors";
+/** Fixed dimensions keep usage updates from shifting neighboring cards. */
+const CARD = "flex flex-col gap-3 rounded-2xl border p-3 text-start transition-[background-color,border-color,box-shadow,transform] duration-150 ease-out motion-reduce:transition-none";
 
 export interface AgentRailProps {
   cards: readonly AgentCard[];
@@ -35,11 +34,9 @@ export interface AgentRailProps {
   slots: number;
   declaredWindows: (agentId: string) => number;
   needsAction: (agentId: string) => boolean;
-  /** Lay the cards out as a grid, for a surface wide enough to show them all. */
-  wrap?: boolean;
 }
 
-export function AgentRail({ cards, targetKind, selectedAgentId, onSelect, disabled, usages, usageLoading, slots, declaredWindows, needsAction, wrap = false }: AgentRailProps) {
+export function AgentRail({ cards, targetKind, selectedAgentId, onSelect, disabled, usages, usageLoading, slots, declaredWindows, needsAction }: AgentRailProps) {
   const { t } = useTranslation();
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => { handleRadioKeys(event, (index) => { const card = cards[index]; if (card) onSelect(card.agentID); }); };
   const items = (
@@ -52,8 +49,10 @@ export function AgentRail({ cards, targetKind, selectedAgentId, onSelect, disabl
             data-testid={`launcher-agent-${slugify(card.label)}`} data-capability-id={card.agentID} data-capability-state={card.state} data-capability-version={card.version}
             disabled={disabled || !cardSelectable(card, targetKind)} title={card.command}
             onClick={() => { onSelect(card.agentID); }}
-            className={cn(CARD, wrap ? "min-w-0" : "w-[164px] flex-none", FOCUS_RING, "disabled:cursor-not-allowed disabled:opacity-60",
-              selected ? "border-wc-accent bg-wc-accent/10 shadow-[inset_0_0_0_1px_rgb(var(--wc-accent))]" : "border-wc-default bg-wc-surface-input hover:border-wc-hover")}>
+            className={cn(CARD, "min-w-0", FOCUS_RING, "disabled:cursor-not-allowed disabled:opacity-60",
+              selected
+                ? "border-wc-accent bg-wc-accent/10 shadow-[inset_0_0_0_1px_rgb(var(--wc-accent)),0_8px_24px_rgb(0_0_0_/_0.14)]"
+                : "border-wc-default bg-wc-surface-input hover:-translate-y-px hover:border-wc-hover hover:bg-wc-surface-raised")}>
             <span className="flex min-w-0 items-center gap-[7px]">
               <AgentMark mark={card.agentID} appearance={agentAppearance(card.agentID)} />
               <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-wc-text-primary">{card.label}</span>
@@ -65,13 +64,10 @@ export function AgentRail({ cards, targetKind, selectedAgentId, onSelect, disabl
       })}
     </>
   );
-  if (wrap) {
-    return <div data-testid="launcher-agent-grid" role="radiogroup" aria-label={t(strings.launcher.chooseAgent)} onKeyDown={onKeyDown} className="grid grid-cols-3 gap-2 px-4">{items}</div>;
-  }
-  return <HorizontalRail testId="launcher-agent-grid" role="radiogroup" aria-label={t(strings.launcher.chooseAgent)} gapClassName="gap-2" gutterClassName="ps-4 scroll-ps-4" onKeyDown={onKeyDown}>{items}</HorizontalRail>;
+  return <div data-testid="launcher-agent-grid" role="radiogroup" aria-label={t(strings.launcher.chooseAgent)} onKeyDown={onKeyDown} className="grid grid-cols-2 gap-2 px-4">{items}</div>;
 }
 
-/** The rail's heading, with the way into Manage and a count of what needs doing there. */
+/** The grid heading, with the way into Manage and a count of what needs doing there. */
 export function AgentRailHeader({ actionCount, onManage, manageRef }: { actionCount: number; onManage: () => void; manageRef: React.Ref<HTMLButtonElement> }) {
   const { t } = useTranslation();
   return (

@@ -402,11 +402,12 @@ func TestIntegrationSurfaceProjectsTheRealKnownCatalogue(t *testing.T) {
 
 type updateActionService struct {
 	*fakeService
-	guardAdmits bool
-	guardAction string
-	denyAction  string
-	calls       int
-	err         error
+	guardAdmits    bool
+	guardAction    string
+	denyAction     string
+	calls          int
+	idempotencyKey string
+	err            error
 }
 
 func (s *updateActionService) GuardAgentUpdateAction(w http.ResponseWriter, _ *http.Request, action string) bool {
@@ -421,8 +422,9 @@ func (s *updateActionService) AgentUpdate(_ context.Context, target, agent strin
 	return AgentUpdateResult{TargetID: target, AgentID: agent, State: "update_ready", PrimaryAction: "update"}, nil
 }
 
-func (s *updateActionService) RunAgentUpdateAction(_ context.Context, target, agent, action, _ string) (AgentUpdateActionResult, error) {
+func (s *updateActionService) RunAgentUpdateAction(_ context.Context, target, agent, action, _, idempotencyKey string) (AgentUpdateActionResult, error) {
 	s.calls++
+	s.idempotencyKey = idempotencyKey
 	if s.err != nil {
 		return AgentUpdateActionResult{}, s.err
 	}
@@ -504,14 +506,19 @@ func TestAgentReadsAreNotGuarded(t *testing.T) {
 }
 
 func TestRunAgentUpdateActionProjectsEveryField(t *testing.T) {
-	h := NewConnectHandler(Deps{Service: &updateActionService{fakeService: &fakeService{}}})
-	response, err := h.RunAgentUpdateAction(context.Background(), connect.NewRequest(&capabilitiesv1.RunAgentUpdateActionRequest{TargetId: "local", AgentId: "codex", Action: "update"}))
+	service := &updateActionService{fakeService: &fakeService{}}
+	h := NewConnectHandler(Deps{Service: service})
+	key := "9d9075f6-9190-4c24-87e0-1a4834e51215"
+	response, err := h.RunAgentUpdateAction(context.Background(), connect.NewRequest(&capabilitiesv1.RunAgentUpdateActionRequest{TargetId: "local", AgentId: "codex", Action: "update", IdempotencyKey: key}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	update := response.Msg.GetUpdate()
 	if !response.Msg.Success || response.Msg.Message != "update" || response.Msg.OperationId != "op-1" || update.State != "up_to_date" || update.OperatorCommand != "cmd" || update.Reason != "why" || update.InstallKind != "managed" || update.RollbackVersion != "1.0.0" || !update.NewerThanReviewed || len(update.Checks) != 1 || !update.Checks[0].Passed {
 		t.Fatalf("response = %+v", response.Msg)
+	}
+	if service.idempotencyKey != key {
+		t.Fatalf("idempotency key = %q, want %q", service.idempotencyKey, key)
 	}
 }
 

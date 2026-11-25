@@ -142,7 +142,7 @@ func TestSQLStore_ArchiveRoundTrip(t *testing.T) { // [REQ:REQ-P0-003c]
 		t.Fatalf("save: %v", err)
 	}
 	archivedAt := time.Date(2026, 8, 18, 19, 0, 0, 0, time.UTC)
-	if err := s.MarkArchived(ctx, "sess-archive", archivedAt); err != nil {
+	if err := s.MarkArchived(ctx, "sess-archive", archivedAt, ""); err != nil {
 		t.Fatalf("mark archived: %v", err)
 	}
 	rows, err := s.ListArchived(ctx)
@@ -174,7 +174,7 @@ func TestSQLStore_SaveCannotResurrectArchivedMetadata(t *testing.T) { // [REQ:RE
 		t.Fatal(err)
 	}
 	archivedAt := time.Date(2026, 9, 5, 12, 0, 0, 0, time.UTC)
-	if err := s.MarkArchived(ctx, "preserve", archivedAt); err != nil {
+	if err := s.MarkArchived(ctx, "preserve", archivedAt, ""); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.Save(ctx, Metadata{ID: "preserve", Shell: "/bin/zsh", AgentType: AgentCodex}); err != nil {

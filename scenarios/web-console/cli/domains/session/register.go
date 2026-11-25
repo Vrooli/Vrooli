@@ -26,6 +26,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"SessionsService.ReadNativeThreadState": h.nativeThreadState,
 		"SessionsService.Create":                h.create,
 		"SessionsService.Archive":               h.archive,
+		"SessionsService.ListArchived":          h.listArchived,
 		"SessionsService.Unarchive":             h.unarchive,
 		"SessionsService.Reopen":                h.reopen,
 		"SessionsService.Delete":                h.delete,

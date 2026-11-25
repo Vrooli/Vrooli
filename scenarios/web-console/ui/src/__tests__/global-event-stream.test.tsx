@@ -87,6 +87,15 @@ describe("dispatchGlobalEvent (Layer 1)", () => {
     dispatchGlobalEvent({ id: 5, session_id: "A", kind: "conversation_out_of_sync", sequence: 0, payload: {} });
     expect(mockRefresh).toHaveBeenCalledWith("A");
   });
+
+  it("refetches every tracked session when the server restarts and cannot identify the gap", () => {
+    dispatchGlobalEvent(conversationEnvelope(1, "A", 1));
+    dispatchGlobalEvent(conversationEnvelope(2, "B", 1));
+    dispatchGlobalEvent({ id: 0, session_id: "", kind: "conversation_out_of_sync", sequence: 0, payload: {} });
+    expect(mockRefresh).toHaveBeenCalledTimes(2);
+    expect(mockRefresh).toHaveBeenCalledWith("A");
+    expect(mockRefresh).toHaveBeenCalledWith("B");
+  });
 });
 
 describe("dispatchGlobalEvent session_status (Layer 1)", () => {

@@ -58,7 +58,7 @@ func (r *RemoteTextToSpeech) Synthesize(ctx context.Context, in TTSRequest) (TTS
 	if r.Credentials != nil {
 		req = audiotools.AttachCredentials(req, r.Credentials(ctx))
 	}
-	resp, err := r.Client.TTS.Synthesize(ctx, req)
+	resp, err := r.Client.Clients().TTS.Synthesize(ctx, req)
 	if err != nil {
 		if isTransportFailure(err) {
 			r.Client.HandleTransportFailure()
@@ -78,7 +78,7 @@ func (r *RemoteTextToSpeech) ListVoices(ctx context.Context) ([]Voice, error) {
 	if err := r.Client.Ensure(); err != nil {
 		return nil, audiotools.ErrUnavailable
 	}
-	resp, err := r.Client.TTS.ListVoices(ctx, connect.NewRequest(&ttsv1.ListVoicesRequest{}))
+	resp, err := r.Client.Clients().TTS.ListVoices(ctx, connect.NewRequest(&ttsv1.ListVoicesRequest{}))
 	if err != nil {
 		if isTransportFailure(err) {
 			r.Client.HandleTransportFailure()
@@ -102,7 +102,7 @@ func (r *RemoteTextToSpeech) GetCached(ctx context.Context, key CacheLookup) (TT
 	if err := r.Client.Ensure(); err != nil {
 		return TTSResult{}, false
 	}
-	resp, err := r.Client.TTS.GetCache(ctx, connect.NewRequest(&ttsv1.GetCacheRequest{
+	resp, err := r.Client.Clients().TTS.GetCache(ctx, connect.NewRequest(&ttsv1.GetCacheRequest{
 		EventId:    key.EventID,
 		Voice:      key.Voice,
 		Speed:      key.Speed,

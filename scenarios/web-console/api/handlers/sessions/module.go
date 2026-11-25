@@ -151,6 +151,10 @@ type PruneKind string
 const (
 	PruneAgentHome  PruneKind = "agent_home"
 	PruneTranscript PruneKind = "transcript"
+	// PruneAgentDaemon stops the per-home agent daemon of an archived or
+	// dismissed session. Its Bytes are memory held by the daemon processes, not
+	// disk, so they are not part of ArchivePruneResult.ReclaimedBytes.
+	PruneAgentDaemon PruneKind = "agent_daemon"
 )
 
 type ArchivePruneAction struct {
@@ -158,6 +162,22 @@ type ArchivePruneAction struct {
 	Kind      PruneKind
 	Bytes     int64
 	Applied   bool
+}
+
+// AgentDaemonUsage is what a session's agent daemon holds, or what stopping it
+// freed.
+type AgentDaemonUsage struct {
+	Processes   int
+	MemoryBytes int64
+}
+
+// AgentDaemonControl owns the per-session agent daemons (a Codex home's app
+// server). Stop is idempotent and must only be called for a session that is no
+// longer in use.
+type AgentDaemonControl interface {
+	// Running reports the daemon each session currently holds, keyed by session id.
+	Running(ctx context.Context) (map[string]AgentDaemonUsage, error)
+	Stop(ctx context.Context, sessionID string) (AgentDaemonUsage, error)
 }
 
 type ArchivePruneResult struct {
@@ -183,6 +203,8 @@ type ArchivedSession struct {
 	RestoreState       RestoreState
 	RestoreStateReason string
 	AwaitingRecovery   bool
+	// ArchiveNote is why a policy archived the session; empty when manual.
+	ArchiveNote string
 }
 
 // CreateInput carries the fields a caller may set when creating a session.

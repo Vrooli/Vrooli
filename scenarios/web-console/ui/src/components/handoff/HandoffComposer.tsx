@@ -19,7 +19,10 @@ import type { HandoffResult } from "../../lib/handoff";
 import { targetKey, textForTarget, type HandoffTarget } from "../../hooks/useHandoff";
 import { SnippetPicker } from "../snippets/SnippetPicker";
 import type { SnippetDTO } from "../../api/snippets";
+import { getCompactCandidates, type CompactCandidate } from "../../api/usageMode";
 import type { HandoffTargetSection } from "../../hooks/useHandoff";
+import { estimateTokens, fitTextToTokenBudget } from "../../lib/messageExport";
+import { GoalBriefDraft } from "./GoalBriefDraft";
 
 // [REQ:P0-014d] Handoff Between Sessions In A Group
 //
@@ -47,6 +50,8 @@ export interface HandoffComposerProps {
   selection?: string;
   /** Pre-select these target keys — a suggestion chip names one. */
   initialSelection?: string[];
+  /** Shared native budget records keyed by an already-running target session. */
+  contextBudgets?: Readonly<Record<string, NonNullable<CompactCandidate["contextBudget"]>>>;
   onSend: (targets: HandoffTarget[], textFor: (target: HandoffTarget) => string) => Promise<HandoffResult[]>;
 }
 
@@ -71,6 +76,7 @@ export default function HandoffComposer({
   cwd = "",
   selection = "",
   initialSelection,
+  contextBudgets = {},
   onSend,
 }: HandoffComposerProps) {
   const { t } = useTranslation();
@@ -79,6 +85,7 @@ export default function HandoffComposer({
   // the operator never touched follows its role's prompt even if the payload
   // changes underneath.
   const [edited, setEdited] = useState<Record<string, string>>({});
+  const [fitOmissions, setFitOmissions] = useState<Record<string, number>>({});
   const [sending, setSending] = useState(false);
   const [results, setResults] = useState<HandoffResult[] | null>(null);
   const [snippetPickerOpen, setSnippetPickerOpen] = useState(false);
@@ -112,6 +119,7 @@ export default function HandoffComposer({
     const preset = initialKeys ?? (keys.length === 1 ? keys : []);
     setSelected(preset);
     setEdited({});
+    setFitOmissions({});
     setResults(null);
     setSending(false);
     setMessageSource(null);
@@ -295,6 +303,14 @@ export default function HandoffComposer({
                 only when the selected targets carry different prompts, so
                 the ordinary path does not pay for the fan-out path. */}
             {selectedTargets.length > 0 && (
+              <GoalBriefDraft onUse={(message) => {
+                setMessageSource(null);
+                setFitOmissions({});
+                setEdited(Object.fromEntries(selectedTargets.map((target) => [targetKey(target), message])));
+              }} />
+            )}
+
+            {selectedTargets.length > 0 && (
               <section className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-semibold uppercase tracking-wider text-wc-text-faint">
@@ -332,6 +348,7 @@ export default function HandoffComposer({
                           // under a control that says it is off is worse.
                           setMessageSource(null);
                           setEdited({});
+                          setFitOmissions({});
                         }}
                         shape="rounded"
                         surface="ghost"
@@ -356,9 +373,28 @@ export default function HandoffComposer({
                         value={textFor(target)}
                         onChange={(event) => {
                           setEdited((prev) => ({ ...prev, [key]: event.target.value }));
+                          setFitOmissions((prev) => ({ ...prev, [key]: 0 }));
                         }}
                         rows={selectedTargets.length > 1 ? 2 : 4}
                         className="text-sm"
+                      />
+                      <HandoffBudgetNote
+                        target={target}
+                        text={textFor(target)}
+                        contextBudgets={contextBudgets}
+                        omittedCharacters={fitOmissions[key] ?? 0}
+                        onFit={(nextText, omittedCharacters) => {
+                          setEdited((prev) => ({ ...prev, [key]: nextText }));
+                          setFitOmissions((prev) => ({ ...prev, [key]: omittedCharacters }));
+                        }}
+                        onRestore={() => {
+                          setEdited((prev) => {
+                            const next = { ...prev };
+                            delete next[key];
+                            return next;
+                          });
+                          setFitOmissions((prev) => ({ ...prev, [key]: 0 }));
+                        }}
                       />
                     </div>
                   );
@@ -402,10 +438,71 @@ export default function HandoffComposer({
           // snippet, so choosing one after typing used to change nothing at
           // all and read as a dead control.
           setEdited({});
+          setFitOmissions({});
           setMessageSource({ rendered, snippet });
         }}
       />
     </ResponsiveDialog>
+  );
+}
+
+function HandoffBudgetNote({
+  target,
+  text,
+  contextBudgets,
+  omittedCharacters,
+  onFit,
+  onRestore,
+}: {
+  target: HandoffTarget;
+  text: string;
+  contextBudgets: HandoffComposerProps["contextBudgets"];
+  omittedCharacters: number;
+  onFit: (text: string, omittedCharacters: number) => void;
+  onRestore: () => void;
+}) {
+  const { t } = useTranslation();
+  const budget = target.kind === "session" ? contextBudgets?.[target.sessionId] : undefined;
+  const remaining = budget?.tokensUntilCompaction;
+  const estimate = estimateTokens(text);
+  const fitKey = remaining == null
+    ? strings.handoff.contextFitUnknown
+    : estimate <= remaining
+      ? strings.handoff.contextFitWithin
+      : strings.handoff.contextFitOver;
+  const fitState = remaining == null ? "unknown" : estimate <= remaining ? "within" : "over";
+
+  return (
+    <div
+      data-testid={`handoff-context-fit-${targetKey(target)}`}
+      data-fit-state={fitState}
+      data-estimated-tokens={estimate}
+      data-remaining-tokens={remaining ?? "unknown"}
+      data-limit-source={budget?.compactionPointSource ?? "unknown"}
+      className="space-y-0.5 text-[10px] text-wc-text-faint"
+    >
+      <p>{t(fitKey, { estimate, remaining: remaining == null ? "?" : Math.floor(remaining) })}</p>
+      {fitState === "over" && remaining != null && (
+        <button
+          type="button"
+          data-testid={`handoff-fit-budget-${targetKey(target)}`}
+          onClick={() => {
+            const fit = fitTextToTokenBudget(text, remaining);
+            onFit(fit.text, fit.omittedCharacters);
+          }}
+          className="min-h-8 text-xs text-wc-accent underline-offset-2 hover:underline"
+        >{t(strings.handoff.contextFitAction)}</button>
+      )}
+      {omittedCharacters > 0 && (
+        <div data-testid={`handoff-fit-budget-notice-${targetKey(target)}`} className="flex flex-wrap items-center gap-2 text-amber-300">
+          <span>{t(strings.handoff.contextFitOmitted, { count: omittedCharacters })}</span>
+          <button type="button" onClick={onRestore} className="underline-offset-2 hover:underline">{t(strings.handoff.contextFitRestore)}</button>
+        </div>
+      )}
+      {budget?.compactionPointSource && budget.compactionPointSource !== "unknown" && (
+        <p>{t(strings.handoff.contextFitSource, { source: budget.compactionPointSource })}</p>
+      )}
+    </div>
   );
 }
 
@@ -504,6 +601,20 @@ export function WorkspaceHandoffComposer({ panes, lastVisitedBySession, ...props
   panes: import("../../stores/useWorkspaceStore").PaneMetadata[];
   lastVisitedBySession: Record<string, string>;
 }) {
+  const [contextBudgets, setContextBudgets] = useState<Record<string, NonNullable<CompactCandidate["contextBudget"]>>>({});
+  useEffect(() => {
+    if (!props.open) {
+      setContextBudgets({});
+      return;
+    }
+    const controller = new AbortController();
+    void getCompactCandidates(controller.signal)
+      .then((candidates) => setContextBudgets(Object.fromEntries(candidates.flatMap((candidate) => (
+        candidate.contextBudget ? [[candidate.sessionId, candidate.contextBudget] as const] : []
+      )))))
+      .catch(() => setContextBudgets({}));
+    return () => controller.abort();
+  }, [props.open]);
   const sessions = useConversationNavigation(props.open ? panes.map(pane => pane.sessionId) : []);
   const minute = useActivityTime();
   const targets = useMemo(() => {
@@ -512,5 +623,5 @@ export function WorkspaceHandoffComposer({ panes, lastVisitedBySession, ...props
     return handoffTargetSections(props.sourceSessionId ?? "", pane?.groupId ?? null,
       buildSessionActivity(panes, sessions, lastVisitedBySession, minute));
   }, [lastVisitedBySession, minute, panes, props.open, props.sourceSessionId, sessions]);
-  return <HandoffComposer {...props} targets={targets} />;
+  return <HandoffComposer {...props} targets={targets} contextBudgets={contextBudgets} />;
 }

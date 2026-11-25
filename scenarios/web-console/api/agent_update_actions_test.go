@@ -128,6 +128,17 @@ func TestActionsMapToExactCommandsAndNothingFromTheRequestReachesArgv(t *testing
 	}
 }
 
+func TestRemoteActionsRequireAStableBridgeIdempotencyKey(t *testing.T) {
+	_, err := (&Server{}).runAgentUpdateAction(operatorContext(), "bridge-node:one", "codex", "update", "")
+	if !errors.Is(err, capsH.ErrFailedPrecondition) {
+		t.Fatalf("remote action without idempotency key = %v, want failed precondition", err)
+	}
+	_, err = (&Server{}).runAgentUpdateAction(operatorContext(), "bridge-node:one", "codex", "update", "", "not-a-uuid")
+	if err == nil || errors.Is(err, capsH.ErrFailedPrecondition) {
+		t.Fatalf("invalid remote idempotency key = %v, want UUID validation error", err)
+	}
+}
+
 func TestAgentsAreRefusedTheActionEvenWithAForwardedHumanCredential(t *testing.T) {
 	s, log, _ := fakeHarnessLifecycle(t)
 	human := identity.Principal{Kind: identity.ActorHuman, Subject: "op@example.com", Verified: true, ExpiresAt: time.Now().Add(time.Hour)}
@@ -296,7 +307,8 @@ func TestRemoteActionRelaysTypedArgvAndKeepsTheOperationID(t *testing.T) {
 	server := httptest.NewServer(handler)
 	defer server.Close()
 	target := targetConnection{Target: targetmodel.Target{NodeID: "node-one", Label: "Node"}, BaseURL: server.URL, OwnerToken: "Bearer test"}
-	outcome, err := (&Server{}).invokeAgentUpdateCommand(context.Background(), target, "bridge-node:one", "resource update", []string{"codex", "--action", "rollback", "--json"}, "codex", "rollback", "", "")
+	commandID := "2e973c90-a890-4b99-bac8-69e6321e4d6f"
+	outcome, err := (&Server{}).invokeAgentUpdateCommand(context.Background(), target, "bridge-node:one", "resource update", []string{"codex", "--action", "rollback", "--json"}, "codex", "rollback", "", "", commandID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -304,7 +316,7 @@ func TestRemoteActionRelaysTypedArgvAndKeepsTheOperationID(t *testing.T) {
 		t.Fatalf("outcome = %+v", outcome)
 	}
 	request := fake.requests[0]
-	if request.GetNodeId() != "node-one" || request.GetCommand() != "resource update" || strings.Join(request.GetArgs(), " ") != "codex --action rollback --json" || request.GetTimeoutSeconds() != int64(harnessActionWindow.Seconds()) {
+	if request.GetNodeId() != "node-one" || request.GetCommand() != "resource update" || strings.Join(request.GetArgs(), " ") != "codex --action rollback --json" || request.GetTimeoutSeconds() != int64(harnessActionWindow.Seconds()) || request.GetCommandId() != commandID {
 		t.Fatalf("request = %+v", request)
 	}
 }

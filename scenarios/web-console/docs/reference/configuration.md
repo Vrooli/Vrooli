@@ -74,8 +74,10 @@ contract is required before remote restart recovery can be promised.
 | Variable | Default | Values | Impact |
 |----------|---------|--------|--------|
 | `WC_DEFAULT_BACKEND` | `auto` | `auto`, `standard`, `persistent` | Default session backend. `auto` (default) resolves to `persistent` when tmux is available, `standard` otherwise. `persistent` uses tmux for restart-survivable sessions. |
-| `WC_DEFAULT_POLICY_MODE` | `never` | `never`, `preset`, `custom` | Default expiration policy mode for new sessions. |
-| `WC_DEFAULT_POLICY_DURATION` | *(empty)* | `1h`, `8h`, `24h`, or Go duration | Default expiration duration. Only used when policy mode is `preset` or `custom`. |
+| `WC_DEFAULT_POLICY_MODE` | `never` | `never`, `preset`, `custom`, `idle` | Default expiration policy mode for new sessions. |
+| `WC_DEFAULT_POLICY_DURATION` | *(empty)* | `1h`, `8h`, `24h`, or Go duration | Default expiration duration: the preset key, the custom lifetime, or the idle window (15m to 168h). Unused for `never`. |
+
+**Idle policy.** A session under `idle` is archived once all of these hold: the activity detector shows the agent at its prompt or asking something; nothing in its work record was written for the whole window (every rollout in the session's Codex home, sub-agent threads included, or Claude's transcript and its `subagents` folder) and the session was not opened within it; and, for Codex, no goal in the home is `active` and a managed native owner reports no running turn. Missing or unreadable evidence keeps the session; other harnesses and plain shells are never idle-archived. The archive note (shown in the archive list and by `web-console session list-archived`) records the idle time, the goal state, memory freed and any prompt the agent was waiting on. Memory is recorded, not used as a condition. Reopen copies the Codex home's durable record (rollouts, goal and thread stores, history) and resumes the conversation's root thread, so a paused goal comes back paused.
 
 ### Archive Retention
 

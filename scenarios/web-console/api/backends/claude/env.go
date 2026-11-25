@@ -7,24 +7,13 @@ package claude
 
 import "strings"
 
-// FilterEnv removes Claude Code-specific environment variables from the
-// given environment slice. Used by PTY factories so that running `claude`
-// inside a web-console terminal does not trigger nested-session detection
-// when the web-console server was itself started from Claude Code.
-//
-// Filtered patterns:
-//   - CLAUDECODE (nested session detection marker)
-//   - CLAUDE_* (session IDs, config paths, internal state)
-//   - BASH_FUNC_claude_code::* (exported shell functions)
+// FilterEnv removes Claude's exported shell wrapper from a terminal
+// environment. Parent session identity is filtered centrally by the shared
+// foreign-child policy; provider selectors and CLAUDE_CONFIG_DIR are user
+// configuration and must survive into an interactive terminal.
 func FilterEnv(env []string) []string {
 	result := make([]string, 0, len(env))
 	for _, v := range env {
-		if strings.HasPrefix(v, "CLAUDECODE=") {
-			continue
-		}
-		if strings.HasPrefix(v, "CLAUDE_") {
-			continue
-		}
 		if strings.HasPrefix(v, "BASH_FUNC_claude_code::") {
 			continue
 		}

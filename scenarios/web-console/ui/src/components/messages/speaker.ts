@@ -37,6 +37,15 @@ export function timeLabel(createdAt: string, now: Date = new Date(), locale?: st
   return format.format(at);
 }
 
+/** Prefer native source time; label ingestion time when native source time is unknown. */
+export function eventTime(event: Pick<ConversationEvent, "source" | "createdAt" | "occurredAt">, now: Date = new Date(), locale?: string): { timestamp: string; label: string } {
+  if (event.occurredAt) return { timestamp: timeLabel(event.occurredAt, now, locale), label: "Message" };
+  return {
+    timestamp: timeLabel(event.createdAt, now, locale),
+    label: event.source.endsWith("_archive") ? "Indexed" : "",
+  };
+}
+
 
 /** Receipts come from capture provenance, never from matching caption text. */
 export function voiceReceiptKey(event: Pick<ConversationEvent, "role" | "source">): string | null {

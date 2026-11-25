@@ -1,6 +1,9 @@
 package opencode
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func userMsg(id string, created int64, text string) MessageWithParts {
 	m := MessageWithParts{Parts: []Part{{Type: "text", Text: text}}}
@@ -40,6 +43,16 @@ func TestNormalize_UserAndCompletedAssistant(t *testing.T) {
 	}
 	if cur.LastUserCreated != 100 || cur.LastAssistantCompleted != 200 {
 		t.Fatalf("cursor not advanced: %+v", cur)
+	}
+}
+
+func TestNormalize_PreservesToolCallInSelectableConversationText(t *testing.T) {
+	msg := assistantMsg("tool-message", 100, 200,
+		Part{ID: "tool-part", Type: "tool", Tool: "bash", CallID: "call-7", Input: []byte(`{"command":"pwd"}`)},
+	)
+	emissions, _ := Normalize([]MessageWithParts{msg}, Cursor{})
+	if len(emissions) != 1 || !strings.Contains(emissions[0].Text, "Tool call: bash") || !strings.Contains(emissions[0].Text, "call-7") || !strings.Contains(emissions[0].Text, "pwd") {
+		t.Fatalf("tool call not present in selectable emission: %+v", emissions)
 	}
 }
 

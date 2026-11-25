@@ -567,8 +567,9 @@ the UI calls is web-console-owned:
   config. Proto schema in
   [`packages/proto/schemas/web-console/v1/audio_admin/`](../../../../packages/proto/schemas/web-console/v1/audio_admin/);
   handler in [CODE: api/handlers/audio_admin/].
-- `AudioRuntimeService` — per-utterance Transcribe, Synthesize,
-  ListVoices, GetTTSCache, Summarize, RecordPlaybackEvent. Proto
+- `AudioRuntimeService` — per-utterance Transcribe, streaming
+  TranscribeStream, Synthesize, ListVoices, GetTTSCache, Summarize,
+  RecordPlaybackEvent. Proto
   schema in
   [`packages/proto/schemas/web-console/v1/audio_runtime/`](../../../../packages/proto/schemas/web-console/v1/audio_runtime/);
   handler in [CODE: api/handlers/audio_runtime/].
@@ -579,10 +580,11 @@ Both handlers delegate to `internal/audioports` Remote* adapters
 `RemotePlaybackEventRecorder`) that call audio-tools server-side via
 Connect-RPC, re-resolving the audio-tools URL on transport failure.
 
-Voice streaming WebSocket: `/api/v1/voice/stream` is a transparent WS
-reverse proxy ([CODE: api/voice_stream_proxy.go]) — same browser URL,
-web-console-mediated upstream dial to audio-tools. CORS is never
-required on audio-tools because the browser never originates a
+Voice streaming uses the web-console-owned
+`AudioRuntimeService.TranscribeStream` Connect method. Its request and event
+messages mirror the audio-tools wire fields while keeping web-console package
+names; the API bridges those messages server-side to audio-tools. CORS is
+never required on audio-tools because the browser never originates a
 cross-origin request against it.
 
 The boundary test

@@ -30,6 +30,7 @@ import {
 
 const MAX_OUTPUT_PROBE_CHARS = 12000;
 const TERMINAL_WRITE_BATCH_CHARS = 64 * 1024;
+const MAX_PENDING_OUTPUT_CHARS = 1024 * 1024;
 const TERMINAL_DEBUG_ENABLED = (() => {
   const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
   return env?.VITE_WC_TERMINAL_DEBUG === "1" || env?.VITE_WC_TERMINAL_DEBUG === "true";
@@ -210,10 +211,12 @@ export function useTerminalSession({
 	const serverSizeRef = useRef<{ cols: number; rows: number } | null>(null);
 	const pendingResizeRef = useRef<{ cols: number; rows: number } | null>(null);
 	const outputQueueRef = useRef<string[]>([]);
+	const outputQueueCharsRef = useRef(0);
 	// Advancing a head index avoids repeated Array.shift() while draining many
 	// small frames in one bounded write.
 	const outputQueueHeadRef = useRef(0);
 	const outputFlushRafRef = useRef<number | null>(null);
+	const resyncRequestedRef = useRef(false);
 	const historyReadyRef = useRef(false);
 	// This is deliberately separate from serverSizeRef. A follower renders the
 	// leader's grid, but must retain its own most recently declared grid so an
@@ -242,6 +245,16 @@ export function useTerminalSession({
   const transportRef = useRef<ReturnType<typeof useTerminalTransport> | null>(
     null,
   );
+	const clearOutputQueue = useCallback(() => {
+	  outputQueueRef.current = [];
+	  outputQueueHeadRef.current = 0;
+	  outputQueueCharsRef.current = 0;
+	  if (outputFlushRafRef.current !== null) {
+		if (typeof cancelAnimationFrame === "function") cancelAnimationFrame(outputFlushRafRef.current);
+		else clearTimeout(outputFlushRafRef.current);
+	  }
+	  outputFlushRafRef.current = null;
+	}, []);
 
   const isSessionReady = useCallback(() => sessionReadyRef.current, []);
   const currentGen = useCallback(
@@ -281,10 +294,13 @@ export function useTerminalSession({
   const onTransportOpen = useCallback((wasReconnect: boolean, _gen: number) => {
     sessionReadyRef.current = false;
 	historyReadyRef.current = false;
+	clearOutputQueue();
+	resyncRequestedRef.current = false;
+	if (wasReconnect) outputCursorRef.current = 0;
 		echoStateRef.current = { known: false, enabled: false, inAltBuffer: false, cursorAtLineEnd: false };
 		serverScrollUnsupportedRef.current = false;
     stdin.resetForNewConnection(outputCursorRef.current);
-    inSnapshotRef.current = !wasReconnect;
+	    inSnapshotRef.current = true;
 
     const t = terminalRef.current;
 	if (t && !wasReconnect) {
@@ -298,10 +314,6 @@ export function useTerminalSession({
       //     "scroll up shows last page repeated" symptom.
 		// The reconnect snapshot is authoritative; discard any output whose
 		// pending animation frame was suspended while the page was backgrounded.
-		outputQueueRef.current = [];
-		outputQueueHeadRef.current = 0;
-		if (outputFlushRafRef.current !== null) cancelAnimationFrame(outputFlushRafRef.current);
-		outputFlushRafRef.current = null;
 		t.reset();
       t.clear();
 		predictionOverlayRef.current?.clear();
@@ -322,7 +334,7 @@ export function useTerminalSession({
       void refreshConversationSession(sessionId);
     }
     onReadyRef.current?.();
-  }, [onStatus, sessionId, stdin]);
+  }, [clearOutputQueue, onStatus, sessionId, stdin]);
 
 	const flushOutputQueue = useCallback(() => {
 	  outputFlushRafRef.current = null;
@@ -347,7 +359,9 @@ export function useTerminalSession({
 	    if (take === first.length) outputQueueHeadRef.current += 1;
 	    else outputQueueRef.current[head] = first.slice(take);
 	  }
-	  t.write(batch.join(""));
+	  const output = batch.join("");
+	  outputQueueCharsRef.current -= output.length;
+	  t.write(output);
 	  if (outputQueueHeadRef.current === outputQueueRef.current.length) {
 	    outputQueueRef.current = [];
 	    outputQueueHeadRef.current = 0;
@@ -361,14 +375,27 @@ export function useTerminalSession({
 	}, []);
 
 	const enqueueOutput = useCallback((data: string) => {
+	  if (outputQueueCharsRef.current + data.length > MAX_PENDING_OUTPUT_CHARS) {
+		// A suspended/throttled animation frame can otherwise let PTY output
+		// consume unbounded memory. Reconnect from cursor zero so the server's
+		// authoritative screen snapshot replaces the discarded backlog.
+		clearOutputQueue();
+		outputCursorRef.current = 0;
+		if (!resyncRequestedRef.current) {
+		  resyncRequestedRef.current = true;
+		  transportRef.current?.reconnect();
+		}
+		return;
+	  }
 	  outputQueueRef.current.push(data);
+	  outputQueueCharsRef.current += data.length;
 	  if (outputFlushRafRef.current !== null) return;
 	  if (typeof requestAnimationFrame === "function") {
 		outputFlushRafRef.current = requestAnimationFrame(flushOutputQueue);
 	  } else {
 		outputFlushRafRef.current = Number(setTimeout(flushOutputQueue, 0));
 	  }
-	}, [flushOutputQueue]);
+	}, [clearOutputQueue, flushOutputQueue]);
 
   const onTransportClose = useCallback(() => {
     sessionReadyRef.current = false;
@@ -639,10 +666,7 @@ export function useTerminalSession({
         case "resync": {
           const t = terminalRef.current;
           if (t) {
-			outputQueueRef.current = [];
-			outputQueueHeadRef.current = 0;
-			if (outputFlushRafRef.current !== null) cancelAnimationFrame(outputFlushRafRef.current);
-			outputFlushRafRef.current = null;
+			clearOutputQueue();
             t.reset();
             t.clear();
           }
@@ -763,18 +787,13 @@ export function useTerminalSession({
   // Cleanup on unmount.
   useEffect(() => {
     return () => {
-      if (outputFlushRafRef.current !== null) {
-        cancelAnimationFrame(outputFlushRafRef.current);
-        outputFlushRafRef.current = null;
-      }
-      outputQueueRef.current = [];
-			outputQueueHeadRef.current = 0;
+      clearOutputQueue();
       gate.dispose();
       stdin.dispose();
       getTerminalDebugProbe().remove(sessionId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [clearOutputQueue]);
 
   // Debug probe publishing. Updates on every state-bearing transition.
   useEffect(() => {

@@ -11,6 +11,35 @@ import (
 // an RPC in conversation.proto breaks this file at compile time.
 var Endpoints = []module.EndpointDescriptor{
 	{
+		ID:          "conversation_fleet_archive_search",
+		Path:        conversationconnect.ConversationServiceSearchNodeArchiveProcedure,
+		Method:      "POST",
+		Summary:     "Search one selected fleet node's Web Console archive",
+		Description: "Sends the query over Bridge's authenticated target-aware Connect route; unavailable or unauthorized nodes degrade without changing local archive data.",
+		Category:    "conversation",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{
+			"node_id": "string", "query": "string", "harness": "string", "role": "string", "limit": "int32",
+		}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{
+			"node_id": "string", "available": "bool", "search": "SearchArchivedResponse", "degradation": "string",
+		}},
+	},
+	{
+		ID:          "conversation_optional_semantic_archive_search",
+		Path:        conversationconnect.ConversationServiceSearchSemanticProcedure,
+		Method:      "POST",
+		Summary:     "Search own archives with optional Agent Manager semantic results",
+		Description: "Returns Web Console own-store lexical results even when Agent Manager is stopped; when available, adds semantic hits with coverage and degradation evidence.",
+		Category:    "conversation",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{
+			"query": "string", "harnesses": "[]string", "limit": "int32",
+		}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{
+			"local": "SearchArchivedResponse", "semantic_hits": "[]SemanticSearchHit", "coverage": "SemanticSearchCoverage",
+			"degradations": "[]SemanticSearchDegradation", "semantic_took_ms": "uint64", "semantic_available": "bool", "semantic_error": "string",
+		}},
+	},
+	{
 		ID:          "conversation_get",
 		Path:        conversationconnect.ConversationServiceGetProcedure,
 		Method:      "POST",

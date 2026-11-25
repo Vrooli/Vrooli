@@ -83,7 +83,7 @@ describe("TerminalLauncher", () => {
   it("shows the unavailable and creating states", () => {
     render(createElement(TerminalLauncher, { open: true, onClose: vi.fn(), onLaunch: vi.fn(), isCreating: true, availableTargets: [] }));
     fireEvent.click(screen.getByTestId("launcher-mode-agent"));
-    expect(screen.getByTestId("launcher-creating")).toBeInTheDocument();
+    expect(screen.getByTestId("launcher-submit-selection")).toHaveTextContent("terminalLauncher.creating");
     expect(screen.getByTestId("launcher-submit-selection")).toBeDisabled();
   });
 

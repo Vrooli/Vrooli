@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http/httptest"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -137,6 +138,39 @@ func TestDecodeAgentUpdateCheckPreservesOnlyTypedFailedChecks(t *testing.T) {
 	}
 	if _, ok := decodeAgentUpdateCheck(checkEnvelope(false, "check", agentStateCheckFailed, "codex"), "codex", commandFailure, context.DeadlineExceeded); ok {
 		t.Fatal("a typed check result must not survive a cancelled or expired context")
+	}
+}
+
+func TestCanceledAgentUpdateCheckIsNotCached(t *testing.T) {
+	now := time.Now().UTC()
+	envelope := harnessUpdateEnvelope{Success: true}
+	envelope.Update.Action, envelope.Update.Success = "check", true
+	envelope.Update.Report = harnessUpdateReport{
+		Name: "claude-code", State: agentStateFound, InstallState: "found", UpdateState: "blocked(found_copy)",
+		Installed: "2.1.319", Latest: "2.1.330", CommandPath: "/home/test/found/claude",
+		OS: runtime.GOOS, Arch: runtime.GOARCH, CheckedAt: now,
+	}
+	data, err := json.Marshal(envelope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := targetConnection{Target: targetmodel.Target{ID: "local", Available: true, OS: runtime.GOOS, Architecture: runtime.GOARCH}}
+	observation := capabilityprobe.Observation{ID: "claude", State: capabilityprobe.Ready, Path: "/home/test/found/claude", Version: "2.1.319", ProbedAt: now}
+	var cache agentUpdateCache
+	var calls atomic.Int32
+	load := func(ctx context.Context) (agentUpdate, error) {
+		calls.Add(1)
+		result, _, err := decodeAndProjectAgentUpdate(ctx, data, "claude-code", "local", "claude", nil, target, observation, now)
+		return result, err
+	}
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := cache.read(canceled, "local\x00claude\x00linux\x00found", load); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled check error = %v, want context canceled", err)
+	}
+	got, err := cache.read(context.Background(), "local\x00claude\x00linux\x00found", load)
+	if err != nil || got.State != agentStateFound || calls.Load() != 2 {
+		t.Fatalf("fresh check did not retry after cancellation: result=%+v calls=%d err=%v", got, calls.Load(), err)
 	}
 }
 

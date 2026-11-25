@@ -63,6 +63,7 @@ interface ConversationEventPayload {
   summarized?: boolean;
   summarizeError?: string;
   createdAt?: string;
+  occurredAt?: string;
   sequence?: number;
 }
 
@@ -239,6 +240,7 @@ function toConversationEvent(
     originalSpeechParagraphs: payload.originalSpeechParagraphs,
     summarized: payload.summarized ?? false,
     createdAt: payload.createdAt ?? new Date().toISOString(),
+    ...(payload.occurredAt ? { occurredAt: payload.occurredAt } : {}),
     sequence: payload.sequence ?? fallbackSequence,
     deliveryState: "received",
     ttsState: "idle",

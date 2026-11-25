@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, KeyRound, ShieldAlert } from "lucide-react";
 import { Button } from "../ui/button";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
 import { strings } from "../../consts/strings";
 import type { JoinRequest } from "../../api/machines";
 import { humanAge } from "./age";
@@ -91,14 +92,15 @@ export default function ReviewRequest({ request, onBack, onDeny, onContinue, den
       </div>
 
       <footer className="shrink-0 border-t border-wc-default px-5 py-3">
-        <div className="mx-auto flex w-full max-w-2xl flex-wrap items-center justify-end gap-2">
-        <Button variant="outline" data-testid="machines-deny" onClick={onDeny} disabled={denying}>
-          {t(strings.machines.deny)}
-        </Button>
-        <Button data-testid="machines-words-match" onClick={onContinue} disabled={!hasWords || denying}>
-          {t(strings.machines.wordsMatch)}
-        </Button>
-      </div>
+        <OverlayActionBar
+          label={t(strings.machines.reviewTitle, { name: request.name })}
+          maxVisible={2}
+          className="mx-auto w-full max-w-2xl flex-row-reverse"
+          actions={[
+            { id: "continue", label: t(strings.machines.wordsMatch), onSelect: onContinue, disabled: !hasWords || denying, primary: true, testId: "machines-words-match" },
+            { id: "deny", label: t(strings.machines.deny), onSelect: onDeny, disabled: denying, testId: "machines-deny" },
+          ]}
+        />
       </footer>
     </div>
   );

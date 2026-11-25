@@ -2,14 +2,11 @@ package continuity
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
-
-	_ "modernc.org/sqlite"
 )
 
 func TestAgentManagerPublisherSendsStableProvenance(t *testing.T) {
@@ -110,21 +107,13 @@ func (p *recordingPublisher) Tombstone(_ context.Context, record PublicationReco
 }
 
 func TestPublishPendingIsBoundedAndRetryable(t *testing.T) {
-	db, err := sql.Open("sqlite", ":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	db := newContinuityTestDB(t, ":memory:")
 	db.SetMaxOpenConns(1)
-	for _, statement := range []string{
+	execContinuitySQL(t, db, []string{
 		`CREATE TABLE conversation_catalog(session_id TEXT PRIMARY KEY, lifecycle_state TEXT, lifecycle_version INTEGER, backend TEXT, agent_type TEXT, agent_session_id TEXT, agent_home_ref TEXT, rollout_ref TEXT, original_title TEXT, current_title TEXT, topic_summary TEXT, cwd TEXT, created_at TEXT, last_activity_at TEXT, source_fingerprint TEXT)`,
 		`CREATE TABLE conversation_aliases(session_id TEXT, alias_kind TEXT, alias_value TEXT, observed_at TEXT, PRIMARY KEY(alias_kind, alias_value))`,
 		`CREATE TABLE continuity_publication_queue(session_id TEXT PRIMARY KEY, lifecycle_state TEXT, source_fingerprint TEXT, attempts INTEGER, last_error TEXT, published_fingerprint TEXT, updated_at TEXT)`,
-	} {
-		if _, err := db.Exec(statement); err != nil {
-			t.Fatal(err)
-		}
-	}
+	})
 	store := NewSQLCatalogStore(db)
 	record := CatalogRecord{SessionID: "s1", LifecycleState: StateRecoverable, AgentType: "codex", CurrentTitle: "title", RolloutRef: "/tmp/rollout", CreatedAt: time.Unix(1, 0), LastActivityAt: time.Unix(1, 0), SourceFingerprint: "sha256:one"}
 	if err := store.Upsert(context.Background(), record); err != nil {

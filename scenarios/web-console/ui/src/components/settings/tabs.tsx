@@ -14,6 +14,7 @@ import {
   Volume2,
   Waves,
   CircleUserRound,
+  CloudCog,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { strings } from "../../consts/strings";
@@ -32,6 +33,7 @@ export const SETTINGS_TAB_IDS = [
   "handoff-rules",
   "integrations",
   "notifications",
+  "deployments",
 ] as const;
 
 export type SettingsTabId = typeof SETTINGS_TAB_IDS[number];
@@ -41,6 +43,8 @@ export interface SettingsTabDefinition {
   label: string;
   shortLabel: string;
   description: string;
+  /** Extra words the settings search matches, beyond label and description. */
+  keywords: string;
   icon: typeof TerminalSquare;
 }
 
@@ -58,6 +62,7 @@ const TAB_ICONS: Record<SettingsTabId, typeof TerminalSquare> = {
   "handoff-rules": Send,
   integrations: PlugZap,
   notifications: Bell,
+  deployments: CloudCog,
 };
 
 const TAB_STRING_KEYS = {
@@ -126,7 +131,29 @@ const TAB_STRING_KEYS = {
     shortLabel: strings.settings.tabs.notifications.shortLabel,
     description: strings.settings.tabs.notifications.description,
   },
+  deployments: {
+    label: "settings.tabs.deployments.label",
+    shortLabel: "settings.tabs.deployments.shortLabel",
+    description: "settings.tabs.deployments.description",
+  },
 } as const;
+
+const TAB_KEYWORDS: Record<SettingsTabId, string> = {
+  account: "billing credits subscription key provider identity login",
+  devices: "machines computers screens mobile desktop remote access",
+  sessions: "terminals panes close archive restore focus order",
+  workspace: "theme appearance font size colors zoom layout sidebar grid",
+  "voice-input": "microphone speech recognition dictation audio streaming",
+  "voice-output": "tts speak read aloud voice audio backend",
+  shortcuts: "keys presets commands launch profiles keyboard",
+  "new-pane-defaults": "theme appearance font size colors terminal defaults new pane",
+  templates: "group roles recipes saved starter",
+  snippets: "text reusable saved insert composer handoff",
+  "handoff-rules": "send share route capture rules",
+  integrations: "services connect provider api configuration",
+  notifications: "alerts events notify scenarios urgency",
+  deployments: "staging release publish deploy operations",
+};
 
 export function useSettingsTabs(): SettingsTabDefinition[] {
   const { t } = useTranslation();
@@ -134,9 +161,10 @@ export function useSettingsTabs(): SettingsTabDefinition[] {
     () =>
       SETTINGS_TAB_IDS.map((id) => ({
         id,
-        label: t(TAB_STRING_KEYS[id].label),
-        shortLabel: t(TAB_STRING_KEYS[id].shortLabel),
-        description: t(TAB_STRING_KEYS[id].description),
+        label: id === "deployments" ? "Deployments" : t(TAB_STRING_KEYS[id].label),
+        shortLabel: id === "deployments" ? "Deployments" : t(TAB_STRING_KEYS[id].shortLabel),
+        description: id === "deployments" ? "Review staging profile and deployment operation status." : t(TAB_STRING_KEYS[id].description),
+        keywords: TAB_KEYWORDS[id],
         icon: TAB_ICONS[id],
       })),
     [t],

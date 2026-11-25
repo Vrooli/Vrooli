@@ -15,6 +15,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/identity"
+	"github.com/vrooli/cli-core/agentcatalog/harness"
 	"github.com/vrooli/cli-core/usagemode"
 	"web-console/internal/sessionstore"
 	"web-console/session"
@@ -331,6 +332,22 @@ func TestSmallOrUnmeasuredContextIsSkipped(t *testing.T) {
 	}
 }
 
+func TestPinnedStanceIsSentOnlyAfterAConfirmedCompaction(t *testing.T) {
+	f := newCompactionFixture(t)
+	f.add(t, "s1", "codex", idle(time.Minute), codexUsage(150000))
+	f.m.SetPinnedStance("s1", "Keep the operator's original stance intact.")
+	event := f.m.Compact(context.Background(), "s1", "manual")
+	if event.Outcome != "compacted" || !event.PinnedStanceSent {
+		t.Fatalf("compaction should confirm and submit the pinned line: %+v", event)
+	}
+	if got := f.drv.typed; len(got) != 4 || got[2] != "s1:Keep the operator's original stance intact." || got[3] != "s1:<enter>" {
+		t.Fatalf("typed sequence = %v", got)
+	}
+	if _, pinned := f.m.PinnedStance("s1"); pinned {
+		t.Fatal("successfully sent stance must leave the pending pin queue")
+	}
+}
+
 func TestCompactIdleActsOnNamedSessionsAndStatesEveryResult(t *testing.T) {
 	f := newCompactionFixture(t)
 	f.add(t, "idle1", "codex", idle(time.Minute), codexUsage(200000))
@@ -463,6 +480,115 @@ func TestContextTokensComeFromTheNewestResponse(t *testing.T) {
 		t.Fatalf("sizes = %v (sub-agent usage must not count)", got)
 	}
 }
+
+func TestContextMeterReusesModelChoiceProvenanceAndKeepsUnsupportedSourcesUnknown(t *testing.T) {
+	driver := serverCompactDriver{s: &Server{}}
+	claudeWindows := filepath.Join(t.TempDir(), "claude-windows.json")
+	t.Setenv(harness.ModelWindowsEnv, claudeWindows)
+	if err := harness.RecordModelWindow(claudeWindows, "claude-sonnet-5-5", 1000000, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	useRepoPolicy(t, "claude-code", nil)
+	claude := choiceNamed(t, driver.s.GetRoleModelChoices(t.Context(), "claude", "local", ""), "sonnet")
+	window, source := driver.modelWindow(t.Context(), "claude", claude.Model)
+	if window != 1_000_000 || source != harness.WindowSourceClaudeStatusline {
+		t.Fatalf("Claude meter window = %d from %q; want 1000000 from %q", window, source, harness.WindowSourceClaudeStatusline)
+	}
+
+	useRepoPolicy(t, "codex", nil)
+	home := t.TempDir()
+	t.Setenv("CODEX_HOME", home)
+	cache := `{"models":[{"slug":"gpt-6.1-terra","context_window":500000}]}`
+	if err := os.WriteFile(filepath.Join(home, "models_cache.json"), []byte(cache), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	window, source = driver.modelWindow(t.Context(), "codex", "gpt-6.1-terra")
+	if window != 500_000 || source != harness.WindowSourceCodexModelsCache {
+		t.Fatalf("meter window = %d from %q; want 500000 from %q", window, source, harness.WindowSourceCodexModelsCache)
+	}
+
+	useRepoPolicy(t, "opencode", nil)
+	window, source = driver.modelWindow(t.Context(), "opencode", "some-model")
+	if window != 0 || source != "unknown" {
+		t.Fatalf("unsupported model window must remain unknown, got %d from %q", window, source)
+	}
+}
+
+func TestSessionContextBudgetPreservesUnknownsAndCarriesProvenance(t *testing.T) {
+	unknown := contextBudgetFor(compactSession{Harness: "grok"}, 0, false)
+	encoded, err := json.Marshal(unknown)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var unknownJSON map[string]any
+	if err := json.Unmarshal(encoded, &unknownJSON); err != nil {
+		t.Fatal(err)
+	}
+	if unknownJSON["modelWindowTokens"] != nil || unknownJSON["compactionPointTokens"] != nil || unknownJSON["forecastState"] != "unknown" {
+		t.Fatalf("unconfirmed budget was filled in: %s", encoded)
+	}
+	retiredReader := contextBudgetFor(compactSession{
+		Harness: "codex", Model: "gpt-6.1-terra", ModelWindowTokens: 200_000,
+		ModelWindowSource: "codex-models-cache", CompactionPointTokens: 150_000,
+		CompactionPointSource: "session launch descriptor",
+	}, 120_000, true)
+	if retiredReader.ModelWindowTokens != nil || retiredReader.ModelWindowSource != "unknown" || retiredReader.ProgressPercent != nil ||
+		retiredReader.CompactionPointTokens == nil || *retiredReader.CompactionPointTokens != 150_000 || retiredReader.TokensUntilCompaction == nil || *retiredReader.TokensUntilCompaction != 30_000 {
+		t.Fatalf("an unversioned reader value became a known meter window: %+v", retiredReader)
+	}
+
+	budget := contextBudgetFor(compactSession{
+		Harness: "codex", Model: "gpt-6.1-terra", ModelWindowTokens: 200_000,
+		ModelWindowSource: "codex-models-cache/v1", CompactionPointTokens: 150_000,
+		CompactionPointSource: "session launch descriptor",
+	}, 120_000, true)
+	if budget.UsedTokens == nil || *budget.UsedTokens != 120_000 || budget.ModelWindowTokens == nil || *budget.ModelWindowTokens != 200_000 ||
+		budget.CompactionPointTokens == nil || *budget.CompactionPointTokens != 150_000 || budget.TokensUntilCompaction == nil || *budget.TokensUntilCompaction != 30_000 ||
+		budget.ModelWindowSource != "codex-models-cache/v1" || budget.CompactionPointSource != "session launch descriptor" || budget.ProgressPercent == nil || *budget.ProgressPercent != 60 {
+		t.Fatalf("confirmed budget lost a fact or source: %+v", budget)
+	}
+}
+
+func TestContextBudgetForecastRequiresIncreasingNativeSamples(t *testing.T) {
+	f := newCompactionFixture(t)
+	point := int64(50_000)
+	budget := sessionContextBudget{CompactionPointTokens: &point, TokensUntilCompaction: int64Pointer(30_000), ForecastState: "insufficient_history"}
+	start := time.Date(2026, 11, 22, 5, 0, 0, 0, time.UTC)
+	if got := f.m.withContextForecast("forecast", budget, 10_000, true, start); got.ForecastState != "insufficient_history" || got.SecondsUntilCompaction != nil {
+		t.Fatalf("first sample must not invent a rate: %+v", got)
+	}
+	got := f.m.withContextForecast("forecast", budget, 20_000, true, start.Add(10*time.Second))
+	if got.ForecastState != "projected" || got.TokensPerSecond == nil || *got.TokensPerSecond != 1_000 || got.SecondsUntilCompaction == nil || *got.SecondsUntilCompaction != 30 {
+		t.Fatalf("increasing native readings should project from observed rate: %+v", got)
+	}
+	flat := f.m.withContextForecast("forecast", budget, 20_000, true, start.Add(20*time.Second))
+	if flat.ForecastState != "insufficient_history" || flat.SecondsUntilCompaction != nil {
+		t.Fatalf("flat usage must not preserve a stale rate: %+v", flat)
+	}
+	unknown := f.m.withContextForecast("forecast", budget, 0, false, start.Add(25*time.Second))
+	if unknown.ForecastState != "insufficient_history" {
+		t.Fatalf("missing usage must not claim a projection: %+v", unknown)
+	}
+	afterGap := f.m.withContextForecast("forecast", budget, 30_000, true, start.Add(30*time.Second))
+	if afterGap.ForecastState != "insufficient_history" || afterGap.SecondsUntilCompaction != nil {
+		t.Fatalf("reading after a missing sample must start a fresh forecast: %+v", afterGap)
+	}
+	modelBudget := budget
+	modelBudget.Model = "new-model"
+	modelBudget.ModelWindowTokens = int64Pointer(100_000)
+	changedModel := f.m.withContextForecast("forecast", modelBudget, 40_000, true, start.Add(40*time.Second))
+	if changedModel.ForecastState != "insufficient_history" || changedModel.SecondsUntilCompaction != nil {
+		t.Fatalf("model change must start a fresh forecast: %+v", changedModel)
+	}
+	f.m.usageSamples["ended-session"] = contextUsageSample{at: start, used: 10_000}
+	f.m.Candidates(context.Background())
+	if _, exists := f.m.usageSamples["ended-session"]; exists {
+		t.Fatal("removed sessions must not keep forecast samples indefinitely")
+	}
+}
+
+func int64Pointer(value int64) *int64 { return &value }
 
 func TestComposerIsEmptyOnlyWhenBlankOrStyledAsAPlaceholder(t *testing.T) {
 	for _, tc := range []struct {
@@ -598,6 +724,7 @@ func TestCompactionControlsRefuseAgentsAndAnonymousCallers(t *testing.T) {
 			{"/api/v1/context-compaction/compact-idle", `{"sessionIds":["s1"]}`},
 			{"/api/v1/sessions/s1/context-compaction", `{"action":"compact_when_idle"}`},
 			{"/api/v1/sessions/s1/context-compaction", `{"action":"set_threshold","thresholdTokens":200000}`},
+			{"/api/v1/sessions/s1/context-compaction", `{"action":"pin_stance","stance":"operator line"}`},
 		} {
 			if rec := usageModeCall(t, s, http.MethodPost, call.path, call.body, kind); rec.Code != http.StatusForbidden {
 				t.Errorf("kind %q %s = %d, want 403", kind, call.path, rec.Code)
@@ -609,6 +736,47 @@ func TestCompactionControlsRefuseAgentsAndAnonymousCallers(t *testing.T) {
 	}
 	if watch, _ := f.m.Status("s1"); watch.ThresholdTokens != 0 || watch.Armed {
 		t.Fatal("a refused caller changed a watch")
+	}
+}
+
+func TestOperatorCanPinExactStanceForNextConfirmedCompaction(t *testing.T) {
+	s, f := compactionServer(t)
+	f.add(t, "s1", "codex", idle(time.Minute), codexUsage(150000))
+	stance := "Keep the operator's exact words."
+	rec := usageModeCall(t, s, http.MethodPost, "/api/v1/sessions/s1/context-compaction", `{"action":"pin_stance","stance":"`+stance+`"}`, identity.ActorHuman)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"pinnedStance":true`) {
+		t.Fatalf("pin exact stance: %d %s", rec.Code, rec.Body.String())
+	}
+	if got, ok := f.m.PinnedStance("s1"); !ok || got != stance {
+		t.Fatalf("stored stance = %q, %v", got, ok)
+	}
+	event := f.m.Compact(context.Background(), "s1", "manual")
+	if event.Outcome != "compacted" || !event.PinnedStanceSent {
+		t.Fatalf("confirmed compaction did not send stance: %+v", event)
+	}
+	status := usageModeCall(t, s, http.MethodGet, "/api/v1/sessions/s1/context-compaction", "", "")
+	if strings.Contains(status.Body.String(), `"pinnedStance":true`) {
+		t.Fatalf("sent stance remained pinned: %s", status.Body.String())
+	}
+	if !strings.Contains(status.Body.String(), `"pinnedStanceMaxBytes":4096`) {
+		t.Fatalf("stance limit was not returned to the client: %s", status.Body.String())
+	}
+}
+
+func TestOperatorCanPinMaximumEscapedStancePayload(t *testing.T) {
+	s, f := compactionServer(t)
+	f.add(t, "s1", "codex", idle(time.Minute), codexUsage(150000))
+	stance := strings.Repeat(`"`, maxPinnedStanceBytes)
+	body, err := json.Marshal(map[string]string{"action": "pin_stance", "stance": stance})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := usageModeCall(t, s, http.MethodPost, "/api/v1/sessions/s1/context-compaction", string(body), identity.ActorHuman)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("pin maximum escaped stance: %d %s", rec.Code, rec.Body.String())
+	}
+	if got, ok := f.m.PinnedStance("s1"); !ok || got != stance {
+		t.Fatalf("stored stance length = %d, %v; want %d, true", len(got), ok, maxPinnedStanceBytes)
 	}
 }
 

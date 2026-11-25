@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/ai"
 	internalai "web-console/internal/ai"
 )
@@ -30,8 +31,62 @@ func TestRESTGenerateCreditsRefusalUsesPaymentRequired(t *testing.T) {
 	if recorder.Code != http.StatusPaymentRequired {
 		t.Fatalf("status = %d, want 402; body=%s", recorder.Code, recorder.Body.String())
 	}
-	if !strings.Contains(recorder.Body.String(), `"error_type":"credits_required"`) {
+	if !strings.Contains(recorder.Body.String(), `"error_type":"`+monetization.ErrorCreditsRequired+`"`) {
 		t.Fatalf("body = %s, want typed credits error", recorder.Body.String())
+	}
+}
+
+func TestRESTGenerateInvalidOrBlankPromptUsesSameBadRequest(t *testing.T) {
+	for _, body := range []string{`{`, `{"prompt":"  "}`} {
+		t.Run(body, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodPost, "/api/v1/ai/generate", strings.NewReader(body))
+			restGenerateHandler(&fakeAIService{}).ServeHTTP(recorder, request)
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400; body=%s", recorder.Code, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), `"error_type":"invalid_argument"`) {
+				t.Fatalf("body = %s, want invalid_argument", recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestConnectCreditsRefusalsPreserveCanonicalCodeAndMessage(t *testing.T) {
+	h := NewConnectHandler(Deps{Service: &fakeAIService{
+		generateErr: internalai.ErrCreditsRequired,
+		suggestErr:  internalai.ErrCreditsRequired,
+	}})
+
+	for _, call := range []struct {
+		name string
+		run  func() error
+	}{
+		{name: "generate", run: func() error {
+			_, err := h.Generate(context.Background(), connect.NewRequest(&aiv1.GenerateRequest{Prompt: "x"}))
+			return err
+		}},
+		{name: "suggest", run: func() error {
+			_, err := h.Suggest(context.Background(), connect.NewRequest(&aiv1.SuggestRequest{Prompt: "x"}))
+			return err
+		}},
+	} {
+		t.Run(call.name, func(t *testing.T) {
+			err := call.run()
+			var refusal *connect.Error
+			if !errors.As(err, &refusal) {
+				t.Fatalf("error = %v, want Connect error", err)
+			}
+			if refusal.Code() != connect.CodeResourceExhausted {
+				t.Fatalf("code = %s, want %s", refusal.Code(), connect.CodeResourceExhausted)
+			}
+			if refusal.Message() != "credits required" {
+				t.Fatalf("message = %q, want credits required", refusal.Message())
+			}
+			if got := refusal.Meta().Get("X-Vrooli-Error-Type"); got != monetization.ErrorCreditsRequired {
+				t.Fatalf("error type = %q, want %q", got, monetization.ErrorCreditsRequired)
+			}
+		})
 	}
 }
 

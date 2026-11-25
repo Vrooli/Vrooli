@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders as render } from "../test-utils";
 import MessagesPane from "../components/MessagesPane";
 import { createConversationSessionState, useConversationStore } from "../stores/useConversationStore";
@@ -143,7 +143,7 @@ describe("message action layout", () => {
     fireEvent.click(screen.getByTestId("msg-rewind-assistant-1"));
 
     await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
-    const select = screen.getByRole("combobox");
+    const select = within(screen.getByRole("dialog")).getByRole("combobox");
     expect(select).toHaveValue("restore_conversation");
     expect(screen.getByRole("option", { name: "Restore conversation" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Restore code" })).toBeNull();

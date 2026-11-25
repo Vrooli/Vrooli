@@ -136,6 +136,40 @@ func TestLifecycleActionServiceReportsWaitFailure(t *testing.T) {
 	}
 }
 
+func TestLifecycleActionServiceDoesNotClaimSuccessWhenWaitOutputIsUnreadable(t *testing.T) {
+	for _, testCase := range []struct {
+		name   string
+		stdout []byte
+	}{
+		{name: "truncated JSON", stdout: []byte(`{"verdict":"healthy"`)},
+		{name: "empty output"},
+		{name: "null is not a result object", stdout: []byte(`null`)},
+		{name: "array is not a result object", stdout: []byte(`[]`)},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			runner := &fakeCommandRunner{results: []CommandResult{
+				{Stdout: []byte(`{"success":true}`), ExitCode: 0},
+				{Stdout: testCase.stdout, ExitCode: 0},
+			}}
+			svc := lifecycleActionTestService(runner)
+
+			got, err := svc.Run(context.Background(), LifecycleActionRequest{CapabilityID: "audio-tools", ActionKind: ActionKindScenarioStart})
+			if err != nil {
+				t.Fatalf("Run returned error: %v", err)
+			}
+			if got.Success || got.Status != InstallStatusUnconfirmed {
+				t.Fatalf("result = %+v, want unsuccessful unconfirmed result for unreadable wait output", got)
+			}
+			if !strings.Contains(got.Message, "could not be read") {
+				t.Fatalf("message = %q, want explanation that wait output could not be read", got.Message)
+			}
+			if len(runner.calls) != 2 {
+				t.Fatalf("calls = %d, want start and wait", len(runner.calls))
+			}
+		})
+	}
+}
+
 func TestLifecycleActionServiceRejectsUndeclaredAndResourceCapabilitiesForLifecycle(t *testing.T) {
 	runner := &fakeCommandRunner{}
 	svc := lifecycleActionTestService(runner)

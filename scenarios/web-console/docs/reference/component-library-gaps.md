@@ -4,7 +4,7 @@ This product keeps its specialized frame because the library shell does not
 carry the interaction model described in the review record.
 
 ```shell-ejection
-{"archetype":"navigated-console","reason":"Web Console is a terminal/workspace product with panes, composer, audio/handedness preferences, continuity banners, and terminal headers. Its workspace frame is the product interaction surface and AppShell/2 cannot replace it without losing the terminal contract.","files":["ui/src/App.tsx","ui/src/components/WorkspacePaneShell.tsx","ui/src/components/TerminalHeader.tsx"]}
+{"archetype":"navigated-console","reason":"Web Console is a terminal/workspace product with panes, composer, audio/handedness preferences, continuity banners, and terminal headers. Its workspace frame is the product interaction surface and AppShell/2 cannot replace it without losing the terminal contract. DeferredSurface is only the suspended-view loading blocker; MessageJumpList and PlaybackModeControl are anchored in-workspace overlays; WorkspaceMinimap is the workspace's keyboard and pointer scroll slider. These scoped frames do not own application navigation.","files":["ui/src/App.tsx","ui/src/components/WorkspacePaneShell.tsx","ui/src/components/TerminalHeader.tsx","ui/src/components/DeferredSurface.tsx","ui/src/components/MessageJumpList.tsx","ui/src/components/WorkspaceMinimap.tsx","ui/src/components/tts/PlaybackModeControl.tsx"]}
 ```
 
 ## Scenario-local message components

@@ -36,7 +36,7 @@ describe("Connect client wrappers", () => {
     await expect(settings.getSessionDefaults()).resolves.toEqual({ default_backend: "standard", default_policy: { mode: "preset", duration: "1h" } });
     await expect(settings.updateSessionDefaults({ default_backend: "tmux", default_policy: { mode: "never" } })).resolves.toEqual({ default_backend: "", default_policy: { mode: "never", duration: "" } });
 
-    const event = { id: "e1", sessionId: "s1", source: "agent", role: "assistant", text: "hi", speechParagraphs: ["hi"], originalSpeechParagraphs: [], summarized: false, createdAt: "now", sequence: 2n, deliveryState: "complete", ttsState: "none", consumptionState: "new" };
+    const event = { id: "e1", sessionId: "s1", source: "agent", role: "assistant", text: "hi", speechParagraphs: ["hi"], originalSpeechParagraphs: [], summarized: false, createdAt: "ingested", occurredAt: "source-time", sequence: 2n, deliveryState: "complete", ttsState: "none", consumptionState: "new" };
     vi.spyOn(conversation.conversationClient, "get").mockResolvedValue({ sessionId: "s1", events: [event], cursor: { lastSeenSequence: 1n, lastListenedSequence: 0n }, hasMore: true, oldestSequence: 1n, newestSequence: 2n, totalCount: 2n } as never);
     vi.spyOn(conversation.conversationClient, "updateCursor").mockResolvedValue({ cursor: { lastSeenSequence: 2n, lastListenedSequence: 1n } } as never);
     const search = vi.spyOn(conversation.conversationClient, "search").mockResolvedValue({ matches: [{ eventId: "e1", sequence: 2n, excerpt: "hi", ranges: [{ start: 0, end: 2 }], role: "user", createdAt: "now" }], truncated: false, totalMatches: 1n, error: "", hasMore: false, nextAfterSequence: 0n } as never);
@@ -44,7 +44,7 @@ describe("Connect client wrappers", () => {
     vi.spyOn(conversation.conversationClient, "getRange").mockResolvedValue({ sessionId: "s1", events: [], cursor: undefined } as never);
     vi.spyOn(conversation.conversationClient, "resolveEvents").mockResolvedValue({ events: [event], missingEventIds: ["gone"] } as never);
     vi.spyOn(conversation.conversationClient, "summarizeEvent").mockResolvedValue({ summarized: true, speechParagraphs: ["short"], error: "" } as never);
-    await expect(conversation.getConversationSession("s1", { sinceSequence: 1, beforeSequence: 3 })).resolves.toMatchObject({ events: [{ sequence: 2, originalSpeechParagraphs: undefined }], cursor: { lastSeenSequence: 1 } });
+    await expect(conversation.getConversationSession("s1", { sinceSequence: 1, beforeSequence: 3 })).resolves.toMatchObject({ events: [{ sequence: 2, originalSpeechParagraphs: undefined, createdAt: "ingested", occurredAt: "source-time" }], cursor: { lastSeenSequence: 1 } });
     await expect(conversation.updateConversationCursor("s1", { lastSeenSequence: 2 })).resolves.toEqual({ lastSeenSequence: 2, lastListenedSequence: 1 });
     await expect(conversation.searchConversation("s1", "hi")).resolves.toEqual({ matches: [{ eventId: "e1", sequence: 2, excerpt: "hi", ranges: [{ start: 0, end: 2 }], role: "user", createdAt: "now" }], truncated: false, totalMatches: 1, hasMore: false, nextAfterSequence: 0 });
     search.mockResolvedValueOnce({ matches: [], truncated: true, totalMatches: 0n, error: "", hasMore: true, nextAfterSequence: 10n } as never);
@@ -67,6 +67,20 @@ describe("Connect client wrappers", () => {
       { id: "e2", sequence: 2 }, { id: "e5", sequence: 5 }, { id: "e8", sequence: 8 }, { id: "e10", sequence: 10 },
     ]);
     expect(get).toHaveBeenNthCalledWith(2, expect.objectContaining({ beforeSequence: 8n }));
+  });
+
+  it("reads ranges larger than the API event cap as ordered bounded calls", async () => {
+    const event = (id: string, sequence: bigint) => ({ id, sessionId: "s1", source: "agent", role: "assistant", text: id, speechParagraphs: [], originalSpeechParagraphs: [], summarized: false, createdAt: "now", sequence, deliveryState: "", ttsState: "", consumptionState: "" });
+    const getRange = vi.spyOn(conversation.conversationClient, "getRange")
+      .mockResolvedValueOnce({ sessionId: "s1", events: [event("first", 1n)], cursor: undefined } as never)
+      .mockResolvedValueOnce({ sessionId: "s1", events: [event("last", 5002n)], cursor: undefined } as never);
+
+    await expect(conversation.getConversationRange("s1", 1, 5002)).resolves.toMatchObject({
+      sessionId: "s1",
+      events: [{ id: "first", sequence: 1 }, { id: "last", sequence: 5002 }],
+    });
+    expect(getRange).toHaveBeenNthCalledWith(1, { sessionId: "s1", fromSequence: 1n, toSequence: 5000n });
+    expect(getRange).toHaveBeenNthCalledWith(2, { sessionId: "s1", fromSequence: 5001n, toSequence: 5002n });
   });
 
   it("maps workspace requests and responses", async () => {

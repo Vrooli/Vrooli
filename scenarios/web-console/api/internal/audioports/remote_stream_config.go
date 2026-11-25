@@ -64,7 +64,7 @@ func (r *RemoteStreamConfigAdmin) GetStreamConfig(ctx context.Context) (StreamCo
 	}
 	req := connect.NewRequest(&sttv1.GetStreamConfigRequest{})
 	r.attach(req, ctx)
-	resp, err := r.Client.STTAdmin.GetStreamConfig(ctx, req)
+	resp, err := r.Client.Clients().STTAdmin.GetStreamConfig(ctx, req)
 	if err != nil {
 		return StreamConfig{}, r.handleErr(err)
 	}
@@ -86,7 +86,7 @@ func (r *RemoteStreamConfigAdmin) UpdateStreamConfig(ctx context.Context, mask F
 		Config:     streamConfigToProto(cfg),
 	})
 	r.attach(req, ctx)
-	resp, err := r.Client.STTAdmin.UpdateStreamConfig(ctx, req)
+	resp, err := r.Client.Clients().STTAdmin.UpdateStreamConfig(ctx, req)
 	if err != nil {
 		return StreamConfig{}, r.handleErr(err)
 	}

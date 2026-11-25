@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, ClipboardCopy } from "lucide-react";
+import { Check, ClipboardCopy, Share } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ConversationEvent } from "../api/conversation";
 import { strings } from "../consts/strings";
@@ -26,6 +26,8 @@ interface MessageExportDrawerProps {
   events: ConversationEvent[];
   error?: string;
   onClose: () => void;
+  /** Opens the existing review composer with the exact formatted selection. */
+  onHandoff?: (payload: string) => void;
 }
 
 type CopyState = "idle" | "copied" | "failed";
@@ -37,7 +39,7 @@ type CopyState = "idle" | "copied" | "failed";
  * selector — selection lives in the navigator; this drawer only formats and
  * copies what it is given.
  */
-export default function MessageExportDrawer({ open, events, error, onClose }: MessageExportDrawerProps) {
+export default function MessageExportDrawer({ open, events, error, onClose, onHandoff }: MessageExportDrawerProps) {
   const { t } = useTranslation();
   const [format, setFormat] = useState<MessageExportFormat>(DEFAULT_MESSAGE_EXPORT_FORMAT);
   const [copyState, setCopyState] = useState<CopyState>("idle");
@@ -158,6 +160,18 @@ export default function MessageExportDrawer({ open, events, error, onClose }: Me
           )}
 
           <div className="mt-3 flex shrink-0 items-center justify-end gap-2">
+            {onHandoff && (
+              <button
+                type="button"
+                data-testid="msg-export-handoff"
+                onClick={() => onHandoff(result.text)}
+                disabled={result.text.length === 0 || !!error || events.length === 0}
+                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-wc-default/70 px-4 py-2 text-xs font-semibold text-wc-text-primary transition hover:bg-wc-surface-input/70 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Share className="h-3.5 w-3.5" aria-hidden="true" />
+                {t(strings.messageExport.handoffAction)}
+              </button>
+            )}
             <button
               type="button"
               data-testid="msg-export-copy"

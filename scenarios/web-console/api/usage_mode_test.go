@@ -258,8 +258,48 @@ func TestCreateStoresTheEffectiveModelSoRecoveryReplaysIt(t *testing.T) {
 	if d.Model != "gpt-6-luna" {
 		t.Fatalf("create must fill the model from the mode, got %q", d.Model)
 	}
+	if d.ContextLimitTokens != 180000 {
+		t.Fatalf("create descriptor must persist the mode's context limit, got %d", d.ContextLimitTokens)
+	}
 	if args := strings.Join(codexCreateArgs(sessionstore.LaunchDescriptor{Agent: "codex"}), " "); !strings.Contains(args, "model_auto_compact_token_limit=180000") {
 		t.Fatalf("create must carry the mode's limit: %s", args)
+	}
+}
+
+func TestCodexRecoveryKeepsCreationModeSettingsAfterModeTransition(t *testing.T) {
+	usageModeFixture(t)
+	writeCodexSaveMode(t)
+	created := codexCreateDescriptor(sessionstore.LaunchDescriptor{Agent: "codex", LaunchMode: "codex_app_server"})
+	raw, err := json.Marshal(created)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The active mode changes while Web Console and its provider process are
+	// unavailable. Recovery must use the persisted creation settings.
+	expires := time.Now().Add(time.Hour)
+	changed := usagemode.Mode{ID: "um-recover-changed", StartedAt: time.Now().Add(-time.Minute), Until: usagemode.Until{Kind: usagemode.UntilTime}, ExpiresAt: &expires,
+		Runners: map[string]usagemode.RunnerSettings{"codex": {SessionModel: "gpt-6.1-terra", ContextLimitTokens: 90000}}}
+	if err := usagemode.Write(usagemode.File{Modes: []usagemode.Mode{changed}}); err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	r := &managedCodexRegistry{
+		store:   recoverStore{rows: []sessionstore.Metadata{{ID: "s1", Status: sessionstore.StatusLive, LaunchMode: sessionstore.LaunchModeCodexAppServer, NativeThreadID: "thr-retained", LaunchDescriptorJSON: string(raw)}}},
+		entries: map[string]managedCodexEntry{},
+		resume: func(_ context.Context, _, _, _, _, thread, _ string, _ []string, args []string) (*codex.ManagedOwner, error) {
+			if thread != "thr-retained" {
+				t.Fatalf("recovery changed native thread: %q", thread)
+			}
+			got = args
+			return nil, errors.New("injected provider unavailable")
+		},
+	}
+	if err := r.Recover(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	joined := strings.Join(got, " ")
+	if !strings.Contains(joined, `model="gpt-6-luna"`) || !strings.Contains(joined, "model_auto_compact_token_limit=180000") || strings.Contains(joined, "90000") || strings.Contains(joined, "gpt-6.1-terra") {
+		t.Fatalf("recovery changed the session's creation settings: %s", joined)
 	}
 }
 

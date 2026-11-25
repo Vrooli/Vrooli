@@ -172,11 +172,25 @@ def usage_check(page):
     bounds = action.bounding_box()
     assert bounds and bounds["x"] >= 0 and bounds["x"] + bounds["width"] <= page.viewport_size["width"], bounds
 
-def remove_managed(page, agent):
+def remove_managed(page, agent, full_stack=False):
     page.get_by_test_id(f"launcher-cleanup-preview-{agent}").click()
     expect(page.get_by_test_id("launcher-cleanup-plan")).to_be_visible(timeout=30000)
     page.get_by_test_id(f"launcher-uninstall-{agent}").click()
-    expect(page.get_by_test_id("launcher-action-done")).to_contain_text("Removed the previewed",timeout=30000)
+    if full_stack:
+        expect(page.get_by_test_id(f"launcher-agent-status-{agent}")).to_have_attribute("data-harness-state","missing",timeout=240000)
+    else:
+        expect(page.get_by_test_id("launcher-action-done")).to_contain_text("Removed the previewed",timeout=30000)
+
+def expect_full_action_success(page, button_test_id, action):
+    with page.expect_response(lambda response: "RunAgentUpdateAction" in response.url, timeout=240000) as response_info:
+        page.get_by_test_id(button_test_id).click()
+    response = response_info.value
+    try:
+        result = response.json()
+    except Exception as error:
+        raise AssertionError(f"full-deployment {action} response was not JSON: HTTP {response.status}: {error}")
+    if not response.ok or not result.get("success"):
+        raise AssertionError(f"full-deployment {action} action failed: HTTP {response.status}: {result}")
 
 def native_install_check(page):
     full_stack = check == "TestJ8_FullDeploymentRouteOperated"
@@ -184,6 +198,13 @@ def native_install_check(page):
         assert not any((pathlib.Path(p)/"vrooli").exists() for p in os.environ["PATH"].split(":")), "Desktop fixture unexpectedly has vrooli on PATH"
     all_harnesses = full_stack or check == "TestJ8_InstallUpdateUninstallDoctorPerHarness"
     agents = ["claude","codex","opencode","agy","grok"] if all_harnesses else ["claude"]
+    harness_filter = os.environ.get("LAUNCHER_JOURNEY_HARNESS_FILTER", "").strip()
+    if full_stack and harness_filter:
+        selected = [item.strip() for item in harness_filter.split(",")]
+        allowed = {"claude", "codex", "opencode", "agy", "grok"}
+        if not selected or any(item not in allowed for item in selected) or len(set(selected)) != len(selected):
+            raise AssertionError(f"invalid full-deployment harness filter: {harness_filter}")
+        agents = selected
     for index,agent in enumerate(agents):
         if index:
             page.reload()
@@ -192,18 +213,20 @@ def native_install_check(page):
         page.get_by_test_id("launcher-manage-agents").click()
         page.get_by_test_id(f"launcher-manage-open-{agent}").click(timeout=30000)
         expect(page.get_by_test_id(f"launcher-agent-status-{agent}")).to_have_attribute("data-harness-state","missing",timeout=30000)
-        page.get_by_test_id(f"launcher-agent-install-{agent}").click()
-        page.wait_for_function("() => document.querySelector('[data-testid=launcher-action-done]') || document.querySelector('[data-testid=launcher-action-error]')",timeout=240000)
-        if not full_stack:
-            expect(page.get_by_test_id("launcher-action-done")).to_contain_text("installed in your user-owned prefix",timeout=1000)
+        if full_stack:
+            expect_full_action_success(page, f"launcher-agent-install-{agent}", "install")
         else:
-            expect(page.get_by_test_id("launcher-action-done")).to_be_visible(timeout=1000)
+            page.get_by_test_id(f"launcher-agent-install-{agent}").click()
+            page.wait_for_function("() => document.querySelector('[data-testid=launcher-action-done]') || document.querySelector('[data-testid=launcher-action-error]')",timeout=240000)
+            expect(page.get_by_test_id("launcher-action-done")).to_contain_text("installed in your user-owned prefix",timeout=1000)
+        if full_stack:
+            expect(page.get_by_test_id(f"launcher-agent-status-{agent}")).to_have_attribute("data-harness-state","up_to_date",timeout=240000)
         expect(page.get_by_test_id(f"launcher-agent-status-{agent}")).to_have_attribute("data-harness-state","up_to_date",timeout=30000)
         executable = pathlib.Path.home()/".local/bin"/agent
         assert executable.is_symlink() and str(executable.resolve()).startswith(str(pathlib.Path.home()))
         page.get_by_test_id(f"launcher-doctor-{agent}").click()
         expect(page.get_by_test_id("launcher-action-done")).to_be_visible(timeout=30000)
-        remove_managed(page,agent)
+        remove_managed(page,agent,full_stack)
         assert not executable.exists()
         if all_harnesses:
             resource = "claude-code" if agent=="claude" else agent
@@ -215,41 +238,73 @@ def native_install_check(page):
             page.get_by_test_id("launcher-manage-agents").click()
             page.get_by_test_id(f"launcher-manage-open-{agent}").click(timeout=30000)
             expect(page.get_by_test_id(f"launcher-agent-status-{agent}")).to_have_attribute("data-harness-state","update_ready",timeout=30000)
-            page.get_by_test_id(f"launcher-action-primary-{agent}").click()
-            expect(page.get_by_test_id("launcher-action-done")).to_contain_text("Updated",timeout=240000)
+            if full_stack:
+                expect_full_action_success(page, f"launcher-action-primary-{agent}", "update")
+                expect(page.get_by_test_id(f"launcher-agent-status-{agent}")).to_have_attribute("data-harness-state","up_to_date",timeout=240000)
+            else:
+                page.get_by_test_id(f"launcher-action-primary-{agent}").click()
+                expect(page.get_by_test_id("launcher-action-done")).to_contain_text("Updated",timeout=240000)
             expect(page.get_by_test_id(f"launcher-agent-status-{agent}")).to_have_attribute("data-harness-state","up_to_date",timeout=30000)
-            remove_managed(page,agent)
+            remove_managed(page,agent,full_stack)
             print(f"{agent}: real install, doctor, cleanup, older-release update and uninstall passed")
 
 
 def cleanup_check(page):
-    response = page.request.post(url+"/__journey/reset-managed")
-    assert response.status == 204, response.text()
-    found = pathlib.Path.home()/"found"/"claude"
-    before = hashlib.sha256(found.read_bytes()).hexdigest()
-    before_stat = found.stat()
-    page.get_by_test_id("launcher-mode-agent").click()
-    page.get_by_test_id("launcher-manage-agents").click()
-    page.get_by_test_id("launcher-manage-open-claude").click(timeout=30000)
-    expect(page.get_by_test_id("launcher-agent-status-claude")).to_have_attribute("data-harness-state","found",timeout=30000)
-    page.get_by_test_id("launcher-doctor-claude").click()
-    expect(page.get_by_test_id("launcher-action-done")).to_be_visible(timeout=30000)
-    page.get_by_test_id("launcher-cleanup-preview-claude").click()
-    preview = page.get_by_test_id("launcher-cleanup-plan")
-    expect(preview).to_be_visible(timeout=30000)
-    remove = preview.locator("[data-cleanup-remove]").all_text_contents()
-    preserve = preview.locator("[data-cleanup-preserve]").all_text_contents()
-    assert remove and str(found) in preserve, (remove,preserve)
-    assert all(pathlib.Path(p).exists() and str(pathlib.Path.home()) in p for p in remove)
-    page.get_by_test_id("launcher-uninstall-claude").click()
-    expect(page.get_by_test_id("launcher-action-done")).to_contain_text("Removed the previewed",timeout=30000)
-    assert all(not pathlib.Path(p).exists() for p in remove), remove
-    assert all(pathlib.Path(p).exists() for p in preserve), preserve
-    after_stat = found.stat()
-    assert (after_stat.st_ino,after_stat.st_mode,after_stat.st_mtime_ns)==(before_stat.st_ino,before_stat.st_mode,before_stat.st_mtime_ns)
-    assert hashlib.sha256(found.read_bytes()).hexdigest() == before
-    assert len(list(found.parent.iterdir())) == 1, "The found binary was renamed or backed up"
-    expect(page.get_by_test_id("launcher-agent-status-claude")).to_have_attribute("data-harness-state","found")
+    available = {"agy": "antigravity", "claude": "claude-code", "codex": "codex", "opencode": "opencode", "grok": "grok"}
+    selected = [item.strip() for item in os.environ.get("LAUNCHER_JOURNEY_HARNESS_FILTER", "").split(",") if item.strip()]
+    agents = selected or list(available)
+    if any(agent not in available for agent in agents) or len(agents) != len(set(agents)):
+        raise AssertionError(f"invalid cleanup harness filter: {agents}")
+    full_stack = check == "TestJ8_FullDeploymentFoundCopiesOperated"
+    found_dir = pathlib.Path.home()/"found"
+    before_names = sorted(item.name for item in found_dir.iterdir())
+    for agent in agents:
+        resource = available[agent]
+        response = page.request.post(url+f"/__journey/reset-managed/{resource}")
+        assert response.status == 204, response.text()
+        found = pathlib.Path.home()/"found"/agent
+        before = hashlib.sha256(found.read_bytes()).hexdigest()
+        before_stat = found.stat()
+        if agent != agents[0]:
+            page.reload()
+            open_drawer(page)
+        page.get_by_test_id("launcher-mode-agent").click()
+        page.get_by_test_id("launcher-manage-agents").click()
+        page.get_by_test_id(f"launcher-manage-open-{agent}").click(timeout=30000)
+        expect(page.get_by_test_id(f"launcher-agent-status-{agent}")).to_have_attribute("data-harness-state","found",timeout=30000)
+        facts = page.get_by_test_id("launcher-agent-three-facts")
+        expect(facts).to_have_attribute("data-install-state", "found", timeout=30000)
+        expect(facts).to_have_attribute("data-update-state", "blocked(found_copy)", timeout=30000)
+        if full_stack:
+            expect_full_action_success(page, f"launcher-doctor-{agent}", "doctor")
+        else:
+            page.get_by_test_id(f"launcher-doctor-{agent}").click()
+        doctor = page.get_by_test_id("launcher-action-done")
+        expect(doctor).to_be_visible(timeout=30000)
+        expect(doctor).to_contain_text("runs first",timeout=30000)
+        expect(doctor).to_contain_text("while Vrooli's managed", timeout=30000)
+        if full_stack:
+            expect_full_action_success(page, f"launcher-cleanup-preview-{agent}", "cleanup preview")
+        else:
+            page.get_by_test_id(f"launcher-cleanup-preview-{agent}").click()
+        preview = page.get_by_test_id("launcher-cleanup-plan")
+        expect(preview).to_be_visible(timeout=30000)
+        remove = preview.locator("[data-cleanup-remove]").all_text_contents()
+        preserve = preview.locator("[data-cleanup-preserve]").all_text_contents()
+        assert remove and str(found) in preserve, (agent,remove,preserve)
+        assert all(pathlib.Path(p).exists() and str(pathlib.Path.home()) in p for p in remove)
+        if full_stack:
+            expect_full_action_success(page, f"launcher-uninstall-{agent}", "cleanup removal")
+        else:
+            page.get_by_test_id(f"launcher-uninstall-{agent}").click()
+        expect(page.get_by_test_id("launcher-action-done")).to_contain_text("Removed the previewed",timeout=30000)
+        assert all(not pathlib.Path(p).exists() for p in remove), (agent,remove)
+        assert all(pathlib.Path(p).exists() for p in preserve), (agent,preserve)
+        after_stat = found.stat()
+        assert (after_stat.st_ino,after_stat.st_mode,after_stat.st_mtime_ns)==(before_stat.st_ino,before_stat.st_mode,before_stat.st_mtime_ns)
+        assert hashlib.sha256(found.read_bytes()).hexdigest() == before
+        assert sorted(item.name for item in found_dir.iterdir()) == before_names, "A found binary was renamed or backed up"
+        expect(page.get_by_test_id(f"launcher-agent-status-{agent}")).to_have_attribute("data-harness-state","found")
 
 def update_check(page):
     response = page.request.post(url+"/__journey/old-release")
@@ -304,7 +359,7 @@ with sync_playwright() as p:
                 open_drawer(page)
                 if check in ("TestJ8_DesktopUserOwnedInstallOperated","TestJ8_InstallUpdateUninstallDoctorPerHarness","TestJ8_FullDeploymentRouteOperated"):
                     native_install_check(page)
-                elif check in ("TestJ8_FoundCopyStaysUntouched","TestJ8_CleanupPreviewEqualsRemoval"):
+                elif check in ("TestJ8_FoundCopyStaysUntouched","TestJ8_CleanupPreviewEqualsRemoval","TestJ8_FullDeploymentFoundCopiesOperated"):
                     cleanup_check(page)
                 elif check in ("TestJ7_ManageUpdateWorksOnIsolatedHome","TestJ8_FullDeploymentRouteOperated"):
                     update_check(page)

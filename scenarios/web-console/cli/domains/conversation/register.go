@@ -19,6 +19,7 @@ const GroupName = "conversation"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
+		"ConversationService.SearchArchived": h.searchArchived,
 		"ConversationService.Get":            h.get,
 		"ConversationService.UpdateCursor":   h.cursorSet,
 		"ConversationService.SummarizeEvent": h.summarize,

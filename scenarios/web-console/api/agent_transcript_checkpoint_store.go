@@ -38,6 +38,13 @@ func NewSQLAgentTranscriptCheckpointStore(db dbx.Handle) *SQLAgentTranscriptChec
 	return &SQLAgentTranscriptCheckpointStore{db: db}
 }
 
+func (s *SQLAgentTranscriptCheckpointStore) nativeArchiveCatalog() *nativeArchiveCatalog {
+	if s == nil {
+		return newMemoryNativeArchiveCatalog()
+	}
+	return newSQLNativeArchiveCatalog(s.db)
+}
+
 func (s *SQLAgentTranscriptCheckpointStore) Get(ctx context.Context, source, sourceKey string) (AgentTranscriptCheckpoint, bool, error) {
 	row := s.db.QueryRowContext(ctx, `
 		SELECT source, source_key, web_console_session_id, cursor, updated_at
@@ -92,14 +99,42 @@ func (s *SQLAgentTranscriptCheckpointStore) DeleteSession(ctx context.Context, s
 	return nil
 }
 
+// ResetNativeArchiveOccurrenceCursors clears one generation of native archive
+// cursors exactly once while retaining projected events. Replaying those events
+// lets the idempotent native append path fill occurred_at without changing IDs.
+func (s *SQLAgentTranscriptCheckpointStore) ResetNativeArchiveOccurrenceCursors(ctx context.Context, source, migration string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin native occurrence-time replay: %w", err)
+	}
+	defer tx.Rollback() //nolint:errcheck
+	var completed string
+	err = tx.QueryRowContext(ctx, `SELECT completed_at FROM web_console_migrations WHERE name = ?`, migration).Scan(&completed)
+	if err != nil && err != sql.ErrNoRows {
+		return fmt.Errorf("read native occurrence-time replay marker: %w", err)
+	}
+	if completed != "" {
+		return tx.Commit()
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM agent_transcript_checkpoints WHERE source = ?`, source); err != nil {
+		return fmt.Errorf("clear native archive cursors for timestamp replay: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO web_console_migrations(name,last_rowid,completed_at) VALUES(?,0,?) ON CONFLICT(name) DO UPDATE SET completed_at = excluded.completed_at`, migration, formatTime(time.Now().UTC())); err != nil {
+		return fmt.Errorf("record native occurrence-time replay: %w", err)
+	}
+	return tx.Commit()
+}
+
 type InMemoryAgentTranscriptCheckpointStore struct {
 	mu          sync.Mutex
 	checkpoints map[string]AgentTranscriptCheckpoint
+	migrations  map[string]bool
 }
 
 func NewInMemoryAgentTranscriptCheckpointStore() *InMemoryAgentTranscriptCheckpointStore {
 	return &InMemoryAgentTranscriptCheckpointStore{
 		checkpoints: make(map[string]AgentTranscriptCheckpoint),
+		migrations:  make(map[string]bool),
 	}
 }
 
@@ -132,5 +167,20 @@ func (s *InMemoryAgentTranscriptCheckpointStore) DeleteSession(_ context.Context
 			delete(s.checkpoints, key)
 		}
 	}
+	return nil
+}
+
+func (s *InMemoryAgentTranscriptCheckpointStore) ResetNativeArchiveOccurrenceCursors(_ context.Context, source, migration string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.migrations[migration] {
+		return nil
+	}
+	for key, checkpoint := range s.checkpoints {
+		if checkpoint.Source == source {
+			delete(s.checkpoints, key)
+		}
+	}
+	s.migrations[migration] = true
 	return nil
 }

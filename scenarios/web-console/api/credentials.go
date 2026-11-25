@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/ai-provider-go/openai"
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -285,19 +286,17 @@ func (s *Server) credentialTestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	requestCtx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
-	request, err := http.NewRequestWithContext(requestCtx, http.MethodGet, "https://openrouter.ai/api/v1/models", nil)
-	if err != nil {
-		http.Error(w, "could not test OpenRouter key", http.StatusBadGateway)
-		return
-	}
-	request.Header.Set("Authorization", "Bearer "+key)
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
+	if err := probeOpenRouterKey(requestCtx, key, http.DefaultClient, "https://openrouter.ai/api/v1"); err != nil {
 		writeCredentialJSON(w, http.StatusBadGateway, map[string]any{"valid": false, "source": "credential_authority", "checked_at": time.Now().UTC()})
 		return
 	}
-	defer response.Body.Close()
-	writeCredentialJSON(w, http.StatusOK, map[string]any{"valid": response.StatusCode >= 200 && response.StatusCode < 300, "source": "credential_authority", "checked_at": time.Now().UTC()})
+	writeCredentialJSON(w, http.StatusOK, map[string]any{"valid": true, "source": "credential_authority", "checked_at": time.Now().UTC()})
+}
+
+func probeOpenRouterKey(ctx context.Context, key string, client openai.HTTPClient, baseURL string) error {
+	provider := openai.New(openai.Config{ProviderName: "openrouter", BaseURL: baseURL, APIKey: key, HTTPClient: client})
+	_, err := provider.ListModels(ctx)
+	return err
 }
 
 func webConsoleSameOrigin(w http.ResponseWriter, r *http.Request) bool {

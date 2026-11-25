@@ -165,6 +165,41 @@ func TestSessionHomeRetentionLeavesOpenAndRecentSessionsUntouched(t *testing.T) 
 	}
 }
 
+// TestSessionHomeRetentionMeasuresIdleFromTheTranscript pins the idle signal:
+// an agent CLI rewrites its trace logs and sqlite WALs continuously, so a
+// home whose transcript is weeks old but whose logs were touched seconds ago
+// must still be reclaimed. Reading "newest file in the tree" instead froze
+// every home with a running daemon and the cycle freed nothing.
+func TestSessionHomeRetentionMeasuresIdleFromTheTranscript(t *testing.T) {
+	root := t.TempDir()
+	f := homeFixture{t: t, root: root}
+	rollout := f.write("codex/churny/sessions/2026/08/01/rollout-a.jsonl", 1000)
+	f.write("codex/churny/packages/app-server-daemon/bin/codex", 4000)
+	f.write("codex/churny/logs_2.sqlite-wal", 70)
+	// The transcript is 40 days old; the runtime churn is a minute old.
+	f.age("codex/churny", 40*24*time.Hour)
+	f.write("codex/churny/logs_2.sqlite-wal", 70)
+	archived := time.Now().Add(-40 * 24 * time.Hour)
+	rows := []sessionstore.Metadata{{
+		ID: "churny", AgentType: sessionstore.AgentCodex,
+		Status: sessionstore.StatusLive, ArchivedAt: archived,
+	}}
+
+	result, err := newHomeRetention(root, rows).Run(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exists(t, filepath.Join(root, "codex", "churny", "packages")) {
+		t.Fatal("runtime state survived a home whose transcript is 40 days old")
+	}
+	if !exists(t, rollout) {
+		t.Fatal("transcript removed")
+	}
+	if result.Protected[homeProtectedRecentActivity] != 0 {
+		t.Fatalf("runtime churn counted as recent activity: %v", result.Protected)
+	}
+}
+
 func TestSessionHomeRetentionRemovesOnlyUnclaimedEmptyScaffolds(t *testing.T) {
 	root := t.TempDir()
 	shared := t.TempDir()

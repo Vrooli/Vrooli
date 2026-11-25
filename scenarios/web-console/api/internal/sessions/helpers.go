@@ -1,8 +1,11 @@
 package sessions
 
 import (
+	"regexp"
+	"strings"
 	"time"
 
+	"github.com/vrooli/cli-core/agenttranscript"
 	"web-console/internal/backend"
 	"web-console/internal/sessionstore"
 	"web-console/session"
@@ -117,22 +120,80 @@ func Recoverability(m sessionstore.Metadata) (bool, string) {
 func BuildResumeCommand(m sessionstore.Metadata) string {
 	switch m.AgentType {
 	case sessionstore.AgentCodex:
-		if m.AgentSessionID != "" {
-			return "codex --yolo resume " + m.AgentSessionID + "\n"
+		format, ok := agenttranscript.FormatFor(agenttranscript.HarnessCodex)
+		if !ok {
+			return "echo 'shared Codex resume format missing'\n"
 		}
-		return "codex --yolo resume --last\n"
-	case sessionstore.AgentClaude:
-		return "claude --resume " + m.AgentSessionID + " --dangerously-skip-permissions\n"
-	case sessionstore.AgentOpenCode:
+		flags := codexResumeFlags(m.LaunchCommand)
 		if m.AgentSessionID != "" {
-			return "opencode --session " + m.AgentSessionID + "\n"
+			return "codex --yolo " + format.ResumeCommand + " " + flags + m.AgentSessionID + "\n"
+		}
+		return "codex --yolo " + format.ResumeCommand + " " + flags + "--last\n"
+	case sessionstore.AgentClaude:
+		format, ok := agenttranscript.FormatFor(agenttranscript.HarnessClaude)
+		if !ok {
+			return "echo 'shared Claude resume format missing'\n"
+		}
+		return "claude " + format.ResumeFlag + " " + m.AgentSessionID + " --dangerously-skip-permissions\n"
+	case sessionstore.AgentOpenCode:
+		format, ok := agenttranscript.FormatFor("opencode")
+		if !ok {
+			return "echo 'shared OpenCode resume format missing'\n"
+		}
+		if m.AgentSessionID != "" {
+			return "opencode " + format.ResumeFlag + " " + m.AgentSessionID + "\n"
 		}
 		return "echo 'opencode session id missing; nothing to resume'\n"
 	case sessionstore.AgentGrok:
+		format, ok := agenttranscript.FormatFor("grok")
+		if !ok {
+			return "echo 'shared Grok resume format missing'\n"
+		}
 		if m.AgentSessionID != "" {
-			return "grok --resume " + m.AgentSessionID + "\n"
+			return "grok " + format.ResumeFlag + " " + m.AgentSessionID + "\n"
 		}
 		return "echo 'grok session id missing; nothing to resume'\n"
 	}
 	return "echo 'no agent identity recorded; nothing to resume'\n"
+}
+
+// codexFlagValue is a model, profile or reasoning-effort value safe to paste
+// into a shell unquoted.
+var codexFlagValue = regexp.MustCompile(`^[A-Za-z0-9._:/-]+$`)
+
+// codexResumeFlags carries the model, profile and reasoning effort the session
+// was launched with into its resume command. Without them `codex resume` runs
+// the thread on the config default model, so a reopened lead would silently
+// change model. Each flag ends with a space; unsafe values are dropped.
+func codexResumeFlags(launch string) string {
+	fields := strings.Fields(launch)
+	var model, profile, effort string
+	for i := 0; i < len(fields); i++ {
+		token := strings.TrimRight(fields[i], ";")
+		next := ""
+		if i+1 < len(fields) {
+			next = strings.TrimRight(fields[i+1], ";")
+		}
+		switch {
+		case (token == "-m" || token == "--model") && model == "":
+			model, i = next, i+1
+		case strings.HasPrefix(token, "--model=") && model == "":
+			model = strings.TrimPrefix(token, "--model=")
+		case (token == "-p" || token == "--profile") && profile == "":
+			profile, i = next, i+1
+		case (token == "-c" || token == "--config") && strings.HasPrefix(next, "model_reasoning_effort=") && effort == "":
+			effort, i = strings.TrimPrefix(next, "model_reasoning_effort="), i+1
+		}
+	}
+	var out strings.Builder
+	if codexFlagValue.MatchString(model) {
+		out.WriteString("-m " + model + " ")
+	}
+	if codexFlagValue.MatchString(profile) {
+		out.WriteString("-p " + profile + " ")
+	}
+	if codexFlagValue.MatchString(effort) {
+		out.WriteString("-c model_reasoning_effort=" + effort + " ")
+	}
+	return out.String()
 }

@@ -132,6 +132,13 @@ func (g *OpenCodeWatcherGroup) captureForNativeSession(nativeSessionID string) *
 	return nil
 }
 
+func (g *OpenCodeWatcherGroup) ContextUsage(nativeSessionID string) (openCodeContextUsage, bool) {
+	if capture := g.captureForNativeSession(nativeSessionID); capture != nil {
+		return capture.ContextUsage(nativeSessionID)
+	}
+	return openCodeContextUsage{}, false
+}
+
 // routingOpenCodeClient sends native control calls to the capture that owns the
 // session. V1 and V2 session IDs are distinct; a single native client cannot
 // reach both servers.

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import NotificationsSection from "./NotificationsSection";
 import type { NotificationPreference } from "../../api/notifications";
-import { renderWithProviders } from "../../test-utils";
+import { chooseOption, renderWithProviders } from "../../test-utils";
 
 const notificationMocks = vi.hoisted(() => ({
   fetchNotificationCatalog: vi.fn(),
@@ -162,10 +162,11 @@ describe("NotificationsSection", () => {
 
     renderWithProviders(<NotificationsSection open />);
 
-    const select = await screen.findByTestId(
-      "notification-urgency-web-console-review",
+    await screen.findByTestId("notification-urgency-web-console-review");
+    await chooseOption(
+      "settings.notificationsSection.minUrgencyLabel: Review requests",
+      "critical",
     );
-    fireEvent.change(select, { target: { value: "critical" } });
 
     await waitFor(() => {
       expect(notificationMocks.updateNotificationPreference).toHaveBeenCalledTimes(1);

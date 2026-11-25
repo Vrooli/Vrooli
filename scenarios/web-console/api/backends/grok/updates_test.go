@@ -1,6 +1,9 @@
 package grok
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // A representative turn from grok's updates.jsonl: user prompt, a thought chunk,
 // the assistant reply, a tool call + update, then turn completion.
@@ -9,8 +12,8 @@ var sampleLines = [][]byte{
 	[]byte(`{"timestamp":2,"method":"session/update","params":{"sessionId":"s1","update":{"sessionUpdate":"agent_thought_chunk","content":{"type":"text","text":"thinking privately"}}}}`),
 	[]byte(`{"timestamp":3,"method":"session/update","params":{"sessionId":"s1","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"Hello! "}}}}`),
 	[]byte(`{"timestamp":4,"method":"session/update","params":{"sessionId":"s1","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"How can I help?"}}}}`),
-	[]byte(`{"timestamp":5,"method":"session/update","params":{"sessionId":"s1","update":{"sessionUpdate":"tool_call","toolCallId":"c1","title":"Shell"}}}`),
-	[]byte(`{"timestamp":6,"method":"session/update","params":{"sessionId":"s1","update":{"sessionUpdate":"tool_call_update","toolCallId":"c1"}}}`),
+	[]byte(`{"timestamp":5,"method":"session/update","params":{"sessionId":"s1","update":{"sessionUpdate":"tool_call","toolCallId":"c1","title":"Shell","rawInput":{"command":"pwd"}}}}`),
+	[]byte(`{"timestamp":6,"method":"session/update","params":{"sessionId":"s1","update":{"sessionUpdate":"tool_call_update","toolCallId":"c1","rawOutput":{"output_for_prompt":"/work"}}}}`),
 	[]byte(`{"timestamp":7,"method":"_x.ai/session/update","params":{"sessionId":"s1","update":{"sessionUpdate":"turn_completed","stop_reason":"end_turn"},"_meta":{"eventId":"s1-8"}}}`),
 }
 
@@ -65,9 +68,12 @@ func TestTurnAccumulator_EmitsConcatenatedTurnAtBoundary(t *testing.T) {
 	if got.User != "hi there" {
 		t.Fatalf("user text = %q, want %q", got.User, "hi there")
 	}
-	// Assistant chunks concatenate; thought + tool records contribute nothing.
+	// Assistant chunks concatenate independently from selected tool records.
 	if got.Assistant != "Hello! How can I help?" {
 		t.Fatalf("assistant text = %q, want %q", got.Assistant, "Hello! How can I help?")
+	}
+	if len(got.ToolCalls) != 2 || !strings.Contains(got.ToolCalls[0], "command") || !strings.Contains(got.ToolCalls[1], "/work") {
+		t.Fatalf("tool span = %#v", got.ToolCalls)
 	}
 }
 

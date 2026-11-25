@@ -121,6 +121,7 @@ export default function GroupTemplatesPanel() {
   }));
 
   return (
+    <>
     <SettingsList layout="aligned" variant="flush" data-testid="group-templates-panel">
       <SettingsIntro
         eyebrow={t(strings.settings.tabTemplates)}
@@ -141,6 +142,7 @@ export default function GroupTemplatesPanel() {
         </p>
       )}
 
+      <SettingsList.Group>
       <MasterDetail
         items={items}
         selectedId={selectedId}
@@ -166,6 +168,7 @@ export default function GroupTemplatesPanel() {
         )}
         renderDetail={() => null}
       />
+      </SettingsList.Group>
 
       {draft && (
         <SettingsList.Group>
@@ -301,5 +304,6 @@ export default function GroupTemplatesPanel() {
         </SettingsList.Group>
       )}
     </SettingsList>
+    </>
   );
 }

@@ -64,7 +64,7 @@ func (r *RemoteSpeakerAdmin) GetSpeakerConfig(ctx context.Context) (SpeakerConfi
 	}
 	req := connect.NewRequest(&sttv1.GetSpeakerConfigRequest{})
 	r.attach(req, ctx)
-	resp, err := r.Client.STTAdmin.GetSpeakerConfig(ctx, req)
+	resp, err := r.Client.Clients().STTAdmin.GetSpeakerConfig(ctx, req)
 	if err != nil {
 		return SpeakerConfig{}, r.handleErr(err)
 	}
@@ -86,7 +86,7 @@ func (r *RemoteSpeakerAdmin) UpdateSpeakerConfig(ctx context.Context, mask Field
 		Config:     speakerConfigToProto(cfg),
 	})
 	r.attach(req, ctx)
-	resp, err := r.Client.STTAdmin.UpdateSpeakerConfig(ctx, req)
+	resp, err := r.Client.Clients().STTAdmin.UpdateSpeakerConfig(ctx, req)
 	if err != nil {
 		return SpeakerConfig{}, r.handleErr(err)
 	}
@@ -102,7 +102,7 @@ func (r *RemoteSpeakerAdmin) GetSpeakerStatus(ctx context.Context) (SpeakerStatu
 	}
 	req := connect.NewRequest(&sttv1.GetSpeakerStatusRequest{})
 	r.attach(req, ctx)
-	resp, err := r.Client.STTAdmin.GetSpeakerStatus(ctx, req)
+	resp, err := r.Client.Clients().STTAdmin.GetSpeakerStatus(ctx, req)
 	if err != nil {
 		return SpeakerStatus{}, r.handleErr(err)
 	}
@@ -118,7 +118,7 @@ func (r *RemoteSpeakerAdmin) ListSpeakerProfiles(ctx context.Context) ([]Speaker
 	}
 	req := connect.NewRequest(&sttv1.ListSpeakerProfilesRequest{})
 	r.attach(req, ctx)
-	resp, err := r.Client.STTAdmin.ListSpeakerProfiles(ctx, req)
+	resp, err := r.Client.Clients().STTAdmin.ListSpeakerProfiles(ctx, req)
 	if err != nil {
 		return nil, r.handleErr(err)
 	}
@@ -153,7 +153,7 @@ func (r *RemoteSpeakerAdmin) EnrollSpeakerProfile(ctx context.Context, in Enroll
 	}
 	req := connect.NewRequest(pbReq)
 	r.attach(req, ctx)
-	resp, err := r.Client.STTAdmin.EnrollSpeakerProfile(ctx, req)
+	resp, err := r.Client.Clients().STTAdmin.EnrollSpeakerProfile(ctx, req)
 	if err != nil {
 		return SpeakerEnrollResult{}, r.handleErr(err)
 	}
@@ -172,7 +172,7 @@ func (r *RemoteSpeakerAdmin) ClearSpeakerProfileBinding(ctx context.Context) (Sp
 	}
 	req := connect.NewRequest(&sttv1.ClearSpeakerProfileBindingRequest{})
 	r.attach(req, ctx)
-	resp, err := r.Client.STTAdmin.ClearSpeakerProfileBinding(ctx, req)
+	resp, err := r.Client.Clients().STTAdmin.ClearSpeakerProfileBinding(ctx, req)
 	if err != nil {
 		return SpeakerConfig{}, r.handleErr(err)
 	}
@@ -191,7 +191,7 @@ func (r *RemoteSpeakerAdmin) UnbindSpeakerProfile(ctx context.Context, profileID
 	}
 	req := connect.NewRequest(&sttv1.UnbindSpeakerProfileRequest{ProfileId: profileID})
 	r.attach(req, ctx)
-	resp, err := r.Client.STTAdmin.UnbindSpeakerProfile(ctx, req)
+	resp, err := r.Client.Clients().STTAdmin.UnbindSpeakerProfile(ctx, req)
 	if err != nil {
 		return SpeakerConfig{}, r.handleErr(err)
 	}
@@ -210,7 +210,7 @@ func (r *RemoteSpeakerAdmin) DeleteSpeakerProfile(ctx context.Context, profileID
 	}
 	req := connect.NewRequest(&sttv1.DeleteSpeakerProfileRequest{ProfileId: profileID})
 	r.attach(req, ctx)
-	resp, err := r.Client.STTAdmin.DeleteSpeakerProfile(ctx, req)
+	resp, err := r.Client.Clients().STTAdmin.DeleteSpeakerProfile(ctx, req)
 	if err != nil {
 		return SpeakerConfig{}, r.handleErr(err)
 	}

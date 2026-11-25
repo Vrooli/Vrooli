@@ -29,6 +29,7 @@ export interface ConversationEvent {
   originalSpeechParagraphs?: string[];
   summarized: boolean;
   createdAt: string;
+  occurredAt?: string;
   sequence: number;
   deliveryState: string;
   ttsState: string;
@@ -138,6 +139,10 @@ interface ProtoConversationEvent {
   originalSpeechParagraphs: string[];
   summarized: boolean;
   createdAt: string;
+  // Optional while older installed proto-types workspace snapshots are still
+  // in use. Current descriptors populate it; an older descriptor decodes it
+  // as absent, which must remain unknown rather than inferred from createdAt.
+  occurredAt?: string;
   sequence: bigint;
   deliveryState: string;
   ttsState: string;
@@ -161,6 +166,7 @@ function decodeConversationEvent(e: ProtoConversationEvent): ConversationEvent {
     originalSpeechParagraphs: e.originalSpeechParagraphs.length > 0 ? e.originalSpeechParagraphs : undefined,
     summarized: e.summarized,
     createdAt: e.createdAt,
+    ...(e.occurredAt ? { occurredAt: e.occurredAt } : {}),
     sequence: Number(e.sequence),
     deliveryState: e.deliveryState,
     ttsState: e.ttsState,
@@ -236,6 +242,7 @@ export interface ConversationSearchMatch {
   /** Who wrote it and when, so a hit outside the loaded window lists honestly. */
   role: "user" | "assistant";
   createdAt: string;
+  occurredAt?: string;
 }
 export interface ConversationSearchResponse {
   matches: ConversationSearchMatch[];
@@ -285,6 +292,9 @@ export async function searchConversation(sessionId: string, query: string, optio
       ranges: match.ranges.map((range) => ({ start: range.start, end: range.end })),
       role: match.role === "user" ? "user" as const : "assistant" as const,
       createdAt: match.createdAt,
+      ...((match as typeof match & { occurredAt?: string }).occurredAt
+        ? { occurredAt: (match as typeof match & { occurredAt?: string }).occurredAt }
+        : {}),
     })),
     truncated: response.truncated,
     totalMatches: Number(response.totalMatches),
@@ -300,6 +310,7 @@ export interface ArchivedConversationSearchMatch {
   sequence: number;
   role: string;
   createdAt: string;
+  occurredAt?: string;
   excerpt: string;
 }
 
@@ -335,6 +346,9 @@ export async function searchArchivedConversations(
       sequence: Number(match.sequence),
       role: match.role,
       createdAt: match.createdAt,
+      ...((match as typeof match & { occurredAt?: string }).occurredAt
+        ? { occurredAt: (match as typeof match & { occurredAt?: string }).occurredAt }
+        : {}),
       excerpt: match.excerpt,
     })),
     truncated: response.truncated,
@@ -343,14 +357,155 @@ export async function searchArchivedConversations(
   };
 }
 
-export async function getConversationRange(sessionId: string, fromSequence: number, toSequence: number): Promise<ConversationSessionResponse> {
-  const response = await conversationClient.getRange({ sessionId, fromSequence: BigInt(fromSequence), toSequence: BigInt(toSequence) });
-  return {
-    sessionId: response.sessionId,
-    events: response.events.map(decodeConversationEvent),
-    cursor: decodeConversationCursor(response.cursor),
-    capture: decodeCaptureStatus(response.capture),
+export interface SemanticArchiveSearchResponse {
+  local: ArchivedConversationSearchResponse;
+  semanticAvailable: boolean;
+  semanticError: string;
+  semanticTookMs: number;
+  semanticHits: Array<{
+    stableHitId: string;
+    eventId: string;
+    role: string;
+    occurredAt: string;
+    snippet: string;
+    harness: string;
+    sourceSessionId: string;
+    weak: boolean;
+  }>;
+  coverage?: {
+    canonicalVisibleMessages: number;
+    catalogDocuments: number;
+    lexicalDocuments: number;
+    semanticDocuments: number;
+    pendingDocuments: number;
+    deletedDocuments: number;
+    lexicalRatio: number;
+    semanticRatio: number;
+    freshnessLagMs: number;
   };
+  degradations: Array<{ reason: string; leg: string; detail: string; retryable: boolean }>;
+}
+
+/** Searches Web Console's own archive and includes Agent Manager only as an optional leg. */
+export async function searchSemanticConversations(
+  query: string,
+  filters: ArchivedConversationSearchFilters = {},
+  limit = 100,
+): Promise<SemanticArchiveSearchResponse> {
+  const response = await conversationClient.searchSemantic({
+    query,
+    limit,
+    harnesses: filters.agentType && filters.agentType !== "none" ? [filters.agentType] : [],
+  });
+  const local = response.local;
+  const coverage = response.coverage;
+  return {
+    local: {
+      matches: (local?.matches ?? []).map((match) => ({
+        eventId: match.eventId,
+        sessionId: match.sessionId,
+        sequence: Number(match.sequence),
+        role: match.role,
+        createdAt: match.createdAt,
+        ...((match as typeof match & { occurredAt?: string }).occurredAt
+          ? { occurredAt: (match as typeof match & { occurredAt?: string }).occurredAt }
+          : {}),
+        excerpt: match.excerpt,
+      })),
+      truncated: local?.truncated ?? false,
+      totalMatches: Number(local?.totalMatches ?? 0n),
+      distinctSessions: Number(local?.distinctSessions ?? 0n),
+    },
+    semanticAvailable: response.semanticAvailable,
+    semanticError: response.semanticError,
+    semanticTookMs: Number(response.semanticTookMs),
+    semanticHits: response.semanticHits.map((hit) => ({
+      stableHitId: hit.stableHitId,
+      eventId: hit.eventId,
+      role: hit.role,
+      occurredAt: hit.occurredAt,
+      snippet: hit.snippet,
+      harness: hit.harness,
+      sourceSessionId: hit.sourceSessionId,
+      weak: hit.weak,
+    })),
+    ...(coverage ? { coverage: {
+      canonicalVisibleMessages: Number(coverage.canonicalVisibleMessages),
+      catalogDocuments: Number(coverage.catalogDocuments),
+      lexicalDocuments: Number(coverage.lexicalDocuments),
+      semanticDocuments: Number(coverage.semanticDocuments),
+      pendingDocuments: Number(coverage.pendingDocuments),
+      deletedDocuments: Number(coverage.deletedDocuments),
+      lexicalRatio: coverage.lexicalRatio,
+      semanticRatio: coverage.semanticRatio,
+      freshnessLagMs: Number(coverage.freshnessLagMs),
+    } } : {}),
+    degradations: response.degradations.map((item) => ({ reason: item.reason, leg: item.leg, detail: item.detail, retryable: item.retryable })),
+  };
+}
+
+export interface NodeArchiveSearchResponse {
+  nodeId: string;
+  available: boolean;
+  degradation: string;
+  search: ArchivedConversationSearchResponse;
+}
+
+/** Sends an archive query to one explicitly selected node. */
+export async function searchNodeArchive(
+  nodeId: string,
+  query: string,
+  filters: ArchivedConversationSearchFilters = {},
+  limit = 100,
+): Promise<NodeArchiveSearchResponse> {
+  const response = await conversationClient.searchNodeArchive({
+    nodeId,
+    query,
+    harness: filters.agentType ?? "",
+    role: filters.role ?? "",
+    limit,
+  });
+  const search = response.search;
+  return {
+    nodeId: response.nodeId,
+    available: response.available,
+    degradation: response.degradation,
+    search: {
+      matches: (search?.matches ?? []).map((match) => ({
+        eventId: match.eventId,
+        sessionId: match.sessionId,
+        sequence: Number(match.sequence),
+        role: match.role,
+        createdAt: match.createdAt,
+        ...((match as typeof match & { occurredAt?: string }).occurredAt
+          ? { occurredAt: (match as typeof match & { occurredAt?: string }).occurredAt }
+          : {}),
+        excerpt: match.excerpt,
+      })),
+      truncated: search?.truncated ?? false,
+      totalMatches: Number(search?.totalMatches ?? 0n),
+      distinctSessions: Number(search?.distinctSessions ?? 0n),
+    },
+  };
+}
+
+export async function getConversationRange(sessionId: string, fromSequence: number, toSequence: number): Promise<ConversationSessionResponse> {
+  // The API bounds each range to 5,000 events. Sequence numbers are dense for
+  // stored events, so inclusive windows of 5,000 sequence values also bound
+  // sparse/deleted histories without guessing the number of events.
+  const events: ConversationEvent[] = [];
+  let cursor: ConversationCursor = decodeConversationCursor(undefined);
+  let capture: MessageCaptureStatus = decodeCaptureStatus(undefined);
+  let responseSessionId = sessionId;
+  for (let start = fromSequence; start <= toSequence; start += 5000) {
+    const end = Math.min(toSequence, start + 4999);
+    const response = await conversationClient.getRange({ sessionId, fromSequence: BigInt(start), toSequence: BigInt(end) });
+    responseSessionId = response.sessionId || responseSessionId;
+    events.push(...response.events.map(decodeConversationEvent));
+    cursor = decodeConversationCursor(response.cursor);
+    capture = decodeCaptureStatus(response.capture);
+  }
+  return { sessionId: responseSessionId, events, cursor, capture };
 }
 
 export interface ResolveConversationEventsResponse {
