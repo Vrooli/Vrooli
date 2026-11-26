@@ -33,7 +33,7 @@ describe("FileList view components", () => {
 
     renderWithQueryClient(<FileListMobileActions {...groupedProps} />);
 
-    await user.click(screen.getByRole("button", { name: /View Metrics/i }));
+    await user.click(screen.getByRole("button", { name: /View file metrics/i }));
     expect(groupedProps.openFileMetrics).toHaveBeenCalledWith("src/changed.ts", "unstaged");
     expect(groupedProps.onClose).toHaveBeenCalledTimes(1);
 
@@ -43,7 +43,7 @@ describe("FileList view components", () => {
     await user.click(screen.getByRole("button", { name: /Ignore \(Source\)/i }));
     expect(groupedProps.onIgnoreFile).toHaveBeenCalledWith("src/changed.ts", "group", "src/");
 
-    await user.click(screen.getByRole("button", { name: /Discard Changes/i }));
+    await user.click(screen.getByRole("button", { name: /Discard changes/i }));
     expect(groupedProps.onDiscardFile).toHaveBeenCalledWith("src/changed.ts", false);
   });
 });

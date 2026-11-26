@@ -12,6 +12,7 @@ import {
   sharedPresentationFromResponse,
 } from "../api/experience";
 import { PageFrame } from "../components/PageFrame";
+import { ObservedBehaviorPanel } from "../components/ObservedBehaviorPanel";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
@@ -79,6 +80,7 @@ export function FindingsPage() {
         loading={providerValidation.isLoading}
         unavailable={providerValidation.isError}
       />
+      <ObservedBehaviorPanel scenario={scenario} />
       <ul
         data-testid={selectors.experience.findings.findingsList}
         aria-label={t(strings.experience.findings.listLabel)}

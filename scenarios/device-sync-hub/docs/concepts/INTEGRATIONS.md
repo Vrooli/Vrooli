@@ -22,18 +22,18 @@ Use this document to answer:
 | SQLite (api-core/storage) | embedded storage | yes | devices, transfer, settings | resolved by `api-core/storage` from the scenario id, `data` storage class | API reports unhealthy if unreachable. |
 | api-core/blobstore | embedded storage | yes | transfer | BlobStore seam under the `data` class | Upload/download fail; API health degrades. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario must be started through lifecycle commands. |
-| Redis | resource | optional | realtime | presence registry + pairing-code TTL cache | **Graceful degradation** to in-memory; single-instance only. |
+| Redis | resource (declared optional) | not consumed by current API | none today | Manifest purpose proposes cross-instance presence and auth-token caching; no Redis client exists in the current Go service. | No Redis-specific runtime behavior today; presence remains process-local and pairing-code validation uses SQLite. |
 
 ## Vrooli Resources
 
 | Resource | Status | Reason | Revisit Trigger |
 |---|---|---|---|
-| Redis | optional | Backs cross-instance WebSocket presence and a short-TTL pairing-code validation cache. Without it, presence and the cache run in-memory (single-instance). | Multi-instance scale-out, where in-memory presence cannot span processes. |
+| Redis | declared optional; not currently consumed | The manifest describes future cross-instance presence/auth-token caching, but the current Go service opens no Redis connection. | Implement and verify a Redis client seam before claiming cross-instance presence or Redis-backed cache behavior. |
 
-When Redis is absent, `realtime` keeps presence in a process-local
-registry and `devices` validates pairing codes directly against SQLite.
-The scenario is fully functional single-instance without Redis; adding
-it is a scale-out lever, not a correctness requirement.
+With or without a running Redis resource, the current API keeps presence in a
+process-local registry and validates pairing codes against SQLite. Redis
+startup does not change current runtime behavior; multi-instance sharing needs
+an implementation path before it can be claimed.
 
 ## Scenario Dependencies
 
@@ -98,7 +98,7 @@ owner-gated RPCs reject. There is no shipped test-mode bypass. See
 | scenario-authenticator | validate/login HTTP error or timeout | Gated requests rejected (fail closed); `/health` reports authenticator unreachable. | auth middleware + health tests |
 | SQLite | `PingContext` error | `/health` returns unhealthy dependency status. | health handler tests |
 | api-core/blobstore | read/write error | Upload/download fail with typed errors; health degrades. | transfer handler tests |
-| Redis (optional) | connection error | Fall back to in-memory presence and cache; log + continue. | realtime degradation tests |
+| Redis declaration without a client | Resource starts or stops | No runtime change: presence remains in-memory and pairing-code validation stays SQLite-backed. | No Redis client path is currently implemented. |
 
 ## Cross-References
 

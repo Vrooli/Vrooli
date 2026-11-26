@@ -292,6 +292,13 @@ func TestRequestCloudTeardownRefusesMissingTypedAcquisitionReceipt(t *testing.T)
 func teardownTestRequest(t *testing.T, provider string) DeployRequest {
 	t.Helper()
 	request := acquireDeployRequest()
+	if provider == "adopted-vps" {
+		// This fixture models an already-selected CM-owned adopted target, not a
+		// new Hetzner A2 acquisition. Its receipt is still exact and approved,
+		// while the acquire policy plan is absent by design.
+		request.CloudAcquireCompute = false
+		request.CloudAcquirePlan = nil
+	}
 	request.CloudComputeManagerInstanceID = "cm-fixture-1"
 	request.CloudManifest, _ = bindCloudManifestInstance(request.CloudManifest, request.CloudComputeManagerInstanceID)
 	request.CloudSpendQuoteIdempotencyKey = request.CloudAcquireIdempotencyKey
@@ -305,6 +312,7 @@ func teardownTestRequest(t *testing.T, provider string) DeployRequest {
 	response.Instance.ExpiresAt = timestamppb.New(time.Date(2026, 11, 25, 12, 0, 0, 0, time.UTC))
 	response.SpendReceipt.Currency, response.SpendReceipt.CapCurrency, response.SpendReceipt.TaxBasis, response.SpendReceipt.CapTaxBasis = "USD", "USD", "pre-tax", "pre-tax"
 	response.SpendReceipt.TotalMinorPerMonth, response.SpendReceipt.CapMonthlyMinor = 709, 709
+	response.SpendReceipt.Provider = provider
 	response.SpendReceipt.ObservedAt = timestamppb.New(time.Date(2026, 11, 24, 11, 0, 0, 0, time.UTC))
 	response.SpendReceipt.ExpiresAt = timestamppb.New(time.Date(2026, 11, 26, 12, 0, 0, 0, time.UTC))
 	response.SpendReceipt.PriceProvenanceFingerprint = "sha256:fixture-price"

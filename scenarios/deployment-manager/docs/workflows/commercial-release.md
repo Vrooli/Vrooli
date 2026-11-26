@@ -1,14 +1,17 @@
 # Commercial release runbook
 
-This runbook drives one governed Tier-2 desktop release from a built scenario
+This runbook drives one governed deployment Tier 2 desktop release from a built scenario
 into the Landing Page Business Suite (LPBS) download catalog. It is the operator
 sequence for the commercial path. It repeats no target implementation details:
 the desktop ramp is owned by
 [scenario-to-desktop](../../../scenario-to-desktop/docs/OVERVIEW.md), the catalog
 and update feed are owned by
-[landing-page-business-suite](../../landing-page-business-suite/docs/reference/api/OVERVIEW.md),
+[landing-page-business-suite](../../../landing-page-business-suite/docs/reference/api/OVERVIEW.md),
 and the release identity and evidence rules are owned by the
 [evidence contract](../guides/evidence-contract.md).
+
+The profile's `--tier 2` value names the technical desktop target. It is not a
+commercial subscription tier; see the [Deployment Hub vocabulary](../../../../docs/deployment/README.md#two-tier-vocabularies).
 
 ## Planes and ownership
 

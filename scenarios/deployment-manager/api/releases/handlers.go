@@ -151,6 +151,7 @@ type DeployRequest struct {
 	CloudAcquireCompute           bool
 	CloudAcquireRegion            string
 	CloudAcquireIdempotencyKey    string
+	CloudAcquirePlan              *CloudAcquirePlan
 	CloudEnrollmentIdempotencyKey string
 	CloudAcquireReceipt           *CloudAcquireReceipt
 	CloudTeardownReceipt          *CloudTeardownReceipt
@@ -186,6 +187,7 @@ type durableDeployRequest struct {
 	CloudAcquireCompute           bool                      `json:"cloud_acquire_compute,omitempty"`
 	CloudAcquireRegion            string                    `json:"cloud_acquire_region,omitempty"`
 	CloudAcquireIdempotencyKey    string                    `json:"cloud_acquire_idempotency_key,omitempty"`
+	CloudAcquirePlan              *CloudAcquirePlan         `json:"cloud_acquire_plan,omitempty"`
 	CloudEnrollmentIdempotencyKey string                    `json:"cloud_enrollment_idempotency_key,omitempty"`
 	CloudAcquireReceipt           *CloudAcquireReceipt      `json:"cloud_acquire_receipt,omitempty"`
 	CloudTeardownReceipt          *CloudTeardownReceipt     `json:"cloud_teardown_receipt,omitempty"`
@@ -194,6 +196,13 @@ type durableDeployRequest struct {
 }
 
 func snapshotForDeployRequest(request DeployRequest) (json.RawMessage, error) {
+	if request.CloudAcquireCompute && request.CloudAcquirePlan == nil {
+		plan, err := canonicalCloudAcquirePlan(request.ProfileID, request.CloudAcquireRegion, request.CloudAcquireIdempotencyKey)
+		if err != nil {
+			return nil, fmt.Errorf("snapshot acquisition plan: %w", err)
+		}
+		request.CloudAcquirePlan = &plan
+	}
 	return json.Marshal(durableDeployRequest{
 		ProfileID: request.ProfileID, ReleaseID: request.ReleaseID, Channel: request.Channel,
 		Platforms: append([]string(nil), request.Platforms...), GitCommitHash: request.GitCommitHash,
@@ -208,6 +217,7 @@ func snapshotForDeployRequest(request DeployRequest) (json.RawMessage, error) {
 		CloudComputeManagerInstanceID: request.CloudComputeManagerInstanceID,
 		CloudAcquireCompute:           request.CloudAcquireCompute, CloudAcquireRegion: request.CloudAcquireRegion,
 		CloudAcquireIdempotencyKey:    request.CloudAcquireIdempotencyKey,
+		CloudAcquirePlan:              cloneCloudAcquirePlan(request.CloudAcquirePlan),
 		CloudEnrollmentIdempotencyKey: request.CloudEnrollmentIdempotencyKey,
 		CloudAcquireReceipt:           cloneCloudAcquireReceipt(request.CloudAcquireReceipt),
 		CloudTeardownReceipt:          cloneCloudTeardownReceipt(request.CloudTeardownReceipt),
@@ -224,7 +234,7 @@ func deployRequestFromSnapshot(snapshot json.RawMessage, authorize func(context.
 	if err := json.Unmarshal(snapshot, &durable); err != nil {
 		return DeployRequest{}, fmt.Errorf("decode durable execution request snapshot: %w", err)
 	}
-	return DeployRequest{
+	request := DeployRequest{
 		ProfileID: durable.ProfileID, ReleaseID: durable.ReleaseID, Channel: durable.Channel,
 		Platforms: append([]string(nil), durable.Platforms...), GitCommitHash: durable.GitCommitHash,
 		ArtifactDigest: durable.ArtifactDigest, ReleaseVersion: durable.ReleaseVersion,
@@ -238,12 +248,24 @@ func deployRequestFromSnapshot(snapshot json.RawMessage, authorize func(context.
 		CloudComputeManagerInstanceID: durable.CloudComputeManagerInstanceID,
 		CloudAcquireCompute:           durable.CloudAcquireCompute, CloudAcquireRegion: durable.CloudAcquireRegion,
 		CloudAcquireIdempotencyKey:    durable.CloudAcquireIdempotencyKey,
+		CloudAcquirePlan:              cloneCloudAcquirePlan(durable.CloudAcquirePlan),
 		CloudEnrollmentIdempotencyKey: durable.CloudEnrollmentIdempotencyKey,
 		CloudAcquireReceipt:           cloneCloudAcquireReceipt(durable.CloudAcquireReceipt),
 		CloudTeardownReceipt:          cloneCloudTeardownReceipt(durable.CloudTeardownReceipt),
 		CloudLeaseRenewalReceipt:      cloneCloudLeaseRenewalReceipt(durable.CloudLeaseRenewalReceipt),
 		CloudEnrollmentReceipt:        append(json.RawMessage(nil), durable.CloudEnrollmentReceipt...),
-	}, nil
+	}
+	// Older durable snapshots predate the explicit plan. The approved A2
+	// profile has one immutable provider/offer/cap policy, so reconstruct that
+	// canonical plan from the saved profile, region, and stable request key.
+	if request.CloudAcquireCompute && request.CloudAcquirePlan == nil {
+		plan, err := canonicalCloudAcquirePlan(request.ProfileID, request.CloudAcquireRegion, request.CloudAcquireIdempotencyKey)
+		if err != nil {
+			return DeployRequest{}, fmt.Errorf("legacy acquisition snapshot cannot be upgraded safely: %w", err)
+		}
+		request.CloudAcquirePlan = &plan
+	}
+	return request, nil
 }
 
 // DeployResult is the minimal response surface the release handler needs
@@ -1698,6 +1720,14 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		CloudAcquireIdempotencyKey:    body.CloudAcquireIdempotencyKey,
 		CloudEnrollmentIdempotencyKey: enrollmentKey,
 	}
+	if request.CloudAcquireCompute {
+		plan, planErr := canonicalCloudAcquirePlan(request.ProfileID, request.CloudAcquireRegion, request.CloudAcquireIdempotencyKey)
+		if planErr != nil {
+			shared.JSONError(w, fmt.Sprintf("prepare durable Compute Manager acquisition plan: %v", planErr), http.StatusPreconditionFailed)
+			return
+		}
+		request.CloudAcquirePlan = &plan
+	}
 	requestSnapshot, snapshotErr := snapshotForDeployRequest(request)
 	if snapshotErr != nil {
 		shared.JSONError(w, fmt.Sprintf("snapshot release operation request: %v", snapshotErr), http.StatusBadRequest)
@@ -1883,6 +1913,11 @@ func (h *Handler) executeReleaseWithLease(leaseCtx context.Context, operationID,
 		}
 	}
 	if request.CloudAcquireCompute {
+		if err := validateCloudAcquirePlan(request.CloudAcquirePlan, request.ProfileID, request.CloudAcquireRegion, request.CloudAcquireIdempotencyKey, request.CloudSpendQuoteIdempotencyKey); err != nil {
+			h.persistExecutionOutcome(leaseCtx, operationID, releaseID, lease, StatusFailed, OperationFailed, "acquire-blocked", err.Error())
+			return
+		}
+		plan := request.CloudAcquirePlan
 		if err := h.updateOperation(leaseCtx, operationID, lease, OperationRunning, "acquire", "Requesting the approved compute profile through Compute Manager"); err != nil {
 			h.logExecutionPersistenceFailure(operationID, releaseID, "mark compute acquisition", err)
 			return
@@ -1892,8 +1927,8 @@ func (h *Handler) executeReleaseWithLease(leaseCtx context.Context, operationID,
 			return
 		}
 		acquired, acquireErr := h.cloudComputeAcquirer.AcquireCloudCompute(leaseCtx, CloudAcquireRequest{
-			IdempotencyKey: request.CloudAcquireIdempotencyKey, Provider: "hetzner", Region: request.CloudAcquireRegion,
-			Size: "cx23", CapCurrency: "USD", CapMonthlyMinor: 709, CapTaxBasis: "pre-tax",
+			IdempotencyKey: plan.AcquireIdempotencyKey, Provider: plan.Provider, Region: plan.Region,
+			Size: plan.Size, CapCurrency: plan.CapCurrency, CapMonthlyMinor: plan.CapMonthlyMinor, CapTaxBasis: plan.CapTaxBasis,
 		})
 		if acquireErr != nil {
 			if errors.Is(acquireErr, ErrCloudAcquireAmbiguous) {

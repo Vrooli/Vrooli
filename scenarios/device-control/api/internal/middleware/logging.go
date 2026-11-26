@@ -16,7 +16,7 @@ type Clock interface {
 }
 
 // NewLoggingMiddleware returns a middleware that logs each request's
-// method, URI, and elapsed duration. Time and logging are supplied by the
+// method, path, and elapsed duration without query strings or bodies. Time and logging are supplied by the
 // composition root so tests can control both dependencies.
 func NewLoggingMiddleware(clk Clock, logger *log.Logger) func(http.Handler) http.Handler {
 	if clk == nil {
@@ -29,7 +29,9 @@ func NewLoggingMiddleware(clk Clock, logger *log.Logger) func(http.Handler) http
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := clk.Now()
 			next.ServeHTTP(w, r)
-			logger.Printf("[%s] %s %s", r.Method, r.RequestURI, clk.Now().Sub(start))
+			// Query strings can carry credentials or media/control material in
+			// integrations. Log the route path only; request bodies are untouched.
+			logger.Printf("[%s] %s %s", r.Method, r.URL.Path, clk.Now().Sub(start))
 		})
 	}
 }

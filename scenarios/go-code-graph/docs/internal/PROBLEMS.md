@@ -85,17 +85,17 @@ Use this section for deferred findings from `architecture-lenses`. Do not create
 
 ### 2026-05-23 — Extended method-set coverage not implemented
 
-**Symptom:** REQ-P1-004 calls for extended Go method-set coverage on `GO_METHOD` nodes — capturing interface satisfaction, embedded-type promotion, and pointer-vs-value receivers. Today `Normalize()` emits `GO_METHOD` nodes with name/path/exported attributes but no method-set metadata.
+**Symptom:** REQ-P1-004 requires receiver, embedded-field, and interface-implementation relationships. `packages/api-core/gograph.Normalize` emits method nodes and receiver facts, but not `RECEIVER_OF`, `EMBEDS`, or `IMPLEMENTS` graph edges.
 
-**Root cause:** Deferred from v1; the `go/types` extraction needed is substantially more involved than the v1 normalization pass.
+**Root cause:** Deferred from v1. Normalization now lives in shared `api-core/gograph`, not the former scenario-local graph package.
 
-**Workaround:** Consumers that need method-set semantics (cartographer's interface-conformance heuristics) compute them themselves from the raw nodes + edges.
+**Workaround:** Consumers must perform their own analysis or leave affected signals unavailable; the graph does not provide these relationships.
 
-**Real fix:** REQ-P1-004 — extend `Normalize()` to walk `types.Package.Scope()` for each loaded package, identify method sets via `types.NewMethodSet`, and emit `attributes["method_set"]` (or a richer set of attributes) plus interface-conformance edges.
+**Real fix:** Extend the shared graph types and normalizer with deterministic relationships from `requirements/14-extended-method-set-coverage/module.json`, then verify fixtures and consumers.
 
-**Owner:** Next graph-domain implementation pass.
+**Owner:** `api-core/gograph` (implementation), Go Code Graph (fixtures/transport), Architecture Cartographer (consumer verification).
 
-**Refs:** `internal/graph/normalize.go`, `requirements/01-deterministic-graph-extraction/module.json` (REQ-P1-004).
+**Refs:** `packages/api-core/gograph/{normalize.go,types.go}`, `api/internal/graph/normalize_test.go`, `requirements/14-extended-method-set-coverage/module.json` (REQ-P1-004), `scenarios/architecture-cartographer/api/internal/graph/gocodegraph/client.go`.
 
 ## Work ladder
 

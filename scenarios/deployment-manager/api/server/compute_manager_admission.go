@@ -8,14 +8,14 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"deployment-manager/releases"
 	"github.com/vrooli/api-core/discovery"
 	instancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/compute-manager/v1/instance"
 	instanceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/compute-manager/v1/instance/instance_v1connect"
 )
 
 const (
-	webConsoleStagingProfile = "web-console/staging"
-	a2MonthlyCapMinor        = int64(709)
+	webConsoleStagingProfile = releases.CloudA2ProfileID
 )
 
 type cloudComputeAdmissionVerifier struct {
@@ -65,16 +65,17 @@ func (v *cloudComputeAdmissionVerifier) VerifyCloudComputeAdmission(ctx context.
 	if quote.GetAdmissionDecision() != "approved" || quote.GetQuoteState() != "approved" {
 		return fmt.Errorf("Compute Manager quote/admission is %q/%q, not approved", quote.GetQuoteState(), quote.GetAdmissionDecision())
 	}
-	if quote.GetProvider() != "hetzner" || strings.ToLower(quote.GetSize()) != "cx23" || (strings.ToLower(quote.GetRegion()) != "nbg1" && strings.ToLower(quote.GetRegion()) != "fsn1") {
+	plan, planErr := releases.A2CloudAcquirePlan(quote.GetRegion(), quoteKey)
+	if planErr != nil || quote.GetProvider() != plan.Provider || strings.ToLower(quote.GetSize()) != plan.Size {
 		return fmt.Errorf("A2 permits only a Hetzner CX23 in NBG1 or FSN1")
 	}
-	if !strings.Contains(strings.ToLower(quote.GetOfferId()), "cx23") {
+	if !strings.Contains(strings.ToLower(quote.GetOfferId()), plan.Size) {
 		return fmt.Errorf("persisted offer ID does not identify the approved CX23 size")
 	}
-	if !quote.GetIpv4() || quote.GetTerm() != "monthly" || quote.GetCurrency() != "USD" || quote.GetTaxBasis() != "pre-tax" || quote.GetServerMinorPerMonth() < 0 || quote.GetIpv4MinorPerMonth() < 0 || quote.GetTotalMinorPerMonth() != quote.GetServerMinorPerMonth()+quote.GetIpv4MinorPerMonth() || quote.GetTotalMinorPerMonth() > a2MonthlyCapMinor {
+	if !quote.GetIpv4() || quote.GetTerm() != "monthly" || quote.GetCurrency() != plan.CapCurrency || quote.GetTaxBasis() != plan.CapTaxBasis || quote.GetServerMinorPerMonth() < 0 || quote.GetIpv4MinorPerMonth() < 0 || quote.GetTotalMinorPerMonth() != quote.GetServerMinorPerMonth()+quote.GetIpv4MinorPerMonth() || quote.GetTotalMinorPerMonth() > plan.CapMonthlyMinor {
 		return fmt.Errorf("persisted quote exceeds or mismatches the A2 USD 709/month pre-tax cap")
 	}
-	if quote.GetCapCurrency() != "USD" || quote.GetCapMonthlyMinor() != a2MonthlyCapMinor || quote.GetCapTaxBasis() != "pre-tax" {
+	if quote.GetCapCurrency() != plan.CapCurrency || quote.GetCapMonthlyMinor() != plan.CapMonthlyMinor || quote.GetCapTaxBasis() != plan.CapTaxBasis {
 		return fmt.Errorf("persisted Compute Manager admission is not bound to the approved A2 cap")
 	}
 	if strings.TrimSpace(quote.GetSourceUrl()) == "" || strings.TrimSpace(quote.GetSourceVersion()) == "" || quote.GetObservedAt() == nil || quote.GetExpiresAt() == nil {
@@ -101,7 +102,7 @@ func (v *cloudComputeAdmissionVerifier) VerifyCloudComputeAdmission(ctx context.
 	if instance == nil || instance.GetId() != instanceID {
 		return fmt.Errorf("Compute Manager returned no exact instance reference")
 	}
-	if instance.GetProvider() != "hetzner" || strings.ToLower(instance.GetSize()) != "cx23" || (strings.ToLower(instance.GetRegion()) != "nbg1" && strings.ToLower(instance.GetRegion()) != "fsn1") {
+	if instance.GetProvider() != plan.Provider || strings.ToLower(instance.GetSize()) != plan.Size || strings.ToLower(instance.GetRegion()) != plan.Region {
 		return fmt.Errorf("Compute Manager instance does not match the approved Hetzner CX23 region constraints")
 	}
 	if instance.GetState() != instancev1.InstanceState_INSTANCE_STATE_RUNNING || strings.TrimSpace(instance.GetAddress()) == "" {

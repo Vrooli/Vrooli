@@ -6,49 +6,32 @@ import (
 	capabilityregistry "github.com/vrooli/vrooli/packages/capability-registry-go"
 )
 
-// TestKnownDefinitionsAreComplete guards the declared capability surface: an
-// entry missing an id, a dependency slug, or an operator action is not
-// actionable by the console or by an agent, and the omission is silent.
-func TestKnownDefinitionsAreComplete(t *testing.T) {
-	if len(Known) == 0 {
-		t.Fatal("Known is empty; the capability surface declares nothing")
+func TestNewRegistryProjectsOwningServiceManifest(t *testing.T) {
+	manifest, err := capabilityregistry.FindServiceManifest()
+	if err != nil {
+		t.Fatal(err)
 	}
-	seen := map[string]bool{}
-	for _, def := range Known {
-		if def.ID == "" {
-			t.Error("capability definition has no ID")
-			continue
-		}
-		if seen[def.ID] {
-			t.Errorf("capability %q is declared more than once", def.ID)
-		}
-		seen[def.ID] = true
-		if def.Name == "" || def.Description == "" {
-			t.Errorf("capability %q must carry a name and a description", def.ID)
-		}
-		if def.DependencySlug == "" {
-			t.Errorf("capability %q must name the dependency it needs", def.ID)
-		}
-		if def.OperatorCommand == "" || def.ActionLabel == "" {
-			t.Errorf("capability %q must offer an operator action; an unavailable capability with no remedy is a dead end", def.ID)
-		}
+	expected, err := capabilityregistry.ProjectManifest(manifest, nil)
+	if err != nil {
+		t.Fatal(err)
 	}
-}
-
-// TestNewRegistryCoversEveryDeclaredCapability pins the pairing between a
-// declared capability and its checker. A declaration without a checker reports
-// nothing, which reads as healthy rather than as unknown.
-func TestNewRegistryCoversEveryDeclaredCapability(t *testing.T) {
-	registry := NewRegistry()
-	if registry == nil {
+	got := NewRegistry()
+	if got == nil {
 		t.Fatal("NewRegistry returned nil")
 	}
-	for _, def := range Known {
-		if def.DependencyKind != capabilityregistry.DependencyScenario {
-			continue
+	if err := got.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+	actual := got.Definitions()
+	if len(actual) != len(expected) {
+		t.Fatalf("manifest dependencies = %d, registry definitions = %d", len(expected), len(actual))
+	}
+	for i := range expected {
+		if actual[i].ID != expected[i].ID || actual[i].DependencyKind != expected[i].DependencyKind || actual[i].Required != expected[i].Required {
+			t.Errorf("definition[%d] = %+v, want manifest projection %+v", i, actual[i], expected[i])
 		}
-		if _, ok := any(capabilityregistry.ScenarioStatusChecker{Scenario: "audio-tools"}).(capabilityregistry.Checker); !ok {
-			t.Fatalf("ScenarioChecker does not satisfy the Checker contract for %q", def.ID)
+		if actual[i].Origin != "manifest" {
+			t.Errorf("definition %q origin = %q, want manifest", actual[i].ID, actual[i].Origin)
 		}
 	}
 }

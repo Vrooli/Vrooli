@@ -3,6 +3,7 @@ import { createClient } from "@connectrpc/connect";
 import { createScenarioConnectTransport } from "@vrooli/api-base";
 import { IntegrationsService } from "@vrooli/proto-types/command-center/v1/integrations/integrations_pb";
 import type { ListIntegrationsResponse } from "@vrooli/proto-types/common/v1/integrations_pb";
+import { apiRequestError } from "./apiErrors";
 
 import type { LadderReading } from "./ladder";
 
@@ -128,6 +129,12 @@ export interface BoardSettings {
   rooms: { id: string; enabled: boolean }[];
 }
 
+export const DEFAULT_BOARD_SETTINGS: BoardSettings = {
+  cycleSeconds: 60,
+  transition: "crossfade",
+  rooms: [],
+};
+
 /** One room as the panorama sees it: every reading it holds. */
 export interface Constellation {
   room: BoardRoom;
@@ -175,7 +182,7 @@ async function getJSON<T>(path: string): Promise<T> {
   const url = buildApiUrl(path, { baseUrl: API_BASE });
   const res = await fetch(url, { headers: { Accept: "application/json" }, cache: "no-store" });
   if (!res.ok) {
-    throw new Error(`API request failed: ${res.status.toString()} ${res.statusText}`);
+    throw await apiRequestError(res, "API request failed");
   }
   return res.json() as Promise<T>;
 }
@@ -185,7 +192,7 @@ export const fetchBoardSettings = (): Promise<BoardSettings> => getJSON("/board-
 export async function saveBoardSettings(settings: BoardSettings): Promise<BoardSettings> {
   const url = buildApiUrl("/board-settings", { baseUrl: API_BASE });
   const res = await fetch(url, { method: "PUT", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify(settings) });
-  if (!res.ok) throw new Error(`Board settings save failed: ${res.status.toString()}`);
+  if (!res.ok) throw await apiRequestError(res, "Board settings save failed");
   return res.json() as Promise<BoardSettings>;
 }
 export const fetchRoom = (id: string, samples: string): Promise<RoomResponse> => getJSON(`/rooms/${id}?samples=${samples}`);

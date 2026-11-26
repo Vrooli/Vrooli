@@ -29,6 +29,7 @@ import {
   X,
   BarChart3,
   ClipboardCheck,
+  Copy,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
@@ -39,12 +40,15 @@ import type { DiffStats, RepoFileStats } from "../lib/api";
 import { ViewModeCycleButton } from "./ViewModeCycleButton";
 import { ProjectTreeView } from "./ProjectTreeView";
 import { ContextMenu, type ContextMenuItem } from "@vrooli/react-component-library/ContextMenu/1";
-import { SwipeActions, type SwipeAction } from "@vrooli/react-component-library/SwipeActions";
 import { ChangeMetricsModal } from "./ChangeMetricsModal";
 import { getFileStats, filterFileStats, filterCategoryStats } from "../lib/metrics";
+import { copyText } from "../lib/clipboard";
+import { compactCount, stripPathPrefix } from "../lib/utils";
+import { restoreScrollPosition } from "../lib/scrollRestore";
+import { experienceSignal } from "../lib/experience";
 import { useApprovedChanges, useDiffStats, useProvenance } from "../lib/hooks";
 import { buildRunIndex } from "../lib/runAttribution";
-import { MobileContext, type FileCategory, type FileListProps, summarizeFileStats, summarizeGroupFileStats, LineStats, ChangeStatsRibbon } from "./FileListTypes";
+import { MobileContext, type FileCategory, type FileListProps, summarizeFileStats, summarizeGroupFileStats, LineStats } from "./FileListTypes";
 import { VirtualizedFileSections, type ChangeListSection, type ChangeListBlock } from "./FileSection";
 import { groupKindLabel } from "../lib/groupKinds";
 import { RunSheet } from "./RunSheet";
@@ -55,6 +59,10 @@ import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 export type { GroupingRule, FileCategory, SelectedFileEntry, FileListProps } from "./FileListTypes";
 
 type GroupDrillIn = { groupId: string; directory: string };
+
+function formatCount(value: number): string {
+  return value.toLocaleString();
+}
 
 function FileListImpl({
   files,
@@ -88,7 +96,9 @@ function FileListImpl({
   groupingAvailable = false,
   onCycleViewMode,
   onStagePaths,
+  onUnstagePaths,
   onDiscardPaths,
+  onClearSelection,
   onSelectAnyFile,
   scrollToFile,
   onScrollComplete,
@@ -122,26 +132,29 @@ function FileListImpl({
   );
   const runIndex = providedRunIndex ?? derivedRunIndex;
   const hasStaged = (files?.staged?.length ?? 0) > 0;
-  const hasUnstaged =
-    (files?.unstaged?.length ?? 0) > 0 || (files?.untracked?.length ?? 0) > 0;
+  const stageableAll = useMemo(
+    () => [...new Set([
+      ...(files?.conflicts ?? []),
+      ...(files?.unstaged ?? []),
+      ...(files?.untracked ?? []),
+    ])],
+    [files?.conflicts, files?.unstaged, files?.untracked],
+  );
+  const hasUnstaged = stageableAll.length > 0;
   const handleToggleCollapse = onToggleCollapse ?? (() => {});
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const [maxPathChars, setMaxPathChars] = useState(72);
   const [compactHeader, setCompactHeader] = useState(false);
   const [confirmingGroup, setConfirmingGroup] = useState<string | null>(null);
-  const [mobileGroupActionsId, setMobileGroupActionsId] = useState<string | null>(null);
-  const [swipeOpenGroupId, setSwipeOpenGroupId] = useState<string | null>(null);
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => {
-    const storageKey = `gct.collapsedGroups.${repoId ?? "default"}`;
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored) return new Set(JSON.parse(stored) as string[]);
-    } catch { /* ignore */ }
-    return new Set();
-  });
   const [groupDrillIn, setGroupDrillIn] = useState<GroupDrillIn | null>(null);
-  const overviewScrollTopRef = useRef(0);
+  // Scroll memory is keyed by the visible list scope: the overview and each
+  // drilled folder. The virtualizer changes its total height after a scope
+  // switch, so the restore is deferred until the new height is measurable.
+  const scrollPositionsRef = useRef<Map<string, number>>(new Map());
+  const currentScrollScopeRef = useRef("overview");
+  const scrollScope = groupDrillIn ? `drill:${groupDrillIn.groupId}:${groupDrillIn.directory}` : "overview";
+  currentScrollScopeRef.current = scrollScope;
   const previousDrillInRef = useRef<GroupDrillIn | null>(null);
   // Persisted subsection (Modified/Untracked/…) expand state, keyed by
   // group.id + category. Only explicitly-toggled sections are stored; sections
@@ -273,8 +286,15 @@ function FileListImpl({
     y: number;
     file: string;
   } | null>(null);
+  const [groupContextMenu, setGroupContextMenu] = useState<{
+    x: number;
+    y: number;
+    groupId: string;
+  } | null>(null);
+  const [batchDiscardConfirm, setBatchDiscardConfirm] = useState(false);
 
   const handleFileContextMenu = useCallback((file: string, event: React.MouseEvent) => {
+    setGroupContextMenu(null);
     setContextMenu({
       x: event.clientX,
       y: event.clientY,
@@ -286,30 +306,77 @@ function FileListImpl({
     setContextMenu(null);
   }, []);
 
+  const handleGroupContextMenu = useCallback((groupId: string, event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu(null);
+    setGroupContextMenu({ x: event.clientX, y: event.clientY, groupId });
+  }, []);
+
+  const handleCloseGroupContextMenu = useCallback(() => {
+    setGroupContextMenu(null);
+  }, []);
+
   const contextMenuItems = useMemo<ContextMenuItem[]>(() => {
     if (!contextMenu) return [];
+    const file = contextMenu.file;
     const items: ContextMenuItem[] = [];
-    if (onBlameFile) items.push({
-        id: "history",
-        label: "View File History",
-        icon: <History className="h-4 w-4" />,
-        onSelect: () => onBlameFile(contextMenu.file),
-    });
-    if (onRevealInTree) items.push({
-      id: "reveal",
-      label: "Reveal in file tree",
-      icon: <FolderTree className="h-4 w-4" />,
-      onSelect: () => onRevealInTree(contextMenu.file),
-      testId: "reveal-in-tree-action",
-    });
-    const attribution = runIndex?.get(contextMenu.file);
-    if (attribution) items.push({
-      id: "run",
-      label: "Show the run that changed this",
-      icon: <History className="h-4 w-4" />,
-      onSelect: () => openRun(attribution.runId),
-    });
-    const basename = contextMenu.file.split("/").pop() || contextMenu.file;
+    const isStaged = files?.staged?.includes(file) ?? false;
+    const isUnstaged = files?.unstaged?.includes(file) ?? false;
+    const isUntracked = files?.untracked?.includes(file) ?? false;
+    const isConflict = files?.conflicts?.includes(file) ?? false;
+    const category: FileCategory = isConflict
+      ? "conflicts"
+      : isUntracked && !isUnstaged
+        ? "untracked"
+        : isStaged && !isUnstaged
+          ? "staged"
+          : "unstaged";
+
+    if (isUnstaged || isUntracked || isConflict) {
+      items.push({
+        id: "stage",
+        label: "Stage file",
+        icon: <Plus className="h-4 w-4 text-emerald-300" />,
+        onSelect: () => onStageFile(file),
+        testId: "context-stage-file",
+      });
+    }
+    if (isStaged) {
+      items.push({
+        id: "unstage",
+        label: "Unstage file",
+        icon: <Minus className="h-4 w-4 text-slate-300" />,
+        onSelect: () => onUnstageFile(file),
+        testId: "context-unstage-file",
+      });
+    }
+
+    const directory = file.includes("/") ? file.slice(0, file.lastIndexOf("/")) : "";
+    const folderPrefix = directory ? `${directory}/` : "";
+    const stageableSiblings = [...new Set([
+      ...(files?.conflicts ?? []),
+      ...(files?.unstaged ?? []),
+      ...(files?.untracked ?? []),
+    ])].filter((candidate) =>
+      candidate !== file &&
+      (!directory || candidate.startsWith(folderPrefix)),
+    );
+    if (onStagePaths && stageableSiblings.length > 0) {
+      items.push({
+        id: "stage-folder",
+        label: `Stage all ${stageableSiblings.length + (isUnstaged || isUntracked || isConflict ? 1 : 0)} files in ${directory || "root"}`,
+        icon: <ClipboardCheck className="h-4 w-4 text-emerald-300" />,
+        onSelect: () => onStagePaths([
+          ...(isUnstaged || isUntracked || isConflict ? [file] : []),
+          ...stageableSiblings,
+        ]),
+        testId: "context-stage-folder",
+        separatorBefore: items.length > 0,
+      });
+    }
+
+    const basename = file.split("/").pop() || file;
     const changedFiles = [
       ...(files?.staged ?? []),
       ...(files?.unstaged ?? []),
@@ -319,14 +386,79 @@ function FileListImpl({
     const sameNameCount = new Set(
       changedFiles.filter((candidate) => (candidate.split("/").pop() || candidate) === basename),
     ).size;
-    if (onStageFilesWithSameName && sameNameCount > 1) items.push({
-      id: "stage-same-name",
-      label: `Stage all changed files named ${basename}`,
-      icon: <ClipboardCheck className="h-4 w-4" />,
-      onSelect: () => onStageFilesWithSameName(contextMenu.file),
+    if (onStageFilesWithSameName && sameNameCount > 1) {
+      items.push({
+        id: "stage-same-name",
+        label: `Stage all changed files named ${basename}`,
+        icon: <ClipboardCheck className="h-4 w-4" />,
+        onSelect: () => onStageFilesWithSameName(file),
+      });
+    }
+
+    if (onRevealInTree) items.push({
+      id: "reveal",
+      label: "Reveal in file tree",
+      icon: <FolderTree className="h-4 w-4" />,
+      onSelect: () => onRevealInTree(file),
+      testId: "reveal-in-tree-action",
+      separatorBefore: items.length > 0,
     });
+
+    items.push({
+      id: "metrics",
+      label: "View file metrics",
+      icon: <BarChart3 className="h-4 w-4" />,
+      onSelect: () => openFileMetrics(file, category),
+      testId: "context-view-metrics",
+    });
+
+    const attribution = runIndex?.get(file);
+    if (attribution) items.push({
+      id: "run",
+      label: "Show the run that changed this",
+      icon: <History className="h-4 w-4" />,
+      onSelect: () => openRun(attribution.runId),
+    });
+
+    if (onBlameFile) items.push({
+      id: "history",
+      label: "View file history",
+      icon: <History className="h-4 w-4" />,
+      onSelect: () => onBlameFile(file),
+    });
+
+    items.push({
+      id: "copy-path",
+      label: "Copy path",
+      icon: <Copy className="h-4 w-4" />,
+      onSelect: () => { void copyText(file); },
+      testId: "context-copy-path",
+    });
+
+    if (onConfirmIgnore && (isUnstaged || isUntracked || isConflict)) {
+      items.push({
+        id: "ignore",
+        label: "Ignore file…",
+        icon: <EyeOff className="h-4 w-4" />,
+        onSelect: () => onConfirmIgnore(file),
+        separatorBefore: true,
+      });
+    }
+    if (onConfirmDiscard && (isUnstaged || isUntracked)) {
+      items.push({
+        id: "discard",
+        label: "Discard changes…",
+        icon: <Trash2 className="h-4 w-4" />,
+        onSelect: () => onConfirmDiscard(file),
+        destructive: true,
+        testId: "context-discard-file",
+      });
+    }
+
     return items;
-  }, [contextMenu, files, onBlameFile, onRevealInTree, onStageFilesWithSameName, runIndex, openRun]);
+  }, [contextMenu, files, onBlameFile, onRevealInTree, onStageFile, onUnstageFile,
+    onStageFilesWithSameName, onStagePaths, onConfirmIgnore, onConfirmDiscard,
+    runIndex, openRun, openFileMetrics]);
 
   // Mobile long-press enters selection mode; tap in selection mode toggles
   const handleLongPress = useCallback(
@@ -376,6 +508,10 @@ function FileListImpl({
     return selectedFiles.some((entry) => !entry.staged && (unstaged.has(entry.path) || untracked.has(entry.path)));
   }, [mobileSelectionMode, selectedFiles, files]);
 
+  useEffect(() => {
+    setBatchDiscardConfirm(false);
+  }, [selectedFiles]);
+
   const groupingActive = fileViewMode === "grouped" &&
     (resolvedGroups !== undefined ? resolvedGroups.length > 0 : groupingRules.length > 0);
   const totalStats = useMemo(() => {
@@ -416,21 +552,6 @@ function FileListImpl({
     (path: string, level?: "project" | "group", groupDir?: string) => onIgnoreFile(path, level, groupDir),
     [onIgnoreFile],
   );
-  const toggleGroupCollapse = useCallback((groupId: string) => {
-    setCollapsedGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(groupId)) {
-        next.delete(groupId);
-      } else {
-        next.add(groupId);
-      }
-      const storageKey = `gct.collapsedGroups.${repoId ?? "default"}`;
-      try {
-        localStorage.setItem(storageKey, JSON.stringify([...next]));
-      } catch { /* ignore */ }
-      return next;
-    });
-  }, [repoId]);
 
   const isSectionExpanded = useCallback(
     (groupId: string, category: FileCategory, defaultExpanded: boolean) => {
@@ -460,10 +581,13 @@ function FileListImpl({
 
     const update = () => {
       const width = scrollAreaRef.current?.clientWidth ?? 0;
-      // Account for: status badge (~28px), file icon (~22px), action buttons (~80px),
-      // badges (binary ~60px), padding (~16px) = ~210px total
-      const usable = Math.max(0, width - 180);
-      const nextMax = Math.max(12, Math.min(100, Math.floor(usable / 7.5)));
+      // Reserve room for the status badge, file icon, line stats, primary
+      // action, and padding. Narrow rows hide the hover-only secondary actions,
+      // so they need less reservation than wide rows.
+      const compact = width < 500;
+      const chrome = compact ? 140 : 240;
+      const usable = Math.max(0, width - chrome);
+      const nextMax = Math.max(12, Math.min(110, Math.floor(usable / 7.5)));
       setMaxPathChars(nextMax);
     };
 
@@ -497,8 +621,9 @@ function FileListImpl({
     }
   }, [groupingActive]);
 
-  // Navigation may target a virtual row in a collapsed group/category. Open
-  // the owning section before the virtualizer resolves the destination.
+  // Navigation may target a file inside a group that is not open yet. Open the
+  // owning group at the file's parent folder before the virtualizer resolves the
+  // destination; flat mode only needs the category section opened.
   useEffect(() => {
     if (!scrollToFile || fileViewMode === "tree") return;
     const categories = (["conflicts", "staged", "unstaged", "untracked"] as const)
@@ -509,51 +634,61 @@ function FileListImpl({
       return;
     }
     setListFilter("all");
-    const groupId = group?.key ?? "__flat__";
-    if (group) setCollapsedGroups(prev => {
-      if (!prev.has(groupId)) return prev;
-      const next = new Set(prev);
-      next.delete(groupId);
-      try { localStorage.setItem(`gct.collapsedGroups.${repoId ?? "default"}`, JSON.stringify([...next])); } catch { /* ignore */ }
-      return next;
-    });
+
+    let sectionScope = "__flat__";
+    if (group) {
+      const root = (group.root ?? "").replace(/^\/+|\/+$/g, "");
+      const relative = stripPathPrefix(scrollToFile, root);
+      const directory = relative.includes("/") ? relative.slice(0, relative.lastIndexOf("/")) : "";
+      sectionScope = `drill:${group.key}:${directory}`;
+      setGroupDrillIn((previous) => (
+        previous?.groupId === group.key && previous.directory === directory
+          ? previous
+          : { groupId: group.key, directory }
+      ));
+    }
+
     setSectionExpanded(prev => {
-      if (categories.every(category => prev[`${groupId}::${category}`] === true)) return prev;
+      if (categories.every(category => prev[`${sectionScope}::${category}`] === true)) return prev;
       const next = { ...prev };
-      for (const category of categories) next[`${groupId}::${category}`] = true;
+      for (const category of categories) next[`${sectionScope}::${category}`] = true;
       try { localStorage.setItem(`gct.collapsedSections.${repoId ?? "default"}`, JSON.stringify(next)); } catch { /* ignore */ }
       return next;
     });
   }, [scrollToFile, fileViewMode, files, groupingActive, resolvedGroups, onScrollComplete, repoId]);
 
-  // Persist the Changes list scroll position (mobile only, when a store is
-  // supplied). The store is a ref assignment, so writing on every scroll event
-  // is cheap and always captures the latest position (no debounce needed).
+  // Persist the Changes list scroll position per visible scope. The mobile
+  // store survives the panel unmount; the map survives every drill transition.
   const handleScroll = useCallback(
     (event: React.UIEvent<HTMLDivElement>) => {
-      if (scrollTopStore) {
-        scrollTopStore.current = event.currentTarget.scrollTop;
+      const top = event.currentTarget.scrollTop;
+      scrollPositionsRef.current.set(currentScrollScopeRef.current, top);
+      if (currentScrollScopeRef.current === "overview" && scrollTopStore) {
+        scrollTopStore.current = top;
       }
     },
     [scrollTopStore],
   );
 
-  // Restore the saved scroll position after the panel content has had two
-  // layout frames to settle. The scroller is explicitly owned by Changes, so
-  // this never moves the embedding document or host iframe viewport.
-  // Skipped when a scrollToFile target is pending so the scroll-into-view path
-  // (above) wins instead of fighting the restore.
+  // Restore the mobile list after its panel remounts. The list may still be
+  // loading on the first frame, so the helper retries until the target fits and
+  // reports the real position. Skipped when a scrollToFile target is pending so
+  // the scroll-into-view path wins instead of fighting the restore.
   useLayoutEffect(() => {
     if (!scrollTopStore || scrollToFile) return;
     const el = scrollAreaRef.current;
-    const restore = () => el?.scrollTo({ top: scrollTopStore.current, behavior: "auto" });
-    let secondFrame: number | undefined;
-    const firstFrame = requestAnimationFrame(() => { secondFrame = requestAnimationFrame(restore); });
-    return () => {
-      cancelAnimationFrame(firstFrame);
-      if (secondFrame !== undefined) cancelAnimationFrame(secondFrame);
-    };
-    // Mount-only: intentionally not re-running on scrollTopStore/scrollToFile changes.
+    const target = scrollTopStore.current;
+    if (!el || target <= 0) return;
+    return restoreScrollPosition(el, target, (actual) => {
+      scrollTopStore.current = actual;
+      experienceSignal("scroll_restore", {
+        container: "changes-scroll-region",
+        scope: "mobile-changes",
+        expected: target,
+        actual,
+      });
+    });
+    // Mount-only: the mobile store is the source of truth for this remount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -577,7 +712,7 @@ function FileListImpl({
     // set for every file. A bit mask preserves overlapping categories without
     // allocating a small membership array for each path.
     const categoryMaskByPath = new Map<string, number>();
-    for (const [categoryIndex, [category, paths]] of categories.entries()) {
+    for (const [categoryIndex, [, paths]] of categories.entries()) {
       const bit = 1 << categoryIndex;
       for (const path of paths) {
         categoryMaskByPath.set(path, (categoryMaskByPath.get(path) ?? 0) | bit);
@@ -593,6 +728,14 @@ function FileListImpl({
           if (mask & (1 << categoryIndex)) groupedFiles[category].push(path);
         }
       }
+      const allPaths = Object.values(groupedFiles).flat();
+      const uniquePaths = [...new Set(allPaths)];
+      const stageable = [...new Set([
+        ...groupedFiles.unstaged,
+        ...groupedFiles.untracked,
+        ...groupedFiles.conflicts,
+      ])];
+      const discardPaths = [...new Set([...groupedFiles.unstaged, ...groupedFiles.untracked])];
       return {
         id: group.key,
         label: group.label,
@@ -600,9 +743,9 @@ function FileListImpl({
         source: group.source,
         displayPrefix: group.root ?? "",
         files: groupedFiles,
-        stageable: [...groupedFiles.unstaged, ...groupedFiles.untracked, ...groupedFiles.conflicts],
-        discardCount: groupedFiles.unstaged.length + groupedFiles.untracked.length,
-        count: Object.values(groupedFiles).reduce((total, paths) => total + paths.length, 0),
+        stageable,
+        discardCount: discardPaths.length,
+        count: uniquePaths.length,
         lineStats: summarizeGroupFileStats(groupedFiles, fileStats),
         previewLineStats: summarizeGroupFileStats(groupedFiles, previewFileStats),
         runs: [...new Set(Object.values(groupedFiles).flatMap(paths => paths.map(path => runIndex?.get(path)?.runId)).filter((id): id is string => Boolean(id)))],
@@ -626,168 +769,122 @@ function FileListImpl({
     }));
   }, [files, fileStats, previewFileStats, groupingActive, resolvedGroups, filterPaths, runIndex, groupDrillIn?.groupId]);
 
-  const mobileGroupActions = groupedSections.find((group) => group.id === mobileGroupActionsId) ?? null;
-
   const renderGroupHeader = useCallback((group: (typeof groupedSections)[number], index: number) => {
     const { stageable, discardCount, count: groupCount, runs } = group;
     const discardTracked = group.files.unstaged;
     const discardUntracked = group.files.untracked;
-    const isGroupCollapsed = collapsedGroups.has(group.id);
+    const stats = fileStatsState === "refreshing" ? group.previewLineStats : group.lineStats;
+    const showGroupActions = !mobileSelectionMode;
+    const openGroup = () => setGroupDrillIn({ groupId: group.id, directory: "" });
 
     const previous = groupedSections[index - 1];
     const bandKind = group.source === "contract" ? group.kind : group.source;
     const previousBandKind = previous?.source === "contract" ? previous.kind : previous?.source;
     const showBand = bandKind !== previousBandKind;
-    const swipeActions: SwipeAction[] = [
-      {
-        id: "browse",
-        label: "Browse",
-        icon: <FolderOpen className="h-4 w-4" aria-hidden="true" />,
-        onSelect: () => setGroupDrillIn({ groupId: group.id, directory: "" }),
-      },
-      ...(!mobileSelectionMode && onStagePaths && stageable.length > 0 ? [{
-        id: "stage",
-        label: "Stage all",
-        icon: <Plus className="h-4 w-4" aria-hidden="true" />,
-        tone: "primary" as const,
-        onSelect: () => onStagePaths(stageable),
-      }] : []),
-      ...(!mobileSelectionMode && onDiscardPaths && discardCount > 0 ? [{
-        id: "discard",
-        label: "Discard",
-        icon: <Trash2 className="h-4 w-4" aria-hidden="true" />,
-        tone: "destructive" as const,
-        onSelect: () => setConfirmingGroup(group.id),
-      }] : []),
-    ];
+
     const groupHeader = (
-        <div
-          className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-3 py-2 ${isGroupCollapsed ? "" : "border-b border-slate-800/70"}`}
-        >
+      <div
+        className="group/change-group cursor-pointer border-b border-slate-800/60 px-1.5 py-1 transition-colors hover:bg-slate-900/50 active:bg-slate-900/60"
+        onClick={openGroup}
+        onContextMenu={(event) => handleGroupContextMenu(group.id, event)}
+        data-testid={`file-group-header-${group.id}`}
+      >
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2">
           <button
             type="button"
-            className="flex w-full min-w-0 items-center gap-2 overflow-hidden rounded px-1 -ml-1 text-left transition-colors hover:bg-slate-800/30"
-            onClick={() => toggleGroupCollapse(group.id)}
-            aria-expanded={!isGroupCollapsed}
-            data-testid={`file-group-toggle-${group.id}`}
+            className={`col-span-2 flex min-w-0 items-center gap-2 rounded-md py-0.5 text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky-400 ${isMobile ? "min-h-11" : ""}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              openGroup();
+            }}
+            aria-label={`Open ${group.label}`}
+            data-testid={`file-group-open-${group.id}`}
           >
-            {isGroupCollapsed ? (
-              <ChevronRight className={`text-slate-500 flex-shrink-0 ${isMobile ? "h-4.5 w-4.5" : "h-3.5 w-3.5"}`} />
-            ) : (
-              <ChevronDown className={`text-slate-500 flex-shrink-0 ${isMobile ? "h-4.5 w-4.5" : "h-3.5 w-3.5"}`} />
+            <span className={`min-w-0 flex-1 truncate font-semibold text-slate-100 transition-colors group-hover/change-group:text-white group-hover/change-group:underline decoration-slate-500 underline-offset-2 ${isMobile ? "text-sm" : "text-xs"}`} title={group.label}>
+              {group.label}
+            </span>
+            <span className="shrink-0 font-mono text-[10px] tabular-nums text-slate-500" aria-label={`${groupCount} ${groupCount === 1 ? "file" : "files"}`}>
+              {formatCount(groupCount)} {groupCount === 1 ? "file" : "files"}
+            </span>
+            {runs.length > 0 && runIndex && (
+              <span className="flex shrink-0 items-center gap-1" data-testid="group-run-dots" aria-label={`${runs.length} agent runs`}>
+                {runs.slice(0, 3).map((runId) => <span key={runId} className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: runHue(runId) }} />)}
+                {runs.length > 3 && <span className="text-[9px] text-slate-500">+{runs.length - 3}</span>}
+              </span>
             )}
-            <div className="min-w-0 flex-1 overflow-hidden">
-              <div className={`truncate font-semibold text-slate-300 ${isMobile ? "text-sm" : "text-xs"}`} title={group.label}>
-                {group.label}
-              </div>
-              {group.displayPrefix && group.source !== "contract" && (
-                <div className={`truncate text-slate-500 ${isMobile ? "text-xs" : "text-[11px]"}`} title={group.displayPrefix}>
-                  {group.displayPrefix}
-                </div>
-              )}
-            </div>
           </button>
-          <div className={`flex shrink-0 flex-nowrap items-center justify-end gap-1 text-slate-500 ${isMobile ? "text-sm" : "text-xs"}`}>
-            {isGroupCollapsed && (
-              <ChangeStatsRibbon
-                stats={fileStatsState === "refreshing" ? group.previewLineStats : group.lineStats}
-                label={group.label}
-                state={fileStatsState}
-                onClick={() => openGroupMetrics(group.files, group.label)}
-              />
-            )}
-            {isGroupCollapsed && runIndex && (() => {
-              return runs.length > 0 ? <span className="flex items-center gap-1" data-testid="group-run-dots">{runs.slice(0, 3).map((runId) => <span key={runId} className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: runHue(runId) }} />)}{runs.length > 3 && <span>+{runs.length - 3}</span>}</span> : null;
-            })()}
-            {onOpenReview && group.kind === "scenario" && group.displayPrefix ? (
-              <button
-                type="button"
-                className="inline-flex h-8 shrink-0 items-center gap-1 whitespace-nowrap rounded px-2 text-xs text-slate-400 transition-colors hover:bg-slate-800/60 hover:text-slate-200"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenReview(group.displayPrefix?.split("/")[1] ?? "");
-                }}
-                title="Open scenario review"
+
+          <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[10.5px] text-slate-500">
+            {group.displayPrefix && group.source !== "contract" && (
+              <span
+                className="truncate-start min-w-0"
+                title={group.displayPrefix}
               >
-                {groupCount !== undefined && <span>{groupCount} files</span>}
-                <ClipboardCheck className="h-3.5 w-3.5" />
-              </button>
-            ) : (
+                {group.displayPrefix.replace(/\/+$/, "")}
+              </span>
+            )}
+            {stats ? (
               <button
                 type="button"
-                className="shrink-0 cursor-pointer whitespace-nowrap px-1 hover:underline decoration-slate-600"
-                onClick={(e) => {
-                  e.stopPropagation();
+                className="inline-flex shrink-0 items-center gap-1 rounded font-mono text-[10px] tabular-nums hover:underline decoration-slate-600"
+                onClick={(event) => {
+                  event.stopPropagation();
                   openGroupMetrics(group.files, group.label);
                 }}
+                aria-label={`View change metrics for ${group.label}`}
+                title={`View change metrics for ${group.label}`}
               >
-                {groupCount} files
+                <span className="text-emerald-300">+{compactCount(stats.additions)}</span>
+                <span className="text-rose-300">−{compactCount(stats.deletions)}</span>
+              </button>
+            ) : fileStatsState === "loading" || fileStatsState === "refreshing" ? (
+              <span className="h-2.5 w-12 animate-pulse rounded-sm bg-slate-800" aria-hidden="true" />
+            ) : null}
+          </div>
+
+          <div
+            className="mt-0.5 flex shrink-0 items-center gap-1"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {showGroupActions && stageable.length > 0 && onStagePaths && (
+              <button
+                type="button"
+                className={`inline-flex items-center gap-1 rounded-md border border-emerald-400/25 bg-emerald-400/[0.08] px-2 text-[11px] font-semibold text-emerald-200 transition-colors hover:border-emerald-400/45 hover:bg-emerald-400/15 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400 ${isMobile ? "h-9" : "h-8"}`}
+                onClick={() => onStagePaths(stageable)}
+                aria-label={`Stage ${stageable.length} files in ${group.label}`}
+                title={`Stage ${stageable.length} files in ${group.label}`}
+                data-testid={`file-group-stage-${group.id}`}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {!compactHeader && <span>Stage</span>}
               </button>
             )}
-            {!isGroupCollapsed && compactHeader && !mobileSelectionMode && (
+            {showGroupActions && (
               <IconButton
                 size="xs"
                 surface="ghost"
                 denseTapTarget
-                className="!h-8 !w-8 !min-h-0 !min-w-0 !shrink-0 !border-0 !shadow-none !text-slate-300"
-                onClick={() => setMobileGroupActionsId(group.id)}
-                aria-label={`Actions for ${group.label}`}
-                title={`Actions for ${group.label}`}
+                className={isMobile ? "!h-9 !w-9 !min-h-0 !min-w-0 !border-0 !shadow-none !text-slate-400" : "!h-8 !w-8 !min-h-0 !min-w-0 !border-0 !shadow-none !text-slate-400"}
+                onClick={(event) => {
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  setGroupContextMenu({ x: rect.left, y: rect.bottom, groupId: group.id });
+                }}
+                aria-label={`More actions for ${group.label}`}
+                title={`More actions for ${group.label}`}
                 data-testid={`file-group-actions-${group.id}`}
               ><MoreHorizontal className="h-4 w-4" /></IconButton>
             )}
-            {!isGroupCollapsed && !compactHeader && (
-              <IconButton
-                size="xs"
-                surface="ghost"
-                denseTapTarget
-                className="!h-8 !w-8 !min-h-0 !min-w-0 !border-0 !shadow-none !text-sky-300"
-                onClick={() => setGroupDrillIn({ groupId: group.id, directory: "" })}
-                aria-label={`Open ${group.label} group`}
-                title={`Browse ${group.label} folders`}
-                data-testid={`file-group-open-${group.id}`}
-              ><FolderOpen className="h-4 w-4" /></IconButton>
-            )}
-            {!compactHeader &&
-              !mobileSelectionMode &&
-              !isGroupCollapsed &&
-              stageable.length > 0 &&
-              onStagePaths && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => onStagePaths(stageable)}
-                  disabled={false}
-                  className="h-7 px-2"
-                  title="Stage All"
-                  style={{ background: "transparent" }}
-                >Stage All</Button>
-              )}
-            {!compactHeader &&
-              !mobileSelectionMode &&
-              !isGroupCollapsed &&
-              discardCount > 0 &&
-              onDiscardPaths && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setConfirmingGroup(group.id)}
-                  disabled={isDiscarding}
-                  className="h-7 border-red-400/40 px-2 text-red-200 hover:bg-red-900/20"
-                  title="Discard All"
-                  style={{ background: "transparent" }}
-                >Discard All</Button>
-              )}
           </div>
         </div>
+      </div>
     );
     return (
       <>
       {showBand && (
-        <div role="region" aria-label={`${groupKindLabel(group.kind, group.source)} group band`} className="relative z-10 flex min-h-[30px] items-center gap-2 border-y border-slate-800 bg-slate-950 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500" data-testid={`file-kind-band-${bandKind || "other"}`}>
+        <div role="region" aria-label={`${groupKindLabel(group.kind, group.source)} group band`} className="relative z-10 flex min-h-[26px] items-center gap-2 border-y border-slate-800/80 bg-slate-950/95 px-2 py-0.5 text-[9.5px] font-semibold uppercase tracking-[0.14em] text-slate-500" data-testid={`file-kind-band-${bandKind || "other"}`}>
           <span>{groupKindLabel(group.kind, group.source)}</span>
-          <span className="h-px flex-1 bg-slate-800" />
-          <span>{group.bandSummary.groups} groups · {group.bandSummary.files} files</span>
+          <span className="h-px flex-1 bg-slate-800/80" />
+          <span className="font-normal tracking-normal normal-case text-slate-600">{group.bandSummary.groups} groups · {formatCount(group.bandSummary.files)} files</span>
         </div>
       )}
       <div
@@ -795,21 +892,10 @@ function FileListImpl({
         className="border-b border-slate-800/80"
         data-testid={`file-group-${group.id}`}
       >
-        {compactHeader && !isGroupCollapsed && !mobileSelectionMode ? (
-          <SwipeActions
-            actions={swipeActions}
-            label={`${group.label} actions`}
-            releaseMode="rest"
-            open={swipeOpenGroupId === group.id}
-            onOpenChange={(open: boolean) => setSwipeOpenGroupId(open ? group.id : null)}
-            testId={`file-group-swipe-${group.id}`}
-          >
-            {groupHeader}
-          </SwipeActions>
-        ) : groupHeader}
-        {!isGroupCollapsed && confirmingGroup === group.id &&
+        {groupHeader}
+        {confirmingGroup === group.id &&
               discardCount > 0 && (
-                <div className="flex items-center justify-between gap-2 px-3 py-2 text-xs text-red-200 bg-red-950/30 border-b border-red-900/40">
+                <div className="flex items-center justify-between gap-2 border-b border-red-900/40 bg-red-950/30 px-3 py-2 text-xs text-red-200">
                   <span>
                     Discard {discardCount} changes in this
                     group?
@@ -817,7 +903,7 @@ function FileListImpl({
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      className="px-2 py-1 rounded border border-red-400/40 text-red-100 hover:bg-red-900/30"
+                      className="min-h-8 px-2 py-1 rounded border border-red-400/40 text-red-100 hover:bg-red-900/30"
                       onClick={() => {
                         if (discardTracked.length > 0) {
                           onDiscardPaths?.(
@@ -838,7 +924,7 @@ function FileListImpl({
                     </button>
                     <button
                       type="button"
-                      className="px-2 py-1 rounded border border-slate-600 text-slate-200 hover:bg-slate-800/50"
+                      className="min-h-8 px-2 py-1 rounded border border-slate-600 text-slate-200 hover:bg-slate-800/50"
                       onClick={() => setConfirmingGroup(null)}
                     >
                       Cancel
@@ -849,13 +935,85 @@ function FileListImpl({
       </div>
       </>
     );
-  }, [groupedSections, collapsedGroups, isMobile, runIndex, onOpenReview,
+  }, [groupedSections, isMobile, runIndex,
     mobileSelectionMode, onStagePaths, compactHeader, onDiscardPaths,
-    isDiscarding, confirmingGroup, toggleGroupCollapse, openGroupMetrics, setGroupDrillIn]);
+    confirmingGroup, openGroupMetrics,
+    setGroupDrillIn, fileStatsState, handleGroupContextMenu]);
+
+  const groupMenuTarget = groupContextMenu
+    ? groupedSections.find((candidate) => candidate.id === groupContextMenu.groupId) ?? null
+    : null;
+
+  useEffect(() => {
+    if (groupContextMenu && !groupMenuTarget) setGroupContextMenu(null);
+  }, [groupContextMenu, groupMenuTarget]);
+
+  const groupMenuItems = useMemo<ContextMenuItem[]>(() => {
+    if (!groupMenuTarget) return [];
+    const items: ContextMenuItem[] = [];
+    const staged = groupMenuTarget.files.staged;
+    if (!mobileSelectionMode && onStagePaths && groupMenuTarget.stageable.length > 0) {
+      items.push({
+        id: "stage-group",
+        label: `Stage ${groupMenuTarget.stageable.length} files in ${groupMenuTarget.label}`,
+        icon: <Plus className="h-4 w-4 text-emerald-300" />,
+        onSelect: () => onStagePaths(groupMenuTarget.stageable),
+        testId: "group-context-stage",
+      });
+    }
+    if (!mobileSelectionMode && staged.length > 0) {
+      items.push({
+        id: "unstage-group",
+        label: `Unstage ${staged.length} files in ${groupMenuTarget.label}`,
+        icon: <Minus className="h-4 w-4 text-slate-300" />,
+        onSelect: () => {
+          if (onUnstagePaths) onUnstagePaths(staged);
+          else staged.forEach((path) => onUnstageFile(path));
+        },
+        testId: "group-context-unstage",
+      });
+    }
+    items.push({
+      id: "open-group",
+      label: "Open group",
+      icon: <FolderOpen className="h-4 w-4 text-sky-300" />,
+      onSelect: () => setGroupDrillIn({ groupId: groupMenuTarget.id, directory: "" }),
+      testId: "group-context-open",
+      separatorBefore: items.length > 0,
+    });
+    items.push({
+      id: "group-metrics",
+      label: "View change metrics",
+      icon: <BarChart3 className="h-4 w-4" />,
+      onSelect: () => openGroupMetrics(groupMenuTarget.files, groupMenuTarget.label),
+    });
+    if (onOpenReview && groupMenuTarget.kind === "scenario" && groupMenuTarget.displayPrefix) {
+      items.push({
+        id: "group-review",
+        label: "Open scenario review",
+        icon: <ClipboardCheck className="h-4 w-4 text-cyan-300" />,
+        onSelect: () => onOpenReview(groupMenuTarget.displayPrefix.split("/")[1] ?? ""),
+      });
+    }
+    if (!mobileSelectionMode && onDiscardPaths && groupMenuTarget.discardCount > 0) {
+      items.push({
+        id: "discard-group",
+        label: `Discard ${groupMenuTarget.discardCount} changes…`,
+        icon: <Trash2 className="h-4 w-4" />,
+        destructive: true,
+        separatorBefore: true,
+        onSelect: () => setConfirmingGroup(groupMenuTarget.id),
+        testId: "group-context-discard",
+      });
+    }
+    return items;
+  }, [groupMenuTarget, mobileSelectionMode, onStagePaths,
+    onUnstagePaths, onUnstageFile, onOpenReview, onDiscardPaths,
+    openGroupMetrics, setGroupDrillIn]);
 
 
   const listBlocks = useMemo<ChangeListBlock[]>(() => {
-    const sectionsFor = (groupId: string, categoryFiles: Partial<Record<FileCategory, string[]>>, label?: string): ChangeListBlock[] => {
+    const sectionsFor = (groupId: string, categoryFiles: Partial<Record<FileCategory, string[]>>, label?: string, displayPrefix?: string): ChangeListBlock[] => {
       const categories: FileCategory[] = ["conflicts", "staged", "unstaged", "untracked"];
       return categories.map((category) => {
         const paths = filterPaths(category, categoryFiles[category]);
@@ -876,6 +1034,8 @@ function FileListImpl({
           changeStats: summarizeFileStats(paths, fileStats?.[statsCategory]),
           metricsState: fileStatsState,
           onStatsClick: label ? () => openGroupCategoryMetrics(paths, statsCategory, label) : openAggregateMetrics,
+          displayPrefix,
+          fileStats: fileStats?.[statsCategory],
         };
         return { type: "section", section };
       });
@@ -914,41 +1074,48 @@ function FileListImpl({
           .sort(([a], [b]) => a.localeCompare(b))
           .map(([name, folderFiles]) => {
             const allPaths = categories.flatMap((category) => folderFiles[category]);
-            const stageable = [
+            const uniquePaths = [...new Set(allPaths)];
+            const stageable = [...new Set([
               ...folderFiles.conflicts,
               ...folderFiles.unstaged,
               ...folderFiles.untracked,
-            ];
+            ])];
             const directory = [groupDrillIn.directory, name].filter(Boolean).join("/");
             return {
               type: "header",
               key: `folder:${group.id}:${directory}`,
-              estimateSize: isMobile ? 56 : 44,
+              estimateSize: isMobile ? 56 : 50,
               render: () => (
-                <div className="flex min-h-11 items-center gap-2 border-b border-slate-800/80 px-3 py-1.5" data-testid="change-folder-row">
+                <div className="flex min-h-11 items-center gap-1 border-b border-slate-800/70 py-1 pl-2 pr-1.5 transition-colors hover:bg-slate-900/40" data-testid="change-folder-row">
                   <button
                     type="button"
-                    className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm text-slate-200 hover:text-white"
+                    className="flex min-w-0 flex-1 items-center gap-2 rounded px-1 py-0.5 text-left text-slate-200 hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky-400"
                     onClick={() => setGroupDrillIn({ groupId: group.id, directory })}
                     aria-label={`Open folder ${directory}`}
                     data-testid="change-folder-open"
                   >
                     <FolderOpen className="h-4 w-4 shrink-0 text-sky-300" />
-                    <span className="truncate">{name}</span>
-                    <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-medium">{name}</span>
+                      <span className="block truncate text-[10px] text-slate-500" data-testid="change-folder-count">
+                        {uniquePaths.length} {uniquePaths.length === 1 ? "file" : "files"}
+                        {stageable.length > 0 ? ` · ${stageable.length} to stage` : ""}
+                      </span>
+                    </span>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-slate-600" />
                   </button>
-                  <span className="shrink-0 text-xs text-slate-500">{allPaths.length} files</span>
                   {stageable.length > 0 && onStagePaths && (
-                    <IconButton
-                      size="xs"
-                      surface="ghost"
-                      denseTapTarget
-                      className="!h-8 !w-8 !min-h-0 !min-w-0 !border-0 !shadow-none !text-emerald-300"
+                    <button
+                      type="button"
+                      className={`inline-flex shrink-0 items-center gap-1 rounded-md border border-emerald-400/20 bg-emerald-400/[0.06] px-1.5 text-[10.5px] font-semibold text-emerald-200 transition-colors hover:border-emerald-400/40 hover:bg-emerald-400/15 ${isMobile ? "h-10" : "h-8"}`}
                       onClick={() => onStagePaths(stageable)}
                       aria-label={`Stage ${stageable.length} changed files in ${directory}`}
-                      title="Stage folder changes"
+                      title={`Stage ${stageable.length} changed files in ${directory}`}
                       data-testid="change-folder-stage"
-                    ><Plus className="h-4 w-4" /></IconButton>
+                    >
+                      <Plus className="h-3 w-3" />
+                      {!compactHeader && <span>Stage</span>}
+                    </button>
                   )}
                 </div>
               ),
@@ -959,54 +1126,54 @@ function FileListImpl({
           ...(directFiles[category] ?? []),
           ...[...folders.values()].flatMap((folderFiles) => folderFiles[category]),
         ]);
+        const uniqueScopedPaths = [...new Set(allScopedPaths)];
         const stageablePathSet = new Set([
           ...group.files.unstaged,
           ...group.files.untracked,
           ...group.files.conflicts,
         ]);
-        const stageable = allScopedPaths.filter((path) => stageablePathSet.has(path));
+        const stageable = uniqueScopedPaths.filter((path) => stageablePathSet.has(path));
         const segments = groupDrillIn.directory.split("/").filter(Boolean);
         const breadcrumbRows: ChangeListBlock[] = [{
           type: "header",
           key: `group-drill:${group.id}:${groupDrillIn.directory}`,
-          estimateSize: isMobile ? 100 : 76,
+          estimateSize: isMobile ? 96 : 72,
           render: () => (
-            <div className="border-b border-slate-800 bg-slate-950/95 px-3 py-2" data-testid="change-group-drill-header">
-              <div className="flex min-h-9 items-center gap-2">
+            <div className="border-b border-slate-800 bg-slate-950/95 px-2 py-1.5" data-testid="change-group-drill-header">
+              <div className="flex min-h-8 items-center gap-1.5">
                 <button
                   type="button"
-                  className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded px-1 text-sm text-sky-300 hover:bg-slate-800/70"
+                  className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded px-1 text-xs font-medium text-sky-300 hover:bg-slate-800/70"
                   onClick={() => {
                     if (!segments.length) setGroupDrillIn(null);
                     else setGroupDrillIn({ groupId: group.id, directory: segments.slice(0, -1).join("/") });
                   }}
                   aria-label={segments.length ? "Go to parent folder" : "Back to all change groups"}
                   data-testid="change-group-drill-back"
-                ><ArrowLeft className="h-4 w-4" />{segments.length ? "Back" : "Changes"}</button>
-                <nav className="flex min-w-0 items-center gap-1 overflow-hidden text-xs text-slate-400" aria-label="Change location">
-                  <button type="button" className="truncate hover:text-slate-200" onClick={() => setGroupDrillIn({ groupId: group.id, directory: "" })}>{group.label}</button>
+                ><ArrowLeft className="h-4 w-4" />{segments.length ? "Back" : "Groups"}</button>
+                <nav className="flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden text-[11px] text-slate-400" aria-label="Change location">
+                  <button type="button" className="truncate rounded px-0.5 hover:text-slate-200" onClick={() => setGroupDrillIn({ groupId: group.id, directory: "" })}>{group.label}</button>
                   {segments.map((segment, index) => (
-                    <span key={`${index}:${segment}`} className="flex min-w-0 items-center gap-1">
-                      <ChevronRight className="h-3 w-3 shrink-0" />
-                      <button type="button" className="truncate hover:text-slate-200" onClick={() => setGroupDrillIn({ groupId: group.id, directory: segments.slice(0, index + 1).join("/") })}>{segment}</button>
+                    <span key={`${index}:${segment}`} className="flex min-w-0 items-center gap-0.5">
+                      <ChevronRight className="h-3 w-3 shrink-0 text-slate-600" />
+                      <button type="button" className="truncate rounded px-0.5 hover:text-slate-200" onClick={() => setGroupDrillIn({ groupId: group.id, directory: segments.slice(0, index + 1).join("/") })}>{segment}</button>
                     </span>
                   ))}
                 </nav>
-              </div>
-              <div className="mt-1 flex items-center justify-between gap-2 pl-1 text-xs text-slate-500">
-                <span>{allScopedPaths.length} changed files</span>
                 {stageable.length > 0 && onStagePaths && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="h-8 px-2 text-emerald-200"
+                  <button
+                    type="button"
+                    className={`inline-flex shrink-0 items-center gap-1 rounded-md border border-emerald-400/25 bg-emerald-400/[0.08] px-2 text-[11px] font-semibold text-emerald-200 hover:border-emerald-400/45 hover:bg-emerald-400/15 ${isMobile ? "h-10" : "h-8"}`}
                     onClick={() => onStagePaths(stageable)}
                     data-testid="change-group-scope-stage"
-                    style={{ background: "transparent" }}
                   >
-                    <Plus className="mr-1 h-3.5 w-3.5" />Stage {segments.length ? "folder" : "group"}
-                  </Button>
+                    <Plus className="h-3.5 w-3.5" />Stage {segments.length ? "folder" : "group"}
+                  </button>
                 )}
+              </div>
+              <div className="mt-0.5 flex items-center gap-2 pl-1 font-mono text-[10px] tabular-nums text-slate-500">
+                <span>{formatCount(uniqueScopedPaths.length)} changed {uniqueScopedPaths.length === 1 ? "file" : "files"}</span>
+                {stageable.length > 0 && <span className="text-emerald-300/80">{formatCount(stageable.length)} to stage</span>}
               </div>
             </div>
           ),
@@ -1025,38 +1192,48 @@ function FileListImpl({
           ...breadcrumbRows,
           ...folderRows,
           ...emptyRow,
-          ...sectionsFor(`drill:${group.id}:${groupDrillIn.directory}`, directFiles, `${group.label}/${groupDrillIn.directory}`),
+          ...sectionsFor(
+            `drill:${group.id}:${groupDrillIn.directory}`,
+            directFiles,
+            `${group.label}/${groupDrillIn.directory}`,
+            [root, groupDrillIn.directory].filter(Boolean).join("/"),
+          ),
         ];
       }
     }
     return groupedSections.flatMap((group, index): ChangeListBlock[] => group.count === 0 ? [] : [
-      { type: "header", key: `group:${group.id}`, render: () => renderGroupHeader(group, index), estimateSize: isMobile ? 80 : 72 },
-      ...(collapsedGroups.has(group.id) ? [] : sectionsFor(group.id, group.files, group.label)),
+      { type: "header", key: `group:${group.id}`, render: () => renderGroupHeader(group, index), estimateSize: isMobile ? 84 : 60 },
     ]);
-  }, [files, fileStats, groupedSections, groupingActive, collapsedGroups, filterPaths,
+  }, [files, fileStats, fileStatsState, groupedSections, groupingActive, filterPaths,
     isSectionExpanded, toggleSectionCollapse, onStageFile, onUnstageFile,
     handleDiscardUnstaged, handleDiscardUntracked, openAggregateMetrics, openGroupCategoryMetrics,
-    isMobile, renderGroupHeader, groupDrillIn, onStagePaths]);
+    isMobile, compactHeader, renderGroupHeader, groupDrillIn, onStagePaths]);
 
   const deferredListBlocks = useDeferredValue(listBlocks);
+  const hasVisibleFiles = useMemo(
+    () => listBlocks.some((block) => block.type === "header" || block.section.files.length > 0),
+    [listBlocks],
+  );
 
   useLayoutEffect(() => {
     const element = scrollAreaRef.current;
     const previous = previousDrillInRef.current;
     if (!element) return;
-
-    if (!previous && groupDrillIn) {
-      overviewScrollTopRef.current = element.scrollTop;
-      element.scrollTop = 0;
-    } else if (previous && !groupDrillIn) {
-      element.scrollTop = overviewScrollTopRef.current;
-      if (scrollTopStore) scrollTopStore.current = overviewScrollTopRef.current;
-    } else if (previous && groupDrillIn && (
-      previous.groupId !== groupDrillIn.groupId || previous.directory !== groupDrillIn.directory
-    )) {
-      element.scrollTop = 0;
-    }
+    const same = previous?.groupId === groupDrillIn?.groupId && previous?.directory === groupDrillIn?.directory;
+    if (same) return;
     previousDrillInRef.current = groupDrillIn;
+    const scope = groupDrillIn ? `drill:${groupDrillIn.groupId}:${groupDrillIn.directory}` : "overview";
+    const target = scrollPositionsRef.current.get(scope) ?? 0;
+    return restoreScrollPosition(element, target, (actual) => {
+      scrollPositionsRef.current.set(scope, actual);
+      if (scope === "overview" && scrollTopStore) scrollTopStore.current = actual;
+      experienceSignal("scroll_restore", {
+        container: "changes-scroll-region",
+        scope,
+        expected: target,
+        actual,
+      });
+    });
   }, [groupDrillIn, scrollTopStore]);
 
   useEffect(() => {
@@ -1066,11 +1243,15 @@ function FileListImpl({
   }, [groupDrillIn, resolvedGroups]);
 
   const handleCycleViewMode = onCycleViewMode ?? (() => {});
-  const totalFilesCount =
-    (files?.conflicts?.length ?? 0) +
-    (files?.staged?.length ?? 0) +
-    (files?.unstaged?.length ?? 0) +
-    (files?.untracked?.length ?? 0);
+  const totalFilesCount = useMemo(
+    () => new Set([
+      ...(files?.conflicts ?? []),
+      ...(files?.staged ?? []),
+      ...(files?.unstaged ?? []),
+      ...(files?.untracked ?? []),
+    ]).size,
+    [files?.conflicts, files?.staged, files?.unstaged, files?.untracked],
+  );
 
   return (
     <MobileContext.Provider value={isMobile}>
@@ -1096,6 +1277,12 @@ function FileListImpl({
               )}
             </IconButton>
             <span className="truncate">Changes</span>
+            <span
+              className="shrink-0 rounded bg-slate-800/80 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-slate-400"
+              aria-label={`${totalFilesCount} changed files`}
+            >
+              {formatCount(totalFilesCount)}
+            </span>
             {compactHeader ? (
               <IconButton
                 onClick={(e) => {
@@ -1103,6 +1290,7 @@ function FileListImpl({
                   setMetricsModal({ mode: "aggregate" });
                 }}
                 aria-label="View change metrics"
+                title="View change metrics"
                 size="xs"
                 surface="ghost"
                 denseTapTarget
@@ -1112,40 +1300,39 @@ function FileListImpl({
             ) : (
               <LineStats
                 stats={totalStats}
+                compact
                 onClick={() => setMetricsModal({ mode: "aggregate" })}
               />
             )}
           </CardTitle>
           <div className="relative z-20 flex shrink-0 flex-nowrap items-center justify-end gap-0.5">
             {!mobileSelectionMode && hasUnstaged && (
-              <IconButton
+              <button
+                type="button"
                 onClick={onStageAll}
-                disabled={false}
-                size="xs"
-                surface="ghost"
-                denseTapTarget
-                className="!h-8 !w-8 !min-h-0 !min-w-0 !border-0 !text-emerald-300"
-                aria-label="Stage all"
+                className="inline-flex h-8 items-center gap-1 rounded-md border border-emerald-400/20 bg-emerald-400/[0.06] px-1.5 text-[11px] font-semibold text-emerald-200 transition-colors hover:border-emerald-400/40 hover:bg-emerald-400/15 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-400"
+                aria-label={`Stage all ${stageableAll.length} changed files`}
                 data-testid="stage-all-button"
-                title="Stage All"
+                title={`Stage all ${stageableAll.length} changed files`}
               >
                 <Plus className="h-4 w-4" />
-              </IconButton>
+                {!compactHeader && <span>Stage all</span>}
+                <span className="font-mono tabular-nums">{compactCount(stageableAll.length)}</span>
+              </button>
             )}
             {!mobileSelectionMode && hasStaged && (
-              <IconButton
+              <button
+                type="button"
                 onClick={onUnstageAll}
-                disabled={false}
-                size="xs"
-                surface="ghost"
-                denseTapTarget
-                className="!h-8 !w-8 !min-h-0 !min-w-0 !border-0 !text-slate-300"
-                aria-label="Unstage all"
+                className="inline-flex h-8 items-center gap-1 rounded-md border border-slate-700/80 bg-slate-900/60 px-1.5 text-[11px] font-semibold text-slate-300 transition-colors hover:border-slate-600 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-400"
+                aria-label={`Unstage all ${files?.staged?.length ?? 0} staged files`}
                 data-testid="unstage-all-button"
-                title="Unstage All"
+                title={`Unstage all ${files?.staged?.length ?? 0} staged files`}
               >
                 <Minus className="h-4 w-4" />
-              </IconButton>
+                {!compactHeader && <span>Unstage all</span>}
+                <span className="font-mono tabular-nums">{compactCount(files?.staged?.length ?? 0)}</span>
+              </button>
             )}
             <ViewModeCycleButton
               mode={fileViewMode}
@@ -1161,7 +1348,7 @@ function FileListImpl({
             density="compact"
             items={[
               { id: "all", label: "All" },
-              { id: "agents", label: `From agents ${runIndex?.size ?? 0}` },
+              { id: "agents", label: `Agents ${runIndex?.size ?? 0}` },
               { id: "staged", label: "Staged" },
               { id: "conflicts", label: "Conflicts" },
             ]}
@@ -1171,6 +1358,105 @@ function FileListImpl({
             itemTestId={(item) => `changes-filter-${item}`}
           />
         </div>
+
+        {/* Desktop multi-select toolbar. Selecting rows with click, ctrl or
+            shift now exposes the same batch actions the mobile toolbar has. */}
+        {!isMobile && !mobileSelectionMode && (selectedFiles?.length ?? 0) > 1 && (() => {
+          const unstagedPaths = selectedFiles?.filter((entry) => !entry.staged).map((entry) => entry.path) ?? [];
+          const stagedPaths = selectedFiles?.filter((entry) => entry.staged).map((entry) => entry.path) ?? [];
+          const discardable = selectedFiles?.filter((entry) => !entry.staged) ?? [];
+          const untrackedSet = new Set(files?.untracked ?? []);
+          const trackedDiscard = discardable.filter((entry) => !untrackedSet.has(entry.path)).map((entry) => entry.path);
+          const untrackedDiscard = discardable.filter((entry) => untrackedSet.has(entry.path)).map((entry) => entry.path);
+          return (
+            <div
+              role="toolbar"
+              aria-label="Selected changes"
+              data-testid="changes-selection-toolbar"
+              className="flex items-center justify-between gap-2 border-b border-sky-400/20 bg-sky-950/20 px-2 py-1.5"
+            >
+              <div className="flex min-w-0 items-center gap-1.5">
+                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-sky-400/15 px-1 font-mono text-[10px] font-semibold text-sky-200">
+                  {selectedFiles?.length ?? 0}
+                </span>
+                <span className="truncate text-[11px] text-slate-300">selected</span>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                {unstagedPaths.length > 0 && (
+                  <button
+                    type="button"
+                    className="inline-flex h-7 items-center gap-1 rounded border border-emerald-400/30 bg-emerald-400/10 px-2 text-[11px] font-semibold text-emerald-200 hover:bg-emerald-400/15"
+                    onClick={() => onStagePaths?.(unstagedPaths)}
+                    data-testid="selection-stage"
+                  >
+                    <Plus className="h-3 w-3" />Stage {unstagedPaths.length}
+                  </button>
+                )}
+                {stagedPaths.length > 0 && (
+                  <button
+                    type="button"
+                    className="inline-flex h-7 items-center gap-1 rounded border border-slate-600 bg-slate-800/60 px-2 text-[11px] font-semibold text-slate-200 hover:bg-slate-700"
+                    onClick={() => {
+                      if (onUnstagePaths) onUnstagePaths(stagedPaths);
+                      else stagedPaths.forEach((path) => onUnstageFile(path));
+                    }}
+                    data-testid="selection-unstage"
+                  >
+                    <Minus className="h-3 w-3" />Unstage {stagedPaths.length}
+                  </button>
+                )}
+                {(trackedDiscard.length > 0 || untrackedDiscard.length > 0) && (
+                  batchDiscardConfirm ? (
+                    <>
+                      <button
+                        type="button"
+                        className="inline-flex h-7 items-center rounded border border-red-400/50 bg-red-500/15 px-2 text-[11px] font-semibold text-red-100 hover:bg-red-500/25"
+                        onClick={() => {
+                          if (trackedDiscard.length > 0) onDiscardPaths?.(trackedDiscard, false);
+                          if (untrackedDiscard.length > 0) onDiscardPaths?.(untrackedDiscard, true);
+                          setBatchDiscardConfirm(false);
+                        }}
+                        data-testid="selection-discard-confirm"
+                      >
+                        Discard {discardable.length}
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex h-7 items-center rounded border border-slate-600 px-2 text-[11px] text-slate-200 hover:bg-slate-800"
+                        onClick={() => setBatchDiscardConfirm(false)}
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className="inline-flex h-7 items-center gap-1 rounded border border-red-400/25 px-2 text-[11px] font-medium text-red-300 hover:bg-red-500/10"
+                      onClick={() => setBatchDiscardConfirm(true)}
+                      data-testid="selection-discard"
+                    >
+                      <Trash2 className="h-3 w-3" />Discard
+                    </button>
+                  )
+                )}
+                <button
+                  type="button"
+                  className="grid h-7 w-7 place-items-center rounded text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+                  onClick={() => {
+                    setBatchDiscardConfirm(false);
+                    if (onClearSelection) onClearSelection();
+                    else onExitSelectionMode?.();
+                  }}
+                  aria-label="Clear selection"
+                  title="Clear selection"
+                  data-testid="selection-clear"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         {!collapsed && (
           <CardContent className="flex-1 min-w-0 p-0 overflow-hidden">
@@ -1228,31 +1514,56 @@ function FileListImpl({
                     </Button>
                   )}
                   {selectionHasDiscardable && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="h-7 px-2 border-red-400/40 text-red-200 hover:bg-red-900/20"
-                      onClick={() => {
-                        const discardable = selectedFiles?.filter((e) => !e.staged) ?? [];
-                        const tracked = discardable
-                          .filter((e) => !(files?.untracked ?? []).includes(e.path))
-                          .map((e) => e.path);
-                        const untracked = discardable
-                          .filter((e) => (files?.untracked ?? []).includes(e.path))
-                          .map((e) => e.path);
-                        if (tracked.length > 0) onDiscardPaths?.(tracked, false);
-                        if (untracked.length > 0) onDiscardPaths?.(untracked, true);
-                      }}
-                      disabled={isDiscarding}
-                      style={{ background: "transparent" }}
-                    >
-                      Discard
-                    </Button>
+                    batchDiscardConfirm ? (
+                      <>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="h-7 px-2 border-red-400/60 bg-red-500/15 text-red-100 hover:bg-red-500/25"
+                          onClick={() => {
+                            const discardable = selectedFiles?.filter((e) => !e.staged) ?? [];
+                            const tracked = discardable
+                              .filter((e) => !(files?.untracked ?? []).includes(e.path))
+                              .map((e) => e.path);
+                            const untracked = discardable
+                              .filter((e) => (files?.untracked ?? []).includes(e.path))
+                              .map((e) => e.path);
+                            if (tracked.length > 0) onDiscardPaths?.(tracked, false);
+                            if (untracked.length > 0) onDiscardPaths?.(untracked, true);
+                            setBatchDiscardConfirm(false);
+                          }}
+                          disabled={isDiscarding}
+                          style={{ background: "transparent" }}
+                        >
+                          Discard {selectedFiles?.filter((e) => !e.staged).length ?? 0}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="h-7 px-2"
+                          onClick={() => setBatchDiscardConfirm(false)}
+                          style={{ background: "transparent" }}
+                        >
+                          Cancel
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="h-7 px-2 border-red-400/40 text-red-200 hover:bg-red-900/20"
+                        onClick={() => setBatchDiscardConfirm(true)}
+                        disabled={isDiscarding}
+                        style={{ background: "transparent" }}
+                      >
+                        Discard
+                      </Button>
+                    )
                   )}
                 </div>
               </div>
             )}
-              <div style={{ paddingBottom: 72 }}>
+              <div style={{ paddingBottom: isMobile ? 72 : 12 }}>
                 {fileViewMode === "tree" ? (
                   <ProjectTreeView
                     onSelectFile={(path) => {
@@ -1295,11 +1606,12 @@ function FileListImpl({
                       onIgnore={handleIgnoreFile}
                       resolvedGroups={resolvedGroups}
                       onOpenMobileActions={handleOpenMobileActions}
-                      onContextMenu={onBlameFile || onStageFilesWithSameName ? handleFileContextMenu : undefined}
+                      onContextMenu={handleFileContextMenu}
                       mobileSelectionMode={mobileSelectionMode}
                       onLongPress={handleLongPress}
                       onMobileTap={handleMobileTap}
                       onViewMetrics={openFileMetrics}
+                      compactActions={compactHeader}
                       scrollToFile={scrollToFile}
                       onScrollComplete={onScrollComplete}
                     />
@@ -1340,57 +1652,32 @@ function FileListImpl({
                     </p>
                   </div>
                 )}
+                {fileViewMode !== "tree" && files && !loadError && totalFilesCount > 0 && !hasVisibleFiles && listFilter !== "all" && (
+                  <div
+                    className="flex flex-col items-center justify-center px-4 py-6 text-center"
+                    data-testid="filter-empty-state"
+                  >
+                    <File className="h-6 w-6 text-slate-700 mb-1.5" />
+                    <p className="text-[13px] text-slate-400">
+                      No files in “{listFilter === "agents" ? "Agents" : listFilter === "staged" ? "Staged" : "Conflicts"}”.
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-slate-600">
+                      Other changes are waiting under All.
+                    </p>
+                    <button
+                      type="button"
+                      className="mt-2 inline-flex min-h-8 items-center rounded-md border border-slate-700 px-3 text-xs font-medium text-slate-200 hover:bg-slate-800"
+                      onClick={() => setListFilter("all")}
+                    >
+                      Show all changes
+                    </button>
+                  </div>
+                )}
               </div>
             </ScrollArea>
           </CardContent>
         )}
       </Card>
-
-      {/* Keep expanded group actions in one place when the header is narrow. */}
-      {compactHeader && mobileGroupActions && (
-        <BottomSheet
-          isOpen={Boolean(mobileGroupActionsId)}
-          onClose={() => setMobileGroupActionsId(null)}
-          title={`${mobileGroupActions.label} actions`}
-        >
-          <div className="space-y-1">
-            <BottomSheetAction
-              icon={<FolderOpen className="h-5 w-5 text-cyan-300" />}
-              label="Browse group folders"
-              description="Open the folder view for this group"
-              onClick={() => {
-                setGroupDrillIn({ groupId: mobileGroupActions.id, directory: "" });
-                setMobileGroupActionsId(null);
-              }}
-            />
-            {!mobileSelectionMode && onStagePaths && mobileGroupActions.stageable.length > 0 && (
-              <BottomSheetAction
-                icon={<Plus className="h-5 w-5 text-emerald-300" />}
-                label={`Stage ${mobileGroupActions.stageable.length} files`}
-                description="Add all stageable changes in this group"
-                variant="success"
-                onClick={() => {
-                  onStagePaths(mobileGroupActions.stageable);
-                  setMobileGroupActionsId(null);
-                }}
-              />
-            )}
-            {!mobileSelectionMode && onDiscardPaths && mobileGroupActions.discardCount > 0 && (
-              <BottomSheetAction
-                icon={<Trash2 className="h-5 w-5 text-red-400" />}
-                label={`Discard ${mobileGroupActions.discardCount} changes`}
-                description="Review a confirmation before removing these changes"
-                variant="danger"
-                disabled={isDiscarding}
-                onClick={() => {
-                  setConfirmingGroup(mobileGroupActions.id);
-                  setMobileGroupActionsId(null);
-                }}
-              />
-            )}
-          </div>
-        </BottomSheet>
-      )}
 
       {/* Mobile file action bottom sheet (suppressed in selection mode) */}
       {isMobile && !mobileSelectionMode && mobileActionFileInfo && (
@@ -1429,7 +1716,7 @@ function FileListImpl({
             {/* View metrics */}
             <BottomSheetAction
               icon={<BarChart3 className="h-5 w-5 text-slate-300" />}
-              label="View Metrics"
+              label="View file metrics"
               description="View change metrics for this file"
               onClick={() => {
                 const cat: FileCategory = mobileActionFileInfo.isStaged ? "staged"
@@ -1513,7 +1800,7 @@ function FileListImpl({
               mobileActionFileInfo.isUntracked) && (
               <BottomSheetAction
                 icon={<Trash2 className="h-5 w-5 text-red-400" />}
-                label="Discard Changes"
+                label="Discard changes"
                 description={
                   mobileActionFileInfo.isUntracked
                     ? "Delete this file"
@@ -1535,6 +1822,16 @@ function FileListImpl({
 
       {/* Context menu for right-click blame action */}
       <ContextMenu open={Boolean(contextMenu)} position={contextMenu ?? { x: 0, y: 0 }} title="File actions" closeLabel="Close file actions" items={contextMenuItems} onOpenChange={(open) => { if (!open) handleCloseContextMenu() }} triggers={[]} />
+      <ContextMenu
+        open={Boolean(groupContextMenu)}
+        position={groupContextMenu ?? { x: 0, y: 0 }}
+        title={groupMenuTarget ? `${groupMenuTarget.label} actions` : "Group actions"}
+        closeLabel="Close group actions"
+        items={groupMenuItems}
+        onOpenChange={(open) => { if (!open) handleCloseGroupContextMenu(); }}
+        triggers={[]}
+        testId="group-context-menu"
+      />
 
       {/* Change metrics modal */}
        <ChangeMetricsModal

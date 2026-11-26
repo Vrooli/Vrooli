@@ -27,10 +27,10 @@ belong in [`DATA.md`](DATA.md).
 
 ## Domain Inventory
 
-These are the intended product domains for the locked design. Nothing
-in the list is built yet; this inventory is the target boundary map
-that requirements and code will fill in. The `health` domain is the
-template-provided readiness surface and is retained.
+These are the intended product domains for the locked design. The
+inventory defines ownership and expected source paths; implementation
+status belongs to the linked requirements and code. The `health`
+domain is the template-provided readiness surface and is retained.
 
 | Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths |
 |---|---|---|---|---|---|---|
@@ -82,7 +82,7 @@ template-provided readiness surface and is retained.
   enforce the safety rules around it.
 - Primary archetype: configuration / entity.
 - Secondary traits: encryption-by-default, per-destination storage cap.
-- Owns: destination records, the backend kind (`filesystem` or
+- Owns: destination records, the backend kind (`filesystem`, `sftp`, or
   `s3`/MinIO), the configurable storage cap, and references to the
   credential-authority-held passphrase and backend access keys. Tracks usage versus cap from
   kopia repository stats.

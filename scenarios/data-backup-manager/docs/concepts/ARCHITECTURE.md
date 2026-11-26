@@ -91,7 +91,7 @@ The product vocabulary is fixed and decouples *what is backed up* from
         │ self-registers (owner+name)
         ▼
      TARGET ──────┐                ┌────── DESTINATION (= kopia repository)
-   (a source:     │  many-to-many  │       (local fs or S3/MinIO,
+   (a source:     │  many-to-many  │       (local fs, S3/MinIO, or SFTP,
     fs / sqlite /  ├──── PLAN ──────┤        encrypted by default,
     postgres /     │  + schedule    │        per-destination cap)
     redis /        │  + retention   │
@@ -105,49 +105,9 @@ The product vocabulary is fixed and decouples *what is backed up* from
      RESTORE  (restore to a location, or VERIFY to scratch + checksum)
 ```
 
-- **Target** — a source registered by an owning scenario. Unique key is
-  `owner + name`. Carries one of six **source kinds** (filesystem,
-  SQLite, Postgres, Redis, Qdrant, object-storage), a locator, and
-  optional pre/post quiesce hooks (P1). Source credentials remain owned by
-  their source resource contracts.
-- **Destination** — where artifacts land: one kopia repository, backed
-  by a local filesystem path or S3/MinIO. Encrypted by default; repository
-  passphrases and S3 access keys live in the credential authority; **must not** point under the
-  storage root it protects (separate-root rule); carries a configurable
-  storage cap defaulting to **alert + block**.
-- **Plan** — binds targets to destinations (many-to-many) with a
-  schedule and retention. One target may be in several plans
-  (daily-to-local *and* weekly-to-offsite).
-- **Run** — one execution of a plan; records run history and
-  last-success-per-target.
-- **Restore** — restores a target to a location; **verify** mode
-  test-restores to scratch and checksums (records last-verified).
-  A verified restore is the gate before any committed runtime data is
-  removed from git.
-- **Discovery** (onboarding helper, not a noun in the core model) — a
-  read-only domain that scans the local environment and *suggests*
-  targets to protect (well-known `~/.vrooli` runtime state) and
-  destinations to back up to (mounted volumes, removable drives first).
-  Suggestions are derived (only dismissals persist); accepting one calls
-  the existing `RegisterTarget` / `CreateDestination`, so it never
-  becomes a second write path. The OS volume scan is confined behind the
-  `internal/sysmounts` seam (the one place `gopsutil` is imported).
-- **Destination readiness** — a read-only safety domain under
-  `api/internal/destinationreadiness/` that analyzes a mounted path before
-  destination creation or drive preparation. It owns filesystem suitability,
-  installer-media/content warnings, capacity fit, protected-path overlap checks,
-  preparation planning, non-destructive backup-subdirectory creation, and
-  confirmation/identity guards. It persists no data and is exposed through
-  additional `DestinationsService` RPCs so destination setup remains one
-  operator-facing surface.
-
-Self-registration mirrors agent-manager's `EnsureProfile`: scenarios
-re-register idempotently on boot, so the catalog is reconstructable and
-the manager's SQLite store is a cache plus run history, **not** the
-single source of truth. Backup artifacts never live under the scenario
-source tree — they live in kopia repositories. See
-[`INTEGRATIONS.md`](INTEGRATIONS.md) for the resource contracts and
-[`DATA.md`](DATA.md) for the two-store split.
+This map captures the product relationships, not per-domain ownership or
+operational rules. [`DOMAINS.md`](DOMAINS.md) owns those details;
+[`DATA.md`](DATA.md) owns catalog and artifact storage semantics.
 
 ## System Boundaries
 

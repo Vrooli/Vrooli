@@ -5,7 +5,6 @@
 | Severity | Component | Issue | Evidence | Next Step |
 | --- | --- | --- | --- | --- |
 | 3 | Requirements | Completeness scoring reports 100% one-to-one operational target mapping. | `scenario-completeness-scoring score get fall-foliage-explorer --json` reports `ungrouped_operational_targets`. | Decompose requirements under cohesive PRD target folders without changing PRD checkboxes manually. |
-| 3 | Tests | Unit phase can fail coverage threshold even when Go tests pass. | Historical `test/artifacts/unit-*.log` shows 40.2% coverage below 50%. | Add meaningful tests for uncovered handlers or adjust threshold only with evidence. |
 | 2 | Resources | Redis is declared but not currently used directly by API code. | [CODE: .vrooli/service.json] and [CODE: api/main.go]. | Either implement caching in a future non-doc pass or mark the resource optional with product approval. |
 | 2 | Standards | UI type-check currently falls back to syntax-only when `typescript` has not been installed locally. | `pnpm run type-check` reports the compiler is unavailable until `pnpm install`; lifecycle setup now uses `pnpm install --ignore-workspace`. | Run lifecycle setup or approved dependency install before relying on strict TS checks locally. |
 
@@ -18,4 +17,4 @@
 
 ## Resolved Or Historical
 
-Historical issues resolved before this pass included the missing API `fmt` import, UI server syntax error, database connection failure, missing database tables, Ollama integration gap, export functionality gap, and photo gallery gap.
+Historical issues resolved before this pass included the missing API `fmt` import, UI server syntax error, database connection failure, missing database tables, Ollama integration gap, export functionality gap, and photo gallery gap. The old 40.2% coverage-threshold warning is stale: Test Genie run `20261124-043820-90f527a9` reports coverage quality L2 complete. That unit phase still fails separately because the UI test role and framework are missing.

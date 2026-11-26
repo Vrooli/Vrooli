@@ -45,11 +45,10 @@ The approved Light-table workspace and first project/shot domains are implemente
 [PROGRESS.md](PROGRESS.md), [TESTING.md](TESTING.md), [INTEGRATIONS.md](../concepts/INTEGRATIONS.md), [DEPLOYMENT.md](../operations/DEPLOYMENT.md).
 
 
-### 2026-10-20: existing cross-domain shot foreign key
+### 2026-10-20: existing cross-domain shot foreign key — resolved 2026-11-24
 
-Before adding the reviewed asset library, `storage-manager validate scenario
-device-studio` passed with one advisory: `api/internal/shots/schema.sql:3` has a
-hard foreign key to projects. The new library will use soft cross-domain IDs.
-Reconcile the existing shot/project lifecycle coupling during the release storage
-review; do not silently edit the live table definition without the existing-data
-conversion procedure. Receipt: `goal/evidence/E3/pre-library-storage.json`.
+`shots.project_id` is now a soft ID. Startup atomically rebuilds the old table,
+preserves shot/revision rows, checks remaining foreign keys, and rolls back on
+failure. Focused positive/negative SQLite tests and the full API Go suite pass.
+Test Genie API still reports the existing late-preflight error; no live database
+was changed. Original discovery: `goal/evidence/E3/pre-library-storage.json`.

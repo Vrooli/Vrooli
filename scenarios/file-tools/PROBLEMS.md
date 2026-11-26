@@ -1351,21 +1351,12 @@ Commands:
 
 **Result**: All 8 CLI tests now pass
 
+Supersedes the 2025-09-27 CLI-failure subsection. The current CLI groups
+are checked by `cli/app_test.go::TestReadmeCommandExamplesMatchRegisteredGroups`.
+
 ## 2025-09-27 Improvement Cycle
 
-### Problems Discovered
-
-#### 1. CLI Test Failures
-**Problem**: Several CLI test commands are failing:
-- Version command not displaying version correctly
-- Configure command not working properly
-- Health command not sending correct request
-
-**Status**: Not fixed - CLI implementation needs updates to match test expectations
-
-**Suggested Fix**: Update the CLI shell script to properly handle these commands and integrate with the API.
-
-#### 2. Resource Dependencies Not All Running
+#### 1. Resource Dependencies Not All Running
 **Problem**: PostgreSQL resource not installed/running, though the API connects to a shared instance successfully.
 
 **Status**: Working via shared vrooli-postgres-main container on port 5433

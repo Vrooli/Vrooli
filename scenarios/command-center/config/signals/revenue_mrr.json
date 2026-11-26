@@ -8,7 +8,7 @@
   "source": {
     "team": "director-swarm",
     "binding": "scenario:landing-page-business-suite",
-    "read": "/api/v1/admin/dashboard/revenue",
+    "read": "/api/v1/admin/dashboard/revenue/summary",
     "select": "revenue_mrr",
     "ttlSeconds": 300,
     "integrationId": "landing-page-business-suite",

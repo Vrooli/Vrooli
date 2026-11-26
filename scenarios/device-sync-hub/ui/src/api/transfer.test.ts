@@ -18,6 +18,7 @@ import { downloadItem, fetchItemBlob, RETENTION_FORM_VALUE, uploadItem } from ".
  */
 class FakeXhr {
   static last: FakeXhr | null = null;
+  static instances: FakeXhr[] = [];
   method = "";
   url = "";
   responseType = "";
@@ -39,6 +40,7 @@ class FakeXhr {
   send(body: unknown) {
     this.sentBody = body;
     FakeXhr.last = this;
+    FakeXhr.instances.push(this);
   }
   abort() {
     this.onabort?.();
@@ -54,6 +56,7 @@ describe("uploadItem", () => {
     vi.unstubAllGlobals();
     vi.clearAllMocks();
     FakeXhr.last = null;
+    FakeXhr.instances = [];
   });
 
   it("posts the file with the device-token header and resolves the decoded item", async () => {
@@ -115,6 +118,60 @@ describe("uploadItem", () => {
     await expect(promise).rejects.toMatchObject({ code: "unavailable" });
   });
 
+  it("uploads large files in resumable chunks and reports the completed item", async () => {
+    const size = (32 << 20) + 1;
+    const file = new File([new Uint8Array(size)], "archive.zip", { type: "application/zip" });
+    const onProgress = vi.fn();
+    const onSession = vi.fn();
+    authedFetch
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: "upload-1", received: [] }), { status: 201 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ item: { id: "item-1", name: file.name } }), { status: 201 }));
+
+    const uploaded = uploadItem(file, { onProgress, onSession });
+    for (let index = 0; index < 5; index += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const xhr = FakeXhr.instances[index];
+      expect(xhr).toBeDefined();
+      expect(xhr.url).toContain(`/transfer/uploads/upload-1/chunks/${index}`);
+      expect((xhr.sentBody as Blob).size).toBe(index === 4 ? 1 : 8 << 20);
+      xhr.status = 200;
+      xhr.onload?.();
+    }
+
+    const item = await uploaded;
+    expect(item.id).toBe("item-1");
+    expect(onSession).toHaveBeenCalledWith("upload-1");
+    expect(onProgress).toHaveBeenLastCalledWith(1);
+    expect(authedFetch).toHaveBeenCalledTimes(2);
+    expect(authedFetch.mock.calls[1]?.[0]).toContain("/transfer/uploads/upload-1/complete");
+  });
+
+  it("resumes from the server-reported received chunk", async () => {
+    const size = (32 << 20) + 1;
+    const file = new File([new Uint8Array(size)], "archive.zip", { type: "application/zip" });
+    const onProgress = vi.fn();
+    authedFetch
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id: "upload-2", received: [0] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ item: { id: "item-2", name: file.name } }), { status: 201 }));
+
+    const uploaded = uploadItem(file, { sessionId: "upload-2", onProgress });
+    for (let index = 1; index < 5; index += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const xhr = FakeXhr.instances[index - 1];
+      expect(xhr).toBeDefined();
+      expect(xhr.url).toContain(`/transfer/uploads/upload-2/chunks/${index}`);
+      expect((xhr.sentBody as Blob).size).toBe(index === 4 ? 1 : 8 << 20);
+      xhr.status = 200;
+      xhr.onload?.();
+    }
+
+    const item = await uploaded;
+    expect(item.id).toBe("item-2");
+    expect(authedFetch.mock.calls[0]?.[0]).toContain("/transfer/uploads/upload-2");
+    expect(onProgress).toHaveBeenLastCalledWith(1);
+    expect(FakeXhr.instances).toHaveLength(4);
+  });
+
   it("rejects immediately when the signal is already aborted", async () => {
     const controller = new AbortController();
     controller.abort();
@@ -145,7 +202,13 @@ describe("fetchItemBlob", () => {
     authedFetch.mockResolvedValue(new Response("data", { status: 200 }));
     const result = await fetchItemBlob("item-1", { thumb: true });
     expect(authedFetch.mock.calls[0]?.[0]).toContain("/transfer/items/item-1/content?thumb=1");
-    expect(await result.text()).toBe("data");
+    const text = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsText(result);
+    });
+    expect(text).toBe("data");
   });
 
   it("throws a decoded api error on a non-ok response", async () => {

@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"command-center/upstream"
 )
 
 func TestObservationTimeRequiresProducerMetadata(t *testing.T) {
@@ -135,6 +137,67 @@ func (c staticUpstreamClient) Name() string { return c.name }
 
 func (c staticUpstreamClient) Fetch(context.Context, string) (json.RawMessage, error) {
 	return append(json.RawMessage(nil), c.body...), nil
+}
+
+type pathCheckingUpstreamClient struct {
+	name string
+	path string
+	body json.RawMessage
+}
+
+func (c pathCheckingUpstreamClient) Name() string { return c.name }
+
+func (c pathCheckingUpstreamClient) Fetch(_ context.Context, path string) (json.RawMessage, error) {
+	if path == "/health" {
+		return json.RawMessage(`{"status":"ok"}`), nil
+	}
+	if path != c.path {
+		return nil, fmt.Errorf("unexpected read path %q; want %q", path, c.path)
+	}
+	return append(json.RawMessage(nil), c.body...), nil
+}
+
+func TestMissionControlRevenueUsesTheProducerSummaryProjection(t *testing.T) {
+	setUnavailableUpstreams(t)
+	reg, err := LoadRegistry("../config/outcome-registry.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := LoadSplitRoomCatalog(reg); err != nil {
+		t.Fatal(err)
+	}
+	if err := LoadSplitSignalCatalog(reg); err != nil {
+		t.Fatal(err)
+	}
+	s := NewServer(reg)
+	s.providers[SourceLPBS] = upstreamProvider{client: func() upstream.Client {
+		return pathCheckingUpstreamClient{
+			name: "lpbs",
+			path: "/api/v1/admin/dashboard/revenue/summary",
+			body: json.RawMessage(fmt.Sprintf(`{"observed_at":%q,"mrr_minor":12500,"revenue_today_minor":3500}`, time.Now().UTC().Format(time.RFC3339Nano))),
+		}
+	}}
+	response := httptest.NewRecorder()
+	s.router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/dashboards/mission-control", nil))
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	var dashboard dashboardResponse
+	if err := json.Unmarshal(response.Body.Bytes(), &dashboard); err != nil {
+		t.Fatal(err)
+	}
+	values := map[string]MetricEntry{}
+	for _, metric := range dashboard.Metrics {
+		if metric.ID == "revenue_mrr" || metric.ID == "revenue_today" {
+			values[metric.ID] = metric
+		}
+	}
+	for id, want := range map[string]float64{"revenue_mrr": 125, "revenue_today": 35} {
+		metric, ok := values[id]
+		if !ok || metric.Trust != TrustValid || metric.Value != want || metric.ObservedAt == nil {
+			t.Errorf("%s = %+v, present=%t; want VALID value %v with producer time", id, metric, ok, want)
+		}
+	}
 }
 
 func TestHandleDashboard_QualifiesTypedSwarmEnvelope(t *testing.T) {

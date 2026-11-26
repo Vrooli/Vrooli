@@ -20,6 +20,7 @@ import (
 	renderjobs "device-studio/internal/renderjobs"
 	"device-studio/internal/routedblobstore"
 	"device-studio/internal/server"
+	"device-studio/internal/shots"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -121,6 +122,9 @@ func main() {
 
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
+	}
+	if err := shots.RemoveLegacyProjectForeignKey(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("shot ownership schema migration failed: %v", err)
 	}
 	configureTestPoolSchemas(db)
 	primaryFileRoots, err := scenarioStorageRoots()
@@ -238,6 +242,9 @@ func inspectIntakeGLB(ctx context.Context, data []byte) (librarydomain.IntakeIns
 // first public render operation even though primary startup is healthy.
 func configureTestPoolSchemas(db *database.RoutedDB) {
 	db.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
-		return database.EnsureSchemas(ctx, pool, modules.AllSchemas()...)
+		if err := database.EnsureSchemas(ctx, pool, modules.AllSchemas()...); err != nil {
+			return err
+		}
+		return shots.RemoveLegacyProjectForeignKey(ctx, pool)
 	})
 }

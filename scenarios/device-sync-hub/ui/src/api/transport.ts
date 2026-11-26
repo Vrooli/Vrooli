@@ -88,8 +88,11 @@ export async function decodeApiError(res: Response): Promise<ApiError> {
     envelope = fromJson(ErrorEnvelopeSchema, json, PROTO_READ_OPTIONS);
   } catch {
     envelope = create(ErrorEnvelopeSchema, {
-      code: "internal",
-      message: `unexpected ${res.status} response (no envelope)`,
+      code: res.status === 413 ? "resource_exhausted" : "internal",
+      message:
+        res.status === 413
+          ? "request was rejected by an upstream size limit"
+          : `unexpected ${res.status} response (no envelope)`,
     });
   }
   return new ApiError(envelope, res.status);

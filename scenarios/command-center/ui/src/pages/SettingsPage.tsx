@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Check, ChevronRight, Layers, LayoutGrid, Loader2, Palette, PanelsTopLeft, Plus, Radar, Search } from "lucide-react";
 import { Slider } from "@vrooli/react-component-library/Slider/1.2.4";
-import { deleteCatalogEntry, fetchBoardSettings, fetchCatalogs, saveBoardSettings, saveCatalogEntry, type BoardSettings, type CatalogEntry } from "../lib/api";
+import { DEFAULT_BOARD_SETTINGS, deleteCatalogEntry, fetchBoardSettings, fetchCatalogs, saveBoardSettings, saveCatalogEntry, type BoardSettings, type CatalogEntry } from "../lib/api";
 import { validateRoomBinding } from "../lib/catalogs";
 import { matchesSavedDraft, removeSavedDrafts, saveCatalogBatch } from "../lib/catalogSaveBatch";
 import { AdvancedJson, CatalogForm } from "../components/settings/CatalogForms";
@@ -190,7 +190,7 @@ export default function SettingsPage() {
     if (destination === "signals") return <SignalsDestination catalogs={catalogs} onExit={() => navigate("/mission-control")} onAgent={(target) => void copyAgentPrompt(target)} />;
     if (destination === "board") {
       const boardRooms = catalogs.rooms?.length ? catalogs.rooms : (boardSettingsQuery.data?.rooms ?? []).map((room) => ({ id: room.id, title: room.id }));
-      return <BoardSettingsDestination settings={boardSettingsQuery.data} error={boardSettingsQuery.error} rooms={boardRooms} onExit={() => navigate("/mission-control")} onRetry={() => void boardSettingsQuery.refetch()} onSave={async (value) => { await saveBoardSettings(value); await boardSettingsQuery.refetch(); }} />;
+      return <BoardSettingsDestination settings={boardSettingsQuery.data} error={boardSettingsQuery.error} rooms={boardRooms} onExit={() => navigate("/mission-control")} onRetry={() => void boardSettingsQuery.refetch()} onSave={async (value) => { await saveBoardSettings(value); await boardSettingsQuery.refetch({ throwOnError: true }); }} onRestoreDefaults={async () => { await saveBoardSettings({ ...DEFAULT_BOARD_SETTINGS }); await boardSettingsQuery.refetch({ throwOnError: true }); }} />;
     }
   }
 
@@ -431,15 +431,24 @@ function SignalsDestination({ catalogs, onExit, onAgent }: { catalogs: Record<st
   return <main className="cc-cx" data-testid="settings-signals"><DestinationHeader title="Signals & sources" copy="Every metric has a measurement kind, a renderer, and a source scenario. Choose a compatible metric when editing a section." onExit={onExit} onBack={() => window.history.back()} /><section className="cc-cx-destination-body"><p className="cc-cx-signal-scroll-hint" id="cc-cx-signal-scroll-hint">Swipe horizontally to see readout and source details.</p><div className="cc-cx-signal-table-scroll"><table className="cc-cx-signal-table" aria-describedby="cc-cx-signal-scroll-hint"><caption className="sr-only">Configured signals and their measurement and source details</caption><thead><tr><th scope="col">Signal</th><th scope="col">Measurement</th><th scope="col">Readout</th><th scope="col">Source</th></tr></thead><tbody>{(catalogs.signals ?? []).map((signal) => <tr key={signal.id}><th scope="row">{labelOf(signal)}</th><td>{measurementLabel(String(signal.shape ?? ""))}</td><td>{String(signal.component ?? signal.kind ?? "Default readout")}</td><td>{String((signal.source as Record<string, unknown> | undefined)?.integrationId ?? "Local source")}</td></tr>)}</tbody></table></div><button type="button" className="cc-cx-agent-link" onClick={() => onAgent("connect a new upstream source")}>Hand to an agent · new source</button></section></main>;
 }
 
-function BoardSettingsDestination({ settings, error, rooms, onExit, onRetry, onSave }: { settings?: BoardSettings; error: unknown; rooms: CatalogEntry[]; onExit: () => void; onRetry: () => void; onSave: (settings: BoardSettings) => Promise<void> }) {
+function BoardSettingsDestination({ settings, error, rooms, onExit, onRetry, onSave, onRestoreDefaults }: { settings?: BoardSettings; error: unknown; rooms: CatalogEntry[]; onExit: () => void; onRetry: () => void; onSave: (settings: BoardSettings) => Promise<void>; onRestoreDefaults: () => Promise<void> }) {
   const [draft, setDraft] = useState<BoardSettings | null>(settings ?? null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [defaultsRestored, setDefaultsRestored] = useState(false);
   useEffect(() => { if (settings) setDraft(settings); }, [settings]);
-  if (!draft) return <main className="cc-cx"><DestinationHeader title="Board settings" copy={error ? "Saved board settings could not be loaded." : "Reading board settings…"} onExit={onExit} /><section className="cc-cx-destination-body">{error ? <><p role="alert" className="cc-cx-error-block">Saved board settings could not be loaded: {error instanceof Error ? error.message : "unknown error"}.</p><button type="button" className="cc-cx-primary" onClick={onRetry}>Retry</button></> : <p role="status" className="cc-cx-status">Reading board settings…</p>}</section></main>;
+  const invalidSavedSettings = error instanceof Error && "code" in error && error.code === "board_settings_invalid";
+  const restoreDefaults = async () => {
+    if (!invalidSavedSettings || !window.confirm("Replace the unreadable settings with a 60-second crossfade and put all configured rooms back in rotation?")) return;
+    setSaving(true); setSaved(false); setSaveError(null); setDefaultsRestored(false);
+    try { await onRestoreDefaults(); setSaved(true); setDefaultsRestored(true); }
+    catch (error) { setSaveError(error instanceof Error ? error.message : "Defaults could not be restored."); }
+    finally { setSaving(false); }
+  };
+  if (!draft) return <main className="cc-cx"><DestinationHeader title="Board settings" copy={error ? "Saved board settings could not be loaded." : "Reading board settings…"} onExit={onExit} /><section className="cc-cx-destination-body">{error ? <><p role="alert" className="cc-cx-error-block">Saved board settings could not be loaded: {error instanceof Error ? error.message : "unknown error"}.</p><button type="button" className="cc-cx-primary" onClick={onRetry}>Retry</button>{invalidSavedSettings ? <button type="button" className="cc-cx-secondary" disabled={saving} onClick={() => void restoreDefaults()}>{saving ? "Restoring defaults…" : "Restore defaults"}</button> : null}</> : <p role="status" className="cc-cx-status">Reading board settings…</p>}{saveError ? <p role="alert" className="cc-cx-error-block">Saved board settings were not replaced: {saveError}</p> : null}{saved && defaultsRestored ? <p role="status" className="cc-cx-inline-status">Defaults restored. All configured rooms are back in rotation.</p> : null}</section></main>;
   const save = async () => {
-    setSaving(true); setSaved(false); setSaveError(null);
+    setSaving(true); setSaved(false); setSaveError(null); setDefaultsRestored(false);
     try { await onSave(draft); setSaved(true); }
     catch (error) { setSaveError(error instanceof Error ? error.message : "Save failed."); }
     finally { setSaving(false); }
@@ -450,5 +459,5 @@ function BoardSettingsDestination({ settings, error, rooms, onExit, onRetry, onS
           ? draft.rooms.map((item) => item.id === room.id ? { ...item, enabled: event.target.checked } : item)
           : [...draft.rooms, { id: room.id, enabled: event.target.checked }];
         setDraft({ ...draft, rooms: nextRooms });
-      }} />{labelOf(room)}</label>)}</div><button type="button" className="cc-cx-primary" disabled={saving} onClick={() => void save()}>{saving ? "Saving…" : "Save board settings"}</button>{saveError ? <p role="alert" className="cc-cx-error-block">Board settings were not saved: {saveError}</p> : null}{saved ? <p role="status" className="cc-cx-inline-status">Board settings saved.</p> : null}</section></main>;
+      }} />{labelOf(room)}</label>)}</div><button type="button" className="cc-cx-primary" disabled={saving} onClick={() => void save()}>{saving ? "Saving…" : "Save board settings"}</button>{saveError ? <p role="alert" className="cc-cx-error-block">Board settings were not saved: {saveError}</p> : null}{saved ? <p role="status" className="cc-cx-inline-status">{defaultsRestored ? "Defaults restored. All configured rooms are back in rotation." : "Board settings saved."}</p> : null}</section></main>;
 }

@@ -29,6 +29,40 @@ func TestAuthoredMetricsHaveExplicitTypedBindings(t *testing.T) {
 	}
 }
 
+func TestRevenueSummarySelectorsReadTheSummaryProjection(t *testing.T) {
+	reg, err := LoadRegistry("../config/outcome-registry.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		"revenue_mrr":   "/api/v1/admin/dashboard/revenue/summary",
+		"revenue_today": "/api/v1/admin/dashboard/revenue/summary",
+	}
+	assertRevenueBindings := func(stage string, metrics []MetricEntry) {
+		seen := make(map[string]bool, len(want))
+		for _, metric := range metrics {
+			path, checked := want[metric.ID]
+			if !checked {
+				continue
+			}
+			seen[metric.ID] = true
+			if metric.Source.Read != path || metric.Source.ContractVersion != "revenue-summary.v1" {
+				t.Errorf("%s metric %q reads %q under contract %q; want %q under revenue-summary.v1", stage, metric.ID, metric.Source.Read, metric.Source.ContractVersion, path)
+			}
+		}
+		for id := range want {
+			if !seen[id] {
+				t.Errorf("%s is missing revenue summary metric %q", stage, id)
+			}
+		}
+	}
+	assertRevenueBindings("base registry", reg.Metrics)
+	if err := LoadSplitSignalCatalog(reg); err != nil {
+		t.Fatal(err)
+	}
+	assertRevenueBindings("editable signal overlay", reg.Metrics)
+}
+
 func TestLoadRegistry_ValidFile(t *testing.T) {
 	reg, err := LoadRegistry(filepath.Join("..", "config", "outcome-registry.json"))
 	if err != nil {

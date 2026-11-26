@@ -349,24 +349,18 @@ Every durable scenario document should be registered in
 `docs/manifest.json`. Put deep domain-specific documentation under
 `docs/domains/<domain>/` when `DOMAINS.md` would become noisy.
 
-## Cross-References
-
 ## Browser-operated desktop boundary
 
-Device Control owns desktop semantics: session readiness, one-display
-capture, raw and semantic input, clipboard, controller leases, revocation,
-and the native platform companion. Bridge supplies trusted node reach and
-interactive signaling; Web Console renders the browser pane. See the
-[canonical architecture](../../../../docs/architecture/remote-desktop-control.md)
+Device Control owns desktop session readiness and operation; Bridge owns
+trusted node identity, reach, and signaling; Web Console owns browser
+presentation. The shared design and security boundary live in the
+[canonical cross-scenario architecture](../../../../docs/architecture/remote-desktop-control.md)
 and [decision record](../../../../docs/architecture/remote-desktop-control-decision-record.md).
+Current platform readiness and dependencies stay in
+[`INTEGRATIONS.md`](INTEGRATIONS.md); session states and transition rules stay
+in [`FLOWS.md`](FLOWS.md).
 
-The production macOS path is a Device Control-owned Go companion using Pion
-WebRTC, ScreenCaptureKit, Quartz/CGEvent, and explicit text clipboard APIs.
-The API process must never pretend that `display_attached` means an active
-Aqua session. Bridge-managed Darwin onboarding compiles the companion on the
-target with CGO and the Apple SDK, verifies Mach-O plus
-ScreenCaptureKit/CoreGraphics linkage, and records the native binary before
-the user-session LaunchAgent lifecycle begins.
+## Cross-References
 
 - [`START-HERE.md`](../START-HERE.md) — first implementation workflow
 - [`QUICKSTART.md`](../QUICKSTART.md) — clone-to-running flow
@@ -383,15 +377,3 @@ the user-session LaunchAgent lifecycle begins.
 - [`../internal/ERROR-HANDLING.md`](../internal/ERROR-HANDLING.md) — error semantics
 - [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md) — known issues / tech debt
 - [`../internal/PROGRESS.md`](../internal/PROGRESS.md) — lifecycle log
-
-## Browser-operated desktop sessions
-
-Device Control is the semantic authority for the typed desktop session
-contract. `DesktopSessionService` reports active user/display/permission
-readiness, opens one selected display, binds input and explicit text clipboard
-operations to the controller lease epoch, and returns safe outcome receipts.
-The companion exposes bounded ordered WebRTC `control`/`data` lanes for
-lease-bearing input and clipboard receipts; the typed RPC remains the fallback
-when a data lane is unavailable. The native companion is user-session scoped; Bridge
-transports its authorized WebRTC signaling but does not gain native desktop
-authority.

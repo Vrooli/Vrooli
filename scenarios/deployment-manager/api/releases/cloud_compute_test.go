@@ -176,6 +176,9 @@ func TestCloudAcquireSnapshotRetainsStableKeyAndExactTargetAfterReadback(t *test
 	if restored.CloudAcquireIdempotencyKey != request.CloudAcquireIdempotencyKey || restored.CloudSpendQuoteIdempotencyKey != request.CloudSpendQuoteIdempotencyKey || restored.CloudComputeManagerInstanceID != "cm-instance-1" || !restored.CloudAcquireCompute {
 		t.Fatalf("restored acquire request=%+v", restored)
 	}
+	if restored.CloudAcquirePlan == nil || restored.CloudAcquirePlan.Provider != CloudA2Provider || restored.CloudAcquirePlan.Region != "nbg1" || restored.CloudAcquirePlan.Size != CloudA2Size || restored.CloudAcquirePlan.QuoteIdempotencyKey != request.CloudAcquireIdempotencyKey || restored.CloudAcquirePlan.CapMonthlyMinor != CloudA2CapMonthlyMinor {
+		t.Fatalf("restored acquisition plan=%+v", restored.CloudAcquirePlan)
+	}
 	var manifest releaseCloudTarget
 	if err := json.Unmarshal(restored.CloudManifest, &manifest); err != nil || manifest.Target.VPS.ComputeManagerInstanceID != "cm-instance-1" {
 		t.Fatalf("persisted manifest target=%q err=%v", manifest.Target.VPS.ComputeManagerInstanceID, err)

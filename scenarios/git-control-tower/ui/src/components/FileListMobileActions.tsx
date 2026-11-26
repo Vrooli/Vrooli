@@ -63,7 +63,7 @@ export function FileListMobileActions({
         {/* View metrics */}
         <BottomSheetAction
           icon={<BarChart3 className="h-5 w-5 text-slate-300" />}
-          label="View Metrics"
+          label="View file metrics"
           description="View change metrics for this file"
           onClick={() => {
             const cat: FileCategory = mobileActionFileInfo.isStaged ? "staged"
@@ -147,7 +147,7 @@ export function FileListMobileActions({
           mobileActionFileInfo.isUntracked) && (
           <BottomSheetAction
             icon={<Trash2 className="h-5 w-5 text-red-400" />}
-            label="Discard Changes"
+            label="Discard changes"
             description={
               mobileActionFileInfo.isUntracked
                 ? "Delete this file"

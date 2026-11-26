@@ -565,6 +565,10 @@ li[data-readable="true"] .cc-source-dot { background: var(--color-primary); bord
 .cc-cx-section-heading { display: flex; align-items: end; justify-content: space-between; gap: 18px; }
 .cc-cx-section-heading h2, .cc-cx-look-controls h2 { margin: 0; font-size: 1.35rem; }
 .cc-cx-primary { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 0; border-radius: 9px; padding: 10px 15px; color: #04121a; background: var(--color-primary); font-weight: 700; cursor: pointer; }
+.cc-cx-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--cx-border-soft); border-radius: 9px; padding: 10px 15px; color: var(--color-foreground); background: transparent; font-weight: 600; cursor: pointer; }
+.cc-cx-secondary:hover { border-color: var(--cx-border); background: color-mix(in srgb, var(--color-primary) 7%, transparent); }
+.cc-cx-secondary:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+.cc-cx-secondary:disabled { opacity: .6; cursor: progress; }
 .cc-cx-room-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
 .cc-cx-room-card { display: grid; gap: 14px; padding: 16px; background: var(--cx-panel); border: 1px solid var(--cx-border-soft); border-radius: 14px; }
 .cc-cx-room-open { display: grid; gap: 7px; text-align: left; color: inherit; border: 0; background: transparent; cursor: pointer; }

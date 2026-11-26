@@ -9,12 +9,12 @@ metadata:
   tags: ["skill","marketing","funnels","lead-generation"]
   icon: "filter"
   status: "active"
-  revision: 1
+  revision: 2
   createdAt: "2026-03-19T00:00:00Z"
-  updatedAt: "2026-03-19T00:00:00Z"
+  updatedAt: "2026-11-24T06:31:00Z"
   requires:
-    scenarios: ["vrooli"]
-    commands: ["vrooli scenario"]
+    scenarios: ["funnel-builder", "program-runtime"]
+    commands: ["program-runtime library run"]
   origin:
     kind: "authored"
 ---
@@ -52,10 +52,7 @@ Create and manage multi-step conversion funnels with a visual drag-and-drop buil
 
 ### **2. Prerequisites**
 
-Check scenario status before use:
-```bash
-vrooli scenario status funnel-builder
-```
+Before use, run `program-runtime library run program-runtime.supervision-sweep --input scenarios=funnel-builder`; continue only when `signals.scenarios[0].status` is `running` and the envelope is complete.
 
 Required resources: PostgreSQL
 Optional: Redis (caching), Ollama (AI copy generation in P2)

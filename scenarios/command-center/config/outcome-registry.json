@@ -490,7 +490,7 @@
       "source": {
         "team": "director-swarm",
         "binding": "scenario:landing-page-business-suite",
-        "read": "/api/v1/admin/dashboard/revenue",
+        "read": "/api/v1/admin/dashboard/revenue/summary",
         "select": "revenue_mrr",
         "ttlSeconds": 300,
         "integrationId": "landing-page-business-suite",
@@ -503,7 +503,7 @@
       },
       "coverage": "NOW",
       "owner": "monetization",
-      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue endpoint with an MRR rollup from Stripe subscriptions.",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue/summary projection with an MRR rollup from Stripe subscriptions.",
       "firstObservedMissing": "2026-09-01",
       "sample": {
         "value": 12400,
@@ -529,7 +529,7 @@
       "source": {
         "team": "director-swarm",
         "binding": "scenario:landing-page-business-suite",
-        "read": "/api/v1/admin/dashboard/revenue",
+        "read": "/api/v1/admin/dashboard/revenue/summary",
         "select": "revenue_today",
         "ttlSeconds": 300,
         "integrationId": "landing-page-business-suite",
@@ -542,7 +542,7 @@
       },
       "coverage": "NOW",
       "owner": "monetization",
-      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue endpoint with a daily-rollup query.",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue/summary projection with a daily-rollup query.",
       "firstObservedMissing": "2026-09-01",
       "sample": {
         "value": 410,

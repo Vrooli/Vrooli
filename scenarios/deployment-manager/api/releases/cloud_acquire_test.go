@@ -35,7 +35,8 @@ func (f *acquireFixture) AcquireCloudCompute(ctx context.Context, request CloudA
 	if err := json.Unmarshal(op.RequestSnapshot, &snap); err != nil {
 		return nil, err
 	}
-	if snap.CloudAcquireIdempotencyKey != request.IdempotencyKey || snap.CloudComputeManagerInstanceID != "" || !snap.CloudAcquireCompute {
+	plan := snap.CloudAcquirePlan
+	if snap.CloudAcquireIdempotencyKey != request.IdempotencyKey || snap.CloudComputeManagerInstanceID != "" || !snap.CloudAcquireCompute || plan == nil || plan.ProfileID != "web-console/staging" || plan.Provider != request.Provider || plan.Region != request.Region || plan.Size != request.Size || plan.AcquireIdempotencyKey != request.IdempotencyKey || plan.QuoteIdempotencyKey != request.IdempotencyKey || plan.CapCurrency != request.CapCurrency || plan.CapMonthlyMinor != request.CapMonthlyMinor || plan.CapTaxBasis != request.CapTaxBasis {
 		return nil, errors.New("acquisition began before stable intent was durably stored")
 	}
 	return f.result, f.err
@@ -154,6 +155,103 @@ func TestAcquireCloudComputePersistsExactTargetBeforeDownstream(t *testing.T) {
 	}
 }
 
+func TestAcquirePlanSnapshotRefusesPolicyOrQuoteRebinding(t *testing.T) {
+	request := acquireDeployRequest()
+	snapshot, err := snapshotForDeployRequest(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var saved durableDeployRequest
+	if err := json.Unmarshal(snapshot, &saved); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateCloudAcquirePlan(saved.CloudAcquirePlan, saved.ProfileID, saved.CloudAcquireRegion, saved.CloudAcquireIdempotencyKey, saved.CloudSpendQuoteIdempotencyKey); err != nil {
+		t.Fatalf("saved A2 plan refused: %v", err)
+	}
+	changed := *saved.CloudAcquirePlan
+	changed.CapMonthlyMinor++
+	if err := validateCloudAcquirePlan(&changed, saved.ProfileID, saved.CloudAcquireRegion, saved.CloudAcquireIdempotencyKey, saved.CloudSpendQuoteIdempotencyKey); err == nil {
+		t.Fatal("rebound cap was accepted")
+	}
+	if err := validateCloudAcquirePlan(saved.CloudAcquirePlan, saved.ProfileID, saved.CloudAcquireRegion, saved.CloudAcquireIdempotencyKey, "other-quote-key"); err == nil {
+		t.Fatal("rebound quote key was accepted")
+	}
+}
+
+func TestAcquireMissingDurablePlanPersistsBlockedStateBeforeCMCall(t *testing.T) {
+	db, repo := newAcquireSQLRepo(t)
+	defer db.Close()
+	ctx := context.Background()
+	request := acquireDeployRequest()
+	seedAcquireOperation(t, ctx, repo, request)
+	operationID := operationIDForRelease(request.ReleaseID)
+	lease, acquired, err := repo.AcquireOperationLease(ctx, operationID, "worker-plan-missing-test", time.Minute)
+	if err != nil || !acquired {
+		t.Fatalf("operation lease acquired=%v err=%v", acquired, err)
+	}
+	leaseCtx := WithOperationLease(ctx, operationID, lease.Owner, lease.Fence)
+	var snapshot durableDeployRequest
+	operation, err := repo.GetOperation(ctx, operationID)
+	if err != nil || json.Unmarshal(operation.RequestSnapshot, &snapshot) != nil {
+		t.Fatalf("read operation snapshot: operation=%+v err=%v", operation, err)
+	}
+	snapshot.CloudAcquirePlan = nil
+	raw, err := json.Marshal(snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.UpdateOperationSnapshot(leaseCtx, operationID, raw); err != nil {
+		t.Fatalf("remove plan for fail-closed test: %v", err)
+	}
+	request.CloudAcquirePlan = nil
+	acquirer := &acquireFixture{repo: repo, result: fixtureAcquireResult(request)}
+	orch := &acquireOrchestrator{repo: repo}
+	h := NewHandler(repo, nil, nil, orch, nil).WithCloudComputeAcquirer(acquirer).WithDurableOperations(true)
+	h.executeReleaseWithLease(leaseCtx, operationID, request.ReleaseID, "", request, nil)
+	operation, err = repo.GetOperation(ctx, operationID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if operation.Status != OperationFailed || operation.ActiveStage != "acquire-blocked" || acquirer.calls != 0 || orch.calls != 0 {
+		t.Fatalf("operation=%+v CM calls=%d downstream calls=%d", operation, acquirer.calls, orch.calls)
+	}
+}
+
+func TestAcquisitionReceiptMustMatchSnapshottedA2Policy(t *testing.T) {
+	request := acquireDeployRequest()
+	request.CloudSpendQuoteIdempotencyKey = request.CloudAcquireIdempotencyKey
+	request.CloudComputeManagerInstanceID = "cm-fixture-1"
+	request.CloudManifest, _ = bindCloudManifestInstance(request.CloudManifest, request.CloudComputeManagerInstanceID)
+	base := fixtureAcquireResult(request).Receipt
+	for _, tc := range []struct {
+		name   string
+		mutate func(*instancev1.GetAcquireReceiptResponse)
+	}{
+		{name: "provider", mutate: func(r *instancev1.GetAcquireReceiptResponse) {
+			r.Instance.Provider = "digitalocean"
+			r.SpendReceipt.Provider = "digitalocean"
+		}},
+		{name: "region", mutate: func(r *instancev1.GetAcquireReceiptResponse) { r.Instance.Region = "ash" }},
+		{name: "size", mutate: func(r *instancev1.GetAcquireReceiptResponse) { r.Instance.Size = "cx33" }},
+		{name: "cap", mutate: func(r *instancev1.GetAcquireReceiptResponse) { r.SpendReceipt.CapMonthlyMinor = 710 }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			wire := &instancev1.GetAcquireReceiptResponse{}
+			if err := protojson.Unmarshal(base, wire); err != nil {
+				t.Fatal(err)
+			}
+			tc.mutate(wire)
+			encoded, err := protojson.Marshal(wire)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := newCloudAcquireReceipt(operationIDForRelease(request.ReleaseID), request, encoded, time.Now().UTC()); err == nil {
+				t.Fatal("receipt with changed provider policy was accepted")
+			}
+		})
+	}
+}
+
 func TestTypedAcquisitionReceiptSurvivesSQLRestartAndRejectsRebinding(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "receipt-restart.db")
 	db, err := sql.Open("sqlite", dbPath)
@@ -202,6 +300,10 @@ func TestTypedAcquisitionReceiptSurvivesSQLRestartAndRejectsRebinding(t *testing
 	standing, err := repo.GetOperation(ctx, operationID)
 	if err != nil {
 		t.Fatal(err)
+	}
+	restoredRequest, err := deployRequestFromSnapshot(standing.RequestSnapshot, nil)
+	if err != nil || restoredRequest.CloudAcquirePlan == nil || restoredRequest.CloudAcquirePlan.Provider != CloudA2Provider || restoredRequest.CloudAcquirePlan.Size != CloudA2Size || restoredRequest.CloudAcquirePlan.CapMonthlyMinor != CloudA2CapMonthlyMinor {
+		t.Fatalf("restarted operation lost immutable acquire plan: plan=%+v err=%v", restoredRequest.CloudAcquirePlan, err)
 	}
 	hydrateOperationCloudComputeRefs(standing)
 	wire := standing.Proto().GetCloudAcquireReceipt()
@@ -411,13 +513,14 @@ func newAcquireSQLRepo(t *testing.T) (*sql.DB, *SQLRepository) {
 	return db, NewSQLRepository(db)
 }
 func acquireDeployRequest() DeployRequest {
-	return DeployRequest{ProfileID: "web-console/staging", ReleaseID: "release-acquire", IdempotencyKey: "start-key", CloudAcquireCompute: true, CloudAcquireRegion: "nbg1", CloudAcquireIdempotencyKey: "dm-acquire:release-op-release-acquire", CloudSpendQuoteIdempotencyKey: "dm-acquire:release-op-release-acquire", CloudEnrollmentIdempotencyKey: "dm-enroll:release-op-release-acquire", CloudManifest: json.RawMessage(`{"environment":"staging","scenario":{"id":"web-console"},"edge":{"domain":"staging.vrooli.com"},"target":{"type":"vps","vps":{}}}`)}
+	plan, _ := canonicalCloudAcquirePlan("web-console/staging", "nbg1", "dm-acquire:release-op-release-acquire")
+	return DeployRequest{ProfileID: "web-console/staging", ReleaseID: "release-acquire", IdempotencyKey: "start-key", CloudAcquireCompute: true, CloudAcquireRegion: "nbg1", CloudAcquireIdempotencyKey: "dm-acquire:release-op-release-acquire", CloudSpendQuoteIdempotencyKey: "dm-acquire:release-op-release-acquire", CloudAcquirePlan: &plan, CloudEnrollmentIdempotencyKey: "dm-enroll:release-op-release-acquire", CloudManifest: json.RawMessage(`{"environment":"staging","scenario":{"id":"web-console"},"edge":{"domain":"staging.vrooli.com"},"target":{"type":"vps","vps":{}}}`)}
 }
 
 func fixtureAcquireResult(request DeployRequest) *CloudAcquireResult {
 	source := &instancev1.GetAcquireReceiptResponse{
 		Instance:     &instancev1.Instance{Id: "cm-fixture-1", Provider: "hetzner", ProviderInstanceId: "hetzner-server-fixture-1", Region: "nbg1", Size: "cx23", Tenant: "deployment-manager"},
-		SpendReceipt: &instancev1.SpendReceipt{IdempotencyKey: request.CloudAcquireIdempotencyKey, InstanceId: "cm-fixture-1", AdmissionDecision: "approved", QuoteState: "approved"},
+		SpendReceipt: &instancev1.SpendReceipt{IdempotencyKey: request.CloudAcquireIdempotencyKey, InstanceId: "cm-fixture-1", Provider: "hetzner", Region: "nbg1", Size: "cx23", AdmissionDecision: "approved", QuoteState: "approved", CapCurrency: "USD", CapMonthlyMinor: 709, CapTaxBasis: "pre-tax"},
 		State:        "acquired",
 	}
 	receipt, _ := protojson.Marshal(source)

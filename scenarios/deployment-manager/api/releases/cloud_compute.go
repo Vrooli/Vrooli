@@ -20,6 +20,75 @@ var ErrCloudEnrollmentAmbiguous = fmt.Errorf("Compute Manager enrollment outcome
 var ErrCloudEnrollmentPending = fmt.Errorf("Compute Manager enrollment is still pending")
 var ErrCloudEnrollmentInProgress = fmt.Errorf("Compute Manager enrollment is in progress")
 
+const (
+	CloudA2ProfileID       = "web-console/staging"
+	CloudA2Provider        = "hetzner"
+	CloudA2Size            = "cx23"
+	CloudA2CapCurrency     = "USD"
+	CloudA2CapMonthlyMinor = int64(709)
+	CloudA2CapTaxBasis     = "pre-tax"
+	CloudA2LifetimeSeconds = int64(3600)
+)
+
+// CloudAcquirePlan is the immutable DM-owned projection of the approved
+// profile policy. It is snapshotted before Compute Manager is contacted and is
+// restored on replay instead of rebuilding effect arguments from defaults.
+type CloudAcquirePlan struct {
+	ProfileID             string `json:"profile_id"`
+	Provider              string `json:"provider"`
+	Region                string `json:"region"`
+	Size                  string `json:"size"`
+	LifetimeSeconds       int64  `json:"lifetime_seconds"`
+	AcquireIdempotencyKey string `json:"acquire_idempotency_key"`
+	QuoteIdempotencyKey   string `json:"quote_idempotency_key"`
+	CapCurrency           string `json:"cap_currency"`
+	CapMonthlyMinor       int64  `json:"cap_monthly_minor"`
+	CapTaxBasis           string `json:"cap_tax_basis"`
+}
+
+func canonicalCloudAcquirePlan(profileID, region, key string) (CloudAcquirePlan, error) {
+	profileID = strings.TrimSpace(profileID)
+	region = strings.ToLower(strings.TrimSpace(region))
+	key = strings.TrimSpace(key)
+	if profileID != CloudA2ProfileID || (region != "nbg1" && region != "fsn1") || key == "" {
+		return CloudAcquirePlan{}, fmt.Errorf("profile, approved A2 region, and stable acquisition key are required")
+	}
+	return CloudAcquirePlan{
+		ProfileID: profileID, Provider: CloudA2Provider, Region: region, Size: CloudA2Size, LifetimeSeconds: CloudA2LifetimeSeconds,
+		AcquireIdempotencyKey: key, QuoteIdempotencyKey: key,
+		CapCurrency: CloudA2CapCurrency, CapMonthlyMinor: CloudA2CapMonthlyMinor, CapTaxBasis: CloudA2CapTaxBasis,
+	}, nil
+}
+
+// A2CloudAcquirePlan returns the exact immutable acquisition policy used by
+// DM's approved staging profile. Compute Manager consumers use the same value
+// when validating provider request and readback facts.
+func A2CloudAcquirePlan(region, key string) (CloudAcquirePlan, error) {
+	return canonicalCloudAcquirePlan(CloudA2ProfileID, region, key)
+}
+
+func cloneCloudAcquirePlan(value *CloudAcquirePlan) *CloudAcquirePlan {
+	if value == nil {
+		return nil
+	}
+	copy := *value
+	return &copy
+}
+
+func validateCloudAcquirePlan(plan *CloudAcquirePlan, profileID, region, acquireKey, quoteKey string) error {
+	if plan == nil {
+		return fmt.Errorf("durable Compute Manager acquisition plan is missing")
+	}
+	want, err := canonicalCloudAcquirePlan(profileID, region, acquireKey)
+	if err != nil {
+		return err
+	}
+	if *plan != want || strings.TrimSpace(quoteKey) != want.QuoteIdempotencyKey {
+		return fmt.Errorf("durable Compute Manager acquisition plan differs from the approved profile policy or stored quote key")
+	}
+	return nil
+}
+
 type releaseCloudTarget struct {
 	Target struct {
 		Type string `json:"type"`
@@ -269,6 +338,17 @@ func newCloudAcquireReceipt(operationID string, request DeployRequest, sourceRaw
 		return nil, fmt.Errorf("generated CM acquire readback is not an acquired instance with a spend receipt")
 	}
 	instance, spend := source.GetInstance(), source.GetSpendReceipt()
+	plan := request.CloudAcquirePlan
+	if request.CloudAcquireCompute {
+		if err := validateCloudAcquirePlan(plan, request.ProfileID, request.CloudAcquireRegion, request.CloudAcquireIdempotencyKey, request.CloudSpendQuoteIdempotencyKey); err != nil {
+			return nil, err
+		}
+		if instance.GetProvider() != plan.Provider || instance.GetRegion() != plan.Region || instance.GetSize() != plan.Size || spend.GetCapCurrency() != plan.CapCurrency || spend.GetCapMonthlyMinor() != plan.CapMonthlyMinor || spend.GetCapTaxBasis() != plan.CapTaxBasis {
+			return nil, fmt.Errorf("generated CM acquisition receipt differs from the snapshotted provider, offer, region, or cap")
+		}
+	} else if plan != nil || instance.GetProvider() == "" || spend.GetProvider() != instance.GetProvider() || spend.GetRegion() != instance.GetRegion() || spend.GetSize() != instance.GetSize() {
+		return nil, fmt.Errorf("generated CM receipt does not bind the selected source, offer and target")
+	}
 	if instance.GetId() != request.CloudComputeManagerInstanceID || instance.GetTenant() != "deployment-manager" {
 		return nil, fmt.Errorf("generated CM receipt instance/owner does not match the DM target")
 	}
@@ -304,6 +384,13 @@ func validateCloudAcquireReceipt(operationID string, request durableDeployReques
 	if receipt.SchemaVersion != 1 || receipt.OperationID != operationID || receipt.ReleaseID != request.ReleaseID || receipt.ProfileID != request.ProfileID || receipt.AcquireKey == "" || receipt.AcquireKey != request.CloudAcquireIdempotencyKey || receipt.InstanceID == "" || receipt.InstanceID != request.CloudComputeManagerInstanceID || receipt.AcquireKey != request.CloudSpendQuoteIdempotencyKey || receipt.PersistedAt.IsZero() || len(bytes.TrimSpace(receipt.SourceReceipt)) == 0 {
 		return fmt.Errorf("DM acquisition receipt does not bind operation, profile, acquire key, quote key and exact instance")
 	}
+	if request.CloudAcquireCompute {
+		if err := validateCloudAcquirePlan(request.CloudAcquirePlan, request.ProfileID, request.CloudAcquireRegion, request.CloudAcquireIdempotencyKey, request.CloudSpendQuoteIdempotencyKey); err != nil {
+			return err
+		}
+	} else if request.CloudAcquirePlan != nil {
+		return fmt.Errorf("pre-existing Compute Manager target cannot carry a new-acquire plan")
+	}
 	manifestDigest := sha256.Sum256(bytes.TrimSpace(request.CloudManifest))
 	if receipt.TargetManifestSHA256 != "sha256:"+hex.EncodeToString(manifestDigest[:]) {
 		return fmt.Errorf("DM acquisition receipt target digest differs from the stored manifest")
@@ -312,7 +399,15 @@ func validateCloudAcquireReceipt(operationID string, request durableDeployReques
 	if err := protojson.Unmarshal(receipt.SourceReceipt, source); err != nil {
 		return fmt.Errorf("decode persisted generated CM acquisition receipt: %w", err)
 	}
-	if source.GetState() != "acquired" || source.GetInstance() == nil || source.GetSpendReceipt() == nil || source.GetInstance().GetId() != receipt.InstanceID || source.GetInstance().GetTenant() != "deployment-manager" || source.GetSpendReceipt().GetIdempotencyKey() != receipt.AcquireKey || source.GetSpendReceipt().GetInstanceId() != receipt.InstanceID || source.GetSpendReceipt().GetAdmissionDecision() != "approved" || source.GetSpendReceipt().GetQuoteState() != "approved" {
+	instance, spend := source.GetInstance(), source.GetSpendReceipt()
+	plan := request.CloudAcquirePlan
+	policyMismatch := instance == nil || spend == nil
+	if !policyMismatch && request.CloudAcquireCompute {
+		policyMismatch = instance.GetProvider() != plan.Provider || instance.GetRegion() != plan.Region || instance.GetSize() != plan.Size || spend.GetCapCurrency() != plan.CapCurrency || spend.GetCapMonthlyMinor() != plan.CapMonthlyMinor || spend.GetCapTaxBasis() != plan.CapTaxBasis
+	} else if !policyMismatch {
+		policyMismatch = plan != nil || instance.GetProvider() == "" || spend.GetProvider() != instance.GetProvider() || spend.GetRegion() != instance.GetRegion() || spend.GetSize() != instance.GetSize()
+	}
+	if source.GetState() != "acquired" || policyMismatch || instance.GetId() != receipt.InstanceID || instance.GetTenant() != "deployment-manager" || spend.GetIdempotencyKey() != receipt.AcquireKey || spend.GetInstanceId() != receipt.InstanceID || spend.GetAdmissionDecision() != "approved" || spend.GetQuoteState() != "approved" {
 		return fmt.Errorf("persisted generated CM acquisition receipt does not match its DM envelope")
 	}
 	wire, err := (proto.MarshalOptions{Deterministic: true}).Marshal(source)

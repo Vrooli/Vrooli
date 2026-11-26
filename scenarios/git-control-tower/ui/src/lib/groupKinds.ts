@@ -11,8 +11,8 @@ const labels: Record<string, string> = {
 };
 
 export function groupKindLabel(kind?: string, source?: string): string {
-  if (source === "manual") return "Manual rules";
-  if (source === "builtin") return "Other";
-  if (!kind) return "Other";
+  if (source === "manual") return "Groups";
+  if (source === "builtin") return "Other changes";
+  if (!kind) return "Other changes";
   return labels[kind] ?? kind.replace(/\b\w/g, (letter) => letter.toUpperCase());
 }

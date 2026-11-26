@@ -2,9 +2,11 @@ package middleware_test
 
 import (
 	"bytes"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -49,4 +51,24 @@ func TestLoggingMiddlewareRequiresLogger(t *testing.T) {
 	require.PanicsWithValue(t, "middleware.NewLoggingMiddleware requires Logger", func() {
 		middleware.NewLoggingMiddleware(clk, nil)
 	})
+}
+
+func TestLoggingMiddlewareOmitsQueryAndBodySecrets(t *testing.T) {
+	clk := scheduletest.New(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	buf := &bytes.Buffer{}
+	logger := log.New(buf, "", 0)
+	body := "sdp-body-secret clipboard-body-secret input-body-secret"
+	handler := middleware.NewLoggingMiddleware(clk, logger)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.ReadAll(r.Body)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/device/control?token=query-token-secret&sdp=query-sdp-secret", strings.NewReader(body))
+	handler.ServeHTTP(recorder, request)
+
+	require.Equal(t, http.StatusNoContent, recorder.Code)
+	require.Contains(t, buf.String(), "/device/control")
+	for _, secret := range []string{"query-token-secret", "query-sdp-secret", "sdp-body-secret", "clipboard-body-secret", "input-body-secret"} {
+		require.NotContains(t, buf.String(), secret)
+	}
 }

@@ -35,6 +35,13 @@ describe("api/client REST helpers", () => {
     expect(err.message).toContain("unexpected 502 response");
   });
 
+  it("classifies an upstream request-size rejection as a limit instead of an internal error", async () => {
+    const err = await decodeApiError(new Response("<html>request too large</html>", { status: 413 }));
+
+    expect(err.code).toBe("resource_exhausted");
+    expect(err.status).toBe(413);
+  });
+
   it("posts multipart form data through the device-token-aware REST helper", async () => {
     const formData = new FormData();
     formData.set("file", new File(["hello"], "hello.txt", { type: "text/plain" }));

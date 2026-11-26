@@ -37,6 +37,18 @@ class Program:
             try: return call()
             except Exception as exc: return exc
         return run
+    def classify(self, exc, owner=False):
+        """Mirror the kernel helper's owner-bound outage and contention classes."""
+        lowered = str(exc).lower()
+        if 'lease contention' in lowered or 'database is locked' in lowered:
+            return 'failed', 'lease_contention'
+        if any(token in lowered for token in ('unreachable', 'connection refused', 'no running runtime', 'bridge unavailable')):
+            return 'unavailable', 'scenario_unreachable'
+        if 'deadline' in lowered:
+            return 'failed', 'deadline_exceeded'
+        return 'failed', 'binding_error'
+    def deadline_refusal(self, exc, where):
+        return {'class': 'deadline_exceeded', 'detail': str(exc)[:240], 'where': where}
 
 class WalkTests(unittest.TestCase):
     ROSTER = ['director-swarm','monetization','marketing-crew','meta-optimization','infra-health','scenario-qa']

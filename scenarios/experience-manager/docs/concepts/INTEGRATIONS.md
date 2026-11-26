@@ -1,16 +1,9 @@
 # Integrations — Experience Manager
 
-This document is the canonical dependency contract for resources,
-other scenarios, and third-party services used by the scenario.
+## Purpose Of This Document
 
-
-Use this document to answer:
-
-- What does the scenario depend on?
-- Which dependencies are required versus optional?
-- Which domain uses each dependency?
-- What is the failure or degradation behavior?
-- Where is the dependency declared or configured?
+This guide records Experience Manager's declared resources, scenario
+dependencies, other scenario relationships, and integration contracts.
 
 ## Dependency Inventory
 
@@ -21,9 +14,7 @@ Use this document to answer:
 
 ## Vrooli Resources
 
-The generated template does not declare external Vrooli resources. Add
-resources to `.vrooli/service.json` only when a real scenario domain
-requires them.
+No external Vrooli resources are declared in `.vrooli/service.json`.
 
 | Resource | Status | Reason | Revisit Trigger |
 |---|---|---|---|
@@ -31,10 +22,15 @@ requires them.
 
 ## Scenario Dependencies
 
-| Scenario | Status | Reason | Contract |
+| Scenario | Enabled | Required | Startup policy | Purpose | Degraded behavior |
+|---|---:|---:|---|---|---|
+| browser-automation-studio | yes | no | `ignore` | Capture engine for structure reconciliation: drives scenario UIs and captures per-page/state screenshots plus accessibility trees that machine-tier claims are checked against. | Reconciliation checks report skipped (resource unavailable), never failed; spec contract validation, authoring studio, and fleet views work fully without it. |
+| image-tools | yes | no | `ignore` | Optional AI-image rendering of spec pages in the workshop (openrouter-image BYOK provider). Deterministic wireframe rendering does not use it. | AI-image render option is unavailable; wireframe rendering and variant compare are unaffected. |
+
+## Other Scenario Relationships
+
+| Scenario | Relationship | Reason | Contract |
 |---|---|---|---|
-| browser-automation-studio | declared (optional, `try_start`) | Single capture engine for reconciliation: per-page/state screenshot + accessibility tree. | `.vrooli/service.json` dependency; BAS Connect API. Degraded: reconciliation records unavailable evidence and never marks a claim satisfied. |
-| image-tools | declared (optional, `on_demand`) | Optional AI-image rendering of spec pages in the workshop via its `openrouter-image` BYOK provider. Wireframe rendering never uses it. | `.vrooli/service.json` dependency; image-tools API. Degraded: AI render option unavailable; wireframe/compare unaffected. |
 | workflow-health | file-level seam (no runtime call in v1) | Studio scaffolds `bas/cases` stubs from spec entries; workflow-health catalogs, safety-gates, and executes them. Spec↔case reference integrity checked both directions. P2 journey coherence builds on its execution. | Shared `bas/` file conventions + spec entry IDs referenced from cases. |
 | business-health | sibling axis (no runtime call) | Validates this scenario's own PRD/requirements (business track); experience-manager is its experience-track mirror. | Canonical PRD template + requirements registry. |
 | test-genie | consumer | Discovers and gates the `experience` phase declaratively — no test-genie code changes. | `.vrooli/test-genie.json` (phase, `scenario-validation/v1` contract, presence-keyed applicability, maturity ladders). |

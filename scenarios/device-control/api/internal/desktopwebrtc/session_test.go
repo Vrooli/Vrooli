@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -692,14 +693,35 @@ func TestManagerReleasesHeldInputWhenControllerClosesWithViewerAttached(t *testi
 }
 
 func TestManagerDoesNotPersistClipboardContent(t *testing.T) {
+	const secret = "DEVICE_CONTROL_SYNTHETIC_SECRET_99bd"
 	p := &fakeProvider{ready: desktopv1.ReadinessState_READINESS_STATE_READY}
 	m := NewManager(p)
 	s, err := m.Open(context.Background(), &desktopv1.OpenSessionRequest{Surface: surface(), DisplayId: "main", Control: true, Clipboard: true})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := m.Clipboard(context.Background(), &desktopv1.ClipboardRequest{Session: s.Ref, LeaseId: s.LeaseId, LeaseEpoch: s.LeaseEpoch, Direction: desktopv1.ClipboardDirection_CLIPBOARD_DIRECTION_TO_DESKTOP, Text: string(make([]byte, MaxClipboardBytes+1))}); err == nil {
-		t.Fatal("expected clipboard size refusal")
+	if _, err := m.Clipboard(context.Background(), &desktopv1.ClipboardRequest{Session: s.Ref, LeaseId: s.LeaseId, LeaseEpoch: s.LeaseEpoch, Direction: desktopv1.ClipboardDirection_CLIPBOARD_DIRECTION_TO_DESKTOP, Text: secret}); err != nil {
+		t.Fatalf("clipboard transfer: %v", err)
+	}
+	if _, err := m.Input(context.Background(), &desktopv1.InputRequest{Session: s.Ref, LeaseId: s.LeaseId, LeaseEpoch: s.LeaseEpoch, DisplayId: "main", GeometryRevision: "geometry-1", Action: &desktopv1.Action{Action: &desktopv1.Action_Text{Text: &desktopv1.TextAction{Text: secret}}}}); err != nil {
+		t.Fatalf("text input transfer: %v", err)
+	}
+	if p.clipboard != secret {
+		t.Fatal("fake device provider did not receive clipboard write")
+	}
+	m.mu.Lock()
+	state := m.sessions[s.Ref.GetSessionId()]
+	if state == nil {
+		m.mu.Unlock()
+		t.Fatal("session state disappeared during privacy check")
+	}
+	stateText := state.session.String() + state.cleanupError + state.releasedLeaseID
+	if state.peer != nil && state.peer.Stats() != nil {
+		stateText += state.peer.Stats().String()
+	}
+	m.mu.Unlock()
+	if strings.Contains(stateText, secret) {
+		t.Fatalf("transient clipboard/input content entered session state or transport stats: %q", stateText)
 	}
 }
 

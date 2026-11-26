@@ -19,7 +19,7 @@ function propsFor(paths: string[], grouped: boolean): FileListProps {
   return {
     files: { staged: [], unstaged: paths, untracked: [], conflicts: [] },
     fileViewMode: grouped ? "grouped" : "flat",
-    resolvedGroups: grouped ? [{ key: "large", id: "large", kind: "scenario", source: "contract", label: "Large group", files: paths }] : undefined,
+    resolvedGroups: grouped ? [{ key: "large", id: "large", kind: "scenario", source: "contract", root: "src", label: "Large group", files: paths }] : undefined,
     selectedFiles: [], selectionKey: ({ path, staged }) => `${staged}:${path}`,
     onSelectFile: vi.fn(), onStageFile: vi.fn(), onUnstageFile: vi.fn(),
     onStageAll: vi.fn(), onUnstageAll: vi.fn(), onDiscardFile: vi.fn(), onIgnoreFile: vi.fn(),
@@ -35,6 +35,10 @@ describe("large Changes view", () => {
       const paths = Array.from({ length: 10_000 }, (_, i) => `src/file-${i}.ts`);
       const props = propsFor(paths, grouped);
       renderWithProviders(<FileList {...props} />);
+      if (grouped) {
+        await waitFor(() => expect(screen.getByTestId("file-group-open-large")).toBeInTheDocument());
+        fireEvent.click(screen.getByTestId("file-group-open-large"));
+      }
       await waitFor(() => expect(screen.getAllByTestId("file-item-unstaged").length).toBeGreaterThan(0));
       expect(screen.getAllByTestId("file-item-unstaged").length).toBeLessThan(60);
       expect(screen.queryByText("src/file-9999.ts")).not.toBeInTheDocument();
@@ -43,31 +47,32 @@ describe("large Changes view", () => {
     });
   }
 
-  it("keeps distant rows reachable and selection intact while scrolling and collapsing a large group", async () => {
+  it("keeps distant rows reachable and selection intact while navigating out of a large group", async () => {
     const paths = Array.from({ length: 10_000 }, (_, i) => `src/file-${i}.ts`);
     const props = propsFor(paths, true);
     props.selectedFiles = [{ path: paths[0] ?? "", staged: false }];
     renderWithProviders(<FileList {...props} />);
     const scroller = screen.getByTestId("changes-scroll-region");
-    await waitFor(() => expect(screen.getByText("src/file-0.ts")).toBeInTheDocument());
-    expect(screen.getByText("src/file-0.ts").closest("li")).toHaveClass("bg-slate-700/50");
+    await waitFor(() => expect(screen.getByTestId("file-group-open-large")).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId("file-group-open-large"));
+    await waitFor(() => expect(screen.getByText("file-0.ts")).toBeInTheDocument());
+    expect(screen.getByText("file-0.ts").closest("li")).toHaveClass("bg-slate-700/50");
     // Fixed geometry: two header rows plus 10,000 file rows at 32px.
     act(() => {
       scroller.scrollTop = 320_000;
       fireEvent.scroll(scroller);
     });
-    await waitFor(() => expect(screen.getByText("src/file-9999.ts")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("file-9999.ts")).toBeInTheDocument());
     expect(screen.getAllByTestId("file-item-unstaged").length).toBeLessThan(60);
-    const last = screen.getByText("src/file-9999.ts").closest("li");
+    const last = screen.getByText("file-9999.ts").closest("li");
     fireEvent.click(last as HTMLElement);
     expect(props.onSelectFile).toHaveBeenCalledWith("src/file-9999.ts", false, expect.anything());
     act(() => { scroller.scrollTop = 0; fireEvent.scroll(scroller); });
-    await waitFor(() => expect(screen.getByTestId("file-group-toggle-large")).toBeInTheDocument());
-    fireEvent.click(screen.getByTestId("file-group-toggle-large"));
-    expect(screen.queryAllByTestId("file-item-unstaged")).toHaveLength(0);
-    fireEvent.click(screen.getByTestId("file-group-toggle-large"));
-    await waitFor(() => expect(screen.getByText("src/file-0.ts")).toBeInTheDocument());
-    expect(screen.getByText("src/file-0.ts").closest("li")).toHaveClass("bg-slate-700/50");
+    fireEvent.click(screen.getByTestId("change-group-drill-back"));
+    await waitFor(() => expect(screen.getByTestId("file-group-open-large")).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId("file-group-open-large"));
+    await waitFor(() => expect(screen.getByText("file-0.ts")).toBeInTheDocument());
+    expect(screen.getByText("file-0.ts").closest("li")).toHaveClass("bg-slate-700/50");
   });
 
   it("bounds mounted group headers across 1,000 groups", async () => {

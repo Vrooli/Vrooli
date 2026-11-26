@@ -6,12 +6,29 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Remove a group or folder prefix so a row can show the part of the path that
+ * distinguishes it from its siblings.
+ */
+export function stripPathPrefix(path: string, prefix?: string) {
+  const normalized = (prefix ?? "").replace(/^\/+|\/+$/g, "");
+  if (!normalized) return path;
+  return path.startsWith(`${normalized}/`) ? path.slice(normalized.length + 1) : path;
+}
+
+/** Compact a count for dense list chrome: 999, 1.2K, 3.4M. */
+export function compactCount(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 10_000) return `${Math.round(value / 1_000)}K`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return String(value);
+}
+
+/**
  * Truncate a file path intelligently, keeping the most informative parts visible.
  * Prioritises showing the first segment and the last 1-2 segments, collapsing
  * the middle with "...".
  */
-export function formatPath(path: string, maxChars: number) {
-  if (path.length <= maxChars) return path;
+export function formatPath(path: string, maxChars: number) {  if (path.length <= maxChars) return path;
 
   const segments = path.split("/");
   const last = segments[segments.length - 1] || path;

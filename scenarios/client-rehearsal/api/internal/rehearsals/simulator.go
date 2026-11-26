@@ -21,7 +21,9 @@ import (
 )
 
 const (
-	maxSimulatorRequestBytes            = 512 * 1024
+	// maxSimulatorRequestBytes allows large synthetic API payloads while keeping
+	// memory bounded: ServeHTTP streams the body to io.Discard and never stores it.
+	maxSimulatorRequestBytes            = 16 * 1024 * 1024
 	maxSimulatorSourceBytes             = 2 * 1024 * 1024
 	maxSandboxProfileResponseBytes      = 64 * 1024
 	maxSandboxProfileTotalResponseBytes = 1024 * 1024

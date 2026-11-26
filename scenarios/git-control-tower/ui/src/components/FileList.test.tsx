@@ -156,32 +156,42 @@ describe("FileList", () => {
     const { props, user } = renderFileList({
       fileViewMode: "grouped",
       files: { staged: ["src/partial.ts"], unstaged: ["src/partial.ts"], untracked: [], conflicts: [] },
-      resolvedGroups: [{ key: "partial", kind: "scenario", id: "partial", label: "partial", source: "contract", files: ["src/partial.ts"] }],
+      resolvedGroups: [{ key: "partial", kind: "scenario", id: "partial", label: "partial", source: "contract", root: "src", files: ["src/partial.ts"] }],
     });
-    expect(screen.getAllByText("src/partial.ts")).toHaveLength(2);
+    await user.click(screen.getByTestId("file-group-open-partial"));
+    expect(screen.getAllByText("partial.ts")).toHaveLength(2);
     await user.click(screen.getByTestId("file-action-staged"));
     expect(props.onUnstageFile).toHaveBeenCalledWith("src/partial.ts");
     await user.click(screen.getByTestId("file-action-unstaged"));
     expect(props.onStageFile).toHaveBeenCalledWith("src/partial.ts");
   });
 
-  it("renders server-resolved groups without matching paths in the browser", () => {
-    renderFileList({
+  it("renders server-resolved groups as a group index, then opens their folders", async () => {
+    const { user } = renderFileList({
       fileViewMode: "grouped",
       resolvedGroups: [{
         key: "contract:tool:compiler",
         kind: "tool",
         id: "compiler",
         label: "compiler",
-        root: "internal/tools/compiler",
+        root: "",
         source: "contract",
         files: ["src/changed.ts", "src/new.ts"],
       }],
     });
 
     expect(screen.getByText("compiler")).toBeInTheDocument();
-    expect(screen.getByText("src/changed.ts")).toBeInTheDocument();
+    expect(screen.getByLabelText("2 files")).toHaveTextContent("2");
+    expect(screen.queryByText("changed.ts")).not.toBeInTheDocument();
     expect(screen.queryByText("Other")).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId("file-group-open-contract:tool:compiler"));
+    expect(await screen.findByTestId("change-group-drill-header")).toBeInTheDocument();
+    expect(screen.getByText("src")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Open folder src" }));
+    expect(await screen.findByText("changed.ts")).toBeInTheDocument();
+    await user.click(screen.getByTestId("file-section-toggle-untracked"));
+    expect(await screen.findByText("new.ts")).toBeInTheDocument();
   });
 
   it("renders one kind band for each contiguous contract kind", () => {
@@ -217,12 +227,12 @@ describe("FileList", () => {
       fileViewMode: "grouped",
       resolvedGroups: [
         { key: "contract:scenario:one", kind: "scenario", id: "one", label: "one", root: "scenarios/one/", source: "contract", files: ["src/changed.ts"] },
-        { key: "manual:custom", kind: "", id: "", label: "custom", root: "custom/", source: "manual", files: ["src/new.ts"] },
+        { key: "manual:custom", kind: "", id: "", label: "Custom group", root: "custom/", source: "manual", files: ["src/new.ts"] },
       ],
     });
 
-    expect(screen.getByText("custom/")).toBeInTheDocument();
-    expect(screen.queryByText("scenarios/one/")).not.toBeInTheDocument();
+    expect(screen.getByText("custom")).toBeInTheDocument();
+    expect(screen.queryByText("scenarios/one")).not.toBeInTheDocument();
   });
 
   it("uses full-bleed group rows instead of card containers", () => {
@@ -276,14 +286,13 @@ describe("FileList", () => {
     expect(screen.getByTestId("file-section-staged")).toBeInTheDocument();
   });
 
-  it("opens a persisted collapsed group and untracked category before resolving a scroll target", async () => {
-    localStorage.setItem("gct.collapsedGroups.default", JSON.stringify(["target-group"]));
+  it("opens the owning group and untracked category before resolving a scroll target", async () => {
     const done = vi.fn();
     renderFileList({ fileViewMode: "grouped", scrollToFile: "src/new.ts", onScrollComplete: done,
-      resolvedGroups: [{ key: "target-group", kind: "scenario", id: "target", label: "target", source: "contract", files: ["src/new.ts"] }],
+      resolvedGroups: [{ key: "target-group", kind: "scenario", id: "target", label: "target", source: "contract", root: "src", files: ["src/new.ts"] }],
     });
-    expect(await screen.findByText("src/new.ts")).toBeInTheDocument();
-    expect(screen.getByTestId("file-group-toggle-target-group")).toHaveAttribute("aria-expanded", "true");
+    expect(await screen.findByText("new.ts")).toBeInTheDocument();
+    expect(screen.getByTestId("change-group-drill-header")).toBeInTheDocument();
     expect(screen.getByTestId("file-section-toggle-untracked")).toHaveAttribute("aria-expanded", "true");
     await vi.waitFor(() => expect(done).toHaveBeenCalled());
   });
@@ -314,12 +323,11 @@ describe("FileList", () => {
     try {
       const { container } = renderFileList({ scrollTopStore: store });
       const scrollEl = container.querySelector("div.overflow-auto") as HTMLDivElement;
-      scrollEl.scrollTo = vi.fn();
 
       // Other components may queue frames too; flush until layout settles.
       for (let i = 0; i < 10 && frames.length; i += 1) frames.shift()?.(0);
 
-      expect(scrollEl.scrollTo).toHaveBeenCalledWith({ top: 240, behavior: "auto" });
+      expect(scrollEl.scrollTop).toBe(240);
     } finally {
       window.requestAnimationFrame = originalRAF;
       window.cancelAnimationFrame = originalCancelRAF;
@@ -365,7 +373,7 @@ describe("FileList", () => {
     ]);
     const { user } = renderFileList({ runIndex });
 
-    await user.click(screen.getByRole("tab", { name: "From agents 1" }));
+    await user.click(screen.getByRole("tab", { name: "Agents 1" }));
     expect(screen.getByText("src/changed.ts")).toBeInTheDocument();
     expect(screen.queryByText("src/committed.ts")).not.toBeInTheDocument();
   });
@@ -393,21 +401,18 @@ describe("FileList", () => {
     expect(props.onStageFile).not.toHaveBeenCalled();
   });
 
-  it("shows one run dot per run on a collapsed group", async () => {
+  it("shows one run dot per run on the group index", () => {
     const runIndex = new Map<string, RunAttribution>([
       ["src/changed.ts", { runId: "run-alpha", owner: "agent-a" }],
       ["src/new.ts", { runId: "run-beta", owner: "agent-b" }],
     ]);
-    const { user } = renderFileList({
+    renderFileList({
       fileViewMode: "grouped",
       runIndex,
       resolvedGroups: [{ key: "contract:scenario:one", kind: "scenario", id: "one", label: "one", root: "scenarios/one/", source: "contract", files: ["src/changed.ts", "src/new.ts"] }],
     });
 
-    await user.click(screen.getByTestId("file-group-toggle-contract:scenario:one"));
     expect(screen.getByTestId("group-run-dots").children).toHaveLength(2);
-    expect(screen.queryByTestId("file-group-open-contract:scenario:one")).not.toBeInTheDocument();
-    await user.click(screen.getByTestId("file-group-toggle-contract:scenario:one"));
     expect(screen.getByTestId("file-group-open-contract:scenario:one")).toBeInTheDocument();
   });
 
@@ -417,7 +422,6 @@ describe("FileList", () => {
       resolvedGroups: [{ key: "filtered", id: "filtered", kind: "scenario", label: "filtered", source: "contract", files: ["src/committed.ts", "src/changed.ts"] }],
     });
     await user.click(screen.getByRole("tab", { name: "Staged" }));
-    await user.click(screen.getByTestId("file-group-toggle-filtered"));
     expect(screen.queryByTestId("group-run-dots")).not.toBeInTheDocument();
   });
 
@@ -466,6 +470,106 @@ describe("FileList", () => {
     expect(scroller.scrollTop).toBe(120);
   });
 
+  it("stages a whole group from the group index", async () => {
+    const onStagePaths = vi.fn();
+    const { user } = renderFileList({
+      fileViewMode: "grouped",
+      resolvedGroups: [{
+        key: "contract:scenario:one",
+        kind: "scenario",
+        id: "one",
+        label: "one",
+        root: "scenarios/one/",
+        source: "contract",
+        files: ["src/changed.ts", "src/new.ts"],
+      }],
+      onStagePaths,
+    });
+
+    const stageGroup = screen.getByTestId("file-group-stage-contract:scenario:one");
+    expect(stageGroup).toHaveAttribute("aria-label", "Stage 2 files in one");
+    await user.click(stageGroup);
+    expect(onStagePaths).toHaveBeenCalledWith(["src/changed.ts", "src/new.ts"]);
+  });
+
+  it("stages a whole group from the group action menu", async () => {
+    const onStagePaths = vi.fn();
+    const { user } = renderFileList({
+      fileViewMode: "grouped",
+      resolvedGroups: [{
+        key: "contract:scenario:one",
+        kind: "scenario",
+        id: "one",
+        label: "one",
+        root: "scenarios/one/",
+        source: "contract",
+        files: ["src/changed.ts", "src/new.ts"],
+      }],
+      onStagePaths,
+    });
+
+    await user.click(screen.getByTestId("file-group-actions-contract:scenario:one"));
+    expect(screen.getByRole("menuitem", { name: /Stage 2 files in one/ })).toBeInTheDocument();
+    await user.click(screen.getByTestId("group-context-stage"));
+    expect(onStagePaths).toHaveBeenCalledWith(["src/changed.ts", "src/new.ts"]);
+  });
+
+  it("counts a partially staged file once in the group header", () => {
+    renderFileList({
+      fileViewMode: "grouped",
+      files: { staged: ["src/partial.ts"], unstaged: ["src/partial.ts"], untracked: [], conflicts: [] },
+      resolvedGroups: [{ key: "partial", kind: "scenario", id: "partial", label: "partial", source: "contract", files: ["src/partial.ts"] }],
+    });
+    const header = screen.getByTestId("file-group-header-partial");
+    expect(within(header).getByLabelText("1 file")).toBeInTheDocument();
+  });
+
+  it("keeps stage and unstage in the file context menu", async () => {
+    const { props, user } = renderFileList();
+
+    fireEvent.contextMenu(screen.getByText("src/changed.ts").closest("li") as HTMLLIElement, { clientX: 10, clientY: 10 });
+    await user.click(screen.getByRole("menuitem", { name: "Stage file" }));
+    expect(props.onStageFile).toHaveBeenCalledWith("src/changed.ts");
+
+    fireEvent.contextMenu(screen.getByText("src/committed.ts").closest("li") as HTMLLIElement, { clientX: 10, clientY: 10 });
+    await user.click(screen.getByRole("menuitem", { name: "Unstage file" }));
+    expect(props.onUnstageFile).toHaveBeenCalledWith("src/committed.ts");
+  });
+
+  it("shows per-file line totals on desktop rows", () => {
+    renderFileList({
+      fileStats: {
+        staged: { "src/committed.ts": { additions: 2, deletions: 1, files: 1 } },
+        unstaged: { "src/changed.ts": { additions: 14, deletions: 3, files: 1 } },
+        untracked: {},
+      },
+    });
+    const stats = screen.getAllByTestId("file-line-stats");
+    expect(stats.some((row) => row.textContent === "+14−3")).toBe(true);
+  });
+
+  it("stages the desktop multi-file selection from the toolbar", async () => {
+    const onStagePaths = vi.fn();
+    const { user } = renderFileList({
+      selectedFiles: [
+        { path: "src/changed.ts", staged: false },
+        { path: "src/new.ts", staged: false },
+      ],
+      onStagePaths,
+    });
+    expect(screen.getByTestId("changes-selection-toolbar")).toBeInTheDocument();
+    await user.click(screen.getByTestId("selection-stage"));
+    expect(onStagePaths).toHaveBeenCalledWith(["src/changed.ts", "src/new.ts"]);
+  });
+
+  it("recovers from a filter that matches no files", async () => {
+    const { user } = renderFileList();
+    await user.click(screen.getByRole("tab", { name: "Conflicts" }));
+    expect(screen.getByTestId("filter-empty-state")).toHaveTextContent("No files in “Conflicts”");
+    await user.click(screen.getByRole("button", { name: "Show all changes" }));
+    expect(screen.getByText("src/changed.ts")).toBeInTheDocument();
+  });
+
   it("exposes Reveal in file tree from the mobile action sheet", async () => {
     mobile.enabled = true;
     const onRevealInTree = vi.fn();
@@ -488,5 +592,5 @@ it("keeps compact Changes tabs styled and keyboard selectable", () => {
  expect([...document.querySelectorAll("style[data-rcl-sheet]")].some(sheet => sheet.textContent?.includes('[data-rcl-tabs-density="compact"] [data-rcl-tab]'))).toBe(true);
  expect(all).toHaveAttribute("aria-selected", "true");
  fireEvent.keyDown(all, { key: "ArrowRight" });
- expect(screen.getByRole("tab", { name: /From agents/ })).toHaveAttribute("aria-selected", "true");
+ expect(screen.getByRole("tab", { name: /Agents/ })).toHaveAttribute("aria-selected", "true");
 });

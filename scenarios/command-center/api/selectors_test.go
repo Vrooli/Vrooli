@@ -95,6 +95,25 @@ func TestLPBSAnalyticsSummarySelectorsMatchProducerJSON(t *testing.T) {
 	}
 }
 
+func TestLPBSRevenueSummarySelectorsMatchProducerJSON(t *testing.T) {
+	payload := map[string]any{
+		"mrr_minor":           float64(12500),
+		"revenue_today_minor": float64(3500),
+	}
+	for _, tc := range []struct {
+		name string
+		want float64
+	}{{"revenue_mrr", 125}, {"revenue_today", 35}} {
+		got, ok := selectors[tc.name](payload)
+		if !ok || got != tc.want {
+			t.Errorf("%s = %v, ok=%t; want %v", tc.name, got, ok, tc.want)
+		}
+	}
+	if _, ok := selectors["revenue_mrr"](map[string]any{"mrr": 125.0}); ok {
+		t.Fatal("AdminRevenue payload must not be mistaken for the revenue-summary.v1 contract")
+	}
+}
+
 func TestExecutionTimingSelectorsKeepMeanAndMedianDistinct(t *testing.T) {
 	payload := map[string]any{
 		"agent":  map[string]any{"avg_execution_minutes": 5194.663306311462},

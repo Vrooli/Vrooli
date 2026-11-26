@@ -2,7 +2,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import type { DiffStats } from "../lib/api";
-import { formatPath } from "../lib/utils";
+import { formatPath, stripPathPrefix } from "../lib/utils";
 import { MobileContext, type FileCategory, type FileListProps, type FileRowProps, LineStats, getStatusBadge } from "./FileListTypes";
 import { FileRow } from "./FileRow";
 
@@ -21,6 +21,10 @@ export type ChangeListSection = {
   metricsState?: "loading" | "refreshing" | "ready" | "unavailable";
   onStatsClick?: () => void;
   onDiscard?: (path: string) => void;
+  /** Root path hidden from row labels, so repeated group prefixes do not consume width. */
+  displayPrefix?: string;
+  /** Per-file line totals for the row badges. */
+  fileStats?: Record<string, DiffStats>;
 };
 
 export type ChangeListBlock =
@@ -53,6 +57,7 @@ interface VirtualizedFileSectionsProps {
   onLongPress?: FileRowProps["onLongPress"];
   onMobileTap?: FileRowProps["onMobileTap"];
   onViewMetrics?: FileRowProps["onViewMetrics"];
+  compactActions?: boolean;
   scrollToFile?: string;
   onScrollComplete?: () => void;
 }
@@ -94,6 +99,7 @@ export function VirtualizedFileSections({
   onLongPress,
   onMobileTap,
   onViewMetrics,
+  compactActions,
   scrollToFile,
   onScrollComplete,
 }: VirtualizedFileSectionsProps) {
@@ -229,8 +235,8 @@ export function VirtualizedFileSections({
                   ) : section.metricsState === "unavailable" ? (
                     <span className="text-[10px] font-medium text-amber-400" title="Change metrics unavailable">Metrics unavailable</span>
                   ) : null}
-                  <span className="min-w-4 text-right text-xs text-slate-500" aria-label={`${section.files.length} files`} title={`${section.files.length} files`}>
-                    {section.files.length}
+                  <span className="min-w-4 text-right text-[10px] text-slate-500" aria-label={`${section.files.length} files`} title={`${section.files.length} files`}>
+                    {section.files.length.toLocaleString()} {section.files.length === 1 ? "file" : "files"}
                   </span>
                 </div>
               </div>
@@ -252,7 +258,8 @@ export function VirtualizedFileSections({
             <ul className="contents">
               <FileRow
                 file={file}
-                displayPath={formatPath(file, maxPathChars)}
+                displayPath={formatPath(stripPathPrefix(file, section.displayPrefix), maxPathChars)}
+                lineStats={section.fileStats?.[file]}
                 badge={getStatusBadge(fileStatuses?.[file], section.category)}
                 isSelected={selectedKeySet?.has(selectionKey(entry)) ?? false}
                 isStaged={isStaged}
@@ -284,6 +291,7 @@ export function VirtualizedFileSections({
                 onLongPress={onLongPress}
                 onMobileTap={onMobileTap}
                 onViewMetrics={onViewMetrics}
+                compactActions={compactActions}
                 category={section.category}
               />
             </ul>

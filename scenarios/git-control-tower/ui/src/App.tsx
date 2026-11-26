@@ -44,6 +44,7 @@ import { createStageBatcher, type StageBatcher } from "./lib/stage-batcher";
 import { commitPreviewMatchesCurrent } from "./lib/commit-authorization";
 import { getFileTypeInfo } from "./lib/fileTypes";
 import { GCT_CHROME_COLOR } from "./lib/chrome";
+import { experienceSignal } from "./lib/experience";
 import type { ViewingCommit } from "./components/HistoryModeHeader";
 import { computeNextSelection, moveDesktopPane, normalizeDesktopPaneOrder, selectStackSlots, type DesktopPane, type DesktopPaneOrder, type SelectionEntry } from "./AppSelection";
 import { ProposalsSection } from "./features/proposals/ProposalsSection";
@@ -232,6 +233,10 @@ export default function App() {
   const sidebarMinWidth = 200;
   const diffMinWidth = 320;
   const [fileViewMode, setFileViewMode] = useState<FileViewMode>("flat");
+  const viewModeTouchedRef = useRef(false);
+  const viewModeReportedRef = useRef(false);
+  const fileViewModeRef = useRef(fileViewMode);
+  fileViewModeRef.current = fileViewMode;
   const [groupingRules, setGroupingRules] = useState<GroupingRule[]>([]);
   const [groupingRulesDirty, setGroupingRulesDirty] = useState(false);
   const [groupingLoadedKey, setGroupingLoadedKey] = useState<string | null>(null);
@@ -851,6 +856,7 @@ export default function App() {
   }, [groupingRules, repoGroupsQuery.data?.groups.length]);
 
   const handleCycleViewMode = useCallback(() => {
+    viewModeTouchedRef.current = true;
     setFileViewMode((prev) => {
       if (prev === "flat") return groupingAvailable ? "grouped" : "tree";
       if (prev === "grouped") return "tree";
@@ -1030,6 +1036,31 @@ export default function App() {
     },
     [unstageMutate, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId]
   );
+
+  const handleUnstagePaths = useCallback(
+    (paths: string[]) => {
+      if (paths.length === 0) return;
+      unstageMutate(
+        { paths },
+        {
+          onSuccess: () => {
+            if (selectedFile && paths.includes(selectedFile) && selectedIsStaged) {
+              setSelectedIsStaged(false);
+              setSelectedIsUntracked(false);
+            }
+            invalidateFileDiffVariants(queryClient, repoId, paths);
+          },
+        },
+      );
+    },
+    [unstageMutate, queryClient, selectedFile, selectedIsStaged, repoId],
+  );
+
+  const handleClearFileSelection = useCallback(() => {
+    const primary = selectedFiles[selectedFiles.length - 1];
+    if (!primary) return;
+    applySelection([primary], selectionKey(primary));
+  }, [applySelection, selectedFiles, selectionKey]);
 
   const handleStageAll = useCallback(() => {
     const files = statusQuery.data?.files;
@@ -1980,12 +2011,14 @@ export default function App() {
     const storedViewMode = localStorage.getItem(viewModeKey);
     const legacyEnabledKey = `gct.grouping.${repoKey}.enabled`;
     const legacyEnabled = localStorage.getItem(legacyEnabledKey);
-    if (storedViewMode === "flat" || storedViewMode === "grouped" || storedViewMode === "tree") {
-      setFileViewMode(storedViewMode);
-    } else if (legacyEnabled === "true") {
-      setFileViewMode("grouped");
-    } else {
-      setFileViewMode("flat");
+    if (!viewModeTouchedRef.current) {
+      if (storedViewMode === "flat" || storedViewMode === "grouped" || storedViewMode === "tree") {
+        setFileViewMode(storedViewMode);
+      } else if (legacyEnabled === "true") {
+        setFileViewMode("grouped");
+      } else {
+        setFileViewMode("flat");
+      }
     }
 
     // Load grouping rules from API
@@ -2124,6 +2157,21 @@ export default function App() {
     localStorage.setItem(viewModeKey, fileViewMode);
   }, [repoDir, repoKey, groupingLoadedKey, fileViewMode]);
 
+  // Report the settled mode after the stored value has been applied. A zero
+  // delay lets the load effect's state update commit first, so a reload of a
+  // saved "grouped" choice does not emit a transient "flat" signal.
+  useEffect(() => {
+    if (!repoDir || groupingLoadedKey !== repoKey) return;
+    const timer = window.setTimeout(() => {
+      experienceSignal("changes.view_mode", {
+        mode: fileViewModeRef.current,
+        initial: !viewModeReportedRef.current,
+      });
+      viewModeReportedRef.current = true;
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [repoDir, repoKey, groupingLoadedKey, fileViewMode]);
+
   useEffect(() => {
     if (!repoDir || groupingLoadedKey !== repoKey || !groupingRulesDirty) return;
     // Save grouping rules to API (instead of localStorage)
@@ -2190,11 +2238,20 @@ export default function App() {
   }, [repoDir, repoKey, layoutLoadedKey, primaryPanel, desktopPaneOrder]);
 
   useEffect(() => {
-    // If in grouped mode but no manual or server-derived groups are available, fall back to flat.
-    if (!groupingAvailable && fileViewMode === "grouped") {
+    // If grouped mode was persisted but no manual or server-derived groups are
+    // available, fall back to flat. Wait for both grouping sources to settle:
+    // resetting while they are still loading discards the persisted mode and
+    // then writes "flat" back, which is why the choice did not survive reload.
+    if (
+      !groupingAvailable
+      && fileViewMode === "grouped"
+      && groupingLoadedKey === repoKey
+      && !groupingRulesQuery.isLoading
+      && !repoGroupsQuery.isLoading
+    ) {
       setFileViewMode("flat");
     }
-  }, [fileViewMode, groupingAvailable]);
+  }, [fileViewMode, groupingAvailable, groupingLoadedKey, repoKey, groupingRulesQuery.isLoading, repoGroupsQuery.isLoading]);
 
   useEffect(() => {
     // Skip until URL initialization is complete (state batched together)
@@ -2634,7 +2691,9 @@ export default function App() {
             onCycleViewMode={handleCycleViewMode}
 
             onStagePaths={handleStagePaths}
+            onUnstagePaths={handleUnstagePaths}
             onDiscardPaths={handleDiscardPaths}
+            onClearSelection={handleClearFileSelection}
             scrollToFile={scrollToFile}
             onScrollComplete={handleScrollComplete}
             onDeletePath={handleRequestDeletePath}
@@ -2976,7 +3035,9 @@ export default function App() {
             onCycleViewMode={handleCycleViewMode}
 
             onStagePaths={handleStagePaths}
+            onUnstagePaths={handleUnstagePaths}
             onDiscardPaths={handleDiscardPaths}
+            onClearSelection={handleClearFileSelection}
             scrollToFile={scrollToFile}
             onScrollComplete={handleScrollComplete}
             scrollTopStore={changesScrollTopRef}

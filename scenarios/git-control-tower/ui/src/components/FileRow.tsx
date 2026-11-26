@@ -18,6 +18,7 @@ import { useLongPress } from "../hooks";
 import { MobileContext, type FileRowProps } from "./FileListTypes";
 import { runHue } from "../lib/runAttribution";
 import { IconButton } from "@vrooli/react-component-library/IconButton/3";
+import { compactCount } from "../lib/utils";
 
 export const FileRow = memo(function FileRow({
   file,
@@ -30,6 +31,8 @@ export const FileRow = memo(function FileRow({
   isDiscarding,
   isIgnoring,
   isBinary,
+  lineStats,
+  compactActions,
   runAttribution,
   onOpenRun,
   itemTestId,
@@ -160,6 +163,17 @@ export const FileRow = memo(function FileRow({
         </span>
       </div>
 
+      {!isMobile && lineStats && (lineStats.additions > 0 || lineStats.deletions > 0) && (
+        <span
+          className="flex shrink-0 items-center gap-1 font-mono text-[10px] tabular-nums"
+          title={`${lineStats.additions} added, ${lineStats.deletions} removed`}
+          data-testid="file-line-stats"
+        >
+          {lineStats.additions > 0 && <span className="text-emerald-400/90">+{compactCount(lineStats.additions)}</span>}
+          {lineStats.deletions > 0 && <span className="text-rose-400/90">−{compactCount(lineStats.deletions)}</span>}
+        </span>
+      )}
+
       {isBinary && (
         <span
           className={`flex items-center gap-1 rounded border border-slate-700/60 bg-slate-900/60 px-1.5 py-0.5 text-slate-400 ${isMobile ? "text-xs" : "text-[10px]"}`}
@@ -263,14 +277,15 @@ export const FileRow = memo(function FileRow({
 
       {showActionButtons && (
         <>
-          {/* Desktop: hover-to-reveal actions */}
+          {/* Desktop: the stage/unstage action stays visible; the secondary
+              actions appear when the row is hovered or focused. */}
           {!isMobile && (
-            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+            <div className="flex items-center gap-0.5">
               <IconButton
                 size="xs"
                 surface="ghost"
                 denseTapTarget
-                className="!h-7 !w-7 !min-h-0 !min-w-0 !border-0 !shadow-none"
+                className="!h-7 !w-7 !min-h-0 !min-w-0 !border-0 !shadow-none !text-slate-400 transition-colors hover:!text-emerald-300"
                 onClick={(e) => {
                   e.stopPropagation();
                   onAction(file);
@@ -286,20 +301,7 @@ export const FileRow = memo(function FileRow({
                   actionIcon
                 )}
               </IconButton>
-              {onViewMetrics && (
-                <IconButton
-                  size="xs"
-                  surface="ghost"
-                  denseTapTarget
-                  className="!h-7 !w-7 !min-h-0 !min-w-0 !border-0 !shadow-none"
-                  onClick={(e) => { e.stopPropagation(); if (category) onViewMetrics(file, category); }}
-                  title="View file metrics"
-                  aria-label="View file metrics"
-                >
-                  <BarChart3 className="h-3 w-3 text-slate-400" />
-                </IconButton>
-              )}
-              {onConfirmIgnore && onIgnore && (
+              {compactActions && onContextMenu && (
                 <IconButton
                   size="xs"
                   surface="ghost"
@@ -307,41 +309,74 @@ export const FileRow = memo(function FileRow({
                   className="!h-7 !w-7 !min-h-0 !min-w-0 !border-0 !shadow-none"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onConfirmIgnore(file);
+                    onContextMenu(file, e);
                   }}
-                  disabled={isIgnoring}
-                  title="Ignore file"
-                  aria-label="Ignore file"
-                  data-testid={ignoreTestId}
+                  title="More file actions"
+                  aria-label="More file actions"
                 >
-                  {isIgnoring ? (
-                    <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
-                  ) : (
-                    <EyeOff className="h-3 w-3 text-amber-300" />
-                  )}
+                  <MoreVertical className="h-3 w-3 text-slate-400" />
                 </IconButton>
               )}
-              {canDiscard && onConfirmDiscard && (
-                <IconButton
-                  size="xs"
-                  surface="ghost"
-                  denseTapTarget
-                  className="!h-7 !w-7 !min-h-0 !min-w-0 !border-0 !shadow-none"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onConfirmDiscard(file);
-                  }}
-                  disabled={isDiscarding || isIgnoring}
-                  title="Discard changes"
-                  aria-label="Discard changes"
-                  data-testid={discardTestId}
-                >
-                  {isDiscarding ? (
-                    <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
-                  ) : (
-                    <Trash2 className="h-3 w-3 text-red-400" />
+              {!compactActions && (
+                <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                  {onViewMetrics && (
+                    <IconButton
+                    size="xs"
+                    surface="ghost"
+                    denseTapTarget
+                    className="!h-7 !w-7 !min-h-0 !min-w-0 !border-0 !shadow-none"
+                    onClick={(e) => { e.stopPropagation(); if (category) onViewMetrics(file, category); }}
+                    title="View file metrics"
+                    aria-label="View file metrics"
+                  >
+                    <BarChart3 className="h-3 w-3 text-slate-400" />
+                  </IconButton>
+                )}
+                {onConfirmIgnore && onIgnore && (
+                  <IconButton
+                    size="xs"
+                    surface="ghost"
+                    denseTapTarget
+                    className="!h-7 !w-7 !min-h-0 !min-w-0 !border-0 !shadow-none"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onConfirmIgnore(file);
+                    }}
+                    disabled={isIgnoring}
+                    title="Ignore file"
+                    aria-label="Ignore file"
+                    data-testid={ignoreTestId}
+                  >
+                    {isIgnoring ? (
+                      <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
+                    ) : (
+                      <EyeOff className="h-3 w-3 text-amber-300" />
+                    )}
+                  </IconButton>
+                )}
+                {canDiscard && onConfirmDiscard && (
+                  <IconButton
+                    size="xs"
+                    surface="ghost"
+                    denseTapTarget
+                    className="!h-7 !w-7 !min-h-0 !min-w-0 !border-0 !shadow-none"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onConfirmDiscard(file);
+                    }}
+                    disabled={isDiscarding || isIgnoring}
+                    title="Discard changes"
+                    aria-label="Discard changes"
+                    data-testid={discardTestId}
+                  >
+                    {isDiscarding ? (
+                      <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
+                    ) : (
+                      <Trash2 className="h-3 w-3 text-red-400" />
+                    )}
+                  </IconButton>
                   )}
-                </IconButton>
+                </div>
               )}
             </div>
           )}
@@ -354,7 +389,7 @@ export const FileRow = memo(function FileRow({
                 size="xs"
                 surface="ghost"
                 denseTapTarget
-                className="!h-8 !w-8 !min-h-0 !min-w-0 !border-0 !shadow-none"
+                className="!h-9 !w-9 !min-h-0 !min-w-0 !border-0 !shadow-none"
                 onClick={(e) => {
                   e.stopPropagation();
                   onAction(file);
@@ -377,7 +412,7 @@ export const FileRow = memo(function FileRow({
                   size="xs"
                   surface="ghost"
                   denseTapTarget
-                  className="!h-8 !w-8 !min-h-0 !min-w-0 !border-0 !shadow-none"
+                  className="!h-9 !w-9 !min-h-0 !min-w-0 !border-0 !shadow-none"
                   onClick={(e) => {
                     e.stopPropagation();
                     onOpenMobileActions(file);

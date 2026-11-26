@@ -47,14 +47,11 @@ flowchart TB
     F --> R
 ```
 
-Fact-family filtering is applied at the Code Facts service boundary. Provider-level extraction may still be full graph extraction until providers add selective extraction.
+Family filtering in the [service](../../api/internal/facts/service.go) passes requested families to [provider-selected extraction profiles](../../api/internal/facts/providers.go).
 
-Endpoint proof is intentionally two-stage. Graph providers emit generic route,
-import, reference, call, and type facts. Code Facts framework adapters then
-interpret only the generic attributes they support and produce normalized
-endpoint implementation evidence. The final proof step compares that evidence
-to `.vrooli/endpoints.json`; downstream consumers such as proto-health consume
-only the resulting proof statuses and evidence.
+Endpoint proofs interpret only supported generic attributes, compare normalized
+evidence with `.vrooli/endpoints.json`, and expose statuses and evidence to consumers; see the
+[framework support matrix](../reference/fact-families.md#endpoint-proof-support-matrix).
 
 ## Shared Infrastructure
 

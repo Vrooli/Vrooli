@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -71,6 +72,16 @@ func defaultBoardSettings() BoardSettings {
 	return BoardSettings{CycleSeconds: 60, Transition: "crossfade", Rooms: []BoardRoomMode{}}
 }
 
+type invalidSavedBoardSettingsError struct{ cause error }
+
+func (e *invalidSavedBoardSettingsError) Error() string { return e.cause.Error() }
+func (e *invalidSavedBoardSettingsError) Unwrap() error { return e.cause }
+
+func isInvalidSavedBoardSettings(err error) bool {
+	var invalid *invalidSavedBoardSettingsError
+	return errors.As(err, &invalid)
+}
+
 func boardSettingsPath() (string, error) {
 	// An explicit config root is retained for isolated tests and controlled
 	// deployments. Otherwise, persist operator settings in the lifecycle's
@@ -118,7 +129,7 @@ func readBoardSettings() (BoardSettings, error) {
 		return settings, err
 	}
 	if err := json.Unmarshal(raw, &settings); err != nil {
-		return settings, err
+		return settings, &invalidSavedBoardSettingsError{cause: err}
 	}
 	if settings.CycleSeconds < 5 {
 		settings.CycleSeconds = 60
@@ -127,7 +138,7 @@ func readBoardSettings() (BoardSettings, error) {
 		settings.Transition = "crossfade"
 	}
 	if err := validateBoardSettings(settings); err != nil {
-		return BoardSettings{}, fmt.Errorf("invalid saved board settings: %w", err)
+		return BoardSettings{}, &invalidSavedBoardSettingsError{cause: fmt.Errorf("invalid saved board settings: %w", err)}
 	}
 	return settings, nil
 }
@@ -235,6 +246,10 @@ func (s *Server) handleBoardSettings(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			if isConfigRootUnavailable(err) {
 				writeConfigReadError(w, err)
+				return
+			}
+			if isInvalidSavedBoardSettings(err) {
+				writeError(w, http.StatusUnprocessableEntity, "board_settings_invalid", "saved board settings are invalid and need repair", nil)
 				return
 			}
 			writeError(w, http.StatusInternalServerError, "board_settings_read_failed", err.Error(), nil)

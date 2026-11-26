@@ -1,5 +1,6 @@
 import { createContext, useContext } from "react";
 import { Plus, Minus } from "lucide-react";
+import { compactCount } from "../lib/utils";
 import type { ChangeGroupAPI, DiffStats, RepoFilesStatus, RepoFileStats, FileViewMode } from "../lib/api";
 
 export const MobileContext = createContext(false);
@@ -57,7 +58,10 @@ export interface FileListProps {
   groupingAvailable?: boolean;
   onCycleViewMode?: () => void;
   onStagePaths?: (paths: string[]) => void;
+  onUnstagePaths?: (paths: string[]) => void;
   onDiscardPaths?: (paths: string[], untracked: boolean) => void;
+  /** Clear the desktop multi-file selection (no-op when the host owns selection). */
+  onClearSelection?: () => void;
   onSelectAnyFile?: (path: string) => void;
   scrollToFile?: string;
   onScrollComplete?: () => void;
@@ -94,6 +98,10 @@ export interface FileRowProps {
   isDiscarding?: boolean;
   isIgnoring?: boolean;
   isBinary?: boolean;
+  /** Per-file additions/deletions, shown as a compact badge on desktop. */
+  lineStats?: DiffStats;
+  /** Hide secondary row actions when the panel is narrow; the context menu still carries them. */
+  compactActions?: boolean;
   runAttribution?: import("../lib/runAttribution").RunAttribution;
   onOpenRun?: (runId: string) => void;
   itemTestId?: string;
@@ -186,15 +194,16 @@ export function LineStats({
   if (!hasLineStats(stats)) return null;
   const textSize = compact ? "text-[11px]" : "text-xs";
   const iconSize = compact ? "h-3 w-3" : "h-3.5 w-3.5";
+  const formatValue = (value: number) => compact ? compactCount(value) : String(value);
   const inner = (
     <>
       <span className="flex items-center gap-1 font-mono tabular-nums text-emerald-400">
         <Plus className={iconSize} />
-        {stats?.additions ?? 0}
+        {formatValue(stats?.additions ?? 0)}
       </span>
       <span className="flex items-center gap-1 font-mono tabular-nums text-rose-400">
         <Minus className={iconSize} />
-        {stats?.deletions ?? 0}
+        {formatValue(stats?.deletions ?? 0)}
       </span>
     </>
   );
@@ -217,68 +226,6 @@ export function LineStats({
     <div className={`flex items-center gap-2 ${textSize}`}>
       {inner}
     </div>
-  );
-}
-
-/** Compact collapsed-group summary: a fixed-width bar encodes additions/deletions. */
-export function ChangeStatsRibbon({
-  stats,
-  label,
-  state = "ready",
-  onClick,
-}: {
-  stats?: DiffStats;
-  label: string;
-  state?: "loading" | "refreshing" | "ready" | "unavailable";
-  onClick: () => void;
-}) {
-  const additions = stats?.additions ?? 0;
-  const deletions = stats?.deletions ?? 0;
-  const hasStats = Boolean(stats);
-  const total = additions + deletions;
-  const addedPercent = total > 0 ? (additions / total) * 100 : 0;
-  const deletedPercent = total > 0 ? (deletions / total) * 100 : 0;
-  const accessibleLabel = state === "loading"
-    ? `Change metrics for ${label} are loading`
-    : state === "refreshing"
-      ? `Change metrics for ${label} are updating; showing the previous snapshot`
-    : state === "unavailable"
-      ? `Change metrics for ${label} are unavailable`
-      : `View change metrics for ${label}`;
-
-  return (
-    <button
-      type="button"
-      className="flex min-h-11 items-center rounded px-1.5 hover:bg-slate-800/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-sky-400"
-      onClick={(event) => {
-        event.stopPropagation();
-        onClick();
-      }}
-      aria-label={accessibleLabel}
-      title={accessibleLabel}
-      data-testid={`change-stats-ribbon-${label}`}
-    >
-      {state === "loading" ? (
-        <span aria-hidden="true" className="h-2 w-12 animate-pulse rounded-sm bg-slate-700" />
-      ) : state === "refreshing" ? (
-        <span aria-hidden="true" className="flex items-center gap-1.5">
-          <span className="flex h-1.5 w-12 overflow-hidden rounded-full bg-slate-700">
-            {hasStats && total > 0 ? <><span className="h-full bg-emerald-400" style={{ width: `${addedPercent}%` }} /><span className="h-full bg-rose-400" style={{ width: `${deletedPercent}%` }} /></> : <span className="h-full w-full bg-slate-500" />}
-          </span>
-          <span className="h-2 w-2 animate-spin rounded-full border border-slate-500 border-t-sky-400" />
-        </span>
-      ) : state === "unavailable" ? (
-        <span aria-hidden="true" className="grid h-4 w-4 place-items-center rounded-full border border-amber-400/50 text-[10px] font-semibold text-amber-300">!</span>
-      ) : hasStats ? (
-        <span aria-hidden="true" className="flex h-1.5 w-12 overflow-hidden rounded-full bg-slate-700">
-          {total > 0
-            ? <><span className="h-full bg-emerald-400" style={{ width: `${addedPercent}%` }} /><span className="h-full bg-rose-400" style={{ width: `${deletedPercent}%` }} /></>
-            : <span className="h-full w-full bg-slate-500" />}
-        </span>
-      ) : (
-        <span aria-hidden="true" className="h-1.5 w-12 rounded-full bg-slate-700" />
-      )}
-    </button>
   );
 }
 

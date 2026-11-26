@@ -311,21 +311,58 @@ func TestDescriptionSimulatorHTTPBridgeEnforcesRequestSize(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := httptest.NewServer(simulator)
-	defer server.Close()
-	request, err := http.NewRequest(http.MethodPost, server.URL+"/v1/contacts", strings.NewReader(strings.Repeat("x", maxSimulatorRequestBytes+1)))
-	if err != nil {
-		t.Fatal(err)
-	}
+	body := &syntheticPayloadReader{remaining: maxSimulatorRequestBytes + 100}
+	request := httptest.NewRequest(http.MethodPost, "http://simulator.test/v1/contacts", body)
 	request.Host = "crm.synthetic.invalid"
-	response, err := server.Client().Do(request)
+	response := httptest.NewRecorder()
+	simulator.ServeHTTP(response, request)
+	if response.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("oversized body should be rejected, got %d", response.Code)
+	}
+	if body.read != maxSimulatorRequestBytes+1 {
+		t.Fatalf("oversized streamed body should stop at the limit plus one byte, read %d bytes", body.read)
+	}
+}
+
+func TestDescriptionSimulatorHTTPBridgeStreamsPayloadAboveInitialImportLimit(t *testing.T) {
+	simulator, err := NewDescriptionSimulator(readFixture(t, "api_catalog_openapi.json"), false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_ = response.Body.Close()
-	if response.StatusCode != http.StatusRequestEntityTooLarge {
-		t.Fatalf("oversized body should be rejected, got %d", response.StatusCode)
+	body := &syntheticPayloadReader{remaining: 1 << 20}
+	request := httptest.NewRequest(http.MethodPost, "http://simulator.test/v1/contacts", body)
+	request.Host = "crm.synthetic.invalid"
+	response := httptest.NewRecorder()
+
+	simulator.ServeHTTP(response, request)
+
+	if response.Code != http.StatusCreated {
+		t.Fatalf("1 MiB streamed payload should reach the declared synthetic route, got %d: %s", response.Code, response.Body.String())
 	}
+	if body.read != 1<<20 {
+		t.Fatalf("simulator should consume the full bounded body without buffering it as workflow state, read %d bytes", body.read)
+	}
+}
+
+type syntheticPayloadReader struct {
+	remaining int64
+	read      int64
+}
+
+func (r *syntheticPayloadReader) Read(p []byte) (int, error) {
+	if r.remaining == 0 {
+		return 0, io.EOF
+	}
+	n := len(p)
+	if int64(n) > r.remaining {
+		n = int(r.remaining)
+	}
+	for i := 0; i < n; i++ {
+		p[i] = 'x'
+	}
+	r.remaining -= int64(n)
+	r.read += int64(n)
+	return n, nil
 }
 
 func TestDescriptionSimulatorExportsBoundedSandboxHTTPProfile(t *testing.T) {

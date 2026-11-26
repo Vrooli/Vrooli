@@ -17,20 +17,20 @@ const modeConfig: Record<
   flat: {
     Icon: List,
     color: "text-slate-300",
-    label: "Flat view",
-    nextLabel: "grouped",
+    label: "All files",
+    nextLabel: "groups",
   },
   grouped: {
     Icon: Layers,
     color: "text-blue-300",
-    label: "Grouped view",
+    label: "Groups",
     nextLabel: "tree",
   },
   tree: {
     Icon: FolderTree,
     color: "text-emerald-300",
-    label: "Tree view",
-    nextLabel: "flat",
+    label: "Tree",
+    nextLabel: "all files",
   },
 };
 

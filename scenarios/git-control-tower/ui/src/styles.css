@@ -298,6 +298,15 @@ pre {
   animation: checkbox-appear 150ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
+/* Keep the end of a path visible when the column is narrower than the path. */
+.truncate-start {
+  direction: rtl;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Monaco editor styling aligned with read-only diff palette */
 .monaco-diff-editor .monaco-editor,
 .monaco-diff-editor .monaco-editor .margin,

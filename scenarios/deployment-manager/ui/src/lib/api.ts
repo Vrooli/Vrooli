@@ -669,6 +669,7 @@ export interface ReleaseOperation {
     reason: string;
     persisted_at?: string;
   };
+
 }
 
 export interface ReleaseListResponse {

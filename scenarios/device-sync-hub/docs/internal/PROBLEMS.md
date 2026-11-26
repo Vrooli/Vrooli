@@ -96,6 +96,18 @@ chunked/resumable sessions and surface per-file upload state, progress, and
 actionable errors. Re-run W0 after the repair; W1/W2/W3 gates are intentionally
 not claimed while W0 is unverifiable.
 
+**Owner follow-up (2026-11-24):** The current UI now routes files larger than
+32 MiB through resumable sessions with 8 MiB chunks, tracks received chunks,
+and reports per-file progress. The API stores chunks separately and assembles
+them into one item. The transfer handler regression proves chunk assembly; UI
+send tests prove upload routing and progress state. Unstructured HTTP 413
+responses are now classified as `resource_exhausted`, so a gateway size limit
+does not appear as an internal server error. Focused Go/UI tests and the API
+Test Genie phase pass. This closes the local one-shot upload gap, but the
+authenticated 200+ MB upstream route has not been exercised here. Keep the
+finding open until that external route and the full P1 acceptance are proven;
+do not infer the edge limit or claim end-to-end resumability from local tests.
+
 ## UX Issues
 
 - Resolved 2026-07-28: received-item cards showed filename, retention, expiry,

@@ -36,7 +36,10 @@ receipt.
 | FFmpeg/FFprobe | Decode, inspect, encode | Local video | Managed pair qualified for bounded current-host outputs; desktop redistribution remains separate |
 | Blender renderer pack | Physical 3D output | Local 3D | Managed5.2.2LTS with qualified current-host CPU/CUDA/OptiX studies; public job/desktop integration underway |
 | BAS | Authentic capture | Optional capture action | Import existing media remains independent |
-| Image Tools/AI Gateway | Generic raster/provider operations | Chosen inference route | Funded media not certified by text path |
+| Image Tools | Photographic candidate generation and preparation | Direct API adapter exists but is absent from `.vrooli/service.json`; unavailable behavior is feature-scoped and must not be inferred from the manifest. |
+| AI Gateway | Geometry generation and selected model-backed routes | Declared optional; a selected route fails when the gateway is unavailable. |
+| Workspace Sandbox | Contained geometry compilation | Declared optional; geometry compile fails when its protected sandbox is unavailable. |
+| Audio Tools | Capability discovery | Declared optional; no hidden startup prerequisite. |
 | Agent Manager | Bounded creation agent | Explicit agent action | Actual hard-cap/isolation capability must be checked |
 | Asset Studio | Generic shared publication | Shared library release | Byte/media admission/provenance adapters owed |
 | Backdrop Studio | Suitable ambient assets | Optional scenes | Does not define room/support geometry |
@@ -47,9 +50,23 @@ receipt.
 
 No external database/cache/GPU service is a mandatory scaffold dependency. SQLite is in-process. Local AI resources such as Ollama are optional choices only when their capability is available and appropriate. Dependencies and artifacts are declared through the lifecycle/SDA owners; this document never authorizes raw package installation or a private host-repair script.
 
-## Scenario Dependencies
+## Scenario dependency declarations and source boundary
 
-Declare actual callable integrations as optional with concrete degraded behavior when wired. At the foundation stage none is implemented merely because it appears here; `.vrooli/service.json` describes the real scaffold. Keep an explicit planned integration table rather than enabling a fleet at startup. Production dependency declarations must be updated with the adopting slice.
+`.vrooli/service.json` currently declares these three optional scenario peers with
+`startup_policy: try_start`:
+
+| Scenario | Manifest status | Source-backed use |
+|---|---|---|
+| `audio-tools` | optional, `try_start` | Capability discovery is registered; feature-level adoption remains scoped to the capability contract. |
+| `ai-gateway` | optional, `try_start` | Model-backed geometry and library-intake routes resolve the gateway when selected. |
+| `workspace-sandbox` | optional, `try_start` | Geometry compilation creates a protected workspace and refuses if the sandbox cannot enforce the required containment. |
+
+The photographic adapter also resolves Image Tools directly (`api/internal/photographic/client.go`),
+but Image Tools is not declared in the current service manifest. Its absence makes that
+photographic operation unavailable; it does not affect project editing or other local paths.
+This direct integration needs service-manifest owner reconciliation. The declared optional
+peers are not hidden startup prerequisites, and a declaration alone does not prove a route is
+qualified.
 
 Asset Studio is implemented but lacks the required artifact-byte and generalized model/movie admission route in inspected code. Its identity-free release path does not prove Device Studio craft review. Private projects remain usable; shared publication waits on the correct owner. Account linking yields a bound signed lease, not automatically a consumer access token accepted by funded inference. Never bridge it by copying website tokens or charging a shared host account implicitly.
 

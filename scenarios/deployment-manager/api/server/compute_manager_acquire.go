@@ -49,7 +49,8 @@ func (a *cloudComputeAcquirer) cmClient(ctx context.Context) (instanceconnect.In
 }
 
 func (a *cloudComputeAcquirer) AcquireCloudCompute(ctx context.Context, request releases.CloudAcquireRequest) (*releases.CloudAcquireResult, error) {
-	if request.Provider != "hetzner" || request.Size != "cx23" || (request.Region != "nbg1" && request.Region != "fsn1") || request.CapCurrency != "USD" || request.CapMonthlyMinor != a2MonthlyCapMinor || request.CapTaxBasis != "pre-tax" || strings.TrimSpace(request.IdempotencyKey) == "" {
+	plan, err := releases.A2CloudAcquirePlan(request.Region, request.IdempotencyKey)
+	if err != nil || request.Provider != plan.Provider || request.Region != plan.Region || request.Size != plan.Size || request.CapCurrency != plan.CapCurrency || request.CapMonthlyMinor != plan.CapMonthlyMinor || request.CapTaxBasis != plan.CapTaxBasis {
 		return nil, fmt.Errorf("acquire request does not match the approved A2 provider, offer, region, key, and cap")
 	}
 	service, client, err := a.cmClient(ctx)
@@ -67,7 +68,7 @@ func (a *cloudComputeAcquirer) AcquireCloudCompute(ctx context.Context, request 
 	} else if connect.CodeOf(readErr) == connect.CodeNotFound {
 		acquireAttempted = true
 		_, createErr := service.AcquireInstance(ctx, connect.NewRequest(&instancev1.AcquireInstanceRequest{
-			IdempotencyKey: request.IdempotencyKey, ProfileId: webConsoleStagingProfile, Region: request.Region, LifetimeSeconds: 3600,
+			IdempotencyKey: plan.AcquireIdempotencyKey, ProfileId: plan.ProfileID, Region: plan.Region, LifetimeSeconds: plan.LifetimeSeconds,
 		}))
 		if createErr == nil {
 			// The typed operation receipt must be the persisted GetAcquireReceipt

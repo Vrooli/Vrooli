@@ -5,12 +5,17 @@ This document records resource and service dependencies, their failure modes, an
 
 ## Dependency Inventory
 
-- PostgreSQL
-- Redis
-- Ollama
-- Qdrant
-- browser-automation-studio optional fallback
-- App Monitor iframe bridge
+| Dependency | Manifest status | Runtime contract |
+|---|---|---|
+| PostgreSQL | Required (`must_start`) | Stores regions, observations, weather data, predictions, reports, and trips through the shared database helper. |
+| Ollama | Required (`must_start`) | Predictions use `resource-ollama gateway generate --role summarize.default`; failures use the typical-week prediction fallback. |
+| Qdrant | Required (`must_start`) | Declared in `.vrooli/service.json` and refreshed by the lifecycle setup step. No runtime Qdrant client was found in the current API implementation. |
+| Vrooli lifecycle | Platform contract | Owns API/UI process startup, dependency setup, ports, and proxy metadata. |
+
+The legacy `redis-cache` service tag is not a dependency declaration: Redis is
+absent from `dependencies.resources` and has no implementation use. The same is
+true of the former optional browser-automation-studio fallback; neither is a
+runtime dependency of this scenario today.
 
 ## Vrooli Resources
 
@@ -18,21 +23,23 @@ This document records resource and service dependencies, their failure modes, an
 
 PostgreSQL stores regions, observations, weather data, predictions, reports, and trips. The API connects through the shared Vrooli database helper in [CODE: api/main.go#initDB]. Schema ownership lives in [CODE: api/internal/<domain>/schema.sql].
 
-### Redis
-
-Redis is declared as a required resource in [CODE: .vrooli/service.json] for real-time weather caching. The current API code does not yet use Redis directly; treat this as an operational dependency reserved for caching improvements.
-
 ### Ollama
 
-Ollama powers advanced peak prediction through direct API calls. The API reads `OLLAMA_URL`, posts to `/api/generate`, validates the JSON response, and falls back when unavailable. Implementation: [CODE: api/main.go#generateFoliagePrediction].
+Ollama powers advanced peak prediction through the resource gateway. The API
+calls `resource-ollama gateway generate --role summarize.default`; prediction
+failures fall back to the typical peak week. Implementation:
+[CODE: api/main.go#generateWithGateway].
 
 ### Qdrant
 
-Qdrant is declared for generated embeddings and AI assistance during setup.
+Qdrant is a required resource declaration and the lifecycle refreshes its
+embeddings during setup. The current scenario API does not contain a Qdrant
+client, so this setup artifact does not establish a runtime query dependency.
 
 ## Scenario Dependencies
 
-This scenario has no scenario-to-scenario runtime dependencies.
+This scenario declares no scenario-to-scenario runtime dependencies. App
+Monitor's iframe bridge is a UI embedding contract, not a scenario peer.
 
 ## Third-Party Services
 
