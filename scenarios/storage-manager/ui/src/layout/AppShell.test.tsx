@@ -50,8 +50,10 @@ describe("AppShell structure (cimode)", () => {
     await user.click(screen.getByTestId(selectors.settingsPage.themeOption({ choice: "dark" })));
     expect(document.documentElement.dataset.resolvedTheme).toBe("dark");
     expect(window.localStorage.getItem("vrooli.theme")).toBe("dark");
-    expect(screen.getByTestId(selectors.theme.select)).toHaveValue("dark");
-    await user.selectOptions(screen.getByTestId(selectors.theme.select), "light");
+    const headerTheme = screen.getByTestId(selectors.theme.select);
+    await user.click(headerTheme);
+    expect(screen.getByRole("option", { name: /dark/i })).toHaveAttribute("aria-selected", "true");
+    await user.click(screen.getByRole("option", { name: /light/i }));
     expect(screen.getByTestId(selectors.settingsPage.themeOption({ choice: "light" }))).toHaveAttribute("aria-checked", "true");
     expect(window.localStorage.getItem("vrooli.theme")).toBe("light");
   });

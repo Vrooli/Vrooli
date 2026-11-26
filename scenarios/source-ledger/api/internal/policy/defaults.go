@@ -17,6 +17,8 @@ type fileDefaults struct {
 	WakeBudgetChars int    `json:"wakeBudgetChars"`
 	MaxEntryLines   int    `json:"maxEntryLines"`
 	MaxEntryChars   int    `json:"maxEntryChars"`
+	// SummaryMaxOutputTokens is optional; omitted means the built-in default.
+	SummaryMaxOutputTokens int `json:"summaryMaxOutputTokens"`
 }
 
 const (
@@ -36,16 +38,25 @@ const (
 	// DefaultMaxEntryChars keeps one verbose journal document from dominating
 	// an agent's ambient context.
 	DefaultMaxEntryChars = 200
+	// DefaultSummaryMaxOutputTokens is the generation ceiling for a compaction
+	// summary. It is a ceiling, not a target: the model stops on its own, so the
+	// value only has to sit above the longest natural summary. Real compaction
+	// prompts run through summarize.default with a 1024 ceiling stopped on their
+	// own after 135-637 tokens (median 230, 14 of 14 above the former 128-token
+	// cap, which cut every summary mid-sentence); 768 clears the longest with
+	// margin and costs nothing for the summaries that finish sooner.
+	DefaultSummaryMaxOutputTokens = 768
 )
 
 func BuiltInDefaults() Config {
 	return Config{
-		Scope:           AgentMemory,
-		FrontierTarget:  DefaultFrontierTarget,
-		WakeBudget:      DefaultWakeBudget,
-		WakeBudgetChars: DefaultWakeBudgetChars,
-		MaxEntryLines:   DefaultMaxEntryLines,
-		MaxEntryChars:   DefaultMaxEntryChars,
+		Scope:                  AgentMemory,
+		FrontierTarget:         DefaultFrontierTarget,
+		WakeBudget:             DefaultWakeBudget,
+		WakeBudgetChars:        DefaultWakeBudgetChars,
+		MaxEntryLines:          DefaultMaxEntryLines,
+		MaxEntryChars:          DefaultMaxEntryChars,
+		SummaryMaxOutputTokens: DefaultSummaryMaxOutputTokens,
 		Origins: Origins{
 			FrontierTarget: OriginBuiltIn, WakeBudget: OriginBuiltIn,
 			WakeBudgetChars: OriginBuiltIn, MaxEntryLines: OriginBuiltIn,
@@ -105,7 +116,7 @@ func LoadDefaults(path string) (Config, error) {
 		Scope:          fileScope,
 		FrontierTarget: file.FrontierTarget, WakeBudget: file.WakeBudgetLines,
 		WakeBudgetChars: file.WakeBudgetChars, MaxEntryLines: file.MaxEntryLines,
-		MaxEntryChars: file.MaxEntryChars,
+		MaxEntryChars: file.MaxEntryChars, SummaryMaxOutputTokens: file.SummaryMaxOutputTokens,
 		Origins: Origins{
 			FrontierTarget: OriginFileDefault, WakeBudget: OriginFileDefault,
 			WakeBudgetChars: OriginFileDefault, MaxEntryLines: OriginFileDefault,
@@ -127,6 +138,9 @@ func (f fileDefaults) validate() error {
 			return fmt.Errorf("%s must be a positive integer", name)
 		}
 	}
+	if f.SummaryMaxOutputTokens < 0 {
+		return fmt.Errorf("summaryMaxOutputTokens must be a positive integer when set")
+	}
 	if f.MaxEntryLines > f.WakeBudgetLines {
 		return fmt.Errorf("maxEntryLines cannot exceed wakeBudgetLines")
 	}
@@ -137,6 +151,9 @@ func (f fileDefaults) validate() error {
 }
 
 func normalizeDefaults(config Config) Config {
+	if config.SummaryMaxOutputTokens <= 0 {
+		config.SummaryMaxOutputTokens = DefaultSummaryMaxOutputTokens
+	}
 	for _, f := range []struct {
 		value    *int
 		fallback int

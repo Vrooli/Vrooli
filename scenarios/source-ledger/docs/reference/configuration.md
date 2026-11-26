@@ -47,7 +47,11 @@ readback reports the effective value and its origin (`scope-override`,
 wake observes a change without restarting Source Ledger.
 
 The controls are `frontierTarget`, `wakeBudgetLines`, `wakeBudgetChars`,
-`maxEntryLines`, and `maxEntryChars`. Wake enforces both units at per-entry and
+`maxEntryLines`, and `maxEntryChars`. The file also carries one engine-wide
+setting that is not a per-scope override: `summaryMaxOutputTokens`, the
+generation ceiling for a compaction summary (default 768; omit it to use the
+default). It is a ceiling, not a target, so raising it costs nothing for
+summaries that finish sooner. Wake enforces both units at per-entry and
 whole-view levels; the first reached ceiling governs. Pins keep ordering
 priority but remain subject to the whole-view ceilings.
 

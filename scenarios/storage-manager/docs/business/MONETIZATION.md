@@ -6,5 +6,5 @@ For shared strategy, catalogs, tiers, and pricing authority, see the [repository
 
 Scenario context:
 - [PRD](../../PRD.md)
-- [Go-to-market notes](GO-TO-MARKET.md)
+- Launch planning stays deferred until this scenario has a monetization hypothesis.
 - [Observability](../operations/OBSERVABILITY.md)

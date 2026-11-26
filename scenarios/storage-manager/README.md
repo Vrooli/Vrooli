@@ -136,7 +136,7 @@ finer-grained presets.
 | Understand the architecture | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
 | Map product domains | [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) |
 | Track workflows, data, and integrations | [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md), [`docs/concepts/DATA.md`](docs/concepts/DATA.md), [`docs/concepts/INTEGRATIONS.md`](docs/concepts/INTEGRATIONS.md) |
-| Capture monetization and launch strategy | [`docs/business/MONETIZATION.md`](docs/business/MONETIZATION.md), [`docs/business/GO-TO-MARKET.md`](docs/business/GO-TO-MARKET.md) |
+| Capture monetization and conditional launch strategy | [`docs/business/MONETIZATION.md`](docs/business/MONETIZATION.md) |
 | Prepare deployment and operations | [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md), [`docs/operations/RUNBOOK.md`](docs/operations/RUNBOOK.md), [`docs/operations/OBSERVABILITY.md`](docs/operations/OBSERVABILITY.md) |
 | Write tests | [`docs/internal/TESTING.md`](docs/internal/TESTING.md) |
 | Add or update seams/fakes | [`docs/internal/SEAMS.md`](docs/internal/SEAMS.md) |

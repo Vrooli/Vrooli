@@ -6,11 +6,12 @@
 |---|---|---|
 | `ai-gateway` | Classification, embeddings, and compaction summaries. | Journal append remains available; enrichment and compaction report bounded failure. |
 | `search-hub` | One scope-faceted federated provider. | Local CLI/API remain available; provider registration is retried and visible. |
-| `data-backup-manager` | Non-regenerable journal backup and restore drills. | The scenario must not claim production readiness without a verified backup. |
+| `data-backup-manager` | Planned backup/restore integration; not declared or wired in the current runtime. | No backup target is registered by Source Ledger today; production backup readiness requires a separately verified procedure. |
 
 SQLite is in-process and is not a resource dependency. The source ledger owns
-its database path through the storage resolver and registers that same path as
-the backup target.
+its database path through the storage resolver. Backup-target registration is
+future work; this guide does not claim a `data-backup-manager` integration is
+active.
 
 ## Consumer Boundary
 
@@ -35,8 +36,8 @@ scope-aware, and subject to the journal high-water-mark guard.
 
 ## Architecture Maturity
 
-Search Hub and governed inference are live optional integrations. Backup
-registration remains a separate production-readiness surface for the
+Governed inference and Search Hub are live integrations; Search Hub is optional.
+Backup registration remains a separate production-readiness surface for the
 non-regenerable ledger database.
 
 ## Contracts And Data Flow
@@ -45,13 +46,14 @@ External integrations receive explicit scope-aware requests and return bounded
 failure states; they never become the journal authority.
 
 
-This document records planned dependencies and their degraded behavior.
+This document records declared runtime dependencies and distinguishes planned
+integrations from wired dependencies.
 
 ## Dependency Inventory
 
-Governed inference and Search Hub are active runtime surfaces. Data-backup-
-manager remains the owner of the backup drill and is not required for normal
-append or recall.
+Governed inference and Search Hub are active runtime surfaces. The
+`data-backup-manager` remains a planned backup-drill owner, but there is no manifest dependency
+or runtime integration yet. It is not required for normal append or recall.
 
 ## Vrooli Resources
 

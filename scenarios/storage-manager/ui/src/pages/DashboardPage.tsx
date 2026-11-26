@@ -17,7 +17,7 @@ import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { DataTable } from "@vrooli/react-component-library/DataTable/1";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";

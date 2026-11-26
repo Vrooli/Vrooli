@@ -216,10 +216,14 @@ func main() {
 			}
 		})
 	}()
+	// Model-store disk retention: decide on a cadence, notify on pressure or
+	// over-budget stores, and raise one Hub decision per eviction selection.
+	// An approval evicts through each store owner's fenced operation.
+	modelEffects := startModelRetention(schedulerContext, logger, cleanupService, backgroundGate)
 	if secret, secretErr := deletiongrant.ResolveWebhookSecret(os.Getenv); deletiongrant.ShouldMountWebhook(secret, secretErr) {
 		rootMux.Handle(deletiongrant.WebhookPath, operatordecision.NewWebhook(hubidentity.WebhookConfig(operatordecision.WebhookConfig{
 			Secret: operatordecision.StaticSecret(secret), Source: deletiongrant.Source,
-			Effects: []operatordecision.DomainEffect{deletiongrant.NewResolver(grantStore).WithOnApprove(grantRepublisher.Trigger)},
+			Effects: append([]operatordecision.DomainEffect{deletiongrant.NewResolver(grantStore).WithOnApprove(grantRepublisher.Trigger)}, modelEffects...),
 		})))
 		if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
 			target := "http://127.0.0.1:" + port + deletiongrant.WebhookPath

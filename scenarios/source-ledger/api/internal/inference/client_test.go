@@ -4,11 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 	"unicode/utf8"
 
 	"connectrpc.com/connect"
+	"source-ledger/internal/policy"
+
 	"github.com/stretchr/testify/require"
 
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
@@ -77,6 +81,8 @@ func TestGatewayClientEmbedDoesNotRepeatUnknownOutcomes(t *testing.T) {
 		{name: "nil response", wantError: "no route response"},
 		{name: "nil message", result: &connect.Response[routingv1.ExecuteRouteResponse]{}, wantError: "no route response"},
 		{name: "rejected response", result: connect.NewResponse(&routingv1.ExecuteRouteResponse{Valid: false}), wantError: "rejected embedding.default route"},
+		{name: "blocked route", result: connect.NewResponse(&routingv1.ExecuteRouteResponse{Valid: true, Evidence: &routingv1.RouteEvidence{Status: "blocked", RejectionReason: "provider_breaker_open"}}), wantError: "embedding.default route blocked: provider_breaker_open"},
+		{name: "failed route", result: connect.NewResponse(&routingv1.ExecuteRouteResponse{Valid: true, Evidence: &routingv1.RouteEvidence{Status: "failed", FailureReasons: []string{"provider.execution_failed"}}}), wantError: "route failed (provider.execution_failed)"},
 		{name: "malformed JSON", result: connect.NewResponse(&routingv1.ExecuteRouteResponse{Valid: true, OutputText: "{"}), wantError: "decode ai-gateway embedding response", wantSyntax: true},
 		{name: "empty vector", result: connect.NewResponse(&routingv1.ExecuteRouteResponse{Valid: true, OutputText: `{"embedding":[]}`}), wantError: "contained no vector"},
 	}
@@ -153,10 +159,20 @@ func TestClassificationPromptBoundsFewShotExamples(t *testing.T) {
 }
 
 func TestGatewayClientUsesLongerTimeoutForCompactionSummary(t *testing.T) {
-	client := NewGatewayClient(fakeRouting{response: `{"response":"summary"}`, wantRole: SummaryRole, wantInput: "cluster", wantTimeout: SummaryTimeout, wantMaxOutputTokens: SummaryMaxOutputTokens})
+	client := NewGatewayClient(fakeRouting{response: `{"response":"summary"}`, wantRole: SummaryRole, wantInput: "cluster", wantTimeout: SummaryTimeout, wantMaxOutputTokens: policy.DefaultSummaryMaxOutputTokens})
 	got, err := client.Summarize(context.Background(), "cluster")
 	require.NoError(t, err)
 	require.Equal(t, "summary", got)
+}
+
+func TestSummaryCeilingIsConfigurableInOnePlace(t *testing.T) {
+	client := NewGatewayClient(fakeRouting{response: `{"response":"summary"}`, wantRole: SummaryRole, wantInput: "cluster", wantTimeout: SummaryTimeout, wantMaxOutputTokens: 900}).WithSummaryMaxOutputTokens(900)
+	_, err := client.Summarize(context.Background(), "cluster")
+	require.NoError(t, err)
+	// A non-positive configured value keeps the default instead of disabling the bound.
+	client = NewGatewayClient(fakeRouting{response: `{"response":"summary"}`, wantRole: SummaryRole, wantInput: "cluster", wantTimeout: SummaryTimeout, wantMaxOutputTokens: policy.DefaultSummaryMaxOutputTokens}).WithSummaryMaxOutputTokens(0)
+	_, err = client.Summarize(context.Background(), "cluster")
+	require.NoError(t, err)
 }
 
 func TestGeneratedTextPreservesPlainTextForNonResourceFakes(t *testing.T) {
@@ -288,16 +304,80 @@ func TestEmbedWhenIdleYieldsToForegroundCalls(t *testing.T) {
 
 type fakeBatchEmbed struct {
 	inferenceconnect.InferenceServiceClient
-	texts [][]string
+	texts    [][]string
+	requests []*inferencev1.EmbedRequest
 }
 
 func (f *fakeBatchEmbed) Embed(_ context.Context, req *connect.Request[inferencev1.EmbedRequest]) (*connect.Response[inferencev1.EmbedResponse], error) {
 	f.texts = append(f.texts, req.Msg.GetTexts())
+	f.requests = append(f.requests, req.Msg)
 	resp := &inferencev1.EmbedResponse{}
 	for range req.Msg.GetTexts() {
 		resp.Vectors = append(resp.Vectors, &inferencev1.EmbeddingVector{Values: []float64{1}})
 	}
 	return connect.NewResponse(resp), nil
+}
+
+type blockingBatchCall struct {
+	task    EmbeddingTask
+	release chan struct{}
+}
+
+type blockingBatchEmbed struct {
+	inferenceconnect.InferenceServiceClient
+	calls  chan *blockingBatchCall
+	active atomic.Int32
+	max    atomic.Int32
+}
+
+func newBlockingBatchEmbed() *blockingBatchEmbed {
+	return &blockingBatchEmbed{calls: make(chan *blockingBatchCall, 16)}
+}
+
+func (f *blockingBatchEmbed) Embed(ctx context.Context, req *connect.Request[inferencev1.EmbedRequest]) (*connect.Response[inferencev1.EmbedResponse], error) {
+	task := EmbeddingDocument
+	if len(req.Msg.GetTexts()) > 0 && strings.HasPrefix(req.Msg.GetTexts()[0], queryPrefix) {
+		task = EmbeddingQuery
+	}
+	active := f.active.Add(1)
+	for prior := f.max.Load(); active > prior; prior = f.max.Load() {
+		if f.max.CompareAndSwap(prior, active) {
+			break
+		}
+	}
+	defer f.active.Add(-1)
+	call := &blockingBatchCall{task: task, release: make(chan struct{})}
+	f.calls <- call
+	select {
+	case <-call.release:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	resp := &inferencev1.EmbedResponse{}
+	for range req.Msg.GetTexts() {
+		resp.Vectors = append(resp.Vectors, &inferencev1.EmbeddingVector{Values: []float64{1}})
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func nextBatchCall(t *testing.T, calls <-chan *blockingBatchCall) *blockingBatchCall {
+	t.Helper()
+	select {
+	case call := <-calls:
+		return call
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for embedding batch")
+		return nil
+	}
+}
+
+func requireNoBatchCall(t *testing.T, calls <-chan *blockingBatchCall, window time.Duration) {
+	t.Helper()
+	select {
+	case call := <-calls:
+		t.Fatalf("unexpected overlapping batch call: task=%s", call.task)
+	case <-time.After(window):
+	}
 }
 
 // The file corpus embeds many chunks per gateway call, with task prefixes,
@@ -310,6 +390,10 @@ func TestEmbedBatchSendsOneCallAndYieldsToForeground(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, vecs, 1)
 	require.Equal(t, []string{queryPrefix + "q"}, batch.texts[0])
+	// The gateway refuses a typed embedding without these three fields.
+	require.Equal(t, sharedv1.Profile_PROFILE_LOCAL_ONLY, batch.requests[0].GetProfile())
+	require.Equal(t, sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL, batch.requests[0].GetPrivacyClass())
+	require.Equal(t, privacyProvenance, batch.requests[0].GetPrivacyProvenance())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
 	defer cancel()
@@ -321,4 +405,75 @@ func TestEmbedBatchSendsOneCallAndYieldsToForeground(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, vecs, 2)
 	require.Equal(t, []string{documentPrefix + "a", documentPrefix + "b"}, batch.texts[1])
+}
+
+func TestBackgroundBatchCallsAreSerialized(t *testing.T) {
+	batch := newBlockingBatchEmbed()
+	client := NewGatewayClient(&outcomeRouting{}).WithBatchEmbedding(batch)
+	client.lastDone.Store(time.Now().Add(-idleGap).UnixNano())
+
+	const workers = 4
+	ready := make(chan struct{}, workers)
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ready <- struct{}{}
+			<-start
+			_, _ = client.EmbedBatch(context.Background(), EmbeddingDocument, []string{"doc"}, true)
+		}()
+	}
+	for range workers {
+		<-ready
+	}
+	close(start)
+
+	for range workers {
+		call := nextBatchCall(t, batch.calls)
+		require.Equal(t, EmbeddingDocument, call.task)
+		requireNoBatchCall(t, batch.calls, 50*time.Millisecond)
+		close(call.release)
+	}
+	wg.Wait()
+	require.EqualValues(t, 1, batch.max.Load(), "parallel workers may queue, but only one background request may reach AI Gateway")
+}
+
+func TestForegroundBatchProceedsAlongsideAtMostOneBackgroundBatch(t *testing.T) {
+	batch := newBlockingBatchEmbed()
+	client := NewGatewayClient(&outcomeRouting{}).WithBatchEmbedding(batch)
+	client.lastDone.Store(time.Now().Add(-idleGap).UnixNano())
+
+	firstDone := make(chan error, 1)
+	secondCtx, cancelSecond := context.WithCancel(context.Background())
+	defer cancelSecond()
+	secondDone := make(chan error, 1)
+	go func() {
+		_, err := client.EmbedBatch(context.Background(), EmbeddingDocument, []string{"first"}, true)
+		firstDone <- err
+	}()
+	first := nextBatchCall(t, batch.calls)
+	go func() {
+		_, err := client.EmbedBatch(secondCtx, EmbeddingDocument, []string{"second"}, true)
+		secondDone <- err
+	}()
+	requireNoBatchCall(t, batch.calls, 50*time.Millisecond)
+
+	foregroundDone := make(chan error, 1)
+	go func() {
+		_, err := client.EmbedBatch(context.Background(), EmbeddingQuery, []string{"query"}, false)
+		foregroundDone <- err
+	}()
+	foreground := nextBatchCall(t, batch.calls)
+	require.Equal(t, EmbeddingQuery, foreground.task)
+	close(foreground.release)
+	require.NoError(t, <-foregroundDone, "foreground work must not queue behind the active background batch")
+
+	close(first.release)
+	require.NoError(t, <-firstDone)
+	requireNoBatchCall(t, batch.calls, 300*time.Millisecond)
+	cancelSecond()
+	require.ErrorIs(t, <-secondDone, context.Canceled)
+	require.EqualValues(t, 2, batch.max.Load(), "one foreground and at most one background request may overlap")
 }

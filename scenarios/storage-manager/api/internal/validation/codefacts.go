@@ -2,21 +2,18 @@ package validation
 
 import (
 	"context"
-	"net/http"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/codefacts"
 
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
-	factsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts/facts_v1connect"
 )
 
 const (
-	codeFactsScenarioID     = "code-facts"
 	defaultCodeFactsTimeout = 3 * time.Second
 )
 
@@ -51,15 +48,6 @@ func (d CodeFactsDetector) Detect(ctx context.Context, scenario, scenarioDir str
 	}
 	fs := fallback.Detect(ctx, scenario, scenarioDir)
 
-	resolver := d.Resolver
-	if resolver == nil {
-		resolver = discovery.NewResolver(discovery.ResolverConfig{})
-	}
-	httpClient := d.HTTPClient
-	if httpClient == nil {
-		httpClient = http.DefaultClient
-	}
-
 	timeout := d.Timeout
 	if timeout <= 0 {
 		timeout = defaultCodeFactsTimeout
@@ -67,12 +55,7 @@ func (d CodeFactsDetector) Detect(ctx context.Context, scenario, scenarioDir str
 	detectCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	baseURL, err := resolver.ResolveScenarioURLDefault(detectCtx, codeFactsScenarioID)
-	if err != nil {
-		return fs
-	}
-	client := factsconnect.NewCodeFactsServiceClient(httpClient, baseURL)
-	resp, err := client.DescribeCodeFacts(detectCtx, connect.NewRequest(&factsv1.DescribeCodeFactsRequest{
+	report, err := (codefacts.Client{Resolver: d.Resolver, HTTPClient: d.HTTPClient}).Describe(detectCtx, &factsv1.DescribeCodeFactsRequest{
 		Target: &factsv1.CodeTarget{
 			Kind:     factsv1.TargetKind_TARGET_KIND_SCENARIO,
 			Scenario: scenario,
@@ -82,14 +65,14 @@ func (d CodeFactsDetector) Detect(ctx context.Context, scenario, scenarioDir str
 			factsv1.FactFamily_FACT_FAMILY_PARSE_UNITS,
 			factsv1.FactFamily_FACT_FAMILY_FILE_DOMAIN,
 		},
-	}))
+	})
 	if err != nil {
 		return fs
 	}
 
 	out := Detection{
-		Language: apiLanguageFromParseUnits(resp.Msg.GetParseUnits(), scenarioDir),
-		Domains:  domainsFromFacts(resp.Msg.GetFacts()),
+		Language: apiLanguageFromParseUnits(report.GetParseUnits(), scenarioDir),
+		Domains:  domainsFromFacts(report.GetFacts()),
 	}
 	// Never regress below the filesystem signal: code-facts may legitimately
 	// return nothing for an unparsed surface.

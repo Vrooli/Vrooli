@@ -56,7 +56,7 @@ func TestConservativeBuiltInsValidateAndSortCatalog(t *testing.T) {
 		Journal:              &cleanupfakes.JournalClient{},
 		OwnerScenarioClient:  &cleanupfakes.ScenarioProviderClient{},
 		OwnerProviderConfigs: ownerProviderFixtures(),
-		OllamaModelProvider:  NewOllamaModelRetentionProvider(&fakeOllamaInventory{}, &memoryOllamaLedger{}, "model-policy.json", nil),
+		ModelStoreProvider:   NewModelStoreRetentionProvider(testModelRetentionPolicy(), nil, ModelStoreEnvironment{}, nil),
 		Clock:                cleanupfakes.Clock{Time: time.Unix(10, 0)},
 		TrashRoots:           []string{"/fake/trash"},
 		TmpRoots:             []string{"/fake/tmp"},

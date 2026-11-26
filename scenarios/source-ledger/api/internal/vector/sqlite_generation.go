@@ -659,18 +659,36 @@ func (b *SQLiteGenerationBackend) Rollback(ctx context.Context, operationID stri
 	if anyBlank(operationID) {
 		return SQLiteGeneration{}, errors.New("Source Ledger rollback requires a stable operation ID")
 	}
-	var activeID, predecessorID string
-	if err := b.db.QueryRowContext(ctx, `SELECT generation_id FROM vector_generation_active WHERE singleton=1`).Scan(&activeID); err != nil {
+	var predecessorID string
+	operation, err := b.Operation(ctx, operationID)
+	switch {
+	case err == nil:
+		if operation.Operation != "rollback" || anyBlank(operation.GenerationID) {
+			return SQLiteGeneration{}, ErrGenerationOperationConflict
+		}
+		if operation.State == "complete" {
+			return b.loaded(ctx, operation.GenerationID, nil)
+		}
+		// The active pointer can commit before capacity lease completion. On a
+		// retry, use the durable target instead of deriving its inverse from the
+		// newly active generation's predecessor.
+		predecessorID = operation.GenerationID
+	case errors.Is(err, sql.ErrNoRows):
+		var activeID string
+		if err := b.db.QueryRowContext(ctx, `SELECT generation_id FROM vector_generation_active WHERE singleton=1`).Scan(&activeID); err != nil {
+			return SQLiteGeneration{}, err
+		}
+		if activeID == "" {
+			return SQLiteGeneration{}, ErrGenerationNotReady
+		}
+		if err := b.db.QueryRowContext(ctx, `SELECT predecessor_id FROM vector_generations WHERE generation_id=? AND state='active'`, activeID).Scan(&predecessorID); err != nil {
+			return SQLiteGeneration{}, err
+		}
+		if predecessorID == "" {
+			return SQLiteGeneration{}, errors.New("Source Ledger active generation has no retained rollback predecessor")
+		}
+	default:
 		return SQLiteGeneration{}, err
-	}
-	if activeID == "" {
-		return SQLiteGeneration{}, ErrGenerationNotReady
-	}
-	if err := b.db.QueryRowContext(ctx, `SELECT predecessor_id FROM vector_generations WHERE generation_id=? AND state='active'`, activeID).Scan(&predecessorID); err != nil {
-		return SQLiteGeneration{}, err
-	}
-	if predecessorID == "" {
-		return SQLiteGeneration{}, errors.New("Source Ledger active generation has no retained rollback predecessor")
 	}
 	predecessor, err := b.Load(ctx, predecessorID)
 	if err != nil {

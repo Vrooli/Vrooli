@@ -364,9 +364,7 @@ class is never indexed or served: by default operator conversations
 personal data (`*resume*`, `personal/`, `private/`, `*.private.*`). A topic
 replaces the list with its own, `"private": []` opts in. A malformed
 `feeds.json` is reported as a `CORPUS_PROBLEMS` degradation: at the root the
-defaults apply, in a topic only its README/INDEX/SUMMARY files are indexed. With Source Ledger down, research agents run
-`research-desk/skills/research-coordination/scripts/find.py`, which applies
-the same policy to the files and prints the same shape.
+defaults apply, in a topic only its README/INDEX/SUMMARY files are indexed. With Source Ledger down, research agents search the files directly with `rg`.
 
 ## Cross-references
 

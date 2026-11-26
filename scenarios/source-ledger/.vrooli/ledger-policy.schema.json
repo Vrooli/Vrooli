@@ -17,6 +17,11 @@
     "wakeBudgetLines": { "type": "integer", "minimum": 1 },
     "wakeBudgetChars": { "type": "integer", "minimum": 1 },
     "maxEntryLines": { "type": "integer", "minimum": 1 },
-    "maxEntryChars": { "type": "integer", "minimum": 1 }
+    "maxEntryChars": { "type": "integer", "minimum": 1 },
+    "summaryMaxOutputTokens": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Generation ceiling for one compaction summary. Optional; omitted uses the built-in default. A ceiling, not a target: the model stops on its own."
+    }
   }
 }

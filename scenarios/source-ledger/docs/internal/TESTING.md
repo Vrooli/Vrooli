@@ -16,6 +16,8 @@ identify the helpers and gates this scenario currently uses.
 
 Existing local entry points (choose the domain test for the behavior you change):
 
+- [Journal briefing durable provider recovery](../../api/handlers/journal/durable_walk_briefing_recovery_test.go) — real file-backed SQLite, production Connect handler, provider loss, DB close/reopen, retry, and exact request-key replay.
+- [Cross-product Walk durable recovery](../../api/handlers/journal/durable_walk_briefing_crossproduct_test.go) — opt-in `GOPROXY=off go test -tags=crossproduct ./handlers/journal -run '^TestCrossProductWalkRetainsBriefingAcrossProviderLossAndJournalRestart$' -count=1`; seeds the briefing through the production Journal handler and SQLite owner, then runs Command Center's current Walk route with `SOURCE_LEDGER_BASE_URL` empty. A deterministic api-core resolver failure exercises the `SOURCE_LEDGER_API_PORT` fallback against that isolated owner, then tests retained work through owner reconstruction. The test invokes the Command Center API package from the checked-out repository; it does not restart either shared scenario service or exercise real peer/registry/CLI discovery.
 - [api/handlers/health/handler_test.go](../../api/handlers/health/handler_test.go)
 - [ui/src/App.test.tsx](../../ui/src/App.test.tsx)
 - [ui/src/api/health.test.ts](../../ui/src/api/health.test.ts)

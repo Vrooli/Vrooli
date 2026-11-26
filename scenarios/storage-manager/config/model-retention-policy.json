@@ -1,0 +1,13 @@
+{
+  "check_interval": "15m",
+  "notify_below_free_percent": 15,
+  "evict_below_free_percent": 10,
+  "evict_until_free_percent": 15,
+  "idle_window": "14d",
+  "registry_tag_refetch_penalty": 2,
+  "approval": "operator",
+  "stores": [
+    { "resource": "ollama", "command": "resource-ollama" },
+    { "resource": "ollaya", "command": "resource-ollaya" }
+  ]
+}

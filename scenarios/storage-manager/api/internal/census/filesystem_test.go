@@ -111,6 +111,13 @@ func TestDeviceProbeCoverageHasNamedPlatformVerdicts(t *testing.T) {
 	}
 }
 
+func TestDeviceCoverageWithMissingProbeIsDegraded(t *testing.T) {
+	coverage := deviceCoverageWith(nil, "/root", 60, true)
+	if coverage.Complete || coverage.MeasuredByDevice || coverage.DegradedReason != "device_probe_unavailable" {
+		t.Fatalf("missing-probe coverage = %+v", coverage)
+	}
+}
+
 func TestCensusPlatformTiersUseTheSameSyntheticAccountingContract(t *testing.T) {
 	for _, tier := range []struct {
 		name      string
@@ -152,47 +159,11 @@ func TestCensusPlatformTiersUseTheSameSyntheticAccountingContract(t *testing.T) 
 	}
 }
 
-func TestIncrementalScannerReusesUnchangedTreeAndInvalidates(t *testing.T) {
-	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "item"), []byte("value"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	filesystem := &countingFileSystem{}
-	scanner := NewIncrementalScanner(filesystem, nil)
-	manifests := map[string][]Declaration{"owner": {{Name: "data", Path: root}}}
-	if _, err := scanner.Scan(root, manifests); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := scanner.Scan(root, manifests); err != nil {
-		t.Fatal(err)
-	}
-	if filesystem.walks != 1 {
-		t.Fatalf("unchanged tree walks = %d, want 1", filesystem.walks)
-	}
-	scanner.Invalidate()
-	if _, err := scanner.Scan(root, manifests); err != nil {
-		t.Fatal(err)
-	}
-	if filesystem.walks != 2 {
-		t.Fatalf("invalidated tree walks = %d, want 2", filesystem.walks)
-	}
-}
-
 // treeFileSystem adapts fstest.MapFS to the census FileSystem contract while
 // preserving the test's guarantee that no os path is visited.
 type treeFileSystem struct {
 	FS       fstest.MapFS
 	HostRoot string
-}
-
-type countingFileSystem struct {
-	hostFileSystem
-	walks int
-}
-
-func (f *countingFileSystem) WalkDir(root string, fn fs.WalkDirFunc) error {
-	f.walks++
-	return f.hostFileSystem.WalkDir(root, fn)
 }
 
 func (t treeFileSystem) WalkDir(root string, fn fs.WalkDirFunc) error {

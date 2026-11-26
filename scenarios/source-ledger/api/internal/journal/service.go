@@ -12,6 +12,10 @@ import (
 	"github.com/vrooli/api-core/provenance"
 )
 
+// MaxConsecutiveInferenceFailures ends a retry pass early so an unavailable
+// inference route is probed a few times per pass, not once per queued item.
+const MaxConsecutiveInferenceFailures = 3
+
 type Service struct {
 	repo               Repository
 	inference          inference.Client
@@ -106,18 +110,16 @@ func (s *Service) Append(ctx context.Context, e Entry) (Entry, error) {
 			retry = append(retry, "classify")
 		}
 	}
-	e.FacetTexts = []FacetText{{Kind: "topic", Text: e.Body}, {Kind: "rule", Text: "Implication: " + e.Body}, {Kind: "entities", Text: "Entities: " + e.Body}}
-	for i := range e.FacetTexts {
-		if enrichCtx.Err() != nil {
-			retry = append(retry, "embed")
-			break
-		}
-		v, err := s.inference.Embed(enrichCtx, e.FacetTexts[i].Text, inference.EmbeddingClustering)
-		if err != nil {
-			retry = append(retry, "embed")
-			break
-		}
-		e.FacetTexts[i].Vector = v
+	// One embedding per entry: its body. The rule and entities views this
+	// replaced were the body behind a fixed prefix and scored 0.97-0.99 cosine
+	// to the topic vector, tripling embedding calls without changing recall.
+	e.FacetTexts = []FacetText{{Kind: TopicFacetKind, Text: e.Body}}
+	if enrichCtx.Err() != nil {
+		retry = append(retry, "embed")
+	} else if v, err := s.inference.Embed(enrichCtx, e.FacetTexts[0].Text, inference.EmbeddingClustering); err != nil {
+		retry = append(retry, "embed")
+	} else {
+		e.FacetTexts[0].Vector = v
 	}
 	persisted, err := s.repo.Append(ctx, e, retry)
 	if err != nil {
@@ -173,6 +175,7 @@ func (s *Service) ProcessClassificationRetries(ctx context.Context, limit int) (
 	if err != nil {
 		return result, err
 	}
+	consecutiveClassifyFailures := 0
 	for _, item := range items {
 		facet, actorID, matched, err := s.ruleFacet(ctx, item.Entry)
 		if err != nil {
@@ -182,6 +185,18 @@ func (s *Service) ProcessClassificationRetries(ctx context.Context, limit int) (
 		if !matched {
 			facet, err = s.classify(ctx, item.Entry.Body, item.Entry.Kind)
 			actorID = "classifier"
+			if err != nil {
+				if ctx.Err() != nil {
+					return result, ctx.Err()
+				}
+				result.Deferred++
+				consecutiveClassifyFailures++
+				if consecutiveClassifyFailures >= MaxConsecutiveInferenceFailures {
+					return result, nil
+				}
+				continue
+			}
+			consecutiveClassifyFailures = 0
 		}
 		if err != nil || strings.TrimSpace(facet) == "" {
 			result.Deferred++
@@ -244,11 +259,17 @@ func (s *Service) ProcessEmbeddingRetries(ctx context.Context, limit int) (Retry
 	if err != nil {
 		return result, err
 	}
+	consecutiveFailures := 0
 	for _, item := range items {
 		complete := true
 		for _, facetText := range item.Entry.FacetTexts {
 			vector, err := s.inference.Embed(ctx, facetText.Text, inference.EmbeddingClustering)
 			if err != nil {
+				// A cancelled pass is not an embedding failure: stop without
+				// touching the queue order of work that never ran.
+				if ctx.Err() != nil {
+					return result, ctx.Err()
+				}
 				complete = false
 				break
 			}
@@ -261,8 +282,16 @@ func (s *Service) ProcessEmbeddingRetries(ctx context.Context, limit int) (Retry
 				return result, err
 			}
 			result.Deferred++
+			consecutiveFailures++
+			// A route that fails repeatedly is down or throttling; walking the
+			// rest of a 500-item batch only adds load to it and waits out a
+			// timeout per item. The remaining items stay queued untouched.
+			if consecutiveFailures >= MaxConsecutiveInferenceFailures {
+				return result, nil
+			}
 			continue
 		}
+		consecutiveFailures = 0
 		if err := s.repo.AcknowledgeEmbeddingRetries(ctx, item.Entry.ID); err != nil {
 			return result, err
 		}

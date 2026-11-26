@@ -6,10 +6,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
-	apidb "github.com/vrooli/api-core/database"
-	_ "modernc.org/sqlite"
 
-	localdb "source-ledger/internal/database"
 	internaljournal "source-ledger/internal/journal"
 	"source-ledger/internal/testutil/mocks"
 
@@ -19,10 +16,7 @@ import (
 
 func newHandler(t *testing.T) *connectHandler {
 	t.Helper()
-	db, err := apidb.Open(context.Background(), apidb.Config{Driver: apidb.DriverSQLite, DSN: "file:journal-handler?mode=memory&cache=shared"})
-	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, db.Close()) })
-	require.NoError(t, apidb.EnsureSchemas(context.Background(), db.Primary(), apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(internaljournal.Schema)))
+	db := openJournalTestDB(t, "file:journal-handler?mode=memory&cache=shared")
 	return NewConnectHandler(internaljournal.NewService(internaljournal.NewSQLiteRepository(db.Primary()), &mocks.FakeInference{ClassifyOut: "decision", EmbedOut: []float64{0.1}}), nil)
 }
 
@@ -66,7 +60,7 @@ func TestConnectHandlerAppendGetAndList(t *testing.T) { // [REQ:VMEM-P0-002] [RE
 	require.NoError(t, err)
 	require.NotEmpty(t, appended.Msg.GetEntry().GetId())
 	require.Equal(t, "decision", appended.Msg.GetEntry().GetFacetId())
-	require.Len(t, appended.Msg.GetEntry().GetFacetTexts(), 3)
+	require.Len(t, appended.Msg.GetEntry().GetFacetTexts(), 1)
 
 	got, err := h.GetEntry(ctx, connect.NewRequest(&journalv1.GetEntryRequest{Id: appended.Msg.GetEntry().GetId()}))
 	require.NoError(t, err)

@@ -8,6 +8,25 @@
 3. Enrichment may classify, derive facet text, embed, and queue failures.
 4. The response reports durable append success independently of enrichment.
 
+The file-backed Journal Connect recovery test submits the same scoped Walk
+briefing while embedding is unavailable, confirms its retry is deferred, then
+closes the handler and SQLite pools. A new handler over the same database
+returns the identical entry ID and body; after embedding recovers, the retry
+completes and replaying the same request key still returns that one entry.
+This proves the SQLite file-backed owner path across a test-simulated restart.
+It does not prove production process orchestration, another database driver,
+or an ambiguous append response after commit.
+
+The opt-in cross-product test runs Command Center's current Walk API source
+against this production Journal handler over Connect and the same SQLite owner.
+Its no-base-URL row injects a deterministic api-core resolver failure, selects
+the local owner through `SOURCE_LEDGER_API_PORT`, injects metric-provider loss
+through the user-facing route, reconstructs the Journal handler over the same
+file, then verifies recovery and exact request-key replay. This verifies the
+port fallback without consulting shared peer/registry/CLI state or restarting
+shared services; the supervisor-managed process and served Command Center build
+remain outside this test.
+
 ## Embedding and missing-vector recovery
 
 1. Each `GatewayClient.Embed` invocation makes at most one `ExecuteRoute` RPC.

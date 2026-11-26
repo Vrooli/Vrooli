@@ -32,7 +32,11 @@ type Config struct {
 	MaxEntryLines   int
 	MaxEntryChars   int
 	FacetBudgets    map[string]int
-	Origins         Origins
+	// SummaryMaxOutputTokens is the generation ceiling for one compaction
+	// summary. It is an engine-wide deployment setting read from the policy
+	// file, not a per-scope override, so it has no scope_policies column.
+	SummaryMaxOutputTokens int
+	Origins                Origins
 }
 
 type Origins struct {

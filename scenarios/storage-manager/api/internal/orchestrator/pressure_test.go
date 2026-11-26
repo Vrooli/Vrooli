@@ -545,32 +545,56 @@ func TestAutonomousRecoveryOverridesDefaultDisabledPolicy(t *testing.T) {
 	}
 }
 
-func TestReportPressureWithTriggerReturnsRecoveryRunIDBeforeApply(t *testing.T) {
-	provider := &tierProvider{id: "trigger-safe", tier: cleanup.SafetyTierSafe, approval: cleanup.ApprovalModeNone}
+func TestReportPressureWithTriggerReturnsRunIDBeforeMeasurement(t *testing.T) {
+	provider := &blockingProvider{started: make(chan struct{}), release: make(chan struct{})}
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(provider.release) }) }
+	defer release()
+
 	svc := newPressureService(t, provider)
-	started := time.Now()
-	outcome, err := svc.ReportPressure(context.Background(), PressureSignal{
-		SourceScenario: "system-monitor", Partition: "/", UsedPercent: 96,
-		AvailableBytes: 1024, Band: BandCritical, Trigger: "PRESSURE_TRIGGER_FLOOR",
-	})
-	if err != nil {
-		t.Fatalf("ReportPressure: %v", err)
+	type reportResult struct {
+		outcome PressureOutcome
+		err     error
 	}
-	if outcome.RunID == "" || time.Since(started) > time.Second {
-		t.Fatalf("outcome = %#v, expected prompt run id", outcome)
+	reported := make(chan reportResult, 1)
+	go func() {
+		outcome, err := svc.ReportPressure(context.Background(), PressureSignal{
+			SourceScenario: "system-monitor", Partition: "/", UsedPercent: 96,
+			AvailableBytes: 1024, Band: BandCritical, Trigger: "PRESSURE_TRIGGER_FLOOR",
+		})
+		reported <- reportResult{outcome: outcome, err: err}
+	}()
+
+	select {
+	case <-provider.started:
+		// The recovery worker is blocked in provider measurement. The sender
+		// must still receive the admitted run without waiting for that work.
+	case <-time.After(5 * time.Second):
+		t.Fatal("recovery worker did not enter provider measurement")
 	}
-	if outcome.ReclaimedBytes != 0 {
-		t.Fatalf("pressure response reclaimed bytes = %d before wait", outcome.ReclaimedBytes)
+	var result reportResult
+	select {
+	case result = <-reported:
+	case <-time.After(5 * time.Second):
+		t.Fatal("ReportPressure waited for provider measurement to finish")
 	}
-	if outcome.Action != ActionObserved {
-		t.Fatalf("admission falsely claimed an effect: %#v", outcome)
+	if result.err != nil {
+		t.Fatalf("ReportPressure: %v", result.err)
 	}
-	run, err := svc.WaitRecovery(context.Background(), outcome.RunID)
+	if result.outcome.RunID == "" || result.outcome.Action != ActionObserved {
+		t.Fatalf("pressure response = %#v, want observed action with a run id", result.outcome)
+	}
+	if result.outcome.ReclaimedBytes != 0 {
+		t.Fatalf("pressure response claimed %d reclaimed bytes before completion", result.outcome.ReclaimedBytes)
+	}
+
+	release()
+	run, err := svc.WaitRecovery(context.Background(), result.outcome.RunID)
 	if err != nil {
 		t.Fatalf("WaitRecovery: %v", err)
 	}
-	if run.Status != RecoveryComplete || run.ReclaimedBytes != 1000 {
-		t.Fatalf("run = %#v", run)
+	if run.Status != RecoveryComplete || run.ID != result.outcome.RunID {
+		t.Fatalf("run = %#v, want completed run %q", run, result.outcome.RunID)
 	}
 }
 

@@ -6,6 +6,8 @@ import (
 	"go/parser"
 	"go/token"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // hygieneSQLInHandlers is a NEW analyzer (no scenario-auditor predecessor). It
@@ -170,12 +172,106 @@ func hygieneIsRawSQLCall(call *ast.CallExpr) bool {
 }
 
 // hygieneLooksLikeSQL reports whether a Go string-literal token (still quoted)
-// begins with a SQL DML/DQL keyword.
+// has a SQL statement shape. For SELECT without FROM, require a compact
+// expression shape or an explicit SQL expression marker; requiring only the
+// leading keyword mistakes natural-language messages such as "select an exact
+// catalog page-template identity" for queries.
 func hygieneLooksLikeSQL(litValue string) bool {
 	s := strings.TrimSpace(strings.Trim(litValue, "`\""))
-	up := strings.ToUpper(s)
-	return strings.HasPrefix(up, "SELECT ") ||
-		(strings.HasPrefix(up, "INSERT ") && strings.Contains(up, " INTO ")) ||
-		(strings.HasPrefix(up, "UPDATE ") && strings.Contains(up, " SET ")) ||
-		(strings.HasPrefix(up, "DELETE ") && strings.Contains(up, " FROM "))
+	words := hygieneSQLWords(s)
+	if len(words) == 0 {
+		return false
+	}
+	switch words[0] {
+	case "SELECT":
+		if hygieneHasSQLWord(words, "FROM") {
+			return true
+		}
+		rest := strings.TrimSpace(s[len("SELECT"):])
+		if rest == "" {
+			return false
+		}
+		if strings.ContainsAny(rest[:1], "*?0123456789'\"(") {
+			return true
+		}
+		if len(words) < 2 {
+			return false
+		}
+		if words[1] == "CASE" || words[1] == "EXISTS" || strings.HasPrefix(words[1], "CURRENT_") {
+			return true
+		}
+		if strings.ContainsAny(rest, "(),=<>+*/%|") || hygieneHasSQLWord(words, "AS") {
+			return true
+		}
+		if len(words) == 2 {
+			return true // e.g. SELECT id or SELECT COUNT(*)
+		}
+		return words[1] == "DISTINCT" && len(words) == 3
+	case "INSERT":
+		if len(words) < 2 {
+			return false
+		}
+		return hygieneHasSQLWord(words, "INTO")
+	case "UPDATE":
+		if len(words) < 2 {
+			return false
+		}
+		return hygieneHasSQLWord(words, "SET")
+	case "DELETE":
+		if len(words) < 2 {
+			return false
+		}
+		return hygieneHasSQLWord(words, "FROM")
+	default:
+		return false
+	}
+}
+
+func hygieneHasSQLWord(words []string, want string) bool {
+	for _, word := range words[1:] {
+		if word == want {
+			return true
+		}
+	}
+	return false
+}
+
+// hygieneSQLWords tokenizes identifiers while ignoring quoted SQL strings, so
+// a message or value containing a word such as "from" does not create a clause.
+func hygieneSQLWords(s string) []string {
+	var words []string
+	for i := 0; i < len(s); {
+		r, size := utf8.DecodeRuneInString(s[i:])
+		if r == '\'' || r == '"' || r == '`' {
+			quote := r
+			i += size
+			for i < len(s) {
+				next, nextSize := utf8.DecodeRuneInString(s[i:])
+				i += nextSize
+				if next == quote {
+					if i < len(s) && rune(s[i]) == quote {
+						i++
+						continue
+					}
+					break
+				}
+			}
+			continue
+		}
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' || r == '$' {
+			start := i
+			i += size
+			for i < len(s) {
+				next, nextSize := utf8.DecodeRuneInString(s[i:])
+				if !unicode.IsLetter(next) && !unicode.IsDigit(next) && next != '_' && next != '$' {
+					break
+				}
+				i += nextSize
+			}
+			words = append(words, strings.ToUpper(s[start:i]))
+			continue
+		}
+		i += size
+	}
+	return words
 }

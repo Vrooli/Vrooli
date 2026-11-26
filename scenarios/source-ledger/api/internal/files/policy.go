@@ -4,9 +4,7 @@
 // inode change time, then content hash), so a hit cites the text on disk now.
 //
 // What gets indexed is data: built-in defaults, overridden by an optional
-// `feeds.json` at the corpus root and at each `topics/<topic>/`. The research
-// skills' file fallback (`find.py`) reads the same files with the same rules,
-// so the two paths agree on what exists.
+// `feeds.json` at the corpus root and at each `topics/<topic>/`.
 package files
 
 import (

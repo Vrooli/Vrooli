@@ -4,11 +4,11 @@ import "time"
 
 type Node struct {
 	ID, ParentID, EntryID, FacetID, Text string
-	// Vectors holds one embedding per derived facet text — topic, rule and
-	// entities for a leaf, and a single summary embedding for a summary. They
-	// share a model and differ only in how the source text was framed, so a
-	// query embedding is comparable to each. Scoring takes the best space, which
-	// is what lets a query match on entities when it does not match on topic.
+	// Vectors holds the node's embeddings: one for a leaf (its topic text) and
+	// one for a summary. Entries written before the single-view change carried
+	// two more prefix-only views until they are pruned (see
+	// journal.PruneRedundantFacetViews); scoring takes the best vector, so a
+	// node scores the same with or without them to within near-ties.
 	Vectors                   [][]float64
 	Depth, Span               int
 	CreatedAt                 time.Time

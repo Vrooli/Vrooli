@@ -397,6 +397,11 @@ func (s *Service) SetWarningDependencies(deps WarningDependencies) {
 	s.warningMu.Unlock()
 }
 
+// Provider returns one registered provider by id.
+func (s *Service) Provider(id string) (cleanup.Provider, bool) {
+	return s.registry.Get(id)
+}
+
 func (s *Service) Catalog() []cleanup.ProviderMetadata {
 	return s.registry.List()
 }

@@ -180,9 +180,10 @@ func main() {
 		}
 		return out, nil
 	})
+	gatewayClient.WithSummaryMaxOutputTokens(policyConfig.SummaryMaxOutputTokens)
 	forestService := forestH.NewService(db, gatewayClient, recallConfig.FrontierTarget, registry, generationServing)
 	gatewayClient.WithBatchEmbedding(inferenceconnect.NewInferenceServiceClient(http.DefaultClient, gatewayURL))
-	fileService := openFileCorpus(ctx, primaryFileRoots, inference.Embedder{Client: gatewayClient})
+	fileService := openFileCorpus(ctx, inference.Embedder{Client: gatewayClient})
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "source-ledger-api", "1.0.0"),
@@ -219,15 +220,17 @@ func main() {
 // the scenario cache directory, separate from the journal authority; deleting
 // it costs one rebuild. A failure here is fatal at boot rather than a silently
 // missing corpus.
-func openFileCorpus(ctx context.Context, roots storage.Paths, embedder files.Embedder) *files.Service {
+func openFileCorpus(ctx context.Context, embedder files.Embedder) *files.Service {
 	home, err := researchhome.Dir(os.Getenv)
 	if err != nil {
 		log.Fatalf("resolve research home for the file corpus: %v", err)
 	}
-	if err := os.MkdirAll(roots.CacheDir, 0o755); err != nil {
-		log.Fatalf("file corpus cache directory: %v", err)
+	// The index is a rebuildable cache, so it lives in the cache storage class.
+	// The storage package owns the file path, parent directory, and pragmas.
+	dsn, err := storage.SQLiteDSN(storage.SQLiteConfig{Scenario: "source-ledger", Filename: "files-index.db", Class: storage.ClassCache})
+	if err != nil {
+		log.Fatalf("file corpus index configuration: %v", err)
 	}
-	dsn := "file:" + filepath.Join(roots.CacheDir, "files-index.db") + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)"
 	indexDB, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		log.Fatalf("open file corpus index: %v", err)

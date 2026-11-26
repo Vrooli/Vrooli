@@ -5,7 +5,7 @@ import { buildApiUrl } from "@vrooli/api-base";
 import { API_BASE } from "../api/client";
 import { selectors } from "../consts/selectors";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 import { PolicyEditor } from "../features/policy/PolicyEditor";
 
 type Scope = { id: string; label: string; frontierTarget: number; wakeBudget: number; maxEntryLines: number; facets?: Facet[] };

@@ -117,30 +117,67 @@ provider could have created are expired.
 The provider declares Linux and macOS support. Tests substitute a fake
 filesystem and a fake instance registry.
 
-## Ollama model retention
+## Model store disk retention
 
-`ollama-model-retention` observes installed tags through Ollama's `/api/tags`
-and active residency through `/api/ps`. A candidate requires a stable digest,
-an idle usage window, no active model-policy reference, and an owner
-authorization that proves exact installation provenance and retention intent,
-plus a supported owner mutation that serializes deletion with those facts.
-The Ollama `ensure` owner writes
-`${RESOURCE_DATA_DIR}/ollama-install-provenance.json` only after its pinned
-public-registry pull, installed digest verification, and temporary alias
-cleanup succeed. Storage Manager's current registry does not read that receipt
-as deletion authority. It does not prove continued registry availability or
-retention intent; direct API pulls and custom models also lack a matching
-receipt.
+`model-store-retention` decides when downloaded AI models leave disk and which
+ones. Storage Manager decides; each model store's owner deletes. The policy is
+`config/model-retention-policy.json`:
 
-The production adapter has no delete method. Ollama's public delete operation
-accepts a model name without digest/size preconditions or a shared activity,
-policy, and lifecycle fence. Preview and apply-time reads are advisory and do
-not narrow or close that race. No Ollama model is eligible for deletion until
-an owner-supported atomic retention operation and exact provenance authority
-are wired. Preview reports Ollama's per-tag logical size with a warning that
-shared blobs make it neither unique filesystem usage nor reclaimable bytes.
-Estimated and reclaimed bytes remain zero; actual filesystem delta is unknown
-until an owner reports an authoritative measurement.
+| Setting | Shipped value | Meaning |
+| --- | --- | --- |
+| `check_interval` | `15m` | How often the controller decides again |
+| `notify_below_free_percent` | `15` | Below this much free space on a store's filesystem, preview and notify |
+| `evict_below_free_percent` | `10` | Below this, select eligible idle models for eviction |
+| `evict_until_free_percent` | `15` | Select until projected free space reaches this |
+| `idle_window` | `14d` | A model used or pulled more recently than this is held |
+| `registry_tag_refetch_penalty` | `2` | Divides the score of a model whose refetch re-resolves a registry tag |
+| `approval` | `operator` | `operator`: each selection is a Notification Hub decision. `automatic`: the controller applies selections itself |
+| `stores` | `ollama`, `ollaya` | Store name and owner command |
+
+Per-store budgets come from each resource manifest:
+`resources/<store>/resource.json` `storage.entries.models.budget.max_bytes`.
+
+**Facts.** Every store reports its view through
+`<command> models retention --json` (schema `vrooli.model-store-retention/v1`):
+each installed model's digest, total and unique bytes (blobs no other tag
+references), pull time, whether it is loaded, whether its owner's policy
+requires it, the reacquire command, and whether reacquisition reproduces the
+same digest. Real use comes from `~/.vrooli/state/resources/<store>/model-usage.json`,
+which the store's activity edge writes from actual requests (a keep-alive-0
+unload is not use). Residency is not use. A model's idle clock is the latest of
+its last request, its pull time, and the time usage tracking started.
+
+**Held models.** A model is never a candidate when it is required (Ollama: a
+role's primary or `retention.pinned` in `resources/ollama/model-policy.json`;
+Ollaya: a default pull or a route target), loaded in memory, refused by its
+owner (Ollaya: unpinned or digest drift from the pinned digest), missing a
+digest, inside the idle window, sharing every blob with another tag, or when
+the store's usage has never been recorded (unknown use fails closed).
+
+**Selection.** Candidates rank eligible first, then by unique bytes divided by
+the refetch penalty (1 for an exact digest refetch), then by idle time. The
+decision first selects from each over-budget store until it is under budget,
+then, on any filesystem below the evict band, until projected free space
+reaches the evict-until level. A shortfall that eligible models cannot cover
+is reported, not hidden.
+
+**Approval and apply.** The controller in `internal/modeleviction` sends a
+notice (once per situation per day) while a filesystem is in a band, a store
+is over budget, or a store could not be observed. Each non-empty selection
+becomes one Hub decision (`storage-manager.model-eviction.decision_requested.v1`,
+subject key `model-eviction`) with a recommendation; a changed selection
+updates that decision, an empty one withdraws it, and an answered selection is
+not asked again. On approval, Storage Manager re-decides and evicts only the
+approved models whose digest and size are unchanged and that are still
+eligible, each through `<command> models evict <name> --digest <d> --size <n>`.
+That owner operation takes the store's lifecycle lock and the per-model
+request fence, refuses a model that is loaded (re-read at deletion time), has a
+request in flight, changed digest or size, or became required, and appends the
+reacquire command and expected size to
+`~/.vrooli/state/resources/<store>/model-evictions.jsonl` before it deletes.
+Through the cleanup plan API the provider applies only with operator approval;
+pressure recovery never applies it. `GET /api/v1/cleanup/model-retention`
+returns the current decision without applying anything.
 
 ## Owner-reclaim providers
 

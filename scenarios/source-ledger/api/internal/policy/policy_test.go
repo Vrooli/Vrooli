@@ -65,12 +65,32 @@ func TestLoadDefaultsValidatesAndMarksFileOrigin(t *testing.T) {
 	require.Equal(t, OriginFileDefault, config.Origins.MaxEntryChars)
 }
 
+func TestSummaryCeilingComesFromFileAndFallsBackToDefault(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "ledger-policy.json")
+	base := `"frontierTarget":9,"wakeBudgetLines":20,"wakeBudgetChars":1000,"maxEntryLines":2,"maxEntryChars":100`
+	require.NoError(t, os.WriteFile(path, []byte(`{`+base+`,"summaryMaxOutputTokens":512}`), 0o600))
+	config, err := LoadDefaults(path)
+	require.NoError(t, err)
+	require.Equal(t, 512, config.SummaryMaxOutputTokens)
+
+	require.NoError(t, os.WriteFile(path, []byte(`{`+base+`}`), 0o600))
+	config, err = LoadDefaults(path)
+	require.NoError(t, err)
+	require.Equal(t, DefaultSummaryMaxOutputTokens, normalizeDefaults(config).SummaryMaxOutputTokens)
+
+	require.NoError(t, os.WriteFile(path, []byte(`{`+base+`,"summaryMaxOutputTokens":-1}`), 0o600))
+	_, err = LoadDefaults(path)
+	require.Error(t, err)
+}
+
 func TestDefaultPolicyPathFindsCheckedInScenarioDefaults(t *testing.T) {
 	path := DefaultPolicyPath()
 	require.FileExists(t, path)
 	config, err := LoadDefaults(path)
 	require.NoError(t, err)
 	require.Equal(t, DefaultWakeBudgetChars, config.WakeBudgetChars)
+	require.Equal(t, DefaultSummaryMaxOutputTokens, config.SummaryMaxOutputTokens)
 }
 
 func TestLoadDefaultsRejectsInvalidOrUnknownValues(t *testing.T) {

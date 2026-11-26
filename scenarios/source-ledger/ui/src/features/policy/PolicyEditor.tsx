@@ -4,7 +4,7 @@ import { buildApiUrl } from "@vrooli/api-base";
 
 import { API_BASE } from "../../api/client";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@vrooli/react-component-library/Card/1.3.1";
 
 type Snapshot = {
   frontierTarget: number; wakeBudgetLines: number; wakeBudgetChars: number; maxEntryLines: number; maxEntryChars: number;

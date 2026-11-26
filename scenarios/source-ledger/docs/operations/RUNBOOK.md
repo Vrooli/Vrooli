@@ -76,3 +76,23 @@ and newer queued entries, skips vectors already present, and moves failed work
 behind other entries. `vrooli-memory journal retry-embeddings --scope <scope>
 --limit <n>` is the explicit bounded owner operation; an accepted retry or an
 empty queue does not prove all other scopes are complete.
+
+A retry pass stops after three consecutive inference failures and leaves the
+rest of its batch queued untouched, so an unavailable route is probed a few
+times per pass rather than once per queued entry.
+
+## One embedding per entry
+
+Each appended entry is embedded once, as its body (the `topic` facet text).
+Entries written earlier also carry `rule` and `entities` facet texts: the body
+behind a fixed prefix, embedded to vectors 0.97-0.99 cosine to the topic
+vector. They add no recall and are removable. `prune-facet-views` is a dry run
+by default and prints exactly what would be removed; `--apply` deletes only
+those rows and their embeddings in bounded batches, never an entry's topic row
+or vector, and is safe to re-run.
+
+```bash
+cd scenarios/source-ledger/api
+go run ./cmd/prune-facet-views          # measure only
+go run ./cmd/prune-facet-views --apply  # remove the redundant rows
+```

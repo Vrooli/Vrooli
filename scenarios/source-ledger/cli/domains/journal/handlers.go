@@ -16,6 +16,7 @@ import (
 
 type handlers struct {
 	client journalLister
+	Now    func() time.Time
 }
 
 type journalLister interface {
@@ -26,7 +27,7 @@ type journalLister interface {
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	http, base := cliapp.NewConnectHTTPClientWithTimeout(core, 0)
-	return &handlers{client: journalconnect.NewJournalServiceClient(http, base)}
+	return &handlers{client: journalconnect.NewJournalServiceClient(http, base), Now: time.Now}
 }
 
 func (h *handlers) noteCall(ctx cliapp.OperationContext) (*journalv1.AppendEntryResponse, error) {
@@ -59,6 +60,9 @@ func (h *handlers) listCall(ctx cliapp.OperationContext) (*journalv1.ListEntries
 	response, err := h.client.ListEntries(context.Background(), connect.NewRequest(&journalv1.ListEntriesRequest{Scope: ctx.Flag("scope"), Limit: int32(limit), NewestFirst: newest, Kind: ctx.Flag("kind"), Cursor: ctx.Flag("cursor")}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("list journal", err, nil)
+	}
+	if response == nil || response.Msg == nil {
+		return nil, fmt.Errorf("server returned no journal response")
 	}
 	return response.Msg, nil
 }
@@ -156,7 +160,7 @@ func (h *handlers) export(ctx context.Context, scope string, pageSize int, snaps
 }
 
 func (h *handlers) exportRun(ctx cliapp.RunContext) error {
-	result := h.export(context.Background(), ctx.Flag("scope"), exportPageSize, time.Now())
+	result := h.export(context.Background(), ctx.Flag("scope"), exportPageSize, h.Now())
 	if err := json.NewEncoder(ctx.Stdout()).Encode(result); err != nil {
 		return fmt.Errorf("write journal export: %w", err)
 	}
@@ -170,6 +174,9 @@ func (h *handlers) getCall(ctx cliapp.OperationContext) (*journalv1.GetEntryResp
 	response, err := h.client.GetEntry(context.Background(), connect.NewRequest(&journalv1.GetEntryRequest{Id: ctx.Positional("id"), Scope: ctx.Flag("scope")}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("get journal entry", err, nil)
+	}
+	if response == nil || response.Msg == nil || response.Msg.GetEntry() == nil {
+		return nil, fmt.Errorf("server returned no journal entry")
 	}
 	return response.Msg, nil
 }

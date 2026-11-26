@@ -76,10 +76,12 @@ func (e *generationEmbedder) EmbedDocument(_ context.Context, recipeID, text str
 func (e *generationEmbedder) setDimensions(values map[string]int) { e.dimensions = values }
 
 type generationDiskAdmission struct {
-	mu        sync.Mutex
-	receipts  map[string]string
-	completed map[string]int
-	failNext  int
+	mu               sync.Mutex
+	receipts         map[string]string
+	completed        map[string]int
+	failNext         int
+	completeCalls    int
+	failCompleteCall int
 }
 
 func newGenerationDiskAdmission() *generationDiskAdmission {
@@ -107,6 +109,10 @@ func (a *generationDiskAdmission) Complete(_ context.Context, operationID, recei
 		return errors.New("fake disk receipt identity mismatch")
 	}
 	if success {
+		a.completeCalls++
+		if a.failCompleteCall > 0 && a.completeCalls == a.failCompleteCall {
+			return errors.New("simulated owner release interruption")
+		}
 		if a.failNext > 0 {
 			a.failNext--
 			return errors.New("simulated owner release interruption")
@@ -196,14 +202,30 @@ func TestSQLiteGenerationCrashResumeCutoverRollbackAndCollect(t *testing.T) {
 	// Rollback catches the retained recipe up through the same owner feed before
 	// switching its pointer, then retains the displaced generation for a window.
 	seedGenerationSources(t, db, "facet-d", "topic delta", "", "")
+	disk.mu.Lock()
+	disk.completeCalls = 0
+	disk.failCompleteCall = 2 // catch-up releases first; the pointer-switch release fails second.
+	disk.mu.Unlock()
+	_, err = backend.Rollback(ctx, "rollback-new")
+	require.ErrorContains(t, err, "simulated owner release interruption")
+	activeAfterRollback, ok, err := backend.Active(ctx)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, oldActive.ID, activeAfterRollback.ID, "the durable pointer switch precedes capacity release")
 	rolledBack, err := backend.Rollback(ctx, "rollback-new")
 	require.NoError(t, err)
 	require.Equal(t, oldActive.ID, rolledBack.ID)
 	require.Equal(t, "active", rolledBack.State)
-	activeAfterRollback, ok, err := backend.Active(ctx)
+	activeAfterRollback, ok, err = backend.Active(ctx)
 	require.NoError(t, err)
 	require.True(t, ok)
-	require.Equal(t, oldActive.ID, activeAfterRollback.ID)
+	require.Equal(t, oldActive.ID, activeAfterRollback.ID, "retry must not switch back to the displaced generation")
+	rollbackOperation, err := backend.Operation(ctx, "rollback-new")
+	require.NoError(t, err)
+	require.Equal(t, "complete", rollbackOperation.State)
+	completedRollback, err := backend.Rollback(ctx, "rollback-new")
+	require.NoError(t, err, "completed rollback replay must return the durable result")
+	require.Equal(t, oldActive.ID, completedRollback.ID)
 	newRetained, err := backend.Load(ctx, newActive.ID)
 	require.NoError(t, err)
 	require.Equal(t, "retained", newRetained.State)

@@ -38,20 +38,23 @@ func TestAppendPreservesWriteOrderAndFacetEmbeddings(t *testing.T) { // [REQ:VME
 	for i, body := range []string{"first", "second", "third"} {
 		require.Equal(t, body, entries[i].Body)
 		require.NotEmpty(t, entries[i].ID)
-		require.Len(t, entries[i].FacetTexts, 3)
+		require.Len(t, entries[i].FacetTexts, 1)
 	}
 }
 
-func TestFacetTextsKeepDistinctClusteringSpaces(t *testing.T) { // [REQ:VMEM-P1-005]
+// An entry is embedded once, as its body. The rule and entities views this
+// replaced were the body behind a fixed prefix (0.97-0.99 cosine to the topic
+// vector on real data), so each append cost three embedding calls for no recall.
+func TestAppendEmbedsEachEntryOnce(t *testing.T) { // [REQ:VMEM-P1-005]
 	repo := journalDB(t)
 	client := &mocks.FakeInference{ClassifyOut: "episode", EmbedOut: []float64{0.1, 0.2}}
 	entry, err := NewService(repo, client).Append(context.Background(), Entry{Body: "one memory", Kind: "memory"})
 	require.NoError(t, err)
-	require.Equal(t, []string{"topic", "rule", "entities"}, []string{entry.FacetTexts[0].Kind, entry.FacetTexts[1].Kind, entry.FacetTexts[2].Kind})
-	require.Equal(t, []string{"one memory", "Implication: one memory", "Entities: one memory"}, []string{entry.FacetTexts[0].Text, entry.FacetTexts[1].Text, entry.FacetTexts[2].Text})
-	for _, facetText := range entry.FacetTexts {
-		require.Equal(t, []float64{0.1, 0.2}, facetText.Vector)
-	}
+	require.Len(t, entry.FacetTexts, 1)
+	require.Equal(t, TopicFacetKind, entry.FacetTexts[0].Kind)
+	require.Equal(t, "one memory", entry.FacetTexts[0].Text)
+	require.Equal(t, []float64{0.1, 0.2}, entry.FacetTexts[0].Vector)
+	require.Len(t, client.EmbedTasks, 1)
 }
 
 func TestClassifierFailureStillAppendsUnclassifiedEntry(t *testing.T) { // [REQ:VMEM-P0-002]
@@ -144,14 +147,14 @@ func TestProcessClassificationRetriesAppendsFacetAssignmentAndAcknowledgesQueue(
 	require.Equal(t, UnclassifiedFacet, stored.FacetID, "entry rows remain immutable; facet history owns retry correction")
 }
 
-func TestProcessEmbeddingRetriesRestoresAllFacetVectorsAndAcknowledgesQueue(t *testing.T) {
+func TestProcessEmbeddingRetriesRestoresMissingVectorAndAcknowledgesQueue(t *testing.T) {
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(Schema)))
 	repo := NewSQLiteRepository(d)
 	failing := &mocks.FakeInference{ClassifyOut: "episode", EmbedErr: errors.New("unavailable")}
 	entry, err := NewService(repo, failing).Append(context.Background(), Entry{Body: "recover vectors", Kind: "memory"})
 	require.NoError(t, err)
-	require.Len(t, entry.FacetTexts, 3)
+	require.Len(t, entry.FacetTexts, 1)
 	var pending int
 	require.NoError(t, d.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM journal_retry_queue WHERE entry_id=? AND reason='embed'`, entry.ID).Scan(&pending))
 	require.Equal(t, 1, pending, "a failed Embed invocation leaves a durable missing-vector retry")
@@ -160,7 +163,7 @@ func TestProcessEmbeddingRetriesRestoresAllFacetVectorsAndAcknowledgesQueue(t *t
 	require.Equal(t, 1, result.Processed)
 	var vectors, queued int
 	require.NoError(t, d.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM embeddings`).Scan(&vectors))
-	require.Equal(t, 3, vectors)
+	require.Equal(t, 1, vectors)
 	require.NoError(t, d.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM journal_retry_queue WHERE reason='embed'`).Scan(&queued))
 	require.Zero(t, queued)
 }
@@ -224,7 +227,7 @@ func TestAppendBoundsAggregateProviderWorkAndPersistsRetry(t *testing.T) {
 			began := time.Now()
 			entry, err := NewService(repo, client).Append(context.Background(), Entry{Body: "Durable despite slow providers", FacetID: facet, Kind: "work-record"})
 			require.NoError(t, err)
-			require.Less(t, time.Since(began), 3*time.Second, "one aggregate budget covers classification and all embedding spaces")
+			require.Less(t, time.Since(began), 3*time.Second, "one aggregate budget covers classification and embedding")
 			require.Equal(t, 1, client.calls, "exhausted provider budget must not start more work")
 			stored, err := repo.Get(context.Background(), entry.ID)
 			require.NoError(t, err)
@@ -290,4 +293,34 @@ func TestEmbeddingRetryBatchIncludesOldestAndNewest(t *testing.T) {
 	require.Len(t, items, 2)
 	require.Equal(t, "old", items[0].Entry.ID)
 	require.Equal(t, "new", items[1].Entry.ID)
+}
+
+// A route that keeps failing is probed a few times per pass, not once per
+// queued item: the rest of the batch stays queued without extra calls.
+func TestEmbeddingRetryStopsAfterConsecutiveFailures(t *testing.T) {
+	repo := journalDB(t)
+	ctx := context.Background()
+	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	for i, id := range []string{"a", "b", "c", "d", "e"} {
+		_, err := repo.Append(ctx, Entry{ID: id, Scope: "agent-memory", Body: id, FacetID: "episode", CreatedAt: base.Add(time.Duration(i) * time.Second), FacetTexts: []FacetText{{ID: id + "-f", Kind: TopicFacetKind, Text: id}}}, []string{"embed"})
+		require.NoError(t, err)
+	}
+	client := &mocks.FakeInference{EmbedErr: errors.New("gateway unavailable")}
+	result, err := NewService(repo, client).ProcessEmbeddingRetries(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, MaxConsecutiveInferenceFailures, result.Deferred)
+	require.Len(t, client.EmbedTasks, MaxConsecutiveInferenceFailures)
+	items, err := repo.EmbeddingRetries(ctx, 10)
+	require.NoError(t, err)
+	require.Len(t, items, 5, "no queued embedding is dropped by a failing route")
+}
+
+func TestEmbeddingRetryCancellationDoesNotReorderQueue(t *testing.T) {
+	repo := journalDB(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	_, err := repo.Append(context.Background(), Entry{ID: "a", Scope: "agent-memory", Body: "a", FacetID: "episode", FacetTexts: []FacetText{{ID: "a-f", Kind: TopicFacetKind, Text: "a"}}}, []string{"embed"})
+	require.NoError(t, err)
+	cancel()
+	_, err = NewService(repo, &mocks.FakeInference{EmbedErr: context.Canceled}).ProcessEmbeddingRetries(ctx, 10)
+	require.Error(t, err)
 }

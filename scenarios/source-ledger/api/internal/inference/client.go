@@ -7,10 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"connectrpc.com/connect"
+	"source-ledger/internal/policy"
+
 	aisearch "github.com/vrooli/ai-go/search"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
@@ -40,7 +43,6 @@ const (
 	// Bounding its output keeps the queue moving and prevents a concise request
 	// from monopolizing a local model context window.
 	ClassificationMaxOutputTokens = 32
-	SummaryMaxOutputTokens        = 128
 	clusteringPrefix              = "clustering: "
 	documentPrefix                = "search_document: "
 	queryPrefix                   = "search_query: "
@@ -100,9 +102,25 @@ type GatewayClient struct {
 	// indexing can step aside for recall, journal and rule work.
 	inflight atomic.Int32
 	lastDone atomic.Int64
+	// backgroundGate admits one background embedding request at a time. The
+	// quiet-gap check alone is not a reservation: parallel index workers can
+	// all observe the same idle window and flood the gateway together.
+	backgroundGateOnce sync.Once
+	backgroundGate     chan struct{}
 	// batch, when set, embeds many texts per call through ai-gateway's
 	// local-only InferenceService.Embed (the file corpus's bulk path).
 	batch inferenceconnect.InferenceServiceClient
+	// summaryMaxOutputTokens bounds one compaction summary's generation.
+	summaryMaxOutputTokens int
+}
+
+// WithSummaryMaxOutputTokens sets the summary generation ceiling. A
+// non-positive value keeps policy.DefaultSummaryMaxOutputTokens.
+func (c *GatewayClient) WithSummaryMaxOutputTokens(tokens int) *GatewayClient {
+	if tokens > 0 {
+		c.summaryMaxOutputTokens = tokens
+	}
+	return c
 }
 
 // WithBatchEmbedding enables EmbedBatch through ai-gateway's typed,
@@ -118,7 +136,7 @@ func (c *GatewayClient) WithBatchEmbedding(client inferenceconnect.InferenceServ
 const idleGap = 2 * time.Second
 
 func NewGatewayClient(routing routingconnect.RoutingServiceClient, vocabulary ...VocabularyProvider) *GatewayClient {
-	c := &GatewayClient{routing: routing}
+	c := &GatewayClient{routing: routing, summaryMaxOutputTokens: policy.DefaultSummaryMaxOutputTokens}
 	if len(vocabulary) > 0 {
 		c.vocabulary = vocabulary[0]
 	}
@@ -137,9 +155,11 @@ func (c *GatewayClient) Embed(ctx context.Context, text string, task EmbeddingTa
 // foreground call is running and none finished within idleGap, and it is not
 // itself counted as foreground, so interactive work never queues behind it.
 func (c *GatewayClient) EmbedWhenIdle(ctx context.Context, text string) ([]float64, error) {
-	if err := c.waitIdle(ctx); err != nil {
+	release, err := c.acquireBackground(ctx)
+	if err != nil {
 		return nil, err
 	}
+	defer release()
 	output, err := c.route(ctx, sharedv1.RequestKind_REQUEST_KIND_TEXT_EMBEDDING, EmbeddingRole, embeddingInput(EmbeddingDocument, text), EmbeddingTimeout, 0)
 	if err != nil {
 		return nil, err
@@ -173,9 +193,11 @@ func (c *GatewayClient) EmbedBatch(ctx context.Context, task EmbeddingTask, text
 		return c.embedEach(ctx, task, texts, background)
 	}
 	if background {
-		if err := c.waitIdle(ctx); err != nil {
+		release, err := c.acquireBackground(ctx)
+		if err != nil {
 			return nil, err
 		}
+		defer release()
 	} else {
 		c.inflight.Add(1)
 		defer func() {
@@ -189,7 +211,16 @@ func (c *GatewayClient) EmbedBatch(ctx context.Context, task EmbeddingTask, text
 	}
 	ctx, cancel := context.WithTimeout(ctx, EmbeddingTimeout+time.Duration(len(texts))*time.Second)
 	defer cancel()
-	resp, err := c.batch.Embed(ctx, connect.NewRequest(&inferencev1.EmbedRequest{Role: EmbeddingRole, Texts: inputs}))
+	resp, err := c.batch.Embed(ctx, connect.NewRequest(&inferencev1.EmbedRequest{
+		Role:  EmbeddingRole,
+		Texts: inputs,
+		// The typed embedding RPC refuses a request without an explicit
+		// local-only profile and privacy attribution, so omitting them failed
+		// every file-corpus batch and fast query embedding.
+		Profile:           sharedv1.Profile_PROFILE_LOCAL_ONLY,
+		PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+		PrivacyProvenance: privacyProvenance,
+	}))
 	if err != nil {
 		return nil, fmt.Errorf("ai-gateway embed batch: %w", err)
 	}
@@ -204,6 +235,30 @@ func (c *GatewayClient) EmbedBatch(ctx context.Context, task EmbeddingTask, text
 		out[i] = v.GetValues()
 	}
 	return out, nil
+}
+
+// acquireBackground reserves the shared low-priority slot before checking
+// foreground quiet. Waiting workers recheck after they acquire it, so a
+// foreground request arriving during one batch prevents the queued batches
+// from starting until the next quiet window.
+func (c *GatewayClient) acquireBackground(ctx context.Context) (func(), error) {
+	if c == nil {
+		return nil, errors.New("inference client is nil")
+	}
+	c.backgroundGateOnce.Do(func() {
+		c.backgroundGate = make(chan struct{}, 1)
+	})
+	select {
+	case c.backgroundGate <- struct{}{}:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	release := func() { <-c.backgroundGate }
+	if err := c.waitIdle(ctx); err != nil {
+		release()
+		return nil, err
+	}
+	return release, nil
 }
 
 func (c *GatewayClient) waitIdle(ctx context.Context) error {
@@ -262,7 +317,7 @@ func classificationMemory(memory, kind string) string {
 }
 
 func (c *GatewayClient) Summarize(ctx context.Context, prompt string) (string, error) {
-	output, err := c.execute(ctx, sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION, SummaryRole, prompt, SummaryTimeout, SummaryMaxOutputTokens)
+	output, err := c.execute(ctx, sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION, SummaryRole, prompt, SummaryTimeout, c.summaryMaxOutputTokens)
 	if err != nil {
 		return "", err
 	}
@@ -295,7 +350,35 @@ func (c *GatewayClient) route(ctx context.Context, kind sharedv1.RequestKind, ro
 	if !resp.Msg.GetValid() {
 		return "", fmt.Errorf("ai-gateway rejected %s route: %s", role, routeIssues(resp.Msg.GetIssues()))
 	}
+	if ev := resp.Msg.GetEvidence(); ev != nil && ev.GetStatus() != "" && ev.GetStatus() != routeStatusSucceeded {
+		return "", &RouteNotSucceededError{Role: role, Status: ev.GetStatus(), RejectionReason: ev.GetRejectionReason(), FailureReasons: ev.GetFailureReasons()}
+	}
 	return strings.TrimSpace(resp.Msg.GetOutputText()), nil
+}
+
+// routeStatusSucceeded is the only route evidence status that carries output.
+const routeStatusSucceeded = "succeeded"
+
+// RouteNotSucceededError reports a valid route request that ai-gateway could
+// not run (failed, or blocked by an open breaker or no eligible provider). The
+// gateway's own reason is kept so callers can log and retry on it instead of
+// decoding empty output.
+type RouteNotSucceededError struct {
+	Role            string
+	Status          string
+	RejectionReason string
+	FailureReasons  []string
+}
+
+func (e *RouteNotSucceededError) Error() string {
+	msg := fmt.Sprintf("ai-gateway %s route %s", e.Role, e.Status)
+	if e.RejectionReason != "" {
+		msg += ": " + e.RejectionReason
+	}
+	if len(e.FailureReasons) > 0 {
+		msg += " (" + strings.Join(e.FailureReasons, "; ") + ")"
+	}
+	return msg
 }
 
 func embeddingInput(task EmbeddingTask, text string) string {

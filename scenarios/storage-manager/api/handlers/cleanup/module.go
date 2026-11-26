@@ -254,6 +254,7 @@ func ModuleWithService(service Service) module.Module {
 		Name: "cleanup",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+			mountModelRetention(r, service)
 			if approvals, ok := service.(standingApprovalService); ok {
 				r.HandleFunc("/api/v1/cleanup/approvals", func(w http.ResponseWriter, req *http.Request) {
 					policy, err := service.CurrentPolicy(req.Context())
@@ -327,10 +328,6 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 	if ledgerErr != nil {
 		return nil, ledgerErr
 	}
-	ollamaLedger, err := providers.NewFileOllamaUsageLedger(filepath.Join(stateDir, "vrooli", "storage-manager", "ollama-usage-ledger.json"))
-	if err != nil {
-		return nil, err
-	}
 	repoRoot, _ := repocontract.ResolveRepoRoot()
 	if repoRoot == "" {
 		repoRoot, _ = os.Getwd()
@@ -348,7 +345,10 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 	if err != nil {
 		return nil, fmt.Errorf("resolve removal ledger: %w", err)
 	}
-	ollama := providers.NewHTTPOllamaModelInventory(resolveOllamaBaseURL())
+	modelStore, err := newModelStoreRetentionProvider(repoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("model store retention: %w", err)
+	}
 	governedSpecs, err := governedRootSpecs(repoRoot)
 	if err != nil {
 		return nil, err
@@ -368,12 +368,7 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 		ProcessRunner:     hostfs.NewProcessRunner(),
 		Clock:             schedule.System(),
 		DockerImageLedger: ledger,
-		OllamaModelProvider: providers.NewOllamaModelRetentionProvider(
-			ollama,
-			ollamaLedger,
-			filepath.Join(repoRoot, "resources", "ollama", "model-policy.json"),
-			schedule.System(),
-		),
+		ModelStoreProvider: modelStore,
 
 		TrashRoots:               roots.Trash,
 		TmpRoots:                 roots.Tmp,
@@ -978,30 +973,6 @@ func resolveScenarioBinariesRoot(repoRoot, home string) (string, error) {
 		return "", err
 	}
 	return entry.AbsPath, nil
-}
-
-func resolveOllamaBaseURL() string {
-	if raw := strings.TrimSpace(os.Getenv("OLLAMA_BASE_URL")); raw != "" {
-		return strings.TrimRight(raw, "/")
-	}
-	host := strings.TrimSpace(os.Getenv("OLLAMA_HOST"))
-	port := strings.TrimSpace(os.Getenv("OLLAMA_PORT"))
-	if host == "" {
-		host = "127.0.0.1"
-	}
-	if strings.HasPrefix(host, "http://") || strings.HasPrefix(host, "https://") {
-		if port == "" {
-			return strings.TrimRight(host, "/")
-		}
-		return strings.TrimRight(host, "/") + ":" + port
-	}
-	if strings.Contains(host, ":") {
-		return "http://" + host
-	}
-	if port == "" {
-		port = "11434"
-	}
-	return "http://" + host + ":" + port
 }
 
 var Endpoints = []module.EndpointDescriptor{

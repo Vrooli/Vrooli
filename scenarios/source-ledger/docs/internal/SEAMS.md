@@ -213,7 +213,7 @@ so it keeps no local copy of the seam.
 | **Interface** | `internal/files/service.go::Service` (`Search`, `ListFeeds`, `Sync`, `Run`) |
 | **Production wiring** | `main.go::openFileCorpus` opens the cache `~/.vrooli/cache/vrooli/source-ledger/files-index.db` (WAL, one connection) and starts `Run` (5-minute sync, then background embedding). |
 | **Test fake** | Real files in `t.TempDir()` and a temp SQLite cache; no fake store. |
-| **Why it exists** | Files are the authority and the index is a cache: every read syncs first, so a hit cites the text on disk now, and deleting the cache costs one rebuild. Indexing policy is data (`feeds.json`); `research-desk/skills/research-coordination/scripts/find.py` applies the same policy and ranking from files when this service is down. |
+| **Why it exists** | Files are the authority and the index is a cache: every read syncs first, so a hit cites the text on disk now, and deleting the cache costs one rebuild. Indexing policy is data (`feeds.json`); with this service down, agents search the files with `rg`. |
 
 ## Adding a new seam
 

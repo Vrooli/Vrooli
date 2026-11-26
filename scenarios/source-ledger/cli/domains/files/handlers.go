@@ -82,7 +82,7 @@ func (h *handlers) searchReport(_ cliapp.OperationContext, msg *filesv1.SearchRe
 	}
 	return cliapp.ListReport{
 		Summary: summary, ResultsHeading: "Hits (path#Lstart-Lend under the research home)", Results: results,
-		RetrievalHints: []string{"Read a hit at its lines: sed -n '<start>,<end>p' <abs path>", "If Source Ledger is down, the research skills' find.py gives the same shape from files"},
+		RetrievalHints: []string{"Read a hit at its lines: sed -n '<start>,<end>p' <abs path>", "If Source Ledger is down, search the research home's files directly: rg -n '<terms>' <research home>/topics"},
 		ListShaped:     true, ResultCount: len(results),
 	}
 }

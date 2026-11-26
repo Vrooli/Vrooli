@@ -130,6 +130,26 @@ func UpdateHandler() error {
 		}
 	})
 
+	t.Run("negative_handler_prose_starting_with_select", func(t *testing.T) {
+		ac := hygieneACForTempScenario(t, "demo", map[string]string{
+			"handlers/catalog/validate.go": `package catalog
+
+import "errors"
+
+func Validate() error {
+	return errors.New("select an exact catalog page-template identity")
+}
+`,
+		})
+		got, err := a.Analyze(context.Background(), ac)
+		if err != nil {
+			t.Fatalf("analyze: %v", err)
+		}
+		if len(got) != 0 {
+			t.Fatalf("expected no finding for natural-language select message, got %+v", got)
+		}
+	})
+
 	t.Run("negative_sql_outside_handler", func(t *testing.T) {
 		// Raw SQL in a repository file (not a handler) is NOT this analyzer's
 		// concern — it only flags SQL inside transport handlers.
@@ -181,4 +201,31 @@ func TestList(t *testing.T) {
 			t.Fatalf("expected no finding (test file exempt), got %+v", got)
 		}
 	})
+}
+
+func TestHygieneLooksLikeSQLStatementShapes(t *testing.T) {
+	for _, literal := range []string{
+		`"SELECT id FROM orders"`,
+		`"SELECT 1"`,
+		`"SELECT COUNT(*)"`,
+		`"SELECT CAST(id AS TEXT)"`,
+		`"SELECT id AS order_id"`,
+		`"SELECT a + b"`,
+		`"SELECT 'from an example'"`,
+		`"INSERT INTO orders (id) VALUES (?)"`,
+		`"UPDATE orders SET status = ?"`,
+		`"DELETE FROM orders WHERE id = ?"`,
+	} {
+		if !hygieneLooksLikeSQL(literal) {
+			t.Errorf("expected SQL statement shape for %s", literal)
+		}
+	}
+	for _, literal := range []string{
+		`"select an exact catalog page-template identity"`,
+		`"update order failed"`,
+	} {
+		if hygieneLooksLikeSQL(literal) {
+			t.Errorf("expected natural-language/non-query text not to be SQL: %s", literal)
+		}
+	}
 }

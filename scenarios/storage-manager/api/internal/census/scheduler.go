@@ -8,10 +8,8 @@ package census
 // idle gap grow with the pass: at the default 10% cap a pass of duration d
 // is followed by at least 9d of quiet.
 //
-// IncrementalScanner is deliberately not used here. Its change signature is
-// the root directory's own mtime, which only moves when a direct child is
-// created or removed, so a multi-root census over a repository and runtime
-// homes would reuse a stale report indefinitely while deep trees change.
+// The scheduler performs full scans so changes anywhere under the configured
+// roots are reflected without a caller-managed invalidation signal.
 
 import (
 	"context"
