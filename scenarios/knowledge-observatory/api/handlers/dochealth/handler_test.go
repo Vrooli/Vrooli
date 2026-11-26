@@ -2,6 +2,8 @@ package dochealth
 
 import (
 	"context"
+	"crypto/sha256"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -245,6 +247,100 @@ func TestHandler_DocHealth_ReturnsResponse(t *testing.T) {
 	}
 	if resp.Msg.GetAssessment().GetHighestPriorityCapability().GetCapabilityId() == "" && len(resp.Msg.GetAssessment().GetFindings()) > 0 {
 		t.Fatalf("highest priority capability empty with findings: %+v", resp.Msg.GetAssessment().GetFindings())
+	}
+}
+
+func TestHandler_DocHealthDuplicateAssertionIsAFailingAssessment(t *testing.T) {
+	root := t.TempDir()
+	scenario := filepath.Join(root, "demo")
+	writeFile(t, filepath.Join(scenario, "README.md"), "# demo\n")
+	writeFile(t, filepath.Join(scenario, "docs", "manifest.json"), `{"version":"1","docs":[]}`)
+	writeFile(t, filepath.Join(scenario, "docs", "policy.md"), "The owner must preserve each source revision.\nThe owner must preserve each source revision.\n")
+	svc, err := dochealth.NewService(root)
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	h := NewWithDeps(Deps{Service: svc, MaturitySpec: testMaturitySpec(t)})
+	resp, err := h.DocHealth(context.Background(), connect.NewRequest(&kov1.DocHealthRequest{ScenarioName: "demo"}))
+	if err != nil {
+		t.Fatalf("DocHealth: %v", err)
+	}
+	var contentFinding, assessedFinding bool
+	for _, finding := range resp.Msg.GetContentFindings() {
+		if finding.GetCode() == "duplicate_assertion" {
+			contentFinding = true
+			if finding.GetSeverity() != kov1.DocHealthSeverity_DOC_HEALTH_SEVERITY_FAILURE {
+				t.Errorf("duplicate assertion severity = %v, want failure", finding.GetSeverity())
+			}
+		}
+	}
+	for _, finding := range resp.Msg.GetAssessment().GetFindings() {
+		if finding.GetCode() == "duplicate_assertion" {
+			assessedFinding = true
+			if finding.GetSeverity() != "FINDING_SEVERITY_ERROR" {
+				t.Errorf("assessment severity = %q, want error", finding.GetSeverity())
+			}
+		}
+	}
+	if !contentFinding || !assessedFinding {
+		t.Fatalf("duplicate assertion missing from content or failing assessment: content=%t assessed=%t", contentFinding, assessedFinding)
+	}
+	if err := assessment.ValidatePhasePresentation(resp.Msg.GetAssessment()); err != nil {
+		t.Fatalf("KObs DocHealth assessment is not canonical: %v", err)
+	}
+	shared, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "demo"}))
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	if err := assessment.ValidatePhasePresentation(shared.Msg.GetAssessment()); err != nil {
+		t.Fatalf("KObs ValidateScenario assessment is not canonical: %v", err)
+	}
+	if shared.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
+		t.Fatalf("seeded duplicate validation status = %v, want failed", shared.Msg.GetStatus())
+	}
+}
+
+func TestHandler_DocHealthStaleGeneratedBlockFailsScenarioValidation(t *testing.T) {
+	root := t.TempDir()
+	scenario := filepath.Join(root, "demo")
+	writeFile(t, filepath.Join(scenario, "README.md"), "# demo\n")
+	writeFile(t, filepath.Join(scenario, "docs", "manifest.json"), `{"version":"1","docs":[]}`)
+	writeFile(t, filepath.Join(scenario, ".vrooli", "program-runtime", "owner.json"), `{"name":"owner"}`)
+	block := "| Program | purpose |\n|---|---|\n| owner | current |"
+	blockHash := sha256.Sum256([]byte(block))
+	marker := fmt.Sprintf("<!-- BEGIN GENERATED PROGRAM TABLE source=.vrooli/program-runtime/*.json source_sha256=%s block_sha256=%x -->", strings.Repeat("0", 64), blockHash)
+	writeFile(t, filepath.Join(scenario, "docs", "generated.md"), marker+"\n"+block+"\n<!-- END GENERATED PROGRAM TABLE -->\n")
+
+	svc, err := dochealth.NewService(root)
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	h := NewWithDeps(Deps{Service: svc, MaturitySpec: testMaturitySpec(t)})
+	resp, err := h.DocHealth(context.Background(), connect.NewRequest(&kov1.DocHealthRequest{ScenarioName: "demo"}))
+	if err != nil {
+		t.Fatalf("DocHealth: %v", err)
+	}
+	var found bool
+	for _, finding := range resp.Msg.GetContentFindings() {
+		if finding.GetCode() == "stale_generated_block" {
+			found = true
+			if finding.GetSeverity() != kov1.DocHealthSeverity_DOC_HEALTH_SEVERITY_FAILURE {
+				t.Errorf("stale generated block severity = %v, want failure", finding.GetSeverity())
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("source hash drift was not reported: %+v", resp.Msg.GetContentFindings())
+	}
+	shared, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "demo"}))
+	if err != nil {
+		t.Fatalf("ValidateScenario: %v", err)
+	}
+	if shared.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
+		t.Fatalf("stale generated block validation status = %v, want failed", shared.Msg.GetStatus())
+	}
+	if err := assessment.ValidatePhasePresentation(shared.Msg.GetAssessment()); err != nil {
+		t.Fatalf("KObs ValidateScenario assessment is not canonical: %v", err)
 	}
 }
 

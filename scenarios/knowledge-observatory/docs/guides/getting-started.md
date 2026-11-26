@@ -70,17 +70,22 @@ separators; traversal, drive/UNC paths and symlink escape are rejected.
 For cleanup, consolidation, moves, and retirement, use the
 [maintenance workflow](document-maintenance.md) and `knowledge-observatory-maintenance`.
 
-The scenario programs are:
+The scenario programs, inputs, purposes, and output signals are generated from the
+authoritative Program Runtime contracts. After changing those contracts, run
+`python3 scenarios/knowledge-observatory/tools/generate_program_table.py --write`;
+use `--check` in validation to detect drift.
 
-| Program | Inputs and evidence |
-|---|---|
-| `candidate-inventory` | `paths`, `base_path`; optional `intent`, `max_files`; returns bounded candidates and owner hypotheses for review. |
-| `candidate-proposals` | `candidates`; optional `reader_task`; turns observations into review-only proposals with citations, source hashes, preservation obligations and uncertainty. |
-| `collect-context` | `query`; optional scope/target, retrieval mode, limit and reference budget; returns bounded excerpts, source revisions and explicit evidence gaps. |
-| `prepare-change` | `paths`, `base_path`, `intent`; optional file budget and dispositions; returns revision preconditions, preservation obligations and a scoped reference baseline. |
-| `verify-change` | `expectations`, `queries`, `base_path`; optional mode, absent paths, preservation reviews and reference baseline; checks source revisions, retrieval expectations and reference changes. |
-| `learning-read` | Optional fixed `from`/`to` window and operation/context selectors; returns comparable outcome/effort cohorts, with missing or incomparable observations unbanded. |
-| `setpoint-read` | Optional `base_path` and immutable retrieval evaluation ID; reads index/reference/binding health and points to comparable usage evidence. |
+<!-- BEGIN GENERATED PROGRAM TABLE source=.vrooli/program-runtime/*.json source_sha256=fc454bb013c975e6edd7d105eac04ecae245fce28abb69d33ae0a5d4950511cd block_sha256=10e188070fccb88906c4e294dadd2d0758d450ecc530357d0a30fa235aaf6f92 -->
+| Program | Contract inputs | Purpose | Output signals |
+|---|---|---|---|
+| `knowledge-observatory.candidate-inventory` | `paths` (array, required), `base_path` (string, required), `intent` (string, optional), `max_files` (integer, default 100) | Produce bounded, provenance-aware documentation candidates for owner review without editing source files. | **candidates**: Bounded source candidates and owner hints. |
+| `knowledge-observatory.candidate-proposals` | `candidates` (array, required), `reader_task` (string, optional) | Turn bounded candidate observations into review-only disposition proposals. | **proposals**: Bounded review-only proposals and count. |
+| `knowledge-observatory.collect-context` | `query` (string, required), `scope` (string, default "global"), `target` (string, optional), `mode` (string, default "auto"), `limit` (integer, default 3), `follow_references` (integer, default 1) | Retrieve and inspect bounded task context with source revisions, applicability, and explicit evidence gaps. | **documents**: At most 7 inspected excerpts of 3000 characters with 12 references each.; **gaps**: Explicit incompleteness and editorial review needs.; **capture_required**: Caller captures once; task_success_verified is always false. |
+| `knowledge-observatory.learning-read` | `from` (string, optional), `to` (string, optional), `operation` (string, optional), `context_key` (string, optional) | Read comparable knowledge-task outcomes and effort from the existing Memory learning projection. | **rows**: Rows with full cohort identities; multiple cohorts require operation/context selectors and remain unreliable until narrowed.; **reliability**: Shared Memory reliability, scan counters, and cohort truncation; status and resolved inputs are preserved. |
+| `knowledge-observatory.prepare-change` | `paths` (array, required), `base_path` (string, required), `intent` (string, required), `max_files` (integer, default 300), `dispositions` (array, optional) | Prepare documentation maintenance: cleanup, consolidation, reorganization and artifact promotion with source dispositions, preservation obligations, revision preconditions and a scoped reference baseline. | **preconditions**: Exact source byte hashes; recheck before caller writes.; **observations**: At most 100 backlink, duplicate, missing-reference, or portability cues.; **decisions_required**: Editorial decisions; never an automatic deletion instruction.; **editorial_review_complete**: Caller-supplied editorial review status; never proof of task completion.; **dispositions**: Selected source/action/targets/reason/preserve/decision/evidence_refs with observed source hashes; missing decisions remain unresolved.; **reference_baseline**: Complete bounded owner findings and exact selectors for before/after comparison. |
+| `knowledge-observatory.setpoint-read` | `base_path` (string, default "scenarios/knowledge-observatory/docs"), `eval_run_id` (string, optional) | Read index availability, scoped documentation findings, a selected immutable retrieval evaluation, and routes to comparable usage evidence. | **rows**: Index availability target true; scoped reference findings target zero; retrieval and learning comparisons require comparable windows.; **capture_required**: Caller records improve-cycle work evidence. |
+| `knowledge-observatory.verify-change` | `expectations` (array, required), `queries` (array, required), `base_path` (string, required), `mode` (string, default "auto"), `absent_paths` (array, optional), `preservation` (array, optional), `reference_baseline` (object, optional) | Verify documentation cleanup, consolidation, moves and retirement: intended revisions, absent paths, preserved excerpts with editorial evidence, retrieval expectations and reference regressions. | **checks**: Explicit revision, retrieval, and reference checks; task_success_verified remains false.; **reference_findings**: Bounded sample with full count; caller distinguishes new failures from pre-existing debt.; **editorial_review_complete**: Caller-supplied editorial review status; never proof of task completion.; **reference_delta**: Full finding identity comparison with identical complete baseline selectors; known debt remains visible. |
+<!-- END GENERATED PROGRAM TABLE -->
 
 Use `program-runtime library run knowledge-observatory.<program> --input key=value`.
 The command's input parser accepts structured JSON values for arrays. Inspect the

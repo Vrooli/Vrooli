@@ -132,6 +132,16 @@ Definitions and examples may be illustrative. Dynamic references, arbitrary
 manifest path fields, heading validity, external consumers, and semantic overlap
 need owner checks. The separate documentation-health validator covers its own
 reference and contract rules; these surfaces do not promise identical coverage.
+Its `assertions` check fails duplicate/opposite-polarity claims and generic
+purpose headings in current documents; cross-document and superseded-history
+matches warn, while document-specific purpose content is preserved. It also
+validates generated blocks that declare a safe
+scenario-relative source directory (or a direct-file glob such as
+`.vrooli/program-runtime/*.json`) and SHA-256 values for both the owner inputs
+and rendered content. Source entries must be regular files and remain within
+the bounded file-count and file-size limits. A source or rendered-block
+mismatch fails the docs health check; run the owning generator to restore the
+projection.
 
 Review prunes `.git`, dependency/build directories, generated `gen` directories,
 and `.vrooli` subtrees unless one is the explicit scan root. Account for those

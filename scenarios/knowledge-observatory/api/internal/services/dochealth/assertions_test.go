@@ -1,8 +1,11 @@
 package dochealth
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -126,6 +129,97 @@ func TestAssertionFindingsDoNotTreatDataCatalogRowsAsPolicies(t *testing.T) {
 	if findings := assertionFindings([]string{path}, root); len(findings) != 0 {
 		t.Fatalf("descriptive error catalog rows should not be treated as repeated normative claims: %+v", findings)
 	}
+}
+
+func TestAssertionFindingsRejectGeneratedBlockSourceOrContentDrift(t *testing.T) {
+	root := t.TempDir()
+	sourceDir := filepath.Join(root, ".vrooli", "program-runtime")
+	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	source := filepath.Join(sourceDir, "sample.json")
+	if err := os.WriteFile(source, []byte(`{"name":"sample"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	block := "| Program | purpose |\n|---|---|\n| sample | derived |"
+	marker := generatedTableMarker(t, "sample.json", block)
+	path := writeAssertionFixture(t, root, "docs/generated.md", marker+"\n"+block+"\n"+generatedBlockEnd+"\n")
+
+	if findings := assertionFindings([]string{path}, root); len(findings) != 0 {
+		t.Fatalf("current generated source and content should pass: %+v", findings)
+	}
+	if err := os.WriteFile(source, []byte(`{"name":"changed"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	findings := assertionFindings([]string{path}, root)
+	if len(findings) != 1 || findings[0].Code != "stale_generated_block" || findings[0].Severity != SeverityFailure {
+		t.Fatalf("changed owner input should fail generated-block health: %+v", findings)
+	}
+
+	if err := os.WriteFile(source, []byte(`{"name":"sample"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(marker+"\n"+block+" changed\n"+generatedBlockEnd+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	findings = assertionFindings([]string{path}, root)
+	if len(findings) != 1 || findings[0].Code != "stale_generated_block" || findings[0].Severity != SeverityFailure {
+		t.Fatalf("hand-edited generated content should fail generated-block health: %+v", findings)
+	}
+}
+
+func TestAssertionFindingsIgnoreGeneratedMarkerExamplesInCodeFences(t *testing.T) {
+	root := t.TempDir()
+	path := writeAssertionFixture(t, root, "docs/markers.md", "```html\n<!-- BEGIN GENERATED PROGRAM TABLE source=../../outside source_sha256=bad block_sha256=bad -->\n<!-- END GENERATED PROGRAM TABLE -->\n```\n")
+	if findings := assertionFindings([]string{path}, root); len(findings) != 0 {
+		t.Fatalf("code-fenced marker examples are not generated content: %+v", findings)
+	}
+}
+
+func TestAssertionFindingsIgnoreOtherOwnersGeneratedBlocks(t *testing.T) {
+	root := t.TempDir()
+	path := writeAssertionFixture(t, root, "docs/ledger.md", "<!-- BEGIN GENERATED LEDGER -->\nowner content\n<!-- END GENERATED LEDGER -->\n")
+	if findings := assertionFindings([]string{path}, root); len(findings) != 0 {
+		t.Fatalf("unrelated owner marker formats stay under their current validators: %+v", findings)
+	}
+}
+
+func TestAssertionFindingsRejectGeneratedSourceEscapeAndSymlink(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	outsideFile := filepath.Join(outside, "owner.json")
+	if err := os.WriteFile(outsideFile, []byte(`{"name":"owner"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	linkedDir := filepath.Join(root, "linked")
+	if err := os.MkdirAll(linkedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outsideFile, filepath.Join(linkedDir, "owner.json")); err != nil {
+		t.Fatal(err)
+	}
+	block := "| owner |\n|---|\n| sample |"
+	blockHash := sha256.Sum256([]byte(block))
+	for _, source := range []string{"../outside/*.json", "linked/*.json"} {
+		marker := fmt.Sprintf("<!-- BEGIN GENERATED PROGRAM TABLE source=%s source_sha256=%s block_sha256=%x -->", source, strings.Repeat("0", 64), blockHash)
+		path := writeAssertionFixture(t, root, "docs/generated.md", marker+"\n"+block+"\n"+generatedBlockEnd+"\n")
+		findings := assertionFindings([]string{path}, root)
+		if len(findings) != 1 || findings[0].Code != "stale_generated_block" || findings[0].Severity != SeverityFailure {
+			t.Fatalf("unsafe generated source %q must fail closed: %+v", source, findings)
+		}
+	}
+}
+
+func generatedTableMarker(t *testing.T, sourceName, block string) string {
+	t.Helper()
+	source := []byte(`{"name":"sample"}`)
+	inputDigest := sha256.New()
+	_, _ = inputDigest.Write([]byte(sourceName))
+	_, _ = inputDigest.Write([]byte{0})
+	_, _ = inputDigest.Write(source)
+	_, _ = inputDigest.Write([]byte{0})
+	blockDigest := sha256.Sum256([]byte(block))
+	return fmt.Sprintf("<!-- BEGIN GENERATED PROGRAM TABLE source=.vrooli/program-runtime/*.json source_sha256=%x block_sha256=%x -->", inputDigest.Sum(nil), blockDigest)
 }
 
 func TestAssertionFindingsIgnoreBoldPolicySectionLabels(t *testing.T) {

@@ -299,13 +299,8 @@ knowledge-observatory docs audit knowledge-observatory --json
 ```
 
 The `refs` check validates explicit marked references such as `cli:...`.
-The `assertions` check fails on repeated normative statements or explicit
-opposite-polarity assertions within one current document, warns on
-cross-document matches that need scope review, and rejects the generic
-`Purpose Of This Document` heading while retaining document-specific purpose
-content. Documents explicitly marked `SUPERSEDED — historical provenance only`
-keep duplicate assertions as warnings so retained snapshots stay visible
-without blocking current guidance.
+See the [documentation maintenance guide](../guides/document-maintenance.md#coverage-and-limits)
+for assertion and generated-table check semantics.
 The `commands` check conservatively validates Vrooli-owned commands found in
 fenced shell snippets by delegating to CLI Health (DOCS policy); it does not
 execute the referenced commands.

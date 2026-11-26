@@ -43,7 +43,7 @@ var (
 // evidence are warnings so their scope or historical provenance stays visible.
 func assertionFindings(files []string, root string) []Finding {
 	var records []assertionRecord
-	var findings []Finding
+	findings := generatedBlockFindings(files, root)
 	historical := make(map[string]bool)
 	for _, file := range files {
 		content, err := os.ReadFile(file)
