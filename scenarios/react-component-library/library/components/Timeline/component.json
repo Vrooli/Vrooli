@@ -9,9 +9,9 @@
   "description": "The chronological event component with date grouping, status markers, expandable detail, loading, pagination, and responsive alignment.",
   "designStyles": [
     {
-      "styleId": "vrooli-default",
       "affinity": "native",
-      "reason": "token-native operational-console baseline"
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
     }
   ],
   "displayName": "Timeline",
@@ -19,7 +19,10 @@
   "evictedVersions": [
     "1.0.4",
     "1.0.5",
-    "1.0.6"
+    "1.0.6",
+    "1.0.9",
+    "1.0.8",
+    "1.0.7"
   ],
   "latest": "1.0.10",
   "libraryId": "react-component-library:Timeline",

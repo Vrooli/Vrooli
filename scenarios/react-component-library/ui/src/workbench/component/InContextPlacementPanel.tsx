@@ -7,12 +7,15 @@ import type { PlacementDecision, SlotRoleMatch } from "./placement";
 interface InContextPlacementPanelProps {
   decision: PlacementDecision;
   slotHeight: number;
+  /** The selected story's measured size, when the frame has reported it. */
+  componentSize?: { w: number; h: number };
   onSlotChoice: (slotId: string | null) => void;
 }
 
 export function InContextPlacementPanel({
   decision,
   slotHeight,
+  componentSize,
   onSlotChoice,
 }: InContextPlacementPanelProps) {
   const { t } = useTranslation();
@@ -34,10 +37,7 @@ export function InContextPlacementPanel({
       ? [chosen, ...topCandidates.slice(0, 2)]
       : topCandidates;
   const roleWarning =
-    chosen &&
-    chosen.compatible &&
-    chosen.roleMatch !== "exact" &&
-    chosen.roleMatch !== "family"
+    chosen && chosen.compatible && chosen.roleMatch !== "exact" && chosen.roleMatch !== "family"
       ? t("workbench.component.ctxRoleWarning", {
           defaultValue:
             "{{slot}} accepts {{kind}} by kind, but its role is {{role}}. A slot whose role names {{kind}} would be a stronger match.",
@@ -55,7 +55,8 @@ export function InContextPlacementPanel({
             score: chosen.score,
           })
         : t("workbench.component.ctxWhyManual", {
-            defaultValue: "{{slot}} was chosen by hand; {{auto}} still scores highest at {{score}}%.",
+            defaultValue:
+              "{{slot}} was chosen by hand; {{auto}} still scores highest at {{score}}%.",
             slot: chosen.label,
             auto: best?.label ?? "—",
             score: best?.score ?? 0,
@@ -67,7 +68,7 @@ export function InContextPlacementPanel({
             slot: chosen.label,
             kind: decision.profile.kind,
             role: chosen.role ?? t("workbench.component.ctxRoleOpen", { defaultValue: "open" }),
-            fit: `${decision.profile.size.w} px`,
+            fit: `${componentSize?.w ?? decision.profile.size.w} px`,
             width: chosen.box.w,
             index: chosen.index + 1,
           })
@@ -155,7 +156,10 @@ export function InContextPlacementPanel({
                     {candidate.role ??
                       t("workbench.component.ctxRoleOpen", { defaultValue: "open" })}
                   </span>
-                  <span className={`ic-slot-match is-${candidate.roleMatch}`} data-testid="slot-match">
+                  <span
+                    className={`ic-slot-match is-${candidate.roleMatch}`}
+                    data-testid="slot-match"
+                  >
                     {matchLabel[candidate.roleMatch]}
                   </span>
                 </span>

@@ -153,6 +153,7 @@ describe("AssetDataDrawer sections", () => {
         experience: {
           evidenceStatus: "stale",
           evidenceMessage: "Evidence needs refresh",
+          states: [],
           claims: [
             {
               id: "claim-pass",
@@ -182,13 +183,12 @@ describe("AssetDataDrawer sections", () => {
             { claimId: "claim-fail", verdict: "unknown" },
           ],
         },
-      } as Partial<ComponentBundle>),
+      } as unknown as Partial<ComponentBundle>),
     );
-    const verdictLabels = ["pass · 1", "fail · 1", "unknown · 1"];
+    const verdictLabels = ["pass · 1", "fail · 1", "unmeasured · 1"];
     verdictLabels.forEach((label) => expect(screen.getByText(label)).toBeInTheDocument());
     expect(screen.getByText(/Evidence needs refresh/)).toBeInTheDocument();
-    const unmeasuredVerdict = "unmeasured";
-    expect(screen.getByText(unmeasuredVerdict)).toBeInTheDocument();
+    expect(screen.getAllByText(/unmeasured/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/no states/)).toHaveLength(2);
   });
 

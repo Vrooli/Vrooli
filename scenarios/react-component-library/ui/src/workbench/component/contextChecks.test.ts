@@ -2,8 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildContextChecks,
-  countPassed,
-  scoredRows,
   type ContextCheckRow,
   type ContextFacts,
   type Translate,
@@ -31,10 +29,10 @@ function facts(overrides: Partial<ContextFacts> = {}): ContextFacts {
     },
     component: { kind: "metric", size: { w: 248, h: 124 } },
     overflow: REFERENCE_WIDTHS.map((width) => ({ width, overflow: false, scrollWidth: width })),
-    type: { inherited: true, fontFamily: "Inter", fontSize: "16px" },
+    type: { fontFamily: "Inter", fontSize: "16px" },
     touch: { on: true, small: 0, total: 6 },
-    contrast: { on: true, ratio: 7.2, label: "Signal", foreground: "#fff", background: "#0c0e12" },
-    states: { total: 4, covered: 4, status: "fresh" },
+    contrast: { on: true, ratio: 7.2, label: "Signal", background: "#0c0e12" },
+    states: { total: 4, covered: 4, status: "covered" },
     safeArea: {
       on: true,
       top: 54,
@@ -61,15 +59,15 @@ const SCORED_IDS = ["slot", "overflow", "type", "touch", "contrast", "states", "
 describe("context checks", () => {
   it("reports measured passes with their evidence", () => {
     const rows = rowsFor();
-    expect(row(rows, "slot")).toMatchObject({ verdict: "pass", evidence: "declared" });
-    expect(row(rows, "overflow")).toMatchObject({ verdict: "pass", evidence: "measured" });
-    expect(row(rows, "type")).toMatchObject({ verdict: "pass", evidence: "measured" });
-    expect(row(rows, "touch")).toMatchObject({ verdict: "pass", evidence: "measured" });
-    expect(row(rows, "contrast")).toMatchObject({ verdict: "pass", evidence: "measured" });
+    expect(row(rows, "slot")).toMatchObject({ verdict: "pass" });
+    expect(row(rows, "overflow")).toMatchObject({ verdict: "pass" });
+    expect(row(rows, "type")).toMatchObject({ verdict: "unmeasured", scored: false, group: "info" });
+    expect(row(rows, "touch")).toMatchObject({ verdict: "pass" });
+    expect(row(rows, "contrast")).toMatchObject({ verdict: "pass" });
     expect(row(rows, "states").verdict).toBe("pass");
     expect(row(rows, "safeArea").verdict).toBe("pass");
-    expect(countPassed(rows)).toBe(7);
-    expect(scoredRows(rows)).toHaveLength(7);
+    expect(rows.filter((row) => row.scored && row.verdict === "pass")).toHaveLength(6);
+    expect(rows.filter((row) => row.scored)).toHaveLength(6);
   });
 
   it("never shows a pass for an instrument that has not run", () => {
@@ -77,15 +75,14 @@ describe("context checks", () => {
       overflow: [],
       type: null,
       touch: { on: false, small: 0, total: 0 },
-      contrast: { on: false, ratio: null, label: "", foreground: "", background: "" },
+      contrast: { on: false, ratio: null, label: "", background: "" },
       safeArea: null,
       states: null,
     });
     for (const id of ["overflow", "type", "touch", "contrast", "states", "safeArea"]) {
       expect(row(rows, id).verdict).toBe("unmeasured");
-      expect(row(rows, id).evidence).toBe("none");
     }
-    expect(countPassed(rows)).toBe(1);
+    expect(rows.filter((row) => row.scored && row.verdict === "pass")).toHaveLength(1);
   });
 
   /**
@@ -108,7 +105,7 @@ describe("context checks", () => {
       { id: "type", overrides: { type: null } },
       {
         id: "type",
-        overrides: { type: { inherited: true, fontFamily: "", fontSize: "16px" } },
+        overrides: { type: { fontFamily: "", fontSize: "16px" } },
       },
       { id: "touch", overrides: { touch: { on: true, small: 0, total: 0 } } },
       { id: "touch", overrides: { touch: { on: false, small: 0, total: 6 } } },
@@ -116,35 +113,35 @@ describe("context checks", () => {
       {
         id: "contrast",
         overrides: {
-          contrast: { on: true, ratio: null, label: "Body", foreground: "#777", background: "#fff" },
+          contrast: { on: true, ratio: null, label: "Body", background: "#fff" },
         },
       },
       {
         id: "contrast",
         overrides: {
-          contrast: { on: false, ratio: 12, label: "Body", foreground: "#777", background: "#fff" },
+          contrast: { on: false, ratio: 12, label: "Body", background: "#fff" },
         },
       },
       {
         id: "contrast",
         overrides: {
-          contrast: { on: true, ratio: 0, label: "Body", foreground: "#777", background: "#fff" },
+          contrast: { on: true, ratio: 0, label: "Body", background: "#fff" },
         },
       },
       {
         id: "contrast",
         overrides: {
-          contrast: { on: true, ratio: Number.NaN, label: "Body", foreground: "#777", background: "#fff" },
+          contrast: { on: true, ratio: Number.NaN, label: "Body", background: "#fff" },
         },
       },
       {
         id: "contrast",
         overrides: {
-          contrast: { on: true, ratio: 7.2, label: "Body", foreground: "#777", background: "" },
+          contrast: { on: true, ratio: 7.2, label: "Body", background: "" },
         },
       },
-      { id: "states", overrides: { states: { total: 4, covered: 0, status: "fresh" } } },
-      { id: "states", overrides: { states: { total: 4, covered: 5, status: "fresh" } } },
+      { id: "states", overrides: { states: { total: 4, covered: 0, status: "covered" } } },
+      { id: "states", overrides: { states: { total: 4, covered: 5, status: "covered" } } },
       { id: "states", overrides: { states: null } },
       { id: "safeArea", overrides: { safeArea: null } },
       {
@@ -190,7 +187,6 @@ describe("context checks", () => {
       overflow: REFERENCE_WIDTHS.map((width) => ({ width, overflow: false })),
     });
     expect(row(unmeasured, "overflow").verdict).toBe("unmeasured");
-    expect(row(unmeasured, "overflow").evidence).toBe("none");
   });
 
   it("warns instead of passing an open slot that declares no accepted kinds", () => {
@@ -204,7 +200,7 @@ describe("context checks", () => {
         box: { w: 400, h: 40 },
       },
     });
-    expect(row(open, "slot")).toMatchObject({ verdict: "warn", evidence: "declared" });
+    expect(row(open, "slot")).toMatchObject({ verdict: "warn" });
     expect(row(open, "slot").detail).toContain("anything");
 
     const unroled = rowsFor({
@@ -222,7 +218,7 @@ describe("context checks", () => {
 
   it("fails when the page declares no slot at all", () => {
     const rows = rowsFor({ slot: undefined });
-    expect(row(rows, "slot")).toMatchObject({ verdict: "fail", evidence: "declared" });
+    expect(row(rows, "slot")).toMatchObject({ verdict: "fail" });
     expect(row(rows, "slot").detail).toContain("no component slot");
   });
 
@@ -252,13 +248,15 @@ describe("context checks", () => {
         box: { w: 1128, h: 112 },
       },
     });
-    expect(row(rows, "slot")).toMatchObject({ verdict: "warn", evidence: "declared" });
-    expect(row(rows, "slot").detail).toContain("not exact");
+    expect(row(rows, "slot")).toMatchObject({ verdict: "warn" });
+    expect(row(rows, "slot").detail).toContain("accepts metric by kind");
   });
 
   it("groups component fit separately from page health", () => {
     const rows = rowsFor();
     expect(row(rows, "slot").group).toBe("fit");
+    expect(row(rows, "type").group).toBe("info");
+    expect(row(rows, "type").scored).toBe(false);
     expect(row(rows, "overflow").group).toBe("page");
     expect(row(rows, "states").group).toBe("evidence");
     expect(row(rows, "squint").group).toBe("human");
@@ -278,23 +276,23 @@ describe("context checks", () => {
 
   it("bands contrast and counts small touch targets", () => {
     const low = rowsFor({
-      contrast: { on: true, ratio: 2.1, label: "Muted", foreground: "#777", background: "#999" },
+      contrast: { on: true, ratio: 2.1, label: "Muted", background: "#999" },
       touch: { on: true, small: 3, total: 8 },
     });
     expect(row(low, "contrast").verdict).toBe("fail");
     expect(row(low, "touch").verdict).toBe("warn");
 
     const warn = rowsFor({
-      contrast: { on: true, ratio: 3.6, label: "Body", foreground: "#777", background: "#fff" },
+      contrast: { on: true, ratio: 3.6, label: "Body", background: "#fff" },
     });
     expect(row(warn, "contrast").verdict).toBe("warn");
   });
 
-  it("keeps state coverage honest about freshness", () => {
-    const stale = rowsFor({ states: { total: 4, covered: 4, status: "stale" } });
-    expect(row(stale, "states").verdict).toBe("warn");
+  it("passes only complete declared-state coverage", () => {
+    const complete = rowsFor({ states: { total: 4, covered: 4, status: "covered" } });
+    expect(row(complete, "states").verdict).toBe("pass");
 
-    const partial = rowsFor({ states: { total: 4, covered: 2, status: "fresh" } });
+    const partial = rowsFor({ states: { total: 4, covered: 2, status: "partial" } });
     expect(row(partial, "states").verdict).toBe("warn");
 
     const none = rowsFor({ states: null });
@@ -304,11 +302,11 @@ describe("context checks", () => {
   it("keeps the squint preview unmeasured whether blur is on or off", () => {
     for (const on of [false, true]) {
       const rows = rowsFor({ squint: { on } });
-      expect(row(rows, "squint")).toMatchObject({ verdict: "unmeasured", evidence: "none", scored: false });
+      expect(row(rows, "squint")).toMatchObject({ verdict: "unmeasured", scored: false });
       expect(row(rows, "squint").detail.length).toBeGreaterThan(0);
     }
-    expect(scoredRows(rowsFor({ squint: { on: true } })).some((entry) => entry.id === "squint")).toBe(false);
-    expect(countPassed(rowsFor({ squint: { on: true } }))).toBe(7);
+    expect(rowsFor({ squint: { on: true } }).filter((row) => row.scored).some((entry) => entry.id === "squint")).toBe(false);
+    expect(rowsFor({ squint: { on: true } }).filter((row) => row.scored && row.verdict === "pass")).toHaveLength(6);
   });
 
   it("only ever emits the four known verdicts", () => {

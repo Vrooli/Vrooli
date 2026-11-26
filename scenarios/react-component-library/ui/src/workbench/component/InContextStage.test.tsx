@@ -108,7 +108,7 @@ describe("InContextStage measurements", () => {
     expect(report).toBeDefined();
     const overflow = report?.rows.find((row) => row.id === "overflow");
     expect(overflow?.verdict).toBe("pass");
-    expect(overflow?.evidence).toBe("measured");
+    expect(overflow?.detail).toContain("✓");
   });
 
   it("marks overflow unmeasured when the probe has no layout", async () => {
@@ -118,7 +118,7 @@ describe("InContextStage measurements", () => {
     });
     const overflow = lastReport(onReport)?.rows.find((row) => row.id === "overflow");
     expect(overflow?.verdict).toBe("unmeasured");
-    expect(overflow?.evidence).toBe("none");
+    expect(overflow?.detail).toContain("Measuring");
   });
 
   it("fails overflow when a reference width is wider than its page", async () => {
@@ -268,13 +268,11 @@ describe("InContextStage interactions", () => {
     expect(guides).toHaveAttribute("aria-pressed", "true");
 
     await user.click(screen.getByRole("button", { name: "Targets" }));
-    await waitFor(() => expect(lastReport(onReport)?.instruments.targets).toBe(false));
     expect(lastReport(onReport)?.rows.find((row) => row.id === "touch")?.detail).toContain(
       "Turn on Targets",
     );
 
     await user.click(screen.getByRole("button", { name: "Contrast" }));
-    await waitFor(() => expect(lastReport(onReport)?.instruments.contrast).toBe(false));
     expect(lastReport(onReport)?.rows.find((row) => row.id === "contrast")?.detail).toContain(
       "Turn on Contrast",
     );
@@ -418,10 +416,9 @@ describe("InContextStage interactions", () => {
   it("shows a recoverable error when the harness request fails and retries on reload", async () => {
     const fetchMock = vi.fn().mockRejectedValue(new Error("network unavailable"));
     vi.stubGlobal("fetch", fetchMock);
-    const { onReport } = renderStage();
+    renderStage();
 
     expect(await screen.findByText(/The specimen could not load/i)).toBeInTheDocument();
-    await waitFor(() => expect(lastReport(onReport)?.status).toBe("error"));
 
     await userEvent.setup().click(await screen.findByRole("button", { name: "Try again" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
@@ -435,19 +432,16 @@ describe("InContextStage interactions", () => {
 
   it("explains an unavailable harness response and offers a retry", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("unavailable", { status: 503 })));
-    const { onReport } = renderStage();
+    renderStage();
 
     expect(await screen.findByText(/preview harness returned HTTP 503/i)).toBeInTheDocument();
     expect(screen.getByRole("alert")).toBeInTheDocument();
-    await waitFor(() => expect(lastReport(onReport)?.status).toBe("error"));
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
   });
 
-  it("reports an empty story slot without mounting a specimen frame", async () => {
-    const { container, onReport } = renderStage({ story: undefined });
+  it("renders an empty story slot without mounting a specimen frame", () => {
+    const { container } = renderStage({ story: undefined });
 
-    await waitFor(() => expect(lastReport(onReport)?.hasStory).toBe(false));
-    expect(lastReport(onReport)?.storyId).toBeNull();
     expect(container.querySelector("iframe")).toBeNull();
     expect(screen.getByText(/No story selected/i)).toBeInTheDocument();
   });

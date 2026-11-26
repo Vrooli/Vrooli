@@ -9,16 +9,18 @@
   "description": "The semantic table foundation with responsive overflow, sticky regions, density modes, alignment, loading rows, and correctly associated headers.",
   "designStyles": [
     {
-      "styleId": "vrooli-default",
       "affinity": "native",
-      "reason": "token-native operational-console baseline"
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
     }
   ],
   "displayName": "Table",
   "draft": "",
   "evictedVersions": [
     "1.0.1",
-    "1.0.0"
+    "1.0.0",
+    "1.0.5",
+    "1.0.4"
   ],
   "latest": "1.0.6",
   "libraryId": "react-component-library:Table",

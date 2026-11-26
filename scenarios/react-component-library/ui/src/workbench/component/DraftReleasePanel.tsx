@@ -1,8 +1,9 @@
-import { Check, Play, UploadCloud, X } from "lucide-react";
+import { Play, UploadCloud } from "lucide-react";
 
 import type { ComponentVersionCheckResult } from "../../api/components";
 import { useTranslation } from "../../i18n";
 import { Chip, Empty, Field, TextArea, WbButton } from "../primitives";
+import { asVerdict, VERDICT_ICON } from "../verdicts";
 
 type DraftCheck = ComponentVersionCheckResult["checks"][number];
 
@@ -59,28 +60,24 @@ export function DraftReleasePanel({ state, actions }: DraftReleasePanelProps) {
       ) : null}
       {state.checks ? (
         <ul className="wb-checklist">
-          {state.checks.map((check, index) => (
-            <li key={`${check.stage}-${index}`}>
-              <span
-                className={`wb-checkdot ${check.verdict === "passed" ? "is-pass" : "is-fail"}`}
-              >
-                {check.verdict === "passed" ? (
-                  <Check aria-hidden size={11} />
-                ) : (
-                  <X aria-hidden size={11} />
-                )}
-              </span>
-              <span style={{ minWidth: 0 }}>
-                <b className="wb-small">{check.stage}</b>
-                <small className="wb-muted-2 wb-small" style={{ display: "block" }}>
-                  {check.message}
-                  {check.verdict !== "passed" && check.remediation
-                    ? ` — ${check.remediation}`
-                    : ""}
-                </small>
-              </span>
-            </li>
-          ))}
+          {state.checks.map((check, index) => {
+            const verdict = asVerdict(check.verdict);
+            const Icon = VERDICT_ICON[verdict];
+            return (
+              <li key={`${check.stage}-${index}`}>
+                <span className={`wb-checkdot ${verdict === "pass" ? "is-pass" : "is-fail"}`}>
+                  <Icon aria-hidden size={11} />
+                </span>
+                <span style={{ minWidth: 0 }}>
+                  <b className="wb-small">{check.stage}</b>
+                  <small className="wb-muted-2 wb-small" style={{ display: "block" }}>
+                    {check.message}
+                    {verdict !== "pass" && check.remediation ? ` — ${check.remediation}` : ""}
+                  </small>
+                </span>
+              </li>
+            );
+          })}
         </ul>
       ) : null}
       {state.checks && state.checks.length === 0 ? (

@@ -42,12 +42,10 @@ export function statsView(search: URLSearchParams): StatsView {
   return view !== null && statsViewSet.has(view) ? (view as StatsView) : "overview";
 }
 
-/** Canonical Stats URL. Overview omits the parameter so `/stats` stays clean. */
 export function statsPath(view: StatsView = "overview"): string {
   return view === "overview" ? appRoutes.stats : `${appRoutes.stats}?view=${view}`;
 }
 
-/** Workspace studio URL. Page/display/state default to the workspace's first. */
 export function workspacePath(
   id: string,
   selection: { page?: string; display?: string; state?: string } = {},
@@ -59,81 +57,11 @@ export function workspacePath(
   return `${appRoutes.design}?${search.toString()}`;
 }
 
-/** Library URL carrying an optional search term for the asset index. */
-export function libraryPath(query?: string): string {
-  const term = query?.trim();
-  return term ? `${appRoutes.library}?q=${encodeURIComponent(term)}` : appRoutes.library;
-}
-
 /** Library URL filtered by its real catalog domain and asset group. */
 export function libraryDomainPath(domain: string, group: string, query?: string): string {
   const search = new URLSearchParams({ domain, group });
   if (query?.trim()) search.set("q", query.trim());
   return `${appRoutes.library}?${search.toString()}`;
-}
-
-export type AssetInfoTab =
-  | "preview"
-  | "overview"
-  | "files"
-  | "versions"
-  | "tests"
-  | "experience"
-  | "relationships";
-export type AssetRouteState = {
-  tab?: AssetInfoTab;
-  story?: string;
-  testReport?: string;
-};
-
-const assetTabs = new Set<AssetInfoTab>([
-  "overview",
-  "preview",
-  "files",
-  "versions",
-  "tests",
-  "experience",
-  "relationships",
-]);
-
-export function assetPath(assetID: string, state: AssetRouteState = {}): string {
-  const search = new URLSearchParams();
-  if (state.tab && state.tab !== "preview") search.set("tab", state.tab);
-  if (state.story) search.set("story", state.story);
-  const serialized = search.toString();
-  return `/assets/${encodeURIComponent(assetID)}${serialized ? `?${serialized}` : ""}`;
-}
-
-export function previewPath(assetID: string, story?: string): string {
-  const search = new URLSearchParams();
-  if (story) search.set("story", story);
-  const serialized = search.toString();
-  return `/assets/${encodeURIComponent(assetID)}/preview${serialized ? `?${serialized}` : ""}`;
-}
-
-export function assetInfoTab(search: URLSearchParams): AssetInfoTab {
-  const tab = search.get("tab");
-  return tab !== null && assetTabs.has(tab as AssetInfoTab) ? (tab as AssetInfoTab) : "preview";
-}
-
-export function assetStory(search: URLSearchParams): string | undefined {
-  const story = search.get("story")?.trim();
-  return story || undefined;
-}
-
-export function assetSearchForTab(tab: AssetInfoTab, reportID?: string, story?: string): string {
-  const search = new URLSearchParams();
-  if (reportID && tab === "overview") {
-    search.set("tab", "tests");
-    search.set("testReport", reportID);
-  } else if (tab !== "preview") search.set("tab", tab);
-  if (story) search.set("story", story);
-  const serialized = search.toString();
-  return serialized ? `?${serialized}` : "";
-}
-
-export function assetTestReportPath(assetID: string, reportID: string): string {
-  return `${assetPath(assetID, { tab: "preview" })}${assetSearchForTab("overview", reportID)}`;
 }
 
 export function designPath(scenario?: string, page?: string): string {

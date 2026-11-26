@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { Route, Routes, useLocation } from "react-router-dom";
+import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { runComponentTest } from "../../api/componentTests";
@@ -178,8 +178,7 @@ vi.mock("../component/ComponentPageInspector", () => ({
   ComponentPageInspector: (props: {
     mode: string;
     selectedStory?: WorkbenchStory;
-    checkRatio: number;
-    contextRatio: number;
+    fixtureRows: unknown[];
     contextRows: unknown[];
     canOpenWorkspace: boolean;
     statuses: Record<string, "loading" | "ready" | "error" | "applied">;
@@ -189,8 +188,7 @@ vi.mock("../component/ComponentPageInspector", () => ({
       data-testid="page-inspector"
       data-mode={props.mode}
       data-story={props.selectedStory?.id}
-      data-check-ratio={props.checkRatio}
-      data-context-ratio={props.contextRatio}
+      data-fixture-rows={props.fixtureRows.length}
       data-context-rows={props.contextRows.length}
       data-can-open={String(props.canOpenWorkspace)}
       data-status-secondary={props.statuses.secondary ?? ""}
@@ -308,10 +306,16 @@ function LocationProbe() {
   return <output data-testid="location">{`${location.pathname}${location.search}`}</output>;
 }
 
+function NextAssetProbe() {
+  const navigate = useNavigate();
+  return <button onClick={() => void navigate("/assets/asset-8")}>Go to next asset</button>;
+}
+
 function renderComponentPage(path = "/assets/asset-7") {
   return renderWithProviders(
     <>
       <LocationProbe />
+      <NextAssetProbe />
       <Routes>
         <Route path="/assets/:id" element={<ComponentPage />} />
         <Route path="/design" element={<div data-testid="design-route">Design route</div>} />
@@ -340,6 +344,23 @@ describe("ComponentPage", () => {
     vi.unstubAllGlobals();
   });
 
+  it("does not carry a release version or story state into the next asset", async () => {
+    renderComponentPage("/assets/asset-7?story=primary");
+    await waitFor(() =>
+      expect(screen.getByTestId("page-header")).toHaveAttribute("data-story", "primary"),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Go to next asset" }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("location")).toHaveTextContent("/assets/asset-8"),
+    );
+    const calls = vi.mocked(useComponentBundle).mock.calls;
+    const firstForNextAsset = calls.find(([assetId]) => assetId === "asset-8");
+    // The first query for the new asset must not name a release version. The
+    // page may select that asset's own latest version after the bundle loads.
+    expect(firstForNextAsset?.[1]).toBeUndefined();
+  });
+
   it("loads a deep-linked story and keeps unrelated URL parameters while selecting a new mode and story", async () => {
     renderComponentPage("/assets/asset-7?story=primary&foo=keep");
     await waitFor(() =>
@@ -363,7 +384,6 @@ describe("ComponentPage", () => {
     expect(screen.getByTestId("context-stage")).toHaveAttribute("data-device", "phone");
     expect(screen.getByTestId("location")).toHaveTextContent("device=phone");
     fireEvent.click(screen.getByRole("button", { name: "Report measured context" }));
-    expect(screen.getByTestId("page-inspector")).toHaveAttribute("data-context-ratio", "0.5");
     expect(screen.getByTestId("page-inspector")).toHaveAttribute("data-context-rows", "1");
   });
 

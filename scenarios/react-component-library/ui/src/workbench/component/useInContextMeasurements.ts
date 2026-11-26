@@ -66,7 +66,6 @@ export function useInContextMeasurements({
   const [marks, setMarks] = useState<Mark[]>([]);
   const [targets, setTargets] = useState<{ total: number; small: number } | null>(null);
   const [typeInfo, setTypeInfo] = useState<{
-    inherited: boolean;
     fontFamily: string;
     fontSize: string;
   } | null>(null);
@@ -213,13 +212,12 @@ export function useInContextMeasurements({
     const typeElement = slotWrapRef.current ?? host.querySelector<HTMLElement>(".tpl-slot");
     if (typeElement) {
       const slotStyle = getComputedStyle(typeElement);
-      const family = slotStyle.fontFamily || "";
-      const rootFamily = rootStyle.fontFamily || "";
-      const inherited = family.length > 0 && family === rootFamily;
-      const next = { inherited, fontFamily: family || "—", fontSize: slotStyle.fontSize || "—" };
+      const next = {
+        fontFamily: slotStyle.fontFamily || "—",
+        fontSize: slotStyle.fontSize || "—",
+      };
       setTypeInfo((current) =>
         current &&
-        current.inherited === next.inherited &&
         current.fontFamily === next.fontFamily &&
         current.fontSize === next.fontSize
           ? current

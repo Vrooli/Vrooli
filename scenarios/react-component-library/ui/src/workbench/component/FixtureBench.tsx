@@ -12,6 +12,7 @@ import {
 } from "./fixtureBench";
 import { FixtureTile } from "./FixtureTile";
 import type { FixtureSurface } from "./fixtureTheme";
+import type { ComponentProbe } from "./componentProbe";
 
 export interface FixtureBenchProps {
   asset: CatalogAsset;
@@ -25,6 +26,8 @@ export interface FixtureBenchProps {
   statuses: Record<string, FixtureStatus>;
   onStatus: (storyId: string, status: FixtureStatus, message?: string) => void;
   onRetry: (storyId: string) => void;
+  onMeasure?: (storyId: string, paint: FixturePaint) => void;
+  onProbe?: (storyId: string, probe: ComponentProbe) => void;
 }
 
 export function FixtureBench({
@@ -39,6 +42,8 @@ export function FixtureBench({
   statuses,
   onStatus,
   onRetry,
+  onMeasure,
+  onProbe,
 }: FixtureBenchProps) {
   const { t } = useTranslation();
   const [surface, setSurface] = useState<FixtureSurface>("dark");
@@ -82,6 +87,7 @@ export function FixtureBench({
       }
       return { ...current, [storyId]: next };
     });
+    onMeasure?.(storyId, next);
   };
 
   const renderTile = (story: WorkbenchStory, stage = false) => (
@@ -108,6 +114,7 @@ export function FixtureBench({
         onStatus(storyId, status, message);
       }}
       onMeasure={recordMeasure}
+      onProbe={(storyId, probe) => onProbe?.(storyId, probe)}
       onRetry={onRetry}
     />
   );

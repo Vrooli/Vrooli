@@ -1,5 +1,5 @@
 import "../component.css";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ComponentPageHeader } from "../component/ComponentPageHeader";
 import { ComponentPageInspector } from "../component/ComponentPageInspector";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -25,6 +25,7 @@ import {
   workspaceTemplate,
 } from "../workspaces/componentContext";
 import { useWorkspaces } from "../workspaces/useWorkspaces";
+import { useComponentPageEvidence } from "./useComponentPageEvidence";
 import { Banner } from "../primitives";
 
 type Mode = "fixtures" | "context";
@@ -50,7 +51,18 @@ export function ComponentPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [version, setVersion] = useState("");
-  const bundle = useComponentBundle(id, version || undefined);
+  const [versionAssetId, setVersionAssetId] = useState(id);
+  const selectVersion = useCallback(
+    (next: string) => {
+      setVersion(next);
+      setVersionAssetId(id);
+    },
+    [id],
+  );
+  // A version belongs to the asset that published it. Until the reset effect
+  // runs, a newly routed asset must not ask for the previous asset's version.
+  const effectiveVersion = versionAssetId === id ? version : "";
+  const bundle = useComponentBundle(id, effectiveVersion || undefined);
 
   const [mode, setMode] = useState<Mode>(
     searchParams.get("mode") === "context" ? "context" : "fixtures",
@@ -109,7 +121,7 @@ export function ComponentPage() {
   const asset = bundle.data?.asset;
   const stories = useMemo(() => bundle.data?.stories ?? [], [bundle.data?.stories]);
   const latestVersion = asset ? assetVersion(asset) : "";
-  const activeVersion = version || latestVersion;
+  const activeVersion = effectiveVersion || latestVersion;
   const sourceRevision =
     savedSourceRevision?.version === activeVersion
       ? `${savedSourceRevision.filePath}:${savedSourceRevision.sha256}`
@@ -122,14 +134,31 @@ export function ComponentPage() {
     .filter((entry) => entry.provenance === WorkspaceProvenance.CURATED)
     .map((entry) => ({ id: entry.id, name: entry.name, summary: entry.summary }));
 
+  // Remounting the page on an asset change is the first reset. This effect is
+  // the second: it also protects the page when a host keeps the same instance.
+  const previousAssetId = useRef(id);
+  useEffect(() => {
+    if (previousAssetId.current === id) return;
+    previousAssetId.current = id;
+    selectVersion("");
+    setSelectedStoryId(null);
+    setContextReport(null);
+    setContextSlot(null);
+    setOverrides({});
+    setReloads({});
+    setStatuses({});
+    setSavedSourceRevision(null);
+    setWorkspaceError(null);
+  }, [id, selectVersion]);
+
   useEffect(() => {
     if (!selectedStoryId && stories[0]) setSelectedStoryId(stories[0].id);
   }, [selectedStoryId, stories]);
 
   useEffect(() => {
-    if (!asset || version) return;
-    setVersion(assetVersion(asset));
-  }, [asset, version]);
+    if (!asset || effectiveVersion) return;
+    selectVersion(assetVersion(asset));
+  }, [asset, effectiveVersion, selectVersion]);
 
   const runEvidence = useMutation({
     mutationFn: () =>
@@ -141,35 +170,22 @@ export function ComponentPage() {
     },
   });
 
-  const checks = useMemo(() => {
-    const claims = bundle.data?.experience?.claims ?? [];
-    const evidence = bundle.data?.experience?.evidence ?? [];
-    return claims.map((claim) => {
-      const rows = evidence.filter((row) => row.claimId === claim.id);
-      const verdict = rows[0]?.verdict ?? "unmeasured";
-      return { claim, verdict, checkedAt: rows[0]?.checkedAt };
-    });
-  }, [bundle.data?.experience]);
-
-  const passed = checks.filter((check) => check.verdict === "pass").length;
-  const checkRatio = checks.length === 0 ? 0 : passed / checks.length;
-
-  // State coverage is the one check that comes from the experience contract
-  // rather than from a canvas instrument: a state counts as covered only when
-  // a capture names it.
-  const contextStates = useMemo(() => {
-    const experience = bundle.data?.experience;
-    if (!experience || experience.states.length === 0) return null;
-    const covered = experience.states.filter((state) =>
-      experience.evidence.some((row) => row.stateId === state.id),
-    ).length;
-    return { total: experience.states.length, covered, status: experience.evidenceStatus };
-  }, [bundle.data?.experience]);
-
-  const contextRows = contextReport?.rows ?? [];
-  const contextPassed = contextReport?.passed ?? 0;
-  const contextScored = contextReport?.scored ?? 0;
-  const contextRatio = contextScored === 0 ? 0 : contextPassed / contextScored;
+  const {
+    contextRows,
+    contextStates,
+    evidenceStatus,
+    evidenceNote,
+    fixtureRows,
+    fitSummary,
+    pageIssues,
+    recordFixturePaint,
+    recordFixtureProbe,
+  } = useComponentPageEvidence({
+    mode,
+    selectedStory,
+    contextReport,
+    experience: bundle.data?.experience,
+  });
 
   const updateURL = (next: Record<string, string | undefined>) => {
     const params = new URLSearchParams(searchParams);
@@ -266,10 +282,9 @@ export function ComponentPage() {
         openingWorkspace={openingWorkspace}
         canOpenWorkspace={Boolean(templateWorkspaceQuery.data)}
         runningEvidence={runEvidence.isPending}
-        experience={bundle.data?.experience}
-        checksCount={checks.length}
-        passed={passed}
-        checkRatio={checkRatio}
+        evidenceStatus={evidenceStatus}
+        fitSummary={fitSummary}
+        pageIssues={pageIssues}
         onShare={() => void share()}
         onOpenWorkspace={() => void openComponentWorkspace()}
         onRunEvidence={() => runEvidence.mutate()}
@@ -316,6 +331,8 @@ export function ComponentPage() {
                 [storyId]: (current[storyId] ?? 0) + 1,
               }))
             }
+            onMeasure={recordFixturePaint}
+            onProbe={recordFixtureProbe}
           />
         ) : template ? (
           <InContextStage
@@ -359,10 +376,7 @@ export function ComponentPage() {
           versionsCount={bundle.data?.versions.length ?? 0}
           mode={mode}
           selectedStory={selectedStory}
-          checks={checks}
-          checkRatio={checkRatio}
-          contextRatio={contextRatio}
-          contextScored={contextScored}
+          fixtureRows={fixtureRows}
           contextRows={contextRows}
           contextReport={contextReport}
           inspectorTab={inspectorTab}
@@ -374,6 +388,13 @@ export function ComponentPage() {
           openingWorkspace={openingWorkspace}
           canOpenWorkspace={Boolean(templateWorkspaceQuery.data)}
           onOpenWorkspace={() => void openComponentWorkspace()}
+          evidenceNote={evidenceNote}
+          templateHref={
+            templateWorkspaceQuery.data ? workspacePath(templateWorkspaceQuery.data.id) : undefined
+          }
+          templateName={template?.name}
+          onRunEvidence={() => runEvidence.mutate()}
+          onOpenContext={() => chooseMode("context")}
         />
       </div>
 
@@ -390,7 +411,7 @@ export function ComponentPage() {
             });
           }}
           version={activeVersion}
-          onVersion={setVersion}
+          onVersion={selectVersion}
           onSourceSaved={(savedVersion, filePath, sha256) =>
             setSavedSourceRevision((current) =>
               current?.version === savedVersion &&

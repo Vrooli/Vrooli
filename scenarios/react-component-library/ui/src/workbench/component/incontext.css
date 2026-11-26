@@ -587,6 +587,79 @@
   letter-spacing: 0.04em;
 }
 
+.ic-type-note {
+  margin: 9px 0 0;
+  color: var(--wb-muted-2);
+  font-size: 9.5px;
+  line-height: 1.45;
+}
+
+.ic-check-action,
+.ic-inline-action {
+  justify-self: start;
+  margin-top: 1px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--wb-signal);
+  cursor: pointer;
+  font: 600 9px/1.3 var(--wb-mono);
+  text-decoration: none;
+}
+
+.ic-inline-sep {
+  margin: 0 3px;
+  color: var(--wb-muted-2);
+}
+
+.ic-check-action:hover,
+.ic-inline-action:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ic-secondary {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--wb-line);
+}
+
+.ic-secondary > summary {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--wb-muted);
+  cursor: pointer;
+  font: 600 9.5px/1.35 var(--wb-mono);
+  list-style: none;
+}
+
+.ic-secondary > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ic-secondary > summary::after {
+  content: "+";
+  margin-left: auto;
+  color: var(--wb-muted-2);
+  font: 700 11px/1 var(--wb-mono);
+}
+
+.ic-secondary[open] > summary::after {
+  content: "−";
+}
+
+.ic-secondary-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ic-secondary .ic-check-group:first-of-type {
+  padding-top: 7px;
+}
+
 .ic-checks-note,
 .ic-checks-empty {
   margin: 10px 0 0;

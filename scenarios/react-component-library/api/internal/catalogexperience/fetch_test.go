@@ -34,7 +34,7 @@ func (r *stubReader) Get(_ context.Context, component experience.Component) (exp
 
 func TestFetcherMapsExactVersionEvidence(t *testing.T) {
 	reader := &stubReader{snapshot: experience.Snapshot{
-		EvidenceStatus: "available",
+		EvidenceStatus: "covered",
 		States:         []experience.State{{ID: "ready", ExampleName: "ReadyExample"}},
 		Claims:         []experience.Claim{{ID: "a11y", Type: "accessibility"}, {ID: "floor"}},
 		Evidence: []experience.Evidence{

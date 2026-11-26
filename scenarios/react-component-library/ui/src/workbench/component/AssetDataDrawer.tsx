@@ -9,6 +9,8 @@ import {
   type ComponentBundle,
 } from "../data";
 import { Banner, Chip, Empty, Tabs } from "../primitives";
+import { evidenceStatusCopy, evidenceStatusFor, evidenceStatusTone } from "../experienceSummary";
+import { asVerdict, verdictTone } from "../verdicts";
 import { AssetRelationshipsTab } from "./AssetRelationshipsTab";
 import { AssetTestEvidenceTab } from "./AssetTestEvidenceTab";
 import { SourceWorkbench } from "./SourceWorkbench";
@@ -315,24 +317,24 @@ function ExperienceTab({ bundle }: { bundle: ComponentBundle }) {
       </Empty>
     );
   }
+  const status = evidenceStatusFor(experience);
+  const statusCopy = evidenceStatusCopy(status);
   const verdicts = experience.evidence.reduce<Record<string, number>>((counts, row) => {
-    counts[row.verdict] = (counts[row.verdict] ?? 0) + 1;
+    const verdict = asVerdict(row.verdict);
+    counts[verdict] = (counts[verdict] ?? 0) + 1;
     return counts;
   }, {});
   return (
     <div className="wb-stack">
       <div className="wb-row" style={{ flexWrap: "wrap" }}>
-        <Chip tone={experience.evidenceStatus === "fresh" ? "green" : "amber"}>
-          {experience.evidenceStatus || "unknown"}
+        <Chip tone={evidenceStatusTone(status)}>
+          {t(statusCopy.key, { defaultValue: statusCopy.defaultValue })}
         </Chip>
         <span className="wb-small wb-muted">{experience.evidenceMessage}</span>
       </div>
       <div className="wb-row" style={{ flexWrap: "wrap" }}>
         {Object.entries(verdicts).map(([verdict, count]) => (
-          <Chip
-            key={verdict}
-            tone={verdict === "pass" ? "green" : verdict === "fail" ? "red" : "amber"}
-          >
+          <Chip key={verdict} tone={verdictTone(asVerdict(verdict))}>
             {verdict} · {count}
           </Chip>
         ))}
@@ -340,7 +342,7 @@ function ExperienceTab({ bundle }: { bundle: ComponentBundle }) {
       <div className="wb-stack tight">
         {experience.claims.map((claim) => {
           const evidence = experience.evidence.filter((row) => row.claimId === claim.id);
-          const verdict = evidence[0]?.verdict ?? "unmeasured";
+          const verdict = asVerdict(evidence[0]?.verdict);
           return (
             <div
               key={claim.id}
@@ -353,9 +355,7 @@ function ExperienceTab({ bundle }: { bundle: ComponentBundle }) {
                   {claim.type} · {claim.tier} · {claim.states.join(", ") || "no states"}
                 </small>
               </span>
-              <Chip tone={verdict === "pass" ? "green" : verdict === "fail" ? "red" : "amber"}>
-                {verdict}
-              </Chip>
+              <Chip tone={verdictTone(verdict)}>{verdict}</Chip>
             </div>
           );
         })}

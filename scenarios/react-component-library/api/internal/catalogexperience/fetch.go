@@ -22,8 +22,14 @@ func fetcher(reader experience.Reader) catalogcoverage.ExperienceCaptureFetcher 
 	return func(ctx context.Context, libraryID, version string) ([]catalogcoverage.ExperienceCapture, error) {
 		name := strings.TrimPrefix(strings.TrimSpace(libraryID), "react-component-library:")
 		snapshot, err := reader.Get(ctx, experience.Component{LibraryID: libraryID, Slug: name, Version: version})
-		if err != nil || snapshot.EvidenceStatus != "available" {
+		if err != nil {
 			return nil, err
+		}
+		// Coverage status describes declared-state completeness, not whether
+		// the manager answered. Only a manager that could not read the contract
+		// or the evidence stream is skipped here.
+		if snapshot.EvidenceStatus == "unavailable" || snapshot.EvidenceStatus == "not-configured" {
+			return nil, nil
 		}
 		claimTypes := make(map[string]string, len(snapshot.Claims))
 		for _, claim := range snapshot.Claims {

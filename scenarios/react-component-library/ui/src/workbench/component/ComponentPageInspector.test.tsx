@@ -50,8 +50,6 @@ const chosenSlot = {
 };
 const contextReport: InContextReport = {
   rows: [],
-  passed: 1,
-  scored: 2,
   decision: {
     profile: { kind: "button", kinds: ["button"], size: { w: 140, h: 44 } },
     authoredId: "actions",
@@ -62,10 +60,6 @@ const contextReport: InContextReport = {
   },
   device: "desktop",
   viewport: 1280,
-  status: "ready",
-  instruments: { guides: true, overflow: true, targets: true, contrast: true, blur: false },
-  storyId: story.id,
-  hasStory: true,
 };
 
 function InspectorHarness({ mode = "fixtures" }: { mode?: "fixtures" | "context" }) {
@@ -79,24 +73,32 @@ function InspectorHarness({ mode = "fixtures" }: { mode?: "fixtures" | "context"
         versionsCount={3}
         mode={mode}
         selectedStory={story}
-        checks={[
+        fixtureRows={[
           {
-            claim: { id: "claim", statement: "Supports keyboard input" },
+            id: "size",
+            label: "Size fits its frame",
+            detail: "360 × 283 px measured",
             verdict: "pass",
-            checkedAt: "2026-11-21T12:00:00Z",
+            scored: true,
+            group: "fit",
+          },
+          {
+            id: "type",
+            label: "Type",
+            detail: "Type: Inter 18px · informational.",
+            verdict: "unmeasured",
+            scored: false,
+            group: "info",
           },
         ]}
-        checkRatio={1}
-        contextRatio={0.5}
-        contextScored={2}
         contextRows={[
           {
             id: "readable",
             label: "Readable label",
             detail: "measured at desktop width",
             verdict: "pass",
-            evidence: "measured",
             scored: true,
+            group: "fit",
           },
         ]}
         contextReport={contextReport}
@@ -127,7 +129,8 @@ describe("ComponentPageInspector", () => {
   it("shows fixture checks, edits a selected story, and reports fixture metadata", () => {
     renderWithProviders(<InspectorHarness />);
 
-    expect(document.querySelector(".wb-checkrow")).toHaveTextContent("Supports keyboard input");
+    expect(document.querySelector(".ic-check")).toHaveTextContent("Size fits its frame");
+    expect(document.querySelector(".ic-type-note")).toHaveTextContent("Type: Inter 18px");
     fireEvent.click(screen.getByRole("tab", { name: "Props" }));
     fireEvent.change(screen.getByLabelText(/^disabled$/), { target: { value: "true" } });
     fireEvent.click(screen.getByRole("button", { name: "Apply props" }));

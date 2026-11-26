@@ -117,6 +117,45 @@ describe("FixtureFrame failure path", () => {
     expect(screen.queryByRole("status")).toBeNull();
   });
 
+  it("asks the harness to remeasure after the page theme is applied", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse("<html></html>", 200)));
+    renderWithProviders(
+      <FixtureFrame
+        assetId="asset-1"
+        storyId="default"
+        version="1.0.0"
+        title="Specimen"
+        theme={{
+          id: "template:page",
+          tokens: { "--color-background": "#101010" },
+          resolved: "dark",
+        }}
+        onStatus={vi.fn()}
+      />,
+    );
+
+    const frame = await screen.findByTestId<HTMLIFrameElement>("fixture-iframe");
+    const postMessage = vi.spyOn(frame.contentWindow!, "postMessage");
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: { type: "preview-ready", id: "asset-1", story: "default", version: "1.0.0" },
+          source: frame.contentWindow,
+        }),
+      );
+    });
+
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "rcl-preview-measure",
+        componentId: "asset-1",
+        story: "default",
+        version: "1.0.0",
+      }),
+      "*",
+    );
+  });
+
   it("sends a scoped prop override and reports the harness schema rejection", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse("<html></html>", 200)));
     const onStatus = vi.fn();
@@ -369,5 +408,111 @@ describe("FixtureFrame measurement", () => {
     expect(frame.style.width).toBe("360px");
     expect(frame.style.height).toBe("1200px");
     expect(frame.closest("[data-fixture-frame]")).toHaveStyle({ width: "360px", height: "1200px" });
+  });
+});
+
+describe("FixtureFrame component probe", () => {
+  it("forwards the harness probe with its message", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse("<html></html>", 200)));
+    const onProbe = vi.fn();
+    renderWithProviders(
+      <FixtureFrame
+        assetId="asset-1"
+        storyId="default"
+        version="1.0.0"
+        title="Specimen"
+        onStatus={vi.fn()}
+        onProbe={onProbe}
+      />,
+    );
+
+    const frame = await screen.findByTestId<HTMLIFrameElement>("fixture-iframe");
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: {
+            type: "rcl-story-result",
+            id: "asset-1",
+            story: "default",
+            version: "1.0.0",
+            paintedNodes: 4,
+            renderedX: 0,
+            renderedY: 0,
+            renderedWidth: 40,
+            renderedHeight: 40,
+            probe: {
+              measured: true,
+              targets: { total: 1, small: 1 },
+              typography: null,
+            },
+          },
+          source: frame.contentWindow,
+        }),
+      );
+    });
+
+    expect(onProbe).toHaveBeenCalledWith({
+      measured: true,
+      targets: { total: 1, small: 1 },
+      typography: null,
+    });
+  });
+
+  it("refreshes the probe after the harness remeasures a prop or theme change", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse("<html></html>", 200)));
+    const onProbe = vi.fn();
+    renderWithProviders(
+      <FixtureFrame
+        assetId="asset-1"
+        storyId="default"
+        version="1.0.0"
+        title="Specimen"
+        onStatus={vi.fn()}
+        onProbe={onProbe}
+      />,
+    );
+
+    const frame = await screen.findByTestId<HTMLIFrameElement>("fixture-iframe");
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: {
+            type: "rcl-story-measure",
+            id: "asset-1",
+            story: "default",
+            version: "1.0.0",
+            paintedNodes: 2,
+            renderedX: 0,
+            renderedY: 0,
+            renderedWidth: 44,
+            renderedHeight: 44,
+            probe: {
+              measured: true,
+              targets: { total: 1, small: 0 },
+              typography: {
+                fontFamily: "Inter",
+                fontSize: "16px",
+                color: "rgb(255, 255, 255)",
+                backgroundStack: ["rgba(0, 0, 0, 0)", "rgb(12, 14, 18)"],
+                label: "Save",
+              },
+            },
+          },
+          source: frame.contentWindow,
+        }),
+      );
+    });
+
+    expect(onProbe).toHaveBeenCalledWith({
+      measured: true,
+      targets: { total: 1, small: 0 },
+      typography: {
+        fontFamily: "Inter",
+        fontSize: "16px",
+        color: "rgb(255, 255, 255)",
+        backgroundStack: ["rgba(0, 0, 0, 0)", "rgb(12, 14, 18)"],
+        label: "Save",
+      },
+    });
   });
 });

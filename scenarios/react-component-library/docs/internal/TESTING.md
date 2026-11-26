@@ -34,8 +34,8 @@ Only the specific current-behavior claims mapped below are asserted as checked. 
 | Semantic catalog kind is filtered before truncation | `api/handlers/components/catalog_projection_test.go` |
 | Components preserves kind tabs, search, filters and views | `ui/src/workbench/pages/ComponentsPage.story.json`; served browser sweep in `docs/concepts/WORKBENCH-REDESIGN.md` |
 | Coverage never renders zero while unavailable or preparing; it retries and exposes refresh | `ui/src/workbench/pages/CoveragePage.story.json`; `api/handlers/catalog/report_cache_test.go` |
-| Fixtures drag by pointer and keyboard without activating the specimen | `ui/src/workbench/data.test.ts`; `ui/src/workbench/templates/TemplateRenderer.test.tsx`; served browser sweep |
-| In-context move/resize persists per component and template and resets to the authored slot | `ui/src/workbench/templates/spec.test.ts`; `ui/src/workbench/templates/TemplateRenderer.test.tsx`; served browser sweep |
+| Fixtures group by story role, size to the measured specimen and collapse redundant pins | `ui/src/workbench/component/fixtureBench.test.ts`; `ui/src/workbench/component/FixtureBench.test.tsx` |
+| In-context fills the chosen typed slot, keeps the other slots on their fallbacks and restores when no slot is pinned | `ui/src/workbench/component/InContextStage.test.tsx`; `ui/src/workbench/component/placement.test.ts`; `ui/src/workbench/templates/TemplateRenderer.test.tsx` |
 | The studio edits text, layers and template presentation, and browser-local templates round-trip | `ui/src/workbench/templates/local.test.ts`; `ui/src/workbench/templates/spec.test.ts`; served browser sweep |
 | A browser edit is draft-bound, digest-guarded, checked and published through the authoring RPCs | `ui/src/workbench/component/SourceWorkbench.test.tsx`; Chromium save/check/restore sweep in `WORKBENCH-REDESIGN.md` |
 | Phones can reach the studio layer tree and inspector | `ui/src/workbench/pages.css` bottom-sheet rules; 390/320 Chromium interaction sweep |

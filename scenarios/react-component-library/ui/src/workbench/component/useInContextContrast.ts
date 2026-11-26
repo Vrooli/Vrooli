@@ -3,9 +3,7 @@ import { useCallback, useEffect, useState, type RefObject } from "react";
 import { contrastRatioFromCss, effectiveBackground, pickTextProbe } from "./instruments";
 
 export interface ContrastReading {
-  nodeId: string;
   label: string;
-  foreground: string;
   background: string;
   ratio: number | null;
   rect: { x: number; y: number; w: number; h: number } | null;
@@ -53,9 +51,7 @@ export function useInContextContrast({
       const factor = scale || 1;
       const label = node.textContent.trim().replace(/\s+/g, " ").slice(0, 32);
       setContrast({
-        nodeId: node.dataset.nodeId ?? "",
         label: label || node.dataset.nodeId || "text",
-        foreground: style.color,
         background,
         ratio,
         rect: {

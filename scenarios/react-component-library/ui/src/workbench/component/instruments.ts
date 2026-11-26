@@ -126,24 +126,6 @@ export function isTouchTargetSmall(width: number, height: number, minimum = 44):
   return width < minimum || height < minimum;
 }
 
-export function countSmallTargets(
-  sizes: Array<{ width: number; height: number }>,
-  minimum = 44,
-): number {
-  return sizes.filter((size) => isTouchTargetSmall(size.width, size.height, minimum)).length;
-}
-
-/** WCAG AA for body text. Large text is allowed 3:1; we score the stricter gate. */
-export function contrastVerdict(ratio: number): "pass" | "warn" | "fail" {
-  if (ratio >= 4.5) return "pass";
-  if (ratio >= 3) return "warn";
-  return "fail";
-}
-
-export function formatRatio(ratio: number): string {
-  return `${ratio.toFixed(1)}:1`;
-}
-
 /** Serialises a composited (opaque) colour so it can be logged and shown. */
 export function formatCssColor(color: Rgb): string {
   return `rgb(${clampChannel(color.r)}, ${clampChannel(color.g)}, ${clampChannel(color.b)})`;
@@ -159,28 +141,32 @@ export function formatCssColor(color: Rgb): string {
  * nearest layer first. Null means the stack never reaches an opaque colour:
  * the ratio is unknown, and the caller must report it unmeasured.
  */
+export function effectiveBackgroundFromStack(colors: string[]): string | null {
+  const layers: Rgb[] = [];
+  for (const raw of colors) {
+    const parsed = parseCssColor(raw);
+    if (!parsed) continue;
+    if (parsed.a >= 1) {
+      // `layers` is nearest-first, so fold from the farthest layer down.
+      const composite = layers.reduceRight<Rgb>((base, layer) => compositeOver(layer, base), parsed);
+      return formatCssColor(composite);
+    }
+    if (parsed.a > 0) layers.push(parsed);
+  }
+  return null;
+}
+
 export function effectiveBackground(
   read: (element: Element) => string,
   start: Element | null,
 ): string | null {
-  const layers: Rgb[] = [];
+  const stack: string[] = [];
   let current: Element | null = start;
   while (current) {
-    const parsed = parseCssColor(read(current));
-    if (parsed) {
-      if (parsed.a >= 1) {
-        // `layers` is nearest-first, so fold from the farthest layer down.
-        const composite = layers.reduceRight<Rgb>(
-          (base, layer) => compositeOver(layer, base),
-          parsed,
-        );
-        return formatCssColor(composite);
-      }
-      if (parsed.a > 0) layers.push(parsed);
-    }
+    stack.push(read(current));
     current = current.parentElement;
   }
-  return null;
+  return effectiveBackgroundFromStack(stack);
 }
 
 /**

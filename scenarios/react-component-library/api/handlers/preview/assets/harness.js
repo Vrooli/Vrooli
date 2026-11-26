@@ -62,6 +62,7 @@ window.addEventListener("message", (ev) => {
     }
     try {
       parent.postMessage({ type: "rcl-theme-applied", themeId: data.themeId || "" }, "*");
+      scheduleMeasurement();
     } catch (e) {}
   });
 })();
@@ -375,10 +376,11 @@ const measurePaintedContent = () => {
     document.querySelector("[data-preview-sheet]") || harnessRoot;
   if (!stage) return { paintedNodes: 0, renderedWidth: 0, renderedHeight: 0, renderedX: 0, renderedY: 0 };
   const isChrome = (element) => [...(element.classList || [])].some((name) => name.startsWith("rcl-preview-"));
+  const visuallyHidden = (element) => [...(element.classList || [])].some((name) => /(?:visually-hidden|sr-only)/i.test(name));
   let paintedNodes = 0;
   let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
   for (const element of stage.querySelectorAll("*")) {
-    if (element.hasAttribute("data-preview-readiness-marker") || isChrome(element) || element.closest("[data-preview-readiness-marker]")) continue;
+    if (element.hasAttribute("data-preview-readiness-marker") || isChrome(element) || visuallyHidden(element) || element.closest("[data-preview-readiness-marker]")) continue;
     const style = getComputedStyle(element);
     if (style.display === "none" || style.visibility === "hidden" || Number.parseFloat(style.opacity) === 0) continue;
     const rect = element.getBoundingClientRect();
@@ -400,7 +402,71 @@ const measurePaintedContent = () => {
     renderedY: paintedNodes ? Math.max(0, Math.round(top)) : 0,
   };
 };
+// The workbench renders the component in this iframe, so the page DOM cannot
+// see its controls or text. Report a small, declarative probe instead of
+// guessing from the page: target sizes and the first readable type sample.
+const measureComponentProbe = () => {
+  const activeBoundary = syncPortalCaptureBoundary();
+  const stage = document.querySelector("[data-preview-stage]") ||
+    activeBoundary ||
+    document.querySelector("[data-preview-sheet]") || harnessRoot;
+  if (!stage) return { measured: false, targets: { total: 0, small: 0 }, typography: null };
+  const isChrome = (element) => [...(element.classList || [])].some((name) => name.startsWith("rcl-preview-"));
+  const visuallyHidden = (element) => [...(element.classList || [])].some((name) => /(?:visually-hidden|sr-only)/i.test(name));
+  const visible = (element) => {
+    if (element.closest("[hidden], [aria-hidden='true'], [data-preview-readiness-marker]")) return false;
+    if (visuallyHidden(element)) return false;
+    const style = getComputedStyle(element);
+    if (style.display === "none" || style.visibility === "hidden" || Number.parseFloat(style.opacity) === 0) return false;
+    const rect = element.getBoundingClientRect();
+    return rect.width >= 1 && rect.height >= 1;
+  };
+  let total = 0;
+  let small = 0;
+  const interactive = stage.querySelectorAll("button, a[href], input, select, textarea, [role='button'], [role='link'], [role='tab'], [tabindex='0']");
+  for (const element of interactive) {
+    if (isChrome(element) || element.closest("[data-preview-readiness-marker]") || !visible(element)) continue;
+    const rect = element.getBoundingClientRect();
+    if (rect.width < 1 || rect.height < 1) continue;
+    total += 1;
+    if (rect.width < 44 - 0.5 || rect.height < 44 - 0.5) small += 1;
+  }
+  let typography = null;
+  for (const element of stage.querySelectorAll("*")) {
+    if (isChrome(element) || !visible(element)) continue;
+    if (/^(SCRIPT|STYLE|NOSCRIPT|TEMPLATE)$/.test(element.tagName)) continue;
+    const text = [...element.childNodes]
+      .filter((node) => node.nodeType === 3)
+      .map((node) => node.textContent || "")
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!text) continue;
+    const style = getComputedStyle(element);
+    // A component may be transparent and inherit the harness surface. Walk
+    // past the stage so the ratio is measured against the surface a person
+    // actually sees, not an absent layer inside the component boundary.
+    const backgroundStack = [];
+    let current = element;
+    while (current) {
+      backgroundStack.push(getComputedStyle(current).backgroundColor);
+      if (current === document.documentElement) break;
+      current = current.parentElement;
+    }
+    typography = {
+      fontFamily: style.fontFamily,
+      fontSize: style.fontSize,
+      color: style.color,
+      backgroundStack,
+      label: text.slice(0, 32),
+    };
+    break;
+  }
+  return { measured: true, targets: { total, small }, typography };
+};
+
 const reportStoryResult = (passed, failures, skipped = [], painted = measurePaintedContent(), axeEvidence = null) => {
+  const probe = measureComponentProbe();
   performanceEntries.push(...performance.getEntriesByType("measure").map((entry) => ({ name: entry.name, duration: entry.duration })));
   const result = {
     passed,
@@ -411,6 +477,7 @@ const reportStoryResult = (passed, failures, skipped = [], painted = measurePain
     renderedHeight: painted.renderedHeight || 0,
     renderedX: painted.renderedX || 0,
     renderedY: painted.renderedY || 0,
+    probe,
     performance: {
       mountMs: mountMs || Math.max(0, performance.now() - mountStartedAt),
       commitCount,
@@ -438,6 +505,33 @@ const reportStoryResult = (passed, failures, skipped = [], painted = measurePain
   storyResultEl.hidden = true;
   parent.postMessage({ type: "rcl-story-result", id: __PREVIEW_ID__, story: previewStory.name || "", version: previewStory.version || "", ...result }, "*");
   return result;
+};
+// A specimen can change after the initial story result: props, theme tokens,
+// or a reset. Those paths rerender the iframe without re-running the story
+// assertions, so they need a measurement-only update or the workbench keeps
+// showing the first paint forever.
+const reportMeasurements = () => {
+  const painted = measurePaintedContent();
+  const probe = measureComponentProbe();
+  parent.postMessage({
+    type: "rcl-story-measure",
+    id: __PREVIEW_ID__,
+    story: previewStory.name || "",
+    version: previewStory.version || "",
+    paintedNodes: painted.paintedNodes || 0,
+    renderedWidth: painted.renderedWidth || 0,
+    renderedHeight: painted.renderedHeight || 0,
+    renderedX: painted.renderedX || 0,
+    renderedY: painted.renderedY || 0,
+    probe,
+  }, "*");
+};
+const scheduleMeasurement = () => {
+  if (typeof window.requestAnimationFrame === "function") {
+    window.requestAnimationFrame(() => reportMeasurements());
+    return;
+  }
+  reportMeasurements();
 };
 const createNodeFactory = (React, Icons, log) => {
   const resolve = (value) => {
@@ -715,7 +809,7 @@ try {
       const resolve = createNodeFactory(React, Icons, dispatch);
       return React.createElement("div", { "data-rcl-preview-state": active }, React.createElement(Cmp, resolve({ ...rawProps, bindings })));
     };
-    const renderPreview = (override, environment = previewStory.environment) => {
+    const renderPreviewCore = (override, environment = previewStory.environment) => {
       const safeOverride = override && typeof override === "object" && !Array.isArray(override) ? override : {};
       const rawProps = mergeStoryProps(previewStory.props, safeOverride);
       if (previewStory.name === "composition" && rawProps.bindings?.$preview) {
@@ -776,6 +870,10 @@ try {
         : React.createElement(Cmp, props);
       renderSheet(wrapStandalone(standaloneSubject), "standalone");
     };
+    const renderPreview = (override, environment = previewStory.environment) => {
+      renderPreviewCore(override, environment);
+      scheduleMeasurement();
+    };
     renderPreview({});
     void runStory(previewStory, { document, window }, { queries: testingLibraryDOM, measure: measurePaintedContent, browser: true }).then(async (storyResult) => {
       let axeEvidence = null;
@@ -805,8 +903,12 @@ try {
     });
     window.addEventListener("message", (ev) => {
       const data = ev && ev.data;
-      if (!data || (data.type !== "rcl-preview-props-override" && data.type !== "rcl-preview-props-reset")) return;
+      if (!data || (data.type !== "rcl-preview-props-override" && data.type !== "rcl-preview-props-reset" && data.type !== "rcl-preview-measure")) return;
       if (data.componentId !== __PREVIEW_ID__ || (data.story || "") !== (previewStory.name || "") || (data.version || "") !== (previewStory.version || "")) return;
+      if (data.type === "rcl-preview-measure") {
+        reportMeasurements();
+        return;
+      }
       if (data.type === "rcl-preview-props-override") {
         const override = data.props;
         if (!override || typeof override !== "object" || Array.isArray(override)) {

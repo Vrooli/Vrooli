@@ -62,7 +62,7 @@ function stage(overrides: { story?: WorkbenchStory; device?: "desktop" | "phone"
       slotChoice={null}
       onSlotChoice={vi.fn()}
       onReport={vi.fn()}
-      states={{ total: 3, covered: 3, status: "fresh" }}
+      states={{ total: 3, covered: 3, status: "covered" }}
     />
   );
 }

@@ -1,3 +1,4 @@
+import type { Verdict } from "../verdicts";
 import { overflowAt } from "./instruments";
 import type { SlotBox, SlotRoleMatch } from "./placement";
 import { REFERENCE_WIDTHS } from "./viewports";
@@ -9,21 +10,17 @@ import { REFERENCE_WIDTHS } from "./viewports";
  * showing a pass.
  */
 
-export type ContextVerdict = "pass" | "fail" | "warn" | "unmeasured";
-
-export type CheckEvidence = "measured" | "declared" | "none";
-
 /** Component fit is separate from the page's own health. */
-export type ContextCheckGroup = "fit" | "page" | "evidence" | "human";
+export type ContextCheckGroup = "fit" | "page" | "evidence" | "human" | "info";
 
 export interface ContextCheckRow {
   id: string;
   label: string;
   detail: string;
-  verdict: ContextVerdict;
-  evidence: CheckEvidence;
+  verdict: Verdict;
   /** Squint is a human instrument and is excluded from the pass ratio. */
   scored: boolean;
+  /** Assigned once at the end of building; absent means component fit. */
   group?: ContextCheckGroup;
 }
 
@@ -32,7 +29,7 @@ const GROUP_BY_ID: Record<string, ContextCheckGroup> = {
   touch: "fit",
   contrast: "fit",
   overflow: "page",
-  type: "page",
+  type: "info",
   safeArea: "page",
   states: "evidence",
   squint: "human",
@@ -58,16 +55,22 @@ export interface ContextFacts {
    */
   overflow: Array<{ width: number; overflow: boolean; scrollWidth?: number }>;
   /** Null until the live slot's computed styles have been read. */
-  type: { inherited: boolean; fontFamily: string; fontSize: string } | null;
+  type: { fontFamily: string; fontSize: string } | null;
   touch: { on: boolean; small: number; total: number } | null;
   contrast: {
     on: boolean;
     ratio: number | null;
     label: string;
-    foreground: string;
     background: string;
   };
-  states: { total: number; covered: number; status: string } | null;
+  states: {
+    total: number;
+    covered: number;
+    status: string;
+    captures?: number;
+    latest?: string;
+    message?: string;
+  } | null;
   safeArea: {
     on: boolean;
     /** Offset of the first page content from the frame top. */
@@ -83,8 +86,11 @@ export interface ContextFacts {
 
 export type Translate = (key: string, options?: Record<string, unknown>) => string;
 
-const UNKNOWN_ROLE = "—";
 const UNKNOWN_SIZE = "—";
+
+function shortFontFamily(value: string): string {
+  return value.split(",")[0]?.replace(/["']/g, "").trim() || value;
+}
 
 function isRatioPlausible(ratio: number | null): ratio is number {
   return ratio !== null && Number.isFinite(ratio) && ratio >= 1 && ratio <= 21;
@@ -108,6 +114,132 @@ function overflowOf(row: { width: number; overflow: boolean; scrollWidth?: numbe
   return overflowAt(row.width, row.scrollWidth);
 }
 
+export interface TouchReading {
+  /** False when the instrument is off or the frame has not reported yet. */
+  on: boolean;
+  total: number;
+  small: number;
+  /** The frame is still painting, so the absence of a scan is not a finding. */
+  pending?: boolean;
+}
+
+/** One touch-target row for both tabs. */
+export function buildTouchRow(t: Translate, reading: TouchReading): ContextCheckRow {
+  const plausible =
+    reading.on &&
+    reading.total > 0 &&
+    Number.isFinite(reading.small) &&
+    reading.small >= 0 &&
+    reading.small <= reading.total;
+  return {
+    id: "touch",
+    label: t("workbench.component.ctxCheckTouch", { defaultValue: "Touch targets ≥ 44 px" }),
+    detail: !reading.on
+      ? reading.pending
+        ? t("workbench.component.fixtureCheckMeasuring", { defaultValue: "Measuring this frame…" })
+        : t("workbench.component.ctxCheckTouchOff", {
+            defaultValue: "Turn on Targets to outline every interactive element.",
+          })
+      : reading.total === 0
+        ? t("workbench.component.ctxCheckTouchNone", {
+            defaultValue: "No interactive elements.",
+          })
+        : !plausible
+          ? t("workbench.component.ctxCheckTouchInvalid", {
+              defaultValue: "The target scan was inconsistent, so it was not scored.",
+            })
+          : t("workbench.component.ctxCheckTouchDetail", {
+              defaultValue: "{{small}} of {{total}} interactive elements are under 44 px",
+              small: reading.small,
+              total: reading.total,
+            }),
+    verdict: !plausible ? "unmeasured" : reading.small > 0 ? "warn" : "pass",
+    scored: true,
+    group: "fit",
+  };
+}
+
+export interface ContrastReading {
+  /** False when the instrument is off or the frame has not reported yet. */
+  on: boolean;
+  ratio: number | null;
+  label: string;
+  /** Empty or absent means the background could not be resolved. */
+  background?: string;
+  /** There is no readable text to measure; that is not a failed contrast. */
+  noText?: boolean;
+  pending?: boolean;
+}
+
+/** One contrast row for both tabs. */
+export function buildContrastRow(t: Translate, reading: ContrastReading): ContextCheckRow {
+  const ratio = isRatioPlausible(reading.ratio) ? reading.ratio : null;
+  const backgroundKnown = reading.background === undefined || reading.background.length > 0;
+  let verdict: Verdict = "unmeasured";
+  if (reading.on && ratio !== null && backgroundKnown) {
+    verdict = ratio >= 4.5 ? "pass" : ratio >= 3 ? "warn" : "fail";
+  }
+  return {
+    id: "contrast",
+    label: t("workbench.component.ctxCheckContrast", { defaultValue: "Text contrast" }),
+    detail: !reading.on
+      ? reading.pending
+        ? t("workbench.component.fixtureCheckMeasuring", { defaultValue: "Measuring this frame…" })
+        : t("workbench.component.ctxCheckContrastOff", {
+            defaultValue: "Turn on Contrast, then pick a text node.",
+          })
+      : reading.noText
+        ? t("workbench.component.ctxCheckContrastNoText", {
+            defaultValue:
+              "No readable text in this story, so there is no text contrast to measure.",
+          })
+        : ratio === null
+          ? t("workbench.component.ctxCheckContrastPick", {
+              defaultValue: "Pick a text node inside the frame.",
+            })
+          : t("workbench.component.ctxCheckContrastDetail", {
+              defaultValue: "{{ratio}}:1 · {{label}}",
+              ratio: ratio.toFixed(1),
+              label: reading.label,
+            }),
+    verdict,
+    scored: true,
+    group: "fit",
+  };
+}
+
+export interface TypeReading {
+  measured: boolean;
+  typography: { fontFamily: string; fontSize: string } | null;
+  pending?: boolean;
+}
+
+/** Type is context, not a defect, so it is always an informational footnote. */
+export function buildTypeNote(t: Translate, reading: TypeReading): ContextCheckRow {
+  return {
+    id: "type",
+    label: t("workbench.component.ctxCheckType", { defaultValue: "Inherits page type" }),
+    detail: !reading.measured
+      ? reading.pending
+        ? t("workbench.component.fixtureCheckMeasuring", { defaultValue: "Measuring this frame…" })
+        : t("workbench.component.ctxCheckTypePending", {
+            defaultValue: "Reading the slot's computed styles…",
+          })
+      : !reading.typography
+        ? t("workbench.component.ctxCheckTypeNone", {
+            defaultValue: "Type: no readable text in this story.",
+          })
+        : t("workbench.component.ctxCheckTypeNote", {
+            defaultValue: "Type: {{font}} {{size}} · informational.",
+            font: shortFontFamily(reading.typography.fontFamily),
+            size: reading.typography.fontSize,
+          }),
+    verdict: "unmeasured",
+    scored: false,
+    group: "info",
+  };
+}
+
 export function buildContextChecks(facts: ContextFacts, t: Translate): ContextCheckRow[] {
   const rows: ContextCheckRow[] = [];
   const openRole = t("workbench.component.ctxRoleOpen", { defaultValue: "open" });
@@ -124,7 +256,6 @@ export function buildContextChecks(facts: ContextFacts, t: Translate): ContextCh
         defaultValue: "This page declares no component slot, so nothing was placed.",
       }),
       verdict: "fail",
-      evidence: "declared",
       scored: true,
     });
   } else {
@@ -139,8 +270,7 @@ export function buildContextChecks(facts: ContextFacts, t: Translate): ContextCh
         })
       : facts.slot.roleMatch === "exact"
         ? t("workbench.component.ctxCheckSlotOk", {
-            defaultValue:
-              "{{role}} slot names {{kind}} · {{size}} fits {{slotWidth}} px",
+            defaultValue: "{{role}} slot names {{kind}} · {{size}} fits {{slotWidth}} px",
             role: facts.slot.role ?? openRole,
             kind: facts.component.kind,
             size,
@@ -148,12 +278,9 @@ export function buildContextChecks(facts: ContextFacts, t: Translate): ContextCh
           })
         : facts.slot.roleMatch === "accepted"
           ? t("workbench.component.ctxCheckSlotAccepted", {
-              defaultValue:
-                "{{role}} slot accepts {{kind}} by kind · {{size}} fits {{slotWidth}} px, but the role is not exact.",
+              defaultValue: "Slot role is {{role}}; it accepts {{kind}} by kind.",
               role: facts.slot.role ?? openRole,
               kind: facts.component.kind,
-              size,
-              slotWidth: facts.slot.box.w,
             })
           : facts.slot.roleMatch === "family"
             ? t("workbench.component.ctxCheckSlotFamily", {
@@ -183,14 +310,12 @@ export function buildContextChecks(facts: ContextFacts, t: Translate): ContextCh
       id: "slot",
       label: t("workbench.component.ctxCheckSlot", { defaultValue: "Slot accepts this component" }),
       detail,
-      verdict:
-        !declared
-          ? "warn"
-          : facts.slot.compatible &&
-              (facts.slot.roleMatch === "exact" || facts.slot.roleMatch === "family")
-            ? "pass"
-            : "warn",
-      evidence: "declared",
+      verdict: !declared
+        ? "warn"
+        : facts.slot.compatible &&
+            (facts.slot.roleMatch === "exact" || facts.slot.roleMatch === "family")
+          ? "pass"
+          : "warn",
       scored: true,
     });
   }
@@ -205,7 +330,6 @@ export function buildContextChecks(facts: ContextFacts, t: Translate): ContextCh
       Boolean(row) && isMeasurableOverflow(row as { width: number; scrollWidth?: number }),
   );
   const offenders = measured.filter((row) => overflowOf(row));
-  const overflowEvidence = measured.length === 0 ? "none" : "measured";
   rows.push({
     id: "overflow",
     label: t("workbench.component.ctxCheckOverflow", { defaultValue: "No horizontal overflow" }),
@@ -222,107 +346,44 @@ export function buildContextChecks(facts: ContextFacts, t: Translate): ContextCh
               .join(" · "),
           }),
     verdict:
-      measured.length < REFERENCE_WIDTHS.length ? "unmeasured" : offenders.length > 0 ? "fail" : "pass",
-    evidence: overflowEvidence,
+      measured.length < REFERENCE_WIDTHS.length
+        ? "unmeasured"
+        : offenders.length > 0
+          ? "fail"
+          : "pass",
     scored: true,
   });
 
-  // 3 · inherits page type. The reading must carry a real family and size; the
-  // placeholder dash means the styles were not readable.
+  // 3 · type is context, not a defect. The reading must carry a real family and
+  // size; the placeholder dash means the styles were not readable.
   const typeReadable =
     facts.type !== null &&
     facts.type.fontFamily.length > 0 &&
     facts.type.fontFamily !== UNKNOWN_SIZE &&
     facts.type.fontSize.length > 0 &&
     facts.type.fontSize !== UNKNOWN_SIZE;
-  rows.push({
-    id: "type",
-    label: t("workbench.component.ctxCheckType", { defaultValue: "Inherits page type" }),
-    detail: typeReadable
-      ? t("workbench.component.ctxCheckTypeDetail", {
-          defaultValue: "Slot computes {{font}} at {{size}} inside the page",
-          font: facts.type?.fontFamily ?? UNKNOWN_ROLE,
-          size: facts.type?.fontSize ?? UNKNOWN_SIZE,
-        })
-      : t("workbench.component.ctxCheckTypePending", {
-          defaultValue: "Reading the slot's computed styles…",
-        }),
-    verdict: !typeReadable ? "unmeasured" : facts.type?.inherited ? "pass" : "warn",
-    evidence: typeReadable ? "measured" : "none",
-    scored: true,
-  });
+  rows.push(
+    buildTypeNote(t, {
+      measured: facts.type !== null,
+      typography: typeReadable && facts.type ? facts.type : null,
+    }),
+  );
 
-  // 4 · touch targets, measured by the Targets instrument. A scan that found no
-  // interactive element proves nothing, and a count larger than its own total
-  // is not a measurement.
-  const touchSmall = facts.touch?.small ?? 0;
-  const touchPlausible =
-    facts.touch !== null &&
-    facts.touch.on &&
-    facts.touch.total > 0 &&
-    Number.isFinite(facts.touch.small) &&
-    facts.touch.small >= 0 &&
-    facts.touch.small <= facts.touch.total;
-  rows.push({
-    id: "touch",
-    label: t("workbench.component.ctxCheckTouch", { defaultValue: "Touch targets ≥ 44 px" }),
-    detail: !facts.touch || !facts.touch.on
-      ? t("workbench.component.ctxCheckTouchOff", {
-          defaultValue: "Turn on Targets to outline every interactive element.",
-        })
-      : facts.touch.total === 0
-        ? t("workbench.component.ctxCheckTouchNone", {
-            defaultValue: "No interactive elements were found, so nothing was measured.",
-          })
-        : !touchPlausible
-          ? t("workbench.component.ctxCheckTouchInvalid", {
-              defaultValue: "The target scan was inconsistent, so it was not scored.",
-            })
-          : t("workbench.component.ctxCheckTouchDetail", {
-              defaultValue: "{{small}} of {{total}} interactive elements are under 44 px",
-              small: facts.touch.small,
-              total: facts.touch.total,
-            }),
-    verdict: !touchPlausible ? "unmeasured" : touchSmall > 0 ? "warn" : "pass",
-    evidence: touchPlausible ? "measured" : "none",
-    scored: true,
-  });
+  // 4 · touch targets. A scan that found no interactive element proves
+  // nothing, and a count larger than its own total is not a measurement.
+  rows.push(buildTouchRow(t, facts.touch ?? { on: false, total: 0, small: 0 }));
 
   // 5 · contrast probe. A ratio is only a measurement when both colours were
   // readable and the result is inside the WCAG range.
-  const contrastPlausible =
-    facts.contrast.on &&
-    isRatioPlausible(facts.contrast.ratio) &&
-    facts.contrast.background.length > 0;
-  const contrastRatio = isRatioPlausible(facts.contrast.ratio) ? facts.contrast.ratio : null;
-  rows.push({
-    id: "contrast",
-    label: t("workbench.component.ctxCheckContrast", { defaultValue: "Text contrast" }),
-    detail: !facts.contrast.on
-      ? t("workbench.component.ctxCheckContrastOff", {
-          defaultValue: "Turn on Contrast, then pick a text node.",
-        })
-      : !contrastPlausible
-        ? t("workbench.component.ctxCheckContrastPick", {
-            defaultValue: "Pick a text node inside the frame.",
-          })
-        : t("workbench.component.ctxCheckContrastDetail", {
-            defaultValue: "{{ratio}}:1 · {{label}} on {{background}}",
-            ratio: (contrastRatio ?? 0).toFixed(1),
-            label: facts.contrast.label,
-            background: facts.contrast.background,
-          }),
-    verdict:
-      !contrastPlausible || contrastRatio === null
-        ? "unmeasured"
-        : contrastRatio >= 4.5
-          ? "pass"
-          : contrastRatio >= 3
-            ? "warn"
-            : "fail",
-    evidence: contrastPlausible ? "measured" : "none",
-    scored: true,
-  });
+  rows.push(
+    buildContrastRow(t, {
+      on: facts.contrast.on,
+      ratio: facts.contrast.ratio,
+      label: facts.contrast.label,
+      background: facts.contrast.background,
+      noText: facts.type !== null && !typeReadable,
+    }),
+  );
 
   // 6 · state coverage from experience evidence.
   const statesPlausible =
@@ -332,44 +393,68 @@ export function buildContextChecks(facts: ContextFacts, t: Translate): ContextCh
     facts.states.covered >= 0 &&
     facts.states.covered <= facts.states.total &&
     facts.states.covered > 0;
+  const captureNote =
+    facts.states?.captures && facts.states.captures > 0
+      ? t("workbench.component.ctxCheckStatesCaptures", {
+          defaultValue: "Capture records: {{count}}{{latest}}",
+          count: facts.states.captures,
+          latest: facts.states.latest
+            ? t("workbench.component.ctxCheckStatesLatest", {
+                defaultValue: " · last {{date}}",
+                date: facts.states.latest.slice(0, 10),
+              })
+            : "",
+        })
+      : "";
+  const captureMessage = (facts.states?.message ?? "").trim();
   if (!facts.states || facts.states.total === 0) {
     rows.push({
       id: "states",
-      label: t("workbench.component.ctxCheckStates", { defaultValue: "Declared states are covered" }),
+      label: t("workbench.component.ctxCheckStates", {
+        defaultValue: "Declared states are covered",
+      }),
       detail: t("workbench.component.ctxCheckStatesNone", {
         defaultValue: "No experience contract declares states for this asset.",
       }),
       verdict: "unmeasured",
-      evidence: "none",
       scored: true,
     });
   } else if (!statesPlausible) {
     rows.push({
       id: "states",
-      label: t("workbench.component.ctxCheckStates", { defaultValue: "Declared states are covered" }),
-      detail: t("workbench.component.ctxCheckStatesNoEvidence", {
-        defaultValue: "The contract declares {{total}} states but no capture names them.",
-        total: facts.states.total,
-      }),
+      label:
+        facts.states.status === "unavailable"
+          ? t("workbench.component.ctxCheckStatesUnavailable", {
+              defaultValue: "Capture unavailable",
+            })
+          : t("workbench.component.ctxCheckStatesNoPass", {
+              defaultValue: "No passing capture",
+            }),
+      detail: captureNote
+        ? captureMessage
+          ? `${captureNote} · ${captureMessage}`
+          : captureNote
+        : t("workbench.component.ctxCheckStatesNoEvidence", {
+            defaultValue: "The contract declares {{total}} states but no capture names them.",
+            total: facts.states.total,
+          }),
       verdict: "unmeasured",
-      evidence: "none",
       scored: true,
     });
   } else {
     rows.push({
       id: "states",
-      label: t("workbench.component.ctxCheckStates", { defaultValue: "Declared states are covered" }),
+      label: t("workbench.component.ctxCheckStates", {
+        defaultValue: "Declared states are covered",
+      }),
       detail: t("workbench.component.ctxCheckStatesDetail", {
-        defaultValue: "{{covered}}/{{total}} states have evidence · {{status}}",
+        defaultValue: "{{covered}}/{{total}} declared states have a passing capture.",
         covered: facts.states.covered,
         total: facts.states.total,
-        status: facts.states.status,
       }),
-      verdict:
-        facts.states.covered === facts.states.total && facts.states.status === "fresh"
-          ? "pass"
-          : "warn",
-      evidence: "measured",
+      // Complete coverage is a pass. Freshness is a separate question, and the
+      // old "fresh" branch could never run because no producer emitted it.
+      verdict: facts.states.covered === facts.states.total ? "pass" : "warn",
       scored: true,
     });
   }
@@ -386,29 +471,30 @@ export function buildContextChecks(facts: ContextFacts, t: Translate): ContextCh
     Number.isFinite(safe.gap) &&
     Number.isFinite(safe.safeTop) &&
     Number.isFinite(safe.safeBottom);
-  const safeOk =
-    safe !== null && safe.top >= safe.safeTop - 1 && safe.gap >= safe.safeBottom - 1;
+  const safeOk = safe !== null && safe.top >= safe.safeTop - 1 && safe.gap >= safe.safeBottom - 1;
   rows.push({
     id: "safeArea",
-    label: t("workbench.component.ctxCheckSafeArea", { defaultValue: "Content respects the safe area" }),
-    detail: !safe || !safe.on
-      ? t("workbench.component.ctxCheckSafeAreaOff", {
-          defaultValue: "Turn on Guides to measure the safe area and thumb zone.",
-        })
-      : !safePlausible
-        ? t("workbench.component.ctxCheckSafeAreaInvalid", {
-            defaultValue: "The safe-area reading was incomplete, so it was not scored.",
+    label: t("workbench.component.ctxCheckSafeArea", {
+      defaultValue: "Content respects the safe area",
+    }),
+    detail:
+      !safe || !safe.on
+        ? t("workbench.component.ctxCheckSafeAreaOff", {
+            defaultValue: "Turn on Guides to measure the safe area and thumb zone.",
           })
-        : t("workbench.component.ctxCheckSafeAreaDetail", {
-            defaultValue:
-              "Content starts {{top}} px (safe {{safeTop}}) · {{gap}} px inset above the edge (safe {{safeBottom}})",
-            top: Math.round(safe.top),
-            safeTop: Math.round(safe.safeTop),
-            gap: Math.round(safe.gap),
-            safeBottom: Math.round(safe.safeBottom),
-          }),
+        : !safePlausible
+          ? t("workbench.component.ctxCheckSafeAreaInvalid", {
+              defaultValue: "The safe-area reading was incomplete, so it was not scored.",
+            })
+          : t("workbench.component.ctxCheckSafeAreaDetail", {
+              defaultValue:
+                "Content starts {{top}} px (safe {{safeTop}}) · {{gap}} px inset above the edge (safe {{safeBottom}})",
+              top: Math.round(safe.top),
+              safeTop: Math.round(safe.safeTop),
+              gap: Math.round(safe.gap),
+              safeBottom: Math.round(safe.safeBottom),
+            }),
     verdict: !safePlausible ? "unmeasured" : safeOk ? "pass" : "warn",
-    evidence: safePlausible ? "measured" : "none",
     scored: true,
   });
 
@@ -424,10 +510,10 @@ export function buildContextChecks(facts: ContextFacts, t: Translate): ContextCh
             "Blur is applied. Judging hierarchy by eye is the point; nothing is measured or scored.",
         })
       : t("workbench.component.ctxCheckSquintOff", {
-          defaultValue: "Turn on Blur to check hierarchy at a distance. Nothing is measured or scored.",
+          defaultValue:
+            "Turn on Blur to check hierarchy at a distance. Nothing is measured or scored.",
         }),
     verdict: "unmeasured",
-    evidence: "none",
     scored: false,
   });
 
@@ -435,10 +521,29 @@ export function buildContextChecks(facts: ContextFacts, t: Translate): ContextCh
   return rows;
 }
 
-export function scoredRows(rows: ContextCheckRow[]): ContextCheckRow[] {
-  return rows.filter((row) => row.scored);
+export interface CheckSummary {
+  pass: number;
+  warn: number;
+  fail: number;
+  unmeasured: number;
+  /** Page rows that need attention. Zero for the component-fit summary. */
+  pageIssues: number;
 }
 
-export function countPassed(rows: ContextCheckRow[]): number {
-  return scoredRows(rows).filter((row) => row.verdict === "pass").length;
+/** Counts one scope. Info and human rows are never part of the fit summary. */
+export function summarizeCheckRows(
+  rows: ContextCheckRow[],
+  group: ContextCheckGroup = "fit",
+): CheckSummary {
+  const scoped = rows.filter((row) => (row.group ?? "fit") === group && row.scored);
+  return {
+    pass: scoped.filter((row) => row.verdict === "pass").length,
+    warn: scoped.filter((row) => row.verdict === "warn").length,
+    fail: scoped.filter((row) => row.verdict === "fail").length,
+    unmeasured: scoped.filter((row) => row.verdict === "unmeasured").length,
+    pageIssues:
+      group === "page"
+        ? scoped.filter((row) => row.verdict === "fail" || row.verdict === "warn").length
+        : 0,
+  };
 }

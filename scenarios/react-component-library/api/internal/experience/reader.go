@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 	"unicode"
@@ -116,12 +117,52 @@ func (r *reader) Get(ctx context.Context, component Component) (Snapshot, error)
 		out.EvidenceMessage = "Experience Manager could not return evidence; declared behavior is shown without a live verdict."
 		return out, nil
 	}
-	out.Evidence = evidence
-	out.EvidenceStatus = "available"
+	out.Evidence = normalizeEvidence(evidence, out.Claims)
+	out.EvidenceStatus = coverageStatus(out.States, out.Evidence)
 	if len(out.Evidence) == 0 {
 		out.EvidenceMessage = "No reconciliation capture has been recorded yet."
+	} else if message := firstEvidenceMessage(out.Evidence); message != "" {
+		out.EvidenceMessage = message
 	}
 	return out, nil
+}
+
+// coverageStatus is the one evidence status the workbench can trust. It is
+// derived from declared states, not from the transport: a reachable Experience
+// Manager with failing or skipped captures is not "available" coverage.
+func coverageStatus(states []State, evidence []Evidence) string {
+	if len(states) == 0 {
+		return "unmeasured"
+	}
+	passed := make(map[string]bool, len(evidence))
+	for _, row := range evidence {
+		if Verdict(row.Verdict) == "pass" && row.StateID != "" {
+			passed[row.StateID] = true
+		}
+	}
+	covered := 0
+	for _, state := range states {
+		if passed[state.ID] {
+			covered++
+		}
+	}
+	switch {
+	case covered == len(states):
+		return "covered"
+	case covered > 0:
+		return "partial"
+	default:
+		return "unmeasured"
+	}
+}
+
+func firstEvidenceMessage(evidence []Evidence) string {
+	for _, row := range evidence {
+		if strings.TrimSpace(row.Message) != "" {
+			return strings.TrimSpace(row.Message)
+		}
+	}
+	return ""
 }
 
 // readVersionContract resolves only an exact component version. Scenario-level
@@ -159,6 +200,101 @@ func (r *reader) readVersionContract(component Component) ([]byte, error) {
 	return nil, os.ErrNotExist
 }
 
+// Verdict is the RCL display vocabulary. Experience Manager records evidence
+// as passed/failed/skipped, while the workbench and the component test reports
+// use pass/fail/warn/unmeasured. One projection, one vocabulary.
+func Verdict(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "pass", "passed", "ok", "success":
+		return "pass"
+	case "warn", "warned", "warning":
+		return "warn"
+	case "fail", "failed", "error":
+		return "fail"
+	default:
+		return "unmeasured"
+	}
+}
+
+// normalizeEvidence reduces a component's raw capture rows to one verdict per
+// declared claim and state, newest capture first.
+//
+// Experience Manager returns every viewport, every floor claim and every
+// historical sweep for a component. The contract is the authority for which
+// claims belong to the component, and a workbench row can only show one verdict
+// per claim. Keeping the raw stream made a skipped capture look like state
+// coverage and repeated the same verdict dozens of times.
+func normalizeEvidence(raw []Evidence, claims []Claim) []Evidence {
+	declared := make(map[string]map[string]struct{}, len(claims))
+	for _, claim := range claims {
+		states := make(map[string]struct{}, len(claim.States))
+		for _, state := range claim.States {
+			states[state] = struct{}{}
+		}
+		declared[claim.ID] = states
+	}
+	type key struct{ claim, state string }
+	latest := make(map[key]Evidence, len(raw))
+	order := make([]key, 0, len(raw))
+	for _, row := range raw {
+		if len(declared) > 0 {
+			states, ok := declared[row.ClaimID]
+			if !ok {
+				continue
+			}
+			// An empty state applies to the claim as a whole; a named state
+			// must be one the contract declares. Older sweeps can carry a
+			// renamed state that no longer belongs to this contract.
+			if row.StateID != "" {
+				if _, ok := states[row.StateID]; !ok && len(states) > 0 {
+					continue
+				}
+			}
+		}
+		k := key{row.ClaimID, row.StateID}
+		previous, seen := latest[k]
+		if !seen {
+			order = append(order, k)
+			latest[k] = row
+			continue
+		}
+		if newerEvidence(row, previous) {
+			latest[k] = row
+		}
+	}
+	out := make([]Evidence, 0, len(order))
+	for _, k := range order {
+		out = append(out, latest[k])
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		return out[i].CheckedAt > out[j].CheckedAt
+	})
+	for i := range out {
+		out[i].Verdict = Verdict(out[i].Verdict)
+	}
+	return out
+}
+
+func newerEvidence(next, previous Evidence) bool {
+	if next.CheckedAt != previous.CheckedAt {
+		return next.CheckedAt > previous.CheckedAt
+	}
+	return verdictStrength(next.Verdict) > verdictStrength(previous.Verdict)
+}
+
+func verdictStrength(raw string) int {
+	switch Verdict(raw) {
+	case "fail":
+		return 3
+	case "warn":
+		return 2
+	case "pass":
+		return 1
+	default:
+		return 0
+	}
+}
+
 func (r *reader) evidence(ctx context.Context, componentID string) ([]Evidence, error) {
 	if r.listEvidence != nil {
 		return r.listEvidence(ctx, componentID)
@@ -168,7 +304,7 @@ func (r *reader) evidence(ctx context.Context, componentID string) ([]Evidence, 
 		return nil, err
 	}
 	client := contractconnect.NewStudioSessionServiceClient(r.client, base)
-	response, err := client.ListEvidence(ctx, connect.NewRequest(&contractv1.ListEvidenceRequest{Scenario: "react-component-library", Component: componentID, Limit: 100}))
+	response, err := client.ListEvidence(ctx, connect.NewRequest(&contractv1.ListEvidenceRequest{Scenario: "react-component-library", Component: componentID, Limit: 500}))
 	if err != nil {
 		return nil, err
 	}

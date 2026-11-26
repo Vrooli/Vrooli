@@ -60,14 +60,16 @@ restate literals or retune them incidentally during a migration.
 
 The redesign adds two canvases. These are design intent, not current behavior. See [WORKBENCH-REDESIGN.md](WORKBENCH-REDESIGN.md#component-workspace-details).
 
-### Fixtures canvas
+### Fixtures bench (supersedes the freeform canvas)
 
-- **Drag from the fixture header, not the specimen.** Pressing the rendered component is a separate intent; a drag started on the specimen must not move the card or suppress the component's activation.
-- Use `useDrag` for free two-dimensional placement after `axisSlop`. The card stays inside the canvas; no drop action, no destructive reorder.
-- A short press selects; a drag moves. Click suppression expires at the next pointerdown so the component remains activatable after a drag.
-- Keyboard alternative: a focused fixture can be moved by arrow keys or a visible “Move” menu. Every drag outcome has a non-pointer path.
-- Canvas pan/zoom is optional and never required to reach a fixture. A “Fit” control restores all fixtures.
-- Touch scrolling is preserved outside the drag handle; the inspector becomes a sheet on phone.
+The component page no longer places fixtures on a free canvas. Fixtures are a
+role-grouped specimen bench: each frame is measured and drawn at its own size,
+redundant pins are collapsed behind a disclosure, and selecting a frame changes
+the inspector rather than its position. There is no drag gesture to preserve.
+
+Freeform fixture placement was removed with `FixtureCanvas` and
+`useFixturePositions`; do not reintroduce a canvas gesture without a new design
+decision.
 
 ### In-context canvas
 

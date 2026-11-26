@@ -7,6 +7,7 @@ import type { Template } from "../templates/spec";
 import { DeviceFrame } from "./DeviceFrame";
 import { FixtureFrame, type FixtureStatus } from "./FixtureFrame";
 import type { FixturePaint } from "./fixtureBench";
+import type { ComponentProbe } from "./componentProbe";
 import type { PlacementDecision } from "./placement";
 import { REFERENCE_WIDTHS, type DeviceKind, type ViewportPreset } from "./viewports";
 
@@ -62,6 +63,7 @@ interface InContextCanvasProps {
   probeRef: RefObject<HTMLDivElement>;
   onStatus: (status: FixtureStatus) => void;
   onMeasure?: (paint: FixturePaint) => void;
+  onProbe?: (probe: ComponentProbe) => void;
   onReload: () => void;
 }
 
@@ -92,6 +94,7 @@ export function InContextCanvas({
   probeRef,
   onStatus,
   onMeasure,
+  onProbe,
   onReload,
 }: InContextCanvasProps) {
   const { t } = useTranslation();
@@ -158,6 +161,7 @@ export function InContextCanvas({
                       })}
                       onStatus={onStatus}
                       onMeasure={onMeasure}
+                      onProbe={onProbe}
                       onRetry={onReload}
                     />
                   </div>

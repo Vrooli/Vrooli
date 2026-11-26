@@ -56,9 +56,9 @@ function renderHeader(overrides: Partial<Parameters<typeof ComponentPageHeader>[
     openingWorkspace: false,
     canOpenWorkspace: true,
     runningEvidence: false,
-    checksCount: 2,
-    passed: 2,
-    checkRatio: 1,
+    evidenceStatus: "covered" as const,
+    fitSummary: { pass: 2, warn: 0, fail: 0, unmeasured: 0, pageIssues: 0 },
+    pageIssues: 1,
     onShare: vi.fn(),
     onOpenWorkspace: vi.fn(),
     onRunEvidence: vi.fn(),
@@ -96,6 +96,7 @@ describe("ComponentPageHeader", () => {
     expect(props.onRerunStory).toHaveBeenCalledOnce();
     expect(props.onToggleDrawer).toHaveBeenCalledOnce();
     expect(props.onOpenDrawer).toHaveBeenCalledWith("tests");
+    expect(screen.getByTestId("fit-summary")).toHaveTextContent("2 pass");
   });
 
   it("reflects copied and busy states and prevents unusable workspace actions", () => {

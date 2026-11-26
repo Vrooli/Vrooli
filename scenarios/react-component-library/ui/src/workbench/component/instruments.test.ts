@@ -4,10 +4,8 @@ import {
   compositeOver,
   contrastRatio,
   contrastRatioFromCss,
-  contrastVerdict,
-  countSmallTargets,
   effectiveBackground,
-  formatRatio,
+  effectiveBackgroundFromStack,
   hasReadableText,
   isTouchTargetSmall,
   measureTouchTargets,
@@ -60,14 +58,6 @@ describe("contrast", () => {
     const white = colour("#fff");
     expect(compositeOver(halfBlack, white).r).toBe(128);
     expect(contrastRatio(halfBlack, white)).toBeGreaterThan(3);
-  });
-
-  it("bands AA verdicts and formats the ratio", () => {
-    expect(contrastVerdict(7)).toBe("pass");
-    expect(contrastVerdict(4.5)).toBe("pass");
-    expect(contrastVerdict(3.9)).toBe("warn");
-    expect(contrastVerdict(2.9)).toBe("fail");
-    expect(formatRatio(8.44)).toBe("8.4:1");
   });
 
   it("walks up to the first opaque ancestor background", () => {
@@ -142,16 +132,6 @@ describe("touch targets", () => {
     expect(isTouchTargetSmall(120, 48)).toBe(false);
   });
 
-  it("counts offenders in a measured list", () => {
-    expect(
-      countSmallTargets([
-        { width: 120, height: 44 },
-        { width: 24, height: 24 },
-        { width: 48, height: 32 },
-      ]),
-    ).toBe(2);
-  });
-
   it("measures the rendered rect in the frame's logical pixels, not the zoomed screen rect", () => {
     const scaled = document.createElement("button");
     scaled.getBoundingClientRect = () =>
@@ -161,9 +141,6 @@ describe("touch targets", () => {
     expect(toLogicalSize({ width: 22, height: 22 }, 0.5)).toEqual({ width: 44, height: 44 });
     const scan = measureTouchTargets([scaled], 0.5);
     expect(scan).toMatchObject({ total: 1, small: 0 });
-
-    // Measuring the screen rect would flag the same target.
-    expect(countSmallTargets([{ width: 22, height: 22 }])).toBe(1);
 
     const tiny = document.createElement("button");
     tiny.getBoundingClientRect = () =>
@@ -213,5 +190,21 @@ describe("overflow and the text probe", () => {
     card.textContent = "Card copy";
     root.append(card);
     expect(pickTextProbe(root)?.dataset.nodeId).toBe("card");
+  });
+});
+
+describe("stacked backgrounds", () => {
+  it("composites translucent layers onto the first opaque ancestor", () => {
+    expect(
+      effectiveBackgroundFromStack([
+        "rgba(0, 0, 0, 0)",
+        "rgba(255, 255, 255, 0.1)",
+        "rgb(12, 14, 18)",
+      ]),
+    ).toBe("rgb(36, 38, 42)");
+  });
+
+  it("returns null when no opaque layer exists", () => {
+    expect(effectiveBackgroundFromStack(["rgba(0, 0, 0, 0)", "not-a-colour"])).toBeNull();
   });
 });

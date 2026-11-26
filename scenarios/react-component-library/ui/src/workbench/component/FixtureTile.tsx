@@ -9,6 +9,7 @@ import { Chip } from "../primitives";
 import { FixtureFrame, type FixtureStatus } from "./FixtureFrame";
 import { fixtureViewportHeight, fixtureViewportWidth, type FixturePaint } from "./fixtureBench";
 import { fixtureTheme, type FixtureSurface } from "./fixtureTheme";
+import type { ComponentProbe } from "./componentProbe";
 
 function previewPath(asset: CatalogAsset, story: WorkbenchStory): string {
   return `${appRoutes.preview.replace(":id", encodeURIComponent(asset.id))}?story=${encodeURIComponent(story.id)}`;
@@ -46,6 +47,7 @@ export function FixtureTile({
   onSelect,
   onStatus,
   onMeasure,
+  onProbe,
   onRetry,
 }: {
   asset: CatalogAsset;
@@ -64,6 +66,7 @@ export function FixtureTile({
   onSelect: (story: WorkbenchStory) => void;
   onStatus: (storyId: string, status: FixtureStatus, message?: string) => void;
   onMeasure: (storyId: string, paint: FixturePaint) => void;
+  onProbe: (storyId: string, probe: ComponentProbe) => void;
   onRetry: (storyId: string) => void;
 }) {
   const { t } = useTranslation();
@@ -146,6 +149,7 @@ export function FixtureTile({
             })}
             onStatus={(next, message) => onStatus(story.id, next, message)}
             onMeasure={(next) => onMeasure(story.id, next)}
+            onProbe={(next) => onProbe(story.id, next)}
           />
         </div>
       </div>

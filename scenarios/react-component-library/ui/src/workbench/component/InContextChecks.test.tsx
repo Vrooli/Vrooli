@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it } from "vitest";
 
-import { strings } from "../../consts/strings";
+import { setLocale } from "../../i18n";
 import { renderWithProviders } from "../../test-utils";
 import type { ContextCheckRow } from "./contextChecks";
 import { InContextChecksPanel } from "./InContextChecks";
@@ -9,7 +9,6 @@ import { InContextChecksPanel } from "./InContextChecks";
 function row(
   id: string,
   verdict: ContextCheckRow["verdict"],
-  evidence: ContextCheckRow["evidence"],
   group: ContextCheckRow["group"] = "fit",
 ): ContextCheckRow {
   return {
@@ -17,48 +16,49 @@ function row(
     label: `${id} measurement`,
     detail: `${id} detail`,
     verdict,
-    evidence,
-    scored: true,
+    scored: group !== "info",
     group,
   };
 }
 
 describe("InContextChecksPanel", () => {
+  beforeEach(async () => {
+    await setLocale("en");
+  });
+
   it("explains that measurements are pending when no rows exist", () => {
     renderWithProviders(<InContextChecksPanel rows={[]} />, { withoutRouter: true });
 
-    expect(screen.getByText(strings.workbench.component.ctxChecksEmpty)).toBeInTheDocument();
+    expect(screen.getByTestId("checks-empty")).toBeInTheDocument();
     expect(document.querySelector(".ic-checks")).not.toBeInTheDocument();
   });
 
-  it("separates component fit from page health, evidence and human checks", () => {
+  it("keeps component fit visible and puts page, evidence and human behind one disclosure", () => {
     const rows = [
-      row("slot", "pass", "declared", "fit"),
-      row("overflow", "fail", "measured", "page"),
-      row("states", "warn", "measured", "evidence"),
-      row("squint", "unmeasured", "none", "human"),
+      row("slot", "pass", "fit"),
+      row("overflow", "fail", "page"),
+      row("states", "warn", "evidence"),
+      row("squint", "unmeasured", "human"),
     ];
     renderWithProviders(<InContextChecksPanel rows={rows} />, { withoutRouter: true });
-    expect(
-      screen.getByRole("heading", { name: "workbench.component.ctxGroupFit" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "workbench.component.ctxGroupPage" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "workbench.component.ctxGroupEvidence" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "workbench.component.ctxGroupHuman" }),
-    ).toBeInTheDocument();
+
+    expect(screen.getByRole("heading", { name: "Component" })).toBeInTheDocument();
+    const disclosure = document.querySelector(".ic-secondary");
+    expect(disclosure).not.toHaveAttribute("open");
+
+    fireEvent.click(screen.getByText(/Page & evidence/));
+    expect(disclosure).toHaveAttribute("open");
+    expect(screen.getByRole("heading", { name: "Page" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Evidence" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Human" })).toBeInTheDocument();
   });
 
-  it("shows each verdict with its evidence provenance", () => {
+  it("shows each verdict without repeating evidence provenance", () => {
     const rows = [
-      row("layout", "pass", "measured"),
-      row("compatibility", "fail", "declared"),
-      row("contrast", "warn", "none"),
-      row("touch", "unmeasured", "none"),
+      row("layout", "pass"),
+      row("compatibility", "fail"),
+      row("contrast", "warn"),
+      row("touch", "unmeasured"),
     ];
 
     renderWithProviders(<InContextChecksPanel rows={rows} />, { withoutRouter: true });
@@ -70,13 +70,37 @@ describe("InContextChecksPanel", () => {
       "ic-check is-warn",
       "ic-check is-unmeasured",
     ]);
-    expect(screen.getByText((content) => content === "layout measurement")).toBeInTheDocument();
-    expect(screen.getByText((content) => content === "touch detail")).toBeInTheDocument();
-    for (const verdict of ["PASS", "FAIL", "WARN", "N/M"]) {
-      expect(screen.getByText(verdict)).toBeInTheDocument();
-    }
-    expect(screen.getByText(strings.workbench.component.ctxMeasured)).toBeInTheDocument();
-    expect(screen.getByText(strings.workbench.component.ctxDeclared)).toBeInTheDocument();
-    expect(screen.getByText(strings.workbench.component.ctxChecksNote)).toBeInTheDocument();
+    const labels = [...document.querySelectorAll(".ic-check-verdict")].map(
+      (entry) => entry.textContent,
+    );
+    expect(labels).toEqual(["PASS", "FAIL", "WARN", "N/M"]);
+    expect(document.querySelector(".ic-check-verdict em")).toBeNull();
+    expect(screen.getByTestId("checks-note")).toHaveTextContent("N/M is not a pass.");
+  });
+
+  it("renders type as a footnote, not a scored row", () => {
+    const rows = [row("size", "pass"), row("type", "unmeasured", "info")];
+    renderWithProviders(<InContextChecksPanel rows={rows} />, { withoutRouter: true });
+
+    expect(document.querySelectorAll(".ic-check")).toHaveLength(1);
+    expect(document.querySelector(".ic-type-note")).toHaveTextContent("type detail");
+  });
+
+  it("uses the compact fixture variant without a disclosure", () => {
+    const rows = [row("size", "pass"), row("touch", "unmeasured")];
+    renderWithProviders(
+      <InContextChecksPanel
+        rows={rows}
+        variant="fixture"
+        evidenceNote="2 capture records"
+        onRunEvidence={() => undefined}
+        onOpenContext={() => undefined}
+      />,
+      { withoutRouter: true },
+    );
+
+    expect(document.querySelector(".ic-secondary")).not.toBeInTheDocument();
+    expect(document.querySelector(".ic-note")).toHaveTextContent("Evidence: 2 capture records");
+    expect(screen.getByText(/Page health is not checked here/)).toBeInTheDocument();
   });
 });

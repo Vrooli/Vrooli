@@ -5,26 +5,23 @@ import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import type { CatalogAsset } from "../../api/components";
 import type { WorkbenchStory } from "../data";
-import { formatRelative, assetAdoptions } from "../data";
+import { assetAdoptions } from "../data";
 import type { InContextReport } from "./InContextStage";
+import type { ContextCheckRow } from "./contextChecks";
 import type { Template } from "../templates/spec";
 import { InContextChecksPanel } from "./InContextChecks";
-import { ChecksList, PropsEditor } from "./ComponentInspectorEditors";
-import { Ring, Tabs, WbButton } from "../primitives";
+import { PropsEditor } from "./ComponentInspectorEditors";
+import { Tabs, WbButton } from "../primitives";
 
 type Mode = "fixtures" | "context";
 type InspectorTab = "checks" | "props" | "usage";
-type Check = { claim: { id: string; statement: string }; verdict: string; checkedAt?: string };
 interface Props {
   asset: CatalogAsset;
   versionsCount: number;
   mode: Mode;
   selectedStory?: WorkbenchStory;
-  checks: Check[];
-  checkRatio: number;
-  contextRatio: number;
-  contextScored: number;
-  contextRows: InContextReport["rows"];
+  fixtureRows: ContextCheckRow[];
+  contextRows: ContextCheckRow[];
   contextReport: InContextReport | null;
   inspectorTab: InspectorTab;
   setInspectorTab: (tab: InspectorTab) => void;
@@ -35,16 +32,18 @@ interface Props {
   openingWorkspace: boolean;
   canOpenWorkspace: boolean;
   onOpenWorkspace: () => void;
+  evidenceNote?: string;
+  templateHref?: string;
+  templateName?: string;
+  onRunEvidence?: () => void;
+  onOpenContext?: () => void;
 }
 export function ComponentPageInspector({
   asset,
   versionsCount,
   mode,
   selectedStory,
-  checks,
-  checkRatio,
-  contextRatio,
-  contextScored,
+  fixtureRows,
   contextRows,
   contextReport,
   inspectorTab,
@@ -56,6 +55,11 @@ export function ComponentPageInspector({
   openingWorkspace,
   canOpenWorkspace,
   onOpenWorkspace,
+  evidenceNote,
+  templateHref,
+  templateName,
+  onRunEvidence,
+  onOpenContext,
 }: Props) {
   const { t } = useTranslation();
   return (
@@ -78,16 +82,6 @@ export function ComponentPageInspector({
               : asset.displayName}
           </h2>
         </div>
-        <Ring
-          value={mode === "fixtures" ? checkRatio * 100 : contextRatio * 100}
-          size={58}
-          tone={
-            (mode === "fixtures" ? checkRatio : contextRatio) >= 1 &&
-            (mode === "fixtures" ? checks.length : contextScored) > 0
-              ? "green"
-              : "amber"
-          }
-        />
       </div>
       <div className="wb-inspector-tabs">
         <Tabs
@@ -112,22 +106,15 @@ export function ComponentPageInspector({
       </div>
       <div className="wb-inspector-body">
         {inspectorTab === "checks" ? (
-          mode === "fixtures" ? (
-            <ChecksList
-              rows={checks.map((check) => ({
-                id: check.claim.id,
-                label: check.claim.statement,
-                verdict: check.verdict,
-                detail: check.checkedAt ? formatRelative(new Date(check.checkedAt)) : undefined,
-              }))}
-              empty={t("workbench.component.noChecksBody", {
-                defaultValue:
-                  "This asset has no experience claims. Nothing is shown as a passing check.",
-              })}
-            />
-          ) : (
-            <InContextChecksPanel rows={contextRows} />
-          )
+          <InContextChecksPanel
+            rows={mode === "fixtures" ? fixtureRows : contextRows}
+            variant={mode === "fixtures" ? "fixture" : "context"}
+            evidenceNote={evidenceNote}
+            templateHref={templateHref}
+            templateName={templateName}
+            onRunEvidence={onRunEvidence}
+            onOpenContext={onOpenContext}
+          />
         ) : null}
 
         {inspectorTab === "props" && selectedStory ? (

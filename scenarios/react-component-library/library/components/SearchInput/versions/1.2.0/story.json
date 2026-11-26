@@ -1,0 +1,618 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "The form convention: a visible name, a rounded field, and a comfortable reading width.",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-search-input]"
+        },
+        {
+          "attribute": "data-appearance",
+          "kind": "attribute",
+          "selector": "[data-rcl-search-input]",
+          "value": "form"
+        },
+        {
+          "kind": "text",
+          "value": "Search"
+        },
+        {
+          "kind": "role",
+          "name": "Search",
+          "role": "searchbox"
+        },
+        {
+          "attribute": "value",
+          "kind": "attribute",
+          "selector": "[data-testid='story-default']",
+          "value": "release"
+        }
+      ],
+      "id": "default",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Labelled form field",
+      "role": "anatomy"
+    },
+    {
+      "axis": "appearance",
+      "composition": {
+        "specimen": {
+          "export": "Appearances",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "appearance": [
+          "form",
+          "toolbar"
+        ]
+      },
+      "description": "The same field in its two public presentations: a labelled form field and a command-strip pill.",
+      "expect": [
+        {
+          "kind": "count",
+          "selector": "[data-rcl-search-input]",
+          "value": "2"
+        },
+        {
+          "attribute": "data-appearance",
+          "kind": "attribute",
+          "selector": "[data-testid='story-form-wrap'] [data-rcl-search-input]",
+          "value": "form"
+        },
+        {
+          "attribute": "data-appearance",
+          "kind": "attribute",
+          "selector": "[data-testid='story-toolbar-wrap'] [data-rcl-search-input]",
+          "value": "toolbar"
+        },
+        {
+          "kind": "role",
+          "name": "Search pages",
+          "role": "searchbox"
+        },
+        {
+          "kind": "role",
+          "name": "Search the library",
+          "role": "searchbox"
+        },
+        {
+          "kind": "text",
+          "value": "⌘K"
+        }
+      ],
+      "id": "appearances",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Form and toolbar appearances",
+      "role": "axis"
+    },
+    {
+      "axis": "size",
+      "composition": {
+        "specimen": {
+          "export": "Sizes",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "size": [
+          "sm",
+          "md",
+          "lg"
+        ]
+      },
+      "description": "Every size rung is handed to the shared InputGroup geometry rather than reimplemented by the field.",
+      "expect": [
+        {
+          "attribute": "data-size",
+          "kind": "attribute",
+          "selector": "[data-testid='story-size-sm-group']",
+          "value": "sm"
+        },
+        {
+          "attribute": "data-size",
+          "kind": "attribute",
+          "selector": "[data-testid='story-size-md-group']",
+          "value": "md"
+        },
+        {
+          "attribute": "data-size",
+          "kind": "attribute",
+          "selector": "[data-testid='story-size-lg-group']",
+          "value": "lg"
+        }
+      ],
+      "id": "sizes",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Size axis resolves through InputGroup",
+      "role": "axis"
+    },
+    {
+      "axis": "shape",
+      "composition": {
+        "specimen": {
+          "export": "Shapes",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "shape": [
+          "rounded",
+          "pill"
+        ]
+      },
+      "description": "A form field may be rounded or a pill; the toolbar presentation defaults to the pill.",
+      "expect": [
+        {
+          "attribute": "data-shape",
+          "kind": "attribute",
+          "selector": "[data-testid='story-shape-rounded-group']",
+          "value": "rounded"
+        },
+        {
+          "attribute": "data-shape",
+          "kind": "attribute",
+          "selector": "[data-testid='story-shape-pill-group']",
+          "value": "pill"
+        }
+      ],
+      "id": "shapes",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Shape is independent of appearance",
+      "role": "axis"
+    },
+    {
+      "axis": "labelVisibility",
+      "composition": {
+        "specimen": {
+          "export": "LabelVisibility",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "labelVisibility": [
+          "visible",
+          "hidden"
+        ]
+      },
+      "description": "A hidden label is visually removed but still names the input through its label element.",
+      "expect": [
+        {
+          "kind": "count",
+          "selector": "[data-rcl-search-input][data-label-visibility='hidden']",
+          "value": "1"
+        },
+        {
+          "kind": "role",
+          "name": "Hidden label",
+          "role": "searchbox"
+        },
+        {
+          "kind": "text",
+          "value": "Hidden label"
+        }
+      ],
+      "id": "label-visibility",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Hidden label stays in the accessibility tree",
+      "role": "axis"
+    },
+    {
+      "composition": {
+        "specimen": {
+          "export": "KeyboardSelection",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "Arrow keys move the active option, Enter commits it, and the field closes without losing the query.",
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Search results"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-search-input-list]",
+          "value": "0"
+        }
+      ],
+      "id": "keyboard-selection",
+      "interactions": [
+        {
+          "kind": "focus",
+          "target": {
+            "selector": "[data-testid='story-keyboard']"
+          }
+        },
+        {
+          "kind": "type",
+          "target": {
+            "selector": "[data-testid='story-keyboard']"
+          },
+          "text": "res"
+        },
+        {
+          "kind": "key",
+          "target": {
+            "selector": "[data-testid='story-keyboard']"
+          },
+          "text": "Enter"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Keyboard selects an active suggestion",
+      "role": "boundary"
+    },
+    {
+      "composition": {
+        "specimen": {
+          "export": "Clear",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "One clear control empties the controlled query and reports the change through the same value contract.",
+      "expect": [
+        {
+          "attribute": "value",
+          "kind": "attribute",
+          "selector": "[data-testid='story-clear']",
+          "value": ""
+        },
+        {
+          "kind": "text",
+          "value": ""
+        }
+      ],
+      "id": "clear",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "selector": "[data-testid='story-clear-clear']"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Clear empties the query and reports it",
+      "role": "boundary"
+    },
+    {
+      "composition": {
+        "specimen": {
+          "export": "Recent",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "An empty field offers recent queries instead of pretending there is nothing to do.",
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Search suggestions",
+          "role": "listbox"
+        },
+        {
+          "kind": "role",
+          "name": "deployments",
+          "role": "option"
+        },
+        {
+          "kind": "text",
+          "value": "Recent searches"
+        }
+      ],
+      "id": "recent",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Recent queries before any search",
+      "role": "boundary"
+    },
+    {
+      "composition": {
+        "specimen": {
+          "export": "Loading",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "A pending search shows one status line and marks the input busy, rather than replacing the panel with a blank surface.",
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Searching",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Searching…"
+        },
+        {
+          "attribute": "aria-busy",
+          "kind": "attribute",
+          "selector": "[data-testid='story-loading']",
+          "value": "true"
+        }
+      ],
+      "id": "loading",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Loading keeps the panel open and labelled",
+      "role": "boundary",
+      "states": [
+        "loading"
+      ]
+    },
+    {
+      "composition": {
+        "specimen": {
+          "export": "Error",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "A failed search names the failure and offers exactly one retry; it does not turn into a second field.",
+      "expect": [
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "text",
+          "value": "Search is unavailable"
+        },
+        {
+          "kind": "role",
+          "name": "Try again",
+          "role": "button"
+        }
+      ],
+      "id": "error",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "A failed search explains and retries",
+      "role": "boundary",
+      "states": [
+        "error"
+      ]
+    },
+    {
+      "composition": {
+        "specimen": {
+          "export": "Empty",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "A real query with no matches says so and names the query instead of showing a blank list.",
+      "expect": [
+        {
+          "kind": "text",
+          "value": "No results for"
+        },
+        {
+          "kind": "text",
+          "value": "zzzz"
+        }
+      ],
+      "id": "empty",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "No matches is distinct from nothing to search",
+      "role": "boundary",
+      "states": [
+        "empty"
+      ]
+    },
+    {
+      "composition": {
+        "specimen": {
+          "export": "Overflow",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "A long suggestion and description stay inside the panel and never widen the page.",
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Workflow capture and the continuity projection"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-search-input-option]",
+          "value": "1"
+        }
+      ],
+      "id": "overflow",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Long suggestions wrap inside the panel",
+      "role": "boundary",
+      "states": [
+        "overflow"
+      ]
+    },
+    {
+      "composition": {
+        "specimen": {
+          "export": "Disabled",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "A disabled field keeps its value visible, cannot be edited, and offers no clear action.",
+      "expect": [
+        {
+          "attribute": "disabled",
+          "kind": "attribute",
+          "selector": "[data-testid='story-disabled']"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-testid='story-disabled-clear']",
+          "value": "0"
+        },
+        {
+          "kind": "role",
+          "name": "Search",
+          "role": "searchbox"
+        }
+      ],
+      "id": "disabled",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Disabled blocks the field and its panel",
+      "role": "boundary",
+      "states": [
+        "disabled"
+      ]
+    },
+    {
+      "composition": {
+        "specimen": {
+          "export": "DescriptionError",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "Helper text and a validation message are both associated with the input, and invalidity recolours the shared group border.",
+      "expect": [
+        {
+          "attribute": "aria-invalid",
+          "kind": "attribute",
+          "selector": "[data-testid='story-described']",
+          "value": "true"
+        },
+        {
+          "kind": "text",
+          "value": "Searches titles, descriptions and saved states."
+        },
+        {
+          "kind": "text",
+          "value": "Enter a query before searching."
+        }
+      ],
+      "id": "description-error",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Description and validation stay associated",
+      "role": "boundary",
+      "states": [
+        "error"
+      ]
+    },
+    {
+      "composition": {
+        "specimen": {
+          "export": "FormSubmit",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "When no suggestion is active, Enter reports the query and leaves the surrounding form submit intact.",
+      "expect": [
+        {
+          "kind": "text",
+          "value": "continuity"
+        }
+      ],
+      "id": "form-submit",
+      "interactions": [
+        {
+          "kind": "focus",
+          "target": {
+            "selector": "[data-testid='story-submit']"
+          }
+        },
+        {
+          "kind": "type",
+          "target": {
+            "selector": "[data-testid='story-submit']"
+          },
+          "text": "continuity"
+        },
+        {
+          "kind": "key",
+          "target": {
+            "selector": "[data-testid='story-submit']"
+          },
+          "text": "Enter"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Enter submits the query without an active option",
+      "role": "boundary"
+    }
+  ],
+  "title": "SearchInput"
+}

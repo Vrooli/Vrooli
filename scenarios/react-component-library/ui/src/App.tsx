@@ -56,6 +56,16 @@ const NotFoundPage = lazy(() =>
   import("./workbench/pages/NotFoundPage").then((m) => ({ default: m.NotFoundPage })),
 );
 
+/**
+ * The URL is the asset identity. Remounting on a different asset is the only
+ * reset that is guaranteed to run before the first query, so a version or
+ * pinned story from the previous component can never reach the next one.
+ */
+function AssetPageRoute() {
+  const { id = "" } = useParams();
+  return <ComponentPage key={id} />;
+}
+
 function RouteSkeleton() {
   const { t } = useTranslation();
   return (
@@ -215,7 +225,7 @@ export default function App() {
           path={appRoutes.asset}
           element={
             <Page>
-              <ComponentPage />
+              <AssetPageRoute />
             </Page>
           }
         />

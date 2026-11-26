@@ -2,10 +2,12 @@ import { Link } from "react-router-dom";
 import { Layers, Play, RefreshCw, Share2, Sparkles } from "lucide-react";
 import { useTranslation } from "../../i18n";
 import { assetAdoptions, type WorkbenchStory } from "../data";
-import type { CatalogAsset, ComponentExperience } from "../../api/components";
+import type { CatalogAsset } from "../../api/components";
 import { appRoutes } from "../../routes";
+import { evidenceStatusCopy, evidenceStatusTone, type EvidenceStatus } from "../experienceSummary";
 import { Chip, Dot, Select, Segmented, WbButton } from "../primitives";
 import type { DrawerTab } from "./AssetDataDrawer";
+import type { CheckSummary } from "./contextChecks";
 type Mode = "fixtures" | "context";
 interface Props {
   asset: CatalogAsset;
@@ -17,10 +19,9 @@ interface Props {
   openingWorkspace: boolean;
   canOpenWorkspace: boolean;
   runningEvidence: boolean;
-  experience?: ComponentExperience;
-  checksCount: number;
-  passed: number;
-  checkRatio: number;
+  evidenceStatus: EvidenceStatus;
+  fitSummary: CheckSummary;
+  pageIssues: number;
   onShare: () => void;
   onOpenWorkspace: () => void;
   onRunEvidence: () => void;
@@ -30,6 +31,35 @@ interface Props {
   onRerunStory: () => void;
   onToggleDrawer: () => void;
 }
+function FitSummary({ summary }: { summary: CheckSummary }) {
+  const { t } = useTranslation();
+  const parts: string[] = [];
+  if (summary.fail > 0) parts.push(`${summary.fail} fail`);
+  if (summary.warn > 0) parts.push(`${summary.warn} warn`);
+  if (summary.unmeasured > 0) parts.push(`${summary.unmeasured} n/m`);
+  if (summary.fail === 0 && summary.warn === 0) {
+    if (summary.pass > 0) parts.unshift(`${summary.pass} pass`);
+    else if (parts.length === 0) {
+      parts.push(t("workbench.component.noChecks", { defaultValue: "No checks" }));
+    }
+  }
+  const tone =
+    summary.fail > 0 ? "fail" : summary.warn > 0 ? "warn" : summary.unmeasured > 0 ? "nm" : "pass";
+  return (
+    <span
+      className="wb-fitline"
+      data-testid="fit-summary"
+      title={t("workbench.component.fitHint", {
+        defaultValue: "Component fit, measured on this component.",
+      })}
+    >
+      <i className={`wb-summary-dot is-${tone}`} aria-hidden />
+      <b>{t("workbench.component.fit", { defaultValue: "Fit" })}</b>
+      <span>{parts.join(" · ")}</span>
+    </span>
+  );
+}
+
 export function ComponentPageHeader({
   asset,
   latestVersion,
@@ -40,10 +70,9 @@ export function ComponentPageHeader({
   openingWorkspace,
   canOpenWorkspace,
   runningEvidence,
-  experience,
-  checksCount,
-  passed,
-  checkRatio,
+  evidenceStatus,
+  fitSummary,
+  pageIssues,
   onShare,
   onOpenWorkspace,
   onRunEvidence,
@@ -55,6 +84,8 @@ export function ComponentPageHeader({
 }: Props) {
   const { t } = useTranslation();
   const breadcrumb = (asset.catalogId || asset.libraryId).split(".").filter(Boolean);
+  const statusCopy = evidenceStatusCopy(evidenceStatus);
+  const statusTone = evidenceStatusTone(evidenceStatus);
   return (
     <>
       <header className="wb-comp-head">
@@ -120,16 +151,10 @@ export function ComponentPageHeader({
               count: asset.metrics?.effectiveAdoptionCount ?? 0,
             })}
           </Chip>
-          {experience ? (
-            <Chip tone={experience.evidenceStatus === "fresh" ? "green" : "amber"}>
-              <Dot tone={experience.evidenceStatus === "fresh" ? "green" : "amber"} />
-              {experience.evidenceStatus}
-            </Chip>
-          ) : (
-            <Chip tone="amber">
-              {t("workbench.component.unmeasured", { defaultValue: "unmeasured" })}
-            </Chip>
-          )}
+          <Chip tone={statusTone}>
+            <Dot tone={statusTone} />
+            {t(statusCopy.key, { defaultValue: statusCopy.defaultValue })}
+          </Chip>
           <span className="wb-muted-2">·</span>
           <button type="button" className="wb-link" onClick={() => onOpenDrawer("source")}>
             {t("workbench.component.source", { defaultValue: "Source" })}
@@ -192,15 +217,21 @@ export function ComponentPageHeader({
           </button>
         </div>
         <div className="wb-row" style={{ flexWrap: "wrap" }}>
-          <Chip tone={checkRatio === 1 && checksCount > 0 ? "green" : "amber"}>
-            {checksCount === 0
-              ? t("workbench.component.noChecks", { defaultValue: "No checks" })
-              : t("workbench.component.checksSummary", {
-                  defaultValue: "{{passed}}/{{total}} claims pass",
-                  passed,
-                  total: checksCount,
-                })}
-          </Chip>
+          <FitSummary summary={fitSummary} />
+          {pageIssues > 0 ? (
+            <span
+              className="wb-page-issue"
+              title={t("workbench.component.pageIssueHint", {
+                defaultValue: "Page health, not this component.",
+              })}
+            >
+              <i className="wb-summary-dot is-fail" aria-hidden />
+              {t("workbench.component.pageIssueCount", {
+                defaultValue: "{{count}} page issue",
+                count: pageIssues,
+              })}
+            </span>
+          ) : null}
           <button type="button" className="wb-btn ghost sm" onClick={onToggleDrawer}>
             <Layers aria-hidden size={13} />
             {t("workbench.component.assetData", { defaultValue: "Asset data" })}

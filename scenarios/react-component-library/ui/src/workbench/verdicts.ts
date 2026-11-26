@@ -25,9 +25,44 @@ export const VERDICT_KEY: Record<Verdict, string> = {
   unmeasured: "workbench.verdict.unmeasured",
 };
 
-/** Never let an unknown string read as a pass. */
-export function asVerdict(value: string): Verdict {
-  return value === "pass" || value === "warn" || value === "fail" || value === "unmeasured"
-    ? value
-    : "unmeasured";
+/**
+ * Never let an unknown string read as a pass.
+ *
+ * Evidence arrives from three owners with different past-tense recordings:
+ * Experience Manager writes passed/failed/skipped, component test reports write
+ * passed/failed, and the live instruments write pass/warn/fail/unmeasured. They
+ * are one concept, so this boundary is the only place that translates them.
+ */
+export function asVerdict(value: string | null | undefined): Verdict {
+  switch ((value ?? "").trim().toLowerCase()) {
+    case "pass":
+    case "passed":
+    case "ok":
+    case "success":
+      return "pass";
+    case "warn":
+    case "warned":
+    case "warning":
+      return "warn";
+    case "fail":
+    case "failed":
+    case "error":
+      return "fail";
+    default:
+      return "unmeasured";
+  }
+}
+
+/** The one status tone for a verdict, so chip colours cannot drift per surface. */
+export function verdictTone(verdict: Verdict): "green" | "amber" | "red" | "ice" {
+  switch (verdict) {
+    case "pass":
+      return "green";
+    case "fail":
+      return "red";
+    case "warn":
+      return "amber";
+    default:
+      return "ice";
+  }
 }

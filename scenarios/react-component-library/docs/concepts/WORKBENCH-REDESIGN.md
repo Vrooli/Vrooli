@@ -38,7 +38,7 @@ The implementation now lives in `ui/src/workbench/`: the shell, eleven page surf
 - Go `handlers/preview`, `handlers/catalog`, `handlers/components`, `internal/components`, `internal/catalogcoverage`: pass; `internal/gates` retains only the two accepted released-artifact findings.
 - Browser sweep: every route at 1440, 390 and 320; no horizontal document overflow, no page errors. The only console noise is two honest `404`s for asset previews that have no captured image (`TimeMention`, `RunLadder`), which the gallery renders as “Preview pending”.
 - Governed source editor exercised in Chromium: opened a draft, appended and saved through `UpdateComponentContent` with the read digest, ran `UpdateComponentContent` → `CheckComponentVersion` to a passing draft, then restored the exact original bytes (SHA matched) and re-checked. No console errors. Monaco is served from the scenario bundle; the editor chunk is fetched only on first edit.
-- Phone authoring: Source opens at 390/320 with a working Monaco surface, no overflow. Design studio at 390/320 exposes the layer tree and inspector as bottom sheets, and adding, editing, duplicating, removing and accepting a revision all worked. In-context defaults to the phone frame on a narrow viewport and the slot drag/resize stayed inside the frame.
+- Phone authoring: Source opens at 390/320 with a working Monaco surface, no overflow. Design studio at 390/320 exposes the layer tree and inspector as bottom sheets, and adding, editing, duplicating, removing and accepting a revision all worked. In-context defaults to the phone frame on a narrow viewport and the chosen slot stayed inside the frame.
 - Coverage cold path: the first full gate pass is minutes, so the API now persists its report (`~/.vrooli/data/vrooli/react-component-library/coverage-report-v1.json`), serves stale while refreshing, coalesces cold callers and returns an explicit “being prepared” state. The coverage page polls and never renders zero while waiting.
 - Governed capture: all eleven routes captured through BAS at phone (390) and desktop (1280), dark theme. Captures live in `~/.vrooli/data/react-component-library/ux-captures/workbench-20261119/<route>/` with the BAS bundle id, pixel SHA-256 and frozen page. Component and Preview use `[data-fixtures-ready]` / `[data-fixture-status="ready"]` wait selectors so the real harness is in frame.
 - Accessibility: axe-core reports **zero violations** on every route at 1440 and 390. Fixed critical button names on icon-only segmented controls, tablist structure, decorative-landmark duplication, scrollable-region focusability, heading order, and the muted-metadata contrast token (3.2:1 → 4.9:1). Added a focus trap with Escape/restore for the command palette, Present mode and the phone studio sheets; Tabs now use a roving tab index with Arrow/Home/End.
@@ -49,7 +49,7 @@ The implementation now lives in `ui/src/workbench/`: the shell, eleven page surf
 
 - **State breadth in governed captures** — each route has a default phone and desktop capture. Interaction states beyond the default (L6) are only captured when a `--step` is supplied; the workbench does not yet script every state for every route.
 - **Lens partials** — outline captures exceed the 8000-token outline budget on dense pages (L2 partial), and the Nocturne token scale is not projected into the RCL token family the style census recognizes (L3 partial). Neither is a missing capture.
-- **Phone state coverage** — all eleven routes were exercised at 390 and 320 for overflow/navigation; the source editor, studio sheets, in-context drag/resize and keyboard traps were exercised directly. Every loading/empty/partial/error state is not separately scripted.
+- **Phone state coverage** — all eleven routes were exercised at 390 and 320 for overflow/navigation; the source editor, studio sheets, typed in-context placement and keyboard traps were exercised directly. Every loading/empty/partial/error state is not separately scripted.
 - **Pre-existing corpus findings** — five releases have no provenance record, `AppNotificationSettings@1.0.6` still carries library-owned utility classes, and the published `CommandCenterShell@1.0.5` type omits the `metrics[].id` its contract now requires. Coverage surfaces them as findings; they are not redesign regressions.
 - **Activity durability** — Activity remains an index-derived projection. A durable event store is still required before claiming human attribution.
 
@@ -172,8 +172,8 @@ The desktop rail contains, in order:
 
 **Two modes:**
 
-- **Fixtures** — a free canvas of all declared stories. Drag to arrange; select to inspect; edit public props; re-run the selected fixture. Anatomy, axis and boundary roles remain visible. The canvas is a workspace, not a card grid.
-- **In context** — the same component inside a real page. Switch desktop/tablet/phone; move and resize within the page; see fit and contract checks; take the composition into the Design studio.
+- **Fixtures** — a role-grouped specimen bench of the declared stories. Each frame is measured and drawn at its own size; anatomy is the stage, axes are rows and boundaries follow. Redundant pins collapse behind a disclosure. Select a frame to inspect it, edit public props and open the full preview. There is no freeform canvas.
+- **In context** — the same component inside a real page. Switch desktop/tablet/phone; choose a typed slot or let placement score one; see fit and page-health checks; take the composition into the Design studio.
 
 **Asset data drawer:** Overview, Source, Versions, Experience, Tests, Relationships. This is the preservation path for the current seven tabs. The drawer is contextual; it does not compete with the preview.
 
@@ -245,21 +245,23 @@ The current `/design`, `/design/:scenario` and `/design/:scenario/:page` routes 
 
 ## Component workspace details
 
-### Fixtures canvas
+### Fixtures bench
 
-- The canvas uses a dotted/grid surface and absolute fixture placement.
-- Fixtures are cards with a name, role, rendered specimen, execution state and check summary.
-- Dragging must not interfere with pressing the specimen. Selection and drag are separate intents.
-- Selecting a fixture updates the inspector; it does not navigate away.
-- Props edit public argument paths only, through the same validated effective-story model as the current editor.
+- The bench uses the workbench surface and draws each specimen at its measured size; there is no absolute fixture placement.
+- A frame shows its name, role, rendered specimen, execution state and measured size.
+- Frames are grouped by anatomy, axis and boundary. An axis story's `covers` values pull the matching boundary frames into the same row.
+- Duplicate frames that mount the same specimen and arguments are collapsed behind “Show N redundant frames”; they are never silently deleted.
+- Selecting a frame updates the inspector; it does not navigate away.
+- Props edit public argument paths only, through the same validated effective-story model as the editor.
 - Reset restores the named baseline.
-- The canonical saved arrangement is local; an unsaved arrangement must not imply a release change.
 
 ### In-context mode
 
 - Device presets are desktop, tablet and phone; width is explicit and persisted for the session.
-- The component sits in the template's declared slot with a visible slot label. The slot is live (the real harness), and the studio owns its placement. Freeform move/resize inside the page remains a future step and is not claimed.
-- Fit checks evaluate the component against the page contract, not against the component alone.
+- The component sits in a typed slot with a visible label. The slot is live (the real harness); the other slots keep their authored fallbacks.
+- Placement scores every slot by role match, size and position. A manual choice is a pin, not a freeform position.
+- Component-fit checks use the harness probe for control sizes and text contrast; page-health checks measure the page. They are reported as separate groups.
+- Freeform move/resize inside the page remains a future step and is not claimed.
 - “Take into studio” carries the component, version, story, data and template into the Design studio.
 
 ### Template shelf
@@ -407,7 +409,7 @@ No current capability is intentionally dropped. The full ledger is in the experi
 - Asset data drawer with deep links.
 - Preserve current evidence and version data.
 
-**Exit:** every current asset tab is reachable; fixture drag/select/props; in-context device switch; evidence links; no lost feature in the ledger.
+**Exit:** every current asset tab is reachable; fixture select/props and redundant-frame disclosure; in-context device and slot switch; evidence links; no lost feature in the ledger.
 
 ### Phase 3 — Design studio · **done, capture pending**
 
@@ -428,7 +430,7 @@ No current capability is intentionally dropped. The full ledger is in the experi
 ### Phase 5 — Responsive, accessibility and state coverage · **partial: overflow/nav verified, journeys not captured**
 
 - 390 and 320 phone compositions; bottom navigation; sheets for inspector/drawer.
-- Focus, keyboard drag alternative, reduced motion, forced colors, long labels.
+- Focus, keyboard slot selection, reduced motion, forced colors, long labels.
 - Loading, empty, partial, stale, error, permission-denied.
 - Contrast verification for Nocturne.
 

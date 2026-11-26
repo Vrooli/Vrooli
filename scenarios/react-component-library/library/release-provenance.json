@@ -6848,6 +6848,18 @@
       "publishedAt": "2026-08-31T05:06:04Z"
     },
     {
+      "libraryId": "react-component-library:SearchInput",
+      "version": "1.2.0",
+      "draftVersion": "1.2.0-draft.1",
+      "publishedAt": "2026-11-26T04:46:52Z"
+    },
+    {
+      "libraryId": "react-component-library:SearchInput",
+      "version": "1.2.1",
+      "draftVersion": "1.2.1-draft.1",
+      "publishedAt": "2026-11-26T04:57:59Z"
+    },
+    {
       "libraryId": "react-component-library:SearchResults",
       "version": "1.0.5",
       "publishedAt": "2026-08-27T00:00:00Z",

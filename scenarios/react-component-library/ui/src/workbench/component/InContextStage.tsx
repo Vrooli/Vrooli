@@ -4,18 +4,13 @@ import { useTranslation } from "../../i18n";
 import type { CatalogAsset, WorkbenchStory } from "../data";
 import type { Template } from "../templates/spec";
 import { parseCssColor, relativeLuminance } from "./instruments";
-import {
-  buildContextChecks,
-  countPassed,
-  scoredRows,
-  type ContextCheckRow,
-  type Translate,
-} from "./contextChecks";
+import { buildContextChecks, type ContextCheckRow, type Translate } from "./contextChecks";
 import { InContextCanvas } from "./InContextCanvas";
 import { InContextPlacementPanel } from "./InContextPlacementPanel";
 import { InContextToolbar } from "./InContextToolbar";
 import type { FixtureStatus } from "./FixtureFrame";
 import type { FixturePaint } from "./fixtureBench";
+import { componentProbeContrast, type ComponentProbe } from "./componentProbe";
 import { placeComponent, type PlacementDecision } from "./placement";
 import { useInContextMeasurements } from "./useInContextMeasurements";
 import {
@@ -35,16 +30,9 @@ export type Instruments = Record<InstrumentId, boolean>;
 
 export interface InContextReport {
   rows: ContextCheckRow[];
-  passed: number;
-  scored: number;
   decision: PlacementDecision;
   device: Device;
   viewport: number;
-  status: FixtureStatus;
-  instruments: Instruments;
-  storyId: string | null;
-  /** True when the frame is showing a story rather than the empty state. */
-  hasStory: boolean;
 }
 
 export interface InContextStageProps {
@@ -61,7 +49,14 @@ export interface InContextStageProps {
   onSlotChoice: (slotId: string | null) => void;
   onReport: (report: InContextReport) => void;
   /** State coverage from the experience contract, when the caller has it. */
-  states?: { total: number; covered: number; status: string } | null;
+  states?: {
+    total: number;
+    covered: number;
+    status: string;
+    captures?: number;
+    latest?: string;
+    message?: string;
+  } | null;
 }
 
 const DEFAULT_INSTRUMENTS: Instruments = {
@@ -121,6 +116,7 @@ export function InContextStage({
   const [reloadKey, setReloadKey] = useState(0);
   const [scale, setScale] = useState(1);
   const [paint, setPaint] = useState<FixturePaint | null>(null);
+  const [probe, setProbe] = useState<ComponentProbe | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
@@ -131,6 +127,7 @@ export function InContextStage({
 
   useEffect(() => {
     setPaint(null);
+    setProbe(null);
   }, [storyId, template.id]);
 
   // The frame is a physical choice; the viewport is what is tested. Switching
@@ -239,6 +236,30 @@ export function InContextStage({
     [t],
   );
 
+  const componentContrast = useMemo(() => {
+    if (!instruments.contrast) {
+      return { on: false, ratio: null, label: "", background: "" };
+    }
+    if (probe?.measured) {
+      return componentProbeContrast(probe);
+    }
+    return {
+      on: true,
+      ratio: contrast?.ratio ?? null,
+      label: contrast?.label ?? "",
+      background: contrast?.background ?? "",
+    };
+  }, [contrast, instruments.contrast, probe]);
+
+  const componentType = useMemo(() => {
+    if (probe?.measured) {
+      const type = probe.typography;
+      if (!type) return { fontFamily: "—", fontSize: "—" };
+      return { fontFamily: type.fontFamily, fontSize: type.fontSize };
+    }
+    return typeInfo ? { fontFamily: typeInfo.fontFamily, fontSize: typeInfo.fontSize } : null;
+  }, [probe, typeInfo]);
+
   const rows = useMemo(() => {
     return buildContextChecks(
       {
@@ -252,20 +273,24 @@ export function InContextStage({
               box: chosen.chosen.box,
             }
           : undefined,
-        component: { kind: chosen.profile.kind, size: chosen.profile.size },
-        overflow,
-        type: typeInfo,
-        touch:
-          instruments.targets && targets
-            ? { on: true, ...targets }
-            : { on: false, small: 0, total: 0 },
-        contrast: {
-          on: instruments.contrast,
-          ratio: contrast?.ratio ?? null,
-          label: contrast?.label ?? "",
-          foreground: contrast?.foreground ?? "",
-          background: contrast?.background ?? "",
+        // The declared profile is the placement contract; the frame is what
+        // actually rendered. Prefer the measured story so the row changes when
+        // a story's geometry changes.
+        component: {
+          kind: chosen.profile.kind,
+          size: paint
+            ? { w: Math.round(paint.width), h: Math.round(paint.height) }
+            : chosen.profile.size,
         },
+        overflow,
+        type: componentType,
+        touch:
+          instruments.targets && probe?.measured
+            ? { on: true, ...probe.targets }
+            : instruments.targets && targets
+              ? { on: true, ...targets }
+              : { on: false, small: 0, total: 0 },
+        contrast: componentContrast,
         states,
         safeArea:
           instruments.guides && safeArea
@@ -277,51 +302,31 @@ export function InContextStage({
     );
   }, [
     chosen,
-    contrast,
+    componentContrast,
     instruments.blur,
-    instruments.contrast,
     instruments.guides,
     instruments.targets,
     overflow,
     safeArea,
     safeBottom,
     safeTop,
+    componentType,
+    paint,
+    probe,
     states,
     targets,
-    typeInfo,
     translate,
     viewport.height,
   ]);
 
-  const passed = countPassed(rows);
-  const scored = scoredRows(rows).length;
-
   useEffect(() => {
     onReport({
       rows,
-      passed,
-      scored,
       decision: chosen,
       device,
       viewport: viewport.width,
-      status,
-      instruments,
-      storyId,
-      hasStory: Boolean(story),
     });
-  }, [
-    chosen,
-    device,
-    instruments,
-    onReport,
-    passed,
-    rows,
-    scored,
-    status,
-    story,
-    storyId,
-    viewport.width,
-  ]);
+  }, [chosen, device, onReport, rows, viewport.width]);
 
   return (
     <section
@@ -365,6 +370,9 @@ export function InContextStage({
         <InContextPlacementPanel
           decision={chosen}
           slotHeight={slotHeight}
+          componentSize={
+            paint ? { w: Math.round(paint.width), h: Math.round(paint.height) } : undefined
+          }
           onSlotChoice={onSlotChoice}
         />
 
@@ -395,6 +403,7 @@ export function InContextStage({
           probeRef={probeRef}
           onStatus={setStatus}
           onMeasure={setPaint}
+          onProbe={setProbe}
           onReload={() => setReloadKey((value) => value + 1)}
         />
       </div>

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { API_BASE } from "../../api/client";
 import { useTranslation } from "../../i18n";
 import type { FixturePaint } from "./fixtureBench";
+import { componentProbeFromMessage, type ComponentProbe } from "./componentProbe";
 
 export type FixtureStatus = "loading" | "ready" | "error" | "applied";
 
@@ -45,6 +46,8 @@ interface FixtureFrameProps {
   onStatus?: (status: FixtureStatus, message?: string) => void;
   /** Reported once the harness has painted, in viewport coordinates. */
   onMeasure?: (paint: FixturePaint) => void;
+  /** What the harness can see inside the component: control sizes and type. */
+  onProbe?: (probe: ComponentProbe) => void;
   /** Offered next to a failure message so the failure has a next action. */
   onRetry?: () => void;
   /** The host owns loading/error chrome, for example the specimen bench. */
@@ -75,6 +78,7 @@ export function FixtureFrame({
   theme,
   onStatus,
   onMeasure,
+  onProbe,
   onRetry,
   hideState = false,
   title,
@@ -86,6 +90,8 @@ export function FixtureFrame({
   onStatusRef.current = onStatus;
   const onMeasureRef = useRef(onMeasure);
   onMeasureRef.current = onMeasure;
+  const onProbeRef = useRef(onProbe);
+  onProbeRef.current = onProbe;
   const statusRef = useRef<FixtureStatus>("loading");
   const mounted = useRef(true);
   const readyTimer = useRef<number | undefined>(undefined);
@@ -206,9 +212,10 @@ export function FixtureFrame({
         renderedHeight?: number;
         renderedX?: number;
         renderedY?: number;
+        probe?: unknown;
       } | null;
       if (!data || data.id !== assetId) return;
-      if (data.type === "rcl-story-result") {
+      if (data.type === "rcl-story-result" || data.type === "rcl-story-measure") {
         const width = Number(data.renderedWidth) || 0;
         const height = Number(data.renderedHeight) || 0;
         if (width > 0 && height > 0) {
@@ -219,6 +226,8 @@ export function FixtureFrame({
             height,
           });
         }
+        const probe = componentProbeFromMessage(data.probe);
+        if (probe) onProbeRef.current?.(probe);
       } else if (data.type === "preview-ready") {
         setHarnessStory(data.story ?? "");
         setHarnessVersion(data.version ?? "");
@@ -281,8 +290,32 @@ export function FixtureFrame({
 
   useEffect(() => {
     if (status !== "ready" && status !== "applied") return;
-    applyTheme(candidateFrameRef.current ?? activeFrameRef.current);
-  }, [applyTheme, status, theme?.id, theme?.resolved, tokenSignature]);
+    const frame = candidateFrameRef.current ?? activeFrameRef.current;
+    applyTheme(frame);
+    // The harness measures the specimen after it paints, but the page theme is
+    // applied after that first paint. Ask for one fresh measurement so
+    // contrast and type describe the surface the specimen is actually on.
+    frame?.contentWindow?.postMessage(
+      {
+        type: "rcl-preview-measure",
+        componentId: assetId,
+        story: harnessStory || storyId,
+        version: harnessVersion || version,
+      },
+      "*",
+    );
+  }, [
+    applyTheme,
+    assetId,
+    harnessStory,
+    harnessVersion,
+    status,
+    storyId,
+    theme?.id,
+    theme?.resolved,
+    tokenSignature,
+    version,
+  ]);
 
   useEffect(() => {
     const frame = candidateFrameRef.current;

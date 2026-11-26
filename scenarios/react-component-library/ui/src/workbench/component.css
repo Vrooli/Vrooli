@@ -61,6 +61,50 @@
   background: rgba(20, 18, 25, 0.6);
 }
 
+.wb-fitline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--wb-ink-2);
+  font: 600 10px/1.2 var(--wb-mono);
+}
+
+.wb-fitline b {
+  color: var(--wb-ink);
+  font-weight: 700;
+}
+
+.wb-page-issue {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--wb-muted);
+  font: 600 10px/1.2 var(--wb-mono);
+}
+
+.wb-summary-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--wb-muted-2);
+}
+
+.wb-summary-dot.is-pass {
+  background: var(--wb-green);
+}
+
+.wb-summary-dot.is-warn {
+  background: var(--wb-amber);
+}
+
+.wb-summary-dot.is-fail {
+  background: var(--wb-red);
+}
+
+.wb-summary-dot.is-nm {
+  background: var(--wb-muted-2);
+}
+
 .wb-comp-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 340px;
@@ -430,57 +474,6 @@
   padding: 14px 18px 24px;
 }
 
-.wb-checkrow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 0;
-  border-bottom: 1px solid rgba(43, 37, 49, 0.7);
-  font-size: 11px;
-}
-
-.wb-checkrow:last-child {
-  border-bottom: 0;
-}
-
-.wb-checkrow span:nth-child(2) {
-  min-width: 0;
-  flex: 1;
-  overflow: hidden;
-  color: var(--wb-ink-2);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.wb-checkrow b {
-  font: 9px/1.4 var(--wb-mono);
-  letter-spacing: 0.06em;
-}
-
-.wb-checkrow-icon,
-.wb-checkrow-verdict {
-  color: var(--wb-muted-2);
-}
-
-.wb-checkrow-verdict {
-  text-transform: uppercase;
-}
-
-.wb-checkrow.is-pass .wb-checkrow-icon,
-.wb-checkrow.is-pass .wb-checkrow-verdict {
-  color: var(--wb-green);
-}
-
-.wb-checkrow.is-warn .wb-checkrow-icon,
-.wb-checkrow.is-warn .wb-checkrow-verdict {
-  color: var(--wb-amber);
-}
-
-.wb-checkrow.is-fail .wb-checkrow-icon,
-.wb-checkrow.is-fail .wb-checkrow-verdict {
-  color: var(--wb-red);
-}
-
 .wb-drawer {
   border-top: 1px solid var(--wb-line);
   background: var(--wb-panel);
@@ -641,58 +634,6 @@
   }
 }
 
-.wb-context-stage {
-  display: grid;
-  /* Same max-content track issue as the share surface: a 1180px frame kept
-     the track wide, so `max-width: 100%` on the device never clamped and a
-     phone showed a clipped desktop page. */
-  grid-template-columns: minmax(0, 1fr);
-  place-items: start center;
-  min-height: 100%;
-  max-width: 100%;
-  overflow: auto;
-  padding: 22px;
-}
-
-.wb-template-picker {
-  display: grid;
-  gap: 8px;
-}
-
-.wb-template-option {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 7px;
-  border: 1px solid var(--wb-line);
-  border-radius: 9px;
-  background: #0d1018;
-  text-align: left;
-}
-
-.wb-template-option[aria-pressed="true"] {
-  border-color: var(--wb-signal-line);
-  background: var(--wb-signal-soft);
-}
-
-.wb-template-option-art {
-  width: 54px;
-  flex: none;
-}
-
-.wb-template-option b {
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.wb-template-option small {
-  display: block;
-  color: var(--wb-muted-2);
-  font: 9px/1.4 var(--wb-mono);
-}
-
 @media (max-width: 1180px) {
   .wb-comp-layout {
     grid-template-columns: minmax(0, 1fr) 300px;
@@ -709,12 +650,6 @@
   .wb-inspector {
     border-top: 1px solid var(--wb-line);
     border-left: 0;
-  }
-}
-
-@media (max-width: 980px) {
-  .wb-selected {
-    position: static;
   }
 }
 

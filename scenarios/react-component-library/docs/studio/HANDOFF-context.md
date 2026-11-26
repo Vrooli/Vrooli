@@ -27,18 +27,21 @@ role **0–45** (direct role = 45, declared `accepts` = 34, role family = 22, un
 incompatible = 6) + size **0–25** (component preferred width ÷ `estimateSlotBox` width) +
 position **0–15** (earlier slots win). Normalised to 0–100, ties by document order then id.
 `estimateSlotBox` walks the spec splitting width at rows/grids — no DOM, so tests and screenshot
-agree. `neutralizeSlots` turns non-chosen slots into spacers because `TemplateRenderer` fills its
-first slot. `manual` is true whenever a slot is pinned, so the reset always exists.
+agree. `TemplateRenderer` takes `activeSlotId`: the chosen slot receives the live component and
+every other slot keeps its authored fallback, so no slot is rewritten into a spacer. `manual` is
+true whenever a slot is pinned, so the reset always exists.
 
-## Computed vs stubbed
+## Computed vs unmeasured
 
-Computed: slot role/accepts, overflow at 390/834/1180 (hidden page-only probes), type
-inheritance (computed font on the slot body vs page), touch targets (measured interactive
-elements), contrast (computed colour + first opaque ancestor background, WCAG ratio), safe area
-(first content offset + frame inset), state coverage (experience `states` × evidence `stateId`).
-Stubbed: the harness is cross-origin, so touch/overflow/contrast measure the page, not inside the
-iframe; the component is width-constrained so this is a faithful bound. `experience` absent ⇒
-states is unmeasured, never pass. Squint is a human instrument: it is listed but not scored.
+Computed: slot role/accepts, overflow at 390/834/1180 (hidden page-only probes), type inside the
+slot wrapper, touch targets and text contrast from the preview harness probe (the component's own
+controls and first readable text), safe area (first content offset + frame inset), and state
+coverage from experience evidence whose verdict is actually `pass` (a skipped capture is not
+coverage). `experience` absent ⇒ states is unmeasured, never pass. Squint is a human instrument:
+it is listed but not scored.
+
+Page health and component fit are separate: overflow and safe area describe the page, while the
+slot, control sizes and contrast describe the component in that page.
 
 Instruments → rows: Guides→safe area, Overflow→overflow (red outlines), Targets→touch (amber),
 Contrast→text contrast (probe badge), Blur→squint. Off/unrun = `unmeasured`.

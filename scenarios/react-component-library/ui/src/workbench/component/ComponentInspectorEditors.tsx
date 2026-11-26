@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Code2, SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "../../i18n";
-import { Chip, Empty, Select, TextArea, WbButton } from "../primitives";
-import { VERDICT_ICON, VERDICT_KEY, asVerdict } from "../verdicts";
+import { Chip, Select, TextArea, WbButton } from "../primitives";
 import type { WorkbenchStory } from "../data";
 
 function parseArgs(story: WorkbenchStory | undefined): Record<string, unknown> {
@@ -95,48 +94,6 @@ function parseOptionValue(value: string): unknown {
   } catch {
     return value;
   }
-}
-
-export function ChecksList({
-  rows,
-  empty,
-}: {
-  rows: Array<{ id: string; label: string; verdict: string; detail?: string }>;
-  empty: string;
-}) {
-  const { t } = useTranslation();
-  if (rows.length === 0) {
-    return (
-      <Empty title={t("workbench.component.noChecksTitle", { defaultValue: "No checks declared" })}>
-        {empty}
-      </Empty>
-    );
-  }
-  return (
-    <div>
-      {rows.map((row) => {
-        const verdict = asVerdict(row.verdict);
-        const Icon = VERDICT_ICON[verdict];
-        return (
-          <div key={row.id} className={`wb-checkrow is-${verdict}`}>
-            <span aria-hidden className="wb-checkrow-icon">
-              <Icon size={12} />
-            </span>
-            <span title={row.label}>{row.label}</span>
-            <b className="wb-checkrow-verdict">
-              {t(VERDICT_KEY[verdict], { defaultValue: verdict })}
-            </b>
-          </div>
-        );
-      })}
-      <p className="wb-muted-2 wb-small" style={{ marginTop: 10 }}>
-        {t("workbench.component.checksNote", {
-          defaultValue:
-            "Checks are captured evidence. An absent capture is unmeasured, not a pass.",
-        })}
-      </p>
-    </div>
-  );
 }
 
 export function PropsEditor({
