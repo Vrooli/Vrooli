@@ -1,10 +1,12 @@
 import { Alert } from "@vrooli/react-component-library/Alert/1";
 import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
+import { FileText } from "lucide-react";
 import { useParams } from "react-router-dom";
 
 import { homeFileUrl } from "../api/client";
 import { useHomeText } from "../api/desk";
 import { HtmlOpen } from "../components/HtmlOpen";
+import { IconTile, Panel } from "../components/daylight";
 import { Markdown } from "../components/Markdown";
 import { PathText } from "../components/PathText";
 import { QueryView } from "../components/QueryView";
@@ -32,20 +34,28 @@ export function FilePage() {
   const text = useHomeText(url && !isHtml && !isImage ? url : null);
   return (
     <div data-testid={selectors.pages.file} className="rd-page">
-      <PageHeader headingId="file-heading" title={basename(path) || t(strings.files.title)} description={path ? <PathText path={path} /> : null} />
-      {!home ? (
-        <p className="text-body-sm">{t(strings.common.loading)}</p>
-      ) : !url ? (
-        <Alert tone="warning" title={t(strings.files.outside)} />
-      ) : isHtml ? (
-        <HtmlOpen src={url} name={basename(path)} />
-      ) : isImage ? (
-        <img src={url} alt={basename(path)} className="rd-image" />
-      ) : (
-        <QueryView query={text}>
-          {(content) => (/\.md$/i.test(path) ? <Markdown content={content} baseDir={dirname(path)} /> : <pre className="rd-exact">{content}</pre>)}
-        </QueryView>
-      )}
+      <PageHeader
+        headingId="file-heading"
+        title={basename(path) || t(strings.files.title)}
+        eyebrow={<span className="rd-topic-hero-kicker">{t(strings.files.title)}</span>}
+        leading={<IconTile tone="lavender"><FileText /></IconTile>}
+        description={path ? <PathText path={path} /> : null}
+      />
+      <Panel className="rd-file-panel">
+        {!home ? (
+          <p className="text-body-sm">{t(strings.common.loading)}</p>
+        ) : !url ? (
+          <Alert tone="warning" title={t(strings.files.outside)} />
+        ) : isHtml ? (
+          <HtmlOpen src={url} name={basename(path)} />
+        ) : isImage ? (
+          <img src={url} alt={basename(path)} className="rd-image" />
+        ) : (
+          <QueryView query={text}>
+            {(content) => (/\.md$/i.test(path) ? <Markdown content={content} baseDir={dirname(path)} /> : <pre className="rd-exact">{content}</pre>)}
+          </QueryView>
+        )}
+      </Panel>
     </div>
   );
 }

@@ -43,12 +43,12 @@ export function CommissionsPage() {
               </span>
             );
             return FOLDED.has(state) && only !== state ? (
-              <details key={state} className="rd-fold">
+              <details key={state} className="rd-fold rd-run-group">
                 <summary>{heading}</summary>
                 {body}
               </details>
             ) : (
-              <section key={state} className="rd-section" aria-label={t(STATE_META[state].label)}>
+              <section key={state} className="rd-run-group" aria-label={t(STATE_META[state].label)}>
                 <h2 className="text-subheading font-semibold">{heading}</h2>
                 {body}
               </section>

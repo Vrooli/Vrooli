@@ -53,7 +53,7 @@ authorized, or the API's reason verbatim), stale (the earlier read kept on scree
 
 | Setting | Value | Why |
 |---|---|---|
-| Kit | `vrooli-default` | Neutral operations tone. |
+| Kit | `vrooli-default` + Daylight layer | The shared token vocabulary; `ui/src/theme/daylight.css` is the intentional bright expression layer documented in `DESIGN.md`. |
 | `mobileNav` | `menu-tabs` | Four tabs keep every label whole at 390 px; Launch is the first button on Now, and Reviews and Desk are occasional. |
 | `mainMode` | `scroll` | Lists and details; no pinned composer. |
 | Locale | English only | The template's Japanese and Arabic files were untranslated placeholders and were removed rather than shipped. |

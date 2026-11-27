@@ -6,7 +6,7 @@ import { Input } from "@vrooli/react-component-library/Input/1";
 import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { Select } from "@vrooli/react-component-library/Select/1";
 import { Textarea } from "@vrooli/react-component-library/Textarea/1";
-import { ArrowDown, ArrowUp, ClipboardCheck, Layers, MessageSquare, Timer, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Trash2 } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
@@ -54,6 +54,12 @@ export function LaunchPage() {
   return (
     <div data-testid={selectors.pages.launch} className="rd-page rd-commission-builder">
       <PageHeader headingId="launch-heading" title={t(strings.launch.title)} description={t(strings.launch.description)} />
+      <nav className="rd-flow" aria-label={t(strings.launch.setupNavigation)}>
+        <a className="rd-flow-step" href="#step-topics" aria-current="step"><b>1</b>{t(strings.launch.flowScope)}</a>
+        <a className="rd-flow-step" href="#step-words"><b>2</b>{t(strings.launch.flowWords)}</a>
+        <a className="rd-flow-step" href="#step-run"><b>3</b>{t(strings.launch.flowWindow)}</a>
+        <a className="rd-flow-step" href="#step-check"><b>4</b>{t(strings.launch.flowCheck)}</a>
+      </nav>
       <QueryView query={options}>
         {(o) => (o.packetLimits ? <Builder key={requestedTopic} requestedTopic={requestedTopic} options={o} limits={o.packetLimits} /> : <Alert tone="danger" title={t(strings.launch.limitsUnknown)} />)}
       </QueryView>
@@ -145,12 +151,6 @@ function Builder({ options, limits, requestedTopic }: { options: GetLaunchOption
 
   return (
     <>
-      <nav className="rd-launch-map" aria-label={t(strings.launch.setupNavigation)}>
-        <a href="#step-topics"><Layers aria-hidden="true" />{t(strings.launch.scopeNav)}</a>
-        <a href="#step-words"><MessageSquare aria-hidden="true" />{t(strings.launch.directionNav)}</a>
-        <a href="#step-run"><Timer aria-hidden="true" />{t(strings.launch.settingsNav)}</a>
-        <a href="#step-check"><ClipboardCheck aria-hidden="true" />{t(strings.launch.reviewNav)}</a>
-      </nav>
       {!options.automaticAvailable ? (
         <Alert tone="info" title={t(strings.launch.manualModeTitle)} description={t(strings.launch.manualMode, { reason: options.automaticReason || t(strings.common.unknown) })} />
       ) : null}
@@ -476,11 +476,21 @@ function RunSettings({ form, update, options, limits }: { form: LaunchForm; upda
   ].filter(Boolean) as string[];
   return (
     <div className="rd-form-grid">
-      <label htmlFor={hoursId} className="flex flex-col gap-space-2xs text-body-sm">
-        <span className="font-medium">{t(strings.launch.allowance)}</span>
+      <div className="flex flex-col gap-space-2xs text-body-sm">
+        <label htmlFor={hoursId} className="font-medium">{t(strings.launch.allowance)}</label>
+        <span className="rd-durations" role="group" aria-label={t(strings.launch.durationPresets)}>
+          {Array.from(new Set([limits.allowanceHoursDefault, 6, 12, 24, 48, 72]))
+            .filter((h) => h >= limits.allowanceHoursMin && h <= limits.allowanceHoursMax)
+            .sort((a, b) => a - b)
+            .map((h) => (
+              <button key={h} type="button" className={`rd-filter${form.allowanceHours === h ? " rd-filter--on" : ""}`} aria-pressed={form.allowanceHours === h} onClick={() => update({ allowanceHours: h })}>
+                {t(strings.launch.hoursShort, { count: h })}
+              </button>
+            ))}
+        </span>
         <Input id={hoursId} type="number" inputMode="numeric" min={limits.allowanceHoursMin} max={limits.allowanceHoursMax} value={String(form.allowanceHours)} onChange={(e) => update({ allowanceHours: Number(e.target.value) })} />
         <span className="text-caption text-app-muted-foreground">{t(strings.launch.allowanceHint, { min: limits.allowanceHoursMin, max: limits.allowanceHoursMax })}</span>
-      </label>
+      </div>
       <label className="flex flex-col gap-space-2xs text-body-sm">
         <span className="font-medium">{t(strings.launch.supervisorModel)}</span>
         <Select

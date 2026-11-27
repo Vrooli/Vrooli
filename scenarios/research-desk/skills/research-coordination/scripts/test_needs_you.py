@@ -333,7 +333,7 @@ class OpenDecisions(unittest.TestCase):
     def test_an_answer_nobody_has_drained_is_shown_with_its_spawn_line(self):
         t3 = self.research / "topics/t3"
         write(t3 / "INBOX.md", "# Inbox\n\n### 2026-11-15T06:00:00Z · from research-desk · answer\nW1: go — Go ahead\n"
-              f"Packet: {t3}/work/W1/BRIEF.md\nSource: hub ask q\n")
+              "Packet: work/W1/BRIEF.md\nSource: hub ask q\n")
         write(t3 / "DECISIONS.md", "# Decisions\n\n## Needs you\n\n" + item("W1", str(t3 / "work/W1/BRIEF.md")))
         level = next(l for l in self.report()["levels"] if l["level"] == "topic:t3")
         self.assertEqual(level["items"], [], "an answered item is no longer open")
@@ -344,6 +344,20 @@ class OpenDecisions(unittest.TestCase):
         level = next(l for l in self.report()["levels"] if l["level"] == "topic:t3")
         self.assertTrue(level["waiting"][0]["spawn"].startswith(f"Execute the approved decision `W1`. Read `{t3}/work/W1/BRIEF.md`; the answer is `go`."))
         self.assertIsNone(level["waiting"][0]["read_by"], "no live commission covers t3")
+
+    def test_an_answer_without_a_packet_has_a_stable_refusal_instead_of_missing_diagnostics(self):
+        t3 = self.research / "topics/t3"
+        write(t3 / "INBOX.md", "# Inbox\n\n### 2026-11-15T06:00:00Z · from operator · answer\nW1: go — Go ahead\n")
+        level = next(l for l in self.report()["levels"] if l["level"] == "topic:t3")
+        waiting = level["waiting"][0]
+        self.assertIsNone(waiting["spawn"])
+        self.assertIn("answer names no packet", waiting["problems"][0])
+        result = subprocess.run([sys.executable, "-I", str(SCRIPT), "spawn", "W1", "--research", str(self.research), "--portfolio", str(self.portfolio)],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("W1 cannot be executed cold:", result.stderr)
+        self.assertIn("answer names no packet", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
 
     def test_the_command_prints_every_level_and_json(self):
         args = [sys.executable, "-I", str(SCRIPT), "open", "--research", str(self.research), "--portfolio", str(self.portfolio)]

@@ -4,6 +4,7 @@ import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { describe, expect, it } from "vitest";
 
 import { renderWithProviders } from "../test-utils";
+import { strings } from "../consts/strings";
 import { absolute, relative } from "../lib/format";
 import { DerivedTimeSchema } from "@vrooli/proto-types/research-desk/v1/shared/evidence_pb";
 import { DerivedWhen, LastObserved, When } from "./When";
@@ -25,8 +26,8 @@ describe("When", () => {
         <DerivedWhen />
       </>,
     );
-    expect(screen.getByLabelText("common.lastObserved")).toHaveTextContent("common.unknown");
-    expect(screen.getByLabelText("common.lastObserved")).toHaveTextContent("common.unknown");
+    expect(screen.getByLabelText(strings.common.lastObserved)).toHaveTextContent(strings.common.unknown);
+    expect(screen.getByLabelText(strings.common.lastObserved)).toHaveTextContent(strings.common.unknown);
     expect(screen.queryByTestId("primitives.relative-time")).not.toBeInTheDocument();
   });
 

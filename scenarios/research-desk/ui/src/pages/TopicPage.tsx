@@ -4,9 +4,10 @@ import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { ArrowUpRight, FlaskConical } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
-import { ChangeSubject, lastResearchWrite, useCommissions, useTopics } from "../api/activity";
+import { ChangeSubject, lastResearchWrite, useCommissions, useTopics, type TopicSummary } from "../api/activity";
 import { homeFileUrl } from "../api/client";
 import { ChangesPanel } from "../components/Changes";
+import { IconTile, MiniBars, Panel, StatPill } from "../components/daylight";
 import { CommissionRow } from "../components/CommissionRow";
 import { Fact, Unknown } from "../components/Fact";
 import { PathText } from "../components/PathText";
@@ -18,6 +19,36 @@ import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
 import { kb, toDate, tokens } from "../lib/format";
+import { miniWeek } from "../lib/week";
+
+/** The topic's own pulse: mode, four workstream counts, last write and the week. */
+function TopicHero({ topic }: { topic: TopicSummary }) {
+  const { t } = useTranslation();
+  const check = topic.missionCheck;
+  const write = lastResearchWrite(topic);
+  const written = toDate(write?.at?.value);
+  return (
+    <Panel className="rd-topic-hero">
+      <div className="rd-topic-hero-main">
+        <IconTile tone="lavender" size="lg"><FlaskConical /></IconTile>
+        <div className="rd-topic-hero-copy">
+          <span className="rd-topic-hero-kicker">{t(strings.topics.mode)}</span>
+          <b>{check?.mode || t(strings.topics.noCheck)}</b>
+          <span className="rd-card-note">
+            {t(strings.topics.lastWrite)} <ResearchWriteWhen write={write} />
+          </span>
+        </div>
+      </div>
+      <div className="rd-topic-hero-stats">
+        <StatPill value={check?.open ?? 0} label={t(strings.topics.open)} />
+        <StatPill value={check?.active ?? 0} label={t(strings.topics.active)} />
+        <StatPill value={check?.waitingOperator ?? 0} label={t(strings.topics.waiting)} />
+        <StatPill value={check?.landed ?? 0} label={t(strings.topics.landed)} />
+      </div>
+      <MiniBars values={miniWeek(written ? [written] : [])} />
+    </Panel>
+  );
+}
 
 /** One topic: its mission's health, its workstreams, who has held it, and what changed. */
 export function TopicPage() {
@@ -45,6 +76,7 @@ export function TopicPage() {
           return (
             <>
               <PageHeader headingId="topic-heading" title={topic.title?.value || topic.topic} eyebrow={<span className="rd-id">{topic.topic}</span>} />
+              <TopicHero topic={topic} />
               <div className="rd-topic-actions">
                 <div>
                   <p className="rd-topic-actions-title">{t(strings.topics.researchActions)}</p>

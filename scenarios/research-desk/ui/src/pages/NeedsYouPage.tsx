@@ -3,15 +3,18 @@ import { Alert } from "@vrooli/react-component-library/Alert/1";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
+import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { Switch } from "@vrooli/react-component-library/Switch/1";
 import type { TFunction } from "i18next";
+import { ChevronRight, Inbox } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 import { Delivery, DeliveryReason, operatorApi, useDryRun, useNeedsYou, type CourierStatus, type NeedsYouItem } from "../api/operator";
 import { Confirm } from "../components/Confirm";
 import { CourierHealth } from "../components/CourierHealth";
+import { IconTile, Panel } from "../components/daylight";
 import { DeliveryBanner } from "../components/DeliveryBanner";
 import { EntryField } from "../components/EntryField";
 import { Markdown } from "../components/Markdown";
@@ -26,7 +29,7 @@ import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
 import { entryTooLong } from "../lib/entry";
 import { toDate } from "../lib/format";
-import { isOlderList, itemKey, keyFromHash, needsYouCount, waiting } from "../lib/needsYou";
+import { isOlderList, itemAnchor, itemKey, keyFromHash, needsYouCount, waiting } from "../lib/needsYou";
 import { useDebounced } from "../lib/useDebounced";
 
 /**
@@ -41,13 +44,37 @@ export function NeedsYouPage() {
   const query = useNeedsYou();
   const target = keyFromHash(useLocation().hash);
   const loaded = query.data !== undefined;
+  // A phone opens on the focus deck; a wide screen opens on the list, where
+  // scanning many rows is the point. Tests and SSR resolve to the list.
+  const [mode, setMode] = useState<"focus" | "list">(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return "list";
+    return window.matchMedia("(max-width: 48rem)").matches ? "focus" : "list";
+  });
+  const [focusIndex, setFocusIndex] = useState(0);
   useEffect(() => {
     if (!loaded || !target) return;
     document.getElementById(target)?.scrollIntoView({ block: "start" });
   }, [loaded, target]);
   return (
     <div data-testid={selectors.pages.needsYou} className="rd-page">
-      <PageHeader headingId="needs-you-heading" title={t(strings.needsYou.title)} description={t(strings.needsYou.description)} />
+      <PageHeader
+        headingId="needs-you-heading"
+        title={t(strings.needsYou.title)}
+        description={t(strings.needsYou.description)}
+        actions={
+          <Tabs
+            ariaLabel={t(strings.needsYou.view)}
+            variant="segmented"
+            density="compact"
+            items={[
+              { id: "focus", label: t(strings.needsYou.focus) },
+              { id: "list", label: t(strings.needsYou.list) },
+            ]}
+            active={mode}
+            onChange={(next) => setMode(next === "focus" ? "focus" : "list")}
+          />
+        }
+      />
       {query.isError ? <DeliveryBanner error={query.error} /> : null}
       <LastObserved date={toDate(query.data?.observedAt)} />
       <QueryView query={query}>
@@ -64,9 +91,20 @@ export function NeedsYouPage() {
               ) : (
                 <>
                   <p className="rd-lede">{needsYouCount(t, feed)}</p>
-                  <ul className="rd-rows">
-                    {open.map((item) => <Item key={itemKey(item)} item={item} focus={target === itemKey(item)} />)}
-                  </ul>
+                  {mode === "focus" && open.length > 0 ? (
+                    <FocusDeck
+                      items={open}
+                      index={Math.min(focusIndex, open.length - 1)}
+                      onSkip={() => setFocusIndex((n) => (n + 1) % open.length)}
+                      onPick={setFocusIndex}
+                    />
+                  ) : (
+                    <Panel className="rd-inbox-list">
+                      <ul className="rd-rows">
+                        {open.map((item) => <Item key={itemKey(item)} item={item} focus={target === itemKey(item)} />)}
+                      </ul>
+                    </Panel>
+                  )}
                 </>
               )}
               {answered.length > 0 ? (
@@ -98,10 +136,74 @@ export function NeedsYouPage() {
 }
 
 /**
+ * The focus deck: one decision at a time, with its recommendation and a
+ * progress bar. In List mode it is a summary above the feed; in Focus mode it
+ * is the feed, and the full item and its answer form sit under it.
+ */
+function FocusDeck({
+  items,
+  index,
+  onSkip,
+  onPick,
+}: {
+  items: NeedsYouItem[];
+  index: number;
+  onSkip: () => void;
+  onPick: (index: number) => void;
+}) {
+  const { t } = useTranslation();
+  const item = items[index];
+  if (!item) return null;
+  const anchor = itemAnchor(item);
+  return (
+    <section className="rd-focus" aria-label={t(strings.needsYou.focus)}>
+      <div className="rd-focus-top">
+        <span>{t(strings.needsYou.of, { index: index + 1, count: items.length })}</span>
+        <button type="button" className="rd-focus-skip" onClick={onSkip}>{t(strings.needsYou.skip)}</button>
+      </div>
+      <h2 className="rd-focus-q">
+        <Link to={`#${anchor}`}>{item.title || item.id}</Link>
+      </h2>
+      <div className="rd-focus-meta">
+        {item.commissionId || t(strings.needsYou.global)}
+        {item.recommended ? ` · ${t(strings.needsYou.recommended)} ${item.recommended.label || item.recommended.key}` : null}
+      </div>
+      {item.recommended ? (
+        <div className="rd-focus-rec">
+          <small>{t(strings.needsYou.recommended)}</small>
+          <b>{item.recommended.label || item.recommended.key}</b>
+        </div>
+      ) : null}
+      <div className="rd-focus-progress" aria-hidden="true">
+        <i style={{ inlineSize: `${Math.round(((index + 1) / items.length) * 100)}%` }} />
+      </div>
+      <div className="rd-focus-body">
+        <Item item={item} focus bare />
+        {items.length > 1 ? (
+          <div className="rd-focus-next">
+            <h3 className="rd-h3">{t(strings.needsYou.upNext)}</h3>
+            <ul className="rd-rows rd-rows-tight">
+              {items.filter((_, n) => n !== index).slice(0, 3).map((next) => (
+                <li key={itemKey(next)} className="rd-row">
+                  <button type="button" className="rd-pick-row" onClick={() => onPick(items.indexOf(next))}>
+                    <span className="rd-row-title">{next.title || next.id}</span>
+                    <span className="rd-row-meta">{next.commissionId || t(strings.needsYou.global)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+/**
  * One row that names it, opening to its body and its answer. An older list
  * is the same row: its text read in place and where it is answered.
  */
-function Item({ item, focus }: { item: NeedsYouItem; focus: boolean }) {
+function Item({ item, focus, bare = false }: { item: NeedsYouItem; focus: boolean; bare?: boolean }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(focus);
   useEffect(() => {
@@ -111,11 +213,17 @@ function Item({ item, focus }: { item: NeedsYouItem; focus: boolean }) {
   return (
     <li className="rd-row rd-item" id={itemKey(item)}>
       <details open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
-        <summary className="rd-item-summary">
-          <span className="font-semibold">{item.title || item.id}</span>
-          <span className="rd-item-meta">
-            <DeliveryBadge item={item} />
-            <span className="rd-id text-app-muted-foreground">{item.commissionId || t(strings.needsYou.global)}</span>
+        <summary className={bare ? "rd-visually-hidden" : "rd-item-summary"}>
+          <span className="rd-item-summary-row">
+            <IconTile size="sm" tone={item.secret ? "lavender" : "peach"} state="wait"><Inbox /></IconTile>
+            <span className="rd-row-copy">
+              <span className="font-semibold">{item.title || item.id}</span>
+              <span className="rd-item-meta">
+                <DeliveryBadge item={item} />
+                <span className="rd-id text-app-muted-foreground">{item.commissionId || t(strings.needsYou.global)}</span>
+              </span>
+            </span>
+            <ChevronRight className="rd-item-chev" aria-hidden="true" />
           </span>
           {item.recommended ? (
             <span className="block text-body-sm">

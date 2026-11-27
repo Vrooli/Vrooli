@@ -4,6 +4,7 @@ import { Button } from "@vrooli/react-component-library/Button/2";
 import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { Select } from "@vrooli/react-component-library/Select/1";
 import { useState } from "react";
+import { BookOpenCheck } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
 import { useTopics } from "../api/activity";
@@ -17,6 +18,7 @@ import { Markdown } from "../components/Markdown";
 import { PathText } from "../components/PathText";
 import { QueryView } from "../components/QueryView";
 import { Section } from "../components/Section";
+import { IconTile, StatPill } from "../components/daylight";
 import { Unreadable, UnparsedHeadings } from "../components/Unreadable";
 import { When } from "../components/When";
 import { WouldWrite } from "../components/WouldWrite";
@@ -56,6 +58,7 @@ function ReviewBody({ review }: { review: Review }) {
   return (
     <>
       <PageHeader headingId="review-heading" title={review.title?.value || review.id} eyebrow={<span className="rd-id">{review.id}</span>} />
+      <ReviewHero review={review} />
       <Unreadable evidence={review.unreadable} />
       <Section id="verdicts" title={t(strings.reviews.verdicts)} note={t(strings.reviews.verdictsNote)}>
         <UnparsedHeadings file="VERDICTS.md" headings={review.unparsedHeadings} />
@@ -90,6 +93,30 @@ function ReviewBody({ review }: { review: Review }) {
         </Section>
       ) : null}
     </>
+  );
+}
+
+function ReviewHero({ review }: { review: Review }) {
+  const { t } = useTranslation();
+  return (
+    <div className="rd-topic-hero rd-review-hero">
+      <div className="rd-topic-hero-main">
+        <IconTile tone="lavender" size="lg"><BookOpenCheck /></IconTile>
+        <div className="rd-topic-hero-copy">
+          <span className="rd-topic-hero-kicker">{t(strings.reviews.title)}</span>
+          <b>{review.id}</b>
+          <span className="rd-card-note">
+            {topicsUnknown(review)
+              ? t(strings.reviews.summaryTopicsUnknown, { verdicts: t(strings.reviews.verdictsCount, { count: review.verdicts.length }) })
+              : t(strings.reviews.summaryCombined, { topics: t(strings.reviews.topicsCount, { count: review.topics.length }), verdicts: t(strings.reviews.verdictsCount, { count: review.verdicts.length }) })}
+          </span>
+        </div>
+      </div>
+      <div className="rd-topic-hero-stats">
+        <StatPill value={review.topics.length} label={t(strings.reviews.topics)} />
+        <StatPill value={review.verdicts.length} label={t(strings.reviews.verdicts)} />
+      </div>
+    </div>
   );
 }
 

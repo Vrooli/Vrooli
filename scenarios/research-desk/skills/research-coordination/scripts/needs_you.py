@@ -363,8 +363,15 @@ def waiting_answers(folder: Path, readers: list[str], now: dt.datetime) -> list[
         item = {"id": ident.group(1) if ident else None, "answer": key, "stamp": m.group(1), "packet": packet,
                 "hours": round((now - at).total_seconds() / 3600, 1) if at else None,
                 "read_by": readers or None}
-        if item["id"] and key and packet:
-            item["spawn"], item["problems"] = spawn_message(Path(packet).expanduser(), item["id"], key, now)
+        if item["id"] and key:
+            if packet:
+                packet_path = Path(packet).expanduser()
+                if not packet_path.is_absolute():
+                    packet_path = folder / packet_path
+                item["spawn"], item["problems"] = spawn_message(packet_path, item["id"], key, now)
+            else:
+                item["spawn"] = None
+                item["problems"] = [f"answer names no packet; add `Packet: work/{item['id']}/{BRIEF}` to the answer and provide that brief"]
         out.append(item)
     return out
 
@@ -623,7 +630,8 @@ def main() -> int:
             print(f"no answer to {args.id} is waiting in any level's INBOX.md", file=sys.stderr)
             return 1
         if not hits[-1].get("spawn"):
-            print(f"{args.id} cannot be executed cold:\n" + "\n".join(f"- {p}" for p in hits[-1]["problems"]), file=sys.stderr)
+            problems = hits[-1].get("problems") or ["the answer names no packet"]
+            print(f"{args.id} cannot be executed cold:\n" + "\n".join(f"- {p}" for p in problems), file=sys.stderr)
             return 1
         print(hits[-1]["spawn"], end="")
         return 0

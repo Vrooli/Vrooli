@@ -143,7 +143,7 @@
             "design-contract",
             "ui-design"
           ],
-          "description": "Canonical scenario UI design language installed from the selected design kit",
+          "description": "Canonical Research Desk design language: the shared kit vocabulary plus the intentional Daylight expression layer",
           "audience": [
             "developers",
             "agents",

@@ -1,0 +1,1117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Research Desk — redesign study — 26 Nov 2026</title>
+<style>
+  :root{
+    --paper:#F1EDE3;
+    --paper-2:#E9E3D6;
+    --paper-3:#FBF8F1;
+    --ink:#171A1D;
+    --muted:#68707A;
+    --line:#D4CCBC;
+    --line-strong:#B9AF9C;
+    --blue:#2457E6;
+    --blue-soft:#E6ECFF;
+    --amber:#A96200;
+    --amber-soft:#F7EAD5;
+    --green:#1E7A4B;
+    --red:#B3261E;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:"Instrument Sans","Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font-family:var(--sans);font-size:15px;line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 28px}
+  .hair{height:1px;background:var(--line);border:0;margin:0}
+  .mono{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .rule{width:100%;height:1px;background:var(--line);margin:0}
+  .tiny{font-size:12px;color:var(--muted)}
+  .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:4px 9px;font-family:var(--mono);font-size:10px;letter-spacing:.04em;text-transform:uppercase;background:var(--paper-3);white-space:nowrap}
+  .chip.live{border-color:#A8D5BD;background:#EAF6EF;color:#135C37}
+  .chip.amber{border-color:#E7C592;background:#FBF0DF;color:#7A4300}
+  .chip.blue{border-color:#B9C9F7;background:#EDF2FF;color:#1B3FA8}
+  .chip.faint{color:var(--muted);background:transparent;border-style:dashed}
+
+  /* ---------- masthead ---------- */
+  header.top{padding:34px 0 0}
+  .topline{display:flex;justify-content:space-between;align-items:center;gap:16px;border-bottom:1px solid var(--ink);padding-bottom:10px}
+  .brandmark{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+  .pulse-mark{display:inline-flex;align-items:center;gap:2.5px;height:14px}
+  .pulse-mark i{display:block;width:2px;background:var(--ink);height:6px}
+  .pulse-mark i:nth-child(2){height:12px;background:var(--blue)}
+  .pulse-mark i:nth-child(3){height:9px}
+  .pulse-mark i:nth-child(4){height:14px}
+  .pulse-mark i:nth-child(5){height:5px}
+  .mast{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:42px;padding:44px 0 34px;align-items:end}
+  h1{font-size:clamp(40px,6.2vw,78px);line-height:.96;letter-spacing:-.045em;margin:0;font-weight:650;text-wrap:balance}
+  h1 em{font-family:var(--serif);font-weight:400;letter-spacing:-.02em}
+  .dek{font-size:18px;line-height:1.45;margin:18px 0 0;max-width:44ch;color:#31363B;text-wrap:pretty}
+  .mast-side{border-left:1px solid var(--line);padding-left:22px;display:flex;flex-direction:column;gap:14px}
+  .mast-side p{margin:0;font-size:13px;color:var(--muted)}
+  .rec{background:var(--ink);color:var(--paper-3);border-radius:12px;padding:14px 15px}
+  .rec .mono{color:#AEB6BE}
+  .rec b{display:block;font-size:17px;margin:5px 0 3px;letter-spacing:-.01em}
+  .rec span{font-size:12px;color:#D8D2C4;line-height:1.4;display:block}
+  .jumpline{display:flex;flex-wrap:wrap;gap:8px 18px;padding:14px 0 18px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase}
+  .jumpline a{text-decoration:none;color:var(--muted);padding:3px 0;border-bottom:1px solid transparent}
+  .jumpline a:hover{color:var(--ink);border-bottom-color:var(--ink)}
+
+  section.block{padding:56px 0 0}
+  .sec-head{display:grid;grid-template-columns:90px minmax(0,1fr);gap:20px;align-items:start;margin-bottom:24px}
+  .sec-num{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--muted);padding-top:6px}
+  h2{font-size:clamp(26px,3.2vw,38px);line-height:1.08;letter-spacing:-.028em;margin:0;font-weight:620;text-wrap:balance}
+  .lede{font-size:16.5px;line-height:1.55;color:#343A40;margin:10px 0 0;max-width:72ch;text-wrap:pretty}
+  h3{font-size:18px;letter-spacing:-.01em;margin:0 0 6px}
+  p{margin:0 0 10px}
+  .cols-2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:38px}
+  .cols-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:26px}
+  .cols-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
+  .stack{display:flex;flex-direction:column;gap:12px}
+  .small-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px}
+  .small-list li{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;font-size:13.5px;line-height:1.45;color:#343A40}
+  .small-list b{font-weight:600;color:var(--ink)}
+  .num{font-family:var(--mono);font-size:10px;color:var(--blue);padding-top:2px}
+  .note{border-left:2px solid var(--blue);padding:2px 0 2px 14px;color:#343A40;font-size:13.5px}
+  .note.amber{border-left-color:var(--amber)}
+  .note.green{border-left-color:var(--green)}
+
+  /* ---------- current state ---------- */
+  .today{display:grid;grid-template-columns:400px minmax(0,1fr);gap:44px;align-items:start}
+  .capture-frame{background:#0B0F13;border-radius:32px;padding:9px;box-shadow:0 18px 50px rgba(20,25,30,.18);width:400px;max-width:100%}
+  .capture-screen{position:relative;background:#0B0F13;border-radius:25px;overflow:hidden;height:690px}
+  .capture-screen img{width:100%;display:block;object-fit:cover;object-position:top}
+  .capture-screen:after{content:"";position:absolute;inset:auto 0 0 0;height:90px;background:linear-gradient(transparent,rgba(11,15,19,.92))}
+  .capture-tag{position:absolute;left:12px;bottom:12px;z-index:2;display:flex;gap:6px;flex-wrap:wrap}
+  .capture-tag .chip{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.22);color:#E9E3D6}
+  .defect-list{display:flex;flex-direction:column;gap:0;border-top:1px solid var(--line)}
+  .defect{display:grid;grid-template-columns:34px minmax(0,1fr) 170px;gap:14px;padding:13px 0;border-bottom:1px solid var(--line);align-items:start}
+  .defect .dnum{font-family:var(--mono);font-size:10px;color:var(--blue);padding-top:3px}
+  .defect b{font-size:14px;display:block;margin-bottom:2px}
+  .defect p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.45}
+  .defect .where{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:right;padding-top:4px}
+
+  /* ---------- thesis band ---------- */
+  .thesis-band{background:#171A1D;color:#F1EDE3;margin-top:58px;padding:38px 0 40px}
+  .thesis-inner{display:grid;grid-template-columns:300px minmax(0,1fr);gap:42px;align-items:start}
+  .thesis-band .mono{color:#98A0A8}
+  .thesis-band h2{font-size:26px;line-height:1.1;letter-spacing:-.02em;margin:8px 0 0;color:#F1EDE3;max-width:14ch}
+  .thesis-band h2 em{font-family:var(--serif);font-weight:400}
+  .rules{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:24px;margin:0;padding:0;list-style:none}
+  .rules li{display:flex;flex-direction:column;gap:6px;font-size:11px;line-height:1.4;color:#B9C0C7}
+  .rules .rn{font-family:var(--mono);font-size:9px;color:#E8A33D;letter-spacing:.08em}
+  .rules b{font-size:12.5px;color:#F1EDE3;font-weight:600;line-height:1.2}
+
+  /* ---------- directions ---------- */
+  .dir{border-top:1px solid var(--ink);padding-top:26px;margin-top:54px}
+  .dir-head{display:grid;grid-template-columns:138px minmax(0,1fr) 260px;gap:26px;align-items:start}
+  .dir-letter{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--muted);padding-top:5px}
+  .dir-name{font-size:clamp(30px,4vw,50px);line-height:1;letter-spacing:-.035em;margin:0;font-weight:640}
+  .dir-name span{font-family:var(--serif);font-weight:400}
+  .dir-sub{font-size:15.5px;color:#343A40;margin:8px 0 0;max-width:60ch}
+  .dir-verdict{border-left:1px solid var(--line);padding-left:18px;font-size:12.5px;color:var(--muted)}
+  .dir-verdict b{color:var(--ink);display:block;font-size:13px;margin-bottom:3px}
+  .dir-body{display:grid;grid-template-columns:360px minmax(0,1fr);gap:44px;align-items:start;margin-top:26px}
+  .dir-body.flip{grid-template-columns:minmax(0,1fr) 360px}
+  .dir-copy{display:flex;flex-direction:column;gap:22px}
+  .kicker{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+  .signature-table{width:100%;border-collapse:collapse;font-size:12.5px}
+  .signature-table th{text-align:left;font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500;padding:0 8px 7px 0;border-bottom:1px solid var(--line)}
+  .signature-table td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.4}
+  .signature-table td:first-child{font-weight:600;width:26%}
+  .signature-table td:last-child{color:var(--muted);width:30%}
+  .palette{display:flex;gap:7px;flex-wrap:wrap}
+  .sw{width:42px;height:42px;border-radius:9px;border:1px solid rgba(0,0,0,.08)}
+  .type-sample{font-size:13px;color:#343A40}
+  .type-sample .display{display:block;font-size:26px;letter-spacing:-.03em;line-height:1.1;color:var(--ink);margin-bottom:4px}
+  .type-sample .mono{display:block;margin-top:4px}
+
+  /* ---------- phone mockups ---------- */
+  .phone{width:360px;max-width:100%;background:#0E1216;border-radius:36px;padding:8px;box-shadow:0 24px 60px rgba(20,25,30,.22);position:relative}
+  .phone:before{content:"";position:absolute;top:14px;left:50%;transform:translateX(-50%);width:76px;height:20px;border-radius:12px;background:#0E1216;z-index:5}
+  .pscreen{height:744px;border-radius:29px;overflow:hidden;position:relative;display:flex;flex-direction:column}
+  .pscreen *{box-sizing:border-box}
+  .pscreen .statusbar{display:flex;justify-content:space-between;align-items:center;font-size:9px;font-weight:600;letter-spacing:.02em;padding:9px 18px 0;opacity:.75}
+  .pscreen .statusbar .sig{display:flex;gap:3px;align-items:flex-end}
+  .pscreen .statusbar .sig i{display:block;width:2px;background:currentColor}
+  .pscreen .statusbar .sig i:nth-child(1){height:3px}.pscreen .statusbar .sig i:nth-child(2){height:5px}.pscreen .statusbar .sig i:nth-child(3){height:7px}.pscreen .statusbar .sig i:nth-child(4){height:9px;opacity:.4}
+
+  /* bridge */
+  .bridge{background:#F7F4EC;color:#171A1D;font-family:var(--sans)}
+  .bridge .inner{padding:10px 14px 0;display:flex;flex-direction:column;gap:10px;min-height:0}
+  .bridge .appbar{display:flex;align-items:center;justify-content:space-between;padding:2px 1px}
+  .bridge .appbar .bm{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:8.5px;letter-spacing:.1em}
+  .bridge .appbar .k{font-family:var(--mono);font-size:8px;border:1px solid #D9D2C4;border-radius:5px;padding:3px 5px;color:#6A7079}
+  .bridge .duty{display:flex;flex-direction:column;gap:5px;padding:2px 1px 7px;border-bottom:1px solid #DED7C8}
+  .bridge .dutyline{font-size:12px;line-height:1.28;font-weight:600;letter-spacing:-.01em;text-wrap:balance}
+  .bridge .dutymeta{display:flex;align-items:center;gap:5px;flex-wrap:wrap;font-family:var(--mono);font-size:7.5px;color:#6A7079}
+  .bridge .dot{width:5px;height:5px;border-radius:50%;display:inline-block}
+  .bridge .dot.live{background:var(--green);box-shadow:0 0 0 2px #DCEEE2}
+  .bridge .dot.amber{background:var(--amber);box-shadow:0 0 0 2px #F5E7D2}
+  .bridge .dot.faint{background:transparent;border:1px solid #AEB5BC}
+  .bridge .card{background:#FFFDF8;border:1px solid #E1DACB;border-radius:12px;padding:9px 10px}
+  .bridge .cdhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  .bridge .cdhead .t{font-size:10px;font-weight:650;letter-spacing:-.01em}
+  .bridge .seg{display:flex;border:1px solid #DED7C8;border-radius:6px;overflow:hidden}
+  .bridge .seg i{font-style:normal;font-family:var(--mono);font-size:6.5px;padding:2.5px 4px;color:#747B84;border-right:1px solid #E6E0D3}
+  .bridge .seg i:last-child{border-right:0}
+  .bridge .seg i.on{background:#171A1D;color:#F7F4EC}
+  .bridge .lane{display:grid;grid-template-columns:86px 1fr 28px;gap:6px;align-items:center;height:19px}
+  .bridge .lane .nm{font-family:var(--mono);font-size:6.5px;color:#4E555D;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bridge .lane .st{font-family:var(--mono);font-size:6px;color:#8B9199;text-align:right}
+  .bridge .lane svg{width:100%;height:15px;display:block}
+  .bridge .pulsefoot{display:flex;justify-content:space-between;gap:8px;border-top:1px solid #E7E1D5;margin-top:5px;padding-top:5px;font-family:var(--mono);font-size:6.5px;color:#7A8188}
+  .bridge .ticket{border-left:2.5px solid var(--amber);background:#FFFDF8;border-top:1px solid #E1DACB;border-right:1px solid #E1DACB;border-bottom:1px solid #E1DACB;border-radius:8px;padding:7px 8px}
+  .bridge .ticket .q{font-size:10.5px;font-weight:600;line-height:1.2;letter-spacing:-.01em}
+  .bridge .ticket .m{font-family:var(--mono);font-size:6.5px;color:#7A8188;margin-top:2px}
+  .bridge .ticket .rec{display:flex;gap:4px;align-items:flex-start;margin-top:5px;font-size:8.5px;color:#2E4A38;background:#ECF5EF;border-radius:4px;padding:4px 5px;line-height:1.25}
+  .bridge .ticket .rec b{font-weight:650;display:inline;font-size:inherit;margin:0;letter-spacing:0}
+  .bridge .ticket .rec span{color:inherit;display:inline}
+  .bridge .ticket .ans{display:flex;justify-content:flex-end;margin-top:4px}
+  .bridge .ticket .ans span{font-family:var(--mono);font-size:6.5px;letter-spacing:.05em;text-transform:uppercase;background:#171A1D;color:#F7F4EC;border-radius:4px;padding:3px 7px}
+  .bridge .brief{border-top:1px solid #DED7C8;padding-top:6px}
+  .bridge .brief .row{display:grid;grid-template-columns:1fr auto;gap:6px;padding:4px 0;border-bottom:1px solid #EAE4D8;font-size:8.5px;line-height:1.25}
+  .bridge .brief .row:last-child{border-bottom:0}
+  .bridge .brief .row span{color:#6A7079}
+  .bridge .brief .row b{font-weight:600}
+  .bridge .bnav{margin-top:auto;border-top:1px solid #DED7C8;background:#FBF8F1;display:grid;grid-template-columns:repeat(4,1fr);padding:6px 4px 10px}
+  .bridge .bnav div{display:flex;flex-direction:column;align-items:center;gap:2px;font-family:var(--mono);font-size:6.5px;color:#7A8188}
+  .bridge .bnav div.on{color:#171A1D}
+  .bridge .bnav .ic{width:13px;height:13px;border:1.2px solid currentColor;border-radius:3px;position:relative}
+  .bridge .bnav div.on .ic{background:#171A1D;border-color:#171A1D}
+  .bridge .bnav .ic:after{content:"";position:absolute;inset:4px;border:1px solid currentColor;border-radius:1px;opacity:.7}
+  .bridge .bnav div.on .ic:after{border-color:#F7F4EC}
+  .bridge .bnav .cnt{position:absolute;transform:translate(11px,-7px);background:var(--amber);color:#fff;border-radius:999px;font-size:5.5px;padding:1px 3px;font-style:normal}
+
+  /* desk */
+  .desk{background:#F6F0E4;color:#1C1917;font-family:var(--sans)}
+  .desk .inner{padding:10px 16px 0;display:flex;flex-direction:column;gap:9px}
+  .desk .masthead{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #1C1917;padding-bottom:4px}
+  .desk .masthead .n{font-family:var(--mono);font-size:7px;letter-spacing:.14em}
+  .desk .masthead .d{font-family:var(--serif);font-size:9px;font-style:italic;color:#6A5F55}
+  .desk .date{font-family:var(--serif);font-size:24px;line-height:1;letter-spacing:-.03em;margin:2px 0 0}
+  .desk .edition{font-family:var(--mono);font-size:6.5px;color:#7A6C60;letter-spacing:.03em;margin-top:3px}
+  .desk .rule{border-top:1px solid #1C1917;margin:2px 0 0}
+  .desk .lead .k{font-family:var(--mono);font-size:6px;letter-spacing:.12em;color:#B23A2B;text-transform:uppercase}
+  .desk .lead h3{font-family:var(--serif);font-size:16px;line-height:1.08;letter-spacing:-.02em;margin:2px 0 3px;font-weight:500}
+  .desk .lead p{font-family:var(--serif);font-size:8.5px;line-height:1.35;color:#3B332C;margin:0}
+  .desk .lead a{font-family:var(--mono);font-size:6px;color:#B23A2B;text-decoration:none;letter-spacing:.04em}
+  .desk .slip{background:#FFFCF5;border:1px solid #D9CDBA;position:relative;padding:8px 9px 7px;margin-top:1px}
+  .desk .slip:before{content:"";position:absolute;top:-4px;left:0;right:0;height:1px;border-top:1px dashed #B9A891}
+  .desk .slip .lab{font-family:var(--mono);font-size:5.5px;letter-spacing:.12em;color:#8B7A68}
+  .desk .slip .q{font-family:var(--serif);font-size:11.5px;line-height:1.15;margin:2px 0 4px;font-weight:500}
+  .desk .slip .r{font-size:7.5px;color:#3D493F;background:#EDF3EA;border-left:2px solid #2F6B4F;padding:3px 5px;line-height:1.25}
+  .desk .slip .btns{display:flex;gap:4px;margin-top:5px}
+  .desk .slip .btns span{font-family:var(--mono);font-size:5.5px;letter-spacing:.04em;text-transform:uppercase;border:1px solid #1C1917;padding:3px 6px;border-radius:2px}
+  .desk .slip .btns span:first-child{background:#1C1917;color:#F6F0E4}
+  .desk .ledger{border-top:1px solid #B9A891;padding-top:4px}
+  .desk .ledger .h{display:flex;justify-content:space-between;font-family:var(--mono);font-size:5.5px;letter-spacing:.1em;color:#8B7A68;margin-bottom:2px}
+  .desk .lrow{display:grid;grid-template-columns:1fr 34px;gap:5px;padding:4px 0;border-bottom:1px solid #E2D7C5;align-items:center}
+  .desk .lrow .nm{font-size:8px;font-weight:600;line-height:1.15}
+  .desk .lrow .mt{font-family:var(--mono);font-size:5.5px;color:#8B7A68}
+  .desk .meter{height:3px;background:#E2D7C5;border-radius:2px;overflow:hidden;margin-top:3px}
+  .desk .meter i{display:block;height:100%;background:#2F6B4F}
+  .desk .meter.amber i{background:#A96200}
+  .desk .bnav{margin-top:auto;border-top:1px solid #B9A891;display:flex;justify-content:space-around;padding:6px 4px 10px;font-family:var(--mono);font-size:6px;letter-spacing:.05em;color:#7A6C60}
+  .desk .bnav b{color:#B23A2B;font-weight:500}
+
+  /* constellation */
+  .constellation{background:#070B12;color:#E8EEF6;font-family:var(--sans)}
+  .constellation .sky{position:absolute;inset:0}
+  .constellation .sky svg{width:100%;height:100%;display:block}
+  .constellation .top{position:relative;z-index:2;padding:12px 16px 0;display:flex;justify-content:space-between;align-items:flex-start}
+  .constellation .top .n{font-family:var(--mono);font-size:7px;letter-spacing:.12em;color:#9FB0C4}
+  .constellation .top h3{font-size:17px;letter-spacing:-.02em;margin:1px 0 1px;font-weight:560}
+  .constellation .top .meta{font-family:var(--mono);font-size:6.5px;color:#7D8FA4}
+  .constellation .top .livechip{display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:6px;color:#9BE3B9;border:1px solid #1E4A37;background:#0C2019;border-radius:999px;padding:3px 6px}
+  .constellation .legend{position:relative;z-index:2;display:flex;gap:8px;flex-wrap:wrap;padding:6px 16px 0;font-family:var(--mono);font-size:5.5px;color:#7D8FA4}
+  .constellation .legend span{display:flex;align-items:center;gap:3px}
+  .constellation .legend i{width:5px;height:5px;border-radius:50%;display:inline-block}
+  .constellation .signals{position:relative;z-index:2;margin-top:auto;padding:0 12px}
+  .constellation .sheet{background:rgba(12,19,28,.82);border:1px solid #223242;border-radius:12px;padding:8px 9px;backdrop-filter:blur(8px)}
+  .constellation .sheet .h{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+  .constellation .sheet .h .t{font-family:var(--mono);font-size:6.5px;letter-spacing:.1em;color:#9FB0C4}
+  .constellation .sheet .h .c{font-family:var(--mono);font-size:6px;color:#0B0F14;background:#E8A33D;border-radius:999px;padding:2px 5px}
+  .constellation .beacon{display:grid;grid-template-columns:14px 1fr auto;gap:6px;align-items:center;padding:5px 0;border-top:1px solid #1B2938}
+  .constellation .beacon .b{width:7px;height:7px;border-radius:50%;background:#E8A33D;box-shadow:0 0 8px #E8A33D}
+  .constellation .beacon .q{font-size:7.5px;line-height:1.2;color:#DDE6F0}
+  .constellation .beacon .m{font-family:var(--mono);font-size:5.5px;color:#7D8FA4}
+  .constellation .beacon .go{font-family:var(--mono);font-size:5.5px;color:#9FB0C4;border:1px solid #2B3D51;border-radius:4px;padding:2px 4px}
+  .constellation .scrub{display:flex;align-items:center;gap:7px;padding:9px 4px 12px;font-family:var(--mono);font-size:5.5px;color:#7D8FA4}
+  .constellation .scrub .line{flex:1;height:1px;background:linear-gradient(90deg,#223242,#4A6A8A,#223242);position:relative}
+  .constellation .scrub .line i{position:absolute;top:-3px;left:72%;width:7px;height:7px;border-radius:50%;background:#E8EEF6;box-shadow:0 0 6px #9FB0C4}
+  .constellation .bnav{position:relative;z-index:2;border-top:1px solid #162230;display:flex;justify-content:space-around;padding:6px 4px 10px;font-family:var(--mono);font-size:6px;color:#7D8FA4;background:rgba(7,11,18,.6);backdrop-filter:blur(6px)}
+  .constellation .bnav b{color:#E8EEF6;font-weight:500}
+
+  /* ---------- component shelf ---------- */
+  .shelf{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:20px}
+  .shelf .item{border:1px solid var(--line);border-radius:10px;background:var(--paper-3);padding:11px 12px}
+  .shelf .item .k{font-family:var(--mono);font-size:8px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+  .shelf .item b{font-size:12.5px;display:block;line-height:1.25}
+  .shelf .item span{font-size:10.5px;color:var(--muted);line-height:1.35;display:block;margin-top:3px}
+
+  /* ---------- mini wireframes ---------- */
+  .surfaces{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:20px}
+  .surface{border:1px solid var(--line);border-radius:10px;background:var(--paper-3);padding:13px 14px;min-height:158px;display:flex;flex-direction:column;gap:6px}
+  .surface .sh{display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:8px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+  .surface b{font-size:13px;letter-spacing:-.01em}
+  .surface p{font-size:11px;color:var(--muted);line-height:1.4;margin:0}
+  .wire{display:flex;flex-direction:column;gap:4px;margin-top:auto;padding-top:8px}
+  .wire i{display:block;height:4px;border-radius:2px;background:#DCD5C7}
+  .wire i.w60{width:60%}.wire i.w80{width:80%}.wire i.w40{width:40%}.wire i.blue{background:#B9C9F7}.wire i.amber{background:#E7C592}.wire i.green{background:#A8D5BD}
+
+  /* ---------- tables ---------- */
+  .compare{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:16px;background:var(--paper-3)}
+  .compare th{text-align:left;font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500;padding:9px 10px;border-bottom:1px solid var(--line-strong)}
+  .compare td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  .compare td:first-child{font-weight:600}
+  .compare .best{color:var(--green);font-weight:600}
+  .compare .mid{color:var(--amber);font-weight:600}
+
+  .ee{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}
+  .ee .card{border:1px solid var(--line);border-radius:10px;background:var(--paper-3);padding:14px 15px}
+  .ee .card .k{font-family:var(--mono);font-size:8px;letter-spacing:.08em;color:var(--blue);margin-bottom:4px}
+  .ee .card b{font-size:13px;display:block;margin-bottom:4px}
+  .ee .card p{font-size:11.5px;color:var(--muted);line-height:1.45;margin:0}
+  .ee .card .fid{display:inline-block;margin-top:7px;font-family:var(--mono);font-size:8px;border:1px dashed var(--line-strong);border-radius:4px;padding:2px 5px;color:var(--muted)}
+
+  /* ---------- plan ---------- */
+  .plan{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-top:20px;counter-reset:phase}
+  .phase{border-top:2px solid var(--ink);padding-top:8px;font-size:11px;line-height:1.35}
+  .phase .n{font-family:var(--mono);font-size:8px;color:var(--muted);display:block;margin-bottom:3px}
+  .phase b{display:block;font-size:12px;margin-bottom:2px}
+  .phase span{color:var(--muted)}
+
+  /* ---------- decisions ---------- */
+  .decisions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:18px}
+  .decision{border:1px solid var(--line);border-radius:10px;background:var(--paper-3);padding:15px 16px}
+  .decision .k{font-family:var(--mono);font-size:8px;letter-spacing:.08em;color:var(--muted);margin-bottom:4px}
+  .decision b{font-size:14px;display:block;margin-bottom:5px;line-height:1.25}
+  .decision p{font-size:11.5px;color:var(--muted);line-height:1.4;margin:0}
+  .decision .opts{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+  .decision .opts span{font-family:var(--mono);font-size:8px;letter-spacing:.03em;border:1px solid var(--line);border-radius:3px;padding:3px 6px}
+  .decision .opts span.rec{background:var(--ink);color:var(--paper-3);border-color:var(--ink)}
+  .noanswer{margin-top:14px;border:1px dashed var(--line-strong);border-radius:8px;padding:11px 13px;font-size:11.5px;color:var(--muted);background:transparent}
+  .noanswer b{color:var(--ink)}
+
+  footer{margin-top:64px;border-top:1px solid var(--ink);padding:22px 0 44px}
+  .foot{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:30px;align-items:start}
+  .foot p{font-size:11.5px;color:var(--muted);line-height:1.5;margin:0 0 5px}
+  .foot .fidrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .foot .fidrow .chip{font-size:8px}
+  .foot .links{display:flex;flex-direction:column;gap:5px;font-family:var(--mono);font-size:9px;color:var(--muted)}
+  .foot .links a{text-decoration:none;border-bottom:1px solid transparent;padding:2px 0}
+  .foot .links a:hover{border-bottom-color:var(--ink);color:var(--ink)}
+
+  @media (max-width:980px){
+    .mast{grid-template-columns:1fr;gap:22px}
+    .mast-side{border-left:0;border-top:1px solid var(--line);padding-left:0;padding-top:16px;flex-direction:row;flex-wrap:wrap}
+    .rec{flex:1 1 100%}
+    .today{grid-template-columns:1fr}
+    .capture-frame{width:390px}
+    .thesis-inner{grid-template-columns:1fr;gap:18px}
+    .rules{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .dir-head{grid-template-columns:60px minmax(0,1fr)}
+    .dir-verdict{grid-column:2;border-left:0;border-top:1px solid var(--line);padding-left:0;padding-top:10px}
+    .dir-body,.dir-body.flip{grid-template-columns:1fr}
+    .dir-body.flip .phone{order:-1}
+    .cols-2,.cols-3,.cols-4{grid-template-columns:1fr}
+    .shelf{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .surfaces{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .ee{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .plan{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .foot{grid-template-columns:1fr}
+  }
+  @media (max-width:640px){
+    .wrap{padding:0 18px}
+    h1{font-size:clamp(34px,10vw,44px)}
+    .dek{font-size:16px;margin-top:14px}
+    .sec-head{grid-template-columns:1fr;gap:6px}
+    .sec-num{padding-top:0}
+    .defect{grid-template-columns:28px minmax(0,1fr)}
+    .defect .where{grid-column:2;text-align:left;padding-top:1px}
+    .dir-head{grid-template-columns:1fr}
+    .dir-letter{padding-top:0}
+    .dir-verdict{grid-column:1}
+    .shelf,.surfaces,.ee,.decisions{grid-template-columns:1fr}
+    .plan{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .rules{grid-template-columns:1fr 1fr}
+    .rules li:last-child{grid-column:1 / -1}
+    .capture-frame{width:100%}
+    .phone{width:100%}
+  }
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<header class="top wrap">
+  <div class="topline">
+    <div class="brandmark">
+      <span class="pulse-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+      Research Desk · UX study
+    </div>
+    <div class="mono">26 Nov 2026 · internal</div>
+  </div>
+
+  <div class="mast">
+    <div>
+      <h1>Make the research <em>legible</em> before it is readable.</h1>
+      <p class="dek">Same features. Same honest data. A desk that answers <b>does anything need me, is anything moving, what changed</b> in one glance — and feels like an instrument, not a generated report.</p>
+    </div>
+    <div class="mast-side">
+      <div class="rec">
+        <div class="mono">Recommendation</div>
+        <b>A · The Bridge</b>
+        <span>Build the instrument. Keep the Desk's briefing voice inside “Since last look”, and ship the Constellation as an optional desktop map.</span>
+      </div>
+      <p>3 complete directions below. Each covers all 12 routes and all 6 journeys. Every current feature is mapped in the parity table.</p>
+    </div>
+  </div>
+
+  <nav class="jumpline" aria-label="Sections">
+    <a href="#today">Today, captured</a>
+    <a href="#thesis">Thesis</a>
+    <a href="#bridge">A · The Bridge</a>
+    <a href="#desk">B · The Desk</a>
+    <a href="#constellation">C · The Constellation</a>
+    <a href="#compare">Compare</a>
+    <a href="#surfaces">Across the app</a>
+    <a href="#parity">Feature parity</a>
+    <a href="#proof">How it is proved</a>
+    <a href="#decisions">Your call</a>
+  </nav>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ TODAY ============ -->
+  <section class="block" id="today">
+    <div class="sec-head">
+      <div class="sec-num">01 / Today</div>
+      <div>
+        <h2>The data is excellent. The presentation is a report.</h2>
+        <p class="lede">Captured from the running scenario at 390×844 (dark shown; the light default is just as flat, and is linked below). Everything below it is true; the problem is that the screen makes you <i>read</i> to find out whether you need to act.</p>
+      </div>
+    </div>
+
+    <div class="today">
+      <div class="capture-frame">
+        <div class="capture-screen">
+          <img src="assets/captured-now-390.png" alt="Current Now screen at 390 pixels wide: a dark admin page with a status line, needs-you list, supervisors, and a long what-changed list.">
+          <div class="capture-tag">
+            <span class="chip">captured</span>
+            <span class="chip">390 × 844</span>
+            <span class="chip">now · top of scroll</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="defect-list">
+          <div class="defect"><div class="dnum">01</div><div><b>No system shape.</b><p>Five equal sections. Nothing visually says “the system is healthy” or “one commission is stuck”.</p></div><div class="where">now</div></div>
+          <div class="defect"><div class="dnum">02</div><div><b>State is a badge, not a material.</b><p><span class="chip live">live</span> and <span class="chip amber">limited</span> are the same pill with a different hue.</p></div><div class="where">everywhere</div></div>
+          <div class="defect"><div class="dnum">03</div><div><b>The commission row is a paragraph.</b><p>Title, id, state, topic, last write, change count — six lines where one strip would do.</p></div><div class="where">now · commissions</div></div>
+          <div class="defect"><div class="dnum">04</div><div><b>“What changed” reports volume, not meaning.</b><p>“103 changes in the last 24 hours.” What changed? The operator still has to open it.</p></div><div class="where">now · since</div></div>
+          <div class="defect"><div class="dnum">05</div><div><b>Decisions have no triage.</b><p>19 items and 5 older lists at equal weight; the delivery badge is louder than the decision.</p></div><div class="where">needs you</div></div>
+          <div class="defect"><div class="dnum">06</div><div><b>Launch is a form, not a flight plan.</b><p>51 topics in one list, five sections open, no preview of the packet you are about to send.</p></div><div class="where">launch</div></div>
+          <div class="defect"><div class="dnum">07</div><div><b>Desktop is a phone column.</b><p>60 rem centred at 1440: empty margins, no list/detail, no room for the data.</p></div><div class="where">all pages</div></div>
+          <div class="defect"><div class="dnum">08</div><div><b>Trust is hidden behind “Why?”.</b><p>The best idea in the product — evidence for every derived value — is the smallest link on the page.</p></div><div class="where">topics · commission</div></div>
+        </div>
+        <p class="tiny" style="margin-top:14px">More in the written study: §2 lists twelve defects with the screen they show on. The redesign keeps every feature; it changes what leads.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ THESIS ============ -->
+  <section class="thesis-band" id="thesis">
+    <div class="wrap thesis-inner">
+      <div>
+        <div class="mono">The thesis</div>
+        <h2>A calm <em>instrument</em>, not a dashboard.</h2>
+      </div>
+      <ol class="rules">
+        <li><span class="rn">01</span><b>Answer before detail.</b><span>Each surface opens with its answer in a sentence and a shape; the records that prove it follow.</span></li>
+        <li><span class="rn">02</span><b>Time is the axis.</b><span>Research is movement. A lane, a sparkline, an age — never a table of nouns.</span></li>
+        <li><span class="rn">03</span><b>State is a material.</b><span>Live is a moving line; paused is held; limited hits a ceiling; halted breaks. Words and shapes carry; colour reinforces.</span></li>
+        <li><span class="rn">04</span><b>Evidence is a surface.</b><span>Every derived value has a provenance stamp; tapping opens the source, rule, time and raw value.</span></li>
+        <li><span class="rn">05</span><b>Every action is a dispatch.</b><span>The confirmation previews the exact message, its destination, and when it will be read.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ DIRECTION A ============ -->
+  <section id="bridge">
+    <div class="dir">
+      <div class="dir-head">
+        <div class="dir-letter">A / The Bridge</div>
+        <div>
+          <h2 class="dir-name">The <span>Bridge</span></h2>
+          <p class="dir-sub">A ship's bridge for a fleet of research commissions. Day Watch is warm paper and ink; Night Watch is graphite and signal amber. Everything is a reading, a strip or a dispatch.</p>
+        </div>
+        <div class="dir-verdict"><b>Recommended default</b>Best five-second answer, fastest decisions, highest desktop leverage, lowest risk. Ownable signature: the pulse line.</div>
+      </div>
+
+      <div class="dir-body">
+        <div class="phone" aria-label="Sketch of the Bridge Now screen">
+          <div class="pscreen bridge">
+            <div class="statusbar"><span>9:41</span><span class="sig" aria-hidden="true"><i></i><i></i><i></i><i></i></span></div>
+            <div class="inner">
+              <div class="appbar">
+                <div class="bm"><span class="pulse-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span> RESEARCH DESK</div>
+                <div class="k">⌘K</div>
+              </div>
+
+              <div class="duty">
+                <div class="dutyline">Two windows working. One is over its allowance. No halt.</div>
+                <div class="dutymeta">
+                  <span><i class="dot live"></i> 2 live</span>
+                  <span>·</span>
+                  <span><i class="dot amber"></i> 19 need you</span>
+                  <span>·</span>
+                  <span>fresh 12 s</span>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="cdhead">
+                  <div class="t">Last 24 hours</div>
+                  <div class="seg" aria-hidden="true"><i>6h</i><i>12h</i><i class="on">24h</i><i>7d</i></div>
+                </div>
+
+                <div class="lane">
+                  <div class="nm">SCRYR engine</div>
+                  <svg viewBox="0 0 200 15" preserveAspectRatio="none" aria-hidden="true">
+                    <path d="M2,12 L10,10 L18,11 L26,7 L34,9 L42,4 L50,8 L58,6 L66,2 L74,5 L82,9 L90,6 L98,3 L106,7 L114,5 L122,2 L130,6 L138,8 L146,4 L154,6 L162,3 L170,5 L178,2 L186,4 L194,1" fill="none" stroke="#1E7A4B" stroke-width="1.4"/>
+                  </svg>
+                  <div class="st">13h</div>
+                </div>
+                <div class="lane">
+                  <div class="nm">Managed browser</div>
+                  <svg viewBox="0 0 200 15" preserveAspectRatio="none" aria-hidden="true">
+                    <path d="M2,13 L18,13 L26,12 L42,12 L58,11 L74,11 L90,10 L106,10 L122,9 L138,9 L154,8 L170,8 L186,7 L194,7" fill="none" stroke="#A96200" stroke-width="1.4" stroke-dasharray="2 2"/>
+                  </svg>
+                  <div class="st">45m</div>
+                </div>
+                <div class="lane">
+                  <div class="nm">pr3-failure-shape</div>
+                  <svg viewBox="0 0 200 15" preserveAspectRatio="none" aria-hidden="true">
+                    <path d="M2,13 L194,13" fill="none" stroke="#AEB5BC" stroke-width="1.2" stroke-dasharray="1 3"/>
+                  </svg>
+                  <div class="st">prep</div>
+                </div>
+                <div class="lane">
+                  <div class="nm">Job application</div>
+                  <svg viewBox="0 0 200 15" preserveAspectRatio="none" aria-hidden="true">
+                    <path d="M2,13 L18,12 L34,9 L50,6 L66,8 L82,11 L98,13 L114,13 L130,13 L146,13 L162,13 L178,13 L194,13" fill="none" stroke="#8B9199" stroke-width="1.3"/>
+                  </svg>
+                  <div class="st">3h</div>
+                </div>
+                <div class="lane">
+                  <div class="nm">+ 49 more</div>
+                  <svg viewBox="0 0 200 15" preserveAspectRatio="none" aria-hidden="true">
+                    <path d="M2,13 L194,13" fill="none" stroke="#D9D2C4" stroke-width="1"/>
+                  </svg>
+                  <div class="st">→</div>
+                </div>
+
+                <div class="pulsefoot"><span>quiet ≠ no work · the desk shows writes it can see</span><span>now ▸</span></div>
+              </div>
+
+              <div>
+                <div class="cdhead" style="margin:0 1px 5px">
+                  <div class="t" style="font-size:10px">19 need you <span style="font-family:var(--mono);font-size:6.5px;color:#8B9199;font-weight:400">· 5 older</span></div>
+                  <div style="font-family:var(--mono);font-size:6.5px;color:#1E7A4B">● delivering</div>
+                </div>
+                <div class="ticket">
+                  <div class="q">Authorize one corrected free-sandbox upload?</div>
+                  <div class="m">crypto-infrastructure · asked 6h ago · delivered</div>
+                  <div class="rec"><span>✓</span><span><b>Permit exactly one fresh POST</b> under these conditions.</span></div>
+                  <div class="ans"><span>Answer</span></div>
+                </div>
+                <div class="ticket" style="margin-top:5px">
+                  <div class="q">Which route should M1 prepare for the synthetic OpenEMR journey?</div>
+                  <div class="m">medical-practice-it · asked 9h ago · not read</div>
+                  <div class="rec"><span>✓</span><span><b>Keep M1 waiting</b> until a safe route is available.</span></div>
+                </div>
+              </div>
+
+              <div class="brief">
+                <div class="cdhead" style="margin:0 0 4px">
+                  <div class="t" style="font-size:10px">Since 08:14 yesterday</div>
+                  <div style="font-family:var(--mono);font-size:6.5px;color:#2457E6">Mark seen</div>
+                </div>
+                <div class="row"><div><b>3 topics wrote after their commission ended</b><br><span>job-application · managed-browser · scenario-excellence</span></div><div>→</div></div>
+                <div class="row"><div><b>2 workstreams landed</b><br><span>SCRYR engine · debt reduction</span></div><div>→</div></div>
+                <div class="row"><div><b>1 review is due</b><br><span>experience-engineering</span></div><div>→</div></div>
+              </div>
+            </div>
+
+            <div class="bnav" aria-hidden="true">
+              <div class="on"><span class="ic"></span>Now</div>
+              <div><span class="ic"><i class="cnt">19</i></span>Needs you</div>
+              <div><span class="ic"></span>Topics</div>
+              <div><span class="ic"></span>Runs</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dir-copy">
+          <div>
+            <div class="kicker">The idea</div>
+            <p>An instrument panel, not a dashboard. The top of the screen is a <b>duty line</b> — one sentence and three readings. Under it, a <b>pulse ribbon</b> shows every open commission as a lane of research writes: where work is happening, where it has gone quiet, and where an allowance is about to end. The ribbon is the system's shape; the strips below are the records that prove it.</p>
+          </div>
+
+          <div>
+            <div class="kicker">Signature elements</div>
+            <table class="signature-table">
+              <thead><tr><th>Element</th><th>What it does</th><th>Replaces</th></tr></thead>
+              <tbody>
+                <tr><td>Pulse ribbon</td><td>24h / 7d lanes, ticks, quiet gaps, allowance caps, a now line.</td><td>Status sentence + separate groups</td></tr>
+                <tr><td>Flight strip</td><td>Commission as a horizontal ticket: state material, title, route chips, allowance meter, last write.</td><td>Tall commission card</td></tr>
+                <tr><td>Decision ticket</td><td>Question, age, recommendation, two answers, courier stamp.</td><td>Collapsed details row</td></tr>
+                <tr><td>Read-set gauge</td><td>Charter / state / ledger / mission / operator against ceilings, with growth.</td><td>“22 KB (5,387 tokens)”</td></tr>
+                <tr><td>Evidence sheet</td><td>Source path, rule, observed time, raw value, open file.</td><td>Tiny “Why?” link</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div>
+            <div class="kicker">Material language</div>
+            <div class="palette" aria-label="Palette">
+              <span class="sw" style="background:#F7F4EC" title="paper"></span>
+              <span class="sw" style="background:#171A1D" title="ink"></span>
+              <span class="sw" style="background:#2457E6" title="signal blue"></span>
+              <span class="sw" style="background:#A96200" title="amber"></span>
+              <span class="sw" style="background:#1E7A4B" title="live"></span>
+              <span class="sw" style="background:#B3261E" title="danger"></span>
+            </div>
+            <p class="type-sample" style="margin-top:10px"><span class="display">2 live. 19 waiting.</span>Instrument Sans for the interface, tabular numerals for every reading.<span class="mono">IBM Plex Mono · scr yr-20261124 · 13h left</span></p>
+          </div>
+
+          <div>
+            <div class="kicker">Navigation</div>
+            <p class="tiny">Four tabs stay: <b>Now, Needs you, Topics, Runs</b>. Launch is a persistent top action; Reviews and Desk live in the overflow, as today. On desktop the same destinations become a 224 px rail with a live duty summary. A <b>⌘K</b> palette reaches any topic, commission, file or control — power without more tabs.</p>
+          </div>
+
+          <div class="note green"><b>Why it wins.</b> It answers the two questions that matter in under five seconds, makes 19 decisions a ranked queue rather than a scroll, and gives the desk an identity that is recognisably its own — without changing the data model.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DIRECTION B ============ -->
+  <section id="desk">
+    <div class="dir">
+      <div class="dir-head">
+        <div class="dir-letter">B / The Desk</div>
+        <div>
+          <h2 class="dir-name">The <span>Desk</span></h2>
+          <p class="dir-sub">A private correspondent's desk. The desk writes you a short, beautiful brief each time you arrive; decisions are reply slips; commissions are dossiers.</p>
+        </div>
+        <div class="dir-verdict"><b>Best reading experience</b>Warm, human, distinctive. Slower for triage; a larger brand shift. Its briefing voice should live inside the Bridge.</div>
+      </div>
+
+      <div class="dir-body flip">
+        <div class="dir-copy">
+          <div>
+            <div class="kicker">The idea</div>
+            <p>An editorial front page, not an operations console. The masthead sets the day; the <b>lead</b> is the one thing that most deserves your attention, written as two sentences; <b>reply slips</b> are decisions; the <b>fleet ledger</b> is the quiet status table; <b>since your last visit</b> is a digest. The desk becomes a correspondent that has already read everything for you.</p>
+          </div>
+          <div>
+            <div class="kicker">Signature elements</div>
+            <ul class="small-list">
+              <li><span class="num">01</span><div><b>Masthead + edition.</b> A dated front page with a one-line edition summary.</div></li>
+              <li><span class="num">02</span><div><b>Lead story.</b> The most consequential change or blocker, with an evidence footnote.</div></li>
+              <li><span class="num">03</span><div><b>Reply slip.</b> A perforated decision card; the recommendation printed like a reply; two reply buttons.</div></li>
+              <li><span class="num">04</span><div><b>Fleet ledger.</b> A compact table of state, last write, allowance and a one-line note.</div></li>
+              <li><span class="num">05</span><div><b>Marginalia.</b> Overlaps, lens outages, unreadable files as margin notes, not alarms.</div></li>
+            </ul>
+          </div>
+          <div>
+            <div class="kicker">Type &amp; colour</div>
+            <p class="type-sample"><span class="display" style="font-family:var(--serif);font-weight:500">The state of the research,<br>Thursday morning.</span>Ivory paper, ink, one vermilion accent, a serif display, hairline rules, generous reading measure.</p>
+            <div class="palette" style="margin-top:9px">
+              <span class="sw" style="background:#F6F0E4"></span>
+              <span class="sw" style="background:#1C1917"></span>
+              <span class="sw" style="background:#B23A2B"></span>
+              <span class="sw" style="background:#2F6B4F"></span>
+              <span class="sw" style="background:#8B7A68"></span>
+            </div>
+          </div>
+          <div class="note amber"><b>What to steal.</b> The briefing voice for “Since last look” and the idle/empty states; the reply slip as the parent of the decision ticket; the dossier rhythm for topic and review pages.</div>
+        </div>
+
+        <div class="phone" aria-label="Sketch of the Desk Now screen">
+          <div class="pscreen desk">
+            <div class="statusbar" style="color:#1C1917"><span>9:41</span><span class="sig" aria-hidden="true"><i></i><i></i><i></i><i></i></span></div>
+            <div class="inner">
+              <div class="masthead"><span class="n">RESEARCH DESK</span><span class="d">edition 412</span></div>
+              <div>
+                <div class="date">Thursday, 26 November</div>
+                <div class="edition">TWO WINDOWS OPEN · NOTHING HALTED · NINETEEN DECISIONS WAITING</div>
+              </div>
+              <div class="rule"></div>
+
+              <div class="lead">
+                <div class="k">The lead</div>
+                <h3>One commission has written past its allowance — and is still running.</h3>
+                <p>Managed browser platform last wrote six hours ago, forty-five minutes after its window closed. Nothing is lost; the desk has kept the session intact for a closeout.</p>
+                <a>Read the evidence ↗</a>
+              </div>
+
+              <div class="slip">
+                <div class="lab">REPLY SLIP · 1 OF 19</div>
+                <div class="q">Authorize one corrected free-sandbox upload?</div>
+                <div class="r"><b>Recommended:</b> permit exactly one fresh POST under these conditions.</div>
+                <div class="btns"><span>Use this</span><span>In my words</span></div>
+              </div>
+
+              <div class="ledger">
+                <div class="h"><span>THE FLEET</span><span>LAST WRITE</span></div>
+                <div class="lrow"><div><div class="nm">SCRYR engine <span style="font-family:var(--mono);font-size:5.5px;color:#2F6B4F">LIVE</span></div><div class="meter"><i style="width:54%"></i></div></div><div class="mt">9h ago<br>13h left</div></div>
+                <div class="lrow"><div><div class="nm">Managed browser <span style="font-family:var(--mono);font-size:5.5px;color:#A96200">LIMITED</span></div><div class="meter amber"><i style="width:100%"></i></div></div><div class="mt">6h ago<br>over 45m</div></div>
+                <div class="lrow"><div><div class="nm">Debt reduction <span style="font-family:var(--mono);font-size:5.5px;color:#8B7A68">ENDED</span></div><div class="meter"><i style="width:100%;background:#B9A891"></i></div></div><div class="mt">7d ago<br>—</div></div>
+              </div>
+
+              <div style="border-top:1px solid #B9A891;padding-top:5px">
+                <div class="h" style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:5.5px;letter-spacing:.1em;color:#8B7A68"><span>SINCE YOUR LAST VISIT</span><span>08:14</span></div>
+                <div style="font-size:8px;line-height:1.35;color:#3B332C;margin-top:3px"><b>Three topics wrote after their commission ended.</b> Job application, managed browser, scenario excellence. <b>Two workstreams landed.</b> <b>One review is due.</b></div>
+              </div>
+
+              <div style="border-top:1px solid #B9A891;padding-top:5px">
+                <div class="h" style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:5.5px;letter-spacing:.1em;color:#8B7A68"><span>ALSO WAITING</span><span>17 MORE</span></div>
+                <div style="display:flex;flex-direction:column;gap:3px;margin-top:4px">
+                  <div style="font-size:7.5px;line-height:1.2"><b>Provide trusted Agent Manager context for MB4.</b><br><span style="font-family:var(--mono);font-size:5.5px;color:#8B7A68">managed-browser · 2h</span></div>
+                  <div style="font-size:7.5px;line-height:1.2"><b>Should durable recordings retain typed values?</b><br><span style="font-family:var(--mono);font-size:5.5px;color:#8B7A68">managed-browser · 4h</span></div>
+                  <div style="font-size:7.5px;line-height:1.2"><b>Which authorized evidence may scope the branches?</b><br><span style="font-family:var(--mono);font-size:5.5px;color:#8B7A68">medical-practice-it · 9h</span></div>
+                </div>
+              </div>
+
+              <div style="margin-top:2px;border-left:2px solid #B23A2B;padding-left:6px;font-size:7.5px;line-height:1.3;color:#5C4A3E">
+                <b style="font-family:var(--mono);font-size:5.5px;letter-spacing:.1em;color:#B23A2B">IN THE MARGIN</b><br>
+                Two commissions overlap on managed-browser. The desk will not supervise both silently.
+              </div>
+
+              <div style="margin-top:auto;border-top:1px solid #1C1917;padding-top:5px">
+                <div style="display:flex;justify-content:space-between;align-items:baseline">
+                  <div>
+                    <div style="font-family:var(--mono);font-size:5.5px;letter-spacing:.12em;color:#B23A2B">REVIEW DUE</div>
+                    <div style="font-family:var(--serif);font-size:13px;line-height:1.1;margin-top:2px">Experience engineering</div>
+                    <div style="font-family:var(--mono);font-size:5.5px;color:#8B7A68;margin-top:2px">7 topics · no verdict recorded</div>
+                  </div>
+                  <div style="font-family:var(--mono);font-size:5.5px;letter-spacing:.06em;border:1px solid #1C1917;padding:3px 6px">OPEN</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="bnav" aria-hidden="true">
+              <span><b>Now</b></span><span>Needs you</span><span>Topics</span><span>Runs</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DIRECTION C ============ -->
+  <section id="constellation">
+    <div class="dir">
+      <div class="dir-head">
+        <div class="dir-letter">C / The Constellation</div>
+        <div>
+          <h2 class="dir-name">The <span>Constellation</span></h2>
+          <p class="dir-sub">The research portfolio as a night sky. Topics are stars, commissions are orbits, decisions are beacons. Navigate by shape and relationship, then drop into ordinary lists for precision.</p>
+        </div>
+        <div class="dir-verdict"><b>Optional desktop map</b>Most memorable and best at overlap and drift. Too imprecise for 19 decisions, too hostile on a phone as the front door.</div>
+      </div>
+
+      <div class="dir-body">
+        <div class="phone" style="background:#05080D" aria-label="Sketch of the Constellation screen">
+          <div class="pscreen constellation">
+            <div class="sky" aria-hidden="true">
+              <svg viewBox="0 0 360 744" role="presentation">
+                <defs>
+                  <radialGradient id="g1" cx="50%" cy="45%" r="60%">
+                    <stop offset="0%" stop-color="#0E2033"/>
+                    <stop offset="70%" stop-color="#070B12"/>
+                    <stop offset="100%" stop-color="#04070B"/>
+                  </radialGradient>
+                  <radialGradient id="star" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#FFFFFF" stop-opacity=".95"/>
+                    <stop offset="35%" stop-color="#9FC4E8" stop-opacity=".5"/>
+                    <stop offset="100%" stop-color="#9FC4E8" stop-opacity="0"/>
+                  </radialGradient>
+                  <radialGradient id="beacon" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#FFD38A" stop-opacity=".95"/>
+                    <stop offset="40%" stop-color="#E8A33D" stop-opacity=".45"/>
+                    <stop offset="100%" stop-color="#E8A33D" stop-opacity="0"/>
+                  </radialGradient>
+                </defs>
+                <rect width="360" height="744" fill="url(#g1)"/>
+
+                <!-- faint field -->
+                <g fill="#AFC6DE" opacity=".5">
+                  <circle cx="34" cy="120" r=".7"/><circle cx="88" cy="96" r=".5"/><circle cx="150" cy="140" r=".6"/><circle cx="236" cy="92" r=".5"/><circle cx="306" cy="132" r=".7"/>
+                  <circle cx="48" cy="240" r=".5"/><circle cx="120" cy="210" r=".4"/><circle cx="196" cy="250" r=".5"/><circle cx="280" cy="226" r=".4"/><circle cx="330" cy="300" r=".5"/>
+                  <circle cx="64" cy="380" r=".4"/><circle cx="140" cy="420" r=".5"/><circle cx="220" cy="380" r=".4"/><circle cx="300" cy="430" r=".5"/>
+                  <circle cx="40" cy="530" r=".5"/><circle cx="110" cy="570" r=".4"/><circle cx="190" cy="540" r=".5"/><circle cx="270" cy="590" r=".4"/><circle cx="334" cy="550" r=".5"/>
+                </g>
+
+                <!-- orbits -->
+                <g fill="none" stroke="#28435F" stroke-width=".7" opacity=".85">
+                  <ellipse cx="180" cy="330" rx="132" ry="88" transform="rotate(-14 180 330)"/>
+                  <ellipse cx="180" cy="330" rx="96" ry="148" transform="rotate(22 180 330)"/>
+                  <ellipse cx="180" cy="330" rx="160" ry="118" transform="rotate(40 180 330)"/>
+                </g>
+
+                <!-- edges: commissions covering multiple topics -->
+                <g stroke="#4C7FA8" stroke-width="1" opacity=".55">
+                  <line x1="180" y1="250" x2="250" y2="330"/>
+                  <line x1="180" y1="250" x2="118" y2="338"/>
+                  <line x1="250" y1="330" x2="118" y2="338"/>
+                  <line x1="250" y1="330" x2="265" y2="430"/>
+                  <line x1="118" y1="338" x2="90" y2="446"/>
+                  <line x1="180" y1="428" x2="265" y2="430"/>
+                  <line x1="90" y1="446" x2="180" y2="428"/>
+                </g>
+
+                <!-- topic stars -->
+                <g>
+                  <circle cx="180" cy="250" r="22" fill="url(#star)" opacity=".95"/>
+                  <circle cx="180" cy="250" r="5.2" fill="#EAF4FF"/>
+                  <text x="180" y="232" fill="#DCE8F5" font-size="7.5" font-family="IBM Plex Mono, monospace" text-anchor="middle">experience-engineering</text>
+                  <text x="180" y="270" fill="#6F8AA3" font-size="5.5" font-family="IBM Plex Mono, monospace" text-anchor="middle">12 open · 4 live</text>
+
+                  <circle cx="250" cy="330" r="18" fill="url(#star)" opacity=".9"/>
+                  <circle cx="250" cy="330" r="4.4" fill="#EAF4FF"/>
+                  <text x="272" y="326" fill="#DCE8F5" font-size="7" font-family="IBM Plex Mono, monospace">scr yr-campaigns</text>
+                  <text x="272" y="337" fill="#6F8AA3" font-size="5.5" font-family="IBM Plex Mono, monospace">LIVE · 13h left</text>
+
+                  <circle cx="118" cy="338" r="18" fill="url(#star)" opacity=".9"/>
+                  <circle cx="118" cy="338" r="4.4" fill="#EAF4FF"/>
+                  <text x="96" y="334" fill="#DCE8F5" font-size="7" font-family="IBM Plex Mono, monospace" text-anchor="end">managed browser</text>
+                  <text x="96" y="345" fill="#E8A33D" font-size="5.5" font-family="IBM Plex Mono, monospace" text-anchor="end">LIMITED · over 45m</text>
+
+                  <circle cx="265" cy="430" r="14" fill="url(#star)" opacity=".85"/>
+                  <circle cx="265" cy="430" r="3.6" fill="#EAF4FF"/>
+                  <text x="283" y="427" fill="#DCE8F5" font-size="6.5" font-family="IBM Plex Mono, monospace">debt reduction</text>
+                  <text x="283" y="437" fill="#6F8AA3" font-size="5.5" font-family="IBM Plex Mono, monospace">ended 7d</text>
+
+                  <circle cx="90" cy="446" r="14" fill="url(#star)" opacity=".85"/>
+                  <circle cx="90" cy="446" r="3.6" fill="#EAF4FF"/>
+                  <text x="72" y="443" fill="#DCE8F5" font-size="6.5" font-family="IBM Plex Mono, monospace" text-anchor="end">scenario excellence</text>
+                  <text x="72" y="453" fill="#6F8AA3" font-size="5.5" font-family="IBM Plex Mono, monospace" text-anchor="end">1 problem</text>
+
+                  <circle cx="180" cy="428" r="13" fill="url(#star)" opacity=".8"/>
+                  <circle cx="180" cy="428" r="3.2" fill="#EAF4FF"/>
+                  <text x="180" y="446" fill="#DCE8F5" font-size="6.5" font-family="IBM Plex Mono, monospace" text-anchor="middle">job application</text>
+                  <text x="180" y="456" fill="#6F8AA3" font-size="5.5" font-family="IBM Plex Mono, monospace" text-anchor="middle">quiet 3h</text>
+
+                  <circle cx="300" cy="200" r="10" fill="url(#star)" opacity=".6"/>
+                  <circle cx="300" cy="200" r="2.6" fill="#DCE8F5"/>
+                  <text x="300" y="216" fill="#7D8FA4" font-size="5.5" font-family="IBM Plex Mono, monospace" text-anchor="middle">search</text>
+
+                  <circle cx="60" cy="190" r="9" fill="url(#star)" opacity=".55"/>
+                  <circle cx="60" cy="190" r="2.4" fill="#DCE8F5"/>
+                  <text x="60" y="205" fill="#7D8FA4" font-size="5.5" font-family="IBM Plex Mono, monospace" text-anchor="middle">audio tools</text>
+                </g>
+
+                <!-- beacon: needs you -->
+                <g>
+                  <circle cx="306" cy="278" r="28" fill="url(#beacon)" opacity=".9"/>
+                  <circle cx="306" cy="278" r="4" fill="#E8A33D"/>
+                  <text x="306" y="298" fill="#E8A33D" font-size="5.5" font-family="IBM Plex Mono, monospace" text-anchor="middle">19 need you</text>
+                </g>
+              </svg>
+            </div>
+
+            <div class="top">
+              <div>
+                <div class="n">RESEARCH DESK · MAP</div>
+                <h3>The constellation</h3>
+                <div class="meta">51 topics · 10 open · 7 days</div>
+              </div>
+              <div class="livechip"><span class="dot" style="width:4px;height:4px;border-radius:50%;background:#9BE3B9;display:inline-block"></span> 2 live</div>
+            </div>
+
+            <div class="legend" aria-hidden="true">
+              <span><i style="background:#EAF4FF"></i>topic</span>
+              <span><i style="background:#1E7A4B"></i>live ring</span>
+              <span><i style="background:#E8A33D"></i>needs you</span>
+              <span><i style="background:transparent;border:1px dashed #7D8FA4"></i>quiet</span>
+            </div>
+
+            <div class="signals">
+              <div class="sheet">
+                <div class="h"><span class="t">SIGNALS · TOP 2</span><span class="c">19</span></div>
+                <div class="beacon">
+                  <div class="b"></div>
+                  <div><div class="q">Authorize one corrected free-sandbox upload?</div><div class="m">crypto-infrastructure · 6h</div></div>
+                  <div class="go">open</div>
+                </div>
+                <div class="beacon">
+                  <div class="b"></div>
+                  <div><div class="q">Which route for the synthetic OpenEMR journey?</div><div class="m">medical-practice-it · 9h</div></div>
+                  <div class="go">open</div>
+                </div>
+              </div>
+              <div class="scrub"><span>7d</span><div class="line"><i></i></div><span>now</span><span>▶</span></div>
+            </div>
+
+            <div class="bnav" aria-hidden="true">
+              <span>Now</span><span>Needs you</span><span><b>Map</b></span><span>Runs</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="dir-copy">
+          <div>
+            <div class="kicker">The idea</div>
+            <p>A spatial model of the portfolio. Node size is open workstreams; brightness is recency; a ring is a live commission; a dashed halo is quiet; amber is a decision beacon. Edges are commissions that cover more than one topic, so <b>overlaps become geometry</b> instead of a separate section. A time scrubber replays the last seven days.</p>
+          </div>
+          <div>
+            <div class="kicker">What it is excellent at</div>
+            <ul class="small-list">
+              <li><span class="num">01</span><div><b>Portfolio shape.</b> Which topics are alive, which are drifting, which are connected by the same commission.</div></li>
+              <li><span class="num">02</span><div><b>Overlap and drift.</b> An overlap is a visible edge; a stall is a halo that stops moving.</div></li>
+              <li><span class="num">03</span><div><b>Reviews.</b> The map is a natural index for a portfolio review; selecting a cluster builds the review scope.</div></li>
+              <li><span class="num">04</span><div><b>Memory.</b> It is the screen the operator will describe to someone else.</div></li>
+            </ul>
+          </div>
+          <div>
+            <div class="kicker">The honest costs</div>
+            <p class="tiny">A map is slower for “answer these 19 decisions”. It needs a complete non-spatial equivalent for accessibility, zoom/pan on a phone is hostile, and it is a new interaction model to learn. Build it after the Bridge, behind a <b>Map</b> toggle on Topics, with the list as the default.</p>
+          </div>
+          <div class="note"><b>What to steal.</b> The node/edge model for an optional Map; the time scrubber as a desktop alternate to the pulse ribbon; the beacon as the map's needs-you marker.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ COMPARE ============ -->
+  <section class="block" id="compare">
+    <div class="sec-head">
+      <div class="sec-num">02 / Compare</div>
+      <div>
+        <h2>Which one should be the desk?</h2>
+        <p class="lede">All three preserve every feature. The choice is what the desk is for: fast triage, deep reading, or spatial understanding.</p>
+      </div>
+    </div>
+    <table class="compare">
+      <thead>
+        <tr><th>Criterion</th><th>A · Bridge</th><th>B · Desk</th><th>C · Constellation</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Five-second “does anything need me?”</td><td class="best">5/5 · duty line + tickets</td><td>4/5 · masthead + slips</td><td class="mid">3/5 · beacons need reading</td></tr>
+        <tr><td>Five-second “what is moving?”</td><td class="best">5/5 · pulse ribbon</td><td>4/5 · fleet ledger</td><td class="best">5/5 · brightness + orbits</td></tr>
+        <tr><td>Time to answer 19 decisions</td><td class="best">5/5 · ranked queue, one tap</td><td class="mid">3/5 · rich but slower</td><td class="mid">3/5 · scattered beacons</td></tr>
+        <tr><td>Reading long research</td><td>4/5 · dossier tabs</td><td class="best">5/5 · reading room</td><td class="mid">3/5 · map is not a reader</td></tr>
+        <tr><td>Phone ergonomics</td><td class="best">5/5</td><td class="best">5/5</td><td class="mid">2/5</td></tr>
+        <tr><td>Desktop use of space</td><td class="best">5/5 · rail + two-pane + wall</td><td>4/5 · two-column editorial</td><td class="best">5/5 · full-bleed map</td></tr>
+        <tr><td>Distinctiveness / award potential</td><td class="best">5/5 · pulse + strips</td><td class="best">5/5 · editorial voice</td><td class="best">5/5 · spatial identity</td></tr>
+        <tr><td>Build cost</td><td>M</td><td>M–L · new type/brand</td><td>L–XL · map + a11y equivalent</td></tr>
+        <tr><td>Risk</td><td class="best">Low–M</td><td class="mid">M</td><td>High</td></tr>
+      </tbody>
+    </table>
+    <p class="note green" style="margin-top:16px"><b>Recommendation.</b> Build A. Put B's briefing voice in “Since last look” and the idle states. Ship C's map as an optional desktop view after the core is proved. This is the rare case where the recommended option is also the lowest-risk one.</p>
+  </section>
+
+  <!-- ============ SURFACES ============ -->
+  <section class="block" id="surfaces">
+    <div class="sec-head">
+      <div class="sec-num">03 / Surfaces</div>
+      <div>
+        <h2>Every surface gets a job, not a skin.</h2>
+        <p class="lede">The Bridge is a system of patterns, not one nice screen. Here is what each route becomes.</p>
+      </div>
+    </div>
+    <div class="surfaces">
+      <div class="surface"><div class="sh"><span>Now</span><span>the watch</span></div><b>Duty line + pulse + tickets + briefing</b><p>One sentence answers the state; the ribbon shows movement; the top decisions are ranked by consequence and age.</p><div class="wire"><i class="blue w80"></i><i class="w60"></i><i class="amber w40"></i></div></div>
+      <div class="surface"><div class="sh"><span>Needs you</span><span>the queue</span></div><b>Ranked decision tickets, grouped by commission</b><p>Filters: all, blocking, questions, notices, older, answered. Delivery is a stamp; the recommendation is one tap; the dispatch preview is exact. A visual decision can carry a <b>captured before / composited after</b> viewer with fidelity chips and tap-to-comment regions.</p><div class="wire"><i class="amber w80"></i><i class="w80"></i><i class="w60"></i></div></div>
+      <div class="surface"><div class="sh"><span>Topics</span><span>the library</span></div><b>A research index with sparklines and read-set gauges</b><p>Desktop table, phone dense list, saved views: all, needs attention, quiet. Topic dossier: brief, workstreams, runs, changes.</p><div class="wire"><i class="w80"></i><i class="w60"></i><i class="green w40"></i></div></div>
+      <div class="surface"><div class="sh"><span>Commissions</span><span>the runs</span></div><b>Flight strips + a dossier with a stint timeline</b><p>Overview tells the story; Steer is a control rail with a destination line; Reading is a budget gauge; Files is a ledger.</p><div class="wire"><i class="green w60"></i><i class="w80"></i><i class="w40"></i></div></div>
+      <div class="surface"><div class="sh"><span>Launch</span><span>the flight plan</span></div><b>Route → Cards → Words → Window → Clearance</b><p>Clean-start verdict at the moment of choice; a packet preview; a persistent plan bar; one clearance checklist; no command line.</p><div class="wire"><i class="blue w40"></i><i class="w80"></i><i class="w60"></i></div></div>
+      <div class="surface"><div class="sh"><span>Reviews · Desk · File</span><span>the rooms</span></div><b>Reading room, systems board, file ledger</b><p>Verdict stamps that can bind to a capture region, real lens states, self-tests, theme, and every research file rendered for a phone.</p><div class="wire"><i class="w60"></i><i class="w80"></i><i class="amber w40"></i></div></div>
+    </div>
+  </section>
+
+  <!-- ============ PARITY ============ -->
+  <section class="block" id="parity">
+    <div class="sec-head">
+      <div class="sec-num">04 / Parity</div>
+      <div>
+        <h2>Same features. That is a gate, not a promise.</h2>
+        <p class="lede">34 feature groups across 12 routes and 6 journeys are mapped one-for-one in the written study. The redesign may re-home a feature; it may not lose one without a keep/drop card.</p>
+      </div>
+    </div>
+    <div class="cols-3">
+      <div class="stack">
+        <div class="kicker">Status &amp; movement</div>
+        <ul class="small-list">
+          <li><span class="num">01</span><div>Live / halted / paused / limited counts; newest write; notes.</div></li>
+          <li><span class="num">02</span><div>Supervisor groups; topics, claim, last write, changes, allowance.</div></li>
+          <li><span class="num">03</span><div>Since last look / day / week; written topics; Caught up.</div></li>
+          <li><span class="num">04</span><div>Overlaps; prepared packets; state counts; lens outages.</div></li>
+          <li><span class="num">05</span><div>Unreadable files; stale, partial, offline, error states.</div></li>
+        </ul>
+      </div>
+      <div class="stack">
+        <div class="kicker">Decisions &amp; control</div>
+        <ul class="small-list">
+          <li><span class="num">06</span><div>Needs-you feed: body, options, own words, exact entry.</div></li>
+          <li><span class="num">07</span><div>Delivery, answered, read, reused ID, global, secret, older lists.</div></li>
+          <li><span class="num">08</span><div>Courier health, self-test, global switch; per-commission switch.</div></li>
+          <li><span class="num">09</span><div>Say, wind down, pause, resume, stop, discard, re-send stance.</div></li>
+          <li><span class="num">10</span><div>Read timing, entry limit, operator log, unparsed headings.</div></li>
+          <li><span class="num">11</span><div>Enable steering; refused control reason; manual keystrokes.</div></li>
+        </ul>
+      </div>
+      <div class="stack">
+        <div class="kicker">Launch, reading &amp; trust</div>
+        <ul class="small-list">
+          <li><span class="num">12</span><div>Topics, cards, order, notes, emphasis, quotes + source.</div></li>
+          <li><span class="num">13</span><div>Allowance, models, slug, form persistence, read-first.</div></li>
+          <li><span class="num">14</span><div>Preflight size gates, blockers + recommendation, quiet folded.</div></li>
+          <li><span class="num">15</span><div>Prepared / unknown packets, manual messages, progress.</div></li>
+          <li><span class="num">16</span><div>Read-set sizes and bloat; files; reviews; verdicts; Desk.</div></li>
+          <li><span class="num">17</span><div>Evidence for every derived value; API sentences verbatim.</div></li>
+        </ul>
+      </div>
+    </div>
+    <p class="note" style="margin-top:18px"><b>The gate.</b> After each phase, EX8 diffs the served inventory against this list. A finding such as “the launch map disappeared” or “the older-lists count vanished” becomes a decision card, not a silent regression. The full 34-row map is in <span class="mono">PROPOSAL.md §9</span>.</p>
+  </section>
+
+  <!-- ============ PROOF ============ -->
+  <section class="block" id="proof">
+    <div class="sec-head">
+      <div class="sec-num">05 / Proof</div>
+      <div>
+        <h2>Built by the pipeline it is asking for.</h2>
+        <p class="lede">This study is the first customer of the experience-engineering capabilities: capture, inventory, compositing, region feedback, critic, contracts and one verdict.</p>
+      </div>
+    </div>
+
+    <div class="ee">
+      <div class="card"><div class="k">EX9 · CAPTURE</div><b>One bundle of today.</b><p>12 routes × 2 sizes × 2 themes, plus the six journey states. The captures on this page are the interim baseline; the bundle replaces them.</p><span class="fid">captured</span></div>
+      <div class="card"><div class="k">EX8 · INVENTORY</div><b>Nothing disappears.</b><p>Every route, action and component is inventoried before the change and diffed after. A loss becomes a keep/drop card.</p><span class="fid">before / after</span></div>
+      <div class="card"><div class="k">EX11 · ROUND TRIP</div><b>The mockup becomes the spec.</b><p>Edit the frozen page's outline; composite unchanged regions; render changed regions with real RCL components fed captured data.</p><span class="fid">composited</span></div>
+      <div class="card"><div class="k">EX12 · REGION FEEDBACK</div><b>Point at a defect on a phone.</b><p>The operator taps a region, writes one sentence; the comment binds to the outline node and routes to the owning task.</p><span class="fid">region ID + text</span></div>
+      <div class="card"><div class="k">EX1 · CRITIC</div><b>The operator's corrections, automated.</b><p>Score every built screen at 390 and 1440, light and dark: stacked actions, overflow, contrast, 44 px targets, crowded nav.</p><span class="fid">ranked findings</span></div>
+      <div class="card"><div class="k">EX7 · CONTRACTS</div><b>Misuse is loud.</b><p>BottomNav max 4; DecisionTicket max 2 options + own words; PulseRibbon max 6 lanes; one action row, one primary.</p><span class="fid">dev + lint + story</span></div>
+      <div class="card"><div class="k">EX3 · STUDIO</div><b>No local lookalikes.</b><p>The new primitives are built in the RCL studio and adopted fleet-wide; tabs, dropdowns, nav and action bars stay shared.</p><span class="fid">RCL assets</span></div>
+      <div class="card"><div class="k">EX2 / EX6 · VERDICT</div><b>One gate that never lies.</b><p><span class="mono">--phases experience</span> becomes the redesign gate; <span class="mono">not-evaluated</span> never passes; false passes are measured.</p><span class="fid">one verdict</span></div>
+      <div class="card"><div class="k">IN THE DESK · EX12</div><b>The desk becomes the evidence surface.</b><p>A visual decision shows the before/after viewer and returns the region ID with the operator's words; a review can bind a verdict to a region; point-and-correct works on the desk itself.</p><span class="fid">region answer</span></div>
+      <div class="card"><div class="k">PRESENT-UX-DECISIONS</div><b>This page follows the method.</b><p>Decision first; today beside the proposal; one card per option; what approval does; no answer is a real choice; fidelity labels.</p><span class="fid">method</span></div>
+    </div>
+
+    <h3 style="margin-top:34px">Six phases, about eight weeks</h3>
+    <div class="plan">
+      <div class="phase"><span class="n">0 · 1–2 d</span><b>Evidence</b><span>Capture, inventory, baseline test, token audit.</span></div>
+      <div class="phase"><span class="n">1 · 1 wk</span><b>Primitives</b><span>8 RCL assets, contracts, shell, palette, activity series.</span></div>
+      <div class="phase"><span class="n">2 · 1.5 wk</span><b>Now + Queue</b><span>The five-second test must pass before anything else ships.</span></div>
+      <div class="phase"><span class="n">3 · 1.5 wk</span><b>Runs</b><span>Strips, dossier, stint timeline, steer rail, read set.</span></div>
+      <div class="phase"><span class="n">4 · 1.5 wk</span><b>Launch</b><span>Flight plan, clearance, packet preview, fallback.</span></div>
+      <div class="phase"><span class="n">5–6 · 2 wk</span><b>Rooms + proof</b><span>Library, reviews, Desk, critic, journeys, parity diff.</span></div>
+    </div>
+
+    <div class="cols-2" style="margin-top:30px">
+      <div>
+        <div class="kicker">Acceptance</div>
+        <ul class="small-list">
+          <li><span class="num">01</span><div>Five-second test: “does anything need me?” and “what is moving?” 5/5; “what changed?” ≥ 4/5.</div></li>
+          <li><span class="num">02</span><div>Median time to answer one needs-you item &lt; 30 s; launch 3 topics with defaults &lt; 60 s.</div></li>
+          <li><span class="num">03</span><div>Zero unexplained critic findings at 390/1440, light/dark; AA verified; no overflow at 320–1440.</div></li>
+          <li><span class="num">04</span><div>100% of the EX8 inventory preserved, or a keep/drop card for every difference.</div></li>
+        </ul>
+      </div>
+      <div>
+        <div class="kicker">What is deliberately not changed</div>
+        <ul class="small-list">
+          <li><span class="num">05</span><div>Files remain the state. No database, no new authoritative record.</div></li>
+          <li><span class="num">06</span><div>No write is one tap; every outward action is confirmed with the exact text.</div></li>
+          <li><span class="num">07</span><div>The desk never enters a supervisor conversation; wind-down is still an operator-file entry.</div></li>
+          <li><span class="num">08</span><div>Unknown stays unknown; optional lenses down only make their fields unknown.</div></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DECISIONS ============ -->
+  <section class="block" id="decisions">
+    <div class="sec-head">
+      <div class="sec-num">06 / Decide</div>
+      <div>
+        <h2>Four taste calls. No answer is a real answer.</h2>
+        <p class="lede">The current desk keeps working while you decide. Nothing here changes a commission, a file or a supervisor.</p>
+      </div>
+    </div>
+
+    <div class="decisions">
+      <div class="decision">
+        <div class="k">DECISION 1 · DIRECTION</div>
+        <b>Which desk should this be?</b>
+        <p>A · The Bridge (recommended) · B · The Desk · C · The Constellation as the default. C can ship as an optional view under any choice.</p>
+        <div class="opts"><span class="rec">A · Bridge</span><span>B · Desk</span><span>C · Constellation</span></div>
+      </div>
+      <div class="decision">
+        <div class="k">DECISION 2 · FIRST LIGHT</div>
+        <b>Light or night first?</b>
+        <p>The Bridge is designed light-first (“Day Watch”) with a full “Night Watch” dark mode. Should the desk open light — calmer, paper — or keep the current dark habit?</p>
+        <div class="opts"><span class="rec">Day Watch</span><span>Night Watch</span><span>Follow system</span></div>
+      </div>
+      <div class="decision">
+        <div class="k">DECISION 3 · THE HERO</div>
+        <b>Pulse ribbon or ranked queue first?</b>
+        <p>Both preserve every feature. Is the time-axis ribbon the hero, or should the top of Now be the ranked decision queue with the ribbon below it?</p>
+        <div class="opts"><span class="rec">Pulse first</span><span>Queue first</span></div>
+      </div>
+      <div class="decision">
+        <div class="k">DECISION 4 · BRAND LATITUDE</div>
+        <b>May the desk get its own mark and display face?</b>
+        <p>The proposal works inside the current kit, but a pulse mark and a display face are what make it award-winning rather than merely clean.</p>
+        <div class="opts"><span class="rec">Give it a mark</span><span>Stay in the kit</span></div>
+      </div>
+    </div>
+    <div class="noanswer"><b>If you say nothing:</b> the current desk stays live, no commission is touched, and this study waits. If you choose A, the first deliverable is not code — it is the EX9 baseline and the EX8 inventory, so the redesign can prove it lost nothing.</div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div>
+        <p><b>Research Desk — full UX redesign study.</b> 26 November 2026. Written for the operator; intended to be answered from a phone.</p>
+        <p>Three complete directions, one recommendation, a 34-group feature parity map, and a six-phase path through the experience-engineering pipeline. The current-state images are facts; the phone screens on this page are sketches, not RCL components, and are labelled accordingly.</p>
+        <div class="fidrow">
+          <span class="chip">captured · current app</span>
+          <span class="chip faint">sketch · this page</span>
+          <span class="chip">rendered · the build target</span>
+          <span class="chip">composited · the proof</span>
+        </div>
+      </div>
+      <div class="links">
+        <a href="PROPOSAL.md">PROPOSAL.md — the full written study</a>
+        <a href="assets/captured-now-390.png">captured-now-390.png · dark</a>
+        <a href="assets/captured-now-light-390.png">captured-now-light-390.png · light default</a>
+        <a href="assets/captured-now-1440.png">captured-now-1440.png</a>
+        <a href="assets/captured-needs-you-390.png">captured-needs-you-390.png</a>
+        <a href="assets/captured-topics-390.png">captured-topics-390.png</a>
+        <a href="assets/captured-launch-390.png">captured-launch-390.png</a>
+        <span style="margin-top:6px;color:#9A9282">Design language: warm paper, ink, signal blue, amber. Type: Instrument Sans / IBM Plex Mono / a serif for the Desk.</span>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -2,6 +2,7 @@ import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderWithProviders } from "../test-utils";
+import { strings } from "../consts/strings";
 import { PathText } from "./PathText";
 
 const { useResearchHome } = vi.hoisted(() => ({ useResearchHome: vi.fn() }));
@@ -17,14 +18,15 @@ describe("PathText", () => {
     const link = screen.getByRole("link", { name: "~research/topics/experience-engineering/MISSION.md" });
     expect(link).toHaveAttribute("href", "/files/topics/experience-engineering/MISSION.md");
     expect(screen.getByTestId("file-path")).toHaveAttribute("data-presentation", "inline");
-    expect(screen.getByRole("button", { name: "common.copyPath" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: strings.common.copyPath })).toBeInTheDocument();
     expect(link).toHaveAttribute("title", path);
   });
 
   it("keeps external paths as readable text with canonical copy", () => {
-    renderWithProviders(<PathText path="/tmp/build/report.json" label="Build report" />);
-    expect(screen.getByText("Build report")).toBeInTheDocument();
+    const label = "Build report";
+    renderWithProviders(<PathText path="/tmp/build/report.json" label={label} />);
+    expect(screen.getByText(label)).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "common.copyPath" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: strings.common.copyPath })).toBeInTheDocument();
   });
 });

@@ -2,6 +2,7 @@ import { Alert } from "@vrooli/react-component-library/Alert/1";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { Select } from "@vrooli/react-component-library/Select/1";
+import { CheckCircle2, Plug, TriangleAlert } from "lucide-react";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { useState } from "react";
 
@@ -15,6 +16,7 @@ import { CourierHealth } from "../components/CourierHealth";
 import { PathText } from "../components/PathText";
 import { QueryView } from "../components/QueryView";
 import { Section } from "../components/Section";
+import { IconTile, Panel, StatPill } from "../components/daylight";
 import { When } from "../components/When";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
@@ -41,6 +43,7 @@ export function DeskPage() {
   return (
     <div data-testid={selectors.pages.desk} className="rd-page">
       <PageHeader headingId="desk-heading" title={t(strings.desk.title)} description={t(strings.desk.description)} />
+      <DeskHero />
       <Capabilities />
       <Sources />
       <Tests />
@@ -56,6 +59,33 @@ export function DeskPage() {
         </label>
       </Section>
     </div>
+  );
+}
+
+/** One honest sentence about reachability, then the two counts that make it checkable. */
+function DeskHero() {
+  const { t } = useTranslation();
+  const capabilities = useCapabilities().data ?? [];
+  const lenses = useOverview().data?.lenses ?? [];
+  const capabilityDown = capabilities.filter((c) => c.status !== "available").length;
+  const lensDown = lenses.filter((l) => !l.available).length;
+  const down = capabilityDown + lensDown;
+  const ok = down === 0;
+  return (
+    <Panel tone={ok ? "mint" : "peach"} className="rd-desk-hero" data-testid="desk-hero">
+      <div className="rd-desk-hero-main">
+        <IconTile tone={ok ? "mint" : "peach"} size="lg">{ok ? <CheckCircle2 /> : <TriangleAlert />}</IconTile>
+        <div className="rd-topic-hero-copy">
+          <span className="rd-topic-hero-kicker">{t(strings.desk.settings)}</span>
+          <b>{t(ok ? strings.desk.connected : strings.desk.disconnected)}</b>
+          <span className="rd-card-note">{ok ? t(strings.desk.connectedNote) : t(strings.desk.optionalNote)}</span>
+        </div>
+      </div>
+      <div className="rd-desk-hero-stats">
+        <StatPill value={capabilities.length - capabilityDown} label={t(strings.desk.reachable)} />
+        <StatPill value={down} label={t(strings.desk.down)} />
+      </div>
+    </Panel>
   );
 }
 
@@ -101,11 +131,14 @@ function CapabilityRow({ capability: c }: { capability: Capability }) {
   const ok = status.tone === "success";
   return (
     <li className="rd-row">
-      <span className="flex flex-wrap items-center justify-between gap-space-xs">
-        <span className="font-semibold">{c.name || c.id}</span>
-        <StatusBadge tone={status.tone}>{t(status.word)}</StatusBadge>
+      <span className="rd-row-line">
+        <IconTile size="sm" tone={ok ? "mint" : "peach"} state={ok ? "live" : "wait"}><Plug /></IconTile>
+        <span className="rd-row-copy">
+          <span className="rd-row-title">{c.name || c.id}</span>
+          <span className="rd-row-meta">{c.message || c.uses?.map((u) => u.name || u.id).join(", ") || ""}</span>
+        </span>
+        <span className="rd-row-end"><StatusBadge tone={status.tone}>{t(status.word)}</StatusBadge></span>
       </span>
-      {c.message ? <span className="text-body-sm">{c.message}</span> : null}
       {c.uses && c.uses.length > 0 ? (
         <span className="text-body-sm text-app-muted-foreground">
           {t(ok ? strings.desk.usedFor : strings.desk.unknownWhileDown, { uses: c.uses.map((u) => u.name || u.id).join(", ") })}
