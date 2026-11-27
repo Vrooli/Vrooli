@@ -188,7 +188,7 @@ function PreparedLaunch({ id, manualFirst, uncertain }: { id: string; manualFirs
     if (result) setChoices((prev) => withRecommendations(blockersOf(result), prev) ?? prev);
   }, [result]);
   const automatic = options.data?.automaticAvailable === true;
-  const launchable = result?.launchable === true && !check.isFetching;
+  const launchable = result?.launchable === true && !check.isFetching && !check.isError && !check.isPlaceholderData;
   const never = result?.neverStarted;
   return (
     <>
@@ -245,6 +245,7 @@ function PreparedLaunch({ id, manualFirst, uncertain }: { id: string; manualFirs
         confirmLabel={t(strings.launch.launch)}
         onClose={() => setOpen(false)}
         onConfirm={async () => {
+          if (!launchable) throw new Error(t(strings.launch.checkCurrent));
           await launchApi.launch(id, decisions);
           await client.invalidateQueries({ queryKey: ["launch", "record", id] });
           await client.invalidateQueries({ queryKey: ["activity"] });

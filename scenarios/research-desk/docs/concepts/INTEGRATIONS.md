@@ -1,14 +1,13 @@
 # Integrations — Research Desk
 
 
-Pointer. Every dependency is optional and is an entry in the capability registry; what
-each one is used for and what the desk shows when it is down are in
-[`SYSTEM.md`](SYSTEM.md) §1, §5–§7 and §10. No resource is needed. `.vrooli/service.json`
-declares web-console, vrooli-events and notification-hub as scenario dependencies with
-`required: false` and `startup_policy: ignore`, so the desk starts and reads files without
-them; the reasons are in [`../DECISIONS.md`](../DECISIONS.md) under "An ordinary Codex TUI", "Only
-the live instance writes", "Automatic launch through whichever Web Console access exists" and
-"The courier sends decisions as the desk's own verified sender".
+Pointer. `.vrooli/service.json` declares five optional scenario dependencies:
+`web-console`, `vrooli-events`, `data-backup-manager`, `agent-manager`, and
+`notification-hub`. Data Backup Manager uses `startup_policy: try_start`; the
+other four use `ignore`. The capability registry reports runtime reachability
+for its supported capabilities; declaration alone does not mean a peer is
+available. Purpose and degradation behavior are in [`SYSTEM.md`](SYSTEM.md)
+and [`../DECISIONS.md`](../DECISIONS.md). No external resource is declared.
 
 ## Cross-References
 

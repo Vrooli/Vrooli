@@ -33,6 +33,12 @@ func ResearchOperation(ctx context.Context, operation, id string) error {
 	return err
 }
 
+// ResearchOperationWithDelegation preserves the approving run's attribution
+// for a commission operation that writes an operator-facing record.
+func ResearchOperationWithDelegation(ctx context.Context, operation, id string) (string, error) {
+	return researchOperation(ctx, operation, "research-desk:commission/"+id)
+}
+
 // DecisionTarget is the grant target of one needs-you item: its owner as
 // needs-you lists it (a commission, topic:<slug> or supervisor) and its ID.
 // A research-decisions grant on research-desk:decision/* covers every item.

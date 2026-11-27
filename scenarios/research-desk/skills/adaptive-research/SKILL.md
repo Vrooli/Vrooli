@@ -39,6 +39,14 @@ Your workstream's destination, magnitude, showcase and scorecard dimensions in `
 - A controlled comparison (`local-experimentation`) only for a choice expensive to reverse; otherwise decide by inspection.
 - Spawn workers for parallel or long parts, each owning an outcome for hours with a fresh brief and the evidence links it needs. Call `wait_agent` only when you can only wait, never with no worker running. A deliverable finished in minutes was not attempted at scale: enlarge it.
 
+### Buyer-task evidence qualification
+
+For captured buyer-task observations that could be confused with adjacent products or jobs, use [`scripts/buyer_task_evidence.py`](scripts/buyer_task_evidence.py) as a read-only reducer. Its JSON input keeps frozen candidate work/edition/task identity separate from each capture's source URL/family, date, author, firsthand-use, purchase, independence, outcome and mismatch fields. Supply `--a196 <capture.md>` to import the A196 route table, exact-ISBN Archive no-result screen, and Google Books crosswalk/no-result screen directly; other captured sources remain separate JSON observations. The command validates candidate/observation references and duplicate IDs, then emits accepted (`C`), near-match (`X`), task/context-only (`T`) or unknown (`U`) admission codes with observation-level gaps and row-level unmet candidate fields. Contradictions stay as separate observations and are flagged only when captures identify the same work, edition and claim axis with opposing polarity. It does not score niches or infer demand from no-result records.
+
+```bash
+python3 scripts/buyer_task_evidence.py input.json --a196 capture.md -o qualified.json
+```
+
 ### When something is in the way
 
 - **Optional services fail fast.** Take the direct path (native sub-agents, the command itself, the skill file by path, `rg`) and add `Route failure · <UTC> · <route> · <command> · <first error line> · direct path taken` to your checkpoint. Retry at most once per checkpoint.

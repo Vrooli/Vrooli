@@ -687,6 +687,16 @@ const (
 	ActSupersede = "supersede"
 )
 
+// ControlOperation returns the delegated operation required by a control.
+// Stopping is separate because it ends a session; callers need a grant that
+// permits only a closeout stop, not the broader launch/control surface.
+func ControlOperation(action string) string {
+	if action == ActStop {
+		return "research.closeout"
+	}
+	return "research.control"
+}
+
 // ControlResult is the record after a control and the goal status read back.
 type ControlResult struct {
 	Record     *home.LaunchRecord
@@ -700,7 +710,7 @@ const controlTime = 2 * time.Minute
 
 // Control carries out one operator control on a commission's session.
 func (s *Service) Control(ctx context.Context, id, action, reason string) (ControlResult, error) {
-	if err := wire.ResearchOperation(ctx, "research.control", id); err != nil {
+	if err := wire.ResearchOperation(ctx, ControlOperation(action), id); err != nil {
 		return ControlResult{}, err
 	}
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), controlTime)
@@ -734,6 +744,15 @@ func (s *Service) Control(ctx context.Context, id, action, reason string) (Contr
 		return out, fmt.Errorf("%w: no session is known for %s (no LAUNCH.json and no exact match)", home.ErrRefused, id)
 	case !open && action != ActStop && action != ActRetryGoal:
 		return out, fmt.Errorf("%w: %s is %s; its Codex window is not open", home.ErrRefused, id, c.State)
+	}
+	if action == ActStop {
+		status, statusErr := s.Launcher.GoalStatus(ctx, t)
+		if statusErr != nil {
+			return out, fmt.Errorf("%w: stop requires a readable, paused manager goal after closeout: %v", home.ErrRefused, statusErr)
+		}
+		if status != "paused" {
+			return out, fmt.Errorf("%w: stop is only allowed after the manager goal is paused at closeout; goal status is %q", home.ErrRefused, status)
+		}
 	}
 
 	// Codex applies /goal pause|resume to a goal in any state, and resuming a

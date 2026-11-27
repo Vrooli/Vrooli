@@ -567,7 +567,7 @@
           },
           "governance": {
             "effect": "write",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": [
               "network:internal"
             ]

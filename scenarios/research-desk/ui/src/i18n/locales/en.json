@@ -353,6 +353,10 @@
     "answeredWhere": "Answered elsewhere, not here"
   },
   "topics": {
+    "researchActions": "Research actions",
+    "researchActionsNote": "Prepare a new window or review earlier commissions.",
+    "commissionTopic": "Commission this topic",
+    "viewCommissions": "View commissions",
     "title": "Topics",
     "description": "Every research topic, newest research write first.",
     "back": "All topics",
@@ -451,8 +455,16 @@
     "ownerReadingNote": "Measured, never blocking. A flag says what to do about it."
   },
   "launch": {
-    "title": "Launch",
-    "description": "Choose topics and say what matters. The desk builds the packet, checks it, and starts the supervisor.",
+    "title": "Commission research",
+    "description": "Set the scope and direction, then review the launch checks before you start.",
+    "setupNavigation": "Commission setup",
+    "scopeNav": "Scope",
+    "directionNav": "Direction",
+    "settingsNav": "Run settings",
+    "reviewNav": "Review",
+    "readyForReview": "Launch checks passed",
+    "awaitingChecks": "Complete the launch checks",
+    "checkCurrent": "The draft changed. Review the updated launch checks before continuing.",
     "prepared": "{{count}} prepared packets",
     "prepared_one": "1 prepared packet",
     "preparedNote": "Each launches as it is, without building a new packet.",

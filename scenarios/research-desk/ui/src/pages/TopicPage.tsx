@@ -1,6 +1,7 @@
 import { Alert } from "@vrooli/react-component-library/Alert/1";
 import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
+import { ArrowUpRight, FlaskConical } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
 import { ChangeSubject, lastResearchWrite, useCommissions, useTopics } from "../api/activity";
@@ -44,6 +45,21 @@ export function TopicPage() {
           return (
             <>
               <PageHeader headingId="topic-heading" title={topic.title?.value || topic.topic} eyebrow={<span className="rd-id">{topic.topic}</span>} />
+              <div className="rd-topic-actions">
+                <div>
+                  <p className="rd-topic-actions-title">{t(strings.topics.researchActions)}</p>
+                  <p>{t(strings.topics.researchActionsNote)}</p>
+                </div>
+                {!check?.mode ? null : (
+                  <Link className="rd-topic-commission" to={`/launch?topic=${encodeURIComponent(topic.topic)}`}>
+                    <FlaskConical aria-hidden="true" size={18} />
+                    {t(strings.topics.commissionTopic)}
+                  </Link>
+                )}
+                <a className="rd-more" href="#topic-commissions">
+                  {t(strings.topics.viewCommissions)} <ArrowUpRight aria-hidden="true" size={14} />
+                </a>
+              </div>
               <Facts>
                 <Fact label={t(strings.topics.lastWrite)} evidence={write?.at?.evidence}><ResearchWriteWhen write={write} /></Fact>
                 <Fact label={t(strings.topics.mode)} evidence={check?.evidence}>{check?.mode || <Unknown />}</Fact>

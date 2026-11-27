@@ -232,3 +232,54 @@ a.rd-chip:hover { background: color-mix(in srgb, var(--color-primary) 12%, var(-
 .rd-pick-row:hover { background: var(--color-surface-muted); }
 li + li > .rd-pick-row { border-block-start: var(--border-hairline) solid var(--color-border); }
 .rd-clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+
+.rd-topic-actions,
+.rd-launch-map {
+  border: var(--border-hairline) solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--color-background));
+}
+.rd-topic-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-md);
+  padding: var(--space-sm);
+}
+.rd-topic-actions > div { flex: 1 1 16rem; }
+.rd-topic-actions p { margin: 0; font: var(--text-body-sm); }
+.rd-topic-actions .rd-topic-actions-title { font: var(--text-heading-sm); }
+.rd-topic-commission {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  padding-inline: var(--space-sm);
+  min-block-size: 44px;
+  border: var(--border-hairline) solid currentColor;
+  border-radius: var(--radius-control);
+  color: var(--color-primary);
+  font: var(--text-label);
+}
+.rd-topic-commission:hover { text-decoration: underline; }
+.rd-topic-actions .rd-more { gap: var(--space-3xs); }
+.rd-topic-actions .rd-more::after { content: none; }
+.rd-launch-map { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: var(--space-3xs); }
+.rd-launch-map a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2xs);
+  min-block-size: 44px;
+  border-radius: var(--radius-control);
+  font: var(--text-label);
+}
+.rd-launch-map a:hover { background: var(--color-background); color: var(--color-primary); }
+.rd-launch-map svg { inline-size: 1rem; block-size: 1rem; flex: none; color: var(--color-primary); }
+.rd-launch-bar-status { font: var(--text-body-sm); color: var(--color-muted-foreground); padding-inline: var(--space-2xs); }
+.rd-commission-builder .rd-launch-bar { flex-wrap: wrap; }
+@media (max-width: 40rem) {
+  .rd-launch-map { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rd-topic-commission { flex: 1 1 auto; }
+  .rd-launch-bar-status { flex-basis: 100% !important; }
+}

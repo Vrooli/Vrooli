@@ -208,12 +208,12 @@ var actions = map[launchv1.ControlAction]string{
 }
 
 func (h *handler) Control(ctx context.Context, req *connect.Request[launchv1.ControlRequest]) (*connect.Response[launchv1.ControlResponse], error) {
-	if err := wire.ResearchOperation(ctx, "research.control", req.Msg.GetCommissionId()); err != nil {
-		return nil, h.fail("authorize control", err)
-	}
 	action, ok := actions[req.Msg.GetAction()]
 	if !ok {
 		return nil, h.fail("control", home.Cause(home.ErrInvalid, errors.New("action must be pause, resume, stop, discard, resend-stance or retry-goal")))
+	}
+	if err := wire.ResearchOperation(ctx, launch.ControlOperation(action), req.Msg.GetCommissionId()); err != nil {
+		return nil, h.fail("authorize control", err)
 	}
 	out, err := h.deps.Service.Control(ctx, req.Msg.GetCommissionId(), action, req.Msg.GetReason())
 	if err != nil {

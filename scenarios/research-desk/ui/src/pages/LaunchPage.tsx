@@ -6,9 +6,9 @@ import { Input } from "@vrooli/react-component-library/Input/1";
 import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { Select } from "@vrooli/react-component-library/Select/1";
 import { Textarea } from "@vrooli/react-component-library/Textarea/1";
-import { ArrowDown, ArrowUp, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ClipboardCheck, Layers, MessageSquare, Timer, Trash2 } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { useCommissions, useTopics, type TopicSummary, type Workstream } from "../api/activity";
 import {
@@ -49,20 +49,22 @@ import { ChoiceSummary, MessageText, PreflightResult } from "./launch/Preflight"
 export function LaunchPage() {
   const { t } = useTranslation();
   const options = useLaunchOptions();
+  const [params] = useSearchParams();
+  const requestedTopic = params.get("topic")?.trim() ?? "";
   return (
-    <div data-testid={selectors.pages.launch} className="rd-page">
+    <div data-testid={selectors.pages.launch} className="rd-page rd-commission-builder">
       <PageHeader headingId="launch-heading" title={t(strings.launch.title)} description={t(strings.launch.description)} />
-      <PreparedPackets />
       <QueryView query={options}>
-        {(o) => (o.packetLimits ? <Builder options={o} limits={o.packetLimits} /> : <Alert tone="danger" title={t(strings.launch.limitsUnknown)} />)}
+        {(o) => (o.packetLimits ? <Builder key={requestedTopic} requestedTopic={requestedTopic} options={o} limits={o.packetLimits} /> : <Alert tone="danger" title={t(strings.launch.limitsUnknown)} />)}
       </QueryView>
+      <PreparedPackets topic={requestedTopic} />
     </div>
   );
 }
 
-function PreparedPackets() {
+function PreparedPackets({ topic }: { topic: string }) {
   const { t } = useTranslation();
-  const prepared = useCommissions().data?.commissions.filter(launchableAsIs) ?? [];
+  const prepared = useCommissions().data?.commissions.filter((c) => launchableAsIs(c) && (!topic || c.topics.some((ref) => ref.topic === topic))) ?? [];
   if (prepared.length === 0) return null;
   return (
     <Section id="prepared" title={t(strings.launch.prepared, { count: prepared.length })} note={t(strings.launch.preparedNote)}>
@@ -77,13 +79,13 @@ function PreparedPackets() {
   );
 }
 
-function Builder({ options, limits }: { options: GetLaunchOptionsResponse; limits: PacketLimits }) {
+function Builder({ options, limits, requestedTopic }: { options: GetLaunchOptionsResponse; limits: PacketLimits; requestedTopic: string }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const topics = useTopics();
   const defaults = { supervisorModel: options.defaultSupervisorModel, supervisorEffort: options.defaultSupervisorEffort, ownerModelTier: options.defaultOwnerModelTier, allowanceHours: limits.allowanceHoursDefault };
-  const [form, setForm] = useState<LaunchForm>(() => loadForm(defaults, options));
-  useEffect(() => saveForm(form), [form]);
+  const [form, setForm] = useState<LaunchForm>(() => loadForm(defaults, options, requestedTopic));
+  useEffect(() => saveForm(form, requestedTopic), [form, requestedTopic]);
   const [confirm, setConfirm] = useState<"auto" | "manual" | null>(null);
   const update = (patch: Partial<LaunchForm>) => setForm((prev) => ({ ...prev, ...patch }));
 
@@ -129,25 +131,32 @@ function Builder({ options, limits }: { options: GetLaunchOptionsResponse; limit
   }, [result]);
 
   // Launch only what the preview shows: not while a newer edit awaits its check.
-  const ready = Boolean(result?.launchable && packet?.ok) && !preflight.isFetching && checkedSpec === specJson;
+  const ready = Boolean(result?.launchable && packet?.ok) && !preflight.isFetching && !preflight.isError && !preflight.isPlaceholderData && checkedSpec === specJson;
 
   const build = async () => {
+    if (!ready) throw new Error(t(strings.launch.checkCurrent));
     const res = await launchApi.buildFromSpec(JSON.stringify(toSpec(form)), form.choices);
     if (!res.packet?.ok || !res.packet.commissionId) {
       throw new Error(res.packet?.errors.map((e) => e.message).join("; ") || t(strings.launch.buildFailed));
     }
-    clearSavedForm();
+    clearSavedForm(requestedTopic);
     return res.packet.commissionId;
   };
 
   return (
     <>
+      <nav className="rd-launch-map" aria-label={t(strings.launch.setupNavigation)}>
+        <a href="#step-topics"><Layers aria-hidden="true" />{t(strings.launch.scopeNav)}</a>
+        <a href="#step-words"><MessageSquare aria-hidden="true" />{t(strings.launch.directionNav)}</a>
+        <a href="#step-run"><Timer aria-hidden="true" />{t(strings.launch.settingsNav)}</a>
+        <a href="#step-check"><ClipboardCheck aria-hidden="true" />{t(strings.launch.reviewNav)}</a>
+      </nav>
       {!options.automaticAvailable ? (
         <Alert tone="info" title={t(strings.launch.manualModeTitle)} description={t(strings.launch.manualMode, { reason: options.automaticReason || t(strings.common.unknown) })} />
       ) : null}
       <Section id="step-topics" title={t(strings.launch.stepTopics)} note={t(strings.launch.stepTopicsNote, { max: limits.topicsMax })}>
         <QueryView query={topics}>
-          {({ topics: all }) => <TopicPicker all={all} max={limits.topicsMax} chosen={form.topics} onChange={(next) => update({ topics: next })} />}
+          {({ topics: all }) => <TopicPicker all={all} focused={Boolean(requestedTopic)} max={limits.topicsMax} chosen={form.topics} onChange={(next) => update({ topics: next })} />}
         </QueryView>
       </Section>
       <Section id="step-cards" title={t(strings.launch.stepCards)} note={t(strings.launch.stepCardsNote, { max: limits.orderedWorkstreamsMax })}>
@@ -220,10 +229,13 @@ function Builder({ options, limits }: { options: GetLaunchOptionsResponse; limit
           </>
         )}
         <div>
-          <Button variant="ghost" onClick={() => setForm(emptyForm(defaults))}>{t(strings.launch.startOver)}</Button>
+          <Button variant="ghost" onClick={() => setForm({ ...emptyForm(defaults), topics: requestedTopic ? [requestedTopic] : [] })}>{t(strings.launch.startOver)}</Button>
         </div>
       </Section>
       <div className={form.topics.length > 0 ? "rd-launch-bar rd-launch-bar-sticky" : "rd-launch-bar"}>
+        <span className="rd-launch-bar-status" role="status">
+          {t(ready ? strings.launch.readyForReview : strings.launch.awaitingChecks)}
+        </span>
         {options.automaticAvailable ? (
           <>
             <Button variant="primary" disabled={!ready} onClick={() => setConfirm("auto")} data-testid={selectors.launch.launchButton}>
@@ -289,13 +301,15 @@ const GAP = {
 /** How many topics show before "Show all": the most recently written first. */
 const PICK_SHOWN = 8;
 
-function TopicPicker({ all, max, chosen, onChange }: { all: TopicSummary[]; max: number; chosen: string[]; onChange: (next: string[]) => void }) {
+function TopicPicker({ all, focused, max, chosen, onChange }: { all: TopicSummary[]; focused: boolean; max: number; chosen: string[]; onChange: (next: string[]) => void }) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState("");
   const [all_, setAll] = useState(false);
   const sorted = sortByResearchWrite(matching(all, filter));
-  // Chosen topics always show; the rest are cut at PICK_SHOWN unless filtering or expanded.
-  const shown = filter || all_ ? sorted : sorted.filter((x, n) => n < PICK_SHOWN || chosen.includes(x.topic));
+  const selected = sorted.filter((x) => chosen.includes(x.topic));
+  const others = sorted.filter((x) => !chosen.includes(x.topic));
+  const visibleOthers = filter || all_ ? others : others.slice(0, focused && selected.length ? 0 : PICK_SHOWN);
+  const shown = [...selected, ...visibleOthers];
   const hidden = sorted.length - shown.length;
   return (
     <div className="flex flex-col gap-space-sm">

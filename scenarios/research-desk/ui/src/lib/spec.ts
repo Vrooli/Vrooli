@@ -78,17 +78,21 @@ export function move<T>(list: T[], index: number, by: -1 | 1): T[] {
 /** Where the form waits while the operator looks elsewhere: this tab only. */
 const STORE_KEY = "research-desk.launch-form";
 
-export function saveForm(form: LaunchForm): void {
+function draftKey(topic: string): string {
+  return topic ? `${STORE_KEY}:${topic}` : STORE_KEY;
+}
+
+export function saveForm(form: LaunchForm, topic = ""): void {
   try {
-    sessionStorage.setItem(STORE_KEY, JSON.stringify(form));
+    sessionStorage.setItem(draftKey(topic), JSON.stringify(form));
   } catch {
     // Storage full or blocked: the form still works, it just does not survive leaving.
   }
 }
 
-export function clearSavedForm(): void {
+export function clearSavedForm(topic = ""): void {
   try {
-    sessionStorage.removeItem(STORE_KEY);
+    sessionStorage.removeItem(draftKey(topic));
   } catch {
     // Nothing to clear.
   }
@@ -99,11 +103,12 @@ export function clearSavedForm(): void {
  * the right shape; a model the options no longer offer falls back to the
  * default.
  */
-export function loadForm(defaults: Parameters<typeof emptyForm>[0], offered: { supervisorModels: string[]; supervisorEfforts: string[]; ownerModelTiers: string[] }): LaunchForm {
+export function loadForm(defaults: Parameters<typeof emptyForm>[0], offered: { supervisorModels: string[]; supervisorEfforts: string[]; ownerModelTiers: string[] }, topic = ""): LaunchForm {
   const base = emptyForm(defaults);
+  if (topic) base.topics = [topic];
   let saved: Partial<Record<keyof LaunchForm, unknown>> = {};
   try {
-    const raw = sessionStorage.getItem(STORE_KEY);
+    const raw = sessionStorage.getItem(draftKey(topic));
     const parsed: unknown = raw ? JSON.parse(raw) : null;
     if (parsed && typeof parsed === "object") saved = parsed;
   } catch {

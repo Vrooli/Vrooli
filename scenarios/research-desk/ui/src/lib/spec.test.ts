@@ -73,6 +73,18 @@ describe("saved form", () => {
     expect(loadForm(defaults, offered)).toEqual(emptyForm(defaults));
   });
 
+  it("opens a topic-specific draft without changing the general draft", () => {
+    const general = { ...emptyForm(defaults), topics: ["a"], quotes: ["general direction"] };
+    saveForm(general);
+    expect(loadForm(defaults, offered, "b")).toMatchObject({ topics: ["b"], quotes: [""] });
+    const specific = { ...emptyForm(defaults), topics: ["b"], quotes: ["specific direction"] };
+    saveForm(specific, "b");
+    expect(loadForm(defaults, offered, "b")).toEqual(specific);
+    clearSavedForm("b");
+    expect(loadForm(defaults, offered)).toEqual(general);
+    clearSavedForm();
+  });
+
   it("drops fields of the wrong shape and models no longer offered", () => {
     sessionStorage.setItem("research-desk.launch-form", JSON.stringify({ topics: "a", quotes: [], supervisorModel: "gone", allowanceHours: 12 }));
     expect(loadForm(defaults, offered)).toEqual({ ...emptyForm(defaults), allowanceHours: 12 });

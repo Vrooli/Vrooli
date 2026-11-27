@@ -122,16 +122,10 @@ dependencies did not complete before its 15m0s deadline" (run 20261111-212302-cd
 
 **Owner:** unassigned.
 
-### 2026-11-12 — four unused UI dependencies stay in the manifest
+### Resolved 2026-11-24 — unused UI dependencies
 
-**Symptom:** `ui/package.json` lists `@radix-ui/react-slot`, `class-variance-authority`,
-`clsx` and `tailwind-merge`; nothing in `ui/src` imports them.
-
-**Root cause:** template leftovers; `scenario-dependency-analyzer deps remove` removes Go
-requirements only, and raw package managers are not allowed.
-
-**Real fix:** a governed JavaScript remove verb in scenario-dependency-analyzer, then remove
-the four. Owner: scenario-dependency-analyzer.
+SDA preview and apply removed four unreferenced template packages from the UI manifest and
+lockfile; approved dependency validation passed. See `evidence/PT5-research-desk-unused-ui-dependencies-2026-11-24.json`.
 
 ## Architecture Drift
 

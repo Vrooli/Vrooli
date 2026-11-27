@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/api-core/schedule"
 
@@ -169,6 +170,64 @@ func TestAddEntryAndSteering(t *testing.T) {
 	charter, _ := os.ReadFile(filepath.Join(research, "cohorts", commission, home.CharterFile))
 	if !strings.Contains(string(charter), home.SteeringSentence) {
 		t.Error("the charter carries the Steering sentence")
+	}
+}
+
+func TestDelegatedWindDownRequiresExactGrantAndRecordsAttribution(t *testing.T) {
+	h, research := newHandler(t)
+	request := &operatorv1.AddEntryRequest{CommissionId: commission, Kind: operatorv1.EntryKind_ENTRY_KIND_WIND_DOWN}
+	agentContext := provenance.NewContext(context.Background(), provenance.Provenance{
+		Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-42",
+	})
+
+	refused, err := h.AddEntry(agentContext, connect.NewRequest(request))
+	if err == nil || code(err) != connect.CodePermissionDenied || !strings.Contains(err.Error(), "--policy research-wind-down --target research-desk:commission/"+commission) {
+		t.Fatalf("missing grant should return its exact approval request: %+v %v", refused, err)
+	}
+	if _, err := os.Stat(filepath.Join(research, "cohorts", commission, home.OperatorFile)); !os.IsNotExist(err) {
+		t.Fatalf("refused wind-down wrote OPERATOR.md: %v", err)
+	}
+
+	principal := identity.Principal{
+		Kind: identity.ActorAgent, Subject: "run-42", Verified: true,
+		Scopes: []string{"research-desk:write"},
+		Grant: &identity.OperationGrant{
+			ID: "grant-1", Approver: "operator", ExpiresAt: time.Now().Add(time.Hour),
+			Rules: []identity.OperationRule{{
+				Operations: []string{"research.wind_down"},
+				Targets:    []string{"research-desk:commission/" + commission},
+			}},
+		},
+	}
+	ctx := identity.WithPrincipal(agentContext, principal)
+	dryRun, err := h.AddEntry(ctx, connect.NewRequest(&operatorv1.AddEntryRequest{
+		CommissionId: commission, Kind: operatorv1.EntryKind_ENTRY_KIND_WIND_DOWN, DryRun: true,
+	}))
+	if err != nil || dryRun.Msg.Written || !strings.Contains(dryRun.Msg.Text, "Authorized by: agent run run-42 under the operator's operation grant grant-1, approved by operator") {
+		t.Fatalf("dry run should show scoped grant attribution without writing: %+v %v", dryRun, err)
+	}
+
+	custom, err := h.AddEntry(ctx, connect.NewRequest(&operatorv1.AddEntryRequest{
+		CommissionId: commission, Kind: operatorv1.EntryKind_ENTRY_KIND_WIND_DOWN, Text: "Do other work.",
+	}))
+	if err == nil || code(err) != connect.CodeInvalidArgument {
+		t.Fatalf("a wind-down grant must not authorize custom text: %+v %v", custom, err)
+	}
+
+	direction, err := h.AddEntry(ctx, connect.NewRequest(&operatorv1.AddEntryRequest{
+		CommissionId: commission, Kind: operatorv1.EntryKind_ENTRY_KIND_DIRECTION, Text: "Change scope.",
+	}))
+	if err == nil || code(err) != connect.CodePermissionDenied {
+		t.Fatalf("a wind-down grant must not authorize a freeform direction: %+v %v", direction, err)
+	}
+
+	written, err := h.AddEntry(ctx, connect.NewRequest(request))
+	if err != nil || !written.Msg.Written || written.Msg.Text != dryRun.Msg.Text {
+		t.Fatalf("approved wind-down should write exactly the dry-run text: %+v %v", written, err)
+	}
+	contents, err := os.ReadFile(filepath.Join(research, "cohorts", commission, home.OperatorFile))
+	if err != nil || !strings.Contains(string(contents), "wind-down · via desk\n"+WindDownText+"\nAuthorized by: agent run run-42 under the operator's operation grant grant-1, approved by operator\n") {
+		t.Fatalf("OPERATOR.md must retain the instruction and its grant attribution: %s %v", contents, err)
 	}
 }
 

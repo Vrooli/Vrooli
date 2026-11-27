@@ -23,14 +23,15 @@ func Module(deps Deps) module.Module {
 }
 
 // OperatorProcedures retain human-only self-tests. Launch and Control use
-// shared research-management operation grants at their effect boundaries.
+// shared operation grants at their effect boundaries; stopping after closeout
+// has its own closeout-only operation.
 var OperatorProcedures = []string{
 	launchconnect.LaunchServiceTestLaunchProcedure,
 }
 
 var (
 	notOperator  = module.ErrorDesc{Status: 403, Code: "permission_denied", Description: "The caller is an agent or a service: " + wire.OperatorAction}
-	missingGrant = module.ErrorDesc{Status: 403, Code: "permission_denied", Description: "The caller needs an approved research-management operation grant for the named commission; the refusal includes the canonical approval request"}
+	missingGrant = module.ErrorDesc{Status: 403, Code: "permission_denied", Description: "The caller needs an approved operation grant for the named commission; stopping requires research-closeout and a paused manager goal, while other controls require research-management. The refusal includes the canonical approval request"}
 )
 
 const curlBase = "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.launch.LaunchService/"

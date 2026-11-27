@@ -1,0 +1,39 @@
+{
+  "schema": "lm1-mixed-admission/v1",
+  "target": {
+    "scenario": "research-desk",
+    "live_callers": {
+      "audio-tools": 10,
+      "search-hub": 9,
+      "ai-gateway": 1
+    },
+    "image_tools_gpu_jobs": 1
+  },
+  "required_gates": [
+    "20_real_callers_started",
+    "all_callers_succeeded",
+    "all_callers_overlap_image_job",
+    "image_succeeded",
+    "image_job_gpu_admitted",
+    "image_gpu_claim_released",
+    "disk_lease_completed",
+    "no_swap_growth",
+    "no_oom",
+    "monitor_coverage"
+  ],
+  "admission": {
+    "image_tools": [
+      "--no-reclaim",
+      "--require-gpu",
+      "--fallback-policy",
+      "local_only"
+    ],
+    "capacity": "The Image Tools owner must grant the normal GPU and disk reservations for its submitted job."
+  },
+  "provenance": {
+    "caller_requests": "owner CLI stdout/stderr files",
+    "image_job": "Image Tools owner job receipt",
+    "capacity": "platform capacity claim before/after receipts",
+    "host": "sampled GPU, swap, and OOM counters"
+  }
+}

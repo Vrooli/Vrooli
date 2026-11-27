@@ -58,6 +58,16 @@ func WithDelegation(body, delegated string) string {
 	return body + "\nAnswered by: " + delegated
 }
 
+// WithAuthorization records the agent and approved grant beside a delegated
+// wind-down, so it cannot be mistaken for a direction typed by the operator.
+func WithAuthorization(body, authorized string) string {
+	authorized = strings.Join(strings.Fields(authorized), " ")
+	if authorized == "" {
+		return body
+	}
+	return body + "\nAuthorized by: " + authorized
+}
+
 // AnswerBody renders an answer entry body: `<key> — <label>` and an
 // optional `Note:` line, or `other — <the operator's words>`.
 func AnswerBody(key, label, note string) string {

@@ -336,6 +336,24 @@ func optionKeys(list []home.Option) string {
 
 func (h *handler) AddEntry(ctx context.Context, req *connect.Request[operatorv1.AddEntryRequest]) (*connect.Response[operatorv1.AddEntryResponse], error) {
 	msg := req.Msg
+	delegation := ""
+	switch msg.Kind {
+	case operatorv1.EntryKind_ENTRY_KIND_DIRECTION:
+		if err := wire.Caller(ctx); err != nil {
+			return nil, h.fail("add entry", err)
+		}
+	case operatorv1.EntryKind_ENTRY_KIND_WIND_DOWN:
+		if !home.FolderID.MatchString(msg.CommissionId) {
+			return nil, h.fail("add entry", home.Cause(home.ErrInvalid, errors.New("wind-down needs a valid commission ID")))
+		}
+		var err error
+		delegation, err = wire.ResearchOperationWithDelegation(ctx, "research.wind_down", msg.CommissionId)
+		if err != nil {
+			return nil, h.fail("add wind-down", err)
+		}
+	default:
+		return nil, h.fail("add entry", home.Cause(home.ErrInvalid, errors.New("kind must be ENTRY_KIND_DIRECTION or ENTRY_KIND_WIND_DOWN")))
+	}
 	snap, err := h.snapshot(ctx)
 	if err != nil {
 		return nil, err
@@ -352,10 +370,14 @@ func (h *handler) AddEntry(ctx context.Context, req *connect.Request[operatorv1.
 			return nil, h.fail("add entry", home.Cause(home.ErrInvalid, errors.New("direction needs the operator's words")))
 		}
 	case operatorv1.EntryKind_ENTRY_KIND_WIND_DOWN:
+		if delegation != "" && entry.Body != "" {
+			return nil, h.fail("add wind-down", home.Cause(home.ErrInvalid, errors.New("a delegated wind-down uses the standard instruction without custom text")))
+		}
 		entry.Kind = home.EntryWindDown
 		if entry.Body == "" {
 			entry.Body = WindDownText
 		}
+		entry.Body = home.WithAuthorization(entry.Body, delegation)
 	default:
 		return nil, h.fail("add entry", home.Cause(home.ErrInvalid, errors.New("kind must be ENTRY_KIND_DIRECTION or ENTRY_KIND_WIND_DOWN")))
 	}

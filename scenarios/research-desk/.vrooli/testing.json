@@ -228,6 +228,32 @@
       "bundle_size": {
         "enabled": true
       }
+    },
+    "workloads": {
+      "lm1-mixed-admission": {
+        "command": [
+          "python3",
+          "scripts/lm1_mixed_admission.py",
+          "{output}",
+          "{api_url}"
+        ],
+        "directory": ".",
+        "sources": [
+          "scripts/lm1_mixed_admission.py",
+          "scripts/lm1_mixed_admission.contract.json"
+        ],
+        "contract": "scripts/lm1_mixed_admission.contract.json",
+        "endpoints": {
+          "api_url": "API_PORT"
+        },
+        "samples": 1,
+        "warmups": 0,
+        "p95_max_ms": 600000,
+        "timeout_seconds": 540,
+        "max_age_seconds": 86400,
+        "min_cpu_cores": 4,
+        "min_memory_bytes": 17179869184
+      }
     }
   }
 }

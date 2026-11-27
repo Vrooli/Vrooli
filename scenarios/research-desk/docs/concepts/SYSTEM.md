@@ -17,11 +17,15 @@ as `{value, known, source_path, observed_at}`. Three other readers each have one
 (`packet.py`, `mission_check.py`) parse packets and missions. `api/internal/writer` makes
 every desk write.
 
-The optional peers (web-console, vrooli-events, notification-hub) are declared in
-`.vrooli/service.json`; the capability registry says whether each can be reached, and the
-desk dials one only then, with a timeout. Whatever is unavailable, `python3` included, leaves
-its fields `unknown`; a check that times out says "not reached just now", and a start command
-is offered only for a scenario its lifecycle does not list running.
+The five optional scenario dependencies are `web-console`, `vrooli-events`,
+`data-backup-manager`, `agent-manager`, and `notification-hub`, declared in
+`.vrooli/service.json`. Data Backup Manager uses `startup_policy: try_start`; the
+other four use `ignore`. The capability registry reports availability for the
+capabilities it exposes, and calls use bounded timeouts. An unavailable peer
+leaves its associated fields unknown or the associated action pending; a timed
+out check says "not reached just now". A start command is offered only for a
+scenario its lifecycle does not list running. Python tooling is a local host
+capability, not a scenario dependency.
 
 ## 2. Surface
 
@@ -240,10 +244,11 @@ verified caller, so an agent's `Build` writes a packet folder into the real home
 and `Control` take an agent only with an approved `research-management` grant
 (`research.launch` or `research.control` on `research-desk:commission/<id>`), checked for
 every superseded commission before any effect and again in the background run; without one
-the shared `vrooli agent authorize` request is returned. Every other action refuses agents.
-`cli/manifest.json` marks exactly those commands not runnable (a test keeps them equal). A failed
-verification never falls back to operator access; a local caller with no token passes as the
-operator (accepted; PROBLEMS.md).
+the shared `vrooli agent authorize` request is returned. `AddEntry` permits an agent to add
+only the fixed wind-down entry under a `research-wind-down` grant for that exact commission;
+the entry records the grant attribution. Freeform directions and every other operator action
+remain operator-only. A failed verification never falls back to operator access; a local caller
+with no token passes as the operator (accepted; PROBLEMS.md).
 
 **Web Console access.** The desk's service credential when it has one, else Web Console's
 local availability policy; the operator's token is never forwarded. Shown as

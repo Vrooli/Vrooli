@@ -1456,6 +1456,28 @@ func TestControlsActOnlyOnAnOpenWindowAndAreRecorded(t *testing.T) {
 	}
 }
 
+func TestCloseoutStopRequiresPausedManagerGoal(t *testing.T) {
+	r := newRig(t)
+	r.reader.states[handRun] = home.StateLive
+	r.reader.sessions[handRun] = "sess-1"
+	r.codex.goals = []home.Goal{{ThreadID: "thread-1", Objective: "finish current unit and close out", Status: "active"}}
+	if _, err := r.service.Control(context.Background(), handRun, ActStop, ""); !errors.Is(err, home.ErrRefused) || !strings.Contains(err.Error(), "manager goal is paused") {
+		t.Fatalf("stop before closeout: err = %v, want paused-goal refusal", err)
+	}
+	if len(r.codex.typed()) != 0 || len(r.codex.signalled) != 0 {
+		t.Fatalf("stop before closeout had effects: typed=%q signalled=%v", r.codex.typed(), r.codex.signalled)
+	}
+
+	r.codex.goals[0].Status = "paused"
+	out, err := r.service.Control(context.Background(), handRun, ActStop, "")
+	if err != nil {
+		t.Fatalf("stop after paused closeout: %v", err)
+	}
+	if len(out.Record.Controls) != 1 || out.Record.Controls[0].Action != ActStop {
+		t.Fatalf("recorded controls = %+v, want one closeout stop", out.Record.Controls)
+	}
+}
+
 // [REQ:RD-P0-003]
 func TestARelaunchIsANewCommissionFromTheOldSpec(t *testing.T) {
 	r := newRig(t)

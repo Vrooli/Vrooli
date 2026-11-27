@@ -48,10 +48,10 @@ func StewardOnly() connect.HandlerOption {
 }
 
 // OperatorProcedures act for the operator; a caller verified as an agent or
-// a service is refused them. The reads stay open. Answer is not listed: it
-// checks the shared research-decisions operation grant at its own boundary.
+// a service is refused them. AddEntry applies its own boundary because only
+// fixed wind-down entries can use a narrow operation grant. Answer checks the
+// shared research-decisions operation grant at its own boundary.
 var OperatorProcedures = []string{
-	operatorconnect.OperatorServiceAddEntryProcedure,
 	operatorconnect.OperatorServiceEnableSteeringProcedure,
 	operatorconnect.OperatorServiceAddVerdictProcedure,
 	operatorconnect.OperatorServiceSetCourierProcedure,
@@ -64,6 +64,8 @@ var notOperator = module.ErrorDesc{Status: 403, Code: "permission_denied", Descr
 // missingDecisionGrant is an agent answering without a research-decisions
 // grant that covers the item; the refusal carries the canonical request.
 var missingDecisionGrant = module.ErrorDesc{Status: 403, Code: "permission_denied", Description: "The caller needs an approved research-decisions operation grant for the item; the refusal includes the canonical approval request"}
+
+var missingWindDownGrant = module.ErrorDesc{Status: 403, Code: "permission_denied", Description: "An agent needs an approved research-wind-down grant for this exact commission; the refusal includes the canonical approval request"}
 
 const curlBase = "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.operator.OperatorService/"
 
@@ -98,8 +100,8 @@ var Endpoints = []module.EndpointDescriptor{
 	{
 		ID: "operator_entry", Path: operatorconnect.OperatorServiceAddEntryProcedure, Method: "POST", Category: "operator",
 		Summary:     "Give direction or wind down",
-		Description: "Appends a direction or wind-down entry, in the operator's words, to the commission's OPERATOR.md; nothing is typed into the supervisor's conversation. dry_run returns the exact text without writing; every answer says when the supervisor will read it.",
-		Errors:      []module.ErrorDesc{readOnly, invalid, noCommission, notOperator},
+		Description: "Appends a direction or wind-down entry to the commission's OPERATOR.md; nothing is typed into the supervisor's conversation. Directions remain operator-only. An agent may append the fixed wind-down only with an approved research-wind-down grant for that exact commission, and the entry records the grant attribution. dry_run returns the exact text without writing; every entry says when the supervisor will read it.",
+		Errors:      []module.ErrorDesc{readOnly, invalid, noCommission, notOperator, missingWindDownGrant},
 		Examples:    example("Direction", "AddEntry", `{"commission_id":"programme-five-20261112","kind":"ENTRY_KIND_DIRECTION","text":"Put AV6 first."}`),
 	},
 	{

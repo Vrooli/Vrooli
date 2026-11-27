@@ -56,7 +56,7 @@ func TestOnlyACallerWithoutAnAgentOrServiceIdentityActsForTheOperator(t *testing
 // Each procedure that acts for the operator refuses an agent through the
 // mounted module, with the reason and what to do instead.
 func TestEveryOperatorActionRefusesAnAgent(t *testing.T) {
-	want := []string{"TestLaunch", "AddEntry", "EnableSteering", "AddVerdict", "SetCourier", "TestCourier", "MarkSeen"}
+	want := []string{"TestLaunch", "EnableSteering", "AddVerdict", "SetCourier", "TestCourier", "MarkSeen"}
 	router := mux.NewRouter()
 	launchapi.Module(launchapi.Deps{}).Mount(router)
 	operatorapi.Module(operatorapi.Deps{}).Mount(router)
@@ -193,12 +193,17 @@ func TestDelegatedLaunchAndControlExposeCanonicalApprovalRequest(t *testing.T) {
 	router := mux.NewRouter()
 	launchapi.Module(launchapi.Deps{}).Mount(router)
 	for _, method := range []string{"Launch", "Control"} {
-		req := httptest.NewRequest(http.MethodPost, "/vrooli.research_desk.v1.launch.LaunchService/"+method, strings.NewReader(`{"commissionId":"new"}`))
+		body := `{"commissionId":"new"}`
+		wantPolicy := "research-management"
+		if method == "Control" {
+			body = `{"commissionId":"new","action":"CONTROL_ACTION_PAUSE"}`
+		}
+		req := httptest.NewRequest(http.MethodPost, "/vrooli.research_desk.v1.launch.LaunchService/"+method, strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req = req.WithContext(provenance.NewContext(req.Context(), agent))
 		rec := httptest.NewRecorder()
 		router.ServeHTTP(rec, req)
-		if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "--policy research-management --target research-desk:commission/new") {
+		if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "--policy "+wantPolicy+" --target research-desk:commission/new") {
 			t.Fatalf("%s must return an actionable shared refusal before effects: %d %s", method, rec.Code, rec.Body.String())
 		}
 	}
@@ -241,7 +246,11 @@ func TestTheManifestMarksEveryRefusedCommandNotRunnable(t *testing.T) {
 				refused = false
 			}
 		}()
-		req := httptest.NewRequest(http.MethodPost, procedure, strings.NewReader(`{"commissionId":"new"}`))
+		body := `{"commissionId":"new"}`
+		if strings.HasSuffix(procedure, "/Control") {
+			body = `{"commissionId":"new","action":"CONTROL_ACTION_PAUSE"}`
+		}
+		req := httptest.NewRequest(http.MethodPost, procedure, strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 		router.ServeHTTP(rec, req.WithContext(provenance.NewContext(req.Context(), agent)))

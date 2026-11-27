@@ -64,9 +64,12 @@ Single source of truth for everything the lifecycle needs to know.
 Testing is not a lifecycle phase. `.vrooli/testing.json` declares suites,
 and `vrooli scenario test <name>` delegates the run to Test Genie.
 
-`dependencies.resources` is empty. `dependencies.scenarios` declares web-console,
-notification-hub, each `required: false` and `startup_policy: ignore`;
-the capability registry (`api/internal/capabilities`) projects them from this file.
+`dependencies.resources` is empty. `dependencies.scenarios` declares five
+optional peers: `web-console`, `vrooli-events`, `data-backup-manager`,
+`agent-manager`, and `notification-hub`. Data Backup Manager uses
+`startup_policy: try_start`; the other four use `ignore`. The capability
+registry (`api/internal/capabilities`) projects runtime reachability for the
+capabilities it exposes from this file.
 
 ## Paths the API reads
 
