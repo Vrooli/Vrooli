@@ -32,6 +32,25 @@ fits.
 
 `whisper` is organized as a checksum-verified `managed-service` resource.
 
+## On-demand model retention
+
+Medium and Turbo have separate owner-fenced retention entries under the shared
+`models/` directory. Small remains the eager default and is not eligible for
+this cleanup. Preview or pin a tier by its entry name:
+
+```bash
+vrooli resource acquisition model-cache-artifacts whisper --entry medium-model-cache
+vrooli resource acquisition model-cache-artifacts whisper --entry turbo-model-cache
+vrooli resource acquisition model-cache-artifacts whisper --entry medium-model-cache --pin true
+```
+
+The preview is eligible only after 30 days since a confirmed stopped/installed
+resource lifetime. A running Whisper service, a pinned tier, unknown usage
+history, or any undeclared file in `models/` blocks cleanup. Apply only the
+exact preview after review with `--apply-preview <file>`; applying never stops
+Whisper. Reacquire a removed tier with `vrooli resource acquisition data whisper
+--group medium-model` or `--group turbo-model`.
+
 ## Architecture Boundary
 
 Keep responsibilities split cleanly:

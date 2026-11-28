@@ -9,27 +9,25 @@
         "rung": "pinned",
         "kind": "dir",
         "class": "data",
-        "regenerable": true,
-        "rationale": "Pinned upstream model, voice, tokenizer, and frontend files are reacquirable by revision and SHA-256.",
+        "regenerable": false,
+        "rationale": "The experimental runtime uses this pinned model, voice, and tokenizer tree.",
         "subpath": "models/kale-tts-1-nano",
-        "budget": {
-          "max_age": "30d",
-          "rationale": "Exact upstream assets are pinned for reacquisition."
-        },
         "reacquisition": {
-          "command": "vrooli resource acquisition model-cache kale-tts",
-          "evidence": "resource.json#/managed_service/data_artifacts"
+          "command": "vrooli resource install kale-tts",
+          "evidence": "resource.json#/managed_service/data_artifacts pins the model, voices, and tokenizer by revision and SHA-256"
         }
       },
       "runtime-source": {
         "rung": "pinned",
         "kind": "dir",
         "class": "data",
-        "regenerable": true,
+        "regenerable": false,
         "rationale": "The minimal upstream Python inference wrapper and English frontend assets are acquired by exact URL and SHA-256 at install time.",
         "subpath": "source",
-        "budget": { "max_age": "30d", "rationale": "Pinned upstream source and frontend files are reacquirable." },
-        "reacquisition": { "command": "vrooli resource acquisition model-cache kale-tts", "evidence": "resource.json#/managed_service/data_artifacts" }
+        "reacquisition": {
+          "command": "vrooli resource install kale-tts",
+          "evidence": "resource.json#/managed_service/data_artifacts pins the inference wrapper, frontend, and licenses by revision and SHA-256"
+        }
       }
     }
   },

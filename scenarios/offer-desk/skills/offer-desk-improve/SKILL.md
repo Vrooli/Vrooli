@@ -93,7 +93,7 @@ where it lives. As of 2026-09-08 it carries three entries that no sensor row can
 
 | Ledger entry | What is wanted | Why it is not a board row |
 |---|---|---|
-| persisted decision history has no read path | `catalog-audit`, `gates-facts`, `gates-triggers` reads, then measures over five tables | The data exists and is correct; nothing reads it. There is no sensor to be out of band |
+| persisted decision history has no read path | `catalog-audit`, `gates-facts`, `gates-triggers` reads, then measures over five tables and an audit-derived board delta | Catalog audit, facts, and trigger declarations have governed reads; measures over all five tables, full evaluation and migration-finding reads, freshness verdicts, and a defined audit-delta contract are still absent. There is no sensor to be out of band |
 | the requirement matrix is complete and unproven | an `evals/` suite with an approved floor, then a requirements-sync snapshot | A missing corpus is an absent target, not an unmeasured one |
 | catalog-verify exceeds a usable budget | a performance repair | Expressed on the board only as `kernel_invoke_budget`, which says why the row is blank, not what is wanted |
 

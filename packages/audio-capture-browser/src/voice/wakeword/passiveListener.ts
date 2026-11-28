@@ -147,7 +147,16 @@ export class PassiveListener {
       const source = this.audioCtx.createMediaStreamSource(this.stream);
       this.ringBuffer = this.seams.createRingBuffer(RING_BUFFER_SECONDS, this.audioCtx.sampleRate);
 
-      const pipeline = this.seams.createCapturePipeline(this.audioCtx, source, this.ringBuffer);
+      const pipeline = await this.seams.createCapturePipeline(this.audioCtx, source, this.ringBuffer);
+      // Worklet module loading is asynchronous. A stop, lease revocation, or
+      // dispose may happen while it is pending; never install a late graph.
+      if (!this.running || this.lease !== lease) {
+        try { source.disconnect(); } catch { /* already disconnected */ }
+        for (const node of pipeline.nodes) {
+          try { node.disconnect(); } catch { /* already disconnected */ }
+        }
+        return;
+      }
       this.analyser = pipeline.analyser;
       this.nodes = [source, ...pipeline.nodes];
 

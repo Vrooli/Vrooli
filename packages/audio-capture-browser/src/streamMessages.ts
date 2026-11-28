@@ -6,8 +6,11 @@ export interface StreamMessage {
   processedSequence?: number;
   providerId?: string;
   modelId?: string;
+  providerTier?: "local" | "byok" | "vrooli" | string;
   segmentId?: string;
 	segmentIndex?: number;
+	startSample?: number;
+	endSample?: number;
 	speakerPolicy?: "applied" | "degraded" | "rejected" | string;
   score?: number;
   threshold?: number;
@@ -18,6 +21,14 @@ export interface StreamMessage {
   silenceTimeoutMs?: number;
   tickSeq?: number;
   silenceTimedOut?: boolean;
+}
+
+/** Convert a generated 64-bit sample cursor without silently rounding it. */
+export function safeSampleNumber(value: bigint | number | undefined): number | undefined {
+  if (typeof value === "bigint") {
+    return value >= 0n && value <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(value) : undefined;
+  }
+  return Number.isSafeInteger(value) && (value ?? -1) >= 0 ? value : undefined;
 }
 
 /** Exact browser-facing message vocabulary stewarded by audio-tools. */
@@ -33,9 +44,10 @@ export const STREAM_MESSAGE_TYPES = {
 } as const;
 
 export interface StreamMessageHandlers {
-  onStatus(code: string, text: string, processedSequence?: bigint, providerIdentity?: { providerId?: string; modelId?: string }): void;
+  onStatus(code: string, text: string, processedSequence?: bigint, providerIdentity?: { providerId?: string; modelId?: string; providerTier?: string }): void;
+  onProviderIdentity?(identity: { providerId?: string; modelId?: string; providerTier?: string }): void;
   onPartial(text: string): void;
-	onSegmentFinal(text: string, index: number, speakerPolicy?: string): void;
+	onSegmentFinal(text: string, index: number, speakerPolicy?: string, endSample?: number): void;
   onSegmentAccepted(index: number, score: number, threshold: number): void;
   onSegmentRejected(index: number, score: number, threshold: number): void;
   onSpeakerStatus(enabled: boolean, profileConfigured: boolean): void;
@@ -74,23 +86,25 @@ export function dispatchStreamEvent(message: StreamMessage, handlers: StreamMess
         typeof message.processedSequence === "number" && Number.isSafeInteger(message.processedSequence) && message.processedSequence >= 0
           ? BigInt(message.processedSequence)
           : undefined,
-        ...(message.providerId || message.modelId
-          ? [{ providerId: message.providerId, modelId: message.modelId }]
+        ...(message.providerId || message.modelId || message.providerTier
+          ? [{ providerId: message.providerId, modelId: message.modelId, providerTier: message.providerTier }]
           : []),
       );
+      if (message.providerId || message.modelId || message.providerTier) {
+        handlers.onProviderIdentity?.({ providerId: message.providerId, modelId: message.modelId, providerTier: message.providerTier });
+      }
       return;
     case "partial":
       if (message.text) handlers.onPartial(message.text);
       return;
     case "segment-final":
+      if (message.providerId || message.modelId || message.providerTier) {
+        handlers.onProviderIdentity?.({ providerId: message.providerId, modelId: message.modelId, providerTier: message.providerTier });
+      }
       if (message.text === undefined) return;
       if (message.segmentId && deliveredSegmentIDs.has(message.segmentId)) return;
       if (message.segmentId) deliveredSegmentIDs.add(message.segmentId);
-      if (message.speakerPolicy !== undefined) {
-        handlers.onSegmentFinal(message.text, message.segmentIndex ?? 0, message.speakerPolicy);
-      } else {
-        handlers.onSegmentFinal(message.text, message.segmentIndex ?? 0);
-      }
+      handlers.onSegmentFinal(message.text, message.segmentIndex ?? 0, message.speakerPolicy, message.endSample);
       return;
     case "segment-accepted":
       handlers.onSegmentAccepted(message.segmentIndex ?? 0, message.score ?? 0, message.threshold ?? 0);
@@ -105,6 +119,9 @@ export function dispatchStreamEvent(message: StreamMessage, handlers: StreamMess
       handlers.onVadState({ voiced: Boolean(message.voiced), silenceElapsedMs: message.silenceElapsedMs ?? 0, silenceTimeoutMs: message.silenceTimeoutMs ?? 0, tickSeq: message.tickSeq ?? 0, silenceTimedOut: Boolean(message.silenceTimedOut) });
       return;
     case "final":
+      if (message.providerId || message.modelId || message.providerTier) {
+        handlers.onProviderIdentity?.({ providerId: message.providerId, modelId: message.modelId, providerTier: message.providerTier });
+      }
       handlers.onFinal(message.text?.trim() ?? "");
       return;
     case "error":

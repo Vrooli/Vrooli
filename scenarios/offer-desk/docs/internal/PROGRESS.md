@@ -16,6 +16,26 @@ Entries are appended when work lands, not while it is still speculative.
 
 ## Progress Log
 
+### 2026-11-24 — Bounded catalog audit read surface
+
+Added typed `CatalogService.ListAudit` over the existing append-only audit
+store and exposed it as the read-only, governed `offer-desk offers catalog-audit`
+command. The request supports a node filter and a bounded 1–500 row limit
+(default 100); newest-first results report truncation. Remaining fact/trigger
+reads, measures coverage, and board-read delta derivation remain open in
+`PROBLEMS.md`.
+
+### 2026-11-24 — Governed fact and trigger reads
+
+Added read-only `GatesService.ListFacts` / `ListTriggers` and `gates-facts` /
+`gates-triggers`. Fact output includes observation time and staleness window;
+`gates-facts` now reports read-time `FRESH`, `STALE`, or `UNKNOWN` using the
+evaluator's strict-after timestamp rule and a response `evaluated_at` stamp.
+Trigger output includes clause set and composition; use `gates-evaluate` for
+candidate verdicts. Measures across the five detected `created_at` substrate
+tables, full evaluation and migration-finding reads, and an owned audit-derived
+`board-read` delta contract remain open in `PROBLEMS.md`.
+
 | Date | Author | Status | Summary |
 |---|---|---|---|
 | 2026-09-01 | codex | release-ladder-v2 | Archived |

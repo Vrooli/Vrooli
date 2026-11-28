@@ -1020,6 +1020,14 @@ type AuditEntry struct {
 // ListAudit returns catalog audit rows, newest first. An empty nodeID returns
 // the whole history.
 func (s *Store) ListAudit(ctx context.Context, nodeID string) ([]AuditEntry, error) {
+	entries, _, err := s.ListAuditPage(ctx, nodeID, 0)
+	return entries, err
+}
+
+// ListAuditPage returns at most limit rows, plus whether another row exists.
+// A nonpositive limit preserves the unbounded internal behavior used by the
+// search indexer; public read surfaces must pass an explicit positive limit.
+func (s *Store) ListAuditPage(ctx context.Context, nodeID string, limit int) ([]AuditEntry, bool, error) {
 	query := `SELECT id,node_id,actor,prior_status,next_status,reason,created_at,related_node_id FROM catalog_audit WHERE 1=1`
 	args := []any{}
 	if strings.TrimSpace(nodeID) != "" {
@@ -1029,9 +1037,13 @@ func (s *Store) ListAudit(ctx context.Context, nodeID string) ([]AuditEntry, err
 	// Rows written within one clock tick share created_at; rowid keeps them
 	// in write order, which a random UUID id does not.
 	query += ` ORDER BY created_at DESC,rowid DESC`
+	if limit > 0 {
+		query += ` LIMIT ?`
+		args = append(args, limit+1)
+	}
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	defer rows.Close()
 	var out []AuditEntry
@@ -1040,7 +1052,7 @@ func (s *Store) ListAudit(ctx context.Context, nodeID string) ([]AuditEntry, err
 		var prior, next int32
 		var created string
 		if err := rows.Scan(&a.ID, &a.NodeID, &a.Actor, &prior, &next, &a.Reason, &created, &a.RelatedNodeID); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		a.PriorStatus, a.NextStatus = offerspb.Status(prior), offerspb.Status(next)
 		if at, parseErr := time.Parse(time.RFC3339Nano, created); parseErr == nil {
@@ -1048,7 +1060,14 @@ func (s *Store) ListAudit(ctx context.Context, nodeID string) ([]AuditEntry, err
 		}
 		out = append(out, a)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, false, err
+	}
+	truncated := limit > 0 && len(out) > limit
+	if truncated {
+		out = out[:limit]
+	}
+	return out, truncated, nil
 }
 
 func (s *Store) listProposalDeclines(ctx context.Context, proposalID string) ([]*offerspb.ProposalDecline, error) {

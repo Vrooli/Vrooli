@@ -1,9 +1,10 @@
 import { vi } from "vitest";
-import type { VoiceAudioChunk, VoiceStreamConnection, VoiceStreamHandlers, VoiceStreamStart, VoiceTransport } from "./transport";
+import type { RetainedTranscriptionRoute, VoiceAudioChunk, VoiceStreamConnection, VoiceStreamHandlers, VoiceStreamStart, VoiceTransport } from "./transport";
 import type { StreamMessage } from "./streamMessages";
 
 /** Typed in-memory transport for provider behavior tests. */
 export class FakeVoiceTransport implements VoiceTransport {
+  readonly retainedRoutePolicy = "exact-model" as const;
   static OPEN = 1;
   static CLOSED = 3;
   static CONNECTING = 0;
@@ -13,7 +14,7 @@ export class FakeVoiceTransport implements VoiceTransport {
   readonly transcribeRetainedWithIdentity?: NonNullable<VoiceTransport["transcribeRetainedWithIdentity"]>;
 
   constructor(
-    private readonly retained = async (_blob: Blob, _language: string) => "",
+    private readonly retained = async (_blob: Blob, _language: string, _route: RetainedTranscriptionRoute) => "",
     retainedWithIdentity?: NonNullable<VoiceTransport["transcribeRetainedWithIdentity"]>,
   ) {
     if (retainedWithIdentity) this.transcribeRetainedWithIdentity = retainedWithIdentity;
@@ -26,8 +27,8 @@ export class FakeVoiceTransport implements VoiceTransport {
     return connection;
   }
 
-  transcribeRetained(blob: Blob, language: string): Promise<string> {
-    return this.retained(blob, language);
+  transcribeRetained(blob: Blob, language: string, route: RetainedTranscriptionRoute): Promise<string> {
+    return this.retained(blob, language, route);
   }
 
 }

@@ -100,7 +100,7 @@ func TestSynthesizeWritesOutFile(t *testing.T) {
 		},
 	})
 	h := newHandlers(app)
-	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "voice"}, {Name: "speed"}, {Name: "format"}, {Name: "out"}, {Name: "json-metadata-only", Bool: true}}}
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "voice"}, {Name: "adapter-voice"}, {Name: "speed"}, {Name: "format"}, {Name: "out"}, {Name: "json-metadata-only", Bool: true}}}
 	ctx, buf := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"text": "hello", "out": out},
 	})
@@ -113,6 +113,28 @@ func TestSynthesizeWritesOutFile(t *testing.T) {
 	require.Contains(t, buf.String(), "local/kokoro")
 }
 
+func TestSynthesizeAdapterVoiceOverride(t *testing.T) {
+	app := mountTTS(t, &fakeSvc{
+		synth: func(req *ttsv1.SynthesizeRequest) (*ttsv1.SynthesizeResponse, error) {
+			require.Equal(t, "voice.neutral.default", req.GetVoice())
+			require.Len(t, req.GetVoiceOverrides(), 1)
+			override := req.GetVoiceOverrides()[0]
+			require.Equal(t, commonv1.ProviderTier_PROVIDER_TIER_LOCAL, override.GetTier())
+			require.Equal(t, "kale-tts", override.GetProviderId())
+			require.Equal(t, "owen", override.GetBackendVoiceId())
+			return &ttsv1.SynthesizeResponse{Audio: []byte("WAV"), ContentType: "audio/wav"}, nil
+		},
+	})
+	h := newHandlers(app)
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "voice"}, {Name: "adapter-voice"}, {Name: "speed"}, {Name: "format"}, {Name: "out"}, {Name: "json-metadata-only", Bool: true}}}
+	ctx, _ := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"text": "hello", "adapter-voice": "local:kale-tts=owen"},
+	})
+	require.NoError(t, h.synthesize(ctx))
+	_, err := adapterVoiceOverride("local:kale-tts=")
+	require.ErrorContains(t, err, "--adapter-voice")
+}
+
 func TestSynthesizeJSONIsValidProtoJSON(t *testing.T) {
 	app := mountTTS(t, &fakeSvc{
 		synth: func(_ *ttsv1.SynthesizeRequest) (*ttsv1.SynthesizeResponse, error) {
@@ -120,7 +142,7 @@ func TestSynthesizeJSONIsValidProtoJSON(t *testing.T) {
 		},
 	})
 	h := newHandlers(app)
-	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "voice"}, {Name: "speed"}, {Name: "format"}, {Name: "out"}, {Name: "json-metadata-only", Bool: true}}}
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "voice"}, {Name: "adapter-voice"}, {Name: "speed"}, {Name: "format"}, {Name: "out"}, {Name: "json-metadata-only", Bool: true}}}
 	ctx, buf := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"text": "hello"}, JSON: true,
 	})
@@ -140,7 +162,7 @@ func TestSynthesizeJSONWithOutputFileKeepsProtoShape(t *testing.T) {
 		},
 	})
 	h := newHandlers(app)
-	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "voice"}, {Name: "speed"}, {Name: "format"}, {Name: "out"}, {Name: "json-metadata-only", Bool: true}}}
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "voice"}, {Name: "adapter-voice"}, {Name: "speed"}, {Name: "format"}, {Name: "out"}, {Name: "json-metadata-only", Bool: true}}}
 	ctx, buf := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"text": "hello", "out": out}, JSON: true,
 	})
@@ -163,7 +185,7 @@ func TestSynthesizeJSONMetadataOnlyWritesAudioAndOmitsBase64(t *testing.T) {
 		},
 	})
 	h := newHandlers(app)
-	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "voice"}, {Name: "speed"}, {Name: "format"}, {Name: "out"}, {Name: "json-metadata-only", Bool: true}}}
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "voice"}, {Name: "adapter-voice"}, {Name: "speed"}, {Name: "format"}, {Name: "out"}, {Name: "json-metadata-only", Bool: true}}}
 	ctx, buf := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"text": "hello", "out": out, "json-metadata-only": "true"}, JSON: true,
 	})
@@ -187,7 +209,7 @@ func TestSynthesizeJSONMetadataOnlyRequiresOutputFileBeforeRequest(t *testing.T)
 		},
 	})
 	h := newHandlers(app)
-	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "voice"}, {Name: "speed"}, {Name: "format"}, {Name: "out"}, {Name: "json-metadata-only", Bool: true}}}
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "voice"}, {Name: "adapter-voice"}, {Name: "speed"}, {Name: "format"}, {Name: "out"}, {Name: "json-metadata-only", Bool: true}}}
 	ctx, _ := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"text": "hello", "json-metadata-only": "true"}, JSON: true,
 	})
@@ -225,7 +247,7 @@ func TestSynthesizeProviderError(t *testing.T) {
 		},
 	})
 	h := newHandlers(app)
-	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "voice"}, {Name: "speed"}, {Name: "format"}, {Name: "out"}, {Name: "json-metadata-only", Bool: true}}}
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "text"}, {Name: "voice"}, {Name: "adapter-voice"}, {Name: "speed"}, {Name: "format"}, {Name: "out"}, {Name: "json-metadata-only", Bool: true}}}
 	ctx, _ := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{"text": "hi", "out": out},
 	})

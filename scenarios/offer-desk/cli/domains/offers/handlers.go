@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -168,6 +169,38 @@ func (h *handlers) edgesList(_ cliapp.OperationContext) (*offerspb.ListEdgesResp
 	r, e := h.c.ListEdges(context.Background(), connect.NewRequest(&offerspb.ListEdgesRequest{}))
 	if e != nil {
 		return nil, e
+	}
+	return r.Msg, nil
+}
+
+func (h *handlers) facts(_ cliapp.OperationContext) (*offerspb.ListFactsResponse, error) {
+	r, err := h.g.ListFacts(context.Background(), connect.NewRequest(&offerspb.ListFactsRequest{}))
+	if err != nil {
+		return nil, err
+	}
+	return r.Msg, nil
+}
+
+func (h *handlers) triggers(_ cliapp.OperationContext) (*offerspb.ListTriggersResponse, error) {
+	r, err := h.g.ListTriggers(context.Background(), connect.NewRequest(&offerspb.ListTriggersRequest{}))
+	if err != nil {
+		return nil, err
+	}
+	return r.Msg, nil
+}
+
+func (h *handlers) audit(c cliapp.OperationContext) (*offerspb.ListAuditResponse, error) {
+	rawLimit := strings.TrimSpace(c.Flag("limit"))
+	if rawLimit == "" {
+		rawLimit = "100"
+	}
+	limit, err := strconv.ParseInt(rawLimit, 10, 32)
+	if err != nil || limit < 1 || limit > 500 {
+		return nil, fmt.Errorf("limit must be an integer between 1 and 500")
+	}
+	r, err := h.c.ListAudit(context.Background(), connect.NewRequest(&offerspb.ListAuditRequest{NodeId: c.Flag("node-id"), Limit: int32(limit)}))
+	if err != nil {
+		return nil, err
 	}
 	return r.Msg, nil
 }
@@ -362,6 +395,69 @@ func edgesListReport(_ cliapp.OperationContext, m *offerspb.ListEdgesResponse) c
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d graph edge(s).", len(m.Edges))}, ResultsHeading: "Edges", Results: mapStrings(len(m.Edges), func(i int) string {
 		return fmt.Sprintf("%s — %s -> %s [%s]", m.Edges[i].Id, m.Edges[i].FromId, m.Edges[i].ToId, m.Edges[i].Kind)
 	})}
+}
+
+func auditReport(_ cliapp.OperationContext, m *offerspb.ListAuditResponse) cliapp.ListReport {
+	rows := mapStrings(len(m.Records), func(i int) string {
+		e := m.Records[i]
+		createdAt := "unknown-time"
+		if e.CreatedAt != nil {
+			createdAt = e.CreatedAt.AsTime().UTC().Format(time.RFC3339Nano)
+		}
+		return fmt.Sprintf("%s — %s actor=%s %s→%s related=%s reason=%s", createdAt, e.NodeId, e.Actor, e.PriorStatus.String(), e.NextStatus.String(), e.RelatedNodeId, e.Reason)
+	})
+	summary := []string{fmt.Sprintf("Found %d catalog audit entr(y/ies).", len(m.Records))}
+	if m.Truncated {
+		summary = append(summary, "Results are truncated; request a larger limit up to 500 or filter by --node-id.")
+	}
+	return cliapp.ListReport{Summary: summary, ResultsHeading: "Catalog decisions", Results: rows}
+}
+
+func factsReport(_ cliapp.OperationContext, m *offerspb.ListFactsResponse) cliapp.ListReport {
+	rows := mapStrings(len(m.Facts), func(i int) string {
+		read := m.Facts[i]
+		if read == nil || read.Fact == nil {
+			return "invalid fact row (freshness=UNKNOWN)"
+		}
+		f := read.Fact
+		observed := "unknown-time"
+		if f.ObservedAt != nil {
+			observed = f.ObservedAt.AsTime().UTC().Format(time.RFC3339Nano)
+		}
+		return fmt.Sprintf("%s=%g freshness=%s observed_at=%s stale_after_days=%d dimension=%s", f.Name, f.Value, factFreshnessLabel(read.Freshness), observed, f.StaleAfterDays, f.Dimension)
+	})
+	evaluatedAt := "unknown-time"
+	if m.EvaluatedAt != nil {
+		evaluatedAt = m.EvaluatedAt.AsTime().UTC().Format(time.RFC3339Nano)
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d fact(s); freshness evaluated at %s.", len(m.Facts), evaluatedAt)}, ResultsHeading: "Facts", Results: rows}
+}
+
+func factFreshnessLabel(f offerspb.FactFreshness) string {
+	switch f {
+	case offerspb.FactFreshness_FACT_FRESHNESS_FRESH:
+		return "fresh"
+	case offerspb.FactFreshness_FACT_FRESHNESS_STALE:
+		return "stale"
+	default:
+		return "unknown"
+	}
+}
+
+func triggersReport(_ cliapp.OperationContext, m *offerspb.ListTriggersResponse) cliapp.ListReport {
+	rows := mapStrings(len(m.Triggers), func(i int) string {
+		t := m.Triggers[i]
+		clauses := make([]string, 0, len(t.Clauses))
+		for _, c := range t.Clauses {
+			clauses = append(clauses, fmt.Sprintf("%s %s %g", c.FactName, c.Operator, c.Threshold))
+		}
+		composition := t.Composition.String()
+		if len(clauses) <= 1 {
+			composition = "single"
+		}
+		return fmt.Sprintf("%s node=%s %s [%s]", t.Id, t.NodeId, composition, strings.Join(clauses, ", "))
+	})
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d trigger(s). This is the declared trigger set; run gates-evaluate to obtain verdicts.", len(m.Triggers))}, ResultsHeading: "Triggers", Results: rows}
 }
 
 func triggerReport(_ cliapp.OperationContext, m *offerspb.DeclareTriggerResponse) cliapp.MutationReport {

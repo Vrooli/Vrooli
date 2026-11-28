@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { dispatchStreamMessage, type StreamMessageHandlers } from "./streamMessages";
+import { dispatchStreamMessage, safeSampleNumber, type StreamMessageHandlers } from "./streamMessages";
 
 /**
  * Regression guard for a warning banner that appeared and vanished several
@@ -25,12 +25,39 @@ function handlers(): StreamMessageHandlers {
     onSpeakerStatus: vi.fn(),
     onVadState: vi.fn(),
     onStatus: vi.fn(),
+    onProviderIdentity: vi.fn(),
     onFinal: vi.fn(),
     onError: vi.fn(),
   };
 }
 
 describe("stream status copy", () => {
+  it("preserves safe committed coverage cursors and rejects rounded int64 values", () => {
+    expect(safeSampleNumber(1_600n)).toBe(1_600);
+    expect(safeSampleNumber(BigInt(Number.MAX_SAFE_INTEGER) + 1n)).toBeUndefined();
+    expect(safeSampleNumber(-1n)).toBeUndefined();
+
+    const target = handlers();
+    dispatchStreamMessage(
+      JSON.stringify({ type: "segment-final", text: "committed", segmentIndex: 2, endSample: 1_600 }),
+      target,
+      new Set(),
+    );
+    expect(target.onSegmentFinal).toHaveBeenCalledWith("committed", 2, undefined, 1_600);
+  });
+
+  it("forwards the provider tier observed on a completed segment", () => {
+    const target = handlers();
+    dispatchStreamMessage(
+      JSON.stringify({ type: "segment-final", text: "", providerId: "same-provider", modelId: "m", providerTier: "local" }),
+      target,
+      new Set(),
+    );
+    expect(target.onProviderIdentity).toHaveBeenCalledWith({
+      providerId: "same-provider", modelId: "m", providerTier: "local",
+    });
+  });
+
   it("does not invent copy for a status frame that carries none", () => {
     const target = handlers();
     dispatchStreamMessage(

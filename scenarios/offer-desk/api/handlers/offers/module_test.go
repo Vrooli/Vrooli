@@ -117,6 +117,78 @@ func TestAgentPromotionCreatesListableProposalWithoutActivatingNode(t *testing.T
 	require.Equal(t, response.Msg.Proposal.Id, listed.Msg.Proposals[0].Id)
 }
 
+func TestListFactsAndTriggersExposeStoredGateDefinitionsAndFreshness(t *testing.T) {
+	clock := schedule.NewFake(time.Date(2026, 11, 24, 12, 0, 0, 0, time.UTC))
+	s, ctx := testOfferService(t, clock)
+	node, err := s.store.CreateNode(ctx, offerspb.NodeKind_OFFER, "Read surfaces", offerspb.Status_IDEA, "", "")
+	require.NoError(t, err)
+	staleAt := clock.Now().Add(-24*time.Hour - time.Second)
+	_, err = s.store.AddFact(ctx, &offerspb.Fact{Name: "a_stale", Value: 0.7, ObservedAt: timestamppb.New(staleAt), StaleAfterDays: 1, Dimension: "activation"})
+	require.NoError(t, err)
+	boundaryAt := clock.Now().Add(-24 * time.Hour)
+	_, err = s.store.AddFact(ctx, &offerspb.Fact{Name: "b_boundary", Value: 0.7, ObservedAt: timestamppb.New(boundaryAt), StaleAfterDays: 1})
+	require.NoError(t, err)
+	_, err = s.store.AddFact(ctx, &offerspb.Fact{Name: "c_bad_clock", Value: 0.7, ObservedAt: timestamppb.New(clock.Now()), StaleAfterDays: 1})
+	require.NoError(t, err)
+	_, err = s.store.DB().ExecContext(ctx, `UPDATE facts SET observed_at='bad-time' WHERE name='c_bad_clock'`)
+	require.NoError(t, err)
+	_, err = s.store.AddTrigger(ctx, &offerspb.Trigger{NodeId: node.Id, FactName: "activation_rate", Operator: ">=", Threshold: 0.5, Clauses: []*offerspb.TriggerClause{{FactName: "activation_rate", Operator: ">=", Threshold: 0.5}}, Composition: offerspb.TriggerComposition_ALL})
+	require.NoError(t, err)
+
+	facts, err := s.ListFacts(ctx, connect.NewRequest(&offerspb.ListFactsRequest{}))
+	require.NoError(t, err)
+	require.Len(t, facts.Msg.Facts, 3)
+	require.Equal(t, clock.Now(), facts.Msg.EvaluatedAt.AsTime())
+	require.Equal(t, "a_stale", facts.Msg.Facts[0].Fact.Name)
+	require.Equal(t, offerspb.FactFreshness_FACT_FRESHNESS_STALE, facts.Msg.Facts[0].Freshness)
+	require.Equal(t, staleAt, facts.Msg.Facts[0].Fact.ObservedAt.AsTime())
+	require.Equal(t, int32(1), facts.Msg.Facts[0].Fact.StaleAfterDays)
+	require.Equal(t, "activation", facts.Msg.Facts[0].Fact.Dimension)
+	require.Equal(t, "b_boundary", facts.Msg.Facts[1].Fact.Name)
+	require.Equal(t, offerspb.FactFreshness_FACT_FRESHNESS_FRESH, facts.Msg.Facts[1].Freshness, "expiry equality remains fresh by the evaluator's strict-after rule")
+	require.Equal(t, "c_bad_clock", facts.Msg.Facts[2].Fact.Name)
+	require.Equal(t, offerspb.FactFreshness_FACT_FRESHNESS_UNKNOWN, facts.Msg.Facts[2].Freshness)
+
+	triggers, err := s.ListTriggers(ctx, connect.NewRequest(&offerspb.ListTriggersRequest{}))
+	require.NoError(t, err)
+	require.Len(t, triggers.Msg.Triggers, 1)
+	require.Equal(t, node.Id, triggers.Msg.Triggers[0].NodeId)
+	require.Equal(t, offerspb.TriggerComposition_ALL, triggers.Msg.Triggers[0].Composition)
+	require.Equal(t, "activation_rate", triggers.Msg.Triggers[0].Clauses[0].FactName)
+}
+
+func TestListAuditReturnsTypedNewestFirstRowsWithBoundedNodeFiltering(t *testing.T) {
+	now := time.Date(2026, 11, 24, 8, 0, 0, 0, time.UTC)
+	s, ctx := testOfferService(t, schedule.NewFake(now))
+	node, err := s.store.CreateNodeWithDetailsAudited(ctx, offerspb.NodeKind_OFFER, "Audit target", offerspb.Status_IDEA, "", "", offerspb.DeliverableClass_DELIVERABLE_CLASS_UNSPECIFIED, offerspb.FinishBar_FINISH_BAR_UNSPECIFIED, "creator", "initial reason")
+	require.NoError(t, err)
+	_, _, err = s.store.RenameNode(ctx, node.Id, "Renamed audit target", "reviewer", "reviewed rename")
+	require.NoError(t, err)
+	_, err = s.store.CreateNodeWithDetailsAudited(ctx, offerspb.NodeKind_OFFER, "Other node", offerspb.Status_IDEA, "", "", offerspb.DeliverableClass_DELIVERABLE_CLASS_UNSPECIFIED, offerspb.FinishBar_FINISH_BAR_UNSPECIFIED, "other", "other reason")
+	require.NoError(t, err)
+
+	page, err := s.ListAudit(ctx, connect.NewRequest(&offerspb.ListAuditRequest{NodeId: node.Id, Limit: 1}))
+	require.NoError(t, err)
+	require.Len(t, page.Msg.Records, 1)
+	require.True(t, page.Msg.Truncated)
+	require.Equal(t, node.Id, page.Msg.Records[0].NodeId)
+	require.Equal(t, "reviewer", page.Msg.Records[0].Actor)
+	require.Equal(t, offerspb.Status_IDEA, page.Msg.Records[0].NextStatus)
+	require.Equal(t, "reviewed rename; prior_name=Audit target", page.Msg.Records[0].Reason)
+	require.Equal(t, now, page.Msg.Records[0].CreatedAt.AsTime())
+
+	all, err := s.ListAudit(ctx, connect.NewRequest(&offerspb.ListAuditRequest{NodeId: node.Id}))
+	require.NoError(t, err)
+	require.Len(t, all.Msg.Records, 2)
+	require.False(t, all.Msg.Truncated)
+	require.Equal(t, "creator", all.Msg.Records[1].Actor)
+
+	for _, limit := range []int32{-1, 501} {
+		_, err = s.ListAudit(ctx, connect.NewRequest(&offerspb.ListAuditRequest{Limit: limit}))
+		require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	}
+}
+
 func TestOperatorRetirementRecordsProposalDeclineHistory(t *testing.T) { // [REQ:GATE-005]
 	clock := schedule.NewFake(time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC))
 	s, ctx := testOfferService(t, clock)

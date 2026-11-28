@@ -8,7 +8,7 @@
 // stays string-typed and consumers see no churn.
 
 type ProtoEnum = number;
-interface TimestampLike { seconds: bigint | number; nanos: number; }
+interface TimestampLike { seconds?: bigint | number; nanos?: number; }
 
 const ProviderTier = { UNSPECIFIED: 0, LOCAL: 1, BYOK: 2, VROOLI: 3 } as const;
 const AudioFormat = { UNSPECIFIED: 0, WAV: 1, MP3: 2, FLAC: 3, OGG: 4, WEBM: 5, OPUS: 6, AAC: 7 } as const;
@@ -239,7 +239,7 @@ export function summarizeLevelFromString(s: string | undefined): ProtoEnum {
 export function timestampToISO(ts: TimestampLike | string | undefined): string {
   if (!ts) return "";
   if (typeof ts === "string") return ts;
-  const seconds = typeof ts.seconds === "bigint" ? Number(ts.seconds) : ts.seconds;
-  const nanos = ts.nanos;
+  const seconds = typeof ts.seconds === "bigint" ? Number(ts.seconds) : (ts.seconds ?? 0);
+  const nanos = ts.nanos ?? 0;
   return new Date(seconds * 1000 + Math.floor(nanos / 1_000_000)).toISOString();
 }

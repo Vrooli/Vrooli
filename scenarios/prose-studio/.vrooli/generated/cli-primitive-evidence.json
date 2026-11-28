@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "prose-studio",
   "generator": "v1.0.0",
-  "manifest_hash": "6d204f5d3df0a1625cebb166bd2109975c9386ef5f1d7ed3d11b1aee342b16b7",
+  "manifest_hash": "d0576c3233f5d351d5b416b13764b5b22670dc3d600fd4d4de6ff02173c23872",
   "commands": [
     {
       "path": "prose conformance",
@@ -47,6 +47,14 @@
       "observed_primitive": "proto_list"
     },
     {
+      "path": "prose document-export-book-source",
+      "group": "prose",
+      "command": "document-export-book-source",
+      "binding": "ProseStudioService.ExportBookSource",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
       "path": "prose document-list",
       "group": "prose",
       "command": "document-list",
@@ -75,6 +83,14 @@
       "group": "prose",
       "command": "generate",
       "binding": "ProseStudioService.Generate",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "prose generate-application-document",
+      "group": "prose",
+      "command": "generate-application-document",
+      "binding": "ProseStudioService.GenerateApplicationDocument",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },

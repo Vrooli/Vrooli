@@ -6,6 +6,10 @@ import { forgetUnfinishedSession, loadUnfinishedSession, rememberUnfinishedSessi
 import { dispatchStreamEvent } from "./streamMessages";
 import { requireVoiceTransport, type VoiceAudioChunk, type VoiceStreamConnection, type VoiceStreamStart, type VoiceTransport, type VoiceTransportStatus } from "./transport";
 import { publishStreamDiagnostic, StreamDiagnosticRecorder, type StreamTurnDiagnostic } from "./streamDiagnostic";
+import { RetainedPcmBuffer } from "./retainedPcmBuffer";
+import { classifyPcmWriteFailure } from "./pcmWriteFailurePolicy";
+import { ReconnectBackoff } from "./reconnectBackoff";
+export { MAX_CONSECUTIVE_RECONNECTS, RECONNECT_BACKOFF_MS } from "./reconnectBackoff";
 import { registerMicStream, releaseMicLease, type MicLease, type MicReleaseReason } from "./voice/micOwnership";
 import { getSharedAudioContext } from "./voice/sharedAudioContext";
 import type { LastTurnAudio } from "./voice/types";
@@ -24,7 +28,7 @@ export interface SharedPcmVoiceStreamProviderOptions {
   readonly onResult?: (text: string) => void;
   readonly onError?: (message: string) => void;
   readonly onPartial?: (text: string) => void;
-  readonly onSegmentFinal?: (text: string, index: number) => void;
+  readonly onSegmentFinal?: (text: string, index: number, speakerPolicy?: string, endSample?: number) => void;
   readonly captureFactory?: SharedPcmCaptureFactory;
   readonly journalFactory?: () => TurnJournal;
   readonly retainStream?: boolean;
@@ -36,8 +40,6 @@ export interface SharedPcmVoiceStreamProviderOptions {
   readonly maxRetainedTurnAudioBytes?: number;
 }
 
-export const MAX_CONSECUTIVE_RECONNECTS = 5;
-export const RECONNECT_BACKOFF_MS = [1_000, 2_000, 4_000, 8_000, 8_000] as const;
 export const PCM_WIRE_BATCH_SAMPLES = 1_600; // approximately 100 ms at 16 kHz
 // Send the first voiced audio promptly so the native decoder can begin while
 // the normal 100 ms batching policy continues to control steady-state wire
@@ -77,17 +79,22 @@ export class PcmVoiceStreamProvider {
   private readonly wireBatchSamples: number;
   private readonly fastFirstWireBatch: boolean;
   private readonly maxRetainedTurnAudioBytes: number;
+  private readonly retainedPcm: RetainedPcmBuffer;
   private transport: VoiceTransport;
   language = "en";
   // Assigned as soon as the transport opens so capture frames stay queued
-  // while the Connect stream is handshaking.
+  // while the voice stream is handshaking.
   private connection: VoiceStreamConnection | null = null;
   private capture: PcmCapture | null = null;
   private stream: MediaStream | null = null;
   private lease: MicLease | null = null;
   private journal: TurnJournal | null = null;
+  // Admission may overlap durable recovery, but replay and PCM writes must not
+  // begin until the journal has established the authoritative cursors.
+  private journalReady = false;
   private writes: Promise<void> = Promise.resolve();
   private captureGeneration = 0;
+  private captureSourceGeneration = 0;
   private queuedBytes = 0;
   private journalAcks: Promise<void> = Promise.resolve();
   private pendingWriteCount = 0;
@@ -97,20 +104,21 @@ export class PcmVoiceStreamProvider {
   private batchSampleCount = 0;
   private batchStartSample = 0n;
   private batchTimer: ReturnType<typeof setTimeout> | null = null;
-  private allPcm: Int16Array[] = [];
-  private allPcmBytes = 0;
-  private retainedAudioOverflow = false;
   private sessionId = "";
   private resumeToken = "";
   private activationGeneration = -1;
   private connectionReady = false;
   private preconnectWarmed = false;
+  private preconnectResumedSession = false;
   private sequence = 0n;
+  private lastRecoveryProgressSequence = -1n;
   private sample = 0n;
-  private reconnects = 0;
+  private readonly reconnectBackoff = new ReconnectBackoff();
   private stopped = false;
   private finalReceived = false;
-  private reacquiring = false;
+  private startRequestedAtMs: number | null = null;
+  private captureReadyReported = false;
+  private reacquiringGeneration: number | null = null;
   private readonly deliveredSegments = new Set<string>();
   private allStartedAt = 0;
   private tailDropArmed = false;
@@ -139,7 +147,7 @@ export class PcmVoiceStreamProvider {
   onStatus: ((status: VoiceTransportStatus) => void) | null = null;
   onDiagnostic: ((diagnostic: StreamTurnDiagnostic) => void) | null = null;
   onPartial: ((text: string) => void) | null = null;
-	onSegmentFinal: ((text: string, index: number, speakerPolicy?: string) => void) | null = null;
+	onSegmentFinal: ((text: string, index: number, speakerPolicy?: string, endSample?: number) => void) | null = null;
   onSegmentAccepted: ((segmentIndex: number, score: number, threshold: number) => void) | null = null;
   onSegmentRejected: ((segmentIndex: number, score: number, threshold: number) => void) | null = null;
   onSpeakerStatus: ((enabled: boolean, profileConfigured: boolean) => void) | null = null;
@@ -154,6 +162,7 @@ export class PcmVoiceStreamProvider {
     this.maxRetainedTurnAudioBytes = Number.isSafeInteger(options.maxRetainedTurnAudioBytes) && (options.maxRetainedTurnAudioBytes ?? 0) > 0
       ? options.maxRetainedTurnAudioBytes!
       : MAX_RETAINED_TURN_AUDIO_BYTES;
+    this.retainedPcm = new RetainedPcmBuffer(this.maxRetainedTurnAudioBytes);
     this.transport = options.transport ?? requireVoiceTransport();
     this.language = options.language ?? "en";
     this.captureFactory = options.captureFactory ?? ((stream, onFrame) => {
@@ -170,19 +179,38 @@ export class PcmVoiceStreamProvider {
 
   getStream(): MediaStream | null { return this.stream; }
 
-  /** True when the permission-warmed Connect stream can accept capture frames. */
+  /** True when the permission-warmed voice stream can accept capture frames. */
   isStreamConnected(): boolean {
     return this.connectionReady && (this.connection?.isOpen() ?? false);
   }
 
   getDiagnostic(): StreamTurnDiagnostic { return this.diagnostic.read(); }
   exportDiagnostic(): string { return this.diagnostic.exportJSON(); }
+  /** Preserve the consumer's user-action timestamp across asynchronous startup. */
+  markStartRequested(atMs?: number): void {
+    const now = typeof globalThis.performance?.now === "function" ? globalThis.performance.now() : Date.now();
+    this.startRequestedAtMs = Number.isFinite(atMs) && atMs! >= 0 ? atMs! : now;
+  }
+  /** Records one transcript revision after the consuming UI committed it. */
+  recordVisibleTranscriptRevision(): void {
+    this.diagnostic.partial();
+    this.diagnostic.visibleRevisionRendered();
+    this.publishDiagnostic();
+  }
   getLastTurnAudio(): LastTurnAudio | null { return this.lastTurn; }
   disposeLastTurn(): void { this.lastTurn = null; }
   private publishDiagnostic(): void {
     const diagnostic = this.diagnostic.read();
     publishStreamDiagnostic(diagnostic);
     this.onDiagnostic?.(diagnostic);
+  }
+
+  private markCaptureReady(): void {
+    if (this.captureReadyReported || !this.connectionReady || !this.capture || this.stopped) return;
+    this.captureReadyReported = true;
+    this.diagnostic.captureReady();
+    this.publishDiagnostic();
+    this.startRequestedAtMs = null;
   }
 
   private downgradePersistentJournal(): TurnJournal | null {
@@ -226,18 +254,12 @@ export class PcmVoiceStreamProvider {
       this.diagnostic.error(`${typed.code}:${cause.name}`);
     }
     const message = typed.cause instanceof Error ? typed.cause.message : String(typed.cause ?? "");
-    const sequenceDetail = message.match(/expected sequence (\d+) at sample (\d+), got sequence (\d+) at sample (\d+)/i);
-    const reason = /contiguous sequence identities/i.test(message)
-      ? "sequence_mismatch"
-      : /quota exhausted|quota exceeded/i.test(message)
-        ? "quota_exhausted"
-        : /indexeddb|transaction|abort/i.test(`${cause?.name ?? ""} ${message}`)
-          ? "storage_transaction"
-          : "storage_write";
-    this.diagnostic.error(`${typed.code}:${reason}`);
-    if (sequenceDetail) {
-      this.diagnostic.error(`${typed.code}:cursor_${sequenceDetail[1]}_got_${sequenceDetail[3]}`);
-      this.diagnostic.error(`${typed.code}:sample_${sequenceDetail[2]}_got_${sequenceDetail[4]}`);
+    const classification = classifyPcmWriteFailure(typeof cause?.name === "string" ? cause.name : "", message);
+    this.diagnostic.error(`${typed.code}:${classification.reason}`);
+    if (classification.sequenceDetail) {
+      const [expectedSequence, expectedSample, actualSequence, actualSample] = classification.sequenceDetail;
+      this.diagnostic.error(`${typed.code}:cursor_${expectedSequence}_got_${actualSequence}`);
+      this.diagnostic.error(`${typed.code}:sample_${expectedSample}_got_${actualSample}`);
     }
     this.diagnostic.terminal("failed", typed.code);
     this.publishDiagnostic();
@@ -246,8 +268,8 @@ export class PcmVoiceStreamProvider {
   }
 
   private hasRetainedTurnAudio(): boolean {
-    if (!this.retainedAudioOverflow && this.allPcm.length > 0) return true;
-    return (this.journal?.read().retainedBytes ?? 0) > 0;
+    if (this.retainedPcm.hasCompleteAudio) return true;
+    return (this.journal?.retainedBytes ?? 0) > 0;
   }
 
   /**
@@ -258,9 +280,8 @@ export class PcmVoiceStreamProvider {
    * that tail is safer than declaring the turn unrecoverable.
    */
   private recoveryPcm(): Int16Array | null {
-    if (!this.retainedAudioOverflow && this.allPcm.length > 0) {
-      return concatInt16(this.allPcm);
-    }
+    const completeCopy = this.retainedPcm.snapshot();
+    if (completeCopy) return completeCopy;
     const chunks = this.journal?.read().chunks ?? [];
     if (chunks.length === 0) return null;
     return concatInt16(chunks.map((chunk) => new Int16Array(chunk.audio)));
@@ -291,18 +312,7 @@ export class PcmVoiceStreamProvider {
   }
 
   private retainPcm(samples: Int16Array): void {
-    if (this.retainedAudioOverflow) return;
-    if (this.allPcmBytes + samples.byteLength > this.maxRetainedTurnAudioBytes) {
-      // Once the budget is exceeded, discard the partial recovery copy too.
-      // A partial WAV is not a safe retry artifact, and retaining it would
-      // still make memory proportional to the turn up to the limit.
-      this.allPcm = [];
-      this.allPcmBytes = 0;
-      this.retainedAudioOverflow = true;
-      return;
-    }
-    this.allPcm.push(samples);
-    this.allPcmBytes += samples.byteLength;
+    this.retainedPcm.append(samples);
   }
 
   private async acquireStream(): Promise<MicLease> {
@@ -352,41 +362,67 @@ export class PcmVoiceStreamProvider {
   }
 
   private async reacquire(): Promise<void> {
-    if (this.stopped || this.reacquiring || !this.capture) return;
-    this.reacquiring = true;
+    if (this.stopped || this.reacquiringGeneration === this.captureGeneration || !this.capture) return;
+    const recoveryGeneration = this.captureGeneration;
+    this.reacquiringGeneration = recoveryGeneration;
     this.status("mic_reacquiring", "The microphone ended; reacquiring the input while preserving the turn journal.");
+    this.captureSourceGeneration += 1;
     this.capture.stop(); this.capture = null;
     this.releaseOwnStream("ended");
     try {
       const lease = await this.acquireStream();
-      if (this.stopped) { releaseMicLease(lease, "ended"); return; }
+      if (this.stopped || recoveryGeneration !== this.captureGeneration) {
+        releaseMicLease(lease, "ended");
+        return;
+      }
       this.lease = lease;
       this.stream = lease.stream; this.bindTracks(lease.stream);
-      this.capture = await this.makeCapture(lease.stream);
+      const capture = await this.makeCapture(lease.stream);
+      if (this.stopped || recoveryGeneration !== this.captureGeneration) {
+        capture.stop();
+        if (this.lease === lease) this.releaseOwnStream("ended");
+        else releaseMicLease(lease, "ended");
+        return;
+      }
+      this.capture = capture;
       this.micRecoveryAttempted = false;
       this.status("mic_reacquired", "Microphone reacquired; the active stream and recovery journal were preserved.");
     } catch {
+      if (this.stopped || recoveryGeneration !== this.captureGeneration) return;
+      // The lease is installed before makeCapture(), which may reject while
+      // constructing the worklet/ScriptProcessor graph. A failed recovery is
+      // terminal, so release any newly acquired stream before reporting it.
+      this.releaseOwnStream("provider-error");
       this.terminalFailure = true;
       this.diagnostic.error("mic_source_lost");
       this.diagnostic.terminal("failed", "mic_source_lost");
       this.publishDiagnostic();
       this.status("mic_source_lost", "Microphone access was lost and could not be reacquired; the recovery journal was retained.");
       this.onError?.("Microphone access was lost and could not be reacquired.");
-    } finally { this.reacquiring = false; }
+    } finally {
+      if (this.reacquiringGeneration === recoveryGeneration) this.reacquiringGeneration = null;
+    }
   }
 
   private async makeCapture(stream: MediaStream): Promise<PcmCapture> {
     const generation = this.captureGeneration;
+    const sourceGeneration = ++this.captureSourceGeneration;
     return this.captureFactory(stream, (samples, rate) => {
-      if (generation !== this.captureGeneration) return;
+      const callbackStartedAtMs = typeof globalThis.performance?.now === "function" ? globalThis.performance.now() : Date.now();
+      if (generation !== this.captureGeneration
+        || sourceGeneration !== this.captureSourceGeneration
+        || this.stopped
+        || this.terminalFailure) return;
       this.diagnostic.captureRate(rate);
       this.queue(this.pcmResampler.process(samples, rate));
+      const callbackEndedAtMs = typeof globalThis.performance?.now === "function" ? globalThis.performance.now() : Date.now();
+      this.diagnostic.captureCallbackCost(callbackEndedAtMs - callbackStartedAtMs, samples.length * 1_000 / rate);
     });
   }
 
   private queue(samples: Int16Array): void {
     if (this.tailDropArmed || this.terminalFailure || this.stopped) return;
-    if (this.queuedBytes + this.batchSampleCount * 2 + samples.byteLength + (this.journal?.read().retainedBytes ?? 0) > MAX_RETAINED_TURN_AUDIO_BYTES) {
+    if (this.queuedBytes + this.batchSampleCount * 2 + samples.byteLength + (this.journal?.retainedBytes ?? 0) > MAX_RETAINED_TURN_AUDIO_BYTES) {
       this.handleWriteFailure(new Error("journal quota exhausted before capture; audio was not discarded"));
       return;
     }
@@ -395,7 +431,8 @@ export class PcmVoiceStreamProvider {
 		this.retainPcm(samples);
 		for (let i = 0; i < samples.length; i += 1) {
 			if (Math.abs(samples[i] ?? 0) > 256) {
-				this.diagnostic.signalObserved();
+				const samplesAfterSignal = samples.length - i - 1;
+				this.diagnostic.signalObserved(samplesAfterSignal * 1_000 / TARGET_SAMPLE_RATE, startSample + BigInt(i));
 				break;
 			}
 		}
@@ -461,7 +498,7 @@ export class PcmVoiceStreamProvider {
           await reduced.append(journalChunk);
         }
         if (generation !== this.captureGeneration || this.terminalFailure) return;
-        this.diagnostic.retained(this.journal?.read().retainedBytes ?? 0);
+        this.diagnostic.retained(this.journal?.retainedBytes ?? 0);
         if (this.connection?.isOpen() && !this.replaying && this.pending.length === 0) {
           this.connection.sendAudio(chunk);
           this.diagnostic.sent(sequence);
@@ -498,7 +535,7 @@ export class PcmVoiceStreamProvider {
     };
   }
 
-  /** Bind one Connect stream to this provider; callbacks are fenced by identity. */
+  /** Bind one voice stream to this provider; callbacks are fenced by identity. */
   private install(replay: boolean): void {
     const slot: { connection: VoiceStreamConnection | null } = { connection: null };
     const connectionIsCurrent = () => slot.connection !== null && this.connection === slot.connection;
@@ -509,33 +546,36 @@ export class PcmVoiceStreamProvider {
           return;
         }
         this.connectionReady = true;
-        this.activateConnection(slot.connection!, replay);
+        this.markCaptureReady();
+        if (this.journalReady) this.activateConnection(slot.connection!, replay || this.sequence > 0n);
       },
       onEvent: (event: import("./streamMessages").StreamMessage) => {
         if (!connectionIsCurrent()) return;
         const generation = this.captureGeneration;
         dispatchStreamEvent(event, {
           onPartial: (text) => {
-            this.diagnostic.partial();
-            this.publishDiagnostic();
             this.onPartial?.(text);
           },
-          onSegmentFinal: (text, index) => {
-            this.diagnostic.committed();
+          onSegmentFinal: (text, index, speakerPolicy, endSample) => {
+            this.diagnostic.committed(endSample);
             this.publishDiagnostic();
-            this.onSegmentFinal?.(text, index);
+            this.onSegmentFinal?.(text, index, speakerPolicy, endSample);
           },
           onSegmentAccepted: (index, score, threshold) => this.onSegmentAccepted?.(index, score, threshold),
           onSegmentRejected: (index, score, threshold) => this.onSegmentRejected?.(index, score, threshold),
+          onProviderIdentity: (identity) => {
+            this.diagnostic.providerIdentity(identity.providerId, identity.modelId, identity.providerTier);
+            this.publishDiagnostic();
+          },
           onSpeakerStatus: (enabled, profileConfigured) => this.onSpeakerStatus?.(enabled, profileConfigured),
           onVadState: (snapshot) => this.onVadState?.(snapshot),
           onStatus: (code, text, processed, providerIdentity) => {
-            this.diagnostic.providerIdentity(providerIdentity?.providerId, providerIdentity?.modelId);
+            this.diagnostic.providerIdentity(providerIdentity?.providerId, providerIdentity?.modelId, providerIdentity?.providerTier);
             this.serverAcknowledged = true;
             if (this.serverAckTimer) clearTimeout(this.serverAckTimer);
             if (processed !== undefined) {
               this.diagnostic.processed(processed);
-              this.diagnostic.retained(this.journal?.read().retainedBytes ?? 0);
+              this.diagnostic.retained(this.journal?.retainedBytes ?? 0);
               this.publishDiagnostic();
               const journal = this.journal;
               this.journalAcks = this.journalAcks
@@ -543,7 +583,15 @@ export class PcmVoiceStreamProvider {
                   if (generation !== this.captureGeneration || this.terminalFailure || !journal) return;
                   await journal.acknowledgeProcessed(processed);
                   if (generation !== this.captureGeneration || this.terminalFailure) return;
-                  this.diagnostic.retained(this.journal?.read().retainedBytes ?? 0);
+                  // A ready handshake alone is not evidence that a reconnect
+                  // recovered any audio. Reset the retry budget only after a
+                  // newly processed cursor has been durably compacted; repeated
+                  // ready-then-close sockets with no progress must exhaust.
+                  if (processed > this.lastRecoveryProgressSequence) {
+                    this.lastRecoveryProgressSequence = processed;
+                    this.reconnectBackoff.reset();
+                  }
+                  this.diagnostic.retained(this.journal?.retainedBytes ?? 0);
                   this.publishDiagnostic();
                 })
                 .catch(() => {
@@ -562,19 +610,20 @@ export class PcmVoiceStreamProvider {
             }
             void this.writes.then(() => {
               if (generation !== this.captureGeneration || this.terminalFailure || this.finalReceived) return;
-              if (this.diagnostic.read().committedTextLagMs === null) {
-                this.diagnostic.committed();
-                this.publishDiagnostic();
-              }
               if (!text.trim() && this.hasRetainedTurnAudio() && this.deliveredSegments.size === 0 && !this.terminalFailure) {
                 void this.fallback();
                 return;
               }
-              if (!text.trim() && this.deliveredSegments.size === 0 && this.retainedAudioOverflow) {
+              if (!text.trim() && this.deliveredSegments.size === 0 && this.retainedPcm.isOverflowed) {
                 this.failWithoutRetainedAudio("retained_audio_budget_exceeded", "Streaming transcription ended without a complete bounded recovery copy; retry the turn.");
                 return;
               }
               this.finalReceived = true;
+              this.diagnostic.streamingFinalReceived();
+              if (text.trim()) {
+                this.diagnostic.committed(Number(this.sample));
+                this.publishDiagnostic();
+              }
               this.unbindTracks();
               if (this.finalPendingTimer) clearTimeout(this.finalPendingTimer);
               if (this.fallbackTimer) clearTimeout(this.fallbackTimer);
@@ -600,12 +649,16 @@ export class PcmVoiceStreamProvider {
           },
         }, this.deliveredSegments);
       },
-      onClose: () => {
+      onClose: (error?: unknown) => {
         if (!connectionIsCurrent()) return;
+        const failedBeforeAdmission = error != null && !this.connectionReady;
         this.connectionReady = false;
         this.activationGeneration = -1;
         if (this.connection === slot.connection) this.connection = null;
         this.flushBatch();
+        if (failedBeforeAdmission) {
+          this.status("stream_admission_failed", "The speech server did not accept the streaming session; retained audio is protected while automatic recovery retries.");
+        }
         this.handleConnectionClosed();
       },
     };
@@ -616,9 +669,8 @@ export class PcmVoiceStreamProvider {
 
   private activateConnection(connection: VoiceStreamConnection, replay: boolean): void {
     const generation = this.captureGeneration;
-    if (this.activationGeneration === generation || this.connection !== connection || this.terminalFailure) return;
+    if (!this.journalReady || this.activationGeneration === generation || this.connection !== connection || this.terminalFailure) return;
     this.activationGeneration = generation;
-    this.reconnects = 0;
     this.replaying = replay;
     if (!replay) this.flushBatch();
     this.serverAcknowledged = false;
@@ -637,7 +689,7 @@ export class PcmVoiceStreamProvider {
     void this.writes.then(async () => {
       if (generation !== this.captureGeneration || this.terminalFailure || this.connection !== connection || !connection.isOpen()) return;
       if (replay) {
-        const replayFloor = this.journal?.read().nextSequence ?? this.sequence;
+        const replayFloor = this.journal?.nextSequence ?? this.sequence;
         this.pending = this.pending.filter((item) => item.sequence >= replayFloor);
         for (const chunk of this.journal?.replayAfter(-1n) ?? []) {
           connection.sendAudio({ sequence: chunk.sequence, startSample: chunk.startSample, endSample: chunk.endSample, audio: new Uint8Array(chunk.audio), sha256: new Uint8Array(chunk.sha256) });
@@ -659,22 +711,32 @@ export class PcmVoiceStreamProvider {
   }
 
   private handleConnectionClosed(): void {
-    if (this.stopped || this.finalReceived || this.terminalFailure || !this.capture) {
-      if (this.stopped && !this.finalReceived && !this.terminalFailure && this.hasRetainedTurnAudio()) void this.fallback();
-      else if (this.stopped && !this.finalReceived && this.retainedAudioOverflow) this.failWithoutRetainedAudio("retained_audio_budget_exceeded", "Streaming transcription ended without a complete bounded recovery copy; retry the turn.");
+    const reconnectAfterStop = this.stopped && !this.finalReceived && !this.terminalFailure && this.hasRetainedTurnAudio();
+    if (this.finalReceived || this.terminalFailure || (!this.capture && !reconnectAfterStop)) {
+      if (this.stopped && !this.finalReceived && !this.terminalFailure && this.retainedPcm.isOverflowed) {
+        this.failWithoutRetainedAudio("retained_audio_budget_exceeded", "Streaming transcription ended without a complete bounded recovery copy; retry the turn.");
+      }
       return;
     }
-    if (this.reconnects >= MAX_CONSECUTIVE_RECONNECTS) {
+    // A stopped turn may still be waiting for its final. If that socket closes,
+    // preserve the bounded reconnect budget and replay every unacknowledged
+    // interval before considering unary recovery. Some selected native models
+    // are streaming-only and cannot serve the retained-audio batch path.
+    if (reconnectAfterStop && this.fallbackTimer) {
+      clearTimeout(this.fallbackTimer);
+      this.fallbackTimer = null;
+    }
+    const delay = this.reconnectBackoff.nextDelay();
+    if (delay === null) {
       this.status("reconnect_exhausted", "Streaming recovery attempts were exhausted; using retained-audio recovery.");
       void this.fallback();
       return;
     }
-    const delay = RECONNECT_BACKOFF_MS[this.reconnects] ?? RECONNECT_BACKOFF_MS.at(-1)!;
-    this.reconnects += 1;
     this.status("reconnecting", "Connection interrupted; replaying retained audio.");
     const generation = this.captureGeneration;
     setTimeout(() => {
-      if (generation === this.captureGeneration && !this.terminalFailure && !this.stopped) this.connect(true);
+      const stoppedTurnRetained = this.stopped && !this.finalReceived && !this.terminalFailure && this.hasRetainedTurnAudio();
+      if (generation === this.captureGeneration && !this.terminalFailure && (!this.stopped || stoppedTurnRetained)) this.connect(true);
     }, delay);
   }
 
@@ -687,9 +749,10 @@ export class PcmVoiceStreamProvider {
   preConnect(language: string): void {
     if (this.connection) return;
     this.language = language;
-    this.sessionId = newSessionIdentity();
-    this.resumeToken = newSessionIdentity();
-    rememberUnfinishedSession({ sessionId: this.sessionId, resumeToken: this.resumeToken });
+    const recovered = loadUnfinishedSession();
+    this.preconnectResumedSession = recovered !== null;
+    this.sessionId = recovered?.sessionId ?? newSessionIdentity();
+    this.resumeToken = recovered?.resumeToken ?? newSessionIdentity();
     this.preconnectWarmed = true;
     this.connect(false);
     this.preconnectTimer = setTimeout(() => {
@@ -698,12 +761,17 @@ export class PcmVoiceStreamProvider {
         this.connection = null;
         this.connectionReady = false;
         this.preconnectWarmed = false;
-        forgetUnfinishedSession();
+        this.preconnectResumedSession = false;
       }
     }, 30_000);
   }
 
   dropTail(): void { this.tailDropArmed = true; }
+
+  markStopRequested(): void {
+    this.diagnostic.stopRequested();
+    this.publishDiagnostic();
+  }
 
 	private async fallback(): Promise<void> {
 		if (this.finalReceived || this.terminalFailure) return;
@@ -724,8 +792,8 @@ export class PcmVoiceStreamProvider {
 		this.publishDiagnostic();
 		if (!this.hasRetainedTurnAudio()) {
 			this.failWithoutRetainedAudio(
-				this.retainedAudioOverflow ? "retained_audio_budget_exceeded" : "no_recoverable_audio",
-				this.retainedAudioOverflow
+				this.retainedPcm.isOverflowed ? "retained_audio_budget_exceeded" : "no_recoverable_audio",
+				this.retainedPcm.isOverflowed
 					? "Streaming transcription ended without a complete bounded recovery copy; retry the turn."
 					: "Streaming transcription ended without recoverable audio.",
 			);
@@ -739,8 +807,8 @@ export class PcmVoiceStreamProvider {
       const pcm = this.recoveryPcm();
       if (!pcm || pcm.length === 0) {
         this.failWithoutRetainedAudio(
-          this.retainedAudioOverflow ? "retained_audio_budget_exceeded" : "no_recoverable_audio",
-          this.retainedAudioOverflow
+          this.retainedPcm.isOverflowed ? "retained_audio_budget_exceeded" : "no_recoverable_audio",
+          this.retainedPcm.isOverflowed
             ? "Streaming transcription ended without a complete bounded recovery copy; retry the turn."
             : "Streaming transcription ended without recoverable audio.",
         );
@@ -748,13 +816,24 @@ export class PcmVoiceStreamProvider {
       }
       this.finalReceived = true;
       const retained = encodeWavFromPcm16(pcm, TARGET_SAMPLE_RATE);
+      const primary = this.diagnostic.read();
+      if (this.transport.retainedRoutePolicy !== "exact-model"
+        || primary.providerTier !== "local"
+        || !primary.modelId) {
+        throw new Error("retained_route_unavailable");
+      }
+      const route = {
+        providerTier: "local" as const,
+        providerId: primary.providerId,
+        modelId: primary.modelId,
+      };
       const recovered = this.transport.transcribeRetainedWithIdentity
-        ? await this.transport.transcribeRetainedWithIdentity(retained, this.language)
-        : { text: await this.transport.transcribeRetained(retained, this.language) };
+        ? await this.transport.transcribeRetainedWithIdentity(retained, this.language, route)
+        : { text: await this.transport.transcribeRetained(retained, this.language, route) };
       if (generation !== this.captureGeneration || this.terminalFailure) return;
-      // Keep the identity of the primary streaming route. A bounded batch
-      // fallback may use a different provider to recover final text, but that
-      // recovery must not relabel the provider cell measured by diagnostics.
+      // The exact selected model remains the authority for this turn's route.
+      // Keep the streaming identity as the provider-cell diagnostic even if
+      // the unary adapter reports a different internal implementation name.
       const primaryIdentity = this.diagnostic.read();
       if (!primaryIdentity.providerId && !primaryIdentity.modelId) {
         this.diagnostic.providerIdentity(recovered.providerIdentity?.providerId, recovered.providerIdentity?.modelId);
@@ -768,7 +847,7 @@ export class PcmVoiceStreamProvider {
       // that never emit a streaming final. Record the same stop-to-result lag
       // as the native terminal path before publishing the terminal state.
       if (this.diagnostic.read().committedTextLagMs === null) {
-        this.diagnostic.committed();
+        this.diagnostic.committed(Number(this.sample));
         this.publishDiagnostic();
       }
       this.onResult?.(transcript.trim());
@@ -776,24 +855,33 @@ export class PcmVoiceStreamProvider {
       this.publishDiagnostic();
       this.discardJournalAfterTerminal();
       forgetUnfinishedSession();
-    } catch {
+    } catch (err) {
       if (generation !== this.captureGeneration) return;
-      this.diagnostic.error("http_fallback_failed");
-      this.diagnostic.terminal("failed", "http_fallback_failed");
+      const code = err instanceof Error && err.message === "retained_route_unavailable"
+        ? "retained_route_unavailable"
+        : "http_fallback_failed";
+      this.diagnostic.error(code);
+      this.diagnostic.terminal("failed", code);
       this.publishDiagnostic();
-      this.onError?.("Streaming transcription and retained-audio recovery failed.");
+      this.onError?.(code === "retained_route_unavailable"
+        ? "Streaming stopped; retained audio could not be sent because the exact local recovery route is unavailable."
+        : "Streaming transcription and retained-audio recovery failed.");
     }
   }
 
   async start(prewarmed?: MediaStream): Promise<void> {
     this.captureGeneration += 1;
+    const startGeneration = this.captureGeneration;
+    this.journalReady = false;
     if (this.preconnectTimer) clearTimeout(this.preconnectTimer);
     if (this.serverAckTimer) clearTimeout(this.serverAckTimer);
     if (this.finalPendingTimer) clearTimeout(this.finalPendingTimer);
     if (this.fallbackTimer) clearTimeout(this.fallbackTimer);
-	const warmedConnection = this.preconnectWarmed ? this.connection : null;
+	let warmedConnection = this.preconnectWarmed ? this.connection : null;
 	this.preconnectWarmed = false;
-	const preconnected = warmedConnection !== null
+	const preconnectResumedSession = this.preconnectResumedSession;
+	this.preconnectResumedSession = false;
+	let preconnected = warmedConnection !== null
       && this.sessionId !== ""
       && this.resumeToken !== "";
 	if (!preconnected && this.connection) {
@@ -804,7 +892,7 @@ export class PcmVoiceStreamProvider {
 		this.connectionReady = false;
 		previous.close();
 	}
-	this.stopped = false; this.finalReceived = false; this.terminalFailure = false; this.doneSent = false; this.reconnects = 0; this.micRecoveryAttempted = false; this.pending = []; this.replaying = false; this.batchSamples = []; this.batchSampleCount = 0; this.batchStartSample = 0n; this.journalAcks = Promise.resolve(); this.writes = Promise.resolve(); this.queuedBytes = 0; this.pendingWriteCount = 0; this.allPcm = []; this.allPcmBytes = 0; this.retainedAudioOverflow = false;
+	this.stopped = false; this.finalReceived = false; this.terminalFailure = false; this.doneSent = false; this.reconnectBackoff.reset(); this.lastRecoveryProgressSequence = -1n; this.micRecoveryAttempted = false; this.pending = []; this.replaying = false; this.batchSamples = []; this.batchSampleCount = 0; this.batchStartSample = 0n; this.journalAcks = Promise.resolve(); this.writes = Promise.resolve(); this.queuedBytes = 0; this.pendingWriteCount = 0; this.retainedPcm.clear();
 	this.pcmResampler.reset();
 	if (!preconnected) {
 		this.sessionId = "";
@@ -813,27 +901,54 @@ export class PcmVoiceStreamProvider {
 		this.sample = 0n;
 	}
     const recovered = loadUnfinishedSession();
+    const requiresRecoveredJournal = preconnected ? preconnectResumedSession : recovered !== null;
     if (!preconnected) {
 		if (recovered) { this.sessionId = recovered.sessionId; this.resumeToken = recovered.resumeToken; }
 		else { this.sessionId = newSessionIdentity(); this.resumeToken = newSessionIdentity(); rememberUnfinishedSession({ sessionId: this.sessionId, resumeToken: this.resumeToken }); }
+	} else if (!preconnectResumedSession) {
+		// A permission-warmed fresh identity is provisional until recording is
+		// requested. Persist it now, but never overwrite an unfinished session
+		// during preConnect before its journal has been restored.
+		rememberUnfinishedSession({ sessionId: this.sessionId, resumeToken: this.resumeToken });
 	}
     // Publish the session before touching browser microphone APIs. A denied,
     // busy, or disappeared device must leave a machine-readable terminal
     // diagnostic; otherwise hosts can remain in "preparing" with no evidence
     // explaining why recording never reached the wire.
     this.diagnostic.reset(this.sessionId, 0, "reduced");
+    this.captureReadyReported = false;
+    if (this.startRequestedAtMs == null) {
+      this.startRequestedAtMs = typeof globalThis.performance?.now === "function" ? globalThis.performance.now() : Date.now();
+    }
+    this.diagnostic.startRequested(this.startRequestedAtMs);
     this.diagnostic.status("capture_starting");
     this.publishDiagnostic();
+    const persistent = this.options.journalFactory?.() ?? new TurnJournal(new IndexedDBTurnJournalStore(), this.sessionId, 0n, this.maxRetainedTurnAudioBytes, "persistent");
+    // Restore can involve several IndexedDB transactions and replay records.
+    // Start it alongside microphone acquisition so an already-authorized mic
+    // does not pay journal latency serially. The later readiness gate still
+    // prevents any replay or new PCM from reaching the server early.
+    const restoreResult = persistent.restore().then(
+      (snapshot) => ({ snapshot, error: null as unknown }),
+      (error: unknown) => ({ snapshot: undefined, error }),
+    );
+    let lease: MicLease;
     try {
-      this.lease = prewarmed
+      lease = prewarmed
         ? registerMicStream("voice-stream", prewarmed)
         : await this.acquireStream();
     } catch (error) {
+      if (this.stopped || startGeneration !== this.captureGeneration) return;
       this.diagnostic.error("capture_start_failed");
       this.diagnostic.terminal("failed", "capture_start_failed");
       this.publishDiagnostic();
       throw error;
     }
+    if (this.stopped || startGeneration !== this.captureGeneration) {
+      releaseMicLease(lease, "manual-stop");
+      return;
+    }
+    this.lease = lease;
     this.stream = this.lease.stream; this.bindTracks(this.stream);
     this.tailDropArmed = false;
     this.allStartedAt = Date.now();
@@ -844,27 +959,125 @@ export class PcmVoiceStreamProvider {
     this.diagnostic.state("recording");
     this.diagnostic.captureStarted();
     this.publishDiagnostic();
-    const persistent = this.options.journalFactory?.() ?? new TurnJournal(new IndexedDBTurnJournalStore(), this.sessionId, 0n, this.maxRetainedTurnAudioBytes, "persistent");
-    try { const snapshot = await persistent.restore(); this.journal = persistent; this.sequence = snapshot.nextSequence; this.sample = snapshot.nextSample; this.batchStartSample = snapshot.nextSample; }
-    catch { this.journal = new TurnJournal(new MemoryTurnJournalStore(), this.sessionId, 0n, 16 * 1024 * 1024, "reduced"); this.status("durability_reduced", "Persistent audio recovery is unavailable in this browser."); }
+    // Open admission while storage recovery is in flight. `journalReady`
+    // fences onReady/activation; no replay or new audio can be sent until the
+    // recovered sequence and sample cursors have been installed below.
+    if (!(preconnected && warmedConnection)) this.connect(this.sequence > 0n);
+    const restored = await restoreResult;
+    if (this.stopped || startGeneration !== this.captureGeneration) return;
+    const missingRecoveredState = !restored.snapshot || (
+      !persistent.hasRestoredDurableState() && !persistent.wasExpiredOnRestore()
+    );
+    if (requiresRecoveredJournal && (restored.error || missingRecoveredState)) {
+		// The server may already have accepted intervals under this identity.
+		// Without its durable client cursor, sequence zero is not a safe resume
+		// point. Keep the opaque identity for a later retry and refuse to start a
+		// reduced-memory turn that could conflict with the server ledger.
+		const message = "The previous voice session's recovery journal is unavailable. No new audio was captured; check browser storage and retry.";
+		this.stopped = true;
+		this.terminalFailure = true;
+		this.journal = null;
+		this.capture?.stop();
+		this.capture = null;
+		this.releaseOwnStream("provider-error");
+		const connection = this.connection;
+		this.connection = null;
+		this.connectionReady = false;
+		connection?.close();
+		if (this.serverAckTimer) clearTimeout(this.serverAckTimer);
+		this.diagnostic.error("journal_restore_failed");
+		this.diagnostic.terminal("failed", "journal_restore_failed");
+		this.publishDiagnostic();
+		this.status("journal_restore_failed", message);
+		throw new Error(message);
+	}
+    if (!restored.error && restored.snapshot) {
+      const snapshot = restored.snapshot;
+      if (persistent.wasExpiredOnRestore()) {
+        const staleConnection = this.connection;
+        this.connection = null;
+        this.connectionReady = false;
+        staleConnection?.close();
+        warmedConnection = null;
+        preconnected = false;
+        this.preconnectWarmed = false;
+        forgetUnfinishedSession();
+        this.sessionId = newSessionIdentity();
+        this.resumeToken = newSessionIdentity();
+        rememberUnfinishedSession({ sessionId: this.sessionId, resumeToken: this.resumeToken });
+        persistent.rebindAfterExpiry(this.sessionId, 0n);
+        this.diagnostic.reset(this.sessionId, 0, "reduced");
+        this.diagnostic.startRequested(this.startRequestedAtMs ?? undefined);
+        this.diagnostic.status("capture_starting");
+        this.publishDiagnostic();
+        this.status("retention_expired", "Previous recovery audio expired and was deleted; starting a fresh voice session.");
+      }
+      this.journal = persistent;
+      this.sequence = snapshot.nextSequence;
+      this.sample = snapshot.nextSample;
+      this.batchStartSample = snapshot.nextSample;
+    } else {
+      this.journal = new TurnJournal(new MemoryTurnJournalStore(), this.sessionId, 0n, 16 * 1024 * 1024, "reduced");
+      this.status("durability_reduced", "Persistent audio recovery is unavailable in this browser.");
+    }
+    if (this.stopped || startGeneration !== this.captureGeneration) return;
+    this.journalReady = true;
     // Open the transport before starting capture production. Real microphone
     // factories are event-driven, while accelerated qualification sources may
     // emit a large virtual turn immediately; connecting first lets the server
     // acknowledge and compact durable journal frames while capture continues.
     // Reuse a stream opened by preConnect(). Opening another stream here adds
-    // a new Connect stream setup to the user's first turn and can also leave
+    // a new stream setup to the user's first turn and can also leave
     // the preconnected stream orphaned. A preconnected stream already uses
     // the restored session identity, so only connect when there is no usable
     // transport (or when the preconnect was closed before capture began).
     if (preconnected && warmedConnection) {
-      // The warmed Connect stream retains its callbacks, which read the current
+      // The warmed stream retains its callbacks, which read the current
       // capture generation and fence by active connection identity.
       this.activationGeneration = -1;
       if (this.connectionReady) this.activateConnection(warmedConnection, this.sequence > 0n);
-    } else {
+    } else if (!this.connection) {
       this.connect(this.sequence > 0n);
+    } else if (this.connectionReady) {
+      this.activateConnection(this.connection, this.sequence > 0n);
     }
-    this.capture = await this.makeCapture(this.stream);
+    let capture: PcmCapture;
+    try {
+      capture = await this.makeCapture(this.stream);
+    } catch (error) {
+      if (!this.stopped && startGeneration === this.captureGeneration) {
+        // Permission can succeed while AudioWorklet and its compatibility
+        // graph both fail. Treat that as a failed startup and release every
+        // resource acquired by this turn; otherwise the rejected start leaves
+        // the microphone leased and its transport open with no capture graph.
+        this.stopped = true;
+        this.terminalFailure = true;
+        this.unbindTracks();
+        this.releaseOwnStream("provider-error");
+        const connection = this.connection;
+        this.connection = null;
+        this.connectionReady = false;
+        connection?.close();
+        this.diagnostic.error("capture_start_failed");
+        this.diagnostic.terminal("failed", "capture_start_failed");
+        this.publishDiagnostic();
+        this.onError?.("Audio capture could not be started.");
+      }
+      throw error;
+    }
+    // Capture factories may wait for AudioWorklet module loading. A stop (or a
+    // newer start) can happen during that wait, before `this.capture` exists;
+    // do not install a graph after its owning turn has already ended.
+    if (this.stopped || startGeneration !== this.captureGeneration) {
+      capture.stop();
+      return;
+    }
+    this.capture = capture;
+    // A transport can fail before an asynchronous capture graph is installed.
+    // Its close handler then has no capture to reconnect; retry here once the
+    // capture owner exists so the turn cannot remain silently disconnected.
+    if (!this.connection && !this.terminalFailure) this.connect(this.sequence > 0n);
+    this.markCaptureReady();
   }
 
   stop(): void {
@@ -874,9 +1087,7 @@ export class PcmVoiceStreamProvider {
 	this.capture = null;
 	this.flushBatch();
 	const stoppedAt = Date.now();
-	const fullTurnRecovery = !this.retainedAudioOverflow && this.allPcm.length > 0
-		? concatInt16(this.allPcm)
-		: null;
+	const fullTurnRecovery = this.retainedPcm.snapshot();
 	this.lastTurn = this.tailDropArmed || !fullTurnRecovery
 		? null
 	  : { blob: encodeWavFromPcm16(fullTurnRecovery, TARGET_SAMPLE_RATE), mimeType: "audio/wav", durationMs: stoppedAt - this.allStartedAt, capturedAt: stoppedAt };
@@ -893,6 +1104,8 @@ export class PcmVoiceStreamProvider {
         this.doneSent = true;
         this.diagnostic.done();
         this.publishDiagnostic();
+      if (this.fallbackTimer) clearTimeout(this.fallbackTimer);
+      this.fallbackTimer = setTimeout(() => { void this.fallback(); }, fallbackDelayMs(this.sample, this.pendingWriteCount));
       });
     }
 	if (this.hasRetainedTurnAudio() && !this.finalReceived && !this.terminalFailure) {
@@ -913,6 +1126,6 @@ export class PcmVoiceStreamProvider {
     this.connectionReady = false;
     if (this.batchTimer) clearTimeout(this.batchTimer);
     this.batchTimer = null;
-	this.journal = null; this.pending = []; this.allPcm = []; this.allPcmBytes = 0; this.retainedAudioOverflow = false; this.lastTurn = null;
+	this.journal = null; this.pending = []; this.retainedPcm.clear(); this.lastTurn = null;
   }
 }

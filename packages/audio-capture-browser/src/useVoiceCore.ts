@@ -1,22 +1,27 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { PcmVoiceStreamProvider } from "./pcmVoiceStreamProvider";
 import { preloadCanonicalPcmCapture } from "./pcmCapture";
-import { buildVoiceActivitySnapshot, IDLE_VOICE_ACTIVITY, voiceActivitySnapshotsEqual, VAD_AUTO_STOP_VISUAL_GRACE_MS } from "./voice/activity";
-import { createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, vadTick, VAD_FLOOR_CACHE_MAX_AGE_MS, VAD_MIN_SILENCE_THRESHOLD } from "./voice/vad";
-import { advanceMeterEnvelope, LEVEL_ANALYSER_FFT_SIZE, LEVEL_TICK_MS, meterLevelFromEnvelope } from "./voice/audioUtils";
-import { getSharedAudioContext, ensureRunningSharedAudioContext, suspendSharedAudioContext, armIdleSuspend, keepAudioContextAwake } from "./voice/sharedAudioContext";
-import { installMicLifecycleCleanup, subscribeMicLeases, getActiveMicLeases } from "./voice/micOwnership";
+import { IDLE_VOICE_ACTIVITY } from "./voice/activity";
+import { createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, VAD_FLOOR_CACHE_MAX_AGE_MS } from "./voice/vad";
+import { getSharedAudioContext, suspendSharedAudioContext, armIdleSuspend, keepAudioContextAwake } from "./voice/sharedAudioContext";
+import { createLevelMonitorController } from "./voice/levelMonitor";
 import { VoiceCaptureController } from "./voice/voiceCaptureController";
-import { decideMicLifecycle, isStandaloneDisplayMode, selectStaleLeases } from "./voice/micLifecyclePolicy";
-import type { LifecycleReleaseScope, MicReleaseReason, MicLeaseSnapshot } from "./voice/micOwnership";
-import { setServerVadState, resetServerVadState, useServerVadStateStore, SERVER_VAD_STALE_MS } from "./voice/useServerVadStateStore";
-import { decideAutoStop, decideAutoStopRing } from "./voice/autoStopDecision";
+import { installMicLeaseRecovery } from "./voice/micLeaseRecovery";
+import type { MicReleaseReason } from "./voice/micOwnership";
+import { installVoicePageLifecycle } from "./voice/pageLifecycle";
+import { setServerVadState, resetServerVadState, useServerVadStateStore } from "./voice/useServerVadStateStore";
 import { decidePassiveArm } from "./voice/passiveArmDecision";
 import { decidePersistentMode, PERSISTENT_STREAMING_UNAVAILABLE_MESSAGE } from "./voice/persistentModeDecision";
 import { TranscriptBuffer } from "./transcriptBuffer";
+import { VoiceRejectionController } from "./voice/rejectionController";
+import { StreamNoticeController } from "./voice/streamNoticeController";
+import { createCaptureProvider, ensurePcmStreamProvider } from "./voice/providerOrchestration";
+import { loadWakeWordTemplate } from "./voice/wakeWordTemplateLoader";
+import { PartialTranscriptRenderer } from "./voice/partialTranscriptRenderer";
+import { AudioCueSession } from "./voice/audioCueSession";
 import { WHISPER_FAILED_SENTINEL } from "./voice/types";
-import type { TranscriptionProvider, VoiceBackend, VoiceInputState, VoiceMode, VoiceSegment, VoiceActivitySnapshot, VoiceRejection, CommandSuggestion, StartRecordingOpts } from "./voice/types";
-import type { AudioFeatures, WakeWordEngine, WakeWordTemplate } from "./voice/wakeword";
+import type { TranscriptionProvider, VoiceBackend, VoiceInputState, VoiceMode, VoiceSegment, CommandSuggestion, StartRecordingOpts } from "./voice/types";
+import type { WakeWordEngine, WakeWordTemplate } from "./voice/wakeword";
 import type { VoiceCoreServices } from "./voice/services";
 
 
@@ -47,60 +52,10 @@ function isStreamingProvider(provider: TranscriptionProvider | null): provider i
     (provider !== null && typeof (provider as PcmVoiceStreamProvider).isStreamConnected === "function");
 }
 
-/**
- * Retention TTL for a rejection's audio blob. After this timeout fires the
- * rejection is auto-dismissed and the retained audio is released. Chosen
- * long enough for a distracted user to come back, short enough that a
- * forgotten banner does not pin memory for the whole session.
- */
-const REJECTION_RETENTION_TTL_MS = 5 * 60 * 1000;
-
 /** Audio level (0..1) below which the mic is treated as silent by the no-audio
  *  watchdog. Not strict zero: a wedged AudioContext or muted track produces
  *  tiny non-zero noise, which the old ===0 check missed. */
 const NO_AUDIO_LEVEL_THRESHOLD = 0.01;
-
-/**
- * Stream status codes are a mixed vocabulary: some report a condition a person
- * should act on, most are protocol bookkeeping between the browser and the
- * speech backend. Treating the whole vocabulary as user-facing — with a
- * deny-list of the few codes known to be noise — made every newly added
- * protocol code a user-visible notice by default. `processed_acknowledgement`
- * arrives per acknowledged wire batch, so that default produced a banner that
- * appeared and vanished several times a second while the operator was talking.
- *
- * The rule is now the other way round: a status reaches the operator only when
- * its emitter supplied copy written for a human (see `dispatchStreamMessage`,
- * which no longer invents any). These two sets cover the codes that need
- * behaviour beyond that default.
- */
-const SILENT_STREAM_STATUS = new Set([
-  // Pure bookkeeping. These carry sequence numbers and provider identity, and
-  // must never reach the operator even if a future server build adds text.
-  "processed_acknowledgement",
-  "provider_identity",
-]);
-
-/** Codes meaning "whatever was wrong is fine now" — they retire the notice. */
-const NOTICE_CLEARING_STREAM_STATUS = new Set([
-  "stream_connected",
-  "transcription_complete",
-  "buffered_recovery_completed",
-  "mic_reacquired",
-  "mic_unmuted",
-]);
-
-/** Codes that additionally record a streaming-quality degradation. */
-const DEGRADATION_STREAM_STATUS = new Set([
-  "backend_degraded",
-  "reconnect_exhausted",
-  "buffered_recovery",
-]);
-
-/** Generate a stable id for a new rejection. Opaque to consumers. */
-function generateRejectionId(): string {
-  return `rej-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
 
 /** Convert capture-start failures into an actionable, privacy-safe UI error. */
 function describeProviderStartFailure(error: unknown): string {
@@ -204,6 +159,15 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   const isActive = isRecording || isListening;
 
   const providerRef = useRef<TranscriptionProvider | null>(null);
+  // Measure visible speech timing after React commits the transcript, not when
+  // the stream callback arrives. This includes frame-coalesced partial renders
+  // and durable segment commits, while counting one revision per React commit.
+  useEffect(() => {
+    if (!state.partialTranscript.trim() && state.segments.length === 0) return;
+    const provider = providerRef.current;
+    if (isStreamingProvider(provider)) provider.recordVisibleTranscriptRevision();
+  }, [state.partialTranscript, state.segments]);
+
   // Mirror of the workflow state for non-React callbacks (the registry lease
   // subscription) that must read the latest value without re-subscribing.
   const voiceStateRef = useRef<VoiceInputState["voiceState"]>(state.voiceState);
@@ -224,6 +188,23 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   const controller = captureControllerRef.current;
   const onTranscriptRef = useRef(onTranscript);
   onTranscriptRef.current = onTranscript;
+  const rejectionControllerRef = useRef<VoiceRejectionController | null>(null);
+  if (!rejectionControllerRef.current) {
+    rejectionControllerRef.current = new VoiceRejectionController({
+      getProvider: () => providerRef.current,
+      setState,
+      getLanguage: () => voiceLanguageRef.current,
+      transcribeAudio: (audio, language) => services.transcribeAudio(audio, language),
+      transcribeAudioBypassFilter: (audio, language) => services.transcribeAudioBypassFilter(audio, language),
+      onTranscript: (text) => onTranscriptRef.current(text),
+    });
+  }
+  const rejectionController = rejectionControllerRef.current;
+  const streamNoticeControllerRef = useRef<StreamNoticeController | null>(null);
+  if (!streamNoticeControllerRef.current) {
+    streamNoticeControllerRef.current = new StreamNoticeController(setState);
+  }
+  const streamNoticeController = streamNoticeControllerRef.current;
   const backendRef = useRef<VoiceBackend>(state.backend);
   backendRef.current = state.backend;
   const streamingAvailableRef = useRef(false);
@@ -259,35 +240,12 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   const turnDeliveredTextRef = useRef(false);
   /** Single owner for replaceable interim text and durable transcript bounds. */
   const transcriptBufferRef = useRef(new TranscriptBuffer());
-  const dismissedFallbackNoticeRef = useRef<string | null>(null);
-  /**
-   * Coalesced partial RENDER, decoupled from TranscriptBuffer's exact state
-   * used for tail recovery. A high partial rate must not jank the main thread and
-   * re-introduce client-side backpressure, so interim partial text is throttled
-   * to one paint per animation frame; durable segment-finals still render
-   * immediately. pendingPartialRenderRef holds the latest text awaiting paint;
-   * partialRenderRafRef is the scheduled frame handle (0 = none).
-   */
-  const pendingPartialRenderRef = useRef<string | null>(null);
-  const partialRenderRafRef = useRef<number>(0);
-
-  // Audio level monitoring refs -- AudioContext is reused across recording
-  // sessions to avoid hitting the browser's 6-8 context limit.
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  /** Audio nodes created by startLevelMonitor — must be disconnected on stop
-   *  to prevent zombie node accumulation in the shared AudioContext. */
-  const audioNodesRef = useRef<AudioNode[]>([]);
-  const rafRef = useRef<number>(0);
-  const lastTickRef = useRef(0);
-  const audioLevelRef = useRef(0);
-  /** Guard against zombie RAF ticks. When stopLevelMonitor() is called from
-   *  inside the tick callback (e.g. VAD-triggered stop), the tick function
-   *  must not reschedule itself. Without this, requestAnimationFrame(tick)
-   *  at the end of tick() creates a zombie loop that competes with future
-   *  sessions for the shared lastTickRef throttle, starving real ticks and
-   *  feeding rms=0 into VAD. */
-  const levelMonitorActiveRef = useRef(false);
+  /** Interim text is replaceable; the renderer owns frame-level coalescing. */
+  const partialTranscriptRendererRef = useRef<PartialTranscriptRenderer | null>(null);
+  if (!partialTranscriptRendererRef.current) {
+    partialTranscriptRendererRef.current = new PartialTranscriptRenderer(setState);
+  }
+  const partialTranscriptRenderer = partialTranscriptRendererRef.current;
 
   // VAD refs
   const vadRef = useRef(createVadRefs());
@@ -329,7 +287,14 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   // or unmount).
   //
   // DOC: docs/internal/VOICE-LATENCY.md#audio-cue-contract
-  const cueSessionActiveRef = useRef(false);
+  const cueSessionRef = useRef<AudioCueSession | null>(null);
+  if (!cueSessionRef.current) {
+    cueSessionRef.current = new AudioCueSession({
+      start: services.playRecordingStartCue,
+      stop: services.playRecordingStopCue,
+      fault: services.playRecordingFaultCue,
+    });
+  }
 
   // Track whether the mount-time capability check has resolved,
   // so startRecording knows if streamingAvailableRef is trustworthy.
@@ -349,38 +314,18 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     // the store).
     services.getVoiceStreamConfig().catch(() => { /* host owns the store, ignore */ });
 
-    // Load wake word template and initialize engine. The template persists RAW
-    // audio; the passive listener matches on MFCC features, so re-derive them
-    // here via the shared helper (features are never persisted — an engine
-    // upgrade re-extracts from the stored audio with no re-enrollment).
-    services.getWakeWordConfig()
-      .then(async (cfg) => {
-        if (!cfg.configured || !cfg.template) return;
-        const engine = wakeWordEngineRef.current ?? services.createWakeWordEngine();
-        wakeWordEngineRef.current = engine;
-        const samples = (
-          await Promise.all(
-            cfg.template.samples.map((s) => services.bytesToFeatures(s.audio, engine).catch(() => null)),
-          )
-        ).filter((f): f is AudioFeatures => f !== null);
-        if (samples.length === 0) return;
-        // Derive score calibration from the enrollment set (how consistent the
-        // user's own takes are with each other). Like the MFCC features, this is
-        // re-derived on every load and never persisted — see EngineCalibration.
-        const calibration = engine.calibrate?.(samples) ?? null;
-        // Match sensitivity is driven by the LIVE wakeWordThreshold (the slider
-        // the user adjusts and the settings test uses), NOT the value baked into
-        // the template at save time. Persisted template.threshold is kept on the
-        // wire but is no longer authoritative — this is the single source of
-        // truth that keeps the test and the passive listener in agreement. The
-        // threshold-sync effect below keeps a running listener current.
-        wakeWordTemplateRef.current = {
-          samples,
-          label: cfg.template.label,
-          threshold: wakeWordThresholdRef.current,
-          updatedAt: cfg.template.updatedAt,
-          calibration,
-        };
+    // The persisted template contains raw samples; the loader re-derives
+    // engine features and calibration at startup.
+    loadWakeWordTemplate(
+      services,
+      wakeWordEngineRef.current,
+      wakeWordThresholdRef.current,
+      (engine) => { wakeWordEngineRef.current = engine; },
+    )
+      .then(({ template }) => {
+        if (!template) return;
+        // Threshold is live configuration, not the stale persisted value.
+        wakeWordTemplateRef.current = template;
         setState((s) => s.wakeWordConfigured ? s : { ...s, wakeWordConfigured: true });
       })
       .catch(() => { /* No wake word configured */ });
@@ -438,303 +383,26 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     onTranscriptRef.current(delivered);
   }, []);
 
-  /** Cancel any scheduled coalesced partial render and drop the pending text.
-   *  Called on every turn-terminal path so a queued frame can never paint stale
-   *  partial text after the turn cleared it. Stable identity (no deps). */
+  /** Cancel queued interim UI work so stale text cannot paint after turn end. */
   const cancelPartialRender = useCallback(() => {
-    if (partialRenderRafRef.current !== 0) {
-      if (typeof cancelAnimationFrame === "function") {
-        cancelAnimationFrame(partialRenderRafRef.current);
-      }
-      partialRenderRafRef.current = 0;
-    }
-    pendingPartialRenderRef.current = null;
-  }, []);
+    partialTranscriptRenderer.cancel();
+  }, [partialTranscriptRenderer]);
 
   /** Session counter for diagnostic logging — helps correlate log lines
    *  across multiple recording sessions within the same component mount. */
   const sessionCountRef = useRef(0);
 
-  const startLevelMonitor = useCallback(async (stream: MediaStream) => {
-    try {
-      // Use the shared AudioContext singleton, resumed lazily here (inside the
-      // real capture path) — not eagerly on the first arbitrary tap. ensureRunning
-      // resumes it and cancels any idle-suspend armed by a prior turn.
-      // DOC: docs/internal/VOICE-LATENCY.md#audiocontext-lifecycle
-      // Heal a wedged context (suspended/interrupted that won't resume) by
-      // rebuilding it, rather than reusing a dead one that yields a flat level
-      // meter forever. Non-fatal: capture does not depend on this context.
-      const ctx = await ensureRunningSharedAudioContext();
-      audioCtxRef.current = ctx;
-      if (ctx.state !== "running") {
-        console.warn("[voice] S%d AudioContext still %s after ensureRunning (level meter may be flat)",
-          sessionCountRef.current, ctx.state);
-      }
+  const levelMonitorRef = useRef<ReturnType<typeof createLevelMonitorController> | null>(null);
+  if (!levelMonitorRef.current) {
+    levelMonitorRef.current = createLevelMonitorController({
+      services, setState, sessionCountRef, vadRef, vadActiveRef,
+      vadSilenceTimeoutRef, persistentModeRef, backendRef, endCaptureRef,
+    });
+  }
+  const levelMonitor = levelMonitorRef.current;
+  const startLevelMonitor = levelMonitor.start;
+  const stopLevelMonitor = levelMonitor.stop;
 
-      const sessionId = sessionCountRef.current;
-      const trackStates = stream.getTracks().map((t) => `${t.kind}:${t.readyState}`);
-      console.info("[voice] S%d startLevelMonitor: ctx.state=%s, stream.active=%s, tracks=[%s]",
-        sessionId, ctx.state, stream.active, trackStates.join(","));
-
-      // Disconnect any lingering nodes from a previous session to prevent
-      // zombie node accumulation in the AudioContext audio graph.
-      for (const node of audioNodesRef.current) {
-        try { node.disconnect(); } catch { /* already disconnected */ }
-      }
-      audioNodesRef.current = [];
-
-      const source = ctx.createMediaStreamSource(stream);
-      const { analyser, nodes } = services.createAudioFilterChain(ctx, source);
-      analyserRef.current = analyser;
-      audioNodesRef.current = [source, ...nodes];
-
-      // Read the WHOLE time-domain window. This used to allocate
-      // `frequencyBinCount` (half of fftSize), so even the short window that
-      // was configured was only half-read. `|| LEVEL_ANALYSER_FFT_SIZE` keeps
-      // test doubles that leave fftSize at 0 out of a zero-length buffer.
-      const data = new Uint8Array(analyser.fftSize || LEVEL_ANALYSER_FFT_SIZE);
-      lastTickRef.current = 0;
-      levelMonitorActiveRef.current = true;
-      /** Counts non-throttled ticks in this session for early diagnostic logging. */
-      let tickCount = 0;
-      /** Previous audio-source health, so a mid-capture flip (track died/muted or
-       *  the AudioContext left "running") is logged the instant it happens — not
-       *  up to ~10s later on the next periodic tick. A silent audio source is the
-       *  root cause of a VAD auto-stop that otherwise looks like "the mic just
-       *  stopped for no reason". */
-      let prevSrcHealthy = true;
-      /** Set once we've suppressed an auto-stop because the audio source wasn't
-       *  delivering samples (muted / suspended). Prevents per-tick log spam;
-       *  reset when the source recovers. */
-      let unhealthyStopSuppressed = false;
-      /** Meter envelope, carried across ticks. Session-local: a fresh capture
-       *  starts from silence rather than inheriting the last turn's loudness. */
-      let meterEnvelope = 0;
-
-      const tick = () => {
-        // Zombie guard: if stopLevelMonitor was called (e.g. VAD-triggered
-        // stop from within this tick), do NOT reschedule. Without this,
-        // zombie ticks accumulate and starve real level monitors.
-        if (!levelMonitorActiveRef.current) return;
-
-        // Throttle to ~15 Hz -- audio analysis doesn't need 60 fps.
-        const now = performance.now();
-        const sinceLastTick = lastTickRef.current > 0 ? now - lastTickRef.current : LEVEL_TICK_MS;
-        if (sinceLastTick < LEVEL_TICK_MS) {
-          rafRef.current = requestAnimationFrame(tick);
-          return;
-        }
-        lastTickRef.current = now;
-
-        analyser.getByteTimeDomainData(data);
-        let sum = 0;
-        for (let i = 0; i < data.length; i++) {
-          const v = ((data[i] ?? 128) - 128) / 128;
-          sum += v * v;
-        }
-        const rms = Math.sqrt(sum / data.length);
-        // RAW absolute reading. The no-audio watchdog below is calibrated to
-        // this scale, so it must not become the display value.
-        const audioLevel = Math.min(1, rms * 4);
-        audioLevelRef.current = audioLevel;
-
-        // DISPLAY reading. A meter and a watchdog want different things: the
-        // watchdog asks "is anything arriving at all", the meter asks "how loud
-        // is this against the room". Sharing one number meant the meter
-        // inherited the watchdog's fixed absolute scale and sat near the floor
-        // on any normal microphone. This one follows an envelope and is
-        // measured against the VAD's adaptive noise floor.
-        meterEnvelope = advanceMeterEnvelope(meterEnvelope, rms, sinceLastTick);
-        const meterLevel = meterLevelFromEnvelope(
-          meterEnvelope,
-          Math.max(vadRef.current.silenceThreshold, VAD_MIN_SILENCE_THRESHOLD),
-        );
-
-        // Audio-source health, evaluated every tick so a mid-capture failure is
-        // caught immediately. `muted === true` means no samples flow even though
-        // readyState stays "live" (the analyser reads silence and the VAD will
-        // auto-stop) — see streamHealth.isTrackUsable.
-        const srcTracks = stream.getTracks();
-        const trackAlive = srcTracks.every((t) => t.readyState === "live");
-        const trackMuted = srcTracks.some((t) => t.muted);
-        const srcHealthy = trackAlive && !trackMuted && ctx.state === "running";
-
-        tickCount++;
-        // Log the instant the source goes unhealthy (or recovers) — this is the
-        // decisive triage line for "the mic abruptly stopped mid-speech".
-        if (srcHealthy !== prevSrcHealthy) {
-          const fn = srcHealthy ? console.info : console.warn;
-          fn(`[voice] S${sessionId} tick#${tickCount} audio-source ${srcHealthy ? "RECOVERED" : "WENT SILENT"}: rms=${rms.toFixed(4)}, ctx.state=${ctx.state}, trackAlive=${trackAlive}, trackMuted=${trackMuted}, vadState=${vadActiveRef.current ? vadRef.current.state : "inactive"}`);
-          prevSrcHealthy = srcHealthy;
-          if (srcHealthy) unhealthyStopSuppressed = false;
-        }
-        // Periodic heartbeat: first 5 ticks + every 150th (~10s) for diagnostics.
-        if (tickCount <= 5 || tickCount % 150 === 0) {
-          console.info(`[voice] S${sessionId} tick#${tickCount}: rms=${rms.toFixed(4)}, meter=${meterLevel.toFixed(2)}, floor=${vadRef.current.silenceThreshold.toFixed(4)}, ctx.state=${ctx.state}, trackAlive=${trackAlive}, trackMuted=${trackMuted}, vadState=${vadActiveRef.current ? vadRef.current.state : "inactive"}`);
-        }
-
-        // VAD check
-        const vadNow = Date.now();
-        if (vadActiveRef.current) {
-          const prevState = vadRef.current.state;
-          const result = vadTick(vadRef.current, rms, vadNow, vadSilenceTimeoutRef.current);
-          if (vadRef.current.state !== prevState) {
-            console.debug("[voice] VAD:", prevState, "→", vadRef.current.state,
-              "rms=" + rms.toFixed(3), "speechThresh=" + vadRef.current.speechThreshold.toFixed(3));
-          }
-          if (result === "segment-boundary") {
-            // Client VAD drives local turn timing. Server segmentation and
-            // silence handling remain owned by the Connect stream strategy.
-          } else if (result === "stop") {
-            const srcTracks = stream.getTracks();
-            const srcAlive = srcTracks.every((t) => t.readyState === "live");
-            const srcMuted = srcTracks.some((t) => t.muted);
-            console.info(`[voice] S${sessionCountRef.current} VAD client-stop: silenceElapsed=${vadNow - vadRef.current.silenceStart}ms, timeout=${vadSilenceTimeoutRef.current}ms, rms=${rms.toFixed(4)}, speechThresh=${vadRef.current.speechThreshold.toFixed(4)}, silenceThresh=${vadRef.current.silenceThreshold.toFixed(4)}, trackAlive=${srcAlive}, trackMuted=${srcMuted}, ctx=${ctx.state}`);
-            // Persistent mode resets its local VAD window after each silence
-            // boundary. Server segmentation is driven by the active strategy.
-            if (persistentModeRef.current) {
-              vadRef.current.state = "waitingForSpeech";
-              vadRef.current.recordingStart = vadNow;
-              vadRef.current.segmentBoundaryEmitted = false;
-            }
-          } else if (result === "no-speech") {
-            const tracks = stream.getAudioTracks?.() ?? stream.getTracks();
-            const trackUnavailable = tracks.length === 0
-              || tracks.some((track) => track.readyState !== "live" || track.muted);
-            const monitorUnavailable = ctx.state !== "running";
-            const sourceUnavailable = trackUnavailable || monitorUnavailable;
-            const terminalMessage = sourceUnavailable
-              ? "Microphone audio became unavailable — tap to try again"
-              : "No speech detected";
-            console.info(`[voice] S${sessionCountRef.current} VAD no-speech after ${vadNow - vadRef.current.recordingStart}ms, rms=${rms.toFixed(4)}, sourceUnavailable=${sourceUnavailable}, trackUnavailable=${trackUnavailable}, ctx=${ctx.state}`);
-            vadActiveRef.current = false;
-            vadRef.current.state = "idle";
-            endCaptureRef.current?.({ reason: "auto" });
-            // `endCapture` stops the provider asynchronously. Keep the UI's
-            // workflow state ahead of that callback so the next tap is a new
-            // start, rather than being interpreted as a second stop. Whisper
-            // still needs its final transcription settlement; other providers
-            // can return directly to idle.
-            setState((s) => ({
-              ...s,
-              voiceState: backendRef.current === "whisper" ? "transcribing" : "idle",
-              error: terminalMessage,
-              audioLevel: 0,
-              voiceActivity: IDLE_VOICE_ACTIVITY,
-              partialTranscript: "",
-            }));
-          }
-
-          // One-shot auto-stop SSOT: server-VAD-led with client-VAD fallback.
-          // Pure helper keeps the precedence reviewable + duplicated across
-          // the three audio-integration copies; see voice/autoStopDecision.ts
-          // and plan audio-tools-stt-accuracy-auto-stop-ssot.md §7 Phase 2.
-          if (!persistentModeRef.current && vadActiveRef.current) {
-            const serverSnap = useServerVadStateStore.getState();
-            const nowPerfMs = typeof performance !== "undefined" && typeof performance.now === "function"
-              ? performance.now()
-              : Date.now();
-            const verdict = decideAutoStop({
-              serverVad: serverSnap,
-              clientVadResult: result,
-              nowPerf: nowPerfMs,
-              staleTickMs: SERVER_VAD_STALE_MS,
-            });
-            if (verdict.kind === "stop") {
-              const serverAge = serverSnap.receivedAt > 0
-                ? Math.round(nowPerfMs - serverSnap.receivedAt)
-                : -1;
-              console.info(`[voice] S${sessionCountRef.current} auto-stop source=${verdict.source} serverAge=${serverAge}ms serverSilence=${serverSnap.silenceElapsedMs}/${serverSnap.silenceTimeoutMs}ms clientResult=${result ?? "null"} rms=${rms.toFixed(4)} trackAlive=${trackAlive} trackMuted=${trackMuted} ctx=${ctx.state}`);
-              // A CLIENT-VAD silence verdict is only trustworthy when the audio
-              // source is actually delivering samples. Under kyutai/passthrough
-              // the server emits no VAD, so client VAD is the SOLE stop authority
-              // (decideAutoStop §2) — if the analyser reads silence because the
-              // track muted or the AudioContext suspended, that "silence" is an
-              // ARTIFACT, not a real pause. Suppressing the false stop keeps the
-              // turn alive (the track handlers / no-audio watchdog own true
-              // terminal loss) and we try to wake a suspended context.
-              if (verdict.source === "client-fallback" && !srcHealthy) {
-                if (ctx.state === "suspended") void ctx.resume().catch(() => {});
-                if (!unhealthyStopSuppressed) {
-                  console.warn("[voice] S%d auto-stop SUPPRESSED: client-VAD silence but audio source not delivering (trackAlive=%s trackMuted=%s ctx=%s) — artifact, not a real pause; keeping the turn open",
-                    sessionCountRef.current, trackAlive, trackMuted, ctx.state);
-                  unhealthyStopSuppressed = true;
-                }
-              } else {
-                endCaptureRef.current?.({ reason: "auto" });
-              }
-            }
-          }
-        }
-
-        if (!levelMonitorActiveRef.current) return;
-
-        // `audioLevel` on the snapshot is the display value; `rms` stays raw so
-        // consumers that want the underlying signal (and the thresholds it is
-        // judged against) still have it.
-        const clientActivity = buildVoiceActivitySnapshot({
-          vadActive: vadActiveRef.current,
-          vad: vadRef.current,
-          rms,
-          audioLevel: meterLevel,
-          nowMs: vadNow,
-          silenceTimeoutMs: vadSilenceTimeoutRef.current,
-          voiceMode: persistentModeRef.current ? "persistent" : "one-shot",
-        });
-        // Reconcile the countdown with the SAME authority that will actually
-        // stop the turn. The snapshot's own autoStopProgress is the client RMS
-        // timer, which is not the operative clock whenever the server is
-        // running VAD — so under a server-VAD strategy the ring stayed hidden
-        // for the entire countdown and the turn ended with no warning at all.
-        // decideAutoStopRing applies decideAutoStop's precedence; publishing its
-        // verdict here means every surface that renders the snapshot gets the
-        // right ring without knowing which side owns the decision.
-        const ringNowPerf = typeof performance !== "undefined" && typeof performance.now === "function"
-          ? performance.now()
-          : Date.now();
-        const ring = decideAutoStopRing({
-          isRecording: vadActiveRef.current && !persistentModeRef.current,
-          serverVad: useServerVadStateStore.getState(),
-          voiceActivity: clientActivity,
-          nowPerf: ringNowPerf,
-          staleTickMs: SERVER_VAD_STALE_MS,
-          visualGraceMs: VAD_AUTO_STOP_VISUAL_GRACE_MS,
-        });
-        const voiceActivity: VoiceActivitySnapshot = ring.visible === clientActivity.autoStopVisible
-          && ring.progress === clientActivity.autoStopProgress
-          ? clientActivity
-          : { ...clientActivity, autoStopVisible: ring.visible, autoStopProgress: ring.progress };
-        setState((s) => {
-          if (Math.abs(s.audioLevel - meterLevel) < 0.01 && voiceActivitySnapshotsEqual(s.voiceActivity, voiceActivity)) {
-            return s;
-          }
-          return { ...s, audioLevel: meterLevel, voiceActivity };
-        });
-
-        rafRef.current = requestAnimationFrame(tick);
-      };
-      rafRef.current = requestAnimationFrame(tick);
-    } catch (err) {
-      console.error("[voice] S%d startLevelMonitor FAILED:", sessionCountRef.current, err);
-    }
-  }, []);
-
-  const stopLevelMonitor = useCallback(() => {
-    levelMonitorActiveRef.current = false;
-    cancelAnimationFrame(rafRef.current);
-    rafRef.current = 0;
-    lastTickRef.current = 0;
-    audioLevelRef.current = 0;
-    analyserRef.current = null;
-    // Disconnect all audio nodes to prevent zombie node accumulation
-    for (const node of audioNodesRef.current) {
-      try { node.disconnect(); } catch { /* already disconnected */ }
-    }
-    audioNodesRef.current = [];
-    setState((s) => (s.audioLevel === 0 && voiceActivitySnapshotsEqual(s.voiceActivity, IDLE_VOICE_ACTIVITY)
-      ? s
-      : { ...s, audioLevel: 0, voiceActivity: IDLE_VOICE_ACTIVITY }));
-  }, []);
 
   // Capture-machinery teardown invoked by the controller after every provider
   // shutdown. Resets timers, VAD, the level monitor, and the cue-session guard
@@ -744,7 +412,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
     vadActiveRef.current = false;
     vadRef.current.state = "idle";
-    cueSessionActiveRef.current = false;
+    cueSessionRef.current?.clear();
     stopLevelMonitor();
     // The capture session is over — release the iOS audio session shortly after,
     // instead of holding a running-but-idle AudioContext forever (which keeps
@@ -754,132 +422,8 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   };
 
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /**
-   * TTL timer for the currently-displayed rejection. Replaced on every new
-   * rejection so only the freshest rejection's 5-minute clock is active.
-   */
-  const rejectionTtlTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /**
-   * Latest rejection metadata captured from `onSegmentRejected` callbacks
-   * during an active turn. The banner is not shown mid-turn — streaming
-   * providers only snapshot their retained audio after `stop()`, so we hold
-   * the score/threshold here and surface the banner when the turn ends
-   * (inside the provider's `onResult` / error paths below).
-   */
-  const pendingRejectionRef = useRef<{ score: number; threshold: number } | null>(null);
-  /** Convenience: the hook's own reference to the current rejection so
-   *  callbacks outside React state don't need to re-read `state`. */
-  const rejectedAudioRef = useRef<VoiceRejection | null>(null);
-
-  /**
-   * Move the currently-retained turn audio from the provider into visible
-   * rejection state, consuming the pending rejection metadata. Called when a
-   * turn has ended and we know speaker verification rejected at least one
-   * segment.
-   *
-   * Ordering matters: we capture the blob reference via
-   * `provider.getLastTurnAudio()` first (provider keeps its own reference),
-   * then atomically replace state. The previous rejection's state drops its
-   * reference naturally when React discards the old value; the provider's
-   * reference is released later by `disposeRejection()` (manual dismiss,
-   * successful retry, or TTL).
-   *
-   */
-  const surfacePendingRejection = useCallback(() => {
-    const pending = pendingRejectionRef.current;
-    if (!pending) return;
-    pendingRejectionRef.current = null;
-
-    const provider = providerRef.current;
-    const audio = provider?.getLastTurnAudio() ?? null;
-    const id = generateRejectionId();
-    const createdAt = Date.now();
-
-    const rejection: VoiceRejection = audio
-      ? {
-          kind: "retryable",
-          cause: "speaker-rejected",
-          id,
-          blob: audio.blob,
-          mimeType: audio.mimeType,
-          durationMs: audio.durationMs,
-          score: pending.score,
-          threshold: pending.threshold,
-          createdAt,
-          status: "idle",
-        }
-      : {
-          kind: "explanatory",
-          id,
-          reason: "This provider does not retain audio; please record again to retry.",
-          score: pending.score,
-          threshold: pending.threshold,
-          createdAt,
-        };
-
-    rejectedAudioRef.current = rejection;
-    setState((s) => ({ ...s, rejectedAudio: rejection }));
-
-    // (Re)arm the retention TTL. A new rejection always replaces any
-    // previous TTL timer — only the freshest rejection's clock ticks.
-    if (rejectionTtlTimerRef.current) clearTimeout(rejectionTtlTimerRef.current);
-    rejectionTtlTimerRef.current = setTimeout(() => {
-      // Only fire if this same rejection is still displayed. The ref check
-      // prevents a stale timer from clobbering a newer rejection that
-      // replaced us after TTL started.
-      if (rejectedAudioRef.current?.id === id) {
-        const p = providerRef.current;
-        p?.disposeLastTurn();
-        rejectedAudioRef.current = null;
-        rejectionTtlTimerRef.current = null;
-        setState((s) => (s.rejectedAudio?.id === id ? { ...s, rejectedAudio: null } : s));
-      }
-    }, REJECTION_RETENTION_TTL_MS);
-  }, []);
-
-  /**
-   * Surface a recoverable banner for a turn that ended with NO usable text and
-   * no speaker rejection — the "silently lost everything I said" case. If the
-   * provider retained the turn's audio, offer a one-tap retry that re-runs the
-   * full audio through the plain HTTP batch path (this recovers messages the
-   * streaming path drops when a mid-turn reconnect loses server-side context).
-   * If no audio was retained, fall back to a transient mic-button error so the
-   * loss is at least visible instead of silent.
-   */
-  const surfaceEmptyTranscript = useCallback(() => {
-    const audio = providerRef.current?.getLastTurnAudio() ?? null;
-    if (!audio) {
-      setState((s) => ({ ...s, error: "No speech detected — tap to try again" }));
-      return;
-    }
-    const id = generateRejectionId();
-    const rejection: VoiceRejection = {
-      kind: "retryable",
-      cause: "empty-transcript",
-      id,
-      blob: audio.blob,
-      mimeType: audio.mimeType,
-      durationMs: audio.durationMs,
-      score: 0,
-      threshold: 0,
-      createdAt: Date.now(),
-      status: "idle",
-    };
-    rejectedAudioRef.current = rejection;
-    setState((s) => ({ ...s, rejectedAudio: rejection }));
-
-    // Same retention TTL as a speaker rejection — release the audio if the
-    // user neither retries nor dismisses.
-    if (rejectionTtlTimerRef.current) clearTimeout(rejectionTtlTimerRef.current);
-    rejectionTtlTimerRef.current = setTimeout(() => {
-      if (rejectedAudioRef.current?.id === id) {
-        providerRef.current?.disposeLastTurn();
-        rejectedAudioRef.current = null;
-        rejectionTtlTimerRef.current = null;
-        setState((s) => (s.rejectedAudio?.id === id ? { ...s, rejectedAudio: null } : s));
-      }
-    }, REJECTION_RETENTION_TTL_MS);
-  }, []);
+  // Retained-audio rejection, retry, expiry, and disposal state belongs to one
+  // controller so timer races cannot diverge from the visible banner.
 
   // Optimistic mount: show the mic button immediately and check Whisper in
   // the background. The user can start speaking before the check resolves.
@@ -905,11 +449,11 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     let bgRefreshInterval: ReturnType<typeof setInterval> | null = null;
 
     // Warm the streaming transport immediately. This creates no microphone
-    // lease and sends no audio; it only opens the provider's Connect stream so
+    // lease and sends no audio; it only opens the provider's stream so
     // a slow capability probe cannot sit between the user's press and the
     // first streaming batch. The probe below still decides whether the host
     // advertises streaming and remains the source of capability truth.
-    controller.ensure(() => new services.PcmVoiceStreamProvider());
+    ensurePcmStreamProvider(controller, () => new services.PcmVoiceStreamProvider());
     if (isStreamingProvider(providerRef.current)) {
       const currentLanguage = voiceLanguageRef.current;
       const lang = currentLanguage === "auto" ? "" : (currentLanguage.split("-")[0] ?? "en");
@@ -975,6 +519,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     return () => {
       cancelled = true;
       if (bgRefreshInterval) clearInterval(bgRefreshInterval);
+      partialTranscriptRenderer.cancel();
       // Single-authority shutdown: disposes the provider (releasing its mic
       // lease), cancels any in-flight start, and runs capture teardown (clears
       // the cue-session guard WITHOUT playing a stop cue — unmount is a
@@ -987,12 +532,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         clearTimeout(noAudioTimerRef.current);
         noAudioTimerRef.current = null;
       }
-      if (rejectionTtlTimerRef.current) {
-        clearTimeout(rejectionTtlTimerRef.current);
-        rejectionTtlTimerRef.current = null;
-      }
-      rejectedAudioRef.current = null;
-      pendingRejectionRef.current = null;
+      rejectionController.clearForUnmount();
       startingRef.current = false;
     };
   }, [voiceEnabled]);
@@ -1009,6 +549,9 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   const startRecording = useCallback(async (startOpts?: StartRecordingOpts) => {
     micIntentArmedRef.current = true;
     if (state.voiceState !== "idle" || startingRef.current) return;
+    const startRequestedAtMs = typeof globalThis.performance?.now === "function"
+      ? globalThis.performance.now()
+      : Date.now();
     startingRef.current = true;
     stopRequestedRef.current = false;
     // Generation token for this start. A lifecycle shutdown (tab hidden, unmount)
@@ -1040,7 +583,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     console.info("[voice] S%d startRecording: backend=%s, streaming=%s, vadEnabled=%s, persistent=%s",
       sessionCountRef.current, backendRef.current, streamingAvailableRef.current,
       startOpts?.vadEnabled, persistentModeRef.current);
-    dismissedFallbackNoticeRef.current = null;
+    streamNoticeController.clearDismissed();
     setState((s) => ({
       ...s,
       voiceState: "preparing",
@@ -1118,6 +661,10 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       // typically populated the snapshot already. The probe is here mainly so
       // a stale "unhealthy" state can flip back to "healthy" on next start.
       capabilityCheckRef.current().then((probe) => {
+        // A prior turn's probe may finish after that turn has stopped and a
+        // newer capture has started. Its health snapshot must not dispose or
+        // overwrite the newer session's provider and UI state.
+        if (!controller.isCurrentStart(startToken)) return;
         if (!probe.whisperHealthy) {
           controller.shutdown("provider-error");
           // One fact, one field. `error` is the unreachable-backend
@@ -1135,9 +682,11 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       // through the controller so a failed provider can never be orphaned.
       if (!providerRef.current) {
         if (backendRef.current === "whisper") {
-          controller.set(streamingReady
-            ? new services.PcmVoiceStreamProvider()
-            : new services.WhisperProvider());
+          const selectedProvider = createCaptureProvider(backendRef.current, streamingReady, {
+            pcmStream: () => new services.PcmVoiceStreamProvider(),
+            whisper: () => new services.WhisperProvider(),
+          });
+          if (selectedProvider) controller.set(selectedProvider);
           console.info("[voice] Provider:", streamingReady ? "PCMVoiceStreamV2" : "WhisperHTTP");
         } else {
           const reason = "Voice input is unavailable because audio-tools cannot be reached.";
@@ -1154,14 +703,15 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         setState((s) => s.voiceState === "preparing" ? { ...s, voiceState: "idle" } : s);
         return;
       }
+      provider.markStartRequested?.(startRequestedAtMs);
       const langCode = voiceLanguage === "auto" ? "" : (voiceLanguage.split("-")[0] ?? "en");
       if ("language" in provider) provider.language = langCode;
-	  // The capability probe is intentionally asynchronous. If the user presses
-	  // the control before it has completed, admit the stream transport here so
-	  // the first voiced batch does not pay the Connect stream setup. The provider
-	  // preserves this identity through start(), which makes the preconnect a
-	  // real handoff rather than an orphaned stream.
-	  if (isStreamingProvider(provider)) provider.preConnect(langCode);
+      // The capability probe is intentionally asynchronous. If the user presses
+      // the control before it has completed, admit the stream transport here so
+      // the first voiced batch does not pay the stream setup. The provider
+      // preserves this identity through start(), which makes the preconnect a
+      // real handoff rather than an orphaned stream.
+      if (isStreamingProvider(provider)) provider.preConnect(langCode);
 
       // Wire up segment-final handler for persistent mode
       if (isStreamingProvider(provider)) {
@@ -1184,7 +734,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         // rejections in one turn collapse into the last one's score —
         // single-slot retention, one blob per turn.
         provider.onSegmentRejected = (_segmentIndex, score, threshold) => {
-          pendingRejectionRef.current = { score, threshold };
+          rejectionController.markPending(score, threshold);
           setState((s) => ({
             ...s,
             speakerVerificationEnabled: true,
@@ -1210,11 +760,11 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         // Capture before surfacePendingRejection() consumes the pending flag:
         // a speaker rejection owns this turn's banner, so we must not also
         // raise an empty-transcript banner for the same turn.
-        const hadPendingRejection = pendingRejectionRef.current !== null;
+        const hadPendingRejection = rejectionController.hasPending;
         // Clear cue session — the stop cue already played in stopRecording().
         // If onResult fires without stopRecording() (e.g. server-side stop),
         // we still clear the guard to prevent a stale cue on next session.
-        cueSessionActiveRef.current = false;
+        cueSessionRef.current?.clear();
         if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
 
         // Noise floor is now saved in stopRecording() (before VAD state reset).
@@ -1236,12 +786,12 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           partialTranscript: "",
           segments: [],
         }));
-        dismissedFallbackNoticeRef.current = null;
+        streamNoticeController.clearDismissed();
         // Turn ended — surface any pending rejection as a persistent banner.
         // At this point the streaming provider has already snapshotted its
         // retained audio (see VoiceStreamProvider.stop), so
         // getLastTurnAudio() returns the full turn for the retry action.
-        surfacePendingRejection();
+        rejectionController.surfacePending();
         // In persistent mode, segment-finals deliver text incrementally.
         // The final message contains only the un-segmented tail (speech
         // after the last segment boundary). Deliver it if non-empty.
@@ -1266,7 +816,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         // banner, surface a recoverable "couldn't transcribe" notice so the
         // user isn't left staring at an idle mic with their message gone.
         if (!turnDeliveredTextRef.current && !hadPendingRejection) {
-          surfaceEmptyTranscript();
+          rejectionController.surfaceEmptyTranscript();
         }
 
         // controller.shutdown runs capture teardown, which stops the mic tracks
@@ -1287,10 +837,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         // the screen has no way to learn the turn ended and keeps talking into a
         // dead capture. Play the distinct fault cue instead: it sounds wrong on
         // purpose, which is the accurate signal.
-        if (cueSessionActiveRef.current) {
-          cueSessionActiveRef.current = false;
-          services.playRecordingFaultCue();
-        }
+        cueSessionRef.current?.fault();
         if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
         vadActiveRef.current = false;
         vadRef.current.state = "idle";
@@ -1299,7 +846,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         // Error ends the turn: if speaker verification rejected segments
         // during this turn, surface the banner so the user can still retry
         // with whatever audio was retained.
-        surfacePendingRejection();
+        rejectionController.surfacePending();
 
         // Whisper failed after retry. Refuse the weaker browser-only path;
         // release the mic and preserve an explicit terminal reason.
@@ -1329,63 +876,21 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           voiceActivity: IDLE_VOICE_ACTIVITY,
           fallbackNotice: null,
         }));
-        dismissedFallbackNoticeRef.current = null;
+        streamNoticeController.clearDismissed();
       };
       if (provider.onPartial !== undefined) {
         provider.onPartial = (text) => {
-          dismissedFallbackNoticeRef.current = null;
+          streamNoticeController.clearDismissed();
           const transcript = transcriptBufferRef.current.partial(text);
-          // A partial proves the stream is alive, so it retires any streaming
-          // notice — but only when one is actually up. Writing `fallbackNotice:
-          // null` unconditionally allocated a new state object per partial and,
-          // paired with a status that re-set it, drove the notice on and off at
-          // the partial rate.
-          const applyPartial = (interimText: string) => (s: VoiceInputState): VoiceInputState =>
-            s.partialTranscript === interimText && s.fallbackNotice === null
-              ? s
-              : { ...s, partialTranscript: interimText, fallbackNotice: null };
-          // Coalesce the RENDER to one paint per frame: at a high partial rate,
-          // a setState per partial janks the main thread and re-introduces
-          // client-side backpressure. The latest pending text wins.
-          setState(applyPartial(transcript.interimText));
-          pendingPartialRenderRef.current = transcript.interimText;
-          if (typeof requestAnimationFrame !== "function") {
-            setState(applyPartial(transcript.interimText));
-            return;
-          }
-          if (partialRenderRafRef.current === 0) {
-            partialRenderRafRef.current = requestAnimationFrame(() => {
-              partialRenderRafRef.current = 0;
-              const pending = pendingPartialRenderRef.current;
-              pendingPartialRenderRef.current = null;
-              if (pending !== null) {
-                setState(applyPartial(pending));
-              }
-            });
-          }
+          // The latest replaceable partial wins. The renderer schedules one
+          // React state write per animation frame instead of one write per
+          // provider event.
+          partialTranscriptRenderer.schedule(transcript.interimText);
         };
       }
       if (provider.onStatus !== undefined) {
-		provider.onStatus = ({ code, message }: { code: string; message: string }) => {
-          if (SILENT_STREAM_STATUS.has(code)) return;
-
-          if (DEGRADATION_STREAM_STATUS.has(code)) {
-            setState((s) => ({
-              ...s,
-              streamingDegradationNotice: message || "Streaming degraded — buffered mode is active for this transcription.",
-            }));
-          }
-          if (NOTICE_CLEARING_STREAM_STATUS.has(code)) {
-            setState((s) => (s.fallbackNotice ? { ...s, fallbackNotice: null } : s));
-            dismissedFallbackNoticeRef.current = null;
-            return;
-          }
-          // No copy means the emitter had nothing to tell the operator.
-          if (!message) return;
-          if (dismissedFallbackNoticeRef.current === message) return;
-          // Re-asserting the same notice is not a change; returning `s`
-          // unchanged keeps a repeating status from re-rendering the host.
-          setState((s) => (s.fallbackNotice === message ? s : { ...s, fallbackNotice: message }));
+        provider.onStatus = ({ code, message }: { code: string; message: string }) => {
+          streamNoticeController.handleStatus(code, message);
         };
       }
       if (provider.onDiagnostic !== undefined) {
@@ -1484,8 +989,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           segments: [],
           commandSuggestion: null,
         }));
-        cueSessionActiveRef.current = true;
-        services.playRecordingStartCue();
+        cueSessionRef.current?.start();
         startLevelMonitor(stream);
 
         // Warn if no audio detected after 2s (catches dead/muted mics).
@@ -1496,7 +1000,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         // that's the actionable cause (device taken by another app / changed).
         if (noAudioTimerRef.current) clearTimeout(noAudioTimerRef.current);
         noAudioTimerRef.current = setTimeout(() => {
-          if (audioLevelRef.current < NO_AUDIO_LEVEL_THRESHOLD) {
+          if (levelMonitor.audioLevel < NO_AUDIO_LEVEL_THRESHOLD) {
             const muted = (stream.getAudioTracks?.() ?? []).some((t) => t.muted);
             const message = muted
               ? "Microphone is muted or in use by another app — reload to recover"
@@ -1504,7 +1008,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
             setState((s) => (s.voiceState === "recording" || s.voiceState === "listening")
               ? { ...s, error: message }
               : s);
-            console.warn(`[voice] No audio after 2s (level=${audioLevelRef.current.toFixed(4)}, muted=${muted})`);
+            console.warn(`[voice] No audio after 2s (level=${levelMonitor.audioLevel.toFixed(4)}, muted=${muted})`);
           }
         }, 2000);
 
@@ -1513,10 +1017,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         // to keep the pair balanced.
         if (stopRequestedRef.current) {
           stopRequestedRef.current = false;
-          if (cueSessionActiveRef.current) {
-            cueSessionActiveRef.current = false;
-            services.playRecordingStopCue();
-          }
+          cueSessionRef.current?.stop();
           if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
           vadActiveRef.current = false;
           vadRef.current.state = "idle";
@@ -1544,7 +1045,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     } finally {
       startingRef.current = false;
     }
-  }, [state.voiceState, state.backend, voiceLanguage, startLevelMonitor, stopLevelMonitor, handleSegmentFinal, surfacePendingRejection, cancelPartialRender]);
+  }, [state.voiceState, state.backend, voiceLanguage, startLevelMonitor, stopLevelMonitor, handleSegmentFinal, rejectionController, cancelPartialRender]);
 
   const endCapture = useCallback((opts?: { reason?: "auto" | "user" }) => {
     const reason = opts?.reason ?? "user";
@@ -1563,13 +1064,13 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     }
 
     console.info("[voice] S%d %s stopped (reason=%s)", sessionCountRef.current, isListening ? "Listening" : "Recording", reason);
+    // Anchor stop-to-final-tail timing at the shared action, before the
+    // user-tap 120 ms encoder settle window below.
+    provider.markStopRequested?.();
     // Only play the stop cue if a cue session is active (start cue was played).
     // This prevents the stop sound from firing during cleanup, error recovery,
     // or any other path that disposes the provider without a preceding start cue.
-    if (cueSessionActiveRef.current) {
-      cueSessionActiveRef.current = false;
-      services.playRecordingStopCue();
-    }
+    cueSessionRef.current?.stop();
     if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
 
     // Persist the noise floor BEFORE resetting VAD state. Previously this
@@ -1631,7 +1132,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     // Clear cue session without playing stop cue — cancellation is not a
     // normal recording stop. The stop cue already played when stopRecording()
     // transitioned the state to "transcribing".
-    cueSessionActiveRef.current = false;
+    cueSessionRef.current?.clear();
     provider.onResult = null;
     provider.onError = null;
     if (provider.onPartial !== undefined) provider.onPartial = null;
@@ -1656,7 +1157,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     // a prior-turn rejection banner is the user's to dismiss explicitly.
     // We clear in-flight pending rejection metadata (there's no banner yet),
     // but leave visible `rejectedAudio` alone.
-    pendingRejectionRef.current = null;
+    rejectionController.clearPending();
     setState((s) => ({
       ...s,
       voiceState: "idle",
@@ -1680,20 +1181,11 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
    * showing — becomes a no-op.
    */
   const dismissRejection = useCallback(() => {
-    if (rejectionTtlTimerRef.current) {
-      clearTimeout(rejectionTtlTimerRef.current);
-      rejectionTtlTimerRef.current = null;
-    }
-    providerRef.current?.disposeLastTurn();
-    rejectedAudioRef.current = null;
-    setState((s) => (s.rejectedAudio ? { ...s, rejectedAudio: null } : s));
+    rejectionController.dismiss();
   }, []);
 
   const dismissFallbackNotice = useCallback(() => {
-    setState((s) => {
-      dismissedFallbackNoticeRef.current = s.fallbackNotice;
-      return s.fallbackNotice ? { ...s, fallbackNotice: null } : s;
-    });
+    streamNoticeController.dismissFallback();
   }, []);
 
   /**
@@ -1712,76 +1204,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
    * path was first); it now serves both causes.
    */
   const retryWithoutFilter = useCallback(async () => {
-    const current = rejectedAudioRef.current;
-    if (!current || current.kind !== "retryable" || current.status === "retrying") {
-      return;
-    }
-
-    const retryingRejection: VoiceRejection = {
-      ...current,
-      status: "retrying",
-      errorMessage: undefined,
-    };
-    rejectedAudioRef.current = retryingRejection;
-    setState((s) => (s.rejectedAudio?.id === current.id
-      ? { ...s, rejectedAudio: retryingRejection }
-      : s));
-
-    const langSetting = voiceLanguageRef.current;
-    const lang = langSetting === "auto" ? "" : (langSetting.split("-")[0] ?? "en");
-
-    try {
-      // Pick the retry path by cause: an empty-transcript turn re-runs the
-      // FULL retained audio through the plain HTTP batch endpoint (recovering
-      // what a dropped streaming session lost); a speaker-rejected turn
-      // re-runs with the verification filter bypassed for this one request.
-      const text = current.cause === "empty-transcript"
-        ? await services.transcribeAudio(current.blob, lang)
-        : await services.transcribeAudioBypassFilter(current.blob, lang);
-      const trimmed = text.trim();
-      // The user may have dismissed between the await and now — only act
-      // if the rejection we're finishing is still the displayed one.
-      if (rejectedAudioRef.current?.id !== current.id) return;
-
-      if (trimmed) {
-        onTranscriptRef.current(trimmed);
-        // Success: dismiss banner and release retained audio.
-        if (rejectionTtlTimerRef.current) {
-          clearTimeout(rejectionTtlTimerRef.current);
-          rejectionTtlTimerRef.current = null;
-        }
-        providerRef.current?.disposeLastTurn();
-        rejectedAudioRef.current = null;
-        setState((s) => (s.rejectedAudio?.id === current.id
-          ? { ...s, rejectedAudio: null }
-          : s));
-      } else {
-        const failed: VoiceRejection = {
-          ...current,
-          status: "failed",
-          errorMessage: "No speech detected in audio",
-        };
-        rejectedAudioRef.current = failed;
-        setState((s) => (s.rejectedAudio?.id === current.id
-          ? { ...s, rejectedAudio: failed }
-          : s));
-      }
-    } catch (err) {
-      if (rejectedAudioRef.current?.id !== current.id) return;
-      // Cap the error string so a verbose server body doesn't break the
-      // banner layout. 200 chars is enough context for the user.
-      const raw = err instanceof Error ? err.message : "Network error";
-      const msg = raw.length > 200 ? raw.slice(0, 197) + "…" : raw;
-      const failed: VoiceRejection = {
-        ...current,
-        status: "failed",
-        errorMessage: msg,
-      };
-      rejectedAudioRef.current = failed;
-      setState((s) => (s.rejectedAudio?.id === current.id
-        ? { ...s, rejectedAudio: failed }
-        : s));
-    }
+    await rejectionController.retry();
   }, []);
 
   // Keep the ref in sync so all async end triggers use the same capture funnel.
@@ -1818,8 +1241,8 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     // keep it awake (cancel any idle-suspend) and resume it — the analyser reads
     // silence on a suspended context, so passive VAD would never fire otherwise.
     keepAudioContextAwake();
-    const sharedCtx = audioCtxRef.current ?? getSharedAudioContext();
-    audioCtxRef.current = sharedCtx;
+    const sharedCtx = levelMonitor.audioContext ?? getSharedAudioContext();
+    levelMonitor.audioContext = sharedCtx;
     if (sharedCtx.state === "suspended") sharedCtx.resume().catch(() => {});
 
     const listener = new services.PassiveListener({
@@ -1957,50 +1380,25 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   //     session; visibility alone is not a mic intent.
   useEffect(() => {
     if (!voiceEnabled) return;
-    // Platform-aware backstop: a standalone/PWA releases ALL leases on hidden
-    // (iOS keeps the OS mic indicator on otherwise); a desktop tab releases only
-    // non-active leases and lets the controller stop the active recording. The
-    // resolver is read on every event so display-mode can change at runtime.
-    const resolveScope = (event: "hidden" | "pagehide" | "freeze"): LifecycleReleaseScope =>
-      decideMicLifecycle({ event, standalonePwa: isStandaloneDisplayMode() }).release === "all"
-        ? "all"
-        : "non-active";
-    const uninstallBackstop = installMicLifecycleCleanup(resolveScope);
-
-    const onVisibility = () => {
-      const hidden = typeof document !== "undefined" && document.visibilityState === "hidden";
-      documentHiddenRef.current = hidden;
-      if (hidden) {
-        // Abort any in-flight start so a getUserMedia that resolves after we go
-        // hidden releases its lease instead of entering recording (Phase 6).
+    return installVoicePageLifecycle({
+      onVisibilityChange: (hidden) => { documentHiddenRef.current = hidden; },
+      cancelPendingStarts: () => {
+        // A late getUserMedia result must release its lease instead of recording.
         micIntentArmedRef.current = false;
         controller.cancelStarts();
-        if (isActiveRef.current) {
-          console.info("[voice] Visibility: hidden during active recording — stopping (privacy)");
-          endCaptureRef.current?.({ reason: "auto" });
-          if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
-          setState((s) => ({ ...s, fallbackNotice: "Recording stopped — app moved to background" }));
-          fallbackTimerRef.current = setTimeout(() => {
-            setState((s) => (s.fallbackNotice ? { ...s, fallbackNotice: null } : s));
-          }, 5000);
-        }
-        // Passive leases are released by the backstop; their onRelease callbacks
-        // reset passiveListeningActive. Release the audio session too: suspend
-        // the shared AudioContext so backgrounding stops holding other apps'
-        // audio. It resumes on demand on the next in-gesture voice/cue use.
-        suspendSharedAudioContext();
-      } else {
-        // Visibility alone must not acquire the microphone or the audio session.
-        // A new explicit mic-control intent will re-arm passive if needed.
-      }
-    };
-
-    document.addEventListener("visibilitychange", onVisibility);
-    documentHiddenRef.current = typeof document !== "undefined" && document.visibilityState === "hidden";
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibility);
-      uninstallBackstop();
-    };
+      },
+      isActiveRecording: () => isActiveRef.current,
+      stopActiveRecording: () => {
+        console.info("[voice] Visibility: hidden during active recording — stopping (privacy)");
+        endCaptureRef.current?.({ reason: "auto" });
+        if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+        setState((s) => ({ ...s, fallbackNotice: "Recording stopped — app moved to background" }));
+        fallbackTimerRef.current = setTimeout(() => {
+          setState((s) => (s.fallbackNotice ? { ...s, fallbackNotice: null } : s));
+        }, 5000);
+      },
+      suspendAudio: suspendSharedAudioContext,
+    });
   }, [voiceEnabled]);
 
   // ── Registry-driven UI honesty + stale-lease self-healing (Phase 4) ──
@@ -2014,35 +1412,14 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
   // re-notifies this same listener synchronously.
   useEffect(() => {
     if (!voiceEnabled) return;
-    const recovery = { inProgress: false };
-    const evaluate = (snapshots: MicLeaseSnapshot[]) => {
-      // `voiceStateRef` is render-driven and lags a synchronous `setState`. While
-      // a start is in flight, getUserMedia can return a recording lease before
-      // the "preparing" render commits — treat an in-flight start as "preparing"
-      // so a legitimate fresh lease is never mistaken for an orphan and recovered.
-      const effectiveState = startingRef.current ? "preparing" : voiceStateRef.current;
-      const staleInput = {
-        leases: snapshots.map((s) => ({ id: s.id, owner: s.owner })),
-        voiceState: effectiveState,
-        passiveListenerActive: !!passiveListenerRef.current,
-      };
-      const hasStale = selectStaleLeases(staleInput).length > 0;
-      setState((s) => (s.staleLiveMicLease === hasStale ? s : { ...s, staleLiveMicLease: hasStale }));
-      if (hasStale && !recovery.inProgress) {
-        recovery.inProgress = true;
-        try {
-          controller.recoverStaleLeases({
-            voiceState: effectiveState,
-            passiveListenerActive: !!passiveListenerRef.current,
-            reason: "invariant-violation",
-          });
-        } finally {
-          recovery.inProgress = false;
-        }
-      }
-    };
-    evaluate(getActiveMicLeases());
-    return subscribeMicLeases(evaluate);
+    return installMicLeaseRecovery({
+      getVoiceState: () => voiceStateRef.current,
+      isStarting: () => startingRef.current,
+      isPassiveListenerActive: () => !!passiveListenerRef.current,
+      onStaleState: (hasStale) => setState((s) =>
+        s.staleLiveMicLease === hasStale ? s : { ...s, staleLiveMicLease: hasStale }),
+      recover: (input) => controller.recoverStaleLeases(input),
+    });
   }, [voiceEnabled, state.voiceState]);
 
   // User-triggered "release microphone" recovery (mic control affordance). Frees

@@ -38,10 +38,10 @@ such as BlobStore.
 |---|---|---|---|---|---|
 | Nodes and edges | catalog | SQLite | `api/internal/catalog/schema.sql` | Retired nodes are kept, never deleted. | One status vocabulary across all node kinds. |
 | Status history | catalog | SQLite | `api/internal/catalog/schema.sql` | **Never deleted.** Not regenerable. | Append-only: actor, timestamp, prior status, reason. |
-| Trigger declarations | gates | SQLite | `api/internal/gates/schema.sql` | Deleted with the node. | Parsed predicate, stored in its declared form. |
-| Facts | gates | SQLite | `api/internal/gates/schema.sql` | Superseded by newer values; history retained. | Each carries a source and an observed-at time. |
-| Evaluation runs | gates | SQLite | `api/internal/gates/schema.sql` | Windowed retention. | Records which fact satisfied which clause. |
-| Promotion proposals | gates | SQLite | `api/internal/gates/schema.sql` | Kept after disposition. | Carries the proposing actor; survives restarts. |
+| Trigger declarations | gates | SQLite | `api/internal/catalog/schema.sql` | Deleted with the node. | Parsed predicate, stored in its declared form. |
+| Facts | gates | SQLite | `api/internal/catalog/schema.sql` | Current value replaces the prior value. | Each carries an observed-at time and stale window; read-time freshness is evaluated against server time and is not persisted. |
+| Evaluation runs and per-node evaluations | gates | SQLite | `api/internal/catalog/schema.sql` | Evaluation history is window-retained. | Latest run summary and recorded verdicts are distinct tables. |
+| Promotion proposals | gates | SQLite | `api/internal/catalog/schema.sql` | Kept after disposition. | Carries the proposing actor; survives restarts. |
 | Import findings | catalog | SQLite | `api/internal/catalog/schema.sql` | Retained until resolved. | Unresolvable source references, kept visible rather than dropped. |
 
 ## Schema Map
@@ -52,7 +52,7 @@ Each domain's schema file lives beside the code that interprets it. The
 | Table/File/Object | Owner | Defined In | Used By |
 |---|---|---|---|
 | `nodes`, `edges`, `status_history`, `import_findings` | catalog | `api/internal/catalog/schema.sql` | catalog repository/service; read by gates and board |
-| `triggers`, `facts`, `evaluation_runs`, `proposals` | gates | `api/internal/gates/schema.sql` | gates repository/service; read by board |
+| `triggers`, `facts`, `evaluations`, `evaluation_runs`, `proposals`, `proposal_declines` | gates | `api/internal/catalog/schema.sql` | catalog repository/service; read by gates and board |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
 
 ## Migrations And Compatibility

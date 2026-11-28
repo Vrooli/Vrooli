@@ -1,0 +1,145 @@
+{
+  "source_document_id": "39c99716-d11a-4e8f-9811-5afd4efb1cea",
+  "document": {
+    "id": "39c99716-d11a-4e8f-9811-5afd4efb1cea",
+    "book_brief": {
+      "schema_version": "book-brief/v1",
+      "title": "The Corner Sound Fieldnote",
+      "creative_direction": "Contemporary editorial field guide, warm paper, ink-blue type, one restrained copper accent, generous quiet space, clear typographic hierarchy, and a single precise diagram concept showing near/mid/far listening bands around an ordinary corner. Specific and award-worthy without copying any previously shown book.",
+      "audience": "Adult city walkers who want a precise, humane way to notice one familiar street corner.",
+      "reader_promise": "Teach one repeatable practice for listening to a city corner, recording audible layers, and distinguishing direct observation from guesses about sources.",
+      "structure": "A single 550-word chapter with a vivid but modest opening moment, a practical listening sequence, one field-card exercise, and a compact ending. It should read as an authored miniature field guide, not generic filler or a list padded to a word target.",
+      "chapter_intent": [
+        "One Corner, Three Listening Passes — guide the reader through a brief listening practice: first attend to the broad bed, then distinguish nearer from farther audible qualities, then notice one change without naming its cause. End with a blank field-card template for time, position, qualities, and uncertainty. Do not invent a time, place, duration, observation, species, or sound source."
+      ],
+      "additional_direction": "Precise, vivid, humane, quietly distinctive prose. No species identification or sourced facts, wellness promises, invented personal stories, external assets, or decorative padding. Preserve uncertainty. Approved observations: none. Time of day, named location, and sound-source identity are unknown; keep those values blank for the reader to enter. The phrase \"short interval\" has no authorized numeric duration.",
+      "evidence_boundary": {
+        "unknown_details": [
+          "time",
+          "location",
+          "source_identity"
+        ]
+      },
+      "production_metadata": {
+        "subtitle": "A One-Chapter Practice for Noticing City Sound",
+        "language": "en",
+        "trim_width_in": 6,
+        "trim_height_in": 9,
+        "margin_in": 0.625,
+        "content_origin": "Synthetic technical input authored for CBT4; no user source material.",
+        "generated_with_ai": true
+      }
+    },
+    "title": "The Corner Sound Fieldnote",
+    "profile_key": "prose-studio/book-manuscript-local",
+    "outline_profile_key": "prose-studio/book-manuscript-local",
+    "style_key": "",
+    "outline_text": "[{\"intent\":\"One Corner, Three Listening Passes — guide the reader through a brief listening practice: first attend to the broad bed, then distinguish nearer from farther audible qualities, then notice one change without naming its cause. End with a blank field-card template for time, position, qualities, and uncertainty. Do not invent a time, place, duration, observation, species, or sound source.\",\"summary\":\"Write this chapter in the requested book structure and advance the reader promise.\",\"target_words\":550,\"kind\":\"chapter\"}]",
+    "outline": [
+      {
+        "intent": "One Corner, Three Listening Passes — guide the reader through a brief listening practice: first attend to the broad bed, then distinguish nearer from farther audible qualities, then notice one change without naming its cause. End with a blank field-card template for time, position, qualities, and uncertainty. Do not invent a time, place, duration, observation, species, or sound source.",
+        "summary": "Write this chapter in the requested book structure and advance the reader promise.",
+        "target_words": 550,
+        "kind": "chapter"
+      }
+    ],
+    "outline_profile_version": "prose-studio/book-manuscript-local@11",
+    "section_count": 1,
+    "section_profile_version": "prose-studio/book-manuscript-local@11",
+    "section_ids": null,
+    "status": "draft",
+    "created_at": "2026-11-24T22:59:03.566832781Z",
+    "document_provenance": {
+      "section_count": 0,
+      "word_count": 0,
+      "total_cost_micros": 0,
+      "input_tokens": 0,
+      "output_tokens": 0
+    }
+  },
+  "part5_candidate": {
+    "id": "1fd3f20f-01ed-475b-8229-ad31fb1f7f0c",
+    "round_id": "12a0a513-89de-43d1-9e6c-07c1306697c2",
+    "text": "Separate what you hear from what you assume. When a sound moves, note only its movement through the space. Do not assign it a name or a cause. A screech is not a brake; a thrum is not an engine. Record the texture and weight of the noise as it hits your ears. By stripping away labels, you map the actual acoustic architecture of the corner rather than your mental map of city life.",
+    "set_index": 0,
+    "measurements": {
+      "byte_length": 382,
+      "word_count": 74,
+      "sentence_count": 6,
+      "sentence_lengths": [
+        36,
+        49,
+        26,
+        38,
+        51,
+        100
+      ],
+      "compression_ratio": 0.6570680628272252,
+      "self_repetition": 0.0410958904109589,
+      "rouge_l_homogenize": 0,
+      "distinct_n": {
+        "n1": 0.7297297297297297,
+        "n2": 0.958904109589041,
+        "n3": 1
+      },
+      "burstiness": 569.6666666666666,
+      "readability": {
+        "flesch_kincaid": 4.847027027027028,
+        "dale_chall": 5.946192792792793,
+        "gunning_fog": 7.095495495495496
+      },
+      "type_token_ratio": 0.7297297297297297,
+      "mattr": 0.7599999999999999,
+      "lexicon_flags": null
+    },
+    "set_measurements": {
+      "candidate_count": 1,
+      "pairwise_similarity": [
+        [
+          0
+        ]
+      ],
+      "mean_similarity": 0,
+      "diversity": 1,
+      "coverage": 0,
+      "basis": "lexical token 1-3 gram cosine/Jaccard blend; no embeddings available"
+    },
+    "provenance": {
+      "profile_version": "prose-studio/book-manuscript-local@11",
+      "locality": "local_only",
+      "privacy_class": "CONFIDENTIAL",
+      "privacy_source": "prose_studio.private_editorial_content",
+      "style_versions": [
+        "prose-studio/blog@86"
+      ],
+      "strategy": "direct",
+      "strategy_parameters": {
+        "kind": "direct",
+        "k": 1,
+        "tau": 0,
+        "temperature_stance": "ignored",
+        "max_output_tokens": 2048
+      },
+      "provider": "ollama",
+      "resolved_model_ref": "gemma4:12b",
+      "prompt_sha256": "1cbfc360ef700b312a6446b8567421e298f810577fbaf39e52aa55a426bf8461",
+      "gateway_role": "write.default",
+      "temperature_sent": 0.9,
+      "temperature_support": "SAMPLING_SUPPORT_HONORED",
+      "max_output_tokens_effective": 2048,
+      "max_output_tokens_source": "OUTPUT_CAP_SOURCE_REQUEST",
+      "input_tokens": 1352,
+      "output_tokens": 86,
+      "cost_micros": 0,
+      "machine_generated": true,
+      "disclosure": "machine_generated",
+      "context_snapshot": {
+        "estimated_tokens": 1261
+      }
+    },
+    "eligibility": {
+      "eligible": true
+    },
+    "committed": false
+  }
+}

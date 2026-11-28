@@ -5,12 +5,16 @@ export const TARGET_SAMPLE_RATE = 16_000;
 export function floatTo16BitPCM(input: Float32Array): Int16Array {
   const out = new Int16Array(input.length);
   for (let i = 0; i < input.length; i++) {
-    let sample = input[i] ?? 0;
-    if (sample > 1) sample = 1;
-    else if (sample < -1) sample = -1;
-    out[i] = sample < 0 ? Math.round(sample * 0x8000) : Math.round(sample * 0x7fff);
+    out[i] = floatSampleTo16Bit(input[i] ?? 0);
   }
   return out;
+}
+
+function floatSampleTo16Bit(value: number): number {
+  let sample = value;
+  if (sample > 1) sample = 1;
+  else if (sample < -1) sample = -1;
+  return sample < 0 ? Math.round(sample * 0x8000) : Math.round(sample * 0x7fff);
 }
 
 /** Linear downsampling only; callers must not silently upsample capture. */
@@ -59,37 +63,91 @@ export class StreamingPcm16Resampler {
       throw new Error(`Unsupported capture sample rate: ${captureRate}`);
     }
     if (captureRate === TARGET_SAMPLE_RATE) {
-      if (this.pending.length > 0) this.reset();
-      return floatTo16BitPCM(frame);
+      const tail = this.flushPendingTail();
+      this.reset();
+      const canonical = floatTo16BitPCM(frame);
+      return concatInt16([tail, canonical]);
     }
     if (captureRate !== this.captureRate) {
+      const tail = this.flushPendingTail();
       this.reset();
       this.captureRate = captureRate;
       this.ratio = captureRate / TARGET_SAMPLE_RATE;
+      const output = this.processResampledFrame(frame);
+      return concatInt16([tail, output]);
     }
 
-    const joined = new Float32Array(this.pending.length + frame.length);
-    joined.set(this.pending);
-    joined.set(frame, this.pending.length);
+    return this.processResampledFrame(frame);
+  }
+
+  /**
+   * Finish the old rate's pending interval on a rate boundary. We use bounded
+   * zero-order hold: emit canonical grid points strictly before the end of the
+   * captured interval, holding the final captured value when interpolation
+   * would otherwise need a sample from the next (different-rate) stream. This
+   * emits no point beyond the old interval's boundary and avoids dropping its
+   * final fraction of a sample period.
+   */
+  private flushPendingTail(): Int16Array {
+    if (this.pending.length === 0) return new Int16Array(0);
     const output: number[] = [];
-    while (this.position + 1 < joined.length) {
+    while (this.position < this.pending.length) {
       const floor = Math.floor(this.position);
       const fraction = this.position - floor;
-      output.push(joined[floor]! * (1 - fraction) + joined[floor + 1]! * fraction);
+      const left = this.pending[floor] ?? this.pending[this.pending.length - 1]!;
+      const right = this.pending[floor + 1] ?? left;
+      output.push(floatSampleTo16Bit(Math.fround(left * (1 - fraction) + right * fraction)));
+      this.position += this.ratio;
+    }
+    this.pending = new Float32Array(0);
+    this.position = 0;
+    return Int16Array.from(output);
+  }
+
+  private processResampledFrame(frame: Float32Array): Int16Array {
+
+    const pendingLength = this.pending.length;
+    const sourceLength = pendingLength + frame.length;
+    const sampleAt = (index: number) => index < pendingLength ? this.pending[index]! : frame[index - pendingLength]!;
+
+    // Count first so callback output has an exact-sized buffer. This avoids
+    // growing a number[] and then copying it through Float32Array.from().
+    let outputLength = 0;
+    let position = this.position;
+    while (position + 1 < sourceLength) {
+      outputLength++;
+      position += this.ratio;
+    }
+
+    const output = new Int16Array(outputLength);
+    let outputIndex = 0;
+    while (this.position + 1 < sourceLength) {
+      const floor = Math.floor(this.position);
+      const fraction = this.position - floor;
+      // Float32Array.from() in the previous implementation rounded each
+      // interpolation to float32 before PCM quantization. Keep that boundary.
+      const interpolated = Math.fround(sampleAt(floor) * (1 - fraction) + sampleAt(floor + 1) * fraction);
+      output[outputIndex++] = floatSampleTo16Bit(interpolated);
       this.position += this.ratio;
     }
     // Keep the final source sample used by the next interpolation. The raw
     // phase can advance beyond the current callback after emitting its last
     // complete pair, but the next callback must begin from that retained
     // endpoint rather than from a reset phase.
-    const consumed = Math.min(Math.floor(this.position), Math.max(0, joined.length - 1));
+    const consumed = Math.min(Math.floor(this.position), Math.max(0, sourceLength - 1));
     if (consumed > 0) {
-      this.pending = joined.slice(consumed);
+      const remainingLength = sourceLength - consumed;
+      const remaining = new Float32Array(remainingLength);
+      for (let index = 0; index < remainingLength; index++) remaining[index] = sampleAt(consumed + index);
+      this.pending = remaining;
       this.position -= consumed;
     } else {
-      this.pending = joined;
+      const remaining = new Float32Array(sourceLength);
+      remaining.set(this.pending);
+      remaining.set(frame, pendingLength);
+      this.pending = remaining;
     }
-    return floatTo16BitPCM(Float32Array.from(output));
+    return output;
   }
 }
 

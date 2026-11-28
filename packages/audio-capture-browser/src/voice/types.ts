@@ -264,7 +264,11 @@ export interface TranscriptionProvider {
    * while the shared package owns the lifecycle contract.
    */
   start(preWarmedStream?: MediaStream): void | Promise<void>;
+  /** Preserve the consumer's user-action timestamp for start-to-ready diagnostics. */
+  markStartRequested?(atMs: number): void;
   stop(): void;
+  /** Mark the shared user/automatic stop action before any encoder settle delay. */
+  markStopRequested?(): void;
   dispose(): void;
   getStream(): MediaStream | null;
   /**

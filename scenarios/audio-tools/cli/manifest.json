@@ -630,6 +630,12 @@
               "description": "Canonical voice id (default voice.neutral.default)"
             },
             {
+              "name": "adapter-voice",
+              "description": "Per-call backend voice override as tier:provider=voice",
+              "bind": {"field": "voice_overrides"},
+              "bind_waiver": "The CLI parses tier:provider=voice into one structured voice override."
+            },
+            {
               "name": "speed",
               "description": "Playback speed (default 1.0)"
             },

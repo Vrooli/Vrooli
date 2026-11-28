@@ -1,7 +1,7 @@
 // Tiny external store carrying the latest server-emitted VAD-state snapshot.
 //
 // The audio-tools API emits StreamVadState ticks at ~20 Hz during silence
-// (~2 Hz during voiced) over the Connect bidi transport. The mic-button ring
+// (~2 Hz during voiced) over the browser stream transport. The mic-button ring
 // reads this snapshot and renders a smooth
 // fill that interpolates between ticks, so the ring visibly completes at the
 // exact moment the server cuts a segment. When no tick has arrived in >250 ms

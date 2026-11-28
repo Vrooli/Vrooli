@@ -30,6 +30,10 @@ func requestFromFlag[T proto.Message](ctx cliapp.OperationContext, message T) (T
 	if payload == "" {
 		payload = `{}`
 	}
+	return decodeRequestPayload(payload, message)
+}
+
+func decodeRequestPayload[T proto.Message](payload string, message T) (T, error) {
 	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal([]byte(payload), message); err != nil {
 		return message, fmt.Errorf("decode --json: %w", err)
 	}
@@ -232,6 +236,18 @@ func (h *handlers) getDocumentCall(ctx cliapp.OperationContext) (*v1.GetDocument
 	return responseMessage(response)
 }
 
+func (h *handlers) exportBookSourceCall(ctx cliapp.OperationContext) (*v1.ExportBookSourceResponse, error) {
+	id := strings.TrimSpace(ctx.Flag("id"))
+	if id == "" {
+		return nil, fmt.Errorf("--id is required; run 'prose-studio prose document-list' to find one")
+	}
+	response, err := h.client.ExportBookSource(context.Background(), connect.NewRequest(&v1.ExportBookSourceRequest{Id: id}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("prose ExportBookSource", err, nil)
+	}
+	return responseMessage(response)
+}
+
 // maxListLimit mirrors the server's listing ceiling so the CLI rejects an
 // out-of-range value with a clear message instead of sending one the server
 // will silently clamp.
@@ -323,10 +339,17 @@ func documentShowReport(ctx cliapp.OperationContext, message *v1.GetDocumentResp
 	}
 
 	var results []string
+	if brief := doc.GetBookBrief(); brief != nil {
+		results = append(results, bookBriefReportLines(brief)...)
+	}
 	if outline := doc.GetOutline(); len(outline) > 0 {
 		results = append(results, "Outline")
 		for i, section := range outline {
-			results = append(results, fmt.Sprintf("  %d. %s  [%dw]", i+1, section.GetIntent(), section.GetTargetWords()))
+			kind := section.GetKind()
+			if kind == "" {
+				kind = "chapter"
+			}
+			results = append(results, fmt.Sprintf("  %d. [%s] %s  [%dw]", i+1, kind, section.GetIntent(), section.GetTargetWords()))
 		}
 		results = append(results, "")
 	}
@@ -337,7 +360,11 @@ func documentShowReport(ctx cliapp.OperationContext, message *v1.GetDocumentResp
 		}
 		results = append(results, "")
 	}
-	results = append(results, "Article", "")
+	if doc.GetBookBrief() != nil {
+		results = append(results, "Manuscript source", "")
+	} else {
+		results = append(results, "Article", "")
+	}
 	results = append(results, body)
 	return cliapp.ListReport{
 		Summary:        summary,
@@ -345,6 +372,37 @@ func documentShowReport(ctx cliapp.OperationContext, message *v1.GetDocumentResp
 		Results:        results,
 		RetrievalHints: []string{"Print the prose alone with --text-only."},
 	}
+}
+
+func bookBriefReportLines(brief *v1.BookBrief) []string {
+	if brief == nil {
+		return nil
+	}
+	lines := []string{"Book brief", "  title: " + brief.GetTitle(), "  creative direction: " + brief.GetCreativeDirection(), "  audience: " + brief.GetAudience(), "  reader promise: " + brief.GetReaderPromise(), "  structure: " + brief.GetStructure()}
+	for i, intent := range brief.GetFrontMatterIntent() {
+		lines = append(lines, fmt.Sprintf("  front matter intent %d: %s", i+1, intent))
+	}
+	for i, intent := range brief.GetChapterIntent() {
+		lines = append(lines, fmt.Sprintf("  chapter intent %d: %s", i+1, intent))
+	}
+	for i, intent := range brief.GetBackMatterIntent() {
+		lines = append(lines, fmt.Sprintf("  back matter intent %d: %s", i+1, intent))
+	}
+	if brief.GetAdditionalDirection() != "" {
+		lines = append(lines, "  additional direction: "+brief.GetAdditionalDirection())
+	}
+	if metadata := brief.GetProductionMetadata(); metadata != nil {
+		raw, err := (protojson.MarshalOptions{UseProtoNames: true, Indent: "    "}).Marshal(metadata)
+		if err == nil {
+			lines = append(lines, "  production metadata:")
+			for _, line := range strings.Split(string(raw), "\n") {
+				lines = append(lines, "    "+line)
+			}
+		} else {
+			lines = append(lines, "  production metadata could not be displayed: "+err.Error())
+		}
+	}
+	return append(lines, "")
 }
 
 // coherenceLines states each measure against its threshold, and says plainly

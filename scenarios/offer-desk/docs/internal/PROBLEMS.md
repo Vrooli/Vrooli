@@ -120,30 +120,67 @@ must not be silently invented or retired here.
 
 ### 2026-09-08 — persisted decision history has no read path
 
-Five tables hold countable history that nothing outside the API can read, which
-is also the five `measures.undeclared-substrate` findings holding this scenario
-at measures L1:
+Five tables in the requested operator-history inventory are not fully exposed.
+Measures Health separately scans SQL for non-singleton tables with `created_at`;
+the current heuristic detects `nodes`, `catalog_audit`, `migration_findings`,
+`proposals`, and `proposal_declines`. It does not discover every table below:
+`facts`, `triggers`, `evaluations`, and `evaluation_runs` use other timestamp
+fields or have no creation timestamp. `catalog_audit` is consumed by internal
+search and has a direct read RPC; the remaining missing reads are below.
 
 | Table | Holds | Read path |
 |---|---|---|
-| `catalog_audit` | `node_id, actor, prior_status, next_status, reason, created_at` | none |
-| `facts` | `value, observed_at, stale_after_days` | none (`gates-fact` writes only) |
-| `triggers` | `fact_name, operator, threshold, expression` | none (`gates-trigger` writes only) |
+| `catalog_audit` | `node_id, actor, prior_status, next_status, reason, created_at` | bounded `CatalogService.ListAudit`; also internal search |
+| `facts` | `value, observed_at, stale_after_days` | `GatesService.ListFacts`; `gates-facts` (read-time freshness result) |
+| `triggers` | `fact_name, operator, threshold, expression` | `GatesService.ListTriggers`; `gates-triggers` |
 | `migration_findings` | import reconciliation residue | none |
 | `evaluations` | per-node verdicts | only the latest run summary, via `board-show` meta |
 
-Consequence: the questions "what did we decide about this node, when, by whom
-and why", "which facts are stale", and "which triggers are unmet" cannot be
-answered by any command, though the data exists and is correct. This is why
-`offer-desk.setpoint-read` reports `promotion-latency` as `pending_telemetry`:
-the latency is derivable from `proposals.created_at` and `catalog_audit`, but
-neither is readable.
+Consequence: the question "what did we decide about this node, when, by whom
+and why" now has a bounded command. `gates-facts` computes `FRESH`, `STALE`, or
+`UNKNOWN` at response time from `observed_at` plus `stale_after_days`, and stamps
+the response with `evaluated_at`; malformed observation time is unknown. The
+expiry comparison matches trigger evaluation: exactly at expiry is still fresh,
+only `now > observed_at + stale_after_days` is stale. `gates-triggers` exposes
+declared conditions; `gates-evaluate` remains the operation that produces
+candidate verdicts. `offer-desk.setpoint-read` reports
+`promotion-latency` as `pending_telemetry`: the raw timestamps can be read
+through separate proposal and audit surfaces, but no owned measure computes
+the latency yet.
 
-Wanted, in dependency order: a `catalog-audit` read (with its governed binding),
-then `gates-facts` and `gates-triggers` reads, then measures declared over all
-five tables. Once `catalog_audit` is readable, `offer-desk.board-read` should
-derive changes from the audit log instead of a caller-supplied baseline
-snapshot, which removes caller state entirely.
+**Partially addressed 2026-11-24:** `catalog_audit` now has the governed,
+read-only `CatalogService.ListAudit` and `offer-desk offers catalog-audit`
+surface. It returns typed, newest-first records, filters by node, defaults to
+100 rows, caps requests at 500, and marks truncated results. Owner API tests
+exercise persisted audit rows, ordering, filtering, field mapping, and limit
+refusal; CLI tests cover human-readable fields and truncation. This makes the
+decision-history question answerable but does not provide a measure binding.
+
+Implemented 2026-11-24: governed `gates-facts` and `gates-triggers` read commands
+return the stored rows and all fields needed to interpret them. The reads are
+not paginated; this matches the current bounded-domain expectation for these
+small gate tables but has no explicit owner cardinality contract. Add a bound if
+the owner establishes one.
+
+Freshness was added to `gates-facts` 2026-11-24 using the same strict-after
+boundary and injected clock as the evaluator. It remains a derived read result,
+not persisted history.
+
+Still wanted: a measure or explicit waiver for each table found by the static
+substrate scan. The current manifest has one `offers` measure over `ListNodes`,
+but it does not define count/window semantics for audit records, unresolved
+import findings, proposals, or proposal declines. The Offer Desk catalog owner
+must choose, for each table, whether the measure means current retained rows or
+a time-windowed count, name its analytical question/result, and either expose a
+complete read/aggregate or waive the table with a reason. The read routes alone
+do not prove those measures. Also wanted is an owned `board-read` audit-delta contract. The current board-read program consumes a
+caller-supplied baseline snapshot; replacing that with derived changes requires
+the Offer Desk/catalog and Program Runtime owners to decide the event set
+(status changes only or all board-relevant changes), stable replay cursor and
+tie ordering, how initial/create/retire states are reconstructed, and what a
+partial or compacted history means. Keep this entry open until a measure plan
+names each query/window/retention denominator and the owners approve the
+audit-delta contract, then test complete and incomplete-history fixtures.
 
 **Owner:** offer-desk. Not a defect in the writes; a missing read surface.
 

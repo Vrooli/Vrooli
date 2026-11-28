@@ -51,10 +51,13 @@ the task, use a positive `attempt_number`, pass both timestamps as RFC3339, and 
 | Read this instrument's own condition rows | Run `program-runtime library run offer-desk.setpoint-read`. **[S3]** |
 | Read whether past attempts in this scope are comparable | Run `program-runtime library run offer-desk.learning-read`. **[S3]** |
 | Inspect one node's identity or edges | Run `offer-desk offers catalog-list` or `offer-desk offers catalog-edges`. **[S1]** |
+| Review append-only catalog decision history | Run `offer-desk offers catalog-audit`; filter with `--node-id` and use `--limit` from 1 to 500. The response is newest-first and marks truncation. **[S1]** |
 | Reconcile declared catalog sources against live records | Run `offer-desk offers catalog-verify --source-path <path>`. Slow; see Troubleshooting. **[S1]** |
 | Inspect meter vocabulary and graph conformance | Run `offer-desk offers meters`. **[S1]** |
 | Inspect the monetization obligation cells | Run `offer-desk offers space`. **[S1]** |
 | Record an observed fact against a trigger | Run `offer-desk offers gates-fact --name <n> --value <v> --stale-after-days <d>`. **[S1]** |
+| Inspect all recorded facts and their current freshness | Run `offer-desk offers gates-facts`; freshness is evaluated at the server's `evaluated_at` using the same strict-after threshold as trigger evaluation. Invalid observation times are `UNKNOWN`. **[S1]** |
+| Inspect declared trigger clauses and composition | Run `offer-desk offers gates-triggers`; run `gates-evaluate` when you need candidate verdicts. **[S1]** |
 | Evaluate candidate triggers after facts change | Run `offer-desk offers gates-evaluate`. Takes no flags. **[S1]** |
 | Propose a promotion the operator will decide | Run `offer-desk offers gates-promote --node-id <id> --actor <id> --role <role>`. **[S1]** |
 | Make a node's earnings readable | Run `offer-desk offers catalog-map-account --node-id <id> --actor <id> --reason <why>`; `--account-id` is optional. **[S1]** |
@@ -141,12 +144,15 @@ retrieval alone is not evidence that advice was applied.
 
 ### What this scenario cannot answer yet
 
-Four questions have no command behind them, so do not hunt for one: *what did we decide about
-this node and why*, *which facts are stale*, *which triggers are unmet*, and *how long has
-this waited*. The data exists and is correct — `catalog_audit`, `facts` and `triggers` are
-written faithfully and read by nothing. Report the limit and move on; the register and the
-wanted read surface are in `scenarios/offer-desk/docs/internal/PROBLEMS.md`, and the repair is
-routed by `prompt-manager skill read offer-desk-improve` §5.
+`catalog-audit` answers what audited catalog changes were recorded for a node, by whom,
+when, and with what reason. `gates-facts` computes a read-time freshness result from the
+stored observation timestamp and stale window; the result is stamped with `evaluated_at`
+and is not written back. `gates-triggers` reads declared clauses, not evaluation verdicts;
+run `gates-evaluate` for candidate results. Historical evaluation reads, measures over
+the remaining persisted tables, and wait-duration telemetry still have no complete owner
+surface. Report those limits and route through
+`scenarios/offer-desk/docs/internal/PROBLEMS.md` and `prompt-manager skill read
+offer-desk-improve` §5.
 
 If you hit a *fifth* such question, that observation is the valuable output of your run. It
 costs one typed entry and requires no decision (report it as friction, per

@@ -281,31 +281,11 @@ and pushes through the minimal `Toaster` primitive in
 `/status#<capability>`; `CapabilityRow` carries a matching DOM `id`
 so the anchor scrolls to the affected row.
 
-REST is allowed only for four enumerated reasons, defined as
-`RESTReason` constants in `api/internal/module/module.go`:
-
-| Reason | When it applies |
-|---|---|
-| `RESTReasonMultipartUpload` | Opaque file bytes via `multipart/form-data`. The notes attachments endpoint is the worked example. |
-| `RESTReasonWebhookReceiver` | Endpoint shape is dictated by a third-party system (Stripe, GitHub, etc.) we do not own. |
-| `RESTReasonThirdPartyShape` | Request or response is an externally-defined contract (OAuth callbacks, OpenAPI passthrough). |
-| `RESTReasonOpsProbe` | Lifecycle systems, load balancers, and `curl` must reach the endpoint without a generated client (plain `GET /health`, static iframe-facing HTML wrappers). |
-
-Mechanical enforcement: `cmd/gen-endpoints` rejects any
-`EndpointDescriptor.Path` that is not a generated Connect procedure
-constant (i.e. does not start with `/vrooli.`) unless the descriptor
-carries a `RESTException` with one of the four reasons. A REST
-endpoint without that tag fails `make endpoints`, which fails
-`make test`, which fails CI. The fix is either to author a proto
-service method (the preferred path) or to tag the exception
-explicitly. There is no "internal endpoint, REST is fine" path —
-that rationalization is exactly what the validation pass prevents.
-
-Note: even for REST exceptions, the **payload shape** stays
-proto-typed wherever possible. The notes attachments handler returns
-the proto `UploadAttachmentResponse` message; only the request
-transport is multipart. Drift between API/UI/CLI is eliminated as
-long as the wire payload type is shared.
+Proto-backed API contracts use generated Connect-RPC. The actual Audio Tools
+transport classifications and exception cases live in the
+[`INVARIANTS.md`](../internal/INVARIANTS.md) owner guide; endpoint descriptor
+and manifest generation live in [`SEAMS.md`](../internal/SEAMS.md). This
+architecture map stays focused on surface boundaries.
 
 ## Shared Infrastructure
 

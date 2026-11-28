@@ -89,7 +89,7 @@
       "layout": "dir",
       "entry_path": "runtime/bin/python",
       "sha256_by_platform": {
-        "linux-amd64": "c66384203a0dd4d59a95e8fe026de3b56e070f61d0c470e7dc54707903a625f1"
+        "linux-amd64": "707cd2f2b4a80c651c101789d18cdbd6e375b881377fca2844bed9566f260c7f"
       },
       "bundle_artifact": "kyutai-stt_${os}_${arch}"
     },
@@ -106,7 +106,7 @@
             "arch": "amd64"
           },
           "layout": "dir",
-          "artifact_sha256": "c66384203a0dd4d59a95e8fe026de3b56e070f61d0c470e7dc54707903a625f1",
+          "artifact_sha256": "707cd2f2b4a80c651c101789d18cdbd6e375b881377fca2844bed9566f260c7f",
           "compose": [
             {
               "role": "runtime",

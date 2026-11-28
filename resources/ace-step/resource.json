@@ -31,8 +31,8 @@
           ]
         },
         "reacquisition": {
-          "command": "vrooli resource acquisition model-cache ace-step",
-          "evidence": "resource.json#/managed_service/data_artifacts (pinned URLs and SHA-256 hashes; closure hash is asserted by resources/ace-step/cli/main_test.go::TestPinnedModelInputsHaveOneExecutableCodeAuthority)"
+          "command": "vrooli resource start ace-step",
+          "evidence": "resource.json#/managed_service/data_artifacts pins downloaded files; start also materializes the exact support files from the verified runtime"
         }
       },
       "outputs": {

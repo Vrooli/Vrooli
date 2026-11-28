@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FakeVoiceTransport as FakeWebSocket, type FakeVoiceConnection, stubCryptoWithoutSubtle } from "./fakeVoiceTransport.test";
+import { FakeVoiceTransport as FakeWebSocket, type FakeVoiceConnection, stubCryptoWithoutSubtle } from "./fakeVoiceTransport";
 import { forgetUnfinishedSession, loadUnfinishedSession } from "./sessionIdentity";
 import { MemoryTurnJournalStore, TurnJournal, type JournalRecord } from "./turnJournal";
 import { fallbackDelayMs, PcmVoiceStreamProvider } from "./pcmVoiceStreamProvider";

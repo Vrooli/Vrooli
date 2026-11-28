@@ -173,19 +173,6 @@ func TestNormalize_MarkdownEmphasis(t *testing.T) {
 // Links and images
 // ---------------------------------------------------------------------------
 
-func TestNormalize_Link(t *testing.T) {
-	got := NormalizeTextForSpeech("See [the docs](https://example.com/docs) for more.")
-	if !strings.Contains(got, "the docs") {
-		t.Error("link text should be preserved")
-	}
-	if strings.Contains(got, "https://") {
-		t.Error("URL should be removed")
-	}
-	if strings.Contains(got, "[") || strings.Contains(got, "]") {
-		t.Error("bracket characters should be removed")
-	}
-}
-
 func TestNormalize_ImageDescriptions(t *testing.T) {
 	tests := []struct {
 		name, input, want string
@@ -206,141 +193,37 @@ func TestNormalize_ImageDescriptions(t *testing.T) {
 // Horizontal rules
 // ---------------------------------------------------------------------------
 
-func TestNormalize_HorizontalRule(t *testing.T) {
-	input := "Above\n\n---\n\nBelow"
-	got := NormalizeTextForSpeech(input)
-	if strings.Contains(got, "---") {
-		t.Error("horizontal rule should be removed")
+func TestNormalize_MarkdownContainers(t *testing.T) {
+	tests := []struct {
+		name, input string
+		want, avoid []string
+	}{
+		{"link text", "See [the docs](https://example.com/docs) for more.", []string{"the docs"}, []string{"https://", "[", "]"}},
+		{"horizontal rule", "Above\n\n---\n\nBelow", []string{"Above", "Below"}, []string{"---"}},
+		{"HTML tags", "Line one.<br>Line two.<hr/>Done.", []string{"Line one.", "Done."}, []string{"<br>", "<hr/>"}},
+		{"blockquote", "> This is a quote.\n> Second line.", []string{"This is a quote."}, []string{">"}},
+		{"unordered list markers", "- First item\n- Second item\n* Third item", []string{"First item.", "Third item."}, []string{"- First", "* Third"}},
+		{"unordered punctuation", "- Already has a period.\n- Has exclamation!\n- Has question?\n- Has colon:\n- No punctuation", []string{"No punctuation."}, []string{"period..", "exclamation!.", "question?.", "colon:."}},
+		{"indented unordered items", "- Top level\n  - Indented item\n    - Deep item", []string{"Top level.", "Indented item.", "Deep item."}, nil},
+		{"plus list markers", "+ Item one\n+ Item two", []string{"Item one.", "Item two."}, []string{"+"}},
+		{"ordered items", "1. Alpha\n2. Beta\n3. Gamma", []string{"1. Alpha.", "2. Beta.", "3. Gamma."}, nil},
+		{"ordered punctuation", "1. Already done.\n2. Also done!\n3. Really?\n4. No punctuation", []string{"4. No punctuation."}, []string{"done..", "done!."}},
+		{"ordered numbering", "1. First step\n2. Second step\n3. Third step", []string{"1.", "2.", "3."}, nil},
 	}
-	if !strings.Contains(got, "Above") || !strings.Contains(got, "Below") {
-		t.Error("surrounding text should be preserved")
-	}
-}
-
-// ---------------------------------------------------------------------------
-// HTML tags
-// ---------------------------------------------------------------------------
-
-func TestNormalize_HTMLTags(t *testing.T) {
-	input := "Line one.<br>Line two.<hr/>Done."
-	got := NormalizeTextForSpeech(input)
-	if strings.Contains(got, "<br>") || strings.Contains(got, "<hr/>") {
-		t.Error("HTML tags should be removed")
-	}
-	if !strings.Contains(got, "Line one.") || !strings.Contains(got, "Done.") {
-		t.Error("surrounding text should be preserved")
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Blockquotes
-// ---------------------------------------------------------------------------
-
-func TestNormalize_Blockquote(t *testing.T) {
-	input := "> This is a quote.\n> Second line."
-	got := NormalizeTextForSpeech(input)
-	if strings.Contains(got, ">") {
-		t.Error("blockquote markers should be removed")
-	}
-	if !strings.Contains(got, "This is a quote.") {
-		t.Error("blockquote content should be preserved")
-	}
-}
-
-// ---------------------------------------------------------------------------
-// List markers
-// ---------------------------------------------------------------------------
-
-func TestNormalize_UnorderedList(t *testing.T) {
-	input := "- First item\n- Second item\n* Third item"
-	got := NormalizeTextForSpeech(input)
-	if strings.Contains(got, "- First") || strings.Contains(got, "* Third") {
-		t.Errorf("list markers should be removed, got:\n%s", got)
-	}
-	if !strings.Contains(got, "First item.") || !strings.Contains(got, "Third item.") {
-		t.Errorf("list items should have periods appended, got:\n%s", got)
-	}
-}
-
-func TestNormalize_UnorderedList_ExistingPunctuation(t *testing.T) {
-	input := "- Already has a period.\n- Has exclamation!\n- Has question?\n- Has colon:\n- No punctuation"
-	got := NormalizeTextForSpeech(input)
-	if strings.Contains(got, "period..") {
-		t.Errorf("should not double-up periods, got:\n%s", got)
-	}
-	if strings.Contains(got, "exclamation!.") {
-		t.Errorf("should not add period after !, got:\n%s", got)
-	}
-	if strings.Contains(got, "question?.") {
-		t.Errorf("should not add period after ?, got:\n%s", got)
-	}
-	if strings.Contains(got, "colon:.") {
-		t.Errorf("should not add period after :, got:\n%s", got)
-	}
-	if !strings.Contains(got, "No punctuation.") {
-		t.Errorf("should add period when missing, got:\n%s", got)
-	}
-}
-
-func TestNormalize_UnorderedList_IndentedItems(t *testing.T) {
-	input := "- Top level\n  - Indented item\n    - Deep item"
-	got := NormalizeTextForSpeech(input)
-	if !strings.Contains(got, "Top level.") {
-		t.Errorf("top-level item should get period, got:\n%s", got)
-	}
-	if !strings.Contains(got, "Indented item.") {
-		t.Errorf("indented item should get period, got:\n%s", got)
-	}
-	if !strings.Contains(got, "Deep item.") {
-		t.Errorf("deeply indented item should get period, got:\n%s", got)
-	}
-}
-
-func TestNormalize_UnorderedList_PlusMarker(t *testing.T) {
-	input := "+ Item one\n+ Item two"
-	got := NormalizeTextForSpeech(input)
-	if strings.Contains(got, "+") {
-		t.Errorf("+ markers should be removed, got:\n%s", got)
-	}
-	if !strings.Contains(got, "Item one.") || !strings.Contains(got, "Item two.") {
-		t.Errorf("items should have periods, got:\n%s", got)
-	}
-}
-
-func TestNormalize_OrderedList(t *testing.T) {
-	input := "1. Alpha\n2. Beta\n3. Gamma"
-	got := NormalizeTextForSpeech(input)
-	if !strings.Contains(got, "1. Alpha.") {
-		t.Errorf("expected '1. Alpha.', got:\n%s", got)
-	}
-	if !strings.Contains(got, "2. Beta.") {
-		t.Errorf("expected '2. Beta.', got:\n%s", got)
-	}
-	if !strings.Contains(got, "3. Gamma.") {
-		t.Errorf("expected '3. Gamma.', got:\n%s", got)
-	}
-}
-
-func TestNormalize_OrderedList_ExistingPunctuation(t *testing.T) {
-	input := "1. Already done.\n2. Also done!\n3. Really?\n4. No punctuation"
-	got := NormalizeTextForSpeech(input)
-	if strings.Contains(got, "done..") {
-		t.Errorf("should not double-up periods, got:\n%s", got)
-	}
-	if strings.Contains(got, "done!.") {
-		t.Errorf("should not add period after !, got:\n%s", got)
-	}
-	if !strings.Contains(got, "4. No punctuation.") {
-		t.Errorf("should add period when missing, got:\n%s", got)
-	}
-}
-
-func TestNormalize_OrderedList_PreservesNumbers(t *testing.T) {
-	input := "1. First step\n2. Second step\n3. Third step"
-	got := NormalizeTextForSpeech(input)
-	// Numbers should be preserved for natural reading
-	if !strings.Contains(got, "1.") || !strings.Contains(got, "2.") || !strings.Contains(got, "3.") {
-		t.Errorf("ordered list numbers should be preserved, got:\n%s", got)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := NormalizeTextForSpeech(tc.input)
+			for _, text := range tc.want {
+				if !strings.Contains(got, text) {
+					t.Errorf("missing %q in:\n%s", text, got)
+				}
+			}
+			for _, text := range tc.avoid {
+				if strings.Contains(got, text) {
+					t.Errorf("unexpected %q in:\n%s", text, got)
+				}
+			}
+		})
 	}
 }
 
@@ -468,473 +351,128 @@ func TestNormalize_PlainText(t *testing.T) {
 
 // --- diagramLineScore unit tests ---
 
-func TestDiagramLineScore_EmptyLine(t *testing.T) {
-	if s := diagramLineScore(""); s != 0 {
-		t.Errorf("empty line should score 0, got %.2f", s)
-	}
-	if s := diagramLineScore("   "); s != 0 {
-		t.Errorf("whitespace-only line should score 0, got %.2f", s)
-	}
-}
-
-func TestDiagramLineScore_PlainProse(t *testing.T) {
-	lines := []string{
-		"This is just a regular sentence.",
-		"The quick brown fox jumps over the lazy dog.",
-		"Here are some numbers: 42, 100, 256.",
-	}
-	for _, line := range lines {
-		s := diagramLineScore(line)
-		if s >= diagramScoreThreshold {
-			t.Errorf("prose line should score below threshold, got %.2f for %q", s, line)
-		}
-	}
-}
-
-func TestDiagramLineScore_UnicodeBoxDrawing(t *testing.T) {
+func TestDiagramLineScore(t *testing.T) {
 	tests := []struct {
 		name string
 		line string
+		min  float64
+		max  float64
 	}{
-		{"top edge", "┌─────────────────┐"},
-		{"bottom edge", "└────────┴────────┘"},
-		{"divider", "├────────┬────────┤"},
-		{"content row", "│ Sidebar│Content │"},
+		{"empty", "", 0, 0}, {"whitespace", "   ", 0, 0},
+		{"plain prose", "This is just a regular sentence.", 0, diagramScoreThreshold},
+		{"plain sentence", "The quick brown fox jumps over the lazy dog.", 0, diagramScoreThreshold},
+		{"numbers in prose", "Here are some numbers: 42, 100, 256.", 0, diagramScoreThreshold},
+		{"unicode top edge", "┌─────────────────┐", diagramScoreThreshold, 2},
+		{"unicode bottom edge", "└────────┴────────┘", diagramScoreThreshold, 2},
+		{"unicode divider", "├────────┬────────┤", diagramScoreThreshold, 2},
+		{"unicode content row", "│ Sidebar│Content │", diagramScoreThreshold, 2},
+		{"ASCII box", "+-------------------+", .9, 2}, {"ASCII equals", "+===+===+===+", .9, 2}, {"ASCII short", "+--+--+", .9, 2},
+		{"tree source", "├── src/", diagramScoreThreshold, 2}, {"tree components", "│   ├── components/", diagramScoreThreshold, 2},
+		{"tree leaf", "│   │   └── Button.tsx", diagramScoreThreshold, 2}, {"tree root", "└── package.json", diagramScoreThreshold, 2},
+		{"graph TD", "graph TD", .9, 2}, {"graph LR", "graph LR", .9, 2}, {"flowchart", "flowchart LR", .9, 2},
+		{"sequence", "sequenceDiagram", .9, 2}, {"class", "classDiagram", .9, 2}, {"state", "stateDiagram", .9, 2},
+		{"ER", "erDiagram", .9, 2}, {"gantt", "gantt", .9, 2}, {"pie", "pie", .9, 2}, {"gitgraph", "gitgraph", .9, 2}, {"journey", "journey", .9, 2},
+		{"arrow chain", "A --> B --> C", diagramScoreThreshold, 2}, {"double arrow", "Start ==> Middle ==> End", diagramScoreThreshold, 2}, {"plain arrow", "Input -> Process -> Output", diagramScoreThreshold, 2},
+		{"pipe sidebar", "|  Sidebar | Content|", diagramScoreThreshold, 2}, {"pipe blank", "|          |        |", diagramScoreThreshold, 2}, {"pipe header", "| Header              |", diagramScoreThreshold, 2},
+		{"mermaid node", "    A[Start] --> B{Decision}", diagramScoreThreshold, 2}, {"mermaid label", "    B -->|Yes| C[Action]", diagramScoreThreshold, 2}, {"mermaid client", "    Client[Browser] -> Server[API]", diagramScoreThreshold, 2},
+		{"structural box", "+----------+--------+", diagramScoreThreshold, 2}, {"structural rule", "==========", diagramScoreThreshold, 2}, {"structural arrow", "<-------->", diagramScoreThreshold, 2},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			s := diagramLineScore(tc.line)
-			if s < diagramScoreThreshold {
-				t.Errorf("box-drawing line should score high, got %.2f for %q", s, tc.line)
+			got := diagramLineScore(tc.line)
+			if (tc.max == 0 && got != 0) || (tc.max > 0 && (got < tc.min || got >= tc.max)) {
+				t.Errorf("diagramLineScore(%q) = %.2f, want in [%.2f, %.2f)", tc.line, got, tc.min, tc.max)
 			}
 		})
-	}
-}
-
-func TestDiagramLineScore_ASCIIBoxJunctions(t *testing.T) {
-	tests := []string{
-		"+-------------------+",
-		"+===+===+===+",
-		"+--+--+",
-	}
-	for _, line := range tests {
-		s := diagramLineScore(line)
-		if s < 0.9 {
-			t.Errorf("ASCII box junction should score >= 0.9, got %.2f for %q", s, line)
-		}
-	}
-}
-
-func TestDiagramLineScore_TreeConnectors(t *testing.T) {
-	tests := []string{
-		"├── src/",
-		"│   ├── components/",
-		"│   │   └── Button.tsx",
-		"└── package.json",
-	}
-	for _, line := range tests {
-		s := diagramLineScore(line)
-		if s < diagramScoreThreshold {
-			t.Errorf("tree connector line should score high, got %.2f for %q", s, line)
-		}
-	}
-}
-
-func TestDiagramLineScore_MermaidKeywords(t *testing.T) {
-	tests := []string{
-		"graph TD",
-		"graph LR",
-		"flowchart LR",
-		"sequenceDiagram",
-		"classDiagram",
-		"stateDiagram",
-		"erDiagram",
-		"gantt",
-		"pie",
-		"gitgraph",
-		"journey",
-	}
-	for _, line := range tests {
-		s := diagramLineScore(line)
-		if s < 0.9 {
-			t.Errorf("mermaid keyword should score >= 0.9, got %.2f for %q", s, line)
-		}
-	}
-}
-
-func TestDiagramLineScore_ArrowPatterns(t *testing.T) {
-	tests := []struct {
-		line    string
-		minReqs float64
-	}{
-		{"A --> B --> C", diagramScoreThreshold},
-		{"Start ==> Middle ==> End", diagramScoreThreshold},
-		{"Input -> Process -> Output", diagramScoreThreshold},
-	}
-	for _, tc := range tests {
-		s := diagramLineScore(tc.line)
-		if s < tc.minReqs {
-			t.Errorf("arrow line should score >= %.2f, got %.2f for %q", tc.minReqs, s, tc.line)
-		}
-	}
-}
-
-func TestDiagramLineScore_PipeBorderedLine(t *testing.T) {
-	// After table normalization, remaining pipe-bordered lines are wireframe content.
-	tests := []string{
-		"|  Sidebar | Content|",
-		"|          |        |",
-		"| Header              |",
-	}
-	for _, line := range tests {
-		s := diagramLineScore(line)
-		if s < diagramScoreThreshold {
-			t.Errorf("pipe-bordered line should score above threshold, got %.2f for %q", s, line)
-		}
-	}
-}
-
-func TestDiagramLineScore_MermaidBodyLine(t *testing.T) {
-	tests := []string{
-		"    A[Start] --> B{Decision}",
-		"    B -->|Yes| C[Action]",
-		"    Client[Browser] -> Server[API]",
-	}
-	for _, line := range tests {
-		s := diagramLineScore(line)
-		if s < diagramScoreThreshold {
-			t.Errorf("mermaid body line should score above threshold, got %.2f for %q", s, line)
-		}
-	}
-}
-
-func TestDiagramLineScore_HighStructuralRatio(t *testing.T) {
-	tests := []string{
-		"+----------+--------+",
-		"==========",
-		"<-------->",
-	}
-	for _, line := range tests {
-		s := diagramLineScore(line)
-		if s < diagramScoreThreshold {
-			t.Errorf("high-structural line should score above threshold, got %.2f for %q", s, line)
-		}
 	}
 }
 
 // --- replaceUnfencedDiagrams unit tests ---
 
-func TestReplaceDiagrams_UnicodeBoxWireframe(t *testing.T) {
-	input := "Here's the layout:\n\n" +
-		"┌─────────────────┐\n" +
-		"│     Header      │\n" +
-		"├────────┬────────┤\n" +
-		"│ Sidebar│Content │\n" +
-		"└────────┴────────┘\n\n" +
-		"That's the wireframe."
-
-	got := replaceUnfencedDiagrams(input)
-
-	if strings.Contains(got, "┌") || strings.Contains(got, "│") || strings.Contains(got, "└") {
-		t.Errorf("box-drawing characters should be removed, got:\n%s", got)
-	}
-	if !strings.Contains(got, "Wireframe diagram.") {
-		t.Errorf("expected 'Wireframe diagram.', got:\n%s", got)
-	}
-	if !strings.Contains(got, "Here's the layout:") || !strings.Contains(got, "That's the wireframe.") {
-		t.Error("surrounding prose should be preserved")
-	}
-}
-
-func TestReplaceDiagrams_ASCIIBoxWireframe(t *testing.T) {
-	input := "The page layout:\n\n" +
-		"+-------------------+\n" +
-		"|     Header        |\n" +
-		"+-------------------+\n" +
-		"|  Sidebar | Content|\n" +
-		"|          |        |\n" +
-		"+-------------------+\n\n" +
-		"End of wireframe."
-
-	got := replaceUnfencedDiagrams(input)
-
-	if strings.Contains(got, "+---") {
-		t.Errorf("ASCII box should be removed, got:\n%s", got)
-	}
-	if !strings.Contains(got, "Wireframe diagram.") {
-		t.Errorf("expected 'Wireframe diagram.', got:\n%s", got)
-	}
-	if !strings.Contains(got, "The page layout:") || !strings.Contains(got, "End of wireframe.") {
-		t.Error("surrounding prose should be preserved")
-	}
-}
-
-func TestReplaceDiagrams_FileTree(t *testing.T) {
-	input := "Project structure:\n\n" +
-		"├── src/\n" +
-		"│   ├── components/\n" +
-		"│   │   ├── Button.tsx\n" +
-		"│   │   └── Header.tsx\n" +
-		"│   └── utils/\n" +
-		"└── package.json\n\n" +
-		"That's the tree."
-
-	got := replaceUnfencedDiagrams(input)
-
-	if strings.Contains(got, "├") || strings.Contains(got, "└") {
-		t.Errorf("tree connectors should be removed, got:\n%s", got)
-	}
-	if !strings.Contains(got, "File tree with 6 entries.") {
-		t.Errorf("expected file tree summary with 6 entries, got:\n%s", got)
-	}
-	if !strings.Contains(got, "Project structure:") || !strings.Contains(got, "That's the tree.") {
-		t.Error("surrounding prose should be preserved")
-	}
-}
-
-func TestReplaceDiagrams_MermaidFlowchart(t *testing.T) {
-	input := "Here is the flow:\n\n" +
-		"graph TD\n" +
-		"    A[Start] --> B{Decision}\n" +
-		"    B -->|Yes| C[Action]\n" +
-		"    B -->|No| D[End]\n\n" +
-		"That's the diagram."
-
-	got := replaceUnfencedDiagrams(input)
-
-	if strings.Contains(got, "graph TD") || strings.Contains(got, "-->") {
-		t.Errorf("mermaid content should be removed, got:\n%s", got)
-	}
-	if !strings.Contains(got, "Diagram: graph with") {
-		t.Errorf("expected mermaid graph summary, got:\n%s", got)
-	}
-	if !strings.Contains(got, "Here is the flow:") || !strings.Contains(got, "That's the diagram.") {
-		t.Error("surrounding prose should be preserved")
-	}
-}
-
-func TestReplaceDiagrams_MermaidSequenceDiagram(t *testing.T) {
-	input := "sequenceDiagram\n" +
-		"    Alice->>John: Hello John\n" +
-		"    John-->>Alice: Hi Alice\n" +
-		"    Alice->>John: How are you?\n"
-
-	got := replaceUnfencedDiagrams(input)
-
-	if !strings.Contains(got, "Diagram: sequence diagram with") {
-		t.Errorf("expected sequence diagram summary, got:\n%s", got)
-	}
-	if strings.Contains(got, "Alice->>John") {
-		t.Error("mermaid content should be removed")
-	}
-}
-
-func TestReplaceDiagrams_FlowDiagramWithArrows(t *testing.T) {
-	input := "The data flow:\n\n" +
-		"Request --> Router --> Handler\n" +
-		"Handler --> Service --> DB\n" +
-		"DB --> Service --> Handler\n" +
-		"Handler --> Response\n\n" +
-		"That's the flow."
-
-	got := replaceUnfencedDiagrams(input)
-
-	if strings.Contains(got, "-->") {
-		t.Errorf("arrows should be removed, got:\n%s", got)
-	}
-	if !strings.Contains(got, "Flow diagram with") || !strings.Contains(got, "lines.") {
-		t.Errorf("expected flow diagram summary, got:\n%s", got)
-	}
-}
-
-func TestReplaceDiagrams_TwoLineRunIgnored(t *testing.T) {
-	// Only 2 lines — below the minDiagramRunLength threshold.
-	input := "┌──────┐\n└──────┘"
-	got := replaceUnfencedDiagrams(input)
-	if got != input {
-		t.Errorf("2-line diagram should be left alone, got:\n%s", got)
-	}
-}
-
-func TestReplaceDiagrams_NoFalsePositiveOnProse(t *testing.T) {
-	input := "The user said \"use A -> B notation\" in the discussion.\n" +
-		"We agreed that this was the right approach.\n" +
-		"The team will implement it next sprint."
-
-	got := replaceUnfencedDiagrams(input)
-	if got != input {
-		t.Errorf("prose with isolated arrow should not be modified, got:\n%s", got)
-	}
-}
-
-func TestReplaceDiagrams_NoFalsePositiveOnMarkdownTable(t *testing.T) {
-	// In the real pipeline, tables are replaced before diagram detection runs.
-	// But replaceUnfencedDiagrams itself may see pipe-bordered lines.
-	// Test through the full NormalizeTextForSpeech pipeline instead.
-	input := "| Name | Age | City |\n| --- | --- | --- |\n| Alice | 30 | NYC |\n| Bob | 25 | LA |"
-
-	got := NormalizeTextForSpeech(input)
-	// Should be handled as table, not diagram.
-	if strings.Contains(got, "Diagram") || strings.Contains(got, "Wireframe") {
-		t.Errorf("markdown table should not be treated as diagram, got:\n%s", got)
-	}
-	if !strings.Contains(got, "Table with") {
-		t.Errorf("should be handled as table, got:\n%s", got)
-	}
-}
-
-func TestReplaceDiagrams_MultipleDiagramRegions(t *testing.T) {
-	input := "First:\n\n" +
-		"┌───┐\n│ A │\n└───┘\n\n" +
-		"Middle prose.\n\n" +
-		"├── file1.go\n│   └── nested.go\n└── file2.go\n\n" +
-		"Done."
-
-	got := replaceUnfencedDiagrams(input)
-
-	if !strings.Contains(got, "Wireframe diagram.") {
-		t.Errorf("expected wireframe summary, got:\n%s", got)
-	}
-	if !strings.Contains(got, "File tree with 3 entries.") {
-		t.Errorf("expected file tree summary, got:\n%s", got)
-	}
-	if !strings.Contains(got, "Middle prose.") || !strings.Contains(got, "Done.") {
-		t.Error("prose between diagrams should be preserved")
-	}
-}
-
-func TestReplaceDiagrams_BridgeLineAllowed(t *testing.T) {
-	// A single non-diagram line between diagram lines should be "bridged".
-	input := "┌───────┐\n" +
-		"│ Header│\n" +
-		"A label here\n" + // bridge line (prose, but between diagram lines)
-		"│ Body  │\n" +
-		"└───────┘"
-
-	got := replaceUnfencedDiagrams(input)
-	if !strings.Contains(got, "Wireframe diagram.") {
-		t.Errorf("diagram with 1-line bridge should still be detected, got:\n%s", got)
-	}
-}
-
-func TestReplaceDiagrams_PlainTextUnchanged(t *testing.T) {
-	input := "Just some regular text.\nNothing to see here.\nMove along."
-	got := replaceUnfencedDiagrams(input)
-	if got != input {
-		t.Errorf("plain text should be unchanged, got:\n%s", got)
-	}
-}
-
-func TestReplaceDiagrams_EmptyInput(t *testing.T) {
-	got := replaceUnfencedDiagrams("")
-	if got != "" {
-		t.Errorf("empty input should return empty, got: %q", got)
-	}
-}
-
-// --- classifyDiagramRegion unit tests ---
-
-func TestClassifyDiagramRegion_Mermaid(t *testing.T) {
+func TestReplaceDiagrams(t *testing.T) {
 	tests := []struct {
-		name   string
-		lines  []string
-		expect string
+		name, input string
+		normalize   bool
+		want        []string
+		avoid       []string
+		unchanged   bool
 	}{
-		{
-			"graph TD",
-			[]string{"graph TD", "A --> B", "B --> C"},
-			"Diagram: graph with 3 lines.",
-		},
-		{
-			"flowchart LR",
-			[]string{"flowchart LR", "Start --> End", "End --> Done"},
-			"Diagram: flowchart with 3 lines.",
-		},
-		{
-			"sequenceDiagram",
-			[]string{"sequenceDiagram", "A->>B: Hello", "B-->>A: Reply", "A->>B: Thanks"},
-			"Diagram: sequence diagram with 4 lines.",
-		},
-		{
-			"gantt",
-			[]string{"gantt", "title Schedule", "section Phase1", "Task1: done, 2024-01-01, 30d"},
-			"Diagram: gantt chart with 4 lines.",
-		},
+		{"unicode wireframe", "Here's the layout:\n\n┌─────────────────┐\n│     Header      │\n├────────┬────────┤\n│ Sidebar│Content │\n└────────┴────────┘\n\nThat's the wireframe.", false, []string{"Wireframe diagram.", "Here's the layout:", "That's the wireframe."}, []string{"┌", "│", "└"}, false},
+		{"ASCII wireframe", "The page layout:\n\n+-------------------+\n|     Header        |\n+-------------------+\n|  Sidebar | Content|\n|          |        |\n+-------------------+\n\nEnd of wireframe.", false, []string{"Wireframe diagram.", "The page layout:", "End of wireframe."}, []string{"+---"}, false},
+		{"file tree", "Project structure:\n\n├── src/\n│   ├── components/\n│   │   ├── Button.tsx\n│   │   └── Header.tsx\n│   └── utils/\n└── package.json\n\nThat's the tree.", false, []string{"File tree with 6 entries.", "Project structure:", "That's the tree."}, []string{"├", "└"}, false},
+		{"mermaid flowchart", "Here is the flow:\n\ngraph TD\n    A[Start] --> B{Decision}\n    B -->|Yes| C[Action]\n    B -->|No| D[End]\n\nThat's the diagram.", false, []string{"Diagram: graph with", "Here is the flow:", "That's the diagram."}, []string{"graph TD", "-->"}, false},
+		{"mermaid sequence", "sequenceDiagram\n    Alice->>John: Hello John\n    John-->>Alice: Hi Alice\n    Alice->>John: How are you?\n", false, []string{"Diagram: sequence diagram with"}, []string{"Alice->>John"}, false},
+		{"arrow flow", "The data flow:\n\nRequest --> Router --> Handler\nHandler --> Service --> DB\nDB --> Service --> Handler\nHandler --> Response\n\nThat's the flow.", false, []string{"Flow diagram with", "lines."}, []string{"-->"}, false},
+		{"two-line run", "┌──────┐\n└──────┘", false, nil, nil, true},
+		{"isolated arrow prose", "The user said \"use A -> B notation\" in the discussion.\nWe agreed that this was the right approach.\nThe team will implement it next sprint.", false, nil, nil, true},
+		{"markdown table uses earlier pipeline pass", "| Name | Age | City |\n| --- | --- | --- |\n| Alice | 30 | NYC |\n| Bob | 25 | LA |", true, []string{"Table with"}, []string{"Diagram", "Wireframe"}, false},
+		{"multiple regions preserve middle prose", "First:\n\n┌───┐\n│ A │\n└───┘\n\nMiddle prose.\n\n├── file1.go\n│   └── nested.go\n└── file2.go\n\nDone.", false, []string{"Wireframe diagram.", "File tree with 3 entries.", "Middle prose.", "Done."}, nil, false},
+		{"bridge line", "┌───────┐\n│ Header│\nA label here\n│ Body  │\n└───────┘", false, []string{"Wireframe diagram."}, nil, false},
+		{"plain text", "Just some regular text.\nNothing to see here.\nMove along.", false, nil, nil, true},
+		{"empty", "", false, nil, nil, true},
+		{"diagram only", "┌───┐\n│ X │\n├───┤\n│ Y │\n└───┘", false, []string{"Wireframe diagram."}, nil, false},
+		{"mixed unicode and ASCII", "+--------+\n│ Header │\n+--------+\n│ Body   │\n+--------+", false, []string{"Wireframe diagram."}, nil, false},
+		{"unicode arrows", "Request → Router → Handler\nHandler → Service → DB\nDB → Response → Client", false, []string{"diagram"}, []string{"→"}, false},
+		{"sequence-like diagram", "Client          Server          DB\n  |--- request --->|              |\n  |                |--- query --->|\n  |                |<-- result ---|\n  |<-- response ---|              |", false, nil, []string{"--->", "<--"}, false},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := classifyDiagramRegion(tc.lines)
-			if got != tc.expect {
-				t.Errorf("classifyDiagramRegion() = %q, want %q", got, tc.expect)
+			transform := replaceUnfencedDiagrams
+			if tc.normalize {
+				transform = NormalizeTextForSpeech
+			}
+			got := transform(tc.input)
+			if tc.unchanged && got != tc.input {
+				t.Errorf("unexpected change:\n%s", got)
+			}
+			for _, text := range tc.want {
+				if !strings.Contains(got, text) {
+					t.Errorf("missing %q in:\n%s", text, got)
+				}
+			}
+			for _, text := range tc.avoid {
+				if strings.Contains(got, text) {
+					t.Errorf("unexpected %q in:\n%s", text, got)
+				}
 			}
 		})
 	}
 }
 
-func TestClassifyDiagramRegion_FileTree(t *testing.T) {
-	lines := []string{
-		"├── src/",
-		"│   ├── main.go",
-		"│   └── util.go",
-		"└── README.md",
-	}
-	got := classifyDiagramRegion(lines)
-	if got != "File tree with 4 entries." {
-		t.Errorf("got %q, want %q", got, "File tree with 4 entries.")
-	}
-}
+// --- classifyDiagramRegion unit tests ---
 
-func TestClassifyDiagramRegion_Wireframe(t *testing.T) {
-	lines := []string{
-		"┌──────────┐",
-		"│  Header  │",
-		"├──────────┤",
-		"│  Content │",
-		"└──────────┘",
+func TestClassifyDiagramRegion(t *testing.T) {
+	tests := []struct {
+		name, want, contains string
+		lines                []string
+		generic              bool
+	}{
+		{"graph TD", "Diagram: graph with 3 lines.", "", []string{"graph TD", "A --> B", "B --> C"}, false},
+		{"flowchart LR", "Diagram: flowchart with 3 lines.", "", []string{"flowchart LR", "Start --> End", "End --> Done"}, false},
+		{"sequenceDiagram", "Diagram: sequence diagram with 4 lines.", "", []string{"sequenceDiagram", "A->>B: Hello", "B-->>A: Reply", "A->>B: Thanks"}, false},
+		{"gantt", "Diagram: gantt chart with 4 lines.", "", []string{"gantt", "title Schedule", "section Phase1", "Task1: done, 2024-01-01, 30d"}, false},
+		{"file tree", "File tree with 4 entries.", "", []string{"├── src/", "│   ├── main.go", "│   └── util.go", "└── README.md"}, false},
+		{"unicode wireframe", "Wireframe diagram.", "", []string{"┌──────────┐", "│  Header  │", "├──────────┤", "│  Content │", "└──────────┘"}, false},
+		{"ASCII wireframe", "Wireframe diagram.", "", []string{"+----------+", "|  Header  |", "+----------+", "|  Content |", "+----------+"}, false},
+		{"flow diagram", "", "Flow diagram with", []string{"Input --> Process --> Output", "Output --> Cache --> Client", "Client --> Response --> Done"}, false},
+		{"generic structural diagram", "", "", []string{"==========", "||      ||", "=========="}, true},
 	}
-	got := classifyDiagramRegion(lines)
-	if got != "Wireframe diagram." {
-		t.Errorf("got %q, want %q", got, "Wireframe diagram.")
-	}
-}
-
-func TestClassifyDiagramRegion_ASCIIWireframe(t *testing.T) {
-	lines := []string{
-		"+----------+",
-		"|  Header  |",
-		"+----------+",
-		"|  Content |",
-		"+----------+",
-	}
-	got := classifyDiagramRegion(lines)
-	if got != "Wireframe diagram." {
-		t.Errorf("got %q, want %q", got, "Wireframe diagram.")
-	}
-}
-
-func TestClassifyDiagramRegion_FlowDiagram(t *testing.T) {
-	lines := []string{
-		"Input --> Process --> Output",
-		"Output --> Cache --> Client",
-		"Client --> Response --> Done",
-	}
-	got := classifyDiagramRegion(lines)
-	if !strings.Contains(got, "Flow diagram with") {
-		t.Errorf("expected flow diagram classification, got: %q", got)
-	}
-}
-
-func TestClassifyDiagramRegion_GenericDiagram(t *testing.T) {
-	// High structural content but no dominant signal.
-	lines := []string{
-		"==========",
-		"||      ||",
-		"==========",
-	}
-	got := classifyDiagramRegion(lines)
-	// Could be wireframe or generic — either is acceptable.
-	if !strings.Contains(got, "diagram") && !strings.Contains(got, "Diagram") && !strings.Contains(got, "Wireframe") {
-		t.Errorf("expected some diagram classification, got: %q", got)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := classifyDiagramRegion(tc.lines)
+			switch {
+			case tc.generic:
+				if !strings.Contains(got, "diagram") && !strings.Contains(got, "Diagram") && !strings.Contains(got, "Wireframe") {
+					t.Errorf("expected diagram classification, got %q", got)
+				}
+			case tc.contains != "":
+				if !strings.Contains(got, tc.contains) {
+					t.Errorf("classifyDiagramRegion() = %q, want %q", got, tc.contains)
+				}
+			case got != tc.want:
+				t.Errorf("classifyDiagramRegion() = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }
 

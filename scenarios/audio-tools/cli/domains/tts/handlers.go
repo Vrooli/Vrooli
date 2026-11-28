@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"
@@ -64,6 +65,24 @@ func responseFormatLabel(f commonv1.ResponseFormat) string {
 	}
 }
 
+func adapterVoiceOverride(raw string) ([]*ttsv1.AdapterMapping, error) {
+	if raw == "" {
+		return nil, nil
+	}
+	adapter, voice, _ := strings.Cut(raw, "=")
+	tier, provider, _ := strings.Cut(adapter, ":")
+	tiers := map[string]commonv1.ProviderTier{
+		"local":  commonv1.ProviderTier_PROVIDER_TIER_LOCAL,
+		"byok":   commonv1.ProviderTier_PROVIDER_TIER_BYOK,
+		"vrooli": commonv1.ProviderTier_PROVIDER_TIER_VROOLI,
+	}
+	value, ok := tiers[tier]
+	if !ok || strings.TrimSpace(provider) == "" || strings.TrimSpace(voice) == "" {
+		return nil, fmt.Errorf("--adapter-voice requires tier:provider=voice (local, byok, or vrooli)")
+	}
+	return []*ttsv1.AdapterMapping{{Tier: value, ProviderId: provider, BackendVoiceId: voice}}, nil
+}
+
 func (h *handlers) synthesizePrimitive() cliapp.PrimitiveHandler {
 	return cliapp.ProtoCustomRenderers(
 		func(ctx cliapp.OperationContext) (*ttsv1.SynthesizeResponse, error) {
@@ -80,9 +99,14 @@ func (h *handlers) synthesizePrimitive() cliapp.PrimitiveHandler {
 			if voice == "" {
 				voice = "voice.neutral.default"
 			}
+			overrides, err := adapterVoiceOverride(ctx.Flag("adapter-voice"))
+			if err != nil {
+				return nil, err
+			}
 			req := connect.NewRequest(&ttsv1.SynthesizeRequest{
 				Text:           ctx.Flag("text"),
 				Voice:          voice,
+				VoiceOverrides: overrides,
 				Speed:          speed,
 				ResponseFormat: responseFormatFromFlag(ctx.Flag("format")),
 			})

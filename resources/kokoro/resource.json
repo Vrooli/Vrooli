@@ -2,8 +2,28 @@
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "kokoro",
   "storage": {
-    "entries": {},
-    "rationale": "No additional host storage is owned by this resource on the supported lifecycle path; the explicit empty declaration prevents an implicit-storage assumption."
+    "entries": {
+      "models": {
+        "rung": "pinned",
+        "kind": "dir",
+        "class": "data",
+        "subpath": "models",
+        "regenerable": false,
+        "rationale": "The pinned model and configuration can be reacquired. Reclaim requires the managed-service owner to verify inactivity and honor pins.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Keep locally acquired models for at least 30 days after confirmed inactivity."
+        },
+        "reclaim": {
+          "pruner": "custom",
+          "command": "vrooli resource acquisition model-cache kokoro"
+        },
+        "reacquisition": {
+          "command": "vrooli resource install kokoro",
+          "evidence": "resource.json#/managed_service/data_artifacts pins the model and configuration by URL and SHA-256"
+        }
+      }
+    }
   },
   "display_name": "Kokoro",
   "description": "Managed Kokoro text-to-speech service composed from a checksum-pinned Python runtime, locked wheels, and the reviewed upstream source tree.",

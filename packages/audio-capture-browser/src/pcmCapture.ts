@@ -59,7 +59,7 @@ export function createScriptProcessorPcmCapture(
   };
 }
 
-const WORKLET_PROCESSOR = `
+const WORKLET_PROCESSOR = (processorName: string) => `
 class VrooliPcmCaptureProcessor extends AudioWorkletProcessor {
   process(inputs) {
     const input = inputs[0] && inputs[0][0];
@@ -70,7 +70,7 @@ class VrooliPcmCaptureProcessor extends AudioWorkletProcessor {
     return true;
   }
 }
-registerProcessor("vrooli-pcm-capture", VrooliPcmCaptureProcessor);
+registerProcessor("${processorName}", VrooliPcmCaptureProcessor);
 `;
 
 // AudioWorklet modules belong to an AudioContext. Rebuilding the Blob and
@@ -79,14 +79,44 @@ registerProcessor("vrooli-pcm-capture", VrooliPcmCaptureProcessor);
 // Keep one in-flight/completed load per context. A rejected load is removed so
 // a transient browser failure can still take the normal ScriptProcessor path
 // on a later attempt.
-const workletLoads = new WeakMap<AudioContext, Promise<void>>();
+const workletLoads = new WeakMap<AudioContext, Promise<string>>();
+const WORKLET_LOAD_TIMEOUT_MS = 1_000;
+let nextWorkletProcessorID = 0;
 
-function loadWorklet(context: AudioContext): Promise<void> {
+function loadWorklet(context: AudioContext): Promise<string> {
   const existing = workletLoads.get(context);
   if (existing) return existing;
 
-  const moduleURL = URL.createObjectURL(new Blob([WORKLET_PROCESSOR], { type: "application/javascript" }));
-  const load = context.audioWorklet!.addModule(moduleURL).finally(() => URL.revokeObjectURL(moduleURL));
+  // addModule cannot be canceled when the timeout wins. Give each attempt a
+  // unique registration name so a late successful load cannot make a retry
+  // fail with AudioWorklet's duplicate-processor registration error.
+  const processorName = [
+    "vrooli-pcm-capture",
+    Date.now().toString(36),
+    (++nextWorkletProcessorID).toString(36),
+    Math.random().toString(36).slice(2),
+  ].join("-");
+  const moduleURL = URL.createObjectURL(new Blob([WORKLET_PROCESSOR(processorName)], { type: "application/javascript" }));
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  let moduleLoad: Promise<void>;
+  try {
+    moduleLoad = context.audioWorklet!.addModule(moduleURL);
+  } catch (error) {
+    URL.revokeObjectURL(moduleURL);
+    return Promise.reject(error);
+  }
+  // addModule is allowed to remain pending indefinitely in some browser
+  // automation and partially supported runtimes. Bound the shared promise so
+  // canonical capture can fall back and a later gesture can retry this context.
+  const load = Promise.race([
+    moduleLoad.then(() => processorName),
+    new Promise<string>((_resolve, reject) => {
+      timeout = setTimeout(() => reject(new Error("AudioWorklet module load timed out")), WORKLET_LOAD_TIMEOUT_MS);
+    }),
+  ]).finally(() => {
+    if (timeout) clearTimeout(timeout);
+    URL.revokeObjectURL(moduleURL);
+  });
   workletLoads.set(context, load);
   void load.catch(() => {
     if (workletLoads.get(context) === load) workletLoads.delete(context);
@@ -104,7 +134,7 @@ function loadWorklet(context: AudioContext): Promise<void> {
 export function preloadCanonicalPcmCapture(context: AudioContext): Promise<void> {
   if (typeof navigator !== "undefined" && navigator.webdriver) return Promise.resolve();
   if (!context.audioWorklet || typeof AudioWorkletNode === "undefined") return Promise.resolve();
-  return loadWorklet(context);
+  return loadWorklet(context).then(() => undefined);
 }
 
 /**
@@ -120,14 +150,18 @@ export async function createAudioWorkletPcmCapture(
   if (!context.audioWorklet || typeof AudioWorkletNode === "undefined") {
     throw new Error("AudioWorklet capture is unavailable");
   }
-  await loadWorklet(context);
+  const processorName = await loadWorklet(context);
   const source = context.createMediaStreamSource(stream);
-  const node = new AudioWorkletNode(context, "vrooli-pcm-capture");
+  const node = new AudioWorkletNode(context, processorName);
   const silentGain = context.createGain();
   silentGain.gain.value = 0;
   node.port.onmessage = (event: MessageEvent<Float32Array>) => {
     const samples = event.data;
-    if (samples instanceof Float32Array) onFrame(new Float32Array(samples), context.sampleRate);
+    // The worklet transfers an owned copy of each frame, so the main thread
+    // can forward its buffer directly. Copying again here adds one allocation
+    // and memory pass for every audio callback without protecting a reused
+    // AudioBuffer (the ScriptProcessor fallback still snapshots its input).
+    if (samples instanceof Float32Array) onFrame(samples, context.sampleRate);
   };
   source.connect(node);
   node.connect(silentGain);

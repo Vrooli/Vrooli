@@ -3,28 +3,54 @@
   "name": "whisper",
   "storage": {
     "entries": {
-      "models": {
+      "medium-model-cache": {
         "rung": "relocatable",
-        "path": {
-          "linux": "$USER_HOME/.local/share/vrooli/resources/whisper/models",
-          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/whisper/models",
-          "windows": "$USER_HOME/AppData/Local/vrooli/resources/whisper/models"
-        },
         "kind": "dir",
-        "class": "cache",
+        "class": "data",
         "regenerable": true,
+        "subpath": "models",
         "relocation": {
           "key": "WHISPER_MODELS_DIR",
           "scope": "container"
         },
-        "rationale": "Whisper model files are re-downloadable and read directly by the supervised native server.",
+        "rationale": "The on-demand Medium model is checksum-pinned and reacquirable; owner-fenced retention preserves the eager Small default and Turbo tier.",
         "budget": {
           "max_age": "30d",
-          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+          "rationale": "The tier may be reclaimed after 30 days without confirmed resource use."
+        },
+        "reclaim": {
+          "pruner": "custom",
+          "command": "vrooli resource acquisition model-cache-artifacts whisper",
+          "artifact_names": ["medium-model"]
         },
         "reacquisition": {
-          "command": "vrooli resource install whisper",
-          "evidence": "resource.json#/managed_service/data_artifacts[small-model].acquisition.targets[*].sha256 (checksum-pinned ggml-small.bin; verified before publication)"
+          "command": "vrooli resource acquisition data whisper --group medium-model",
+          "evidence": "resource.json#/managed_service/data_artifacts[medium-model].acquisition.targets[*].sha256"
+        }
+      },
+      "turbo-model-cache": {
+        "rung": "relocatable",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": true,
+        "subpath": "models",
+        "relocation": {
+          "key": "WHISPER_MODELS_DIR",
+          "scope": "container"
+        },
+        "rationale": "The on-demand Turbo model is checksum-pinned and reacquirable; owner-fenced retention preserves the eager Small default and Medium tier.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "The tier may be reclaimed after 30 days without confirmed resource use."
+        },
+        "reclaim": {
+          "pruner": "custom",
+          "command": "vrooli resource acquisition model-cache-artifacts whisper",
+          "artifact_names": ["turbo-model"]
+        },
+        "reacquisition": {
+          "command": "vrooli resource acquisition data whisper --group turbo-model",
+          "evidence": "resource.json#/managed_service/data_artifacts[turbo-model].acquisition.targets[*].sha256"
         }
       },
       "uploads": {

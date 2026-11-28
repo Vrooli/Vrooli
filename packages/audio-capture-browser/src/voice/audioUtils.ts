@@ -209,19 +209,47 @@ export class AudioRingBuffer {
 // Passive capture pipeline — for wake word detection without MediaRecorder
 // ---------------------------------------------------------------------------
 
+const PASSIVE_CAPTURE_WORKLET = `class VrooliPassiveCapture extends AudioWorkletProcessor {
+  process(inputs) {
+    const input = inputs[0] && inputs[0][0];
+    if (input) { const copy = input.slice(); this.port.postMessage(copy, [copy.buffer]); }
+    return true;
+  }
+}
+registerProcessor("vrooli-passive-capture", VrooliPassiveCapture);`;
+
+// Processor names are registered once per AudioWorkletGlobalScope. Cache both
+// in-flight and successful module loads per context to avoid duplicate
+// registration when passive listening is stopped and restarted. Failed loads
+// are evicted so transient module/CSP failures can recover on a later start.
+const passiveWorkletLoads = new WeakMap<AudioContext, Promise<void>>();
+
+function loadPassiveCaptureWorklet(ctx: AudioContext): Promise<void> {
+  const cached = passiveWorkletLoads.get(ctx);
+  if (cached) return cached;
+
+  const url = URL.createObjectURL(new Blob([PASSIVE_CAPTURE_WORKLET], { type: "application/javascript" }));
+  const load = ctx.audioWorklet!.addModule(url).finally(() => URL.revokeObjectURL(url));
+  passiveWorkletLoads.set(ctx, load);
+  void load.catch(() => {
+    if (passiveWorkletLoads.get(ctx) === load) passiveWorkletLoads.delete(ctx);
+  });
+  return load;
+}
+
 /**
  * Build a passive audio capture pipeline that writes raw PCM into a ring buffer.
  * Unlike `createAudioFilterChain`, this does NOT create a MediaStreamDestination
- * (no MediaRecorder needed in passive mode). Instead, a ScriptProcessorNode
- * captures PCM samples directly into the ring buffer.
+ * (no MediaRecorder needed in passive mode). AudioWorklet captures PCM off the
+ * UI thread where available; ScriptProcessor remains the compatibility path.
  *
  * Returns an analyser for VAD RMS monitoring and the processor node for cleanup.
  */
-export function createPassiveCapturePipeline(
+export async function createPassiveCapturePipeline(
   ctx: AudioContext,
   source: MediaStreamAudioSourceNode,
   ringBuffer: AudioRingBuffer,
-): { analyser: AnalyserNode; nodes: AudioNode[] } {
+): Promise<{ analyser: AnalyserNode; nodes: AudioNode[] }> {
   const highpass = ctx.createBiquadFilter();
   highpass.type = "highpass";
   highpass.frequency.value = 80;
@@ -235,33 +263,46 @@ export function createPassiveCapturePipeline(
   const analyser = ctx.createAnalyser();
   analyser.fftSize = 128;
 
-  // ScriptProcessorNode (deprecated but universally supported) for PCM capture.
-  // Buffer size 4096 at 48kHz = ~85ms per callback — low overhead.
-  // Deprecated API: AudioWorklet not yet wired; ScriptProcessor kept for broad browser support.
-  const processor = ctx.createScriptProcessor(4096, 1, 1);
-  // Deprecated ScriptProcessor onaudioprocess API; replaced when AudioWorklet lands.
-  processor.onaudioprocess = (e: AudioProcessingEvent) => {
-    // AudioProcessingEvent.inputBuffer; matches deprecated ScriptProcessor above.
-    const input = e.inputBuffer.getChannelData(0);
-    ringBuffer.write(input);
-    // Pass-through to keep the node alive (output must be connected).
-    // AudioProcessingEvent.outputBuffer; matches deprecated ScriptProcessor above.
-    const output = e.outputBuffer.getChannelData(0);
-    output.set(input);
-  };
-
-  // Chain: source -> highpass -> lowpass -> analyser
-  //                                     +-> processor -> ctx.destination (silent pass-through)
+  // Chain: source -> highpass -> lowpass -> analyser and PCM capture.
   source.connect(highpass);
   highpass.connect(lowpass);
   lowpass.connect(analyser);
-  lowpass.connect(processor);
-  // Connect processor to destination to keep it alive (ScriptProcessor quirk).
-  // The pass-through audio is at the same level, so we need a silent gain node.
   const silentGain = ctx.createGain();
   silentGain.gain.value = 0;
-  processor.connect(silentGain);
+
+  let processor: AudioNode;
+  if (ctx.audioWorklet && typeof AudioWorkletNode !== "undefined") {
+    try {
+      await loadPassiveCaptureWorklet(ctx);
+      const worklet = new AudioWorkletNode(ctx, "vrooli-passive-capture", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
+      worklet.port.onmessage = (event: MessageEvent<Float32Array>) => {
+        if (event.data instanceof Float32Array) ringBuffer.write(event.data);
+      };
+      lowpass.connect(worklet);
+      processor = worklet;
+    } catch {
+      // Unsupported or blocked worklet modules retain the historical fallback.
+      const fallback = ctx.createScriptProcessor(4096, 1, 1);
+      fallback.onaudioprocess = (event: AudioProcessingEvent) => {
+        const input = event.inputBuffer.getChannelData(0);
+        ringBuffer.write(input);
+        event.outputBuffer.getChannelData(0).set(input);
+      };
+      lowpass.connect(fallback);
+      processor = fallback;
+    }
+  } else {
+    const fallback = ctx.createScriptProcessor(4096, 1, 1);
+    fallback.onaudioprocess = (event: AudioProcessingEvent) => {
+      const input = event.inputBuffer.getChannelData(0);
+      ringBuffer.write(input);
+      event.outputBuffer.getChannelData(0).set(input);
+    };
+    lowpass.connect(fallback);
+    processor = fallback;
+  }
   silentGain.connect(ctx.destination);
+  processor.connect(silentGain);
 
   return { analyser, nodes: [highpass, lowpass, analyser, processor, silentGain] };
 }

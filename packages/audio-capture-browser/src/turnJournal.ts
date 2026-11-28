@@ -36,6 +36,10 @@ interface IncrementalTurnJournalStore extends TurnJournalStore {
   compactRecords(key: string, snapshot: JournalSnapshot): Promise<void>;
 }
 
+interface ExpiringTurnJournalStore extends TurnJournalStore {
+  prepareRestore(key: string): Promise<boolean>;
+}
+
 /**
  * Bounded replay journal. Its invariant is deliberately narrow: captured
  * chunks survive until the server's processed cursor covers them, or the user
@@ -45,6 +49,8 @@ interface IncrementalTurnJournalStore extends TurnJournalStore {
 export class TurnJournal {
   private snapshot: JournalSnapshot;
   private pendingRecords = 0;
+  private expiredOnRestore = false;
+  private restoredDurableState = false;
   // Appends run on the capture write chain while processed acknowledgements
   // arrive on an independent network callback. Serialize their IndexedDB
   // transactions here; otherwise a compaction can delete records while an
@@ -70,10 +76,37 @@ export class TurnJournal {
     return `${sessionId}:${generation.toString()}`;
   }
 
+  /** True only when this restore deleted expired or unageable durable audio. */
+  wasExpiredOnRestore(): boolean { return this.expiredOnRestore; }
+
+  /** True when restore found a durable snapshot or replay record for this identity. */
+  hasRestoredDurableState(): boolean { return this.restoredDurableState; }
+
+  /** Read quota accounting without cloning the retained audio chunks. */
+  get retainedBytes(): number { return this.snapshot.retainedBytes; }
+
+  /** Read the next cursor without cloning the retained audio chunks. */
+  get nextSequence(): bigint { return this.snapshot.nextSequence; }
+
+  /** Start a fresh identity after expiry; never move retained audio to a new owner. */
+  rebindAfterExpiry(sessionId: string, generation: bigint): void {
+    if (!this.expiredOnRestore || this.snapshot.retainedBytes !== 0 || this.snapshot.chunks.length !== 0) {
+      throw new Error("journal identity can only be rebound after an expired restore with no retained audio");
+    }
+    this.snapshot = { ...this.snapshot, sessionId, generation, chunks: [], retainedBytes: 0, nextSequence: 0n, nextSample: 0n };
+    this.expiredOnRestore = false;
+  }
+
   async restore(): Promise<JournalSnapshot> {
     const key = TurnJournal.key(this.snapshot.sessionId, this.snapshot.generation);
+    const expiring = this.store as Partial<ExpiringTurnJournalStore>;
+    if (expiring.prepareRestore && !(await expiring.prepareRestore(key))) {
+      this.expiredOnRestore = true;
+      return this.read();
+    }
     const stored = await this.store.load(key);
     if (stored) {
+      this.restoredDurableState = true;
       const last = stored.chunks.at(-1);
       this.snapshot = {
         ...stored,
@@ -85,7 +118,14 @@ export class TurnJournal {
     if (incremental.loadRecords) {
       const records = await incremental.loadRecords(key);
       if (records.length > 0) {
-        for (const record of records) this.applyRecord(record);
+        this.restoredDurableState = true;
+        const beforeReplay = { ...this.snapshot, chunks: [...this.snapshot.chunks] };
+        try {
+          for (const record of records) this.applyRecord(record);
+        } catch (error) {
+          this.snapshot = beforeReplay;
+          throw error;
+        }
         return this.read();
       }
     }
@@ -114,6 +154,14 @@ export class TurnJournal {
 
   async acknowledgeProcessed(sequence: bigint): Promise<void> {
     await this.serialize(async () => {
+      // A server cursor is authoritative only for audio the client has
+      // actually assigned a sequence to. A malformed future acknowledgement
+      // must never compact captured-but-unprocessed audio from the replay
+      // journal. Validate at the durability owner even when transports also
+      // validate the wire shape.
+      if (sequence < 0n || sequence >= this.snapshot.nextSequence) {
+        throw new Error(`processed cursor ${sequence.toString()} is outside captured sequence range`);
+      }
       const chunks = this.snapshot.chunks.filter((chunk) => chunk.sequence > sequence);
       const next = { ...this.snapshot, chunks, retainedBytes: chunks.reduce((n, chunk) => n + chunk.audio.byteLength, 0) };
       await this.persist({ kind: "ack", sequence }, next);
@@ -179,11 +227,20 @@ export class TurnJournal {
   private applyRecord(record: JournalRecord): void {
     if (record.kind === "append") {
       const chunk = { ...record.chunk, audio: record.chunk.audio.slice(0), sha256: record.chunk.sha256.slice(0) };
+      if (chunk.sequence !== this.snapshot.nextSequence || chunk.startSample !== this.snapshot.nextSample) {
+        throw new Error(`journal recovery encountered a non-contiguous append (expected sequence ${this.snapshot.nextSequence.toString()} at sample ${this.snapshot.nextSample.toString()}, got sequence ${chunk.sequence.toString()} at sample ${chunk.startSample.toString()})`);
+      }
+      if (chunk.endSample < chunk.startSample || chunk.audio.byteLength === 0) {
+        throw new Error("journal recovery encountered an invalid audio chunk");
+      }
       this.snapshot.chunks.push(chunk);
       this.snapshot.retainedBytes += chunk.audio.byteLength;
       this.snapshot.nextSequence = chunk.sequence + 1n;
       this.snapshot.nextSample = chunk.endSample;
     } else {
+      if (record.sequence < 0n || record.sequence >= this.snapshot.nextSequence) {
+        throw new Error(`journal recovery encountered a processed cursor outside captured range (${record.sequence.toString()})`);
+      }
       this.compactInMemory(record.sequence);
     }
   }
@@ -234,30 +291,87 @@ export class MemoryTurnJournalStore implements TurnJournalStore {
 export class IndexedDBTurnJournalStore implements TurnJournalStore {
   private database: Promise<IDBDatabase> | null = null;
 
+  /** Abandoned audio is recoverable for one day, then deleted before it can be replayed. */
+  static readonly RETENTION_MS = 24 * 60 * 60 * 1000;
+
   constructor(private readonly databaseName = "vrooli-audio-turn-journal") {}
 
   async load(key: string): Promise<JournalSnapshot | undefined> {
     return this.request<JournalSnapshot | undefined>("readonly", (store) => store.get(key));
   }
 
+  async prepareRestore(key: string): Promise<boolean> {
+    const database = await this.open();
+    return new Promise<boolean>((resolve, reject) => {
+      const transaction = database.transaction(["turns", "turnRecords", "turnMeta"], "readwrite");
+      const turns = transaction.objectStore("turns");
+      const records = transaction.objectStore("turnRecords");
+      const meta = transaction.objectStore("turnMeta");
+      const snapshotRequest = turns.get(key);
+      const metaRequest = meta.get(key);
+      const countRequest = records.index("byKey").count(key);
+      let snapshot: (JournalSnapshot & { createdAt?: number; updatedAt?: number }) | undefined;
+      let activity: { createdAt?: number; updatedAt?: number } | undefined;
+      let recordCount: number | undefined;
+      let inspected = 0;
+      let retain = true;
+      let decided = false;
+      const inspect = () => {
+        inspected += 1;
+        if (inspected !== 3 || decided) return;
+        decided = true;
+        snapshot = snapshotRequest.result as (JournalSnapshot & { createdAt?: number; updatedAt?: number }) | undefined;
+        activity = metaRequest.result as { createdAt?: number; updatedAt?: number } | undefined;
+        recordCount = countRequest.result;
+        if (!snapshot && recordCount === 0) {
+          // A never-used journal is not an expired recovery attempt.
+          if (activity) meta.delete(key);
+          return;
+        }
+        // Records written before the activity store existed have no trustworthy
+        // per-session age. Expire them conservatively instead of scanning PCM.
+        const timestamp = activity?.createdAt ?? snapshot?.createdAt ?? (recordCount === 0 ? (activity?.updatedAt ?? snapshot?.updatedAt) : undefined);
+        const expired = typeof timestamp !== "number" || Date.now() - timestamp >= IndexedDBTurnJournalStore.RETENTION_MS;
+        if (!expired) return;
+        retain = false;
+        turns.delete(key);
+        meta.delete(key);
+        this.deleteRecordsForKey(records, key);
+      };
+      snapshotRequest.onsuccess = inspect;
+      metaRequest.onsuccess = inspect;
+      countRequest.onsuccess = inspect;
+      for (const request of [snapshotRequest, metaRequest, countRequest]) {
+        request.onerror = () => reject(request.error ?? new Error("inspect IndexedDB journal retention"));
+      }
+      transaction.oncomplete = () => resolve(retain);
+      transaction.onabort = () => reject(transaction.error ?? new Error("inspect IndexedDB journal retention"));
+      transaction.onerror = () => reject(transaction.error ?? new Error("inspect IndexedDB journal retention"));
+    });
+  }
+
   async save(key: string, value: JournalSnapshot): Promise<void> {
-    await this.request("readwrite", (store) => store.put(value, key));
+    const database = await this.open();
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction(["turns", "turnMeta"], "readwrite");
+      const updatedAt = Date.now();
+      this.recordActivity(transaction, key, updatedAt, (createdAt) => {
+        transaction.objectStore("turns").put({ ...value, createdAt, updatedAt }, key);
+      });
+      transaction.oncomplete = () => resolve();
+      transaction.onabort = () => reject(transaction.error ?? new Error("save IndexedDB journal transaction aborted"));
+      transaction.onerror = () => reject(transaction.error ?? new Error("save IndexedDB journal transaction failed"));
+    });
   }
 
   async remove(key: string): Promise<void> {
     const database = await this.open();
     await new Promise<void>((resolve, reject) => {
-      const transaction = database.transaction(["turns", "turnRecords"], "readwrite");
+      const transaction = database.transaction(["turns", "turnRecords", "turnMeta"], "readwrite");
       transaction.objectStore("turns").delete(key);
+      transaction.objectStore("turnMeta").delete(key);
       const records = transaction.objectStore("turnRecords");
-      const request = records.openCursor();
-      request.onsuccess = () => {
-        const cursor = request.result;
-        if (!cursor) return;
-        if ((cursor.value as { key?: string }).key === key) cursor.delete();
-        cursor.continue();
-      };
-      request.onerror = () => reject(request.error ?? new Error("remove IndexedDB journal records"));
+      this.deleteRecordsForKey(records, key);
       transaction.oncomplete = () => resolve();
       transaction.onabort = () => reject(transaction.error ?? new Error("IndexedDB journal transaction aborted"));
       transaction.onerror = () => reject(transaction.error ?? new Error("remove IndexedDB journal transaction"));
@@ -271,10 +385,13 @@ export class IndexedDBTurnJournalStore implements TurnJournalStore {
         reject(new Error("IndexedDB is unavailable; use explicit reduced durability"));
         return;
       }
-      const request = indexedDB.open(this.databaseName, 2);
+      const request = indexedDB.open(this.databaseName, 3);
       request.onupgradeneeded = () => {
         if (!request.result.objectStoreNames.contains("turns")) request.result.createObjectStore("turns");
         if (!request.result.objectStoreNames.contains("turnRecords")) request.result.createObjectStore("turnRecords", { autoIncrement: true });
+        if (!request.result.objectStoreNames.contains("turnMeta")) request.result.createObjectStore("turnMeta");
+        const records = request.transaction?.objectStore("turnRecords");
+        if (records && !records.indexNames.contains("byKey")) records.createIndex("byKey", "key", { unique: false });
       };
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error ?? new Error("open IndexedDB journal"));
@@ -296,15 +413,24 @@ export class IndexedDBTurnJournalStore implements TurnJournalStore {
   }
 
   async appendRecord(key: string, record: JournalRecord): Promise<void> {
-    await this.request("readwrite", (store) => store.add({ key, record }), "turnRecords");
+    const database = await this.open();
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction(["turnRecords", "turnMeta"], "readwrite");
+      const updatedAt = Date.now();
+      transaction.objectStore("turnRecords").add({ key, record });
+      this.recordActivity(transaction, key, updatedAt);
+      transaction.oncomplete = () => resolve();
+      transaction.onabort = () => reject(transaction.error ?? new Error("append IndexedDB journal record aborted"));
+      transaction.onerror = () => reject(transaction.error ?? new Error("append IndexedDB journal record failed"));
+    });
   }
 
   async loadRecords(key: string): Promise<JournalRecord[]> {
     const database = await this.open();
     return new Promise((resolve, reject) => {
       const transaction = database.transaction("turnRecords", "readonly");
-      const request = transaction.objectStore("turnRecords").getAll();
-      transaction.oncomplete = () => resolve((request.result as Array<{ key: string; record: JournalRecord }>).filter((entry) => entry.key === key).map((entry) => entry.record));
+      const request = transaction.objectStore("turnRecords").index("byKey").getAll(IDBKeyRange.only(key));
+      transaction.oncomplete = () => resolve((request.result as Array<{ key: string; record: JournalRecord }>).map((entry) => entry.record));
       transaction.onabort = () => reject(transaction.error ?? new Error("load IndexedDB journal transaction aborted"));
       transaction.onerror = () => reject(transaction.error ?? new Error("load IndexedDB journal transaction failed"));
       request.onerror = () => reject(request.error ?? new Error("load IndexedDB journal records"));
@@ -314,25 +440,49 @@ export class IndexedDBTurnJournalStore implements TurnJournalStore {
   async compactRecords(key: string, snapshot: JournalSnapshot): Promise<void> {
     const database = await this.open();
     await new Promise<void>((resolve, reject) => {
-      const transaction = database.transaction(["turns", "turnRecords"], "readwrite");
+      const transaction = database.transaction(["turns", "turnRecords", "turnMeta"], "readwrite");
       const records = transaction.objectStore("turnRecords");
-      const request = records.openCursor();
+      const request = records.index("byKey").openCursor(IDBKeyRange.only(key));
       request.onsuccess = () => {
         const cursor = request.result;
         if (cursor) {
-          if ((cursor.value as { key?: string }).key === key) cursor.delete();
+          cursor.delete();
           cursor.continue();
           return;
         }
         // The cursor and snapshot write share one transaction. No second
         // getAll/getAllKeys callback can race this put or reactivate an
         // inactive transaction.
-        transaction.objectStore("turns").put(snapshot, key);
+        const updatedAt = Date.now();
+        this.recordActivity(transaction, key, updatedAt, (createdAt) => {
+          transaction.objectStore("turns").put({ ...snapshot, createdAt, updatedAt }, key);
+        });
       };
       request.onerror = () => reject(request.error ?? new Error("compact IndexedDB journal records"));
       transaction.oncomplete = () => resolve();
       transaction.onabort = () => reject(transaction.error ?? new Error("IndexedDB journal transaction aborted"));
       transaction.onerror = () => reject(transaction.error ?? new Error("compact IndexedDB journal transaction"));
     });
+  }
+
+  private deleteRecordsForKey(records: IDBObjectStore, key: string): void {
+    const request = records.index("byKey").openCursor(IDBKeyRange.only(key));
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) return;
+      cursor.delete();
+      cursor.continue();
+    };
+  }
+
+  private recordActivity(transaction: IDBTransaction, key: string, updatedAt: number, onCreated?: (createdAt: number) => void): void {
+    const store = transaction.objectStore("turnMeta");
+    const request = store.get(key);
+    request.onsuccess = () => {
+      const previous = request.result as { createdAt?: number; updatedAt?: number } | undefined;
+      const createdAt = previous?.createdAt ?? previous?.updatedAt ?? updatedAt;
+      store.put({ createdAt, updatedAt }, key);
+      onCreated?.(createdAt);
+    };
   }
 }

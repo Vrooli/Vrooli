@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FakeVoiceTransport as FakeWebSocket, stubCryptoWithoutSubtle } from "./fakeVoiceTransport.test";
+import { FakeVoiceTransport as FakeWebSocket, stubCryptoWithoutSubtle } from "./fakeVoiceTransport";
 import { MemoryTurnJournalStore, TurnJournal } from "./turnJournal";
 import { MAX_RETAINED_TURN_AUDIO_BYTES, PCM_WIRE_BATCH_SAMPLES, PcmVoiceStreamProvider } from "./pcmVoiceStreamProvider";
 import { readStreamDiagnosticTelemetry } from "./streamDiagnostic";
+import { forgetUnfinishedSession, rememberUnfinishedSession } from "./sessionIdentity";
+import { getActiveMicLeases } from "./voice/micOwnership";
 
 type FakeTrack = {
   readyState: "live" | "ended";
@@ -33,6 +35,16 @@ async function settleLong(): Promise<void> {
   for (let index = 0; index < 128; index += 1) await Promise.resolve();
 }
 
+function identifyLocalRoute(socket: { onmessage: ((event: { data: string }) => void) | null }): void {
+  socket.onmessage?.({ data: JSON.stringify({
+    type: "status",
+    code: "provider_identity",
+    providerId: "whisper-local",
+    modelId: "whisper-medium",
+    providerTier: "local",
+  }) });
+}
+
 const BASELINE_FRAME_SECONDS = 60;
 const BASELINE_SIMULATED_SECONDS = 60 * 60;
 const BASELINE_FRAME_SAMPLES = 16_000 * BASELINE_FRAME_SECONDS;
@@ -56,6 +68,7 @@ describe("shared PCM long-session recovery harness", () => {
   let status: ReturnType<typeof vi.fn>;
   let result: ReturnType<typeof vi.fn>;
   let transcribeRetained: ReturnType<typeof vi.fn>;
+  let journal: TurnJournal;
   let captureOnFrame: ((samples: Float32Array, sampleRate: number) => void) | null;
 
   beforeEach(() => {
@@ -69,6 +82,7 @@ describe("shared PCM long-session recovery harness", () => {
     status = vi.fn();
     result = vi.fn();
     transcribeRetained = vi.fn(async () => "recovered");
+    journal = new TurnJournal(new MemoryTurnJournalStore(), "test", 0n, 16 * 1024 * 1024, "memory");
 
     provider = new PcmVoiceStreamProvider({
       getUserMedia,
@@ -77,7 +91,7 @@ describe("shared PCM long-session recovery harness", () => {
         captureOnFrame = onFrame;
         return { stop: vi.fn() };
       },
-      journalFactory: () => new TurnJournal(new MemoryTurnJournalStore(), "test", 0n, 16 * 1024 * 1024, "memory"),
+      journalFactory: () => journal,
     });
     provider.onStatus = status;
     provider.onResult = result;
@@ -85,31 +99,245 @@ describe("shared PCM long-session recovery harness", () => {
 
   afterEach(() => {
     provider.dispose();
+    forgetUnfinishedSession();
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
     vi.useRealTimers();
   });
 
   it("publishes recording state once capture is ready", async () => {
+    provider.markStartRequested(1);
     await provider.start();
     await settle();
 
     expect(provider.getDiagnostic().state).toBe("recording");
+    expect(provider.getDiagnostic()).toMatchObject({ startRequestedAtMs: 1 });
+    expect(provider.getDiagnostic().captureReadyAtMs).not.toBeNull();
+    expect(provider.getDiagnostic().startToCaptureReadyMs).not.toBeNull();
     expect(readStreamDiagnosticTelemetry()?.latest.state).toBe("recording");
   });
 
-  it("resets the reconnect budget after six successful opens", async () => {
+  it("reconnects when admission fails before an asynchronous capture graph is installed", async () => {
+    provider.dispose();
+    let openCalls = 0;
+    let finishCapture!: (capture: { stop: ReturnType<typeof vi.fn> }) => void;
+    const captureStop = vi.fn();
+    provider = new PcmVoiceStreamProvider({
+      getUserMedia,
+      transport: {
+        retainedRoutePolicy: "exact-model",
+        transcribeRetained: async () => "recovered",
+        openStream: (_start, handlers) => {
+          openCalls += 1;
+          let open = false;
+          const connection = {
+            isOpen: () => open,
+            sendAudio: vi.fn(),
+            end: vi.fn(),
+            close: vi.fn(() => { open = false; }),
+          };
+          queueMicrotask(() => {
+            if (openCalls === 1) {
+              handlers.onClose(new Error("admission failed before capture"));
+            } else {
+              open = true;
+              handlers.onReady();
+            }
+          });
+          return connection;
+        },
+      },
+      captureFactory: () => new Promise((resolve) => {
+        finishCapture = resolve;
+      }),
+      journalFactory: () => journal,
+    });
+
+    const starting = provider.start();
+    await settleLong();
+    // Admission retries as soon as storage recovery is ready, even while the
+    // asynchronous capture graph is still being installed.
+    expect(openCalls).toBe(2);
+    expect(finishCapture).toBeTypeOf("function");
+
+    finishCapture({ stop: captureStop });
+    await starting;
+    await settleLong();
+
+    expect(openCalls).toBe(2);
+    expect(provider.isStreamConnected()).toBe(true);
+    expect(provider.getDiagnostic().statusCodes).toContain("stream_admission_failed");
+    provider.stop();
+    expect(captureStop).toHaveBeenCalledOnce();
+  });
+
+  it("stops a capture graph that resolves after the turn was stopped", async () => {
+    let finishCapture!: (capture: { stop: ReturnType<typeof vi.fn> }) => void;
+    const lateStop = vi.fn();
+    provider.captureFactory = () => new Promise((resolve) => {
+      finishCapture = resolve;
+    });
+
+    const starting = provider.start();
+    await settleLong();
+    expect(finishCapture).toBeTypeOf("function");
+
+    provider.stop();
+    finishCapture({ stop: lateStop });
+    await starting;
+
+    expect(lateStop).toHaveBeenCalledOnce();
+  });
+
+  it("releases a microphone permission result that resolves after start was stopped", async () => {
+    let finishPermission!: (stream: MediaStream) => void;
+    getUserMedia.mockImplementationOnce(() => new Promise((resolve) => {
+      finishPermission = resolve;
+    }));
+
+    const starting = provider.start();
+    await settleLong();
+    expect(finishPermission).toBeTypeOf("function");
+
+    provider.stop();
+    const late = makeStream();
+    finishPermission(late.stream);
+    await starting;
+
+    expect(late.track.stop).toHaveBeenCalledOnce();
+    expect(provider.getStream()).toBeNull();
+    expect(FakeWebSocket.instances).toHaveLength(0);
+  });
+
+  it("stops a reacquired capture graph that resolves after the turn was stopped", async () => {
     await provider.start();
-    await settle();
-    for (let index = 0; index < 6; index += 1) {
+    await settleLong();
+    let finishCapture!: (capture: { stop: ReturnType<typeof vi.fn> }) => void;
+    const lateStop = vi.fn();
+    provider.captureFactory = () => new Promise((resolve) => {
+      finishCapture = resolve;
+    });
+
+    (provider.getStream()!.getTracks()[0] as unknown as FakeTrack).onended?.();
+    await settleLong();
+    expect(finishCapture).toBeTypeOf("function");
+
+    provider.stop();
+    finishCapture({ stop: lateStop });
+    await settleLong();
+
+    expect(lateStop).toHaveBeenCalledOnce();
+  });
+
+  it("does not let a stale microphone reacquisition replace a newer turn", async () => {
+    await provider.start();
+    await settleLong();
+    let finishRecovery!: (stream: MediaStream) => void;
+    getUserMedia.mockImplementationOnce(() => new Promise((resolve) => {
+      finishRecovery = resolve;
+    }));
+
+    (provider.getStream()!.getTracks()[0] as unknown as FakeTrack).onended?.();
+    await settleLong();
+    expect(finishRecovery).toBeTypeOf("function");
+
+    provider.stop();
+    FakeWebSocket.instances.at(-1)?.onmessage?.({ data: JSON.stringify({ type: "final", text: "previous turn" }) });
+    await settleLong();
+    await provider.start();
+    await settleLong();
+    const newerStream = provider.getStream();
+    expect(newerStream).not.toBeNull();
+
+    const stale = makeStream();
+    finishRecovery(stale.stream);
+    await settleLong();
+
+    expect(stale.track.stop).toHaveBeenCalledOnce();
+    expect(provider.getStream()).toBe(newerStream);
+    expect(provider.getDiagnostic().state).toBe("recording");
+  });
+
+  it("ignores late frames from the capture graph replaced by mic reacquisition", async () => {
+    await provider.start();
+    await settleLong();
+    const staleCapture = captureOnFrame!;
+    expect(staleCapture).toBeTypeOf("function");
+
+    (provider.getStream()!.getTracks()[0] as unknown as FakeTrack).onended?.();
+    await settleLong();
+    const activeCapture = captureOnFrame!;
+    expect(activeCapture).toBeTypeOf("function");
+    expect(activeCapture).not.toBe(staleCapture);
+
+    staleCapture(new Float32Array(160), 16_000);
+    expect(provider.getDiagnostic().capturedSamples).toBe(0);
+    activeCapture(new Float32Array(160), 16_000);
+    expect(provider.getDiagnostic().capturedSamples).toBe(160);
+  });
+
+  it("exhausts reconnects when sockets repeatedly become ready without processing audio", async () => {
+    await provider.start();
+    await settleLong();
+    const firstSocket = FakeWebSocket.instances.at(-1)!;
+    identifyLocalRoute(firstSocket);
+    captureOnFrame?.(new Float32Array(PCM_WIRE_BATCH_SAMPLES).fill(0.5), 16_000);
+    await settleLong();
+    FakeWebSocket.autoOpen = false;
+
+    firstSocket.readyState = FakeWebSocket.CLOSED;
+    firstSocket.onclose?.();
+    for (const delay of [1_000, 2_000, 4_000, 8_000, 8_000]) {
+      await vi.advanceTimersByTimeAsync(delay);
+      await settleLong();
       const socket = FakeWebSocket.instances.at(-1)!;
+      socket.onopen?.();
+      await settleLong();
       socket.readyState = FakeWebSocket.CLOSED;
       socket.onclose?.();
-      await vi.advanceTimersByTimeAsync(1_000);
-      await settle();
-      FakeWebSocket.instances.at(-1)?.onopen?.();
-      expect(FakeWebSocket.instances).toHaveLength(index + 2);
+      await settleLong();
     }
-    expect(status).not.toHaveBeenCalledWith(expect.objectContaining({ code: "reconnect_exhausted" }));
+
+    expect(status).toHaveBeenCalledWith(expect.objectContaining({ code: "reconnect_exhausted" }));
+    await vi.waitFor(() => expect(transcribeRetained).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(result).toHaveBeenCalledWith("recovered"));
+  });
+
+  it("resets reconnect backoff only after a newly processed cursor is durable", async () => {
+    await provider.start();
+    await settleLong();
+    const firstSocket = FakeWebSocket.instances.at(-1)!;
+    identifyLocalRoute(firstSocket);
+    captureOnFrame?.(new Float32Array(PCM_WIRE_BATCH_SAMPLES).fill(0.5), 16_000);
+    await settleLong();
+    FakeWebSocket.autoOpen = false;
+
+    firstSocket.readyState = FakeWebSocket.CLOSED;
+    firstSocket.onclose?.();
+    await vi.advanceTimersByTimeAsync(1_000);
+    await settleLong();
+    const secondSocket = FakeWebSocket.instances.at(-1)!;
+    secondSocket.onopen?.();
+    await settleLong();
+    secondSocket.readyState = FakeWebSocket.CLOSED;
+    secondSocket.onclose?.();
+
+    await vi.advanceTimersByTimeAsync(2_000);
+    await settleLong();
+    const thirdSocket = FakeWebSocket.instances.at(-1)!;
+    thirdSocket.onopen?.();
+    await settleLong();
+    thirdSocket.onmessage?.({ data: JSON.stringify({ type: "status", code: "processed_acknowledgement", processedSequence: 0 }) });
+    await settleLong();
+    thirdSocket.readyState = FakeWebSocket.CLOSED;
+    thirdSocket.onclose?.();
+
+    const beforeNextReconnect = FakeWebSocket.instances.length;
+    await vi.advanceTimersByTimeAsync(999);
+    expect(FakeWebSocket.instances).toHaveLength(beforeNextReconnect);
+    await vi.advanceTimersByTimeAsync(1);
+    await settleLong();
+    expect(FakeWebSocket.instances).toHaveLength(beforeNextReconnect + 1);
   });
 
   it("reuses a preconnected socket when capture starts", async () => {
@@ -142,9 +370,28 @@ describe("shared PCM long-session recovery harness", () => {
     expect(diagnostics).toHaveBeenCalled();
   });
 
+  it("releases the microphone and transport when capture graph startup fails", async () => {
+    const captureError = new Error("audio graph unavailable");
+    const acquiredStream = streams[0]!;
+    provider.captureFactory = vi.fn(async () => { throw captureError; });
+    const diagnostics = vi.fn();
+    provider.onDiagnostic = diagnostics;
+
+    await expect(provider.start()).rejects.toBe(captureError);
+
+    expect(streams).toHaveLength(2);
+    expect(FakeWebSocket.instances).toHaveLength(1);
+    expect(provider.getStream()).toBeNull();
+    expect(acquiredStream.track.stop).toHaveBeenCalledOnce();
+    expect(FakeWebSocket.instances[0]!.readyState).toBe(FakeWebSocket.CLOSED);
+    expect(provider.getDiagnostic()).toMatchObject({ state: "failed", terminalReason: "capture_start_failed" });
+    expect(diagnostics).toHaveBeenCalled();
+  });
+
   it("exhausts exactly five consecutive reconnect attempts and falls back", async () => {
     await provider.start();
     await settle();
+    identifyLocalRoute(FakeWebSocket.instances.at(-1)!);
     captureOnFrame?.(new Float32Array(128).fill(0.5), 16_000);
     await settle();
     FakeWebSocket.autoOpen = false;
@@ -187,13 +434,25 @@ describe("shared PCM long-session recovery harness", () => {
     });
     provider.onStatus = status;
     provider.onResult = result;
+    const partial = vi.fn();
+    provider.onPartial = partial;
 
     await provider.start();
     await settle();
+    const firstSocket = FakeWebSocket.instances.at(-1)!;
+    // This is the server's early ready status. The browser must retain the
+    // selected catalog identity even if the connection dies before a segment.
+    firstSocket.onmessage?.({ data: JSON.stringify({
+      type: "status", code: "session_ready", providerId: "whisper-local",
+      modelId: "whisper-medium", providerTier: "local",
+    }) });
     const frame = new Float32Array(PCM_WIRE_BATCH_SAMPLES).fill(0.5);
     captureOnFrame?.(frame, 16_000);
     captureOnFrame?.(frame, 16_000);
     await settleLong();
+    firstSocket.onmessage?.({ data: JSON.stringify({ type: "partial", text: "first visible partial" }) });
+    await settle();
+    expect(partial).toHaveBeenCalledWith("first visible partial");
 
     FakeWebSocket.autoOpen = false;
     for (const delay of [1_000, 2_000, 4_000, 8_000, 8_000]) {
@@ -210,7 +469,45 @@ describe("shared PCM long-session recovery harness", () => {
 
     expect(status).toHaveBeenCalledWith(expect.objectContaining({ code: "reconnect_exhausted" }));
     expect(transcribeRetained).toHaveBeenCalledOnce();
+    expect(transcribeRetained.mock.calls[0]?.[2]).toMatchObject({
+      providerTier: "local",
+      providerId: "whisper-local",
+      modelId: "whisper-medium",
+    });
     expect(result).toHaveBeenCalledWith("recovered from journal tail");
+  });
+
+  it("refuses retained-audio recovery when the selected stream route is not local", async () => {
+    await provider.start();
+    await settle();
+    const socket = FakeWebSocket.instances.at(-1)!;
+    socket.onmessage?.({ data: JSON.stringify({
+      type: "status",
+      code: "provider_identity",
+      providerId: "openai-gpt-live",
+      modelId: "gpt-live-1.1",
+      providerTier: "byok",
+    }) });
+    captureOnFrame?.(new Float32Array(128).fill(0.5), 16_000);
+    await settle();
+
+    provider.stop();
+    FakeWebSocket.autoOpen = false;
+    for (const delay of [1_000, 2_000, 4_000, 8_000, 8_000]) {
+      FakeWebSocket.instances.at(-1)!.onclose?.();
+      await vi.advanceTimersByTimeAsync(delay);
+      await settleLong();
+    }
+    FakeWebSocket.instances.at(-1)!.onclose?.();
+    await settleLong();
+
+    expect(transcribeRetained).not.toHaveBeenCalled();
+    expect(result).not.toHaveBeenCalled();
+    expect(provider.getDiagnostic()).toMatchObject({
+      state: "failed",
+      errorCodes: expect.arrayContaining(["retained_route_unavailable"]),
+    });
+    expect(journal.read().retainedBytes).toBeGreaterThan(0);
   });
 
   it("keeps the primary streaming provider identity when fallback uses another provider", async () => {
@@ -238,6 +535,7 @@ describe("shared PCM long-session recovery harness", () => {
       code: "provider_identity",
       providerId: "kyutai",
       modelId: "kyutai/stt-1b-en_fr",
+      providerTier: "local",
     }) });
     captureOnFrame?.(new Float32Array(128).fill(0.5), 16_000);
     await settle();
@@ -301,6 +599,37 @@ describe("shared PCM long-session recovery harness", () => {
 
     expect(result).toHaveBeenCalledWith("committed");
     expect(await store.load(TurnJournal.key("cleanup", 0n))).toBeUndefined();
+  });
+
+  it("starts with a fresh session identity when retained audio has expired", async () => {
+    class ExpiringStore extends MemoryTurnJournalStore {
+      async prepareRestore(key: string): Promise<boolean> {
+        await this.remove(key);
+        return false;
+      }
+    }
+    const store = new ExpiringStore();
+    const oldSessionId = "expired-session";
+    const oldJournal = new TurnJournal(store, oldSessionId, 0n, 16 * 1024 * 1024, "persistent");
+    await oldJournal.append({ sequence: 0n, startSample: 0n, endSample: 2n, audio: new Uint8Array([1, 2]).buffer, sha256: new ArrayBuffer(0) });
+    rememberUnfinishedSession({ sessionId: oldSessionId, resumeToken: "expired-token" });
+    provider = new PcmVoiceStreamProvider({
+      getUserMedia,
+      transport: new FakeWebSocket(transcribeRetained),
+      captureFactory: async (_stream, onFrame) => {
+        captureOnFrame = onFrame;
+        return { stop: vi.fn() };
+      },
+      journalFactory: () => new TurnJournal(store, oldSessionId, 0n, 16 * 1024 * 1024, "persistent"),
+    });
+    provider.onStatus = status;
+
+    await provider.start();
+    await settle();
+
+    expect(await store.load(TurnJournal.key(oldSessionId, 0n))).toBeUndefined();
+    expect(FakeWebSocket.instances.at(-1)?.start.sessionId).not.toBe(oldSessionId);
+    expect(status).toHaveBeenCalledWith(expect.objectContaining({ code: "retention_expired" }));
   });
 
   it("treats a mid-recording final as backend loss and reconnects", async () => {
@@ -417,20 +746,57 @@ describe("shared PCM long-session recovery harness", () => {
   it("recovers retained PCM when the socket closes after stop", async () => {
 		await provider.start();
 		await settle();
+		identifyLocalRoute(FakeWebSocket.instances[0]!);
 		captureOnFrame?.(new Float32Array(128).fill(0.5), 16_000);
 		await settle();
-		const socket = FakeWebSocket.instances[0]!;
+		FakeWebSocket.autoOpen = false;
 		provider.stop();
-		socket.readyState = FakeWebSocket.CLOSED;
-		socket.onclose?.();
+		for (const delay of [1_000, 2_000, 4_000, 8_000, 8_000]) {
+			FakeWebSocket.instances.at(-1)!.onclose?.();
+			await vi.advanceTimersByTimeAsync(delay);
+			await settleLong();
+		}
+		FakeWebSocket.instances.at(-1)!.onclose?.();
 		await settleLong();
 		expect(transcribeRetained).toHaveBeenCalledOnce();
 		expect(result).toHaveBeenCalledWith("recovered");
 	});
 
+	it("replays a stopped stream before trying unary recovery", async () => {
+		await provider.start();
+		await settle();
+		const first = FakeWebSocket.instances.at(-1)!;
+		first.onmessage?.({ data: JSON.stringify({
+			type: "status", code: "provider_identity", providerId: "sherpa-stt",
+			modelId: "sherpa-onnx/streaming-zipformer-en-2023-06-26", providerTier: "local",
+		}) });
+		captureOnFrame?.(new Float32Array(1_600).fill(0.5), 16_000);
+		await settle();
+		provider.stop();
+		first.readyState = FakeWebSocket.CLOSED;
+		first.onclose?.();
+		await settle();
+
+		// Stop fences further microphone capture, but the bounded reconnect
+		// budget still owns the retained, unacknowledged journal tail.
+		await vi.advanceTimersByTimeAsync(1_000);
+		await settleLong();
+		const replay = FakeWebSocket.instances.at(-1)!;
+		expect(FakeWebSocket.instances).toHaveLength(2);
+		expect(replay.sendAudio).toHaveBeenCalledOnce();
+		expect(replay.end).toHaveBeenCalledOnce();
+		expect(transcribeRetained).not.toHaveBeenCalled();
+
+		replay.onmessage?.({ data: JSON.stringify({ type: "final", text: "complete recovered tail" }) });
+		await settleLong();
+		expect(result).toHaveBeenCalledWith("complete recovered tail");
+		expect(provider.getDiagnostic()).toMatchObject({ state: "completed", committedSamples: 1_600 });
+	});
+
 	it("recovers retained PCM when a stopped turn receives an empty final", async () => {
     await provider.start();
     await settle();
+    identifyLocalRoute(FakeWebSocket.instances[0]!);
     captureOnFrame?.(new Float32Array(128).fill(0.5), 16_000);
     await settle();
     const socket = FakeWebSocket.instances[0]!;
@@ -445,12 +811,19 @@ describe("shared PCM long-session recovery harness", () => {
   it("announces bounded recovery before using the retained-audio path", async () => {
     await provider.start();
     await settle();
+    identifyLocalRoute(FakeWebSocket.instances[0]!);
     captureOnFrame?.(new Float32Array(128).fill(0.5), 16_000);
     await settle();
     const socket = FakeWebSocket.instances[0]!;
     provider.stop();
+    FakeWebSocket.autoOpen = false;
     socket.readyState = FakeWebSocket.CLOSED;
     socket.onclose?.();
+    for (const delay of [1_000, 2_000, 4_000, 8_000, 8_000]) {
+      await vi.advanceTimersByTimeAsync(delay);
+      FakeWebSocket.instances.at(-1)!.onclose?.();
+      await settleLong();
+    }
     await settleLong();
     expect(status).toHaveBeenCalledWith(expect.objectContaining({
       code: "buffered_recovery",
@@ -474,10 +847,41 @@ describe("shared PCM long-session recovery harness", () => {
     expect(status.mock.calls.filter(([value]) => value.code === "final_pending")).toHaveLength(pendingCount);
   });
 
+  it("measures the shared stop marker through the 120 ms settle window to a real stream final", async () => {
+    // Vitest 2 (the Audio Tools UI runner) advances timers but does not fake
+    // performance.now by default. Drive the monotonic clock explicitly so
+    // this assertion verifies the 120 ms settle plus the 80 ms final wait in
+    // both the package's Vitest 3 runner and consumer Vitest 2 bridges.
+    let monotonicMs = 0;
+    vi.spyOn(globalThis.performance, "now").mockImplementation(() => monotonicMs);
+    await provider.start();
+    await settle();
+    const socket = FakeWebSocket.instances[0]!;
+    captureOnFrame?.(new Float32Array(128).fill(0.5), 16_000);
+    await settle();
+
+    // The shared capture action marks stop before its user-tap encoder settle.
+    provider.markStopRequested();
+    monotonicMs += 120;
+    await vi.advanceTimersByTimeAsync(120);
+    provider.stop();
+    await settle();
+    monotonicMs += 80;
+    await vi.advanceTimersByTimeAsync(80);
+    socket.onmessage?.({ data: JSON.stringify({ type: "final", text: "done" }) });
+    await settle();
+
+    expect(provider.getDiagnostic()).toMatchObject({
+      stopToFinalTailMs: 200,
+      terminalReason: "final",
+    });
+  });
+
   it("uses retained-audio recovery even when the fallback transcript is empty", async () => {
     transcribeRetained.mockResolvedValueOnce("   ");
     await provider.start();
     await settle();
+    identifyLocalRoute(FakeWebSocket.instances.at(-1)!);
     captureOnFrame?.(new Float32Array(128).fill(0.5), 16_000);
     await settle();
     FakeWebSocket.autoOpen = false;
@@ -537,6 +941,30 @@ describe("shared PCM long-session recovery harness", () => {
     expect(provider.getDiagnostic()).toMatchObject({ state: "failed", terminalReason: "mic_source_lost" });
   });
 
+  it("releases a reacquired stream when its capture graph cannot be created", async () => {
+    await provider.start();
+    await settle();
+    const originalTrack = provider.getStream()!.getTracks()[0] as unknown as FakeTrack;
+    const reacquired = streams[0]!;
+    const onError = vi.fn();
+    provider.onError = onError;
+    provider.captureFactory = vi.fn(async () => {
+      throw new Error("AudioWorklet and ScriptProcessor setup failed");
+    });
+
+    originalTrack.readyState = "ended";
+    originalTrack.onended?.();
+    await settle();
+
+    expect(getUserMedia).toHaveBeenCalledTimes(2);
+    expect(reacquired.track.stop).toHaveBeenCalledOnce();
+    expect(provider.getStream()).toBeNull();
+    expect(getActiveMicLeases().some((lease) => lease.owner === "voice-stream")).toBe(false);
+    expect(status).toHaveBeenCalledWith(expect.objectContaining({ code: "mic_source_lost" }));
+    expect(onError).toHaveBeenCalledOnce();
+    expect(provider.getDiagnostic()).toMatchObject({ state: "failed", terminalReason: "mic_source_lost" });
+  });
+
   it("drops PCM frames after tail-drop is armed", async () => {
     await provider.start();
     await settle();
@@ -555,6 +983,8 @@ describe("shared PCM long-session recovery harness", () => {
     await settle();
     provider.dropTail();
     provider.stop();
+    FakeWebSocket.instances.at(-1)?.onmessage?.({ data: JSON.stringify({ type: "final", text: "" }) });
+    await settleLong();
     await provider.start();
     await settle();
     captureOnFrame?.(new Float32Array(128).fill(0.5), 16_000);

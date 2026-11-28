@@ -4,13 +4,21 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "offer-desk",
   "generator": "v1.0.0",
-  "manifest_hash": "3af3b249c98b57651e80384422ec878dd63bf852b7b281ab2a1a46ca274c0a2d",
+  "manifest_hash": "f3f6c2d0211dd10d40ec2ed557f9be48ddd0a996342322f235d535449ca7ae93",
   "commands": [
     {
       "path": "offers board-show",
       "group": "offers",
       "command": "board-show",
       "binding": "BoardService.GetBoard",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "offers catalog-audit",
+      "group": "offers",
+      "command": "catalog-audit",
+      "binding": "CatalogService.ListAudit",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },
@@ -135,6 +143,14 @@
       "observed_primitive": "proto_mutation"
     },
     {
+      "path": "offers gates-facts",
+      "group": "offers",
+      "command": "gates-facts",
+      "binding": "GatesService.ListFacts",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
       "path": "offers gates-promote",
       "group": "offers",
       "command": "gates-promote",
@@ -157,6 +173,14 @@
       "binding": "GatesService.DeclareTrigger",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "offers gates-triggers",
+      "group": "offers",
+      "command": "gates-triggers",
+      "binding": "GatesService.ListTriggers",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
     },
     {
       "path": "offers meters",

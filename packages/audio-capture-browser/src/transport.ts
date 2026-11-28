@@ -3,6 +3,13 @@ import type { StreamMessage } from "./streamMessages";
 export interface VoiceProviderIdentity {
   readonly providerId?: string;
   readonly modelId?: string;
+  readonly providerTier?: "local" | "byok" | "vrooli";
+}
+
+/** Exact route selected by the stream. Retained recovery must not pick a new tier. */
+export interface RetainedTranscriptionRoute extends VoiceProviderIdentity {
+  readonly providerTier: "local";
+  readonly modelId: string;
 }
 
 export interface RetainedTranscription {
@@ -31,7 +38,7 @@ export interface VoiceAudioChunk {
 }
 
 export interface VoiceStreamConnection {
-  /** True while the underlying Connect bidi stream can accept requests. */
+  /** True only after the server accepts this session and the stream can accept requests. */
   isOpen(): boolean;
   sendAudio(chunk: VoiceAudioChunk): void;
   /** Sends the protocol's terminal StreamEnd request and closes request input. */
@@ -48,9 +55,11 @@ export interface VoiceStreamHandlers {
 
 export interface VoiceTransport {
   openStream(start: VoiceStreamStart, handlers: VoiceStreamHandlers): VoiceStreamConnection;
-  transcribeRetained(blob: Blob, language: string): Promise<string>;
+  /** Only transports that honor this exact-model contract may attempt recovery. */
+  readonly retainedRoutePolicy?: "exact-model";
+  transcribeRetained(blob: Blob, language: string, route: RetainedTranscriptionRoute): Promise<string>;
   /** Optional metadata-preserving form used by diagnostics and recovery UI. */
-  transcribeRetainedWithIdentity?(blob: Blob, language: string): Promise<RetainedTranscription>;
+  transcribeRetainedWithIdentity?(blob: Blob, language: string, route: RetainedTranscriptionRoute): Promise<RetainedTranscription>;
   getStreamConfig?(): Promise<unknown>;
 }
 

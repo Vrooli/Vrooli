@@ -1,0 +1,14 @@
+{
+  "schema_version": "1",
+  "kind": "style",
+  "key": "prose-studio/video-narration",
+  "created_by": "prose-studio",
+  "record": {
+    "directives": [
+      "Write only spoken narration in plain paragraphs. Use natural breath groups and concrete language.",
+      "Carry action and consequences forward across beats. Preserve names, point of view, chronology, and any delayed reveal specified in the outline.",
+      "Use the supplied beat summaries as creative direction. Preserve supplied facts and avoid adding factual claims that the outline does not establish."
+    ],
+    "anti_patterns": ["shot lists", "stage directions", "timestamps", "section headings", "speaker labels", "repeated hooks", "recaps between beats"]
+  }
+}

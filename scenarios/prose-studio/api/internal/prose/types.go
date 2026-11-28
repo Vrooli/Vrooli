@@ -138,6 +138,7 @@ type Provenance struct {
 	StrategyParameters       Sampler          `json:"strategy_parameters"`
 	Provider                 string           `json:"provider"`
 	ResolvedModelRef         string           `json:"resolved_model_ref"`
+	PromptSHA256             string           `json:"prompt_sha256,omitempty"`
 	GatewayRole              string           `json:"gateway_role"`
 	TemperatureSent          float64          `json:"temperature_sent"`
 	TemperatureSupport       string           `json:"temperature_support"`
@@ -152,19 +153,47 @@ type Provenance struct {
 }
 
 type Candidate struct {
-	ID              string          `json:"id"`
-	RoundID         string          `json:"round_id"`
-	DerivedFrom     []string        `json:"derived_from,omitempty"`
-	Text            string          `json:"text"`
-	SetIndex        int             `json:"set_index"`
-	Measurements    any             `json:"measurements"`
-	SetMeasurements any             `json:"set_measurements"`
-	Provenance      Provenance      `json:"provenance"`
-	VerbalizedHint  *VerbalizedHint `json:"verbalized_hint,omitempty"`
-	Eligibility     Eligibility     `json:"eligibility"`
-	Committed       bool            `json:"committed"`
-	Transform       *Transform      `json:"transform,omitempty"`
-	AxisCell        string          `json:"axis_cell,omitempty"`
+	ID              string           `json:"id"`
+	RoundID         string           `json:"round_id"`
+	DerivedFrom     []string         `json:"derived_from,omitempty"`
+	Text            string           `json:"text"`
+	SetIndex        int              `json:"set_index"`
+	Measurements    any              `json:"measurements"`
+	SetMeasurements any              `json:"set_measurements"`
+	Provenance      Provenance       `json:"provenance"`
+	VerbalizedHint  *VerbalizedHint  `json:"verbalized_hint,omitempty"`
+	Eligibility     Eligibility      `json:"eligibility"`
+	SectionAssembly *SectionAssembly `json:"section_assembly,omitempty"`
+	Committed       bool             `json:"committed"`
+	Transform       *Transform       `json:"transform,omitempty"`
+	AxisCell        string           `json:"axis_cell,omitempty"`
+}
+
+// SectionAssembly records how multiple short local candidates became one
+// canonical book section. Part candidate payloads remain independently
+// persisted under CandidateID and are linked through DerivedFrom.
+type SectionAssembly struct {
+	SchemaVersion string                `json:"schema_version"`
+	Kind          string                `json:"kind"`
+	Intent        string                `json:"intent"`
+	MinWords      int                   `json:"min_words"`
+	MaxWords      int                   `json:"max_words"`
+	WordCount     int                   `json:"word_count"`
+	Parts         []SectionPartEvidence `json:"parts"`
+}
+
+type SectionPartEvidence struct {
+	Index        int    `json:"index"`
+	Purpose      string `json:"purpose"`
+	CandidateID  string `json:"candidate_id"`
+	Provider     string `json:"provider"`
+	Model        string `json:"model"`
+	Locality     string `json:"locality"`
+	WordCount    int    `json:"word_count"`
+	InputTokens  int    `json:"input_tokens"`
+	OutputTokens int    `json:"output_tokens"`
+	PromptSHA256 string `json:"prompt_sha256"`
+	OutputSHA256 string `json:"output_sha256"`
 }
 
 type VerbalizedHint struct {
@@ -177,10 +206,11 @@ type Eligibility struct {
 }
 
 type Round struct {
-	ID           string   `json:"id"`
-	SessionID    string   `json:"session_id"`
-	Strategy     Sampler  `json:"strategy"`
-	CandidateIDs []string `json:"candidate_ids"`
+	ID              string   `json:"id"`
+	SessionID       string   `json:"session_id"`
+	CompositionMode string   `json:"composition_mode,omitempty"`
+	Strategy        Sampler  `json:"strategy"`
+	CandidateIDs    []string `json:"candidate_ids"`
 	// SamplingKey is the round's effective generation identity. It is recorded
 	// at birth because comparability is otherwise undecidable after the fact:
 	// two set-diversity numbers mean nothing side by side unless the conditions
@@ -222,14 +252,18 @@ type SelectionEvent struct {
 }
 
 type Document struct {
-	ID                string           `json:"id"`
-	Title             string           `json:"title"`
-	ProfileKey        string           `json:"profile_key"`
-	OutlineProfileKey string           `json:"outline_profile_key,omitempty"`
-	StyleKey          string           `json:"style_key"`
-	OutlineID         string           `json:"outline_id,omitempty"`
-	OutlineText       string           `json:"outline_text,omitempty"`
-	Outline           []OutlineSection `json:"outline,omitempty"`
+	ID string `json:"id"`
+	// BookBrief is consumer-supplied creative intent. Prose Studio preserves and
+	// forwards it; it does not decide editorial direction or render books.
+	BookBrief         *BookBrief          `json:"book_brief,omitempty"`
+	GenerationRuns    []BookGenerationRun `json:"generation_runs,omitempty"`
+	Title             string              `json:"title"`
+	ProfileKey        string              `json:"profile_key"`
+	OutlineProfileKey string              `json:"outline_profile_key,omitempty"`
+	StyleKey          string              `json:"style_key"`
+	OutlineID         string              `json:"outline_id,omitempty"`
+	OutlineText       string              `json:"outline_text,omitempty"`
+	Outline           []OutlineSection    `json:"outline,omitempty"`
 	// Artifacts are the literals every section of this document may quote. They
 	// belong to the document rather than to a section because a command named
 	// once in the opening is still available to the conclusion.
@@ -282,6 +316,7 @@ type OutlineSection struct {
 	Intent      string `json:"intent"`
 	Summary     string `json:"summary"`
 	TargetWords int    `json:"target_words"`
+	Kind        string `json:"kind,omitempty"`
 }
 
 type CoherenceThresholds struct {
@@ -391,16 +426,19 @@ type CompositeGeneration struct {
 	Coverage   CellCoverage `json:"coverage"`
 }
 type Section struct {
-	ID                   string          `json:"id"`
-	DocumentID           string          `json:"document_id"`
-	Position             int             `json:"position"`
-	Intent               string          `json:"intent"`
-	Summary              string          `json:"summary,omitempty"`
-	TargetWords          int             `json:"target_words,omitempty"`
-	ProfileKey           string          `json:"profile_key,omitempty"`
-	SessionID            string          `json:"session_id,omitempty"`
-	CommittedCandidateID string          `json:"committed_candidate_id,omitempty"`
-	Context              ContextSnapshot `json:"context_snapshot"`
+	ID                   string              `json:"id"`
+	DocumentID           string              `json:"document_id"`
+	Position             int                 `json:"position"`
+	Intent               string              `json:"intent"`
+	Summary              string              `json:"summary,omitempty"`
+	TargetWords          int                 `json:"target_words,omitempty"`
+	ProfileKey           string              `json:"profile_key,omitempty"`
+	SessionID            string              `json:"session_id,omitempty"`
+	CommittedCandidateID string              `json:"committed_candidate_id,omitempty"`
+	Context              ContextSnapshot     `json:"context_snapshot"`
+	GenerationRun        *BookGenerationRun  `json:"generation_run,omitempty"`
+	PartGenerationRuns   []BookGenerationRun `json:"part_generation_runs,omitempty"`
+	Kind                 string              `json:"kind,omitempty"`
 }
 type ContextSnapshot struct {
 	OutlineRef            string   `json:"outline_ref,omitempty"`

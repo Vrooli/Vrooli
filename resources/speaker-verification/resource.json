@@ -5,40 +5,32 @@
     "entries": {
       "profiles": {
         "rung": "pinned",
-        "path": {
-          "linux": "$USER_HOME/.local/share/vrooli/resources/speaker-verification/profiles",
-          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/speaker-verification/profiles",
-          "windows": "$USER_HOME/AppData/Local/vrooli/resources/speaker-verification/profiles"
-        },
         "kind": "dir",
         "class": "data",
+        "subpath": "profiles",
         "regenerable": false,
         "sensitive": true,
-        "rationale": "Enrolled speaker profiles are bind-mounted into the service and are not regenerable without re-enrollment.",
+        "rationale": "Enrolled speaker profiles are stored in the managed service data directory and require re-enrollment to recreate.",
         "budget": {
           "max_bytes": "5GiB",
           "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
         }
       },
       "model_cache": {
-        "rung": "relocatable",
-        "path": {
-          "linux": "$USER_HOME/.local/share/vrooli/resources/speaker-verification/model-cache-native",
-          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/speaker-verification/model-cache-native",
-          "windows": "$USER_HOME/AppData/Local/vrooli/resources/speaker-verification/model-cache-native"
-        },
+        "rung": "pinned",
         "kind": "dir",
-        "class": "cache",
-        "regenerable": true,
-        "relocation": {
-          "key": "SPEAKER_VERIFICATION_MODELS_DIR",
-          "scope": "container"
-        },
-        "rationale": "Downloaded SpeechBrain models are re-fetchable and mounted as model-cache.",
-        "budget": {
-          "max_age": "30d",
-          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
-        }
+        "class": "data",
+        "subpath": "model-cache-native",
+        "regenerable": false,
+        "rationale": "SpeechBrain saves the serving model trees here. The current startup path fetches upstream models without an exact reacquisition contract."
+      },
+      "model_hub_cache": {
+        "rung": "pinned",
+        "kind": "dir",
+        "class": "data",
+        "subpath": "model-cache",
+        "regenerable": false,
+        "rationale": "Contains the active Hugging Face blob cache under hf and legacy SpeechBrain saved models in sibling directories. Native model paths can link to these blobs."
       }
     }
   },

@@ -43,8 +43,8 @@ device predicate remain explicit in the acquisition record.
 ## Operator Checklist
 
 - Keep ports, storage, native acquisition, and health checks declared in `resource.json`.
-- Keep enrolled profiles and the model cache in the declared resource data directory.
-- The first start downloads the ECAPA-TDNN weights into the regenerable model-cache directory. Budget time for this warmup.
+- Keep enrolled profiles in the declared, sensitive `profiles` directory.
+- The first start downloads the ECAPA-TDNN weights during warmup. SpeechBrain saves model trees under `model-cache-native`, and model files can link to Hugging Face blobs under `model-cache/hf`. The owner inventory protects both trees pending version-pinned acquisition and an owner-fenced cleanup path.
 - Keep both wheel locks hash-pinned and update them through the dependency governance workflow.
 - Prefer shared `vrooli resource ...` lifecycle behavior before adding resource-local commands.
 

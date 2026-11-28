@@ -328,6 +328,29 @@
           }
         },
         {
+          "name": "document-export-book-source",
+          "description": "Export a committed document as manuscript-source/v1",
+          "flags": [
+            {
+              "name": "id",
+              "description": "Document identifier from document-list",
+              "local_only": true,
+              "bind_waiver": "The command's handler decodes this flag into the named field of the typed request before invoking the Connect client, so the value is projected by the handler rather than by a generic dispatcher."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProseStudioService",
+            "method": "ExportBookSource"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
           "name": "document-create",
           "description": "Create a section-composed document",
           "flags": [

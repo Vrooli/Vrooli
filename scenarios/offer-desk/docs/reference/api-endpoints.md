@@ -19,6 +19,7 @@ All RPCs use `POST /vrooli.offer_desk.v1.offers.CatalogService/<Method>`.
 |---|---|
 | `CreateNode` | Create an offer, variant, channel, revenue-line, or deliverable node. |
 | `ListNodes` | List typed catalog nodes and lifecycle status. |
+| `ListAudit` | Read newest-first typed audit records, optionally filtered by node; limits default to 100, cap at 500, and report truncation. |
 | `Transition` | Apply a legal lifecycle transition or return a refusal/remedy. |
 | `CreateEdge` | Add a typed relationship, including optional intended price/currency. |
 | `ListEdges` | List graph relationships. |
@@ -54,6 +55,8 @@ All RPCs use `POST /vrooli.offer_desk.v1.offers.GatesService/<Method>`.
 |---|---|
 | `DeclareTrigger` | Attach a machine-evaluable trigger to a node. |
 | `AddFact` | Record an observed fact with freshness metadata. |
+| `ListFacts` | Read recorded facts with freshness evaluated at the response's `evaluated_at` time; malformed observation times are `UNKNOWN`. |
+| `ListTriggers` | Read all declared trigger clauses and composition; verdicts are returned by `Evaluate`. |
 | `Evaluate` | Return satisfied, unsatisfied, or UNKNOWN with explanation and evidence age. |
 | `Promote` | Operator promotion changes state; an agent role creates a proposal and leaves the node non-active. |
 | `ListProposals` | List proposer, requested status, reason, creation/evidence metadata, and decline history. |

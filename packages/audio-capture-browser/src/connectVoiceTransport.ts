@@ -19,7 +19,8 @@ export interface VoiceConnectCodec<Request, Response> {
   start(value: VoiceStreamStart): Request;
   audio(value: VoiceAudioChunk): Request;
   end(): Request;
-  isStart(value: Request): boolean;
+  /** True only for the server's successful admission response to StreamStart. */
+  isReady(value: Response): boolean;
   event(value: Response, start: VoiceStreamStart): StreamMessage | null;
 }
 
@@ -38,12 +39,7 @@ export function openConnectVoiceStream<Request, Response>(
   let requestOpen = true;
   let closed = false;
   const abort = new AbortController();
-  const queue = new PushableAsyncIterable<Request>((request) => {
-    if (!readyNotified && codec.isStart(request)) {
-      readyNotified = true;
-      queueMicrotask(() => handlers.onReady());
-    }
-  });
+  const queue = new PushableAsyncIterable<Request>();
   queue.push(codec.start(start));
 
   const notifyClose = (error?: unknown) => {
@@ -57,6 +53,12 @@ export function openConnectVoiceStream<Request, Response>(
   void (async () => {
     try {
       for await (const response of client.transcribeStream(queue, { signal: abort.signal })) {
+        // A local queue is not server admission. Only activate capture after
+        // the server confirms that the session id and durable ledger are open.
+        if (!readyNotified && codec.isReady(response)) {
+          readyNotified = true;
+          handlers.onReady();
+        }
         const event = codec.event(response, start);
         if (event) handlers.onEvent(event);
       }
@@ -67,9 +69,9 @@ export function openConnectVoiceStream<Request, Response>(
   })();
 
   return {
-    isOpen: () => requestOpen && !closed,
+    isOpen: () => requestOpen && !closed && readyNotified,
     sendAudio: (chunk) => {
-      if (requestOpen && !closed) queue.push(codec.audio(chunk));
+      if (requestOpen && !closed && readyNotified) queue.push(codec.audio(chunk));
     },
     end: () => {
       if (!requestOpen || closed) return;

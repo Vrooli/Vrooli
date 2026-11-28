@@ -5,6 +5,7 @@ import type { VoiceCoreServices } from "./voice/services";
 import type { TranscriptionProvider } from "./voice/types";
 
 class StartFailProvider implements TranscriptionProvider {
+  readonly markStartRequested = vi.fn();
   readonly start = vi.fn(async () => {
     throw new Error("capture device disappeared");
   });
@@ -81,6 +82,7 @@ describe("useVoiceCore provider startup", () => {
       await Promise.resolve();
     });
     expect(provider.start).toHaveBeenCalledOnce();
+    expect(provider.markStartRequested).toHaveBeenCalledOnce();
     resolveProbe({ whisperHealthy: true, streamingAvailable: true });
     await act(async () => { await start; });
     await waitFor(() => expect(result.current.voiceState).toBe("idle"));
@@ -108,5 +110,51 @@ describe("useVoiceCore provider startup", () => {
     expect(result.current.error).toBe("capture device disappeared");
     expect(provider.start).toHaveBeenCalledOnce();
     expect(provider.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("ignores an unhealthy capability result from a stopped turn after a newer turn starts", async () => {
+    const provider = new StartFailProvider();
+    let resolveOldProbe!: (value: { whisperHealthy: boolean; streamingAvailable: boolean }) => void;
+    let resolveNewProbe!: (value: { whisperHealthy: boolean; streamingAvailable: boolean }) => void;
+    let probeCalls = 0;
+    const capabilityCheck = vi.fn(() => {
+      probeCalls++;
+      if (probeCalls === 1) return Promise.resolve({ whisperHealthy: true, streamingAvailable: true });
+      if (probeCalls === 2) return new Promise<{ whisperHealthy: boolean; streamingAvailable: boolean }>((resolve) => { resolveOldProbe = resolve; });
+      return new Promise<{ whisperHealthy: boolean; streamingAvailable: boolean }>((resolve) => { resolveNewProbe = resolve; });
+    });
+    let rejectSecondStart!: (error: Error) => void;
+    provider.start.mockImplementationOnce(async () => { throw new Error("first start failed"); })
+      .mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectSecondStart = reject; }));
+    const { result } = renderHook(() => useVoiceCore({
+      services: services(provider),
+      capabilityCheck,
+      voiceEnabled: true,
+      voiceLanguage: "en",
+      vadSilenceTimeoutMs: 900,
+      persistentMode: false,
+      wakeWordEnabled: false,
+      segmentSilenceMs: 900,
+      onTranscript: vi.fn(),
+    }));
+
+    await waitFor(() => expect(result.current.supported).toBe(true));
+    await act(async () => { await result.current.startRecording(); });
+    await waitFor(() => expect(result.current.voiceState).toBe("idle"));
+    expect(provider.dispose).toHaveBeenCalledOnce();
+
+    let secondStart!: Promise<void>;
+    await act(async () => { secondStart = result.current.startRecording(); await Promise.resolve(); });
+    await waitFor(() => expect(result.current.voiceState).toBe("preparing"));
+    resolveOldProbe({ whisperHealthy: false, streamingAvailable: false });
+    await act(async () => { await Promise.resolve(); });
+
+    expect(provider.dispose).toHaveBeenCalledOnce();
+    expect(result.current.voiceState).toBe("preparing");
+    expect(result.current.supported).toBe(true);
+
+    rejectSecondStart(new Error("second start failed"));
+    await act(async () => { await secondStart; });
+    resolveNewProbe({ whisperHealthy: true, streamingAvailable: true });
   });
 });

@@ -121,3 +121,6 @@ common first-time issues are:
   when the governed contract changes.
 - Append a one-line entry to [`internal/PROGRESS.md`](internal/PROGRESS.md)
   whenever you land work, so future agents can replay the lifecycle.
+
+For voiceover drafting from an operator-owned beat plan, see
+[Draft narration from an ordered beat outline](guides/video-narration.md).

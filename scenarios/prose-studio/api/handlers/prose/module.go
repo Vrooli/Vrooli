@@ -220,6 +220,18 @@ func (h *handler) GetDocument(ctx context.Context, req *connect.Request[v1.GetDo
 	return connect.NewResponse(&response), nil
 }
 
+func (h *handler) ExportBookSource(ctx context.Context, req *connect.Request[v1.ExportBookSourceRequest]) (*connect.Response[v1.ExportBookSourceResponse], error) {
+	out, err := h.service.ExportBookSource(ctx, req.Msg.GetId())
+	if err != nil {
+		return nil, connect.NewError(codeFor(err), err)
+	}
+	var response v1.ExportBookSourceResponse
+	if err := encodeResponse(map[string]any{"source": out}, &response); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&response), nil
+}
+
 func (h *handler) CreateDocument(ctx context.Context, req *connect.Request[v1.CreateDocumentRequest]) (*connect.Response[v1.CreateDocumentResponse], error) {
 	var in struct {
 		Document internal.Document  `json:"document"`
@@ -501,6 +513,10 @@ func codeFor(err error) connect.Code {
 		return connect.CodeFailedPrecondition
 	case errors.Is(err, internal.ErrProfileDeclared), errors.Is(err, internal.ErrProfileUnregistered), errors.Is(err, internal.ErrBudgetExceeded), errors.Is(err, internal.ErrContextInfeasible):
 		return connect.CodeFailedPrecondition
+	case errors.Is(err, internal.ErrDocumentBusy):
+		return connect.CodeAborted
+	case errors.Is(err, internal.ErrDocumentExists):
+		return connect.CodeAlreadyExists
 	case errors.Is(err, internal.ErrDocumentNotFound):
 		return connect.CodeNotFound
 	default:
@@ -510,7 +526,11 @@ func codeFor(err error) connect.Code {
 
 func writeError(w http.ResponseWriter, code connect.Code, err error) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusBadRequest)
+	status := http.StatusBadRequest
+	if errors.Is(err, internal.ErrDocumentBusy) {
+		status = http.StatusConflict
+	}
+	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]any{"code": code.String(), "error": err.Error()})
 }
 
@@ -527,6 +547,7 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "prose_list_documents", Path: connectv1.ProseStudioServiceListDocumentsProcedure, Method: http.MethodPost, Summary: "List generated documents, newest first", Category: "documents"},
 	{ID: "prose_get_document", Path: connectv1.ProseStudioServiceGetDocumentProcedure, Method: http.MethodPost, Summary: "Read one document with its outline, coherence, and provenance", Category: "documents"},
 	{ID: "prose_create_document", Path: connectv1.ProseStudioServiceCreateDocumentProcedure, Method: http.MethodPost, Summary: "Create a section-composed document", Category: "documents"},
+	{ID: "prose_export_book_source", Path: connectv1.ProseStudioServiceExportBookSourceProcedure, Method: http.MethodPost, Summary: "Export committed document source as manuscript-source/v1", Category: "documents"},
 	{ID: "prose_assemble_document", Path: connectv1.ProseStudioServiceAssembleDocumentProcedure, Method: http.MethodPost, Summary: "Assemble committed sections to ordered text", Category: "documents"},
 	{ID: "prose_resume_document", Path: connectv1.ProseStudioServiceResumeDocumentProcedure, Method: http.MethodPost, Summary: "Resume a partially committed document", Category: "documents"},
 	{ID: "prose_conformance", Path: connectv1.ProseStudioServiceConformanceProcedure, Method: http.MethodPost, Summary: "Report style targets and lexicon spans", Category: "styles"},

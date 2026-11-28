@@ -8,6 +8,7 @@ same generated Connect contract used by the UI.
 | Command | Purpose | Important flags |
 |---|---|---|
 | `catalog-list` | List typed graph nodes. | — |
+| `catalog-audit` | Read newest-first, append-only catalog decisions. The default limit is 100, the maximum is 500, and the response marks truncation. | `--node-id`, `--limit` |
 | `catalog-import` | Rehearse or apply a declared catalog source. | `--source-path`, `--source-mode`, `--apply` |
 | `catalog-merge` | Dry-run or apply an audited same-kind duplicate merge; the duplicate is retired after references move. Dry-run is the default. | `--surviving-id`, `--duplicate-id`, `--actor`, `--reason`, `--dry-run=false` to apply |
 | `catalog-rename` | Rename a node while preserving graph references and rejecting same-kind name collisions. | `--node-id`, `--name`, `--actor`, `--reason` |
@@ -21,6 +22,8 @@ same generated Connect contract used by the UI.
 |---|---|---|
 | `gates-trigger` | Declare a machine-evaluable trigger. | `--node-id`, `--fact-name`, `--operator`, `--threshold` |
 | `gates-fact` | Record an observed fact. | `--name`, `--value`, `--stale-after-days` |
+| `gates-triggers` | Read declared clauses and composition; verdicts come from `gates-evaluate`. | — |
+| `gates-facts` | Read values and timestamps with `FRESH`/`STALE`/`UNKNOWN` evaluated at response time. | — |
 | `gates-evaluate` | Evaluate triggers as satisfied, unsatisfied, or UNKNOWN. | — |
 | `gates-promote` | Promote as operator or create an agent proposal. | `--node-id`, `--actor`, `--role` |
 | `gates-proposals` | List proposals and decline history. | `--node-id`, `--status` |

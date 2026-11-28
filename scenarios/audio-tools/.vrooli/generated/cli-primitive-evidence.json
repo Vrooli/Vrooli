@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "audio-tools",
   "generator": "v1.0.0",
-  "manifest_hash": "312ceacd0cd431397cb93ef53c21eac997eb54f068fb9f55d9d2f27834977cb3",
+  "manifest_hash": "a9c467e7ca9f435cfe06792d7354b2e4586214b9ee3633c8501702eca61c9d33",
   "commands": [
     {
       "path": "audio extract-metadata",

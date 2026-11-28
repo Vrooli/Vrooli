@@ -1,43 +1,15 @@
-/**
- * Unit tests for the Input primitive.
- *
- * What these tests pin:
- *   - The base className chunk (`rounded-control`) is always emitted, so a
- *     refactor that drops the cn() merge surfaces immediately.
- *   - Custom className is merged via tailwind-merge (cn helper), including
- *     Tailwind conflict resolution.
- *   - The forwardRef contract holds: useRef(null) populates with the
- *     real HTMLInputElement.
- *   - Arbitrary props pass through (placeholder, type, disabled).
- *   - Typing produces the expected value (smoke check on the
- *     controlled-input contract).
- *
- * No dedicated mock seam needed; the primitive is a leaf wrapper. When
- * a scenario adds form-validation behaviour, tests grow alongside.
- */
 import { useRef } from "react";
 import { describe, expect, it } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
-import { Input } from "./input";
+import { Input } from "@vrooli/react-component-library/Input/1.3.6";
 
 describe("Input", () => {
-  it("emits the base className chunk so the cn() merge contract holds", () => {
-    renderWithProviders(<Input data-testid="i" />);
-    const el = screen.getByTestId("i");
-    expect(el.className).toMatch(/rounded-control/);
-    expect(el.className).toMatch(/border/);
-  });
-
-  it("merges a custom className with the base classes via cn()", () => {
+  it("forwards caller classes to the input", () => {
     renderWithProviders(<Input data-testid="i" className="custom-extra px-6" />);
-    const el = screen.getByTestId("i");
-    expect(el.className).toMatch(/custom-extra/);
-    expect(el.className).toMatch(/rounded-control/);
-    expect(el.className).toMatch(/px-6/);
-    expect(el.className).not.toMatch(/px-3/);
+    expect(screen.getByTestId("i")).toHaveClass("custom-extra", "px-6");
   });
 
   it("forwards ref to the underlying HTMLInputElement", () => {

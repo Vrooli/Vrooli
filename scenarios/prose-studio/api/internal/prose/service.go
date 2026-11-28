@@ -44,6 +44,8 @@ var (
 	ErrDeclarationRootMissing   = errors.New("declaration_root_missing")
 	ErrDocumentIDRequired       = errors.New("document_id_is_required")
 	ErrDocumentNotFound         = errors.New("document_not_found")
+	ErrDocumentExists           = errors.New("document_already_exists")
+	ErrDocumentBusy             = errors.New("document_busy")
 	ErrPromptContainsIdentifier = errors.New("prompt_contains_record_identifier")
 	ErrArtifactsRequired        = errors.New("source_artifacts_required")
 	ErrSupportedClaimsRequired  = errors.New("supported_claim_phrases_required")
@@ -226,6 +228,21 @@ func gatewaySchema(req GatewayRequest) string {
 		return `{"type":"array","items":{"type":"string"}}`
 	}
 	return `{"type":"string"}`
+}
+
+// generationPromptSHA256 records a stable hash of the prompt components sent
+// for one candidate set. It deliberately excludes source prose from durable
+// diagnostics while allowing an owner to correlate the exact request later.
+func generationPromptSHA256(req GatewayRequest) string {
+	payload, _ := json.Marshal(struct {
+		Role        string          `json:"role"`
+		Instruction string          `json:"instruction"`
+		Query       string          `json:"query"`
+		Schema      string          `json:"schema"`
+		Negative    NegativeContext `json:"negative"`
+	}{Role: req.Role, Instruction: req.Instruction, Query: req.Query, Schema: gatewaySchema(req), Negative: req.Negative})
+	sum := sha256.Sum256(payload)
+	return hex.EncodeToString(sum[:])
 }
 
 // verbalizedCandidate is the wire shape of one entry in a verbalized
@@ -537,6 +554,9 @@ type Service struct {
 	// declarationsRoot is the scenario's own declaration root, used when a
 	// reindex caller names none. Empty means no default is configured.
 	declarationsRoot string
+
+	documentMu      sync.Mutex
+	activeDocuments map[string]struct{}
 }
 
 // SetDeclarationsRoot names the root a rootless Reindex should rescan.
@@ -895,6 +915,7 @@ func (s *Service) generateResolved(ctx context.Context, req GenerateRequest, res
 		instruction += "\nSTRICT SUPPORTED-CLAIM MODE: Output only complete sentences that match one of these supported claim phrases exactly, allowing only case, whitespace and final punctuation changes. Do not paraphrase, strengthen, add a number, add a result or add transition text. If the supplied phrases cannot answer the request, return no candidate. Supported claim phrases: " + strings.Join(req.SupportedClaimPhrases, " | ")
 	}
 	gwReq := GatewayRequest{Role: resolved.Profile.GatewayRole, Instruction: instruction, Query: req.Query, SchemaJSON: req.SchemaJSON, Strategy: resolved.Profile.Sampler.Kind, K: resolved.Profile.Sampler.K, Tau: resolved.Profile.Sampler.Tau, MaxOutputTokens: effectiveCap, TemperatureStance: resolved.Profile.Sampler.TemperatureStance, Locality: resolved.Profile.Locality, PrivacyClass: prosePrivacyClass, PrivacySource: prosePrivacySource, Negative: req.Negative}
+	promptSHA256 := generationPromptSHA256(gwReq)
 	responses, err := s.gateway.Generate(ctx, gwReq)
 	if err != nil {
 		if !persist {
@@ -965,7 +986,7 @@ func (s *Service) generateResolved(ctx context.Context, req GenerateRequest, res
 		if capValue == 0 && capSource == "" {
 			capValue, capSource = effectiveCap, "profile"
 		}
-		candidate := Candidate{ID: id, RoundID: round.ID, Text: response.Text, SetIndex: i, Measurements: measurements[i], SetMeasurements: setMeasurements, Eligibility: gate(measurements[i], resolved.Profile.Constraints, response.Text, gateInputs{Selection: req.Selection, Artifacts: req.Artifacts, SupportedClaimPhrases: req.SupportedClaimPhrases}), Provenance: Provenance{ProfileVersion: fmt.Sprintf("%s@%d", resolved.Profile.Key, resolved.Profile.Version), Locality: transformLocality(resolved.Profile.Locality), PrivacyClass: prosePrivacyClass, PrivacySource: prosePrivacySource, StyleVersions: styleVersions(resolved.Styles), Strategy: resolved.Profile.Sampler.Kind, StrategyParameters: resolved.Profile.Sampler, Provider: response.Provider, ResolvedModelRef: response.Model, GatewayRole: resolved.Profile.GatewayRole, TemperatureSent: response.Temperature, TemperatureSupport: response.TemperatureSupport, MaxOutputTokensEffective: capValue, MaxOutputTokensSource: capSource, InputTokens: response.InputTokens, OutputTokens: response.OutputTokens, CostMicros: cost, MachineGenerated: true, Disclosure: "machine_generated", ContextSnapshot: &ContextSnapshot{EstimatedTokens: estimateContextTokens(req.Query)}}}
+		candidate := Candidate{ID: id, RoundID: round.ID, Text: response.Text, SetIndex: i, Measurements: measurements[i], SetMeasurements: setMeasurements, Eligibility: gate(measurements[i], resolved.Profile.Constraints, response.Text, gateInputs{Selection: req.Selection, Artifacts: req.Artifacts, SupportedClaimPhrases: req.SupportedClaimPhrases}), Provenance: Provenance{ProfileVersion: fmt.Sprintf("%s@%d", resolved.Profile.Key, resolved.Profile.Version), Locality: transformLocality(resolved.Profile.Locality), PrivacyClass: prosePrivacyClass, PrivacySource: prosePrivacySource, StyleVersions: styleVersions(resolved.Styles), Strategy: resolved.Profile.Sampler.Kind, StrategyParameters: resolved.Profile.Sampler, Provider: response.Provider, ResolvedModelRef: response.Model, PromptSHA256: promptSHA256, GatewayRole: resolved.Profile.GatewayRole, TemperatureSent: response.Temperature, TemperatureSupport: response.TemperatureSupport, MaxOutputTokensEffective: capValue, MaxOutputTokensSource: capSource, InputTokens: response.InputTokens, OutputTokens: response.OutputTokens, CostMicros: cost, MachineGenerated: true, Disclosure: "machine_generated", ContextSnapshot: &ContextSnapshot{EstimatedTokens: estimateContextTokens(req.Query)}}}
 		if resolved.Profile.Sampler.Kind == samplerVSStandard {
 			candidate.VerbalizedHint = &VerbalizedHint{Ordinal: response.HintOrdinal, Calibrated: false}
 		}
@@ -1492,16 +1513,73 @@ func (s *Service) ValidateDeclarations(ctx context.Context, root string) ([]Decl
 	return s.Reindex(ctx, root)
 }
 
+// beginDocumentWrite claims a document without waiting for inference. The
+// registry only contains active writers and never holds its mutex during I/O.
+func (s *Service) beginDocumentWrite(id string) (func(), error) {
+	s.documentMu.Lock()
+	defer s.documentMu.Unlock()
+	if _, active := s.activeDocuments[id]; active {
+		return nil, fmt.Errorf("%w: %s", ErrDocumentBusy, id)
+	}
+	if s.activeDocuments == nil {
+		s.activeDocuments = make(map[string]struct{})
+	}
+	s.activeDocuments[id] = struct{}{}
+	return func() {
+		s.documentMu.Lock()
+		delete(s.activeDocuments, id)
+		s.documentMu.Unlock()
+	}, nil
+}
+
 func (s *Service) CreateDocument(ctx context.Context, doc Document, sections []Section) (Document, error) {
+	if doc.BookBrief != nil {
+		if err := doc.BookBrief.Validate(); err != nil {
+			return Document{}, err
+		}
+		doc.Title = doc.BookBrief.Title
+	}
 	if doc.ID == "" {
 		doc.ID = uuid.NewString()
 	}
+	release, err := s.beginDocumentWrite(doc.ID)
+	if err != nil {
+		return Document{}, err
+	}
+	defer release()
 	if doc.CreatedAt.IsZero() {
 		doc.CreatedAt = s.now().UTC()
 	}
 	doc.Status = "draft"
 	if len(sections) == 0 {
-		return s.generateDocument(ctx, doc)
+		return s.generateDocument(ctx, doc, true)
+	}
+	if doc.BookBrief != nil {
+		slots := bookBriefSlots(*doc.BookBrief, defaultTargetSectionWords)
+		if len(slots) != len(sections) {
+			return Document{}, errors.New("book document section slots must match all brief matter and chapter intents")
+		}
+		doc.Outline = make([]OutlineSection, len(slots))
+		for i := range sections {
+			kind := sections[i].Kind
+			if kind == "" {
+				kind = "chapter"
+			}
+			if kind != slots[i].Kind || sections[i].Intent != slots[i].Intent {
+				return Document{}, errors.New("book document section order and intent must match brief")
+			}
+			sections[i].Kind = kind
+			if sections[i].TargetWords <= 0 {
+				sections[i].TargetWords = slots[i].TargetWords
+			}
+			if sections[i].Summary == "" {
+				sections[i].Summary = slots[i].Summary
+			}
+			doc.Outline[i] = OutlineSection{Kind: kind, Intent: sections[i].Intent, Summary: sections[i].Summary, TargetWords: sections[i].TargetWords}
+		}
+		raw, _ := json.Marshal(doc.Outline)
+		doc.OutlineText = string(raw)
+		doc.SectionCount = len(sections)
 	}
 	for i := range sections {
 		if sections[i].ID == "" {
@@ -1509,6 +1587,7 @@ func (s *Service) CreateDocument(ctx context.Context, doc Document, sections []S
 		}
 		sections[i].DocumentID = doc.ID
 		doc.SectionIDs = append(doc.SectionIDs, sections[i].ID)
+		doc.Sections = append(doc.Sections, sections[i])
 		if err := s.saveSection(ctx, sections[i]); err != nil {
 			return Document{}, err
 		}
@@ -1583,6 +1662,56 @@ func (s *Service) GetDocument(ctx context.Context, documentID string) (Document,
 	return doc, nil
 }
 
+// ExportBookSource reads only the durable document and its committed section
+// candidates. It never generates or repairs prose during export.
+func (s *Service) ExportBookSource(ctx context.Context, documentID string) (ManuscriptSource, error) {
+	doc, err := s.GetDocument(ctx, documentID)
+	if err != nil {
+		return ManuscriptSource{}, err
+	}
+	texts := make(map[string]string, len(doc.Sections))
+	candidates := make(map[string]Candidate, len(doc.Sections))
+	for _, section := range doc.Sections {
+		if section.CommittedCandidateID == "" {
+			return ManuscriptSource{}, errors.New("book source export requires every section to be committed")
+		}
+		var candidate Candidate
+		if err := s.loadJSON(ctx, "prose_candidates", section.CommittedCandidateID, &candidate); err != nil {
+			return ManuscriptSource{}, fmt.Errorf("book source export missing committed section %s: %w", section.ID, err)
+		}
+		if !candidate.Committed || candidate.ID != section.CommittedCandidateID {
+			return ManuscriptSource{}, fmt.Errorf("book source export requires committed candidate for section %s", section.ID)
+		}
+		texts[candidate.ID] = candidate.Text
+		candidates[candidate.ID] = candidate
+		partIDs := append([]string(nil), candidate.DerivedFrom...)
+		if candidate.SectionAssembly != nil {
+			for _, part := range candidate.SectionAssembly.Parts {
+				partIDs = append(partIDs, part.CandidateID)
+			}
+		}
+		seenParts := map[string]bool{}
+		for _, partID := range partIDs {
+			if partID == "" || seenParts[partID] {
+				continue
+			}
+			seenParts[partID] = true
+			part, err := s.loadCandidate(ctx, partID)
+			if err != nil {
+				return ManuscriptSource{}, fmt.Errorf("book source export missing derived part candidate %s: %w", partID, err)
+			}
+			candidates[partID] = part
+		}
+	}
+	if len(doc.Sections) == 0 {
+		return ManuscriptSource{}, errors.New("book source export requires at least one committed section")
+	}
+	if err := s.validateStoredBookSource(ctx, doc, candidates); err != nil {
+		return ManuscriptSource{}, err
+	}
+	return ExportManuscript(doc, texts)
+}
+
 func summarizeDocument(doc Document) DocumentSummary {
 	return DocumentSummary{
 		ID:              doc.ID,
@@ -1601,11 +1730,16 @@ func summarizeDocument(doc Document) DocumentSummary {
 // sections. It never regenerates a section that already has a committed
 // candidate.
 func (s *Service) ResumeDocument(ctx context.Context, documentID string) (Document, error) {
+	release, err := s.beginDocumentWrite(documentID)
+	if err != nil {
+		return Document{}, err
+	}
+	defer release()
 	var doc Document
 	if err := s.loadJSON(ctx, "prose_documents", documentID, &doc); err != nil {
 		return Document{}, err
 	}
-	return s.generateDocument(ctx, doc)
+	return s.generateDocument(ctx, doc, false)
 }
 
 func (s *Service) resolveDocumentProfiles(ctx context.Context, doc Document) (Profile, Profile, error) {
@@ -1641,18 +1775,52 @@ func (s *Service) resolveDocumentProfiles(ctx context.Context, doc Document) (Pr
 // generateDocument is the service-owned long-form path. The outline is a
 // normal candidate round, followed by one passage-level session per section.
 // Callers do not manufacture committed ids or context snapshots.
-func (s *Service) generateDocument(ctx context.Context, doc Document) (Document, error) {
+func (s *Service) generateDocument(ctx context.Context, doc Document, creating bool) (Document, error) {
 	if strings.TrimSpace(doc.ProfileKey) == "" {
 		return Document{}, errors.New("document profile_key is required")
 	}
-	if err := s.saveJSON(ctx, "prose_documents", doc.ID, doc); err != nil {
-		return Document{}, err
+	if doc.BookBrief != nil {
+		if err := doc.BookBrief.Validate(); err != nil {
+			return Document{}, err
+		}
+		// The typed approved title is canonical and survives every resume/readback.
+		doc.Title = doc.BookBrief.Title
+	}
+	callerPlanned := doc.BookBrief == nil && doc.OutlineID == "" && len(doc.Outline) > 0
+	if !callerPlanned {
+		if err := s.saveJSON(ctx, "prose_documents", doc.ID, doc); err != nil {
+			return Document{}, err
+		}
 	}
 	outlineProfile, sectionProfile, err := s.resolveDocumentProfiles(ctx, doc)
 	if err != nil {
 		return Document{}, err
 	}
-	if doc.OutlineID == "" || len(doc.Outline) == 0 {
+	if doc.BookBrief != nil {
+		outlineProfileKey := outlineProfile.Key
+		outline, err := bookBriefOutline(*doc.BookBrief, sectionProfile)
+		if err != nil {
+			return Document{}, err
+		}
+		raw, _ := json.Marshal(outline)
+		doc.OutlineText = string(raw)
+		doc.OutlineProfileKey = outlineProfileKey
+		doc.OutlineProfileVersion = fmt.Sprintf("%s@%d", outlineProfile.Key, outlineProfile.Version)
+		doc.Outline = outline
+		doc.SectionCount = len(outline)
+	} else if callerPlanned {
+		if err := applyCallerOutline(&doc, sectionProfile); err != nil {
+			return Document{}, err
+		}
+		if creating {
+			if len(doc.SectionIDs) > 0 || len(doc.Sections) > 0 || doc.AssembledText != "" {
+				return Document{}, fmt.Errorf("%w: supplied outline requires a fresh document", ErrMalformedOutline)
+			}
+			if err := s.insertCallerPlannedDocument(ctx, doc); err != nil {
+				return Document{}, err
+			}
+		}
+	} else if doc.OutlineID == "" || len(doc.Outline) == 0 {
 		outlineProfileKey := outlineProfile.Key
 		outlineProfile.Constraints = Constraints{}
 		overallMinWords, overallMaxWords := sectionProfile.Constraints.MinWords, sectionProfile.Constraints.MaxWords
@@ -1670,6 +1838,9 @@ func (s *Service) generateDocument(ctx context.Context, doc Document) (Document,
 		}
 		sectionCount, minSections, maxSections := resolveSectionPlan(doc, sectionProfile, overallMaxWords)
 		outlineQuery := fmt.Sprintf("Create a concise ordered outline as a JSON array of %d sections for: %s. Each section must carry a distinct claim and advance the argument; no two sections may restate the same point in different words. The %d target_words values must sum to between %d and %d words for the assembled article.", sectionCount, doc.Title, sectionCount, overallMinWords, overallMaxWords)
+		if doc.BookBrief != nil {
+			outlineQuery += "\n\n" + doc.BookBrief.PromptText()
+		}
 		outline, err := s.generateWithRetry(ctx, GenerateRequest{ProfileKey: outlineProfileKey, Query: outlineQuery, SchemaJSON: outlineSchema, IncludeCandidates: true}, outlineProfile, "outline generation")
 		if err != nil {
 			return Document{}, err
@@ -1706,6 +1877,7 @@ func (s *Service) generateDocument(ctx context.Context, doc Document) (Document,
 		if err := s.commit(ctx, outline.Session, outlineCandidate.ID); err != nil {
 			return Document{}, err
 		}
+		doc.GenerationRuns = append(doc.GenerationRuns, generationRun(outline.Session.Query, *outlineCandidate, s.now()))
 		doc.OutlineID = outlineCandidate.ID
 		doc.OutlineText = outlineCandidate.Text
 		doc.OutlineProfileKey = outlineProfile.Key
@@ -1747,11 +1919,91 @@ func (s *Service) generateDocument(ctx context.Context, doc Document) (Document,
 	if err := s.saveJSON(ctx, "prose_documents", doc.ID, doc); err != nil {
 		return Document{}, err
 	}
-	assembled, err := s.AssembleDocument(ctx, doc.ID)
+	assembled, err := s.assembleDocument(ctx, doc.ID)
 	if err != nil {
 		return Document{}, err
 	}
 	return s.repairDocument(ctx, assembled, sectionProfile, intents)
+}
+
+// applyCallerOutline keeps the caller's beat order and word targets. An empty
+// outline ID distinguishes supplied plans from committed model candidates.
+func applyCallerOutline(doc *Document, profile Profile) error {
+	maxSections := profile.Composition.MaxSections
+	if maxSections <= 0 {
+		maxSections = defaultMaxSections
+	}
+	if len(doc.Outline) > maxSections {
+		return fmt.Errorf("%w: supplied outline supports at most %d sections", ErrMalformedOutline, maxSections)
+	}
+	remaining := profile.Constraints.MaxWords
+	if remaining <= 0 {
+		remaining = 1400
+	}
+	for i, section := range doc.Outline {
+		if strings.TrimSpace(section.Intent) == "" || strings.TrimSpace(section.Summary) == "" || section.TargetWords <= 0 {
+			return fmt.Errorf("%w: section %d requires intent, summary, and positive target_words", ErrMalformedOutline, i+1)
+		}
+		if section.TargetWords > remaining {
+			return fmt.Errorf("%w: supplied outline exceeds the profile's total target word budget at section %d", ErrMalformedOutline, i+1)
+		}
+		remaining -= section.TargetWords
+	}
+	raw, err := json.Marshal(doc.Outline)
+	if err != nil {
+		return err
+	}
+	doc.OutlineText = string(raw)
+	doc.SectionCount = len(doc.Outline)
+	return nil
+}
+
+func (s *Service) insertCallerPlannedDocument(ctx context.Context, doc Document) error {
+	raw, err := json.Marshal(doc)
+	if err != nil {
+		return err
+	}
+	result, err := s.db.ExecContext(ctx, `INSERT INTO prose_documents(id,payload) VALUES(?,?) ON CONFLICT(id) DO NOTHING`, doc.ID, string(raw))
+	if err != nil {
+		return err
+	}
+	inserted, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if inserted == 0 {
+		return fmt.Errorf("%w: %s", ErrDocumentExists, doc.ID)
+	}
+	return nil
+}
+
+func bookBriefOutline(brief BookBrief, profile Profile) ([]OutlineSection, error) {
+	outline := bookBriefSlots(brief, profile.Composition.TargetSectionWords)
+	maxSections := profile.Composition.MaxSections
+	if maxSections <= 0 {
+		maxSections = defaultMaxSections
+	}
+	if len(outline) == 0 || len(outline) > maxSections {
+		return nil, fmt.Errorf("book brief has %d ordered matter/chapter slots; profile supports 1..%d", len(outline), maxSections)
+	}
+	return outline, nil
+}
+
+func bookBriefSlots(brief BookBrief, chapterTarget int) []OutlineSection {
+	outline := make([]OutlineSection, 0, len(brief.FrontMatterIntent)+len(brief.ChapterIntent)+len(brief.BackMatterIntent))
+	for _, intent := range brief.FrontMatterIntent {
+		outline = append(outline, OutlineSection{Kind: "front_matter", Intent: intent, Summary: "Author reader-facing front matter that fulfills this brief intent.", TargetWords: 250})
+	}
+	if chapterTarget <= 0 {
+		chapterTarget = defaultTargetSectionWords
+	}
+	for _, intent := range brief.ChapterIntent {
+		outline = append(outline, OutlineSection{Kind: "chapter", Intent: intent, Summary: "Write this chapter in the requested book structure and advance the reader promise.", TargetWords: chapterTarget})
+	}
+	for _, intent := range brief.BackMatterIntent {
+		outline = append(outline, OutlineSection{Kind: "back_matter", Intent: intent, Summary: "Author reader-facing back matter that fulfills this brief intent.", TargetWords: 250})
+	}
+	return outline
 }
 
 // produceSection draws, gates, selects, and commits the candidate set for one
@@ -1764,7 +2016,10 @@ func (s *Service) produceSection(ctx context.Context, doc Document, sectionProfi
 	if strings.TrimSpace(id) == "" {
 		id = uuid.NewString()
 	}
-	section := Section{ID: id, DocumentID: doc.ID, Position: position, Intent: planned.Intent, Summary: planned.Summary, TargetWords: planned.TargetWords, ProfileKey: sectionProfile.Key, Context: s.buildContextSnapshot(ctx, doc, prior, followingIntents)}
+	section := Section{ID: id, DocumentID: doc.ID, Position: position, Intent: planned.Intent, Summary: planned.Summary, TargetWords: planned.TargetWords, ProfileKey: sectionProfile.Key, Context: s.buildContextSnapshot(ctx, doc, prior, followingIntents), Kind: planned.Kind}
+	if doc.BookBrief != nil {
+		return s.produceBookSectionChunked(ctx, doc, sectionProfile, section, planned, prior, followingIntents, totalSections)
+	}
 	preparedContext, err := s.prepareContextSnapshot(ctx, doc, prior, section.Context)
 	if err != nil {
 		return Section{}, err
@@ -1798,7 +2053,7 @@ func (s *Service) produceSection(ctx context.Context, doc Document, sectionProfi
 	// picks the outlier at every position and assembles a document out of them.
 	sectionProfile.SelectionPolicy = sectionSelectionPolicy(sectionProfile)
 	sectionProfile.Sampler.Kind, sectionProfile.Sampler.K = sectionSampler(sectionProfile)
-	sectionQuery := fmt.Sprintf("%s\n\n%s\n\n%s\n\nHARD SECTION LENGTH: write between %d and %d words; aim for approximately %d words. A section materially shorter than the floor is rejected.", doc.Title, planned.Intent, contextText, sectionMinWords, sectionMaxWords, sectionTargetWords)
+	sectionQuery := sectionRequestQuery(doc, planned, contextText, sectionMinWords, sectionMaxWords, sectionTargetWords)
 	selectionContext := &SelectionContext{PriorText: s.committedSectionTexts(ctx, prior), TargetWords: sectionTargetWords}
 	generated, err := s.generateWithRetry(ctx, GenerateRequest{ProfileKey: sectionProfile.Key, Query: sectionQuery, IncludeCandidates: true, Negative: negative, Selection: selectionContext, Artifacts: doc.Artifacts}, sectionProfile, fmt.Sprintf("section %d generation", position))
 	if err != nil {
@@ -1824,9 +2079,14 @@ func (s *Service) produceSection(ctx context.Context, doc Document, sectionProfi
 		selected = eligibleCandidate(generated)
 	}
 	if selected == nil {
-		return Section{}, fmt.Errorf("section %d candidate is ineligible: %s", position, candidateReason(firstCandidate(generated)))
+		return Section{}, fmt.Errorf("section %d candidate is ineligible: %s", position, sectionFailureReceipt(generated, firstCandidate(generated)))
 	}
 	if err := s.commitSectionCandidate(ctx, section.ID, selected.ID, section); err != nil {
+		return Section{}, err
+	}
+	section.CommittedCandidateID = selected.ID
+	section.GenerationRun = ptrGenerationRun(generationRun(generated.Session.Query, *selected, s.now()))
+	if err := s.saveSection(ctx, section); err != nil {
 		return Section{}, err
 	}
 	// commitSectionCandidate takes the section by value and records the
@@ -1934,7 +2194,7 @@ func (s *Service) repairDocument(ctx context.Context, doc Document, sectionProfi
 			return doc, nil
 		}
 		doc.Sections[target] = replaced
-		reassembled, err := s.AssembleDocument(ctx, doc.ID)
+		reassembled, err := s.assembleDocument(ctx, doc.ID)
 		if err != nil {
 			return doc, err
 		}
@@ -2353,6 +2613,36 @@ func candidateReason(candidate *Candidate) string {
 	return "candidate not returned"
 }
 
+// candidateReasonWithMeasurements preserves the gate reason and adds the
+// observed candidate word count for length failures. This makes an owner-side
+// diagnosis possible without changing eligibility or exposing candidate text.
+func candidateReasonWithMeasurements(candidate *Candidate) string {
+	reason := candidateReason(candidate)
+	if candidate != nil && strings.HasPrefix(reason, "min_words:") {
+		return fmt.Sprintf("%s:measured_words=%d", reason, candidateWordCount(*candidate))
+	}
+	return reason
+}
+
+// sectionFailureReceipt adds durable lookup and route facts while keeping
+// generated prose out of errors and logs. Candidate payloads already persist
+// these facts; the receipt makes a rejected (uncommitted) candidate findable.
+func sectionFailureReceipt(generated GenerateResponse, candidate *Candidate) string {
+	reason := candidateReasonWithMeasurements(candidate)
+	if candidate == nil {
+		return fmt.Sprintf("%s session_id=%s", reason, generated.Session.ID)
+	}
+	return fmt.Sprintf("%s session_id=%s candidate_id=%s provider=%s model=%s output_tokens=%d prompt_sha256=%s",
+		reason,
+		generated.Session.ID,
+		candidate.ID,
+		candidate.Provenance.Provider,
+		candidate.Provenance.ResolvedModelRef,
+		candidate.Provenance.OutputTokens,
+		candidate.Provenance.PromptSHA256,
+	)
+}
+
 func (s *Service) commitSectionCandidate(ctx context.Context, sectionID, candidateID string, section Section) error {
 	var candidate Candidate
 	if err := s.loadJSON(ctx, "prose_candidates", candidateID, &candidate); err != nil {
@@ -2458,11 +2748,19 @@ func (s *Service) summarizeSection(ctx context.Context, text string) (string, bo
 // prose context. Keeping this conversion centralized prevents UUIDs and other
 // storage identifiers from leaking into prompts as the composition path grows.
 func (s *Service) assembleSectionContext(ctx context.Context, doc Document, outlineText string, section Section, total int, prior []Section) (string, error) {
-	parts := []string{
-		"Document title: " + doc.Title,
-		"Full outline:\n" + outlineText,
-		fmt.Sprintf("Current section: %d of %d", section.Position+1, total),
-		"Section intent: " + section.Intent,
+	parts := make([]string, 0, 8+len(prior))
+	if doc.BookBrief == nil {
+		parts = append(parts, "Document title: "+doc.Title, "Full outline:\n"+outlineText)
+	}
+	parts = append(parts, fmt.Sprintf("Current section: %d of %d", section.Position+1, total))
+	if section.Intent != "" {
+		parts = append(parts, "Section intent: "+section.Intent)
+	}
+	if section.Kind != "" {
+		parts = append(parts, "Section kind: "+section.Kind+". Author this kind only; preserve the declared sequence and intent.")
+	}
+	if doc.BookBrief != nil {
+		parts = append(parts, doc.BookBrief.PromptText())
 	}
 	if section.Summary != "" {
 		parts = append(parts, "Section summary: "+section.Summary)
@@ -2488,7 +2786,7 @@ func (s *Service) assembleSectionContext(ctx context.Context, doc Document, outl
 		}
 		parts = append(parts, fmt.Sprintf("Prior section %d (%s): %s", previous.Position+1, label, priorText))
 	}
-	if len(section.Context.FollowingIntents) > 0 {
+	if doc.BookBrief == nil && len(section.Context.FollowingIntents) > 0 {
 		parts = append(parts, "Following section intents: "+strings.Join(section.Context.FollowingIntents, "; "))
 	}
 	// Artifacts are supplied as permission, not as decoration. A brief that
@@ -2502,7 +2800,9 @@ func (s *Service) assembleSectionContext(ctx context.Context, doc Document, outl
 	// Prior text alone is not an instruction. Supplying it without saying what
 	// to do with it produces a section that re-derives the same argument in new
 	// words, which reads as repetition and measures as low lexical overlap.
-	if len(prior) > 0 {
+	if doc.BookBrief == nil && doc.OutlineID == "" && len(doc.Outline) > 0 {
+		parts = append(parts, "Continuity requirement: follow the supplied beat order. Begin where any prior passage leaves off. Deliver only the current beat, preserving established details and leaving later developments for their own beats.")
+	} else if len(prior) > 0 {
 		parts = append(parts, "Continuity requirement: the passages above are already written and already published to the reader. Advance the argument from where they end. Do not restate, re-introduce, or re-summarise a point they already establish; assume the reader has read them. Introduce what only this section carries, and if this is the final section, close rather than recapitulate.")
 	} else {
 		parts = append(parts, "Continuity requirement: this is the opening section. Establish the subject and earn the reader's attention; do not summarise the whole article in advance.")
@@ -2514,7 +2814,32 @@ func (s *Service) assembleSectionContext(ctx context.Context, doc Document, outl
 	return assembled, nil
 }
 
+func sectionRequestQuery(doc Document, planned OutlineSection, contextText string, minWords, maxWords, targetWords int) string {
+	parts := []string{contextText}
+	if doc.BookBrief == nil {
+		// Legacy article requests historically carried these before contextText;
+		// keep that contract while book briefs carry title and intent inside the
+		// canonical context exactly once.
+		parts = []string{doc.Title, planned.Intent, contextText}
+	}
+	parts = append(parts,
+		"AUTHOR THIS SECTION NOW: return the complete, developed prose for this one section. Do not return a heading alone, a one-word answer, an outline, a summary, or commentary about the request. Preserve the section kind and intent above.",
+		fmt.Sprintf("HARD SECTION LENGTH: write between %d and %d words; aim for approximately %d words. A section materially shorter than the floor is rejected.", minWords, maxWords, targetWords),
+	)
+	return strings.Join(parts, "\n\n")
+}
+
 func (s *Service) AssembleDocument(ctx context.Context, documentID string) (Document, error) {
+	release, err := s.beginDocumentWrite(documentID)
+	if err != nil {
+		return Document{}, err
+	}
+	defer release()
+	return s.assembleDocument(ctx, documentID)
+}
+
+// assembleDocument requires the caller to hold the document write claim.
+func (s *Service) assembleDocument(ctx context.Context, documentID string) (Document, error) {
 	var doc Document
 	if err := s.loadJSON(ctx, "prose_documents", documentID, &doc); err != nil {
 		return Document{}, err
@@ -3258,6 +3583,12 @@ func remove(xs []string, v string) []string {
 	return out
 }
 func hash(raw []byte) string { sum := sha256.Sum256(raw); return hex.EncodeToString(sum[:]) }
+
+func generationRun(prompt string, candidate Candidate, at time.Time) BookGenerationRun {
+	return BookGenerationRun{Date: at.UTC().Format(time.RFC3339), Model: candidate.Provenance.ResolvedModelRef, PromptSHA256: hash([]byte(prompt)), OutputSHA256: hash([]byte(candidate.Text))}
+}
+
+func ptrGenerationRun(run BookGenerationRun) *BookGenerationRun { return &run }
 
 // EnsureSchema is kept as a provider method for the scenario module registry.
 func EnsureSchema(db *sql.DB) error {

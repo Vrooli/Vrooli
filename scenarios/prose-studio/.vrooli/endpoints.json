@@ -358,6 +358,14 @@
       "category": "generation"
     },
     {
+      "id": "prose_generate_application_document",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/GenerateApplicationDocument",
+      "method": "POST",
+      "summary": "Generate an ephemeral source-referenced cover letter or employer short answer",
+      "description": "",
+      "category": "generation"
+    },
+    {
       "id": "prose_reroll",
       "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/Reroll",
       "method": "POST",
@@ -410,6 +418,14 @@
       "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/CreateDocument",
       "method": "POST",
       "summary": "Create a section-composed document",
+      "description": "",
+      "category": "documents"
+    },
+    {
+      "id": "prose_export_book_source",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/ExportBookSource",
+      "method": "POST",
+      "summary": "Export committed document source as manuscript-source/v1",
       "description": "",
       "category": "documents"
     },

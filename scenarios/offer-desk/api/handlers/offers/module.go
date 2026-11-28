@@ -50,6 +50,34 @@ type Service struct {
 	getenv             func(string) string
 }
 
+func (s *Service) ListFacts(ctx context.Context, _ *connect.Request[offerspb.ListFactsRequest]) (*connect.Response[offerspb.ListFactsResponse], error) {
+	facts, err := s.store.ListFacts(ctx)
+	if err != nil {
+		return nil, internal(err)
+	}
+	evaluatedAt := s.clock.Now()
+	response := &offerspb.ListFactsResponse{EvaluatedAt: timestamppb.New(evaluatedAt)}
+	for _, fact := range facts {
+		read := &offerspb.FactRead{Fact: fact, Freshness: offerspb.FactFreshness_FACT_FRESHNESS_UNKNOWN}
+		if fact.ObservedAt != nil {
+			read.Freshness = offerspb.FactFreshness_FACT_FRESHNESS_FRESH
+			if evaluatedAt.After(fact.ObservedAt.AsTime().Add(time.Duration(fact.StaleAfterDays) * 24 * time.Hour)) {
+				read.Freshness = offerspb.FactFreshness_FACT_FRESHNESS_STALE
+			}
+		}
+		response.Facts = append(response.Facts, read)
+	}
+	return connect.NewResponse(response), nil
+}
+
+func (s *Service) ListTriggers(ctx context.Context, _ *connect.Request[offerspb.ListTriggersRequest]) (*connect.Response[offerspb.ListTriggersResponse], error) {
+	triggers, err := s.store.ListTriggers(ctx)
+	if err != nil {
+		return nil, internal(err)
+	}
+	return connect.NewResponse(&offerspb.ListTriggersResponse{Triggers: triggers}), nil
+}
+
 func NewService(db *database.RoutedDB, logger *log.Logger, clock schedule.Clock) *Service {
 	return NewServiceWithEnv(db, logger, clock, os.Getenv)
 }
@@ -451,6 +479,32 @@ func (s *Service) ListEdges(ctx context.Context, r *connect.Request[offerspb.Lis
 	return connect.NewResponse(&offerspb.ListEdgesResponse{Edges: edges}), nil
 }
 
+func (s *Service) ListAudit(ctx context.Context, r *connect.Request[offerspb.ListAuditRequest]) (*connect.Response[offerspb.ListAuditResponse], error) {
+	const defaultLimit = 100
+	const maxLimit = 500
+	limit := int(r.Msg.Limit)
+	if limit == 0 {
+		limit = defaultLimit
+	}
+	if limit < 1 || limit > maxLimit {
+		return nil, invalid(fmt.Errorf("audit limit must be between 1 and %d", maxLimit))
+	}
+	rows, truncated, err := s.store.ListAuditPage(ctx, r.Msg.NodeId, limit)
+	if err != nil {
+		return nil, internal(err)
+	}
+	response := &offerspb.ListAuditResponse{Truncated: truncated}
+	for _, row := range rows {
+		response.Records = append(response.Records, &offerspb.CatalogAuditEntry{
+			Id: row.ID, NodeId: row.NodeID, Actor: row.Actor,
+			PriorStatus: row.PriorStatus, NextStatus: row.NextStatus,
+			Reason: row.Reason, CreatedAt: timestamppb.New(row.CreatedAt),
+			RelatedNodeId: row.RelatedNodeID,
+		})
+	}
+	return connect.NewResponse(response), nil
+}
+
 func (s *Service) ImportCatalog(ctx context.Context, r *connect.Request[offerspb.ImportCatalogRequest]) (*connect.Response[offerspb.ImportCatalogResponse], error) {
 	report, err := s.store.ImportCatalog(ctx, r.Msg.SourcePath, r.Msg.SourceMode, r.Msg.Apply, r.Msg.Actor)
 	if err != nil && report == nil {
@@ -813,7 +867,7 @@ func ep(id, path, summary string) module.EndpointDescriptor {
 }
 
 var Endpoints = []module.EndpointDescriptor{
-	ep("catalog_create", "/vrooli.offer_desk.v1.offers.CatalogService/CreateNode", "Create a typed offer-graph node"), ep("catalog_list", "/vrooli.offer_desk.v1.offers.CatalogService/ListNodes", "List offer-graph nodes"), ep("catalog_transition", "/vrooli.offer_desk.v1.offers.CatalogService/Transition", "Transition a node through the enforced lifecycle"), ep("catalog_edge", "/vrooli.offer_desk.v1.offers.CatalogService/CreateEdge", "Create a typed graph edge"), ep("catalog_edges", "/vrooli.offer_desk.v1.offers.CatalogService/ListEdges", "List typed graph edges"), ep("catalog_import", "/vrooli.offer_desk.v1.offers.CatalogService/ImportCatalog", "Rehearse or apply a declared catalog source"), ep("catalog_map_account", "/vrooli.offer_desk.v1.offers.CatalogService/MapAccount", "Map a node to the ledger account holding its actuals"), ep("catalog_merge", "/vrooli.offer_desk.v1.offers.CatalogService/MergeNodes", "Dry-run or apply an audited duplicate-node merge"), ep("catalog_rename", "/vrooli.offer_desk.v1.offers.CatalogService/RenameNode", "Rename a catalog node without changing its identity"), ep("catalog_verify", "/vrooli.offer_desk.v1.offers.CatalogService/VerifyCatalog", "Verify source counts and graph identity reconciliation"), ep("catalog_set_release_rank", "/vrooli.offer_desk.v1.offers.CatalogService/SetReleaseRank", "Set an operator-owned deliverable release rank"), ep("catalog_set_class", "/vrooli.offer_desk.v1.offers.CatalogService/SetDeliverableClass", "Classify a deliverable and set its finish bar"),
-	ep("catalog_meters", "/vrooli.offer_desk.v1.offers.CatalogService/GetMeterInventory", "Read meter vocabulary and graph conformance"), ep("gates_trigger", "/vrooli.offer_desk.v1.offers.GatesService/DeclareTrigger", "Declare a machine-evaluable trigger"), ep("gates_fact", "/vrooli.offer_desk.v1.offers.GatesService/AddFact", "Record an observed fact"), ep("gates_evaluate", "/vrooli.offer_desk.v1.offers.GatesService/Evaluate", "Evaluate candidate triggers"), ep("gates_promote", "/vrooli.offer_desk.v1.offers.GatesService/Promote", "Create an operator promotion proposal"), ep("gates_proposals", "/vrooli.offer_desk.v1.offers.GatesService/ListProposals", "List promotion proposals and decline history"), ep("board_show", "/vrooli.offer_desk.v1.offers.BoardService/GetBoard", "Read the ranked offer board"),
+	ep("catalog_create", "/vrooli.offer_desk.v1.offers.CatalogService/CreateNode", "Create a typed offer-graph node"), ep("catalog_list", "/vrooli.offer_desk.v1.offers.CatalogService/ListNodes", "List offer-graph nodes"), ep("catalog_audit", "/vrooli.offer_desk.v1.offers.CatalogService/ListAudit", "Read bounded append-only catalog decision history"), ep("catalog_transition", "/vrooli.offer_desk.v1.offers.CatalogService/Transition", "Transition a node through the enforced lifecycle"), ep("catalog_edge", "/vrooli.offer_desk.v1.offers.CatalogService/CreateEdge", "Create a typed graph edge"), ep("catalog_edges", "/vrooli.offer_desk.v1.offers.CatalogService/ListEdges", "List typed graph edges"), ep("catalog_import", "/vrooli.offer_desk.v1.offers.CatalogService/ImportCatalog", "Rehearse or apply a declared catalog source"), ep("catalog_map_account", "/vrooli.offer_desk.v1.offers.CatalogService/MapAccount", "Map a node to the ledger account holding its actuals"), ep("catalog_merge", "/vrooli.offer_desk.v1.offers.CatalogService/MergeNodes", "Dry-run or apply an audited duplicate-node merge"), ep("catalog_rename", "/vrooli.offer_desk.v1.offers.CatalogService/RenameNode", "Rename a catalog node without changing its identity"), ep("catalog_verify", "/vrooli.offer_desk.v1.offers.CatalogService/VerifyCatalog", "Verify source counts and graph identity reconciliation"), ep("catalog_set_release_rank", "/vrooli.offer_desk.v1.offers.CatalogService/SetReleaseRank", "Set an operator-owned deliverable release rank"), ep("catalog_set_class", "/vrooli.offer_desk.v1.offers.CatalogService/SetDeliverableClass", "Classify a deliverable and set its finish bar"),
+	ep("catalog_meters", "/vrooli.offer_desk.v1.offers.CatalogService/GetMeterInventory", "Read meter vocabulary and graph conformance"), ep("gates_facts", "/vrooli.offer_desk.v1.offers.GatesService/ListFacts", "Read facts and evaluate freshness at response time"), ep("gates_triggers", "/vrooli.offer_desk.v1.offers.GatesService/ListTriggers", "Read declared trigger clauses"), ep("gates_trigger", "/vrooli.offer_desk.v1.offers.GatesService/DeclareTrigger", "Declare a machine-evaluable trigger"), ep("gates_fact", "/vrooli.offer_desk.v1.offers.GatesService/AddFact", "Record an observed fact"), ep("gates_evaluate", "/vrooli.offer_desk.v1.offers.GatesService/Evaluate", "Evaluate candidate triggers"), ep("gates_promote", "/vrooli.offer_desk.v1.offers.GatesService/Promote", "Create an operator promotion proposal"), ep("gates_proposals", "/vrooli.offer_desk.v1.offers.GatesService/ListProposals", "List promotion proposals and decline history"), ep("board_show", "/vrooli.offer_desk.v1.offers.BoardService/GetBoard", "Read the ranked offer board"),
 	ep("board_release_ladder", "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetReleaseLadder", "Read the typed release ladder"), ep("board_enabling", "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetEnablingDeliverables", "Read enabling deliverables and derived urgency"), ep("board_prerequisites", "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetPrerequisites", "Walk stream prerequisites and unshipped deliverables"), ep("space_projection", "/vrooli.offer_desk.v1.offers.SpaceService/GetProjection", "Read monetization obligation cells"),
 }

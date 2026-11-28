@@ -46,9 +46,41 @@ func (f *fakeGateway) Generate(_ context.Context, req GatewayRequest) ([]Gateway
 	out := make([]GatewayCandidate, req.K)
 	for i := range out {
 		seed := []string{"A crisp opening about trust.", "A vivid opening about craft.", "A practical opening about proof.", "A reflective opening about change.", "A measured opening about care."}[(callIndex+i)%5]
-		out[i] = GatewayCandidate{Text: padToRequestedBand(req.Query, seed), Provider: "fake", Model: "fake-model", TemperatureSupport: "supported", CostMicros: 100, HintOrdinal: i + 1}
+		text := padToRequestedBand(req.Query, seed)
+		if strings.Contains(req.Query, "Structured section part") {
+			text = fakeBookSectionPart(req.Query, callIndex+i)
+		}
+		out[i] = GatewayCandidate{Text: text, Provider: "fake", Model: "fake-model", InputTokens: estimateContextTokens(req.Query), OutputTokens: len(strings.Fields(text)), TemperatureSupport: "supported", CostMicros: 100, HintOrdinal: i + 1}
 	}
 	return out, nil
+}
+
+func fakeBookSectionPart(query string, seed int) string {
+	match := bandPattern.FindStringSubmatch(query)
+	if match == nil {
+		return "fixture did not receive a part word band"
+	}
+	low, _ := strconv.Atoi(match[1])
+	high, _ := strconv.Atoi(match[2])
+	target := (low + high) / 2
+	words := make([]string, 0, target)
+	words = append(words, "synthetic", "fixture", "part", fmt.Sprintf("number%d", seed))
+	for len(words) < target {
+		words = append(words, "distinctivefixtureword"+fixtureAlpha(len(words)+seed*target))
+	}
+	return strings.Join(words[:target], " ") + "."
+}
+
+func fixtureAlpha(n int) string {
+	var out []byte
+	for n >= 0 {
+		out = append([]byte{byte('a' + n%26)}, out...)
+		n = n/26 - 1
+		if n < 0 {
+			break
+		}
+	}
+	return string(out)
 }
 
 var bandPattern = regexp.MustCompile(`between (\d+) and (\d+) words`)
@@ -219,6 +251,77 @@ func TestAssembleSectionContextCarriesLongFormInputsWithoutIdentifiers(t *testin
 	require.Contains(t, contextText, "Current section: 2 of 3")
 	require.Contains(t, contextText, "Length target: approximately 180 words")
 	require.NotRegexp(t, recordIdentifierPattern, contextText)
+}
+
+func TestBookSectionPromptBoundsRepeatedContextAndRetainsBriefIntent(t *testing.T) {
+	s, gateway := newTestService(t)
+	ctx := context.Background()
+	profile, err := s.CreateProfile(ctx, Profile{
+		Key: "book-context-test", GatewayRole: "write.default", Locality: "local_only",
+		Sampler:       Sampler{Kind: samplerDirect, K: 1, MaxOutputTokens: 2048},
+		Budget:        Budget{MaxOutputTokens: 2048},
+		ContextPolicy: ContextPolicy{FullTextTokenBudget: 1024, SummarizeBeyond: 1024, AlwaysFullPrevious: false},
+	})
+	require.NoError(t, err)
+	brief := &BookBrief{
+		SchemaVersion: "book-brief/v1", Title: "The Synthetic Atlas",
+		CreativeDirection:   "Copper lines on warm paper; restrained and precise.",
+		Audience:            "Adult beginners walking familiar streets.",
+		ReaderPromise:       "Teach careful listening without claiming species identification.",
+		Structure:           "Organize by listening practice, not chronology.",
+		ChapterIntent:       []string{"Threshold: settle into listening.", "Layers: distinguish near and far sounds."},
+		FrontMatterIntent:   []string{"A note about observation and uncertainty."},
+		BackMatterIntent:    []string{"A glossary of invented notation."},
+		AdditionalDirection: "No wellness promises or unsupported identification claims.",
+		ProductionMetadata:  &BookProductionMetadata{Subtitle: "Synthetic subtitle", Language: "en", TrimWidthIn: 6, TrimHeightIn: 9, MarginIn: 0.5, ContentOrigin: "synthetic", GeneratedWithAI: true},
+	}
+	doc := Document{ID: "book-context-doc", Title: brief.Title, ProfileKey: profile.Key, BookBrief: brief, OutlineText: "OUTLINE-DUPLICATION-MARKER\n" + strings.Repeat("duplicate slot ", 80)}
+	prior := make([]Section, 3)
+	fullBodies := make([]string, len(prior))
+	for i := range prior {
+		id := fmt.Sprintf("prior-section-%d", i)
+		candidateID := fmt.Sprintf("prior-candidate-%d", i)
+		fullBodies[i] = fmt.Sprintf("prior-only-body-marker-%d ", i) + strings.Repeat("established listening detail ", 90)
+		candidate := Candidate{ID: candidateID, Text: fullBodies[i]}
+		require.NoError(t, s.saveJSON(ctx, "prose_candidates", candidateID, candidate))
+		prior[i] = Section{ID: id, Position: i, Intent: fmt.Sprintf("Prior intent %d", i), CommittedCandidateID: candidateID}
+	}
+	snapshot, err := s.prepareContextSnapshot(ctx, doc, prior, ContextSnapshot{})
+	require.NoError(t, err)
+	require.Len(t, snapshot.FullTextSectionRefs, 1, "only the newest predecessor should remain full under the 1,024-token budget")
+	require.Len(t, snapshot.SummarizedSectionRefs, 2)
+	var summaryCalls []GatewayRequest
+	for _, call := range gateway.calls {
+		summaryCalls = append(summaryCalls, call)
+	}
+	require.Len(t, summaryCalls, 2)
+	for _, call := range summaryCalls {
+		require.Equal(t, "summarize.faithful", call.Role)
+		require.Equal(t, "local_only", call.Locality, "private prior text cannot fall back to a hosted route")
+		require.Equal(t, prosePrivacyClass, call.PrivacyClass)
+		require.Equal(t, prosePrivacySource, call.PrivacySource)
+	}
+
+	planned := OutlineSection{Kind: "chapter", Intent: brief.ChapterIntent[0], Summary: "Teach the opening practice.", TargetWords: 550}
+	section := Section{Position: 3, Kind: planned.Kind, Intent: planned.Intent, Summary: planned.Summary, TargetWords: planned.TargetWords, Context: snapshot}
+	contextText, err := s.assembleSectionContext(ctx, doc, doc.OutlineText, section, 7, prior)
+	require.NoError(t, err)
+	query := sectionRequestQuery(doc, planned, contextText, 440, 660, 550)
+	for _, retained := range []string{
+		brief.CreativeDirection, brief.Audience, brief.ReaderPromise, brief.Structure,
+		brief.ChapterIntent[0], brief.ChapterIntent[1], brief.FrontMatterIntent[0],
+		brief.BackMatterIntent[0], brief.AdditionalDirection,
+		"Section kind: chapter", "Section intent: " + brief.ChapterIntent[0],
+		"HARD SECTION LENGTH: write between 440 and 660 words",
+	} {
+		require.Contains(t, query, retained)
+	}
+	require.NotContains(t, query, "OUTLINE-DUPLICATION-MARKER", "deterministic book slots already live in the full brief")
+	require.NotContains(t, query, fullBodies[0], "summarized predecessor text must replace full prior prose")
+	require.NotContains(t, query, fullBodies[1])
+	require.Less(t, len(query), 3*(len(fullBodies[0])+len(fullBodies[1])+len(fullBodies[2]))/4,
+		"book prompt should be materially smaller than duplicating all complete predecessors")
+	require.Equal(t, 1, strings.Count(query, "The Synthetic Atlas"), "the book title should appear only in the serialized brief")
 }
 
 func TestStructuredSingleCandidatePreservesDeclaredJSON(t *testing.T) {
@@ -1132,7 +1235,7 @@ func TestAssemblyReportsSemanticMeasurementAsUnavailableRatherThanPassing(t *tes
 func sectionPrompts(fake *fakeGateway) []string {
 	var out []string
 	for _, call := range fake.calls {
-		if strings.Contains(call.Query, "HARD SECTION LENGTH") {
+		if strings.Contains(call.Query, "HARD SECTION LENGTH") || strings.Contains(call.Query, "Structured section part") {
 			out = append(out, call.Query)
 		}
 	}
@@ -1280,7 +1383,7 @@ func newFlakyService(t *testing.T, fail func(call int, req GatewayRequest) error
 }
 
 func isSectionCall(req GatewayRequest) bool {
-	return strings.Contains(req.Query, "HARD SECTION LENGTH")
+	return strings.Contains(req.Query, "HARD SECTION LENGTH") || strings.Contains(req.Query, "Structured section part")
 }
 
 func TestTransientProviderFailureDoesNotDiscardTheDocument(t *testing.T) {
@@ -1407,7 +1510,7 @@ func TestFailedSummarisationDegradesRatherThanDiscardingTheDocument(t *testing.T
 	require.Len(t, doc.SectionIDs, 3)
 	var summaryCalls []GatewayRequest
 	for _, request := range gw.seen {
-		if strings.Contains(request.Query, "HARD SECTION LENGTH") {
+		if strings.Contains(request.Query, "HARD SECTION LENGTH") || strings.Contains(request.Query, "Structured section part") {
 			continue
 		}
 		if request.Role == "summarize.faithful" {
@@ -1526,6 +1629,320 @@ func TestGetDocumentReturnsTheProseAndItsMeasurements(t *testing.T) {
 	require.ErrorIs(t, err, ErrDocumentNotFound, "a missing document is not found, not an invalid argument")
 }
 
+func TestExportBookSourceReadsOnlyCommittedDurableSections(t *testing.T) {
+	s, gateway := newTestService(t)
+	ctx := context.Background()
+	_, err := s.CreateProfile(ctx, Profile{Key: "book-source", GatewayRole: "write.default", Locality: "local_only", Sampler: Sampler{Kind: samplerDirect, K: 1}, Budget: Budget{MaxOutputTokens: 2048}, Composition: CompositionPolicy{SectionCount: 3, TargetSectionWords: 550, SectionWordTolerance: 0.2, SectionMaxOutputTokens: 2048, MaxSections: 16}})
+	require.NoError(t, err)
+	brief := &BookBrief{SchemaVersion: "book-brief/v1", Title: "A Synthetic Book", CreativeDirection: "Quiet and observant", Audience: "Curious readers", ReaderPromise: "See familiar places differently", Structure: "Three linked chapters", ChapterIntent: []string{"Opening", "Middle", "Close"}, FrontMatterIntent: []string{"Invitation"}, BackMatterIntent: []string{"Glossary"}, ProductionMetadata: &BookProductionMetadata{Subtitle: "A synthetic subtitle", Language: "en", TrimWidthIn: 6, TrimHeightIn: 9, MarginIn: 0.6, ContentOrigin: "synthetic", GeneratedWithAI: true}}
+	doc, err := s.CreateDocument(ctx, Document{ProfileKey: "book-source", BookBrief: brief}, nil)
+	require.NoError(t, err)
+	require.Len(t, gateway.calls, 24, "three matter slots use three parts each and three chapters use six parts each")
+	for _, call := range gateway.calls {
+		require.Equal(t, "write.default", call.Role, "book chunks must use the existing write role")
+		require.Equal(t, "local_only", call.Locality, "book chunks must stay on the declared local route")
+	}
+	for _, call := range sectionPrompts(gateway) {
+		require.Contains(t, call, "Approved book brief")
+		require.Contains(t, call, "Structured section part")
+		require.Contains(t, call, "Exact declared intent")
+		require.Contains(t, call, "combined section must later pass its unchanged")
+	}
+	require.Equal(t, "front_matter", doc.Outline[0].Kind)
+	require.Equal(t, "chapter", doc.Outline[1].Kind)
+	require.Equal(t, "back_matter", doc.Outline[4].Kind)
+	source, err := s.ExportBookSource(ctx, doc.ID)
+	require.NoError(t, err)
+	require.Equal(t, "manuscript-source/v1", source.SchemaVersion)
+	require.Equal(t, brief.Title, source.Title)
+	require.Len(t, source.Chapters, 3)
+	require.NotEmpty(t, source.Chapters[0].Text)
+	require.Equal(t, []string{"Invitation"}, source.FrontMatterIntent)
+	require.Equal(t, []string{"Glossary"}, source.BackMatterIntent)
+	require.Len(t, source.ProductionMetadata.GenerationRuns, 29, "all 24 part generations and five canonical section assemblies are exported")
+	partRuns := 0
+	for _, run := range source.ProductionMetadata.GenerationRuns {
+		if run.PartIndex == 0 {
+			continue
+		}
+		partRuns++
+		require.NotEmpty(t, run.CandidateID)
+		require.NotEmpty(t, run.SectionID)
+		require.NotEmpty(t, run.Purpose)
+		require.NotEmpty(t, run.Provider)
+		require.Greater(t, run.WordCount, 0)
+		require.Greater(t, run.InputTokens, 0)
+		require.Greater(t, run.OutputTokens, 0)
+	}
+	require.Equal(t, 24, partRuns)
+	require.Equal(t, "A synthetic subtitle", source.ProductionMetadata.Subtitle)
+	require.Len(t, source.FrontMatter, 1)
+	require.Len(t, source.Chapters, 3)
+	require.Len(t, source.BackMatter, 1)
+	require.Len(t, source.ReadingOrder, 5)
+	require.Equal(t, "front_matter", source.ReadingOrder[0].Kind)
+	require.Equal(t, "back_matter", source.ReadingOrder[4].Kind)
+	// Plans stay in separate intent fields, not fabricated as authored prose.
+
+	fetched, err := s.GetDocument(ctx, doc.ID)
+	require.NoError(t, err)
+	require.Equal(t, brief, fetched.BookBrief, "durable readback retains the original brief")
+	var canonical Candidate
+	require.NoError(t, s.loadJSON(ctx, "prose_candidates", fetched.Sections[1].CommittedCandidateID, &canonical))
+	require.Equal(t, bookSectionChunkVersion, canonical.SectionAssembly.SchemaVersion)
+	require.Equal(t, canonical.DerivedFrom, []string{canonical.SectionAssembly.Parts[0].CandidateID, canonical.SectionAssembly.Parts[1].CandidateID, canonical.SectionAssembly.Parts[2].CandidateID, canonical.SectionAssembly.Parts[3].CandidateID, canonical.SectionAssembly.Parts[4].CandidateID, canonical.SectionAssembly.Parts[5].CandidateID})
+	require.GreaterOrEqual(t, candidateWordCount(canonical), 440)
+	require.LessOrEqual(t, candidateWordCount(canonical), 660)
+	for _, partID := range canonical.DerivedFrom {
+		var part Candidate
+		require.NoError(t, s.loadJSON(ctx, "prose_candidates", partID, &part))
+		require.Equal(t, "local_only", part.Provenance.Locality)
+		require.NotEmpty(t, part.Provenance.PromptSHA256)
+	}
+
+	// An uncommitted candidate cannot leak into a partial source export.
+	var uncommitted Candidate
+	require.NoError(t, s.loadJSON(ctx, "prose_candidates", fetched.Sections[0].CommittedCandidateID, &uncommitted))
+	require.Len(t, uncommitted.Provenance.PromptSHA256, 64, "candidate records retain a prompt hash for later failure diagnosis")
+	uncommitted.Committed = false
+	require.NoError(t, s.saveJSON(ctx, "prose_candidates", uncommitted.ID, uncommitted))
+	_, err = s.ExportBookSource(ctx, doc.ID)
+	require.ErrorContains(t, err, "requires committed candidate")
+	uncommitted.Committed = true
+	require.NoError(t, s.saveJSON(ctx, "prose_candidates", uncommitted.ID, uncommitted))
+
+	// Remove a section's candidate binding in the durable record; export must
+	// refuse the incomplete source instead of returning a partial manuscript.
+	fetched.Sections[0].CommittedCandidateID = ""
+	require.NoError(t, s.saveJSON(ctx, "prose_documents", fetched.ID, fetched))
+	_, err = s.ExportBookSource(ctx, doc.ID)
+	require.ErrorContains(t, err, "requires every section to be committed")
+}
+
+func TestBookManuscriptDeclarationIsLocalAndBounded(t *testing.T) {
+	s, _ := newTestService(t)
+	ctx := context.Background()
+	root, err := filepath.Abs("../../../")
+	require.NoError(t, err)
+	declarations, err := s.Reindex(ctx, root)
+	require.NoError(t, err)
+	found := map[string]bool{}
+	for _, declaration := range declarations {
+		if declaration.Key == "prose-studio/book-manuscript-local" || declaration.Key == "prose-studio/book-manuscript-local-quality" {
+			require.Equal(t, "registered", declaration.Status, declaration.Error)
+			found[declaration.Key] = true
+		}
+	}
+	require.True(t, found["prose-studio/book-manuscript-local"], "owner declaration scan must discover the default local book profile")
+	require.True(t, found["prose-studio/book-manuscript-local-quality"], "owner declaration scan must discover the local quality variant")
+	profile, err := s.latestProfile(ctx, "prose-studio/book-manuscript-local")
+	require.NoError(t, err)
+	require.Equal(t, "local_only", profile.Locality)
+	require.Equal(t, "write.default", profile.GatewayRole)
+	require.Equal(t, 1, profile.Sampler.K)
+	require.Equal(t, 2048, profile.Sampler.MaxOutputTokens, "the declared output cap must meet Prose Studio's truncation-tested floor")
+	require.Equal(t, 2048, profile.Composition.SectionMaxOutputTokens, "section cap must not override the truncation-tested floor")
+	require.Equal(t, 16, profile.Composition.MaxSections)
+	require.Equal(t, 1024, profile.ContextPolicy.FullTextTokenBudget)
+	require.Equal(t, 1024, profile.ContextPolicy.SummarizeBeyond)
+	require.False(t, profile.ContextPolicy.AlwaysFullPrevious, "older prose should be summarized instead of repeated wholesale")
+	minWords, maxWords := sectionWordBand(profile, 550)
+	require.Equal(t, 440, minWords, "the adjustment must preserve the chapter word floor")
+	require.Equal(t, 660, maxWords, "the adjustment must preserve the chapter word ceiling")
+	resolved, err := s.ResolveProfile(ctx, "prose-studio/book-manuscript-local")
+	require.NoError(t, err, "the referenced local book style must resolve without inference")
+	require.Equal(t, "local_only", resolved.Profile.Locality)
+
+	quality, err := s.latestProfile(ctx, "prose-studio/book-manuscript-local-quality")
+	require.NoError(t, err)
+	require.Equal(t, "chat.quality", quality.GatewayRole)
+	require.Equal(t, "local_only", quality.Locality)
+	require.Equal(t, 550, quality.Composition.TargetSectionWords)
+	require.Equal(t, 2048, quality.Sampler.MaxOutputTokens)
+	require.Equal(t, 2048, quality.Composition.SectionMaxOutputTokens)
+	require.Equal(t, 16, quality.Composition.MaxSections)
+	qualityMin, qualityMax := sectionWordBand(quality, quality.Composition.TargetSectionWords)
+	require.Equal(t, 440, qualityMin)
+	require.Equal(t, 660, qualityMax)
+	qualityResolved, err := s.ResolveProfile(ctx, "prose-studio/book-manuscript-local-quality")
+	require.NoError(t, err, "the quality role variant must resolve without inference")
+	require.Equal(t, "chat.quality", qualityResolved.Profile.GatewayRole)
+	require.Equal(t, "local_only", qualityResolved.Profile.Locality)
+
+	defaultAfterQualityRegistration, err := s.latestProfile(ctx, "prose-studio/book-manuscript-local")
+	require.NoError(t, err)
+	require.Equal(t, "write.default", defaultAfterQualityRegistration.GatewayRole, "the variant must not change the existing default route")
+}
+
+func TestBookBriefOutlinePreservesAllTwelveDeclaredSlots(t *testing.T) {
+	brief := BookBrief{FrontMatterIntent: []string{"Front A", "Front B", "Front C"}, ChapterIntent: []string{"Chapter 1", "Chapter 2", "Chapter 3", "Chapter 4", "Chapter 5", "Chapter 6"}, BackMatterIntent: []string{"Back A", "Back B", "Back C"}}
+	profile := Profile{Composition: CompositionPolicy{TargetSectionWords: 550, MaxSections: 16}}
+	slots, err := bookBriefOutline(brief, profile)
+	require.NoError(t, err)
+	require.Len(t, slots, 12)
+	for i := 0; i < 3; i++ {
+		require.Equal(t, "front_matter", slots[i].Kind)
+		require.Equal(t, brief.FrontMatterIntent[i], slots[i].Intent)
+	}
+	for i := 0; i < 6; i++ {
+		require.Equal(t, "chapter", slots[i+3].Kind)
+		require.Equal(t, brief.ChapterIntent[i], slots[i+3].Intent)
+	}
+	for i := 0; i < 3; i++ {
+		require.Equal(t, "back_matter", slots[i+9].Kind)
+		require.Equal(t, brief.BackMatterIntent[i], slots[i+9].Intent)
+	}
+}
+
+func syntheticBookBriefForChunks() *BookBrief {
+	return &BookBrief{
+		SchemaVersion: "book-brief/v1", Title: "Synthetic Listening Book",
+		CreativeDirection:   "Restrained field prose with tactile observation.",
+		Audience:            "Adult beginners walking familiar streets.",
+		ReaderPromise:       "Teach careful listening without unsupported species-identification claims.",
+		Structure:           "Move through distinct listening practices, not a chronology.",
+		ChapterIntent:       []string{"Layers: distinguish foreground, middle-distance, and background sounds."},
+		AdditionalDirection: "No wellness promises, species facts, or invented real-person stories.",
+		ProductionMetadata:  &BookProductionMetadata{Subtitle: "Synthetic subtitle", Language: "en", TrimWidthIn: 6, TrimHeightIn: 9, MarginIn: 0.6, ContentOrigin: "synthetic", GeneratedWithAI: true},
+	}
+}
+
+func syntheticChunkCandidates(plans []BookSectionPartPlan) []Candidate {
+	parts := make([]Candidate, len(plans))
+	for i, plan := range plans {
+		query := fmt.Sprintf("Write between %d and %d words.", plan.MinWords, plan.MaxWords)
+		text := fakeBookSectionPart(query, i+1)
+		parts[i] = Candidate{
+			ID: fmt.Sprintf("chunk-candidate-%d", i+1), Text: text,
+			Eligibility: Eligibility{Eligible: true}, Measurements: textmetrics.Analyze(text, nil),
+			Provenance: Provenance{
+				Provider: "ollama", ResolvedModelRef: "gemma4:12b", Locality: "local_only",
+				InputTokens: 400, OutputTokens: len(strings.Fields(text)), PromptSHA256: hash([]byte(fmt.Sprintf("synthetic-prompt-%d", i))),
+			},
+		}
+	}
+	return parts
+}
+
+func TestBookChunkPlanAndPromptPreserveBriefAndSlotStructure(t *testing.T) {
+	brief := syntheticBookBriefForChunks()
+	section := Section{Position: 3, Kind: "chapter", Intent: brief.ChapterIntent[0], Summary: "Teach the layered listening practice."}
+	plans := bookSectionPartPlans(section, 550, 440, []string{"Rhythm: notice repetition."})
+	require.Len(t, plans, 6, "the 440-word floor at 80-word short-output parts needs six distinct slots")
+	seen := map[string]bool{}
+	for _, plan := range plans {
+		require.False(t, seen[plan.Purpose], "each part has a distinct declared purpose")
+		seen[plan.Purpose] = true
+		require.GreaterOrEqual(t, plan.MinWords, 1)
+		require.LessOrEqual(t, plan.TargetWords, plan.MaxWords)
+	}
+	query := bookSectionPartPrompt(brief, section, plans[1], plans, "The first part already introduced the corner and initial observation.", 440, 660)
+	for _, required := range []string{brief.CreativeDirection, brief.Audience, brief.ReaderPromise, brief.Structure, brief.ChapterIntent[0], brief.AdditionalDirection, "Kind: chapter", "Exact declared intent", plans[1].Purpose, plans[0].Purpose, "SOURCE-OF-TRUTH BOUNDARY", "Unknown details: time, location, source_identity", "Continuation context from the immediately preceding part", "unchanged 440–660 word gate"} {
+		require.Contains(t, query, required)
+	}
+	require.NotContains(t, query, "candidate text", "part prompts carry prior purposes, not whole earlier part bodies")
+}
+
+func TestBookChunkAssemblyPreservesFullGateProvenanceAndRejectsBadParts(t *testing.T) {
+	brief := syntheticBookBriefForChunks()
+	section := Section{ID: "section-synthetic", Position: 0, Kind: "chapter", Intent: brief.ChapterIntent[0]}
+	plans := bookSectionPartPlans(section, 550, 440, nil)
+	parts := syntheticChunkCandidates(plans)
+	constraints := Constraints{MinWords: 440, MaxWords: 660, RequiredFormat: "rich_prose"}
+	candidate, err := assembleBookSectionCandidate(brief, section, plans, parts, constraints, nil, nil)
+	require.NoError(t, err)
+	require.True(t, candidate.Eligibility.Eligible)
+	require.GreaterOrEqual(t, candidateWordCount(candidate), 440)
+	require.LessOrEqual(t, candidateWordCount(candidate), 660)
+	require.Len(t, candidate.DerivedFrom, 6)
+	require.Equal(t, bookSectionChunkVersion, candidate.SectionAssembly.SchemaVersion)
+	require.Len(t, candidate.SectionAssembly.Parts, 6)
+	require.Equal(t, candidate.DerivedFrom[0], candidate.SectionAssembly.Parts[0].CandidateID)
+	require.NotEmpty(t, candidate.SectionAssembly.Parts[0].OutputSHA256)
+	require.NotEmpty(t, candidate.SectionAssembly.Parts[0].PromptSHA256)
+	require.Equal(t, 6*400, candidate.Provenance.InputTokens)
+	require.Equal(t, "local_only", candidate.Provenance.Locality)
+
+	_, err = assembleBookSectionCandidate(brief, section, plans, parts[:5], constraints, nil, nil)
+	require.ErrorContains(t, err, "exactly 6 planned parts")
+
+	shortParts := syntheticChunkCandidates(plans)
+	for i := range shortParts {
+		shortParts[i].Text = fakeBookSectionPart("between 47 and 137 words", i+1)
+		shortParts[i].Text = strings.Join(strings.Fields(shortParts[i].Text)[:50], " ")
+		shortParts[i].Measurements = textmetrics.Analyze(shortParts[i].Text, nil)
+		shortParts[i].Provenance.OutputTokens = 50
+	}
+	_, err = assembleBookSectionCandidate(brief, section, plans, shortParts, constraints, nil, nil)
+	require.ErrorContains(t, err, "assembled candidate is ineligible: min_words:440")
+
+	longParts := syntheticChunkCandidates(plans)
+	for i := range longParts {
+		longParts[i].Text = fakeBookSectionPart("between 137 and 137 words", i+1)
+		longParts[i].Text = strings.Join(strings.Fields(longParts[i].Text)[:137], " ")
+		longParts[i].Measurements = textmetrics.Analyze(longParts[i].Text, nil)
+		longParts[i].Provenance.OutputTokens = 137
+	}
+	_, err = assembleBookSectionCandidate(brief, section, plans, longParts, constraints, nil, nil)
+	require.ErrorContains(t, err, "assembled candidate is ineligible: max_words:660")
+
+	duplicateParts := syntheticChunkCandidates(plans)
+	duplicateParts[1].Text = duplicateParts[0].Text
+	duplicateParts[1].Measurements = textmetrics.Analyze(duplicateParts[1].Text, nil)
+	_, err = assembleBookSectionCandidate(brief, section, plans, duplicateParts, constraints, nil, nil)
+	require.ErrorContains(t, err, "repeats the substance")
+
+	fillerParts := syntheticChunkCandidates(plans)
+	fillerParts[0].Text = strings.TrimSpace(strings.Repeat("filler ", plans[0].TargetWords))
+	fillerParts[0].Measurements = textmetrics.Analyze(fillerParts[0].Text, nil)
+	_, err = assembleBookSectionCandidate(brief, section, plans, fillerParts, constraints, nil, nil)
+	require.ErrorContains(t, err, "repetitive or filler-like")
+
+	unsafeParts := syntheticChunkCandidates(plans)
+	unsafe := "This bird is a sparrow. " + fakeBookSectionPart("between 47 and 137 words", 77)
+	unsafeParts[0].Text = strings.Join(strings.Fields(unsafe)[:plans[0].TargetWords], " ")
+	unsafeParts[0].Measurements = textmetrics.Analyze(unsafeParts[0].Text, nil)
+	unsafeParts[0].Provenance.OutputTokens = len(strings.Fields(unsafeParts[0].Text))
+	_, err = assembleBookSectionCandidate(brief, section, plans, unsafeParts, constraints, nil, nil)
+	require.ErrorContains(t, err, "unsupported species/source identification")
+
+	wellnessBrief := *brief
+	wellnessBrief.AdditionalDirection = "No wellness promises."
+	wellnessParts := syntheticChunkCandidates(plans)
+	wellness := "This practice cures anxiety. " + fakeBookSectionPart("between 47 and 137 words", 88)
+	wellnessParts[0].Text = strings.Join(strings.Fields(wellness)[:plans[0].TargetWords], " ")
+	wellnessParts[0].Measurements = textmetrics.Analyze(wellnessParts[0].Text, nil)
+	wellnessParts[0].Provenance.OutputTokens = len(strings.Fields(wellnessParts[0].Text))
+	_, err = assembleBookSectionCandidate(&wellnessBrief, section, plans, wellnessParts, constraints, nil, nil)
+	require.ErrorContains(t, err, "wellness or health promises are prohibited")
+
+	missingProvenance := syntheticChunkCandidates(plans)
+	missingProvenance[0].Provenance.PromptSHA256 = ""
+	_, err = assembleBookSectionCandidate(brief, section, plans, missingProvenance, constraints, nil, nil)
+	require.ErrorContains(t, err, "missing complete local generation provenance")
+}
+
+func TestBookChunkRouteRefusesUndeclaredOrNonlocalProfilesBeforeDispatch(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		role     string
+		locality string
+	}{
+		{name: "quality role is not the commissioned route", role: "chat.quality", locality: "local_only"},
+		{name: "remote role is forbidden", role: "write.default", locality: "cloud_allowed"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, gateway := newTestService(t)
+			doc := Document{BookBrief: syntheticBookBriefForChunks()}
+			profile := Profile{Key: "synthetic", GatewayRole: tc.role, Locality: tc.locality}
+			section := Section{ID: "synthetic-section", Kind: "chapter", Intent: "Synthetic intent"}
+			_, err := s.produceBookSectionChunked(context.Background(), doc, profile, section, OutlineSection{TargetWords: 550}, nil, nil, 1)
+			require.ErrorIs(t, err, ErrPrivateRouteNotLocal)
+			require.Empty(t, gateway.calls, "route violations fail before any inference request")
+		})
+	}
+}
+
 func TestGateRejectsSectionThatRestatesItsPredecessor(t *testing.T) {
 	previous := "The runner owns the execution after the command returns. Logs stream to durable storage and the run identifier stays addressable across machines."
 	restated := "Execution is owned by the runner once the command has returned. Durable storage receives streamed logs, and the run identifier remains addressable across machines."
@@ -1559,6 +1976,36 @@ func TestSectionRetryDirectiveNamesTheConstraintThatFailed(t *testing.T) {
 
 	short := []Candidate{{Eligibility: Eligibility{Eligible: false, Reason: "min_words:300"}, Measurements: textmetrics.Metrics{WordCount: 120}}}
 	require.Contains(t, sectionRetryDirective(short, 300), "Write a longer section")
+}
+
+func TestCandidateReasonWithMeasurementsReportsLengthWithoutChangingGate(t *testing.T) {
+	candidate := &Candidate{
+		Eligibility:  Eligibility{Eligible: false, Reason: "min_words:440"},
+		Measurements: textmetrics.Metrics{WordCount: 397},
+	}
+	require.Equal(t, "min_words:440:measured_words=397", candidateReasonWithMeasurements(candidate))
+	require.Equal(t, "min_words:440", candidateReason(candidate), "diagnostics must not alter eligibility reason")
+	require.Equal(t, "no candidate returned", candidateReasonWithMeasurements(nil))
+}
+
+func TestGenerationPromptHashAndSectionFailureReceiptAreTraceableWithoutProse(t *testing.T) {
+	request := GatewayRequest{Role: "write.default", Instruction: "Write prose.", Query: "Synthetic section request", Strategy: samplerDirect, K: 1}
+	hash := generationPromptSHA256(request)
+	require.Len(t, hash, 64)
+	require.NotEqual(t, hash, generationPromptSHA256(GatewayRequest{Role: request.Role, Instruction: request.Instruction, Query: "Different synthetic section request", Strategy: samplerDirect, K: 1}))
+
+	candidate := &Candidate{
+		ID:           "synthetic-candidate-id",
+		Text:         "PRIVATE PROSE MUST NOT APPEAR IN RECEIPT",
+		Eligibility:  Eligibility{Reason: "min_words:440"},
+		Measurements: textmetrics.Metrics{WordCount: 85},
+		Provenance:   Provenance{Provider: "local-provider", ResolvedModelRef: "local-model", OutputTokens: 113, PromptSHA256: hash},
+	}
+	receipt := sectionFailureReceipt(GenerateResponse{Session: Session{ID: "synthetic-session-id"}}, candidate)
+	for _, expected := range []string{"measured_words=85", "session_id=synthetic-session-id", "candidate_id=synthetic-candidate-id", "provider=local-provider", "model=local-model", "output_tokens=113", "prompt_sha256=" + hash} {
+		require.Contains(t, receipt, expected)
+	}
+	require.NotContains(t, receipt, candidate.Text, "failure receipts must not contain generated prose")
 }
 
 func TestSectionProfileCarriesDeclaredNoveltyFloorIntoItsConstraints(t *testing.T) {

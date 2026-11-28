@@ -95,6 +95,17 @@ contract (every Connect endpoint is bound or omitted in `cli/manifest.json`).
 
 ## Cross-references
 
+### `ProseStudioService.ExportBookSource`
+
+Read-only export of a durable document as `manuscript-source/v1`. The request
+contains the document `id`; the response contains typed source, brief, and
+ordered authored front matter, chapter, and back matter text. AI-generated
+source is revalidated from canonical stored section and part text and durable
+generation provenance at export; missing, stale, reordered, lexically
+unsupported, or quality-rule-violating source fails closed. Caller-authored
+non-AI source does not need chunk-generation records. The CLI mirror is
+`prose-studio prose document-export-book-source --id <id>`.
+
 - [`cli-commands.md`](cli-commands.md) — CLI commands that mirror these endpoints
 - [`configuration.md`](configuration.md) — env vars (e.g., `API_PORT`)
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#proto-as-the-canonical-contract) — proto bridge details
